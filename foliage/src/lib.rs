@@ -262,6 +262,7 @@ impl GfxContext {
             })
             .await
             .expect("adapter request failed");
+        self.adapter.replace(adapter);
     }
     pub(crate) async fn get_device_and_queue(&mut self) {
         let features =
@@ -389,7 +390,6 @@ pub(crate) enum RenderLifecycleMarker {
 #[derive(Serialize, Deserialize, Default)]
 pub(crate) struct RenderRequest {
     pub(crate) render_packets: Option<()>,
-    pub(crate) viewport_update: Option<()>,
     pub(crate) lifecycle_marker: Option<RenderLifecycleMarker>,
     pub(crate) viewport_handle: Option<ViewportHandle>,
 }
