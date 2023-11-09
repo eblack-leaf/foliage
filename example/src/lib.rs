@@ -1,6 +1,5 @@
-use foliage::Foliage;
+use foliage::{Foliage, WindowDescriptor};
 
 pub fn entry() {
-    let foliage = Foliage::new();
-    foliage.run();
+    Foliage::new().with_window_descriptor(WindowDescriptor::new().with_title("foliage").with_desktop_dimensions(())).run();
 }
