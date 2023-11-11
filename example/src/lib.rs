@@ -1,4 +1,5 @@
-use foliage::{Foliage, WindowDescriptor};
+use foliage::window::WindowDescriptor;
+use foliage::Foliage;
 
 pub fn entry() {
     Foliage::new()
