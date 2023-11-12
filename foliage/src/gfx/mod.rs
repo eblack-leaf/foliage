@@ -1,118 +1,21 @@
+mod depth_texture;
+mod msaa;
+mod renderer;
 mod uniform;
 mod viewport;
 
 use crate::color::Color;
 use crate::coordinate::{Area, CoordinateUnit, DeviceContext, Section};
 use crate::window::{WindowDescriptor, WindowHandle};
+use depth_texture::DepthTexture;
+use msaa::Msaa;
 use serde::{Deserialize, Serialize};
 use viewport::{Viewport, ViewportHandle};
-use wgpu::{BindGroupLayoutEntry, DepthStencilState, InstanceDescriptor, TextureFormat};
+use wgpu::{BindGroupLayoutEntry, InstanceDescriptor, TextureFormat};
 use winit::event_loop::EventLoopWindowTarget;
 
 #[derive(Copy, Clone)]
 pub struct ClearColor(pub Color);
-
-pub(crate) struct DepthTexture {
-    pub(crate) format: wgpu::TextureFormat,
-    pub(crate) texture: wgpu::Texture,
-}
-
-impl DepthTexture {
-    pub(crate) fn new(
-        device: &wgpu::Device,
-        area: Area<DeviceContext>,
-        format: TextureFormat,
-        msaa: &Msaa,
-    ) -> Self {
-        let texture = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("depth-texture"),
-            size: wgpu::Extent3d {
-                width: area.width.max(1f32) as u32,
-                height: area.height.max(1f32) as u32,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: msaa.samples(),
-            dimension: wgpu::TextureDimension::D2,
-            format,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
-            view_formats: &[format],
-        });
-        Self { format, texture }
-    }
-    pub fn depth_format(&self) -> TextureFormat {
-        self.format
-    }
-    pub fn depth_stencil_state(&self) -> DepthStencilState {
-        wgpu::DepthStencilState {
-            format: self.depth_format(),
-            depth_write_enabled: true,
-            depth_compare: wgpu::CompareFunction::Less,
-            stencil: Default::default(),
-            bias: Default::default(),
-        }
-    }
-}
-
-pub struct Msaa {
-    pub(crate) max_samples: u32,
-    pub(crate) actual: u32,
-    pub(crate) resolve_target: Option<wgpu::TextureView>,
-}
-
-impl Msaa {
-    pub(crate) fn new(
-        device: &wgpu::Device,
-        config: &wgpu::SurfaceConfiguration,
-        max_samples: u32,
-        requested: u32,
-    ) -> Self {
-        let actual = requested.min(max_samples);
-        let resolve_target = if actual > 1u32 {
-            let texture = device.create_texture(&wgpu::TextureDescriptor {
-                label: Some("msaa"),
-                size: wgpu::Extent3d {
-                    width: config.width,
-                    height: config.height,
-                    depth_or_array_layers: 1,
-                },
-                mip_level_count: 1,
-                sample_count: actual,
-                dimension: wgpu::TextureDimension::D2,
-                format: config.format,
-                usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-                view_formats: &[],
-            });
-            Some(texture.create_view(&wgpu::TextureViewDescriptor::default()))
-        } else {
-            None
-        };
-        Self {
-            max_samples,
-            actual,
-            resolve_target,
-        }
-    }
-    pub(crate) fn should_store(&self) -> wgpu::StoreOp {
-        if self.samples() > 1u32 {
-            wgpu::StoreOp::Store
-        } else {
-            wgpu::StoreOp::Discard
-        }
-    }
-    pub fn samples(&self) -> u32 {
-        self.actual
-    }
-    pub(crate) fn resolve_target(&self) -> Option<&wgpu::TextureView> {
-        self.resolve_target.as_ref()
-    }
-    pub fn multisample_state(&self) -> wgpu::MultisampleState {
-        wgpu::MultisampleState {
-            count: self.samples(),
-            ..wgpu::MultisampleState::default()
-        }
-    }
-}
 
 pub struct GfxContext {
     pub instance: Option<wgpu::Instance>,
@@ -176,7 +79,7 @@ impl GfxContext {
         self.depth_texture.replace(DepthTexture::new(
             self.device.as_ref().unwrap(),
             area,
-            wgpu::TextureFormat::Depth24PlusStencil8,
+            TextureFormat::Depth24PlusStencil8,
             self.msaa.as_ref().unwrap(),
         ));
     }
@@ -357,5 +260,8 @@ impl GfxContext {
             self.device.as_ref().unwrap(),
             self.configuration.as_ref().unwrap(),
         );
+    }
+    pub(crate) fn surface_texture(&self) -> Option<wgpu::SurfaceTexture> {
+        todo!()
     }
 }

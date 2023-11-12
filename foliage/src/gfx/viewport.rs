@@ -46,6 +46,9 @@ pub struct Viewport {
 }
 
 impl Viewport {
+    pub fn far_layer(&self) -> Layer {
+        self.near_far.1
+    }
     pub(crate) fn new(
         device: &wgpu::Device,
         section: Section<DeviceContext>,
