@@ -1,8 +1,7 @@
-mod depth_texture;
-mod msaa;
-mod renderer;
-mod uniform;
-mod viewport;
+pub mod depth_texture;
+pub mod msaa;
+pub mod uniform;
+pub mod viewport;
 
 use crate::color::Color;
 use crate::coordinate::{Area, CoordinateUnit, DeviceContext, Section};
@@ -273,7 +272,11 @@ impl GfxContext {
             frame
         } else {
             self.configure_surface();
-            self.surface.as_ref().unwrap().get_current_texture().expect("swapchain")
+            self.surface
+                .as_ref()
+                .unwrap()
+                .get_current_texture()
+                .expect("swapchain")
         }
     }
 }

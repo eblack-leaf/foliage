@@ -1,36 +1,61 @@
 mod color;
 mod coordinate;
-mod gfx;
+mod differential;
+mod engen;
+pub mod gfx;
 mod job;
+mod renderer;
 pub mod window;
 
 use crate::coordinate::CoordinateUnit;
-use crate::job::Job;
+use crate::engen::Engen;
 use gfx::GfxContext;
 use serde::{Deserialize, Serialize};
 use window::{WindowDescriptor, WindowHandle};
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{EventLoop, EventLoopBuilder, EventLoopWindowTarget};
+use crate::renderer::{RenderEngen, RenderLeaf, RenderLeaflet};
 
+pub trait Leaf {
+    fn attach(engen: &mut Engen);
+}
+pub(crate) struct Leaflet(pub(crate) Box<fn(&mut Engen)>);
+impl Leaflet {
+    pub(crate) fn leaf_fn<T: Leaf>() -> Self {
+        Self(Box::new(T::attach))
+    }
+}
 pub struct Foliage {
     window_descriptor: Option<WindowDescriptor>,
-    leaf_queue: (),
-    job: Job,
+    leaf_queue: Option<Vec<Leaflet>>,
+    renderleaf_queue: Option<Vec<RenderLeaflet>>,
 }
 impl Foliage {
     pub fn new() -> Self {
         Self {
             window_descriptor: None,
-            leaf_queue: (),
-            job: Job::new(),
+            leaf_queue: Some(vec![]),
+            renderleaf_queue: Some(vec![]),
         }
     }
     pub fn with_window_descriptor(mut self, desc: WindowDescriptor) -> Self {
         self.window_descriptor.replace(desc);
         self
     }
-    pub fn with_leaf(mut self) -> Self {
-        todo!()
+    pub fn with_leaf<T: Leaf>(mut self) -> Self {
+        self.leaf_queue
+            .as_mut()
+            .unwrap()
+            .push(Leaflet::leaf_fn::<T>());
+        self
+    }
+    pub fn with_renderleaf<T: RenderLeaf>(mut self) -> Self {
+        self.renderleaf_queue.as_mut().unwrap().push(RenderLeaflet::leaf_fn::<T>());
+        self
+    }
+    pub fn with_core_leafs(mut self) -> Self {
+        // attach main leafs here .with_leaf::<T>() ...
+        self
     }
     pub fn run(mut self) {
         cfg_if::cfg_if! {
@@ -63,6 +88,8 @@ impl Foliage {
                 let event_loop_function = EventLoop::run;
             }
         }
+        let mut engen = Engen::new();
+        let mut render_engen = RenderEngen::new();
         let _ = (event_loop_function)(
             event_loop,
             |event, event_loop_window_target: &EventLoopWindowTarget<()>| {
@@ -124,15 +151,18 @@ impl Foliage {
                             // adjust viewport handle here
                         }
                         // logical init here for leafs one-shot
+                        if !engen.initialized() {
+                            engen.attach_leafs(self.leaf_queue.take().unwrap());
+                        }
                     }
                     Event::AboutToWait => {
-                        if self.job.resumed() {
-                            self.job.exec_main();
+                        if engen.job.resumed() {
+                            engen.job.exec_main();
                             window_handle.value().request_redraw();
                         }
                     }
                     Event::LoopExiting => {
-                        self.job.exec_teardown();
+                        engen.job.exec_teardown();
                     }
                     Event::MemoryWarning => {}
                 }
