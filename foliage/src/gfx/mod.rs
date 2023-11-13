@@ -59,6 +59,13 @@ impl GfxContext {
             count: None,
         }
     }
+    pub fn alpha_color_target_state(&self) -> [Option<wgpu::ColorTargetState>; 1] {
+        [Some(wgpu::ColorTargetState {
+            format: self.configuration.as_ref().unwrap().format,
+            blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+            write_mask: Default::default(),
+        })]
+    }
     pub(crate) fn get_instance(&mut self) {
         self.instance
             .replace(wgpu::Instance::new(InstanceDescriptor {
@@ -261,7 +268,12 @@ impl GfxContext {
             self.configuration.as_ref().unwrap(),
         );
     }
-    pub(crate) fn surface_texture(&self) -> Option<wgpu::SurfaceTexture> {
-        todo!()
+    pub(crate) fn surface_texture(&mut self) -> wgpu::SurfaceTexture {
+        if let Ok(frame) = self.surface.as_ref().unwrap().get_current_texture() {
+            frame
+        } else {
+            self.configure_surface();
+            self.surface.as_ref().unwrap().get_current_texture().expect("swapchain")
+        }
     }
 }

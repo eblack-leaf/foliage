@@ -1,3 +1,4 @@
+use wgpu::RenderBundleEncoder;
 use crate::gfx::viewport::Viewport;
 use crate::gfx::GfxContext;
 
@@ -15,13 +16,14 @@ pub(crate) struct RendererExecutor {
 impl RendererExecutor {
     pub(crate) fn new(renderers: Vec<Renderer>) -> Self {
         Self {
-            // split to opaque and alpha
+            // sort by phase then by priority
             renderers,
         }
     }
-    pub(crate) fn render(&mut self, gfx_context: &GfxContext) {}
+    pub(crate) fn render(&mut self, gfx_context: &GfxContext) {
+
+    }
 }
-pub struct RenderPassHandle<'a>(pub wgpu::RenderPass<'a>);
 pub trait RenderRecorder {
-    fn record(&self, render_pass_handle: &mut RenderPassHandle, viewport: &Viewport);
+    fn record(&self, device: &wgpu::Device, viewport: &Viewport) -> Vec<wgpu::RenderBundle>;
 }
