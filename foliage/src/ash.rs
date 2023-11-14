@@ -31,7 +31,7 @@ impl ExtractionFns {
     }
 }
 pub(crate) struct RenderPassHandle<'a>(pub RenderPass<'a>);
-pub(crate) type RenderFn = Box<for <'a> fn(&'a mut Renderers, &'a Ginkgo, &'a mut RenderPassHandle<'a>)>;
+pub(crate) type RenderFn = Box<for <'a> fn(&'a mut Renderers, &'a Ginkgo, &mut RenderPassHandle<'a>)>;
 pub(crate) struct RenderFns(pub(crate) Vec<RenderFn>);
 impl RenderFns {
     pub(crate) fn new() -> Self {
