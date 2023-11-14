@@ -27,6 +27,9 @@ impl Elm {
         self.job
             .main()
             .configure_sets((SystemSets::Differential, SystemSets::RenderPacket).chain());
+        self.job.main().add_systems((
+            crate::differential::send_render_packet.in_set(SystemSets::RenderPacket),
+        ));
         let mut manager = RenderPacketManager::new();
         for leaflet in render_leaflets.iter() {
             manager.packets.insert(leaflet.3(), None);
@@ -44,7 +47,6 @@ impl Elm {
     ) {
         self.job.main().add_systems((
             crate::differential::differential::<T>.in_set(SystemSets::Differential),
-            crate::differential::send_render_packet::<T>.in_set(SystemSets::RenderPacket),
         ));
     }
     pub(crate) fn finish_initialization(&mut self) {

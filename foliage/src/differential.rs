@@ -1,4 +1,6 @@
-use crate::ash::{RenderPacket, RenderPacketManager, RenderPackets, RenderTag};
+use crate::ash::{
+    RenderPacket, RenderPacketManager, RenderPacketStorage, RenderPackets, RenderTag,
+};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Bundle, Component, Query, Without};
 use bevy_ecs::query::Changed;
@@ -54,27 +56,17 @@ pub(crate) fn differential<
         + for<'a> Deserialize<'a>,
 >(
     mut query: Query<
-        (Entity, &T, &mut Differential<T>, &mut RenderPacket),
+        (&T, &mut Differential<T>, &mut RenderPacket),
         (Changed<T>, Without<DifferentialDisable>),
     >,
 ) {
-    for (entity, t, mut diff, mut render_packet) in query.iter_mut() {
+    for (t, mut diff, mut render_packet) in query.iter_mut() {
         if diff.updated(t) {
             render_packet.insert(diff.differential().take().unwrap());
         }
     }
 }
-pub(crate) fn send_render_packet<
-    T: Component
-        + Clone
-        + PartialEq
-        + Send
-        + Sync
-        + 'static
-        + Differentiable
-        + Serialize
-        + for<'a> Deserialize<'a>,
->(
+pub(crate) fn send_render_packet(
     mut query: Query<
         (Entity, &mut RenderPacket, &RenderTag),
         (Without<DifferentialDisable>, Changed<RenderPacket>),
@@ -95,6 +87,7 @@ pub(crate) fn send_render_packet<
                 }
             }
         }
+        packet.0.replace(RenderPacketStorage::new());
     }
 }
 #[derive(Bundle, Clone)]
