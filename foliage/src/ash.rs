@@ -3,12 +3,13 @@ use crate::ginkgo::viewport::Viewport;
 use crate::ginkgo::Ginkgo;
 use anymap::AnyMap;
 use std::collections::HashMap;
-use wgpu::{RenderPass};
+use std::rc::Rc;
+use wgpu::{RenderBundle, RenderPass};
 
 pub(crate) struct AshLeaflet(
     pub(crate) CreateFn,
     pub(crate) ExtractFn,
-    pub(crate) RenderFn,
+    pub(crate) InstructionFn,
 );
 impl AshLeaflet {
     pub(crate) fn leaf_fn<T: Render + 'static>() -> Self {
@@ -31,9 +32,9 @@ impl ExtractionFns {
     }
 }
 pub(crate) struct RenderPassHandle<'a>(pub RenderPass<'a>);
-pub(crate) type RenderFn = Box<for <'a> fn(&'a mut Renderers, &'a Ginkgo, &'a mut RenderPassHandle<'a>)>;
-pub(crate) struct RenderFns(pub(crate) Vec<RenderFn>);
-impl RenderFns {
+pub(crate) type InstructionFn = Box<fn(&mut Ash, &Ginkgo) -> Vec<RenderInstructions>>;
+pub(crate) struct InstructionFns(pub(crate) Vec<InstructionFn>);
+impl InstructionFns {
     pub(crate) fn new() -> Self {
         Self(vec![])
     }
@@ -49,12 +50,12 @@ impl Ash {
         ginkgo: &Ginkgo,
         renderer_queue: Vec<AshLeaflet>,
         extraction_fns: &mut ExtractionFns,
-        render_fns: &mut RenderFns,
+        instruction_fns: &mut InstructionFns,
     ) {
         for leaflet in renderer_queue {
             leaflet.0(self, ginkgo);
             extraction_fns.0.push(leaflet.1);
-            render_fns.0.push(leaflet.2);
+            instruction_fns.0.push(leaflet.2);
         }
     }
     pub(crate) fn extract(&mut self, elm: &mut Elm, extraction_fns: &ExtractionFns) {
@@ -62,7 +63,7 @@ impl Ash {
             extract_fn(elm, self);
         }
     }
-    pub(crate) fn render(renderers: &mut Renderers, ginkgo: &mut Ginkgo, render_fns: &mut RenderFns) {
+    pub(crate) fn render(&mut self, ginkgo: &mut Ginkgo, instruction_fns: &InstructionFns) {
         let surface_texture = ginkgo.surface_texture();
         let view = surface_texture
             .texture
@@ -72,18 +73,25 @@ impl Ash {
                 label: Some("command-encoder"),
             },
         );
-        {
-            let mut render_pass = RenderPassHandle(encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+        let mut instructions = vec![];
+        for instruction_fn in instruction_fns.0.iter() {
+            let group_instructions = instruction_fn(self, &ginkgo);
+            instructions.extend(group_instructions);
+        }
+        encoder
+            .begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("render-pass"),
-                color_attachments: &ginkgo.color_attachment(),
+                color_attachments: &ginkgo.color_attachment(&view),
                 depth_stencil_attachment: ginkgo.depth_stencil_attachment(),
                 timestamp_writes: None,
                 occlusion_query_set: None,
-            }));
-            for render_fn in render_fns.0.iter_mut() {
-                render_fn(renderers, &ginkgo, &mut render_pass);
-            }
-        }
+            })
+            .execute_bundles(
+                instructions
+                    .iter()
+                    .map(|i| i.bundle())
+                    .collect::<Vec<&RenderBundle>>(),
+            );
         ginkgo
             .queue
             .as_ref()
@@ -95,17 +103,11 @@ impl Ash {
         self.renderers
             .insert(RenderPackageManager::new(T::create(gfx_context)));
     }
-    fn instructions<'a, T: Render + 'static>(
-        renderers: &'a mut anymap::Map,
-        ginkgo: &'a Ginkgo,
-        render_pass: &'a mut RenderPassHandle<'a>,
-    ) {
-        render_pass.0.execute_bundles(
-           renderers
-                .get_mut::<RenderPackageManager<T>>()
-                .unwrap()
-                .instructions(ginkgo),
-        );
+    fn instructions<T: Render + 'static>(&mut self, ginkgo: &Ginkgo) -> Vec<RenderInstructions> {
+        self.renderers
+            .get_mut::<RenderPackageManager<T>>()
+            .unwrap()
+            .instructions(ginkgo)
     }
 }
 pub(crate) type Renderers = AnyMap;
@@ -117,56 +119,45 @@ pub trait Render {
 
     fn record_package(
         &self,
-        package: &mut RenderPackage<Self::RenderPackageResources>,
+        package: &RenderPackage<Self::RenderPackageResources>,
         recorder: RenderInstructionsRecorder,
         viewport: &Viewport,
     ) -> RenderInstructions;
 }
-pub struct RenderInstructions(pub wgpu::RenderBundle);
+#[derive(Clone)]
+pub struct RenderInstructions(pub Rc<RenderBundle>);
+impl RenderInstructions {
+    pub(crate) fn bundle(&self) -> &wgpu::RenderBundle {
+        self.0.as_ref()
+    }
+}
 pub struct RenderInstructionsRecorder<'a>(pub wgpu::RenderBundleEncoder<'a>);
 impl<'a> RenderInstructionsRecorder<'a> {
-    pub(crate) fn new(gfx_context: &'a Ginkgo) -> Self {
+    pub(crate) fn new(ginkgo: &'a Ginkgo) -> Self {
         Self(
-            gfx_context
+            ginkgo
                 .device
                 .as_ref()
                 .unwrap()
                 .create_render_bundle_encoder(&wgpu::RenderBundleEncoderDescriptor {
                     label: Some("render-bundle"),
-                    color_formats: &gfx_context.color_attachment_format(),
-                    depth_stencil: gfx_context.render_bundle_depth_stencil(),
-                    sample_count: gfx_context.msaa_samples(),
+                    color_formats: &ginkgo.color_attachment_format(),
+                    depth_stencil: ginkgo.render_bundle_depth_stencil(),
+                    sample_count: ginkgo.msaa_samples(),
                     multiview: None,
                 }),
         )
     }
     pub fn finish(mut self) -> RenderInstructions {
-        RenderInstructions(self.0.finish(&wgpu::RenderBundleDescriptor {
+        RenderInstructions(Rc::new(self.0.finish(&wgpu::RenderBundleDescriptor {
             label: Some("render-bundle-desc"),
-        }))
+        })))
     }
 }
 pub struct RenderPackage<T> {
     pub data: T,
     pub(crate) instructions: RenderInstructions,
     dirty: bool,
-}
-impl<Renderer: Render> RenderPackageManager<Renderer> {
-    pub(crate) fn instructions(&mut self, gfx_context: &Ginkgo) -> Vec<&wgpu::RenderBundle> {
-        let mut instructions = vec![];
-        for (_, mut package) in self.packages.iter_mut() {
-            if package.dirty {
-                package.instructions = self.renderer.record_package(
-                    package,
-                    RenderInstructionsRecorder::new(gfx_context),
-                    gfx_context.viewport.as_ref().unwrap(),
-                );
-                package.dirty = false;
-            }
-            instructions.push(&package.instructions);
-        }
-        instructions.iter().map(|i| &i.0).collect()
-    }
 }
 pub(crate) struct RenderPackageManager<Renderer: Render> {
     pub(crate) renderer: Renderer,
@@ -178,5 +169,20 @@ impl<Renderer: Render> RenderPackageManager<Renderer> {
             renderer,
             packages: HashMap::new(),
         }
+    }
+    pub(crate) fn instructions(&mut self, ginkgo: &Ginkgo) -> Vec<RenderInstructions> {
+        let mut instructions = vec![];
+        for (_, mut package) in self.packages.iter_mut() {
+            if package.dirty {
+                package.instructions = self.renderer.record_package(
+                    package,
+                    RenderInstructionsRecorder::new(ginkgo),
+                    ginkgo.viewport.as_ref().unwrap(),
+                );
+                package.dirty = false;
+            }
+            instructions.push(package.instructions.clone());
+        }
+        instructions
     }
 }

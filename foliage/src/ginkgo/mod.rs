@@ -11,8 +11,8 @@ use msaa::Msaa;
 use serde::{Deserialize, Serialize};
 use viewport::{Viewport, ViewportHandle};
 use wgpu::{
-    BindGroupLayoutEntry, InstanceDescriptor, RenderPassColorAttachment,
-    RenderPassDepthStencilAttachment, TextureFormat,
+    BindGroupLayoutEntry, InstanceDescriptor, LoadOp, RenderPassColorAttachment,
+    RenderPassDepthStencilAttachment, StoreOp, TextureFormat, TextureView,
 };
 use winit::event_loop::EventLoopWindowTarget;
 
@@ -45,7 +45,7 @@ impl Ginkgo {
             viewport: None,
             depth_texture: None,
             msaa: None,
-            clear_color: ClearColor(Color::GREY_DARK.into()),
+            clear_color: ClearColor(Color::OFF_BLACK.into()),
             initialized: false,
         }
     }
@@ -68,11 +68,41 @@ impl Ginkgo {
             write_mask: Default::default(),
         })]
     }
-    pub(crate) fn color_attachment(&self) -> [Option<RenderPassColorAttachment>; 1] {
-        todo!()
+    pub(crate) fn color_attachment<'a>(
+        &'a self,
+        surface_texture_view: &'a wgpu::TextureView,
+    ) -> [Option<RenderPassColorAttachment>; 1] {
+        let (view, resolve_target) = match self
+            .msaa
+            .as_ref()
+            .unwrap()
+            .multisampled_texture_view
+            .as_ref()
+        {
+            None => (surface_texture_view, None),
+            Some(v) => (v, Some(surface_texture_view)),
+        };
+        [Some(wgpu::RenderPassColorAttachment {
+            view,
+            resolve_target,
+            ops: wgpu::Operations {
+                load: LoadOp::Clear(self.clear_color.0.into()),
+                store: self.msaa.as_ref().unwrap().color_attachment_store_op(),
+            },
+        })]
     }
     pub(crate) fn depth_stencil_attachment(&self) -> Option<RenderPassDepthStencilAttachment> {
-        todo!()
+        Some(RenderPassDepthStencilAttachment {
+            view: self.depth_texture.as_ref().unwrap().view(),
+            depth_ops: Some(wgpu::Operations {
+                load: wgpu::LoadOp::Clear(self.viewport.as_ref().unwrap().far_layer().z),
+                store: StoreOp::Store,
+            }),
+            stencil_ops: Some(wgpu::Operations {
+                load: wgpu::LoadOp::Clear(0u32),
+                store: StoreOp::Store,
+            }),
+        })
     }
     pub(crate) fn color_attachment_format(&self) -> [Option<TextureFormat>; 1] {
         [Some(self.configuration.as_ref().unwrap().format)]

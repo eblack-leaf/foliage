@@ -28,6 +28,7 @@ impl Elm {
         ));
     }
     pub(crate) fn finish_initialization(&mut self) {
+        self.job.resume();
         self.initialized = true;
     }
 }
