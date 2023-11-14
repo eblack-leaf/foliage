@@ -1,20 +1,25 @@
+use crate::differential::{Differentiable, DifferentialTag};
 use crate::elm::Elm;
 use crate::ginkgo::viewport::Viewport;
 use crate::ginkgo::Ginkgo;
 use anymap::AnyMap;
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
+use bevy_ecs::system::Resource;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::hash::Hash;
-use std::io::Bytes;
 use std::rc::Rc;
+use uuid::Uuid;
 use wgpu::{RenderBundle, RenderPass};
-#[derive(Component, Copy, Clone, Hash, Eq, PartialEq)]
-pub struct RenderTag(pub i32);
+
+#[derive(Component, Copy, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+pub struct RenderTag(pub Uuid);
 pub(crate) struct AshLeaflet(
     pub(crate) CreateFn,
     pub(crate) PrepareFn,
     pub(crate) InstructionFn,
+    pub(crate) TagFn,
 );
 impl AshLeaflet {
     pub(crate) fn leaf_fn<T: Render + 'static>() -> Self {
@@ -22,13 +27,16 @@ impl AshLeaflet {
             Box::new(Ash::register::<T>),
             Box::new(Ash::prepare::<T>),
             Box::new(Ash::instructions::<T>),
+            Box::new(T::tag),
         )
     }
 }
+pub(crate) type TagFn = Box<fn() -> RenderTag>;
 pub(crate) type CreateFn = Box<fn(&mut Ash, &Ginkgo)>;
 pub(crate) type PrepareFn = Box<fn(&mut Ash, &Ginkgo)>;
+#[derive(Serialize, Deserialize, Resource)]
 pub(crate) struct RenderPacketManager {
-    pub(crate) packets: HashMap<RenderTag, Option<HashMap<Entity, RenderPacket>>>,
+    pub(crate) packets: HashMap<RenderTag, Option<RenderPackets>>,
 }
 pub type RenderPackets = HashMap<Entity, RenderPacket>;
 impl RenderPacketManager {
@@ -80,6 +88,19 @@ impl Ash {
             leaflet.0(self, ginkgo);
             prepare_fns.0.push(leaflet.1);
             instruction_fns.0.push(leaflet.2);
+            self.render_packets.packets.insert(leaflet.3(), None);
+        }
+    }
+    pub(crate) fn extract(&mut self, elm: &mut Elm) {
+        for (tag, packets) in elm
+            .job
+            .container
+            .get_resource_mut::<RenderPacketManager>()
+            .unwrap()
+            .packets
+            .iter_mut()
+        {
+            self.render_packets.packets.insert(*tag, packets.take());
         }
     }
     pub(crate) fn preparation(&mut self, ginkgo: &Ginkgo, prepare_fns: &PrepareFns) {
@@ -96,40 +117,42 @@ impl Ash {
         );
     }
     pub(crate) fn render(&mut self, ginkgo: &mut Ginkgo, instruction_fns: &InstructionFns) {
-        let surface_texture = ginkgo.surface_texture();
-        let view = surface_texture
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-        let mut encoder = ginkgo.device.as_ref().unwrap().create_command_encoder(
-            &wgpu::CommandEncoderDescriptor {
-                label: Some("command-encoder"),
-            },
-        );
         let mut instructions = vec![];
         for instruction_fn in instruction_fns.0.iter() {
             let group_instructions = instruction_fn(self, &ginkgo);
             instructions.extend(group_instructions);
         }
-        encoder
-            .begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("render-pass"),
-                color_attachments: &ginkgo.color_attachment(&view),
-                depth_stencil_attachment: ginkgo.depth_stencil_attachment(),
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            })
-            .execute_bundles(
-                instructions
-                    .iter()
-                    .map(|i| i.bundle())
-                    .collect::<Vec<&RenderBundle>>(),
+        if !instructions.is_empty() {
+            let surface_texture = ginkgo.surface_texture();
+            let view = surface_texture
+                .texture
+                .create_view(&wgpu::TextureViewDescriptor::default());
+            let mut encoder = ginkgo.device.as_ref().unwrap().create_command_encoder(
+                &wgpu::CommandEncoderDescriptor {
+                    label: Some("command-encoder"),
+                },
             );
-        ginkgo
-            .queue
-            .as_ref()
-            .unwrap()
-            .submit(std::iter::once(encoder.finish()));
-        surface_texture.present();
+            encoder
+                .begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("render-pass"),
+                    color_attachments: &ginkgo.color_attachment(&view),
+                    depth_stencil_attachment: ginkgo.depth_stencil_attachment(),
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                })
+                .execute_bundles(
+                    instructions
+                        .iter()
+                        .map(|i| i.bundle())
+                        .collect::<Vec<&RenderBundle>>(),
+                );
+            ginkgo
+                .queue
+                .as_ref()
+                .unwrap()
+                .submit(std::iter::once(encoder.finish()));
+            surface_texture.present();
+        }
     }
     fn register<T: Render + 'static>(&mut self, ginkgo: &Ginkgo) {
         self.renderers
@@ -142,8 +165,34 @@ impl Ash {
             .instructions(ginkgo)
     }
 }
-#[derive(Component)]
-pub struct RenderPacket(pub HashMap<i32, Vec<u8>>);
+#[derive(Component, Serialize, Deserialize)]
+pub struct RenderPacket(pub Option<RenderPacketStorage>);
+pub(crate) type RenderPacketStorage = HashMap<DifferentialTag, Option<Vec<u8>>>;
+impl RenderPacket {
+    pub(crate) fn new(packets: RenderPacketStorage) -> Self {
+        Self(Some(packets))
+    }
+    pub(crate) fn insert<T: Component + Differentiable + Serialize>(&mut self, t: T) {
+        let serialized = rmp_serde::to_vec(&t).expect("serialization");
+        self.0.as_mut().unwrap().insert(T::id(), Some(serialized));
+    }
+    pub(crate) fn get<T: Component + Differentiable + for<'a> Deserialize<'a>>(&self) -> Option<T> {
+        if let Some(value) = self.0.as_ref().unwrap().get(&T::id()) {
+            if let Some(v) = value {
+                return rmp_serde::from_slice::<T>(v.as_slice()).ok();
+            }
+        }
+        None
+    }
+}
+pub trait RenderTagged {
+    fn tag() -> RenderTag;
+}
+impl<T: Render> RenderTagged for T {
+    fn tag() -> RenderTag {
+        RenderTag(Uuid::new_v4())
+    }
+}
 pub(crate) type Renderers = AnyMap;
 pub trait Render
 where
@@ -151,7 +200,6 @@ where
 {
     type Key: Hash + Eq + PartialEq;
     type RenderPackageResources;
-    fn tag() -> RenderTag;
     fn create(ginkgo: &Ginkgo) -> Self;
     fn prepare(
         pm: &mut RenderPackageManager<Self>,
@@ -197,7 +245,7 @@ impl<'a> RenderInstructionsRecorder<'a> {
     }
 }
 pub struct RenderPackage<T> {
-    pub(crate) data: T,
+    pub data: T,
     pub(crate) instructions: Option<RenderInstructions>,
     dirty: bool,
 }
@@ -224,7 +272,7 @@ impl<Renderer: Render> RenderPackageManager<Renderer> {
             packages: HashMap::new(),
         }
     }
-    pub(crate) fn new_package(
+    pub fn new_package(
         &mut self,
         key: Renderer::Key,
         package_resources: Renderer::RenderPackageResources,

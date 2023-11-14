@@ -1,8 +1,8 @@
 pub mod ash;
-mod color;
+pub mod color;
 mod coordinate;
 mod differential;
-mod elm;
+pub mod elm;
 pub mod ginkgo;
 mod job;
 pub mod window;
@@ -143,7 +143,7 @@ impl Foliage {
                         WindowEvent::ThemeChanged(_) => {}
                         WindowEvent::Occluded(_) => {}
                         WindowEvent::RedrawRequested => {
-                            // extract here
+                            ash.extract(&mut elm);
                             ash.preparation(&ginkgo, &prepare_fns);
                             ash.render(&mut ginkgo, &instruction_fns);
                             window_handle.value().request_redraw();
@@ -163,7 +163,10 @@ impl Foliage {
                             // adjust viewport handle here
                         }
                         if !elm.initialized() {
-                            elm.attach_leafs(self.leaf_queue.take().unwrap());
+                            elm.attach_leafs(
+                                self.leaf_queue.take().unwrap(),
+                                self.render_queue.as_ref().unwrap(),
+                            );
                             ash.establish_renderers(
                                 &ginkgo,
                                 self.render_queue.take().unwrap(),
