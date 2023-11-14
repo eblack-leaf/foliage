@@ -233,7 +233,7 @@ impl Ginkgo {
             #[cfg(not(target_family = "wasm"))]
             {
                 *window = WindowHandle::some(event_loop_window_target, desc);
-                futures::executor::block_on(self.initialize(window));
+                pollster::block_on(self.initialize(window));
             }
             let viewport_handle = self.post_window_initialization(window);
             self.initialized = true;

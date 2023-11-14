@@ -7,14 +7,14 @@ pub mod ginkgo;
 mod job;
 pub mod window;
 
-use crate::ash::{Ash, AshLeaflet, ExtractionFns, InstructionFns, Render};
+use crate::ash::{Ash, AshLeaflet, InstructionFns, PrepareFns, Render};
 use crate::coordinate::CoordinateUnit;
 use crate::elm::Elm;
 use ginkgo::Ginkgo;
 use serde::{Deserialize, Serialize};
 use window::{WindowDescriptor, WindowHandle};
 use winit::event::{Event, StartCause, WindowEvent};
-use winit::event_loop::{EventLoop, EventLoopBuilder, EventLoopWindowTarget};
+use winit::event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopWindowTarget};
 
 pub trait Leaf {
     fn attach(engen: &mut Elm);
@@ -61,8 +61,7 @@ impl Foliage {
             if #[cfg(target_family = "wasm")] {
                 wasm_bindgen_futures::spawn_local(self.internal_run());
             } else {
-                let rt = tokio::runtime::Runtime::new().expect("tokio");
-                rt.block_on(self.internal_run());
+                pollster::block_on(self.internal_run());
             }
         }
     }
@@ -89,21 +88,23 @@ impl Foliage {
         }
         let mut elm = Elm::new();
         let mut ash = Ash::new();
-        let mut extraction_fns = ExtractionFns::new();
+        let mut prepare_fns = PrepareFns::new();
         let mut instruction_fns = InstructionFns::new();
         let _ = (event_loop_function)(
             event_loop,
             |event, event_loop_window_target: &EventLoopWindowTarget<()>| {
+                if elm.job.can_idle() {
+                    event_loop_window_target.set_control_flow(ControlFlow::Wait);
+                } else {
+                    event_loop_window_target.set_control_flow(ControlFlow::Poll);
+                }
                 match event {
-                    Event::NewEvents(cause) => {
-                        match cause {
-                            StartCause::ResumeTimeReached { .. } => {}
-                            StartCause::WaitCancelled { .. } => {}
-                            StartCause::Poll => {}
-                            StartCause::Init => {
-                            }
-                        }
-                    }
+                    Event::NewEvents(cause) => match cause {
+                        StartCause::ResumeTimeReached { .. } => {}
+                        StartCause::WaitCancelled { .. } => {}
+                        StartCause::Poll => {}
+                        StartCause::Init => {}
+                    },
                     Event::WindowEvent {
                         window_id: _window_id,
                         event: w_event,
@@ -142,6 +143,8 @@ impl Foliage {
                         WindowEvent::ThemeChanged(_) => {}
                         WindowEvent::Occluded(_) => {}
                         WindowEvent::RedrawRequested => {
+                            // extract here
+                            ash.preparation(&ginkgo, &prepare_fns);
                             ash.render(&mut ginkgo, &instruction_fns);
                             window_handle.value().request_redraw();
                         }
@@ -164,7 +167,7 @@ impl Foliage {
                             ash.establish_renderers(
                                 &ginkgo,
                                 self.render_queue.take().unwrap(),
-                                &mut extraction_fns,
+                                &mut prepare_fns,
                                 &mut instruction_fns,
                             );
                             elm.finish_initialization();
@@ -173,7 +176,6 @@ impl Foliage {
                     Event::AboutToWait => {
                         if elm.job.resumed() {
                             elm.job.exec_main();
-                            ash.extract(&mut elm, &extraction_fns);
                             window_handle.value().request_redraw();
                         }
                     }

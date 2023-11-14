@@ -1,5 +1,5 @@
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Bundle, Component, Query};
+use bevy_ecs::prelude::{Bundle, Component, Query, Without};
 use bevy_ecs::query::Changed;
 #[derive(Component, Clone)]
 pub struct Differential<T: Component + Clone + PartialEq + Send + Sync + 'static> {
@@ -25,11 +25,17 @@ impl<T: Component + Clone + PartialEq + Send + Sync + 'static> Differential<T> {
         self.differential.take()
     }
 }
+#[derive(Component, Default, Copy, Clone)]
+pub struct DifferentialDisable {}
+
 pub(crate) fn differential<T: Component + Clone + PartialEq + Send + Sync + 'static>(
-    mut query: Query<(Entity, &T, &mut Differential<T>), Changed<T>>,
+    mut query: Query<
+        (Entity, &T, &mut Differential<T>),
+        (Changed<T>, Without<DifferentialDisable>),
+    >,
 ) {
     for (entity, t, mut diff) in query.iter_mut() {
-        let _updated = diff.cache_check_and_update(t);
+        if diff.cache_check_and_update(t) {}
     }
 }
 #[derive(Bundle, Clone)]
