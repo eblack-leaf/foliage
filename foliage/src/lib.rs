@@ -1,25 +1,26 @@
+pub mod ash;
 mod color;
 mod coordinate;
 mod differential;
-mod engen;
-pub mod gfx;
+mod elm;
+pub mod ginkgo;
 mod job;
-mod renderer;
 pub mod window;
 
+use crate::ash::{Ash, AshLeaflet, ExtractionFns, Render, RenderFns};
 use crate::coordinate::CoordinateUnit;
-use crate::engen::Engen;
-use gfx::GfxContext;
+use crate::elm::Elm;
+use anymap::AnyMap;
+use ginkgo::Ginkgo;
 use serde::{Deserialize, Serialize};
 use window::{WindowDescriptor, WindowHandle};
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{EventLoop, EventLoopBuilder, EventLoopWindowTarget};
-use crate::renderer::{RenderEngen, RenderLeaf, RenderLeaflet};
 
 pub trait Leaf {
-    fn attach(engen: &mut Engen);
+    fn attach(engen: &mut Elm);
 }
-pub(crate) struct Leaflet(pub(crate) Box<fn(&mut Engen)>);
+pub(crate) struct Leaflet(pub(crate) Box<fn(&mut Elm)>);
 impl Leaflet {
     pub(crate) fn leaf_fn<T: Leaf>() -> Self {
         Self(Box::new(T::attach))
@@ -28,14 +29,14 @@ impl Leaflet {
 pub struct Foliage {
     window_descriptor: Option<WindowDescriptor>,
     leaf_queue: Option<Vec<Leaflet>>,
-    renderleaf_queue: Option<Vec<RenderLeaflet>>,
+    render_queue: Option<Vec<AshLeaflet>>,
 }
 impl Foliage {
     pub fn new() -> Self {
         Self {
             window_descriptor: None,
             leaf_queue: Some(vec![]),
-            renderleaf_queue: Some(vec![]),
+            render_queue: Some(vec![]),
         }
     }
     pub fn with_window_descriptor(mut self, desc: WindowDescriptor) -> Self {
@@ -49,15 +50,18 @@ impl Foliage {
             .push(Leaflet::leaf_fn::<T>());
         self
     }
-    pub fn with_renderleaf<T: RenderLeaf>(mut self) -> Self {
-        self.renderleaf_queue.as_mut().unwrap().push(RenderLeaflet::leaf_fn::<T>());
+    pub fn with_renderer<T: Render + 'static>(mut self) -> Self {
+        self.render_queue
+            .as_mut()
+            .unwrap()
+            .push(AshLeaflet::leaf_fn::<T>());
         self
     }
     pub fn with_core_leafs(mut self) -> Self {
         // attach main leafs here .with_leaf::<T>() ...
         self
     }
-    pub fn run(mut self) {
+    pub fn run(self) {
         cfg_if::cfg_if! {
             if #[cfg(target_family = "wasm")] {
                 wasm_bindgen_futures::spawn_local(self.internal_run());
@@ -73,12 +77,12 @@ impl Foliage {
             .expect("event-loop");
         let mut window_handle = WindowHandle::none();
         let window_desc = self.window_descriptor.unwrap_or_default();
-        let mut gfx_context = GfxContext::new();
+        let mut ginkgo = Ginkgo::new();
         #[cfg(target_family = "wasm")]
         {
             window_handle =
                 WindowHandle::some(&event_loop, self.window_descriptor.unwrap_or_default());
-            gfx_context.initialize(window_handle).await;
+            ginkgo.initialize(window_handle).await;
         }
         cfg_if::cfg_if! {
             if #[cfg(target_arch = "wasm32")] {
@@ -88,8 +92,10 @@ impl Foliage {
                 let event_loop_function = EventLoop::run;
             }
         }
-        let mut engen = Engen::new();
-        let mut render_engen = RenderEngen::new();
+        let mut elm = Elm::new();
+        let mut ash = Ash::new();
+        let mut extraction_fns = ExtractionFns::new();
+        let mut render_fns = RenderFns::new();
         let _ = (event_loop_function)(
             event_loop,
             |event, event_loop_window_target: &EventLoopWindowTarget<()>| {
@@ -101,7 +107,7 @@ impl Foliage {
                     } => match w_event {
                         WindowEvent::ActivationTokenDone { .. } => {}
                         WindowEvent::Resized(size) => {
-                            let new_handle = gfx_context.resize(
+                            let new_handle = ginkgo.resize(
                                 (size.width, size.height).into(),
                                 window_handle.scale_factor(),
                             );
@@ -140,10 +146,10 @@ impl Foliage {
                     Event::DeviceEvent { .. } => {}
                     Event::UserEvent(_e) => {}
                     Event::Suspended => {
-                        gfx_context.suspend();
+                        ginkgo.suspend();
                     }
                     Event::Resumed => {
-                        if let Some(vh) = gfx_context.resume(
+                        if let Some(vh) = ginkgo.resume(
                             event_loop_window_target,
                             &mut window_handle,
                             &window_desc,
@@ -151,18 +157,25 @@ impl Foliage {
                             // adjust viewport handle here
                         }
                         // logical init here for leafs one-shot
-                        if !engen.initialized() {
-                            engen.attach_leafs(self.leaf_queue.take().unwrap());
+                        if !elm.initialized() {
+                            elm.attach_leafs(self.leaf_queue.take().unwrap());
+                            ash.establish_renderers(
+                                &ginkgo,
+                                self.render_queue.take().unwrap(),
+                                &mut extraction_fns,
+                                &mut render_fns,
+                            );
+                            elm.finish_initialization();
                         }
                     }
                     Event::AboutToWait => {
-                        if engen.job.resumed() {
-                            engen.job.exec_main();
+                        if elm.job.resumed() {
+                            elm.job.exec_main();
                             window_handle.value().request_redraw();
                         }
                     }
                     Event::LoopExiting => {
-                        engen.job.exec_teardown();
+                        elm.job.exec_teardown();
                     }
                     Event::MemoryWarning => {}
                 }

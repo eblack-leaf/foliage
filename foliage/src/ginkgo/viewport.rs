@@ -1,7 +1,7 @@
 use crate::coordinate::{
     Area, CoordinateUnit, DeviceContext, InterfaceContext, Layer, Position, Section,
 };
-use crate::gfx::uniform::Uniform;
+use crate::ginkgo::uniform::Uniform;
 use nalgebra::{matrix, SMatrix};
 use serde::{Deserialize, Serialize};
 

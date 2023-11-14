@@ -1,5 +1,5 @@
 use crate::coordinate::{Area, DeviceContext};
-use crate::gfx::msaa::Msaa;
+use crate::ginkgo::msaa::Msaa;
 use wgpu::{DepthStencilState, TextureFormat};
 
 pub(crate) struct DepthTexture {

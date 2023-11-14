@@ -1,12 +1,12 @@
-use bevy_ecs::prelude::{Component, IntoSystemConfigs, SystemSet};
 use crate::job::Job;
 use crate::Leaflet;
+use bevy_ecs::prelude::{Component, IntoSystemConfigs, SystemSet};
 
-pub struct Engen {
+pub struct Elm {
     initialized: bool,
     pub job: Job,
 }
-impl Engen {
+impl Elm {
     pub(crate) fn new() -> Self {
         Self {
             initialized: false,
@@ -23,11 +23,15 @@ impl Engen {
         self.initialized = true;
     }
     pub fn enable_differential<T: Component + Clone + PartialEq>(&mut self) {
-        self.job.main().add_systems((crate::differential::differential::<T>.in_set(SystemSets::Differential), ));
+        self.job.main().add_systems((
+            crate::differential::differential::<T>.in_set(SystemSets::Differential),
+        ));
+    }
+    pub(crate) fn finish_initialization(&mut self) {
+        self.initialized = true;
     }
 }
 #[derive(SystemSet, Hash, Eq, PartialEq, Debug, Copy, Clone)]
 pub enum SystemSets {
-    Differential
+    Differential,
 }
-

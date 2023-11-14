@@ -10,13 +10,16 @@ use depth_texture::DepthTexture;
 use msaa::Msaa;
 use serde::{Deserialize, Serialize};
 use viewport::{Viewport, ViewportHandle};
-use wgpu::{BindGroupLayoutEntry, InstanceDescriptor, TextureFormat};
+use wgpu::{
+    BindGroupLayoutEntry, InstanceDescriptor, RenderPassColorAttachment,
+    RenderPassDepthStencilAttachment, TextureFormat,
+};
 use winit::event_loop::EventLoopWindowTarget;
 
 #[derive(Copy, Clone)]
 pub struct ClearColor(pub Color);
 
-pub struct GfxContext {
+pub struct Ginkgo {
     pub instance: Option<wgpu::Instance>,
     pub surface: Option<wgpu::Surface>,
     pub adapter: Option<wgpu::Adapter>,
@@ -30,7 +33,7 @@ pub struct GfxContext {
     pub(crate) initialized: bool,
 }
 
-impl GfxContext {
+impl Ginkgo {
     pub(crate) fn new() -> Self {
         Self {
             instance: None,
@@ -64,6 +67,25 @@ impl GfxContext {
             blend: Some(wgpu::BlendState::ALPHA_BLENDING),
             write_mask: Default::default(),
         })]
+    }
+    pub(crate) fn color_attachment(&self) -> [Option<RenderPassColorAttachment>; 1] {
+        todo!()
+    }
+    pub(crate) fn depth_stencil_attachment(&self) -> Option<RenderPassDepthStencilAttachment> {
+        todo!()
+    }
+    pub(crate) fn color_attachment_format(&self) -> [Option<TextureFormat>; 1] {
+        [Some(self.configuration.as_ref().unwrap().format)]
+    }
+    pub(crate) fn msaa_samples(&self) -> u32 {
+        self.msaa.as_ref().unwrap().samples()
+    }
+    pub(crate) fn render_bundle_depth_stencil(&self) -> Option<wgpu::RenderBundleDepthStencil> {
+        Some(wgpu::RenderBundleDepthStencil {
+            format: self.depth_texture.as_ref().unwrap().format,
+            depth_read_only: false,
+            stencil_read_only: false,
+        })
     }
     pub(crate) fn get_instance(&mut self) {
         self.instance
