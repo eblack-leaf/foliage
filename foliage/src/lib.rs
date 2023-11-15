@@ -1,4 +1,4 @@
-#![warn(clippy::type_complexity)]
+#![deny(warn(clippy::type_complexity))]
 pub mod ash;
 pub mod color;
 mod coordinate;
