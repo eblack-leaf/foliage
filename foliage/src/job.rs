@@ -10,6 +10,7 @@ pub struct Tag<T> {
     _phantom: PhantomData<T>,
 }
 impl<T> Tag<T> {
+    #[allow(unused)]
     pub fn new() -> Self {
         Self {
             _phantom: PhantomData,

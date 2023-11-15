@@ -1,4 +1,5 @@
 pub struct Msaa {
+    #[allow(unused)]
     pub(crate) max_samples: u32,
     pub(crate) actual: u32,
     pub(crate) multisampled_texture_view: Option<wgpu::TextureView>,
@@ -47,6 +48,7 @@ impl Msaa {
     pub fn samples(&self) -> u32 {
         self.actual
     }
+    #[allow(unused)]
     pub(crate) fn multisampled_texture_view(&self) -> Option<&wgpu::TextureView> {
         self.multisampled_texture_view.as_ref()
     }

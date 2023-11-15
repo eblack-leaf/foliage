@@ -1,12 +1,14 @@
-use std::any::TypeId;
-use crate::ash::{
-    RenderPacket, RenderPacketManager, RenderPacketStorage, RenderPackets, RenderTag,
+use crate::ash::render_packet::{
+    RenderPacket, RenderPacketManager, RenderPacketStorage, RenderPackets,
 };
+use crate::ash::tag::RenderTag;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Bundle, Component, Query, Without};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::ResMut;
+use compact_str::{CompactString, ToCompactString};
 use serde::{Deserialize, Serialize};
+use std::any::TypeId;
 
 #[derive(Component, Clone)]
 pub struct Differential<T: Component + Clone + PartialEq + Send + Sync + 'static> {
@@ -14,6 +16,7 @@ pub struct Differential<T: Component + Clone + PartialEq + Send + Sync + 'static
     differential: Option<T>,
 }
 impl<T: Component + Clone + PartialEq + Send + Sync + 'static> Differential<T> {
+    #[allow(unused)]
     pub fn new(t: T) -> Self {
         Self {
             cache: t,
@@ -35,13 +38,13 @@ impl<T: Component + Clone + PartialEq + Send + Sync + 'static> Differential<T> {
 #[derive(Component, Default, Copy, Clone)]
 pub struct DifferentialDisable {}
 #[derive(Hash, Eq, PartialEq, Serialize, Deserialize, Clone)]
-pub struct DifferentialTag(pub(crate) String);
+pub struct DifferentialTag(pub(crate) CompactString);
 pub(crate) trait Differentiable {
     fn id() -> DifferentialTag;
 }
 impl<T: Component> Differentiable for T {
     fn id() -> DifferentialTag {
-        DifferentialTag(format!("{:?}", TypeId::of::<T>()))
+        DifferentialTag(format!("{:?}", TypeId::of::<T>()).to_compact_string())
     }
 }
 pub(crate) fn differential<
@@ -96,6 +99,7 @@ pub struct DifferentialBundle<T: Component + Clone + PartialEq + Send + Sync + '
     pub differential: Differential<T>,
 }
 impl<T: Component + Clone + PartialEq + Send + Sync + 'static> DifferentialBundle<T> {
+    #[allow(unused)]
     pub fn new(t: T) -> Self {
         Self {
             component: t.clone(),

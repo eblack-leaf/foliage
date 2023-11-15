@@ -7,11 +7,13 @@ pub mod ginkgo;
 mod job;
 pub mod window;
 
-use crate::ash::{Ash, AshLeaflet, InstructionFns, PrepareFns, Render};
+use crate::ash::Ash;
 use crate::coordinate::CoordinateUnit;
 use crate::elm::Elm;
 use ginkgo::Ginkgo;
-use serde::{Deserialize, Serialize};
+
+use self::ash::fns::{AshLeaflet, InstructionFns, PrepareFns};
+use self::ash::render::Render;
 use window::{WindowDescriptor, WindowHandle};
 use winit::event::{Event, StartCause, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopWindowTarget};
@@ -29,6 +31,11 @@ pub struct Foliage {
     window_descriptor: Option<WindowDescriptor>,
     leaf_queue: Option<Vec<Leaflet>>,
     render_queue: Option<Vec<AshLeaflet>>,
+}
+impl Default for Foliage {
+    fn default() -> Self {
+        Foliage::new()
+    }
 }
 impl Foliage {
     pub fn new() -> Self {
@@ -111,7 +118,7 @@ impl Foliage {
                     } => match w_event {
                         WindowEvent::ActivationTokenDone { .. } => {}
                         WindowEvent::Resized(size) => {
-                            let new_handle = ginkgo.resize(
+                            let _new_handle = ginkgo.resize(
                                 (size.width, size.height).into(),
                                 window_handle.scale_factor(),
                             );
@@ -155,7 +162,7 @@ impl Foliage {
                         ginkgo.suspend();
                     }
                     Event::Resumed => {
-                        if let Some(vh) = ginkgo.resume(
+                        if let Some(_vh) = ginkgo.resume(
                             event_loop_window_target,
                             &mut window_handle,
                             &window_desc,

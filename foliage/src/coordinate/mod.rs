@@ -1,5 +1,5 @@
 pub use area::Area;
-use bevy_ecs::prelude::Bundle;
+
 pub use layer::Layer;
 pub use position::Position;
 pub use section::Section;

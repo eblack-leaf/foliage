@@ -1,4 +1,5 @@
-use crate::ash::{AshLeaflet, RenderPacketManager};
+use crate::ash::fns::AshLeaflet;
+use crate::ash::render_packet::RenderPacketManager;
 use crate::job::Job;
 use crate::Leaflet;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs, SystemSet};
@@ -19,11 +20,7 @@ impl Elm {
     pub(crate) fn initialized(&self) -> bool {
         self.initialized
     }
-    pub(crate) fn attach_leafs(
-        &mut self,
-        leaflets: Vec<Leaflet>,
-        render_leaflets: &Vec<AshLeaflet>,
-    ) {
+    pub(crate) fn attach_leafs(&mut self, leaflets: Vec<Leaflet>, render_leaflets: &[AshLeaflet]) {
         self.job
             .main()
             .configure_sets((SystemSets::Differential, SystemSets::RenderPacket).chain());

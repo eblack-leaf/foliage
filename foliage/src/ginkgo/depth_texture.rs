@@ -4,6 +4,7 @@ use wgpu::{DepthStencilState, TextureFormat};
 
 pub(crate) struct DepthTexture {
     pub(crate) format: wgpu::TextureFormat,
+    #[allow(unused)]
     pub(crate) texture: wgpu::Texture,
     pub(crate) view: wgpu::TextureView,
 }
@@ -36,12 +37,14 @@ impl DepthTexture {
             view,
         }
     }
+    #[allow(unused)]
     pub fn depth_format(&self) -> TextureFormat {
         self.format
     }
     pub(crate) fn view(&self) -> &wgpu::TextureView {
         &self.view
     }
+    #[allow(unused)]
     pub fn depth_stencil_state(&self) -> DepthStencilState {
         wgpu::DepthStencilState {
             format: self.depth_format(),

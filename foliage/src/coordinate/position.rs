@@ -37,14 +37,14 @@ impl<Context: CoordinateContext> Position<Context> {
 
 impl Position<InterfaceContext> {
     /// useful for converting to a device position accounting for scale factor
-    pub fn to_device(&self, scale_factor: CoordinateUnit) -> Position<DeviceContext> {
+    pub fn to_device(self, scale_factor: CoordinateUnit) -> Position<DeviceContext> {
         Position::<DeviceContext>::new(self.x * scale_factor, self.y * scale_factor)
     }
 }
 
 impl Position<DeviceContext> {
     /// converts to interface context accounting for scale factor
-    pub fn to_interface(&self, scale_factor: CoordinateUnit) -> Position<InterfaceContext> {
+    pub fn to_interface(self, scale_factor: CoordinateUnit) -> Position<InterfaceContext> {
         Position::<InterfaceContext>::new(self.x / scale_factor, self.y / scale_factor)
     }
 }

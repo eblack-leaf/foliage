@@ -34,14 +34,14 @@ impl<Context: CoordinateContext> Area<Context> {
 }
 impl Area<InterfaceContext> {
     /// accounts for scale factor to convert this to device area
-    pub fn to_device(&self, scale_factor: CoordinateUnit) -> Area<DeviceContext> {
+    pub fn to_device(self, scale_factor: CoordinateUnit) -> Area<DeviceContext> {
         Area::<DeviceContext>::new(self.width * scale_factor, self.height * scale_factor)
     }
 }
 
 impl Area<DeviceContext> {
     /// accounts for scale factor to convert this to interface area
-    pub fn to_interface(&self, scale_factor: CoordinateUnit) -> Area<InterfaceContext> {
+    pub fn to_interface(self, scale_factor: CoordinateUnit) -> Area<InterfaceContext> {
         Area::<InterfaceContext>::new(self.width / scale_factor, self.height / scale_factor)
     }
 }

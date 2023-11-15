@@ -8,11 +8,11 @@ use crate::coordinate::{Area, CoordinateUnit, DeviceContext, Section};
 use crate::window::{WindowDescriptor, WindowHandle};
 use depth_texture::DepthTexture;
 use msaa::Msaa;
-use serde::{Deserialize, Serialize};
+
 use viewport::{Viewport, ViewportHandle};
 use wgpu::{
     BindGroupLayoutEntry, InstanceDescriptor, LoadOp, RenderPassColorAttachment,
-    RenderPassDepthStencilAttachment, StoreOp, TextureFormat, TextureView,
+    RenderPassDepthStencilAttachment, StoreOp, TextureFormat,
 };
 use winit::event_loop::EventLoopWindowTarget;
 
@@ -216,7 +216,7 @@ impl Ginkgo {
         self.configure_surface();
         self.create_depth_texture(area);
         let viewport_handle = if self.viewport.is_none() {
-            self.create_viewport(Section::new((0, 0), (area)), scale_factor)
+            self.create_viewport(Section::new((0, 0), area), scale_factor)
         } else {
             let section = self.viewport.as_ref().unwrap().section();
             self.adjust_viewport(section.with_area(area), scale_factor)
