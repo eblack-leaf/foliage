@@ -7,7 +7,6 @@ use bevy_ecs::prelude::{Bundle, Component, Query, Without};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::ResMut;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 #[derive(Component, Clone)]
 pub struct Differential<T: Component + Clone + PartialEq + Send + Sync + 'static> {
