@@ -1,7 +1,7 @@
 use crate::ash::render::Render;
 use crate::ash::render_instructions::RenderInstructions;
 use crate::ash::tag::{RenderTag, RenderTagged};
-use crate::ash::{Ash};
+use crate::ash::Ash;
 use crate::ginkgo::Ginkgo;
 
 pub(crate) struct PrepareFns(pub(crate) Vec<PrepareFn>);
@@ -37,5 +37,3 @@ impl AshLeaflet {
         )
     }
 }
-
-

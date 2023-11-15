@@ -1,14 +1,13 @@
-use crate::ash::render_packet::{
-    RenderPacket, RenderPacketManager, RenderPacketStorage, RenderPackets,
-};
-use crate::ash::tag::RenderTag;
+use crate::r_ash::render::RenderId;
+use crate::r_ash::render_packet::RenderPacketForwarder;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Bundle, Component, Query, Without};
+use bevy_ecs::prelude::{Bundle, Component, Or, Query};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::ResMut;
 use compact_str::{CompactString, ToCompactString};
 use serde::{Deserialize, Serialize};
 use std::any::TypeId;
+use crate::r_ash::render_packet::RenderPacketStore;
 
 #[derive(Component, Clone)]
 pub struct Differential<T: Component + Clone + PartialEq + Send + Sync + 'static> {
@@ -36,15 +35,26 @@ impl<T: Component + Clone + PartialEq + Send + Sync + 'static> Differential<T> {
     }
 }
 #[derive(Component, Default, Copy, Clone)]
-pub struct DifferentialDisable {}
-#[derive(Hash, Eq, PartialEq, Serialize, Deserialize, Clone)]
-pub struct DifferentialTag(pub(crate) CompactString);
-pub(crate) trait Differentiable {
-    fn id() -> DifferentialTag;
+pub struct DifferentialDisable(bool);
+impl DifferentialDisable {
+    pub(crate) fn disable(&mut self) {
+        self.0 = true;
+    }
+    pub fn is_disabled(&self) -> bool {
+        self.0
+    }
+    pub(crate) fn clear(&mut self) {
+        self.0 = false;
+    }
 }
-impl<T: Component> Differentiable for T {
-    fn id() -> DifferentialTag {
-        DifferentialTag(format!("{:?}", TypeId::of::<T>()).to_compact_string())
+#[derive(Hash, Eq, PartialEq, Serialize, Deserialize, Clone)]
+pub struct DifferentialId(pub(crate) CompactString);
+pub(crate) trait DifferentialIdentification {
+    fn id() -> DifferentialId;
+}
+impl<T: Component> DifferentialIdentification for T {
+    fn id() -> DifferentialId {
+        DifferentialId(format!("{:?}", TypeId::of::<T>()).to_compact_string())
     }
 }
 pub(crate) fn differential<
@@ -54,43 +64,41 @@ pub(crate) fn differential<
         + Send
         + Sync
         + 'static
-        + Differentiable
+        + DifferentialIdentification
         + Serialize
         + for<'a> Deserialize<'a>,
 >(
-    mut query: Query<
-        (&T, &mut Differential<T>, &mut RenderPacket),
-        (Changed<T>, Without<DifferentialDisable>),
-    >,
+    mut query: Query<(&T, &mut Differential<T>, &mut RenderPacketStore), Changed<T>>,
 ) {
-    for (t, mut diff, mut render_packet) in query.iter_mut() {
+    for (t, mut diff, mut render_packet_store) in query.iter_mut() {
         if diff.updated(t) {
-            render_packet.insert(diff.differential().take().unwrap());
+            render_packet_store.put(diff.differential().take().unwrap());
         }
     }
 }
 pub(crate) fn send_render_packet(
     mut query: Query<
-        (Entity, &mut RenderPacket, &RenderTag),
-        (Without<DifferentialDisable>, Changed<RenderPacket>),
+        (
+            Entity,
+            &mut RenderPacketStore,
+            &RenderId,
+            &DifferentialDisable,
+            &Despawn,
+        ),
+        Or<(
+            Changed<DifferentialDisable>,
+            Changed<RenderPacketStore>,
+            Changed<Despawn>,
+        )>,
     >,
-    mut render_packet_manager: ResMut<RenderPacketManager>,
+    mut render_packet_forwarder: ResMut<RenderPacketForwarder>,
 ) {
-    for (entity, mut packet, tag) in query.iter_mut() {
-        if let Some(valid_entity_render_packet) = packet.0.take() {
-            if let Some(render_packet_slot) = render_packet_manager.packets.get_mut(tag) {
-                if let Some(render_packets) = render_packet_slot {
-                    render_packets.insert(entity, RenderPacket::new(valid_entity_render_packet));
-                } else {
-                    render_packet_slot.replace(RenderPackets::new());
-                    render_packet_slot
-                        .as_mut()
-                        .unwrap()
-                        .insert(entity, RenderPacket::new(valid_entity_render_packet));
-                }
-            }
+    for (entity, mut packet, id, disable, despawn) in query.iter_mut() {
+        if disable.is_disabled() || despawn.should_despawn() {
+            render_packet_forwarder.remove(id, entity);
+        } else {
+            render_packet_forwarder.forward_packet(id, entity, packet.retrieve());
         }
-        packet.0.replace(RenderPacketStorage::new());
     }
 }
 #[derive(Bundle, Clone)]
@@ -105,5 +113,15 @@ impl<T: Component + Clone + PartialEq + Send + Sync + 'static> DifferentialBundl
             component: t.clone(),
             differential: Differential::new(t),
         }
+    }
+}
+#[derive(Component, Copy, Clone, Serialize, Deserialize, Default)]
+pub struct Despawn(bool);
+impl Despawn {
+    pub fn despawn(&mut self) {
+        self.0 = true;
+    }
+    pub fn should_despawn(&self) -> bool {
+        self.0
     }
 }

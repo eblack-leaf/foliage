@@ -2,19 +2,31 @@ use crate::ash::fns::AshLeaflet;
 use crate::ash::render_packet::RenderPacketManager;
 use crate::job::Job;
 use crate::Leaflet;
+use anymap::AnyMap;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs, SystemSet};
 use bevy_ecs::schedule::IntoSystemSetConfigs;
+use compact_str::{CompactString, ToCompactString};
 use serde::{Deserialize, Serialize};
+use std::any::TypeId;
+use std::marker::PhantomData;
 
 pub struct Elm {
     initialized: bool,
     pub job: Job,
+    differential_limiter: AnyMap,
+}
+struct DifferentialLimiter<T>(bool, PhantomData<T>);
+impl<T> Default for DifferentialLimiter<T> {
+    fn default() -> Self {
+        DifferentialLimiter(false, PhantomData)
+    }
 }
 impl Elm {
     pub(crate) fn new() -> Self {
         Self {
             initialized: false,
             job: Job::new(),
+            differential_limiter: AnyMap::new(),
         }
     }
     pub(crate) fn initialized(&self) -> bool {
@@ -42,9 +54,29 @@ impl Elm {
     >(
         &mut self,
     ) {
-        self.job.main().add_systems((
-            crate::differential::differential::<T>.in_set(SystemSets::Differential),
-        ));
+        if self
+            .differential_limiter
+            .get::<DifferentialLimiter<T>>()
+            .is_none()
+        {
+            self.differential_limiter
+                .insert(DifferentialLimiter::<T>::default())
+        }
+        if !self
+            .differential_limiter
+            .get::<DifferentialLimiter<T>>()
+            .unwrap()
+            .0
+        {
+            self.job.main().add_systems((
+                crate::differential::differential::<T>.in_set(SystemSets::Differential),
+            ));
+            self.differential_limiter
+                .get_mut::<DifferentialLimiter<T>>()
+                .as_mut()
+                .unwrap()
+                .0 = true;
+        }
     }
     pub(crate) fn finish_initialization(&mut self) {
         self.job.resume();
@@ -55,4 +87,8 @@ impl Elm {
 pub enum SystemSets {
     Differential,
     RenderPacket,
+}
+
+pub(crate) fn compact_string_type_id<T: 'static>() -> CompactString {
+    format!("{:?}", TypeId::of::<T>()).to_compact_string()
 }

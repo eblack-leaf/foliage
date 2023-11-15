@@ -1,5 +1,5 @@
 use crate::ash::tag::RenderTag;
-use crate::differential::{Differentiable, DifferentialTag};
+use crate::differential::{Differentiable, DifferentialId};
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::Resource;
@@ -30,7 +30,7 @@ impl RenderPacketManager {
 #[derive(Component, Serialize, Deserialize)]
 pub struct RenderPacket(pub Option<RenderPacketStorage>);
 
-pub(crate) type RenderPacketStorage = HashMap<DifferentialTag, Option<Vec<u8>>>;
+pub(crate) type RenderPacketStorage = HashMap<DifferentialId, Option<Vec<u8>>>;
 
 impl RenderPacket {
     pub(crate) fn new(packets: RenderPacketStorage) -> Self {

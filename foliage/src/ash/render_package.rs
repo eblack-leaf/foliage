@@ -1,7 +1,7 @@
 use crate::ash::render::Render;
+use crate::ash::render_instructions::{RenderInstructions, RenderInstructionsRecorder};
 use crate::ginkgo::Ginkgo;
 use std::collections::HashMap;
-use crate::ash::render_instructions::{RenderInstructions, RenderInstructionsRecorder};
 
 pub struct RenderPackage<T> {
     pub data: T,

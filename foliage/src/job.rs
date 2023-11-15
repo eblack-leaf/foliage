@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use bevy_ecs::prelude::{
     Component, IntoSystemConfigs, ResMut, Resource, Schedule, SystemSet, World,
 };
-use bevy_ecs::schedule::ExecutorKind;
+use bevy_ecs::schedule::{ExecutorKind, ScheduleLabel};
 
 #[derive(Component, Copy, Clone)]
 pub struct Tag<T> {
@@ -78,6 +78,12 @@ pub struct Job {
 pub enum JobSyncPoint {
     Idle,
 }
+#[derive(ScheduleLabel, Copy, Clone, Hash, Eq, PartialEq, Debug)]
+enum ScheduleLabels {
+    Startup,
+    Main,
+    Teardown,
+}
 impl Job {
     pub(crate) fn new() -> Self {
         Self {
@@ -88,13 +94,13 @@ impl Job {
                 container.insert_resource(Idle::new());
                 container
             },
-            startup: Task::new(),
+            startup: Task::new(ScheduleLabels::Startup),
             main: {
-                let mut task = Task::new();
+                let mut task = Task::new(ScheduleLabels::Main);
                 task.add_systems((attempt_to_idle.in_set(JobSyncPoint::Idle),));
                 task
             },
-            teardown: Task::new(),
+            teardown: Task::new(ScheduleLabels::Teardown),
         }
     }
     pub fn startup(&mut self) -> &mut Task {

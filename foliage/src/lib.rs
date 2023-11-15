@@ -1,17 +1,19 @@
 #![allow(clippy::type_complexity)]
-pub mod ash;
+// pub mod ash;
 pub mod color;
-mod coordinate;
-mod differential;
+pub mod coordinate;
+pub mod differential;
 pub mod elm;
 pub mod ginkgo;
-mod job;
+pub mod job;
+pub mod r_ash;
 pub mod window;
 
 use crate::ash::Ash;
 use crate::coordinate::CoordinateUnit;
 use crate::elm::Elm;
-use ginkgo::Ginkgo;
+use crate::ginkgo::Ginkgo;
+use compact_str::ToCompactString;
 
 use self::ash::fns::{AshLeaflet, InstructionFns, PrepareFns};
 use self::ash::render::Render;

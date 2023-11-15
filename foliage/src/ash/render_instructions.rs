@@ -1,6 +1,6 @@
+use crate::ginkgo::Ginkgo;
 use std::rc::Rc;
 use wgpu::RenderBundle;
-use crate::ginkgo::Ginkgo;
 
 #[derive(Clone)]
 pub struct RenderInstructions(pub Rc<RenderBundle>);

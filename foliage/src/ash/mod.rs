@@ -1,26 +1,22 @@
-
 use crate::elm::Elm;
 use crate::ginkgo::Ginkgo;
 use anymap::AnyMap;
-
-
 
 use fns::{AshLeaflet, InstructionFns, PrepareFns};
 use render::Render;
 use render_package::RenderPackageManager;
 use render_packet::RenderPacketManager;
 
-
+use render_instructions::RenderInstructions;
 use tag::RenderTagged;
 use wgpu::RenderBundle;
-use render_instructions::RenderInstructions;
 
 pub mod fns;
 pub mod render;
+mod render_instructions;
 pub mod render_package;
 pub mod render_packet;
 pub mod tag;
-mod render_instructions;
 
 pub struct Ash {
     pub(crate) render_packets: RenderPacketManager,
