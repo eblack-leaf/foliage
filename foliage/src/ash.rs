@@ -1,3 +1,4 @@
+use std::any::TypeId;
 use crate::differential::{Differentiable, DifferentialTag};
 use crate::elm::Elm;
 use crate::ginkgo::viewport::Viewport;
@@ -10,11 +11,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::rc::Rc;
-use uuid::Uuid;
 use wgpu::{RenderBundle, RenderPass};
 
-#[derive(Component, Copy, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
-pub struct RenderTag(pub Uuid);
+#[derive(Component, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+pub struct RenderTag(pub String);
 pub(crate) struct AshLeaflet(
     pub(crate) CreateFn,
     pub(crate) PrepareFn,
@@ -100,7 +100,7 @@ impl Ash {
             .packets
             .iter_mut()
         {
-            self.render_packets.packets.insert(*tag, packets.take());
+            self.render_packets.packets.insert(tag.clone(), packets.take());
         }
     }
     pub(crate) fn preparation(&mut self, ginkgo: &Ginkgo, prepare_fns: &PrepareFns) {
@@ -188,9 +188,9 @@ impl RenderPacket {
 pub trait RenderTagged {
     fn tag() -> RenderTag;
 }
-impl<T: Render> RenderTagged for T {
+impl<T: Render + 'static> RenderTagged for T {
     fn tag() -> RenderTag {
-        RenderTag(Uuid::new_v4())
+        RenderTag(format!("{:?}", TypeId::of::<T>()))
     }
 }
 pub(crate) type Renderers = AnyMap;

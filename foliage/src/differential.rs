@@ -1,3 +1,4 @@
+use std::any::TypeId;
 use crate::ash::{
     RenderPacket, RenderPacketManager, RenderPacketStorage, RenderPackets, RenderTag,
 };
@@ -34,14 +35,14 @@ impl<T: Component + Clone + PartialEq + Send + Sync + 'static> Differential<T> {
 }
 #[derive(Component, Default, Copy, Clone)]
 pub struct DifferentialDisable {}
-#[derive(Hash, Eq, PartialEq, Serialize, Deserialize)]
-pub struct DifferentialTag(pub(crate) Uuid);
+#[derive(Hash, Eq, PartialEq, Serialize, Deserialize, Clone)]
+pub struct DifferentialTag(pub(crate) String);
 pub(crate) trait Differentiable {
     fn id() -> DifferentialTag;
 }
 impl<T: Component> Differentiable for T {
     fn id() -> DifferentialTag {
-        DifferentialTag(Uuid::new_v4())
+        DifferentialTag(format!("{:?}", TypeId::of::<T>()))
     }
 }
 pub(crate) fn differential<
