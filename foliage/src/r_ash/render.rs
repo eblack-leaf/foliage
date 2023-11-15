@@ -23,6 +23,8 @@ pub enum RenderRecordBehavior<T: Render> {
 pub struct Renderer<T: Render> {
     resources: T::Resources,
     packages: HashMap<Entity, RenderPackage<T::RenderPackage>>,
+    // vec package sorted by layer.z
+    // hashmap of index from <Entity, usize> index in sorted vec
 }
 pub struct RenderPackage<T: Render> {
     instruction_handle: Option<RenderInstructionHandle>,
