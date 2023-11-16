@@ -9,17 +9,16 @@ pub mod job;
 pub mod r_ash;
 pub mod window;
 
-use crate::ash::Ash;
 use crate::coordinate::CoordinateUnit;
 use crate::elm::Elm;
 use crate::ginkgo::Ginkgo;
 use compact_str::ToCompactString;
 
-use self::ash::fns::{AshLeaflet, InstructionFns, PrepareFns};
-use self::ash::render::Render;
 use window::{WindowDescriptor, WindowHandle};
 use winit::event::{Event, StartCause, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopWindowTarget};
+use crate::r_ash::Ash;
+use crate::r_ash::render::Render;
 
 pub trait Leaf {
     fn attach(engen: &mut Elm);
@@ -175,7 +174,6 @@ impl Foliage {
                         if !elm.initialized() {
                             elm.attach_leafs(
                                 self.leaf_queue.take().unwrap(),
-                                self.render_queue.as_ref().unwrap(),
                             );
                             ash.establish_renderers(
                                 &ginkgo,

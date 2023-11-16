@@ -31,7 +31,7 @@ impl RenderPacketStore {
 }
 #[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub(crate) struct RenderPacketSignature(pub(crate) RenderId, pub(crate) Entity);
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub(crate) struct RenderPacketForwarder {
     pub(crate) render_packets: HashMap<RenderPacketSignature, RenderPacket>,
     pub(crate) removals: HashMap<RenderId, Vec<Entity>>,

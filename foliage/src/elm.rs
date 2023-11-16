@@ -1,5 +1,3 @@
-use crate::ash::fns::AshLeaflet;
-use crate::ash::render_packet::RenderPacketManager;
 use crate::job::Job;
 use crate::Leaflet;
 use anymap::AnyMap;
@@ -9,6 +7,7 @@ use compact_str::{CompactString, ToCompactString};
 use serde::{Deserialize, Serialize};
 use std::any::TypeId;
 use std::marker::PhantomData;
+use crate::r_ash::render_packet::RenderPacketForwarder;
 
 pub struct Elm {
     initialized: bool,
@@ -32,18 +31,14 @@ impl Elm {
     pub(crate) fn initialized(&self) -> bool {
         self.initialized
     }
-    pub(crate) fn attach_leafs(&mut self, leaflets: Vec<Leaflet>, render_leaflets: &[AshLeaflet]) {
+    pub(crate) fn attach_leafs(&mut self, leaflets: Vec<Leaflet>) {
         self.job
             .main()
             .configure_sets((SystemSets::Differential, SystemSets::RenderPacket).chain());
         self.job.main().add_systems((
             crate::differential::send_render_packet.in_set(SystemSets::RenderPacket),
         ));
-        let mut manager = RenderPacketManager::new();
-        for leaflet in render_leaflets.iter() {
-            manager.packets.insert(leaflet.3(), None);
-        }
-        self.job.container.insert_resource(manager);
+        self.job.container.insert_resource(RenderPacketForwarder::default());
         for leaf in leaflets {
             leaf.0(self)
         }
