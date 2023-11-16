@@ -1,9 +1,9 @@
-use crate::differential::{DifferentialIdentification, DifferentialId};
+use crate::differential::{DifferentialId, DifferentialIdentification};
+use crate::r_ash::render::RenderId;
+use bevy_ecs::entity::Entity;
+use bevy_ecs::prelude::{Component, Resource};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use bevy_ecs::prelude::{Component, Resource};
-use bevy_ecs::entity::Entity;
-use crate::r_ash::render::RenderId;
 pub type RenderPacketDifferential = Option<Vec<u8>>;
 pub type RenderPacket = HashMap<DifferentialId, RenderPacketDifferential>;
 #[derive(Default, Component)]
@@ -18,7 +18,9 @@ impl RenderPacketStore {
     }
     pub(crate) fn put<T: DifferentialIdentification>(&mut self, data: T) {
         let serialized = rmp_serde::to_vec(&data).expect("serialization");
-        self.render_packet.unwrap().insert(T::id(), Some(serialized));
+        self.render_packet
+            .unwrap()
+            .insert(T::id(), Some(serialized));
     }
     pub fn get<T: DifferentialIdentification + for<'a> Deserialize<'a>>(&self) -> Option<T> {
         if let Some(Some(v)) = self.render_packet.unwrap().get(&T::id()) {
@@ -54,9 +56,6 @@ pub(crate) struct RenderPacketPackage {
 }
 impl RenderPacketPackage {
     pub(crate) fn new(packets: Vec<PackagedRenderPacket>, removals: Vec<PackagedRemoval>) -> Self {
-        Self {
-            packets,
-            removals,
-        }
+        Self { packets, removals }
     }
 }

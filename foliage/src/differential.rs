@@ -1,5 +1,6 @@
 use crate::r_ash::render::RenderId;
 use crate::r_ash::render_packet::RenderPacketForwarder;
+use crate::r_ash::render_packet::RenderPacketStore;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Bundle, Component, Or, Query};
 use bevy_ecs::query::Changed;
@@ -7,7 +8,6 @@ use bevy_ecs::system::ResMut;
 use compact_str::{CompactString, ToCompactString};
 use serde::{Deserialize, Serialize};
 use std::any::TypeId;
-use crate::r_ash::render_packet::RenderPacketStore;
 
 #[derive(Component, Clone)]
 pub struct Differential<T: Component + Clone + PartialEq + Send + Sync + 'static> {
@@ -97,6 +97,7 @@ pub(crate) fn send_render_packet(
         if disable.is_disabled() || despawn.should_despawn() {
             render_packet_forwarder.remove(id, entity);
         } else {
+            // need to forward Layer.z when enable sorting by z in renderer packages
             render_packet_forwarder.forward_packet(id, entity, packet.retrieve());
         }
     }
