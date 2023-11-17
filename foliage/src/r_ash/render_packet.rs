@@ -16,14 +16,17 @@ impl RenderPacketStore {
         self.render_packet.replace(HashMap::new());
         data
     }
-    pub(crate) fn put<T: DifferentialIdentification>(&mut self, data: T) {
+    pub(crate) fn put<T: DifferentialIdentification + Serialize + 'static>(&mut self, data: T) {
         let serialized = rmp_serde::to_vec(&data).expect("serialization");
         self.render_packet
+            .as_mut()
             .unwrap()
             .insert(T::id(), Some(serialized));
     }
-    pub fn get<T: DifferentialIdentification + for<'a> Deserialize<'a>>(&self) -> Option<T> {
-        if let Some(Some(v)) = self.render_packet.unwrap().get(&T::id()) {
+    pub fn get<T: DifferentialIdentification + for<'a> Deserialize<'a> + 'static>(
+        &self,
+    ) -> Option<T> {
+        if let Some(Some(v)) = self.render_packet.as_ref().unwrap().get(&T::id()) {
             return rmp_serde::from_slice::<T>(v.as_slice()).ok();
         }
         None

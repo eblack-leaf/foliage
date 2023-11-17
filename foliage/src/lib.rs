@@ -14,14 +14,14 @@ use crate::elm::Elm;
 use crate::ginkgo::Ginkgo;
 use compact_str::ToCompactString;
 
+use crate::r_ash::render::{Render, RenderIdentification, RenderLeaflet};
+use crate::r_ash::{Ash, RenderLeafletStorage};
 use window::{WindowDescriptor, WindowHandle};
 use winit::event::{Event, StartCause, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopWindowTarget};
-use crate::r_ash::Ash;
-use crate::r_ash::render::Render;
 
 pub trait Leaf {
-    fn attach(engen: &mut Elm);
+    fn attach(elm: &mut Elm);
 }
 pub(crate) struct Leaflet(pub(crate) Box<fn(&mut Elm)>);
 impl Leaflet {
@@ -32,7 +32,7 @@ impl Leaflet {
 pub struct Foliage {
     window_descriptor: Option<WindowDescriptor>,
     leaf_queue: Option<Vec<Leaflet>>,
-    render_queue: Option<Vec<AshLeaflet>>,
+    render_queue: Option<RenderLeafletStorage>,
 }
 impl Default for Foliage {
     fn default() -> Self {
@@ -44,7 +44,7 @@ impl Foliage {
         Self {
             window_descriptor: None,
             leaf_queue: Some(vec![]),
-            render_queue: Some(vec![]),
+            render_queue: Some(RenderLeafletStorage::new()),
         }
     }
     pub fn with_window_descriptor(mut self, desc: WindowDescriptor) -> Self {
@@ -62,7 +62,7 @@ impl Foliage {
         self.render_queue
             .as_mut()
             .unwrap()
-            .push(AshLeaflet::leaf_fn::<T>());
+            .insert(T::id(), RenderLeaflet::leaf_fn::<T>());
         self
     }
     pub fn run(self) {
@@ -97,8 +97,6 @@ impl Foliage {
         }
         let mut elm = Elm::new();
         let mut ash = Ash::new();
-        let mut prepare_fns = PrepareFns::new();
-        let mut instruction_fns = InstructionFns::new();
         let _ = (event_loop_function)(
             event_loop,
             |event, event_loop_window_target: &EventLoopWindowTarget<()>| {
@@ -152,9 +150,11 @@ impl Foliage {
                         WindowEvent::ThemeChanged(_) => {}
                         WindowEvent::Occluded(_) => {}
                         WindowEvent::RedrawRequested => {
-                            ash.extract(&mut elm);
-                            ash.preparation(&ginkgo, &prepare_fns);
-                            ash.render(&mut ginkgo, &instruction_fns);
+                            let render_packet_package = elm.render_packet_package();
+                            ash.extract(render_packet_package);
+                            ash.prepare(&ginkgo);
+                            ash.record(&ginkgo);
+                            ash.render(&mut ginkgo);
                             window_handle.value().request_redraw();
                         }
                     },
@@ -172,15 +172,8 @@ impl Foliage {
                             // adjust viewport handle here
                         }
                         if !elm.initialized() {
-                            elm.attach_leafs(
-                                self.leaf_queue.take().unwrap(),
-                            );
-                            ash.establish_renderers(
-                                &ginkgo,
-                                self.render_queue.take().unwrap(),
-                                &mut prepare_fns,
-                                &mut instruction_fns,
-                            );
+                            elm.attach_leafs(self.leaf_queue.take().unwrap());
+                            ash.establish(&ginkgo, self.render_queue.take().unwrap());
                             elm.finish_initialization();
                         }
                     }

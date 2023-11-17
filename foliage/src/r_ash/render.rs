@@ -2,14 +2,12 @@ use crate::elm::compact_string_type_id;
 use crate::ginkgo::viewport::Viewport;
 use crate::ginkgo::Ginkgo;
 use crate::r_ash::render_packet::RenderPacket;
-use crate::r_ash::InstructionGroups;
 use anymap::AnyMap;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::Component;
 use compact_str::CompactString;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::marker::PhantomData;
 use std::rc::Rc;
 
 #[derive(Serialize, Deserialize, Clone, Eq, PartialEq, Hash, Component)]
@@ -50,114 +48,209 @@ pub enum RenderRecordBehavior<T: Render> {
     PerRenderer(PerRendererRecordFn<T>),
     PerPackage(PerPackageRecordFn<T>),
 }
+pub(crate) struct RenderPackageHandler<T: Render>(pub(crate) Vec<(Entity, RenderPackage<T>)>);
+impl<T: Render> RenderPackageHandler<T> {
+    pub(crate) fn new() -> Self {
+        Self(vec![])
+    }
+}
+impl<T: Render> Default for RenderPackageHandler<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+pub(crate) struct Renderer<T: Render> {
+    resources: T::Resources,
+    packages: RenderPackageHandler<T>,
+    instructions: RenderInstructionGroup,
+    entity_to_package: HashMap<Entity, usize>,
+    per_renderer_record_hook: bool,
+    record_behavior: RenderRecordBehavior<T>,
+    updated: bool,
+}
+pub(crate) struct RenderLeaflet {
+    prepare_package: Box<fn(&mut RendererHandler, &Ginkgo, &mut RenderPacketQueueHandler)>,
+    prepare_resources: Box<fn(&mut RendererHandler, &Ginkgo)>,
+    record: Box<fn(&mut RendererHandler, &Ginkgo)>,
+}
+impl RenderLeaflet {
+    pub(crate) fn prepare_package_wrapper<T: Render + 'static>(
+        renderer_handler: &mut RendererHandler,
+        ginkgo: &Ginkgo,
+        queue_handler: &mut RenderPacketQueueHandler,
+    ) {
+        if let Some(queue) = queue_handler.obtain::<T>() {
+            renderer_handler
+                .obtain::<T>()
+                .prepare_packages(ginkgo, queue);
+        }
+    }
+    pub(crate) fn prepare_resources_wrapper<T: Render + 'static>(
+        renderer_handler: &mut RendererHandler,
+        ginkgo: &Ginkgo,
+    ) {
+        renderer_handler.obtain::<T>().resource_preparation(ginkgo);
+    }
+    pub(crate) fn record_wrapper<T: Render + 'static>(
+        renderer_handler: &mut RendererHandler,
+        ginkgo: &Ginkgo,
+    ) {
+        renderer_handler.obtain::<T>().record(ginkgo);
+    }
+    pub(crate) fn leaf_fn<T: Render + 'static>() -> Self {
+        Self {
+            prepare_package: Box::new(Self::prepare_package_wrapper::<T>),
+            prepare_resources: Box::new(Self::prepare_resources_wrapper::<T>),
+            record: Box::new(Self::record_wrapper::<T>),
+        }
+    }
+}
 
-pub(crate) struct RenderResourceHandler(pub(crate) AnyMap);
-impl RenderResourceHandler {
-    pub(crate) fn obtain<T: Render>(&mut self) -> &mut T::Resources {
-        &mut self.0.get_mut::<RenderResources<T>>().unwrap().0
+impl<T: Render> Renderer<T> {
+    pub(crate) fn new(ginkgo: &Ginkgo) -> Self {
+        Self {
+            resources: T::resources(ginkgo),
+            packages: RenderPackageHandler::default(),
+            instructions: RenderInstructionGroup::default(),
+            entity_to_package: HashMap::new(),
+            per_renderer_record_hook: true,
+            record_behavior: T::record_behavior(),
+            updated: true,
+        }
     }
-    pub(crate) fn establish<T: Render>(&mut self, resources: T::Resources) {
-        self.0.insert(RenderResources::new(resources));
+
+    pub(crate) fn prepare_packages(&mut self, ginkgo: &Ginkgo, queue: RenderPacketQueue) {
+        Self::inner_prepare_packages(
+            &mut self.resources,
+            &mut self.packages,
+            ginkgo,
+            queue,
+            &mut self.updated,
+        );
+    }
+    fn inner_prepare_packages(
+        resources: &mut T::Resources,
+        packages: &mut RenderPackageHandler<T>,
+        ginkgo: &Ginkgo,
+        mut queue: RenderPacketQueue,
+        updated_hook: &mut bool,
+    ) {
+        for (entity, package) in packages.0.iter_mut() {
+            if let Some(packet) = queue.retrieve(*entity) {
+                T::prepare_package(ginkgo, resources, package, packet);
+                *updated_hook = true;
+            }
+        }
+        if !queue.0.is_empty() {
+            for (entity, packet) in queue.0.drain() {
+                packages.0.push((
+                    entity,
+                    RenderPackage::new(T::package(ginkgo, &resources, packet)),
+                ));
+            }
+            // order by z after insertion
+            // update indices in entity_to_package
+            *updated_hook = true;
+        }
+    }
+    pub(crate) fn resource_preparation(&mut self, ginkgo: &Ginkgo) {
+        Self::inner_resource_preparation(
+            &mut self.resources,
+            ginkgo,
+            &mut self.per_renderer_record_hook,
+        );
+    }
+    fn inner_resource_preparation(
+        resources: &mut <T as Render>::Resources,
+        ginkgo: &Ginkgo,
+        per_renderer_record_hook: &mut bool,
+    ) {
+        T::prepare_resources(resources, ginkgo, per_renderer_record_hook);
+    }
+    pub(crate) fn record(&mut self, ginkgo: &Ginkgo) {
+        if self.updated {
+            self.instructions.0.clear();
+            Self::inner_record(
+                &self.resources,
+                &mut self.packages,
+                ginkgo,
+                &mut self.instructions,
+                &self.record_behavior,
+                self.per_renderer_record_hook,
+            );
+            self.per_renderer_record_hook = false;
+            self.updated = false;
+        }
+    }
+    fn inner_record(
+        resources: &T::Resources,
+        packages: &mut RenderPackageHandler<T>,
+        ginkgo: &Ginkgo,
+        render_instruction_group: &mut RenderInstructionGroup,
+        render_record_behavior: &RenderRecordBehavior<T>,
+        per_renderer_record_hook: bool,
+    ) {
+        match render_record_behavior {
+            RenderRecordBehavior::PerRenderer(behavior) => {
+                let recorder = RenderInstructionsRecorder::new(ginkgo);
+                if per_renderer_record_hook {
+                    let instructions =
+                        behavior(resources, ginkgo.viewport.as_ref().unwrap(), recorder);
+                    render_instruction_group.0 = vec![instructions];
+                }
+            }
+            RenderRecordBehavior::PerPackage(behavior) => {
+                for (entity, package) in packages.0.iter_mut() {
+                    let instructions = if package.should_record {
+                        let recorder = RenderInstructionsRecorder::new(ginkgo);
+                        let instructions = behavior(
+                            resources,
+                            ginkgo.viewport.as_ref().unwrap(),
+                            package,
+                            recorder,
+                        );
+                        package.instruction_handle.replace(instructions.clone());
+                        package.should_record = false;
+                        instructions
+                    } else {
+                        package.instruction_handle.as_ref().unwrap().clone()
+                    };
+                    render_instruction_group.0.push(instructions);
+                }
+            }
+        }
     }
 }
-pub(crate) struct RenderPackageListHandler(pub(crate) AnyMap);
-impl RenderPackageListHandler {
-    pub(crate) fn obtain<T: Render>(&mut self) -> &mut RenderPackageList<T> {
-        self.0.get_mut::<RenderPackageList<T>>().unwrap()
+pub(crate) type PerRendererRecordFn<T> = Box<
+    fn(&<T as Render>::Resources, &Viewport, RenderInstructionsRecorder) -> RenderInstructionHandle,
+>;
+pub(crate) type PerPackageRecordFn<T> = Box<
+    fn(
+        &<T as Render>::Resources,
+        &Viewport,
+        &mut RenderPackage<T>,
+        RenderInstructionsRecorder,
+    ) -> RenderInstructionHandle,
+>;
+pub(crate) struct RendererHandler(pub(crate) AnyMap);
+impl RendererHandler {
+    pub(crate) fn obtain<T: Render + 'static>(&mut self) -> &mut Renderer<T> {
+        self.0.get_mut::<Renderer<T>>().unwrap()
     }
-    pub(crate) fn establish<T: Render>(&mut self) {
-        self.0.insert(RenderPackageList::default());
-    }
-}
-pub(crate) struct EntityToRenderPackageHandler(pub(crate) AnyMap);
-impl EntityToRenderPackageHandler {
-    pub(crate) fn obtain<T: Render>(&mut self) -> &mut EntityToRenderPackage<T> {
-        self.0.get_mut::<EntityToRenderPackage<T>>().unwrap()
-    }
-    pub(crate) fn establish<T: Render>(&mut self) {
-        self.0.insert(EntityToRenderPackage::new());
+    pub(crate) fn establish<T: Render + 'static>(&mut self, ginkgo: &Ginkgo) {
+        self.0.insert(Renderer::<T>::new(ginkgo));
     }
 }
 pub(crate) struct RenderPacketQueueHandler(pub(crate) HashMap<RenderId, RenderPacketQueue>);
 impl RenderPacketQueueHandler {
-    pub(crate) fn obtain<T: Render>(&mut self) -> &mut RenderPacketQueue {
-        self.0.get_mut(&T::id()).unwrap()
+    pub(crate) fn obtain<T: Render + 'static>(&mut self) -> Option<RenderPacketQueue> {
+        self.establish::<T>()
     }
-    pub(crate) fn establish<T: Render>(&mut self, render_id: RenderId) {
-        self.0.insert(render_id, RenderPacketQueue::new());
-    }
-}
-pub(crate) struct RecordFns(pub(crate) AnyMap);
-impl RecordFns {
-    pub(crate) fn obtain<T: Render>(&self) -> &RenderRecordBehavior<T> {
-        self.0.get::<RenderRecordBehavior<T>>().unwrap()
-    }
-    pub(crate) fn set<T: Render>(&mut self, behavior: RenderRecordBehavior<T>) {
-        self.0.insert(behavior);
+    pub(crate) fn establish<T: Render + 'static>(&mut self) -> Option<RenderPacketQueue> {
+        self.0.insert(T::id(), RenderPacketQueue::new())
     }
 }
-pub(crate) fn package_preparation<T: Render>(
-    resource_handler: &mut RenderResourceHandler,
-    package_handler: &mut RenderPackageListHandler,
-    e_to_r_handler: &mut EntityToRenderPackageHandler,
-    render_packet_queue_handler: &mut RenderPacketQueueHandler,
-    ginkgo: &Ginkgo,
-) {
-    let res = resource_handler.obtain::<T>();
-    let rpl = package_handler.obtain::<T>();
-    let e_to_r = e_to_r_handler.obtain::<T>();
-    let rpq = render_packet_queue_handler.obtain::<T>();
-    for (entity, packet) in rpq.0.drain() {
-        // if no index, create package and push in list, then reorder by z and get new indices
-        let index = e_to_r.0.get(&entity).unwrap().clone();
-        let package = rpl.0.get_mut(index).unwrap();
-        T::prepare_package(ginkgo, res, package, packet);
-    }
-}
-pub(crate) fn renderer_preparation<T: Render>(
-    resource_handler: &mut RenderResourceHandler,
-    ginkgo: &Ginkgo,
-) {
-    // T::prepare_resources
-}
-pub(crate) fn package_record<T: Render>(
-    resource_handler: &mut RenderResourceHandler,
-    package_handler: &mut RenderPackageListHandler,
-    instruction_groups: &mut InstructionGroups,
-    record_fns: &RecordFns, // use this to skip remake with T::record_behavior
-    ginkgo: &Ginkgo,
-) {
-    // record in order of sorted list without entity indexing, just need render_id
-    if let RenderRecordBehavior::PerPackage(r_fn) = T::record_behavior() {
-        // iter packages and store recordings in correct group
-        // if dirty
-    } else {
-        panic!("per_package call on per_renderer behavior")
-    }
-}
-pub(crate) fn renderer_record<T: Render>(
-    resource_handler: &mut RenderResourceHandler,
-    record_fns: &RecordFns,
-    ginkgo: &Ginkgo,
-) {
-    // if Behavior::PerRenderer(...) -> r_fn(...) with correct input
-    // r_fn(res_handler, ginkgo) -> which calls inner to get specifics
-}
-pub struct RenderResources<T: Render>(pub T::Resources);
-impl<T: Render> RenderResources<T> {
-    pub(crate) fn new(resources: T::Resources) -> Self {
-        Self(resources)
-    }
-}
-#[derive(Default)]
-pub struct RenderPackageList<T: Render>(pub Vec<RenderPackage<T::RenderPackage>>);
-pub struct EntityToRenderPackage<T: Render>(pub HashMap<Entity, usize>, PhantomData<T>);
-impl<T: Render> EntityToRenderPackage<T> {
-    pub(crate) fn new() -> Self {
-        Self(HashMap::new(), PhantomData)
-    }
-}
-pub struct RenderPacketQueue(pub HashMap<Entity, RenderPacket>);
+pub(crate) struct RenderPacketQueue(pub HashMap<Entity, RenderPacket>);
 impl RenderPacketQueue {
     pub(crate) fn new() -> Self {
         Self(HashMap::new())
@@ -165,17 +258,10 @@ impl RenderPacketQueue {
     pub(crate) fn insert(&mut self, entity: Entity, render_packet: RenderPacket) {
         self.0.insert(entity, render_packet);
     }
+    pub(crate) fn retrieve(&mut self, entity: Entity) -> Option<RenderPacket> {
+        self.0.remove(&entity)
+    }
 }
-pub(crate) type PerRendererRecordFn<T: Render> =
-    Box<fn(&T::Resources, &Viewport, RenderInstructionsRecorder) -> RenderInstructionHandle>;
-pub(crate) type PerPackageRecordFn<T: Render> = Box<
-    fn(
-        &T::Resources,
-        &Viewport,
-        &mut RenderPackage<T::RenderPackage>,
-        RenderInstructionsRecorder,
-    ) -> RenderInstructionHandle,
->;
 pub struct RenderPackage<T: Render> {
     instruction_handle: Option<RenderInstructionHandle>,
     package_data: T::RenderPackage,
@@ -194,15 +280,17 @@ impl<T: Render> RenderPackage<T> {
     }
 }
 #[derive(Clone)]
-pub(crate) struct RenderInstructionHandle(pub(crate) Rc<wgpu::RenderBundle>);
-pub(crate) struct RenderInstructionGroup {
-    instructions: Vec<RenderInstructionHandle>,
-}
+pub struct RenderInstructionHandle(pub(crate) Rc<wgpu::RenderBundle>);
+#[derive(Default)]
+pub(crate) struct RenderInstructionGroup(pub(crate) Vec<RenderInstructionHandle>);
 pub enum RenderPhase {
     Opaque,
     Alpha(i32),
 }
-pub trait Render {
+pub trait Render
+where
+    Self: Sized,
+{
     type Resources;
     type RenderPackage;
     fn resources(ginkgo: &Ginkgo) -> Self::Resources;
@@ -214,9 +302,13 @@ pub trait Render {
     fn prepare_package(
         ginkgo: &Ginkgo,
         resources: &mut Self::Resources,
-        package: &mut RenderPackage<Self::RenderPackage>,
+        package: &mut RenderPackage<Self>,
         render_packet: RenderPacket,
     );
-    fn prepare_resources(resources: &mut Self::Resources, ginkgo: &Ginkgo);
+    fn prepare_resources(
+        resources: &mut Self::Resources,
+        ginkgo: &Ginkgo,
+        per_renderer_record_hook: &mut bool,
+    );
     fn record_behavior() -> RenderRecordBehavior<Self>;
 }

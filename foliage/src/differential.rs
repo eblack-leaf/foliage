@@ -49,7 +49,7 @@ impl DifferentialDisable {
 }
 #[derive(Hash, Eq, PartialEq, Serialize, Deserialize, Clone)]
 pub struct DifferentialId(pub(crate) CompactString);
-pub(crate) trait DifferentialIdentification {
+pub trait DifferentialIdentification {
     fn id() -> DifferentialId;
 }
 impl<T: Component> DifferentialIdentification for T {

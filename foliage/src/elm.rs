@@ -1,4 +1,5 @@
 use crate::job::Job;
+use crate::r_ash::render_packet::{RenderPacketForwarder, RenderPacketPackage};
 use crate::Leaflet;
 use anymap::AnyMap;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs, SystemSet};
@@ -7,13 +8,13 @@ use compact_str::{CompactString, ToCompactString};
 use serde::{Deserialize, Serialize};
 use std::any::TypeId;
 use std::marker::PhantomData;
-use crate::r_ash::render_packet::RenderPacketForwarder;
 
 pub struct Elm {
     initialized: bool,
     pub job: Job,
     differential_limiter: AnyMap,
 }
+
 struct DifferentialLimiter<T>(bool, PhantomData<T>);
 impl<T> Default for DifferentialLimiter<T> {
     fn default() -> Self {
@@ -28,6 +29,9 @@ impl Elm {
             differential_limiter: AnyMap::new(),
         }
     }
+    pub(crate) fn render_packet_package(&self) -> RenderPacketPackage {
+        todo!()
+    }
     pub(crate) fn initialized(&self) -> bool {
         self.initialized
     }
@@ -38,7 +42,9 @@ impl Elm {
         self.job.main().add_systems((
             crate::differential::send_render_packet.in_set(SystemSets::RenderPacket),
         ));
-        self.job.container.insert_resource(RenderPacketForwarder::default());
+        self.job
+            .container
+            .insert_resource(RenderPacketForwarder::default());
         for leaf in leaflets {
             leaf.0(self)
         }
@@ -55,7 +61,7 @@ impl Elm {
             .is_none()
         {
             self.differential_limiter
-                .insert(DifferentialLimiter::<T>::default())
+                .insert(DifferentialLimiter::<T>::default());
         }
         if !self
             .differential_limiter
