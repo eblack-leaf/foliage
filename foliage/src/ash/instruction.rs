@@ -1,15 +1,5 @@
 use crate::ginkgo::Ginkgo;
 use std::rc::Rc;
-use wgpu::RenderBundle;
-
-#[derive(Clone)]
-pub struct RenderInstructions(pub Rc<RenderBundle>);
-
-impl RenderInstructions {
-    pub(crate) fn bundle(&self) -> &wgpu::RenderBundle {
-        self.0.as_ref()
-    }
-}
 
 pub struct RenderInstructionsRecorder<'a>(pub wgpu::RenderBundleEncoder<'a>);
 
@@ -29,9 +19,15 @@ impl<'a> RenderInstructionsRecorder<'a> {
                 }),
         )
     }
-    pub fn finish(self) -> RenderInstructions {
-        RenderInstructions(Rc::new(self.0.finish(&wgpu::RenderBundleDescriptor {
+    pub fn finish(self) -> RenderInstructionHandle {
+        RenderInstructionHandle(Rc::new(self.0.finish(&wgpu::RenderBundleDescriptor {
             label: Some("render-bundle-desc"),
         })))
     }
 }
+
+#[derive(Clone)]
+pub struct RenderInstructionHandle(pub(crate) Rc<wgpu::RenderBundle>);
+
+#[derive(Default)]
+pub(crate) struct RenderInstructionGroup(pub(crate) Vec<RenderInstructionHandle>);

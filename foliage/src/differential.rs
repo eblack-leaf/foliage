@@ -1,6 +1,6 @@
-use crate::r_ash::render::RenderId;
-use crate::r_ash::render_packet::RenderPacketForwarder;
-use crate::r_ash::render_packet::RenderPacketStore;
+use crate::ash::identification::RenderId;
+use crate::ash::render_packet::RenderPacketForwarder;
+use crate::ash::render_packet::RenderPacketStore;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Bundle, Component, Or, Query};
 use bevy_ecs::query::Changed;

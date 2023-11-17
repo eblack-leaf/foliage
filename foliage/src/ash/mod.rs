@@ -1,82 +1,64 @@
-use crate::elm::Elm;
+use crate::ash::render::RenderPhase;
 use crate::ginkgo::Ginkgo;
 use anymap::AnyMap;
+use identification::RenderId;
+use instruction::{RenderInstructionGroup, RenderInstructionHandle};
+use leaflet::RenderLeaflet;
+use render_packet::RenderPacketPackage;
+use renderer::RendererHandler;
+use std::collections::HashMap;
 
-use fns::{AshLeaflet, InstructionFns, PrepareFns};
-use render::Render;
-use render_package::RenderPackageManager;
-use render_packet::RenderPacketManager;
-
-use render_instructions::RenderInstructions;
-use tag::RenderTagged;
-use wgpu::RenderBundle;
-
-pub mod fns;
+pub mod identification;
+pub mod instruction;
+pub mod leaflet;
 pub mod render;
-mod render_instructions;
-pub mod render_package;
 pub mod render_packet;
-pub mod tag;
+pub mod renderer;
 
-pub struct Ash {
-    pub(crate) render_packets: RenderPacketManager,
-    pub(crate) renderers: Renderers,
+pub(crate) type RenderLeafletStorage = HashMap<RenderId, RenderLeaflet>;
+pub(crate) struct Ash {
+    pub(crate) render_packet_package: Option<RenderPacketPackage>,
+    pub(crate) renderer_handler: RendererHandler,
+    pub(crate) instruction_groups: InstructionGroups,
+    pub(crate) render_leaflets: RenderLeafletStorage,
 }
-
 impl Ash {
     pub(crate) fn new() -> Self {
         Self {
-            render_packets: RenderPacketManager::new(),
-            renderers: AnyMap::new(),
+            render_packet_package: Some(RenderPacketPackage(HashMap::new())),
+            renderer_handler: RendererHandler(AnyMap::new()),
+            instruction_groups: InstructionGroups::default(),
+            render_leaflets: RenderLeafletStorage::new(),
         }
     }
-    pub(crate) fn establish_renderers(
-        &mut self,
-        ginkgo: &Ginkgo,
-        renderer_queue: Vec<AshLeaflet>,
-        prepare_fns: &mut PrepareFns,
-        instruction_fns: &mut InstructionFns,
-    ) {
-        for leaflet in renderer_queue {
-            leaflet.0(self, ginkgo);
-            prepare_fns.0.push(leaflet.1);
-            instruction_fns.0.push(leaflet.2);
-            self.render_packets.packets.insert(leaflet.3(), None);
+    pub(crate) fn establish(&mut self, ginkgo: &Ginkgo, render_leaflet: RenderLeafletStorage) {
+        for (id, leaf) in render_leaflet.iter() {
+            (leaf.register_fn)(self, ginkgo);
+        }
+        self.render_leaflets = render_leaflet
+    }
+    pub(crate) fn extract(&mut self, package: RenderPacketPackage) {
+        self.render_packet_package.replace(package);
+    }
+    pub(crate) fn prepare(&mut self, ginkgo: &Ginkgo) {
+        for (id, leaf) in self.render_leaflets.iter() {
+            (leaf.prepare_packages_fn)(
+                &mut self.renderer_handler,
+                ginkgo,
+                self.render_packet_package.as_mut().unwrap(),
+            );
+            (leaf.prepare_resources_fn)(&mut self.renderer_handler, ginkgo);
         }
     }
-    pub(crate) fn extract(&mut self, elm: &mut Elm) {
-        for (tag, packets) in elm
-            .job
-            .container
-            .get_resource_mut::<RenderPacketManager>()
-            .unwrap()
-            .packets
-            .iter_mut()
-        {
-            self.render_packets
-                .packets
-                .insert(tag.clone(), packets.take());
+    pub(crate) fn record(&mut self, ginkgo: &Ginkgo) {
+        for (id, leaf) in self.render_leaflets.iter() {
+            (leaf.record_fn)(&mut self.renderer_handler, ginkgo);
+            let instructions = (leaf.instruction_fetch_fn)(&mut self.renderer_handler);
+            self.instruction_groups.obtain(id).0 = instructions.0.clone();
         }
     }
-    pub(crate) fn preparation(&mut self, ginkgo: &Ginkgo, prepare_fns: &PrepareFns) {
-        for prepare_fn in prepare_fns.0.iter() {
-            prepare_fn(self, ginkgo);
-        }
-    }
-    pub(crate) fn prepare<T: Render + 'static>(&mut self, ginkgo: &Ginkgo) {
-        let render_packets = self.render_packets.get(T::tag());
-        T::prepare(
-            self.renderers.get_mut::<RenderPackageManager<T>>().unwrap(),
-            render_packets,
-            ginkgo,
-        );
-    }
-    pub(crate) fn render(&mut self, ginkgo: &mut Ginkgo, instruction_fns: &InstructionFns) {
-        let mut instructions = vec![];
-        for instruction_fn in instruction_fns.0.iter() {
-            let group_instructions = instruction_fn(self, ginkgo);
-            instructions.extend(group_instructions);
-        }
+    pub(crate) fn render(&self, ginkgo: &mut Ginkgo) {
+        let instructions = self.instruction_groups.instructions();
         if !instructions.is_empty() {
             let surface_texture = ginkgo.surface_texture();
             let view = surface_texture
@@ -98,8 +80,8 @@ impl Ash {
                 .execute_bundles(
                     instructions
                         .iter()
-                        .map(|i| i.bundle())
-                        .collect::<Vec<&RenderBundle>>(),
+                        .map(|i| i.0.as_ref())
+                        .collect::<Vec<&wgpu::RenderBundle>>(),
                 );
             ginkgo
                 .queue
@@ -109,16 +91,25 @@ impl Ash {
             surface_texture.present();
         }
     }
-    fn register<T: Render + 'static>(&mut self, ginkgo: &Ginkgo) {
-        self.renderers
-            .insert(RenderPackageManager::new(T::create(ginkgo)));
+}
+#[derive(Default)]
+pub(crate) struct InstructionGroups {
+    pub(crate) instruction_groups: Vec<(RenderId, RenderPhase, RenderInstructionGroup)>,
+    pub(crate) render_id_to_instruction_group: HashMap<RenderId, usize>,
+}
+impl InstructionGroups {
+    pub(crate) fn obtain(&mut self, id: &RenderId) -> &mut RenderInstructionGroup {
+        let index = *self.render_id_to_instruction_group.get(id).unwrap();
+        &mut self.instruction_groups.get_mut(index).unwrap().2
     }
-    fn instructions<T: Render + 'static>(&mut self, ginkgo: &Ginkgo) -> Vec<RenderInstructions> {
-        self.renderers
-            .get_mut::<RenderPackageManager<T>>()
-            .unwrap()
-            .instructions(ginkgo)
+    pub(crate) fn instructions(&self) -> Vec<RenderInstructionHandle> {
+        let mut instructions = vec![];
+        for group in self.instruction_groups.iter() {
+            instructions.extend(group.2 .0.clone());
+        }
+        instructions
+    }
+    pub(crate) fn establish(&mut self, id: RenderId, phase: RenderPhase) {
+        todo!()
     }
 }
-
-pub(crate) type Renderers = AnyMap;

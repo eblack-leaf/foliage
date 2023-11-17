@@ -1,25 +1,34 @@
-use crate::ash::render_instructions::{RenderInstructions, RenderInstructionsRecorder};
-use crate::ash::render_package::{RenderPackage, RenderPackageManager};
-use crate::ash::render_packet::RenderPackets;
-use crate::ginkgo::viewport::Viewport;
+use crate::ash::render_packet::RenderPacket;
+use crate::ash::renderer::{RenderPackage, RenderRecordBehavior};
 use crate::ginkgo::Ginkgo;
-use std::hash::Hash;
+
+pub enum RenderPhase {
+    Opaque,
+    Alpha(i32),
+}
 pub trait Render
 where
     Self: Sized,
 {
-    type Key: Hash + Eq + PartialEq + Copy + Clone;
-    type RenderPackageResources;
-    fn create(ginkgo: &Ginkgo) -> Self;
-    fn prepare(
-        pm: &mut RenderPackageManager<Self>,
-        render_packets: Option<RenderPackets>,
+    type Resources;
+    type RenderPackage;
+    const RENDER_PHASE: RenderPhase;
+    fn resources(ginkgo: &Ginkgo) -> Self::Resources;
+    fn package(
         ginkgo: &Ginkgo,
+        resources: &Self::Resources,
+        render_packet: RenderPacket,
+    ) -> Self::RenderPackage;
+    fn prepare_package(
+        ginkgo: &Ginkgo,
+        resources: &mut Self::Resources,
+        package: &mut RenderPackage<Self>,
+        render_packet: RenderPacket,
     );
-    fn record_package(
-        &self,
-        package: &RenderPackage<Self::RenderPackageResources>,
-        recorder: RenderInstructionsRecorder,
-        viewport: &Viewport,
-    ) -> RenderInstructions;
+    fn prepare_resources(
+        resources: &mut Self::Resources,
+        ginkgo: &Ginkgo,
+        per_renderer_record_hook: &mut bool,
+    );
+    fn record_behavior() -> RenderRecordBehavior<Self>;
 }
