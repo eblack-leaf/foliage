@@ -3,7 +3,7 @@ use crate::r_ash::render::{RenderId, RenderPacketPackage};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, Resource};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 pub type RenderPacketDifferential = Option<Vec<u8>>;
 pub type RenderPacket = HashMap<DifferentialId, RenderPacketDifferential>;
 #[derive(Default, Component)]
@@ -37,7 +37,7 @@ pub(crate) struct RenderPacketSignature(pub(crate) RenderId, pub(crate) Entity);
 #[derive(Resource, Default)]
 pub(crate) struct RenderPacketForwarder {
     pub(crate) render_packets: HashMap<RenderPacketSignature, RenderPacket>,
-    pub(crate) removals: HashMap<RenderId, Vec<Entity>>,
+    pub(crate) removals: HashMap<RenderId, HashSet<Entity>>,
 }
 impl RenderPacketForwarder {
     pub(crate) fn forward_packet(&mut self, id: &RenderId, entity: Entity, packet: RenderPacket) {
