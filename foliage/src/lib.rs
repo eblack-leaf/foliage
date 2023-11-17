@@ -12,7 +12,6 @@ pub mod window;
 use crate::coordinate::CoordinateUnit;
 use crate::elm::Elm;
 use crate::ginkgo::Ginkgo;
-use compact_str::ToCompactString;
 
 use crate::r_ash::render::{Render, RenderIdentification, RenderLeaflet};
 use crate::r_ash::{Ash, RenderLeafletStorage};

@@ -1,5 +1,5 @@
 use crate::differential::{DifferentialId, DifferentialIdentification};
-use crate::r_ash::render::RenderId;
+use crate::r_ash::render::{RenderId, RenderPacketPackage};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, Resource};
 use serde::{Deserialize, Serialize};
@@ -46,19 +46,9 @@ impl RenderPacketForwarder {
     pub(crate) fn remove(&mut self, id: &RenderId, entity: Entity) {
         todo!()
     }
-    pub(crate) fn exchange(&mut self) -> RenderPacketPackage {
-        todo!()
-    }
-}
-pub(crate) type PackagedRenderPacket = (RenderPacketSignature, RenderPacket);
-pub(crate) type PackagedRemoval = (RenderId, Vec<Entity>);
-#[derive(Serialize, Deserialize)]
-pub(crate) struct RenderPacketPackage {
-    pub(crate) packets: Vec<PackagedRenderPacket>,
-    pub(crate) removals: Vec<PackagedRemoval>,
-}
-impl RenderPacketPackage {
-    pub(crate) fn new(packets: Vec<PackagedRenderPacket>, removals: Vec<PackagedRemoval>) -> Self {
-        Self { packets, removals }
+    pub(crate) fn package_for_transit(&mut self) -> RenderPacketPackage {
+        let mut package = RenderPacketPackage::default();
+
+        package
     }
 }

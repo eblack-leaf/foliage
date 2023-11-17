@@ -2,6 +2,7 @@ use crate::elm::compact_string_type_id;
 use crate::ginkgo::viewport::Viewport;
 use crate::ginkgo::Ginkgo;
 use crate::r_ash::render_packet::RenderPacket;
+use crate::r_ash::Ash;
 use anymap::AnyMap;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::Component;
@@ -69,15 +70,17 @@ pub(crate) struct Renderer<T: Render> {
     updated: bool,
 }
 pub(crate) struct RenderLeaflet {
-    prepare_package: Box<fn(&mut RendererHandler, &Ginkgo, &mut RenderPacketQueueHandler)>,
-    prepare_resources: Box<fn(&mut RendererHandler, &Ginkgo)>,
-    record: Box<fn(&mut RendererHandler, &Ginkgo)>,
+    pub(crate) register_fn: Box<fn(&mut Ash, &Ginkgo)>,
+    pub(crate) prepare_packages_fn:
+        Box<fn(&mut RendererHandler, &Ginkgo, &mut RenderPacketPackage)>,
+    pub(crate) prepare_resources_fn: Box<fn(&mut RendererHandler, &Ginkgo)>,
+    pub(crate) record_fn: Box<fn(&mut RendererHandler, &Ginkgo)>,
 }
 impl RenderLeaflet {
-    pub(crate) fn prepare_package_wrapper<T: Render + 'static>(
+    pub(crate) fn prepare_packages_wrapper<T: Render + 'static>(
         renderer_handler: &mut RendererHandler,
         ginkgo: &Ginkgo,
-        queue_handler: &mut RenderPacketQueueHandler,
+        queue_handler: &mut RenderPacketPackage,
     ) {
         if let Some(queue) = queue_handler.obtain::<T>() {
             renderer_handler
@@ -97,11 +100,16 @@ impl RenderLeaflet {
     ) {
         renderer_handler.obtain::<T>().record(ginkgo);
     }
+    pub(crate) fn register<T: Render + 'static>(ash: &mut Ash, ginkgo: &Ginkgo) {
+        ash.renderer_handler.establish::<T>(ginkgo);
+        ash.instruction_groups.establish(T::id(), T::RENDER_PHASE);
+    }
     pub(crate) fn leaf_fn<T: Render + 'static>() -> Self {
         Self {
-            prepare_package: Box::new(Self::prepare_package_wrapper::<T>),
-            prepare_resources: Box::new(Self::prepare_resources_wrapper::<T>),
-            record: Box::new(Self::record_wrapper::<T>),
+            register_fn: Box::new(Self::register::<T>),
+            prepare_packages_fn: Box::new(Self::prepare_packages_wrapper::<T>),
+            prepare_resources_fn: Box::new(Self::prepare_resources_wrapper::<T>),
+            record_fn: Box::new(Self::record_wrapper::<T>),
         }
     }
 }
@@ -118,7 +126,6 @@ impl<T: Render> Renderer<T> {
             updated: true,
         }
     }
-
     pub(crate) fn prepare_packages(&mut self, ginkgo: &Ginkgo, queue: RenderPacketQueue) {
         Self::inner_prepare_packages(
             &mut self.resources,
@@ -135,8 +142,12 @@ impl<T: Render> Renderer<T> {
         mut queue: RenderPacketQueue,
         updated_hook: &mut bool,
     ) {
+        for entity in queue.retrieve_removals() {
+            // remove package using entity
+            *updated_hook = true;
+        }
         for (entity, package) in packages.0.iter_mut() {
-            if let Some(packet) = queue.retrieve(*entity) {
+            if let Some(packet) = queue.retrieve_packet(*entity) {
                 T::prepare_package(ginkgo, resources, package, packet);
                 *updated_hook = true;
             }
@@ -200,7 +211,7 @@ impl<T: Render> Renderer<T> {
                 }
             }
             RenderRecordBehavior::PerPackage(behavior) => {
-                for (entity, package) in packages.0.iter_mut() {
+                for (_entity, package) in packages.0.iter_mut() {
                     let instructions = if package.should_record {
                         let recorder = RenderInstructionsRecorder::new(ginkgo);
                         let instructions = behavior(
@@ -241,8 +252,9 @@ impl RendererHandler {
         self.0.insert(Renderer::<T>::new(ginkgo));
     }
 }
-pub(crate) struct RenderPacketQueueHandler(pub(crate) HashMap<RenderId, RenderPacketQueue>);
-impl RenderPacketQueueHandler {
+#[derive(Serialize, Deserialize, Default)]
+pub(crate) struct RenderPacketPackage(pub(crate) HashMap<RenderId, RenderPacketQueue>);
+impl RenderPacketPackage {
     pub(crate) fn obtain<T: Render + 'static>(&mut self) -> Option<RenderPacketQueue> {
         self.establish::<T>()
     }
@@ -250,15 +262,22 @@ impl RenderPacketQueueHandler {
         self.0.insert(T::id(), RenderPacketQueue::new())
     }
 }
-pub(crate) struct RenderPacketQueue(pub HashMap<Entity, RenderPacket>);
+#[derive(Serialize, Deserialize)]
+pub(crate) struct RenderPacketQueue(pub HashMap<Entity, RenderPacket>, pub Vec<Entity>);
 impl RenderPacketQueue {
     pub(crate) fn new() -> Self {
-        Self(HashMap::new())
+        Self(HashMap::new(), vec![])
     }
     pub(crate) fn insert(&mut self, entity: Entity, render_packet: RenderPacket) {
         self.0.insert(entity, render_packet);
     }
-    pub(crate) fn retrieve(&mut self, entity: Entity) -> Option<RenderPacket> {
+    pub(crate) fn remove(&mut self, entities: Vec<Entity>) {
+        self.1.extend(entities);
+    }
+    pub(crate) fn retrieve_removals(&mut self) -> Vec<Entity> {
+        self.1.drain(..).collect()
+    }
+    pub(crate) fn retrieve_packet(&mut self, entity: Entity) -> Option<RenderPacket> {
         self.0.remove(&entity)
     }
 }
@@ -293,6 +312,7 @@ where
 {
     type Resources;
     type RenderPackage;
+    const RENDER_PHASE: RenderPhase;
     fn resources(ginkgo: &Ginkgo) -> Self::Resources;
     fn package(
         ginkgo: &Ginkgo,

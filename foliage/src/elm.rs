@@ -1,5 +1,6 @@
 use crate::job::Job;
-use crate::r_ash::render_packet::{RenderPacketForwarder, RenderPacketPackage};
+use crate::r_ash::render::RenderPacketPackage;
+use crate::r_ash::render_packet::RenderPacketForwarder;
 use crate::Leaflet;
 use anymap::AnyMap;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs, SystemSet};
@@ -29,8 +30,12 @@ impl Elm {
             differential_limiter: AnyMap::new(),
         }
     }
-    pub(crate) fn render_packet_package(&self) -> RenderPacketPackage {
-        todo!()
+    pub(crate) fn render_packet_package(&mut self) -> RenderPacketPackage {
+        self.job
+            .container
+            .get_resource_mut::<RenderPacketForwarder>()
+            .unwrap()
+            .package_for_transit()
     }
     pub(crate) fn initialized(&self) -> bool {
         self.initialized
