@@ -1,23 +1,24 @@
-use crate::ash::identification::RenderIdentification;
+use crate::ash::identification::{RenderId, RenderIdentification};
 use crate::ash::instruction::RenderInstructionGroup;
 use crate::ash::render::Render;
 use crate::ash::render_packet::RenderPacketPackage;
-use crate::ash::renderer::RendererHandler;
+use crate::ash::renderer::RendererStorage;
 use crate::ash::Ash;
 use crate::ginkgo::Ginkgo;
+use std::collections::HashMap;
 
 pub(crate) struct RenderLeaflet {
     pub(crate) register_fn: Box<fn(&mut Ash, &Ginkgo)>,
     pub(crate) prepare_packages_fn:
-        Box<fn(&mut RendererHandler, &Ginkgo, &mut RenderPacketPackage)>,
-    pub(crate) prepare_resources_fn: Box<fn(&mut RendererHandler, &Ginkgo)>,
-    pub(crate) record_fn: Box<fn(&mut RendererHandler, &Ginkgo)>,
-    pub(crate) instruction_fetch_fn: Box<fn(&mut RendererHandler) -> &RenderInstructionGroup>,
+        Box<fn(&mut RendererStorage, &Ginkgo, &mut RenderPacketPackage)>,
+    pub(crate) prepare_resources_fn: Box<fn(&mut RendererStorage, &Ginkgo)>,
+    pub(crate) record_fn: Box<fn(&mut RendererStorage, &Ginkgo)>,
+    pub(crate) instruction_fetch_fn: Box<fn(&mut RendererStorage) -> &RenderInstructionGroup>,
 }
 
 impl RenderLeaflet {
     pub(crate) fn prepare_packages_wrapper<T: Render + 'static>(
-        renderer_handler: &mut RendererHandler,
+        renderer_handler: &mut RendererStorage,
         ginkgo: &Ginkgo,
         queue_handler: &mut RenderPacketPackage,
     ) {
@@ -28,13 +29,13 @@ impl RenderLeaflet {
         }
     }
     pub(crate) fn prepare_resources_wrapper<T: Render + 'static>(
-        renderer_handler: &mut RendererHandler,
+        renderer_handler: &mut RendererStorage,
         ginkgo: &Ginkgo,
     ) {
         renderer_handler.obtain::<T>().resource_preparation(ginkgo);
     }
     pub(crate) fn record_wrapper<T: Render + 'static>(
-        renderer_handler: &mut RendererHandler,
+        renderer_handler: &mut RendererStorage,
         ginkgo: &Ginkgo,
     ) {
         renderer_handler.obtain::<T>().record(ginkgo);
@@ -44,7 +45,7 @@ impl RenderLeaflet {
         ash.instruction_groups.establish(T::id(), T::RENDER_PHASE);
     }
     pub(crate) fn instruction_fetch<T: Render + 'static>(
-        renderer_handler: &mut RendererHandler,
+        renderer_handler: &mut RendererStorage,
     ) -> &RenderInstructionGroup {
         &renderer_handler.obtain::<T>().instructions
     }
@@ -58,3 +59,5 @@ impl RenderLeaflet {
         }
     }
 }
+
+pub(crate) type RenderLeafletStorage = HashMap<RenderId, RenderLeaflet>;

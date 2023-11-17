@@ -11,7 +11,7 @@ use std::collections::HashMap;
 
 pub(crate) struct Renderer<T: Render> {
     resources: T::Resources,
-    packages: RenderPackageHandler<T>,
+    packages: RenderPackageStorage<T>,
     pub(crate) instructions: RenderInstructionGroup,
     entity_to_package: HashMap<Entity, usize>,
     per_renderer_record_hook: bool,
@@ -23,7 +23,7 @@ impl<T: Render> Renderer<T> {
     pub(crate) fn new(ginkgo: &Ginkgo) -> Self {
         Self {
             resources: T::resources(ginkgo),
-            packages: RenderPackageHandler::default(),
+            packages: RenderPackageStorage::default(),
             instructions: RenderInstructionGroup::default(),
             entity_to_package: HashMap::new(),
             per_renderer_record_hook: true,
@@ -42,7 +42,7 @@ impl<T: Render> Renderer<T> {
     }
     fn inner_prepare_packages(
         resources: &mut T::Resources,
-        packages: &mut RenderPackageHandler<T>,
+        packages: &mut RenderPackageStorage<T>,
         ginkgo: &Ginkgo,
         mut queue: RenderPacketQueue,
         updated_hook: &mut bool,
@@ -100,7 +100,7 @@ impl<T: Render> Renderer<T> {
     }
     fn inner_record(
         resources: &T::Resources,
-        packages: &mut RenderPackageHandler<T>,
+        packages: &mut RenderPackageStorage<T>,
         ginkgo: &Ginkgo,
         render_instruction_group: &mut RenderInstructionGroup,
         render_record_behavior: &RenderRecordBehavior<T>,
@@ -138,9 +138,9 @@ impl<T: Render> Renderer<T> {
     }
 }
 
-pub(crate) struct RendererHandler(pub(crate) AnyMap);
+pub(crate) struct RendererStorage(pub(crate) AnyMap);
 
-impl RendererHandler {
+impl RendererStorage {
     pub(crate) fn obtain<T: Render + 'static>(&mut self) -> &mut Renderer<T> {
         self.0.get_mut::<Renderer<T>>().unwrap()
     }
@@ -154,15 +154,15 @@ pub enum RenderRecordBehavior<T: Render> {
     PerPackage(PerPackageRecordFn<T>),
 }
 
-pub(crate) struct RenderPackageHandler<T: Render>(pub(crate) Vec<(Entity, RenderPackage<T>)>);
+pub(crate) struct RenderPackageStorage<T: Render>(pub(crate) Vec<(Entity, RenderPackage<T>)>);
 
-impl<T: Render> RenderPackageHandler<T> {
+impl<T: Render> RenderPackageStorage<T> {
     pub(crate) fn new() -> Self {
         Self(vec![])
     }
 }
 
-impl<T: Render> Default for RenderPackageHandler<T> {
+impl<T: Render> Default for RenderPackageStorage<T> {
     fn default() -> Self {
         Self::new()
     }

@@ -1,4 +1,7 @@
+use crate::ash::identification::RenderId;
+use crate::ash::render::RenderPhase;
 use crate::ginkgo::Ginkgo;
+use std::collections::HashMap;
 use std::rc::Rc;
 
 pub struct RenderInstructionsRecorder<'a>(pub wgpu::RenderBundleEncoder<'a>);
@@ -31,3 +34,26 @@ pub struct RenderInstructionHandle(pub(crate) Rc<wgpu::RenderBundle>);
 
 #[derive(Default)]
 pub(crate) struct RenderInstructionGroup(pub(crate) Vec<RenderInstructionHandle>);
+
+#[derive(Default)]
+pub(crate) struct InstructionGroups {
+    pub(crate) instruction_groups: Vec<(RenderId, RenderPhase, RenderInstructionGroup)>,
+    pub(crate) render_id_to_instruction_group: HashMap<RenderId, usize>,
+}
+
+impl InstructionGroups {
+    pub(crate) fn obtain(&mut self, id: &RenderId) -> &mut RenderInstructionGroup {
+        let index = *self.render_id_to_instruction_group.get(id).unwrap();
+        &mut self.instruction_groups.get_mut(index).unwrap().2
+    }
+    pub(crate) fn instructions(&self) -> Vec<RenderInstructionHandle> {
+        let mut instructions = vec![];
+        for group in self.instruction_groups.iter() {
+            instructions.extend(group.2 .0.clone());
+        }
+        instructions
+    }
+    pub(crate) fn establish(&mut self, id: RenderId, phase: RenderPhase) {
+        todo!()
+    }
+}

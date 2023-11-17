@@ -13,8 +13,9 @@ use crate::coordinate::CoordinateUnit;
 use crate::elm::Elm;
 use crate::ginkgo::Ginkgo;
 
+use self::ash::leaflet::RenderLeafletStorage;
 use crate::ash::render::Render;
-use crate::ash::{Ash, RenderLeafletStorage};
+use crate::ash::Ash;
 use ash::identification::RenderIdentification;
 use ash::leaflet::RenderLeaflet;
 use window::{WindowDescriptor, WindowHandle};

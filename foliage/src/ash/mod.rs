@@ -1,11 +1,9 @@
-use crate::ash::render::RenderPhase;
 use crate::ginkgo::Ginkgo;
 use anymap::AnyMap;
-use identification::RenderId;
-use instruction::{RenderInstructionGroup, RenderInstructionHandle};
-use leaflet::RenderLeaflet;
+use instruction::InstructionGroups;
+use leaflet::RenderLeafletStorage;
 use render_packet::RenderPacketPackage;
-use renderer::RendererHandler;
+use renderer::RendererStorage;
 use std::collections::HashMap;
 
 pub mod identification;
@@ -15,10 +13,9 @@ pub mod render;
 pub mod render_packet;
 pub mod renderer;
 
-pub(crate) type RenderLeafletStorage = HashMap<RenderId, RenderLeaflet>;
 pub(crate) struct Ash {
     pub(crate) render_packet_package: Option<RenderPacketPackage>,
-    pub(crate) renderer_handler: RendererHandler,
+    pub(crate) renderer_handler: RendererStorage,
     pub(crate) instruction_groups: InstructionGroups,
     pub(crate) render_leaflets: RenderLeafletStorage,
 }
@@ -26,7 +23,7 @@ impl Ash {
     pub(crate) fn new() -> Self {
         Self {
             render_packet_package: Some(RenderPacketPackage(HashMap::new())),
-            renderer_handler: RendererHandler(AnyMap::new()),
+            renderer_handler: RendererStorage(AnyMap::new()),
             instruction_groups: InstructionGroups::default(),
             render_leaflets: RenderLeafletStorage::new(),
         }
@@ -90,26 +87,5 @@ impl Ash {
                 .submit(std::iter::once(encoder.finish()));
             surface_texture.present();
         }
-    }
-}
-#[derive(Default)]
-pub(crate) struct InstructionGroups {
-    pub(crate) instruction_groups: Vec<(RenderId, RenderPhase, RenderInstructionGroup)>,
-    pub(crate) render_id_to_instruction_group: HashMap<RenderId, usize>,
-}
-impl InstructionGroups {
-    pub(crate) fn obtain(&mut self, id: &RenderId) -> &mut RenderInstructionGroup {
-        let index = *self.render_id_to_instruction_group.get(id).unwrap();
-        &mut self.instruction_groups.get_mut(index).unwrap().2
-    }
-    pub(crate) fn instructions(&self) -> Vec<RenderInstructionHandle> {
-        let mut instructions = vec![];
-        for group in self.instruction_groups.iter() {
-            instructions.extend(group.2 .0.clone());
-        }
-        instructions
-    }
-    pub(crate) fn establish(&mut self, id: RenderId, phase: RenderPhase) {
-        todo!()
     }
 }
