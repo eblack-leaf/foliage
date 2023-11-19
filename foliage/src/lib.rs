@@ -18,19 +18,11 @@ use crate::ash::render::Render;
 use crate::ash::Ash;
 use ash::identification::RenderIdentification;
 use ash::leaflet::RenderLeaflet;
+use elm::{Leaf, Leaflet};
 use window::{WindowDescriptor, WindowHandle};
 use winit::event::{Event, StartCause, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopWindowTarget};
 
-pub trait Leaf {
-    fn attach(elm: &mut Elm);
-}
-pub(crate) struct Leaflet(pub(crate) Box<fn(&mut Elm)>);
-impl Leaflet {
-    pub(crate) fn leaf_fn<T: Leaf>() -> Self {
-        Self(Box::new(T::attach))
-    }
-}
 pub struct Foliage {
     window_descriptor: Option<WindowDescriptor>,
     leaf_queue: Option<Vec<Leaflet>>,

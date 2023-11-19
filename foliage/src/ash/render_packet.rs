@@ -43,14 +43,43 @@ pub(crate) struct RenderPacketForwarder {
 }
 impl RenderPacketForwarder {
     pub(crate) fn forward_packet(&mut self, id: &RenderId, entity: Entity, packet: RenderPacket) {
-        todo!()
+        self.render_packets
+            .insert(RenderPacketSignature(id.clone(), entity), packet);
     }
     pub(crate) fn remove(&mut self, id: &RenderId, entity: Entity) {
-        todo!()
+        if self.removals.get(id).is_none() {
+            self.removals.insert(id.clone(), HashSet::new());
+        }
+        if let Some(set) = self.removals.get_mut(id) {
+            set.insert(entity);
+        }
     }
     pub(crate) fn package_for_transit(&mut self) -> RenderPacketPackage {
         let mut package = RenderPacketPackage::default();
-
+        for (signature, packet) in self.render_packets.drain() {
+            if package.0.get(&signature.0).is_none() {
+                package
+                    .0
+                    .insert(signature.0.clone(), RenderPacketQueue::new());
+            }
+            package
+                .0
+                .get_mut(&signature.0)
+                .unwrap()
+                .0
+                .insert(signature.1, packet);
+        }
+        for (id, mut removal) in self.removals.drain() {
+            if package.0.get(&id).is_none() {
+                package.0.insert(id.clone(), RenderPacketQueue::new());
+            }
+            package
+                .0
+                .get_mut(&id)
+                .unwrap()
+                .1
+                .extend(removal.drain().collect::<Vec<Entity>>());
+        }
         package
     }
 }

@@ -49,12 +49,15 @@ impl Ash {
     }
     pub(crate) fn record(&mut self, ginkgo: &Ginkgo) {
         for (id, leaf) in self.render_leaflets.iter() {
-            (leaf.record_fn)(&mut self.renderer_handler, ginkgo);
-            let instructions = (leaf.instruction_fetch_fn)(&mut self.renderer_handler);
-            self.instruction_groups.obtain(id).0 = instructions.0.clone();
+            let instructions_changed = (leaf.record_fn)(&mut self.renderer_handler, ginkgo);
+            if instructions_changed {
+                let instructions = (leaf.instruction_fetch_fn)(&mut self.renderer_handler);
+                self.instruction_groups.obtain(id).0 = instructions.0.clone();
+                self.instruction_groups.updated = true;
+            }
         }
     }
-    pub(crate) fn render(&self, ginkgo: &mut Ginkgo) {
+    pub(crate) fn render(&mut self, ginkgo: &mut Ginkgo) {
         let instructions = self.instruction_groups.instructions();
         if !instructions.is_empty() {
             let surface_texture = ginkgo.surface_texture();

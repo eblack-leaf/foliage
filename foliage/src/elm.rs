@@ -1,7 +1,6 @@
 use crate::ash::render_packet::RenderPacketForwarder;
 use crate::ash::render_packet::RenderPacketPackage;
 use crate::job::Job;
-use crate::Leaflet;
 use anymap::AnyMap;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs, SystemSet};
 use bevy_ecs::schedule::IntoSystemSetConfigs;
@@ -15,7 +14,11 @@ pub struct Elm {
     pub job: Job,
     differential_limiter: AnyMap,
 }
-
+macro_rules! differential_enable {
+    (&elm:ident $(,&typename:ty)*) => {
+        $($elm.enable_differential::<$typename>();)*
+    };
+}
 struct DifferentialLimiter<T>(bool, PhantomData<T>);
 impl<T> Default for DifferentialLimiter<T> {
     fn default() -> Self {
@@ -97,4 +100,16 @@ pub enum SystemSets {
 
 pub(crate) fn compact_string_type_id<T: 'static>() -> CompactString {
     format!("{:?}", TypeId::of::<T>()).to_compact_string()
+}
+
+pub trait Leaf {
+    fn attach(elm: &mut Elm);
+}
+
+pub(crate) struct Leaflet(pub(crate) Box<fn(&mut Elm)>);
+
+impl Leaflet {
+    pub(crate) fn leaf_fn<T: Leaf>() -> Self {
+        Self(Box::new(T::attach))
+    }
 }

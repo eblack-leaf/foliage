@@ -8,12 +8,12 @@ use crate::ginkgo::Ginkgo;
 use anymap::AnyMap;
 use bevy_ecs::entity::Entity;
 use std::collections::HashMap;
-
+pub(crate) type EntityMapping = HashMap<Entity, usize>;
 pub(crate) struct Renderer<T: Render> {
     resources: T::Resources,
     packages: RenderPackageStorage<T>,
     pub(crate) instructions: RenderInstructionGroup,
-    entity_to_package: HashMap<Entity, usize>,
+    entity_to_package: EntityMapping,
     per_renderer_record_hook: bool,
     record_behavior: RenderRecordBehavior<T>,
     updated: bool,
@@ -25,7 +25,7 @@ impl<T: Render> Renderer<T> {
             resources: T::resources(ginkgo),
             packages: RenderPackageStorage::default(),
             instructions: RenderInstructionGroup::default(),
-            entity_to_package: HashMap::new(),
+            entity_to_package: EntityMapping::new(),
             per_renderer_record_hook: true,
             record_behavior: T::record_behavior(),
             updated: true,
@@ -37,6 +37,7 @@ impl<T: Render> Renderer<T> {
             &mut self.packages,
             ginkgo,
             queue,
+            &mut self.entity_to_package,
             &mut self.updated,
         );
     }
@@ -45,11 +46,14 @@ impl<T: Render> Renderer<T> {
         packages: &mut RenderPackageStorage<T>,
         ginkgo: &Ginkgo,
         mut queue: RenderPacketQueue,
+        mut entity_mapping: &mut EntityMapping,
         updated_hook: &mut bool,
     ) {
         for entity in queue.retrieve_removals() {
-            // remove package using entity
-            *updated_hook = true;
+            if let Some(index) = entity_mapping.remove(&entity) {
+                packages.0.remove(index);
+                *updated_hook = true;
+            }
         }
         for (entity, package) in packages.0.iter_mut() {
             if let Some(packet) = queue.retrieve_packet(*entity) {
@@ -63,6 +67,8 @@ impl<T: Render> Renderer<T> {
                     entity,
                     RenderPackage::new(T::package(ginkgo, &resources, packet)),
                 ));
+                let index = packages.0.len() - 1;
+                entity_mapping.insert(entity, index);
             }
             // order by z after insertion
             // update indices in entity_to_package
@@ -83,7 +89,7 @@ impl<T: Render> Renderer<T> {
     ) {
         T::prepare_resources(resources, ginkgo, per_renderer_record_hook);
     }
-    pub(crate) fn record(&mut self, ginkgo: &Ginkgo) {
+    pub(crate) fn record(&mut self, ginkgo: &Ginkgo) -> bool {
         if self.updated {
             self.instructions.0.clear();
             Self::inner_record(
@@ -96,7 +102,9 @@ impl<T: Render> Renderer<T> {
             );
             self.per_renderer_record_hook = false;
             self.updated = false;
+            return true;
         }
+        false
     }
     fn inner_record(
         resources: &T::Resources,
@@ -108,8 +116,8 @@ impl<T: Render> Renderer<T> {
     ) {
         match render_record_behavior {
             RenderRecordBehavior::PerRenderer(behavior) => {
-                let recorder = RenderInstructionsRecorder::new(ginkgo);
                 if per_renderer_record_hook {
+                    let recorder = RenderInstructionsRecorder::new(ginkgo);
                     let instructions =
                         behavior(resources, ginkgo.viewport.as_ref().unwrap(), recorder);
                     render_instruction_group.0 = vec![instructions];
@@ -141,8 +149,11 @@ impl<T: Render> Renderer<T> {
 pub(crate) struct RendererStorage(pub(crate) AnyMap);
 
 impl RendererStorage {
-    pub(crate) fn obtain<T: Render + 'static>(&mut self) -> &mut Renderer<T> {
+    pub(crate) fn obtain_mut<T: Render + 'static>(&mut self) -> &mut Renderer<T> {
         self.0.get_mut::<Renderer<T>>().unwrap()
+    }
+    pub(crate) fn obtain<T: Render + 'static>(&self) -> &Renderer<T> {
+        self.0.get::<Renderer<T>>().unwrap()
     }
     pub(crate) fn establish<T: Render + 'static>(&mut self, ginkgo: &Ginkgo) {
         self.0.insert(Renderer::<T>::new(ginkgo));

@@ -12,7 +12,7 @@ pub(crate) struct RenderLeaflet {
     pub(crate) prepare_packages_fn:
         Box<fn(&mut RendererStorage, &Ginkgo, &mut RenderPacketPackage)>,
     pub(crate) prepare_resources_fn: Box<fn(&mut RendererStorage, &Ginkgo)>,
-    pub(crate) record_fn: Box<fn(&mut RendererStorage, &Ginkgo)>,
+    pub(crate) record_fn: Box<fn(&mut RendererStorage, &Ginkgo) -> bool>,
     pub(crate) instruction_fetch_fn: Box<fn(&mut RendererStorage) -> &RenderInstructionGroup>,
 }
 
@@ -24,7 +24,7 @@ impl RenderLeaflet {
     ) {
         if let Some(queue) = queue_handler.obtain::<T>() {
             renderer_handler
-                .obtain::<T>()
+                .obtain_mut::<T>()
                 .prepare_packages(ginkgo, queue);
         }
     }
@@ -32,13 +32,15 @@ impl RenderLeaflet {
         renderer_handler: &mut RendererStorage,
         ginkgo: &Ginkgo,
     ) {
-        renderer_handler.obtain::<T>().resource_preparation(ginkgo);
+        renderer_handler
+            .obtain_mut::<T>()
+            .resource_preparation(ginkgo);
     }
     pub(crate) fn record_wrapper<T: Render + 'static>(
         renderer_handler: &mut RendererStorage,
         ginkgo: &Ginkgo,
-    ) {
-        renderer_handler.obtain::<T>().record(ginkgo);
+    ) -> bool {
+        renderer_handler.obtain_mut::<T>().record(ginkgo)
     }
     pub(crate) fn register<T: Render + 'static>(ash: &mut Ash, ginkgo: &Ginkgo) {
         ash.renderer_handler.establish::<T>(ginkgo);
