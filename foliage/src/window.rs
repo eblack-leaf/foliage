@@ -1,4 +1,5 @@
-use crate::coordinate::{Area, CoordinateUnit, DeviceContext};
+use crate::coordinate::area::Area;
+use crate::coordinate::{CoordinateUnit, DeviceContext};
 use std::sync::Arc;
 use winit::dpi::PhysicalSize;
 use winit::event_loop::EventLoopWindowTarget;

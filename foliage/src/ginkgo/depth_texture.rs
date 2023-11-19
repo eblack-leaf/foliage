@@ -1,4 +1,5 @@
-use crate::coordinate::{Area, DeviceContext};
+use crate::coordinate::area::Area;
+use crate::coordinate::DeviceContext;
 use crate::ginkgo::msaa::Msaa;
 use wgpu::{DepthStencilState, TextureFormat};
 

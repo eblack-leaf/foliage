@@ -3,11 +3,12 @@ use std::ops::{Add, Sub};
 use crate::CoordinateUnit;
 use bevy_ecs::component::Component;
 use bytemuck::{Pod, Zeroable};
+use serde::{Deserialize, Serialize};
 
 /// Layer represents what plane this entity resides on. Used to differentiate z coords in
 /// rendering.
 #[repr(C)]
-#[derive(Component, Copy, Clone, PartialOrd, PartialEq, Default, Pod, Zeroable)]
+#[derive(Component, Copy, Clone, PartialOrd, PartialEq, Default, Pod, Zeroable, Serialize, Deserialize)]
 pub struct Layer {
     pub z: CoordinateUnit,
 }

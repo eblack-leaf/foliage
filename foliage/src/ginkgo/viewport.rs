@@ -1,6 +1,8 @@
-use crate::coordinate::{
-    Area, CoordinateUnit, DeviceContext, InterfaceContext, Layer, Position, Section,
-};
+use crate::coordinate::area::Area;
+use crate::coordinate::layer::Layer;
+use crate::coordinate::position::Position;
+use crate::coordinate::section::Section;
+use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
 use crate::ginkgo::uniform::Uniform;
 use nalgebra::{matrix, SMatrix};
 use serde::{Deserialize, Serialize};

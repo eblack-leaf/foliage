@@ -1,6 +1,6 @@
-use crate::coordinate::{
-    Area, CoordinateContext, CoordinateUnit, DeviceContext, InterfaceContext, Position,
-};
+use crate::coordinate::area::Area;
+use crate::coordinate::position::Position;
+use crate::coordinate::{CoordinateContext, CoordinateUnit, DeviceContext, InterfaceContext};
 use bevy_ecs::bundle::Bundle;
 use serde::{Deserialize, Serialize};
 

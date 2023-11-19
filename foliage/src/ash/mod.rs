@@ -64,11 +64,12 @@ impl Ash {
             let view = surface_texture
                 .texture
                 .create_view(&wgpu::TextureViewDescriptor::default());
-            let mut encoder = ginkgo.device.as_ref().unwrap().create_command_encoder(
-                &wgpu::CommandEncoderDescriptor {
-                    label: Some("command-encoder"),
-                },
-            );
+            let mut encoder =
+                ginkgo
+                    .device()
+                    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                        label: Some("command-encoder"),
+                    });
             encoder
                 .begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: Some("render-pass"),

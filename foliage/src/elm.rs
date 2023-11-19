@@ -14,9 +14,10 @@ pub struct Elm {
     pub job: Job,
     differential_limiter: AnyMap,
 }
+#[macro_export]
 macro_rules! differential_enable {
-    (&elm:ident $(,&typename:ty)*) => {
-        $($elm.enable_differential::<$typename>();)*
+    ($elm:ident $(,$typename:ty)+) => {
+        $($elm.enable_differential::<$typename>();)+
     };
 }
 struct DifferentialLimiter<T>(bool, PhantomData<T>);

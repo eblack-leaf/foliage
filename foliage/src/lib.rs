@@ -7,6 +7,7 @@ pub mod differential;
 pub mod elm;
 pub mod ginkgo;
 pub mod job;
+mod panel;
 pub mod window;
 
 use crate::coordinate::CoordinateUnit;

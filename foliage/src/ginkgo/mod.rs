@@ -4,11 +4,13 @@ pub mod uniform;
 pub mod viewport;
 
 use crate::color::Color;
-use crate::coordinate::{Area, CoordinateUnit, DeviceContext, Section};
+use crate::coordinate::{CoordinateUnit, DeviceContext};
 use crate::window::{WindowDescriptor, WindowHandle};
 use depth_texture::DepthTexture;
 use msaa::Msaa;
 
+use crate::coordinate::area::Area;
+use crate::coordinate::section::Section;
 use viewport::{Viewport, ViewportHandle};
 use wgpu::{
     BindGroupLayoutEntry, InstanceDescriptor, LoadOp, RenderPassColorAttachment,
@@ -67,6 +69,9 @@ impl Ginkgo {
             blend: Some(wgpu::BlendState::ALPHA_BLENDING),
             write_mask: Default::default(),
         })]
+    }
+    pub fn device(&self) -> &wgpu::Device {
+        self.device.as_ref().unwrap()
     }
     pub(crate) fn color_attachment<'a>(
         &'a self,

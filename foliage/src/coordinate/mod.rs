@@ -1,13 +1,8 @@
-pub use area::Area;
-
-pub use layer::Layer;
-pub use position::Position;
-pub use section::Section;
 use serde::{Deserialize, Serialize};
-mod area;
-mod layer;
-mod position;
-mod section;
+pub mod area;
+pub mod layer;
+pub mod position;
+pub mod section;
 
 pub type CoordinateUnit = f32;
 pub trait CoordinateContext
