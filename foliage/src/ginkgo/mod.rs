@@ -23,7 +23,7 @@ pub struct ClearColor(pub Color);
 
 pub struct Ginkgo {
     pub instance: Option<wgpu::Instance>,
-    pub surface: Option<wgpu::Surface>,
+    pub surface: Option<wgpu::Surface<'static>>,
     pub adapter: Option<wgpu::Adapter>,
     pub device: Option<wgpu::Device>,
     pub queue: Option<wgpu::Queue>,
@@ -185,7 +185,7 @@ impl Ginkgo {
         self.viewport.replace(viewport);
         ViewportHandle::new(section.to_interface(scale_factor))
     }
-    pub(crate) async fn initialize(&mut self, window_handle: &WindowHandle) {
+    pub(crate) async fn initialize(&mut self, window_handle: WindowHandle) {
         self.get_instance();
         self.create_surface(window_handle);
         self.get_adapter().await;
@@ -238,7 +238,7 @@ impl Ginkgo {
             #[cfg(not(target_family = "wasm"))]
             {
                 *window = WindowHandle::some(event_loop_window_target, desc);
-                pollster::block_on(self.initialize(window));
+                pollster::block_on(self.initialize(window.clone()));
             }
             let viewport_handle = self.post_window_initialization(window);
             self.initialized = true;
@@ -252,10 +252,10 @@ impl Ginkgo {
             None
         };
     }
-    pub(crate) fn create_surface(&mut self, window: &WindowHandle) {
+    pub(crate) fn create_surface(&mut self, window: WindowHandle) {
         if let Some(instance) = self.instance.as_ref() {
             self.surface
-                .replace(unsafe { instance.create_surface(window.value()).expect("surface") });
+                .replace(instance.create_surface(window.0.unwrap()).expect("surface"));
         }
     }
     pub(crate) fn get_surface_format(&self) -> TextureFormat {
