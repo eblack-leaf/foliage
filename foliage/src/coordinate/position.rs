@@ -27,8 +27,8 @@ impl<Context: CoordinateContext> Position<Context> {
         Position::<NumericalContext>::new(self.x, self.y)
     }
     /// returns a copy as a raw position
-    pub fn as_raw(&self) -> RawPosition {
-        RawPosition {
+    pub fn as_c(&self) -> CPosition {
+        CPosition {
             x: self.x,
             y: self.y,
         }
@@ -74,12 +74,12 @@ impl<Context: CoordinateContext> Div for Position<Context> {
 /// Raw position for interacting with C
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default, Serialize, Deserialize, Debug)]
-pub struct RawPosition {
+pub struct CPosition {
     pub(crate) x: CoordinateUnit,
     pub(crate) y: CoordinateUnit,
 }
 
-impl RawPosition {
+impl CPosition {
     pub const fn new(x: CoordinateUnit, y: CoordinateUnit) -> Self {
         Self { x, y }
     }

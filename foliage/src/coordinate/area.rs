@@ -25,8 +25,8 @@ impl<Context: CoordinateContext> Area<Context> {
         Area::<NumericalContext>::new(self.width, self.height)
     }
     /// return a copy as raw struct for gpu interactions
-    pub fn as_raw(&self) -> RawArea {
-        RawArea {
+    pub fn as_c(&self) -> CArea {
+        CArea {
             width: self.width,
             height: self.height,
         }
@@ -47,12 +47,12 @@ impl Area<DeviceContext> {
 }
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default)]
-pub struct RawArea {
+pub struct CArea {
     width: CoordinateUnit,
     height: CoordinateUnit,
 }
 
-impl RawArea {
+impl CArea {
     pub fn new(width: CoordinateUnit, height: CoordinateUnit) -> Self {
         Self { width, height }
     }

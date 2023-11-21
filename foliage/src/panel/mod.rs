@@ -4,7 +4,7 @@ use crate::ash::renderer::{RenderPackage, RenderRecordBehavior};
 use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
-use crate::coordinate::position::{Position, RawPosition};
+use crate::coordinate::position::{CPosition, Position};
 use crate::coordinate::InterfaceContext;
 use crate::differential::DifferentialBundle;
 use crate::differential_enable;
@@ -33,11 +33,11 @@ impl Leaf for Panel {
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default)]
 struct Vertex {
-    position: RawPosition,
+    position: CPosition,
     texture_coordinates: TextureCoordinates,
 }
 impl Vertex {
-    const fn new(position: RawPosition, texture_coordinates: TextureCoordinates) -> Self {
+    const fn new(position: CPosition, texture_coordinates: TextureCoordinates) -> Self {
         Self {
             position,
             texture_coordinates,
@@ -46,27 +46,27 @@ impl Vertex {
 }
 const VERTICES: [Vertex; 6] = [
     Vertex::new(
-        RawPosition::new(0f32, 0f32),
+        CPosition::new(0f32, 0f32),
         TextureCoordinates::new(0f32, 0f32),
     ),
     Vertex::new(
-        RawPosition::new(1f32, 0f32),
+        CPosition::new(1f32, 0f32),
         TextureCoordinates::new(1f32, 0f32),
     ),
     Vertex::new(
-        RawPosition::new(0f32, 1f32),
+        CPosition::new(0f32, 1f32),
         TextureCoordinates::new(0f32, 1f32),
     ),
     Vertex::new(
-        RawPosition::new(1f32, 0f32),
+        CPosition::new(1f32, 0f32),
         TextureCoordinates::new(1f32, 0f32),
     ),
     Vertex::new(
-        RawPosition::new(0f32, 1f32),
+        CPosition::new(0f32, 1f32),
         TextureCoordinates::new(0f32, 1f32),
     ),
     Vertex::new(
-        RawPosition::new(1f32, 1f32),
+        CPosition::new(1f32, 1f32),
         TextureCoordinates::new(1f32, 1f32),
     ),
 ];
