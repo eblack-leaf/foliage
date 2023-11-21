@@ -7,3 +7,8 @@ edition = "2021"
 
 [dependencies]
 example = { path = "../example" }
+
+[lib]
+name = "entry_lib"
+path = "src/lib.rs"
+crate-type = ["staticlib", "cdylib"]
