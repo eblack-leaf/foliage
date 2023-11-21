@@ -45,14 +45,14 @@ impl Msaa {
             wgpu::StoreOp::Discard
         }
     }
-    pub fn samples(&self) -> u32 {
+    pub(crate) fn samples(&self) -> u32 {
         self.actual
     }
     #[allow(unused)]
     pub(crate) fn multisampled_texture_view(&self) -> Option<&wgpu::TextureView> {
         self.multisampled_texture_view.as_ref()
     }
-    pub fn multisample_state(&self) -> wgpu::MultisampleState {
+    pub(crate) fn multisample_state(&self) -> wgpu::MultisampleState {
         wgpu::MultisampleState {
             count: self.samples(),
             ..wgpu::MultisampleState::default()

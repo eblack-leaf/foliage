@@ -80,7 +80,7 @@ pub struct RawPosition {
 }
 
 impl RawPosition {
-    pub fn new(x: CoordinateUnit, y: CoordinateUnit) -> Self {
+    pub const fn new(x: CoordinateUnit, y: CoordinateUnit) -> Self {
         Self { x, y }
     }
 }

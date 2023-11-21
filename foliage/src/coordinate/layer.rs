@@ -8,7 +8,9 @@ use serde::{Deserialize, Serialize};
 /// Layer represents what plane this entity resides on. Used to differentiate z coords in
 /// rendering.
 #[repr(C)]
-#[derive(Component, Copy, Clone, PartialOrd, PartialEq, Default, Pod, Zeroable, Serialize, Deserialize)]
+#[derive(
+    Component, Copy, Clone, PartialOrd, PartialEq, Default, Pod, Zeroable, Serialize, Deserialize,
+)]
 pub struct Layer {
     pub z: CoordinateUnit,
 }

@@ -6,15 +6,19 @@ pub mod viewport;
 use crate::color::Color;
 use crate::coordinate::{CoordinateUnit, DeviceContext};
 use crate::window::{WindowDescriptor, WindowHandle};
+use bytemuck::{Pod, Zeroable};
 use depth_texture::DepthTexture;
 use msaa::Msaa;
 
 use crate::coordinate::area::Area;
 use crate::coordinate::section::Section;
 use viewport::{Viewport, ViewportHandle};
+use wgpu::util::DeviceExt;
 use wgpu::{
-    BindGroupLayoutEntry, InstanceDescriptor, LoadOp, RenderPassColorAttachment,
-    RenderPassDepthStencilAttachment, StoreOp, TextureFormat,
+    BindGroupEntry, BindGroupLayoutEntry, Buffer, ColorTargetState, DepthStencilState, Extent3d,
+    FragmentState, InstanceDescriptor, LoadOp, MultisampleState, PrimitiveState,
+    RenderPassColorAttachment, RenderPassDepthStencilAttachment, ShaderModule, StoreOp,
+    TextureDimension, TextureFormat, TextureUsages, TextureView,
 };
 use winit::event_loop::EventLoopWindowTarget;
 
@@ -51,6 +55,108 @@ impl Ginkgo {
             initialized: false,
         }
     }
+    pub fn viewport_bind_group_entry(&self, binding: u32) -> BindGroupEntry {
+        BindGroupEntry {
+            binding,
+            resource: self
+                .viewport
+                .as_ref()
+                .unwrap()
+                .gpu_repr
+                .buffer
+                .as_entire_binding(),
+        }
+    }
+    pub fn fragment_state<'a>(
+        &'a self,
+        module: &'a ShaderModule,
+        entry_point: &'a str,
+        targets: &'a [Option<ColorTargetState>],
+    ) -> Option<FragmentState<'a>> {
+        Some(FragmentState {
+            module,
+            entry_point,
+            targets,
+        })
+    }
+    pub fn vertex_buffer_with_data<T: Pod + Zeroable>(&self, t: &[T], label: &str) -> Buffer {
+        self.device()
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some(label),
+                contents: bytemuck::cast_slice(t),
+                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            })
+    }
+    pub fn texture_bind_group_entry(view: &TextureView, binding: u32) -> BindGroupEntry {
+        BindGroupEntry {
+            binding,
+            resource: wgpu::BindingResource::TextureView(view),
+        }
+    }
+    pub fn sampler_bind_group_entry(sampler: &wgpu::Sampler, binding: u32) -> BindGroupEntry {
+        BindGroupEntry {
+            binding,
+            resource: wgpu::BindingResource::Sampler(sampler),
+        }
+    }
+    pub fn texture_r8unorm_d2(
+        &self,
+        width: u32,
+        height: u32,
+        data: &[u8],
+    ) -> (wgpu::Texture, TextureView) {
+        let texture = self.device().create_texture_with_data(
+            self.queue(),
+            &wgpu::TextureDescriptor {
+                label: Some("panel-render-pipeline-texture"),
+                size: Extent3d {
+                    width,
+                    height,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: self.msaa_samples(),
+                dimension: TextureDimension::D2,
+                format: TextureFormat::R8Unorm,
+                usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
+                view_formats: &[self.get_surface_format()],
+            },
+            data,
+        );
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        (texture, view)
+    }
+    pub fn triangle_list_primitive() -> PrimitiveState {
+        PrimitiveState {
+            topology: wgpu::PrimitiveTopology::TriangleList,
+            strip_index_format: None,
+            front_face: wgpu::FrontFace::Ccw,
+            cull_mode: Some(wgpu::Face::Back),
+            unclipped_depth: false,
+            polygon_mode: wgpu::PolygonMode::Fill,
+            conservative: false,
+        }
+    }
+    pub fn sampler_bind_group_layout_entry(binding: u32) -> BindGroupLayoutEntry {
+        BindGroupLayoutEntry {
+            binding,
+            visibility: wgpu::ShaderStages::FRAGMENT,
+            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+            count: None,
+        }
+    }
+    pub fn texture_d2_bind_group_entry(binding: u32) -> BindGroupLayoutEntry {
+        BindGroupLayoutEntry {
+            binding,
+            visibility: wgpu::ShaderStages::FRAGMENT,
+            ty: wgpu::BindingType::Texture {
+                sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                view_dimension: wgpu::TextureViewDimension::D2,
+                multisampled: false,
+            },
+            count: None,
+        }
+    }
     pub fn vertex_uniform_bind_group_layout_entry(binding: u32) -> BindGroupLayoutEntry {
         wgpu::BindGroupLayoutEntry {
             binding,
@@ -63,15 +169,21 @@ impl Ginkgo {
             count: None,
         }
     }
-    pub fn alpha_color_target_state(&self) -> [Option<wgpu::ColorTargetState>; 1] {
-        [Some(wgpu::ColorTargetState {
+    pub fn alpha_color_target_state(&self) -> [Option<ColorTargetState>; 1] {
+        [Some(ColorTargetState {
             format: self.configuration.as_ref().unwrap().format,
             blend: Some(wgpu::BlendState::ALPHA_BLENDING),
             write_mask: Default::default(),
         })]
     }
+    pub fn msaa_multisample_state(&self) -> MultisampleState {
+        self.msaa.as_ref().unwrap().multisample_state()
+    }
     pub fn device(&self) -> &wgpu::Device {
         self.device.as_ref().unwrap()
+    }
+    pub fn queue(&self) -> &wgpu::Queue {
+        self.queue.as_ref().unwrap()
     }
     pub(crate) fn color_attachment<'a>(
         &'a self,
@@ -95,6 +207,9 @@ impl Ginkgo {
                 store: self.msaa.as_ref().unwrap().color_attachment_store_op(),
             },
         })]
+    }
+    pub fn depth_stencil_state(&self) -> Option<DepthStencilState> {
+        Some(self.depth_texture.as_ref().unwrap().depth_stencil_state())
     }
     pub(crate) fn depth_stencil_attachment(&self) -> Option<RenderPassDepthStencilAttachment> {
         Some(RenderPassDepthStencilAttachment {

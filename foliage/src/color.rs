@@ -3,7 +3,9 @@ use serde::{Deserialize, Serialize};
 
 /// RGBA colors
 #[repr(C)]
-#[derive(Component, bytemuck::Pod, bytemuck::Zeroable, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Component, bytemuck::Pod, bytemuck::Zeroable, Copy, Clone, PartialEq, Serialize, Deserialize,
+)]
 pub struct Color {
     pub red: f32,
     pub green: f32,

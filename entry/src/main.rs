@@ -4,4 +4,3 @@ fn main() {
     #[cfg(target_os = "ios")]
     entry_lib::ios_main();
 }
-

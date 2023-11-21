@@ -10,8 +10,8 @@ use crate::differential::DifferentialBundle;
 use crate::differential_enable;
 use crate::elm::{Elm, Leaf};
 use crate::ginkgo::Ginkgo;
+use crate::texture::TextureCoordinates;
 use bytemuck::{Pod, Zeroable};
-use wgpu::util::DeviceExt;
 
 pub struct Panel {
     position: DifferentialBundle<Position<InterfaceContext>>,
@@ -34,20 +34,52 @@ impl Leaf for Panel {
 #[derive(Pod, Zeroable, Copy, Clone, Default)]
 struct Vertex {
     position: RawPosition,
-    texture_coordinates: RawPosition,
+    texture_coordinates: TextureCoordinates,
 }
 impl Vertex {
-    const fn new(position: RawPosition, texture_coordinates: RawPosition) -> Self {
+    const fn new(position: RawPosition, texture_coordinates: TextureCoordinates) -> Self {
         Self {
             position,
             texture_coordinates,
         }
     }
 }
-const VERTICES: Vec<Vertex> = vec![];
+const VERTICES: [Vertex; 6] = [
+    Vertex::new(
+        RawPosition::new(0f32, 0f32),
+        TextureCoordinates::new(0f32, 0f32),
+    ),
+    Vertex::new(
+        RawPosition::new(1f32, 0f32),
+        TextureCoordinates::new(1f32, 0f32),
+    ),
+    Vertex::new(
+        RawPosition::new(0f32, 1f32),
+        TextureCoordinates::new(0f32, 1f32),
+    ),
+    Vertex::new(
+        RawPosition::new(1f32, 0f32),
+        TextureCoordinates::new(1f32, 0f32),
+    ),
+    Vertex::new(
+        RawPosition::new(0f32, 1f32),
+        TextureCoordinates::new(0f32, 1f32),
+    ),
+    Vertex::new(
+        RawPosition::new(1f32, 1f32),
+        TextureCoordinates::new(1f32, 1f32),
+    ),
+];
 pub struct PanelRenderResources {
     pipeline: wgpu::RenderPipeline,
     vertex_buffer: wgpu::Buffer,
+    bind_group: wgpu::BindGroup,
+    texture: wgpu::Texture,
+    view: wgpu::TextureView,
+    sampler: wgpu::Sampler,
+}
+impl PanelRenderResources {
+    const TEXTURE_DIMENSION: u32 = 100;
 }
 impl Render for Panel {
     type Resources = PanelRenderResources;
@@ -58,12 +90,42 @@ impl Render for Panel {
         let shader = ginkgo
             .device()
             .create_shader_module(wgpu::include_wgsl!("panel.wgsl"));
+        let (texture, view) = ginkgo.texture_r8unorm_d2(
+            PanelRenderResources::TEXTURE_DIMENSION,
+            PanelRenderResources::TEXTURE_DIMENSION,
+            include_bytes!("panel-texture.cov"),
+        );
+        let sampler = ginkgo
+            .device()
+            .create_sampler(&wgpu::SamplerDescriptor::default());
+        let bind_group_layout =
+            ginkgo
+                .device()
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: Some("panel-render-pipeline-bind-group-layout"),
+                    entries: &[
+                        Ginkgo::vertex_uniform_bind_group_layout_entry(0),
+                        Ginkgo::texture_d2_bind_group_entry(1),
+                        Ginkgo::sampler_bind_group_layout_entry(2),
+                    ],
+                });
+        let bind_group = ginkgo
+            .device()
+            .create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("panel-render-pipeline-bind-group"),
+                layout: &bind_group_layout,
+                entries: &[
+                    ginkgo.viewport_bind_group_entry(0),
+                    Ginkgo::texture_bind_group_entry(&view, 1),
+                    Ginkgo::sampler_bind_group_entry(&sampler, 2),
+                ],
+            });
         let pipeline_layout =
             ginkgo
                 .device()
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("panel-render-pipeline-layout"),
-                    bind_group_layouts: &[],
+                    bind_group_layouts: &[&bind_group_layout],
                     push_constant_ranges: &[],
                 });
         let pipeline = ginkgo
@@ -74,24 +136,30 @@ impl Render for Panel {
                 vertex: wgpu::VertexState {
                     module: &shader,
                     entry_point: "vertex_entry",
-                    buffers: &[],
+                    buffers: &[wgpu::VertexBufferLayout {
+                        array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
+                        step_mode: wgpu::VertexStepMode::Vertex,
+                        attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x2],
+                    }],
                 },
-                primitive: Default::default(),
-                depth_stencil: None,
-                multisample: Default::default(),
-                fragment: None,
+                primitive: Ginkgo::triangle_list_primitive(),
+                depth_stencil: ginkgo.depth_stencil_state(),
+                multisample: ginkgo.msaa_multisample_state(),
+                fragment: ginkgo.fragment_state(
+                    &shader,
+                    "fragment_entry",
+                    &ginkgo.alpha_color_target_state(),
+                ),
                 multiview: None,
             });
-        let vertex_buffer = ginkgo
-            .device()
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("panel-vertex-buffer"),
-                contents: bytemuck::cast_slice(&VERTICES),
-                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-            });
+        let vertex_buffer = ginkgo.vertex_buffer_with_data(&VERTICES, "panel-vertex-buffer");
         PanelRenderResources {
             pipeline,
             vertex_buffer,
+            bind_group,
+            texture,
+            view,
+            sampler,
         }
     }
 
