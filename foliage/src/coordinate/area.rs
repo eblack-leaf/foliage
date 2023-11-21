@@ -21,12 +21,12 @@ impl<Context: CoordinateContext> Area<Context> {
             _phantom: PhantomData,
         }
     }
-    pub fn as_numerical(&self) -> Area<NumericalContext> {
+    pub fn to_numerical(self) -> Area<NumericalContext> {
         Area::<NumericalContext>::new(self.width, self.height)
     }
     /// return a copy as raw struct for gpu interactions
-    pub fn as_c(&self) -> CArea {
-        CArea {
+    pub fn to_c(self) -> CReprArea {
+        CReprArea {
             width: self.width,
             height: self.height,
         }
@@ -47,12 +47,12 @@ impl Area<DeviceContext> {
 }
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default)]
-pub struct CArea {
+pub struct CReprArea {
     width: CoordinateUnit,
     height: CoordinateUnit,
 }
 
-impl CArea {
+impl CReprArea {
     pub fn new(width: CoordinateUnit, height: CoordinateUnit) -> Self {
         Self { width, height }
     }

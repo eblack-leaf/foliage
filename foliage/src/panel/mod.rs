@@ -2,15 +2,17 @@ use crate::ash::render::{Render, RenderPhase};
 use crate::ash::render_packet::RenderPacket;
 use crate::ash::renderer::{RenderPackage, RenderRecordBehavior};
 use crate::color::Color;
-use crate::coordinate::area::Area;
+use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
-use crate::coordinate::position::{CPosition, Position};
+use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::InterfaceContext;
 use crate::differential::DifferentialBundle;
 use crate::differential_enable;
 use crate::elm::{Elm, Leaf};
 use crate::ginkgo::Ginkgo;
+use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
 use crate::texture::TextureCoordinates;
+use bevy_ecs::prelude::Entity;
 use bytemuck::{Pod, Zeroable};
 
 pub struct Panel {
@@ -33,11 +35,11 @@ impl Leaf for Panel {
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default)]
 struct Vertex {
-    position: CPosition,
+    position: CReprPosition,
     texture_coordinates: TextureCoordinates,
 }
 impl Vertex {
-    const fn new(position: CPosition, texture_coordinates: TextureCoordinates) -> Self {
+    const fn new(position: CReprPosition, texture_coordinates: TextureCoordinates) -> Self {
         Self {
             position,
             texture_coordinates,
@@ -46,27 +48,27 @@ impl Vertex {
 }
 const VERTICES: [Vertex; 6] = [
     Vertex::new(
-        CPosition::new(0f32, 0f32),
+        CReprPosition::new(0f32, 0f32),
         TextureCoordinates::new(0f32, 0f32),
     ),
     Vertex::new(
-        CPosition::new(1f32, 0f32),
+        CReprPosition::new(1f32, 0f32),
         TextureCoordinates::new(1f32, 0f32),
     ),
     Vertex::new(
-        CPosition::new(0f32, 1f32),
+        CReprPosition::new(0f32, 1f32),
         TextureCoordinates::new(0f32, 1f32),
     ),
     Vertex::new(
-        CPosition::new(1f32, 0f32),
+        CReprPosition::new(1f32, 0f32),
         TextureCoordinates::new(1f32, 0f32),
     ),
     Vertex::new(
-        CPosition::new(0f32, 1f32),
+        CReprPosition::new(0f32, 1f32),
         TextureCoordinates::new(0f32, 1f32),
     ),
     Vertex::new(
-        CPosition::new(1f32, 1f32),
+        CReprPosition::new(1f32, 1f32),
         TextureCoordinates::new(1f32, 1f32),
     ),
 ];
@@ -77,6 +79,7 @@ pub struct PanelRenderResources {
     texture: wgpu::Texture,
     view: wgpu::TextureView,
     sampler: wgpu::Sampler,
+    instance_coordinator: InstanceCoordinator,
 }
 impl PanelRenderResources {
     const TEXTURE_DIMENSION: u32 = 100;
@@ -86,7 +89,7 @@ impl Render for Panel {
     type RenderPackage = ();
     const RENDER_PHASE: RenderPhase = RenderPhase::Opaque;
 
-    fn resources(ginkgo: &Ginkgo) -> Self::Resources {
+    fn create_resources(ginkgo: &Ginkgo) -> Self::Resources {
         let shader = ginkgo
             .device()
             .create_shader_module(wgpu::include_wgsl!("panel.wgsl"));
@@ -153,6 +156,12 @@ impl Render for Panel {
                 multiview: None,
             });
         let vertex_buffer = ginkgo.vertex_buffer_with_data(&VERTICES, "panel-vertex-buffer");
+        let instance_coordinator = InstanceCoordinatorBuilder::new(4)
+            .with_attribute::<CReprPosition>()
+            .with_attribute::<CReprArea>()
+            .with_attribute::<Layer>()
+            .with_attribute::<Color>()
+            .build(ginkgo);
         PanelRenderResources {
             pipeline,
             vertex_buffer,
@@ -160,24 +169,38 @@ impl Render for Panel {
             texture,
             view,
             sampler,
+            instance_coordinator,
         }
     }
 
-    fn package(
+    fn create_package(
         ginkgo: &Ginkgo,
-        resources: &Self::Resources,
+        resources: &mut Self::Resources,
+        entity: Entity,
         render_packet: RenderPacket,
     ) -> Self::RenderPackage {
-        todo!()
+        resources.instance_coordinator.queue_add(entity);
+        Self::instance_coordinator_queue_write(ginkgo, resources, entity, render_packet);
+        ()
+    }
+
+    fn on_package_removal(
+        ginkgo: &Ginkgo,
+        resources: &mut Self::Resources,
+        entity: Entity,
+        package: RenderPackage<Self>,
+    ) {
+        resources.instance_coordinator.queue_remove(entity);
     }
 
     fn prepare_package(
         ginkgo: &Ginkgo,
         resources: &mut Self::Resources,
+        entity: Entity,
         package: &mut RenderPackage<Self>,
         render_packet: RenderPacket,
     ) {
-        todo!()
+        Self::instance_coordinator_queue_write(ginkgo, resources, entity, render_packet);
     }
 
     fn prepare_resources(
@@ -185,10 +208,39 @@ impl Render for Panel {
         ginkgo: &Ginkgo,
         per_renderer_record_hook: &mut bool,
     ) {
-        todo!()
+        let should_record = resources.instance_coordinator.prepare(ginkgo);
+        if should_record {
+            *per_renderer_record_hook = true;
+        }
     }
 
     fn record_behavior() -> RenderRecordBehavior<Self> {
         todo!()
+    }
+}
+
+impl Panel {
+    fn instance_coordinator_queue_write(
+        ginkgo: &Ginkgo,
+        resources: &mut PanelRenderResources,
+        entity: Entity,
+        render_packet: RenderPacket,
+    ) {
+        if let Some(pos) = render_packet.get::<Position<InterfaceContext>>() {
+            resources
+                .instance_coordinator
+                .queue_write(entity, pos.to_device(ginkgo.scale_factor()).to_c());
+        }
+        if let Some(area) = render_packet.get::<Area<InterfaceContext>>() {
+            resources
+                .instance_coordinator
+                .queue_write(entity, area.to_device(ginkgo.scale_factor()).to_c());
+        }
+        if let Some(layer) = render_packet.get::<Layer>() {
+            resources.instance_coordinator.queue_write(entity, layer);
+        }
+        if let Some(color) = render_packet.get::<Color>() {
+            resources.instance_coordinator.queue_write(entity, color);
+        }
     }
 }

@@ -13,7 +13,6 @@ pub(crate) struct Renderer<T: Render> {
     resources: T::Resources,
     packages: RenderPackageStorage<T>,
     pub(crate) instructions: RenderInstructionGroup,
-    entity_to_package: EntityMapping,
     per_renderer_record_hook: bool,
     record_behavior: RenderRecordBehavior<T>,
     updated: bool,
@@ -22,10 +21,9 @@ pub(crate) struct Renderer<T: Render> {
 impl<T: Render> Renderer<T> {
     pub(crate) fn new(ginkgo: &Ginkgo) -> Self {
         Self {
-            resources: T::resources(ginkgo),
+            resources: T::create_resources(ginkgo),
             packages: RenderPackageStorage::default(),
             instructions: RenderInstructionGroup::default(),
-            entity_to_package: EntityMapping::new(),
             per_renderer_record_hook: true,
             record_behavior: T::record_behavior(),
             updated: true,
@@ -37,7 +35,6 @@ impl<T: Render> Renderer<T> {
             &mut self.packages,
             ginkgo,
             queue,
-            &mut self.entity_to_package,
             &mut self.updated,
         );
     }
@@ -46,32 +43,29 @@ impl<T: Render> Renderer<T> {
         packages: &mut RenderPackageStorage<T>,
         ginkgo: &Ginkgo,
         mut queue: RenderPacketQueue,
-        mut entity_mapping: &mut EntityMapping,
         updated_hook: &mut bool,
     ) {
         for entity in queue.retrieve_removals() {
-            if let Some(index) = entity_mapping.remove(&entity) {
-                packages.0.remove(index);
+            if let Some(index) = packages.index(entity) {
+                let old = packages.0.remove(index);
+                T::on_package_removal(ginkgo, resources, old.0, old.1);
                 *updated_hook = true;
             }
         }
         for (entity, package) in packages.0.iter_mut() {
-            if let Some(packet) = queue.retrieve_packet(*entity) {
-                T::prepare_package(ginkgo, resources, package, packet);
+            if let Some(render_packet) = queue.retrieve_packet(*entity) {
+                T::prepare_package(ginkgo, resources, *entity, package, render_packet);
                 *updated_hook = true;
             }
         }
         if !queue.0.is_empty() {
-            for (entity, packet) in queue.0.drain() {
+            for (entity, render_packet) in queue.0.drain() {
                 packages.0.push((
                     entity,
-                    RenderPackage::new(T::package(ginkgo, &resources, packet)),
+                    RenderPackage::new(T::create_package(ginkgo, resources, entity, render_packet)),
                 ));
-                let index = packages.0.len() - 1;
-                entity_mapping.insert(entity, index);
             }
             // order by z after insertion
-            // update indices in entity_to_package
             *updated_hook = true;
         }
     }
@@ -171,6 +165,17 @@ impl<T: Render> RenderPackageStorage<T> {
     pub(crate) fn new() -> Self {
         Self(vec![])
     }
+    pub(crate) fn index(&self, entity: Entity) -> Option<usize> {
+        let mut index = None;
+        let mut current = 0;
+        for (package_entity, package) in self.0.iter() {
+            if &entity == package_entity {
+                index.replace(current);
+            }
+            current += 1;
+        }
+        index
+    }
 }
 
 impl<T: Render> Default for RenderPackageStorage<T> {
@@ -193,7 +198,7 @@ pub(crate) type PerPackageRecordFn<T> = Box<
 
 pub struct RenderPackage<T: Render> {
     instruction_handle: Option<RenderInstructionHandle>,
-    package_data: T::RenderPackage,
+    pub package_data: T::RenderPackage,
     should_record: bool,
 }
 

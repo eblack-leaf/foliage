@@ -6,14 +6,17 @@ pub mod coordinate;
 pub mod differential;
 pub mod elm;
 pub mod ginkgo;
+mod instance;
 pub mod job;
 mod panel;
 mod texture;
 pub mod window;
+
 use crate::coordinate::CoordinateUnit;
 use crate::elm::Elm;
 use crate::ginkgo::Ginkgo;
-pub use wgpu as wgpu_hook;
+pub use bevy_ecs;
+pub use wgpu;
 
 use self::ash::leaflet::RenderLeafletStorage;
 use crate::ash::render::Render;

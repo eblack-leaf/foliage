@@ -7,7 +7,21 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
 pub type RenderPacketDifferential = Option<Vec<u8>>;
-pub type RenderPacket = HashMap<DifferentialId, RenderPacketDifferential>;
+#[derive(Serialize, Deserialize)]
+pub struct RenderPacket(pub HashMap<DifferentialId, RenderPacketDifferential>);
+impl RenderPacket {
+    pub fn new() -> Self {
+        Self(HashMap::new())
+    }
+    pub fn get<T: DifferentialIdentification + for<'a> Deserialize<'a> + 'static>(
+        &self,
+    ) -> Option<T> {
+        if let Some(Some(v)) = self.0.get(&T::id()) {
+            return rmp_serde::from_slice::<T>(v.as_slice()).ok();
+        }
+        None
+    }
+}
 #[derive(Default, Component)]
 pub struct RenderPacketStore {
     pub(crate) render_packet: Option<RenderPacket>,
@@ -15,7 +29,7 @@ pub struct RenderPacketStore {
 impl RenderPacketStore {
     pub(crate) fn retrieve(&mut self) -> RenderPacket {
         let data = self.render_packet.take().unwrap();
-        self.render_packet.replace(HashMap::new());
+        self.render_packet.replace(RenderPacket::new());
         data
     }
     pub(crate) fn put<T: DifferentialIdentification + Serialize + 'static>(&mut self, data: T) {
@@ -23,13 +37,14 @@ impl RenderPacketStore {
         self.render_packet
             .as_mut()
             .unwrap()
+            .0
             .insert(T::id(), Some(serialized));
     }
     pub fn get<T: DifferentialIdentification + for<'a> Deserialize<'a> + 'static>(
         &self,
     ) -> Option<T> {
-        if let Some(Some(v)) = self.render_packet.as_ref().unwrap().get(&T::id()) {
-            return rmp_serde::from_slice::<T>(v.as_slice()).ok();
+        if let Some(packet) = self.render_packet.as_ref() {
+            return packet.get::<T>();
         }
         None
     }

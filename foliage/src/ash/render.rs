@@ -1,6 +1,7 @@
 use crate::ash::render_packet::RenderPacket;
 use crate::ash::renderer::{RenderPackage, RenderRecordBehavior};
 use crate::ginkgo::Ginkgo;
+use bevy_ecs::prelude::Entity;
 use std::cmp::Ordering;
 
 pub enum RenderPhase {
@@ -52,15 +53,23 @@ where
     type Resources;
     type RenderPackage;
     const RENDER_PHASE: RenderPhase;
-    fn resources(ginkgo: &Ginkgo) -> Self::Resources;
-    fn package(
+    fn create_resources(ginkgo: &Ginkgo) -> Self::Resources;
+    fn create_package(
         ginkgo: &Ginkgo,
-        resources: &Self::Resources,
+        resources: &mut Self::Resources,
+        entity: Entity,
         render_packet: RenderPacket,
     ) -> Self::RenderPackage;
+    fn on_package_removal(
+        ginkgo: &Ginkgo,
+        resources: &mut Self::Resources,
+        entity: Entity,
+        package: RenderPackage<Self>,
+    );
     fn prepare_package(
         ginkgo: &Ginkgo,
         resources: &mut Self::Resources,
+        entity: Entity,
         package: &mut RenderPackage<Self>,
         render_packet: RenderPacket,
     );

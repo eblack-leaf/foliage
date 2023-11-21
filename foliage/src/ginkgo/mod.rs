@@ -15,10 +15,10 @@ use crate::coordinate::section::Section;
 use viewport::{Viewport, ViewportHandle};
 use wgpu::util::DeviceExt;
 use wgpu::{
-    BindGroupEntry, BindGroupLayoutEntry, Buffer, ColorTargetState, DepthStencilState, Extent3d,
-    FragmentState, InstanceDescriptor, LoadOp, MultisampleState, PrimitiveState,
-    RenderPassColorAttachment, RenderPassDepthStencilAttachment, ShaderModule, StoreOp,
-    TextureDimension, TextureFormat, TextureUsages, TextureView,
+    BindGroupEntry, BindGroupLayoutEntry, Buffer, BufferAddress, ColorTargetState,
+    DepthStencilState, Extent3d, FragmentState, InstanceDescriptor, LoadOp, MultisampleState,
+    PrimitiveState, RenderPassColorAttachment, RenderPassDepthStencilAttachment, ShaderModule,
+    StoreOp, TextureDimension, TextureFormat, TextureUsages, TextureView,
 };
 use winit::event_loop::EventLoopWindowTarget;
 
@@ -37,6 +37,7 @@ pub struct Ginkgo {
     pub msaa: Option<Msaa>,
     pub clear_color: ClearColor,
     pub(crate) initialized: bool,
+    scale_factor: CoordinateUnit,
 }
 
 impl Ginkgo {
@@ -53,7 +54,11 @@ impl Ginkgo {
             msaa: None,
             clear_color: ClearColor(Color::OFF_BLACK.into()),
             initialized: false,
+            scale_factor: 1.0,
         }
+    }
+    pub fn scale_factor(&self) -> CoordinateUnit {
+        self.scale_factor
     }
     pub fn viewport_bind_group_entry(&self, binding: u32) -> BindGroupEntry {
         BindGroupEntry {
@@ -78,6 +83,9 @@ impl Ginkgo {
             entry_point,
             targets,
         })
+    }
+    pub fn buffer_address<T>(count: u32) -> BufferAddress {
+        (std::mem::size_of::<T>() * count as usize) as BufferAddress
     }
     pub fn vertex_buffer_with_data<T: Pod + Zeroable>(&self, t: &[T], label: &str) -> Buffer {
         self.device()
@@ -332,6 +340,7 @@ impl Ginkgo {
         area: Area<DeviceContext>,
         scale_factor: CoordinateUnit,
     ) -> ViewportHandle {
+        self.scale_factor = scale_factor;
         self.create_surface_configuration(area);
         self.configure_surface();
         self.create_depth_texture(area);
@@ -353,6 +362,7 @@ impl Ginkgo {
             #[cfg(not(target_family = "wasm"))]
             {
                 *window = WindowHandle::some(event_loop_window_target, desc);
+                self.scale_factor = window.scale_factor();
                 pollster::block_on(self.initialize(window.clone()));
             }
             let viewport_handle = self.post_window_initialization(window);
@@ -369,6 +379,7 @@ impl Ginkgo {
     }
     pub(crate) fn create_surface(&mut self, window: WindowHandle) {
         if let Some(instance) = self.instance.as_ref() {
+            self.scale_factor = window.scale_factor();
             self.surface
                 .replace(instance.create_surface(window.0.unwrap()).expect("surface"));
         }
