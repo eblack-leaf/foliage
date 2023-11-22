@@ -1,3 +1,4 @@
+use foliage::panel::Panel;
 use foliage::window::WindowDescriptor;
 use foliage::Foliage;
 
@@ -8,5 +9,6 @@ pub fn entry() {
                 .with_title("foliage")
                 .with_desktop_dimensions((400, 600)),
         )
+        .with_renderer::<Panel>()
         .run();
 }

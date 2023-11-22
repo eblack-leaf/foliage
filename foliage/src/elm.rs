@@ -80,6 +80,8 @@ impl Elm {
         {
             self.job.main().add_systems((
                 crate::differential::differential::<T>.in_set(SystemSets::Differential),
+                crate::differential::send_on_differential_disable_changed::<T>
+                    .in_set(SystemSets::Differential),
             ));
             self.differential_limiter
                 .get_mut::<DifferentialLimiter<T>>()

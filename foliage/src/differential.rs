@@ -76,6 +76,34 @@ pub(crate) fn differential<
         }
     }
 }
+pub(crate) fn send_on_differential_disable_changed<
+    T: Component
+        + Clone
+        + PartialEq
+        + Send
+        + Sync
+        + 'static
+        + DifferentialIdentification
+        + Serialize
+        + for<'a> Deserialize<'a>,
+>(
+    mut query: Query<
+        (
+            &T,
+            &mut Differential<T>,
+            &mut RenderPacketStore,
+            &DifferentialDisable,
+        ),
+        Changed<DifferentialDisable>,
+    >,
+) {
+    for (t, mut diff, mut render_packet_store, disable) in query.iter_mut() {
+        if !disable.is_disabled() {
+            diff.cache = t.clone();
+            render_packet_store.put(t.clone());
+        }
+    }
+}
 pub(crate) fn send_render_packet(
     mut query: Query<
         (

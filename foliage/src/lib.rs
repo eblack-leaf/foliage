@@ -6,10 +6,10 @@ pub mod coordinate;
 pub mod differential;
 pub mod elm;
 pub mod ginkgo;
-mod instance;
+pub mod instance;
 pub mod job;
-mod panel;
-mod texture;
+pub mod panel;
+pub mod texture;
 pub mod window;
 
 use crate::coordinate::CoordinateUnit;

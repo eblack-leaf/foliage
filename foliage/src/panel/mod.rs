@@ -1,3 +1,4 @@
+use crate::ash::instruction::RenderInstructionHandle;
 use crate::ash::render::{Render, RenderPhase};
 use crate::ash::render_packet::RenderPacket;
 use crate::ash::renderer::{RenderPackage, RenderRecordBehavior};
@@ -79,10 +80,10 @@ pub struct PanelRenderResources {
     texture: wgpu::Texture,
     view: wgpu::TextureView,
     sampler: wgpu::Sampler,
-    instance_coordinator: InstanceCoordinator,
+    instance_coordinator: InstanceCoordinator<Entity>,
 }
 impl PanelRenderResources {
-    const TEXTURE_DIMENSION: u32 = 100;
+    const TEXTURE_DIMENSION: u32 = 10;
 }
 impl Render for Panel {
     type Resources = PanelRenderResources;
@@ -139,11 +140,33 @@ impl Render for Panel {
                 vertex: wgpu::VertexState {
                     module: &shader,
                     entry_point: "vertex_entry",
-                    buffers: &[wgpu::VertexBufferLayout {
-                        array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
-                        step_mode: wgpu::VertexStepMode::Vertex,
-                        attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x2],
-                    }],
+                    buffers: &[
+                        wgpu::VertexBufferLayout {
+                            array_stride: Ginkgo::buffer_address::<Vertex>(1),
+                            step_mode: wgpu::VertexStepMode::Vertex,
+                            attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x2],
+                        },
+                        wgpu::VertexBufferLayout {
+                            array_stride: Ginkgo::buffer_address::<CReprPosition>(1),
+                            step_mode: wgpu::VertexStepMode::Instance,
+                            attributes: &wgpu::vertex_attr_array![2 => Float32x2],
+                        },
+                        wgpu::VertexBufferLayout {
+                            array_stride: Ginkgo::buffer_address::<CReprArea>(1),
+                            step_mode: wgpu::VertexStepMode::Instance,
+                            attributes: &wgpu::vertex_attr_array![3 => Float32x2],
+                        },
+                        wgpu::VertexBufferLayout {
+                            array_stride: Ginkgo::buffer_address::<Layer>(1),
+                            step_mode: wgpu::VertexStepMode::Instance,
+                            attributes: &wgpu::vertex_attr_array![4 => Float32x2],
+                        },
+                        wgpu::VertexBufferLayout {
+                            array_stride: Ginkgo::buffer_address::<Color>(1),
+                            step_mode: wgpu::VertexStepMode::Instance,
+                            attributes: &wgpu::vertex_attr_array![5 => Float32x4],
+                        },
+                    ],
                 },
                 primitive: Ginkgo::triangle_list_primitive(),
                 depth_stencil: ginkgo.depth_stencil_state(),
@@ -215,7 +238,44 @@ impl Render for Panel {
     }
 
     fn record_behavior() -> RenderRecordBehavior<Self> {
-        todo!()
+        RenderRecordBehavior::PerRenderer(Box::new(
+            |resources: &PanelRenderResources, viewport, mut recorder| -> RenderInstructionHandle {
+                if resources.instance_coordinator.has_instances() {
+                    recorder.0.set_pipeline(&resources.pipeline);
+                    recorder.0.set_bind_group(0, &resources.bind_group, &[]);
+                    recorder
+                        .0
+                        .set_vertex_buffer(0, resources.vertex_buffer.slice(..));
+                    recorder.0.set_vertex_buffer(
+                        1,
+                        resources
+                            .instance_coordinator
+                            .buffer::<CReprPosition>()
+                            .slice(..),
+                    );
+                    recorder.0.set_vertex_buffer(
+                        2,
+                        resources
+                            .instance_coordinator
+                            .buffer::<CReprArea>()
+                            .slice(..),
+                    );
+                    recorder.0.set_vertex_buffer(
+                        3,
+                        resources.instance_coordinator.buffer::<Layer>().slice(..),
+                    );
+                    recorder.0.set_vertex_buffer(
+                        4,
+                        resources.instance_coordinator.buffer::<Color>().slice(..),
+                    );
+                    recorder.0.draw(
+                        0..VERTICES.len() as u32,
+                        0..resources.instance_coordinator.instances(),
+                    );
+                }
+                recorder.finish()
+            },
+        ))
     }
 }
 
