@@ -126,10 +126,13 @@ impl Render for Panel {
         let shader = ginkgo
             .device()
             .create_shader_module(wgpu::include_wgsl!("panel.wgsl"));
+        let texture_data = serde_json::from_str::<Vec<u8>>(include_str!("panel-texture.cov"))
+            .ok()
+            .unwrap();
         let (texture, view) = ginkgo.texture_r8unorm_d2(
             PanelRenderResources::TEXTURE_DIMENSION,
             PanelRenderResources::TEXTURE_DIMENSION,
-            include_bytes!("panel-texture.cov"),
+            texture_data.as_slice(),
         );
         let sampler = ginkgo
             .device()
@@ -240,10 +243,10 @@ impl Render for Panel {
     }
 
     fn on_package_removal(
-        ginkgo: &Ginkgo,
+        _ginkgo: &Ginkgo,
         resources: &mut Self::Resources,
         entity: Entity,
-        package: RenderPackage<Self>,
+        _package: RenderPackage<Self>,
     ) {
         resources.instance_coordinator.queue_remove(entity);
     }
@@ -252,7 +255,7 @@ impl Render for Panel {
         ginkgo: &Ginkgo,
         resources: &mut Self::Resources,
         entity: Entity,
-        package: &mut RenderPackage<Self>,
+        _package: &mut RenderPackage<Self>,
         render_packet: RenderPacket,
     ) {
         Self::instance_coordinator_queue_write(ginkgo, resources, entity, render_packet);

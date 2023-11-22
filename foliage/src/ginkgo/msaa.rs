@@ -39,7 +39,7 @@ impl Msaa {
         }
     }
     pub(crate) fn color_attachment_store_op(&self) -> wgpu::StoreOp {
-        if self.samples() > 1u32 {
+        if self.samples() == 1u32 {
             wgpu::StoreOp::Store
         } else {
             wgpu::StoreOp::Discard
