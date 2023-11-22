@@ -4,14 +4,15 @@ use bevy_ecs::entity::Entity;
 use std::collections::{HashMap, HashSet};
 
 pub type Index = u32;
+pub type Key = u32; // use instead of Entity and make entity into key somehow
 pub(crate) struct AttributeFn {
     create: Box<fn(&mut AnyMap, &Ginkgo, u32)>,
-    write: Box<fn(&mut AnyMap, &mut AnyMap, &Ginkgo)>,
+    write: Box<fn(&Vec<Entity>, &mut AnyMap, &mut AnyMap, &Ginkgo)>,
     grow: Box<fn(&mut AnyMap, &Ginkgo, u32)>,
     remove: Box<fn(&mut AnyMap, &Vec<Index>)>,
 }
 impl AttributeFn {
-    pub(crate) fn for_attribute<T: 'static>() -> Self {
+    pub(crate) fn for_attribute<T: Default + Clone + 'static>() -> Self {
         Self {
             create: Box::new(InstanceCoordinator::create_wrapper::<T>),
             write: Box::new(InstanceCoordinator::write_wrapper::<T>),
@@ -32,7 +33,7 @@ impl InstanceCoordinatorBuilder {
             capacity,
         }
     }
-    pub fn with_attribute<T: 'static>(mut self) -> Self {
+    pub fn with_attribute<T: Default + Clone + 'static>(mut self) -> Self {
         self.instance_fns.push(AttributeFn::for_attribute::<T>());
         self
     }
@@ -64,6 +65,7 @@ impl InstanceCoordinator {
             should_record = true;
         }
         Self::inner_write(
+            &self.ordering,
             &self.attribute_fns,
             &mut self.attributes,
             &mut self.attribute_writes,
@@ -96,13 +98,14 @@ impl InstanceCoordinator {
         }
     }
     fn inner_write(
+        ordering: &Vec<Entity>,
         attribute_fns: &Vec<AttributeFn>,
         attributes: &mut AnyMap,
         attribute_writes: &mut AnyMap,
         ginkgo: &Ginkgo,
     ) {
         for attr_fn in attribute_fns.iter() {
-            (attr_fn.write)(attributes, attribute_writes, ginkgo);
+            (attr_fn.write)(ordering, attributes, attribute_writes, ginkgo);
         }
     }
     fn inner_grow(
@@ -143,24 +146,67 @@ impl InstanceCoordinator {
             (attr_fn.create)(attributes, ginkgo, capacity);
         }
     }
-    fn create_wrapper<T: 'static>(attributes: &mut AnyMap, ginkgo: &Ginkgo, count: u32) {
+    fn create_wrapper<T: Default + Clone + 'static>(
+        attributes: &mut AnyMap,
+        ginkgo: &Ginkgo,
+        count: u32,
+    ) {
         attributes.insert(InstanceAttribute::<T>::new(ginkgo, count));
     }
-    fn write_wrapper<T: 'static>(
+    fn write_wrapper<T: Default + Clone + 'static>(
+        ordering: &Vec<Entity>,
         attributes: &mut AnyMap,
         attribute_writes: &mut AnyMap,
         ginkgo: &Ginkgo,
     ) {
-        todo!()
+        // TODO semantics of sending with index to writes
+        let mut queue = attribute_writes
+            .get_mut::<InstanceAttributeWriteQueue<T>>()
+            .unwrap()
+            .0
+            .drain()
+            .map(|(e, w)| {
+                if let Some(index) = Self::index(ordering, e) {
+                    return Some((index, w));
+                }
+                None
+            })
+            .collect::<Vec<Option<(Index, T)>>>();
+        queue.retain(|a| a.is_some());
+        let queue = queue
+            .drain(..)
+            .map(|a| a.unwrap())
+            .collect::<Vec<(Index, T)>>();
+        attributes
+            .get_mut::<InstanceAttribute<T>>()
+            .unwrap()
+            .write_from_queue(queue, ginkgo);
     }
-    fn grow_wrapper<T: 'static>(attributes: &mut AnyMap, ginkgo: &Ginkgo, new_capacity: u32) {
-        todo!()
+    fn grow_wrapper<T: Default + Clone + 'static>(
+        attributes: &mut AnyMap,
+        ginkgo: &Ginkgo,
+        new_capacity: u32,
+    ) {
+        attributes
+            .get_mut::<InstanceAttribute<T>>()
+            .unwrap()
+            .grow(ginkgo, new_capacity);
     }
-    fn remove_wrapper<T: 'static>(attributes: &mut AnyMap, removed: &Vec<Index>) {
-        todo!()
+    fn remove_wrapper<T: Default + Clone + 'static>(attributes: &mut AnyMap, removed: &Vec<Index>) {
+        attributes
+            .get_mut::<InstanceAttribute<T>>()
+            .unwrap()
+            .remove(removed);
     }
-    fn index(&self, entity: Entity) -> Index {
-        todo!()
+    fn index(ordering: &Vec<Entity>, entity: Entity) -> Option<u32> {
+        let mut index = 0;
+        for a in ordering.iter() {
+            if *a == entity {
+                return Some(index);
+            }
+            index += 1;
+        }
+        None
     }
     fn insert(&mut self, entity: Entity) {
         self.ordering.push(entity);
@@ -179,7 +225,7 @@ impl InstanceCoordinator {
                 .drain()
                 .collect::<Vec<Entity>>()
                 .drain(..)
-                .map(|e| self.index(e))
+                .map(|e| Self::index(&self.ordering, e).unwrap())
                 .collect::<Vec<Index>>();
             removed_indices.sort();
             removed_indices.reverse();
@@ -195,10 +241,11 @@ struct InstanceAttribute<T> {
     cpu: Vec<T>,
     gpu: wgpu::Buffer,
 }
-impl<T> InstanceAttribute<T> {
+
+impl<T: Default + Clone> InstanceAttribute<T> {
     fn new(ginkgo: &Ginkgo, count: u32) -> Self {
         Self {
-            cpu: vec![],
+            cpu: vec![T::default(); count as usize],
             gpu: ginkgo.device().create_buffer(&wgpu::BufferDescriptor {
                 label: Some("instance-attribute-buffer"),
                 size: Ginkgo::buffer_address::<T>(count),
@@ -206,6 +253,9 @@ impl<T> InstanceAttribute<T> {
                 mapped_at_creation: false,
             }),
         }
+    }
+    pub(crate) fn write_from_queue(&self, queue: Vec<(Index, T)>, ginkgo: &Ginkgo) {
+        todo!()
     }
     fn remove(&mut self, indices: &Vec<Index>) {
         if !indices.is_empty() {
@@ -217,7 +267,9 @@ impl<T> InstanceAttribute<T> {
             // only set write range here
         }
     }
-    fn add(&mut self, index: Index, t: T) {}
+    fn add(&mut self, index: Index, t: T) {
+        todo!()
+    }
     fn grow(&mut self, ginkgo: &Ginkgo, count: u32) {
         todo!()
     }
