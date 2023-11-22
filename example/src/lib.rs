@@ -1,4 +1,3 @@
-use foliage::elm::{Elm, Leaf};
 use foliage::panel::Panel;
 use foliage::window::WindowDescriptor;
 use foliage::Foliage;

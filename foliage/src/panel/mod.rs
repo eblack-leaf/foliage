@@ -63,6 +63,12 @@ impl Leaf for Panel {
             2.into(),
             Color::OFF_WHITE.into(),
         ));
+        elm.job.container.spawn(Panel::new(
+            (300, 500).into(),
+            (10, 50).into(),
+            2.into(),
+            Color::OFF_WHITE.into(),
+        ));
     }
 }
 #[repr(C)]

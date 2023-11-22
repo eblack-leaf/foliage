@@ -286,12 +286,12 @@ impl<T: Default + Clone + Pod + Zeroable> InstanceAttribute<T> {
                     *end = index;
                 }
             }
-            self.cpu.insert(index as usize, data);
+            *self.cpu.get_mut(index as usize).unwrap() = data;
             needs_write = true;
         }
         if needs_write {
             if let Some(range) = self.write_range.take() {
-                let slice = &self.cpu[range.0 as usize..(range.1 + 1) as usize];
+                let slice = &self.cpu[range.0 as usize..=range.1 as usize];
                 let start_address = Ginkgo::buffer_address::<T>(range.0);
                 ginkgo.queue.as_ref().unwrap().write_buffer(
                     &self.gpu,
