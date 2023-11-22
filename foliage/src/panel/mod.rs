@@ -1,4 +1,4 @@
-use crate::ash::instruction::RenderInstructionHandle;
+use crate::ash::instruction::{RenderInstructionHandle, RenderInstructionsRecorder};
 use crate::ash::render::{Render, RenderPhase};
 use crate::ash::render_packet::RenderPacket;
 use crate::ash::renderer::{RenderPackage, RenderRecordBehavior};
@@ -21,6 +21,16 @@ pub struct Panel {
     area: DifferentialBundle<Area<InterfaceContext>>,
     layer: DifferentialBundle<Layer>,
     color: DifferentialBundle<Color>,
+}
+impl Panel {
+    pub fn new(pos: Position<InterfaceContext>) -> Self {
+        Self {
+            position: DifferentialBundle::new(pos),
+            area: DifferentialBundle::new(),
+            layer: DifferentialBundle::new(),
+            color: DifferentialBundle {},
+        }
+    }
 }
 impl Leaf for Panel {
     fn attach(elm: &mut Elm) {
@@ -238,48 +248,51 @@ impl Render for Panel {
     }
 
     fn record_behavior() -> RenderRecordBehavior<Self> {
-        RenderRecordBehavior::PerRenderer(Box::new(
-            |resources: &PanelRenderResources, viewport, mut recorder| -> RenderInstructionHandle {
-                if resources.instance_coordinator.has_instances() {
-                    recorder.0.set_pipeline(&resources.pipeline);
-                    recorder.0.set_bind_group(0, &resources.bind_group, &[]);
-                    recorder
-                        .0
-                        .set_vertex_buffer(0, resources.vertex_buffer.slice(..));
-                    recorder.0.set_vertex_buffer(
-                        1,
-                        resources
-                            .instance_coordinator
-                            .buffer::<CReprPosition>()
-                            .slice(..),
-                    );
-                    recorder.0.set_vertex_buffer(
-                        2,
-                        resources
-                            .instance_coordinator
-                            .buffer::<CReprArea>()
-                            .slice(..),
-                    );
-                    recorder.0.set_vertex_buffer(
-                        3,
-                        resources.instance_coordinator.buffer::<Layer>().slice(..),
-                    );
-                    recorder.0.set_vertex_buffer(
-                        4,
-                        resources.instance_coordinator.buffer::<Color>().slice(..),
-                    );
-                    recorder.0.draw(
-                        0..VERTICES.len() as u32,
-                        0..resources.instance_coordinator.instances(),
-                    );
-                }
-                recorder.finish()
-            },
-        ))
+        RenderRecordBehavior::PerRenderer(Box::new(Panel::record))
     }
 }
 
 impl Panel {
+    fn record<'a>(
+        resources: &'a PanelRenderResources,
+        mut recorder: RenderInstructionsRecorder<'a>,
+    ) -> Option<RenderInstructionHandle> {
+        if resources.instance_coordinator.has_instances() {
+            recorder.0.set_pipeline(&resources.pipeline);
+            recorder.0.set_bind_group(0, &resources.bind_group, &[]);
+            recorder
+                .0
+                .set_vertex_buffer(0, resources.vertex_buffer.slice(..));
+            recorder.0.set_vertex_buffer(
+                1,
+                resources
+                    .instance_coordinator
+                    .buffer::<CReprPosition>()
+                    .slice(..),
+            );
+            recorder.0.set_vertex_buffer(
+                2,
+                resources
+                    .instance_coordinator
+                    .buffer::<CReprArea>()
+                    .slice(..),
+            );
+            recorder.0.set_vertex_buffer(
+                3,
+                resources.instance_coordinator.buffer::<Layer>().slice(..),
+            );
+            recorder.0.set_vertex_buffer(
+                4,
+                resources.instance_coordinator.buffer::<Color>().slice(..),
+            );
+            recorder.0.draw(
+                0..VERTICES.len() as u32,
+                0..resources.instance_coordinator.instances(),
+            );
+            return Some(recorder.finish())
+        }
+        None
+    }
     fn instance_coordinator_queue_write(
         ginkgo: &Ginkgo,
         resources: &mut PanelRenderResources,

@@ -127,7 +127,7 @@ impl Ginkgo {
                 dimension: TextureDimension::D2,
                 format: TextureFormat::R8Unorm,
                 usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
-                view_formats: &[self.get_surface_format()],
+                view_formats: &[TextureFormat::R8Unorm],
             },
             data,
         );

@@ -6,7 +6,7 @@ use std::hash::Hash;
 
 pub type Index = u32;
 pub(crate) struct AttributeFn<Key: Hash + Eq> {
-    create: Box<fn(&mut AnyMap, &Ginkgo, u32)>,
+    create: Box<fn(&mut AnyMap, &mut AnyMap, &Ginkgo, u32)>,
     write: Box<fn(&InstanceOrdering<Key>, &mut AnyMap, &mut AnyMap, &Ginkgo)>,
     grow: Box<fn(&mut AnyMap, &Ginkgo, u32)>,
     remove: Box<fn(&mut AnyMap, &Vec<Index>)>,
@@ -113,13 +113,14 @@ impl<Key: Hash + Eq + 'static> InstanceCoordinator<Key> {
         &self.attributes.get::<InstanceAttribute<T>>().unwrap().gpu
     }
     fn new(ginkgo: &Ginkgo, attribute_fns: Vec<AttributeFn<Key>>, capacity: u32) -> Self {
+        let (attributes, attribute_writes) = Self::establish_attributes(ginkgo, &attribute_fns, capacity);
         Self {
             ordering: InstanceOrdering(vec![]),
             adds: HashSet::new(),
             removes: HashSet::new(),
             current_gpu_capacity: capacity,
-            attributes: Self::establish_attributes(ginkgo, &attribute_fns, capacity),
-            attribute_writes: AnyMap::new(),
+            attributes,
+            attribute_writes,
             attribute_fns,
         }
     }
@@ -157,27 +158,31 @@ impl<Key: Hash + Eq + 'static> InstanceCoordinator<Key> {
         ginkgo: &Ginkgo,
         attribute_fns: &Vec<AttributeFn<Key>>,
         capacity: u32,
-    ) -> AnyMap {
+    ) -> (AnyMap, AnyMap) {
         let mut map = AnyMap::new();
-        Self::inner_establish(attribute_fns, &mut map, ginkgo, capacity);
-        map
+        let mut write_map = AnyMap::new();
+        Self::inner_establish(attribute_fns, &mut map, &mut write_map, ginkgo, capacity);
+        (map, write_map)
     }
     fn inner_establish(
         attribute_fns: &Vec<AttributeFn<Key>>,
         attributes: &mut AnyMap,
+        attribute_writes: &mut AnyMap,
         ginkgo: &Ginkgo,
         capacity: u32,
     ) {
         for attr_fn in attribute_fns.iter() {
-            (attr_fn.create)(attributes, ginkgo, capacity);
+            (attr_fn.create)(attributes, attribute_writes, ginkgo, capacity);
         }
     }
     fn create_wrapper<T: Default + Clone + Pod + Zeroable + 'static>(
         attributes: &mut AnyMap,
+        attribute_writes: &mut AnyMap,
         ginkgo: &Ginkgo,
         count: u32,
     ) {
         attributes.insert(InstanceAttribute::<T>::new(ginkgo, count));
+        attribute_writes.insert(InstanceAttributeWriteQueue::<Key, T>::new());
     }
     fn write_wrapper<T: Default + Clone + Pod + Zeroable + 'static>(
         ordering: &InstanceOrdering<Key>,
@@ -313,9 +318,11 @@ impl<T: Default + Clone + Pod + Zeroable> InstanceAttribute<T> {
         (self.cpu.len() - 1) as u32
     }
 }
-#[derive(Default)]
 pub(crate) struct InstanceAttributeWriteQueue<Key, T>(pub(crate) HashMap<Key, T>);
 impl<Key: PartialEq, T> InstanceAttributeWriteQueue<Key, T> {
+    pub(crate) fn new() -> Self {
+        Self(HashMap::new())
+    }
     pub(crate) fn indexed(
         &mut self,
         ordering: &InstanceOrdering<Key>,

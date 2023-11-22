@@ -38,18 +38,26 @@ pub(crate) struct RenderInstructionGroup(pub(crate) Vec<RenderInstructionHandle>
 #[derive(Default)]
 pub(crate) struct InstructionGroups {
     pub(crate) instruction_groups: Vec<(RenderId, RenderPhase, RenderInstructionGroup)>,
-    pub(crate) render_id_to_instruction_group: HashMap<RenderId, usize>,
     pub(crate) instructions: Vec<RenderInstructionHandle>,
     pub(crate) updated: bool,
 }
 
 impl InstructionGroups {
     pub(crate) fn obtain(&mut self, id: &RenderId) -> &mut RenderInstructionGroup {
-        let index = *self.render_id_to_instruction_group.get(id).unwrap();
+        let index = self.index_of(id);
         &mut self.instruction_groups.get_mut(index).unwrap().2
+    }
+    pub(crate) fn index_of(&mut self, id: &RenderId) -> usize {
+        let mut index = 0;
+        for (r_id, _, _) in self.instruction_groups.iter() {
+            if r_id == id { return index }
+            index += 1;
+        }
+        index
     }
     pub(crate) fn instructions(&mut self) -> &Vec<RenderInstructionHandle> {
         if self.updated {
+            self.instructions.clear();
             for group in self.instruction_groups.iter() {
                 self.instructions.extend(group.2 .0.clone());
             }
@@ -59,6 +67,6 @@ impl InstructionGroups {
     }
 
     pub(crate) fn establish(&mut self, id: RenderId, phase: RenderPhase) {
-        todo!()
+        self.instruction_groups.push((id, phase, RenderInstructionGroup::default()));
     }
 }

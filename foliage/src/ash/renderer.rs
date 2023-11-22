@@ -112,28 +112,28 @@ impl<T: Render> Renderer<T> {
             RenderRecordBehavior::PerRenderer(behavior) => {
                 if per_renderer_record_hook {
                     let recorder = RenderInstructionsRecorder::new(ginkgo);
-                    let instructions =
-                        behavior(resources, ginkgo.viewport.as_ref().unwrap(), recorder);
-                    render_instruction_group.0 = vec![instructions];
+                    if let Some(instructions) =
+                        behavior(resources, recorder) {
+                        render_instruction_group.0 = vec![instructions];
+                    }
                 }
             }
             RenderRecordBehavior::PerPackage(behavior) => {
                 for (_entity, package) in packages.0.iter_mut() {
-                    let instructions = if package.should_record {
+                    if package.should_record {
                         let recorder = RenderInstructionsRecorder::new(ginkgo);
-                        let instructions = behavior(
+                        if let Some(instructions) = behavior(
                             resources,
-                            ginkgo.viewport.as_ref().unwrap(),
                             package,
                             recorder,
-                        );
-                        package.instruction_handle.replace(instructions.clone());
-                        package.should_record = false;
-                        instructions
-                    } else {
-                        package.instruction_handle.as_ref().unwrap().clone()
-                    };
-                    render_instruction_group.0.push(instructions);
+                        ) {
+                            package.instruction_handle.replace(instructions.clone());
+                            package.should_record = false;
+                        }
+                    }
+                    if let Some(instructions) = package.instruction_handle.as_ref() {
+                        render_instruction_group.0.push(instructions.clone());
+                    }
                 }
             }
         }
@@ -184,16 +184,14 @@ impl<T: Render> Default for RenderPackageStorage<T> {
     }
 }
 
-pub(crate) type PerRendererRecordFn<T> = Box<
-    fn(&<T as Render>::Resources, &Viewport, RenderInstructionsRecorder) -> RenderInstructionHandle,
->;
+pub(crate) type PerRendererRecordFn<T> =
+    Box<fn(&<T as Render>::Resources, RenderInstructionsRecorder) -> Option<RenderInstructionHandle>>;
 pub(crate) type PerPackageRecordFn<T> = Box<
     fn(
         &<T as Render>::Resources,
-        &Viewport,
         &mut RenderPackage<T>,
         RenderInstructionsRecorder,
-    ) -> RenderInstructionHandle,
+    ) -> Option<RenderInstructionHandle>,
 >;
 
 pub struct RenderPackage<T: Render> {
