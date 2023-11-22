@@ -113,7 +113,8 @@ impl<Key: Hash + Eq + 'static> InstanceCoordinator<Key> {
         &self.attributes.get::<InstanceAttribute<T>>().unwrap().gpu
     }
     fn new(ginkgo: &Ginkgo, attribute_fns: Vec<AttributeFn<Key>>, capacity: u32) -> Self {
-        let (attributes, attribute_writes) = Self::establish_attributes(ginkgo, &attribute_fns, capacity);
+        let (attributes, attribute_writes) =
+            Self::establish_attributes(ginkgo, &attribute_fns, capacity);
         Self {
             ordering: InstanceOrdering(vec![]),
             adds: HashSet::new(),
@@ -259,7 +260,7 @@ impl<T: Default + Clone + Pod + Zeroable> InstanceAttribute<T> {
         Self {
             cpu: data,
             gpu: buffer,
-            write_range: None,
+            write_range: Some((0, count - 1)),
         }
     }
 

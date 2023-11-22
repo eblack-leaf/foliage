@@ -50,7 +50,9 @@ impl InstructionGroups {
     pub(crate) fn index_of(&mut self, id: &RenderId) -> usize {
         let mut index = 0;
         for (r_id, _, _) in self.instruction_groups.iter() {
-            if r_id == id { return index }
+            if r_id == id {
+                return index;
+            }
             index += 1;
         }
         index
@@ -67,6 +69,7 @@ impl InstructionGroups {
     }
 
     pub(crate) fn establish(&mut self, id: RenderId, phase: RenderPhase) {
-        self.instruction_groups.push((id, phase, RenderInstructionGroup::default()));
+        self.instruction_groups
+            .push((id, phase, RenderInstructionGroup::default()));
     }
 }

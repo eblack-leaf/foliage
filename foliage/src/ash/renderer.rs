@@ -112,8 +112,7 @@ impl<T: Render> Renderer<T> {
             RenderRecordBehavior::PerRenderer(behavior) => {
                 if per_renderer_record_hook {
                     let recorder = RenderInstructionsRecorder::new(ginkgo);
-                    if let Some(instructions) =
-                        behavior(resources, recorder) {
+                    if let Some(instructions) = behavior(resources, recorder) {
                         render_instruction_group.0 = vec![instructions];
                     }
                 }
@@ -122,11 +121,7 @@ impl<T: Render> Renderer<T> {
                 for (_entity, package) in packages.0.iter_mut() {
                     if package.should_record {
                         let recorder = RenderInstructionsRecorder::new(ginkgo);
-                        if let Some(instructions) = behavior(
-                            resources,
-                            package,
-                            recorder,
-                        ) {
+                        if let Some(instructions) = behavior(resources, package, recorder) {
                             package.instruction_handle.replace(instructions.clone());
                             package.should_record = false;
                         }
@@ -184,8 +179,9 @@ impl<T: Render> Default for RenderPackageStorage<T> {
     }
 }
 
-pub(crate) type PerRendererRecordFn<T> =
-    Box<fn(&<T as Render>::Resources, RenderInstructionsRecorder) -> Option<RenderInstructionHandle>>;
+pub(crate) type PerRendererRecordFn<T> = Box<
+    fn(&<T as Render>::Resources, RenderInstructionsRecorder) -> Option<RenderInstructionHandle>,
+>;
 pub(crate) type PerPackageRecordFn<T> = Box<
     fn(
         &<T as Render>::Resources,

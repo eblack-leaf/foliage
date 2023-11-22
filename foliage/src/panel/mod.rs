@@ -1,4 +1,4 @@
-use bevy_ecs::bundle::Bundle;
+use crate::ash::identification::{RenderId, RenderIdentification};
 use crate::ash::instruction::{RenderInstructionHandle, RenderInstructionsRecorder};
 use crate::ash::render::{Render, RenderPhase};
 use crate::ash::render_packet::{RenderPacket, RenderPacketStore};
@@ -14,9 +14,9 @@ use crate::elm::{Elm, Leaf};
 use crate::ginkgo::Ginkgo;
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
 use crate::texture::TextureCoordinates;
+use bevy_ecs::bundle::Bundle;
 use bevy_ecs::prelude::Entity;
 use bytemuck::{Pod, Zeroable};
-use crate::ash::identification::{RenderId, RenderIdentification};
 
 #[derive(Bundle)]
 pub struct Panel {
@@ -30,7 +30,12 @@ pub struct Panel {
     render_packet_store: RenderPacketStore,
 }
 impl Panel {
-    pub fn new(pos: Position<InterfaceContext>, area: Area<InterfaceContext>, layer: Layer, color: Color) -> Self {
+    pub fn new(
+        pos: Position<InterfaceContext>,
+        area: Area<InterfaceContext>,
+        layer: Layer,
+        color: Color,
+    ) -> Self {
         Self {
             render_id: <Self as RenderIdentification>::id(),
             position: DifferentialBundle::new(pos),
@@ -80,12 +85,12 @@ const VERTICES: [Vertex; 6] = [
         TextureCoordinates::new(0f32, 0f32),
     ),
     Vertex::new(
-        CReprPosition::new(1f32, 0f32),
-        TextureCoordinates::new(1f32, 0f32),
-    ),
-    Vertex::new(
         CReprPosition::new(0f32, 1f32),
         TextureCoordinates::new(0f32, 1f32),
+    ),
+    Vertex::new(
+        CReprPosition::new(1f32, 0f32),
+        TextureCoordinates::new(1f32, 0f32),
     ),
     Vertex::new(
         CReprPosition::new(1f32, 0f32),
@@ -171,27 +176,27 @@ impl Render for Panel {
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<Vertex>(1),
                             step_mode: wgpu::VertexStepMode::Vertex,
-                            attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x2],
+                            attributes: &wgpu::vertex_attr_array![0 => Float32x4],
                         },
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<CReprPosition>(1),
                             step_mode: wgpu::VertexStepMode::Instance,
-                            attributes: &wgpu::vertex_attr_array![2 => Float32x2],
+                            attributes: &wgpu::vertex_attr_array![1 => Float32x2],
                         },
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<CReprArea>(1),
                             step_mode: wgpu::VertexStepMode::Instance,
-                            attributes: &wgpu::vertex_attr_array![3 => Float32x2],
+                            attributes: &wgpu::vertex_attr_array![2 => Float32x2],
                         },
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<Layer>(1),
                             step_mode: wgpu::VertexStepMode::Instance,
-                            attributes: &wgpu::vertex_attr_array![4 => Float32x2],
+                            attributes: &wgpu::vertex_attr_array![3 => Float32x2],
                         },
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<Color>(1),
                             step_mode: wgpu::VertexStepMode::Instance,
-                            attributes: &wgpu::vertex_attr_array![5 => Float32x4],
+                            attributes: &wgpu::vertex_attr_array![4 => Float32x4],
                         },
                     ],
                 },
@@ -306,7 +311,7 @@ impl Panel {
                 0..VERTICES.len() as u32,
                 0..resources.instance_coordinator.instances(),
             );
-            return Some(recorder.finish())
+            return Some(recorder.finish());
         }
         None
     }
