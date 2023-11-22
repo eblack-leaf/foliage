@@ -1,13 +1,14 @@
+use bevy_ecs::bundle::Bundle;
 use crate::ash::instruction::{RenderInstructionHandle, RenderInstructionsRecorder};
 use crate::ash::render::{Render, RenderPhase};
-use crate::ash::render_packet::RenderPacket;
+use crate::ash::render_packet::{RenderPacket, RenderPacketStore};
 use crate::ash::renderer::{RenderPackage, RenderRecordBehavior};
 use crate::color::Color;
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::InterfaceContext;
-use crate::differential::DifferentialBundle;
+use crate::differential::{Despawn, DifferentialBundle, DifferentialDisable};
 use crate::differential_enable;
 use crate::elm::{Elm, Leaf};
 use crate::ginkgo::Ginkgo;
@@ -15,20 +16,30 @@ use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
 use crate::texture::TextureCoordinates;
 use bevy_ecs::prelude::Entity;
 use bytemuck::{Pod, Zeroable};
+use crate::ash::identification::{RenderId, RenderIdentification};
 
+#[derive(Bundle)]
 pub struct Panel {
+    render_id: RenderId,
     position: DifferentialBundle<Position<InterfaceContext>>,
     area: DifferentialBundle<Area<InterfaceContext>>,
     layer: DifferentialBundle<Layer>,
     color: DifferentialBundle<Color>,
+    differential_disable: DifferentialDisable,
+    despawn: Despawn,
+    render_packet_store: RenderPacketStore,
 }
 impl Panel {
-    pub fn new(pos: Position<InterfaceContext>) -> Self {
+    pub fn new(pos: Position<InterfaceContext>, area: Area<InterfaceContext>, layer: Layer, color: Color) -> Self {
         Self {
+            render_id: <Self as RenderIdentification>::id(),
             position: DifferentialBundle::new(pos),
-            area: DifferentialBundle::new(),
-            layer: DifferentialBundle::new(),
-            color: DifferentialBundle {},
+            area: DifferentialBundle::new(area),
+            layer: DifferentialBundle::new(layer),
+            color: DifferentialBundle::new(color),
+            differential_disable: DifferentialDisable::default(),
+            despawn: Despawn::default(),
+            render_packet_store: RenderPacketStore::default(),
         }
     }
 }
@@ -41,6 +52,12 @@ impl Leaf for Panel {
             Layer,
             Color
         );
+        elm.job.container.spawn(Panel::new(
+            (100, 100).into(),
+            (200, 100).into(),
+            2.into(),
+            Color::OFF_WHITE.into(),
+        ));
     }
 }
 #[repr(C)]

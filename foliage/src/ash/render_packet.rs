@@ -33,6 +33,9 @@ impl RenderPacketStore {
         data
     }
     pub(crate) fn put<T: DifferentialIdentification + Serialize + 'static>(&mut self, data: T) {
+        if self.render_packet.is_none() {
+            self.render_packet.replace(RenderPacket::new());
+        }
         let serialized = rmp_serde::to_vec(&data).expect("serialization");
         self.render_packet
             .as_mut()

@@ -97,7 +97,7 @@ impl<Key: Hash + Eq + 'static> InstanceCoordinator<Key> {
         self.removes.insert(key);
     }
     pub fn queue_write<T: 'static>(&mut self, key: Key, t: T) {
-        self.attributes
+        self.attribute_writes
             .get_mut::<InstanceAttributeWriteQueue<Key, T>>()
             .unwrap()
             .0
