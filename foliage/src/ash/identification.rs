@@ -8,11 +8,11 @@ use serde::{Deserialize, Serialize};
 pub struct RenderId(pub CompactString);
 
 pub trait RenderIdentification {
-    fn id() -> RenderId;
+    fn render_id() -> RenderId;
 }
 
 impl<T: Render + 'static> RenderIdentification for T {
-    fn id() -> RenderId {
+    fn render_id() -> RenderId {
         RenderId(compact_string_type_id::<T>())
     }
 }

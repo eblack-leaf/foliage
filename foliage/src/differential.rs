@@ -1,4 +1,5 @@
-use crate::ash::identification::RenderId;
+use crate::ash::identification::{RenderId, RenderIdentification};
+use crate::ash::render::Render;
 use crate::ash::render_packet::RenderPacketForwarder;
 use crate::ash::render_packet::RenderPacketStore;
 use bevy_ecs::entity::Entity;
@@ -8,7 +9,23 @@ use bevy_ecs::system::ResMut;
 use compact_str::{CompactString, ToCompactString};
 use serde::{Deserialize, Serialize};
 use std::any::TypeId;
-
+#[derive(Bundle)]
+pub struct Differentiable {
+    disable: DifferentialDisable,
+    despawn: Despawn,
+    store: RenderPacketStore,
+    render_id: RenderId,
+}
+impl Differentiable {
+    pub fn new<T: Render + 'static>() -> Self {
+        Self {
+            despawn: Despawn::default(),
+            disable: DifferentialDisable::default(),
+            store: RenderPacketStore::default(),
+            render_id: T::render_id(),
+        }
+    }
+}
 #[derive(Component, Clone)]
 pub struct Differential<T: Component + Clone + PartialEq + Send + Sync + 'static> {
     cache: T,
@@ -50,10 +67,10 @@ impl DifferentialDisable {
 #[derive(Hash, Eq, PartialEq, Serialize, Deserialize, Clone)]
 pub struct DifferentialId(pub(crate) CompactString);
 pub trait DifferentialIdentification {
-    fn id() -> DifferentialId;
+    fn diff_id() -> DifferentialId;
 }
 impl<T: Component> DifferentialIdentification for T {
-    fn id() -> DifferentialId {
+    fn diff_id() -> DifferentialId {
         DifferentialId(format!("{:?}", TypeId::of::<T>()).to_compact_string())
     }
 }

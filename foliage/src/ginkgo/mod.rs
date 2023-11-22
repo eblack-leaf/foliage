@@ -9,6 +9,7 @@ use crate::window::{WindowDescriptor, WindowHandle};
 use bytemuck::{Pod, Zeroable};
 use depth_texture::DepthTexture;
 use msaa::Msaa;
+use std::path::{Path, PathBuf};
 
 use crate::coordinate::area::Area;
 use crate::coordinate::section::Section;
@@ -95,6 +96,14 @@ impl Ginkgo {
                 usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             })
     }
+    pub fn index_buffer_with_data<T: Pod + Zeroable>(&self, t: &[T], label: &str) -> Buffer {
+        self.device()
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some(label),
+                contents: bytemuck::cast_slice(t),
+                usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
+            })
+    }
     pub fn texture_bind_group_entry(view: &TextureView, binding: u32) -> BindGroupEntry {
         BindGroupEntry {
             binding,
@@ -106,6 +115,17 @@ impl Ginkgo {
             binding,
             resource: wgpu::BindingResource::Sampler(sampler),
         }
+    }
+    #[cfg(not(target_family = "wasm"))]
+    pub fn png_to_r8unorm_d2(path: PathBuf) -> Vec<u8> {
+        let image = image::load_from_memory(std::fs::read(path).unwrap().as_slice())
+            .expect("png-to-r8unorm-d2");
+        let texture_data = image
+            .to_rgba8()
+            .enumerate_pixels()
+            .map(|p| -> u8 { p.2 .0[3] })
+            .collect::<Vec<u8>>();
+        texture_data
     }
     pub fn texture_r8unorm_d2(
         &self,

@@ -16,7 +16,7 @@ impl RenderPacket {
     pub fn get<T: DifferentialIdentification + for<'a> Deserialize<'a> + 'static>(
         &self,
     ) -> Option<T> {
-        if let Some(Some(v)) = self.0.get(&T::id()) {
+        if let Some(Some(v)) = self.0.get(&T::diff_id()) {
             return rmp_serde::from_slice::<T>(v.as_slice()).ok();
         }
         None
@@ -41,7 +41,7 @@ impl RenderPacketStore {
             .as_mut()
             .unwrap()
             .0
-            .insert(T::id(), Some(serialized));
+            .insert(T::diff_id(), Some(serialized));
     }
     pub fn get<T: DifferentialIdentification + for<'a> Deserialize<'a> + 'static>(
         &self,
@@ -110,7 +110,7 @@ impl RenderPacketPackage {
         self.establish::<T>()
     }
     pub(crate) fn establish<T: Render + 'static>(&mut self) -> Option<RenderPacketQueue> {
-        self.0.insert(T::id(), RenderPacketQueue::new())
+        self.0.insert(T::render_id(), RenderPacketQueue::new())
     }
 }
 

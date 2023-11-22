@@ -1,14 +1,13 @@
-use crate::ash::identification::{RenderId, RenderIdentification};
 use crate::ash::instruction::{RenderInstructionHandle, RenderInstructionsRecorder};
 use crate::ash::render::{Render, RenderPhase};
-use crate::ash::render_packet::{RenderPacket, RenderPacketStore};
+use crate::ash::render_packet::RenderPacket;
 use crate::ash::renderer::{RenderPackage, RenderRecordBehavior};
 use crate::color::Color;
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
-use crate::coordinate::InterfaceContext;
-use crate::differential::{Despawn, DifferentialBundle, DifferentialDisable};
+use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
+use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::{Elm, Leaf};
 use crate::ginkgo::Ginkgo;
@@ -17,17 +16,17 @@ use crate::texture::TextureCoordinates;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::prelude::Entity;
 use bytemuck::{Pod, Zeroable};
+use image::EncodableLayout;
+use std::fs::OpenOptions;
+use std::io::Write;
 
 #[derive(Bundle)]
 pub struct Panel {
-    render_id: RenderId,
     position: DifferentialBundle<Position<InterfaceContext>>,
     area: DifferentialBundle<Area<InterfaceContext>>,
     layer: DifferentialBundle<Layer>,
     color: DifferentialBundle<Color>,
-    differential_disable: DifferentialDisable,
-    despawn: Despawn,
-    render_packet_store: RenderPacketStore,
+    differentiable: Differentiable,
 }
 impl Panel {
     pub fn new(
@@ -37,14 +36,11 @@ impl Panel {
         color: Color,
     ) -> Self {
         Self {
-            render_id: <Self as RenderIdentification>::id(),
             position: DifferentialBundle::new(pos),
             area: DifferentialBundle::new(area),
             layer: DifferentialBundle::new(layer),
             color: DifferentialBundle::new(color),
-            differential_disable: DifferentialDisable::default(),
-            despawn: Despawn::default(),
-            render_packet_store: RenderPacketStore::default(),
+            differentiable: Differentiable::new::<Self>(),
         }
     }
 }
@@ -65,7 +61,7 @@ impl Leaf for Panel {
         ));
         elm.job.container.spawn(Panel::new(
             (300, 500).into(),
-            (10, 50).into(),
+            (100, 50).into(),
             2.into(),
             Color::OFF_WHITE.into(),
         ));
@@ -76,40 +72,122 @@ impl Leaf for Panel {
 struct Vertex {
     position: CReprPosition,
     texture_coordinates: TextureCoordinates,
+    listen_hook: [CoordinateUnit; 2],
 }
 impl Vertex {
-    const fn new(position: CReprPosition, texture_coordinates: TextureCoordinates) -> Self {
+    const fn new(
+        position: CReprPosition,
+        texture_coordinates: TextureCoordinates,
+        hook: [CoordinateUnit; 2],
+    ) -> Self {
         Self {
             position,
             texture_coordinates,
+            listen_hook: hook,
         }
     }
 }
-const VERTICES: [Vertex; 6] = [
+const CORNER_DEPTH: CoordinateUnit = 6f32;
+const CORNER_TEXTURE_EXTENT: CoordinateUnit = 0.49f32;
+const CORNER_SPACING: CoordinateUnit = 0.02f32;
+const VERTICES: [Vertex; 16] = [
+    // left-top
     Vertex::new(
         CReprPosition::new(0f32, 0f32),
         TextureCoordinates::new(0f32, 0f32),
+        [0.0, 0.0],
     ),
     Vertex::new(
-        CReprPosition::new(0f32, 1f32),
+        CReprPosition::new(0f32, CORNER_DEPTH),
+        TextureCoordinates::new(0f32, CORNER_TEXTURE_EXTENT),
+        [0.0, 0.0],
+    ),
+    Vertex::new(
+        CReprPosition::new(CORNER_DEPTH, CORNER_DEPTH),
+        TextureCoordinates::new(CORNER_TEXTURE_EXTENT, CORNER_TEXTURE_EXTENT),
+        [0.0, 0.0],
+    ),
+    Vertex::new(
+        CReprPosition::new(CORNER_DEPTH, 0f32),
+        TextureCoordinates::new(CORNER_TEXTURE_EXTENT, 0f32),
+        [0.0, 0.0],
+    ),
+    // left-bottom
+    Vertex::new(
+        CReprPosition::new(0f32, CORNER_DEPTH),
+        TextureCoordinates::new(0f32, CORNER_TEXTURE_EXTENT + CORNER_SPACING),
+        [0.0, 1.0],
+    ),
+    Vertex::new(
+        CReprPosition::new(0f32, CORNER_DEPTH * 2f32),
         TextureCoordinates::new(0f32, 1f32),
+        [0.0, 1.0],
     ),
     Vertex::new(
-        CReprPosition::new(1f32, 0f32),
-        TextureCoordinates::new(1f32, 0f32),
+        CReprPosition::new(CORNER_DEPTH, CORNER_DEPTH * 2f32),
+        TextureCoordinates::new(CORNER_TEXTURE_EXTENT + CORNER_SPACING, 1f32),
+        [0.0, 1.0],
     ),
     Vertex::new(
-        CReprPosition::new(1f32, 0f32),
-        TextureCoordinates::new(1f32, 0f32),
+        CReprPosition::new(CORNER_DEPTH, CORNER_DEPTH),
+        TextureCoordinates::new(
+            CORNER_TEXTURE_EXTENT + CORNER_SPACING,
+            CORNER_TEXTURE_EXTENT + CORNER_SPACING,
+        ),
+        [0.0, 1.0],
+    ),
+    // right-bottom
+    Vertex::new(
+        CReprPosition::new(CORNER_DEPTH, CORNER_DEPTH),
+        TextureCoordinates::new(
+            CORNER_TEXTURE_EXTENT + CORNER_SPACING,
+            CORNER_TEXTURE_EXTENT + CORNER_SPACING,
+        ),
+        [1.0, 1.0],
     ),
     Vertex::new(
-        CReprPosition::new(0f32, 1f32),
-        TextureCoordinates::new(0f32, 1f32),
+        CReprPosition::new(CORNER_DEPTH, CORNER_DEPTH * 2f32),
+        TextureCoordinates::new(CORNER_TEXTURE_EXTENT + CORNER_SPACING, 1f32),
+        [1.0, 1.0],
     ),
     Vertex::new(
-        CReprPosition::new(1f32, 1f32),
+        CReprPosition::new(CORNER_DEPTH * 2f32, CORNER_DEPTH * 2f32),
         TextureCoordinates::new(1f32, 1f32),
+        [1.0, 1.0],
     ),
+    Vertex::new(
+        CReprPosition::new(CORNER_DEPTH * 2f32, CORNER_DEPTH),
+        TextureCoordinates::new(1f32, CORNER_TEXTURE_EXTENT + CORNER_SPACING),
+        [1.0, 1.0],
+    ),
+    // right-top
+    Vertex::new(
+        CReprPosition::new(CORNER_DEPTH, 0f32),
+        TextureCoordinates::new(CORNER_TEXTURE_EXTENT + CORNER_SPACING, 0f32),
+        [1.0, 0.0],
+    ),
+    Vertex::new(
+        CReprPosition::new(CORNER_DEPTH, CORNER_DEPTH),
+        TextureCoordinates::new(
+            CORNER_TEXTURE_EXTENT + CORNER_SPACING,
+            CORNER_TEXTURE_EXTENT,
+        ),
+        [1.0, 0.0],
+    ),
+    Vertex::new(
+        CReprPosition::new(CORNER_DEPTH * 2f32, CORNER_DEPTH),
+        TextureCoordinates::new(1f32, CORNER_TEXTURE_EXTENT),
+        [1.0, 0.0],
+    ),
+    Vertex::new(
+        CReprPosition::new(CORNER_DEPTH * 2f32, 0f32),
+        TextureCoordinates::new(1f32, 0f32),
+        [1.0, 0.0],
+    ),
+];
+const INDICES: [u16; 6 * 9] = [
+    3, 0, 1, 3, 1, 2, 2, 1, 4, 2, 4, 7, 7, 4, 5, 7, 5, 6, 8, 7, 6, 8, 6, 9, 11, 8, 9, 11, 9, 10,
+    14, 13, 8, 14, 8, 11, 15, 12, 13, 15, 13, 14, 12, 3, 2, 12, 2, 13, 13, 2, 7, 13, 7, 8,
 ];
 pub struct PanelRenderResources {
     pipeline: wgpu::RenderPipeline,
@@ -119,9 +197,10 @@ pub struct PanelRenderResources {
     view: wgpu::TextureView,
     sampler: wgpu::Sampler,
     instance_coordinator: InstanceCoordinator<Entity>,
+    index_buffer: wgpu::Buffer,
 }
 impl PanelRenderResources {
-    const TEXTURE_DIMENSION: u32 = 10;
+    const TEXTURE_DIMENSION: u32 = 100;
 }
 impl Render for Panel {
     type Resources = PanelRenderResources;
@@ -132,7 +211,7 @@ impl Render for Panel {
         let shader = ginkgo
             .device()
             .create_shader_module(wgpu::include_wgsl!("panel.wgsl"));
-        let texture_data = serde_json::from_str::<Vec<u8>>(include_str!("panel-texture.cov"))
+        let texture_data = serde_json::from_str::<Vec<u8>>(include_str!("panel-texture-ring.cov"))
             .ok()
             .unwrap();
         let (texture, view) = ginkgo.texture_r8unorm_d2(
@@ -185,27 +264,27 @@ impl Render for Panel {
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<Vertex>(1),
                             step_mode: wgpu::VertexStepMode::Vertex,
-                            attributes: &wgpu::vertex_attr_array![0 => Float32x4],
+                            attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x2, 2 => Float32x2],
                         },
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<CReprPosition>(1),
                             step_mode: wgpu::VertexStepMode::Instance,
-                            attributes: &wgpu::vertex_attr_array![1 => Float32x2],
+                            attributes: &wgpu::vertex_attr_array![3 => Float32x2],
                         },
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<CReprArea>(1),
                             step_mode: wgpu::VertexStepMode::Instance,
-                            attributes: &wgpu::vertex_attr_array![2 => Float32x2],
+                            attributes: &wgpu::vertex_attr_array![4 => Float32x2],
                         },
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<Layer>(1),
                             step_mode: wgpu::VertexStepMode::Instance,
-                            attributes: &wgpu::vertex_attr_array![3 => Float32x2],
+                            attributes: &wgpu::vertex_attr_array![5 => Float32x2],
                         },
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<Color>(1),
                             step_mode: wgpu::VertexStepMode::Instance,
-                            attributes: &wgpu::vertex_attr_array![4 => Float32x4],
+                            attributes: &wgpu::vertex_attr_array![6 => Float32x4],
                         },
                     ],
                 },
@@ -220,6 +299,7 @@ impl Render for Panel {
                 multiview: None,
             });
         let vertex_buffer = ginkgo.vertex_buffer_with_data(&VERTICES, "panel-vertex-buffer");
+        let index_buffer = ginkgo.index_buffer_with_data(&INDICES, "panel-index-buffer");
         let instance_coordinator = InstanceCoordinatorBuilder::new(4)
             .with_attribute::<CReprPosition>()
             .with_attribute::<CReprArea>()
@@ -234,6 +314,7 @@ impl Render for Panel {
             view,
             sampler,
             instance_coordinator,
+            index_buffer,
         }
     }
 
@@ -293,6 +374,9 @@ impl Panel {
             recorder.0.set_bind_group(0, &resources.bind_group, &[]);
             recorder
                 .0
+                .set_index_buffer(resources.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            recorder
+                .0
                 .set_vertex_buffer(0, resources.vertex_buffer.slice(..));
             recorder.0.set_vertex_buffer(
                 1,
@@ -316,8 +400,9 @@ impl Panel {
                 4,
                 resources.instance_coordinator.buffer::<Color>().slice(..),
             );
-            recorder.0.draw(
-                0..VERTICES.len() as u32,
+            recorder.0.draw_indexed(
+                0..INDICES.len() as u32,
+                0,
                 0..resources.instance_coordinator.instances(),
             );
             return Some(recorder.finish());
@@ -336,9 +421,13 @@ impl Panel {
                 .queue_write(entity, pos.to_device(ginkgo.scale_factor()).to_c());
         }
         if let Some(area) = render_packet.get::<Area<InterfaceContext>>() {
+            let scaled = area.to_device(ginkgo.scale_factor())
+                - Area::new(CORNER_DEPTH * 2f32, CORNER_DEPTH * 2f32);
+            let limited =
+                Area::<DeviceContext>::new(scaled.width.max(0f32), scaled.height.max(0f32));
             resources
                 .instance_coordinator
-                .queue_write(entity, area.to_device(ginkgo.scale_factor()).to_c());
+                .queue_write(entity, limited.to_c());
         }
         if let Some(layer) = render_packet.get::<Layer>() {
             resources.instance_coordinator.queue_write(entity, layer);
@@ -347,4 +436,21 @@ impl Panel {
             resources.instance_coordinator.queue_write(entity, color);
         }
     }
+}
+#[test]
+#[cfg(test)]
+fn png_to_r8unorm() {
+    let image = image::load_from_memory(include_bytes!("panel-texture-ring.png")).expect("image");
+    let texture_data = image
+        .to_rgba8()
+        .enumerate_pixels()
+        .map(|p| -> u8 { p.2 .0[3] })
+        .collect::<Vec<u8>>();
+    let string_data = serde_json::to_string(texture_data.as_slice()).unwrap();
+    OpenOptions::new()
+        .write(true)
+        .open("/home/omi-voshuli/Desktop/dev/foliage/foliage/src/panel/panel-texture-ring.cov")
+        .unwrap()
+        .write(string_data.as_bytes())
+        .unwrap();
 }

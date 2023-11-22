@@ -61,7 +61,7 @@ impl Foliage {
         self.render_queue
             .as_mut()
             .unwrap()
-            .insert(T::id(), RenderLeaflet::leaf_fn::<T>());
+            .insert(T::render_id(), RenderLeaflet::leaf_fn::<T>());
         self
     }
     pub fn run(self) {

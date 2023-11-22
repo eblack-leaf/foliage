@@ -44,7 +44,8 @@ impl RenderLeaflet {
     }
     pub(crate) fn register<T: Render + 'static>(ash: &mut Ash, ginkgo: &Ginkgo) {
         ash.renderer_handler.establish::<T>(ginkgo);
-        ash.instruction_groups.establish(T::id(), T::RENDER_PHASE);
+        ash.instruction_groups
+            .establish(T::render_id(), T::RENDER_PHASE);
     }
     pub(crate) fn instruction_fetch<T: Render + 'static>(
         renderer_handler: &mut RendererStorage,
