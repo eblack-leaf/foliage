@@ -63,6 +63,10 @@ impl Foliage {
             .insert(T::render_id(), RenderLeaflet::leaf_fn::<T>());
         self
     }
+    pub fn with_renderleaf<T: Leaf + Render + 'static>(mut self) -> Self {
+        self.with_leaf::<T>()
+            .with_renderleaf::<T>()
+    }
     pub fn run(self) {
         cfg_if::cfg_if! {
             if #[cfg(target_family = "wasm")] {

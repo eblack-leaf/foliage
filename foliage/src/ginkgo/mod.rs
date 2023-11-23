@@ -147,7 +147,7 @@ impl Ginkgo {
                 sample_count: 1,
                 dimension: TextureDimension::D2,
                 format: TextureFormat::R8Unorm,
-                usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST ,
+                usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
                 view_formats: &[TextureFormat::R8Unorm],
             },
             data,

@@ -9,7 +9,6 @@ pub fn entry() {
                 .with_title("foliage")
                 .with_desktop_dimensions((400, 700)),
         )
-        .with_leaf::<Panel>()
-        .with_renderer::<Panel>()
+        .with_renderleaf::<Panel>()
         .run();
 }

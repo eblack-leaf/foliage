@@ -68,24 +68,20 @@ impl Leaf for Panel {
             Color,
             PanelStyle
         );
-        elm.job.container.spawn(
-            Panel::new(
-                PanelStyle::flat(),
-                (50, 100).into(),
-                (200, 100).into(),
-                2.into(),
-                Color::GREY_DARK.into(),
-            )
-        );
-        elm.job.container.spawn(
-            Panel::new(
-                PanelStyle::ring(),
-                (50, 300).into(),
-                (200, 100).into(),
-                2.into(),
-                Color::GREY_DARK.into(),
-            )
-        );
+        elm.job.container.spawn(Panel::new(
+            PanelStyle::flat(),
+            (100, 100).into(),
+            (200, 100).into(),
+            2.into(),
+            Color::GREY_DARK.into(),
+        ));
+        elm.job.container.spawn(Panel::new(
+            PanelStyle::ring(),
+            (100, 300).into(),
+            (200, 100).into(),
+            2.into(),
+            Color::GREY_DARK.into(),
+        ));
     }
 }
 pub struct PanelRenderResources {
@@ -349,14 +345,15 @@ impl Panel {
         render_packet: RenderPacket,
     ) {
         if let Some(pos) = render_packet.get::<Position<InterfaceContext>>() {
-            resources
-                .instance_coordinator
-                .queue_write(entity, (pos.to_device(ginkgo.scale_factor()) - Position::new(CORNER_DEPTH, CORNER_DEPTH)).to_c());
+            resources.instance_coordinator.queue_write(
+                entity,
+                (pos.to_device(ginkgo.scale_factor()) - Position::new(CORNER_DEPTH, CORNER_DEPTH))
+                    .to_c(),
+            );
         }
         if let Some(area) = render_packet.get::<Area<InterfaceContext>>() {
             let scale_factor = ginkgo.scale_factor();
-            let scaled = area.to_device(scale_factor)
-                - Area::new(CORNER_DEPTH, CORNER_DEPTH);
+            let scaled = area.to_device(scale_factor) - Area::new(CORNER_DEPTH, CORNER_DEPTH);
             let zero_bounded =
                 Area::<DeviceContext>::new(scaled.width.max(0f32), scaled.height.max(0f32));
             resources
