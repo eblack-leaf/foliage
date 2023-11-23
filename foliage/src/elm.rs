@@ -1,5 +1,10 @@
 use crate::ash::render_packet::RenderPacketForwarder;
 use crate::ash::render_packet::RenderPacketPackage;
+use crate::coordinate::area::Area;
+use crate::coordinate::position::Position;
+use crate::coordinate::section::Section;
+use crate::coordinate::InterfaceContext;
+use crate::ginkgo::viewport::ViewportHandle;
 use crate::job::Job;
 use anymap::AnyMap;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs, SystemSet};
@@ -14,6 +19,7 @@ pub struct Elm {
     pub job: Job,
     differential_limiter: AnyMap,
 }
+
 #[macro_export]
 macro_rules! differential_enable {
     ($elm:ident $(,$typename:ty)+) => {
@@ -33,6 +39,13 @@ impl Elm {
             job: Job::new(),
             differential_limiter: AnyMap::new(),
         }
+    }
+    pub(crate) fn viewport_handle_changes(&mut self) -> Option<Position<InterfaceContext>> {
+        self.job
+            .container
+            .get_resource_mut::<ViewportHandle>()
+            .unwrap()
+            .changes()
     }
     pub(crate) fn render_packet_package(&mut self) -> RenderPacketPackage {
         self.job
@@ -58,6 +71,11 @@ impl Elm {
             leaf.0(self)
         }
         self.initialized = true;
+    }
+    pub(crate) fn attach_viewport_handle(&mut self, area: Area<InterfaceContext>) {
+        self.job
+            .container
+            .insert_resource(ViewportHandle::new(Section::default().with_area(area)));
     }
     pub fn enable_differential<
         T: Component + Clone + PartialEq + Serialize + for<'a> Deserialize<'a>,

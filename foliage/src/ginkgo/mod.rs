@@ -4,7 +4,7 @@ pub mod uniform;
 pub mod viewport;
 
 use crate::color::Color;
-use crate::coordinate::{CoordinateUnit, DeviceContext};
+use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
 use crate::window::{WindowDescriptor, WindowHandle};
 use bytemuck::{Pod, Zeroable};
 use depth_texture::DepthTexture;
@@ -12,8 +12,9 @@ use msaa::Msaa;
 use std::path::PathBuf;
 
 use crate::coordinate::area::Area;
+use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
-use viewport::{Viewport, ViewportHandle};
+use viewport::Viewport;
 use wgpu::util::DeviceExt;
 use wgpu::{
     BindGroupEntry, BindGroupLayoutEntry, Buffer, BufferAddress, ColorTargetState,
@@ -315,18 +316,13 @@ impl Ginkgo {
             requested,
         ));
     }
-    pub(crate) fn create_viewport(
-        &mut self,
-        section: Section<DeviceContext>,
-        scale_factor: CoordinateUnit,
-    ) -> ViewportHandle {
+    pub(crate) fn create_viewport(&mut self, section: Section<DeviceContext>) {
         let viewport = Viewport::new(
             self.device.as_ref().unwrap(),
             section,
             (0.into(), 100.into()),
         );
         self.viewport.replace(viewport);
-        ViewportHandle::new(section.to_interface(scale_factor))
     }
     pub(crate) async fn initialize(&mut self, window_handle: WindowHandle) {
         self.get_instance();
@@ -337,47 +333,50 @@ impl Ginkgo {
     pub(crate) fn post_window_initialization(
         &mut self,
         window_handle: &WindowHandle,
-    ) -> ViewportHandle {
+    ) -> Area<InterfaceContext> {
         let area = window_handle.area();
         let scale_factor = window_handle.scale_factor();
         self.create_surface_configuration(area);
         self.create_msaa(1);
         self.resize(area, scale_factor)
     }
-    pub(crate) fn adjust_viewport(
-        &mut self,
-        section: Section<DeviceContext>,
-        scale_factor: CoordinateUnit,
-    ) -> ViewportHandle {
+    pub(crate) fn adjust_viewport(&mut self, section: Section<DeviceContext>) {
         self.viewport
             .as_mut()
             .unwrap()
             .adjust(self.queue.as_ref().unwrap(), section);
-        ViewportHandle::new(section.to_interface(scale_factor))
+    }
+    pub(crate) fn adjust_viewport_pos(&mut self, position: Option<Position<InterfaceContext>>) {
+        if let Some(position) = position {
+            self.viewport.as_mut().unwrap().adjust_pos(
+                self.queue.as_ref().unwrap(),
+                position.to_device(self.scale_factor),
+            );
+        }
     }
     pub(crate) fn resize(
         &mut self,
         area: Area<DeviceContext>,
         scale_factor: CoordinateUnit,
-    ) -> ViewportHandle {
+    ) -> Area<InterfaceContext> {
         self.scale_factor = scale_factor;
         self.create_surface_configuration(area);
         self.configure_surface();
         self.create_depth_texture(area);
-        let viewport_handle = if self.viewport.is_none() {
-            self.create_viewport(Section::new((0, 0), area), scale_factor)
+        if self.viewport.is_none() {
+            self.create_viewport(Section::new((0, 0), area));
         } else {
             let section = self.viewport.as_ref().unwrap().section();
-            self.adjust_viewport(section.with_area(area), scale_factor)
+            self.adjust_viewport(section.with_area(area));
         };
-        viewport_handle
+        area.to_interface(self.scale_factor)
     }
     pub(crate) fn resume(
         &mut self,
         event_loop_window_target: &EventLoopWindowTarget<()>,
         window: &mut WindowHandle,
         desc: &WindowDescriptor,
-    ) -> Option<ViewportHandle> {
+    ) -> Option<Area<InterfaceContext>> {
         return if !self.initialized {
             #[cfg(not(target_family = "wasm"))]
             {
@@ -385,14 +384,14 @@ impl Ginkgo {
                 self.scale_factor = window.scale_factor();
                 pollster::block_on(self.initialize(window.clone()));
             }
-            let viewport_handle = self.post_window_initialization(window);
+            let viewport_area = self.post_window_initialization(window);
             self.initialized = true;
-            Some(viewport_handle)
+            Some(viewport_area)
         } else {
             #[cfg(target_os = "android")]
             {
                 self.create_surface(window);
-                return self.resize(window.area());
+                self.resize(window.area());
             }
             None
         };

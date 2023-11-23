@@ -149,8 +149,8 @@ impl Foliage {
                         WindowEvent::ThemeChanged(_) => {}
                         WindowEvent::Occluded(_) => {}
                         WindowEvent::RedrawRequested => {
-                            let render_packet_package = elm.render_packet_package();
-                            ash.extract(render_packet_package);
+                            ginkgo.adjust_viewport_pos(elm.viewport_handle_changes());
+                            ash.extract(elm.render_packet_package());
                             ash.prepare(&ginkgo);
                             ash.record(&ginkgo);
                             ash.render(&mut ginkgo);
@@ -163,12 +163,12 @@ impl Foliage {
                         ginkgo.suspend();
                     }
                     Event::Resumed => {
-                        if let Some(_vh) = ginkgo.resume(
+                        if let Some(viewport_area) = ginkgo.resume(
                             event_loop_window_target,
                             &mut window_handle,
                             &window_desc,
                         ) {
-                            // adjust viewport handle here
+                            elm.attach_viewport_handle(viewport_area);
                         }
                         if !elm.initialized() {
                             elm.attach_leafs(self.leaf_queue.take().unwrap());

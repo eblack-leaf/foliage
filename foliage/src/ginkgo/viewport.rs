@@ -1,15 +1,16 @@
-use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
 use crate::ginkgo::uniform::Uniform;
+use bevy_ecs::prelude::Resource;
 use nalgebra::{matrix, SMatrix};
 use serde::{Deserialize, Serialize};
+use wgpu::Queue;
 
-#[derive(Serialize, Deserialize, Copy, Clone)]
+#[derive(Serialize, Deserialize, Copy, Clone, Resource)]
 pub struct ViewportHandle {
-    section: Section<InterfaceContext>,
+    pub(crate) section: Section<InterfaceContext>,
     dirty: bool,
 }
 
@@ -23,19 +24,15 @@ impl ViewportHandle {
     pub fn section(&self) -> Section<InterfaceContext> {
         self.section
     }
-    pub fn changes(&mut self) -> Option<Section<InterfaceContext>> {
+    pub fn changes(&mut self) -> Option<Position<InterfaceContext>> {
         if self.dirty {
             self.dirty = false;
-            return Some(self.section);
+            return Some(self.section.position);
         }
         None
     }
     pub fn adjust_position(&mut self, x: CoordinateUnit, y: CoordinateUnit) {
         self.section.position += Position::new(x, y);
-        self.dirty = true;
-    }
-    pub fn adjust_area(&mut self, area: Area<InterfaceContext>) {
-        self.section.area = area;
         self.dirty = true;
     }
 }
@@ -80,6 +77,9 @@ impl Viewport {
     }
     pub fn section(&self) -> Section<DeviceContext> {
         self.section
+    }
+    pub(crate) fn adjust_pos(&mut self, queue: &Queue, position: Position<DeviceContext>) {
+        self.adjust(queue, self.section.with_position(position));
     }
     pub(crate) fn adjust(&mut self, queue: &wgpu::Queue, section: Section<DeviceContext>) {
         self.repr = Self::matrix(section, self.near_far);

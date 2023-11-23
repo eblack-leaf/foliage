@@ -7,7 +7,7 @@ pub fn entry() {
         .with_window_descriptor(
             WindowDescriptor::new()
                 .with_title("foliage")
-                .with_desktop_dimensions((400, 600)),
+                .with_desktop_dimensions((400, 768)),
         )
         .with_leaf::<Panel>()
         .with_renderer::<Panel>()
