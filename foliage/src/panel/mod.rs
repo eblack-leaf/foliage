@@ -68,6 +68,24 @@ impl Leaf for Panel {
             Color,
             PanelStyle
         );
+        elm.job.container.spawn(
+            Panel::new(
+                PanelStyle::flat(),
+                (50, 100).into(),
+                (200, 100).into(),
+                2.into(),
+                Color::GREY_DARK.into(),
+            )
+        );
+        elm.job.container.spawn(
+            Panel::new(
+                PanelStyle::ring(),
+                (50, 300).into(),
+                (200, 100).into(),
+                2.into(),
+                Color::GREY_DARK.into(),
+            )
+        );
     }
 }
 pub struct PanelRenderResources {
