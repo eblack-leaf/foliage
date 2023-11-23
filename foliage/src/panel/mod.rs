@@ -354,7 +354,8 @@ impl Panel {
                 .queue_write(entity, pos.to_device(ginkgo.scale_factor()).to_c());
         }
         if let Some(area) = render_packet.get::<Area<InterfaceContext>>() {
-            let scaled = area.to_device(ginkgo.scale_factor())
+            let scale_factor = ginkgo.scale_factor();
+            let scaled = area.to_device(scale_factor)
                 - Area::new(CORNER_DEPTH * 2f32, CORNER_DEPTH * 2f32);
             let zero_bounded =
                 Area::<DeviceContext>::new(scaled.width.max(0f32), scaled.height.max(0f32));
