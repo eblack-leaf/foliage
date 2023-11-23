@@ -1,5 +1,4 @@
 #![allow(clippy::type_complexity)]
-// pub mod ash;
 pub mod ash;
 pub mod color;
 pub mod coordinate;
@@ -117,10 +116,11 @@ impl Foliage {
                     } => match w_event {
                         WindowEvent::ActivationTokenDone { .. } => {}
                         WindowEvent::Resized(size) => {
-                            let _new_handle = ginkgo.resize(
+                            let new_handle = ginkgo.resize(
                                 (size.width, size.height).into(),
                                 window_handle.scale_factor(),
                             );
+                            elm.set_viewport_handle_area(new_handle);
                         }
                         WindowEvent::Moved(_) => {}
                         WindowEvent::CloseRequested => {

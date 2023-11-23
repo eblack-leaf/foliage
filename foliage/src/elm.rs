@@ -77,6 +77,14 @@ impl Elm {
             .container
             .insert_resource(ViewportHandle::new(Section::default().with_area(area)));
     }
+    pub(crate) fn set_viewport_handle_area(&mut self, area: Area<InterfaceContext>) {
+        self.job
+            .container
+            .get_resource_mut::<ViewportHandle>()
+            .unwrap()
+            .section
+            .area = area;
+    }
     pub fn enable_differential<
         T: Component + Clone + PartialEq + Serialize + for<'a> Deserialize<'a>,
     >(
