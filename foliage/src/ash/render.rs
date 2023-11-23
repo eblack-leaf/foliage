@@ -1,5 +1,6 @@
+use crate::ash::instruction::RenderRecordBehavior;
+use crate::ash::render_package::RenderPackage;
 use crate::ash::render_packet::RenderPacket;
-use crate::ash::renderer::{RenderPackage, RenderRecordBehavior};
 use crate::ginkgo::Ginkgo;
 use bevy_ecs::prelude::Entity;
 use std::cmp::Ordering;

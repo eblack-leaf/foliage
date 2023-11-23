@@ -1,11 +1,12 @@
 use crate::ash::instruction::{
-    RenderInstructionGroup, RenderInstructionHandle, RenderInstructionsRecorder,
+    RenderInstructionGroup, RenderInstructionsRecorder, RenderRecordBehavior,
 };
 use crate::ash::render::Render;
+use crate::ash::render_package::{RenderPackage, RenderPackageStorage};
 use crate::ash::render_packet::RenderPacketQueue;
 use crate::ginkgo::Ginkgo;
 use anymap::AnyMap;
-use bevy_ecs::entity::Entity;
+
 pub(crate) struct Renderer<T: Render> {
     resources: T::Resources,
     packages: RenderPackageStorage<T>,
@@ -143,65 +144,5 @@ impl RendererStorage {
     }
     pub(crate) fn establish<T: Render + 'static>(&mut self, ginkgo: &Ginkgo) {
         self.0.insert(Renderer::<T>::new(ginkgo));
-    }
-}
-
-pub enum RenderRecordBehavior<T: Render> {
-    PerRenderer(PerRendererRecordFn<T>),
-    PerPackage(PerPackageRecordFn<T>),
-}
-
-pub(crate) struct RenderPackageStorage<T: Render>(pub(crate) Vec<(Entity, RenderPackage<T>)>);
-
-impl<T: Render> RenderPackageStorage<T> {
-    pub(crate) fn new() -> Self {
-        Self(vec![])
-    }
-    pub(crate) fn index(&self, entity: Entity) -> Option<usize> {
-        let mut index = None;
-        let mut current = 0;
-        for (package_entity, _package) in self.0.iter() {
-            if &entity == package_entity {
-                index.replace(current);
-            }
-            current += 1;
-        }
-        index
-    }
-}
-
-impl<T: Render> Default for RenderPackageStorage<T> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-pub(crate) type PerRendererRecordFn<T> = Box<
-    fn(&<T as Render>::Resources, RenderInstructionsRecorder) -> Option<RenderInstructionHandle>,
->;
-pub(crate) type PerPackageRecordFn<T> = Box<
-    fn(
-        &<T as Render>::Resources,
-        &mut RenderPackage<T>,
-        RenderInstructionsRecorder,
-    ) -> Option<RenderInstructionHandle>,
->;
-
-pub struct RenderPackage<T: Render> {
-    instruction_handle: Option<RenderInstructionHandle>,
-    pub package_data: T::RenderPackage,
-    should_record: bool,
-}
-
-impl<T: Render> RenderPackage<T> {
-    pub(crate) fn new(data: T::RenderPackage) -> Self {
-        Self {
-            instruction_handle: None,
-            package_data: data,
-            should_record: true,
-        }
-    }
-    pub fn signal_record(&mut self) {
-        self.should_record = true;
     }
 }

@@ -10,6 +10,7 @@ pub mod identification;
 pub mod instruction;
 pub mod leaflet;
 pub mod render;
+pub mod render_package;
 pub mod render_packet;
 pub mod renderer;
 

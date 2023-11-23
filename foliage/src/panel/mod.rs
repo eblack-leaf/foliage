@@ -11,8 +11,8 @@ use bevy_ecs::prelude::Component;
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
 
-mod vertex;
 mod renderer;
+mod vertex;
 
 #[repr(C)]
 #[derive(Component, Copy, Clone, PartialEq, Default, Pod, Zeroable, Serialize, Deserialize)]
@@ -62,19 +62,5 @@ impl Leaf for Panel {
             Color,
             PanelStyle
         );
-        elm.job.container.spawn(Panel::new(
-            PanelStyle::flat(),
-            (100, 100).into(),
-            (200, 100).into(),
-            2.into(),
-            Color::OFF_WHITE.into(),
-        ));
-        elm.job.container.spawn(Panel::new(
-            PanelStyle::ring(),
-            (100, 300).into(),
-            (200, 100).into(),
-            2.into(),
-            Color::OFF_WHITE.into(),
-        ));
     }
 }

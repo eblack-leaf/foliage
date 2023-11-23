@@ -1,5 +1,6 @@
 use crate::ash::identification::RenderId;
-use crate::ash::render::RenderPhase;
+use crate::ash::render::{Render, RenderPhase};
+use crate::ash::render_package::{RenderPackage, RenderPackageStorage};
 use crate::ginkgo::Ginkgo;
 use std::rc::Rc;
 
@@ -72,3 +73,25 @@ impl InstructionGroups {
             .push((id, phase, RenderInstructionGroup::default()));
     }
 }
+
+pub enum RenderRecordBehavior<T: Render> {
+    PerRenderer(PerRendererRecordFn<T>),
+    PerPackage(PerPackageRecordFn<T>),
+}
+
+impl<T: Render> Default for RenderPackageStorage<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+pub(crate) type PerRendererRecordFn<T> = Box<
+    fn(&<T as Render>::Resources, RenderInstructionsRecorder) -> Option<RenderInstructionHandle>,
+>;
+pub(crate) type PerPackageRecordFn<T> = Box<
+    fn(
+        &<T as Render>::Resources,
+        &mut RenderPackage<T>,
+        RenderInstructionsRecorder,
+    ) -> Option<RenderInstructionHandle>,
+>;

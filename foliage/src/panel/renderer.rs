@@ -1,17 +1,19 @@
-use bevy_ecs::entity::Entity;
-use crate::ash::instruction::{RenderInstructionHandle, RenderInstructionsRecorder};
+use crate::ash::instruction::{
+    RenderInstructionHandle, RenderInstructionsRecorder, RenderRecordBehavior,
+};
 use crate::ash::render::{Render, RenderPhase};
+use crate::ash::render_package::RenderPackage;
 use crate::ash::render_packet::RenderPacket;
-use crate::ash::renderer::{RenderPackage, RenderRecordBehavior};
 use crate::color::Color;
 use crate::coordinate::area::{Area, CReprArea};
-use crate::coordinate::{DeviceContext, InterfaceContext};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
+use crate::coordinate::{DeviceContext, InterfaceContext};
 use crate::ginkgo::Ginkgo;
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
+use crate::panel::vertex::{Vertex, CORNER_DEPTH, INDICES, VERTICES};
 use crate::panel::{Panel, PanelStyle};
-use crate::panel::vertex::{CORNER_DEPTH, INDICES, Vertex, VERTICES};
+use bevy_ecs::entity::Entity;
 
 pub struct PanelRenderResources {
     pipeline: wgpu::RenderPipeline,
@@ -44,18 +46,20 @@ impl Render for Panel {
         let shader = ginkgo
             .device()
             .create_shader_module(wgpu::include_wgsl!("panel.wgsl"));
-        let texture_data = serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/panel-texture.cov"))
-            .ok()
-            .unwrap();
+        let texture_data =
+            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/panel-texture.cov"))
+                .ok()
+                .unwrap();
         let (texture, view) = ginkgo.texture_r8unorm_d2(
             PanelRenderResources::TEXTURE_DIMENSION,
             PanelRenderResources::TEXTURE_DIMENSION,
             texture_data.as_slice(),
         );
-        let ring_texture_data =
-            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/panel-texture-ring.cov"))
-                .ok()
-                .unwrap();
+        let ring_texture_data = serde_json::from_str::<Vec<u8>>(include_str!(
+            "texture_resources/panel-texture-ring.cov"
+        ))
+        .ok()
+        .unwrap();
         let (ring_texture, ring_view) = ginkgo.texture_r8unorm_d2(
             PanelRenderResources::TEXTURE_DIMENSION,
             PanelRenderResources::TEXTURE_DIMENSION,
