@@ -1,7 +1,6 @@
 use crate::ash::identification::RenderId;
 use crate::ash::render::RenderPhase;
 use crate::ginkgo::Ginkgo;
-use std::collections::HashMap;
 use std::rc::Rc;
 
 pub struct RenderInstructionsRecorder<'a>(pub wgpu::RenderBundleEncoder<'a>);

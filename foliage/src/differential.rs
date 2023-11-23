@@ -54,12 +54,14 @@ impl<T: Component + Clone + PartialEq + Send + Sync + 'static> Differential<T> {
 #[derive(Component, Default, Copy, Clone)]
 pub struct DifferentialDisable(bool);
 impl DifferentialDisable {
+    #[allow(unused)]
     pub(crate) fn disable(&mut self) {
         self.0 = true;
     }
     pub fn is_disabled(&self) -> bool {
         self.0
     }
+    #[allow(unused)]
     pub(crate) fn clear(&mut self) {
         self.0 = false;
     }

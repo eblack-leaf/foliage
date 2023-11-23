@@ -14,14 +14,24 @@ use crate::ginkgo::Ginkgo;
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
 use crate::texture::TextureCoordinates;
 use bevy_ecs::bundle::Bundle;
-use bevy_ecs::prelude::Entity;
+use bevy_ecs::prelude::{Component, Entity};
 use bytemuck::{Pod, Zeroable};
-use image::EncodableLayout;
-use std::fs::OpenOptions;
-use std::io::Write;
+use serde::{Deserialize, Serialize};
 
+#[repr(C)]
+#[derive(Component, Copy, Clone, PartialEq, Default, Pod, Zeroable, Serialize, Deserialize)]
+pub struct PanelStyle(pub(crate) f32);
+impl PanelStyle {
+    pub fn flat() -> Self {
+        Self(0.0)
+    }
+    pub fn ring() -> Self {
+        Self(1.0)
+    }
+}
 #[derive(Bundle)]
 pub struct Panel {
+    style: DifferentialBundle<PanelStyle>,
     position: DifferentialBundle<Position<InterfaceContext>>,
     area: DifferentialBundle<Area<InterfaceContext>>,
     layer: DifferentialBundle<Layer>,
@@ -30,12 +40,14 @@ pub struct Panel {
 }
 impl Panel {
     pub fn new(
+        style: PanelStyle,
         pos: Position<InterfaceContext>,
         area: Area<InterfaceContext>,
         layer: Layer,
         color: Color,
     ) -> Self {
         Self {
+            style: DifferentialBundle::new(style),
             position: DifferentialBundle::new(pos),
             area: DifferentialBundle::new(area),
             layer: DifferentialBundle::new(layer),
@@ -51,16 +63,19 @@ impl Leaf for Panel {
             Position<InterfaceContext>,
             Area<InterfaceContext>,
             Layer,
-            Color
+            Color,
+            PanelStyle
         );
         elm.job.container.spawn(Panel::new(
+            PanelStyle::flat(),
             (100, 100).into(),
             (200, 100).into(),
             2.into(),
             Color::OFF_WHITE.into(),
         ));
         elm.job.container.spawn(Panel::new(
-            (300, 500).into(),
+            PanelStyle::ring(),
+            (250, 500).into(),
             (100, 50).into(),
             2.into(),
             Color::OFF_WHITE.into(),
@@ -193,11 +208,18 @@ pub struct PanelRenderResources {
     pipeline: wgpu::RenderPipeline,
     vertex_buffer: wgpu::Buffer,
     bind_group: wgpu::BindGroup,
+    #[allow(unused)]
     texture: wgpu::Texture,
+    #[allow(unused)]
     view: wgpu::TextureView,
+    #[allow(unused)]
     sampler: wgpu::Sampler,
     instance_coordinator: InstanceCoordinator<Entity>,
     index_buffer: wgpu::Buffer,
+    #[allow(unused)]
+    ring_texture: wgpu::Texture,
+    #[allow(unused)]
+    ring_view: wgpu::TextureView,
 }
 impl PanelRenderResources {
     const TEXTURE_DIMENSION: u32 = 100;
@@ -211,7 +233,7 @@ impl Render for Panel {
         let shader = ginkgo
             .device()
             .create_shader_module(wgpu::include_wgsl!("panel.wgsl"));
-        let texture_data = serde_json::from_str::<Vec<u8>>(include_str!("panel-texture-ring.cov"))
+        let texture_data = serde_json::from_str::<Vec<u8>>(include_str!("panel-texture.cov"))
             .ok()
             .unwrap();
         let (texture, view) = ginkgo.texture_r8unorm_d2(
@@ -219,6 +241,16 @@ impl Render for Panel {
             PanelRenderResources::TEXTURE_DIMENSION,
             texture_data.as_slice(),
         );
+        let ring_texture_data =
+            serde_json::from_str::<Vec<u8>>(include_str!("panel-texture-ring.cov"))
+                .ok()
+                .unwrap();
+        let (ring_texture, ring_view) = ginkgo.texture_r8unorm_d2(
+            PanelRenderResources::TEXTURE_DIMENSION,
+            PanelRenderResources::TEXTURE_DIMENSION,
+            ring_texture_data.as_slice(),
+        );
+
         let sampler = ginkgo
             .device()
             .create_sampler(&wgpu::SamplerDescriptor::default());
@@ -230,7 +262,8 @@ impl Render for Panel {
                     entries: &[
                         Ginkgo::vertex_uniform_bind_group_layout_entry(0),
                         Ginkgo::texture_d2_bind_group_entry(1),
-                        Ginkgo::sampler_bind_group_layout_entry(2),
+                        Ginkgo::texture_d2_bind_group_entry(2),
+                        Ginkgo::sampler_bind_group_layout_entry(3),
                     ],
                 });
         let bind_group = ginkgo
@@ -241,7 +274,8 @@ impl Render for Panel {
                 entries: &[
                     ginkgo.viewport_bind_group_entry(0),
                     Ginkgo::texture_bind_group_entry(&view, 1),
-                    Ginkgo::sampler_bind_group_entry(&sampler, 2),
+                    Ginkgo::texture_bind_group_entry(&ring_view, 2),
+                    Ginkgo::sampler_bind_group_entry(&sampler, 3),
                 ],
             });
         let pipeline_layout =
@@ -286,6 +320,11 @@ impl Render for Panel {
                             step_mode: wgpu::VertexStepMode::Instance,
                             attributes: &wgpu::vertex_attr_array![6 => Float32x4],
                         },
+                        wgpu::VertexBufferLayout {
+                            array_stride: Ginkgo::buffer_address::<PanelStyle>(1),
+                            step_mode: wgpu::VertexStepMode::Instance,
+                            attributes: &wgpu::vertex_attr_array![7 => Float32],
+                        },
                     ],
                 },
                 primitive: Ginkgo::triangle_list_primitive(),
@@ -305,6 +344,7 @@ impl Render for Panel {
             .with_attribute::<CReprArea>()
             .with_attribute::<Layer>()
             .with_attribute::<Color>()
+            .with_attribute::<PanelStyle>()
             .build(ginkgo);
         PanelRenderResources {
             pipeline,
@@ -315,6 +355,8 @@ impl Render for Panel {
             sampler,
             instance_coordinator,
             index_buffer,
+            ring_texture,
+            ring_view,
         }
     }
 
@@ -400,6 +442,13 @@ impl Panel {
                 4,
                 resources.instance_coordinator.buffer::<Color>().slice(..),
             );
+            recorder.0.set_vertex_buffer(
+                5,
+                resources
+                    .instance_coordinator
+                    .buffer::<PanelStyle>()
+                    .slice(..),
+            );
             recorder.0.draw_indexed(
                 0..INDICES.len() as u32,
                 0,
@@ -423,11 +472,11 @@ impl Panel {
         if let Some(area) = render_packet.get::<Area<InterfaceContext>>() {
             let scaled = area.to_device(ginkgo.scale_factor())
                 - Area::new(CORNER_DEPTH * 2f32, CORNER_DEPTH * 2f32);
-            let limited =
+            let zero_bounded =
                 Area::<DeviceContext>::new(scaled.width.max(0f32), scaled.height.max(0f32));
             resources
                 .instance_coordinator
-                .queue_write(entity, limited.to_c());
+                .queue_write(entity, zero_bounded.to_c());
         }
         if let Some(layer) = render_packet.get::<Layer>() {
             resources.instance_coordinator.queue_write(entity, layer);
@@ -435,22 +484,8 @@ impl Panel {
         if let Some(color) = render_packet.get::<Color>() {
             resources.instance_coordinator.queue_write(entity, color);
         }
+        if let Some(style) = render_packet.get::<PanelStyle>() {
+            resources.instance_coordinator.queue_write(entity, style);
+        }
     }
-}
-#[test]
-#[cfg(test)]
-fn png_to_r8unorm() {
-    let image = image::load_from_memory(include_bytes!("panel-texture-ring.png")).expect("image");
-    let texture_data = image
-        .to_rgba8()
-        .enumerate_pixels()
-        .map(|p| -> u8 { p.2 .0[3] })
-        .collect::<Vec<u8>>();
-    let string_data = serde_json::to_string(texture_data.as_slice()).unwrap();
-    OpenOptions::new()
-        .write(true)
-        .open("/home/omi-voshuli/Desktop/dev/foliage/foliage/src/panel/panel-texture-ring.cov")
-        .unwrap()
-        .write(string_data.as_bytes())
-        .unwrap();
 }

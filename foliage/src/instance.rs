@@ -38,7 +38,7 @@ impl<Key: Hash + Eq + 'static> InstanceCoordinatorBuilder<Key> {
             .push(AttributeFn::<Key>::for_attribute::<T>());
         self
     }
-    pub fn build(mut self, ginkgo: &Ginkgo) -> InstanceCoordinator<Key> {
+    pub fn build(self, ginkgo: &Ginkgo) -> InstanceCoordinator<Key> {
         InstanceCoordinator::new(ginkgo, self.instance_fns, self.capacity)
     }
 }

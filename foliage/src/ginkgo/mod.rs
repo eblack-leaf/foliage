@@ -9,7 +9,7 @@ use crate::window::{WindowDescriptor, WindowHandle};
 use bytemuck::{Pod, Zeroable};
 use depth_texture::DepthTexture;
 use msaa::Msaa;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use crate::coordinate::area::Area;
 use crate::coordinate::section::Section;

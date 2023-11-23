@@ -29,7 +29,7 @@ impl Ash {
         }
     }
     pub(crate) fn establish(&mut self, ginkgo: &Ginkgo, render_leaflet: RenderLeafletStorage) {
-        for (id, leaf) in render_leaflet.iter() {
+        for (_id, leaf) in render_leaflet.iter() {
             (leaf.register_fn)(self, ginkgo);
         }
         self.render_leaflets = render_leaflet
@@ -38,7 +38,7 @@ impl Ash {
         self.render_packet_package.replace(package);
     }
     pub(crate) fn prepare(&mut self, ginkgo: &Ginkgo) {
-        for (id, leaf) in self.render_leaflets.iter() {
+        for (_id, leaf) in self.render_leaflets.iter() {
             (leaf.prepare_packages_fn)(
                 &mut self.renderer_handler,
                 ginkgo,

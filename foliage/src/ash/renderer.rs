@@ -3,12 +3,9 @@ use crate::ash::instruction::{
 };
 use crate::ash::render::Render;
 use crate::ash::render_packet::RenderPacketQueue;
-use crate::ginkgo::viewport::Viewport;
 use crate::ginkgo::Ginkgo;
 use anymap::AnyMap;
 use bevy_ecs::entity::Entity;
-use std::collections::HashMap;
-pub(crate) type EntityMapping = HashMap<Entity, usize>;
 pub(crate) struct Renderer<T: Render> {
     resources: T::Resources,
     packages: RenderPackageStorage<T>,
@@ -163,7 +160,7 @@ impl<T: Render> RenderPackageStorage<T> {
     pub(crate) fn index(&self, entity: Entity) -> Option<usize> {
         let mut index = None;
         let mut current = 0;
-        for (package_entity, package) in self.0.iter() {
+        for (package_entity, _package) in self.0.iter() {
             if &entity == package_entity {
                 index.replace(current);
             }

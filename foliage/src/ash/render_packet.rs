@@ -121,12 +121,6 @@ impl RenderPacketQueue {
     pub(crate) fn new() -> Self {
         Self(HashMap::new(), vec![])
     }
-    pub(crate) fn insert(&mut self, entity: Entity, render_packet: RenderPacket) {
-        self.0.insert(entity, render_packet);
-    }
-    pub(crate) fn remove(&mut self, entities: Vec<Entity>) {
-        self.1.extend(entities);
-    }
     pub(crate) fn retrieve_removals(&mut self) -> Vec<Entity> {
         self.1.drain(..).collect()
     }
