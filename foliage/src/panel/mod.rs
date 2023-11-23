@@ -347,13 +347,15 @@ impl Panel {
         if let Some(pos) = render_packet.get::<Position<InterfaceContext>>() {
             resources.instance_coordinator.queue_write(
                 entity,
-                (pos.to_device(ginkgo.scale_factor()) - Position::new(CORNER_DEPTH, CORNER_DEPTH))
-                    .to_c(),
+                (pos.to_device(ginkgo.scale_factor())
+                    - Position::new(CORNER_DEPTH * 0f32, CORNER_DEPTH * 0f32))
+                .to_c(),
             );
         }
         if let Some(area) = render_packet.get::<Area<InterfaceContext>>() {
             let scale_factor = ginkgo.scale_factor();
-            let scaled = area.to_device(scale_factor) - Area::new(CORNER_DEPTH, CORNER_DEPTH);
+            let scaled =
+                area.to_device(scale_factor) - Area::new(CORNER_DEPTH * 2f32, CORNER_DEPTH * 2f32);
             let zero_bounded =
                 Area::<DeviceContext>::new(scaled.width.max(0f32), scaled.height.max(0f32));
             resources
