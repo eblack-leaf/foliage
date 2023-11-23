@@ -390,8 +390,8 @@ impl Ginkgo {
         } else {
             #[cfg(target_os = "android")]
             {
-                self.create_surface(window);
-                self.resize(window.area());
+                self.create_surface(window.clone());
+                self.resize(window.area(), window.scale_factor());
             }
             None
         };

@@ -16,7 +16,7 @@ use crate::elm::Elm;
 use crate::ginkgo::Ginkgo;
 pub use bevy_ecs;
 pub use wgpu;
-
+pub use winit;
 use self::ash::leaflet::RenderLeafletStorage;
 use crate::ash::render::Render;
 use crate::ash::Ash;
@@ -26,11 +26,24 @@ use elm::{Leaf, Leaflet};
 use window::{WindowDescriptor, WindowHandle};
 use winit::event::{Event, StartCause, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopWindowTarget};
-
+#[cfg(not(target_os = "android"))]
+pub type AndroidInterface = ();
+#[cfg(target_os = "android")]
+#[derive(Default)]
+pub(crate) struct AndroidInterface(pub(crate) AndroidApp);
+#[cfg(target_os = "android")]
+pub type AndroidApp = winit::platform::android::activity::AndroidApp;
+#[cfg(target_os = "android")]
+impl AndroidInterface  {
+    pub fn new(app: AndroidApp) -> Self {
+        Self(Some(app))
+    }
+}
 pub struct Foliage {
     window_descriptor: Option<WindowDescriptor>,
     leaf_queue: Option<Vec<Leaflet>>,
     render_queue: Option<RenderLeafletStorage>,
+    android_interface: AndroidInterface,
 }
 impl Default for Foliage {
     fn default() -> Self {
@@ -43,7 +56,12 @@ impl Foliage {
             window_descriptor: None,
             leaf_queue: Some(vec![]),
             render_queue: Some(RenderLeafletStorage::new()),
+            android_interface: AndroidInterface::default(),
         }
+    }
+    pub fn with_android_interface(mut self, android_interface: AndroidInterface) -> Self {
+        self.android_interface = android_interface;
+        self
     }
     pub fn with_window_descriptor(mut self, desc: WindowDescriptor) -> Self {
         self.window_descriptor.replace(desc);
@@ -76,7 +94,12 @@ impl Foliage {
         }
     }
     async fn internal_run(mut self) {
-        let event_loop = EventLoopBuilder::<()>::with_user_event()
+        let mut event_loop_builder = EventLoopBuilder::<()>::with_user_event();
+        #[cfg(target_os = "android")] {
+            use winit::platform::android::EventLoopBuilderExtAndroid;
+            event_loop_builder = event_loop_builder.with_android_app(self.android_interface.0.clone());
+        }
+        let event_loop = event_loop_builder
             .build()
             .expect("event-loop");
         let mut window_handle = WindowHandle::none();

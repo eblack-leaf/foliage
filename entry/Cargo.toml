@@ -7,8 +7,9 @@ edition = "2021"
 
 [dependencies]
 example = { path = "../example" }
+foliage = { path = "../foliage"}
 
 [lib]
-name = "entry_lib"
+name = "entry"
 path = "src/lib.rs"
 crate-type = ["staticlib", "cdylib"]

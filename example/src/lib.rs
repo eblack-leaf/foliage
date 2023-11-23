@@ -2,9 +2,8 @@ use foliage::color::Color;
 use foliage::elm::{Elm, Leaf};
 use foliage::panel::{Panel, PanelStyle};
 use foliage::window::WindowDescriptor;
-use foliage::Foliage;
-
-pub fn entry() {
+use foliage::{AndroidInterface, Foliage};
+pub fn entry(android_interface: AndroidInterface) {
     Foliage::new()
         .with_window_descriptor(
             WindowDescriptor::new()
@@ -13,6 +12,7 @@ pub fn entry() {
         )
         .with_renderleaf::<Panel>()
         .with_leaf::<Tester>()
+        .with_android_interface(android_interface)
         .run();
 }
 struct Tester;
