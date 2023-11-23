@@ -30,7 +30,7 @@ use winit::event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopWindo
 pub type AndroidInterface = ();
 #[cfg(target_os = "android")]
 #[derive(Default)]
-pub(crate) struct AndroidInterface(pub(crate) AndroidApp);
+pub struct AndroidInterface(pub(crate) Option<AndroidApp>);
 #[cfg(target_os = "android")]
 pub type AndroidApp = winit::platform::android::activity::AndroidApp;
 #[cfg(target_os = "android")]
@@ -95,13 +95,16 @@ impl Foliage {
     }
     async fn internal_run(mut self) {
         let mut event_loop_builder = EventLoopBuilder::<()>::with_user_event();
-        #[cfg(target_os = "android")] {
-            use winit::platform::android::EventLoopBuilderExtAndroid;
-            event_loop_builder = event_loop_builder.with_android_app(self.android_interface.0.clone());
-        }
-        let event_loop = event_loop_builder
+        cfg_if::cfg_if! {
+            if #[cfg(target_os = "android")] {
+                use winit::platform::android::EventLoopBuilderExtAndroid;
+                let event_loop = event_loop_builder.with_android_app(self.android_interface.0.clone().unwrap()).build().expect("event-loop");
+            } else {
+                let event_loop = event_loop_builder
             .build()
             .expect("event-loop");
+            }
+        }
         let mut window_handle = WindowHandle::none();
         let window_desc = self.window_descriptor.unwrap_or_default();
         let mut ginkgo = Ginkgo::new();
