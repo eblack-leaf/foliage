@@ -29,11 +29,11 @@ impl Ash {
             render_leaflets: RenderLeafletStorage::new(),
         }
     }
-    pub(crate) fn establish(&mut self, ginkgo: &Ginkgo, render_leaflet: RenderLeafletStorage) {
-        for (_id, leaf) in render_leaflet.iter() {
+    pub(crate) fn establish(&mut self, ginkgo: &Ginkgo, render_leaflets: RenderLeafletStorage) {
+        for (_id, leaf) in render_leaflets.iter() {
             (leaf.register_fn)(self, ginkgo);
         }
-        self.render_leaflets = render_leaflet
+        self.render_leaflets = render_leaflets
     }
     pub(crate) fn extract(&mut self, package: RenderPacketPackage) {
         self.render_packet_package.replace(package);

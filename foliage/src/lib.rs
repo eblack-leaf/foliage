@@ -1,4 +1,24 @@
 #![allow(clippy::type_complexity)]
+
+pub use bevy_ecs;
+pub use wgpu;
+pub use winit;
+use winit::event::{Event, StartCause, WindowEvent};
+use winit::event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopWindowTarget};
+
+use ash::identification::RenderIdentification;
+use ash::leaflet::RenderLeaflet;
+use elm::{Leaf, Leaflet};
+use window::{WindowDescriptor, WindowHandle};
+
+use crate::ash::render::Render;
+use crate::ash::Ash;
+use crate::coordinate::CoordinateUnit;
+use crate::elm::Elm;
+use crate::ginkgo::Ginkgo;
+
+use self::ash::leaflet::RenderLeafletStorage;
+
 pub mod ash;
 pub mod color;
 pub mod coordinate;
@@ -11,45 +31,36 @@ pub mod panel;
 pub mod texture;
 pub mod window;
 
-use crate::coordinate::CoordinateUnit;
-use crate::elm::Elm;
-use crate::ginkgo::Ginkgo;
-pub use bevy_ecs;
-pub use wgpu;
-pub use winit;
-use self::ash::leaflet::RenderLeafletStorage;
-use crate::ash::render::Render;
-use crate::ash::Ash;
-use ash::identification::RenderIdentification;
-use ash::leaflet::RenderLeaflet;
-use elm::{Leaf, Leaflet};
-use window::{WindowDescriptor, WindowHandle};
-use winit::event::{Event, StartCause, WindowEvent};
-use winit::event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopWindowTarget};
 #[cfg(not(target_os = "android"))]
 pub type AndroidInterface = ();
+
 #[cfg(target_os = "android")]
 #[derive(Default)]
 pub struct AndroidInterface(pub(crate) Option<AndroidApp>);
+
 #[cfg(target_os = "android")]
 pub type AndroidApp = winit::platform::android::activity::AndroidApp;
+
 #[cfg(target_os = "android")]
-impl AndroidInterface  {
+impl AndroidInterface {
     pub fn new(app: AndroidApp) -> Self {
         Self(Some(app))
     }
 }
+
 pub struct Foliage {
     window_descriptor: Option<WindowDescriptor>,
     leaf_queue: Option<Vec<Leaflet>>,
     render_queue: Option<RenderLeafletStorage>,
     android_interface: AndroidInterface,
 }
+
 impl Default for Foliage {
     fn default() -> Self {
         Foliage::new()
     }
 }
+
 impl Foliage {
     pub fn new() -> Self {
         Self {
@@ -74,7 +85,7 @@ impl Foliage {
             .push(Leaflet::leaf_fn::<T>());
         self
     }
-    pub fn with_renderer<T: Render + 'static>(mut self) -> Self {
+    fn with_renderer<T: Render + 'static>(mut self) -> Self {
         self.render_queue
             .as_mut()
             .unwrap()
@@ -98,7 +109,9 @@ impl Foliage {
         cfg_if::cfg_if! {
             if #[cfg(target_os = "android")] {
                 use winit::platform::android::EventLoopBuilderExtAndroid;
-                let event_loop = event_loop_builder.with_android_app(self.android_interface.0.clone().unwrap()).build().expect("event-loop");
+                let event_loop = event_loop_builder
+                    .with_android_app(self.android_interface.0.clone().unwrap())
+                    .build().expect("event-loop");
             } else {
                 let event_loop = event_loop_builder
             .build()
