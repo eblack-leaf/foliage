@@ -12,4 +12,4 @@ foliage = { path = "../foliage"}
 [lib]
 name = "entry"
 path = "src/lib.rs"
-crate-type = ["staticlib", "cdylib"]
+crate-type = ["cdylib"]

@@ -110,7 +110,7 @@ impl Foliage {
             if #[cfg(target_os = "android")] {
                 use winit::platform::android::EventLoopBuilderExtAndroid;
                 let event_loop = event_loop_builder
-                    .with_android_app(self.android_interface.0.clone().unwrap())
+                    .with_android_app(self.android_interface.0.take().unwrap())
                     .build().expect("event-loop");
             } else {
                 let event_loop = event_loop_builder
@@ -191,18 +191,21 @@ impl Foliage {
                         WindowEvent::ThemeChanged(_) => {}
                         WindowEvent::Occluded(_) => {}
                         WindowEvent::RedrawRequested => {
-                            ginkgo.adjust_viewport_pos(elm.viewport_handle_changes());
-                            ash.extract(elm.render_packet_package());
-                            ash.prepare(&ginkgo);
-                            ash.record(&ginkgo);
-                            ash.render(&mut ginkgo);
-                            window_handle.value().request_redraw();
+                            if elm.job.resumed() {
+                                ginkgo.adjust_viewport_pos(elm.viewport_handle_changes());
+                                ash.extract(elm.render_packet_package());
+                                ash.prepare(&ginkgo);
+                                ash.record(&ginkgo);
+                                ash.render(&mut ginkgo);
+                                window_handle.value().request_redraw();
+                            }
                         }
                     },
                     Event::DeviceEvent { .. } => {}
                     Event::UserEvent(_e) => {}
                     Event::Suspended => {
                         ginkgo.suspend();
+                        elm.job.suspend();
                     }
                     Event::Resumed => {
                         if let Some(viewport_area) = ginkgo.resume(
@@ -217,6 +220,7 @@ impl Foliage {
                             ash.establish(&ginkgo, self.render_queue.take().unwrap());
                             elm.finish_initialization();
                         }
+                        elm.job.resume();
                     }
                     Event::AboutToWait => {
                         if elm.job.resumed() {

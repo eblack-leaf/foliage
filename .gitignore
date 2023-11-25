@@ -16,3 +16,6 @@ Cargo.lock
 /.idea/foliage.iml
 /.idea/modules.xml
 /.idea/inspectionProfiles/Project_Default.xml
+/.idea/
+/entry/android_src/.gradle/
+/entry/android_src/.idea/

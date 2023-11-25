@@ -20,14 +20,14 @@ impl Leaf for Tester {
     fn attach(elm: &mut Elm) {
         elm.job.container.spawn(Panel::new(
             PanelStyle::flat(),
-            (100, 100).into(),
+            (150, 100).into(),
             (200, 100).into(),
             2.into(),
             Color::OFF_WHITE.into(),
         ));
         elm.job.container.spawn(Panel::new(
             PanelStyle::ring(),
-            (100, 300).into(),
+            (50, 300).into(),
             (200, 100).into(),
             2.into(),
             Color::OFF_WHITE.into(),

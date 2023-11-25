@@ -463,22 +463,21 @@ impl Ginkgo {
             view_formats: vec![surface_format],
         });
     }
-    pub(crate) fn configure_surface(&mut self) {
+    pub(crate) fn configure_surface(&self) {
         self.surface.as_ref().unwrap().configure(
             self.device.as_ref().unwrap(),
             self.configuration.as_ref().unwrap(),
         );
     }
-    pub(crate) fn surface_texture(&mut self) -> wgpu::SurfaceTexture {
-        if let Ok(frame) = self.surface.as_ref().unwrap().get_current_texture() {
-            frame
-        } else {
-            self.configure_surface();
-            self.surface
-                .as_ref()
-                .unwrap()
-                .get_current_texture()
-                .expect("swapchain")
+    pub(crate) fn surface_texture(&mut self) -> Option<wgpu::SurfaceTexture> {
+        if let Some(surface) = self.surface.as_ref() {
+            return if let Ok(frame) = surface.get_current_texture() {
+                Some(frame)
+            } else {
+                self.configure_surface();
+                Some(surface.get_current_texture().expect("swapchain"))
+            };
         }
+        None
     }
 }
