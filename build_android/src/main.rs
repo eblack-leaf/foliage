@@ -26,8 +26,12 @@ fn prepare_args(args: Vec<String>) -> Args {
                     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
                         .canonicalize()
                         .unwrap();
-                    let jni_output = root.join("jni_libs");
                     let app_source = root.join("app_src");
+                    let jni_output = app_source
+                        .join("app")
+                        .join("src")
+                        .join("main")
+                        .join("jniLibs");
                     let ndk_home = Path::new(ndk_home).canonicalize().unwrap();
                     let sdk_home = Path::new(sdk_home).canonicalize().unwrap();
                     return Args {
@@ -93,7 +97,10 @@ fn build_template(args: &Args) {
 }
 
 fn build_android(args: Args) {
-    let install = std::process::Command::new(env!("CARGO")).args(["install", "cargo-ndk"]).status().unwrap();
+    let install = std::process::Command::new(env!("CARGO"))
+        .args(["install", "cargo-ndk"])
+        .status()
+        .unwrap();
     if !install.success() {
         println!("error installing cargo-ndk");
         return;
@@ -105,7 +112,12 @@ fn build_android(args: Args) {
         .arg("ndk")
         .args(["-t", args.arch.to_str().unwrap()])
         .args(["-o", args.jni_output.to_str().unwrap()])
-        .args(["build", "--package", args.package.to_str().unwrap()])
+        .args([
+            "build",
+            "--package",
+            args.package.to_str().unwrap(),
+            "--lib",
+        ])
         .status()
         .unwrap();
     if !process.success() {
@@ -113,7 +125,10 @@ fn build_android(args: Args) {
         return;
     }
     println!("{:?}", args.app_source);
-    let java_version = std::process::Command::new("java").arg("-version").status().unwrap();
+    let _java_version = std::process::Command::new("java")
+        .arg("-version")
+        .status()
+        .unwrap();
     let gradle_process = std::process::Command::new("./gradlew")
         .env("ANDROID_NDK_HOME", args.ndk_home)
         .env("ANDROID_HOME", args.sdk_home)

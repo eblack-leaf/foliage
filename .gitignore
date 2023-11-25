@@ -23,3 +23,5 @@ Cargo.lock
 /build_android/jni_libs/arm64-v8a/
 /build_android/app_src/.gradle/
 /build_android/app_src/.idea/
+/build_android/jniLibs/arm64-v8a/
+/build_android/app_src/app/src/main/jniLibs/arm64-v8a/
