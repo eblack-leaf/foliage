@@ -1,5 +1,5 @@
 [package]
-name = "run_android"
+name = "build_android"
 version = "0.1.0"
 edition = "2021"
 

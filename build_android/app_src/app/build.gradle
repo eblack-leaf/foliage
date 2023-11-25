@@ -43,4 +43,3 @@ dependencies {
     implementation 'com.google.oboe:oboe:1.5.0'
     implementation "androidx.games:games-activity:2.0.2"
 }
-

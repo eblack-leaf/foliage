@@ -16,7 +16,6 @@ struct Args {
     working_directory: PathBuf,
     jni_output: PathBuf,
     app_source: PathBuf,
-    gradlew_path: PathBuf,
 }
 
 fn prepare_args(args: Vec<String>) -> Args {
@@ -27,19 +26,18 @@ fn prepare_args(args: Vec<String>) -> Args {
                     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
                         .canonicalize()
                         .unwrap();
-                    let this = root.join(env!("CARGO_PKG_NAME"));
-                    let jni_output = this.join("jni_libs");
-                    let app_source = this.join("app_src");
-                    let gradlew_path = app_source.join("gradlew");
+                    let jni_output = root.join("jni_libs");
+                    let app_source = root.join("app_src");
+                    let ndk_home = Path::new(ndk_home).canonicalize().unwrap();
+                    let sdk_home = Path::new(sdk_home).canonicalize().unwrap();
                     return Args {
                         package: OsString::from(package),
                         arch: OsString::from(arch),
-                        ndk_home: Path::new(ndk_home).canonicalize().unwrap(),
-                        sdk_home: Path::new(sdk_home).canonicalize().unwrap(),
+                        ndk_home,
+                        sdk_home,
                         working_directory: root,
                         jni_output,
                         app_source,
-                        gradlew_path,
                     };
                 } else {
                     panic!("could not prepare args: check sdk_home");
@@ -61,21 +59,23 @@ fn build_template(args: &Args) {
             .join("template")
             .join("AndroidManifest.xml"),
     )
-    .unwrap();
+        .unwrap()
+        .replace("{{package-name}}", args.package.to_str().unwrap())
+        .replace("{{package-label}}", "foliage");
     // let build = std::fs::read_to_string(args.working_directory.join("template").join("build.gradle")).unwrap();
     let activity = std::fs::read_to_string(
         args.working_directory
             .join("template")
             .join("MainActivity.java"),
     )
-    .unwrap();
+        .unwrap()
+        .replace("{{package-name}}", args.package.to_str().unwrap());
     let activity_dest = args
         .app_source
         .join("app")
         .join("src")
         .join("main")
         .join("java")
-        .join("")
         .join("co")
         .join("foliage")
         .join("app")
@@ -93,21 +93,28 @@ fn build_template(args: &Args) {
 }
 
 fn build_android(args: Args) {
+    let install = std::process::Command::new(env!("CARGO")).args(["install", "cargo-ndk"]).status().unwrap();
+    if !install.success() {
+        println!("error installing cargo-ndk");
+        return;
+    }
     let process = std::process::Command::new(env!("CARGO"))
         .env("ANDROID_NDK_HOME", args.ndk_home.clone())
         .env("ANDROID_HOME", args.sdk_home.clone())
         .current_dir(args.working_directory)
         .arg("ndk")
-        .args(["-t", args.arch])
-        .args(["-o", args.jni_output])
-        .args(["build", "--package", args.package])
+        .args(["-t", args.arch.to_str().unwrap()])
+        .args(["-o", args.jni_output.to_str().unwrap()])
+        .args(["build", "--package", args.package.to_str().unwrap()])
         .status()
         .unwrap();
     if !process.success() {
         println!("error build_android");
         return;
     }
-    let gradle_process = std::process::Command::new(args.gradlew_path)
+    println!("{:?}", args.app_source);
+    let java_version = std::process::Command::new("java").arg("-version").status().unwrap();
+    let gradle_process = std::process::Command::new("./gradlew")
         .env("ANDROID_NDK_HOME", args.ndk_home)
         .env("ANDROID_HOME", args.sdk_home)
         .current_dir(args.app_source)
@@ -115,7 +122,8 @@ fn build_android(args: Args) {
         .status()
         .unwrap();
     if !gradle_process.success() {
-        println!("error gradle build")
+        println!("error gradle build");
+        return;
     }
     // cp apk to apk_destination
 }

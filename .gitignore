@@ -20,3 +20,6 @@ Cargo.lock
 /entry/android_src/.gradle/
 /entry/android_src/.idea/
 /entry/android_src/app/src/main/jniLibs/
+/build_android/jni_libs/arm64-v8a/
+/build_android/app_src/.gradle/
+/build_android/app_src/.idea/
