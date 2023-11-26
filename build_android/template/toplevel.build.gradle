@@ -1,0 +1,8 @@
+plugins {
+    id 'com.android.application' version '{{android-application-version}}' apply false
+    id 'com.android.library' version '{{android-application-version}}' apply false
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}
