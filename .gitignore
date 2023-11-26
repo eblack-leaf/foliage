@@ -25,3 +25,4 @@ Cargo.lock
 /build_android/app_src/.idea/
 /build_android/jniLibs/arm64-v8a/
 /build_android/app_src/app/src/main/jniLibs/arm64-v8a/
+/entry/dist/
