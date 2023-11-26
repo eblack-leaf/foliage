@@ -1,3 +1,5 @@
+use bevy_ecs::entity::Entity;
+
 use crate::ash::instruction::{
     RenderInstructionHandle, RenderInstructionsRecorder, RenderRecordBehavior,
 };
@@ -13,7 +15,6 @@ use crate::ginkgo::Ginkgo;
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
 use crate::panel::vertex::{Vertex, CORNER_DEPTH, INDICES, VERTICES};
 use crate::panel::{Panel, PanelStyle};
-use bevy_ecs::entity::Entity;
 
 pub struct PanelRenderResources {
     pipeline: wgpu::RenderPipeline,
@@ -183,8 +184,6 @@ impl Render for Panel {
     ) -> Self::RenderPackage {
         resources.instance_coordinator.queue_add(entity);
         Self::instance_coordinator_queue_write(ginkgo, resources, entity, render_packet);
-        #[allow(unused)]
-        ()
     }
 
     fn on_package_removal(

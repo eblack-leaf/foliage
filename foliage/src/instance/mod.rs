@@ -1,9 +1,12 @@
-use crate::ginkgo::Ginkgo;
-use anymap::AnyMap;
-use attribute::{AttributeFn, InstanceAttribute, InstanceAttributeWriteQueue};
-use bytemuck::{Pod, Zeroable};
 use std::collections::HashSet;
 use std::hash::Hash;
+
+use anymap::AnyMap;
+use bytemuck::{Pod, Zeroable};
+
+use attribute::{AttributeFn, InstanceAttribute, InstanceAttributeWriteQueue};
+
+use crate::ginkgo::Ginkgo;
 
 pub mod attribute;
 
@@ -14,6 +17,7 @@ pub struct InstanceCoordinatorBuilder<Key: Hash + Eq> {
     instance_fns: Vec<AttributeFn<Key>>,
     capacity: u32,
 }
+
 impl<Key: Hash + Eq + 'static> InstanceCoordinatorBuilder<Key> {
     pub fn new(capacity: u32) -> Self {
         Self {
@@ -30,6 +34,7 @@ impl<Key: Hash + Eq + 'static> InstanceCoordinatorBuilder<Key> {
         InstanceCoordinator::new(ginkgo, self.instance_fns, self.capacity)
     }
 }
+
 pub struct InstanceCoordinator<Key: Hash + Eq> {
     ordering: InstanceOrdering<Key>,
     adds: HashSet<Key>,
@@ -39,7 +44,9 @@ pub struct InstanceCoordinator<Key: Hash + Eq> {
     attribute_writes: AnyMap,
     attribute_fns: Vec<AttributeFn<Key>>,
 }
+
 pub(crate) struct InstanceOrdering<Key>(pub(crate) Vec<Key>);
+
 impl<Key: PartialEq> InstanceOrdering<Key> {
     pub(crate) fn index(&self, key: Key) -> Option<Index> {
         for (index, a) in self.0.iter().enumerate() {
@@ -50,6 +57,7 @@ impl<Key: PartialEq> InstanceOrdering<Key> {
         None
     }
 }
+
 impl<Key: Hash + Eq + 'static> InstanceCoordinator<Key> {
     pub fn prepare(&mut self, ginkgo: &Ginkgo) -> bool {
         let mut should_record = false;
@@ -143,7 +151,7 @@ impl<Key: Hash + Eq + 'static> InstanceCoordinator<Key> {
     }
     fn establish_attributes(
         ginkgo: &Ginkgo,
-        attribute_fns: &Vec<AttributeFn<Key>>,
+        attribute_fns: &[AttributeFn<Key>],
         capacity: u32,
     ) -> (AnyMap, AnyMap) {
         let mut map = AnyMap::new();

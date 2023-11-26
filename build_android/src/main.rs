@@ -218,6 +218,6 @@ fn build_android(args: Args) {
         println!("error gradle build");
         return;
     }
-    println!("copying .apk to {}", "");
+    println!("copying .apk to dest");
     // cp apk to apk_destination
 }

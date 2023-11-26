@@ -6,6 +6,10 @@ This library attempts to build a cross-platform ui with wgpu.rs and winit.
 
 #### Prerequisites
 
+Add desired android targets
+
+`rustup target add aarch64-linux-android x86_64-linux-android`
+
 Must be able to compile Java on your system.
 
 Android SDK must be installed and some tools downloaded

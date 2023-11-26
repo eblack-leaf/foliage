@@ -1,9 +1,11 @@
+use std::cmp::Ordering;
+
+use bevy_ecs::prelude::Entity;
+
 use crate::ash::instruction::RenderRecordBehavior;
 use crate::ash::render_package::RenderPackage;
 use crate::ash::render_packet::RenderPacket;
 use crate::ginkgo::Ginkgo;
-use bevy_ecs::prelude::Entity;
-use std::cmp::Ordering;
 
 pub enum RenderPhase {
     Opaque,
@@ -34,19 +36,12 @@ impl PartialOrd for RenderPhase {
             },
             RenderPhase::Alpha(priority_one) => match other {
                 RenderPhase::Opaque => Some(Ordering::Greater),
-                RenderPhase::Alpha(priority_two) => {
-                    if priority_one < priority_two {
-                        Some(Ordering::Less)
-                    } else if priority_two < priority_one {
-                        Some(Ordering::Greater)
-                    } else {
-                        Some(Ordering::Equal)
-                    }
-                }
+                RenderPhase::Alpha(priority_two) => Some(priority_one.cmp(priority_two)),
             },
         }
     }
 }
+
 pub trait Render
 where
     Self: Sized,
