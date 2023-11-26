@@ -12,7 +12,7 @@ pub enum RenderPhase {
 
 impl PartialEq<Self> for RenderPhase {
     fn eq(&self, other: &Self) -> bool {
-        return match self {
+        match self {
             RenderPhase::Opaque => match other {
                 RenderPhase::Opaque => true,
                 RenderPhase::Alpha(_) => false,
@@ -21,13 +21,13 @@ impl PartialEq<Self> for RenderPhase {
                 RenderPhase::Opaque => false,
                 RenderPhase::Alpha(priority_two) => priority_one == priority_two,
             },
-        };
+        }
     }
 }
 
 impl PartialOrd for RenderPhase {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        return match self {
+        match self {
             RenderPhase::Opaque => match other {
                 RenderPhase::Opaque => Some(Ordering::Equal),
                 RenderPhase::Alpha(_) => Some(Ordering::Less),
@@ -44,7 +44,7 @@ impl PartialOrd for RenderPhase {
                     }
                 }
             },
-        };
+        }
     }
 }
 pub trait Render

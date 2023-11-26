@@ -42,12 +42,10 @@ pub struct InstanceCoordinator<Key: Hash + Eq> {
 pub(crate) struct InstanceOrdering<Key>(pub(crate) Vec<Key>);
 impl<Key: PartialEq> InstanceOrdering<Key> {
     pub(crate) fn index(&self, key: Key) -> Option<Index> {
-        let mut index = 0;
-        for a in self.0.iter() {
+        for (index, a) in self.0.iter().enumerate() {
             if *a == key {
-                return Some(index);
+                return Some(index as Index);
             }
-            index += 1;
         }
         None
     }
@@ -115,7 +113,7 @@ impl<Key: Hash + Eq + 'static> InstanceCoordinator<Key> {
     }
     fn inner_write(
         ordering: &InstanceOrdering<Key>,
-        attribute_fns: &Vec<AttributeFn<Key>>,
+        attribute_fns: &[AttributeFn<Key>],
         attributes: &mut AnyMap,
         attribute_writes: &mut AnyMap,
         ginkgo: &Ginkgo,
@@ -125,7 +123,7 @@ impl<Key: Hash + Eq + 'static> InstanceCoordinator<Key> {
         }
     }
     fn inner_grow(
-        attribute_fns: &Vec<AttributeFn<Key>>,
+        attribute_fns: &[AttributeFn<Key>],
         attributes: &mut AnyMap,
         ginkgo: &Ginkgo,
         capacity: u32,
@@ -135,7 +133,7 @@ impl<Key: Hash + Eq + 'static> InstanceCoordinator<Key> {
         }
     }
     fn inner_remove(
-        attribute_fns: &Vec<AttributeFn<Key>>,
+        attribute_fns: &[AttributeFn<Key>],
         attributes: &mut AnyMap,
         removed: &Vec<Index>,
     ) {
@@ -154,7 +152,7 @@ impl<Key: Hash + Eq + 'static> InstanceCoordinator<Key> {
         (map, write_map)
     }
     fn inner_establish(
-        attribute_fns: &Vec<AttributeFn<Key>>,
+        attribute_fns: &[AttributeFn<Key>],
         attributes: &mut AnyMap,
         attribute_writes: &mut AnyMap,
         ginkgo: &Ginkgo,

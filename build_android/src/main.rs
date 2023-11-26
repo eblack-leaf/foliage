@@ -117,7 +117,8 @@ fn build_template(args: &Args) {
         .replace(
             "{{androidx-games-activity-version}}",
             args.androidx_games_activity_version.as_str(),
-        );
+        )
+        .replace("{{ndk-version}}", args.ndk_version.as_str());
     let activity_template = args
         .working_directory
         .join("template")
@@ -217,5 +218,6 @@ fn build_android(args: Args) {
         println!("error gradle build");
         return;
     }
+    println!("copying .apk to {}", "");
     // cp apk to apk_destination
 }

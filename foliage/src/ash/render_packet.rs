@@ -1,14 +1,24 @@
-use crate::ash::identification::{RenderId, RenderIdentification};
-use crate::ash::render::Render;
-use crate::differential::{DifferentialId, DifferentialIdentification};
+use std::collections::{HashMap, HashSet};
+
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, Resource};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+
+use crate::ash::identification::{RenderId, RenderIdentification};
+use crate::ash::render::Render;
+use crate::differential::{DifferentialId, DifferentialIdentification};
 
 pub type RenderPacketDifferential = Option<Vec<u8>>;
+
 #[derive(Serialize, Deserialize)]
 pub struct RenderPacket(pub HashMap<DifferentialId, RenderPacketDifferential>);
+
+impl Default for RenderPacket {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RenderPacket {
     pub fn new() -> Self {
         Self(HashMap::new())
@@ -22,10 +32,12 @@ impl RenderPacket {
         None
     }
 }
+
 #[derive(Default, Component)]
 pub struct RenderPacketStore {
     pub(crate) render_packet: Option<RenderPacket>,
 }
+
 impl RenderPacketStore {
     pub(crate) fn retrieve(&mut self) -> RenderPacket {
         let data = self.render_packet.take().unwrap();
@@ -52,13 +64,16 @@ impl RenderPacketStore {
         None
     }
 }
+
 #[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub(crate) struct RenderPacketSignature(pub(crate) RenderId, pub(crate) Entity);
+
 #[derive(Resource, Default)]
 pub(crate) struct RenderPacketForwarder {
     pub(crate) render_packets: HashMap<RenderPacketSignature, RenderPacket>,
     pub(crate) removals: HashMap<RenderId, HashSet<Entity>>,
 }
+
 impl RenderPacketForwarder {
     pub(crate) fn forward_packet(&mut self, id: &RenderId, entity: Entity, packet: RenderPacket) {
         self.render_packets

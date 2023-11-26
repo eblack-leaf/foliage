@@ -4,6 +4,7 @@ plugins {
 
 android {
     namespace "co.foliage.app"
+    ndkVersion = "{{ndk-version}}"
     compileSdk {{compile-sdk}}
 
     defaultConfig {

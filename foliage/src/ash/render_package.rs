@@ -10,12 +10,10 @@ impl<T: Render> RenderPackageStorage<T> {
     }
     pub(crate) fn index(&self, entity: Entity) -> Option<usize> {
         let mut index = None;
-        let mut current = 0;
-        for (package_entity, _package) in self.0.iter() {
+        for (current, (package_entity, _package)) in self.0.iter().enumerate() {
             if &entity == package_entity {
                 index.replace(current);
             }
-            current += 1;
         }
         index
     }

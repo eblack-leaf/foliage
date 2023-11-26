@@ -183,6 +183,7 @@ impl Render for Panel {
     ) -> Self::RenderPackage {
         resources.instance_coordinator.queue_add(entity);
         Self::instance_coordinator_queue_write(ginkgo, resources, entity, render_packet);
+        #[allow(unused)]
         ()
     }
 

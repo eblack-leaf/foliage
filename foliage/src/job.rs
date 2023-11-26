@@ -17,6 +17,11 @@ impl<T> Tag<T> {
         }
     }
 }
+impl<T> Default for Tag<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 /// Wrapper around a bevy_ecs::World
 pub type Container = World;
 /// Wrapper around a bevy_ecs::Schedule
@@ -35,6 +40,11 @@ pub struct Idle {
     pub can_idle: bool,
 }
 
+impl Default for Idle {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl Idle {
     pub fn new() -> Self {
         Self { can_idle: false }
@@ -63,7 +73,11 @@ impl Exit {
         self.exit_requested = true;
     }
 }
-
+impl Default for Exit {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 /// Extensible container + task runner
 pub struct Job {
     pub execution_state: ExecutionState,
