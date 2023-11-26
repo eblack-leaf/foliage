@@ -123,9 +123,8 @@ impl Foliage {
         let mut ginkgo = Ginkgo::new();
         #[cfg(target_family = "wasm")]
         {
-            window_handle =
-                WindowHandle::some(&event_loop, self.window_descriptor.unwrap_or_default());
-            ginkgo.initialize(window_handle).await;
+            window_handle = WindowHandle::some(&event_loop, &window_desc);
+            ginkgo.initialize(window_handle.clone()).await;
         }
         cfg_if::cfg_if! {
             if #[cfg(target_arch = "wasm32")] {
@@ -139,7 +138,7 @@ impl Foliage {
         let mut ash = Ash::new();
         let _ = (event_loop_function)(
             event_loop,
-            |event, event_loop_window_target: &EventLoopWindowTarget<()>| {
+            move |event, event_loop_window_target: &EventLoopWindowTarget<()>| {
                 if elm.job.can_idle() {
                     event_loop_window_target.set_control_flow(ControlFlow::Wait);
                 } else {

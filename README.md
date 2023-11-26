@@ -8,7 +8,9 @@ This library attempts to build a cross-platform ui with wgpu.rs and winit.
 
 Add desired android targets
 
-`rustup target add aarch64-linux-android x86_64-linux-android`
+```shell
+rustup target add aarch64-linux-android x86_64-linux-android
+```
 
 Must be able to compile Java on your system.
 
@@ -25,30 +27,36 @@ Follow steps 1 - 4.
 
 You will need to install these tools to your SDK.
 
-    sdkmanager "platform-tools" "platforms;android-<api-version>" 
+```text
+sdkmanager "platform-tools" "platforms;android-<api-version>" 
     "build-tools;<version>" "ndk;<ndk-version>"
+```
 
 To run on android,
 
-    run --package build_android -- <path-to-android.toml>
+```text
+run --package build_android -- <path-to-android.toml>
+```
 
 which points to a `.toml` file that describes the environment for compiling to android.
 
-    package = "<package-name>"
-    arch = "<arch>"
-    ndk_home = "/path/to/android_sdk/ndk/<ndk-version>"
-    sdk_home = "/path/to/android_sdk/"
-    min_sdk = <min-api-level>
-    target_sdk = <target-api-level>
-    compile_sdk = <compile-api-level>
-    android_application_version = "<version>"
-    gradle_distribution_url = <distribution-url-id> e.g. "8.0-all"
-    ndk_version = "<ndk-version>"
-    androidx_version = "<version>"
-    androidx_constraintlayout_version = "<version>"
-    androidx_games_activity_version = "<version>"
-    androidx_fragment_version = "<version>"
-    oboe_version = "<version>"
+```text
+package = "<package-name>"
+arch = "<arch>"
+ndk_home = "/path/to/android_sdk/ndk/<ndk-version>"
+sdk_home = "/path/to/android_sdk/"
+min_sdk = <min-api-level>
+target_sdk = <target-api-level>
+compile_sdk = <compile-api-level>
+android_application_version = "<version>"
+gradle_distribution_url = <distribution-url-id> e.g. "8.0-all"
+ndk_version = "<ndk-version>"
+androidx_version = "<version>"
+androidx_constraintlayout_version = "<version>"
+androidx_games_activity_version = "<version>"
+androidx_fragment_version = "<version>"
+oboe_version = "<version>"
+```
 
 `<arch>` can be `arm64-v8a` / `aarch64-linux-android`
 for ARM support or
