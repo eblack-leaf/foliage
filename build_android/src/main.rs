@@ -145,6 +145,32 @@ fn build_template(args: &Args) {
     std::fs::write(activity_dest, activity).unwrap();
     std::fs::write(build_dest, build).unwrap();
     std::fs::write(manifest_dest, manifest).unwrap();
+    let toplevel_template = args
+        .working_directory
+        .join("template")
+        .join("toplevel.build.gradle");
+    let toplevel = std::fs::read_to_string(toplevel_template).unwrap().replace(
+        "{{android-application-version}}",
+        args.android_application_version.as_str(),
+    );
+    let toplevel_dest = args.app_source.join("build.gradle");
+    std::fs::write(toplevel_dest, toplevel).unwrap();
+    let gradle_wrapper_template = args
+        .working_directory
+        .join("template")
+        .join("gradle-wrapper.properties");
+    let gradle_wrapper = std::fs::read_to_string(gradle_wrapper_template)
+        .unwrap()
+        .replace(
+            "{{gradle-distribution-url}}",
+            args.gradle_distribution_url.as_str(),
+        );
+    let gradle_wrapper_dest = args
+        .app_source
+        .join("gradle")
+        .join("wrapper")
+        .join("gradle-wrapper.properties");
+    std::fs::write(gradle_wrapper_dest, gradle_wrapper).unwrap();
 }
 
 fn build_android(args: Args) {
