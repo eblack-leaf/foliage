@@ -78,7 +78,12 @@ fn android_main(app: foliage::AndroidApp) {
 
 This will need to be compiled into a `cdylib` to generate a `.so` file for use
 with the `jni` interface.
-`crate-type = ["cdylib"]`
+
+```toml
+[lib]
+...
+crate-type = ["cdylib"]
+```
 
 ### Desktop
 
