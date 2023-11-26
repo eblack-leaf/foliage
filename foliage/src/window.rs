@@ -42,10 +42,6 @@ impl WindowHandle {
     pub(crate) fn value(&self) -> &Window {
         self.0.as_ref().expect("window handle value")
     }
-    #[allow(unused, dead_code)]
-    pub(crate) fn acquire_handle(&self) -> Arc<Window> {
-        self.0.clone().expect("window handle")
-    }
     pub(crate) fn some<ExternalHook>(
         event_loop: &EventLoopWindowTarget<ExternalHook>,
         window_descriptor: &WindowDescriptor,
