@@ -118,13 +118,16 @@ impl Foliage {
             .expect("event-loop");
             }
         }
-        let mut window_handle = WindowHandle::none();
+
         let window_desc = self.window_descriptor.unwrap_or_default();
         let mut ginkgo = Ginkgo::new();
-        #[cfg(target_family = "wasm")]
-        {
-            window_handle = WindowHandle::some(&event_loop, &window_desc);
-            ginkgo.initialize(window_handle.clone()).await;
+        cfg_if::cfg_if! {
+            if #[cfg(target_family = "wasm")] {
+                let mut window_handle = WindowHandle::some(&event_loop, &window_desc);
+                ginkgo.initialize(window_handle.clone()).await;
+            } else {
+                let mut window_handle = WindowHandle::none();
+            }
         }
         cfg_if::cfg_if! {
             if #[cfg(target_arch = "wasm32")] {

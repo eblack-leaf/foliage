@@ -1,9 +1,12 @@
-use crate::coordinate::area::Area;
-use crate::coordinate::{CoordinateUnit, DeviceContext};
 use std::sync::Arc;
+
+#[cfg(not(target_family = "wasm"))]
 use winit::dpi::PhysicalSize;
 use winit::event_loop::EventLoopWindowTarget;
 use winit::window::{Window, WindowBuilder};
+
+use crate::coordinate::area::Area;
+use crate::coordinate::{CoordinateUnit, DeviceContext};
 
 #[derive(Default, Clone)]
 pub struct WindowDescriptor {
@@ -32,13 +35,14 @@ impl WindowDescriptor {
 pub(crate) struct WindowHandle(pub(crate) Option<Arc<Window>>);
 
 impl WindowHandle {
+    #[allow(unused)]
     pub(crate) fn none() -> Self {
         Self(None)
     }
     pub(crate) fn value(&self) -> &Window {
         self.0.as_ref().expect("window handle value")
     }
-    #[allow(unused)]
+    #[allow(unused, dead_code)]
     pub(crate) fn acquire_handle(&self) -> Arc<Window> {
         self.0.clone().expect("window handle")
     }
@@ -46,6 +50,7 @@ impl WindowHandle {
         event_loop: &EventLoopWindowTarget<ExternalHook>,
         window_descriptor: &WindowDescriptor,
     ) -> Self {
+        #[allow(unused_mut)]
         let mut builder = WindowBuilder::new()
             .with_resizable(false)
             .with_title(window_descriptor.title.unwrap_or_default());

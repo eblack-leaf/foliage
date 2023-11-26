@@ -1,20 +1,7 @@
-pub mod depth_texture;
-pub mod msaa;
-pub mod uniform;
-pub mod viewport;
-
-use crate::color::Color;
-use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
-use crate::window::{WindowDescriptor, WindowHandle};
-use bytemuck::{Pod, Zeroable};
-use depth_texture::DepthTexture;
-use msaa::Msaa;
+#[cfg(not(target_family = "wasm"))]
 use std::path::PathBuf;
 
-use crate::coordinate::area::Area;
-use crate::coordinate::position::Position;
-use crate::coordinate::section::Section;
-use viewport::Viewport;
+use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 use wgpu::{
     BindGroupEntry, BindGroupLayoutEntry, Buffer, BufferAddress, ColorTargetState,
@@ -23,6 +10,22 @@ use wgpu::{
     StoreOp, TextureDimension, TextureFormat, TextureUsages, TextureView,
 };
 use winit::event_loop::EventLoopWindowTarget;
+
+use depth_texture::DepthTexture;
+use msaa::Msaa;
+use viewport::Viewport;
+
+use crate::color::Color;
+use crate::coordinate::area::Area;
+use crate::coordinate::position::Position;
+use crate::coordinate::section::Section;
+use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
+use crate::window::{WindowDescriptor, WindowHandle};
+
+pub mod depth_texture;
+pub mod msaa;
+pub mod uniform;
+pub mod viewport;
 
 #[derive(Copy, Clone)]
 pub struct ClearColor(pub Color);
@@ -373,14 +376,14 @@ impl Ginkgo {
     }
     pub(crate) fn resume(
         &mut self,
-        event_loop_window_target: &EventLoopWindowTarget<()>,
+        _event_loop_window_target: &EventLoopWindowTarget<()>,
         window: &mut WindowHandle,
-        desc: &WindowDescriptor,
+        _desc: &WindowDescriptor,
     ) -> Option<Area<InterfaceContext>> {
         return if !self.initialized {
             #[cfg(not(target_family = "wasm"))]
             {
-                *window = WindowHandle::some(event_loop_window_target, desc);
+                *window = WindowHandle::some(_event_loop_window_target, _desc);
                 self.scale_factor = window.scale_factor();
                 pollster::block_on(self.initialize(window.clone()));
             }
@@ -430,9 +433,13 @@ impl Ginkgo {
     pub(crate) async fn get_device_and_queue(&mut self) {
         let features =
             wgpu::Features::default() | wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES;
-        let limits = wgpu::Limits::default();
-        #[cfg(any(target_os = "android", target_family = "wasm"))]
-        let limits = wgpu::Limits::downlevel_webgl2_defaults();
+        cfg_if::cfg_if! {
+            if #[cfg(any(target_os = "android", target_family = "wasm"))] {
+                let limits = wgpu::Limits::downlevel_webgl2_defaults();
+            } else {
+                let limits = wgpu::Limits::default();
+            }
+        }
         let limits = limits.using_resolution(self.adapter.as_ref().expect("adapter").limits());
         let (device, queue) = self
             .adapter
