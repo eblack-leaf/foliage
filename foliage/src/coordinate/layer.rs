@@ -16,7 +16,7 @@ pub struct Layer {
 }
 
 impl Layer {
-    pub fn new(z: CoordinateUnit) -> Self {
+    pub const fn new(z: CoordinateUnit) -> Self {
         Self { z }
     }
 }

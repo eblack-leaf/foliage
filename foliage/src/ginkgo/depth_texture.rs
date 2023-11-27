@@ -50,7 +50,7 @@ impl DepthTexture {
         wgpu::DepthStencilState {
             format: self.depth_format(),
             depth_write_enabled: true,
-            depth_compare: wgpu::CompareFunction::Less,
+            depth_compare: wgpu::CompareFunction::LessEqual,
             stencil: Default::default(),
             bias: Default::default(),
         }

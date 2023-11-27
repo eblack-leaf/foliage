@@ -148,6 +148,7 @@ pub struct CircleRenderResources {
 impl Render for Circle {
     type Resources = CircleRenderResources;
     type RenderPackage = ();
+
     const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(Panel::RENDER_PHASE.value() + 1);
 
     fn create_resources(ginkgo: &Ginkgo) -> Self::Resources {
