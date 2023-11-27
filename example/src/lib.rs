@@ -25,7 +25,7 @@ impl Leaf for Tester {
     fn attach(elm: &mut Elm) {
         elm.job.container.spawn(Circle::new(
             CircleStyle::ring(),
-            (166, 166).into(),
+            (10, 10).into(),
             Diameter::new(256f32),
             5.into(),
             Color::OFF_WHITE.into(),
