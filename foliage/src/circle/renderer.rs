@@ -1,22 +1,23 @@
-use bevy_ecs::entity::Entity;
-
 use crate::ash::instruction::{
     RenderInstructionHandle, RenderInstructionsRecorder, RenderRecordBehavior,
 };
 use crate::ash::render::{Render, RenderPhase};
 use crate::ash::render_package::RenderPackage;
 use crate::ash::render_packet::RenderPacket;
+use crate::circle::vertex::{Vertex, VERTICES};
+use crate::circle::{Circle, CircleStyle};
 use crate::color::Color;
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
-use crate::coordinate::{DeviceContext, InterfaceContext};
+use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
 use crate::ginkgo::Ginkgo;
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
-use crate::panel::vertex::{Vertex, INDICES};
-use crate::panel::{Panel, PanelStyle};
+use crate::panel::Panel;
+use crate::texture::MipsLevel;
+use bevy_ecs::entity::Entity;
 
-pub struct PanelRenderResources {
+pub struct CircleRenderResources {
     pipeline: wgpu::RenderPipeline,
     vertex_buffer: wgpu::Buffer,
     bind_group: wgpu::BindGroup,
@@ -27,48 +28,102 @@ pub struct PanelRenderResources {
     #[allow(unused)]
     sampler: wgpu::Sampler,
     instance_coordinator: InstanceCoordinator<Entity>,
-    index_buffer: wgpu::Buffer,
     #[allow(unused)]
     ring_texture: wgpu::Texture,
     #[allow(unused)]
     ring_view: wgpu::TextureView,
-    corner_depth_area: Area<DeviceContext>,
 }
 
-impl PanelRenderResources {
-    const TEXTURE_DIMENSION: u32 = 100;
-}
-impl Panel {
-    const BASE_CORNER_DEPTH: f32 = 6f32;
-}
-impl Render for Panel {
-    type Resources = PanelRenderResources;
+impl Render for Circle {
+    type Resources = CircleRenderResources;
     type RenderPackage = ();
-    const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(0);
+
+    const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(Panel::RENDER_PHASE.value() + 1);
 
     fn create_resources(ginkgo: &Ginkgo) -> Self::Resources {
         let shader = ginkgo
             .device()
-            .create_shader_module(wgpu::include_wgsl!("panel.wgsl"));
-        let texture_data =
-            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/panel-texture.cov"))
-                .ok()
-                .unwrap();
-        let (texture, view) = ginkgo.texture_r8unorm_d2(
-            PanelRenderResources::TEXTURE_DIMENSION,
-            PanelRenderResources::TEXTURE_DIMENSION,
-            1,
-            texture_data.as_slice(),
-        );
-        let ring_texture_data = serde_json::from_str::<Vec<u8>>(include_str!(
-            "texture_resources/panel-ring-texture.cov"
+            .create_shader_module(wgpu::include_wgsl!("circle.wgsl"));
+        let mut texture_data = serde_json::from_str::<Vec<u8>>(include_str!(
+            "texture_resources/circle-texture-1024.cov"
         ))
         .ok()
         .unwrap();
+        texture_data.extend(
+            serde_json::from_str::<Vec<u8>>(include_str!(
+                "texture_resources/circle-texture-512.cov"
+            ))
+            .unwrap(),
+        );
+        texture_data.extend(
+            serde_json::from_str::<Vec<u8>>(include_str!(
+                "texture_resources/circle-texture-256.cov"
+            ))
+            .unwrap(),
+        );
+        texture_data.extend(
+            serde_json::from_str::<Vec<u8>>(include_str!(
+                "texture_resources/circle-texture-128.cov"
+            ))
+            .unwrap(),
+        );
+        texture_data.extend(
+            serde_json::from_str::<Vec<u8>>(include_str!(
+                "texture_resources/circle-texture-64.cov"
+            ))
+            .unwrap(),
+        );
+        texture_data.extend(
+            serde_json::from_str::<Vec<u8>>(include_str!(
+                "texture_resources/circle-texture-32.cov"
+            ))
+            .unwrap(),
+        );
+        let (texture, view) = ginkgo.texture_r8unorm_d2(
+            Circle::CIRCLE_TEXTURE_DIMENSIONS,
+            Circle::CIRCLE_TEXTURE_DIMENSIONS,
+            Circle::MIPS,
+            texture_data.as_slice(),
+        );
+        let mut ring_texture_data = serde_json::from_str::<Vec<u8>>(include_str!(
+            "texture_resources/circle-ring-texture-1024.cov"
+        ))
+        .ok()
+        .unwrap();
+        ring_texture_data.extend(
+            serde_json::from_str::<Vec<u8>>(include_str!(
+                "texture_resources/circle-ring-texture-512.cov"
+            ))
+            .unwrap(),
+        );
+        ring_texture_data.extend(
+            serde_json::from_str::<Vec<u8>>(include_str!(
+                "texture_resources/circle-ring-texture-256.cov"
+            ))
+            .unwrap(),
+        );
+        ring_texture_data.extend(
+            serde_json::from_str::<Vec<u8>>(include_str!(
+                "texture_resources/circle-ring-texture-128.cov"
+            ))
+            .unwrap(),
+        );
+        ring_texture_data.extend(
+            serde_json::from_str::<Vec<u8>>(include_str!(
+                "texture_resources/circle-ring-texture-64.cov"
+            ))
+            .unwrap(),
+        );
+        ring_texture_data.extend(
+            serde_json::from_str::<Vec<u8>>(include_str!(
+                "texture_resources/circle-ring-texture-32.cov"
+            ))
+            .unwrap(),
+        );
         let (ring_texture, ring_view) = ginkgo.texture_r8unorm_d2(
-            PanelRenderResources::TEXTURE_DIMENSION,
-            PanelRenderResources::TEXTURE_DIMENSION,
-            1,
+            Circle::CIRCLE_TEXTURE_DIMENSIONS,
+            Circle::CIRCLE_TEXTURE_DIMENSIONS,
+            Circle::MIPS,
             ring_texture_data.as_slice(),
         );
 
@@ -79,7 +134,7 @@ impl Render for Panel {
             ginkgo
                 .device()
                 .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("panel-render-pipeline-bind-group-layout"),
+                    label: Some("circle-render-pipeline-bind-group-layout"),
                     entries: &[
                         Ginkgo::vertex_uniform_bind_group_layout_entry(0),
                         Ginkgo::texture_d2_bind_group_entry(1),
@@ -90,7 +145,7 @@ impl Render for Panel {
         let bind_group = ginkgo
             .device()
             .create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("panel-render-pipeline-bind-group"),
+                label: Some("circle-render-pipeline-bind-group"),
                 layout: &bind_group_layout,
                 entries: &[
                     ginkgo.viewport_bind_group_entry(0),
@@ -103,14 +158,14 @@ impl Render for Panel {
             ginkgo
                 .device()
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("panel-render-pipeline-layout"),
+                    label: Some("circle-render-pipeline-layout"),
                     bind_group_layouts: &[&bind_group_layout],
                     push_constant_ranges: &[],
                 });
         let pipeline = ginkgo
             .device()
             .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("panel-render-pipeline"),
+                label: Some("circle-render-pipeline"),
                 layout: Some(&pipeline_layout),
                 vertex: wgpu::VertexState {
                     module: &shader,
@@ -119,30 +174,35 @@ impl Render for Panel {
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<Vertex>(1),
                             step_mode: wgpu::VertexStepMode::Vertex,
-                            attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x2, 2 => Float32x2],
+                            attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x2],
                         },
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<CReprPosition>(1),
                             step_mode: wgpu::VertexStepMode::Instance,
-                            attributes: &wgpu::vertex_attr_array![3 => Float32x2],
+                            attributes: &wgpu::vertex_attr_array![2 => Float32x2],
                         },
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<CReprArea>(1),
                             step_mode: wgpu::VertexStepMode::Instance,
-                            attributes: &wgpu::vertex_attr_array![4 => Float32x2],
+                            attributes: &wgpu::vertex_attr_array![3 => Float32x2],
                         },
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<Layer>(1),
                             step_mode: wgpu::VertexStepMode::Instance,
-                            attributes: &wgpu::vertex_attr_array![5 => Float32],
+                            attributes: &wgpu::vertex_attr_array![4 => Float32],
                         },
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<Color>(1),
                             step_mode: wgpu::VertexStepMode::Instance,
-                            attributes: &wgpu::vertex_attr_array![6 => Float32x4],
+                            attributes: &wgpu::vertex_attr_array![5 => Float32x4],
                         },
                         wgpu::VertexBufferLayout {
-                            array_stride: Ginkgo::buffer_address::<PanelStyle>(1),
+                            array_stride: Ginkgo::buffer_address::<CircleStyle>(1),
+                            step_mode: wgpu::VertexStepMode::Instance,
+                            attributes: &wgpu::vertex_attr_array![6 => Float32],
+                        },
+                        wgpu::VertexBufferLayout {
+                            array_stride: Ginkgo::buffer_address::<MipsLevel>(1),
                             step_mode: wgpu::VertexStepMode::Instance,
                             attributes: &wgpu::vertex_attr_array![7 => Float32],
                         },
@@ -158,20 +218,16 @@ impl Render for Panel {
                 ),
                 multiview: None,
             });
-        let corner_depth = Self::BASE_CORNER_DEPTH * ginkgo.scale_factor();
-        let corner_depth_area =
-            Area::<DeviceContext>::new(corner_depth * 2f32, corner_depth * 2f32);
-        let vertices = Vertex::vertices(corner_depth);
-        let vertex_buffer = ginkgo.vertex_buffer_with_data(&vertices, "panel-vertex-buffer");
-        let index_buffer = ginkgo.index_buffer_with_data(&INDICES, "panel-index-buffer");
+        let vertex_buffer = ginkgo.vertex_buffer_with_data(&VERTICES, "circle-vertex-buffer");
         let instance_coordinator = InstanceCoordinatorBuilder::new(4)
             .with_attribute::<CReprPosition>()
             .with_attribute::<CReprArea>()
             .with_attribute::<Layer>()
             .with_attribute::<Color>()
-            .with_attribute::<PanelStyle>()
+            .with_attribute::<CircleStyle>()
+            .with_attribute::<MipsLevel>()
             .build(ginkgo);
-        PanelRenderResources {
+        CircleRenderResources {
             pipeline,
             vertex_buffer,
             bind_group,
@@ -179,10 +235,8 @@ impl Render for Panel {
             view,
             sampler,
             instance_coordinator,
-            index_buffer,
             ring_texture,
             ring_view,
-            corner_depth_area,
         }
     }
 
@@ -227,21 +281,18 @@ impl Render for Panel {
     }
 
     fn record_behavior() -> RenderRecordBehavior<Self> {
-        RenderRecordBehavior::PerRenderer(Box::new(Panel::record))
+        RenderRecordBehavior::PerRenderer(Box::new(Circle::record))
     }
 }
 
-impl Panel {
+impl Circle {
     fn record<'a>(
-        resources: &'a PanelRenderResources,
+        resources: &'a CircleRenderResources,
         mut recorder: RenderInstructionsRecorder<'a>,
     ) -> Option<RenderInstructionHandle> {
         if resources.instance_coordinator.has_instances() {
             recorder.0.set_pipeline(&resources.pipeline);
             recorder.0.set_bind_group(0, &resources.bind_group, &[]);
-            recorder
-                .0
-                .set_index_buffer(resources.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
             recorder
                 .0
                 .set_vertex_buffer(0, resources.vertex_buffer.slice(..));
@@ -271,12 +322,18 @@ impl Panel {
                 5,
                 resources
                     .instance_coordinator
-                    .buffer::<PanelStyle>()
+                    .buffer::<CircleStyle>()
                     .slice(..),
             );
-            recorder.0.draw_indexed(
-                0..INDICES.len() as u32,
-                0,
+            recorder.0.set_vertex_buffer(
+                6,
+                resources
+                    .instance_coordinator
+                    .buffer::<MipsLevel>()
+                    .slice(..),
+            );
+            recorder.0.draw(
+                0..VERTICES.len() as u32,
                 0..resources.instance_coordinator.instances(),
             );
             return Some(recorder.finish());
@@ -285,7 +342,7 @@ impl Panel {
     }
     fn instance_coordinator_queue_write(
         ginkgo: &Ginkgo,
-        resources: &mut PanelRenderResources,
+        resources: &mut CircleRenderResources,
         entity: Entity,
         render_packet: RenderPacket,
     ) {
@@ -295,13 +352,22 @@ impl Panel {
                 .queue_write(entity, pos.to_device(ginkgo.scale_factor()).to_c());
         }
         if let Some(area) = render_packet.get::<Area<InterfaceContext>>() {
-            let scale_factor = ginkgo.scale_factor();
-            let scaled = area.to_device(scale_factor) - resources.corner_depth_area;
-            let zero_bounded =
-                Area::<DeviceContext>::new(scaled.width.max(0f32), scaled.height.max(0f32));
+            // let area_scaled = area.to_device(ginkgo.scale_factor());
+            let area_scaled = Area::<DeviceContext>::new(area.width, area.height);
+            let mips_level = MipsLevel::new(
+                Area::new(
+                    Circle::CIRCLE_TEXTURE_DIMENSIONS as CoordinateUnit,
+                    Circle::CIRCLE_TEXTURE_DIMENSIONS as CoordinateUnit,
+                ),
+                Circle::MIPS,
+                area_scaled,
+            );
             resources
                 .instance_coordinator
-                .queue_write(entity, zero_bounded.to_c());
+                .queue_write(entity, mips_level);
+            resources
+                .instance_coordinator
+                .queue_write(entity, area_scaled.to_c());
         }
         if let Some(layer) = render_packet.get::<Layer>() {
             resources.instance_coordinator.queue_write(entity, layer);
@@ -312,7 +378,7 @@ impl Panel {
         if let Some(color) = render_packet.get::<Color>() {
             resources.instance_coordinator.queue_write(entity, color);
         }
-        if let Some(style) = render_packet.get::<PanelStyle>() {
+        if let Some(style) = render_packet.get::<CircleStyle>() {
             resources.instance_coordinator.queue_write(entity, style);
         }
     }
