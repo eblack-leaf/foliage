@@ -1,11 +1,13 @@
+use anymap::AnyMap;
+
 use crate::ash::instruction::{
     RenderInstructionGroup, RenderInstructionsRecorder, RenderRecordBehavior,
 };
 use crate::ash::render::Render;
 use crate::ash::render_package::{RenderPackage, RenderPackageStorage};
 use crate::ash::render_packet::RenderPacketQueue;
+use crate::coordinate::layer::Layer;
 use crate::ginkgo::Ginkgo;
-use anymap::AnyMap;
 
 pub(crate) struct Renderer<T: Render> {
     resources: T::Resources,
@@ -46,12 +48,17 @@ impl<T: Render> Renderer<T> {
         for entity in queue.retrieve_removals() {
             if let Some(index) = packages.index(entity) {
                 let old = packages.0.remove(index);
-                T::on_package_removal(ginkgo, resources, old.0, old.1);
+                T::on_package_removal(ginkgo, resources, old.0, old.2);
                 *updated_hook = true;
             }
         }
-        for (entity, package) in packages.0.iter_mut() {
+        let mut should_sort = false;
+        for (entity, layer, package) in packages.0.iter_mut() {
             if let Some(render_packet) = queue.retrieve_packet(*entity) {
+                if let Some(l) = render_packet.get::<Layer>() {
+                    *layer = l;
+                    should_sort = true;
+                }
                 T::prepare_package(ginkgo, resources, *entity, package, render_packet);
                 *updated_hook = true;
             }
@@ -60,11 +67,15 @@ impl<T: Render> Renderer<T> {
             for (entity, render_packet) in queue.0.drain() {
                 packages.0.push((
                     entity,
+                    render_packet.get::<Layer>().unwrap(),
                     RenderPackage::new(T::create_package(ginkgo, resources, entity, render_packet)),
                 ));
+                should_sort = true;
             }
-            // order by z after insertion
             *updated_hook = true;
+        }
+        if should_sort {
+            packages.order_by_layer();
         }
     }
     pub(crate) fn resource_preparation(&mut self, ginkgo: &Ginkgo) {
@@ -116,7 +127,7 @@ impl<T: Render> Renderer<T> {
                 }
             }
             RenderRecordBehavior::PerPackage(behavior) => {
-                for (_entity, package) in packages.0.iter_mut() {
+                for (_entity, _layer, package) in packages.0.iter_mut() {
                     if package.should_record {
                         let recorder = RenderInstructionsRecorder::new(ginkgo);
                         if let Some(instructions) = behavior(resources, package, recorder) {

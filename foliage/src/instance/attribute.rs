@@ -1,41 +1,47 @@
-use crate::ginkgo::Ginkgo;
-use crate::instance::{Index, InstanceCoordinator, InstanceOrdering};
-use anymap::AnyMap;
-use bytemuck::{Pod, Zeroable};
 use std::collections::HashMap;
 use std::hash::Hash;
+
+use anymap::AnyMap;
+use bytemuck::{Pod, Zeroable};
+
+use crate::ginkgo::Ginkgo;
+use crate::instance::{Index, InstanceCoordinator, InstanceOrdering};
 
 pub(crate) struct AttributeFn<Key: Hash + Eq> {
     pub(crate) create: Box<fn(&mut AnyMap, &mut AnyMap, &Ginkgo, u32)>,
     pub(crate) write: Box<fn(&InstanceOrdering<Key>, &mut AnyMap, &mut AnyMap, &Ginkgo)>,
     pub(crate) grow: Box<fn(&mut AnyMap, &Ginkgo, u32)>,
     pub(crate) remove: Box<fn(&mut AnyMap, &Vec<Index>)>,
+    pub(crate) reorder: Box<fn(&InstanceOrdering<Key>, &mut AnyMap, &mut AnyMap)>,
 }
 
-impl<Key: Hash + Eq + 'static> AttributeFn<Key> {
+impl<Key: Hash + Eq + Clone + 'static> AttributeFn<Key> {
     pub(crate) fn for_attribute<T: Default + Clone + Pod + Zeroable + 'static>() -> Self {
         Self {
             create: Box::new(InstanceCoordinator::<Key>::create_wrapper::<T>),
             write: Box::new(InstanceCoordinator::<Key>::write_wrapper::<T>),
             grow: Box::new(InstanceCoordinator::<Key>::grow_wrapper::<T>),
             remove: Box::new(InstanceCoordinator::<Key>::remove_wrapper::<T>),
+            reorder: Box::new(InstanceCoordinator::<Key>::reorder_wrapper::<T>),
         }
     }
 }
 
 type WriteRange = Option<(u32, u32)>;
 
-pub(crate) struct InstanceAttribute<T> {
+pub(crate) struct InstanceAttribute<Key: Hash + Eq + Clone + 'static, T> {
+    pub(crate) key_to_t: HashMap<Key, T>,
     cpu: Vec<T>,
     pub(crate) gpu: wgpu::Buffer,
     write_range: WriteRange,
 }
 
-impl<T: Default + Clone + Pod + Zeroable> InstanceAttribute<T> {
+impl<Key: Hash + Eq + Clone + 'static, T: Default + Clone + Pod + Zeroable> InstanceAttribute<Key, T> {
     pub(crate) fn new(ginkgo: &Ginkgo, count: u32) -> Self {
         let data = vec![T::default(); count as usize];
         let buffer = Self::gpu_buffer(ginkgo, count);
         Self {
+            key_to_t: HashMap::new(),
             cpu: data,
             gpu: buffer,
             write_range: Some((0, count - 1)),
@@ -52,11 +58,11 @@ impl<T: Default + Clone + Pod + Zeroable> InstanceAttribute<T> {
     }
     pub(crate) fn write_from_queue(
         &mut self,
-        queue: InstanceAttributeIndexedWriteQueue<T>,
+        queue: InstanceAttributeIndexedWriteQueue<Key, T>,
         ginkgo: &Ginkgo,
     ) {
         let mut needs_write = false;
-        for (index, data) in queue.0 {
+        for (key, index, data) in queue.0 {
             if let Some((start, end)) = self.write_range.as_mut() {
                 if index < *start {
                     *start = index;
@@ -64,7 +70,8 @@ impl<T: Default + Clone + Pod + Zeroable> InstanceAttribute<T> {
                     *end = index;
                 }
             }
-            *self.cpu.get_mut(index as usize).unwrap() = data;
+            *self.cpu.get_mut(index as usize).unwrap() = data.clone();
+            self.key_to_t.insert(key, data);
             needs_write = true;
         }
         if needs_write {
@@ -100,25 +107,27 @@ impl<T: Default + Clone + Pod + Zeroable> InstanceAttribute<T> {
 
 pub(crate) struct InstanceAttributeWriteQueue<Key, T>(pub(crate) HashMap<Key, T>);
 
-impl<Key: PartialEq, T> InstanceAttributeWriteQueue<Key, T> {
+impl<Key: Hash + Eq + PartialEq + Clone + 'static, T> InstanceAttributeWriteQueue<Key, T> {
     pub(crate) fn new() -> Self {
         Self(HashMap::new())
     }
     pub(crate) fn indexed(
         &mut self,
         ordering: &InstanceOrdering<Key>,
-    ) -> InstanceAttributeIndexedWriteQueue<T> {
+    ) -> InstanceAttributeIndexedWriteQueue<Key, T> {
         InstanceAttributeIndexedWriteQueue(
             self.0
                 .drain()
                 .map(|(key, t)| {
-                    let index = ordering.index(key).unwrap();
-                    (index, t)
+                    let index = ordering.index(key.clone()).unwrap();
+                    (key, index, t)
                 })
-                .collect::<Vec<(Index, T)>>(),
+                .collect::<Vec<(Key, Index, T)>>(),
         )
     }
 }
 
 #[derive(Default)]
-pub(crate) struct InstanceAttributeIndexedWriteQueue<T>(pub(crate) Vec<(Index, T)>);
+pub(crate) struct InstanceAttributeIndexedWriteQueue<Key: Hash + Eq + 'static, T>(
+    pub(crate) Vec<(Key, Index, T)>,
+);

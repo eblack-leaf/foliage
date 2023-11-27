@@ -1,18 +1,21 @@
-use crate::ash::render_packet::RenderPacketForwarder;
-use crate::ash::render_packet::RenderPacketPackage;
-use crate::coordinate::area::Area;
-use crate::coordinate::position::Position;
-use crate::coordinate::section::Section;
-use crate::coordinate::InterfaceContext;
-use crate::ginkgo::viewport::ViewportHandle;
-use crate::job::Job;
+use std::any::TypeId;
+use std::marker::PhantomData;
+
 use anymap::AnyMap;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs, SystemSet};
 use bevy_ecs::schedule::IntoSystemSetConfigs;
 use compact_str::{CompactString, ToCompactString};
 use serde::{Deserialize, Serialize};
-use std::any::TypeId;
-use std::marker::PhantomData;
+
+use crate::ash::render_packet::RenderPacketForwarder;
+use crate::ash::render_packet::RenderPacketPackage;
+use crate::coordinate::area::Area;
+use crate::coordinate::layer::Layer;
+use crate::coordinate::position::Position;
+use crate::coordinate::section::Section;
+use crate::coordinate::InterfaceContext;
+use crate::ginkgo::viewport::ViewportHandle;
+use crate::job::Job;
 
 pub struct Elm {
     initialized: bool,
@@ -27,11 +30,13 @@ macro_rules! differential_enable {
     };
 }
 struct DifferentialLimiter<T>(bool, PhantomData<T>);
+
 impl<T> Default for DifferentialLimiter<T> {
     fn default() -> Self {
         DifferentialLimiter(false, PhantomData)
     }
 }
+
 impl Elm {
     pub(crate) fn new() -> Self {
         Self {
@@ -64,6 +69,7 @@ impl Elm {
         self.job.main().add_systems((
             crate::differential::send_render_packet.in_set(SystemSets::RenderPacket),
         ));
+        self.enable_differential::<Layer>();
         self.job
             .container
             .insert_resource(RenderPacketForwarder::default());
@@ -121,6 +127,7 @@ impl Elm {
         self.initialized = true;
     }
 }
+
 #[derive(SystemSet, Hash, Eq, PartialEq, Debug, Copy, Clone)]
 pub enum SystemSets {
     Differential,

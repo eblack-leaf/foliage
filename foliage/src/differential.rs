@@ -1,24 +1,31 @@
-use crate::ash::identification::{RenderId, RenderIdentification};
-use crate::ash::render::Render;
-use crate::ash::render_packet::RenderPacketForwarder;
-use crate::ash::render_packet::RenderPacketStore;
+use std::any::TypeId;
+
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Bundle, Component, Or, Query};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::ResMut;
 use compact_str::{CompactString, ToCompactString};
 use serde::{Deserialize, Serialize};
-use std::any::TypeId;
+
+use crate::ash::identification::{RenderId, RenderIdentification};
+use crate::ash::render::Render;
+use crate::ash::render_packet::RenderPacketForwarder;
+use crate::ash::render_packet::RenderPacketStore;
+use crate::coordinate::layer::Layer;
+
 #[derive(Bundle)]
 pub struct Differentiable {
+    layer: DifferentialBundle<Layer>,
     disable: DifferentialDisable,
     despawn: Despawn,
     store: RenderPacketStore,
     render_id: RenderId,
 }
+
 impl Differentiable {
-    pub fn new<T: Render + 'static>() -> Self {
+    pub fn new<T: Render + 'static>(layer: Layer) -> Self {
         Self {
+            layer: DifferentialBundle::new(layer),
             despawn: Despawn::default(),
             disable: DifferentialDisable::default(),
             store: RenderPacketStore::default(),
@@ -26,11 +33,13 @@ impl Differentiable {
         }
     }
 }
+
 #[derive(Component, Clone)]
 pub struct Differential<T: Component + Clone + PartialEq + Send + Sync + 'static> {
     cache: T,
     differential: Option<T>,
 }
+
 impl<T: Component + Clone + PartialEq + Send + Sync + 'static> Differential<T> {
     #[allow(unused)]
     pub fn new(t: T) -> Self {
@@ -51,8 +60,10 @@ impl<T: Component + Clone + PartialEq + Send + Sync + 'static> Differential<T> {
         self.differential.take()
     }
 }
+
 #[derive(Component, Default, Copy, Clone)]
 pub struct DifferentialDisable(bool);
+
 impl DifferentialDisable {
     #[allow(unused)]
     pub(crate) fn disable(&mut self) {
@@ -66,16 +77,20 @@ impl DifferentialDisable {
         self.0 = false;
     }
 }
+
 #[derive(Hash, Eq, PartialEq, Serialize, Deserialize, Clone)]
 pub struct DifferentialId(pub(crate) CompactString);
+
 pub trait DifferentialIdentification {
     fn diff_id() -> DifferentialId;
 }
+
 impl<T: Component> DifferentialIdentification for T {
     fn diff_id() -> DifferentialId {
         DifferentialId(format!("{:?}", TypeId::of::<T>()).to_compact_string())
     }
 }
+
 pub(crate) fn differential<
     T: Component
         + Clone
@@ -95,6 +110,7 @@ pub(crate) fn differential<
         }
     }
 }
+
 pub(crate) fn send_on_differential_disable_changed<
     T: Component
         + Clone
@@ -123,6 +139,7 @@ pub(crate) fn send_on_differential_disable_changed<
         }
     }
 }
+
 pub(crate) fn send_render_packet(
     mut query: Query<
         (
@@ -144,16 +161,17 @@ pub(crate) fn send_render_packet(
         if disable.is_disabled() || despawn.should_despawn() {
             render_packet_forwarder.remove(id, entity);
         } else {
-            // need to forward Layer.z when enable sorting by z in renderer packages
             render_packet_forwarder.forward_packet(id, entity, packet.retrieve());
         }
     }
 }
+
 #[derive(Bundle, Clone)]
 pub struct DifferentialBundle<T: Component + Clone + PartialEq + Send + Sync + 'static> {
     pub component: T,
     pub differential: Differential<T>,
 }
+
 impl<T: Component + Clone + PartialEq + Send + Sync + 'static> DifferentialBundle<T> {
     #[allow(unused)]
     pub fn new(t: T) -> Self {
@@ -163,8 +181,10 @@ impl<T: Component + Clone + PartialEq + Send + Sync + 'static> DifferentialBundl
         }
     }
 }
+
 #[derive(Component, Copy, Clone, Serialize, Deserialize, Default)]
 pub struct Despawn(bool);
+
 impl Despawn {
     pub fn despawn(&mut self) {
         self.0 = true;

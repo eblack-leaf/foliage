@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 
 use anymap::AnyMap;
@@ -6,6 +6,7 @@ use bytemuck::{Pod, Zeroable};
 
 use attribute::{AttributeFn, InstanceAttribute, InstanceAttributeWriteQueue};
 
+use crate::coordinate::layer::Layer;
 use crate::ginkgo::Ginkgo;
 
 pub mod attribute;
@@ -18,7 +19,7 @@ pub struct InstanceCoordinatorBuilder<Key: Hash + Eq> {
     capacity: u32,
 }
 
-impl<Key: Hash + Eq + 'static> InstanceCoordinatorBuilder<Key> {
+impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinatorBuilder<Key> {
     pub fn new(capacity: u32) -> Self {
         Self {
             instance_fns: vec![],
@@ -43,14 +44,16 @@ pub struct InstanceCoordinator<Key: Hash + Eq> {
     attributes: AnyMap,
     attribute_writes: AnyMap,
     attribute_fns: Vec<AttributeFn<Key>>,
+    needs_ordering: bool,
+    layer_writes: HashMap<Key, Layer>,
 }
 
-pub(crate) struct InstanceOrdering<Key>(pub(crate) Vec<Key>);
+pub(crate) struct InstanceOrdering<Key>(pub(crate) Vec<(Key, Layer)>);
 
 impl<Key: PartialEq> InstanceOrdering<Key> {
     pub(crate) fn index(&self, key: Key) -> Option<Index> {
-        for (index, a) in self.0.iter().enumerate() {
-            if *a == key {
+        for (index, (k, _layer)) in self.0.iter().enumerate() {
+            if *k == key {
                 return Some(index as Index);
             }
         }
@@ -58,7 +61,7 @@ impl<Key: PartialEq> InstanceOrdering<Key> {
     }
 }
 
-impl<Key: Hash + Eq + 'static> InstanceCoordinator<Key> {
+impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
     pub fn prepare(&mut self, ginkgo: &Ginkgo) -> bool {
         let mut should_record = false;
         if let Some(removed) = self.removed_indices() {
@@ -67,9 +70,32 @@ impl<Key: Hash + Eq + 'static> InstanceCoordinator<Key> {
             }
             Self::inner_remove(&self.attribute_fns, &mut self.attributes, &removed);
         }
-        for add in self.adds.drain().collect::<Vec<Key>>() {
-            self.insert(add);
+        for key in self.adds.drain().collect::<Vec<Key>>() {
+            self.insert(key);
+            self.needs_ordering = true;
             should_record = true;
+        }
+        // write layer_writes
+        for (key, layer) in self.layer_writes.drain().collect::<Vec<(Key, Layer)>>() {
+            if let Some(index) = self.ordering.index(key) {
+                self.ordering.0.get_mut(index as usize).unwrap().1 = layer;
+                self.needs_ordering = true;
+                should_record = true;
+            }
+        }
+        // sort by layer
+        if self.needs_ordering {
+            self.ordering
+                .0
+                .sort_by(|lhs, rhs| lhs.1.partial_cmp(&rhs.1).unwrap());
+            self.ordering.0.reverse();
+            Self::inner_reorder(
+                &self.attribute_fns,
+                &mut self.attributes,
+                &mut self.attribute_writes,
+                &self.ordering,
+            );
+            self.needs_ordering = false;
         }
         if let Some(count) = self.should_grow() {
             Self::inner_grow(&self.attribute_fns, &mut self.attributes, ginkgo, count);
@@ -90,7 +116,10 @@ impl<Key: Hash + Eq + 'static> InstanceCoordinator<Key> {
     pub fn queue_remove(&mut self, key: Key) {
         self.removes.insert(key);
     }
-    pub fn queue_write<T: 'static>(&mut self, key: Key, t: T) {
+    pub fn queue_key_layer_change(&mut self, key: Key, layer: Layer) {
+        self.layer_writes.insert(key, layer);
+    }
+    pub fn queue_write<T: Clone + 'static>(&mut self, key: Key, t: T) {
         self.attribute_writes
             .get_mut::<InstanceAttributeWriteQueue<Key, T>>()
             .unwrap()
@@ -104,7 +133,11 @@ impl<Key: Hash + Eq + 'static> InstanceCoordinator<Key> {
         self.ordering.0.len() as u32
     }
     pub fn buffer<T: 'static>(&self) -> &wgpu::Buffer {
-        &self.attributes.get::<InstanceAttribute<T>>().unwrap().gpu
+        &self
+            .attributes
+            .get::<InstanceAttribute<Key, T>>()
+            .unwrap()
+            .gpu
     }
     fn new(ginkgo: &Ginkgo, attribute_fns: Vec<AttributeFn<Key>>, capacity: u32) -> Self {
         let (attributes, attribute_writes) =
@@ -117,6 +150,47 @@ impl<Key: Hash + Eq + 'static> InstanceCoordinator<Key> {
             attributes,
             attribute_writes,
             attribute_fns,
+            needs_ordering: true,
+            layer_writes: HashMap::new(),
+        }
+    }
+    fn inner_reorder(
+        attribute_fns: &Vec<AttributeFn<Key>>,
+        attributes: &mut AnyMap,
+        attribute_writes: &mut AnyMap,
+        ordering: &InstanceOrdering<Key>,
+    ) {
+        // queue all attrs to write_queue
+        for attr_fn in attribute_fns.iter() {
+            (attr_fn.reorder)(ordering, attributes, attribute_writes);
+        }
+    }
+    fn reorder_wrapper<T: Clone + 'static>(
+        ordering: &InstanceOrdering<Key>,
+        attributes: &mut AnyMap,
+        attribute_writes: &mut AnyMap,
+    ) {
+        for (key, _layer) in ordering.0.iter() {
+            if let Some(attr) = attributes
+                .get::<InstanceAttribute<Key, T>>()
+                .unwrap()
+                .key_to_t
+                .get(key)
+            {
+                if attribute_writes
+                    .get::<InstanceAttributeWriteQueue<Key, T>>()
+                    .unwrap()
+                    .0
+                    .get(key)
+                    .is_none()
+                {
+                    attribute_writes
+                        .get_mut::<InstanceAttributeWriteQueue<Key, T>>()
+                        .unwrap()
+                        .0
+                        .insert(key.clone(), attr.clone());
+                }
+            }
         }
     }
     fn inner_write(
@@ -176,7 +250,7 @@ impl<Key: Hash + Eq + 'static> InstanceCoordinator<Key> {
         ginkgo: &Ginkgo,
         count: u32,
     ) {
-        attributes.insert(InstanceAttribute::<T>::new(ginkgo, count));
+        attributes.insert(InstanceAttribute::<Key, T>::new(ginkgo, count));
         attribute_writes.insert(InstanceAttributeWriteQueue::<Key, T>::new());
     }
     fn write_wrapper<T: Default + Clone + Pod + Zeroable + 'static>(
@@ -190,7 +264,7 @@ impl<Key: Hash + Eq + 'static> InstanceCoordinator<Key> {
             .unwrap()
             .indexed(ordering);
         attributes
-            .get_mut::<InstanceAttribute<T>>()
+            .get_mut::<InstanceAttribute<Key, T>>()
             .unwrap()
             .write_from_queue(queue, ginkgo);
     }
@@ -200,7 +274,7 @@ impl<Key: Hash + Eq + 'static> InstanceCoordinator<Key> {
         new_capacity: u32,
     ) {
         attributes
-            .get_mut::<InstanceAttribute<T>>()
+            .get_mut::<InstanceAttribute<Key, T>>()
             .unwrap()
             .grow(ginkgo, new_capacity);
     }
@@ -209,12 +283,12 @@ impl<Key: Hash + Eq + 'static> InstanceCoordinator<Key> {
         removed: &Vec<Index>,
     ) {
         attributes
-            .get_mut::<InstanceAttribute<T>>()
+            .get_mut::<InstanceAttribute<Key, T>>()
             .unwrap()
             .remove(removed);
     }
     fn insert(&mut self, key: Key) {
-        self.ordering.0.push(key);
+        self.ordering.0.push((key, Layer::default()));
     }
     fn should_grow(&mut self) -> Option<u32> {
         if self.ordering.0.len() as u32 > self.current_gpu_capacity {

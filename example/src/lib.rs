@@ -1,9 +1,9 @@
-use foliage::{AndroidInterface, Foliage};
 use foliage::circle::{Circle, CircleStyle, Diameter};
 use foliage::color::Color;
 use foliage::elm::{Elm, Leaf};
 use foliage::panel::Panel;
 use foliage::window::WindowDescriptor;
+use foliage::{AndroidInterface, Foliage};
 
 pub fn entry(android_interface: AndroidInterface) {
     Foliage::new()
@@ -27,21 +27,21 @@ impl Leaf for Tester {
             CircleStyle::ring(),
             (10, 10).into(),
             Diameter::new(256f32),
-            5.into(),
+            26.into(),
             Color::OFF_WHITE.into(),
         ));
         elm.job.container.spawn(Circle::new(
             CircleStyle::ring(),
             (10, 10).into(),
             Diameter::new(512f32),
-            5.into(),
+            19.into(),
             Color::OFF_WHITE.into(),
         ));
         elm.job.container.spawn(Circle::new(
             CircleStyle::ring(),
             (10, 500).into(),
             Diameter::new(1024f32),
-            5.into(),
+            7.into(),
             Color::OFF_WHITE.into(),
         ));
     }

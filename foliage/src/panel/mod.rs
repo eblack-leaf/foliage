@@ -33,7 +33,6 @@ pub struct Panel {
     style: DifferentialBundle<PanelStyle>,
     position: DifferentialBundle<Position<InterfaceContext>>,
     area: DifferentialBundle<Area<InterfaceContext>>,
-    layer: DifferentialBundle<Layer>,
     color: DifferentialBundle<Color>,
     differentiable: Differentiable,
 }
@@ -50,9 +49,8 @@ impl Panel {
             style: DifferentialBundle::new(style),
             position: DifferentialBundle::new(pos),
             area: DifferentialBundle::new(area),
-            layer: DifferentialBundle::new(layer),
             color: DifferentialBundle::new(color),
-            differentiable: Differentiable::new::<Self>(),
+            differentiable: Differentiable::new::<Self>(layer),
         }
     }
 }
@@ -63,7 +61,6 @@ impl Leaf for Panel {
             elm,
             Position<InterfaceContext>,
             Area<InterfaceContext>,
-            Layer,
             Color,
             PanelStyle
         );

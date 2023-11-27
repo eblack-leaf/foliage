@@ -48,8 +48,6 @@ fn fragment_entry (vertex_fragment: VertexFragment) -> @location(0) vec4<f32> {
             f32(vertex_fragment.mip)
         ).r;
     }
-    if (coverage <= 0.0) {
-        discard;
-    }
+
     return vec4<f32>(vertex_fragment.color.rgb, vertex_fragment.color.a * coverage);
 }

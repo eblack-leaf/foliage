@@ -66,7 +66,6 @@ pub struct Circle {
     style: DifferentialBundle<CircleStyle>,
     position: DifferentialBundle<Position<InterfaceContext>>,
     area: DifferentialBundle<Area<InterfaceContext>>,
-    layer: DifferentialBundle<Layer>,
     color: DifferentialBundle<Color>,
     differentiable: Differentiable,
 }
@@ -94,9 +93,8 @@ impl Circle {
             style: DifferentialBundle::new(style),
             position: DifferentialBundle::new(position),
             area: DifferentialBundle::new(Area::new(diameter.0, diameter.0)),
-            layer: DifferentialBundle::new(layer),
             color: DifferentialBundle::new(color),
-            differentiable: Differentiable::new::<Self>(),
+            differentiable: Differentiable::new::<Self>(layer),
         }
     }
 }
@@ -107,7 +105,6 @@ impl Leaf for Circle {
             elm,
             Position<InterfaceContext>,
             Area<InterfaceContext>,
-            Layer,
             Color,
             CircleStyle
         );
@@ -150,7 +147,7 @@ pub struct CircleRenderResources {
 impl Render for Circle {
     type Resources = CircleRenderResources;
     type RenderPackage = ();
-    const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(0);
+    const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(1);
 
     fn create_resources(ginkgo: &Ginkgo) -> Self::Resources {
         let shader = ginkgo
@@ -267,7 +264,7 @@ impl Render for Circle {
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<Layer>(1),
                             step_mode: wgpu::VertexStepMode::Instance,
-                            attributes: &wgpu::vertex_attr_array![4 => Float32x2],
+                            attributes: &wgpu::vertex_attr_array![4 => Float32],
                         },
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<Color>(1),
@@ -448,6 +445,7 @@ impl Circle {
         }
         if let Some(layer) = render_packet.get::<Layer>() {
             resources.instance_coordinator.queue_write(entity, layer);
+            resources.instance_coordinator.queue_key_layer_change(entity, layer);
         }
         if let Some(color) = render_packet.get::<Color>() {
             resources.instance_coordinator.queue_write(entity, color);
