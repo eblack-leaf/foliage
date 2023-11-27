@@ -13,7 +13,7 @@ use crate::color::Color;
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
-use crate::coordinate::{CoordinateUnit, InterfaceContext};
+use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::{Elm, Leaf};
@@ -72,17 +72,29 @@ pub struct Circle {
 }
 
 pub struct Diameter(pub CoordinateUnit);
-
+pub enum CircleMipLevel {
+    Five = 32,
+    Four = 64,
+    Three = 128,
+    Two = 256,
+    One = 512,
+    Zero = 1024,
+}
 impl Diameter {
     pub const MAX: CoordinateUnit = Circle::CIRCLE_TEXTURE_DIMENSIONS as CoordinateUnit;
     pub fn new(r: CoordinateUnit) -> Self {
         Self(r.min(Self::MAX).max(0f32))
     }
+    pub fn from_mip_level(l: CircleMipLevel) -> Self {
+        Self::new(l as i32 as CoordinateUnit)
+    }
 }
 
 impl Circle {
     const CIRCLE_TEXTURE_DIMENSIONS: u32 = 1024;
-    const MIPS: u32 = 3;
+    #[allow(unused)]
+    const MIPS_TARGETS: [u32; Self::MIPS as usize] = [1024, 512, 256, 128, 64, 32];
+    const MIPS: u32 = 6;
     pub fn new(
         style: CircleStyle,
         position: Position<InterfaceContext>,
@@ -164,15 +176,31 @@ impl Render for Circle {
             serde_json::from_str::<Vec<u8>>(include_str!(
                 "texture_resources/circle-texture-512.cov"
             ))
-            .unwrap()
-            .iter(),
+            .unwrap(),
         );
         texture_data.extend(
             serde_json::from_str::<Vec<u8>>(include_str!(
                 "texture_resources/circle-texture-256.cov"
             ))
-            .unwrap()
-            .iter(),
+            .unwrap(),
+        );
+        texture_data.extend(
+            serde_json::from_str::<Vec<u8>>(include_str!(
+                "texture_resources/circle-texture-128.cov"
+            ))
+            .unwrap(),
+        );
+        texture_data.extend(
+            serde_json::from_str::<Vec<u8>>(include_str!(
+                "texture_resources/circle-texture-64.cov"
+            ))
+            .unwrap(),
+        );
+        texture_data.extend(
+            serde_json::from_str::<Vec<u8>>(include_str!(
+                "texture_resources/circle-texture-32.cov"
+            ))
+            .unwrap(),
         );
         let (texture, view) = ginkgo.texture_r8unorm_d2(
             Circle::CIRCLE_TEXTURE_DIMENSIONS,
@@ -194,6 +222,24 @@ impl Render for Circle {
         ring_texture_data.extend(
             serde_json::from_str::<Vec<u8>>(include_str!(
                 "texture_resources/circle-ring-texture-256.cov"
+            ))
+            .unwrap(),
+        );
+        ring_texture_data.extend(
+            serde_json::from_str::<Vec<u8>>(include_str!(
+                "texture_resources/circle-ring-texture-128.cov"
+            ))
+            .unwrap(),
+        );
+        ring_texture_data.extend(
+            serde_json::from_str::<Vec<u8>>(include_str!(
+                "texture_resources/circle-ring-texture-64.cov"
+            ))
+            .unwrap(),
+        );
+        ring_texture_data.extend(
+            serde_json::from_str::<Vec<u8>>(include_str!(
+                "texture_resources/circle-ring-texture-32.cov"
             ))
             .unwrap(),
         );
@@ -429,7 +475,8 @@ impl Circle {
                 .queue_write(entity, pos.to_device(ginkgo.scale_factor()).to_c());
         }
         if let Some(area) = render_packet.get::<Area<InterfaceContext>>() {
-            let area_scaled = area.to_device(ginkgo.scale_factor());
+            // let area_scaled = area.to_device(ginkgo.scale_factor());
+            let area_scaled = Area::<DeviceContext>::new(area.width, area.height);
             let mips_level = MipsLevel::new(
                 Area::new(
                     Circle::CIRCLE_TEXTURE_DIMENSIONS as CoordinateUnit,
@@ -462,7 +509,7 @@ impl Circle {
 
 #[test]
 fn png() {
-    for mip in [1024, 512, 256] {
+    for mip in Circle::MIPS_TARGETS {
         Ginkgo::png_to_cov(
             format!("/home/salt/Desktop/dev/foliage/foliage/src/circle/texture_resources/circle-ring-{}.png", mip),
             format!("/home/salt/Desktop/dev/foliage/foliage/src/circle/texture_resources/circle-ring-texture-{}.cov", mip),
