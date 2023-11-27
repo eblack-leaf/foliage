@@ -38,9 +38,9 @@ impl Ash {
             (leaf.register_fn)(self, ginkgo);
         }
         self.render_leaflets = render_leaflets;
-        self.instruction_groups.instruction_groups.sort_by(|lhs, rhs| {
-            lhs.1.partial_cmp(&rhs.1).unwrap()
-        });
+        self.instruction_groups
+            .instruction_groups
+            .sort_by(|lhs, rhs| lhs.1.partial_cmp(&rhs.1).unwrap());
     }
     pub(crate) fn extract(&mut self, package: RenderPacketPackage) {
         self.render_packet_package.replace(package);

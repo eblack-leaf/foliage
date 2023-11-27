@@ -1,9 +1,9 @@
-use foliage::{AndroidInterface, Foliage};
 use foliage::circle::{Circle, CircleStyle, Diameter};
 use foliage::color::Color;
 use foliage::elm::{Elm, Leaf};
 use foliage::panel::{Panel, PanelStyle};
 use foliage::window::WindowDescriptor;
+use foliage::{AndroidInterface, Foliage};
 
 pub fn entry(android_interface: AndroidInterface) {
     Foliage::new()

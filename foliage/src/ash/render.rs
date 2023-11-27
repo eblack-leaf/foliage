@@ -16,12 +16,8 @@ pub enum RenderPhase {
 impl RenderPhase {
     pub const fn value(&self) -> i32 {
         match self {
-            RenderPhase::Opaque => {
-                0
-            }
-            RenderPhase::Alpha(priority) => {
-                *priority
-            }
+            RenderPhase::Opaque => 0,
+            RenderPhase::Alpha(priority) => *priority,
         }
     }
 }
@@ -57,8 +53,8 @@ impl PartialOrd for RenderPhase {
 }
 
 pub trait Render
-    where
-        Self: Sized,
+where
+    Self: Sized,
 {
     type Resources;
     type RenderPackage;

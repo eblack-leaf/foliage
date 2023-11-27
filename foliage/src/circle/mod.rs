@@ -10,10 +10,10 @@ use crate::ash::render::{Render, RenderPhase};
 use crate::ash::render_package::RenderPackage;
 use crate::ash::render_packet::RenderPacket;
 use crate::color::Color;
-use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
+use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::{Elm, Leaf};
@@ -157,21 +157,21 @@ impl Render for Circle {
         let mut texture_data = serde_json::from_str::<Vec<u8>>(include_str!(
             "texture_resources/circle-texture-1024.cov"
         ))
-            .ok()
-            .unwrap();
+        .ok()
+        .unwrap();
         texture_data.extend(
             serde_json::from_str::<Vec<u8>>(include_str!(
                 "texture_resources/circle-texture-512.cov"
             ))
-                .unwrap()
-                .iter(),
+            .unwrap()
+            .iter(),
         );
         texture_data.extend(
             serde_json::from_str::<Vec<u8>>(include_str!(
                 "texture_resources/circle-texture-256.cov"
             ))
-                .unwrap()
-                .iter(),
+            .unwrap()
+            .iter(),
         );
         let (texture, view) = ginkgo.texture_r8unorm_d2(
             Circle::CIRCLE_TEXTURE_DIMENSIONS,
@@ -182,19 +182,19 @@ impl Render for Circle {
         let mut ring_texture_data = serde_json::from_str::<Vec<u8>>(include_str!(
             "texture_resources/circle-ring-texture-1024.cov"
         ))
-            .ok()
-            .unwrap();
+        .ok()
+        .unwrap();
         ring_texture_data.extend(
             serde_json::from_str::<Vec<u8>>(include_str!(
                 "texture_resources/circle-ring-texture-512.cov"
             ))
-                .unwrap(),
+            .unwrap(),
         );
         ring_texture_data.extend(
             serde_json::from_str::<Vec<u8>>(include_str!(
                 "texture_resources/circle-ring-texture-256.cov"
             ))
-                .unwrap(),
+            .unwrap(),
         );
         let (ring_texture, ring_view) = ginkgo.texture_r8unorm_d2(
             Circle::CIRCLE_TEXTURE_DIMENSIONS,
