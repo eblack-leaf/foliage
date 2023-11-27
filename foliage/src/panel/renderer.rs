@@ -7,14 +7,14 @@ use crate::ash::render::{Render, RenderPhase};
 use crate::ash::render_package::RenderPackage;
 use crate::ash::render_packet::RenderPacket;
 use crate::color::Color;
+use crate::coordinate::{DeviceContext, InterfaceContext};
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
-use crate::coordinate::{DeviceContext, InterfaceContext};
 use crate::ginkgo::Ginkgo;
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
-use crate::panel::vertex::{Vertex, CORNER_DEPTH, INDICES, VERTICES};
 use crate::panel::{Panel, PanelStyle};
+use crate::panel::vertex::{CORNER_DEPTH, INDICES, Vertex, VERTICES};
 
 pub struct PanelRenderResources {
     pipeline: wgpu::RenderPipeline,
@@ -57,7 +57,7 @@ impl Render for Panel {
             texture_data.as_slice(),
         );
         let ring_texture_data =
-            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/ring2.cov"))
+            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/panel-ring-texture.cov"))
                 .ok()
                 .unwrap();
         let (ring_texture, ring_view) = ginkgo.texture_r8unorm_d2(
@@ -283,7 +283,7 @@ impl Panel {
                 entity,
                 (pos.to_device(ginkgo.scale_factor())
                     - Position::new(CORNER_DEPTH * 0f32, CORNER_DEPTH * 0f32))
-                .to_c(),
+                    .to_c(),
             );
         }
         if let Some(area) = render_packet.get::<Area<InterfaceContext>>() {

@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::color::Color;
 use crate::coordinate::area::Area;
+use crate::coordinate::InterfaceContext;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
-use crate::coordinate::InterfaceContext;
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::{Elm, Leaf};
@@ -68,22 +68,4 @@ impl Leaf for Panel {
             PanelStyle
         );
     }
-}
-
-#[test]
-fn png() {
-    use crate::ginkgo::Ginkgo;
-    use std::path::Path;
-    let path =
-        Path::new("/home/salt/Desktop/dev/foliage/foliage/src/panel/texture_resources/ring.png")
-            .canonicalize()
-            .unwrap();
-    println!("{:?}", path);
-    let data = Ginkgo::png_to_r8unorm_d2(&path);
-    let string = serde_json::to_string(data.as_slice()).unwrap();
-    std::fs::write(
-        Path::new("/home/salt/Desktop/dev/foliage/foliage/src/panel/texture_resources/ring.cov"),
-        string,
-    )
-    .unwrap();
 }
