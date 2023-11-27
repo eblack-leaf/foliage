@@ -7,9 +7,23 @@ use crate::ash::render_package::RenderPackage;
 use crate::ash::render_packet::RenderPacket;
 use crate::ginkgo::Ginkgo;
 
+#[derive(Copy, Clone)]
 pub enum RenderPhase {
     Opaque,
     Alpha(i32),
+}
+
+impl RenderPhase {
+    pub const fn value(&self) -> i32 {
+        match self {
+            RenderPhase::Opaque => {
+                0
+            }
+            RenderPhase::Alpha(priority) => {
+                *priority
+            }
+        }
+    }
 }
 
 impl PartialEq<Self> for RenderPhase {
@@ -43,8 +57,8 @@ impl PartialOrd for RenderPhase {
 }
 
 pub trait Render
-where
-    Self: Sized,
+    where
+        Self: Sized,
 {
     type Resources;
     type RenderPackage;

@@ -36,7 +36,9 @@ pub(crate) struct InstanceAttribute<Key: Hash + Eq + Clone + 'static, T> {
     write_range: WriteRange,
 }
 
-impl<Key: Hash + Eq + Clone + 'static, T: Default + Clone + Pod + Zeroable> InstanceAttribute<Key, T> {
+impl<Key: Hash + Eq + Clone + 'static, T: Default + Clone + Pod + Zeroable>
+    InstanceAttribute<Key, T>
+{
     pub(crate) fn new(ginkgo: &Ginkgo, count: u32) -> Self {
         let data = vec![T::default(); count as usize];
         let buffer = Self::gpu_buffer(ginkgo, count);

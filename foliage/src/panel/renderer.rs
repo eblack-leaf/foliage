@@ -14,7 +14,7 @@ use crate::coordinate::position::{CReprPosition, Position};
 use crate::ginkgo::Ginkgo;
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
 use crate::panel::{Panel, PanelStyle};
-use crate::panel::vertex::{CORNER_DEPTH, INDICES, Vertex, VERTICES};
+use crate::panel::vertex::{INDICES, Vertex};
 
 pub struct PanelRenderResources {
     pipeline: wgpu::RenderPipeline,
@@ -32,6 +32,7 @@ pub struct PanelRenderResources {
     ring_texture: wgpu::Texture,
     #[allow(unused)]
     ring_view: wgpu::TextureView,
+    corner_depth_area: Area<DeviceContext>,
 }
 
 impl PanelRenderResources {
@@ -155,7 +156,11 @@ impl Render for Panel {
                 ),
                 multiview: None,
             });
-        let vertex_buffer = ginkgo.vertex_buffer_with_data(&VERTICES, "panel-vertex-buffer");
+        let corner_depth = 8f32 * ginkgo.scale_factor();
+        let corner_depth_area =
+            Area::<DeviceContext>::new(corner_depth * 2f32, corner_depth * 2f32);
+        let vertices = Vertex::vertices(corner_depth);
+        let vertex_buffer = ginkgo.vertex_buffer_with_data(&vertices, "panel-vertex-buffer");
         let index_buffer = ginkgo.index_buffer_with_data(&INDICES, "panel-index-buffer");
         let instance_coordinator = InstanceCoordinatorBuilder::new(4)
             .with_attribute::<CReprPosition>()
@@ -175,6 +180,7 @@ impl Render for Panel {
             index_buffer,
             ring_texture,
             ring_view,
+            corner_depth_area,
         }
     }
 
@@ -282,17 +288,13 @@ impl Panel {
         render_packet: RenderPacket,
     ) {
         if let Some(pos) = render_packet.get::<Position<InterfaceContext>>() {
-            resources.instance_coordinator.queue_write(
-                entity,
-                (pos.to_device(ginkgo.scale_factor())
-                    - Position::new(CORNER_DEPTH * 0f32, CORNER_DEPTH * 0f32))
-                    .to_c(),
-            );
+            resources
+                .instance_coordinator
+                .queue_write(entity, pos.to_device(ginkgo.scale_factor()).to_c());
         }
         if let Some(area) = render_packet.get::<Area<InterfaceContext>>() {
             let scale_factor = ginkgo.scale_factor();
-            let scaled =
-                area.to_device(scale_factor) - Area::new(CORNER_DEPTH * 2f32, CORNER_DEPTH * 2f32);
+            let scaled = area.to_device(scale_factor) - resources.corner_depth_area;
             let zero_bounded =
                 Area::<DeviceContext>::new(scaled.width.max(0f32), scaled.height.max(0f32));
             resources
@@ -301,7 +303,9 @@ impl Panel {
         }
         if let Some(layer) = render_packet.get::<Layer>() {
             resources.instance_coordinator.queue_write(entity, layer);
-            resources.instance_coordinator.queue_key_layer_change(entity, layer);
+            resources
+                .instance_coordinator
+                .queue_key_layer_change(entity, layer);
         }
         if let Some(color) = render_packet.get::<Color>() {
             resources.instance_coordinator.queue_write(entity, color);

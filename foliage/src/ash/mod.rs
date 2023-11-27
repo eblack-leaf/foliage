@@ -1,10 +1,13 @@
-use crate::ginkgo::Ginkgo;
+use std::collections::HashMap;
+
 use anymap::AnyMap;
+
 use instruction::InstructionGroups;
 use leaflet::RenderLeafletStorage;
 use render_packet::RenderPacketPackage;
 use renderer::RendererStorage;
-use std::collections::HashMap;
+
+use crate::ginkgo::Ginkgo;
 
 pub mod identification;
 pub mod instruction;
@@ -20,6 +23,7 @@ pub(crate) struct Ash {
     pub(crate) instruction_groups: InstructionGroups,
     pub(crate) render_leaflets: RenderLeafletStorage,
 }
+
 impl Ash {
     pub(crate) fn new() -> Self {
         Self {
@@ -33,7 +37,10 @@ impl Ash {
         for (_id, leaf) in render_leaflets.iter() {
             (leaf.register_fn)(self, ginkgo);
         }
-        self.render_leaflets = render_leaflets
+        self.render_leaflets = render_leaflets;
+        self.instruction_groups.instruction_groups.sort_by(|lhs, rhs| {
+            lhs.1.partial_cmp(&rhs.1).unwrap()
+        });
     }
     pub(crate) fn extract(&mut self, package: RenderPacketPackage) {
         self.render_packet_package.replace(package);

@@ -19,6 +19,7 @@ use crate::differential_enable;
 use crate::elm::{Elm, Leaf};
 use crate::ginkgo::Ginkgo;
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
+use crate::panel::Panel;
 use crate::texture::{MipsLevel, TextureCoordinates};
 
 #[repr(C)]
@@ -147,7 +148,7 @@ pub struct CircleRenderResources {
 impl Render for Circle {
     type Resources = CircleRenderResources;
     type RenderPackage = ();
-    const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(1);
+    const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(Panel::RENDER_PHASE.value() + 1);
 
     fn create_resources(ginkgo: &Ginkgo) -> Self::Resources {
         let shader = ginkgo
@@ -445,7 +446,9 @@ impl Circle {
         }
         if let Some(layer) = render_packet.get::<Layer>() {
             resources.instance_coordinator.queue_write(entity, layer);
-            resources.instance_coordinator.queue_key_layer_change(entity, layer);
+            resources
+                .instance_coordinator
+                .queue_key_layer_change(entity, layer);
         }
         if let Some(color) = render_packet.get::<Color>() {
             resources.instance_coordinator.queue_write(entity, color);
