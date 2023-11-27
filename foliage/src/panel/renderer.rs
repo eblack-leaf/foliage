@@ -41,7 +41,7 @@ impl PanelRenderResources {
 impl Render for Panel {
     type Resources = PanelRenderResources;
     type RenderPackage = ();
-    const RENDER_PHASE: RenderPhase = RenderPhase::Opaque;
+    const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(0);
 
     fn create_resources(ginkgo: &Ginkgo) -> Self::Resources {
         let shader = ginkgo
@@ -56,10 +56,11 @@ impl Render for Panel {
             PanelRenderResources::TEXTURE_DIMENSION,
             texture_data.as_slice(),
         );
-        let ring_texture_data =
-            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/panel-ring-texture.cov"))
-                .ok()
-                .unwrap();
+        let ring_texture_data = serde_json::from_str::<Vec<u8>>(include_str!(
+            "texture_resources/panel-ring-texture.cov"
+        ))
+            .ok()
+            .unwrap();
         let (ring_texture, ring_view) = ginkgo.texture_r8unorm_d2(
             PanelRenderResources::TEXTURE_DIMENSION,
             PanelRenderResources::TEXTURE_DIMENSION,

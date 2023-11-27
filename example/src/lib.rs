@@ -1,17 +1,19 @@
+use foliage::{AndroidInterface, Foliage};
+use foliage::circle::{Circle, CircleStyle, Radius};
 use foliage::color::Color;
 use foliage::elm::{Elm, Leaf};
-use foliage::panel::{Panel, PanelStyle};
+use foliage::panel::Panel;
 use foliage::window::WindowDescriptor;
-use foliage::{AndroidInterface, Foliage};
 
 pub fn entry(android_interface: AndroidInterface) {
     Foliage::new()
         .with_window_descriptor(
             WindowDescriptor::new()
                 .with_title("foliage")
-                .with_desktop_dimensions((400, 700)),
+                .with_desktop_dimensions((420, 820)),
         )
         .with_renderleaf::<Panel>()
+        .with_renderleaf::<Circle>()
         .with_leaf::<Tester>()
         .with_android_interface(android_interface)
         .run();
@@ -21,25 +23,18 @@ struct Tester;
 
 impl Leaf for Tester {
     fn attach(elm: &mut Elm) {
-        elm.job.container.spawn(Panel::new(
-            PanelStyle::flat(),
-            (125, 100).into(),
-            (200, 100).into(),
-            2.into(),
+        elm.job.container.spawn(Circle::new(
+            CircleStyle::flat(),
+            (10, 10).into(),
+            Radius::new(100f32),
+            5.into(),
             Color::OFF_WHITE.into(),
         ));
-        elm.job.container.spawn(Panel::new(
-            PanelStyle::ring(),
-            (50, 300).into(),
-            (200, 100).into(),
-            2.into(),
-            Color::OFF_WHITE.into(),
-        ));
-        elm.job.container.spawn(Panel::new(
-            PanelStyle::ring(),
-            (175, 500).into(),
-            (200, 100).into(),
-            2.into(),
+        elm.job.container.spawn(Circle::new(
+            CircleStyle::flat(),
+            (10, 420).into(),
+            Radius::new(800f32),
+            5.into(),
             Color::OFF_WHITE.into(),
         ));
     }

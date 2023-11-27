@@ -192,6 +192,7 @@ fn build_android(args: Args) {
         .args(["-o", args.jni_output.to_str().unwrap()])
         .args([
             "build",
+            "--release",
             "--package",
             args.package.to_str().unwrap(),
             "--lib",

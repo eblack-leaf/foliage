@@ -1,14 +1,14 @@
 #[cfg(not(target_family = "wasm"))]
-use std::path::PathBuf;
+use std::path::Path;
 
 use bytemuck::{Pod, Zeroable};
-use wgpu::util::DeviceExt;
 use wgpu::{
     BindGroupEntry, BindGroupLayoutEntry, Buffer, BufferAddress, ColorTargetState,
     DepthStencilState, Extent3d, FragmentState, InstanceDescriptor, LoadOp, MultisampleState,
     PrimitiveState, RenderPassColorAttachment, RenderPassDepthStencilAttachment, ShaderModule,
     StoreOp, TextureDimension, TextureFormat, TextureUsages, TextureView,
 };
+use wgpu::util::DeviceExt;
 use winit::event_loop::EventLoopWindowTarget;
 
 use depth_texture::DepthTexture;
@@ -16,10 +16,10 @@ use msaa::Msaa;
 use viewport::Viewport;
 
 use crate::color::Color;
+use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
-use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
 use crate::window::{WindowDescriptor, WindowHandle};
 
 pub mod depth_texture;
@@ -121,13 +121,23 @@ impl Ginkgo {
         }
     }
     #[cfg(not(target_family = "wasm"))]
-    pub fn png_to_r8unorm_d2(path: &PathBuf) -> Vec<u8> {
+    pub fn png_to_cov<P: AsRef<Path>>(png: P, cov: P) {
+        let data = Ginkgo::png_to_r8unorm_d2(png);
+        let string = serde_json::to_string(data.as_slice()).unwrap();
+        std::fs::write(
+            cov,
+            string,
+        )
+            .unwrap();
+    }
+    #[cfg(not(target_family = "wasm"))]
+    pub fn png_to_r8unorm_d2<P: AsRef<Path>>(path: P) -> Vec<u8> {
         let image = image::load_from_memory(std::fs::read(path).unwrap().as_slice())
             .expect("png-to-r8unorm-d2");
         let texture_data = image
             .to_rgba8()
             .enumerate_pixels()
-            .map(|p| -> u8 { p.2 .0[3] })
+            .map(|p| -> u8 { p.2.0[3] })
             .collect::<Vec<u8>>();
         texture_data
     }

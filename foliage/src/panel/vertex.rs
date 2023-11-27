@@ -26,7 +26,7 @@ impl Vertex {
     }
 }
 
-pub const CORNER_DEPTH: CoordinateUnit = 6f32;
+pub const CORNER_DEPTH: CoordinateUnit = 8f32;
 const CORNER_TEXTURE_EXTENT: CoordinateUnit = 0.49f32;
 const CORNER_SPACING: CoordinateUnit = 0.02f32;
 pub const VERTICES: [Vertex; 16] = [
