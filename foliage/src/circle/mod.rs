@@ -281,7 +281,7 @@ impl Render for Circle {
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<MipsLevel>(1),
                             step_mode: wgpu::VertexStepMode::Instance,
-                            attributes: &wgpu::vertex_attr_array![7 => Uint32],
+                            attributes: &wgpu::vertex_attr_array![7 => Float32],
                         },
                     ],
                 },

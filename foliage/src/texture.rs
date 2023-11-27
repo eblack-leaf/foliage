@@ -15,12 +15,12 @@ impl TextureCoordinates {
 
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default)]
-pub struct MipsLevel(pub u32);
+pub struct MipsLevel(pub f32);
 
 impl MipsLevel {
     pub fn new(size: Area<DeviceContext>, mips: u32, dims: Area<DeviceContext>) -> Self {
         if mips == 1 {
-            return Self(0);
+            return Self(0.0);
         }
         let mut mip_level_area = size;
         for _mip in 0..(mips - 1) {
@@ -28,10 +28,13 @@ impl MipsLevel {
         }
         for mip in (0..mips).rev() {
             if mip_level_area.width >= dims.width && mip_level_area.height >= dims.height {
-                return Self(mip);
+                // let actual = dims / mip_level_area;
+                // let ratio = 1f32 - (actual.width + actual.height) / 2f32;
+                // let fractional_mips = (mip as f32 + ratio).max(0f32);
+                return Self(mip as f32);
             }
             mip_level_area *= Area::new(2f32, 2f32);
         }
-        Self(0)
+        Self(0.0)
     }
 }

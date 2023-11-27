@@ -47,21 +47,21 @@ impl Leaf for Tester {
         elm.job.container.spawn(Circle::new(
             CircleStyle::ring(),
             (10, 10).into(),
-            Diameter::new(256f32),
+            Diameter::new(300f32),
             3.into(),
             Color::RED.into(),
         ));
         elm.job.container.spawn(Circle::new(
             CircleStyle::ring(),
             (10, 10).into(),
-            Diameter::new(512f32),
+            Diameter::new(456f32),
             3.into(),
             Color::GREEN.into(),
         ));
         elm.job.container.spawn(Circle::new(
             CircleStyle::ring(),
             (10, 500).into(),
-            Diameter::new(1024f32),
+            Diameter::new(764f32),
             3.into(),
             Color::BLUE.into(),
         ));
