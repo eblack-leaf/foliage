@@ -1,7 +1,8 @@
+use bytemuck::{Pod, Zeroable};
+
 use crate::coordinate::position::CReprPosition;
 use crate::coordinate::CoordinateUnit;
 use crate::texture::TextureCoordinates;
-use bytemuck::{Pod, Zeroable};
 
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default)]
@@ -25,7 +26,7 @@ impl Vertex {
     }
 }
 
-pub const CORNER_DEPTH: CoordinateUnit = 5f32;
+pub const CORNER_DEPTH: CoordinateUnit = 6f32;
 const CORNER_TEXTURE_EXTENT: CoordinateUnit = 0.49f32;
 const CORNER_SPACING: CoordinateUnit = 0.02f32;
 pub const VERTICES: [Vertex; 16] = [

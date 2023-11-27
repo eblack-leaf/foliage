@@ -3,6 +3,7 @@ use foliage::elm::{Elm, Leaf};
 use foliage::panel::{Panel, PanelStyle};
 use foliage::window::WindowDescriptor;
 use foliage::{AndroidInterface, Foliage};
+
 pub fn entry(android_interface: AndroidInterface) {
     Foliage::new()
         .with_window_descriptor(
@@ -15,12 +16,14 @@ pub fn entry(android_interface: AndroidInterface) {
         .with_android_interface(android_interface)
         .run();
 }
+
 struct Tester;
+
 impl Leaf for Tester {
     fn attach(elm: &mut Elm) {
         elm.job.container.spawn(Panel::new(
             PanelStyle::flat(),
-            (150, 100).into(),
+            (125, 100).into(),
             (200, 100).into(),
             2.into(),
             Color::OFF_WHITE.into(),
@@ -28,6 +31,13 @@ impl Leaf for Tester {
         elm.job.container.spawn(Panel::new(
             PanelStyle::ring(),
             (50, 300).into(),
+            (200, 100).into(),
+            2.into(),
+            Color::OFF_WHITE.into(),
+        ));
+        elm.job.container.spawn(Panel::new(
+            PanelStyle::ring(),
+            (175, 500).into(),
             (200, 100).into(),
             2.into(),
             Color::OFF_WHITE.into(),

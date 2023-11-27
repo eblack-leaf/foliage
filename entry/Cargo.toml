@@ -7,8 +7,9 @@ edition = "2021"
 
 [dependencies]
 example = { path = "../example" }
-foliage = { path = "../foliage"}
-
+foliage = { path = "../foliage" }
+log = "0.4.20"
+console_log = { version = "1.0.0", features = ["color"] }
 [lib]
 name = "entry"
 path = "src/lib.rs"

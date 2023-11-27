@@ -121,7 +121,7 @@ impl Ginkgo {
         }
     }
     #[cfg(not(target_family = "wasm"))]
-    pub fn png_to_r8unorm_d2(path: PathBuf) -> Vec<u8> {
+    pub fn png_to_r8unorm_d2(path: &PathBuf) -> Vec<u8> {
         let image = image::load_from_memory(std::fs::read(path).unwrap().as_slice())
             .expect("png-to-r8unorm-d2");
         let texture_data = image

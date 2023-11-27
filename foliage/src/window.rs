@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-#[cfg(not(target_family = "wasm"))]
+#[cfg(all(not(target_os = "android"), not(target_family = "wasm")))]
 use winit::dpi::PhysicalSize;
 use winit::event_loop::EventLoopWindowTarget;
 use winit::window::{Window, WindowBuilder};

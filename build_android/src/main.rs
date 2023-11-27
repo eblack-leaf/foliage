@@ -186,7 +186,7 @@ fn build_android(args: Args) {
     let process = std::process::Command::new(env!("CARGO"))
         .env("ANDROID_NDK_HOME", args.ndk_home.clone())
         .env("ANDROID_HOME", args.sdk_home.clone())
-        .current_dir(args.working_directory)
+        .current_dir(args.working_directory.clone())
         .arg("ndk")
         .args(["-t", args.arch.to_str().unwrap()])
         .args(["-o", args.jni_output.to_str().unwrap()])
@@ -210,7 +210,7 @@ fn build_android(args: Args) {
     let gradle_process = std::process::Command::new("./gradlew")
         .env("ANDROID_NDK_HOME", args.ndk_home)
         .env("ANDROID_HOME", args.sdk_home)
-        .current_dir(args.app_source)
+        .current_dir(args.app_source.clone())
         .args(["build", "--stacktrace"])
         .status()
         .unwrap();
@@ -220,4 +220,21 @@ fn build_android(args: Args) {
     }
     println!("copying .apk to dest");
     // cp apk to apk_destination
+    let apk_folder = args
+        .app_source
+        .join("app")
+        .join("build")
+        .join("outputs")
+        .join("apk");
+    let debug_apk = std::fs::read(apk_folder.join("debug").join("app-debug.apk")).unwrap();
+    let release_apk =
+        std::fs::read(apk_folder.join("release").join("app-release-unsigned.apk")).unwrap();
+    let apk_dest = args.working_directory.join("apks");
+    let debug_dest = apk_dest.join(format!("{}-debug.apk", args.package.to_str().unwrap()));
+    let release_dest = apk_dest.join(format!(
+        "{}-unsigned-release.apk",
+        args.package.to_str().unwrap()
+    ));
+    std::fs::write(debug_dest, debug_apk).unwrap();
+    std::fs::write(release_dest, release_apk).unwrap();
 }

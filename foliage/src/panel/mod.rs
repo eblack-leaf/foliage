@@ -1,3 +1,8 @@
+use bevy_ecs::bundle::Bundle;
+use bevy_ecs::prelude::Component;
+use bytemuck::{Pod, Zeroable};
+use serde::{Deserialize, Serialize};
+
 use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
@@ -6,10 +11,6 @@ use crate::coordinate::InterfaceContext;
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::{Elm, Leaf};
-use bevy_ecs::bundle::Bundle;
-use bevy_ecs::prelude::Component;
-use bytemuck::{Pod, Zeroable};
-use serde::{Deserialize, Serialize};
 
 mod renderer;
 mod vertex;
@@ -17,6 +18,7 @@ mod vertex;
 #[repr(C)]
 #[derive(Component, Copy, Clone, PartialEq, Default, Pod, Zeroable, Serialize, Deserialize)]
 pub struct PanelStyle(pub(crate) f32);
+
 impl PanelStyle {
     pub fn flat() -> Self {
         Self(0.0)
@@ -25,6 +27,7 @@ impl PanelStyle {
         Self(1.0)
     }
 }
+
 #[derive(Bundle)]
 pub struct Panel {
     style: DifferentialBundle<PanelStyle>,
@@ -34,6 +37,7 @@ pub struct Panel {
     color: DifferentialBundle<Color>,
     differentiable: Differentiable,
 }
+
 impl Panel {
     pub fn new(
         style: PanelStyle,
@@ -52,6 +56,7 @@ impl Panel {
         }
     }
 }
+
 impl Leaf for Panel {
     fn attach(elm: &mut Elm) {
         differential_enable!(
@@ -63,4 +68,22 @@ impl Leaf for Panel {
             PanelStyle
         );
     }
+}
+
+#[test]
+fn png() {
+    use crate::ginkgo::Ginkgo;
+    use std::path::Path;
+    let path =
+        Path::new("/home/salt/Desktop/dev/foliage/foliage/src/panel/texture_resources/ring.png")
+            .canonicalize()
+            .unwrap();
+    println!("{:?}", path);
+    let data = Ginkgo::png_to_r8unorm_d2(&path);
+    let string = serde_json::to_string(data.as_slice()).unwrap();
+    std::fs::write(
+        Path::new("/home/salt/Desktop/dev/foliage/foliage/src/panel/texture_resources/ring.cov"),
+        string,
+    )
+    .unwrap();
 }
