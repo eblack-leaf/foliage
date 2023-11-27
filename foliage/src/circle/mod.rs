@@ -10,16 +10,16 @@ use crate::ash::render::{Render, RenderPhase};
 use crate::ash::render_package::RenderPackage;
 use crate::ash::render_packet::RenderPacket;
 use crate::color::Color;
+use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
-use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::{Elm, Leaf};
 use crate::ginkgo::Ginkgo;
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
-use crate::texture::TextureCoordinates;
+use crate::texture::{MipsLevel, TextureCoordinates};
 
 #[repr(C)]
 #[derive(Component, Copy, Clone, PartialEq, Default, Pod, Zeroable, Serialize, Deserialize)]
@@ -71,9 +71,9 @@ pub struct Circle {
     differentiable: Differentiable,
 }
 
-pub struct Radius(pub CoordinateUnit);
+pub struct Diameter(pub CoordinateUnit);
 
-impl Radius {
+impl Diameter {
     pub const MAX: CoordinateUnit = Circle::CIRCLE_TEXTURE_DIMENSIONS as CoordinateUnit;
     pub fn new(r: CoordinateUnit) -> Self {
         Self(r.min(Self::MAX).max(0f32))
@@ -81,18 +81,19 @@ impl Radius {
 }
 
 impl Circle {
-    const CIRCLE_TEXTURE_DIMENSIONS: u32 = 2000;
+    const CIRCLE_TEXTURE_DIMENSIONS: u32 = 1024;
+    const MIPS: u32 = 3;
     pub fn new(
         style: CircleStyle,
         position: Position<InterfaceContext>,
-        radius: Radius,
+        diameter: Diameter,
         layer: Layer,
         color: Color,
     ) -> Self {
         Self {
             style: DifferentialBundle::new(style),
             position: DifferentialBundle::new(position),
-            area: DifferentialBundle::new(Area::new(radius.0, radius.0)),
+            area: DifferentialBundle::new(Area::new(diameter.0, diameter.0)),
             layer: DifferentialBundle::new(layer),
             color: DifferentialBundle::new(color),
             differentiable: Differentiable::new::<Self>(),
@@ -155,23 +156,52 @@ impl Render for Circle {
         let shader = ginkgo
             .device()
             .create_shader_module(wgpu::include_wgsl!("circle.wgsl"));
-        let texture_data =
-            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-texture.cov"))
-                .ok()
-                .unwrap();
+        let mut texture_data = serde_json::from_str::<Vec<u8>>(include_str!(
+            "texture_resources/circle-texture-1024.cov"
+        ))
+            .ok()
+            .unwrap();
+        texture_data.extend(
+            serde_json::from_str::<Vec<u8>>(include_str!(
+                "texture_resources/circle-texture-512.cov"
+            ))
+                .unwrap()
+                .iter(),
+        );
+        texture_data.extend(
+            serde_json::from_str::<Vec<u8>>(include_str!(
+                "texture_resources/circle-texture-256.cov"
+            ))
+                .unwrap()
+                .iter(),
+        );
         let (texture, view) = ginkgo.texture_r8unorm_d2(
             Circle::CIRCLE_TEXTURE_DIMENSIONS,
             Circle::CIRCLE_TEXTURE_DIMENSIONS,
+            Circle::MIPS,
             texture_data.as_slice(),
         );
-        let ring_texture_data = serde_json::from_str::<Vec<u8>>(include_str!(
-            "texture_resources/circle-ring-texture.cov"
+        let mut ring_texture_data = serde_json::from_str::<Vec<u8>>(include_str!(
+            "texture_resources/circle-ring-texture-1024.cov"
         ))
-        .ok()
-        .unwrap();
+            .ok()
+            .unwrap();
+        ring_texture_data.extend(
+            serde_json::from_str::<Vec<u8>>(include_str!(
+                "texture_resources/circle-ring-texture-512.cov"
+            ))
+                .unwrap(),
+        );
+        ring_texture_data.extend(
+            serde_json::from_str::<Vec<u8>>(include_str!(
+                "texture_resources/circle-ring-texture-256.cov"
+            ))
+                .unwrap(),
+        );
         let (ring_texture, ring_view) = ginkgo.texture_r8unorm_d2(
             Circle::CIRCLE_TEXTURE_DIMENSIONS,
             Circle::CIRCLE_TEXTURE_DIMENSIONS,
+            Circle::MIPS,
             ring_texture_data.as_slice(),
         );
 
@@ -249,6 +279,11 @@ impl Render for Circle {
                             step_mode: wgpu::VertexStepMode::Instance,
                             attributes: &wgpu::vertex_attr_array![6 => Float32],
                         },
+                        wgpu::VertexBufferLayout {
+                            array_stride: Ginkgo::buffer_address::<MipsLevel>(1),
+                            step_mode: wgpu::VertexStepMode::Instance,
+                            attributes: &wgpu::vertex_attr_array![7 => Uint32],
+                        },
                     ],
                 },
                 primitive: Ginkgo::triangle_list_primitive(),
@@ -268,6 +303,7 @@ impl Render for Circle {
             .with_attribute::<Layer>()
             .with_attribute::<Color>()
             .with_attribute::<CircleStyle>()
+            .with_attribute::<MipsLevel>()
             .build(ginkgo);
         CircleRenderResources {
             pipeline,
@@ -367,6 +403,13 @@ impl Circle {
                     .buffer::<CircleStyle>()
                     .slice(..),
             );
+            recorder.0.set_vertex_buffer(
+                6,
+                resources
+                    .instance_coordinator
+                    .buffer::<MipsLevel>()
+                    .slice(..),
+            );
             recorder.0.draw(
                 0..VERTICES.len() as u32,
                 0..resources.instance_coordinator.instances(),
@@ -387,9 +430,21 @@ impl Circle {
                 .queue_write(entity, pos.to_device(ginkgo.scale_factor()).to_c());
         }
         if let Some(area) = render_packet.get::<Area<InterfaceContext>>() {
+            let area_scaled = area.to_device(ginkgo.scale_factor());
+            let mips_level = MipsLevel::new(
+                Area::new(
+                    Circle::CIRCLE_TEXTURE_DIMENSIONS as CoordinateUnit,
+                    Circle::CIRCLE_TEXTURE_DIMENSIONS as CoordinateUnit,
+                ),
+                Circle::MIPS,
+                area_scaled,
+            );
             resources
                 .instance_coordinator
-                .queue_write(entity, area.to_device(ginkgo.scale_factor()).to_c());
+                .queue_write(entity, mips_level);
+            resources
+                .instance_coordinator
+                .queue_write(entity, area_scaled.to_c());
         }
         if let Some(layer) = render_packet.get::<Layer>() {
             resources.instance_coordinator.queue_write(entity, layer);
@@ -405,12 +460,14 @@ impl Circle {
 
 #[test]
 fn png() {
-    crate::ginkgo::Ginkgo::png_to_cov(
-        "/home/salt/Desktop/dev/foliage/foliage/src/circle/texture_resources/circle-ring.png",
-        "/home/salt/Desktop/dev/foliage/foliage/src/circle/texture_resources/circle-ring-texture.cov",
-    );
-    Ginkgo::png_to_cov(
-        "/home/salt/Desktop/dev/foliage/foliage/src/circle/texture_resources/circle.png",
-        "/home/salt/Desktop/dev/foliage/foliage/src/circle/texture_resources/circle-texture.cov",
-    );
+    for mip in [1024, 512, 256] {
+        Ginkgo::png_to_cov(
+            format!("/home/salt/Desktop/dev/foliage/foliage/src/circle/texture_resources/circle-ring-{}.png", mip),
+            format!("/home/salt/Desktop/dev/foliage/foliage/src/circle/texture_resources/circle-ring-texture-{}.cov", mip),
+        );
+        Ginkgo::png_to_cov(
+            format!("/home/salt/Desktop/dev/foliage/foliage/src/circle/texture_resources/circle-{}.png", mip),
+            format!("/home/salt/Desktop/dev/foliage/foliage/src/circle/texture_resources/circle-texture-{}.cov", mip),
+        );
+    }
 }

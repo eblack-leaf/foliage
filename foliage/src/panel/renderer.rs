@@ -54,6 +54,7 @@ impl Render for Panel {
         let (texture, view) = ginkgo.texture_r8unorm_d2(
             PanelRenderResources::TEXTURE_DIMENSION,
             PanelRenderResources::TEXTURE_DIMENSION,
+            1,
             texture_data.as_slice(),
         );
         let ring_texture_data = serde_json::from_str::<Vec<u8>>(include_str!(
@@ -64,6 +65,7 @@ impl Render for Panel {
         let (ring_texture, ring_view) = ginkgo.texture_r8unorm_d2(
             PanelRenderResources::TEXTURE_DIMENSION,
             PanelRenderResources::TEXTURE_DIMENSION,
+            1,
             ring_texture_data.as_slice(),
         );
 

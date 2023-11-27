@@ -2,13 +2,13 @@
 use std::path::Path;
 
 use bytemuck::{Pod, Zeroable};
-use wgpu::util::DeviceExt;
 use wgpu::{
     BindGroupEntry, BindGroupLayoutEntry, Buffer, BufferAddress, ColorTargetState,
     DepthStencilState, Extent3d, FragmentState, InstanceDescriptor, LoadOp, MultisampleState,
     PrimitiveState, RenderPassColorAttachment, RenderPassDepthStencilAttachment, ShaderModule,
     StoreOp, TextureDimension, TextureFormat, TextureUsages, TextureView,
 };
+use wgpu::util::DeviceExt;
 use winit::event_loop::EventLoopWindowTarget;
 
 use depth_texture::DepthTexture;
@@ -16,10 +16,10 @@ use msaa::Msaa;
 use viewport::Viewport;
 
 use crate::color::Color;
+use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
-use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
 use crate::window::{WindowDescriptor, WindowHandle};
 
 pub mod depth_texture;
@@ -133,7 +133,7 @@ impl Ginkgo {
         let texture_data = image
             .to_rgba8()
             .enumerate_pixels()
-            .map(|p| -> u8 { p.2 .0[3] })
+            .map(|p| -> u8 { p.2.0[3] })
             .collect::<Vec<u8>>();
         texture_data
     }
@@ -141,6 +141,7 @@ impl Ginkgo {
         &self,
         width: u32,
         height: u32,
+        mips: u32,
         data: &[u8],
     ) -> (wgpu::Texture, TextureView) {
         let texture = self.device().create_texture_with_data(
@@ -152,7 +153,7 @@ impl Ginkgo {
                     height,
                     depth_or_array_layers: 1,
                 },
-                mip_level_count: 1,
+                mip_level_count: mips,
                 sample_count: 1,
                 dimension: TextureDimension::D2,
                 format: TextureFormat::R8Unorm,
