@@ -10,10 +10,10 @@ use crate::ash::render::{Render, RenderPhase};
 use crate::ash::render_package::RenderPackage;
 use crate::ash::render_packet::RenderPacket;
 use crate::color::Color;
-use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
+use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::{Elm, Leaf};
@@ -167,8 +167,8 @@ impl Render for Circle {
         let ring_texture_data = serde_json::from_str::<Vec<u8>>(include_str!(
             "texture_resources/circle-ring-texture.cov"
         ))
-            .ok()
-            .unwrap();
+        .ok()
+        .unwrap();
         let (ring_texture, ring_view) = ginkgo.texture_r8unorm_d2(
             Circle::CIRCLE_TEXTURE_DIMENSIONS,
             Circle::CIRCLE_TEXTURE_DIMENSIONS,
