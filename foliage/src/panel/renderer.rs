@@ -32,14 +32,13 @@ pub struct PanelRenderResources {
     ring_texture: wgpu::Texture,
     #[allow(unused)]
     ring_view: wgpu::TextureView,
-    corner_depth_area: Area<DeviceContext>,
 }
 
 impl PanelRenderResources {
     const TEXTURE_DIMENSION: u32 = 100;
 }
 impl Panel {
-    const BASE_CORNER_DEPTH: f32 = 6f32;
+    pub(crate) const BASE_CORNER_DEPTH: f32 = 6f32;
 }
 impl Render for Panel {
     type Resources = PanelRenderResources;
@@ -159,8 +158,6 @@ impl Render for Panel {
                 multiview: None,
             });
         let corner_depth = Self::BASE_CORNER_DEPTH * ginkgo.scale_factor();
-        let corner_depth_area =
-            Area::<DeviceContext>::new(corner_depth * 2f32, corner_depth * 2f32);
         let vertices = Vertex::vertices(corner_depth);
         let vertex_buffer = ginkgo.vertex_buffer_with_data(&vertices, "panel-vertex-buffer");
         let index_buffer = ginkgo.index_buffer_with_data(&INDICES, "panel-index-buffer");
@@ -182,7 +179,6 @@ impl Render for Panel {
             index_buffer,
             ring_texture,
             ring_view,
-            corner_depth_area,
         }
     }
 
@@ -193,7 +189,9 @@ impl Render for Panel {
         render_packet: RenderPacket,
     ) -> Self::RenderPackage {
         resources.instance_coordinator.queue_add(entity);
-        Self::instance_coordinator_queue_write(ginkgo, resources, entity, render_packet);
+        resources
+            .instance_coordinator
+            .queue_render_packet(entity, render_packet);
     }
 
     fn on_package_removal(
@@ -212,7 +210,9 @@ impl Render for Panel {
         _package: &mut RenderPackage<Self>,
         render_packet: RenderPacket,
     ) {
-        Self::instance_coordinator_queue_write(ginkgo, resources, entity, render_packet);
+        resources
+            .instance_coordinator
+            .queue_render_packet(entity, render_packet);
     }
 
     fn prepare_resources(
@@ -282,38 +282,5 @@ impl Panel {
             return Some(recorder.finish());
         }
         None
-    }
-    fn instance_coordinator_queue_write(
-        ginkgo: &Ginkgo,
-        resources: &mut PanelRenderResources,
-        entity: Entity,
-        render_packet: RenderPacket,
-    ) {
-        if let Some(pos) = render_packet.get::<Position<InterfaceContext>>() {
-            resources
-                .instance_coordinator
-                .queue_write(entity, pos.to_device(ginkgo.scale_factor()).to_c());
-        }
-        if let Some(area) = render_packet.get::<Area<InterfaceContext>>() {
-            let scale_factor = ginkgo.scale_factor();
-            let scaled = area.to_device(scale_factor) - resources.corner_depth_area;
-            let zero_bounded =
-                Area::<DeviceContext>::new(scaled.width.max(0f32), scaled.height.max(0f32));
-            resources
-                .instance_coordinator
-                .queue_write(entity, zero_bounded.to_c());
-        }
-        if let Some(layer) = render_packet.get::<Layer>() {
-            resources.instance_coordinator.queue_write(entity, layer);
-            resources
-                .instance_coordinator
-                .queue_key_layer_change(entity, layer);
-        }
-        if let Some(color) = render_packet.get::<Color>() {
-            resources.instance_coordinator.queue_write(entity, color);
-        }
-        if let Some(style) = render_packet.get::<PanelStyle>() {
-            resources.instance_coordinator.queue_write(entity, style);
-        }
     }
 }

@@ -1,4 +1,6 @@
+use bevy_ecs::prelude::Component;
 use bytemuck::{Pod, Zeroable};
+use serde::{Deserialize, Serialize};
 
 use crate::coordinate::area::Area;
 use crate::coordinate::{CoordinateUnit, DeviceContext};
@@ -14,7 +16,7 @@ impl TextureCoordinates {
 }
 
 #[repr(C)]
-#[derive(Pod, Zeroable, Copy, Clone, Default)]
+#[derive(Pod, Zeroable, Copy, Clone, Default, Serialize, Deserialize, Component, PartialEq)]
 pub struct MipsLevel(pub f32);
 
 impl MipsLevel {
@@ -28,10 +30,10 @@ impl MipsLevel {
         }
         for mip in (0..mips).rev() {
             if mip_level_area.width >= dims.width && mip_level_area.height >= dims.height {
-                // let actual = dims / mip_level_area;
-                // let ratio = 1f32 - (actual.width + actual.height) / 2f32;
-                // let fractional_mips = (mip as f32 + ratio).max(0f32);
-                return Self(mip as f32);
+                let actual = dims / mip_level_area;
+                let ratio = 1f32 - (actual.width + actual.height) / 2f32;
+                let fractional_mips = (mip as f32 + ratio).max(0f32);
+                return Self(fractional_mips);
             }
             mip_level_area *= Area::new(2f32, 2f32);
         }

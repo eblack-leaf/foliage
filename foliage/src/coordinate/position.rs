@@ -73,7 +73,9 @@ impl<Context: CoordinateContext> Div for Position<Context> {
 
 /// Raw position for interacting with C
 #[repr(C)]
-#[derive(Pod, Zeroable, Copy, Clone, Default, Serialize, Deserialize, Debug)]
+#[derive(
+    Pod, Zeroable, Copy, Clone, Default, Serialize, Deserialize, Debug, Component, PartialEq,
+)]
 pub struct CReprPosition {
     pub(crate) x: CoordinateUnit,
     pub(crate) y: CoordinateUnit,

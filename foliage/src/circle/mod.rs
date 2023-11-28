@@ -1,15 +1,17 @@
-use bevy_ecs::prelude::{Bundle, Component};
+use bevy_ecs::prelude::{Bundle, Component, IntoSystemConfigs};
+use bevy_ecs::system::Query;
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
 
 use crate::color::Color;
-use crate::coordinate::area::Area;
+use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
-use crate::coordinate::position::Position;
+use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
-use crate::elm::{Elm, Leaf};
+use crate::elm::{Elm, Leaf, SystemSets};
+use crate::texture::MipsLevel;
 
 mod progress;
 mod renderer;
@@ -43,11 +45,14 @@ impl Progress {
 }
 #[derive(Bundle)]
 pub struct Circle {
+    position: Position<InterfaceContext>,
+    area: Area<InterfaceContext>,
     style: DifferentialBundle<CircleStyle>,
-    position: DifferentialBundle<Position<InterfaceContext>>,
-    area: DifferentialBundle<Area<InterfaceContext>>,
+    position_c: DifferentialBundle<CReprPosition>,
+    area_c: DifferentialBundle<CReprArea>,
     color: DifferentialBundle<Color>,
     progress: DifferentialBundle<Progress>,
+    mips: DifferentialBundle<MipsLevel>,
     differentiable: Differentiable,
 }
 #[derive(Copy, Clone)]
@@ -84,12 +89,16 @@ impl Circle {
         color: Color,
         progress: Progress,
     ) -> Self {
+        let area = Area::new(diameter.0, diameter.0);
         Self {
+            position,
+            area,
             style: DifferentialBundle::new(style),
-            position: DifferentialBundle::new(position),
-            area: DifferentialBundle::new(Area::new(diameter.0, diameter.0)),
+            position_c: DifferentialBundle::new(CReprPosition::default()),
+            area_c: DifferentialBundle::new(CReprArea::default()),
             color: DifferentialBundle::new(color),
             progress: DifferentialBundle::new(progress),
+            mips: DifferentialBundle::new(MipsLevel::default()),
             differentiable: Differentiable::new::<Self>(layer),
         }
     }
@@ -99,11 +108,36 @@ impl Leaf for Circle {
     fn attach(elm: &mut Elm) {
         differential_enable!(
             elm,
-            Position<InterfaceContext>,
-            Area<InterfaceContext>,
+            CReprPosition,
+            CReprArea,
             Color,
             CircleStyle,
-            Progress
+            Progress,
+            MipsLevel
+        );
+        elm.job.main().add_systems((
+            mips_adjust.before(SystemSets::Differential),
+            position_set.before(SystemSets::Differential),
+            area_set.before(SystemSets::Differential),
+            ));
+    }
+}
+fn position_set(mut query: Query<(&mut CReprPosition, &Position<InterfaceContext>)>) {
+    for (mut c_repr, pos) in query.iter_mut() {
+        *c_repr = pos.to_device(1.0).to_c();
+    }
+}
+fn area_set(mut query: Query<(&mut CReprArea, &Area<InterfaceContext>)>) {
+    for (mut c_repr, area) in query.iter_mut() {
+        *c_repr = area.to_device(1.0).to_c();
+    }
+}
+fn mips_adjust(mut query: Query<(&mut MipsLevel, &Area<InterfaceContext>)>) {
+    for (mut mips, area) in query.iter_mut() {
+        *mips = MipsLevel::new(
+            (Circle::CIRCLE_TEXTURE_DIMENSIONS, Circle::CIRCLE_TEXTURE_DIMENSIONS).into(),
+            Circle::MIPS,
+            area.to_device(1.0)
         );
     }
 }

@@ -2,8 +2,11 @@ use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 
 use anymap::AnyMap;
+use bevy_ecs::prelude::Component;
 use bytemuck::{Pod, Zeroable};
+use serde::Deserialize;
 
+use crate::ash::render_packet::RenderPacket;
 use attribute::{AttributeFn, InstanceAttribute, InstanceAttributeWriteQueue};
 
 use crate::coordinate::layer::Layer;
@@ -26,7 +29,11 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinatorBuilder<Key> {
             capacity,
         }
     }
-    pub fn with_attribute<T: Default + Clone + Pod + Zeroable + 'static>(mut self) -> Self {
+    pub fn with_attribute<
+        T: Default + Clone + Pod + Zeroable + 'static + for<'a> Deserialize<'a> + Component,
+    >(
+        mut self,
+    ) -> Self {
         self.instance_fns
             .push(AttributeFn::<Key>::for_attribute::<T>());
         self
@@ -139,6 +146,40 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
             .unwrap()
             .gpu
     }
+    pub fn queue_render_packet(&mut self, key: Key, render_packet: RenderPacket) {
+        if let Some(layer) = render_packet.get::<Layer>() {
+            self.queue_key_layer_change(key.clone(), layer);
+        }
+        Self::inner_queue_render_packet(
+            &self.attribute_fns,
+            &mut self.attribute_writes,
+            key,
+            render_packet,
+        );
+    }
+    fn inner_queue_render_packet(
+        attr_fns: &Vec<AttributeFn<Key>>,
+        attribute_writes: &mut AnyMap,
+        key: Key,
+        mut render_packet: RenderPacket,
+    ) {
+        for a_fn in attr_fns.iter() {
+            (a_fn.queue_packet)(attribute_writes, key.clone(), &mut render_packet);
+        }
+    }
+    fn queue_packet_wrapper<T: Clone + for<'a> Deserialize<'a> + Component>(
+        attribute_writes: &mut AnyMap,
+        key: Key,
+        render_packet: &mut RenderPacket,
+    ) {
+        if let Some(t) = render_packet.get::<T>() {
+            attribute_writes
+                .get_mut::<InstanceAttributeWriteQueue<Key, T>>()
+                .unwrap()
+                .0
+                .insert(key, t);
+        }
+    }
     fn new(ginkgo: &Ginkgo, attribute_fns: Vec<AttributeFn<Key>>, capacity: u32) -> Self {
         let (attributes, attribute_writes) =
             Self::establish_attributes(ginkgo, &attribute_fns, capacity);
@@ -160,7 +201,6 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
         attribute_writes: &mut AnyMap,
         ordering: &InstanceOrdering<Key>,
     ) {
-        // queue all attrs to write_queue
         for attr_fn in attribute_fns.iter() {
             (attr_fn.reorder)(ordering, attributes, attribute_writes);
         }

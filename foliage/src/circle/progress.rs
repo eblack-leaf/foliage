@@ -31,8 +31,8 @@ fn progress_map() {
         ),
     ];
     const PRECISION: u32 = 1000;
+    use nalgebra::DMatrix;
     use std::f64::consts::PI;
-    use nalgebra::{DMatrix};
     for (filename, size) in RING_FILENAMES {
         let tex = Ginkgo::png_to_r8unorm_d2(filename);
         let section = Section::<NumericalContext>::new((0, 0), (size, size));

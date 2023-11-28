@@ -4,9 +4,9 @@ use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
 
 use crate::color::Color;
-use crate::coordinate::area::Area;
+use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
-use crate::coordinate::position::Position;
+use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::InterfaceContext;
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
@@ -30,9 +30,11 @@ impl PanelStyle {
 
 #[derive(Bundle)]
 pub struct Panel {
+    position: Position<InterfaceContext>,
+    area: Area<InterfaceContext>,
     style: DifferentialBundle<PanelStyle>,
-    position: DifferentialBundle<Position<InterfaceContext>>,
-    area: DifferentialBundle<Area<InterfaceContext>>,
+    position_c: DifferentialBundle<CReprPosition>,
+    area_c: DifferentialBundle<CReprArea>,
     color: DifferentialBundle<Color>,
     differentiable: Differentiable,
 }
@@ -46,9 +48,11 @@ impl Panel {
         color: Color,
     ) -> Self {
         Self {
+            position: pos,
+            area,
             style: DifferentialBundle::new(style),
-            position: DifferentialBundle::new(pos),
-            area: DifferentialBundle::new(area),
+            position_c: DifferentialBundle::new(pos.to_c()),
+            area_c: DifferentialBundle::new(area.to_c()),
             color: DifferentialBundle::new(color),
             differentiable: Differentiable::new::<Self>(layer),
         }
@@ -57,12 +61,6 @@ impl Panel {
 
 impl Leaf for Panel {
     fn attach(elm: &mut Elm) {
-        differential_enable!(
-            elm,
-            Position<InterfaceContext>,
-            Area<InterfaceContext>,
-            Color,
-            PanelStyle
-        );
+        differential_enable!(elm, CReprPosition, CReprArea, Color, PanelStyle);
     }
 }

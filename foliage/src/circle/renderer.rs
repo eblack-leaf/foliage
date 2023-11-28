@@ -285,13 +285,15 @@ impl Render for Circle {
     }
 
     fn create_package(
-        ginkgo: &Ginkgo,
+        _ginkgo: &Ginkgo,
         resources: &mut Self::Resources,
         entity: Entity,
         render_packet: RenderPacket,
     ) -> Self::RenderPackage {
         resources.instance_coordinator.queue_add(entity);
-        Self::instance_coordinator_queue_write(ginkgo, resources, entity, render_packet);
+        resources
+            .instance_coordinator
+            .queue_render_packet(entity, render_packet);
     }
 
     fn on_package_removal(
@@ -304,13 +306,15 @@ impl Render for Circle {
     }
 
     fn prepare_package(
-        ginkgo: &Ginkgo,
+        _ginkgo: &Ginkgo,
         resources: &mut Self::Resources,
         entity: Entity,
         _package: &mut RenderPackage<Self>,
         render_packet: RenderPacket,
     ) {
-        Self::instance_coordinator_queue_write(ginkgo, resources, entity, render_packet);
+        resources
+            .instance_coordinator
+            .queue_render_packet(entity, render_packet);
     }
 
     fn prepare_resources(
@@ -391,49 +395,50 @@ impl Circle {
         }
         None
     }
-    fn instance_coordinator_queue_write(
-        ginkgo: &Ginkgo,
-        resources: &mut CircleRenderResources,
-        entity: Entity,
-        render_packet: RenderPacket,
-    ) {
-        if let Some(pos) = render_packet.get::<Position<InterfaceContext>>() {
-            resources
-                .instance_coordinator
-                .queue_write(entity, pos.to_device(ginkgo.scale_factor()).to_c());
-        }
-        if let Some(area) = render_packet.get::<Area<InterfaceContext>>() {
-            // let area_scaled = area.to_device(ginkgo.scale_factor());
-            let area_scaled = Area::<DeviceContext>::new(area.width, area.height);
-            let mips_level = MipsLevel::new(
-                Area::new(
-                    Circle::CIRCLE_TEXTURE_DIMENSIONS as CoordinateUnit,
-                    Circle::CIRCLE_TEXTURE_DIMENSIONS as CoordinateUnit,
-                ),
-                Circle::MIPS,
-                area_scaled,
-            );
-            resources
-                .instance_coordinator
-                .queue_write(entity, mips_level);
-            resources
-                .instance_coordinator
-                .queue_write(entity, area_scaled.to_c());
-        }
-        if let Some(layer) = render_packet.get::<Layer>() {
-            resources.instance_coordinator.queue_write(entity, layer);
-            resources
-                .instance_coordinator
-                .queue_key_layer_change(entity, layer);
-        }
-        if let Some(color) = render_packet.get::<Color>() {
-            resources.instance_coordinator.queue_write(entity, color);
-        }
-        if let Some(style) = render_packet.get::<CircleStyle>() {
-            resources.instance_coordinator.queue_write(entity, style);
-        }
-        if let Some(progress) = render_packet.get::<Progress>() {
-            resources.instance_coordinator.queue_write(entity, progress);
-        }
-    }
+    // TODO mave to elm
+    // fn instance_coordinator_queue_write(
+    //     ginkgo: &Ginkgo,
+    //     resources: &mut CircleRenderResources,
+    //     entity: Entity,
+    //     render_packet: RenderPacket,
+    // ) {
+    //     if let Some(pos) = render_packet.get::<Position<InterfaceContext>>() {
+    //         resources
+    //             .instance_coordinator
+    //             .queue_write(entity, pos.to_device(ginkgo.scale_factor()).to_c());
+    //     }
+    //     if let Some(area) = render_packet.get::<Area<InterfaceContext>>() {
+    //         // let area_scaled = area.to_device(ginkgo.scale_factor());
+    //         let area_scaled = Area::<DeviceContext>::new(area.width, area.height);
+    //         let mips_level = MipsLevel::new(
+    //             Area::new(
+    //                 Circle::CIRCLE_TEXTURE_DIMENSIONS as CoordinateUnit,
+    //                 Circle::CIRCLE_TEXTURE_DIMENSIONS as CoordinateUnit,
+    //             ),
+    //             Circle::MIPS,
+    //             area_scaled,
+    //         );
+    //         resources
+    //             .instance_coordinator
+    //             .queue_write(entity, mips_level);
+    //         resources
+    //             .instance_coordinator
+    //             .queue_write(entity, area_scaled.to_c());
+    //     }
+    //     if let Some(layer) = render_packet.get::<Layer>() {
+    //         resources.instance_coordinator.queue_write(entity, layer);
+    //         resources
+    //             .instance_coordinator
+    //             .queue_key_layer_change(entity, layer);
+    //     }
+    //     if let Some(color) = render_packet.get::<Color>() {
+    //         resources.instance_coordinator.queue_write(entity, color);
+    //     }
+    //     if let Some(style) = render_packet.get::<CircleStyle>() {
+    //         resources.instance_coordinator.queue_write(entity, style);
+    //     }
+    //     if let Some(progress) = render_packet.get::<Progress>() {
+    //         resources.instance_coordinator.queue_write(entity, progress);
+    //     }
+    // }
 }

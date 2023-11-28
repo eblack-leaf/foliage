@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 use std::hash::Hash;
 
+use crate::ash::render_packet::RenderPacket;
 use anymap::AnyMap;
+use bevy_ecs::prelude::Component;
 use bytemuck::{Pod, Zeroable};
+use serde::Deserialize;
 
 use crate::ginkgo::Ginkgo;
 use crate::instance::{Index, InstanceCoordinator, InstanceOrdering};
@@ -13,16 +16,20 @@ pub(crate) struct AttributeFn<Key: Hash + Eq> {
     pub(crate) grow: Box<fn(&mut AnyMap, &Ginkgo, u32)>,
     pub(crate) remove: Box<fn(&mut AnyMap, &Vec<Index>)>,
     pub(crate) reorder: Box<fn(&InstanceOrdering<Key>, &mut AnyMap, &mut AnyMap)>,
+    pub(crate) queue_packet: Box<fn(&mut AnyMap, Key, &mut RenderPacket)>,
 }
 
 impl<Key: Hash + Eq + Clone + 'static> AttributeFn<Key> {
-    pub(crate) fn for_attribute<T: Default + Clone + Pod + Zeroable + 'static>() -> Self {
+    pub(crate) fn for_attribute<
+        T: Default + Clone + Pod + Zeroable + 'static + for<'a> Deserialize<'a> + Component,
+    >() -> Self {
         Self {
             create: Box::new(InstanceCoordinator::<Key>::create_wrapper::<T>),
             write: Box::new(InstanceCoordinator::<Key>::write_wrapper::<T>),
             grow: Box::new(InstanceCoordinator::<Key>::grow_wrapper::<T>),
             remove: Box::new(InstanceCoordinator::<Key>::remove_wrapper::<T>),
             reorder: Box::new(InstanceCoordinator::<Key>::reorder_wrapper::<T>),
+            queue_packet: Box::new(InstanceCoordinator::<Key>::queue_packet_wrapper::<T>),
         }
     }
 }

@@ -51,7 +51,7 @@ impl Area<DeviceContext> {
 }
 
 #[repr(C)]
-#[derive(Pod, Zeroable, Copy, Clone, Default)]
+#[derive(Pod, Zeroable, Copy, Clone, Default, Component, Serialize, Deserialize, PartialEq)]
 pub struct CReprArea {
     width: CoordinateUnit,
     height: CoordinateUnit,
