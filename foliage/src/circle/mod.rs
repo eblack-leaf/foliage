@@ -2,7 +2,6 @@ use bevy_ecs::prelude::{Bundle, Component};
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
 
-use crate::ash::render::Render;
 use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
@@ -13,6 +12,7 @@ use crate::differential_enable;
 use crate::elm::{Elm, Leaf};
 use crate::ginkgo::Ginkgo;
 
+mod progress;
 mod renderer;
 mod vertex;
 
@@ -28,13 +28,27 @@ impl CircleStyle {
         Self(1.0)
     }
 }
-
+#[repr(C)]
+#[derive(Component, Copy, Clone, PartialEq, Default, Pod, Zeroable, Serialize, Deserialize)]
+pub struct Progress(pub f32);
+impl Progress {
+    pub fn full() -> Self {
+        Self(1.0)
+    }
+    pub fn empty() -> Self {
+        Self(0.0)
+    }
+    pub fn new(v: f32) -> Self {
+        Self(v)
+    }
+}
 #[derive(Bundle)]
 pub struct Circle {
     style: DifferentialBundle<CircleStyle>,
     position: DifferentialBundle<Position<InterfaceContext>>,
     area: DifferentialBundle<Area<InterfaceContext>>,
     color: DifferentialBundle<Color>,
+    progress: DifferentialBundle<Progress>,
     differentiable: Differentiable,
 }
 #[derive(Copy, Clone)]
@@ -69,12 +83,14 @@ impl Circle {
         diameter: Diameter,
         layer: Layer,
         color: Color,
+        progress: Progress,
     ) -> Self {
         Self {
             style: DifferentialBundle::new(style),
             position: DifferentialBundle::new(position),
             area: DifferentialBundle::new(Area::new(diameter.0, diameter.0)),
             color: DifferentialBundle::new(color),
+            progress: DifferentialBundle::new(progress),
             differentiable: Differentiable::new::<Self>(layer),
         }
     }
@@ -87,7 +103,8 @@ impl Leaf for Circle {
             Position<InterfaceContext>,
             Area<InterfaceContext>,
             Color,
-            CircleStyle
+            CircleStyle,
+            Progress
         );
     }
 }

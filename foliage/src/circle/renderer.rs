@@ -5,7 +5,7 @@ use crate::ash::render::{Render, RenderPhase};
 use crate::ash::render_package::RenderPackage;
 use crate::ash::render_packet::RenderPacket;
 use crate::circle::vertex::{Vertex, VERTICES};
-use crate::circle::{Circle, CircleStyle};
+use crate::circle::{Circle, CircleStyle, Progress};
 use crate::color::Color;
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
@@ -32,6 +32,8 @@ pub struct CircleRenderResources {
     ring_texture: wgpu::Texture,
     #[allow(unused)]
     ring_view: wgpu::TextureView,
+    pub progress_texture: wgpu::Texture,
+    pub progress_view: wgpu::TextureView,
 }
 
 impl Render for Circle {
@@ -126,7 +128,39 @@ impl Render for Circle {
             Circle::MIPS,
             ring_texture_data.as_slice(),
         );
-
+        let mut progress_texture_data = vec![];
+        progress_texture_data.extend(
+            serde_json::from_str::<Vec<u8>>(include_str!(
+                "texture_resources/circle-ring-1024.prog"
+            ))
+            .unwrap(),
+        );
+        progress_texture_data.extend(
+            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-ring-512.prog"))
+                .unwrap(),
+        );
+        progress_texture_data.extend(
+            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-ring-256.prog"))
+                .unwrap(),
+        );
+        progress_texture_data.extend(
+            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-ring-128.prog"))
+                .unwrap(),
+        );
+        progress_texture_data.extend(
+            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-ring-64.prog"))
+                .unwrap(),
+        );
+        progress_texture_data.extend(
+            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-ring-32.prog"))
+                .unwrap(),
+        );
+        let (progress_texture, progress_view) = ginkgo.texture_r8unorm_d2(
+            Circle::CIRCLE_TEXTURE_DIMENSIONS,
+            Circle::CIRCLE_TEXTURE_DIMENSIONS,
+            Circle::MIPS,
+            progress_texture_data.as_slice(),
+        );
         let sampler = ginkgo
             .device()
             .create_sampler(&wgpu::SamplerDescriptor::default());
@@ -140,6 +174,7 @@ impl Render for Circle {
                         Ginkgo::texture_d2_bind_group_entry(1),
                         Ginkgo::texture_d2_bind_group_entry(2),
                         Ginkgo::sampler_bind_group_layout_entry(3),
+                        Ginkgo::texture_d2_bind_group_entry(4),
                     ],
                 });
         let bind_group = ginkgo
@@ -152,6 +187,7 @@ impl Render for Circle {
                     Ginkgo::texture_bind_group_entry(&view, 1),
                     Ginkgo::texture_bind_group_entry(&ring_view, 2),
                     Ginkgo::sampler_bind_group_entry(&sampler, 3),
+                    Ginkgo::texture_bind_group_entry(&progress_view, 4),
                 ],
             });
         let pipeline_layout =
@@ -206,6 +242,11 @@ impl Render for Circle {
                             step_mode: wgpu::VertexStepMode::Instance,
                             attributes: &wgpu::vertex_attr_array![7 => Float32],
                         },
+                        wgpu::VertexBufferLayout {
+                            array_stride: Ginkgo::buffer_address::<MipsLevel>(1),
+                            step_mode: wgpu::VertexStepMode::Instance,
+                            attributes: &wgpu::vertex_attr_array![8 => Float32],
+                        },
                     ],
                 },
                 primitive: Ginkgo::triangle_list_primitive(),
@@ -226,6 +267,7 @@ impl Render for Circle {
             .with_attribute::<Color>()
             .with_attribute::<CircleStyle>()
             .with_attribute::<MipsLevel>()
+            .with_attribute::<Progress>()
             .build(ginkgo);
         CircleRenderResources {
             pipeline,
@@ -237,6 +279,8 @@ impl Render for Circle {
             instance_coordinator,
             ring_texture,
             ring_view,
+            progress_texture,
+            progress_view,
         }
     }
 
@@ -332,6 +376,13 @@ impl Circle {
                     .buffer::<MipsLevel>()
                     .slice(..),
             );
+            recorder.0.set_vertex_buffer(
+                7,
+                resources
+                    .instance_coordinator
+                    .buffer::<Progress>()
+                    .slice(..),
+            );
             recorder.0.draw(
                 0..VERTICES.len() as u32,
                 0..resources.instance_coordinator.instances(),
@@ -380,6 +431,9 @@ impl Circle {
         }
         if let Some(style) = render_packet.get::<CircleStyle>() {
             resources.instance_coordinator.queue_write(entity, style);
+        }
+        if let Some(progress) = render_packet.get::<Progress>() {
+            resources.instance_coordinator.queue_write(entity, progress);
         }
     }
 }
