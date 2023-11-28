@@ -10,7 +10,6 @@ use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::{Elm, Leaf};
-use crate::ginkgo::Ginkgo;
 
 mod progress;
 mod renderer;
@@ -111,6 +110,7 @@ impl Leaf for Circle {
 
 #[test]
 fn png() {
+    use crate::ginkgo::Ginkgo;
     for mip in Circle::MIPS_TARGETS {
         Ginkgo::png_to_cov(
             format!("/home/salt/Desktop/dev/foliage/foliage/src/circle/texture_resources/circle-ring-{}.png", mip),
