@@ -1,7 +1,7 @@
 use foliage::circle::{Circle, CircleMipLevel, CircleStyle, Diameter, Progress};
 use foliage::color::Color;
 use foliage::elm::{Elm, Leaf};
-use foliage::panel::{Panel};
+use foliage::panel::{Panel, PanelStyle};
 use foliage::window::WindowDescriptor;
 use foliage::{AndroidInterface, Foliage};
 
@@ -23,44 +23,58 @@ struct Tester;
 
 impl Leaf for Tester {
     fn attach(elm: &mut Elm) {
+        elm.job.container.spawn(Panel::new(
+            PanelStyle::fill(),
+            (47, 630).into(),
+            (160, 80).into(),
+            4.into(),
+            Color::GREY_MEDIUM.into(),
+        ));
+        elm.job.container.spawn(Panel::new(
+            PanelStyle::fill(),
+            (227, 630).into(),
+            (160, 80).into(),
+            4.into(),
+            Color::OFF_WHITE.into(),
+        ));
         elm.job.container.spawn(Circle::new(
             CircleStyle::ring(),
-            (79, 292).into(),
+            (89, 210).into(),
             Diameter::from_mip_level(CircleMipLevel::Two),
             6.into(),
-            Color::from(Color::BLUE).with_alpha(1.0),
+            Color::from(Color::GREY_DARK).with_alpha(1.0),
             Progress::new(0.1, 0.3),
         ));
         elm.job.container.spawn(Circle::new(
             CircleStyle::ring(),
-            (79, 292).into(),
+            (89, 210).into(),
             Diameter::from_mip_level(CircleMipLevel::Two),
             5.into(),
-            Color::GREEN.into(),
+            Color::GREY_MEDIUM.into(),
             Progress::new(0.3, 0.5),
         ));
         elm.job.container.spawn(Circle::new(
             CircleStyle::ring(),
-            (79, 292).into(),
+            (89, 210).into(),
             Diameter::from_mip_level(CircleMipLevel::Two),
             4.into(),
-            Color::RED.into(),
+            Color::GREY.into(),
             Progress::new(0.5, 0.7),
         ));
         elm.job.container.spawn(Circle::new(
             CircleStyle::ring(),
-            (79, 292).into(),
+            (89, 210).into(),
             Diameter::from_mip_level(CircleMipLevel::Two),
             3.into(),
-            Color::GREY.into(),
+            Color::OFF_WHITE.into(),
             Progress::new(0.7, 0.9),
         ));
         elm.job.container.spawn(Circle::new(
             CircleStyle::ring(),
-            (79, 292).into(),
+            (89, 210).into(),
             Diameter::from_mip_level(CircleMipLevel::Two),
             2.into(),
-            Color::OFF_WHITE.into(),
+            Color::WHITE.into(),
             Progress::new(0.9, 1.0),
         ));
     }

@@ -20,7 +20,7 @@ mod vertex;
 pub struct CircleStyle(pub(crate) f32);
 
 impl CircleStyle {
-    pub fn flat() -> Self {
+    pub fn fill() -> Self {
         Self(0.0)
     }
     pub fn ring() -> Self {
