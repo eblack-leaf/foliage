@@ -30,16 +30,16 @@ impl CircleStyle {
 }
 #[repr(C)]
 #[derive(Component, Copy, Clone, PartialEq, Default, Pod, Zeroable, Serialize, Deserialize)]
-pub struct Progress(pub f32);
+pub struct Progress(pub f32, pub f32);
 impl Progress {
     pub fn full() -> Self {
-        Self(1.0)
+        Self(0.0, 1.0)
     }
     pub fn empty() -> Self {
-        Self(0.0)
+        Self(0.0, 0.0)
     }
-    pub fn new(v: f32) -> Self {
-        Self(v)
+    pub fn new(start: f32, end: f32) -> Self {
+        Self(start, end)
     }
 }
 #[derive(Bundle)]

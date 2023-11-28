@@ -50,7 +50,7 @@ impl Leaf for Tester {
             Diameter::from_mip_level(CircleMipLevel::Five),
             3.into(),
             Color::BLUE.into(),
-            Progress::new(0.2),
+            Progress::new(0.1, 0.7),
         ));
         elm.job.container.spawn(Circle::new(
             CircleStyle::ring(),
@@ -58,7 +58,7 @@ impl Leaf for Tester {
             Diameter::from_mip_level(CircleMipLevel::Four),
             3.into(),
             Color::BLUE.into(),
-            Progress::new(0.4),
+            Progress::new(0.2, 0.8),
         ));
         elm.job.container.spawn(Circle::new(
             CircleStyle::ring(),
@@ -66,7 +66,7 @@ impl Leaf for Tester {
             Diameter::from_mip_level(CircleMipLevel::Three),
             3.into(),
             Color::BLUE.into(),
-            Progress::new(0.6),
+            Progress::new(0.3, 0.9),
         ));
         elm.job.container.spawn(Circle::new(
             CircleStyle::ring(),
@@ -74,7 +74,7 @@ impl Leaf for Tester {
             Diameter::from_mip_level(CircleMipLevel::Two),
             3.into(),
             Color::BLUE.into(),
-            Progress::new(0.8),
+            Progress::new(0.4, 1.0),
         ));
         elm.job.container.spawn(Circle::new(
             CircleStyle::ring(),
@@ -82,7 +82,7 @@ impl Leaf for Tester {
             Diameter::from_mip_level(CircleMipLevel::One),
             3.into(),
             Color::BLUE.into(),
-            Progress::new(1.0),
+            Progress::new(0.5, 1.0),
         ));
     }
 }
