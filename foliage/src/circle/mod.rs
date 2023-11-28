@@ -115,29 +115,21 @@ impl Leaf for Circle {
             Progress,
             MipsLevel
         );
-        elm.job.main().add_systems((
-            mips_adjust.before(SystemSets::Differential),
-            position_set.before(SystemSets::Differential),
-            area_set.before(SystemSets::Differential),
-            ));
-    }
-}
-fn position_set(mut query: Query<(&mut CReprPosition, &Position<InterfaceContext>)>) {
-    for (mut c_repr, pos) in query.iter_mut() {
-        *c_repr = pos.to_device(1.0).to_c();
-    }
-}
-fn area_set(mut query: Query<(&mut CReprArea, &Area<InterfaceContext>)>) {
-    for (mut c_repr, area) in query.iter_mut() {
-        *c_repr = area.to_device(1.0).to_c();
+        elm.job
+            .main()
+            .add_systems((mips_adjust.before(SystemSets::Differential),));
     }
 }
 fn mips_adjust(mut query: Query<(&mut MipsLevel, &Area<InterfaceContext>)>) {
     for (mut mips, area) in query.iter_mut() {
         *mips = MipsLevel::new(
-            (Circle::CIRCLE_TEXTURE_DIMENSIONS, Circle::CIRCLE_TEXTURE_DIMENSIONS).into(),
+            (
+                Circle::CIRCLE_TEXTURE_DIMENSIONS,
+                Circle::CIRCLE_TEXTURE_DIMENSIONS,
+            )
+                .into(),
             Circle::MIPS,
-            area.to_device(1.0)
+            area.to_device(1.0),
         );
     }
 }

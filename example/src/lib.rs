@@ -1,5 +1,6 @@
 use foliage::circle::{Circle, CircleMipLevel, CircleStyle, Diameter, Progress};
 use foliage::color::Color;
+use foliage::coordinate::Coordinate;
 use foliage::elm::{Elm, Leaf};
 use foliage::panel::{Panel, PanelStyle};
 use foliage::window::WindowDescriptor;
@@ -14,6 +15,7 @@ pub fn entry(android_interface: AndroidInterface) {
         )
         .with_renderleaf::<Panel>()
         .with_renderleaf::<Circle>()
+        .with_leaf::<Coordinate>()
         .with_leaf::<Tester>()
         .with_android_interface(android_interface)
         .run();
