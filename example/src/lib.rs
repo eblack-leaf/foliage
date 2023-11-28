@@ -28,7 +28,7 @@ impl Leaf for Tester {
             (79, 292).into(),
             Diameter::from_mip_level(CircleMipLevel::Two),
             6.into(),
-            Color::BLUE.into(),
+            Color::from(Color::BLUE).with_alpha(1.0),
             Progress::new(0.1, 0.3),
         ));
         elm.job.container.spawn(Circle::new(
