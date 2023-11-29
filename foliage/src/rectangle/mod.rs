@@ -14,6 +14,7 @@ use bytemuck::{Pod, Zeroable};
 use nalgebra::DMatrix;
 use serde::{Deserialize, Serialize};
 use std::f64::consts::PI;
+use std::path::Path;
 
 mod renderer;
 mod vertex;
@@ -75,6 +76,10 @@ impl Leaf for Rectangle {
 
 #[test]
 fn textures() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("rectangle")
+        .join("texture_resources");
     let mut filled = vec![];
     let mut ring = vec![];
     let ring_depth = 5;
@@ -152,8 +157,7 @@ fn textures() {
         let matrix = DMatrix::from_vec(size as usize, size as usize, data);
         let matrix = matrix.transpose();
         let data_string = serde_json::to_string(&matrix.data.as_vec()).unwrap();
-        std::fs::write(
-            "/home/salt/Desktop/dev/foliage/foliage/src/rectangle/texture_resources/rectangle-ring.prog", data_string).unwrap();
+        std::fs::write(root.join("rectangle-ring.prog"), data_string).unwrap();
     }
     {
         let mut filled_data = vec![0f32; (size * size) as usize];
@@ -176,16 +180,12 @@ fn textures() {
             })
             .collect::<Vec<u8>>();
         let data_string = serde_json::to_string(&data).unwrap();
-        std::fs::write(
-            "/home/salt/Desktop/dev/foliage/foliage/src/rectangle/texture_resources/rectangle.prog",
-            data_string,
-        )
-        .unwrap();
+        std::fs::write(root.join("rectangle.prog"), data_string).unwrap();
     }
     {
         let filled = serde_json::to_string(&filled).unwrap();
         let ring = serde_json::to_string(&ring).unwrap();
-        std::fs::write("/home/salt/Desktop/dev/foliage/foliage/src/rectangle/texture_resources/rectangle-texture.cov", filled).unwrap();
-        std::fs::write("/home/salt/Desktop/dev/foliage/foliage/src/rectangle/texture_resources/rectangle-ring-texture.cov", ring).unwrap();
+        std::fs::write(root.join("rectangle-texture.cov"), filled).unwrap();
+        std::fs::write(root.join("rectangle-ring-texture.cov"), ring).unwrap();
     }
 }

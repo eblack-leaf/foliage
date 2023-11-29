@@ -2,6 +2,7 @@ use bevy_ecs::prelude::{Bundle, Component, IntoSystemConfigs};
 use bevy_ecs::system::Query;
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 use crate::color::Color;
 use crate::coordinate::area::{Area, CReprArea};
@@ -124,14 +125,18 @@ fn mips_adjust(mut query: Query<(&mut MipsLevel, &Area<InterfaceContext>)>) {
 #[test]
 fn png() {
     use crate::ginkgo::Ginkgo;
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("circle")
+        .join("texture_resources");
     for mip in Circle::MIPS_TARGETS {
         Ginkgo::png_to_cov(
-            format!("/home/salt/Desktop/dev/foliage/foliage/src/circle/texture_resources/circle-ring-{}.png", mip),
-            format!("/home/salt/Desktop/dev/foliage/foliage/src/circle/texture_resources/circle-ring-texture-{}.cov", mip),
+            root.join(format!("circle-ring-{}.png", mip)),
+            root.join(format!("circle-ring-texture-{}.cov", mip)),
         );
         Ginkgo::png_to_cov(
-            format!("/home/salt/Desktop/dev/foliage/foliage/src/circle/texture_resources/circle-{}.png", mip),
-            format!("/home/salt/Desktop/dev/foliage/foliage/src/circle/texture_resources/circle-texture-{}.cov", mip),
+            root.join(format!("circle-{}.png", mip)),
+            root.join(format!("circle-texture-{}.cov", mip)),
         );
     }
 }
