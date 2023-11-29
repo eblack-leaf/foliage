@@ -7,10 +7,10 @@ use crate::ash::render::{Render, RenderPhase};
 use crate::ash::render_package::RenderPackage;
 use crate::ash::render_packet::RenderPacket;
 use crate::color::Color;
-use crate::coordinate::area::{Area, CReprArea};
+use crate::coordinate::area::{CReprArea};
 use crate::coordinate::layer::Layer;
-use crate::coordinate::position::{CReprPosition, Position};
-use crate::coordinate::{DeviceContext, InterfaceContext};
+use crate::coordinate::position::{CReprPosition};
+
 use crate::ginkgo::Ginkgo;
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
 use crate::panel::vertex::{Vertex, INDICES};
@@ -183,7 +183,7 @@ impl Render for Panel {
     }
 
     fn create_package(
-        ginkgo: &Ginkgo,
+        _ginkgo: &Ginkgo,
         resources: &mut Self::Resources,
         entity: Entity,
         render_packet: RenderPacket,
@@ -204,7 +204,7 @@ impl Render for Panel {
     }
 
     fn prepare_package(
-        ginkgo: &Ginkgo,
+        _ginkgo: &Ginkgo,
         resources: &mut Self::Resources,
         entity: Entity,
         _package: &mut RenderPackage<Self>,

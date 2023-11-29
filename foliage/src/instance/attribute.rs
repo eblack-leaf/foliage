@@ -79,7 +79,7 @@ impl<Key: Hash + Eq + Clone + 'static, T: Default + Clone + Pod + Zeroable>
                     *end = index;
                 }
             }
-            *self.cpu.get_mut(index as usize).unwrap() = data.clone();
+            *self.cpu.get_mut(index as usize).unwrap() = data;
             self.key_to_t.insert(key, data);
             needs_write = true;
         }

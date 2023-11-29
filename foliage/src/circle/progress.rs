@@ -4,7 +4,7 @@ fn progress_map() {
     use crate::coordinate::section::Section;
     use crate::coordinate::NumericalContext;
     use crate::ginkgo::Ginkgo;
-    const RING_FILENAMES: [(&'static str, f32); Circle::MIPS as usize] = [
+    const RING_FILENAMES: [(&str, f32); Circle::MIPS as usize] = [
         (
             "/home/salt/Desktop/dev/foliage/foliage/src/circle/texture_resources/circle-ring-1024.png",
             1024f32,
@@ -44,7 +44,7 @@ fn progress_map() {
             for y in 0..size as u32 {
                 for x in 0..size as u32 {
                     let index = x + size as u32 * y;
-                    let px = tex.get(index as usize).unwrap().clone();
+                    let px = *tex.get(index as usize).unwrap();
                     let opaque = px > 0u8;
                     let (ax, ay) = (x as f64 - center.x as f64, center.y as f64 - y as f64);
                     let mut angle = f64::atan(ay / ax);

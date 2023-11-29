@@ -158,7 +158,7 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
         );
     }
     fn inner_queue_render_packet(
-        attr_fns: &Vec<AttributeFn<Key>>,
+        attr_fns: &[AttributeFn<Key>],
         attribute_writes: &mut AnyMap,
         key: Key,
         mut render_packet: RenderPacket,
@@ -196,7 +196,7 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
         }
     }
     fn inner_reorder(
-        attribute_fns: &Vec<AttributeFn<Key>>,
+        attribute_fns: &[AttributeFn<Key>],
         attributes: &mut AnyMap,
         attribute_writes: &mut AnyMap,
         ordering: &InstanceOrdering<Key>,
