@@ -5,7 +5,7 @@ use crate::ash::render::{Render, RenderPhase};
 use crate::ash::render_package::RenderPackage;
 use crate::ash::render_packet::RenderPacket;
 use crate::circle::vertex::{Vertex, VERTICES};
-use crate::circle::{Circle, CircleStyle, Progress};
+use crate::circle::{Circle, CircleStyle};
 use crate::color::Color;
 use crate::coordinate::area::CReprArea;
 use crate::coordinate::layer::Layer;
@@ -13,7 +13,7 @@ use crate::coordinate::position::CReprPosition;
 use crate::ginkgo::Ginkgo;
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
 use crate::panel::Panel;
-use crate::texture::MipsLevel;
+use crate::texture::{MipsLevel, Progress};
 use bevy_ecs::entity::Entity;
 
 pub struct CircleRenderResources {
@@ -31,9 +31,13 @@ pub struct CircleRenderResources {
     ring_texture: wgpu::Texture,
     #[allow(unused)]
     ring_view: wgpu::TextureView,
+    #[allow(unused)]
     ring_progress_texture: wgpu::Texture,
+    #[allow(unused)]
     ring_progress_view: wgpu::TextureView,
+    #[allow(unused)]
     progress_texture: wgpu::Texture,
+    #[allow(unused)]
     progress_view: wgpu::TextureView,
 }
 

@@ -1,3 +1,4 @@
+use bevy_ecs::prelude::Resource;
 use std::sync::Arc;
 
 #[cfg(all(not(target_os = "android"), not(target_family = "wasm")))]
@@ -80,5 +81,12 @@ impl WindowHandle {
     }
     pub(crate) fn scale_factor(&self) -> CoordinateUnit {
         self.value().scale_factor() as CoordinateUnit
+    }
+}
+#[derive(Resource)]
+pub struct ScaleFactor(pub(crate) CoordinateUnit);
+impl ScaleFactor {
+    pub fn factor(&self) -> CoordinateUnit {
+        self.0
     }
 }

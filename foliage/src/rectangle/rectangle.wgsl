@@ -9,63 +9,57 @@ struct Vertex {
     @location(4) layer: f32,
     @location(5) color: vec4<f32>,
     @location(6) ring: f32,
-    @location(7) mip: f32,
-    @location(8) prog: vec2<f32>,
+    @location(7) prog: vec2<f32>,
 };
 struct VertexFragment {
     @builtin(position) position: vec4<f32>,
     @location(0) texture_coordinates: vec2<f32>,
     @location(1) color: vec4<f32>,
     @location(2) ring: f32,
-    @location(3) mip: f32,
-    @location(4) prog: vec2<f32>,
+    @location(3) prog: vec2<f32>,
 };
 @vertex
 fn vertex_entry(vertex: Vertex) -> VertexFragment {
     let pos = vec4<f32>(vertex.position + vertex.vertex_pos * vertex.area, vertex.layer, 1.0);
-    return VertexFragment(viewport * pos, vertex.vertex_tx, vertex.color, vertex.ring, vertex.mip, vertex.prog);
+    return VertexFragment(viewport * pos, vertex.vertex_tx, vertex.color, vertex.ring, vertex.prog);
 }
 @group(0)
 @binding(1)
-var circle_texture: texture_2d<f32>;
+var rectangle_texture: texture_2d<f32>;
 @group(0)
 @binding(2)
-var circle_ring_texture: texture_2d<f32>;
+var rectangle_ring_texture: texture_2d<f32>;
 @group(0)
 @binding(3)
-var circle_sampler: sampler;
+var rectangle_sampler: sampler;
 @group(0)
 @binding(4)
-var circle_progress_texture: texture_2d<f32>;
+var rectangle_progress_texture: texture_2d<f32>;
 @group(0)
 @binding(5)
-var circle_ring_progress_texture: texture_2d<f32>;
+var rectangle_ring_progress_texture: texture_2d<f32>;
 @fragment
 fn fragment_entry (vertex_fragment: VertexFragment) -> @location(0) vec4<f32> {
-    var coverage = textureSampleLevel(
-        circle_texture,
-        circle_sampler,
-        vertex_fragment.texture_coordinates,
-        vertex_fragment.mip
+    var coverage = textureSample(
+        rectangle_texture,
+        rectangle_sampler,
+        vertex_fragment.texture_coordinates
     ).r;
-    var px_prog = textureSampleLevel(
-        circle_progress_texture,
-        circle_sampler,
+    var px_prog = textureSample(
+        rectangle_progress_texture,
+        rectangle_sampler,
         vertex_fragment.texture_coordinates,
-        vertex_fragment.mip
     ).r;
     if (vertex_fragment.ring != 0.0) {
-        coverage = textureSampleLevel(
-            circle_ring_texture,
-            circle_sampler,
+        coverage = textureSample(
+            rectangle_ring_texture,
+            rectangle_sampler,
             vertex_fragment.texture_coordinates,
-            vertex_fragment.mip
         ).r;
-        px_prog = textureSampleLevel(
-            circle_ring_progress_texture,
-            circle_sampler,
+        px_prog = textureSample(
+            rectangle_ring_progress_texture,
+            rectangle_sampler,
             vertex_fragment.texture_coordinates,
-            vertex_fragment.mip
         ).r;
     }
     if (px_prog < vertex_fragment.prog.r || px_prog > vertex_fragment.prog.g) {

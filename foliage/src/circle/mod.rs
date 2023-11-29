@@ -11,7 +11,7 @@ use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::{Elm, Leaf, SystemSets};
-use crate::texture::MipsLevel;
+use crate::texture::{MipsLevel, Progress};
 
 mod progress;
 mod renderer;
@@ -29,20 +29,7 @@ impl CircleStyle {
         Self(1.0)
     }
 }
-#[repr(C)]
-#[derive(Component, Copy, Clone, PartialEq, Default, Pod, Zeroable, Serialize, Deserialize)]
-pub struct Progress(pub f32, pub f32);
-impl Progress {
-    pub fn full() -> Self {
-        Self(0.0, 1.0)
-    }
-    pub fn empty() -> Self {
-        Self(0.0, 0.0)
-    }
-    pub fn new(start: f32, end: f32) -> Self {
-        Self(start, end)
-    }
-}
+
 #[derive(Bundle)]
 pub struct Circle {
     position: Position<InterfaceContext>,

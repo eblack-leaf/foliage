@@ -1,7 +1,9 @@
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::position::{CReprPosition, Position};
 use crate::elm::{Elm, Leaf, SystemSets};
+use crate::window::ScaleFactor;
 use bevy_ecs::prelude::{IntoSystemConfigs, Query};
+use bevy_ecs::system::Res;
 use serde::{Deserialize, Serialize};
 
 pub mod area;
@@ -25,14 +27,20 @@ impl CoordinateContext for DeviceContext {}
 impl CoordinateContext for InterfaceContext {}
 impl CoordinateContext for NumericalContext {}
 
-fn position_set(mut query: Query<(&mut CReprPosition, &Position<InterfaceContext>)>) {
+fn position_set(
+    mut query: Query<(&mut CReprPosition, &Position<InterfaceContext>)>,
+    scale_factor: Res<ScaleFactor>,
+) {
     for (mut c_repr, pos) in query.iter_mut() {
-        *c_repr = pos.to_device(1.0).to_c();
+        *c_repr = pos.to_device(scale_factor.factor()).to_c();
     }
 }
-fn area_set(mut query: Query<(&mut CReprArea, &Area<InterfaceContext>)>) {
+fn area_set(
+    mut query: Query<(&mut CReprArea, &Area<InterfaceContext>)>,
+    scale_factor: Res<ScaleFactor>,
+) {
     for (mut c_repr, area) in query.iter_mut() {
-        *c_repr = area.to_device(1.0).to_c();
+        *c_repr = area.to_device(scale_factor.factor()).to_c();
     }
 }
 pub struct Coordinate {}

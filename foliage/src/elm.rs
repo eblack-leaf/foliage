@@ -13,9 +13,10 @@ use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
-use crate::coordinate::InterfaceContext;
+use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::job::Job;
+use crate::window::ScaleFactor;
 
 pub struct Elm {
     initialized: bool,
@@ -44,6 +45,9 @@ impl Elm {
             job: Job::new(),
             differential_limiter: AnyMap::new(),
         }
+    }
+    pub(crate) fn set_scale_factor(&mut self, factor: CoordinateUnit) {
+        self.job.container.insert_resource(ScaleFactor(factor));
     }
     pub(crate) fn viewport_handle_changes(&mut self) -> Option<Position<InterfaceContext>> {
         self.job

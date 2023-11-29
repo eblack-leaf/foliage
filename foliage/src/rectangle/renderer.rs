@@ -1,5 +1,3 @@
-use bevy_ecs::entity::Entity;
-
 use crate::ash::instruction::{
     RenderInstructionHandle, RenderInstructionsRecorder, RenderRecordBehavior,
 };
@@ -10,67 +8,72 @@ use crate::color::Color;
 use crate::coordinate::area::CReprArea;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::CReprPosition;
-
 use crate::ginkgo::Ginkgo;
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
-use crate::panel::vertex::{Vertex, INDICES};
-use crate::panel::{Panel, PanelStyle};
+use crate::rectangle::vertex::{Vertex, VERTICES};
+use crate::rectangle::{Rectangle, RectangleStyle};
+use crate::texture::Progress;
+use bevy_ecs::entity::Entity;
 
-pub struct PanelRenderResources {
+pub struct RectangleRenderResources {
     pipeline: wgpu::RenderPipeline,
     vertex_buffer: wgpu::Buffer,
     bind_group: wgpu::BindGroup,
-    #[allow(unused)]
-    texture: wgpu::Texture,
-    #[allow(unused)]
-    view: wgpu::TextureView,
-    #[allow(unused)]
-    sampler: wgpu::Sampler,
     instance_coordinator: InstanceCoordinator<Entity>,
-    index_buffer: wgpu::Buffer,
-    #[allow(unused)]
-    ring_texture: wgpu::Texture,
-    #[allow(unused)]
-    ring_view: wgpu::TextureView,
 }
-
-impl PanelRenderResources {
-    const TEXTURE_DIMENSION: u32 = 100;
+impl Rectangle {
+    pub(crate) const TEXTURE_DIMENSIONS: u32 = 100;
 }
-impl Panel {
-    pub(crate) const BASE_CORNER_DEPTH: f32 = 6f32;
-}
-impl Render for Panel {
-    type Resources = PanelRenderResources;
+impl Render for Rectangle {
+    type Resources = RectangleRenderResources;
     type RenderPackage = ();
-    const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(1);
+
+    const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(0);
 
     fn create_resources(ginkgo: &Ginkgo) -> Self::Resources {
         let shader = ginkgo
             .device()
-            .create_shader_module(wgpu::include_wgsl!("panel.wgsl"));
-        let texture_data =
-            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/panel-texture.cov"))
-                .ok()
-                .unwrap();
-        let (texture, view) = ginkgo.texture_r8unorm_d2(
-            PanelRenderResources::TEXTURE_DIMENSION,
-            PanelRenderResources::TEXTURE_DIMENSION,
+            .create_shader_module(wgpu::include_wgsl!("rectangle.wgsl"));
+        let texture_data = serde_json::from_str::<Vec<u8>>(include_str!(
+            "texture_resources/rectangle-texture.cov"
+        ))
+        .ok()
+        .unwrap();
+        let (_texture, view) = ginkgo.texture_r8unorm_d2(
+            Rectangle::TEXTURE_DIMENSIONS,
+            Rectangle::TEXTURE_DIMENSIONS,
             1,
             texture_data.as_slice(),
         );
         let ring_texture_data = serde_json::from_str::<Vec<u8>>(include_str!(
-            "texture_resources/panel-ring-texture.cov"
+            "texture_resources/rectangle-ring-texture.cov"
         ))
         .ok()
         .unwrap();
-        let (ring_texture, ring_view) = ginkgo.texture_r8unorm_d2(
-            PanelRenderResources::TEXTURE_DIMENSION,
-            PanelRenderResources::TEXTURE_DIMENSION,
+        let (_ring_texture, ring_view) = ginkgo.texture_r8unorm_d2(
+            Rectangle::TEXTURE_DIMENSIONS,
+            Rectangle::TEXTURE_DIMENSIONS,
             1,
             ring_texture_data.as_slice(),
         );
-
+        let progress_texture_data =
+            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/rectangle.prog"))
+                .unwrap();
+        let (_progress_texture, progress_view) = ginkgo.texture_r8unorm_d2(
+            Rectangle::TEXTURE_DIMENSIONS,
+            Rectangle::TEXTURE_DIMENSIONS,
+            1,
+            progress_texture_data.as_slice(),
+        );
+        let ring_progress_texture_data =
+            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/rectangle-ring.prog"))
+                .unwrap();
+        let (_ring_progress_texture, ring_progress_view) = ginkgo.texture_r8unorm_d2(
+            Rectangle::TEXTURE_DIMENSIONS,
+            Rectangle::TEXTURE_DIMENSIONS,
+            1,
+            ring_progress_texture_data.as_slice(),
+        );
         let sampler = ginkgo
             .device()
             .create_sampler(&wgpu::SamplerDescriptor::default());
@@ -78,38 +81,42 @@ impl Render for Panel {
             ginkgo
                 .device()
                 .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("panel-render-pipeline-bind-group-layout"),
+                    label: Some("rectangle-render-pipeline-bind-group-layout"),
                     entries: &[
                         Ginkgo::vertex_uniform_bind_group_layout_entry(0),
                         Ginkgo::texture_d2_bind_group_entry(1),
                         Ginkgo::texture_d2_bind_group_entry(2),
                         Ginkgo::sampler_bind_group_layout_entry(3),
+                        Ginkgo::texture_d2_bind_group_entry(4),
+                        Ginkgo::texture_d2_bind_group_entry(5),
                     ],
                 });
         let bind_group = ginkgo
             .device()
             .create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("panel-render-pipeline-bind-group"),
+                label: Some("rectangle-render-pipeline-bind-group"),
                 layout: &bind_group_layout,
                 entries: &[
                     ginkgo.viewport_bind_group_entry(0),
                     Ginkgo::texture_bind_group_entry(&view, 1),
                     Ginkgo::texture_bind_group_entry(&ring_view, 2),
                     Ginkgo::sampler_bind_group_entry(&sampler, 3),
+                    Ginkgo::texture_bind_group_entry(&progress_view, 4),
+                    Ginkgo::texture_bind_group_entry(&ring_progress_view, 5),
                 ],
             });
         let pipeline_layout =
             ginkgo
                 .device()
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("panel-render-pipeline-layout"),
+                    label: Some("rectangle-render-pipeline-layout"),
                     bind_group_layouts: &[&bind_group_layout],
                     push_constant_ranges: &[],
                 });
         let pipeline = ginkgo
             .device()
             .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("panel-render-pipeline"),
+                label: Some("rectangle-render-pipeline"),
                 layout: Some(&pipeline_layout),
                 vertex: wgpu::VertexState {
                     module: &shader,
@@ -118,32 +125,37 @@ impl Render for Panel {
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<Vertex>(1),
                             step_mode: wgpu::VertexStepMode::Vertex,
-                            attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x2, 2 => Float32x2],
+                            attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x2],
                         },
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<CReprPosition>(1),
                             step_mode: wgpu::VertexStepMode::Instance,
-                            attributes: &wgpu::vertex_attr_array![3 => Float32x2],
+                            attributes: &wgpu::vertex_attr_array![2 => Float32x2],
                         },
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<CReprArea>(1),
                             step_mode: wgpu::VertexStepMode::Instance,
-                            attributes: &wgpu::vertex_attr_array![4 => Float32x2],
+                            attributes: &wgpu::vertex_attr_array![3 => Float32x2],
                         },
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<Layer>(1),
                             step_mode: wgpu::VertexStepMode::Instance,
-                            attributes: &wgpu::vertex_attr_array![5 => Float32],
+                            attributes: &wgpu::vertex_attr_array![4 => Float32],
                         },
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<Color>(1),
                             step_mode: wgpu::VertexStepMode::Instance,
-                            attributes: &wgpu::vertex_attr_array![6 => Float32x4],
+                            attributes: &wgpu::vertex_attr_array![5 => Float32x4],
                         },
                         wgpu::VertexBufferLayout {
-                            array_stride: Ginkgo::buffer_address::<PanelStyle>(1),
+                            array_stride: Ginkgo::buffer_address::<RectangleStyle>(1),
                             step_mode: wgpu::VertexStepMode::Instance,
-                            attributes: &wgpu::vertex_attr_array![7 => Float32],
+                            attributes: &wgpu::vertex_attr_array![6 => Float32],
+                        },
+                        wgpu::VertexBufferLayout {
+                            array_stride: Ginkgo::buffer_address::<Progress>(1),
+                            step_mode: wgpu::VertexStepMode::Instance,
+                            attributes: &wgpu::vertex_attr_array![7 => Float32x2],
                         },
                     ],
                 },
@@ -157,28 +169,20 @@ impl Render for Panel {
                 ),
                 multiview: None,
             });
-        let corner_depth = Self::BASE_CORNER_DEPTH * ginkgo.scale_factor();
-        let vertices = Vertex::vertices(corner_depth);
-        let vertex_buffer = ginkgo.vertex_buffer_with_data(&vertices, "panel-vertex-buffer");
-        let index_buffer = ginkgo.index_buffer_with_data(&INDICES, "panel-index-buffer");
+        let vertex_buffer = ginkgo.vertex_buffer_with_data(&VERTICES, "circle-vertex-buffer");
         let instance_coordinator = InstanceCoordinatorBuilder::new(4)
             .with_attribute::<CReprPosition>()
             .with_attribute::<CReprArea>()
             .with_attribute::<Layer>()
             .with_attribute::<Color>()
-            .with_attribute::<PanelStyle>()
+            .with_attribute::<RectangleStyle>()
+            .with_attribute::<Progress>()
             .build(ginkgo);
-        PanelRenderResources {
+        RectangleRenderResources {
             pipeline,
             vertex_buffer,
             bind_group,
-            texture,
-            view,
-            sampler,
             instance_coordinator,
-            index_buffer,
-            ring_texture,
-            ring_view,
         }
     }
 
@@ -227,21 +231,18 @@ impl Render for Panel {
     }
 
     fn record_behavior() -> RenderRecordBehavior<Self> {
-        RenderRecordBehavior::PerRenderer(Box::new(Panel::record))
+        RenderRecordBehavior::PerRenderer(Box::new(Rectangle::record))
     }
 }
 
-impl Panel {
+impl Rectangle {
     fn record<'a>(
-        resources: &'a PanelRenderResources,
+        resources: &'a RectangleRenderResources,
         mut recorder: RenderInstructionsRecorder<'a>,
     ) -> Option<RenderInstructionHandle> {
         if resources.instance_coordinator.has_instances() {
             recorder.0.set_pipeline(&resources.pipeline);
             recorder.0.set_bind_group(0, &resources.bind_group, &[]);
-            recorder
-                .0
-                .set_index_buffer(resources.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
             recorder
                 .0
                 .set_vertex_buffer(0, resources.vertex_buffer.slice(..));
@@ -271,12 +272,18 @@ impl Panel {
                 5,
                 resources
                     .instance_coordinator
-                    .buffer::<PanelStyle>()
+                    .buffer::<RectangleStyle>()
                     .slice(..),
             );
-            recorder.0.draw_indexed(
-                0..INDICES.len() as u32,
-                0,
+            recorder.0.set_vertex_buffer(
+                6,
+                resources
+                    .instance_coordinator
+                    .buffer::<Progress>()
+                    .slice(..),
+            );
+            recorder.0.draw(
+                0..VERTICES.len() as u32,
                 0..resources.instance_coordinator.instances(),
             );
             return Some(recorder.finish());

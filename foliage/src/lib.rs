@@ -29,6 +29,7 @@ pub mod ginkgo;
 pub mod instance;
 pub mod job;
 pub mod panel;
+pub mod rectangle;
 pub mod texture;
 pub mod window;
 
@@ -190,7 +191,9 @@ impl Foliage {
                         WindowEvent::TouchpadPressure { .. } => {}
                         WindowEvent::AxisMotion { .. } => {}
                         WindowEvent::Touch(_) => {}
-                        WindowEvent::ScaleFactorChanged { .. } => {}
+                        WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+                            elm.set_scale_factor(scale_factor as CoordinateUnit);
+                        }
                         WindowEvent::ThemeChanged(_) => {}
                         WindowEvent::Occluded(_) => {}
                         WindowEvent::RedrawRequested => {
@@ -219,6 +222,7 @@ impl Foliage {
                             elm.attach_viewport_handle(viewport_area);
                         }
                         if !elm.initialized() {
+                            elm.set_scale_factor(window_handle.scale_factor());
                             elm.attach_leafs(self.leaf_queue.take().unwrap());
                             ash.establish(&ginkgo, self.render_queue.take().unwrap());
                             elm.finish_initialization();

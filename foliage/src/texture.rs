@@ -40,3 +40,19 @@ impl MipsLevel {
         Self(0.0)
     }
 }
+
+#[repr(C)]
+#[derive(Component, Copy, Clone, PartialEq, Default, Pod, Zeroable, Serialize, Deserialize)]
+pub struct Progress(pub f32, pub f32);
+
+impl Progress {
+    pub fn full() -> Self {
+        Self(0.0, 1.0)
+    }
+    pub fn empty() -> Self {
+        Self(0.0, 0.0)
+    }
+    pub fn new(start: f32, end: f32) -> Self {
+        Self(start, end)
+    }
+}
