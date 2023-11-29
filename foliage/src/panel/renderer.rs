@@ -7,9 +7,9 @@ use crate::ash::render::{Render, RenderPhase};
 use crate::ash::render_package::RenderPackage;
 use crate::ash::render_packet::RenderPacket;
 use crate::color::Color;
-use crate::coordinate::area::{CReprArea};
+use crate::coordinate::area::CReprArea;
 use crate::coordinate::layer::Layer;
-use crate::coordinate::position::{CReprPosition};
+use crate::coordinate::position::CReprPosition;
 
 use crate::ginkgo::Ginkgo;
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};

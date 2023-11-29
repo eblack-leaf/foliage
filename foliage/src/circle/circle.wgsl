@@ -37,10 +37,19 @@ var circle_sampler: sampler;
 @group(0)
 @binding(4)
 var circle_progress_texture: texture_2d<f32>;
+@group(0)
+@binding(5)
+var circle_ring_progress_texture: texture_2d<f32>;
 @fragment
 fn fragment_entry (vertex_fragment: VertexFragment) -> @location(0) vec4<f32> {
     var coverage = textureSampleLevel(
         circle_texture,
+        circle_sampler,
+        vertex_fragment.texture_coordinates,
+        vertex_fragment.mip
+    ).r;
+    var px_prog = textureSampleLevel(
+        circle_progress_texture,
         circle_sampler,
         vertex_fragment.texture_coordinates,
         vertex_fragment.mip
@@ -53,14 +62,14 @@ fn fragment_entry (vertex_fragment: VertexFragment) -> @location(0) vec4<f32> {
             vertex_fragment.mip
         ).r;
         let px_prog = textureSampleLevel(
-            circle_progress_texture,
+            circle_ring_progress_texture,
             circle_sampler,
             vertex_fragment.texture_coordinates,
             vertex_fragment.mip
         ).r;
-        if (px_prog < vertex_fragment.prog.r || px_prog > vertex_fragment.prog.g) {
-            coverage = 0.0;
-        }
+    }
+    if (px_prog < vertex_fragment.prog.r || px_prog > vertex_fragment.prog.g) {
+        coverage = 0.0;
     }
     return vec4<f32>(vertex_fragment.color.rgb, vertex_fragment.color.a * coverage);
 }

@@ -40,15 +40,15 @@ impl Leaf for Tester {
             Color::OFF_WHITE.into(),
         ));
         elm.job.container.spawn(Circle::new(
-            CircleStyle::ring(),
+            CircleStyle::fill(),
             (89, 210).into(),
             Diameter::from_mip_level(CircleMipLevel::Two),
             6.into(),
             Color::from(Color::GREY_DARK).with_alpha(1.0),
-            Progress::new(0.1, 0.3),
+            Progress::new(0.0, 0.3),
         ));
         elm.job.container.spawn(Circle::new(
-            CircleStyle::ring(),
+            CircleStyle::fill(),
             (89, 210).into(),
             Diameter::from_mip_level(CircleMipLevel::Two),
             5.into(),
