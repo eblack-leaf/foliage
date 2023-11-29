@@ -28,14 +28,14 @@ impl Leaf for Tester {
         elm.job.container.spawn(Panel::new(
             PanelStyle::fill(),
             (47, 630).into(),
-            (160, 80).into(),
+            (140, 50).into(),
             4.into(),
             Color::GREY_MEDIUM.into(),
         ));
         elm.job.container.spawn(Panel::new(
             PanelStyle::fill(),
-            (227, 630).into(),
-            (160, 80).into(),
+            (247, 630).into(),
+            (140, 50).into(),
             4.into(),
             Color::OFF_WHITE.into(),
         ));

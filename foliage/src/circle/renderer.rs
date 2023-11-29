@@ -7,10 +7,9 @@ use crate::ash::render_packet::RenderPacket;
 use crate::circle::vertex::{Vertex, VERTICES};
 use crate::circle::{Circle, CircleStyle, Progress};
 use crate::color::Color;
-use crate::coordinate::area::{Area, CReprArea};
+use crate::coordinate::area::{CReprArea};
 use crate::coordinate::layer::Layer;
-use crate::coordinate::position::{CReprPosition, Position};
-use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
+use crate::coordinate::position::{CReprPosition};
 use crate::ginkgo::Ginkgo;
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
 use crate::panel::Panel;
@@ -395,50 +394,4 @@ impl Circle {
         }
         None
     }
-    // TODO mave to elm
-    // fn instance_coordinator_queue_write(
-    //     ginkgo: &Ginkgo,
-    //     resources: &mut CircleRenderResources,
-    //     entity: Entity,
-    //     render_packet: RenderPacket,
-    // ) {
-    //     if let Some(pos) = render_packet.get::<Position<InterfaceContext>>() {
-    //         resources
-    //             .instance_coordinator
-    //             .queue_write(entity, pos.to_device(ginkgo.scale_factor()).to_c());
-    //     }
-    //     if let Some(area) = render_packet.get::<Area<InterfaceContext>>() {
-    //         // let area_scaled = area.to_device(ginkgo.scale_factor());
-    //         let area_scaled = Area::<DeviceContext>::new(area.width, area.height);
-    //         let mips_level = MipsLevel::new(
-    //             Area::new(
-    //                 Circle::CIRCLE_TEXTURE_DIMENSIONS as CoordinateUnit,
-    //                 Circle::CIRCLE_TEXTURE_DIMENSIONS as CoordinateUnit,
-    //             ),
-    //             Circle::MIPS,
-    //             area_scaled,
-    //         );
-    //         resources
-    //             .instance_coordinator
-    //             .queue_write(entity, mips_level);
-    //         resources
-    //             .instance_coordinator
-    //             .queue_write(entity, area_scaled.to_c());
-    //     }
-    //     if let Some(layer) = render_packet.get::<Layer>() {
-    //         resources.instance_coordinator.queue_write(entity, layer);
-    //         resources
-    //             .instance_coordinator
-    //             .queue_key_layer_change(entity, layer);
-    //     }
-    //     if let Some(color) = render_packet.get::<Color>() {
-    //         resources.instance_coordinator.queue_write(entity, color);
-    //     }
-    //     if let Some(style) = render_packet.get::<CircleStyle>() {
-    //         resources.instance_coordinator.queue_write(entity, style);
-    //     }
-    //     if let Some(progress) = render_packet.get::<Progress>() {
-    //         resources.instance_coordinator.queue_write(entity, progress);
-    //     }
-    // }
 }
