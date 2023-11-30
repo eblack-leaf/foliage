@@ -32,8 +32,8 @@ impl MipsLevel {
             if mip_level_area.width >= dims.width && mip_level_area.height >= dims.height {
                 let actual = dims / mip_level_area;
                 let ratio = 1f32 - (actual.width + actual.height) / 2f32;
-                let fractional_mips = (mip as f32 - ratio).min((mips - 1) as f32);
-                return Self(fractional_mips);
+                let _fractional_mips = (mip as f32 - ratio).min((mips - 1) as f32);
+                return Self(mip as f32);
             }
             mip_level_area *= Area::new(2f32, 2f32);
         }

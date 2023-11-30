@@ -28,9 +28,9 @@ struct Tester;
 
 impl Leaf for Tester {
     fn attach(elm: &mut Elm) {
-        #[cfg(not(target_os = "android"))]
+        #[cfg(any(not(target_os = "android"), target_arch = "x86_64"))]
         let android_offset = 0;
-        #[cfg(target_os = "android")]
+        #[cfg(all(target_os = "android", target_arch = "aarch64"))]
         let android_offset = 50;
         elm.job.container.spawn(Rectangle::new(
             RectangleStyle::fill(),
