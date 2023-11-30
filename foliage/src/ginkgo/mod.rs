@@ -163,6 +163,7 @@ impl Ginkgo {
                 usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
                 view_formats: &[TextureFormat::R8Unorm],
             },
+            wgpu::util::TextureDataOrder::LayerMajor,
             data,
         );
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
@@ -458,8 +459,8 @@ impl Ginkgo {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: Some("device/queue"),
-                    features,
-                    limits,
+                    required_features: features,
+                    required_limits: limits,
                 },
                 None,
             )

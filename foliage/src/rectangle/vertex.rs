@@ -18,7 +18,7 @@ impl Vertex {
     }
 }
 
-pub const VERTICES: [Vertex; 6] = [
+pub(crate) const VERTICES: [Vertex; 6] = [
     Vertex::new(
         CReprPosition::new(1f32, 0f32),
         TextureCoordinates::new(1f32, 0f32),
