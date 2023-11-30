@@ -169,8 +169,8 @@ impl Leaf for Tester {
         ));
         elm.job.container.spawn(Circle::new(
             CircleStyle::fill(),
-            (100, 8 + android_offset).into(),
-            Diameter::from_mip_level(CircleMipLevel::Sixteen),
+            (100, 12 + android_offset).into(),
+            Diameter::from_mip_level(CircleMipLevel::Eight),
             4.into(),
             Color::GREY_DARK.into(),
             Progress::new(0.0, 1.0),
