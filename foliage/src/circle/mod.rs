@@ -49,14 +49,14 @@ pub struct Circle {
 pub struct Diameter(pub CoordinateUnit);
 #[derive(Copy, Clone)]
 pub enum CircleMipLevel {
-    Seven = 8,
-    Six = 16,
-    Five = 32,
-    Four = 64,
-    Three = 128,
-    Two = 256,
-    One = 512,
-    Zero = 1024,
+    Eight = 8,
+    Sixteen = 16,
+    ThirtyTwo = 32,
+    SixtyFour = 64,
+    OneTwentyEight = 128,
+    TwoFiftySix = 256,
+    FiveTwelve = 512,
+    Full = 1024,
 }
 impl Diameter {
     pub const MAX: CoordinateUnit = Circle::CIRCLE_TEXTURE_DIMENSIONS as CoordinateUnit;

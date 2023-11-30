@@ -78,8 +78,8 @@ fn reduce_area(
     scale_factor: Res<ScaleFactor>,
 ) {
     for (mut area, content) in query.iter_mut() {
-        area.width = (content.0.width - Panel::BASE_CORNER_DEPTH * scale_factor.factor()).max(0f32);
+        area.width = (content.0.width - Panel::BASE_CORNER_DEPTH * 2f32 * scale_factor.factor()).max(0f32);
         area.height =
-            (content.0.height - Panel::BASE_CORNER_DEPTH * scale_factor.factor()).max(0f32);
+            (content.0.height - Panel::BASE_CORNER_DEPTH *  2f32 * scale_factor.factor()).max(0f32);
     }
 }

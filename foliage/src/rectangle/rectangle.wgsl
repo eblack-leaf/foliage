@@ -63,6 +63,7 @@ fn fragment_entry (vertex_fragment: VertexFragment) -> @location(0) vec4<f32> {
         ).r;
     }
     if (px_prog < vertex_fragment.prog.r || px_prog > vertex_fragment.prog.g) {
+//          discard;
         coverage = 0.0;
     }
     return vec4<f32>(vertex_fragment.color.rgb, vertex_fragment.color.a * coverage);
