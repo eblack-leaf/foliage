@@ -52,48 +52,48 @@ impl Render for Circle {
             .device()
             .create_shader_module(wgpu::include_wgsl!("circle.wgsl"));
         let mut texture_data = serde_json::from_str::<Vec<u8>>(include_str!(
-            "texture_resources/circle-texture-1024.cov"
+            "texture_resources/circle-texture-1536.cov"
         ))
         .ok()
         .unwrap();
         texture_data.extend(
             serde_json::from_str::<Vec<u8>>(include_str!(
-                "texture_resources/circle-texture-512.cov"
+                "texture_resources/circle-texture-768.cov"
             ))
             .unwrap(),
         );
         texture_data.extend(
             serde_json::from_str::<Vec<u8>>(include_str!(
-                "texture_resources/circle-texture-256.cov"
+                "texture_resources/circle-texture-384.cov"
             ))
             .unwrap(),
         );
         texture_data.extend(
             serde_json::from_str::<Vec<u8>>(include_str!(
-                "texture_resources/circle-texture-128.cov"
+                "texture_resources/circle-texture-192.cov"
             ))
             .unwrap(),
         );
         texture_data.extend(
             serde_json::from_str::<Vec<u8>>(include_str!(
-                "texture_resources/circle-texture-64.cov"
+                "texture_resources/circle-texture-96.cov"
             ))
             .unwrap(),
         );
         texture_data.extend(
             serde_json::from_str::<Vec<u8>>(include_str!(
-                "texture_resources/circle-texture-32.cov"
+                "texture_resources/circle-texture-48.cov"
             ))
             .unwrap(),
         );
         texture_data.extend(
             serde_json::from_str::<Vec<u8>>(include_str!(
-                "texture_resources/circle-texture-16.cov"
+                "texture_resources/circle-texture-24.cov"
             ))
             .unwrap(),
         );
         texture_data.extend(
-            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-texture-8.cov"))
+            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-texture-12.cov"))
                 .unwrap(),
         );
         let (texture, view) = ginkgo.texture_r8unorm_d2(
@@ -103,49 +103,49 @@ impl Render for Circle {
             texture_data.as_slice(),
         );
         let mut ring_texture_data = serde_json::from_str::<Vec<u8>>(include_str!(
-            "texture_resources/circle-ring-texture-1024.cov"
+            "texture_resources/circle-ring-texture-1536.cov"
         ))
         .ok()
         .unwrap();
         ring_texture_data.extend(
             serde_json::from_str::<Vec<u8>>(include_str!(
-                "texture_resources/circle-ring-texture-512.cov"
+                "texture_resources/circle-ring-texture-768.cov"
             ))
             .unwrap(),
         );
         ring_texture_data.extend(
             serde_json::from_str::<Vec<u8>>(include_str!(
-                "texture_resources/circle-ring-texture-256.cov"
+                "texture_resources/circle-ring-texture-384.cov"
             ))
             .unwrap(),
         );
         ring_texture_data.extend(
             serde_json::from_str::<Vec<u8>>(include_str!(
-                "texture_resources/circle-ring-texture-128.cov"
+                "texture_resources/circle-ring-texture-192.cov"
             ))
             .unwrap(),
         );
         ring_texture_data.extend(
             serde_json::from_str::<Vec<u8>>(include_str!(
-                "texture_resources/circle-ring-texture-64.cov"
+                "texture_resources/circle-ring-texture-96.cov"
             ))
             .unwrap(),
         );
         ring_texture_data.extend(
             serde_json::from_str::<Vec<u8>>(include_str!(
-                "texture_resources/circle-ring-texture-32.cov"
+                "texture_resources/circle-ring-texture-48.cov"
             ))
             .unwrap(),
         );
         ring_texture_data.extend(
             serde_json::from_str::<Vec<u8>>(include_str!(
-                "texture_resources/circle-ring-texture-16.cov"
+                "texture_resources/circle-ring-texture-24.cov"
             ))
             .unwrap(),
         );
         ring_texture_data.extend(
             serde_json::from_str::<Vec<u8>>(include_str!(
-                "texture_resources/circle-ring-texture-8.cov"
+                "texture_resources/circle-ring-texture-12.cov"
             ))
             .unwrap(),
         );
@@ -157,35 +157,35 @@ impl Render for Circle {
         );
         let mut progress_texture_data = vec![];
         progress_texture_data.extend(
-            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-1024.prog"))
+            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-1536.prog"))
                 .unwrap(),
         );
         progress_texture_data.extend(
-            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-512.prog"))
+            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-768.prog"))
                 .unwrap(),
         );
         progress_texture_data.extend(
-            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-256.prog"))
+            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-384.prog"))
                 .unwrap(),
         );
         progress_texture_data.extend(
-            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-128.prog"))
+            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-192.prog"))
                 .unwrap(),
         );
         progress_texture_data.extend(
-            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-64.prog"))
+            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-96.prog"))
                 .unwrap(),
         );
         progress_texture_data.extend(
-            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-32.prog"))
+            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-48.prog"))
                 .unwrap(),
         );
         progress_texture_data.extend(
-            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-16.prog"))
+            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-24.prog"))
                 .unwrap(),
         );
         progress_texture_data.extend(
-            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-8.prog"))
+            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-12.prog"))
                 .unwrap(),
         );
         let (progress_texture, progress_view) = ginkgo.texture_r8unorm_d2(
@@ -196,37 +196,37 @@ impl Render for Circle {
         );
         let mut ring_progress_texture_data = vec![];
         ring_progress_texture_data.extend(
+            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-ring-1536.prog"))
+                .unwrap(),
+        );
+        ring_progress_texture_data.extend(
+            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-ring-768.prog"))
+                .unwrap(),
+        );
+        ring_progress_texture_data.extend(
             serde_json::from_str::<Vec<u8>>(include_str!(
-                "texture_resources/circle-ring-1024.prog"
+                "texture_resources/circle-ring-384.prog"
             ))
-            .unwrap(),
-        );
-        ring_progress_texture_data.extend(
-            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-ring-512.prog"))
                 .unwrap(),
         );
         ring_progress_texture_data.extend(
-            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-ring-256.prog"))
+            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-ring-192.prog"))
                 .unwrap(),
         );
         ring_progress_texture_data.extend(
-            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-ring-128.prog"))
+            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-ring-96.prog"))
                 .unwrap(),
         );
         ring_progress_texture_data.extend(
-            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-ring-64.prog"))
+            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-ring-48.prog"))
                 .unwrap(),
         );
         ring_progress_texture_data.extend(
-            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-ring-32.prog"))
+            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-ring-24.prog"))
                 .unwrap(),
         );
         ring_progress_texture_data.extend(
-            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-ring-16.prog"))
-                .unwrap(),
-        );
-        ring_progress_texture_data.extend(
-            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-ring-8.prog"))
+            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-ring-12.prog"))
                 .unwrap(),
         );
         let (ring_progress_texture, ring_progress_view) = ginkgo.texture_r8unorm_d2(

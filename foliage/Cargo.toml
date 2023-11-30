@@ -24,3 +24,6 @@ serde_json = "1.0.108"
 image = { version = "0.24.6" , features = ["png", "jpeg"]}
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 pollster = "0.3.0"
+
+[profile.test]
+opt-level = 1

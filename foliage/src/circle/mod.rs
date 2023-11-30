@@ -15,7 +15,7 @@ use crate::texture::{MipsLevel, Progress};
 use crate::window::ScaleFactor;
 use crate::{coordinate, differential_enable};
 
-mod progress;
+mod proc_gen;
 mod renderer;
 mod vertex;
 
@@ -49,14 +49,14 @@ pub struct Circle {
 pub struct Diameter(pub CoordinateUnit);
 #[derive(Copy, Clone)]
 pub enum CircleMipLevel {
-    Eight = 8,
-    Sixteen = 16,
-    ThirtyTwo = 32,
-    SixtyFour = 64,
-    OneTwentyEight = 128,
-    TwoFiftySix = 256,
-    FiveTwelve = 512,
-    Full = 1024,
+    Twelve = 12,
+    TwentyFour = 24,
+    FortyEight = 48,
+    NinetySix = 96,
+    OneNinetyTwo = 192,
+    ThreeEightyFour = 384,
+    SevenSixtyEight = 768,
+    Full = 1536,
 }
 impl Diameter {
     pub const MAX: CoordinateUnit = Circle::CIRCLE_TEXTURE_DIMENSIONS as CoordinateUnit;
@@ -69,9 +69,9 @@ impl Diameter {
 }
 
 impl Circle {
-    const CIRCLE_TEXTURE_DIMENSIONS: u32 = 1024;
+    const CIRCLE_TEXTURE_DIMENSIONS: u32 = 1536;
     #[allow(unused)]
-    const MIPS_TARGETS: [u32; Self::MIPS as usize] = [1024, 512, 256, 128, 64, 32, 16, 8];
+    const MIPS_TARGETS: [u32; Self::MIPS as usize] = [1536, 768, 384, 192, 96, 48, 24, 12];
     const MIPS: u32 = 8;
     pub fn new(
         style: CircleStyle,
@@ -133,26 +133,6 @@ fn mips_adjust(
                 .into(),
             Circle::MIPS,
             area.to_device(scale_factor.factor()),
-        );
-    }
-}
-
-#[test]
-fn coverage_maps() {
-    use crate::ginkgo::Ginkgo;
-    use std::path::Path;
-    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("src")
-        .join("circle")
-        .join("texture_resources");
-    for mip in Circle::MIPS_TARGETS {
-        Ginkgo::png_to_cov(
-            root.join(format!("circle-ring-{}.png", mip)),
-            root.join(format!("circle-ring-texture-{}.cov", mip)),
-        );
-        Ginkgo::png_to_cov(
-            root.join(format!("circle-{}.png", mip)),
-            root.join(format!("circle-texture-{}.cov", mip)),
         );
     }
 }
