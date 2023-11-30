@@ -3,8 +3,9 @@
 This library is a cross-platform ui with wgpu.rs and winit. It targets Desktop / Android (via ndk) / Web (via wasm).
 
 The name foliage arose from the need for a word defining a collection of 
-somethingn. The parts are described in terms of leaves added to a pile thus 
-comprising the engine architecture. Everyone loves acronyms so 
+something. The parts are described in terms of leaves added to a pile thus 
+comprising the engine architecture. When you add an attachment to the engine you
+are adding a `Leaf` to the collection. Everyone loves acronyms so 
 foliage could stand for 
 `F-lat` `O-rthographic` `L-ogic` `I-nterface` `A-nd` `G-raphical` `E-ngine`
 if needs be. 
