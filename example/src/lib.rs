@@ -28,12 +28,13 @@ struct Tester;
 
 impl Leaf for Tester {
     fn attach(elm: &mut Elm) {
+        #[cfg(not(target_os = "android"))]
         let android_offset = 0;
         #[cfg(target_os = "android")]
         let android_offset = 50;
         elm.job.container.spawn(Rectangle::new(
             RectangleStyle::fill(),
-            (10, 10 + android_offset).into(),
+            (158, 512 + android_offset).into(),
             (200, 10).into(),
             6.into(),
             Color::GREY_DARK.into(),
@@ -41,7 +42,7 @@ impl Leaf for Tester {
         ));
         elm.job.container.spawn(Rectangle::new(
             RectangleStyle::fill(),
-            (10, 10 + android_offset).into(),
+            (158, 512 + android_offset).into(),
             (200, 10).into(),
             5.into(),
             Color::GREEN.into(),
@@ -49,7 +50,7 @@ impl Leaf for Tester {
         ));
         elm.job.container.spawn(Rectangle::new(
             RectangleStyle::fill(),
-            (10, 50 + android_offset).into(),
+            (158, 536 + android_offset).into(),
             (200, 10).into(),
             6.into(),
             Color::GREY_DARK.into(),
@@ -57,29 +58,15 @@ impl Leaf for Tester {
         ));
         elm.job.container.spawn(Rectangle::new(
             RectangleStyle::fill(),
-            (10, 50 + android_offset).into(),
+            (158, 536 + android_offset).into(),
             (200, 10).into(),
             5.into(),
             Color::GREEN.into(),
             Progress::new(0.0, 0.65),
         ));
-        elm.job.container.spawn(Panel::new(
-            PanelStyle::fill(),
-            (27, 100 + android_offset).into(),
-            (140, 50).into(),
-            4.into(),
-            Color::GREY_MEDIUM.into(),
-        ));
-        elm.job.container.spawn(Panel::new(
-            PanelStyle::fill(),
-            (227, 100 + android_offset).into(),
-            (140, 50).into(),
-            4.into(),
-            Color::OFF_WHITE.into(),
-        ));
         elm.job.container.spawn(Circle::new(
             CircleStyle::ring(),
-            (89, 210 + android_offset).into(),
+            (29, 210 + android_offset).into(),
             Diameter::from_mip_level(CircleMipLevel::Four),
             6.into(),
             Color::from(Color::GREY_DARK).with_alpha(1.0),
@@ -87,7 +74,7 @@ impl Leaf for Tester {
         ));
         elm.job.container.spawn(Circle::new(
             CircleStyle::ring(),
-            (89, 210 + android_offset).into(),
+            (29, 210 + android_offset).into(),
             Diameter::from_mip_level(CircleMipLevel::Four),
             5.into(),
             Color::from(Color::GREEN).with_alpha(1.0),
@@ -95,7 +82,7 @@ impl Leaf for Tester {
         ));
         elm.job.container.spawn(Rectangle::new(
             RectangleStyle::fill(),
-            (173, 178 + android_offset).into(),
+            (113, 178 + android_offset).into(),
             (2, 128).into(),
             6.into(),
             Color::GREY_DARK.into(),
@@ -103,7 +90,7 @@ impl Leaf for Tester {
         ));
         elm.job.container.spawn(Circle::new(
             CircleStyle::ring(),
-            (89, 500 + android_offset).into(),
+            (29, 500 + android_offset).into(),
             Diameter::from_mip_level(CircleMipLevel::Four),
             6.into(),
             Color::from(Color::GREY_DARK).with_alpha(1.0),
@@ -111,7 +98,7 @@ impl Leaf for Tester {
         ));
         elm.job.container.spawn(Circle::new(
             CircleStyle::ring(),
-            (89, 500 + android_offset).into(),
+            (29, 500 + android_offset).into(),
             Diameter::from_mip_level(CircleMipLevel::Four),
             5.into(),
             Color::from(Color::GREEN).with_alpha(1.0),
@@ -119,7 +106,7 @@ impl Leaf for Tester {
         ));
         elm.job.container.spawn(Rectangle::new(
             RectangleStyle::fill(),
-            (173, 468 + android_offset).into(),
+            (113, 468 + android_offset).into(),
             (2, 128).into(),
             6.into(),
             Color::GREY_DARK.into(),
@@ -127,7 +114,7 @@ impl Leaf for Tester {
         ));
         elm.job.container.spawn(Circle::new(
             CircleStyle::fill(),
-            (198, 524 + android_offset).into(),
+            (138, 512 + android_offset).into(),
             Diameter::from_mip_level(CircleMipLevel::Seven),
             5.into(),
             Color::from(Color::GREEN).with_alpha(1.0),
@@ -135,11 +122,18 @@ impl Leaf for Tester {
         ));
         elm.job.container.spawn(Circle::new(
             CircleStyle::fill(),
-            (218, 524 + android_offset).into(),
+            (138, 536 + android_offset).into(),
             Diameter::from_mip_level(CircleMipLevel::Seven),
             5.into(),
             Color::from(Color::GREEN).with_alpha(1.0),
             Progress::new(0.0, 1.0),
+        ));
+        elm.job.container.spawn(Panel::new(
+            PanelStyle::fill(),
+            (138, 210 + android_offset).into(),
+            (140, 50).into(),
+            4.into(),
+            Color::GREEN.into(),
         ));
     }
 }

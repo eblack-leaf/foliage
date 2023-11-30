@@ -1,5 +1,5 @@
 package = "entry"
-arch = "aarch64-linux-android"
+arch = "x86_64-linux-android"
 ndk_home = "/home/salt/Desktop/dev/android_sdk/ndk/25.2.9519653"
 sdk_home = "/home/salt/Desktop/dev/android_sdk/"
 min_sdk = 28
