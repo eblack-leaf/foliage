@@ -1,6 +1,34 @@
 # foliage
 
-This library is a cross-platform ui with wgpu.rs and winit. It targets Desktop / Android (via ndk) / Web (via wasm).  
+This library is a cross-platform ui with wgpu.rs and winit. It targets Desktop / Android (via ndk) / Web (via wasm).
+
+The name foliage arose from the need for a word defining a collection of 
+somethingn. The parts are described in terms of leaves added to a pile thus 
+comprising the engine architecture. Everyone loves acronyms so 
+foliage could stand for 
+`F-lat` `O-rthographic` `L-ogic` `I-nterface` `A-nd` `G-raphical` `E-ngine`
+if needs be. 
+
+All the objects are flat in appearance for uniform aesthetics, 
+the depth is viewed orthographically, `Elm` or the `E-ntity`-`L-ogic`-`M-anager`
+is responsible for spawning entities to an `ecs` and scheduling 
+tasks in the `esc-schedule` to perform logic on the entities.
+`Ginkgo` or the `G-raphical`-`IN-terface`-`K-ernel`...`GO` 
+(not sure about the last two letters...), is responsible for interfacing
+with any `gpu` resources and commands. `Ash` or the `A-esthetics`-`S-ystem`-`H-andler`,
+configures with the given `Renderer`s, groups them into instruction groups by
+layer and `RenderPhase`, then executes the bundles to the surface. 
+
+`Foliage::new().with_leaf::<impl Leaf>()` is used to attach a logic module to the engine.
+The `Leaf` trait must be implemented on the type calling this function.
+```rust
+impl Leaf for Implementor {
+    fn attach(elm: &mut Elm) {
+        // ...
+    }
+}
+```
+here you can attach any systems (`elm.main().add_systems(...)`) or spawn directly from `elm.spawn(...)`.
 
 ### Overview
 
