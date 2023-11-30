@@ -1,6 +1,12 @@
 # foliage
 
-This library attempts to build a cross-platform ui with wgpu.rs and winit.
+This library is a cross-platform ui with wgpu.rs and winit. It targets Desktop / Android (via ndk) / Web (via wasm).  
+
+### Overview
+
+
+
+### Setup Guide
 
 ### Android
 
@@ -81,7 +87,6 @@ with the `jni` interface.
 
 ```toml
 [lib]
-...
 crate-type = ["cdylib"]
 ```
 
@@ -92,3 +97,9 @@ To run on desktop, `cargo run --package entry`
 ### Wasm
 
 To run on web, `trunk serve` in the `entry` directory
+
+```shell
+cd entry
+cargo install trunk --locked
+trunk serve
+```
