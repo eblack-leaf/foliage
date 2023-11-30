@@ -8,7 +8,7 @@ comprising the engine architecture. When you add an attachment to the engine you
 are adding a `Leaf` to the collection. Everyone loves acronyms so 
 foliage could stand for 
 `F-lat` `O-rthographic` `L-ogic` `I-nterface` `A-nd` `G-raphical` `E-ngine`
-if needs be. 
+if need be. 
 
 All the objects are flat in appearance for uniform aesthetics, 
 the depth is viewed orthographically, `Elm` or the `E-ntity`-`L-ogic`-`M-anager`
