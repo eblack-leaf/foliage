@@ -2,8 +2,7 @@ use crate::color::Color;
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
-use crate::coordinate::section::Section;
-use crate::coordinate::{InterfaceContext, NumericalContext};
+use crate::coordinate::InterfaceContext;
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::{Elm, Leaf};
@@ -11,10 +10,7 @@ use crate::texture::Progress;
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::Bundle;
 use bytemuck::{Pod, Zeroable};
-use nalgebra::DMatrix;
 use serde::{Deserialize, Serialize};
-use std::f64::consts::PI;
-use std::path::Path;
 
 mod renderer;
 mod vertex;
@@ -76,6 +72,11 @@ impl Leaf for Rectangle {
 
 #[test]
 fn textures() {
+    use crate::coordinate::section::Section;
+    use crate::coordinate::NumericalContext;
+    use nalgebra::DMatrix;
+    use std::f64::consts::PI;
+    use std::path::Path;
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("src")
         .join("rectangle")

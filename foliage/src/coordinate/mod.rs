@@ -27,7 +27,7 @@ impl CoordinateContext for DeviceContext {}
 impl CoordinateContext for InterfaceContext {}
 impl CoordinateContext for NumericalContext {}
 
-fn position_set(
+pub(crate) fn position_set(
     mut query: Query<(&mut CReprPosition, &Position<InterfaceContext>)>,
     scale_factor: Res<ScaleFactor>,
 ) {
@@ -35,7 +35,7 @@ fn position_set(
         *c_repr = pos.to_device(scale_factor.factor()).to_c();
     }
 }
-fn area_set(
+pub(crate) fn area_set(
     mut query: Query<(&mut CReprArea, &Area<InterfaceContext>)>,
     scale_factor: Res<ScaleFactor>,
 ) {

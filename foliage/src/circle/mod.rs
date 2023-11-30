@@ -1,8 +1,8 @@
-use bevy_ecs::prelude::{Bundle, Component, IntoSystemConfigs};
+use bevy_ecs::prelude::{Bundle, Component, IntoSystemConfigs, Res};
+use bevy_ecs::query::Changed;
 use bevy_ecs::system::Query;
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
-use std::path::Path;
 
 use crate::color::Color;
 use crate::coordinate::area::{Area, CReprArea};
@@ -10,9 +10,10 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::differential::{Differentiable, DifferentialBundle};
-use crate::differential_enable;
 use crate::elm::{Elm, Leaf, SystemSets};
 use crate::texture::{MipsLevel, Progress};
+use crate::window::ScaleFactor;
+use crate::{coordinate, differential_enable};
 
 mod progress;
 mod renderer;
@@ -35,6 +36,7 @@ impl CircleStyle {
 pub struct Circle {
     position: Position<InterfaceContext>,
     area: Area<InterfaceContext>,
+    diameter: Diameter,
     style: DifferentialBundle<CircleStyle>,
     position_c: DifferentialBundle<CReprPosition>,
     area_c: DifferentialBundle<CReprArea>,
@@ -43,10 +45,12 @@ pub struct Circle {
     mips: DifferentialBundle<MipsLevel>,
     differentiable: Differentiable,
 }
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Component)]
 pub struct Diameter(pub CoordinateUnit);
 #[derive(Copy, Clone)]
 pub enum CircleMipLevel {
+    Seven = 8,
+    Six = 16,
     Five = 32,
     Four = 64,
     Three = 128,
@@ -67,8 +71,8 @@ impl Diameter {
 impl Circle {
     const CIRCLE_TEXTURE_DIMENSIONS: u32 = 1024;
     #[allow(unused)]
-    const MIPS_TARGETS: [u32; Self::MIPS as usize] = [1024, 512, 256, 128, 64, 32];
-    const MIPS: u32 = 6;
+    const MIPS_TARGETS: [u32; Self::MIPS as usize] = [1024, 512, 256, 128, 64, 32, 16, 8];
+    const MIPS: u32 = 8;
     pub fn new(
         style: CircleStyle,
         position: Position<InterfaceContext>,
@@ -81,6 +85,7 @@ impl Circle {
         Self {
             position,
             area,
+            diameter,
             style: DifferentialBundle::new(style),
             position_c: DifferentialBundle::new(CReprPosition::default()),
             area_c: DifferentialBundle::new(CReprArea::default()),
@@ -103,12 +108,22 @@ impl Leaf for Circle {
             Progress,
             MipsLevel
         );
-        elm.job
-            .main()
-            .add_systems((mips_adjust.before(SystemSets::Differential),));
+        elm.job.main().add_systems((
+            mips_adjust.before(SystemSets::Differential),
+            diameter_forward.before(coordinate::area_set),
+        ));
     }
 }
-fn mips_adjust(mut query: Query<(&mut MipsLevel, &Area<InterfaceContext>)>) {
+fn diameter_forward(mut query: Query<(&mut Area<InterfaceContext>, &Diameter), Changed<Diameter>>) {
+    for (mut area, diameter) in query.iter_mut() {
+        area.width = diameter.0;
+        area.height = diameter.0;
+    }
+}
+fn mips_adjust(
+    mut query: Query<(&mut MipsLevel, &Area<InterfaceContext>)>,
+    scale_factor: Res<ScaleFactor>,
+) {
     for (mut mips, area) in query.iter_mut() {
         *mips = MipsLevel::new(
             (
@@ -117,14 +132,15 @@ fn mips_adjust(mut query: Query<(&mut MipsLevel, &Area<InterfaceContext>)>) {
             )
                 .into(),
             Circle::MIPS,
-            area.to_device(1.0),
+            area.to_device(scale_factor.factor()),
         );
     }
 }
 
 #[test]
-fn png() {
+fn coverage_maps() {
     use crate::ginkgo::Ginkgo;
+    use std::path::Path;
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("src")
         .join("circle")
