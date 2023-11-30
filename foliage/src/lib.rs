@@ -193,6 +193,7 @@ impl Foliage {
                         WindowEvent::Touch(_) => {}
                         WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                             elm.set_scale_factor(scale_factor as CoordinateUnit);
+                            ginkgo.set_scale_factor(scale_factor as CoordinateUnit);
                         }
                         WindowEvent::ThemeChanged(_) => {}
                         WindowEvent::Occluded(_) => {}

@@ -65,6 +65,9 @@ impl Ginkgo {
     pub fn scale_factor(&self) -> CoordinateUnit {
         self.scale_factor
     }
+    pub(crate) fn set_scale_factor(&mut self, factor: CoordinateUnit) {
+        self.scale_factor = factor;
+    }
     pub fn viewport_bind_group_entry(&self, binding: u32) -> BindGroupEntry {
         BindGroupEntry {
             binding,
@@ -254,11 +257,11 @@ impl Ginkgo {
         Some(RenderPassDepthStencilAttachment {
             view: self.depth_texture.as_ref().unwrap().view(),
             depth_ops: Some(wgpu::Operations {
-                load: wgpu::LoadOp::Clear(self.viewport.as_ref().unwrap().far_layer().z),
+                load: LoadOp::Clear(self.viewport.as_ref().unwrap().far_layer().z),
                 store: StoreOp::Store,
             }),
             stencil_ops: Some(wgpu::Operations {
-                load: wgpu::LoadOp::Clear(0u32),
+                load: LoadOp::Clear(0u32),
                 store: StoreOp::Store,
             }),
         })

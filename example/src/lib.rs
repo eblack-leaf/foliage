@@ -138,7 +138,7 @@ impl Leaf for Tester {
         elm.job.container.spawn(Rectangle::new(
             RectangleStyle::fill(),
             (148, 280 + android_offset).into(),
-            (120, 4).into(),
+            (120, 8).into(),
             7.into(),
             Color::GREY_DARK.into(),
             Progress::new(0.0, 1.0),
@@ -146,15 +146,15 @@ impl Leaf for Tester {
         elm.job.container.spawn(Rectangle::new(
             RectangleStyle::fill(),
             (148, 280 + android_offset).into(),
-            (120, 4).into(),
+            (120, 8).into(),
             6.into(),
             Color::GREEN_DARK.into(),
             Progress::new(0.0, 0.25),
         ));
         elm.job.container.spawn(Rectangle::new(
             RectangleStyle::fill(),
-            (178, 278 + android_offset).into(),
-            (8, 8).into(),
+            (178, 276 + android_offset).into(),
+            (16, 16).into(),
             5.into(),
             Color::from(Color::GREEN).with_alpha(1.0),
             Progress::new(0.0, 1.0),
@@ -173,8 +173,7 @@ impl Leaf for Tester {
             Diameter::from_mip_level(CircleMipLevel::Sixteen),
             4.into(),
             Color::GREY_DARK.into(),
-            Progress::new(0.0, 1.0)
+            Progress::new(0.0, 1.0),
         ));
-
     }
 }
