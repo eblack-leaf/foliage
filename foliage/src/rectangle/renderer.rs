@@ -11,7 +11,7 @@ use crate::coordinate::position::CReprPosition;
 use crate::ginkgo::Ginkgo;
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
 use crate::rectangle::vertex::{Vertex, VERTICES};
-use crate::rectangle::{Rectangle, RectangleStyle};
+use crate::rectangle::Rectangle;
 use crate::texture::Progress;
 use bevy_ecs::entity::Entity;
 
@@ -45,17 +45,6 @@ impl Render for Rectangle {
             1,
             texture_data.as_slice(),
         );
-        let ring_texture_data = serde_json::from_str::<Vec<u8>>(include_str!(
-            "texture_resources/rectangle-ring-texture.cov"
-        ))
-        .ok()
-        .unwrap();
-        let (_ring_texture, ring_view) = ginkgo.texture_r8unorm_d2(
-            Rectangle::TEXTURE_DIMENSIONS,
-            Rectangle::TEXTURE_DIMENSIONS,
-            1,
-            ring_texture_data.as_slice(),
-        );
         let progress_texture_data =
             serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/rectangle.prog"))
                 .unwrap();
@@ -64,15 +53,6 @@ impl Render for Rectangle {
             Rectangle::TEXTURE_DIMENSIONS,
             1,
             progress_texture_data.as_slice(),
-        );
-        let ring_progress_texture_data =
-            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/rectangle-ring.prog"))
-                .unwrap();
-        let (_ring_progress_texture, ring_progress_view) = ginkgo.texture_r8unorm_d2(
-            Rectangle::TEXTURE_DIMENSIONS,
-            Rectangle::TEXTURE_DIMENSIONS,
-            1,
-            ring_progress_texture_data.as_slice(),
         );
         let sampler = ginkgo
             .device()
@@ -85,10 +65,8 @@ impl Render for Rectangle {
                     entries: &[
                         Ginkgo::vertex_uniform_bind_group_layout_entry(0),
                         Ginkgo::texture_d2_bind_group_entry(1),
-                        Ginkgo::texture_d2_bind_group_entry(2),
-                        Ginkgo::sampler_bind_group_layout_entry(3),
-                        Ginkgo::texture_d2_bind_group_entry(4),
-                        Ginkgo::texture_d2_bind_group_entry(5),
+                        Ginkgo::sampler_bind_group_layout_entry(2),
+                        Ginkgo::texture_d2_bind_group_entry(3),
                     ],
                 });
         let bind_group = ginkgo
@@ -99,10 +77,8 @@ impl Render for Rectangle {
                 entries: &[
                     ginkgo.viewport_bind_group_entry(0),
                     Ginkgo::texture_bind_group_entry(&view, 1),
-                    Ginkgo::texture_bind_group_entry(&ring_view, 2),
-                    Ginkgo::sampler_bind_group_entry(&sampler, 3),
-                    Ginkgo::texture_bind_group_entry(&progress_view, 4),
-                    Ginkgo::texture_bind_group_entry(&ring_progress_view, 5),
+                    Ginkgo::sampler_bind_group_entry(&sampler, 2),
+                    Ginkgo::texture_bind_group_entry(&progress_view, 3),
                 ],
             });
         let pipeline_layout =
@@ -148,14 +124,9 @@ impl Render for Rectangle {
                             attributes: &wgpu::vertex_attr_array![5 => Float32x4],
                         },
                         wgpu::VertexBufferLayout {
-                            array_stride: Ginkgo::buffer_address::<RectangleStyle>(1),
-                            step_mode: wgpu::VertexStepMode::Instance,
-                            attributes: &wgpu::vertex_attr_array![6 => Float32],
-                        },
-                        wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<Progress>(1),
                             step_mode: wgpu::VertexStepMode::Instance,
-                            attributes: &wgpu::vertex_attr_array![7 => Float32x2],
+                            attributes: &wgpu::vertex_attr_array![6 => Float32x2],
                         },
                     ],
                 },
@@ -169,13 +140,12 @@ impl Render for Rectangle {
                 ),
                 multiview: None,
             });
-        let vertex_buffer = ginkgo.vertex_buffer_with_data(&VERTICES, "circle-vertex-buffer");
+        let vertex_buffer = ginkgo.vertex_buffer_with_data(&VERTICES, "rectangle-vertex-buffer");
         let instance_coordinator = InstanceCoordinatorBuilder::new(4)
             .with_attribute::<CReprPosition>()
             .with_attribute::<CReprArea>()
             .with_attribute::<Layer>()
             .with_attribute::<Color>()
-            .with_attribute::<RectangleStyle>()
             .with_attribute::<Progress>()
             .build(ginkgo);
         RectangleRenderResources {
@@ -270,13 +240,6 @@ impl Rectangle {
             );
             recorder.0.set_vertex_buffer(
                 5,
-                resources
-                    .instance_coordinator
-                    .buffer::<RectangleStyle>()
-                    .slice(..),
-            );
-            recorder.0.set_vertex_buffer(
-                6,
                 resources
                     .instance_coordinator
                     .buffer::<Progress>()
