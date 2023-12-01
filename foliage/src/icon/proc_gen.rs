@@ -1,9 +1,12 @@
+
+
 #[cfg(test)]
 #[test]
 fn svg_to_png_to_cov() {
     use crate::ginkgo::Ginkgo;
     use std::path::Path;
-    const SIZE: i32 = 36;
+    use crate::icon::Icon;
+    const SIZE: i32 = Icon::TEXTURE_DIMENSIONS as i32;
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("src")
         .join("icon")

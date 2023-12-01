@@ -172,8 +172,22 @@ impl Leaf for Tester {
         // mips_test(elm, android_offset);
         elm.job.container.spawn(Icon::new(
             IconId::new(BundledIcon::Bell),
-            (380, 4 + android_offset).into(),
-            IconScale(24.0),
+            (380, 6 + android_offset).into(),
+            IconScale(20.0),
+            4.into(),
+            Color::OFF_WHITE.into(),
+        ));
+        elm.job.container.spawn(Icon::new(
+            IconId::new(BundledIcon::BellOff),
+            (350, 6 + android_offset).into(),
+            IconScale(20.0),
+            4.into(),
+            Color::OFF_WHITE.into(),
+        ));
+        elm.job.container.spawn(Icon::new(
+            IconId::new(BundledIcon::Clock),
+            (320, 6 + android_offset).into(),
+            IconScale(20.0),
             4.into(),
             Color::OFF_WHITE.into(),
         ));
