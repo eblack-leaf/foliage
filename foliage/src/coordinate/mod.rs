@@ -33,6 +33,8 @@ pub(crate) fn position_set(
 ) {
     for (mut c_repr, pos) in query.iter_mut() {
         *c_repr = pos.to_device(scale_factor.factor()).to_c();
+        // c_repr.x = c_repr.x.floor();
+        // c_repr.y = c_repr.y.floor();
     }
 }
 pub(crate) fn area_set(
@@ -41,6 +43,8 @@ pub(crate) fn area_set(
 ) {
     for (mut c_repr, area) in query.iter_mut() {
         *c_repr = area.to_device(scale_factor.factor()).to_c();
+        // c_repr.width = c_repr.width.floor();
+        // c_repr.height = c_repr.height.floor();
     }
 }
 pub struct Coordinate {}
