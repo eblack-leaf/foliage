@@ -130,9 +130,9 @@ fn progress_map() {
 
 #[test]
 fn coverage_maps() {
+    use crate::circle::Circle;
     use crate::ginkgo::Ginkgo;
     use std::path::Path;
-    use crate::circle::Circle;
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("src")
         .join("circle")

@@ -35,7 +35,7 @@ impl PanelStyle {
 pub struct Panel {
     position: Position<InterfaceContext>,
     area: Area<InterfaceContext>,
-    content: ContentArea,
+    content: PanelContentArea,
     style: DifferentialBundle<PanelStyle>,
     position_c: DifferentialBundle<CReprPosition>,
     area_c: DifferentialBundle<CReprArea>,
@@ -43,7 +43,7 @@ pub struct Panel {
     differentiable: Differentiable,
 }
 #[derive(Component, Copy, Clone, Serialize, Deserialize)]
-pub struct ContentArea(pub Area<InterfaceContext>);
+pub struct PanelContentArea(pub Area<InterfaceContext>);
 impl Panel {
     pub fn new(
         style: PanelStyle,
@@ -55,7 +55,7 @@ impl Panel {
         Self {
             position: pos,
             area,
-            content: ContentArea(area),
+            content: PanelContentArea(area),
             style: DifferentialBundle::new(style),
             position_c: DifferentialBundle::new(pos.to_c()),
             area_c: DifferentialBundle::new(area.to_c()),
@@ -74,7 +74,7 @@ impl Leaf for Panel {
     }
 }
 fn reduce_area(
-    mut query: Query<(&mut Area<InterfaceContext>, &ContentArea), Changed<ContentArea>>,
+    mut query: Query<(&mut Area<InterfaceContext>, &PanelContentArea), Changed<PanelContentArea>>,
     scale_factor: Res<ScaleFactor>,
 ) {
     for (mut area, content) in query.iter_mut() {

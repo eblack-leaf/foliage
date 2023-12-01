@@ -110,6 +110,44 @@ be attached by invoking for the correct implementor.
 
 This allows the engine to only include modules for the parts you want to use.
 
+After everything is configured you must run the `EventLoop` to poll the platform
+for input / window events. Calling `Foliage::run(...)` 
+will invoke this appropriately for each platform. 
+
+    Foliage::new().with_leaf::<A>().with_renderleaf::<B>().run()
+
+Optionally a `WindowDescriptor` can be given to configure the `Window` used 
+in the engine.
+
+```rust
+Foliage::new()
+        .with_window_descriptor(
+            WindowDescriptor::new()
+                .with_title("foliage")
+                .with_desktop_dimensions((434, 840)),
+        )
+```
+
+Also, if targeting android an interface must be passed in `foliage::AndroidApp`.
+
+```rust
+let android_interface = foliage::AndroidInterface::new(android_app);
+// ...
+Foliage::new()
+        .with_window_descriptor(
+            WindowDescriptor::new()
+                .with_title("foliage")
+                .with_desktop_dimensions((434, 840)),
+        )
+        .with_renderleaf::<Panel>()
+        .with_renderleaf::<Circle>()
+        .with_android_interface(android_interface)
+        .run()
+```
+
+This can be forwarded from the android main hook described in the
+environment setup guide below.
+
 ### Environment Setup Guide
 
 ### Android

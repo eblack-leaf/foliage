@@ -6,7 +6,7 @@ use crate::texture::TextureCoordinates;
 
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default)]
-pub struct Vertex {
+pub(crate) struct Vertex {
     position: CReprPosition,
     texture_coordinates: TextureCoordinates,
     listen_hook: [CoordinateUnit; 2],
@@ -127,7 +127,7 @@ impl Vertex {
 
 const CORNER_TEXTURE_EXTENT: CoordinateUnit = 0.49f32;
 const CORNER_SPACING: CoordinateUnit = 0.02f32;
-pub const INDICES: [u16; 54] = [
+pub(crate) const INDICES: [u16; 54] = [
     3, 0, 1, 3, 1, 2, 2, 1, 4, 2, 4, 7, 7, 4, 5, 7, 5, 6, 8, 7, 6, 8, 6, 9, 11, 8, 9, 11, 9, 10,
     14, 13, 8, 14, 8, 11, 15, 12, 13, 15, 13, 14, 12, 3, 2, 12, 2, 13, 13, 2, 7, 13, 7, 8,
 ];

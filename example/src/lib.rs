@@ -1,6 +1,6 @@
 use foliage::circle::{Circle, CircleMipLevel, CircleStyle, Diameter};
 use foliage::color::Color;
-use foliage::coordinate::{Coordinate};
+use foliage::coordinate::Coordinate;
 use foliage::elm::{Elm, Leaf};
 use foliage::panel::{Panel, PanelStyle};
 use foliage::rectangle::{Rectangle, RectangleStyle};
@@ -83,7 +83,7 @@ impl Leaf for Tester {
         elm.job.container.spawn(Rectangle::new(
             RectangleStyle::fill(),
             (118, 178 + android_offset).into(),
-            (2, 128).into(),
+            (4, 128).into(),
             6.into(),
             Color::GREY_DARK.into(),
             Progress::new(0.0, 1.0),
@@ -107,7 +107,7 @@ impl Leaf for Tester {
         elm.job.container.spawn(Rectangle::new(
             RectangleStyle::fill(),
             (118, 468 + android_offset).into(),
-            (2, 128).into(),
+            (4, 128).into(),
             6.into(),
             Color::GREY_DARK.into(),
             Progress::new(0.0, 1.0),

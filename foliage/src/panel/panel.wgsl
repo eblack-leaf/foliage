@@ -19,7 +19,7 @@ struct VertexFragment {
 };
 @vertex
 fn vertex_entry(vertex: Vertex) -> VertexFragment {
-    let listen = vec2<f32>(vertex.area.x * vertex.vertex_hook.x, vertex.area.y * vertex.vertex_hook.y);
+    let listen = vertex.area * vertex.vertex_hook;
     let pos = vec4<f32>(vertex.position + vertex.vertex_pos + listen, vertex.layer, 1.0);
     return VertexFragment(viewport * pos, vertex.vertex_tx, vertex.color, vertex.ring);
 }

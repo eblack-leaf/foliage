@@ -93,8 +93,10 @@ impl Render for Circle {
             .unwrap(),
         );
         texture_data.extend(
-            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-texture-12.cov"))
-                .unwrap(),
+            serde_json::from_str::<Vec<u8>>(include_str!(
+                "texture_resources/circle-texture-12.cov"
+            ))
+            .unwrap(),
         );
         let (texture, view) = ginkgo.texture_r8unorm_d2(
             Circle::CIRCLE_TEXTURE_DIMENSIONS,
@@ -196,17 +198,17 @@ impl Render for Circle {
         );
         let mut ring_progress_texture_data = vec![];
         ring_progress_texture_data.extend(
-            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-ring-1536.prog"))
-                .unwrap(),
+            serde_json::from_str::<Vec<u8>>(include_str!(
+                "texture_resources/circle-ring-1536.prog"
+            ))
+            .unwrap(),
         );
         ring_progress_texture_data.extend(
             serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-ring-768.prog"))
                 .unwrap(),
         );
         ring_progress_texture_data.extend(
-            serde_json::from_str::<Vec<u8>>(include_str!(
-                "texture_resources/circle-ring-384.prog"
-            ))
+            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/circle-ring-384.prog"))
                 .unwrap(),
         );
         ring_progress_texture_data.extend(
