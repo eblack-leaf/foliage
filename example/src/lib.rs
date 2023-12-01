@@ -3,7 +3,7 @@ use foliage::color::Color;
 use foliage::coordinate::Coordinate;
 use foliage::elm::{Elm, Leaf};
 use foliage::panel::{Panel, PanelStyle};
-use foliage::rectangle::{Rectangle};
+use foliage::rectangle::Rectangle;
 use foliage::texture::Progress;
 use foliage::window::WindowDescriptor;
 use foliage::{AndroidInterface, Foliage};
@@ -40,7 +40,6 @@ impl Leaf for Tester {
             Progress::new(0.0, 1.0),
         ));
         elm.job.container.spawn(Rectangle::new(
-            
             (158, 512 + android_offset).into(),
             (200, 10).into(),
             5.into(),
@@ -48,7 +47,6 @@ impl Leaf for Tester {
             Progress::new(0.0, 0.85),
         ));
         elm.job.container.spawn(Rectangle::new(
-            
             (158, 536 + android_offset).into(),
             (200, 10).into(),
             6.into(),
@@ -56,7 +54,6 @@ impl Leaf for Tester {
             Progress::new(0.0, 1.0),
         ));
         elm.job.container.spawn(Rectangle::new(
-            
             (158, 536 + android_offset).into(),
             (200, 10).into(),
             5.into(),
@@ -80,7 +77,6 @@ impl Leaf for Tester {
             Progress::new(0.0, 0.3),
         ));
         elm.job.container.spawn(Rectangle::new(
-            
             (118, 178 + android_offset).into(),
             (4, 128).into(),
             6.into(),
@@ -104,7 +100,6 @@ impl Leaf for Tester {
             Progress::new(0.0, 0.85),
         ));
         elm.job.container.spawn(Rectangle::new(
-            
             (118, 468 + android_offset).into(),
             (4, 128).into(),
             6.into(),
@@ -128,14 +123,13 @@ impl Leaf for Tester {
             Progress::new(0.0, 1.0),
         ));
         elm.job.container.spawn(Panel::new(
-            PanelStyle::fill(),
+            PanelStyle::ring(),
             (138, 210 + android_offset).into(),
             (140, 50).into(),
             4.into(),
             Color::GREEN.into(),
         ));
         elm.job.container.spawn(Rectangle::new(
-            
             (148, 280 + android_offset).into(),
             (120, 6).into(),
             7.into(),
@@ -143,7 +137,6 @@ impl Leaf for Tester {
             Progress::new(0.0, 1.0),
         ));
         elm.job.container.spawn(Rectangle::new(
-            
             (148, 280 + android_offset).into(),
             (120, 6).into(),
             6.into(),
@@ -151,7 +144,6 @@ impl Leaf for Tester {
             Progress::new(0.0, 0.25),
         ));
         elm.job.container.spawn(Rectangle::new(
-            
             (178, 277 + android_offset).into(),
             (12, 12).into(),
             5.into(),
@@ -159,7 +151,7 @@ impl Leaf for Tester {
             Progress::new(0.0, 1.0),
         ));
         elm.job.container.spawn(Panel::new(
-            PanelStyle::fill(),
+            PanelStyle::ring(),
             (10, 10 + android_offset).into(),
             (80, 12).into(),
             3.into(),
@@ -172,13 +164,6 @@ impl Leaf for Tester {
             Diameter::from_mip_level(CircleMipLevel::Twelve),
             4.into(),
             Color::GREY_DARK.into(),
-            Progress::new(0.0, 1.0),
-        ));
-        elm.job.container.spawn(Rectangle::new(
-            (120, 10 + android_offset).into(),
-            (10, 10).into(),
-            2.into(),
-            Color::OFF_WHITE.into(),
             Progress::new(0.0, 1.0),
         ));
         // mips_test(elm, android_offset);

@@ -17,6 +17,7 @@ use crate::window::ScaleFactor;
 
 mod renderer;
 mod vertex;
+mod proc_gen;
 
 #[repr(C)]
 #[derive(Component, Copy, Clone, PartialEq, Default, Pod, Zeroable, Serialize, Deserialize)]

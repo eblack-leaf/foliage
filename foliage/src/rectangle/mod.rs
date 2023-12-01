@@ -7,9 +7,7 @@ use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::{Elm, Leaf};
 use crate::texture::Progress;
-use bevy_ecs::component::Component;
 use bevy_ecs::prelude::Bundle;
-use bytemuck::{Pod, Zeroable};
 
 mod proc_gen;
 mod renderer;
@@ -57,8 +55,8 @@ fn textures() {
         .join("rectangle")
         .join("texture_resources");
     let mut filled = vec![];
-    for y in 0..Rectangle::TEXTURE_DIMENSIONS {
-        for x in 0..Rectangle::TEXTURE_DIMENSIONS {
+    for _y in 0..Rectangle::TEXTURE_DIMENSIONS {
+        for _x in 0..Rectangle::TEXTURE_DIMENSIONS {
             filled.push(255u8);
         }
     }

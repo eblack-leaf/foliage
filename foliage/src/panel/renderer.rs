@@ -35,7 +35,7 @@ pub struct PanelRenderResources {
 }
 
 impl PanelRenderResources {
-    const TEXTURE_DIMENSION: u32 = 100;
+    const TEXTURE_DIMENSION: u32 = 36;
 }
 impl Panel {
     pub(crate) const BASE_CORNER_DEPTH: f32 = 6f32;
