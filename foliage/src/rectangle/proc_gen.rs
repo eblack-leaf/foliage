@@ -1,80 +1,8 @@
-use crate::color::Color;
-use crate::coordinate::area::{Area, CReprArea};
-use crate::coordinate::layer::Layer;
-use crate::coordinate::position::{CReprPosition, Position};
-use crate::coordinate::InterfaceContext;
-use crate::differential::{Differentiable, DifferentialBundle};
-use crate::differential_enable;
-use crate::elm::{Elm, Leaf};
-use crate::texture::Progress;
-use bevy_ecs::component::Component;
-use bevy_ecs::prelude::Bundle;
-use bytemuck::{Pod, Zeroable};
-use serde::{Deserialize, Serialize};
-
-mod renderer;
-mod vertex;
-mod proc_gen;
-#[derive(Bundle)]
-pub struct Rectangle {
-    position: Position<InterfaceContext>,
-    area: Area<InterfaceContext>,
-    c_pos: DifferentialBundle<CReprPosition>,
-    c_area: DifferentialBundle<CReprArea>,
-    progress: DifferentialBundle<Progress>,
-    color: DifferentialBundle<Color>,
-    style: DifferentialBundle<RectangleStyle>,
-    differentiable: Differentiable,
-}
-impl Rectangle {
-    pub fn new(
-        style: RectangleStyle,
-        position: Position<InterfaceContext>,
-        area: Area<InterfaceContext>,
-        layer: Layer,
-        color: Color,
-        progress: Progress,
-    ) -> Self {
-        Self {
-            position,
-            area,
-            c_pos: DifferentialBundle::new(CReprPosition::default()),
-            c_area: DifferentialBundle::new(CReprArea::default()),
-            progress: DifferentialBundle::new(progress),
-            color: DifferentialBundle::new(color),
-            style: DifferentialBundle::new(style),
-            differentiable: Differentiable::new::<Self>(layer),
-        }
-    }
-}
-#[repr(C)]
-#[derive(Pod, Zeroable, Copy, Clone, Default, Component, Serialize, Deserialize, PartialEq)]
-pub struct RectangleStyle(pub(crate) f32);
-impl RectangleStyle {
-    pub fn fill() -> Self {
-        Self(0f32)
-    }
-    pub fn ring() -> Self {
-        Self(1f32)
-    }
-}
-impl Leaf for Rectangle {
-    fn attach(elm: &mut Elm) {
-        differential_enable!(
-            elm,
-            CReprPosition,
-            CReprArea,
-            Progress,
-            Color,
-            RectangleStyle
-        );
-    }
-}
-
 #[test]
 fn textures() {
     use crate::coordinate::section::Section;
     use crate::coordinate::NumericalContext;
+    use crate::rectangle::Rectangle;
     use nalgebra::DMatrix;
     use std::f64::consts::PI;
     use std::path::Path;
