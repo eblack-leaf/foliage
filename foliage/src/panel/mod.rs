@@ -75,8 +75,7 @@ impl Leaf for Panel {
     }
 }
 fn reduce_area(
-    mut query: Query<(&mut Area<InterfaceContext>, &PanelContentArea), Changed<PanelContentArea>>,
-    scale_factor: Res<ScaleFactor>,
+    mut query: Query<(&mut Area<InterfaceContext>, &PanelContentArea), Changed<PanelContentArea>>
 ) {
     for (mut area, content) in query.iter_mut() {
         area.width =
