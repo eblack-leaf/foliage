@@ -1,3 +1,6 @@
 [workspace]
 members = ["foliage", "example", "entry", "build_android"]
 resolver = "2"
+
+[profile.test]
+opt-level = 2

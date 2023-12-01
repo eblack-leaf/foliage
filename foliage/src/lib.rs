@@ -2,7 +2,6 @@
 
 pub use bevy_ecs;
 pub use wgpu;
-pub use winit;
 use winit::event::{Event, StartCause, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopWindowTarget};
 
@@ -26,6 +25,7 @@ pub mod coordinate;
 pub mod differential;
 pub mod elm;
 pub mod ginkgo;
+pub mod icon;
 pub mod instance;
 pub mod job;
 pub mod panel;

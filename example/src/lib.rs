@@ -2,6 +2,8 @@ use foliage::circle::{Circle, CircleMipLevel, CircleStyle, Diameter};
 use foliage::color::Color;
 use foliage::coordinate::Coordinate;
 use foliage::elm::{Elm, Leaf};
+use foliage::icon::bundled_cov::BundledIcon;
+use foliage::icon::{Icon, IconId, IconScale};
 use foliage::panel::{Panel, PanelStyle};
 use foliage::rectangle::Rectangle;
 use foliage::texture::Progress;
@@ -18,6 +20,7 @@ pub fn entry(android_interface: AndroidInterface) {
         .with_renderleaf::<Panel>()
         .with_renderleaf::<Circle>()
         .with_renderleaf::<Rectangle>()
+        .with_renderleaf::<Icon>()
         .with_leaf::<Coordinate>()
         .with_leaf::<Tester>()
         .with_android_interface(android_interface)
@@ -167,6 +170,13 @@ impl Leaf for Tester {
             Progress::new(0.0, 1.0),
         ));
         // mips_test(elm, android_offset);
+        elm.job.container.spawn(Icon::new(
+            IconId::new(BundledIcon::Bell),
+            (380, 4 + android_offset).into(),
+            IconScale(24.0),
+            4.into(),
+            Color::OFF_WHITE.into(),
+        ));
     }
 }
 #[allow(unused)]
