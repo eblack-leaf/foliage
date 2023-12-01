@@ -132,6 +132,13 @@ impl Leaf for Tester {
             4.into(),
             Color::GREEN.into(),
         ));
+        elm.job.container.spawn(Icon::new(
+            IconId::new(BundledIcon::Bookmark),
+            (198, 225 + android_offset).into(),
+            IconScale(20.0),
+            4.into(),
+            Color::GREEN.into(),
+        ));
         elm.job.container.spawn(Rectangle::new(
             (148, 280 + android_offset).into(),
             (120, 6).into(),
@@ -171,14 +178,14 @@ impl Leaf for Tester {
         ));
         // mips_test(elm, android_offset);
         elm.job.container.spawn(Icon::new(
-            IconId::new(BundledIcon::AtSign),
+            IconId::new(BundledIcon::CloudSnow),
             (280, 6 + android_offset).into(),
             IconScale(20.0),
             4.into(),
-            Color::GREEN.into(),
+            Color::GREY.into(),
         ));
         elm.job.container.spawn(Icon::new(
-            IconId::new(BundledIcon::Clock),
+            IconId::new(BundledIcon::Coffee),
             (250, 6 + android_offset).into(),
             IconScale(20.0),
             4.into(),
@@ -189,7 +196,7 @@ impl Leaf for Tester {
             (220, 6 + android_offset).into(),
             IconScale(20.0),
             4.into(),
-            Color::GREEN.into(),
+            Color::GREY_DARK.into(),
         ));
     }
 }

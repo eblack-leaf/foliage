@@ -241,6 +241,12 @@ To run on desktop, `cargo run --package entry`
 
 ### Wasm
 
+Wasm target must be added
+
+```shell
+rustup target add wasm32-unknown-unknown
+```
+
 To run on web, `trunk serve` in the `entry` directory
 
 ```shell
