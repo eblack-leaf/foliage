@@ -46,6 +46,8 @@ impl Render for Icon {
                     entries: &[Ginkgo::texture_d2_bind_group_entry(0)],
                 });
         let mut icon_textures = HashMap::new();
+        // choose icon size by scale factor
+        // which set of filenames to iter and use and the dims
         for (index, file) in FILENAMES.iter().enumerate() {
             let texture_data = serde_json::from_str::<Vec<u8>>(*file).ok().unwrap();
             let (_texture, view) = ginkgo.texture_r8unorm_d2(
