@@ -46,7 +46,7 @@ impl Leaf for Tester {
             (158, 512 + android_offset).into(),
             (200, 10).into(),
             5.into(),
-            Color::BLUE.into(),
+            Color::GREEN_DARK.into(),
             Progress::new(0.0, 0.85),
         ));
         elm.job.container.spawn(Rectangle::new(
@@ -60,7 +60,7 @@ impl Leaf for Tester {
             (158, 536 + android_offset).into(),
             (200, 10).into(),
             5.into(),
-            Color::from_rgb(0.6, 0.4, 0.2).into(),
+            Color::GREEN_MEDIUM.into(),
             Progress::new(0.0, 0.65),
         ));
         elm.job.container.spawn(Circle::new(
@@ -76,7 +76,7 @@ impl Leaf for Tester {
             (10, 194 + android_offset).into(),
             Diameter::from_mip_level(CircleMipLevel::NinetySix),
             5.into(),
-            Color::from(Color::from_rgb(0.6, 0.4, 0.2)).with_alpha(1.0),
+            Color::from(Color::GREEN_MEDIUM).with_alpha(1.0),
             Progress::new(0.0, 0.3),
         ));
         elm.job.container.spawn(Rectangle::new(
@@ -99,7 +99,7 @@ impl Leaf for Tester {
             (10, 484 + android_offset).into(),
             Diameter::from_mip_level(CircleMipLevel::NinetySix),
             5.into(),
-            Color::from(Color::CYAN).with_alpha(1.0),
+            Color::from(Color::LIGHT_GREEN).with_alpha(1.0),
             Progress::new(0.0, 0.85),
         ));
         elm.job.container.spawn(Rectangle::new(
@@ -114,7 +114,7 @@ impl Leaf for Tester {
             (138, 510 + android_offset).into(),
             Diameter::from_mip_level(CircleMipLevel::Twelve),
             5.into(),
-            Color::from(Color::BLUE_MEDIUM).with_alpha(1.0),
+            Color::from(Color::GREEN_MEDIUM).with_alpha(1.0),
             Progress::new(0.0, 1.0),
         ));
         elm.job.container.spawn(Circle::new(
@@ -122,7 +122,7 @@ impl Leaf for Tester {
             (138, 534 + android_offset).into(),
             Diameter::from_mip_level(CircleMipLevel::Twelve),
             5.into(),
-            Color::from(Color::from_rgb(0.6, 0.4, 0.2)).with_alpha(1.0),
+            Color::from(Color::GREEN_MEDIUM).with_alpha(1.0),
             Progress::new(0.0, 1.0),
         ));
         elm.job.container.spawn(Panel::new(
@@ -175,21 +175,21 @@ impl Leaf for Tester {
             (380, 6 + android_offset).into(),
             IconScale(20.0),
             4.into(),
-            Color::OFF_WHITE.into(),
+            Color::GREEN.into(),
         ));
         elm.job.container.spawn(Icon::new(
             IconId::new(BundledIcon::Clock),
             (350, 6 + android_offset).into(),
             IconScale(20.0),
             4.into(),
-            Color::OFF_WHITE.into(),
+            Color::GREY_MEDIUM.into(),
         ));
         elm.job.container.spawn(Icon::new(
-            IconId::new(BundledIcon::Clock),
+            IconId::new(BundledIcon::BellOff),
             (320, 6 + android_offset).into(),
             IconScale(20.0),
             4.into(),
-            Color::OFF_WHITE.into(),
+            Color::GREEN.into(),
         ));
     }
 }

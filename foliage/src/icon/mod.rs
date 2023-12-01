@@ -42,7 +42,7 @@ impl Icon {
         Self {
             position,
             area,
-            scale,
+            scale: IconScale(20.0),
             icon_id: DifferentialBundle::new(icon_id),
             c_pos: DifferentialBundle::new(CReprPosition::default()),
             c_area: DifferentialBundle::new(CReprArea::default()),
@@ -54,9 +54,9 @@ impl Icon {
 impl Leaf for Icon {
     fn attach(elm: &mut Elm) {
         differential_enable!(elm, CReprPosition, CReprArea, Color, IconId);
-        // elm.job.main().add_systems((scale_icon
-        //     .before(coordinate::area_set)
-        //     .before(coordinate::position_set),));
+        elm.job.main().add_systems((scale_icon
+            .before(coordinate::area_set)
+            .before(coordinate::position_set),));
     }
 }
 #[derive(Component, Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
