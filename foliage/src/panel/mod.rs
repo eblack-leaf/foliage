@@ -1,7 +1,6 @@
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs, Query};
 use bevy_ecs::query::Changed;
-use bevy_ecs::system::Res;
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
 
@@ -13,7 +12,6 @@ use crate::coordinate::InterfaceContext;
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::{Elm, Leaf};
-use crate::window::ScaleFactor;
 
 mod proc_gen;
 mod renderer;
@@ -75,12 +73,10 @@ impl Leaf for Panel {
     }
 }
 fn reduce_area(
-    mut query: Query<(&mut Area<InterfaceContext>, &PanelContentArea), Changed<PanelContentArea>>
+    mut query: Query<(&mut Area<InterfaceContext>, &PanelContentArea), Changed<PanelContentArea>>,
 ) {
     for (mut area, content) in query.iter_mut() {
-        area.width =
-            (content.0.width - Panel::BASE_CORNER_DEPTH * 2f32).max(0f32);
-        area.height =
-            (content.0.height - Panel::BASE_CORNER_DEPTH * 2f32).max(0f32);
+        area.width = (content.0.width - Panel::BASE_CORNER_DEPTH * 2f32).max(0f32);
+        area.height = (content.0.height - Panel::BASE_CORNER_DEPTH * 2f32).max(0f32);
     }
 }
