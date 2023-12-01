@@ -6,8 +6,10 @@ use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::elm::{Elm, Leaf};
 use crate::window::ScaleFactor;
+#[allow(unused)]
 use crate::{coordinate, differential_enable};
 use bevy_ecs::component::Component;
+#[allow(unused)]
 use bevy_ecs::prelude::{Bundle, IntoSystemConfigs};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Query, Res};
@@ -68,7 +70,7 @@ impl IconId {
 }
 #[derive(Component, Copy, Clone)]
 pub struct IconScale(pub CoordinateUnit);
-
+#[allow(unused)]
 pub(crate) fn scale_icon(
     mut query: Query<
         (

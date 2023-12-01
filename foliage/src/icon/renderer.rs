@@ -32,7 +32,7 @@ impl Render for Icon {
     type Resources = IconRenderResources;
     type RenderPackage = ();
 
-    const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(0);
+    const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(2);
 
     fn create_resources(ginkgo: &Ginkgo) -> Self::Resources {
         let shader = ginkgo

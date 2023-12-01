@@ -133,10 +133,10 @@ impl Leaf for Tester {
             Color::GREEN.into(),
         ));
         elm.job.container.spawn(Icon::new(
-            IconId::new(BundledIcon::Bookmark),
+            IconId::new(BundledIcon::Feather),
             (198, 225 + android_offset).into(),
             IconScale(20.0),
-            4.into(),
+            3.into(),
             Color::GREEN.into(),
         ));
         elm.job.container.spawn(Rectangle::new(
@@ -166,104 +166,35 @@ impl Leaf for Tester {
             (80, 12).into(),
             3.into(),
             Color::OFF_WHITE.into(),
-            // Progress::new(0.0, 0.65),
         ));
         elm.job.container.spawn(Circle::new(
-            CircleStyle::fill(),
+            CircleStyle::ring(),
             (100, 10 + android_offset).into(),
             Diameter::from_mip_level(CircleMipLevel::Twelve),
             4.into(),
             Color::GREY_DARK.into(),
             Progress::new(0.0, 1.0),
         ));
-        // mips_test(elm, android_offset);
         elm.job.container.spawn(Icon::new(
-            IconId::new(BundledIcon::CloudSnow),
-            (280, 6 + android_offset).into(),
-            IconScale(20.0),
-            4.into(),
-            Color::GREY.into(),
-        ));
-        elm.job.container.spawn(Icon::new(
-            IconId::new(BundledIcon::Coffee),
-            (250, 6 + android_offset).into(),
+            IconId::new(BundledIcon::VolumeTwo),
+            (380, 6 + android_offset).into(),
             IconScale(20.0),
             4.into(),
             Color::GREY_MEDIUM.into(),
         ));
         elm.job.container.spawn(Icon::new(
-            IconId::new(BundledIcon::BellOff),
-            (220, 6 + android_offset).into(),
+            IconId::new(BundledIcon::VolumeOne),
+            (350, 6 + android_offset).into(),
             IconScale(20.0),
             4.into(),
-            Color::GREY_DARK.into(),
+            Color::GREY_MEDIUM.into(),
+        ));
+        elm.job.container.spawn(Icon::new(
+            IconId::new(BundledIcon::VolumeX),
+            (320, 6 + android_offset).into(),
+            IconScale(20.0),
+            4.into(),
+            Color::GREY_MEDIUM.into(),
         ));
     }
-}
-#[allow(unused)]
-fn mips_test(elm: &mut Elm, android_offset: i32) {
-    elm.job.container.spawn(Circle::new(
-        CircleStyle::ring(),
-        (10, 50 + android_offset).into(),
-        Diameter::from_mip_level(CircleMipLevel::Twelve),
-        4.into(),
-        Color::GREEN_MEDIUM.into(),
-        Progress::new(0.0, 1.0),
-    ));
-    elm.job.container.spawn(Circle::new(
-        CircleStyle::ring(),
-        (24, 50 + android_offset).into(),
-        Diameter::from_mip_level(CircleMipLevel::TwentyFour),
-        4.into(),
-        Color::GREEN_MEDIUM.into(),
-        Progress::new(0.0, 1.0),
-    ));
-    elm.job.container.spawn(Circle::new(
-        CircleStyle::ring(),
-        (50, 50 + android_offset).into(),
-        Diameter::from_mip_level(CircleMipLevel::FortyEight),
-        4.into(),
-        Color::GREEN_MEDIUM.into(),
-        Progress::new(0.0, 1.0),
-    ));
-    elm.job.container.spawn(Circle::new(
-        CircleStyle::ring(),
-        (100, 50 + android_offset).into(),
-        Diameter::from_mip_level(CircleMipLevel::NinetySix),
-        4.into(),
-        Color::GREEN_MEDIUM.into(),
-        Progress::new(0.0, 1.0),
-    ));
-    elm.job.container.spawn(Circle::new(
-        CircleStyle::ring(),
-        (200, 50 + android_offset).into(),
-        Diameter::from_mip_level(CircleMipLevel::OneNinetyTwo),
-        4.into(),
-        Color::GREEN_MEDIUM.into(),
-        Progress::new(0.0, 1.0),
-    ));
-    elm.job.container.spawn(Circle::new(
-        CircleStyle::ring(),
-        (10, 50 + android_offset).into(),
-        Diameter::from_mip_level(CircleMipLevel::ThreeEightyFour),
-        4.into(),
-        Color::GREEN_MEDIUM.into(),
-        Progress::new(0.0, 1.0),
-    ));
-    elm.job.container.spawn(Circle::new(
-        CircleStyle::ring(),
-        (10, 50 + android_offset).into(),
-        Diameter::from_mip_level(CircleMipLevel::SevenSixtyEight),
-        4.into(),
-        Color::GREEN_MEDIUM.into(),
-        Progress::new(0.0, 1.0),
-    ));
-    elm.job.container.spawn(Circle::new(
-        CircleStyle::ring(),
-        (10, 50 + android_offset).into(),
-        Diameter::from_mip_level(CircleMipLevel::Full),
-        4.into(),
-        Color::GREEN_MEDIUM.into(),
-        Progress::new(0.0, 1.0),
-    ));
 }
