@@ -1,9 +1,17 @@
 use bevy_ecs::prelude::Component;
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::hash::Hash;
+use std::marker::PhantomData;
+use wgpu::util::DeviceExt;
+use wgpu::{Extent3d, TextureDimension, TextureFormat, TextureUsages};
 
 use crate::coordinate::area::Area;
-use crate::coordinate::{CoordinateUnit, DeviceContext};
+use crate::coordinate::position::Position;
+use crate::coordinate::section::Section;
+use crate::coordinate::{CoordinateUnit, DeviceContext, NumericalContext};
+use crate::ginkgo::Ginkgo;
 
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default)]
@@ -14,7 +22,27 @@ impl TextureCoordinates {
         Self([x, y])
     }
 }
-
+pub struct TexturePartition(pub Section<NumericalContext>);
+impl TexturePartition {
+    pub fn new(part: Section<NumericalContext>, whole: Area<NumericalContext>) -> Self {
+        Self(Section::new(
+            part.position / (whole.width, whole.height).into(),
+            part.area / whole,
+        ))
+    }
+    pub fn left_top(&self) -> TextureCoordinates {
+        TextureCoordinates::new(self.0.left(), self.0.top())
+    }
+    pub fn right_top(&self) -> TextureCoordinates {
+        TextureCoordinates::new(self.0.top(), self.0.top())
+    }
+    pub fn left_bottom(&self) -> TextureCoordinates {
+        TextureCoordinates::new(self.0.left(), self.0.bottom())
+    }
+    pub fn right_bottom(&self) -> TextureCoordinates {
+        TextureCoordinates::new(self.0.right(), self.0.bottom())
+    }
+}
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default, Serialize, Deserialize, Component, PartialEq)]
 pub struct MipsLevel(pub f32);
@@ -54,5 +82,149 @@ impl Progress {
     }
     pub fn new(start: f32, end: f32) -> Self {
         Self(start, end)
+    }
+}
+#[derive(Hash, Eq, PartialEq, Copy, Clone, Ord, PartialOrd)]
+pub struct TextureAtlasLocation(pub u32, pub u32);
+impl TextureAtlasLocation {
+    pub const PADDING: f32 = 1.0;
+    pub fn position(&self, block: AtlasBlock) -> Position<NumericalContext> {
+        (
+            self.0 as f32 * (block.0.width + Self::PADDING),
+            self.1 as f32 * (block.0.height + Self::PADDING),
+        )
+            .into()
+    }
+}
+#[derive(Copy, Clone, Default)]
+pub struct AtlasBlock(pub Area<NumericalContext>);
+pub struct TextureAtlas<Key: Hash + Eq + Clone, TexelData: Default + Sized> {
+    pub texture: wgpu::Texture,
+    pub view: wgpu::TextureView,
+    pub logical: Area<NumericalContext>,
+    pub locations: HashMap<TextureAtlasLocation, Option<Key>>,
+    pub block: AtlasBlock,
+    pub actual: Area<NumericalContext>,
+    pub key_to_data: HashMap<Key, Vec<TexelData>>,
+}
+impl<Key: Hash + Eq + Clone, TexelData: Default + Sized> TextureAtlas<Key, TexelData> {
+    pub fn new(
+        ginkgo: &Ginkgo,
+        block: AtlasBlock,
+        capacity: u32,
+        format: wgpu::TextureFormat,
+    ) -> Self {
+        let mut logical_dim = (capacity as f32).sqrt().floor() as u32;
+        while logical_dim.pow(2) < capacity {
+            logical_dim += 1;
+        }
+        let logical = Area::new(
+            logical_dim.max(1) as CoordinateUnit,
+            logical_dim.max(1) as CoordinateUnit,
+        );
+        let mut locations = HashMap::new();
+        for x in 0..logical_dim {
+            for y in 0..logical_dim {
+                locations.insert(TextureAtlasLocation(x, y), None);
+            }
+        }
+        let actual = TextureAtlasLocation(logical_dim, logical_dim).position(block);
+        let actual = Area::new(actual.x, actual.y);
+        let texture = ginkgo.device.as_ref().unwrap().create_texture_with_data(
+            ginkgo.queue.as_ref().unwrap(),
+            &wgpu::TextureDescriptor {
+                label: Some("texture-atlas"),
+                size: Extent3d {
+                    width: actual.width as u32,
+                    height: actual.height as u32,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: TextureDimension::D2,
+                format,
+                usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
+                view_formats: &[format],
+            },
+            wgpu::util::TextureDataOrder::LayerMajor,
+            &vec![TexelData::default(); (actual.width * actual.height) as usize],
+        );
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        Self {
+            texture,
+            view,
+            logical,
+            locations,
+            block,
+            actual,
+            key_to_data: HashMap::new(),
+        }
+    }
+    pub fn grow(&mut self, capacity: u32) -> Vec<(Key, TexturePartition)> {
+        // get new capacity dims
+        // rewrite all from key_to_data + store partition
+        todo!()
+    }
+    pub fn has_key(&self, key: Key) -> bool {
+        for (_, val) in self.locations.iter() {
+            if let Some(v) = val {
+                if v == &key {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+    pub fn write_location(
+        &mut self,
+        key: Key,
+        ginkgo: &Ginkgo,
+        location: TextureAtlasLocation,
+        extent: Area<NumericalContext>,
+        data: Vec<TexelData>,
+    ) -> TexturePartition {
+        let position = location.position(self.block);
+        ginkgo.queue().write_texture(
+            wgpu::ImageCopyTexture {
+                texture: &self.texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d {
+                    x: position.x as u32,
+                    y: position.y as u32,
+                    z: 0,
+                },
+                aspect: wgpu::TextureAspect::All,
+            },
+            bytemuck::cast_slice(&data),
+            wgpu::ImageDataLayout {
+                offset: 0,
+                bytes_per_row: Some(extent.width * std::mem::size_of::<TexelData>() as u32),
+                rows_per_image: Some(extent.height * std::mem::size_of::<TexelData>() as u32),
+            },
+            wgpu::Extent3d {
+                width: extent.width as u32,
+                height: extent.height as u32,
+                depth_or_array_layers: 1,
+            },
+        );
+        self.locations
+            .get_mut(&location)
+            .unwrap()
+            .replace(key.clone());
+        self.key_to_data.insert(key, data);
+        TexturePartition::new(Section::new(position, extent), self.actual)
+    }
+    pub fn next_location(&mut self) -> Option<TextureAtlasLocation> {
+        if self.locations.is_empty() {
+            return None;
+        }
+        let mut location = None;
+        for (loc, val) in self.locations.iter() {
+            if val.is_none() {
+                location.replace(*loc);
+                break;
+            }
+        }
+        location
     }
 }

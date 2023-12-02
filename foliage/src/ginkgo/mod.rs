@@ -150,7 +150,7 @@ impl Ginkgo {
         let texture = self.device().create_texture_with_data(
             self.queue(),
             &wgpu::TextureDescriptor {
-                label: Some("panel-render-pipeline-texture"),
+                label: Some("ginkgo-r8unorm-d2"),
                 size: Extent3d {
                     width,
                     height,
