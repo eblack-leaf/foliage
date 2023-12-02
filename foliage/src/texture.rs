@@ -9,7 +9,7 @@ use wgpu::{Extent3d, TextureDimension, TextureUsages};
 
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
-use crate::coordinate::section::{CReprSection, Section};
+use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, DeviceContext, NumericalContext};
 use crate::ginkgo::Ginkgo;
 

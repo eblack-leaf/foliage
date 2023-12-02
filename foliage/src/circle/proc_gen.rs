@@ -62,7 +62,7 @@ fn progress_map() {
             .collect::<Vec<u8>>();
         let matrix = DMatrix::from_vec(size as usize, size as usize, data);
         let matrix = matrix.transpose();
-        let data_string = serde_json::to_string(&matrix.data.as_vec()).unwrap();
+        let data_string = rmp_serde::to_vec(&matrix.data.as_vec()).unwrap();
         std::fs::write(
             root.join(format!("circle-ring-{}.prog", size as i32)),
             data_string,
@@ -119,7 +119,7 @@ fn progress_map() {
             .collect::<Vec<u8>>();
         let matrix = DMatrix::from_vec(size as usize, size as usize, data);
         let matrix = matrix.transpose();
-        let data_string = serde_json::to_string(&matrix.data.as_vec()).unwrap();
+        let data_string = rmp_serde::to_vec(&matrix.data.as_vec()).unwrap();
         std::fs::write(
             root.join(format!("circle-{}.prog", size as i32)),
             data_string,

@@ -1,5 +1,4 @@
 use crate::coordinate::position::CReprPosition;
-use crate::texture::TextureCoordinates;
 use bytemuck::{Pod, Zeroable};
 
 #[repr(C)]

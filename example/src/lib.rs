@@ -6,7 +6,7 @@ use foliage::icon::bundled_cov::BundledIcon;
 use foliage::icon::{Icon, IconId, IconScale};
 use foliage::panel::{Panel, PanelStyle};
 use foliage::rectangle::Rectangle;
-use foliage::text::{FontSize, Text, TextValue};
+use foliage::text::{FontSize, MaxCharacters, Text, TextValue};
 use foliage::texture::Progress;
 use foliage::window::WindowDescriptor;
 use foliage::{AndroidInterface, Foliage};
@@ -135,8 +135,8 @@ impl Leaf for Tester {
             Color::GREEN.into(),
         ));
         elm.job.container.spawn(Text::new(
-            (138, 60 + android_offset).into(),
-            (200, 40).into(),
+            (10, 60 + android_offset).into(),
+            MaxCharacters(45),
             2.into(),
             FontSize(14),
             TextValue::new("This is just to say - I ate the plums in the ice box that you were saving for breakfast. Forgive me they were so delicious."),

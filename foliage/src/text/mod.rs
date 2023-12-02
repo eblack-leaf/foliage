@@ -1,4 +1,5 @@
 mod font;
+mod glyph;
 mod renderer;
 mod vertex;
 
@@ -7,25 +8,30 @@ use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::section::Section;
-use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext, NumericalContext};
+use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
 use crate::differential::{Differentiable, DifferentialBundle};
-use crate::differential_enable;
 use crate::elm::{Elm, Leaf, SystemSets};
 use crate::text::font::MonospacedFont;
-use crate::text::renderer::TextKey;
+use crate::text::glyph::Glyph;
 use crate::window::ScaleFactor;
+use crate::{coordinate, differential_enable};
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Bundle, IntoSystemConfigs, Or};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Query, Res};
 use compact_str::CompactString;
+use glyph::{
+    GlyphCache, GlyphChange, GlyphChangeQueue, GlyphKey, GlyphPlacementTool, GlyphRemoveQueue,
+};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+
 #[derive(Bundle)]
 pub struct Text {
     position: Position<InterfaceContext>,
     area: Area<InterfaceContext>,
     text_value: TextValue,
+    max_characters: MaxCharacters,
+    character_dimension: CharacterDimension,
     font_size: DifferentialBundle<FontSize>,
     c_pos: DifferentialBundle<CReprPosition>,
     c_area: DifferentialBundle<CReprArea>,
@@ -40,7 +46,7 @@ pub struct Text {
 impl Text {
     pub fn new(
         position: Position<InterfaceContext>,
-        area: Area<InterfaceContext>,
+        max_characters: MaxCharacters,
         layer: Layer,
         font_size: FontSize,
         text_value: TextValue,
@@ -48,7 +54,8 @@ impl Text {
     ) -> Self {
         Self {
             position,
-            area,
+            area: Area::default(),
+            max_characters,
             font_size: DifferentialBundle::new(font_size),
             c_pos: DifferentialBundle::new(CReprPosition::default()),
             c_area: DifferentialBundle::new(CReprArea::default()),
@@ -57,6 +64,7 @@ impl Text {
             glyph_adds: DifferentialBundle::new(GlyphChangeQueue::default()),
             glyph_removes: DifferentialBundle::new(GlyphRemoveQueue::default()),
             text_value,
+            character_dimension: CharacterDimension(Area::default()),
             differentiable: Differentiable::new::<Self>(layer),
             glyph_cache: GlyphCache::default(),
             glyph_placement_tool: GlyphPlacementTool(fontdue::layout::Layout::new(
@@ -66,6 +74,8 @@ impl Text {
     }
     pub const DEFAULT_OPT_SCALE: u32 = 40;
 }
+#[derive(Component, Copy, Clone)]
+pub struct MaxCharacters(pub u32);
 impl Leaf for Text {
     fn attach(elm: &mut Elm) {
         differential_enable!(
@@ -82,26 +92,35 @@ impl Leaf for Text {
         elm.job
             .container
             .insert_resource(MonospacedFont::new(Self::DEFAULT_OPT_SCALE));
-        elm.job
-            .main()
-            .add_systems((changes.before(SystemSets::Differential),));
+        elm.job.main().add_systems((
+            changes.before(SystemSets::Differential),
+            max_character.before(changes).before(coordinate::area_set),
+        ));
     }
 }
-#[derive(Serialize, Deserialize, Copy, Clone, Hash, Eq, PartialEq)]
-pub(crate) struct GlyphKey {
-    pub(crate) glyph_index: u16,
-    pub(crate) px: u32,
-    pub(crate) font_hash: usize,
-}
-impl GlyphKey {
-    pub(crate) fn new(raster_config: fontdue::layout::GlyphRasterConfig) -> Self {
-        Self {
-            glyph_index: raster_config.glyph_index,
-            px: raster_config.px as u32,
-            font_hash: raster_config.font_hash,
-        }
+#[derive(Component, Copy, Clone)]
+pub(crate) struct CharacterDimension(pub(crate) Area<DeviceContext>);
+pub(crate) fn max_character(
+    mut query: Query<
+        (
+            &MaxCharacters,
+            &FontSize,
+            &mut Area<InterfaceContext>,
+            &mut CharacterDimension,
+        ),
+        Or<(Changed<MaxCharacters>, Changed<FontSize>)>,
+    >,
+    scale_factor: Res<ScaleFactor>,
+    font: Res<MonospacedFont>,
+) {
+    for (max, size, mut area, mut dim) in query.iter_mut() {
+        *dim = CharacterDimension(font.character_dimensions(size.px(scale_factor.factor())));
+        let interface_dim = dim.0.to_interface(scale_factor.factor());
+        let width = interface_dim.width * max.0 as f32;
+        *area = (width, interface_dim.height).into();
     }
 }
+
 pub(crate) fn changes(
     mut query: Query<
         (
@@ -109,6 +128,7 @@ pub(crate) fn changes(
             &FontSize,
             &Color,
             &TextValue,
+            &CharacterDimension,
             &mut GlyphChangeQueue,
             &mut GlyphRemoveQueue,
             &mut GlyphCache,
@@ -119,8 +139,17 @@ pub(crate) fn changes(
     font: Res<MonospacedFont>,
     scale_factor: Res<ScaleFactor>,
 ) {
-    for (area, font_size, color, value, mut changes, mut removes, mut cache, mut placer) in
-        query.iter_mut()
+    for (
+        area,
+        font_size,
+        color,
+        value,
+        character_dim,
+        mut changes,
+        mut removes,
+        mut cache,
+        mut placer,
+    ) in query.iter_mut()
     {
         let scaled = area.to_device(scale_factor.factor());
         placer.0.reset(&fontdue::layout::LayoutSettings {
@@ -137,24 +166,52 @@ pub(crate) fn changes(
                 0,
             ),
         );
-        for g in placer.0.glyphs() {
-            changes.0.push((
-                g.byte_offset,
-                GlyphChange {
-                    character: Some(g.parent),
-                    key: Some((GlyphKey::new(g.key), None)),
-                    section: Some(Section::<DeviceContext>::new(
-                        (g.x, g.y),
-                        (g.width, g.height),
-                    )),
-                    color: Some(*color),
-                },
-            ))
+        let glyphs = placer.0.glyphs();
+        for g in glyphs {
+            if g.y + g.height as f32 > character_dim.0.height {
+                if let Some(old) = cache.0.remove(&g.byte_offset) {
+                    removes.0.push((g.byte_offset, old.key));
+                }
+            } else {
+                let glyph_key = GlyphKey::new(g.key);
+                let character = g.parent;
+                let section = Section::<DeviceContext>::new((g.x, g.y), (g.width, g.height));
+                cache.0.insert(
+                    g.byte_offset,
+                    Glyph {
+                        character,
+                        key: glyph_key,
+                        section,
+                        color: *color,
+                    },
+                );
+                changes.0.push((
+                    g.byte_offset,
+                    GlyphChange {
+                        character: Some(character),
+                        key: Some((glyph_key, None)),
+                        section: Some(section),
+                        color: Some(*color),
+                    },
+                ));
+            }
+        }
+        let glyphs_len = glyphs.len();
+        let mut removals = vec![];
+        if glyphs_len < cache.0.len() {
+            for (a, b) in cache.0.iter() {
+                if a >= &glyphs_len {
+                    removals.push((*a, b.key));
+                }
+            }
+        }
+        for (a, b) in removals {
+            cache.0.remove(&a);
+            removes.0.push((a, b));
         }
     }
 }
-#[derive(Component)]
-pub(crate) struct GlyphPlacementTool(pub(crate) fontdue::layout::Layout);
+
 #[derive(Component, Copy, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct FontSize(pub u32);
 impl FontSize {
@@ -175,24 +232,4 @@ impl TextValueUniqueCharacters {
     pub(crate) fn new(value: &TextValue) -> Self {
         Self(value.0.len() as u32)
     }
-}
-#[derive(Component, Default)]
-pub(crate) struct GlyphCache(pub(crate) HashMap<TextKey, Glyph>);
-#[derive(Component, Clone, Serialize, Deserialize, PartialEq, Default)]
-pub(crate) struct GlyphChangeQueue(pub(crate) Vec<(TextKey, GlyphChange)>);
-#[derive(Component, Clone, Serialize, Deserialize, PartialEq, Default)]
-pub(crate) struct GlyphRemoveQueue(pub(crate) Vec<(TextKey, GlyphKey)>);
-#[derive(Component, Clone, Serialize, Deserialize, PartialEq)]
-pub(crate) struct Glyph {
-    pub(crate) character: char,
-    pub(crate) key: GlyphKey,
-    pub(crate) section: Section<DeviceContext>,
-    pub(crate) color: Color,
-}
-#[derive(Component, Clone, Serialize, Deserialize, PartialEq)]
-pub(crate) struct GlyphChange {
-    pub(crate) character: Option<char>,
-    pub(crate) key: Option<(GlyphKey, Option<GlyphKey>)>,
-    pub(crate) section: Option<Section<DeviceContext>>,
-    pub(crate) color: Option<Color>,
 }

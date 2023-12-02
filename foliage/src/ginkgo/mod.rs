@@ -126,7 +126,7 @@ impl Ginkgo {
     #[cfg(not(target_family = "wasm"))]
     pub fn png_to_cov<P: AsRef<Path>>(png: P, cov: P) {
         let data = Ginkgo::png_to_r8unorm_d2(png);
-        let string = serde_json::to_string(data.as_slice()).unwrap();
+        let string = rmp_serde::to_vec(data.as_slice()).unwrap();
         std::fs::write(cov, string).unwrap();
     }
     #[cfg(not(target_family = "wasm"))]

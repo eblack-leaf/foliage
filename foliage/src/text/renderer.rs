@@ -13,10 +13,9 @@ use crate::ginkgo::uniform::AlignedUniform;
 use crate::ginkgo::Ginkgo;
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
 use crate::text::font::MonospacedFont;
+use crate::text::glyph::{GlyphChangeQueue, GlyphKey, GlyphRemoveQueue};
 use crate::text::vertex::{Vertex, VERTICES};
-use crate::text::{
-    FontSize, GlyphChangeQueue, GlyphKey, GlyphRemoveQueue, Text, TextValueUniqueCharacters,
-};
+use crate::text::{FontSize, Text, TextValueUniqueCharacters};
 use crate::texture::{AtlasBlock, TextureAtlas, TexturePartition};
 use bevy_ecs::entity::Entity;
 use std::collections::{HashMap, HashSet};
@@ -161,7 +160,8 @@ impl Render for Text {
             AtlasBlock(
                 resources
                     .font
-                    .character_dimensions(font_size.px(ginkgo.scale_factor())),
+                    .character_dimensions(font_size.px(ginkgo.scale_factor()))
+                    .to_numerical(),
             ),
             unique_characters.0,
             wgpu::TextureFormat::R8Unorm,
@@ -234,10 +234,10 @@ impl Render for Text {
     }
 
     fn on_package_removal(
-        ginkgo: &Ginkgo,
-        resources: &mut Self::Resources,
-        entity: Entity,
-        package: RenderPackage<Self>,
+        _ginkgo: &Ginkgo,
+        _resources: &mut Self::Resources,
+        _entity: Entity,
+        _package: RenderPackage<Self>,
     ) {
         // do nothing?
     }
@@ -299,7 +299,8 @@ impl Render for Text {
                 let block = AtlasBlock(
                     resources
                         .font
-                        .character_dimensions(font_size.px(ginkgo.scale_factor())),
+                        .character_dimensions(font_size.px(ginkgo.scale_factor()))
+                        .to_numerical(),
                 );
                 package.package_data.block = block;
                 font_size_changed = true;
@@ -351,16 +352,14 @@ impl Render for Text {
             }
         }
 
-        if let Some(mut changes) = glyph_changes {
+        if let Some(changes) = glyph_changes {
             for (key, glyph) in changes.0 {
                 if !package.package_data.instance_coordinator.has_key(&key) {
                     package.package_data.instance_coordinator.queue_add(key);
                 }
                 if let Some((new, old)) = glyph.key {
                     if let Some(old) = old {
-                        if let Some((ch, extent, data)) =
-                            package.package_data.rasterizations.remove(&old)
-                        {
+                        if package.package_data.rasterizations.remove(&old).is_some() {
                             package
                                 .package_data
                                 .rasterization_entries
@@ -432,9 +431,9 @@ impl Render for Text {
     }
 
     fn prepare_resources(
-        resources: &mut Self::Resources,
-        ginkgo: &Ginkgo,
-        per_renderer_record_hook: &mut bool,
+        _resources: &mut Self::Resources,
+        _ginkgo: &Ginkgo,
+        _per_renderer_record_hook: &mut bool,
     ) {
         // do nothing?
     }

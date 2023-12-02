@@ -2,7 +2,6 @@ use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 
 use anymap::AnyMap;
-use bevy_ecs::prelude::Component;
 use bytemuck::{Pod, Zeroable};
 use serde::Deserialize;
 

@@ -49,7 +49,7 @@ impl Render for Icon {
         // choose icon size by scale factor
         // which set of filenames to iter and use and the dims
         for (index, file) in FILENAMES.iter().enumerate() {
-            let texture_data = serde_json::from_str::<Vec<u8>>(*file).ok().unwrap();
+            let texture_data = rmp_serde::from_slice::<Vec<u8>>(*file).ok().unwrap();
             let (_texture, view) = ginkgo.texture_r8unorm_d2(
                 Icon::TEXTURE_DIMENSIONS,
                 Icon::TEXTURE_DIMENSIONS,

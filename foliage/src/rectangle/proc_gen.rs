@@ -86,7 +86,7 @@ fn textures() {
             .collect::<Vec<u8>>();
         let matrix = DMatrix::from_vec(size as usize, size as usize, data);
         let matrix = matrix.transpose();
-        let data_string = serde_json::to_string(&matrix.data.as_vec()).unwrap();
+        let data_string = rmp_serde::to_vec(&matrix.data.as_vec()).unwrap();
         std::fs::write(root.join("rectangle-ring.prog"), data_string).unwrap();
     }
     {
@@ -109,12 +109,12 @@ fn textures() {
                 scaled as u8
             })
             .collect::<Vec<u8>>();
-        let data_string = serde_json::to_string(&data).unwrap();
+        let data_string = rmp_serde::to_vec(&data).unwrap();
         std::fs::write(root.join("rectangle.prog"), data_string).unwrap();
     }
     {
-        let filled = serde_json::to_string(&filled).unwrap();
-        let ring = serde_json::to_string(&ring).unwrap();
+        let filled = rmp_serde::to_vec(&filled).unwrap();
+        let ring = rmp_serde::to_vec(&ring).unwrap();
         std::fs::write(root.join("rectangle-texture.cov"), filled).unwrap();
         std::fs::write(root.join("rectangle-ring-texture.cov"), ring).unwrap();
     }

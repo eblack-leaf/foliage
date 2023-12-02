@@ -1,12 +1,12 @@
 use crate::coordinate::area::Area;
-use crate::coordinate::{CoordinateUnit, NumericalContext};
+use crate::coordinate::{CoordinateUnit, DeviceContext};
 use bevy_ecs::system::Resource;
 
 #[derive(Resource)]
 pub struct MonospacedFont(pub fontdue::Font);
 impl MonospacedFont {
     pub const TEXT_HEIGHT_CORRECTION: f32 = 1.0;
-    pub fn character_dimensions(&self, px: CoordinateUnit) -> Area<NumericalContext> {
+    pub fn character_dimensions(&self, px: CoordinateUnit) -> Area<DeviceContext> {
         (
             self.0.metrics('a', px).advance_width.ceil(),
             self.0

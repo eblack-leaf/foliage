@@ -34,7 +34,7 @@ impl Render for Rectangle {
         let shader = ginkgo
             .device()
             .create_shader_module(wgpu::include_wgsl!("rectangle.wgsl"));
-        let texture_data = serde_json::from_str::<Vec<u8>>(include_str!(
+        let texture_data = rmp_serde::from_slice::<Vec<u8>>(include_bytes!(
             "texture_resources/rectangle-texture.cov"
         ))
         .ok()
@@ -46,7 +46,7 @@ impl Render for Rectangle {
             texture_data.as_slice(),
         );
         let progress_texture_data =
-            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/rectangle.prog"))
+            rmp_serde::from_slice::<Vec<u8>>(include_bytes!("texture_resources/rectangle.prog"))
                 .unwrap();
         let (_progress_texture, progress_view) = ginkgo.texture_r8unorm_d2(
             Rectangle::TEXTURE_DIMENSIONS,

@@ -81,8 +81,8 @@ fn textures() {
             scaled as u8
         })
         .collect::<Vec<u8>>();
-    let data_string = serde_json::to_string(&data).unwrap();
+    let data_string = rmp_serde::to_vec(&data).unwrap();
     std::fs::write(root.join("rectangle.prog"), data_string).unwrap();
-    let filled = serde_json::to_string(&filled).unwrap();
+    let filled = rmp_serde::to_vec(&filled).unwrap();
     std::fs::write(root.join("rectangle-texture.cov"), filled).unwrap();
 }

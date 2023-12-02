@@ -50,7 +50,7 @@ impl Render for Panel {
             .device()
             .create_shader_module(wgpu::include_wgsl!("panel.wgsl"));
         let texture_data =
-            serde_json::from_str::<Vec<u8>>(include_str!("texture_resources/panel-texture.cov"))
+            rmp_serde::from_slice::<Vec<u8>>(include_bytes!("texture_resources/panel-texture.cov"))
                 .ok()
                 .unwrap();
         let (texture, view) = ginkgo.texture_r8unorm_d2(
@@ -59,7 +59,7 @@ impl Render for Panel {
             1,
             texture_data.as_slice(),
         );
-        let ring_texture_data = serde_json::from_str::<Vec<u8>>(include_str!(
+        let ring_texture_data = rmp_serde::from_slice::<Vec<u8>>(include_bytes!(
             "texture_resources/panel-ring-texture.cov"
         ))
         .ok()
