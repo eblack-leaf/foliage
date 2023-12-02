@@ -1,9 +1,7 @@
-use crate::coordinate::area::{Area, CReprArea};
-use crate::coordinate::position::{CReprPosition, Position};
+use crate::coordinate::area::Area;
+use crate::coordinate::position::Position;
 use crate::coordinate::{CoordinateContext, CoordinateUnit, DeviceContext, InterfaceContext};
 use bevy_ecs::bundle::Bundle;
-use bevy_ecs::prelude::Component;
-use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
 
 #[derive(Bundle, Copy, Clone, PartialOrd, PartialEq, Default, Serialize, Deserialize)]
@@ -99,9 +97,6 @@ impl<Context: CoordinateContext> Section<Context> {
         self.area = area;
         self
     }
-    pub fn to_c(self) -> CReprSection {
-        CReprSection::new(self.position.to_c(), self.area.to_c())
-    }
 }
 
 impl Section<InterfaceContext> {
@@ -129,17 +124,5 @@ impl<Context: CoordinateContext, P: Into<Position<Context>>, A: Into<Area<Contex
 {
     fn from(value: (P, A)) -> Self {
         Self::new(value.0.into(), value.1.into())
-    }
-}
-#[repr(C)]
-#[derive(Copy, Clone, Pod, Zeroable, Serialize, Deserialize, Default, Component)]
-pub struct CReprSection {
-    pub position: CReprPosition,
-    pub area: CReprArea,
-}
-
-impl CReprSection {
-    pub fn new(position: CReprPosition, area: CReprArea) -> Self {
-        Self { position, area }
     }
 }

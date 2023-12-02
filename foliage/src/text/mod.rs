@@ -173,27 +173,40 @@ pub(crate) fn changes(
                     removes.0.push((g.byte_offset, old.key));
                 }
             } else {
+                let mut change = None;
                 let glyph_key = GlyphKey::new(g.key);
-                let character = g.parent;
-                let section = Section::<DeviceContext>::new((g.x, g.y), (g.width, g.height));
-                cache.0.insert(
-                    g.byte_offset,
-                    Glyph {
-                        character,
-                        key: glyph_key,
-                        section,
-                        color: *color,
-                    },
-                );
-                changes.0.push((
-                    g.byte_offset,
-                    GlyphChange {
+                let mut total_update = false;
+                if let Some(cached) = cache.0.get(&g.byte_offset) {
+                    if cached.key != glyph_key {
+                        total_update = true;
+                    } else {
+                        // color change
+                    }
+                } else {
+                    total_update = true;
+                }
+                if total_update {
+                    let character = g.parent;
+                    let section = Section::<DeviceContext>::new((g.x, g.y), (g.width, g.height));
+                    cache.0.insert(
+                        g.byte_offset,
+                        Glyph {
+                            character,
+                            key: glyph_key,
+                            section,
+                            color: *color,
+                        },
+                    );
+                    change.replace(GlyphChange {
                         character: Some(character),
                         key: Some((glyph_key, None)),
                         section: Some(section),
                         color: Some(*color),
-                    },
-                ));
+                    });
+                }
+                if let Some(c) = change {
+                    changes.0.push((g.byte_offset, c));
+                }
             }
         }
         let glyphs_len = glyphs.len();

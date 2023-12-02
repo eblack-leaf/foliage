@@ -261,7 +261,7 @@ impl Render for Text {
         }
         if let Some(removes) = render_packet.get::<GlyphRemoveQueue>() {
             for change in removes.0 {
-                package.package_data.rasterizations.remove(&change.1);
+                // if references == 0 -> package.package_data.rasterizations.remove(&change.1);
                 package
                     .package_data
                     .rasterization_entries

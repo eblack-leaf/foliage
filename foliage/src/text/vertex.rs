@@ -5,14 +5,14 @@ use bytemuck::{Pod, Zeroable};
 #[derive(Pod, Zeroable, Copy, Clone, Default)]
 pub(crate) struct Vertex {
     position: CReprPosition,
-    texture_coordinates: [u32; 2],
+    texture_index: [u32; 2],
 }
 
 impl Vertex {
-    const fn new(position: CReprPosition, texture_coordinates: [u32; 2]) -> Self {
+    const fn new(position: CReprPosition, texture_index: [u32; 2]) -> Self {
         Self {
             position,
-            texture_coordinates,
+            texture_index,
         }
     }
 }
