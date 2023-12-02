@@ -3,7 +3,7 @@ mod renderer;
 mod vertex;
 
 use crate::color::Color;
-use crate::coordinate::area::CReprArea;
+use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::section::Section;
@@ -13,7 +13,10 @@ use crate::differential_enable;
 use crate::elm::{Elm, Leaf};
 use crate::text::font::MonospacedFont;
 use crate::text::renderer::TextKey;
+use crate::window::ScaleFactor;
 use bevy_ecs::component::Component;
+use bevy_ecs::query::Changed;
+use bevy_ecs::system::{Query, Res};
 use compact_str::CompactString;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -56,10 +59,72 @@ impl Text {
 }
 impl Leaf for Text {
     fn attach(elm: &mut Elm) {
-        differential_enable!(elm, CReprPosition, CReprArea, Color, TextValue, FontSize);
+        differential_enable!(
+            elm,
+            CReprPosition,
+            CReprArea,
+            Color,
+            TextValue,
+            FontSize,
+            TextValueUniqueCharacters,
+            GlyphChangeQueue,
+            GlyphRemoveQueue
+        );
         elm.job.container.insert_resource(MonospacedFont::new(40));
     }
 }
+#[derive(Serialize, Deserialize, Copy, Clone, Hash, Eq, PartialEq)]
+pub(crate) struct GlyphKey {
+    pub(crate) glyph_index: u16,
+    pub(crate) px: u32,
+    pub(crate) font_hash: usize,
+}
+impl GlyphKey {
+    pub(crate) fn new(raster_config: fontdue::layout::GlyphRasterConfig) -> Self {
+        Self {
+            glyph_index: raster_config.glyph_index,
+            px: raster_config.px as u32,
+            font_hash: raster_config.font_hash,
+        }
+    }
+}
+pub(crate) fn changes(
+    mut query: Query<
+        (
+            &Area<InterfaceContext>,
+            &FontSize,
+            &TextValue,
+            &mut GlyphChangeQueue,
+            &mut GlyphRemoveQueue,
+            &mut GlyphCache,
+            &mut GlyphPlacementTool,
+        ),
+        Changed<TextValue>,
+    >,
+    font: Res<MonospacedFont>,
+    scale_factor: Res<ScaleFactor>,
+) {
+    for (area, font_size, value, mut changes, mut removes, mut cache, mut placer) in
+        query.iter_mut()
+    {
+        placer.0.reset(&fontdue::layout::LayoutSettings {
+            max_width: Some(area.width),
+            line_height: MonospacedFont::TEXT_HEIGHT_CORRECTION,
+            ..fontdue::layout::LayoutSettings::default()
+        });
+        placer.0.append(
+            &[&font.0],
+            &fontdue::layout::TextStyle::new(
+                value.0.as_str(),
+                font_size.px(scale_factor.factor()),
+                0,
+            ),
+        );
+        for g in placer.0.glyphs() {}
+    }
+}
+#[derive(Component)]
+pub(crate) struct GlyphPlacementTool(pub(crate) fontdue::layout::Layout);
 #[derive(Component, Copy, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct FontSize(pub u32);
 impl FontSize {
@@ -81,15 +146,18 @@ pub(crate) struct GlyphCache(pub(crate) HashMap<TextKey, Glyph>);
 #[derive(Component, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub(crate) struct GlyphChangeQueue(pub(crate) Vec<(TextKey, GlyphChange)>);
 #[derive(Component, Clone, Serialize, Deserialize, PartialEq, Default)]
-pub(crate) struct GlyphRemoveQueue(pub(crate) Vec<TextKey>);
+pub(crate) struct GlyphRemoveQueue(pub(crate) Vec<(TextKey, GlyphKey)>);
 #[derive(Component, Clone, Serialize, Deserialize, PartialEq)]
 pub(crate) struct Glyph {
     pub(crate) character: char,
+    pub(crate) key: GlyphKey,
     pub(crate) section: Section<DeviceContext>,
     pub(crate) color: Color,
 }
+#[derive(Component, Clone, Serialize, Deserialize, PartialEq)]
 pub(crate) struct GlyphChange {
     pub(crate) character: Option<char>,
+    pub(crate) key: Option<(GlyphKey, Option<GlyphKey>)>,
     pub(crate) section: Option<Section<DeviceContext>>,
     pub(crate) color: Option<Color>,
 }

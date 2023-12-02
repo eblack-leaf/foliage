@@ -3,8 +3,9 @@ use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::hash::Hash;
+use std::marker::PhantomData;
 use wgpu::util::DeviceExt;
-use wgpu::{Extent3d, Texture, TextureDimension, TextureFormat, TextureUsages, TextureView};
+use wgpu::{Extent3d, TextureDimension, TextureUsages};
 
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
@@ -101,6 +102,7 @@ pub struct TextureAtlas<Key: Hash + Eq + Clone, TexelData: Default + Sized + Clo
     pub key_to_partition: HashMap<Key, TexturePartition>,
     pub capacity: u32,
     pub format: wgpu::TextureFormat,
+    texel_data: PhantomData<TexelData>,
 }
 impl<Key: Hash + Eq + Clone, TexelData: Default + Sized + Clone + Pod + Zeroable>
     TextureAtlas<Key, TexelData>
@@ -160,10 +162,20 @@ impl<Key: Hash + Eq + Clone, TexelData: Default + Sized + Clone + Pod + Zeroable
             key_to_partition: HashMap::new(),
             capacity,
             format,
+            texel_data: PhantomData,
         }
     }
     pub fn grow(&mut self, ginkgo: &Ginkgo, block: AtlasBlock, needed_capacity: u32) {
         *self = Self::new(ginkgo, block, needed_capacity, self.format);
+    }
+    pub fn num_filled_locations(&self) -> u32 {
+        let mut num = 0;
+        for a in self.locations.iter() {
+            if a.1.is_some() {
+                num += 1;
+            }
+        }
+        num
     }
     pub fn has_key(&self, key: &Key) -> bool {
         for (_, val) in self.locations.iter() {
@@ -175,8 +187,8 @@ impl<Key: Hash + Eq + Clone, TexelData: Default + Sized + Clone + Pod + Zeroable
         }
         false
     }
-    pub fn get(&self, key: Key) -> Option<TexturePartition> {
-        self.key_to_partition.get(&key).cloned()
+    pub fn get(&self, key: &Key) -> Option<TexturePartition> {
+        self.key_to_partition.get(key).cloned()
     }
     pub fn write_location(
         &mut self,

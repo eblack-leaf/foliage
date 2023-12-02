@@ -127,7 +127,7 @@ impl<Key: Hash + Eq + PartialEq + Clone + 'static, T> InstanceAttributeWriteQueu
             self.0
                 .drain()
                 .map(|(key, t)| {
-                    let index = ordering.index(key.clone()).unwrap();
+                    let index = ordering.index(&key).unwrap();
                     (key, index, t)
                 })
                 .collect::<Vec<(Key, Index, T)>>(),

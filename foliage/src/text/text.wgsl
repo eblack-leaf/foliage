@@ -14,7 +14,14 @@ struct Vertex {
 };
 @vertex
 fn vertex_entry(vertex: Vertex) -> Fragment {
-    return Fragment();
+    let tx_coord = vec2<f32>(vertex.tx[vertex.vertex_tx.x], vertex.tx[vertex.vertex_tx.y]);
+    let position = vec4<f32>(
+        pos_and_layer.x + vertex.position.x + vertex.vertex_pos.x * vertex.scale.x,
+        pos_and_layer.y + vertex.position.y + vertex.vertex_pos.y * vertex.scale.y,
+        pos_and_layer.z,
+        1.0
+    );
+    return Fragment(viewport * position, tx_coord, vertex.color);
 }
 struct Fragment {
     @builtin(position) position: vec4<f32>,
@@ -23,11 +30,16 @@ struct Fragment {
 };
 @group(1)
 @binding(1)
-var rectangle_texture: texture_2d<f32>;
+var glyph_texture: texture_2d<f32>;
 @group(0)
 @binding(1)
-var rectangle_sampler: sampler;
+var glyph_sampler: sampler;
 @fragment
 fn fragment_entry(fragment: Fragment) -> @location(0) vec4<f32> {
-    return vec4<f32>();
+    let coverage = textureSample(
+        glyph_texture,
+        glyph_sampler,
+        fragment.texture_coordinates,
+    ).r;
+    return vec4<f32>(fragment.color.rgb, fragment.color.a * coverage);
 }

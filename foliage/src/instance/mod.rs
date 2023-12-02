@@ -58,9 +58,9 @@ pub struct InstanceCoordinator<Key: Hash + Eq> {
 pub(crate) struct InstanceOrdering<Key>(pub(crate) Vec<(Key, Layer)>);
 
 impl<Key: PartialEq> InstanceOrdering<Key> {
-    pub(crate) fn index(&self, key: Key) -> Option<Index> {
+    pub(crate) fn index(&self, key: &Key) -> Option<Index> {
         for (index, (k, _layer)) in self.0.iter().enumerate() {
-            if *k == key {
+            if k == key {
                 return Some(index as Index);
             }
         }
@@ -69,6 +69,9 @@ impl<Key: PartialEq> InstanceOrdering<Key> {
 }
 
 impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
+    pub fn has_key(&self, key: &Key) -> bool {
+        self.ordering.index(key).is_some()
+    }
     pub fn prepare(&mut self, ginkgo: &Ginkgo) -> bool {
         let mut should_record = false;
         if let Some(removed) = self.removed_indices() {
@@ -84,7 +87,7 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
         }
         // write layer_writes
         for (key, layer) in self.layer_writes.drain().collect::<Vec<(Key, Layer)>>() {
-            if let Some(index) = self.ordering.index(key) {
+            if let Some(index) = self.ordering.index(&key) {
                 self.ordering.0.get_mut(index as usize).unwrap().1 = layer;
                 self.needs_ordering = true;
                 should_record = true;
@@ -342,7 +345,7 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
             let mut removed_indices = self
                 .removes
                 .drain()
-                .map(|key| self.ordering.index(key).unwrap())
+                .map(|key| self.ordering.index(&key).unwrap())
                 .collect::<Vec<Index>>();
             removed_indices.sort();
             removed_indices.reverse();
