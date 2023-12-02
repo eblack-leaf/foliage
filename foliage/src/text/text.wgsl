@@ -6,7 +6,7 @@ var<uniform> viewport: mat4x4<f32>;
 var<uniform> pos_and_layer: vec4<f32>;
 struct Vertex {
     @location(0) vertex_pos: vec2<f32>,
-    @location(1) vertex_tx: vec2<f32>,
+    @location(1) vertex_tx: vec2<u32>,
     @location(2) position: vec2<f32>,
     @location(3) scale: vec2<f32>,
     @location(4) color: vec4<f32>,

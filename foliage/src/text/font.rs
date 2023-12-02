@@ -5,7 +5,7 @@ use bevy_ecs::system::Resource;
 #[derive(Resource)]
 pub struct MonospacedFont(pub fontdue::Font);
 impl MonospacedFont {
-    pub const TEXT_HEIGHT_CORRECTION: f32 = 0.85;
+    pub const TEXT_HEIGHT_CORRECTION: f32 = 1.0;
     pub fn character_dimensions(&self, px: CoordinateUnit) -> Area<NumericalContext> {
         (
             self.0.metrics('a', px).advance_width.ceil(),

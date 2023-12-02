@@ -101,7 +101,7 @@ impl Render for Text {
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<Vertex>(1),
                             step_mode: wgpu::VertexStepMode::Vertex,
-                            attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x2],
+                            attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Uint32x2],
                         },
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<CReprPosition>(1),
@@ -116,12 +116,12 @@ impl Render for Text {
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<Color>(1),
                             step_mode: wgpu::VertexStepMode::Instance,
-                            attributes: &wgpu::vertex_attr_array![4 => Float32x2],
+                            attributes: &wgpu::vertex_attr_array![4 => Float32x4],
                         },
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<TexturePartition>(1),
                             step_mode: wgpu::VertexStepMode::Instance,
-                            attributes: &wgpu::vertex_attr_array![5 => Float32x2],
+                            attributes: &wgpu::vertex_attr_array![5 => Float32x4],
                         },
                     ],
                 },
@@ -140,7 +140,7 @@ impl Render for Text {
             pipeline,
             bind_group,
             vertex_buffer,
-            font: MonospacedFont::new(40),
+            font: MonospacedFont::new(Text::DEFAULT_OPT_SCALE),
             package_layout,
         }
     }
@@ -216,7 +216,7 @@ impl Render for Text {
             instance_coordinator.queue_add(key);
             instance_coordinator.queue_write(key, glyph.section.unwrap().position.to_c());
             instance_coordinator.queue_write(key, glyph.section.unwrap().area.to_c());
-            instance_coordinator.queue_write(key, glyph.color);
+            instance_coordinator.queue_write(key, glyph.color.unwrap());
             instance_coordinator.queue_write(key, atlas.get(&glyph_key).unwrap());
         }
         instance_coordinator.prepare(ginkgo);
@@ -240,7 +240,6 @@ impl Render for Text {
         package: RenderPackage<Self>,
     ) {
         // do nothing?
-        todo!()
     }
 
     fn prepare_package(
@@ -438,7 +437,6 @@ impl Render for Text {
         per_renderer_record_hook: &mut bool,
     ) {
         // do nothing?
-        todo!()
     }
 
     fn record_behavior() -> RenderRecordBehavior<Self> {

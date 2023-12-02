@@ -24,16 +24,19 @@ impl TextureCoordinates {
 }
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable, Serialize, Deserialize, Default)]
-pub struct TexturePartition(pub CReprSection);
+pub struct TexturePartition(pub [CoordinateUnit; 4]);
 impl TexturePartition {
     pub fn new(part: Section<NumericalContext>, whole: Area<NumericalContext>) -> Self {
-        Self(
-            Section::new(
-                part.position / (whole.width, whole.height).into(),
-                part.area / whole,
-            )
-            .to_c(),
-        )
+        let section = Section::new(
+            part.position / (whole.width, whole.height).into(),
+            part.area / whole,
+        );
+        Self([
+            section.left(),
+            section.top(),
+            section.right(),
+            section.bottom(),
+        ])
     }
 }
 #[repr(C)]

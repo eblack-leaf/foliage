@@ -6,6 +6,7 @@ use foliage::icon::bundled_cov::BundledIcon;
 use foliage::icon::{Icon, IconId, IconScale};
 use foliage::panel::{Panel, PanelStyle};
 use foliage::rectangle::Rectangle;
+use foliage::text::{FontSize, Text, TextValue};
 use foliage::texture::Progress;
 use foliage::window::WindowDescriptor;
 use foliage::{AndroidInterface, Foliage};
@@ -21,6 +22,7 @@ pub fn entry(android_interface: AndroidInterface) {
         .with_renderleaf::<Circle>()
         .with_renderleaf::<Rectangle>()
         .with_renderleaf::<Icon>()
+        .with_renderleaf::<Text>()
         .with_leaf::<Coordinate>()
         .with_leaf::<Tester>()
         .with_android_interface(android_interface)
@@ -130,6 +132,14 @@ impl Leaf for Tester {
             (138, 210 + android_offset).into(),
             (140, 50).into(),
             4.into(),
+            Color::GREEN.into(),
+        ));
+        elm.job.container.spawn(Text::new(
+            (138, 60 + android_offset).into(),
+            (200, 40).into(),
+            2.into(),
+            FontSize(14),
+            TextValue::new("This is just to say - I ate the plums in the ice box that you were saving for breakfast. Forgive me they were so delicious."),
             Color::GREEN.into(),
         ));
         elm.job.container.spawn(Icon::new(

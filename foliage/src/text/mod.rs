@@ -10,19 +10,21 @@ use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext, NumericalContext};
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
-use crate::elm::{Elm, Leaf};
+use crate::elm::{Elm, Leaf, SystemSets};
 use crate::text::font::MonospacedFont;
 use crate::text::renderer::TextKey;
 use crate::window::ScaleFactor;
 use bevy_ecs::component::Component;
+use bevy_ecs::prelude::{Bundle, IntoSystemConfigs, Or};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Query, Res};
 use compact_str::CompactString;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-
+#[derive(Bundle)]
 pub struct Text {
     position: Position<InterfaceContext>,
+    area: Area<InterfaceContext>,
     text_value: TextValue,
     font_size: DifferentialBundle<FontSize>,
     c_pos: DifferentialBundle<CReprPosition>,
@@ -32,11 +34,13 @@ pub struct Text {
     glyph_adds: DifferentialBundle<GlyphChangeQueue>,
     glyph_removes: DifferentialBundle<GlyphRemoveQueue>,
     glyph_cache: GlyphCache,
+    glyph_placement_tool: GlyphPlacementTool,
     differentiable: Differentiable,
 }
 impl Text {
     pub fn new(
         position: Position<InterfaceContext>,
+        area: Area<InterfaceContext>,
         layer: Layer,
         font_size: FontSize,
         text_value: TextValue,
@@ -44,6 +48,7 @@ impl Text {
     ) -> Self {
         Self {
             position,
+            area,
             font_size: DifferentialBundle::new(font_size),
             c_pos: DifferentialBundle::new(CReprPosition::default()),
             c_area: DifferentialBundle::new(CReprArea::default()),
@@ -54,8 +59,12 @@ impl Text {
             text_value,
             differentiable: Differentiable::new::<Self>(layer),
             glyph_cache: GlyphCache::default(),
+            glyph_placement_tool: GlyphPlacementTool(fontdue::layout::Layout::new(
+                fontdue::layout::CoordinateSystem::PositiveYDown,
+            )),
         }
     }
+    pub const DEFAULT_OPT_SCALE: u32 = 40;
 }
 impl Leaf for Text {
     fn attach(elm: &mut Elm) {
@@ -70,7 +79,12 @@ impl Leaf for Text {
             GlyphChangeQueue,
             GlyphRemoveQueue
         );
-        elm.job.container.insert_resource(MonospacedFont::new(40));
+        elm.job
+            .container
+            .insert_resource(MonospacedFont::new(Self::DEFAULT_OPT_SCALE));
+        elm.job
+            .main()
+            .add_systems((changes.before(SystemSets::Differential),));
     }
 }
 #[derive(Serialize, Deserialize, Copy, Clone, Hash, Eq, PartialEq)]
@@ -93,22 +107,25 @@ pub(crate) fn changes(
         (
             &Area<InterfaceContext>,
             &FontSize,
+            &Color,
             &TextValue,
             &mut GlyphChangeQueue,
             &mut GlyphRemoveQueue,
             &mut GlyphCache,
             &mut GlyphPlacementTool,
         ),
-        Changed<TextValue>,
+        Or<(Changed<TextValue>, Changed<FontSize>)>,
     >,
     font: Res<MonospacedFont>,
     scale_factor: Res<ScaleFactor>,
 ) {
-    for (area, font_size, value, mut changes, mut removes, mut cache, mut placer) in
+    for (area, font_size, color, value, mut changes, mut removes, mut cache, mut placer) in
         query.iter_mut()
     {
+        let scaled = area.to_device(scale_factor.factor());
         placer.0.reset(&fontdue::layout::LayoutSettings {
-            max_width: Some(area.width),
+            max_width: Some(scaled.width),
+            max_height: Some(scaled.height),
             line_height: MonospacedFont::TEXT_HEIGHT_CORRECTION,
             ..fontdue::layout::LayoutSettings::default()
         });
@@ -120,7 +137,20 @@ pub(crate) fn changes(
                 0,
             ),
         );
-        for g in placer.0.glyphs() {}
+        for g in placer.0.glyphs() {
+            changes.0.push((
+                g.byte_offset,
+                GlyphChange {
+                    character: Some(g.parent),
+                    key: Some((GlyphKey::new(g.key), None)),
+                    section: Some(Section::<DeviceContext>::new(
+                        (g.x, g.y),
+                        (g.width, g.height),
+                    )),
+                    color: Some(*color),
+                },
+            ))
+        }
     }
 }
 #[derive(Component)]
@@ -134,6 +164,11 @@ impl FontSize {
 }
 #[derive(Component, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct TextValue(pub CompactString);
+impl TextValue {
+    pub fn new<S: AsRef<str>>(s: S) -> Self {
+        Self(CompactString::new(s))
+    }
+}
 #[derive(Component, Copy, Clone, Serialize, Deserialize, PartialEq)]
 pub(crate) struct TextValueUniqueCharacters(pub(crate) u32);
 impl TextValueUniqueCharacters {
