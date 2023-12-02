@@ -6,14 +6,17 @@ use crate::color::Color;
 use crate::coordinate::area::CReprArea;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
-use crate::coordinate::{CoordinateUnit, InterfaceContext};
+use crate::coordinate::section::Section;
+use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext, NumericalContext};
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::{Elm, Leaf};
+use crate::text::font::MonospacedFont;
+use crate::text::renderer::TextKey;
 use bevy_ecs::component::Component;
 use compact_str::CompactString;
 use serde::{Deserialize, Serialize};
-use crate::text::font::MonospacedFont;
+use std::collections::HashMap;
 
 pub struct Text {
     position: Position<InterfaceContext>,
@@ -23,6 +26,9 @@ pub struct Text {
     c_area: DifferentialBundle<CReprArea>,
     color: DifferentialBundle<Color>,
     text_value_chars: DifferentialBundle<TextValueUniqueCharacters>,
+    glyph_adds: DifferentialBundle<GlyphAdds>,
+    glyph_removes: DifferentialBundle<GlyphRemoves>,
+    glyph_cache: GlyphCache,
     differentiable: Differentiable,
 }
 impl Text {
@@ -40,8 +46,11 @@ impl Text {
             c_area: DifferentialBundle::new(CReprArea::default()),
             color: DifferentialBundle::new(color),
             text_value_chars: DifferentialBundle::new(TextValueUniqueCharacters::new(&text_value)),
+            glyph_adds: DifferentialBundle::new(GlyphAdds::default()),
+            glyph_removes: DifferentialBundle::new(GlyphRemoves::default()),
             text_value,
             differentiable: Differentiable::new::<Self>(layer),
+            glyph_cache: GlyphCache::default(),
         }
     }
 }
@@ -66,4 +75,16 @@ impl TextValueUniqueCharacters {
     pub(crate) fn new(value: &TextValue) -> Self {
         Self(value.0.len() as u32)
     }
+}
+#[derive(Component, Default)]
+pub(crate) struct GlyphCache(pub(crate) HashMap<TextKey, Glyph>);
+#[derive(Component, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub(crate) struct GlyphAdds(pub(crate) Vec<(TextKey, Glyph)>);
+#[derive(Component, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub(crate) struct GlyphRemoves(pub(crate) Vec<TextKey>);
+#[derive(Component, Clone, Serialize, Deserialize, PartialEq)]
+pub(crate) struct Glyph {
+    pub(crate) character: char,
+    pub(crate) section: Section<DeviceContext>,
+    pub(crate) color: Color,
 }

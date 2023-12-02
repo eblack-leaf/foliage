@@ -14,7 +14,7 @@ use crate::ginkgo::Ginkgo;
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
 use crate::text::font::MonospacedFont;
 use crate::text::vertex::{Vertex, VERTICES};
-use crate::text::{FontSize, Text, TextValue, TextValueUniqueCharacters};
+use crate::text::{FontSize, GlyphAdds, GlyphRemoves, Text, TextValueUniqueCharacters};
 use crate::texture::{AtlasBlock, TextureAtlas, TexturePartition};
 use bevy_ecs::entity::Entity;
 
@@ -176,6 +176,9 @@ impl Render for Text {
             .with_attribute::<TexturePartition>()
             .build(ginkgo);
         // iter char_changes and fill atlas + coordinator
+        for change in render_packet.get::<GlyphAdds>().unwrap().0.drain(..) {
+            // only have adds here as no removes could be useful
+        }
         let package = TextRenderPackage {
             instance_coordinator,
             bind_group,
@@ -191,6 +194,7 @@ impl Render for Text {
         entity: Entity,
         package: RenderPackage<Self>,
     ) {
+        // do nothing?
         todo!()
     }
 
@@ -201,6 +205,14 @@ impl Render for Text {
         package: &mut RenderPackage<Self>,
         render_packet: RenderPacket,
     ) {
+        // write to atlas + coordinator as above
+        if let Some(removes) = render_packet.get::<GlyphRemoves>() {
+            for change in removes.0 {}
+        }
+        if let Some(adds) = render_packet.get::<GlyphAdds>() {
+            for change in adds.0 {}
+        }
+        // prepare all packages coordinators
         todo!()
     }
 
@@ -209,6 +221,7 @@ impl Render for Text {
         ginkgo: &Ginkgo,
         per_renderer_record_hook: &mut bool,
     ) {
+        // do nothing?
         todo!()
     }
 
@@ -256,7 +269,7 @@ fn record<'a>(
                 .slice(..),
         );
         recorder.0.set_vertex_buffer(
-            3,
+            4,
             package
                 .package_data
                 .instance_coordinator

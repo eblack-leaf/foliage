@@ -179,6 +179,9 @@ impl<Key: Hash + Eq + Clone, TexelData: Default + Sized + Clone + Pod + Zeroable
         }
         false
     }
+    pub fn get(&self, key: Key) -> Option<TexturePartition> {
+        self.key_to_partition.get(&key).cloned()
+    }
     pub fn write_location(
         &mut self,
         key: Key,
