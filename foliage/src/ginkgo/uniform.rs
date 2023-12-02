@@ -30,8 +30,9 @@ impl<Data: Pod + Zeroable> Uniform<Data> {
 #[allow(unused)]
 pub type AlignedUniformData<Repr> = [Repr; 4];
 pub struct AlignedUniform<Repr: Default + Copy + Clone + Pod + Zeroable> {
-    pub uniform: Uniform<[Repr; 4]>,
-    pub data: [Repr; 4],
+    uniform: Uniform<[Repr; 4]>,
+    data: [Repr; 4],
+    dirty: bool,
 }
 impl<Repr: Default + Copy + Clone + Pod + Zeroable> AlignedUniform<Repr> {
     pub fn new(device: &wgpu::Device, data: Option<[Repr; 4]>) -> Self {
@@ -39,12 +40,28 @@ impl<Repr: Default + Copy + Clone + Pod + Zeroable> AlignedUniform<Repr> {
         Self {
             uniform: Uniform::new(device, data),
             data,
+            dirty: false,
+        }
+    }
+    pub fn bind_group_entry(&self, binding: u32) -> BindGroupEntry {
+        wgpu::BindGroupEntry {
+            binding,
+            resource: self.uniform.buffer.as_entire_binding(),
         }
     }
     pub fn update(&mut self, queue: &wgpu::Queue) {
         self.uniform.update(queue, self.data);
+        self.dirty = false;
+    }
+    pub fn needs_update(&self) -> bool {
+        self.dirty
     }
     pub fn set_aspect(&mut self, index: usize, aspect: Repr) {
         self.data[index] = aspect;
+        self.dirty = true;
+    }
+    pub fn refill(&mut self, data: [Repr; 4]) {
+        self.data = data;
+        self.dirty = true;
     }
 }

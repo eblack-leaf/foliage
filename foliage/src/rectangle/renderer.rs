@@ -2,8 +2,8 @@ use crate::ash::instruction::{
     RenderInstructionHandle, RenderInstructionsRecorder, RenderRecordBehavior,
 };
 use crate::ash::render::{Render, RenderPhase};
-use crate::ash::render_package::RenderPackage;
 use crate::ash::render_packet::RenderPacket;
+use crate::ash::renderer::RenderPackage;
 use crate::color::Color;
 use crate::coordinate::area::CReprArea;
 use crate::coordinate::layer::Layer;

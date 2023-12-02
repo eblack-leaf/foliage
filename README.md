@@ -37,7 +37,7 @@ impl Leaf for Implementor {
     }
 }
 ```
-here you can attach any systems (`elm.main().add_systems(...)`) or spawn directly from `elm.spawn(...)`.
+here you can attach any systems (`elm.job.main().add_systems(...)`) or spawn directly from `elm.job.container.spawn(...)`.
 
 To attach a `Renderer` the `Render` trait must be derived.
 

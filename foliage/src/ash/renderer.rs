@@ -1,10 +1,12 @@
 use anymap::AnyMap;
+use bevy_ecs::entity::Entity;
+use std::cmp::Ordering;
 
 use crate::ash::instruction::{
-    RenderInstructionGroup, RenderInstructionsRecorder, RenderRecordBehavior,
+    RenderInstructionGroup, RenderInstructionHandle, RenderInstructionsRecorder,
+    RenderRecordBehavior,
 };
 use crate::ash::render::Render;
-use crate::ash::render_package::{RenderPackage, RenderPackageStorage};
 use crate::ash::render_packet::RenderPacketQueue;
 use crate::coordinate::layer::Layer;
 use crate::ginkgo::Ginkgo;
@@ -155,5 +157,48 @@ impl RendererStorage {
     }
     pub(crate) fn establish<T: Render + 'static>(&mut self, ginkgo: &Ginkgo) {
         self.0.insert(Renderer::<T>::new(ginkgo));
+    }
+}
+
+pub(crate) struct RenderPackageStorage<T: Render>(
+    pub(crate) Vec<(Entity, Layer, RenderPackage<T>)>,
+);
+
+impl<T: Render> RenderPackageStorage<T> {
+    pub(crate) fn new() -> Self {
+        Self(vec![])
+    }
+    pub(crate) fn index(&self, entity: Entity) -> Option<usize> {
+        let mut index = None;
+        for (current, (package_entity, _layer, _package)) in self.0.iter().enumerate() {
+            if &entity == package_entity {
+                index.replace(current);
+            }
+        }
+        index
+    }
+    pub(crate) fn order_by_layer(&mut self) {
+        self.0
+            .sort_by(|lhs, rhs| -> Ordering { lhs.1.partial_cmp(&rhs.1).unwrap() });
+        self.0.reverse();
+    }
+}
+
+pub struct RenderPackage<T: Render> {
+    instruction_handle: Option<RenderInstructionHandle>,
+    pub package_data: T::RenderPackage,
+    should_record: bool,
+}
+
+impl<T: Render> RenderPackage<T> {
+    pub(crate) fn new(data: T::RenderPackage) -> Self {
+        Self {
+            instruction_handle: None,
+            package_data: data,
+            should_record: true,
+        }
+    }
+    pub fn signal_record(&mut self) {
+        self.should_record = true;
     }
 }

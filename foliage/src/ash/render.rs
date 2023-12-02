@@ -3,8 +3,8 @@ use std::cmp::Ordering;
 use bevy_ecs::prelude::Entity;
 
 use crate::ash::instruction::RenderRecordBehavior;
-use crate::ash::render_package::RenderPackage;
 use crate::ash::render_packet::RenderPacket;
+use crate::ash::renderer::RenderPackage;
 use crate::ginkgo::Ginkgo;
 
 #[derive(Copy, Clone)]

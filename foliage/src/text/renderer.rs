@@ -2,21 +2,22 @@ use crate::ash::instruction::{
     RenderInstructionHandle, RenderInstructionsRecorder, RenderRecordBehavior,
 };
 use crate::ash::render::{Render, RenderPhase};
-use crate::ash::render_package::RenderPackage;
 use crate::ash::render_packet::RenderPacket;
+use crate::ash::renderer::RenderPackage;
 use crate::color::Color;
-use crate::coordinate::area::CReprArea;
+use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::CReprPosition;
-use crate::coordinate::CoordinateUnit;
+use crate::coordinate::{CoordinateUnit, NumericalContext};
 use crate::ginkgo::uniform::AlignedUniform;
 use crate::ginkgo::Ginkgo;
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
 use crate::text::font::MonospacedFont;
 use crate::text::vertex::{Vertex, VERTICES};
-use crate::text::{FontSize, GlyphAdds, GlyphRemoves, Text, TextValueUniqueCharacters};
+use crate::text::{FontSize, GlyphChangeQueue, GlyphRemoveQueue, Text, TextValueUniqueCharacters};
 use crate::texture::{AtlasBlock, TextureAtlas, TexturePartition};
 use bevy_ecs::entity::Entity;
+use std::collections::HashMap;
 
 pub struct TextRenderResources {
     pipeline: wgpu::RenderPipeline,
@@ -31,6 +32,9 @@ pub struct TextRenderPackage {
     bind_group: wgpu::BindGroup,
     uniform: AlignedUniform<CoordinateUnit>, // pos + layer
     atlas: TextureAtlas<TextKey, u8>,
+    rasterizations: HashMap<TextKey, (char, Area<NumericalContext>, Vec<u8>)>,
+    font_size: FontSize,
+    block: AtlasBlock,
 }
 impl Render for Text {
     type Resources = TextRenderResources;
@@ -145,18 +149,18 @@ impl Render for Text {
         render_packet: RenderPacket,
     ) -> Self::RenderPackage {
         let font_size = render_packet.get::<FontSize>().unwrap();
-        let text_char_len = render_packet.get::<TextValueUniqueCharacters>().unwrap();
+        let unique_characters = render_packet.get::<TextValueUniqueCharacters>().unwrap();
         let pos = render_packet.get::<CReprPosition>().unwrap();
         let layer = render_packet.get::<Layer>().unwrap();
         let uniform = AlignedUniform::new(ginkgo.device(), Some([pos.x, pos.y, layer.z, 0.0]));
-        let atlas = TextureAtlas::new(
+        let mut atlas = TextureAtlas::new(
             ginkgo,
             AtlasBlock(
                 resources
                     .font
                     .character_dimensions(font_size.px(ginkgo.scale_factor())),
             ),
-            text_char_len.0,
+            unique_characters.0,
             wgpu::TextureFormat::R8Unorm,
         );
         let bind_group = ginkgo
@@ -165,25 +169,54 @@ impl Render for Text {
                 label: Some("text-package-bind-group"),
                 layout: &resources.package_layout,
                 entries: &[
-                    uniform.uniform.bind_group_entry(0),
+                    uniform.bind_group_entry(0),
                     Ginkgo::texture_bind_group_entry(&atlas.view, 1),
                 ],
             });
-        let instance_coordinator = InstanceCoordinatorBuilder::new(text_char_len.0)
+        let mut instance_coordinator = InstanceCoordinatorBuilder::new(unique_characters.0)
             .with_attribute::<CReprPosition>()
             .with_attribute::<CReprArea>()
             .with_attribute::<Color>()
             .with_attribute::<TexturePartition>()
             .build(ginkgo);
         // iter char_changes and fill atlas + coordinator
-        for change in render_packet.get::<GlyphAdds>().unwrap().0.drain(..) {
-            // only have adds here as no removes could be useful
+        let mut rasterizations = HashMap::new();
+        for (key, glyph) in render_packet.get::<GlyphChangeQueue>().unwrap().0.drain(..) {
+            let location = atlas.next_location().unwrap();
+            let rasterization = resources.font.0.rasterize(
+                glyph.character.unwrap(),
+                font_size.px(ginkgo.scale_factor()),
+            );
+            rasterizations.insert(
+                key,
+                (
+                    glyph.character.unwrap(),
+                    (rasterization.0.width, rasterization.0.height).into(),
+                    rasterization.1,
+                ),
+            );
+            let partition = atlas.write_location(
+                key,
+                ginkgo,
+                location,
+                rasterizations.get(&key).unwrap().1,
+                &rasterizations.get(&key).unwrap().2,
+            );
+            instance_coordinator.queue_add(key);
+            instance_coordinator.queue_write(key, glyph.section.unwrap().position.to_c());
+            instance_coordinator.queue_write(key, glyph.section.unwrap().area.to_c());
+            instance_coordinator.queue_write(key, glyph.color);
+            instance_coordinator.queue_write(key, partition);
         }
+        instance_coordinator.prepare(ginkgo);
         let package = TextRenderPackage {
             instance_coordinator,
             bind_group,
             uniform,
+            font_size,
+            block: atlas.block,
             atlas,
+            rasterizations,
         };
         package
     }
@@ -201,19 +234,133 @@ impl Render for Text {
     fn prepare_package(
         ginkgo: &Ginkgo,
         resources: &mut Self::Resources,
-        entity: Entity,
+        _entity: Entity,
         package: &mut RenderPackage<Self>,
         render_packet: RenderPacket,
     ) {
-        // write to atlas + coordinator as above
-        if let Some(removes) = render_packet.get::<GlyphRemoves>() {
-            for change in removes.0 {}
+        if let Some(pos) = render_packet.get::<CReprPosition>() {
+            package.package_data.uniform.set_aspect(0, pos.x);
+            package.package_data.uniform.set_aspect(1, pos.y);
         }
-        if let Some(adds) = render_packet.get::<GlyphAdds>() {
-            for change in adds.0 {}
+        if let Some(layer) = render_packet.get::<Layer>() {
+            package.package_data.uniform.set_aspect(2, layer.z);
         }
-        // prepare all packages coordinators
-        todo!()
+        if package.package_data.uniform.needs_update() {
+            package.package_data.uniform.update(ginkgo.queue());
+        }
+        if let Some(removes) = render_packet.get::<GlyphRemoveQueue>() {
+            for change in removes.0 {
+                // remove from rasterizations
+            }
+        }
+        let glyph_changes = render_packet.get::<GlyphChangeQueue>();
+        let font_size_change = render_packet.get::<FontSize>();
+        let new_glyph_key_count = {
+            let mut count = 0;
+            if let Some(changes) = glyph_changes.as_ref() {
+                for a in changes.0.iter() {
+                    if !package.package_data.atlas.has_key(&a.0) {
+                        count += 1;
+                    }
+                }
+            }
+            count
+        };
+        let needed_capacity = package.package_data.atlas.used_locations() + new_glyph_key_count;
+        let mut font_size_changed = false;
+        if font_size_change.is_some() {
+            let font_size = font_size_change.unwrap();
+            if font_size != package.package_data.font_size {
+                package.package_data.font_size = font_size;
+                let block = AtlasBlock(
+                    resources
+                        .font
+                        .character_dimensions(font_size.px(ginkgo.scale_factor())),
+                );
+                package.package_data.block = block;
+                font_size_changed = true;
+            }
+        }
+        if package.package_data.atlas.capacity < needed_capacity || font_size_changed {
+            package
+                .package_data
+                .atlas
+                .grow(ginkgo, package.package_data.block, needed_capacity);
+            for (key, (ch, extent, data)) in package.package_data.rasterizations.iter_mut() {
+                if font_size_changed {
+                    let rasterization = resources.font.0.rasterize(
+                        *ch,
+                        package.package_data.font_size.px(ginkgo.scale_factor()),
+                    );
+                    package.package_data.rasterizations.insert(
+                        *key,
+                        (
+                            *ch,
+                            (rasterization.0.width, rasterization.0.height).into(),
+                            rasterization.1,
+                        ),
+                    );
+                }
+                if let Some(location) = package.package_data.atlas.next_location() {
+                    let partition = package.package_data.atlas.write_location(
+                        *key,
+                        ginkgo,
+                        location,
+                        package.package_data.rasterizations.get(key).unwrap().1,
+                        &package.package_data.rasterizations.get(key).unwrap().2,
+                    );
+                    package
+                        .package_data
+                        .instance_coordinator
+                        .queue_write(*key, partition);
+                }
+            }
+        }
+
+        if let Some(mut changes) = glyph_changes {
+            for (key, glyph) in changes.0 {
+                if !package.package_data.atlas.has_key(&key) {
+                    package.package_data.instance_coordinator.queue_add(key);
+                    let location = package.package_data.atlas.next_location().unwrap();
+                    let rasterization = resources.font.0.rasterize(
+                        glyph.character.expect("need glyph-character"),
+                        package.package_data.font_size.px(ginkgo.scale_factor()),
+                    );
+                    let partition = package.package_data.atlas.write_location(
+                        key,
+                        ginkgo,
+                        location,
+                        (rasterization.0.width, rasterization.0.height).into(),
+                        &rasterization.1,
+                    );
+                    package
+                        .package_data
+                        .instance_coordinator
+                        .queue_write(key, partition);
+                }
+                // color
+                if let Some(color) = glyph.color {
+                    package
+                        .package_data
+                        .instance_coordinator
+                        .queue_write(key, color);
+                }
+                // section changes
+                if let Some(section) = glyph.section {
+                    package
+                        .package_data
+                        .instance_coordinator
+                        .queue_write(key, section.position.to_c());
+                    package
+                        .package_data
+                        .instance_coordinator
+                        .queue_write(key, section.area.to_c());
+                }
+            }
+        }
+        if package.package_data.instance_coordinator.prepare(ginkgo) {
+            package.signal_record();
+        }
     }
 
     fn prepare_resources(

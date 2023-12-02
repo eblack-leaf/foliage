@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::hash::Hash;
 use wgpu::util::DeviceExt;
-use wgpu::{Extent3d, TextureDimension, TextureUsages};
+use wgpu::{Extent3d, Texture, TextureDimension, TextureFormat, TextureUsages, TextureView};
 
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
@@ -98,10 +98,9 @@ pub struct TextureAtlas<Key: Hash + Eq + Clone, TexelData: Default + Sized + Clo
     pub locations: HashMap<TextureAtlasLocation, Option<Key>>,
     pub block: AtlasBlock,
     pub actual: Area<NumericalContext>,
-    pub key_to_data: HashMap<Key, Vec<TexelData>>,
     pub key_to_partition: HashMap<Key, TexturePartition>,
-    pub key_to_extent: HashMap<Key, Area<NumericalContext>>,
     pub capacity: u32,
+    pub format: wgpu::TextureFormat,
 }
 impl<Key: Hash + Eq + Clone, TexelData: Default + Sized + Clone + Pod + Zeroable>
     TextureAtlas<Key, TexelData>
@@ -158,21 +157,18 @@ impl<Key: Hash + Eq + Clone, TexelData: Default + Sized + Clone + Pod + Zeroable
             locations,
             block,
             actual,
-            key_to_data: HashMap::new(),
             key_to_partition: HashMap::new(),
-            key_to_extent: HashMap::new(),
             capacity,
+            format,
         }
     }
-    pub fn grow(&mut self, capacity: u32) -> Vec<(Key, TexturePartition)> {
-        // get new capacity dims
-        // rewrite all from key_to_data + store partition
-        todo!()
+    pub fn grow(&mut self, ginkgo: &Ginkgo, block: AtlasBlock, needed_capacity: u32) {
+        *self = Self::new(ginkgo, block, needed_capacity, self.format);
     }
-    pub fn has_key(&self, key: Key) -> bool {
+    pub fn has_key(&self, key: &Key) -> bool {
         for (_, val) in self.locations.iter() {
             if let Some(v) = val {
-                if v == &key {
+                if v == key {
                     return true;
                 }
             }
@@ -188,7 +184,7 @@ impl<Key: Hash + Eq + Clone, TexelData: Default + Sized + Clone + Pod + Zeroable
         ginkgo: &Ginkgo,
         location: TextureAtlasLocation,
         extent: Area<NumericalContext>,
-        data: Vec<TexelData>,
+        data: &Vec<TexelData>,
     ) -> TexturePartition {
         let position = location.position(self.block);
         ginkgo.queue().write_texture(
@@ -202,7 +198,7 @@ impl<Key: Hash + Eq + Clone, TexelData: Default + Sized + Clone + Pod + Zeroable
                 },
                 aspect: wgpu::TextureAspect::All,
             },
-            bytemuck::cast_slice(&data),
+            bytemuck::cast_slice(data),
             wgpu::ImageDataLayout {
                 offset: 0,
                 bytes_per_row: Some(
@@ -222,8 +218,6 @@ impl<Key: Hash + Eq + Clone, TexelData: Default + Sized + Clone + Pod + Zeroable
             .get_mut(&location)
             .unwrap()
             .replace(key.clone());
-        self.key_to_data.insert(key.clone(), data);
-        self.key_to_extent.insert(key.clone(), extent);
         let partition = TexturePartition::new(Section::new(position, extent), self.actual);
         self.key_to_partition.insert(key, partition);
         partition

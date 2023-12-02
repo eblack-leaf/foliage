@@ -1,6 +1,6 @@
 use crate::ash::identification::RenderId;
 use crate::ash::render::{Render, RenderPhase};
-use crate::ash::render_package::{RenderPackage, RenderPackageStorage};
+use crate::ash::renderer::{RenderPackage, RenderPackageStorage};
 use crate::ginkgo::Ginkgo;
 use std::rc::Rc;
 

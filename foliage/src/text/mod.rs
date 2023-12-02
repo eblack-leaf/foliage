@@ -26,8 +26,8 @@ pub struct Text {
     c_area: DifferentialBundle<CReprArea>,
     color: DifferentialBundle<Color>,
     text_value_chars: DifferentialBundle<TextValueUniqueCharacters>,
-    glyph_adds: DifferentialBundle<GlyphAdds>,
-    glyph_removes: DifferentialBundle<GlyphRemoves>,
+    glyph_adds: DifferentialBundle<GlyphChangeQueue>,
+    glyph_removes: DifferentialBundle<GlyphRemoveQueue>,
     glyph_cache: GlyphCache,
     differentiable: Differentiable,
 }
@@ -46,8 +46,8 @@ impl Text {
             c_area: DifferentialBundle::new(CReprArea::default()),
             color: DifferentialBundle::new(color),
             text_value_chars: DifferentialBundle::new(TextValueUniqueCharacters::new(&text_value)),
-            glyph_adds: DifferentialBundle::new(GlyphAdds::default()),
-            glyph_removes: DifferentialBundle::new(GlyphRemoves::default()),
+            glyph_adds: DifferentialBundle::new(GlyphChangeQueue::default()),
+            glyph_removes: DifferentialBundle::new(GlyphRemoveQueue::default()),
             text_value,
             differentiable: Differentiable::new::<Self>(layer),
             glyph_cache: GlyphCache::default(),
@@ -79,12 +79,17 @@ impl TextValueUniqueCharacters {
 #[derive(Component, Default)]
 pub(crate) struct GlyphCache(pub(crate) HashMap<TextKey, Glyph>);
 #[derive(Component, Clone, Serialize, Deserialize, PartialEq, Default)]
-pub(crate) struct GlyphAdds(pub(crate) Vec<(TextKey, Glyph)>);
+pub(crate) struct GlyphChangeQueue(pub(crate) Vec<(TextKey, GlyphChange)>);
 #[derive(Component, Clone, Serialize, Deserialize, PartialEq, Default)]
-pub(crate) struct GlyphRemoves(pub(crate) Vec<TextKey>);
+pub(crate) struct GlyphRemoveQueue(pub(crate) Vec<TextKey>);
 #[derive(Component, Clone, Serialize, Deserialize, PartialEq)]
 pub(crate) struct Glyph {
     pub(crate) character: char,
     pub(crate) section: Section<DeviceContext>,
     pub(crate) color: Color,
+}
+pub(crate) struct GlyphChange {
+    pub(crate) character: Option<char>,
+    pub(crate) section: Option<Section<DeviceContext>>,
+    pub(crate) color: Option<Color>,
 }

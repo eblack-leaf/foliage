@@ -2,8 +2,8 @@ use crate::ash::instruction::{
     RenderInstructionHandle, RenderInstructionsRecorder, RenderRecordBehavior,
 };
 use crate::ash::render::{Render, RenderPhase};
-use crate::ash::render_package::RenderPackage;
 use crate::ash::render_packet::RenderPacket;
+use crate::ash::renderer::RenderPackage;
 use crate::circle::vertex::{Vertex, VERTICES};
 use crate::circle::{Circle, CircleStyle};
 use crate::color::Color;
