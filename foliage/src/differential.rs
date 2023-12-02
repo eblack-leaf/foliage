@@ -85,7 +85,7 @@ pub trait DifferentialIdentification {
     fn diff_id() -> DifferentialId;
 }
 
-impl<T: Component> DifferentialIdentification for T {
+impl<T: 'static> DifferentialIdentification for T {
     fn diff_id() -> DifferentialId {
         DifferentialId(format!("{:?}", TypeId::of::<T>()).to_compact_string())
     }

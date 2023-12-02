@@ -30,7 +30,7 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinatorBuilder<Key> {
         }
     }
     pub fn with_attribute<
-        T: Default + Clone + Pod + Zeroable + 'static + for<'a> Deserialize<'a> + Component,
+        T: Default + Clone + Pod + Zeroable + 'static + for<'a> Deserialize<'a>,
     >(
         mut self,
     ) -> Self {
@@ -167,7 +167,7 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
             (a_fn.queue_packet)(attribute_writes, key.clone(), &mut render_packet);
         }
     }
-    fn queue_packet_wrapper<T: Clone + for<'a> Deserialize<'a> + Component>(
+    fn queue_packet_wrapper<T: Clone + for<'a> Deserialize<'a> + 'static>(
         attribute_writes: &mut AnyMap,
         key: Key,
         render_packet: &mut RenderPacket,

@@ -3,7 +3,6 @@ use std::hash::Hash;
 
 use crate::ash::render_packet::RenderPacket;
 use anymap::AnyMap;
-use bevy_ecs::prelude::Component;
 use bytemuck::{Pod, Zeroable};
 use serde::Deserialize;
 
@@ -21,7 +20,7 @@ pub(crate) struct AttributeFn<Key: Hash + Eq> {
 
 impl<Key: Hash + Eq + Clone + 'static> AttributeFn<Key> {
     pub(crate) fn for_attribute<
-        T: Default + Clone + Pod + Zeroable + 'static + for<'a> Deserialize<'a> + Component,
+        T: Default + Clone + Pod + Zeroable + 'static + for<'a> Deserialize<'a>,
     >() -> Self {
         Self {
             create: Box::new(InstanceCoordinator::<Key>::create_wrapper::<T>),

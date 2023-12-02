@@ -3,13 +3,12 @@ use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::hash::Hash;
-use std::marker::PhantomData;
 use wgpu::util::DeviceExt;
-use wgpu::{Extent3d, TextureDimension, TextureFormat, TextureUsages};
+use wgpu::{Extent3d, TextureDimension, TextureUsages};
 
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
-use crate::coordinate::section::Section;
+use crate::coordinate::section::{CReprSection, Section};
 use crate::coordinate::{CoordinateUnit, DeviceContext, NumericalContext};
 use crate::ginkgo::Ginkgo;
 
@@ -22,25 +21,18 @@ impl TextureCoordinates {
         Self([x, y])
     }
 }
-pub struct TexturePartition(pub Section<NumericalContext>);
+#[repr(C)]
+#[derive(Copy, Clone, Pod, Zeroable, Serialize, Deserialize, Default)]
+pub struct TexturePartition(pub CReprSection);
 impl TexturePartition {
     pub fn new(part: Section<NumericalContext>, whole: Area<NumericalContext>) -> Self {
-        Self(Section::new(
-            part.position / (whole.width, whole.height).into(),
-            part.area / whole,
-        ))
-    }
-    pub fn left_top(&self) -> TextureCoordinates {
-        TextureCoordinates::new(self.0.left(), self.0.top())
-    }
-    pub fn right_top(&self) -> TextureCoordinates {
-        TextureCoordinates::new(self.0.top(), self.0.top())
-    }
-    pub fn left_bottom(&self) -> TextureCoordinates {
-        TextureCoordinates::new(self.0.left(), self.0.bottom())
-    }
-    pub fn right_bottom(&self) -> TextureCoordinates {
-        TextureCoordinates::new(self.0.right(), self.0.bottom())
+        Self(
+            Section::new(
+                part.position / (whole.width, whole.height).into(),
+                part.area / whole,
+            )
+            .to_c(),
+        )
     }
 }
 #[repr(C)]
@@ -98,7 +90,8 @@ impl TextureAtlasLocation {
 }
 #[derive(Copy, Clone, Default)]
 pub struct AtlasBlock(pub Area<NumericalContext>);
-pub struct TextureAtlas<Key: Hash + Eq + Clone, TexelData: Default + Sized> {
+pub struct TextureAtlas<Key: Hash + Eq + Clone, TexelData: Default + Sized + Clone + Pod + Zeroable>
+{
     pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,
     pub logical: Area<NumericalContext>,
@@ -106,8 +99,13 @@ pub struct TextureAtlas<Key: Hash + Eq + Clone, TexelData: Default + Sized> {
     pub block: AtlasBlock,
     pub actual: Area<NumericalContext>,
     pub key_to_data: HashMap<Key, Vec<TexelData>>,
+    pub key_to_partition: HashMap<Key, TexturePartition>,
+    pub key_to_extent: HashMap<Key, Area<NumericalContext>>,
+    pub capacity: u32,
 }
-impl<Key: Hash + Eq + Clone, TexelData: Default + Sized> TextureAtlas<Key, TexelData> {
+impl<Key: Hash + Eq + Clone, TexelData: Default + Sized + Clone + Pod + Zeroable>
+    TextureAtlas<Key, TexelData>
+{
     pub fn new(
         ginkgo: &Ginkgo,
         block: AtlasBlock,
@@ -147,7 +145,10 @@ impl<Key: Hash + Eq + Clone, TexelData: Default + Sized> TextureAtlas<Key, Texel
                 view_formats: &[format],
             },
             wgpu::util::TextureDataOrder::LayerMajor,
-            &vec![TexelData::default(); (actual.width * actual.height) as usize],
+            bytemuck::cast_slice(&vec![
+                TexelData::default();
+                (actual.width * actual.height) as usize
+            ]),
         );
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         Self {
@@ -158,6 +159,9 @@ impl<Key: Hash + Eq + Clone, TexelData: Default + Sized> TextureAtlas<Key, Texel
             block,
             actual,
             key_to_data: HashMap::new(),
+            key_to_partition: HashMap::new(),
+            key_to_extent: HashMap::new(),
+            capacity,
         }
     }
     pub fn grow(&mut self, capacity: u32) -> Vec<(Key, TexturePartition)> {
@@ -198,8 +202,12 @@ impl<Key: Hash + Eq + Clone, TexelData: Default + Sized> TextureAtlas<Key, Texel
             bytemuck::cast_slice(&data),
             wgpu::ImageDataLayout {
                 offset: 0,
-                bytes_per_row: Some(extent.width * std::mem::size_of::<TexelData>() as u32),
-                rows_per_image: Some(extent.height * std::mem::size_of::<TexelData>() as u32),
+                bytes_per_row: Some(
+                    (extent.width * std::mem::size_of::<TexelData>() as CoordinateUnit) as u32,
+                ),
+                rows_per_image: Some(
+                    (extent.height * std::mem::size_of::<TexelData>() as CoordinateUnit) as u32,
+                ),
             },
             wgpu::Extent3d {
                 width: extent.width as u32,
@@ -211,8 +219,11 @@ impl<Key: Hash + Eq + Clone, TexelData: Default + Sized> TextureAtlas<Key, Texel
             .get_mut(&location)
             .unwrap()
             .replace(key.clone());
-        self.key_to_data.insert(key, data);
-        TexturePartition::new(Section::new(position, extent), self.actual)
+        self.key_to_data.insert(key.clone(), data);
+        self.key_to_extent.insert(key.clone(), extent);
+        let partition = TexturePartition::new(Section::new(position, extent), self.actual);
+        self.key_to_partition.insert(key, partition);
+        partition
     }
     pub fn next_location(&mut self) -> Option<TextureAtlasLocation> {
         if self.locations.is_empty() {
