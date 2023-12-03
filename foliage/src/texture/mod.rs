@@ -55,6 +55,50 @@ pub(crate) struct HardwareAtlas<
 impl<ResourceKey: Hash + Eq + Clone, TexelData: Default + Sized + Clone + Pod + Zeroable>
     HardwareAtlas<ResourceKey, TexelData>
 {
+    fn write_location(
+        &mut self,
+        key: ResourceKey,
+        ginkgo: &Ginkgo,
+        location: TextureAtlasLocation,
+        extent: Area<NumericalContext>,
+        data: &Vec<TexelData>,
+    ) -> TexturePartition {
+        let position = location.position(self.block);
+        ginkgo.queue().write_texture(
+            wgpu::ImageCopyTexture {
+                texture: &self.texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d {
+                    x: position.x as u32,
+                    y: position.y as u32,
+                    z: 0,
+                },
+                aspect: wgpu::TextureAspect::All,
+            },
+            bytemuck::cast_slice(data),
+            wgpu::ImageDataLayout {
+                offset: 0,
+                bytes_per_row: Some(
+                    (extent.width * std::mem::size_of::<TexelData>() as CoordinateUnit) as u32,
+                ),
+                rows_per_image: Some(
+                    (extent.height * std::mem::size_of::<TexelData>() as CoordinateUnit) as u32,
+                ),
+            },
+            wgpu::Extent3d {
+                width: extent.width as u32,
+                height: extent.height as u32,
+                depth_or_array_layers: 1,
+            },
+        );
+        self.locations
+            .get_mut(&location)
+            .unwrap()
+            .replace(key.clone());
+        let partition = TexturePartition::new(Section::new(position, extent), self.actual);
+        self.key_to_partition.insert(key, partition);
+        partition
+    }
     pub(crate) fn new(
         ginkgo: &Ginkgo,
         block: AtlasBlock,
@@ -108,6 +152,19 @@ impl<ResourceKey: Hash + Eq + Clone, TexelData: Default + Sized + Clone + Pod + 
             phantom: Default::default(),
         }
     }
+    fn next_location(&mut self) -> Option<TextureAtlasLocation> {
+        if self.locations.is_empty() {
+            return None;
+        }
+        let mut location = None;
+        for (loc, val) in self.locations.iter() {
+            if val.is_none() {
+                location.replace(*loc);
+                break;
+            }
+        }
+        location
+    }
 }
 pub(crate) struct LogicalAtlas<
     ReferenceKey: Hash + Eq + Clone,
@@ -140,8 +197,9 @@ impl<
         extent: Area<NumericalContext>,
         data: Vec<TexelData>,
     ) {
-        let location = self.next_location().unwrap();
-        self.write_location(key.clone(), ginkgo, location, extent, &data);
+        let location = self.hardware.next_location().unwrap();
+        self.hardware
+            .write_location(key.clone(), ginkgo, location, extent, &data);
         self.logical
             .entries
             .insert(key, AtlasEntry { data, extent });
@@ -192,15 +250,40 @@ impl<
     pub fn block(&self) -> AtlasBlock {
         self.hardware.block
     }
-    pub fn grow(
+    pub fn would_grow(&self, requested: u32) -> bool {
+        self.capacity() < self.num_filled_locations() + requested
+    }
+    fn inner_rewrite_entry(
+        logical: &LogicalAtlas<ReferenceKey, ResourceKey, TexelData>,
+        hardware: &mut HardwareAtlas<ResourceKey, TexelData>,
+        ginkgo: &Ginkgo,
+    ) {
+        for (key, entry) in logical.entries.iter() {
+            let location = hardware.next_location().unwrap();
+            hardware.write_location(key.clone(), ginkgo, location, entry.extent, &entry.data);
+        }
+    }
+    pub fn grow_by(
         &mut self,
+        requested: u32,
         ginkgo: &Ginkgo,
         block: AtlasBlock,
-        needed_capacity: u32,
     ) -> Vec<(ReferenceKey, TexturePartition)> {
-        self.hardware = HardwareAtlas::new(ginkgo, block, needed_capacity, self.hardware.format);
+        self.hardware = HardwareAtlas::new(
+            ginkgo,
+            block,
+            self.num_filled_locations() + requested,
+            self.hardware.format,
+        );
         // refill from logical entries
-        vec![]
+        Self::inner_rewrite_entry(&self.logical, &mut self.hardware, ginkgo);
+        let mut changed = vec![];
+        for (key, references) in self.logical.references.iter() {
+            for refer in references.iter() {
+                changed.push((refer.clone(), self.get(key).unwrap()));
+            }
+        }
+        changed
     }
     pub fn view(&self) -> &wgpu::TextureView {
         &self.hardware.view
@@ -226,63 +309,5 @@ impl<
     }
     pub fn get(&self, key: &ResourceKey) -> Option<TexturePartition> {
         self.hardware.key_to_partition.get(key).cloned()
-    }
-    fn write_location(
-        &mut self,
-        key: ResourceKey,
-        ginkgo: &Ginkgo,
-        location: TextureAtlasLocation,
-        extent: Area<NumericalContext>,
-        data: &Vec<TexelData>,
-    ) -> TexturePartition {
-        let position = location.position(self.hardware.block);
-        ginkgo.queue().write_texture(
-            wgpu::ImageCopyTexture {
-                texture: &self.hardware.texture,
-                mip_level: 0,
-                origin: wgpu::Origin3d {
-                    x: position.x as u32,
-                    y: position.y as u32,
-                    z: 0,
-                },
-                aspect: wgpu::TextureAspect::All,
-            },
-            bytemuck::cast_slice(data),
-            wgpu::ImageDataLayout {
-                offset: 0,
-                bytes_per_row: Some(
-                    (extent.width * std::mem::size_of::<TexelData>() as CoordinateUnit) as u32,
-                ),
-                rows_per_image: Some(
-                    (extent.height * std::mem::size_of::<TexelData>() as CoordinateUnit) as u32,
-                ),
-            },
-            wgpu::Extent3d {
-                width: extent.width as u32,
-                height: extent.height as u32,
-                depth_or_array_layers: 1,
-            },
-        );
-        self.hardware
-            .locations
-            .get_mut(&location)
-            .unwrap()
-            .replace(key.clone());
-        let partition = TexturePartition::new(Section::new(position, extent), self.hardware.actual);
-        self.hardware.key_to_partition.insert(key, partition);
-        partition
-    }
-    fn next_location(&mut self) -> Option<TextureAtlasLocation> {
-        if self.hardware.locations.is_empty() {
-            return None;
-        }
-        let mut location = None;
-        for (loc, val) in self.hardware.locations.iter() {
-            if val.is_none() {
-                location.replace(*loc);
-                break;
-            }
-        }
-        location
     }
 }

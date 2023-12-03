@@ -263,8 +263,6 @@ impl Render for Text {
             }
             count
         };
-        let needed_capacity =
-            package.package_data.atlas.num_filled_locations() + new_glyph_key_count;
         let mut font_size_changed = false;
         if font_size_change.is_some() {
             let font_size = font_size_change.unwrap();
@@ -280,7 +278,7 @@ impl Render for Text {
                 font_size_changed = true;
             }
         }
-        if package.package_data.atlas.capacity() < needed_capacity || font_size_changed {
+        if package.package_data.atlas.would_grow(new_glyph_key_count) || font_size_changed {
             for (key, entry) in package.package_data.atlas.entries_mut() {
                 if font_size_changed {
                     let rasterization = resources.font.0.rasterize_indexed(
@@ -293,12 +291,11 @@ impl Render for Text {
                     );
                 }
             }
-            for (key, partition) in
-                package
-                    .package_data
-                    .atlas
-                    .grow(ginkgo, package.package_data.block, needed_capacity)
-            {
+            for (key, partition) in package.package_data.atlas.grow_by(
+                new_glyph_key_count,
+                ginkgo,
+                package.package_data.block,
+            ) {
                 package
                     .package_data
                     .instance_coordinator
