@@ -164,16 +164,6 @@ impl Render for Text {
             unique_characters.0,
             wgpu::TextureFormat::R8Unorm,
         );
-        let bind_group = ginkgo
-            .device()
-            .create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("text-package-bind-group"),
-                layout: &resources.package_layout,
-                entries: &[
-                    uniform.bind_group_entry(0),
-                    Ginkgo::texture_bind_group_entry(atlas.view(), 1),
-                ],
-            });
         let mut instance_coordinator = InstanceCoordinatorBuilder::new(unique_characters.0)
             .with_attribute::<CReprPosition>()
             .with_attribute::<CReprArea>()
@@ -199,6 +189,16 @@ impl Render for Text {
             instance_coordinator.queue_write(key, atlas.get(&glyph_key).unwrap());
         }
         instance_coordinator.prepare(ginkgo);
+        let bind_group = ginkgo
+            .device()
+            .create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("text-package-bind-group"),
+                layout: &resources.package_layout,
+                entries: &[
+                    uniform.bind_group_entry(0),
+                    Ginkgo::texture_bind_group_entry(atlas.view(), 1),
+                ],
+            });
         let package = TextRenderPackage {
             instance_coordinator,
             bind_group,
