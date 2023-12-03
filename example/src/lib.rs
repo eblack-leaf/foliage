@@ -7,7 +7,7 @@ use foliage::icon::{Icon, IconId, IconScale};
 use foliage::panel::{Panel, PanelStyle};
 use foliage::rectangle::Rectangle;
 use foliage::text::{FontSize, MaxCharacters, Text, TextValue};
-use foliage::texture::Progress;
+use foliage::texture::factors::Progress;
 use foliage::window::WindowDescriptor;
 use foliage::{AndroidInterface, Foliage};
 

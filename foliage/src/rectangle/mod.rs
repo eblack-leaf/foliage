@@ -6,7 +6,7 @@ use crate::coordinate::InterfaceContext;
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::{Elm, Leaf};
-use crate::texture::Progress;
+use crate::texture::factors::Progress;
 use bevy_ecs::prelude::Bundle;
 
 mod proc_gen;

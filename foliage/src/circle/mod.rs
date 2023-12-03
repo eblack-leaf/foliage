@@ -11,7 +11,7 @@ use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::elm::{Elm, Leaf, SystemSets};
-use crate::texture::{MipsLevel, Progress};
+use crate::texture::factors::{MipsLevel, Progress};
 use crate::window::ScaleFactor;
 use crate::{coordinate, differential_enable};
 

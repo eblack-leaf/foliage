@@ -12,7 +12,7 @@ use crate::ginkgo::Ginkgo;
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
 use crate::rectangle::vertex::{Vertex, VERTICES};
 use crate::rectangle::Rectangle;
-use crate::texture::Progress;
+use crate::texture::factors::Progress;
 use bevy_ecs::entity::Entity;
 
 pub struct RectangleRenderResources {

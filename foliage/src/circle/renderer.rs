@@ -12,7 +12,7 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::position::CReprPosition;
 use crate::ginkgo::Ginkgo;
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
-use crate::texture::{MipsLevel, Progress};
+use crate::texture::factors::{MipsLevel, Progress};
 use bevy_ecs::entity::Entity;
 
 pub struct CircleRenderResources {
@@ -39,211 +39,86 @@ pub struct CircleRenderResources {
     #[allow(unused)]
     progress_view: wgpu::TextureView,
 }
-
+impl Circle {
+    const CIRCLE_TEXTURES: [&'static [u8]; Circle::MIPS as usize] = [
+        include_bytes!("texture_resources/circle-texture-1536.cov"),
+        include_bytes!("texture_resources/circle-texture-768.cov"),
+        include_bytes!("texture_resources/circle-texture-384.cov"),
+        include_bytes!("texture_resources/circle-texture-192.cov"),
+        include_bytes!("texture_resources/circle-texture-96.cov"),
+        include_bytes!("texture_resources/circle-texture-48.cov"),
+        include_bytes!("texture_resources/circle-texture-24.cov"),
+        include_bytes!("texture_resources/circle-texture-12.cov"),
+    ];
+    const CIRCLE_PROG_TEXTURES: [&'static [u8]; Circle::MIPS as usize] = [
+        include_bytes!("texture_resources/circle-1536.prog"),
+        include_bytes!("texture_resources/circle-768.prog"),
+        include_bytes!("texture_resources/circle-384.prog"),
+        include_bytes!("texture_resources/circle-192.prog"),
+        include_bytes!("texture_resources/circle-96.prog"),
+        include_bytes!("texture_resources/circle-48.prog"),
+        include_bytes!("texture_resources/circle-24.prog"),
+        include_bytes!("texture_resources/circle-12.prog"),
+    ];
+    const CIRCLE_RING_TEXTURES: [&'static [u8]; Circle::MIPS as usize] = [
+        include_bytes!("texture_resources/circle-ring-texture-1536.cov"),
+        include_bytes!("texture_resources/circle-ring-texture-768.cov"),
+        include_bytes!("texture_resources/circle-ring-texture-384.cov"),
+        include_bytes!("texture_resources/circle-ring-texture-192.cov"),
+        include_bytes!("texture_resources/circle-ring-texture-96.cov"),
+        include_bytes!("texture_resources/circle-ring-texture-48.cov"),
+        include_bytes!("texture_resources/circle-ring-texture-24.cov"),
+        include_bytes!("texture_resources/circle-ring-texture-12.cov"),
+    ];
+    const CIRCLE_RING_PROG_TEXTURES: [&'static [u8]; Circle::MIPS as usize] = [
+        include_bytes!("texture_resources/circle-ring-1536.prog"),
+        include_bytes!("texture_resources/circle-ring-768.prog"),
+        include_bytes!("texture_resources/circle-ring-384.prog"),
+        include_bytes!("texture_resources/circle-ring-192.prog"),
+        include_bytes!("texture_resources/circle-ring-96.prog"),
+        include_bytes!("texture_resources/circle-ring-48.prog"),
+        include_bytes!("texture_resources/circle-ring-24.prog"),
+        include_bytes!("texture_resources/circle-ring-12.prog"),
+    ];
+    fn texture_data(resources: [&[u8]; Circle::MIPS as usize]) -> Vec<u8> {
+        let mut data = vec![];
+        for n in resources {
+            data.extend(rmp_serde::from_slice::<Vec<u8>>(n).unwrap());
+        }
+        data
+    }
+}
 impl Render for Circle {
     type Resources = CircleRenderResources;
     type RenderPackage = ();
-
     const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(4);
 
     fn create_resources(ginkgo: &Ginkgo) -> Self::Resources {
         let shader = ginkgo
             .device()
             .create_shader_module(wgpu::include_wgsl!("circle.wgsl"));
-        let mut texture_data = rmp_serde::from_slice::<Vec<u8>>(include_bytes!(
-            "texture_resources/circle-texture-1536.cov"
-        ))
-        .ok()
-        .unwrap();
-        texture_data.extend(
-            rmp_serde::from_slice::<Vec<u8>>(include_bytes!(
-                "texture_resources/circle-texture-768.cov"
-            ))
-            .unwrap(),
-        );
-        texture_data.extend(
-            rmp_serde::from_slice::<Vec<u8>>(include_bytes!(
-                "texture_resources/circle-texture-384.cov"
-            ))
-            .unwrap(),
-        );
-        texture_data.extend(
-            rmp_serde::from_slice::<Vec<u8>>(include_bytes!(
-                "texture_resources/circle-texture-192.cov"
-            ))
-            .unwrap(),
-        );
-        texture_data.extend(
-            rmp_serde::from_slice::<Vec<u8>>(include_bytes!(
-                "texture_resources/circle-texture-96.cov"
-            ))
-            .unwrap(),
-        );
-        texture_data.extend(
-            rmp_serde::from_slice::<Vec<u8>>(include_bytes!(
-                "texture_resources/circle-texture-48.cov"
-            ))
-            .unwrap(),
-        );
-        texture_data.extend(
-            rmp_serde::from_slice::<Vec<u8>>(include_bytes!(
-                "texture_resources/circle-texture-24.cov"
-            ))
-            .unwrap(),
-        );
-        texture_data.extend(
-            rmp_serde::from_slice::<Vec<u8>>(include_bytes!(
-                "texture_resources/circle-texture-12.cov"
-            ))
-            .unwrap(),
-        );
+        let texture_data = Circle::texture_data(Circle::CIRCLE_TEXTURES);
         let (texture, view) = ginkgo.texture_r8unorm_d2(
             Circle::CIRCLE_TEXTURE_DIMENSIONS,
             Circle::CIRCLE_TEXTURE_DIMENSIONS,
             Circle::MIPS,
             texture_data.as_slice(),
         );
-        let mut ring_texture_data = rmp_serde::from_slice::<Vec<u8>>(include_bytes!(
-            "texture_resources/circle-ring-texture-1536.cov"
-        ))
-        .ok()
-        .unwrap();
-        ring_texture_data.extend(
-            rmp_serde::from_slice::<Vec<u8>>(include_bytes!(
-                "texture_resources/circle-ring-texture-768.cov"
-            ))
-            .unwrap(),
-        );
-        ring_texture_data.extend(
-            rmp_serde::from_slice::<Vec<u8>>(include_bytes!(
-                "texture_resources/circle-ring-texture-384.cov"
-            ))
-            .unwrap(),
-        );
-        ring_texture_data.extend(
-            rmp_serde::from_slice::<Vec<u8>>(include_bytes!(
-                "texture_resources/circle-ring-texture-192.cov"
-            ))
-            .unwrap(),
-        );
-        ring_texture_data.extend(
-            rmp_serde::from_slice::<Vec<u8>>(include_bytes!(
-                "texture_resources/circle-ring-texture-96.cov"
-            ))
-            .unwrap(),
-        );
-        ring_texture_data.extend(
-            rmp_serde::from_slice::<Vec<u8>>(include_bytes!(
-                "texture_resources/circle-ring-texture-48.cov"
-            ))
-            .unwrap(),
-        );
-        ring_texture_data.extend(
-            rmp_serde::from_slice::<Vec<u8>>(include_bytes!(
-                "texture_resources/circle-ring-texture-24.cov"
-            ))
-            .unwrap(),
-        );
-        ring_texture_data.extend(
-            rmp_serde::from_slice::<Vec<u8>>(include_bytes!(
-                "texture_resources/circle-ring-texture-12.cov"
-            ))
-            .unwrap(),
-        );
+        let ring_texture_data = Circle::texture_data(Circle::CIRCLE_RING_TEXTURES);
         let (ring_texture, ring_view) = ginkgo.texture_r8unorm_d2(
             Circle::CIRCLE_TEXTURE_DIMENSIONS,
             Circle::CIRCLE_TEXTURE_DIMENSIONS,
             Circle::MIPS,
             ring_texture_data.as_slice(),
         );
-        let mut progress_texture_data = vec![];
-        progress_texture_data.extend(
-            rmp_serde::from_slice::<Vec<u8>>(include_bytes!("texture_resources/circle-1536.prog"))
-                .unwrap(),
-        );
-        progress_texture_data.extend(
-            rmp_serde::from_slice::<Vec<u8>>(include_bytes!("texture_resources/circle-768.prog"))
-                .unwrap(),
-        );
-        progress_texture_data.extend(
-            rmp_serde::from_slice::<Vec<u8>>(include_bytes!("texture_resources/circle-384.prog"))
-                .unwrap(),
-        );
-        progress_texture_data.extend(
-            rmp_serde::from_slice::<Vec<u8>>(include_bytes!("texture_resources/circle-192.prog"))
-                .unwrap(),
-        );
-        progress_texture_data.extend(
-            rmp_serde::from_slice::<Vec<u8>>(include_bytes!("texture_resources/circle-96.prog"))
-                .unwrap(),
-        );
-        progress_texture_data.extend(
-            rmp_serde::from_slice::<Vec<u8>>(include_bytes!("texture_resources/circle-48.prog"))
-                .unwrap(),
-        );
-        progress_texture_data.extend(
-            rmp_serde::from_slice::<Vec<u8>>(include_bytes!("texture_resources/circle-24.prog"))
-                .unwrap(),
-        );
-        progress_texture_data.extend(
-            rmp_serde::from_slice::<Vec<u8>>(include_bytes!("texture_resources/circle-12.prog"))
-                .unwrap(),
-        );
+        let progress_texture_data = Circle::texture_data(Circle::CIRCLE_PROG_TEXTURES);
         let (progress_texture, progress_view) = ginkgo.texture_r8unorm_d2(
             Circle::CIRCLE_TEXTURE_DIMENSIONS,
             Circle::CIRCLE_TEXTURE_DIMENSIONS,
             Circle::MIPS,
             progress_texture_data.as_slice(),
         );
-        let mut ring_progress_texture_data = vec![];
-        ring_progress_texture_data.extend(
-            rmp_serde::from_slice::<Vec<u8>>(include_bytes!(
-                "texture_resources/circle-ring-1536.prog"
-            ))
-            .unwrap(),
-        );
-        ring_progress_texture_data.extend(
-            rmp_serde::from_slice::<Vec<u8>>(include_bytes!(
-                "texture_resources/circle-ring-768.prog"
-            ))
-            .unwrap(),
-        );
-        ring_progress_texture_data.extend(
-            rmp_serde::from_slice::<Vec<u8>>(include_bytes!(
-                "texture_resources/circle-ring-384.prog"
-            ))
-            .unwrap(),
-        );
-        ring_progress_texture_data.extend(
-            rmp_serde::from_slice::<Vec<u8>>(include_bytes!(
-                "texture_resources/circle-ring-192.prog"
-            ))
-            .unwrap(),
-        );
-        ring_progress_texture_data.extend(
-            rmp_serde::from_slice::<Vec<u8>>(include_bytes!(
-                "texture_resources/circle-ring-96.prog"
-            ))
-            .unwrap(),
-        );
-        ring_progress_texture_data.extend(
-            rmp_serde::from_slice::<Vec<u8>>(include_bytes!(
-                "texture_resources/circle-ring-48.prog"
-            ))
-            .unwrap(),
-        );
-        ring_progress_texture_data.extend(
-            rmp_serde::from_slice::<Vec<u8>>(include_bytes!(
-                "texture_resources/circle-ring-24.prog"
-            ))
-            .unwrap(),
-        );
-        ring_progress_texture_data.extend(
-            rmp_serde::from_slice::<Vec<u8>>(include_bytes!(
-                "texture_resources/circle-ring-12.prog"
-            ))
-            .unwrap(),
-        );
+        let ring_progress_texture_data = Circle::texture_data(Circle::CIRCLE_RING_PROG_TEXTURES);
         let (ring_progress_texture, ring_progress_view) = ginkgo.texture_r8unorm_d2(
             Circle::CIRCLE_TEXTURE_DIMENSIONS,
             Circle::CIRCLE_TEXTURE_DIMENSIONS,

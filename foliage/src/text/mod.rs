@@ -24,6 +24,7 @@ use glyph::{
     GlyphCache, GlyphChange, GlyphChangeQueue, GlyphKey, GlyphPlacementTool, GlyphRemoveQueue,
 };
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 
 #[derive(Bundle)]
 pub struct Text {
@@ -186,19 +187,16 @@ pub(crate) fn changes(
                     total_update = true;
                 }
                 if total_update {
-                    let character = g.parent;
                     let section = Section::<DeviceContext>::new((g.x, g.y), (g.width, g.height));
                     cache.0.insert(
                         g.byte_offset,
                         Glyph {
-                            character,
                             key: glyph_key,
                             section,
                             color: *color,
                         },
                     );
                     change.replace(GlyphChange {
-                        character: Some(character),
                         key: Some((glyph_key, None)),
                         section: Some(section),
                         color: Some(*color),
@@ -243,6 +241,18 @@ impl TextValue {
 pub(crate) struct TextValueUniqueCharacters(pub(crate) u32);
 impl TextValueUniqueCharacters {
     pub(crate) fn new(value: &TextValue) -> Self {
-        Self(value.0.len() as u32)
+        let mut uc = HashSet::new();
+        for ch in value.0.chars() {
+            uc.insert(ch);
+        }
+        Self(uc.len() as u32)
     }
+}
+
+#[test]
+fn unique_characters() {
+    use crate::text::{TextValue, TextValueUniqueCharacters};
+    let value = TextValue::new("Dither About There");
+    let unique_characters = TextValueUniqueCharacters::new(&value);
+    assert_eq!(unique_characters.0, 12);
 }
