@@ -41,7 +41,7 @@ pub struct TextRenderPackage {
 impl Render for Text {
     type Resources = TextRenderResources;
     type RenderPackage = TextRenderPackage;
-    const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(3);
+    const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(5);
 
     fn create_resources(ginkgo: &Ginkgo) -> Self::Resources {
         let shader = ginkgo

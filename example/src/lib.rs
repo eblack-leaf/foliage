@@ -135,16 +135,16 @@ impl Leaf for Tester {
             Color::GREEN.into(),
         ));
         elm.job.container.spawn(Text::new(
-            (10, 60 + android_offset).into(),
+            (154, 225 + android_offset).into(),
             MaxCharacters(45),
-            2.into(),
+            4.into(),
             FontSize(14),
-            TextValue::new("This is just to say - I ate the plums in the ice box that you were saving for breakfast. Forgive me they were so delicious."),
+            TextValue::new("BOOKMARK"),
             Color::GREEN.into(),
         ));
         elm.job.container.spawn(Icon::new(
-            IconId::new(BundledIcon::Feather),
-            (198, 225 + android_offset).into(),
+            IconId::new(BundledIcon::Bookmark),
+            (240, 225 + android_offset).into(),
             IconScale(20.0),
             3.into(),
             Color::GREEN.into(),
@@ -186,22 +186,22 @@ impl Leaf for Tester {
             Progress::new(0.0, 1.0),
         ));
         elm.job.container.spawn(Icon::new(
-            IconId::new(BundledIcon::VolumeTwo),
-            (380, 6 + android_offset).into(),
+            IconId::new(BundledIcon::Play),
+            (344, 2 + android_offset).into(),
             IconScale(20.0),
             4.into(),
             Color::GREY_MEDIUM.into(),
         ));
         elm.job.container.spawn(Icon::new(
-            IconId::new(BundledIcon::VolumeOne),
-            (350, 6 + android_offset).into(),
+            IconId::new(BundledIcon::SkipForward),
+            (374, 2 + android_offset).into(),
             IconScale(20.0),
             4.into(),
             Color::GREY_MEDIUM.into(),
         ));
         elm.job.container.spawn(Icon::new(
-            IconId::new(BundledIcon::VolumeX),
-            (320, 6 + android_offset).into(),
+            IconId::new(BundledIcon::Shuffle),
+            (404, 2 + android_offset).into(),
             IconScale(20.0),
             4.into(),
             Color::GREY_MEDIUM.into(),
