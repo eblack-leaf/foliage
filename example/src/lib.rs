@@ -37,29 +37,44 @@ impl Leaf for Tester {
         let android_offset = 0;
         #[cfg(all(target_os = "android", target_arch = "aarch64"))]
         let android_offset = 50;
+        elm.job.container.spawn(Text::new(
+            (138, 475 + android_offset).into(),
+            MaxCharacters(45),
+            4.into(),
+            FontSize(14),
+            TextValue::new("Stats - User"),
+            Color::GREEN.into(),
+        ));
         elm.job.container.spawn(Rectangle::new(
-            (158, 512 + android_offset).into(),
+            (138, 500 + android_offset).into(),
+            (200, 2).into(),
+            6.into(),
+            Color::GREY_DARK.into(),
+            Progress::new(0.0, 1.0),
+        ));
+        elm.job.container.spawn(Rectangle::new(
+            (178, 532 + android_offset).into(),
             (200, 10).into(),
             6.into(),
             Color::GREY_DARK.into(),
             Progress::new(0.0, 1.0),
         ));
         elm.job.container.spawn(Rectangle::new(
-            (158, 512 + android_offset).into(),
+            (178, 532 + android_offset).into(),
             (200, 10).into(),
             5.into(),
             Color::GREEN_DARK.into(),
             Progress::new(0.0, 0.85),
         ));
         elm.job.container.spawn(Rectangle::new(
-            (158, 536 + android_offset).into(),
+            (178, 556 + android_offset).into(),
             (200, 10).into(),
             6.into(),
             Color::GREY_DARK.into(),
             Progress::new(0.0, 1.0),
         ));
         elm.job.container.spawn(Rectangle::new(
-            (158, 536 + android_offset).into(),
+            (178, 556 + android_offset).into(),
             (200, 10).into(),
             5.into(),
             Color::GREEN_MEDIUM.into(),
@@ -113,7 +128,7 @@ impl Leaf for Tester {
         ));
         elm.job.container.spawn(Circle::new(
             CircleStyle::fill(),
-            (138, 510 + android_offset).into(),
+            (158, 530 + android_offset).into(),
             Diameter::from_mip_level(CircleMipLevel::Twelve),
             5.into(),
             Color::from(Color::GREEN_MEDIUM).with_alpha(1.0),
@@ -121,7 +136,7 @@ impl Leaf for Tester {
         ));
         elm.job.container.spawn(Circle::new(
             CircleStyle::fill(),
-            (138, 534 + android_offset).into(),
+            (158, 554 + android_offset).into(),
             Diameter::from_mip_level(CircleMipLevel::Twelve),
             5.into(),
             Color::from(Color::GREEN_MEDIUM).with_alpha(1.0),
