@@ -30,7 +30,7 @@ pub struct IconRenderResources {
 }
 impl Icon {
     pub(crate) const TEXTURE_DIMENSIONS: u32 = 80;
-    const MIPS: u32 = 3;
+    pub(crate) const MIPS: u32 = 3;
 }
 impl Render for Icon {
     type Resources = IconRenderResources;

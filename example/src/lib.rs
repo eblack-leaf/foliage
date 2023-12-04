@@ -22,7 +22,7 @@ pub fn entry(android_interface: AndroidInterface) {
         .with_window_descriptor(
             WindowDescriptor::new()
                 .with_title("foliage")
-                .with_desktop_dimensions((434, 840)),
+                .with_desktop_dimensions((411, 913)),
         )
         .with_renderleaf::<Panel>()
         .with_renderleaf::<Circle>()
@@ -233,21 +233,21 @@ impl Leaf for Tester {
         ));
         elm.job.container.spawn(Icon::new(
             IconId::new(BundledIcon::Play),
-            (274, 2 + android_offset).into(),
+            (254, 2 + android_offset).into(),
             IconScale::Eighty,
             4.into(),
             Color::GREY_MEDIUM.into(),
         ));
         elm.job.container.spawn(Icon::new(
             IconId::new(BundledIcon::SkipForward),
-            (354, 2 + android_offset).into(),
+            (334, 2 + android_offset).into(),
             IconScale::Forty,
             4.into(),
             Color::GREY_MEDIUM.into(),
         ));
         elm.job.container.spawn(Icon::new(
             IconId::new(BundledIcon::Shuffle),
-            (404, 2 + android_offset).into(),
+            (384, 2 + android_offset).into(),
             IconScale::Twenty,
             4.into(),
             Color::GREY_MEDIUM.into(),

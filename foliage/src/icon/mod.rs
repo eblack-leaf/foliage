@@ -6,6 +6,7 @@ use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::elm::{Elm, Leaf, SystemSets};
 use crate::texture::factors::MipsLevel;
+use crate::window::ScaleFactor;
 #[allow(unused)]
 use crate::{coordinate, differential_enable};
 use bevy_ecs::component::Component;
@@ -13,6 +14,7 @@ use bevy_ecs::prelude::Query;
 #[allow(unused)]
 use bevy_ecs::prelude::{Bundle, IntoSystemConfigs};
 use bevy_ecs::query::Changed;
+use bevy_ecs::system::Res;
 use bundled_cov::BundledIcon;
 use serde::{Deserialize, Serialize};
 
@@ -43,12 +45,12 @@ impl Icon {
     ) -> Self {
         Self {
             position,
-            area: (scale.px(), scale.px()).into(),
+            area: Area::default(),
             icon_id: DifferentialBundle::new(icon_id),
             c_pos: DifferentialBundle::new(CReprPosition::default()),
             c_area: DifferentialBundle::new(CReprArea::default()),
             color: DifferentialBundle::new(color),
-            mips: DifferentialBundle::new(scale.mips()),
+            mips: DifferentialBundle::new(scale.initial_mips()),
             scale,
             differentiable: Differentiable::new::<Self>(layer),
         }
@@ -70,12 +72,43 @@ impl IconId {
     }
 }
 fn scale_change(
-    mut query: Query<(&IconScale, &mut Area<InterfaceContext>, &mut MipsLevel), Changed<IconScale>>,
+    mut query: Query<
+        (
+            &IconScale,
+            &mut Position<InterfaceContext>,
+            &mut Area<InterfaceContext>,
+            &mut MipsLevel,
+        ),
+        Changed<IconScale>,
+    >,
+    scale_factor: Res<ScaleFactor>,
 ) {
-    for (scale, mut area, mut mips) in query.iter_mut() {
-        area.width = scale.px();
-        area.height = scale.px();
-        *mips = scale.mips();
+    for (scale, mut pos, mut area, mut mips) in query.iter_mut() {
+        let initial_px = scale.px();
+        area.width = initial_px;
+        area.height = initial_px;
+        *mips = scale.initial_mips();
+        // let scaled_px = initial_px * scale_factor.factor();
+        // let clean_scaled_px = initial_px * scale_factor.factor().round();
+        // let scaled_diff = clean_scaled_px - scaled_px;
+        // let diff = scaled_diff / scale_factor.factor();
+        // let half_diff = diff / 2f32;
+        // if diff.is_sign_negative() {
+        //     pos.x -= half_diff;
+        //     pos.y -= half_diff;
+        //     area.width += half_diff;
+        //     area.height += half_diff;
+        // } else {
+        //     pos.x += half_diff;
+        //     pos.y += half_diff;
+        //     area.width -= half_diff;
+        //     area.height -= half_diff;
+        // }
+        // *mips = MipsLevel::new(
+        //     (Icon::TEXTURE_DIMENSIONS, Icon::TEXTURE_DIMENSIONS).into(),
+        //     Icon::MIPS,
+        //     (clean_scaled_px, clean_scaled_px).into(),
+        // );
     }
 }
 #[repr(u32)]
@@ -86,7 +119,7 @@ pub enum IconScale {
     Eighty = 80,
 }
 impl IconScale {
-    pub fn mips(self) -> MipsLevel {
+    pub fn initial_mips(self) -> MipsLevel {
         match self {
             IconScale::Twenty => MipsLevel(2.0),
             IconScale::Forty => MipsLevel(1.0),
@@ -94,6 +127,6 @@ impl IconScale {
         }
     }
     pub fn px(self) -> CoordinateUnit {
-        self as u32 as f32
+        self as u32 as CoordinateUnit
     }
 }
