@@ -1,4 +1,4 @@
-mod font;
+pub mod font;
 mod glyph;
 mod renderer;
 mod vertex;

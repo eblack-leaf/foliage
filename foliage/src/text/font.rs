@@ -1,5 +1,6 @@
 use crate::coordinate::area::Area;
 use crate::coordinate::{CoordinateUnit, DeviceContext};
+use crate::text::{FontSize, MaxCharacters};
 use bevy_ecs::system::Resource;
 
 #[derive(Resource)]
@@ -28,5 +29,12 @@ impl MonospacedFont {
             )
             .expect("font"),
         )
+    }
+    pub fn best_fit(
+        &self,
+        max_characters: MaxCharacters,
+        extent: Area<DeviceContext>,
+    ) -> (FontSize, Area<DeviceContext>) {
+        todo!()
     }
 }

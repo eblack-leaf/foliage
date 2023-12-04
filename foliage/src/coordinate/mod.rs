@@ -1,5 +1,6 @@
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
+use crate::coordinate::location::Location;
 use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::section::Section;
 use crate::elm::{Elm, Leaf, SystemSets};
@@ -11,6 +12,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod area;
 pub mod layer;
+pub mod location;
 pub mod position;
 pub mod section;
 
@@ -61,6 +63,9 @@ impl<Context: CoordinateContext> Coordinate<Context> {
             section: s.into(),
             layer: l.into(),
         }
+    }
+    pub fn location(&self) -> Location<Context> {
+        Location::new(self.section.position, self.layer)
     }
 }
 pub struct CoordinateLeaf;
