@@ -40,17 +40,28 @@ struct Tester;
 pub(crate) struct ButtonScene(pub(crate) Scene<i32>);
 impl ButtonScene {
     pub(crate) fn new() -> Self {
-        let scene = Scene::new().with_node(0, |android_offset: &i32, cmd| -> Entity {
-            cmd.spawn(Text::new(
-                (138, 475 + *android_offset).into(),
-                MaxCharacters(45),
-                1.into(),
-                FontSize(14),
-                TextValue::new("Sts - User"),
-                Color::RED.into(),
-            ))
-            .id()
-        });
+        let scene = Scene::new()
+            .with_node(0, |android_offset: &i32, cmd| -> Entity {
+                cmd.spawn(Text::new(
+                    (138, 475 + *android_offset).into(),
+                    MaxCharacters(45),
+                    1.into(),
+                    FontSize(14),
+                    TextValue::new("Sts - User"),
+                    Color::GREY.into(),
+                ))
+                .id()
+            })
+            .with_node(1, |android_offset: &i32, cmd| -> Entity {
+                cmd.spawn(Icon::new(
+                    IconId::new(BundledIcon::CloudSnow),
+                    (250, 475 + android_offset).into(),
+                    IconScale::Twenty,
+                    4.into(),
+                    Color::GREY_MEDIUM.into(),
+                ))
+                .id()
+            });
         Self(scene)
     }
 }

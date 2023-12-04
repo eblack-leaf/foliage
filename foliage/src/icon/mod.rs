@@ -87,28 +87,20 @@ fn scale_change(
         let initial_px = scale.px();
         area.width = initial_px;
         area.height = initial_px;
-        *mips = scale.initial_mips();
-        // let scaled_px = initial_px * scale_factor.factor();
-        // let clean_scaled_px = initial_px * scale_factor.factor().round();
-        // let scaled_diff = clean_scaled_px - scaled_px;
-        // let diff = scaled_diff / scale_factor.factor();
-        // let half_diff = diff / 2f32;
-        // if diff.is_sign_negative() {
-        //     pos.x -= half_diff;
-        //     pos.y -= half_diff;
-        //     area.width += half_diff;
-        //     area.height += half_diff;
-        // } else {
-        //     pos.x += half_diff;
-        //     pos.y += half_diff;
-        //     area.width -= half_diff;
-        //     area.height -= half_diff;
-        // }
-        // *mips = MipsLevel::new(
-        //     (Icon::TEXTURE_DIMENSIONS, Icon::TEXTURE_DIMENSIONS).into(),
-        //     Icon::MIPS,
-        //     (clean_scaled_px, clean_scaled_px).into(),
-        // );
+        let scaled_px = initial_px * scale_factor.factor();
+        let clean_scaled_px = initial_px * scale_factor.factor().round();
+        let scaled_diff = clean_scaled_px - scaled_px;
+        let diff = scaled_diff / scale_factor.factor();
+        let quarter_diff = diff / 4f32;
+        pos.x -= quarter_diff;
+        pos.y -= quarter_diff;
+        area.width += quarter_diff;
+        area.height += quarter_diff;
+        *mips = MipsLevel::new(
+            (Icon::TEXTURE_DIMENSIONS, Icon::TEXTURE_DIMENSIONS).into(),
+            Icon::MIPS,
+            (clean_scaled_px, clean_scaled_px).into(),
+        );
     }
 }
 #[repr(u32)]

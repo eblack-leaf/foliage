@@ -108,26 +108,35 @@ impl Leaf for Circle {
             Progress,
             MipsLevel
         );
-        elm.job.main().add_systems((
-            mips_adjust.in_set(SystemSets::Resolve),
-            diameter_forward.in_set(SystemSets::Resolve),
-        ));
-    }
-}
-fn diameter_forward(mut query: Query<(&mut Area<InterfaceContext>, &Diameter), Changed<Diameter>>) {
-    for (mut area, diameter) in query.iter_mut() {
-        area.width = diameter.0;
-        area.height = diameter.0;
+        elm.job
+            .main()
+            .add_systems((mips_adjust.in_set(SystemSets::Resolve),));
     }
 }
 fn mips_adjust(
     mut query: Query<
-        (&mut MipsLevel, &Area<InterfaceContext>),
+        (
+            &Diameter,
+            &mut MipsLevel,
+            &mut Position<InterfaceContext>,
+            &mut Area<InterfaceContext>,
+        ),
         (Changed<Area<InterfaceContext>>, With<CircleStyle>),
     >,
     scale_factor: Res<ScaleFactor>,
 ) {
-    for (mut mips, area) in query.iter_mut() {
+    for (diameter, mut mips, mut pos, mut area) in query.iter_mut() {
+        area.width = diameter.0;
+        area.height = diameter.0;
+        let scaled_px = diameter.0 * scale_factor.factor();
+        let clean_scaled_px = diameter.0 * scale_factor.factor().round();
+        let scaled_diff = clean_scaled_px - scaled_px;
+        let diff = scaled_diff / scale_factor.factor();
+        let quarter_diff = diff / 4f32;
+        pos.x -= quarter_diff;
+        pos.y -= quarter_diff;
+        area.width += quarter_diff;
+        area.height += quarter_diff;
         *mips = MipsLevel::new(
             (
                 Circle::CIRCLE_TEXTURE_DIMENSIONS,
@@ -135,7 +144,7 @@ fn mips_adjust(
             )
                 .into(),
             Circle::MIPS,
-            area.to_device(scale_factor.factor()),
+            (clean_scaled_px, clean_scaled_px).into(),
         );
     }
 }
