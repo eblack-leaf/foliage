@@ -1,11 +1,17 @@
+use foliage::bevy_ecs;
+use foliage::bevy_ecs::change_detection::Res;
+use foliage::bevy_ecs::entity::Entity;
+use foliage::bevy_ecs::prelude::{Commands, IntoSystemConfigs};
+use foliage::bevy_ecs::system::{Local, Resource};
 use foliage::circle::{Circle, CircleMipLevel, CircleStyle, Diameter};
 use foliage::color::Color;
-use foliage::coordinate::Coordinate;
-use foliage::elm::{Elm, Leaf};
+use foliage::coordinate::CoordinateLeaf;
+use foliage::elm::{Elm, Leaf, SystemSets};
 use foliage::icon::bundled_cov::BundledIcon;
 use foliage::icon::{Icon, IconId, IconScale};
 use foliage::panel::{Panel, PanelStyle};
 use foliage::rectangle::Rectangle;
+use foliage::scene::Scene;
 use foliage::text::{FontSize, MaxCharacters, Text, TextValue};
 use foliage::texture::factors::Progress;
 use foliage::window::WindowDescriptor;
@@ -23,28 +29,53 @@ pub fn entry(android_interface: AndroidInterface) {
         .with_renderleaf::<Rectangle>()
         .with_renderleaf::<Icon>()
         .with_renderleaf::<Text>()
-        .with_leaf::<Coordinate>()
+        .with_leaf::<CoordinateLeaf>()
         .with_leaf::<Tester>()
         .with_android_interface(android_interface)
         .run();
 }
 
 struct Tester;
-
+#[derive(Resource)]
+pub(crate) struct ButtonScene(pub(crate) Scene<i32>);
+impl ButtonScene {
+    pub(crate) fn new() -> Self {
+        let scene = Scene::new().with_node(0, |android_offset: &i32, cmd| -> Entity {
+            cmd.spawn(Text::new(
+                (138, 475 + *android_offset).into(),
+                MaxCharacters(45),
+                1.into(),
+                FontSize(14),
+                TextValue::new("Sts - User"),
+                Color::RED.into(),
+            ))
+            .id()
+        });
+        Self(scene)
+    }
+}
+fn spawn_button_tree(
+    mut first_run: Local<bool>,
+    button_scene: Res<ButtonScene>,
+    mut cmd: Commands,
+) {
+    if !*first_run {
+        let _entities = button_scene.0.spawn_with(&mut cmd);
+        *first_run = true;
+    }
+}
 impl Leaf for Tester {
     fn attach(elm: &mut Elm) {
         #[cfg(any(not(target_os = "android"), target_arch = "x86_64"))]
         let android_offset = 0;
         #[cfg(all(target_os = "android", target_arch = "aarch64"))]
         let android_offset = 50;
-        elm.job.container.spawn(Text::new(
-            (138, 475 + android_offset).into(),
-            MaxCharacters(45),
-            4.into(),
-            FontSize(14),
-            TextValue::new("Stats - User"),
-            Color::GREEN.into(),
-        ));
+        let mut button_tree = ButtonScene::new();
+        button_tree.0.set_args(android_offset);
+        elm.job.container.insert_resource(button_tree);
+        elm.job
+            .main()
+            .add_systems((spawn_button_tree.in_set(SystemSets::Spawn),));
         elm.job.container.spawn(Rectangle::new(
             (138, 500 + android_offset).into(),
             (200, 2).into(),
@@ -160,7 +191,7 @@ impl Leaf for Tester {
         elm.job.container.spawn(Icon::new(
             IconId::new(BundledIcon::Bookmark),
             (240, 225 + android_offset).into(),
-            IconScale(20.0),
+            IconScale::Twenty,
             3.into(),
             Color::GREEN.into(),
         ));
@@ -202,22 +233,22 @@ impl Leaf for Tester {
         ));
         elm.job.container.spawn(Icon::new(
             IconId::new(BundledIcon::Play),
-            (344, 2 + android_offset).into(),
-            IconScale(20.0),
+            (274, 2 + android_offset).into(),
+            IconScale::Eighty,
             4.into(),
             Color::GREY_MEDIUM.into(),
         ));
         elm.job.container.spawn(Icon::new(
             IconId::new(BundledIcon::SkipForward),
-            (374, 2 + android_offset).into(),
-            IconScale(20.0),
+            (354, 2 + android_offset).into(),
+            IconScale::Forty,
             4.into(),
             Color::GREY_MEDIUM.into(),
         ));
         elm.job.container.spawn(Icon::new(
             IconId::new(BundledIcon::Shuffle),
             (404, 2 + android_offset).into(),
-            IconScale(20.0),
+            IconScale::Twenty,
             4.into(),
             Color::GREY_MEDIUM.into(),
         ));

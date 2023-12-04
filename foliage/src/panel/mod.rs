@@ -11,7 +11,7 @@ use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::InterfaceContext;
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
-use crate::elm::{Elm, Leaf};
+use crate::elm::{Elm, Leaf, SystemSets};
 
 mod proc_gen;
 mod renderer;
@@ -69,7 +69,7 @@ impl Leaf for Panel {
         differential_enable!(elm, CReprPosition, CReprArea, Color, PanelStyle);
         elm.job
             .main()
-            .add_systems((reduce_area.before(crate::coordinate::area_set),));
+            .add_systems((reduce_area.before(SystemSets::Coordinate),));
     }
 }
 fn reduce_area(

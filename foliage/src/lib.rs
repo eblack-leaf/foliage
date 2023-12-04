@@ -30,6 +30,7 @@ pub mod instance;
 pub mod job;
 pub mod panel;
 pub mod rectangle;
+pub mod scene;
 pub mod text;
 pub mod texture;
 pub mod window;

@@ -4,15 +4,15 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::differential::{Differentiable, DifferentialBundle};
-use crate::elm::{Elm, Leaf};
-use crate::window::ScaleFactor;
+use crate::elm::{Elm, Leaf, SystemSets};
+use crate::texture::factors::MipsLevel;
 #[allow(unused)]
 use crate::{coordinate, differential_enable};
 use bevy_ecs::component::Component;
+use bevy_ecs::prelude::Query;
 #[allow(unused)]
 use bevy_ecs::prelude::{Bundle, IntoSystemConfigs};
 use bevy_ecs::query::Changed;
-use bevy_ecs::system::{Query, Res};
 use bundled_cov::BundledIcon;
 use serde::{Deserialize, Serialize};
 
@@ -30,6 +30,7 @@ pub struct Icon {
     c_pos: DifferentialBundle<CReprPosition>,
     c_area: DifferentialBundle<CReprArea>,
     color: DifferentialBundle<Color>,
+    mips: DifferentialBundle<MipsLevel>,
     differentiable: Differentiable,
 }
 impl Icon {
@@ -40,25 +41,25 @@ impl Icon {
         layer: Layer,
         color: Color,
     ) -> Self {
-        let area = Area::new(scale.0, scale.0);
         Self {
             position,
-            area,
-            scale: IconScale(20.0),
+            area: (scale.px(), scale.px()).into(),
             icon_id: DifferentialBundle::new(icon_id),
             c_pos: DifferentialBundle::new(CReprPosition::default()),
             c_area: DifferentialBundle::new(CReprArea::default()),
             color: DifferentialBundle::new(color),
+            mips: DifferentialBundle::new(scale.mips()),
+            scale,
             differentiable: Differentiable::new::<Self>(layer),
         }
     }
 }
 impl Leaf for Icon {
     fn attach(elm: &mut Elm) {
-        differential_enable!(elm, CReprPosition, CReprArea, Color, IconId);
-        // elm.job.main().add_systems((scale_icon
-        //     .before(coordinate::area_set)
-        //     .before(coordinate::position_set),));
+        differential_enable!(elm, CReprPosition, CReprArea, Color, IconId, MipsLevel);
+        elm.job
+            .main()
+            .add_systems((scale_change.in_set(SystemSets::Resolve),));
     }
 }
 #[derive(Component, Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
@@ -68,30 +69,31 @@ impl IconId {
         Self(bundled_icon as u32)
     }
 }
-#[derive(Component, Copy, Clone)]
-pub struct IconScale(pub CoordinateUnit);
-#[allow(unused)]
-pub(crate) fn scale_icon(
-    mut query: Query<
-        (
-            &mut Position<InterfaceContext>,
-            &mut Area<InterfaceContext>,
-            &IconScale,
-        ),
-        Changed<IconScale>,
-    >,
-    scale_factor: Res<ScaleFactor>,
+fn scale_change(
+    mut query: Query<(&IconScale, &mut Area<InterfaceContext>, &mut MipsLevel), Changed<IconScale>>,
 ) {
-    for (mut pos, mut area, scale) in query.iter_mut() {
-        area.width = scale.0;
-        area.height = scale.0;
-        let scaled_area = area.to_device(scale_factor.factor());
-        let diff = scaled_area.width - area.width;
-        let diff = diff / scale_factor.factor();
-        let half_diff = diff / 2f32;
-        area.width -= half_diff;
-        area.height -= half_diff;
-        pos.x += half_diff;
-        pos.y += half_diff;
+    for (scale, mut area, mut mips) in query.iter_mut() {
+        area.width = scale.px();
+        area.height = scale.px();
+        *mips = scale.mips();
+    }
+}
+#[repr(u32)]
+#[derive(Component, Copy, Clone)]
+pub enum IconScale {
+    Twenty = 20,
+    Forty = 40,
+    Eighty = 80,
+}
+impl IconScale {
+    pub fn mips(self) -> MipsLevel {
+        match self {
+            IconScale::Twenty => MipsLevel(2.0),
+            IconScale::Forty => MipsLevel(1.0),
+            IconScale::Eighty => MipsLevel(0.0),
+        }
+    }
+    pub fn px(self) -> CoordinateUnit {
+        self as u32 as f32
     }
 }

@@ -1,7 +1,10 @@
 use crate::coordinate::area::{Area, CReprArea};
+use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
+use crate::coordinate::section::Section;
 use crate::elm::{Elm, Leaf, SystemSets};
 use crate::window::ScaleFactor;
+use bevy_ecs::bundle::Bundle;
 use bevy_ecs::prelude::{IntoSystemConfigs, Query};
 use bevy_ecs::system::Res;
 use serde::{Deserialize, Serialize};
@@ -47,12 +50,17 @@ pub(crate) fn area_set(
         c_repr.height = c_repr.height.round();
     }
 }
-pub struct Coordinate {}
-impl Leaf for Coordinate {
+#[derive(Copy, Clone, Bundle, Default)]
+pub struct Coordinate<Context: CoordinateContext> {
+    pub section: Section<Context>,
+    pub layer: Layer,
+}
+pub struct CoordinateLeaf;
+impl Leaf for CoordinateLeaf {
     fn attach(elm: &mut Elm) {
         elm.job.main().add_systems((
-            position_set.before(SystemSets::Differential),
-            area_set.before(SystemSets::Differential),
+            position_set.in_set(SystemSets::Coordinate),
+            area_set.in_set(SystemSets::Coordinate),
         ));
     }
 }

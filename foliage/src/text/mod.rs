@@ -10,11 +10,11 @@ use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
 use crate::differential::{Differentiable, DifferentialBundle};
+use crate::differential_enable;
 use crate::elm::{Elm, Leaf, SystemSets};
 use crate::text::font::MonospacedFont;
 use crate::text::glyph::Glyph;
 use crate::window::ScaleFactor;
-use crate::{coordinate, differential_enable};
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Bundle, IntoSystemConfigs, Or};
 use bevy_ecs::query::Changed;
@@ -94,8 +94,8 @@ impl Leaf for Text {
             .container
             .insert_resource(MonospacedFont::new(Self::DEFAULT_OPT_SCALE));
         elm.job.main().add_systems((
-            changes.before(SystemSets::Differential),
-            max_character.before(changes).before(coordinate::area_set),
+            changes.in_set(SystemSets::Resolve),
+            max_character.in_set(SystemSets::Resolve).before(changes),
         ));
     }
 }

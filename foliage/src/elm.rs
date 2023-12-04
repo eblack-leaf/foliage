@@ -2,7 +2,7 @@ use std::any::TypeId;
 use std::marker::PhantomData;
 
 use anymap::AnyMap;
-use bevy_ecs::prelude::{Component, IntoSystemConfigs, SystemSet};
+use bevy_ecs::prelude::{apply_deferred, Component, IntoSystemConfigs, SystemSet};
 use bevy_ecs::schedule::IntoSystemSetConfigs;
 use compact_str::{CompactString, ToCompactString};
 use serde::{Deserialize, Serialize};
@@ -67,11 +67,21 @@ impl Elm {
         self.initialized
     }
     pub(crate) fn attach_leafs(&mut self, leaflets: Vec<Leaflet>) {
-        self.job
-            .main()
-            .configure_sets((SystemSets::Differential, SystemSets::RenderPacket).chain());
+        self.job.main().configure_sets(
+            (
+                SystemSets::Spawn,
+                SystemSets::Resolve,
+                SystemSets::Coordinate,
+                SystemSets::Differential,
+                SystemSets::RenderPacket,
+            )
+                .chain(),
+        );
         self.job.main().add_systems((
             crate::differential::send_render_packet.in_set(SystemSets::RenderPacket),
+            apply_deferred
+                .after(SystemSets::Spawn)
+                .before(SystemSets::Resolve),
         ));
         self.enable_differential::<Layer>();
         self.job
@@ -134,6 +144,9 @@ impl Elm {
 
 #[derive(SystemSet, Hash, Eq, PartialEq, Debug, Copy, Clone)]
 pub enum SystemSets {
+    Spawn,
+    Resolve,
+    Coordinate,
     Differential,
     RenderPacket,
 }

@@ -1,4 +1,4 @@
-use bevy_ecs::prelude::{Bundle, Component, IntoSystemConfigs, Res};
+use bevy_ecs::prelude::{Bundle, Component, IntoSystemConfigs, Res, With};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::Query;
 use bytemuck::{Pod, Zeroable};
@@ -10,10 +10,10 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::differential::{Differentiable, DifferentialBundle};
+use crate::differential_enable;
 use crate::elm::{Elm, Leaf, SystemSets};
 use crate::texture::factors::{MipsLevel, Progress};
 use crate::window::ScaleFactor;
-use crate::{coordinate, differential_enable};
 
 mod proc_gen;
 mod renderer;
@@ -109,8 +109,8 @@ impl Leaf for Circle {
             MipsLevel
         );
         elm.job.main().add_systems((
-            mips_adjust.before(SystemSets::Differential),
-            diameter_forward.before(coordinate::area_set),
+            mips_adjust.in_set(SystemSets::Resolve),
+            diameter_forward.in_set(SystemSets::Resolve),
         ));
     }
 }
@@ -121,7 +121,10 @@ fn diameter_forward(mut query: Query<(&mut Area<InterfaceContext>, &Diameter), C
     }
 }
 fn mips_adjust(
-    mut query: Query<(&mut MipsLevel, &Area<InterfaceContext>)>,
+    mut query: Query<
+        (&mut MipsLevel, &Area<InterfaceContext>),
+        (Changed<Area<InterfaceContext>>, With<CircleStyle>),
+    >,
     scale_factor: Res<ScaleFactor>,
 ) {
     for (mut mips, area) in query.iter_mut() {
