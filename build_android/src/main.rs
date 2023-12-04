@@ -29,6 +29,7 @@ struct Args {
     androidx_games_activity_version: String,
     androidx_fragment_version: String,
     oboe_version: String,
+    install: bool,
 }
 
 #[derive(Deserialize)]
@@ -83,6 +84,7 @@ fn prepare_from_file(args: Vec<String>) -> Args {
                 androidx_games_activity_version: input.androidx_games_activity_version,
                 androidx_fragment_version: input.androidx_fragment_version,
                 oboe_version: input.oboe_version,
+                install: args.get(2).cloned().unwrap_or_default() == "--install",
             };
         }
     }
@@ -209,8 +211,8 @@ fn build_android(args: Args) {
         .status()
         .unwrap();
     let gradle_process = std::process::Command::new("./gradlew")
-        .env("ANDROID_NDK_HOME", args.ndk_home)
-        .env("ANDROID_HOME", args.sdk_home)
+        .env("ANDROID_NDK_HOME", args.ndk_home.clone())
+        .env("ANDROID_HOME", args.sdk_home.clone())
         .current_dir(args.app_source.clone())
         .args(["build", "--stacktrace"])
         .status()
@@ -238,4 +240,18 @@ fn build_android(args: Args) {
     ));
     std::fs::write(debug_dest, debug_apk).unwrap();
     std::fs::write(release_dest, release_apk).unwrap();
+    // install
+    if args.install {
+        let gradle_process = std::process::Command::new("./gradlew")
+            .env("ANDROID_NDK_HOME", args.ndk_home)
+            .env("ANDROID_HOME", args.sdk_home)
+            .current_dir(args.app_source.clone())
+            .args(["installDebug", "--stacktrace"])
+            .status()
+            .unwrap();
+        if !gradle_process.success() {
+            println!("error gradle installDebug");
+            return;
+        }
+    }
 }

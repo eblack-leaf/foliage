@@ -47,7 +47,7 @@ impl ButtonScene {
                     MaxCharacters(45),
                     1.into(),
                     FontSize(14),
-                    TextValue::new("Sts - User"),
+                    TextValue::new("Stats - User"),
                     Color::GREY.into(),
                 ))
                 .id()
