@@ -28,7 +28,6 @@ use std::collections::HashSet;
 
 #[derive(Bundle)]
 pub struct Text {
-    position: Position<InterfaceContext>,
     area: Area<InterfaceContext>,
     text_value: TextValue,
     max_characters: MaxCharacters,
@@ -46,15 +45,12 @@ pub struct Text {
 }
 impl Text {
     pub fn new(
-        position: Position<InterfaceContext>,
         max_characters: MaxCharacters,
-        layer: Layer,
         font_size: FontSize,
         text_value: TextValue,
         color: Color,
     ) -> Self {
         Self {
-            position,
             area: Area::default(),
             max_characters,
             font_size: DifferentialBundle::new(font_size),
@@ -66,7 +62,7 @@ impl Text {
             glyph_removes: DifferentialBundle::new(GlyphRemoveQueue::default()),
             text_value,
             character_dimension: CharacterDimension(Area::default()),
-            differentiable: Differentiable::new::<Self>(layer),
+            differentiable: Differentiable::new::<Self>(Layer::default()),
             glyph_cache: GlyphCache::default(),
             glyph_placement_tool: GlyphPlacementTool(fontdue::layout::Layout::new(
                 fontdue::layout::CoordinateSystem::PositiveYDown,

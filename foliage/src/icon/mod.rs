@@ -25,7 +25,6 @@ mod vertex;
 
 #[derive(Bundle)]
 pub struct Icon {
-    position: Position<InterfaceContext>,
     area: Area<InterfaceContext>,
     scale: IconScale,
     icon_id: DifferentialBundle<IconId>,
@@ -36,15 +35,8 @@ pub struct Icon {
     differentiable: Differentiable,
 }
 impl Icon {
-    pub fn new(
-        icon_id: IconId,
-        position: Position<InterfaceContext>,
-        scale: IconScale,
-        layer: Layer,
-        color: Color,
-    ) -> Self {
+    pub fn new(icon_id: IconId, scale: IconScale, color: Color) -> Self {
         Self {
-            position,
             area: Area::default(),
             icon_id: DifferentialBundle::new(icon_id),
             c_pos: DifferentialBundle::new(CReprPosition::default()),
@@ -52,7 +44,7 @@ impl Icon {
             color: DifferentialBundle::new(color),
             mips: DifferentialBundle::new(scale.initial_mips()),
             scale,
-            differentiable: Differentiable::new::<Self>(layer),
+            differentiable: Differentiable::new::<Self>(Layer::default()),
         }
     }
 }

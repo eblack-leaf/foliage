@@ -14,7 +14,6 @@ mod renderer;
 mod vertex;
 #[derive(Bundle)]
 pub struct Rectangle {
-    position: Position<InterfaceContext>,
     area: Area<InterfaceContext>,
     c_pos: DifferentialBundle<CReprPosition>,
     c_area: DifferentialBundle<CReprArea>,
@@ -23,21 +22,14 @@ pub struct Rectangle {
     differentiable: Differentiable,
 }
 impl Rectangle {
-    pub fn new(
-        position: Position<InterfaceContext>,
-        area: Area<InterfaceContext>,
-        layer: Layer,
-        color: Color,
-        progress: Progress,
-    ) -> Self {
+    pub fn new(area: Area<InterfaceContext>, color: Color, progress: Progress) -> Self {
         Self {
-            position,
             area,
             c_pos: DifferentialBundle::new(CReprPosition::default()),
             c_area: DifferentialBundle::new(CReprArea::default()),
             progress: DifferentialBundle::new(progress),
             color: DifferentialBundle::new(color),
-            differentiable: Differentiable::new::<Self>(layer),
+            differentiable: Differentiable::new::<Self>(Layer::default()),
         }
     }
 }

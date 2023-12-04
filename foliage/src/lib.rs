@@ -19,6 +19,7 @@ use crate::ginkgo::Ginkgo;
 use self::ash::leaflet::RenderLeafletStorage;
 
 pub mod ash;
+pub mod button;
 pub mod circle;
 pub mod color;
 pub mod coordinate;

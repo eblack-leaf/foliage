@@ -55,12 +55,20 @@ pub struct Coordinate<Context: CoordinateContext> {
     pub section: Section<Context>,
     pub layer: Layer,
 }
+impl<Context: CoordinateContext> Coordinate<Context> {
+    pub fn new<S: Into<Section<Context>>, L: Into<Layer>>(s: S, l: L) -> Self {
+        Self {
+            section: s.into(),
+            layer: l.into(),
+        }
+    }
+}
 pub struct CoordinateLeaf;
 impl Leaf for CoordinateLeaf {
     fn attach(elm: &mut Elm) {
         elm.job.main().add_systems((
-            position_set.in_set(SystemSets::Coordinate),
-            area_set.in_set(SystemSets::Coordinate),
+            position_set.in_set(SystemSets::CoordinateScale),
+            area_set.in_set(SystemSets::CoordinateScale),
         ));
     }
 }

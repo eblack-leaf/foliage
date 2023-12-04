@@ -66,38 +66,36 @@ impl Ash {
     }
     pub(crate) fn render(&mut self, ginkgo: &mut Ginkgo) {
         let instructions = self.instruction_groups.instructions();
-        if !instructions.is_empty() {
-            if let Some(surface_texture) = ginkgo.surface_texture() {
-                let view = surface_texture
-                    .texture
-                    .create_view(&wgpu::TextureViewDescriptor::default());
-                let mut encoder =
-                    ginkgo
-                        .device()
-                        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                            label: Some("command-encoder"),
-                        });
-                encoder
-                    .begin_render_pass(&wgpu::RenderPassDescriptor {
-                        label: Some("render-pass"),
-                        color_attachments: &ginkgo.color_attachment(&view),
-                        depth_stencil_attachment: ginkgo.depth_stencil_attachment(),
-                        timestamp_writes: None,
-                        occlusion_query_set: None,
-                    })
-                    .execute_bundles(
-                        instructions
-                            .iter()
-                            .map(|i| i.0.as_ref())
-                            .collect::<Vec<&wgpu::RenderBundle>>(),
-                    );
+        if let Some(surface_texture) = ginkgo.surface_texture() {
+            let view = surface_texture
+                .texture
+                .create_view(&wgpu::TextureViewDescriptor::default());
+            let mut encoder =
                 ginkgo
-                    .queue
-                    .as_ref()
-                    .unwrap()
-                    .submit(std::iter::once(encoder.finish()));
-                surface_texture.present();
-            }
+                    .device()
+                    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                        label: Some("command-encoder"),
+                    });
+            encoder
+                .begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("render-pass"),
+                    color_attachments: &ginkgo.color_attachment(&view),
+                    depth_stencil_attachment: ginkgo.depth_stencil_attachment(),
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                })
+                .execute_bundles(
+                    instructions
+                        .iter()
+                        .map(|i| i.0.as_ref())
+                        .collect::<Vec<&wgpu::RenderBundle>>(),
+                );
+            ginkgo
+                .queue
+                .as_ref()
+                .unwrap()
+                .submit(std::iter::once(encoder.finish()));
+            surface_texture.present();
         }
     }
 }

@@ -60,6 +60,7 @@ impl<T: Render> Renderer<T> {
                 if let Some(l) = render_packet.get::<Layer>() {
                     *layer = l;
                     should_sort = true;
+                    *updated_hook = true;
                 }
                 T::prepare_package(ginkgo, resources, *entity, package, render_packet);
                 *updated_hook = true;
@@ -96,7 +97,6 @@ impl<T: Render> Renderer<T> {
     }
     pub(crate) fn record(&mut self, ginkgo: &Ginkgo) -> bool {
         if self.updated {
-            self.instructions.0.clear();
             Self::inner_record(
                 &self.resources,
                 &mut self.packages,
@@ -129,6 +129,7 @@ impl<T: Render> Renderer<T> {
                 }
             }
             RenderRecordBehavior::PerPackage(behavior) => {
+                render_instruction_group.0.clear();
                 for (_entity, _layer, package) in packages.0.iter_mut() {
                     if package.should_record {
                         let recorder = RenderInstructionsRecorder::new(ginkgo);

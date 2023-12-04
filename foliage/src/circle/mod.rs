@@ -34,7 +34,6 @@ impl CircleStyle {
 
 #[derive(Bundle)]
 pub struct Circle {
-    position: Position<InterfaceContext>,
     area: Area<InterfaceContext>,
     diameter: Diameter,
     style: DifferentialBundle<CircleStyle>,
@@ -73,17 +72,9 @@ impl Circle {
     #[allow(unused)]
     const MIPS_TARGETS: [u32; Self::MIPS as usize] = [1536, 768, 384, 192, 96, 48, 24, 12];
     const MIPS: u32 = 8;
-    pub fn new(
-        style: CircleStyle,
-        position: Position<InterfaceContext>,
-        diameter: Diameter,
-        layer: Layer,
-        color: Color,
-        progress: Progress,
-    ) -> Self {
+    pub fn new(style: CircleStyle, diameter: Diameter, color: Color, progress: Progress) -> Self {
         let area = Area::new(diameter.0, diameter.0);
         Self {
-            position,
             area,
             diameter,
             style: DifferentialBundle::new(style),
@@ -92,7 +83,7 @@ impl Circle {
             color: DifferentialBundle::new(color),
             progress: DifferentialBundle::new(progress),
             mips: DifferentialBundle::new(MipsLevel::default()),
-            differentiable: Differentiable::new::<Self>(layer),
+            differentiable: Differentiable::new::<Self>(Layer::default()),
         }
     }
 }

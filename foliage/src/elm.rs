@@ -71,7 +71,7 @@ impl Elm {
             (
                 SystemSets::Spawn,
                 SystemSets::Resolve,
-                SystemSets::Coordinate,
+                SystemSets::CoordinateScale,
                 SystemSets::Differential,
                 SystemSets::RenderPacket,
             )
@@ -146,7 +146,7 @@ impl Elm {
 pub enum SystemSets {
     Spawn,
     Resolve,
-    Coordinate,
+    CoordinateScale,
     Differential,
     RenderPacket,
 }
