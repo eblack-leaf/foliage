@@ -1,13 +1,12 @@
 use foliage::bevy_ecs::change_detection::Res;
 use foliage::bevy_ecs::prelude::{Commands, IntoSystemConfigs, ResMut};
 use foliage::bevy_ecs::system::{Local, Resource};
-use foliage::button::Button;
 use foliage::circle::Circle;
 use foliage::color::Color;
 use foliage::coordinate::area::Area;
 use foliage::coordinate::position::Position;
 use foliage::coordinate::section::Section;
-use foliage::coordinate::{Coordinate, CoordinateLeaf};
+use foliage::coordinate::{Coordinate, CoordinateLeaf, InterfaceContext};
 use foliage::elm::{Elm, Leaf, SystemSets};
 use foliage::icon::{Icon, IconId};
 use foliage::panel::Panel;
@@ -44,7 +43,10 @@ fn spawn_button_tree(
 ) {
     if !*first_run {
         let coordinate = Coordinate::new(
-            Section::new(Position::new(10.0, 10.0), Area::new(140.0, 50.0)),
+            Section::new(
+                Position::<InterfaceContext>::new(10.0, 10.0),
+                Area::new(140.0, 50.0),
+            ),
             4,
         );
         *first_run = true;
