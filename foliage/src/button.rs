@@ -4,15 +4,18 @@ use crate::elm::{Elm, Leaf};
 use crate::icon::{Icon, IconId, IconScale};
 use crate::job::Tag;
 use crate::panel::{Panel, PanelStyle};
-use crate::scene::{AlignedNumber, Scene, SceneBindRequest};
+use crate::scene::SceneBundle;
 use crate::text::font::MonospacedFont;
 use crate::text::{MaxCharacters, Text, TextValue};
 use crate::window::ScaleFactor;
 use bevy_ecs::bundle::Bundle;
+use crate::scene::align::AlignedNumber;
+use crate::scene::bind::SceneBindRequest;
+
 #[derive(Bundle)]
 pub struct Button {
     tag: Tag<Button>,
-    scene: Scene,
+    scene: SceneBundle,
     panel_req: SceneBindRequest<Panel>,
     text_req: SceneBindRequest<Text>,
     icon_req: SceneBindRequest<Icon>,
@@ -31,14 +34,14 @@ impl Button {
         font: &MonospacedFont,
         scale_factor: &ScaleFactor,
     ) -> Self {
-        let (font_size, area) = font.best_fit(
+        let (font_size, _area) = font.best_fit(
             max_characters,
             coordinate.section.area,
             scale_factor
         );
         Self {
             tag: Tag::new(),
-            scene: Scene::new(coordinate),
+            scene: SceneBundle::new(coordinate, ),
             panel_req: SceneBindRequest::new(vec![(
                 0,
                 (0.left_align(), 0.top_align(), 1.layer_align()),

@@ -16,6 +16,7 @@ use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::job::Job;
+use crate::scene::bind::SceneNode;
 use crate::window::ScaleFactor;
 
 pub struct Elm {
@@ -85,8 +86,8 @@ impl Elm {
                 .chain(),
         );
         self.job.main().add_systems((
-            crate::scene::place.in_set(SystemSets::ScenePlacement),
-            crate::scene::place_layer.in_set(SystemSets::ScenePlacement),
+            crate::scene::align::place.in_set(SystemSets::ScenePlacement),
+            crate::scene::align::place_layer.in_set(SystemSets::ScenePlacement),
             crate::differential::send_render_packet.in_set(SystemSets::RenderPacket),
             crate::differential::despawn
                 .in_set(SystemSets::RenderPacket)
@@ -104,14 +105,15 @@ impl Elm {
         }
         self.initialized = true;
     }
-    pub fn enable_scene_bind<T: Bundle>(&mut self) {
+    pub fn enable_scene_bind<T: SceneNode>(&mut self) {
         if self.limiters.get::<SceneBindLimiter<T>>().is_none() {
             self.limiters.insert(SceneBindLimiter::<T>::default());
         }
         if !self.limiters.get::<SceneBindLimiter<T>>().unwrap().0 {
+            let set = if T::IS_SCENE { SystemSets::SubSceneBinding } else { SystemSets::SceneBinding };
             self.job
                 .main()
-                .add_systems((crate::scene::bind::<T>.in_set(SystemSets::SceneBinding),));
+                .add_systems((crate::scene::bind::Binder::<T, T::IS_SCENE>::bind.in_set(set),));
             self.limiters
                 .get_mut::<SceneBindLimiter<T>>()
                 .as_mut()
@@ -168,6 +170,7 @@ pub enum SystemSets {
     FinalizeCoordinate,
     Differential,
     RenderPacket,
+    SubSceneBinding,
 }
 
 pub(crate) fn compact_string_type_id<T: 'static>() -> CompactString {

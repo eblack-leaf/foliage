@@ -1,47 +1,19 @@
+use bevy_ecs::component::Component;
+use bevy_ecs::prelude::{Changed, Or, Query};
+use bevy_ecs::bundle::Bundle;
+use crate::coordinate::{Coordinate, CoordinateUnit, InterfaceContext};
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
-use crate::coordinate::{Coordinate, CoordinateUnit, InterfaceContext};
-use crate::differential::Despawn;
-use bevy_ecs::bundle::Bundle;
-use bevy_ecs::component::Component;
-use bevy_ecs::entity::Entity;
-use bevy_ecs::query::{Changed, Or};
-use bevy_ecs::system::{Commands, Query};
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
-#[derive(Component, Copy, Clone)]
-pub struct SceneVisibility(pub bool); // TODO incorporate into visibility check
-impl Default for SceneVisibility {
-    fn default() -> Self {
-        SceneVisibility(true)
-    }
-}
-#[derive(Bundle)]
-pub struct SceneAlignment {
-    alignment: AlignmentCoordinate,
-    anchor: AlignmentAnchor,
-    binding: SceneBinding,
-    visibility: SceneVisibility,
-}
-impl SceneAlignment {
-    pub fn new(ac: AlignmentCoordinate, anchor: AlignmentAnchor, binding: SceneBinding) -> Self {
-        Self {
-            alignment: ac,
-            anchor,
-            binding,
-            visibility: SceneVisibility::default(),
-        }
-    }
-}
 #[derive(Bundle, Copy, Clone)]
 pub struct AlignmentCoordinate {
     pub ha: HorizontalAlignment,
     pub va: VerticalAlignment,
     pub la: LayerAlignment,
 }
+
 impl<HA: Into<HorizontalAlignment>, VA: Into<VerticalAlignment>, LA: Into<LayerAlignment>>
     From<(HA, VA, LA)> for AlignmentCoordinate
 {
@@ -53,6 +25,7 @@ impl<HA: Into<HorizontalAlignment>, VA: Into<VerticalAlignment>, LA: Into<LayerA
         }
     }
 }
+
 pub trait AlignedNumber {
     fn hcenter(self) -> HorizontalAlignment;
     fn left_align(self) -> HorizontalAlignment;
@@ -62,6 +35,7 @@ pub trait AlignedNumber {
     fn bottom_align(self) -> VerticalAlignment;
     fn layer_align(self) -> LayerAlignment;
 }
+
 impl AlignedNumber for f32 {
     fn hcenter(self) -> HorizontalAlignment {
         HorizontalAlignment::Center(self)
@@ -91,6 +65,7 @@ impl AlignedNumber for f32 {
         LayerAlignment::new(self)
     }
 }
+
 impl AlignedNumber for u32 {
     fn hcenter(self) -> HorizontalAlignment {
         HorizontalAlignment::Center(self as CoordinateUnit)
@@ -120,6 +95,7 @@ impl AlignedNumber for u32 {
         LayerAlignment::new(self)
     }
 }
+
 impl AlignedNumber for i32 {
     fn hcenter(self) -> HorizontalAlignment {
         HorizontalAlignment::Center(self as CoordinateUnit)
@@ -149,87 +125,7 @@ impl AlignedNumber for i32 {
         LayerAlignment::new(self)
     }
 }
-#[derive(
-    Component, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize, Default,
-)]
-pub struct SceneBinding(pub u32);
-impl From<u32> for SceneBinding {
-    fn from(value: u32) -> Self {
-        SceneBinding(value)
-    }
-}
-#[derive(Component, Default)]
-pub struct SceneNodes(pub HashMap<SceneBinding, Entity>);
-impl SceneNodes {
-    pub fn release(&mut self, cmd: &mut Commands) {
-        self.0.drain().for_each(|n| {
-            cmd.entity(n.1).insert(Despawn::new(true));
-        });
-    }
-}
-#[derive(Bundle)]
-pub struct Scene {
-    pub anchor: AlignmentAnchor,
-    pub entities: SceneNodes,
-    pub visibility: SceneVisibility,
-    pub despawn: Despawn,
-}
-impl Scene {
-    pub fn new(anchor: Coordinate<InterfaceContext>) -> Self {
-        Self {
-            anchor: AlignmentAnchor(anchor),
-            entities: SceneNodes::default(),
-            visibility: SceneVisibility::default(),
-            despawn: Despawn::default(),
-        }
-    }
-}
-#[derive(Component)]
-pub struct SceneBindRequest<T: Bundle>(pub Vec<(SceneBinding, AlignmentCoordinate, T)>);
-impl<T: Bundle> SceneBindRequest<T> {
-    pub fn new<SB: Into<SceneBinding>, AC: Into<AlignmentCoordinate>>(
-        mut bundles: Vec<(SB, AC, T)>,
-    ) -> Self {
-        Self(
-            bundles
-                .drain(..)
-                .map(|(sb, ac, t)| (sb.into(), ac.into(), t))
-                .collect(),
-        )
-    }
-}
-pub(crate) fn bind<T: Bundle + 'static>(
-    mut requests: Query<(
-        Entity,
-        &AlignmentAnchor,
-        &mut SceneBindRequest<T>,
-        &mut SceneNodes,
-    )>,
-    mut cmd: Commands,
-) {
-    for (entity, anchor, mut bind_request, mut nodes) in requests.iter_mut() {
-        let batch = bind_request
-            .0
-            .drain(..)
-            .map(|(scene_binding, alignment_coordinate, bundle)| {
-                (
-                    {
-                        let entity = cmd.spawn_empty().id();
-                        nodes.0.insert(scene_binding, entity);
-                        entity
-                    },
-                    bundle.chain(SceneAlignment::new(
-                        alignment_coordinate,
-                        *anchor,
-                        scene_binding,
-                    )),
-                )
-            })
-            .collect::<Vec<(Entity, ChainedBundle<T, SceneAlignment>)>>();
-        cmd.insert_or_spawn_batch(batch);
-        cmd.entity(entity).remove::<SceneBindRequest<T>>();
-    }
-}
+
 pub(crate) fn place(
     mut aligned: Query<
         (
@@ -254,6 +150,7 @@ pub(crate) fn place(
         *pos = (x, y).into();
     }
 }
+
 pub(crate) fn place_layer(
     mut aligned: Query<
         (&AlignmentAnchor, &LayerAlignment, &mut Layer),
@@ -268,35 +165,10 @@ pub(crate) fn place_layer(
         *layer = la.calc(anchor.layer());
     }
 }
-#[derive(Bundle)]
-pub struct ChainedBundle<T: Bundle, S: Bundle> {
-    pub original: T,
-    pub extension: S,
-}
 
-impl<T: Bundle, S: Bundle> ChainedBundle<T, S> {
-    pub fn new(t: T, s: S) -> Self {
-        Self {
-            original: t,
-            extension: s,
-        }
-    }
-}
-
-pub trait BundleChain
-where
-    Self: Bundle + Sized,
-{
-    fn chain<B: Bundle>(self, b: B) -> ChainedBundle<Self, B>;
-}
-
-impl<I: Bundle> BundleChain for I {
-    fn chain<B: Bundle>(self, b: B) -> ChainedBundle<I, B> {
-        ChainedBundle::new(self, b)
-    }
-}
 #[derive(Copy, Clone, Component)]
 pub struct AlignmentAnchor(pub Coordinate<InterfaceContext>);
+
 impl AlignmentAnchor {
     pub fn section(&self) -> Section<InterfaceContext> {
         self.0.section
@@ -305,12 +177,14 @@ impl AlignmentAnchor {
         self.0.layer
     }
 }
+
 #[derive(Component, Copy, Clone)]
 pub enum HorizontalAlignment {
     Center(CoordinateUnit),
     Left(CoordinateUnit),
     Right(CoordinateUnit),
 }
+
 impl HorizontalAlignment {
     pub fn calc(
         &self,
@@ -326,12 +200,14 @@ impl HorizontalAlignment {
         }
     }
 }
+
 #[derive(Component, Copy, Clone)]
 pub enum VerticalAlignment {
     Center(CoordinateUnit),
     Top(CoordinateUnit),
     Bottom(CoordinateUnit),
 }
+
 impl VerticalAlignment {
     pub fn calc(
         &self,
@@ -347,8 +223,10 @@ impl VerticalAlignment {
         }
     }
 }
+
 #[derive(Component, Copy, Clone)]
 pub struct LayerAlignment(pub Layer);
+
 impl LayerAlignment {
     pub fn new<L: Into<Layer>>(l: L) -> Self {
         Self(l.into())
