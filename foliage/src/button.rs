@@ -2,13 +2,13 @@ use crate::color::Color;
 use crate::coordinate::{Coordinate, InterfaceContext};
 use crate::elm::{Elm, Leaf};
 use crate::icon::{Icon, IconId, IconScale};
+use crate::job::Tag;
 use crate::panel::{Panel, PanelStyle};
 use crate::scene::{Scene, SceneBindRequest, SceneLayout};
 use crate::text::font::MonospacedFont;
 use crate::text::{MaxCharacters, Text, TextValue};
 use crate::window::ScaleFactor;
 use bevy_ecs::bundle::Bundle;
-use crate::job::Tag;
 #[derive(Bundle)]
 pub struct Button {
     tag: Tag<Button>,
@@ -38,15 +38,17 @@ impl Button {
         Self {
             tag: Tag::new(),
             scene: Scene::new(coordinate, Self::layout()),
-            panel_req: SceneBindRequest::new(
+            panel_req: SceneBindRequest::new(vec![(
+                0,
                 0,
                 Panel::new(PanelStyle::ring(), coordinate.section.area, color),
-            ),
-            text_req: SceneBindRequest::new(
+            )]),
+            text_req: SceneBindRequest::new(vec![(
+                1,
                 1,
                 Text::new(max_characters, font_size, text_value.clone(), color),
-            ),
-            icon_req: SceneBindRequest::new(2, Icon::new(icon_id, icon_scale, color)),
+            )]),
+            icon_req: SceneBindRequest::new(vec![(2, 2, Icon::new(icon_id, icon_scale, color))]),
             color,
             icon_id,
             text_value,

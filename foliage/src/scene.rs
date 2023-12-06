@@ -24,14 +24,21 @@ pub struct SceneAlignment {
     alignment: AlignmentCoordinate,
     anchor: AlignmentAnchor,
     binding: SceneBinding,
+    layout_binding: SceneLayoutBinding,
     visibility: SceneVisibility,
 }
 impl SceneAlignment {
-    pub fn new(ac: AlignmentCoordinate, anchor: AlignmentAnchor, binding: SceneBinding) -> Self {
+    pub fn new(
+        ac: AlignmentCoordinate,
+        anchor: AlignmentAnchor,
+        binding: SceneBinding,
+        layout_binding: SceneLayoutBinding,
+    ) -> Self {
         Self {
             alignment: ac,
             anchor,
             binding,
+            layout_binding,
             visibility: SceneVisibility::default(),
         }
     }
@@ -46,9 +53,18 @@ pub struct AlignmentCoordinate {
     Component, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize, Default,
 )]
 pub struct SceneBinding(pub u32);
+#[derive(
+    Component, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize, Default,
+)]
+pub struct SceneLayoutBinding(pub u32);
 impl From<u32> for SceneBinding {
     fn from(value: u32) -> Self {
         SceneBinding(value)
+    }
+}
+impl From<u32> for SceneLayoutBinding {
+    fn from(value: u32) -> Self {
+        SceneLayoutBinding(value)
     }
 }
 #[derive(Component, Default)]
@@ -61,9 +77,9 @@ impl SceneNodes {
     }
 }
 #[derive(Component, Default)]
-pub struct SceneLayout(pub HashMap<SceneBinding, AlignmentCoordinate>);
+pub struct SceneLayout(pub HashMap<SceneLayoutBinding, AlignmentCoordinate>);
 impl SceneLayout {
-    pub fn get(&self, binding: SceneBinding) -> AlignmentCoordinate {
+    pub fn get(&self, binding: SceneLayoutBinding) -> AlignmentCoordinate {
         *self.0.get(&binding).unwrap()
     }
 }
@@ -87,10 +103,17 @@ impl Scene {
     }
 }
 #[derive(Component)]
-pub struct SceneBindRequest<T: Bundle>(pub Option<T>, pub SceneBinding);
+pub struct SceneBindRequest<T: Bundle>(pub Vec<(SceneBinding, SceneLayoutBinding, T)>);
 impl<T: Bundle> SceneBindRequest<T> {
-    pub fn new<SB: Into<SceneBinding>>(binding: SB, bundle: T) -> Self {
-        Self(Some(bundle), binding.into())
+    pub fn new<SB: Into<SceneBinding>, SLB: Into<SceneLayoutBinding>>(
+        mut bundles: Vec<(SB, SLB, T)>,
+    ) -> Self {
+        Self(
+            bundles
+                .drain(..)
+                .map(|(sb, slb, t)| (sb.into(), slb.into(), t))
+                .collect(),
+        )
     }
 }
 pub(crate) fn bind<T: Bundle + 'static>(
@@ -104,15 +127,18 @@ pub(crate) fn bind<T: Bundle + 'static>(
     mut cmd: Commands,
 ) {
     for (entity, anchor, mut bind_request, mut nodes, layout) in requests.iter_mut() {
-        let bundle = bind_request.0.take().unwrap();
-        let requested_entity = cmd
-            .spawn(bundle.chain(SceneAlignment::new(
-                layout.get(bind_request.1),
-                *anchor,
-                bind_request.1,
-            )))
-            .id();
-        nodes.0.insert(bind_request.1, requested_entity);
+        for (scene_binding, layout_binding, bundle) in bind_request.0.drain(..) {
+            // TODO batch?
+            let requested_entity = cmd
+                .spawn(bundle.chain(SceneAlignment::new(
+                    layout.get(layout_binding),
+                    *anchor,
+                    scene_binding,
+                    layout_binding,
+                )))
+                .id();
+            nodes.0.insert(scene_binding, requested_entity);
+        }
         cmd.entity(entity).remove::<SceneBindRequest<T>>();
     }
 }
