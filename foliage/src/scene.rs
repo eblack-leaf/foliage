@@ -3,6 +3,7 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::{Coordinate, CoordinateUnit, InterfaceContext};
+use crate::differential::Despawn;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
@@ -10,10 +11,9 @@ use bevy_ecs::query::{Changed, Or};
 use bevy_ecs::system::{Commands, Query};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::differential::Despawn;
 
 #[derive(Component, Copy, Clone)]
-pub struct SceneVisibility(pub bool);// TODO incorporate into visibility check
+pub struct SceneVisibility(pub bool); // TODO incorporate into visibility check
 impl Default for SceneVisibility {
     fn default() -> Self {
         SceneVisibility(true)
@@ -46,6 +46,11 @@ pub struct AlignmentCoordinate {
     Component, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize, Default,
 )]
 pub struct SceneBinding(pub u32);
+impl From<u32> for SceneBinding {
+    fn from(value: u32) -> Self {
+        SceneBinding(value)
+    }
+}
 #[derive(Component, Default)]
 pub struct SceneNodes(pub HashMap<SceneBinding, Entity>);
 impl SceneNodes {

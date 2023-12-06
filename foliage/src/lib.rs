@@ -12,13 +12,20 @@ use window::{WindowDescriptor, WindowHandle};
 
 use crate::ash::render::Render;
 use crate::ash::Ash;
-use crate::coordinate::CoordinateUnit;
+use crate::button::Button;
+use crate::circle::Circle;
+use crate::coordinate::{CoordinateLeaf, CoordinateUnit};
 use crate::elm::Elm;
 use crate::ginkgo::Ginkgo;
+use crate::icon::Icon;
+use crate::panel::Panel;
+use crate::rectangle::Rectangle;
+use crate::text::Text;
 
 use self::ash::leaflet::RenderLeafletStorage;
 
 pub mod ash;
+pub mod button;
 pub mod circle;
 pub mod color;
 pub mod coordinate;
@@ -34,7 +41,6 @@ pub mod scene;
 pub mod text;
 pub mod texture;
 pub mod window;
-mod button;
 
 #[cfg(not(target_os = "android"))]
 pub type AndroidInterface = ();
@@ -68,12 +74,19 @@ impl Default for Foliage {
 
 impl Foliage {
     pub fn new() -> Self {
-        Self {
+        let mut this = Self {
             window_descriptor: None,
             leaf_queue: Some(vec![]),
             render_queue: Some(RenderLeafletStorage::new()),
             android_interface: AndroidInterface::default(),
-        }
+        };
+        this.with_renderleaf::<Panel>()
+            .with_renderleaf::<Circle>()
+            .with_renderleaf::<Rectangle>()
+            .with_renderleaf::<Icon>()
+            .with_renderleaf::<Text>()
+            .with_leaf::<CoordinateLeaf>()
+            .with_leaf::<Button>()
     }
     pub fn with_android_interface(mut self, android_interface: AndroidInterface) -> Self {
         self.android_interface = android_interface;

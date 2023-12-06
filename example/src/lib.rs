@@ -1,6 +1,7 @@
 use foliage::bevy_ecs::change_detection::Res;
 use foliage::bevy_ecs::prelude::{Commands, IntoSystemConfigs};
 use foliage::bevy_ecs::system::Local;
+use foliage::button::Button;
 use foliage::circle::Circle;
 use foliage::coordinate::area::Area;
 use foliage::coordinate::position::Position;
@@ -22,12 +23,6 @@ pub fn entry(android_interface: AndroidInterface) {
                 .with_title("foliage")
                 .with_desktop_dimensions((411, 913)),
         )
-        .with_renderleaf::<Panel>()
-        .with_renderleaf::<Circle>()
-        .with_renderleaf::<Rectangle>()
-        .with_renderleaf::<Icon>()
-        .with_renderleaf::<Text>()
-        .with_leaf::<CoordinateLeaf>()
         .with_leaf::<Tester>()
         .with_android_interface(android_interface)
         .run();
