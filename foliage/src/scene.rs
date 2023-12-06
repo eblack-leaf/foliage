@@ -10,9 +10,10 @@ use bevy_ecs::query::{Changed, Or};
 use bevy_ecs::system::{Commands, Query};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use crate::differential::Despawn;
 
 #[derive(Component, Copy, Clone)]
-pub struct SceneVisibility(pub bool);
+pub struct SceneVisibility(pub bool);// TODO incorporate into visibility check
 impl Default for SceneVisibility {
     fn default() -> Self {
         SceneVisibility(true)
@@ -23,6 +24,7 @@ pub struct SceneAlignment {
     alignment: AlignmentCoordinate,
     anchor: AlignmentAnchor,
     binding: SceneBinding,
+    visibility: SceneVisibility,
 }
 impl SceneAlignment {
     pub fn new(ac: AlignmentCoordinate, anchor: AlignmentAnchor, binding: SceneBinding) -> Self {
@@ -30,6 +32,7 @@ impl SceneAlignment {
             alignment: ac,
             anchor,
             binding,
+            visibility: SceneVisibility::default(),
         }
     }
 }
@@ -45,6 +48,13 @@ pub struct AlignmentCoordinate {
 pub struct SceneBinding(pub u32);
 #[derive(Component, Default)]
 pub struct SceneNodes(pub HashMap<SceneBinding, Entity>);
+impl SceneNodes {
+    pub fn release(&mut self, cmd: &mut Commands) {
+        self.0.drain().for_each(|n| {
+            cmd.entity(n.1).insert(Despawn::new(true));
+        });
+    }
+}
 #[derive(Component, Default)]
 pub struct SceneLayout(pub HashMap<SceneBinding, AlignmentCoordinate>);
 impl SceneLayout {
@@ -58,6 +68,7 @@ pub struct Scene {
     pub entities: SceneNodes,
     pub layout: SceneLayout,
     pub visibility: SceneVisibility,
+    pub despawn: Despawn,
 }
 impl Scene {
     pub fn new(anchor: Coordinate<InterfaceContext>, layout: SceneLayout) -> Self {
@@ -66,6 +77,7 @@ impl Scene {
             entities: SceneNodes::default(),
             layout,
             visibility: SceneVisibility::default(),
+            despawn: Despawn::default(),
         }
     }
 }
