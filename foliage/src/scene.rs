@@ -24,21 +24,14 @@ pub struct SceneAlignment {
     alignment: AlignmentCoordinate,
     anchor: AlignmentAnchor,
     binding: SceneBinding,
-    layout_binding: SceneLayoutBinding,
     visibility: SceneVisibility,
 }
 impl SceneAlignment {
-    pub fn new(
-        ac: AlignmentCoordinate,
-        anchor: AlignmentAnchor,
-        binding: SceneBinding,
-        layout_binding: SceneLayoutBinding,
-    ) -> Self {
+    pub fn new(ac: AlignmentCoordinate, anchor: AlignmentAnchor, binding: SceneBinding) -> Self {
         Self {
             alignment: ac,
             anchor,
             binding,
-            layout_binding,
             visibility: SceneVisibility::default(),
         }
     }
@@ -49,22 +42,120 @@ pub struct AlignmentCoordinate {
     pub va: VerticalAlignment,
     pub la: LayerAlignment,
 }
+impl<HA: Into<HorizontalAlignment>, VA: Into<VerticalAlignment>, LA: Into<LayerAlignment>>
+    From<(HA, VA, LA)> for AlignmentCoordinate
+{
+    fn from(value: (HA, VA, LA)) -> Self {
+        Self {
+            ha: value.0.into(),
+            va: value.1.into(),
+            la: value.2.into(),
+        }
+    }
+}
+pub trait AlignedNumber {
+    fn hcenter(self) -> HorizontalAlignment;
+    fn left_align(self) -> HorizontalAlignment;
+    fn right_align(self) -> HorizontalAlignment;
+    fn vcenter(self) -> VerticalAlignment;
+    fn top_align(self) -> VerticalAlignment;
+    fn bottom_align(self) -> VerticalAlignment;
+    fn layer_align(self) -> LayerAlignment;
+}
+impl AlignedNumber for f32 {
+    fn hcenter(self) -> HorizontalAlignment {
+        HorizontalAlignment::Center(self)
+    }
+
+    fn left_align(self) -> HorizontalAlignment {
+        HorizontalAlignment::Left(self)
+    }
+
+    fn right_align(self) -> HorizontalAlignment {
+        HorizontalAlignment::Right(self)
+    }
+
+    fn vcenter(self) -> VerticalAlignment {
+        VerticalAlignment::Center(self)
+    }
+
+    fn top_align(self) -> VerticalAlignment {
+        VerticalAlignment::Top(self)
+    }
+
+    fn bottom_align(self) -> VerticalAlignment {
+        VerticalAlignment::Bottom(self)
+    }
+
+    fn layer_align(self) -> LayerAlignment {
+        LayerAlignment::new(self)
+    }
+}
+impl AlignedNumber for u32 {
+    fn hcenter(self) -> HorizontalAlignment {
+        HorizontalAlignment::Center(self as CoordinateUnit)
+    }
+
+    fn left_align(self) -> HorizontalAlignment {
+        HorizontalAlignment::Left(self as CoordinateUnit)
+    }
+
+    fn right_align(self) -> HorizontalAlignment {
+        HorizontalAlignment::Right(self as CoordinateUnit)
+    }
+
+    fn vcenter(self) -> VerticalAlignment {
+        VerticalAlignment::Center(self as CoordinateUnit)
+    }
+
+    fn top_align(self) -> VerticalAlignment {
+        VerticalAlignment::Top(self as CoordinateUnit)
+    }
+
+    fn bottom_align(self) -> VerticalAlignment {
+        VerticalAlignment::Bottom(self as CoordinateUnit)
+    }
+
+    fn layer_align(self) -> LayerAlignment {
+        LayerAlignment::new(self)
+    }
+}
+impl AlignedNumber for i32 {
+    fn hcenter(self) -> HorizontalAlignment {
+        HorizontalAlignment::Center(self as CoordinateUnit)
+    }
+
+    fn left_align(self) -> HorizontalAlignment {
+        HorizontalAlignment::Left(self as CoordinateUnit)
+    }
+
+    fn right_align(self) -> HorizontalAlignment {
+        HorizontalAlignment::Right(self as CoordinateUnit)
+    }
+
+    fn vcenter(self) -> VerticalAlignment {
+        VerticalAlignment::Center(self as CoordinateUnit)
+    }
+
+    fn top_align(self) -> VerticalAlignment {
+        VerticalAlignment::Top(self as CoordinateUnit)
+    }
+
+    fn bottom_align(self) -> VerticalAlignment {
+        VerticalAlignment::Bottom(self as CoordinateUnit)
+    }
+
+    fn layer_align(self) -> LayerAlignment {
+        LayerAlignment::new(self)
+    }
+}
 #[derive(
     Component, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize, Default,
 )]
 pub struct SceneBinding(pub u32);
-#[derive(
-    Component, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize, Default,
-)]
-pub struct SceneLayoutBinding(pub u32);
 impl From<u32> for SceneBinding {
     fn from(value: u32) -> Self {
         SceneBinding(value)
-    }
-}
-impl From<u32> for SceneLayoutBinding {
-    fn from(value: u32) -> Self {
-        SceneLayoutBinding(value)
     }
 }
 #[derive(Component, Default)]
@@ -76,42 +167,33 @@ impl SceneNodes {
         });
     }
 }
-#[derive(Component, Default)]
-pub struct SceneLayout(pub HashMap<SceneLayoutBinding, AlignmentCoordinate>);
-impl SceneLayout {
-    pub fn get(&self, binding: SceneLayoutBinding) -> AlignmentCoordinate {
-        *self.0.get(&binding).unwrap()
-    }
-}
 #[derive(Bundle)]
 pub struct Scene {
     pub anchor: AlignmentAnchor,
     pub entities: SceneNodes,
-    pub layout: SceneLayout,
     pub visibility: SceneVisibility,
     pub despawn: Despawn,
 }
 impl Scene {
-    pub fn new(anchor: Coordinate<InterfaceContext>, layout: SceneLayout) -> Self {
+    pub fn new(anchor: Coordinate<InterfaceContext>) -> Self {
         Self {
             anchor: AlignmentAnchor(anchor),
             entities: SceneNodes::default(),
-            layout,
             visibility: SceneVisibility::default(),
             despawn: Despawn::default(),
         }
     }
 }
 #[derive(Component)]
-pub struct SceneBindRequest<T: Bundle>(pub Vec<(SceneBinding, SceneLayoutBinding, T)>);
+pub struct SceneBindRequest<T: Bundle>(pub Vec<(SceneBinding, AlignmentCoordinate, T)>);
 impl<T: Bundle> SceneBindRequest<T> {
-    pub fn new<SB: Into<SceneBinding>, SLB: Into<SceneLayoutBinding>>(
-        mut bundles: Vec<(SB, SLB, T)>,
+    pub fn new<SB: Into<SceneBinding>, AC: Into<AlignmentCoordinate>>(
+        mut bundles: Vec<(SB, AC, T)>,
     ) -> Self {
         Self(
             bundles
                 .drain(..)
-                .map(|(sb, slb, t)| (sb.into(), slb.into(), t))
+                .map(|(sb, ac, t)| (sb.into(), ac.into(), t))
                 .collect(),
         )
     }
@@ -122,23 +204,29 @@ pub(crate) fn bind<T: Bundle + 'static>(
         &AlignmentAnchor,
         &mut SceneBindRequest<T>,
         &mut SceneNodes,
-        &SceneLayout,
     )>,
     mut cmd: Commands,
 ) {
-    for (entity, anchor, mut bind_request, mut nodes, layout) in requests.iter_mut() {
-        for (scene_binding, layout_binding, bundle) in bind_request.0.drain(..) {
-            // TODO batch?
-            let requested_entity = cmd
-                .spawn(bundle.chain(SceneAlignment::new(
-                    layout.get(layout_binding),
-                    *anchor,
-                    scene_binding,
-                    layout_binding,
-                )))
-                .id();
-            nodes.0.insert(scene_binding, requested_entity);
-        }
+    for (entity, anchor, mut bind_request, mut nodes) in requests.iter_mut() {
+        let batch = bind_request
+            .0
+            .drain(..)
+            .map(|(scene_binding, alignment_coordinate, bundle)| {
+                (
+                    {
+                        let entity = cmd.spawn_empty().id();
+                        nodes.0.insert(scene_binding, entity);
+                        entity
+                    },
+                    bundle.chain(SceneAlignment::new(
+                        alignment_coordinate,
+                        *anchor,
+                        scene_binding,
+                    )),
+                )
+            })
+            .collect::<Vec<(Entity, ChainedBundle<T, SceneAlignment>)>>();
+        cmd.insert_or_spawn_batch(batch);
         cmd.entity(entity).remove::<SceneBindRequest<T>>();
     }
 }
@@ -262,6 +350,9 @@ impl VerticalAlignment {
 #[derive(Component, Copy, Clone)]
 pub struct LayerAlignment(pub Layer);
 impl LayerAlignment {
+    pub fn new<L: Into<Layer>>(l: L) -> Self {
+        Self(l.into())
+    }
     pub fn calc(&self, scene: Layer) -> Layer {
         self.0 + scene
     }

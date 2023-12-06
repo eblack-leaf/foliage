@@ -4,7 +4,7 @@ use crate::elm::{Elm, Leaf};
 use crate::icon::{Icon, IconId, IconScale};
 use crate::job::Tag;
 use crate::panel::{Panel, PanelStyle};
-use crate::scene::{Scene, SceneBindRequest, SceneLayout};
+use crate::scene::{AlignedNumber, Scene, SceneBindRequest};
 use crate::text::font::MonospacedFont;
 use crate::text::{MaxCharacters, Text, TextValue};
 use crate::window::ScaleFactor;
@@ -37,26 +37,26 @@ impl Button {
         );
         Self {
             tag: Tag::new(),
-            scene: Scene::new(coordinate, Self::layout()),
+            scene: Scene::new(coordinate),
             panel_req: SceneBindRequest::new(vec![(
                 0,
-                0,// replace with actual layout
+                (0.left_align(), 0.top_align(), 1.layer_align()),
                 Panel::new(PanelStyle::ring(), coordinate.section.area, color),
             )]),
             text_req: SceneBindRequest::new(vec![(
                 1,
-                1,// replace with actual layout
+                (8.left_align(), 0.vcenter(), 0.layer_align()),
                 Text::new(max_characters, font_size, text_value.clone(), color),
             )]),
-            icon_req: SceneBindRequest::new(vec![(2, 2, Icon::new(icon_id, icon_scale, color))]),
+            icon_req: SceneBindRequest::new(vec![(
+                2,
+                (8.right_align(), 0.vcenter(), 0.layer_align()),
+                Icon::new(icon_id, icon_scale, color),
+            )]),
             color,
             icon_id,
             text_value,
         }
-    }
-    fn layout() -> SceneLayout {
-        // no need since replaced above, TODO inline layout needs
-        todo!()
     }
 }
 impl Leaf for Button {
@@ -68,4 +68,5 @@ impl Leaf for Button {
 }
 
 // forward color
-//
+// forward icon_id
+// forward text

@@ -30,6 +30,11 @@ impl From<i32> for Layer {
         Layer::new(value as CoordinateUnit)
     }
 }
+impl From<f32> for Layer {
+    fn from(value: f32) -> Self {
+        Layer::new(value)
+    }
+}
 
 impl Add for Layer {
     type Output = Layer;
