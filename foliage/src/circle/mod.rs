@@ -8,6 +8,7 @@ use crate::color::Color;
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
+use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
@@ -65,6 +66,9 @@ impl Diameter {
     pub fn from_mip_level(l: CircleMipLevel) -> Self {
         Self::new(l as i32 as CoordinateUnit)
     }
+    pub fn area(&self) -> Area<InterfaceContext> {
+        (self.0, self.0).into()
+    }
 }
 
 impl Circle {
@@ -117,17 +121,11 @@ fn mips_adjust(
     scale_factor: Res<ScaleFactor>,
 ) {
     for (diameter, mut mips, mut pos, mut area) in query.iter_mut() {
-        area.width = diameter.0;
-        area.height = diameter.0;
-        let scaled_px = diameter.0 * scale_factor.factor();
-        let clean_scaled_px = diameter.0 * scale_factor.factor().round();
-        let scaled_diff = clean_scaled_px - scaled_px;
-        let diff = scaled_diff / scale_factor.factor();
-        let quarter_diff = diff / 4f32;
-        pos.x -= quarter_diff;
-        pos.y -= quarter_diff;
-        area.width += quarter_diff;
-        area.height += quarter_diff;
+        *area = diameter.area();
+        let section = Section::new(*pos, *area);
+        let adjusted_section = section.clean_scale(scale_factor.factor());
+        *pos = adjusted_section.position;
+        *area = adjusted_section.area;
         *mips = MipsLevel::new(
             (
                 Circle::CIRCLE_TEXTURE_DIMENSIONS,
@@ -135,7 +133,7 @@ fn mips_adjust(
             )
                 .into(),
             Circle::MIPS,
-            (clean_scaled_px, clean_scaled_px).into(),
+            (adjusted_section.width(), adjusted_section.height()).into(),
         );
     }
 }

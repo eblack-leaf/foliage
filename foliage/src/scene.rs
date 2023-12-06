@@ -1,65 +1,184 @@
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
+use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::{Coordinate, CoordinateUnit, InterfaceContext};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::Resource;
-use bevy_ecs::system::Commands;
+use bevy_ecs::query::{Changed, Or};
+use bevy_ecs::system::{Commands, Query};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-pub struct SceneVisibility(pub SceneTag, pub bool);
-#[derive(Resource)]
-pub struct SnapCompositor {
-    // shared resource pool for sharing between scene / bound-entities
-    // macro placement tool that can adjust scenes if need be
+
+#[derive(Component, Copy, Clone)]
+pub struct SceneVisibility(pub bool);
+impl Default for SceneVisibility {
+    fn default() -> Self {
+        SceneVisibility(true)
+    }
 }
-#[derive(Copy, Clone, Hash, Eq, PartialEq, Default)]
-pub struct SceneTag(pub(crate) u32);
 #[derive(Bundle)]
-pub struct SnapAligned {
-    alignment: SnapAlignment,
+pub struct SceneAlignment {
+    alignment: AlignmentCoordinate,
     anchor: AlignmentAnchor,
+    binding: SceneBinding,
 }
-#[derive(Component)]
-pub struct SceneLayout {
-    pub layout: HashMap<SceneBinding, SnapAlignment>,
+impl SceneAlignment {
+    pub fn new(ac: AlignmentCoordinate, anchor: AlignmentAnchor, binding: SceneBinding) -> Self {
+        Self {
+            alignment: ac,
+            anchor,
+            binding,
+        }
+    }
 }
 #[derive(Bundle, Copy, Clone)]
-pub struct SnapAlignment {
+pub struct AlignmentCoordinate {
     pub ha: HorizontalAlignment,
     pub va: VerticalAlignment,
     pub la: LayerAlignment,
 }
-pub type SceneBinding = u32;
-#[derive(Component)]
-pub struct Scene {
-    pub scene_tag: SceneTag,
-    pub coordinate: Coordinate<InterfaceContext>,
-    pub entities: HashMap<SceneBinding, Entity>,
-    pub layout: SceneLayout,
+#[derive(
+    Component, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize, Default,
+)]
+pub struct SceneBinding(pub u32);
+#[derive(Component, Default)]
+pub struct SceneNodes(pub HashMap<SceneBinding, Entity>);
+#[derive(Component, Default)]
+pub struct SceneLayout(pub HashMap<SceneBinding, AlignmentCoordinate>);
+impl SceneLayout {
+    pub fn get(&self, binding: SceneBinding) -> AlignmentCoordinate {
+        *self.0.get(&binding).unwrap()
+    }
 }
-pub trait SceneNode
-where
-    Self: Bundle,
-{
-    fn target_area(&self) -> Area<InterfaceContext>; // how to get area out of the given bundle
+#[derive(Bundle)]
+pub struct Scene {
+    pub anchor: AlignmentAnchor,
+    pub entities: SceneNodes,
+    pub layout: SceneLayout,
+    pub visibility: SceneVisibility,
 }
 impl Scene {
-    pub fn bind<T: SceneNode>(&mut self, scene_binding: SceneBinding, t: T, cmd: &mut Commands) {
-        // spawn snap_aligned using binding->layout
-        // SceneNode::target_area() to get aligners calc-ed
+    pub fn new(anchor: Coordinate<InterfaceContext>, layout: SceneLayout) -> Self {
+        Self {
+            anchor: AlignmentAnchor(anchor),
+            entities: SceneNodes::default(),
+            layout,
+            visibility: SceneVisibility::default(),
+        }
+    }
+}
+#[derive(Component)]
+pub struct SceneBindRequest<T: Bundle>(pub Option<T>, pub SceneBinding);
+impl<T: Bundle> SceneBindRequest<T> {
+    pub fn new<SB: Into<SceneBinding>>(binding: SB, bundle: T) -> Self {
+        Self(Some(bundle), binding.into())
+    }
+}
+pub(crate) fn bind<T: Bundle + 'static>(
+    mut requests: Query<(
+        Entity,
+        &AlignmentAnchor,
+        &mut SceneBindRequest<T>,
+        &mut SceneNodes,
+        &SceneLayout,
+    )>,
+    mut cmd: Commands,
+) {
+    for (entity, anchor, mut bind_request, mut nodes, layout) in requests.iter_mut() {
+        let bundle = bind_request.0.take().unwrap();
+        let requested_entity = cmd
+            .spawn(bundle.chain(SceneAlignment::new(
+                layout.get(bind_request.1),
+                *anchor,
+                bind_request.1,
+            )))
+            .id();
+        nodes.0.insert(bind_request.1, requested_entity);
+        cmd.entity(entity).remove::<SceneBindRequest<T>>();
+    }
+}
+pub(crate) fn place(
+    mut aligned: Query<
+        (
+            &AlignmentAnchor,
+            &HorizontalAlignment,
+            &VerticalAlignment,
+            &mut Position<InterfaceContext>,
+            &Area<InterfaceContext>,
+        ),
+        Or<(
+            Changed<AlignmentAnchor>,
+            Changed<HorizontalAlignment>,
+            Changed<VerticalAlignment>,
+            Changed<Position<InterfaceContext>>,
+            Changed<Area<InterfaceContext>>,
+        )>,
+    >,
+) {
+    for (anchor, ha, va, mut pos, area) in aligned.iter_mut() {
+        let x = ha.calc(anchor.section(), *area);
+        let y = va.calc(anchor.section(), *area);
+        *pos = (x, y).into();
+    }
+}
+pub(crate) fn place_layer(
+    mut aligned: Query<
+        (&AlignmentAnchor, &LayerAlignment, &mut Layer),
+        Or<(
+            Changed<AlignmentAnchor>,
+            Changed<LayerAlignment>,
+            Changed<Layer>,
+        )>,
+    >,
+) {
+    for (anchor, la, mut layer) in aligned.iter_mut() {
+        *layer = la.calc(anchor.layer());
+    }
+}
+#[derive(Bundle)]
+pub struct ChainedBundle<T: Bundle, S: Bundle> {
+    pub original: T,
+    pub extension: S,
+}
+
+impl<T: Bundle, S: Bundle> ChainedBundle<T, S> {
+    pub fn new(t: T, s: S) -> Self {
+        Self {
+            original: t,
+            extension: s,
+        }
+    }
+}
+
+pub trait BundleChain
+where
+    Self: Bundle + Sized,
+{
+    fn chain<B: Bundle>(self, b: B) -> ChainedBundle<Self, B>;
+}
+
+impl<I: Bundle> BundleChain for I {
+    fn chain<B: Bundle>(self, b: B) -> ChainedBundle<I, B> {
+        ChainedBundle::new(self, b)
     }
 }
 #[derive(Copy, Clone, Component)]
 pub struct AlignmentAnchor(pub Coordinate<InterfaceContext>);
-#[derive(Copy, Clone)]
-pub struct Alignment(pub CoordinateUnit);
+impl AlignmentAnchor {
+    pub fn section(&self) -> Section<InterfaceContext> {
+        self.0.section
+    }
+    pub fn layer(&self) -> Layer {
+        self.0.layer
+    }
+}
 #[derive(Component, Copy, Clone)]
 pub enum HorizontalAlignment {
-    Center(Alignment),
-    Left(Alignment),
-    Right(Alignment),
+    Center(CoordinateUnit),
+    Left(CoordinateUnit),
+    Right(CoordinateUnit),
 }
 impl HorizontalAlignment {
     pub fn calc(
@@ -69,18 +188,18 @@ impl HorizontalAlignment {
     ) -> CoordinateUnit {
         match self {
             HorizontalAlignment::Center(alignment) => {
-                scene_section.center().x - target.width / 2f32 + alignment.0
+                scene_section.center().x - target.width / 2f32 + alignment
             }
-            HorizontalAlignment::Left(alignment) => scene_section.left() + alignment.0,
-            HorizontalAlignment::Right(alignment) => scene_section.right() - alignment.0,
+            HorizontalAlignment::Left(alignment) => scene_section.left() + alignment,
+            HorizontalAlignment::Right(alignment) => scene_section.right() - alignment,
         }
     }
 }
 #[derive(Component, Copy, Clone)]
 pub enum VerticalAlignment {
-    Center(Alignment),
-    Top(Alignment),
-    Bottom(Alignment),
+    Center(CoordinateUnit),
+    Top(CoordinateUnit),
+    Bottom(CoordinateUnit),
 }
 impl VerticalAlignment {
     pub fn calc(
@@ -90,10 +209,10 @@ impl VerticalAlignment {
     ) -> CoordinateUnit {
         match self {
             VerticalAlignment::Center(alignment) => {
-                scene_section.center().y - target.width / 2f32 + alignment.0
+                scene_section.center().y - target.width / 2f32 + alignment
             }
-            VerticalAlignment::Top(alignment) => scene_section.top() + alignment.0,
-            VerticalAlignment::Bottom(alignment) => scene_section.bottom() - alignment.0,
+            VerticalAlignment::Top(alignment) => scene_section.top() + alignment,
+            VerticalAlignment::Bottom(alignment) => scene_section.bottom() - alignment,
         }
     }
 }

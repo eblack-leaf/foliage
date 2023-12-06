@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::color::Color;
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
-use crate::coordinate::position::{CReprPosition, Position};
+use crate::coordinate::position::CReprPosition;
 use crate::coordinate::InterfaceContext;
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
@@ -61,7 +61,7 @@ impl Leaf for Panel {
         differential_enable!(elm, CReprPosition, CReprArea, Color, PanelStyle);
         elm.job
             .main()
-            .add_systems((reduce_area.before(SystemSets::CoordinateScale),));
+            .add_systems((reduce_area.before(SystemSets::FinalizeCoordinate),));
     }
 }
 fn reduce_area(

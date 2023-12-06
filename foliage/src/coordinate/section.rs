@@ -107,6 +107,23 @@ impl Section<InterfaceContext> {
             self.area.to_device(scale_factor),
         )
     }
+    pub fn clean_scale(&self, factor: CoordinateUnit) -> Self {
+        let scaled_px = self.to_device(factor);
+        let clean_scaled_px = self.to_device(factor.round());
+        let scaled_diff = clean_scaled_px.area - scaled_px.area;
+        let diff = scaled_diff / (factor, factor).into();
+        let quarter_diff = diff / (4f32, 4f32).into();
+        Self::new(
+            (
+                self.position.x - quarter_diff.width,
+                self.position.y - quarter_diff.height,
+            ),
+            (
+                self.area.width + quarter_diff.width,
+                self.area.height + quarter_diff.height,
+            ),
+        )
+    }
 }
 
 impl Section<DeviceContext> {

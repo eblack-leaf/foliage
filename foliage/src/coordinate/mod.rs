@@ -72,8 +72,8 @@ pub struct CoordinateLeaf;
 impl Leaf for CoordinateLeaf {
     fn attach(elm: &mut Elm) {
         elm.job.main().add_systems((
-            position_set.in_set(SystemSets::CoordinateScale),
-            area_set.in_set(SystemSets::CoordinateScale),
+            position_set.in_set(SystemSets::FinalizeCoordinate),
+            area_set.in_set(SystemSets::FinalizeCoordinate),
         ));
     }
 }

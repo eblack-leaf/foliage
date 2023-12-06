@@ -2,7 +2,7 @@ use std::any::TypeId;
 use std::marker::PhantomData;
 
 use anymap::AnyMap;
-use bevy_ecs::prelude::{apply_deferred, Component, IntoSystemConfigs, SystemSet};
+use bevy_ecs::prelude::{apply_deferred, Bundle, Component, IntoSystemConfigs, SystemSet};
 use bevy_ecs::schedule::IntoSystemSetConfigs;
 use compact_str::{CompactString, ToCompactString};
 use serde::{Deserialize, Serialize};
@@ -21,7 +21,7 @@ use crate::window::ScaleFactor;
 pub struct Elm {
     initialized: bool,
     pub job: Job,
-    differential_limiter: AnyMap,
+    limiters: AnyMap,
 }
 
 #[macro_export]
@@ -31,10 +31,15 @@ macro_rules! differential_enable {
     };
 }
 struct DifferentialLimiter<T>(bool, PhantomData<T>);
-
+struct SceneBindLimiter<T>(bool, PhantomData<T>);
 impl<T> Default for DifferentialLimiter<T> {
     fn default() -> Self {
         DifferentialLimiter(false, PhantomData)
+    }
+}
+impl<T> Default for SceneBindLimiter<T> {
+    fn default() -> Self {
+        SceneBindLimiter(false, PhantomData)
     }
 }
 
@@ -43,7 +48,7 @@ impl Elm {
         Self {
             initialized: false,
             job: Job::new(),
-            differential_limiter: AnyMap::new(),
+            limiters: AnyMap::new(),
         }
     }
     pub(crate) fn set_scale_factor(&mut self, factor: CoordinateUnit) {
@@ -70,15 +75,22 @@ impl Elm {
         self.job.main().configure_sets(
             (
                 SystemSets::Spawn,
+                SystemSets::SceneBinding,
                 SystemSets::Resolve,
-                SystemSets::CoordinateScale,
+                SystemSets::ScenePlacement,
+                SystemSets::FinalizeCoordinate,
                 SystemSets::Differential,
                 SystemSets::RenderPacket,
             )
                 .chain(),
         );
         self.job.main().add_systems((
+            crate::scene::place.in_set(SystemSets::ScenePlacement),
+            crate::scene::place_layer.in_set(SystemSets::ScenePlacement),
             crate::differential::send_render_packet.in_set(SystemSets::RenderPacket),
+            crate::differential::despawn
+                .in_set(SystemSets::RenderPacket)
+                .after(crate::differential::send_render_packet),
             apply_deferred
                 .after(SystemSets::Spawn)
                 .before(SystemSets::Resolve),
@@ -91,6 +103,21 @@ impl Elm {
             leaf.0(self)
         }
         self.initialized = true;
+    }
+    pub fn enable_scene_bind<T: Bundle>(&mut self) {
+        if self.limiters.get::<SceneBindLimiter<T>>().is_none() {
+            self.limiters.insert(SceneBindLimiter::<T>::default());
+        }
+        if !self.limiters.get::<SceneBindLimiter<T>>().unwrap().0 {
+            self.job
+                .main()
+                .add_systems((crate::scene::bind::<T>.in_set(SystemSets::SceneBinding),));
+            self.limiters
+                .get_mut::<SceneBindLimiter<T>>()
+                .as_mut()
+                .unwrap()
+                .0 = true;
+        }
     }
     pub(crate) fn attach_viewport_handle(&mut self, area: Area<InterfaceContext>) {
         self.job
@@ -110,26 +137,16 @@ impl Elm {
     >(
         &mut self,
     ) {
-        if self
-            .differential_limiter
-            .get::<DifferentialLimiter<T>>()
-            .is_none()
-        {
-            self.differential_limiter
-                .insert(DifferentialLimiter::<T>::default());
+        if self.limiters.get::<DifferentialLimiter<T>>().is_none() {
+            self.limiters.insert(DifferentialLimiter::<T>::default());
         }
-        if !self
-            .differential_limiter
-            .get::<DifferentialLimiter<T>>()
-            .unwrap()
-            .0
-        {
+        if !self.limiters.get::<DifferentialLimiter<T>>().unwrap().0 {
             self.job.main().add_systems((
                 crate::differential::differential::<T>.in_set(SystemSets::Differential),
                 crate::differential::send_on_differential_disable_changed::<T>
                     .in_set(SystemSets::Differential),
             ));
-            self.differential_limiter
+            self.limiters
                 .get_mut::<DifferentialLimiter<T>>()
                 .as_mut()
                 .unwrap()
@@ -145,8 +162,10 @@ impl Elm {
 #[derive(SystemSet, Hash, Eq, PartialEq, Debug, Copy, Clone)]
 pub enum SystemSets {
     Spawn,
+    SceneBinding,
     Resolve,
-    CoordinateScale,
+    ScenePlacement,
+    FinalizeCoordinate,
     Differential,
     RenderPacket,
 }

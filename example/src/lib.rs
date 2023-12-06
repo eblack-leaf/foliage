@@ -1,18 +1,17 @@
 use foliage::bevy_ecs::change_detection::Res;
-use foliage::bevy_ecs::prelude::{Commands, IntoSystemConfigs, ResMut};
-use foliage::bevy_ecs::system::{Local, Resource};
+use foliage::bevy_ecs::prelude::{Commands, IntoSystemConfigs};
+use foliage::bevy_ecs::system::Local;
 use foliage::circle::Circle;
-use foliage::color::Color;
 use foliage::coordinate::area::Area;
 use foliage::coordinate::position::Position;
 use foliage::coordinate::section::Section;
 use foliage::coordinate::{Coordinate, CoordinateLeaf, InterfaceContext};
 use foliage::elm::{Elm, Leaf, SystemSets};
-use foliage::icon::{Icon, IconId};
+use foliage::icon::Icon;
 use foliage::panel::Panel;
 use foliage::rectangle::Rectangle;
 use foliage::text::font::MonospacedFont;
-use foliage::text::{FontSize, Text, TextValue};
+use foliage::text::Text;
 use foliage::window::{ScaleFactor, WindowDescriptor};
 use foliage::{AndroidInterface, Foliage};
 

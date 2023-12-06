@@ -1,7 +1,7 @@
 use std::any::TypeId;
 
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Bundle, Component, Or, Query};
+use bevy_ecs::prelude::{Bundle, Commands, Component, Or, Query};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::ResMut;
 use compact_str::{CompactString, ToCompactString};
@@ -191,5 +191,13 @@ impl Despawn {
     }
     pub fn should_despawn(&self) -> bool {
         self.0
+    }
+}
+
+pub(crate) fn despawn(despawned: Query<(Entity, &Despawn), Changed<Despawn>>, mut cmd: Commands) {
+    for (entity, despawn) in despawned.iter() {
+        if despawn.should_despawn() {
+            cmd.entity(entity).despawn();
+        }
     }
 }
