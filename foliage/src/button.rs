@@ -40,12 +40,12 @@ impl Button {
             scene: Scene::new(coordinate, Self::layout()),
             panel_req: SceneBindRequest::new(vec![(
                 0,
-                0,
+                0,// replace with actual layout
                 Panel::new(PanelStyle::ring(), coordinate.section.area, color),
             )]),
             text_req: SceneBindRequest::new(vec![(
                 1,
-                1,
+                1,// replace with actual layout
                 Text::new(max_characters, font_size, text_value.clone(), color),
             )]),
             icon_req: SceneBindRequest::new(vec![(2, 2, Icon::new(icon_id, icon_scale, color))]),
@@ -55,6 +55,7 @@ impl Button {
         }
     }
     fn layout() -> SceneLayout {
+        // no need since replaced above, TODO inline layout needs
         todo!()
     }
 }
