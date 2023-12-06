@@ -1,7 +1,8 @@
 use crate::coordinate::area::Area;
-use crate::coordinate::{CoordinateUnit, DeviceContext};
+use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
 use crate::text::{FontSize, MaxCharacters};
 use bevy_ecs::system::Resource;
+use crate::window::ScaleFactor;
 
 #[derive(Resource)]
 pub struct MonospacedFont(pub fontdue::Font);
@@ -33,7 +34,8 @@ impl MonospacedFont {
     pub fn best_fit(
         &self,
         max_characters: MaxCharacters,
-        extent: Area<DeviceContext>,
+        extent: Area<InterfaceContext>,
+        scale_factor: &ScaleFactor,
     ) -> (FontSize, Area<DeviceContext>) {
         todo!()
     }

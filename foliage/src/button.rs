@@ -31,9 +31,10 @@ impl Button {
         font: &MonospacedFont,
         scale_factor: &ScaleFactor,
     ) -> Self {
-        let (font_size, _area) = font.best_fit(
+        let (font_size, area) = font.best_fit(
             max_characters,
-            coordinate.section.area.to_device(scale_factor.factor()),
+            coordinate.section.area,
+            scale_factor
         );
         Self {
             tag: Tag::new(),
