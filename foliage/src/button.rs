@@ -32,10 +32,10 @@ impl Scene for Button {
         args: &Self::Args<'a>,
         binder: &mut SceneBinder,
     ) -> Self {
-        let padding = 16;
+        let padding = 16.min((anchor.0.section.height() / 4f32) as i32);
         let icon_scale = IconScale::from_dim(anchor.0.section.height() - padding as f32);
         let text_area = anchor.0.section.area
-            - (padding * 3, padding as f32 * 1.5).into()
+            - (padding * 3, padding * 2).into()
             - (icon_scale.px(), 0.0).into();
         let (font_size, area) = args.4.best_fit(args.1, text_area.min_bound((0, 0)), args.5);
         binder.bind(
