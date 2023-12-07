@@ -82,10 +82,12 @@ fn scale_change(
         let initial_px = scale.px();
         area.width = initial_px;
         area.height = initial_px;
+        // TODO resolve if use clean scale or not
         let section = Section::new(*pos, *area);
-        let adjusted_section = section;//.clean_scale(scale_factor.factor());
+        let adjusted_section = section; //.clean_scale(scale_factor.factor());
         *pos = adjusted_section.position;
         *area = adjusted_section.area;
+        // still set mips either way but from scaled
         *mips = MipsLevel::new(
             (Icon::TEXTURE_DIMENSIONS, Icon::TEXTURE_DIMENSIONS).into(),
             Icon::MIPS,

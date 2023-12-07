@@ -34,10 +34,9 @@ impl Scene for Button {
         binder: &mut SceneBinder,
     ) -> Self {
         let padding = 16;
-        let text_area = anchor.0.section.area
-            - (padding * 3, padding * 2).into()
-            - (args.3.px(), args.3.px()).into();
-        let (font_size, _area) = args.5.best_fit(args.1, text_area.min_bound((0, 0)), args.6);
+        let text_area =
+            anchor.0.section.area - (padding * 3, padding * 2).into() - (args.3.px(), 0.0).into();
+        let (font_size, area) = args.5.best_fit(args.1, text_area.min_bound((0, 0)), args.6);
         binder.bind(
             0,
             (0.near(), 0.near(), 1),
@@ -46,7 +45,7 @@ impl Scene for Button {
         );
         binder.bind(
             1,
-            (padding.near(), 0.center(), 0),
+            ((-area.width / 4f32).center(), 0.center(), 0),
             Text::new(args.1, font_size, args.0.clone(), args.4),
             cmd,
         );

@@ -40,7 +40,10 @@ impl MonospacedFont {
     ) -> (FontSize, Area<InterfaceContext>) {
         let mut calc_area = Area::default();
         let mut font_size = FontSize(0);
-        while calc_area <= extent && font_size.0 < Self::MAX_CHECKED_FONT_SIZE {
+        while calc_area.height <= extent.height
+            && calc_area.width <= extent.width
+            && font_size.0 < Self::MAX_CHECKED_FONT_SIZE
+        {
             let area_metrics = Text::area_metrics(font_size, max_characters, &self, scale_factor);
             calc_area = area_metrics.0;
             font_size.0 += 1;
