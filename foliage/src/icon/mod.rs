@@ -83,7 +83,7 @@ fn scale_change(
         area.width = initial_px;
         area.height = initial_px;
         let section = Section::new(*pos, *area);
-        let adjusted_section = section.clean_scale(scale_factor.factor());
+        let adjusted_section = section;//.clean_scale(scale_factor.factor());
         *pos = adjusted_section.position;
         *area = adjusted_section.area;
         *mips = MipsLevel::new(
