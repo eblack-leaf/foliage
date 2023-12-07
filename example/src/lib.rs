@@ -1,7 +1,6 @@
 use foliage::bevy_ecs::change_detection::Res;
 use foliage::bevy_ecs::prelude::{Commands, IntoSystemConfigs};
 use foliage::bevy_ecs::system::Local;
-use foliage::button::Button;
 use foliage::circle::Circle;
 use foliage::coordinate::area::Area;
 use foliage::coordinate::position::Position;

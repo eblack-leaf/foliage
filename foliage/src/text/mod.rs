@@ -6,7 +6,7 @@ mod vertex;
 use crate::color::Color;
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
-use crate::coordinate::position::CReprPosition;
+use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
 use crate::differential::{Differentiable, DifferentialBundle};
@@ -28,6 +28,7 @@ use std::collections::HashSet;
 
 #[derive(Bundle)]
 pub struct Text {
+    position: Position<InterfaceContext>,
     area: Area<InterfaceContext>,
     text_value: TextValue,
     max_characters: MaxCharacters,
@@ -51,6 +52,7 @@ impl Text {
         color: Color,
     ) -> Self {
         Self {
+            position: Position::default(),
             area: Area::default(),
             max_characters,
             font_size: DifferentialBundle::new(font_size),

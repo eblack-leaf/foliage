@@ -1,7 +1,7 @@
 use crate::color::Color;
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
-use crate::coordinate::position::CReprPosition;
+use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::InterfaceContext;
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
@@ -14,6 +14,7 @@ mod renderer;
 mod vertex;
 #[derive(Bundle)]
 pub struct Rectangle {
+    position: Position<InterfaceContext>,
     area: Area<InterfaceContext>,
     c_pos: DifferentialBundle<CReprPosition>,
     c_area: DifferentialBundle<CReprArea>,
@@ -24,6 +25,7 @@ pub struct Rectangle {
 impl Rectangle {
     pub fn new(area: Area<InterfaceContext>, color: Color, progress: Progress) -> Self {
         Self {
+            position: Default::default(),
             area,
             c_pos: DifferentialBundle::new(CReprPosition::default()),
             c_area: DifferentialBundle::new(CReprArea::default()),

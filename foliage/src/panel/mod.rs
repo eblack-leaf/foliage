@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::color::Color;
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
-use crate::coordinate::position::CReprPosition;
+use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::InterfaceContext;
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
@@ -32,6 +32,7 @@ impl PanelStyle {
 
 #[derive(Bundle)]
 pub struct Panel {
+    position: Position<InterfaceContext>,
     area: Area<InterfaceContext>,
     content: PanelContentArea,
     style: DifferentialBundle<PanelStyle>,
@@ -45,6 +46,7 @@ pub struct PanelContentArea(pub Area<InterfaceContext>);
 impl Panel {
     pub fn new(style: PanelStyle, area: Area<InterfaceContext>, color: Color) -> Self {
         Self {
+            position: Default::default(),
             area,
             content: PanelContentArea(area),
             style: DifferentialBundle::new(style),

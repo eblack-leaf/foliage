@@ -1,8 +1,8 @@
 use crate::coordinate::area::Area;
 use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
 use crate::text::{FontSize, MaxCharacters};
-use bevy_ecs::system::Resource;
 use crate::window::ScaleFactor;
+use bevy_ecs::system::Resource;
 
 #[derive(Resource)]
 pub struct MonospacedFont(pub fontdue::Font);

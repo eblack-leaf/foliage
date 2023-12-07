@@ -35,6 +35,7 @@ impl CircleStyle {
 
 #[derive(Bundle)]
 pub struct Circle {
+    position: Position<InterfaceContext>,
     area: Area<InterfaceContext>,
     diameter: Diameter,
     style: DifferentialBundle<CircleStyle>,
@@ -79,6 +80,7 @@ impl Circle {
     pub fn new(style: CircleStyle, diameter: Diameter, color: Color, progress: Progress) -> Self {
         let area = Area::new(diameter.0, diameter.0);
         Self {
+            position: Default::default(),
             area,
             diameter,
             style: DifferentialBundle::new(style),

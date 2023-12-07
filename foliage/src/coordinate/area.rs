@@ -17,6 +17,17 @@ pub struct Area<Context: CoordinateContext> {
 }
 
 impl<Context: CoordinateContext> Area<Context> {
+    pub fn min_bound<A: Into<Self>>(&self, bounds: A) -> Self {
+        let b = bounds.into();
+        (self.width.max(b.width), self.height.max(b.height)).into()
+    }
+    pub fn max_bound<A: Into<Self>>(&self, bounds: A) -> Self {
+        let b = bounds.into();
+        (self.width.min(b.width), self.height.min(b.height)).into()
+    }
+}
+
+impl<Context: CoordinateContext> Area<Context> {
     pub fn new(width: CoordinateUnit, height: CoordinateUnit) -> Self {
         Self {
             width,

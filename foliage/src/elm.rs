@@ -2,7 +2,7 @@ use std::any::TypeId;
 use std::marker::PhantomData;
 
 use anymap::AnyMap;
-use bevy_ecs::prelude::{apply_deferred, Bundle, Component, IntoSystemConfigs, SystemSet};
+use bevy_ecs::prelude::{apply_deferred, Component, IntoSystemConfigs, SystemSet};
 use bevy_ecs::schedule::IntoSystemSetConfigs;
 use compact_str::{CompactString, ToCompactString};
 use serde::{Deserialize, Serialize};
@@ -16,7 +16,6 @@ use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::job::Job;
-use crate::scene::bind::SceneNode;
 use crate::window::ScaleFactor;
 
 pub struct Elm {
@@ -32,15 +31,9 @@ macro_rules! differential_enable {
     };
 }
 struct DifferentialLimiter<T>(bool, PhantomData<T>);
-struct SceneBindLimiter<T>(bool, PhantomData<T>);
 impl<T> Default for DifferentialLimiter<T> {
     fn default() -> Self {
         DifferentialLimiter(false, PhantomData)
-    }
-}
-impl<T> Default for SceneBindLimiter<T> {
-    fn default() -> Self {
-        SceneBindLimiter(false, PhantomData)
     }
 }
 
@@ -78,7 +71,6 @@ impl Elm {
                 SystemSets::Spawn,
                 SystemSets::SceneBinding,
                 SystemSets::Resolve,
-                SystemSets::ScenePlacement,
                 SystemSets::FinalizeCoordinate,
                 SystemSets::Differential,
                 SystemSets::RenderPacket,
@@ -86,8 +78,6 @@ impl Elm {
                 .chain(),
         );
         self.job.main().add_systems((
-            crate::scene::align::place.in_set(SystemSets::ScenePlacement),
-            crate::scene::align::place_layer.in_set(SystemSets::ScenePlacement),
             crate::differential::send_render_packet.in_set(SystemSets::RenderPacket),
             crate::differential::despawn
                 .in_set(SystemSets::RenderPacket)
@@ -104,22 +94,6 @@ impl Elm {
             leaf.0(self)
         }
         self.initialized = true;
-    }
-    pub fn enable_scene_bind<T: SceneNode>(&mut self) {
-        if self.limiters.get::<SceneBindLimiter<T>>().is_none() {
-            self.limiters.insert(SceneBindLimiter::<T>::default());
-        }
-        if !self.limiters.get::<SceneBindLimiter<T>>().unwrap().0 {
-            let set = if T::IS_SCENE { SystemSets::SubSceneBinding } else { SystemSets::SceneBinding };
-            self.job
-                .main()
-                .add_systems((crate::scene::bind::Binder::<T, T::IS_SCENE>::bind.in_set(set),));
-            self.limiters
-                .get_mut::<SceneBindLimiter<T>>()
-                .as_mut()
-                .unwrap()
-                .0 = true;
-        }
     }
     pub(crate) fn attach_viewport_handle(&mut self, area: Area<InterfaceContext>) {
         self.job
@@ -166,11 +140,9 @@ pub enum SystemSets {
     Spawn,
     SceneBinding,
     Resolve,
-    ScenePlacement,
     FinalizeCoordinate,
     Differential,
     RenderPacket,
-    SubSceneBinding,
 }
 
 pub(crate) fn compact_string_type_id<T: 'static>() -> CompactString {
