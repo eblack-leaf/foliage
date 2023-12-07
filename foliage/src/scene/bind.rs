@@ -1,0 +1,145 @@
+use crate::coordinate::area::Area;
+use crate::coordinate::layer::Layer;
+use crate::coordinate::position::Position;
+use crate::coordinate::section::Section;
+use crate::coordinate::{Coordinate, InterfaceContext};
+use crate::scene::align::{SceneAlignment, SceneAnchor};
+use crate::scene::{Scene, SceneSpawn};
+use bevy_ecs::bundle::Bundle;
+use bevy_ecs::component::Component;
+use bevy_ecs::entity::Entity;
+use bevy_ecs::prelude::Commands;
+use std::collections::HashMap;
+
+#[derive(Hash, Eq, PartialEq, Copy, Clone, Component)]
+pub struct SceneBinding(pub u32);
+
+impl From<u32> for SceneBinding {
+    fn from(value: u32) -> Self {
+        Self(value)
+    }
+}
+pub(crate) struct SceneNodeEntry {
+    pub(crate) entity: Entity,
+    pub(crate) is_scene: bool,
+}
+impl SceneNodeEntry {
+    pub(crate) fn new(entity: Entity, is_scene: bool) -> Self {
+        Self { entity, is_scene }
+    }
+}
+#[derive(Component, Default)]
+pub(crate) struct SceneNodes(pub(crate) HashMap<SceneBinding, SceneNodeEntry>);
+
+pub struct SceneBinder {
+    anchor: SceneAnchor,
+    this: Entity,
+    pub(crate) nodes: SceneNodes,
+}
+
+impl SceneBinder {
+    pub(crate) fn new(anchor: SceneAnchor, this: Entity) -> Self {
+        Self {
+            anchor,
+            this,
+            nodes: SceneNodes::default(),
+        }
+    }
+}
+
+impl SceneBinder {
+    pub fn bind<B: Bundle, SB: Into<SceneBinding>, SA: Into<SceneAlignment>>(
+        &mut self,
+        binding: SB,
+        alignment: SA,
+        b: B,
+        cmd: &mut Commands,
+    ) {
+        let sb = binding.into();
+        let entity = cmd
+            .spawn(b)
+            .insert(SceneBind::new(alignment.into(), sb, self.anchor))
+            .id();
+        self.nodes.0.insert(sb, SceneNodeEntry::new(entity, false));
+    }
+    pub fn bind_scene<
+        'a,
+        S: Scene,
+        SB: Into<SceneBinding>,
+        SA: Into<SceneAlignment>,
+        A: Into<Area<InterfaceContext>>,
+    >(
+        &mut self,
+        binding: SB,
+        alignment: SA,
+        area: A,
+        args: &S::Args<'a>,
+        cmd: &mut Commands,
+    ) {
+        let anchor = SceneAnchor(Coordinate::new(
+            Section::new(Position::default(), area.into()),
+            Layer::default(),
+        ));
+        let entity = cmd.spawn_scene::<S>(anchor, args, SceneRoot::new(self.this));
+        cmd.entity(entity).insert(alignment.into()).insert(anchor.0);
+        self.nodes
+            .0
+            .insert(binding.into(), SceneNodeEntry::new(entity, true));
+    }
+}
+
+#[derive(Default, Copy, Clone, Component)]
+pub struct SceneRoot {
+    pub(crate) current: Option<Entity>,
+    pub(crate) old: Option<Entity>,
+}
+
+impl SceneRoot {
+    pub fn new(current: Entity) -> Self {
+        Self {
+            current: Some(current),
+            old: None,
+        }
+    }
+    pub fn current(&self) -> Option<Entity> {
+        self.current
+    }
+    pub fn change(&mut self, new: Entity) {
+        if let Some(current) = self.current {
+            self.old.replace(current);
+        }
+        self.current.replace(new);
+    }
+}
+
+#[derive(Bundle)]
+pub(crate) struct SceneBind {
+    alignment: SceneAlignment,
+    binding: SceneBinding,
+    anchor: SceneAnchor,
+    visibility: SceneVisibility,
+}
+
+impl SceneBind {
+    pub(crate) fn new(
+        alignment: SceneAlignment,
+        binding: SceneBinding,
+        anchor: SceneAnchor,
+    ) -> Self {
+        Self {
+            alignment,
+            binding,
+            anchor,
+            visibility: SceneVisibility::default(),
+        }
+    }
+}
+
+#[derive(Component, Copy, Clone)]
+pub(crate) struct SceneVisibility(pub bool);
+
+impl Default for SceneVisibility {
+    fn default() -> Self {
+        Self(true)
+    }
+}

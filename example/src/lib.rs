@@ -11,11 +11,14 @@ use foliage::coordinate::{Coordinate, InterfaceContext};
 use foliage::elm::{Elm, Leaf};
 use foliage::icon::bundled_cov::BundledIcon;
 use foliage::icon::IconId;
-use foliage::scene::{Scene, SceneAligner, SceneAnchor, SceneBinder, SceneRoot, SceneSpawn};
+use foliage::scene::align::{SceneAligner, SceneAnchor};
+use foliage::scene::bind::{SceneBinder, SceneRoot};
+use foliage::scene::{Scene, SceneSpawn};
 use foliage::text::font::MonospacedFont;
 use foliage::text::{MaxCharacters, TextValue};
 use foliage::window::{ScaleFactor, WindowDescriptor};
 use foliage::{AndroidInterface, Foliage};
+
 pub fn entry(android_interface: AndroidInterface) {
     Foliage::new()
         .with_window_descriptor(

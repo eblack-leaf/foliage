@@ -86,8 +86,8 @@ impl Elm {
             apply_deferred
                 .in_set(SystemSets::SceneResolve)
                 .after(crate::scene::resolve_anchor)
-                .before(crate::scene::calc_alignments),
-            crate::scene::calc_alignments
+                .before(crate::scene::align::calc_alignments),
+            crate::scene::align::calc_alignments
                 .in_set(SystemSets::SceneResolve)
                 .after(crate::scene::resolve_anchor),
             crate::differential::send_render_packet.in_set(SystemSets::RenderPacket),
