@@ -165,7 +165,6 @@ pub(crate) fn send_render_packet(
         }
     }
 }
-
 #[derive(Bundle, Clone)]
 pub struct DifferentialBundle<T: Component + Clone + PartialEq + Send + Sync + 'static> {
     pub component: T,
@@ -181,10 +180,8 @@ impl<T: Component + Clone + PartialEq + Send + Sync + 'static> DifferentialBundl
         }
     }
 }
-
 #[derive(Component, Copy, Clone, Serialize, Deserialize, Default)]
 pub struct Despawn(bool);
-
 impl Despawn {
     pub fn despawn(&mut self) {
         self.0 = true;
@@ -192,11 +189,10 @@ impl Despawn {
     pub fn should_despawn(&self) -> bool {
         self.0
     }
-    pub(crate) fn new(v: bool) -> Self {
+    pub fn new(v: bool) -> Self {
         Self(v)
     }
 }
-
 pub(crate) fn despawn(despawned: Query<(Entity, &Despawn), Changed<Despawn>>, mut cmd: Commands) {
     for (entity, despawn) in despawned.iter() {
         if despawn.should_despawn() {

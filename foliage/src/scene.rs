@@ -1,16 +1,33 @@
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
-use crate::coordinate::location::Location;
+use crate::coordinate::position::Position;
+use crate::coordinate::section::Section;
 use crate::coordinate::{Coordinate, CoordinateUnit, InterfaceContext};
 use crate::differential::Despawn;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Commands, Component, Resource};
+use bevy_ecs::prelude::{Commands, Component, DetectChanges, RemovedComponents, Resource};
+use bevy_ecs::query::{Changed, Or};
+use bevy_ecs::system::{Query, ResMut};
+use indexmap::IndexSet;
 use std::collections::{HashMap, HashSet};
+
 #[derive(Resource, Default)]
 pub struct SceneCompositor {
     pub(crate) anchors: HashMap<Entity, SceneAnchor>,
     pub(crate) subscenes: HashMap<Entity, HashSet<Entity>>,
+    pub(crate) roots: HashSet<Entity>,
+}
+impl SceneCompositor {
+    fn subscene_resolve(&self, root: Entity) -> IndexSet<Entity> {
+        let mut subscenes = IndexSet::new();
+        if let Some(ss) = self.subscenes.get(&root) {
+            for e in ss.iter() {
+                subscenes.extend(self.subscene_resolve(*e));
+            }
+        }
+        subscenes
+    }
 }
 #[derive(Copy, Clone, Component)]
 pub struct SceneAnchor(pub Coordinate<InterfaceContext>);
@@ -25,45 +42,183 @@ pub struct SceneAlignmentPoint {
     pub point: SceneAlignmentBias,
     pub offset: CoordinateUnit,
 }
-#[derive(Component, Copy, Clone)]
+#[derive(Bundle, Copy, Clone)]
 pub struct SceneAlignment {
+    pos: PositionAlignment,
+    layer: LayerAlignment,
+}
+#[derive(Component, Copy, Clone)]
+pub struct PositionAlignment {
     pub horizontal: SceneAlignmentPoint,
     pub vertical: SceneAlignmentPoint,
-    pub layer: CoordinateUnit,
 }
-impl SceneAlignment {
-    pub fn calc(
+#[derive(Component, Copy, Clone)]
+pub struct LayerAlignment(pub CoordinateUnit);
+impl LayerAlignment {
+    pub fn calc_layer(&self, layer: Layer) -> Layer {
+        layer + self.0.into()
+    }
+}
+impl PositionAlignment {
+    pub fn calc_pos(
         &self,
         anchor: SceneAnchor,
         node_area: Area<InterfaceContext>,
-    ) -> Location<InterfaceContext> {
+    ) -> Position<InterfaceContext> {
         todo!()
+    }
+}
+pub(crate) fn resolve_anchor(
+    mut compositor: ResMut<SceneCompositor>,
+    mut query: Query<(
+        &mut SceneAnchor,
+        &SceneRoot,
+        &mut Position<InterfaceContext>,
+        &Area<InterfaceContext>,
+        &PositionAlignment,
+        &mut Layer,
+        &LayerAlignment,
+    )>,
+    mut cmd: Commands,
+) {
+    if compositor.is_changed() {
+        for root in compositor.roots.clone() {
+            let dependents = compositor.subscene_resolve(*root);
+            for dep in dependents {
+                if let Ok((
+                    mut anchor,
+                    root,
+                    mut pos,
+                    mut area,
+                    mut pos_align,
+                    mut layer,
+                    layer_align,
+                )) = query.get_mut(dep)
+                {
+                    let root_anchor = *compositor.anchors.get(&root.current.unwrap()).unwrap();
+                    *pos = pos_align.calc_pos(root_anchor, *area);
+                    *layer = layer_align.calc_layer(root_anchor.0.layer);
+                    if *pos != anchor.0.section.position || *layer != anchor.0.layer {
+                        let new_anchor = SceneAnchor(Coordinate::new(
+                            Section::new(*pos, *area),
+                            Layer::new(layer.z),
+                        ));
+                        cmd.entity(dep).insert(new_anchor);
+                        *anchor = new_anchor;
+                        compositor.anchors.insert(dep, new_anchor);
+                    }
+                }
+            }
+        }
+    }
+}
+pub(crate) fn register_root(
+    mut compositor: ResMut<SceneCompositor>,
+    mut query: Query<
+        (Entity, &mut SceneRoot, &SceneAnchor, &Despawn),
+        Or<(Changed<SceneAnchor>, Changed<SceneRoot>)>,
+    >,
+    mut removed: RemovedComponents<SceneRoot>,
+) {
+    for remove in removed.read() {
+        compositor.roots.remove(&remove);
+    }
+    for (entity, mut root, anchor, despawn) in query.iter_mut() {
+        compositor.anchors.insert(entity, *anchor);
+        if compositor.subscenes.get(&entity).is_none() {
+            compositor.subscenes.insert(entity, HashSet::new());
+        }
+        if let Some(old) = root.old.take() {
+            // deregister
+            if let Some(ss) = compositor.subscenes.get_mut(&old) {
+                ss.remove(&entity);
+            }
+        }
+        if let Some(current) = root.current {
+            // add to subscenes
+            if !despawn.should_despawn() {
+                if compositor.subscenes.get(&current).is_none() {
+                    compositor.subscenes.insert(current, HashSet::new());
+                }
+                compositor
+                    .subscenes
+                    .get_mut(&current)
+                    .unwrap()
+                    .insert(entity);
+            } else {
+                if let Some(ss) = compositor.subscenes.get_mut(&current) {
+                    ss.remove(&entity);
+                }
+            }
+        } else {
+            if !despawn.should_despawn() {
+                compositor.roots.insert(entity);
+            } else {
+                compositor.roots.remove(&entity);
+            }
+        }
+    }
+}
+pub(crate) fn calc_alignments(
+    mut pos_aligned: Query<
+        (
+            &SceneAnchor,
+            &mut Position<InterfaceContext>,
+            &Area<InterfaceContext>,
+            &PositionAlignment,
+        ),
+        Or<(
+            Changed<PositionAlignment>,
+            Changed<SceneAnchor>,
+            Changed<Position<InterfaceContext>>,
+        )>,
+    >,
+    mut layer_aligned: Query<
+        (&SceneAnchor, &mut Layer, &LayerAlignment),
+        Or<(
+            Changed<LayerAlignment>,
+            Changed<Layer>,
+            Changed<SceneAnchor>,
+        )>,
+    >,
+) {
+    for (anchor, mut pos, area, alignment) in pos_aligned.iter_mut() {
+        *pos = alignment.calc_pos(*anchor, *area);
+    }
+    for (anchor, mut layer, alignment) in layer_aligned.iter_mut() {
+        *layer = alignment.calc_layer(anchor.0.layer);
     }
 }
 impl<SAP: Into<SceneAlignmentPoint>> From<(SAP, SAP, i32)> for SceneAlignment {
     fn from(value: (SAP, SAP, i32)) -> Self {
         SceneAlignment {
-            horizontal: value.0.into(),
-            vertical: value.1.into(),
-            layer: value.2 as CoordinateUnit,
+            pos: PositionAlignment {
+                horizontal: value.0.into(),
+                vertical: value.1.into(),
+            },
+            layer: LayerAlignment(value.2 as CoordinateUnit),
         }
     }
 }
 impl<SAP: Into<SceneAlignmentPoint>> From<(SAP, SAP, f32)> for SceneAlignment {
     fn from(value: (SAP, SAP, f32)) -> Self {
         SceneAlignment {
-            horizontal: value.0.into(),
-            vertical: value.1.into(),
-            layer: value.2,
+            pos: PositionAlignment {
+                horizontal: value.0.into(),
+                vertical: value.1.into(),
+            },
+            layer: LayerAlignment(value.2),
         }
     }
 }
 impl<SAP: Into<SceneAlignmentPoint>> From<(SAP, SAP, u32)> for SceneAlignment {
     fn from(value: (SAP, SAP, u32)) -> Self {
         SceneAlignment {
-            horizontal: value.0.into(),
-            vertical: value.1.into(),
-            layer: value.2 as CoordinateUnit,
+            pos: PositionAlignment {
+                horizontal: value.0.into(),
+                vertical: value.1.into(),
+            },
+            layer: LayerAlignment(value.2 as CoordinateUnit),
         }
     }
 }
@@ -130,20 +285,48 @@ impl SceneBinder {
             .id();
         self.2 .0.insert(sb, entity);
     }
-    pub fn bind_scene<'a, S: Scene, SB: Into<SceneBinding>, SA: Into<SceneAlignment>>(
+    pub fn bind_scene<
+        'a,
+        S: Scene,
+        SB: Into<SceneBinding>,
+        SA: Into<SceneAlignment>,
+        A: Into<SceneAnchor>,
+    >(
         &mut self,
         binding: SB,
         alignment: SA,
+        anchor: A,
         args: &S::Args<'a>,
         cmd: &mut Commands,
     ) {
-        let entity = cmd.spawn_scene::<S>(self.0, args, self.1);
-        cmd.entity(entity).insert(alignment.into());
+        let anchor = anchor.into();
+        let entity = cmd.spawn_scene::<S>(anchor, args, self.1);
+        cmd.entity(entity).insert(alignment.into()).insert(anchor.0);
         self.2 .0.insert(binding.into(), entity);
     }
 }
 #[derive(Default, Copy, Clone, Component)]
-pub struct SceneRoot(pub Option<Entity>);
+pub struct SceneRoot {
+    pub(crate) current: Option<Entity>,
+    pub(crate) old: Option<Entity>,
+}
+impl SceneRoot {
+    pub fn new(current: Entity) -> Self {
+        Self {
+            current: Some(current),
+            old: None,
+        }
+    }
+    pub fn current(&self) -> Option<Entity> {
+        self.current
+    }
+    pub fn change(&mut self, new: Entity) {
+        if let Some(current) = self.current {
+            self.old.replace(current);
+        }
+        self.current.replace(new);
+    }
+}
 #[derive(Component)]
 pub struct SceneBind {
     alignment: SceneAlignment,

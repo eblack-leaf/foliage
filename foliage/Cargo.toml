@@ -22,5 +22,6 @@ compact_str = { version = "0.7.1" , features = ["serde"]}
 rmp-serde = "1.1.2"
 image = { version = "0.24.6" , features = ["png", "jpeg"]}
 fontdue = "0.8.0"
+indexmap = "2.1.0"
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 pollster = "0.3.0"

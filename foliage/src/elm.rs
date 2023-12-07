@@ -69,7 +69,6 @@ impl Elm {
         self.job.main().configure_sets(
             (
                 SystemSets::Spawn,
-                SystemSets::SceneBinding,
                 SystemSets::Resolve,
                 SystemSets::FinalizeCoordinate,
                 SystemSets::Differential,
@@ -138,7 +137,6 @@ impl Elm {
 #[derive(SystemSet, Hash, Eq, PartialEq, Debug, Copy, Clone)]
 pub enum SystemSets {
     Spawn,
-    SceneBinding,
     Resolve,
     FinalizeCoordinate,
     Differential,

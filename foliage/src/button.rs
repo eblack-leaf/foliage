@@ -2,7 +2,9 @@ use crate::color::Color;
 use crate::elm::{Elm, Leaf};
 use crate::icon::{Icon, IconId, IconScale};
 use crate::panel::{Panel, PanelStyle};
-use crate::scene::{Scene, SceneAligner, SceneAlignment, SceneAnchor, SceneBinder, SceneBinding};
+use crate::scene::{
+    PositionAlignment, Scene, SceneAligner, SceneAnchor, SceneBinder, SceneBinding,
+};
 use crate::text::font::MonospacedFont;
 use crate::text::{MaxCharacters, Text, TextValue};
 use crate::window::ScaleFactor;
