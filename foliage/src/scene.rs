@@ -122,14 +122,13 @@ pub(crate) fn resolve_anchor(
                     let root_anchor = *compositor.anchors.get(&dep_root.current.unwrap()).unwrap();
                     *pos = pos_align.calc_pos(root_anchor, *area);
                     *layer = layer_align.calc_layer(root_anchor.0.layer);
-                    let new_anchor = SceneAnchor(Coordinate::new(
-                        Section::new(*pos, *area),
-                        Layer::new(layer.z),
-                    ));
-                    *anchor = new_anchor;
-                    compositor.anchors.insert(dep, new_anchor);
                     if *pos != anchor.0.section.position || *layer != anchor.0.layer {
-
+                        let new_anchor = SceneAnchor(Coordinate::new(
+                            Section::new(*pos, *area),
+                            Layer::new(layer.z),
+                        ));
+                        *anchor = new_anchor;
+                        compositor.anchors.insert(dep, new_anchor);
                     }
                 }
             }
