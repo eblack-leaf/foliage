@@ -126,16 +126,16 @@ impl Scene for DualButton {
         args: &Self::Args<'a>,
         binder: &mut SceneBinder,
     ) -> Self {
-        binder.bind_scene::<Button, _, _, _>(
-            0,
-            ((-5).near(), 0.near(), 0),
+        binder.bind_scene::<Button>(
+            0.into(),
+            ((-5).near(), 0.near(), 0).into(),
             anchor.0.section.area / (2, 1).into(),
             args,
             cmd,
         );
-        binder.bind_scene::<Button, _, _, _>(
-            1,
-            ((-5).far(), 0.near(), 0),
+        binder.bind_scene::<Button>(
+            1.into(),
+            ((-5).far(), 0.near(), 0).into(),
             anchor.0.section.area / (2, 1).into(),
             args,
             cmd,

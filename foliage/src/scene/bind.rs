@@ -19,7 +19,7 @@ impl From<u32> for SceneBinding {
         Self(value)
     }
 }
-pub(crate) struct SceneNodeEntry {
+pub struct SceneNodeEntry {
     pub(crate) entity: Entity,
     pub(crate) is_scene: bool,
 }
@@ -27,9 +27,19 @@ impl SceneNodeEntry {
     pub(crate) fn new(entity: Entity, is_scene: bool) -> Self {
         Self { entity, is_scene }
     }
+    pub fn entity(&self) -> Entity { self.entity }
+    pub fn is_scene(&self) -> bool { self.is_scene }
 }
 #[derive(Component, Default)]
-pub(crate) struct SceneNodes(pub(crate) HashMap<SceneBinding, SceneNodeEntry>);
+pub struct SceneNodes(pub(crate) HashMap<SceneBinding, SceneNodeEntry>);
+impl SceneNodes {
+    pub fn nodes(&self) -> &HashMap<SceneBinding, SceneNodeEntry> {
+        &self.0
+    }
+    pub fn get<SB: Into<SceneBinding>>(&self, binding: SB) -> &SceneNodeEntry {
+        self.0.get(&binding.into()).unwrap()
+    }
+}
 
 pub struct SceneBinder {
     anchor: SceneAnchor,
@@ -65,26 +75,23 @@ impl SceneBinder {
     pub fn bind_scene<
         'a,
         S: Scene,
-        SB: Into<SceneBinding>,
-        SA: Into<SceneAlignment>,
-        A: Into<Area<InterfaceContext>>,
     >(
         &mut self,
-        binding: SB,
-        alignment: SA,
-        area: A,
+        binding: SceneBinding,
+        alignment: SceneAlignment,
+        area: Area<InterfaceContext>,
         args: &S::Args<'a>,
         cmd: &mut Commands,
     ) {
         let anchor = SceneAnchor(Coordinate::new(
-            Section::new(Position::default(), area.into()),
+            Section::new(Position::default(), area),
             Layer::default(),
         ));
         let entity = cmd.spawn_scene::<S>(anchor, args, SceneRoot::new(self.this));
-        cmd.entity(entity).insert(alignment.into()).insert(anchor.0);
+        cmd.entity(entity).insert(alignment).insert(anchor.0);
         self.nodes
             .0
-            .insert(binding.into(), SceneNodeEntry::new(entity, true));
+            .insert(binding, SceneNodeEntry::new(entity, true));
     }
 }
 

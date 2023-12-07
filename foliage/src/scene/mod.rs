@@ -71,10 +71,12 @@ pub(crate) fn resolve_anchor(
                         .get(dep_root.current.as_ref().unwrap())
                         .is_some();
                     if despawned {
-                        for (_, entry) in nodes.0.iter() {
-                            cmd.entity(entry.entity).insert(Despawn::new(true));
-                        }
                         compositor.removes.insert(dep);
+                        for (_, entry) in nodes.0.iter() {
+                            if !entry.is_scene {
+                                cmd.entity(entry.entity).insert(Despawn::new(true));
+                            }
+                        }
                     } else {
                         *pos = pos_align.calc_pos(root_anchor, *area);
                         *layer = layer_align.calc_layer(root_anchor.0.layer);
@@ -94,6 +96,7 @@ pub(crate) fn resolve_anchor(
                     }
                 }
             }
+            let _ = compositor.removes.drain().map(|r| { cmd.entity(r).insert(Despawn::new(true)); });
         }
     }
 }
