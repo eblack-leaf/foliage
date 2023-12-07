@@ -13,12 +13,13 @@ use foliage::icon::bundled_cov::BundledIcon;
 use foliage::icon::{Icon, IconId, IconScale};
 use foliage::panel::Panel;
 use foliage::rectangle::Rectangle;
-use foliage::scene::{SceneAnchor, SceneRoot, SceneSpawn};
+use foliage::scene::{Scene, SceneAligner, SceneAnchor, SceneBinder, SceneRoot, SceneSpawn};
 use foliage::text::font::MonospacedFont;
 use foliage::text::{MaxCharacters, Text, TextValue};
 use foliage::window::{ScaleFactor, WindowDescriptor};
 use foliage::{AndroidInterface, Foliage};
-
+use foliage::bevy_ecs::bundle::Bundle;
+use foliage::bevy_ecs;
 pub fn entry(android_interface: AndroidInterface) {
     Foliage::new()
         .with_window_descriptor(
@@ -51,6 +52,13 @@ fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Re
         Section::new(
             Position::<InterfaceContext>::new(140.0, 500.0),
             Area::new(135.0, 50.0),
+        ),
+        4,
+    );
+    let coordinate_four = Coordinate::new(
+        Section::new(
+            Position::<InterfaceContext>::new(100.0, 700.0),
+            Area::new(190.0, 50.0),
         ),
         4,
     );
@@ -93,6 +101,19 @@ fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Re
         ),
         SceneRoot::default(),
     );
+    let _e = cmd.spawn_scene::<DualButton>(
+        coordinate_four.into(),
+        &(
+            TextValue::new("DUAL!"),
+            MaxCharacters(5),
+            IconId::new(BundledIcon::Cast),
+            IconScale::Twenty,
+            Color::BLUE.into(),
+            &font,
+            &scale_factor,
+        ),
+        SceneRoot::default(),
+    );
 }
 impl Leaf for Tester {
     fn attach(elm: &mut Elm) {
@@ -101,5 +122,33 @@ impl Leaf for Tester {
         #[cfg(all(target_os = "android", target_arch = "aarch64"))]
         let android_offset = 50;
         elm.job.startup().add_systems((spawn_button_tree,));
+    }
+}
+#[derive(Bundle)]
+struct DualButton {}
+impl Scene for DualButton {
+    type Args<'a> = <Button as Scene>::Args<'a>;
+
+    fn bind_nodes<'a>(
+        cmd: &mut Commands,
+        anchor: SceneAnchor,
+        args: &Self::Args<'a>,
+        binder: &mut SceneBinder,
+    ) -> Self {
+        binder.bind_scene::<'a, Button, _, _, _>(
+            0,
+            (0.near(), 0.near(), 0),
+            anchor.0.section.area / (2, 1).into(),
+            args,
+            cmd,
+        );
+        binder.bind_scene::<Button, _, _, _>(
+            1,
+            (0.far(), 0.near(), 0),
+            anchor.0.section.area / (2, 1).into(),
+            args,
+            cmd,
+        );
+        Self {}
     }
 }

@@ -63,7 +63,7 @@ impl Leaf for Panel {
         differential_enable!(elm, CReprPosition, CReprArea, Color, PanelStyle);
         elm.job
             .main()
-            .add_systems((reduce_area.before(SystemSets::FinalizeCoordinate),));
+            .add_systems((reduce_area.in_set(SystemSets::Resolve),));
     }
 }
 fn reduce_area(

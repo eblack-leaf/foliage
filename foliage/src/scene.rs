@@ -23,6 +23,7 @@ impl SceneCompositor {
         let mut subscenes = IndexSet::new();
         if let Some(ss) = self.subscenes.get(&root) {
             for e in ss.iter() {
+                subscenes.insert(*e);
                 subscenes.extend(self.subscene_resolve(*e));
             }
         }
@@ -31,6 +32,11 @@ impl SceneCompositor {
 }
 #[derive(Copy, Clone, Component)]
 pub struct SceneAnchor(pub Coordinate<InterfaceContext>);
+impl From<Coordinate<InterfaceContext>> for SceneAnchor {
+    fn from(value: Coordinate<InterfaceContext>) -> Self {
+        Self(value)
+    }
+}
 #[derive(Copy, Clone)]
 pub enum SceneAlignmentBias {
     Near,
@@ -105,7 +111,7 @@ pub(crate) fn resolve_anchor(
             for dep in dependents {
                 if let Ok((
                     mut anchor,
-                    root,
+                    dep_root,
                     mut pos,
                     mut area,
                     mut pos_align,
@@ -113,17 +119,17 @@ pub(crate) fn resolve_anchor(
                     layer_align,
                 )) = query.get_mut(dep)
                 {
-                    let root_anchor = *compositor.anchors.get(&root.current.unwrap()).unwrap();
+                    let root_anchor = *compositor.anchors.get(&dep_root.current.unwrap()).unwrap();
                     *pos = pos_align.calc_pos(root_anchor, *area);
                     *layer = layer_align.calc_layer(root_anchor.0.layer);
+                    let new_anchor = SceneAnchor(Coordinate::new(
+                        Section::new(*pos, *area),
+                        Layer::new(layer.z),
+                    ));
+                    *anchor = new_anchor;
+                    compositor.anchors.insert(dep, new_anchor);
                     if *pos != anchor.0.section.position || *layer != anchor.0.layer {
-                        let new_anchor = SceneAnchor(Coordinate::new(
-                            Section::new(*pos, *area),
-                            Layer::new(layer.z),
-                        ));
-                        cmd.entity(dep).insert(new_anchor);
-                        *anchor = new_anchor;
-                        compositor.anchors.insert(dep, new_anchor);
+
                     }
                 }
             }
@@ -184,6 +190,7 @@ pub(crate) fn register_root(
 pub(crate) fn calc_alignments(
     mut pos_aligned: Query<
         (
+            Entity,
             &SceneAnchor,
             &mut Position<InterfaceContext>,
             &Area<InterfaceContext>,
@@ -205,8 +212,9 @@ pub(crate) fn calc_alignments(
         )>,
     >,
 ) {
-    for (anchor, mut pos, area, alignment) in pos_aligned.iter_mut() {
-        *pos = alignment.calc_pos(*anchor, *area);
+    for (entity, anchor, mut pos, area, alignment) in pos_aligned.iter_mut() {
+        let position = alignment.calc_pos(*anchor, *area);
+        *pos = position;
     }
     for (anchor, mut layer, alignment) in layer_aligned.iter_mut() {
         *layer = alignment.calc_layer(anchor.0.layer);
@@ -292,7 +300,7 @@ impl SceneAligner for i32 {
 }
 #[derive(Component)]
 pub struct SceneNodes(pub HashMap<SceneBinding, Entity>);
-pub struct SceneBinder(SceneAnchor, SceneRoot, SceneNodes);
+pub struct SceneBinder(SceneAnchor, Entity, SceneNodes);
 impl SceneBinder {
     pub fn bind<B: Bundle, SB: Into<SceneBinding>, SA: Into<SceneAlignment>>(
         &mut self,
@@ -326,7 +334,7 @@ impl SceneBinder {
             Section::new(Position::default(), area.into()),
             Layer::default(),
         ));
-        let entity = cmd.spawn_scene::<S>(anchor, args, self.1);
+        let entity = cmd.spawn_scene::<S>(anchor, args, SceneRoot::new(self.1));
         cmd.entity(entity).insert(alignment.into()).insert(anchor.0);
         self.2 .0.insert(binding.into(), entity);
     }
@@ -435,7 +443,11 @@ impl<'a, 'b> SceneSpawn for Commands<'a, 'b> {
         root: SceneRoot,
     ) -> Entity {
         let this = self.spawn_empty().id();
-        let mut binder = SceneBinder(anchor, root, SceneNodes(HashMap::new()));
+        let mut binder = SceneBinder(
+            anchor,
+            this,
+            SceneNodes(HashMap::new())
+        );
         let bundle = S::bind_nodes(self, anchor, args, &mut binder);
         self.entity(this)
             .insert(bundle)

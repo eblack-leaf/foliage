@@ -35,7 +35,7 @@ impl Scene for Button {
     ) -> Self {
         let padding = 16;
         let text_area =
-            anchor.0.section.area - (padding * 3, padding * 2).into() - (args.3.px(), 0.0).into();
+            anchor.0.section.area - (padding * 3, padding).into() - (args.3.px(), 0.0).into();
         let (font_size, area) = args.5.best_fit(args.1, text_area.min_bound((0, 0)), args.6);
         binder.bind(
             0,
