@@ -40,6 +40,8 @@ impl Scene for Button {
             - (padding * 3, padding * 2).into()
             - (icon_scale.px(), 0.0).into();
         let (font_size, area) = args.4.best_fit(args.1, text_area.min_bound((0, 0)), args.5);
+        let icon_left = anchor.0.section.area.width - icon_scale.px() - padding as f32 * 2f32;
+        let diff = (icon_left - padding as f32 - area.width) / 2f32;
         binder.bind(
             0,
             (0.near(), 0.near(), 1),
@@ -48,7 +50,7 @@ impl Scene for Button {
         );
         binder.bind(
             1,
-            ((-area.width / 4f32).center(), 0.center(), 0),
+            ((padding as f32 + diff.max(0f32)).near(), 0.center(), 0),
             Text::new(args.1, font_size, args.0.clone(), args.3),
             cmd,
         );

@@ -56,8 +56,8 @@ fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Re
     );
     let coordinate_four = Coordinate::new(
         Section::new(
-            Position::<InterfaceContext>::new(10.0, 700.0),
-            Area::new(390.0, 50.0),
+            Position::<InterfaceContext>::new(35.0, 700.0),
+            Area::new(340.0, 50.0),
         ),
         4,
     );
@@ -103,7 +103,7 @@ fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Re
             TextValue::new("Rainy-Day"),
             MaxCharacters(9),
             IconId::new(BundledIcon::CloudDrizzle),
-            Color::BLUE.into(),
+            Color::RED_ORANGE_DARK.into(),
             &font,
             &scale_factor,
         ),
