@@ -5,9 +5,9 @@ use crate::coordinate::{Coordinate, CoordinateUnit, InterfaceContext};
 use crate::differential::Despawn;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Commands, Component};
+use bevy_ecs::prelude::{Commands, Component, Resource};
 use std::collections::{HashMap, HashSet};
-
+#[derive(Resource, Default)]
 pub struct SceneCompositor {
     pub(crate) anchors: HashMap<Entity, SceneAnchor>,
     pub(crate) subscenes: HashMap<Entity, HashSet<Entity>>,
