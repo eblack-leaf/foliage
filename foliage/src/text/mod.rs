@@ -72,6 +72,19 @@ impl Text {
         }
     }
     pub const DEFAULT_OPT_SCALE: u32 = 40;
+    pub fn area_metrics(
+        font_size: FontSize,
+        max_characters: MaxCharacters,
+        font: &MonospacedFont,
+        scale_factor: &ScaleFactor,
+    ) -> (Area<InterfaceContext>, CharacterDimension) {
+        let dim =
+            CharacterDimension(font.character_dimensions(font_size.px(scale_factor.factor())));
+        let interface_dim = dim.0.to_interface(scale_factor.factor());
+        let width = interface_dim.width * max_characters.0 as f32;
+        let area = (width, interface_dim.height).into();
+        (area, dim)
+    }
 }
 #[derive(Component, Copy, Clone)]
 pub struct MaxCharacters(pub u32);
@@ -113,10 +126,9 @@ pub(crate) fn max_character(
     font: Res<MonospacedFont>,
 ) {
     for (max, size, mut area, mut dim) in query.iter_mut() {
-        *dim = CharacterDimension(font.character_dimensions(size.px(scale_factor.factor())));
-        let interface_dim = dim.0.to_interface(scale_factor.factor());
-        let width = interface_dim.width * max.0 as f32;
-        *area = (width, interface_dim.height).into();
+        let (a, d) = Text::area_metrics(*size, *max, &font, &scale_factor);
+        *area = a;
+        *dim = d;
     }
 }
 

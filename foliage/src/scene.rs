@@ -39,7 +39,7 @@ pub enum SceneAlignmentBias {
 }
 #[derive(Copy, Clone)]
 pub struct SceneAlignmentPoint {
-    pub point: SceneAlignmentBias,
+    pub bias: SceneAlignmentBias,
     pub offset: CoordinateUnit,
 }
 #[derive(Bundle, Copy, Clone)]
@@ -65,7 +65,25 @@ impl PositionAlignment {
         anchor: SceneAnchor,
         node_area: Area<InterfaceContext>,
     ) -> Position<InterfaceContext> {
-        todo!()
+        let x = match self.horizontal.bias {
+            SceneAlignmentBias::Near => anchor.0.section.left() + self.horizontal.offset,
+            SceneAlignmentBias::Center => {
+                anchor.0.section.center().x - node_area.width / 2f32 + self.horizontal.offset
+            }
+            SceneAlignmentBias::Far => {
+                anchor.0.section.right() - self.horizontal.offset - node_area.width
+            }
+        };
+        let y = match self.vertical.bias {
+            SceneAlignmentBias::Near => anchor.0.section.top() + self.vertical.offset,
+            SceneAlignmentBias::Center => {
+                anchor.0.section.center().y - node_area.height / 2f32 + self.vertical.offset
+            }
+            SceneAlignmentBias::Far => {
+                anchor.0.section.bottom() - self.vertical.offset - node_area.height
+            }
+        };
+        (x, y).into()
     }
 }
 pub(crate) fn resolve_anchor(
@@ -83,7 +101,7 @@ pub(crate) fn resolve_anchor(
 ) {
     if compositor.is_changed() {
         for root in compositor.roots.clone() {
-            let dependents = compositor.subscene_resolve(*root);
+            let dependents = compositor.subscene_resolve(root);
             for dep in dependents {
                 if let Ok((
                     mut anchor,
@@ -124,7 +142,11 @@ pub(crate) fn register_root(
         compositor.roots.remove(&remove);
     }
     for (entity, mut root, anchor, despawn) in query.iter_mut() {
-        compositor.anchors.insert(entity, *anchor);
+        if compositor.anchors.get(&entity).is_none() {
+            compositor.anchors.insert(entity, *anchor);
+        } else if compositor.anchors.get(&entity).unwrap().0 != anchor.0 {
+            compositor.anchors.insert(entity, *anchor);
+        }
         if compositor.subscenes.get(&entity).is_none() {
             compositor.subscenes.insert(entity, HashSet::new());
         }
@@ -171,6 +193,7 @@ pub(crate) fn calc_alignments(
             Changed<PositionAlignment>,
             Changed<SceneAnchor>,
             Changed<Position<InterfaceContext>>,
+            Changed<Area<InterfaceContext>>,
         )>,
     >,
     mut layer_aligned: Query<
@@ -230,19 +253,19 @@ pub trait SceneAligner {
 impl SceneAligner for CoordinateUnit {
     fn near(self) -> SceneAlignmentPoint {
         SceneAlignmentPoint {
-            point: SceneAlignmentBias::Near,
+            bias: SceneAlignmentBias::Near,
             offset: self,
         }
     }
     fn center(self) -> SceneAlignmentPoint {
         SceneAlignmentPoint {
-            point: SceneAlignmentBias::Center,
+            bias: SceneAlignmentBias::Center,
             offset: self,
         }
     }
     fn far(self) -> SceneAlignmentPoint {
         SceneAlignmentPoint {
-            point: SceneAlignmentBias::Far,
+            bias: SceneAlignmentBias::Far,
             offset: self,
         }
     }
@@ -250,19 +273,19 @@ impl SceneAligner for CoordinateUnit {
 impl SceneAligner for i32 {
     fn near(self) -> SceneAlignmentPoint {
         SceneAlignmentPoint {
-            point: SceneAlignmentBias::Near,
+            bias: SceneAlignmentBias::Near,
             offset: self as CoordinateUnit,
         }
     }
     fn center(self) -> SceneAlignmentPoint {
         SceneAlignmentPoint {
-            point: SceneAlignmentBias::Center,
+            bias: SceneAlignmentBias::Center,
             offset: self as CoordinateUnit,
         }
     }
     fn far(self) -> SceneAlignmentPoint {
         SceneAlignmentPoint {
-            point: SceneAlignmentBias::Far,
+            bias: SceneAlignmentBias::Far,
             offset: self as CoordinateUnit,
         }
     }
@@ -290,16 +313,19 @@ impl SceneBinder {
         S: Scene,
         SB: Into<SceneBinding>,
         SA: Into<SceneAlignment>,
-        A: Into<SceneAnchor>,
+        A: Into<Area<InterfaceContext>>,
     >(
         &mut self,
         binding: SB,
         alignment: SA,
-        anchor: A,
+        area: A,
         args: &S::Args<'a>,
         cmd: &mut Commands,
     ) {
-        let anchor = anchor.into();
+        let anchor = SceneAnchor(Coordinate::new(
+            Section::new(Position::default(), area.into()),
+            Layer::default(),
+        ));
         let entity = cmd.spawn_scene::<S>(anchor, args, self.1);
         cmd.entity(entity).insert(alignment.into()).insert(anchor.0);
         self.2 .0.insert(binding.into(), entity);
@@ -327,7 +353,7 @@ impl SceneRoot {
         self.current.replace(new);
     }
 }
-#[derive(Component)]
+#[derive(Bundle)]
 pub struct SceneBind {
     alignment: SceneAlignment,
     binding: SceneBinding,
@@ -374,7 +400,7 @@ impl SceneBundle {
         }
     }
 }
-#[derive(Hash, Eq, PartialEq, Copy, Clone)]
+#[derive(Hash, Eq, PartialEq, Copy, Clone, Component)]
 pub struct SceneBinding(pub u32);
 impl From<u32> for SceneBinding {
     fn from(value: u32) -> Self {

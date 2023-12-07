@@ -2,9 +2,7 @@ use crate::color::Color;
 use crate::elm::{Elm, Leaf};
 use crate::icon::{Icon, IconId, IconScale};
 use crate::panel::{Panel, PanelStyle};
-use crate::scene::{
-    PositionAlignment, Scene, SceneAligner, SceneAnchor, SceneBinder, SceneBinding,
-};
+use crate::scene::{Scene, SceneAligner, SceneAnchor, SceneBinder};
 use crate::text::font::MonospacedFont;
 use crate::text::{MaxCharacters, Text, TextValue};
 use crate::window::ScaleFactor;
@@ -35,7 +33,10 @@ impl Scene for Button {
         args: &Self::Args<'a>,
         binder: &mut SceneBinder,
     ) -> Self {
-        let text_area = anchor.0.section.area - (24, 8).into() - (args.3.px(), args.3.px()).into();
+        let padding = 16;
+        let text_area = anchor.0.section.area
+            - (padding * 3, padding * 2).into()
+            - (args.3.px(), args.3.px()).into();
         let (font_size, _area) = args.5.best_fit(args.1, text_area.min_bound((0, 0)), args.6);
         binder.bind(
             0,
@@ -45,13 +46,13 @@ impl Scene for Button {
         );
         binder.bind(
             1,
-            (8.near(), 0.center(), 0),
+            (padding.near(), 0.center(), 0),
             Text::new(args.1, font_size, args.0.clone(), args.4),
             cmd,
         );
         binder.bind(
             2,
-            (8.far(), 0.center(), 0),
+            (padding.far(), 0.center(), 0),
             Icon::new(args.2, args.3, args.4),
             cmd,
         );

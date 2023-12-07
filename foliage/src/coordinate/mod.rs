@@ -52,7 +52,7 @@ pub(crate) fn area_set(
         c_repr.height = c_repr.height.round();
     }
 }
-#[derive(Copy, Clone, Bundle, Default)]
+#[derive(Copy, Clone, Bundle, Default, PartialEq)]
 pub struct Coordinate<Context: CoordinateContext> {
     pub section: Section<Context>,
     pub layer: Layer,

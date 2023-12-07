@@ -16,6 +16,7 @@ use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::job::Job;
+use crate::scene::SceneCompositor;
 use crate::window::ScaleFactor;
 
 pub struct Elm {
@@ -70,6 +71,7 @@ impl Elm {
             (
                 SystemSets::Spawn,
                 SystemSets::Resolve,
+                SystemSets::SceneResolve,
                 SystemSets::FinalizeCoordinate,
                 SystemSets::Differential,
                 SystemSets::RenderPacket,
@@ -77,6 +79,13 @@ impl Elm {
                 .chain(),
         );
         self.job.main().add_systems((
+            crate::scene::register_root.in_set(SystemSets::SceneResolve),
+            crate::scene::resolve_anchor
+                .in_set(SystemSets::SceneResolve)
+                .after(crate::scene::register_root),
+            crate::scene::calc_alignments
+                .in_set(SystemSets::SceneResolve)
+                .after(crate::scene::resolve_anchor),
             crate::differential::send_render_packet.in_set(SystemSets::RenderPacket),
             crate::differential::despawn
                 .in_set(SystemSets::RenderPacket)
@@ -84,14 +93,21 @@ impl Elm {
             apply_deferred
                 .after(SystemSets::Spawn)
                 .before(SystemSets::Resolve),
+            apply_deferred
+                .after(SystemSets::SceneResolve)
+                .before(SystemSets::FinalizeCoordinate),
         ));
         self.enable_differential::<Layer>();
+        self.job
+            .container
+            .insert_resource(SceneCompositor::default());
         self.job
             .container
             .insert_resource(RenderPacketForwarder::default());
         for leaf in leaflets {
             leaf.0(self)
         }
+        self.job.exec_startup();
         self.initialized = true;
     }
     pub(crate) fn attach_viewport_handle(&mut self, area: Area<InterfaceContext>) {
@@ -141,6 +157,7 @@ pub enum SystemSets {
     FinalizeCoordinate,
     Differential,
     RenderPacket,
+    SceneResolve,
 }
 
 pub(crate) fn compact_string_type_id<T: 'static>() -> CompactString {
