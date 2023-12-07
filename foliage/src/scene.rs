@@ -97,6 +97,7 @@ pub(crate) fn resolve_anchor(
     mut query: Query<(
         &mut SceneAnchor,
         &SceneRoot,
+        &SceneNodes,
         &mut Position<InterfaceContext>,
         &Area<InterfaceContext>,
         &PositionAlignment,
@@ -112,9 +113,10 @@ pub(crate) fn resolve_anchor(
                 if let Ok((
                     mut anchor,
                     dep_root,
+                    nodes,
                     mut pos,
-                    mut area,
-                    mut pos_align,
+                    area,
+                    pos_align,
                     mut layer,
                     layer_align,
                 )) = query.get_mut(dep)
@@ -129,6 +131,11 @@ pub(crate) fn resolve_anchor(
                         ));
                         *anchor = new_anchor;
                         compositor.anchors.insert(dep, new_anchor);
+                        for node in nodes.0.iter() {
+                            if !node.1 .1 {
+                                cmd.entity(node.1 .0).insert(new_anchor);
+                            }
+                        }
                     }
                 }
             }
@@ -189,7 +196,6 @@ pub(crate) fn register_root(
 pub(crate) fn calc_alignments(
     mut pos_aligned: Query<
         (
-            Entity,
             &SceneAnchor,
             &mut Position<InterfaceContext>,
             &Area<InterfaceContext>,
@@ -211,7 +217,7 @@ pub(crate) fn calc_alignments(
         )>,
     >,
 ) {
-    for (entity, anchor, mut pos, area, alignment) in pos_aligned.iter_mut() {
+    for (anchor, mut pos, area, alignment) in pos_aligned.iter_mut() {
         let position = alignment.calc_pos(*anchor, *area);
         *pos = position;
     }
@@ -298,7 +304,7 @@ impl SceneAligner for i32 {
     }
 }
 #[derive(Component)]
-pub struct SceneNodes(pub HashMap<SceneBinding, Entity>);
+pub struct SceneNodes(pub HashMap<SceneBinding, (Entity, bool)>);
 pub struct SceneBinder(SceneAnchor, Entity, SceneNodes);
 impl SceneBinder {
     pub fn bind<B: Bundle, SB: Into<SceneBinding>, SA: Into<SceneAlignment>>(
@@ -313,7 +319,7 @@ impl SceneBinder {
             .spawn(b)
             .insert(SceneBind::new(alignment.into(), sb, self.0))
             .id();
-        self.2 .0.insert(sb, entity);
+        self.2 .0.insert(sb, (entity, false));
     }
     pub fn bind_scene<
         'a,
@@ -335,7 +341,7 @@ impl SceneBinder {
         ));
         let entity = cmd.spawn_scene::<S>(anchor, args, SceneRoot::new(self.1));
         cmd.entity(entity).insert(alignment.into()).insert(anchor.0);
-        self.2 .0.insert(binding.into(), entity);
+        self.2 .0.insert(binding.into(), (entity, true));
     }
 }
 #[derive(Default, Copy, Clone, Component)]
@@ -442,11 +448,7 @@ impl<'a, 'b> SceneSpawn for Commands<'a, 'b> {
         root: SceneRoot,
     ) -> Entity {
         let this = self.spawn_empty().id();
-        let mut binder = SceneBinder(
-            anchor,
-            this,
-            SceneNodes(HashMap::new())
-        );
+        let mut binder = SceneBinder(anchor, this, SceneNodes(HashMap::new()));
         let bundle = S::bind_nodes(self, anchor, args, &mut binder);
         self.entity(this)
             .insert(bundle)

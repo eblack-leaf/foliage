@@ -83,6 +83,10 @@ impl Elm {
             crate::scene::resolve_anchor
                 .in_set(SystemSets::SceneResolve)
                 .after(crate::scene::register_root),
+            apply_deferred
+                .in_set(SystemSets::SceneResolve)
+                .after(crate::scene::resolve_anchor)
+                .before(crate::scene::calc_alignments),
             crate::scene::calc_alignments
                 .in_set(SystemSets::SceneResolve)
                 .after(crate::scene::resolve_anchor),

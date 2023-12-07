@@ -113,4 +113,15 @@ impl IconScale {
     pub fn px(self) -> CoordinateUnit {
         self as u32 as CoordinateUnit
     }
+    pub fn from_dim(dim: CoordinateUnit) -> Self {
+        if dim >= Self::Eighty.px() {
+            Self::Eighty
+        } else if dim >= Self::Forty.px() {
+            Self::Forty
+        } else if dim >= Self::Twenty.px() {
+            Self::Twenty
+        } else {
+            Self::Twenty
+        }
+    }
 }

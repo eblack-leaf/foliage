@@ -111,7 +111,12 @@ impl Leaf for Text {
     }
 }
 #[derive(Component, Copy, Clone)]
-pub(crate) struct CharacterDimension(pub(crate) Area<DeviceContext>);
+pub struct CharacterDimension(pub(crate) Area<DeviceContext>);
+impl CharacterDimension {
+    pub fn dimensions(&self) -> Area<DeviceContext> {
+        self.0
+    }
+}
 pub(crate) fn max_character(
     mut query: Query<
         (

@@ -1,25 +1,21 @@
+use foliage::bevy_ecs;
+use foliage::bevy_ecs::bundle::Bundle;
 use foliage::bevy_ecs::change_detection::Res;
-use foliage::bevy_ecs::prelude::{Commands, IntoSystemConfigs};
-use foliage::bevy_ecs::system::Local;
+use foliage::bevy_ecs::prelude::Commands;
 use foliage::button::Button;
-use foliage::circle::Circle;
 use foliage::color::Color;
 use foliage::coordinate::area::Area;
 use foliage::coordinate::position::Position;
 use foliage::coordinate::section::Section;
-use foliage::coordinate::{Coordinate, CoordinateLeaf, InterfaceContext};
-use foliage::elm::{Elm, Leaf, SystemSets};
+use foliage::coordinate::{Coordinate, InterfaceContext};
+use foliage::elm::{Elm, Leaf};
 use foliage::icon::bundled_cov::BundledIcon;
-use foliage::icon::{Icon, IconId, IconScale};
-use foliage::panel::Panel;
-use foliage::rectangle::Rectangle;
+use foliage::icon::IconId;
 use foliage::scene::{Scene, SceneAligner, SceneAnchor, SceneBinder, SceneRoot, SceneSpawn};
 use foliage::text::font::MonospacedFont;
-use foliage::text::{MaxCharacters, Text, TextValue};
+use foliage::text::{MaxCharacters, TextValue};
 use foliage::window::{ScaleFactor, WindowDescriptor};
 use foliage::{AndroidInterface, Foliage};
-use foliage::bevy_ecs::bundle::Bundle;
-use foliage::bevy_ecs;
 pub fn entry(android_interface: AndroidInterface) {
     Foliage::new()
         .with_window_descriptor(
@@ -57,8 +53,8 @@ fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Re
     );
     let coordinate_four = Coordinate::new(
         Section::new(
-            Position::<InterfaceContext>::new(100.0, 700.0),
-            Area::new(190.0, 50.0),
+            Position::<InterfaceContext>::new(10.0, 700.0),
+            Area::new(390.0, 50.0),
         ),
         4,
     );
@@ -68,7 +64,6 @@ fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Re
             TextValue::new("Clock"),
             MaxCharacters(5),
             IconId::new(BundledIcon::Clock),
-            IconScale::Eighty,
             Color::RED.into(),
             &font,
             &scale_factor,
@@ -81,7 +76,6 @@ fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Re
             TextValue::new("Point"),
             MaxCharacters(5),
             IconId::new(BundledIcon::Compass),
-            IconScale::Forty,
             Color::GREEN.into(),
             &font,
             &scale_factor,
@@ -94,7 +88,6 @@ fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Re
             TextValue::new("CAST!"),
             MaxCharacters(5),
             IconId::new(BundledIcon::Cast),
-            IconScale::Twenty,
             Color::BLUE.into(),
             &font,
             &scale_factor,
@@ -104,10 +97,9 @@ fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Re
     let _e = cmd.spawn_scene::<DualButton>(
         coordinate_four.into(),
         &(
-            TextValue::new("DUAL!"),
-            MaxCharacters(5),
-            IconId::new(BundledIcon::Cast),
-            IconScale::Twenty,
+            TextValue::new("Rainy-Day"),
+            MaxCharacters(9),
+            IconId::new(BundledIcon::CloudDrizzle),
             Color::BLUE.into(),
             &font,
             &scale_factor,
@@ -117,10 +109,6 @@ fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Re
 }
 impl Leaf for Tester {
     fn attach(elm: &mut Elm) {
-        #[cfg(any(not(target_os = "android"), target_arch = "x86_64"))]
-        let android_offset = 0;
-        #[cfg(all(target_os = "android", target_arch = "aarch64"))]
-        let android_offset = 50;
         elm.job.startup().add_systems((spawn_button_tree,));
     }
 }
@@ -135,16 +123,16 @@ impl Scene for DualButton {
         args: &Self::Args<'a>,
         binder: &mut SceneBinder,
     ) -> Self {
-        binder.bind_scene::<'a, Button, _, _, _>(
+        binder.bind_scene::<Button, _, _, _>(
             0,
-            (0.near(), 0.near(), 0),
+            ((-5).near(), 0.near(), 0),
             anchor.0.section.area / (2, 1).into(),
             args,
             cmd,
         );
         binder.bind_scene::<Button, _, _, _>(
             1,
-            (0.far(), 0.near(), 0),
+            ((-5).far(), 0.near(), 0),
             anchor.0.section.area / (2, 1).into(),
             args,
             cmd,

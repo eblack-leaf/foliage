@@ -74,7 +74,7 @@ impl Default for Foliage {
 
 impl Foliage {
     pub fn new() -> Self {
-        let mut this = Self {
+        let this = Self {
             window_descriptor: None,
             leaf_queue: Some(vec![]),
             render_queue: Some(RenderLeafletStorage::new()),

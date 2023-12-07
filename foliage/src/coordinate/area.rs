@@ -86,6 +86,12 @@ impl<Context: CoordinateContext> From<(i32, i32)> for Area<Context> {
     }
 }
 
+impl<Context: CoordinateContext> From<(i32, f32)> for Area<Context> {
+    fn from(value: (i32, f32)) -> Self {
+        Self::new(value.0 as CoordinateUnit, value.1 as CoordinateUnit)
+    }
+}
+
 impl<Context: CoordinateContext> From<(CoordinateUnit, CoordinateUnit)> for Area<Context> {
     fn from(value: (CoordinateUnit, CoordinateUnit)) -> Self {
         Self::new(value.0, value.1)

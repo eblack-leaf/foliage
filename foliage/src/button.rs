@@ -21,7 +21,6 @@ impl Scene for Button {
         TextValue,
         MaxCharacters,
         IconId,
-        IconScale,
         Color,
         &'a MonospacedFont,
         &'a ScaleFactor,
@@ -34,25 +33,27 @@ impl Scene for Button {
         binder: &mut SceneBinder,
     ) -> Self {
         let padding = 16;
-        let text_area =
-            anchor.0.section.area - (padding * 3, padding).into() - (args.3.px(), 0.0).into();
-        let (font_size, area) = args.5.best_fit(args.1, text_area.min_bound((0, 0)), args.6);
+        let icon_scale = IconScale::from_dim(anchor.0.section.height() - padding as f32);
+        let text_area = anchor.0.section.area
+            - (padding * 3, padding as f32 * 1.5).into()
+            - (icon_scale.px(), 0.0).into();
+        let (font_size, area) = args.4.best_fit(args.1, text_area.min_bound((0, 0)), args.5);
         binder.bind(
             0,
             (0.near(), 0.near(), 1),
-            Panel::new(PanelStyle::ring(), anchor.0.section.area, args.4),
+            Panel::new(PanelStyle::ring(), anchor.0.section.area, args.3),
             cmd,
         );
         binder.bind(
             1,
             ((-area.width / 4f32).center(), 0.center(), 0),
-            Text::new(args.1, font_size, args.0.clone(), args.4),
+            Text::new(args.1, font_size, args.0.clone(), args.3),
             cmd,
         );
         binder.bind(
             2,
             (padding.far(), 0.center(), 0),
-            Icon::new(args.2, args.3, args.4),
+            Icon::new(args.2, icon_scale, args.3),
             cmd,
         );
         Self {}
