@@ -3,6 +3,7 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::{Coordinate, InterfaceContext};
+use crate::differential::Despawn;
 use crate::scene::align::{SceneAlignment, SceneAnchor};
 use crate::scene::{Scene, SceneSpawn};
 use bevy_ecs::bundle::Bundle;
@@ -27,8 +28,12 @@ impl SceneNodeEntry {
     pub(crate) fn new(entity: Entity, is_scene: bool) -> Self {
         Self { entity, is_scene }
     }
-    pub fn entity(&self) -> Entity { self.entity }
-    pub fn is_scene(&self) -> bool { self.is_scene }
+    pub fn entity(&self) -> Entity {
+        self.entity
+    }
+    pub fn is_scene(&self) -> bool {
+        self.is_scene
+    }
 }
 #[derive(Component, Default)]
 pub struct SceneNodes(pub(crate) HashMap<SceneBinding, SceneNodeEntry>);
@@ -38,6 +43,13 @@ impl SceneNodes {
     }
     pub fn get<SB: Into<SceneBinding>>(&self, binding: SB) -> &SceneNodeEntry {
         self.0.get(&binding.into()).unwrap()
+    }
+    pub(crate) fn despawn_non_scene(&self, cmd: &mut Commands) {
+        for (_, entry) in self.0.iter() {
+            if !entry.is_scene {
+                cmd.entity(entry.entity).insert(Despawn::signal_despawn());
+            }
+        }
     }
 }
 
@@ -72,10 +84,7 @@ impl SceneBinder {
             .id();
         self.nodes.0.insert(sb, SceneNodeEntry::new(entity, false));
     }
-    pub fn bind_scene<
-        'a,
-        S: Scene,
-    >(
+    pub fn bind_scene<'a, S: Scene>(
         &mut self,
         binding: SceneBinding,
         alignment: SceneAlignment,

@@ -1,14 +1,16 @@
 use foliage::bevy_ecs;
 use foliage::bevy_ecs::bundle::Bundle;
 use foliage::bevy_ecs::change_detection::Res;
-use foliage::bevy_ecs::prelude::Commands;
+use foliage::bevy_ecs::prelude::{Commands, Entity, IntoSystemConfigs, Resource};
+use foliage::bevy_ecs::system::Local;
 use foliage::button::Button;
 use foliage::color::Color;
 use foliage::coordinate::area::Area;
 use foliage::coordinate::position::Position;
 use foliage::coordinate::section::Section;
 use foliage::coordinate::{Coordinate, InterfaceContext};
-use foliage::elm::{Elm, Leaf};
+use foliage::differential::Despawn;
+use foliage::elm::{Elm, Leaf, SystemSets};
 use foliage::icon::bundled_cov::BundledIcon;
 use foliage::icon::IconId;
 use foliage::scene::align::{SceneAligner, SceneAnchor};
@@ -30,7 +32,8 @@ pub fn entry(android_interface: AndroidInterface) {
         .with_android_interface(android_interface)
         .run();
 }
-
+#[derive(Resource)]
+struct ToDespawn(Entity);
 struct Tester;
 fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Res<MonospacedFont>) {
     let coordinate_one = Coordinate::new(
@@ -109,10 +112,20 @@ fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Re
         ),
         SceneRoot::default(),
     );
+    cmd.insert_resource(ToDespawn(_e));
+}
+fn despawn_button(to_despawn: Res<ToDespawn>, mut cmd: Commands, mut local: Local<bool>) {
+    if !*local {
+        cmd.entity(to_despawn.0).insert(Despawn::signal_despawn());
+        *local = true;
+    }
 }
 impl Leaf for Tester {
     fn attach(elm: &mut Elm) {
         elm.job.startup().add_systems((spawn_button_tree,));
+        elm.job
+            .main()
+            .add_systems((despawn_button.in_set(SystemSets::Spawn),));
     }
 }
 #[derive(Bundle)]

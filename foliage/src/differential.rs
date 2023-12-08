@@ -189,8 +189,8 @@ impl Despawn {
     pub fn should_despawn(&self) -> bool {
         self.0
     }
-    pub fn new(v: bool) -> Self {
-        Self(v)
+    pub fn signal_despawn() -> Self {
+        Self(true)
     }
 }
 pub(crate) fn despawn(despawned: Query<(Entity, &Despawn), Changed<Despawn>>, mut cmd: Commands) {

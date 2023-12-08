@@ -10,7 +10,7 @@ use crate::differential::Despawn;
 use align::{LayerAlignment, PositionAlignment, SceneAnchor};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Commands, DetectChanges, RemovedComponents, Resource};
+use bevy_ecs::prelude::{Commands, DetectChanges, ParamSet, RemovedComponents, Resource};
 use bevy_ecs::query::{Changed, Or};
 use bevy_ecs::system::{Query, ResMut};
 use bind::{SceneBinder, SceneNodes, SceneRoot, SceneVisibility};
@@ -38,20 +38,28 @@ impl SceneCompositor {
 }
 pub(crate) fn resolve_anchor(
     mut compositor: ResMut<SceneCompositor>,
-    mut query: Query<(
-        &mut SceneAnchor,
-        &SceneRoot,
-        &SceneNodes,
-        &mut Position<InterfaceContext>,
-        &Area<InterfaceContext>,
-        &PositionAlignment,
-        &mut Layer,
-        &LayerAlignment,
+    mut param_set: ParamSet<(
+        Query<(
+            &mut SceneAnchor,
+            &SceneRoot,
+            &SceneNodes,
+            &mut Position<InterfaceContext>,
+            &Area<InterfaceContext>,
+            &PositionAlignment,
+            &mut Layer,
+            &LayerAlignment,
+        )>,
+        Query<(&SceneNodes)>,
     )>,
     mut cmd: Commands,
 ) {
     if compositor.is_changed() {
         for root in compositor.roots.clone() {
+            if compositor.removes.contains(&root) {
+                if let Ok(nodes) = param_set.p1().get(root) {
+                    nodes.despawn_non_scene(&mut cmd);
+                }
+            }
             let dependents = compositor.subscene_resolve(root);
             for dep in dependents {
                 if let Ok((
@@ -63,20 +71,20 @@ pub(crate) fn resolve_anchor(
                     pos_align,
                     mut layer,
                     layer_align,
-                )) = query.get_mut(dep)
+                )) = param_set.p0().get_mut(dep)
                 {
                     let root_anchor = *compositor.anchors.get(&dep_root.current.unwrap()).unwrap();
                     let despawned = compositor
                         .removes
                         .get(dep_root.current.as_ref().unwrap())
                         .is_some();
-                    if despawned {
+                    if despawned || compositor.removes.get(&dep).is_some() {
                         compositor.removes.insert(dep);
-                        for (_, entry) in nodes.0.iter() {
-                            if !entry.is_scene {
-                                cmd.entity(entry.entity).insert(Despawn::new(true));
-                            }
+                        if let Some(ss) = compositor.subscenes.get_mut(&dep_root.current().unwrap())
+                        {
+                            ss.remove(&dep);
                         }
+                        nodes.despawn_non_scene(&mut cmd);
                     } else {
                         *pos = pos_align.calc_pos(root_anchor, *area);
                         *layer = layer_align.calc_layer(root_anchor.0.layer);
@@ -96,20 +104,22 @@ pub(crate) fn resolve_anchor(
                     }
                 }
             }
-            let _ = compositor.removes.drain().map(|r| { cmd.entity(r).insert(Despawn::new(true)); });
         }
+        let _ = compositor.removes.drain().map(|r| {
+            cmd.entity(r).insert(Despawn::signal_despawn());
+        });
     }
 }
 pub(crate) fn register_root(
     mut compositor: ResMut<SceneCompositor>,
     mut query: Query<
         (Entity, &mut SceneRoot, &SceneAnchor, &Despawn),
-        Or<(Changed<SceneAnchor>, Changed<SceneRoot>)>,
+        Or<(Changed<SceneAnchor>, Changed<SceneRoot>, Changed<Despawn>)>,
     >,
     mut removed: RemovedComponents<SceneRoot>,
 ) {
     for remove in removed.read() {
-        compositor.roots.remove(&remove);
+        compositor.removes.insert(remove);
     }
     for (entity, mut root, anchor, despawn) in query.iter_mut() {
         if compositor.anchors.get(&entity).is_none() {
@@ -127,28 +137,19 @@ pub(crate) fn register_root(
             }
         }
         if let Some(current) = root.current {
-            // add to subscenes
-            if !despawn.should_despawn() {
-                if compositor.subscenes.get(&current).is_none() {
-                    compositor.subscenes.insert(current, HashSet::new());
-                }
-                compositor
-                    .subscenes
-                    .get_mut(&current)
-                    .unwrap()
-                    .insert(entity);
-            } else {
-                compositor.removes.insert(entity);
-                if let Some(ss) = compositor.subscenes.get_mut(&current) {
-                    ss.remove(&entity);
-                }
+            if compositor.subscenes.get(&current).is_none() {
+                compositor.subscenes.insert(current, HashSet::new());
             }
+            compositor
+                .subscenes
+                .get_mut(&current)
+                .unwrap()
+                .insert(entity);
         } else {
-            if !despawn.should_despawn() {
-                compositor.roots.insert(entity);
-            } else {
-                compositor.removes.insert(entity);
-            }
+            compositor.roots.insert(entity);
+        }
+        if despawn.should_despawn() {
+            compositor.removes.insert(entity);
         }
     }
 }
