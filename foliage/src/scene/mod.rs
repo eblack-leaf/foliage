@@ -49,7 +49,7 @@ pub(crate) fn resolve_anchor(
             &mut Layer,
             &LayerAlignment,
         )>,
-        Query<(&SceneNodes)>,
+        Query<&SceneNodes>,
     )>,
     mut cmd: Commands,
 ) {
@@ -95,11 +95,7 @@ pub(crate) fn resolve_anchor(
                             ));
                             *anchor = new_anchor;
                             compositor.anchors.insert(dep, new_anchor);
-                            for (_, entry) in nodes.0.iter() {
-                                if !entry.is_scene {
-                                    cmd.entity(entry.entity).insert(new_anchor);
-                                }
-                            }
+                            nodes.set_anchor_non_scene(new_anchor, &mut cmd);
                         }
                     }
                 }
@@ -206,7 +202,8 @@ impl<'a, 'b> SceneSpawn for Commands<'a, 'b> {
         let bundle = S::bind_nodes(self, anchor, args, &mut binder);
         self.entity(this)
             .insert(bundle)
-            .insert(SceneBundle::new(anchor, binder.nodes, root));
+            .insert(SceneBundle::new(anchor, binder.nodes, root))
+            .insert(anchor.0);
         this
     }
 }

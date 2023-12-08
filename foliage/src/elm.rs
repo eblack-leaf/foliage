@@ -70,7 +70,9 @@ impl Elm {
         self.job.main().configure_sets(
             (
                 SystemSets::Spawn,
+                SystemSets::Prepare,
                 SystemSets::Resolve,
+                SystemSets::ScenePrepare,
                 SystemSets::SceneResolve,
                 SystemSets::FinalizeCoordinate,
                 SystemSets::Differential,
@@ -79,24 +81,24 @@ impl Elm {
                 .chain(),
         );
         self.job.main().add_systems((
-            crate::scene::register_root.in_set(SystemSets::SceneResolve),
+            crate::scene::register_root.in_set(SystemSets::ScenePrepare),
             crate::scene::resolve_anchor
-                .in_set(SystemSets::SceneResolve)
+                .in_set(SystemSets::ScenePrepare)
                 .after(crate::scene::register_root),
-            apply_deferred
-                .in_set(SystemSets::SceneResolve)
-                .after(crate::scene::resolve_anchor)
-                .before(crate::scene::align::calc_alignments),
-            crate::scene::align::calc_alignments
-                .in_set(SystemSets::SceneResolve)
-                .after(crate::scene::resolve_anchor),
+            crate::scene::align::calc_alignments.in_set(SystemSets::SceneResolve),
             crate::differential::send_render_packet.in_set(SystemSets::RenderPacket),
             crate::differential::despawn
                 .in_set(SystemSets::RenderPacket)
                 .after(crate::differential::send_render_packet),
             apply_deferred
                 .after(SystemSets::Spawn)
+                .before(SystemSets::Prepare),
+            apply_deferred
+                .after(SystemSets::Prepare)
                 .before(SystemSets::Resolve),
+            apply_deferred
+                .after(SystemSets::ScenePrepare)
+                .before(SystemSets::SceneResolve),
             apply_deferred
                 .after(SystemSets::SceneResolve)
                 .before(SystemSets::FinalizeCoordinate),
@@ -157,11 +159,13 @@ impl Elm {
 #[derive(SystemSet, Hash, Eq, PartialEq, Debug, Copy, Clone)]
 pub enum SystemSets {
     Spawn,
+    Prepare,
     Resolve,
+    ScenePrepare,
+    SceneResolve,
     FinalizeCoordinate,
     Differential,
     RenderPacket,
-    SceneResolve,
 }
 
 pub(crate) fn compact_string_type_id<T: 'static>() -> CompactString {
@@ -177,5 +181,25 @@ pub(crate) struct Leaflet(pub(crate) Box<fn(&mut Elm)>);
 impl Leaflet {
     pub(crate) fn leaf_fn<T: Leaf>() -> Self {
         Self(Box::new(T::attach))
+    }
+}
+
+#[derive(Component, Copy, Clone)]
+pub struct Tag<T> {
+    _phantom: PhantomData<T>,
+}
+
+impl<T> Tag<T> {
+    #[allow(unused)]
+    pub fn new() -> Self {
+        Self {
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<T> Default for Tag<T> {
+    fn default() -> Self {
+        Self::new()
     }
 }

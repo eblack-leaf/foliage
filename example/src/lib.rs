@@ -3,7 +3,7 @@ use foliage::bevy_ecs::bundle::Bundle;
 use foliage::bevy_ecs::change_detection::Res;
 use foliage::bevy_ecs::prelude::{Commands, Entity, IntoSystemConfigs, Resource};
 use foliage::bevy_ecs::system::Local;
-use foliage::button::Button;
+use foliage::button::{Button, ButtonArgs, ButtonStyle};
 use foliage::color::Color;
 use foliage::coordinate::area::Area;
 use foliage::coordinate::position::Position;
@@ -45,14 +45,14 @@ fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Re
     );
     let coordinate_two = Coordinate::new(
         Section::new(
-            Position::<InterfaceContext>::new(85.0, 300.0),
+            Position::<InterfaceContext>::new(85.0, 250.0),
             Area::new(240.0, 75.0),
         ),
         4,
     );
     let coordinate_three = Coordinate::new(
         Section::new(
-            Position::<InterfaceContext>::new(140.0, 500.0),
+            Position::<InterfaceContext>::new(140.0, 375.0),
             Area::new(135.0, 50.0),
         ),
         4,
@@ -66,11 +66,13 @@ fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Re
     );
     let _entity = cmd.spawn_scene::<Button>(
         SceneAnchor(coordinate_one),
-        &(
-            TextValue::new("Clock"),
-            MaxCharacters(5),
-            IconId::new(BundledIcon::Clock),
+        &ButtonArgs::new(
+            ButtonStyle::Fill,
+            TextValue::new("Afternoon"),
+            MaxCharacters(9),
+            IconId::new(BundledIcon::CloudDrizzle),
             Color::RED.into(),
+            Color::OFF_BLACK.into(),
             &font,
             &scale_factor,
         ),
@@ -78,11 +80,13 @@ fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Re
     );
     let _entity = cmd.spawn_scene::<Button>(
         SceneAnchor(coordinate_two),
-        &(
+        &ButtonArgs::new(
+            ButtonStyle::Fill,
             TextValue::new("Point"),
             MaxCharacters(5),
-            IconId::new(BundledIcon::Compass),
+            IconId::new(BundledIcon::Droplet),
             Color::GREEN.into(),
+            Color::OFF_BLACK.into(),
             &font,
             &scale_factor,
         ),
@@ -90,11 +94,13 @@ fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Re
     );
     let _entity = cmd.spawn_scene::<Button>(
         SceneAnchor(coordinate_three),
-        &(
+        &ButtonArgs::new(
+            ButtonStyle::Fill,
             TextValue::new("CAST!"),
             MaxCharacters(5),
             IconId::new(BundledIcon::Cast),
             Color::BLUE.into(),
+            Color::OFF_BLACK.into(),
             &font,
             &scale_factor,
         ),
@@ -102,11 +108,13 @@ fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Re
     );
     let _e = cmd.spawn_scene::<DualButton>(
         coordinate_four.into(),
-        &(
+        &ButtonArgs::new(
+            ButtonStyle::Ring,
             TextValue::new("Rainy-Day"),
             MaxCharacters(9),
             IconId::new(BundledIcon::CloudDrizzle),
             Color::RED_ORANGE_DARK.into(),
+            Color::RED_ORANGE.into(),
             &font,
             &scale_factor,
         ),

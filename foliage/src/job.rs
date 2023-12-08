@@ -1,27 +1,6 @@
-use std::marker::PhantomData;
-
-use bevy_ecs::prelude::{
-    Component, IntoSystemConfigs, ResMut, Resource, Schedule, SystemSet, World,
-};
+use bevy_ecs::prelude::{IntoSystemConfigs, ResMut, Resource, Schedule, SystemSet, World};
 use bevy_ecs::schedule::{ExecutorKind, ScheduleLabel};
 
-#[derive(Component, Copy, Clone)]
-pub struct Tag<T> {
-    _phantom: PhantomData<T>,
-}
-impl<T> Tag<T> {
-    #[allow(unused)]
-    pub fn new() -> Self {
-        Self {
-            _phantom: PhantomData,
-        }
-    }
-}
-impl<T> Default for Tag<T> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 /// Wrapper around a bevy_ecs::World
 pub type Container = World;
 /// Wrapper around a bevy_ecs::Schedule

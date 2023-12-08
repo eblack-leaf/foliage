@@ -21,8 +21,8 @@ impl From<u32> for SceneBinding {
     }
 }
 pub struct SceneNodeEntry {
-    pub(crate) entity: Entity,
-    pub(crate) is_scene: bool,
+    entity: Entity,
+    is_scene: bool,
 }
 impl SceneNodeEntry {
     pub(crate) fn new(entity: Entity, is_scene: bool) -> Self {
@@ -36,8 +36,16 @@ impl SceneNodeEntry {
     }
 }
 #[derive(Component, Default)]
-pub struct SceneNodes(pub(crate) HashMap<SceneBinding, SceneNodeEntry>);
+pub struct SceneNodes(HashMap<SceneBinding, SceneNodeEntry>);
+
 impl SceneNodes {
+    pub(crate) fn set_anchor_non_scene(&self, new_anchor: SceneAnchor, cmd: &mut Commands) {
+        for (_, entry) in self.0.iter() {
+            if !entry.is_scene {
+                cmd.entity(entry.entity).insert(new_anchor);
+            }
+        }
+    }
     pub fn nodes(&self) -> &HashMap<SceneBinding, SceneNodeEntry> {
         &self.0
     }
