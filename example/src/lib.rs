@@ -11,7 +11,7 @@ use foliage::coordinate::section::Section;
 use foliage::coordinate::{Coordinate, InterfaceContext};
 use foliage::differential::Despawn;
 use foliage::elm::leaf::{DefaultSystemHook, Leaf};
-use foliage::elm::set_category::{CoreSet, ElmConfiguration};
+use foliage::elm::config::{CoreSet, ElmConfiguration};
 use foliage::elm::Elm;
 use foliage::icon::bundled_cov::BundledIcon;
 use foliage::icon::IconId;
@@ -97,7 +97,7 @@ fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Re
     let _entity = cmd.spawn_scene::<Button>(
         SceneAnchor(coordinate_three),
         &ButtonArgs::new(
-            ButtonStyle::Fill,
+            ButtonStyle::Ring,
             TextValue::new("CAST!"),
             MaxCharacters(5),
             IconId::new(BundledIcon::Cast),
@@ -131,7 +131,7 @@ fn despawn_button(to_despawn: Res<ToDespawn>, mut cmd: Commands, mut local: Loca
     }
 }
 impl Leaf for Tester {
-    type SystemHook = DefaultSystemHook;
+    type SetDescriptor = DefaultSystemHook;
 
     fn config(elm_configuration: &mut ElmConfiguration) {}
 

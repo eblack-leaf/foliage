@@ -6,7 +6,7 @@ use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::elm::leaf::Leaf;
-use crate::elm::set_category::{CoreSet, ElmConfiguration, ExternalSet};
+use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::elm::Elm;
 use crate::texture::factors::MipsLevel;
 use crate::window::ScaleFactor;
@@ -54,22 +54,21 @@ impl Icon {
     }
 }
 #[derive(SystemSet, Hash, Eq, PartialEq, Copy, Clone, Debug)]
-pub enum SystemHook {
+pub enum SetDescriptor {
     Area,
 }
 impl Leaf for Icon {
-    type SystemHook = SystemHook;
+    type SetDescriptor = SetDescriptor;
 
     fn config(elm_configuration: &mut ElmConfiguration) {
-        use bevy_ecs::prelude::IntoSystemSetConfigs;
-        elm_configuration.configure_hook(SystemHook::Area.in_set(ExternalSet::Resolve));
+        elm_configuration.configure_hook::<Self>(ExternalSet::Resolve, SetDescriptor::Area);
     }
 
     fn attach(elm: &mut Elm) {
         differential_enable!(elm, CReprPosition, CReprArea, Color, IconId, MipsLevel);
         elm.job.main().add_systems((scale_change
             .in_set(ExternalSet::Resolve)
-            .in_set(SystemHook::Area),));
+            .in_set(SetDescriptor::Area),));
     }
 }
 #[derive(Component, Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]

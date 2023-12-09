@@ -12,7 +12,7 @@ use crate::coordinate::InterfaceContext;
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::leaf::Leaf;
-use crate::elm::set_category::{ElmConfiguration, ExternalSet};
+use crate::elm::config::{ElmConfiguration, ExternalSet};
 use crate::elm::Elm;
 
 mod proc_gen;
@@ -60,22 +60,21 @@ impl Panel {
     }
 }
 #[derive(SystemSet, Hash, Eq, PartialEq, Copy, Clone, Debug)]
-pub enum SystemHook {
+pub enum SetDescriptor {
     Area,
 }
 impl Leaf for Panel {
-    type SystemHook = SystemHook;
+    type SetDescriptor = SetDescriptor;
 
     fn config(elm_configuration: &mut ElmConfiguration) {
-        use bevy_ecs::prelude::IntoSystemSetConfigs;
-        elm_configuration.configure_hook(SystemHook::Area.in_set(ExternalSet::Resolve));
+        elm_configuration.configure_hook::<Self>(ExternalSet::Resolve, SetDescriptor::Area);
     }
 
     fn attach(elm: &mut Elm) {
         differential_enable!(elm, CReprPosition, CReprArea, Color, PanelStyle);
         elm.job.main().add_systems((reduce_area
             .in_set(ExternalSet::Resolve)
-            .in_set(SystemHook::Area),));
+            .in_set(SetDescriptor::Area),));
     }
 }
 fn reduce_area(

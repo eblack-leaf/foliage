@@ -2,7 +2,7 @@ use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::InterfaceContext;
 use crate::elm::leaf::{Leaf, Tag};
-use crate::elm::set_category::{CoreSet, ElmConfiguration, ExternalSet};
+use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::elm::Elm;
 use crate::icon::{Icon, IconId, IconScale};
 use crate::panel::{Panel, PanelContentArea, PanelStyle};
@@ -35,16 +35,23 @@ pub enum ButtonStyle {
     Fill,
 }
 #[derive(SystemSet, Hash, Eq, PartialEq, Copy, Clone, Debug)]
-pub enum SystemHook {}
+pub enum SetDescriptors {
+    Button,
+}
 impl Leaf for Button {
-    type SystemHook = SystemHook;
+    type SetDescriptor = SetDescriptors;
 
-    fn config(elm_configuration: &mut ElmConfiguration) {}
+    fn config(elm_configuration: &mut ElmConfiguration) {
+        elm_configuration.configure_hook::<Self>(ExternalSet::Resolve, SetDescriptors::Button);
+    }
 
     fn attach(elm: &mut Elm) {
         elm.job.main().add_systems((updates
             .in_set(ExternalSet::Resolve)
-            .before(<Text as Leaf>::SystemHook::Area),));
+            .in_set(SetDescriptors::Button)
+            .before(<Text as Leaf>::SetDescriptor::Area)
+            .before(<Panel as Leaf>::SetDescriptor::Area)
+            .before(<Icon as Leaf>::SetDescriptor::Area),));
     }
 }
 #[derive(Copy, Clone, Component)]

@@ -1,4 +1,4 @@
-use crate::elm::set_category::ElmConfiguration;
+use crate::elm::config::ElmConfiguration;
 use crate::elm::Elm;
 use bevy_ecs::component::Component;
 use bevy_ecs::schedule::SystemSet;
@@ -7,7 +7,7 @@ use std::hash::Hash;
 use std::marker::PhantomData;
 
 pub trait Leaf {
-    type SystemHook: SystemSet + Hash + Eq + PartialEq + Copy + Clone + Debug;
+    type SetDescriptor: SystemSet + Hash + Eq + PartialEq + Copy + Clone + Debug;
     fn config(elm_configuration: &mut ElmConfiguration);
     fn attach(elm: &mut Elm);
 }

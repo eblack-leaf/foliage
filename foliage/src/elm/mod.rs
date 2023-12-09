@@ -1,5 +1,5 @@
 pub mod leaf;
-pub mod set_category;
+pub mod config;
 
 use std::any::TypeId;
 use std::marker::PhantomData;
@@ -18,7 +18,7 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, InterfaceContext};
-use crate::elm::set_category::{CoreSet, ElmConfiguration, ExternalSet};
+use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::job::{Job, Task};
 use crate::scene::SceneCompositor;

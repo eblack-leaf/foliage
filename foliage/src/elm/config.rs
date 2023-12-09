@@ -1,4 +1,4 @@
-use crate::elm::leaf::Leaflet;
+use crate::elm::leaf::{Leaf, Leaflet};
 use crate::elm::Elm;
 use bevy_ecs::prelude::{IntoSystemConfigs, SystemSet};
 use bevy_ecs::schedule::{SystemConfigs, SystemSetConfigs};
@@ -21,8 +21,9 @@ pub enum CoreSet {
 }
 pub struct ElmConfiguration<'a>(&'a mut Elm);
 impl<'a> ElmConfiguration<'a> {
-    pub fn configure_hook(&mut self, attrs: SystemSetConfigs) {
-        self.0.job.main().configure_sets(attrs);
+    pub fn configure_hook<L: Leaf>(&mut self, external_set: ExternalSet, hook: <L as Leaf>::SetDescriptor) {
+        use bevy_ecs::prelude::IntoSystemSetConfigs;
+        self.0.job.main().configure_sets(hook.in_set(external_set));
     }
     pub(crate) fn configure_elm(elm: &'a mut Elm, leaflets: &Vec<Leaflet>) {
         use bevy_ecs::prelude::IntoSystemSetConfigs;

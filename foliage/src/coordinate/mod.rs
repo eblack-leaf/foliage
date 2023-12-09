@@ -4,7 +4,7 @@ use crate::coordinate::location::Location;
 use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::section::Section;
 use crate::elm::leaf::Leaf;
-use crate::elm::set_category::{CoreSet, ElmConfiguration};
+use crate::elm::config::{CoreSet, ElmConfiguration};
 use crate::elm::Elm;
 use crate::window::ScaleFactor;
 use bevy_ecs::bundle::Bundle;

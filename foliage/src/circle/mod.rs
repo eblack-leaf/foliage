@@ -3,6 +3,7 @@ use bevy_ecs::query::Changed;
 use bevy_ecs::system::Query;
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
+use crate::button::SetDescriptors;
 
 use crate::color::Color;
 use crate::coordinate::area::{Area, CReprArea};
@@ -13,7 +14,7 @@ use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::leaf::Leaf;
-use crate::elm::set_category::{CoreSet, ElmConfiguration, ExternalSet};
+use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::elm::Elm;
 use crate::texture::factors::{MipsLevel, Progress};
 use crate::window::ScaleFactor;
@@ -96,14 +97,14 @@ impl Circle {
     }
 }
 #[derive(SystemSet, Hash, Eq, PartialEq, Copy, Clone, Debug)]
-pub enum SystemHook {
+pub enum SetDescriptor {
     Area,
 }
 impl Leaf for Circle {
-    type SystemHook = SystemHook;
+    type SetDescriptor = SetDescriptor;
 
     fn config(elm_configuration: &mut ElmConfiguration) {
-        elm_configuration.configure_hook(SystemHook::Area.in_set(ExternalSet::Resolve));
+        elm_configuration.configure_hook::<Self>(ExternalSet::Resolve, SetDescriptor::Area);
     }
 
     fn attach(elm: &mut Elm) {
@@ -119,7 +120,7 @@ impl Leaf for Circle {
         use bevy_ecs::prelude::IntoSystemConfigs;
         elm.job.main().add_systems((mips_adjust
             .in_set(ExternalSet::Resolve)
-            .in_set(SystemHook::Area),));
+            .in_set(SetDescriptor::Area),));
     }
 }
 fn mips_adjust(
