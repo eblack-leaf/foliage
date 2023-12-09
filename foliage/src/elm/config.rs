@@ -25,7 +25,7 @@ impl<'a> ElmConfiguration<'a> {
         use bevy_ecs::prelude::IntoSystemSetConfigs;
         self.0.job.main().configure_sets(hook.in_set(external_set));
     }
-    pub(crate) fn configure_elm(elm: &'a mut Elm, leaflets: &Vec<Leaflet>) {
+    pub(crate) fn configure_elm(elm: &'a mut Elm, leaflets: &[Leaflet]) {
         use bevy_ecs::prelude::IntoSystemSetConfigs;
         elm.main().configure_sets(
             (
