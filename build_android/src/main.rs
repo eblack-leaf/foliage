@@ -251,7 +251,6 @@ fn build_android(args: Args) {
             .unwrap();
         if !gradle_process.success() {
             println!("error gradle installDebug");
-            return;
         }
     }
 }
