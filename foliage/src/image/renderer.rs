@@ -43,17 +43,20 @@ impl ImageGroup {
             .replace(ginkgo.device().create_bind_group(&BindGroupDescriptor {
                 label: Some("image-group-bind-group"),
                 layout,
-                entries: &[Ginkgo::texture_bind_group_entry(&self.tex.unwrap().1, 0)],
+                entries: &[Ginkgo::texture_bind_group_entry(
+                    &self.tex.as_ref().unwrap().1,
+                    0,
+                )],
             }));
     }
 }
-struct ImageRenderResources {
+pub struct ImageRenderResources {
     pipeline: wgpu::RenderPipeline,
     bind_group: wgpu::BindGroup,
     package_layout: wgpu::BindGroupLayout,
     groups: HashMap<ImageId, ImageGroup>,
 }
-struct ImageRenderPackage {
+pub struct ImageRenderPackage {
     last: ImageId,
     was_request: bool,
 }
@@ -110,7 +113,7 @@ impl Render for Image {
     }
 
     fn on_package_removal(
-        ginkgo: &Ginkgo,
+        _ginkgo: &Ginkgo,
         resources: &mut Self::Resources,
         entity: Entity,
         package: RenderPackage<Self>,

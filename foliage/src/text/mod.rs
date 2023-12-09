@@ -30,14 +30,10 @@ use std::collections::HashSet;
 
 #[derive(Bundle)]
 pub struct Text {
-    position: Position<InterfaceContext>,
-    area: Area<InterfaceContext>,
     text_value: TextValue,
     max_characters: MaxCharacters,
     character_dimension: CharacterDimension,
     font_size: DifferentialBundle<FontSize>,
-    c_pos: DifferentialBundle<CReprPosition>,
-    c_area: DifferentialBundle<CReprArea>,
     color: DifferentialBundle<Color>,
     text_value_chars: DifferentialBundle<TextValueUniqueCharacters>,
     glyph_adds: DifferentialBundle<GlyphChangeQueue>,
@@ -54,19 +50,19 @@ impl Text {
         color: Color,
     ) -> Self {
         Self {
-            position: Position::default(),
-            area: Area::default(),
             max_characters,
             font_size: DifferentialBundle::new(font_size),
-            c_pos: DifferentialBundle::new(CReprPosition::default()),
-            c_area: DifferentialBundle::new(CReprArea::default()),
             color: DifferentialBundle::new(color),
             text_value_chars: DifferentialBundle::new(TextValueUniqueCharacters::new(&text_value)),
             glyph_adds: DifferentialBundle::new(GlyphChangeQueue::default()),
             glyph_removes: DifferentialBundle::new(GlyphRemoveQueue::default()),
             text_value,
             character_dimension: CharacterDimension(Area::default()),
-            differentiable: Differentiable::new::<Self>(Layer::default()),
+            differentiable: Differentiable::new::<Self>(
+                Position::default(),
+                Area::default(),
+                Layer::default(),
+            ),
             glyph_cache: GlyphCache::default(),
             glyph_placement_tool: GlyphPlacementTool(fontdue::layout::Layout::new(
                 fontdue::layout::CoordinateSystem::PositiveYDown,

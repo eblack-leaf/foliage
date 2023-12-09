@@ -1,7 +1,6 @@
 mod renderer;
 mod vertex;
 
-use bevy_ecs::bundle::Bundle;
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
@@ -11,10 +10,11 @@ use crate::differential_enable;
 use crate::elm::config::ElmConfiguration;
 use crate::elm::leaf::{DefaultSystemHook, Leaf};
 use crate::elm::Elm;
+use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::Resource;
 use serde::{Deserialize, Serialize};
-#[derive(Component, Clone, PartialEq)]
+#[derive(Component, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ImageData(pub Option<Vec<u8>>, u32, u32);
 #[derive(Bundle)]
 pub struct Image {
@@ -47,7 +47,7 @@ impl Image {
         }
     }
 }
-#[derive(Resource, Copy, Clone, Serialize, Deserialize, Hash, Eq, PartialEq)]
+#[derive(Resource, Copy, Clone, Serialize, Deserialize, Hash, Eq, PartialEq, Component)]
 pub struct ImageId(pub i32);
 impl Leaf for Image {
     type SetDescriptor = DefaultSystemHook;
