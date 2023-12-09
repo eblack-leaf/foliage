@@ -33,6 +33,7 @@ pub mod differential;
 pub mod elm;
 pub mod ginkgo;
 pub mod icon;
+mod image;
 pub mod instance;
 pub mod job;
 pub mod panel;

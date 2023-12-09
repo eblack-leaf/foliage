@@ -12,9 +12,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::ash::render_packet::RenderPacketForwarder;
 use crate::ash::render_packet::RenderPacketPackage;
-use crate::coordinate::area::Area;
+use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
-use crate::coordinate::position::Position;
+use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::elm::config::{CoreSet, ElmConfiguration};
@@ -81,6 +81,8 @@ impl Elm {
     }
     pub(crate) fn attach_leafs(&mut self, leaflets: Vec<Leaflet>) {
         ElmConfiguration::configure_elm(self, &leaflets);
+        self.enable_differential::<CReprPosition>();
+        self.enable_differential::<CReprArea>();
         self.enable_differential::<Layer>();
         self.job
             .container

@@ -169,6 +169,35 @@ impl Ginkgo {
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         (texture, view)
     }
+    pub fn texture_rgba8unorm_d2(
+        &self,
+        width: u32,
+        height: u32,
+        mips: u32,
+        data: &[u8],
+    ) -> (wgpu::Texture, TextureView) {
+        let texture = self.device().create_texture_with_data(
+            self.queue(),
+            &wgpu::TextureDescriptor {
+                label: Some("ginkgo-rgba8unorm-d2"),
+                size: Extent3d {
+                    width,
+                    height,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: mips,
+                sample_count: 1,
+                dimension: TextureDimension::D2,
+                format: TextureFormat::Rgba8Unorm,
+                usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
+                view_formats: &[TextureFormat::Rgba8Unorm],
+            },
+            wgpu::util::TextureDataOrder::LayerMajor,
+            data,
+        );
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        (texture, view)
+    }
     pub fn triangle_list_primitive() -> PrimitiveState {
         PrimitiveState {
             topology: wgpu::PrimitiveTopology::TriangleList,

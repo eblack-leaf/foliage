@@ -11,25 +11,40 @@ use crate::ash::identification::{RenderId, RenderIdentification};
 use crate::ash::render::Render;
 use crate::ash::render_packet::RenderPacketForwarder;
 use crate::ash::render_packet::RenderPacketStore;
+use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
+use crate::coordinate::position::{CReprPosition, Position};
+use crate::coordinate::InterfaceContext;
 
 #[derive(Bundle)]
 pub struct Differentiable {
+    position: Position<InterfaceContext>,
+    area: Area<InterfaceContext>,
     layer: DifferentialBundle<Layer>,
     disable: DifferentialDisable,
     despawn: Despawn,
     store: RenderPacketStore,
     render_id: RenderId,
+    c_pos: DifferentialBundle<CReprPosition>,
+    c_area: DifferentialBundle<CReprArea>,
 }
 
 impl Differentiable {
-    pub fn new<T: Render + 'static>(layer: Layer) -> Self {
+    pub fn new<T: Render + 'static>(
+        position: Position<InterfaceContext>,
+        area: Area<InterfaceContext>,
+        layer: Layer,
+    ) -> Self {
         Self {
+            position,
+            c_pos: DifferentialBundle::new(CReprPosition::default()),
+            c_area: DifferentialBundle::new(CReprArea::default()),
             layer: DifferentialBundle::new(layer),
             despawn: Despawn::default(),
             disable: DifferentialDisable::default(),
             store: RenderPacketStore::default(),
             render_id: T::render_id(),
+            area,
         }
     }
 }

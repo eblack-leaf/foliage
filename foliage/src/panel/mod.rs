@@ -34,12 +34,8 @@ impl PanelStyle {
 
 #[derive(Bundle)]
 pub struct Panel {
-    position: Position<InterfaceContext>,
-    area: Area<InterfaceContext>,
     content: PanelContentArea,
     style: DifferentialBundle<PanelStyle>,
-    position_c: DifferentialBundle<CReprPosition>,
-    area_c: DifferentialBundle<CReprArea>,
     color: DifferentialBundle<Color>,
     differentiable: Differentiable,
 }
@@ -48,14 +44,14 @@ pub struct PanelContentArea(pub Area<InterfaceContext>);
 impl Panel {
     pub fn new(style: PanelStyle, area: Area<InterfaceContext>, color: Color) -> Self {
         Self {
-            position: Default::default(),
-            area,
             content: PanelContentArea(area),
             style: DifferentialBundle::new(style),
-            position_c: DifferentialBundle::new(CReprPosition::default()),
-            area_c: DifferentialBundle::new(CReprArea::default()),
             color: DifferentialBundle::new(color),
-            differentiable: Differentiable::new::<Self>(Layer::default()),
+            differentiable: Differentiable::new::<Self>(
+                Position::default(),
+                area,
+                Layer::default(),
+            ),
         }
     }
 }
@@ -71,7 +67,7 @@ impl Leaf for Panel {
     }
 
     fn attach(elm: &mut Elm) {
-        differential_enable!(elm, CReprPosition, CReprArea, Color, PanelStyle);
+        differential_enable!(elm, Color, PanelStyle);
         elm.job.main().add_systems((reduce_area
             .in_set(ExternalSet::Resolve)
             .in_set(SetDescriptor::Area),));
