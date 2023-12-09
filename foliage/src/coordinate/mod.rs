@@ -3,10 +3,12 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::location::Location;
 use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::section::Section;
-use crate::elm::{Elm, Leaf, SystemSets};
+use crate::elm::leaf::Leaf;
+use crate::elm::set_category::{CoreSet, ElmConfiguration};
+use crate::elm::Elm;
 use crate::window::ScaleFactor;
 use bevy_ecs::bundle::Bundle;
-use bevy_ecs::prelude::{IntoSystemConfigs, Query};
+use bevy_ecs::prelude::{IntoSystemConfigs, Query, SystemSet};
 use bevy_ecs::system::Res;
 use serde::{Deserialize, Serialize};
 
@@ -66,14 +68,5 @@ impl<Context: CoordinateContext> Coordinate<Context> {
     }
     pub fn location(&self) -> Location<Context> {
         Location::new(self.section.position, self.layer)
-    }
-}
-pub struct CoordinateLeaf;
-impl Leaf for CoordinateLeaf {
-    fn attach(elm: &mut Elm) {
-        elm.job.main().add_systems((
-            position_set.in_set(SystemSets::FinalizeCoordinate),
-            area_set.in_set(SystemSets::FinalizeCoordinate),
-        ));
     }
 }

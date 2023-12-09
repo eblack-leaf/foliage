@@ -1,0 +1,67 @@
+use crate::elm::leaf::Leaflet;
+use crate::elm::Elm;
+use bevy_ecs::prelude::{IntoSystemConfigs, SystemSet};
+use bevy_ecs::schedule::{SystemConfigs, SystemSetConfigs};
+
+#[derive(SystemSet, Hash, Eq, PartialEq, Debug, Copy, Clone)]
+pub enum ExternalSet {
+    Process,
+    Resolve,
+}
+#[derive(SystemSet, Hash, Eq, PartialEq, Debug, Copy, Clone)]
+pub enum CoreSet {
+    Event,
+    // Process,
+    Spawn,
+    // Resolve,
+    Coordinate,
+    Visibility,
+    Differential,
+    RenderPacket,
+}
+pub struct ElmConfiguration<'a>(&'a mut Elm);
+impl<'a> ElmConfiguration<'a> {
+    pub fn configure_hook(&mut self, attrs: SystemSetConfigs) {
+        self.0.job.main().configure_sets(attrs);
+    }
+    pub(crate) fn configure_elm(elm: &'a mut Elm, leaflets: &Vec<Leaflet>) {
+        use bevy_ecs::prelude::IntoSystemSetConfigs;
+        elm.main().configure_sets(
+            (
+                CoreSet::Event,
+                ExternalSet::Process,
+                CoreSet::Spawn,
+                ExternalSet::Resolve,
+                CoreSet::Coordinate,
+                CoreSet::Visibility,
+                CoreSet::Differential,
+                CoreSet::RenderPacket,
+            )
+                .chain(),
+        );
+        elm.main().add_systems((
+            crate::scene::register_root
+                .in_set(CoreSet::Coordinate)
+                .before(crate::scene::align::calc_alignments),
+            crate::scene::resolve_anchor
+                .in_set(CoreSet::Coordinate)
+                .before(crate::scene::align::calc_alignments)
+                .after(crate::scene::register_root),
+            crate::scene::align::calc_alignments.in_set(CoreSet::Coordinate),
+            crate::coordinate::position_set
+                .in_set(CoreSet::Coordinate)
+                .after(crate::scene::align::calc_alignments),
+            crate::coordinate::area_set
+                .in_set(CoreSet::Coordinate)
+                .after(crate::scene::align::calc_alignments),
+            crate::differential::send_render_packet.in_set(CoreSet::RenderPacket),
+            crate::differential::despawn
+                .in_set(CoreSet::RenderPacket)
+                .after(crate::differential::send_render_packet),
+        ));
+        let mut config = Self(elm);
+        for leaf in leaflets.iter() {
+            leaf.0(&mut config);
+        }
+    }
+}

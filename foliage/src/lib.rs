@@ -7,14 +7,14 @@ use winit::event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopWindo
 
 use ash::identification::RenderIdentification;
 use ash::leaflet::RenderLeaflet;
-use elm::{Leaf, Leaflet};
+use elm::leaf::{Leaf, Leaflet};
 use window::{WindowDescriptor, WindowHandle};
 
 use crate::ash::render::Render;
 use crate::ash::Ash;
 use crate::button::Button;
 use crate::circle::Circle;
-use crate::coordinate::{CoordinateLeaf, CoordinateUnit};
+use crate::coordinate::CoordinateUnit;
 use crate::elm::Elm;
 use crate::ginkgo::Ginkgo;
 use crate::icon::Icon;
@@ -85,7 +85,6 @@ impl Foliage {
             .with_renderleaf::<Rectangle>()
             .with_renderleaf::<Icon>()
             .with_renderleaf::<Text>()
-            .with_leaf::<CoordinateLeaf>()
             .with_leaf::<Button>()
     }
     pub fn with_android_interface(mut self, android_interface: AndroidInterface) -> Self {

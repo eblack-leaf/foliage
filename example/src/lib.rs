@@ -10,7 +10,9 @@ use foliage::coordinate::position::Position;
 use foliage::coordinate::section::Section;
 use foliage::coordinate::{Coordinate, InterfaceContext};
 use foliage::differential::Despawn;
-use foliage::elm::{Elm, Leaf, SystemSets};
+use foliage::elm::leaf::{DefaultSystemHook, Leaf};
+use foliage::elm::set_category::{CoreSet, ElmConfiguration};
+use foliage::elm::Elm;
 use foliage::icon::bundled_cov::BundledIcon;
 use foliage::icon::IconId;
 use foliage::scene::align::{SceneAligner, SceneAnchor};
@@ -129,11 +131,14 @@ fn despawn_button(to_despawn: Res<ToDespawn>, mut cmd: Commands, mut local: Loca
     }
 }
 impl Leaf for Tester {
+    type SystemHook = DefaultSystemHook;
+
+    fn config(elm_configuration: &mut ElmConfiguration) {}
+
     fn attach(elm: &mut Elm) {
-        elm.job.startup().add_systems((spawn_button_tree,));
-        elm.job
-            .main()
-            .add_systems((despawn_button.in_set(SystemSets::Spawn),));
+        elm.startup().add_systems((spawn_button_tree,));
+        elm.main()
+            .add_systems((despawn_button.in_set(CoreSet::Spawn),));
     }
 }
 #[derive(Bundle)]

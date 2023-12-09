@@ -1,5 +1,5 @@
 use bevy_ecs::bundle::Bundle;
-use bevy_ecs::prelude::{Component, IntoSystemConfigs, Query};
+use bevy_ecs::prelude::{Component, IntoSystemConfigs, Query, SystemSet};
 use bevy_ecs::query::Changed;
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
@@ -11,7 +11,9 @@ use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::InterfaceContext;
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
-use crate::elm::{Elm, Leaf, SystemSets};
+use crate::elm::leaf::Leaf;
+use crate::elm::set_category::{ElmConfiguration, ExternalSet};
+use crate::elm::Elm;
 
 mod proc_gen;
 mod renderer;
@@ -57,13 +59,23 @@ impl Panel {
         }
     }
 }
-
+#[derive(SystemSet, Hash, Eq, PartialEq, Copy, Clone, Debug)]
+pub enum SystemHook {
+    Area,
+}
 impl Leaf for Panel {
+    type SystemHook = SystemHook;
+
+    fn config(elm_configuration: &mut ElmConfiguration) {
+        use bevy_ecs::prelude::IntoSystemSetConfigs;
+        elm_configuration.configure_hook(SystemHook::Area.in_set(ExternalSet::Resolve));
+    }
+
     fn attach(elm: &mut Elm) {
         differential_enable!(elm, CReprPosition, CReprArea, Color, PanelStyle);
-        elm.job
-            .main()
-            .add_systems((reduce_area.in_set(SystemSets::Resolve),));
+        elm.job.main().add_systems((reduce_area
+            .in_set(ExternalSet::Resolve)
+            .in_set(SystemHook::Area),));
     }
 }
 fn reduce_area(

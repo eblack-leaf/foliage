@@ -1,9 +1,11 @@
 use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::InterfaceContext;
-use crate::elm::{Elm, Leaf, SystemSets, Tag};
+use crate::elm::leaf::{Leaf, Tag};
+use crate::elm::set_category::{CoreSet, ElmConfiguration, ExternalSet};
+use crate::elm::Elm;
 use crate::icon::{Icon, IconId, IconScale};
-use crate::panel::{Panel, PanelStyle};
+use crate::panel::{Panel, PanelContentArea, PanelStyle};
 use crate::scene::align::{PositionAlignment, SceneAligner, SceneAnchor};
 use crate::scene::bind::{SceneBinder, SceneNodes};
 use crate::scene::Scene;
@@ -12,7 +14,7 @@ use crate::text::{FontSize, MaxCharacters, Text, TextValue};
 use crate::window::ScaleFactor;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::change_detection::Res;
-use bevy_ecs::prelude::{Changed, Commands, Component, IntoSystemConfigs};
+use bevy_ecs::prelude::{Changed, Commands, Component, IntoSystemConfigs, SystemSet};
 use bevy_ecs::query::{Or, With, Without};
 use bevy_ecs::system::Query;
 
@@ -32,11 +34,17 @@ pub enum ButtonStyle {
     Ring = 0,
     Fill,
 }
+#[derive(SystemSet, Hash, Eq, PartialEq, Copy, Clone, Debug)]
+pub enum SystemHook {}
 impl Leaf for Button {
+    type SystemHook = SystemHook;
+
+    fn config(elm_configuration: &mut ElmConfiguration) {}
+
     fn attach(elm: &mut Elm) {
-        elm.job
-            .main()
-            .add_systems((updates.in_set(SystemSets::Prepare),));
+        elm.job.main().add_systems((updates
+            .in_set(ExternalSet::Resolve)
+            .before(<Text as Leaf>::SystemHook::Area),));
     }
 }
 #[derive(Copy, Clone, Component)]
@@ -70,7 +78,7 @@ fn updates(
     mut scales: Query<&mut IconScale>,
     mut font_sizes: Query<(&mut FontSize, &mut MaxCharacters), Without<Tag<Button>>>,
     mut colors: Query<&mut Color>,
-    mut panel_styles: Query<&mut PanelStyle>,
+    mut panel_styles: Query<(&mut PanelStyle, &mut PanelContentArea)>,
 ) {
     for (button_area, max_char, nodes, foreground_color, background_color, state) in query.iter() {
         let (fs, text_offset, text_area, icon_scale, padding) =
@@ -82,15 +90,12 @@ fn updates(
                 ButtonStyle::Fill => foreground_color.0,
             };
         }
-        if let Ok(mut style) = panel_styles.get_mut(panel_node) {
+        if let Ok((mut style, mut content_area)) = panel_styles.get_mut(panel_node) {
             *style = match state {
-                ButtonStyle::Ring => {
-                    PanelStyle::ring()
-                }
-                ButtonStyle::Fill => {
-                    PanelStyle::fill()
-                }
-            }
+                ButtonStyle::Ring => PanelStyle::ring(),
+                ButtonStyle::Fill => PanelStyle::fill(),
+            };
+            content_area.0 = *button_area;
         }
         let text_node = nodes.get(1).entity();
         if let Ok(mut alignment) = alignments.get_mut(text_node) {
@@ -224,7 +229,7 @@ impl Scene for Button {
             background_color: BackgroundColor(args.background_color),
             max_characters: args.max_char,
             button_style: args.style,
-            base_style: BaseStyle(args.style)
+            base_style: BaseStyle(args.style),
         }
     }
 }

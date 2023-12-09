@@ -11,12 +11,14 @@ use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
-use crate::elm::{Elm, Leaf, SystemSets};
+use crate::elm::leaf::Leaf;
+use crate::elm::set_category::{ElmConfiguration, ExternalSet};
+use crate::elm::Elm;
 use crate::text::font::MonospacedFont;
 use crate::text::glyph::Glyph;
 use crate::window::ScaleFactor;
 use bevy_ecs::component::Component;
-use bevy_ecs::prelude::{Bundle, IntoSystemConfigs, Or};
+use bevy_ecs::prelude::{Bundle, IntoSystemConfigs, Or, SystemSet};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Query, Res};
 use compact_str::CompactString;
@@ -88,7 +90,18 @@ impl Text {
 }
 #[derive(Component, Copy, Clone)]
 pub struct MaxCharacters(pub u32);
+#[derive(SystemSet, Hash, Eq, PartialEq, Copy, Clone, Debug)]
+pub enum TextSystemHook {
+    Area,
+}
 impl Leaf for Text {
+    type SystemHook = TextSystemHook;
+
+    fn config(elm_configuration: &mut ElmConfiguration) {
+        use bevy_ecs::prelude::IntoSystemSetConfigs;
+        elm_configuration.configure_hook(TextSystemHook::Area.in_set(ExternalSet::Resolve));
+    }
+
     fn attach(elm: &mut Elm) {
         differential_enable!(
             elm,
@@ -105,8 +118,8 @@ impl Leaf for Text {
             .container
             .insert_resource(MonospacedFont::new(Self::DEFAULT_OPT_SCALE));
         elm.job.main().add_systems((
-            changes.in_set(SystemSets::Resolve),
-            max_character.in_set(SystemSets::Resolve).before(changes),
+            changes.in_set(ExternalSet::Resolve),
+            max_character.in_set(ExternalSet::Resolve).before(changes),
         ));
     }
 }

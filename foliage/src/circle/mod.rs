@@ -1,4 +1,4 @@
-use bevy_ecs::prelude::{Bundle, Component, IntoSystemConfigs, Res, With};
+use bevy_ecs::prelude::{Bundle, Component, IntoSystemSetConfigs, Res, SystemSet, With};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::Query;
 use bytemuck::{Pod, Zeroable};
@@ -12,7 +12,9 @@ use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
-use crate::elm::{Elm, Leaf, SystemSets};
+use crate::elm::leaf::Leaf;
+use crate::elm::set_category::{CoreSet, ElmConfiguration, ExternalSet};
+use crate::elm::Elm;
 use crate::texture::factors::{MipsLevel, Progress};
 use crate::window::ScaleFactor;
 
@@ -93,8 +95,17 @@ impl Circle {
         }
     }
 }
-
+#[derive(SystemSet, Hash, Eq, PartialEq, Copy, Clone, Debug)]
+pub enum SystemHook {
+    Area,
+}
 impl Leaf for Circle {
+    type SystemHook = SystemHook;
+
+    fn config(elm_configuration: &mut ElmConfiguration) {
+        elm_configuration.configure_hook(SystemHook::Area.in_set(ExternalSet::Resolve));
+    }
+
     fn attach(elm: &mut Elm) {
         differential_enable!(
             elm,
@@ -105,9 +116,10 @@ impl Leaf for Circle {
             Progress,
             MipsLevel
         );
-        elm.job
-            .main()
-            .add_systems((mips_adjust.in_set(SystemSets::Resolve),));
+        use bevy_ecs::prelude::IntoSystemConfigs;
+        elm.job.main().add_systems((mips_adjust
+            .in_set(ExternalSet::Resolve)
+            .in_set(SystemHook::Area),));
     }
 }
 fn mips_adjust(

@@ -5,15 +5,17 @@ use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::differential::{Differentiable, DifferentialBundle};
-use crate::elm::{Elm, Leaf, SystemSets};
+use crate::elm::leaf::Leaf;
+use crate::elm::set_category::{CoreSet, ElmConfiguration, ExternalSet};
+use crate::elm::Elm;
 use crate::texture::factors::MipsLevel;
 use crate::window::ScaleFactor;
 #[allow(unused)]
 use crate::{coordinate, differential_enable};
 use bevy_ecs::component::Component;
-use bevy_ecs::prelude::Query;
 #[allow(unused)]
 use bevy_ecs::prelude::{Bundle, IntoSystemConfigs};
+use bevy_ecs::prelude::{Query, SystemSet};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::Res;
 use bundled_cov::BundledIcon;
@@ -51,12 +53,23 @@ impl Icon {
         }
     }
 }
+#[derive(SystemSet, Hash, Eq, PartialEq, Copy, Clone, Debug)]
+pub enum SystemHook {
+    Area,
+}
 impl Leaf for Icon {
+    type SystemHook = SystemHook;
+
+    fn config(elm_configuration: &mut ElmConfiguration) {
+        use bevy_ecs::prelude::IntoSystemSetConfigs;
+        elm_configuration.configure_hook(SystemHook::Area.in_set(ExternalSet::Resolve));
+    }
+
     fn attach(elm: &mut Elm) {
         differential_enable!(elm, CReprPosition, CReprArea, Color, IconId, MipsLevel);
-        elm.job
-            .main()
-            .add_systems((scale_change.in_set(SystemSets::Resolve),));
+        elm.job.main().add_systems((scale_change
+            .in_set(ExternalSet::Resolve)
+            .in_set(SystemHook::Area),));
     }
 }
 #[derive(Component, Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]

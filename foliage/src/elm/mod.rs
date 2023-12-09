@@ -1,3 +1,6 @@
+pub mod leaf;
+pub mod set_category;
+
 use std::any::TypeId;
 use std::marker::PhantomData;
 
@@ -5,6 +8,7 @@ use anymap::AnyMap;
 use bevy_ecs::prelude::{apply_deferred, Component, IntoSystemConfigs, SystemSet};
 use bevy_ecs::schedule::IntoSystemSetConfigs;
 use compact_str::{CompactString, ToCompactString};
+use leaf::Leaflet;
 use serde::{Deserialize, Serialize};
 
 use crate::ash::render_packet::RenderPacketForwarder;
@@ -14,14 +18,15 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, InterfaceContext};
+use crate::elm::set_category::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::ginkgo::viewport::ViewportHandle;
-use crate::job::Job;
+use crate::job::{Job, Task};
 use crate::scene::SceneCompositor;
 use crate::window::ScaleFactor;
 
 pub struct Elm {
     initialized: bool,
-    pub job: Job,
+    pub(crate) job: Job,
     limiters: AnyMap,
 }
 
@@ -39,6 +44,15 @@ impl<T> Default for DifferentialLimiter<T> {
 }
 
 impl Elm {
+    pub fn main(&mut self) -> &mut Task {
+        self.job.main()
+    }
+    pub fn startup(&mut self) -> &mut Task {
+        self.job.startup()
+    }
+    pub fn teardown(&mut self) -> &mut Task {
+        self.job.teardown()
+    }
     pub(crate) fn new() -> Self {
         Self {
             initialized: false,
@@ -67,42 +81,7 @@ impl Elm {
         self.initialized
     }
     pub(crate) fn attach_leafs(&mut self, leaflets: Vec<Leaflet>) {
-        self.job.main().configure_sets(
-            (
-                SystemSets::Spawn,
-                SystemSets::Prepare,
-                SystemSets::Resolve,
-                SystemSets::ScenePrepare,
-                SystemSets::SceneResolve,
-                SystemSets::FinalizeCoordinate,
-                SystemSets::Differential,
-                SystemSets::RenderPacket,
-            )
-                .chain(),
-        );
-        self.job.main().add_systems((
-            crate::scene::register_root.in_set(SystemSets::ScenePrepare),
-            crate::scene::resolve_anchor
-                .in_set(SystemSets::ScenePrepare)
-                .after(crate::scene::register_root),
-            crate::scene::align::calc_alignments.in_set(SystemSets::SceneResolve),
-            crate::differential::send_render_packet.in_set(SystemSets::RenderPacket),
-            crate::differential::despawn
-                .in_set(SystemSets::RenderPacket)
-                .after(crate::differential::send_render_packet),
-            apply_deferred
-                .after(SystemSets::Spawn)
-                .before(SystemSets::Prepare),
-            apply_deferred
-                .after(SystemSets::Prepare)
-                .before(SystemSets::Resolve),
-            apply_deferred
-                .after(SystemSets::ScenePrepare)
-                .before(SystemSets::SceneResolve),
-            apply_deferred
-                .after(SystemSets::SceneResolve)
-                .before(SystemSets::FinalizeCoordinate),
-        ));
+        ElmConfiguration::configure_elm(self, &leaflets);
         self.enable_differential::<Layer>();
         self.job
             .container
@@ -111,7 +90,7 @@ impl Elm {
             .container
             .insert_resource(RenderPacketForwarder::default());
         for leaf in leaflets {
-            leaf.0(self)
+            leaf.1(self)
         }
         self.job.exec_startup();
         self.initialized = true;
@@ -139,9 +118,9 @@ impl Elm {
         }
         if !self.limiters.get::<DifferentialLimiter<T>>().unwrap().0 {
             self.job.main().add_systems((
-                crate::differential::differential::<T>.in_set(SystemSets::Differential),
+                crate::differential::differential::<T>.in_set(CoreSet::Differential),
                 crate::differential::send_on_differential_disable_changed::<T>
-                    .in_set(SystemSets::Differential),
+                    .in_set(CoreSet::Differential),
             ));
             self.limiters
                 .get_mut::<DifferentialLimiter<T>>()
@@ -156,50 +135,6 @@ impl Elm {
     }
 }
 
-#[derive(SystemSet, Hash, Eq, PartialEq, Debug, Copy, Clone)]
-pub enum SystemSets {
-    Spawn,
-    Prepare,
-    Resolve,
-    ScenePrepare,
-    SceneResolve,
-    FinalizeCoordinate,
-    Differential,
-    RenderPacket,
-}
-
 pub(crate) fn compact_string_type_id<T: 'static>() -> CompactString {
     format!("{:?}", TypeId::of::<T>()).to_compact_string()
-}
-
-pub trait Leaf {
-    fn attach(elm: &mut Elm);
-}
-
-pub(crate) struct Leaflet(pub(crate) Box<fn(&mut Elm)>);
-
-impl Leaflet {
-    pub(crate) fn leaf_fn<T: Leaf>() -> Self {
-        Self(Box::new(T::attach))
-    }
-}
-
-#[derive(Component, Copy, Clone)]
-pub struct Tag<T> {
-    _phantom: PhantomData<T>,
-}
-
-impl<T> Tag<T> {
-    #[allow(unused)]
-    pub fn new() -> Self {
-        Self {
-            _phantom: PhantomData,
-        }
-    }
-}
-
-impl<T> Default for Tag<T> {
-    fn default() -> Self {
-        Self::new()
-    }
 }

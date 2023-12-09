@@ -5,7 +5,9 @@ use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::InterfaceContext;
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
-use crate::elm::{Elm, Leaf};
+use crate::elm::leaf::{DefaultSystemHook, Leaf};
+use crate::elm::set_category::ElmConfiguration;
+use crate::elm::Elm;
 use crate::texture::factors::Progress;
 use bevy_ecs::prelude::Bundle;
 
@@ -35,7 +37,12 @@ impl Rectangle {
         }
     }
 }
+
 impl Leaf for Rectangle {
+    type SystemHook = DefaultSystemHook;
+
+    fn config(elm_configuration: &mut ElmConfiguration) {}
+
     fn attach(elm: &mut Elm) {
         differential_enable!(elm, CReprPosition, CReprArea, Progress, Color);
     }
