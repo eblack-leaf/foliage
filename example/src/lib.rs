@@ -69,10 +69,10 @@ fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Re
     let _entity = cmd.spawn_scene::<Button>(
         SceneAnchor(coordinate_one),
         &ButtonArgs::new(
-            ButtonStyle::Fill,
+            ButtonStyle::Ring,
             TextValue::new("Afternoon"),
             MaxCharacters(9),
-            IconId::new(BundledIcon::CloudDrizzle),
+            IconId::new(BundledIcon::Umbrella),
             Color::RED.into(),
             Color::OFF_BLACK.into(),
             &font,
@@ -83,8 +83,8 @@ fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Re
     let _entity = cmd.spawn_scene::<Button>(
         SceneAnchor(coordinate_two),
         &ButtonArgs::new(
-            ButtonStyle::Fill,
-            TextValue::new("Point"),
+            ButtonStyle::Ring,
+            TextValue::new("Fore-"),
             MaxCharacters(5),
             IconId::new(BundledIcon::Droplet),
             Color::GREEN.into(),
