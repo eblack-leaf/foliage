@@ -1,5 +1,5 @@
-pub mod leaf;
 pub mod config;
+pub mod leaf;
 
 use std::any::TypeId;
 use std::marker::PhantomData;

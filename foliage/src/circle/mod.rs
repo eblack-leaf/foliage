@@ -4,7 +4,6 @@ use bevy_ecs::system::Query;
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
 
-
 use crate::color::Color;
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
@@ -13,8 +12,8 @@ use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
-use crate::elm::leaf::Leaf;
 use crate::elm::config::{ElmConfiguration, ExternalSet};
+use crate::elm::leaf::Leaf;
 use crate::elm::Elm;
 use crate::texture::factors::{MipsLevel, Progress};
 use crate::window::ScaleFactor;

@@ -4,11 +4,9 @@ use crate::coordinate::location::Location;
 use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::section::Section;
 
-
-
 use crate::window::ScaleFactor;
 use bevy_ecs::bundle::Bundle;
-use bevy_ecs::prelude::{Query};
+use bevy_ecs::prelude::Query;
 use bevy_ecs::system::Res;
 use serde::{Deserialize, Serialize};
 

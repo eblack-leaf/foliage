@@ -86,9 +86,12 @@ pub(crate) fn resolve_anchor(
                         }
                         nodes.despawn_non_scene(&mut cmd);
                     } else {
-                        *pos = pos_align.calc_pos(root_anchor, *area);
-                        *layer = layer_align.calc_layer(root_anchor.0.layer);
-                        if *pos != anchor.0.section.position || *layer != anchor.0.layer {
+                        let new_position = pos_align.calc_pos(root_anchor, *area);
+                        let new_layer = layer_align.calc_layer(root_anchor.0.layer);
+                        if new_position != anchor.0.section.position || new_layer != anchor.0.layer
+                        {
+                            *pos = new_position;
+                            *layer = new_layer;
                             let new_anchor = SceneAnchor(Coordinate::new(
                                 Section::new(*pos, *area),
                                 Layer::new(layer.z),
@@ -118,9 +121,14 @@ pub(crate) fn register_root(
         compositor.removes.insert(remove);
     }
     for (entity, mut root, anchor, despawn) in query.iter_mut() {
-        if compositor.anchors.get(&entity).is_none() {
-            compositor.anchors.insert(entity, *anchor);
+        let need_insert = if compositor.anchors.get(&entity).is_none() {
+            true
         } else if compositor.anchors.get(&entity).unwrap().0 != anchor.0 {
+            true
+        } else {
+            false
+        };
+        if need_insert {
             compositor.anchors.insert(entity, *anchor);
         }
         if compositor.subscenes.get(&entity).is_none() {

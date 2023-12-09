@@ -199,7 +199,7 @@ impl Render for Text {
                     Ginkgo::texture_bind_group_entry(atlas.view(), 1),
                 ],
             });
-        
+
         TextRenderPackage {
             instance_coordinator,
             bind_group,
