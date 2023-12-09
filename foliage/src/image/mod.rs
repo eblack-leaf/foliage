@@ -1,6 +1,7 @@
 mod renderer;
 mod vertex;
 
+use bevy_ecs::bundle::Bundle;
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
@@ -15,6 +16,7 @@ use bevy_ecs::prelude::Resource;
 use serde::{Deserialize, Serialize};
 #[derive(Component, Clone, PartialEq)]
 pub struct ImageData(pub Option<Vec<u8>>, u32, u32);
+#[derive(Bundle)]
 pub struct Image {
     image_id: DifferentialBundle<ImageId>,
     image_data: DifferentialBundle<ImageData>,
@@ -37,7 +39,7 @@ impl Image {
         Self {
             image_id: DifferentialBundle::new(image_id),
             image_data: DifferentialBundle::new(ImageData(Option::from(data), width, height)),
-            differentiable: Differentiable::new(
+            differentiable: Differentiable::new::<Self>(
                 Position::default(),
                 Area::default(),
                 Layer::default(),
@@ -53,6 +55,6 @@ impl Leaf for Image {
     fn config(_elm_configuration: &mut ElmConfiguration) {}
 
     fn attach(elm: &mut Elm) {
-        differential_enable!(elm, ImageId);
+        differential_enable!(elm, ImageId, ImageData);
     }
 }
