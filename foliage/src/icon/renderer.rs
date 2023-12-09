@@ -300,10 +300,10 @@ impl Icon {
                 something_recorded = true;
             }
         }
-        return if something_recorded {
+        if something_recorded {
             Some(recorder.finish())
         } else {
             None
-        };
+        }
     }
 }

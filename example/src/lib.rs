@@ -133,7 +133,7 @@ fn despawn_button(to_despawn: Res<ToDespawn>, mut cmd: Commands, mut local: Loca
 impl Leaf for Tester {
     type SetDescriptor = DefaultSystemHook;
 
-    fn config(elm_configuration: &mut ElmConfiguration) {}
+    fn config(_elm_configuration: &mut ElmConfiguration) {}
 
     fn attach(elm: &mut Elm) {
         elm.startup().add_systems((spawn_button_tree,));
@@ -146,10 +146,10 @@ struct DualButton {}
 impl Scene for DualButton {
     type Args<'a> = <Button as Scene>::Args<'a>;
 
-    fn bind_nodes<'a>(
+    fn bind_nodes(
         cmd: &mut Commands,
         anchor: SceneAnchor,
-        args: &Self::Args<'a>,
+        args: &Self::Args<'_>,
         binder: &mut SceneBinder,
     ) -> Self {
         binder.bind_scene::<Button>(

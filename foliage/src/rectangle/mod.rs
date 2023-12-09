@@ -41,7 +41,7 @@ impl Rectangle {
 impl Leaf for Rectangle {
     type SetDescriptor = DefaultSystemHook;
 
-    fn config(elm_configuration: &mut ElmConfiguration) {}
+    fn config(_elm_configuration: &mut ElmConfiguration) {}
 
     fn attach(elm: &mut Elm) {
         differential_enable!(elm, CReprPosition, CReprArea, Progress, Color);
@@ -68,7 +68,7 @@ fn textures() {
         for y in 0..size {
             for x in 0..size {
                 if x > unit {
-                    let index = x + size as u32 * y;
+                    let index = x + size * y;
                     *filled_data.get_mut(index as usize).unwrap() += 1f32;
                 }
             }

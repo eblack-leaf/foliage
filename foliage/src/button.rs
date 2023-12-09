@@ -2,7 +2,7 @@ use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::InterfaceContext;
 use crate::elm::leaf::{Leaf, Tag};
-use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
+use crate::elm::config::{ElmConfiguration, ExternalSet};
 use crate::elm::Elm;
 use crate::icon::{Icon, IconId, IconScale};
 use crate::panel::{Panel, PanelContentArea, PanelStyle};
@@ -88,7 +88,7 @@ fn updates(
     mut panel_styles: Query<(&mut PanelStyle, &mut PanelContentArea)>,
 ) {
     for (button_area, max_char, nodes, foreground_color, background_color, state) in query.iter() {
-        let (fs, text_offset, text_area, icon_scale, padding) =
+        let (fs, text_offset, _text_area, icon_scale, padding) =
             button_metrics(*button_area, *max_char, &font, &scale_factor);
         let panel_node = nodes.get(0).entity();
         if let Ok(mut color) = colors.get_mut(panel_node) {
@@ -191,10 +191,10 @@ fn button_metrics(
 impl Scene for Button {
     type Args<'a> = ButtonArgs<'a>;
 
-    fn bind_nodes<'a>(
+    fn bind_nodes(
         cmd: &mut Commands,
         anchor: SceneAnchor,
-        args: &Self::Args<'a>,
+        args: &Self::Args<'_>,
         binder: &mut SceneBinder,
     ) -> Self {
         let (font_size, text_offset, _calc_area, icon_scale, padding) = button_metrics(

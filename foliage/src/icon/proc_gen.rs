@@ -10,7 +10,7 @@ fn svg_to_png_to_cov() {
         .join("icon")
         .join("resources");
     for entry in std::fs::read_dir(root.join("svg")).unwrap() {
-        if let Some(entry) = entry.ok() {
+        if let Ok(entry) = entry {
             let dest = entry
                 .file_name()
                 .as_os_str()
@@ -28,7 +28,7 @@ fn svg_to_png_to_cov() {
         }
     }
     for entry in std::fs::read_dir(root.join("png")).unwrap() {
-        if let Some(entry) = entry.ok() {
+        if let Ok(entry) = entry {
             let dest = entry
                 .file_name()
                 .as_os_str()

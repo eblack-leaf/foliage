@@ -199,15 +199,15 @@ impl Render for Text {
                     Ginkgo::texture_bind_group_entry(atlas.view(), 1),
                 ],
             });
-        let package = TextRenderPackage {
+        
+        TextRenderPackage {
             instance_coordinator,
             bind_group,
             uniform,
             font_size,
             block: atlas.block(),
             atlas,
-        };
-        package
+        }
     }
 
     fn on_package_removal(

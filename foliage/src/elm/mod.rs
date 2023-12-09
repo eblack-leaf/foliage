@@ -5,8 +5,7 @@ use std::any::TypeId;
 use std::marker::PhantomData;
 
 use anymap::AnyMap;
-use bevy_ecs::prelude::{apply_deferred, Component, IntoSystemConfigs, SystemSet};
-use bevy_ecs::schedule::IntoSystemSetConfigs;
+use bevy_ecs::prelude::{Component, IntoSystemConfigs};
 use compact_str::{CompactString, ToCompactString};
 use leaf::Leaflet;
 use serde::{Deserialize, Serialize};
@@ -18,7 +17,7 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, InterfaceContext};
-use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
+use crate::elm::config::{CoreSet, ElmConfiguration};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::job::{Job, Task};
 use crate::scene::SceneCompositor;

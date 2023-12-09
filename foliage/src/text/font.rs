@@ -44,7 +44,7 @@ impl MonospacedFont {
             && calc_area.width <= extent.width
             && font_size.0 < Self::MAX_CHECKED_FONT_SIZE
         {
-            let area_metrics = Text::area_metrics(font_size, max_characters, &self, scale_factor);
+            let area_metrics = Text::area_metrics(font_size, max_characters, self, scale_factor);
             calc_area = area_metrics.0;
             font_size.0 += 1;
         }

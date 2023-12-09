@@ -6,7 +6,7 @@ use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::elm::leaf::Leaf;
-use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
+use crate::elm::config::{ElmConfiguration, ExternalSet};
 use crate::elm::Elm;
 use crate::texture::factors::MipsLevel;
 use crate::window::ScaleFactor;
@@ -88,7 +88,7 @@ fn scale_change(
         ),
         Changed<IconScale>,
     >,
-    scale_factor: Res<ScaleFactor>,
+    _scale_factor: Res<ScaleFactor>,
 ) {
     for (scale, mut pos, mut area, mut mips) in query.iter_mut() {
         let initial_px = scale.px();

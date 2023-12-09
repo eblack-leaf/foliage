@@ -92,12 +92,12 @@ impl SceneBinder {
             .id();
         self.nodes.0.insert(sb, SceneNodeEntry::new(entity, false));
     }
-    pub fn bind_scene<'a, S: Scene>(
+    pub fn bind_scene<S: Scene>(
         &mut self,
         binding: SceneBinding,
         alignment: SceneAlignment,
         area: Area<InterfaceContext>,
-        args: &S::Args<'a>,
+        args: &S::Args<'_>,
         cmd: &mut Commands,
     ) {
         let anchor = SceneAnchor(Coordinate::new(

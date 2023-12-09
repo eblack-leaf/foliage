@@ -61,7 +61,7 @@ impl<ResourceKey: Hash + Eq + Clone, TexelData: Default + Sized + Clone + Pod + 
         ginkgo: &Ginkgo,
         location: TextureAtlasLocation,
         extent: Area<NumericalContext>,
-        data: &Vec<TexelData>,
+        data: &[TexelData],
     ) -> TexturePartition {
         let position = location.position(self.block);
         ginkgo.queue().write_texture(

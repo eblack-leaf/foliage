@@ -1,9 +1,9 @@
-use bevy_ecs::prelude::{Bundle, Component, IntoSystemSetConfigs, Res, SystemSet, With};
+use bevy_ecs::prelude::{Bundle, Component, Res, SystemSet, With};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::Query;
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
-use crate::button::SetDescriptors;
+
 
 use crate::color::Color;
 use crate::coordinate::area::{Area, CReprArea};
@@ -14,7 +14,7 @@ use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::leaf::Leaf;
-use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
+use crate::elm::config::{ElmConfiguration, ExternalSet};
 use crate::elm::Elm;
 use crate::texture::factors::{MipsLevel, Progress};
 use crate::window::ScaleFactor;

@@ -175,26 +175,26 @@ where
     Self: Bundle,
 {
     type Args<'a>;
-    fn bind_nodes<'a>(
+    fn bind_nodes(
         cmd: &mut Commands,
         anchor: SceneAnchor,
-        args: &Self::Args<'a>,
+        args: &Self::Args<'_>,
         binder: &mut SceneBinder,
     ) -> Self;
 }
 pub trait SceneSpawn {
-    fn spawn_scene<'a, S: Scene>(
+    fn spawn_scene<S: Scene>(
         &mut self,
         anchor: SceneAnchor,
-        args: &S::Args<'a>,
+        args: &S::Args<'_>,
         root: SceneRoot,
     ) -> Entity;
 }
 impl<'a, 'b> SceneSpawn for Commands<'a, 'b> {
-    fn spawn_scene<'c, S: Scene>(
+    fn spawn_scene<S: Scene>(
         &mut self,
         anchor: SceneAnchor,
-        args: &S::Args<'c>,
+        args: &S::Args<'_>,
         root: SceneRoot,
     ) -> Entity {
         let this = self.spawn_empty().id();
