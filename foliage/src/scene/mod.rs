@@ -1,5 +1,6 @@
 pub mod align;
 pub mod bind;
+mod compositor;
 
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
@@ -18,13 +19,13 @@ use indexmap::IndexSet;
 use std::collections::{HashMap, HashSet};
 
 #[derive(Resource, Default)]
-pub struct SceneCompositor {
+pub struct SceneCoordinator {
     pub(crate) anchors: HashMap<Entity, SceneAnchor>,
     pub(crate) subscenes: HashMap<Entity, HashSet<Entity>>,
     pub(crate) roots: HashSet<Entity>,
     pub(crate) removes: HashSet<Entity>,
 }
-impl SceneCompositor {
+impl SceneCoordinator {
     fn subscene_resolve(&self, root: Entity) -> IndexSet<Entity> {
         let mut subscenes = IndexSet::new();
         if let Some(ss) = self.subscenes.get(&root) {
@@ -37,7 +38,7 @@ impl SceneCompositor {
     }
 }
 pub(crate) fn resolve_anchor(
-    mut compositor: ResMut<SceneCompositor>,
+    mut coordinator: ResMut<SceneCoordinator>,
     mut param_set: ParamSet<(
         Query<(
             &mut SceneAnchor,
@@ -53,14 +54,14 @@ pub(crate) fn resolve_anchor(
     )>,
     mut cmd: Commands,
 ) {
-    if compositor.is_changed() {
-        for root in compositor.roots.clone() {
-            if compositor.removes.contains(&root) {
+    if coordinator.is_changed() {
+        for root in coordinator.roots.clone() {
+            if coordinator.removes.contains(&root) {
                 if let Ok(nodes) = param_set.p1().get(root) {
                     nodes.despawn_non_scene(&mut cmd);
                 }
             }
-            let dependents = compositor.subscene_resolve(root);
+            let dependents = coordinator.subscene_resolve(root);
             for dep in dependents {
                 if let Ok((
                     mut anchor,
@@ -73,14 +74,15 @@ pub(crate) fn resolve_anchor(
                     layer_align,
                 )) = param_set.p0().get_mut(dep)
                 {
-                    let root_anchor = *compositor.anchors.get(&dep_root.current.unwrap()).unwrap();
-                    let despawned = compositor
+                    let root_anchor = *coordinator.anchors.get(&dep_root.current.unwrap()).unwrap();
+                    let despawned = coordinator
                         .removes
                         .get(dep_root.current.as_ref().unwrap())
                         .is_some();
-                    if despawned || compositor.removes.get(&dep).is_some() {
-                        compositor.removes.insert(dep);
-                        if let Some(ss) = compositor.subscenes.get_mut(&dep_root.current().unwrap())
+                    if despawned || coordinator.removes.get(&dep).is_some() {
+                        coordinator.removes.insert(dep);
+                        if let Some(ss) =
+                            coordinator.subscenes.get_mut(&dep_root.current().unwrap())
                         {
                             ss.remove(&dep);
                         }
@@ -97,20 +99,20 @@ pub(crate) fn resolve_anchor(
                                 Layer::new(layer.z),
                             ));
                             *anchor = new_anchor;
-                            compositor.anchors.insert(dep, new_anchor);
+                            coordinator.anchors.insert(dep, new_anchor);
                             nodes.set_anchor_non_scene(new_anchor, &mut cmd);
                         }
                     }
                 }
             }
         }
-        let _ = compositor.removes.drain().map(|r| {
+        let _ = coordinator.removes.drain().map(|r| {
             cmd.entity(r).insert(Despawn::signal_despawn());
         });
     }
 }
 pub(crate) fn register_root(
-    mut compositor: ResMut<SceneCompositor>,
+    mut compositor: ResMut<SceneCoordinator>,
     mut query: Query<
         (Entity, &mut SceneRoot, &SceneAnchor, &Despawn),
         Or<(Changed<SceneAnchor>, Changed<SceneRoot>, Changed<Despawn>)>,

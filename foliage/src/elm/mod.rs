@@ -20,7 +20,7 @@ use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::elm::config::{CoreSet, ElmConfiguration};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::job::{Job, Task};
-use crate::scene::SceneCompositor;
+use crate::scene::SceneCoordinator;
 use crate::window::ScaleFactor;
 
 pub struct Elm {
@@ -86,7 +86,7 @@ impl Elm {
         self.enable_differential::<Layer>();
         self.job
             .container
-            .insert_resource(SceneCompositor::default());
+            .insert_resource(SceneCoordinator::default());
         self.job
             .container
             .insert_resource(RenderPacketForwarder::default());
@@ -138,4 +138,14 @@ impl Elm {
 
 pub(crate) fn compact_string_type_id<T: 'static>() -> CompactString {
     format!("{:?}", TypeId::of::<T>()).to_compact_string()
+}
+#[derive(Component, Copy, Clone, Eq, PartialEq)]
+pub struct Disabled(bool);
+impl Disabled {
+    pub fn disabled(&self) -> bool {
+        self.0
+    }
+    pub fn signal(&mut self) {
+        self.0 = true
+    }
 }
