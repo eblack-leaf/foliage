@@ -11,9 +11,9 @@ use crate::differential::Despawn;
 use align::{LayerAlignment, PositionAlignment, SceneAnchor};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Commands, DetectChanges, ParamSet, RemovedComponents, Resource};
+use bevy_ecs::prelude::{Commands, DetectChanges, ParamSet, RemovedComponents, Res, Resource};
 use bevy_ecs::query::{Changed, Or};
-use bevy_ecs::system::{Query, ResMut};
+use bevy_ecs::system::{Query, ResMut, SystemParam};
 use bind::{SceneBinder, SceneNodes, SceneRoot, SceneVisibility};
 use indexmap::IndexSet;
 use std::collections::{HashMap, HashSet};
@@ -112,7 +112,7 @@ pub(crate) fn resolve_anchor(
     }
 }
 pub(crate) fn register_root(
-    mut compositor: ResMut<SceneCoordinator>,
+    mut coordinator: ResMut<SceneCoordinator>,
     mut query: Query<
         (Entity, &mut SceneRoot, &SceneAnchor, &Despawn),
         Or<(Changed<SceneAnchor>, Changed<SceneRoot>, Changed<Despawn>)>,
@@ -120,42 +120,42 @@ pub(crate) fn register_root(
     mut removed: RemovedComponents<SceneRoot>,
 ) {
     for remove in removed.read() {
-        compositor.removes.insert(remove);
+        coordinator.removes.insert(remove);
     }
     for (entity, mut root, anchor, despawn) in query.iter_mut() {
-        let need_insert = if compositor.anchors.get(&entity).is_none() {
+        let need_insert = if coordinator.anchors.get(&entity).is_none() {
             true
-        } else if compositor.anchors.get(&entity).unwrap().0 != anchor.0 {
+        } else if coordinator.anchors.get(&entity).unwrap().0 != anchor.0 {
             true
         } else {
             false
         };
         if need_insert {
-            compositor.anchors.insert(entity, *anchor);
+            coordinator.anchors.insert(entity, *anchor);
         }
-        if compositor.subscenes.get(&entity).is_none() {
-            compositor.subscenes.insert(entity, HashSet::new());
+        if coordinator.subscenes.get(&entity).is_none() {
+            coordinator.subscenes.insert(entity, HashSet::new());
         }
         if let Some(old) = root.old.take() {
             // deregister
-            if let Some(ss) = compositor.subscenes.get_mut(&old) {
+            if let Some(ss) = coordinator.subscenes.get_mut(&old) {
                 ss.remove(&entity);
             }
         }
         if let Some(current) = root.current {
-            if compositor.subscenes.get(&current).is_none() {
-                compositor.subscenes.insert(current, HashSet::new());
+            if coordinator.subscenes.get(&current).is_none() {
+                coordinator.subscenes.insert(current, HashSet::new());
             }
-            compositor
+            coordinator
                 .subscenes
                 .get_mut(&current)
                 .unwrap()
                 .insert(entity);
         } else {
-            compositor.roots.insert(entity);
+            coordinator.roots.insert(entity);
         }
         if despawn.should_despawn() {
-            compositor.removes.insert(entity);
+            coordinator.removes.insert(entity);
         }
     }
 }
@@ -185,10 +185,12 @@ where
     Self: Bundle,
 {
     type Args<'a>;
+    type ExternalResources<'a>;
     fn bind_nodes(
         cmd: &mut Commands,
         anchor: SceneAnchor,
         args: &Self::Args<'_>,
+        external_res: &Self::ExternalResources<'_>,
         binder: &mut SceneBinder,
     ) -> Self;
 }
@@ -197,6 +199,7 @@ pub trait SceneSpawn {
         &mut self,
         anchor: SceneAnchor,
         args: &S::Args<'_>,
+        external_res: &S::ExternalResources<'_>,
         root: SceneRoot,
     ) -> Entity;
 }
@@ -205,15 +208,25 @@ impl<'a, 'b> SceneSpawn for Commands<'a, 'b> {
         &mut self,
         anchor: SceneAnchor,
         args: &S::Args<'_>,
+        external_res: &S::ExternalResources<'_>,
         root: SceneRoot,
     ) -> Entity {
         let this = self.spawn_empty().id();
         let mut binder = SceneBinder::new(anchor, this);
-        let bundle = S::bind_nodes(self, anchor, args, &mut binder);
+        let bundle = S::bind_nodes(self, anchor, args, external_res, &mut binder);
         self.entity(this)
             .insert(bundle)
             .insert(SceneBundle::new(anchor, binder.nodes, root))
             .insert(anchor.0);
         this
+    }
+}
+
+pub trait SceneResources where Self: Resource {
+    fn reference<T>(refer: &Res<T>) -> &'a T;
+}
+impl<T: SystemParam> SceneResources for T {
+    fn reference<T>(refer: &Res<T>) -> &T {
+        refer.as_ref()
     }
 }

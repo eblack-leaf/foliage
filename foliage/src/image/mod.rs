@@ -8,7 +8,7 @@ use crate::coordinate::InterfaceContext;
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::config::ElmConfiguration;
-use crate::elm::leaf::{DefaultSystemHook, Leaf};
+use crate::elm::leaf::{EmptySetDescriptor, Leaf};
 use crate::elm::Elm;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
@@ -50,7 +50,7 @@ impl Image {
 #[derive(Resource, Copy, Clone, Serialize, Deserialize, Hash, Eq, PartialEq, Component)]
 pub struct ImageId(pub i32);
 impl Leaf for Image {
-    type SetDescriptor = DefaultSystemHook;
+    type SetDescriptor = EmptySetDescriptor;
 
     fn config(_elm_configuration: &mut ElmConfiguration) {}
 

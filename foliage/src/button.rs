@@ -133,17 +133,15 @@ fn updates(
         }
     }
 }
-pub struct ButtonArgs<'a> {
+pub struct ButtonArgs {
     style: ButtonStyle,
     text: TextValue,
     max_char: MaxCharacters,
     icon_id: IconId,
     foreground_color: Color,
     background_color: Color,
-    font: &'a MonospacedFont,
-    scale_factor: &'a ScaleFactor,
 }
-impl<'a> ButtonArgs<'a> {
+impl ButtonArgs {
     pub fn new(
         style: ButtonStyle,
         text: TextValue,
@@ -151,8 +149,6 @@ impl<'a> ButtonArgs<'a> {
         icon_id: IconId,
         foreground_color: Color,
         background_color: Color,
-        font: &'a MonospacedFont,
-        scale_factor: &'a ScaleFactor,
     ) -> Self {
         Self {
             style,
@@ -161,8 +157,6 @@ impl<'a> ButtonArgs<'a> {
             icon_id,
             foreground_color,
             background_color,
-            font,
-            scale_factor,
         }
     }
 }
@@ -189,19 +183,20 @@ fn button_metrics(
     )
 }
 impl Scene for Button {
-    type Args<'a> = ButtonArgs<'a>;
-
+    type Args<'a> = ButtonArgs;
+    type ExternalResources<'a> = (Res<'a, MonospacedFont>, Res<'a, ScaleFactor>);
     fn bind_nodes(
         cmd: &mut Commands,
         anchor: SceneAnchor,
         args: &Self::Args<'_>,
+        external_res: &Self::ExternalResources<'_>,
         binder: &mut SceneBinder,
     ) -> Self {
         let (font_size, text_offset, _calc_area, icon_scale, padding) = button_metrics(
             anchor.0.section.area,
             args.max_char,
-            args.font,
-            args.scale_factor,
+            &external_res.0,
+            &external_res.1,
         );
         binder.bind(
             0,

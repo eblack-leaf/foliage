@@ -12,7 +12,7 @@ pub trait Leaf {
     fn attach(elm: &mut Elm);
 }
 #[derive(SystemSet, Hash, Eq, PartialEq, Copy, Clone, Debug)]
-pub enum DefaultSystemHook {}
+pub enum EmptySetDescriptor {}
 pub(crate) struct Leaflet(
     pub(crate) Box<fn(&mut ElmConfiguration)>,
     pub(crate) Box<fn(&mut Elm)>,

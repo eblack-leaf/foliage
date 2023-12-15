@@ -11,7 +11,7 @@ use foliage::coordinate::section::Section;
 use foliage::coordinate::{Coordinate, InterfaceContext};
 use foliage::differential::Despawn;
 use foliage::elm::config::{CoreSet, ElmConfiguration};
-use foliage::elm::leaf::{DefaultSystemHook, Leaf};
+use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 use foliage::elm::Elm;
 use foliage::icon::bundled_cov::BundledIcon;
 use foliage::icon::IconId;
@@ -75,9 +75,8 @@ fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Re
             IconId::new(BundledIcon::Umbrella),
             Color::RED.into(),
             Color::OFF_BLACK.into(),
-            &font,
-            &scale_factor,
         ),
+        &(Res::clone(&font), Res::clone(&scale_factor)),
         SceneRoot::default(),
     );
     let _entity = cmd.spawn_scene::<Button>(
@@ -89,9 +88,8 @@ fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Re
             IconId::new(BundledIcon::Droplet),
             Color::GREEN.into(),
             Color::OFF_BLACK.into(),
-            &font,
-            &scale_factor,
         ),
+        &(Res::clone(&font), Res::clone(&scale_factor)),
         SceneRoot::default(),
     );
     let _entity = cmd.spawn_scene::<Button>(
@@ -103,9 +101,8 @@ fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Re
             IconId::new(BundledIcon::Cast),
             Color::BLUE.into(),
             Color::OFF_BLACK.into(),
-            &font,
-            &scale_factor,
         ),
+        &(Res::clone(&font), Res::clone(&scale_factor)),
         SceneRoot::default(),
     );
     let _e = cmd.spawn_scene::<DualButton>(
@@ -117,9 +114,8 @@ fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Re
             IconId::new(BundledIcon::CloudDrizzle),
             Color::RED_ORANGE_DARK.into(),
             Color::RED_ORANGE.into(),
-            &font,
-            &scale_factor,
         ),
+        &(Res::clone(&font), Res::clone(&scale_factor)),
         SceneRoot::default(),
     );
     cmd.insert_resource(ToDespawn(_e));
@@ -131,7 +127,7 @@ fn despawn_button(to_despawn: Res<ToDespawn>, mut cmd: Commands, mut local: Loca
     }
 }
 impl Leaf for Tester {
-    type SetDescriptor = DefaultSystemHook;
+    type SetDescriptor = EmptySetDescriptor;
 
     fn config(_elm_configuration: &mut ElmConfiguration) {}
 
@@ -145,11 +141,13 @@ impl Leaf for Tester {
 struct DualButton {}
 impl Scene for DualButton {
     type Args<'a> = <Button as Scene>::Args<'a>;
+    type ExternalResources<'a> = <Button as Scene>::ExternalResources<'a>;
 
     fn bind_nodes(
         cmd: &mut Commands,
         anchor: SceneAnchor,
         args: &Self::Args<'_>,
+        external_res: &Self::ExternalResources<'_>,
         binder: &mut SceneBinder,
     ) -> Self {
         binder.bind_scene::<Button>(
@@ -157,6 +155,7 @@ impl Scene for DualButton {
             ((-5).near(), 0.near(), 0).into(),
             anchor.0.section.area / (2, 1).into(),
             args,
+            external_res,
             cmd,
         );
         binder.bind_scene::<Button>(
@@ -164,6 +163,7 @@ impl Scene for DualButton {
             ((-5).far(), 0.near(), 0).into(),
             anchor.0.section.area / (2, 1).into(),
             args,
+            external_res,
             cmd,
         );
         Self {}

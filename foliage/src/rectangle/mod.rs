@@ -6,7 +6,7 @@ use crate::coordinate::InterfaceContext;
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::config::ElmConfiguration;
-use crate::elm::leaf::{DefaultSystemHook, Leaf};
+use crate::elm::leaf::{EmptySetDescriptor, Leaf};
 use crate::elm::Elm;
 use crate::texture::factors::Progress;
 use bevy_ecs::prelude::Bundle;
@@ -35,7 +35,7 @@ impl Rectangle {
 }
 
 impl Leaf for Rectangle {
-    type SetDescriptor = DefaultSystemHook;
+    type SetDescriptor = EmptySetDescriptor;
 
     fn config(_elm_configuration: &mut ElmConfiguration) {}
 
