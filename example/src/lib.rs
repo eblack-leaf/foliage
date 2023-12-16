@@ -76,7 +76,7 @@ fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Re
             Color::RED.into(),
             Color::OFF_BLACK.into(),
         ),
-        &(Res::clone(&font), Res::clone(&scale_factor)),
+        &(&font, &scale_factor),
         SceneRoot::default(),
     );
     let _entity = cmd.spawn_scene::<Button>(
@@ -89,7 +89,7 @@ fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Re
             Color::GREEN.into(),
             Color::OFF_BLACK.into(),
         ),
-        &(Res::clone(&font), Res::clone(&scale_factor)),
+        &(&font, &scale_factor),
         SceneRoot::default(),
     );
     let _entity = cmd.spawn_scene::<Button>(
@@ -102,7 +102,7 @@ fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Re
             Color::BLUE.into(),
             Color::OFF_BLACK.into(),
         ),
-        &(Res::clone(&font), Res::clone(&scale_factor)),
+        &(&font, &scale_factor),
         SceneRoot::default(),
     );
     let _e = cmd.spawn_scene::<DualButton>(
@@ -115,7 +115,7 @@ fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Re
             Color::RED_ORANGE_DARK.into(),
             Color::RED_ORANGE.into(),
         ),
-        &(Res::clone(&font), Res::clone(&scale_factor)),
+        &(&font, &scale_factor),
         SceneRoot::default(),
     );
     cmd.insert_resource(ToDespawn(_e));
@@ -142,12 +142,12 @@ struct DualButton {}
 impl Scene for DualButton {
     type Args<'a> = <Button as Scene>::Args<'a>;
     type ExternalResources<'a> = <Button as Scene>::ExternalResources<'a>;
-
+    type ExternalArgs<'a> = <Button as Scene>::ExternalArgs<'a>;
     fn bind_nodes(
         cmd: &mut Commands,
         anchor: SceneAnchor,
         args: &Self::Args<'_>,
-        external_res: &Self::ExternalResources<'_>,
+        external_args: &Self::ExternalArgs<'_>,
         binder: &mut SceneBinder,
     ) -> Self {
         binder.bind_scene::<Button>(
@@ -155,7 +155,7 @@ impl Scene for DualButton {
             ((-5).near(), 0.near(), 0).into(),
             anchor.0.section.area / (2, 1).into(),
             args,
-            external_res,
+            external_args,
             cmd,
         );
         binder.bind_scene::<Button>(
@@ -163,7 +163,7 @@ impl Scene for DualButton {
             ((-5).far(), 0.near(), 0).into(),
             anchor.0.section.area / (2, 1).into(),
             args,
-            external_res,
+            external_args,
             cmd,
         );
         Self {}

@@ -1,6 +1,5 @@
 pub mod align;
 pub mod bind;
-mod compositor;
 
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
@@ -186,11 +185,12 @@ where
 {
     type Args<'a>;
     type ExternalResources<'a>;
+    type ExternalArgs<'a>;
     fn bind_nodes(
         cmd: &mut Commands,
         anchor: SceneAnchor,
         args: &Self::Args<'_>,
-        external_res: &Self::ExternalResources<'_>,
+        external_args: &Self::ExternalArgs<'_>,
         binder: &mut SceneBinder,
     ) -> Self;
 }
@@ -199,7 +199,7 @@ pub trait SceneSpawn {
         &mut self,
         anchor: SceneAnchor,
         args: &S::Args<'_>,
-        external_res: &S::ExternalResources<'_>,
+        external_args: &S::ExternalArgs<'_>,
         root: SceneRoot,
     ) -> Entity;
 }
@@ -208,12 +208,12 @@ impl<'a, 'b> SceneSpawn for Commands<'a, 'b> {
         &mut self,
         anchor: SceneAnchor,
         args: &S::Args<'_>,
-        external_res: &S::ExternalResources<'_>,
+        external_args: &S::ExternalArgs<'_>,
         root: SceneRoot,
     ) -> Entity {
         let this = self.spawn_empty().id();
         let mut binder = SceneBinder::new(anchor, this);
-        let bundle = S::bind_nodes(self, anchor, args, external_res, &mut binder);
+        let bundle = S::bind_nodes(self, anchor, args, external_args, &mut binder);
         self.entity(this)
             .insert(bundle)
             .insert(SceneBundle::new(anchor, binder.nodes, root))
@@ -221,12 +221,10 @@ impl<'a, 'b> SceneSpawn for Commands<'a, 'b> {
         this
     }
 }
-
-pub trait SceneResources where Self: Resource {
-    fn reference<T>(refer: &Res<T>) -> &'a T;
-}
-impl<T: SystemParam> SceneResources for T {
-    fn reference<T>(refer: &Res<T>) -> &T {
-        refer.as_ref()
-    }
+#[macro_export]
+macro_rules! external_args {
+    ($first:ty $(,$typename:ty)*) => {
+        type ExternalResources<'a> = (bevy_ecs::prelude::Res<'a, $first> $(, bevy_ecs::prelude::Res<'a, $typename>)*);
+        type ExternalArgs<'a> = (&'a $first $(, &'a $typename)*);
+    };
 }

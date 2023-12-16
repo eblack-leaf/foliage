@@ -17,6 +17,7 @@ use bevy_ecs::change_detection::Res;
 use bevy_ecs::prelude::{Changed, Commands, Component, IntoSystemConfigs, SystemSet};
 use bevy_ecs::query::{Or, With, Without};
 use bevy_ecs::system::Query;
+use crate::external_args;
 
 #[derive(Bundle)]
 pub struct Button {
@@ -184,19 +185,19 @@ fn button_metrics(
 }
 impl Scene for Button {
     type Args<'a> = ButtonArgs;
-    type ExternalResources<'a> = (Res<'a, MonospacedFont>, Res<'a, ScaleFactor>);
+    external_args!(MonospacedFont, ScaleFactor);
     fn bind_nodes(
         cmd: &mut Commands,
         anchor: SceneAnchor,
         args: &Self::Args<'_>,
-        external_res: &Self::ExternalResources<'_>,
+        external_args: &Self::ExternalArgs<'_>,
         binder: &mut SceneBinder,
     ) -> Self {
         let (font_size, text_offset, _calc_area, icon_scale, padding) = button_metrics(
             anchor.0.section.area,
             args.max_char,
-            &external_res.0,
-            &external_res.1,
+            external_args.0,
+            external_args.1,
         );
         binder.bind(
             0,

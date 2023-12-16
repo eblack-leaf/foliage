@@ -98,14 +98,14 @@ impl SceneBinder {
         alignment: SceneAlignment,
         area: Area<InterfaceContext>,
         args: &S::Args<'_>,
-        external_res: &S::ExternalResources<'_>,
+        external_args: &S::ExternalArgs<'_>,
         cmd: &mut Commands,
     ) {
         let anchor = SceneAnchor(Coordinate::new(
             Section::new(Position::default(), area),
             Layer::default(),
         ));
-        let entity = cmd.spawn_scene::<S>(anchor, args, external_res, SceneRoot::new(self.this));
+        let entity = cmd.spawn_scene::<S>(anchor, args, external_args, SceneRoot::new(self.this));
         cmd.entity(entity).insert(alignment).insert(anchor.0);
         self.nodes
             .0
