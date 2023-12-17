@@ -5,7 +5,7 @@ use crate::coordinate::section::Section;
 use crate::coordinate::{Coordinate, InterfaceContext};
 use crate::differential::Despawn;
 use crate::scene::align::{SceneAlignment, SceneAnchor};
-use crate::scene::{Scene, SceneSpawn};
+use crate::scene::{ExternalArgs, Scene, SceneSpawn};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
@@ -98,7 +98,7 @@ impl SceneBinder {
         alignment: SceneAlignment,
         area: Area<InterfaceContext>,
         args: &S::Args<'_>,
-        external_args: &S::ExternalArgs<'_>,
+        external_args: &ExternalArgs<'_, S>,
         cmd: &mut Commands,
     ) {
         let anchor = SceneAnchor(Coordinate::new(

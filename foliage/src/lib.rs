@@ -28,6 +28,7 @@ pub mod ash;
 pub mod button;
 pub mod circle;
 pub mod color;
+mod compositor;
 pub mod coordinate;
 pub mod differential;
 pub mod elm;
@@ -42,7 +43,6 @@ pub mod scene;
 pub mod text;
 pub mod texture;
 pub mod window;
-mod compositor;
 
 #[cfg(not(target_os = "android"))]
 pub type AndroidInterface = ();

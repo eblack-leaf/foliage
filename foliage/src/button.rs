@@ -4,11 +4,12 @@ use crate::coordinate::InterfaceContext;
 use crate::elm::config::{ElmConfiguration, ExternalSet};
 use crate::elm::leaf::{Leaf, Tag};
 use crate::elm::Elm;
+use crate::external_args;
 use crate::icon::{Icon, IconId, IconScale};
 use crate::panel::{Panel, PanelContentArea, PanelStyle};
 use crate::scene::align::{PositionAlignment, SceneAligner, SceneAnchor};
 use crate::scene::bind::{SceneBinder, SceneNodes};
-use crate::scene::Scene;
+use crate::scene::{ExternalArgs, Scene};
 use crate::text::font::MonospacedFont;
 use crate::text::{FontSize, MaxCharacters, Text, TextValue};
 use crate::window::ScaleFactor;
@@ -17,7 +18,6 @@ use bevy_ecs::change_detection::Res;
 use bevy_ecs::prelude::{Changed, Commands, Component, IntoSystemConfigs, SystemSet};
 use bevy_ecs::query::{Or, With, Without};
 use bevy_ecs::system::Query;
-use crate::external_args;
 
 #[derive(Bundle)]
 pub struct Button {
@@ -190,7 +190,7 @@ impl Scene for Button {
         cmd: &mut Commands,
         anchor: SceneAnchor,
         args: &Self::Args<'_>,
-        external_args: &Self::ExternalArgs<'_>,
+        external_args: &ExternalArgs<'_, Self>,
         binder: &mut SceneBinder,
     ) -> Self {
         let (font_size, text_offset, _calc_area, icon_scale, padding) = button_metrics(

@@ -178,19 +178,40 @@ impl SceneBundle {
         }
     }
 }
+pub(crate) trait ToExternalArgs {
+    type Args<'a> where Self: 'a;
+    fn to_external_args<'a, 'b: 'a>(&'b self) -> Self::Args<'a>;
+}
+impl ToExternalArgs for () {
+    type Args<'a> = ();
 
+    fn to_external_args<'a, 'b: 'a>(&'b self) -> Self::Args<'a> {
+        ()
+    }
+}
+impl<R: Resource> ToExternalArgs for (Res<'_, R>,) {
+    type Args<'a> = (&'a R,) where Self: 'a;
+    fn to_external_args<'a, 'b: 'a>(&'b self) -> Self::Args<'a> {
+        (&self.0,)
+    }
+}
+impl<R: Resource, A: Resource> ToExternalArgs for (Res<'_, R>, Res<'_, A>) {
+    type Args<'a> = (&'a R, &'a A) where Self: 'a;
+    fn to_external_args<'a, 'b: 'a>(&'b self) -> Self::Args<'a> {
+        (&self.0, &self.1)
+    }
+}
 pub trait Scene
 where
     Self: Bundle,
 {
-    type Args<'a>;
-    type ExternalResources<'a>;
-    type ExternalArgs<'a>;
+    type Args<'a>: Send + Sync;
+    type ExternalResources<'a>: ToExternalArgs;
     fn bind_nodes(
         cmd: &mut Commands,
         anchor: SceneAnchor,
         args: &Self::Args<'_>,
-        external_args: &Self::ExternalArgs<'_>,
+        external_args: &ExternalArgs<'_, Self>,
         binder: &mut SceneBinder,
     ) -> Self;
 }
@@ -199,7 +220,7 @@ pub trait SceneSpawn {
         &mut self,
         anchor: SceneAnchor,
         args: &S::Args<'_>,
-        external_args: &S::ExternalArgs<'_>,
+        external_args: &ExternalArgs<'_, S>,
         root: SceneRoot,
     ) -> Entity;
 }
@@ -208,7 +229,7 @@ impl<'a, 'b> SceneSpawn for Commands<'a, 'b> {
         &mut self,
         anchor: SceneAnchor,
         args: &S::Args<'_>,
-        external_args: &S::ExternalArgs<'_>,
+        external_args: &ExternalArgs<'_, S>,
         root: SceneRoot,
     ) -> Entity {
         let this = self.spawn_empty().id();
@@ -221,10 +242,10 @@ impl<'a, 'b> SceneSpawn for Commands<'a, 'b> {
         this
     }
 }
+pub type ExternalArgs<'a, S: Scene> = <S::ExternalResources<'a> as crate::scene::ToExternalArgs>::Args<'a>;
 #[macro_export]
 macro_rules! external_args {
     ($first:ty $(,$typename:ty)*) => {
         type ExternalResources<'a> = (bevy_ecs::prelude::Res<'a, $first> $(, bevy_ecs::prelude::Res<'a, $typename>)*);
-        type ExternalArgs<'a> = (&'a $first $(, &'a $typename)*);
     };
 }

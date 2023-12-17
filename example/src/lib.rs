@@ -142,7 +142,6 @@ struct DualButton {}
 impl Scene for DualButton {
     type Args<'a> = <Button as Scene>::Args<'a>;
     type ExternalResources<'a> = <Button as Scene>::ExternalResources<'a>;
-    type ExternalArgs<'a> = <Button as Scene>::ExternalArgs<'a>;
     fn bind_nodes(
         cmd: &mut Commands,
         anchor: SceneAnchor,
