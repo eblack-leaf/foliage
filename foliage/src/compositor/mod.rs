@@ -1,28 +1,20 @@
 use crate::coordinate::{Coordinate, InterfaceContext};
 use crate::scene::align::SceneAnchor;
-use crate::scene::bind::{SceneNodes, SceneRoot};
+use crate::scene::bind::SceneRoot;
 use crate::scene::{Scene, SceneSpawn};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, Resource};
 use bevy_ecs::query::Changed;
-use bevy_ecs::system::{Commands, Query, Res, ResMut};
+use bevy_ecs::system::{Commands, Query, ResMut};
 use std::collections::HashMap;
 
 #[derive(Resource)]
 pub struct Compositor {
     pub(crate) segments: HashMap<SegmentHandle, Segment>,
-    pub(crate) nodes: HashMap<SegmentHandle, SceneNodes>,
+    pub(crate) nodes: HashMap<SegmentHandle, Entity>,
     pub(crate) transitions: HashMap<SegmentHandle, TransitionHandles>,
     pub(crate) current_binding: HashMap<SegmentHandle, TransitionBinding>,
-    pub(crate) padding: HashMap<SegmentHandle, SegmentPadding>,
-}
-pub struct SegmentPadding(pub HashMap<SegmentBinding, Padding>);
-pub struct Padding {}
-impl Padding {
-    pub fn padded_anchor(&self, scene_anchor: SceneAnchor) -> SceneAnchor {
-        todo!()
-    }
 }
 pub struct Segment(pub Coordinate<InterfaceContext>);
 pub struct SegmentNodes(pub HashMap<SegmentBinding, Entity>);
@@ -58,15 +50,7 @@ fn spawn_scene_requests<'a, S: Scene>(
     for (entity, requests, selected, handle) in transitions.iter() {
         if selected.0 {
             for request in requests.0.iter() {
-                let padding = compositor
-                    .padding
-                    .get(handle)
-                    .unwrap()
-                    .0
-                    .get(request.0)
-                    .unwrap();
-                let anchor =
-                    padding.padded_anchor(SceneAnchor(compositor.segments.get(handle).unwrap().0));
+                let anchor = SceneAnchor(compositor.segments.get(handle).unwrap().0);
                 cmd.spawn_scene::<S>(anchor, &request.1, &external_res, SceneRoot::default());
             }
             cmd.entity(entity)
