@@ -15,7 +15,9 @@ pub struct Compositor {
     pub(crate) nodes: HashMap<SegmentHandle, SceneNodes>,
     pub(crate) transitions: HashMap<SegmentHandle, TransitionHandles>,
     pub(crate) current_binding: HashMap<SegmentHandle, TransitionBinding>,
+    pub(crate) padding: HashMap<SegmentHandle, SegmentPadding>,
 }
+pub struct SegmentPadding(pub HashMap<SegmentBinding, Padding>);
 pub struct Padding {}
 impl Padding {
     pub fn padded_anchor(&self, scene_anchor: SceneAnchor) -> SceneAnchor {
@@ -24,19 +26,21 @@ impl Padding {
 }
 pub struct Segment(pub Coordinate<InterfaceContext>);
 pub struct SegmentNodes(pub HashMap<SegmentBinding, Entity>);
+#[derive(Hash, Eq, PartialEq, Copy, Clone)]
 pub struct SegmentBinding(pub i32);
 #[derive(Component, Copy, Clone, Hash, Eq, PartialEq)]
 pub struct SegmentHandle(pub i32);
 pub struct TransitionBinding(pub i32);
 pub struct TransitionHandles(pub HashMap<TransitionBinding, Entity>);
 #[derive(Component)]
-pub struct TransitionBindRequests<B: Bundle>(pub HashMap<SegmentBinding, (B, Padding)>);
+pub struct TransitionBindRequests<B: Bundle>(pub HashMap<SegmentBinding, B>);
 #[derive(Component)]
 pub struct TransitionSceneBindRequests<S: Scene + Send + Sync + 'static>(
-    pub HashMap<SegmentBinding, (S::Args<'static>, Padding)>,
+    pub HashMap<SegmentBinding, S::Args<'static>>,
 );
 #[derive(Component, Copy, Clone)]
 pub struct TransitionSelected(pub bool);
+// spawn (non-scene) bind requests
 fn spawn_scene_requests<'a, S: Scene>(
     transitions: Query<
         (
@@ -54,13 +58,16 @@ fn spawn_scene_requests<'a, S: Scene>(
     for (entity, requests, selected, handle) in transitions.iter() {
         if selected.0 {
             for request in requests.0.iter() {
-                let anchor = SceneAnchor(compositor.segments.get(handle).unwrap().0);
-                cmd.spawn_scene::<S>(
-                    request.1 .1.padded_anchor(anchor),
-                    &request.1 .0,
-                    &external_res,
-                    SceneRoot::default(),
-                );
+                let padding = compositor
+                    .padding
+                    .get(handle)
+                    .unwrap()
+                    .0
+                    .get(request.0)
+                    .unwrap();
+                let anchor =
+                    padding.padded_anchor(SceneAnchor(compositor.segments.get(handle).unwrap().0));
+                cmd.spawn_scene::<S>(anchor, &request.1, &external_res, SceneRoot::default());
             }
             cmd.entity(entity)
                 .remove::<TransitionSceneBindRequests<S>>();
