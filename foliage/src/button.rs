@@ -4,12 +4,11 @@ use crate::coordinate::InterfaceContext;
 use crate::elm::config::{ElmConfiguration, ExternalSet};
 use crate::elm::leaf::{Leaf, Tag};
 use crate::elm::Elm;
-use crate::external_args;
 use crate::icon::{Icon, IconId, IconScale};
 use crate::panel::{Panel, PanelContentArea, PanelStyle};
 use crate::scene::align::{PositionAlignment, SceneAligner, SceneAnchor};
 use crate::scene::bind::{SceneBinder, SceneNodes};
-use crate::scene::{ExternalArgs, Scene};
+use crate::scene::{Scene};
 use crate::text::font::MonospacedFont;
 use crate::text::{FontSize, MaxCharacters, Text, TextValue};
 use crate::window::ScaleFactor;
@@ -185,19 +184,19 @@ fn button_metrics(
 }
 impl Scene for Button {
     type Args<'a> = ButtonArgs;
-    external_args!(MonospacedFont, ScaleFactor);
+    type ExternalResources<'a> = (Res<'a, MonospacedFont>, Res<'a, ScaleFactor>);
     fn bind_nodes(
         cmd: &mut Commands,
         anchor: SceneAnchor,
         args: &Self::Args<'_>,
-        external_args: &ExternalArgs<'_, Self>,
+        external_args: &Self::ExternalResources<'_>,
         binder: &mut SceneBinder,
     ) -> Self {
         let (font_size, text_offset, _calc_area, icon_scale, padding) = button_metrics(
             anchor.0.section.area,
             args.max_char,
-            external_args.0,
-            external_args.1,
+            &external_args.0,
+            &external_args.1,
         );
         binder.bind(
             0,

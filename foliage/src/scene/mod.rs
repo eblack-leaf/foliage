@@ -180,25 +180,24 @@ impl SceneBundle {
 }
 pub(crate) trait ToExternalArgs {
     type Args<'a> where Self: 'a;
-    fn to_external_args<'a, 'b: 'a>(&'b self) -> Self::Args<'a>;
+    fn to_external_args<'a>(&self) -> Self::Args<'_>;
 }
 impl ToExternalArgs for () {
     type Args<'a> = ();
-
-    fn to_external_args<'a, 'b: 'a>(&'b self) -> Self::Args<'a> {
+    fn to_external_args<'a>(&self) -> Self::Args<'_> {
         ()
     }
 }
 impl<R: Resource> ToExternalArgs for (Res<'_, R>,) {
-    type Args<'a> = (&'a R,) where Self: 'a;
-    fn to_external_args<'a, 'b: 'a>(&'b self) -> Self::Args<'a> {
-        (&self.0,)
+    type Args<'a> = (Res<'a, R>,) where Self: 'a;
+    fn to_external_args<'a>(&self) -> Self::Args<'_> {
+        (Res::clone(&self.0),)
     }
 }
 impl<R: Resource, A: Resource> ToExternalArgs for (Res<'_, R>, Res<'_, A>) {
-    type Args<'a> = (&'a R, &'a A) where Self: 'a;
-    fn to_external_args<'a, 'b: 'a>(&'b self) -> Self::Args<'a> {
-        (&self.0, &self.1)
+    type Args<'a> = (Res<'a, R>, Res<'a, A>) where Self: 'a;
+    fn to_external_args<'a>(&self) -> Self::Args<'_> {
+        (Res::clone(&self.0), Res::clone(&self.1))
     }
 }
 pub trait Scene
@@ -242,10 +241,5 @@ impl<'a, 'b> SceneSpawn for Commands<'a, 'b> {
         this
     }
 }
-pub type ExternalArgs<'a, S: Scene> = <S::ExternalResources<'a> as crate::scene::ToExternalArgs>::Args<'a>;
-#[macro_export]
-macro_rules! external_args {
-    ($first:ty $(,$typename:ty)*) => {
-        type ExternalResources<'a> = (bevy_ecs::prelude::Res<'a, $first> $(, bevy_ecs::prelude::Res<'a, $typename>)*);
-    };
-}
+
+pub type ExternalArgs<'a, S: Scene> = <S::ExternalResources<'a> as ToExternalArgs>::Args<'a>;

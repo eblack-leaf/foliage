@@ -4,10 +4,10 @@ use crate::scene::bind::{SceneNodes, SceneRoot};
 use crate::scene::{Scene, SceneSpawn, ToExternalArgs};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
+use bevy_ecs::prelude::{Component, Resource};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Commands, Query, Res, ResMut};
 use std::collections::HashMap;
-use bevy_ecs::prelude::{Component, Resource};
 
 #[derive(Resource)]
 pub struct Compositor {
@@ -51,7 +51,7 @@ fn spawn_scene_requests<'a, 'b, S: Scene>(
     external_res: S::ExternalResources<'b>,
     mut compositor: ResMut<Compositor>,
 ) {
-    let external_args = external_res.to_external_args::<'a, 'b>();
+    let external_args = external_res.to_external_args::<'a>();
     for (entity, requests, selected, handle) in transitions.iter() {
         if selected.0 {
             for request in requests.0.iter() {
