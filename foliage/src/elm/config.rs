@@ -64,11 +64,21 @@ impl<'a> ElmConfiguration<'a> {
             crate::differential::despawn
                 .in_set(CoreSet::RenderPacket)
                 .after(crate::differential::send_render_packet),
-            apply_deferred.after(CoreSet::ExternalEvent).before(ExternalSet::Process),
-            apply_deferred.after(ExternalSet::Process).before(CoreSet::ProcessEvent),
-            apply_deferred.after(CoreSet::ProcessEvent).before(CoreSet::Spawn),
-            apply_deferred.after(CoreSet::Spawn).before(ExternalSet::Resolve),
-            apply_deferred.after(ExternalSet::Resolve).before(CoreSet::Coordinate),
+            apply_deferred
+                .after(CoreSet::ExternalEvent)
+                .before(ExternalSet::Process),
+            apply_deferred
+                .after(ExternalSet::Process)
+                .before(CoreSet::ProcessEvent),
+            apply_deferred
+                .after(CoreSet::ProcessEvent)
+                .before(CoreSet::Spawn),
+            apply_deferred
+                .after(CoreSet::Spawn)
+                .before(ExternalSet::Resolve),
+            apply_deferred
+                .after(ExternalSet::Resolve)
+                .before(CoreSet::Coordinate),
         ));
         let mut config = Self(elm);
         for leaf in leaflets.iter() {

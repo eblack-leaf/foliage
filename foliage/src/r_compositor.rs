@@ -35,7 +35,7 @@ pub struct Workflow {
 }
 pub enum TransitionRemove {
     Specific(HashSet<SegmentBinding>),
-    All
+    All,
 }
 pub struct TransitionRemovals(pub HashMap<WorkflowBinding, TransitionRemove>);
 pub struct SegmentAdditions(pub HashMap<SegmentHandle, Segment>);
