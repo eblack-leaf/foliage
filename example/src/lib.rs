@@ -66,6 +66,7 @@ fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Re
         ),
         4,
     );
+    let args = (font, scale_factor);
     let _entity = cmd.spawn_scene::<Button>(
         SceneAnchor(coordinate_one),
         &ButtonArgs::new(
@@ -76,7 +77,7 @@ fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Re
             Color::RED.into(),
             Color::OFF_BLACK.into(),
         ),
-        &(&font, &scale_factor),
+        &args,
         SceneRoot::default(),
     );
     let _entity = cmd.spawn_scene::<Button>(
@@ -89,7 +90,7 @@ fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Re
             Color::GREEN.into(),
             Color::OFF_BLACK.into(),
         ),
-        &(&font, &scale_factor),
+        &args,
         SceneRoot::default(),
     );
     let _entity = cmd.spawn_scene::<Button>(
@@ -102,7 +103,7 @@ fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Re
             Color::BLUE.into(),
             Color::OFF_BLACK.into(),
         ),
-        &(&font, &scale_factor),
+        &args,
         SceneRoot::default(),
     );
     let _e = cmd.spawn_scene::<DualButton>(
@@ -115,7 +116,7 @@ fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Re
             Color::RED_ORANGE_DARK.into(),
             Color::RED_ORANGE.into(),
         ),
-        &(&font, &scale_factor),
+        &args,
         SceneRoot::default(),
     );
     cmd.insert_resource(ToDespawn(_e));
@@ -146,7 +147,7 @@ impl Scene for DualButton {
         cmd: &mut Commands,
         anchor: SceneAnchor,
         args: &Self::Args<'_>,
-        external_args: &Self::ExternalArgs<'_>,
+        external_args: &Self::ExternalResources<'_>,
         binder: &mut SceneBinder,
     ) -> Self {
         binder.bind_scene::<Button>(

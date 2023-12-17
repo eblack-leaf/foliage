@@ -1,7 +1,7 @@
 use crate::coordinate::{Coordinate, InterfaceContext};
 use crate::scene::align::SceneAnchor;
 use crate::scene::bind::{SceneNodes, SceneRoot};
-use crate::scene::{Scene, SceneSpawn, ToExternalArgs};
+use crate::scene::{Scene, SceneSpawn};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, Resource};
@@ -37,7 +37,7 @@ pub struct TransitionSceneBindRequests<S: Scene + Send + Sync + 'static>(
 );
 #[derive(Component, Copy, Clone)]
 pub struct TransitionSelected(pub bool);
-fn spawn_scene_requests<'a, 'b, S: Scene>(
+fn spawn_scene_requests<'a, S: Scene>(
     transitions: Query<
         (
             Entity,
@@ -48,10 +48,9 @@ fn spawn_scene_requests<'a, 'b, S: Scene>(
         Changed<TransitionSelected>,
     >,
     mut cmd: Commands,
-    external_res: S::ExternalResources<'b>,
+    external_res: S::ExternalResources<'_>,
     mut compositor: ResMut<Compositor>,
 ) {
-    let external_args = external_res.to_external_args::<'a>();
     for (entity, requests, selected, handle) in transitions.iter() {
         if selected.0 {
             for request in requests.0.iter() {
@@ -59,7 +58,7 @@ fn spawn_scene_requests<'a, 'b, S: Scene>(
                 cmd.spawn_scene::<S>(
                     request.1 .1.padded_anchor(anchor),
                     &request.1 .0,
-                    &external_args,
+                    &external_res,
                     SceneRoot::default(),
                 );
             }

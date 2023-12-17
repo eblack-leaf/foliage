@@ -178,39 +178,17 @@ impl SceneBundle {
         }
     }
 }
-pub(crate) trait ToExternalArgs {
-    type Args<'a> where Self: 'a;
-    fn to_external_args<'a>(&self) -> Self::Args<'_>;
-}
-impl ToExternalArgs for () {
-    type Args<'a> = ();
-    fn to_external_args<'a>(&self) -> Self::Args<'_> {
-        ()
-    }
-}
-impl<R: Resource> ToExternalArgs for (Res<'_, R>,) {
-    type Args<'a> = (Res<'a, R>,) where Self: 'a;
-    fn to_external_args<'a>(&self) -> Self::Args<'_> {
-        (Res::clone(&self.0),)
-    }
-}
-impl<R: Resource, A: Resource> ToExternalArgs for (Res<'_, R>, Res<'_, A>) {
-    type Args<'a> = (Res<'a, R>, Res<'a, A>) where Self: 'a;
-    fn to_external_args<'a>(&self) -> Self::Args<'_> {
-        (Res::clone(&self.0), Res::clone(&self.1))
-    }
-}
 pub trait Scene
 where
     Self: Bundle,
 {
     type Args<'a>: Send + Sync;
-    type ExternalResources<'a>: ToExternalArgs;
+    type ExternalResources<'a>;
     fn bind_nodes(
         cmd: &mut Commands,
         anchor: SceneAnchor,
         args: &Self::Args<'_>,
-        external_args: &ExternalArgs<'_, Self>,
+        external_args: &Self::ExternalResources<'_>,
         binder: &mut SceneBinder,
     ) -> Self;
 }
@@ -219,7 +197,7 @@ pub trait SceneSpawn {
         &mut self,
         anchor: SceneAnchor,
         args: &S::Args<'_>,
-        external_args: &ExternalArgs<'_, S>,
+        external_args: &S::ExternalResources<'_>,
         root: SceneRoot,
     ) -> Entity;
 }
@@ -228,7 +206,7 @@ impl<'a, 'b> SceneSpawn for Commands<'a, 'b> {
         &mut self,
         anchor: SceneAnchor,
         args: &S::Args<'_>,
-        external_args: &ExternalArgs<'_, S>,
+        external_args: &S::ExternalResources<'_>,
         root: SceneRoot,
     ) -> Entity {
         let this = self.spawn_empty().id();
@@ -241,5 +219,3 @@ impl<'a, 'b> SceneSpawn for Commands<'a, 'b> {
         this
     }
 }
-
-pub type ExternalArgs<'a, S: Scene> = <S::ExternalResources<'a> as ToExternalArgs>::Args<'a>;

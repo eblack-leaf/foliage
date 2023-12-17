@@ -8,7 +8,7 @@ use crate::icon::{Icon, IconId, IconScale};
 use crate::panel::{Panel, PanelContentArea, PanelStyle};
 use crate::scene::align::{PositionAlignment, SceneAligner, SceneAnchor};
 use crate::scene::bind::{SceneBinder, SceneNodes};
-use crate::scene::{Scene};
+use crate::scene::Scene;
 use crate::text::font::MonospacedFont;
 use crate::text::{FontSize, MaxCharacters, Text, TextValue};
 use crate::window::ScaleFactor;
