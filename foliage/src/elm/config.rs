@@ -1,6 +1,6 @@
 use crate::elm::leaf::{Leaf, Leaflet};
 use crate::elm::Elm;
-use bevy_ecs::prelude::{IntoSystemConfigs, SystemSet};
+use bevy_ecs::prelude::{apply_deferred, IntoSystemConfigs, SystemSet};
 
 #[derive(SystemSet, Hash, Eq, PartialEq, Debug, Copy, Clone)]
 pub enum ExternalSet {
@@ -9,8 +9,9 @@ pub enum ExternalSet {
 }
 #[derive(SystemSet, Hash, Eq, PartialEq, Debug, Copy, Clone)]
 pub enum CoreSet {
-    Event,
+    ExternalEvent,
     // Process,
+    ProcessEvent,
     Spawn,
     // Resolve,
     Coordinate,
@@ -32,8 +33,9 @@ impl<'a> ElmConfiguration<'a> {
         use bevy_ecs::prelude::IntoSystemSetConfigs;
         elm.main().configure_sets(
             (
-                CoreSet::Event,
+                CoreSet::ExternalEvent,
                 ExternalSet::Process,
+                CoreSet::ProcessEvent,
                 CoreSet::Spawn,
                 ExternalSet::Resolve,
                 CoreSet::Coordinate,
@@ -62,6 +64,11 @@ impl<'a> ElmConfiguration<'a> {
             crate::differential::despawn
                 .in_set(CoreSet::RenderPacket)
                 .after(crate::differential::send_render_packet),
+            apply_deferred.after(CoreSet::ExternalEvent).before(ExternalSet::Process),
+            apply_deferred.after(ExternalSet::Process).before(CoreSet::ProcessEvent),
+            apply_deferred.after(CoreSet::ProcessEvent).before(CoreSet::Spawn),
+            apply_deferred.after(CoreSet::Spawn).before(ExternalSet::Resolve),
+            apply_deferred.after(ExternalSet::Resolve).before(CoreSet::Coordinate),
         ));
         let mut config = Self(elm);
         for leaf in leaflets.iter() {
