@@ -17,10 +17,14 @@ pub struct Compositor {
     pub bindings: HashMap<SegmentHandle, HashMap<SegmentBinding, Entity>>,
     pub workflow_group: HashMap<WorkflowHandle, Workflow>,
     pub transitions: HashMap<WorkflowHandle, HashMap<TransitionKey, Entity>>,
+    pub segment_handle_factory: HandleGenerator,
+}
+pub struct HandleGenerator {
+    // workflow + segment
 }
 #[derive(Event)]
 pub struct WorkflowTransition(pub WorkflowHandle, pub WorkflowStage);
-pub(crate) struct TransitionEngaged(pub(crate) bool);
+pub struct TransitionEngaged(pub bool);
 pub struct TransitionKey {
     segment_handle: SegmentHandle,
     stage: WorkflowStage,
@@ -29,7 +33,12 @@ pub struct Workflow {
     stage: WorkflowStage,
     group: WorkflowGroup,
 }
-pub struct TransitionRemovals(pub HashSet<SegmentBinding>);
+pub enum TransitionRemove {
+    Specific(HashSet<SegmentBinding>),
+    All
+}
+pub struct TransitionRemovals(pub HashMap<WorkflowBinding, TransitionRemove>);
+pub struct SegmentAdditions(pub HashMap<SegmentHandle, Segment>);
 pub struct TransitionBindRequest<B: Bundle>(pub SegmentBinding, pub B);
 fn fill_bind_requests<B: Bundle>(
     mut cmd: Commands,
@@ -38,6 +47,7 @@ fn fill_bind_requests<B: Bundle>(
             &TransitionBindRequest<B>,
             &TransitionRemovals,
             &TransitionEngaged,
+            &SegmentAdditions,
         ),
         Changed<TransitionEngaged>,
     >,
