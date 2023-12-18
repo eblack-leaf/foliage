@@ -4,8 +4,7 @@ use crate::differential::Despawn;
 use crate::elm::config::{CoreSet, ElmConfiguration};
 use crate::elm::leaf::{EmptySetDescriptor, Leaf};
 use crate::elm::{Elm, EventStage};
-use crate::scene::Scene;
-use bevy_ecs::component::Component;
+
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::EventReader;
 use bevy_ecs::prelude::{IntoSystemConfigs, Query, Resource};

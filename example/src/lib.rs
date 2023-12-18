@@ -1,8 +1,8 @@
 use foliage::bevy_ecs::bundle::Bundle;
-use foliage::bevy_ecs::change_detection::Res;
+
 use foliage::bevy_ecs::event::EventWriter;
-use foliage::bevy_ecs::prelude::{Commands, Entity, IntoSystemConfigs, Resource};
-use foliage::bevy_ecs::system::{Local, ResMut, SystemParamItem};
+use foliage::bevy_ecs::prelude::{Commands, Entity, Resource};
+use foliage::bevy_ecs::system::{ResMut, SystemParamItem};
 use foliage::button::{Button, ButtonArgs, ButtonStyle};
 use foliage::color::Color;
 use foliage::compositor::segment::{Segment, SegmentDesc};
@@ -10,22 +10,18 @@ use foliage::compositor::workflow::{
     Transition, TransitionSceneRequest, Workflow, WorkflowHandle, WorkflowStage, WorkflowTransition,
 };
 use foliage::compositor::Compositor;
-use foliage::coordinate::area::Area;
-use foliage::coordinate::position::Position;
-use foliage::coordinate::section::Section;
-use foliage::coordinate::{Coordinate, InterfaceContext};
-use foliage::differential::Despawn;
-use foliage::elm::config::{CoreSet, ElmConfiguration};
+
+use foliage::elm::config::ElmConfiguration;
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 use foliage::elm::Elm;
 use foliage::icon::bundled_cov::BundledIcon;
 use foliage::icon::IconId;
 use foliage::scene::align::{SceneAligner, SceneAnchor};
-use foliage::scene::bind::{SceneBinder, SceneRoot};
-use foliage::scene::{Scene, SceneSpawn};
-use foliage::text::font::MonospacedFont;
+use foliage::scene::bind::SceneBinder;
+use foliage::scene::Scene;
+
 use foliage::text::{MaxCharacters, TextValue};
-use foliage::window::{ScaleFactor, WindowDescriptor};
+use foliage::window::WindowDescriptor;
 use foliage::{bevy_ecs, scene_bind_enable};
 use foliage::{AndroidInterface, Foliage};
 use std::collections::HashMap;
