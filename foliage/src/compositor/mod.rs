@@ -16,6 +16,7 @@ use workflow::{
     TransitionEngaged, TransitionRemovals, Workflow, WorkflowHandle, WorkflowTransition,
 };
 
+pub mod layout;
 pub mod segment;
 pub mod workflow;
 
