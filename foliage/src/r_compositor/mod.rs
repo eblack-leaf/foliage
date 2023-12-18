@@ -4,20 +4,21 @@ use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::{Coordinate, CoordinateUnit, InterfaceContext};
 use crate::differential::Despawn;
+use crate::elm::config::{CoreSet, ElmConfiguration};
+use crate::elm::leaf::{EmptySetDescriptor, Leaf};
+use crate::elm::Elm;
 use crate::ginkgo::viewport::ViewportHandle;
-use crate::scene::align::{AlignmentPoint, SceneAnchor};
+use crate::scene::align::SceneAnchor;
 use crate::scene::bind::SceneRoot;
 use crate::scene::{Scene, SceneSpawn};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Event, Query, Resource};
+use bevy_ecs::event::EventReader;
+use bevy_ecs::prelude::{Event, IntoSystemConfigs, Query, Resource};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Commands, Res, ResMut};
 use std::collections::{HashMap, HashSet};
-use crate::elm::config::ElmConfiguration;
-use crate::elm::Elm;
-use crate::elm::leaf::{EmptySetDescriptor, Leaf};
 
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
 pub struct SegmentHandle(pub i32);
@@ -46,7 +47,6 @@ impl Compositor {
 pub struct WorkflowHandle(pub i32);
 pub struct Workflow {
     stage: WorkflowStage,
-    bindings: HashSet<SegmentHandle>,
     transitions: HashMap<WorkflowStage, Entity>,
 }
 #[derive(Default)]
@@ -86,7 +86,22 @@ pub struct TransitionKey {
 pub struct TransitionBindRequest<B: Bundle>(pub Vec<(SegmentHandle, Option<B>)>);
 fn workflow_update(
     mut compositor: ResMut<Compositor>,
-) {}
+    mut events: EventReader<WorkflowTransition>,
+    mut cmd: Commands,
+) {
+    for event in events.read() {
+        if let Some(transition) = compositor
+            .workflow
+            .get(&event.0)
+            .unwrap()
+            .transitions
+            .get(&event.1)
+        {
+            cmd.entity(*transition).insert(TransitionEngaged(true));
+        }
+        compositor.workflow.get_mut(&event.0).unwrap().stage = event.1;
+    }
+}
 fn fill_bind_requests<B: Bundle>(
     mut cmd: Commands,
     mut query: Query<
@@ -207,10 +222,12 @@ pub struct Segment {
 impl Leaf for Compositor {
     type SetDescriptor = EmptySetDescriptor;
 
-    fn config(_elm_configuration: &mut ElmConfiguration) {
-    }
+    fn config(_elm_configuration: &mut ElmConfiguration) {}
 
     fn attach(elm: &mut Elm) {
-        elm.main().add_systems(());
+        elm.main().add_systems((
+            workflow_update.in_set(CoreSet::CompositorSetup),
+            clear_engaged.in_set(CoreSet::CompositorTeardown),
+        ));
     }
 }
