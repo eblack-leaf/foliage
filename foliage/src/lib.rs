@@ -14,10 +14,12 @@ use crate::ash::render::Render;
 use crate::ash::Ash;
 use crate::button::Button;
 use crate::circle::Circle;
+use crate::compositor::Compositor;
 use crate::coordinate::CoordinateUnit;
 use crate::elm::Elm;
 use crate::ginkgo::Ginkgo;
 use crate::icon::Icon;
+use crate::image::Image;
 use crate::panel::Panel;
 use crate::rectangle::Rectangle;
 use crate::text::Text;
@@ -87,7 +89,9 @@ impl Foliage {
             .with_renderleaf::<Rectangle>()
             .with_renderleaf::<Icon>()
             .with_renderleaf::<Text>()
+            .with_renderleaf::<Image>()
             .with_leaf::<Button>()
+            .with_leaf::<Compositor>()
     }
     pub fn with_android_interface(mut self, android_interface: AndroidInterface) -> Self {
         self.android_interface = android_interface;

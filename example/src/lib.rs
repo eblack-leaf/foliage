@@ -119,7 +119,7 @@ fn spawn_button_tree(mut cmd: Commands, scale_factor: Res<ScaleFactor>, font: Re
         &args,
         SceneRoot::default(),
     );
-    cmd.insert_resource(ToDespawn(_e));
+    cmd.insert_resource(ToDespawn(_entity));
 }
 fn despawn_button(to_despawn: Res<ToDespawn>, mut cmd: Commands, mut local: Local<bool>) {
     if !*local {

@@ -6,13 +6,12 @@ use crate::coordinate::{Coordinate, CoordinateUnit, InterfaceContext};
 use crate::differential::Despawn;
 use crate::elm::config::{CoreSet, ElmConfiguration};
 use crate::elm::leaf::{EmptySetDescriptor, Leaf};
-use crate::elm::Elm;
-use crate::scene::{Scene};
-use bevy_ecs::bundle::Bundle;
+use crate::elm::{Elm, EventStage};
+use crate::scene::Scene;
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::EventReader;
-use bevy_ecs::prelude::{Event, IntoSystemConfigs, Query, Resource};
+use bevy_ecs::prelude::{IntoSystemConfigs, Query, Resource};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Commands, ResMut};
 use std::collections::HashMap;
@@ -164,6 +163,7 @@ impl Leaf for Compositor {
 
     fn attach(elm: &mut Elm) {
         elm.job.container.insert_resource(Compositor::default());
+        elm.add_event::<WorkflowTransition>(EventStage::Process);
         elm.main().add_systems((
             workflow_update.in_set(CoreSet::CompositorSetup),
             clear_engaged.in_set(CoreSet::CompositorTeardown),

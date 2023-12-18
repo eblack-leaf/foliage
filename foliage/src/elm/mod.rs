@@ -6,6 +6,7 @@ use std::marker::PhantomData;
 
 use anymap::AnyMap;
 use bevy_ecs::bundle::Bundle;
+use bevy_ecs::event::{event_update_system, Event, Events};
 use bevy_ecs::prelude::{Component, IntoSystemConfigs};
 use compact_str::{CompactString, ToCompactString};
 use leaf::Leaflet;
@@ -43,7 +44,18 @@ impl<T> Default for DifferentialLimiter<T> {
         DifferentialLimiter(PhantomData)
     }
 }
-
+pub enum EventStage {
+    External,
+    Process,
+}
+impl EventStage {
+    pub fn set(&self) -> CoreSet {
+        match self {
+            EventStage::External => CoreSet::ExternalEvent,
+            EventStage::Process => CoreSet::ProcessEvent,
+        }
+    }
+}
 impl Elm {
     pub fn main(&mut self) -> &mut Task {
         self.job.main()
@@ -110,6 +122,11 @@ impl Elm {
             .unwrap()
             .section
             .area = area;
+    }
+    pub fn add_event<E: Event>(&mut self, stage: EventStage) {
+        self.job.container.insert_resource(Events::<E>::default());
+        self.main()
+            .add_systems((event_update_system::<E>.in_set(stage.set()),));
     }
     pub fn enable_bind<B: Bundle>(&mut self) {
         if self.limiters.get::<Tag<B>>().is_none() {

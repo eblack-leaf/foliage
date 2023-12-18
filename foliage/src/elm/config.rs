@@ -59,6 +59,10 @@ impl<'a> ElmConfiguration<'a> {
                 .in_set(CoreSet::Coordinate)
                 .before(crate::scene::align::calc_alignments)
                 .after(crate::scene::register_root),
+            apply_deferred
+                .in_set(CoreSet::Coordinate)
+                .before(crate::scene::align::calc_alignments)
+                .after(crate::scene::resolve_anchor),
             crate::scene::align::calc_alignments.in_set(CoreSet::Coordinate),
             crate::coordinate::position_set
                 .in_set(CoreSet::Coordinate)
