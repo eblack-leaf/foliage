@@ -5,6 +5,7 @@ use bevy_ecs::prelude::{apply_deferred, IntoSystemConfigs, SystemSet};
 #[derive(SystemSet, Hash, Eq, PartialEq, Debug, Copy, Clone)]
 pub enum ExternalSet {
     Process,
+    CompositorBind,
     Resolve,
 }
 #[derive(SystemSet, Hash, Eq, PartialEq, Debug, Copy, Clone)]
@@ -12,6 +13,8 @@ pub enum CoreSet {
     ExternalEvent,
     // Process,
     ProcessEvent,
+    CompositorSetup,
+    CompositorTeardown,
     Spawn,
     // Resolve,
     Coordinate,
@@ -36,6 +39,9 @@ impl<'a> ElmConfiguration<'a> {
                 CoreSet::ExternalEvent,
                 ExternalSet::Process,
                 CoreSet::ProcessEvent,
+                CoreSet::CompositorSetup,
+                ExternalSet::CompositorBind,
+                CoreSet::CompositorTeardown,
                 CoreSet::Spawn,
                 ExternalSet::Resolve,
                 CoreSet::Coordinate,
@@ -72,6 +78,15 @@ impl<'a> ElmConfiguration<'a> {
                 .before(CoreSet::ProcessEvent),
             apply_deferred
                 .after(CoreSet::ProcessEvent)
+                .before(CoreSet::CompositorSetup),
+            apply_deferred
+                .after(CoreSet::CompositorSetup)
+                .before(ExternalSet::CompositorBind),
+            apply_deferred
+                .after(ExternalSet::CompositorBind)
+                .before(CoreSet::CompositorTeardown),
+            apply_deferred
+                .after(CoreSet::CompositorTeardown)
                 .before(CoreSet::Spawn),
             apply_deferred
                 .after(CoreSet::Spawn)
