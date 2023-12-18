@@ -7,9 +7,6 @@ use crate::differential::Despawn;
 use crate::elm::config::{CoreSet, ElmConfiguration};
 use crate::elm::leaf::{EmptySetDescriptor, Leaf};
 use crate::elm::Elm;
-use crate::ginkgo::viewport::ViewportHandle;
-use crate::scene::align::SceneAnchor;
-use crate::scene::bind::SceneRoot;
 use crate::scene::{Scene, SceneSpawn};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
@@ -17,12 +14,17 @@ use bevy_ecs::entity::Entity;
 use bevy_ecs::event::EventReader;
 use bevy_ecs::prelude::{Event, IntoSystemConfigs, Query, Resource};
 use bevy_ecs::query::Changed;
-use bevy_ecs::system::{Commands, Res, ResMut};
-use std::collections::{HashMap, HashSet};
+use bevy_ecs::system::{Commands, ResMut};
+use std::collections::HashMap;
+use workflow::{
+    TransitionEngaged, TransitionRemovals, Workflow, WorkflowHandle, WorkflowTransition,
+};
+
+pub mod workflow;
 
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
 pub struct SegmentHandle(pub i32);
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub struct Compositor {
     pub segments: HashMap<SegmentHandle, Segment>,
     pub bindings: HashMap<SegmentHandle, Entity>,
@@ -43,12 +45,7 @@ impl Compositor {
         coordinate
     }
 }
-#[derive(Hash, Eq, PartialEq, Copy, Clone)]
-pub struct WorkflowHandle(pub i32);
-pub struct Workflow {
-    stage: WorkflowStage,
-    transitions: HashMap<WorkflowStage, Entity>,
-}
+
 #[derive(Default)]
 pub struct HandleGenerator {
     segment: i32,
@@ -69,21 +66,7 @@ impl HandleGenerator {
         self.holes.push(handle.0);
     }
 }
-#[derive(Default, Copy, Clone, Hash, Eq, PartialEq)]
-pub struct WorkflowStage(pub i32);
-#[derive(Event)]
-pub struct WorkflowTransition(pub WorkflowHandle, pub WorkflowStage);
-#[derive(Component)]
-pub struct TransitionEngaged(pub bool);
-#[derive(Component)]
-pub struct TransitionRemovals(pub HashSet<SegmentHandle>);
-#[derive(Hash, Eq, PartialEq)]
-pub struct TransitionKey {
-    segment_handle: SegmentHandle,
-    stage: WorkflowStage,
-}
-#[derive(Component)]
-pub struct TransitionBindRequest<B: Bundle>(pub Vec<(SegmentHandle, Option<B>)>);
+
 fn workflow_update(
     mut compositor: ResMut<Compositor>,
     mut events: EventReader<WorkflowTransition>,
@@ -102,55 +85,10 @@ fn workflow_update(
         compositor.workflow.get_mut(&event.0).unwrap().stage = event.1;
     }
 }
-fn fill_bind_requests<B: Bundle>(
-    mut cmd: Commands,
-    mut query: Query<
-        (&mut TransitionBindRequest<B>, &TransitionEngaged),
-        Changed<TransitionEngaged>,
-    >,
-    mut compositor: ResMut<Compositor>,
-    viewport_handle: Res<ViewportHandle>,
-) {
-    for (mut request, engaged) in query.iter_mut() {
-        if engaged.0 {
-            for (handle, bundle) in request.0.iter_mut() {
-                let coordinate = compositor.coordinate(viewport_handle.section(), handle);
-                let entity = cmd.spawn(bundle.take().unwrap()).insert(coordinate).id();
-                let old = compositor.bindings.insert(*handle, entity);
-                if let Some(o) = old {
-                    cmd.entity(o).insert(Despawn::signal_despawn());
-                }
-            }
-        }
-    }
-}
+
 #[derive(Component)]
 pub struct TransitionSceneRequest<S: Scene>(pub Vec<(SegmentHandle, S::Args<'static>)>);
-fn fill_scene_bind_requests<S: Scene>(
-    mut compositor: ResMut<Compositor>,
-    query: Query<(&TransitionSceneRequest<S>, &TransitionEngaged)>,
-    mut cmd: Commands,
-    viewport_handle: Res<ViewportHandle>,
-    external_res: S::ExternalResources<'_>,
-) {
-    for (request, engaged) in query.iter() {
-        if engaged.0 {
-            for (handle, args) in request.0.iter() {
-                let coordinate = compositor.coordinate(viewport_handle.section(), handle);
-                let entity = cmd.spawn_scene::<S>(
-                    SceneAnchor(coordinate),
-                    args,
-                    &external_res,
-                    SceneRoot::default(),
-                );
-                let old = compositor.bindings.insert(*handle, entity);
-                if let Some(o) = old {
-                    cmd.entity(o).insert(Despawn::signal_despawn());
-                }
-            }
-        }
-    }
-}
+
 fn clear_engaged(
     mut engaged: Query<(&mut TransitionEngaged, &TransitionRemovals), Changed<TransitionEngaged>>,
     mut compositor: ResMut<Compositor>,
@@ -225,6 +163,7 @@ impl Leaf for Compositor {
     fn config(_elm_configuration: &mut ElmConfiguration) {}
 
     fn attach(elm: &mut Elm) {
+        elm.job.container.insert_resource(Compositor::default());
         elm.main().add_systems((
             workflow_update.in_set(CoreSet::CompositorSetup),
             clear_engaged.in_set(CoreSet::CompositorTeardown),

@@ -10,6 +10,7 @@ use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::Commands;
+use bevy_ecs::system::SystemParamItem;
 use std::collections::HashMap;
 
 #[derive(Hash, Eq, PartialEq, Copy, Clone, Component)]
@@ -98,7 +99,7 @@ impl SceneBinder {
         alignment: SceneAlignment,
         area: Area<InterfaceContext>,
         args: &S::Args<'_>,
-        external_args: &S::ExternalResources<'_>,
+        external_args: &SystemParamItem<S::ExternalResources>,
         cmd: &mut Commands,
     ) {
         let anchor = SceneAnchor(Coordinate::new(

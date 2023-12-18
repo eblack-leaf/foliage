@@ -52,7 +52,7 @@ impl ImageGroup {
 }
 pub struct ImageRenderResources {
     pipeline: wgpu::RenderPipeline,
-    bind_group: wgpu::BindGroup,
+    bind_group: BindGroup,
     package_layout: wgpu::BindGroupLayout,
     groups: HashMap<ImageId, ImageGroup>,
 }
@@ -65,7 +65,7 @@ impl Render for Image {
     type RenderPackage = ImageRenderPackage;
     const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(6);
 
-    fn create_resources(ginkgo: &Ginkgo) -> Self::Resources {
+    fn create_resources(_ginkgo: &Ginkgo) -> Self::Resources {
         todo!()
     }
 
@@ -164,9 +164,9 @@ impl Render for Image {
     }
 
     fn prepare_resources(
-        resources: &mut Self::Resources,
-        ginkgo: &Ginkgo,
-        per_renderer_record_hook: &mut bool,
+        _resources: &mut Self::Resources,
+        _ginkgo: &Ginkgo,
+        _per_renderer_record_hook: &mut bool,
     ) {
         // iter groups and prepare coordinators
         todo!()

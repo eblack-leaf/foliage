@@ -10,9 +10,9 @@ use crate::differential::Despawn;
 use align::{LayerAlignment, PositionAlignment, SceneAnchor};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Commands, DetectChanges, ParamSet, RemovedComponents, Res, Resource};
+use bevy_ecs::prelude::{Commands, DetectChanges, ParamSet, RemovedComponents, Resource};
 use bevy_ecs::query::{Changed, Or};
-use bevy_ecs::system::{Query, ResMut, SystemParam};
+use bevy_ecs::system::{Query, ResMut, SystemParam, SystemParamItem};
 use bind::{SceneBinder, SceneNodes, SceneRoot, SceneVisibility};
 use indexmap::IndexSet;
 use std::collections::{HashMap, HashSet};
@@ -124,10 +124,8 @@ pub(crate) fn register_root(
     for (entity, mut root, anchor, despawn) in query.iter_mut() {
         let need_insert = if coordinator.anchors.get(&entity).is_none() {
             true
-        } else if coordinator.anchors.get(&entity).unwrap().0 != anchor.0 {
-            true
         } else {
-            false
+            coordinator.anchors.get(&entity).unwrap().0 != anchor.0
         };
         if need_insert {
             coordinator.anchors.insert(entity, *anchor);
@@ -183,12 +181,12 @@ where
     Self: Bundle,
 {
     type Args<'a>: Send + Sync;
-    type ExternalResources<'a>;
+    type ExternalResources: SystemParam;
     fn bind_nodes(
         cmd: &mut Commands,
         anchor: SceneAnchor,
         args: &Self::Args<'_>,
-        external_args: &Self::ExternalResources<'_>,
+        external_args: &SystemParamItem<Self::ExternalResources>,
         binder: &mut SceneBinder,
     ) -> Self;
 }
@@ -197,7 +195,7 @@ pub trait SceneSpawn {
         &mut self,
         anchor: SceneAnchor,
         args: &S::Args<'_>,
-        external_args: &S::ExternalResources<'_>,
+        external_args: &SystemParamItem<S::ExternalResources>,
         root: SceneRoot,
     ) -> Entity;
 }
@@ -206,7 +204,7 @@ impl<'a, 'b> SceneSpawn for Commands<'a, 'b> {
         &mut self,
         anchor: SceneAnchor,
         args: &S::Args<'_>,
-        external_args: &S::ExternalResources<'_>,
+        external_args: &SystemParamItem<S::ExternalResources>,
         root: SceneRoot,
     ) -> Entity {
         let this = self.spawn_empty().id();

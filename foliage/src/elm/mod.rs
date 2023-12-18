@@ -5,6 +5,7 @@ use std::any::TypeId;
 use std::marker::PhantomData;
 
 use anymap::AnyMap;
+use bevy_ecs::bundle::Bundle;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs};
 use compact_str::{CompactString, ToCompactString};
 use leaf::Leaflet;
@@ -17,10 +18,11 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, InterfaceContext};
-use crate::elm::config::{CoreSet, ElmConfiguration};
+use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
+use crate::elm::leaf::Tag;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::job::{Job, Task};
-use crate::scene::SceneCoordinator;
+use crate::scene::{Scene, SceneCoordinator};
 use crate::window::ScaleFactor;
 
 pub struct Elm {
@@ -35,10 +37,10 @@ macro_rules! differential_enable {
         $($elm.enable_differential::<$typename>();)+
     };
 }
-struct DifferentialLimiter<T>(bool, PhantomData<T>);
+struct DifferentialLimiter<T>(PhantomData<T>);
 impl<T> Default for DifferentialLimiter<T> {
     fn default() -> Self {
-        DifferentialLimiter(false, PhantomData)
+        DifferentialLimiter(PhantomData)
     }
 }
 
@@ -109,25 +111,36 @@ impl Elm {
             .section
             .area = area;
     }
+    pub fn enable_bind<B: Bundle>(&mut self) {
+        if self.limiters.get::<Tag<B>>().is_none() {
+            self.job
+                .main()
+                .add_systems((crate::compositor::workflow::fill_bind_requests::<B>
+                    .in_set(ExternalSet::CompositorBind),));
+            self.limiters.insert(Tag::<B>::new());
+        }
+    }
+    pub fn enable_scene_bind<S: Scene + Send + Sync + 'static>(&mut self) {
+        if self.limiters.get::<Tag<S>>().is_none() {
+            self.job
+                .main()
+                .add_systems((crate::compositor::workflow::fill_scene_bind_requests::<S>
+                    .in_set(ExternalSet::CompositorBind),));
+            self.limiters.insert(Tag::<S>::new());
+        }
+    }
     pub fn enable_differential<
         T: Component + Clone + PartialEq + Serialize + for<'a> Deserialize<'a>,
     >(
         &mut self,
     ) {
         if self.limiters.get::<DifferentialLimiter<T>>().is_none() {
-            self.limiters.insert(DifferentialLimiter::<T>::default());
-        }
-        if !self.limiters.get::<DifferentialLimiter<T>>().unwrap().0 {
             self.job.main().add_systems((
                 crate::differential::differential::<T>.in_set(CoreSet::Differential),
                 crate::differential::send_on_differential_disable_changed::<T>
                     .in_set(CoreSet::Differential),
             ));
-            self.limiters
-                .get_mut::<DifferentialLimiter<T>>()
-                .as_mut()
-                .unwrap()
-                .0 = true;
+            self.limiters.insert(DifferentialLimiter::<T>::default());
         }
     }
     pub(crate) fn finish_initialization(&mut self) {

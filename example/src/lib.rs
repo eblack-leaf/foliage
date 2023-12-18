@@ -2,7 +2,7 @@ use foliage::bevy_ecs;
 use foliage::bevy_ecs::bundle::Bundle;
 use foliage::bevy_ecs::change_detection::Res;
 use foliage::bevy_ecs::prelude::{Commands, Entity, IntoSystemConfigs, Resource};
-use foliage::bevy_ecs::system::Local;
+use foliage::bevy_ecs::system::{Local, SystemParamItem};
 use foliage::button::{Button, ButtonArgs, ButtonStyle};
 use foliage::color::Color;
 use foliage::coordinate::area::Area;
@@ -142,12 +142,12 @@ impl Leaf for Tester {
 struct DualButton {}
 impl Scene for DualButton {
     type Args<'a> = <Button as Scene>::Args<'a>;
-    type ExternalResources<'a> = <Button as Scene>::ExternalResources<'a>;
+    type ExternalResources = <Button as Scene>::ExternalResources;
     fn bind_nodes(
         cmd: &mut Commands,
         anchor: SceneAnchor,
         args: &Self::Args<'_>,
-        external_args: &Self::ExternalResources<'_>,
+        external_args: &SystemParamItem<Self::ExternalResources>,
         binder: &mut SceneBinder,
     ) -> Self {
         binder.bind_scene::<Button>(
