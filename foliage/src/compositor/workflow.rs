@@ -14,11 +14,15 @@ use bevy_ecs::system::StaticSystemParam;
 use std::collections::{HashMap, HashSet};
 #[macro_export]
 macro_rules! bind_enable {
-    ($first:ty $(, $rest:ty)*) => {};
+    ($elm:ident $(,$typename:ty)+) => {
+        $($elm.enable_bind::<$typename>();)+
+    };
 }
 #[macro_export]
 macro_rules! scene_bind_enable {
-    ($first:ty $(, $rest:ty)*) => {};
+    ($elm:ident $(,$typename:ty)+) => {
+        $($elm.enable_scene_bind::<$typename>();)+
+    };
 }
 #[derive(Hash, Eq, PartialEq, Copy, Clone)]
 pub struct WorkflowHandle(pub i32);
