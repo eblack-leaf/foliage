@@ -1,8 +1,5 @@
-use crate::coordinate::area::Area;
-use crate::coordinate::layer::Layer;
-use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
-use crate::coordinate::{Coordinate, CoordinateUnit, InterfaceContext};
+use crate::coordinate::{Coordinate, InterfaceContext};
 use crate::differential::Despawn;
 use crate::elm::config::{CoreSet, ElmConfiguration};
 use crate::elm::leaf::{EmptySetDescriptor, Leaf};
@@ -14,11 +11,13 @@ use bevy_ecs::event::EventReader;
 use bevy_ecs::prelude::{IntoSystemConfigs, Query, Resource};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Commands, ResMut};
+use segment::Segment;
 use std::collections::HashMap;
 use workflow::{
     TransitionEngaged, TransitionRemovals, Workflow, WorkflowHandle, WorkflowTransition,
 };
 
+pub mod segment;
 pub mod workflow;
 
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
@@ -28,7 +27,7 @@ pub struct Compositor {
     pub segments: HashMap<SegmentHandle, Segment>,
     pub bindings: HashMap<SegmentHandle, Entity>,
     pub workflow: HashMap<WorkflowHandle, Workflow>,
-    pub segment_handle_factory: HandleGenerator,
+    pub generator: HandleGenerator,
 }
 impl Compositor {
     pub fn coordinate(
@@ -85,9 +84,6 @@ fn workflow_update(
     }
 }
 
-#[derive(Component)]
-pub struct TransitionSceneRequest<S: Scene>(pub Vec<(SegmentHandle, S::Args<'static>)>);
-
 fn clear_engaged(
     mut engaged: Query<(&mut TransitionEngaged, &TransitionRemovals), Changed<TransitionEngaged>>,
     mut compositor: ResMut<Compositor>,
@@ -102,58 +98,6 @@ fn clear_engaged(
             }
         }
     }
-}
-pub enum SegmentUnit {
-    Fixed(CoordinateUnit),
-    Relative(f32),
-}
-pub struct SegmentPosition {
-    pub x: SegmentUnit,
-    pub y: SegmentUnit,
-}
-
-impl SegmentPosition {
-    pub(crate) fn calc(
-        &self,
-        viewport_section: Section<InterfaceContext>,
-    ) -> Position<InterfaceContext> {
-        let x = match self.x {
-            SegmentUnit::Fixed(fix) => fix,
-            SegmentUnit::Relative(rel) => viewport_section.width() * rel,
-        };
-        let y = match self.y {
-            SegmentUnit::Fixed(fix) => fix,
-            SegmentUnit::Relative(rel) => viewport_section.height() * rel,
-        };
-        (x, y).into()
-    }
-}
-pub struct SegmentArea {
-    pub width: SegmentUnit,
-    pub height: SegmentUnit,
-}
-
-impl SegmentArea {
-    pub(crate) fn calc(
-        &self,
-        viewport_section: Section<InterfaceContext>,
-    ) -> Area<InterfaceContext> {
-        let w = match self.width {
-            SegmentUnit::Fixed(fix) => fix,
-            SegmentUnit::Relative(rel) => viewport_section.width() * rel,
-        };
-        let h = match self.height {
-            SegmentUnit::Fixed(fix) => fix,
-            SegmentUnit::Relative(rel) => viewport_section.height() * rel,
-        };
-        (w, h).into()
-    }
-}
-
-pub struct Segment {
-    pub pos: SegmentPosition,
-    pub area: SegmentArea,
-    pub layer: Layer,
 }
 
 impl Leaf for Compositor {

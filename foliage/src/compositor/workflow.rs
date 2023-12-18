@@ -1,4 +1,4 @@
-use crate::compositor::{Compositor, SegmentHandle, TransitionSceneRequest};
+use crate::compositor::{Compositor, SegmentHandle};
 use crate::differential::Despawn;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::scene::align::SceneAnchor;
@@ -31,17 +31,21 @@ pub struct Workflow {
     pub(crate) stage: WorkflowStage,
     pub(crate) transitions: HashMap<WorkflowStage, Entity>,
 }
-
+impl Workflow {
+    pub fn new(stage: WorkflowStage, transitions: HashMap<WorkflowStage, Entity>) -> Self {
+        Self { stage, transitions }
+    }
+}
 #[derive(Default, Copy, Clone, Hash, Eq, PartialEq)]
 pub struct WorkflowStage(pub i32);
 
 #[derive(Event)]
 pub struct WorkflowTransition(pub WorkflowHandle, pub WorkflowStage);
 
-#[derive(Component)]
-pub struct TransitionEngaged(pub bool);
+#[derive(Component, Default)]
+pub struct TransitionEngaged(pub(crate) bool);
 
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct TransitionRemovals(pub HashSet<SegmentHandle>);
 
 #[derive(Hash, Eq, PartialEq)]
@@ -49,7 +53,11 @@ pub struct TransitionKey {
     segment_handle: SegmentHandle,
     stage: WorkflowStage,
 }
-
+#[derive(Bundle, Default)]
+pub struct Transition {
+    engaged: TransitionEngaged,
+    removals: TransitionRemovals,
+}
 #[derive(Component)]
 pub struct TransitionBindRequest<B: Bundle>(pub Vec<(SegmentHandle, Option<B>)>);
 
@@ -100,3 +108,6 @@ pub(crate) fn fill_scene_bind_requests<S: Scene>(
         }
     }
 }
+
+#[derive(Component)]
+pub struct TransitionSceneRequest<S: Scene>(pub Vec<(SegmentHandle, S::Args<'static>)>);
