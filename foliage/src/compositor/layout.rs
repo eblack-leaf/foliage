@@ -1,6 +1,14 @@
+use crate::coordinate::area::Area;
+use crate::coordinate::InterfaceContext;
+
 pub enum Orientation {
     Portrait,
     Landscape,
+}
+impl Orientation {
+    pub fn from_area(area: Area<InterfaceContext>) -> Self {
+        todo!()
+    }
 }
 pub enum Threshold {
     Mobile,
@@ -87,12 +95,12 @@ impl Layouts {
     pub fn full() -> Self {
         Self(vec![
             Layout::new(Orientation::Portrait, Threshold::Mobile),
-            Layout::new(Orientation::Portrait, Threshold::Tablet),
-            Layout::new(Orientation::Portrait, Threshold::Desktop),
-            Layout::new(Orientation::Portrait, Threshold::Workstation),
             Layout::new(Orientation::Landscape, Threshold::Mobile),
+            Layout::new(Orientation::Portrait, Threshold::Tablet),
             Layout::new(Orientation::Landscape, Threshold::Tablet),
+            Layout::new(Orientation::Portrait, Threshold::Desktop),
             Layout::new(Orientation::Landscape, Threshold::Desktop),
+            Layout::new(Orientation::Portrait, Threshold::Workstation),
             Layout::new(Orientation::Landscape, Threshold::Workstation),
         ])
     }
