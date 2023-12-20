@@ -63,12 +63,12 @@ impl Compositor {
 }
 
 #[derive(Default)]
-pub struct HandleGenerator {
+pub(crate) struct HandleGenerator {
     segment: i32,
     holes: Vec<i32>,
 }
 impl HandleGenerator {
-    pub fn generate_segment(&mut self) -> SegmentHandle {
+    pub(crate) fn generate_segment(&mut self) -> SegmentHandle {
         let handle = if !self.holes.is_empty() {
             self.holes.pop().unwrap()
         } else {
@@ -78,7 +78,8 @@ impl HandleGenerator {
         };
         SegmentHandle(handle)
     }
-    pub fn release(&mut self, handle: SegmentHandle) {
+    #[allow(unused)]
+    pub(crate) fn release(&mut self, handle: SegmentHandle) {
         self.holes.push(handle.0);
     }
 }

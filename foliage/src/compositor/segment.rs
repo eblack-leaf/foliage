@@ -156,49 +156,133 @@ impl ResponsiveSegment {
             },
         }
     }
-    pub fn landscape_mobile(mut self, segment: Segment) -> Self {
+    pub fn landscape_mobile(segment: Segment) -> Self {
+        Self {
+            0: {
+                let mut map = HashMap::new();
+                map.insert(
+                    Layout::new(Orientation::Landscape, Threshold::Mobile),
+                    segment,
+                );
+                map
+            },
+        }
+    }
+    pub fn portrait_tablet(segment: Segment) -> Self {
+        Self {
+            0: {
+                let mut map = HashMap::new();
+                map.insert(
+                    Layout::new(Orientation::Portrait, Threshold::Tablet),
+                    segment,
+                );
+                map
+            },
+        }
+    }
+    pub fn landscape_tablet(segment: Segment) -> Self {
+        Self {
+            0: {
+                let mut map = HashMap::new();
+                map.insert(
+                    Layout::new(Orientation::Landscape, Threshold::Tablet),
+                    segment,
+                );
+                map
+            },
+        }
+    }
+    pub fn portrait_desktop(segment: Segment) -> Self {
+        Self {
+            0: {
+                let mut map = HashMap::new();
+                map.insert(
+                    Layout::new(Orientation::Portrait, Threshold::Desktop),
+                    segment,
+                );
+                map
+            },
+        }
+    }
+    pub fn landscape_desktop(segment: Segment) -> Self {
+        Self {
+            0: {
+                let mut map = HashMap::new();
+                map.insert(
+                    Layout::new(Orientation::Landscape, Threshold::Desktop),
+                    segment,
+                );
+                map
+            },
+        }
+    }
+    pub fn portrait_workstation(segment: Segment) -> Self {
+        Self {
+            0: {
+                let mut map = HashMap::new();
+                map.insert(
+                    Layout::new(Orientation::Portrait, Threshold::Workstation),
+                    segment,
+                );
+                map
+            },
+        }
+    }
+    pub fn landscape_workstation(segment: Segment) -> Self {
+        Self {
+            0: {
+                let mut map = HashMap::new();
+                map.insert(
+                    Layout::new(Orientation::Landscape, Threshold::Workstation),
+                    segment,
+                );
+                map
+            },
+        }
+    }
+    pub fn with_landscape_mobile(mut self, segment: Segment) -> Self {
         self.0.insert(
             Layout::new(Orientation::Landscape, Threshold::Mobile),
             segment,
         );
         self
     }
-    pub fn portrait_tablet(mut self, segment: Segment) -> Self {
+    pub fn with_portrait_tablet(mut self, segment: Segment) -> Self {
         self.0.insert(
             Layout::new(Orientation::Portrait, Threshold::Tablet),
             segment,
         );
         self
     }
-    pub fn landscape_tablet(mut self, segment: Segment) -> Self {
+    pub fn with_landscape_tablet(mut self, segment: Segment) -> Self {
         self.0.insert(
             Layout::new(Orientation::Landscape, Threshold::Tablet),
             segment,
         );
         self
     }
-    pub fn portrait_desktop(mut self, segment: Segment) -> Self {
+    pub fn with_portrait_desktop(mut self, segment: Segment) -> Self {
         self.0.insert(
             Layout::new(Orientation::Portrait, Threshold::Desktop),
             segment,
         );
         self
     }
-    pub fn landscape_desktop(mut self, segment: Segment) -> Self {
+    pub fn with_landscape_desktop(mut self, segment: Segment) -> Self {
         self.0.insert(
             Layout::new(Orientation::Landscape, Threshold::Desktop),
             segment,
         );
         self
     }
-    pub fn portrait_workstation(mut self, segment: Segment) -> Self {
+    pub fn with_portrait_workstation(mut self, segment: Segment) -> Self {
         self.0.insert(
             Layout::new(Orientation::Portrait, Threshold::Workstation),
             segment,
         );
         self
     }
-    pub fn landscape_workstation(mut self, segment: Segment) -> Self {
+    pub fn with_landscape_workstation(mut self, segment: Segment) -> Self {
         self.0.insert(
             Layout::new(Orientation::Landscape, Threshold::Workstation),
             segment,

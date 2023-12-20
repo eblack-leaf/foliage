@@ -23,8 +23,8 @@ pub enum Threshold {
 }
 #[derive(Hash, Eq, PartialEq, Copy, Clone)]
 pub struct Layout {
-    orientation: Orientation,
-    threshold: Threshold,
+    pub orientation: Orientation,
+    pub threshold: Threshold,
 }
 impl Layout {
     pub fn from_area(area: Area<InterfaceContext>) -> Self {
