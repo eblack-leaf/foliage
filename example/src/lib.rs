@@ -30,7 +30,7 @@ pub fn entry(android_interface: AndroidInterface) {
         .with_window_descriptor(
             WindowDescriptor::new()
                 .with_title("foliage")
-                .with_desktop_dimensions((1415, 915)),
+                .with_desktop_dimensions((415, 915)),
         )
         .with_leaf::<Tester>()
         .with_android_interface(android_interface)
@@ -50,7 +50,7 @@ fn spawn_button_tree(
         4,
     );
     let segment_one_handle = compositor.add_segment(
-        ResponsiveSegment::portrait_mobile(segment)
+        ResponsiveSegment::all(segment)
             .with_landscape_desktop(segment.with_area((0.25.relative(), 0.05.relative()))),
     );
     let segment_two_handle = compositor.add_segment(ResponsiveSegment::all(Segment::new(
