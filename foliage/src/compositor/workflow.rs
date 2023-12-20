@@ -1,3 +1,4 @@
+use crate::compositor::layout::Layout;
 use crate::compositor::{Compositor, SegmentHandle};
 use crate::differential::Despawn;
 use crate::ginkgo::viewport::ViewportHandle;
@@ -58,15 +59,13 @@ pub struct Transition {
     engaged: TransitionEngaged,
     removals: TransitionRemovals,
 }
+pub struct TransitionBindValidity(pub HashSet<Layout>);
 #[derive(Component)]
 pub struct TransitionBindRequest<B: Bundle>(pub Vec<(SegmentHandle, Option<B>)>);
 
 pub(crate) fn fill_bind_requests<B: Bundle>(
     mut cmd: Commands,
-    mut query: Query<
-        (&mut TransitionBindRequest<B>, &TransitionEngaged),
-        Changed<TransitionEngaged>,
-    >,
+    mut query: Query<(&mut TransitionBindRequest<B>, &TransitionEngaged)>,
     mut compositor: ResMut<Compositor>,
     viewport_handle: Res<ViewportHandle>,
 ) {
@@ -85,7 +84,7 @@ pub(crate) fn fill_bind_requests<B: Bundle>(
 }
 pub(crate) fn fill_scene_bind_requests<S: Scene>(
     mut compositor: ResMut<Compositor>,
-    query: Query<(&TransitionSceneRequest<S>, &TransitionEngaged)>,
+    query: Query<(&TransitionSceneBindRequest<S>, &TransitionEngaged)>,
     viewport_handle: Res<ViewportHandle>,
     external_res: StaticSystemParam<<S as Scene>::ExternalResources>,
     mut cmd: Commands,
@@ -110,4 +109,4 @@ pub(crate) fn fill_scene_bind_requests<S: Scene>(
 }
 
 #[derive(Component)]
-pub struct TransitionSceneRequest<S: Scene>(pub Vec<(SegmentHandle, S::Args<'static>)>);
+pub struct TransitionSceneBindRequest<S: Scene>(pub Vec<(SegmentHandle, S::Args<'static>)>);

@@ -5,6 +5,10 @@ use crate::elm::config::{CoreSet, ElmConfiguration};
 use crate::elm::leaf::{EmptySetDescriptor, Leaf};
 use crate::elm::{Elm, EventStage};
 
+use crate::compositor::layout::{Layout, Orientation, Threshold};
+use crate::coordinate::area::Area;
+use crate::ginkgo::viewport::ViewportHandle;
+use bevy_ecs::change_detection::Res;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::EventReader;
 use bevy_ecs::prelude::{IntoSystemConfigs, Query, Resource};
@@ -22,14 +26,25 @@ pub mod workflow;
 
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
 pub struct SegmentHandle(pub i32);
-#[derive(Resource, Default)]
+#[derive(Resource)]
 pub struct Compositor {
     pub segments: HashMap<SegmentHandle, Segment>,
     pub bindings: HashMap<SegmentHandle, Entity>,
     pub workflow: HashMap<WorkflowHandle, Workflow>,
     pub generator: HandleGenerator,
+    pub layout: Layout,
 }
 impl Compositor {
+    pub(crate) fn new(area: Area<InterfaceContext>) -> Self {
+        let layout = Layout::from_area(area);
+        Self {
+            segments: Default::default(),
+            bindings: Default::default(),
+            workflow: Default::default(),
+            generator: Default::default(),
+            layout,
+        }
+    }
     pub fn coordinate(
         &self,
         viewport_section: Section<InterfaceContext>,
@@ -99,15 +114,17 @@ fn clear_engaged(
         }
     }
 }
-
+fn setup(mut cmd: Commands, viewport_handle: Res<ViewportHandle>) {
+    cmd.insert_resource(Compositor::new(viewport_handle.section.area));
+}
 impl Leaf for Compositor {
     type SetDescriptor = EmptySetDescriptor;
 
     fn config(_elm_configuration: &mut ElmConfiguration) {}
 
     fn attach(elm: &mut Elm) {
-        elm.job.container.insert_resource(Compositor::default());
         elm.add_event::<WorkflowTransition>(EventStage::Process);
+        elm.startup().add_systems((setup,));
         elm.main().add_systems((
             workflow_update.in_set(CoreSet::CompositorSetup),
             clear_engaged.in_set(CoreSet::CompositorTeardown),

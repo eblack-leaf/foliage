@@ -1,8 +1,10 @@
+use crate::compositor::layout::{Layout, Orientation, Threshold};
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, InterfaceContext};
+use std::collections::HashMap;
 
 pub enum SegmentUnit {
     Fixed(CoordinateUnit),
@@ -117,5 +119,69 @@ impl Segment {
             area: area.into(),
             layer: layer.into(),
         }
+    }
+}
+pub struct ResponsiveSegment(pub HashMap<Layout, Segment>);
+impl ResponsiveSegment {
+    pub fn mobile_portrait(segment: Segment) -> Self {
+        Self {
+            0: {
+                let mut map = HashMap::new();
+                map.insert(
+                    Layout::new(Orientation::Portrait, Threshold::Mobile),
+                    segment,
+                );
+                map
+            },
+        }
+    }
+    pub fn landscape_mobile(mut self, segment: Segment) -> Self {
+        self.0.insert(
+            Layout::new(Orientation::Landscape, Threshold::Mobile),
+            segment,
+        );
+        self
+    }
+    pub fn portrait_tablet(mut self, segment: Segment) -> Self {
+        self.0.insert(
+            Layout::new(Orientation::Portrait, Threshold::Tablet),
+            segment,
+        );
+        self
+    }
+    pub fn landscape_tablet(mut self, segment: Segment) -> Self {
+        self.0.insert(
+            Layout::new(Orientation::Landscape, Threshold::Tablet),
+            segment,
+        );
+        self
+    }
+    pub fn portrait_desktop(mut self, segment: Segment) -> Self {
+        self.0.insert(
+            Layout::new(Orientation::Portrait, Threshold::Desktop),
+            segment,
+        );
+        self
+    }
+    pub fn landscape_desktop(mut self, segment: Segment) -> Self {
+        self.0.insert(
+            Layout::new(Orientation::Landscape, Threshold::Desktop),
+            segment,
+        );
+        self
+    }
+    pub fn portrait_workstation(mut self, segment: Segment) -> Self {
+        self.0.insert(
+            Layout::new(Orientation::Portrait, Threshold::Workstation),
+            segment,
+        );
+        self
+    }
+    pub fn landscape_workstation(mut self, segment: Segment) -> Self {
+        self.0.insert(
+            Layout::new(Orientation::Landscape, Threshold::Workstation),
+            segment,
+        );
+        self
     }
 }

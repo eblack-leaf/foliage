@@ -7,7 +7,8 @@ use foliage::button::{Button, ButtonArgs, ButtonStyle};
 use foliage::color::Color;
 use foliage::compositor::segment::{Segment, SegmentDesc};
 use foliage::compositor::workflow::{
-    Transition, TransitionSceneRequest, Workflow, WorkflowHandle, WorkflowStage, WorkflowTransition,
+    Transition, TransitionSceneBindRequest, Workflow, WorkflowHandle, WorkflowStage,
+    WorkflowTransition,
 };
 use foliage::compositor::Compositor;
 
@@ -67,7 +68,7 @@ fn spawn_button_tree(
         .insert(segment_four_handle, segment_four);
     let transition = cmd
         .spawn(Transition::default())
-        .insert(TransitionSceneRequest::<Button>(vec![
+        .insert(TransitionSceneBindRequest::<Button>(vec![
             (
                 segment_one_handle,
                 ButtonArgs::new(
@@ -102,7 +103,7 @@ fn spawn_button_tree(
                 ),
             ),
         ]))
-        .insert(TransitionSceneRequest::<DualButton>(vec![(
+        .insert(TransitionSceneBindRequest::<DualButton>(vec![(
             segment_four_handle,
             ButtonArgs::new(
                 ButtonStyle::Ring,

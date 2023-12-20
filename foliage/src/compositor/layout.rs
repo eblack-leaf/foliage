@@ -1,6 +1,6 @@
 use crate::coordinate::area::Area;
-use crate::coordinate::InterfaceContext;
-
+use crate::coordinate::{CoordinateUnit, InterfaceContext};
+#[derive(Hash, Eq, PartialEq, Copy, Clone)]
 pub enum Orientation {
     Portrait,
     Landscape,
@@ -10,18 +10,56 @@ impl Orientation {
         todo!()
     }
 }
+#[derive(Hash, Eq, PartialEq, Copy, Clone)]
 pub enum Threshold {
     Mobile,
     Tablet,
     Desktop,
     Workstation,
 }
+#[derive(Hash, Eq, PartialEq, Copy, Clone)]
 pub struct Layout {
     orientation: Orientation,
     threshold: Threshold,
 }
 impl Layout {
-    pub fn new(orientation: Orientation, threshold: Threshold) -> Self {
+    pub fn from_area(area: Area<InterfaceContext>) -> Self {
+        let orientation = Orientation::from_area(area);
+        match orientation {
+            Orientation::Portrait => {
+                Self::threshold_check(area, Self::PORTRAIT)
+            }
+            Orientation::Landscape => {
+                Self::threshold_check(area, Self::LANDSCAPE)
+            }
+        }
+    }
+    fn threshold_check(area: Area<InterfaceContext>, layouts: [Layout; 4]) -> Layout {
+        let mut layout = Layout::new(Orientation::from_area(area), Threshold::Mobile);
+        for l in layouts {
+            let threshold = l.threshold();
+            if threshold.horizontal_bound.satisfied(area.width)
+                && threshold.vertical_bound.satisfied(area.height)
+            {
+                layout = *l;
+                break;
+            }
+        }
+        layout
+    }
+    pub const PORTRAIT: [Layout; 4] = [
+        Layout::new(Orientation::Portrait, Threshold::Mobile),
+        Layout::new(Orientation::Portrait, Threshold::Tablet),
+        Layout::new(Orientation::Portrait, Threshold::Desktop),
+        Layout::new(Orientation::Portrait, Threshold::Workstation),
+    ];
+    pub const LANDSCAPE: [Layout; 4] = [
+        Layout::new(Orientation::Landscape, Threshold::Mobile),
+        Layout::new(Orientation::Landscape, Threshold::Tablet),
+        Layout::new(Orientation::Landscape, Threshold::Desktop),
+        Layout::new(Orientation::Landscape, Threshold::Workstation),
+    ];
+    pub const fn new(orientation: Orientation, threshold: Threshold) -> Self {
         Self {
             orientation,
             threshold,
@@ -67,11 +105,11 @@ impl Layout {
     }
 }
 pub struct ThresholdBound {
-    min: u32,
-    max: u32,
+    pub min: u32,
+    pub max: u32,
 }
 impl ThresholdBound {
-    pub fn satisfied(&self, target: u32) -> bool {
+    pub fn satisfied(&self, target: CoordinateUnit) -> bool {
         todo!()
     }
     pub fn new(min: u32, max: u32) -> Self {
@@ -79,8 +117,8 @@ impl ThresholdBound {
     }
 }
 pub struct LayoutThreshold {
-    horizontal_bound: ThresholdBound,
-    vertical_bound: ThresholdBound,
+    pub horizontal_bound: ThresholdBound,
+    pub vertical_bound: ThresholdBound,
 }
 impl LayoutThreshold {
     pub fn new(hb: ThresholdBound, vb: ThresholdBound) -> Self {
@@ -88,20 +126,5 @@ impl LayoutThreshold {
             horizontal_bound: hb,
             vertical_bound: vb,
         }
-    }
-}
-pub struct Layouts(pub Vec<Layout>);
-impl Layouts {
-    pub fn full() -> Self {
-        Self(vec![
-            Layout::new(Orientation::Portrait, Threshold::Mobile),
-            Layout::new(Orientation::Landscape, Threshold::Mobile),
-            Layout::new(Orientation::Portrait, Threshold::Tablet),
-            Layout::new(Orientation::Landscape, Threshold::Tablet),
-            Layout::new(Orientation::Portrait, Threshold::Desktop),
-            Layout::new(Orientation::Landscape, Threshold::Desktop),
-            Layout::new(Orientation::Portrait, Threshold::Workstation),
-            Layout::new(Orientation::Landscape, Threshold::Workstation),
-        ])
     }
 }
