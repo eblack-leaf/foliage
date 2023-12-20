@@ -1,5 +1,4 @@
 use crate::compositor::layout::{Layout, Orientation, Threshold};
-use crate::compositor::segment::Segment;
 use crate::compositor::{Compositor, SegmentHandle};
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
@@ -50,9 +49,6 @@ pub struct WorkflowTransition(pub WorkflowHandle, pub WorkflowStage);
 
 #[derive(Component, Default)]
 pub struct TransitionEngaged(pub(crate) bool);
-pub struct TransitionAdjust(pub Box<fn(Segment) -> Segment>);
-#[derive(Component, Default)]
-pub struct TransitionAdjustments(pub HashMap<Layout, HashMap<SegmentHandle, TransitionAdjust>>);
 #[derive(Component, Default)]
 pub struct TransitionRemovals(pub HashMap<Layout, HashSet<SegmentHandle>>);
 
@@ -65,20 +61,6 @@ pub struct TransitionKey {
 pub struct Transition {
     engaged: TransitionEngaged,
     removals: TransitionRemovals,
-    adjustments: TransitionAdjustments,
-}
-pub struct AdjustmentDescriptor(pub HashMap<SegmentHandle, TransitionAdjust>);
-impl AdjustmentDescriptor {
-    pub fn new() -> Self {
-        Self(HashMap::new())
-    }
-    pub fn with_adjust(mut self, handle: SegmentHandle, adjust: TransitionAdjust) -> Self {
-        self.0.insert(handle, adjust);
-        self
-    }
-    pub fn finish(self) -> HashMap<SegmentHandle, TransitionAdjust> {
-        self.0
-    }
 }
 pub struct RemovalDescriptor(pub HashSet<SegmentHandle>);
 impl RemovalDescriptor {
@@ -106,14 +88,6 @@ impl<'a, 'w, 's> TransitionDescriptor<'a, 'w, 's> {
             transition: Transition::default(),
             entity,
         }
-    }
-    pub fn add_adjustments(
-        mut self,
-        layout: Layout,
-        a: HashMap<SegmentHandle, TransitionAdjust>,
-    ) -> Self {
-        self.transition.adjustments.0.insert(layout, a);
-        self
     }
     pub fn add_removal(mut self, layout: Layout, r: HashSet<SegmentHandle>) -> Self {
         self.transition.removals.0.insert(layout, r);

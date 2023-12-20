@@ -102,7 +102,6 @@ fn workflow_update(
         compositor.workflow.get_mut(&event.0).unwrap().stage = event.1;
     }
 }
-
 fn clear_engaged(
     mut engaged: Query<(&mut TransitionEngaged, &TransitionRemovals), Changed<TransitionEngaged>>,
     mut compositor: ResMut<Compositor>,
