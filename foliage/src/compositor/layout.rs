@@ -70,16 +70,16 @@ impl Layout {
         match self.orientation {
             Orientation::Portrait => match self.threshold {
                 Threshold::Mobile => LayoutThreshold::new(
-                    ThresholdBound::new(0.0, 400.0),
-                    ThresholdBound::new(0.0, 900.0),
+                    ThresholdBound::new(0.0, 415.0),
+                    ThresholdBound::new(0.0, 915.0),
                 ),
                 Threshold::Tablet => LayoutThreshold::new(
-                    ThresholdBound::new(401.0, 800.0),
-                    ThresholdBound::new(0.0, 1000.0),
+                    ThresholdBound::new(416.0, 840.0),
+                    ThresholdBound::new(0.0, 1440.0),
                 ),
                 Threshold::Desktop => LayoutThreshold::new(
-                    ThresholdBound::new(801.0, 1200.0),
-                    ThresholdBound::new(0.0, 1100.0),
+                    ThresholdBound::new(841.0, 1200.0),
+                    ThresholdBound::new(0.0, 1920.0),
                 ),
                 Threshold::Workstation => LayoutThreshold::new(
                     ThresholdBound::new(1201.0, 3840.0),
@@ -88,20 +88,20 @@ impl Layout {
             },
             Orientation::Landscape => match self.threshold {
                 Threshold::Mobile => LayoutThreshold::new(
-                    ThresholdBound::new(0.0, 900.0),
-                    ThresholdBound::new(0.0, 400.0),
+                    ThresholdBound::new(0.0, 915.0),
+                    ThresholdBound::new(0.0, 415.0),
                 ),
                 Threshold::Tablet => LayoutThreshold::new(
                     ThresholdBound::new(0.0, 1600.0),
-                    ThresholdBound::new(401.0, 800.0),
+                    ThresholdBound::new(416.0, 840.0),
                 ),
                 Threshold::Desktop => LayoutThreshold::new(
                     ThresholdBound::new(0.0, 1920.0),
-                    ThresholdBound::new(801.0, 1200.0),
+                    ThresholdBound::new(841.0, 1200.0),
                 ),
                 Threshold::Workstation => LayoutThreshold::new(
-                    ThresholdBound::new(0.0, 2160.0),
-                    ThresholdBound::new(1201.0, 3840.0),
+                    ThresholdBound::new(0.0, 3840.0),
+                    ThresholdBound::new(1201.0, 2160.0),
                 ),
             },
         }
@@ -138,14 +138,11 @@ fn test_from_area() {
     let mut actual = Layout::from_area((360, 800));
     let mut expected = Layout::new(Orientation::Portrait, Threshold::Mobile);
     assert_eq!(actual, expected);
-    actual = Layout::from_area((1366, 768));
-    expected = Layout::new(Orientation::Landscape, Threshold::Tablet);
+    actual = Layout::from_area((360, 640));
+    expected = Layout::new(Orientation::Portrait, Threshold::Mobile);
     assert_eq!(actual, expected);
-    actual = Layout::from_area((1536, 864));
-    expected = Layout::new(Orientation::Landscape, Threshold::Desktop);
-    assert_eq!(actual, expected);
-    actual = Layout::from_area((1920, 1080));
-    expected = Layout::new(Orientation::Landscape, Threshold::Desktop);
+    actual = Layout::from_area((375, 812));
+    expected = Layout::new(Orientation::Portrait, Threshold::Mobile);
     assert_eq!(actual, expected);
     actual = Layout::from_area((390, 844));
     expected = Layout::new(Orientation::Portrait, Threshold::Mobile);
@@ -153,13 +150,73 @@ fn test_from_area() {
     actual = Layout::from_area((393, 873));
     expected = Layout::new(Orientation::Portrait, Threshold::Mobile);
     assert_eq!(actual, expected);
+    actual = Layout::from_area((360, 780));
+    expected = Layout::new(Orientation::Portrait, Threshold::Mobile);
+    assert_eq!(actual, expected);
     actual = Layout::from_area((414, 896));
-    expected = Layout::new(Orientation::Portrait, Threshold::Tablet);
+    expected = Layout::new(Orientation::Portrait, Threshold::Mobile);
     assert_eq!(actual, expected);
     actual = Layout::from_area((412, 915));
+    expected = Layout::new(Orientation::Portrait, Threshold::Mobile);
+    assert_eq!(actual, expected);
+    actual = Layout::from_area((428, 926));
     expected = Layout::new(Orientation::Portrait, Threshold::Tablet);
+    assert_eq!(actual, expected);
+    actual = Layout::from_area((601, 962));
+    expected = Layout::new(Orientation::Portrait, Threshold::Tablet);
+    assert_eq!(actual, expected);
+    actual = Layout::from_area((768, 1024));
+    expected = Layout::new(Orientation::Portrait, Threshold::Tablet);
+    assert_eq!(actual, expected);
+    actual = Layout::from_area((800, 1280));
+    expected = Layout::new(Orientation::Portrait, Threshold::Tablet);
+    assert_eq!(actual, expected);
+    actual = Layout::from_area((810, 1080));
+    expected = Layout::new(Orientation::Portrait, Threshold::Tablet);
+    assert_eq!(actual, expected);
+    actual = Layout::from_area((820, 1180));
+    expected = Layout::new(Orientation::Portrait, Threshold::Tablet);
+    assert_eq!(actual, expected);
+    actual = Layout::from_area((834, 1194));
+    expected = Layout::new(Orientation::Portrait, Threshold::Tablet);
+    assert_eq!(actual, expected);
+    actual = Layout::from_area((962, 601));
+    expected = Layout::new(Orientation::Landscape, Threshold::Tablet);
+    assert_eq!(actual, expected);
+    actual = Layout::from_area((1024, 768));
+    expected = Layout::new(Orientation::Landscape, Threshold::Tablet);
+    assert_eq!(actual, expected);
+    actual = Layout::from_area((1024, 1366));
+    expected = Layout::new(Orientation::Portrait, Threshold::Desktop);
     assert_eq!(actual, expected);
     actual = Layout::from_area((1280, 720));
     expected = Layout::new(Orientation::Landscape, Threshold::Tablet);
+    assert_eq!(actual, expected);
+    actual = Layout::from_area((1280, 800));
+    expected = Layout::new(Orientation::Landscape, Threshold::Tablet);
+    assert_eq!(actual, expected);
+    actual = Layout::from_area((1280, 1024));
+    expected = Layout::new(Orientation::Landscape, Threshold::Desktop);
+    assert_eq!(actual, expected);
+    actual = Layout::from_area((1366, 768));
+    expected = Layout::new(Orientation::Landscape, Threshold::Tablet);
+    assert_eq!(actual, expected);
+    actual = Layout::from_area((1366, 1024));
+    expected = Layout::new(Orientation::Landscape, Threshold::Desktop);
+    assert_eq!(actual, expected);
+    actual = Layout::from_area((1440, 900));
+    expected = Layout::new(Orientation::Landscape, Threshold::Desktop);
+    assert_eq!(actual, expected);
+    actual = Layout::from_area((1536, 864));
+    expected = Layout::new(Orientation::Landscape, Threshold::Desktop);
+    assert_eq!(actual, expected);
+    actual = Layout::from_area((1600, 900));
+    expected = Layout::new(Orientation::Landscape, Threshold::Desktop);
+    assert_eq!(actual, expected);
+    actual = Layout::from_area((1920, 1080));
+    expected = Layout::new(Orientation::Landscape, Threshold::Desktop);
+    assert_eq!(actual, expected);
+    actual = Layout::from_area((2560, 1440));
+    expected = Layout::new(Orientation::Landscape, Threshold::Workstation);
     assert_eq!(actual, expected);
 }

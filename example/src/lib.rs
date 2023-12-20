@@ -6,8 +6,9 @@ use foliage::bevy_ecs::system::{ResMut, SystemParamItem};
 use foliage::button::{Button, ButtonArgs, ButtonStyle};
 use foliage::color::Color;
 use foliage::compositor::segment::{ResponsiveSegment, Segment, SegmentDesc};
-use foliage::compositor::workflow::{TransitionBindValidity, TransitionDescriptor,
-                                    WorkflowDescriptor, WorkflowHandle, WorkflowStage, WorkflowTransition,
+use foliage::compositor::workflow::{
+    TransitionBindValidity, TransitionDescriptor, WorkflowDescriptor, WorkflowHandle,
+    WorkflowStage, WorkflowTransition,
 };
 use foliage::compositor::Compositor;
 
