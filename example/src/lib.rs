@@ -6,9 +6,8 @@ use foliage::bevy_ecs::system::{ResMut, SystemParamItem};
 use foliage::button::{Button, ButtonArgs, ButtonStyle};
 use foliage::color::Color;
 use foliage::compositor::segment::{ResponsiveSegment, Segment, SegmentDesc};
-use foliage::compositor::workflow::{
-    Transition, TransitionBindValidity, TransitionSceneBindRequest, WorkflowDescriptor,
-    WorkflowHandle, WorkflowStage, WorkflowTransition,
+use foliage::compositor::workflow::{TransitionBindValidity, TransitionDescriptor,
+                                    WorkflowDescriptor, WorkflowHandle, WorkflowStage, WorkflowTransition,
 };
 use foliage::compositor::Compositor;
 
@@ -59,9 +58,8 @@ fn spawn_button_tree(
     let segment_four_handle = compositor.add_segment(ResponsiveSegment::mobile_portrait(
         Segment::new((35.fixed(), 700.fixed()), (340.fixed(), 50.fixed()), 4),
     ));
-    let transition = cmd
-        .spawn(Transition::default())
-        .insert(TransitionSceneBindRequest::<Button>(vec![
+    let transition = TransitionDescriptor::new(&mut cmd)
+        .bind_scene::<Button>(vec![
             (
                 segment_one_handle,
                 TransitionBindValidity::all(),
@@ -98,8 +96,8 @@ fn spawn_button_tree(
                     Color::OFF_BLACK.into(),
                 ),
             ),
-        ]))
-        .insert(TransitionSceneBindRequest::<DualButton>(vec![(
+        ])
+        .bind_scene::<DualButton>(vec![(
             segment_four_handle,
             TransitionBindValidity::all(),
             ButtonArgs::new(
@@ -110,8 +108,8 @@ fn spawn_button_tree(
                 Color::CYAN_MEDIUM.into(),
                 Color::CYAN_DARK.into(),
             ),
-        )]))
-        .id();
+        )])
+        .build();
     compositor.add_workflow(
         WorkflowDescriptor::new(WorkflowHandle(0))
             .with_transition(WorkflowStage(0), transition)

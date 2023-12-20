@@ -1,4 +1,5 @@
 use crate::compositor::layout::{Layout, Orientation, Threshold};
+use crate::compositor::segment::Segment;
 use crate::compositor::{Compositor, SegmentHandle};
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
@@ -49,7 +50,9 @@ pub struct WorkflowTransition(pub WorkflowHandle, pub WorkflowStage);
 
 #[derive(Component, Default)]
 pub struct TransitionEngaged(pub(crate) bool);
-
+pub struct TransitionAdjust(pub Box<fn(Segment) -> Segment>);
+#[derive(Component, Default)]
+pub struct TransitionAdjustments(pub HashMap<Layout, HashMap<SegmentHandle, TransitionAdjust>>);
 #[derive(Component, Default)]
 pub struct TransitionRemovals(pub HashMap<Layout, HashSet<SegmentHandle>>);
 
@@ -62,6 +65,82 @@ pub struct TransitionKey {
 pub struct Transition {
     engaged: TransitionEngaged,
     removals: TransitionRemovals,
+    adjustments: TransitionAdjustments,
+}
+pub struct AdjustmentDescriptor(pub HashMap<SegmentHandle, TransitionAdjust>);
+impl AdjustmentDescriptor {
+    pub fn new() -> Self {
+        Self(HashMap::new())
+    }
+    pub fn with_adjust(mut self, handle: SegmentHandle, adjust: TransitionAdjust) -> Self {
+        self.0.insert(handle, adjust);
+        self
+    }
+    pub fn finish(self) -> HashMap<SegmentHandle, TransitionAdjust> {
+        self.0
+    }
+}
+pub struct RemovalDescriptor(pub HashSet<SegmentHandle>);
+impl RemovalDescriptor {
+    pub fn new() -> Self {
+        Self(HashSet::new())
+    }
+    pub fn with_removal(mut self, handle: SegmentHandle) -> Self {
+        self.0.insert(handle);
+        self
+    }
+    pub fn finish(self) -> HashSet<SegmentHandle> {
+        self.0
+    }
+}
+pub struct TransitionDescriptor<'a, 'w, 's> {
+    cmd: &'a mut Commands<'w, 's>,
+    transition: Transition,
+    entity: Entity,
+}
+impl<'a, 'w, 's> TransitionDescriptor<'a, 'w, 's> {
+    pub fn new(cmd: &'a mut Commands<'w, 's>) -> Self {
+        let entity = cmd.spawn_empty().id();
+        Self {
+            cmd,
+            transition: Transition::default(),
+            entity,
+        }
+    }
+    pub fn add_adjustments(
+        mut self,
+        layout: Layout,
+        a: HashMap<SegmentHandle, TransitionAdjust>,
+    ) -> Self {
+        self.transition.adjustments.0.insert(layout, a);
+        self
+    }
+    pub fn add_removal(mut self, layout: Layout, r: HashSet<SegmentHandle>) -> Self {
+        self.transition.removals.0.insert(layout, r);
+        self
+    }
+    pub fn bind<B: Bundle>(
+        self,
+        b: Vec<(SegmentHandle, TransitionBindValidity, Option<B>)>,
+    ) -> Self {
+        self.cmd
+            .entity(self.entity)
+            .insert(TransitionBindRequest::<B>(b));
+        self
+    }
+    pub fn bind_scene<S: Scene>(
+        self,
+        s: Vec<(SegmentHandle, TransitionBindValidity, S::Args<'static>)>,
+    ) -> Self {
+        self.cmd
+            .entity(self.entity)
+            .insert(TransitionSceneBindRequest::<S>(s));
+        self
+    }
+    pub fn build(self) -> Entity {
+        self.cmd.entity(self.entity).insert(self.transition);
+        self.entity
+    }
 }
 #[derive(Clone, Default)]
 pub struct TransitionBindValidity(pub HashSet<Layout>);
