@@ -65,7 +65,7 @@ pub struct TransitionBindRequest<B: Bundle>(pub Vec<(SegmentHandle, Option<B>)>)
 
 pub(crate) fn fill_bind_requests<B: Bundle>(
     mut cmd: Commands,
-    mut query: Query<(&mut TransitionBindRequest<B>, &TransitionEngaged)>,
+    mut query: Query<(&mut TransitionBindRequest<B>, &TransitionEngaged), Changed<TransitionEngaged>>,
     mut compositor: ResMut<Compositor>,
     viewport_handle: Res<ViewportHandle>,
 ) {
