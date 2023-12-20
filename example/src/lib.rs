@@ -20,7 +20,6 @@ use foliage::icon::IconId;
 use foliage::scene::align::{SceneAligner, SceneAnchor};
 use foliage::scene::bind::SceneBinder;
 use foliage::scene::Scene;
-
 use foliage::text::{MaxCharacters, TextValue};
 use foliage::window::WindowDescriptor;
 use foliage::{bevy_ecs, scene_bind_enable};

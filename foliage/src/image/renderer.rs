@@ -40,8 +40,16 @@ impl ImageGroup {
         height: u32,
         data: &[u8],
     ) {
+        let image = image::load_from_memory(data)
+            .unwrap()
+            .as_rgba8()
+            .unwrap()
+            .pixels()
+            .map(|p| p.0.to_vec())
+            .flatten()
+            .collect::<Vec<u8>>();
         self.tex
-            .replace(ginkgo.texture_rgba8unorm_d2(width, height, 1, data));
+            .replace(ginkgo.texture_rgba8unorm_d2(width, height, 1, image.as_slice()));
         self.bind_group
             .replace(ginkgo.device().create_bind_group(&BindGroupDescriptor {
                 label: Some("image-group-bind-group"),

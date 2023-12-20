@@ -4,7 +4,6 @@ mod vertex;
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
-use crate::coordinate::InterfaceContext;
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::config::ElmConfiguration;
@@ -23,16 +22,15 @@ pub struct Image {
     differentiable: Differentiable,
 }
 impl Image {
-    pub fn new(
-        position: Position<InterfaceContext>,
-        area: Area<InterfaceContext>,
-        layer: Layer,
-        image_id: ImageId,
-    ) -> Self {
+    pub fn new(image_id: ImageId) -> Self {
         Self {
             image_id: DifferentialBundle::new(image_id),
             image_data: DifferentialBundle::new(ImageData(None, 1, 1)),
-            differentiable: Differentiable::new::<Self>(position, area, layer),
+            differentiable: Differentiable::new::<Self>(
+                Position::default(),
+                Area::default(),
+                Layer::default(),
+            ),
         }
     }
     pub fn image_request(image_id: ImageId, width: u32, height: u32, data: Vec<u8>) -> Self {

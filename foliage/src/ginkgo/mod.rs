@@ -181,8 +181,8 @@ impl Ginkgo {
             &wgpu::TextureDescriptor {
                 label: Some("ginkgo-rgba8unorm-d2"),
                 size: Extent3d {
-                    width,
-                    height,
+                    width: width,
+                    height: height,
                     depth_or_array_layers: 1,
                 },
                 mip_level_count: mips,
