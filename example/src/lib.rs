@@ -30,7 +30,7 @@ pub fn entry(android_interface: AndroidInterface) {
         .with_window_descriptor(
             WindowDescriptor::new()
                 .with_title("foliage")
-                .with_desktop_dimensions((360, 800)),
+                .with_desktop_dimensions((1415, 915)),
         )
         .with_leaf::<Tester>()
         .with_android_interface(android_interface)
@@ -44,21 +44,30 @@ fn spawn_button_tree(
     mut compositor: ResMut<Compositor>,
     mut events: EventWriter<WorkflowTransition>,
 ) {
-    let segment_one_handle =
-        compositor.add_segment(ResponsiveSegment::mobile_portrait(Segment::new(
-            (0.085.relative(), 0.11.relative()),
-            (0.83.relative(), 0.11.relative()),
-            4,
-        )));
-    let segment_two_handle = compositor.add_segment(ResponsiveSegment::mobile_portrait(
-        Segment::new((85.fixed(), 250.fixed()), (240.fixed(), 75.fixed()), 4),
-    ));
-    let segment_three_handle = compositor.add_segment(ResponsiveSegment::mobile_portrait(
-        Segment::new((140.fixed(), 375.fixed()), (135.fixed(), 50.fixed()), 4),
-    ));
-    let segment_four_handle = compositor.add_segment(ResponsiveSegment::mobile_portrait(
-        Segment::new((35.fixed(), 700.fixed()), (340.fixed(), 50.fixed()), 4),
-    ));
+    let segment = Segment::new(
+        (0.085.relative(), 0.11.relative()),
+        (0.83.relative(), 0.11.relative()),
+        4,
+    );
+    let segment_one_handle = compositor.add_segment(
+        ResponsiveSegment::portrait_mobile(segment)
+            .with_landscape_desktop(segment.with_area((0.25.relative(), 0.05.relative()))),
+    );
+    let segment_two_handle = compositor.add_segment(ResponsiveSegment::all(Segment::new(
+        (85.fixed(), 250.fixed()),
+        (240.fixed(), 75.fixed()),
+        4,
+    )));
+    let segment_three_handle = compositor.add_segment(ResponsiveSegment::all(Segment::new(
+        (140.fixed(), 375.fixed()),
+        (135.fixed(), 50.fixed()),
+        4,
+    )));
+    let segment_four_handle = compositor.add_segment(ResponsiveSegment::all(Segment::new(
+        (35.fixed(), 700.fixed()),
+        (340.fixed(), 50.fixed()),
+        4,
+    )));
     let transition = TransitionDescriptor::new(&mut cmd)
         .bind_scene::<Button>(vec![
             (

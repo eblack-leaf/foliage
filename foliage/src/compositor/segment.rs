@@ -122,6 +122,10 @@ impl Segment {
             layer: layer.into(),
         }
     }
+    pub fn with_area<SA: Into<SegmentArea>>(mut self, sa: SA) -> Self {
+        self.area = sa.into();
+        self
+    }
 }
 pub struct ResponsiveSegment(pub HashMap<Layout, Segment>);
 
@@ -144,7 +148,17 @@ impl ResponsiveSegment {
 }
 
 impl ResponsiveSegment {
-    pub fn mobile_portrait(segment: Segment) -> Self {
+    pub fn all(segment: Segment) -> Self {
+        Self::portrait_mobile(segment)
+            .with_portrait_tablet(segment)
+            .with_portrait_desktop(segment)
+            .with_portrait_workstation(segment)
+            .with_landscape_mobile(segment)
+            .with_landscape_tablet(segment)
+            .with_landscape_desktop(segment)
+            .with_landscape_workstation(segment)
+    }
+    pub fn portrait_mobile(segment: Segment) -> Self {
         Self {
             0: {
                 let mut map = HashMap::new();
