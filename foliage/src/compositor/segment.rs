@@ -3,9 +3,9 @@ use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
-use crate::coordinate::{CoordinateUnit, InterfaceContext};
+use crate::coordinate::{Coordinate, CoordinateUnit, InterfaceContext};
 use std::collections::HashMap;
-
+#[derive(Copy, Clone)]
 pub enum SegmentUnit {
     Fixed(CoordinateUnit),
     Relative(f32),
@@ -41,6 +41,7 @@ impl SegmentDesc for f32 {
         SegmentUnit::Relative(*self)
     }
 }
+#[derive(Copy, Clone)]
 pub struct SegmentPosition {
     pub x: SegmentUnit,
     pub y: SegmentUnit,
@@ -76,6 +77,7 @@ impl From<(SegmentUnit, SegmentUnit)> for SegmentArea {
         SegmentArea::new(value.0, value.1)
     }
 }
+#[derive(Copy, Clone)]
 pub struct SegmentArea {
     pub width: SegmentUnit,
     pub height: SegmentUnit,
@@ -102,7 +104,7 @@ impl SegmentArea {
         (w, h).into()
     }
 }
-
+#[derive(Copy, Clone)]
 pub struct Segment {
     pub pos: SegmentPosition,
     pub area: SegmentArea,
@@ -122,6 +124,25 @@ impl Segment {
     }
 }
 pub struct ResponsiveSegment(pub HashMap<Layout, Segment>);
+
+impl ResponsiveSegment {
+    pub(crate) fn coordinate(
+        &self,
+        layout: &Layout,
+        viewport_section: Section<InterfaceContext>,
+    ) -> Option<Coordinate<InterfaceContext>> {
+        if let Some(segment) = self.0.get(layout) {
+            let mut coordinate = Coordinate::default();
+            coordinate.section.position = segment.pos.calc(viewport_section);
+            coordinate.section.area = segment.area.calc(viewport_section);
+            coordinate.layer = segment.layer;
+            Some(coordinate)
+        } else {
+            None
+        }
+    }
+}
+
 impl ResponsiveSegment {
     pub fn mobile_portrait(segment: Segment) -> Self {
         Self {

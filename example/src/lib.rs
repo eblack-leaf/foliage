@@ -5,10 +5,10 @@ use foliage::bevy_ecs::prelude::{Commands, Entity, Resource};
 use foliage::bevy_ecs::system::{ResMut, SystemParamItem};
 use foliage::button::{Button, ButtonArgs, ButtonStyle};
 use foliage::color::Color;
-use foliage::compositor::segment::{Segment, SegmentDesc};
+use foliage::compositor::segment::{ResponsiveSegment, Segment, SegmentDesc};
 use foliage::compositor::workflow::{
-    Transition, TransitionSceneBindRequest, Workflow, WorkflowHandle, WorkflowStage,
-    WorkflowTransition,
+    Transition, TransitionBindValidity, TransitionSceneBindRequest, WorkflowDescriptor,
+    WorkflowHandle, WorkflowStage, WorkflowTransition,
 };
 use foliage::compositor::Compositor;
 
@@ -25,7 +25,6 @@ use foliage::text::{MaxCharacters, TextValue};
 use foliage::window::WindowDescriptor;
 use foliage::{bevy_ecs, scene_bind_enable};
 use foliage::{AndroidInterface, Foliage};
-use std::collections::HashMap;
 
 pub fn entry(android_interface: AndroidInterface) {
     Foliage::new()
@@ -46,31 +45,27 @@ fn spawn_button_tree(
     mut compositor: ResMut<Compositor>,
     mut events: EventWriter<WorkflowTransition>,
 ) {
-    let segment_one = Segment::new(
-        (0.085.relative(), 0.11.relative()),
-        (0.83.relative(), 0.11.relative()),
-        4,
-    );
-    let segment_two = Segment::new((85.fixed(), 250.fixed()), (240.fixed(), 75.fixed()), 4);
-    let segment_three = Segment::new((140.fixed(), 375.fixed()), (135.fixed(), 50.fixed()), 4);
-    let segment_four = Segment::new((35.fixed(), 700.fixed()), (340.fixed(), 50.fixed()), 4);
-    let segment_one_handle = compositor.generator.generate_segment();
-    compositor.segments.insert(segment_one_handle, segment_one);
-    let segment_two_handle = compositor.generator.generate_segment();
-    compositor.segments.insert(segment_two_handle, segment_two);
-    let segment_three_handle = compositor.generator.generate_segment();
-    compositor
-        .segments
-        .insert(segment_three_handle, segment_three);
-    let segment_four_handle = compositor.generator.generate_segment();
-    compositor
-        .segments
-        .insert(segment_four_handle, segment_four);
+    let segment_one_handle =
+        compositor.add_segment(ResponsiveSegment::mobile_portrait(Segment::new(
+            (0.085.relative(), 0.11.relative()),
+            (0.83.relative(), 0.11.relative()),
+            4,
+        )));
+    let segment_two_handle = compositor.add_segment(ResponsiveSegment::mobile_portrait(
+        Segment::new((85.fixed(), 250.fixed()), (240.fixed(), 75.fixed()), 4),
+    ));
+    let segment_three_handle = compositor.add_segment(ResponsiveSegment::mobile_portrait(
+        Segment::new((140.fixed(), 375.fixed()), (135.fixed(), 50.fixed()), 4),
+    ));
+    let segment_four_handle = compositor.add_segment(ResponsiveSegment::mobile_portrait(
+        Segment::new((35.fixed(), 700.fixed()), (340.fixed(), 50.fixed()), 4),
+    ));
     let transition = cmd
         .spawn(Transition::default())
         .insert(TransitionSceneBindRequest::<Button>(vec![
             (
                 segment_one_handle,
+                TransitionBindValidity::all(),
                 ButtonArgs::new(
                     ButtonStyle::Ring,
                     TextValue::new("Afternoon"),
@@ -82,6 +77,7 @@ fn spawn_button_tree(
             ),
             (
                 segment_two_handle,
+                TransitionBindValidity::all(),
                 ButtonArgs::new(
                     ButtonStyle::Ring,
                     TextValue::new("Fore-"),
@@ -93,6 +89,7 @@ fn spawn_button_tree(
             ),
             (
                 segment_three_handle,
+                TransitionBindValidity::all(),
                 ButtonArgs::new(
                     ButtonStyle::Ring,
                     TextValue::new("CAST!"),
@@ -105,6 +102,7 @@ fn spawn_button_tree(
         ]))
         .insert(TransitionSceneBindRequest::<DualButton>(vec![(
             segment_four_handle,
+            TransitionBindValidity::all(),
             ButtonArgs::new(
                 ButtonStyle::Ring,
                 TextValue::new("Rainy-Day"),
@@ -115,11 +113,10 @@ fn spawn_button_tree(
             ),
         )]))
         .id();
-    let mut transitions = HashMap::new();
-    transitions.insert(WorkflowStage(0), transition);
-    compositor.workflow.insert(
-        WorkflowHandle(0),
-        Workflow::new(WorkflowStage(0), transitions),
+    compositor.add_workflow(
+        WorkflowDescriptor::new(WorkflowHandle(0))
+            .with_transition(WorkflowStage(0), transition)
+            .workflow(),
     );
     events.send(WorkflowTransition(WorkflowHandle(0), WorkflowStage(0)));
 }

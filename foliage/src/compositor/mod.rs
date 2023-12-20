@@ -1,38 +1,34 @@
+use crate::compositor::layout::Layout;
+use crate::compositor::segment::ResponsiveSegment;
+use crate::compositor::workflow::resize_segments;
+use crate::coordinate::area::Area;
 use crate::coordinate::section::Section;
 use crate::coordinate::{Coordinate, InterfaceContext};
 use crate::differential::Despawn;
 use crate::elm::config::{CoreSet, ElmConfiguration};
 use crate::elm::leaf::{EmptySetDescriptor, Leaf};
 use crate::elm::{Elm, EventStage};
-
-use crate::compositor::layout::{Layout, Orientation, Threshold};
-use crate::coordinate::area::Area;
-use crate::ginkgo::viewport::ViewportHandle;
-use bevy_ecs::change_detection::Res;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::EventReader;
-use bevy_ecs::prelude::{IntoSystemConfigs, Query, Resource};
+use bevy_ecs::prelude::{Component, IntoSystemConfigs, Query, Resource};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Commands, ResMut};
-use segment::Segment;
 use std::collections::HashMap;
 use workflow::{
     TransitionEngaged, TransitionRemovals, Workflow, WorkflowHandle, WorkflowTransition,
 };
-
 pub mod layout;
 pub mod segment;
 pub mod workflow;
-
-#[derive(Copy, Clone, Hash, Eq, PartialEq)]
+#[derive(Copy, Clone, Hash, Eq, PartialEq, Component)]
 pub struct SegmentHandle(pub i32);
 #[derive(Resource)]
 pub struct Compositor {
-    pub segments: HashMap<SegmentHandle, Segment>,
-    pub bindings: HashMap<SegmentHandle, Entity>,
-    pub workflow: HashMap<WorkflowHandle, Workflow>,
-    pub generator: HandleGenerator,
-    pub layout: Layout,
+    pub(crate) segments: HashMap<SegmentHandle, ResponsiveSegment>,
+    pub(crate) bindings: HashMap<SegmentHandle, Entity>,
+    pub(crate) workflow: HashMap<WorkflowHandle, Workflow>,
+    pub(crate) generator: HandleGenerator,
+    pub(crate) layout: Layout,
 }
 impl Compositor {
     pub(crate) fn new(area: Area<InterfaceContext>) -> Self {
@@ -45,17 +41,24 @@ impl Compositor {
             layout,
         }
     }
+    pub fn add_segment(&mut self, segment: ResponsiveSegment) -> SegmentHandle {
+        let handle = self.generator.generate_segment();
+        self.segments.insert(handle, segment);
+        handle
+    }
+    pub fn add_workflow(&mut self, workflow_desc: (WorkflowHandle, Workflow)) {
+        self.workflow.insert(workflow_desc.0, workflow_desc.1);
+    }
+    pub fn layout(&self) -> &Layout {
+        &self.layout
+    }
     pub fn coordinate(
         &self,
         viewport_section: Section<InterfaceContext>,
         handle: &SegmentHandle,
-    ) -> Coordinate<InterfaceContext> {
+    ) -> Option<Coordinate<InterfaceContext>> {
         let segment = self.segments.get(handle).unwrap();
-        let mut coordinate = Coordinate::<InterfaceContext>::default();
-        coordinate.section.position = segment.pos.calc(viewport_section);
-        coordinate.section.area = segment.area.calc(viewport_section);
-        coordinate.layer = segment.layer;
-        coordinate
+        segment.coordinate(self.layout(), viewport_section)
     }
 }
 
@@ -106,16 +109,15 @@ fn clear_engaged(
 ) {
     for (mut e, removals) in engaged.iter_mut() {
         e.0 = false;
-        for r in removals.0.iter() {
-            let old = compositor.bindings.remove(r);
-            if let Some(o) = old {
-                cmd.entity(o).insert(Despawn::signal_despawn());
+        if let Some(rem) = removals.0.get(compositor.layout()) {
+            for r in rem.iter() {
+                let old = compositor.bindings.remove(r);
+                if let Some(o) = old {
+                    cmd.entity(o).insert(Despawn::signal_despawn());
+                }
             }
         }
     }
-}
-fn setup(mut cmd: Commands, viewport_handle: Res<ViewportHandle>) {
-    cmd.insert_resource(Compositor::new(viewport_handle.section.area));
 }
 impl Leaf for Compositor {
     type SetDescriptor = EmptySetDescriptor;
@@ -124,8 +126,8 @@ impl Leaf for Compositor {
 
     fn attach(elm: &mut Elm) {
         elm.add_event::<WorkflowTransition>(EventStage::Process);
-        elm.startup().add_systems((setup,));
         elm.main().add_systems((
+            resize_segments.in_set(CoreSet::CompositorSetup),
             workflow_update.in_set(CoreSet::CompositorSetup),
             clear_engaged.in_set(CoreSet::CompositorTeardown),
         ));

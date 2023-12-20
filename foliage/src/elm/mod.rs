@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::ash::render_packet::RenderPacketForwarder;
 use crate::ash::render_packet::RenderPacketPackage;
+use crate::compositor::Compositor;
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
@@ -114,6 +115,7 @@ impl Elm {
         self.job
             .container
             .insert_resource(ViewportHandle::new(Section::default().with_area(area)));
+        self.job.container.insert_resource(Compositor::new(area));
     }
     pub(crate) fn set_viewport_handle_area(&mut self, area: Area<InterfaceContext>) {
         self.job

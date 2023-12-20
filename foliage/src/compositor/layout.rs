@@ -7,7 +7,11 @@ pub enum Orientation {
 }
 impl Orientation {
     pub fn from_area(area: Area<InterfaceContext>) -> Self {
-        todo!()
+        if area.width > area.height {
+            Self::Landscape
+        } else {
+            Self::Portrait
+        }
     }
 }
 #[derive(Hash, Eq, PartialEq, Copy, Clone)]
@@ -26,12 +30,8 @@ impl Layout {
     pub fn from_area(area: Area<InterfaceContext>) -> Self {
         let orientation = Orientation::from_area(area);
         match orientation {
-            Orientation::Portrait => {
-                Self::threshold_check(area, Self::PORTRAIT)
-            }
-            Orientation::Landscape => {
-                Self::threshold_check(area, Self::LANDSCAPE)
-            }
+            Orientation::Portrait => Self::threshold_check(area, Self::PORTRAIT),
+            Orientation::Landscape => Self::threshold_check(area, Self::LANDSCAPE),
         }
     }
     fn threshold_check(area: Area<InterfaceContext>, layouts: [Layout; 4]) -> Layout {
@@ -41,7 +41,7 @@ impl Layout {
             if threshold.horizontal_bound.satisfied(area.width)
                 && threshold.vertical_bound.satisfied(area.height)
             {
-                layout = *l;
+                layout = l;
                 break;
             }
         }
@@ -68,51 +68,53 @@ impl Layout {
     pub fn threshold(&self) -> LayoutThreshold {
         match self.orientation {
             Orientation::Portrait => match self.threshold {
-                Threshold::Mobile => {
-                    LayoutThreshold::new(ThresholdBound::new(0, 400), ThresholdBound::new(0, 900))
-                }
+                Threshold::Mobile => LayoutThreshold::new(
+                    ThresholdBound::new(0.0, 400.0),
+                    ThresholdBound::new(0.0, 900.0),
+                ),
                 Threshold::Tablet => LayoutThreshold::new(
-                    ThresholdBound::new(401, 800),
-                    ThresholdBound::new(0, 1000),
+                    ThresholdBound::new(401.0, 800.0),
+                    ThresholdBound::new(0.0, 1000.0),
                 ),
                 Threshold::Desktop => LayoutThreshold::new(
-                    ThresholdBound::new(801, 1200),
-                    ThresholdBound::new(0, 1100),
+                    ThresholdBound::new(801.0, 1200.0),
+                    ThresholdBound::new(0.0, 1100.0),
                 ),
                 Threshold::Workstation => LayoutThreshold::new(
-                    ThresholdBound::new(1201, 3840),
-                    ThresholdBound::new(0, 2160),
+                    ThresholdBound::new(1201.0, 3840.0),
+                    ThresholdBound::new(0.0, 2160.0),
                 ),
             },
             Orientation::Landscape => match self.threshold {
-                Threshold::Mobile => {
-                    LayoutThreshold::new(ThresholdBound::new(0, 900), ThresholdBound::new(0, 400))
-                }
+                Threshold::Mobile => LayoutThreshold::new(
+                    ThresholdBound::new(0.0, 900.0),
+                    ThresholdBound::new(0.0, 400.0),
+                ),
                 Threshold::Tablet => LayoutThreshold::new(
-                    ThresholdBound::new(0, 1000),
-                    ThresholdBound::new(401, 800),
+                    ThresholdBound::new(0.0, 1000.0),
+                    ThresholdBound::new(401.0, 800.0),
                 ),
                 Threshold::Desktop => LayoutThreshold::new(
-                    ThresholdBound::new(0, 1100),
-                    ThresholdBound::new(801, 1200),
+                    ThresholdBound::new(0.0, 1100.0),
+                    ThresholdBound::new(801.0, 1200.0),
                 ),
                 Threshold::Workstation => LayoutThreshold::new(
-                    ThresholdBound::new(0, 2160),
-                    ThresholdBound::new(1201, 3840),
+                    ThresholdBound::new(0.0, 2160.0),
+                    ThresholdBound::new(1201.0, 3840.0),
                 ),
             },
         }
     }
 }
 pub struct ThresholdBound {
-    pub min: u32,
-    pub max: u32,
+    pub min: CoordinateUnit,
+    pub max: CoordinateUnit,
 }
 impl ThresholdBound {
     pub fn satisfied(&self, target: CoordinateUnit) -> bool {
-        todo!()
+        target <= self.max && target >= self.min
     }
-    pub fn new(min: u32, max: u32) -> Self {
+    pub fn new(min: CoordinateUnit, max: CoordinateUnit) -> Self {
         Self { min, max }
     }
 }
