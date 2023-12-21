@@ -12,7 +12,7 @@ use align::{LayerAlignment, PositionAlignment, SceneAnchor};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Commands, DetectChanges, ParamSet, RemovedComponents, Resource};
-use bevy_ecs::query::{Changed, Or};
+use bevy_ecs::query::{Changed, Or, With};
 use bevy_ecs::system::{Query, ResMut, SystemParam, SystemParamItem};
 use bind::{SceneBinder, SceneNodes, SceneRoot, SceneVisibility};
 use indexmap::IndexSet;
@@ -111,7 +111,7 @@ pub(crate) fn resolve_anchor(
         });
     }
 }
-pub(crate) fn register_root(
+pub(crate) fn scene_register(
     mut coordinator: ResMut<SceneCoordinator>,
     mut query: Query<
         (Entity, &mut SceneRoot, &SceneAnchor, &Despawn),
@@ -157,7 +157,25 @@ pub(crate) fn register_root(
         }
     }
 }
-
+pub(crate) fn hook_to_anchor(
+    mut changed: Query<
+        (
+            &mut SceneAnchor,
+            &Position<InterfaceContext>,
+            &Area<InterfaceContext>,
+            &Layer,
+        ),
+        (
+            Or<(
+                Changed<Position<InterfaceContext>>,
+                Changed<Area<InterfaceContext>>,
+                Changed<Layer>,
+            )>,
+            With<Tag<IsScene>>,
+        ),
+    >,
+) {
+}
 #[derive(Bundle)]
 pub(crate) struct SceneBundle {
     anchor: SceneAnchor,

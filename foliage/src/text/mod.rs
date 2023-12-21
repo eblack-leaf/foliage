@@ -94,7 +94,7 @@ impl Leaf for Text {
     type SetDescriptor = SetDescriptor;
 
     fn config(elm_configuration: &mut ElmConfiguration) {
-        elm_configuration.configure_hook::<Self>(ExternalSet::Resolve, SetDescriptor::Area);
+        elm_configuration.configure_hook::<Self>(ExternalSet::Configure, SetDescriptor::Area);
     }
 
     fn attach(elm: &mut Elm) {
@@ -114,10 +114,10 @@ impl Leaf for Text {
             .insert_resource(MonospacedFont::new(Self::DEFAULT_OPT_SCALE));
         elm.job.main().add_systems((
             changes
-                .in_set(ExternalSet::Resolve)
+                .in_set(ExternalSet::Configure)
                 .in_set(Self::SetDescriptor::Area),
             max_character
-                .in_set(ExternalSet::Resolve)
+                .in_set(ExternalSet::Configure)
                 .before(changes)
                 .in_set(Self::SetDescriptor::Area),
         ));

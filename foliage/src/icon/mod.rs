@@ -57,13 +57,13 @@ impl Leaf for Icon {
     type SetDescriptor = SetDescriptor;
 
     fn config(elm_configuration: &mut ElmConfiguration) {
-        elm_configuration.configure_hook::<Self>(ExternalSet::Resolve, SetDescriptor::Area);
+        elm_configuration.configure_hook::<Self>(ExternalSet::Configure, SetDescriptor::Area);
     }
 
     fn attach(elm: &mut Elm) {
         differential_enable!(elm, CReprPosition, CReprArea, Color, IconId, MipsLevel);
         elm.job.main().add_systems((scale_change
-            .in_set(ExternalSet::Resolve)
+            .in_set(ExternalSet::Configure)
             .in_set(SetDescriptor::Area),));
     }
 }

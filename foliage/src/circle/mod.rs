@@ -99,7 +99,7 @@ impl Leaf for Circle {
     type SetDescriptor = SetDescriptor;
 
     fn config(elm_configuration: &mut ElmConfiguration) {
-        elm_configuration.configure_hook::<Self>(ExternalSet::Resolve, SetDescriptor::Area);
+        elm_configuration.configure_hook::<Self>(ExternalSet::Configure, SetDescriptor::Area);
     }
 
     fn attach(elm: &mut Elm) {
@@ -114,7 +114,7 @@ impl Leaf for Circle {
         );
         use bevy_ecs::prelude::IntoSystemConfigs;
         elm.job.main().add_systems((mips_adjust
-            .in_set(ExternalSet::Resolve)
+            .in_set(ExternalSet::Configure)
             .in_set(SetDescriptor::Area),));
     }
 }

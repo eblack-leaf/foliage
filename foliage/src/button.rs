@@ -42,12 +42,12 @@ impl Leaf for Button {
     type SetDescriptor = SetDescriptors;
 
     fn config(elm_configuration: &mut ElmConfiguration) {
-        elm_configuration.configure_hook::<Self>(ExternalSet::Resolve, SetDescriptors::Button);
+        elm_configuration.configure_hook::<Self>(ExternalSet::Configure, SetDescriptors::Button);
     }
 
     fn attach(elm: &mut Elm) {
         elm.job.main().add_systems((updates
-            .in_set(ExternalSet::Resolve)
+            .in_set(ExternalSet::Configure)
             .in_set(SetDescriptors::Button)
             .before(<Text as Leaf>::SetDescriptor::Area)
             .before(<Panel as Leaf>::SetDescriptor::Area)
