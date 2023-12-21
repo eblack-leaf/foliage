@@ -7,6 +7,7 @@ use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::{Coordinate, InterfaceContext};
 use crate::differential::Despawn;
+use crate::elm::leaf::Tag;
 use align::{LayerAlignment, PositionAlignment, SceneAnchor};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
@@ -164,7 +165,9 @@ pub(crate) struct SceneBundle {
     root: SceneRoot,
     visibility: SceneVisibility,
     despawn: Despawn,
+    tag: Tag<IsScene>,
 }
+pub struct IsScene();
 impl SceneBundle {
     pub(crate) fn new(anchor: SceneAnchor, nodes: SceneNodes, root: SceneRoot) -> Self {
         Self {
@@ -173,6 +176,7 @@ impl SceneBundle {
             root,
             visibility: SceneVisibility::default(),
             despawn: Despawn::default(),
+            tag: Tag::default(),
         }
     }
 }

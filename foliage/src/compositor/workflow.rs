@@ -5,10 +5,11 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::InterfaceContext;
 use crate::differential::Despawn;
+use crate::elm::leaf::Tag;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::scene::align::SceneAnchor;
 use crate::scene::bind::SceneRoot;
-use crate::scene::{Scene, SceneSpawn};
+use crate::scene::{IsScene, Scene, SceneSpawn};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::change_detection::{Res, ResMut};
 use bevy_ecs::component::Component;
@@ -248,6 +249,8 @@ pub(crate) fn resize_segments(
         &mut Area<InterfaceContext>,
         &mut Layer,
         &SegmentHandle,
+        Option<&Tag<IsScene>>,
+        Option<&mut SceneAnchor>,
     )>,
     mut compositor: ResMut<Compositor>,
     viewport_handle: Res<ViewportHandle>,
@@ -255,8 +258,13 @@ pub(crate) fn resize_segments(
 ) {
     if viewport_handle.is_changed() {
         compositor.layout = Layout::from_area(viewport_handle.section.area);
-        for (entity, mut pos, mut area, mut layer, handle) in query.iter_mut() {
+        for (entity, mut pos, mut area, mut layer, handle, tag, anchor) in query.iter_mut() {
             if let Some(coordinate) = compositor.coordinate(viewport_handle.section(), handle) {
+                if tag.is_some() {
+                    if let Some(mut a) = anchor {
+                        a.0 = coordinate;
+                    }
+                }
                 *pos = coordinate.section.position;
                 *area = coordinate.section.area;
                 *layer = coordinate.layer;
