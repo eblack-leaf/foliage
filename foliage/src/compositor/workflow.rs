@@ -99,7 +99,7 @@ impl<'a, 'w, 's> TransitionDescriptor<'a, 'w, 's> {
     }
     pub fn bind_animation<A: Animate>(
         self,
-        _a: Vec<(SegmentHandle, TransitionBindValidity, Option<A>)>,
+        _a: Vec<(SegmentHandle, TransitionBindValidity, A)>,
     ) -> Self {
         // self.cmd.entity(self.entity).insert();
         self
