@@ -267,7 +267,13 @@ pub(crate) fn resize_segments(
     mut cmd: Commands,
 ) {
     if viewport_handle.is_changed() {
+        let old_layout = compositor.layout();
         compositor.layout = Layout::from_area(viewport_handle.section.area);
+        if old_layout != compositor.layout() {
+            // send old + new layout + see if validity of transition has both new and old,
+            // if none = spawn, if not old but new = spawn if new and old = skip
+            // if old = none then spawn
+        }
         for (entity, mut pos, mut area, mut layer, handle, tag, anchor) in query.iter_mut() {
             if let Some(coordinate) = compositor.coordinate(viewport_handle.section(), handle) {
                 if tag.is_some() {

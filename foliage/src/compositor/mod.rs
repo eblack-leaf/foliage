@@ -1,6 +1,6 @@
 use crate::compositor::layout::Layout;
 use crate::compositor::segment::ResponsiveSegment;
-use crate::compositor::workflow::resize_segments;
+use crate::compositor::workflow::{resize_segments, WorkflowStage};
 use crate::coordinate::area::Area;
 use crate::coordinate::section::Section;
 use crate::coordinate::{Coordinate, InterfaceContext};
@@ -31,6 +31,18 @@ pub struct Compositor {
     pub(crate) layout: Layout,
 }
 impl Compositor {
+    pub(crate) fn engage_transition(&mut self, cmd: &mut Commands, workflow_handle: WorkflowHandle, workflow_stage: WorkflowStage) {
+        if let Some(transition) = self
+            .workflow
+            .get(&workflow_handle)
+            .unwrap()
+            .transitions
+            .get(&workflow_stage)
+        {
+            cmd.entity(*transition).insert(TransitionEngaged(true));
+        }
+        self.workflow.get_mut(&workflow_handle).unwrap().stage = workflow_stage;
+    }
     pub(crate) fn new(area: Area<InterfaceContext>) -> Self {
         let layout = Layout::from_area(area);
         Self {
@@ -90,16 +102,7 @@ fn workflow_update(
     mut cmd: Commands,
 ) {
     for event in events.read() {
-        if let Some(transition) = compositor
-            .workflow
-            .get(&event.0)
-            .unwrap()
-            .transitions
-            .get(&event.1)
-        {
-            cmd.entity(*transition).insert(TransitionEngaged(true));
-        }
-        compositor.workflow.get_mut(&event.0).unwrap().stage = event.1;
+        compositor.engage_transition(&mut cmd, event.0, event.1);
     }
 }
 fn clear_engaged(
@@ -127,7 +130,7 @@ impl Leaf for Compositor {
     fn attach(elm: &mut Elm) {
         elm.add_event::<WorkflowTransition>(EventStage::Process);
         elm.main().add_systems((
-            resize_segments.in_set(CoreSet::CompositorSetup),
+            resize_segments.in_set(CoreSet::CompositorSetup).before(),
             workflow_update.in_set(CoreSet::CompositorSetup),
             clear_engaged.in_set(CoreSet::CompositorTeardown),
         ));

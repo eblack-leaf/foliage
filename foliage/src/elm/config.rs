@@ -79,6 +79,7 @@ impl<'a> ElmConfiguration<'a> {
                 .before(crate::scene::align::calc_alignments)
                 .after(crate::scene::resolve_anchor),
             crate::scene::align::calc_alignments.in_set(CoreSet::SceneResolve),
+            crate::scene::hook_to_anchor.in_set(CoreSet::SceneFinalize).before(crate::scene::scene_register),
             crate::scene::scene_register
                 .in_set(CoreSet::SceneFinalize)
                 .before(crate::scene::align::calc_alignments),
