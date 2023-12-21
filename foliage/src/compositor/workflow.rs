@@ -1,3 +1,4 @@
+use crate::animate::Animate;
 use crate::compositor::layout::{Layout, Orientation, Threshold};
 use crate::compositor::{Compositor, SegmentHandle};
 use crate::coordinate::area::Area;
@@ -76,6 +77,8 @@ impl RemovalDescriptor {
         self.0
     }
 }
+#[derive(Component, Default)]
+pub struct TransitionAnimation<A: Animate>(pub Vec<(SegmentHandle, TransitionBindValidity, A)>);
 pub struct TransitionDescriptor<'a, 'w, 's> {
     cmd: &'a mut Commands<'w, 's>,
     transition: Transition,
@@ -94,9 +97,16 @@ impl<'a, 'w, 's> TransitionDescriptor<'a, 'w, 's> {
         self.transition.removals.0.insert(layout, r);
         self
     }
-    pub fn bind<B: Bundle>(
+    pub fn bind_animation<A: Animate>(
         self,
-        b: Vec<(SegmentHandle, TransitionBindValidity, Option<B>)>,
+        _a: Vec<(SegmentHandle, TransitionBindValidity, Option<A>)>,
+    ) -> Self {
+        // self.cmd.entity(self.entity).insert();
+        self
+    }
+    pub fn bind<B: Bundle + std::clone::Clone>(
+        self,
+        b: Vec<(SegmentHandle, TransitionBindValidity, B)>,
     ) -> Self {
         self.cmd
             .entity(self.entity)
@@ -239,8 +249,8 @@ impl TransitionBindValidity {
     }
 }
 #[derive(Component)]
-pub struct TransitionBindRequest<B: Bundle>(
-    pub Vec<(SegmentHandle, TransitionBindValidity, Option<B>)>,
+pub struct TransitionBindRequest<B: Bundle + Clone + 'static>(
+    pub Vec<(SegmentHandle, TransitionBindValidity, B)>,
 );
 pub(crate) fn resize_segments(
     mut query: Query<(
@@ -274,7 +284,7 @@ pub(crate) fn resize_segments(
         }
     }
 }
-pub(crate) fn fill_bind_requests<B: Bundle>(
+pub(crate) fn fill_bind_requests<B: Bundle + Clone + 'static>(
     mut cmd: Commands,
     mut query: Query<
         (&mut TransitionBindRequest<B>, &TransitionEngaged),
@@ -291,7 +301,7 @@ pub(crate) fn fill_bind_requests<B: Bundle>(
                         compositor.coordinate(viewport_handle.section(), handle)
                     {
                         let entity = cmd
-                            .spawn(bundle.take().unwrap())
+                            .spawn(bundle.clone())
                             .insert(coordinate)
                             .insert(*handle)
                             .id();

@@ -14,10 +14,12 @@ pub enum CoreSet {
     // Process,
     ProcessEvent,
     CompositorSetup,
+    // CompositorBind,
     CompositorTeardown,
     Spawn,
     // Resolve,
-    Coordinate,
+    CoordinateResolve,
+    CoordinateFinalize,
     Visibility,
     Differential,
     RenderPacket,
@@ -44,7 +46,8 @@ impl<'a> ElmConfiguration<'a> {
                 CoreSet::CompositorTeardown,
                 CoreSet::Spawn,
                 ExternalSet::Resolve,
-                CoreSet::Coordinate,
+                CoreSet::CoordinateResolve,
+                CoreSet::CoordinateFinalize,
                 CoreSet::Visibility,
                 CoreSet::Differential,
                 CoreSet::RenderPacket,
@@ -53,23 +56,22 @@ impl<'a> ElmConfiguration<'a> {
         );
         elm.main().add_systems((
             crate::scene::register_root
-                .in_set(CoreSet::Coordinate)
+                .in_set(CoreSet::CoordinateResolve)
                 .before(crate::scene::align::calc_alignments),
             crate::scene::resolve_anchor
-                .in_set(CoreSet::Coordinate)
+                .in_set(CoreSet::CoordinateResolve)
                 .before(crate::scene::align::calc_alignments)
                 .after(crate::scene::register_root),
             apply_deferred
-                .in_set(CoreSet::Coordinate)
+                .in_set(CoreSet::CoordinateResolve)
                 .before(crate::scene::align::calc_alignments)
                 .after(crate::scene::resolve_anchor),
-            crate::scene::align::calc_alignments.in_set(CoreSet::Coordinate),
+            crate::scene::align::calc_alignments.in_set(CoreSet::CoordinateResolve),
             crate::coordinate::position_set
-                .in_set(CoreSet::Coordinate)
-                .after(crate::scene::align::calc_alignments),
+                .in_set(CoreSet::CoordinateFinalize)
+             ,
             crate::coordinate::area_set
-                .in_set(CoreSet::Coordinate)
-                .after(crate::scene::align::calc_alignments),
+                .in_set(CoreSet::CoordinateFinalize),
             crate::differential::send_render_packet.in_set(CoreSet::RenderPacket),
             crate::differential::despawn
                 .in_set(CoreSet::RenderPacket)
@@ -97,7 +99,10 @@ impl<'a> ElmConfiguration<'a> {
                 .before(ExternalSet::Resolve),
             apply_deferred
                 .after(ExternalSet::Resolve)
-                .before(CoreSet::Coordinate),
+                .before(CoreSet::CoordinateResolve),
+            apply_deferred
+                .after(CoreSet::CoordinateResolve)
+                .before(CoreSet::CoordinateFinalize),
         ));
         let mut config = Self(elm);
         for leaf in leaflets.iter() {

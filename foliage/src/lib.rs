@@ -26,6 +26,7 @@ use crate::text::Text;
 
 use self::ash::leaflet::RenderLeafletStorage;
 
+mod animate;
 pub mod ash;
 pub mod button;
 pub mod circle;

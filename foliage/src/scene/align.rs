@@ -5,7 +5,8 @@ use crate::coordinate::{Coordinate, CoordinateUnit, InterfaceContext};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Changed, Or, Query};
-
+#[derive(Component, Copy, Clone, Default)]
+pub struct AlignmentDisable(pub bool);
 pub(crate) fn calc_alignments(
     mut pos_aligned: Query<
         (
@@ -13,8 +14,10 @@ pub(crate) fn calc_alignments(
             &mut Position<InterfaceContext>,
             &Area<InterfaceContext>,
             &PositionAlignment,
+            &AlignmentDisable,
         ),
         Or<(
+            Changed<AlignmentDisable>,
             Changed<PositionAlignment>,
             Changed<SceneAnchor>,
             Changed<Position<InterfaceContext>>,
@@ -22,20 +25,25 @@ pub(crate) fn calc_alignments(
         )>,
     >,
     mut layer_aligned: Query<
-        (&SceneAnchor, &mut Layer, &LayerAlignment),
+        (&SceneAnchor, &mut Layer, &LayerAlignment, &AlignmentDisable),
         Or<(
+            Changed<AlignmentDisable>,
             Changed<LayerAlignment>,
             Changed<Layer>,
             Changed<SceneAnchor>,
         )>,
     >,
 ) {
-    for (anchor, mut pos, area, alignment) in pos_aligned.iter_mut() {
-        let position = alignment.calc_pos(*anchor, *area);
-        *pos = position;
+    for (anchor, mut pos, area, alignment, disable) in pos_aligned.iter_mut() {
+        if !disable.0 {
+            let position = alignment.calc_pos(*anchor, *area);
+            *pos = position;
+        }
     }
-    for (anchor, mut layer, alignment) in layer_aligned.iter_mut() {
-        *layer = alignment.calc_layer(anchor.0.layer);
+    for (anchor, mut layer, alignment, disable) in layer_aligned.iter_mut() {
+        if !disable.0 {
+            *layer = alignment.calc_layer(anchor.0.layer);
+        }
     }
 }
 

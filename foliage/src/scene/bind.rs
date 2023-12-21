@@ -4,7 +4,7 @@ use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::{Coordinate, InterfaceContext};
 use crate::differential::Despawn;
-use crate::scene::align::{SceneAlignment, SceneAnchor};
+use crate::scene::align::{AlignmentDisable, SceneAlignment, SceneAnchor};
 use crate::scene::{Scene, SceneSpawn};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
@@ -85,13 +85,14 @@ impl SceneBinder {
         alignment: SA,
         b: B,
         cmd: &mut Commands,
-    ) {
+    ) -> Entity {
         let sb = binding.into();
         let entity = cmd
             .spawn(b)
             .insert(SceneBind::new(alignment.into(), sb, self.anchor))
             .id();
         self.nodes.0.insert(sb, SceneNodeEntry::new(entity, false));
+        entity
     }
     pub fn bind_scene<S: Scene>(
         &mut self,
@@ -101,7 +102,7 @@ impl SceneBinder {
         args: &S::Args<'_>,
         external_args: &SystemParamItem<S::ExternalResources>,
         cmd: &mut Commands,
-    ) {
+    ) -> Entity {
         let anchor = SceneAnchor(Coordinate::new(
             Section::new(Position::default(), area),
             Layer::default(),
@@ -111,6 +112,7 @@ impl SceneBinder {
         self.nodes
             .0
             .insert(binding, SceneNodeEntry::new(entity, true));
+        entity
     }
 }
 
@@ -144,6 +146,7 @@ pub(crate) struct SceneBind {
     binding: SceneBinding,
     anchor: SceneAnchor,
     visibility: SceneVisibility,
+    disable: AlignmentDisable,
 }
 
 impl SceneBind {
@@ -157,6 +160,7 @@ impl SceneBind {
             binding,
             anchor,
             visibility: SceneVisibility::default(),
+            disable: AlignmentDisable::default(),
         }
     }
 }

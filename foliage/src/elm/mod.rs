@@ -130,7 +130,7 @@ impl Elm {
         self.main()
             .add_systems((event_update_system::<E>.in_set(stage.set()),));
     }
-    pub fn enable_bind<B: Bundle>(&mut self) {
+    pub fn enable_bind<B: Bundle + Clone + 'static>(&mut self) {
         if self.limiters.get::<Tag<B>>().is_none() {
             self.job
                 .main()
