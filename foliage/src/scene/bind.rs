@@ -5,6 +5,7 @@ use crate::coordinate::section::Section;
 use crate::coordinate::{Coordinate, InterfaceContext};
 use crate::differential::Despawn;
 use crate::scene::align::{AlignmentDisable, SceneAlignment, SceneAnchor};
+use crate::scene::transition::SceneTransitionRoot;
 use crate::scene::{Scene, SceneSpawn};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
@@ -37,7 +38,7 @@ impl SceneNodeEntry {
     }
 }
 #[derive(Component, Default)]
-pub struct SceneNodes(HashMap<SceneBinding, SceneNodeEntry>);
+pub struct SceneNodes(pub(crate) HashMap<SceneBinding, SceneNodeEntry>);
 
 impl SceneNodes {
     pub(crate) fn set_anchor_non_scene(&self, new_anchor: SceneAnchor, cmd: &mut Commands) {
@@ -93,6 +94,18 @@ impl SceneBinder {
             .id();
         self.nodes.0.insert(sb, SceneNodeEntry::new(entity, false));
         entity
+    }
+    pub fn this(&self) -> Entity {
+        self.this
+    }
+    pub fn scene_transition_root(&self) -> SceneTransitionRoot {
+        SceneTransitionRoot(self.this)
+    }
+    pub fn root(&self) -> SceneRoot {
+        SceneRoot::new(self.this)
+    }
+    pub fn anchor(&self) -> SceneAnchor {
+        self.anchor
     }
     pub fn bind_scene<S: Scene>(
         &mut self,

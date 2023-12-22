@@ -8,8 +8,9 @@ pub enum ExternalSet {
     CompositorBind,
     CompositorExtension,
     Spawn,
+    SceneBind,
     Configure,
-    Resolve
+    Resolve,
 }
 #[derive(SystemSet, Hash, Eq, PartialEq, Debug, Copy, Clone)]
 pub enum CoreSet {
@@ -21,7 +22,10 @@ pub enum CoreSet {
     // CompositorExtension,
     CompositorTeardown,
     // Spawn,
-    SpawnExtension,
+    SceneSetup,
+    // SceneBind,
+    SceneTeardown,
+    SceneExtension,
     // Configure,
     SceneResolve,
     // Resolve,
@@ -30,7 +34,6 @@ pub enum CoreSet {
     Visibility,
     Differential,
     RenderPacket,
-
 }
 pub struct ElmConfiguration<'a>(&'a mut Elm);
 impl<'a> ElmConfiguration<'a> {
@@ -54,7 +57,10 @@ impl<'a> ElmConfiguration<'a> {
                 ExternalSet::CompositorExtension,
                 CoreSet::CompositorTeardown,
                 ExternalSet::Spawn,
-                CoreSet::SpawnExtension,
+                CoreSet::SceneSetup,
+                ExternalSet::SceneBind,
+                CoreSet::SceneTeardown,
+                CoreSet::SceneExtension,
                 ExternalSet::Configure,
                 CoreSet::SceneResolve,
                 ExternalSet::Resolve,
@@ -79,7 +85,9 @@ impl<'a> ElmConfiguration<'a> {
                 .before(crate::scene::align::calc_alignments)
                 .after(crate::scene::resolve_anchor),
             crate::scene::align::calc_alignments.in_set(CoreSet::SceneResolve),
-            crate::scene::hook_to_anchor.in_set(CoreSet::SceneFinalize).before(crate::scene::scene_register),
+            crate::scene::hook_to_anchor
+                .in_set(CoreSet::SceneFinalize)
+                .before(crate::scene::scene_register),
             crate::scene::scene_register
                 .in_set(CoreSet::SceneFinalize)
                 .before(crate::scene::align::calc_alignments),
@@ -121,9 +129,18 @@ impl<'a> ElmConfiguration<'a> {
                 .before(ExternalSet::Spawn),
             apply_deferred
                 .after(ExternalSet::Spawn)
-                .before(CoreSet::SpawnExtension),
+                .before(CoreSet::SceneSetup),
             apply_deferred
-                .after(CoreSet::SpawnExtension)
+                .after(CoreSet::SceneSetup)
+                .before(ExternalSet::SceneBind),
+            apply_deferred
+                .after(ExternalSet::SceneBind)
+                .before(CoreSet::SceneTeardown),
+            apply_deferred
+                .after(CoreSet::SceneTeardown)
+                .before(CoreSet::SceneExtension),
+            apply_deferred
+                .after(CoreSet::SceneExtension)
                 .before(ExternalSet::Configure),
             apply_deferred
                 .after(ExternalSet::Configure)

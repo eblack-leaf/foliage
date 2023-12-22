@@ -22,6 +22,7 @@ use crate::icon::Icon;
 use crate::image::Image;
 use crate::panel::Panel;
 use crate::rectangle::Rectangle;
+use crate::scene::transition::SceneTransition;
 use crate::text::Text;
 
 use self::ash::leaflet::RenderLeafletStorage;
@@ -93,6 +94,7 @@ impl Foliage {
             .with_renderleaf::<Image>()
             .with_leaf::<Button>()
             .with_leaf::<Compositor>()
+            .with_leaf::<SceneTransition>()
     }
     pub fn with_android_interface(mut self, android_interface: AndroidInterface) -> Self {
         self.android_interface = android_interface;

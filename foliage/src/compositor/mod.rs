@@ -1,6 +1,6 @@
 use crate::compositor::layout::Layout;
 use crate::compositor::segment::ResponsiveSegment;
-use crate::compositor::workflow::{resize_segments, WorkflowStage};
+use crate::compositor::workflow::{resize_segments, ThresholdChange, WorkflowStage};
 use crate::coordinate::area::Area;
 use crate::coordinate::section::Section;
 use crate::coordinate::{Coordinate, InterfaceContext};
@@ -26,14 +26,20 @@ pub struct SegmentHandle(pub i32);
 pub struct Compositor {
     pub(crate) segments: HashMap<SegmentHandle, ResponsiveSegment>,
     pub(crate) bindings: HashMap<SegmentHandle, Entity>,
-    pub(crate) workflow: HashMap<WorkflowHandle, Workflow>,
+    pub(crate) workflow_groups: HashMap<WorkflowHandle, Workflow>,
     pub(crate) generator: HandleGenerator,
     pub(crate) layout: Layout,
+    pub(crate) last_layout: Option<Layout>,
 }
 impl Compositor {
-    pub(crate) fn engage_transition(&mut self, cmd: &mut Commands, workflow_handle: WorkflowHandle, workflow_stage: WorkflowStage) {
+    pub(crate) fn engage_transition(
+        &mut self,
+        cmd: &mut Commands,
+        workflow_handle: WorkflowHandle,
+        workflow_stage: WorkflowStage,
+    ) {
         if let Some(transition) = self
-            .workflow
+            .workflow_groups
             .get(&workflow_handle)
             .unwrap()
             .transitions
@@ -41,16 +47,21 @@ impl Compositor {
         {
             cmd.entity(*transition).insert(TransitionEngaged(true));
         }
-        self.workflow.get_mut(&workflow_handle).unwrap().stage = workflow_stage;
+        self.workflow_groups
+            .get_mut(&workflow_handle)
+            .unwrap()
+            .stage
+            .replace(workflow_stage);
     }
     pub(crate) fn new(area: Area<InterfaceContext>) -> Self {
         let layout = Layout::from_area(area);
         Self {
             segments: Default::default(),
             bindings: Default::default(),
-            workflow: Default::default(),
+            workflow_groups: Default::default(),
             generator: Default::default(),
             layout,
+            last_layout: None,
         }
     }
     pub fn add_segment(&mut self, segment: ResponsiveSegment) -> SegmentHandle {
@@ -59,10 +70,21 @@ impl Compositor {
         handle
     }
     pub fn add_workflow(&mut self, workflow_desc: (WorkflowHandle, Workflow)) {
-        self.workflow.insert(workflow_desc.0, workflow_desc.1);
+        self.workflow_groups
+            .insert(workflow_desc.0, workflow_desc.1);
     }
     pub fn layout(&self) -> &Layout {
         &self.layout
+    }
+    pub fn threshold_changed(&mut self) -> Option<ThresholdChange> {
+        if let Some(last) = self.last_layout.as_ref() {
+            let l = *last;
+            if l != self.layout {
+                self.last_layout.replace(self.layout);
+                return Some(ThresholdChange::new(self.layout, Some(l)));
+            }
+        }
+        None
     }
     pub fn coordinate(
         &self,
@@ -130,7 +152,7 @@ impl Leaf for Compositor {
     fn attach(elm: &mut Elm) {
         elm.add_event::<WorkflowTransition>(EventStage::Process);
         elm.main().add_systems((
-            resize_segments.in_set(CoreSet::CompositorSetup).before(),
+            resize_segments.in_set(CoreSet::CompositorSetup),
             workflow_update.in_set(CoreSet::CompositorSetup),
             clear_engaged.in_set(CoreSet::CompositorTeardown),
         ));

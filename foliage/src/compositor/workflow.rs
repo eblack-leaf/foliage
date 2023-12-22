@@ -33,20 +33,20 @@ macro_rules! scene_bind_enable {
 }
 #[derive(Hash, Eq, PartialEq, Copy, Clone)]
 pub struct WorkflowHandle(pub i32);
-
+#[derive(Component)]
 pub struct Workflow {
-    pub(crate) stage: WorkflowStage,
+    pub(crate) stage: Option<WorkflowStage>,
     pub(crate) transitions: HashMap<WorkflowStage, Entity>,
 }
 impl Workflow {
-    pub fn new(stage: WorkflowStage, transitions: HashMap<WorkflowStage, Entity>) -> Self {
+    pub fn new(stage: Option<WorkflowStage>, transitions: HashMap<WorkflowStage, Entity>) -> Self {
         Self { stage, transitions }
     }
 }
-#[derive(Default, Copy, Clone, Hash, Eq, PartialEq)]
+#[derive(Default, Copy, Clone, Hash, Eq, PartialEq, Component)]
 pub struct WorkflowStage(pub i32);
 
-#[derive(Event)]
+#[derive(Event, Copy, Clone)]
 pub struct WorkflowTransition(pub WorkflowHandle, pub WorkflowStage);
 
 #[derive(Component, Default)]
@@ -77,8 +77,6 @@ impl RemovalDescriptor {
         self.0
     }
 }
-#[derive(Component, Default)]
-pub struct TransitionAnimation<A: Animate>(pub Vec<(SegmentHandle, TransitionBindValidity, A)>);
 pub struct TransitionDescriptor<'a, 'w, 's> {
     cmd: &'a mut Commands<'w, 's>,
     transition: Transition,
@@ -95,13 +93,6 @@ impl<'a, 'w, 's> TransitionDescriptor<'a, 'w, 's> {
     }
     pub fn add_removal(mut self, layout: Layout, r: HashSet<SegmentHandle>) -> Self {
         self.transition.removals.0.insert(layout, r);
-        self
-    }
-    pub fn bind_animation<A: Animate>(
-        self,
-        _a: Vec<(SegmentHandle, TransitionBindValidity, A)>,
-    ) -> Self {
-        // self.cmd.entity(self.entity).insert();
         self
     }
     pub fn bind<B: Bundle + std::clone::Clone>(
@@ -270,9 +261,15 @@ pub(crate) fn resize_segments(
         let old_layout = compositor.layout();
         compositor.layout = Layout::from_area(viewport_handle.section.area);
         if old_layout != compositor.layout() {
-            // send old + new layout + see if validity of transition has both new and old,
-            // if none = spawn, if not old but new = spawn if new and old = skip
-            // if old = none then spawn
+            for (handle, workflow) in compositor.workflow_groups.iter() {
+                if let Some(active) = workflow.stage {
+                    if let Some(trans) = workflow.transitions.get(&active) {
+                        cmd.entity(*trans)
+                            .insert(TransitionEngaged(true))
+                            .insert(ThresholdChange::new(compositor.layout, Some(*old_layout)));
+                    }
+                }
+            }
         }
         for (entity, mut pos, mut area, mut layer, handle, tag, anchor) in query.iter_mut() {
             if let Some(coordinate) = compositor.coordinate(viewport_handle.section(), handle) {
@@ -293,16 +290,27 @@ pub(crate) fn resize_segments(
 pub(crate) fn fill_bind_requests<B: Bundle + Clone + 'static>(
     mut cmd: Commands,
     mut query: Query<
-        (&mut TransitionBindRequest<B>, &TransitionEngaged),
+        (
+            Entity,
+            &TransitionBindRequest<B>,
+            &TransitionEngaged,
+            Option<&ThresholdChange>,
+        ),
         Changed<TransitionEngaged>,
     >,
     mut compositor: ResMut<Compositor>,
     viewport_handle: Res<ViewportHandle>,
 ) {
-    for (mut request, engaged) in query.iter_mut() {
+    for (entity, request, engaged, threshold_change) in query.iter() {
         if engaged.0 {
-            for (handle, validity, bundle) in request.0.iter_mut() {
+            for (handle, validity, bundle) in request.0.iter() {
                 if validity.0.contains(compositor.layout()) {
+                    if let Some(tc) = threshold_change.as_ref() {
+                        cmd.entity(entity).remove::<ThresholdChange>();
+                        if validity.0.contains(tc.old.as_ref().unwrap()) {
+                            continue;
+                        }
+                    }
                     if let Some(coordinate) =
                         compositor.coordinate(viewport_handle.section(), handle)
                     {
@@ -323,15 +331,26 @@ pub(crate) fn fill_bind_requests<B: Bundle + Clone + 'static>(
 }
 pub(crate) fn fill_scene_bind_requests<S: Scene>(
     mut compositor: ResMut<Compositor>,
-    query: Query<(&TransitionSceneBindRequest<S>, &TransitionEngaged)>,
+    query: Query<(
+        Entity,
+        &TransitionSceneBindRequest<S>,
+        &TransitionEngaged,
+        Option<&ThresholdChange>,
+    )>,
     viewport_handle: Res<ViewportHandle>,
     external_res: StaticSystemParam<<S as Scene>::ExternalResources>,
     mut cmd: Commands,
 ) {
-    for (request, engaged) in query.iter() {
+    for (entity, request, engaged, threshold_change) in query.iter() {
         if engaged.0 {
             for (handle, validity, args) in request.0.iter() {
                 if validity.0.contains(compositor.layout()) {
+                    if let Some(tc) = threshold_change {
+                        cmd.entity(entity).remove::<ThresholdChange>();
+                        if validity.0.contains(tc.old.as_ref().unwrap()) {
+                            continue;
+                        }
+                    }
                     if let Some(coordinate) =
                         compositor.coordinate(viewport_handle.section(), handle)
                     {
@@ -352,7 +371,16 @@ pub(crate) fn fill_scene_bind_requests<S: Scene>(
         }
     }
 }
-
+#[derive(Component, Copy, Clone)]
+pub(crate) struct ThresholdChange {
+    pub(crate) old: Option<Layout>,
+    pub(crate) new: Layout,
+}
+impl ThresholdChange {
+    pub(crate) fn new(new: Layout, old: Option<Layout>) -> Self {
+        Self { old, new }
+    }
+}
 #[derive(Component)]
 pub struct TransitionSceneBindRequest<S: Scene>(
     pub Vec<(SegmentHandle, TransitionBindValidity, S::Args<'static>)>,
@@ -374,9 +402,6 @@ impl WorkflowDescriptor {
         self
     }
     pub fn workflow(self) -> (WorkflowHandle, Workflow) {
-        (
-            self.handle,
-            Workflow::new(WorkflowStage(0), self.transitions),
-        )
+        (self.handle, Workflow::new(None, self.transitions))
     }
 }

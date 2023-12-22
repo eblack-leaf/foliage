@@ -45,6 +45,12 @@ impl<T> Default for DifferentialLimiter<T> {
         DifferentialLimiter(PhantomData)
     }
 }
+struct SceneTransitionBindLimiter<T>(PhantomData<T>);
+impl<T> Default for SceneTransitionBindLimiter<T> {
+    fn default() -> Self {
+        SceneTransitionBindLimiter(PhantomData)
+    }
+}
 pub enum EventStage {
     External,
     Process,
@@ -146,6 +152,34 @@ impl Elm {
                 .add_systems((crate::compositor::workflow::fill_scene_bind_requests::<S>
                     .in_set(ExternalSet::CompositorBind),));
             self.limiters.insert(Tag::<S>::new());
+        }
+    }
+    pub fn enable_scene_transition_bind<B: Bundle + Clone>(&mut self) {
+        if self
+            .limiters
+            .get::<SceneTransitionBindLimiter<B>>()
+            .is_none()
+        {
+            self.main().add_systems((
+                crate::scene::transition::fill_scene_transition_bind_requests::<B>
+                    .in_set(ExternalSet::SceneBind),
+            ));
+            self.limiters
+                .insert(SceneTransitionBindLimiter::<B>::default());
+        }
+    }
+    pub fn enable_scene_transition_scene_bind<S: Scene>(&mut self) {
+        if self
+            .limiters
+            .get::<SceneTransitionBindLimiter<S>>()
+            .is_none()
+        {
+            self.main().add_systems((
+                crate::scene::transition::fill_scene_transition_scene_bind_requests::<S>
+                    .in_set(ExternalSet::SceneBind),
+            ));
+            self.limiters
+                .insert(SceneTransitionBindLimiter::<S>::default());
         }
     }
     pub fn enable_differential<
