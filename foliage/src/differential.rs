@@ -15,6 +15,7 @@ use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::InterfaceContext;
+use crate::ginkgo::viewport::ViewportHandle;
 
 #[derive(Bundle)]
 pub struct Differentiable {
@@ -208,7 +209,10 @@ impl Despawn {
         Self(true)
     }
 }
-pub(crate) fn despawn(despawned: Query<(Entity, &Despawn), Changed<Despawn>>, mut cmd: Commands) {
+pub(crate) fn despawn(despawned: Query<(Entity, &Despawn), Changed<Despawn>>, mut viewport_handle: ResMut<ViewportHandle>, mut cmd: Commands) {
+    if viewport_handle.area_updated() {
+        viewport_handle.area_updated = false;
+    }
     for (entity, despawn) in despawned.iter() {
         if despawn.should_despawn() {
             cmd.entity(entity).despawn();

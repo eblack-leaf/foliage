@@ -25,7 +25,7 @@ use foliage::scene::bind::{SceneBinder, SceneNodes};
 use foliage::scene::transition::{
     SceneTransitionDescriptor, SceneWorkflow, WorkflowTransitionQueue,
 };
-use foliage::scene::Scene;
+use foliage::scene::{Scene, SceneCoordinator};
 use foliage::text::{MaxCharacters, TextValue};
 use foliage::window::WindowDescriptor;
 use foliage::{bevy_ecs, scene_bind_enable, scene_transition_scene_bind_enable, set_descriptor};
@@ -139,14 +139,19 @@ set_descriptor!(
 );
 fn resize_dual_button(
     query: Query<(&SceneNodes, &SceneAnchor), (Changed<SceneAnchor>, With<Tag<DualButton>>)>,
-    mut areas: Query<&mut SceneAnchor, Without<Tag<DualButton>>>,
+    mut areas: Query<(&mut SceneAnchor, &mut Area<InterfaceContext>), Without<Tag<DualButton>>>,
+    mut coordinator: ResMut<SceneCoordinator>,
 ) {
     for (nodes, anchor) in query.iter() {
-        if let Ok(mut a) = areas.get_mut(nodes.get(0).entity()) {
-            a.0.section.area = anchor.0.section.area / (2, 1).into();
+        if let Ok((mut anch, mut area)) = areas.get_mut(nodes.get(0).entity()) {
+            let new_area = anchor.0.section.area / (2, 1).into();
+            anch.0.section.area = new_area;
+            *area = new_area;
         }
-        if let Ok(mut a) = areas.get_mut(nodes.get(1).entity()) {
-            a.0.section.area = anchor.0.section.area / (2, 1).into();
+        if let Ok((mut anch, mut area)) = areas.get_mut(nodes.get(1).entity()) {
+            let new_area = anchor.0.section.area / (2, 1).into();
+            anch.0.section.area = new_area;
+            *area = new_area;
         }
     }
 }

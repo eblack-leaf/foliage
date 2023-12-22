@@ -60,7 +60,8 @@ pub(crate) fn fill_scene_transition_scene_bind_requests<S: Scene>(
             for (binding, alignment, args) in request.0.iter() {
                 if let Ok((root, anchor, mut nodes)) = scene_roots.get_mut(t_root.0) {
                     let e = cmd.spawn_scene::<S>(*anchor, args, &external_res, *root);
-                    cmd.entity(e).insert(*alignment).insert(anchor.0);
+                    cmd.entity(e).insert(SceneBind::new(*alignment, *binding, *anchor)).insert(anchor.0);
+                    cmd.entity(t_root.0).insert(*anchor);
                     if let Some(old) = nodes.0.insert(*binding, SceneNodeEntry::new(e, true)) {
                         cmd.entity(old.entity()).insert(Despawn::signal_despawn());
                     }

@@ -128,8 +128,7 @@ impl Elm {
             .container
             .get_resource_mut::<ViewportHandle>()
             .unwrap()
-            .section
-            .area = area;
+            .adjust_area(area);
     }
     pub fn add_event<E: Event>(&mut self, stage: EventStage) {
         self.job.container.insert_resource(Events::<E>::default());

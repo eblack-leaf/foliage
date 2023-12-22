@@ -86,6 +86,7 @@ impl RenderPacketForwarder {
         if let Some(set) = self.removals.get_mut(id) {
             set.insert(entity);
         }
+        self.render_packets.remove(&RenderPacketSignature(id.clone(), entity));
     }
     pub(crate) fn package_for_transit(&mut self) -> RenderPacketPackage {
         let mut package = RenderPacketPackage::default();

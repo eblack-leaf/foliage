@@ -7,34 +7,41 @@ use bevy_ecs::prelude::Resource;
 use nalgebra::{matrix, SMatrix};
 use serde::{Deserialize, Serialize};
 use wgpu::Queue;
+use crate::coordinate::area::Area;
 
 #[derive(Serialize, Deserialize, Copy, Clone, Resource)]
 pub struct ViewportHandle {
     pub(crate) section: Section<InterfaceContext>,
-    dirty: bool,
+    changes_present: bool,
+    pub(crate) area_updated: bool,
 }
 
 impl ViewportHandle {
     pub fn new(section: Section<InterfaceContext>) -> Self {
         Self {
             section,
-            dirty: false,
+            changes_present: false,
+            area_updated: true,
         }
     }
     pub fn section(&self) -> Section<InterfaceContext> {
         self.section
     }
-    pub fn dirty(&self) -> bool { self.dirty }
+    pub fn area_updated(&self) -> bool { self.area_updated }
     pub(crate) fn changes(&mut self) -> Option<Position<InterfaceContext>> {
-        if self.dirty {
-            self.dirty = false;
+        if self.changes_present {
+            self.changes_present = false;
             return Some(self.section.position);
         }
         None
     }
+    pub(crate) fn adjust_area(&mut self, area: Area<InterfaceContext>) {
+        self.area_updated = true;
+        self.section.area = area;
+    }
     pub fn adjust_position(&mut self, x: CoordinateUnit, y: CoordinateUnit) {
         self.section.position += Position::new(x, y);
-        self.dirty = true;
+        self.changes_present = true;
     }
 }
 

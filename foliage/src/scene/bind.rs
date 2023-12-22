@@ -101,12 +101,6 @@ impl SceneBinder {
     pub fn scene_transition_root(&self) -> SceneTransitionRoot {
         SceneTransitionRoot(self.this)
     }
-    pub fn root(&self) -> SceneRoot {
-        SceneRoot::new(self.this)
-    }
-    pub fn anchor(&self) -> SceneAnchor {
-        self.anchor
-    }
     pub fn bind_scene<S: Scene>(
         &mut self,
         binding: SceneBinding,
@@ -121,7 +115,7 @@ impl SceneBinder {
             Layer::default(),
         ));
         let entity = cmd.spawn_scene::<S>(anchor, args, external_args, SceneRoot::new(self.this));
-        cmd.entity(entity).insert(alignment).insert(anchor.0);
+        cmd.entity(entity).insert(SceneBind::new(alignment, binding, anchor));
         self.nodes
             .0
             .insert(binding, SceneNodeEntry::new(entity, true));
