@@ -209,7 +209,11 @@ impl Despawn {
         Self(true)
     }
 }
-pub(crate) fn despawn(despawned: Query<(Entity, &Despawn), Changed<Despawn>>, mut viewport_handle: ResMut<ViewportHandle>, mut cmd: Commands) {
+pub(crate) fn despawn(
+    despawned: Query<(Entity, &Despawn), Changed<Despawn>>,
+    mut viewport_handle: ResMut<ViewportHandle>,
+    mut cmd: Commands,
+) {
     if viewport_handle.area_updated() {
         viewport_handle.area_updated = false;
     }

@@ -8,6 +8,7 @@ use crate::differential::Despawn;
 use crate::elm::config::{CoreSet, ElmConfiguration};
 use crate::elm::leaf::{EmptySetDescriptor, Leaf};
 use crate::elm::{Elm, EventStage};
+use crate::generator::HandleGenerator;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::EventReader;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs, Query, Resource};
@@ -17,6 +18,7 @@ use std::collections::HashMap;
 use workflow::{
     TransitionEngaged, TransitionRemovals, Workflow, WorkflowHandle, WorkflowTransition,
 };
+
 pub mod layout;
 pub mod segment;
 pub mod workflow;
@@ -63,7 +65,7 @@ impl Compositor {
         }
     }
     pub fn add_segment(&mut self, segment: ResponsiveSegment) -> SegmentHandle {
-        let handle = self.generator.generate_segment();
+        let handle = SegmentHandle(self.generator.generate());
         self.segments.insert(handle, segment);
         handle
     }
@@ -81,28 +83,6 @@ impl Compositor {
     ) -> Option<Coordinate<InterfaceContext>> {
         let segment = self.segments.get(handle).unwrap();
         segment.coordinate(&self.layout(), viewport_section)
-    }
-}
-
-#[derive(Default)]
-pub(crate) struct HandleGenerator {
-    segment: i32,
-    holes: Vec<i32>,
-}
-impl HandleGenerator {
-    pub(crate) fn generate_segment(&mut self) -> SegmentHandle {
-        let handle = if !self.holes.is_empty() {
-            self.holes.pop().unwrap()
-        } else {
-            let h = self.segment;
-            self.segment += 1;
-            h
-        };
-        SegmentHandle(handle)
-    }
-    #[allow(unused)]
-    pub(crate) fn release(&mut self, handle: SegmentHandle) {
-        self.holes.push(handle.0);
     }
 }
 

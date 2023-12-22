@@ -1,3 +1,4 @@
+use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
@@ -7,7 +8,6 @@ use bevy_ecs::prelude::Resource;
 use nalgebra::{matrix, SMatrix};
 use serde::{Deserialize, Serialize};
 use wgpu::Queue;
-use crate::coordinate::area::Area;
 
 #[derive(Serialize, Deserialize, Copy, Clone, Resource)]
 pub struct ViewportHandle {
@@ -27,7 +27,9 @@ impl ViewportHandle {
     pub fn section(&self) -> Section<InterfaceContext> {
         self.section
     }
-    pub fn area_updated(&self) -> bool { self.area_updated }
+    pub fn area_updated(&self) -> bool {
+        self.area_updated
+    }
     pub(crate) fn changes(&mut self) -> Option<Position<InterfaceContext>> {
         if self.changes_present {
             self.changes_present = false;
