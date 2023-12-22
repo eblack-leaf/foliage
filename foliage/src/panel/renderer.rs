@@ -161,7 +161,7 @@ impl Render for Panel {
         let vertices = Vertex::vertices(corner_depth);
         let vertex_buffer = ginkgo.vertex_buffer_with_data(&vertices, "panel-vertex-buffer");
         let index_buffer = ginkgo.index_buffer_with_data(&INDICES, "panel-index-buffer");
-        let instance_coordinator = InstanceCoordinatorBuilder::new(4)
+        let instance_coordinator = InstanceCoordinatorBuilder::new(6)
             .with_attribute::<CReprPosition>()
             .with_attribute::<CReprArea>()
             .with_attribute::<Layer>()

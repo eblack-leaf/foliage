@@ -134,12 +134,12 @@ fn updates(
     }
 }
 pub struct ButtonArgs {
-    style: ButtonStyle,
-    text: TextValue,
-    max_char: MaxCharacters,
-    icon_id: IconId,
-    foreground_color: Color,
-    background_color: Color,
+    pub style: ButtonStyle,
+    pub text: TextValue,
+    pub max_char: MaxCharacters,
+    pub icon_id: IconId,
+    pub foreground_color: Color,
+    pub background_color: Color,
 }
 impl ButtonArgs {
     pub fn new(

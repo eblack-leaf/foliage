@@ -66,15 +66,15 @@ pub(crate) fn resolve_anchor_two(
             let dependents = coordinator.subscene_resolve(root);
             for dep in dependents {
                 if let Ok((
-                              mut anchor,
-                              dep_root,
-                              nodes,
-                              mut pos,
-                              area,
-                              pos_align,
-                              mut layer,
-                              layer_align,
-                          )) = param_set.p0().get_mut(dep)
+                    mut anchor,
+                    dep_root,
+                    nodes,
+                    mut pos,
+                    area,
+                    pos_align,
+                    mut layer,
+                    layer_align,
+                )) = param_set.p0().get_mut(dep)
                 {
                     let root_anchor = *coordinator.anchors.get(&dep_root.current.unwrap()).unwrap();
                     let despawned = coordinator

@@ -12,17 +12,22 @@ use foliage::compositor::workflow::{
 };
 use foliage::compositor::Compositor;
 
+use foliage::coordinate::area::Area;
+use foliage::coordinate::InterfaceContext;
 use foliage::elm::config::ElmConfiguration;
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 use foliage::elm::Elm;
 use foliage::icon::bundled_cov::BundledIcon;
 use foliage::icon::IconId;
-use foliage::scene::align::{SceneAligner, SceneAnchor};
+use foliage::scene::align::{SceneAligner, SceneAlignment, SceneAnchor};
 use foliage::scene::bind::SceneBinder;
+use foliage::scene::transition::{
+    SceneTransitionDescriptor, SceneWorkflow, WorkflowTransitionQueue,
+};
 use foliage::scene::Scene;
 use foliage::text::{MaxCharacters, TextValue};
 use foliage::window::WindowDescriptor;
-use foliage::{bevy_ecs, scene_bind_enable};
+use foliage::{bevy_ecs, scene_bind_enable, scene_transition_scene_bind_enable};
 use foliage::{AndroidInterface, Foliage};
 
 pub fn entry(android_interface: AndroidInterface) {
@@ -135,6 +140,7 @@ impl Leaf for Tester {
     fn attach(elm: &mut Elm) {
         elm.startup().add_systems((spawn_button_tree,));
         scene_bind_enable!(elm, Button, DualButton);
+        scene_transition_scene_bind_enable!(elm, Button);
     }
 }
 #[derive(Bundle)]
@@ -149,6 +155,33 @@ impl Scene for DualButton {
         external_args: &SystemParamItem<Self::ExternalResources>,
         binder: &mut SceneBinder,
     ) -> Self {
+        let transition = SceneTransitionDescriptor::new(cmd, binder.scene_transition_root())
+            .bind_scene::<Button>(vec![(
+                0.into(),
+                ((-5).near(), 0.near(), 0).into(),
+                |a: SceneAnchor| -> Area<InterfaceContext> { a.0.section.area / (2, 1).into() },
+                ButtonArgs::new(
+                    args.style,
+                    TextValue::new("changed"),
+                    MaxCharacters(7),
+                    args.icon_id,
+                    args.foreground_color,
+                    args.background_color,
+                ),
+            )])
+            .build();
+        cmd.entity(binder.this())
+            .insert(
+                SceneWorkflow::new().with_workflow(
+                    WorkflowDescriptor::new(WorkflowHandle(0))
+                        .with_transition(WorkflowStage(0), transition)
+                        .workflow(),
+                ),
+            )
+            .insert(WorkflowTransitionQueue(vec![WorkflowTransition(
+                WorkflowHandle(0),
+                WorkflowStage(0),
+            )]));
         binder.bind_scene::<Button>(
             0.into(),
             ((-5).near(), 0.near(), 0).into(),

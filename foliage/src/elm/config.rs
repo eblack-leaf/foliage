@@ -150,7 +150,7 @@ impl<'a> ElmConfiguration<'a> {
             apply_deferred
                 .after(CoreSet::SceneResolve)
                 .before(CoreSet::CoordinateFinalize),
-            ));
+        ));
         let mut config = Self(elm);
         for leaf in leaflets.iter() {
             leaf.0(&mut config);
