@@ -87,19 +87,19 @@ impl<'a> ElmConfiguration<'a> {
             crate::scene::align::calc_alignments.in_set(CoreSet::SceneResolve),
             crate::scene::hook_to_anchor
                 .in_set(CoreSet::SceneFinalize)
-                .before(crate::scene::scene_register),
-            crate::scene::scene_register
+                .before(crate::scene::scene_register_two),
+            crate::scene::scene_register_two
                 .in_set(CoreSet::SceneFinalize)
-                .before(crate::scene::align::calc_alignments),
-            crate::scene::resolve_anchor
+                .before(crate::scene::align::calc_alignments_two),
+            crate::scene::resolve_anchor_two
                 .in_set(CoreSet::SceneFinalize)
-                .before(crate::scene::align::calc_alignments)
-                .after(crate::scene::scene_register),
+                .before(crate::scene::align::calc_alignments_two)
+                .after(crate::scene::scene_register_two),
             apply_deferred
                 .in_set(CoreSet::SceneFinalize)
-                .before(crate::scene::align::calc_alignments)
-                .after(crate::scene::resolve_anchor),
-            crate::scene::align::calc_alignments.in_set(CoreSet::SceneFinalize),
+                .before(crate::scene::align::calc_alignments_two)
+                .after(crate::scene::resolve_anchor_two),
+            crate::scene::align::calc_alignments_two.in_set(CoreSet::SceneFinalize),
             crate::coordinate::position_set.in_set(CoreSet::CoordinateFinalize),
             crate::coordinate::area_set.in_set(CoreSet::CoordinateFinalize),
             crate::differential::send_render_packet.in_set(CoreSet::RenderPacket),
@@ -127,6 +127,8 @@ impl<'a> ElmConfiguration<'a> {
             apply_deferred
                 .after(CoreSet::CompositorTeardown)
                 .before(ExternalSet::Spawn),
+        ));
+        elm.main().add_systems((
             apply_deferred
                 .after(ExternalSet::Spawn)
                 .before(CoreSet::SceneSetup),
@@ -148,7 +150,7 @@ impl<'a> ElmConfiguration<'a> {
             apply_deferred
                 .after(CoreSet::SceneResolve)
                 .before(CoreSet::CoordinateFinalize),
-        ));
+            ));
         let mut config = Self(elm);
         for leaf in leaflets.iter() {
             leaf.0(&mut config);

@@ -1,4 +1,3 @@
-use crate::animate::Animate;
 use crate::compositor::layout::{Layout, Orientation, Threshold};
 use crate::compositor::{Compositor, SegmentHandle};
 use crate::coordinate::area::Area;
@@ -261,12 +260,12 @@ pub(crate) fn resize_segments(
         let old_layout = compositor.layout();
         compositor.layout = Layout::from_area(viewport_handle.section.area);
         if old_layout != compositor.layout() {
-            for (handle, workflow) in compositor.workflow_groups.iter() {
+            for (_handle, workflow) in compositor.workflow_groups.iter() {
                 if let Some(active) = workflow.stage {
                     if let Some(trans) = workflow.transitions.get(&active) {
                         cmd.entity(*trans)
                             .insert(TransitionEngaged(true))
-                            .insert(ThresholdChange::new(compositor.layout, Some(*old_layout)));
+                            .insert(ThresholdChange::new(old_layout));
                     }
                 }
             }
@@ -289,7 +288,7 @@ pub(crate) fn resize_segments(
 }
 pub(crate) fn fill_bind_requests<B: Bundle + Clone + 'static>(
     mut cmd: Commands,
-    mut query: Query<
+    query: Query<
         (
             Entity,
             &TransitionBindRequest<B>,
@@ -304,10 +303,10 @@ pub(crate) fn fill_bind_requests<B: Bundle + Clone + 'static>(
     for (entity, request, engaged, threshold_change) in query.iter() {
         if engaged.0 {
             for (handle, validity, bundle) in request.0.iter() {
-                if validity.0.contains(compositor.layout()) {
+                if validity.0.contains(&compositor.layout()) {
                     if let Some(tc) = threshold_change.as_ref() {
                         cmd.entity(entity).remove::<ThresholdChange>();
-                        if validity.0.contains(tc.old.as_ref().unwrap()) {
+                        if validity.0.contains(&tc.old) {
                             continue;
                         }
                     }
@@ -344,10 +343,10 @@ pub(crate) fn fill_scene_bind_requests<S: Scene>(
     for (entity, request, engaged, threshold_change) in query.iter() {
         if engaged.0 {
             for (handle, validity, args) in request.0.iter() {
-                if validity.0.contains(compositor.layout()) {
+                if validity.0.contains(&compositor.layout()) {
                     if let Some(tc) = threshold_change {
                         cmd.entity(entity).remove::<ThresholdChange>();
-                        if validity.0.contains(tc.old.as_ref().unwrap()) {
+                        if validity.0.contains(&tc.old) {
                             continue;
                         }
                     }
@@ -373,12 +372,11 @@ pub(crate) fn fill_scene_bind_requests<S: Scene>(
 }
 #[derive(Component, Copy, Clone)]
 pub(crate) struct ThresholdChange {
-    pub(crate) old: Option<Layout>,
-    pub(crate) new: Layout,
+    pub(crate) old: Layout,
 }
 impl ThresholdChange {
-    pub(crate) fn new(new: Layout, old: Option<Layout>) -> Self {
-        Self { old, new }
+    pub(crate) fn new(old: Layout) -> Self {
+        Self { old }
     }
 }
 #[derive(Component)]

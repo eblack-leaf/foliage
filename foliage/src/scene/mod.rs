@@ -39,6 +39,126 @@ impl SceneCoordinator {
         subscenes
     }
 }
+pub(crate) fn resolve_anchor_two(
+    mut coordinator: ResMut<SceneCoordinator>,
+    mut param_set: ParamSet<(
+        Query<(
+            &mut SceneAnchor,
+            &SceneRoot,
+            &SceneNodes,
+            &mut Position<InterfaceContext>,
+            &Area<InterfaceContext>,
+            &PositionAlignment,
+            &mut Layer,
+            &LayerAlignment,
+        )>,
+        Query<&SceneNodes>,
+    )>,
+    mut cmd: Commands,
+) {
+    if coordinator.is_changed() {
+        for root in coordinator.roots.clone() {
+            if coordinator.removes.contains(&root) {
+                if let Ok(nodes) = param_set.p1().get(root) {
+                    nodes.despawn_non_scene(&mut cmd);
+                }
+            }
+            let dependents = coordinator.subscene_resolve(root);
+            for dep in dependents {
+                if let Ok((
+                              mut anchor,
+                              dep_root,
+                              nodes,
+                              mut pos,
+                              area,
+                              pos_align,
+                              mut layer,
+                              layer_align,
+                          )) = param_set.p0().get_mut(dep)
+                {
+                    let root_anchor = *coordinator.anchors.get(&dep_root.current.unwrap()).unwrap();
+                    let despawned = coordinator
+                        .removes
+                        .get(dep_root.current.as_ref().unwrap())
+                        .is_some();
+                    if despawned || coordinator.removes.get(&dep).is_some() {
+                        coordinator.removes.insert(dep);
+                        if let Some(ss) =
+                            coordinator.subscenes.get_mut(&dep_root.current().unwrap())
+                        {
+                            ss.remove(&dep);
+                        }
+                        nodes.despawn_non_scene(&mut cmd);
+                    } else {
+                        let new_position = pos_align.calc_pos(root_anchor, *area);
+                        let new_layer = layer_align.calc_layer(root_anchor.0.layer);
+                        if new_position != anchor.0.section.position || new_layer != anchor.0.layer
+                        {
+                            *pos = new_position;
+                            *layer = new_layer;
+                            let new_anchor = SceneAnchor(Coordinate::new(
+                                Section::new(*pos, *area),
+                                Layer::new(layer.z),
+                            ));
+                            *anchor = new_anchor;
+                            coordinator.anchors.insert(dep, new_anchor);
+                            nodes.set_anchor_non_scene(new_anchor, &mut cmd);
+                        }
+                    }
+                }
+            }
+        }
+        let _ = coordinator.removes.drain().map(|r| {
+            cmd.entity(r).insert(Despawn::signal_despawn());
+        });
+    }
+}
+pub(crate) fn scene_register_two(
+    mut coordinator: ResMut<SceneCoordinator>,
+    mut query: Query<
+        (Entity, &mut SceneRoot, &SceneAnchor, &Despawn),
+        Or<(Changed<SceneAnchor>, Changed<SceneRoot>, Changed<Despawn>)>,
+    >,
+    mut removed: RemovedComponents<SceneRoot>,
+) {
+    for remove in removed.read() {
+        coordinator.removes.insert(remove);
+    }
+    for (entity, mut root, anchor, despawn) in query.iter_mut() {
+        let need_insert = if coordinator.anchors.get(&entity).is_none() {
+            true
+        } else {
+            coordinator.anchors.get(&entity).unwrap().0 != anchor.0
+        };
+        if need_insert {
+            coordinator.anchors.insert(entity, *anchor);
+        }
+        if coordinator.subscenes.get(&entity).is_none() {
+            coordinator.subscenes.insert(entity, HashSet::new());
+        }
+        if let Some(old) = root.old.take() {
+            // deregister
+            if let Some(ss) = coordinator.subscenes.get_mut(&old) {
+                ss.remove(&entity);
+            }
+        }
+        if let Some(current) = root.current {
+            if coordinator.subscenes.get(&current).is_none() {
+                coordinator.subscenes.insert(current, HashSet::new());
+            }
+            coordinator
+                .subscenes
+                .get_mut(&current)
+                .unwrap()
+                .insert(entity);
+        } else {
+            coordinator.roots.insert(entity);
+        }
+        if despawn.should_despawn() {
+            coordinator.removes.insert(entity);
+        }
+    }
+}
 pub(crate) fn resolve_anchor(
     mut coordinator: ResMut<SceneCoordinator>,
     mut param_set: ParamSet<(
@@ -177,6 +297,9 @@ pub(crate) fn hook_to_anchor(
         ),
     >,
 ) {
+    for (mut anchor, pos, area, layer) in changed.iter_mut() {
+        anchor.0 = Coordinate::new((*pos, *area), *layer);
+    }
 }
 #[derive(Bundle)]
 pub(crate) struct SceneBundle {

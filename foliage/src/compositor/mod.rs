@@ -73,18 +73,8 @@ impl Compositor {
         self.workflow_groups
             .insert(workflow_desc.0, workflow_desc.1);
     }
-    pub fn layout(&self) -> &Layout {
-        &self.layout
-    }
-    pub fn threshold_changed(&mut self) -> Option<ThresholdChange> {
-        if let Some(last) = self.last_layout.as_ref() {
-            let l = *last;
-            if l != self.layout {
-                self.last_layout.replace(self.layout);
-                return Some(ThresholdChange::new(self.layout, Some(l)));
-            }
-        }
-        None
+    pub fn layout(&self) -> Layout {
+        self.layout
     }
     pub fn coordinate(
         &self,
@@ -92,7 +82,7 @@ impl Compositor {
         handle: &SegmentHandle,
     ) -> Option<Coordinate<InterfaceContext>> {
         let segment = self.segments.get(handle).unwrap();
-        segment.coordinate(self.layout(), viewport_section)
+        segment.coordinate(&self.layout(), viewport_section)
     }
 }
 
@@ -134,7 +124,7 @@ fn clear_engaged(
 ) {
     for (mut e, removals) in engaged.iter_mut() {
         e.0 = false;
-        if let Some(rem) = removals.0.get(compositor.layout()) {
+        if let Some(rem) = removals.0.get(&compositor.layout()) {
             for r in rem.iter() {
                 let old = compositor.bindings.remove(r);
                 if let Some(o) = old {

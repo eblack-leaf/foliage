@@ -29,7 +29,7 @@ macro_rules! scene_transition_scene_bind_enable {
         $($elm.enable_scene_transition_scene_bind::<$typename>();)+
     };
 }
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct SceneTransitionRemovals(pub HashMap<Layout, HashSet<SceneBinding>>);
 #[derive(Default, Bundle)]
 pub struct SceneTransition {
@@ -37,7 +37,7 @@ pub struct SceneTransition {
     engaged: TransitionEngaged,
 }
 #[derive(Component, Copy, Clone)]
-pub(crate) struct SceneTransitionRoot(pub(crate) Entity);
+pub struct SceneTransitionRoot(pub(crate) Entity);
 #[derive(Component)]
 pub(crate) struct SceneTransitionBindRequest<B: Bundle + Clone>(
     pub Vec<(SceneBinding, SceneAlignment, B)>,
@@ -76,12 +76,12 @@ pub(crate) fn fill_scene_transition_bind_requests<B: Bundle + Clone>(
         &SceneTransitionRoot,
     )>,
     mut cmd: Commands,
-    mut scene_roots: Query<(&SceneRoot, &SceneAnchor, &mut SceneNodes)>,
+    mut scene_roots: Query<(&SceneAnchor, &mut SceneNodes)>,
 ) {
     for (request, engaged, t_root) in query.iter() {
         if engaged.0 {
             for (binding, alignment, bundle) in request.0.iter() {
-                if let Ok((root, anchor, mut nodes)) = scene_roots.get_mut(t_root.0) {
+                if let Ok((anchor, mut nodes)) = scene_roots.get_mut(t_root.0) {
                     let entity = cmd
                         .spawn(bundle.clone())
                         .insert(SceneBind::new(*alignment, *binding, *anchor))
@@ -110,9 +110,9 @@ pub(crate) fn clear_engaged(
 ) {
     for (mut engaged, removals, t_root) in engaged_transitions.iter_mut() {
         engaged.0 = false;
-        if let Some(rem) = removals.0.get(compositor.layout()) {
+        if let Some(rem) = removals.0.get(&compositor.layout()) {
             for binding in rem.iter() {
-                if let Ok(nodes) = nodes_query.get_mut(t_root.0) {
+                if let Ok(mut nodes) = nodes_query.get_mut(t_root.0) {
                     if let Some(old) = nodes.0.remove(binding) {
                         cmd.entity(old.entity()).insert(Despawn::signal_despawn());
                     }
@@ -190,7 +190,7 @@ pub(crate) fn trigger_workflow(
     >,
     mut cmd: Commands,
 ) {
-    for (mut workflow, queue) in query.iter_mut() {
+    for (mut workflow, mut queue) in query.iter_mut() {
         for queued_transition_event in queue.0.drain(..) {
             if let Some(trans) = workflow
                 .0
