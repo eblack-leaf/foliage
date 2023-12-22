@@ -256,7 +256,7 @@ pub(crate) fn resize_segments(
     viewport_handle: Res<ViewportHandle>,
     mut cmd: Commands,
 ) {
-    if viewport_handle.is_changed() {
+    if viewport_handle.dirty() {
         let old_layout = compositor.layout();
         compositor.layout = Layout::from_area(viewport_handle.section.area);
         if old_layout != compositor.layout() {

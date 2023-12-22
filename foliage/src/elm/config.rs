@@ -73,21 +73,22 @@ impl<'a> ElmConfiguration<'a> {
                 .chain(),
         );
         elm.main().add_systems((
-            crate::scene::scene_register
-                .in_set(CoreSet::SceneResolve)
-                .before(crate::scene::align::calc_alignments),
-            crate::scene::resolve_anchor
-                .in_set(CoreSet::SceneResolve)
-                .before(crate::scene::align::calc_alignments)
-                .after(crate::scene::scene_register),
-            apply_deferred
-                .in_set(CoreSet::SceneResolve)
-                .before(crate::scene::align::calc_alignments)
-                .after(crate::scene::resolve_anchor),
-            crate::scene::align::calc_alignments.in_set(CoreSet::SceneResolve),
-            crate::scene::hook_to_anchor
-                .in_set(CoreSet::SceneFinalize)
-                .before(crate::scene::scene_register_two),
+            // crate::scene::hook_to_anchor.in_set(CoreSet::SceneTeardown),
+            // crate::scene::scene_register
+            //     .in_set(CoreSet::SceneResolve)
+            //     .before(crate::scene::align::calc_alignments),
+            // crate::scene::resolve_anchor
+            //     .in_set(CoreSet::SceneResolve)
+            //     .before(crate::scene::align::calc_alignments)
+            //     .after(crate::scene::scene_register),
+            // apply_deferred
+            //     .in_set(CoreSet::SceneResolve)
+            //     .before(crate::scene::align::calc_alignments)
+            //     .after(crate::scene::resolve_anchor),
+            // crate::scene::align::calc_alignments.in_set(CoreSet::SceneResolve),
+            // crate::scene::hook_to_anchor
+            //     .in_set(CoreSet::SceneFinalize)
+            //     .before(crate::scene::scene_register_two),
             crate::scene::scene_register_two
                 .in_set(CoreSet::SceneFinalize)
                 .before(crate::scene::align::calc_alignments_two),
@@ -106,6 +107,8 @@ impl<'a> ElmConfiguration<'a> {
             crate::differential::despawn
                 .in_set(CoreSet::RenderPacket)
                 .after(crate::differential::send_render_packet),
+        ));
+        elm.main().add_systems((
             apply_deferred
                 .after(CoreSet::ExternalEvent)
                 .before(ExternalSet::Process),
@@ -127,8 +130,6 @@ impl<'a> ElmConfiguration<'a> {
             apply_deferred
                 .after(CoreSet::CompositorTeardown)
                 .before(ExternalSet::Spawn),
-        ));
-        elm.main().add_systems((
             apply_deferred
                 .after(ExternalSet::Spawn)
                 .before(CoreSet::SceneSetup),

@@ -23,7 +23,13 @@ impl Leaflet {
         Self(Box::new(T::config), Box::new(T::attach))
     }
 }
-
+#[macro_export]
+macro_rules! set_descriptor {
+    ($desc:item) => {
+        #[derive(crate::bevy_ecs::prelude::SystemSet, Hash, Eq, PartialEq, Copy, Clone, Debug)]
+        $desc
+    };
+}
 #[derive(Component, Copy, Clone)]
 pub struct Tag<T> {
     _phantom: PhantomData<T>,

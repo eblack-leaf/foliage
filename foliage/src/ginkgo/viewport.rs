@@ -24,7 +24,8 @@ impl ViewportHandle {
     pub fn section(&self) -> Section<InterfaceContext> {
         self.section
     }
-    pub fn changes(&mut self) -> Option<Position<InterfaceContext>> {
+    pub fn dirty(&self) -> bool { self.dirty }
+    pub(crate) fn changes(&mut self) -> Option<Position<InterfaceContext>> {
         if self.dirty {
             self.dirty = false;
             return Some(self.section.position);

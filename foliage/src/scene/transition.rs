@@ -3,8 +3,6 @@ use crate::compositor::workflow::{
     TransitionEngaged, Workflow, WorkflowHandle, WorkflowTransition,
 };
 use crate::compositor::Compositor;
-use crate::coordinate::area::Area;
-use crate::coordinate::InterfaceContext;
 use crate::differential::Despawn;
 use crate::elm::config::ElmConfiguration;
 use crate::elm::leaf::{EmptySetDescriptor, Leaf};
@@ -59,12 +57,10 @@ pub(crate) fn fill_scene_transition_scene_bind_requests<S: Scene>(
 ) {
     for (request, engaged, t_root) in query.iter() {
         if engaged.0 {
-            for (binding, alignment, area, args) in request.0.iter() {
+            for (binding, alignment, args) in request.0.iter() {
                 if let Ok((root, anchor, mut nodes)) = scene_roots.get_mut(t_root.0) {
-                    let mut a = *anchor;
-                    a.0.section.area = area(a);
-                    let e = cmd.spawn_scene::<S>(a, args, &external_res, *root);
-                    cmd.entity(e).insert(*alignment).insert(a.0);
+                    let e = cmd.spawn_scene::<S>(*anchor, args, &external_res, *root);
+                    cmd.entity(e).insert(*alignment).insert(anchor.0);
                     if let Some(old) = nodes.0.insert(*binding, SceneNodeEntry::new(e, true)) {
                         cmd.entity(old.entity()).insert(Despawn::signal_despawn());
                     }
@@ -127,12 +123,7 @@ pub(crate) fn clear_engaged(
 }
 #[derive(Component)]
 pub(crate) struct SceneTransitionSceneBindRequest<S: Scene>(
-    pub  Vec<(
-        SceneBinding,
-        SceneAlignment,
-        fn(SceneAnchor) -> Area<InterfaceContext>,
-        S::Args<'static>,
-    )>,
+    pub Vec<(SceneBinding, SceneAlignment, S::Args<'static>)>,
 );
 pub struct SceneTransitionDescriptor<'a, 'w, 's> {
     cmd: &'a mut Commands<'w, 's>,
@@ -166,12 +157,7 @@ impl<'a, 'w, 's> SceneTransitionDescriptor<'a, 'w, 's> {
     }
     pub fn bind_scene<S: Scene>(
         self,
-        s: Vec<(
-            SceneBinding,
-            SceneAlignment,
-            fn(SceneAnchor) -> Area<InterfaceContext>,
-            S::Args<'static>,
-        )>,
+        s: Vec<(SceneBinding, SceneAlignment, S::Args<'static>)>,
     ) -> Self {
         self.cmd
             .entity(self.entity)

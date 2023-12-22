@@ -1,8 +1,8 @@
 use foliage::bevy_ecs::bundle::Bundle;
 
 use foliage::bevy_ecs::event::EventWriter;
-use foliage::bevy_ecs::prelude::{Commands, Entity, Resource};
-use foliage::bevy_ecs::system::{ResMut, SystemParamItem};
+use foliage::bevy_ecs::prelude::{Commands, Entity, IntoSystemConfigs, Resource, With};
+use foliage::bevy_ecs::system::{Query, ResMut, SystemParamItem};
 use foliage::button::{Button, ButtonArgs, ButtonStyle};
 use foliage::color::Color;
 use foliage::compositor::segment::{ResponsiveSegment, Segment, SegmentDesc};
@@ -12,22 +12,23 @@ use foliage::compositor::workflow::{
 };
 use foliage::compositor::Compositor;
 
+use foliage::bevy_ecs::query::{Changed, Without};
 use foliage::coordinate::area::Area;
 use foliage::coordinate::InterfaceContext;
-use foliage::elm::config::ElmConfiguration;
-use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
+use foliage::elm::config::{ElmConfiguration, ExternalSet};
+use foliage::elm::leaf::{Leaf, Tag};
 use foliage::elm::Elm;
 use foliage::icon::bundled_cov::BundledIcon;
 use foliage::icon::IconId;
-use foliage::scene::align::{SceneAligner, SceneAlignment, SceneAnchor};
-use foliage::scene::bind::SceneBinder;
+use foliage::scene::align::{SceneAligner, SceneAnchor};
+use foliage::scene::bind::{SceneBinder, SceneNodes};
 use foliage::scene::transition::{
     SceneTransitionDescriptor, SceneWorkflow, WorkflowTransitionQueue,
 };
 use foliage::scene::Scene;
 use foliage::text::{MaxCharacters, TextValue};
 use foliage::window::WindowDescriptor;
-use foliage::{bevy_ecs, scene_bind_enable, scene_transition_scene_bind_enable};
+use foliage::{bevy_ecs, scene_bind_enable, scene_transition_scene_bind_enable, set_descriptor};
 use foliage::{AndroidInterface, Foliage};
 
 pub fn entry(android_interface: AndroidInterface) {
@@ -37,13 +38,12 @@ pub fn entry(android_interface: AndroidInterface) {
                 .with_title("foliage")
                 .with_desktop_dimensions((415, 915)),
         )
-        .with_leaf::<Tester>()
+        .with_leaf::<DualButton>()
         .with_android_interface(android_interface)
         .run();
 }
 #[derive(Resource)]
 struct ToDespawn(Entity);
-struct Tester;
 fn spawn_button_tree(
     mut cmd: Commands,
     mut compositor: ResMut<Compositor>,
@@ -132,19 +132,45 @@ fn spawn_button_tree(
     );
     events.send(WorkflowTransition(WorkflowHandle(0), WorkflowStage(0)));
 }
-impl Leaf for Tester {
-    type SetDescriptor = EmptySetDescriptor;
+set_descriptor!(
+    enum SetDescriptor {
+        Area,
+    }
+);
+fn resize_dual_button(
+    query: Query<(&SceneNodes, &SceneAnchor), (Changed<SceneAnchor>, With<Tag<DualButton>>)>,
+    mut areas: Query<&mut SceneAnchor, Without<Tag<DualButton>>>,
+) {
+    for (nodes, anchor) in query.iter() {
+        if let Ok(mut a) = areas.get_mut(nodes.get(0).entity()) {
+            a.0.section.area = anchor.0.section.area / (2, 1).into();
+        }
+        if let Ok(mut a) = areas.get_mut(nodes.get(1).entity()) {
+            a.0.section.area = anchor.0.section.area / (2, 1).into();
+        }
+    }
+}
+impl Leaf for DualButton {
+    type SetDescriptor = SetDescriptor;
 
-    fn config(_elm_configuration: &mut ElmConfiguration) {}
+    fn config(elm_configuration: &mut ElmConfiguration) {
+        elm_configuration.configure_hook::<Self>(ExternalSet::Configure, SetDescriptor::Area);
+    }
 
     fn attach(elm: &mut Elm) {
         elm.startup().add_systems((spawn_button_tree,));
+        elm.main().add_systems((resize_dual_button
+            .in_set(ExternalSet::Configure)
+            .in_set(SetDescriptor::Area)
+            .before(<Button as Leaf>::SetDescriptor::Button),));
         scene_bind_enable!(elm, Button, DualButton);
         scene_transition_scene_bind_enable!(elm, Button);
     }
 }
 #[derive(Bundle)]
-struct DualButton {}
+struct DualButton {
+    tag: Tag<DualButton>,
+}
 impl Scene for DualButton {
     type Args<'a> = <Button as Scene>::Args<'a>;
     type ExternalResources = <Button as Scene>::ExternalResources;
@@ -159,7 +185,6 @@ impl Scene for DualButton {
             .bind_scene::<Button>(vec![(
                 0.into(),
                 ((-5).near(), 0.near(), 0).into(),
-                |a: SceneAnchor| -> Area<InterfaceContext> { a.0.section.area / (2, 1).into() },
                 ButtonArgs::new(
                     args.style,
                     TextValue::new("changed"),
@@ -193,11 +218,11 @@ impl Scene for DualButton {
         binder.bind_scene::<Button>(
             1.into(),
             ((-5).far(), 0.near(), 0).into(),
-            anchor.0.section.area / (2, 1).into(),
+            anchor.0.section.area / (4, 1).into(),
             args,
             external_args,
             cmd,
         );
-        Self {}
+        Self { tag: Tag::new() }
     }
 }

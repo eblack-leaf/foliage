@@ -1,6 +1,6 @@
 use crate::compositor::layout::Layout;
 use crate::compositor::segment::ResponsiveSegment;
-use crate::compositor::workflow::{resize_segments, ThresholdChange, WorkflowStage};
+use crate::compositor::workflow::{resize_segments, WorkflowStage};
 use crate::coordinate::area::Area;
 use crate::coordinate::section::Section;
 use crate::coordinate::{Coordinate, InterfaceContext};
@@ -29,7 +29,6 @@ pub struct Compositor {
     pub(crate) workflow_groups: HashMap<WorkflowHandle, Workflow>,
     pub(crate) generator: HandleGenerator,
     pub(crate) layout: Layout,
-    pub(crate) last_layout: Option<Layout>,
 }
 impl Compositor {
     pub(crate) fn engage_transition(
@@ -61,7 +60,6 @@ impl Compositor {
             workflow_groups: Default::default(),
             generator: Default::default(),
             layout,
-            last_layout: None,
         }
     }
     pub fn add_segment(&mut self, segment: ResponsiveSegment) -> SegmentHandle {
