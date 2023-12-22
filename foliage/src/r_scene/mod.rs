@@ -21,7 +21,14 @@ pub struct Coordinator {
     pub(crate) dependent_bindings: HashMap<SceneHandle, HashMap<SceneBinding, Entity>>,
     pub(crate) root_bindings: HashMap<SceneHandle, Entity>,
     pub(crate) generator: HandleGenerator,
+    pub(crate) alignments: HashMap<SceneHandle, HashMap<SceneBinding, SceneAlignment>>,
 }
+pub struct BindingCoordinate(
+    pub SceneHandle,
+    pub SceneBinding,
+    pub Entity,
+    pub Coordinate<InterfaceContext>,
+);
 pub struct SceneAccessChain(pub SceneHandle, pub Vec<SceneBinding>);
 impl Coordinator {
     pub fn spawn_scene<S: Scene>(
@@ -73,6 +80,15 @@ pub struct SceneBinder<'a> {
 impl<'a> SceneBinder<'a> {
     pub(crate) fn new(c: &'a mut Coordinator, this: Entity, handle: SceneHandle) -> Self {
         Self { c, this, handle }
+    }
+    pub(crate) fn spawn_subscene<S: Scene>(
+        &self,
+        anchor: Anchor,
+        args: &S::Args<'_>,
+        external_args: &SystemParamItem<S::ExternalArgs>,
+        cmd: &mut Commands,
+    ) -> SceneHandle {
+        todo!()
     }
     pub fn this(&self) -> Entity {
         todo!()
