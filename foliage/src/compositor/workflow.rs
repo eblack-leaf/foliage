@@ -7,15 +7,13 @@ use crate::coordinate::InterfaceContext;
 use crate::differential::Despawn;
 use crate::elm::leaf::Tag;
 use crate::ginkgo::viewport::ViewportHandle;
-use crate::scene::align::SceneAnchor;
-use crate::scene::bind::SceneRoot;
-use crate::scene::{IsScene, Scene, SceneSpawn};
+use crate::r_scene::{Anchor, IsScene, Scene, SceneCoordinator, SceneHandle};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::change_detection::{Res, ResMut};
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::Event;
-use bevy_ecs::prelude::{Changed, Commands, DetectChanges, Query};
+use bevy_ecs::prelude::{Changed, Commands, Query};
 use bevy_ecs::system::StaticSystemParam;
 use std::collections::{HashMap, HashSet};
 #[macro_export]
@@ -249,10 +247,10 @@ pub(crate) fn resize_segments(
         &mut Area<InterfaceContext>,
         &mut Layer,
         &SegmentHandle,
-        Option<&Tag<IsScene>>,
-        Option<&mut SceneAnchor>,
+        Option<&SceneHandle>,
     )>,
     mut compositor: ResMut<Compositor>,
+    mut coordinator: ResMut<SceneCoordinator>,
     viewport_handle: Res<ViewportHandle>,
     mut cmd: Commands,
 ) {
@@ -270,11 +268,12 @@ pub(crate) fn resize_segments(
                 }
             }
         }
-        for (entity, mut pos, mut area, mut layer, handle, tag, anchor) in query.iter_mut() {
+        for (entity, mut pos, mut area, mut layer, handle, scene_handle) in query.iter_mut() {
             if let Some(coordinate) = compositor.coordinate(viewport_handle.section(), handle) {
-                if tag.is_some() {
-                    if let Some(mut a) = anchor {
-                        a.0 = coordinate;
+                if let Some(sh) = scene_handle {
+                    let binding_coordinates = coordinator.update_anchor(*sh, coordinate);
+                    for bc in binding_coordinates {
+                        cmd.entity(bc.entity).insert(bc.coordinate.location());
                     }
                 }
                 *pos = coordinate.section.position;
@@ -337,7 +336,8 @@ pub(crate) fn fill_scene_bind_requests<S: Scene>(
         Option<&ThresholdChange>,
     )>,
     viewport_handle: Res<ViewportHandle>,
-    external_res: StaticSystemParam<<S as Scene>::ExternalResources>,
+    external_res: StaticSystemParam<<S as Scene>::ExternalArgs>,
+    mut coordinator: ResMut<SceneCoordinator>,
     mut cmd: Commands,
 ) {
     for (entity, request, engaged, threshold_change) in query.iter() {
@@ -353,11 +353,11 @@ pub(crate) fn fill_scene_bind_requests<S: Scene>(
                     if let Some(coordinate) =
                         compositor.coordinate(viewport_handle.section(), handle)
                     {
-                        let entity = cmd.spawn_scene::<S>(
-                            SceneAnchor(coordinate),
+                        let (_scene_handle, entity) = coordinator.spawn_scene::<S>(
+                            Anchor(coordinate),
                             args,
                             &external_res,
-                            SceneRoot::default(),
+                            &mut cmd,
                         );
                         cmd.entity(entity).insert(*handle);
                         let old = compositor.bindings.insert(*handle, entity);

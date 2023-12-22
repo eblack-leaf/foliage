@@ -24,7 +24,7 @@ use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::elm::leaf::Tag;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::job::{Job, Task};
-use crate::scene::{Scene, SceneCoordinator};
+use crate::r_scene::{Scene, SceneCoordinator};
 use crate::window::ScaleFactor;
 
 pub struct Elm {
@@ -153,34 +153,34 @@ impl Elm {
             self.limiters.insert(Tag::<S>::new());
         }
     }
-    pub fn enable_scene_transition_bind<B: Bundle + Clone>(&mut self) {
-        if self
-            .limiters
-            .get::<SceneTransitionBindLimiter<B>>()
-            .is_none()
-        {
-            self.main().add_systems((
-                crate::scene::transition::fill_scene_transition_bind_requests::<B>
-                    .in_set(ExternalSet::SceneBind),
-            ));
-            self.limiters
-                .insert(SceneTransitionBindLimiter::<B>::default());
-        }
-    }
-    pub fn enable_scene_transition_scene_bind<S: Scene>(&mut self) {
-        if self
-            .limiters
-            .get::<SceneTransitionBindLimiter<S>>()
-            .is_none()
-        {
-            self.main().add_systems((
-                crate::scene::transition::fill_scene_transition_scene_bind_requests::<S>
-                    .in_set(ExternalSet::SceneBind),
-            ));
-            self.limiters
-                .insert(SceneTransitionBindLimiter::<S>::default());
-        }
-    }
+    // pub fn enable_scene_transition_bind<B: Bundle + Clone>(&mut self) {
+    //     if self
+    //         .limiters
+    //         .get::<SceneTransitionBindLimiter<B>>()
+    //         .is_none()
+    //     {
+    //         self.main().add_systems((
+    //             crate::scene::transition::fill_scene_transition_bind_requests::<B>
+    //                 .in_set(ExternalSet::SceneBind),
+    //         ));
+    //         self.limiters
+    //             .insert(SceneTransitionBindLimiter::<B>::default());
+    //     }
+    // }
+    // pub fn enable_scene_transition_scene_bind<S: Scene>(&mut self) {
+    //     if self
+    //         .limiters
+    //         .get::<SceneTransitionBindLimiter<S>>()
+    //         .is_none()
+    //     {
+    //         self.main().add_systems((
+    //             crate::scene::transition::fill_scene_transition_scene_bind_requests::<S>
+    //                 .in_set(ExternalSet::SceneBind),
+    //         ));
+    //         self.limiters
+    //             .insert(SceneTransitionBindLimiter::<S>::default());
+    //     }
+    // }
     pub fn enable_differential<
         T: Component + Clone + PartialEq + Serialize + for<'a> Deserialize<'a>,
     >(

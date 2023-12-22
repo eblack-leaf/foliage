@@ -1,5 +1,6 @@
 use crate::coordinate::area::Area;
 use crate::coordinate::{Coordinate, InterfaceContext};
+use crate::elm::leaf::Tag;
 use crate::generator::HandleGenerator;
 use crate::r_scene::align::SceneAlignment;
 use bevy_ecs::bundle::Bundle;
@@ -14,8 +15,9 @@ mod align;
 pub struct Anchor(pub Coordinate<InterfaceContext>);
 #[derive(Copy, Clone, Default, Hash, Eq, PartialEq, Debug)]
 pub struct SceneBinding(pub i32);
+pub struct IsScene();
 #[derive(Resource)]
-pub struct Coordinator {
+pub struct SceneCoordinator {
     pub(crate) anchors: HashMap<SceneHandle, Anchor>,
     pub(crate) dependents: HashMap<SceneHandle, HashMap<SceneBinding, SceneHandle>>,
     pub(crate) dependent_bindings: HashMap<SceneHandle, HashMap<SceneBinding, Entity>>,
@@ -23,23 +25,44 @@ pub struct Coordinator {
     pub(crate) generator: HandleGenerator,
     pub(crate) alignments: HashMap<SceneHandle, HashMap<SceneBinding, SceneAlignment>>,
 }
-pub struct BindingCoordinate(
-    pub SceneHandle,
-    pub SceneBinding,
-    pub Entity,
-    pub Coordinate<InterfaceContext>,
-);
+pub struct BindingCoordinate {
+    pub handle: SceneHandle,
+    pub binding: SceneBinding,
+    pub entity: Entity,
+    pub coordinate: Coordinate<InterfaceContext>,
+}
+impl BindingCoordinate {
+    pub fn new(
+        handle: SceneHandle,
+        binding: SceneBinding,
+        entity: Entity,
+        coordinate: Coordinate<InterfaceContext>,
+    ) -> Self {
+        Self {
+            handle,
+            binding,
+            entity,
+            coordinate,
+        }
+    }
+}
 pub struct SceneAccessChain(pub SceneHandle, pub Vec<SceneBinding>);
-impl Coordinator {
+impl SceneAccessChain {
+    pub fn binding<SB: Into<SceneBinding>>(mut self, b: SB) -> Self {
+        self.1.push(b.into());
+        self
+    }
+}
+impl SceneCoordinator {
     pub fn spawn_scene<S: Scene>(
         &mut self,
         anchor: Anchor,
         args: &S::Args<'_>,
         external_args: &SystemParamItem<S::ExternalArgs>,
         cmd: &mut Commands,
-    ) -> SceneHandle {
+    ) -> (SceneHandle, Entity) {
         let this = cmd.spawn_empty().id();
-        let handle = SceneHandle::default();
+        let handle = SceneHandle(self.generator.generate());
         let scene = S::bind_nodes(
             cmd,
             anchor,
@@ -47,10 +70,24 @@ impl Coordinator {
             external_args,
             SceneBinder::new(self, this, handle),
         );
-        // handle -> self.anchors
-        // entity -> self.root_bindings
+        cmd.entity(this)
+            .insert(scene)
+            .insert(handle)
+            .insert(Tag::<IsScene>::new());
+        self.anchors.insert(handle, anchor);
+        self.root_bindings.insert(handle, this);
+        (handle, this)
     }
-    pub fn resolve_handle(&self, scene_access_chain: &SceneAccessChain) -> Option<SceneHandle> {
+    pub fn binding_entity(&self, scene_access_chain: &SceneAccessChain) -> Entity {
+        todo!()
+    }
+    pub fn update_alignment(
+        &mut self,
+        scene_access_chain: &SceneAccessChain,
+    ) -> &mut SceneAlignment {
+        todo!()
+    }
+    pub fn resolve_handle(&self, scene_access_chain: &SceneAccessChain) -> SceneHandle {
         let mut handle = scene_access_chain.0;
         for binding in scene_access_chain.1.iter() {
             if let Some(dep) = self.dependents.get(&handle) {
@@ -59,11 +96,7 @@ impl Coordinator {
                 }
             }
         }
-        return if handle != scene_access_chain.0 {
-            Some(handle)
-        } else {
-            None
-        };
+        handle
     }
     pub fn dependents(&self, handle: SceneHandle) -> Option<HashSet<SceneHandle>> {
         todo!()
@@ -71,14 +104,27 @@ impl Coordinator {
     pub fn entities(&self, handle: SceneHandle) -> Option<HashSet<Entity>> {
         todo!()
     }
+    pub fn binding_coordinate(&self, scene_access_chain: &SceneAccessChain) -> BindingCoordinate {
+        todo!()
+    }
+    pub fn anchor(&self, scene_handle: SceneHandle) -> Anchor {
+        *self.anchors.get(&scene_handle).unwrap()
+    }
+    pub fn update_anchor(
+        &mut self,
+        scene_handle: SceneHandle,
+        coordinate: Coordinate<InterfaceContext>,
+    ) -> Vec<BindingCoordinate> {
+        todo!()
+    }
 }
 pub struct SceneBinder<'a> {
-    c: &'a mut Coordinator,
+    c: &'a mut SceneCoordinator,
     this: Entity,
     handle: SceneHandle,
 }
 impl<'a> SceneBinder<'a> {
-    pub(crate) fn new(c: &'a mut Coordinator, this: Entity, handle: SceneHandle) -> Self {
+    pub(crate) fn new(c: &'a mut SceneCoordinator, this: Entity, handle: SceneHandle) -> Self {
         Self { c, this, handle }
     }
     pub(crate) fn spawn_subscene<S: Scene>(
@@ -133,3 +179,8 @@ where
 }
 #[derive(Hash, Eq, PartialEq, Debug, Copy, Clone, Default, Component)]
 pub struct SceneHandle(pub i32);
+impl SceneHandle {
+    pub fn access_chain(&self) -> SceneAccessChain {
+        SceneAccessChain(*self, vec![])
+    }
+}

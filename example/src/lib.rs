@@ -20,6 +20,7 @@ use foliage::elm::leaf::{Leaf, Tag};
 use foliage::elm::Elm;
 use foliage::icon::bundled_cov::BundledIcon;
 use foliage::icon::IconId;
+use foliage::r_scene::{Anchor, Scene, SceneBinder, SceneCoordinator};
 use foliage::scene::align::{SceneAligner, SceneAnchor};
 use foliage::scene::bind::{SceneBinder, SceneNodes};
 use foliage::scene::transition::{
@@ -137,24 +138,7 @@ set_descriptor!(
         Area,
     }
 );
-fn resize_dual_button(
-    query: Query<(&SceneNodes, &SceneAnchor), (Changed<SceneAnchor>, With<Tag<DualButton>>)>,
-    mut areas: Query<(&mut SceneAnchor, &mut Area<InterfaceContext>), Without<Tag<DualButton>>>,
-    mut coordinator: ResMut<SceneCoordinator>,
-) {
-    for (nodes, anchor) in query.iter() {
-        if let Ok((mut anch, mut area)) = areas.get_mut(nodes.get(0).entity()) {
-            let new_area = anchor.0.section.area / (2, 1).into();
-            anch.0.section.area = new_area;
-            *area = new_area;
-        }
-        if let Ok((mut anch, mut area)) = areas.get_mut(nodes.get(1).entity()) {
-            let new_area = anchor.0.section.area / (2, 1).into();
-            anch.0.section.area = new_area;
-            *area = new_area;
-        }
-    }
-}
+fn resize_dual_button(mut coordinator: ResMut<SceneCoordinator>) {}
 impl Leaf for DualButton {
     type SetDescriptor = SetDescriptor;
 
@@ -169,7 +153,6 @@ impl Leaf for DualButton {
             .in_set(SetDescriptor::Area)
             .before(<Button as Leaf>::SetDescriptor::Button),));
         scene_bind_enable!(elm, Button, DualButton);
-        scene_transition_scene_bind_enable!(elm, Button);
     }
 }
 #[derive(Bundle)]
@@ -178,40 +161,40 @@ struct DualButton {
 }
 impl Scene for DualButton {
     type Args<'a> = <Button as Scene>::Args<'a>;
-    type ExternalResources = <Button as Scene>::ExternalResources;
+    type ExternalArgs = <Button as Scene>::ExternalArgs;
     fn bind_nodes(
         cmd: &mut Commands,
-        anchor: SceneAnchor,
+        anchor: Anchor,
         args: &Self::Args<'_>,
-        external_args: &SystemParamItem<Self::ExternalResources>,
+        external_args: &SystemParamItem<Self::ExternalArgs>,
         binder: &mut SceneBinder,
     ) -> Self {
-        let transition = SceneTransitionDescriptor::new(cmd, binder.scene_transition_root())
-            .bind_scene::<Button>(vec![(
-                0.into(),
-                ((-5).near(), 0.near(), 0).into(),
-                ButtonArgs::new(
-                    args.style,
-                    TextValue::new("changed"),
-                    MaxCharacters(7),
-                    args.icon_id,
-                    args.foreground_color,
-                    args.background_color,
-                ),
-            )])
-            .build();
-        cmd.entity(binder.this())
-            .insert(
-                SceneWorkflow::new().with_workflow(
-                    WorkflowDescriptor::new(WorkflowHandle(0))
-                        .with_transition(WorkflowStage(0), transition)
-                        .workflow(),
-                ),
-            )
-            .insert(WorkflowTransitionQueue(vec![WorkflowTransition(
-                WorkflowHandle(0),
-                WorkflowStage(0),
-            )]));
+        // let transition = SceneTransitionDescriptor::new(cmd, binder.scene_transition_root())
+        //     .bind_scene::<Button>(vec![(
+        //         0.into(),
+        //         ((-5).near(), 0.near(), 0).into(),
+        //         ButtonArgs::new(
+        //             args.style,
+        //             TextValue::new("changed"),
+        //             MaxCharacters(7),
+        //             args.icon_id,
+        //             args.foreground_color,
+        //             args.background_color,
+        //         ),
+        //     )])
+        //     .build();
+        // cmd.entity(binder.this())
+        //     .insert(
+        //         SceneWorkflow::new().with_workflow(
+        //             WorkflowDescriptor::new(WorkflowHandle(0))
+        //                 .with_transition(WorkflowStage(0), transition)
+        //                 .workflow(),
+        //         ),
+        //     )
+        //     .insert(WorkflowTransitionQueue(vec![WorkflowTransition(
+        //         WorkflowHandle(0),
+        //         WorkflowStage(0),
+        //     )]));
         binder.bind_scene::<Button>(
             0.into(),
             ((-5).near(), 0.near(), 0).into(),

@@ -6,17 +6,16 @@ use crate::elm::leaf::{Leaf, Tag};
 use crate::elm::Elm;
 use crate::icon::{Icon, IconId, IconScale};
 use crate::panel::{Panel, PanelContentArea, PanelStyle};
-use crate::scene::align::{PositionAlignment, SceneAligner, SceneAnchor};
-use crate::scene::bind::{SceneBinder, SceneNodes};
-use crate::scene::Scene;
+use crate::r_scene::{Anchor, Scene, SceneAccessChain, SceneBinder, SceneCoordinator, SceneHandle};
+use crate::set_descriptor;
 use crate::text::font::MonospacedFont;
 use crate::text::{FontSize, MaxCharacters, Text, TextValue};
 use crate::window::ScaleFactor;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::change_detection::Res;
-use bevy_ecs::prelude::{Changed, Commands, Component, IntoSystemConfigs, SystemSet};
+use bevy_ecs::prelude::{Changed, Commands, Component, IntoSystemConfigs};
 use bevy_ecs::query::{Or, With, Without};
-use bevy_ecs::system::{Query, SystemParamItem};
+use bevy_ecs::system::{Query, ResMut, SystemParamItem};
 
 #[derive(Bundle)]
 pub struct Button {
@@ -34,10 +33,11 @@ pub enum ButtonStyle {
     Ring = 0,
     Fill,
 }
-#[derive(SystemSet, Hash, Eq, PartialEq, Copy, Clone, Debug)]
-pub enum SetDescriptors {
-    Button,
-}
+set_descriptor!(
+    pub enum SetDescriptors {
+        Button,
+    }
+);
 impl Leaf for Button {
     type SetDescriptor = SetDescriptors;
 
@@ -61,9 +61,9 @@ pub struct BackgroundColor(pub Color);
 fn updates(
     query: Query<
         (
+            &SceneHandle,
             &Area<InterfaceContext>,
             &MaxCharacters,
-            &SceneNodes,
             &ForegroundColor,
             &BackgroundColor,
             &ButtonStyle,
@@ -81,16 +81,25 @@ fn updates(
     >,
     font: Res<MonospacedFont>,
     scale_factor: Res<ScaleFactor>,
-    mut alignments: Query<&mut PositionAlignment>,
     mut scales: Query<&mut IconScale>,
     mut font_sizes: Query<(&mut FontSize, &mut MaxCharacters), Without<Tag<Button>>>,
     mut colors: Query<&mut Color>,
     mut panel_styles: Query<(&mut PanelStyle, &mut PanelContentArea)>,
+    mut coordinator: ResMut<SceneCoordinator>,
 ) {
-    for (button_area, max_char, nodes, foreground_color, background_color, state) in query.iter() {
+    for (handle, button_area, max_char, foreground_color, background_color, state) in query.iter() {
         let (fs, text_offset, _text_area, icon_scale, padding) =
             button_metrics(*button_area, *max_char, &font, &scale_factor);
-        let panel_node = nodes.get(0).entity();
+        let panel_ac = handle.access_chain().binding(0);
+        let text_ac = handle.access_chain().binding(1);
+        let icon_ac = handle.access_chain().binding(2);
+        coordinator.update_alignment(&text_ac).pos.horizontal = text_offset.near();
+        coordinator.update_alignment(&icon_ac).pos.horizontal = padding.far();
+        let _bcs = coordinator.update_anchor(
+            *handle,
+            coordinator.anchor(*handle).0.with_area(*button_area),
+        );
+        let panel_node = coordinator.binding_entity(&panel_ac);
         if let Ok(mut color) = colors.get_mut(panel_node) {
             *color = match state {
                 ButtonStyle::Ring => foreground_color.0,
@@ -104,10 +113,7 @@ fn updates(
             };
             content_area.0 = *button_area;
         }
-        let text_node = nodes.get(1).entity();
-        if let Ok(mut alignment) = alignments.get_mut(text_node) {
-            alignment.horizontal = text_offset.near();
-        }
+        let text_node = coordinator.binding_entity(&text_ac);
         if let Ok(mut color) = colors.get_mut(text_node) {
             *color = match state {
                 ButtonStyle::Ring => foreground_color.0,
@@ -118,15 +124,12 @@ fn updates(
             *font_size = fs;
             *max_characters = *max_char;
         }
-        let icon_node = nodes.get(2).entity();
+        let icon_node = coordinator.binding_entity(&icon_ac);
         if let Ok(mut color) = colors.get_mut(icon_node) {
             *color = match state {
                 ButtonStyle::Ring => foreground_color.0,
                 ButtonStyle::Fill => background_color.0,
             };
-        }
-        if let Ok(mut alignment) = alignments.get_mut(icon_node) {
-            alignment.horizontal = padding.far();
         }
         if let Ok(mut scale) = scales.get_mut(icon_node) {
             *scale = icon_scale;
@@ -184,12 +187,12 @@ fn button_metrics(
 }
 impl Scene for Button {
     type Args<'a> = ButtonArgs;
-    type ExternalResources = (Res<'static, MonospacedFont>, Res<'static, ScaleFactor>);
+    type ExternalArgs = (Res<'static, MonospacedFont>, Res<'static, ScaleFactor>);
     fn bind_nodes(
         cmd: &mut Commands,
-        anchor: SceneAnchor,
+        anchor: Anchor,
         args: &Self::Args<'_>,
-        external_args: &SystemParamItem<Self::ExternalResources>,
+        external_args: &SystemParamItem<Self::ExternalArgs>,
         binder: &mut SceneBinder,
     ) -> Self {
         let (font_size, text_offset, _calc_area, icon_scale, padding) = button_metrics(

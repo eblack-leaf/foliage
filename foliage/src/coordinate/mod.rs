@@ -67,4 +67,16 @@ impl<Context: CoordinateContext> Coordinate<Context> {
     pub fn location(&self) -> Location<Context> {
         Location::new(self.section.position, self.layer)
     }
+    pub fn with_area<A: Into<Area<Context>>>(mut self, a: A) -> Self {
+        self.section.area = a.into();
+        self
+    }
+    pub fn with_position<P: Into<Position<Context>>>(mut self, p: P) -> Self {
+        self.section.position = p.into();
+        self
+    }
+    pub fn with_layer<L: Into<Layer>>(mut self, l: L) -> Self {
+        self.layer = l.into();
+        self
+    }
 }

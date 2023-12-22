@@ -3,8 +3,7 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::r_scene::Anchor;
-use bevy_ecs::bundle::Bundle;
-use bevy_ecs::component::Component;
+
 impl<SAP: Into<AlignmentPoint>> From<(SAP, SAP, i32)> for SceneAlignment {
     fn from(value: (SAP, SAP, i32)) -> Self {
         SceneAlignment {
@@ -88,7 +87,7 @@ impl SceneAligner for i32 {
         }
     }
 }
-#[derive(Component, Copy, Clone, Default)]
+#[derive(Copy, Clone, Default)]
 pub struct AlignmentDisable(pub bool);
 
 #[derive(Copy, Clone)]
@@ -104,19 +103,19 @@ pub struct AlignmentPoint {
     pub offset: CoordinateUnit,
 }
 
-#[derive(Bundle, Copy, Clone)]
+#[derive(Copy, Clone)]
 pub struct SceneAlignment {
-    pos: PositionAlignment,
+    pub(crate) pos: PositionAlignment,
     layer: LayerAlignment,
 }
 
-#[derive(Component, Copy, Clone)]
+#[derive(Copy, Clone)]
 pub struct PositionAlignment {
     pub horizontal: AlignmentPoint,
     pub vertical: AlignmentPoint,
 }
 
-#[derive(Component, Copy, Clone)]
+#[derive(Copy, Clone)]
 pub struct LayerAlignment(pub CoordinateUnit);
 
 impl LayerAlignment {
