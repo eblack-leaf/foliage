@@ -88,27 +88,19 @@ impl SceneCoordinator {
         self.root_bindings.insert(handle, this);
         (handle, this)
     }
-    pub(crate) fn resolve_non_scene(&mut self, handle: SceneHandle, coordinated: &mut Query<(&mut Position<InterfaceContext>, &Area<InterfaceContext>, &mut Layer)>) {
+    pub(crate) fn resolve_non_scene(
+        &mut self,
+        handle: SceneHandle,
+        coordinated: &mut Query<(
+            &mut Position<InterfaceContext>,
+            &Area<InterfaceContext>,
+            &mut Layer,
+        )>,
+    ) {
         let anchor = self.anchor(handle);
-        for (binding, entity) in self
-            .dependent_bindings
-            .get(&handle)
-            .unwrap()
-            .iter()
-        {
-            if self
-                .dependents
-                .get(&handle)
-                .unwrap()
-                .get(binding)
-                .is_none()
-            {
-                let alignment = *self
-                    .alignments
-                    .get(&handle)
-                    .unwrap()
-                    .get(binding)
-                    .unwrap();
+        for (binding, entity) in self.dependent_bindings.get(&handle).unwrap().iter() {
+            if self.dependents.get(&handle).unwrap().get(binding).is_none() {
+                let alignment = *self.alignments.get(&handle).unwrap().get(binding).unwrap();
                 let area = *coordinated.get(*entity).unwrap().1;
                 let coordinate = Coordinate::default()
                     .with_position(alignment.pos.calc_pos(anchor, area))

@@ -1,8 +1,9 @@
 use foliage::bevy_ecs::bundle::Bundle;
 
 use foliage::bevy_ecs::event::EventWriter;
-use foliage::bevy_ecs::prelude::{Commands, Entity, IntoSystemConfigs, Resource};
-use foliage::bevy_ecs::system::{ResMut, SystemParamItem};
+use foliage::bevy_ecs::prelude::{Commands, Entity, IntoSystemConfigs, Resource, Without};
+use foliage::bevy_ecs::query::{Changed, With};
+use foliage::bevy_ecs::system::{Query, ResMut, SystemParamItem};
 use foliage::button::{Button, ButtonArgs, ButtonStyle};
 use foliage::color::Color;
 use foliage::compositor::segment::{ResponsiveSegment, Segment, SegmentDesc};
@@ -11,13 +12,15 @@ use foliage::compositor::workflow::{
     WorkflowStage, WorkflowTransition,
 };
 use foliage::compositor::Compositor;
+use foliage::coordinate::area::Area;
+use foliage::coordinate::InterfaceContext;
 use foliage::elm::config::{ElmConfiguration, ExternalSet};
 use foliage::elm::leaf::{Leaf, Tag};
 use foliage::elm::Elm;
 use foliage::icon::bundled_cov::BundledIcon;
 use foliage::icon::IconId;
 use foliage::r_scene::align::SceneAligner;
-use foliage::r_scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator};
+use foliage::r_scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
 use foliage::text::{MaxCharacters, TextValue};
 use foliage::window::WindowDescriptor;
 use foliage::{bevy_ecs, scene_bind_enable, set_descriptor};
@@ -129,7 +132,30 @@ set_descriptor!(
         Area,
     }
 );
-fn resize_dual_button(coordinator: ResMut<SceneCoordinator>) {}
+fn resize_dual_button(
+    mut coordinator: ResMut<SceneCoordinator>,
+    query: Query<
+        (&Area<InterfaceContext>, &SceneHandle),
+        (
+            Changed<Area<InterfaceContext>>,
+            With<Tag<DualButton>>,
+            Without<Tag<Button>>,
+        ),
+    >,
+    mut button_areas: Query<(&mut Area<InterfaceContext>), (Without<Tag<DualButton>>)>,
+    mut text: Query<&mut TextValue>,
+) {
+    for (area, handle) in query.iter() {
+        let coordinate = coordinator.anchor(*handle).0.with_area(*area);
+        coordinator.update_anchor(*handle, coordinate);
+        let first_button = coordinator.binding_entity(&handle.access_chain().binding(0));
+        *button_areas.get_mut(first_button).unwrap() = *area * (2, 1).into();
+        let second_button = coordinator.binding_entity(&handle.access_chain().binding(1));
+        *button_areas.get_mut(second_button).unwrap() = *area * (2, 1).into();
+        let text_entity = coordinator.binding_entity(&handle.access_chain().binding(0).binding(1));
+        *text.get_mut(text_entity).unwrap() = TextValue::new("changed");
+    }
+}
 impl Leaf for DualButton {
     type SetDescriptor = SetDescriptor;
 
