@@ -49,7 +49,7 @@ impl WindowHandle {
     ) -> Self {
         #[allow(unused_mut)]
         let mut builder = WindowBuilder::new()
-            .with_resizable(false)
+            .with_resizable(true)
             .with_title(window_descriptor.title.unwrap_or_default());
         #[cfg(all(
             not(target_family = "wasm"),
