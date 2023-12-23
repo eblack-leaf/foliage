@@ -6,7 +6,8 @@ use crate::elm::leaf::{Leaf, Tag};
 use crate::elm::Elm;
 use crate::icon::{Icon, IconId, IconScale};
 use crate::panel::{Panel, PanelContentArea, PanelStyle};
-use crate::r_scene::{Anchor, Scene, SceneAccessChain, SceneBinder, SceneCoordinator, SceneHandle};
+use crate::r_scene::align::SceneAligner;
+use crate::r_scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
 use crate::set_descriptor;
 use crate::text::font::MonospacedFont;
 use crate::text::{FontSize, MaxCharacters, Text, TextValue};
@@ -95,10 +96,8 @@ fn updates(
         let icon_ac = handle.access_chain().binding(2);
         coordinator.update_alignment(&text_ac).pos.horizontal = text_offset.near();
         coordinator.update_alignment(&icon_ac).pos.horizontal = padding.far();
-        let _bcs = coordinator.update_anchor(
-            *handle,
-            coordinator.anchor(*handle).0.with_area(*button_area),
-        );
+        let coordinate = coordinator.anchor(*handle).0.with_area(*button_area);
+        coordinator.update_anchor(*handle, coordinate);
         let panel_node = coordinator.binding_entity(&panel_ac);
         if let Ok(mut color) = colors.get_mut(panel_node) {
             *color = match state {
@@ -185,7 +184,18 @@ fn button_metrics(
         padding,
     )
 }
+pub enum ButtonBindings {
+    Panel,
+    Text,
+    Icon,
+}
+impl From<ButtonBindings> for SceneBinding {
+    fn from(value: ButtonBindings) -> Self {
+        SceneBinding::from(value as i32)
+    }
+}
 impl Scene for Button {
+    type Bindings = ButtonBindings;
     type Args<'a> = ButtonArgs;
     type ExternalArgs = (Res<'static, MonospacedFont>, Res<'static, ScaleFactor>);
     fn bind_nodes(
@@ -193,7 +203,7 @@ impl Scene for Button {
         anchor: Anchor,
         args: &Self::Args<'_>,
         external_args: &SystemParamItem<Self::ExternalArgs>,
-        binder: &mut SceneBinder,
+        mut binder: SceneBinder,
     ) -> Self {
         let (font_size, text_offset, _calc_area, icon_scale, padding) = button_metrics(
             anchor.0.section.area,

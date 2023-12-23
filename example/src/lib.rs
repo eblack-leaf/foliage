@@ -1,8 +1,8 @@
 use foliage::bevy_ecs::bundle::Bundle;
 
 use foliage::bevy_ecs::event::EventWriter;
-use foliage::bevy_ecs::prelude::{Commands, Entity, IntoSystemConfigs, Resource, With};
-use foliage::bevy_ecs::system::{Query, ResMut, SystemParamItem};
+use foliage::bevy_ecs::prelude::{Commands, Entity, IntoSystemConfigs, Resource};
+use foliage::bevy_ecs::system::{ResMut, SystemParamItem};
 use foliage::button::{Button, ButtonArgs, ButtonStyle};
 use foliage::color::Color;
 use foliage::compositor::segment::{ResponsiveSegment, Segment, SegmentDesc};
@@ -11,25 +11,16 @@ use foliage::compositor::workflow::{
     WorkflowStage, WorkflowTransition,
 };
 use foliage::compositor::Compositor;
-
-use foliage::bevy_ecs::query::{Changed, Without};
-use foliage::coordinate::area::Area;
-use foliage::coordinate::InterfaceContext;
 use foliage::elm::config::{ElmConfiguration, ExternalSet};
 use foliage::elm::leaf::{Leaf, Tag};
 use foliage::elm::Elm;
 use foliage::icon::bundled_cov::BundledIcon;
 use foliage::icon::IconId;
-use foliage::r_scene::{Anchor, Scene, SceneBinder, SceneCoordinator};
-use foliage::scene::align::{SceneAligner, SceneAnchor};
-use foliage::scene::bind::{SceneBinder, SceneNodes};
-use foliage::scene::transition::{
-    SceneTransitionDescriptor, SceneWorkflow, WorkflowTransitionQueue,
-};
-use foliage::scene::{Scene, SceneCoordinator};
+use foliage::r_scene::align::SceneAligner;
+use foliage::r_scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator};
 use foliage::text::{MaxCharacters, TextValue};
 use foliage::window::WindowDescriptor;
-use foliage::{bevy_ecs, scene_bind_enable, scene_transition_scene_bind_enable, set_descriptor};
+use foliage::{bevy_ecs, scene_bind_enable, set_descriptor};
 use foliage::{AndroidInterface, Foliage};
 
 pub fn entry(android_interface: AndroidInterface) {
@@ -138,7 +129,7 @@ set_descriptor!(
         Area,
     }
 );
-fn resize_dual_button(mut coordinator: ResMut<SceneCoordinator>) {}
+fn resize_dual_button(coordinator: ResMut<SceneCoordinator>) {}
 impl Leaf for DualButton {
     type SetDescriptor = SetDescriptor;
 
@@ -159,7 +150,17 @@ impl Leaf for DualButton {
 struct DualButton {
     tag: Tag<DualButton>,
 }
+enum DualButtonBindings {
+    First,
+    Second,
+}
+impl From<DualButtonBindings> for SceneBinding {
+    fn from(value: DualButtonBindings) -> Self {
+        SceneBinding::from(value as i32)
+    }
+}
 impl Scene for DualButton {
+    type Bindings = DualButtonBindings;
     type Args<'a> = <Button as Scene>::Args<'a>;
     type ExternalArgs = <Button as Scene>::ExternalArgs;
     fn bind_nodes(
@@ -167,7 +168,7 @@ impl Scene for DualButton {
         anchor: Anchor,
         args: &Self::Args<'_>,
         external_args: &SystemParamItem<Self::ExternalArgs>,
-        binder: &mut SceneBinder,
+        mut binder: SceneBinder,
     ) -> Self {
         // let transition = SceneTransitionDescriptor::new(cmd, binder.scene_transition_root())
         //     .bind_scene::<Button>(vec![(

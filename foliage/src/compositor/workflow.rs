@@ -5,9 +5,8 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::InterfaceContext;
 use crate::differential::Despawn;
-use crate::elm::leaf::Tag;
 use crate::ginkgo::viewport::ViewportHandle;
-use crate::r_scene::{Anchor, IsScene, Scene, SceneCoordinator, SceneHandle};
+use crate::r_scene::{Anchor, Scene, SceneCoordinator, SceneHandle};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::change_detection::{Res, ResMut};
 use bevy_ecs::component::Component;
@@ -271,10 +270,7 @@ pub(crate) fn resize_segments(
         for (entity, mut pos, mut area, mut layer, handle, scene_handle) in query.iter_mut() {
             if let Some(coordinate) = compositor.coordinate(viewport_handle.section(), handle) {
                 if let Some(sh) = scene_handle {
-                    let binding_coordinates = coordinator.update_anchor(*sh, coordinate);
-                    for bc in binding_coordinates {
-                        cmd.entity(bc.entity).insert(bc.coordinate.location());
-                    }
+                    coordinator.update_anchor(*sh, coordinate);
                 }
                 *pos = coordinate.section.position;
                 *area = coordinate.section.area;
