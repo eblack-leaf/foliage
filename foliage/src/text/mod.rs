@@ -185,6 +185,7 @@ pub(crate) fn changes(
             max_width: Some(scaled.width),
             max_height: Some(scaled.height),
             line_height: MonospacedFont::TEXT_HEIGHT_CORRECTION,
+            wrap_style: fontdue::layout::WrapStyle::Letter,
             ..fontdue::layout::LayoutSettings::default()
         });
         placer.0.append(

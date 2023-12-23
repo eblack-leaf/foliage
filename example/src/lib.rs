@@ -4,7 +4,7 @@ use foliage::bevy_ecs::event::EventWriter;
 use foliage::bevy_ecs::prelude::{Commands, Entity, IntoSystemConfigs, Resource, Without};
 use foliage::bevy_ecs::query::{Changed, With};
 use foliage::bevy_ecs::system::{Query, ResMut, SystemParamItem};
-use foliage::button::{Button, ButtonArgs, ButtonStyle};
+use foliage::button::{Button, ButtonArgs, ButtonBindings, ButtonStyle};
 use foliage::color::Color;
 use foliage::compositor::segment::{ResponsiveSegment, Segment, SegmentDesc};
 use foliage::compositor::workflow::{
@@ -112,9 +112,9 @@ fn spawn_button_tree(
             TransitionBindValidity::all(),
             ButtonArgs::new(
                 ButtonStyle::Ring,
-                TextValue::new("Rainy-Day"),
-                MaxCharacters(9),
-                IconId::new(BundledIcon::CloudDrizzle),
+                TextValue::new("first-text"),
+                MaxCharacters(10),
+                IconId::new(BundledIcon::Clipboard),
                 Color::CYAN_MEDIUM.into(),
                 Color::CYAN_DARK.into(),
             ),
@@ -154,8 +154,13 @@ fn resize_dual_button(
         let second_button =
             coordinator.binding_entity(&handle.access_chain().binding(DualButtonBindings::Second));
         *button_areas.get_mut(second_button).unwrap() = *area * (2, 1).into();
-        let text_entity = coordinator.binding_entity(&handle.access_chain().binding(0).binding(1));
-        *text.get_mut(text_entity).unwrap() = TextValue::new("FusionAuth");
+        let text_entity = coordinator.binding_entity(
+            &handle
+                .access_chain()
+                .binding(DualButtonBindings::Second)
+                .binding(ButtonBindings::Text),
+        );
+        *text.get_mut(text_entity).unwrap() = TextValue::new("second-text");
     }
 }
 impl Leaf for DualButton {
@@ -240,6 +245,8 @@ impl Scene for DualButton {
             external_args,
             cmd,
         );
-        Self { tag: Tag::new() }
+        Self {
+            tag: Tag::<DualButton>::new(),
+        }
     }
 }

@@ -13,7 +13,7 @@ use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Commands, Component, DetectChanges, IntoSystemConfigs, Query, Resource};
 use bevy_ecs::system::{SystemParam, SystemParamItem};
 use indexmap::IndexSet;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 pub mod align;
 
