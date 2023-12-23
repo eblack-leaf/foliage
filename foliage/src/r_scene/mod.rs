@@ -155,12 +155,6 @@ impl SceneCoordinator {
         }
         set
     }
-    pub fn entities(&self, handle: SceneHandle) -> Option<HashSet<Entity>> {
-        todo!()
-    }
-    pub fn binding_coordinate(&self, scene_access_chain: &SceneAccessChain) -> BindingCoordinate {
-        todo!()
-    }
     pub fn anchor(&self, scene_handle: SceneHandle) -> Anchor {
         *self.anchors.get(&scene_handle).unwrap()
     }
@@ -170,9 +164,6 @@ impl SceneCoordinator {
         coordinate: Coordinate<InterfaceContext>,
     ) {
         self.anchors.insert(scene_handle, Anchor(coordinate));
-    }
-    pub(crate) fn resolve_anchors(&mut self) {
-        todo!()
     }
 }
 pub struct SceneBinder<'a> {

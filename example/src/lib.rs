@@ -142,18 +142,20 @@ fn resize_dual_button(
             Without<Tag<Button>>,
         ),
     >,
-    mut button_areas: Query<(&mut Area<InterfaceContext>), (Without<Tag<DualButton>>)>,
+    mut button_areas: Query<&mut Area<InterfaceContext>, Without<Tag<DualButton>>>,
     mut text: Query<&mut TextValue>,
 ) {
     for (area, handle) in query.iter() {
         let coordinate = coordinator.anchor(*handle).0.with_area(*area);
         coordinator.update_anchor(*handle, coordinate);
-        let first_button = coordinator.binding_entity(&handle.access_chain().binding(0));
+        let first_button =
+            coordinator.binding_entity(&handle.access_chain().binding(DualButtonBindings::First));
         *button_areas.get_mut(first_button).unwrap() = *area * (2, 1).into();
-        let second_button = coordinator.binding_entity(&handle.access_chain().binding(1));
+        let second_button =
+            coordinator.binding_entity(&handle.access_chain().binding(DualButtonBindings::Second));
         *button_areas.get_mut(second_button).unwrap() = *area * (2, 1).into();
         let text_entity = coordinator.binding_entity(&handle.access_chain().binding(0).binding(1));
-        *text.get_mut(text_entity).unwrap() = TextValue::new("changed");
+        *text.get_mut(text_entity).unwrap() = TextValue::new("FusionAuth");
     }
 }
 impl Leaf for DualButton {

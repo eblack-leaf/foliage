@@ -239,7 +239,7 @@ impl Scene for Button {
             cmd,
         );
         Self {
-            tag: Tag::new(),
+            tag: Tag::<Self>::new(),
             foreground_color: ForegroundColor(args.foreground_color),
             background_color: BackgroundColor(args.background_color),
             max_characters: args.max_char,
