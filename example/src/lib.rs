@@ -31,7 +31,7 @@ pub fn entry(android_interface: AndroidInterface) {
         .with_window_descriptor(
             WindowDescriptor::new()
                 .with_title("foliage")
-                .with_desktop_dimensions((415, 915)),
+                .with_desktop_dimensions((915, 915)),
         )
         .with_leaf::<DualButton>()
         .with_android_interface(android_interface)
