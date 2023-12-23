@@ -1,15 +1,19 @@
 use crate::coordinate::area::Area;
+use crate::coordinate::layer::Layer;
+use crate::coordinate::position::Position;
 use crate::coordinate::{Coordinate, InterfaceContext};
-use crate::elm::leaf::{EmptySetDescriptor, Leaf, Tag};
-use crate::generator::HandleGenerator;
-use crate::r_scene::align::{place_scenes, SceneAlignment};
-use bevy_ecs::bundle::Bundle;
-use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Commands, Component, IntoSystemConfigs, Resource};
-use bevy_ecs::system::{SystemParam, SystemParamItem};
-use std::collections::{HashMap, HashSet};
 use crate::elm::config::{CoreSet, ElmConfiguration};
+use crate::elm::leaf::{EmptySetDescriptor, Leaf};
 use crate::elm::Elm;
+use crate::generator::HandleGenerator;
+use crate::r_scene::align::SceneAlignment;
+use bevy_ecs::bundle::Bundle;
+use bevy_ecs::change_detection::ResMut;
+use bevy_ecs::entity::Entity;
+use bevy_ecs::prelude::{Commands, Component, DetectChanges, IntoSystemConfigs, Query, Resource};
+use bevy_ecs::system::{SystemParam, SystemParamItem};
+use indexmap::IndexSet;
+use std::collections::{HashMap, HashSet};
 
 pub mod align;
 
@@ -76,10 +80,44 @@ impl SceneCoordinator {
             external_args,
             SceneBinder::new(self, this, handle),
         );
-        cmd.entity(this).insert(scene).insert(handle);
+        cmd.entity(this)
+            .insert(scene)
+            .insert(handle)
+            .insert(anchor.0);
         self.anchors.insert(handle, anchor);
         self.root_bindings.insert(handle, this);
         (handle, this)
+    }
+    pub(crate) fn resolve_non_scene(&mut self, handle: SceneHandle, coordinated: &mut Query<(&mut Position<InterfaceContext>, &Area<InterfaceContext>, &mut Layer)>) {
+        let anchor = self.anchor(handle);
+        for (binding, entity) in self
+            .dependent_bindings
+            .get(&handle)
+            .unwrap()
+            .iter()
+        {
+            if self
+                .dependents
+                .get(&handle)
+                .unwrap()
+                .get(binding)
+                .is_none()
+            {
+                let alignment = *self
+                    .alignments
+                    .get(&handle)
+                    .unwrap()
+                    .get(binding)
+                    .unwrap();
+                let area = *coordinated.get(*entity).unwrap().1;
+                let coordinate = Coordinate::default()
+                    .with_position(alignment.pos.calc_pos(anchor, area))
+                    .with_area(area)
+                    .with_layer(alignment.layer.calc_layer(anchor.0.layer));
+                *coordinated.get_mut(*entity).unwrap().0 = coordinate.section.position;
+                *coordinated.get_mut(*entity).unwrap().2 = coordinate.layer;
+            }
+        }
     }
     pub fn binding_entity(&self, scene_access_chain: &SceneAccessChain) -> Entity {
         let handle = self.resolve_handle(scene_access_chain);
@@ -94,7 +132,12 @@ impl SceneCoordinator {
         &mut self,
         scene_access_chain: &SceneAccessChain,
     ) -> &mut SceneAlignment {
-        todo!()
+        let handle = self.resolve_handle(scene_access_chain);
+        self.alignments
+            .get_mut(&handle)
+            .unwrap()
+            .get_mut(scene_access_chain.1.last().unwrap())
+            .unwrap()
     }
     pub fn resolve_handle(&self, scene_access_chain: &SceneAccessChain) -> SceneHandle {
         let mut handle = scene_access_chain.0;
@@ -107,8 +150,18 @@ impl SceneCoordinator {
         }
         handle
     }
-    pub fn dependents(&self, handle: SceneHandle) -> Option<HashSet<SceneHandle>> {
-        todo!()
+    pub fn dependents(
+        &self,
+        handle: SceneHandle,
+    ) -> IndexSet<(SceneHandle, SceneBinding, SceneHandle)> {
+        let mut set = IndexSet::new();
+        if let Some(deps) = self.dependents.get(&handle) {
+            for (binding, dep_handle) in deps.iter() {
+                set.insert((handle, *binding, *dep_handle));
+                set.extend(self.dependents(*dep_handle))
+            }
+        }
+        set
     }
     pub fn entities(&self, handle: SceneHandle) -> Option<HashSet<Entity>> {
         todo!()
@@ -124,7 +177,6 @@ impl SceneCoordinator {
         scene_handle: SceneHandle,
         coordinate: Coordinate<InterfaceContext>,
     ) {
-        // mark changed?
         self.anchors.insert(scene_handle, Anchor(coordinate));
     }
     pub(crate) fn resolve_anchors(&mut self) {
@@ -215,7 +267,7 @@ impl<'a> SceneBinder<'a> {
             external_args,
             SceneBinder::new(self.coordinator_ref, entity, handle),
         );
-        cmd.entity(entity).insert(scene);
+        cmd.entity(entity).insert(scene).insert(anchor.0);
         (handle, entity)
     }
 }
@@ -250,10 +302,57 @@ impl SceneHandle {
 impl Leaf for SceneCoordinator {
     type SetDescriptor = EmptySetDescriptor;
 
-    fn config(_elm_configuration: &mut ElmConfiguration) {
-    }
+    fn config(_elm_configuration: &mut ElmConfiguration) {}
 
     fn attach(elm: &mut Elm) {
-        elm.main().add_systems((place_scenes.in_set(CoreSet::SceneResolve),));
+        elm.main()
+            .add_systems((place_scenes.in_set(CoreSet::SceneResolve),));
+    }
+}
+
+pub(crate) fn place_scenes(
+    mut coordinator: ResMut<SceneCoordinator>,
+    mut coordinated: Query<(
+        &mut Position<InterfaceContext>,
+        &Area<InterfaceContext>,
+        &mut Layer,
+    )>,
+) {
+    if coordinator.is_changed() {
+        for root in coordinator
+            .root_bindings
+            .keys()
+            .cloned()
+            .collect::<Vec<SceneHandle>>()
+        {
+            coordinator.resolve_non_scene(root, &mut coordinated);
+            let dependents = coordinator.dependents(root);
+            for (dep_root, dep_binding, dep_handle) in dependents {
+                let anchor = *coordinator.anchors.get(&dep_root).unwrap();
+                let alignment = *coordinator
+                    .alignments
+                    .get(&dep_root)
+                    .unwrap()
+                    .get(&dep_binding)
+                    .unwrap();
+                let entity = *coordinator
+                    .dependent_bindings
+                    .get(&dep_root)
+                    .unwrap()
+                    .get(&dep_binding)
+                    .unwrap();
+                let area = *coordinated.get(entity).unwrap().1;
+                let anchor = Anchor(
+                    Coordinate::default()
+                        .with_position(alignment.pos.calc_pos(anchor, area))
+                        .with_area(area)
+                        .with_layer(alignment.layer.calc_layer(anchor.0.layer)),
+                );
+                coordinator.anchors.insert(dep_handle, anchor);
+                *coordinated.get_mut(entity).unwrap().0 = anchor.0.section.position;
+                *coordinated.get_mut(entity).unwrap().2 = anchor.0.layer;
+                coordinator.resolve_non_scene(dep_handle, &mut coordinated);
+            }
+        }
     }
 }

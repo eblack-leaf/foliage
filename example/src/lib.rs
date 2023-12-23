@@ -207,7 +207,7 @@ impl Scene for DualButton {
         binder.bind_scene::<Button>(
             1.into(),
             ((-5).far(), 0.near(), 0).into(),
-            anchor.0.section.area / (4, 1).into(),
+            anchor.0.section.area / (2, 1).into(),
             args,
             external_args,
             cmd,

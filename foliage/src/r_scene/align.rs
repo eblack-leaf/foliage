@@ -1,10 +1,8 @@
-use bevy_ecs::prelude::ResMut;
-use bevy_ecs::system::Query;
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::{CoordinateUnit, InterfaceContext};
-use crate::r_scene::{Anchor, SceneCoordinator};
+use crate::r_scene::Anchor;
 
 impl<SAP: Into<AlignmentPoint>> From<(SAP, SAP, i32)> for SceneAlignment {
     fn from(value: (SAP, SAP, i32)) -> Self {
@@ -108,7 +106,7 @@ pub struct AlignmentPoint {
 #[derive(Copy, Clone)]
 pub struct SceneAlignment {
     pub(crate) pos: PositionAlignment,
-    layer: LayerAlignment,
+    pub(crate) layer: LayerAlignment,
 }
 
 #[derive(Copy, Clone)]
@@ -152,13 +150,4 @@ impl PositionAlignment {
         };
         (x, y).into()
     }
-}
-
-pub(crate) fn place_scenes(
-    mut coordinator: ResMut<SceneCoordinator>,
-    mut coordinated: Query<(&mut Position<InterfaceContext>, &mut Area<InterfaceContext>, &mut Layer)>,
-) {
-    // for all changed anchors, run alignments to get resolved pos recursively
-    // set to pos/area/layer
-    todo!()
 }

@@ -64,7 +64,6 @@ impl<'a> ElmConfiguration<'a> {
                 ExternalSet::Configure,
                 CoreSet::SceneResolve,
                 ExternalSet::Resolve,
-                CoreSet::SceneFinalize,
                 CoreSet::CoordinateFinalize,
                 CoreSet::Visibility,
                 CoreSet::Differential,
@@ -73,7 +72,11 @@ impl<'a> ElmConfiguration<'a> {
                 .chain(),
         );
         elm.main().add_systems((
-            // scene
+            crate::r_scene::place_scenes.in_set(CoreSet::SceneTeardown),
+            crate::r_scene::place_scenes
+                .in_set(CoreSet::CoordinateFinalize)
+                .before(crate::coordinate::position_set)
+                .before(crate::coordinate::area_set),
             crate::coordinate::position_set.in_set(CoreSet::CoordinateFinalize),
             crate::coordinate::area_set.in_set(CoreSet::CoordinateFinalize),
             crate::differential::send_render_packet.in_set(CoreSet::RenderPacket),
