@@ -152,6 +152,7 @@ fn resize_dual_button(
             coordinator.binding_entity(&handle.access_chain().binding(DualButtonBindings::First));
         let half_area = *area / (2, 1).into();
         *button_areas.get_mut(first_button).unwrap() = half_area;
+
         let second_button =
             coordinator.binding_entity(&handle.access_chain().binding(DualButtonBindings::Second));
         *button_areas.get_mut(second_button).unwrap() = half_area;
