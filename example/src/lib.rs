@@ -70,18 +70,18 @@ fn spawn_button_tree(
     )));
     let transition = TransitionDescriptor::new(&mut cmd)
         .bind_scene::<Button>(vec![
-            // (
-            //     segment_one_handle,
-            //     TransitionBindValidity::all(),
-            //     ButtonArgs::new(
-            //         ButtonStyle::Ring,
-            //         TextValue::new("Afternoon"),
-            //         MaxCharacters(9),
-            //         IconId::new(BundledIcon::Umbrella),
-            //         Color::RED.into(),
-            //         Color::OFF_BLACK.into(),
-            //     ),
-            // ),
+            (
+                segment_one_handle,
+                TransitionBindValidity::all(),
+                ButtonArgs::new(
+                    ButtonStyle::Ring,
+                    TextValue::new("Afternoon"),
+                    MaxCharacters(9),
+                    IconId::new(BundledIcon::Umbrella),
+                    Color::RED.into(),
+                    Color::OFF_BLACK.into(),
+                ),
+            ),
             // (
             //     segment_two_handle,
             //     TransitionBindValidity::all(),
@@ -107,18 +107,18 @@ fn spawn_button_tree(
             //     ),
             // ),
         ])
-        .bind_scene::<DualButton>(vec![(
-            segment_four_handle,
-            TransitionBindValidity::all(),
-            ButtonArgs::new(
-                ButtonStyle::Ring,
-                TextValue::new("first-text"),
-                MaxCharacters(10),
-                IconId::new(BundledIcon::Clipboard),
-                Color::CYAN_MEDIUM.into(),
-                Color::CYAN_DARK.into(),
-            ),
-        )])
+        // .bind_scene::<DualButton>(vec![(
+        //     segment_four_handle,
+        //     TransitionBindValidity::all(),
+        //     ButtonArgs::new(
+        //         ButtonStyle::Ring,
+        //         TextValue::new("first-text"),
+        //         MaxCharacters(10),
+        //         IconId::new(BundledIcon::Clipboard),
+        //         Color::CYAN_MEDIUM.into(),
+        //         Color::CYAN_DARK.into(),
+        //     ),
+        // )])
         .build();
     compositor.add_workflow(
         WorkflowDescriptor::new(WorkflowHandle(0))
@@ -152,7 +152,6 @@ fn resize_dual_button(
             coordinator.binding_entity(&handle.access_chain().binding(DualButtonBindings::First));
         let half_area = *area / (2, 1).into();
         *button_areas.get_mut(first_button).unwrap() = half_area;
-
         let second_button =
             coordinator.binding_entity(&handle.access_chain().binding(DualButtonBindings::Second));
         *button_areas.get_mut(second_button).unwrap() = half_area;
