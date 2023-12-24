@@ -31,7 +31,7 @@ pub fn entry(android_interface: AndroidInterface) {
         .with_window_descriptor(
             WindowDescriptor::new()
                 .with_title("foliage")
-                .with_desktop_dimensions((415, 915)),
+                .with_desktop_dimensions((360, 800)),
         )
         .with_leaf::<DualButton>()
         .with_android_interface(android_interface)
@@ -70,42 +70,42 @@ fn spawn_button_tree(
     )));
     let transition = TransitionDescriptor::new(&mut cmd)
         .bind_scene::<Button>(vec![
-            (
-                segment_one_handle,
-                TransitionBindValidity::all(),
-                ButtonArgs::new(
-                    ButtonStyle::Ring,
-                    TextValue::new("Afternoon"),
-                    MaxCharacters(9),
-                    IconId::new(BundledIcon::Umbrella),
-                    Color::RED.into(),
-                    Color::OFF_BLACK.into(),
-                ),
-            ),
-            (
-                segment_two_handle,
-                TransitionBindValidity::all(),
-                ButtonArgs::new(
-                    ButtonStyle::Ring,
-                    TextValue::new("Fore-"),
-                    MaxCharacters(5),
-                    IconId::new(BundledIcon::Droplet),
-                    Color::GREEN.into(),
-                    Color::OFF_BLACK.into(),
-                ),
-            ),
-            (
-                segment_three_handle,
-                TransitionBindValidity::all(),
-                ButtonArgs::new(
-                    ButtonStyle::Ring,
-                    TextValue::new("CAST!"),
-                    MaxCharacters(5),
-                    IconId::new(BundledIcon::Cast),
-                    Color::BLUE.into(),
-                    Color::OFF_BLACK.into(),
-                ),
-            ),
+            // (
+            //     segment_one_handle,
+            //     TransitionBindValidity::all(),
+            //     ButtonArgs::new(
+            //         ButtonStyle::Ring,
+            //         TextValue::new("Afternoon"),
+            //         MaxCharacters(9),
+            //         IconId::new(BundledIcon::Umbrella),
+            //         Color::RED.into(),
+            //         Color::OFF_BLACK.into(),
+            //     ),
+            // ),
+            // (
+            //     segment_two_handle,
+            //     TransitionBindValidity::all(),
+            //     ButtonArgs::new(
+            //         ButtonStyle::Ring,
+            //         TextValue::new("Fore-"),
+            //         MaxCharacters(5),
+            //         IconId::new(BundledIcon::Droplet),
+            //         Color::GREEN.into(),
+            //         Color::OFF_BLACK.into(),
+            //     ),
+            // ),
+            // (
+            //     segment_three_handle,
+            //     TransitionBindValidity::all(),
+            //     ButtonArgs::new(
+            //         ButtonStyle::Ring,
+            //         TextValue::new("CAST!"),
+            //         MaxCharacters(5),
+            //         IconId::new(BundledIcon::Cast),
+            //         Color::BLUE.into(),
+            //         Color::OFF_BLACK.into(),
+            //     ),
+            // ),
         ])
         .bind_scene::<DualButton>(vec![(
             segment_four_handle,
@@ -150,10 +150,10 @@ fn resize_dual_button(
         coordinator.update_anchor(*handle, coordinate);
         let first_button =
             coordinator.binding_entity(&handle.access_chain().binding(DualButtonBindings::First));
-        *button_areas.get_mut(first_button).unwrap() = *area * (2, 1).into();
+        *button_areas.get_mut(first_button).unwrap() = *area / (2, 1).into();
         let second_button =
             coordinator.binding_entity(&handle.access_chain().binding(DualButtonBindings::Second));
-        *button_areas.get_mut(second_button).unwrap() = *area * (2, 1).into();
+        *button_areas.get_mut(second_button).unwrap() = *area / (2, 1).into();
         let text_entity = coordinator.binding_entity(
             &handle
                 .access_chain()

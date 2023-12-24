@@ -250,7 +250,7 @@ impl<'a> SceneBinder<'a> {
             external_args,
             SceneBinder::new(self.coordinator_ref, entity, handle),
         );
-        cmd.entity(entity).insert(scene).insert(anchor.0);
+        cmd.entity(entity).insert(scene).insert(anchor.0).insert(handle);
         (handle, entity)
     }
 }
@@ -311,7 +311,7 @@ pub(crate) fn place_scenes(
             coordinator.resolve_non_scene(root, &mut coordinated);
             let dependents = coordinator.dependents(root);
             for (dep_root, dep_binding, dep_handle) in dependents {
-                let anchor = *coordinator.anchors.get(&dep_root).unwrap();
+                let root_anchor = *coordinator.anchors.get(&dep_root).unwrap();
                 let alignment = *coordinator
                     .alignments
                     .get(&dep_root)
@@ -327,9 +327,9 @@ pub(crate) fn place_scenes(
                 let area = *coordinated.get(entity).unwrap().1;
                 let anchor = Anchor(
                     Coordinate::default()
-                        .with_position(alignment.pos.calc_pos(anchor, area))
+                        .with_position(alignment.pos.calc_pos(root_anchor, area))
                         .with_area(area)
-                        .with_layer(alignment.layer.calc_layer(anchor.0.layer)),
+                        .with_layer(alignment.layer.calc_layer(root_anchor.0.layer)),
                 );
                 coordinator.anchors.insert(dep_handle, anchor);
                 *coordinated.get_mut(entity).unwrap().0 = anchor.0.section.position;

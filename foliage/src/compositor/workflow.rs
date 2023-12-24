@@ -91,7 +91,7 @@ impl<'a, 'w, 's> TransitionDescriptor<'a, 'w, 's> {
         self.transition.removals.0.insert(layout, r);
         self
     }
-    pub fn bind<B: Bundle + std::clone::Clone>(
+    pub fn bind<B: Bundle + Clone>(
         self,
         b: Vec<(SegmentHandle, TransitionBindValidity, B)>,
     ) -> Self {
