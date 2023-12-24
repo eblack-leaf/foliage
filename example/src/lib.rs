@@ -64,8 +64,8 @@ fn spawn_button_tree(
         4,
     )));
     let segment_four_handle = compositor.add_segment(ResponsiveSegment::all(Segment::new(
-        (35.fixed(), 700.fixed()),
-        (340.fixed(), 50.fixed()),
+        (0.10.relative(), 0.10.relative()),
+        (0.8.relative(), 50.fixed()),
         4,
     )));
     let transition = TransitionDescriptor::new(&mut cmd)
