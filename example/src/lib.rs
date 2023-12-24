@@ -150,10 +150,11 @@ fn resize_dual_button(
         coordinator.update_anchor(*handle, coordinate);
         let first_button =
             coordinator.binding_entity(&handle.access_chain().binding(DualButtonBindings::First));
-        *button_areas.get_mut(first_button).unwrap() = *area / (2, 1).into();
+        let half_area = *area / (2, 1).into();
+        *button_areas.get_mut(first_button).unwrap() = half_area;
         let second_button =
             coordinator.binding_entity(&handle.access_chain().binding(DualButtonBindings::Second));
-        *button_areas.get_mut(second_button).unwrap() = *area / (2, 1).into();
+        *button_areas.get_mut(second_button).unwrap() = half_area;
         let text_entity = coordinator.binding_entity(
             &handle
                 .access_chain()
