@@ -312,6 +312,7 @@ impl Render for Text {
                             Ginkgo::texture_bind_group_entry(package.package_data.atlas.view(), 1),
                         ],
                     });
+            package.signal_record();
         }
         if let Some(changes) = glyph_changes {
             for (key, glyph) in changes.0 {

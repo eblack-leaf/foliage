@@ -13,7 +13,7 @@ pub(crate) struct AttributeFn<Key: Hash + Eq> {
     pub(crate) create: Box<fn(&mut AnyMap, &mut AnyMap, &Ginkgo, u32)>,
     pub(crate) write: Box<fn(&InstanceOrdering<Key>, &mut AnyMap, &mut AnyMap, &Ginkgo)>,
     pub(crate) grow: Box<fn(&mut AnyMap, &Ginkgo, u32)>,
-    pub(crate) remove: Box<fn(&mut AnyMap, &Vec<Index>)>,
+    pub(crate) remove: Box<fn(&mut AnyMap, &Vec<(Key, Index)>)>,
     pub(crate) reorder: Box<fn(&InstanceOrdering<Key>, &mut AnyMap, &mut AnyMap)>,
     pub(crate) queue_packet: Box<fn(&mut AnyMap, Key, &mut RenderPacket)>,
 }
@@ -71,6 +71,9 @@ impl<Key: Hash + Eq + Clone + 'static, T: Default + Clone + Pod + Zeroable>
     ) {
         let mut needs_write = false;
         for (key, index, data) in queue.0 {
+            if self.write_range.is_none() {
+                self.write_range.replace((self.end(), 0));
+            }
             if let Some((start, end)) = self.write_range.as_mut() {
                 if index < *start {
                     *start = index;
@@ -84,6 +87,9 @@ impl<Key: Hash + Eq + Clone + 'static, T: Default + Clone + Pod + Zeroable>
         }
         if needs_write {
             if let Some(range) = self.write_range.take() {
+                if range.0 > range.1 {
+                    return;
+                }
                 let slice = &self.cpu[range.0 as usize..=range.1 as usize];
                 let start_address = Ginkgo::buffer_address::<T>(range.0);
                 ginkgo.queue.as_ref().unwrap().write_buffer(
@@ -94,11 +100,12 @@ impl<Key: Hash + Eq + Clone + 'static, T: Default + Clone + Pod + Zeroable>
             }
         }
     }
-    pub(crate) fn remove(&mut self, indices: &Vec<Index>) {
+    pub(crate) fn remove(&mut self, indices: &Vec<(Key, Index)>) {
         if !indices.is_empty() {
-            let write_start = *indices.last().unwrap();
-            for index in indices.iter() {
+            let write_start = indices.last().unwrap().1;
+            for (key, index) in indices.iter() {
                 self.cpu.remove(*index as usize);
+                self.key_to_t.remove(key);
             }
             self.write_range.replace((write_start, self.end()));
         }

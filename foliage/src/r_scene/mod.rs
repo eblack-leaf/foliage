@@ -250,7 +250,10 @@ impl<'a> SceneBinder<'a> {
             external_args,
             SceneBinder::new(self.coordinator_ref, entity, handle),
         );
-        cmd.entity(entity).insert(scene).insert(anchor.0).insert(handle);
+        cmd.entity(entity)
+            .insert(scene)
+            .insert(anchor.0)
+            .insert(handle);
         (handle, entity)
     }
 }

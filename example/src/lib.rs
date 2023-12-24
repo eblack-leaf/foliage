@@ -64,7 +64,7 @@ fn spawn_button_tree(
         4,
     )));
     let segment_four_handle = compositor.add_segment(ResponsiveSegment::all(Segment::new(
-        (0.10.relative(), 0.10.relative()),
+        (0.10.relative(), 0.80.relative()),
         (0.8.relative(), 50.fixed()),
         4,
     )));
@@ -148,13 +148,13 @@ fn resize_dual_button(
     for (area, handle) in query.iter() {
         let coordinate = coordinator.anchor(*handle).0.with_area(*area);
         coordinator.update_anchor(*handle, coordinate);
-        let first_button =
-            coordinator.binding_entity(&handle.access_chain().binding(DualButtonBindings::First));
-        let half_area = *area / (2, 1).into();
-        *button_areas.get_mut(first_button).unwrap() = half_area;
-        let second_button =
-            coordinator.binding_entity(&handle.access_chain().binding(DualButtonBindings::Second));
-        *button_areas.get_mut(second_button).unwrap() = half_area;
+        // let first_button =
+        //     coordinator.binding_entity(&handle.access_chain().binding(DualButtonBindings::First));
+        // let half_area = *area / (2, 1).into();
+        // *button_areas.get_mut(first_button).unwrap() = half_area;
+        // let second_button =
+        //     coordinator.binding_entity(&handle.access_chain().binding(DualButtonBindings::Second));
+        // *button_areas.get_mut(second_button).unwrap() = half_area;
         let text_entity = coordinator.binding_entity(
             &handle
                 .access_chain()

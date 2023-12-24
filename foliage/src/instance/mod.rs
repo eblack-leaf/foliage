@@ -129,11 +129,13 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
         self.layer_writes.insert(key, layer);
     }
     pub fn queue_write<T: Clone + 'static>(&mut self, key: Key, t: T) {
-        self.attribute_writes
-            .get_mut::<InstanceAttributeWriteQueue<Key, T>>()
-            .unwrap()
-            .0
-            .insert(key, t);
+        if !self.removes.contains(&key) {
+            self.attribute_writes
+                .get_mut::<InstanceAttributeWriteQueue<Key, T>>()
+                .unwrap()
+                .0
+                .insert(key, t);
+        }
     }
     pub fn has_instances(&self) -> bool {
         self.instances() > 0
@@ -149,15 +151,17 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
             .gpu
     }
     pub fn queue_render_packet(&mut self, key: Key, render_packet: RenderPacket) {
-        if let Some(layer) = render_packet.get::<Layer>() {
-            self.queue_key_layer_change(key.clone(), layer);
+        if !self.removes.contains(&key) {
+            if let Some(layer) = render_packet.get::<Layer>() {
+                self.queue_key_layer_change(key.clone(), layer);
+            }
+            Self::inner_queue_render_packet(
+                &self.attribute_fns,
+                &mut self.attribute_writes,
+                key,
+                render_packet,
+            );
         }
-        Self::inner_queue_render_packet(
-            &self.attribute_fns,
-            &mut self.attribute_writes,
-            key,
-            render_packet,
-        );
     }
     fn inner_queue_render_packet(
         attr_fns: &[AttributeFn<Key>],
@@ -259,7 +263,7 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
     fn inner_remove(
         attribute_fns: &[AttributeFn<Key>],
         attributes: &mut AnyMap,
-        removed: &Vec<Index>,
+        removed: &Vec<(Key, Index)>,
     ) {
         for attr_fn in attribute_fns.iter() {
             (attr_fn.remove)(attributes, removed);
@@ -322,7 +326,7 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
     }
     fn remove_wrapper<T: Default + Clone + Pod + Zeroable + 'static>(
         attributes: &mut AnyMap,
-        removed: &Vec<Index>,
+        removed: &Vec<(Key, Index)>,
     ) {
         attributes
             .get_mut::<InstanceAttribute<Key, T>>()
@@ -339,16 +343,19 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
         }
         None
     }
-    fn removed_indices(&mut self) -> Option<Vec<Index>> {
+    fn removed_indices(&mut self) -> Option<Vec<(Key, Index)>> {
         if !self.removes.is_empty() {
             let mut removed_indices = self
                 .removes
                 .drain()
-                .map(|key| self.ordering.index(&key).unwrap())
-                .collect::<Vec<Index>>();
-            removed_indices.sort();
+                .map(|key| {
+                    let i = self.ordering.index(&key).unwrap();
+                    (key, i)
+                })
+                .collect::<Vec<(Key, Index)>>();
+            removed_indices.sort_by(|lhs, rhs| lhs.1.partial_cmp(&rhs.1).unwrap());
             removed_indices.reverse();
-            for index in removed_indices.iter() {
+            for (_key, index) in removed_indices.iter() {
                 self.ordering.0.remove(*index as usize);
             }
             return Some(removed_indices);
