@@ -1,6 +1,6 @@
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs, Query, SystemSet};
-use bevy_ecs::query::Changed;
+use bevy_ecs::query::{Changed, With};
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
 
@@ -34,7 +34,6 @@ impl PanelStyle {
 
 #[derive(Bundle)]
 pub struct Panel {
-    content: PanelContentArea,
     style: DifferentialBundle<PanelStyle>,
     color: DifferentialBundle<Color>,
     differentiable: Differentiable,
@@ -44,7 +43,6 @@ pub struct PanelContentArea(pub Area<InterfaceContext>);
 impl Panel {
     pub fn new(style: PanelStyle, area: Area<InterfaceContext>, color: Color) -> Self {
         Self {
-            content: PanelContentArea(area),
             style: DifferentialBundle::new(style),
             color: DifferentialBundle::new(color),
             differentiable: Differentiable::new::<Self>(
@@ -74,10 +72,10 @@ impl Leaf for Panel {
     }
 }
 fn reduce_area(
-    mut query: Query<(&mut Area<InterfaceContext>, &PanelContentArea), Changed<PanelContentArea>>,
+    mut query: Query<&mut Area<InterfaceContext>, (Changed<Area<InterfaceContext>>, With<PanelStyle>)>,
 ) {
-    for (mut area, content) in query.iter_mut() {
-        area.width = (content.0.width - Panel::BASE_CORNER_DEPTH * 2f32).max(0f32);
-        area.height = (content.0.height - Panel::BASE_CORNER_DEPTH * 2f32).max(0f32);
+    for mut area in query.iter_mut() {
+        area.width = (area.width - Panel::BASE_CORNER_DEPTH * 2f32).max(0f32);
+        area.height = (area.height - Panel::BASE_CORNER_DEPTH * 2f32).max(0f32);
     }
 }

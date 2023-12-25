@@ -174,7 +174,7 @@ pub(crate) fn changes(
         font_size,
         color,
         value,
-        character_dim,
+        _character_dim,
         mut changes,
         mut removes,
         mut cache,
@@ -267,7 +267,7 @@ pub(crate) fn changes(
     }
 }
 pub(crate) fn clear_removes(mut removed: Query<&mut GlyphRemoveQueue, Changed<GlyphRemoveQueue>>) {
-    for (mut queue) in removed.iter_mut() {
+    for mut queue in removed.iter_mut() {
         queue.0.clear();
     }
 }

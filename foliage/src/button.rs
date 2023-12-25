@@ -5,7 +5,7 @@ use crate::elm::config::{ElmConfiguration, ExternalSet};
 use crate::elm::leaf::{Leaf, Tag};
 use crate::elm::Elm;
 use crate::icon::{Icon, IconId, IconScale};
-use crate::panel::{Panel, PanelContentArea, PanelStyle};
+use crate::panel::{Panel, PanelStyle};
 use crate::r_scene::align::SceneAligner;
 use crate::r_scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
 use crate::set_descriptor;
@@ -85,7 +85,7 @@ fn updates(
     mut scales: Query<&mut IconScale>,
     mut font_sizes: Query<(&mut FontSize, &mut MaxCharacters), Without<Tag<Button>>>,
     mut colors: Query<&mut Color>,
-    mut panel_styles: Query<(&mut PanelStyle, &mut PanelContentArea)>,
+    mut panel_styles: Query<(&mut PanelStyle, &mut Area<InterfaceContext>), Without<Tag<Button>>>,
     mut coordinator: ResMut<SceneCoordinator>,
 ) {
     for (handle, button_area, max_char, foreground_color, background_color, state) in query.iter() {
@@ -110,7 +110,7 @@ fn updates(
                 ButtonStyle::Ring => PanelStyle::ring(),
                 ButtonStyle::Fill => PanelStyle::fill(),
             };
-            content_area.0 = *button_area;
+            *content_area = *button_area;
         }
         let text_node = coordinator.binding_entity(&text_ac);
         if let Ok(mut color) = colors.get_mut(text_node) {
