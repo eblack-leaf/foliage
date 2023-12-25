@@ -11,11 +11,11 @@ use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
-use crate::elm::config::{ElmConfiguration, ExternalSet};
+use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::elm::leaf::Leaf;
 use crate::elm::Elm;
 use crate::text::font::MonospacedFont;
-use crate::text::glyph::Glyph;
+use crate::text::glyph::{CachedGlyph, Glyph};
 use crate::window::ScaleFactor;
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Bundle, IntoSystemConfigs, Or, SystemSet};
@@ -120,6 +120,7 @@ impl Leaf for Text {
                 .in_set(ExternalSet::Configure)
                 .before(changes)
                 .in_set(Self::SetDescriptor::Area),
+            clear_removes.after(CoreSet::Differential),
         ));
     }
 }
@@ -182,7 +183,7 @@ pub(crate) fn changes(
     {
         let scaled = area.to_device(scale_factor.factor());
         placer.0.reset(&fontdue::layout::LayoutSettings {
-            max_width: Some(scaled.width),
+            max_width: None,
             max_height: Some(scaled.height),
             line_height: MonospacedFont::TEXT_HEIGHT_CORRECTION,
             wrap_style: fontdue::layout::WrapStyle::Letter,
@@ -198,42 +199,51 @@ pub(crate) fn changes(
         );
         let glyphs = placer.0.glyphs();
         for g in glyphs {
-            if g.y + g.height as f32 > character_dim.0.height {
-                if let Some(old) = cache.0.remove(&g.byte_offset) {
-                    removes.0.push((g.byte_offset, old.key));
+            let mut change = None;
+            let glyph_key = GlyphKey::new(g.key);
+            let mut total_update = false;
+            let filtered = g.x + g.width as f32 > scaled.width;
+            if let Some(cached) = cache.0.get_mut(&g.byte_offset) {
+                match cached {
+                    CachedGlyph::Present(glyph) => {
+                        if filtered {
+                            removes.0.push((g.byte_offset, glyph_key));
+                            *cached = CachedGlyph::Filtered;
+                        } else {
+                            if glyph.key != glyph_key {
+                                total_update = true;
+                            } else {
+                                // color change
+                            }
+                        }
+                    }
+                    CachedGlyph::Filtered => {
+                        if !filtered {
+                            total_update = true;
+                        }
+                    }
                 }
             } else {
-                let mut change = None;
-                let glyph_key = GlyphKey::new(g.key);
-                let mut total_update = false;
-                if let Some(cached) = cache.0.get(&g.byte_offset) {
-                    if cached.key != glyph_key {
-                        total_update = true;
-                    } else {
-                        // color change
-                    }
-                } else {
-                    total_update = true;
-                }
-                if total_update {
-                    let section = Section::<DeviceContext>::new((g.x, g.y), (g.width, g.height));
-                    cache.0.insert(
-                        g.byte_offset,
-                        Glyph {
-                            key: glyph_key,
-                            section,
-                            color: *color,
-                        },
-                    );
-                    change.replace(GlyphChange {
-                        key: Some((glyph_key, None)),
-                        section: Some(section),
-                        color: Some(*color),
-                    });
-                }
-                if let Some(c) = change {
-                    changes.0.push((g.byte_offset, c));
-                }
+                total_update = true;
+            }
+            if total_update {
+                let section = Section::<DeviceContext>::new((g.x, g.y), (g.width, g.height));
+                cache.0.insert(
+                    g.byte_offset,
+                    CachedGlyph::Present(Glyph {
+                        key: glyph_key,
+                        section,
+                        color: *color,
+                    }),
+                );
+                change.replace(GlyphChange {
+                    key: Some((glyph_key, None)),
+                    section: Some(section),
+                    color: Some(*color),
+                });
+            }
+            if let Some(c) = change {
+                changes.0.push((g.byte_offset, c));
             }
         }
         let glyphs_len = glyphs.len();
@@ -241,17 +251,26 @@ pub(crate) fn changes(
         if glyphs_len < cache.0.len() {
             for (a, b) in cache.0.iter() {
                 if a >= &glyphs_len {
-                    removals.push((*a, b.key));
+                    match b {
+                        CachedGlyph::Present(glyph) => {
+                            removals.push((*a, glyph.key));
+                        }
+                        CachedGlyph::Filtered => {}
+                    }
                 }
             }
         }
         for (a, b) in removals {
-            cache.0.remove(&a);
+            cache.0.insert(a, CachedGlyph::Filtered);
             removes.0.push((a, b));
         }
     }
 }
-
+pub(crate) fn clear_removes(mut removed: Query<&mut GlyphRemoveQueue, Changed<GlyphRemoveQueue>>) {
+    for (mut queue) in removed.iter_mut() {
+        queue.0.clear();
+    }
+}
 #[derive(Component, Copy, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct FontSize(pub u32);
 impl FontSize {

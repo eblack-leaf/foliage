@@ -116,7 +116,7 @@ impl<Key: Hash + Eq + Clone + 'static, T: Default + Clone + Pod + Zeroable>
         self.write_range.replace((0, self.end()));
     }
     fn end(&self) -> u32 {
-        (self.cpu.len() - 1) as u32
+        self.cpu.len().checked_sub(1).unwrap_or_default() as u32
     }
 }
 

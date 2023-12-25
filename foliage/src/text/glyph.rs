@@ -23,8 +23,12 @@ impl GlyphKey {
     }
 }
 
+pub(crate) enum CachedGlyph {
+    Present(Glyph),
+    Filtered,
+}
 #[derive(Component, Default)]
-pub(crate) struct GlyphCache(pub(crate) HashMap<TextKey, Glyph>);
+pub(crate) struct GlyphCache(pub(crate) HashMap<TextKey, CachedGlyph>);
 
 #[derive(Component, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub(crate) struct GlyphChangeQueue(pub(crate) Vec<(TextKey, GlyphChange)>);

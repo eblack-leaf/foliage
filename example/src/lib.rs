@@ -107,18 +107,18 @@ fn spawn_button_tree(
             //     ),
             // ),
         ])
-        // .bind_scene::<DualButton>(vec![(
-        //     segment_four_handle,
-        //     TransitionBindValidity::all(),
-        //     ButtonArgs::new(
-        //         ButtonStyle::Ring,
-        //         TextValue::new("first-text"),
-        //         MaxCharacters(10),
-        //         IconId::new(BundledIcon::Clipboard),
-        //         Color::CYAN_MEDIUM.into(),
-        //         Color::CYAN_DARK.into(),
-        //     ),
-        // )])
+        .bind_scene::<DualButton>(vec![(
+            segment_four_handle,
+            TransitionBindValidity::all(),
+            ButtonArgs::new(
+                ButtonStyle::Ring,
+                TextValue::new("first-text"),
+                MaxCharacters(10),
+                IconId::new(BundledIcon::Clipboard),
+                Color::CYAN_MEDIUM.into(),
+                Color::CYAN_DARK.into(),
+            ),
+        )])
         .build();
     compositor.add_workflow(
         WorkflowDescriptor::new(WorkflowHandle(0))
@@ -148,13 +148,13 @@ fn resize_dual_button(
     for (area, handle) in query.iter() {
         let coordinate = coordinator.anchor(*handle).0.with_area(*area);
         coordinator.update_anchor(*handle, coordinate);
-        // let first_button =
-        //     coordinator.binding_entity(&handle.access_chain().binding(DualButtonBindings::First));
-        // let half_area = *area / (2, 1).into();
-        // *button_areas.get_mut(first_button).unwrap() = half_area;
-        // let second_button =
-        //     coordinator.binding_entity(&handle.access_chain().binding(DualButtonBindings::Second));
-        // *button_areas.get_mut(second_button).unwrap() = half_area;
+        let first_button =
+            coordinator.binding_entity(&handle.access_chain().binding(DualButtonBindings::First));
+        let half_area = *area / (2, 1).into();
+        *button_areas.get_mut(first_button).unwrap() = half_area;
+        let second_button =
+            coordinator.binding_entity(&handle.access_chain().binding(DualButtonBindings::Second));
+        *button_areas.get_mut(second_button).unwrap() = half_area;
         let text_entity = coordinator.binding_entity(
             &handle
                 .access_chain()
