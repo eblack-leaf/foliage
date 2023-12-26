@@ -121,6 +121,7 @@ impl Leaf for Text {
                 .before(changes)
                 .in_set(Self::SetDescriptor::Area),
             clear_removes.after(CoreSet::Differential),
+            clear_changes.after(CoreSet::Differential),
         ));
     }
 }
@@ -267,6 +268,11 @@ pub(crate) fn changes(
     }
 }
 pub(crate) fn clear_removes(mut removed: Query<&mut GlyphRemoveQueue, Changed<GlyphRemoveQueue>>) {
+    for mut queue in removed.iter_mut() {
+        queue.0.clear();
+    }
+}
+pub(crate) fn clear_changes(mut removed: Query<&mut GlyphChangeQueue, Changed<GlyphChangeQueue>>) {
     for mut queue in removed.iter_mut() {
         queue.0.clear();
     }

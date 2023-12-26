@@ -72,7 +72,10 @@ impl Leaf for Panel {
     }
 }
 fn reduce_area(
-    mut query: Query<&mut Area<InterfaceContext>, (Changed<Area<InterfaceContext>>, With<PanelStyle>)>,
+    mut query: Query<
+        &mut Area<InterfaceContext>,
+        (Changed<Area<InterfaceContext>>, With<PanelStyle>),
+    >,
 ) {
     for mut area in query.iter_mut() {
         area.width = (area.width - Panel::BASE_CORNER_DEPTH * 2f32).max(0f32);

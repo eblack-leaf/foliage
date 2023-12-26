@@ -97,7 +97,12 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
         }
         // sort by layer
         if self.needs_ordering {
-            let mut order = self.ordering.managed.iter().map(|m| (m.0.clone(), *m.1)).collect::<Vec<(Key, Layer)>>();
+            let mut order = self
+                .ordering
+                .managed
+                .iter()
+                .map(|m| (m.0.clone(), *m.1))
+                .collect::<Vec<(Key, Layer)>>();
             order.sort_by(|lhs, rhs| lhs.1.partial_cmp(&rhs.1).unwrap());
             order.reverse();
             self.ordering.indices.clear();
@@ -358,7 +363,7 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
                 .collect::<Vec<(Key, Index)>>();
             removed_indices.sort_by(|lhs, rhs| lhs.1.partial_cmp(&rhs.1).unwrap());
             removed_indices.reverse();
-            for (key, index) in removed_indices.iter() {
+            for (key, _index) in removed_indices.iter() {
                 self.ordering.managed.remove(key);
             }
             return Some(removed_indices);
