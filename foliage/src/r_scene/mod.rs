@@ -56,10 +56,23 @@ impl BindingCoordinate {
         }
     }
 }
-pub struct SceneAccessChain(pub SceneHandle, pub Vec<SceneBinding>);
+pub enum SceneTarget {
+    Root,
+    Binding(SceneBinding),
+}
+impl<SB: Into<SceneBinding>> From<SB> for SceneTarget {
+    fn from(value: SB) -> Self {
+        SceneTarget::Binding(value.into())
+    }
+}
+pub struct SceneAccessChain(pub SceneHandle, pub Vec<SceneBinding>, pub SceneTarget);
 impl SceneAccessChain {
     pub fn binding<SB: Into<SceneBinding>>(mut self, b: SB) -> Self {
         self.1.push(b.into());
+        self
+    }
+    pub fn target<ST: Into<SceneTarget>>(mut self, scene_target: ST) -> Self {
+        self.2 = scene_target.into();
         self
     }
 }
@@ -113,36 +126,60 @@ impl SceneCoordinator {
     }
     // TODO BINDING PROBLEMS HERE
     pub fn binding_entity(&self, scene_access_chain: &SceneAccessChain) -> Entity {
-        let handle = self.resolve_handle(scene_access_chain);
-
-        *self
-            .dependent_bindings
-            .get(&handle)
-            .unwrap()
-            .get(scene_access_chain.1.last().unwrap())
-            .unwrap()
+        let (m_root, handle) = self.resolve_handle(scene_access_chain);
+        return match scene_access_chain.2 {
+            SceneTarget::Root => {
+                if let Some(root) = m_root {
+                    *self.dependent_bindings.get(&root).unwrap().get(scene_access_chain.1.last().unwrap()).unwrap()
+                } else {
+                    *self.root_bindings.get(&handle).unwrap()
+                }
+            }
+            SceneTarget::Binding(binding) => {
+                *self
+                    .dependent_bindings
+                    .get(&handle)
+                    .unwrap()
+                    .get(&binding)
+                    .unwrap()
+            }
+        }
     }
     pub fn update_alignment(
         &mut self,
         scene_access_chain: &SceneAccessChain,
     ) -> &mut SceneAlignment {
-        let handle = self.resolve_handle(scene_access_chain);
-        self.alignments
-            .get_mut(&handle)
-            .unwrap()
-            .get_mut(scene_access_chain.1.last().unwrap())
-            .unwrap()
+        let (m_root, handle) = self.resolve_handle(scene_access_chain);
+        return match scene_access_chain.2 {
+            SceneTarget::Root => {
+                self.alignments
+                    .get_mut(&m_root.unwrap())
+                    .unwrap()
+                    .get_mut(scene_access_chain.1.last().unwrap())
+                    .unwrap()
+            }
+            SceneTarget::Binding(binding) => {
+                self
+                    .alignments
+                    .get_mut(&handle)
+                    .unwrap()
+                    .get_mut(&binding)
+                    .unwrap()
+            }
+        }
     }
-    pub fn resolve_handle(&self, scene_access_chain: &SceneAccessChain) -> SceneHandle {
+    pub fn resolve_handle(&self, scene_access_chain: &SceneAccessChain) -> (Option<SceneHandle>, SceneHandle) {
         let mut handle = scene_access_chain.0;
+        let mut root = None;
         for binding in scene_access_chain.1.iter() {
             if let Some(dep) = self.dependents.get(&handle) {
                 if let Some(d) = dep.get(binding) {
+                    root.replace(handle);
                     handle = *d;
                 }
             }
         }
-        handle
+        (root, handle)
     }
     pub fn dependents(
         &self,
@@ -283,7 +320,7 @@ impl From<i32> for SceneHandle {
 }
 impl SceneHandle {
     pub fn access_chain(&self) -> SceneAccessChain {
-        SceneAccessChain(*self, vec![])
+        SceneAccessChain(*self, vec![], SceneTarget::Root)
     }
 }
 

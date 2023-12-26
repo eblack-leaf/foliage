@@ -91,9 +91,9 @@ fn updates(
     for (handle, button_area, max_char, foreground_color, background_color, state) in query.iter() {
         let (fs, text_offset, _text_area, icon_scale, padding) =
             button_metrics(*button_area, *max_char, &font, &scale_factor);
-        let panel_ac = handle.access_chain().binding(ButtonBindings::Panel);
-        let text_ac = handle.access_chain().binding(ButtonBindings::Text);
-        let icon_ac = handle.access_chain().binding(ButtonBindings::Icon);
+        let panel_ac = handle.access_chain().target(ButtonBindings::Panel);
+        let text_ac = handle.access_chain().target(ButtonBindings::Text);
+        let icon_ac = handle.access_chain().target(ButtonBindings::Icon);
         coordinator.update_alignment(&text_ac).pos.horizontal = text_offset.near();
         coordinator.update_alignment(&icon_ac).pos.horizontal = padding.far();
         let coordinate = coordinator.anchor(*handle).0.with_area(*button_area);

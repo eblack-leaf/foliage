@@ -149,17 +149,17 @@ fn resize_dual_button(
         let coordinate = coordinator.anchor(*handle).0.with_area(*area);
         coordinator.update_anchor(*handle, coordinate);
         let first_button =
-            coordinator.binding_entity(&handle.access_chain().binding(DualButtonBindings::First));
+            coordinator.binding_entity(&handle.access_chain().target(DualButtonBindings::First));
         let half_area = *area / (2, 1).into();
         *button_areas.get_mut(first_button).unwrap() = half_area;
         let second_button =
-            coordinator.binding_entity(&handle.access_chain().binding(DualButtonBindings::Second));
+            coordinator.binding_entity(&handle.access_chain().target(DualButtonBindings::Second));
         *button_areas.get_mut(second_button).unwrap() = half_area;
         let text_entity = coordinator.binding_entity(
             &handle
                 .access_chain()
                 .binding(DualButtonBindings::Second)
-                .binding(ButtonBindings::Text),
+                .target(ButtonBindings::Text),
         );
         *text.get_mut(text_entity).unwrap() = TextValue::new("second-text");
     }
