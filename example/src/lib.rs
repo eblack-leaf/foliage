@@ -107,18 +107,18 @@ fn spawn_button_tree(
                 ),
             ),
         ])
-        // .bind_scene::<DualButton>(vec![(
-        //     segment_four_handle,
-        //     TransitionBindValidity::all(),
-        //     ButtonArgs::new(
-        //         ButtonStyle::Ring,
-        //         TextValue::new("first-text"),
-        //         MaxCharacters(10),
-        //         IconId::new(BundledIcon::Clipboard),
-        //         Color::CYAN_MEDIUM.into(),
-        //         Color::CYAN_DARK.into(),
-        //     ),
-        // )])
+        .bind_scene::<DualButton>(vec![(
+            segment_four_handle,
+            TransitionBindValidity::all(),
+            ButtonArgs::new(
+                ButtonStyle::Ring,
+                TextValue::new("first-text"),
+                MaxCharacters(10),
+                IconId::new(BundledIcon::Clipboard),
+                Color::CYAN_MEDIUM.into(),
+                Color::CYAN_DARK.into(),
+            ),
+        )])
         .build();
     compositor.add_workflow(
         WorkflowDescriptor::new(WorkflowHandle(0))
