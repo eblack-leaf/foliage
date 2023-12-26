@@ -99,7 +99,7 @@ impl SceneCoordinator {
     ) {
         let anchor = self.anchor(handle);
         for (binding, entity) in self.dependent_bindings.get(&handle).unwrap().iter() {
-            if self.dependents.get(&handle).unwrap().get(binding).is_none() || true {
+            if self.dependents.get(&handle).unwrap().get(binding).is_none() {
                 let alignment = *self.alignments.get(&handle).unwrap().get(binding).unwrap();
                 let area = *coordinated.get(*entity).unwrap().1;
                 let coordinate = Coordinate::default()
@@ -111,8 +111,10 @@ impl SceneCoordinator {
             }
         }
     }
+    // TODO BINDING PROBLEMS HERE
     pub fn binding_entity(&self, scene_access_chain: &SceneAccessChain) -> Entity {
         let handle = self.resolve_handle(scene_access_chain);
+
         *self
             .dependent_bindings
             .get(&handle)

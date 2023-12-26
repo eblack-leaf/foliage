@@ -72,7 +72,7 @@ impl<'a> ElmConfiguration<'a> {
                 .chain(),
         );
         elm.main().add_systems((
-            crate::r_scene::place_scenes.in_set(CoreSet::SceneTeardown),
+            // crate::r_scene::place_scenes.in_set(CoreSet::SceneTeardown),
             crate::r_scene::place_scenes
                 .in_set(CoreSet::CoordinateFinalize)
                 .before(crate::coordinate::position_set)
