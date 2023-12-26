@@ -53,17 +53,21 @@ pub struct InstanceCoordinator<Key: Hash + Eq> {
     needs_ordering: bool,
     layer_writes: HashMap<Key, Layer>,
 }
-
-pub(crate) struct InstanceOrdering<Key>(pub(crate) Vec<(Key, Layer)>);
-
-impl<Key: PartialEq> InstanceOrdering<Key> {
-    pub(crate) fn index(&self, key: &Key) -> Option<Index> {
-        for (index, (k, _layer)) in self.0.iter().enumerate() {
-            if k == key {
-                return Some(index as Index);
-            }
+pub(crate) struct InstanceOrdering<Key> {
+    pub(crate) managed: HashMap<Key, Layer>,
+    pub(crate) indices: HashMap<Key, Index>,
+}
+impl<Key> InstanceOrdering<Key> {
+    pub(crate) fn new() -> Self {
+        Self {
+            managed: HashMap::new(),
+            indices: HashMap::new(),
         }
-        None
+    }
+}
+impl<Key: Hash + Eq + PartialEq> InstanceOrdering<Key> {
+    pub(crate) fn index(&self, key: &Key) -> Option<Index> {
+        self.indices.get(key).cloned()
     }
 }
 
@@ -76,28 +80,30 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
         if let Some(removed) = self.removed_indices() {
             if !removed.is_empty() {
                 should_record = true;
+                self.needs_ordering = true;
             }
             Self::inner_remove(&self.attribute_fns, &mut self.attributes, &removed);
         }
         for key in self.adds.drain().collect::<Vec<Key>>() {
-            self.insert(key);
+            self.ordering.managed.insert(key, Layer::default());
             self.needs_ordering = true;
             should_record = true;
         }
         // write layer_writes
         for (key, layer) in self.layer_writes.drain().collect::<Vec<(Key, Layer)>>() {
-            if let Some(index) = self.ordering.index(&key) {
-                self.ordering.0.get_mut(index as usize).unwrap().1 = layer;
-                self.needs_ordering = true;
-                should_record = true;
-            }
+            self.ordering.managed.insert(key, layer);
+            self.needs_ordering = true;
+            should_record = true;
         }
         // sort by layer
         if self.needs_ordering {
-            self.ordering
-                .0
-                .sort_by(|lhs, rhs| lhs.1.partial_cmp(&rhs.1).unwrap());
-            self.ordering.0.reverse();
+            let mut order = self.ordering.managed.iter().map(|m| (m.0.clone(), *m.1)).collect::<Vec<(Key, Layer)>>();
+            order.sort_by(|lhs, rhs| lhs.1.partial_cmp(&rhs.1).unwrap());
+            order.reverse();
+            self.ordering.indices.clear();
+            for (index, (key, _)) in order.iter().enumerate() {
+                self.ordering.indices.insert(key.clone(), index as Index);
+            }
             Self::inner_reorder(
                 &self.attribute_fns,
                 &mut self.attributes,
@@ -141,7 +147,7 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
         self.instances() > 0
     }
     pub fn instances(&self) -> u32 {
-        self.ordering.0.len() as u32
+        self.ordering.managed.len() as u32
     }
     pub fn buffer<T: 'static>(&self) -> &wgpu::Buffer {
         &self
@@ -190,7 +196,7 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
         let (attributes, attribute_writes) =
             Self::establish_attributes(ginkgo, &attribute_fns, capacity);
         Self {
-            ordering: InstanceOrdering(vec![]),
+            ordering: InstanceOrdering::new(),
             adds: HashSet::new(),
             removes: HashSet::new(),
             current_gpu_capacity: capacity,
@@ -216,7 +222,7 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
         attributes: &mut AnyMap,
         attribute_writes: &mut AnyMap,
     ) {
-        for (key, _layer) in ordering.0.iter() {
+        for (key, _layer) in ordering.managed.iter() {
             if let Some(attr) = attributes
                 .get::<InstanceAttribute<Key, T>>()
                 .unwrap()
@@ -333,12 +339,9 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
             .unwrap()
             .remove(removed);
     }
-    fn insert(&mut self, key: Key) {
-        self.ordering.0.push((key, Layer::default()));
-    }
     fn should_grow(&mut self) -> Option<u32> {
-        if self.ordering.0.len() as u32 > self.current_gpu_capacity {
-            self.current_gpu_capacity = self.ordering.0.len() as u32;
+        if self.ordering.managed.len() as u32 > self.current_gpu_capacity {
+            self.current_gpu_capacity = self.ordering.managed.len() as u32;
             return Some(self.current_gpu_capacity);
         }
         None
@@ -355,8 +358,8 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
                 .collect::<Vec<(Key, Index)>>();
             removed_indices.sort_by(|lhs, rhs| lhs.1.partial_cmp(&rhs.1).unwrap());
             removed_indices.reverse();
-            for (_key, index) in removed_indices.iter() {
-                self.ordering.0.remove(*index as usize);
+            for (key, index) in removed_indices.iter() {
+                self.ordering.managed.remove(key);
             }
             return Some(removed_indices);
         }

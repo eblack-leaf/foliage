@@ -104,7 +104,7 @@ impl<Key: Hash + Eq + Clone + 'static, T: Default + Clone + Pod + Zeroable>
         if !indices.is_empty() {
             let write_start = indices.last().unwrap().1;
             for (key, index) in indices.iter() {
-                self.cpu.remove(*index as usize);
+                *self.cpu.get_mut(*index as usize).unwrap() = T::default();
                 self.key_to_t.remove(key);
             }
             self.write_range.replace((write_start, self.end()));
