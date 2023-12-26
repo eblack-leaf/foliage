@@ -91,10 +91,11 @@ impl<Key: Hash + Eq + Clone + 'static, T: Default + Clone + Pod + Zeroable>
                     return;
                 }
                 let slice = &self.cpu[range.0 as usize..=range.1 as usize];
+                let slice = &self.cpu[..];
                 let start_address = Ginkgo::buffer_address::<T>(range.0);
                 ginkgo.queue.as_ref().unwrap().write_buffer(
                     &self.gpu,
-                    start_address,
+                    0,
                     bytemuck::cast_slice(slice),
                 );
             }
@@ -107,7 +108,7 @@ impl<Key: Hash + Eq + Clone + 'static, T: Default + Clone + Pod + Zeroable>
                 // *self.cpu.get_mut(*index as usize).unwrap() = T::default();
                 self.key_to_t.remove(key);
             }
-            self.write_range.replace((write_start, self.end()));
+            self.write_range.replace((0, self.end()));
         }
     }
     pub(crate) fn grow(&mut self, ginkgo: &Ginkgo, count: u32) {
