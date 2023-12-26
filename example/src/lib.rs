@@ -19,8 +19,8 @@ use foliage::elm::leaf::{Leaf, Tag};
 use foliage::elm::Elm;
 use foliage::icon::bundled_cov::BundledIcon;
 use foliage::icon::IconId;
-use foliage::r_scene::align::SceneAligner;
-use foliage::r_scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
+use foliage::scene::align::SceneAligner;
+use foliage::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
 use foliage::text::{MaxCharacters, TextValue};
 use foliage::window::WindowDescriptor;
 use foliage::{bevy_ecs, scene_bind_enable, set_descriptor};
@@ -204,32 +204,6 @@ impl Scene for DualButton {
         external_args: &SystemParamItem<Self::ExternalArgs>,
         mut binder: SceneBinder,
     ) -> Self {
-        // let transition = SceneTransitionDescriptor::new(cmd, binder.scene_transition_root())
-        //     .bind_scene::<Button>(vec![(
-        //         0.into(),
-        //         ((-5).near(), 0.near(), 0).into(),
-        //         ButtonArgs::new(
-        //             args.style,
-        //             TextValue::new("changed"),
-        //             MaxCharacters(7),
-        //             args.icon_id,
-        //             args.foreground_color,
-        //             args.background_color,
-        //         ),
-        //     )])
-        //     .build();
-        // cmd.entity(binder.this())
-        //     .insert(
-        //         SceneWorkflow::new().with_workflow(
-        //             WorkflowDescriptor::new(WorkflowHandle(0))
-        //                 .with_transition(WorkflowStage(0), transition)
-        //                 .workflow(),
-        //         ),
-        //     )
-        //     .insert(WorkflowTransitionQueue(vec![WorkflowTransition(
-        //         WorkflowHandle(0),
-        //         WorkflowStage(0),
-        //     )]));
         binder.bind_scene::<Button>(
             0.into(),
             ((-5).near(), 0.near(), 0).into(),

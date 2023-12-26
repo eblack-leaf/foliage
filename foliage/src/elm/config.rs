@@ -6,11 +6,8 @@ use bevy_ecs::prelude::{apply_deferred, IntoSystemConfigs, SystemSet};
 pub enum ExternalSet {
     Process,
     CompositorBind,
-    CompositorExtension,
     Spawn,
-    SceneBind,
     Configure,
-    Resolve,
 }
 #[derive(SystemSet, Hash, Eq, PartialEq, Debug, Copy, Clone)]
 pub enum CoreSet {
@@ -19,17 +16,9 @@ pub enum CoreSet {
     ProcessEvent,
     CompositorSetup,
     // CompositorBind,
-    // CompositorExtension,
     CompositorTeardown,
     // Spawn,
-    SceneSetup,
-    // SceneBind,
-    SceneTeardown,
-    SceneExtension,
     // Configure,
-    SceneResolve,
-    // Resolve,
-    SceneFinalize,
     CoordinateFinalize,
     Visibility,
     Differential,
@@ -54,16 +43,9 @@ impl<'a> ElmConfiguration<'a> {
                 CoreSet::ProcessEvent,
                 CoreSet::CompositorSetup,
                 ExternalSet::CompositorBind,
-                ExternalSet::CompositorExtension,
                 CoreSet::CompositorTeardown,
                 ExternalSet::Spawn,
-                CoreSet::SceneSetup,
-                ExternalSet::SceneBind,
-                CoreSet::SceneTeardown,
-                CoreSet::SceneExtension,
                 ExternalSet::Configure,
-                CoreSet::SceneResolve,
-                ExternalSet::Resolve,
                 CoreSet::CoordinateFinalize,
                 CoreSet::Visibility,
                 CoreSet::Differential,
@@ -72,8 +54,7 @@ impl<'a> ElmConfiguration<'a> {
                 .chain(),
         );
         elm.main().add_systems((
-            // crate::r_scene::place_scenes.in_set(CoreSet::SceneTeardown),
-            crate::r_scene::place_scenes
+            crate::scene::place_scenes
                 .in_set(CoreSet::CoordinateFinalize)
                 .before(crate::coordinate::position_set)
                 .before(crate::coordinate::area_set),
@@ -99,33 +80,15 @@ impl<'a> ElmConfiguration<'a> {
                 .before(ExternalSet::CompositorBind),
             apply_deferred
                 .after(ExternalSet::CompositorBind)
-                .before(ExternalSet::CompositorExtension),
-            apply_deferred
-                .after(ExternalSet::CompositorExtension)
                 .before(CoreSet::CompositorTeardown),
             apply_deferred
                 .after(CoreSet::CompositorTeardown)
                 .before(ExternalSet::Spawn),
             apply_deferred
                 .after(ExternalSet::Spawn)
-                .before(CoreSet::SceneSetup),
-            apply_deferred
-                .after(CoreSet::SceneSetup)
-                .before(ExternalSet::SceneBind),
-            apply_deferred
-                .after(ExternalSet::SceneBind)
-                .before(CoreSet::SceneTeardown),
-            apply_deferred
-                .after(CoreSet::SceneTeardown)
-                .before(CoreSet::SceneExtension),
-            apply_deferred
-                .after(CoreSet::SceneExtension)
                 .before(ExternalSet::Configure),
             apply_deferred
                 .after(ExternalSet::Configure)
-                .before(CoreSet::SceneResolve),
-            apply_deferred
-                .after(CoreSet::SceneResolve)
                 .before(CoreSet::CoordinateFinalize),
         ));
         let mut config = Self(elm);

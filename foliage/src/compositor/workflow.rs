@@ -6,7 +6,7 @@ use crate::coordinate::position::Position;
 use crate::coordinate::InterfaceContext;
 use crate::differential::Despawn;
 use crate::ginkgo::viewport::ViewportHandle;
-use crate::r_scene::{Anchor, Scene, SceneCoordinator, SceneHandle};
+use crate::scene::{Anchor, Scene, SceneCoordinator, SceneHandle};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::change_detection::{Res, ResMut};
 use bevy_ecs::component::Component;

@@ -21,7 +21,7 @@ use crate::ginkgo::Ginkgo;
 use crate::icon::Icon;
 use crate::image::Image;
 use crate::panel::Panel;
-use crate::r_scene::SceneCoordinator;
+use crate::scene::SceneCoordinator;
 use crate::rectangle::Rectangle;
 use crate::text::Text;
 
@@ -45,7 +45,7 @@ pub mod panel;
 pub mod rectangle;
 // pub mod scene;
 mod generator;
-pub mod r_scene;
+pub mod scene;
 pub mod text;
 pub mod texture;
 pub mod window;
@@ -96,7 +96,6 @@ impl Foliage {
             .with_renderleaf::<Image>()
             .with_leaf::<Button>()
             .with_leaf::<Compositor>()
-            .with_leaf::<SceneCoordinator>()
     }
     pub fn with_android_interface(mut self, android_interface: AndroidInterface) -> Self {
         self.android_interface = android_interface;
