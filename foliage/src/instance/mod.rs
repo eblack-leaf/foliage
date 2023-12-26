@@ -365,6 +365,7 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
             removed_indices.reverse();
             for (key, _index) in removed_indices.iter() {
                 self.ordering.managed.remove(key);
+                self.ordering.indices.remove(key);
             }
             return Some(removed_indices);
         }

@@ -55,12 +55,12 @@ fn spawn_button_tree(
     );
     let segment_two_handle = compositor.add_segment(ResponsiveSegment::all(Segment::new(
         (0.185.relative(), 0.35.relative()),
-        (240.fixed(), 75.fixed()),
+        (0.4.relative(), 0.1.relative()),
         4,
     )));
     let segment_three_handle = compositor.add_segment(ResponsiveSegment::all(Segment::new(
         (0.285.relative(), 0.55.relative()),
-        (135.fixed(), 50.fixed()),
+        (0.5.relative(), 50.fixed()),
         4,
     )));
     let segment_four_handle = compositor.add_segment(ResponsiveSegment::all(Segment::new(
