@@ -54,12 +54,12 @@ fn spawn_button_tree(
             .with_landscape_desktop(segment.with_area((0.25.relative(), 0.05.relative()))),
     );
     let segment_two_handle = compositor.add_segment(ResponsiveSegment::all(Segment::new(
-        (85.fixed(), 250.fixed()),
+        (0.185.relative(), 0.35.relative()),
         (240.fixed(), 75.fixed()),
         4,
     )));
     let segment_three_handle = compositor.add_segment(ResponsiveSegment::all(Segment::new(
-        (140.fixed(), 375.fixed()),
+        (0.285.relative(), 0.55.relative()),
         (135.fixed(), 50.fixed()),
         4,
     )));
@@ -82,43 +82,43 @@ fn spawn_button_tree(
                     Color::OFF_BLACK.into(),
                 ),
             ),
-            // (
-            //     segment_two_handle,
-            //     TransitionBindValidity::all(),
-            //     ButtonArgs::new(
-            //         ButtonStyle::Ring,
-            //         TextValue::new("Fore-"),
-            //         MaxCharacters(5),
-            //         IconId::new(BundledIcon::Droplet),
-            //         Color::GREEN.into(),
-            //         Color::OFF_BLACK.into(),
-            //     ),
-            // ),
-            // (
-            //     segment_three_handle,
-            //     TransitionBindValidity::all(),
-            //     ButtonArgs::new(
-            //         ButtonStyle::Ring,
-            //         TextValue::new("CAST!"),
-            //         MaxCharacters(5),
-            //         IconId::new(BundledIcon::Cast),
-            //         Color::BLUE.into(),
-            //         Color::OFF_BLACK.into(),
-            //     ),
-            // ),
-        ])
-        .bind_scene::<DualButton>(vec![(
-            segment_four_handle,
-            TransitionBindValidity::all(),
-            ButtonArgs::new(
-                ButtonStyle::Ring,
-                TextValue::new("first-text"),
-                MaxCharacters(10),
-                IconId::new(BundledIcon::Clipboard),
-                Color::CYAN_MEDIUM.into(),
-                Color::CYAN_DARK.into(),
+            (
+                segment_two_handle,
+                TransitionBindValidity::all(),
+                ButtonArgs::new(
+                    ButtonStyle::Ring,
+                    TextValue::new("Fore-"),
+                    MaxCharacters(5),
+                    IconId::new(BundledIcon::Droplet),
+                    Color::GREEN.into(),
+                    Color::OFF_BLACK.into(),
+                ),
             ),
-        )])
+            (
+                segment_three_handle,
+                TransitionBindValidity::all(),
+                ButtonArgs::new(
+                    ButtonStyle::Ring,
+                    TextValue::new("CAST!"),
+                    MaxCharacters(5),
+                    IconId::new(BundledIcon::Cast),
+                    Color::BLUE.into(),
+                    Color::OFF_BLACK.into(),
+                ),
+            ),
+        ])
+        // .bind_scene::<DualButton>(vec![(
+        //     segment_four_handle,
+        //     TransitionBindValidity::all(),
+        //     ButtonArgs::new(
+        //         ButtonStyle::Ring,
+        //         TextValue::new("first-text"),
+        //         MaxCharacters(10),
+        //         IconId::new(BundledIcon::Clipboard),
+        //         Color::CYAN_MEDIUM.into(),
+        //         Color::CYAN_DARK.into(),
+        //     ),
+        // )])
         .build();
     compositor.add_workflow(
         WorkflowDescriptor::new(WorkflowHandle(0))
