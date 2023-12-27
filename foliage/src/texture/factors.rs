@@ -32,7 +32,7 @@ impl MipsLevel {
 
 #[repr(C)]
 #[derive(Component, Copy, Clone, PartialEq, Default, Pod, Zeroable, Serialize, Deserialize)]
-pub struct Progress(pub f32, pub f32);
+pub struct Progress(pub(crate) f32, pub(crate) f32);
 
 impl Progress {
     pub fn full() -> Self {
@@ -41,7 +41,25 @@ impl Progress {
     pub fn empty() -> Self {
         Self(0.0, 0.0)
     }
+    pub fn start(&self) -> f32 {
+        self.0
+    }
+    pub fn end(&self) -> f32 {
+        self.1
+    }
+    pub fn set_start(&mut self, start: f32) {
+        self.0 = start.max(0f32);
+    }
+    pub fn set_end(&mut self, end: f32) {
+        self.1 = end.min(1f32);
+    }
+    pub fn end_mut(&mut self) -> &mut f32 {
+        &mut self.1
+    }
+    pub fn start_mut(&mut self) -> &mut f32 {
+        &mut self.0
+    }
     pub fn new(start: f32, end: f32) -> Self {
-        Self(start, end)
+        Self(start.max(0f32), end.min(1f32))
     }
 }

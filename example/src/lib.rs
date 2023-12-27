@@ -79,7 +79,7 @@ fn spawn_button_tree(
         .bind_scene::<ProgressBar>(vec![(
             segment_five_handle,
             TransitionBindValidity::all(),
-            ProgressBarArgs::new(Progress(0.0, 0.25), Color::GREEN, Color::GREY_DARK),
+            ProgressBarArgs::new(Progress::new(0.0, 0.25), Color::GREEN, Color::GREY_DARK),
         )])
         .bind_scene::<Button>(vec![
             (
@@ -166,8 +166,8 @@ fn resize_dual_button(
     for handle in progress_bars.iter() {
         let fill =
             coordinator.binding_entity(&handle.access_chain().target(ProgressBarBindings::Fill));
-        progresses.get_mut(fill).unwrap().1 += 0.005;
-        progresses.get_mut(fill).unwrap().1 %= 1.0;
+        *progresses.get_mut(fill).unwrap().end_mut() += 0.005;
+        *progresses.get_mut(fill).unwrap().end_mut() %= 1.0;
     }
     for (area, handle) in query.iter() {
         let coordinate = coordinator.anchor(*handle).0.with_area(*area);
