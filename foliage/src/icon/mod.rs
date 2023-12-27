@@ -4,7 +4,7 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, InterfaceContext};
-use crate::differential::{Differentiable, DifferentialBundle};
+use crate::differential::{Differentiable, Differential, DifferentialBundle};
 use crate::elm::config::{ElmConfiguration, ExternalSet};
 use crate::elm::leaf::Leaf;
 use crate::elm::Elm;
@@ -62,9 +62,14 @@ impl Leaf for Icon {
 
     fn attach(elm: &mut Elm) {
         differential_enable!(elm, CReprPosition, CReprArea, Color, IconId, MipsLevel);
-        elm.job.main().add_systems((scale_change
-            .in_set(ExternalSet::Configure)
-            .in_set(SetDescriptor::Area),));
+        elm.job.main().add_systems((
+            scale_change
+                .in_set(ExternalSet::Configure)
+                .in_set(SetDescriptor::Area),
+            id_changed
+                .in_set(ExternalSet::Configure)
+                .in_set(SetDescriptor::Area),
+        ));
     }
 }
 #[derive(Component, Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
@@ -101,6 +106,26 @@ fn scale_change(
             Icon::MIPS,
             (adjusted_section.width(), adjusted_section.height()).into(),
         );
+    }
+}
+fn id_changed(
+    mut icons: Query<
+        (
+            &mut Differential<Layer>,
+            &mut Differential<CReprPosition>,
+            &mut Differential<CReprArea>,
+            &mut Differential<MipsLevel>,
+            &mut Differential<Color>,
+        ),
+        Changed<IconId>,
+    >,
+) {
+    for (mut layer, mut pos, mut area, mut mips, mut color) in icons.iter_mut() {
+        layer.set_from_cache();
+        pos.set_from_cache();
+        area.set_from_cache();
+        mips.set_from_cache();
+        color.set_from_cache();
     }
 }
 #[repr(u32)]

@@ -160,6 +160,7 @@ fn resize_dual_button(
         (&mut Area<InterfaceContext>, &mut MaxCharacters),
         Without<Tag<DualButton>>,
     >,
+    mut icon_ids: Query<&mut IconId>,
     mut text: Query<&mut TextValue>,
 ) {
     for handle in progress_bars.iter() {
@@ -170,6 +171,17 @@ fn resize_dual_button(
     for (area, handle) in query.iter() {
         let coordinate = coordinator.anchor(*handle).0.with_area(*area);
         coordinator.update_anchor(*handle, coordinate);
+        let icon = coordinator.binding_entity(
+            &handle
+                .access_chain()
+                .binding(DualButtonBindings::First)
+                .target(ButtonBindings::Icon),
+        );
+        if area.width > 800.0 {
+            *icon_ids.get_mut(icon).unwrap() = IconId::new(BundledIcon::Coffee);
+        } else if area.width < 500.0 {
+            *icon_ids.get_mut(icon).unwrap() = IconId::new(BundledIcon::Disc);
+        }
         let first_button =
             coordinator.binding_entity(&handle.access_chain().target(DualButtonBindings::First));
         let half_area = *area / (2, 1).into();

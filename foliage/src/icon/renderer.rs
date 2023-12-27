@@ -187,14 +187,6 @@ impl Render for Icon {
         entity: Entity,
         render_packet: RenderPacket,
     ) -> Self::RenderPackage {
-        if let Some(icon_id) = resources.entity_to_icon.get(&entity) {
-            resources
-                .icon_textures
-                .get_mut(icon_id)
-                .unwrap()
-                .0
-                .queue_remove(entity);
-        }
         let new = render_packet.get::<IconId>().unwrap();
         resources.entity_to_icon.insert(entity, new);
         resources
@@ -234,10 +226,28 @@ impl Render for Icon {
         _package: &mut RenderPackage<Self>,
         render_packet: RenderPacket,
     ) {
-        let icon_id = resources.entity_to_icon.get(&entity).unwrap();
+        let mut icon_id = *resources.entity_to_icon.get(&entity).unwrap();
+        if let Some(id) = render_packet.get::<IconId>() {
+            if icon_id != id {
+                resources
+                    .icon_textures
+                    .get_mut(&icon_id)
+                    .unwrap()
+                    .0
+                    .queue_remove(entity);
+                icon_id = id;
+                resources
+                    .icon_textures
+                    .get_mut(&icon_id)
+                    .unwrap()
+                    .0
+                    .queue_add(entity);
+                resources.entity_to_icon.insert(entity, id);
+            }
+        }
         resources
             .icon_textures
-            .get_mut(icon_id)
+            .get_mut(&icon_id)
             .unwrap()
             .0
             .queue_render_packet(entity, render_packet);
@@ -248,7 +258,7 @@ impl Render for Icon {
         ginkgo: &Ginkgo,
         per_renderer_record_hook: &mut bool,
     ) {
-        let mut should_record = false;
+        let mut should_record = true;
         for (_id, (coordinator, _)) in resources.icon_textures.iter_mut() {
             if coordinator.prepare(ginkgo) {
                 should_record = true;

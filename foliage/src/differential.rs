@@ -58,7 +58,7 @@ pub struct Differential<T: Component + Clone + PartialEq + Send + Sync + 'static
 
 impl<T: Component + Clone + PartialEq + Send + Sync + 'static> Differential<T> {
     #[allow(unused)]
-    pub fn new(t: T) -> Self {
+    pub(crate) fn new(t: T) -> Self {
         Self {
             cache: t,
             differential: None,
@@ -70,7 +70,13 @@ impl<T: Component + Clone + PartialEq + Send + Sync + 'static> Differential<T> {
             self.cache = t.clone();
             return true;
         }
+        if self.differential.is_some() {
+            return true;
+        }
         false
+    }
+    pub fn set_from_cache(&mut self) {
+        self.differential.replace(self.cache.clone());
     }
     pub(crate) fn differential(&mut self) -> Option<T> {
         self.differential.take()
@@ -118,7 +124,10 @@ pub(crate) fn differential<
         + Serialize
         + for<'a> Deserialize<'a>,
 >(
-    mut query: Query<(&T, &mut Differential<T>, &mut RenderPacketStore), Changed<T>>,
+    mut query: Query<
+        (&T, &mut Differential<T>, &mut RenderPacketStore),
+        Or<(Changed<T>, Changed<Differential<T>>)>,
+    >,
 ) {
     for (t, mut diff, mut render_packet_store) in query.iter_mut() {
         if diff.updated(t) {

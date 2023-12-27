@@ -131,10 +131,14 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
         should_record
     }
     pub fn queue_add(&mut self, key: Key) {
-        self.adds.insert(key);
+        if !self.has_key(&key) {
+            self.adds.insert(key);
+        }
     }
     pub fn queue_remove(&mut self, key: Key) {
-        self.removes.insert(key);
+        if self.has_key(&key) {
+            self.removes.insert(key);
+        }
     }
     pub fn queue_key_layer_change(&mut self, key: Key, layer: Layer) {
         self.layer_writes.insert(key, layer);
