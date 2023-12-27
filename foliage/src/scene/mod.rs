@@ -34,6 +34,7 @@ pub struct SceneCoordinator {
     pub(crate) root_bindings: HashMap<SceneHandle, Entity>,
     pub(crate) generator: HandleGenerator,
     pub(crate) alignments: HashMap<SceneHandle, HashMap<SceneBinding, SceneAlignment>>,
+    changed: bool,
 }
 pub struct BindingCoordinate {
     pub handle: SceneHandle,
@@ -97,12 +98,12 @@ impl SceneCoordinator {
             .insert(scene)
             .insert(handle)
             .insert(anchor.0);
-        self.anchors.insert(handle, anchor);
+        self.update_anchor(handle, anchor.0);
         self.root_bindings.insert(handle, this);
         (handle, this)
     }
     pub(crate) fn resolve_non_scene(
-        &mut self,
+        &self,
         handle: SceneHandle,
         coordinated: &mut Query<(
             &mut Position<InterfaceContext>,
@@ -124,7 +125,6 @@ impl SceneCoordinator {
             }
         }
     }
-    // TODO BINDING PROBLEMS HERE
     pub fn binding_entity(&self, scene_access_chain: &SceneAccessChain) -> Entity {
         let (m_root, handle) = self.resolve_handle(scene_access_chain);
         return match scene_access_chain.2 {
@@ -153,6 +153,7 @@ impl SceneCoordinator {
         scene_access_chain: &SceneAccessChain,
     ) -> &mut SceneAlignment {
         let (m_root, handle) = self.resolve_handle(scene_access_chain);
+        self.changed = true;
         return match scene_access_chain.2 {
             SceneTarget::Root => self
                 .alignments
@@ -206,6 +207,7 @@ impl SceneCoordinator {
         coordinate: Coordinate<InterfaceContext>,
     ) {
         self.anchors.insert(scene_handle, Anchor(coordinate));
+        self.changed = true;
     }
 }
 pub struct SceneBinder<'a> {
@@ -274,7 +276,7 @@ impl<'a> SceneBinder<'a> {
             .unwrap()
             .insert(binding, entity);
         let anchor = Anchor(Coordinate::default().with_area(area));
-        self.coordinator_ref.anchors.insert(handle, anchor);
+        self.coordinator_ref.update_anchor(handle, anchor.0);
         self.coordinator_ref
             .alignments
             .get_mut(&self.root)
@@ -335,7 +337,7 @@ pub(crate) fn place_scenes(
         &mut Layer,
     )>,
 ) {
-    if coordinator.is_changed() {
+    if coordinator.is_changed() && coordinator.changed {
         for root in coordinator
             .root_bindings
             .keys()
@@ -371,5 +373,6 @@ pub(crate) fn place_scenes(
                 coordinator.resolve_non_scene(dep_handle, &mut coordinated);
             }
         }
+        coordinator.changed = false;
     }
 }
