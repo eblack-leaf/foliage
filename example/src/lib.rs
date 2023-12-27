@@ -177,26 +177,29 @@ fn resize_dual_button(
                 .binding(DualButtonBindings::First)
                 .target(ButtonBindings::Icon),
         );
-        if area.width > 800.0 {
-            *icon_ids.get_mut(icon).unwrap() = IconId::new(BundledIcon::Coffee);
-        } else if area.width < 500.0 {
-            *icon_ids.get_mut(icon).unwrap() = IconId::new(BundledIcon::Disc);
-        }
-        let first_button =
-            coordinator.binding_entity(&handle.access_chain().target(DualButtonBindings::First));
-        let half_area = *area / (2, 1).into();
-        *button_areas.get_mut(first_button).unwrap().0 = half_area;
-        let second_button =
-            coordinator.binding_entity(&handle.access_chain().target(DualButtonBindings::Second));
-        *button_areas.get_mut(second_button).unwrap().0 = half_area;
-        button_areas.get_mut(second_button).unwrap().1 .0 = 11;
         let text_entity = coordinator.binding_entity(
             &handle
                 .access_chain()
-                .binding(DualButtonBindings::Second)
+                .binding(DualButtonBindings::First)
                 .target(ButtonBindings::Text),
         );
-        *text.get_mut(text_entity).unwrap() = TextValue::new("second-text");
+        let first_button =
+            coordinator.binding_entity(&handle.access_chain().target(DualButtonBindings::First));
+        let second_button =
+            coordinator.binding_entity(&handle.access_chain().target(DualButtonBindings::Second));
+        if area.width > 800.0 {
+            *icon_ids.get_mut(icon).unwrap() = IconId::new(BundledIcon::Coffee);
+            *text.get_mut(text_entity).unwrap() = TextValue::new("mmmm-coffee");
+            button_areas.get_mut(first_button).unwrap().1 .0 = 11;
+        } else if area.width < 500.0 {
+            *icon_ids.get_mut(icon).unwrap() = IconId::new(BundledIcon::Disc);
+            *text.get_mut(text_entity).unwrap() = TextValue::new("or-a-disc");
+            button_areas.get_mut(first_button).unwrap().1 .0 = 7;
+        }
+        let half_area = *area / (2, 1).into();
+        *button_areas.get_mut(first_button).unwrap().0 = half_area;
+
+        *button_areas.get_mut(second_button).unwrap().0 = half_area;
     }
 }
 impl Leaf for DualButton {
