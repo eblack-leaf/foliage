@@ -54,6 +54,7 @@ impl Differentiable {
 pub struct Differential<T: Component + Clone + PartialEq + Send + Sync + 'static> {
     cache: T,
     differential: Option<T>,
+    set_from_cache: bool,
 }
 
 impl<T: Component + Clone + PartialEq + Send + Sync + 'static> Differential<T> {
@@ -62,6 +63,7 @@ impl<T: Component + Clone + PartialEq + Send + Sync + 'static> Differential<T> {
         Self {
             cache: t,
             differential: None,
+            set_from_cache: false,
         }
     }
     pub(crate) fn updated(&mut self, t: &T) -> bool {
@@ -69,14 +71,16 @@ impl<T: Component + Clone + PartialEq + Send + Sync + 'static> Differential<T> {
             self.differential.replace(t.clone());
             self.cache = t.clone();
             return true;
-        }
-        if self.differential.is_some() {
+        } else if self.set_from_cache {
+            self.differential.replace(t.clone());
+            self.cache = t.clone();
+            self.set_from_cache = false;
             return true;
         }
         false
     }
-    pub fn set_from_cache(&mut self) {
-        self.differential.replace(self.cache.clone());
+    pub fn push_cached(&mut self) {
+        self.set_from_cache = true;
     }
     pub(crate) fn differential(&mut self) -> Option<T> {
         self.differential.take()

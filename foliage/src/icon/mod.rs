@@ -121,11 +121,11 @@ fn id_changed(
     >,
 ) {
     for (mut layer, mut pos, mut area, mut mips, mut color) in icons.iter_mut() {
-        layer.set_from_cache();
-        pos.set_from_cache();
-        area.set_from_cache();
-        mips.set_from_cache();
-        color.set_from_cache();
+        layer.push_cached();
+        pos.push_cached();
+        area.push_cached();
+        mips.push_cached();
+        color.push_cached();
     }
 }
 #[repr(u32)]
