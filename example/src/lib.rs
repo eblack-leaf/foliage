@@ -5,6 +5,7 @@ use foliage::bevy_ecs::prelude::{Commands, Entity, IntoSystemConfigs, Resource, 
 use foliage::bevy_ecs::query::{Changed, With};
 use foliage::bevy_ecs::system::{Query, ResMut, SystemParamItem};
 use foliage::button::{Button, ButtonArgs, ButtonBindings, ButtonStyle};
+use foliage::circle_progress_bar::CircleProgressBar;
 use foliage::color::Color;
 use foliage::compositor::segment::{ResponsiveSegment, Segment, SegmentDesc};
 use foliage::compositor::workflow::{
@@ -75,49 +76,59 @@ fn spawn_button_tree(
         (0.8.relative(), 4.fixed()),
         0,
     )));
+    let segment_six_handle = compositor.add_segment(ResponsiveSegment::all(Segment::new(
+        (0.05.relative(), 0.05.relative()),
+        (48.fixed(), 48.fixed()),
+        0,
+    )));
     let transition = TransitionDescriptor::new(&mut cmd)
         .bind_scene::<ProgressBar>(vec![(
             segment_five_handle,
             TransitionBindValidity::all(),
             ProgressBarArgs::new(Progress::new(0.0, 0.25), Color::GREEN, Color::GREY_DARK),
         )])
+        .bind_scene::<CircleProgressBar>(vec![(
+            segment_six_handle,
+            TransitionBindValidity::all(),
+            ProgressBarArgs::new(Progress::new(0.0, 0.45), Color::RED, Color::GREY_DARK),
+        )])
         .bind_scene::<Button>(vec![
-            (
-                segment_one_handle,
-                TransitionBindValidity::all(),
-                ButtonArgs::new(
-                    ButtonStyle::Ring,
-                    TextValue::new("Afternoon"),
-                    MaxCharacters(9),
-                    IconId::new(BundledIcon::Umbrella),
-                    Color::RED.into(),
-                    Color::OFF_BLACK.into(),
-                ),
-            ),
-            (
-                segment_two_handle,
-                TransitionBindValidity::all(),
-                ButtonArgs::new(
-                    ButtonStyle::Ring,
-                    TextValue::new("Fore-"),
-                    MaxCharacters(5),
-                    IconId::new(BundledIcon::Droplet),
-                    Color::GREEN.into(),
-                    Color::OFF_BLACK.into(),
-                ),
-            ),
-            (
-                segment_three_handle,
-                TransitionBindValidity::all(),
-                ButtonArgs::new(
-                    ButtonStyle::Ring,
-                    TextValue::new("CAST!"),
-                    MaxCharacters(5),
-                    IconId::new(BundledIcon::Cast),
-                    Color::BLUE.into(),
-                    Color::OFF_BLACK.into(),
-                ),
-            ),
+            // (
+            //     segment_one_handle,
+            //     TransitionBindValidity::all(),
+            //     ButtonArgs::new(
+            //         ButtonStyle::Ring,
+            //         TextValue::new("Afternoon"),
+            //         MaxCharacters(9),
+            //         IconId::new(BundledIcon::Umbrella),
+            //         Color::RED.into(),
+            //         Color::OFF_BLACK.into(),
+            //     ),
+            // ),
+            // (
+            //     segment_two_handle,
+            //     TransitionBindValidity::all(),
+            //     ButtonArgs::new(
+            //         ButtonStyle::Ring,
+            //         TextValue::new("Fore-"),
+            //         MaxCharacters(5),
+            //         IconId::new(BundledIcon::Droplet),
+            //         Color::GREEN.into(),
+            //         Color::OFF_BLACK.into(),
+            //     ),
+            // ),
+            // (
+            //     segment_three_handle,
+            //     TransitionBindValidity::all(),
+            //     ButtonArgs::new(
+            //         ButtonStyle::Ring,
+            //         TextValue::new("CAST!"),
+            //         MaxCharacters(5),
+            //         IconId::new(BundledIcon::Cast),
+            //         Color::BLUE.into(),
+            //         Color::OFF_BLACK.into(),
+            //     ),
+            // ),
         ])
         .bind_scene::<DualButton>(vec![(
             segment_four_handle,
@@ -147,6 +158,7 @@ set_descriptor!(
 fn resize_dual_button(
     mut coordinator: ResMut<SceneCoordinator>,
     progress_bars: Query<&SceneHandle, With<Tag<ProgressBar>>>,
+    circle_progress_bars: Query<&SceneHandle, With<Tag<CircleProgressBar>>>,
     mut progresses: Query<&mut Progress>,
     query: Query<
         (&Area<InterfaceContext>, &SceneHandle),
@@ -164,6 +176,12 @@ fn resize_dual_button(
     mut text: Query<&mut TextValue>,
 ) {
     for handle in progress_bars.iter() {
+        let fill =
+            coordinator.binding_entity(&handle.access_chain().target(ProgressBarBindings::Fill));
+        *progresses.get_mut(fill).unwrap().end_mut() += 0.005;
+        *progresses.get_mut(fill).unwrap().end_mut() %= 1.0;
+    }
+    for handle in circle_progress_bars.iter() {
         let fill =
             coordinator.binding_entity(&handle.access_chain().target(ProgressBarBindings::Fill));
         *progresses.get_mut(fill).unwrap().end_mut() += 0.005;

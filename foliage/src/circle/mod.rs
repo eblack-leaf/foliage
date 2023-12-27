@@ -1,5 +1,5 @@
 use bevy_ecs::prelude::{Bundle, Component, Res, SystemSet, With};
-use bevy_ecs::query::Changed;
+use bevy_ecs::query::{Changed, Or};
 use bevy_ecs::system::Query;
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
@@ -126,7 +126,10 @@ fn mips_adjust(
             &mut Position<InterfaceContext>,
             &mut Area<InterfaceContext>,
         ),
-        (Changed<Area<InterfaceContext>>, With<CircleStyle>),
+        (
+            Or<(Changed<Area<InterfaceContext>>, Changed<Diameter>)>,
+            With<CircleStyle>,
+        ),
     >,
     scale_factor: Res<ScaleFactor>,
 ) {
