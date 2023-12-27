@@ -23,7 +23,6 @@ use crate::image::Image;
 use crate::panel::Panel;
 use crate::progress_bar::ProgressBar;
 use crate::rectangle::Rectangle;
-use crate::scene::SceneCoordinator;
 use crate::text::Text;
 
 use self::ash::leaflet::RenderLeafletStorage;

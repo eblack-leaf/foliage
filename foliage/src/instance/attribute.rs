@@ -75,7 +75,7 @@ impl<Key: Hash + Eq + Clone + 'static, T: Default + Clone + Pod + Zeroable>
             if self.write_range.is_none() {
                 self.write_range.replace((instances, instances));
             }
-            if let Some((start, end)) = self.write_range.as_mut() {
+            if let Some((start, _end)) = self.write_range.as_mut() {
                 if index < *start {
                     *start = index;
                 }
@@ -102,7 +102,7 @@ impl<Key: Hash + Eq + Clone + 'static, T: Default + Clone + Pod + Zeroable>
     pub(crate) fn remove(&mut self, indices: &Vec<(Key, Index)>, instances: u32) {
         if !indices.is_empty() {
             let write_start = indices.last().unwrap().1;
-            for (key, index) in indices.iter() {
+            for (key, _index) in indices.iter() {
                 self.key_to_t.remove(key);
             }
             self.write_range
