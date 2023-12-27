@@ -167,6 +167,7 @@ fn resize_dual_button(
         let fill =
             coordinator.binding_entity(&handle.access_chain().target(ProgressBarBindings::Fill));
         progresses.get_mut(fill).unwrap().1 += 0.005;
+        progresses.get_mut(fill).unwrap().1 %= 1.0;
     }
     for (area, handle) in query.iter() {
         let coordinate = coordinator.anchor(*handle).0.with_area(*area);

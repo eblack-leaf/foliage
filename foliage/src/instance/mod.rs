@@ -75,6 +75,13 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
     pub fn has_key(&self, key: &Key) -> bool {
         self.ordering.index(key).is_some()
     }
+    pub(crate) fn instances_minus_one(&self) -> u32 {
+        self.ordering
+            .managed
+            .len()
+            .checked_sub(1)
+            .unwrap_or_default() as u32
+    }
     pub fn prepare(&mut self, ginkgo: &Ginkgo) -> bool {
         let mut should_record = false;
         if let Some(removed) = self.removed_indices() {
@@ -82,7 +89,13 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
                 should_record = true;
                 self.needs_ordering = true;
             }
-            Self::inner_remove(&self.attribute_fns, &mut self.attributes, &removed);
+            let instances = self.instances_minus_one();
+            Self::inner_remove(
+                &self.attribute_fns,
+                &mut self.attributes,
+                &removed,
+                instances,
+            );
         }
         for key in self.adds.drain().collect::<Vec<Key>>() {
             self.ordering.managed.insert(key, Layer::default());
@@ -118,15 +131,24 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
             self.needs_ordering = false;
         }
         if let Some(count) = self.should_grow() {
-            Self::inner_grow(&self.attribute_fns, &mut self.attributes, ginkgo, count);
+            let instances = self.instances_minus_one();
+            Self::inner_grow(
+                &self.attribute_fns,
+                &mut self.attributes,
+                ginkgo,
+                count,
+                instances,
+            );
             should_record = true;
         }
+        let instances = self.instances_minus_one();
         Self::inner_write(
             &self.ordering,
             &self.attribute_fns,
             &mut self.attributes,
             &mut self.attribute_writes,
             ginkgo,
+            instances,
         );
         should_record
     }
@@ -260,9 +282,10 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
         attributes: &mut AnyMap,
         attribute_writes: &mut AnyMap,
         ginkgo: &Ginkgo,
+        instances: u32,
     ) {
         for attr_fn in attribute_fns.iter() {
-            (attr_fn.write)(ordering, attributes, attribute_writes, ginkgo);
+            (attr_fn.write)(ordering, attributes, attribute_writes, ginkgo, instances);
         }
     }
     fn inner_grow(
@@ -270,18 +293,20 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
         attributes: &mut AnyMap,
         ginkgo: &Ginkgo,
         capacity: u32,
+        instances: u32,
     ) {
         for attr_fn in attribute_fns.iter() {
-            (attr_fn.grow)(attributes, ginkgo, capacity);
+            (attr_fn.grow)(attributes, ginkgo, capacity, instances);
         }
     }
     fn inner_remove(
         attribute_fns: &[AttributeFn<Key>],
         attributes: &mut AnyMap,
         removed: &Vec<(Key, Index)>,
+        instances: u32,
     ) {
         for attr_fn in attribute_fns.iter() {
-            (attr_fn.remove)(attributes, removed);
+            (attr_fn.remove)(attributes, removed, instances);
         }
     }
     fn establish_attributes(
@@ -319,6 +344,7 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
         attributes: &mut AnyMap,
         attribute_writes: &mut AnyMap,
         ginkgo: &Ginkgo,
+        instances: u32,
     ) {
         let queue = attribute_writes
             .get_mut::<InstanceAttributeWriteQueue<Key, T>>()
@@ -327,26 +353,28 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
         attributes
             .get_mut::<InstanceAttribute<Key, T>>()
             .unwrap()
-            .write_from_queue(queue, ginkgo);
+            .write_from_queue(queue, ginkgo, instances);
     }
     fn grow_wrapper<T: Default + Clone + Pod + Zeroable + 'static>(
         attributes: &mut AnyMap,
         ginkgo: &Ginkgo,
         new_capacity: u32,
+        instances: u32,
     ) {
         attributes
             .get_mut::<InstanceAttribute<Key, T>>()
             .unwrap()
-            .grow(ginkgo, new_capacity);
+            .grow(ginkgo, new_capacity, instances);
     }
     fn remove_wrapper<T: Default + Clone + Pod + Zeroable + 'static>(
         attributes: &mut AnyMap,
         removed: &Vec<(Key, Index)>,
+        instances: u32,
     ) {
         attributes
             .get_mut::<InstanceAttribute<Key, T>>()
             .unwrap()
-            .remove(removed);
+            .remove(removed, instances);
     }
     fn should_grow(&mut self) -> Option<u32> {
         if self.ordering.managed.len() as u32 > self.current_gpu_capacity {

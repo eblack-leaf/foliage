@@ -165,7 +165,11 @@ pub(crate) fn changes(
             &mut GlyphCache,
             &mut GlyphPlacementTool,
         ),
-        Or<(Changed<TextValue>, Changed<FontSize>, Changed<MaxCharacters>)>,
+        Or<(
+            Changed<TextValue>,
+            Changed<FontSize>,
+            Changed<MaxCharacters>,
+        )>,
     >,
     font: Res<MonospacedFont>,
     scale_factor: Res<ScaleFactor>,

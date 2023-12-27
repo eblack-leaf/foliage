@@ -11,9 +11,9 @@ use crate::instance::{Index, InstanceCoordinator, InstanceOrdering};
 
 pub(crate) struct AttributeFn<Key: Hash + Eq> {
     pub(crate) create: Box<fn(&mut AnyMap, &mut AnyMap, &Ginkgo, u32)>,
-    pub(crate) write: Box<fn(&InstanceOrdering<Key>, &mut AnyMap, &mut AnyMap, &Ginkgo)>,
-    pub(crate) grow: Box<fn(&mut AnyMap, &Ginkgo, u32)>,
-    pub(crate) remove: Box<fn(&mut AnyMap, &Vec<(Key, Index)>)>,
+    pub(crate) write: Box<fn(&InstanceOrdering<Key>, &mut AnyMap, &mut AnyMap, &Ginkgo, u32)>,
+    pub(crate) grow: Box<fn(&mut AnyMap, &Ginkgo, u32, u32)>,
+    pub(crate) remove: Box<fn(&mut AnyMap, &Vec<(Key, Index)>, u32)>,
     pub(crate) reorder: Box<fn(&InstanceOrdering<Key>, &mut AnyMap, &mut AnyMap)>,
     pub(crate) queue_packet: Box<fn(&mut AnyMap, Key, &mut RenderPacket)>,
 }
@@ -68,17 +68,16 @@ impl<Key: Hash + Eq + Clone + 'static, T: Default + Clone + Pod + Zeroable>
         &mut self,
         queue: InstanceAttributeIndexedWriteQueue<Key, T>,
         ginkgo: &Ginkgo,
+        instances: u32,
     ) {
         let mut needs_write = false;
         for (key, index, data) in queue.0 {
             if self.write_range.is_none() {
-                self.write_range.replace((0, self.end()));
+                self.write_range.replace((instances, instances));
             }
             if let Some((start, end)) = self.write_range.as_mut() {
                 if index < *start {
                     *start = index;
-                } else if index > *end {
-                    *end = index;
                 }
             }
             *self.cpu.get_mut(index as usize).unwrap() = data;
@@ -91,33 +90,29 @@ impl<Key: Hash + Eq + Clone + 'static, T: Default + Clone + Pod + Zeroable>
                     return;
                 }
                 let slice = &self.cpu[range.0 as usize..=range.1 as usize];
-                let slice = &self.cpu[..];
                 let start_address = Ginkgo::buffer_address::<T>(range.0);
                 ginkgo.queue.as_ref().unwrap().write_buffer(
                     &self.gpu,
-                    0,
+                    start_address,
                     bytemuck::cast_slice(slice),
                 );
             }
         }
     }
-    pub(crate) fn remove(&mut self, indices: &Vec<(Key, Index)>) {
+    pub(crate) fn remove(&mut self, indices: &Vec<(Key, Index)>, instances: u32) {
         if !indices.is_empty() {
             let write_start = indices.last().unwrap().1;
             for (key, index) in indices.iter() {
-                // *self.cpu.get_mut(*index as usize).unwrap() = T::default();
                 self.key_to_t.remove(key);
             }
-            self.write_range.replace((0, self.end()));
+            self.write_range
+                .replace((write_start.checked_sub(1).unwrap_or_default(), instances));
         }
     }
-    pub(crate) fn grow(&mut self, ginkgo: &Ginkgo, count: u32) {
+    pub(crate) fn grow(&mut self, ginkgo: &Ginkgo, count: u32, instances: u32) {
         self.cpu.resize(count as usize, T::default());
         self.gpu = Self::gpu_buffer(ginkgo, count);
-        self.write_range.replace((0, self.end()));
-    }
-    fn end(&self) -> u32 {
-        self.cpu.len().checked_sub(1).unwrap_or_default() as u32
+        self.write_range.replace((0, instances));
     }
 }
 
