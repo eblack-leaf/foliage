@@ -21,8 +21,9 @@ use crate::ginkgo::Ginkgo;
 use crate::icon::Icon;
 use crate::image::Image;
 use crate::panel::Panel;
-use crate::scene::SceneCoordinator;
+use crate::progress_bar::ProgressBar;
 use crate::rectangle::Rectangle;
+use crate::scene::SceneCoordinator;
 use crate::text::Text;
 
 use self::ash::leaflet::RenderLeafletStorage;
@@ -45,6 +46,7 @@ pub mod panel;
 pub mod rectangle;
 // pub mod scene;
 mod generator;
+pub mod progress_bar;
 pub mod scene;
 pub mod text;
 pub mod texture;
@@ -96,6 +98,7 @@ impl Foliage {
             .with_renderleaf::<Image>()
             .with_leaf::<Button>()
             .with_leaf::<Compositor>()
+            .with_leaf::<ProgressBar>()
     }
     pub fn with_android_interface(mut self, android_interface: AndroidInterface) -> Self {
         self.android_interface = android_interface;

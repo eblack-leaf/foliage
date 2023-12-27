@@ -10,7 +10,7 @@ use crate::differential::{DifferentialId, DifferentialIdentification};
 
 pub type RenderPacketDifferential = Option<Vec<u8>>;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct RenderPacket(pub HashMap<DifferentialId, RenderPacketDifferential>);
 
 impl Default for RenderPacket {
@@ -33,7 +33,7 @@ impl RenderPacket {
     }
 }
 
-#[derive(Default, Component)]
+#[derive(Default, Component, Clone)]
 pub struct RenderPacketStore {
     pub(crate) render_packet: Option<RenderPacket>,
 }

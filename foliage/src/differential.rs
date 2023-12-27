@@ -17,7 +17,7 @@ use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::InterfaceContext;
 use crate::ginkgo::viewport::ViewportHandle;
 
-#[derive(Bundle)]
+#[derive(Bundle, Clone)]
 pub struct Differentiable {
     position: Position<InterfaceContext>,
     area: Area<InterfaceContext>,

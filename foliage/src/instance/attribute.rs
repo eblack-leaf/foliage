@@ -72,7 +72,7 @@ impl<Key: Hash + Eq + Clone + 'static, T: Default + Clone + Pod + Zeroable>
         let mut needs_write = false;
         for (key, index, data) in queue.0 {
             if self.write_range.is_none() {
-                self.write_range.replace((self.end(), 0));
+                self.write_range.replace((0, self.end()));
             }
             if let Some((start, end)) = self.write_range.as_mut() {
                 if index < *start {

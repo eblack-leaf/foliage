@@ -14,7 +14,7 @@ use bevy_ecs::prelude::Bundle;
 mod proc_gen;
 mod renderer;
 mod vertex;
-#[derive(Bundle)]
+#[derive(Bundle, Clone)]
 pub struct Rectangle {
     progress: DifferentialBundle<Progress>,
     color: DifferentialBundle<Color>,

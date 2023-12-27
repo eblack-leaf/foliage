@@ -19,9 +19,11 @@ use foliage::elm::leaf::{Leaf, Tag};
 use foliage::elm::Elm;
 use foliage::icon::bundled_cov::BundledIcon;
 use foliage::icon::IconId;
+use foliage::progress_bar::{ProgressBar, ProgressBarArgs, ProgressBarBindings};
 use foliage::scene::align::SceneAligner;
 use foliage::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
 use foliage::text::{MaxCharacters, TextValue};
+use foliage::texture::factors::Progress;
 use foliage::window::WindowDescriptor;
 use foliage::{bevy_ecs, scene_bind_enable, set_descriptor};
 use foliage::{AndroidInterface, Foliage};
@@ -68,7 +70,17 @@ fn spawn_button_tree(
         (0.8.relative(), 50.fixed()),
         4,
     )));
+    let segment_five_handle = compositor.add_segment(ResponsiveSegment::all(Segment::new(
+        (0.10.relative(), 0.65.relative()),
+        (0.8.relative(), 4.fixed()),
+        0,
+    )));
     let transition = TransitionDescriptor::new(&mut cmd)
+        .bind_scene::<ProgressBar>(vec![(
+            segment_five_handle,
+            TransitionBindValidity::all(),
+            ProgressBarArgs::new(Progress(0.0, 0.25), Color::GREEN, Color::GREY_DARK),
+        )])
         .bind_scene::<Button>(vec![
             (
                 segment_one_handle,
@@ -134,6 +146,8 @@ set_descriptor!(
 );
 fn resize_dual_button(
     mut coordinator: ResMut<SceneCoordinator>,
+    progress_bars: Query<&SceneHandle, With<Tag<ProgressBar>>>,
+    mut progresses: Query<&mut Progress>,
     query: Query<
         (&Area<InterfaceContext>, &SceneHandle),
         (
@@ -142,19 +156,28 @@ fn resize_dual_button(
             Without<Tag<Button>>,
         ),
     >,
-    mut button_areas: Query<&mut Area<InterfaceContext>, Without<Tag<DualButton>>>,
+    mut button_areas: Query<
+        (&mut Area<InterfaceContext>, &mut MaxCharacters),
+        Without<Tag<DualButton>>,
+    >,
     mut text: Query<&mut TextValue>,
 ) {
+    for handle in progress_bars.iter() {
+        let fill =
+            coordinator.binding_entity(&handle.access_chain().target(ProgressBarBindings::Fill));
+        progresses.get_mut(fill).unwrap().1 += 0.005;
+    }
     for (area, handle) in query.iter() {
         let coordinate = coordinator.anchor(*handle).0.with_area(*area);
         coordinator.update_anchor(*handle, coordinate);
         let first_button =
             coordinator.binding_entity(&handle.access_chain().target(DualButtonBindings::First));
         let half_area = *area / (2, 1).into();
-        *button_areas.get_mut(first_button).unwrap() = half_area;
+        *button_areas.get_mut(first_button).unwrap().0 = half_area;
         let second_button =
             coordinator.binding_entity(&handle.access_chain().target(DualButtonBindings::Second));
-        *button_areas.get_mut(second_button).unwrap() = half_area;
+        *button_areas.get_mut(second_button).unwrap().0 = half_area;
+        button_areas.get_mut(second_button).unwrap().1 .0 = 11;
         let text_entity = coordinator.binding_entity(
             &handle
                 .access_chain()
