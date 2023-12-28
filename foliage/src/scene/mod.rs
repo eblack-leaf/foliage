@@ -75,6 +75,14 @@ impl SceneAccessChain {
     }
 }
 impl SceneCoordinator {
+    pub fn update_anchor_area<A: Into<Area<InterfaceContext>>>(
+        &mut self,
+        handle: SceneHandle,
+        area: A,
+    ) {
+        let coordinate = self.anchor(handle).0.with_area(area);
+        self.update_anchor(handle, coordinate);
+    }
     pub fn spawn_scene<S: Scene>(
         &mut self,
         anchor: Anchor,
@@ -145,7 +153,7 @@ impl SceneCoordinator {
                 .unwrap(),
         };
     }
-    pub fn update_alignment(
+    pub fn get_alignment_mut(
         &mut self,
         scene_access_chain: &SceneAccessChain,
     ) -> &mut SceneAlignment {

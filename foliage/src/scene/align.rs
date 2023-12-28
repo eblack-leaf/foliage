@@ -105,7 +105,7 @@ pub struct AlignmentPoint {
 
 #[derive(Copy, Clone)]
 pub struct SceneAlignment {
-    pub(crate) pos: PositionAlignment,
+    pub pos: PositionAlignment,
     pub(crate) layer: LayerAlignment,
 }
 

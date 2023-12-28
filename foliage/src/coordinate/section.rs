@@ -18,7 +18,7 @@ impl<Context: CoordinateContext> Section<Context> {
         }
     }
     #[allow(unused)]
-    pub(crate) fn center(&self) -> Position<Context> {
+    pub fn center(&self) -> Position<Context> {
         let x = self.position.x + self.width() / 2f32;
         let y = self.position.y + self.height() / 2f32;
         Position::new(x, y)

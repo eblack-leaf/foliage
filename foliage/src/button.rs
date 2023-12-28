@@ -94,10 +94,9 @@ fn updates(
         let panel_ac = handle.access_chain().target(ButtonBindings::Panel);
         let text_ac = handle.access_chain().target(ButtonBindings::Text);
         let icon_ac = handle.access_chain().target(ButtonBindings::Icon);
-        coordinator.update_alignment(&text_ac).pos.horizontal = text_offset.near();
-        coordinator.update_alignment(&icon_ac).pos.horizontal = padding.far();
-        let coordinate = coordinator.anchor(*handle).0.with_area(*button_area);
-        coordinator.update_anchor(*handle, coordinate);
+        coordinator.get_alignment_mut(&text_ac).pos.horizontal = text_offset.near();
+        coordinator.get_alignment_mut(&icon_ac).pos.horizontal = padding.far();
+        coordinator.update_anchor_area(*handle, *button_area);
         let panel_node = coordinator.binding_entity(&panel_ac);
         if let Ok(mut color) = colors.get_mut(panel_node) {
             *color = match state {

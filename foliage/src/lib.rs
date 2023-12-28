@@ -14,6 +14,7 @@ use crate::ash::render::Render;
 use crate::ash::Ash;
 use crate::button::Button;
 use crate::circle::Circle;
+use crate::circle_button::CircleButton;
 use crate::circle_progress_bar::CircleProgressBar;
 use crate::compositor::Compositor;
 use crate::coordinate::CoordinateUnit;
@@ -45,6 +46,7 @@ pub mod job;
 pub mod panel;
 pub mod rectangle;
 // pub mod scene;
+pub mod circle_button;
 pub mod circle_progress_bar;
 mod generator;
 pub mod progress_bar;
@@ -101,6 +103,7 @@ impl Foliage {
             .with_leaf::<Compositor>()
             .with_leaf::<ProgressBar>()
             .with_leaf::<CircleProgressBar>()
+            .with_leaf::<CircleButton>()
     }
     pub fn with_android_interface(mut self, android_interface: AndroidInterface) -> Self {
         self.android_interface = android_interface;

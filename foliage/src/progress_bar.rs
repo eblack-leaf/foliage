@@ -11,7 +11,7 @@ use crate::texture::factors::Progress;
 use crate::{scene_bind_enable, set_descriptor};
 use bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
 use bevy_ecs::query::{Changed, With, Without};
-use bevy_ecs::system::{Query, Res, SystemParamItem};
+use bevy_ecs::system::{Query, ResMut, SystemParamItem};
 
 #[derive(Bundle)]
 pub struct ProgressBar {
@@ -51,9 +51,10 @@ fn resize(
         (With<Tag<ProgressBar>>, Changed<Area<InterfaceContext>>),
     >,
     mut rectangles: Query<&mut Area<InterfaceContext>, Without<Tag<ProgressBar>>>,
-    coordinator: Res<SceneCoordinator>,
+    mut coordinator: ResMut<SceneCoordinator>,
 ) {
     for (handle, area) in scenes.iter() {
+        coordinator.update_anchor_area(*handle, *area);
         let back =
             coordinator.binding_entity(&handle.access_chain().target(ProgressBarBindings::Back));
         let front =

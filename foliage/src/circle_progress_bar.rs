@@ -9,9 +9,9 @@ use crate::scene::align::SceneAligner;
 use crate::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
 use crate::scene_bind_enable;
 use crate::texture::factors::Progress;
-use bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
+use bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs, ResMut};
 use bevy_ecs::query::{Changed, With, Without};
-use bevy_ecs::system::{Query, Res, SystemParamItem};
+use bevy_ecs::system::{Query, SystemParamItem};
 
 #[derive(Bundle)]
 pub struct CircleProgressBar {
@@ -26,9 +26,10 @@ fn resize(
             Changed<Area<InterfaceContext>>,
         ),
     >,
-    coordinator: Res<SceneCoordinator>,
+    mut coordinator: ResMut<SceneCoordinator>,
 ) {
     for (handle, area) in scene.iter() {
+        coordinator.update_anchor_area(*handle, *area);
         let back =
             coordinator.binding_entity(&handle.access_chain().target(ProgressBarBindings::Back));
         let front =
