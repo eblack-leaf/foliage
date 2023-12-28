@@ -10,9 +10,7 @@ use foliage::coordinate::{CoordinateUnit, InterfaceContext};
 use foliage::elm::config::{ElmConfiguration, ExternalSet};
 use foliage::elm::leaf::{Leaf, Tag};
 use foliage::elm::Elm;
-use foliage::icon::bundled_cov::BundledIcon::{
-    CloudDrizzle, SkipBack, SkipForward,
-};
+use foliage::icon::bundled_cov::BundledIcon::{ChevronLeft, ChevronRight, ChevronsRight, CloudDrizzle, Plus, SkipBack, SkipForward};
 use foliage::icon::{Icon, IconId};
 use foliage::rectangle::Rectangle;
 use foliage::scene::align::{SceneAligner, SceneAlignment};
@@ -111,7 +109,7 @@ impl Scene for Controls {
             SceneAlignment::from((offset.near(), 0.center(), 0)),
             (24, 24).into(),
             &CircleButtonArgs::new(
-                IconId::new(SkipBack),
+                IconId::new(ChevronLeft),
                 ButtonStyle::Ring,
                 Color::GREEN_MEDIUM,
                 Color::GREEN_MEDIUM,
@@ -124,7 +122,7 @@ impl Scene for Controls {
             SceneAlignment::from((0.center(), 0.center(), 0)),
             (48, 48).into(),
             &CircleButtonArgs::new(
-                IconId::new(CloudDrizzle),
+                IconId::new(Plus),
                 ButtonStyle::Fill,
                 Color::OFF_BLACK,
                 Color::GREEN_MEDIUM,
@@ -137,7 +135,7 @@ impl Scene for Controls {
             SceneAlignment::from((offset.far(), 0.center(), 0)),
             (24, 24).into(),
             &CircleButtonArgs::new(
-                IconId::new(SkipForward),
+                IconId::new(ChevronRight),
                 ButtonStyle::Ring,
                 Color::GREEN_MEDIUM,
                 Color::GREEN_MEDIUM,
