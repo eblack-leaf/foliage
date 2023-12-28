@@ -91,7 +91,7 @@ impl Scene for CircleButton {
         cmd: &mut Commands,
         anchor: Anchor,
         args: &Self::Args<'_>,
-        external_args: &SystemParamItem<Self::ExternalArgs>,
+        _external_args: &SystemParamItem<Self::ExternalArgs>,
         mut binder: SceneBinder<'_>,
     ) -> Self {
         let style = match args.style {

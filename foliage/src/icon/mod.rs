@@ -131,9 +131,9 @@ fn id_changed(
 #[repr(u32)]
 #[derive(Component, Copy, Clone)]
 pub enum IconScale {
-    Twenty = 20,
-    Forty = 40,
-    Eighty = 80,
+    Twenty = 16,
+    Forty = 32,
+    Eighty = 64,
 }
 impl IconScale {
     pub fn initial_mips(self) -> MipsLevel {

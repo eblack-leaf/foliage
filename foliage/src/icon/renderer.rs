@@ -29,7 +29,7 @@ pub struct IconRenderResources {
     entity_to_icon: HashMap<Entity, IconId>,
 }
 impl Icon {
-    pub(crate) const TEXTURE_DIMENSIONS: u32 = 80;
+    pub(crate) const TEXTURE_DIMENSIONS: u32 = 64;
     pub(crate) const MIPS: u32 = 3;
 }
 impl Render for Icon {
