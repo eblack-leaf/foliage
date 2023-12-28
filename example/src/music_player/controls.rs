@@ -2,7 +2,7 @@ use foliage::bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
 use foliage::bevy_ecs::query::{Changed, With, Without};
 use foliage::bevy_ecs::system::{Query, ResMut, SystemParamItem};
 use foliage::button::ButtonStyle;
-use foliage::circle::{Circle, CircleStyle, Diameter};
+use foliage::circle::{Circle};
 use foliage::circle_button::{CircleButton, CircleButtonArgs};
 use foliage::color::Color;
 use foliage::coordinate::area::Area;
@@ -11,7 +11,7 @@ use foliage::elm::config::{ElmConfiguration, ExternalSet};
 use foliage::elm::leaf::{Leaf, Tag};
 use foliage::elm::Elm;
 use foliage::icon::bundled_cov::BundledIcon::{
-    Bell, BellOff, CloudDrizzle, Pause, Play, SkipBack, SkipForward,
+    CloudDrizzle, SkipBack, SkipForward,
 };
 use foliage::icon::{Icon, IconId};
 use foliage::rectangle::Rectangle;
@@ -52,11 +52,11 @@ impl Leaf for Controls {
 
     fn attach(elm: &mut Elm) {
         elm.main().add_systems(
-            (resize
+            resize
                 .in_set(ExternalSet::Configure)
                 .in_set(ControlsSet::Area)
                 .before(<Circle as Leaf>::SetDescriptor::Area)
-                .before(<Icon as Leaf>::SetDescriptor::Area)),
+                .before(<Icon as Leaf>::SetDescriptor::Area),
         );
         scene_bind_enable!(elm, Controls);
     }
@@ -108,7 +108,7 @@ impl Scene for Controls {
         );
         binder.bind_scene::<CircleButton>(
             ControlBindings::Left.into(),
-            SceneAlignment::from((offset.near(), 0.center(), 0)).into(),
+            SceneAlignment::from((offset.near(), 0.center(), 0)),
             (24, 24).into(),
             &CircleButtonArgs::new(
                 IconId::new(SkipBack),
@@ -121,7 +121,7 @@ impl Scene for Controls {
         );
         binder.bind_scene::<CircleButton>(
             ControlBindings::Play.into(),
-            SceneAlignment::from((0.center(), 0.center(), 0)).into(),
+            SceneAlignment::from((0.center(), 0.center(), 0)),
             (48, 48).into(),
             &CircleButtonArgs::new(
                 IconId::new(CloudDrizzle),
@@ -134,7 +134,7 @@ impl Scene for Controls {
         );
         binder.bind_scene::<CircleButton>(
             ControlBindings::Right.into(),
-            SceneAlignment::from((offset.far(), 0.center(), 0)).into(),
+            SceneAlignment::from((offset.far(), 0.center(), 0)),
             (24, 24).into(),
             &CircleButtonArgs::new(
                 IconId::new(SkipForward),

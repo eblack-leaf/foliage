@@ -214,12 +214,10 @@ pub(crate) fn changes(
                         if filtered {
                             removes.0.push((g.byte_offset, glyph_key));
                             *cached = CachedGlyph::Filtered;
+                        } else if glyph.key != glyph_key {
+                            total_update = true;
                         } else {
-                            if glyph.key != glyph_key {
-                                total_update = true;
-                            } else {
-                                // color change
-                            }
+                            // color change
                         }
                     }
                     CachedGlyph::Filtered => {

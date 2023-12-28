@@ -26,7 +26,7 @@ impl Leaflet {
 #[macro_export]
 macro_rules! set_descriptor {
     ($desc:item) => {
-        #[derive(crate::bevy_ecs::prelude::SystemSet, Hash, Eq, PartialEq, Copy, Clone, Debug)]
+        #[derive($crate::bevy_ecs::prelude::SystemSet, Hash, Eq, PartialEq, Copy, Clone, Debug)]
         $desc
     };
 }

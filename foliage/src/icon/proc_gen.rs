@@ -2,7 +2,7 @@
 #[test]
 fn svg_to_png_to_cov() {
     use crate::ginkgo::Ginkgo;
-    use crate::icon::Icon;
+    
     use std::path::Path;
     const SIZE: i32 = 32;
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))

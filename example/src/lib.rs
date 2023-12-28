@@ -1,36 +1,33 @@
 mod music_player;
 
-use foliage::bevy_ecs::bundle::Bundle;
+
 
 use crate::music_player::controls::Controls;
 use crate::music_player::MusicPlayer;
-use foliage::bevy_ecs::event::EventWriter;
-use foliage::bevy_ecs::prelude::{Commands, Entity, IntoSystemConfigs, Resource, Without};
-use foliage::bevy_ecs::query::{Changed, With};
-use foliage::bevy_ecs::system::{Query, ResMut, SystemParamItem};
-use foliage::button::{Button, ButtonArgs, ButtonBindings, ButtonStyle};
-use foliage::circle_progress_bar::CircleProgressBar;
-use foliage::color::Color;
-use foliage::compositor::segment::{ResponsiveSegment, Segment, SegmentDesc};
-use foliage::compositor::workflow::{
-    TransitionBindValidity, TransitionDescriptor, WorkflowDescriptor, WorkflowHandle,
-    WorkflowStage, WorkflowTransition,
-};
-use foliage::compositor::Compositor;
-use foliage::coordinate::area::Area;
-use foliage::coordinate::InterfaceContext;
-use foliage::elm::config::{ElmConfiguration, ExternalSet};
-use foliage::elm::leaf::{Leaf, Tag};
-use foliage::elm::Elm;
-use foliage::icon::bundled_cov::BundledIcon;
-use foliage::icon::IconId;
-use foliage::progress_bar::{ProgressBar, ProgressBarArgs, ProgressBarBindings};
-use foliage::scene::align::SceneAligner;
-use foliage::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
-use foliage::text::{MaxCharacters, TextValue};
-use foliage::texture::factors::Progress;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 use foliage::window::WindowDescriptor;
-use foliage::{bevy_ecs, scene_bind_enable, set_descriptor};
+
 use foliage::{AndroidInterface, Foliage};
 
 pub fn entry(android_interface: AndroidInterface) {

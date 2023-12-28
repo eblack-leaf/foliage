@@ -45,8 +45,7 @@ impl ImageGroup {
             .as_rgba8()
             .unwrap()
             .pixels()
-            .map(|p| p.0.to_vec())
-            .flatten()
+            .flat_map(|p| p.0.to_vec())
             .collect::<Vec<u8>>();
         self.tex
             .replace(ginkgo.texture_rgba8unorm_d2(width, height, 1, image.as_slice()));
