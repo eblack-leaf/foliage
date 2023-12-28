@@ -1,34 +1,12 @@
 mod music_player;
 
-
-
 use crate::music_player::controls::Controls;
 use crate::music_player::MusicPlayer;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 use foliage::window::WindowDescriptor;
 
 use foliage::{AndroidInterface, Foliage};
+use crate::music_player::track_progress::TrackProgress;
 
 pub fn entry(android_interface: AndroidInterface) {
     Foliage::new()
@@ -39,6 +17,7 @@ pub fn entry(android_interface: AndroidInterface) {
         )
         .with_leaf::<MusicPlayer>()
         .with_leaf::<Controls>()
+        .with_leaf::<TrackProgress>()
         .with_android_interface(android_interface)
         .run();
 }

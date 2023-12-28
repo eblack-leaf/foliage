@@ -204,6 +204,9 @@ pub(crate) fn changes(
         );
         let glyphs = placer.0.glyphs();
         for g in glyphs {
+            if g.parent.is_ascii_control() {
+                continue;
+            }
             let mut change = None;
             let glyph_key = GlyphKey::new(g.key);
             let mut total_update = false;

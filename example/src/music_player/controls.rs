@@ -2,7 +2,7 @@ use foliage::bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
 use foliage::bevy_ecs::query::{Changed, With, Without};
 use foliage::bevy_ecs::system::{Query, ResMut, SystemParamItem};
 use foliage::button::ButtonStyle;
-use foliage::circle::{Circle};
+use foliage::circle::Circle;
 use foliage::circle_button::{CircleButton, CircleButtonArgs};
 use foliage::color::Color;
 use foliage::coordinate::area::Area;
@@ -10,7 +10,7 @@ use foliage::coordinate::{CoordinateUnit, InterfaceContext};
 use foliage::elm::config::{ElmConfiguration, ExternalSet};
 use foliage::elm::leaf::{Leaf, Tag};
 use foliage::elm::Elm;
-use foliage::icon::bundled_cov::BundledIcon::{ChevronLeft, ChevronRight, ChevronsRight, CloudDrizzle, Plus, SkipBack, SkipForward};
+use foliage::icon::bundled_cov::BundledIcon::{ChevronLeft, ChevronRight, Plus};
 use foliage::icon::{Icon, IconId};
 use foliage::rectangle::Rectangle;
 use foliage::scene::align::{SceneAligner, SceneAlignment};
@@ -23,9 +23,11 @@ pub struct Controls {
     tag: Tag<Self>,
 }
 pub enum ControlBindings {
+    LeftBar,
     Left,
     Play,
     Right,
+    RightBar,
 }
 impl From<ControlBindings> for SceneBinding {
     fn from(value: ControlBindings) -> Self {
@@ -77,8 +79,12 @@ fn resize(
             .get_alignment_mut(&handle.access_chain().target(ControlBindings::Right))
             .pos
             .horizontal = offset.far();
-        let left_rectangle = coordinator.binding_entity(&handle.access_chain().target(3));
+        let left_rectangle =
+            coordinator.binding_entity(&handle.access_chain().target(ControlBindings::LeftBar));
         rectangle_area.get_mut(left_rectangle).unwrap().width = offset - 24f32;
+        let right_rectangle =
+            coordinator.binding_entity(&handle.access_chain().target(ControlBindings::RightBar));
+        rectangle_area.get_mut(right_rectangle).unwrap().width = offset - 24f32;
         coordinator.update_anchor_area(*handle, *area);
     }
 }
@@ -95,7 +101,7 @@ impl Scene for Controls {
     ) -> Self {
         let offset = control_positions(anchor.0.section.area);
         binder.bind(
-            3,
+            ControlBindings::LeftBar,
             (12.near(), 0.center(), 0),
             Rectangle::new(
                 (offset - 24f32, 3f32).into(),
@@ -141,6 +147,16 @@ impl Scene for Controls {
                 Color::GREEN_MEDIUM,
             ),
             &(),
+            cmd,
+        );
+        binder.bind(
+            ControlBindings::RightBar,
+            (12.far(), 0.center(), 0),
+            Rectangle::new(
+                (offset - 24f32, 3f32).into(),
+                Color::GREEN_MEDIUM.into(),
+                Progress::full(),
+            ),
             cmd,
         );
         Self { tag: Tag::new() }

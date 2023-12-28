@@ -135,59 +135,59 @@ impl TransitionBindValidity {
     }
     pub fn mobile_portrait() -> Self {
         Self({
-                let mut map = HashSet::new();
-                map.insert(Layout::new(Orientation::Portrait, Threshold::Mobile));
-                map
-            })
+            let mut map = HashSet::new();
+            map.insert(Layout::new(Orientation::Portrait, Threshold::Mobile));
+            map
+        })
     }
     pub fn landscape_mobile() -> Self {
         Self({
-                let mut map = HashSet::new();
-                map.insert(Layout::new(Orientation::Landscape, Threshold::Mobile));
-                map
-            })
+            let mut map = HashSet::new();
+            map.insert(Layout::new(Orientation::Landscape, Threshold::Mobile));
+            map
+        })
     }
     pub fn portrait_tablet() -> Self {
         Self({
-                let mut map = HashSet::new();
-                map.insert(Layout::new(Orientation::Portrait, Threshold::Tablet));
-                map
-            })
+            let mut map = HashSet::new();
+            map.insert(Layout::new(Orientation::Portrait, Threshold::Tablet));
+            map
+        })
     }
     pub fn landscape_tablet() -> Self {
         Self({
-                let mut map = HashSet::new();
-                map.insert(Layout::new(Orientation::Landscape, Threshold::Tablet));
-                map
-            })
+            let mut map = HashSet::new();
+            map.insert(Layout::new(Orientation::Landscape, Threshold::Tablet));
+            map
+        })
     }
     pub fn portrait_desktop() -> Self {
         Self({
-                let mut map = HashSet::new();
-                map.insert(Layout::new(Orientation::Portrait, Threshold::Desktop));
-                map
-            })
+            let mut map = HashSet::new();
+            map.insert(Layout::new(Orientation::Portrait, Threshold::Desktop));
+            map
+        })
     }
     pub fn landscape_desktop() -> Self {
         Self({
-                let mut map = HashSet::new();
-                map.insert(Layout::new(Orientation::Landscape, Threshold::Desktop));
-                map
-            })
+            let mut map = HashSet::new();
+            map.insert(Layout::new(Orientation::Landscape, Threshold::Desktop));
+            map
+        })
     }
     pub fn portrait_workstation() -> Self {
         Self({
-                let mut map = HashSet::new();
-                map.insert(Layout::new(Orientation::Portrait, Threshold::Workstation));
-                map
-            })
+            let mut map = HashSet::new();
+            map.insert(Layout::new(Orientation::Portrait, Threshold::Workstation));
+            map
+        })
     }
     pub fn landscape_workstation() -> Self {
         Self({
-                let mut map = HashSet::new();
-                map.insert(Layout::new(Orientation::Landscape, Threshold::Workstation));
-                map
-            })
+            let mut map = HashSet::new();
+            map.insert(Layout::new(Orientation::Landscape, Threshold::Workstation));
+            map
+        })
     }
     pub fn with_landscape_mobile(mut self) -> Self {
         self.0

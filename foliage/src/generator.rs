@@ -5,7 +5,6 @@ pub(crate) struct HandleGenerator {
 }
 impl HandleGenerator {
     pub(crate) fn generate(&mut self) -> i32 {
-        
         if !self.holes.is_empty() {
             self.holes.pop().unwrap()
         } else {
