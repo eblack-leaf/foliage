@@ -3,6 +3,7 @@ use foliage::bevy_ecs::event::{Event, EventReader};
 use foliage::bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs, With, Without};
 use foliage::bevy_ecs::query::{Changed, Or};
 use foliage::bevy_ecs::system::{Query, Res, ResMut, SystemParamItem};
+use foliage::circle::{Circle, CircleStyle, Diameter};
 use foliage::color::Color;
 use foliage::coordinate::area::Area;
 use foliage::coordinate::InterfaceContext;
@@ -103,7 +104,7 @@ fn config_track_progress(
                 .target(TrackProgressBindings::Progress),
         );
         prog_areas.get_mut(prog_entity).unwrap().width = area.width;
-        let ratio = played.0.as_secs_f32() as f32 / length.0.as_secs_f32() as f32;
+        let ratio = played.0.as_nanos() as f32 / length.0.as_nanos() as f32;
         let progress = Progress::new(0.0, ratio);
         *progresses.get_mut(prog_entity).unwrap() = progress;
         let tt_chain = handle
@@ -118,11 +119,11 @@ fn config_track_progress(
         let t_val = format!(
             "{:02}:{:02}",
             (played.0.as_secs_f32() / 60f32).floor(),
-            played.0.as_secs_f32() % 60f32
+            (played.0.as_secs_f32() % 60f32).floor()
         );
         *text_vals.get_mut(time_text).unwrap() = TextValue::new(t_val);
         coordinator.get_alignment_mut(&tt_chain).pos.horizontal =
-            (area.width * ratio - 24f32).near();
+            ((area.width * ratio).round() - 24f32).near();
     }
 }
 #[derive(Component, Copy, Clone)]
@@ -228,6 +229,10 @@ fn config_track_time(
 ) {
     for (handle, area) in scenes.iter() {
         coordinator.update_anchor_area(*handle, *area);
+        coordinator
+            .get_alignment_mut(&handle.access_chain().target(TrackTimeBindings::Marker))
+            .pos
+            .vertical = (area.height / 4f32 - 6f32).near();
         let marker =
             coordinator.binding_entity(&handle.access_chain().target(TrackTimeBindings::Marker));
         let time_text =
@@ -268,12 +273,22 @@ impl Scene for TrackTime {
     ) -> Self {
         binder.bind(
             TrackTimeBindings::Marker,
-            (0.center(), 0.near(), 0),
-            Rectangle::new(
-                (4f32, anchor.0.section.height() / 2f32).into(),
+            (
+                0.center(),
+                (anchor.0.section.height() / 4f32 - 6f32).near(),
+                0,
+            ),
+            Circle::new(
+                CircleStyle::fill(),
+                Diameter::new(12f32),
                 args.color,
                 Progress::full(),
             ),
+            // Rectangle::new(
+            //     (4f32, anchor.0.section.height() / 2f32).into(),
+            //     args.color,
+            //     Progress::full(),
+            // ),
             cmd,
         );
         let (fs, _area) = external_args.0.best_fit(
@@ -284,7 +299,12 @@ impl Scene for TrackTime {
         binder.bind(
             TrackTimeBindings::TimeText,
             (0.center(), 0.far(), 0),
-            Text::new(MaxCharacters(5), fs, TextValue::new("00:00"), args.color),
+            Text::new(
+                MaxCharacters(5),
+                fs,
+                TextValue::new("00:00"),
+                Color::GREY_MEDIUM.into(),
+            ),
             cmd,
         );
         Self { tag: Tag::new() }
