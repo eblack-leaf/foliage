@@ -4,7 +4,7 @@ use crate::coordinate::InterfaceContext;
 use crate::elm::config::{ElmConfiguration, ExternalSet};
 use crate::elm::leaf::{Leaf, Tag};
 use crate::elm::Elm;
-use crate::progress_bar::{ProgressBarArgs, ProgressBarBindings, ProgressBarSets};
+use crate::prebuilt::progress_bar::{ProgressBarArgs, ProgressBarBindings, ProgressBarSets};
 use crate::scene::align::SceneAligner;
 use crate::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
 use crate::scene_bind_enable;

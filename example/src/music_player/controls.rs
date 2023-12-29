@@ -1,9 +1,7 @@
 use foliage::bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
 use foliage::bevy_ecs::query::{Changed, With, Without};
 use foliage::bevy_ecs::system::{Query, ResMut, SystemParamItem};
-use foliage::button::ButtonStyle;
 use foliage::circle::Circle;
-use foliage::circle_button::{CircleButton, CircleButtonArgs};
 use foliage::color::Color;
 use foliage::coordinate::area::Area;
 use foliage::coordinate::{CoordinateUnit, InterfaceContext};
@@ -11,7 +9,6 @@ use foliage::elm::config::{ElmConfiguration, ExternalSet};
 use foliage::elm::leaf::{Leaf, Tag};
 use foliage::elm::Elm;
 use foliage::icon::bundled_cov::BundledIcon;
-use foliage::icon::bundled_cov::BundledIcon::{ChevronLeft, ChevronRight, Pause, Plus};
 use foliage::icon::{Icon, IconId, IconScale};
 use foliage::rectangle::Rectangle;
 use foliage::scene::align::{SceneAligner, SceneAlignment};

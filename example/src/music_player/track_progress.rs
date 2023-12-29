@@ -8,7 +8,7 @@ use foliage::coordinate::InterfaceContext;
 use foliage::elm::config::{ElmConfiguration, ExternalSet};
 use foliage::elm::leaf::{Leaf, Tag};
 use foliage::elm::Elm;
-use foliage::progress_bar::{ProgressBar, ProgressBarArgs};
+use foliage::prebuilt::progress_bar::{ProgressBar, ProgressBarArgs};
 use foliage::rectangle::Rectangle;
 use foliage::scene::align::SceneAligner;
 use foliage::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
@@ -165,7 +165,7 @@ impl Scene for TrackProgress {
         );
         Self {
             length: args.length,
-            current: TrackCurrentTime(Duration::from_secs_f32(180f32)),
+            current: TrackCurrentTime(Duration::from_secs_f32(0f32)),
             tag: Tag::new(),
         }
     }
