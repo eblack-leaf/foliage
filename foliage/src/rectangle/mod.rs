@@ -58,7 +58,7 @@ fn textures() {
         }
     }
     let size = Rectangle::TEXTURE_DIMENSIONS;
-    const PRECISION: u32 = 1000;
+    const PRECISION: u32 = 10000;
     let mut filled_data = vec![0f32; (size * size) as usize];
     for unit in 0..PRECISION {
         for y in 0..size {

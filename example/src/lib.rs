@@ -5,8 +5,8 @@ use crate::music_player::MusicPlayer;
 
 use foliage::window::WindowDescriptor;
 
-use foliage::{AndroidInterface, Foliage};
 use crate::music_player::track_progress::TrackProgress;
+use foliage::{AndroidInterface, Foliage};
 
 pub fn entry(android_interface: AndroidInterface) {
     Foliage::new()

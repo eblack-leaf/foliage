@@ -50,7 +50,7 @@ impl Leaf for TrackProgress {
                 .in_set(TrackProgressSet::Area)
                 .before(<ProgressBar as Leaf>::SetDescriptor::Area)
                 .before(<Text as Leaf>::SetDescriptor::Area),
-            ));
+        ));
         scene_bind_enable!(elm, TrackProgress);
     }
 }
@@ -87,12 +87,16 @@ fn config_track_progress(
 ) {
     for (handle, area, length, current) in scenes.iter() {
         coordinator.update_anchor_area(*handle, *area);
-        let prog_entity = coordinator.binding_entity(&handle.access_chain().target(TrackProgressBindings::Progress));
+        let prog_entity = coordinator.binding_entity(
+            &handle
+                .access_chain()
+                .target(TrackProgressBindings::Progress),
+        );
         prog_areas.get_mut(prog_entity).unwrap().width = area.width;
         let tt_chain = handle
             .access_chain()
             .binding(TrackProgressBindings::TrackTime);
-        let ratio = current.0.as_secs_f32() as f32 / length.0.as_secs_f32() as f32;
+        let ratio = current.0.as_millis() as f32 / length.0.as_millis() as f32;
         let progress = Progress::new(0.0, ratio);
         let prog = coordinator.binding_entity(
             &handle
@@ -113,7 +117,8 @@ fn config_track_progress(
             current.0.as_secs_f32() % 60f32
         );
         *text_vals.get_mut(time_text).unwrap() = TextValue::new(t_val);
-        coordinator.get_alignment_mut(&tt_chain).pos.horizontal = (area.width * ratio - 22f32).near();
+        coordinator.get_alignment_mut(&tt_chain).pos.horizontal =
+            (area.width * ratio - 20f32).near();
     }
 }
 #[derive(Component, Copy, Clone)]
@@ -149,14 +154,14 @@ impl Scene for TrackProgress {
         binder.bind_scene::<ProgressBar>(
             TrackProgressBindings::Progress.into(),
             (0.near(), 0.center(), 1).into(),
-            (anchor.0.section.width(), 3f32).into(),
+            (anchor.0.section.width(), 4f32).into(),
             &ProgressBarArgs::new(Progress::empty(), args.fill_color, args.back_color),
             &(),
             cmd,
         );
         binder.bind_scene::<TrackTime>(
             TrackProgressBindings::TrackTime.into(),
-            ((-22).near(), 12.center(), 0).into(),
+            ((-24).near(), 12.center(), 0).into(),
             (48, 48).into(),
             &TrackTimeArgs {
                 color: args.fill_color,
@@ -166,7 +171,7 @@ impl Scene for TrackProgress {
         );
         Self {
             length: args.length,
-            current: TrackCurrentTime(Duration::from_secs_f32(157f32)),
+            current: TrackCurrentTime(Duration::from_secs_f32(160f32)),
             tag: Tag::new(),
         }
     }
@@ -177,7 +182,10 @@ fn config_track_time(
         (With<Tag<TrackTime>>, Changed<Area<InterfaceContext>>),
     >,
     mut coordinator: ResMut<SceneCoordinator>,
-    mut rectangles: Query<&mut Area<InterfaceContext>, (Without<Tag<TrackTime>>, Without<FontSize>)>,
+    mut rectangles: Query<
+        &mut Area<InterfaceContext>,
+        (Without<Tag<TrackTime>>, Without<FontSize>),
+    >,
     mut text: Query<(&mut Area<InterfaceContext>, &mut FontSize), Without<Tag<TrackTime>>>,
     font: Res<MonospacedFont>,
     scale_factor: Res<ScaleFactor>,

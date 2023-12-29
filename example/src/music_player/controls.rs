@@ -81,10 +81,10 @@ fn resize(
             .horizontal = offset.far();
         let left_rectangle =
             coordinator.binding_entity(&handle.access_chain().target(ControlBindings::LeftBar));
-        rectangle_area.get_mut(left_rectangle).unwrap().width = offset - 24f32;
+        rectangle_area.get_mut(left_rectangle).unwrap().width = offset - 48f32;
         let right_rectangle =
             coordinator.binding_entity(&handle.access_chain().target(ControlBindings::RightBar));
-        rectangle_area.get_mut(right_rectangle).unwrap().width = offset - 24f32;
+        rectangle_area.get_mut(right_rectangle).unwrap().width = offset - 48f32;
         coordinator.update_anchor_area(*handle, *area);
     }
 }
@@ -102,10 +102,10 @@ impl Scene for Controls {
         let offset = control_positions(anchor.0.section.area);
         binder.bind(
             ControlBindings::LeftBar,
-            (12.near(), 0.center(), 0),
+            (24.near(), 0.center(), 0),
             Rectangle::new(
-                (offset - 24f32, 3f32).into(),
-                Color::GREEN_MEDIUM.into(),
+                (offset - 48f32, 3f32).into(),
+                Color::GREY_MEDIUM.into(),
                 Progress::full(),
             ),
             cmd,
@@ -117,8 +117,8 @@ impl Scene for Controls {
             &CircleButtonArgs::new(
                 IconId::new(ChevronLeft),
                 ButtonStyle::Ring,
-                Color::GREEN_MEDIUM,
-                Color::GREEN_MEDIUM,
+                Color::GREY_MEDIUM,
+                Color::GREY_MEDIUM,
             ),
             &(),
             cmd,
@@ -143,18 +143,18 @@ impl Scene for Controls {
             &CircleButtonArgs::new(
                 IconId::new(ChevronRight),
                 ButtonStyle::Ring,
-                Color::GREEN_MEDIUM,
-                Color::GREEN_MEDIUM,
+                Color::GREY_MEDIUM,
+                Color::GREY_MEDIUM,
             ),
             &(),
             cmd,
         );
         binder.bind(
             ControlBindings::RightBar,
-            (12.far(), 0.center(), 0),
+            (24.far(), 0.center(), 0),
             Rectangle::new(
-                (offset - 24f32, 3f32).into(),
-                Color::GREEN_MEDIUM.into(),
+                (offset - 48f32, 3f32).into(),
+                Color::GREY_MEDIUM.into(),
                 Progress::full(),
             ),
             cmd,
