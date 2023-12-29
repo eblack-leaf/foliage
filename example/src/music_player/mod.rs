@@ -27,13 +27,13 @@ fn setup(
 ) {
     // segments
     let control_segment = compositor.add_segment(ResponsiveSegment::all(Segment::new(
-        (0.15.relative(), 0.8.relative()),
-        (0.7.relative(), 0.2.relative()),
+        (0.15.relative(), 0.85.relative()),
+        (0.7.relative(), 0.15.relative()),
         0,
     )));
     let progress_segment = compositor.add_segment(ResponsiveSegment::all(Segment::new(
-        (0.05.relative(), 0.6.relative()),
-        (0.9.relative(), 0.2.relative()),
+        (0.1.relative(), 0.75.relative()),
+        (0.8.relative(), 0.1.relative()),
         0,
     )));
     // transition

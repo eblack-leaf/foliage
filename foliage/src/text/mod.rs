@@ -160,6 +160,7 @@ pub(crate) fn changes(
             &Color,
             &TextValue,
             &MaxCharacters,
+            &mut TextValueUniqueCharacters,
             &mut GlyphChangeQueue,
             &mut GlyphRemoveQueue,
             &mut GlyphCache,
@@ -180,6 +181,7 @@ pub(crate) fn changes(
         color,
         value,
         max_chars,
+        mut unique,
         mut changes,
         mut removes,
         mut cache,
@@ -194,10 +196,12 @@ pub(crate) fn changes(
             wrap_style: fontdue::layout::WrapStyle::Letter,
             ..fontdue::layout::LayoutSettings::default()
         });
+        let max_char_limited_text_value = &value.0.as_str()[0..max_chars.0 as usize];
+        *unique = TextValueUniqueCharacters::new(value);
         placer.0.append(
             &[&font.0],
             &fontdue::layout::TextStyle::new(
-                &value.0.as_str()[0..max_chars.0 as usize],
+                max_char_limited_text_value,
                 font_size.px(scale_factor.factor()),
                 0,
             ),

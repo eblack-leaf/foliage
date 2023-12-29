@@ -165,7 +165,7 @@ impl Scene for TrackProgress {
         );
         Self {
             length: args.length,
-            current: TrackCurrentTime(Duration::from_secs_f32(160f32)),
+            current: TrackCurrentTime(Duration::from_secs_f32(180f32)),
             tag: Tag::new(),
         }
     }

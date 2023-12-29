@@ -10,8 +10,9 @@ use foliage::coordinate::{CoordinateUnit, InterfaceContext};
 use foliage::elm::config::{ElmConfiguration, ExternalSet};
 use foliage::elm::leaf::{Leaf, Tag};
 use foliage::elm::Elm;
-use foliage::icon::bundled_cov::BundledIcon::{ChevronLeft, ChevronRight, Plus};
-use foliage::icon::{Icon, IconId};
+use foliage::icon::bundled_cov::BundledIcon;
+use foliage::icon::bundled_cov::BundledIcon::{ChevronLeft, ChevronRight, Pause, Plus};
+use foliage::icon::{Icon, IconId, IconScale};
 use foliage::rectangle::Rectangle;
 use foliage::scene::align::{SceneAligner, SceneAlignment};
 use foliage::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
@@ -110,43 +111,34 @@ impl Scene for Controls {
             ),
             cmd,
         );
-        binder.bind_scene::<CircleButton>(
-            ControlBindings::Left.into(),
+        binder.bind(
+            ControlBindings::Left,
             SceneAlignment::from((offset.near(), 0.center(), 0)),
-            (24, 24).into(),
-            &CircleButtonArgs::new(
-                IconId::new(ChevronLeft),
-                ButtonStyle::Ring,
-                Color::GREY_MEDIUM,
-                Color::GREY_MEDIUM,
+            Icon::new(
+                IconId::new(BundledIcon::SkipBack),
+                IconScale::from_dim(24f32),
+                Color::GREEN_MEDIUM.into(),
             ),
-            &(),
             cmd,
         );
-        binder.bind_scene::<CircleButton>(
-            ControlBindings::Play.into(),
+        binder.bind(
+            ControlBindings::Play,
             SceneAlignment::from((0.center(), 0.center(), 0)),
-            (48, 48).into(),
-            &CircleButtonArgs::new(
-                IconId::new(Plus),
-                ButtonStyle::Fill,
-                Color::OFF_BLACK,
-                Color::GREEN_MEDIUM,
+            Icon::new(
+                IconId::new(BundledIcon::Play),
+                IconScale::from_dim(48f32),
+                Color::GREEN_MEDIUM.into(),
             ),
-            &(),
             cmd,
         );
-        binder.bind_scene::<CircleButton>(
-            ControlBindings::Right.into(),
+        binder.bind(
+            ControlBindings::Right,
             SceneAlignment::from((offset.far(), 0.center(), 0)),
-            (24, 24).into(),
-            &CircleButtonArgs::new(
-                IconId::new(ChevronRight),
-                ButtonStyle::Ring,
-                Color::GREY_MEDIUM,
-                Color::GREY_MEDIUM,
+            Icon::new(
+                IconId::new(BundledIcon::SkipForward),
+                IconScale::from_dim(24f32),
+                Color::GREEN_MEDIUM.into(),
             ),
-            &(),
             cmd,
         );
         binder.bind(
