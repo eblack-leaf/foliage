@@ -23,6 +23,7 @@ pub enum CoreSet {
     Visibility,
     Differential,
     RenderPacket,
+    Interaction,
 }
 pub struct ElmConfiguration<'a>(&'a mut Elm);
 impl<'a> ElmConfiguration<'a> {
@@ -39,6 +40,7 @@ impl<'a> ElmConfiguration<'a> {
         elm.main().configure_sets(
             (
                 CoreSet::ExternalEvent,
+                CoreSet::Interaction,
                 ExternalSet::Process,
                 CoreSet::ProcessEvent,
                 CoreSet::CompositorSetup,
@@ -68,6 +70,9 @@ impl<'a> ElmConfiguration<'a> {
         elm.main().add_systems((
             apply_deferred
                 .after(CoreSet::ExternalEvent)
+                .before(CoreSet::Interaction),
+            apply_deferred
+                .after(CoreSet::Interaction)
                 .before(ExternalSet::Process),
             apply_deferred
                 .after(ExternalSet::Process)

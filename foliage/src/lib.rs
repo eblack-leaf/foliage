@@ -19,6 +19,7 @@ use crate::elm::Elm;
 use crate::ginkgo::Ginkgo;
 use crate::icon::Icon;
 use crate::image::Image;
+use crate::interaction::Interaction;
 use crate::panel::Panel;
 use crate::prebuilt::button::Button;
 use crate::prebuilt::circle_button::CircleButton;
@@ -42,6 +43,7 @@ pub mod ginkgo;
 pub mod icon;
 pub mod image;
 pub mod instance;
+pub mod interaction;
 pub mod job;
 pub mod panel;
 pub mod prebuilt;
@@ -100,6 +102,7 @@ impl Foliage {
             .with_leaf::<ProgressBar>()
             .with_leaf::<CircleProgressBar>()
             .with_leaf::<CircleButton>()
+            .with_leaf::<Interaction>()
     }
     pub fn with_android_interface(mut self, android_interface: AndroidInterface) -> Self {
         self.android_interface = android_interface;

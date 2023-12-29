@@ -11,7 +11,6 @@ use foliage::elm::config::{ElmConfiguration, ExternalSet};
 use foliage::elm::leaf::{Leaf, Tag};
 use foliage::elm::{Elm, EventStage};
 use foliage::prebuilt::progress_bar::{ProgressBar, ProgressBarArgs};
-use foliage::rectangle::Rectangle;
 use foliage::scene::align::SceneAligner;
 use foliage::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
 use foliage::text::font::MonospacedFont;
@@ -19,7 +18,7 @@ use foliage::text::{FontSize, MaxCharacters, Text, TextValue};
 use foliage::texture::factors::Progress;
 use foliage::window::ScaleFactor;
 use foliage::{bevy_ecs, scene_bind_enable, set_descriptor};
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, Instant};
 
 #[derive(Bundle)]
 pub struct TrackProgress {
@@ -96,7 +95,7 @@ fn config_track_progress(
     mut text_vals: Query<&mut TextValue>,
     mut prog_areas: Query<&mut Area<InterfaceContext>, Without<Tag<TrackProgress>>>,
 ) {
-    for (handle, area, length, current, played) in scenes.iter() {
+    for (handle, area, length, _current, played) in scenes.iter() {
         coordinator.update_anchor_area(*handle, *area);
         let prog_entity = coordinator.binding_entity(
             &handle
@@ -155,7 +154,7 @@ fn read_track_event(
         }
     }
     for event in events.read() {
-        for (handle, mut length, mut current, mut played) in scenes.iter_mut() {
+        for (_handle, mut length, mut current, mut played) in scenes.iter_mut() {
             *length = event.length;
             *current = TrackStartTime(Some(Instant::now()));
             played.0 = Duration::default();

@@ -45,6 +45,33 @@ impl<T> Default for DifferentialLimiter<T> {
         DifferentialLimiter(PhantomData)
     }
 }
+#[derive(Bundle)]
+pub struct BundleExtension<T: Bundle, S: Bundle> {
+    pub original: T,
+    pub extension: S,
+}
+
+impl<T: Bundle, S: Bundle> BundleExtension<T, S> {
+    pub fn new(t: T, s: S) -> Self {
+        Self {
+            original: t,
+            extension: s,
+        }
+    }
+}
+
+pub trait BundleExtend
+    where
+        Self: Bundle + Sized,
+{
+    fn extend<E: Bundle>(self, handle: E) -> BundleExtension<Self, E>;
+}
+
+impl<I: Bundle> BundleExtend for I {
+    fn extend<E: Bundle>(self, handle: E) -> BundleExtension<I, E> {
+        BundleExtension::new(self, handle)
+    }
+}
 pub enum EventStage {
     External,
     Process,
