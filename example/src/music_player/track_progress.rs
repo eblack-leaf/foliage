@@ -1,4 +1,5 @@
 use foliage::bevy_ecs::component::Component;
+use foliage::bevy_ecs::event::{Event, EventReader};
 use foliage::bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs, With, Without};
 use foliage::bevy_ecs::query::{Changed, Or};
 use foliage::bevy_ecs::system::{Query, Res, ResMut, SystemParamItem};
@@ -7,7 +8,7 @@ use foliage::coordinate::area::Area;
 use foliage::coordinate::InterfaceContext;
 use foliage::elm::config::{ElmConfiguration, ExternalSet};
 use foliage::elm::leaf::{Leaf, Tag};
-use foliage::elm::Elm;
+use foliage::elm::{Elm, EventStage};
 use foliage::prebuilt::progress_bar::{ProgressBar, ProgressBarArgs};
 use foliage::rectangle::Rectangle;
 use foliage::scene::align::SceneAligner;
@@ -17,12 +18,13 @@ use foliage::text::{FontSize, MaxCharacters, Text, TextValue};
 use foliage::texture::factors::Progress;
 use foliage::window::ScaleFactor;
 use foliage::{bevy_ecs, scene_bind_enable, set_descriptor};
-use std::time::Duration;
+use std::time::{Duration, Instant, SystemTime};
 
 #[derive(Bundle)]
 pub struct TrackProgress {
     pub length: TrackLength,
-    pub current: TrackCurrentTime,
+    pub current: TrackStartTime,
+    played: TrackTimePlayed,
     tag: Tag<Self>,
 }
 set_descriptor!(
@@ -38,20 +40,26 @@ impl Leaf for TrackProgress {
     }
 
     fn attach(elm: &mut Elm) {
-        elm.main().add_systems((
-            config_track_progress
-                .in_set(ExternalSet::Configure)
-                .in_set(TrackProgressSet::Area)
-                .before(config_track_time)
-                .before(<ProgressBar as Leaf>::SetDescriptor::Area)
-                .before(<Text as Leaf>::SetDescriptor::Area),
-            config_track_time
-                .in_set(ExternalSet::Configure)
-                .in_set(TrackProgressSet::Area)
-                .before(<ProgressBar as Leaf>::SetDescriptor::Area)
-                .before(<Text as Leaf>::SetDescriptor::Area),
-        ));
+        elm.main().add_systems(
+            (
+                read_track_event
+                    .in_set(ExternalSet::Configure)
+                    .in_set(TrackProgressSet::Area),
+                config_track_progress
+                    .in_set(ExternalSet::Configure)
+                    .in_set(TrackProgressSet::Area)
+                    .before(<ProgressBar as Leaf>::SetDescriptor::Area)
+                    .before(<Text as Leaf>::SetDescriptor::Area),
+                config_track_time
+                    .in_set(ExternalSet::Configure)
+                    .in_set(TrackProgressSet::Area)
+                    .before(<ProgressBar as Leaf>::SetDescriptor::Area)
+                    .before(<Text as Leaf>::SetDescriptor::Area),
+            )
+                .chain(),
+        );
         scene_bind_enable!(elm, TrackProgress);
+        elm.add_event::<TrackEvent>(EventStage::Process);
     }
 }
 pub enum TrackProgressBindings {
@@ -69,13 +77,15 @@ fn config_track_progress(
             &SceneHandle,
             &Area<InterfaceContext>,
             &TrackLength,
-            &TrackCurrentTime,
+            &TrackStartTime,
+            &TrackTimePlayed,
         ),
         (
             With<Tag<TrackProgress>>,
             Or<(
                 Changed<Area<InterfaceContext>>,
-                Changed<TrackCurrentTime>,
+                Changed<TrackStartTime>,
+                Changed<TrackTimePlayed>,
                 Changed<TrackLength>,
             )>,
         ),
@@ -85,7 +95,7 @@ fn config_track_progress(
     mut text_vals: Query<&mut TextValue>,
     mut prog_areas: Query<&mut Area<InterfaceContext>, Without<Tag<TrackProgress>>>,
 ) {
-    for (handle, area, length, current) in scenes.iter() {
+    for (handle, area, length, current, played) in scenes.iter() {
         coordinator.update_anchor_area(*handle, *area);
         let prog_entity = coordinator.binding_entity(
             &handle
@@ -93,7 +103,7 @@ fn config_track_progress(
                 .target(TrackProgressBindings::Progress),
         );
         prog_areas.get_mut(prog_entity).unwrap().width = area.width;
-        let ratio = current.0.as_millis() as f32 / length.0.as_millis() as f32;
+        let ratio = played.0.as_secs_f32() as f32 / length.0.as_secs_f32() as f32;
         let progress = Progress::new(0.0, ratio);
         *progresses.get_mut(prog_entity).unwrap() = progress;
         let tt_chain = handle
@@ -107,8 +117,8 @@ fn config_track_progress(
         );
         let t_val = format!(
             "{:02}:{:02}",
-            (current.0.as_secs_f32() / 60f32).floor(),
-            current.0.as_secs_f32() % 60f32
+            (played.0.as_secs_f32() / 60f32).floor(),
+            played.0.as_secs_f32() % 60f32
         );
         *text_vals.get_mut(time_text).unwrap() = TextValue::new(t_val);
         coordinator.get_alignment_mut(&tt_chain).pos.horizontal =
@@ -118,11 +128,42 @@ fn config_track_progress(
 #[derive(Component, Copy, Clone)]
 pub struct TrackLength(pub Duration);
 #[derive(Component, Copy, Clone)]
-pub struct TrackCurrentTime(pub Duration);
+pub struct TrackStartTime(pub Option<Instant>);
+#[derive(Component)]
+pub struct TrackTimePlayed(pub Duration);
 pub struct TrackProgressArgs {
     pub length: TrackLength,
     pub fill_color: Color,
     pub back_color: Color,
+}
+fn read_track_event(
+    mut events: EventReader<TrackEvent>,
+    mut scenes: Query<(
+        &SceneHandle,
+        &mut TrackLength,
+        &mut TrackStartTime,
+        &mut TrackTimePlayed,
+    )>,
+) {
+    for (_handle, _length, mut current, mut played) in scenes.iter_mut() {
+        if current.0.is_some() {
+            played.0 = Instant::now() - current.0.unwrap();
+            if played.0 >= _length.0 {
+                current.0.take();
+            }
+        }
+    }
+    for event in events.read() {
+        for (handle, mut length, mut current, mut played) in scenes.iter_mut() {
+            *length = event.length;
+            *current = TrackStartTime(Some(Instant::now()));
+            played.0 = Duration::default();
+        }
+    }
+}
+#[derive(Event)]
+pub struct TrackEvent {
+    pub length: TrackLength,
 }
 impl TrackProgressArgs {
     pub fn new<C: Into<Color>>(length: Duration, fill: C, back: C) -> Self {
@@ -165,7 +206,8 @@ impl Scene for TrackProgress {
         );
         Self {
             length: args.length,
-            current: TrackCurrentTime(Duration::from_secs_f32(0f32)),
+            current: TrackStartTime(None),
+            played: TrackTimePlayed(Duration::from_secs_f32(0f32)),
             tag: Tag::new(),
         }
     }
