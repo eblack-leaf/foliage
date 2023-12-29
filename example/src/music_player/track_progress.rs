@@ -93,18 +93,12 @@ fn config_track_progress(
                 .target(TrackProgressBindings::Progress),
         );
         prog_areas.get_mut(prog_entity).unwrap().width = area.width;
+        let ratio = current.0.as_millis() as f32 / length.0.as_millis() as f32;
+        let progress = Progress::new(0.0, ratio);
+        *progresses.get_mut(prog_entity).unwrap() = progress;
         let tt_chain = handle
             .access_chain()
             .binding(TrackProgressBindings::TrackTime);
-        let ratio = current.0.as_millis() as f32 / length.0.as_millis() as f32;
-        let progress = Progress::new(0.0, ratio);
-        let prog = coordinator.binding_entity(
-            &handle
-                .access_chain()
-                .binding(TrackProgressBindings::Progress)
-                .target(ProgressBarBindings::Fill),
-        );
-        *progresses.get_mut(prog).unwrap() = progress;
         let time_text = coordinator.binding_entity(
             &handle
                 .access_chain()
@@ -118,7 +112,7 @@ fn config_track_progress(
         );
         *text_vals.get_mut(time_text).unwrap() = TextValue::new(t_val);
         coordinator.get_alignment_mut(&tt_chain).pos.horizontal =
-            (area.width * ratio - 20f32).near();
+            (area.width * ratio - 24f32).near();
     }
 }
 #[derive(Component, Copy, Clone)]

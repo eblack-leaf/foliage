@@ -10,12 +10,13 @@ use crate::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, S
 use crate::texture::factors::Progress;
 use crate::{scene_bind_enable, set_descriptor};
 use bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
-use bevy_ecs::query::{Changed, With, Without};
+use bevy_ecs::query::{Changed, Or, With, Without};
 use bevy_ecs::system::{Query, ResMut, SystemParamItem};
 
 #[derive(Bundle)]
 pub struct ProgressBar {
     tag: Tag<Self>,
+    progress: Progress,
 }
 pub enum ProgressBarBindings {
     Back,
@@ -47,20 +48,24 @@ impl Leaf for ProgressBar {
 }
 fn resize(
     scenes: Query<
-        (&SceneHandle, &Area<InterfaceContext>),
-        (With<Tag<ProgressBar>>, Changed<Area<InterfaceContext>>),
+        (&SceneHandle, &Area<InterfaceContext>, &Progress),
+        (
+            With<Tag<ProgressBar>>,
+            Or<(Changed<Area<InterfaceContext>>, Changed<Progress>)>,
+        ),
     >,
-    mut rectangles: Query<&mut Area<InterfaceContext>, Without<Tag<ProgressBar>>>,
+    mut rectangles: Query<(&mut Area<InterfaceContext>, &mut Progress), Without<Tag<ProgressBar>>>,
     mut coordinator: ResMut<SceneCoordinator>,
 ) {
-    for (handle, area) in scenes.iter() {
+    for (handle, area, progress) in scenes.iter() {
         coordinator.update_anchor_area(*handle, *area);
         let back =
             coordinator.binding_entity(&handle.access_chain().target(ProgressBarBindings::Back));
         let front =
             coordinator.binding_entity(&handle.access_chain().target(ProgressBarBindings::Fill));
-        *rectangles.get_mut(back).unwrap() = *area;
-        *rectangles.get_mut(front).unwrap() = *area;
+        *rectangles.get_mut(back).unwrap().0 = *area;
+        *rectangles.get_mut(front).unwrap().0 = *area * (progress.1, 1f32).into();
+        *rectangles.get_mut(front).unwrap().1 = Progress::new(progress.0, 1.0);
     }
 }
 pub struct ProgressBarArgs {
@@ -101,6 +106,9 @@ impl Scene for ProgressBar {
             Rectangle::new(anchor.0.section.area, args.fill_color, args.progress),
             cmd,
         );
-        Self { tag: Tag::new() }
+        Self {
+            tag: Tag::new(),
+            progress: Progress::empty(),
+        }
     }
 }
