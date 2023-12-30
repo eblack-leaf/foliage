@@ -7,12 +7,12 @@ edition = "2021"
 
 [dependencies]
 wgpu = { git = "https://github.com/gfx-rs/wgpu.git", features = ["webgl"]}
-winit = { version = "0.29.3", features = ["android-game-activity", "x11"]}
-bevy_ecs = "0.12.0"
+winit = { version = "0.29.7", features = ["android-game-activity", "x11"]}
+bevy_ecs = "0.12.1"
 cfg-if = "1.0.0"
-wasm-bindgen-futures = "0.4.38"
-wasm-bindgen = "0.2.88"
-web-sys = { version = "0.3.64", features = ["Window"] }
+wasm-bindgen-futures = "0.4.39"
+wasm-bindgen = "0.2.89"
+web-sys = { version = "0.3.66", features = ["Window"] }
 gloo-worker = { version = "0.5.0", features = ["futures"] }
 serde = { version = "1.0.192", features = ["derive"] }
 bytemuck = { version = "1.14.0", features = ["derive"] }
@@ -23,5 +23,6 @@ rmp-serde = "1.1.2"
 image = { version = "0.24.6" , features = ["png", "jpeg"]}
 fontdue = "0.8.0"
 indexmap = "2.1.0"
+tracing = "0.1.40"
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 pollster = "0.3.0"

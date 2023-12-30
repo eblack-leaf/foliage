@@ -1,6 +1,7 @@
 #![allow(clippy::type_complexity)]
 
 pub use bevy_ecs;
+use wasm_bindgen::JsValue;
 pub use wgpu;
 use winit::event::{Event, MouseButton, StartCause, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopWindowTarget};
@@ -20,10 +21,7 @@ use crate::elm::Elm;
 use crate::ginkgo::Ginkgo;
 use crate::icon::Icon;
 use crate::image::Image;
-use crate::interaction::{
-    FocusedEntity, Interaction, InteractionEvent, InteractionId, InteractionPhase, MouseAdapter,
-    PrimaryInteraction, PrimaryInteractionEntity,
-};
+use crate::interaction::{Interaction, InteractionEvent, InteractionId, InteractionPhase, MouseAdapter};
 use crate::panel::Panel;
 use crate::prebuilt::button::Button;
 use crate::prebuilt::circle_button::CircleButton;
@@ -307,6 +305,7 @@ impl Foliage {
                                 ash.record(&ginkgo);
                                 ash.render(&mut ginkgo);
                                 window_handle.value().request_redraw();
+                                tracing::info!("ginkgo:ash:redraw-finished");
                             }
                         }
                     },
@@ -323,12 +322,14 @@ impl Foliage {
                             &window_desc,
                         ) {
                             elm.attach_viewport_handle(viewport_area);
+                            tracing::info!("elm:attaching-viewport-area");
                         }
                         if !elm.initialized() {
                             elm.set_scale_factor(window_handle.scale_factor());
                             elm.attach_leafs(self.leaf_queue.take().unwrap());
                             ash.establish(&ginkgo, self.render_queue.take().unwrap());
                             elm.finish_initialization();
+                            tracing::info!("elm:finish-initialization");
                         }
                         elm.job.resume();
                     }
@@ -336,6 +337,7 @@ impl Foliage {
                         if elm.job.resumed() {
                             elm.job.exec_main();
                             window_handle.value().request_redraw();
+                            tracing::info!("elm:exec-main");
                         }
                     }
                     Event::LoopExiting => {

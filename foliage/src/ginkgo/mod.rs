@@ -2,6 +2,8 @@
 use std::path::Path;
 
 use bytemuck::{Pod, Zeroable};
+#[cfg(target_family = "wasm")]
+use wasm_bindgen::JsValue;
 use wgpu::util::DeviceExt;
 use wgpu::{
     BindGroupEntry, BindGroupLayoutEntry, Buffer, BufferAddress, ColorTargetState,
@@ -457,6 +459,7 @@ impl Ginkgo {
             .expect("surface format unsupported")
     }
     pub(crate) async fn get_adapter(&mut self) {
+        tracing::info!("ginkgo:adapter-begin");
         let adapter = self
             .instance
             .as_ref()
@@ -469,8 +472,10 @@ impl Ginkgo {
             .await
             .expect("adapter request failed");
         self.adapter.replace(adapter);
+        tracing::info!("ginkgo:adapter-end");
     }
     pub(crate) async fn get_device_and_queue(&mut self) {
+        tracing::info!("ginkgo:device-begin");
         let features =
             wgpu::Features::default() | wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES;
         cfg_if::cfg_if! {
@@ -497,6 +502,7 @@ impl Ginkgo {
             .expect("device/queue request failed");
         self.device.replace(device);
         self.queue.replace(queue);
+        tracing::info!("ginkgo:device-end");
     }
     pub(crate) fn create_surface_configuration(&mut self, area: Area<DeviceContext>) {
         let surface_format = self.get_surface_format();
