@@ -3,6 +3,9 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::{DeviceContext, InterfaceContext};
+use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
+use crate::elm::leaf::{EmptySetDescriptor, Leaf};
+use crate::elm::{Elm, EventStage};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::window::ScaleFactor;
 use bevy_ecs::component::Component;
@@ -10,25 +13,29 @@ use bevy_ecs::event::{Event, EventReader};
 use bevy_ecs::prelude::{Entity, IntoSystemConfigs};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Query, Res, ResMut, Resource};
-use winit::event::{MouseButton, Touch};
-use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
-use crate::elm::{Elm, EventStage};
-use crate::elm::leaf::{EmptySetDescriptor, Leaf};
+use std::collections::HashMap;
+use winit::event::{ElementState, MouseButton, Touch, TouchPhase};
 
 impl Leaf for Interaction {
     type SetDescriptor = EmptySetDescriptor;
 
-    fn config(_elm_configuration: &mut ElmConfiguration) {
-    }
+    fn config(_elm_configuration: &mut ElmConfiguration) {}
 
     fn attach(elm: &mut Elm) {
-        elm.job.container.insert_resource(PrimaryInteraction::default());
-        elm.job.container.insert_resource(PrimaryInteractionEntity::default());
+        elm.job
+            .container
+            .insert_resource(PrimaryInteraction::default());
+        elm.job
+            .container
+            .insert_resource(PrimaryInteractionEntity::default());
         elm.job.container.insert_resource(FocusedEntity::default());
-        elm.main().add_systems(
-            (set_interaction_listeners.in_set(CoreSet::Interaction),
-             clear_engaged.after(ExternalSet::Process),)
-        );
+        elm.job
+            .container
+            .insert_resource(MouseButtonAdapter::default());
+        elm.main().add_systems((
+            set_interaction_listeners.in_set(CoreSet::Interaction),
+            clear_engaged.after(CoreSet::Differential),
+        ));
         elm.add_event::<InteractionEvent>(EventStage::External);
     }
 }
@@ -52,23 +59,75 @@ impl From<MouseButton> for InteractionId {
         }
     }
 }
-impl From<Touch> for InteractionId {
-    fn from(value: Touch) -> Self {
-        Self(InteractionId::INTERACTION_ID_COLLISION_AVOIDANCE + value.id as i32)
+impl From<u64> for InteractionId {
+    fn from(value: u64) -> Self {
+        Self(InteractionId::INTERACTION_ID_COLLISION_AVOIDANCE + value as i32)
     }
 }
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum InteractionPhase {
     Begin,
-    Update,
+    Moved,
     End,
     Cancel,
+}
+impl From<TouchPhase> for InteractionPhase {
+    fn from(value: TouchPhase) -> Self {
+        match value {
+            TouchPhase::Started => InteractionPhase::Begin,
+            TouchPhase::Moved => InteractionPhase::Moved,
+            TouchPhase::Ended => InteractionPhase::End,
+            TouchPhase::Cancelled => InteractionPhase::Cancel,
+        }
+    }
+}
+#[derive(Resource, Default)]
+pub struct MouseButtonAdapter(
+    pub HashMap<MouseButton, ElementState>,
+    pub Position<DeviceContext>,
+);
+impl MouseButtonAdapter {
+    pub fn button_pressed(&mut self, button: MouseButton, state: ElementState) -> bool {
+        let mut r_val = false;
+        if let Some(cached) = self.0.get_mut(&button) {
+            if !cached.is_pressed() && state.is_pressed() {
+                r_val = true;
+            }
+            *cached = state;
+        } else {
+            if state.is_pressed() {
+                r_val = true;
+            }
+            self.0.insert(button, state);
+        }
+        r_val
+    }
+    pub fn update_location<P: Into<Position<DeviceContext>>>(&mut self, p: P) {
+        self.1 = p.into();
+    }
 }
 #[derive(Event)]
 pub struct InteractionEvent {
     pub phase: InteractionPhase,
     pub id: InteractionId,
     pub location: Position<DeviceContext>,
+}
+impl InteractionEvent {
+    pub fn new<
+        IP: Into<InteractionPhase>,
+        ID: Into<InteractionId>,
+        P: Into<Position<DeviceContext>>,
+    >(
+        phase: IP,
+        id: ID,
+        location: P,
+    ) -> Self {
+        Self {
+            phase: phase.into(),
+            id: id.into(),
+            location: location.into(),
+        }
+    }
 }
 #[derive(Copy, Clone, Default)]
 pub struct Interaction {
@@ -90,6 +149,11 @@ impl Interaction {
 pub struct InteractionListener {
     engaged: bool,
     pub interaction: Interaction,
+}
+impl InteractionListener {
+    pub fn active(&self) -> bool {
+        self.engaged
+    }
 }
 fn clear_engaged(mut engaged: Query<&mut InteractionListener, Changed<InteractionListener>>) {
     for mut e in engaged.iter_mut() {
@@ -147,7 +211,7 @@ pub fn set_interaction_listeners(
                     InteractionPhase::Begin => {
                         // skip
                     }
-                    InteractionPhase::Update => {
+                    InteractionPhase::Moved => {
                         if let Some(prime) = primary_entity.0 {
                             if let Ok((_, mut listener, _, _, _)) = listeners.get_mut(prime) {
                                 listener.interaction.current = position;

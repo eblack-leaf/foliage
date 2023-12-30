@@ -26,7 +26,6 @@ fn setup(
     mut cmd: Commands,
     mut compositor: ResMut<Compositor>,
     mut events: EventWriter<WorkflowTransition>,
-    mut track_events: EventWriter<TrackEvent>,
 ) {
     // segments
     let control_segment = compositor.add_segment(ResponsiveSegment::all(Segment::new(
@@ -60,9 +59,6 @@ fn setup(
     );
     // trigger starting transition
     events.send(WorkflowTransition(WorkflowHandle(0), WorkflowStage(0)));
-    track_events.send(TrackEvent {
-        length: TrackLength(Duration::from_secs(18)),
-    });
 }
 impl Leaf for MusicPlayer {
     type SetDescriptor = EmptySetDescriptor;

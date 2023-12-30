@@ -2,7 +2,7 @@
 
 pub use bevy_ecs;
 pub use wgpu;
-use winit::event::{Event, StartCause, WindowEvent};
+use winit::event::{Event, MouseButton, StartCause, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopWindowTarget};
 
 use ash::identification::RenderIdentification;
@@ -14,12 +14,16 @@ use crate::ash::render::Render;
 use crate::ash::Ash;
 use crate::circle::Circle;
 use crate::compositor::Compositor;
+use crate::coordinate::position::Position;
 use crate::coordinate::CoordinateUnit;
 use crate::elm::Elm;
 use crate::ginkgo::Ginkgo;
 use crate::icon::Icon;
 use crate::image::Image;
-use crate::interaction::Interaction;
+use crate::interaction::{
+    FocusedEntity, Interaction, InteractionEvent, InteractionId, InteractionPhase,
+    MouseButtonAdapter, PrimaryInteraction, PrimaryInteractionEntity,
+};
 use crate::panel::Panel;
 use crate::prebuilt::button::Button;
 use crate::prebuilt::circle_button::CircleButton;
@@ -212,17 +216,98 @@ impl Foliage {
                         WindowEvent::KeyboardInput { .. } => {}
                         WindowEvent::ModifiersChanged(_) => {}
                         WindowEvent::Ime(_) => {}
-                        WindowEvent::CursorMoved { .. } => {}
+                        WindowEvent::CursorMoved {
+                            device_id,
+                            position,
+                        } => {
+                            let location = Position::from((position.x, position.y));
+                            elm.job
+                                .container
+                                .get_resource_mut::<MouseButtonAdapter>()
+                                .unwrap()
+                                .update_location(location);
+                            if let Some(cached) = elm
+                                .job
+                                .container
+                                .get_resource_mut::<MouseButtonAdapter>()
+                                .unwrap()
+                                .0
+                                .get(&MouseButton::Left)
+                            {
+                                if cached.is_pressed() {
+                                    elm.job.container.send_event(InteractionEvent::new(
+                                        InteractionPhase::Moved,
+                                        InteractionId(0),
+                                        location,
+                                    ));
+                                }
+                            }
+                        }
                         WindowEvent::CursorEntered { .. } => {}
-                        WindowEvent::CursorLeft { .. } => {}
+                        WindowEvent::CursorLeft { .. } => {
+                            elm.job
+                                .container
+                                .get_resource_mut::<PrimaryInteraction>()
+                                .unwrap()
+                                .0
+                                .take();
+                            elm.job
+                                .container
+                                .get_resource_mut::<PrimaryInteractionEntity>()
+                                .unwrap()
+                                .0
+                                .take();
+                            elm.job
+                                .container
+                                .get_resource_mut::<FocusedEntity>()
+                                .unwrap()
+                                .0
+                                .take();
+                        }
                         WindowEvent::MouseWheel { .. } => {}
-                        WindowEvent::MouseInput { .. } => {}
+                        WindowEvent::MouseInput {
+                            device_id,
+                            state,
+                            button,
+                        } => {
+                            let last_position = elm
+                                .job
+                                .container
+                                .get_resource_mut::<MouseButtonAdapter>()
+                                .unwrap()
+                                .1;
+                            if elm
+                                .job
+                                .container
+                                .get_resource_mut::<MouseButtonAdapter>()
+                                .unwrap()
+                                .button_pressed(button, state)
+                            {
+                                elm.job.container.send_event(InteractionEvent::new(
+                                    InteractionPhase::Begin,
+                                    button,
+                                    last_position,
+                                ));
+                            } else {
+                                elm.job.container.send_event(InteractionEvent::new(
+                                    InteractionPhase::End,
+                                    button,
+                                    last_position,
+                                ));
+                            }
+                        }
                         WindowEvent::TouchpadMagnify { .. } => {}
                         WindowEvent::SmartMagnify { .. } => {}
                         WindowEvent::TouchpadRotate { .. } => {}
                         WindowEvent::TouchpadPressure { .. } => {}
                         WindowEvent::AxisMotion { .. } => {}
-                        WindowEvent::Touch(_) => {}
+                        WindowEvent::Touch(t) => {
+                            elm.job.container.send_event(InteractionEvent::new(
+                                t.phase,
+                                t.id,
+                                (t.location.x, t.location.y),
+                            ));
+                        }
                         WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                             elm.set_scale_factor(scale_factor as CoordinateUnit);
                             ginkgo.set_scale_factor(scale_factor as CoordinateUnit);

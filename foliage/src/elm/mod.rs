@@ -61,8 +61,8 @@ impl<T: Bundle, S: Bundle> BundleExtension<T, S> {
 }
 
 pub trait BundleExtend
-    where
-        Self: Bundle + Sized,
+where
+    Self: Bundle + Sized,
 {
     fn extend<E: Bundle>(self, handle: E) -> BundleExtension<Self, E>;
 }

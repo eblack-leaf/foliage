@@ -1,3 +1,5 @@
+use crate::music_player::track_progress::{TrackEvent, TrackLength};
+use foliage::bevy_ecs::event::EventWriter;
 use foliage::bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
 use foliage::bevy_ecs::query::{Changed, With, Without};
 use foliage::bevy_ecs::system::{Query, ResMut, SystemParamItem};
@@ -7,14 +9,16 @@ use foliage::coordinate::area::Area;
 use foliage::coordinate::{CoordinateUnit, InterfaceContext};
 use foliage::elm::config::{ElmConfiguration, ExternalSet};
 use foliage::elm::leaf::{Leaf, Tag};
-use foliage::elm::Elm;
+use foliage::elm::{BundleExtend, Elm};
 use foliage::icon::bundled_cov::BundledIcon;
 use foliage::icon::{Icon, IconId, IconScale};
+use foliage::interaction::InteractionListener;
 use foliage::rectangle::Rectangle;
 use foliage::scene::align::{SceneAligner, SceneAlignment};
 use foliage::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
 use foliage::texture::factors::Progress;
 use foliage::{bevy_ecs, scene_bind_enable, set_descriptor};
+use std::time::Duration;
 
 #[derive(Bundle)]
 pub struct Controls {
@@ -49,13 +53,14 @@ impl Leaf for Controls {
     }
 
     fn attach(elm: &mut Elm) {
-        elm.main().add_systems(
+        elm.main().add_systems((
             resize
                 .in_set(ExternalSet::Configure)
                 .in_set(ControlsSet::Area)
                 .before(<Circle as Leaf>::SetDescriptor::Area)
                 .before(<Icon as Leaf>::SetDescriptor::Area),
-        );
+            with_play_hook.in_set(ExternalSet::Process),
+        ));
         scene_bind_enable!(elm, Controls);
     }
 }
@@ -84,6 +89,19 @@ fn resize(
             coordinator.binding_entity(&handle.access_chain().target(ControlBindings::RightBar));
         rectangle_area.get_mut(right_rectangle).unwrap().width = offset - 48f32;
         coordinator.update_anchor_area(*handle, *area);
+    }
+}
+pub struct PlayHook();
+fn with_play_hook(
+    button: Query<(&InteractionListener), With<Tag<PlayHook>>>,
+    mut events: EventWriter<TrackEvent>,
+) {
+    for listener in button.iter() {
+        if listener.active() {
+            events.send(TrackEvent {
+                length: TrackLength(Duration::from_secs(18)),
+            });
+        }
     }
 }
 impl Scene for Controls {
@@ -125,7 +143,9 @@ impl Scene for Controls {
                 IconId::new(BundledIcon::Play),
                 IconScale::from_dim(48f32),
                 Color::GREEN_MEDIUM.into(),
-            ),
+            )
+            .extend(InteractionListener::default())
+            .extend(Tag::<PlayHook>::new()),
             cmd,
         );
         binder.bind(
