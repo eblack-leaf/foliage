@@ -283,11 +283,13 @@ impl Foliage {
                                 .unwrap()
                                 .button_pressed(button, state)
                             {
-                                elm.job.container.send_event(InteractionEvent::new(
-                                    InteractionPhase::Begin,
-                                    button,
-                                    last_position,
-                                ));
+                                if button == MouseButton::Left {
+                                    elm.job.container.send_event(InteractionEvent::new(
+                                        InteractionPhase::Begin,
+                                        button,
+                                        last_position,
+                                    ));
+                                }
                             } else {
                                 elm.job.container.send_event(InteractionEvent::new(
                                     InteractionPhase::End,

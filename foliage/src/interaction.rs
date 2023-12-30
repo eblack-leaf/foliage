@@ -34,7 +34,7 @@ impl Leaf for Interaction {
             .insert_resource(MouseButtonAdapter::default());
         elm.main().add_systems((
             set_interaction_listeners.in_set(CoreSet::Interaction),
-            clear_engaged.after(CoreSet::Differential),
+            clear_engaged.after(ExternalSet::Process),
         ));
         elm.add_event::<InteractionEvent>(EventStage::External);
     }
