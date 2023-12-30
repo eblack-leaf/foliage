@@ -93,7 +93,7 @@ fn resize(
 }
 pub struct PlayHook();
 fn with_play_hook(
-    button: Query<(&InteractionListener), With<Tag<PlayHook>>>,
+    button: Query<&InteractionListener, With<Tag<PlayHook>>>,
     mut events: EventWriter<TrackEvent>,
 ) {
     for listener in button.iter() {

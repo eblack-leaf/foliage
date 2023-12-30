@@ -205,45 +205,43 @@ pub fn set_interaction_listeners(
                 primary.0.replace(ie.id);
                 primary_entity.0.replace(grab.0);
             }
-        } else {
-            if ie.id == primary.0.unwrap() {
-                match ie.phase {
-                    InteractionPhase::Begin => {
-                        // skip
-                    }
-                    InteractionPhase::Moved => {
-                        if let Some(prime) = primary_entity.0 {
-                            if let Ok((_, mut listener, _, _, _)) = listeners.get_mut(prime) {
-                                listener.interaction.current = position;
-                            } else {
-                                primary.0.take();
-                                primary_entity.0.take();
-                            }
+        } else if ie.id == primary.0.unwrap() {
+            match ie.phase {
+                InteractionPhase::Begin => {
+                    // skip
+                }
+                InteractionPhase::Moved => {
+                    if let Some(prime) = primary_entity.0 {
+                        if let Ok((_, mut listener, _, _, _)) = listeners.get_mut(prime) {
+                            listener.interaction.current = position;
                         } else {
                             primary.0.take();
+                            primary_entity.0.take();
                         }
+                    } else {
+                        primary.0.take();
                     }
-                    InteractionPhase::End => {
-                        if let Some(prime) = primary_entity.0.take() {
-                            if let Ok((_, mut listener, pos, area, _)) = listeners.get_mut(prime) {
-                                let section = Section::new(*pos, *area);
-                                if section.contains(position) {
-                                    listener.interaction.end.replace(position);
-                                    focused_entity.0.replace(prime);
-                                    listener.active = true;
-                                }
-                            } else {
-                                focused_entity.0.take();
+                }
+                InteractionPhase::End => {
+                    if let Some(prime) = primary_entity.0.take() {
+                        if let Ok((_, mut listener, pos, area, _)) = listeners.get_mut(prime) {
+                            let section = Section::new(*pos, *area);
+                            if section.contains(position) {
+                                listener.interaction.end.replace(position);
+                                focused_entity.0.replace(prime);
+                                listener.active = true;
                             }
                         } else {
                             focused_entity.0.take();
                         }
-                        primary.0.take();
+                    } else {
+                        focused_entity.0.take();
                     }
-                    InteractionPhase::Cancel => {
-                        primary.0.take();
-                        primary_entity.0.take();
-                    }
+                    primary.0.take();
+                }
+                InteractionPhase::Cancel => {
+                    primary.0.take();
+                    primary_entity.0.take();
                 }
             }
         }

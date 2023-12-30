@@ -217,7 +217,7 @@ impl Foliage {
                         WindowEvent::ModifiersChanged(_) => {}
                         WindowEvent::Ime(_) => {}
                         WindowEvent::CursorMoved {
-                            device_id,
+                            device_id: _,
                             position,
                         } => {
                             let location = Position::from((position.x, position.y));
@@ -266,7 +266,7 @@ impl Foliage {
                         }
                         WindowEvent::MouseWheel { .. } => {}
                         WindowEvent::MouseInput {
-                            device_id,
+                            device_id: _,
                             state,
                             button,
                         } => {

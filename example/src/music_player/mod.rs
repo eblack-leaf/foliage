@@ -3,9 +3,7 @@ pub mod track_progress;
 pub mod visualizer;
 
 use crate::music_player::controls::Controls;
-use crate::music_player::track_progress::{
-    TrackEvent, TrackLength, TrackProgress, TrackProgressArgs,
-};
+use crate::music_player::track_progress::{TrackProgress, TrackProgressArgs};
 use foliage::bevy_ecs::change_detection::ResMut;
 use foliage::bevy_ecs::event::EventWriter;
 use foliage::bevy_ecs::prelude::Commands;
