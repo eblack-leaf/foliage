@@ -1,13 +1,18 @@
 pub mod controls;
+#[allow(unused)]
 mod playlist;
+#[allow(unused)]
 mod song;
+#[allow(unused)]
 mod stream;
 pub mod track_progress;
+#[allow(unused)]
 pub mod visualizer;
-mod volume_control;
+pub mod volume_control;
 
 use crate::music_player::controls::Controls;
 use crate::music_player::track_progress::{TrackEvent, TrackProgress, TrackProgressArgs};
+use crate::music_player::volume_control::{VolumeControl, VolumeControlArgs};
 use foliage::bevy_ecs::change_detection::ResMut;
 use foliage::bevy_ecs::event::EventWriter;
 use foliage::bevy_ecs::prelude::Commands;
@@ -24,6 +29,7 @@ use foliage::elm::Elm;
 use std::time::Duration;
 
 pub struct MusicPlayer {}
+#[allow(unused)]
 fn setup(
     mut cmd: Commands,
     mut compositor: ResMut<Compositor>,
@@ -32,13 +38,13 @@ fn setup(
 ) {
     // segments
     let playlist_segment = compositor.add_segment(ResponsiveSegment::all(Segment::new(
-        (0.05.relative(), 0.05.relative()),
-        (0.9.relative(), 0.15.relative()),
+        (0.025.relative(), 10.fixed()),
+        (0.45.relative(), 0.15.relative()),
         0,
     )));
     let volume_control_segment = compositor.add_segment(ResponsiveSegment::all(Segment::new(
-        (0.05.relative(), 0.2.relative()),
-        (0.9.relative(), 0.1.relative()),
+        (0.5.relative(), 25.fixed()),
+        (0.425.relative(), 12.fixed()),
         0,
     )));
     let stream_segment = compositor.add_segment(ResponsiveSegment::all(Segment::new(
@@ -58,7 +64,7 @@ fn setup(
     )));
     let progress_segment = compositor.add_segment(ResponsiveSegment::all(Segment::new(
         (0.1.relative(), 0.75.relative()),
-        (0.8.relative(), 0.1.relative()),
+        (0.8.relative(), 60.fixed()),
         0,
     )));
     let control_segment = compositor.add_segment(ResponsiveSegment::all(Segment::new(
@@ -73,6 +79,11 @@ fn setup(
             progress_segment,
             TransitionBindValidity::all(),
             TrackProgressArgs::new(Color::GREEN_MEDIUM, Color::GREY_DARK),
+        )])
+        .bind_scene::<VolumeControl>(vec![(
+            volume_control_segment,
+            TransitionBindValidity::all(),
+            VolumeControlArgs::new(0.3, Color::GREEN_MEDIUM, Color::GREY_DARK),
         )])
         .build();
     // add-to-workflow

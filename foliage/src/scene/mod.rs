@@ -21,7 +21,7 @@ pub struct Anchor(pub Coordinate<InterfaceContext>);
 #[derive(Copy, Clone, Default, Hash, Eq, PartialEq, Debug)]
 pub struct SceneBinding(pub i32);
 impl From<()> for SceneBinding {
-    fn from(value: ()) -> Self {
+    fn from(_value: ()) -> Self {
         SceneBinding::default()
     }
 }

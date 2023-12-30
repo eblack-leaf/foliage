@@ -10,7 +10,7 @@ use crate::ginkgo::viewport::ViewportHandle;
 use crate::window::ScaleFactor;
 use bevy_ecs::component::Component;
 use bevy_ecs::event::{Event, EventReader};
-use bevy_ecs::prelude::{Entity, IntoSystemConfigs};
+use bevy_ecs::prelude::{DetectChanges, Entity, IntoSystemConfigs};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Query, Res, ResMut, Resource};
 use std::collections::HashMap;
@@ -29,11 +29,11 @@ impl Leaf for Interaction {
             .container
             .insert_resource(PrimaryInteractionEntity::default());
         elm.job.container.insert_resource(FocusedEntity::default());
-        elm.job
-            .container
-            .insert_resource(MouseButtonAdapter::default());
+        elm.job.container.insert_resource(MouseAdapter::default());
         elm.main().add_systems((
-            set_interaction_listeners.in_set(CoreSet::Interaction),
+            (set_interaction_listeners, clear_engaged)
+                .chain()
+                .in_set(CoreSet::Interaction),
             clear_active.after(ExternalSet::Process),
         ));
         elm.add_event::<InteractionEvent>(EventStage::External);
@@ -82,11 +82,11 @@ impl From<TouchPhase> for InteractionPhase {
     }
 }
 #[derive(Resource, Default)]
-pub struct MouseButtonAdapter(
+pub struct MouseAdapter(
     pub HashMap<MouseButton, ElementState>,
     pub Position<DeviceContext>,
 );
-impl MouseButtonAdapter {
+impl MouseAdapter {
     pub fn button_pressed(&mut self, button: MouseButton, state: ElementState) -> bool {
         let mut r_val = false;
         if let Some(cached) = self.0.get_mut(&button) {
@@ -149,16 +149,38 @@ impl Interaction {
 pub struct InteractionListener {
     active: bool,
     pub interaction: Interaction,
+    engaged: bool,
 }
 impl InteractionListener {
     pub fn active(&self) -> bool {
         self.active
+    }
+    pub fn engaged(&self) -> bool {
+        self.engaged
     }
 }
 fn clear_active(mut active: Query<&mut InteractionListener, Changed<InteractionListener>>) {
     for mut e in active.iter_mut() {
         if e.active {
             e.active = false;
+        }
+    }
+}
+fn clear_engaged(
+    mut engaged: Query<(Entity, &mut InteractionListener)>,
+    primary_interaction_entity: Res<PrimaryInteractionEntity>,
+) {
+    if primary_interaction_entity.is_changed() {
+        for (entity, mut listener) in engaged.iter_mut() {
+            if listener.engaged {
+                if let Some(prime) = primary_interaction_entity.0 {
+                    if prime != entity {
+                        listener.engaged = false;
+                    }
+                } else {
+                    listener.engaged = false;
+                }
+            }
         }
     }
 }
@@ -204,6 +226,7 @@ pub fn set_interaction_listeners(
             if let Some(grab) = grabbed {
                 primary.0.replace(ie.id);
                 primary_entity.0.replace(grab.0);
+                listeners.get_mut(grab.0).unwrap().1.engaged = true;
             }
         } else if ie.id == primary.0.unwrap() {
             match ie.phase {
@@ -231,6 +254,7 @@ pub fn set_interaction_listeners(
                                 focused_entity.0.replace(prime);
                                 listener.active = true;
                             }
+                            listener.engaged = false;
                         } else {
                             focused_entity.0.take();
                         }

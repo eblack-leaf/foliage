@@ -21,13 +21,14 @@ use crate::ginkgo::Ginkgo;
 use crate::icon::Icon;
 use crate::image::Image;
 use crate::interaction::{
-    FocusedEntity, Interaction, InteractionEvent, InteractionId, InteractionPhase,
-    MouseButtonAdapter, PrimaryInteraction, PrimaryInteractionEntity,
+    FocusedEntity, Interaction, InteractionEvent, InteractionId, InteractionPhase, MouseAdapter,
+    PrimaryInteraction, PrimaryInteractionEntity,
 };
 use crate::panel::Panel;
 use crate::prebuilt::button::Button;
 use crate::prebuilt::circle_button::CircleButton;
 use crate::prebuilt::circle_progress_bar::CircleProgressBar;
+use crate::prebuilt::interactive_progress_bar::InteractiveProgressBar;
 use crate::prebuilt::progress_bar::ProgressBar;
 use crate::rectangle::Rectangle;
 use crate::text::Text;
@@ -107,6 +108,7 @@ impl Foliage {
             .with_leaf::<CircleProgressBar>()
             .with_leaf::<CircleButton>()
             .with_leaf::<Interaction>()
+            .with_leaf::<InteractiveProgressBar>()
     }
     pub fn with_android_interface(mut self, android_interface: AndroidInterface) -> Self {
         self.android_interface = android_interface;
@@ -223,13 +225,13 @@ impl Foliage {
                             let location = Position::from((position.x, position.y));
                             elm.job
                                 .container
-                                .get_resource_mut::<MouseButtonAdapter>()
+                                .get_resource_mut::<MouseAdapter>()
                                 .unwrap()
                                 .update_location(location);
                             if let Some(cached) = elm
                                 .job
                                 .container
-                                .get_resource_mut::<MouseButtonAdapter>()
+                                .get_resource_mut::<MouseAdapter>()
                                 .unwrap()
                                 .0
                                 .get(&MouseButton::Left)
@@ -244,26 +246,7 @@ impl Foliage {
                             }
                         }
                         WindowEvent::CursorEntered { .. } => {}
-                        WindowEvent::CursorLeft { .. } => {
-                            elm.job
-                                .container
-                                .get_resource_mut::<PrimaryInteraction>()
-                                .unwrap()
-                                .0
-                                .take();
-                            elm.job
-                                .container
-                                .get_resource_mut::<PrimaryInteractionEntity>()
-                                .unwrap()
-                                .0
-                                .take();
-                            elm.job
-                                .container
-                                .get_resource_mut::<FocusedEntity>()
-                                .unwrap()
-                                .0
-                                .take();
-                        }
+                        WindowEvent::CursorLeft { .. } => {}
                         WindowEvent::MouseWheel { .. } => {}
                         WindowEvent::MouseInput {
                             device_id: _,
@@ -273,13 +256,13 @@ impl Foliage {
                             let last_position = elm
                                 .job
                                 .container
-                                .get_resource_mut::<MouseButtonAdapter>()
+                                .get_resource_mut::<MouseAdapter>()
                                 .unwrap()
                                 .1;
                             if elm
                                 .job
                                 .container
-                                .get_resource_mut::<MouseButtonAdapter>()
+                                .get_resource_mut::<MouseAdapter>()
                                 .unwrap()
                                 .button_pressed(button, state)
                             {

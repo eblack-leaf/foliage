@@ -6,6 +6,7 @@ use crate::music_player::MusicPlayer;
 use foliage::window::WindowDescriptor;
 
 use crate::music_player::track_progress::TrackProgress;
+use crate::music_player::volume_control::VolumeControl;
 use foliage::{AndroidInterface, Foliage};
 
 pub fn entry(android_interface: AndroidInterface) {
@@ -18,6 +19,7 @@ pub fn entry(android_interface: AndroidInterface) {
         .with_leaf::<MusicPlayer>()
         .with_leaf::<Controls>()
         .with_leaf::<TrackProgress>()
+        .with_leaf::<VolumeControl>()
         .with_android_interface(android_interface)
         .run();
 }

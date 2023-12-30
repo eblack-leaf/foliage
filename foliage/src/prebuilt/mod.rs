@@ -1,4 +1,5 @@
 pub mod button;
 pub mod circle_button;
 pub mod circle_progress_bar;
+pub mod interactive_progress_bar;
 pub mod progress_bar;
