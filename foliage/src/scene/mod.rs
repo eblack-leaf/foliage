@@ -20,6 +20,11 @@ pub mod align;
 pub struct Anchor(pub Coordinate<InterfaceContext>);
 #[derive(Copy, Clone, Default, Hash, Eq, PartialEq, Debug)]
 pub struct SceneBinding(pub i32);
+impl From<()> for SceneBinding {
+    fn from(value: ()) -> Self {
+        SceneBinding::default()
+    }
+}
 impl From<i32> for SceneBinding {
     fn from(value: i32) -> Self {
         SceneBinding(value)

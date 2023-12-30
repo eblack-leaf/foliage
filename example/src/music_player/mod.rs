@@ -1,6 +1,10 @@
 pub mod controls;
+mod playlist;
+mod song;
+mod stream;
 pub mod track_progress;
 pub mod visualizer;
+mod volume_control;
 
 use crate::music_player::controls::Controls;
 use crate::music_player::track_progress::{TrackEvent, TrackProgress, TrackProgressArgs};
@@ -27,14 +31,39 @@ fn setup(
     mut track_events: EventWriter<TrackEvent>,
 ) {
     // segments
-    let control_segment = compositor.add_segment(ResponsiveSegment::all(Segment::new(
-        (0.15.relative(), 0.85.relative()),
-        (0.7.relative(), 0.15.relative()),
+    let playlist_segment = compositor.add_segment(ResponsiveSegment::all(Segment::new(
+        (0.05.relative(), 0.05.relative()),
+        (0.9.relative(), 0.15.relative()),
+        0,
+    )));
+    let volume_control_segment = compositor.add_segment(ResponsiveSegment::all(Segment::new(
+        (0.05.relative(), 0.2.relative()),
+        (0.9.relative(), 0.1.relative()),
+        0,
+    )));
+    let stream_segment = compositor.add_segment(ResponsiveSegment::all(Segment::new(
+        (0.05.relative(), 0.3.relative()),
+        (0.9.relative(), 0.15.relative()),
+        0,
+    )));
+    let visualizer_segment = compositor.add_segment(ResponsiveSegment::all(Segment::new(
+        (0.05.relative(), 0.45.relative()),
+        (324.fixed(), 48.fixed()),
+        0,
+    )));
+    let song_info_segment = compositor.add_segment(ResponsiveSegment::all(Segment::new(
+        (0.05.relative(), 0.55.relative()),
+        (0.9.relative(), 0.15.relative()),
         0,
     )));
     let progress_segment = compositor.add_segment(ResponsiveSegment::all(Segment::new(
         (0.1.relative(), 0.75.relative()),
         (0.8.relative(), 0.1.relative()),
+        0,
+    )));
+    let control_segment = compositor.add_segment(ResponsiveSegment::all(Segment::new(
+        (0.15.relative(), 0.85.relative()),
+        (0.7.relative(), 0.15.relative()),
         0,
     )));
     // transition

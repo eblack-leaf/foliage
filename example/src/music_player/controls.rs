@@ -20,7 +20,6 @@ use foliage::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator,
 use foliage::texture::factors::Progress;
 use foliage::{bevy_ecs, scene_bind_enable, set_descriptor};
 
-
 #[derive(Bundle)]
 pub struct Controls {
     tag: Tag<Self>,
