@@ -79,7 +79,7 @@ fn change_icon(
     for v in volume.iter() {
         let entity =
             coordinator.binding_entity(&v.access_chain().target(VolumeControlBindings::Slider));
-        if let Ok((handle, percent)) = interactive_prog.get(entity) {
+        if let Ok((_handle, percent)) = interactive_prog.get(entity) {
             let id = if percent.0 < 0.05 {
                 IconId::new(BundledIcon::VolumeX)
             } else if percent.0 < 0.33 {
