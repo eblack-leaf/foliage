@@ -227,6 +227,7 @@ pub fn set_interaction_listeners(
                 primary.0.replace(ie.id);
                 primary_entity.0.replace(grab.0);
                 listeners.get_mut(grab.0).unwrap().1.engaged = true;
+                listeners.get_mut(grab.0).unwrap().1.interaction = Interaction::new(position);
             }
         } else if ie.id == primary.0.unwrap() {
             match ie.phase {
@@ -250,6 +251,7 @@ pub fn set_interaction_listeners(
                         if let Ok((_, mut listener, pos, area, _)) = listeners.get_mut(prime) {
                             let section = Section::new(*pos, *area);
                             if section.contains(position) {
+                                listener.interaction.current = position;
                                 listener.interaction.end.replace(position);
                                 focused_entity.0.replace(prime);
                                 listener.active = true;

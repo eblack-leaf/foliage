@@ -106,28 +106,29 @@ fn interact(
         let m_ac = handle
             .access_chain()
             .target(InteractiveProgressBarBindings::Marker);
-        let p_ac = handle
-            .access_chain()
-            .target(InteractiveProgressBarBindings::Progress);
         let marker = coordinator.binding_entity(&m_ac);
-        let listener = *interaction_listeners.get(marker).unwrap().0;
-        let mut hook = interaction_listeners.get_mut(marker).unwrap().1;
-        if hook.0.is_none() {
-            hook.0.replace(listener.interaction.current);
-        }
-        if listener.engaged() {
-            let diff = listener.interaction.current - hook.0.unwrap();
-            let p = diff.x / area.width;
-            percent.0 += p;
-            percent.0 = percent.0.min(1.0).max(0.0);
-            coordinator.get_alignment_mut(&m_ac).pos.horizontal = metrics(*area, percent.0).near();
-            progresses
-                .get_mut(coordinator.binding_entity(&p_ac))
-                .unwrap()
-                .1 = percent.0;
-            hook.0.replace(listener.interaction.current);
-        } else {
-            hook.0.take();
+        if let Ok((listener, mut hook)) = interaction_listeners.get_mut(marker) {
+            let p_ac = handle
+                .access_chain()
+                .target(InteractiveProgressBarBindings::Progress);
+            if hook.0.is_none() {
+                hook.0.replace(listener.interaction.current);
+            }
+            if listener.engaged() {
+                let diff = listener.interaction.current - hook.0.unwrap();
+                let p = diff.x / area.width;
+                percent.0 += p;
+                percent.0 = percent.0.min(1.0).max(0.0);
+                coordinator.get_alignment_mut(&m_ac).pos.horizontal =
+                    metrics(*area, percent.0).near();
+                progresses
+                    .get_mut(coordinator.binding_entity(&p_ac))
+                    .unwrap()
+                    .1 = percent.0;
+                hook.0.replace(listener.interaction.current);
+            } else {
+                hook.0.take();
+            }
         }
     }
 }

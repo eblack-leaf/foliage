@@ -108,7 +108,7 @@ impl Scene for ProgressBar {
         );
         Self {
             tag: Tag::new(),
-            progress: Progress::empty(),
+            progress: args.progress,
         }
     }
 }
