@@ -56,6 +56,7 @@ impl<'a> ElmConfiguration<'a> {
                 .chain(),
         );
         elm.main().add_systems((
+            crate::scene::despawn_scenes.in_set(ExternalSet::Spawn),
             crate::scene::place_scenes
                 .in_set(CoreSet::CoordinateFinalize)
                 .before(crate::coordinate::position_set)

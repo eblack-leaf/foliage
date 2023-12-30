@@ -1,8 +1,9 @@
+use crate::music_player::controls::{ControlBindings, Controls, CurrentTrack};
 use foliage::bevy_ecs::component::Component;
 use foliage::bevy_ecs::event::{Event, EventReader};
 use foliage::bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs, With, Without};
 use foliage::bevy_ecs::query::{Changed, Or};
-use foliage::bevy_ecs::system::{Query, Res, ResMut, SystemParamItem};
+use foliage::bevy_ecs::system::{Query, Res, ResMut, Resource, SystemParamItem};
 use foliage::circle::{Circle, CircleStyle, Diameter};
 use foliage::color::Color;
 use foliage::coordinate::area::Area;
@@ -10,6 +11,8 @@ use foliage::coordinate::InterfaceContext;
 use foliage::elm::config::{ElmConfiguration, ExternalSet};
 use foliage::elm::leaf::{Leaf, Tag};
 use foliage::elm::{Elm, EventStage};
+use foliage::icon::bundled_cov::BundledIcon;
+use foliage::icon::IconId;
 use foliage::prebuilt::progress_bar::{ProgressBar, ProgressBarArgs};
 use foliage::scene::align::SceneAligner;
 use foliage::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
@@ -22,10 +25,16 @@ use std::time::{Duration, Instant};
 
 #[derive(Bundle)]
 pub struct TrackProgress {
-    pub length: TrackLength,
-    pub current: TrackStartTime,
-    played: TrackTimePlayed,
     tag: Tag<Self>,
+}
+#[derive(Resource, Default)]
+pub struct TrackPlayer {
+    pub playing: bool,
+    pub current: Duration,
+    pub last: Option<Instant>,
+    pub ratio: f32,
+    pub length: Duration,
+    pub(crate) done: bool,
 }
 set_descriptor!(
     pub enum TrackProgressSet {
@@ -40,6 +49,7 @@ impl Leaf for TrackProgress {
     }
 
     fn attach(elm: &mut Elm) {
+        elm.startup().add_systems((setup,));
         elm.main().add_systems(
             (
                 read_track_event
@@ -60,7 +70,12 @@ impl Leaf for TrackProgress {
         );
         scene_bind_enable!(elm, TrackProgress);
         elm.add_event::<TrackEvent>(EventStage::Process);
+        elm.add_event::<TrackPlayEvent>(EventStage::Process);
     }
+}
+fn setup(mut cmd: Commands) {
+    cmd.insert_resource(TrackPlayer::default());
+    cmd.insert_resource(CurrentTrack::default());
 }
 pub enum TrackProgressBindings {
     Progress,
@@ -73,29 +88,14 @@ impl From<TrackProgressBindings> for SceneBinding {
 }
 fn config_track_progress(
     scenes: Query<
-        (
-            &SceneHandle,
-            &Area<InterfaceContext>,
-            &TrackLength,
-            &TrackStartTime,
-            &TrackTimePlayed,
-        ),
-        (
-            With<Tag<TrackProgress>>,
-            Or<(
-                Changed<Area<InterfaceContext>>,
-                Changed<TrackStartTime>,
-                Changed<TrackTimePlayed>,
-                Changed<TrackLength>,
-            )>,
-        ),
+        (&SceneHandle, &Area<InterfaceContext>),
+        (With<Tag<TrackProgress>>, Changed<Area<InterfaceContext>>),
     >,
     mut coordinator: ResMut<SceneCoordinator>,
-    mut progresses: Query<&mut Progress>,
-    mut text_vals: Query<&mut TextValue>,
     mut prog_areas: Query<&mut Area<InterfaceContext>, Without<Tag<TrackProgress>>>,
+    player: Res<TrackPlayer>,
 ) {
-    for (handle, area, length, _current, played) in scenes.iter() {
+    for (handle, area) in scenes.iter() {
         coordinator.update_anchor_area(*handle, *area);
         let prog_entity = coordinator.binding_entity(
             &handle
@@ -103,72 +103,147 @@ fn config_track_progress(
                 .target(TrackProgressBindings::Progress),
         );
         prog_areas.get_mut(prog_entity).unwrap().width = area.width;
-        let ratio = played.0.as_nanos() as f32 / length.0.as_nanos() as f32;
-        let progress = Progress::new(0.0, ratio);
-        *progresses.get_mut(prog_entity).unwrap() = progress;
         let tt_chain = handle
             .access_chain()
             .binding(TrackProgressBindings::TrackTime);
-        let time_text = coordinator.binding_entity(
-            &handle
-                .access_chain()
-                .binding(TrackProgressBindings::TrackTime)
-                .target(TrackTimeBindings::TimeText),
-        );
-        let t_val = format!(
-            "{:02}:{:02}",
-            (played.0.as_secs_f32() / 60f32).floor(),
-            (played.0.as_secs_f32() % 60f32).floor()
-        );
-        *text_vals.get_mut(time_text).unwrap() = TextValue::new(t_val);
         coordinator.get_alignment_mut(&tt_chain).pos.horizontal =
-            ((area.width * ratio).round() - 24f32).near();
+            ((area.width * player.ratio).round() - 24f32).near();
     }
 }
-#[derive(Component, Copy, Clone)]
-pub struct TrackLength(pub Duration);
-#[derive(Component, Copy, Clone)]
-pub struct TrackStartTime(pub Option<Instant>);
-#[derive(Component)]
-pub struct TrackTimePlayed(pub Duration);
 pub struct TrackProgressArgs {
-    pub length: TrackLength,
     pub fill_color: Color,
     pub back_color: Color,
 }
+#[derive(Event, Copy, Clone)]
+pub struct TrackPlayEvent(pub(crate) bool);
+impl TrackPlayEvent {
+    pub fn play() -> Self {
+        Self(false)
+    }
+    pub fn pause() -> Self {
+        Self(true)
+    }
+}
 fn read_track_event(
+    mut pause_events: EventReader<TrackPlayEvent>,
     mut events: EventReader<TrackEvent>,
-    mut scenes: Query<(
-        &SceneHandle,
-        &mut TrackLength,
-        &mut TrackStartTime,
-        &mut TrackTimePlayed,
-    )>,
+    mut scenes: Query<(&SceneHandle, &Area<InterfaceContext>), With<Tag<TrackProgress>>>,
+    control: Query<&SceneHandle, With<Tag<Controls>>>,
+    mut player: ResMut<TrackPlayer>,
+    mut coordinator: ResMut<SceneCoordinator>,
+    mut text_vals: Query<&mut TextValue>,
+    mut progresses: Query<&mut Progress>,
+    mut icons: Query<&mut IconId>,
+    mut current_track: ResMut<CurrentTrack>,
 ) {
-    for (_handle, _length, mut current, mut played) in scenes.iter_mut() {
-        if current.0.is_some() {
-            played.0 = Instant::now() - current.0.unwrap();
-            if played.0 >= _length.0 {
-                current.0.take();
+    for event in pause_events.read() {
+        if player.done {
+            if let Some(track) = current_track.0.as_ref() {
+                player.current = Duration::default();
+                player.last.replace(Instant::now());
+                player.length = track.length;
+                player.ratio = 0.0;
+                player.done = false;
+                for (handle, area) in scenes.iter() {
+                    coordinator
+                        .get_alignment_mut(
+                            &handle
+                                .access_chain()
+                                .target(TrackProgressBindings::TrackTime),
+                        )
+                        .pos
+                        .horizontal = ((area.width * player.ratio).round() - 24f32).near();
+                    let prog_ac = handle
+                        .access_chain()
+                        .target(TrackProgressBindings::Progress);
+                    let progress = Progress::new(0.0, player.ratio);
+                    let prog = coordinator.binding_entity(&prog_ac);
+                    *progresses.get_mut(prog).unwrap() = progress;
+                }
             }
+        }
+        player.playing = !event.0;
+    }
+    for (handle, area) in scenes.iter_mut() {
+        if player.playing && !player.done {
+            let diff = Instant::now() - player.last.unwrap();
+            player.last.replace(Instant::now());
+            player.current += diff;
+            if player.current >= player.length {
+                player.playing = false;
+                player.current = player.length;
+                player.done = true;
+                for h in control.iter() {
+                    let entity =
+                        coordinator.binding_entity(&h.access_chain().target(ControlBindings::Play));
+                    *icons.get_mut(entity).unwrap() = IconId::new(BundledIcon::Play);
+                }
+            }
+            player.ratio = player.current.as_nanos() as f32 / player.length.as_nanos() as f32;
+            let time_text = coordinator.binding_entity(
+                &handle
+                    .access_chain()
+                    .binding(TrackProgressBindings::TrackTime)
+                    .target(TrackTimeBindings::TimeText),
+            );
+            let t_val = format!(
+                "{:02}:{:02}",
+                (player.current.as_secs_f32() / 60f32).floor(),
+                (player.current.as_secs_f32() % 60f32).floor()
+            );
+            *text_vals.get_mut(time_text).unwrap() = TextValue::new(t_val);
+            let prog_ac = handle
+                .access_chain()
+                .target(TrackProgressBindings::Progress);
+            let prog = coordinator.binding_entity(&prog_ac);
+            let progress = Progress::new(0.0, player.ratio);
+            *progresses.get_mut(prog).unwrap() = progress;
+            coordinator
+                .get_alignment_mut(
+                    &handle
+                        .access_chain()
+                        .target(TrackProgressBindings::TrackTime),
+                )
+                .pos
+                .horizontal = ((area.width * player.ratio).round() - 24f32).near();
+        } else {
+            // forward last to keep in sync
+            player.last.replace(Instant::now());
+            // timer will forward for me as i call .elapsed()
         }
     }
     for event in events.read() {
-        for (_handle, mut length, mut current, mut played) in scenes.iter_mut() {
-            *length = event.length;
-            *current = TrackStartTime(Some(Instant::now()));
-            played.0 = Duration::default();
+        current_track.0.replace(event.clone());
+        player.current = Duration::default();
+        player.last.replace(Instant::now());
+        player.length = event.length;
+        player.ratio = 0.0;
+        player.done = false;
+        for (handle, area) in scenes.iter() {
+            coordinator
+                .get_alignment_mut(
+                    &handle
+                        .access_chain()
+                        .target(TrackProgressBindings::TrackTime),
+                )
+                .pos
+                .horizontal = ((area.width * player.ratio).round() - 24f32).near();
+            let prog_ac = handle
+                .access_chain()
+                .target(TrackProgressBindings::Progress);
+            let progress = Progress::new(0.0, player.ratio);
+            let prog = coordinator.binding_entity(&prog_ac);
+            *progresses.get_mut(prog).unwrap() = progress;
         }
     }
 }
-#[derive(Event)]
+#[derive(Event, Clone)]
 pub struct TrackEvent {
-    pub length: TrackLength,
+    pub length: Duration,
 }
 impl TrackProgressArgs {
-    pub fn new<C: Into<Color>>(length: Duration, fill: C, back: C) -> Self {
+    pub fn new<C: Into<Color>>(fill: C, back: C) -> Self {
         Self {
-            length: TrackLength(length),
             fill_color: fill.into(),
             back_color: back.into(),
         }
@@ -204,12 +279,7 @@ impl Scene for TrackProgress {
             external_args,
             cmd,
         );
-        Self {
-            length: args.length,
-            current: TrackStartTime(None),
-            played: TrackTimePlayed(Duration::from_secs_f32(0f32)),
-            tag: Tag::new(),
-        }
+        Self { tag: Tag::new() }
     }
 }
 fn config_track_time(

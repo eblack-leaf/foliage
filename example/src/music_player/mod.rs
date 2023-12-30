@@ -3,7 +3,7 @@ pub mod track_progress;
 pub mod visualizer;
 
 use crate::music_player::controls::Controls;
-use crate::music_player::track_progress::{TrackProgress, TrackProgressArgs};
+use crate::music_player::track_progress::{TrackEvent, TrackProgress, TrackProgressArgs};
 use foliage::bevy_ecs::change_detection::ResMut;
 use foliage::bevy_ecs::event::EventWriter;
 use foliage::bevy_ecs::prelude::Commands;
@@ -24,6 +24,7 @@ fn setup(
     mut cmd: Commands,
     mut compositor: ResMut<Compositor>,
     mut events: EventWriter<WorkflowTransition>,
+    mut track_events: EventWriter<TrackEvent>,
 ) {
     // segments
     let control_segment = compositor.add_segment(ResponsiveSegment::all(Segment::new(
@@ -42,11 +43,7 @@ fn setup(
         .bind_scene::<TrackProgress>(vec![(
             progress_segment,
             TransitionBindValidity::all(),
-            TrackProgressArgs::new(
-                Duration::from_secs(180),
-                Color::GREEN_MEDIUM,
-                Color::GREY_DARK,
-            ),
+            TrackProgressArgs::new(Color::GREEN_MEDIUM, Color::GREY_DARK),
         )])
         .build();
     // add-to-workflow
@@ -57,6 +54,9 @@ fn setup(
     );
     // trigger starting transition
     events.send(WorkflowTransition(WorkflowHandle(0), WorkflowStage(0)));
+    track_events.send(TrackEvent {
+        length: Duration::from_secs(18),
+    });
 }
 impl Leaf for MusicPlayer {
     type SetDescriptor = EmptySetDescriptor;

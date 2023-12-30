@@ -1,8 +1,9 @@
-use crate::music_player::track_progress::{TrackEvent, TrackLength};
+use crate::music_player::track_progress::{TrackEvent, TrackPlayEvent, TrackPlayer};
+use foliage::bevy_ecs::component::Component;
 use foliage::bevy_ecs::event::EventWriter;
-use foliage::bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
+use foliage::bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs, Resource};
 use foliage::bevy_ecs::query::{Changed, With, Without};
-use foliage::bevy_ecs::system::{Query, ResMut, SystemParamItem};
+use foliage::bevy_ecs::system::{Query, Res, ResMut, SystemParamItem};
 use foliage::circle::Circle;
 use foliage::color::Color;
 use foliage::coordinate::area::Area;
@@ -18,7 +19,7 @@ use foliage::scene::align::{SceneAligner, SceneAlignment};
 use foliage::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
 use foliage::texture::factors::Progress;
 use foliage::{bevy_ecs, scene_bind_enable, set_descriptor};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 #[derive(Bundle)]
 pub struct Controls {
@@ -91,16 +92,48 @@ fn resize(
         coordinator.update_anchor_area(*handle, *area);
     }
 }
-pub struct PlayHook();
+#[derive(Component, Copy, Clone)]
+pub enum PlayHook {
+    Playing,
+    Paused,
+}
+#[derive(Resource, Default)]
+pub struct CurrentTrack(pub Option<TrackEvent>);
 fn with_play_hook(
-    button: Query<&InteractionListener, With<Tag<PlayHook>>>,
+    mut button: Query<(&InteractionListener, &mut PlayHook)>,
+    scenes: Query<&SceneHandle, With<Tag<Controls>>>,
+    mut play_events: EventWriter<TrackPlayEvent>,
+    coordinator: Res<SceneCoordinator>,
+    mut icons: Query<&mut IconId>,
+    mut player: ResMut<TrackPlayer>,
+    current_track: Res<CurrentTrack>,
     mut events: EventWriter<TrackEvent>,
 ) {
-    for listener in button.iter() {
+    for (listener, mut hook) in button.iter_mut() {
         if listener.active() {
-            events.send(TrackEvent {
-                length: TrackLength(Duration::from_secs(18)),
-            });
+            if player.done {
+                *hook = PlayHook::Paused;
+            }
+            match *hook {
+                PlayHook::Playing => {
+                    *hook = PlayHook::Paused;
+                    play_events.send(TrackPlayEvent::pause());
+                    for handle in scenes.iter() {
+                        let ac = handle.access_chain().target(ControlBindings::Play);
+                        let entity = coordinator.binding_entity(&ac);
+                        *icons.get_mut(entity).unwrap() = IconId::new(BundledIcon::Play);
+                    }
+                }
+                PlayHook::Paused => {
+                    *hook = PlayHook::Playing;
+                    play_events.send(TrackPlayEvent::play());
+                    for handle in scenes.iter() {
+                        let ac = handle.access_chain().target(ControlBindings::Play);
+                        let entity = coordinator.binding_entity(&ac);
+                        *icons.get_mut(entity).unwrap() = IconId::new(BundledIcon::Pause);
+                    }
+                }
+            }
         }
     }
 }
@@ -145,7 +178,7 @@ impl Scene for Controls {
                 Color::GREEN_MEDIUM.into(),
             )
             .extend(InteractionListener::default())
-            .extend(Tag::<PlayHook>::new()),
+            .extend(PlayHook::Paused),
             cmd,
         );
         binder.bind(

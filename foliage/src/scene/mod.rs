@@ -2,15 +2,17 @@ use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::{Coordinate, InterfaceContext};
+use crate::differential::Despawn;
 use crate::generator::HandleGenerator;
 use crate::scene::align::SceneAlignment;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::change_detection::ResMut;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Commands, Component, DetectChanges, Query, Resource};
+use bevy_ecs::prelude::{Commands, Component, DetectChanges, ParamSet, Query, Resource};
+use bevy_ecs::query::Changed;
 use bevy_ecs::system::{SystemParam, SystemParamItem};
 use indexmap::IndexSet;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 pub mod align;
 
@@ -152,6 +154,29 @@ impl SceneCoordinator {
                 .get(&binding)
                 .unwrap(),
         };
+    }
+    pub fn despawn(&mut self, handle: SceneHandle) -> HashSet<Entity> {
+        let mut removes = HashSet::new();
+        if let Some(e) = self.root_bindings.remove(&handle) {
+            removes.insert(e);
+        }
+        for (root, binding, dep) in self.dependents(handle) {
+            self.alignments.remove(&root);
+            if let Some(deps) = self.dependent_bindings.remove(&root) {
+                for (_k, v) in deps {
+                    removes.insert(v);
+                }
+            }
+            self.alignments.remove(&dep);
+            if let Some(deps) = self.dependent_bindings.remove(&dep) {
+                for (_k, v) in deps {
+                    removes.insert(v);
+                }
+            }
+            self.dependents.remove(&root);
+            self.dependents.remove(&dep);
+        }
+        removes
     }
     pub fn get_alignment_mut(
         &mut self,
@@ -333,7 +358,27 @@ impl SceneHandle {
         SceneAccessChain(*self, vec![], SceneTarget::Root)
     }
 }
-
+pub(crate) fn despawn_scenes(
+    mut scenes: ParamSet<(
+        Query<(&SceneHandle, &Despawn), Changed<Despawn>>,
+        Query<&mut Despawn>,
+    )>,
+    mut coordinator: ResMut<SceneCoordinator>,
+) {
+    let mut removes = HashSet::new();
+    for (handle, despawn) in scenes.p0().iter() {
+        if despawn.should_despawn() {
+            removes.insert(*handle);
+        }
+    }
+    for handle in removes {
+        for e in coordinator.despawn(handle) {
+            if let Ok(mut d) = scenes.p1().get_mut(e) {
+                *d = Despawn::signal_despawn();
+            }
+        }
+    }
+}
 pub(crate) fn place_scenes(
     mut coordinator: ResMut<SceneCoordinator>,
     mut coordinated: Query<(
