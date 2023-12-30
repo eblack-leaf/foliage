@@ -2,8 +2,6 @@
 use std::path::Path;
 
 use bytemuck::{Pod, Zeroable};
-#[cfg(target_family = "wasm")]
-use wasm_bindgen::JsValue;
 use wgpu::util::DeviceExt;
 use wgpu::{
     BindGroupEntry, BindGroupLayoutEntry, Buffer, BufferAddress, ColorTargetState,
