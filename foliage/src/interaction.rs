@@ -14,7 +14,7 @@ use bevy_ecs::prelude::{Entity, IntoSystemConfigs};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Query, Res, ResMut, Resource};
 use std::collections::HashMap;
-use winit::event::{ElementState, MouseButton, Touch, TouchPhase};
+use winit::event::{ElementState, MouseButton, TouchPhase};
 
 impl Leaf for Interaction {
     type SetDescriptor = EmptySetDescriptor;
@@ -34,7 +34,7 @@ impl Leaf for Interaction {
             .insert_resource(MouseButtonAdapter::default());
         elm.main().add_systems((
             set_interaction_listeners.in_set(CoreSet::Interaction),
-            clear_engaged.after(ExternalSet::Process),
+            clear_active.after(ExternalSet::Process),
         ));
         elm.add_event::<InteractionEvent>(EventStage::External);
     }
@@ -147,18 +147,18 @@ impl Interaction {
 }
 #[derive(Component, Copy, Clone, Default)]
 pub struct InteractionListener {
-    engaged: bool,
+    active: bool,
     pub interaction: Interaction,
 }
 impl InteractionListener {
     pub fn active(&self) -> bool {
-        self.engaged
+        self.active
     }
 }
-fn clear_engaged(mut engaged: Query<&mut InteractionListener, Changed<InteractionListener>>) {
-    for mut e in engaged.iter_mut() {
-        if e.engaged {
-            e.engaged = false;
+fn clear_active(mut active: Query<&mut InteractionListener, Changed<InteractionListener>>) {
+    for mut e in active.iter_mut() {
+        if e.active {
+            e.active = false;
         }
     }
 }
@@ -230,7 +230,7 @@ pub fn set_interaction_listeners(
                                 if section.contains(position) {
                                     listener.interaction.end.replace(position);
                                     focused_entity.0.replace(prime);
-                                    listener.engaged = true;
+                                    listener.active = true;
                                 }
                             } else {
                                 focused_entity.0.take();
