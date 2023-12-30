@@ -160,7 +160,7 @@ impl SceneCoordinator {
         if let Some(e) = self.root_bindings.remove(&handle) {
             removes.insert(e);
         }
-        for (root, binding, dep) in self.dependents(handle) {
+        for (root, _binding, dep) in self.dependents(handle) {
             self.alignments.remove(&root);
             if let Some(deps) = self.dependent_bindings.remove(&root) {
                 for (_k, v) in deps {

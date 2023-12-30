@@ -1,8 +1,8 @@
 use crate::music_player::controls::{ControlBindings, Controls, CurrentTrack};
-use foliage::bevy_ecs::component::Component;
+
 use foliage::bevy_ecs::event::{Event, EventReader};
 use foliage::bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs, With, Without};
-use foliage::bevy_ecs::query::{Changed, Or};
+use foliage::bevy_ecs::query::{Changed};
 use foliage::bevy_ecs::system::{Query, Res, ResMut, Resource, SystemParamItem};
 use foliage::circle::{Circle, CircleStyle, Diameter};
 use foliage::color::Color;

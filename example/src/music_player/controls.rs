@@ -19,7 +19,7 @@ use foliage::scene::align::{SceneAligner, SceneAlignment};
 use foliage::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
 use foliage::texture::factors::Progress;
 use foliage::{bevy_ecs, scene_bind_enable, set_descriptor};
-use std::time::{Duration, Instant};
+
 
 #[derive(Bundle)]
 pub struct Controls {
@@ -105,9 +105,9 @@ fn with_play_hook(
     mut play_events: EventWriter<TrackPlayEvent>,
     coordinator: Res<SceneCoordinator>,
     mut icons: Query<&mut IconId>,
-    mut player: ResMut<TrackPlayer>,
-    current_track: Res<CurrentTrack>,
-    mut events: EventWriter<TrackEvent>,
+    player: ResMut<TrackPlayer>,
+    _current_track: Res<CurrentTrack>,
+    _events: EventWriter<TrackEvent>,
 ) {
     for (listener, mut hook) in button.iter_mut() {
         if listener.active() {
