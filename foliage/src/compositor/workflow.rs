@@ -299,14 +299,15 @@ pub(crate) fn fill_bind_requests<B: Bundle + Clone + 'static>(
                     if let Some(coordinate) =
                         compositor.coordinate(viewport_handle.section(), handle)
                     {
-                        tracing::trace!("bind-request");
                         let entity = cmd
                             .spawn(bundle.clone())
                             .insert(coordinate)
                             .insert(*handle)
                             .id();
+                        tracing::trace!("bind-request: {:?}:{:?}", handle, entity);
                         let old = compositor.bindings.insert(*handle, entity);
                         if let Some(o) = old {
+                            tracing::trace!("despawn-old: {:?}", o);
                             cmd.entity(o).insert(Despawn::signal_despawn());
                         }
                     }
@@ -335,22 +336,25 @@ pub(crate) fn fill_scene_bind_requests<S: Scene>(
                     if let Some(tc) = threshold_change {
                         cmd.entity(entity).remove::<ThresholdChange>();
                         if validity.0.contains(&tc.old) {
+                            tracing::trace!("skipping {:?}:{:?} as it is still valid", *handle, entity);
                             continue;
                         }
                     }
                     if let Some(coordinate) =
                         compositor.coordinate(viewport_handle.section(), handle)
                     {
-                        tracing::trace!("scene-bind-request");
+
                         let (_scene_handle, entity) = coordinator.spawn_scene::<S>(
                             Anchor(coordinate),
                             args,
                             &external_res,
                             &mut cmd,
                         );
+                        tracing::trace!("scene-bind-request: {:?}:{:?}", _scene_handle, entity);
                         cmd.entity(entity).insert(*handle);
                         let old = compositor.bindings.insert(*handle, entity);
                         if let Some(o) = old {
+                            tracing::trace!("despawn-old: {:?}", o);
                             cmd.entity(o).insert(Despawn::signal_despawn());
                         }
                     }

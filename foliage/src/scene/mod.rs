@@ -61,6 +61,7 @@ impl BindingCoordinate {
         }
     }
 }
+#[derive(Debug)]
 pub enum SceneTarget {
     Root,
     Binding(SceneBinding),
@@ -70,6 +71,7 @@ impl<SB: Into<SceneBinding>> From<SB> for SceneTarget {
         SceneTarget::Binding(value.into())
     }
 }
+#[derive(Debug)]
 pub struct SceneAccessChain(pub SceneHandle, pub Vec<SceneBinding>, pub SceneTarget);
 impl SceneAccessChain {
     pub fn binding<SB: Into<SceneBinding>>(mut self, b: SB) -> Self {
@@ -139,6 +141,7 @@ impl SceneCoordinator {
     }
     pub fn binding_entity(&self, scene_access_chain: &SceneAccessChain) -> Entity {
         let (m_root, handle) = self.resolve_handle(scene_access_chain);
+        tracing::trace!("binding-entity: {:?}:{:?}:{:?}", scene_access_chain, m_root, handle);
         return match scene_access_chain.2 {
             SceneTarget::Root => {
                 if let Some(root) = m_root {
@@ -377,6 +380,7 @@ pub(crate) fn despawn_scenes(
         }
     }
     for handle in removes {
+        tracing::trace!("despawn-scene-handle: {:?}", handle);
         for e in coordinator.despawn(handle) {
             if let Ok(mut d) = scenes.p1().get_mut(e) {
                 *d = Despawn::signal_despawn();

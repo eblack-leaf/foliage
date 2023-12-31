@@ -22,7 +22,7 @@ use workflow::{
 pub mod layout;
 pub mod segment;
 pub mod workflow;
-#[derive(Copy, Clone, Hash, Eq, PartialEq, Component)]
+#[derive(Copy, Clone, Hash, Eq, PartialEq, Component, Debug)]
 pub struct SegmentHandle(pub i32);
 #[derive(Resource)]
 pub struct Compositor {
