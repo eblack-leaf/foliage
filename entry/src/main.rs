@@ -3,9 +3,13 @@ fn main() {
     #[cfg(target_family = "wasm")]
     {
         console_error_panic_hook::set_once();
-        subscriber.with_writer(
-            tracing_subscriber_wasm::MakeConsoleWriter::default().map_trace_level_to(tracing::Level::DEBUG)
-        ).without_time().init();
+        subscriber
+            .with_writer(
+                tracing_subscriber_wasm::MakeConsoleWriter::default()
+                    .map_trace_level_to(tracing::Level::DEBUG),
+            )
+            .without_time()
+            .init();
     }
     #[cfg(not(target_family = "wasm"))]
     subscriber.init();

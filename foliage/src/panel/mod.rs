@@ -66,9 +66,9 @@ impl Leaf for Panel {
 
     fn attach(elm: &mut Elm) {
         differential_enable!(elm, Color, PanelStyle);
-        elm.job.main().add_systems((reduce_area
-            .in_set(ExternalSet::Configure)
-            .in_set(SetDescriptor::Area),));
+        elm.job
+            .main()
+            .add_systems((reduce_area.in_set(SetDescriptor::Area),));
     }
 }
 fn reduce_area(

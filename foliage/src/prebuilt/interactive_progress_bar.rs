@@ -62,8 +62,8 @@ impl Leaf for InteractiveProgressBar {
     fn attach(elm: &mut Elm) {
         elm.main().add_systems(((resize, interact)
             .chain()
-            .in_set(ExternalSet::Configure)
-            .in_set(Self::SetDescriptor::Area),));
+            .in_set(Self::SetDescriptor::Area)
+            .before(<ProgressBar as Leaf>::SetDescriptor::Area),));
         scene_bind_enable!(elm, InteractiveProgressBar);
     }
 }

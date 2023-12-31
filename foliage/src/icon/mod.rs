@@ -63,12 +63,8 @@ impl Leaf for Icon {
     fn attach(elm: &mut Elm) {
         differential_enable!(elm, CReprPosition, CReprArea, Color, IconId, MipsLevel);
         elm.job.main().add_systems((
-            scale_change
-                .in_set(ExternalSet::Configure)
-                .in_set(SetDescriptor::Area),
-            id_changed
-                .in_set(ExternalSet::Configure)
-                .in_set(SetDescriptor::Area),
+            scale_change.in_set(SetDescriptor::Area),
+            id_changed.in_set(SetDescriptor::Area),
         ));
     }
 }

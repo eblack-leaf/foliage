@@ -19,9 +19,9 @@ use foliage::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator,
 use foliage::text::font::MonospacedFont;
 use foliage::text::{FontSize, MaxCharacters, Text, TextValue};
 use foliage::texture::factors::Progress;
+use foliage::time::{Time, TimeDelta, TimeMarker};
 use foliage::window::ScaleFactor;
 use foliage::{bevy_ecs, scene_bind_enable, set_descriptor};
-use std::time::{Duration, Instant};
 
 #[derive(Bundle)]
 pub struct TrackProgress {
@@ -30,10 +30,10 @@ pub struct TrackProgress {
 #[derive(Resource, Default)]
 pub struct TrackPlayer {
     pub playing: bool,
-    pub current: Duration,
-    pub last: Option<Instant>,
+    pub current: TimeDelta,
+    pub last: Option<TimeMarker>,
     pub ratio: f32,
-    pub length: Duration,
+    pub length: TimeDelta,
     pub(crate) done: bool,
 }
 set_descriptor!(
@@ -52,16 +52,12 @@ impl Leaf for TrackProgress {
         elm.startup().add_systems((setup,));
         elm.main().add_systems(
             (
-                read_track_event
-                    .in_set(ExternalSet::Configure)
-                    .in_set(TrackProgressSet::Area),
+                read_track_event.in_set(TrackProgressSet::Area),
                 config_track_progress
-                    .in_set(ExternalSet::Configure)
                     .in_set(TrackProgressSet::Area)
                     .before(<ProgressBar as Leaf>::SetDescriptor::Area)
                     .before(<Text as Leaf>::SetDescriptor::Area),
                 config_track_time
-                    .in_set(ExternalSet::Configure)
                     .in_set(TrackProgressSet::Area)
                     .before(<ProgressBar as Leaf>::SetDescriptor::Area)
                     .before(<Text as Leaf>::SetDescriptor::Area),
@@ -135,12 +131,13 @@ fn read_track_event(
     mut progresses: Query<&mut Progress>,
     mut icons: Query<&mut IconId>,
     mut current_track: ResMut<CurrentTrack>,
+    time: Res<Time>,
 ) {
     for event in pause_events.read() {
         if player.done {
             if let Some(track) = current_track.0.as_ref() {
-                player.current = Duration::default();
-                player.last.replace(Instant::now());
+                player.current = TimeDelta::default();
+                player.last.replace(time.mark());
                 player.length = track.length;
                 player.ratio = 0.0;
                 player.done = false;
@@ -166,8 +163,8 @@ fn read_track_event(
     }
     for (handle, area) in scenes.iter_mut() {
         if player.playing && !player.done {
-            let diff = Instant::now() - player.last.unwrap();
-            player.last.replace(Instant::now());
+            let diff = time.mark() - player.last.unwrap();
+            player.last.replace(time.mark());
             player.current += diff;
             if player.current >= player.length {
                 player.playing = false;
@@ -179,7 +176,7 @@ fn read_track_event(
                     *icons.get_mut(entity).unwrap() = IconId::new(BundledIcon::Play);
                 }
             }
-            player.ratio = player.current.as_nanos() as f32 / player.length.as_nanos() as f32;
+            player.ratio = player.current.as_f32() / player.length.as_f32();
             let time_text = coordinator.binding_entity(
                 &handle
                     .access_chain()
@@ -188,8 +185,8 @@ fn read_track_event(
             );
             let t_val = format!(
                 "{:02}:{:02}",
-                (player.current.as_secs_f32() / 60f32).floor(),
-                (player.current.as_secs_f32() % 60f32).floor()
+                (player.current.as_f32() / 60f32).floor(),
+                (player.current.as_f32() % 60f32).floor()
             );
             *text_vals.get_mut(time_text).unwrap() = TextValue::new(t_val);
             let prog_ac = handle
@@ -208,14 +205,14 @@ fn read_track_event(
                 .horizontal = ((area.width * player.ratio).round() - 24f32).near();
         } else {
             // forward last to keep in sync
-            player.last.replace(Instant::now());
+            player.last.replace(time.mark());
             // timer will forward for me as i call .elapsed()
         }
     }
     for event in events.read() {
         current_track.0.replace(event.clone());
-        player.current = Duration::default();
-        player.last.replace(Instant::now());
+        player.current = TimeDelta::default();
+        player.last.replace(time.mark());
         player.length = event.length;
         player.ratio = 0.0;
         player.done = false;
@@ -239,7 +236,7 @@ fn read_track_event(
 }
 #[derive(Event, Clone)]
 pub struct TrackEvent {
-    pub length: Duration,
+    pub length: TimeDelta,
 }
 impl TrackProgressArgs {
     pub fn new<C: Into<Color>>(fill: C, back: C) -> Self {

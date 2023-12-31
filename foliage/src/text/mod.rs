@@ -113,11 +113,8 @@ impl Leaf for Text {
             .container
             .insert_resource(MonospacedFont::new(Self::DEFAULT_OPT_SCALE));
         elm.job.main().add_systems((
-            changes
-                .in_set(ExternalSet::Configure)
-                .in_set(Self::SetDescriptor::Area),
+            changes.in_set(Self::SetDescriptor::Area),
             max_character
-                .in_set(ExternalSet::Configure)
                 .before(changes)
                 .in_set(Self::SetDescriptor::Area),
             clear_removes.after(CoreSet::Differential),

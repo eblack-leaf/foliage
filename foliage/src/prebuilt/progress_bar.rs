@@ -40,9 +40,8 @@ impl Leaf for ProgressBar {
     }
 
     fn attach(elm: &mut Elm) {
-        elm.main().add_systems((resize
-            .in_set(ExternalSet::Configure)
-            .in_set(ProgressBarSets::Area),));
+        elm.main()
+            .add_systems((resize.in_set(ProgressBarSets::Area),));
         scene_bind_enable!(elm, ProgressBar);
     }
 }

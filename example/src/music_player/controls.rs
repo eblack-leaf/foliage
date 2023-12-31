@@ -55,7 +55,6 @@ impl Leaf for Controls {
     fn attach(elm: &mut Elm) {
         elm.main().add_systems((
             resize
-                .in_set(ExternalSet::Configure)
                 .in_set(ControlsSet::Area)
                 .before(<Circle as Leaf>::SetDescriptor::Area)
                 .before(<Icon as Leaf>::SetDescriptor::Area),

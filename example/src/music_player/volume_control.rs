@@ -62,7 +62,6 @@ impl Leaf for VolumeControl {
     fn attach(elm: &mut Elm) {
         elm.main().add_systems(((resize, change_icon)
             .chain()
-            .in_set(ExternalSet::Configure)
             .in_set(Self::SetDescriptor::Area),));
         scene_bind_enable!(elm, VolumeControl);
     }

@@ -113,9 +113,9 @@ impl Leaf for Circle {
             MipsLevel
         );
         use bevy_ecs::prelude::IntoSystemConfigs;
-        elm.job.main().add_systems((mips_adjust
-            .in_set(ExternalSet::Configure)
-            .in_set(SetDescriptor::Area),));
+        elm.job
+            .main()
+            .add_systems((mips_adjust.in_set(SetDescriptor::Area),));
     }
 }
 fn mips_adjust(

@@ -26,7 +26,7 @@ use foliage::compositor::Compositor;
 use foliage::elm::config::ElmConfiguration;
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 use foliage::elm::Elm;
-use std::time::Duration;
+use foliage::time::TimeDelta;
 
 pub struct MusicPlayer {}
 #[allow(unused)]
@@ -95,7 +95,7 @@ fn setup(
     // trigger starting transition
     events.send(WorkflowTransition(WorkflowHandle(0), WorkflowStage(0)));
     track_events.send(TrackEvent {
-        length: Duration::from_secs(18),
+        length: TimeDelta(18.0),
     });
 }
 impl Leaf for MusicPlayer {

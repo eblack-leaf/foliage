@@ -1,7 +1,6 @@
 #![allow(clippy::type_complexity)]
 
 pub use bevy_ecs;
-use wasm_bindgen::JsValue;
 pub use wgpu;
 use winit::event::{Event, MouseButton, StartCause, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopWindowTarget};
@@ -21,7 +20,9 @@ use crate::elm::Elm;
 use crate::ginkgo::Ginkgo;
 use crate::icon::Icon;
 use crate::image::Image;
-use crate::interaction::{Interaction, InteractionEvent, InteractionId, InteractionPhase, MouseAdapter};
+use crate::interaction::{
+    Interaction, InteractionEvent, InteractionId, InteractionPhase, MouseAdapter,
+};
 use crate::panel::Panel;
 use crate::prebuilt::button::Button;
 use crate::prebuilt::circle_button::CircleButton;
@@ -30,6 +31,7 @@ use crate::prebuilt::interactive_progress_bar::InteractiveProgressBar;
 use crate::prebuilt::progress_bar::ProgressBar;
 use crate::rectangle::Rectangle;
 use crate::text::Text;
+use crate::time::Time;
 
 use self::ash::leaflet::RenderLeafletStorage;
 
@@ -54,6 +56,7 @@ pub mod rectangle;
 pub mod scene;
 pub mod text;
 pub mod texture;
+pub mod time;
 pub mod window;
 
 #[cfg(not(target_os = "android"))]
@@ -107,6 +110,7 @@ impl Foliage {
             .with_leaf::<CircleButton>()
             .with_leaf::<Interaction>()
             .with_leaf::<InteractiveProgressBar>()
+            .with_leaf::<Time>()
     }
     pub fn with_android_interface(mut self, android_interface: AndroidInterface) -> Self {
         self.android_interface = android_interface;
@@ -305,7 +309,7 @@ impl Foliage {
                                 ash.record(&ginkgo);
                                 ash.render(&mut ginkgo);
                                 window_handle.value().request_redraw();
-                                tracing::info!("ginkgo:ash:redraw-finished");
+                                tracing::trace!("ginkgo:ash:redraw-finished");
                             }
                         }
                     },
@@ -322,14 +326,14 @@ impl Foliage {
                             &window_desc,
                         ) {
                             elm.attach_viewport_handle(viewport_area);
-                            tracing::info!("elm:attaching-viewport-area");
+                            tracing::trace!("elm:attaching-viewport-area");
                         }
                         if !elm.initialized() {
                             elm.set_scale_factor(window_handle.scale_factor());
                             elm.attach_leafs(self.leaf_queue.take().unwrap());
                             ash.establish(&ginkgo, self.render_queue.take().unwrap());
                             elm.finish_initialization();
-                            tracing::info!("elm:finish-initialization");
+                            tracing::trace!("elm:finish-initialization");
                         }
                         elm.job.resume();
                     }
@@ -337,7 +341,7 @@ impl Foliage {
                         if elm.job.resumed() {
                             elm.job.exec_main();
                             window_handle.value().request_redraw();
-                            tracing::info!("elm:exec-main");
+                            tracing::trace!("elm:exec-main");
                         }
                     }
                     Event::LoopExiting => {

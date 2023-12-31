@@ -48,7 +48,6 @@ impl Leaf for Button {
 
     fn attach(elm: &mut Elm) {
         elm.job.main().add_systems((updates
-            .in_set(ExternalSet::Configure)
             .in_set(SetDescriptors::Button)
             .before(<Text as Leaf>::SetDescriptor::Area)
             .before(<Panel as Leaf>::SetDescriptor::Area)

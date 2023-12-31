@@ -2,7 +2,7 @@ use crate::circle::{Circle, CircleStyle, Diameter};
 use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::InterfaceContext;
-use crate::elm::config::{ElmConfiguration, ExternalSet};
+use crate::elm::config::ElmConfiguration;
 use crate::elm::leaf::{Leaf, Tag};
 use crate::elm::Elm;
 use crate::icon::{Icon, IconId, IconScale};
@@ -26,7 +26,6 @@ impl Leaf for CircleButton {
 
     fn attach(elm: &mut Elm) {
         elm.main().add_systems((resize
-            .in_set(ExternalSet::Configure)
             .in_set(<Button as Leaf>::SetDescriptor::Button)
             .before(<Circle as Leaf>::SetDescriptor::Area)
             .before(<Icon as Leaf>::SetDescriptor::Area),));
