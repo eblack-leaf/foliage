@@ -148,6 +148,7 @@ impl Render for Text {
         _entity: Entity,
         render_packet: RenderPacket,
     ) -> Self::RenderPackage {
+        tracing::trace!("creating text package: {:?}", _entity);
         let font_size = render_packet.get::<FontSize>().unwrap();
         let unique_characters = render_packet.get::<TextValueUniqueCharacters>().unwrap();
         let pos = render_packet.get::<CReprPosition>().unwrap();
@@ -226,7 +227,9 @@ impl Render for Text {
         package: &mut RenderPackage<Self>,
         render_packet: RenderPacket,
     ) {
+        tracing::trace!("preparing text-package: {:?}", _entity);
         if let Some(pos) = render_packet.get::<CReprPosition>() {
+            tracing::trace!("updating-text-pos: {:?}", pos);
             package.package_data.uniform.set_aspect(0, pos.x);
             package.package_data.uniform.set_aspect(1, pos.y);
         }
@@ -234,10 +237,12 @@ impl Render for Text {
             package.package_data.uniform.set_aspect(2, layer.z);
         }
         if package.package_data.uniform.needs_update() {
+            tracing::trace!("updating-text-uniform");
             package.package_data.uniform.update(ginkgo.queue());
         }
         if let Some(removes) = render_packet.get::<GlyphRemoveQueue>() {
             for change in removes.0 {
+                tracing::trace!("removing-text-glyph: {:?}:{:?}", change.0, change.1);
                 package
                     .package_data
                     .atlas
@@ -256,6 +261,7 @@ impl Render for Text {
                 for (_, change) in changes.0.iter() {
                     if let Some(key) = change.key {
                         if !package.package_data.atlas.has_key(&key.0) {
+                            tracing::trace!("incrementing-new-glyph-count");
                             count += 1;
                         }
                     }
@@ -267,6 +273,7 @@ impl Render for Text {
         if font_size_change.is_some() {
             let font_size = font_size_change.unwrap();
             if font_size != package.package_data.font_size {
+                tracing::trace!("font-size-changed: {:?}", font_size);
                 package.package_data.font_size = font_size;
                 let block = AtlasBlock(
                     resources
@@ -279,7 +286,9 @@ impl Render for Text {
             }
         }
         if package.package_data.atlas.would_grow(new_glyph_key_count) || font_size_changed {
+            tracing::trace!("growing atlas");
             for (key, entry) in package.package_data.atlas.entries_mut() {
+                tracing::trace!("rewriting entry: {:?}", key);
                 if font_size_changed {
                     let rasterization = resources.font.0.rasterize_indexed(
                         key.glyph_index,
@@ -296,11 +305,13 @@ impl Render for Text {
                 ginkgo,
                 package.package_data.block,
             ) {
+                tracing::trace!("queuing rewrite for {:?}:{:?}", key, partition);
                 package
                     .package_data
                     .instance_coordinator
                     .queue_write(key, partition);
             }
+            tracing::trace!("rebinding-text-bind-group");
             package.package_data.bind_group =
                 ginkgo
                     .device()
@@ -317,13 +328,16 @@ impl Render for Text {
         if let Some(changes) = glyph_changes {
             for (key, glyph) in changes.0 {
                 if !package.package_data.instance_coordinator.has_key(&key) {
+                    tracing::trace!("adding key: {:?}", key);
                     package.package_data.instance_coordinator.queue_add(key);
                 }
                 if let Some((new, old)) = glyph.key {
                     if let Some(old) = old {
+                        tracing::trace!("removing reference to old: {:?} from new {:?}", old, new);
                         package.package_data.atlas.remove_reference(key, old);
                     }
                     if !package.package_data.atlas.has_key(&new) {
+                        tracing::trace!("rasterizing new: {:?}", new);
                         let rasterization = resources.font.0.rasterize_indexed(
                             new.glyph_index,
                             package.package_data.font_size.px(ginkgo.scale_factor()),
@@ -335,6 +349,7 @@ impl Render for Text {
                             rasterization.1,
                         );
                     }
+                    tracing::trace!("adding reference to new: {:?}", new);
                     package.package_data.atlas.add_reference(key, new);
                     package
                         .package_data
@@ -362,6 +377,7 @@ impl Render for Text {
             }
         }
         if package.package_data.instance_coordinator.prepare(ginkgo) {
+            tracing::trace!("text signal record");
             package.signal_record();
         }
     }
@@ -385,6 +401,7 @@ fn record<'a>(
     mut recorder: RenderInstructionsRecorder<'a>,
 ) -> Option<RenderInstructionHandle> {
     if package.package_data.instance_coordinator.has_instances() {
+        tracing::trace!("record-text w/ instances: {:?}", package.package_data.instance_coordinator.instances());
         recorder.0.set_pipeline(&resources.pipeline);
         recorder.0.set_bind_group(0, &resources.bind_group, &[]);
         recorder

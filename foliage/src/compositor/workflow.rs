@@ -267,6 +267,7 @@ pub(crate) fn resize_segments(
                 *area = coordinate.section.area;
                 *layer = coordinate.layer;
             } else {
+                tracing::trace!("no coordinate for {:?}", handle);
                 cmd.entity(entity).insert(Despawn::signal_despawn());
             }
         }
@@ -342,7 +343,6 @@ pub(crate) fn fill_scene_bind_requests<S: Scene>(
                     if let Some(coordinate) =
                         compositor.coordinate(viewport_handle.section(), handle)
                     {
-
                         let (_scene_handle, entity) = coordinator.spawn_scene::<S>(
                             Anchor(coordinate),
                             args,

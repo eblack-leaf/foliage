@@ -87,8 +87,8 @@ fn config_track_progress(
     mut prog_areas: Query<&mut Area<InterfaceContext>, Without<Tag<TrackProgress>>>,
     player: Res<TrackPlayer>,
 ) {
-    tracing::trace!("updating-track-progress");
     for (handle, area) in scenes.iter() {
+        tracing::trace!("updating-track-progress");
         coordinator.update_anchor_area(*handle, *area);
         let prog_entity = coordinator.binding_entity(
             &handle
@@ -204,7 +204,6 @@ fn read_track_event(
                 .pos
                 .horizontal = ((area.width * player.ratio).round() - 24f32).near();
         } else {
-            tracing::trace!("forwarding-last-marker");
             // forward last to keep in sync
             player.last.replace(time.mark());
             // timer will forward for me as i call .elapsed()
@@ -295,8 +294,8 @@ fn config_track_time(
     font: Res<MonospacedFont>,
     scale_factor: Res<ScaleFactor>,
 ) {
-    tracing::trace!("updating-track-time");
     for (handle, area) in scenes.iter() {
+        tracing::trace!("updating-track-time");
         coordinator.update_anchor_area(*handle, *area);
         coordinator
             .get_alignment_mut(&handle.access_chain().target(TrackTimeBindings::Marker))

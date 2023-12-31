@@ -105,6 +105,7 @@ fn resize(
     mut rectangles: Query<&mut Area<InterfaceContext>, Without<Tag<VolumeControl>>>,
 ) {
     for (handle, area) in scenes.iter() {
+        tracing::trace!("updating-volume-control");
         coordinator.update_anchor_area(*handle, *area);
         let rect = coordinator
             .binding_entity(&handle.access_chain().target(VolumeControlBindings::Slider));

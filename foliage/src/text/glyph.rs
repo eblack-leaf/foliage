@@ -6,7 +6,7 @@ use bevy_ecs::component::Component;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Serialize, Deserialize, Copy, Clone, Hash, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Copy, Clone, Hash, Eq, PartialEq, Debug)]
 pub(crate) struct GlyphKey {
     pub(crate) glyph_index: u16,
     pub(crate) px: u32,

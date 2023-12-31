@@ -71,8 +71,8 @@ fn resize(
     mut rectangle_area: Query<&mut Area<InterfaceContext>, Without<Tag<Controls>>>,
     mut coordinator: ResMut<SceneCoordinator>,
 ) {
-    tracing::trace!("updating-controls");
     for (handle, area) in controls.iter() {
+        tracing::trace!("updating-controls @ {:?}", handle);
         let offset = control_positions(*area);
         coordinator
             .get_alignment_mut(&handle.access_chain().target(ControlBindings::Left))

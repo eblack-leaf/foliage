@@ -15,7 +15,7 @@ impl TextureCoordinates {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Pod, Zeroable, Serialize, Deserialize, Default)]
+#[derive(Copy, Clone, Pod, Zeroable, Serialize, Deserialize, Default, Debug)]
 pub struct TexturePartition(pub [CoordinateUnit; 4]);
 
 impl TexturePartition {

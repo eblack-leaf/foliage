@@ -127,6 +127,7 @@ impl SceneCoordinator {
     ) {
         let anchor = self.anchor(handle);
         for (binding, entity) in self.dependent_bindings.get(&handle).unwrap().iter() {
+            tracing::trace!("getting binding from {:?} for {:?}", binding, entity);
             if self.dependents.get(&handle).unwrap().get(binding).is_none() {
                 let alignment = *self.alignments.get(&handle).unwrap().get(binding).unwrap();
                 let area = *coordinated.get(*entity).unwrap().1;
@@ -165,10 +166,12 @@ impl SceneCoordinator {
     }
     pub fn despawn(&mut self, handle: SceneHandle) -> HashSet<Entity> {
         let mut removes = HashSet::new();
+        tracing::trace!("despawning-scene: {:?}", handle);
         if let Some(e) = self.root_bindings.remove(&handle) {
             removes.insert(e);
         }
         for (root, _binding, dep) in self.dependents(handle) {
+            tracing::trace!("cleaning-up-scene: {:?}:{:?}:{:?}", handle, _binding, dep);
             self.alignments.remove(&root);
             if let Some(deps) = self.dependent_bindings.remove(&root) {
                 for (_k, v) in deps {
@@ -191,6 +194,7 @@ impl SceneCoordinator {
         scene_access_chain: &SceneAccessChain,
     ) -> &mut SceneAlignment {
         let (m_root, handle) = self.resolve_handle(scene_access_chain);
+        tracing::trace!("getting alignment for {:?}:{:?}", m_root, handle);
         self.changed = true;
         return match scene_access_chain.2 {
             SceneTarget::Root => self

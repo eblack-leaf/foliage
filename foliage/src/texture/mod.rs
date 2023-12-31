@@ -197,6 +197,7 @@ impl<
         extent: Area<NumericalContext>,
         data: Vec<TexelData>,
     ) {
+        tracing::trace!("writing atlas $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
         let location = self.hardware.next_location().unwrap();
         self.hardware
             .write_location(key.clone(), ginkgo, location, extent, &data);
@@ -276,6 +277,7 @@ impl<
             self.hardware.format,
         );
         // refill from logical entries
+        tracing::trace!("growing atlas by {:?}", requested);
         Self::inner_rewrite_entry(&self.logical, &mut self.hardware, ginkgo);
         let mut changed = vec![];
         for (key, references) in self.logical.references.iter() {

@@ -172,7 +172,6 @@ pub(crate) fn changes(
     font: Res<MonospacedFont>,
     scale_factor: Res<ScaleFactor>,
 ) {
-    tracing::trace!("updating-text");
     for (
         area,
         font_size,
@@ -186,6 +185,7 @@ pub(crate) fn changes(
         mut placer,
     ) in query.iter_mut()
     {
+        tracing::trace!("updating-text @ {:?}", value.0);
         let scaled = area.to_device(scale_factor.factor());
         placer.0.reset(&fontdue::layout::LayoutSettings {
             max_width: None,
@@ -244,6 +244,7 @@ pub(crate) fn changes(
                         color: *color,
                     }),
                 );
+                tracing::trace!("updating-glyph {:?} using {:?} -------------------------------------------", g.byte_offset, g.parent);
                 change.replace(GlyphChange {
                     key: Some((glyph_key, None)),
                     section: Some(section),
@@ -269,6 +270,7 @@ pub(crate) fn changes(
             }
         }
         for (a, b) in removals {
+            tracing::trace!("removing-glyph {:?} using {:?} ------------------------------------", a, b.glyph_index);
             cache.0.insert(a, CachedGlyph::Filtered);
             removes.0.push((a, b));
         }
@@ -284,7 +286,7 @@ pub(crate) fn clear_changes(mut removed: Query<&mut GlyphChangeQueue, Changed<Gl
         queue.0.clear();
     }
 }
-#[derive(Component, Copy, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Component, Copy, Clone, Default, Serialize, Deserialize, PartialEq, Debug)]
 pub struct FontSize(pub u32);
 impl FontSize {
     pub fn px(&self, scale_factor: CoordinateUnit) -> CoordinateUnit {

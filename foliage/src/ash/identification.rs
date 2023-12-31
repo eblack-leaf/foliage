@@ -13,7 +13,6 @@ pub trait RenderIdentification {
 
 impl<T: Render + 'static> RenderIdentification for T {
     fn render_id() -> RenderId {
-        tracing::trace!("render-id");
         RenderId(compact_string_type_id::<T>())
     }
 }

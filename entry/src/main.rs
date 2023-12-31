@@ -1,4 +1,5 @@
 use tracing::Level;
+use tracing::metadata::LevelFilter;
 use tracing_subscriber::filter::Targets;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -6,8 +7,9 @@ use tracing_subscriber::Layer;
 
 fn main() {
     let targets = Targets::new()
-        .with_target("foliage", Level::TRACE)
-        .with_target("foliage::scene", Level::TRACE)
+        .with_target("foliage::text", Level::TRACE)
+        .with_target("foliage::texture", Level::TRACE)
+        // .with_target("foliage::ash", LevelFilter::OFF)
         .with_target("example", Level::TRACE)
         .with_target("entry", Level::TRACE);
     #[cfg(not(target_family = "wasm"))]
