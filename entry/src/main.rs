@@ -15,7 +15,8 @@ fn main() {
             ),
         )
         .init();
-    #[cfg(target_family = "wasm")] {
+    #[cfg(target_family = "wasm")]
+    {
         console_error_panic_hook::set_once();
         tracing_subscriber::registry()
             .with(

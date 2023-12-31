@@ -53,12 +53,11 @@ impl Leaf for TrackProgress {
         elm.main().add_systems(
             (
                 read_track_event.in_set(TrackProgressSet::Area),
-                config_track_progress
-                    .in_set(TrackProgressSet::Area),
-                config_track_time
-                    .in_set(TrackProgressSet::Area),
+                config_track_progress.in_set(TrackProgressSet::Area),
+                config_track_time.in_set(TrackProgressSet::Area),
             )
-                .chain().before(<ProgressBar as Leaf>::SetDescriptor::Area)
+                .chain()
+                .before(<ProgressBar as Leaf>::SetDescriptor::Area)
                 .before(<Text as Leaf>::SetDescriptor::Area),
         );
         scene_bind_enable!(elm, TrackProgress);
