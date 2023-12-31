@@ -91,6 +91,7 @@ fn workflow_update(
     mut events: EventReader<WorkflowTransition>,
     mut cmd: Commands,
 ) {
+    tracing::trace!("updating-workflow");
     for event in events.read() {
         compositor.engage_transition(&mut cmd, event.0, event.1);
     }
@@ -100,6 +101,7 @@ fn clear_engaged(
     mut compositor: ResMut<Compositor>,
     mut cmd: Commands,
 ) {
+    tracing::trace!("clear-engaged");
     for (mut e, removals) in engaged.iter_mut() {
         e.0 = false;
         if let Some(rem) = removals.0.get(&compositor.layout()) {

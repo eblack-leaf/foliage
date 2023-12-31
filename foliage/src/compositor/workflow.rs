@@ -244,6 +244,7 @@ pub(crate) fn resize_segments(
     mut cmd: Commands,
 ) {
     if viewport_handle.area_updated() {
+        tracing::trace!("resizing-segments");
         let old_layout = compositor.layout();
         compositor.layout = Layout::from_area(viewport_handle.section.area);
         if old_layout != compositor.layout() {
@@ -298,6 +299,7 @@ pub(crate) fn fill_bind_requests<B: Bundle + Clone + 'static>(
                     if let Some(coordinate) =
                         compositor.coordinate(viewport_handle.section(), handle)
                     {
+                        tracing::trace!("bind-request");
                         let entity = cmd
                             .spawn(bundle.clone())
                             .insert(coordinate)
@@ -339,6 +341,7 @@ pub(crate) fn fill_scene_bind_requests<S: Scene>(
                     if let Some(coordinate) =
                         compositor.coordinate(viewport_handle.section(), handle)
                     {
+                        tracing::trace!("scene-bind-request");
                         let (_scene_handle, entity) = coordinator.spawn_scene::<S>(
                             Anchor(coordinate),
                             args,

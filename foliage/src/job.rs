@@ -107,7 +107,7 @@ impl Job {
     }
     pub fn exec_main(&mut self) {
         self.main
-            .set_executor_kind(ExecutorKind::MultiThreaded)
+            .set_executor_kind(ExecutorKind::Simple)
             .run(&mut self.container);
     }
     pub fn exec_startup(&mut self) {

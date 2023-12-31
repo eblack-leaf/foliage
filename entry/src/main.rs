@@ -5,13 +5,15 @@ use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::Layer;
 
 fn main() {
+    let targets = Targets::new()
+        .with_target("foliage::compositor::workflow", Level::TRACE)
+        // .with_target("example", Level::TRACE)
+        .with_target("entry", Level::TRACE);
     #[cfg(not(target_family = "wasm"))]
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::fmt::layer().with_filter(
-                Targets::new()
-                    .with_target("foliage", Level::TRACE)
-                    .with_target("entry", Level::TRACE),
+                targets,
             ),
         )
         .init();
@@ -27,10 +29,7 @@ fn main() {
                     )
                     .without_time()
                     .with_filter(
-                        Targets::new()
-                            .with_target("foliage", Level::TRACE)
-                            .with_target("example", Level::TRACE)
-                            .with_target("entry", Level::TRACE),
+                        targets
                     ),
             )
             .init();
