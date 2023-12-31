@@ -393,6 +393,7 @@ pub(crate) fn place_scenes(
     )>,
 ) {
     if coordinator.is_changed() && coordinator.changed {
+        tracing::trace!("placing-scenes");
         for root in coordinator
             .root_bindings
             .keys()
