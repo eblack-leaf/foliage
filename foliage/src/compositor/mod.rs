@@ -1,6 +1,6 @@
 use crate::compositor::layout::Layout;
 use crate::compositor::segment::ResponsiveSegment;
-use crate::compositor::workflow::{resize_segments, WorkflowStage};
+use crate::compositor::workflow::{resize_segments, ThresholdChange, WorkflowStage};
 use crate::coordinate::area::Area;
 use crate::coordinate::section::Section;
 use crate::coordinate::{Coordinate, InterfaceContext};
@@ -97,21 +97,25 @@ fn workflow_update(
     }
 }
 fn clear_engaged(
-    mut engaged: Query<(&mut TransitionEngaged, &TransitionRemovals), Changed<TransitionEngaged>>,
+    mut engaged: Query<(Entity, &mut TransitionEngaged, &TransitionRemovals), Changed<TransitionEngaged>>,
     mut compositor: ResMut<Compositor>,
     mut cmd: Commands,
 ) {
     tracing::trace!("clear-engaged");
-    for (mut e, removals) in engaged.iter_mut() {
-        e.0 = false;
-        if let Some(rem) = removals.0.get(&compositor.layout()) {
-            for r in rem.iter() {
-                let old = compositor.bindings.remove(r);
-                if let Some(o) = old {
-                    cmd.entity(o).insert(Despawn::signal_despawn());
+    for (entity, mut transition_engaged, removals) in engaged.iter_mut() {
+        if transition_engaged.0 {
+            transition_engaged.0 = false;
+            cmd.entity(entity).remove::<ThresholdChange>();
+            if let Some(rem) = removals.0.get(&compositor.layout()) {
+                for r in rem.iter() {
+                    let old = compositor.bindings.remove(r);
+                    if let Some(o) = old {
+                        cmd.entity(o).insert(Despawn::signal_despawn());
+                    }
                 }
             }
         }
+
     }
 }
 impl Leaf for Compositor {

@@ -291,7 +291,6 @@ pub(crate) fn fill_bind_requests<B: Bundle + Clone + 'static>(
             for (handle, validity, bundle) in request.0.iter() {
                 if validity.0.contains(&compositor.layout()) {
                     if let Some(tc) = threshold_change.as_ref() {
-                        cmd.entity(entity).remove::<ThresholdChange>();
                         if validity.0.contains(&tc.old) {
                             continue;
                         }
@@ -334,7 +333,7 @@ pub(crate) fn fill_scene_bind_requests<S: Scene>(
             for (handle, validity, args) in request.0.iter() {
                 if validity.0.contains(&compositor.layout()) {
                     if let Some(tc) = threshold_change {
-                        cmd.entity(entity).remove::<ThresholdChange>();
+                        tracing::trace!("threshold-change: {:?}", tc);
                         if validity.0.contains(&tc.old) {
                             tracing::trace!("skipping {:?}:{:?} as it is still valid", *handle, entity);
                             continue;
@@ -363,7 +362,7 @@ pub(crate) fn fill_scene_bind_requests<S: Scene>(
         }
     }
 }
-#[derive(Component, Copy, Clone)]
+#[derive(Component, Copy, Clone, Debug)]
 pub(crate) struct ThresholdChange {
     pub(crate) old: Layout,
 }
