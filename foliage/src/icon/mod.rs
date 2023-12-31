@@ -87,6 +87,7 @@ fn scale_change(
     >,
     _scale_factor: Res<ScaleFactor>,
 ) {
+    tracing::trace!("updating-icons");
     for (scale, mut pos, mut area, mut mips) in query.iter_mut() {
         let initial_px = scale.px();
         area.width = initial_px;

@@ -1,4 +1,5 @@
-mod timer;
+#[allow(unused)]
+pub mod timer;
 
 use crate::elm::config::{CoreSet, ElmConfiguration};
 use crate::elm::leaf::{EmptySetDescriptor, Leaf};

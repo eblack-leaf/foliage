@@ -28,6 +28,7 @@ fn resize(
     >,
     mut coordinator: ResMut<SceneCoordinator>,
 ) {
+    tracing::trace!("updating-circle-progress-bars");
     for (handle, area) in scene.iter() {
         coordinator.update_anchor_area(*handle, *area);
         let back =

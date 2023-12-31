@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 foliage = {path = "../foliage" }
+tracing = "0.1.40"

@@ -87,6 +87,7 @@ fn updates(
     mut panel_styles: Query<(&mut PanelStyle, &mut Area<InterfaceContext>), Without<Tag<Button>>>,
     mut coordinator: ResMut<SceneCoordinator>,
 ) {
+    tracing::trace!("updating-buttons");
     for (handle, button_area, max_char, foreground_color, background_color, state) in query.iter() {
         let (fs, text_offset, _text_area, icon_scale, padding) =
             button_metrics(*button_area, *max_char, &font, &scale_factor);

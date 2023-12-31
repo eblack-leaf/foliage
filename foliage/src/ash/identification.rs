@@ -4,7 +4,7 @@ use bevy_ecs::component::Component;
 use compact_str::CompactString;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Eq, PartialEq, Hash, Component)]
+#[derive(Serialize, Deserialize, Clone, Eq, PartialEq, Hash, Component, Debug)]
 pub struct RenderId(pub CompactString);
 
 pub trait RenderIdentification {
@@ -13,6 +13,7 @@ pub trait RenderIdentification {
 
 impl<T: Render + 'static> RenderIdentification for T {
     fn render_id() -> RenderId {
+        tracing::trace!("render-id");
         RenderId(compact_string_type_id::<T>())
     }
 }

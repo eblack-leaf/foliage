@@ -56,6 +56,7 @@ fn resize(
     mut rectangles: Query<(&mut Area<InterfaceContext>, &mut Progress), Without<Tag<ProgressBar>>>,
     mut coordinator: ResMut<SceneCoordinator>,
 ) {
+    tracing::trace!("updating-progress-bars");
     for (handle, area, progress) in scenes.iter() {
         coordinator.update_anchor_area(*handle, *area);
         let back =

@@ -71,6 +71,7 @@ fn resize(
     mut rectangle_area: Query<&mut Area<InterfaceContext>, Without<Tag<Controls>>>,
     mut coordinator: ResMut<SceneCoordinator>,
 ) {
+    tracing::trace!("updating-controls");
     for (handle, area) in controls.iter() {
         let offset = control_positions(*area);
         coordinator
@@ -109,6 +110,7 @@ fn with_play_hook(
 ) {
     for (listener, mut hook) in button.iter_mut() {
         if listener.active() {
+            tracing::trace!("updating-play-hook");
             if player.done {
                 *hook = PlayHook::Paused;
             }
@@ -152,7 +154,7 @@ impl Scene for Controls {
             (24.near(), 0.center(), 0),
             Rectangle::new(
                 (offset - 48f32, 3f32).into(),
-                Color::GREY_MEDIUM.into(),
+                Color::GREY_DARK.into(),
                 Progress::full(),
             ),
             cmd,
@@ -194,7 +196,7 @@ impl Scene for Controls {
             (24.far(), 0.center(), 0),
             Rectangle::new(
                 (offset - 48f32, 3f32).into(),
-                Color::GREY_MEDIUM.into(),
+                Color::GREY_DARK.into(),
                 Progress::full(),
             ),
             cmd,

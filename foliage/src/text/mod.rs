@@ -172,6 +172,7 @@ pub(crate) fn changes(
     font: Res<MonospacedFont>,
     scale_factor: Res<ScaleFactor>,
 ) {
+    tracing::trace!("updating-text");
     for (
         area,
         font_size,

@@ -41,6 +41,7 @@ fn resize(
     mut icons: Query<&mut IconScale>,
     mut circles: Query<&mut Diameter>,
 ) {
+    tracing::trace!("updating-circle-buttons");
     for (handle, area) in scenes.iter() {
         coordinator.update_anchor_area(*handle, *area);
         let circle =

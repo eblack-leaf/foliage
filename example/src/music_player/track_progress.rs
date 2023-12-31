@@ -54,15 +54,12 @@ impl Leaf for TrackProgress {
             (
                 read_track_event.in_set(TrackProgressSet::Area),
                 config_track_progress
-                    .in_set(TrackProgressSet::Area)
-                    .before(<ProgressBar as Leaf>::SetDescriptor::Area)
-                    .before(<Text as Leaf>::SetDescriptor::Area),
+                    .in_set(TrackProgressSet::Area),
                 config_track_time
-                    .in_set(TrackProgressSet::Area)
-                    .before(<ProgressBar as Leaf>::SetDescriptor::Area)
-                    .before(<Text as Leaf>::SetDescriptor::Area),
+                    .in_set(TrackProgressSet::Area),
             )
-                .chain(),
+                .chain().before(<ProgressBar as Leaf>::SetDescriptor::Area)
+                .before(<Text as Leaf>::SetDescriptor::Area),
         );
         scene_bind_enable!(elm, TrackProgress);
         elm.add_event::<TrackEvent>(EventStage::Process);
@@ -91,6 +88,7 @@ fn config_track_progress(
     mut prog_areas: Query<&mut Area<InterfaceContext>, Without<Tag<TrackProgress>>>,
     player: Res<TrackPlayer>,
 ) {
+    tracing::trace!("updating-track-progress");
     for (handle, area) in scenes.iter() {
         coordinator.update_anchor_area(*handle, *area);
         let prog_entity = coordinator.binding_entity(
@@ -134,6 +132,7 @@ fn read_track_event(
     time: Res<Time>,
 ) {
     for event in pause_events.read() {
+        tracing::trace!("read-pause-event");
         if player.done {
             if let Some(track) = current_track.0.as_ref() {
                 player.current = TimeDelta::default();
@@ -163,10 +162,11 @@ fn read_track_event(
     }
     for (handle, area) in scenes.iter_mut() {
         if player.playing && !player.done {
-            let diff = time.mark() - player.last.unwrap();
+            let diff = time.frame_diff();
             player.last.replace(time.mark());
             player.current += diff;
             if player.current >= player.length {
+                tracing::trace!("player-done");
                 player.playing = false;
                 player.current = player.length;
                 player.done = true;
@@ -188,6 +188,7 @@ fn read_track_event(
                 (player.current.as_f32() / 60f32).floor(),
                 (player.current.as_f32() % 60f32).floor()
             );
+            tracing::trace!("updating time-text: {}", t_val);
             *text_vals.get_mut(time_text).unwrap() = TextValue::new(t_val);
             let prog_ac = handle
                 .access_chain()
@@ -204,12 +205,14 @@ fn read_track_event(
                 .pos
                 .horizontal = ((area.width * player.ratio).round() - 24f32).near();
         } else {
+            tracing::trace!("forwarding-last-marker");
             // forward last to keep in sync
             player.last.replace(time.mark());
             // timer will forward for me as i call .elapsed()
         }
     }
     for event in events.read() {
+        tracing::trace!("read-track-event");
         current_track.0.replace(event.clone());
         player.current = TimeDelta::default();
         player.last.replace(time.mark());
@@ -293,6 +296,7 @@ fn config_track_time(
     font: Res<MonospacedFont>,
     scale_factor: Res<ScaleFactor>,
 ) {
+    tracing::trace!("updating-track-time");
     for (handle, area) in scenes.iter() {
         coordinator.update_anchor_area(*handle, *area);
         coordinator

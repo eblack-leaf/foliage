@@ -133,6 +133,7 @@ fn mips_adjust(
     >,
     scale_factor: Res<ScaleFactor>,
 ) {
+    tracing::trace!("updating-circles");
     for (diameter, mut mips, mut pos, mut area) in query.iter_mut() {
         *area = diameter.area();
         let section = Section::new(*pos, *area);

@@ -8,6 +8,7 @@ pub struct RenderInstructionsRecorder<'a>(pub wgpu::RenderBundleEncoder<'a>);
 
 impl<'a> RenderInstructionsRecorder<'a> {
     pub(crate) fn new(ginkgo: &'a Ginkgo) -> Self {
+        tracing::trace!("acquiring-render-instruction-recorder");
         Self(
             ginkgo
                 .device
@@ -23,6 +24,7 @@ impl<'a> RenderInstructionsRecorder<'a> {
         )
     }
     pub fn finish(self) -> RenderInstructionHandle {
+        tracing::trace!("finishing-render-instruction-recorder");
         RenderInstructionHandle(Rc::new(self.0.finish(&wgpu::RenderBundleDescriptor {
             label: Some("render-bundle-desc"),
         })))
@@ -44,10 +46,12 @@ pub(crate) struct InstructionGroups {
 
 impl InstructionGroups {
     pub(crate) fn obtain(&mut self, id: &RenderId) -> &mut RenderInstructionGroup {
+        tracing::trace!("obtaining-render-instruction-group");
         let index = self.index_of(id);
         &mut self.instruction_groups.get_mut(index).unwrap().2
     }
     pub(crate) fn index_of(&mut self, id: &RenderId) -> usize {
+        tracing::trace!("getting-index-of-render-instruction-group");
         let mut index = 0;
         for (r_id, _, _) in self.instruction_groups.iter() {
             if r_id == id {
@@ -58,6 +62,7 @@ impl InstructionGroups {
         index
     }
     pub(crate) fn instructions(&mut self) -> &Vec<RenderInstructionHandle> {
+        tracing::trace!("getting-render-instructions");
         if self.updated {
             self.instructions.clear();
             for group in self.instruction_groups.iter() {
@@ -69,6 +74,7 @@ impl InstructionGroups {
     }
 
     pub(crate) fn establish(&mut self, id: RenderId, phase: RenderPhase) {
+        tracing::trace!("establishing-instruction-groups");
         self.instruction_groups
             .push((id, phase, RenderInstructionGroup::default()));
     }

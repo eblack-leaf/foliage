@@ -77,6 +77,7 @@ fn reduce_area(
         (Changed<Area<InterfaceContext>>, With<PanelStyle>),
     >,
 ) {
+    tracing::trace!("updating-panels");
     for mut area in query.iter_mut() {
         area.width = (area.width - Panel::BASE_CORNER_DEPTH * 2f32).max(0f32);
         area.height = (area.height - Panel::BASE_CORNER_DEPTH * 2f32).max(0f32);
