@@ -8,7 +8,7 @@ fn main() {
     let targets = Targets::new()
         .with_target("foliage", Level::TRACE)
         .with_target("foliage::scene", Level::TRACE)
-        // .with_target("example", Level::TRACE)
+        .with_target("example", Level::TRACE)
         .with_target("entry", Level::TRACE);
     #[cfg(not(target_family = "wasm"))]
     tracing_subscriber::registry()
