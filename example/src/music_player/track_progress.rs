@@ -165,6 +165,7 @@ fn read_track_event(
                 tracing::trace!("player-done");
                 player.playing = false;
                 player.current = player.length;
+                // player.current = TimeDelta::default();
                 player.done = true;
                 for h in control.iter() {
                     let entity =

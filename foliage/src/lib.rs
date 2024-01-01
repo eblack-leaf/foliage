@@ -184,11 +184,6 @@ impl Foliage {
         let _ = (event_loop_function)(
             event_loop,
             move |event, event_loop_window_target: &EventLoopWindowTarget<()>| {
-                if elm.job.can_idle() {
-                    event_loop_window_target.set_control_flow(ControlFlow::Wait);
-                } else {
-                    event_loop_window_target.set_control_flow(ControlFlow::Poll);
-                }
                 match event {
                     Event::NewEvents(cause) => match cause {
                         StartCause::ResumeTimeReached { .. } => {}
@@ -342,6 +337,13 @@ impl Foliage {
                             elm.job.exec_main();
                             window_handle.value().request_redraw();
                             tracing::trace!("elm:exec-main");
+                        }
+                        if elm.job.can_idle() {
+                            tracing::trace!("job-waiting");
+                            event_loop_window_target.set_control_flow(ControlFlow::Wait);
+                        } else {
+                            tracing::trace!("job-polling");
+                            event_loop_window_target.set_control_flow(ControlFlow::Poll);
                         }
                     }
                     Event::LoopExiting => {
