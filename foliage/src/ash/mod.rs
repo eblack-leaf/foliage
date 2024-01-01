@@ -50,7 +50,7 @@ impl Ash {
     pub(crate) fn prepare(&mut self, ginkgo: &Ginkgo) {
         tracing::trace!("prepare");
         for (id, leaf) in self.render_leaflets.iter() {
-            tracing::trace!("preparing {:?}", id);
+            // tracing::trace!("preparing");
             (leaf.prepare_packages_fn)(
                 &mut self.renderer_handler,
                 ginkgo,
@@ -64,7 +64,7 @@ impl Ash {
         for (id, leaf) in self.render_leaflets.iter() {
             let instructions_changed = (leaf.record_fn)(&mut self.renderer_handler, ginkgo);
             if instructions_changed {
-                tracing::trace!("instructions-changed: {:?}", id);
+                // tracing::trace!("instructions-changed");
                 let instructions = (leaf.instruction_fetch_fn)(&mut self.renderer_handler);
                 self.instruction_groups.obtain(id).0 = instructions.0.clone();
                 self.instruction_groups.updated = true;

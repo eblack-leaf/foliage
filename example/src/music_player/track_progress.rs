@@ -173,7 +173,7 @@ fn read_track_event(
                     *icons.get_mut(entity).unwrap() = IconId::new(BundledIcon::Play);
                 }
             }
-            player.ratio = player.current.as_f32() / player.length.as_f32();
+            player.ratio = player.current.as_millis() as f32 / player.length.as_millis() as f32;
             let time_text = coordinator.binding_entity(
                 &handle
                     .access_chain()
@@ -182,8 +182,8 @@ fn read_track_event(
             );
             let t_val = format!(
                 "{:02}:{:02}",
-                (player.current.as_f32() / 60f32).floor(),
-                (player.current.as_f32() % 60f32).floor()
+                (player.current.as_secs() as f32 / 60f32).floor(),
+                (player.current.as_secs() as f32 % 60f32).floor()
             );
             tracing::trace!("updating time-text: {}", t_val);
             *text_vals.get_mut(time_text).unwrap() = TextValue::new(t_val);

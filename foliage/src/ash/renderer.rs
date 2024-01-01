@@ -1,3 +1,4 @@
+use crate::ash::identification::RenderIdentification;
 use anymap::AnyMap;
 use bevy_ecs::entity::Entity;
 use std::cmp::Ordering;
@@ -11,7 +12,7 @@ use crate::ash::render_packet::RenderPacketQueue;
 use crate::coordinate::layer::Layer;
 use crate::ginkgo::Ginkgo;
 
-pub(crate) struct Renderer<T: Render> {
+pub(crate) struct Renderer<T: Render + 'static> {
     resources: T::Resources,
     packages: RenderPackageStorage<T>,
     pub(crate) instructions: RenderInstructionGroup,
@@ -20,7 +21,7 @@ pub(crate) struct Renderer<T: Render> {
     updated: bool,
 }
 
-impl<T: Render> Renderer<T> {
+impl<T: Render + 'static> Renderer<T> {
     pub(crate) fn new(ginkgo: &Ginkgo) -> Self {
         Self {
             resources: T::create_resources(ginkgo),
@@ -47,6 +48,8 @@ impl<T: Render> Renderer<T> {
         mut queue: RenderPacketQueue,
         updated_hook: &mut bool,
     ) {
+        let id = <T as RenderIdentification>::render_id();
+        tracing::trace!("preparing-renderer:{:?}", id);
         for entity in queue.retrieve_removals() {
             if let Some(index) = packages.index(entity) {
                 let old = packages.0.remove(index);
@@ -62,6 +65,7 @@ impl<T: Render> Renderer<T> {
                     should_sort = true;
                     *updated_hook = true;
                 }
+                tracing::trace!("preparing-package-for:{:?}", *entity);
                 T::prepare_package(ginkgo, resources, *entity, package, render_packet);
                 *updated_hook = true;
             }

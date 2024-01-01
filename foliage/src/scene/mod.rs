@@ -127,7 +127,7 @@ impl SceneCoordinator {
     ) {
         let anchor = self.anchor(handle);
         for (binding, entity) in self.dependent_bindings.get(&handle).unwrap().iter() {
-            tracing::trace!("getting binding from {:?} for {:?}", binding, entity);
+            // tracing::trace!("getting binding from {:?} for {:?}", binding, entity);
             if self.dependents.get(&handle).unwrap().get(binding).is_none() {
                 let alignment = *self.alignments.get(&handle).unwrap().get(binding).unwrap();
                 let area = *coordinated.get(*entity).unwrap().1;
@@ -142,12 +142,12 @@ impl SceneCoordinator {
     }
     pub fn binding_entity(&self, scene_access_chain: &SceneAccessChain) -> Entity {
         let (m_root, handle) = self.resolve_handle(scene_access_chain);
-        tracing::trace!(
-            "binding-entity: {:?}:{:?}:{:?}",
-            scene_access_chain,
-            m_root,
-            handle
-        );
+        // tracing::trace!(
+        //     "binding-entity: {:?}:{:?}:{:?}",
+        //     scene_access_chain,
+        //     m_root,
+        //     handle
+        // );
         return match scene_access_chain.2 {
             SceneTarget::Root => {
                 if let Some(root) = m_root {
@@ -199,7 +199,7 @@ impl SceneCoordinator {
         scene_access_chain: &SceneAccessChain,
     ) -> &mut SceneAlignment {
         let (m_root, handle) = self.resolve_handle(scene_access_chain);
-        tracing::trace!("getting alignment for {:?}:{:?}", m_root, handle);
+        // tracing::trace!("getting alignment for {:?}:{:?}", m_root, handle);
         self.changed = true;
         return match scene_access_chain.2 {
             SceneTarget::Root => self

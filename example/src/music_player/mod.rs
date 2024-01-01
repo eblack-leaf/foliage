@@ -95,7 +95,7 @@ fn setup(
     // trigger starting transition
     events.send(WorkflowTransition(WorkflowHandle(0), WorkflowStage(0)));
     track_events.send(TrackEvent {
-        length: TimeDelta(6.0),
+        length: TimeDelta::from_secs(6),
     });
 }
 impl Leaf for MusicPlayer {

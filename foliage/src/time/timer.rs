@@ -26,13 +26,13 @@ impl Timer {
         self.last_mark.replace(mark.into());
     }
     pub fn percent_elapsed<TD: Into<TimeDelta>>(&self, delta: TD) -> f32 {
-        (delta.into() / self.interval).as_f32()
+        delta.into().as_millis() as f32 / self.interval.as_millis() as f32
     }
     pub fn time_elapsed(&self) -> Option<TimeDelta> {
         if let Some(start) = self.start {
             if let Some(last_mark) = self.last_mark {
                 let diff = last_mark - start;
-                if diff.0.is_sign_positive() {
+                if !diff.is_zero() {
                     return Option::from(diff);
                 }
             }
@@ -63,10 +63,8 @@ impl Timer {
         };
     }
     pub fn start<TM: Into<TimeMarker>>(&mut self, now: TM) {
-        self.start.replace(
-            now.into()
-                .offset(self.start_offset.take().unwrap_or_default()),
-        );
+        self.start
+            .replace(now.into() + self.start_offset.take().unwrap_or_default());
     }
     pub fn start_with_offset<TM: Into<TimeMarker>>(&mut self, now: TM, offset: Option<TimeDelta>) {
         self.set_offset(offset);

@@ -24,5 +24,6 @@ image = { version = "0.24.6" , features = ["png", "jpeg"]}
 fontdue = "0.8.0"
 indexmap = "2.1.0"
 tracing = "0.1.40"
+web-time = "0.2.4"
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 pollster = "0.3.0"
