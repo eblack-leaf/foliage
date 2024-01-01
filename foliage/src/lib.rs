@@ -181,6 +181,7 @@ impl Foliage {
         }
         let mut elm = Elm::new();
         let mut ash = Ash::new();
+        let mut drawn = true;
         let _ = (event_loop_function)(
             event_loop,
             move |event, event_loop_window_target: &EventLoopWindowTarget<()>| {
@@ -305,7 +306,7 @@ impl Foliage {
                         WindowEvent::ThemeChanged(_) => {}
                         WindowEvent::Occluded(_) => {}
                         WindowEvent::RedrawRequested => {
-                            if elm.job.resumed() {
+                            if elm.job.resumed() && !drawn {
                                 ginkgo.adjust_viewport_pos(elm.viewport_handle_changes());
                                 ash.extract(elm.render_packet_package());
                                 ash.prepare(&ginkgo);
@@ -313,6 +314,7 @@ impl Foliage {
                                 ash.render(&mut ginkgo);
                                 window_handle.value().request_redraw();
                                 tracing::trace!("ginkgo:ash:redraw-finished");
+                                drawn = true;
                             }
                         }
                     },
@@ -341,10 +343,11 @@ impl Foliage {
                         elm.job.resume();
                     }
                     Event::AboutToWait => {
-                        if elm.job.resumed() {
+                        if elm.job.resumed() && drawn {
                             elm.job.exec_main();
                             window_handle.value().request_redraw();
                             tracing::trace!("elm:exec-main");
+                            drawn = false;
                         }
                     }
                     Event::LoopExiting => {
