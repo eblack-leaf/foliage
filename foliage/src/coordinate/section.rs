@@ -4,7 +4,7 @@ use crate::coordinate::{CoordinateContext, CoordinateUnit, DeviceContext, Interf
 use bevy_ecs::bundle::Bundle;
 use serde::{Deserialize, Serialize};
 
-#[derive(Bundle, Copy, Clone, PartialOrd, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Bundle, Copy, Clone, PartialOrd, PartialEq, Default, Serialize, Deserialize, Debug)]
 pub struct Section<Context: CoordinateContext> {
     pub position: Position<Context>,
     pub area: Area<Context>,

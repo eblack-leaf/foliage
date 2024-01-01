@@ -3,7 +3,7 @@ use crate::coordinate::position::Position;
 use crate::coordinate::CoordinateContext;
 use bevy_ecs::prelude::Bundle;
 use serde::{Deserialize, Serialize};
-#[derive(Bundle, Copy, Clone, Default, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[derive(Bundle, Copy, Clone, Default, Serialize, Deserialize, PartialEq, PartialOrd, Debug)]
 pub struct Location<Context: CoordinateContext> {
     pub position: Position<Context>,
     pub layer: Layer,

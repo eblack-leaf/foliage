@@ -1,4 +1,5 @@
 use std::any::TypeId;
+use std::fmt::Debug;
 
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Bundle, Commands, Component, Or, Query};
@@ -129,12 +130,13 @@ pub(crate) fn differential<
         + for<'a> Deserialize<'a>,
 >(
     mut query: Query<
-        (&T, &mut Differential<T>, &mut RenderPacketStore),
+        (Entity, &T, &mut Differential<T>, &mut RenderPacketStore),
         Or<(Changed<T>, Changed<Differential<T>>)>,
     >,
 ) {
-    for (t, mut diff, mut render_packet_store) in query.iter_mut() {
+    for (entity, t, mut diff, mut render_packet_store) in query.iter_mut() {
         if diff.updated(t) {
+            tracing::trace!("differential-updated: {:?}", entity);
             render_packet_store.put(diff.differential().take().unwrap());
         }
     }
@@ -188,8 +190,10 @@ pub(crate) fn send_render_packet(
 ) {
     for (entity, mut packet, id, disable, despawn) in query.iter_mut() {
         if disable.is_disabled() || despawn.should_despawn() {
+            tracing::trace!("removing render-packet: {:?}", entity);
             render_packet_forwarder.remove(id, entity);
         } else {
+            tracing::trace!("forwarding render-packet: {:?}", entity);
             render_packet_forwarder.forward_packet(id, entity, packet.retrieve());
         }
     }

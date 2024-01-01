@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use std::ops::{Add, AddAssign, Div, Sub};
 
-#[derive(Serialize, Deserialize, Copy, Clone, Component, PartialOrd, PartialEq, Default)]
+#[derive(Serialize, Deserialize, Copy, Clone, Component, PartialOrd, PartialEq, Default, Debug)]
 pub struct Position<Context: CoordinateContext> {
     pub x: CoordinateUnit,
     pub y: CoordinateUnit,

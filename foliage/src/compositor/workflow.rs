@@ -336,7 +336,11 @@ pub(crate) fn fill_scene_bind_requests<S: Scene>(
                     if let Some(tc) = threshold_change {
                         tracing::trace!("threshold-change: {:?}", tc);
                         if validity.0.contains(&tc.old) {
-                            tracing::trace!("skipping {:?}:{:?} as it is still valid", *handle, entity);
+                            tracing::trace!(
+                                "skipping {:?}:{:?} as it is still valid",
+                                *handle,
+                                entity
+                            );
                             continue;
                         }
                     }

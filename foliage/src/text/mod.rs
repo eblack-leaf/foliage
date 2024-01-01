@@ -213,13 +213,15 @@ pub(crate) fn changes(
             let glyph_key = GlyphKey::new(g.key);
             let mut total_update = false;
             let filtered = g.x + g.width as f32 > scaled.width;
+            let mut key_change = Some((glyph_key, None));
             if let Some(cached) = cache.0.get_mut(&g.byte_offset) {
                 match cached {
                     CachedGlyph::Present(glyph) => {
                         if filtered {
-                            removes.0.push((g.byte_offset, glyph_key));
+                            removes.0.push((g.byte_offset, glyph.key));
                             *cached = CachedGlyph::Filtered;
                         } else if glyph.key != glyph_key {
+                            key_change.as_mut().unwrap().1.replace(glyph.key);
                             total_update = true;
                         } else {
                             // color change
@@ -244,9 +246,13 @@ pub(crate) fn changes(
                         color: *color,
                     }),
                 );
-                tracing::trace!("updating-glyph {:?} using {:?} -------------------------------------------", g.byte_offset, g.parent);
+                tracing::trace!(
+                    "updating-glyph {:?} using {:?} -------------------------------------------",
+                    g.byte_offset,
+                    g.parent
+                );
                 change.replace(GlyphChange {
-                    key: Some((glyph_key, None)),
+                    key: key_change,
                     section: Some(section),
                     color: Some(*color),
                 });
@@ -270,7 +276,11 @@ pub(crate) fn changes(
             }
         }
         for (a, b) in removals {
-            tracing::trace!("removing-glyph {:?} using {:?} ------------------------------------", a, b.glyph_index);
+            tracing::trace!(
+                "removing-glyph {:?} using {:?} ------------------------------------",
+                a,
+                b.glyph_index
+            );
             cache.0.insert(a, CachedGlyph::Filtered);
             removes.0.push((a, b));
         }
@@ -278,11 +288,13 @@ pub(crate) fn changes(
 }
 pub(crate) fn clear_removes(mut removed: Query<&mut GlyphRemoveQueue, Changed<GlyphRemoveQueue>>) {
     for mut queue in removed.iter_mut() {
+        tracing::trace!("clearing removed:{:?}", queue.0);
         queue.0.clear();
     }
 }
 pub(crate) fn clear_changes(mut removed: Query<&mut GlyphChangeQueue, Changed<GlyphChangeQueue>>) {
     for mut queue in removed.iter_mut() {
+        tracing::trace!("clearing changes:{:?}", queue.0);
         queue.0.clear();
     }
 }

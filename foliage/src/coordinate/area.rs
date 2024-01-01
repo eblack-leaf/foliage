@@ -9,7 +9,7 @@ use crate::coordinate::{
     CoordinateContext, CoordinateUnit, DeviceContext, InterfaceContext, NumericalContext,
 };
 
-#[derive(Serialize, Deserialize, Copy, Clone, Component, PartialOrd, PartialEq, Default)]
+#[derive(Serialize, Deserialize, Copy, Clone, Component, PartialOrd, PartialEq, Default, Debug)]
 pub struct Area<Context: CoordinateContext> {
     pub width: CoordinateUnit,
     pub height: CoordinateUnit,

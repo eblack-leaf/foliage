@@ -97,7 +97,10 @@ fn workflow_update(
     }
 }
 fn clear_engaged(
-    mut engaged: Query<(Entity, &mut TransitionEngaged, &TransitionRemovals), Changed<TransitionEngaged>>,
+    mut engaged: Query<
+        (Entity, &mut TransitionEngaged, &TransitionRemovals),
+        Changed<TransitionEngaged>,
+    >,
     mut compositor: ResMut<Compositor>,
     mut cmd: Commands,
 ) {
@@ -115,7 +118,6 @@ fn clear_engaged(
                 }
             }
         }
-
     }
 }
 impl Leaf for Compositor {

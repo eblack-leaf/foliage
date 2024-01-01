@@ -63,8 +63,8 @@ impl Leaf for VolumeControl {
         elm.main().add_systems(((resize, change_icon)
             .chain()
             .in_set(Self::SetDescriptor::Area)
-                                    .before(<InteractiveProgressBar as Leaf>::SetDescriptor::Area)
-                                    .before(<Icon as Leaf>::SetDescriptor::Area),));
+            .before(<InteractiveProgressBar as Leaf>::SetDescriptor::Area)
+            .before(<Icon as Leaf>::SetDescriptor::Area),));
         scene_bind_enable!(elm, VolumeControl);
     }
 }

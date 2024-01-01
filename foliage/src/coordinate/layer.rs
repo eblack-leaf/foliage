@@ -9,7 +9,17 @@ use serde::{Deserialize, Serialize};
 /// rendering.
 #[repr(C)]
 #[derive(
-    Component, Copy, Clone, PartialOrd, PartialEq, Default, Pod, Zeroable, Serialize, Deserialize,
+    Component,
+    Copy,
+    Clone,
+    PartialOrd,
+    PartialEq,
+    Default,
+    Pod,
+    Zeroable,
+    Serialize,
+    Deserialize,
+    Debug,
 )]
 pub struct Layer {
     pub z: CoordinateUnit,

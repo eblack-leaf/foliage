@@ -2,6 +2,7 @@ use bytemuck::{Pod, Zeroable};
 use coord::TexturePartition;
 use std::collections::hash_map::IterMut;
 use std::collections::{HashMap, HashSet};
+use std::fmt::Debug;
 use std::hash::Hash;
 use std::marker::PhantomData;
 use wgpu::util::DeviceExt;
@@ -16,7 +17,7 @@ use crate::ginkgo::Ginkgo;
 pub mod coord;
 pub mod factors;
 
-#[derive(Hash, Eq, PartialEq, Copy, Clone, Ord, PartialOrd)]
+#[derive(Hash, Eq, PartialEq, Copy, Clone, Ord, PartialOrd, Debug)]
 pub struct TextureAtlasLocation(pub u32, pub u32);
 impl TextureAtlasLocation {
     pub const PADDING: f32 = 1.0;
@@ -185,8 +186,8 @@ impl<TexelData: Default + Sized + Clone + Pod + Zeroable> AtlasEntry<TexelData> 
     }
 }
 impl<
-        ReferenceKey: Hash + Eq + Clone,
-        ResourceKey: Hash + Eq + Clone,
+        ReferenceKey: Hash + Eq + Clone + Debug,
+        ResourceKey: Hash + Eq + Clone + Debug,
         TexelData: Default + Sized + Clone + Pod + Zeroable,
     > TextureAtlas<ReferenceKey, ResourceKey, TexelData>
 {
@@ -197,8 +198,8 @@ impl<
         extent: Area<NumericalContext>,
         data: Vec<TexelData>,
     ) {
-        tracing::trace!("writing atlas $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
         let location = self.hardware.next_location().unwrap();
+        tracing::trace!("writing atlas key: {:?}:{:?}", key, location);
         self.hardware
             .write_location(key.clone(), ginkgo, location, extent, &data);
         self.logical
@@ -209,6 +210,11 @@ impl<
         if self.logical.references.get(&res_key).is_none() {
             return;
         }
+        tracing::trace!(
+            "removing reference ref-key: {:?} res-key:{:?}",
+            ref_key,
+            res_key
+        );
         self.logical
             .references
             .get_mut(&res_key)
@@ -222,6 +228,11 @@ impl<
                 .references
                 .insert(res_key.clone(), HashSet::new());
         }
+        tracing::trace!(
+            "adding reference ref-key: {:?} res-key:{:?}",
+            ref_key,
+            res_key
+        );
         self.logical
             .references
             .get_mut(&res_key)

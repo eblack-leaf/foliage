@@ -43,7 +43,7 @@ pub(crate) struct Glyph {
     pub(crate) color: Color,
 }
 
-#[derive(Component, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[derive(Component, Clone, Serialize, Deserialize, PartialEq, Default, Debug)]
 pub(crate) struct GlyphChange {
     pub(crate) key: Option<(GlyphKey, Option<GlyphKey>)>,
     pub(crate) section: Option<Section<DeviceContext>>,

@@ -142,7 +142,12 @@ impl SceneCoordinator {
     }
     pub fn binding_entity(&self, scene_access_chain: &SceneAccessChain) -> Entity {
         let (m_root, handle) = self.resolve_handle(scene_access_chain);
-        tracing::trace!("binding-entity: {:?}:{:?}:{:?}", scene_access_chain, m_root, handle);
+        tracing::trace!(
+            "binding-entity: {:?}:{:?}:{:?}",
+            scene_access_chain,
+            m_root,
+            handle
+        );
         return match scene_access_chain.2 {
             SceneTarget::Root => {
                 if let Some(root) = m_root {

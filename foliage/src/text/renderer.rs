@@ -286,7 +286,11 @@ impl Render for Text {
             }
         }
         if package.package_data.atlas.would_grow(new_glyph_key_count) || font_size_changed {
-            tracing::trace!("growing atlas");
+            tracing::trace!(
+                "growing atlas by {:?} | font_size_changed:{:?}",
+                new_glyph_key_count,
+                font_size_changed
+            );
             for (key, entry) in package.package_data.atlas.entries_mut() {
                 tracing::trace!("rewriting entry: {:?}", key);
                 if font_size_changed {
@@ -333,11 +337,15 @@ impl Render for Text {
                 }
                 if let Some((new, old)) = glyph.key {
                     if let Some(old) = old {
-                        tracing::trace!("removing reference to old: {:?} from new {:?}", old, new);
+                        tracing::trace!(
+                            "removing reference to old: {:?} from new {:?}",
+                            old.glyph_index,
+                            new.glyph_index
+                        );
                         package.package_data.atlas.remove_reference(key, old);
                     }
                     if !package.package_data.atlas.has_key(&new) {
-                        tracing::trace!("rasterizing new: {:?}", new);
+                        tracing::trace!("rasterizing new: {:?}", new.glyph_index);
                         let rasterization = resources.font.0.rasterize_indexed(
                             new.glyph_index,
                             package.package_data.font_size.px(ginkgo.scale_factor()),
@@ -349,7 +357,7 @@ impl Render for Text {
                             rasterization.1,
                         );
                     }
-                    tracing::trace!("adding reference to new: {:?}", new);
+                    tracing::trace!("adding reference to new: {:?}", new.glyph_index);
                     package.package_data.atlas.add_reference(key, new);
                     package
                         .package_data
@@ -401,7 +409,10 @@ fn record<'a>(
     mut recorder: RenderInstructionsRecorder<'a>,
 ) -> Option<RenderInstructionHandle> {
     if package.package_data.instance_coordinator.has_instances() {
-        tracing::trace!("record-text w/ instances: {:?}", package.package_data.instance_coordinator.instances());
+        tracing::trace!(
+            "record-text w/ instances: {:?}",
+            package.package_data.instance_coordinator.instances()
+        );
         recorder.0.set_pipeline(&resources.pipeline);
         recorder.0.set_bind_group(0, &resources.bind_group, &[]);
         recorder

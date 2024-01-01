@@ -51,12 +51,9 @@ impl Leaf for TrackProgress {
     fn attach(elm: &mut Elm) {
         elm.startup().add_systems((setup,));
         elm.main().add_systems(
-            (
-                read_track_event.in_set(TrackProgressSet::Area),
-                config_track_progress.in_set(TrackProgressSet::Area),
-                config_track_time.in_set(TrackProgressSet::Area),
-            )
+            (read_track_event, config_track_progress, config_track_time)
                 .chain()
+                .in_set(TrackProgressSet::Area)
                 .before(<ProgressBar as Leaf>::SetDescriptor::Area)
                 .before(<Text as Leaf>::SetDescriptor::Area),
         );
