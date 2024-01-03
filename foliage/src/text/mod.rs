@@ -195,7 +195,8 @@ pub(crate) fn changes(
             wrap_style: fontdue::layout::WrapStyle::Letter,
             ..fontdue::layout::LayoutSettings::default()
         });
-        let max_char_limited_text_value = &value.0.as_str()[0..max_chars.0.min(value.0.len() as u32) as usize];
+        let max_char_limited_text_value =
+            &value.0.as_str()[0..max_chars.0.min(value.0.len() as u32) as usize];
         *unique = TextValueUniqueCharacters::new(value);
         placer.0.append(
             &[&font.0],

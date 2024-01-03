@@ -5,6 +5,7 @@ use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::elm::leaf::{Leaf, Tag};
 use crate::elm::Elm;
 use crate::icon::{Icon, IconId, IconScale};
+use crate::interaction::InteractionListener;
 use crate::panel::{Panel, PanelStyle};
 use crate::scene::align::SceneAligner;
 use crate::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
@@ -17,7 +18,6 @@ use bevy_ecs::change_detection::Res;
 use bevy_ecs::prelude::{Changed, Commands, Component, IntoSystemConfigs};
 use bevy_ecs::query::{Or, With, Without};
 use bevy_ecs::system::{Query, ResMut, SystemParamItem};
-use crate::interaction::InteractionListener;
 
 #[derive(Bundle)]
 pub struct Button {
@@ -48,12 +48,16 @@ impl Leaf for Button {
     }
 
     fn attach(elm: &mut Elm) {
-        elm.job.main().add_systems((updates
-            .in_set(SetDescriptors::Area)
-            .before(<Text as Leaf>::SetDescriptor::Area)
-            .before(<Panel as Leaf>::SetDescriptor::Area)
-            .before(<Icon as Leaf>::SetDescriptor::Area),
-                                    interaction_color.after(CoreSet::Interaction).before(Self::SetDescriptor::Area),));
+        elm.job.main().add_systems((
+            updates
+                .in_set(SetDescriptors::Area)
+                .before(<Text as Leaf>::SetDescriptor::Area)
+                .before(<Panel as Leaf>::SetDescriptor::Area)
+                .before(<Icon as Leaf>::SetDescriptor::Area),
+            interaction_color
+                .after(CoreSet::Interaction)
+                .before(Self::SetDescriptor::Area),
+        ));
     }
 }
 #[derive(Copy, Clone, Component)]
@@ -228,27 +232,20 @@ impl Scene for Button {
             &external_args.0,
             &external_args.1,
         );
-        cmd.entity(binder.this()).insert(InteractionListener::default());
-        let (fill, pc, tc, ic) = Self::color_metrics(&args.style, &args.foreground_color, &args.background_color);
+        cmd.entity(binder.this())
+            .insert(InteractionListener::default());
+        let (fill, pc, tc, ic) =
+            Self::color_metrics(&args.style, &args.foreground_color, &args.background_color);
         binder.bind(
             0,
             (0.near(), 0.near(), 1),
-            Panel::new(
-                fill,
-                anchor.0.section.area,
-                pc,
-            ),
+            Panel::new(fill, anchor.0.section.area, pc),
             cmd,
         );
         binder.bind(
             1,
             (text_offset.near(), 0.center(), 0),
-            Text::new(
-                args.max_char,
-                font_size,
-                args.text.clone(),
-                tc,
-            ),
+            Text::new(args.max_char, font_size, args.text.clone(), tc),
             cmd,
         );
         binder.bind(
@@ -269,14 +266,24 @@ impl Scene for Button {
 }
 
 impl Button {
-    fn color_metrics(style: &ButtonStyle, foreground_color: &Color, background_color: &Color) -> (PanelStyle, Color, Color, Color) {
+    fn color_metrics(
+        style: &ButtonStyle,
+        foreground_color: &Color,
+        background_color: &Color,
+    ) -> (PanelStyle, Color, Color, Color) {
         match style {
-            ButtonStyle::Ring => {
-                (PanelStyle::ring(), *foreground_color, *foreground_color, *foreground_color)
-            }
-            ButtonStyle::Fill => {
-                (PanelStyle::fill(), *background_color, *foreground_color, *foreground_color)
-            }
+            ButtonStyle::Ring => (
+                PanelStyle::ring(),
+                *foreground_color,
+                *foreground_color,
+                *foreground_color,
+            ),
+            ButtonStyle::Fill => (
+                PanelStyle::fill(),
+                *background_color,
+                *foreground_color,
+                *foreground_color,
+            ),
         }
     }
 }

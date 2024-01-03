@@ -27,6 +27,7 @@ use crate::panel::Panel;
 use crate::prebuilt::button::Button;
 use crate::prebuilt::circle_button::CircleButton;
 use crate::prebuilt::circle_progress_bar::CircleProgressBar;
+use crate::prebuilt::icon_button::IconButton;
 use crate::prebuilt::interactive_progress_bar::InteractiveProgressBar;
 use crate::prebuilt::progress_bar::ProgressBar;
 use crate::rectangle::Rectangle;
@@ -104,6 +105,7 @@ impl Foliage {
             .with_renderleaf::<Text>()
             .with_renderleaf::<Image>()
             .with_leaf::<Button>()
+            .with_leaf::<IconButton>()
             .with_leaf::<Compositor>()
             .with_leaf::<ProgressBar>()
             .with_leaf::<CircleProgressBar>()

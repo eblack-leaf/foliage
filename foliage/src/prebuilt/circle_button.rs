@@ -6,6 +6,7 @@ use crate::elm::config::ElmConfiguration;
 use crate::elm::leaf::{Leaf, Tag};
 use crate::elm::Elm;
 use crate::icon::{Icon, IconId, IconScale};
+use crate::interaction::InteractionListener;
 use crate::prebuilt::button::{BackgroundColor, Button, ButtonStyle, ForegroundColor};
 use crate::scene::align::SceneAligner;
 use crate::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
@@ -14,7 +15,6 @@ use crate::texture::factors::Progress;
 use bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
 use bevy_ecs::query::{Changed, Or, With};
 use bevy_ecs::system::{Query, ResMut, SystemParamItem};
-use crate::interaction::InteractionListener;
 
 #[derive(Bundle)]
 pub struct CircleButton {
@@ -38,8 +38,22 @@ impl Leaf for CircleButton {
 }
 fn resize(
     scenes: Query<
-        (&SceneHandle, &Area<InterfaceContext>, &ButtonStyle, &ForegroundColor, &BackgroundColor),
-        (Or<(Changed<Area<InterfaceContext>>, Changed<ButtonStyle>, Changed<ForegroundColor>, Changed<BackgroundColor>)>, With<Tag<CircleButton>>),
+        (
+            &SceneHandle,
+            &Area<InterfaceContext>,
+            &ButtonStyle,
+            &ForegroundColor,
+            &BackgroundColor,
+        ),
+        (
+            Or<(
+                Changed<Area<InterfaceContext>>,
+                Changed<ButtonStyle>,
+                Changed<ForegroundColor>,
+                Changed<BackgroundColor>,
+            )>,
+            With<Tag<CircleButton>>,
+        ),
     >,
     mut coordinator: ResMut<SceneCoordinator>,
     mut icons: Query<&mut IconScale>,
@@ -67,7 +81,7 @@ fn resize(
         };
         *circles.get_mut(circle).unwrap().1 = cs;
         *icons.get_mut(icon).unwrap() = IconScale::from_dim(area.width * 0.8);
-        circles.get_mut(circle).unwrap().0.0 = area.width;
+        circles.get_mut(circle).unwrap().0 .0 = area.width;
     }
 }
 pub enum CircleButtonBindings {
@@ -116,7 +130,8 @@ impl Scene for CircleButton {
             ButtonStyle::Ring => CircleStyle::ring(),
             ButtonStyle::Fill => CircleStyle::fill(),
         };
-        cmd.entity(binder.this()).insert(InteractionListener::default());
+        cmd.entity(binder.this())
+            .insert(InteractionListener::default());
         binder.bind(
             CircleButtonBindings::Circle,
             (0.near(), 0.near(), 1),
@@ -135,12 +150,17 @@ impl Scene for CircleButton {
                 args.icon_id,
                 IconScale::from_dim(anchor.0.section.width() * 0.8),
                 match args.style {
-                    ButtonStyle::Ring => {args.color}
-                    ButtonStyle::Fill => {args.back_color}
+                    ButtonStyle::Ring => args.color,
+                    ButtonStyle::Fill => args.back_color,
                 },
             ),
             cmd,
         );
-        Self { tag: Tag::new(), foreground_color: ForegroundColor(args.color), background_color: BackgroundColor(args.back_color), style: args.style }
+        Self {
+            tag: Tag::new(),
+            foreground_color: ForegroundColor(args.color),
+            background_color: BackgroundColor(args.back_color),
+            style: args.style,
+        }
     }
 }

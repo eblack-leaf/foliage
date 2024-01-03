@@ -158,6 +158,18 @@ impl ResponsiveSegment {
             .with_landscape_desktop(segment)
             .with_landscape_workstation(segment)
     }
+    pub fn with_landscape(mut self, segment: Segment) -> Self {
+        self.with_landscape_mobile(segment)
+            .with_landscape_tablet(segment)
+            .with_landscape_desktop(segment)
+            .with_landscape_workstation(segment)
+    }
+    pub fn with_portrait(mut self, segment: Segment) -> Self {
+        self.with_portrait_mobile(segment)
+            .with_portrait_tablet(segment)
+            .with_portrait_desktop(segment)
+            .with_portrait_workstation(segment)
+    }
     pub fn portrait_mobile(segment: Segment) -> Self {
         Self({
             let mut map = HashMap::new();
@@ -237,6 +249,13 @@ impl ResponsiveSegment {
             );
             map
         })
+    }
+    pub fn with_portrait_mobile(mut self, segment: Segment) -> Self {
+        self.0.insert(
+            Layout::new(Orientation::Portrait, Threshold::Mobile),
+            segment,
+        );
+        self
     }
     pub fn with_landscape_mobile(mut self, segment: Segment) -> Self {
         self.0.insert(
