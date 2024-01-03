@@ -18,6 +18,7 @@ use bevy_ecs::system::{Query, ResMut, SystemParamItem};
 #[derive(Bundle)]
 pub struct CircleButton {
     tag: Tag<Self>,
+    style: ButtonStyle,
     foreground_color: ForegroundColor,
     background_color: BackgroundColor,
 }
@@ -133,6 +134,6 @@ impl Scene for CircleButton {
             ),
             cmd,
         );
-        Self { tag: Tag::new(), foreground_color: ForegroundColor(args.color), background_color: BackgroundColor(args.back_color) }
+        Self { tag: Tag::new(), foreground_color: ForegroundColor(args.color), background_color: BackgroundColor(args.back_color), style: args.style }
     }
 }
