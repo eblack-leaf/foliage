@@ -74,6 +74,7 @@ impl Viewport {
     }
 
     fn matrix(section: Section<DeviceContext>, near_far: (Layer, Layer)) -> SMatrix<f32, 4, 4> {
+        tracing::trace!("matrix-section: {:?}", section);
         let translation = nalgebra::Matrix::new_translation(&nalgebra::vector![
             section.left(),
             section.top(),
