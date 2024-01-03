@@ -8,7 +8,7 @@ use crate::icon::{Icon, IconId, IconScale};
 use crate::panel::{Panel, PanelStyle};
 use crate::prebuilt::button::{BackgroundColor, Button, ButtonStyle, ForegroundColor};
 use crate::scene::align::SceneAligner;
-use crate::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
+use crate::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::prelude::{Commands, IntoSystemConfigs};
 use bevy_ecs::query::{Changed, Or, With, Without};
@@ -24,6 +24,11 @@ pub struct IconButton {
 pub enum IconButtonBindings {
     Panel,
     Icon,
+}
+impl From<IconButtonBindings> for SceneBinding {
+    fn from(value: IconButtonBindings) -> Self {
+        Self(value as i32)
+    }
 }
 pub struct IconButtonArgs {
     style: ButtonStyle,
@@ -72,7 +77,7 @@ fn resize(
         let panel = coordinator.binding_entity(&pac);
         *panels.get_mut(panel).unwrap() = *area;
         let icon = coordinator.binding_entity(&iac);
-        *icons.get_mut(icon).unwrap() = IconScale::from_dim(*area.height * 0.9);
+        *icons.get_mut(icon).unwrap() = IconScale::from_dim(area.height * 0.9);
         match style {
             ButtonStyle::Ring => {
                 *colors.get_mut(icon).unwrap() = foreground.0;
@@ -133,7 +138,7 @@ impl Scene for IconButton {
         );
         Self {
             tag: Tag::new(),
-            style,
+            style: args.style,
             foreground_color: ForegroundColor(args.foreground_color),
             background_color: BackgroundColor(args.background_color),
         }

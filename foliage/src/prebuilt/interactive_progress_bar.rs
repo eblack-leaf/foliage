@@ -121,7 +121,7 @@ fn interact(
         };
         if let Some(e) = entity {
             let (listener, mut hook) = interaction_listeners.get_mut(e).unwrap();
-            if hook.0.is_none() {
+            if listener.engaged_start() {
                 hook.0.replace(listener.interaction.current);
             }
             let diff = listener.interaction.current - hook.0.unwrap();
@@ -131,8 +131,6 @@ fn interact(
             coordinator.get_alignment_mut(&m_ac).pos.horizontal = metrics(*area, percent.0).near();
             progresses.get_mut(prog).unwrap().1 = percent.0;
             hook.0.replace(listener.interaction.current);
-        } else {
-            // take both hooks
         }
     }
 }

@@ -120,12 +120,6 @@ fn updates(
         coordinator.get_alignment_mut(&icon_ac).pos.horizontal = padding.far();
         coordinator.update_anchor_area(*handle, *button_area);
         let panel_node = coordinator.binding_entity(&panel_ac);
-        if let Ok(mut color) = colors.get_mut(panel_node) {
-            *color = match state {
-                ButtonStyle::Ring => foreground_color.0,
-                ButtonStyle::Fill => foreground_color.0,
-            };
-        }
         if let Ok((mut style, mut content_area)) = panel_styles.get_mut(panel_node) {
             *style = match state {
                 ButtonStyle::Ring => PanelStyle::ring(),

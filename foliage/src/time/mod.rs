@@ -7,6 +7,7 @@ use crate::elm::Elm;
 use bevy_ecs::prelude::{IntoSystemConfigs, Resource};
 use bevy_ecs::system::ResMut;
 use std::ops::{Add, AddAssign, Div, Sub, SubAssign};
+
 pub type TimeMarker = web_time::Instant;
 pub type TimeDelta = web_time::Duration;
 #[derive(Resource)]
@@ -33,6 +34,9 @@ impl Time {
     /// return the time since a marker
     pub fn time_since(&self, marker: TimeMarker) -> TimeDelta {
         TimeDelta::from(self.current - marker)
+    }
+    pub fn total_time(&self) -> TimeDelta {
+        TimeDelta::from(TimeMarker::now() - self.beginning)
     }
     /// how long it has been since the last frame
     pub fn frame_diff(&self) -> TimeDelta {
