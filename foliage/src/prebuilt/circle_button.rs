@@ -7,7 +7,7 @@ use crate::elm::leaf::{Leaf, Tag};
 use crate::elm::Elm;
 use crate::icon::{Icon, IconId, IconScale};
 use crate::interaction::InteractionListener;
-use crate::prebuilt::button::{BackgroundColor, Button, ButtonStyle, ForegroundColor};
+use crate::prebuilt::button::{BackgroundColor, BaseStyle, Button, ButtonStyle, ForegroundColor};
 use crate::scene::align::SceneAligner;
 use crate::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
 use crate::scene_bind_enable;
@@ -20,6 +20,7 @@ use bevy_ecs::system::{Query, ResMut, SystemParamItem};
 pub struct CircleButton {
     tag: Tag<Self>,
     style: ButtonStyle,
+    base: BaseStyle,
     foreground_color: ForegroundColor,
     background_color: BackgroundColor,
 }
@@ -161,6 +162,7 @@ impl Scene for CircleButton {
             foreground_color: ForegroundColor(args.color),
             background_color: BackgroundColor(args.back_color),
             style: args.style,
+            base: BaseStyle(args.style)
         }
     }
 }

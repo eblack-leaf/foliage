@@ -6,7 +6,7 @@ use crate::elm::leaf::{EmptySetDescriptor, Leaf, Tag};
 use crate::elm::Elm;
 use crate::icon::{Icon, IconId, IconScale};
 use crate::panel::{Panel, PanelStyle};
-use crate::prebuilt::button::{BackgroundColor, Button, ButtonStyle, ForegroundColor};
+use crate::prebuilt::button::{BackgroundColor, BaseStyle, Button, ButtonStyle, ForegroundColor};
 use crate::scene::align::SceneAligner;
 use crate::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
 use bevy_ecs::bundle::Bundle;
@@ -18,6 +18,7 @@ use bevy_ecs::system::{Query, ResMut, SystemParamItem};
 pub struct IconButton {
     tag: Tag<Self>,
     style: ButtonStyle,
+    base: BaseStyle,
     foreground_color: ForegroundColor,
     background_color: BackgroundColor,
 }
@@ -139,6 +140,7 @@ impl Scene for IconButton {
         Self {
             tag: Tag::new(),
             style: args.style,
+            base: BaseStyle(args.style),
             foreground_color: ForegroundColor(args.foreground_color),
             background_color: BackgroundColor(args.background_color),
         }
