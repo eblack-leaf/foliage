@@ -6,18 +6,20 @@ use crate::elm::config::ElmConfiguration;
 use crate::elm::leaf::{Leaf, Tag};
 use crate::elm::Elm;
 use crate::icon::{Icon, IconId, IconScale};
-use crate::prebuilt::button::{Button, ButtonStyle};
+use crate::prebuilt::button::{BackgroundColor, Button, ButtonStyle, ForegroundColor};
 use crate::scene::align::SceneAligner;
 use crate::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
 use crate::scene_bind_enable;
 use crate::texture::factors::Progress;
 use bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
-use bevy_ecs::query::{Changed, With};
+use bevy_ecs::query::{Changed, Or, With};
 use bevy_ecs::system::{Query, ResMut, SystemParamItem};
 
 #[derive(Bundle)]
 pub struct CircleButton {
     tag: Tag<Self>,
+    foreground_color: ForegroundColor,
+    background_color: BackgroundColor,
 }
 impl Leaf for CircleButton {
     type SetDescriptor = <Button as Leaf>::SetDescriptor;
@@ -26,7 +28,7 @@ impl Leaf for CircleButton {
 
     fn attach(elm: &mut Elm) {
         elm.main().add_systems((resize
-            .in_set(<Button as Leaf>::SetDescriptor::Button)
+            .in_set(<Button as Leaf>::SetDescriptor::Area)
             .before(<Circle as Leaf>::SetDescriptor::Area)
             .before(<Icon as Leaf>::SetDescriptor::Area),));
         scene_bind_enable!(elm, CircleButton);
@@ -34,20 +36,29 @@ impl Leaf for CircleButton {
 }
 fn resize(
     scenes: Query<
-        (&SceneHandle, &Area<InterfaceContext>),
-        (Changed<Area<InterfaceContext>>, With<Tag<CircleButton>>),
+        (&SceneHandle, &Area<InterfaceContext>, &ButtonStyle, &ForegroundColor, &BackgroundColor),
+        (Or<(Changed<Area<InterfaceContext>>, Changed<ButtonStyle>)>, With<Tag<CircleButton>>),
     >,
     mut coordinator: ResMut<SceneCoordinator>,
     mut icons: Query<&mut IconScale>,
     mut circles: Query<&mut Diameter>,
+    mut colors: Query<&mut Color>,
 ) {
     tracing::trace!("updating-circle-buttons");
-    for (handle, area) in scenes.iter() {
+    for (handle, area, style, foreground, background) in scenes.iter() {
         coordinator.update_anchor_area(*handle, *area);
         let circle =
             coordinator.binding_entity(&handle.access_chain().target(CircleButtonBindings::Circle));
         let icon =
             coordinator.binding_entity(&handle.access_chain().target(CircleButtonBindings::Icon));
+        match style {
+            ButtonStyle::Ring => {
+                *colors.get_mut(icon).unwrap() = foreground.0;
+            }
+            ButtonStyle::Fill => {
+                *colors.get_mut(icon).unwrap() = background.0;
+            }
+        }
         *icons.get_mut(icon).unwrap() = IconScale::from_dim(area.width * 0.8);
         circles.get_mut(circle).unwrap().0 = area.width;
     }
@@ -104,7 +115,7 @@ impl Scene for CircleButton {
             Circle::new(
                 style,
                 Diameter::new(anchor.0.section.width()),
-                args.back_color,
+                args.color,
                 Progress::full(),
             ),
             cmd,
@@ -115,10 +126,13 @@ impl Scene for CircleButton {
             Icon::new(
                 args.icon_id,
                 IconScale::from_dim(anchor.0.section.width() * 0.8),
-                args.color,
+                match args.style {
+                    ButtonStyle::Ring => {args.color}
+                    ButtonStyle::Fill => {args.back_color}
+                },
             ),
             cmd,
         );
-        Self { tag: Tag::new() }
+        Self { tag: Tag::new(), foreground_color: ForegroundColor(args.color), background_color: BackgroundColor(args.back_color) }
     }
 }

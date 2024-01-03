@@ -133,6 +133,38 @@ impl TransitionBindValidity {
         }
         Self(set)
     }
+    pub fn without_portrait_mobile(mut self) -> Self {
+        self.0.remove(&Layout::new(Orientation::Portrait, Threshold::Mobile));
+        self
+    }
+    pub fn without_landscape_mobile(mut self) -> Self {
+        self.0.remove(&Layout::new(Orientation::Landscape, Threshold::Mobile));
+        self
+    }
+    pub fn without_portrait_tablet(mut self) -> Self {
+        self.0.remove(&Layout::new(Orientation::Portrait, Threshold::Tablet));
+        self
+    }
+    pub fn without_landscape_tablet(mut self) -> Self {
+        self.0.remove(&Layout::new(Orientation::Landscape, Threshold::Tablet));
+        self
+    }
+    pub fn without_portrait_desktop(mut self) -> Self {
+        self.0.remove(&Layout::new(Orientation::Portrait, Threshold::Desktop));
+        self
+    }
+    pub fn without_landscape_desktop(mut self) -> Self {
+        self.0.remove(&Layout::new(Orientation::Landscape, Threshold::Desktop));
+        self
+    }
+    pub fn without_portrait_workstation(mut self) -> Self {
+        self.0.remove(&Layout::new(Orientation::Portrait, Threshold::Workstation));
+        self
+    }
+    pub fn without_landscape_workstation(mut self) -> Self {
+        self.0.remove(&Layout::new(Orientation::Landscape, Threshold::Workstation));
+        self
+    }
     pub fn mobile_portrait() -> Self {
         Self({
             let mut map = HashSet::new();

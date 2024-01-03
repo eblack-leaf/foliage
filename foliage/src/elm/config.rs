@@ -12,6 +12,7 @@ pub enum ExternalSet {
 #[derive(SystemSet, Hash, Eq, PartialEq, Debug, Copy, Clone)]
 pub enum CoreSet {
     ExternalEvent,
+    Interaction,
     // Process,
     ProcessEvent,
     CompositorSetup,
@@ -23,7 +24,6 @@ pub enum CoreSet {
     Visibility,
     Differential,
     RenderPacket,
-    Interaction,
 }
 pub struct ElmConfiguration<'a>(&'a mut Elm);
 impl<'a> ElmConfiguration<'a> {

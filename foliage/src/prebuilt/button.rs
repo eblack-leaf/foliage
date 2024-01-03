@@ -1,7 +1,7 @@
 use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::InterfaceContext;
-use crate::elm::config::{ElmConfiguration, ExternalSet};
+use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::elm::leaf::{Leaf, Tag};
 use crate::elm::Elm;
 use crate::icon::{Icon, IconId, IconScale};
@@ -17,6 +17,7 @@ use bevy_ecs::change_detection::Res;
 use bevy_ecs::prelude::{Changed, Commands, Component, IntoSystemConfigs};
 use bevy_ecs::query::{Or, With, Without};
 use bevy_ecs::system::{Query, ResMut, SystemParamItem};
+use crate::interaction::InteractionListener;
 
 #[derive(Bundle)]
 pub struct Button {
@@ -36,28 +37,45 @@ pub enum ButtonStyle {
 }
 set_descriptor!(
     pub enum SetDescriptors {
-        Button,
+        Area,
     }
 );
 impl Leaf for Button {
     type SetDescriptor = SetDescriptors;
 
     fn config(elm_configuration: &mut ElmConfiguration) {
-        elm_configuration.configure_hook::<Self>(ExternalSet::Configure, SetDescriptors::Button);
+        elm_configuration.configure_hook::<Self>(ExternalSet::Configure, SetDescriptors::Area);
     }
 
     fn attach(elm: &mut Elm) {
         elm.job.main().add_systems((updates
-            .in_set(SetDescriptors::Button)
+            .in_set(SetDescriptors::Area)
             .before(<Text as Leaf>::SetDescriptor::Area)
             .before(<Panel as Leaf>::SetDescriptor::Area)
-            .before(<Icon as Leaf>::SetDescriptor::Area),));
+            .before(<Icon as Leaf>::SetDescriptor::Area),
+                                    interaction_color.after(CoreSet::Interaction).before(Self::SetDescriptor::Area),));
     }
 }
 #[derive(Copy, Clone, Component)]
 pub struct ForegroundColor(pub Color);
 #[derive(Copy, Clone, Component)]
 pub struct BackgroundColor(pub Color);
+fn interaction_color(
+    mut buttons: Query<(&InteractionListener, &mut ButtonStyle), Changed<InteractionListener>>,
+) {
+    for (listener, mut style) in buttons.iter_mut() {
+        if listener.engaged() {
+            match *style {
+                ButtonStyle::Ring => {
+                    *style = ButtonStyle::Fill;
+                }
+                ButtonStyle::Fill => {
+                    *style = ButtonStyle::Ring;
+                }
+            }
+        }
+    }
+}
 fn updates(
     query: Query<
         (
@@ -210,13 +228,15 @@ impl Scene for Button {
             &external_args.0,
             &external_args.1,
         );
+        cmd.entity(binder.this()).insert(InteractionListener::default());
+        let (fill, pc, tc, ic) = Self::color_metrics(&args.style, &args.foreground_color, &args.background_color);
         binder.bind(
             0,
             (0.near(), 0.near(), 1),
             Panel::new(
-                PanelStyle::ring(),
+                fill,
                 anchor.0.section.area,
-                args.foreground_color,
+                pc,
             ),
             cmd,
         );
@@ -227,14 +247,14 @@ impl Scene for Button {
                 args.max_char,
                 font_size,
                 args.text.clone(),
-                args.foreground_color,
+                tc,
             ),
             cmd,
         );
         binder.bind(
             2,
             (padding.far(), 0.center(), 0),
-            Icon::new(args.icon_id, icon_scale, args.foreground_color),
+            Icon::new(args.icon_id, icon_scale, ic),
             cmd,
         );
         Self {
@@ -244,6 +264,19 @@ impl Scene for Button {
             max_characters: args.max_char,
             button_style: args.style,
             base_style: BaseStyle(args.style),
+        }
+    }
+}
+
+impl Button {
+    fn color_metrics(style: &ButtonStyle, foreground_color: &Color, background_color: &Color) -> (PanelStyle, Color, Color, Color) {
+        match style {
+            ButtonStyle::Ring => {
+                (PanelStyle::ring(), *foreground_color, *foreground_color, *foreground_color)
+            }
+            ButtonStyle::Fill => {
+                (PanelStyle::fill(), *background_color, *foreground_color, *foreground_color)
+            }
         }
     }
 }
