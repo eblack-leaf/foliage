@@ -167,6 +167,7 @@ pub(crate) fn changes(
             Changed<TextValue>,
             Changed<FontSize>,
             Changed<MaxCharacters>,
+            Changed<Color>,
         )>,
     >,
     font: Res<MonospacedFont>,
@@ -224,7 +225,8 @@ pub(crate) fn changes(
                             key_change.as_mut().unwrap().1.replace(glyph.key);
                             total_update = true;
                         } else {
-                            // color change
+                            // color change cache check
+                            total_update = true;
                         }
                     }
                     CachedGlyph::Filtered => {
