@@ -14,6 +14,7 @@ use crate::texture::factors::Progress;
 use bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
 use bevy_ecs::query::{Changed, Or, With};
 use bevy_ecs::system::{Query, ResMut, SystemParamItem};
+use crate::interaction::InteractionListener;
 
 #[derive(Bundle)]
 pub struct CircleButton {
@@ -38,7 +39,7 @@ impl Leaf for CircleButton {
 fn resize(
     scenes: Query<
         (&SceneHandle, &Area<InterfaceContext>, &ButtonStyle, &ForegroundColor, &BackgroundColor),
-        (Or<(Changed<Area<InterfaceContext>>, Changed<ButtonStyle>)>, With<Tag<CircleButton>>),
+        (Or<(Changed<Area<InterfaceContext>>, Changed<ButtonStyle>, Changed<ForegroundColor>, Changed<BackgroundColor>)>, With<Tag<CircleButton>>),
     >,
     mut coordinator: ResMut<SceneCoordinator>,
     mut icons: Query<&mut IconScale>,
@@ -115,6 +116,7 @@ impl Scene for CircleButton {
             ButtonStyle::Ring => CircleStyle::ring(),
             ButtonStyle::Fill => CircleStyle::fill(),
         };
+        cmd.entity(binder.this()).insert(InteractionListener::default());
         binder.bind(
             CircleButtonBindings::Circle,
             (0.near(), 0.near(), 1),
