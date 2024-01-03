@@ -34,7 +34,7 @@ impl Leaf for Interaction {
             (set_interaction_listeners, clear_engaged)
                 .chain()
                 .in_set(CoreSet::Interaction),
-            clear_active.after(ExternalSet::Process),
+            clear_active.after(ExternalSet::Configure),
         ));
         elm.add_event::<InteractionEvent>(EventStage::External);
     }
