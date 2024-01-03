@@ -92,7 +92,7 @@ impl Layout {
                     ThresholdBound::new(0.0, 415.0),
                 ),
                 Threshold::Tablet => LayoutThreshold::new(
-                    ThresholdBound::new(0.0, 1600.0),
+                    ThresholdBound::new(0.0, 1920.0),
                     ThresholdBound::new(416.0, 840.0),
                 ),
                 Threshold::Desktop => LayoutThreshold::new(
