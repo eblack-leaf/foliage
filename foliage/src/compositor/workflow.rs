@@ -291,6 +291,7 @@ pub(crate) fn resize_segments(
             for (_handle, workflow) in compositor.workflow_groups.iter() {
                 if let Some(active) = workflow.stage {
                     if let Some(trans) = workflow.transitions.get(&active) {
+                        tracing::trace!("engaging transition:{:?}:{:?}", old_layout, compositor.layout());
                         cmd.entity(*trans)
                             .insert(TransitionEngaged(true))
                             .insert(ThresholdChange::new(old_layout));
@@ -300,6 +301,7 @@ pub(crate) fn resize_segments(
         }
         for (entity, mut pos, mut area, mut layer, handle, scene_handle) in query.iter_mut() {
             if let Some(coordinate) = compositor.coordinate(viewport_handle.section(), handle) {
+                tracing::trace!("updating segment-coordinate: {:?}:{:?}", entity, coordinate);
                 if let Some(sh) = scene_handle {
                     coordinator.update_anchor(*sh, coordinate);
                 }
@@ -333,7 +335,9 @@ pub(crate) fn fill_bind_requests<B: Bundle + Clone + 'static>(
                     if let Some(tc) = threshold_change.as_ref() {
                         if validity.0.contains(&tc.old) {
                             if let Some(coordinate) = compositor.coordinate(viewport_handle.section(), handle) {
-                                cmd.entity(*compositor.bindings.get(handle).unwrap()).insert(coordinate);
+                                let ent = *compositor.bindings.get(handle).unwrap();
+                                cmd.entity(ent).insert(coordinate);
+                                tracing::trace!("reconfiguring old bind-request: {:?}:{:?}:{:?}", handle, ent, coordinate);
                             }
                             continue;
                         }
@@ -346,7 +350,7 @@ pub(crate) fn fill_bind_requests<B: Bundle + Clone + 'static>(
                             .insert(coordinate)
                             .insert(*handle)
                             .id();
-                        tracing::trace!("bind-request: {:?}:{:?}", handle, entity);
+                        tracing::trace!("bind-request: {:?}:{:?}:{:?}", handle, entity, coordinate);
                         let old = compositor.bindings.insert(*handle, entity);
                         if let Some(o) = old {
                             tracing::trace!("despawn-old: {:?}", o);
@@ -378,13 +382,10 @@ pub(crate) fn fill_scene_bind_requests<S: Scene>(
                     if let Some(tc) = threshold_change {
                         tracing::trace!("threshold-change: {:?}", tc);
                         if validity.0.contains(&tc.old) {
-                            tracing::trace!(
-                                "skipping {:?}:{:?} as it is still valid",
-                                *handle,
-                                entity
-                            );
                             if let Some(coordinate) = compositor.coordinate(viewport_handle.section(), handle) {
-                                cmd.entity(*compositor.bindings.get(handle).unwrap()).insert(coordinate);
+                                let ent = *compositor.bindings.get(handle).unwrap();
+                                cmd.entity(ent).insert(coordinate);
+                                tracing::trace!("reconfiguring old bind-request: {:?}:{:?}:{:?}", handle, ent, coordinate);
                             }
                             continue;
                         }
