@@ -10,7 +10,6 @@ use wgpu::{
     StoreOp, TextureDimension, TextureFormat, TextureUsages, TextureView,
 };
 use winit::event_loop::EventLoopWindowTarget;
-
 use depth_texture::DepthTexture;
 use msaa::Msaa;
 use viewport::Viewport;

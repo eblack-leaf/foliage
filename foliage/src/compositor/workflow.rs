@@ -317,7 +317,6 @@ pub(crate) fn fill_bind_requests<B: Bundle + Clone + 'static>(
     mut cmd: Commands,
     query: Query<
         (
-            Entity,
             &TransitionBindRequest<B>,
             &TransitionEngaged,
             Option<&ThresholdChange>,
@@ -327,12 +326,15 @@ pub(crate) fn fill_bind_requests<B: Bundle + Clone + 'static>(
     mut compositor: ResMut<Compositor>,
     viewport_handle: Res<ViewportHandle>,
 ) {
-    for (entity, request, engaged, threshold_change) in query.iter() {
+    for (request, engaged, threshold_change) in query.iter() {
         if engaged.0 {
             for (handle, validity, bundle) in request.0.iter() {
                 if validity.0.contains(&compositor.layout()) {
                     if let Some(tc) = threshold_change.as_ref() {
                         if validity.0.contains(&tc.old) {
+                            if let Some(coordinate) = compositor.coordinate(viewport_handle.section(), handle) {
+                                cmd.entity(*compositor.bindings.get(handle).unwrap()).insert(coordinate);
+                            }
                             continue;
                         }
                     }
@@ -381,6 +383,9 @@ pub(crate) fn fill_scene_bind_requests<S: Scene>(
                                 *handle,
                                 entity
                             );
+                            if let Some(coordinate) = compositor.coordinate(viewport_handle.section(), handle) {
+                                cmd.entity(*compositor.bindings.get(handle).unwrap()).insert(coordinate);
+                            }
                             continue;
                         }
                     }

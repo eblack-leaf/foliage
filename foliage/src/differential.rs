@@ -15,7 +15,7 @@ use crate::ash::render_packet::RenderPacketStore;
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
-use crate::coordinate::InterfaceContext;
+use crate::coordinate::{InterfaceContext, PositionAdjust};
 use crate::ginkgo::viewport::ViewportHandle;
 
 #[derive(Bundle, Clone)]
@@ -29,6 +29,7 @@ pub struct Differentiable {
     render_id: RenderId,
     c_pos: DifferentialBundle<CReprPosition>,
     c_area: DifferentialBundle<CReprArea>,
+    adjust: PositionAdjust,
 }
 
 impl Differentiable {
@@ -47,6 +48,7 @@ impl Differentiable {
             store: RenderPacketStore::default(),
             render_id: T::render_id(),
             area,
+            adjust: PositionAdjust(Position::default()),
         }
     }
 }

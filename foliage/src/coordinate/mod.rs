@@ -6,6 +6,7 @@ use crate::coordinate::section::Section;
 
 use crate::window::ScaleFactor;
 use bevy_ecs::bundle::Bundle;
+use bevy_ecs::component::Component;
 use bevy_ecs::prelude::Query;
 use bevy_ecs::system::Res;
 use serde::{Deserialize, Serialize};
@@ -31,13 +32,14 @@ pub struct NumericalContext;
 impl CoordinateContext for DeviceContext {}
 impl CoordinateContext for InterfaceContext {}
 impl CoordinateContext for NumericalContext {}
-
+#[derive(Component, Copy, Clone)]
+pub struct PositionAdjust(pub Position<InterfaceContext>);
 pub(crate) fn position_set(
-    mut query: Query<(&mut CReprPosition, &Position<InterfaceContext>)>,
+    mut query: Query<(&mut CReprPosition, &Position<InterfaceContext>, &PositionAdjust)>,
     scale_factor: Res<ScaleFactor>,
 ) {
-    for (mut c_repr, pos) in query.iter_mut() {
-        *c_repr = pos.to_device(scale_factor.factor()).to_c();
+    for (mut c_repr, pos, adjust) in query.iter_mut() {
+        *c_repr = (*pos + adjust.0).to_device(scale_factor.factor()).to_c();
         c_repr.x = c_repr.x.round();
         c_repr.y = c_repr.y.round();
     }
