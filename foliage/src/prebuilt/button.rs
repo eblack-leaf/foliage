@@ -64,7 +64,7 @@ fn interaction_color(
     mut buttons: Query<(&InteractionListener, &mut ButtonStyle), Changed<InteractionListener>>,
 ) {
     for (listener, mut style) in buttons.iter_mut() {
-        if listener.engaged() {
+        if listener.engaged_start() || listener.engaged_end() {
             match *style {
                 ButtonStyle::Ring => {
                     *style = ButtonStyle::Fill;

@@ -150,6 +150,8 @@ pub struct InteractionListener {
     active: bool,
     pub interaction: Interaction,
     engaged: bool,
+    engaged_start: bool,
+    engaged_end: bool,
 }
 impl InteractionListener {
     pub fn active(&self) -> bool {
@@ -158,11 +160,23 @@ impl InteractionListener {
     pub fn engaged(&self) -> bool {
         self.engaged
     }
+    pub fn engaged_start(&self) -> bool {
+        self.engaged_start
+    }
+    pub fn engaged_end(&self) -> bool {
+        self.engaged_end
+    }
 }
 fn clear_active(mut active: Query<&mut InteractionListener, Changed<InteractionListener>>) {
     for mut e in active.iter_mut() {
         if e.active {
             e.active = false;
+        }
+        if e.engaged_start {
+            e.engaged_start = false;
+        }
+        if e.engaged_end {
+            e.engaged_end = false;
         }
     }
 }
@@ -227,6 +241,7 @@ pub fn set_interaction_listeners(
                 primary.0.replace(ie.id);
                 primary_entity.0.replace(grab.0);
                 listeners.get_mut(grab.0).unwrap().1.engaged = true;
+                listeners.get_mut(grab.0).unwrap().1.engaged_start = true;
                 listeners.get_mut(grab.0).unwrap().1.interaction = Interaction::new(position);
             }
         } else if ie.id == primary.0.unwrap() {
@@ -257,6 +272,7 @@ pub fn set_interaction_listeners(
                                 listener.active = true;
                             }
                             listener.engaged = false;
+                            listener.engaged_end = true;
                         } else {
                             focused_entity.0.take();
                         }
