@@ -189,9 +189,11 @@ fn clear_engaged(
             if listener.engaged {
                 if let Some(prime) = primary_interaction_entity.0 {
                     if prime != entity {
+                        tracing::trace!("clearing orphaned-engaged-entity: {:?}", entity);
                         listener.engaged = false;
                     }
                 } else {
+                    tracing::trace!("clearing engaged-entity: {:?}", entity);
                     listener.engaged = false;
                 }
             }
@@ -238,6 +240,7 @@ pub fn set_interaction_listeners(
                 }
             }
             if let Some(grab) = grabbed {
+                tracing::trace!("grabbing primary: {:?}", grab.0);
                 primary.0.replace(ie.id);
                 primary_entity.0.replace(grab.0);
                 listeners.get_mut(grab.0).unwrap().1.engaged = true;
@@ -252,6 +255,7 @@ pub fn set_interaction_listeners(
                 InteractionPhase::Moved => {
                     if let Some(prime) = primary_entity.0 {
                         if let Ok((_, mut listener, _, _, _)) = listeners.get_mut(prime) {
+                            tracing::trace!("updating prime-current: {:?}-@-{:?}", prime, position);
                             listener.interaction.current = position;
                         } else {
                             primary.0.take();
@@ -271,6 +275,7 @@ pub fn set_interaction_listeners(
                                 focused_entity.0.replace(prime);
                                 listener.active = true;
                             }
+                            tracing::trace!("ending prime: {:?}-@-{:?}", prime, position);
                             listener.engaged = false;
                             listener.engaged_end = true;
                         } else {
