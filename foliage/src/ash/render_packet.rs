@@ -72,18 +72,22 @@ pub(crate) struct RenderPacketSignature(pub(crate) RenderId, pub(crate) Entity);
 pub(crate) struct RenderPacketForwarder {
     pub(crate) render_packets: HashMap<RenderPacketSignature, RenderPacket>,
     pub(crate) removals: HashMap<RenderId, HashSet<Entity>>,
+    pub(crate) removal_queue: HashMap<RenderId, HashSet<Entity>>,
 }
 
 impl RenderPacketForwarder {
     pub(crate) fn forward_packet(&mut self, id: &RenderId, entity: Entity, packet: RenderPacket) {
         self.render_packets
             .insert(RenderPacketSignature(id.clone(), entity), packet);
+        if let Some(rems) = self.removals.get_mut(id) {
+            rems.remove(&entity);
+        }
     }
     pub(crate) fn remove(&mut self, id: &RenderId, entity: Entity) {
-        if self.removals.get(id).is_none() {
-            self.removals.insert(id.clone(), HashSet::new());
+        if self.removal_queue.get(id).is_none() {
+            self.removal_queue.insert(id.clone(), HashSet::new());
         }
-        if let Some(set) = self.removals.get_mut(id) {
+        if let Some(set) = self.removal_queue.get_mut(id) {
             set.insert(entity);
         }
         self.render_packets
@@ -104,16 +108,24 @@ impl RenderPacketForwarder {
                 .0
                 .insert(signature.1, packet);
         }
-        for (id, mut removal) in self.removals.drain() {
-            if package.0.get(&id).is_none() {
-                package.0.insert(id.clone(), RenderPacketQueue::new());
+        for (id, mut removal) in self.removal_queue.drain() {
+            if !self.removals.contains_key(&id) {
+                self.removals.insert(id.clone(), HashSet::new());
             }
-            package
-                .0
-                .get_mut(&id)
-                .unwrap()
-                .1
-                .extend(removal.drain().collect::<Vec<Entity>>());
+            for rem in removal.drain() {
+                if !self.removals.get(&id).unwrap().contains(&rem) {
+                    self.removals.get_mut(&id).unwrap().insert(rem);
+                    if package.0.get(&id).is_none() {
+                        package.0.insert(id.clone(), RenderPacketQueue::new());
+                    }
+                    package
+                        .0
+                        .get_mut(&id)
+                        .unwrap()
+                        .1
+                        .push(rem);
+                }
+            }
         }
         package
     }
