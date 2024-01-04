@@ -118,12 +118,7 @@ impl RenderPacketForwarder {
                     if package.0.get(&id).is_none() {
                         package.0.insert(id.clone(), RenderPacketQueue::new());
                     }
-                    package
-                        .0
-                        .get_mut(&id)
-                        .unwrap()
-                        .1
-                        .push(rem);
+                    package.0.get_mut(&id).unwrap().1.push(rem);
                 }
             }
         }

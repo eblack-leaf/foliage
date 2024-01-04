@@ -16,7 +16,7 @@ use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::{InterfaceContext, PositionAdjust};
-use crate::ginkgo::viewport::ViewportHandle;
+use crate::r_compositor::Disabled;
 
 #[derive(Bundle, Clone)]
 pub struct Differentiable {
@@ -160,13 +160,14 @@ pub(crate) fn send_on_differential_disable_changed<
             &T,
             &mut Differential<T>,
             &mut RenderPacketStore,
+            Option<&Disabled>,
             &DifferentialDisable,
         ),
-        Changed<DifferentialDisable>,
+        Or<(Changed<DifferentialDisable>, Changed<Disabled>)>,
     >,
 ) {
-    for (t, mut diff, mut render_packet_store, disable) in query.iter_mut() {
-        if !disable.is_disabled() {
+    for (t, mut diff, mut render_packet_store, disable, dif_disable) in query.iter_mut() {
+        if !disable.is_disabled() || disable_check(disable) {
             diff.cache = t.clone();
             render_packet_store.put(t.clone());
         }
@@ -180,6 +181,7 @@ pub(crate) fn send_render_packet(
             &mut RenderPacketStore,
             &RenderId,
             &DifferentialDisable,
+            Option<&Disabled>,
             &Despawn,
         ),
         Or<(
@@ -190,8 +192,8 @@ pub(crate) fn send_render_packet(
     >,
     mut render_packet_forwarder: ResMut<RenderPacketForwarder>,
 ) {
-    for (entity, mut packet, id, disable, despawn) in query.iter_mut() {
-        if disable.is_disabled() || despawn.should_despawn() {
+    for (entity, mut packet, id, dif_disable, disable, despawn) in query.iter_mut() {
+        if dif_disable.is_disabled() || despawn.should_despawn() || disable_check(disable) {
             tracing::trace!("removing render-packet: {:?}", entity);
             render_packet_forwarder.remove(id, entity);
         } else {
@@ -200,6 +202,13 @@ pub(crate) fn send_render_packet(
         }
     }
 }
+
+fn disable_check(disable: Option<&Disabled>) -> bool {
+    disable
+        .and_then(|d| if d.disabled() { Some(()) } else { None })
+        .is_some()
+}
+
 #[derive(Bundle, Clone)]
 pub struct DifferentialBundle<T: Component + Clone + PartialEq + Send + Sync + 'static> {
     pub component: T,
@@ -228,14 +237,7 @@ impl Despawn {
         Self(true)
     }
 }
-pub(crate) fn despawn(
-    despawned: Query<(Entity, &Despawn), Changed<Despawn>>,
-    mut viewport_handle: ResMut<ViewportHandle>,
-    mut cmd: Commands,
-) {
-    if viewport_handle.area_updated() {
-        viewport_handle.area_updated = false;
-    }
+pub(crate) fn despawn(despawned: Query<(Entity, &Despawn), Changed<Despawn>>, mut cmd: Commands) {
     for (entity, despawn) in despawned.iter() {
         if despawn.should_despawn() {
             cmd.entity(entity).despawn();

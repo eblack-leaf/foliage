@@ -3,8 +3,12 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
+use crate::elm::config::{CoreSet, ElmConfiguration};
+use crate::elm::leaf::{EmptySetDescriptor, Leaf};
+use crate::elm::Elm;
 use crate::ginkgo::uniform::Uniform;
-use bevy_ecs::prelude::Resource;
+use bevy_ecs::prelude::{IntoSystemConfigs, Resource};
+use bevy_ecs::system::ResMut;
 use nalgebra::{matrix, SMatrix};
 use serde::{Deserialize, Serialize};
 use wgpu::Queue;
@@ -46,7 +50,21 @@ impl ViewportHandle {
         self.changes_present = true;
     }
 }
+impl Leaf for ViewportHandle {
+    type SetDescriptor = EmptySetDescriptor;
 
+    fn config(elm_configuration: &mut ElmConfiguration) {}
+
+    fn attach(elm: &mut Elm) {
+        elm.main()
+            .add_systems(clear_viewport_handle.after(CoreSet::Differential));
+    }
+}
+fn clear_viewport_handle(mut viewport_handle: ResMut<ViewportHandle>) {
+    if viewport_handle.area_updated() {
+        viewport_handle.area_updated = false;
+    }
+}
 pub struct Viewport {
     pub(crate) section: Section<DeviceContext>,
     pub(crate) near_far: (Layer, Layer),

@@ -13,10 +13,10 @@ use window::{WindowDescriptor, WindowHandle};
 use crate::ash::render::Render;
 use crate::ash::Ash;
 use crate::circle::Circle;
-use crate::compositor::Compositor;
 use crate::coordinate::position::Position;
 use crate::coordinate::CoordinateUnit;
 use crate::elm::Elm;
+use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::Ginkgo;
 use crate::icon::Icon;
 use crate::image::Image;
@@ -33,6 +33,7 @@ use crate::prebuilt::progress_bar::ProgressBar;
 use crate::rectangle::Rectangle;
 use crate::text::Text;
 use crate::time::Time;
+use animate::trigger::Trigger;
 
 use self::ash::leaflet::RenderLeafletStorage;
 
@@ -40,7 +41,7 @@ mod animate;
 pub mod ash;
 pub mod circle;
 pub mod color;
-pub mod compositor;
+// pub mod compositor;
 pub mod coordinate;
 pub mod differential;
 pub mod elm;
@@ -53,6 +54,7 @@ pub mod interaction;
 pub mod job;
 pub mod panel;
 pub mod prebuilt;
+pub mod r_compositor;
 pub mod rectangle;
 pub mod scene;
 pub mod text;
@@ -106,12 +108,13 @@ impl Foliage {
             .with_renderleaf::<Image>()
             .with_leaf::<Button>()
             .with_leaf::<IconButton>()
-            .with_leaf::<Compositor>()
+            .with_leaf::<Trigger>()
             .with_leaf::<ProgressBar>()
             .with_leaf::<CircleProgressBar>()
             .with_leaf::<CircleButton>()
             .with_leaf::<Interaction>()
             .with_leaf::<InteractiveProgressBar>()
+            .with_leaf::<ViewportHandle>()
             .with_leaf::<Time>()
     }
     pub fn with_android_interface(mut self, android_interface: AndroidInterface) -> Self {
