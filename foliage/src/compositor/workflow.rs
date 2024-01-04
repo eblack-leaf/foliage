@@ -301,7 +301,7 @@ pub(crate) fn resize_segments(
         }
         for (entity, mut pos, mut area, mut layer, handle, scene_handle) in query.iter_mut() {
             if let Some(coordinate) = compositor.coordinate(viewport_handle.section(), handle) {
-                tracing::trace!("updating segment-coordinate: {:?}:{:?}", entity, coordinate);
+                tracing::trace!("updating segment-coordinate: {:?}:{:?}:{:?}", handle, entity, coordinate);
                 if let Some(sh) = scene_handle {
                     coordinator.update_anchor(*sh, coordinate);
                 }
@@ -334,12 +334,20 @@ pub(crate) fn fill_bind_requests<B: Bundle + Clone + 'static>(
                 if validity.0.contains(&compositor.layout()) {
                     if let Some(tc) = threshold_change.as_ref() {
                         if validity.0.contains(&tc.old) {
-                            if let Some(coordinate) = compositor.coordinate(viewport_handle.section(), handle) {
-                                let ent = *compositor.bindings.get(handle).unwrap();
-                                cmd.entity(ent).insert(coordinate);
-                                tracing::trace!("reconfiguring old bind-request: {:?}:{:?}:{:?}", handle, ent, coordinate);
+                            if compositor.bindings.get(handle).is_some() {
+                                if let Some(coordinate) = compositor.coordinate(viewport_handle.section(), handle) {
+                                    let ent = *compositor.bindings.get(handle).unwrap();
+                                    cmd.entity(ent).insert(coordinate);
+                                    tracing::trace!("reconfiguring old bind-request: {:?}:{:?}:{:?}", handle, ent, coordinate);
+                                } else {
+                                    let old = compositor.bindings.remove(handle);
+                                    if let Some(o) = old {
+                                        tracing::trace!("despawn-old: {:?}", o);
+                                        cmd.entity(o).insert(Despawn::signal_despawn());
+                                    }
+                                }
+                                continue;
                             }
-                            continue;
                         }
                     }
                     if let Some(coordinate) =
@@ -356,6 +364,18 @@ pub(crate) fn fill_bind_requests<B: Bundle + Clone + 'static>(
                             tracing::trace!("despawn-old: {:?}", o);
                             cmd.entity(o).insert(Despawn::signal_despawn());
                         }
+                    } else {
+                        let old = compositor.bindings.remove(handle);
+                        if let Some(o) = old {
+                            tracing::trace!("despawn-old: {:?}", o);
+                            cmd.entity(o).insert(Despawn::signal_despawn());
+                        }
+                    }
+                } else {
+                    let old = compositor.bindings.remove(handle);
+                    if let Some(o) = old {
+                        tracing::trace!("despawn-old: {:?}", o);
+                        cmd.entity(o).insert(Despawn::signal_despawn());
                     }
                 }
             }
@@ -365,7 +385,6 @@ pub(crate) fn fill_bind_requests<B: Bundle + Clone + 'static>(
 pub(crate) fn fill_scene_bind_requests<S: Scene>(
     mut compositor: ResMut<Compositor>,
     query: Query<(
-        Entity,
         &TransitionSceneBindRequest<S>,
         &TransitionEngaged,
         Option<&ThresholdChange>,
@@ -375,19 +394,27 @@ pub(crate) fn fill_scene_bind_requests<S: Scene>(
     mut coordinator: ResMut<SceneCoordinator>,
     mut cmd: Commands,
 ) {
-    for (entity, request, engaged, threshold_change) in query.iter() {
+    for (request, engaged, threshold_change) in query.iter() {
         if engaged.0 {
             for (handle, validity, args) in request.0.iter() {
                 if validity.0.contains(&compositor.layout()) {
                     if let Some(tc) = threshold_change {
                         tracing::trace!("threshold-change: {:?}", tc);
                         if validity.0.contains(&tc.old) {
-                            if let Some(coordinate) = compositor.coordinate(viewport_handle.section(), handle) {
-                                let ent = *compositor.bindings.get(handle).unwrap();
-                                cmd.entity(ent).insert(coordinate);
-                                tracing::trace!("reconfiguring old bind-request: {:?}:{:?}:{:?}", handle, ent, coordinate);
+                            if compositor.bindings.get(handle).is_some() {
+                                if let Some(coordinate) = compositor.coordinate(viewport_handle.section(), handle) {
+                                    let ent = *compositor.bindings.get(handle).unwrap();
+                                    cmd.entity(ent).insert(coordinate);
+                                    tracing::trace!("reconfiguring old bind-request: {:?}:{:?}:{:?}", handle, ent, coordinate);
+                                } else {
+                                    let old = compositor.bindings.remove(handle);
+                                    if let Some(o) = old {
+                                        tracing::trace!("despawn-old: {:?}", o);
+                                        cmd.entity(o).insert(Despawn::signal_despawn());
+                                    }
+                                }
+                                continue;
                             }
-                            continue;
                         }
                     }
                     if let Some(coordinate) =
@@ -406,6 +433,18 @@ pub(crate) fn fill_scene_bind_requests<S: Scene>(
                             tracing::trace!("despawn-old: {:?}", o);
                             cmd.entity(o).insert(Despawn::signal_despawn());
                         }
+                    } else {
+                        let old = compositor.bindings.remove(handle);
+                        if let Some(o) = old {
+                            tracing::trace!("despawn-old: {:?}", o);
+                            cmd.entity(o).insert(Despawn::signal_despawn());
+                        }
+                    }
+                } else {
+                    let old = compositor.bindings.remove(handle);
+                    if let Some(o) = old {
+                        tracing::trace!("despawn-old: {:?}", o);
+                        cmd.entity(o).insert(Despawn::signal_despawn());
                     }
                 }
             }
