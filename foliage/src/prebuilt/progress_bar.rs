@@ -7,8 +7,8 @@ use crate::elm::Elm;
 use crate::rectangle::Rectangle;
 use crate::scene::align::SceneAligner;
 use crate::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
+use crate::set_descriptor;
 use crate::texture::factors::Progress;
-use crate::{scene_bind_enable, set_descriptor};
 use bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
 use bevy_ecs::query::{Changed, Or, With, Without};
 use bevy_ecs::system::{Query, ResMut, SystemParamItem};
@@ -42,7 +42,6 @@ impl Leaf for ProgressBar {
     fn attach(elm: &mut Elm) {
         elm.main()
             .add_systems((resize.in_set(ProgressBarSets::Area),));
-        scene_bind_enable!(elm, ProgressBar);
     }
 }
 fn resize(

@@ -16,7 +16,7 @@ use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::{InterfaceContext, PositionAdjust};
-use crate::r_compositor::Disabled;
+use crate::elm::Disabled;
 
 #[derive(Bundle, Clone)]
 pub struct Differentiable {
@@ -167,7 +167,7 @@ pub(crate) fn send_on_differential_disable_changed<
     >,
 ) {
     for (t, mut diff, mut render_packet_store, disable, dif_disable) in query.iter_mut() {
-        if !disable.is_disabled() || disable_check(disable) {
+        if !dif_disable.is_disabled() || disable_check(disable) {
             diff.cache = t.clone();
             render_packet_store.put(t.clone());
         }

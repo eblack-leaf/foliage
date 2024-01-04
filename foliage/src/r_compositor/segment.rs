@@ -3,8 +3,10 @@ use crate::coordinate::{Coordinate, CoordinateUnit, InterfaceContext};
 use crate::r_compositor::layout::{Layout, Orientation, Threshold};
 use crate::r_compositor::ViewHandle;
 use crate::scene::align::AlignmentBias;
+use bevy_ecs::component::Component;
 use std::collections::HashMap;
 
+#[derive(Component)]
 pub struct ResponsiveSegment {
     pub handle: ViewHandle,
     pub segments: HashMap<Layout, Segment>,

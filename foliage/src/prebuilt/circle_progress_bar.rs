@@ -7,7 +7,6 @@ use crate::elm::Elm;
 use crate::prebuilt::progress_bar::{ProgressBarArgs, ProgressBarBindings, ProgressBarSets};
 use crate::scene::align::SceneAligner;
 use crate::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
-use crate::scene_bind_enable;
 use crate::texture::factors::Progress;
 use bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs, ResMut};
 use bevy_ecs::query::{Changed, With, Without};
@@ -48,7 +47,6 @@ impl Leaf for CircleProgressBar {
         elm.main().add_systems((resize
             .in_set(ProgressBarSets::Area)
             .before(<Circle as Leaf>::SetDescriptor::Area),));
-        scene_bind_enable!(elm, CircleProgressBar);
     }
 }
 impl Scene for CircleProgressBar {

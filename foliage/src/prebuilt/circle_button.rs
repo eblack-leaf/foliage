@@ -10,7 +10,6 @@ use crate::interaction::InteractionListener;
 use crate::prebuilt::button::{BackgroundColor, BaseStyle, Button, ButtonStyle, ForegroundColor};
 use crate::scene::align::SceneAligner;
 use crate::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
-use crate::scene_bind_enable;
 use crate::texture::factors::Progress;
 use bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
 use bevy_ecs::query::{Changed, Or, With};
@@ -34,7 +33,6 @@ impl Leaf for CircleButton {
             .in_set(<Button as Leaf>::SetDescriptor::Area)
             .before(<Circle as Leaf>::SetDescriptor::Area)
             .before(<Icon as Leaf>::SetDescriptor::Area),));
-        scene_bind_enable!(elm, CircleButton);
     }
 }
 fn resize(

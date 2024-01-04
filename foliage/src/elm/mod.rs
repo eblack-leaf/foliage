@@ -14,7 +14,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::ash::render_packet::RenderPacketForwarder;
 use crate::ash::render_packet::RenderPacketPackage;
-use crate::compositor::Compositor;
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
@@ -24,6 +23,7 @@ use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::elm::leaf::Tag;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::job::{Job, Task};
+use crate::r_compositor::Compositor;
 use crate::scene::{Scene, SceneCoordinator};
 use crate::window::ScaleFactor;
 
@@ -156,24 +156,6 @@ impl Elm {
         self.main()
             .add_systems((event_update_system::<E>.in_set(stage.set()),));
     }
-    pub fn enable_bind<B: Bundle + Clone + 'static>(&mut self) {
-        if self.limiters.get::<Tag<B>>().is_none() {
-            self.job
-                .main()
-                .add_systems((crate::compositor::workflow::fill_bind_requests::<B>
-                    .in_set(ExternalSet::CompositorBind),));
-            self.limiters.insert(Tag::<B>::new());
-        }
-    }
-    pub fn enable_scene_bind<S: Scene + Send + Sync + 'static>(&mut self) {
-        if self.limiters.get::<Tag<S>>().is_none() {
-            self.job
-                .main()
-                .add_systems((crate::compositor::workflow::fill_scene_bind_requests::<S>
-                    .in_set(ExternalSet::CompositorBind),));
-            self.limiters.insert(Tag::<S>::new());
-        }
-    }
     pub fn enable_differential<
         T: Component + Clone + PartialEq + Serialize + for<'a> Deserialize<'a>,
     >(
@@ -197,13 +179,16 @@ impl Elm {
 pub(crate) fn compact_string_type_id<T: 'static>() -> CompactString {
     format!("{:?}", TypeId::of::<T>()).to_compact_string()
 }
-#[derive(Component, Copy, Clone, Eq, PartialEq)]
-pub struct Disabled(bool);
+#[derive(Component, Copy, Clone, Default)]
+pub struct Disabled(pub(crate) bool);
 impl Disabled {
     pub fn disabled(&self) -> bool {
         self.0
     }
-    pub fn signal(&mut self) {
-        self.0 = true
+    pub fn active() -> Self {
+        Self(true)
+    }
+    pub fn inactive() -> Self {
+        Self(false)
     }
 }

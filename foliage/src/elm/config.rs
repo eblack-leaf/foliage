@@ -5,7 +5,6 @@ use bevy_ecs::prelude::{apply_deferred, IntoSystemConfigs, SystemSet};
 #[derive(SystemSet, Hash, Eq, PartialEq, Debug, Copy, Clone)]
 pub enum ExternalSet {
     Process,
-    CompositorBind,
     Spawn,
     Configure,
 }
@@ -15,10 +14,9 @@ pub enum CoreSet {
     Interaction,
     // Process,
     ProcessEvent,
-    CompositorSetup,
-    // CompositorBind,
-    CompositorTeardown,
+    ViewTransition,
     // Spawn,
+    Compositor,
     // Configure,
     CoordinateFinalize,
     Visibility,
@@ -43,10 +41,9 @@ impl<'a> ElmConfiguration<'a> {
                 CoreSet::Interaction,
                 ExternalSet::Process,
                 CoreSet::ProcessEvent,
-                CoreSet::CompositorSetup,
-                ExternalSet::CompositorBind,
-                CoreSet::CompositorTeardown,
+                CoreSet::ViewTransition,
                 ExternalSet::Spawn,
+                CoreSet::Compositor,
                 ExternalSet::Configure,
                 CoreSet::CoordinateFinalize,
                 CoreSet::Visibility,
@@ -80,18 +77,15 @@ impl<'a> ElmConfiguration<'a> {
                 .before(CoreSet::ProcessEvent),
             apply_deferred
                 .after(CoreSet::ProcessEvent)
-                .before(CoreSet::CompositorSetup),
+                .before(CoreSet::ViewTransition),
             apply_deferred
-                .after(CoreSet::CompositorSetup)
-                .before(ExternalSet::CompositorBind),
-            apply_deferred
-                .after(ExternalSet::CompositorBind)
-                .before(CoreSet::CompositorTeardown),
-            apply_deferred
-                .after(CoreSet::CompositorTeardown)
+                .after(CoreSet::ViewTransition)
                 .before(ExternalSet::Spawn),
             apply_deferred
                 .after(ExternalSet::Spawn)
+                .before(CoreSet::Compositor),
+            apply_deferred
+                .after(CoreSet::Compositor)
                 .before(ExternalSet::Configure),
             apply_deferred
                 .after(ExternalSet::Configure)

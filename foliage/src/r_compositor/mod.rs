@@ -2,9 +2,11 @@ use crate::animate::trigger::Trigger;
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
-use crate::coordinate::InterfaceContext;
+use crate::coordinate::{area_set, position_set, InterfaceContext};
 use crate::differential::Despawn;
-use crate::elm::leaf::Tag;
+use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
+use crate::elm::leaf::{EmptySetDescriptor, Leaf, Tag};
+use crate::elm::{Disabled, Elm, EventStage};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::r_compositor::layout::Layout;
 use crate::r_compositor::segment::ResponsiveSegment;
@@ -12,7 +14,7 @@ use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::{Event, EventReader};
-use bevy_ecs::prelude::Resource;
+use bevy_ecs::prelude::{IntoSystemConfigs, Resource};
 use bevy_ecs::query::{Changed, With};
 use bevy_ecs::system::{Commands, Query, Res, ResMut};
 use std::collections::{HashMap, HashSet};
@@ -29,8 +31,35 @@ pub struct Compositor {
     anchors: HashMap<ViewHandle, Position<InterfaceContext>>,
 }
 impl Compositor {
+    pub fn new(area: Area<InterfaceContext>) -> Self {
+        Self {
+            current: ViewHandle::new(0, 0),
+            layout: Layout::from_area(area),
+            views: HashMap::new(),
+            entity_to_view: HashMap::new(),
+            anchors: HashMap::new(),
+        }
+    }
     pub fn layout(&self) -> Layout {
         self.layout
+    }
+    pub fn add_to_view<VH: Into<ViewHandle>>(&mut self, vh: VH, entity: Entity) {
+        let handle = vh.into();
+        self.views.get_mut(&handle).unwrap().add(entity);
+        self.entity_to_view.insert(entity, handle);
+    }
+    pub fn remove_from_view<VH: Into<ViewHandle>>(&mut self, vh: VH, entity: Entity) {
+        self.views
+            .get_mut(&vh.into())
+            .unwrap()
+            .entities
+            .remove(&entity);
+        self.entity_to_view.remove(&entity);
+    }
+    pub fn add_view<VH: Into<ViewHandle>>(&mut self, vh: VH) {
+        let handle = vh.into();
+        self.anchors.insert(handle, Position::default());
+        self.views.insert(handle, View::default());
     }
 }
 #[derive(Bundle)]
@@ -44,6 +73,20 @@ impl Segmental {
             segment,
             disabled: Disabled::default(),
         }
+    }
+}
+impl Leaf for Compositor {
+    type SetDescriptor = EmptySetDescriptor;
+
+    fn config(elm_configuration: &mut ElmConfiguration) {}
+
+    fn attach(elm: &mut Elm) {
+        elm.main().add_systems((
+            (responsive_changed, viewport_changed).in_set(CoreSet::Compositor),
+            view_changed.in_set(CoreSet::ViewTransition),
+            despawn_triggered.in_set(ExternalSet::Spawn),
+        ));
+        elm.add_event::<ViewTransition>(EventStage::Process);
     }
 }
 fn responsive_changed(
@@ -125,7 +168,7 @@ fn view_changed(
                 .coordinate(compositor.layout(), viewport_handle.section())
                 .is_some()
             {
-                *segments.get_mut(*entity).unwrap() = Disabled::inactive();
+                *segments.get_mut(*entity).unwrap().1 = Disabled::inactive();
             }
         }
         // get new anchor
@@ -162,21 +205,6 @@ fn despawn_triggered(
         }
     }
 }
-impl Compositor {
-    pub fn add_to_view<VH: Into<ViewHandle>>(&mut self, vh: VH, entity: Entity) {
-        let handle = vh.into();
-        self.views.get_mut(&handle).unwrap().add(entity);
-        self.entity_to_view.insert(entity, handle);
-    }
-    pub fn remove_from_view<VH: Into<ViewHandle>>(&mut self, vh: VH, entity: Entity) {
-        self.views
-            .get_mut(&vh.into())
-            .unwrap()
-            .entities
-            .remove(&entity);
-        self.entity_to_view.remove(&entity);
-    }
-}
 #[derive(Copy, Clone, Default, Hash, Eq, PartialEq, Debug, Component)]
 pub struct ViewHandle(pub i32, pub i32);
 impl ViewHandle {
@@ -191,18 +219,5 @@ pub struct View {
 impl View {
     pub fn add(&mut self, entity: Entity) {
         self.entities.insert(entity);
-    }
-}
-#[derive(Component, Copy, Clone, Default)]
-pub struct Disabled(pub(crate) bool);
-impl Disabled {
-    pub fn disabled(&self) -> bool {
-        self.0
-    }
-    pub fn active() -> Self {
-        Self(true)
-    }
-    pub fn inactive() -> Self {
-        Self(false)
     }
 }

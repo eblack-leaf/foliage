@@ -1,11 +1,11 @@
 use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::elm::leaf::{EmptySetDescriptor, Leaf};
 use crate::elm::Elm;
-use bevy_ecs::prelude::IntoSystemConfigs;
+use bevy_ecs::prelude::{Component, IntoSystemConfigs};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::Query;
 
-#[derive(Default, Copy, Clone, Debug, Hash, Eq, PartialEq)]
+#[derive(Default, Copy, Clone, Debug, Hash, Eq, PartialEq, Component)]
 pub struct Trigger(pub(crate) bool);
 impl Trigger {
     pub fn triggered(&self) -> bool {

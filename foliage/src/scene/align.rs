@@ -90,8 +90,9 @@ impl SceneAligner for i32 {
 #[derive(Copy, Clone, Default)]
 pub struct AlignmentDisable(pub bool);
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub enum AlignmentBias {
+    #[default]
     Near,
     Center,
     Far,

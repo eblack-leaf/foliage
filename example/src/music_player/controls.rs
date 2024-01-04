@@ -18,7 +18,7 @@ use foliage::rectangle::Rectangle;
 use foliage::scene::align::{SceneAligner, SceneAlignment};
 use foliage::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
 use foliage::texture::factors::Progress;
-use foliage::{bevy_ecs, scene_bind_enable, set_descriptor};
+use foliage::{bevy_ecs, set_descriptor};
 
 #[derive(Bundle)]
 pub struct Controls {
@@ -60,7 +60,6 @@ impl Leaf for Controls {
                 .before(<Icon as Leaf>::SetDescriptor::Area),
             with_play_hook.in_set(ExternalSet::Process),
         ));
-        scene_bind_enable!(elm, Controls);
     }
 }
 fn resize(

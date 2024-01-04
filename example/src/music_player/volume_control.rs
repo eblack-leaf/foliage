@@ -15,7 +15,7 @@ use foliage::prebuilt::interactive_progress_bar::{
 };
 use foliage::scene::align::{SceneAligner, SceneAlignment};
 use foliage::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
-use foliage::{bevy_ecs, scene_bind_enable, set_descriptor};
+use foliage::{bevy_ecs, set_descriptor};
 
 #[derive(Bundle)]
 pub struct VolumeControl {
@@ -65,7 +65,6 @@ impl Leaf for VolumeControl {
             .in_set(Self::SetDescriptor::Area)
             .before(<InteractiveProgressBar as Leaf>::SetDescriptor::Area)
             .before(<Icon as Leaf>::SetDescriptor::Area),));
-        scene_bind_enable!(elm, VolumeControl);
     }
 }
 fn change_icon(

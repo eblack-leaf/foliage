@@ -10,8 +10,8 @@ use crate::interaction::InteractionListener;
 use crate::prebuilt::progress_bar::{ProgressBar, ProgressBarArgs};
 use crate::scene::align::SceneAligner;
 use crate::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
+use crate::set_descriptor;
 use crate::texture::factors::Progress;
-use crate::{scene_bind_enable, set_descriptor};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Commands, IntoSystemConfigs};
@@ -64,7 +64,6 @@ impl Leaf for InteractiveProgressBar {
             .chain()
             .in_set(Self::SetDescriptor::Area)
             .before(<ProgressBar as Leaf>::SetDescriptor::Area),));
-        scene_bind_enable!(elm, InteractiveProgressBar);
     }
 }
 fn resize(

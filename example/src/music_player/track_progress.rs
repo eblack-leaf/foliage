@@ -21,7 +21,7 @@ use foliage::text::{FontSize, MaxCharacters, Text, TextValue};
 use foliage::texture::factors::Progress;
 use foliage::time::{Time, TimeDelta, TimeMarker};
 use foliage::window::ScaleFactor;
-use foliage::{bevy_ecs, scene_bind_enable, set_descriptor};
+use foliage::{bevy_ecs, set_descriptor};
 
 #[derive(Bundle)]
 pub struct TrackProgress {
@@ -57,7 +57,7 @@ impl Leaf for TrackProgress {
                 .before(<ProgressBar as Leaf>::SetDescriptor::Area)
                 .before(<Text as Leaf>::SetDescriptor::Area),
         );
-        scene_bind_enable!(elm, TrackProgress);
+
         elm.add_event::<TrackEvent>(EventStage::Process);
         elm.add_event::<TrackPlayEvent>(EventStage::Process);
     }

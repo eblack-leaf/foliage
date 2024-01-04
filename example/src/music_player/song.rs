@@ -14,7 +14,7 @@ use foliage::text::font::MonospacedFont;
 use foliage::text::{FontSize, MaxCharacters, Text, TextValue};
 use foliage::texture::factors::Progress;
 use foliage::window::ScaleFactor;
-use foliage::{bevy_ecs, scene_bind_enable, set_descriptor};
+use foliage::{bevy_ecs, set_descriptor};
 #[derive(Bundle)]
 pub struct SongInfo {
     tag: Tag<Self>,
@@ -50,7 +50,6 @@ impl Leaf for SongInfo {
         elm.main().add_systems((resize
             .in_set(Self::SetDescriptor::Area)
             .before(<Text as Leaf>::SetDescriptor::Area),));
-        scene_bind_enable!(elm, SongInfo);
     }
 }
 fn resize(

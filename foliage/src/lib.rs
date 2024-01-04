@@ -30,6 +30,7 @@ use crate::prebuilt::circle_progress_bar::CircleProgressBar;
 use crate::prebuilt::icon_button::IconButton;
 use crate::prebuilt::interactive_progress_bar::InteractiveProgressBar;
 use crate::prebuilt::progress_bar::ProgressBar;
+use crate::r_compositor::Compositor;
 use crate::rectangle::Rectangle;
 use crate::text::Text;
 use crate::time::Time;
@@ -115,6 +116,7 @@ impl Foliage {
             .with_leaf::<Interaction>()
             .with_leaf::<InteractiveProgressBar>()
             .with_leaf::<ViewportHandle>()
+            .with_leaf::<Compositor>()
             .with_leaf::<Time>()
     }
     pub fn with_android_interface(mut self, android_interface: AndroidInterface) -> Self {
