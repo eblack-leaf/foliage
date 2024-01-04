@@ -15,7 +15,7 @@ use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::{Event, EventReader};
 use bevy_ecs::prelude::{IntoSystemConfigs, Resource};
-use bevy_ecs::query::{Changed, With};
+use bevy_ecs::query::{Changed, Or, With};
 use bevy_ecs::system::{Commands, Query, Res, ResMut};
 use std::collections::{HashMap, HashSet};
 
@@ -98,7 +98,7 @@ fn responsive_changed(
             &mut Layer,
             &mut Disabled,
         ),
-        Changed<ResponsiveSegment>,
+        Or<(Changed<ResponsiveSegment>, Changed<Disabled>)>,
     >,
     viewport_handle: Res<ViewportHandle>,
     compositor: Res<Compositor>,
