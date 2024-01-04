@@ -35,7 +35,11 @@ impl CoordinateContext for NumericalContext {}
 #[derive(Component, Copy, Clone)]
 pub struct PositionAdjust(pub Position<InterfaceContext>);
 pub(crate) fn position_set(
-    mut query: Query<(&mut CReprPosition, &Position<InterfaceContext>, &PositionAdjust)>,
+    mut query: Query<(
+        &mut CReprPosition,
+        &Position<InterfaceContext>,
+        &PositionAdjust,
+    )>,
     scale_factor: Res<ScaleFactor>,
 ) {
     for (mut c_repr, pos, adjust) in query.iter_mut() {

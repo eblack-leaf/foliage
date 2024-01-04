@@ -65,7 +65,10 @@ pub struct ForegroundColor(pub Color);
 #[derive(Copy, Clone, Component)]
 pub struct BackgroundColor(pub Color);
 fn interaction_color(
-    mut buttons: Query<(&InteractionListener, &mut ButtonStyle, &BaseStyle), Changed<InteractionListener>>,
+    mut buttons: Query<
+        (&InteractionListener, &mut ButtonStyle, &BaseStyle),
+        Changed<InteractionListener>,
+    >,
 ) {
     for (listener, mut style, base) in buttons.iter_mut() {
         if listener.engaged_start() {

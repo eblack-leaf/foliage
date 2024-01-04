@@ -2,6 +2,9 @@
 use std::path::Path;
 
 use bytemuck::{Pod, Zeroable};
+use depth_texture::DepthTexture;
+use msaa::Msaa;
+use viewport::Viewport;
 use wgpu::util::DeviceExt;
 use wgpu::{
     BindGroupEntry, BindGroupLayoutEntry, Buffer, BufferAddress, ColorTargetState,
@@ -10,9 +13,6 @@ use wgpu::{
     StoreOp, TextureDimension, TextureFormat, TextureUsages, TextureView,
 };
 use winit::event_loop::EventLoopWindowTarget;
-use depth_texture::DepthTexture;
-use msaa::Msaa;
-use viewport::Viewport;
 
 use crate::color::Color;
 use crate::coordinate::area::Area;

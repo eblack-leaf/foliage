@@ -162,7 +162,7 @@ impl Scene for CircleButton {
             foreground_color: ForegroundColor(args.color),
             background_color: BackgroundColor(args.back_color),
             style: args.style,
-            base: BaseStyle(args.style)
+            base: BaseStyle(args.style),
         }
     }
 }

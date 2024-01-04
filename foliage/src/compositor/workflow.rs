@@ -291,7 +291,11 @@ pub(crate) fn resize_segments(
             for (_handle, workflow) in compositor.workflow_groups.iter() {
                 if let Some(active) = workflow.stage {
                     if let Some(trans) = workflow.transitions.get(&active) {
-                        tracing::trace!("engaging transition:{:?}:{:?}", old_layout, compositor.layout());
+                        tracing::trace!(
+                            "engaging transition:{:?}:{:?}",
+                            old_layout,
+                            compositor.layout()
+                        );
                         cmd.entity(*trans)
                             .insert(TransitionEngaged(true))
                             .insert(ThresholdChange::new(old_layout));
@@ -301,7 +305,12 @@ pub(crate) fn resize_segments(
         }
         for (entity, mut pos, mut area, mut layer, handle, scene_handle) in query.iter_mut() {
             if let Some(coordinate) = compositor.coordinate(viewport_handle.section(), handle) {
-                tracing::trace!("updating segment-coordinate: {:?}:{:?}:{:?}", handle, entity, coordinate);
+                tracing::trace!(
+                    "updating segment-coordinate: {:?}:{:?}:{:?}",
+                    handle,
+                    entity,
+                    coordinate
+                );
                 if let Some(sh) = scene_handle {
                     coordinator.update_anchor(*sh, coordinate);
                 }
@@ -335,10 +344,17 @@ pub(crate) fn fill_bind_requests<B: Bundle + Clone + 'static>(
                     if let Some(tc) = threshold_change.as_ref() {
                         if validity.0.contains(&tc.old) {
                             if compositor.bindings.get(handle).is_some() {
-                                if let Some(coordinate) = compositor.coordinate(viewport_handle.section(), handle) {
+                                if let Some(coordinate) =
+                                    compositor.coordinate(viewport_handle.section(), handle)
+                                {
                                     let ent = *compositor.bindings.get(handle).unwrap();
                                     cmd.entity(ent).insert(coordinate);
-                                    tracing::trace!("reconfiguring old bind-request: {:?}:{:?}:{:?}", handle, ent, coordinate);
+                                    tracing::trace!(
+                                        "reconfiguring old bind-request: {:?}:{:?}:{:?}",
+                                        handle,
+                                        ent,
+                                        coordinate
+                                    );
                                 } else {
                                     let old = compositor.bindings.remove(handle);
                                     if let Some(o) = old {
@@ -402,10 +418,17 @@ pub(crate) fn fill_scene_bind_requests<S: Scene>(
                         tracing::trace!("threshold-change: {:?}", tc);
                         if validity.0.contains(&tc.old) {
                             if compositor.bindings.get(handle).is_some() {
-                                if let Some(coordinate) = compositor.coordinate(viewport_handle.section(), handle) {
+                                if let Some(coordinate) =
+                                    compositor.coordinate(viewport_handle.section(), handle)
+                                {
                                     let ent = *compositor.bindings.get(handle).unwrap();
                                     cmd.entity(ent).insert(coordinate);
-                                    tracing::trace!("reconfiguring old bind-request: {:?}:{:?}:{:?}", handle, ent, coordinate);
+                                    tracing::trace!(
+                                        "reconfiguring old bind-request: {:?}:{:?}:{:?}",
+                                        handle,
+                                        ent,
+                                        coordinate
+                                    );
                                 } else {
                                     let old = compositor.bindings.remove(handle);
                                     if let Some(o) = old {
