@@ -84,7 +84,7 @@ impl Leaf for Compositor {
     fn attach(elm: &mut Elm) {
         elm.main().add_systems((
             (responsive_changed, viewport_changed).in_set(CoreSet::Compositor),
-            view_changed.in_set(CoreSet::ViewTransition),
+            view_changed.in_set(CoreSet::TransitionView),
             despawn_triggered.in_set(ExternalSet::Spawn),
         ));
         elm.add_event::<ViewTransition>(EventStage::Process);

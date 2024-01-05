@@ -14,7 +14,7 @@ pub enum CoreSet {
     Interaction,
     // Process,
     ProcessEvent,
-    ViewTransition,
+    TransitionView,
     // Spawn,
     Compositor,
     // Configure,
@@ -41,7 +41,7 @@ impl<'a> ElmConfiguration<'a> {
                 CoreSet::Interaction,
                 ExternalSet::Process,
                 CoreSet::ProcessEvent,
-                CoreSet::ViewTransition,
+                CoreSet::TransitionView,
                 ExternalSet::Spawn,
                 CoreSet::Compositor,
                 ExternalSet::Configure,
@@ -77,9 +77,9 @@ impl<'a> ElmConfiguration<'a> {
                 .before(CoreSet::ProcessEvent),
             apply_deferred
                 .after(CoreSet::ProcessEvent)
-                .before(CoreSet::ViewTransition),
+                .before(CoreSet::TransitionView),
             apply_deferred
-                .after(CoreSet::ViewTransition)
+                .after(CoreSet::TransitionView)
                 .before(ExternalSet::Spawn),
             apply_deferred
                 .after(ExternalSet::Spawn)

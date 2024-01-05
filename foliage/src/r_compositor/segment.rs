@@ -81,9 +81,7 @@ impl ResponsiveSegment {
                 .with_position((x, y))
                 .with_area((w, h))
                 .with_layer(self.layer);
-            return Some(
-                coordinate,
-            );
+            return Some(coordinate);
         }
         None
     }
@@ -101,6 +99,46 @@ impl ResponsiveSegment {
             .with_portrait_tablet(segment)
             .with_portrait_desktop(segment)
             .with_portrait_workstation(segment)
+    }
+    pub fn without_portrait_mobile(mut self) -> Self {
+        self.segments
+            .remove(&Layout::new(Orientation::Portrait, Threshold::Mobile));
+        self
+    }
+    pub fn without_landscape_mobile(mut self) -> Self {
+        self.segments
+            .remove(&Layout::new(Orientation::Landscape, Threshold::Mobile));
+        self
+    }
+    pub fn without_portrait_tablet(mut self) -> Self {
+        self.segments
+            .remove(&Layout::new(Orientation::Portrait, Threshold::Tablet));
+        self
+    }
+    pub fn without_landscape_tablet(mut self) -> Self {
+        self.segments
+            .remove(&Layout::new(Orientation::Landscape, Threshold::Tablet));
+        self
+    }
+    pub fn without_portrait_desktop(mut self) -> Self {
+        self.segments
+            .remove(&Layout::new(Orientation::Portrait, Threshold::Desktop));
+        self
+    }
+    pub fn without_landscape_desktop(mut self) -> Self {
+        self.segments
+            .remove(&Layout::new(Orientation::Landscape, Threshold::Desktop));
+        self
+    }
+    pub fn without_portrait_workstation(mut self) -> Self {
+        self.segments
+            .remove(&Layout::new(Orientation::Portrait, Threshold::Workstation));
+        self
+    }
+    pub fn without_landscape_workstation(mut self) -> Self {
+        self.segments
+            .remove(&Layout::new(Orientation::Landscape, Threshold::Workstation));
+        self
     }
     pub fn with_portrait_mobile(mut self, segment: Segment) -> Self {
         self.segments.insert(
