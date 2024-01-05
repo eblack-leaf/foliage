@@ -1,4 +1,4 @@
-use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
+use crate::elm::config::{CoreSet, ElmConfiguration};
 use crate::elm::leaf::{EmptySetDescriptor, Leaf};
 use crate::elm::Elm;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs};

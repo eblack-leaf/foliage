@@ -53,7 +53,7 @@ impl ViewportHandle {
 impl Leaf for ViewportHandle {
     type SetDescriptor = EmptySetDescriptor;
 
-    fn config(elm_configuration: &mut ElmConfiguration) {}
+    fn config(_elm_configuration: &mut ElmConfiguration) {}
 
     fn attach(elm: &mut Elm) {
         elm.main()

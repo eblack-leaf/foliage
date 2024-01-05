@@ -19,7 +19,7 @@ pub mod align;
 #[derive(Copy, Clone, Default)]
 pub struct Anchor(pub Coordinate<InterfaceContext>);
 impl Anchor {
-    pub fn with_layer<L: Into<Layer>>(mut self, l: L) -> Self {
+    pub fn with_layer<L: Into<Layer>>(self, l: L) -> Self {
         self.0.with_layer(l);
         self
     }

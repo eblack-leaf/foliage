@@ -19,12 +19,11 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, InterfaceContext};
-use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
-use crate::elm::leaf::Tag;
+use crate::elm::config::{CoreSet, ElmConfiguration};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::job::{Job, Task};
 use crate::r_compositor::Compositor;
-use crate::scene::{Scene, SceneCoordinator};
+use crate::scene::SceneCoordinator;
 use crate::window::ScaleFactor;
 
 pub struct Elm {

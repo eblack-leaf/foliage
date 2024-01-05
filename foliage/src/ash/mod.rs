@@ -49,7 +49,7 @@ impl Ash {
     }
     pub(crate) fn prepare(&mut self, ginkgo: &Ginkgo) {
         tracing::trace!("prepare");
-        for (id, leaf) in self.render_leaflets.iter() {
+        for (_id, leaf) in self.render_leaflets.iter() {
             // tracing::trace!("preparing");
             (leaf.prepare_packages_fn)(
                 &mut self.renderer_handler,

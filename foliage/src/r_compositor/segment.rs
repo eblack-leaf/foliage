@@ -85,16 +85,16 @@ impl ResponsiveSegment {
         }
         None
     }
-    pub fn all(mut self, segment: Segment) -> Self {
+    pub fn all(self, segment: Segment) -> Self {
         self.with_portrait(segment).with_landscape(segment)
     }
-    pub fn with_landscape(mut self, segment: Segment) -> Self {
+    pub fn with_landscape(self, segment: Segment) -> Self {
         self.with_landscape_mobile(segment)
             .with_landscape_tablet(segment)
             .with_landscape_desktop(segment)
             .with_landscape_workstation(segment)
     }
-    pub fn with_portrait(mut self, segment: Segment) -> Self {
+    pub fn with_portrait(self, segment: Segment) -> Self {
         self.with_portrait_mobile(segment)
             .with_portrait_tablet(segment)
             .with_portrait_desktop(segment)

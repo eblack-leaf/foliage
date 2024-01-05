@@ -2,7 +2,7 @@ use crate::animate::trigger::Trigger;
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
-use crate::coordinate::InterfaceContext;
+use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::differential::Despawn;
 use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::elm::leaf::{EmptySetDescriptor, Leaf, Tag};
@@ -29,7 +29,6 @@ pub struct Compositor {
     layout: Layout,
     views: HashMap<ViewHandle, View>,
     entity_to_view: HashMap<Entity, ViewHandle>,
-    anchors: HashMap<ViewHandle, Position<InterfaceContext>>,
 }
 impl Compositor {
     pub fn new(area: Area<InterfaceContext>) -> Self {
@@ -38,7 +37,6 @@ impl Compositor {
             layout: Layout::from_area(area),
             views: HashMap::new(),
             entity_to_view: HashMap::new(),
-            anchors: HashMap::new(),
         }
     }
     pub fn layout(&self) -> Layout {
@@ -59,7 +57,6 @@ impl Compositor {
     }
     pub fn add_view<VH: Into<ViewHandle>>(&mut self, vh: VH) {
         let handle = vh.into();
-        self.anchors.insert(handle, Position::default());
         self.views.insert(handle, View::default());
     }
 }
@@ -168,11 +165,12 @@ pub struct ViewTransition(pub ViewHandle);
 fn view_changed(
     mut compositor: ResMut<Compositor>,
     mut events: EventReader<ViewTransition>,
+    viewport_handle: Res<ViewportHandle>,
     mut cmd: Commands,
 ) {
     if let Some(event) = events.read().last() {
         let old = compositor.current;
-        let new_anchor = *compositor.anchors.get(&event.0).unwrap();
+        let _new_anchor = event.0.anchor(viewport_handle.section().area);
         compositor.current = event.0;
         cmd.spawn((
             Trigger::default(),
@@ -210,6 +208,13 @@ pub struct ViewHandle(pub i32, pub i32);
 impl ViewHandle {
     pub fn new(x: i32, y: i32) -> Self {
         Self(x, y)
+    }
+    pub fn anchor(&self, area: Area<InterfaceContext>) -> Position<InterfaceContext> {
+        (
+            self.0 as CoordinateUnit * area.width,
+            self.1 as CoordinateUnit * area.height,
+        )
+            .into()
     }
 }
 #[derive(Default)]
