@@ -2,7 +2,7 @@ use crate::animate::trigger::Trigger;
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
-use crate::coordinate::{area_set, position_set, InterfaceContext};
+use crate::coordinate::InterfaceContext;
 use crate::differential::Despawn;
 use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::elm::leaf::{EmptySetDescriptor, Leaf, Tag};
@@ -18,6 +18,7 @@ use bevy_ecs::prelude::{IntoSystemConfigs, Resource};
 use bevy_ecs::query::{Changed, Or, With};
 use bevy_ecs::system::{Commands, Query, Res, ResMut};
 use std::collections::{HashMap, HashSet};
+use crate::scene::{SceneCoordinator, SceneHandle};
 
 pub mod layout;
 pub mod segment;
@@ -78,7 +79,7 @@ impl Segmental {
 impl Leaf for Compositor {
     type SetDescriptor = EmptySetDescriptor;
 
-    fn config(elm_configuration: &mut ElmConfiguration) {}
+    fn config(_elm_configuration: &mut ElmConfiguration) {}
 
     fn attach(elm: &mut Elm) {
         elm.main().add_systems((
@@ -97,14 +98,19 @@ fn responsive_changed(
             &mut Area<InterfaceContext>,
             &mut Layer,
             &mut Disabled,
+            Option<&SceneHandle>,
         ),
         Or<(Changed<ResponsiveSegment>, Changed<Disabled>)>,
     >,
     viewport_handle: Res<ViewportHandle>,
     compositor: Res<Compositor>,
+    mut coordinator: ResMut<SceneCoordinator>,
 ) {
-    for (segment, mut pos, mut area, mut layer, mut disabled) in responsive.iter_mut() {
+    for (segment, mut pos, mut area, mut layer, mut disabled, m_scene_handle) in responsive.iter_mut() {
         if let Some(coord) = segment.coordinate(compositor.layout(), viewport_handle.section()) {
+            if let Some(sh) = m_scene_handle {
+                coordinator.update_anchor(*sh, coord);
+            }
             *pos = coord.section.position;
             *area = coord.section.area;
             *layer = coord.layer;
@@ -126,14 +132,19 @@ fn viewport_changed(
         &mut Area<InterfaceContext>,
         &mut Layer,
         &mut Disabled,
+        Option<&SceneHandle>,
     )>,
     viewport_handle: Res<ViewportHandle>,
+    mut coordinator: ResMut<SceneCoordinator>,
 ) {
     if viewport_handle.area_updated() {
         compositor.layout = Layout::from_area(viewport_handle.section().area);
-        for (segment, mut pos, mut area, mut layer, mut disabled) in segments.iter_mut() {
+        for (segment, mut pos, mut area, mut layer, mut disabled, m_scene_handle) in segments.iter_mut() {
             if let Some(coord) = segment.coordinate(compositor.layout(), viewport_handle.section())
             {
+                if let Some(sh) = m_scene_handle {
+                    coordinator.update_anchor(*sh, coord);
+                }
                 *pos = coord.section.position;
                 *area = coord.section.area;
                 *layer = coord.layer;
@@ -153,25 +164,10 @@ pub struct ViewTransition(pub ViewHandle);
 fn view_changed(
     mut compositor: ResMut<Compositor>,
     mut events: EventReader<ViewTransition>,
-    viewport_handle: Res<ViewportHandle>,
-    mut segments: Query<(&ResponsiveSegment, &mut Disabled)>,
     mut cmd: Commands,
 ) {
     if let Some(event) = events.read().last() {
         let old = compositor.current;
-        // un-disable new
-        for entity in compositor.views.get(&event.0).unwrap().entities.iter() {
-            if segments
-                .get_mut(*entity)
-                .unwrap()
-                .0
-                .coordinate(compositor.layout(), viewport_handle.section())
-                .is_some()
-            {
-                *segments.get_mut(*entity).unwrap().1 = Disabled::inactive();
-            }
-        }
-        // get new anchor
         let new_anchor = *compositor.anchors.get(&event.0).unwrap();
         compositor.current = event.0;
         cmd.spawn((

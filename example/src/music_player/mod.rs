@@ -10,15 +10,22 @@ pub mod track_progress;
 pub mod visualizer;
 pub mod volume_control;
 
-use crate::music_player::track_progress::TrackEvent;
+use crate::music_player::controls::Controls;
+use crate::music_player::track_progress::{TrackEvent, TrackProgress, TrackProgressArgs};
+use crate::music_player::volume_control::{VolumeControl, VolumeControlArgs};
 use foliage::bevy_ecs::change_detection::ResMut;
 use foliage::bevy_ecs::event::{EventReader, EventWriter};
-use foliage::bevy_ecs::prelude::{Commands, IntoSystemConfigs};
+use foliage::bevy_ecs::prelude::{Commands, IntoSystemConfigs, Res};
+use foliage::color::Color;
 use foliage::elm::config::{ElmConfiguration, ExternalSet};
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 use foliage::elm::Elm;
-use foliage::r_compositor::{Compositor, ViewHandle, ViewTransition};
+use foliage::r_compositor::segment::{ResponsiveSegment, Segment, SegmentUnit};
+use foliage::r_compositor::{Compositor, Segmental, ViewHandle, ViewTransition};
+use foliage::scene::{Anchor, SceneCoordinator};
+use foliage::text::font::MonospacedFont;
 use foliage::time::TimeDelta;
+use foliage::window::ScaleFactor;
 
 pub struct MusicPlayer {}
 #[allow(unused)]
@@ -28,54 +35,73 @@ fn setup(
     mut events: EventWriter<ViewTransition>,
     mut track_events: EventWriter<TrackEvent>,
 ) {
-    // segments
     let begin = ViewHandle::new(0, 0);
     compositor.add_view(begin);
-    // let playlist_segment = compositor.add_segment(ResponsiveSegment::new(begin).all(Segment::new(
-    //     (0.025.relative(), 10.fixed()),
-    //     (0.45.relative(), 0.15.relative()),
-    //     0,
-    // )));
-    // let volume_control_segment = compositor.add_segment(ResponsiveSegment::all(Segment::new(
-    //     (0.5.relative(), 25.fixed()),
-    //     (0.425.relative(), 12.fixed()),
-    //     0,
-    // )));
-    // let stream_segment = compositor.add_segment(ResponsiveSegment::all(Segment::new(
-    //     (0.05.relative(), 0.3.relative()),
-    //     (0.9.relative(), 0.15.relative()),
-    //     0,
-    // )));
-    // let visualizer_segment = compositor.add_segment(ResponsiveSegment::all(Segment::new(
-    //     (0.05.relative(), 0.45.relative()),
-    //     (324.fixed(), 48.fixed()),
-    //     0,
-    // )));
-    // let song_info_segment = compositor.add_segment(ResponsiveSegment::all(Segment::new(
-    //     (0.05.relative(), 0.55.relative()),
-    //     (0.9.relative(), 0.15.relative()),
-    //     0,
-    // )));
-    // let progress_segment = compositor.add_segment(ResponsiveSegment::all(Segment::new(
-    //     (0.1.relative(), 0.75.relative()),
-    //     (0.8.relative(), 60.fixed()),
-    //     0,
-    // )));
-    // let control_segment = compositor.add_segment(ResponsiveSegment::all(Segment::new(
-    //     (0.15.relative(), 0.85.relative()),
-    //     (0.7.relative(), 0.15.relative()),
-    //     0,
-    // )));
     // trigger starting transition
     events.send(ViewTransition(begin));
     track_events.send(TrackEvent {
         length: TimeDelta::from_secs(24),
     });
 }
-fn transitions(mut events: EventReader<ViewTransition>) {
+fn transitions(
+    mut events: EventReader<ViewTransition>,
+    mut cmd: Commands,
+    mut coordinator: ResMut<SceneCoordinator>,
+    mut compositor: ResMut<Compositor>,
+    font: Res<MonospacedFont>,
+    scale_factor: Res<ScaleFactor>,
+) {
     for e in events.read() {
-        if e.0 == ViewHandle::new(0, 0) {
+        let begin = ViewHandle::new(0, 0);
+        if e.0 == begin {
             // spawn stuff with responsive seg
+            let (_handle, entity) = coordinator.spawn_scene::<VolumeControl>(
+                Anchor::default().with_layer(0),
+                &VolumeControlArgs::new(0.3, Color::GREEN_MEDIUM, Color::GREY_DARK),
+                &(),
+                &mut cmd,
+            );
+            cmd.entity(entity).insert(Segmental::new(
+                ResponsiveSegment::new(begin, 0).all(
+                    Segment::new()
+                        .with_x(SegmentUnit::new(0.5).relative())
+                        .with_y(SegmentUnit::new(25.0).fixed())
+                        .with_w(SegmentUnit::new(0.425).relative())
+                        .with_h(SegmentUnit::new(12.0).fixed()),
+                ),
+            ));
+            compositor.add_to_view(begin, entity);
+            let (_handle, entity) = coordinator.spawn_scene::<TrackProgress>(
+                Anchor::default().with_layer(0),
+                &TrackProgressArgs::new(Color::GREEN_MEDIUM, Color::GREY_DARK),
+                &(Res::clone(&font), Res::clone(&scale_factor)),
+                &mut cmd,
+            );
+            cmd.entity(entity).insert(Segmental::new(
+                ResponsiveSegment::new(begin, 0).all(
+                    Segment::new()
+                        .with_x(SegmentUnit::new(0.1).relative())
+                        .with_y(SegmentUnit::new(0.75).relative())
+                        .with_w(SegmentUnit::new(0.7).relative())
+                        .with_h(SegmentUnit::new(0.15).relative()),
+                ),
+            ));
+            compositor.add_to_view(begin, entity);
+            let (_handle, entity) = coordinator.spawn_scene::<Controls>(
+                Anchor::default().with_layer(0),
+                &(),
+                &(),
+                &mut cmd,
+            );
+            cmd.entity(entity).insert(Segmental::new(
+                ResponsiveSegment::new(begin, 0).all(
+                    Segment::new()
+                        .with_x(SegmentUnit::new(0.15).relative())
+                        .with_y(SegmentUnit::new(0.85).fixed())
+                        .with_w(SegmentUnit::new(0.425).relative())
+                        .with_h(SegmentUnit::new(12.0).fixed()),
+                ),
+            ));
         }
     }
 }

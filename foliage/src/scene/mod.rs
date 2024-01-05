@@ -18,6 +18,12 @@ pub mod align;
 
 #[derive(Copy, Clone, Default)]
 pub struct Anchor(pub Coordinate<InterfaceContext>);
+impl Anchor {
+    pub fn with_layer<L: Into<Layer>>(mut self, l: L) -> Self {
+        self.0.with_layer(l);
+        self
+    }
+}
 #[derive(Copy, Clone, Default, Hash, Eq, PartialEq, Debug)]
 pub struct SceneBinding(pub i32);
 impl From<()> for SceneBinding {

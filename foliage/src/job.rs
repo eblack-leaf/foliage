@@ -106,6 +106,7 @@ impl Job {
         &mut self.teardown
     }
     pub fn exec_main(&mut self) {
+        tracing::trace!("elm:exec-main");
         self.main
             .set_executor_kind(ExecutorKind::Simple)
             .run(&mut self.container);

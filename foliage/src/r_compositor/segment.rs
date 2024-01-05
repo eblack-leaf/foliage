@@ -2,20 +2,22 @@ use crate::coordinate::section::Section;
 use crate::coordinate::{Coordinate, CoordinateUnit, InterfaceContext};
 use crate::r_compositor::layout::{Layout, Orientation, Threshold};
 use crate::r_compositor::ViewHandle;
-use crate::scene::align::AlignmentBias;
 use bevy_ecs::component::Component;
 use std::collections::HashMap;
+use crate::coordinate::layer::Layer;
 
 #[derive(Component)]
 pub struct ResponsiveSegment {
     pub handle: ViewHandle,
     pub segments: HashMap<Layout, Segment>,
+    pub layer: Layer,
 }
 impl ResponsiveSegment {
-    pub fn new<VH: Into<ViewHandle>>(vh: VH) -> Self {
+    pub fn new<VH: Into<ViewHandle>, L: Into<Layer>>(vh: VH, l: L) -> Self {
         Self {
             handle: vh.into(),
             segments: HashMap::new(),
+            layer: l.into(),
         }
     }
     pub fn coordinate(
@@ -24,7 +26,9 @@ impl ResponsiveSegment {
         section: Section<InterfaceContext>,
     ) -> Option<Coordinate<InterfaceContext>> {
         if let Some(seg) = self.segments.get(&layout) {
-            return Some(seg.coordinate(section));
+            let x_offset = seg.x.base * if seg.x.fixed { 1.0 } else { section.area.width };
+            let x_start = self.handle.0 as CoordinateUnit * section.area.width;
+            return Some(coord);
         }
         None
     }
@@ -132,36 +136,31 @@ impl Segment {
         self.h = unit.into();
         self
     }
-    pub fn coordinate(&self, section: Section<InterfaceContext>) -> Coordinate<InterfaceContext> {
-        todo!()
-    }
 }
 #[derive(Copy, Clone, Default)]
 pub struct SegmentUnit {
     base: CoordinateUnit,
-    rel_or_fix: bool,
+    fixed: bool,
     min: Option<CoordinateUnit>,
     max: Option<CoordinateUnit>,
     offset: CoordinateUnit,
-    bias: AlignmentBias,
 }
 impl SegmentUnit {
     pub fn new(base: CoordinateUnit) -> Self {
         Self {
             base,
-            rel_or_fix: false,
+            fixed: false,
             min: None,
             max: None,
             offset: 0.0,
-            bias: AlignmentBias::Near,
         }
     }
     pub fn relative(mut self) -> Self {
-        self.rel_or_fix = false;
+        self.fixed = false;
         self
     }
     pub fn fixed(mut self) -> Self {
-        self.rel_or_fix = true;
+        self.fixed = true;
         self
     }
     pub fn max(mut self, m: CoordinateUnit) -> Self {
@@ -174,18 +173,6 @@ impl SegmentUnit {
     }
     pub fn offset(mut self, o: CoordinateUnit) -> Self {
         self.offset = o;
-        self
-    }
-    pub fn near(mut self) -> Self {
-        self.bias = AlignmentBias::Near;
-        self
-    }
-    pub fn far(mut self) -> Self {
-        self.bias = AlignmentBias::Far;
-        self
-    }
-    pub fn center(mut self) -> Self {
-        self.bias = AlignmentBias::Center;
         self
     }
 }
