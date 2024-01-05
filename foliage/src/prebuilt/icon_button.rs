@@ -1,10 +1,12 @@
 use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::InterfaceContext;
+use crate::differential::Despawn;
 use crate::elm::config::ElmConfiguration;
 use crate::elm::leaf::{EmptySetDescriptor, Leaf, Tag};
 use crate::elm::Elm;
 use crate::icon::{Icon, IconId, IconScale};
+use crate::interaction::InteractionListener;
 use crate::panel::{Panel, PanelStyle};
 use crate::prebuilt::button::{BackgroundColor, BaseStyle, Button, ButtonStyle, ForegroundColor};
 use crate::scene::align::SceneAligner;
@@ -55,6 +57,7 @@ fn resize(
             &ForegroundColor,
             &BackgroundColor,
             &ButtonStyle,
+            &Despawn,
         ),
         (
             Or<(
@@ -67,16 +70,23 @@ fn resize(
         ),
     >,
     mut coordinator: ResMut<SceneCoordinator>,
-    mut panels: Query<&mut Area<InterfaceContext>, Without<Tag<IconButton>>>,
+    mut panels: Query<(&mut Area<InterfaceContext>, &mut PanelStyle), Without<Tag<IconButton>>>,
     mut icons: Query<&mut IconScale>,
     mut colors: Query<&mut Color>,
 ) {
-    for (handle, area, foreground, background, style) in scenes.iter() {
+    for (handle, area, foreground, background, style, despawn) in scenes.iter() {
+        if despawn.should_despawn() {
+            continue;
+        }
         coordinator.update_anchor_area(*handle, *area);
         let iac = handle.access_chain().target(IconButtonBindings::Icon);
         let pac = handle.access_chain().target(IconButtonBindings::Panel);
         let panel = coordinator.binding_entity(&pac);
-        *panels.get_mut(panel).unwrap() = *area;
+        *panels.get_mut(panel).unwrap().0 = *area;
+        *panels.get_mut(panel).unwrap().1 = match style {
+            ButtonStyle::Ring => PanelStyle::ring(),
+            ButtonStyle::Fill => PanelStyle::fill(),
+        };
         let icon = coordinator.binding_entity(&iac);
         *icons.get_mut(icon).unwrap() = IconScale::from_dim(area.height * 0.9);
         match style {
@@ -95,8 +105,9 @@ impl Leaf for IconButton {
     fn config(_elm_configuration: &mut ElmConfiguration) {}
 
     fn attach(elm: &mut Elm) {
-        elm.main()
-            .add_systems((resize.in_set(<Button as Leaf>::SetDescriptor::Area),));
+        elm.main().add_systems((resize
+            .in_set(<Button as Leaf>::SetDescriptor::Area)
+            .before(<Panel as Leaf>::SetDescriptor::Area),));
     }
 }
 impl Scene for IconButton {
@@ -111,7 +122,9 @@ impl Scene for IconButton {
         _external_args: &SystemParamItem<Self::ExternalArgs>,
         mut binder: SceneBinder<'_>,
     ) -> Self {
-        binder.bind(
+        cmd.entity(binder.this())
+            .insert(InteractionListener::default());
+        let entity = binder.bind(
             Self::Bindings::Panel,
             (0.near(), 0.near(), 1),
             Panel::new(
@@ -124,7 +137,8 @@ impl Scene for IconButton {
             ),
             cmd,
         );
-        binder.bind(
+        tracing::trace!("binding-icon-button-panel: {:?}", entity);
+        let entity = binder.bind(
             Self::Bindings::Icon,
             (0.center(), 0.center(), 0),
             Icon::new(
@@ -137,6 +151,7 @@ impl Scene for IconButton {
             ),
             cmd,
         );
+        tracing::trace!("binding-icon-button-icon: {:?}", entity);
         Self {
             tag: Tag::new(),
             style: args.style,

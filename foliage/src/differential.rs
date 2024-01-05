@@ -239,6 +239,7 @@ impl Despawn {
 pub(crate) fn despawn(despawned: Query<(Entity, &Despawn), Changed<Despawn>>, mut cmd: Commands) {
     for (entity, despawn) in despawned.iter() {
         if despawn.should_despawn() {
+            tracing::trace!("cleaning-up despawn-signaled: {:?}", entity);
             cmd.entity(entity).despawn();
         }
     }

@@ -8,6 +8,7 @@ use foliage::circle::{Circle, CircleStyle, Diameter};
 use foliage::color::Color;
 use foliage::coordinate::area::Area;
 use foliage::coordinate::InterfaceContext;
+use foliage::differential::Despawn;
 use foliage::elm::config::{ElmConfiguration, ExternalSet};
 use foliage::elm::leaf::{Leaf, Tag};
 use foliage::elm::{Elm, EventStage};
@@ -77,14 +78,17 @@ impl From<TrackProgressBindings> for SceneBinding {
 }
 fn config_track_progress(
     scenes: Query<
-        (&SceneHandle, &Area<InterfaceContext>),
+        (&SceneHandle, &Area<InterfaceContext>, &Despawn),
         (With<Tag<TrackProgress>>, Changed<Area<InterfaceContext>>),
     >,
     mut coordinator: ResMut<SceneCoordinator>,
     mut prog_areas: Query<&mut Area<InterfaceContext>, Without<Tag<TrackProgress>>>,
     player: Res<TrackPlayer>,
 ) {
-    for (handle, area) in scenes.iter() {
+    for (handle, area, despawn) in scenes.iter() {
+        if despawn.should_despawn() {
+            continue;
+        }
         tracing::trace!("updating-track-progress");
         coordinator.update_anchor_area(*handle, *area);
         let prog_entity = coordinator.binding_entity(
@@ -117,7 +121,7 @@ impl TrackPlayEvent {
 fn read_track_event(
     mut pause_events: EventReader<TrackPlayEvent>,
     mut events: EventReader<TrackEvent>,
-    mut scenes: Query<(&SceneHandle, &Area<InterfaceContext>), With<Tag<TrackProgress>>>,
+    mut scenes: Query<(&SceneHandle, &Area<InterfaceContext>, &Despawn), With<Tag<TrackProgress>>>,
     control: Query<&SceneHandle, With<Tag<Controls>>>,
     mut player: ResMut<TrackPlayer>,
     mut coordinator: ResMut<SceneCoordinator>,
@@ -136,7 +140,10 @@ fn read_track_event(
                 player.length = track.length;
                 player.ratio = 0.0;
                 player.done = false;
-                for (handle, area) in scenes.iter() {
+                for (handle, area, despawn) in scenes.iter() {
+                    if despawn.should_despawn() {
+                        continue;
+                    }
                     coordinator
                         .get_alignment_mut(
                             &handle
@@ -156,7 +163,10 @@ fn read_track_event(
         }
         player.playing = !event.0;
     }
-    for (handle, area) in scenes.iter_mut() {
+    for (handle, area, despawn) in scenes.iter_mut() {
+        if despawn.should_despawn() {
+            continue;
+        }
         if player.playing && !player.done {
             let diff = time.frame_diff();
             player.last.replace(time.mark());
@@ -215,7 +225,10 @@ fn read_track_event(
         player.length = event.length;
         player.ratio = 0.0;
         player.done = false;
-        for (handle, area) in scenes.iter() {
+        for (handle, area, despawn) in scenes.iter() {
+            if despawn.should_despawn() {
+                continue;
+            }
             coordinator
                 .get_alignment_mut(
                     &handle
@@ -280,7 +293,7 @@ impl Scene for TrackProgress {
 }
 fn config_track_time(
     scenes: Query<
-        (&SceneHandle, &Area<InterfaceContext>),
+        (&SceneHandle, &Area<InterfaceContext>, &Despawn),
         (With<Tag<TrackTime>>, Changed<Area<InterfaceContext>>),
     >,
     mut coordinator: ResMut<SceneCoordinator>,
@@ -292,7 +305,10 @@ fn config_track_time(
     font: Res<MonospacedFont>,
     scale_factor: Res<ScaleFactor>,
 ) {
-    for (handle, area) in scenes.iter() {
+    for (handle, area, despawn) in scenes.iter() {
+        if despawn.should_despawn() {
+            continue;
+        }
         tracing::trace!("updating-track-time");
         coordinator.update_anchor_area(*handle, *area);
         coordinator

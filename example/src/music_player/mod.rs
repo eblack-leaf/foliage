@@ -9,19 +9,27 @@ pub mod track_progress;
 #[allow(unused)]
 pub mod visualizer;
 pub mod volume_control;
-
 use crate::music_player::controls::Controls;
 use crate::music_player::track_progress::{TrackEvent, TrackProgress, TrackProgressArgs};
 use crate::music_player::volume_control::{VolumeControl, VolumeControlArgs};
+use foliage::bevy_ecs;
 use foliage::bevy_ecs::change_detection::ResMut;
+use foliage::bevy_ecs::component::Component;
 use foliage::bevy_ecs::event::{EventReader, EventWriter};
 use foliage::bevy_ecs::prelude::{Commands, IntoSystemConfigs, Res};
+use foliage::bevy_ecs::query::Changed;
+use foliage::bevy_ecs::system::Query;
 use foliage::color::Color;
 use foliage::compositor::segment::{ResponsiveSegment, Segment, SegmentUnit};
 use foliage::compositor::{Compositor, Segmental, ViewHandle, ViewTransition};
 use foliage::elm::config::{ElmConfiguration, ExternalSet};
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 use foliage::elm::Elm;
+use foliage::icon::bundled_cov::BundledIcon;
+use foliage::icon::IconId;
+use foliage::interaction::InteractionListener;
+use foliage::prebuilt::button::ButtonStyle;
+use foliage::prebuilt::icon_button::{IconButton, IconButtonArgs};
 use foliage::scene::{Anchor, SceneCoordinator};
 use foliage::text::font::MonospacedFont;
 use foliage::time::TimeDelta;
@@ -37,6 +45,7 @@ fn setup(
 ) {
     let begin = ViewHandle::new(0, 0);
     compositor.add_view(begin);
+    compositor.add_view(ViewHandle::new(0, 1));
     // trigger starting transition
     events.send(ViewTransition(begin));
     track_events.send(TrackEvent {
@@ -53,6 +62,7 @@ fn transitions(
 ) {
     for e in events.read() {
         let begin = ViewHandle::new(0, 0);
+        let next = ViewHandle::new(0, 1);
         if e.0 == begin {
             // spawn stuff with responsive seg
             let (_handle, entity) = coordinator.spawn_scene::<VolumeControl>(
@@ -61,6 +71,7 @@ fn transitions(
                 &(),
                 &mut cmd,
             );
+            tracing::trace!("volume-control is:{:?}", entity);
             cmd.entity(entity).insert(Segmental::new(
                 ResponsiveSegment::new(begin, 0).all(
                     Segment::new()
@@ -71,37 +82,106 @@ fn transitions(
                 ),
             ));
             compositor.add_to_view(begin, entity);
-            let (_handle, entity) = coordinator.spawn_scene::<TrackProgress>(
-                Anchor::default().with_layer(0),
-                &TrackProgressArgs::new(Color::GREEN_MEDIUM, Color::GREY_DARK),
-                &(Res::clone(&font), Res::clone(&scale_factor)),
+            // let (_handle, entity) = coordinator.spawn_scene::<TrackProgress>(
+            //     Anchor::default().with_layer(0),
+            //     &TrackProgressArgs::new(Color::GREEN_MEDIUM, Color::GREY_DARK),
+            //     &(Res::clone(&font), Res::clone(&scale_factor)),
+            //     &mut cmd,
+            // );
+            // cmd.entity(entity).insert(Segmental::new(
+            //     ResponsiveSegment::new(begin, 0).all(
+            //         Segment::new()
+            //             .with_x(SegmentUnit::new(0.1).relative())
+            //             .with_y(SegmentUnit::new(0.75).relative())
+            //             .with_w(SegmentUnit::new(0.8).relative())
+            //             .with_h(SegmentUnit::new(60.0).fixed()),
+            //     ),
+            // ));
+            // compositor.add_to_view(begin, entity);
+            // let (_handle, entity) = coordinator.spawn_scene::<Controls>(
+            //     Anchor::default().with_layer(0),
+            //     &(),
+            //     &(),
+            //     &mut cmd,
+            // );
+            // cmd.entity(entity).insert(Segmental::new(
+            //     ResponsiveSegment::new(begin, 0).all(
+            //         Segment::new()
+            //             .with_x(SegmentUnit::new(0.15).relative())
+            //             .with_y(SegmentUnit::new(0.85).relative())
+            //             .with_w(SegmentUnit::new(0.7).relative())
+            //             .with_h(SegmentUnit::new(0.15).relative()),
+            //     ),
+            // ));
+            // compositor.add_to_view(begin, entity);
+            let (_handle, entity) = coordinator.spawn_scene::<IconButton>(
+                Anchor::default(),
+                &IconButtonArgs::new(
+                    IconId::new(BundledIcon::ChevronsLeft),
+                    ButtonStyle::Ring,
+                    Color::GREEN_MEDIUM,
+                    Color::GREY_DARK,
+                ),
+                &(),
                 &mut cmd,
             );
-            cmd.entity(entity).insert(Segmental::new(
-                ResponsiveSegment::new(begin, 0).all(
-                    Segment::new()
-                        .with_x(SegmentUnit::new(0.1).relative())
-                        .with_y(SegmentUnit::new(0.75).relative())
-                        .with_w(SegmentUnit::new(0.8).relative())
-                        .with_h(SegmentUnit::new(60.0).fixed()),
-                ),
-            ));
+            tracing::trace!("icon-button-to-next is:{:?}", entity);
+            cmd.entity(entity)
+                .insert(Segmental::new(
+                    ResponsiveSegment::new(begin, 0).all(
+                        Segment::new()
+                            .with_x(SegmentUnit::new(10.0).fixed())
+                            .with_y(SegmentUnit::new(19.0).fixed())
+                            .with_w(SegmentUnit::new(28.0).fixed())
+                            .with_h(SegmentUnit::new(28.0).fixed()),
+                    ),
+                ))
+                .insert(GoBack());
             compositor.add_to_view(begin, entity);
-            let (_handle, entity) = coordinator.spawn_scene::<Controls>(
-                Anchor::default().with_layer(0),
-                &(),
+        } else if e.0 == next {
+            let (_handle, entity) = coordinator.spawn_scene::<IconButton>(
+                Anchor::default(),
+                &IconButtonArgs::new(
+                    IconId::new(BundledIcon::ChevronsRight),
+                    ButtonStyle::Ring,
+                    Color::GREEN_MEDIUM,
+                    Color::GREY_DARK,
+                ),
                 &(),
                 &mut cmd,
             );
-            cmd.entity(entity).insert(Segmental::new(
-                ResponsiveSegment::new(begin, 0).all(
-                    Segment::new()
-                        .with_x(SegmentUnit::new(0.15).relative())
-                        .with_y(SegmentUnit::new(0.85).relative())
-                        .with_w(SegmentUnit::new(0.7).relative())
-                        .with_h(SegmentUnit::new(0.15).relative()),
-                ),
-            ));
+            cmd.entity(entity)
+                .insert(Segmental::new(
+                    ResponsiveSegment::new(next, 0).all(
+                        Segment::new()
+                            .with_x(SegmentUnit::new(100.0).fixed())
+                            .with_y(SegmentUnit::new(19.0).fixed())
+                            .with_w(SegmentUnit::new(28.0).fixed())
+                            .with_h(SegmentUnit::new(28.0).fixed()),
+                    ),
+                ))
+                .insert(GoForward());
+            compositor.add_to_view(next, entity);
+        }
+    }
+}
+#[derive(Component)]
+pub(crate) struct GoBack();
+#[derive(Component)]
+pub(crate) struct GoForward();
+fn page_back(
+    go_backs: Query<(&GoBack, &InteractionListener), Changed<InteractionListener>>,
+    go_forward: Query<(&GoForward, &InteractionListener), Changed<InteractionListener>>,
+    mut events: EventWriter<ViewTransition>,
+) {
+    for (_h, listener) in go_backs.iter() {
+        if listener.active() {
+            events.send(ViewTransition(ViewHandle::new(0, 1)))
+        }
+    }
+    for (_h, listener) in go_forward.iter() {
+        if listener.active() {
+            events.send(ViewTransition(ViewHandle::new(0, 0)))
         }
     }
 }
@@ -112,7 +192,9 @@ impl Leaf for MusicPlayer {
 
     fn attach(elm: &mut Elm) {
         elm.startup().add_systems((setup,));
-        elm.main()
-            .add_systems((transitions.in_set(ExternalSet::Spawn),));
+        elm.main().add_systems((
+            transitions.in_set(ExternalSet::ViewBindings),
+            page_back.in_set(ExternalSet::Process),
+        ));
     }
 }

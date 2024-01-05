@@ -5,6 +5,7 @@ use bevy_ecs::prelude::{apply_deferred, IntoSystemConfigs, SystemSet};
 #[derive(SystemSet, Hash, Eq, PartialEq, Debug, Copy, Clone)]
 pub enum ExternalSet {
     Process,
+    ViewBindings,
     Spawn,
     Configure,
 }
@@ -15,6 +16,7 @@ pub enum CoreSet {
     // Process,
     ProcessEvent,
     TransitionView,
+    // ViewBindings,
     // Spawn,
     Compositor,
     // Configure,
@@ -43,6 +45,7 @@ impl<'a> ElmConfiguration<'a> {
                 CoreSet::ProcessEvent,
                 CoreSet::TransitionView,
                 ExternalSet::Spawn,
+                ExternalSet::ViewBindings,
                 CoreSet::Compositor,
                 ExternalSet::Configure,
                 CoreSet::CoordinateFinalize,
@@ -53,7 +56,7 @@ impl<'a> ElmConfiguration<'a> {
                 .chain(),
         );
         elm.main().add_systems((
-            crate::scene::despawn_scenes.in_set(ExternalSet::Spawn),
+            crate::scene::despawn_scenes.in_set(ExternalSet::ViewBindings),
             crate::scene::place_scenes
                 .in_set(CoreSet::CoordinateFinalize)
                 .before(crate::coordinate::position_set)
@@ -83,6 +86,9 @@ impl<'a> ElmConfiguration<'a> {
                 .before(ExternalSet::Spawn),
             apply_deferred
                 .after(ExternalSet::Spawn)
+                .before(ExternalSet::ViewBindings),
+            apply_deferred
+                .after(ExternalSet::ViewBindings)
                 .before(CoreSet::Compositor),
             apply_deferred
                 .after(CoreSet::Compositor)

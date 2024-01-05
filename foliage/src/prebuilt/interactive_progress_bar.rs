@@ -3,6 +3,7 @@ use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::{CoordinateUnit, InterfaceContext};
+use crate::differential::Despawn;
 use crate::elm::config::{ElmConfiguration, ExternalSet};
 use crate::elm::leaf::{Leaf, Tag};
 use crate::elm::{BundleExtend, Elm};
@@ -17,6 +18,7 @@ use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Commands, IntoSystemConfigs};
 use bevy_ecs::query::{Changed, With, Without};
 use bevy_ecs::system::{Query, ResMut, SystemParamItem};
+
 #[derive(Component)]
 pub struct ProgressPercent(pub f32);
 #[derive(Bundle)]
@@ -77,7 +79,7 @@ fn resize(
     mut coordinator: ResMut<SceneCoordinator>,
     mut rectangles: Query<&mut Area<InterfaceContext>, Without<Tag<InteractiveProgressBar>>>,
 ) {
-    tracing::trace!("updating-interactive-progress-bars");
+    // tracing::trace!("updating-interactive-progress-bars");
     for (handle, area, percent) in scenes.iter() {
         coordinator.update_anchor_area(*handle, *area);
         let m_ac = handle
@@ -97,39 +99,47 @@ fn metrics(area: Area<InterfaceContext>, percent: f32) -> CoordinateUnit {
 #[derive(Component, Copy, Clone, Default)]
 pub(crate) struct InteractiveProgressBarHook(pub(crate) Option<Position<InterfaceContext>>);
 fn interact(
-    mut scenes: Query<(&SceneHandle, &Area<InterfaceContext>, &mut ProgressPercent)>,
+    mut scenes: Query<(
+        &SceneHandle,
+        &Area<InterfaceContext>,
+        &mut ProgressPercent,
+        &Despawn,
+    )>,
     mut coordinator: ResMut<SceneCoordinator>,
     mut interaction_listeners: Query<(&InteractionListener, &mut InteractiveProgressBarHook)>,
     mut progresses: Query<&mut Progress>,
 ) {
-    for (handle, area, mut percent) in scenes.iter_mut() {
-        let m_ac = handle
-            .access_chain()
-            .target(InteractiveProgressBarBindings::Marker);
-        let p_ac = handle
-            .access_chain()
-            .target(InteractiveProgressBarBindings::Progress);
-        let marker = coordinator.binding_entity(&m_ac);
-        let prog = coordinator.binding_entity(&p_ac);
-        let entity = if interaction_listeners.get(marker).unwrap().0.engaged() {
-            Some(marker)
-        } else if interaction_listeners.get(prog).unwrap().0.engaged() {
-            Some(prog)
-        } else {
-            None
-        };
-        if let Some(e) = entity {
-            let (listener, mut hook) = interaction_listeners.get_mut(e).unwrap();
-            if listener.engaged_start() {
+    for (handle, area, mut percent, despawn) in scenes.iter_mut() {
+        if !despawn.should_despawn() {
+            let m_ac = handle
+                .access_chain()
+                .target(InteractiveProgressBarBindings::Marker);
+            let p_ac = handle
+                .access_chain()
+                .target(InteractiveProgressBarBindings::Progress);
+            let marker = coordinator.binding_entity(&m_ac);
+            let prog = coordinator.binding_entity(&p_ac);
+            let entity = if interaction_listeners.get(marker).unwrap().0.engaged() {
+                Some(marker)
+            } else if interaction_listeners.get(prog).unwrap().0.engaged() {
+                Some(prog)
+            } else {
+                None
+            };
+            if let Some(e) = entity {
+                let (listener, mut hook) = interaction_listeners.get_mut(e).unwrap();
+                if listener.engaged_start() {
+                    hook.0.replace(listener.interaction.current);
+                }
+                let diff = listener.interaction.current - hook.0.unwrap();
+                let p = diff.x / area.width;
+                percent.0 += p;
+                percent.0 = percent.0.min(1.0).max(0.0);
+                coordinator.get_alignment_mut(&m_ac).pos.horizontal =
+                    metrics(*area, percent.0).near();
+                progresses.get_mut(prog).unwrap().1 = percent.0;
                 hook.0.replace(listener.interaction.current);
             }
-            let diff = listener.interaction.current - hook.0.unwrap();
-            let p = diff.x / area.width;
-            percent.0 += p;
-            percent.0 = percent.0.min(1.0).max(0.0);
-            coordinator.get_alignment_mut(&m_ac).pos.horizontal = metrics(*area, percent.0).near();
-            progresses.get_mut(prog).unwrap().1 = percent.0;
-            hook.0.replace(listener.interaction.current);
         }
     }
 }
@@ -145,7 +155,7 @@ impl Scene for InteractiveProgressBar {
         _external_args: &SystemParamItem<Self::ExternalArgs>,
         mut binder: SceneBinder<'_>,
     ) -> Self {
-        binder.bind(
+        let entity = binder.bind(
             InteractiveProgressBarBindings::Marker,
             (
                 metrics(anchor.0.section.area, args.percent).near(),
@@ -162,7 +172,8 @@ impl Scene for InteractiveProgressBar {
             .extend(InteractiveProgressBarHook(None)),
             cmd,
         );
-        let (_h, entity) = binder.bind_scene::<ProgressBar>(
+        tracing::trace!("binding-interactive-progress-marker: {:?}", entity);
+        let (handle, entity) = binder.bind_scene::<ProgressBar>(
             InteractiveProgressBarBindings::Progress.into(),
             (0.near(), 0.center(), 1).into(),
             (anchor.0.section.area.width, 4f32).into(),
@@ -173,6 +184,11 @@ impl Scene for InteractiveProgressBar {
             ),
             &(),
             cmd,
+        );
+        tracing::trace!(
+            "binding-interactive-progress-progress: {:?}:{:?}",
+            handle,
+            entity
         );
         cmd.entity(entity)
             .insert(InteractionListener::default())

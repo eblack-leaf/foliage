@@ -2,6 +2,7 @@ use crate::circle::{Circle, CircleStyle, Diameter};
 use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::InterfaceContext;
+use crate::differential::Despawn;
 use crate::elm::config::ElmConfiguration;
 use crate::elm::leaf::{Leaf, Tag};
 use crate::elm::Elm;
@@ -43,6 +44,7 @@ fn resize(
             &ButtonStyle,
             &ForegroundColor,
             &BackgroundColor,
+            &Despawn,
         ),
         (
             Or<(
@@ -59,8 +61,11 @@ fn resize(
     mut circles: Query<(&mut Diameter, &mut CircleStyle)>,
     mut colors: Query<&mut Color>,
 ) {
-    tracing::trace!("updating-circle-buttons");
-    for (handle, area, style, foreground, background) in scenes.iter() {
+    // tracing::trace!("updating-circle-buttons");
+    for (handle, area, style, foreground, background, despawn) in scenes.iter() {
+        if despawn.should_despawn() {
+            continue;
+        }
         coordinator.update_anchor_area(*handle, *area);
         let circle =
             coordinator.binding_entity(&handle.access_chain().target(CircleButtonBindings::Circle));

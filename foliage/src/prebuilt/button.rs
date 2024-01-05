@@ -1,6 +1,7 @@
 use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::InterfaceContext;
+use crate::differential::Despawn;
 use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::elm::leaf::{Leaf, Tag};
 use crate::elm::Elm;
@@ -94,6 +95,7 @@ fn updates(
             &ForegroundColor,
             &BackgroundColor,
             &ButtonStyle,
+            &Despawn,
         ),
         (
             Or<(
@@ -114,8 +116,13 @@ fn updates(
     mut panel_styles: Query<(&mut PanelStyle, &mut Area<InterfaceContext>), Without<Tag<Button>>>,
     mut coordinator: ResMut<SceneCoordinator>,
 ) {
-    tracing::trace!("updating-buttons");
-    for (handle, button_area, max_char, foreground_color, background_color, state) in query.iter() {
+    // tracing::trace!("updating-buttons");
+    for (handle, button_area, max_char, foreground_color, background_color, state, despawn) in
+        query.iter()
+    {
+        if despawn.should_despawn() {
+            continue;
+        }
         let (fs, text_offset, _text_area, icon_scale, padding) =
             button_metrics(*button_area, *max_char, &font, &scale_factor);
         let panel_ac = handle.access_chain().target(ButtonBindings::Panel);

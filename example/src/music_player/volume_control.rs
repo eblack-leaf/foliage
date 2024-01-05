@@ -5,6 +5,7 @@ use foliage::bevy_ecs::system::{Query, Res, ResMut, SystemParamItem};
 use foliage::color::Color;
 use foliage::coordinate::area::Area;
 use foliage::coordinate::InterfaceContext;
+use foliage::differential::Despawn;
 use foliage::elm::config::{ElmConfiguration, ExternalSet};
 use foliage::elm::leaf::{Leaf, Tag};
 use foliage::elm::Elm;
@@ -68,7 +69,7 @@ impl Leaf for VolumeControl {
     }
 }
 fn change_icon(
-    volume: Query<&SceneHandle, With<Tag<VolumeControl>>>,
+    volume: Query<(&SceneHandle, &Despawn), With<Tag<VolumeControl>>>,
     interactive_prog: Query<
         (&SceneHandle, &ProgressPercent),
         (Changed<ProgressPercent>, Without<Tag<VolumeControl>>),
@@ -76,34 +77,39 @@ fn change_icon(
     mut icons: Query<&mut IconId>,
     coordinator: Res<SceneCoordinator>,
 ) {
-    for v in volume.iter() {
-        let entity =
-            coordinator.binding_entity(&v.access_chain().target(VolumeControlBindings::Slider));
-        if let Ok((_handle, percent)) = interactive_prog.get(entity) {
-            let id = if percent.0 < 0.05 {
-                IconId::new(BundledIcon::VolumeX)
-            } else if percent.0 < 0.33 {
-                IconId::new(BundledIcon::Volume)
-            } else if percent.0 < 0.67 {
-                IconId::new(BundledIcon::VolumeOne)
-            } else {
-                IconId::new(BundledIcon::VolumeTwo)
-            };
-            let icon =
-                coordinator.binding_entity(&v.access_chain().target(VolumeControlBindings::Icon));
-            *icons.get_mut(icon).unwrap() = id;
+    for (v, despawn) in volume.iter() {
+        if !despawn.should_despawn() {
+            let entity =
+                coordinator.binding_entity(&v.access_chain().target(VolumeControlBindings::Slider));
+            if let Ok((_handle, percent)) = interactive_prog.get(entity) {
+                let id = if percent.0 < 0.05 {
+                    IconId::new(BundledIcon::VolumeX)
+                } else if percent.0 < 0.33 {
+                    IconId::new(BundledIcon::Volume)
+                } else if percent.0 < 0.67 {
+                    IconId::new(BundledIcon::VolumeOne)
+                } else {
+                    IconId::new(BundledIcon::VolumeTwo)
+                };
+                let icon = coordinator
+                    .binding_entity(&v.access_chain().target(VolumeControlBindings::Icon));
+                *icons.get_mut(icon).unwrap() = id;
+            }
         }
     }
 }
 fn resize(
     scenes: Query<
-        (&SceneHandle, &Area<InterfaceContext>),
+        (&SceneHandle, &Area<InterfaceContext>, &Despawn),
         (Changed<Area<InterfaceContext>>, With<Tag<VolumeControl>>),
     >,
     mut coordinator: ResMut<SceneCoordinator>,
     mut rectangles: Query<&mut Area<InterfaceContext>, Without<Tag<VolumeControl>>>,
 ) {
-    for (handle, area) in scenes.iter() {
+    for (handle, area, despawn) in scenes.iter() {
+        if despawn.should_despawn() {
+            continue;
+        }
         tracing::trace!("updating-volume-control");
         coordinator.update_anchor_area(*handle, *area);
         let rect = coordinator
@@ -123,7 +129,7 @@ impl Scene for VolumeControl {
         _external_args: &SystemParamItem<Self::ExternalArgs>,
         mut binder: SceneBinder<'_>,
     ) -> Self {
-        binder.bind(
+        let entity = binder.bind(
             VolumeControlBindings::Icon,
             (0.near(), 0.center(), 0),
             Icon::new(
@@ -133,7 +139,8 @@ impl Scene for VolumeControl {
             ),
             cmd,
         );
-        binder.bind_scene::<InteractiveProgressBar>(
+        tracing::trace!("volume-control-icon: {:?}", entity);
+        let (handle, entity) = binder.bind_scene::<InteractiveProgressBar>(
             VolumeControlBindings::Slider.into(),
             SceneAlignment::from((VolumeControl::OFFSET.near(), 0.center(), 0)),
             anchor.0.section.area - (VolumeControl::OFFSET, 0f32).into(),
@@ -141,6 +148,7 @@ impl Scene for VolumeControl {
             &(),
             cmd,
         );
+        tracing::trace!("volume-control-progress: {:?}:{:?}", handle, entity);
         Self { tag: Tag::new() }
     }
 }

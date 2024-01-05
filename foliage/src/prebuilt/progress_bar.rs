@@ -1,6 +1,7 @@
 use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::InterfaceContext;
+use crate::differential::Despawn;
 use crate::elm::config::{ElmConfiguration, ExternalSet};
 use crate::elm::leaf::{Leaf, Tag};
 use crate::elm::Elm;
@@ -46,7 +47,7 @@ impl Leaf for ProgressBar {
 }
 fn resize(
     scenes: Query<
-        (&SceneHandle, &Area<InterfaceContext>, &Progress),
+        (&SceneHandle, &Area<InterfaceContext>, &Progress, &Despawn),
         (
             With<Tag<ProgressBar>>,
             Or<(Changed<Area<InterfaceContext>>, Changed<Progress>)>,
@@ -55,8 +56,11 @@ fn resize(
     mut rectangles: Query<(&mut Area<InterfaceContext>, &mut Progress), Without<Tag<ProgressBar>>>,
     mut coordinator: ResMut<SceneCoordinator>,
 ) {
-    tracing::trace!("updating-progress-bars");
-    for (handle, area, progress) in scenes.iter() {
+    // tracing::trace!("updating-progress-bars");
+    for (handle, area, progress, despawn) in scenes.iter() {
+        if despawn.should_despawn() {
+            continue;
+        }
         coordinator.update_anchor_area(*handle, *area);
         let back =
             coordinator.binding_entity(&handle.access_chain().target(ProgressBarBindings::Back));
@@ -93,18 +97,20 @@ impl Scene for ProgressBar {
         _external_args: &SystemParamItem<Self::ExternalArgs>,
         mut binder: SceneBinder<'_>,
     ) -> Self {
-        binder.bind(
-            0,
+        let entity = binder.bind(
+            ProgressBarBindings::Back,
             (0.near(), 0.near(), 1),
             Rectangle::new(anchor.0.section.area, args.back_color, Progress::full()),
             cmd,
         );
-        binder.bind(
-            1,
+        tracing::trace!("binding-progress-back: {:?}", entity);
+        let entity = binder.bind(
+            ProgressBarBindings::Fill,
             (0.near(), 0.near(), 0),
             Rectangle::new(anchor.0.section.area, args.fill_color, args.progress),
             cmd,
         );
+        tracing::trace!("binding-progress-fill: {:?}", entity);
         Self {
             tag: Tag::new(),
             progress: args.progress,

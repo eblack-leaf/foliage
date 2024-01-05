@@ -1,6 +1,7 @@
 use crate::circle::{Circle, CircleStyle, Diameter};
 use crate::coordinate::area::Area;
 use crate::coordinate::InterfaceContext;
+use crate::differential::Despawn;
 use crate::elm::config::ElmConfiguration;
 use crate::elm::leaf::{Leaf, Tag};
 use crate::elm::Elm;
@@ -19,7 +20,7 @@ pub struct CircleProgressBar {
 fn resize(
     mut circle_area: Query<&mut Diameter, Without<Tag<CircleProgressBar>>>,
     scene: Query<
-        (&SceneHandle, &Area<InterfaceContext>),
+        (&SceneHandle, &Area<InterfaceContext>, &Despawn),
         (
             With<Tag<CircleProgressBar>>,
             Changed<Area<InterfaceContext>>,
@@ -27,8 +28,11 @@ fn resize(
     >,
     mut coordinator: ResMut<SceneCoordinator>,
 ) {
-    tracing::trace!("updating-circle-progress-bars");
-    for (handle, area) in scene.iter() {
+    // tracing::trace!("updating-circle-progress-bars");
+    for (handle, area, despawn) in scene.iter() {
+        if despawn.should_despawn() {
+            continue;
+        }
         coordinator.update_anchor_area(*handle, *area);
         let back =
             coordinator.binding_entity(&handle.access_chain().target(ProgressBarBindings::Back));

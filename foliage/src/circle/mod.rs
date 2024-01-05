@@ -133,13 +133,13 @@ fn mips_adjust(
     >,
     scale_factor: Res<ScaleFactor>,
 ) {
-    tracing::trace!("updating-circles");
+    // tracing::trace!("updating-circles");
     for (diameter, mut mips, mut pos, mut area) in query.iter_mut() {
         *area = diameter.area();
         let section = Section::new(*pos, *area);
-        let adjusted_section = section.clean_scale(scale_factor.factor());
-        *pos = adjusted_section.position;
-        *area = adjusted_section.area;
+        // let adjusted_section = section.clean_scale(scale_factor.factor());
+        // *pos = adjusted_section.position;
+        // *area = adjusted_section.area;
         *mips = MipsLevel::new(
             (
                 Circle::CIRCLE_TEXTURE_DIMENSIONS,
@@ -147,7 +147,7 @@ fn mips_adjust(
             )
                 .into(),
             Circle::MIPS,
-            (adjusted_section.width(), adjusted_section.height()).into(),
+            (section.width(), section.height()).into(),
         );
     }
 }

@@ -200,7 +200,7 @@ impl Foliage {
                     event_loop_window_target.set_control_flow(ControlFlow::Poll);
                 }
                 // #[cfg(target_family = "wasm")]
-                // event_loop_window_target.set_control_flow(ControlFlow::Poll);
+                event_loop_window_target.set_control_flow(ControlFlow::Poll);
                 match event {
                     Event::NewEvents(cause) => match cause {
                         StartCause::ResumeTimeReached { .. } => {}

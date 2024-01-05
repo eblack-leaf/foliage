@@ -90,6 +90,7 @@ impl Leaf for Compositor {
 fn responsive_changed(
     mut responsive: Query<
         (
+            Entity,
             &ResponsiveSegment,
             &mut Position<InterfaceContext>,
             &mut Area<InterfaceContext>,
@@ -103,11 +104,13 @@ fn responsive_changed(
     compositor: Res<Compositor>,
     mut coordinator: ResMut<SceneCoordinator>,
 ) {
-    for (segment, mut pos, mut area, mut layer, mut disabled, m_scene_handle) in
+    for (entity, segment, mut pos, mut area, mut layer, mut disabled, m_scene_handle) in
         responsive.iter_mut()
     {
         if let Some(coord) = segment.coordinate(compositor.layout(), viewport_handle.section()) {
+            tracing::trace!("responsive-changed: {:?}", entity);
             if let Some(sh) = m_scene_handle {
+                tracing::trace!("updating-anchor-from-compositor: {:?}", sh);
                 coordinator.update_anchor(*sh, coord);
             }
             *pos = coord.section.position;
@@ -126,6 +129,7 @@ fn responsive_changed(
 fn viewport_changed(
     mut compositor: ResMut<Compositor>,
     mut segments: Query<(
+        Entity,
         &ResponsiveSegment,
         &mut Position<InterfaceContext>,
         &mut Area<InterfaceContext>,
@@ -133,17 +137,21 @@ fn viewport_changed(
         &mut Disabled,
         Option<&SceneHandle>,
     )>,
-    viewport_handle: Res<ViewportHandle>,
+    mut viewport_handle: ResMut<ViewportHandle>,
     mut coordinator: ResMut<SceneCoordinator>,
 ) {
     if viewport_handle.area_updated() {
-        compositor.layout = Layout::from_area(viewport_handle.section().area);
-        for (segment, mut pos, mut area, mut layer, mut disabled, m_scene_handle) in
+        let new_area = viewport_handle.section().area;
+        compositor.layout = Layout::from_area(new_area);
+        // viewport_handle.set_position(compositor.current.anchor(new_area));
+        for (entity, segment, mut pos, mut area, mut layer, mut disabled, m_scene_handle) in
             segments.iter_mut()
         {
             if let Some(coord) = segment.coordinate(compositor.layout(), viewport_handle.section())
             {
+                tracing::trace!("viewport-changed: {:?}", entity);
                 if let Some(sh) = m_scene_handle {
+                    tracing::trace!("updating-anchor-from-compositor: {:?}:{:?}", sh, coord);
                     coordinator.update_anchor(*sh, coord);
                 }
                 *pos = coord.section.position;
@@ -171,10 +179,10 @@ fn view_changed(
     if let Some(event) = events.read().last() {
         let old = compositor.current;
         let _new_anchor = event.0.anchor(viewport_handle.section().area);
-        viewport_handle.adjust_position(10.0, 10.0);
+        viewport_handle.set_position((_new_anchor.x, _new_anchor.y).into());
         compositor.current = event.0;
         cmd.spawn((
-            Trigger::default(),
+            Trigger(true),
             old,
             Tag::<ViewTransition>::new(), /* anchor-anim */
         ));
@@ -198,6 +206,7 @@ fn despawn_triggered(
                     e
                 })
                 .collect::<Vec<Entity>>();
+            tracing::trace!("triggered-despawn: {:?}", entities);
             for e in entities {
                 compositor.entity_to_view.remove(&e);
             }
@@ -211,11 +220,12 @@ impl ViewHandle {
         Self(x, y)
     }
     pub fn anchor(&self, area: Area<InterfaceContext>) -> Position<InterfaceContext> {
-        (
+        let position = (
             self.0 as CoordinateUnit * area.width,
-            self.1 as CoordinateUnit * area.height,
+            -self.1 as CoordinateUnit * area.height,
         )
-            .into()
+            .into();
+        position
     }
 }
 #[derive(Default)]

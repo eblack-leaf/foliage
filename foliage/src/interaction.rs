@@ -221,7 +221,7 @@ pub fn set_interaction_listeners(
 ) {
     for ie in events.read() {
         let position =
-            ie.location.to_interface(scale_factor.factor()) + viewport_handle.section.position;
+            ie.location.to_interface(scale_factor.factor()) - viewport_handle.section.position;
         if primary.0.is_none() {
             primary_entity.0.take();
             if ie.phase != InteractionPhase::Begin {

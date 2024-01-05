@@ -49,6 +49,10 @@ impl ViewportHandle {
         self.section.position += Position::new(x, y);
         self.changes_present = true;
     }
+    pub fn set_position(&mut self, position: Position<InterfaceContext>) {
+        self.section.position = position;
+        self.changes_present = true;
+    }
 }
 impl Leaf for ViewportHandle {
     type SetDescriptor = EmptySetDescriptor;
@@ -108,7 +112,8 @@ impl Viewport {
         self.section
     }
     pub(crate) fn adjust_pos(&mut self, queue: &Queue, position: Position<DeviceContext>) {
-        self.adjust(queue, self.section.with_position(position));
+        self.section = self.section.with_position(position);
+        self.adjust(queue, self.section);
     }
     pub(crate) fn adjust(&mut self, queue: &wgpu::Queue, section: Section<DeviceContext>) {
         self.repr = Self::matrix(section, self.near_far);

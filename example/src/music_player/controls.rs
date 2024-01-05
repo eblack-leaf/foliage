@@ -8,6 +8,7 @@ use foliage::circle::Circle;
 use foliage::color::Color;
 use foliage::coordinate::area::Area;
 use foliage::coordinate::{CoordinateUnit, InterfaceContext};
+use foliage::differential::Despawn;
 use foliage::elm::config::{ElmConfiguration, ExternalSet};
 use foliage::elm::leaf::{Leaf, Tag};
 use foliage::elm::{BundleExtend, Elm};
@@ -64,13 +65,16 @@ impl Leaf for Controls {
 }
 fn resize(
     controls: Query<
-        (&SceneHandle, &Area<InterfaceContext>),
+        (&SceneHandle, &Area<InterfaceContext>, &Despawn),
         (Changed<Area<InterfaceContext>>, With<Tag<Controls>>),
     >,
     mut rectangle_area: Query<&mut Area<InterfaceContext>, Without<Tag<Controls>>>,
     mut coordinator: ResMut<SceneCoordinator>,
 ) {
-    for (handle, area) in controls.iter() {
+    for (handle, area, despawn) in controls.iter() {
+        if despawn.should_despawn() {
+            continue;
+        }
         tracing::trace!("updating-controls @ {:?}", handle);
         let offset = control_positions(*area);
         coordinator

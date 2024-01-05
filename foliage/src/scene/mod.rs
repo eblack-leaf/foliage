@@ -117,7 +117,8 @@ impl SceneCoordinator {
         cmd.entity(this)
             .insert(scene)
             .insert(handle)
-            .insert(anchor.0);
+            .insert(anchor.0)
+            .insert(Despawn::default());
         self.update_anchor(handle, anchor.0);
         self.root_bindings.insert(handle, this);
         (handle, this)
@@ -177,9 +178,13 @@ impl SceneCoordinator {
     }
     pub fn despawn(&mut self, handle: SceneHandle) -> HashSet<Entity> {
         let mut removes = HashSet::new();
-        tracing::trace!("despawning-scene: {:?}", handle);
         if let Some(e) = self.root_bindings.remove(&handle) {
             removes.insert(e);
+        }
+        if let Some(deps) = self.dependent_bindings.remove(&handle) {
+            for (_k, v) in deps {
+                removes.insert(v);
+            }
         }
         for (root, _binding, dep) in self.dependents(handle) {
             tracing::trace!("cleaning-up-scene: {:?}:{:?}:{:?}", handle, _binding, dep);
@@ -350,7 +355,8 @@ impl<'a> SceneBinder<'a> {
         cmd.entity(entity)
             .insert(scene)
             .insert(anchor.0)
-            .insert(handle);
+            .insert(handle)
+            .insert(Despawn::default());
         (handle, entity)
     }
 }
@@ -398,6 +404,7 @@ pub(crate) fn despawn_scenes(
         tracing::trace!("despawn-scene-handle: {:?}", handle);
         for e in coordinator.despawn(handle) {
             if let Ok(mut d) = scenes.p1().get_mut(e) {
+                tracing::trace!("despawn-scene-handle-binding: {:?}", e);
                 *d = Despawn::signal_despawn();
             }
         }
