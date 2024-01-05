@@ -1,122 +1,75 @@
+use crate::animate::trigger::Trigger;
 use crate::compositor::layout::Layout;
 use crate::compositor::segment::ResponsiveSegment;
-use crate::compositor::workflow::{resize_segments, ThresholdChange, WorkflowStage};
 use crate::coordinate::area::Area;
-use crate::coordinate::section::Section;
-use crate::coordinate::{Coordinate, InterfaceContext};
+use crate::coordinate::layer::Layer;
+use crate::coordinate::position::Position;
+use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::differential::Despawn;
-use crate::elm::config::{CoreSet, ElmConfiguration};
-use crate::elm::leaf::{EmptySetDescriptor, Leaf};
-use crate::elm::{Elm, EventStage};
-use crate::generator::HandleGenerator;
+use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
+use crate::elm::leaf::{EmptySetDescriptor, Leaf, Tag};
+use crate::elm::{Disabled, Elm, EventStage};
+use crate::ginkgo::viewport::ViewportHandle;
+use crate::scene::{SceneCoordinator, SceneHandle};
+use bevy_ecs::bundle::Bundle;
+use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::event::EventReader;
-use bevy_ecs::prelude::{Component, IntoSystemConfigs, Query, Resource};
-use bevy_ecs::query::Changed;
-use bevy_ecs::system::{Commands, ResMut};
-use std::collections::HashMap;
-use workflow::{
-    TransitionEngaged, TransitionRemovals, Workflow, WorkflowHandle, WorkflowTransition,
-};
+use bevy_ecs::event::{Event, EventReader};
+use bevy_ecs::prelude::{IntoSystemConfigs, Resource};
+use bevy_ecs::query::{Changed, Or, With};
+use bevy_ecs::system::{Commands, Query, Res, ResMut};
+use std::collections::{HashMap, HashSet};
 
 pub mod layout;
 pub mod segment;
-pub mod workflow;
-#[derive(Copy, Clone, Hash, Eq, PartialEq, Component, Debug)]
-pub struct SegmentHandle(pub i32);
+
 #[derive(Resource)]
 pub struct Compositor {
-    pub(crate) segments: HashMap<SegmentHandle, ResponsiveSegment>,
-    pub(crate) bindings: HashMap<SegmentHandle, Entity>,
-    pub(crate) workflow_groups: HashMap<WorkflowHandle, Workflow>,
-    pub(crate) generator: HandleGenerator,
-    pub(crate) layout: Layout,
+    current: ViewHandle,
+    layout: Layout,
+    views: HashMap<ViewHandle, View>,
+    entity_to_view: HashMap<Entity, ViewHandle>,
 }
 impl Compositor {
-    pub(crate) fn engage_transition(
-        &mut self,
-        cmd: &mut Commands,
-        workflow_handle: WorkflowHandle,
-        workflow_stage: WorkflowStage,
-    ) {
-        if let Some(transition) = self
-            .workflow_groups
-            .get(&workflow_handle)
-            .unwrap()
-            .transitions
-            .get(&workflow_stage)
-        {
-            cmd.entity(*transition).insert(TransitionEngaged(true));
-        }
-        self.workflow_groups
-            .get_mut(&workflow_handle)
-            .unwrap()
-            .stage
-            .replace(workflow_stage);
-    }
-    pub(crate) fn new(area: Area<InterfaceContext>) -> Self {
-        let layout = Layout::from_area(area);
+    pub fn new(area: Area<InterfaceContext>) -> Self {
         Self {
-            segments: Default::default(),
-            bindings: Default::default(),
-            workflow_groups: Default::default(),
-            generator: Default::default(),
-            layout,
+            current: ViewHandle::new(0, 0),
+            layout: Layout::from_area(area),
+            views: HashMap::new(),
+            entity_to_view: HashMap::new(),
         }
-    }
-    pub fn add_segment(&mut self, segment: ResponsiveSegment) -> SegmentHandle {
-        let handle = SegmentHandle(self.generator.generate());
-        self.segments.insert(handle, segment);
-        handle
-    }
-    pub fn add_workflow(&mut self, workflow_desc: (WorkflowHandle, Workflow)) {
-        self.workflow_groups
-            .insert(workflow_desc.0, workflow_desc.1);
     }
     pub fn layout(&self) -> Layout {
         self.layout
     }
-    pub fn coordinate(
-        &self,
-        viewport_section: Section<InterfaceContext>,
-        handle: &SegmentHandle,
-    ) -> Option<Coordinate<InterfaceContext>> {
-        let segment = self.segments.get(handle).unwrap();
-        segment.coordinate(&self.layout(), viewport_section)
+    pub fn add_to_view<VH: Into<ViewHandle>>(&mut self, vh: VH, entity: Entity) {
+        let handle = vh.into();
+        self.views.get_mut(&handle).unwrap().add(entity);
+        self.entity_to_view.insert(entity, handle);
+    }
+    pub fn remove_from_view<VH: Into<ViewHandle>>(&mut self, vh: VH, entity: Entity) {
+        self.views
+            .get_mut(&vh.into())
+            .unwrap()
+            .entities
+            .remove(&entity);
+        self.entity_to_view.remove(&entity);
+    }
+    pub fn add_view<VH: Into<ViewHandle>>(&mut self, vh: VH) {
+        let handle = vh.into();
+        self.views.insert(handle, View::default());
     }
 }
-
-fn workflow_update(
-    mut compositor: ResMut<Compositor>,
-    mut events: EventReader<WorkflowTransition>,
-    mut cmd: Commands,
-) {
-    tracing::trace!("updating-workflow");
-    for event in events.read() {
-        compositor.engage_transition(&mut cmd, event.0, event.1);
-    }
+#[derive(Bundle)]
+pub struct Segmental {
+    segment: ResponsiveSegment,
+    disabled: Disabled,
 }
-fn clear_engaged(
-    mut engaged: Query<
-        (Entity, &mut TransitionEngaged, &TransitionRemovals),
-        Changed<TransitionEngaged>,
-    >,
-    mut compositor: ResMut<Compositor>,
-    mut cmd: Commands,
-) {
-    tracing::trace!("clear-engaged");
-    for (entity, mut transition_engaged, removals) in engaged.iter_mut() {
-        if transition_engaged.0 {
-            transition_engaged.0 = false;
-            cmd.entity(entity).remove::<ThresholdChange>();
-            if let Some(rem) = removals.0.get(&compositor.layout()) {
-                for r in rem.iter() {
-                    let old = compositor.bindings.remove(r);
-                    if let Some(o) = old {
-                        cmd.entity(o).insert(Despawn::signal_despawn());
-                    }
-                }
-            }
+impl Segmental {
+    pub fn new(segment: ResponsiveSegment) -> Self {
+        Self {
+            segment,
+            disabled: Disabled::default(),
         }
     }
 }
@@ -126,11 +79,150 @@ impl Leaf for Compositor {
     fn config(_elm_configuration: &mut ElmConfiguration) {}
 
     fn attach(elm: &mut Elm) {
-        elm.add_event::<WorkflowTransition>(EventStage::Process);
         elm.main().add_systems((
-            resize_segments.in_set(CoreSet::CompositorSetup),
-            workflow_update.in_set(CoreSet::CompositorSetup),
-            clear_engaged.in_set(CoreSet::CompositorTeardown),
+            (responsive_changed, viewport_changed).in_set(CoreSet::Compositor),
+            view_changed.in_set(CoreSet::TransitionView),
+            despawn_triggered.in_set(ExternalSet::Spawn),
         ));
+        elm.add_event::<ViewTransition>(EventStage::Process);
+    }
+}
+fn responsive_changed(
+    mut responsive: Query<
+        (
+            &ResponsiveSegment,
+            &mut Position<InterfaceContext>,
+            &mut Area<InterfaceContext>,
+            &mut Layer,
+            &mut Disabled,
+            Option<&SceneHandle>,
+        ),
+        Or<(Changed<ResponsiveSegment>, Changed<Disabled>)>,
+    >,
+    viewport_handle: Res<ViewportHandle>,
+    compositor: Res<Compositor>,
+    mut coordinator: ResMut<SceneCoordinator>,
+) {
+    for (segment, mut pos, mut area, mut layer, mut disabled, m_scene_handle) in
+        responsive.iter_mut()
+    {
+        if let Some(coord) = segment.coordinate(compositor.layout(), viewport_handle.section()) {
+            if let Some(sh) = m_scene_handle {
+                coordinator.update_anchor(*sh, coord);
+            }
+            *pos = coord.section.position;
+            *area = coord.section.area;
+            *layer = coord.layer;
+            if disabled.disabled() {
+                *disabled = Disabled::inactive();
+            }
+        } else {
+            if !disabled.disabled() {
+                *disabled = Disabled::active();
+            }
+        }
+    }
+}
+fn viewport_changed(
+    mut compositor: ResMut<Compositor>,
+    mut segments: Query<(
+        &ResponsiveSegment,
+        &mut Position<InterfaceContext>,
+        &mut Area<InterfaceContext>,
+        &mut Layer,
+        &mut Disabled,
+        Option<&SceneHandle>,
+    )>,
+    viewport_handle: Res<ViewportHandle>,
+    mut coordinator: ResMut<SceneCoordinator>,
+) {
+    if viewport_handle.area_updated() {
+        compositor.layout = Layout::from_area(viewport_handle.section().area);
+        for (segment, mut pos, mut area, mut layer, mut disabled, m_scene_handle) in
+            segments.iter_mut()
+        {
+            if let Some(coord) = segment.coordinate(compositor.layout(), viewport_handle.section())
+            {
+                if let Some(sh) = m_scene_handle {
+                    coordinator.update_anchor(*sh, coord);
+                }
+                *pos = coord.section.position;
+                *area = coord.section.area;
+                *layer = coord.layer;
+                if disabled.disabled() {
+                    *disabled = Disabled::inactive();
+                }
+            } else {
+                if !disabled.disabled() {
+                    *disabled = Disabled::active();
+                }
+            }
+        }
+    }
+}
+#[derive(Event)]
+pub struct ViewTransition(pub ViewHandle);
+fn view_changed(
+    mut compositor: ResMut<Compositor>,
+    mut events: EventReader<ViewTransition>,
+    viewport_handle: Res<ViewportHandle>,
+    mut cmd: Commands,
+) {
+    if let Some(event) = events.read().last() {
+        let old = compositor.current;
+        let _new_anchor = event.0.anchor(viewport_handle.section().area);
+        compositor.current = event.0;
+        cmd.spawn((
+            Trigger::default(),
+            old,
+            Tag::<ViewTransition>::new(), /* anchor-anim */
+        ));
+    }
+}
+fn despawn_triggered(
+    mut compositor: ResMut<Compositor>,
+    triggers: Query<(&Trigger, &ViewHandle), (With<Tag<ViewTransition>>, Changed<Trigger>)>,
+    mut despawn: Query<&mut Despawn>,
+) {
+    for (trigger, handle) in triggers.iter() {
+        if trigger.triggered() {
+            let entities = compositor
+                .views
+                .get_mut(handle)
+                .unwrap()
+                .entities
+                .drain()
+                .map(|e| {
+                    *despawn.get_mut(e).unwrap() = Despawn::signal_despawn();
+                    e
+                })
+                .collect::<Vec<Entity>>();
+            for e in entities {
+                compositor.entity_to_view.remove(&e);
+            }
+        }
+    }
+}
+#[derive(Copy, Clone, Default, Hash, Eq, PartialEq, Debug, Component)]
+pub struct ViewHandle(pub i32, pub i32);
+impl ViewHandle {
+    pub fn new(x: i32, y: i32) -> Self {
+        Self(x, y)
+    }
+    pub fn anchor(&self, area: Area<InterfaceContext>) -> Position<InterfaceContext> {
+        (
+            self.0 as CoordinateUnit * area.width,
+            self.1 as CoordinateUnit * area.height,
+        )
+            .into()
+    }
+}
+#[derive(Default)]
+pub struct View {
+    entities: HashSet<Entity>,
+}
+impl View {
+    pub fn add(&mut self, entity: Entity) {
+        self.entities.insert(entity);
     }
 }

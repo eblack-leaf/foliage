@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::ash::render_packet::RenderPacketForwarder;
 use crate::ash::render_packet::RenderPacketPackage;
+use crate::compositor::Compositor;
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
@@ -22,7 +23,6 @@ use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::elm::config::{CoreSet, ElmConfiguration};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::job::{Job, Task};
-use crate::r_compositor::Compositor;
 use crate::scene::SceneCoordinator;
 use crate::window::ScaleFactor;
 
