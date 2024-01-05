@@ -171,7 +171,7 @@ fn view_changed(
     if let Some(event) = events.read().last() {
         let old = compositor.current;
         let _new_anchor = event.0.anchor(viewport_handle.section().area);
-        viewport_handle.adjust_position(_new_anchor.x, _new_anchor.y);
+        viewport_handle.adjust_position(_new_anchor.x, _new_anchor.y / 2f32);
         compositor.current = event.0;
         cmd.spawn((
             Trigger::default(),
