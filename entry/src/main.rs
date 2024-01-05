@@ -7,8 +7,8 @@ use tracing_subscriber::Layer;
 
 fn main() {
     let targets = Targets::new()
-        .with_target("foliage::text", Level::TRACE)
-        .with_target("foliage::texture", Level::TRACE)
+        // .with_target("foliage::text", Level::TRACE)
+        // .with_target("foliage::texture", Level::TRACE)
         // .with_target("foliage::time", Level::TRACE)
         // .with_target("foliage::ash", LevelFilter::OFF)
         .with_target("example", Level::TRACE)

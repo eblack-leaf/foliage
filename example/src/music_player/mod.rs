@@ -82,8 +82,8 @@ fn transitions(
                     Segment::new()
                         .with_x(SegmentUnit::new(0.1).relative())
                         .with_y(SegmentUnit::new(0.75).relative())
-                        .with_w(SegmentUnit::new(0.7).relative())
-                        .with_h(SegmentUnit::new(0.15).relative()),
+                        .with_w(SegmentUnit::new(0.8).relative())
+                        .with_h(SegmentUnit::new(60.0).fixed()),
                 ),
             ));
             compositor.add_to_view(begin, entity);
@@ -97,9 +97,9 @@ fn transitions(
                 ResponsiveSegment::new(begin, 0).all(
                     Segment::new()
                         .with_x(SegmentUnit::new(0.15).relative())
-                        .with_y(SegmentUnit::new(0.85).fixed())
-                        .with_w(SegmentUnit::new(0.425).relative())
-                        .with_h(SegmentUnit::new(12.0).fixed()),
+                        .with_y(SegmentUnit::new(0.85).relative())
+                        .with_w(SegmentUnit::new(0.7).relative())
+                        .with_h(SegmentUnit::new(0.15).relative()),
                 ),
             ));
         }

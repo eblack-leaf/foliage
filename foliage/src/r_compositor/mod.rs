@@ -10,6 +10,7 @@ use crate::elm::{Disabled, Elm, EventStage};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::r_compositor::layout::Layout;
 use crate::r_compositor::segment::ResponsiveSegment;
+use crate::scene::{SceneCoordinator, SceneHandle};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
@@ -18,7 +19,6 @@ use bevy_ecs::prelude::{IntoSystemConfigs, Resource};
 use bevy_ecs::query::{Changed, Or, With};
 use bevy_ecs::system::{Commands, Query, Res, ResMut};
 use std::collections::{HashMap, HashSet};
-use crate::scene::{SceneCoordinator, SceneHandle};
 
 pub mod layout;
 pub mod segment;
@@ -106,7 +106,9 @@ fn responsive_changed(
     compositor: Res<Compositor>,
     mut coordinator: ResMut<SceneCoordinator>,
 ) {
-    for (segment, mut pos, mut area, mut layer, mut disabled, m_scene_handle) in responsive.iter_mut() {
+    for (segment, mut pos, mut area, mut layer, mut disabled, m_scene_handle) in
+        responsive.iter_mut()
+    {
         if let Some(coord) = segment.coordinate(compositor.layout(), viewport_handle.section()) {
             if let Some(sh) = m_scene_handle {
                 coordinator.update_anchor(*sh, coord);
@@ -139,7 +141,9 @@ fn viewport_changed(
 ) {
     if viewport_handle.area_updated() {
         compositor.layout = Layout::from_area(viewport_handle.section().area);
-        for (segment, mut pos, mut area, mut layer, mut disabled, m_scene_handle) in segments.iter_mut() {
+        for (segment, mut pos, mut area, mut layer, mut disabled, m_scene_handle) in
+            segments.iter_mut()
+        {
             if let Some(coord) = segment.coordinate(compositor.layout(), viewport_handle.section())
             {
                 if let Some(sh) = m_scene_handle {

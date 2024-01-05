@@ -1,10 +1,10 @@
+use crate::coordinate::layer::Layer;
 use crate::coordinate::section::Section;
 use crate::coordinate::{Coordinate, CoordinateUnit, InterfaceContext};
 use crate::r_compositor::layout::{Layout, Orientation, Threshold};
 use crate::r_compositor::ViewHandle;
 use bevy_ecs::component::Component;
 use std::collections::HashMap;
-use crate::coordinate::layer::Layer;
 
 #[derive(Component)]
 pub struct ResponsiveSegment {
@@ -26,9 +26,64 @@ impl ResponsiveSegment {
         section: Section<InterfaceContext>,
     ) -> Option<Coordinate<InterfaceContext>> {
         if let Some(seg) = self.segments.get(&layout) {
-            let x_offset = seg.x.base * if seg.x.fixed { 1.0 } else { section.area.width };
-            let x_start = self.handle.0 as CoordinateUnit * section.area.width;
-            return Some(coord);
+            let x = self.handle.0 as CoordinateUnit * section.area.width
+                + seg.x.base * if seg.x.fixed { 1.0 } else { section.area.width }
+                + seg.x.offset;
+            let x = match seg.x.min {
+                None => x,
+                Some(min) => x.max(min),
+            };
+            let x = match seg.x.max {
+                None => x,
+                Some(max) => x.min(max),
+            };
+            let y = self.handle.1 as CoordinateUnit * section.area.height
+                + seg.y.base
+                    * if seg.y.fixed {
+                        1.0
+                    } else {
+                        section.area.height
+                    }
+                + seg.y.offset;
+            let y = match seg.y.min {
+                None => y,
+                Some(min) => y.max(min),
+            };
+            let y = match seg.y.max {
+                None => y,
+                Some(max) => y.min(max),
+            };
+            let w = seg.w.base * if seg.w.fixed { 1.0 } else { section.area.width } + seg.w.offset;
+            let w = match seg.w.min {
+                None => w,
+                Some(min) => w.max(min),
+            };
+            let w = match seg.w.max {
+                None => w,
+                Some(max) => w.min(max),
+            };
+            let h = seg.h.base
+                * if seg.h.fixed {
+                    1.0
+                } else {
+                    section.area.height
+                }
+                + seg.h.offset;
+            let h = match seg.h.min {
+                None => h,
+                Some(min) => h.max(min),
+            };
+            let h = match seg.h.max {
+                None => h,
+                Some(max) => h.min(max),
+            };
+            let coordinate = Coordinate::default()
+                .with_position((x, y))
+                .with_area((w, h))
+                .with_layer(self.layer);
+            return Some(
+                coordinate,
+            );
         }
         None
     }
