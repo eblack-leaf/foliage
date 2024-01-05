@@ -165,12 +165,13 @@ pub struct ViewTransition(pub ViewHandle);
 fn view_changed(
     mut compositor: ResMut<Compositor>,
     mut events: EventReader<ViewTransition>,
-    viewport_handle: Res<ViewportHandle>,
+    mut viewport_handle: ResMut<ViewportHandle>,
     mut cmd: Commands,
 ) {
     if let Some(event) = events.read().last() {
         let old = compositor.current;
         let _new_anchor = event.0.anchor(viewport_handle.section().area);
+        viewport_handle.adjust_position(_new_anchor.x, _new_anchor.y);
         compositor.current = event.0;
         cmd.spawn((
             Trigger::default(),
