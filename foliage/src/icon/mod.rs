@@ -15,7 +15,7 @@ use crate::{coordinate, differential_enable};
 use bevy_ecs::component::Component;
 #[allow(unused)]
 use bevy_ecs::prelude::{Bundle, IntoSystemConfigs};
-use bevy_ecs::prelude::{Query, SystemSet};
+use bevy_ecs::prelude::{Or, Query, SystemSet};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::Res;
 use bundled_cov::BundledIcon;
@@ -79,25 +79,21 @@ fn scale_change(
     mut query: Query<
         (
             &IconScale,
-            &mut Position<InterfaceContext>,
+            &Position<InterfaceContext>,
             &mut Area<InterfaceContext>,
             &mut MipsLevel,
         ),
-        Changed<IconScale>,
+        Or<(Changed<IconScale>, Changed<Area<InterfaceContext>>)>,
     >,
     _scale_factor: Res<ScaleFactor>,
 ) {
     tracing::trace!("updating-icons");
-    for (scale, mut pos, mut area, mut mips) in query.iter_mut() {
+    for (scale, pos, mut area, mut mips) in query.iter_mut() {
         let initial_px = scale.px();
         area.width = initial_px;
         area.height = initial_px;
-        // TODO resolve if use clean scale or not
         let section = Section::new(*pos, *area);
-        let adjusted_section = section; //.clean_scale(scale_factor.factor());
-        *pos = adjusted_section.position;
-        *area = adjusted_section.area;
-        // still set mips either way but from scaled
+        let adjusted_section = section.to_device(_scale_factor.factor()); //.clean_scale(scale_factor.factor());
         *mips = MipsLevel::new(
             (Icon::TEXTURE_DIMENSIONS, Icon::TEXTURE_DIMENSIONS).into(),
             Icon::MIPS,

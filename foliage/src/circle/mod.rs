@@ -123,7 +123,7 @@ fn mips_adjust(
         (
             &Diameter,
             &mut MipsLevel,
-            &mut Position<InterfaceContext>,
+            &Position<InterfaceContext>,
             &mut Area<InterfaceContext>,
         ),
         (
@@ -134,10 +134,10 @@ fn mips_adjust(
     scale_factor: Res<ScaleFactor>,
 ) {
     // tracing::trace!("updating-circles");
-    for (diameter, mut mips, mut pos, mut area) in query.iter_mut() {
+    for (diameter, mut mips, pos, mut area) in query.iter_mut() {
         *area = diameter.area();
         let section = Section::new(*pos, *area);
-        // let adjusted_section = section.clean_scale(scale_factor.factor());
+        let adjusted_section = section.to_device(scale_factor.factor());
         // *pos = adjusted_section.position;
         // *area = adjusted_section.area;
         *mips = MipsLevel::new(
@@ -147,7 +147,7 @@ fn mips_adjust(
             )
                 .into(),
             Circle::MIPS,
-            (section.width(), section.height()).into(),
+            (adjusted_section.width(), adjusted_section.height()).into(),
         );
     }
 }

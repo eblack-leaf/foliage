@@ -100,7 +100,7 @@ impl<T: Render + 'static> Renderer<T> {
         T::prepare_resources(resources, ginkgo, per_renderer_record_hook);
     }
     pub(crate) fn record(&mut self, ginkgo: &Ginkgo) -> bool {
-        if self.updated || true {
+        if self.updated {
             Self::inner_record(
                 &self.resources,
                 &mut self.packages,
@@ -125,7 +125,7 @@ impl<T: Render + 'static> Renderer<T> {
     ) {
         match render_record_behavior {
             RenderRecordBehavior::PerRenderer(behavior) => {
-                if per_renderer_record_hook || true {
+                if per_renderer_record_hook {
                     let recorder = RenderInstructionsRecorder::new(ginkgo);
                     if let Some(instructions) = behavior(resources, recorder) {
                         render_instruction_group.0 = vec![instructions];
@@ -135,7 +135,7 @@ impl<T: Render + 'static> Renderer<T> {
             RenderRecordBehavior::PerPackage(behavior) => {
                 render_instruction_group.0.clear();
                 for (_entity, _layer, package) in packages.0.iter_mut() {
-                    if package.should_record || true {
+                    if package.should_record {
                         let recorder = RenderInstructionsRecorder::new(ginkgo);
                         if let Some(instructions) = behavior(resources, package, recorder) {
                             package.instruction_handle.replace(instructions.clone());

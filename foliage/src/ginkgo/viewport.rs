@@ -102,10 +102,13 @@ impl Viewport {
             section.top(),
             0f32
         ]);
+        println!("translation: {:?}", translation);
         let projection = matrix![2f32/(section.right() - section.left()), 0.0, 0.0, -1.0;
                                     0.0, 2f32/(section.top() - section.bottom()), 0.0, 1.0;
                                     0.0, 0.0, 1.0/(near_far.1 - near_far.0).z, 0.0;
                                     0.0, 0.0, 0.0, 1.0];
+        // let projection = nalgebra::Matrix4::new_orthographic(section.left(), section.right(), section.bottom(), section.top(), 0.0, 100.0);
+        println!("projection: {:?}", projection);
         projection * translation
     }
     pub fn section(&self) -> Section<DeviceContext> {
@@ -117,7 +120,14 @@ impl Viewport {
     }
     pub(crate) fn adjust(&mut self, queue: &wgpu::Queue, section: Section<DeviceContext>) {
         self.repr = Self::matrix(section, self.near_far);
+        self.section = section;
         self.gpu_repr.update(queue, self.repr.data.0);
     }
 }
 pub(crate) type GpuRepr = [[CoordinateUnit; 4]; 4];
+#[cfg(test)]
+#[test]
+fn test_matrix() {
+    let matrix = Viewport::matrix(Section::new((0, -800), (360, 800)), (0.into(), 100.into()));
+    println!("matrix: {:?}", matrix);
+}
