@@ -60,7 +60,10 @@ impl Area<DeviceContext> {
         Area::<InterfaceContext>::new(self.width / scale_factor, self.height / scale_factor)
     }
 }
-
+impl Area<NumericalContext> {
+    pub fn as_interface(self) -> Area<InterfaceContext> { (self.width, self.height).into() }
+    pub fn as_device(self) -> Area<DeviceContext> { (self.width, self.height).into() }
+}
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default, Component, Serialize, Deserialize, PartialEq)]
 pub struct CReprArea {

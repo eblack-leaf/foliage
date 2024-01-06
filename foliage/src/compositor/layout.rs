@@ -1,5 +1,24 @@
 use crate::coordinate::area::Area;
-use crate::coordinate::{CoordinateUnit, InterfaceContext};
+use crate::coordinate::{CoordinateUnit, InterfaceContext, NumericalContext};
+#[derive(Copy, Clone, Default, Debug)]
+pub struct AspectRatio(pub f32);
+
+impl AspectRatio {
+    pub fn new(area: Area<NumericalContext>) -> Self {
+        Self(area.width / area.height)
+    }
+    pub fn is_width_major(&self) -> bool {
+        self.0 >= 1f32
+    }
+    pub fn reciprocal(&self) -> f32 {
+        1f32 / self.0
+    }
+}
+impl From<f32> for AspectRatio {
+    fn from(value: f32) -> Self {
+        AspectRatio(value)
+    }
+}
 #[derive(Hash, Eq, PartialEq, Copy, Clone, Debug)]
 pub enum Orientation {
     Portrait,
