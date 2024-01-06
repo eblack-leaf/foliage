@@ -82,38 +82,38 @@ fn transitions(
                 ),
             ));
             compositor.add_to_view(begin, entity);
-            // let (_handle, entity) = coordinator.spawn_scene::<TrackProgress>(
-            //     Anchor::default().with_layer(0),
-            //     &TrackProgressArgs::new(Color::GREEN_MEDIUM, Color::GREY_DARK),
-            //     &(Res::clone(&font), Res::clone(&scale_factor)),
-            //     &mut cmd,
-            // );
-            // cmd.entity(entity).insert(Segmental::new(
-            //     ResponsiveSegment::new(begin, 0).all(
-            //         Segment::new()
-            //             .with_x(SegmentUnit::new(0.1).relative())
-            //             .with_y(SegmentUnit::new(0.75).relative())
-            //             .with_w(SegmentUnit::new(0.8).relative())
-            //             .with_h(SegmentUnit::new(60.0).fixed()),
-            //     ),
-            // ));
-            // compositor.add_to_view(begin, entity);
-            // let (_handle, entity) = coordinator.spawn_scene::<Controls>(
-            //     Anchor::default().with_layer(0),
-            //     &(),
-            //     &(),
-            //     &mut cmd,
-            // );
-            // cmd.entity(entity).insert(Segmental::new(
-            //     ResponsiveSegment::new(begin, 0).all(
-            //         Segment::new()
-            //             .with_x(SegmentUnit::new(0.15).relative())
-            //             .with_y(SegmentUnit::new(0.85).relative())
-            //             .with_w(SegmentUnit::new(0.7).relative())
-            //             .with_h(SegmentUnit::new(0.15).relative()),
-            //     ),
-            // ));
-            // compositor.add_to_view(begin, entity);
+            let (_handle, entity) = coordinator.spawn_scene::<TrackProgress>(
+                Anchor::default().with_layer(0),
+                &TrackProgressArgs::new(Color::GREEN_MEDIUM, Color::GREY_DARK),
+                &(Res::clone(&font), Res::clone(&scale_factor)),
+                &mut cmd,
+            );
+            cmd.entity(entity).insert(Segmental::new(
+                ResponsiveSegment::new(begin, 0).all(
+                    Segment::new()
+                        .with_x(SegmentUnit::new(0.1).relative())
+                        .with_y(SegmentUnit::new(0.75).relative())
+                        .with_w(SegmentUnit::new(0.8).relative())
+                        .with_h(SegmentUnit::new(60.0).fixed()),
+                ),
+            ));
+            compositor.add_to_view(begin, entity);
+            let (_handle, entity) = coordinator.spawn_scene::<Controls>(
+                Anchor::default().with_layer(0),
+                &(),
+                &(),
+                &mut cmd,
+            );
+            cmd.entity(entity).insert(Segmental::new(
+                ResponsiveSegment::new(begin, 0).all(
+                    Segment::new()
+                        .with_x(SegmentUnit::new(0.15).relative())
+                        .with_y(SegmentUnit::new(0.85).relative())
+                        .with_w(SegmentUnit::new(0.7).relative())
+                        .with_h(SegmentUnit::new(0.15).relative()),
+                ),
+            ));
+            compositor.add_to_view(begin, entity);
             let (_handle, entity) = coordinator.spawn_scene::<IconButton>(
                 Anchor::default(),
                 &IconButtonArgs::new(
