@@ -89,11 +89,12 @@ impl<Key: Hash + Eq + Clone + 'static, T: Default + Clone + Pod + Zeroable>
                 if range.0 > range.1 {
                     return;
                 }
-                let slice = &self.cpu[range.0 as usize..=range.1 as usize];
+                // let slice = &self.cpu[range.0 as usize..=range.1 as usize];
+                let slice = &self.cpu[..];
                 let start_address = Ginkgo::buffer_address::<T>(range.0);
                 ginkgo.queue.as_ref().unwrap().write_buffer(
                     &self.gpu,
-                    start_address,
+                    0,
                     bytemuck::cast_slice(slice),
                 );
             }
