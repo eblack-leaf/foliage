@@ -67,8 +67,8 @@ fn resize(
         let front =
             coordinator.binding_entity(&handle.access_chain().target(ProgressBarBindings::Fill));
         *rectangles.get_mut(back).unwrap().0 = *area;
-        *rectangles.get_mut(front).unwrap().0 = *area * (progress.1, 1f32).into();
-        *rectangles.get_mut(front).unwrap().1 = Progress::new(progress.0, 1.0);
+        *rectangles.get_mut(front).unwrap().0 = *area;
+        *rectangles.get_mut(front).unwrap().1 = Progress::new(0.0, progress.1);
     }
 }
 pub struct ProgressBarArgs {

@@ -249,8 +249,7 @@ impl Rectangle {
                 0..VERTICES.len() as u32,
                 0..resources.instance_coordinator.instances(),
             );
-            return Some(recorder.finish());
         }
-        None
+        Some(recorder.finish())
     }
 }
