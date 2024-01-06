@@ -14,6 +14,7 @@ use foliage::icon::{Icon, IconId, IconScale};
 use foliage::prebuilt::interactive_progress_bar::{
     InteractiveProgressBar, InteractiveProgressBarArgs, ProgressPercent,
 };
+use foliage::prebuilt::progress_bar::ProgressBar;
 use foliage::scene::align::{SceneAligner, SceneAlignment};
 use foliage::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
 use foliage::{bevy_ecs, set_descriptor};
@@ -65,6 +66,7 @@ impl Leaf for VolumeControl {
             .chain()
             .in_set(Self::SetDescriptor::Area)
             .before(<InteractiveProgressBar as Leaf>::SetDescriptor::Area)
+            .before(<ProgressBar as Leaf>::SetDescriptor::Area)
             .before(<Icon as Leaf>::SetDescriptor::Area),));
     }
 }

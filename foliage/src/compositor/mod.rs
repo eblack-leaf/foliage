@@ -110,7 +110,11 @@ fn responsive_changed(
         if let Some(coord) = segment.coordinate(compositor.layout(), viewport_handle.section()) {
             tracing::trace!("responsive-changed: {:?}", entity);
             if let Some(sh) = m_scene_handle {
-                tracing::trace!("updating-anchor-from-compositor(responsive): {:?}:{:?}", sh, coord);
+                tracing::trace!(
+                    "updating-anchor-from-compositor(responsive): {:?}:{:?}",
+                    sh,
+                    coord
+                );
                 coordinator.update_anchor(*sh, coord);
             }
             *pos = coord.section.position;
@@ -151,7 +155,11 @@ fn viewport_changed(
             {
                 tracing::trace!("viewport-changed: {:?}", entity);
                 if let Some(sh) = m_scene_handle {
-                    tracing::trace!("updating-anchor-from-compositor(viewport): {:?}:{:?}", sh, coord);
+                    tracing::trace!(
+                        "updating-anchor-from-compositor(viewport): {:?}:{:?}",
+                        sh,
+                        coord
+                    );
                     coordinator.update_anchor(*sh, coord);
                 }
                 *pos = coord.section.position;

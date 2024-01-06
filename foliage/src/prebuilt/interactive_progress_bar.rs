@@ -78,6 +78,7 @@ fn resize(
     >,
     mut coordinator: ResMut<SceneCoordinator>,
     mut rectangles: Query<&mut Area<InterfaceContext>, Without<Tag<InteractiveProgressBar>>>,
+    mut progress: Query<&mut Progress>,
 ) {
     // tracing::trace!("updating-interactive-progress-bars");
     for (handle, area, percent) in scenes.iter() {
@@ -91,6 +92,7 @@ fn resize(
             .target(InteractiveProgressBarBindings::Progress);
         let prog = coordinator.binding_entity(&p_ac);
         rectangles.get_mut(prog).unwrap().width = area.width;
+        progress.get_mut(prog).unwrap().1 = percent.0;
     }
 }
 fn metrics(area: Area<InterfaceContext>, percent: f32) -> CoordinateUnit {
