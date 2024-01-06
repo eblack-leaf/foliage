@@ -11,7 +11,7 @@ use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Commands, IntoSystemConfigs};
 use bevy_ecs::query::{Changed, Or, With, Without};
 use bevy_ecs::system::{Query, ResMut, SystemParamItem};
-use crate::compositor::layout::{AspectRatio, Orientation};
+use crate::compositor::layout::AspectRatio;
 use crate::elm::config::{ElmConfiguration, ExternalSet};
 use crate::elm::Elm;
 
