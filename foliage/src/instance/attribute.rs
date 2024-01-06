@@ -91,7 +91,7 @@ impl<Key: Hash + Eq + Clone + 'static, T: Default + Clone + Pod + Zeroable>
                 }
                 // let slice = &self.cpu[range.0 as usize..=range.1 as usize];
                 let slice = &self.cpu[..];
-                let start_address = Ginkgo::buffer_address::<T>(range.0);
+                let _start_address = Ginkgo::buffer_address::<T>(range.0);
                 ginkgo.queue.as_ref().unwrap().write_buffer(
                     &self.gpu,
                     0,

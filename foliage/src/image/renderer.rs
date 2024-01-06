@@ -42,8 +42,7 @@ impl ImageGroup {
     ) {
         let image = image::load_from_memory(data)
             .unwrap()
-            .as_rgba8()
-            .unwrap()
+            .to_rgba8()
             .pixels()
             .flat_map(|p| p.0.to_vec())
             .collect::<Vec<u8>>();
