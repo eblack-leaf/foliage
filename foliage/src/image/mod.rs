@@ -6,12 +6,15 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
-use crate::elm::config::ElmConfiguration;
+use crate::elm::config::{CoreSet, ElmConfiguration};
 use crate::elm::leaf::{EmptySetDescriptor, Leaf};
 use crate::elm::Elm;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
-use bevy_ecs::prelude::Resource;
+use bevy_ecs::entity::Entity;
+use bevy_ecs::prelude::{IntoSystemConfigs, Resource};
+use bevy_ecs::query::Added;
+use bevy_ecs::system::{Commands, Query};
 use serde::{Deserialize, Serialize};
 #[derive(Component, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ImageData(pub Option<Vec<u8>>, u32, u32);
@@ -45,6 +48,13 @@ impl Image {
         }
     }
 }
+fn clean_requests(mut cmd: Commands, query: Query<(Entity, &ImageData), Added<ImageData>>) {
+    for (entity, img_data) in query.iter() {
+        if img_data.0.is_some() {
+            cmd.entity(entity).despawn();
+        }
+    }
+}
 #[derive(Resource, Copy, Clone, Serialize, Deserialize, Hash, Eq, PartialEq, Component)]
 pub struct ImageId(pub i32);
 impl Leaf for Image {
@@ -53,6 +63,8 @@ impl Leaf for Image {
     fn config(_elm_configuration: &mut ElmConfiguration) {}
 
     fn attach(elm: &mut Elm) {
+        elm.main()
+            .add_systems(clean_requests.after(CoreSet::RenderPacket));
         differential_enable!(elm, ImageId, ImageData);
     }
 }

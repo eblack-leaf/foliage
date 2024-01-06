@@ -1,3 +1,4 @@
+pub mod aspect_ratio_image;
 pub mod button;
 pub mod circle_button;
 pub mod circle_progress_bar;

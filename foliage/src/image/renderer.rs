@@ -47,7 +47,7 @@ impl ImageGroup {
             .flat_map(|p| p.0.to_vec())
             .collect::<Vec<u8>>();
         self.tex
-            .replace(ginkgo.texture_rgba8unorm_d2(width, height, 1, image.as_slice()));
+            .replace(ginkgo.texture_rgba8unorm_srgb_d2(width, height, 1, image.as_slice()));
         self.bind_group
             .replace(ginkgo.device().create_bind_group(&BindGroupDescriptor {
                 label: Some("image-group-bind-group"),

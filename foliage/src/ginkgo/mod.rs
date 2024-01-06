@@ -168,7 +168,7 @@ impl Ginkgo {
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         (texture, view)
     }
-    pub fn texture_rgba8unorm_d2(
+    pub fn texture_rgba8unorm_srgb_d2(
         &self,
         width: u32,
         height: u32,
