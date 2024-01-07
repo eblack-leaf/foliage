@@ -36,18 +36,17 @@ impl ImageGroup {
         &mut self,
         ginkgo: &Ginkgo,
         layout: &wgpu::BindGroupLayout,
-        width: u32,
-        height: u32,
         data: &[u8],
     ) {
         let image = image::load_from_memory(data)
             .unwrap()
-            .to_rgba8()
+            .to_rgba8();
+        let image_bytes = image
             .pixels()
             .flat_map(|p| p.0.to_vec())
             .collect::<Vec<u8>>();
         self.tex
-            .replace(ginkgo.texture_rgba8unorm_srgb_d2(width, height, 1, image.as_slice()));
+            .replace(ginkgo.texture_rgba8unorm_srgb_d2(image.width(), image.height(), 1, image_bytes.as_slice()));
         self.bind_group
             .replace(ginkgo.device().create_bind_group(&BindGroupDescriptor {
                 label: Some("image-group-bind-group"),
@@ -181,8 +180,6 @@ impl Render for Image {
             resources.groups.get_mut(&image_id).unwrap().fill(
                 ginkgo,
                 &resources.package_layout,
-                image_data.1,
-                image_data.2,
                 data.as_slice(),
             );
             return ImageRenderPackage {

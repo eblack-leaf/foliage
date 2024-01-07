@@ -17,7 +17,7 @@ use bevy_ecs::query::Added;
 use bevy_ecs::system::{Commands, Query};
 use serde::{Deserialize, Serialize};
 #[derive(Component, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ImageData(pub Option<Vec<u8>>, u32, u32);
+pub struct ImageData(pub Option<Vec<u8>>);
 #[derive(Bundle)]
 pub struct Image {
     image_id: DifferentialBundle<ImageId>,
@@ -28,7 +28,7 @@ impl Image {
     pub fn new(image_id: ImageId) -> Self {
         Self {
             image_id: DifferentialBundle::new(image_id),
-            image_data: DifferentialBundle::new(ImageData(None, 1, 1)),
+            image_data: DifferentialBundle::new(ImageData(None)),
             differentiable: Differentiable::new::<Self>(
                 Position::default(),
                 Area::default(),
@@ -36,10 +36,10 @@ impl Image {
             ),
         }
     }
-    pub fn image_request(image_id: ImageId, width: u32, height: u32, data: Vec<u8>) -> Self {
+    pub fn image_request(image_id: ImageId, data: Vec<u8>) -> Self {
         Self {
             image_id: DifferentialBundle::new(image_id),
-            image_data: DifferentialBundle::new(ImageData(Option::from(data), width, height)),
+            image_data: DifferentialBundle::new(ImageData(Option::from(data))),
             differentiable: Differentiable::new::<Self>(
                 Position::default(),
                 Area::default(),
