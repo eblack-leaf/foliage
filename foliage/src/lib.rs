@@ -30,13 +30,13 @@ use crate::prebuilt::button::Button;
 use crate::prebuilt::circle_button::CircleButton;
 use crate::prebuilt::circle_progress_bar::CircleProgressBar;
 use crate::prebuilt::icon_button::IconButton;
+use crate::prebuilt::icon_text::IconText;
 use crate::prebuilt::interactive_progress_bar::InteractiveProgressBar;
 use crate::prebuilt::progress_bar::ProgressBar;
 use crate::rectangle::Rectangle;
 use crate::text::Text;
 use crate::time::Time;
 use animate::trigger::Trigger;
-use crate::prebuilt::icon_text::IconText;
 
 use self::ash::leaflet::RenderLeafletStorage;
 

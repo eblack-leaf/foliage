@@ -30,8 +30,10 @@ use foliage::icon::IconId;
 use foliage::interaction::InteractionListener;
 use foliage::prebuilt::button::ButtonStyle;
 use foliage::prebuilt::icon_button::{IconButton, IconButtonArgs};
+use foliage::prebuilt::icon_text::{IconText, IconTextArgs};
 use foliage::scene::{Anchor, SceneCoordinator};
 use foliage::text::font::MonospacedFont;
+use foliage::text::{MaxCharacters, TextValue};
 use foliage::time::TimeDelta;
 use foliage::window::ScaleFactor;
 
@@ -139,6 +141,28 @@ fn transitions(
                 .insert(GoBack());
             compositor.add_to_view(begin, entity);
         } else if e.0 == next {
+            let (_handle, entity) = coordinator.spawn_scene::<IconText>(
+                Anchor::default(),
+                &IconTextArgs::new(
+                    IconId::new(BundledIcon::Tag),
+                    MaxCharacters(10),
+                    TextValue::new("hello-them"),
+                    Color::OFF_WHITE,
+                    Color::OFF_WHITE,
+                ),
+                &(Res::clone(&font), Res::clone(&scale_factor)),
+                &mut cmd,
+            );
+            cmd.entity(entity).insert(Segmental::new(
+                ResponsiveSegment::new(next, 0).all(
+                    Segment::new()
+                        .with_x(SegmentUnit::new(0.15).relative())
+                        .with_y(SegmentUnit::new(0.85).relative())
+                        .with_w(SegmentUnit::new(0.5).relative())
+                        .with_h(SegmentUnit::new(0.15).relative()),
+                ),
+            ));
+            compositor.add_to_view(begin, entity);
             let (_handle, entity) = coordinator.spawn_scene::<IconButton>(
                 Anchor::default(),
                 &IconButtonArgs::new(

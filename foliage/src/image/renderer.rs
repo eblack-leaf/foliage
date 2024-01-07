@@ -282,10 +282,8 @@ fn record<'a>(
     recorder
         .0
         .set_vertex_buffer(0, resources.vertex_buffer.slice(..));
-    let mut recorded = false;
     for (_id, group) in resources.groups.iter() {
         if group.coordinator.has_instances() {
-            recorded = true;
             recorder
                 .0
                 .set_bind_group(1, group.bind_group.as_ref().unwrap(), &[]);

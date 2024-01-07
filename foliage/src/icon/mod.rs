@@ -85,7 +85,7 @@ fn scale_change(
         ),
         Or<(Changed<IconScale>, Changed<Area<InterfaceContext>>)>,
     >,
-    _scale_factor: Res<ScaleFactor>,
+    scale_factor: Res<ScaleFactor>,
 ) {
     tracing::trace!("updating-icons");
     for (scale, pos, mut area, mut mips) in query.iter_mut() {
@@ -93,7 +93,7 @@ fn scale_change(
         area.width = initial_px;
         area.height = initial_px;
         let section = Section::new(*pos, *area);
-        let adjusted_section = section.to_device(_scale_factor.factor()); //.clean_scale(scale_factor.factor());
+        let adjusted_section = section.clean_scale(scale_factor.factor());
         *mips = MipsLevel::new(
             (Icon::TEXTURE_DIMENSIONS, Icon::TEXTURE_DIMENSIONS).into(),
             Icon::MIPS,
