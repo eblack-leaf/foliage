@@ -306,9 +306,5 @@ fn record<'a>(
                 .draw(0..VERTICES.len() as u32, 0..group.coordinator.instances());
         }
     }
-    if recorded {
-        Some(recorder.finish())
-    } else {
-        None
-    }
+    Some(recorder.finish())
 }
