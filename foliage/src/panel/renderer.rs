@@ -281,6 +281,6 @@ impl Panel {
             );
             return Some(recorder.finish());
         }
-        None
+        Some(recorder.finish())
     }
 }
