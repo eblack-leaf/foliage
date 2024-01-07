@@ -1,12 +1,12 @@
 use crate::color::Color;
 use crate::coordinate::area::Area;
-use crate::coordinate::InterfaceContext;
+use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::differential::Despawn;
 use crate::elm::config::{ElmConfiguration, ExternalSet};
 use crate::elm::leaf::{Leaf, Tag};
 use crate::elm::Elm;
 use crate::icon::{Icon, IconId, IconScale};
-use crate::scene::align::{AlignmentPoint, SceneAligner};
+use crate::scene::align::SceneAligner;
 use crate::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
 use crate::set_descriptor;
 use crate::text::font::MonospacedFont;
@@ -83,10 +83,10 @@ fn metrics(
     max_characters: &MaxCharacters,
     font: &MonospacedFont,
     scale_factor: &ScaleFactor,
-) -> (IconScale, FontSize, AlignmentPoint) {
+) -> (IconScale, FontSize, CoordinateUnit, CoordinateUnit) {
     let (fs, fa) = font.best_fit(*max_characters, area * (0.6, 1.0).into(), &scale_factor);
     let icon_scale = IconScale::from_dim(fa.height * 0.9);
-    (icon_scale, fs, (icon_scale.px() + 12.0).near())
+    (icon_scale, fs, (icon_scale.px() + 12.0 + fa.width / 2f32) * -1.0, 12.0)
 }
 fn resize(
     scenes: Query<
@@ -119,11 +119,13 @@ fn resize(
             continue;
         }
         coordinator.update_anchor_area(*handle, *area);
-        let (is, fs, ap) = metrics(*area, max_char, &font, &scale_factor);
+        let (is, fs, iap, tap) = metrics(*area, max_char, &font, &scale_factor);
+        let icon_ac = handle.access_chain().target(IconTextBindings::Icon);
+        coordinator.get_alignment_mut(&icon_ac).pos.horizontal = iap.center();
         let icon_entity =
-            coordinator.binding_entity(&handle.access_chain().target(IconTextBindings::Icon));
+            coordinator.binding_entity(&icon_ac);
         let text_ac = handle.access_chain().target(IconTextBindings::Text);
-        coordinator.get_alignment_mut(&text_ac).pos.horizontal = ap;
+        coordinator.get_alignment_mut(&text_ac).pos.horizontal = tap.center();
         let text_entity = coordinator.binding_entity(&text_ac);
         *texts.get_mut(text_entity).unwrap().0 = *max_char;
         *texts.get_mut(text_entity).unwrap().1 = text_val.clone();
@@ -144,7 +146,7 @@ impl Scene for IconText {
         external_args: &SystemParamItem<Self::ExternalArgs>,
         mut binder: SceneBinder<'_>,
     ) -> Self {
-        let (is, fs, ap) = metrics(
+        let (is, fs, iap, tap) = metrics(
             anchor.0.section.area,
             &args.max_chars,
             &external_args.0,
@@ -152,13 +154,13 @@ impl Scene for IconText {
         );
         binder.bind(
             Self::Bindings::Icon,
-            (4.near(), 0.center(), 0),
+            (iap.center(), 0.center(), 0),
             Icon::new(args.id, is, args.icon_color),
             cmd,
         );
         binder.bind(
             Self::Bindings::Text,
-            (ap, 0.center(), 0),
+            (tap.center(), 0.center(), 0),
             Text::new(args.max_chars, fs, args.text_value.clone(), args.text_color),
             cmd,
         );
