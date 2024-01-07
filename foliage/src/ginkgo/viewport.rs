@@ -102,13 +102,13 @@ impl Viewport {
             section.top(),
             0f32
         ]);
-        println!("translation: {:?}", translation);
+        // println!("translation: {:?}", translation);
         let projection = matrix![2f32/(section.right() - section.left()), 0.0, 0.0, -1.0;
                                     0.0, 2f32/(section.top() - section.bottom()), 0.0, 1.0;
                                     0.0, 0.0, 1.0/(near_far.1 - near_far.0).z, 0.0;
                                     0.0, 0.0, 0.0, 1.0];
         // let projection = nalgebra::Matrix4::new_orthographic(section.left(), section.right(), section.bottom(), section.top(), 0.0, 100.0);
-        println!("projection: {:?}", projection);
+        // println!("projection: {:?}", projection);
         projection * translation
     }
     pub fn section(&self) -> Section<DeviceContext> {
