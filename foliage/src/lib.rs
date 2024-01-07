@@ -36,6 +36,7 @@ use crate::rectangle::Rectangle;
 use crate::text::Text;
 use crate::time::Time;
 use animate::trigger::Trigger;
+use crate::prebuilt::icon_text::IconText;
 
 use self::ash::leaflet::RenderLeafletStorage;
 
@@ -120,6 +121,7 @@ impl Foliage {
             .with_leaf::<Compositor>()
             .with_leaf::<Time>()
             .with_leaf::<AspectRatioImage>()
+            .with_leaf::<IconText>()
     }
     pub fn with_android_interface(mut self, android_interface: AndroidInterface) -> Self {
         self.android_interface = android_interface;

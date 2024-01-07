@@ -117,8 +117,17 @@ fn resize(
         if despawn.should_despawn() {
             continue;
         }
+        coordinator.update_anchor_area(*handle, *area);
         let (is, fs) = metrics(*area, max_char, &font, &scale_factor);
-
+        let icon_entity =
+            coordinator.binding_entity(&handle.access_chain().target(IconTextBindings::Icon));
+        let text_entity =
+            coordinator.binding_entity(&handle.access_chain().target(IconTextBindings::Text));
+        *texts.get_mut(text_entity).unwrap().0 = *max_char;
+        *texts.get_mut(text_entity).unwrap().1 = text_val.clone();
+        *texts.get_mut(text_entity).unwrap().2 = fs;
+        *icons.get_mut(icon_entity).unwrap().0 = *icon_id;
+        *icons.get_mut(icon_entity).unwrap().1 = is;
     }
 }
 impl Scene for IconText {
@@ -133,25 +142,22 @@ impl Scene for IconText {
         external_args: &SystemParamItem<Self::ExternalArgs>,
         mut binder: SceneBinder<'_>,
     ) -> Self {
+        let (is, fs) = metrics(
+            anchor.0.section.area,
+            &args.max_chars,
+            &external_args.0,
+            &external_args.1,
+        );
         binder.bind(
             Self::Bindings::Icon,
             (4.near(), 0.center(), 0),
-            Icon::new(
-                args.id,
-                IconScale::from_dim(anchor.0.section.width() * 0.3),
-                args.icon_color,
-            ),
+            Icon::new(args.id, is, args.icon_color),
             cmd,
         );
         binder.bind(
             Self::Bindings::Text,
             (4.far(), 0.center(), 0),
-            Text::new(
-                args.max_chars,
-                FontSize::default(),
-                args.text_value.clone(),
-                args.text_color,
-            ),
+            Text::new(args.max_chars, fs, args.text_value.clone(), args.text_color),
             cmd,
         );
         Self {
