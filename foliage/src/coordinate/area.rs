@@ -61,8 +61,12 @@ impl Area<DeviceContext> {
     }
 }
 impl Area<NumericalContext> {
-    pub fn as_interface(self) -> Area<InterfaceContext> { (self.width, self.height).into() }
-    pub fn as_device(self) -> Area<DeviceContext> { (self.width, self.height).into() }
+    pub fn as_interface(self) -> Area<InterfaceContext> {
+        (self.width, self.height).into()
+    }
+    pub fn as_device(self) -> Area<DeviceContext> {
+        (self.width, self.height).into()
+    }
 }
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default, Component, Serialize, Deserialize, PartialEq)]

@@ -189,7 +189,7 @@ impl Ginkgo {
                 dimension: TextureDimension::D2,
                 format: TextureFormat::Rgba8UnormSrgb,
                 usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
-                view_formats: &[TextureFormat::Rgba8Unorm],
+                view_formats: &[TextureFormat::Rgba8UnormSrgb],
             },
             wgpu::util::TextureDataOrder::LayerMajor,
             data,

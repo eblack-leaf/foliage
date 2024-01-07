@@ -25,6 +25,7 @@ use crate::interaction::{
     Interaction, InteractionEvent, InteractionId, InteractionPhase, MouseAdapter,
 };
 use crate::panel::Panel;
+use crate::prebuilt::aspect_ratio_image::AspectRatioImage;
 use crate::prebuilt::button::Button;
 use crate::prebuilt::circle_button::CircleButton;
 use crate::prebuilt::circle_progress_bar::CircleProgressBar;
@@ -35,7 +36,6 @@ use crate::rectangle::Rectangle;
 use crate::text::Text;
 use crate::time::Time;
 use animate::trigger::Trigger;
-use crate::prebuilt::aspect_ratio_image::AspectRatioImage;
 
 use self::ash::leaflet::RenderLeafletStorage;
 

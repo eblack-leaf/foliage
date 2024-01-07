@@ -32,21 +32,18 @@ impl ImageGroup {
             bind_group: None,
         }
     }
-    fn fill(
-        &mut self,
-        ginkgo: &Ginkgo,
-        layout: &wgpu::BindGroupLayout,
-        data: &[u8],
-    ) {
-        let image = image::load_from_memory(data)
-            .unwrap()
-            .to_rgba8();
+    fn fill(&mut self, ginkgo: &Ginkgo, layout: &wgpu::BindGroupLayout, data: &[u8]) {
+        let image = image::load_from_memory(data).unwrap().to_rgba8();
         let image_bytes = image
             .pixels()
             .flat_map(|p| p.0.to_vec())
             .collect::<Vec<u8>>();
-        self.tex
-            .replace(ginkgo.texture_rgba8unorm_srgb_d2(image.width(), image.height(), 1, image_bytes.as_slice()));
+        self.tex.replace(ginkgo.texture_rgba8unorm_srgb_d2(
+            image.width(),
+            image.height(),
+            1,
+            image_bytes.as_slice(),
+        ));
         self.bind_group
             .replace(ginkgo.device().create_bind_group(&BindGroupDescriptor {
                 label: Some("image-group-bind-group"),

@@ -1,7 +1,10 @@
+use crate::compositor::layout::AspectRatio;
 use crate::coordinate::area::Area;
 use crate::coordinate::{InterfaceContext, NumericalContext};
 use crate::differential::Despawn;
+use crate::elm::config::{ElmConfiguration, ExternalSet};
 use crate::elm::leaf::{Leaf, Tag};
+use crate::elm::Elm;
 use crate::image::{Image, ImageId};
 use crate::scene::align::SceneAligner;
 use crate::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
@@ -11,9 +14,6 @@ use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Commands, IntoSystemConfigs};
 use bevy_ecs::query::{Changed, Or, With, Without};
 use bevy_ecs::system::{Query, ResMut, SystemParamItem};
-use crate::compositor::layout::AspectRatio;
-use crate::elm::config::{ElmConfiguration, ExternalSet};
-use crate::elm::Elm;
 
 #[derive(Component, Copy, Clone)]
 pub struct ImageDimensions(pub Area<NumericalContext>);
@@ -59,7 +59,8 @@ impl Leaf for AspectRatioImage {
     }
 
     fn attach(elm: &mut Elm) {
-        elm.main().add_systems(resize.in_set(Self::SetDescriptor::Area),);
+        elm.main()
+            .add_systems(resize.in_set(Self::SetDescriptor::Area));
     }
 }
 fn resize(
@@ -104,7 +105,10 @@ pub struct AspectRatioImageArgs {
 }
 impl AspectRatioImageArgs {
     pub fn new<ID: Into<ImageId>, DIM: Into<ImageDimensions>>(id: ID, dim: DIM) -> Self {
-        Self { id: id.into(), dims: dim.into() }
+        Self {
+            id: id.into(),
+            dims: dim.into(),
+        }
     }
 }
 impl Scene for AspectRatioImage {
