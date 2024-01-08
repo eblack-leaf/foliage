@@ -7,23 +7,25 @@ use std::marker::PhantomData;
 use anymap::AnyMap;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::event::{event_update_system, Event, Events};
-use bevy_ecs::prelude::{Component, IntoSystemConfigs};
+use bevy_ecs::prelude::{Component, DetectChanges, IntoSystemConfigs, Res};
+use bevy_ecs::system::{Commands, ResMut, StaticSystemParam, SystemParam};
 use compact_str::{CompactString, ToCompactString};
 use leaf::Leaflet;
 use serde::{Deserialize, Serialize};
 
 use crate::ash::render_packet::RenderPacketForwarder;
 use crate::ash::render_packet::RenderPacketPackage;
-use crate::compositor::Compositor;
+use crate::compositor::segment::ResponsiveSegment;
+use crate::compositor::{Compositor, CurrentView, Segmental, ViewHandle};
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, InterfaceContext};
-use crate::elm::config::{CoreSet, ElmConfiguration};
+use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::job::{Job, Task};
-use crate::scene::SceneCoordinator;
+use crate::scene::{Anchor, Scene, SceneCoordinator};
 use crate::window::ScaleFactor;
 
 pub struct Elm {
@@ -172,6 +174,76 @@ impl Elm {
     pub(crate) fn finish_initialization(&mut self) {
         self.job.resume();
         self.initialized = true;
+    }
+    pub fn add_view_binding<
+        VH: Into<ViewHandle>,
+        B: Bundle + Clone,
+        Ext: Bundle + Clone,
+        RS: Into<ResponsiveSegment>,
+    >(
+        &mut self,
+        vh: VH,
+        b: B,
+        rs: RS,
+        ext: Ext,
+    ) {
+        let view_handle = vh.into();
+        let responsive_segment = rs.into().at_view(view_handle);
+        let func = move |current: Res<CurrentView>,
+                         mut cmd: Commands,
+                         mut compositor: ResMut<Compositor>| {
+            {
+                if current.0 == view_handle {
+                    let entity = cmd
+                        .spawn(b.clone())
+                        .insert(ext.clone())
+                        .insert(Segmental::new(responsive_segment.clone()))
+                        .id();
+                    compositor.add_to_view(view_handle, entity);
+                }
+            }
+        };
+        self.main().add_systems((func
+            .in_set(ExternalSet::ViewBindings)
+            .run_if(|cv: Res<CurrentView>| -> bool { cv.is_changed() }),));
+    }
+    pub fn add_view_scene_binding<
+        VH: Into<ViewHandle>,
+        S: Scene,
+        Ext: Bundle + Clone,
+        RS: Into<ResponsiveSegment>,
+    >(
+        &mut self,
+        vh: VH,
+        args: S::Args<'static>,
+        rs: RS,
+        ext: Ext,
+    ) {
+        let view_handle = vh.into();
+        let responsive_segment = rs.into().at_view(view_handle);
+        let func = move |current: Res<CurrentView>,
+                         mut cmd: Commands,
+                         mut compositor: ResMut<Compositor>,
+                         external_args: StaticSystemParam<S::ExternalArgs>,
+                         mut coordinator: ResMut<SceneCoordinator>| {
+            {
+                if current.0 == view_handle {
+                    let (_handle, entity) = coordinator.spawn_scene::<S>(
+                        Anchor::default(),
+                        &args,
+                        &external_args,
+                        &mut cmd,
+                    );
+                    cmd.entity(entity)
+                        .insert(ext.clone())
+                        .insert(Segmental::new(responsive_segment.clone()));
+                    compositor.add_to_view(view_handle, entity);
+                }
+            }
+        };
+        self.main().add_systems((func
+            .in_set(ExternalSet::ViewBindings)
+            .run_if(|cv: Res<CurrentView>| -> bool { cv.is_changed() }),));
     }
 }
 

@@ -86,7 +86,12 @@ fn metrics(
 ) -> (IconScale, FontSize, CoordinateUnit, CoordinateUnit) {
     let (fs, fa) = font.best_fit(*max_characters, area * (0.6, 1.0).into(), &scale_factor);
     let icon_scale = IconScale::from_dim(fa.height * 0.9);
-    (icon_scale, fs, (icon_scale.px() + 12.0 + fa.width / 2f32) * -1.0, 12.0)
+    (
+        icon_scale,
+        fs,
+        (icon_scale.px() + 12.0 + fa.width / 2f32) * -1.0,
+        12.0,
+    )
 }
 fn resize(
     scenes: Query<
@@ -122,8 +127,7 @@ fn resize(
         let (is, fs, iap, tap) = metrics(*area, max_char, &font, &scale_factor);
         let icon_ac = handle.access_chain().target(IconTextBindings::Icon);
         coordinator.get_alignment_mut(&icon_ac).pos.horizontal = iap.center();
-        let icon_entity =
-            coordinator.binding_entity(&icon_ac);
+        let icon_entity = coordinator.binding_entity(&icon_ac);
         let text_ac = handle.access_chain().target(IconTextBindings::Text);
         coordinator.get_alignment_mut(&text_ac).pos.horizontal = tap.center();
         let text_entity = coordinator.binding_entity(&text_ac);

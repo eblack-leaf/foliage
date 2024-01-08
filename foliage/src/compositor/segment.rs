@@ -6,19 +6,30 @@ use crate::coordinate::{Coordinate, CoordinateUnit, InterfaceContext};
 use bevy_ecs::component::Component;
 use std::collections::HashMap;
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct ResponsiveSegment {
     pub handle: ViewHandle,
     pub segments: HashMap<Layout, Segment>,
     pub layer: Layer,
 }
 impl ResponsiveSegment {
-    pub fn new<VH: Into<ViewHandle>, L: Into<Layer>>(vh: VH, l: L) -> Self {
+    pub fn new_with_view<VH: Into<ViewHandle>, L: Into<Layer>>(vh: VH, l: L) -> Self {
         Self {
             handle: vh.into(),
             segments: HashMap::new(),
             layer: l.into(),
         }
+    }
+    pub fn new<L: Into<Layer>>(l: L) -> Self {
+        Self {
+            handle: ViewHandle::default(),
+            segments: HashMap::new(),
+            layer: l.into(),
+        }
+    }
+    pub fn at_view<VH: Into<ViewHandle>>(mut self, vh: VH) -> Self {
+        self.handle = vh.into();
+        self
     }
     pub fn coordinate(
         &self,

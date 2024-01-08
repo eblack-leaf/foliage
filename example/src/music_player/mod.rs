@@ -15,13 +15,13 @@ use crate::music_player::volume_control::{VolumeControl, VolumeControlArgs};
 use foliage::bevy_ecs;
 use foliage::bevy_ecs::change_detection::ResMut;
 use foliage::bevy_ecs::component::Component;
-use foliage::bevy_ecs::event::{EventReader, EventWriter};
-use foliage::bevy_ecs::prelude::{Commands, IntoSystemConfigs, Res};
+use foliage::bevy_ecs::event::EventWriter;
+use foliage::bevy_ecs::prelude::{Commands, DetectChanges, IntoSystemConfigs, Res};
 use foliage::bevy_ecs::query::Changed;
 use foliage::bevy_ecs::system::Query;
 use foliage::color::Color;
 use foliage::compositor::segment::{ResponsiveSegment, Segment, SegmentUnit};
-use foliage::compositor::{Compositor, Segmental, ViewHandle, ViewTransition};
+use foliage::compositor::{Compositor, CurrentView, Segmental, ViewHandle};
 use foliage::elm::config::{ElmConfiguration, ExternalSet};
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 use foliage::elm::Elm;
@@ -42,30 +42,28 @@ pub struct MusicPlayer {}
 fn setup(
     mut cmd: Commands,
     mut compositor: ResMut<Compositor>,
-    mut events: EventWriter<ViewTransition>,
+    mut current: ResMut<CurrentView>,
     mut track_events: EventWriter<TrackEvent>,
 ) {
     let begin = ViewHandle::new(0, 0);
     compositor.add_view(begin);
     compositor.add_view(ViewHandle::new(0, 1));
-    // trigger starting transition
-    events.send(ViewTransition(begin));
     track_events.send(TrackEvent {
         length: TimeDelta::from_secs(24),
     });
 }
 fn transitions(
-    mut events: EventReader<ViewTransition>,
+    current: ResMut<CurrentView>,
     mut cmd: Commands,
     mut coordinator: ResMut<SceneCoordinator>,
     mut compositor: ResMut<Compositor>,
     font: Res<MonospacedFont>,
     scale_factor: Res<ScaleFactor>,
 ) {
-    for e in events.read() {
+    if current.is_changed() {
         let begin = ViewHandle::new(0, 0);
         let next = ViewHandle::new(0, 1);
-        if e.0 == begin {
+        if current.0 == begin {
             // spawn stuff with responsive seg
             let (_handle, entity) = coordinator.spawn_scene::<VolumeControl>(
                 Anchor::default().with_layer(0),
@@ -75,7 +73,7 @@ fn transitions(
             );
             tracing::trace!("volume-control is:{:?}", entity);
             cmd.entity(entity).insert(Segmental::new(
-                ResponsiveSegment::new(begin, 0).all(
+                ResponsiveSegment::new_with_view(begin, 0).all(
                     Segment::new()
                         .with_x(SegmentUnit::new(0.5).relative())
                         .with_y(SegmentUnit::new(25.0).fixed())
@@ -91,7 +89,7 @@ fn transitions(
                 &mut cmd,
             );
             cmd.entity(entity).insert(Segmental::new(
-                ResponsiveSegment::new(begin, 0).all(
+                ResponsiveSegment::new_with_view(begin, 0).all(
                     Segment::new()
                         .with_x(SegmentUnit::new(0.1).relative())
                         .with_y(SegmentUnit::new(0.75).relative())
@@ -107,7 +105,7 @@ fn transitions(
                 &mut cmd,
             );
             cmd.entity(entity).insert(Segmental::new(
-                ResponsiveSegment::new(begin, 0).all(
+                ResponsiveSegment::new_with_view(begin, 0).all(
                     Segment::new()
                         .with_x(SegmentUnit::new(0.15).relative())
                         .with_y(SegmentUnit::new(0.85).relative())
@@ -130,7 +128,7 @@ fn transitions(
             tracing::trace!("icon-button-to-next is:{:?}", entity);
             cmd.entity(entity)
                 .insert(Segmental::new(
-                    ResponsiveSegment::new(begin, 0).all(
+                    ResponsiveSegment::new_with_view(begin, 0).all(
                         Segment::new()
                             .with_x(SegmentUnit::new(10.0).fixed())
                             .with_y(SegmentUnit::new(19.0).fixed())
@@ -140,7 +138,7 @@ fn transitions(
                 ))
                 .insert(GoBack());
             compositor.add_to_view(begin, entity);
-        } else if e.0 == next {
+        } else if current.0 == next {
             let (_handle, entity) = coordinator.spawn_scene::<IconText>(
                 Anchor::default(),
                 &IconTextArgs::new(
@@ -154,7 +152,7 @@ fn transitions(
                 &mut cmd,
             );
             cmd.entity(entity).insert(Segmental::new(
-                ResponsiveSegment::new(next, 0).all(
+                ResponsiveSegment::new_with_view(next, 0).all(
                     Segment::new()
                         .with_x(SegmentUnit::new(0.15).relative())
                         .with_y(SegmentUnit::new(0.85).relative())
@@ -176,7 +174,7 @@ fn transitions(
             );
             cmd.entity(entity)
                 .insert(Segmental::new(
-                    ResponsiveSegment::new(next, 0).all(
+                    ResponsiveSegment::new_with_view(next, 0).all(
                         Segment::new()
                             .with_x(SegmentUnit::new(100.0).fixed())
                             .with_y(SegmentUnit::new(19.0).fixed())
@@ -196,16 +194,16 @@ pub(crate) struct GoForward();
 fn page_back(
     go_backs: Query<(&GoBack, &InteractionListener), Changed<InteractionListener>>,
     go_forward: Query<(&GoForward, &InteractionListener), Changed<InteractionListener>>,
-    mut events: EventWriter<ViewTransition>,
+    mut current: ResMut<CurrentView>,
 ) {
     for (_h, listener) in go_backs.iter() {
         if listener.active() {
-            events.send(ViewTransition(ViewHandle::new(0, 1)))
+            current.0 = ViewHandle::new(0, 1);
         }
     }
     for (_h, listener) in go_forward.iter() {
         if listener.active() {
-            events.send(ViewTransition(ViewHandle::new(0, 0)))
+            current.0 = ViewHandle::new(0, 0);
         }
     }
 }

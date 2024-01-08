@@ -8,21 +8,21 @@ use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::differential::Despawn;
 use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::elm::leaf::{EmptySetDescriptor, Leaf, Tag};
-use crate::elm::{Disabled, Elm, EventStage};
+use crate::elm::{Disabled, Elm};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::scene::{SceneCoordinator, SceneHandle};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::event::{Event, EventReader};
-use bevy_ecs::prelude::{IntoSystemConfigs, Resource};
+use bevy_ecs::prelude::{DetectChanges, IntoSystemConfigs, Resource};
 use bevy_ecs::query::{Changed, Or, With};
 use bevy_ecs::system::{Commands, Query, Res, ResMut};
 use std::collections::{HashMap, HashSet};
 
 pub mod layout;
 pub mod segment;
-
+#[derive(Resource, Copy, Clone)]
+pub struct CurrentView(pub ViewHandle);
 #[derive(Resource)]
 pub struct Compositor {
     current: ViewHandle,
@@ -79,12 +79,19 @@ impl Leaf for Compositor {
     fn config(_elm_configuration: &mut ElmConfiguration) {}
 
     fn attach(elm: &mut Elm) {
+        elm.job
+            .container
+            .insert_resource(CurrentView(ViewHandle::new(0, 0)));
         elm.main().add_systems((
-            (responsive_changed, viewport_changed).in_set(CoreSet::Compositor),
-            view_changed.in_set(CoreSet::TransitionView),
+            (responsive_changed).in_set(CoreSet::Compositor),
+            viewport_changed
+                .in_set(CoreSet::Compositor)
+                .run_if(|vh: Res<ViewportHandle>| -> bool { vh.is_changed() }),
+            view_changed
+                .in_set(CoreSet::TransitionView)
+                .run_if(|cv: Res<CurrentView>| -> bool { cv.is_changed() }),
             despawn_triggered.in_set(ExternalSet::Spawn),
         ));
-        elm.add_event::<ViewTransition>(EventStage::Process);
     }
 }
 fn responsive_changed(
@@ -176,29 +183,27 @@ fn viewport_changed(
         }
     }
 }
-#[derive(Event)]
-pub struct ViewTransition(pub ViewHandle);
 fn view_changed(
     mut compositor: ResMut<Compositor>,
-    mut events: EventReader<ViewTransition>,
+    current_view: ResMut<CurrentView>,
     mut viewport_handle: ResMut<ViewportHandle>,
     mut cmd: Commands,
 ) {
-    if let Some(event) = events.read().last() {
+    if current_view.is_changed() {
         let old = compositor.current;
-        let _new_anchor = event.0.anchor(viewport_handle.section().area);
+        let _new_anchor = current_view.0.anchor(viewport_handle.section().area);
         viewport_handle.set_position((_new_anchor.x, _new_anchor.y).into());
-        compositor.current = event.0;
+        compositor.current = current_view.0;
         cmd.spawn((
             Trigger(true),
             old,
-            Tag::<ViewTransition>::new(), /* anchor-anim */
+            Tag::<View>::new(), /* anchor-anim */
         ));
     }
 }
 fn despawn_triggered(
     mut compositor: ResMut<Compositor>,
-    triggers: Query<(&Trigger, &ViewHandle), (With<Tag<ViewTransition>>, Changed<Trigger>)>,
+    triggers: Query<(&Trigger, &ViewHandle), (With<Tag<View>>, Changed<Trigger>)>,
     mut despawn: Query<&mut Despawn>,
 ) {
     for (trigger, handle) in triggers.iter() {
