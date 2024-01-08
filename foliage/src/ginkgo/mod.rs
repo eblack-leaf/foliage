@@ -58,14 +58,14 @@ impl Ginkgo {
             msaa: None,
             clear_color: ClearColor(Color::OFF_BLACK.into()),
             initialized: false,
-            scale_factor: ScaleFactor(1.0),
+            scale_factor: ScaleFactor::new(1.0),
         }
     }
     pub fn scale_factor(&self) -> CoordinateUnit {
         self.scale_factor.factor()
     }
     pub(crate) fn set_scale_factor(&mut self, factor: CoordinateUnit) {
-        self.scale_factor = ScaleFactor(factor);
+        self.scale_factor = ScaleFactor::new(factor);
     }
     pub fn viewport_bind_group_entry(&self, binding: u32) -> BindGroupEntry {
         BindGroupEntry {
@@ -401,7 +401,7 @@ impl Ginkgo {
         area: Area<DeviceContext>,
         scale_factor: CoordinateUnit,
     ) -> Area<InterfaceContext> {
-        self.scale_factor = ScaleFactor(scale_factor);
+        self.scale_factor = ScaleFactor::new(scale_factor);
         self.create_surface_configuration(area);
         self.configure_surface();
         self.create_depth_texture(area);
@@ -423,7 +423,7 @@ impl Ginkgo {
             #[cfg(not(target_family = "wasm"))]
             {
                 *window = WindowHandle::some(_event_loop_window_target, _desc);
-                self.scale_factor = ScaleFactor(window.scale_factor());
+                self.scale_factor = ScaleFactor::new(window.scale_factor());
                 pollster::block_on(self.initialize(window.clone()));
             }
             let viewport_area = self.post_window_initialization(window);
@@ -440,7 +440,7 @@ impl Ginkgo {
     }
     pub(crate) fn create_surface(&mut self, window: WindowHandle) {
         if let Some(instance) = self.instance.as_ref() {
-            self.scale_factor = ScaleFactor(window.scale_factor());
+            self.scale_factor = ScaleFactor::new(window.scale_factor());
             self.surface
                 .replace(instance.create_surface(window.0.unwrap()).expect("surface"));
         }

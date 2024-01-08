@@ -84,8 +84,11 @@ impl WindowHandle {
     }
 }
 #[derive(Resource)]
-pub struct ScaleFactor(pub(crate) CoordinateUnit);
+pub struct ScaleFactor(CoordinateUnit);
 impl ScaleFactor {
+    pub(crate) fn new(factor: CoordinateUnit) -> Self {
+        Self(factor.round())
+    }
     pub fn factor(&self) -> CoordinateUnit {
         self.0
     }

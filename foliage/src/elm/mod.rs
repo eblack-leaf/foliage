@@ -101,7 +101,7 @@ impl Elm {
         }
     }
     pub(crate) fn set_scale_factor(&mut self, factor: CoordinateUnit) {
-        self.job.container.insert_resource(ScaleFactor(factor));
+        self.job.container.insert_resource(ScaleFactor::new(factor));
     }
     pub(crate) fn viewport_handle_changes(&mut self) -> Option<Position<InterfaceContext>> {
         self.job
