@@ -7,7 +7,7 @@ pub(crate) const TEXTURE_SIZE: u32 = 2048;
 pub(crate) const UPPER_BOUND: u32 = 172;
 pub(crate) const LOWER_BOUND: u32 = 12;
 pub(crate) const STEP: usize = 4;
-const INTERVALS: u32 = 10;
+const INTERVALS: u32 = 1000;
 
 #[test]
 #[cfg(test)]
@@ -37,7 +37,7 @@ fn generate() {
             let current = 2f64 * PI / INTERVALS as f64 * i as f64;
             for y in 0..diameter {
                 for x in 0..diameter {
-                    let index = offset.x as u32 + offset.y as u32 * TEXTURE_SIZE + x + y * diameter;
+                    let index = offset.x as u32 + (offset.y as u32 + y) * TEXTURE_SIZE + x;
                     let (ax, ay) = (x as f64 - center.x as f64, center.y as f64 - y as f64);
                     let mut angle = f64::atan(ay / ax);
                     if ay.is_sign_positive() && angle.is_sign_negative() {
@@ -57,15 +57,6 @@ fn generate() {
                         data.get_mut(index as usize).as_mut().unwrap().0 += 1f32;
                         if distance >= ring_radius {
                             data.get_mut(index as usize).as_mut().unwrap().1 += 1f32;
-                            if diameter == 72 {
-                                println!(
-                                    "ring-radius: {}, radius: {}, distance:{} --currently d: {} ",
-                                    ring_radius,
-                                    radius,
-                                    distance,
-                                    data.get_mut(index as usize).unwrap().1
-                                );
-                            }
                         }
                     }
                     if angle > current {
@@ -75,7 +66,6 @@ fn generate() {
             }
         }
     }
-    println!("processing");
     for rgb in data.iter_mut() {
         rgb.0 /= INTERVALS as f32;
         rgb.1 /= INTERVALS as f32;

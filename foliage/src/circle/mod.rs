@@ -46,10 +46,12 @@ pub struct Circle {
 }
 #[derive(Copy, Clone, Component)]
 pub struct Diameter(pub CoordinateUnit);
+const CIRCLE_INTERVAL: CoordinateUnit = 4.0;
 impl Diameter {
     pub fn new(r: CoordinateUnit) -> Self {
         // TODO align to nearest 4 value
-        Self(r.min(UPPER_BOUND as f32).max(LOWER_BOUND as f32))
+        let r = r - r % CIRCLE_INTERVAL;
+        Self(r.min(UPPER_BOUND as f32).max(LOWER_BOUND as f32).floor())
     }
     pub fn area(&self) -> Area<InterfaceContext> {
         (self.0, self.0).into()
