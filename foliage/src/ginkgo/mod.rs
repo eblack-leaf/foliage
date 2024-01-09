@@ -125,8 +125,8 @@ impl Ginkgo {
     #[cfg(not(target_family = "wasm"))]
     pub fn png_to_cov<P: AsRef<Path>>(png: P, cov: P) {
         let data = Ginkgo::png_to_r8unorm_d2(png);
-        let string = rmp_serde::to_vec(data.as_slice()).unwrap();
-        std::fs::write(cov, string).unwrap();
+        let content = rmp_serde::to_vec(data.as_slice()).unwrap();
+        std::fs::write(cov, content).unwrap();
     }
     #[cfg(not(target_family = "wasm"))]
     pub fn png_to_r8unorm_d2<P: AsRef<Path>>(path: P) -> Vec<u8> {
@@ -178,7 +178,7 @@ impl Ginkgo {
         let texture = self.device().create_texture_with_data(
             self.queue(),
             &wgpu::TextureDescriptor {
-                label: Some("ginkgo-rgba8unorm-d2"),
+                label: Some("ginkgo-rgba8unorm-srgb-d2"),
                 size: Extent3d {
                     width,
                     height,
@@ -190,6 +190,35 @@ impl Ginkgo {
                 format: TextureFormat::Rgba8UnormSrgb,
                 usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
                 view_formats: &[TextureFormat::Rgba8UnormSrgb],
+            },
+            wgpu::util::TextureDataOrder::LayerMajor,
+            data,
+        );
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        (texture, view)
+    }
+    pub fn texture_rgba8unorm_d2(
+        &self,
+        width: u32,
+        height: u32,
+        mips: u32,
+        data: &[u8],
+    ) -> (wgpu::Texture, TextureView) {
+        let texture = self.device().create_texture_with_data(
+            self.queue(),
+            &wgpu::TextureDescriptor {
+                label: Some("ginkgo-rgba8unorm-d2"),
+                size: Extent3d {
+                    width,
+                    height,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: mips,
+                sample_count: 1,
+                dimension: TextureDimension::D2,
+                format: TextureFormat::Rgba8Unorm,
+                usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
+                view_formats: &[TextureFormat::Rgba8Unorm],
             },
             wgpu::util::TextureDataOrder::LayerMajor,
             data,

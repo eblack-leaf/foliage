@@ -4,21 +4,26 @@ use crate::ash::instruction::{
 use crate::ash::render::{Render, RenderPhase};
 use crate::ash::render_packet::RenderPacket;
 use crate::ash::renderer::RenderPackage;
+use crate::circle::proc_gen::TEXTURE_SIZE;
 use crate::circle::vertex::{Vertex, VERTICES};
-use crate::circle::{Circle, CircleStyle};
+use crate::circle::{placements, Circle, CircleStyle, Diameter};
 use crate::color::Color;
 use crate::coordinate::area::CReprArea;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::CReprPosition;
+use crate::coordinate::section::Section;
 use crate::ginkgo::Ginkgo;
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
-use crate::texture::factors::{MipsLevel, Progress};
+use crate::texture::coord::TexturePartition;
+use crate::texture::factors::Progress;
 use bevy_ecs::entity::Entity;
+use std::collections::HashMap;
 
 pub struct CircleRenderResources {
     pipeline: wgpu::RenderPipeline,
     vertex_buffer: wgpu::Buffer,
     bind_group: wgpu::BindGroup,
+    partitions: HashMap<u32, TexturePartition>,
     #[allow(unused)]
     texture: wgpu::Texture,
     #[allow(unused)]
@@ -26,67 +31,6 @@ pub struct CircleRenderResources {
     #[allow(unused)]
     sampler: wgpu::Sampler,
     instance_coordinator: InstanceCoordinator<Entity>,
-    #[allow(unused)]
-    ring_texture: wgpu::Texture,
-    #[allow(unused)]
-    ring_view: wgpu::TextureView,
-    #[allow(unused)]
-    ring_progress_texture: wgpu::Texture,
-    #[allow(unused)]
-    ring_progress_view: wgpu::TextureView,
-    #[allow(unused)]
-    progress_texture: wgpu::Texture,
-    #[allow(unused)]
-    progress_view: wgpu::TextureView,
-}
-impl Circle {
-    const CIRCLE_TEXTURES: [&'static [u8]; Circle::MIPS as usize] = [
-        include_bytes!("texture_resources/circle-texture-1536.cov"),
-        include_bytes!("texture_resources/circle-texture-768.cov"),
-        include_bytes!("texture_resources/circle-texture-384.cov"),
-        include_bytes!("texture_resources/circle-texture-192.cov"),
-        include_bytes!("texture_resources/circle-texture-96.cov"),
-        include_bytes!("texture_resources/circle-texture-48.cov"),
-        include_bytes!("texture_resources/circle-texture-24.cov"),
-        include_bytes!("texture_resources/circle-texture-12.cov"),
-    ];
-    const CIRCLE_PROG_TEXTURES: [&'static [u8]; Circle::MIPS as usize] = [
-        include_bytes!("texture_resources/circle-1536.prog"),
-        include_bytes!("texture_resources/circle-768.prog"),
-        include_bytes!("texture_resources/circle-384.prog"),
-        include_bytes!("texture_resources/circle-192.prog"),
-        include_bytes!("texture_resources/circle-96.prog"),
-        include_bytes!("texture_resources/circle-48.prog"),
-        include_bytes!("texture_resources/circle-24.prog"),
-        include_bytes!("texture_resources/circle-12.prog"),
-    ];
-    const CIRCLE_RING_TEXTURES: [&'static [u8]; Circle::MIPS as usize] = [
-        include_bytes!("texture_resources/circle-ring-texture-1536.cov"),
-        include_bytes!("texture_resources/circle-ring-texture-768.cov"),
-        include_bytes!("texture_resources/circle-ring-texture-384.cov"),
-        include_bytes!("texture_resources/circle-ring-texture-192.cov"),
-        include_bytes!("texture_resources/circle-ring-texture-96.cov"),
-        include_bytes!("texture_resources/circle-ring-texture-48.cov"),
-        include_bytes!("texture_resources/circle-ring-texture-24.cov"),
-        include_bytes!("texture_resources/circle-ring-texture-12.cov"),
-    ];
-    const CIRCLE_RING_PROG_TEXTURES: [&'static [u8]; Circle::MIPS as usize] = [
-        include_bytes!("texture_resources/circle-ring-1536.prog"),
-        include_bytes!("texture_resources/circle-ring-768.prog"),
-        include_bytes!("texture_resources/circle-ring-384.prog"),
-        include_bytes!("texture_resources/circle-ring-192.prog"),
-        include_bytes!("texture_resources/circle-ring-96.prog"),
-        include_bytes!("texture_resources/circle-ring-48.prog"),
-        include_bytes!("texture_resources/circle-ring-24.prog"),
-        include_bytes!("texture_resources/circle-ring-12.prog"),
-    ];
-    fn texture_data(resources: [&[u8]; Circle::MIPS as usize]) -> Vec<u8> {
-        let mut data = vec![];
-        for n in resources {
-            data.extend(rmp_serde::from_slice::<Vec<u8>>(n).unwrap());
-        }
-        data
-    }
 }
 impl Render for Circle {
     type Resources = CircleRenderResources;
@@ -97,34 +41,18 @@ impl Render for Circle {
         let shader = ginkgo
             .device()
             .create_shader_module(wgpu::include_wgsl!("circle.wgsl"));
-        let texture_data = Circle::texture_data(Circle::CIRCLE_TEXTURES);
-        let (texture, view) = ginkgo.texture_r8unorm_d2(
-            Circle::CIRCLE_TEXTURE_DIMENSIONS,
-            Circle::CIRCLE_TEXTURE_DIMENSIONS,
-            Circle::MIPS,
-            texture_data.as_slice(),
-        );
-        let ring_texture_data = Circle::texture_data(Circle::CIRCLE_RING_TEXTURES);
-        let (ring_texture, ring_view) = ginkgo.texture_r8unorm_d2(
-            Circle::CIRCLE_TEXTURE_DIMENSIONS,
-            Circle::CIRCLE_TEXTURE_DIMENSIONS,
-            Circle::MIPS,
-            ring_texture_data.as_slice(),
-        );
-        let progress_texture_data = Circle::texture_data(Circle::CIRCLE_PROG_TEXTURES);
-        let (progress_texture, progress_view) = ginkgo.texture_r8unorm_d2(
-            Circle::CIRCLE_TEXTURE_DIMENSIONS,
-            Circle::CIRCLE_TEXTURE_DIMENSIONS,
-            Circle::MIPS,
-            progress_texture_data.as_slice(),
-        );
-        let ring_progress_texture_data = Circle::texture_data(Circle::CIRCLE_RING_PROG_TEXTURES);
-        let (ring_progress_texture, ring_progress_view) = ginkgo.texture_r8unorm_d2(
-            Circle::CIRCLE_TEXTURE_DIMENSIONS,
-            Circle::CIRCLE_TEXTURE_DIMENSIONS,
-            Circle::MIPS,
-            ring_progress_texture_data.as_slice(),
-        );
+        let texture_data: Vec<u8> =
+            rmp_serde::from_slice(include_bytes!("texture_resources/packed.dat")).unwrap();
+        let (texture, view) =
+            ginkgo.texture_rgba8unorm_d2(TEXTURE_SIZE, TEXTURE_SIZE, 1, texture_data.as_slice());
+        let mut partitions = HashMap::new();
+        for (id, data) in placements().packed_locations() {
+            let section = Section::new((data.1.x(), data.1.y()), (data.1.width(), data.1.height()));
+            partitions.insert(
+                *id,
+                TexturePartition::new(section, (TEXTURE_SIZE, TEXTURE_SIZE).into()),
+            );
+        }
         let sampler = ginkgo
             .device()
             .create_sampler(&wgpu::SamplerDescriptor::default());
@@ -136,10 +64,7 @@ impl Render for Circle {
                     entries: &[
                         Ginkgo::vertex_uniform_bind_group_layout_entry(0),
                         Ginkgo::texture_d2_bind_group_entry(1),
-                        Ginkgo::texture_d2_bind_group_entry(2),
-                        Ginkgo::sampler_bind_group_layout_entry(3),
-                        Ginkgo::texture_d2_bind_group_entry(4),
-                        Ginkgo::texture_d2_bind_group_entry(5),
+                        Ginkgo::sampler_bind_group_layout_entry(2),
                     ],
                 });
         let bind_group = ginkgo
@@ -150,10 +75,7 @@ impl Render for Circle {
                 entries: &[
                     ginkgo.viewport_bind_group_entry(0),
                     Ginkgo::texture_bind_group_entry(&view, 1),
-                    Ginkgo::texture_bind_group_entry(&ring_view, 2),
-                    Ginkgo::sampler_bind_group_entry(&sampler, 3),
-                    Ginkgo::texture_bind_group_entry(&progress_view, 4),
-                    Ginkgo::texture_bind_group_entry(&ring_progress_view, 5),
+                    Ginkgo::sampler_bind_group_entry(&sampler, 2),
                 ],
             });
         let pipeline_layout =
@@ -176,7 +98,7 @@ impl Render for Circle {
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<Vertex>(1),
                             step_mode: wgpu::VertexStepMode::Vertex,
-                            attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x2],
+                            attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Uint32x2],
                         },
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<CReprPosition>(1),
@@ -204,9 +126,9 @@ impl Render for Circle {
                             attributes: &wgpu::vertex_attr_array![6 => Float32],
                         },
                         wgpu::VertexBufferLayout {
-                            array_stride: Ginkgo::buffer_address::<MipsLevel>(1),
+                            array_stride: Ginkgo::buffer_address::<TexturePartition>(1),
                             step_mode: wgpu::VertexStepMode::Instance,
-                            attributes: &wgpu::vertex_attr_array![7 => Float32],
+                            attributes: &wgpu::vertex_attr_array![7 => Float32x4],
                         },
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<Progress>(1),
@@ -232,23 +154,18 @@ impl Render for Circle {
             .with_attribute::<Layer>()
             .with_attribute::<Color>()
             .with_attribute::<CircleStyle>()
-            .with_attribute::<MipsLevel>()
+            .with_attribute::<TexturePartition>()
             .with_attribute::<Progress>()
             .build(ginkgo);
         CircleRenderResources {
             pipeline,
             vertex_buffer,
             bind_group,
+            partitions,
             texture,
             view,
             sampler,
             instance_coordinator,
-            ring_texture,
-            ring_view,
-            ring_progress_texture,
-            ring_progress_view,
-            progress_texture,
-            progress_view,
         }
     }
 
@@ -259,6 +176,13 @@ impl Render for Circle {
         render_packet: RenderPacket,
     ) -> Self::RenderPackage {
         resources.instance_coordinator.queue_add(entity);
+        if let Some(area) = render_packet.get::<CReprArea>() {
+            let dim = Diameter::new(area.width).0 as u32;
+            let partition = *resources.partitions.get(&dim).unwrap();
+            resources
+                .instance_coordinator
+                .queue_write(entity, partition);
+        }
         resources
             .instance_coordinator
             .queue_render_packet(entity, render_packet);
@@ -280,6 +204,13 @@ impl Render for Circle {
         _package: &mut RenderPackage<Self>,
         render_packet: RenderPacket,
     ) {
+        if let Some(area) = render_packet.get::<CReprArea>() {
+            let dim = Diameter::new(area.width).0 as u32;
+            let partition = *resources.partitions.get(&dim).unwrap();
+            resources
+                .instance_coordinator
+                .queue_write(entity, partition);
+        }
         resources
             .instance_coordinator
             .queue_render_packet(entity, render_packet);
@@ -345,7 +276,7 @@ impl Circle {
                 6,
                 resources
                     .instance_coordinator
-                    .buffer::<MipsLevel>()
+                    .buffer::<TexturePartition>()
                     .slice(..),
             );
             recorder.0.set_vertex_buffer(

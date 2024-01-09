@@ -247,17 +247,17 @@ impl Elm {
             .in_set(ExternalSet::ViewBindings)
             .run_if(|cv: Res<CurrentView>| -> bool { cv.is_changed() }),));
     }
-    pub fn add_interaction_handler<IH: Component + 'static, Ext: SystemParam>(
+    pub fn add_interaction_handler<IH: Component + 'static, Ext: SystemParam + 'static>(
         &mut self,
         trigger: InteractionHandlerTrigger,
-        handler: fn(&Ext, &mut IH),
+        handler: fn(&StaticSystemParam<Ext>, &mut IH),
     ) {
-        let func = |ext: Ext,
-                    mut ihs: Query<
+        let func = move |ext: StaticSystemParam<Ext>,
+                         mut ihs: Query<
             (&InteractionListener, &mut IH),
             Changed<InteractionListener>,
         >| {
-            for (listener, ih) in ihs.iter_mut() {
+            for (listener, mut ih) in ihs.iter_mut() {
                 let should_run = match trigger {
                     InteractionHandlerTrigger::Active => listener.active(),
                     InteractionHandlerTrigger::EngagedStart => listener.engaged_start(),
@@ -265,7 +265,7 @@ impl Elm {
                     InteractionHandlerTrigger::Engaged => listener.engaged(),
                 };
                 if should_run {
-                    handler(&ext, &ih);
+                    handler(&ext, &mut ih);
                 }
             }
         };
@@ -293,4 +293,9 @@ impl Disabled {
     pub fn inactive() -> Self {
         Self(false)
     }
+}
+#[derive(Component, Copy, Clone, Debug, Hash, PartialEq, Eq)]
+pub enum ElementStyle {
+    Ring,
+    Fill,
 }

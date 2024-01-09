@@ -35,6 +35,9 @@ impl<Context: CoordinateContext> Section<Context> {
             area: (right - left, bottom - top).into(),
         }
     }
+    pub fn normalized(self, area: Area<Context>) -> Self {
+        (self.position.normalized(area), self.area.normalized(area)).into()
+    }
     pub fn width(&self) -> CoordinateUnit {
         self.area.width
     }

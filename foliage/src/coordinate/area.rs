@@ -5,6 +5,7 @@ use bevy_ecs::prelude::Component;
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
 
+use crate::coordinate::position::Position;
 use crate::coordinate::{
     CoordinateContext, CoordinateUnit, DeviceContext, InterfaceContext, NumericalContext,
 };
@@ -44,6 +45,9 @@ impl<Context: CoordinateContext> Area<Context> {
             width: self.width,
             height: self.height,
         }
+    }
+    pub fn normalized(self, area: Area<Context>) -> Area<Context> {
+        (self.width / area.width, self.height / area.height).into()
     }
 }
 

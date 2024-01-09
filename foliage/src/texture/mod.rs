@@ -16,6 +16,8 @@ use crate::ginkgo::Ginkgo;
 
 pub mod coord;
 pub mod factors;
+#[allow(unused)]
+pub mod fixed;
 
 #[derive(Hash, Eq, PartialEq, Copy, Clone, Ord, PartialOrd, Debug)]
 pub struct TextureAtlasLocation(pub u32, pub u32);

@@ -1,14 +1,16 @@
-use bevy_ecs::prelude::{Bundle, Component, Res, SystemSet, With};
+use bevy_ecs::prelude::{Bundle, Component, SystemSet, With};
 use bevy_ecs::query::{Changed, Or};
 use bevy_ecs::system::Query;
 use bytemuck::{Pod, Zeroable};
+use proc_gen::{LOWER_BOUND, STEP, TEXTURE_SIZE, UPPER_BOUND};
+use rectangle_pack::{pack_rects, GroupedRectsToPlace, RectToInsert, RectanglePackOk, TargetBin};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 use crate::color::Color;
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
-use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
@@ -16,7 +18,6 @@ use crate::elm::config::{ElmConfiguration, ExternalSet};
 use crate::elm::leaf::Leaf;
 use crate::elm::Elm;
 use crate::texture::factors::{MipsLevel, Progress};
-use crate::window::ScaleFactor;
 
 mod proc_gen;
 mod renderer;
@@ -41,29 +42,14 @@ pub struct Circle {
     style: DifferentialBundle<CircleStyle>,
     color: DifferentialBundle<Color>,
     progress: DifferentialBundle<Progress>,
-    mips: DifferentialBundle<MipsLevel>,
     differentiable: Differentiable,
 }
 #[derive(Copy, Clone, Component)]
 pub struct Diameter(pub CoordinateUnit);
-#[derive(Copy, Clone)]
-pub enum CircleMipLevel {
-    Twelve = 12,
-    TwentyFour = 24,
-    FortyEight = 48,
-    NinetySix = 96,
-    OneNinetyTwo = 192,
-    ThreeEightyFour = 384,
-    SevenSixtyEight = 768,
-    Full = 1536,
-}
 impl Diameter {
-    pub const MAX: CoordinateUnit = Circle::CIRCLE_TEXTURE_DIMENSIONS as CoordinateUnit;
     pub fn new(r: CoordinateUnit) -> Self {
-        Self(r.min(Self::MAX).max(0f32))
-    }
-    pub fn from_mip_level(l: CircleMipLevel) -> Self {
-        Self::new(l as i32 as CoordinateUnit)
+        // TODO align to nearest 4 value
+        Self(r.min(UPPER_BOUND as f32).max(LOWER_BOUND as f32))
     }
     pub fn area(&self) -> Area<InterfaceContext> {
         (self.0, self.0).into()
@@ -71,10 +57,6 @@ impl Diameter {
 }
 
 impl Circle {
-    const CIRCLE_TEXTURE_DIMENSIONS: u32 = 1536;
-    #[allow(unused)]
-    const MIPS_TARGETS: [u32; Self::MIPS as usize] = [1536, 768, 384, 192, 96, 48, 24, 12];
-    const MIPS: u32 = 8;
     pub fn new(style: CircleStyle, diameter: Diameter, color: Color, progress: Progress) -> Self {
         let area = Area::new(diameter.0, diameter.0);
         Self {
@@ -82,7 +64,6 @@ impl Circle {
             style: DifferentialBundle::new(style),
             color: DifferentialBundle::new(color),
             progress: DifferentialBundle::new(progress),
-            mips: DifferentialBundle::new(MipsLevel::default()),
             differentiable: Differentiable::new::<Self>(
                 Position::default(),
                 area,
@@ -115,39 +96,37 @@ impl Leaf for Circle {
         use bevy_ecs::prelude::IntoSystemConfigs;
         elm.job
             .main()
-            .add_systems((mips_adjust.in_set(SetDescriptor::Area),));
+            .add_systems((diameter_set.in_set(SetDescriptor::Area),));
     }
 }
-fn mips_adjust(
+fn diameter_set(
     mut query: Query<
-        (
-            &Diameter,
-            &mut MipsLevel,
-            &Position<InterfaceContext>,
-            &mut Area<InterfaceContext>,
-        ),
+        (&mut Diameter, &mut Area<InterfaceContext>),
         (
             Or<(Changed<Area<InterfaceContext>>, Changed<Diameter>)>,
             With<CircleStyle>,
         ),
     >,
-    scale_factor: Res<ScaleFactor>,
 ) {
-    // tracing::trace!("updating-circles");
-    for (diameter, mut mips, pos, mut area) in query.iter_mut() {
+    for (mut diameter, mut area) in query.iter_mut() {
+        *diameter = Diameter::new(area.width);
         *area = diameter.area();
-        let section = Section::new(*pos, *area);
-        let adjusted_section = section.to_device(scale_factor.factor());
-        // *pos = adjusted_section.position;
-        // *area = adjusted_section.area;
-        *mips = MipsLevel::new(
-            (
-                Circle::CIRCLE_TEXTURE_DIMENSIONS,
-                Circle::CIRCLE_TEXTURE_DIMENSIONS,
-            )
-                .into(),
-            Circle::MIPS,
-            (adjusted_section.width(), adjusted_section.height()).into(),
-        );
     }
+}
+
+pub(crate) fn placements() -> RectanglePackOk<u32, i32> {
+    let mut rects = GroupedRectsToPlace::new();
+    for x in (LOWER_BOUND..=UPPER_BOUND).step_by(STEP) {
+        rects.push_rect(x, Some(vec!["one"]), RectToInsert::new(x, x, 1));
+    }
+    let mut bins = BTreeMap::new();
+    bins.insert(0, TargetBin::new(TEXTURE_SIZE, TEXTURE_SIZE, 255));
+    let placements = pack_rects(
+        &rects,
+        &mut bins,
+        &rectangle_pack::volume_heuristic,
+        &rectangle_pack::contains_smallest_box,
+    )
+    .unwrap();
+    placements
 }

@@ -1,3 +1,4 @@
+use crate::coordinate::area::Area;
 use crate::coordinate::{
     CoordinateContext, CoordinateUnit, DeviceContext, InterfaceContext, NumericalContext,
 };
@@ -32,6 +33,9 @@ impl<Context: CoordinateContext> Position<Context> {
             x: self.x,
             y: self.y,
         }
+    }
+    pub fn normalized(self, area: Area<Context>) -> Position<Context> {
+        (self.x / area.width, self.y / area.height).into()
     }
 }
 

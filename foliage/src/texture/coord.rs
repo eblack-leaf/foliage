@@ -20,10 +20,7 @@ pub struct TexturePartition(pub [CoordinateUnit; 4]);
 
 impl TexturePartition {
     pub fn new(part: Section<NumericalContext>, whole: Area<NumericalContext>) -> Self {
-        let section = Section::new(
-            part.position / (whole.width, whole.height).into(),
-            part.area / whole,
-        );
+        let section = part.normalized(whole);
         Self([
             section.left(),
             section.top(),
