@@ -108,7 +108,7 @@ impl Job {
     pub fn exec_main(&mut self) {
         tracing::trace!("elm:exec-main");
         self.main
-            .set_executor_kind(ExecutorKind::Simple)
+            .set_executor_kind(ExecutorKind::MultiThreaded)
             .run(&mut self.container);
     }
     pub fn exec_startup(&mut self) {
