@@ -13,7 +13,7 @@ use crate::scene::align::SceneAligner;
 use crate::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
 use crate::texture::factors::Progress;
 use bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
-use bevy_ecs::query::{Changed, Or, With};
+use bevy_ecs::query::{Changed, Or, With, Without};
 use bevy_ecs::system::{Query, ResMut, SystemParamItem};
 
 #[derive(Bundle)]
@@ -58,7 +58,7 @@ fn resize(
     >,
     mut coordinator: ResMut<SceneCoordinator>,
     mut icons: Query<&mut IconScale>,
-    mut circles: Query<(&mut Diameter, &mut CircleStyle)>,
+    mut circles: Query<(&mut CircleStyle, &mut Area<InterfaceContext>), Without<Tag<CircleButton>>>,
     mut colors: Query<&mut Color>,
 ) {
     // tracing::trace!("updating-circle-buttons");
@@ -83,9 +83,9 @@ fn resize(
             ButtonStyle::Ring => CircleStyle::ring(),
             ButtonStyle::Fill => CircleStyle::fill(),
         };
-        *circles.get_mut(circle).unwrap().1 = cs;
+        *circles.get_mut(circle).unwrap().0 = cs;
         *icons.get_mut(icon).unwrap() = IconScale::from_dim(area.width * 0.8);
-        *circles.get_mut(circle).unwrap().0 = Diameter::new(area.width);
+        *circles.get_mut(circle).unwrap().1 = *area;
     }
 }
 pub enum CircleButtonBindings {

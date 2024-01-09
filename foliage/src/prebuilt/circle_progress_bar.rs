@@ -18,7 +18,7 @@ pub struct CircleProgressBar {
     tag: Tag<Self>,
 }
 fn resize(
-    mut circle_area: Query<&mut Diameter, Without<Tag<CircleProgressBar>>>,
+    mut circle_area: Query<&mut Area<InterfaceContext>, Without<Tag<CircleProgressBar>>>,
     scene: Query<
         (&SceneHandle, &Area<InterfaceContext>, &Despawn),
         (
@@ -28,7 +28,6 @@ fn resize(
     >,
     mut coordinator: ResMut<SceneCoordinator>,
 ) {
-    // tracing::trace!("updating-circle-progress-bars");
     for (handle, area, despawn) in scene.iter() {
         if despawn.should_despawn() {
             continue;
@@ -38,8 +37,9 @@ fn resize(
             coordinator.binding_entity(&handle.access_chain().target(ProgressBarBindings::Back));
         let front =
             coordinator.binding_entity(&handle.access_chain().target(ProgressBarBindings::Fill));
-        *circle_area.get_mut(back).unwrap() = Diameter::new(area.width.min(area.height));
-        *circle_area.get_mut(front).unwrap() = Diameter::new(area.width.min(area.height));
+        circle_area.get_mut(back).unwrap().width = area.width.min(area.height);
+        circle_area.get_mut(front).unwrap().width = area.width.min(area.height);
+        tracing::trace!("updating-circle-progress-bars");
     }
 }
 impl Leaf for CircleProgressBar {

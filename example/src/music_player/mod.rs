@@ -30,6 +30,7 @@ use foliage::icon::bundled_cov::BundledIcon;
 use foliage::icon::IconId;
 use foliage::interaction::InteractionListener;
 use foliage::prebuilt::button::ButtonStyle;
+use foliage::prebuilt::circle_button::{CircleButton, CircleButtonArgs};
 use foliage::prebuilt::icon_button::{IconButton, IconButtonArgs};
 use foliage::prebuilt::icon_text::{IconText, IconTextArgs};
 use foliage::scene::{Anchor, SceneCoordinator};
@@ -221,13 +222,13 @@ impl Leaf for MusicPlayer {
             transitions.in_set(ExternalSet::ViewBindings),
             page_back.in_set(ExternalSet::Process),
         ));
-        elm.add_view_binding(
+        elm.add_view_scene_binding::<ViewHandle, CircleButton, ResponsiveSegment, ()>(
             ViewHandle::new(0, 0),
-            Circle::new(
-                CircleStyle::ring(),
-                Diameter::new(36.0),
-                Color::GREEN.into(),
-                Progress::new(0.0, 0.75),
+            CircleButtonArgs::new(
+                IconId::new(BundledIcon::AlignLeft),
+                ButtonStyle::Ring,
+                Color::GREEN_MEDIUM,
+                Color::OFF_BLACK,
             ),
             ResponsiveSegment::new(0).all(
                 Segment::new()

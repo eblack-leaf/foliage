@@ -1,4 +1,4 @@
-use bevy_ecs::prelude::{Bundle, Component, SystemSet, With};
+use bevy_ecs::prelude::{Bundle, Component, Entity, SystemSet, With};
 use bevy_ecs::query::{Changed, Or};
 use bevy_ecs::system::Query;
 use bytemuck::{Pod, Zeroable};
@@ -44,12 +44,11 @@ pub struct Circle {
     progress: DifferentialBundle<Progress>,
     differentiable: Differentiable,
 }
-#[derive(Copy, Clone, Component)]
+#[derive(Copy, Clone, Component, Debug)]
 pub struct Diameter(pub CoordinateUnit);
 const CIRCLE_INTERVAL: CoordinateUnit = 4.0;
 impl Diameter {
     pub fn new(r: CoordinateUnit) -> Self {
-        // TODO align to nearest 4 value
         let r = r - r % CIRCLE_INTERVAL;
         Self(r.min(UPPER_BOUND as f32).max(LOWER_BOUND as f32).floor())
     }
@@ -57,7 +56,12 @@ impl Diameter {
         (self.0, self.0).into()
     }
 }
-
+#[cfg(test)]
+#[test]
+fn diameters() {
+    let diameter = Diameter::new(36.0);
+    assert_eq!(diameter.0, 36.0);
+}
 impl Circle {
     pub fn new(style: CircleStyle, diameter: Diameter, color: Color, progress: Progress) -> Self {
         let area = Area::new(diameter.0, diameter.0);
@@ -103,16 +107,17 @@ impl Leaf for Circle {
 }
 fn diameter_set(
     mut query: Query<
-        (&mut Diameter, &mut Area<InterfaceContext>),
+        (Entity, &mut Diameter, &mut Area<InterfaceContext>),
         (
             Or<(Changed<Area<InterfaceContext>>, Changed<Diameter>)>,
             With<CircleStyle>,
         ),
     >,
 ) {
-    for (mut diameter, mut area) in query.iter_mut() {
+    for (entity, mut diameter, mut area) in query.iter_mut() {
         *diameter = Diameter::new(area.width);
         *area = diameter.area();
+        println!("diameter: {:?} area: {:?}", diameter, area);
     }
 }
 

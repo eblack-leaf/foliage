@@ -212,8 +212,8 @@ impl Elm {
     pub fn add_view_scene_binding<
         VH: Into<ViewHandle>,
         S: Scene,
-        Ext: Bundle + Clone,
         RS: Into<ResponsiveSegment>,
+        Ext: Bundle + Clone,
     >(
         &mut self,
         vh: VH,
