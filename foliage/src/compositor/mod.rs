@@ -83,7 +83,7 @@ impl Leaf for Compositor {
             .container
             .insert_resource(CurrentView(ViewHandle::new(0, 0)));
         elm.main().add_systems((
-            (responsive_changed).in_set(CoreSet::Compositor),
+            responsive_changed.in_set(CoreSet::Compositor),
             viewport_changed
                 .in_set(CoreSet::Compositor)
                 .run_if(|vh: Res<ViewportHandle>| -> bool { vh.is_changed() }),
