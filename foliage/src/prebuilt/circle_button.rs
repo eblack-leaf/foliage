@@ -85,7 +85,7 @@ fn resize(
         };
         *circles.get_mut(circle).unwrap().1 = cs;
         *icons.get_mut(icon).unwrap() = IconScale::from_dim(area.width * 0.8);
-        circles.get_mut(circle).unwrap().0 .0 = area.width;
+        *circles.get_mut(circle).unwrap().0 = Diameter::new(area.width);
     }
 }
 pub enum CircleButtonBindings {
