@@ -21,7 +21,7 @@ fn generate() {
         .join("src")
         .join("circle")
         .join("texture_resources");
-    const RING_RATIO: CoordinateUnit = 0.9;
+    const RING_RATIO: CoordinateUnit = 0.95;
     let mut data = vec![Rgba::default(); (TEXTURE_SIZE * TEXTURE_SIZE) as usize];
     let placements = circle::placements();
     for diameter in (LOWER_BOUND..=UPPER_BOUND).step_by(STEP) {
@@ -29,11 +29,10 @@ fn generate() {
         let size: Area<NumericalContext> = (diameter, diameter).into();
         let section = Section::<NumericalContext>::new((0, 0), size);
         let center = section.center();
-        let ring_radius = diameter as CoordinateUnit * RING_RATIO / 2f32;
         let radius = diameter as f32 / 2f32;
-        let tolerance = radius * 0.05;
-        let radius = radius - tolerance;
-        let ring_radius = ring_radius - tolerance;
+        let tolerance = radius * 0.025;
+        let radius = radius - tolerance * 2f32;
+        let ring_radius = radius - (radius - radius * RING_RATIO).max(0.025f32).min(12f32);
         let radii_diff = radius - ring_radius;
         let radii_half_diff = radii_diff / 2f32;
         let placement = placements.packed_locations().get(&diameter).unwrap().1;
@@ -65,7 +64,9 @@ fn generate() {
                         let ring_fill_threshold = ring_radius - tolerance;
                         if distance >= ring_fill_threshold {
                             let ring_diff = ring_radius + radii_half_diff - distance;
-                            let ring_additive = if ring_diff.is_sign_positive() && ring_diff >= radii_half_diff - tolerance {
+                            let ring_additive = if ring_diff.is_sign_positive()
+                                && ring_diff >= radii_half_diff - tolerance
+                            {
                                 (1f32 - (ring_radius - distance) / tolerance).min(1.0)
                             } else {
                                 additive
@@ -74,6 +75,11 @@ fn generate() {
                         }
                     }
                     if angle > current {
+                        let inverse_x = y;
+                        let inverse_y = x;
+                        let index = offset.x as u32
+                            + (offset.y as u32 + inverse_y) * TEXTURE_SIZE
+                            + inverse_x;
                         data.get_mut(index as usize).unwrap().2 += 1f32;
                     }
                 }

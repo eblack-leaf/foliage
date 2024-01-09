@@ -221,11 +221,22 @@ impl Leaf for MusicPlayer {
             transitions.in_set(ExternalSet::ViewBindings),
             page_back.in_set(ExternalSet::Process),
         ));
-        elm.add_view_binding(ViewHandle::new(0, 0), Circle::new(
-            CircleStyle::ring(), Diameter::new(56.0), Color::GREEN.into(), Progress::new(0.0, 0.76)
-        ), ResponsiveSegment::new(0).all(
-            Segment::new().with_x(SegmentUnit::new(100.0).fixed()).with_y(SegmentUnit::new(100.0).fixed())
-                .with_w(SegmentUnit::new(56.0).fixed()).with_h(SegmentUnit::new(56.0).fixed())
-        ), ());
+        elm.add_view_binding(
+            ViewHandle::new(0, 0),
+            Circle::new(
+                CircleStyle::ring(),
+                Diameter::new(56.0),
+                Color::GREEN.into(),
+                Progress::new(0.0, 0.75),
+            ),
+            ResponsiveSegment::new(0).all(
+                Segment::new()
+                    .with_x(SegmentUnit::new(100.0).fixed())
+                    .with_y(SegmentUnit::new(100.0).fixed())
+                    .with_w(SegmentUnit::new(196.0).fixed())
+                    .with_h(SegmentUnit::new(196.0).fixed()),
+            ),
+            (),
+        );
     }
 }

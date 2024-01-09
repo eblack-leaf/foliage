@@ -6,11 +6,11 @@ use tracing_subscriber::Layer;
 
 fn main() {
     let targets = Targets::new()
-        .with_target("foliage::scene", Level::TRACE)
-        .with_target("foliage::differential", Level::TRACE)
-        .with_target("foliage::compositor", Level::TRACE)
-        .with_target("foliage::prebuilt", Level::TRACE)
-        .with_target("foliage::ash::renderer", Level::TRACE)
+        // .with_target("foliage::scene", Level::TRACE)
+        // .with_target("foliage::differential", Level::TRACE)
+        // .with_target("foliage::compositor", Level::TRACE)
+        // .with_target("foliage::prebuilt", Level::TRACE)
+        // .with_target("foliage::ash::renderer", Level::TRACE)
         // .with_target("foliage::texture", Level::TRACE)
         // .with_target("foliage::time", Level::TRACE)
         // .with_target("foliage::ash", LevelFilter::OFF)
