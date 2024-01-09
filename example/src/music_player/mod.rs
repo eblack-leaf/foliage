@@ -19,6 +19,7 @@ use foliage::bevy_ecs::event::EventWriter;
 use foliage::bevy_ecs::prelude::{Commands, DetectChanges, IntoSystemConfigs, Res};
 use foliage::bevy_ecs::query::Changed;
 use foliage::bevy_ecs::system::Query;
+use foliage::circle::{Circle, CircleStyle, Diameter};
 use foliage::color::Color;
 use foliage::compositor::segment::{ResponsiveSegment, Segment, SegmentUnit};
 use foliage::compositor::{Compositor, CurrentView, Segmental, ViewHandle};
@@ -34,6 +35,7 @@ use foliage::prebuilt::icon_text::{IconText, IconTextArgs};
 use foliage::scene::{Anchor, SceneCoordinator};
 use foliage::text::font::MonospacedFont;
 use foliage::text::{MaxCharacters, TextValue};
+use foliage::texture::factors::Progress;
 use foliage::time::TimeDelta;
 use foliage::window::ScaleFactor;
 
@@ -48,6 +50,7 @@ fn setup(
     let begin = ViewHandle::new(0, 0);
     compositor.add_view(begin);
     compositor.add_view(ViewHandle::new(0, 1));
+    current.0 = begin;
     track_events.send(TrackEvent {
         length: TimeDelta::from_secs(24),
     });
@@ -218,5 +221,11 @@ impl Leaf for MusicPlayer {
             transitions.in_set(ExternalSet::ViewBindings),
             page_back.in_set(ExternalSet::Process),
         ));
+        elm.add_view_binding(ViewHandle::new(0, 0), Circle::new(
+            CircleStyle::ring(), Diameter::new(56.0), Color::GREEN.into(), Progress::new(0.0, 0.75)
+        ), ResponsiveSegment::new(0).all(
+            Segment::new().with_x(SegmentUnit::new(100.0).fixed()).with_y(SegmentUnit::new(100.0))
+                .with_w(SegmentUnit::new(56.0).fixed()).with_h(SegmentUnit::new(56.0))
+        ), ());
     }
 }

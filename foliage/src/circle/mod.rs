@@ -36,7 +36,7 @@ impl CircleStyle {
     }
 }
 
-#[derive(Bundle)]
+#[derive(Bundle, Clone)]
 pub struct Circle {
     diameter: Diameter,
     style: DifferentialBundle<CircleStyle>,

@@ -31,6 +31,11 @@ fn generate() {
         let center = section.center();
         let ring_radius = diameter as CoordinateUnit * RING_RATIO / 2f32;
         let radius = diameter as f32 / 2f32;
+        let tolerance = radius * 0.05;
+        let radius = radius - tolerance;
+        let ring_radius = ring_radius - tolerance;
+        let radii_diff = radius - ring_radius;
+        let radii_half_diff = radii_diff / 2f32;
         let placement = placements.packed_locations().get(&diameter).unwrap().1;
         let offset = Position::<NumericalContext>::from((placement.x(), placement.y()));
         for i in 0..INTERVALS {
@@ -53,10 +58,19 @@ fn generate() {
                         &nalgebra::Point2::new(center.x, center.y),
                         &nalgebra::Point2::new(x as CoordinateUnit, y as CoordinateUnit),
                     );
-                    if distance <= radius {
-                        data.get_mut(index as usize).as_mut().unwrap().0 += 1f32;
-                        if distance >= ring_radius {
-                            data.get_mut(index as usize).as_mut().unwrap().1 += 1f32;
+                    let fill_threshold = radius + tolerance;
+                    if distance <= fill_threshold {
+                        let additive = (1f32 + (radius - distance) / tolerance).min(1.0);
+                        data.get_mut(index as usize).as_mut().unwrap().0 += additive;
+                        let ring_fill_threshold = ring_radius - tolerance;
+                        if distance >= ring_fill_threshold {
+                            let ring_diff = ring_radius + radii_half_diff - distance;
+                            let ring_additive = if ring_diff.is_sign_positive() && ring_diff >= radii_half_diff - tolerance {
+                                (1f32 - (ring_radius - distance) / tolerance).min(1.0)
+                            } else {
+                                additive
+                            };
+                            data.get_mut(index as usize).as_mut().unwrap().1 += ring_additive;
                         }
                     }
                     if angle > current {

@@ -361,8 +361,8 @@ impl Scene for TrackTime {
                 0,
             ),
             Circle::new(
-                CircleStyle::ring(),
-                Diameter::new(48f32),
+                CircleStyle::fill(),
+                Diameter::new(12f32),
                 args.color,
                 Progress::full(),
             ),
