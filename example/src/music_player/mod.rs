@@ -225,7 +225,7 @@ impl Leaf for MusicPlayer {
             ViewHandle::new(0, 0),
             Circle::new(
                 CircleStyle::ring(),
-                Diameter::new(56.0),
+                Diameter::new(36.0),
                 Color::GREEN.into(),
                 Progress::new(0.0, 0.75),
             ),
@@ -233,8 +233,8 @@ impl Leaf for MusicPlayer {
                 Segment::new()
                     .with_x(SegmentUnit::new(100.0).fixed())
                     .with_y(SegmentUnit::new(100.0).fixed())
-                    .with_w(SegmentUnit::new(196.0).fixed())
-                    .with_h(SegmentUnit::new(196.0).fixed()),
+                    .with_w(SegmentUnit::new(36.0).fixed())
+                    .with_h(SegmentUnit::new(36.0).fixed()),
             ),
             (),
         );
