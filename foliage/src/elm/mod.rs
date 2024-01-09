@@ -8,7 +8,8 @@ use anymap::AnyMap;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::event::{event_update_system, Event, Events};
 use bevy_ecs::prelude::{Component, DetectChanges, IntoSystemConfigs, Res};
-use bevy_ecs::system::{Commands, ResMut, StaticSystemParam, SystemParam};
+use bevy_ecs::query::Changed;
+use bevy_ecs::system::{Commands, Query, ResMut, StaticSystemParam, SystemParam};
 use compact_str::{CompactString, ToCompactString};
 use leaf::Leaflet;
 use serde::{Deserialize, Serialize};
@@ -24,6 +25,7 @@ use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::ginkgo::viewport::ViewportHandle;
+use crate::interaction::InteractionListener;
 use crate::job::{Job, Task};
 use crate::scene::{Anchor, Scene, SceneCoordinator};
 use crate::window::ScaleFactor;
@@ -245,8 +247,37 @@ impl Elm {
             .in_set(ExternalSet::ViewBindings)
             .run_if(|cv: Res<CurrentView>| -> bool { cv.is_changed() }),));
     }
+    pub fn add_interaction_handler<IH: Component + 'static, Ext: SystemParam>(
+        &mut self,
+        trigger: InteractionHandlerTrigger,
+        handler: fn(&Ext, &mut IH),
+    ) {
+        let func = |ext: Ext,
+                    mut ihs: Query<
+            (&InteractionListener, &mut IH),
+            Changed<InteractionListener>,
+        >| {
+            for (listener, ih) in ihs.iter_mut() {
+                let should_run = match trigger {
+                    InteractionHandlerTrigger::Active => listener.active(),
+                    InteractionHandlerTrigger::EngagedStart => listener.engaged_start(),
+                    InteractionHandlerTrigger::EngagedEnd => listener.engaged_end(),
+                    InteractionHandlerTrigger::Engaged => listener.engaged(),
+                };
+                if should_run {
+                    handler(&ext, &ih);
+                }
+            }
+        };
+        self.main().add_systems(func.in_set(ExternalSet::Process));
+    }
 }
-
+pub enum InteractionHandlerTrigger {
+    Active,
+    Engaged,
+    EngagedStart,
+    EngagedEnd,
+}
 pub(crate) fn compact_string_type_id<T: 'static>() -> CompactString {
     format!("{:?}", TypeId::of::<T>()).to_compact_string()
 }
