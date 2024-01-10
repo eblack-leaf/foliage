@@ -6,7 +6,7 @@ use crate::ash::render_packet::RenderPacket;
 use crate::ash::renderer::RenderPackage;
 use crate::circle::proc_gen::TEXTURE_SIZE;
 use crate::circle::vertex::{Vertex, VERTICES};
-use crate::circle::{placements, Circle, CircleStyle, Diameter};
+use crate::circle::{Circle, CircleStyle, Diameter};
 use crate::color::Color;
 use crate::coordinate::area::CReprArea;
 use crate::coordinate::layer::Layer;
@@ -46,10 +46,9 @@ impl Render for Circle {
         let (texture, view) =
             ginkgo.texture_rgba8unorm_d2(TEXTURE_SIZE, TEXTURE_SIZE, 1, texture_data.as_slice());
         let mut partitions = HashMap::new();
-        for (id, data) in placements().packed_locations() {
-            let section = Section::new((data.1.x(), data.1.y()), (data.1.width(), data.1.height()));
+        for (id, section) in crate::circle::new_placements() {
             partitions.insert(
-                *id,
+                id,
                 TexturePartition::new(section, (TEXTURE_SIZE, TEXTURE_SIZE).into()),
             );
         }

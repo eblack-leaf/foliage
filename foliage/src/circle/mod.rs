@@ -3,15 +3,14 @@ use bevy_ecs::query::{Changed, Or};
 use bevy_ecs::system::Query;
 use bytemuck::{Pod, Zeroable};
 use proc_gen::{LOWER_BOUND, STEP, TEXTURE_SIZE, UPPER_BOUND};
-use rectangle_pack::{pack_rects, GroupedRectsToPlace, RectToInsert, RectanglePackOk, TargetBin};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 
 use crate::color::Color;
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
-use crate::coordinate::{CoordinateUnit, InterfaceContext};
+use crate::coordinate::section::Section;
+use crate::coordinate::{CoordinateUnit, InterfaceContext, NumericalContext};
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::config::{ElmConfiguration, ExternalSet};
@@ -108,32 +107,63 @@ impl Leaf for Circle {
 fn diameter_set(
     mut query: Query<
         (Entity, &mut Diameter, &mut Area<InterfaceContext>),
-        (
-            Or<(Changed<Area<InterfaceContext>>, Changed<Diameter>)>,
-            With<CircleStyle>,
-        ),
+        (Changed<Area<InterfaceContext>>, With<CircleStyle>),
     >,
 ) {
-    for (entity, mut diameter, mut area) in query.iter_mut() {
+    for (_entity, mut diameter, mut area) in query.iter_mut() {
         *diameter = Diameter::new(area.width);
         *area = diameter.area();
         println!("diameter: {:?} area: {:?}", diameter, area);
     }
 }
 
-pub(crate) fn placements() -> RectanglePackOk<u32, i32> {
-    let mut rects = GroupedRectsToPlace::new();
-    for x in (LOWER_BOUND..=UPPER_BOUND).step_by(STEP) {
-        rects.push_rect(x, Some(vec!["one"]), RectToInsert::new(x, x, 1));
+// pub(crate) fn placements() -> RectanglePackOk<u32, i32> {
+//     let mut rects = GroupedRectsToPlace::new();
+//     for x in (LOWER_BOUND..=UPPER_BOUND).step_by(STEP) {
+//         rects.push_rect(x, Some(vec!["one"]), RectToInsert::new(x, x, 1));
+//     }
+//     let mut bins = BTreeMap::new();
+//     bins.insert(0, TargetBin::new(TEXTURE_SIZE, TEXTURE_SIZE, 255));
+//     let placements = pack_rects(
+//         &rects,
+//         &mut bins,
+//         &rectangle_pack::volume_heuristic,
+//         &rectangle_pack::contains_smallest_box,
+//     )
+//     .unwrap();
+//     placements
+// }
+pub(crate) fn new_placements() -> Vec<(u32, Section<NumericalContext>)> {
+    let rects = (LOWER_BOUND..=UPPER_BOUND)
+        .step_by(STEP)
+        .map(|x| binpack2d::Dimension::with_id(x as isize, x as i32, x as i32, 1))
+        .collect::<Vec<binpack2d::Dimension>>();
+    let mut bin = binpack2d::bin_new(
+        binpack2d::BinType::MaxRects,
+        TEXTURE_SIZE as i32,
+        TEXTURE_SIZE as i32,
+    );
+    let (mut inserted, rejected) = bin.insert_list(&rects);
+    if !rejected.is_empty() {
+        panic!("could not fit all {:?}", rejected)
     }
-    let mut bins = BTreeMap::new();
-    bins.insert(0, TargetBin::new(TEXTURE_SIZE, TEXTURE_SIZE, 255));
-    let placements = pack_rects(
-        &rects,
-        &mut bins,
-        &rectangle_pack::volume_heuristic,
-        &rectangle_pack::contains_smallest_box,
-    )
-    .unwrap();
-    placements
+    let mut r_val = inserted
+        .drain(..)
+        .map(|i| {
+            (
+                i.id() as u32,
+                Section::new((i.x(), i.y()), (i.width(), i.height())),
+            )
+        })
+        .collect::<Vec<(u32, Section<NumericalContext>)>>();
+    r_val.sort_by(|lhs, rhs| lhs.0.partial_cmp(&rhs.0).unwrap());
+    r_val
+}
+#[test]
+fn smallest_size() {
+    let placements = new_placements();
+    for place in placements {
+        println!("id: {:?}, rect: {:?}", place.0, place.1);
+    }
+
 }
