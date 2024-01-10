@@ -1,26 +1,25 @@
-use crate::color::Rgba;
-use crate::coordinate::area::Area;
-use std::f64::consts::PI;
-
 pub(crate) const TEXTURE_SIZE: u32 = 2048;
 pub(crate) const UPPER_BOUND: u32 = 356;
 pub(crate) const LOWER_BOUND: u32 = 12;
 pub(crate) const STEP: usize = 4;
-const INTERVALS: u32 = 100;
 
 #[test]
 #[cfg(test)]
 fn generate() {
     use crate::circle;
+    use crate::color::Rgba;
+    use crate::coordinate::area::Area;
     use crate::coordinate::section::Section;
     use crate::coordinate::CoordinateUnit;
     use crate::coordinate::NumericalContext;
+    use std::f64::consts::PI;
     use std::path::Path;
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("src")
         .join("circle")
         .join("texture_resources");
     const RING_RATIO: CoordinateUnit = 0.95;
+    const INTERVALS: u32 = 100;
     let mut data = vec![Rgba::default(); (TEXTURE_SIZE * TEXTURE_SIZE) as usize];
     let placements = circle::new_placements();
     for (placement_index, diameter) in (LOWER_BOUND..=UPPER_BOUND).step_by(STEP).enumerate() {

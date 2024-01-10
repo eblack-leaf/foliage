@@ -19,7 +19,6 @@ use foliage::bevy_ecs::event::EventWriter;
 use foliage::bevy_ecs::prelude::{Commands, DetectChanges, IntoSystemConfigs, Res};
 use foliage::bevy_ecs::query::Changed;
 use foliage::bevy_ecs::system::Query;
-use foliage::circle::{Circle, CircleStyle, Diameter};
 use foliage::color::Color;
 use foliage::compositor::segment::{ResponsiveSegment, Segment, SegmentUnit};
 use foliage::compositor::{Compositor, CurrentView, Segmental, ViewHandle};
@@ -340,6 +339,5 @@ impl Leaf for MusicPlayer {
             ),
             (),
         );
-
     }
 }

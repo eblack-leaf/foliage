@@ -1,5 +1,5 @@
 use bevy_ecs::prelude::{Bundle, Component, Entity, SystemSet, With};
-use bevy_ecs::query::{Changed, Or};
+use bevy_ecs::query::Changed;
 use bevy_ecs::system::Query;
 use bytemuck::{Pod, Zeroable};
 use proc_gen::{LOWER_BOUND, STEP, TEXTURE_SIZE, UPPER_BOUND};
@@ -165,5 +165,4 @@ fn smallest_size() {
     for place in placements {
         println!("id: {:?}, rect: {:?}", place.0, place.1);
     }
-
 }

@@ -5,7 +5,6 @@ use bevy_ecs::prelude::Component;
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
 
-use crate::coordinate::position::Position;
 use crate::coordinate::{
     CoordinateContext, CoordinateUnit, DeviceContext, InterfaceContext, NumericalContext,
 };

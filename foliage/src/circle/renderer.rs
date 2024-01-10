@@ -11,7 +11,6 @@ use crate::color::Color;
 use crate::coordinate::area::CReprArea;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::CReprPosition;
-use crate::coordinate::section::Section;
 use crate::ginkgo::Ginkgo;
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
 use crate::texture::coord::TexturePartition;
