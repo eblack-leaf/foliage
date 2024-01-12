@@ -1,4 +1,5 @@
 use crate::elm::Elm;
+use bevy_ecs::system::NonSend;
 use gloo_worker::{HandlerId, Worker, WorkerScope};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -22,7 +23,8 @@ pub trait SingleThreadedWorkflow {
 pub type EngenHandle<W> = Arc<std::sync::Mutex<W>>;
 #[cfg(not(target_family = "wasm"))]
 pub type EngenHandle<W> = Arc<tokio::sync::Mutex<W>>;
-pub struct WorkflowConnection<W: Workflow + Default + Send + Sync + 'static> {
+pub type WorkflowConnection<W> = NonSend<'static, WorkflowConnectionBase<W>>;
+pub struct WorkflowConnectionBase<W: Workflow + Default + Send + Sync + 'static> {
     // channel for native
     #[cfg(not(target_family = "wasm"))]
     bridge: tokio::sync::mpsc::UnboundedSender<W::Action>,
@@ -43,7 +45,7 @@ async fn native_handler<W: Workflow + Default + Send + Sync + 'static>(
         }
     }
 }
-impl<W: Workflow + Default + Send + Sync + 'static> WorkflowConnection<W> {
+impl<W: Workflow + Default + Send + Sync + 'static> WorkflowConnectionBase<W> {
     pub(crate) fn new(proxy: EventLoopProxy<W::Response>, _wp: String) -> Self {
         cfg_if::cfg_if! {
             if #[cfg(target_family = "wasm")] {

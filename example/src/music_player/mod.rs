@@ -276,7 +276,7 @@ impl Leaf for MusicPlayer {
             ),
             WorkflowTest(34),
         );
-        elm.add_interaction_handler::<WorkflowTest, NonSend<WorkflowConnection<Engen>>>(
+        elm.add_interaction_handler::<WorkflowTest, WorkflowConnection<Engen>>(
             InteractionHandlerTrigger::Active,
             |wc, ih| {
                 wc.send(ih.0);

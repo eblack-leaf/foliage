@@ -36,7 +36,7 @@ use crate::prebuilt::progress_bar::ProgressBar;
 use crate::rectangle::Rectangle;
 use crate::text::Text;
 use crate::time::Time;
-use crate::workflow::{Workflow, WorkflowConnection};
+use crate::workflow::{Workflow, WorkflowConnection, WorkflowConnectionBase};
 use animate::trigger::Trigger;
 
 use self::ash::leaflet::RenderLeafletStorage;
@@ -202,7 +202,7 @@ impl Foliage {
         }
         let mut elm = Elm::new();
         let proxy = event_loop.create_proxy();
-        let bridge = WorkflowConnection::<W>::new(proxy, self.worker_path);
+        let bridge = WorkflowConnectionBase::<W>::new(proxy, self.worker_path);
         elm.container().insert_non_send_resource(bridge);
         let mut ash = Ash::new();
         let mut drawn = true;
