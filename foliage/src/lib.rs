@@ -36,6 +36,7 @@ use crate::prebuilt::progress_bar::ProgressBar;
 use crate::rectangle::Rectangle;
 use crate::text::Text;
 use crate::time::Time;
+use crate::workflow::{WorkflowConnection, Workflow};
 use animate::trigger::Trigger;
 
 use self::ash::leaflet::RenderLeafletStorage;
@@ -64,6 +65,7 @@ pub mod text;
 pub mod texture;
 pub mod time;
 pub mod window;
+mod workflow;
 
 #[cfg(not(target_os = "android"))]
 pub type AndroidInterface = ();
@@ -87,6 +89,7 @@ pub struct Foliage {
     leaf_queue: Option<Vec<Leaflet>>,
     render_queue: Option<RenderLeafletStorage>,
     android_interface: AndroidInterface,
+    worker_path: String,
 }
 
 impl Default for Foliage {
@@ -102,6 +105,7 @@ impl Foliage {
             leaf_queue: Some(vec![]),
             render_queue: Some(RenderLeafletStorage::new()),
             android_interface: AndroidInterface::default(),
+            worker_path: String::default(),
         };
         this.with_renderleaf::<Panel>()
             .with_renderleaf::<Circle>()
@@ -138,6 +142,10 @@ impl Foliage {
             .push(Leaflet::leaf_fn::<T>());
         self
     }
+    pub fn with_worker_path<S: Into<String>>(mut self, path: S) -> Self {
+        self.worker_path = path.into();
+        self
+    }
     fn with_renderer<T: Render + 'static>(mut self) -> Self {
         self.render_queue
             .as_mut()
@@ -148,17 +156,17 @@ impl Foliage {
     pub fn with_renderleaf<T: Leaf + Render + 'static>(self) -> Self {
         self.with_leaf::<T>().with_renderer::<T>()
     }
-    pub fn run(self) {
+    pub fn run<W: Workflow + Default>(self) {
         cfg_if::cfg_if! {
             if #[cfg(target_family = "wasm")] {
-                wasm_bindgen_futures::spawn_local(self.internal_run());
+                wasm_bindgen_futures::spawn_local(self.internal_run::<W>());
             } else {
-                pollster::block_on(self.internal_run());
+                pollster::block_on(self.internal_run::<W>());
             }
         }
     }
-    async fn internal_run(mut self) {
-        let mut event_loop_builder = EventLoopBuilder::<()>::with_user_event();
+    async fn internal_run<W: Workflow + Default>(mut self) {
+        let mut event_loop_builder = EventLoopBuilder::<W::Response>::with_user_event();
         cfg_if::cfg_if! {
             if #[cfg(target_os = "android")] {
                 use winit::platform::android::EventLoopBuilderExtAndroid;
@@ -171,7 +179,8 @@ impl Foliage {
             .expect("event-loop");
             }
         }
-
+        let proxy = event_loop.create_proxy();
+        let bridge = WorkflowConnection::<W>::new(proxy, self.worker_path);
         let window_desc = self.window_descriptor.unwrap_or_default();
         let mut ginkgo = Ginkgo::new();
         cfg_if::cfg_if! {
@@ -195,7 +204,7 @@ impl Foliage {
         let mut drawn = true;
         let _ = (event_loop_function)(
             event_loop,
-            move |event, event_loop_window_target: &EventLoopWindowTarget<()>| {
+            move |event, event_loop_window_target: &EventLoopWindowTarget<W::Response>| {
                 if elm.job.can_idle() {
                     tracing::trace!("job-waiting");
                     event_loop_window_target.set_control_flow(ControlFlow::Wait);
@@ -203,8 +212,6 @@ impl Foliage {
                     tracing::trace!("job-polling");
                     event_loop_window_target.set_control_flow(ControlFlow::Poll);
                 }
-                // #[cfg(target_family = "wasm")]
-                // event_loop_window_target.set_control_flow(ControlFlow::Poll);
                 match event {
                     Event::NewEvents(cause) => match cause {
                         StartCause::ResumeTimeReached { .. } => {}
@@ -331,7 +338,9 @@ impl Foliage {
                         }
                     },
                     Event::DeviceEvent { .. } => {}
-                    Event::UserEvent(_e) => {}
+                    Event::UserEvent(ue) => {
+                        W::react(&mut elm, ue);
+                    }
                     Event::Suspended => {
                         ginkgo.suspend();
                         elm.job.suspend();

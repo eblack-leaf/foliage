@@ -26,7 +26,7 @@ use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::interaction::InteractionListener;
-use crate::job::{Job, Task};
+use crate::job::{Container, Job, Task};
 use crate::scene::{Anchor, Scene, SceneCoordinator};
 use crate::window::ScaleFactor;
 
@@ -96,6 +96,9 @@ impl Elm {
     }
     pub fn teardown(&mut self) -> &mut Task {
         self.job.teardown()
+    }
+    pub fn container(&mut self) -> &mut Container {
+        &mut self.job.container
     }
     pub(crate) fn new() -> Self {
         Self {
