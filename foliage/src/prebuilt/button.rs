@@ -110,13 +110,12 @@ fn updates(
     >,
     font: Res<MonospacedFont>,
     scale_factor: Res<ScaleFactor>,
-    mut scales: Query<&mut IconScale>,
+    mut scales: Query<&mut Area<InterfaceContext>, Without<Tag<Button>>>,
     mut font_sizes: Query<(&mut FontSize, &mut MaxCharacters), Without<Tag<Button>>>,
     mut colors: Query<&mut Color>,
-    mut panel_styles: Query<(&mut PanelStyle, &mut Area<InterfaceContext>), Without<Tag<Button>>>,
+    mut panel_styles: Query<&mut PanelStyle, Without<Tag<Button>>>,
     mut coordinator: ResMut<SceneCoordinator>,
 ) {
-    // tracing::trace!("updating-buttons");
     for (handle, button_area, max_char, foreground_color, background_color, state, despawn) in
         query.iter()
     {
@@ -132,11 +131,13 @@ fn updates(
         coordinator.get_alignment_mut(&icon_ac).pos.horizontal = padding.far();
         coordinator.update_anchor_area(*handle, *button_area);
         let panel_node = coordinator.binding_entity(&panel_ac);
-        if let Ok((mut style, mut content_area)) = panel_styles.get_mut(panel_node) {
+        if let Ok(mut style) = panel_styles.get_mut(panel_node) {
             *style = match state {
                 ButtonStyle::Ring => PanelStyle::ring(),
                 ButtonStyle::Fill => PanelStyle::fill(),
             };
+        }
+        if let Ok(mut content_area) = scales.get_mut(panel_node) {
             *content_area = *button_area;
         }
         let text_node = coordinator.binding_entity(&text_ac);
@@ -158,7 +159,7 @@ fn updates(
             };
         }
         if let Ok(mut scale) = scales.get_mut(icon_node) {
-            *scale = icon_scale;
+            scale.width = icon_scale.px();
         }
     }
 }

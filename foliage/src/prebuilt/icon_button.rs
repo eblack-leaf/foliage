@@ -70,8 +70,8 @@ fn resize(
         ),
     >,
     mut coordinator: ResMut<SceneCoordinator>,
-    mut panels: Query<(&mut Area<InterfaceContext>, &mut PanelStyle), Without<Tag<IconButton>>>,
-    mut icons: Query<&mut IconScale>,
+    mut panels: Query<&mut PanelStyle, Without<Tag<IconButton>>>,
+    mut areas: Query<&mut Area<InterfaceContext>, Without<Tag<IconButton>>>,
     mut colors: Query<&mut Color>,
 ) {
     for (handle, area, foreground, background, style, despawn) in scenes.iter() {
@@ -82,13 +82,13 @@ fn resize(
         let iac = handle.access_chain().target(IconButtonBindings::Icon);
         let pac = handle.access_chain().target(IconButtonBindings::Panel);
         let panel = coordinator.binding_entity(&pac);
-        *panels.get_mut(panel).unwrap().0 = *area;
-        *panels.get_mut(panel).unwrap().1 = match style {
+        *areas.get_mut(panel).unwrap() = *area;
+        *panels.get_mut(panel).unwrap() = match style {
             ButtonStyle::Ring => PanelStyle::ring(),
             ButtonStyle::Fill => PanelStyle::fill(),
         };
         let icon = coordinator.binding_entity(&iac);
-        *icons.get_mut(icon).unwrap() = IconScale::from_dim(area.height * 0.9);
+        areas.get_mut(icon).unwrap().width = area.height * 0.9;
         match style {
             ButtonStyle::Ring => {
                 *colors.get_mut(icon).unwrap() = foreground.0;

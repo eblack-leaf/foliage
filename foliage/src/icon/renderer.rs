@@ -5,19 +5,21 @@ use crate::ash::render::{Render, RenderPhase};
 use crate::ash::render_packet::RenderPacket;
 use crate::ash::renderer::RenderPackage;
 use crate::color::Color;
-use crate::coordinate::area::CReprArea;
+use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::CReprPosition;
+use crate::coordinate::section::Section;
+use crate::coordinate::{InterfaceContext, NumericalContext};
 use crate::ginkgo::Ginkgo;
-use crate::icon::bundled_cov::{
-    ICON_RESOURCE_FILES, ICON_RESOURCE_FILES_FORTY, ICON_RESOURCE_FILES_TWENTY,
-};
+use crate::icon::bundled_cov::ICON_RESOURCE_FILES;
 use crate::icon::vertex::{Vertex, VERTICES};
-use crate::icon::{Icon, IconId};
+use crate::icon::{Icon, IconId, IconScale};
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
-use crate::texture::factors::MipsLevel;
+use crate::texture::coord::TexturePartition;
 use bevy_ecs::entity::Entity;
 use std::collections::HashMap;
+use std::iter::StepBy;
+use std::ops::{Range, RangeInclusive};
 
 pub struct IconRenderResources {
     pipeline: wgpu::RenderPipeline,
@@ -25,12 +27,54 @@ pub struct IconRenderResources {
     bind_group: wgpu::BindGroup,
     #[allow(unused)]
     icon_bind_group_layout: wgpu::BindGroupLayout,
-    icon_textures: HashMap<IconId, (InstanceCoordinator<Entity>, wgpu::BindGroup)>,
+    icon_textures: HashMap<
+        IconId,
+        (
+            InstanceCoordinator<Entity>,
+            wgpu::BindGroup,
+        ),
+    >,
     entity_to_icon: HashMap<Entity, IconId>,
+    scale_to_partition: HashMap<u32, TexturePartition>,
 }
 impl Icon {
-    pub(crate) const TEXTURE_DIMENSIONS: u32 = 64;
-    pub(crate) const MIPS: u32 = 3;
+    pub(crate) const TEXTURE_DIMENSIONS: u32 = 320;
+}
+pub(crate) fn placements() -> Vec<(u32, Section<NumericalContext>)> {
+    let rects = (IconScale::LOWER_BOUND..=IconScale::UPPER_BOUND)
+        .step_by(IconScale::INTERVAL as usize)
+        .map(|x| binpack2d::Dimension::with_id(x as isize, x as i32, x as i32, 1))
+        .collect::<Vec<binpack2d::Dimension>>();
+    let mut bin = binpack2d::bin_new(
+        binpack2d::BinType::MaxRects,
+        Icon::TEXTURE_DIMENSIONS as i32,
+        Icon::TEXTURE_DIMENSIONS as i32,
+    );
+    let (mut inserted, rejected) = bin.insert_list(&rects);
+    if !rejected.is_empty() {
+        panic!("could not fit all {:?}", rejected)
+    }
+    let mut r_val = inserted
+        .drain(..)
+        .map(|i| {
+            (
+                i.id() as u32,
+                Section::new((i.x(), i.y()), (i.width(), i.height())),
+            )
+        })
+        .collect::<Vec<(u32, Section<NumericalContext>)>>();
+    r_val.sort_by(|lhs, rhs| lhs.0.partial_cmp(&rhs.0).unwrap());
+    r_val
+}
+#[test]
+fn smallest_size() {
+    let placements = placements();
+    for place in placements {
+        println!("id: {:?}, rect: {:?}", place.0, place.1);
+    }
+}
+pub(crate) fn icon_scale_range() -> StepBy<RangeInclusive<u32>> {
+    (IconScale::LOWER_BOUND..=IconScale::UPPER_BOUND).step_by(IconScale::INTERVAL as usize)
 }
 impl Render for Icon {
     type Resources = IconRenderResources;
@@ -50,22 +94,17 @@ impl Render for Icon {
                     entries: &[Ginkgo::texture_d2_bind_group_entry(0)],
                 });
         let mut icon_textures = HashMap::new();
-        // choose icon size by scale factor
-        // which set of filenames to iter and use and the dims
+        let placements = placements();
+        let mut scale_to_partition = HashMap::new();
+        for (scale, place) in placements {
+            scale_to_partition.insert(scale, TexturePartition::new(place, Area::from((Icon::TEXTURE_DIMENSIONS, Icon::TEXTURE_DIMENSIONS))));
+        }
         for (index, file) in ICON_RESOURCE_FILES.iter().enumerate() {
-            let mut texture_data = rmp_serde::from_slice::<Vec<u8>>(file).ok().unwrap();
-            texture_data.extend(
-                rmp_serde::from_slice::<Vec<u8>>(ICON_RESOURCE_FILES_FORTY.get(index).unwrap())
-                    .unwrap(),
-            );
-            texture_data.extend(
-                rmp_serde::from_slice::<Vec<u8>>(ICON_RESOURCE_FILES_TWENTY.get(index).unwrap())
-                    .unwrap(),
-            );
+            let texture_data = rmp_serde::from_slice::<Vec<u8>>(file).ok().unwrap();
             let (_texture, view) = ginkgo.texture_r8unorm_d2(
                 Icon::TEXTURE_DIMENSIONS,
                 Icon::TEXTURE_DIMENSIONS,
-                Icon::MIPS,
+                1,
                 texture_data.as_slice(),
             );
             icon_textures.insert(
@@ -76,7 +115,7 @@ impl Render for Icon {
                         .with_attribute::<CReprArea>()
                         .with_attribute::<Layer>()
                         .with_attribute::<Color>()
-                        .with_attribute::<MipsLevel>()
+                        .with_attribute::<TexturePartition>()
                         .build(ginkgo),
                     ginkgo
                         .device()
@@ -131,7 +170,7 @@ impl Render for Icon {
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<Vertex>(1),
                             step_mode: wgpu::VertexStepMode::Vertex,
-                            attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x2],
+                            attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Uint32x2],
                         },
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<CReprPosition>(1),
@@ -154,9 +193,9 @@ impl Render for Icon {
                             attributes: &wgpu::vertex_attr_array![5 => Float32x4],
                         },
                         wgpu::VertexBufferLayout {
-                            array_stride: Ginkgo::buffer_address::<MipsLevel>(1),
+                            array_stride: Ginkgo::buffer_address::<TexturePartition>(1),
                             step_mode: wgpu::VertexStepMode::Instance,
-                            attributes: &wgpu::vertex_attr_array![6 => Float32],
+                            attributes: &wgpu::vertex_attr_array![6 => Float32x4],
                         },
                     ],
                 },
@@ -178,6 +217,7 @@ impl Render for Icon {
             icon_bind_group_layout,
             icon_textures,
             entity_to_icon: HashMap::new(),
+            scale_to_partition,
         }
     }
 
@@ -195,6 +235,20 @@ impl Render for Icon {
             .unwrap()
             .0
             .queue_add(entity);
+        let scale = render_packet.get::<CReprArea>().unwrap();
+        let texture_partition = if let Some(stored) = resources
+            .scale_to_partition
+            .get(&(scale.width as u32)).cloned() {
+          stored
+        } else {
+            resources.scale_to_partition.get(&20).cloned().unwrap()
+        };
+        resources
+            .icon_textures
+            .get_mut(&new)
+            .unwrap()
+            .0
+            .queue_write(entity, texture_partition);
         resources
             .icon_textures
             .get_mut(&new)
@@ -244,6 +298,17 @@ impl Render for Icon {
                     .queue_add(entity);
                 resources.entity_to_icon.insert(entity, id);
             }
+        }
+        if let Some(scale) = render_packet.get::<CReprArea>() {
+            let texture_partition = resources
+                .scale_to_partition
+                .get(&(scale.width as u32)).cloned().unwrap();
+            resources
+                .icon_textures
+                .get_mut(&icon_id)
+                .unwrap()
+                .0
+                .queue_write(entity, texture_partition);
         }
         resources
             .icon_textures
@@ -300,9 +365,10 @@ impl Icon {
                 recorder
                     .0
                     .set_vertex_buffer(4, instance_coordinator.buffer::<Color>().slice(..));
-                recorder
-                    .0
-                    .set_vertex_buffer(5, instance_coordinator.buffer::<MipsLevel>().slice(..));
+                recorder.0.set_vertex_buffer(
+                    5,
+                    instance_coordinator.buffer::<TexturePartition>().slice(..),
+                );
                 recorder.0.draw(
                     0..VERTICES.len() as u32,
                     0..instance_coordinator.instances(),
@@ -310,10 +376,6 @@ impl Icon {
                 something_recorded = true;
             }
         }
-        if something_recorded {
-            Some(recorder.finish())
-        } else {
-            None
-        }
+        Some(recorder.finish())
     }
 }

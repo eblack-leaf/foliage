@@ -117,22 +117,6 @@ fn diameter_set(
     }
 }
 
-// pub(crate) fn placements() -> RectanglePackOk<u32, i32> {
-//     let mut rects = GroupedRectsToPlace::new();
-//     for x in (LOWER_BOUND..=UPPER_BOUND).step_by(STEP) {
-//         rects.push_rect(x, Some(vec!["one"]), RectToInsert::new(x, x, 1));
-//     }
-//     let mut bins = BTreeMap::new();
-//     bins.insert(0, TargetBin::new(TEXTURE_SIZE, TEXTURE_SIZE, 255));
-//     let placements = pack_rects(
-//         &rects,
-//         &mut bins,
-//         &rectangle_pack::volume_heuristic,
-//         &rectangle_pack::contains_smallest_box,
-//     )
-//     .unwrap();
-//     placements
-// }
 pub(crate) fn new_placements() -> Vec<(u32, Section<NumericalContext>)> {
     let rects = (LOWER_BOUND..=UPPER_BOUND)
         .step_by(STEP)

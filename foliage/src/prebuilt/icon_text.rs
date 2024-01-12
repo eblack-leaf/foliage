@@ -115,7 +115,7 @@ fn resize(
     >,
     mut coordinator: ResMut<SceneCoordinator>,
     mut texts: Query<(&mut MaxCharacters, &mut TextValue, &mut FontSize), Without<Tag<IconText>>>,
-    mut icons: Query<(&mut IconId, &mut IconScale), Without<Tag<IconText>>>,
+    mut icons: Query<(&mut IconId, &mut Area<InterfaceContext>), Without<Tag<IconText>>>,
     font: Res<MonospacedFont>,
     scale_factor: Res<ScaleFactor>,
 ) {
@@ -135,7 +135,7 @@ fn resize(
         *texts.get_mut(text_entity).unwrap().1 = text_val.clone();
         *texts.get_mut(text_entity).unwrap().2 = fs;
         *icons.get_mut(icon_entity).unwrap().0 = *icon_id;
-        *icons.get_mut(icon_entity).unwrap().1 = is;
+        icons.get_mut(icon_entity).unwrap().1.width = is.px();
     }
 }
 impl Scene for IconText {

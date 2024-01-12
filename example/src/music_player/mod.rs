@@ -157,7 +157,7 @@ fn transitions(
                 ResponsiveSegment::new_with_view(next, 0).all(
                     Segment::new()
                         .with_x(SegmentUnit::new(0.15).relative())
-                        .with_y(SegmentUnit::new(0.85).relative())
+                        .with_y(SegmentUnit::new(0.5).relative())
                         .with_w(SegmentUnit::new(0.5).relative())
                         .with_h(SegmentUnit::new(0.15).relative()),
                 ),
@@ -232,8 +232,8 @@ impl Leaf for MusicPlayer {
                 Segment::new()
                     .with_x(SegmentUnit::new(35.0).fixed())
                     .with_y(SegmentUnit::new(100.0).fixed())
-                    .with_w(SegmentUnit::new(20.0).fixed())
-                    .with_h(SegmentUnit::new(20.0).fixed()),
+                    .with_w(SegmentUnit::new(24.0).fixed())
+                    .with_h(SegmentUnit::new(24.0).fixed()),
             ),
             (),
         );
@@ -249,8 +249,8 @@ impl Leaf for MusicPlayer {
                 Segment::new()
                     .with_x(SegmentUnit::new(60.0).fixed())
                     .with_y(SegmentUnit::new(100.0).fixed())
-                    .with_w(SegmentUnit::new(24.0).fixed())
-                    .with_h(SegmentUnit::new(24.0).fixed()),
+                    .with_w(SegmentUnit::new(28.0).fixed())
+                    .with_h(SegmentUnit::new(28.0).fixed()),
             ),
             (),
         );
@@ -283,8 +283,8 @@ impl Leaf for MusicPlayer {
                 Segment::new()
                     .with_x(SegmentUnit::new(140.0).fixed())
                     .with_y(SegmentUnit::new(100.0).fixed())
-                    .with_w(SegmentUnit::new(96.0).fixed())
-                    .with_h(SegmentUnit::new(96.0).fixed()),
+                    .with_w(SegmentUnit::new(52.0).fixed())
+                    .with_h(SegmentUnit::new(52.0).fixed()),
             ),
             (),
         );
@@ -300,8 +300,8 @@ impl Leaf for MusicPlayer {
                 Segment::new()
                     .with_x(SegmentUnit::new(10.0).fixed())
                     .with_y(SegmentUnit::new(250.0).fixed())
-                    .with_w(SegmentUnit::new(124.0).fixed())
-                    .with_h(SegmentUnit::new(124.0).fixed()),
+                    .with_w(SegmentUnit::new(72.0).fixed())
+                    .with_h(SegmentUnit::new(72.0).fixed()),
             ),
             (),
         );
@@ -334,8 +334,8 @@ impl Leaf for MusicPlayer {
                 Segment::new()
                     .with_x(SegmentUnit::new(10.0).fixed())
                     .with_y(SegmentUnit::new(500.0).fixed())
-                    .with_w(SegmentUnit::new(356.0).fixed())
-                    .with_h(SegmentUnit::new(356.0).fixed()),
+                    .with_w(SegmentUnit::new(202.0).fixed())
+                    .with_h(SegmentUnit::new(202.0).fixed()),
             ),
             (),
         );

@@ -57,11 +57,10 @@ fn resize(
         ),
     >,
     mut coordinator: ResMut<SceneCoordinator>,
-    mut icons: Query<&mut IconScale>,
-    mut circles: Query<(&mut CircleStyle, &mut Area<InterfaceContext>), Without<Tag<CircleButton>>>,
+    mut areas: Query<&mut Area<InterfaceContext>, Without<Tag<CircleButton>>>,
+    mut circles: Query<&mut CircleStyle, Without<Tag<CircleButton>>>,
     mut colors: Query<&mut Color>,
 ) {
-    // tracing::trace!("updating-circle-buttons");
     for (handle, area, style, foreground, background, despawn) in scenes.iter() {
         if despawn.should_despawn() {
             continue;
@@ -83,9 +82,9 @@ fn resize(
             ButtonStyle::Ring => CircleStyle::ring(),
             ButtonStyle::Fill => CircleStyle::fill(),
         };
-        *circles.get_mut(circle).unwrap().0 = cs;
-        *icons.get_mut(icon).unwrap() = IconScale::from_dim(area.width * 0.8);
-        *circles.get_mut(circle).unwrap().1 = *area;
+        *circles.get_mut(circle).unwrap() = cs;
+        areas.get_mut(icon).unwrap().width = area.width * 0.7;
+        *areas.get_mut(circle).unwrap() = *area;
     }
 }
 pub enum CircleButtonBindings {

@@ -57,6 +57,12 @@ impl<ReferenceKey: Hash + Eq + Clone, TexelData: Default + Sized + Clone + Pod +
             _phantom: Default::default(),
         }
     }
+    pub fn get(&self, key: ReferenceKey) -> TexturePartition {
+        *self.key_to_partition.get(&key).unwrap()
+    }
+    pub fn view(&self) -> &wgpu::TextureView {
+        &self.view
+    }
     pub fn write_key(
         &mut self,
         ginkgo: &Ginkgo,

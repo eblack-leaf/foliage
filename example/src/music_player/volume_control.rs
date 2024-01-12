@@ -136,7 +136,7 @@ impl Scene for VolumeControl {
             (0.near(), 0.center(), 0),
             Icon::new(
                 IconId::new(BundledIcon::Volume),
-                IconScale::from_dim(16f32),
+                IconScale::from_dim(20f32),
                 args.color,
             ),
             cmd,
