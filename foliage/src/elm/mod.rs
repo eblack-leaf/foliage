@@ -138,6 +138,7 @@ impl Elm {
         for leaf in leaflets {
             leaf.1(self)
         }
+        self.initialized = true;
     }
     pub(crate) fn attach_viewport_handle(&mut self, area: Area<InterfaceContext>) {
         self.job
@@ -177,14 +178,12 @@ impl Elm {
         self.initialized = true;
     }
     pub fn remove_web_element(id: &'static str) {
-        #[cfg(target_family = "wasm")] {
+        #[cfg(target_family = "wasm")]
+        {
             use wasm_bindgen::{JsCast, JsValue};
             let document = web_sys::window().unwrap().document().unwrap();
-            if let Some(elem) = document
-                .get_element_by_id(id) {
-                elem.dyn_into::<web_sys::HtmlElement>()
-                    .unwrap()
-                    .remove();
+            if let Some(elem) = document.get_element_by_id(id) {
+                elem.dyn_into::<web_sys::HtmlElement>().unwrap().remove();
             }
         }
     }

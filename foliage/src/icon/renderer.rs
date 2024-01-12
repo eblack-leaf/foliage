@@ -9,7 +9,7 @@ use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::CReprPosition;
 use crate::coordinate::section::Section;
-use crate::coordinate::{InterfaceContext, NumericalContext};
+use crate::coordinate::NumericalContext;
 use crate::ginkgo::Ginkgo;
 use crate::icon::bundled_cov::ICON_RESOURCE_FILES;
 use crate::icon::vertex::{Vertex, VERTICES};
@@ -27,13 +27,7 @@ pub struct IconRenderResources {
     bind_group: wgpu::BindGroup,
     #[allow(unused)]
     icon_bind_group_layout: wgpu::BindGroupLayout,
-    icon_textures: HashMap<
-        IconId,
-        (
-            InstanceCoordinator<Entity>,
-            wgpu::BindGroup,
-        ),
-    >,
+    icon_textures: HashMap<IconId, (InstanceCoordinator<Entity>, wgpu::BindGroup)>,
     entity_to_icon: HashMap<Entity, IconId>,
     scale_to_partition: HashMap<u32, TexturePartition>,
 }
@@ -97,7 +91,13 @@ impl Render for Icon {
         let placements = placements();
         let mut scale_to_partition = HashMap::new();
         for (scale, place) in placements {
-            scale_to_partition.insert(scale, TexturePartition::new(place, Area::from((Icon::TEXTURE_DIMENSIONS, Icon::TEXTURE_DIMENSIONS))));
+            scale_to_partition.insert(
+                scale,
+                TexturePartition::new(
+                    place,
+                    Area::from((Icon::TEXTURE_DIMENSIONS, Icon::TEXTURE_DIMENSIONS)),
+                ),
+            );
         }
         for (index, file) in ICON_RESOURCE_FILES.iter().enumerate() {
             let texture_data = rmp_serde::from_slice::<Vec<u8>>(file).ok().unwrap();
@@ -236,13 +236,11 @@ impl Render for Icon {
             .0
             .queue_add(entity);
         let scale = render_packet.get::<CReprArea>().unwrap();
-        let texture_partition = if let Some(stored) = resources
+        let texture_partition = resources
             .scale_to_partition
-            .get(&(scale.width as u32)).cloned() {
-          stored
-        } else {
-            resources.scale_to_partition.get(&20).cloned().unwrap()
-        };
+            .get(&(IconScale::from_dim(scale.width).px() as u32))
+            .cloned()
+            .unwrap();
         resources
             .icon_textures
             .get_mut(&new)
@@ -302,7 +300,9 @@ impl Render for Icon {
         if let Some(scale) = render_packet.get::<CReprArea>() {
             let texture_partition = resources
                 .scale_to_partition
-                .get(&(scale.width as u32)).cloned().unwrap();
+                .get(&(IconScale::from_dim(scale.width).px() as u32))
+                .cloned()
+                .unwrap();
             resources
                 .icon_textures
                 .get_mut(&icon_id)

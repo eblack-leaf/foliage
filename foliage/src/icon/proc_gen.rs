@@ -1,9 +1,9 @@
-use std::path::Path;
 use crate::coordinate::CoordinateUnit;
 use crate::ginkgo::Ginkgo;
 use crate::icon::bundled_cov::{ICON_NAMES, ICON_RESOURCE_FILES};
-use crate::icon::{Icon, IconScale};
 use crate::icon::renderer::{icon_scale_range, placements};
+use crate::icon::{Icon, IconScale};
+use std::path::Path;
 
 #[cfg(test)]
 #[test]
@@ -70,10 +70,9 @@ fn generate() {
                 .ok()
                 .unwrap();
             let cov_location = tmp_input_dir.join(format!("{}.cov", name));
-            Ginkgo::png_to_cov(
-                tmp_dest, cov_location.clone()
-            );
-            let sized_data = rmp_serde::from_slice(std::fs::read(cov_location).unwrap().as_slice()).unwrap();
+            Ginkgo::png_to_cov(tmp_dest, cov_location.clone());
+            let sized_data =
+                rmp_serde::from_slice(std::fs::read(cov_location).unwrap().as_slice()).unwrap();
             data.push(sized_data);
         }
         let data = rmp_serde::to_vec(&data).unwrap();
@@ -97,7 +96,8 @@ fn place() {
             let mut zero_index = 0;
             for y in 0..*scale {
                 for x in 0..*scale {
-                    let index = offset.x as u32 + (offset.y as u32 + y) * Icon::TEXTURE_DIMENSIONS + x;
+                    let index =
+                        offset.x as u32 + (offset.y as u32 + y) * Icon::TEXTURE_DIMENSIONS + x;
                     let d = *data.get(zero_index).unwrap();
                     *grouped.get_mut(index as usize).unwrap() = d;
                     zero_index += 1;
