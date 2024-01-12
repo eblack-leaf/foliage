@@ -53,6 +53,7 @@ fn setup(
     track_events.send(TrackEvent {
         length: TimeDelta::from_secs(24),
     });
+    Elm::remove_web_element("loading");
 }
 fn transitions(
     current: ResMut<CurrentView>,
