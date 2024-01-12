@@ -36,7 +36,7 @@ use crate::prebuilt::progress_bar::ProgressBar;
 use crate::rectangle::Rectangle;
 use crate::text::Text;
 use crate::time::Time;
-use crate::workflow::{WorkflowConnection, Workflow};
+use crate::workflow::{Workflow, WorkflowConnection};
 use animate::trigger::Trigger;
 
 use self::ash::leaflet::RenderLeafletStorage;
@@ -65,7 +65,7 @@ pub mod text;
 pub mod texture;
 pub mod time;
 pub mod window;
-mod workflow;
+pub mod workflow;
 
 #[cfg(not(target_os = "android"))]
 pub type AndroidInterface = ();
@@ -156,16 +156,19 @@ impl Foliage {
     pub fn with_renderleaf<T: Leaf + Render + 'static>(self) -> Self {
         self.with_leaf::<T>().with_renderer::<T>()
     }
-    pub fn run<W: Workflow + Default>(self) {
+    pub fn run<W: Workflow + Default + Send + Sync + 'static>(self) {
         cfg_if::cfg_if! {
             if #[cfg(target_family = "wasm")] {
                 wasm_bindgen_futures::spawn_local(self.internal_run::<W>());
             } else {
-                pollster::block_on(self.internal_run::<W>());
+                let rt = tokio::runtime::Runtime::new();
+                rt.unwrap().block_on(
+                    self.internal_run::<W>()
+                );
             }
         }
     }
-    async fn internal_run<W: Workflow + Default>(mut self) {
+    async fn internal_run<W: Workflow + Default + Send + Sync + 'static>(mut self) {
         let mut event_loop_builder = EventLoopBuilder::<W::Response>::with_user_event();
         cfg_if::cfg_if! {
             if #[cfg(target_os = "android")] {
@@ -179,8 +182,6 @@ impl Foliage {
             .expect("event-loop");
             }
         }
-        let proxy = event_loop.create_proxy();
-        let bridge = WorkflowConnection::<W>::new(proxy, self.worker_path);
         let window_desc = self.window_descriptor.unwrap_or_default();
         let mut ginkgo = Ginkgo::new();
         cfg_if::cfg_if! {
@@ -200,6 +201,9 @@ impl Foliage {
             }
         }
         let mut elm = Elm::new();
+        let proxy = event_loop.create_proxy();
+        let bridge = WorkflowConnection::<W>::new(proxy, self.worker_path);
+        elm.container().insert_non_send_resource(bridge);
         let mut ash = Ash::new();
         let mut drawn = true;
         let _ = (event_loop_function)(

@@ -26,6 +26,8 @@ indexmap = "2.1.0"
 tracing = "0.1.40"
 web-time = "0.2.4"
 binpack2d = "1.0.1"
+trait-variant = "0.1.1"
+console_error_panic_hook = "0.1.7"
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 pollster = "0.3.0"
 tokio = { version = "1.35.1", features = ["full"]}

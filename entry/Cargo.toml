@@ -16,3 +16,7 @@ console_error_panic_hook = "0.1.7"
 name = "entry"
 path = "src/lib.rs"
 crate-type = ["cdylib"]
+
+[[bin]]
+name = "worker"
+path = "src/worker.rs"

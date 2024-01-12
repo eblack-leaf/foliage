@@ -12,11 +12,12 @@ pub mod volume_control;
 use crate::music_player::controls::Controls;
 use crate::music_player::track_progress::{TrackEvent, TrackProgress, TrackProgressArgs};
 use crate::music_player::volume_control::{VolumeControl, VolumeControlArgs};
+use crate::Engen;
 use foliage::bevy_ecs;
 use foliage::bevy_ecs::change_detection::ResMut;
 use foliage::bevy_ecs::component::Component;
 use foliage::bevy_ecs::event::EventWriter;
-use foliage::bevy_ecs::prelude::{Commands, DetectChanges, IntoSystemConfigs, Res};
+use foliage::bevy_ecs::prelude::{Commands, DetectChanges, IntoSystemConfigs, NonSend, Res};
 use foliage::bevy_ecs::query::Changed;
 use foliage::bevy_ecs::system::Query;
 use foliage::color::Color;
@@ -24,7 +25,7 @@ use foliage::compositor::segment::{ResponsiveSegment, Segment, SegmentUnit};
 use foliage::compositor::{Compositor, CurrentView, Segmental, ViewHandle};
 use foliage::elm::config::{ElmConfiguration, ExternalSet};
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
-use foliage::elm::Elm;
+use foliage::elm::{Elm, InteractionHandlerTrigger};
 use foliage::icon::bundled_cov::BundledIcon;
 use foliage::icon::IconId;
 use foliage::interaction::InteractionListener;
@@ -37,6 +38,7 @@ use foliage::text::font::MonospacedFont;
 use foliage::text::{MaxCharacters, TextValue};
 use foliage::time::TimeDelta;
 use foliage::window::ScaleFactor;
+use foliage::workflow::WorkflowConnection;
 
 pub struct MusicPlayer {}
 #[allow(unused)]
@@ -210,6 +212,8 @@ fn page_back(
         }
     }
 }
+#[derive(Component, Copy, Clone)]
+pub(crate) struct WorkflowTest(pub(crate) u32);
 impl Leaf for MusicPlayer {
     type SetDescriptor = EmptySetDescriptor;
 
@@ -255,12 +259,12 @@ impl Leaf for MusicPlayer {
             ),
             (),
         );
-        elm.add_view_scene_binding::<ViewHandle, CircleButton, ResponsiveSegment, ()>(
+        elm.add_view_scene_binding::<ViewHandle, CircleButton, ResponsiveSegment, WorkflowTest>(
             ViewHandle::new(0, 0),
             CircleButtonArgs::new(
                 IconId::new(BundledIcon::AlignLeft),
                 ButtonStyle::Ring,
-                Color::GREEN_MEDIUM,
+                Color::RED_MEDIUM,
                 Color::OFF_BLACK,
             ),
             ResponsiveSegment::new(0).all(
@@ -270,7 +274,13 @@ impl Leaf for MusicPlayer {
                     .with_w(SegmentUnit::new(36.0).fixed())
                     .with_h(SegmentUnit::new(36.0).fixed()),
             ),
-            (),
+            WorkflowTest(34),
+        );
+        elm.add_interaction_handler::<WorkflowTest, NonSend<WorkflowConnection<Engen>>>(
+            InteractionHandlerTrigger::Active,
+            |wc, ih| {
+                wc.send(ih.0);
+            },
         );
         elm.add_view_scene_binding::<ViewHandle, CircleButton, ResponsiveSegment, ()>(
             ViewHandle::new(0, 0),

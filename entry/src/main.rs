@@ -1,3 +1,5 @@
+mod worker;
+
 use tracing::Level;
 use tracing_subscriber::filter::Targets;
 use tracing_subscriber::layer::SubscriberExt;
