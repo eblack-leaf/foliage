@@ -1,5 +1,6 @@
 mod worker;
 
+use foliage::AndroidInterface;
 use tracing::level_filters::LevelFilter;
 use tracing::Level;
 use tracing_subscriber::filter::Targets;
@@ -40,7 +41,7 @@ fn main() {
     }
 
     #[cfg(all(not(target_os = "android"), not(target_os = "ios")))]
-    example::entry(());
+    example::entry(AndroidInterface::default());
     #[cfg(target_os = "ios")]
     entry_lib::ios_main();
 }

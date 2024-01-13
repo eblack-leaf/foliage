@@ -7,6 +7,7 @@ use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::elm::leaf::{EmptySetDescriptor, Leaf};
 use crate::elm::{Elm, EventStage};
 use crate::ginkgo::viewport::ViewportHandle;
+use crate::virtual_keyboard::VirtualKeyboardAdapter;
 use crate::window::ScaleFactor;
 use bevy_ecs::component::Component;
 use bevy_ecs::event::{Event, EventReader};
@@ -265,6 +266,7 @@ pub fn set_interaction_listeners(
     mut primary: ResMut<PrimaryInteraction>,
     mut primary_entity: ResMut<PrimaryInteractionEntity>,
     mut focused_entity: ResMut<FocusedEntity>,
+    vkey: Res<VirtualKeyboardAdapter>,
 ) {
     for ie in events.read() {
         let position =
@@ -290,10 +292,12 @@ pub fn set_interaction_listeners(
                 tracing::trace!("grabbing primary: {:?}", grab.0);
                 primary.0.replace(ie.id);
                 primary_entity.0.replace(grab.0);
-                focused_entity.0.take();
                 listeners.get_mut(grab.0).unwrap().1.engaged = true;
                 listeners.get_mut(grab.0).unwrap().1.engaged_start = true;
                 listeners.get_mut(grab.0).unwrap().1.interaction = Interaction::new(position);
+            } else {
+                focused_entity.0.take();
+                vkey.close();
             }
         } else if ie.id == primary.0.unwrap() {
             match ie.phase {
@@ -320,7 +324,11 @@ pub fn set_interaction_listeners(
                             if section.contains(position) {
                                 listener.interaction.current = position;
                                 listener.interaction.end.replace(position);
-                                focused_entity.0.replace(prime);
+                                if let Some(old) = focused_entity.0.replace(prime) {
+                                    if old != prime {
+                                        vkey.close();
+                                    }
+                                }
                                 listener.active = true;
                             }
                             tracing::trace!("ending prime: {:?}-@-{:?}", prime, position);
@@ -331,6 +339,7 @@ pub fn set_interaction_listeners(
                         }
                     } else {
                         focused_entity.0.take();
+                        vkey.close();
                     }
                     primary.0.take();
                 }

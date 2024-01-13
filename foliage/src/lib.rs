@@ -1,6 +1,7 @@
 #![allow(clippy::type_complexity)]
 
 pub use bevy_ecs;
+use bevy_ecs::prelude::Resource;
 pub use wgpu;
 use winit::event::{Event, KeyEvent, MouseButton, StartCause, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopWindowTarget};
@@ -38,6 +39,7 @@ use crate::prebuilt::text_input::TextInput;
 use crate::rectangle::Rectangle;
 use crate::text::Text;
 use crate::time::Time;
+use crate::virtual_keyboard::VirtualKeyboardAdapter;
 use crate::workflow::{Workflow, WorkflowConnection, WorkflowConnectionBase};
 use animate::trigger::Trigger;
 
@@ -66,14 +68,16 @@ pub mod scene;
 pub mod text;
 pub mod texture;
 pub mod time;
+pub mod virtual_keyboard;
 pub mod window;
 pub mod workflow;
 
 #[cfg(not(target_os = "android"))]
-pub type AndroidInterface = ();
+#[derive(Default, Clone, Resource)]
+pub struct AndroidInterface();
 
 #[cfg(target_os = "android")]
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct AndroidInterface(pub(crate) Option<AndroidApp>);
 
 #[cfg(target_os = "android")]
@@ -129,6 +133,7 @@ impl Foliage {
             .with_leaf::<AspectRatioImage>()
             .with_leaf::<IconText>()
             .with_leaf::<TextInput>()
+            .with_leaf::<VirtualKeyboardAdapter>()
     }
     pub fn with_android_interface(mut self, android_interface: AndroidInterface) -> Self {
         self.android_interface = android_interface;
@@ -207,6 +212,7 @@ impl Foliage {
         let proxy = event_loop.create_proxy();
         let bridge = WorkflowConnectionBase::<W>::new(proxy, self.worker_path);
         elm.container().insert_non_send_resource(bridge);
+        elm.container().insert_resource(self.android_interface);
         let mut ash = Ash::new();
         let mut drawn = true;
         let _ = (event_loop_function)(

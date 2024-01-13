@@ -22,6 +22,7 @@ pub fn entry(android_interface: AndroidInterface) {
         .with_leaf::<TrackProgress>()
         .with_leaf::<VolumeControl>()
         .with_android_interface(android_interface)
+        .with_worker_path("./worker.js")
         .run::<Engen>();
 }
 #[derive(Default)]

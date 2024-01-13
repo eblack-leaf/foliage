@@ -16,6 +16,7 @@ use crate::set_descriptor;
 use crate::text::font::MonospacedFont;
 use crate::text::{FontSize, MaxCharacters, Text, TextValue};
 use crate::texture::factors::Progress;
+use crate::virtual_keyboard::{VirtualKeyboardAdapter, VirtualKeyboardType};
 use crate::window::ScaleFactor;
 use bevy_ecs::component::Component;
 use bevy_ecs::event::EventReader;
@@ -196,12 +197,14 @@ fn cursor_on_click(
         ),
         (Changed<InteractionListener>, With<Tag<TextInput>>),
     >,
+    vkey: Res<VirtualKeyboardAdapter>,
 ) {
     for (pos, handle, despawn, mut offset, listener, dims, mc) in text_inputs.iter_mut() {
         if despawn.should_despawn() {
             continue;
         }
         if listener.active() {
+            vkey.open(VirtualKeyboardType::Keyboard);
             offset.0 = (((listener.interaction.current.x - pos.x) / dims.0.width).floor() as u32)
                 .min(mc.0);
         }
