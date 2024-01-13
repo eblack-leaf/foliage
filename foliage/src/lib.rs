@@ -77,7 +77,7 @@ pub mod workflow;
 pub struct AndroidInterface();
 
 #[cfg(target_os = "android")]
-#[derive(Default, Resource)]
+#[derive(Default, Resource, Clone)]
 pub struct AndroidInterface(pub(crate) Option<AndroidApp>);
 
 #[cfg(target_os = "android")]
@@ -182,7 +182,7 @@ impl Foliage {
             if #[cfg(target_os = "android")] {
                 use winit::platform::android::EventLoopBuilderExtAndroid;
                 let event_loop = event_loop_builder
-                    .with_android_app(self.android_interface.0.take().unwrap())
+                    .with_android_app(self.android_interface.0.clone().unwrap())
                     .build().expect("event-loop");
             } else {
                 let event_loop = event_loop_builder

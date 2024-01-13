@@ -72,8 +72,8 @@ impl VirtualKeyboardAdapter {
         }
         #[cfg(target_os = "android")]
         {
-            self.interface.0.unwrap().show_soft_input(true);
-            info!("opening keyboard");
+            self.interface.0.as_ref().unwrap().show_soft_input(true);
+            tracing::info!("opening keyboard");
         }
     }
     pub fn close(&self) {
@@ -106,8 +106,8 @@ impl VirtualKeyboardAdapter {
         }
         #[cfg(target_os = "android")]
         {
-            self.interface.0.unwrap().hide_soft_input(true);
-            info!("closing keyboard");
+            self.interface.0.as_ref().unwrap().hide_soft_input(true);
+            tracing::info!("closing keyboard");
         }
     }
 }
