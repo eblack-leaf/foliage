@@ -2,7 +2,7 @@
 
 pub use bevy_ecs;
 pub use wgpu;
-use winit::event::{Event, MouseButton, StartCause, WindowEvent};
+use winit::event::{Event, KeyEvent, MouseButton, StartCause, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopWindowTarget};
 
 use ash::identification::RenderIdentification;
@@ -22,7 +22,8 @@ use crate::ginkgo::Ginkgo;
 use crate::icon::Icon;
 use crate::image::Image;
 use crate::interaction::{
-    Interaction, InteractionEvent, InteractionId, InteractionPhase, MouseAdapter,
+    Interaction, InteractionEvent, InteractionId, InteractionPhase, KeyboardAdapter, KeyboardEvent,
+    MouseAdapter,
 };
 use crate::panel::Panel;
 use crate::prebuilt::aspect_ratio_image::AspectRatioImage;
@@ -33,6 +34,7 @@ use crate::prebuilt::icon_button::IconButton;
 use crate::prebuilt::icon_text::IconText;
 use crate::prebuilt::interactive_progress_bar::InteractiveProgressBar;
 use crate::prebuilt::progress_bar::ProgressBar;
+use crate::prebuilt::text_input::TextInput;
 use crate::rectangle::Rectangle;
 use crate::text::Text;
 use crate::time::Time;
@@ -126,6 +128,7 @@ impl Foliage {
             .with_leaf::<Time>()
             .with_leaf::<AspectRatioImage>()
             .with_leaf::<IconText>()
+            .with_leaf::<TextInput>()
     }
     pub fn with_android_interface(mut self, android_interface: AndroidInterface) -> Self {
         self.android_interface = android_interface;
@@ -244,8 +247,37 @@ impl Foliage {
                         WindowEvent::HoveredFile(_) => {}
                         WindowEvent::HoveredFileCancelled => {}
                         WindowEvent::Focused(_) => {}
-                        WindowEvent::KeyboardInput { .. } => {}
-                        WindowEvent::ModifiersChanged(_) => {}
+                        WindowEvent::KeyboardInput {
+                            device_id,
+                            event,
+                            is_synthetic,
+                        } => match event {
+                            KeyEvent {
+                                physical_key,
+                                logical_key,
+                                text,
+                                location,
+                                state,
+                                repeat,
+                                ..
+                            } => {
+                                if let Some(e) = elm
+                                    .container()
+                                    .get_resource_mut::<KeyboardAdapter>()
+                                    .unwrap()
+                                    .cache_checked(logical_key, state)
+                                {
+                                    tracing::trace!("sending-keyboard-event: {:?}", e);
+                                    elm.send_event::<KeyboardEvent>(e);
+                                }
+                            }
+                        },
+                        WindowEvent::ModifiersChanged(modifiers) => {
+                            elm.container()
+                                .get_resource_mut::<KeyboardAdapter>()
+                                .unwrap()
+                                .update_modifiers(modifiers);
+                        }
                         WindowEvent::Ime(_) => {}
                         WindowEvent::CursorMoved {
                             device_id: _,
@@ -276,7 +308,9 @@ impl Foliage {
                         }
                         WindowEvent::CursorEntered { .. } => {}
                         WindowEvent::CursorLeft { .. } => {}
-                        WindowEvent::MouseWheel { .. } => {}
+                        WindowEvent::MouseWheel { .. } => {
+                            // scroll wheel event
+                        }
                         WindowEvent::MouseInput {
                             device_id: _,
                             state,

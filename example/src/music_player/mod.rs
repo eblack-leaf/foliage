@@ -17,7 +17,7 @@ use foliage::bevy_ecs;
 use foliage::bevy_ecs::change_detection::ResMut;
 use foliage::bevy_ecs::component::Component;
 use foliage::bevy_ecs::event::EventWriter;
-use foliage::bevy_ecs::prelude::{Commands, DetectChanges, IntoSystemConfigs, NonSend, Res};
+use foliage::bevy_ecs::prelude::{Commands, DetectChanges, IntoSystemConfigs, Res};
 use foliage::bevy_ecs::query::Changed;
 use foliage::bevy_ecs::system::Query;
 use foliage::color::Color;
@@ -33,6 +33,7 @@ use foliage::prebuilt::button::ButtonStyle;
 use foliage::prebuilt::circle_button::{CircleButton, CircleButtonArgs};
 use foliage::prebuilt::icon_button::{IconButton, IconButtonArgs};
 use foliage::prebuilt::icon_text::{IconText, IconTextArgs};
+use foliage::prebuilt::text_input::{TextInput, TextInputArgs};
 use foliage::scene::{Anchor, SceneCoordinator};
 use foliage::text::font::MonospacedFont;
 use foliage::text::{MaxCharacters, TextValue};
@@ -225,41 +226,7 @@ impl Leaf for MusicPlayer {
             transitions.in_set(ExternalSet::ViewBindings),
             page_back.in_set(ExternalSet::Process),
         ));
-        elm.add_view_scene_binding::<ViewHandle, CircleButton, ResponsiveSegment, ()>(
-            ViewHandle::new(0, 0),
-            CircleButtonArgs::new(
-                IconId::new(BundledIcon::AlignLeft),
-                ButtonStyle::Ring,
-                Color::GREEN_MEDIUM,
-                Color::OFF_BLACK,
-            ),
-            ResponsiveSegment::new(0).all(
-                Segment::new()
-                    .with_x(SegmentUnit::new(35.0).fixed())
-                    .with_y(SegmentUnit::new(100.0).fixed())
-                    .with_w(SegmentUnit::new(24.0).fixed())
-                    .with_h(SegmentUnit::new(24.0).fixed()),
-            ),
-            (),
-        );
-        elm.add_view_scene_binding::<ViewHandle, CircleButton, ResponsiveSegment, ()>(
-            ViewHandle::new(0, 0),
-            CircleButtonArgs::new(
-                IconId::new(BundledIcon::AlignLeft),
-                ButtonStyle::Ring,
-                Color::GREEN_MEDIUM,
-                Color::OFF_BLACK,
-            ),
-            ResponsiveSegment::new(0).all(
-                Segment::new()
-                    .with_x(SegmentUnit::new(60.0).fixed())
-                    .with_y(SegmentUnit::new(100.0).fixed())
-                    .with_w(SegmentUnit::new(28.0).fixed())
-                    .with_h(SegmentUnit::new(28.0).fixed()),
-            ),
-            (),
-        );
-        elm.add_view_scene_binding::<ViewHandle, CircleButton, ResponsiveSegment, WorkflowTest>(
+        elm.add_view_scene_binding::<CircleButton, WorkflowTest>(
             ViewHandle::new(0, 0),
             CircleButtonArgs::new(
                 IconId::new(BundledIcon::AlignLeft),
@@ -282,71 +249,21 @@ impl Leaf for MusicPlayer {
                 wc.send(ih.0);
             },
         );
-        elm.add_view_scene_binding::<ViewHandle, CircleButton, ResponsiveSegment, ()>(
+        elm.add_view_scene_binding::<TextInput, ()>(
             ViewHandle::new(0, 0),
-            CircleButtonArgs::new(
-                IconId::new(BundledIcon::AlignLeft),
-                ButtonStyle::Ring,
+            TextInputArgs::new(
+                MaxCharacters(10),
+                TextValue::new("hello"),
+                None,
                 Color::GREEN_MEDIUM,
-                Color::OFF_BLACK,
-            ),
-            ResponsiveSegment::new(0).all(
-                Segment::new()
-                    .with_x(SegmentUnit::new(140.0).fixed())
-                    .with_y(SegmentUnit::new(100.0).fixed())
-                    .with_w(SegmentUnit::new(52.0).fixed())
-                    .with_h(SegmentUnit::new(52.0).fixed()),
-            ),
-            (),
-        );
-        elm.add_view_scene_binding::<ViewHandle, CircleButton, ResponsiveSegment, ()>(
-            ViewHandle::new(0, 0),
-            CircleButtonArgs::new(
-                IconId::new(BundledIcon::AlignLeft),
-                ButtonStyle::Ring,
-                Color::GREEN_MEDIUM,
-                Color::OFF_BLACK,
+                Color::GREY_DARK,
             ),
             ResponsiveSegment::new(0).all(
                 Segment::new()
                     .with_x(SegmentUnit::new(10.0).fixed())
-                    .with_y(SegmentUnit::new(250.0).fixed())
-                    .with_w(SegmentUnit::new(72.0).fixed())
-                    .with_h(SegmentUnit::new(72.0).fixed()),
-            ),
-            (),
-        );
-        elm.add_view_scene_binding::<ViewHandle, CircleButton, ResponsiveSegment, ()>(
-            ViewHandle::new(0, 0),
-            CircleButtonArgs::new(
-                IconId::new(BundledIcon::AlignLeft),
-                ButtonStyle::Ring,
-                Color::GREEN_MEDIUM,
-                Color::OFF_BLACK,
-            ),
-            ResponsiveSegment::new(0).all(
-                Segment::new()
-                    .with_x(SegmentUnit::new(140.0).fixed())
-                    .with_y(SegmentUnit::new(250.0).fixed())
-                    .with_w(SegmentUnit::new(172.0).fixed())
-                    .with_h(SegmentUnit::new(172.0).fixed()),
-            ),
-            (),
-        );
-        elm.add_view_scene_binding::<ViewHandle, CircleButton, ResponsiveSegment, ()>(
-            ViewHandle::new(0, 0),
-            CircleButtonArgs::new(
-                IconId::new(BundledIcon::AlignLeft),
-                ButtonStyle::Ring,
-                Color::GREEN_MEDIUM,
-                Color::OFF_BLACK,
-            ),
-            ResponsiveSegment::new(0).all(
-                Segment::new()
-                    .with_x(SegmentUnit::new(10.0).fixed())
-                    .with_y(SegmentUnit::new(500.0).fixed())
+                    .with_y(SegmentUnit::new(300.0).fixed())
                     .with_w(SegmentUnit::new(202.0).fixed())
-                    .with_h(SegmentUnit::new(202.0).fixed()),
+                    .with_h(SegmentUnit::new(35.0).fixed()),
             ),
             (),
         );

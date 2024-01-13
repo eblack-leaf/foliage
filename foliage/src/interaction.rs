@@ -14,7 +14,7 @@ use bevy_ecs::prelude::{DetectChanges, Entity, IntoSystemConfigs};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Query, Res, ResMut, Resource};
 use std::collections::HashMap;
-use winit::event::{ElementState, MouseButton, TouchPhase};
+use winit::event::{ElementState, Modifiers, MouseButton, TouchPhase};
 
 impl Leaf for Interaction {
     type SetDescriptor = EmptySetDescriptor;
@@ -30,6 +30,9 @@ impl Leaf for Interaction {
             .insert_resource(PrimaryInteractionEntity::default());
         elm.job.container.insert_resource(FocusedEntity::default());
         elm.job.container.insert_resource(MouseAdapter::default());
+        elm.job
+            .container
+            .insert_resource(KeyboardAdapter::default());
         elm.main().add_systems((
             (set_interaction_listeners, clear_engaged)
                 .chain()
@@ -37,6 +40,25 @@ impl Leaf for Interaction {
             clear_active.after(ExternalSet::Configure),
         ));
         elm.add_event::<InteractionEvent>(EventStage::External);
+        elm.add_event::<KeyboardEvent>(EventStage::External);
+    }
+}
+#[derive(Event, Debug, Clone)]
+pub struct KeyboardEvent {
+    pub key: Key,
+    pub state: State,
+    pub modifiers: Mods,
+}
+pub type Key = winit::keyboard::Key;
+pub type State = ElementState;
+pub type Mods = Modifiers;
+impl KeyboardEvent {
+    pub fn new(key: Key, state: State, mods: Mods) -> Self {
+        Self {
+            key,
+            state,
+            modifiers: mods,
+        }
     }
 }
 #[derive(Resource, Default)]
@@ -81,6 +103,31 @@ impl From<TouchPhase> for InteractionPhase {
         }
     }
 }
+#[derive(Default, Resource)]
+pub struct KeyboardAdapter {
+    cache: HashMap<winit::keyboard::Key, ElementState>,
+    modifiers: Modifiers,
+}
+impl KeyboardAdapter {
+    pub(crate) fn cache_checked(
+        &mut self,
+        key: winit::keyboard::Key,
+        state: ElementState,
+    ) -> Option<KeyboardEvent> {
+        if let Some(cached) = self.cache.insert(key.clone(), state) {
+            if cached != state {
+                return Option::from(KeyboardEvent::new(key, state, self.modifiers));
+            }
+        } else {
+            if state.is_pressed() {
+                return Option::from(KeyboardEvent::new(key, state, self.modifiers));
+            }
+        }
+        None
+    }
+    pub(crate) fn update_modifiers(&mut self, modifiers: Modifiers) {}
+}
+
 #[derive(Resource, Default)]
 pub struct MouseAdapter(
     pub HashMap<MouseButton, ElementState>,
@@ -243,6 +290,7 @@ pub fn set_interaction_listeners(
                 tracing::trace!("grabbing primary: {:?}", grab.0);
                 primary.0.replace(ie.id);
                 primary_entity.0.replace(grab.0);
+                focused_entity.0.take();
                 listeners.get_mut(grab.0).unwrap().1.engaged = true;
                 listeners.get_mut(grab.0).unwrap().1.engaged_start = true;
                 listeners.get_mut(grab.0).unwrap().1.interaction = Interaction::new(position);
@@ -289,6 +337,7 @@ pub fn set_interaction_listeners(
                 InteractionPhase::Cancel => {
                     primary.0.take();
                     primary_entity.0.take();
+                    focused_entity.0.take();
                 }
             }
         }

@@ -6,7 +6,7 @@ use std::marker::PhantomData;
 
 use anymap::AnyMap;
 use bevy_ecs::bundle::Bundle;
-use bevy_ecs::event::{event_update_system, Event, Events};
+use bevy_ecs::event::{event_update_system, Event, EventWriter, Events};
 use bevy_ecs::prelude::{Component, DetectChanges, IntoSystemConfigs, Res};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Commands, Query, ResMut, StaticSystemParam, SystemParam};
@@ -222,20 +222,17 @@ impl Elm {
             .in_set(ExternalSet::ViewBindings)
             .run_if(|cv: Res<CurrentView>| -> bool { cv.is_changed() }),));
     }
-    pub fn add_view_scene_binding<
-        VH: Into<ViewHandle>,
-        S: Scene,
-        RS: Into<ResponsiveSegment>,
-        Ext: Bundle + Clone,
-    >(
+    pub fn send_event<E: Event>(&mut self, e: E) {
+        self.container().send_event(e);
+    }
+    pub fn add_view_scene_binding<S: Scene, Ext: Bundle + Clone>(
         &mut self,
-        vh: VH,
+        view_handle: ViewHandle,
         args: S::Args<'static>,
-        rs: RS,
+        rs: ResponsiveSegment,
         ext: Ext,
     ) {
-        let view_handle = vh.into();
-        let responsive_segment = rs.into().at_view(view_handle);
+        let responsive_segment = rs.at_view(view_handle);
         let func = move |current: Res<CurrentView>,
                          mut cmd: Commands,
                          mut compositor: ResMut<Compositor>,

@@ -6,3 +6,4 @@ pub mod icon_button;
 pub mod icon_text;
 pub mod interactive_progress_bar;
 pub mod progress_bar;
+pub mod text_input;
