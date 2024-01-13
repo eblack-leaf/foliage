@@ -40,7 +40,7 @@ use crate::rectangle::Rectangle;
 use crate::text::Text;
 use crate::time::Time;
 use crate::virtual_keyboard::VirtualKeyboardAdapter;
-use crate::workflow::{Workflow, WorkflowConnection, WorkflowConnectionBase};
+use crate::workflow::{Workflow, WorkflowConnectionBase};
 use animate::trigger::Trigger;
 
 use self::ash::leaflet::RenderLeafletStorage;
@@ -49,7 +49,6 @@ mod animate;
 pub mod ash;
 pub mod circle;
 pub mod color;
-// pub mod compositor;
 pub mod compositor;
 pub mod coordinate;
 pub mod differential;
@@ -399,6 +398,7 @@ impl Foliage {
                             tracing::trace!("elm:attaching-viewport-area");
                         }
                         if !elm.initialized() {
+                            window_handle.0.as_ref().unwrap().set_ime_allowed(true);
                             elm.set_scale_factor(window_handle.scale_factor());
                             elm.attach_leafs(self.leaf_queue.take().unwrap());
                             ash.establish(&ginkgo, self.render_queue.take().unwrap());
