@@ -3,8 +3,9 @@
 pub use bevy_ecs;
 use bevy_ecs::prelude::Resource;
 pub use wgpu;
-use winit::event::{Event, KeyEvent, MouseButton, StartCause, WindowEvent};
+use winit::event::{Event, Ime, KeyEvent, MouseButton, StartCause, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopWindowTarget};
+use winit::keyboard::SmolStr;
 
 use ash::identification::RenderIdentification;
 use ash::leaflet::RenderLeaflet;
@@ -22,10 +23,7 @@ use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::Ginkgo;
 use crate::icon::Icon;
 use crate::image::Image;
-use crate::interaction::{
-    Interaction, InteractionEvent, InteractionId, InteractionPhase, KeyboardAdapter, KeyboardEvent,
-    MouseAdapter,
-};
+use crate::interaction::{Interaction, InteractionEvent, InteractionId, InteractionPhase, Key, KeyboardAdapter, KeyboardEvent, Mods, MouseAdapter, State};
 use crate::panel::Panel;
 use crate::prebuilt::aspect_ratio_image::AspectRatioImage;
 use crate::prebuilt::button::Button;
@@ -39,7 +37,6 @@ use crate::prebuilt::text_input::TextInput;
 use crate::rectangle::Rectangle;
 use crate::text::Text;
 use crate::time::Time;
-use crate::virtual_keyboard::VirtualKeyboardAdapter;
 use crate::workflow::{Workflow, WorkflowConnectionBase};
 use animate::trigger::Trigger;
 
@@ -67,7 +64,7 @@ pub mod scene;
 pub mod text;
 pub mod texture;
 pub mod time;
-pub mod virtual_keyboard;
+// pub mod virtual_keyboard;
 pub mod window;
 pub mod workflow;
 
@@ -132,7 +129,7 @@ impl Foliage {
             .with_leaf::<AspectRatioImage>()
             .with_leaf::<IconText>()
             .with_leaf::<TextInput>()
-            .with_leaf::<VirtualKeyboardAdapter>()
+
     }
     pub fn with_android_interface(mut self, android_interface: AndroidInterface) -> Self {
         self.android_interface = android_interface;
@@ -283,7 +280,15 @@ impl Foliage {
                                 .unwrap()
                                 .update_modifiers(modifiers);
                         }
-                        WindowEvent::Ime(_) => {}
+                        WindowEvent::Ime(ime) => {
+                            match ime {
+                                Ime::Enabled => {}
+                                Ime::Preedit(_, _) => {}
+                                Ime::Commit(_) => {
+                                }
+                                Ime::Disabled => {}
+                            }
+                        }
                         WindowEvent::CursorMoved {
                             device_id: _,
                             position,
@@ -398,7 +403,6 @@ impl Foliage {
                             tracing::trace!("elm:attaching-viewport-area");
                         }
                         if !elm.initialized() {
-                            window_handle.0.as_ref().unwrap().set_ime_allowed(true);
                             elm.set_scale_factor(window_handle.scale_factor());
                             elm.attach_leafs(self.leaf_queue.take().unwrap());
                             ash.establish(&ginkgo, self.render_queue.take().unwrap());

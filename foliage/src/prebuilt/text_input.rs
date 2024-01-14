@@ -16,7 +16,6 @@ use crate::set_descriptor;
 use crate::text::font::MonospacedFont;
 use crate::text::{FontSize, MaxCharacters, Text, TextValue};
 use crate::texture::factors::Progress;
-use crate::virtual_keyboard::{VirtualKeyboardAdapter, VirtualKeyboardType};
 use crate::window::ScaleFactor;
 use bevy_ecs::component::Component;
 use bevy_ecs::event::EventReader;
@@ -39,7 +38,7 @@ pub struct TextInput {
 }
 const SPACING: CoordinateUnit = 4.0;
 #[derive(Component, Copy, Clone)]
-pub(crate) struct CursorDims(pub(crate) Area<DeviceContext>);
+pub(crate) struct CursorDims(pub(crate) Area<InterfaceContext>);
 impl Scene for TextInput {
     type Bindings = TextInputBindings;
     type Args<'a> = TextInputArgs;
@@ -91,7 +90,7 @@ impl Scene for TextInput {
             background: BackgroundColor(args.background),
             hint_text: HintText(args.hint_text.clone().unwrap_or_default()),
             cursor_offset: CursorOffset(args.text.0.len().min(args.max_chars.0 as usize) as u32),
-            dims: CursorDims(character_dims),
+            dims: CursorDims(character_dims.to_interface(external_args.1.factor())),
             max_chars: args.max_chars,
         }
     }
@@ -174,9 +173,8 @@ fn resize(
         *colors.get_mut(cursor).unwrap() = fc.0;
         let (fs, _fa) = font.best_fit(*mc, *area * (0.95, 0.9).into(), &scale_factor);
         let character_dims = font.character_dimensions(fs.px(scale_factor.factor()));
-        dims.0 = character_dims;
-        *areas.get_mut(cursor).unwrap() =
-            Area::from((character_dims.width, character_dims.height - SPACING));
+        dims.0 = character_dims.to_interface(scale_factor.factor()) - (0, SPACING).into();
+        *areas.get_mut(cursor).unwrap() = dims.0;
         let text_entity =
             coordinator.binding_entity(&handle.access_chain().target(TextInputBindings::Text));
         *texts.get_mut(text_entity).unwrap().0 = fs;
@@ -197,14 +195,12 @@ fn cursor_on_click(
         ),
         (Changed<InteractionListener>, With<Tag<TextInput>>),
     >,
-    vkey: Res<VirtualKeyboardAdapter>,
 ) {
     for (pos, handle, despawn, mut offset, listener, dims, mc) in text_inputs.iter_mut() {
         if despawn.should_despawn() {
             continue;
         }
         if listener.active() {
-            vkey.open(VirtualKeyboardType::Keyboard);
             offset.0 = (((listener.interaction.current.x - pos.x) / dims.0.width).floor() as u32)
                 .min(mc.0);
         }
