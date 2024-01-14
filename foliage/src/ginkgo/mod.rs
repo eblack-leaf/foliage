@@ -442,9 +442,9 @@ impl Ginkgo {
         };
         area.to_interface(self.scale_factor.factor())
     }
-    pub(crate) fn resume<ExtHook>(
+    pub(crate) fn resume(
         &mut self,
-        _event_loop_window_target: &EventLoopWindowTarget<ExtHook>,
+        _event_loop_window_target: &EventLoopWindowTarget,
         window: &mut WindowHandle,
         _desc: &WindowDescriptor,
     ) -> Option<Area<InterfaceContext>> {

@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 wgpu = { git = "https://github.com/gfx-rs/wgpu.git", features = ["webgl"]}
-winit = { version = "0.29.8", features = ["android-game-activity", "x11"]}
+winit = { path = "../../winit", features = ["android-game-activity", "x11"]}
 bevy_ecs = "0.12.1"
 cfg-if = "1.0.0"
 wasm-bindgen-futures = "0.4.39"

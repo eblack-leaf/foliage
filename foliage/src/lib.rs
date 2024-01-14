@@ -39,6 +39,7 @@ use crate::text::Text;
 use crate::time::Time;
 use crate::workflow::{Workflow, WorkflowConnectionBase};
 use animate::trigger::Trigger;
+use crate::virtual_keyboard::VirtualKeyboardAdapter;
 
 use self::ash::leaflet::RenderLeafletStorage;
 
@@ -64,7 +65,7 @@ pub mod scene;
 pub mod text;
 pub mod texture;
 pub mod time;
-// pub mod virtual_keyboard;
+pub mod virtual_keyboard;
 pub mod window;
 pub mod workflow;
 
@@ -129,6 +130,7 @@ impl Foliage {
             .with_leaf::<AspectRatioImage>()
             .with_leaf::<IconText>()
             .with_leaf::<TextInput>()
+            .with_leaf::<VirtualKeyboardAdapter>()
 
     }
     pub fn with_android_interface(mut self, android_interface: AndroidInterface) -> Self {
@@ -213,7 +215,7 @@ impl Foliage {
         let mut drawn = true;
         let _ = (event_loop_function)(
             event_loop,
-            move |event, event_loop_window_target: &EventLoopWindowTarget<W::Response>| {
+            move |event, event_loop_window_target: &EventLoopWindowTarget| {
                 if elm.job.can_idle() {
                     tracing::trace!("job-waiting");
                     event_loop_window_target.set_control_flow(ControlFlow::Wait);
@@ -284,9 +286,13 @@ impl Foliage {
                             match ime {
                                 Ime::Enabled => {}
                                 Ime::Preedit(_, _) => {}
-                                Ime::Commit(_) => {
+                                Ime::Commit { content, selection, compose_region } => {
+                                    elm.send_event(KeyboardEvent::new(
+                                        Key::Character(SmolStr::new(content)), State::Pressed, Mods::default()
+                                    ));
                                 }
                                 Ime::Disabled => {}
+                                Ime::DeleteSurroundingText { .. } => {}
                             }
                         }
                         WindowEvent::CursorMoved {

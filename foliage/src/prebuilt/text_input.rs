@@ -6,7 +6,7 @@ use crate::differential::Despawn;
 use crate::elm::config::{ElmConfiguration, ExternalSet};
 use crate::elm::leaf::{Leaf, Tag};
 use crate::elm::Elm;
-use crate::interaction::{FocusedEntity, InteractionListener, Key, KeyboardEvent, State};
+use crate::interaction::{FocusedEntity, InteractionEvent, InteractionListener, Key, KeyboardEvent, PrimaryInteraction, State};
 use crate::panel::{Panel, PanelStyle};
 use crate::prebuilt::button::{BackgroundColor, ForegroundColor};
 use crate::rectangle::Rectangle;
@@ -24,6 +24,7 @@ use bevy_ecs::query::{Changed, Or, With, Without};
 use bevy_ecs::system::{Query, Res, ResMut, SystemParamItem};
 use std::ops::Add;
 use winit::keyboard::NamedKey;
+use crate::virtual_keyboard::{VirtualKeyboardAdapter, VirtualKeyboardType};
 
 #[derive(Bundle)]
 pub struct TextInput {
@@ -195,6 +196,9 @@ fn cursor_on_click(
         ),
         (Changed<InteractionListener>, With<Tag<TextInput>>),
     >,
+    virtual_keyboard: Res<VirtualKeyboardAdapter>,
+    // mut ies: EventReader<InteractionEvent>,
+    // primary_interaction: Res<PrimaryInteraction>,
 ) {
     for (pos, handle, despawn, mut offset, listener, dims, mc) in text_inputs.iter_mut() {
         if despawn.should_despawn() {
@@ -203,6 +207,7 @@ fn cursor_on_click(
         if listener.active() {
             offset.0 = (((listener.interaction.current.x - pos.x) / dims.0.width).floor() as u32)
                 .min(mc.0);
+            virtual_keyboard.open(VirtualKeyboardType::Keyboard);
         }
     }
 }

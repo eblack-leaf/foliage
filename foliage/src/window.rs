@@ -43,8 +43,8 @@ impl WindowHandle {
     pub(crate) fn value(&self) -> &Window {
         self.0.as_ref().expect("window handle value")
     }
-    pub(crate) fn some<ExternalHook>(
-        event_loop: &EventLoopWindowTarget<ExternalHook>,
+    pub(crate) fn some(
+        event_loop: &EventLoopWindowTarget,
         window_descriptor: &WindowDescriptor,
     ) -> Self {
         #[allow(unused_mut)]
