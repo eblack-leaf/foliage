@@ -20,6 +20,7 @@ use bevy_ecs::entity::Entity;
 use std::collections::HashMap;
 use std::iter::StepBy;
 use std::ops::{Range, RangeInclusive};
+use wgpu::{BindGroup, BindGroupLayout};
 
 pub struct IconRenderResources {
     pipeline: wgpu::RenderPipeline,
@@ -33,6 +34,41 @@ pub struct IconRenderResources {
 }
 impl Icon {
     pub(crate) const TEXTURE_DIMENSIONS: u32 = 320;
+
+    fn create_icon_resource(
+        ginkgo: &Ginkgo,
+        icon_bind_group_layout: &BindGroupLayout,
+        icon_textures: &mut HashMap<IconId, (InstanceCoordinator<Entity>, BindGroup)>,
+        index: usize,
+        file: &[u8],
+    ) {
+        let texture_data = rmp_serde::from_slice::<Vec<u8>>(file).ok().unwrap();
+        let (_texture, view) = ginkgo.texture_r8unorm_d2(
+            Icon::TEXTURE_DIMENSIONS,
+            Icon::TEXTURE_DIMENSIONS,
+            1,
+            texture_data.as_slice(),
+        );
+        icon_textures.insert(
+            IconId(index as u32),
+            (
+                InstanceCoordinatorBuilder::new(4)
+                    .with_attribute::<CReprPosition>()
+                    .with_attribute::<CReprArea>()
+                    .with_attribute::<Layer>()
+                    .with_attribute::<Color>()
+                    .with_attribute::<TexturePartition>()
+                    .build(ginkgo),
+                ginkgo
+                    .device()
+                    .create_bind_group(&wgpu::BindGroupDescriptor {
+                        label: Some("icon-bind-group"),
+                        layout: &icon_bind_group_layout,
+                        entries: &[Ginkgo::texture_bind_group_entry(&view, 0)],
+                    }),
+            ),
+        );
+    }
 }
 pub(crate) fn placements() -> Vec<(u32, Section<NumericalContext>)> {
     let rects = (IconScale::LOWER_BOUND..=IconScale::UPPER_BOUND)
@@ -100,31 +136,12 @@ impl Render for Icon {
             );
         }
         for (index, file) in ICON_RESOURCE_FILES.iter().enumerate() {
-            let texture_data = rmp_serde::from_slice::<Vec<u8>>(file).ok().unwrap();
-            let (_texture, view) = ginkgo.texture_r8unorm_d2(
-                Icon::TEXTURE_DIMENSIONS,
-                Icon::TEXTURE_DIMENSIONS,
-                1,
-                texture_data.as_slice(),
-            );
-            icon_textures.insert(
-                IconId(index as u32),
-                (
-                    InstanceCoordinatorBuilder::new(4)
-                        .with_attribute::<CReprPosition>()
-                        .with_attribute::<CReprArea>()
-                        .with_attribute::<Layer>()
-                        .with_attribute::<Color>()
-                        .with_attribute::<TexturePartition>()
-                        .build(ginkgo),
-                    ginkgo
-                        .device()
-                        .create_bind_group(&wgpu::BindGroupDescriptor {
-                            label: Some("icon-bind-group"),
-                            layout: &icon_bind_group_layout,
-                            entries: &[Ginkgo::texture_bind_group_entry(&view, 0)],
-                        }),
-                ),
+            Self::create_icon_resource(
+                ginkgo,
+                &icon_bind_group_layout,
+                &mut icon_textures,
+                index,
+                file,
             );
         }
         let sampler = ginkgo
@@ -222,13 +239,22 @@ impl Render for Icon {
     }
 
     fn create_package(
-        _ginkgo: &Ginkgo,
+        ginkgo: &Ginkgo,
         resources: &mut Self::Resources,
         entity: Entity,
         render_packet: RenderPacket,
     ) -> Self::RenderPackage {
         let new = render_packet.get::<IconId>().unwrap();
         resources.entity_to_icon.insert(entity, new);
+        if resources.icon_textures.get(&new).is_none() {
+            Self::create_icon_resource(
+                ginkgo,
+                &resources.icon_bind_group_layout,
+                &mut resources.icon_textures,
+                new.0 as usize,
+                ICON_RESOURCE_FILES[new.0 as usize],
+            );
+        }
         resources
             .icon_textures
             .get_mut(&new)
@@ -281,6 +307,15 @@ impl Render for Icon {
         let mut icon_id = *resources.entity_to_icon.get(&entity).unwrap();
         if let Some(id) = render_packet.get::<IconId>() {
             if icon_id != id {
+                if resources.icon_textures.get(&id).is_none() {
+                    Self::create_icon_resource(
+                        _ginkgo,
+                        &resources.icon_bind_group_layout,
+                        &mut resources.icon_textures,
+                        id.0 as usize,
+                        ICON_RESOURCE_FILES[id.0 as usize],
+                    );
+                }
                 resources
                     .icon_textures
                     .get_mut(&icon_id)

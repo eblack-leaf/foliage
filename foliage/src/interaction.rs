@@ -322,8 +322,7 @@ pub fn set_interaction_listeners(
                                 listener.interaction.current = position;
                                 listener.interaction.end.replace(position);
                                 if let Some(old) = focused_entity.0.replace(prime) {
-                                    if old != prime {
-                                    }
+                                    if old != prime {}
                                 }
                                 listener.active = true;
                             }

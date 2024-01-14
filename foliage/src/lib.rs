@@ -15,6 +15,7 @@ use window::{WindowDescriptor, WindowHandle};
 use crate::ash::render::Render;
 use crate::ash::Ash;
 use crate::circle::Circle;
+use crate::clipboard::Clipboard;
 use crate::compositor::Compositor;
 use crate::coordinate::position::Position;
 use crate::coordinate::CoordinateUnit;
@@ -23,7 +24,10 @@ use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::Ginkgo;
 use crate::icon::Icon;
 use crate::image::Image;
-use crate::interaction::{Interaction, InteractionEvent, InteractionId, InteractionPhase, Key, KeyboardAdapter, KeyboardEvent, Mods, MouseAdapter, State};
+use crate::interaction::{
+    Interaction, InteractionEvent, InteractionId, InteractionPhase, Key, KeyboardAdapter,
+    KeyboardEvent, Mods, MouseAdapter, State,
+};
 use crate::panel::Panel;
 use crate::prebuilt::aspect_ratio_image::AspectRatioImage;
 use crate::prebuilt::button::Button;
@@ -37,15 +41,16 @@ use crate::prebuilt::text_input::TextInput;
 use crate::rectangle::Rectangle;
 use crate::text::Text;
 use crate::time::Time;
+use crate::virtual_keyboard::VirtualKeyboardAdapter;
 use crate::workflow::{Workflow, WorkflowConnectionBase};
 use animate::trigger::Trigger;
-use crate::virtual_keyboard::VirtualKeyboardAdapter;
 
 use self::ash::leaflet::RenderLeafletStorage;
 
 mod animate;
 pub mod ash;
 pub mod circle;
+pub mod clipboard;
 pub mod color;
 pub mod compositor;
 pub mod coordinate;
@@ -131,7 +136,7 @@ impl Foliage {
             .with_leaf::<IconText>()
             .with_leaf::<TextInput>()
             .with_leaf::<VirtualKeyboardAdapter>()
-
+            .with_leaf::<Clipboard>()
     }
     pub fn with_android_interface(mut self, android_interface: AndroidInterface) -> Self {
         self.android_interface = android_interface;
@@ -282,18 +287,18 @@ impl Foliage {
                                 .unwrap()
                                 .update_modifiers(modifiers);
                         }
-                        WindowEvent::Ime(ime) => {
-                            match ime {
-                                Ime::Enabled => {}
-                                Ime::Preedit(_, _) => {}
-                                Ime::Commit (string) => {
-                                    elm.send_event(KeyboardEvent::new(
-                                        Key::Character(SmolStr::new(string)), State::Pressed, Mods::default()
-                                    ));
-                                }
-                                Ime::Disabled => {}
+                        WindowEvent::Ime(ime) => match ime {
+                            Ime::Enabled => {}
+                            Ime::Preedit(_, _) => {}
+                            Ime::Commit(string) => {
+                                elm.send_event(KeyboardEvent::new(
+                                    Key::Character(SmolStr::new(string)),
+                                    State::Pressed,
+                                    Mods::default(),
+                                ));
                             }
-                        }
+                            Ime::Disabled => {}
+                        },
                         WindowEvent::CursorMoved {
                             device_id: _,
                             position,

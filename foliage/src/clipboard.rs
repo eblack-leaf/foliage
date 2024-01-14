@@ -1,6 +1,9 @@
-use crate::{Attach, Visualizer};
+use crate::elm::config::ElmConfiguration;
+use crate::elm::leaf::{EmptySetDescriptor, Leaf};
+use crate::elm::Elm;
 #[cfg(not(target_family = "wasm"))]
 use copypasta::ClipboardProvider;
+
 pub struct Clipboard {
     #[cfg(not(target_family = "wasm"))]
     pub handle: Option<copypasta::ClipboardContext>,
@@ -41,12 +44,12 @@ impl Clipboard {
         }
     }
 }
-pub(crate) struct ClipboardAttachment;
-impl Attach for ClipboardAttachment {
-    fn attach(visualizer: &mut Visualizer) {
-        visualizer
-            .job
-            .container
-            .insert_non_send_resource(Clipboard::new());
+impl Leaf for Clipboard {
+    type SetDescriptor = EmptySetDescriptor;
+
+    fn config(_elm_configuration: &mut ElmConfiguration) {}
+
+    fn attach(elm: &mut Elm) {
+        elm.container().insert_non_send_resource(Clipboard::new());
     }
 }

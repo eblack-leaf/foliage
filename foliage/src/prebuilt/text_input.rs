@@ -6,7 +6,10 @@ use crate::differential::Despawn;
 use crate::elm::config::{ElmConfiguration, ExternalSet};
 use crate::elm::leaf::{Leaf, Tag};
 use crate::elm::Elm;
-use crate::interaction::{FocusedEntity, InteractionEvent, InteractionListener, Key, KeyboardEvent, PrimaryInteraction, State};
+use crate::interaction::{
+    FocusedEntity, InteractionEvent, InteractionListener, Key, KeyboardEvent, PrimaryInteraction,
+    State,
+};
 use crate::panel::{Panel, PanelStyle};
 use crate::prebuilt::button::{BackgroundColor, ForegroundColor};
 use crate::rectangle::Rectangle;
@@ -16,6 +19,7 @@ use crate::set_descriptor;
 use crate::text::font::MonospacedFont;
 use crate::text::{FontSize, MaxCharacters, Text, TextValue};
 use crate::texture::factors::Progress;
+use crate::virtual_keyboard::{VirtualKeyboardAdapter, VirtualKeyboardType};
 use crate::window::ScaleFactor;
 use bevy_ecs::component::Component;
 use bevy_ecs::event::EventReader;
@@ -24,7 +28,6 @@ use bevy_ecs::query::{Changed, Or, With, Without};
 use bevy_ecs::system::{Query, Res, ResMut, SystemParamItem};
 use std::ops::Add;
 use winit::keyboard::NamedKey;
-use crate::virtual_keyboard::{VirtualKeyboardAdapter, VirtualKeyboardType};
 
 #[derive(Bundle)]
 pub struct TextInput {
