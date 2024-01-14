@@ -286,13 +286,12 @@ impl Foliage {
                             match ime {
                                 Ime::Enabled => {}
                                 Ime::Preedit(_, _) => {}
-                                Ime::Commit { content, selection, compose_region } => {
+                                Ime::Commit (string) => {
                                     elm.send_event(KeyboardEvent::new(
-                                        Key::Character(SmolStr::new(content)), State::Pressed, Mods::default()
+                                        Key::Character(SmolStr::new(string)), State::Pressed, Mods::default()
                                     ));
                                 }
                                 Ime::Disabled => {}
-                                Ime::DeleteSurroundingText { .. } => {}
                             }
                         }
                         WindowEvent::CursorMoved {
