@@ -17,7 +17,7 @@ use crate::scene::align::SceneAligner;
 use crate::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
 use crate::set_descriptor;
 use crate::text::font::MonospacedFont;
-use crate::text::{FontSize, MaxCharacters, Text, TextValue};
+use crate::text::{FontSize, GlyphColorChanges, MaxCharacters, Text, TextKey, TextValue};
 use crate::texture::factors::Progress;
 use crate::virtual_keyboard::{VirtualKeyboardAdapter, VirtualKeyboardType};
 use crate::window::ScaleFactor;
@@ -196,6 +196,7 @@ fn cursor_on_click(
             &InteractionListener,
             &CursorDims,
             &MaxCharacters,
+            &TextValue,
         ),
         (Changed<InteractionListener>, With<Tag<TextInput>>),
     >,
@@ -203,32 +204,36 @@ fn cursor_on_click(
     // mut ies: EventReader<InteractionEvent>,
     // primary_interaction: Res<PrimaryInteraction>,
 ) {
-    for (pos, handle, despawn, mut offset, listener, dims, mc) in text_inputs.iter_mut() {
+    for (pos, handle, despawn, mut offset, listener, dims, mc, text_val) in text_inputs.iter_mut() {
         if despawn.should_despawn() {
             continue;
         }
         if listener.active() {
-            offset.0 = (((listener.interaction.current.x - pos.x) / dims.0.width).floor() as u32)
-                .min(mc.0);
+            offset.0 = (((listener.interaction.current.x - pos.x - SPACING) / dims.0.width).floor() as u32)
+                .min(mc.0 - 1).min(text_val.0.len() as u32);
             virtual_keyboard.open(VirtualKeyboardType::Keyboard);
         }
     }
 }
 fn update_cursor_alignment(
     text_inputs: Query<
-        (&SceneHandle, &CursorOffset, &Despawn, &CursorDims),
+        (&SceneHandle, &CursorOffset, &Despawn, &CursorDims, &BackgroundColor),
         (
             Or<(Changed<CursorOffset>, Changed<CursorDims>)>,
             With<Tag<TextInput>>,
         ),
     >,
+    mut color_changes: Query<&mut GlyphColorChanges>,
     mut coordinator: ResMut<SceneCoordinator>,
 ) {
-    for (handle, offset, despawn, dims) in text_inputs.iter() {
+    for (handle, offset, despawn, dims, bg_color) in text_inputs.iter() {
         if despawn.should_despawn() {
             continue;
         }
         let cursor = handle.access_chain().target(TextInputBindings::Cursor);
+        let text = coordinator.binding_entity(&handle.access_chain().target(TextInputBindings::Text));
+        color_changes.get_mut(text).unwrap().0.clear();
+        color_changes.get_mut(text).unwrap().0.insert(offset.0 as TextKey, bg_color.0);
         coordinator.get_alignment_mut(&cursor).pos.horizontal =
             (dims.0.width * offset.0 as f32 + SPACING).near();
     }

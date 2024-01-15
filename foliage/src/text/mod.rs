@@ -2,7 +2,6 @@ pub mod font;
 mod glyph;
 mod renderer;
 mod vertex;
-
 use crate::color::Color;
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
@@ -26,7 +25,8 @@ use glyph::{
     GlyphCache, GlyphChange, GlyphChangeQueue, GlyphKey, GlyphPlacementTool, GlyphRemoveQueue,
 };
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+pub use crate::text::renderer::TextKey;
 
 #[derive(Bundle)]
 pub struct Text {
@@ -40,6 +40,7 @@ pub struct Text {
     glyph_removes: DifferentialBundle<GlyphRemoveQueue>,
     glyph_cache: GlyphCache,
     glyph_placement_tool: GlyphPlacementTool,
+    color_changes: GlyphColorChanges,
     differentiable: Differentiable,
 }
 impl Text {
@@ -67,6 +68,7 @@ impl Text {
             glyph_placement_tool: GlyphPlacementTool(fontdue::layout::Layout::new(
                 fontdue::layout::CoordinateSystem::PositiveYDown,
             )),
+            color_changes: GlyphColorChanges::default(),
         }
     }
     pub const DEFAULT_OPT_SCALE: u32 = 40;
@@ -148,7 +150,8 @@ pub(crate) fn max_character(
         *dim = d;
     }
 }
-
+#[derive(Component, Default)]
+pub struct GlyphColorChanges(pub HashMap<TextKey, Color>);
 pub(crate) fn changes(
     mut query: Query<
         (
@@ -162,12 +165,14 @@ pub(crate) fn changes(
             &mut GlyphRemoveQueue,
             &mut GlyphCache,
             &mut GlyphPlacementTool,
+            &GlyphColorChanges,
         ),
         Or<(
             Changed<TextValue>,
             Changed<FontSize>,
             Changed<MaxCharacters>,
             Changed<Color>,
+            Changed<GlyphColorChanges>,
         )>,
     >,
     font: Res<MonospacedFont>,
@@ -184,6 +189,7 @@ pub(crate) fn changes(
         mut removes,
         mut cache,
         mut placer,
+        color_changes,
     ) in query.iter_mut()
     {
         tracing::trace!("updating-text @ {:?}", value.0);
@@ -246,7 +252,7 @@ pub(crate) fn changes(
                     CachedGlyph::Present(Glyph {
                         key: glyph_key,
                         section,
-                        color: *color,
+                        color: *color_changes.0.get(&g.byte_offset).unwrap_or(color),
                     }),
                 );
                 tracing::trace!(
@@ -257,7 +263,7 @@ pub(crate) fn changes(
                 change.replace(GlyphChange {
                     key: key_change,
                     section: Some(section),
-                    color: Some(*color),
+                    color: Some(*color_changes.0.get(&g.byte_offset).unwrap_or(color)),
                 });
             }
             if let Some(c) = change {

@@ -99,7 +99,7 @@ impl Color {
     pub const OFF_WHITE: Rgb = (0.8, 0.8, 0.8);
     pub const GREY_DARK: Rgb = dark!(Self::GREY);
     pub const GREY_MEDIUM: Rgb = medium!(Self::GREY);
-    pub const GREY: Rgb = (0.5, 0.5, 0.5);
+    pub const GREY: Rgb = (0.35, 0.35, 0.35);
     pub const BLACK: Rgb = (0.0, 0.0, 0.0);
     pub const LIGHT_RED: Rgb = light!(Self::RED);
     pub const RED: Rgb = (0.8, 0.23, 0.23);

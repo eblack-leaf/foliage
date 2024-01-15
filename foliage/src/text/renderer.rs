@@ -27,7 +27,7 @@ pub struct TextRenderResources {
     font: MonospacedFont,
     package_layout: wgpu::BindGroupLayout,
 }
-pub(crate) type TextKey = usize;
+pub type TextKey = usize;
 pub struct TextRenderPackage {
     instance_coordinator: InstanceCoordinator<TextKey>,
     bind_group: wgpu::BindGroup,
