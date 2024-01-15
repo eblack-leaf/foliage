@@ -279,30 +279,49 @@ fn handle_input(
                 }
                 match &e.key {
                     Key::Named(nk) => {
-                        if nk == &NamedKey::ArrowRight {
-                            let i = offset.0.checked_add(1).unwrap_or_default();
-                            bounded_offset(&mut offset, i, *max_chars, &text_val);
-                        } else if nk == &NamedKey::ArrowLeft {
-                            let i = offset.0.checked_sub(1).unwrap_or_default();
-                            bounded_offset(&mut offset, i, *max_chars, &text_val);
-                        }
-                        if nk == &NamedKey::Backspace {
-                            // if pressed start slowly deleting
-                            // if released stop deleting
-                            if e.state.is_pressed() {
-                                if !text_val.0.is_empty() {
-                                    if text_val.0.chars().nth(offset.0 as usize).is_some() {
-                                        text_val.0.remove(offset.0 as usize);
-                                    }
+                        match nk {
+                            NamedKey::ArrowLeft => {
+                                if e.state.is_pressed() {
                                     let i = offset.0.checked_sub(1).unwrap_or_default();
                                     bounded_offset(&mut offset, i, *max_chars, &text_val);
                                 }
                             }
-                        } else if nk == &NamedKey::Space {
-                            if e.state.is_pressed() {
-                                let t = nk.to_text().unwrap();
-                                add_text_input(&mut text_val, &mut offset, max_chars, t);
+                            NamedKey::ArrowRight => {
+                                if e.state.is_pressed() {
+                                    let i = offset.0.checked_add(1).unwrap_or_default();
+                                    bounded_offset(&mut offset, i, *max_chars, &text_val);
+                                }
                             }
+                            NamedKey::Backspace => {
+                                // if pressed start slowly deleting
+                                // if released stop deleting
+                                if e.state.is_pressed() {
+                                    if !text_val.0.is_empty() {
+                                        if let Some(u) = offset.0.checked_sub(1) {
+                                            if text_val.0.chars().nth(u as usize).is_some() {
+                                                text_val.0.remove(u as usize);
+                                            }
+                                            bounded_offset(&mut offset, u, *max_chars, &text_val);
+                                        }
+                                    }
+                                }
+                            }
+                            NamedKey::Delete => {
+                                if e.state.is_pressed() {
+                                    if !text_val.0.is_empty() {
+                                        if text_val.0.chars().nth(offset.0 as usize).is_some() {
+                                            text_val.0.remove(offset.0 as usize);
+                                        }
+                                    }
+                                }
+                            }
+                            NamedKey::Space => {
+                                if e.state.is_pressed() {
+                                    let t = nk.to_text().unwrap();
+                                    add_text_input(&mut text_val, &mut offset, max_chars, t);
+                                }
+                            }
+                            _ => {}
                         }
                     }
                     Key::Character(ch) => {
