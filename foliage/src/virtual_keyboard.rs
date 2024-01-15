@@ -21,7 +21,6 @@ pub enum VirtualKeyboardType {
 
 impl VirtualKeyboardAdapter {
     pub(crate) fn new(android_app: AndroidInterface) -> Self {
-        Self::create_hook();
         Self {
             interface: android_app,
         }
@@ -82,9 +81,6 @@ impl VirtualKeyboardAdapter {
             };
             trigger_element.blur().unwrap();
             trigger_element.focus().unwrap();
-            document.get_element_by_id("keyboard_trigger").unwrap().remove();
-            document.get_element_by_id("telephone_pad_trigger").unwrap().remove();
-            document.get_element_by_id("numpad_trigger").unwrap().remove();
             web_sys::console::info_1(&JsValue::from_str("opening vkey"));
         }
     }
