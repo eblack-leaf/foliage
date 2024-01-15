@@ -21,6 +21,7 @@ pub enum VirtualKeyboardType {
 
 impl VirtualKeyboardAdapter {
     pub(crate) fn new(android_app: AndroidInterface) -> Self {
+        Self::create_hook();
         Self {
             interface: android_app,
         }
@@ -48,7 +49,6 @@ impl VirtualKeyboardAdapter {
     }
     #[allow(unused)]
     pub fn open(&self, ty: VirtualKeyboardType) {
-        Self::create_hook();
         Self::trigger_hook(ty);
         #[cfg(target_os = "android")]
         {
@@ -85,33 +85,33 @@ impl VirtualKeyboardAdapter {
         }
     }
     pub fn close(&self) {
-        // #[cfg(target_arch = "wasm32")]
-        // {
-        //     use wasm_bindgen::{JsCast, JsValue};
-        //     let document = web_sys::window().unwrap().document().unwrap();
-        //     document
-        //         .get_element_by_id("keyboard_trigger")
-        //         .unwrap()
-        //         .dyn_into::<web_sys::HtmlElement>()
-        //         .unwrap()
-        //         .blur()
-        //         .unwrap();
-        //     document
-        //         .get_element_by_id("telephone_pad_trigger")
-        //         .unwrap()
-        //         .dyn_into::<web_sys::HtmlElement>()
-        //         .unwrap()
-        //         .blur()
-        //         .unwrap();
-        //     document
-        //         .get_element_by_id("numpad_trigger")
-        //         .unwrap()
-        //         .dyn_into::<web_sys::HtmlElement>()
-        //         .unwrap()
-        //         .blur()
-        //         .unwrap();
-        //     web_sys::console::info_1(&JsValue::from_str("closing vkey"));
-        // }
+        #[cfg(target_arch = "wasm32")]
+        {
+            use wasm_bindgen::{JsCast, JsValue};
+            let document = web_sys::window().unwrap().document().unwrap();
+            document
+                .get_element_by_id("keyboard_trigger")
+                .unwrap()
+                .dyn_into::<web_sys::HtmlElement>()
+                .unwrap()
+                .blur()
+                .unwrap();
+            document
+                .get_element_by_id("telephone_pad_trigger")
+                .unwrap()
+                .dyn_into::<web_sys::HtmlElement>()
+                .unwrap()
+                .blur()
+                .unwrap();
+            document
+                .get_element_by_id("numpad_trigger")
+                .unwrap()
+                .dyn_into::<web_sys::HtmlElement>()
+                .unwrap()
+                .blur()
+                .unwrap();
+            web_sys::console::info_1(&JsValue::from_str("closing vkey"));
+        }
         #[cfg(target_os = "android")]
         {
             self.interface.0.as_ref().unwrap().hide_soft_input(true);
