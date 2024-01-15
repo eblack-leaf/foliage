@@ -23,7 +23,7 @@ mod proc_gen;
 mod renderer;
 mod vertex;
 
-#[derive(Bundle)]
+#[derive(Bundle, Clone)]
 pub struct Icon {
     scale: IconScale,
     icon_id: DifferentialBundle<IconId>,

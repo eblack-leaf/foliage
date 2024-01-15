@@ -18,7 +18,7 @@ use bevy_ecs::system::{Commands, Query};
 use serde::{Deserialize, Serialize};
 #[derive(Component, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ImageData(pub Option<Vec<u8>>);
-#[derive(Bundle)]
+#[derive(Bundle, Clone)]
 pub struct Image {
     image_id: DifferentialBundle<ImageId>,
     image_data: DifferentialBundle<ImageData>,

@@ -32,7 +32,7 @@ impl PanelStyle {
     }
 }
 
-#[derive(Bundle)]
+#[derive(Bundle, Clone)]
 pub struct Panel {
     style: DifferentialBundle<PanelStyle>,
     color: DifferentialBundle<Color>,

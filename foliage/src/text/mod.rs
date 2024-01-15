@@ -28,7 +28,7 @@ use glyph::{
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
-#[derive(Bundle)]
+#[derive(Bundle, Clone)]
 pub struct Text {
     text_value: TextValue,
     max_characters: MaxCharacters,
@@ -150,7 +150,7 @@ pub(crate) fn max_character(
         *dim = d;
     }
 }
-#[derive(Component, Default)]
+#[derive(Component, Default, Clone)]
 pub struct GlyphColorChanges(pub HashMap<TextKey, Color>);
 pub(crate) fn changes(
     mut query: Query<

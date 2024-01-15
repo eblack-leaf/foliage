@@ -3,6 +3,7 @@ use crate::coordinate::section::Section;
 use crate::coordinate::DeviceContext;
 use crate::text::renderer::TextKey;
 use bevy_ecs::component::Component;
+use fontdue::layout::CoordinateSystem;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -22,12 +23,12 @@ impl GlyphKey {
         }
     }
 }
-
+#[derive(Clone)]
 pub(crate) enum CachedGlyph {
     Present(Glyph),
     Filtered,
 }
-#[derive(Component, Default)]
+#[derive(Component, Default, Clone)]
 pub(crate) struct GlyphCache(pub(crate) HashMap<TextKey, CachedGlyph>);
 
 #[derive(Component, Clone, Serialize, Deserialize, PartialEq, Default)]
@@ -52,3 +53,10 @@ pub(crate) struct GlyphChange {
 
 #[derive(Component)]
 pub(crate) struct GlyphPlacementTool(pub(crate) fontdue::layout::Layout);
+impl Clone for GlyphPlacementTool {
+    fn clone(&self) -> Self {
+        GlyphPlacementTool(fontdue::layout::Layout::new(
+            CoordinateSystem::PositiveYDown,
+        ))
+    }
+}
