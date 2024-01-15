@@ -15,6 +15,7 @@ use crate::elm::leaf::Leaf;
 use crate::elm::Elm;
 use crate::text::font::MonospacedFont;
 use crate::text::glyph::{CachedGlyph, Glyph};
+pub use crate::text::renderer::TextKey;
 use crate::window::ScaleFactor;
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Bundle, IntoSystemConfigs, Or, SystemSet};
@@ -26,7 +27,6 @@ use glyph::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-pub use crate::text::renderer::TextKey;
 
 #[derive(Bundle)]
 pub struct Text {
@@ -213,6 +213,16 @@ pub(crate) fn changes(
             ),
         );
         let glyphs = placer.0.glyphs();
+        if glyphs.is_empty() {
+            for cached in cache.0.drain() {
+                match cached.1 {
+                    CachedGlyph::Present(g) => {
+                        removes.0.push((cached.0, g.key));
+                    }
+                    CachedGlyph::Filtered => {}
+                }
+            }
+        }
         for g in glyphs {
             if g.parent.is_ascii_control() {
                 continue;

@@ -21,6 +21,7 @@ use crate::text::{FontSize, GlyphColorChanges, MaxCharacters, Text, TextKey, Tex
 use crate::texture::factors::Progress;
 use crate::virtual_keyboard::{VirtualKeyboardAdapter, VirtualKeyboardType};
 use crate::window::ScaleFactor;
+use bevy_ecs::change_detection::Mut;
 use bevy_ecs::component::Component;
 use bevy_ecs::event::EventReader;
 use bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
@@ -209,15 +210,23 @@ fn cursor_on_click(
             continue;
         }
         if listener.active() {
-            offset.0 = (((listener.interaction.current.x - pos.x - SPACING) / dims.0.width).floor() as u32)
-                .min(mc.0 - 1).min(text_val.0.len() as u32);
+            offset.0 = (((listener.interaction.current.x - pos.x - SPACING) / dims.0.width).floor()
+                as u32)
+                .min(mc.0.checked_sub(1).unwrap_or_default())
+                .min(text_val.0.len().checked_sub(1).unwrap_or_default() as u32);
             virtual_keyboard.open(VirtualKeyboardType::Keyboard);
         }
     }
 }
 fn update_cursor_alignment(
     text_inputs: Query<
-        (&SceneHandle, &CursorOffset, &Despawn, &CursorDims, &BackgroundColor),
+        (
+            &SceneHandle,
+            &CursorOffset,
+            &Despawn,
+            &CursorDims,
+            &BackgroundColor,
+        ),
         (
             Or<(Changed<CursorOffset>, Changed<CursorDims>)>,
             With<Tag<TextInput>>,
@@ -231,9 +240,14 @@ fn update_cursor_alignment(
             continue;
         }
         let cursor = handle.access_chain().target(TextInputBindings::Cursor);
-        let text = coordinator.binding_entity(&handle.access_chain().target(TextInputBindings::Text));
+        let text =
+            coordinator.binding_entity(&handle.access_chain().target(TextInputBindings::Text));
         color_changes.get_mut(text).unwrap().0.clear();
-        color_changes.get_mut(text).unwrap().0.insert(offset.0 as TextKey, bg_color.0);
+        color_changes
+            .get_mut(text)
+            .unwrap()
+            .0
+            .insert(offset.0 as TextKey, bg_color.0);
         coordinator.get_alignment_mut(&cursor).pos.horizontal =
             (dims.0.width * offset.0 as f32 + SPACING).near();
     }
@@ -265,23 +279,35 @@ fn handle_input(
                 }
                 match &e.key {
                     Key::Named(nk) => {
+                        if nk == &NamedKey::ArrowRight {
+                            let i = offset.0.checked_add(1).unwrap_or_default();
+                            bounded_offset(&mut offset, i, *max_chars, &text_val);
+                        } else if nk == &NamedKey::ArrowLeft {
+                            let i = offset.0.checked_sub(1).unwrap_or_default();
+                            bounded_offset(&mut offset, i, *max_chars, &text_val);
+                        }
                         if nk == &NamedKey::Backspace {
                             // if pressed start slowly deleting
                             // if released stop deleting
                             if e.state.is_pressed() {
                                 if !text_val.0.is_empty() {
-                                    text_val.0.pop();
-                                    offset.0 = offset.0.checked_sub(1).unwrap_or_default();
+                                    if text_val.0.chars().nth(offset.0 as usize).is_some() {
+                                        text_val.0.remove(offset.0 as usize);
+                                    }
+                                    let i = offset.0.checked_sub(1).unwrap_or_default();
+                                    bounded_offset(&mut offset, i, *max_chars, &text_val);
                                 }
+                            }
+                        } else if nk == &NamedKey::Space {
+                            if e.state.is_pressed() {
+                                let t = nk.to_text().unwrap();
+                                add_text_input(&mut text_val, &mut offset, max_chars, t);
                             }
                         }
                     }
                     Key::Character(ch) => {
                         if e.state.is_pressed() {
-                            if text_val.0.len() + ch.len() < max_chars.0 as usize {
-                                text_val.0 = text_val.0.clone().add(ch.as_str());
-                                offset.0 = text_val.0.len().min(max_chars.0 as usize - 1) as u32;
-                            }
+                            add_text_input(&mut text_val, &mut offset, max_chars, ch.as_str());
                         }
                     }
                     Key::Unidentified(_) => {}
@@ -295,6 +321,30 @@ fn handle_input(
                     *texts.get_mut(text_entity).unwrap() = text_val.clone();
                 }
             }
+        }
+    }
+}
+fn bounded_offset(
+    offset: &mut CursorOffset,
+    new: u32,
+    max_chars: MaxCharacters,
+    text_val: &TextValue,
+) {
+    offset.0 = new
+        .min(max_chars.0.checked_sub(1).unwrap_or_default())
+        .min(text_val.0.len() as u32);
+}
+fn add_text_input(
+    mut text_val: &mut Mut<TextValue>,
+    mut offset: &mut Mut<CursorOffset>,
+    max_chars: &MaxCharacters,
+    t: &str,
+) {
+    if text_val.0.len() + t.len() < max_chars.0 as usize {
+        for (i, c) in t.chars().enumerate() {
+            text_val.0.insert(offset.0 as usize + i, c);
+            let index = offset.0 + 1;
+            bounded_offset(offset, index, *max_chars, &text_val);
         }
     }
 }

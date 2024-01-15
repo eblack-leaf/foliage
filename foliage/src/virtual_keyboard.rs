@@ -79,7 +79,7 @@ impl VirtualKeyboardAdapter {
                     .dyn_into::<web_sys::HtmlElement>()
                     .unwrap(),
             };
-            trigger_element.blur().unwrap();
+            // trigger_element.blur().unwrap();
             trigger_element.focus().unwrap();
             web_sys::console::info_1(&JsValue::from_str("opening vkey"));
         }

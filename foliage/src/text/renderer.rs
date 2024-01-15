@@ -457,7 +457,6 @@ fn record<'a>(
             0..VERTICES.len() as u32,
             0..package.package_data.instance_coordinator.instances(),
         );
-        return Some(recorder.finish());
     }
-    None
+    Some(recorder.finish())
 }
