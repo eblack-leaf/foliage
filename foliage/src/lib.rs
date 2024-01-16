@@ -220,7 +220,7 @@ impl Foliage {
         let mut drawn = true;
         let _ = (event_loop_function)(
             event_loop,
-            move |event, event_loop_window_target: &EventLoopWindowTarget| {
+            move |event, event_loop_window_target: &EventLoopWindowTarget<W::Response>| {
                 if elm.job.can_idle() {
                     tracing::trace!("job-waiting");
                     event_loop_window_target.set_control_flow(ControlFlow::Wait);

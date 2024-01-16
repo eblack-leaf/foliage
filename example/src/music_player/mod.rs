@@ -252,7 +252,7 @@ impl Leaf for MusicPlayer {
         elm.add_view_scene_binding::<TextInput, ()>(
             ViewHandle::new(0, 0),
             TextInputArgs::new(
-                MaxCharacters(100),
+                MaxCharacters(10),
                 TextValue::new("hello"),
                 None,
                 Color::GREEN_MEDIUM,
