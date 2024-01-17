@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-wgpu = { version = "0.19.0", default-features = false, features = ["webgl", "wgsl"]}
+wgpu = { git = "https://github.com/gfx-rs/wgpu.git", default-features = false, features = ["webgl", "wgsl"], rev = "4b82121"}
 winit = { git = "https://github.com/rust-windowing/winit.git", rev = "9135eb4", features = ["android-game-activity", "x11"]}
 bevy_ecs = "0.12.1"
 cfg-if = "1.0.0"
