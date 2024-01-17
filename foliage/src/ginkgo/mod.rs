@@ -538,8 +538,10 @@ impl Ginkgo {
             width: area.width.max(1f32) as u32,
             height: area.height.max(1f32) as u32,
             present_mode: wgpu::PresentMode::Fifo,
+            desired_maximum_frame_latency: 2,
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
             view_formats: vec![surface_format],
+            
         });
     }
     pub(crate) fn configure_surface(&self) {
