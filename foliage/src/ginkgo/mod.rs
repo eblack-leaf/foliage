@@ -442,9 +442,9 @@ impl Ginkgo {
         };
         area.to_interface(self.scale_factor.factor())
     }
-    pub(crate) fn resume<Ext>(
+    pub(crate) fn resume(
         &mut self,
-        _event_loop_window_target: &EventLoopWindowTarget<Ext>,
+        _event_loop_window_target: &EventLoopWindowTarget,
         window: &mut WindowHandle,
         _desc: &WindowDescriptor,
     ) -> Option<Area<InterfaceContext>> {
@@ -541,7 +541,6 @@ impl Ginkgo {
             desired_maximum_frame_latency: 2,
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
             view_formats: vec![surface_format],
-            
         });
     }
     pub(crate) fn configure_surface(&self) {

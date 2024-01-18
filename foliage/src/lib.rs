@@ -220,7 +220,7 @@ impl Foliage {
         let mut drawn = true;
         let _ = (event_loop_function)(
             event_loop,
-            move |event, event_loop_window_target: &EventLoopWindowTarget<W::Response>| {
+            move |event, event_loop_window_target: &EventLoopWindowTarget| {
                 if elm.job.can_idle() {
                     tracing::trace!("job-waiting");
                     event_loop_window_target.set_control_flow(ControlFlow::Wait);
@@ -290,14 +290,19 @@ impl Foliage {
                         WindowEvent::Ime(ime) => match ime {
                             Ime::Enabled => {}
                             Ime::Preedit(_, _) => {}
-                            Ime::Commit(string) => {
+                            Ime::Commit {
+                                content,
+                                selection,
+                                compose_region,
+                            } => {
                                 elm.send_event(KeyboardEvent::new(
-                                    Key::Character(SmolStr::new(string)),
+                                    Key::Character(SmolStr::new(content)),
                                     State::Pressed,
                                     Mods::default(),
                                 ));
                             }
                             Ime::Disabled => {}
+                            Ime::DeleteSurroundingText { .. } => {}
                         },
                         WindowEvent::CursorMoved {
                             device_id: _,
@@ -364,9 +369,7 @@ impl Foliage {
                                 ));
                             }
                         }
-                        WindowEvent::TouchpadMagnify { .. } => {}
-                        WindowEvent::SmartMagnify { .. } => {}
-                        WindowEvent::TouchpadRotate { .. } => {}
+
                         WindowEvent::TouchpadPressure { .. } => {}
                         WindowEvent::AxisMotion { .. } => {}
                         WindowEvent::Touch(t) => {
@@ -394,6 +397,9 @@ impl Foliage {
                                 drawn = true;
                             }
                         }
+                        WindowEvent::PinchGesture { .. } => {}
+                        WindowEvent::DoubleTapGesture { .. } => {}
+                        WindowEvent::RotationGesture { .. } => {}
                     },
                     Event::DeviceEvent { .. } => {}
                     Event::UserEvent(ue) => {
