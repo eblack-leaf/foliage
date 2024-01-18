@@ -7,8 +7,7 @@ use crate::elm::config::{ElmConfiguration, ExternalSet};
 use crate::elm::leaf::{Leaf, Tag};
 use crate::elm::Elm;
 use crate::interaction::{
-    FocusedEntity, InteractionEvent, InteractionListener, Key, KeyboardEvent, PrimaryInteraction,
-    State,
+    FocusedEntity, InteractionListener, Key, KeyboardEvent,
 };
 use crate::panel::{Panel, PanelStyle};
 use crate::prebuilt::button::{BackgroundColor, ForegroundColor};
@@ -27,7 +26,6 @@ use bevy_ecs::event::EventReader;
 use bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
 use bevy_ecs::query::{Changed, Or, With, Without};
 use bevy_ecs::system::{Query, Res, ResMut, SystemParamItem};
-use std::ops::Add;
 use winit::keyboard::NamedKey;
 
 #[derive(Bundle)]
