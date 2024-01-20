@@ -7,7 +7,7 @@ use crate::elm::config::ElmConfiguration;
 use crate::elm::leaf::{Leaf, Tag};
 use crate::elm::Elm;
 use crate::icon::{Icon, IconId, IconScale};
-use crate::interaction::InteractionListener;
+use crate::interaction::{InteractionListener, InteractionShape};
 use crate::prebuilt::button::{BackgroundColor, BaseStyle, Button, ButtonStyle, ForegroundColor};
 use crate::scene::align::SceneAligner;
 use crate::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
@@ -134,7 +134,7 @@ impl Scene for CircleButton {
             ButtonStyle::Fill => CircleStyle::fill(),
         };
         cmd.entity(binder.this())
-            .insert(InteractionListener::default());
+            .insert(InteractionListener::default().with_shape(InteractionShape::Circle));
         binder.bind(
             CircleButtonBindings::Circle,
             (0.near(), 0.near(), 1),

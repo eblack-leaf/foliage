@@ -13,6 +13,7 @@ use bevy_ecs::event::{Event, EventReader};
 use bevy_ecs::prelude::{DetectChanges, Entity, IntoSystemConfigs};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Query, Res, ResMut, Resource};
+use nalgebra::{distance, Point};
 use std::collections::HashMap;
 use winit::event::{ElementState, Modifiers, MouseButton, TouchPhase};
 
@@ -192,6 +193,12 @@ impl Interaction {
         }
     }
 }
+#[derive(Copy, Clone, Eq, PartialEq, Default)]
+pub enum InteractionShape {
+    Circle,
+    #[default]
+    Rectangle,
+}
 #[derive(Component, Copy, Clone, Default)]
 pub struct InteractionListener {
     active: bool,
@@ -199,8 +206,13 @@ pub struct InteractionListener {
     engaged: bool,
     engaged_start: bool,
     engaged_end: bool,
+    shape: InteractionShape,
 }
 impl InteractionListener {
+    pub fn with_shape(mut self, shape: InteractionShape) -> Self {
+        self.shape = shape;
+        self
+    }
     pub fn active(&self) -> bool {
         self.active
     }
@@ -212,6 +224,33 @@ impl InteractionListener {
     }
     pub fn engaged_end(&self) -> bool {
         self.engaged_end
+    }
+    pub(crate) fn shape(&self, section: Section<InterfaceContext>) -> InteractionShapeActualized {
+        InteractionShapeActualized(self.shape, section)
+    }
+}
+pub(crate) struct InteractionShapeActualized(InteractionShape, Section<InterfaceContext>);
+impl InteractionShapeActualized {
+    pub(crate) fn contains(&self, position: Position<InterfaceContext>) -> bool {
+        let center = self.1.center();
+        match self.0 {
+            InteractionShape::Circle => {
+                if distance(
+                    &Point::<f32, 2>::new(position.x, position.y),
+                    &Point::<f32, 2>::new(center.x, center.y),
+                ) < self.1.width() / 2f32
+                {
+                    return true;
+                }
+                false
+            }
+            InteractionShape::Rectangle => {
+                if self.1.contains(position) {
+                    return true;
+                }
+                false
+            }
+        }
     }
 }
 fn clear_active(mut active: Query<&mut InteractionListener, Changed<InteractionListener>>) {
@@ -275,9 +314,9 @@ pub fn set_interaction_listeners(
                 continue;
             }
             let mut grabbed = None;
-            for (entity, _listener, pos, area, layer) in listeners.iter_mut() {
+            for (entity, listener, pos, area, layer) in listeners.iter_mut() {
                 let section = Section::new(*pos, *area);
-                if section.contains(position) {
+                if listener.shape(section).contains(position) {
                     if grabbed.is_none() {
                         grabbed.replace((entity, *layer));
                     }
@@ -318,7 +357,7 @@ pub fn set_interaction_listeners(
                     if let Some(prime) = primary_entity.0.take() {
                         if let Ok((_, mut listener, pos, area, _)) = listeners.get_mut(prime) {
                             let section = Section::new(*pos, *area);
-                            if section.contains(position) {
+                            if listener.shape(section).contains(position) {
                                 listener.interaction.current = position;
                                 listener.interaction.end.replace(position);
                                 if let Some(old) = focused_entity.0.replace(prime) {

@@ -6,9 +6,7 @@ use crate::differential::Despawn;
 use crate::elm::config::{ElmConfiguration, ExternalSet};
 use crate::elm::leaf::{Leaf, Tag};
 use crate::elm::Elm;
-use crate::interaction::{
-    FocusedEntity, InteractionListener, Key, KeyboardEvent,
-};
+use crate::interaction::{FocusedEntity, InteractionListener, Key, KeyboardEvent};
 use crate::panel::{Panel, PanelStyle};
 use crate::prebuilt::button::{BackgroundColor, ForegroundColor};
 use crate::rectangle::Rectangle;
