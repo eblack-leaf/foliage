@@ -7,7 +7,7 @@ use crate::differential::Despawn;
 use crate::elm::config::{ElmConfiguration, ExternalSet};
 use crate::elm::leaf::{Leaf, Tag};
 use crate::elm::{BundleExtend, Elm};
-use crate::interaction::InteractionListener;
+use crate::interaction::{InteractionListener, InteractionShape};
 use crate::prebuilt::progress_bar::{ProgressBar, ProgressBarArgs};
 use crate::scene::align::SceneAligner;
 use crate::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
@@ -170,7 +170,7 @@ impl Scene for InteractiveProgressBar {
                 args.color,
                 Progress::full(),
             )
-            .extend(InteractionListener::default())
+            .extend(InteractionListener::default().with_shape(InteractionShape::Circle))
             .extend(InteractiveProgressBarHook(None)),
             cmd,
         );

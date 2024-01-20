@@ -238,8 +238,8 @@ impl Leaf for MusicPlayer {
                 Segment::new()
                     .with_x(SegmentUnit::new(100.0).fixed())
                     .with_y(SegmentUnit::new(100.0).fixed())
-                    .with_w(SegmentUnit::new(36.0).fixed())
-                    .with_h(SegmentUnit::new(36.0).fixed()),
+                    .with_w(SegmentUnit::new(40.0).fixed())
+                    .with_h(SegmentUnit::new(40.0).fixed()),
             ),
             WorkflowTest(34),
         );
