@@ -209,7 +209,7 @@ fn cursor_on_click(
             offset.0 = (((listener.interaction.current.x - pos.x - SPACING) / dims.0.width).floor()
                 as u32)
                 .min(mc.0.checked_sub(1).unwrap_or_default())
-                .min(text_val.0.len().checked_sub(1).unwrap_or_default() as u32);
+                .min(text_val.0.len() as u32);
             virtual_keyboard.open(VirtualKeyboardType::Keyboard);
         }
     }

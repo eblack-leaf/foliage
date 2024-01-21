@@ -3,10 +3,11 @@
 var<uniform> viewport: mat4x4<f32>;
 struct Vertex {
     @location(0) vertex_pos: vec2<f32>,
-    @location(1) vertex_tx: vec2<f32>,
+    @location(1) vertex_tx: vec2<u32>,
     @location(2) position: vec2<f32>,
     @location(3) area: vec2<f32>,
     @location(4) layer: f32,
+    @location(5) tex_coords: vec4<f32>,
 };
 struct VertexFragment {
     @builtin(position) position: vec4<f32>,
@@ -15,7 +16,8 @@ struct VertexFragment {
 @vertex
 fn vertex_entry(vertex: Vertex) -> VertexFragment {
     let pos = vec4<f32>(vertex.position + vertex.vertex_pos * vertex.area, vertex.layer, 1.0);
-    return VertexFragment(viewport * pos, vertex.vertex_tx);
+    let tex = vec2<f32>(vertex.tex_coords[vertex.vertex_tx.x], vertex.tex_coords[vertex.vertex_tx.y]);
+    return VertexFragment(viewport * pos, tex);
 }
 @group(1)
 @binding(0)

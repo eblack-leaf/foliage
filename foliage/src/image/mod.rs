@@ -4,6 +4,8 @@ mod vertex;
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
+use crate::coordinate::section::Section;
+use crate::coordinate::InterfaceContext;
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::config::{CoreSet, ElmConfiguration};
@@ -16,12 +18,16 @@ use bevy_ecs::prelude::{IntoSystemConfigs, Resource};
 use bevy_ecs::query::Added;
 use bevy_ecs::system::{Commands, Query};
 use serde::{Deserialize, Serialize};
+
 #[derive(Component, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ImageData(pub Option<Vec<u8>>);
+#[derive(Component, Copy, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct ImageView(pub Option<Section<InterfaceContext>>);
 #[derive(Bundle, Clone)]
 pub struct Image {
     image_id: DifferentialBundle<ImageId>,
     image_data: DifferentialBundle<ImageData>,
+    image_view: DifferentialBundle<ImageView>,
     differentiable: Differentiable,
 }
 impl Image {
@@ -29,6 +35,7 @@ impl Image {
         Self {
             image_id: DifferentialBundle::new(image_id),
             image_data: DifferentialBundle::new(ImageData(None)),
+            image_view: DifferentialBundle::new(ImageView::default()),
             differentiable: Differentiable::new::<Self>(
                 Position::default(),
                 Area::default(),
@@ -40,12 +47,17 @@ impl Image {
         Self {
             image_id: DifferentialBundle::new(image_id),
             image_data: DifferentialBundle::new(ImageData(Option::from(data))),
+            image_view: DifferentialBundle::new(ImageView::default()),
             differentiable: Differentiable::new::<Self>(
                 Position::default(),
                 Area::default(),
                 Layer::default(),
             ),
         }
+    }
+    pub fn with_view(mut self, view: Section<InterfaceContext>) -> Self {
+        self.image_view = DifferentialBundle::new(ImageView(Some(view)));
+        self
     }
 }
 fn clean_requests(mut cmd: Commands, query: Query<(Entity, &ImageData), Added<ImageData>>) {

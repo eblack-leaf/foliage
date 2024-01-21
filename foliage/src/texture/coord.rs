@@ -28,4 +28,9 @@ impl TexturePartition {
             section.bottom(),
         ])
     }
+    pub fn full() -> Self {
+        Self {
+            0: [0.0, 0.0, 1.0, 1.0],
+        }
+    }
 }

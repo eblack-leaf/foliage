@@ -1,6 +1,8 @@
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
-use crate::coordinate::{CoordinateContext, CoordinateUnit, DeviceContext, InterfaceContext};
+use crate::coordinate::{
+    CoordinateContext, CoordinateUnit, DeviceContext, InterfaceContext, NumericalContext,
+};
 use bevy_ecs::bundle::Bundle;
 use serde::{Deserialize, Serialize};
 
@@ -99,6 +101,9 @@ impl<Context: CoordinateContext> Section<Context> {
     pub fn with_area(mut self, area: Area<Context>) -> Self {
         self.area = area;
         self
+    }
+    pub fn as_numerical(&self) -> Section<NumericalContext> {
+        Section::new(self.position.to_numerical(), self.area.to_numerical())
     }
 }
 

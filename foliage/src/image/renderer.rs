@@ -4,13 +4,16 @@ use crate::ash::instruction::{
 use crate::ash::render::{Render, RenderPhase};
 use crate::ash::render_packet::RenderPacket;
 use crate::ash::renderer::RenderPackage;
-use crate::coordinate::area::CReprArea;
+use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::CReprPosition;
+use crate::coordinate::section::Section;
+use crate::coordinate::{InterfaceContext, NumericalContext};
 use crate::ginkgo::Ginkgo;
 use crate::image::vertex::{Vertex, VERTICES};
-use crate::image::{Image, ImageData, ImageId};
+use crate::image::{Image, ImageData, ImageId, ImageView};
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
+use crate::texture::coord::TexturePartition;
 use bevy_ecs::entity::Entity;
 use std::collections::HashMap;
 use wgpu::{BindGroup, BindGroupDescriptor, VertexState};
@@ -19,6 +22,8 @@ struct ImageGroup {
     coordinator: InstanceCoordinator<Entity>,
     tex: Option<(wgpu::Texture, wgpu::TextureView)>,
     bind_group: Option<BindGroup>,
+    dimensions: Area<NumericalContext>,
+    views: HashMap<Entity, Section<InterfaceContext>>,
 }
 impl ImageGroup {
     fn new(ginkgo: &Ginkgo) -> Self {
@@ -27,13 +32,17 @@ impl ImageGroup {
                 .with_attribute::<CReprPosition>()
                 .with_attribute::<CReprArea>()
                 .with_attribute::<Layer>()
+                .with_attribute::<TexturePartition>()
                 .build(ginkgo),
             tex: None,
             bind_group: None,
+            dimensions: Default::default(),
+            views: Default::default(),
         }
     }
     fn fill(&mut self, ginkgo: &Ginkgo, layout: &wgpu::BindGroupLayout, data: &[u8]) {
         let image = image::load_from_memory(data).unwrap().to_rgba8();
+        self.dimensions = (image.width(), image.height()).into();
         let image_bytes = image
             .pixels()
             .flat_map(|p| p.0.to_vec())
@@ -61,6 +70,7 @@ pub struct ImageRenderResources {
     package_layout: wgpu::BindGroupLayout,
     groups: HashMap<ImageId, ImageGroup>,
     vertex_buffer: wgpu::Buffer,
+    view_queue: HashMap<ImageId, HashMap<Entity, Section<InterfaceContext>>>,
 }
 pub struct ImageRenderPackage {
     last: ImageId,
@@ -123,7 +133,7 @@ impl Render for Image {
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<Vertex>(1),
                             step_mode: wgpu::VertexStepMode::Vertex,
-                            attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x2],
+                            attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Uint32x2],
                         },
                         wgpu::VertexBufferLayout {
                             array_stride: Ginkgo::buffer_address::<CReprPosition>(1),
@@ -139,6 +149,11 @@ impl Render for Image {
                             array_stride: Ginkgo::buffer_address::<Layer>(1),
                             step_mode: wgpu::VertexStepMode::Instance,
                             attributes: &wgpu::vertex_attr_array![4 => Float32],
+                        },
+                        wgpu::VertexBufferLayout {
+                            array_stride: Ginkgo::buffer_address::<TexturePartition>(1),
+                            step_mode: wgpu::VertexStepMode::Instance,
+                            attributes: &wgpu::vertex_attr_array![5 => Float32x4],
                         },
                     ],
                 },
@@ -159,6 +174,7 @@ impl Render for Image {
             package_layout,
             vertex_buffer,
             groups: HashMap::new(),
+            view_queue: HashMap::default(),
         }
     }
 
@@ -190,6 +206,32 @@ impl Render for Image {
                 .unwrap()
                 .coordinator
                 .queue_add(entity);
+            if let Some(view) = render_packet.get::<ImageView>() {
+                if let Some(v) = view.0 {
+                    if resources.view_queue.get(&image_id).is_none() {
+                        resources.view_queue.insert(image_id, HashMap::new());
+                    }
+                    resources
+                        .view_queue
+                        .get_mut(&image_id)
+                        .unwrap()
+                        .insert(entity, v);
+                } else {
+                    resources
+                        .groups
+                        .get_mut(&image_id)
+                        .unwrap()
+                        .coordinator
+                        .queue_write(entity, TexturePartition::full());
+                }
+            } else {
+                resources
+                    .groups
+                    .get_mut(&image_id)
+                    .unwrap()
+                    .coordinator
+                    .queue_write(entity, TexturePartition::full());
+            }
             resources
                 .groups
                 .get_mut(&image_id)
@@ -243,8 +285,33 @@ impl Render for Image {
                     .unwrap()
                     .coordinator
                     .queue_add(entity);
+                if let Some(v) = resources
+                    .groups
+                    .get_mut(&package.package_data.last)
+                    .unwrap()
+                    .views
+                    .remove(&entity)
+                {
+                    resources.view_queue.get_mut(&id).unwrap().insert(entity, v);
+                }
                 package.package_data.last = id;
                 package.signal_record();
+            }
+            if let Some(view) = render_packet.get::<ImageView>() {
+                if let Some(v) = view.0 {
+                    resources
+                        .view_queue
+                        .get_mut(&package.package_data.last)
+                        .unwrap()
+                        .insert(entity, v);
+                } else {
+                    resources
+                        .groups
+                        .get_mut(&package.package_data.last)
+                        .unwrap()
+                        .coordinator
+                        .queue_write(entity, TexturePartition::full());
+                }
             }
             resources
                 .groups
@@ -261,6 +328,23 @@ impl Render for Image {
         _per_renderer_record_hook: &mut bool,
     ) {
         // iter groups and prepare coordinators
+        for (id, queued) in resources.view_queue.drain() {
+            for qv in queued {
+                resources
+                    .groups
+                    .get_mut(&id)
+                    .unwrap()
+                    .views
+                    .insert(qv.0, qv.1);
+                let dims = resources.groups.get_mut(&id).unwrap().dimensions;
+                resources
+                    .groups
+                    .get_mut(&id)
+                    .unwrap()
+                    .coordinator
+                    .queue_write(qv.0, TexturePartition::new(qv.1.as_numerical(), dims));
+            }
+        }
         for (_id, group) in resources.groups.iter_mut() {
             if group.coordinator.prepare(ginkgo) {
                 *_per_renderer_record_hook = true;
@@ -296,6 +380,9 @@ fn record<'a>(
             recorder
                 .0
                 .set_vertex_buffer(3, group.coordinator.buffer::<Layer>().slice(..));
+            recorder
+                .0
+                .set_vertex_buffer(3, group.coordinator.buffer::<TexturePartition>().slice(..));
             recorder
                 .0
                 .draw(0..VERTICES.len() as u32, 0..group.coordinator.instances());
