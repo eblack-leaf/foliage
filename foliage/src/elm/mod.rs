@@ -6,7 +6,7 @@ use std::marker::PhantomData;
 
 use anymap::AnyMap;
 use bevy_ecs::bundle::Bundle;
-use bevy_ecs::event::{event_update_system, Event, EventWriter, Events};
+use bevy_ecs::event::{event_update_system, Event, Events};
 use bevy_ecs::prelude::{Component, DetectChanges, IntoSystemConfigs, Res};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Commands, Query, ResMut, StaticSystemParam, SystemParam};
@@ -180,12 +180,12 @@ impl Elm {
         self.job.resume();
         self.initialized = true;
     }
-    pub fn remove_web_element(id: &'static str) {
+    pub fn remove_web_element(_id: &'static str) {
         #[cfg(target_family = "wasm")]
         {
             use wasm_bindgen::{JsCast, JsValue};
             let document = web_sys::window().unwrap().document().unwrap();
-            if let Some(elem) = document.get_element_by_id(id) {
+            if let Some(elem) = document.get_element_by_id(_id) {
                 elem.dyn_into::<web_sys::HtmlElement>().unwrap().remove();
             }
         }
@@ -275,7 +275,7 @@ impl Elm {
                     InteractionHandlerTrigger::Engaged => listener.engaged(),
                 };
                 if should_run {
-                    handler(&ext, &mut ih);
+                    handler(&mut ih, &ext);
                 }
             }
         };

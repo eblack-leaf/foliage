@@ -55,8 +55,8 @@ impl Image {
             ),
         }
     }
-    pub fn with_view(mut self, view: Section<InterfaceContext>) -> Self {
-        self.image_view = DifferentialBundle::new(ImageView(Some(view)));
+    pub fn with_view(mut self, view: Option<Section<InterfaceContext>>) -> Self {
+        self.image_view = DifferentialBundle::new(ImageView(view));
         self
     }
 }

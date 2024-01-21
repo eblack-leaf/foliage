@@ -56,7 +56,7 @@ impl<W: Workflow + Default + Send + Sync + 'static> WorkflowConnectionBase<W> {
                 })
                 .spawn(_wp.as_str());
             } else {
-                let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel();
+                let (sender, receiver) = tokio::sync::mpsc::unbounded_channel();
                 tokio::task::spawn(native_handler::<W>(proxy, receiver));
                 let bridge = sender;
             }

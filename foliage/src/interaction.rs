@@ -126,7 +126,7 @@ impl KeyboardAdapter {
         }
         None
     }
-    pub(crate) fn update_modifiers(&mut self, modifiers: Modifiers) {}
+    pub(crate) fn update_modifiers(&mut self, _modifiers: Modifiers) {}
 }
 
 #[derive(Resource, Default)]

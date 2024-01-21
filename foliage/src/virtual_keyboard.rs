@@ -7,6 +7,7 @@ use bevy_ecs::prelude::{Component, Resource};
 /// Adapter to interface with soft-input (VirtualKeyboard)
 #[derive(Resource)]
 pub struct VirtualKeyboardAdapter {
+    #[allow(unused)]
     interface: AndroidInterface,
 }
 
@@ -57,12 +58,12 @@ impl VirtualKeyboardAdapter {
         }
     }
 
-    fn trigger_hook(ty: VirtualKeyboardType) {
+    fn trigger_hook(_ty: VirtualKeyboardType) {
         #[cfg(target_arch = "wasm32")]
         {
             use wasm_bindgen::{prelude::*, JsCast};
             let document = web_sys::window().unwrap().document().unwrap();
-            let trigger_element = match ty {
+            let trigger_element = match _ty {
                 VirtualKeyboardType::Keyboard => document
                     .get_element_by_id("keyboard_trigger")
                     .unwrap()

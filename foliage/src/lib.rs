@@ -257,17 +257,17 @@ impl Foliage {
                         WindowEvent::HoveredFileCancelled => {}
                         WindowEvent::Focused(_) => {}
                         WindowEvent::KeyboardInput {
-                            device_id,
+                            device_id: _,
                             event,
-                            is_synthetic,
+                            is_synthetic: _,
                         } => match event {
                             KeyEvent {
-                                physical_key,
+                                physical_key: _,
                                 logical_key,
-                                text,
-                                location,
+                                text: _,
+                                location: _,
                                 state,
-                                repeat,
+                                repeat: _,
                                 ..
                             } => {
                                 if let Some(e) = elm
@@ -292,8 +292,8 @@ impl Foliage {
                             Ime::Preedit(_, _) => {}
                             Ime::Commit {
                                 content,
-                                selection,
-                                compose_region,
+                                selection: _,
+                                compose_region: _,
                             } => {
                                 elm.send_event(KeyboardEvent::new(
                                     Key::Character(SmolStr::new(content)),

@@ -1,7 +1,7 @@
 use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
-use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
+use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::differential::Despawn;
 use crate::elm::config::{ElmConfiguration, ExternalSet};
 use crate::elm::leaf::{Leaf, Tag};
@@ -18,7 +18,6 @@ use crate::text::{FontSize, GlyphColorChanges, MaxCharacters, Text, TextKey, Tex
 use crate::texture::factors::Progress;
 use crate::virtual_keyboard::{VirtualKeyboardAdapter, VirtualKeyboardType};
 use crate::window::ScaleFactor;
-use bevy_ecs::change_detection::Mut;
 use bevy_ecs::component::Component;
 use bevy_ecs::event::EventReader;
 use bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
@@ -201,7 +200,7 @@ fn cursor_on_click(
     // mut ies: EventReader<InteractionEvent>,
     // primary_interaction: Res<PrimaryInteraction>,
 ) {
-    for (pos, handle, despawn, mut offset, listener, dims, mc, text_val) in text_inputs.iter_mut() {
+    for (pos, _handle, despawn, mut offset, listener, dims, mc, text_val) in text_inputs.iter_mut() {
         if despawn.should_despawn() {
             continue;
         }
@@ -314,7 +313,7 @@ fn handle_input(
                             NamedKey::Space => {
                                 if e.state.is_pressed() {
                                     let t = nk.to_text().unwrap();
-                                    add_text_input(&mut text_val, &mut offset, max_chars, t);
+                                    add_text_input(&mut text_val, offset.as_mut(), max_chars, t);
                                 }
                             }
                             _ => {}
@@ -322,7 +321,7 @@ fn handle_input(
                     }
                     Key::Character(ch) => {
                         if e.state.is_pressed() {
-                            add_text_input(&mut text_val, &mut offset, max_chars, ch.as_str());
+                            add_text_input(&mut text_val, offset.as_mut(), max_chars, ch.as_str());
                         }
                     }
                     Key::Unidentified(_) => {}
@@ -350,8 +349,8 @@ fn bounded_offset(
         .min(text_val.0.len() as u32);
 }
 fn add_text_input(
-    mut text_val: &mut Mut<TextValue>,
-    mut offset: &mut Mut<CursorOffset>,
+    text_val: &mut TextValue,
+    offset: &mut CursorOffset,
     max_chars: &MaxCharacters,
     t: &str,
 ) {

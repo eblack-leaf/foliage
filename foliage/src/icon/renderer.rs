@@ -19,7 +19,7 @@ use crate::texture::coord::TexturePartition;
 use bevy_ecs::entity::Entity;
 use std::collections::HashMap;
 use std::iter::StepBy;
-use std::ops::{Range, RangeInclusive};
+use std::ops::RangeInclusive;
 use wgpu::{BindGroup, BindGroupLayout};
 
 pub struct IconRenderResources {
@@ -103,6 +103,7 @@ fn smallest_size() {
         println!("id: {:?}, rect: {:?}", place.0, place.1);
     }
 }
+#[allow(unused)]
 pub(crate) fn icon_scale_range() -> StepBy<RangeInclusive<u32>> {
     (IconScale::LOWER_BOUND..=IconScale::UPPER_BOUND).step_by(IconScale::INTERVAL as usize)
 }
@@ -379,7 +380,6 @@ impl Icon {
         resources: &'a IconRenderResources,
         mut recorder: RenderInstructionsRecorder<'a>,
     ) -> Option<RenderInstructionHandle> {
-        let mut something_recorded = false;
         for (_, (instance_coordinator, bind_group)) in resources.icon_textures.iter() {
             if instance_coordinator.has_instances() {
                 recorder.0.set_pipeline(&resources.pipeline);
@@ -408,7 +408,6 @@ impl Icon {
                     0..VERTICES.len() as u32,
                     0..instance_coordinator.instances(),
                 );
-                something_recorded = true;
             }
         }
         Some(recorder.finish())

@@ -287,6 +287,7 @@ pub enum BundledIcon {
     ZoomIn,
     ZoomOut,
 }
+#[allow(unused)]
 pub(crate) const ICON_NAMES: [&'static str; 286] = [
     "activity",
     "airplay",

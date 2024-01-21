@@ -14,6 +14,7 @@ use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Commands, IntoSystemConfigs};
 use bevy_ecs::query::{Changed, Or, With, Without};
 use bevy_ecs::system::{Query, ResMut, SystemParamItem};
+use crate::coordinate::section::Section;
 
 #[derive(Component, Copy, Clone)]
 pub struct ImageDimensions(pub Area<NumericalContext>);
@@ -102,12 +103,14 @@ fn resize(
 pub struct AspectRatioImageArgs {
     id: ImageId,
     dims: ImageDimensions,
+    view: Option<Section<InterfaceContext>>,
 }
 impl AspectRatioImageArgs {
-    pub fn new<ID: Into<ImageId>, DIM: Into<ImageDimensions>>(id: ID, dim: DIM) -> Self {
+    pub fn new<ID: Into<ImageId>, DIM: Into<ImageDimensions>, S: Into<Section<InterfaceContext>>>(id: ID, dim: DIM, v: Option<S>) -> Self {
         Self {
             id: id.into(),
             dims: dim.into(),
+            view: if v.is_none() { None } else { Option::from(v.unwrap().into()) }
         }
     }
 }
@@ -126,7 +129,7 @@ impl Scene for AspectRatioImage {
         binder.bind(
             AspectRatioImageBindings::Image,
             (0.center(), 0.center(), 0),
-            Image::new(args.id),
+            Image::new(args.id).with_view(args.view),
             cmd,
         );
         Self {

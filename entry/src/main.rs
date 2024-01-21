@@ -1,7 +1,6 @@
 mod worker;
 
 use foliage::AndroidInterface;
-use tracing::level_filters::LevelFilter;
 use tracing::Level;
 use tracing_subscriber::filter::Targets;
 use tracing_subscriber::layer::SubscriberExt;
@@ -10,14 +9,6 @@ use tracing_subscriber::Layer;
 
 fn main() {
     let targets = Targets::new()
-        // .with_target("foliage", Level::TRACE)
-        // .with_target("foliage::differential", Level::TRACE)
-        // .with_target("foliage::compositor", Level::TRACE)
-        // .with_target("foliage::prebuilt", Level::TRACE)
-        // .with_target("foliage::ash::renderer", Level::TRACE)
-        // .with_target("foliage::texture", Level::TRACE)
-        // .with_target("foliage::time", Level::TRACE)
-        // .with_target("foliage::ash", LevelFilter::OFF)
         .with_target("example", Level::TRACE)
         .with_target("entry", Level::TRACE);
     #[cfg(not(target_family = "wasm"))]
