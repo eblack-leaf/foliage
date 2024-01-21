@@ -1,10 +1,8 @@
-
-
 #[cfg(test)]
 #[test]
 fn svg_to_png_to_cov() {
-    use std::path::Path;
     use crate::ginkgo::Ginkgo;
+    use std::path::Path;
     const SIZE: i32 = 32;
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("src")
@@ -42,10 +40,10 @@ fn svg_to_png_to_cov() {
 #[cfg(test)]
 #[test]
 fn generate() {
-    use crate::icon::bundled_cov::{ICON_NAMES};
-    use crate::icon::renderer::{icon_scale_range};
-    use std::path::Path;
     use crate::ginkgo::Ginkgo;
+    use crate::icon::bundled_cov::ICON_NAMES;
+    use crate::icon::renderer::icon_scale_range;
+    use std::path::Path;
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("src")
         .join("icon")
@@ -80,10 +78,10 @@ fn generate() {
 #[cfg(test)]
 #[test]
 fn place() {
-    use std::path::Path;
     use crate::icon::bundled_cov::{ICON_NAMES, ICON_RESOURCE_FILES};
-    use crate::icon::Icon;
     use crate::icon::renderer::placements;
+    use crate::icon::Icon;
+    use std::path::Path;
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("src")
         .join("icon")

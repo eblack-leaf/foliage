@@ -1,5 +1,6 @@
 use crate::compositor::layout::AspectRatio;
 use crate::coordinate::area::Area;
+use crate::coordinate::section::Section;
 use crate::coordinate::{InterfaceContext, NumericalContext};
 use crate::differential::Despawn;
 use crate::elm::config::{ElmConfiguration, ExternalSet};
@@ -14,7 +15,6 @@ use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Commands, IntoSystemConfigs};
 use bevy_ecs::query::{Changed, Or, With, Without};
 use bevy_ecs::system::{Query, ResMut, SystemParamItem};
-use crate::coordinate::section::Section;
 
 #[derive(Component, Copy, Clone)]
 pub struct ImageDimensions(pub Area<NumericalContext>);
@@ -106,11 +106,15 @@ pub struct AspectRatioImageArgs {
     view: Option<Section<InterfaceContext>>,
 }
 impl AspectRatioImageArgs {
-    pub fn new<ID: Into<ImageId>, DIM: Into<ImageDimensions>>(id: ID, dim: DIM, v: Option<Section<InterfaceContext>>) -> Self {
+    pub fn new<ID: Into<ImageId>, DIM: Into<ImageDimensions>>(
+        id: ID,
+        dim: DIM,
+        v: Option<Section<InterfaceContext>>,
+    ) -> Self {
         Self {
             id: id.into(),
             dims: dim.into(),
-            view: v
+            view: v,
         }
     }
 }

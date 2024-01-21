@@ -197,10 +197,9 @@ fn cursor_on_click(
         (Changed<InteractionListener>, With<Tag<TextInput>>),
     >,
     virtual_keyboard: Res<VirtualKeyboardAdapter>,
-    // mut ies: EventReader<InteractionEvent>,
-    // primary_interaction: Res<PrimaryInteraction>,
 ) {
-    for (pos, _handle, despawn, mut offset, listener, dims, mc, text_val) in text_inputs.iter_mut() {
+    for (pos, _handle, despawn, mut offset, listener, dims, mc, text_val) in text_inputs.iter_mut()
+    {
         if despawn.should_despawn() {
             continue;
         }
