@@ -77,6 +77,6 @@ impl Leaf for Image {
     fn attach(elm: &mut Elm) {
         elm.main()
             .add_systems(clean_requests.after(CoreSet::RenderPacket));
-        differential_enable!(elm, ImageId, ImageData);
+        differential_enable!(elm, ImageId, ImageData, ImageView);
     }
 }

@@ -224,13 +224,6 @@ impl Render for Image {
                         .coordinator
                         .queue_write(entity, TexturePartition::full());
                 }
-            } else {
-                resources
-                    .groups
-                    .get_mut(&image_id)
-                    .unwrap()
-                    .coordinator
-                    .queue_write(entity, TexturePartition::full());
             }
             resources
                 .groups
@@ -382,7 +375,7 @@ fn record<'a>(
                 .set_vertex_buffer(3, group.coordinator.buffer::<Layer>().slice(..));
             recorder
                 .0
-                .set_vertex_buffer(3, group.coordinator.buffer::<TexturePartition>().slice(..));
+                .set_vertex_buffer(4, group.coordinator.buffer::<TexturePartition>().slice(..));
             recorder
                 .0
                 .draw(0..VERTICES.len() as u32, 0..group.coordinator.instances());

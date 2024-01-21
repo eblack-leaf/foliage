@@ -106,11 +106,11 @@ pub struct AspectRatioImageArgs {
     view: Option<Section<InterfaceContext>>,
 }
 impl AspectRatioImageArgs {
-    pub fn new<ID: Into<ImageId>, DIM: Into<ImageDimensions>, S: Into<Section<InterfaceContext>>>(id: ID, dim: DIM, v: Option<S>) -> Self {
+    pub fn new<ID: Into<ImageId>, DIM: Into<ImageDimensions>>(id: ID, dim: DIM, v: Option<Section<InterfaceContext>>) -> Self {
         Self {
             id: id.into(),
             dims: dim.into(),
-            view: if v.is_none() { None } else { Option::from(v.unwrap().into()) }
+            view: v
         }
     }
 }
