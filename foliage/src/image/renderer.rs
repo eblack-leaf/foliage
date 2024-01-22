@@ -330,12 +330,25 @@ impl Render for Image {
                     .views
                     .insert(qv.0, qv.1);
                 let dims = resources.groups.get_mut(&id).unwrap().dimensions;
+                let mut view = qv.1.as_numerical();
+                if view.right() > dims.width {
+                    let overage = view.right() - dims.width;
+                    let percent = overage / dims.width;
+                    view.area.width -= overage;
+                    view.area.height -= view.area.height * percent;
+                }
+                if view.bottom() > dims.height {
+                    let overage = view.bottom() - dims.height;
+                    let percent = overage / dims.height;
+                    view.area.height -= overage;
+                    view.area.width -= view.area.width * percent;
+                }
                 resources
                     .groups
                     .get_mut(&id)
                     .unwrap()
                     .coordinator
-                    .queue_write(qv.0, TexturePartition::new(qv.1.as_numerical(), dims));
+                    .queue_write(qv.0, TexturePartition::new(view, dims));
             }
         }
         for (_id, group) in resources.groups.iter_mut() {
