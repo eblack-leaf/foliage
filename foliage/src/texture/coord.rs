@@ -22,10 +22,10 @@ impl TexturePartition {
     pub fn new(part: Section<NumericalContext>, whole: Area<NumericalContext>) -> Self {
         let section = part.normalized(whole);
         Self([
-            section.left(),
-            section.top(),
-            section.right(),
-            section.bottom(),
+            section.left().min(1.0).max(0.0),
+            section.top().min(1.0).max(0.0),
+            section.right().min(1.0).max(0.0),
+            section.bottom().min(1.0).max(0.0),
         ])
     }
     pub fn full() -> Self {

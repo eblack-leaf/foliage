@@ -58,6 +58,7 @@ pub mod differential;
 pub mod elm;
 mod generator;
 pub mod ginkgo;
+pub mod grid;
 pub mod icon;
 pub mod image;
 pub mod instance;

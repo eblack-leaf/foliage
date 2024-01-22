@@ -56,7 +56,6 @@ fn resize(
     mut rectangles: Query<(&mut Area<InterfaceContext>, &mut Progress), Without<Tag<ProgressBar>>>,
     mut coordinator: ResMut<SceneCoordinator>,
 ) {
-    // tracing::trace!("updating-progress-bars");
     for (handle, area, progress, despawn) in scenes.iter() {
         if despawn.should_despawn() {
             continue;
