@@ -11,7 +11,7 @@ use crate::coordinate::section::Section;
 use crate::coordinate::{InterfaceContext, NumericalContext};
 use crate::ginkgo::Ginkgo;
 use crate::image::vertex::{Vertex, VERTICES};
-use crate::image::{Image, ImageData, ImageId, ImageView};
+use crate::image::{Image, ImageData, ImageId, ImageStorage, ImageView};
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
 use crate::texture::coord::TexturePartition;
 use bevy_ecs::entity::Entity;
@@ -23,7 +23,10 @@ struct ImageGroup {
     tex: Option<(wgpu::Texture, wgpu::TextureView)>,
     bind_group: Option<BindGroup>,
     dimensions: Area<NumericalContext>,
+    storage: Area<NumericalContext>,
     views: HashMap<Entity, Section<InterfaceContext>>,
+    data: Vec<u8>,
+    data_queued: bool,
 }
 impl ImageGroup {
     fn new(ginkgo: &Ginkgo) -> Self {
@@ -37,19 +40,59 @@ impl ImageGroup {
             tex: None,
             bind_group: None,
             dimensions: Default::default(),
+            storage: Area::default(),
             views: Default::default(),
+            data: vec![],
+            data_queued: false,
         }
     }
-    fn fill(&mut self, ginkgo: &Ginkgo, layout: &wgpu::BindGroupLayout, data: &[u8]) {
-        let image = image::load_from_memory(data).unwrap().to_rgba8();
+    fn queue_data(&mut self, data: Vec<u8>) {
+        self.data = data;
+        self.data_queued = true;
+    }
+    fn write_data(&mut self, ginkgo: &Ginkgo) -> TexturePartition {
+        let image = image::load_from_memory(self.data.as_slice())
+            .unwrap()
+            .to_rgba8();
         self.dimensions = (image.width(), image.height()).into();
         let image_bytes = image
             .pixels()
             .flat_map(|p| p.0.to_vec())
             .collect::<Vec<u8>>();
+        ginkgo.queue().write_texture(wgpu::ImageCopyTexture {
+            texture: &self.tex.as_ref().unwrap().0,
+            mip_level: 0,
+            origin: wgpu::Origin3d::default(),
+            aspect: wgpu::TextureAspect::All,
+        }, image_bytes.as_slice(), wgpu::ImageDataLayout {
+            offset: 0,
+            bytes_per_row: Option::from(self.dimensions.width as u32 * 4),
+            rows_per_image: Option::from(self.dimensions.height as u32 * 4),
+        }, wgpu::Extent3d {
+            width: self.dimensions.width as u32,
+            height: self.dimensions.height as u32,
+            depth_or_array_layers: 0,
+        });
+        TexturePartition::new(Section::default().with_area(self.dimensions), self.storage)
+    }
+    fn fill(
+        &mut self,
+        ginkgo: &Ginkgo,
+        layout: &wgpu::BindGroupLayout,
+        storage: Area<NumericalContext>,
+    ) -> TexturePartition {
+        let image = image::load_from_memory(self.data.as_slice())
+            .unwrap()
+            .to_rgba8();
+        self.dimensions = (image.width(), image.height()).into();
+        self.storage = storage;
+        let image_bytes = image
+            .pixels()
+            .flat_map(|p| p.0.to_vec())
+            .collect::<Vec<u8>>();
         self.tex.replace(ginkgo.texture_rgba8unorm_srgb_d2(
-            image.width(),
-            image.height(),
+            storage.width as u32,
+            storage.height as u32,
             1,
             image_bytes.as_slice(),
         ));
@@ -62,6 +105,8 @@ impl ImageGroup {
                     0,
                 )],
             }));
+        self.data_queued = false;
+        TexturePartition::new(Section::default().with_area(self.dimensions), self.storage)
     }
 }
 pub struct ImageRenderResources {
@@ -70,7 +115,8 @@ pub struct ImageRenderResources {
     package_layout: wgpu::BindGroupLayout,
     groups: HashMap<ImageId, ImageGroup>,
     vertex_buffer: wgpu::Buffer,
-    view_queue: HashMap<ImageId, HashMap<Entity, Section<InterfaceContext>>>,
+    view_queue: HashMap<ImageId, HashMap<Entity, Option<Section<InterfaceContext>>>>,
+    full_coords: HashMap<ImageId, TexturePartition>,
 }
 pub struct ImageRenderPackage {
     last: ImageId,
@@ -175,6 +221,7 @@ impl Render for Image {
             vertex_buffer,
             groups: HashMap::new(),
             view_queue: HashMap::default(),
+            full_coords: HashMap::new(),
         }
     }
 
@@ -189,12 +236,36 @@ impl Render for Image {
             resources.groups.insert(image_id, ImageGroup::new(ginkgo));
         }
         let image_data = render_packet.get::<ImageData>().unwrap();
+        let mut wr = false;
         if let Some(data) = image_data.0 {
-            resources.groups.get_mut(&image_id).unwrap().fill(
+            // queue fill
+            resources
+                .groups
+                .get_mut(&image_id)
+                .unwrap()
+                .queue_data(data);
+            wr = true;
+        }
+        if let Some(storage) = render_packet.get::<ImageStorage>().unwrap().0 {
+            // create bind group + run fill
+            let partition = resources.groups.get_mut(&image_id).unwrap().fill(
                 ginkgo,
                 &resources.package_layout,
-                data.as_slice(),
+                storage,
             );
+            resources.full_coords.insert(image_id, partition);
+            wr = true;
+        }
+        if wr {
+            if resources.groups.get_mut(&image_id).unwrap().data_queued {
+                let partition = resources.groups.get_mut(&image_id).unwrap().write_data(ginkgo);
+                resources.full_coords.insert(image_id, partition);
+                for ent in resources.groups.get_mut(&image_id).unwrap().coordinator.keys() {
+                    let v = resources.groups.get_mut(&image_id).unwrap().views.get(&ent).cloned();
+                    resources.view_queue.get_mut(&image_id).unwrap().insert(ent, v);
+                }
+                resources.groups.get_mut(&image_id).unwrap().data_queued = false;
+            }
             return ImageRenderPackage {
                 last: image_id,
                 was_request: true,
@@ -206,25 +277,14 @@ impl Render for Image {
                 .unwrap()
                 .coordinator
                 .queue_add(entity);
-            if let Some(view) = render_packet.get::<ImageView>() {
-                if let Some(v) = view.0 {
-                    if resources.view_queue.get(&image_id).is_none() {
-                        resources.view_queue.insert(image_id, HashMap::new());
-                    }
-                    resources
-                        .view_queue
-                        .get_mut(&image_id)
-                        .unwrap()
-                        .insert(entity, v);
-                } else {
-                    resources
-                        .groups
-                        .get_mut(&image_id)
-                        .unwrap()
-                        .coordinator
-                        .queue_write(entity, TexturePartition::full());
-                }
+            if resources.view_queue.get(&image_id).is_none() {
+                resources.view_queue.insert(image_id, HashMap::new());
             }
+            resources
+                .view_queue
+                .get_mut(&image_id)
+                .unwrap()
+                .insert(entity, render_packet.get::<ImageView>().unwrap().0);
             resources
                 .groups
                 .get_mut(&image_id)
@@ -278,33 +338,46 @@ impl Render for Image {
                     .unwrap()
                     .coordinator
                     .queue_add(entity);
-                if let Some(v) = resources
+                let a = resources
                     .groups
                     .get_mut(&package.package_data.last)
                     .unwrap()
                     .views
-                    .remove(&entity)
-                {
-                    resources.view_queue.get_mut(&id).unwrap().insert(entity, v);
-                }
+                    .remove(&entity);
+                resources.view_queue.get_mut(&id).unwrap().insert(entity, a);
                 package.package_data.last = id;
                 package.signal_record();
             }
             if let Some(view) = render_packet.get::<ImageView>() {
-                if let Some(v) = view.0 {
+                if resources
+                    .view_queue
+                    .get(&package.package_data.last)
+                    .is_none()
+                {
                     resources
                         .view_queue
-                        .get_mut(&package.package_data.last)
-                        .unwrap()
-                        .insert(entity, v);
-                } else {
-                    resources
-                        .groups
-                        .get_mut(&package.package_data.last)
-                        .unwrap()
-                        .coordinator
-                        .queue_write(entity, TexturePartition::full());
+                        .insert(package.package_data.last, HashMap::new());
                 }
+                resources
+                    .view_queue
+                    .get_mut(&package.package_data.last)
+                    .unwrap()
+                    .insert(entity, view.0);
+            } else {
+                if resources
+                    .view_queue
+                    .get(&package.package_data.last)
+                    .is_none()
+                {
+                    resources
+                        .view_queue
+                        .insert(package.package_data.last, HashMap::new());
+                }
+                resources
+                    .view_queue
+                    .get_mut(&package.package_data.last)
+                    .unwrap()
+                    .insert(entity, None);
             }
             resources
                 .groups
@@ -322,33 +395,40 @@ impl Render for Image {
     ) {
         // iter groups and prepare coordinators
         for (id, queued) in resources.view_queue.drain() {
-            for qv in queued {
-                resources
-                    .groups
-                    .get_mut(&id)
-                    .unwrap()
-                    .views
-                    .insert(qv.0, qv.1);
-                let dims = resources.groups.get_mut(&id).unwrap().dimensions;
-                let mut view = qv.1.as_numerical();
-                if view.right() > dims.width {
-                    let overage = view.right() - dims.width;
-                    let percent = overage / dims.width;
-                    view.area.width -= overage;
-                    view.area.height -= view.area.height * percent;
+            for (ent, sec) in queued {
+                if let Some(s) = sec {
+                    resources.groups.get_mut(&id).unwrap().views.insert(ent, s);
+                    let dims = resources.groups.get_mut(&id).unwrap().dimensions;
+                    let mut view = s.as_numerical();
+                    if view.right() > dims.width {
+                        let overage = view.right() - dims.width;
+                        let percent = overage / dims.width;
+                        view.area.width -= overage;
+                        view.area.height -= view.area.height * percent;
+                    }
+                    if view.bottom() > dims.height {
+                        let overage = view.bottom() - dims.height;
+                        let percent = overage / dims.height;
+                        view.area.height -= overage;
+                        view.area.width -= view.area.width * percent;
+                    }
+                    let storage = resources.groups.get_mut(&id).unwrap().storage;
+                    resources
+                        .groups
+                        .get_mut(&id)
+                        .unwrap()
+                        .coordinator
+                        .queue_write(ent, TexturePartition::new(view, storage));
+                } else {
+                    // write full
+                    let full = resources.full_coords.get_mut(&id).unwrap().clone();
+                    resources
+                        .groups
+                        .get_mut(&id)
+                        .unwrap()
+                        .coordinator
+                        .queue_write(ent, full);
                 }
-                if view.bottom() > dims.height {
-                    let overage = view.bottom() - dims.height;
-                    let percent = overage / dims.height;
-                    view.area.height -= overage;
-                    view.area.width -= view.area.width * percent;
-                }
-                resources
-                    .groups
-                    .get_mut(&id)
-                    .unwrap()
-                    .coordinator
-                    .queue_write(qv.0, TexturePartition::new(view, dims));
             }
         }
         for (_id, group) in resources.groups.iter_mut() {

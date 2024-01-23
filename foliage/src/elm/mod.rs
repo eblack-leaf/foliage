@@ -260,9 +260,9 @@ impl Elm {
     pub fn add_interaction_handler<IH: Component + 'static, Ext: SystemParam + 'static>(
         &mut self,
         trigger: InteractionHandlerTrigger,
-        handler: fn(&mut IH, &StaticSystemParam<Ext>),
+        handler: fn(&mut IH, &mut StaticSystemParam<Ext>),
     ) {
-        let func = move |ext: StaticSystemParam<Ext>,
+        let func = move |mut ext: StaticSystemParam<Ext>,
                          mut ihs: Query<
             (&InteractionListener, &mut IH),
             Changed<InteractionListener>,
@@ -275,7 +275,7 @@ impl Elm {
                     InteractionHandlerTrigger::Engaged => listener.engaged(),
                 };
                 if should_run {
-                    handler(&mut ih, &ext);
+                    handler(&mut ih, &mut ext);
                 }
             }
         };
