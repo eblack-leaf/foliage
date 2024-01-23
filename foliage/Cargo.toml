@@ -21,7 +21,7 @@ nalgebra = "0.32.3"
 anymap = "0.12.1"
 compact_str = { version = "0.7.1" , features = ["serde"]}
 rmp-serde = "1.1.2"
-image = { version = "0.24.6" , features = ["png", "jpeg"]}
+image = { version = "0.24.8" , features = ["png", "jpeg"]}
 fontdue = "0.8.0"
 indexmap = "2.1.0"
 tracing = "0.1.40"

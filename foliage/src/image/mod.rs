@@ -109,6 +109,6 @@ impl Leaf for Image {
             clean_requests.after(CoreSet::RenderPacket),
             send_image_data.in_set(CoreSet::Differential),
         ));
-        differential_enable!(elm, ImageId, ImageStorage);
+        differential_enable!(elm, ImageId, ImageStorage, ImageData);
     }
 }

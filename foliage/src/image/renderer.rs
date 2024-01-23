@@ -49,7 +49,8 @@ impl ImageGroup {
         self.data_queued = true;
     }
     fn write_data(&mut self, ginkgo: &Ginkgo) -> TexturePartition {
-        let image = image::load_from_memory(self.data.as_slice())
+        let slice = self.data.as_slice();
+        let image = image::load_from_memory(slice)
             .unwrap()
             .to_rgba8();
         self.dimensions = (image.width(), image.height()).into();
@@ -79,23 +80,23 @@ impl ImageGroup {
         layout: &wgpu::BindGroupLayout,
         storage: Area<NumericalContext>,
     ) -> TexturePartition {
-        let image = image::load_from_memory(self.data.as_slice())
-            .unwrap()
-            .to_rgba8();
-        self.dimensions = (image.width(), image.height()).into();
         self.storage = storage;
-        let image_bytes = image
-            .pixels()
-            .flat_map(|p| p.0.to_vec())
-            .collect::<Vec<u8>>();
-        self.tex.replace(ginkgo.texture_rgba8unorm_srgb_d2(
-            storage.width as u32,
-            storage.height as u32,
-            1,
-            &[0u8],
-        ));
-        self.data = image_bytes;
-        self.write_data(ginkgo);
+        let tex = ginkgo.device().create_texture(&wgpu::TextureDescriptor{
+            label: Some("image-tex"),
+            size: wgpu::Extent3d {
+                width: self.storage.width as u32,
+                height: self.storage.height as u32,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            usage: wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[wgpu::TextureFormat::Rgba8UnormSrgb],
+        });
+        let tex_view = tex.create_view(&wgpu::TextureViewDescriptor::default());
+        self.tex.replace((tex, tex_view));
         self.bind_group
             .replace(ginkgo.device().create_bind_group(&BindGroupDescriptor {
                 label: Some("image-group-bind-group"),
@@ -106,7 +107,7 @@ impl ImageGroup {
                 )],
             }));
         self.data_queued = false;
-        TexturePartition::new(Section::default().with_area(self.dimensions), self.storage)
+        self.write_data(ginkgo)
     }
 }
 pub struct ImageRenderResources {
