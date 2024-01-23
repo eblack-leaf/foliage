@@ -101,7 +101,11 @@ fn send_image_data(
     mut image_requests: Query<(&mut ImageData, &mut RenderPacketStore), Changed<ImageData>>,
 ) {
     for (mut data, mut store) in image_requests.iter_mut() {
-        store.put(ImageData(Some(data.0.take().unwrap())));
+        if data.0.is_some() {
+            store.put(ImageData(Some(data.0.take().unwrap())));
+        } else {
+            store.put(ImageData(None));
+        }
     }
 }
 #[derive(Resource, Copy, Clone, Serialize, Deserialize, Hash, Eq, PartialEq, Component)]

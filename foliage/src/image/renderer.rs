@@ -67,11 +67,11 @@ impl ImageGroup {
         }, image_bytes.as_slice(), wgpu::ImageDataLayout {
             offset: 0,
             bytes_per_row: Option::from(self.dimensions.width as u32 * 4),
-            rows_per_image: Option::from(self.dimensions.height as u32 * 4),
+            rows_per_image: None,
         }, wgpu::Extent3d {
             width: self.dimensions.width as u32,
             height: self.dimensions.height as u32,
-            depth_or_array_layers: 0,
+            depth_or_array_layers: 1,
         });
         TexturePartition::new(Section::default().with_area(self.dimensions), self.storage)
     }
@@ -86,10 +86,11 @@ impl ImageGroup {
             .to_rgba8();
         self.dimensions = (image.width(), image.height()).into();
         self.storage = storage;
-        let image_bytes = image
+        let mut image_bytes = image
             .pixels()
             .flat_map(|p| p.0.to_vec())
             .collect::<Vec<u8>>();
+        image_bytes.resize((storage.width * storage.height) as usize * 4, 0u8);
         self.tex.replace(ginkgo.texture_rgba8unorm_srgb_d2(
             storage.width as u32,
             storage.height as u32,
