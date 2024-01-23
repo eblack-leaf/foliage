@@ -104,10 +104,7 @@ pub struct AspectRatioImageArgs {
     dims: ImageDimensions,
 }
 impl AspectRatioImageArgs {
-    pub fn new<ID: Into<ImageId>, DIM: Into<ImageDimensions>>(
-        id: ID,
-        dim: DIM,
-    ) -> Self {
+    pub fn new<ID: Into<ImageId>, DIM: Into<ImageDimensions>>(id: ID, dim: DIM) -> Self {
         Self {
             id: id.into(),
             dims: dim.into(),

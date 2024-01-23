@@ -50,28 +50,31 @@ impl ImageGroup {
     }
     fn write_data(&mut self, ginkgo: &Ginkgo) -> TexturePartition {
         let slice = self.data.as_slice();
-        let image = image::load_from_memory(slice)
-            .unwrap()
-            .to_rgba8();
+        let image = image::load_from_memory(slice).unwrap().to_rgba8();
         self.dimensions = (image.width(), image.height()).into();
         let image_bytes = image
             .pixels()
             .flat_map(|p| p.0.to_vec())
             .collect::<Vec<u8>>();
-        ginkgo.queue().write_texture(wgpu::ImageCopyTexture {
-            texture: &self.tex.as_ref().unwrap().0,
-            mip_level: 0,
-            origin: wgpu::Origin3d::default(),
-            aspect: wgpu::TextureAspect::All,
-        }, image_bytes.as_slice(), wgpu::ImageDataLayout {
-            offset: 0,
-            bytes_per_row: Option::from(self.dimensions.width as u32 * 4),
-            rows_per_image: Option::from(self.dimensions.height as u32),
-        }, wgpu::Extent3d {
-            width: self.dimensions.width as u32,
-            height: self.dimensions.height as u32,
-            depth_or_array_layers: 1,
-        });
+        ginkgo.queue().write_texture(
+            wgpu::ImageCopyTexture {
+                texture: &self.tex.as_ref().unwrap().0,
+                mip_level: 0,
+                origin: wgpu::Origin3d::default(),
+                aspect: wgpu::TextureAspect::All,
+            },
+            image_bytes.as_slice(),
+            wgpu::ImageDataLayout {
+                offset: 0,
+                bytes_per_row: Option::from(self.dimensions.width as u32 * 4),
+                rows_per_image: Option::from(self.dimensions.height as u32),
+            },
+            wgpu::Extent3d {
+                width: self.dimensions.width as u32,
+                height: self.dimensions.height as u32,
+                depth_or_array_layers: 1,
+            },
+        );
         TexturePartition::new(Section::default().with_area(self.dimensions), self.storage)
     }
     fn fill(
@@ -81,7 +84,7 @@ impl ImageGroup {
         storage: Area<NumericalContext>,
     ) -> TexturePartition {
         self.storage = storage;
-        let tex = ginkgo.device().create_texture(&wgpu::TextureDescriptor{
+        let tex = ginkgo.device().create_texture(&wgpu::TextureDescriptor {
             label: Some("image-tex"),
             size: wgpu::Extent3d {
                 width: self.storage.width as u32,
@@ -262,7 +265,11 @@ impl Render for Image {
                 resources.view_queue.insert((image_id, instance));
             }
             if resources.groups.get_mut(&image_id).unwrap().data_queued {
-                let partition = resources.groups.get_mut(&image_id).unwrap().write_data(ginkgo);
+                let partition = resources
+                    .groups
+                    .get_mut(&image_id)
+                    .unwrap()
+                    .write_data(ginkgo);
                 resources.full_coords.insert(image_id, partition);
                 resources.groups.get_mut(&image_id).unwrap().data_queued = false;
             }
