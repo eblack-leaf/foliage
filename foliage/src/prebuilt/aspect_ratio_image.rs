@@ -1,6 +1,5 @@
 use crate::compositor::layout::AspectRatio;
 use crate::coordinate::area::Area;
-use crate::coordinate::section::Section;
 use crate::coordinate::{InterfaceContext, NumericalContext};
 use crate::differential::Despawn;
 use crate::elm::config::{ElmConfiguration, ExternalSet};
@@ -103,18 +102,15 @@ fn resize(
 pub struct AspectRatioImageArgs {
     id: ImageId,
     dims: ImageDimensions,
-    view: Option<Section<InterfaceContext>>,
 }
 impl AspectRatioImageArgs {
     pub fn new<ID: Into<ImageId>, DIM: Into<ImageDimensions>>(
         id: ID,
         dim: DIM,
-        v: Option<Section<InterfaceContext>>,
     ) -> Self {
         Self {
             id: id.into(),
             dims: dim.into(),
-            view: v,
         }
     }
 }
@@ -133,7 +129,7 @@ impl Scene for AspectRatioImage {
         binder.bind(
             AspectRatioImageBindings::Image,
             (0.center(), 0.center(), 0),
-            Image::new(args.id).with_view(args.view),
+            Image::new(args.id),
             cmd,
         );
         Self {

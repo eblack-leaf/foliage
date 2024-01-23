@@ -5,8 +5,7 @@ use crate::ash::render_packet::RenderPacketStore;
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
-use crate::coordinate::section::Section;
-use crate::coordinate::{InterfaceContext, NumericalContext};
+use crate::coordinate::NumericalContext;
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::config::{CoreSet, ElmConfiguration};
@@ -22,8 +21,6 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Component, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ImageData(pub Option<Vec<u8>>);
-#[derive(Component, Copy, Clone, Default, Serialize, Deserialize, PartialEq)]
-pub struct ImageView(pub Option<Section<InterfaceContext>>);
 #[derive(Component, Copy, Clone, Default)]
 pub(crate) struct RequestFlag(pub(crate) bool);
 #[derive(Bundle, Clone)]
@@ -32,7 +29,6 @@ pub struct Image {
     image_data: ImageData,
     was_request: RequestFlag,
     image_storage: DifferentialBundle<ImageStorage>,
-    image_view: DifferentialBundle<ImageView>,
     differentiable: Differentiable,
 }
 impl Image {
@@ -42,7 +38,6 @@ impl Image {
             image_data: ImageData(None),
             was_request: RequestFlag::default(),
             image_storage: DifferentialBundle::new(ImageStorage::default()),
-            image_view: DifferentialBundle::new(ImageView::default()),
             differentiable: Differentiable::new::<Self>(
                 Position::default(),
                 Area::default(),
@@ -56,7 +51,6 @@ impl Image {
             image_data: ImageData(Option::from(data)),
             was_request: RequestFlag(true),
             image_storage: DifferentialBundle::new(ImageStorage::default()),
-            image_view: DifferentialBundle::new(ImageView::default()),
             differentiable: Differentiable::new::<Self>(
                 Position::default(),
                 Area::default(),
@@ -70,17 +64,12 @@ impl Image {
             image_data: ImageData(Option::from(data)),
             was_request: RequestFlag(true),
             image_storage: DifferentialBundle::new(storage),
-            image_view: DifferentialBundle::new(ImageView::default()),
             differentiable: Differentiable::new::<Self>(
                 Position::default(),
                 Area::default(),
                 Layer::default(),
             ),
         }
-    }
-    pub fn with_view(mut self, view: Option<Section<InterfaceContext>>) -> Self {
-        self.image_view = DifferentialBundle::new(ImageView(view));
-        self
     }
 }
 #[derive(Component, Copy, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -120,6 +109,6 @@ impl Leaf for Image {
             clean_requests.after(CoreSet::RenderPacket),
             send_image_data.in_set(CoreSet::Differential),
         ));
-        differential_enable!(elm, ImageId, ImageStorage, ImageView);
+        differential_enable!(elm, ImageId, ImageStorage);
     }
 }
