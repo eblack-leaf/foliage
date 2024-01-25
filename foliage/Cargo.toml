@@ -7,8 +7,8 @@ edition = "2021"
 
 [dependencies]
 wgpu = { version = "0.19.0", default-features = false, features = ["webgl", "wgsl", "metal"]}
-#winit = { git = "https://github.com/rust-windowing/winit.git", features = ["android-game-activity", "x11"]}
-winit = { path = "../../winit-fork-29", features = ["android-game-activity", "x11"]}
+winit = { git = "https://github.com/rust-windowing/winit.git", features = ["android-game-activity", "x11"]}
+#winit = { path = "../../winit-fork-29", features = ["android-game-activity", "x11"]}
 bevy_ecs = "0.12.1"
 cfg-if = "1.0.0"
 wasm-bindgen-futures = "0.4.39"
