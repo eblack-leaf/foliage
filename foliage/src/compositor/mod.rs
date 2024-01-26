@@ -57,7 +57,9 @@ impl Compositor {
     }
     pub fn add_view<VH: Into<ViewHandle>>(&mut self, vh: VH) {
         let handle = vh.into();
-        self.views.insert(handle, View::default());
+        if self.views.get(&handle).is_none() {
+            self.views.insert(handle, View::default());
+        }
     }
 }
 #[derive(Bundle)]

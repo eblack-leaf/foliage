@@ -190,6 +190,12 @@ impl Elm {
             }
         }
     }
+    fn add_view(&mut self, view_handle: ViewHandle) {
+        self.container()
+            .get_resource_mut::<Compositor>()
+            .unwrap()
+            .add_view(view_handle);
+    }
     pub fn add_view_binding<
         VH: Into<ViewHandle>,
         B: Bundle + Clone,
@@ -203,6 +209,7 @@ impl Elm {
         ext: Ext,
     ) {
         let view_handle = vh.into();
+        self.add_view(view_handle);
         let responsive_segment = rs.into().at_view(view_handle);
         let func = move |current: Res<CurrentView>,
                          mut cmd: Commands,
@@ -232,6 +239,7 @@ impl Elm {
         rs: ResponsiveSegment,
         ext: Ext,
     ) {
+        self.add_view(view_handle);
         let responsive_segment = rs.at_view(view_handle);
         let func = move |current: Res<CurrentView>,
                          mut cmd: Commands,

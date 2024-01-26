@@ -50,8 +50,6 @@ fn setup(
     mut track_events: EventWriter<TrackEvent>,
 ) {
     let begin = ViewHandle::new(0, 0);
-    compositor.add_view(begin);
-    compositor.add_view(ViewHandle::new(0, 1));
     current.0 = begin;
     track_events.send(TrackEvent {
         length: TimeDelta::from_secs(24),
