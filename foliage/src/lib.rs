@@ -1,14 +1,14 @@
 #![allow(clippy::type_complexity)]
 
-pub use bevy_ecs;
-use bevy_ecs::prelude::Resource;
-pub use wgpu;
-use winit::event::{Event, Ime, KeyEvent, MouseButton, StartCause, WindowEvent};
-use winit::event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopWindowTarget};
 use ash::identification::RenderIdentification;
 use ash::leaflet::RenderLeaflet;
+pub use bevy_ecs;
+use bevy_ecs::prelude::Resource;
 use elm::leaf::{Leaf, Leaflet};
+pub use wgpu;
 use window::{WindowDescriptor, WindowHandle};
+use winit::event::{Event, Ime, KeyEvent, MouseButton, StartCause, WindowEvent};
+use winit::event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopWindowTarget};
 
 use crate::ash::render::Render;
 use crate::ash::Ash;
@@ -23,8 +23,8 @@ use crate::ginkgo::Ginkgo;
 use crate::icon::Icon;
 use crate::image::Image;
 use crate::interaction::{
-    Interaction, InteractionEvent, InteractionId, InteractionPhase, KeyboardAdapter,
-    KeyboardEvent, MouseAdapter,
+    Interaction, InteractionEvent, InteractionId, InteractionPhase, KeyboardAdapter, KeyboardEvent,
+    MouseAdapter,
 };
 use crate::panel::Panel;
 use crate::prebuilt::aspect_ratio_image::AspectRatioImage;
@@ -289,15 +289,14 @@ impl Foliage {
                         WindowEvent::Ime(ime) => match ime {
                             Ime::Enabled => {}
                             Ime::Preedit(_, _) => {}
-                            Ime::Commit(string) => {
+                            Ime::Commit(_string) => {
                                 // elm.send_event(KeyboardEvent::new(
                                 //     Key::Character(SmolStr::new(content)),
                                 //     State::Pressed,
                                 //     Mods::default(),
                                 // ));
                             }
-                            Ime::Disabled => {}
-                            // Ime::DeleteSurroundingText { .. } => {}
+                            Ime::Disabled => {} // Ime::DeleteSurroundingText { .. } => {}
                         },
                         WindowEvent::CursorMoved {
                             device_id: _,

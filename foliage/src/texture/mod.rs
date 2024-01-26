@@ -108,7 +108,7 @@ impl<ResourceKey: Hash + Eq + Clone, TexelData: Default + Sized + Clone + Pod + 
         capacity: u32,
         format: wgpu::TextureFormat,
     ) -> Self {
-        let mut logical_dim = (capacity as f32).sqrt().floor() as u32;
+        let mut logical_dim = ((capacity as f32).sqrt().floor() as u32).max(1);
         while logical_dim.pow(2) < capacity {
             logical_dim += 1;
         }

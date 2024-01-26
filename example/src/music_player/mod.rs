@@ -253,11 +253,11 @@ impl Leaf for MusicPlayer {
             ViewHandle::new(0, 0),
             TextInputArgs::new(
                 MaxCharacters(10),
-                TextValue::new("hello"),
-                None,
+                TextValue::new(""),
+                Some(TextValue::new("hello-te")),
                 Color::GREEN_MEDIUM,
                 Color::GREY_DARK,
-                true
+                false,
             ),
             ResponsiveSegment::new(0).all(
                 Segment::new()

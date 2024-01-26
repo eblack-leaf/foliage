@@ -10,7 +10,7 @@ use tracing_subscriber::Layer;
 fn main() {
     let targets = Targets::new()
         .with_target("example", Level::TRACE)
-        .with_target("entry", Level::TRACE);
+        .with_target("winit", Level::TRACE);
     #[cfg(not(target_family = "wasm"))]
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer().with_filter(targets))

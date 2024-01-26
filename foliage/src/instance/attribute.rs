@@ -52,7 +52,7 @@ impl<Key: Hash + Eq + Clone + 'static, T: Default + Clone + Pod + Zeroable>
             key_to_t: HashMap::new(),
             cpu: data,
             gpu: buffer,
-            write_range: Some((0, count - 1)),
+            write_range: Some((0, count.checked_sub(1).unwrap_or_default())),
         }
     }
 
