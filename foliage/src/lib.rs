@@ -5,8 +5,6 @@ use bevy_ecs::prelude::Resource;
 pub use wgpu;
 use winit::event::{Event, Ime, KeyEvent, MouseButton, StartCause, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopWindowTarget};
-use winit::keyboard::SmolStr;
-
 use ash::identification::RenderIdentification;
 use ash::leaflet::RenderLeaflet;
 use elm::leaf::{Leaf, Leaflet};
@@ -25,8 +23,8 @@ use crate::ginkgo::Ginkgo;
 use crate::icon::Icon;
 use crate::image::Image;
 use crate::interaction::{
-    Interaction, InteractionEvent, InteractionId, InteractionPhase, Key, KeyboardAdapter,
-    KeyboardEvent, Mods, MouseAdapter, State,
+    Interaction, InteractionEvent, InteractionId, InteractionPhase, KeyboardAdapter,
+    KeyboardEvent, MouseAdapter,
 };
 use crate::panel::Panel;
 use crate::prebuilt::aspect_ratio_image::AspectRatioImage;

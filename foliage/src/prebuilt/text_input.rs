@@ -35,7 +35,10 @@ pub struct TextInput {
     cursor_offset: CursorOffset,
     dims: CursorDims,
     max_chars: MaxCharacters,
+    is_password: IsPassword,
 }
+#[derive(Component, Copy, Clone, Default)]
+pub struct IsPassword(pub bool);
 const SPACING: CoordinateUnit = 4.0;
 #[derive(Component, Copy, Clone)]
 pub(crate) struct CursorDims(pub(crate) Area<InterfaceContext>);
@@ -92,6 +95,7 @@ impl Scene for TextInput {
             cursor_offset: CursorOffset(args.text.0.len().min(args.max_chars.0 as usize) as u32),
             dims: CursorDims(character_dims.to_interface(external_args.1.factor())),
             max_chars: args.max_chars,
+            is_password: IsPassword(args.is_password),
         }
     }
 }
@@ -103,6 +107,7 @@ pub struct TextInputArgs {
     background: Color,
     hint_text: Option<TextValue>,
     text: TextValue,
+    is_password: bool,
 }
 impl TextInputArgs {
     pub fn new<C: Into<Color>>(
@@ -111,6 +116,7 @@ impl TextInputArgs {
         hint_text: Option<TextValue>,
         foreground: C,
         bg: C,
+        is_password: bool,
     ) -> Self {
         Self {
             max_chars: max_characters,
@@ -118,6 +124,7 @@ impl TextInputArgs {
             background: bg.into(),
             hint_text,
             text,
+            is_password
         }
     }
 }
@@ -255,6 +262,7 @@ fn handle_input(
             &mut CursorOffset,
             &MaxCharacters,
             &Despawn,
+            &IsPassword,
         ),
         With<Tag<TextInput>>,
     >,
@@ -265,7 +273,7 @@ fn handle_input(
 ) {
     for e in events.read() {
         if let Some(focused) = focused_entity.0 {
-            if let Ok((handle, mut text_val, hint, mut offset, max_chars, despawn)) =
+            if let Ok((handle, mut text_val, hint, mut offset, max_chars, despawn, is_password)) =
                 text_inputs.get_mut(focused)
             {
                 if despawn.should_despawn() {
@@ -312,7 +320,7 @@ fn handle_input(
                             NamedKey::Space => {
                                 if e.state.is_pressed() {
                                     let t = nk.to_text().unwrap();
-                                    add_text_input(&mut text_val, offset.as_mut(), max_chars, t);
+                                    add_text_input(&mut text_val, offset.as_mut(), max_chars, t, is_password.0);
                                 }
                             }
                             _ => {}
@@ -320,7 +328,7 @@ fn handle_input(
                     }
                     Key::Character(ch) => {
                         if e.state.is_pressed() {
-                            add_text_input(&mut text_val, offset.as_mut(), max_chars, ch.as_str());
+                            add_text_input(&mut text_val, offset.as_mut(), max_chars, ch.as_str(), is_password.0);
                         }
                     }
                     Key::Unidentified(_) => {}
@@ -352,9 +360,13 @@ fn add_text_input(
     offset: &mut CursorOffset,
     max_chars: &MaxCharacters,
     t: &str,
+    is_password: bool,
 ) {
     if text_val.0.len() + t.len() < max_chars.0 as usize {
-        for (i, c) in t.chars().enumerate() {
+        for (i, mut c) in t.chars().enumerate() {
+            if is_password {
+                c = '*';
+            }
             text_val.0.insert(offset.0 as usize + i, c);
             let index = offset.0 + 1;
             bounded_offset(offset, index, *max_chars, &text_val);

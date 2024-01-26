@@ -257,6 +257,7 @@ impl Leaf for MusicPlayer {
                 None,
                 Color::GREEN_MEDIUM,
                 Color::GREY_DARK,
+                true
             ),
             ResponsiveSegment::new(0).all(
                 Segment::new()
