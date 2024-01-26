@@ -61,6 +61,13 @@ impl Compositor {
             self.views.insert(handle, View::default());
         }
     }
+    pub fn remove_view<VH: Into<ViewHandle>>(&mut self, vh: VH) {
+        let handle = vh.into();
+        if self.views.get(&handle).is_none() { return }
+        for ent in self.views.remove(&handle).unwrap().entities {
+            self.entity_to_view.remove(&ent);
+        }
+    }
 }
 #[derive(Bundle)]
 pub struct Segmental {
