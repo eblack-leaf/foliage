@@ -27,6 +27,8 @@ use compact_str::CompactString;
 use winit::keyboard::NamedKey;
 #[derive(Component, Clone, Default)]
 pub struct ActualText(pub CompactString);
+#[derive(Component, Copy, Clone)]
+pub struct HintTextColor(pub Color);
 #[derive(Bundle)]
 pub struct TextInput {
     tag: Tag<Self>,
@@ -35,6 +37,7 @@ pub struct TextInput {
     foreground: ForegroundColor,
     background: BackgroundColor,
     hint_text: HintText,
+    hint_text_color: HintTextColor,
     cursor_offset: CursorOffset,
     dims: CursorDims,
     max_chars: MaxCharacters,
@@ -113,6 +116,7 @@ impl Scene for TextInput {
             foreground: ForegroundColor(args.foreground),
             background: BackgroundColor(args.background),
             hint_text: HintText(args.hint_text.clone().unwrap_or_default()),
+            hint_text_color: HintTextColor(args.hint_color),
             cursor_offset: CursorOffset(args.text.0.len().min(args.max_chars.0 as usize) as u32),
             dims: CursorDims(character_dims.to_interface(external_args.1.factor())),
             max_chars: args.max_chars,
@@ -129,6 +133,7 @@ pub struct TextInputArgs {
     hint_text: Option<TextValue>,
     text: TextValue,
     is_password: bool,
+    hint_color: Color,
 }
 impl TextInputArgs {
     pub fn new<C: Into<Color>>(
@@ -136,6 +141,7 @@ impl TextInputArgs {
         text: TextValue,
         hint_text: Option<TextValue>,
         foreground: C,
+        hc: C,
         bg: C,
         is_password: bool,
     ) -> Self {
@@ -146,6 +152,7 @@ impl TextInputArgs {
             hint_text,
             text,
             is_password,
+            hint_color: hc.into(),
         }
     }
 }
@@ -167,6 +174,7 @@ fn resize(
             &Area<InterfaceContext>,
             &Despawn,
             &ForegroundColor,
+            &HintTextColor,
             &BackgroundColor,
             &MaxCharacters,
             &mut CursorDims,
@@ -177,6 +185,7 @@ fn resize(
                 Changed<ForegroundColor>,
                 Changed<BackgroundColor>,
                 Changed<MaxCharacters>,
+                Changed<HintTextColor>,
             )>,
             With<Tag<TextInput>>,
         ),
@@ -189,7 +198,7 @@ fn resize(
     mut colors: Query<&mut Color>,
     focused_entity: Res<FocusedEntity>,
 ) {
-    for (entity, handle, area, despawn, fc, bc, mc, mut dims) in scenes.iter_mut() {
+    for (entity, handle, area, despawn, fc, htc, bc, mc, mut dims) in scenes.iter_mut() {
         if despawn.should_despawn() {
             continue;
         }
@@ -218,7 +227,16 @@ fn resize(
             coordinator.binding_entity(&handle.access_chain().target(TextInputBindings::Text));
         *texts.get_mut(text_entity).unwrap().0 = fs;
         *texts.get_mut(text_entity).unwrap().1 = *mc;
-        *colors.get_mut(text_entity).unwrap() = fc.0;
+        let text_color = if let Some(fe) = focused_entity.0 {
+            if fe == entity {
+                fc.0
+            } else {
+                htc.0
+            }
+        } else {
+            htc.0
+        };
+        *colors.get_mut(text_entity).unwrap() = text_color;
     }
 }
 fn clear_cursor(
@@ -229,6 +247,7 @@ fn clear_cursor(
             &Despawn,
             &ActualText,
             &HintText,
+            &HintTextColor,
             &mut TextValue,
         ),
         With<Tag<TextInput>>,
@@ -239,7 +258,7 @@ fn clear_cursor(
     mut color_changes: Query<&mut GlyphColorChanges>,
     mut texts: Query<&mut TextValue, Without<Tag<TextInput>>>,
 ) {
-    for (entity, handle, despawn, actual, hint, mut text_val) in scenes.iter_mut() {
+    for (entity, handle, despawn, actual, hint, htc, mut text_val) in scenes.iter_mut() {
         if despawn.should_despawn() {
             continue;
         }
@@ -260,6 +279,7 @@ fn clear_cursor(
                     .binding_entity(&handle.access_chain().target(TextInputBindings::Text));
                 if actual.0.is_empty() {
                     text_val.0 = hint.0 .0.clone();
+                    *colors.get_mut(ent).unwrap() = htc.0;
                 }
                 texts.get_mut(ent).unwrap().0 = text_val.0.clone();
                 color_changes.get_mut(ent).unwrap().0.clear();
@@ -278,6 +298,7 @@ fn cursor_on_click(
             &InteractionListener,
             &CursorDims,
             &MaxCharacters,
+            &ForegroundColor,
             &mut TextValue,
         ),
         (Changed<InteractionListener>, With<Tag<TextInput>>),
@@ -287,22 +308,23 @@ fn cursor_on_click(
     coordinator: Res<SceneCoordinator>,
     mut texts: Query<&mut TextValue, Without<Tag<TextInput>>>,
 ) {
-    for (pos, actual, handle, despawn, mut offset, listener, dims, mc, mut text_val) in
+    for (pos, actual, handle, despawn, mut offset, listener, dims, mc, fc, mut text_val) in
         text_inputs.iter_mut()
     {
         if despawn.should_despawn() {
             continue;
         }
         if listener.active() {
+            let text_ent =
+                coordinator.binding_entity(&handle.access_chain().target(TextInputBindings::Text));
             if actual.0.is_empty() {
-                let ent = coordinator
-                    .binding_entity(&handle.access_chain().target(TextInputBindings::Text));
                 text_val.0.clear();
-                texts.get_mut(ent).unwrap().0.clear();
+                texts.get_mut(text_ent).unwrap().0.clear();
             }
-            let ent = coordinator
+            *colors.get_mut(text_ent).unwrap() = fc.0;
+            let cursor_ent = coordinator
                 .binding_entity(&handle.access_chain().target(TextInputBindings::Cursor));
-            colors.get_mut(ent).unwrap().alpha = 1.0;
+            colors.get_mut(cursor_ent).unwrap().alpha = 1.0;
             offset.0 = (((listener.interaction.current.x - pos.x - SPACING) / dims.0.width).floor()
                 as u32)
                 .min(mc.0.checked_sub(1).unwrap_or_default())

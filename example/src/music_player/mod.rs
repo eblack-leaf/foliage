@@ -256,6 +256,7 @@ impl Leaf for MusicPlayer {
                 TextValue::new(""),
                 Some(TextValue::new("hello-te")),
                 Color::GREEN_MEDIUM,
+                Color::GREEN_DARK,
                 Color::GREY_DARK,
                 false,
             ),
