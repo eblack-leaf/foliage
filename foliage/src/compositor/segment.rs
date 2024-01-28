@@ -51,20 +51,48 @@ impl ResponsiveSegment {
                 .with_layer(self.layer),
         )
     }
-    pub fn x_exception<SUD: Into<SegmentUnitDescriptor>>(mut self, l: Layout, sud: SUD) -> Self {
-        self.segment.x.exceptions.insert(l, sud.into());
+    pub fn x_exception<SUD: Into<SegmentUnitDescriptor>, L: Into<Vec<Layout>>>(
+        mut self,
+        layouts: L,
+        sud: SUD,
+    ) -> Self {
+        let sud = sud.into();
+        for l in layouts.into() {
+            self.segment.x.exceptions.insert(l, sud);
+        }
         self
     }
-    pub fn y_exception<SUD: Into<SegmentUnitDescriptor>>(mut self, l: Layout, sud: SUD) -> Self {
-        self.segment.y.exceptions.insert(l, sud.into());
+    pub fn y_exception<SUD: Into<SegmentUnitDescriptor>, L: Into<Vec<Layout>>>(
+        mut self,
+        layouts: L,
+        sud: SUD,
+    ) -> Self {
+        let sud = sud.into();
+        for l in layouts.into() {
+            self.segment.y.exceptions.insert(l, sud);
+        }
         self
     }
-    pub fn w_exception<SUD: Into<SegmentUnitDescriptor>>(mut self, l: Layout, sud: SUD) -> Self {
-        self.segment.w.exceptions.insert(l, sud.into());
+    pub fn w_exception<SUD: Into<SegmentUnitDescriptor>, L: Into<Vec<Layout>>>(
+        mut self,
+        layouts: L,
+        sud: SUD,
+    ) -> Self {
+        let sud = sud.into();
+        for l in layouts.into() {
+            self.segment.w.exceptions.insert(l, sud);
+        }
         self
     }
-    pub fn h_exception<SUD: Into<SegmentUnitDescriptor>>(mut self, l: Layout, sud: SUD) -> Self {
-        self.segment.h.exceptions.insert(l, sud.into());
+    pub fn h_exception<SUD: Into<SegmentUnitDescriptor>, L: Into<Vec<Layout>>>(
+        mut self,
+        layouts: L,
+        sud: SUD,
+    ) -> Self {
+        let sud = sud.into();
+        for l in layouts.into() {
+            self.segment.h.exceptions.insert(l, sud);
+        }
         self
     }
     pub fn without_portrait_mobile(mut self) -> Self {
