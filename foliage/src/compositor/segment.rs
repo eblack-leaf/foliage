@@ -6,7 +6,6 @@ use crate::coordinate::section::Section;
 use crate::coordinate::{Coordinate, CoordinateUnit, InterfaceContext};
 use bevy_ecs::component::Component;
 use std::collections::HashMap;
-
 #[derive(Component, Clone)]
 pub struct ResponsiveSegment {
     pub handle: ViewHandle,

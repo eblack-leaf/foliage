@@ -4,7 +4,7 @@ use std::sync::Arc;
 #[cfg(all(not(target_os = "android"), not(target_family = "wasm")))]
 use winit::dpi::PhysicalSize;
 use winit::event_loop::EventLoopWindowTarget;
-use winit::window::{Window, WindowBuilder};
+use winit::window::Window;
 
 use crate::coordinate::area::Area;
 use crate::coordinate::{CoordinateUnit, DeviceContext};
@@ -13,6 +13,7 @@ use crate::coordinate::{CoordinateUnit, DeviceContext};
 pub struct WindowDescriptor {
     desktop_dimensions: Option<Area<DeviceContext>>,
     title: Option<&'static str>,
+    resizable: bool,
 }
 
 impl WindowDescriptor {
@@ -20,6 +21,7 @@ impl WindowDescriptor {
         Self {
             desktop_dimensions: None,
             title: None,
+            resizable: false,
         }
     }
     pub fn with_desktop_dimensions<A: Into<Area<DeviceContext>>>(mut self, dims: A) -> Self {
@@ -28,6 +30,10 @@ impl WindowDescriptor {
     }
     pub fn with_title(mut self, title: &'static str) -> Self {
         self.title.replace(title);
+        self
+    }
+    pub fn with_resizable(mut self, r: bool) -> Self {
+        self.resizable = r;
         self
     }
 }
@@ -48,8 +54,8 @@ impl WindowHandle {
         window_descriptor: &WindowDescriptor,
     ) -> Self {
         #[allow(unused_mut)]
-        let mut builder = WindowBuilder::new()
-            .with_resizable(true)
+        let mut builder = Window::builder()
+            .with_resizable(window_descriptor.resizable)
             .with_title(window_descriptor.title.unwrap_or_default());
         #[cfg(all(
             not(target_family = "wasm"),

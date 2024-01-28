@@ -20,8 +20,9 @@ use bevy_ecs::system::{Commands, Query, Res, ResMut};
 use std::collections::{HashMap, HashSet};
 
 pub mod layout;
-pub mod segment;
-mod segment_unit;
+// pub mod segment;
+// mod segment_unit;
+pub mod r_segment;
 
 #[derive(Resource, Copy, Clone)]
 pub struct CurrentView(pub ViewHandle);
@@ -242,10 +243,11 @@ fn despawn_triggered(
         }
     }
 }
+pub type ViewHandleOffset = i32;
 #[derive(Copy, Clone, Default, Hash, Eq, PartialEq, Debug, Component)]
-pub struct ViewHandle(pub i32, pub i32);
+pub struct ViewHandle(pub ViewHandleOffset, pub ViewHandleOffset);
 impl ViewHandle {
-    pub fn new(x: i32, y: i32) -> Self {
+    pub fn new(x: ViewHandleOffset, y: ViewHandleOffset) -> Self {
         Self(x, y)
     }
     pub fn anchor(&self, area: Area<InterfaceContext>) -> Position<InterfaceContext> {

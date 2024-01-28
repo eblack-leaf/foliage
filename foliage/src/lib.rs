@@ -8,7 +8,7 @@ use elm::leaf::{Leaf, Leaflet};
 pub use wgpu;
 use window::{WindowDescriptor, WindowHandle};
 use winit::event::{Event, Ime, KeyEvent, MouseButton, StartCause, WindowEvent};
-use winit::event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopWindowTarget};
+use winit::event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget};
 
 use crate::ash::render::Render;
 use crate::ash::Ash;
@@ -179,7 +179,7 @@ impl Foliage {
         }
     }
     async fn internal_run<W: Workflow + Default + Send + Sync + 'static>(mut self) {
-        let mut event_loop_builder = EventLoopBuilder::<W::Response>::with_user_event();
+        let mut event_loop_builder = EventLoop::<W::Response>::with_user_event();
         cfg_if::cfg_if! {
             if #[cfg(target_os = "android")] {
                 use winit::platform::android::EventLoopBuilderExtAndroid;
