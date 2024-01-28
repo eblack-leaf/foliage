@@ -103,15 +103,15 @@ impl Layout {
                     ThresholdBound::new(0.0, 915.0),
                 ),
                 Threshold::Tablet => LayoutThreshold::new(
-                    ThresholdBound::new(416.0, 840.0),
+                    ThresholdBound::new(415.0, 815.0),
                     ThresholdBound::new(0.0, 1440.0),
                 ),
                 Threshold::Desktop => LayoutThreshold::new(
-                    ThresholdBound::new(841.0, 1200.0),
+                    ThresholdBound::new(815.0, 1215.0),
                     ThresholdBound::new(0.0, 1920.0),
                 ),
                 Threshold::Workstation => LayoutThreshold::new(
-                    ThresholdBound::new(1201.0, 3840.0),
+                    ThresholdBound::new(1215.0, 3840.0),
                     ThresholdBound::new(0.0, 2160.0),
                 ),
             },
@@ -122,15 +122,15 @@ impl Layout {
                 ),
                 Threshold::Tablet => LayoutThreshold::new(
                     ThresholdBound::new(0.0, 1920.0),
-                    ThresholdBound::new(416.0, 840.0),
+                    ThresholdBound::new(415.0, 615.0),
                 ),
                 Threshold::Desktop => LayoutThreshold::new(
                     ThresholdBound::new(0.0, 1920.0),
-                    ThresholdBound::new(841.0, 1200.0),
+                    ThresholdBound::new(615.0, 815.0),
                 ),
                 Threshold::Workstation => LayoutThreshold::new(
                     ThresholdBound::new(0.0, 3840.0),
-                    ThresholdBound::new(1201.0, 2160.0),
+                    ThresholdBound::new(815.0, 2160.0),
                 ),
             },
         }
@@ -142,7 +142,7 @@ pub struct ThresholdBound {
 }
 impl ThresholdBound {
     pub fn satisfied(&self, target: CoordinateUnit) -> bool {
-        target <= self.max && target >= self.min
+        target < self.max && target >= self.min
     }
     pub fn new(min: CoordinateUnit, max: CoordinateUnit) -> Self {
         Self { min, max }
