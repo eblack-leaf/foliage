@@ -1,6 +1,6 @@
 use foliage::color::Color;
 use foliage::compositor::layout::Layout;
-use foliage::compositor::segment::{ResponsiveSegment, Segment};
+use foliage::compositor::segment::{ResponsiveSegment, Segment, SegmentUnitNumber};
 use foliage::compositor::ViewHandle;
 use foliage::elm::config::ElmConfiguration;
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
@@ -22,16 +22,16 @@ impl Leaf for Showcase {
             handle,
             ButtonArgs::new(
                 ButtonStyle::Ring,
-                TextValue::new("ring"),
-                MaxCharacters(4),
+                TextValue::new("ring-style-button"),
+                MaxCharacters(17),
                 IconId::new(BundledIcon::Copy),
                 Color::CYAN_MEDIUM,
                 Color::OFF_BLACK,
             ),
-            ResponsiveSegment::new(Segment::new("0.1|offset:20|min:25|max:50", "", "", ""))
-                .x_exception(Layout::PORTRAIT_MOBILE, "0.2|offset:25|min:50|max:100")
-                .without_landscape_mobile()
-                .without_landscape_tablet(),
+            ResponsiveSegment::new(Segment::new(0.1.relative(), 0.1.relative(), 0.4.relative(), 40.fixed()))
+                .x_exception(Layout::PORTRAIT_MOBILE, 0.5.relative())
+                .without_landscape_mobile(),
+                // .without_landscape_tablet(),
             (),
         );
     }

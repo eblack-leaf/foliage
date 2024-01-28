@@ -87,6 +87,106 @@ impl SceneAligner for i32 {
         }
     }
 }
+impl SceneAligner for usize {
+    fn near(self) -> AlignmentPoint {
+        AlignmentPoint {
+            bias: AlignmentBias::Near,
+            offset: self as CoordinateUnit,
+        }
+    }
+    fn center(self) -> AlignmentPoint {
+        AlignmentPoint {
+            bias: AlignmentBias::Center,
+            offset: self as CoordinateUnit,
+        }
+    }
+    fn far(self) -> AlignmentPoint {
+        AlignmentPoint {
+            bias: AlignmentBias::Far,
+            offset: self as CoordinateUnit,
+        }
+    }
+}
+impl SceneAligner for i64 {
+    fn near(self) -> AlignmentPoint {
+        AlignmentPoint {
+            bias: AlignmentBias::Near,
+            offset: self as CoordinateUnit,
+        }
+    }
+    fn center(self) -> AlignmentPoint {
+        AlignmentPoint {
+            bias: AlignmentBias::Center,
+            offset: self as CoordinateUnit,
+        }
+    }
+    fn far(self) -> AlignmentPoint {
+        AlignmentPoint {
+            bias: AlignmentBias::Far,
+            offset: self as CoordinateUnit,
+        }
+    }
+}
+impl SceneAligner for u32 {
+    fn near(self) -> AlignmentPoint {
+        AlignmentPoint {
+            bias: AlignmentBias::Near,
+            offset: self as CoordinateUnit,
+        }
+    }
+    fn center(self) -> AlignmentPoint {
+        AlignmentPoint {
+            bias: AlignmentBias::Center,
+            offset: self as CoordinateUnit,
+        }
+    }
+    fn far(self) -> AlignmentPoint {
+        AlignmentPoint {
+            bias: AlignmentBias::Far,
+            offset: self as CoordinateUnit,
+        }
+    }
+}
+impl SceneAligner for u64 {
+    fn near(self) -> AlignmentPoint {
+        AlignmentPoint {
+            bias: AlignmentBias::Near,
+            offset: self as CoordinateUnit,
+        }
+    }
+    fn center(self) -> AlignmentPoint {
+        AlignmentPoint {
+            bias: AlignmentBias::Center,
+            offset: self as CoordinateUnit,
+        }
+    }
+    fn far(self) -> AlignmentPoint {
+        AlignmentPoint {
+            bias: AlignmentBias::Far,
+            offset: self as CoordinateUnit,
+        }
+    }
+}
+impl SceneAligner for f64 {
+    fn near(self) -> AlignmentPoint {
+        AlignmentPoint {
+            bias: AlignmentBias::Near,
+            offset: self as CoordinateUnit,
+        }
+    }
+    fn center(self) -> AlignmentPoint {
+        AlignmentPoint {
+            bias: AlignmentBias::Center,
+            offset: self as CoordinateUnit,
+        }
+    }
+    fn far(self) -> AlignmentPoint {
+        AlignmentPoint {
+            bias: AlignmentBias::Far,
+            offset: self as CoordinateUnit,
+        }
+    }
+}
 #[derive(Copy, Clone, Default)]
 pub struct AlignmentDisable(pub bool);
 

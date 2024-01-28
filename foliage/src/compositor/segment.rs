@@ -107,12 +107,6 @@ impl ResponsiveSegment {
         self.negations.insert(Layout::LANDSCAPE_WORKSTATION);
         self
     }
-    pub fn without(mut self, layouts: &[Layout]) -> Self {
-        layouts.iter().for_each(|l| {
-            self.negations.insert(*l);
-        });
-        self
-    }
 }
 #[derive(Clone, Default)]
 pub struct Segment {
@@ -136,12 +130,18 @@ pub struct SegmentUnit {
     base: SegmentUnitDescriptor,
     exceptions: HashMap<Layout, SegmentUnitDescriptor>,
 }
-impl From<&str> for SegmentUnit {
-    fn from(value: &str) -> Self {
-        todo!()
+impl<SUD: Into<SegmentUnitDescriptor>> From<SUD> for SegmentUnit {
+    fn from(value: SUD) -> Self {
+        Self::new(value)
     }
 }
 impl SegmentUnit {
+    pub fn new<SUD: Into<SegmentUnitDescriptor>>(sud: SUD) -> Self {
+        Self {
+            base: sud.into(),
+            exceptions: HashMap::new(),
+        }
+    }
     pub fn calc_horizontal(
         &self,
         vh: ViewHandle,
@@ -169,16 +169,11 @@ impl SegmentUnit {
 }
 #[derive(Copy, Clone, Default)]
 pub struct SegmentUnitDescriptor {
-    pub base: CoordinateUnit,
-    pub fixed: bool,
-    pub min: Option<CoordinateUnit>,
-    pub max: Option<CoordinateUnit>,
-    pub offset: CoordinateUnit,
-}
-impl From<&str> for SegmentUnitDescriptor {
-    fn from(value: &str) -> Self {
-        todo!()
-    }
+    base: CoordinateUnit,
+    fixed: bool,
+    min: Option<CoordinateUnit>,
+    max: Option<CoordinateUnit>,
+    offset: CoordinateUnit,
 }
 impl SegmentUnitDescriptor {
     pub fn new(base: CoordinateUnit) -> Self {
@@ -220,4 +215,67 @@ impl SegmentUnitDescriptor {
 pub trait SegmentUnitNumber {
     fn relative(self) -> SegmentUnitDescriptor;
     fn fixed(self) -> SegmentUnitDescriptor;
+}
+impl SegmentUnitNumber for CoordinateUnit {
+    fn relative(self) -> SegmentUnitDescriptor {
+        SegmentUnitDescriptor::new(self).relative()
+    }
+
+    fn fixed(self) -> SegmentUnitDescriptor {
+        SegmentUnitDescriptor::new(self).fixed()
+    }
+}
+impl SegmentUnitNumber for i32 {
+    fn relative(self) -> SegmentUnitDescriptor {
+        SegmentUnitDescriptor::new(self as CoordinateUnit).relative()
+    }
+
+    fn fixed(self) -> SegmentUnitDescriptor {
+        SegmentUnitDescriptor::new(self as CoordinateUnit).fixed()
+    }
+}
+impl SegmentUnitNumber for u32 {
+    fn relative(self) -> SegmentUnitDescriptor {
+        SegmentUnitDescriptor::new(self as CoordinateUnit).relative()
+    }
+
+    fn fixed(self) -> SegmentUnitDescriptor {
+        SegmentUnitDescriptor::new(self as CoordinateUnit).fixed()
+    }
+}
+impl SegmentUnitNumber for u64 {
+    fn relative(self) -> SegmentUnitDescriptor {
+        SegmentUnitDescriptor::new(self as CoordinateUnit).relative()
+    }
+
+    fn fixed(self) -> SegmentUnitDescriptor {
+        SegmentUnitDescriptor::new(self as CoordinateUnit).fixed()
+    }
+}
+impl SegmentUnitNumber for i64 {
+    fn relative(self) -> SegmentUnitDescriptor {
+        SegmentUnitDescriptor::new(self as CoordinateUnit).relative()
+    }
+
+    fn fixed(self) -> SegmentUnitDescriptor {
+        SegmentUnitDescriptor::new(self as CoordinateUnit).fixed()
+    }
+}
+impl SegmentUnitNumber for f64 {
+    fn relative(self) -> SegmentUnitDescriptor {
+        SegmentUnitDescriptor::new(self as CoordinateUnit).relative()
+    }
+
+    fn fixed(self) -> SegmentUnitDescriptor {
+        SegmentUnitDescriptor::new(self as CoordinateUnit).fixed()
+    }
+}
+impl SegmentUnitNumber for usize {
+    fn relative(self) -> SegmentUnitDescriptor {
+        SegmentUnitDescriptor::new(self as CoordinateUnit).relative()
+    }
+
+    fn fixed(self) -> SegmentUnitDescriptor {
+        SegmentUnitDescriptor::new(self as CoordinateUnit).fixed()
+    }
 }

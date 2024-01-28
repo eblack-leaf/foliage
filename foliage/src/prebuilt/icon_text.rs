@@ -91,13 +91,24 @@ fn metrics(
     font: &MonospacedFont,
     scale_factor: &ScaleFactor,
 ) -> (IconScale, FontSize, CoordinateUnit, CoordinateUnit) {
-    let (fs, fa) = font.best_fit(*max_characters, area * (0.6, 1.0).into(), &scale_factor);
-    let icon_scale = IconScale::from_dim(fa.height * 0.9);
+    let (fs, fa) = font.best_fit(*max_characters, area * (0.6, 0.9).into(), &scale_factor);
+    let icon_scale = IconScale::from_dim((fa.height * 0.8).min(fa.width * 0.3));
+    let spacing = (icon_scale.px() - area.height).abs() / 2f32;
+    let text_offset = icon_scale.px() + spacing * 2f32;
+    let total = icon_scale.px() + spacing + fa.width;
+    let half = total / 2f32;
+    let current_center = spacing + half;
+    let center_threshold = area.width * 0.5;
+    let adjustment = if current_center < center_threshold {
+        center_threshold - current_center
+    } else {
+        0f32
+    };
     (
         icon_scale,
         fs,
-        (icon_scale.px() + 12.0 + fa.width / 2f32) * -1.0,
-        12.0,
+        spacing + adjustment,
+        text_offset + adjustment
     )
 }
 fn resize(
@@ -138,10 +149,10 @@ fn resize(
         coordinator.update_anchor_area(*handle, *area);
         let (is, fs, iap, tap) = metrics(*area, max_char, &font, &scale_factor);
         let icon_ac = handle.access_chain().target(IconTextBindings::Icon);
-        coordinator.get_alignment_mut(&icon_ac).pos.horizontal = iap.center();
+        coordinator.get_alignment_mut(&icon_ac).pos.horizontal = iap.near();
         let icon_entity = coordinator.binding_entity(&icon_ac);
         let text_ac = handle.access_chain().target(IconTextBindings::Text);
-        coordinator.get_alignment_mut(&text_ac).pos.horizontal = tap.center();
+        coordinator.get_alignment_mut(&text_ac).pos.horizontal = tap.near();
         let text_entity = coordinator.binding_entity(&text_ac);
         *texts.get_mut(text_entity).unwrap().0 = *max_char;
         *texts.get_mut(text_entity).unwrap().1 = text_val.clone();
@@ -172,13 +183,13 @@ impl Scene for IconText {
         );
         binder.bind(
             Self::Bindings::Icon,
-            (iap.center(), 0.center(), 0),
+            (iap.near(), 0.center(), 0),
             Icon::new(args.id, is, args.icon_color),
             cmd,
         );
         binder.bind(
             Self::Bindings::Text,
-            (tap.center(), 0.center(), 0),
+            (tap.near(), 0.center(), 0),
             Text::new(args.max_chars, fs, args.text_value.clone(), args.text_color),
             cmd,
         );
