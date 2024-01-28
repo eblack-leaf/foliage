@@ -49,11 +49,13 @@ impl Layout {
     pub const PORTRAIT_MOBILE: Self = Layout::new(Orientation::Portrait, Threshold::Mobile);
     pub const PORTRAIT_TABLET: Self = Layout::new(Orientation::Portrait, Threshold::Tablet);
     pub const PORTRAIT_DESKTOP: Self = Layout::new(Orientation::Portrait, Threshold::Desktop);
-    pub const PORTRAIT_WORKSTATION: Self = Layout::new(Orientation::Portrait, Threshold::Workstation);
+    pub const PORTRAIT_WORKSTATION: Self =
+        Layout::new(Orientation::Portrait, Threshold::Workstation);
     pub const LANDSCAPE_MOBILE: Self = Layout::new(Orientation::Landscape, Threshold::Mobile);
     pub const LANDSCAPE_TABLET: Self = Layout::new(Orientation::Landscape, Threshold::Tablet);
     pub const LANDSCAPE_DESKTOP: Self = Layout::new(Orientation::Landscape, Threshold::Desktop);
-    pub const LANDSCAPE_WORKSTATION: Self = Layout::new(Orientation::Landscape, Threshold::Workstation);
+    pub const LANDSCAPE_WORKSTATION: Self =
+        Layout::new(Orientation::Landscape, Threshold::Workstation);
     pub fn from_area<A: Into<Area<InterfaceContext>>>(area: A) -> Self {
         let area = area.into();
         let orientation = Orientation::from_area(area);

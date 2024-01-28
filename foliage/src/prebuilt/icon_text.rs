@@ -108,7 +108,7 @@ fn metrics(
         icon_scale,
         fs,
         spacing + adjustment,
-        text_offset + adjustment
+        text_offset + adjustment,
     )
 }
 fn resize(

@@ -22,16 +22,21 @@ impl Leaf for Showcase {
             handle,
             ButtonArgs::new(
                 ButtonStyle::Ring,
-                TextValue::new("ring-style-button"),
-                MaxCharacters(17),
+                TextValue::new("ring"),
+                MaxCharacters(4),
                 IconId::new(BundledIcon::Copy),
                 Color::CYAN_MEDIUM,
                 Color::OFF_BLACK,
             ),
-            ResponsiveSegment::new(Segment::new(0.1.relative(), 0.1.relative(), 0.4.relative(), 40.fixed()))
-                .x_exception(Layout::PORTRAIT_MOBILE, 0.5.relative())
-                .without_landscape_mobile(),
-                // .without_landscape_tablet(),
+            ResponsiveSegment::new(Segment::new(
+                0.1.relative(),
+                0.1.relative(),
+                0.4.relative(),
+                40.fixed(),
+            ))
+            .x_exception(Layout::PORTRAIT_MOBILE, 0.5.relative())
+            .without_landscape_mobile(),
+            // .without_landscape_tablet(),
             (),
         );
     }
