@@ -13,6 +13,7 @@ use crate::text::font::MonospacedFont;
 use crate::text::{FontSize, MaxCharacters, Text, TextValue};
 use crate::window::ScaleFactor;
 use bevy_ecs::change_detection::Res;
+use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
 use bevy_ecs::query::{Changed, Or, With, Without};
 use bevy_ecs::system::{Query, ResMut, SystemParamItem};
@@ -23,7 +24,13 @@ pub struct IconText {
     id: IconId,
     max_chars: MaxCharacters,
     text_value: TextValue,
+    icon_color: IconColor,
+    text_color: TextColor,
 }
+#[derive(Copy, Clone, Component, Default)]
+pub struct IconColor(pub Color);
+#[derive(Copy, Clone, Component, Default)]
+pub struct TextColor(pub Color);
 pub enum IconTextBindings {
     Icon,
     Text,
@@ -102,6 +109,8 @@ fn resize(
             &TextValue,
             &IconId,
             &Despawn,
+            &IconColor,
+            &TextColor,
         ),
         (
             Or<(
@@ -109,6 +118,8 @@ fn resize(
                 Changed<IconId>,
                 Changed<MaxCharacters>,
                 Changed<TextValue>,
+                Changed<IconColor>,
+                Changed<TextColor>,
             )>,
             With<Tag<IconText>>,
         ),
@@ -116,10 +127,11 @@ fn resize(
     mut coordinator: ResMut<SceneCoordinator>,
     mut texts: Query<(&mut MaxCharacters, &mut TextValue, &mut FontSize), Without<Tag<IconText>>>,
     mut icons: Query<(&mut IconId, &mut Area<InterfaceContext>), Without<Tag<IconText>>>,
+    mut colors: Query<&mut Color>,
     font: Res<MonospacedFont>,
     scale_factor: Res<ScaleFactor>,
 ) {
-    for (handle, area, max_char, text_val, icon_id, despawn) in scenes.iter() {
+    for (handle, area, max_char, text_val, icon_id, despawn, ic, tc) in scenes.iter() {
         if despawn.should_despawn() {
             continue;
         }
@@ -136,6 +148,8 @@ fn resize(
         *texts.get_mut(text_entity).unwrap().2 = fs;
         *icons.get_mut(icon_entity).unwrap().0 = *icon_id;
         icons.get_mut(icon_entity).unwrap().1.width = is.px();
+        *colors.get_mut(icon_entity).unwrap() = ic.0;
+        *colors.get_mut(text_entity).unwrap() = tc.0;
     }
 }
 impl Scene for IconText {
@@ -173,6 +187,9 @@ impl Scene for IconText {
             id: args.id,
             max_chars: args.max_chars,
             text_value: args.text_value.clone(),
+
+            icon_color: IconColor(args.icon_color),
+            text_color: TextColor(args.text_color),
         }
     }
 }

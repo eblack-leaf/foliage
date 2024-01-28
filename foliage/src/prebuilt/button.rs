@@ -5,14 +5,15 @@ use crate::differential::Despawn;
 use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::elm::leaf::{Leaf, Tag};
 use crate::elm::Elm;
-use crate::icon::{Icon, IconId, IconScale};
+use crate::icon::{Icon, IconId};
 use crate::interaction::InteractionListener;
 use crate::panel::{Panel, PanelStyle};
-use crate::scene::align::SceneAligner;
+use crate::prebuilt::icon_text::{IconColor, IconText, IconTextArgs, TextColor};
+use crate::scene::align::{SceneAligner, SceneAlignment};
 use crate::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
 use crate::set_descriptor;
 use crate::text::font::MonospacedFont;
-use crate::text::{FontSize, MaxCharacters, Text, TextValue};
+use crate::text::{MaxCharacters, TextValue};
 use crate::window::ScaleFactor;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::change_detection::Res;
@@ -52,7 +53,7 @@ impl Leaf for Button {
         elm.job.main().add_systems((
             updates
                 .in_set(SetDescriptors::Area)
-                .before(<Text as Leaf>::SetDescriptor::Area)
+                .before(<IconText as Leaf>::SetDescriptor::Area)
                 .before(<Panel as Leaf>::SetDescriptor::Area)
                 .before(<Icon as Leaf>::SetDescriptor::Area),
             interaction_color
@@ -108,11 +109,9 @@ fn updates(
             With<Tag<Button>>,
         ),
     >,
-    font: Res<MonospacedFont>,
-    scale_factor: Res<ScaleFactor>,
-    mut scales: Query<&mut Area<InterfaceContext>, Without<Tag<Button>>>,
-    mut font_sizes: Query<(&mut FontSize, &mut MaxCharacters), Without<Tag<Button>>>,
-    mut colors: Query<&mut Color>,
+    mut area_query: Query<&mut Area<InterfaceContext>, Without<Tag<Button>>>,
+    mut max_characters_query: Query<&mut MaxCharacters, Without<Tag<Button>>>,
+    mut colors: Query<(&mut IconColor, &mut TextColor)>,
     mut panel_styles: Query<&mut PanelStyle, Without<Tag<Button>>>,
     mut coordinator: ResMut<SceneCoordinator>,
 ) {
@@ -122,13 +121,8 @@ fn updates(
         if despawn.should_despawn() {
             continue;
         }
-        let (fs, text_offset, _text_area, icon_scale, padding) =
-            button_metrics(*button_area, *max_char, &font, &scale_factor);
         let panel_ac = handle.access_chain().target(ButtonBindings::Panel);
-        let text_ac = handle.access_chain().target(ButtonBindings::Text);
-        let icon_ac = handle.access_chain().target(ButtonBindings::Icon);
-        coordinator.get_alignment_mut(&text_ac).pos.horizontal = text_offset.near();
-        coordinator.get_alignment_mut(&icon_ac).pos.horizontal = padding.far();
+        let icon_text_ac = handle.access_chain().target(ButtonBindings::IconText);
         coordinator.update_anchor_area(*handle, *button_area);
         let panel_node = coordinator.binding_entity(&panel_ac);
         if let Ok(mut style) = panel_styles.get_mut(panel_node) {
@@ -137,29 +131,23 @@ fn updates(
                 ButtonStyle::Fill => PanelStyle::fill(),
             };
         }
-        if let Ok(mut content_area) = scales.get_mut(panel_node) {
+        if let Ok(mut content_area) = area_query.get_mut(panel_node) {
             *content_area = *button_area;
         }
-        let text_node = coordinator.binding_entity(&text_ac);
-        if let Ok(mut color) = colors.get_mut(text_node) {
-            *color = match state {
+        let text_node = coordinator.binding_entity(&icon_text_ac);
+        if let Ok((mut ic, mut tc)) = colors.get_mut(text_node) {
+            let color = match state {
                 ButtonStyle::Ring => foreground_color.0,
                 ButtonStyle::Fill => background_color.0,
             };
+            ic.0 = color;
+            tc.0 = color;
         }
-        if let Ok((mut font_size, mut max_characters)) = font_sizes.get_mut(text_node) {
-            *font_size = fs;
+        if let Ok(mut area) = area_query.get_mut(text_node) {
+            *area = *button_area * (0.9, 0.9).into();
+        }
+        if let Ok(mut max_characters) = max_characters_query.get_mut(text_node) {
             *max_characters = *max_char;
-        }
-        let icon_node = coordinator.binding_entity(&icon_ac);
-        if let Ok(mut color) = colors.get_mut(icon_node) {
-            *color = match state {
-                ButtonStyle::Ring => foreground_color.0,
-                ButtonStyle::Fill => background_color.0,
-            };
-        }
-        if let Ok(mut scale) = scales.get_mut(icon_node) {
-            scale.width = icon_scale.px();
         }
     }
 }
@@ -172,50 +160,27 @@ pub struct ButtonArgs {
     pub background_color: Color,
 }
 impl ButtonArgs {
-    pub fn new(
+    pub fn new<C: Into<Color>>(
         style: ButtonStyle,
         text: TextValue,
         max_char: MaxCharacters,
         icon_id: IconId,
-        foreground_color: Color,
-        background_color: Color,
+        foreground_color: C,
+        background_color: C,
     ) -> Self {
         Self {
             style,
             text,
             max_char,
             icon_id,
-            foreground_color,
-            background_color,
+            foreground_color: foreground_color.into(),
+            background_color: background_color.into(),
         }
     }
 }
-fn button_metrics(
-    area: Area<InterfaceContext>,
-    max_char: MaxCharacters,
-    font: &MonospacedFont,
-    scale_factor: &ScaleFactor,
-) -> (FontSize, f32, Area<InterfaceContext>, IconScale, i32) {
-    let padding = 16.min((area.height / 4f32) as i32);
-    let icon_scale = IconScale::from_dim(area.height - padding as f32);
-    let text_area = area - (padding * 3, padding * 2).into() - (icon_scale.px(), 0.0).into();
-    let (font_size, calculated_text_area) =
-        font.best_fit(max_char, text_area.min_bound((0, 0)), scale_factor);
-    let icon_left = area.width - icon_scale.px() - padding as f32 * 2f32;
-    let diff = (icon_left - padding as f32 - calculated_text_area.width) / 2f32;
-    let text_offset = padding as f32 + diff.max(0f32);
-    (
-        font_size,
-        text_offset,
-        calculated_text_area,
-        icon_scale,
-        padding,
-    )
-}
 pub enum ButtonBindings {
     Panel,
-    Text,
-    Icon,
+    IconText,
 }
 impl From<ButtonBindings> for SceneBinding {
     fn from(value: ButtonBindings) -> Self {
@@ -233,32 +198,28 @@ impl Scene for Button {
         external_args: &SystemParamItem<Self::ExternalArgs>,
         mut binder: SceneBinder,
     ) -> Self {
-        let (font_size, text_offset, _calc_area, icon_scale, padding) = button_metrics(
-            anchor.0.section.area,
-            args.max_char,
-            &external_args.0,
-            &external_args.1,
-        );
         cmd.entity(binder.this())
             .insert(InteractionListener::default());
-        let (fill, pc, tc, ic) =
+        let (fill, pc) =
             Self::color_metrics(&args.style, &args.foreground_color, &args.background_color);
         binder.bind(
-            0,
+            ButtonBindings::Panel,
             (0.near(), 0.near(), 1),
             Panel::new(fill, anchor.0.section.area, pc),
             cmd,
         );
-        binder.bind(
-            1,
-            (text_offset.near(), 0.center(), 0),
-            Text::new(args.max_char, font_size, args.text.clone(), tc),
-            cmd,
-        );
-        binder.bind(
-            2,
-            (padding.far(), 0.center(), 0),
-            Icon::new(args.icon_id, icon_scale, ic),
+        binder.bind_scene::<IconText>(
+            ButtonBindings::IconText.into(),
+            SceneAlignment::from((0.center(), 0.center(), 0)),
+            anchor.0.section.area * (0.8, 0.9).into(),
+            &IconTextArgs::new(
+                args.icon_id,
+                args.max_char,
+                args.text.clone(),
+                args.foreground_color,
+                args.foreground_color,
+            ),
+            &external_args,
             cmd,
         );
         Self {
@@ -277,20 +238,10 @@ impl Button {
         style: &ButtonStyle,
         foreground_color: &Color,
         background_color: &Color,
-    ) -> (PanelStyle, Color, Color, Color) {
+    ) -> (PanelStyle, Color) {
         match style {
-            ButtonStyle::Ring => (
-                PanelStyle::ring(),
-                *foreground_color,
-                *foreground_color,
-                *foreground_color,
-            ),
-            ButtonStyle::Fill => (
-                PanelStyle::fill(),
-                *background_color,
-                *foreground_color,
-                *foreground_color,
-            ),
+            ButtonStyle::Ring => (PanelStyle::ring(), *foreground_color),
+            ButtonStyle::Fill => (PanelStyle::fill(), *background_color),
         }
     }
 }

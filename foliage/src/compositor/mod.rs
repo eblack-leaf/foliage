@@ -21,6 +21,8 @@ use std::collections::{HashMap, HashSet};
 
 pub mod layout;
 pub mod segment;
+mod segment_unit;
+
 #[derive(Resource, Copy, Clone)]
 pub struct CurrentView(pub ViewHandle);
 #[derive(Resource)]
@@ -44,6 +46,9 @@ impl Compositor {
     }
     pub fn add_to_view<VH: Into<ViewHandle>>(&mut self, vh: VH, entity: Entity) {
         let handle = vh.into();
+        if self.views.get(&handle).is_none() {
+            self.views.insert(handle, View::default());
+        }
         self.views.get_mut(&handle).unwrap().add(entity);
         self.entity_to_view.insert(entity, handle);
     }
@@ -63,7 +68,9 @@ impl Compositor {
     }
     pub fn remove_view<VH: Into<ViewHandle>>(&mut self, vh: VH) {
         let handle = vh.into();
-        if self.views.get(&handle).is_none() { return }
+        if self.views.get(&handle).is_none() {
+            return;
+        }
         for ent in self.views.remove(&handle).unwrap().entities {
             self.entity_to_view.remove(&ent);
         }

@@ -1,4 +1,5 @@
 use crate::compositor::layout::{Layout, Orientation, Threshold};
+use crate::compositor::segment_unit::SegmentUnit;
 use crate::compositor::ViewHandle;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::section::Section;
@@ -20,7 +21,7 @@ impl ResponsiveSegment {
             layer: l.into(),
         }
     }
-    pub fn new<L: Into<Layer>>(l: L) -> Self {
+    pub fn at<L: Into<Layer>>(l: L) -> Self {
         Self {
             handle: ViewHandle::default(),
             segments: HashMap::new(),
@@ -96,16 +97,19 @@ impl ResponsiveSegment {
         }
         None
     }
-    pub fn all(self, segment: Segment) -> Self {
+    pub fn all<S: Into<Segment>>(self, segment: S) -> Self {
+        let segment = segment.into();
         self.with_portrait(segment).with_landscape(segment)
     }
-    pub fn with_landscape(self, segment: Segment) -> Self {
+    pub fn with_landscape<S: Into<Segment>>(self, segment: S) -> Self {
+        let segment = segment.into();
         self.with_landscape_mobile(segment)
             .with_landscape_tablet(segment)
             .with_landscape_desktop(segment)
             .with_landscape_workstation(segment)
     }
-    pub fn with_portrait(self, segment: Segment) -> Self {
+    pub fn with_portrait<S: Into<Segment>>(self, segment: S) -> Self {
+        let segment = segment.into();
         self.with_portrait_mobile(segment)
             .with_portrait_tablet(segment)
             .with_portrait_desktop(segment)
@@ -151,59 +155,59 @@ impl ResponsiveSegment {
             .remove(&Layout::new(Orientation::Landscape, Threshold::Workstation));
         self
     }
-    pub fn with_portrait_mobile(mut self, segment: Segment) -> Self {
+    pub fn with_portrait_mobile<S: Into<Segment>>(mut self, segment: S) -> Self {
         self.segments.insert(
             Layout::new(Orientation::Portrait, Threshold::Mobile),
-            segment,
+            segment.into(),
         );
         self
     }
-    pub fn with_landscape_mobile(mut self, segment: Segment) -> Self {
+    pub fn with_landscape_mobile<S: Into<Segment>>(mut self, segment: S) -> Self {
         self.segments.insert(
             Layout::new(Orientation::Landscape, Threshold::Mobile),
-            segment,
+            segment.into(),
         );
         self
     }
-    pub fn with_portrait_tablet(mut self, segment: Segment) -> Self {
+    pub fn with_portrait_tablet<S: Into<Segment>>(mut self, segment: S) -> Self {
         self.segments.insert(
             Layout::new(Orientation::Portrait, Threshold::Tablet),
-            segment,
+            segment.into(),
         );
         self
     }
-    pub fn with_landscape_tablet(mut self, segment: Segment) -> Self {
+    pub fn with_landscape_tablet<S: Into<Segment>>(mut self, segment: S) -> Self {
         self.segments.insert(
             Layout::new(Orientation::Landscape, Threshold::Tablet),
-            segment,
+            segment.into(),
         );
         self
     }
-    pub fn with_portrait_desktop(mut self, segment: Segment) -> Self {
+    pub fn with_portrait_desktop<S: Into<Segment>>(mut self, segment: S) -> Self {
         self.segments.insert(
             Layout::new(Orientation::Portrait, Threshold::Desktop),
-            segment,
+            segment.into(),
         );
         self
     }
-    pub fn with_landscape_desktop(mut self, segment: Segment) -> Self {
+    pub fn with_landscape_desktop<S: Into<Segment>>(mut self, segment: S) -> Self {
         self.segments.insert(
             Layout::new(Orientation::Landscape, Threshold::Desktop),
-            segment,
+            segment.into(),
         );
         self
     }
-    pub fn with_portrait_workstation(mut self, segment: Segment) -> Self {
+    pub fn with_portrait_workstation<S: Into<Segment>>(mut self, segment: S) -> Self {
         self.segments.insert(
             Layout::new(Orientation::Portrait, Threshold::Workstation),
-            segment,
+            segment.into(),
         );
         self
     }
-    pub fn with_landscape_workstation(mut self, segment: Segment) -> Self {
+    pub fn with_landscape_workstation<S: Into<Segment>>(mut self, segment: S) -> Self {
         self.segments.insert(
             Layout::new(Orientation::Landscape, Threshold::Workstation),
-            segment,
+            segment.into(),
         );
         self
     }
@@ -215,7 +219,24 @@ pub struct Segment {
     pub w: SegmentUnit,
     pub h: SegmentUnit,
 }
+impl<SU: Into<SegmentUnit>> From<(SU, SU, SU, SU)> for Segment {
+    fn from(value: (SU, SU, SU, SU)) -> Self {
+        Self::new()
+            .with_x(value.0)
+            .with_y(value.1)
+            .with_w(value.2)
+            .with_h(value.3)
+    }
+}
+
 impl Segment {
+    pub fn from_coords<SU: Into<SegmentUnit>>(x: SU, y: SU, w: SU, h: SU) -> Self {
+        Self::new()
+            .with_x(x.into())
+            .with_y(y.into())
+            .with_w(w.into())
+            .with_h(h.into())
+    }
     pub fn new() -> Self {
         Self {
             x: Default::default(),
@@ -238,45 +259,6 @@ impl Segment {
     }
     pub fn with_h<SU: Into<SegmentUnit>>(mut self, unit: SU) -> Self {
         self.h = unit.into();
-        self
-    }
-}
-#[derive(Copy, Clone, Default)]
-pub struct SegmentUnit {
-    base: CoordinateUnit,
-    fixed: bool,
-    min: Option<CoordinateUnit>,
-    max: Option<CoordinateUnit>,
-    offset: CoordinateUnit,
-}
-impl SegmentUnit {
-    pub fn new(base: CoordinateUnit) -> Self {
-        Self {
-            base,
-            fixed: false,
-            min: None,
-            max: None,
-            offset: 0.0,
-        }
-    }
-    pub fn relative(mut self) -> Self {
-        self.fixed = false;
-        self
-    }
-    pub fn fixed(mut self) -> Self {
-        self.fixed = true;
-        self
-    }
-    pub fn max(mut self, m: CoordinateUnit) -> Self {
-        self.max.replace(m);
-        self
-    }
-    pub fn min(mut self, m: CoordinateUnit) -> Self {
-        self.min.replace(m);
-        self
-    }
-    pub fn offset(mut self, o: CoordinateUnit) -> Self {
-        self.offset = o;
         self
     }
 }

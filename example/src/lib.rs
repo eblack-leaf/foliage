@@ -1,12 +1,8 @@
-mod music_player;
+mod showcase;
 
-use crate::music_player::controls::Controls;
-use crate::music_player::MusicPlayer;
-use foliage::window::WindowDescriptor;
-
-use crate::music_player::track_progress::TrackProgress;
-use crate::music_player::volume_control::VolumeControl;
+use crate::showcase::Showcase;
 use foliage::elm::Elm;
+use foliage::window::WindowDescriptor;
 use foliage::workflow::{EngenHandle, Workflow};
 use foliage::{AndroidInterface, Foliage};
 
@@ -17,10 +13,7 @@ pub fn entry(android_interface: AndroidInterface) {
                 .with_title("foliage")
                 .with_desktop_dimensions((360, 800)),
         )
-        .with_leaf::<MusicPlayer>()
-        .with_leaf::<Controls>()
-        .with_leaf::<TrackProgress>()
-        .with_leaf::<VolumeControl>()
+        .with_leaf::<Showcase>()
         .with_android_interface(android_interface)
         .with_worker_path("./worker.js")
         .run::<Engen>();
