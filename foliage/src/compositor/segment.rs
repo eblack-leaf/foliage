@@ -41,20 +41,12 @@ impl ResponsiveSegment {
         Some(
             Coordinate::default()
                 .with_position((
-                    self.segment
-                        .x
-                        .calc_horizontal(self.view_handle, layout, section),
-                    self.segment
-                        .y
-                        .calc_vertical(self.view_handle, layout, section),
+                    self.segment.x.calc_x(self.view_handle, layout, section),
+                    self.segment.y.calc_y(self.view_handle, layout, section),
                 ))
                 .with_area((
-                    self.segment
-                        .w
-                        .calc_horizontal(self.view_handle, layout, section),
-                    self.segment
-                        .h
-                        .calc_vertical(self.view_handle, layout, section),
+                    self.segment.w.calc_w(self.view_handle, layout, section),
+                    self.segment.h.calc_h(self.view_handle, layout, section),
                 ))
                 .with_layer(self.layer),
         )
@@ -142,7 +134,7 @@ impl SegmentUnit {
             exceptions: HashMap::new(),
         }
     }
-    pub fn calc_horizontal(
+    pub fn calc_x(
         &self,
         vh: ViewHandle,
         l: Layout,
@@ -152,9 +144,9 @@ impl SegmentUnit {
             .get(&l)
             .cloned()
             .unwrap_or(self.base)
-            .calc(vh.0, vs.width())
+            .calc(vh.0, vs.width(), false)
     }
-    pub fn calc_vertical(
+    pub fn calc_w(
         &self,
         vh: ViewHandle,
         l: Layout,
@@ -164,7 +156,31 @@ impl SegmentUnit {
             .get(&l)
             .cloned()
             .unwrap_or(self.base)
-            .calc(vh.1, vs.height())
+            .calc(vh.0, vs.width(), true)
+    }
+    pub fn calc_y(
+        &self,
+        vh: ViewHandle,
+        l: Layout,
+        vs: Section<InterfaceContext>,
+    ) -> CoordinateUnit {
+        self.exceptions
+            .get(&l)
+            .cloned()
+            .unwrap_or(self.base)
+            .calc(vh.1, vs.height(), false)
+    }
+    pub fn calc_h(
+        &self,
+        vh: ViewHandle,
+        l: Layout,
+        vs: Section<InterfaceContext>,
+    ) -> CoordinateUnit {
+        self.exceptions
+            .get(&l)
+            .cloned()
+            .unwrap_or(self.base)
+            .calc(vh.1, vs.height(), true)
     }
 }
 #[derive(Copy, Clone, Default)]
@@ -205,9 +221,19 @@ impl SegmentUnitDescriptor {
         self.offset = o;
         self
     }
-    pub fn calc(&self, handle_offset: ViewHandleOffset, dim: CoordinateUnit) -> CoordinateUnit {
+    pub fn calc(
+        &self,
+        handle_offset: ViewHandleOffset,
+        dim: CoordinateUnit,
+        is_area: bool,
+    ) -> CoordinateUnit {
         let factor = if self.fixed { 1.0 } else { dim };
-        let num = handle_offset as CoordinateUnit * dim + self.base * factor + self.offset;
+        let view_base = if is_area {
+            0.0
+        } else {
+            handle_offset as CoordinateUnit * dim
+        };
+        let num = view_base + self.base * factor + self.offset;
         num.min(self.max.unwrap_or(CoordinateUnit::MAX))
             .max(self.min.unwrap_or(CoordinateUnit::MIN))
     }
