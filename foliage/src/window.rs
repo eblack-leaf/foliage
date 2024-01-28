@@ -56,7 +56,8 @@ impl WindowHandle {
         #[allow(unused_mut)]
         let mut builder = Window::builder()
             .with_resizable(window_descriptor.resizable)
-            .with_title(window_descriptor.title.unwrap_or_default());
+            .with_title(window_descriptor.title.unwrap_or_default())
+            .with_resizable(window_descriptor.resizable);
         #[cfg(all(
             not(target_family = "wasm"),
             not(target_os = "android"),

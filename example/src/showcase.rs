@@ -1,5 +1,5 @@
 use foliage::color::Color;
-use foliage::compositor::segment::{ResponsiveSegment, Segment, SegmentUnitNumber};
+use foliage::compositor::segment::{ResponsiveSegment, SegmentUnitNumber};
 use foliage::compositor::ViewHandle;
 use foliage::elm::config::ElmConfiguration;
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
