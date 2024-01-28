@@ -30,12 +30,12 @@ impl Leaf for Showcase {
                 Color::CYAN_MEDIUM,
                 Color::OFF_BLACK,
             ),
-            ResponsiveSegment::new(Segment::new(
+            ResponsiveSegment::new(
                 0.075.relative(),
                 0.05.relative(),
                 0.4.relative(),
                 40.fixed(),
-            )),
+            ),
             (),
         );
         elm.add_view_scene_binding::<Button, ()>(
@@ -48,12 +48,12 @@ impl Leaf for Showcase {
                 Color::CYAN_MEDIUM,
                 Color::OFF_BLACK,
             ),
-            ResponsiveSegment::new(Segment::new(
+            ResponsiveSegment::new(
                 0.525.relative(),
                 0.05.relative(),
                 0.4.relative(),
                 40.fixed(),
-            )),
+            ),
             (),
         );
         elm.add_view_scene_binding::<ProgressBar, ()>(
@@ -63,12 +63,7 @@ impl Leaf for Showcase {
                 Color::CYAN_MEDIUM,
                 Color::GREY_DARK,
             ),
-            ResponsiveSegment::new(Segment::new(
-                0.1.relative(),
-                0.2.relative(),
-                0.4.relative(),
-                4.fixed(),
-            )),
+            ResponsiveSegment::new(0.1.relative(), 0.2.relative(), 0.4.relative(), 4.fixed()),
             (),
         );
         elm.add_view_scene_binding::<CircleProgressBar, ()>(
@@ -78,12 +73,12 @@ impl Leaf for Showcase {
                 Color::CYAN_MEDIUM,
                 Color::GREY_DARK,
             ),
-            ResponsiveSegment::new(Segment::new(
+            ResponsiveSegment::new(
                 0.3.relative().offset(-24.0),
                 0.2.relative().offset(24.0),
                 48.fixed(),
                 48.fixed(),
-            )),
+            ),
             (),
         );
     }

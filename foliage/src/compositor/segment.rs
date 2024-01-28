@@ -14,10 +14,10 @@ pub struct ResponsiveSegment {
     pub layer: Layer,
 }
 impl ResponsiveSegment {
-    pub fn new<S: Into<Segment>>(s: S) -> Self {
+    pub fn new<SU: Into<SegmentUnit>>(x: SU, y: SU, w: SU, h: SU) -> Self {
         Self {
             view_handle: ViewHandle::default(),
-            segment: s.into(),
+            segment: Segment::new(x, y, w, h),
             negations: HashSet::new(),
             layer: Layer::default(),
         }
