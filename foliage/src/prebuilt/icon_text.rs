@@ -198,7 +198,6 @@ impl Scene for IconText {
             id: args.id,
             max_chars: args.max_chars,
             text_value: args.text_value.clone(),
-
             icon_color: IconColor(args.icon_color),
             text_color: TextColor(args.text_color),
         }

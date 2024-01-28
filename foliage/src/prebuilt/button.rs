@@ -112,7 +112,7 @@ fn updates(
     mut area_query: Query<&mut Area<InterfaceContext>, Without<Tag<Button>>>,
     mut max_characters_query: Query<&mut MaxCharacters, Without<Tag<Button>>>,
     mut colors: Query<(&mut IconColor, &mut TextColor)>,
-    mut panel_styles: Query<&mut PanelStyle, Without<Tag<Button>>>,
+    mut panel_styles: Query<(&mut PanelStyle, &mut Color), Without<Tag<Button>>>,
     mut coordinator: ResMut<SceneCoordinator>,
 ) {
     for (handle, button_area, max_char, foreground_color, background_color, state, despawn) in
@@ -125,11 +125,10 @@ fn updates(
         let icon_text_ac = handle.access_chain().target(ButtonBindings::IconText);
         coordinator.update_anchor_area(*handle, *button_area);
         let panel_node = coordinator.binding_entity(&panel_ac);
-        if let Ok(mut style) = panel_styles.get_mut(panel_node) {
-            *style = match state {
-                ButtonStyle::Ring => PanelStyle::ring(),
-                ButtonStyle::Fill => PanelStyle::fill(),
-            };
+        if let Ok((mut style, mut color)) = panel_styles.get_mut(panel_node) {
+            let s = Button::fill_status(state);
+            *style = s;
+            *color = foreground_color.0;
         }
         if let Ok(mut content_area) = area_query.get_mut(panel_node) {
             *content_area = *button_area;
@@ -200,12 +199,11 @@ impl Scene for Button {
     ) -> Self {
         cmd.entity(binder.this())
             .insert(InteractionListener::default());
-        let (fill, pc) =
-            Self::color_metrics(&args.style, &args.foreground_color, &args.background_color);
+        let fill = Self::fill_status(&args.style);
         binder.bind(
             ButtonBindings::Panel,
             (0.near(), 0.near(), 1),
-            Panel::new(fill, anchor.0.section.area, pc),
+            Panel::new(fill, anchor.0.section.area, args.foreground_color),
             cmd,
         );
         binder.bind_scene::<IconText>(
@@ -234,14 +232,10 @@ impl Scene for Button {
 }
 
 impl Button {
-    fn color_metrics(
-        style: &ButtonStyle,
-        foreground_color: &Color,
-        background_color: &Color,
-    ) -> (PanelStyle, Color) {
+    fn fill_status(style: &ButtonStyle) -> PanelStyle {
         match style {
-            ButtonStyle::Ring => (PanelStyle::ring(), *foreground_color),
-            ButtonStyle::Fill => (PanelStyle::fill(), *background_color),
+            ButtonStyle::Ring => PanelStyle::ring(),
+            ButtonStyle::Fill => PanelStyle::fill(),
         }
     }
 }
