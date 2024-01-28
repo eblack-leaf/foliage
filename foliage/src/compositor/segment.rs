@@ -13,6 +13,11 @@ pub struct ResponsiveSegment {
     pub negations: HashSet<Layout>,
     pub layer: Layer,
 }
+impl From<Layout> for Vec<Layout> {
+    fn from(value: Layout) -> Self {
+        vec![value]
+    }
+}
 impl ResponsiveSegment {
     pub fn new<SU: Into<SegmentUnit>>(x: SU, y: SU, w: SU, h: SU) -> Self {
         Self {

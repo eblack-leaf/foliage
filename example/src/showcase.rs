@@ -1,4 +1,5 @@
 use foliage::color::Color;
+use foliage::compositor::layout::Layout;
 use foliage::compositor::segment::{ResponsiveSegment, SegmentUnitNumber};
 use foliage::compositor::ViewHandle;
 use foliage::elm::config::ElmConfiguration;
@@ -53,7 +54,8 @@ impl Leaf for Showcase {
                 0.05.relative(),
                 0.4.relative(),
                 40.fixed(),
-            ),
+            )
+            .x_exception(Layout::LANDSCAPE_MOBILE, 0.3.relative()),
             (),
         );
         elm.add_view_scene_binding::<ProgressBar, ()>(
