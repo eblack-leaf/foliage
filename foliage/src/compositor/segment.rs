@@ -219,15 +219,6 @@ pub struct Segment {
     pub w: SegmentUnit,
     pub h: SegmentUnit,
 }
-impl<SU: Into<SegmentUnit>> From<(SU, SU, SU, SU)> for Segment {
-    fn from(value: (SU, SU, SU, SU)) -> Self {
-        Self::new()
-            .with_x(value.0)
-            .with_y(value.1)
-            .with_w(value.2)
-            .with_h(value.3)
-    }
-}
 
 impl Segment {
     pub fn from_coords<SU: Into<SegmentUnit>>(x: SU, y: SU, w: SU, h: SU) -> Self {
