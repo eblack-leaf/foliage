@@ -210,7 +210,7 @@ impl Elm {
     ) {
         let view_handle = vh.into();
         self.add_view(view_handle);
-        let responsive_segment = rs.into().at_view(view_handle);
+        let responsive_segment = rs.into().viewed_at(view_handle);
         let func = move |current: Res<CurrentView>,
                          mut cmd: Commands,
                          mut compositor: ResMut<Compositor>| {
@@ -240,7 +240,7 @@ impl Elm {
         ext: Ext,
     ) {
         self.add_view(view_handle);
-        let responsive_segment = rs.at_view(view_handle);
+        let responsive_segment = rs.viewed_at(view_handle);
         let func = move |current: Res<CurrentView>,
                          mut cmd: Commands,
                          mut compositor: ResMut<Compositor>,

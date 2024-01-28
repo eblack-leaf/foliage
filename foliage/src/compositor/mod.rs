@@ -20,9 +20,7 @@ use bevy_ecs::system::{Commands, Query, Res, ResMut};
 use std::collections::{HashMap, HashSet};
 
 pub mod layout;
-// pub mod segment;
-// mod segment_unit;
-pub mod r_segment;
+pub mod segment;
 
 #[derive(Resource, Copy, Clone)]
 pub struct CurrentView(pub ViewHandle);

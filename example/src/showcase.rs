@@ -1,4 +1,5 @@
 use foliage::color::Color;
+use foliage::compositor::layout::Layout;
 use foliage::compositor::segment::{ResponsiveSegment, Segment};
 use foliage::compositor::ViewHandle;
 use foliage::elm::config::ElmConfiguration;
@@ -27,12 +28,10 @@ impl Leaf for Showcase {
                 Color::CYAN_MEDIUM,
                 Color::OFF_BLACK,
             ),
-            ResponsiveSegment::at(0).all(Segment::from_coords(
-                "x:0.1|offset:20|min:25|max:50|l.mb:0.05|l.tb:0.05|max(l.tb):100",
-                "y:0.1",
-                "w:0.4",
-                "h:0.2",
-            )),
+            ResponsiveSegment::new(Segment::new("0.1|offset:20|min:25|max:50", "", "", ""))
+                .x_exception(Layout::PORTRAIT_MOBILE, "0.2|offset:25|min:50|max:100")
+                .without_landscape_mobile()
+                .without_landscape_tablet(),
             (),
         );
     }
