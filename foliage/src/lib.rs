@@ -37,6 +37,7 @@ use crate::prebuilt::interactive_progress_bar::InteractiveProgressBar;
 use crate::prebuilt::progress_bar::ProgressBar;
 use crate::prebuilt::text_input::TextInput;
 use crate::rectangle::Rectangle;
+use crate::system_message::ResponseMessage;
 use crate::text::Text;
 use crate::time::Time;
 use crate::virtual_keyboard::VirtualKeyboardAdapter;
@@ -66,6 +67,7 @@ pub mod panel;
 pub mod prebuilt;
 pub mod rectangle;
 pub mod scene;
+pub(crate) mod system_message;
 pub mod text;
 pub mod texture;
 pub mod time;
@@ -104,7 +106,6 @@ impl Default for Foliage {
         Foliage::new()
     }
 }
-
 impl Foliage {
     pub fn new() -> Self {
         let this = Self {
@@ -179,7 +180,7 @@ impl Foliage {
         }
     }
     async fn internal_run<W: Workflow + Default + Send + Sync + 'static>(mut self) {
-        let mut event_loop_builder = EventLoop::<W::Response>::with_user_event();
+        let mut event_loop_builder = EventLoop::<ResponseMessage<W::Response>>::with_user_event();
         cfg_if::cfg_if! {
             if #[cfg(target_os = "android")] {
                 use winit::platform::android::EventLoopBuilderExtAndroid;
@@ -219,7 +220,8 @@ impl Foliage {
         let mut drawn = true;
         let _ = (event_loop_function)(
             event_loop,
-            move |event, event_loop_window_target: &EventLoopWindowTarget| {
+            move |event: Event<ResponseMessage<W::Response>>,
+                  event_loop_window_target: &EventLoopWindowTarget| {
                 if elm.job.can_idle() {
                     tracing::trace!("job-waiting");
                     event_loop_window_target.set_control_flow(ControlFlow::Wait);
@@ -397,7 +399,11 @@ impl Foliage {
                     },
                     Event::DeviceEvent { .. } => {}
                     Event::UserEvent(ue) => {
-                        W::react(&mut elm, ue);
+                        if let Some(user_message) = ue.0 {
+                            W::react(&mut elm, user_message);
+                        } else if let Some(system_message) = ue.1 {
+                            // TODO handle system_message
+                        }
                     }
                     Event::Suspended => {
                         ginkgo.suspend();

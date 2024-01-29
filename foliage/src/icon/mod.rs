@@ -31,10 +31,10 @@ pub struct Icon {
     differentiable: Differentiable,
 }
 impl Icon {
-    pub fn new(icon_id: IconId, scale: IconScale, color: Color) -> Self {
+    pub fn new<C: Into<Color>>(icon_id: IconId, scale: IconScale, color: C) -> Self {
         Self {
             icon_id: DifferentialBundle::new(icon_id),
-            color: DifferentialBundle::new(color),
+            color: DifferentialBundle::new(color.into()),
             scale,
             differentiable: Differentiable::new::<Self>(
                 Position::default(),

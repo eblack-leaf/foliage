@@ -183,7 +183,7 @@ impl Elm {
     pub fn remove_web_element(_id: &'static str) {
         #[cfg(target_family = "wasm")]
         {
-            use wasm_bindgen::{JsCast, JsValue};
+            use wasm_bindgen::JsCast;
             let document = web_sys::window().unwrap().document().unwrap();
             if let Some(elem) = document.get_element_by_id(_id) {
                 elem.dyn_into::<web_sys::HtmlElement>().unwrap().remove();
