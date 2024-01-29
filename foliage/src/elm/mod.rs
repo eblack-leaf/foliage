@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::ash::render_packet::RenderPacketForwarder;
 use crate::ash::render_packet::RenderPacketPackage;
+use crate::asset::{AssetContainer, AssetKey};
 use crate::compositor::segment::ResponsiveSegment;
 use crate::compositor::{Compositor, CurrentView, Segmental, ViewHandle};
 use crate::coordinate::area::{Area, CReprArea};
@@ -28,7 +29,9 @@ use crate::ginkgo::viewport::ViewportHandle;
 use crate::interaction::InteractionListener;
 use crate::job::{Container, Job, Task};
 use crate::scene::{Anchor, Scene, SceneCoordinator};
+use crate::system_message::SystemMessageAction;
 use crate::window::ScaleFactor;
+use crate::workflow::{Workflow, WorkflowConnectionBase};
 
 pub struct Elm {
     initialized: bool,
@@ -264,6 +267,22 @@ impl Elm {
         self.main().add_systems((func
             .in_set(ExternalSet::ViewBindings)
             .run_if(|cv: Res<CurrentView>| -> bool { cv.is_changed() }),));
+    }
+    pub fn load_web_asset<W: Workflow>(&mut self, id: AssetKey, path: &str) {
+        self.container()
+            .get_non_send_resource::<WorkflowConnectionBase<W>>()
+            .unwrap()
+            .system_send(SystemMessageAction::WasmAsset(id, path.to_string()));
+        self.container()
+            .get_resource_mut::<AssetContainer>()
+            .unwrap()
+            .store(id, None);
+    }
+    pub fn load_native_asset(&mut self, id: AssetKey, bytes: Vec<u8>) {
+        self.container()
+            .get_resource_mut::<AssetContainer>()
+            .unwrap()
+            .store(id, Some(bytes));
     }
     pub fn add_interaction_handler<IH: Component + 'static, Ext: SystemParam + 'static>(
         &mut self,

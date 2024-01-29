@@ -119,7 +119,6 @@ impl<W: Workflow + Default + 'static + Send + Sync> Worker for Engen<W> {
             } else if let Some(s) = msg.1 {
                 ResponseMessage::system(system_message_response(s).await)
             } else {
-                // system message handler
                 ResponseMessage::system(SystemMessageResponse::NoOp)
             };
             OutputWrapper::new(id, response)

@@ -37,7 +37,7 @@ use crate::prebuilt::interactive_progress_bar::InteractiveProgressBar;
 use crate::prebuilt::progress_bar::ProgressBar;
 use crate::prebuilt::text_input::TextInput;
 use crate::rectangle::Rectangle;
-use crate::system_message::ResponseMessage;
+use crate::system_message::{ResponseMessage, SystemMessageResponse};
 use crate::text::Text;
 use crate::time::Time;
 use crate::virtual_keyboard::VirtualKeyboardAdapter;
@@ -48,6 +48,7 @@ use self::ash::leaflet::RenderLeafletStorage;
 
 mod animate;
 pub mod ash;
+pub mod asset;
 pub mod circle;
 pub mod clipboard;
 pub mod color;
@@ -402,7 +403,12 @@ impl Foliage {
                         if let Some(user_message) = ue.0 {
                             W::react(&mut elm, user_message);
                         } else if let Some(system_message) = ue.1 {
-                            // TODO handle system_message
+                            match system_message {
+                                SystemMessageResponse::WasmAsset(data) => {
+                                    // give to elm assets
+                                }
+                                SystemMessageResponse::NoOp => {}
+                            }
                         }
                     }
                     Event::Suspended => {
