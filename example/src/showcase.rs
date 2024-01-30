@@ -20,6 +20,7 @@ impl Leaf for Showcase {
     fn config(_elm_configuration: &mut ElmConfiguration) {}
 
     fn attach(elm: &mut Elm) {
+        Elm::remove_web_element("loading");
         let handle = ViewHandle::new(0, 0);
         elm.add_view_scene_binding::<Button, ()>(
             handle,
