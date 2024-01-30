@@ -12,6 +12,7 @@ use winit::event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget};
 
 use crate::ash::render::Render;
 use crate::ash::Ash;
+use crate::asset::AssetContainer;
 use crate::circle::Circle;
 use crate::clipboard::Clipboard;
 use crate::compositor::Compositor;
@@ -138,6 +139,7 @@ impl Foliage {
             .with_leaf::<TextInput>()
             .with_leaf::<VirtualKeyboardAdapter>()
             .with_leaf::<Clipboard>()
+            .with_leaf::<AssetContainer>()
     }
     pub fn with_android_interface(mut self, android_interface: AndroidInterface) -> Self {
         self.android_interface = android_interface;
@@ -404,8 +406,9 @@ impl Foliage {
                             W::react(&mut elm, user_message);
                         } else if let Some(system_message) = ue.1 {
                             match system_message {
-                                SystemMessageResponse::WasmAsset(_id, _data) => {
+                                SystemMessageResponse::WasmAsset(id, data) => {
                                     // give to elm assets
+                                    elm.store_local_asset(id, data);
                                 }
                                 SystemMessageResponse::NoOp => {}
                             }

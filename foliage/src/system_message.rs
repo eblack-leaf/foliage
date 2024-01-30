@@ -75,10 +75,10 @@ pub(crate) async fn system_message_response(a: SystemMessageAction) -> SystemMes
 }
 #[macro_export]
 macro_rules! load_asset {
-    ($elm:ident, $id:expr, $p:literal, $native_rel:literal, $wasm_rel:literal) => {
+    ($elm:ident, $engen:ty, $id:expr, $p:literal, $native_rel:literal, $wasm_rel:literal) => {
         #[cfg(target_family = "wasm")]
-        $elm.load_web_asset($id, concat!($wasm_rel, $p));
+        $elm.load_remote_asset::<$engen>($id, concat!($wasm_rel, $p));
         #[cfg(not(target_family = "wasm"))]
-        $elm.load_native_asset($id, include_bytes!(concat!($native_rel, $p)));
+        $elm.store_local_asset($id, include_bytes!(concat!($native_rel, $p)).to_vec());
     };
 }

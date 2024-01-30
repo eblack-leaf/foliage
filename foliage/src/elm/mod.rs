@@ -268,7 +268,7 @@ impl Elm {
             .in_set(ExternalSet::ViewBindings)
             .run_if(|cv: Res<CurrentView>| -> bool { cv.is_changed() }),));
     }
-    pub fn load_web_asset<W: Workflow + Default + Sync + Send + 'static>(
+    pub fn load_remote_asset<W: Workflow + Default + Sync + Send + 'static>(
         &mut self,
         id: AssetKey,
         path: &str,
@@ -282,7 +282,7 @@ impl Elm {
             .unwrap()
             .store(id, None);
     }
-    pub fn load_native_asset(&mut self, id: AssetKey, bytes: Vec<u8>) {
+    pub fn store_local_asset(&mut self, id: AssetKey, bytes: Vec<u8>) {
         self.container()
             .get_resource_mut::<AssetContainer>()
             .unwrap()

@@ -49,6 +49,7 @@ impl ImageGroup {
         self.data_queued = true;
     }
     fn write_data(&mut self, ginkgo: &Ginkgo) -> TexturePartition {
+        if self.data.is_empty() { return TexturePartition::default() }
         let slice = self.data.as_slice();
         let image = image::load_from_memory(slice).unwrap().to_rgba8();
         self.dimensions = (image.width(), image.height()).into();

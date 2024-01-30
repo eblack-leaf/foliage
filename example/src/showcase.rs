@@ -1,12 +1,17 @@
+use foliage::asset::OnFetch;
 use foliage::color::Color;
 use foliage::compositor::layout::Layout;
 use foliage::compositor::segment::{ResponsiveSegment, SegmentUnitNumber};
 use foliage::compositor::ViewHandle;
+use foliage::coordinate::area::Area;
 use foliage::elm::config::ElmConfiguration;
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 use foliage::elm::Elm;
 use foliage::icon::bundled_cov::BundledIcon;
 use foliage::icon::IconId;
+use foliage::image::{Image, ImageId, ImageStorage};
+use foliage::load_asset;
+use foliage::prebuilt::aspect_ratio_image::{AspectRatioImage, AspectRatioImageArgs};
 use foliage::prebuilt::button::{Button, ButtonArgs, ButtonStyle};
 use foliage::prebuilt::circle_progress_bar::CircleProgressBar;
 use foliage::prebuilt::progress_bar::{ProgressBar, ProgressBarArgs};
@@ -21,7 +26,26 @@ impl Leaf for Showcase {
 
     fn attach(elm: &mut Elm) {
         Elm::remove_web_element("loading");
+        elm.container().spawn(Image::storage(
+            ImageId(0),
+            ImageStorage::some(Area::from((700, 700))),
+            vec![],
+        ));
+        load_asset!(elm, crate::Engen, 0, "img.png", "../assets/", "foliage/assets/");
         let handle = ViewHandle::new(0, 0);
+        elm.add_view_scene_binding::<AspectRatioImage, OnFetch>(
+            handle,
+            AspectRatioImageArgs::new(ImageId(0), (651, 454)),
+            ResponsiveSegment::new(
+                0.2.relative(),
+                0.4.relative(),
+                0.6.relative(),
+                0.5.relative(),
+            ),
+            OnFetch::new(0, |data, cmd| {
+                cmd.spawn(Image::fill(ImageId(0), data));
+            }),
+        );
         elm.add_view_scene_binding::<Button, ()>(
             handle,
             ButtonArgs::new(
