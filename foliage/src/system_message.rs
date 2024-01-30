@@ -37,27 +37,31 @@ impl<A> ActionMessage<A> {
 pub(crate) async fn system_message_response(a: SystemMessageAction) -> SystemMessageResponse {
     match a {
         SystemMessageAction::WasmAsset(asset_key, path) => {
-            let mut opts = RequestInit::new();
-            opts.method("GET");
-            opts.mode(RequestMode::Cors);
-            let window = web_sys::window().unwrap();
-            let origin = window.origin();
-            let url = format!("https://{}{}", origin, path);
-            if let Ok(request) = Request::new_with_str_and_init(&url, &opts) {
-                if request
-                    .headers()
-                    .set("Accept", "application/octet-stream")
-                    .is_ok()
-                {
-                    if let Ok(response) = JsFuture::from(window.fetch_with_request(&request)).await
+            #[cfg(target_family = "wasm")]
+            {
+                let mut opts = RequestInit::new();
+                opts.method("GET");
+                opts.mode(RequestMode::Cors);
+                let window = web_sys::window().unwrap();
+                let origin = window.origin();
+                let url = format!("https://{}{}", origin, path);
+                if let Ok(request) = Request::new_with_str_and_init(&url, &opts) {
+                    if request
+                        .headers()
+                        .set("Accept", "application/octet-stream")
+                        .is_ok()
                     {
-                        let response: Response = response.dyn_into().unwrap();
-                        if let Ok(array) = response.array_buffer() {
-                            if let Ok(response) = JsFuture::from(array).await {
-                                SystemMessageResponse::WasmAsset(
-                                    asset_key,
-                                    js_sys::Uint8Array::new(&response).to_vec(),
-                                )
+                        if let Ok(response) =
+                            JsFuture::from(window.fetch_with_request(&request)).await
+                        {
+                            let response: Response = response.dyn_into().unwrap();
+                            if let Ok(array) = response.array_buffer() {
+                                if let Ok(response) = JsFuture::from(array).await {
+                                    return SystemMessageResponse::WasmAsset(
+                                        asset_key,
+                                        js_sys::Uint8Array::new(&response).to_vec(),
+                                    );
+                                }
                             }
                         }
                     }
@@ -70,10 +74,10 @@ pub(crate) async fn system_message_response(a: SystemMessageAction) -> SystemMes
 }
 #[macro_export]
 macro_rules! load_asset {
-    ($elm:ident, $id:expr, $p:literal, $rel:literal) => {
+    ($elm:ident, $id:expr, $p:literal, $native_rel:literal, $wasm_rel:literal) => {
         #[cfg(target_family = "wasm")]
-        $elm.load_web_asset($id, concat!($rel, $p));
+        $elm.load_web_asset($id, concat!($wasm_rel, $p));
         #[cfg(not(target_family = "wasm"))]
-        $elm.load_native_asset($id, include_bytes!(concat!($rel, $p)));
+        $elm.load_native_asset($id, include_bytes!(concat!($native_rel, $p)));
     };
 }

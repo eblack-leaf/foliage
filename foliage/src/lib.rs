@@ -404,7 +404,7 @@ impl Foliage {
                             W::react(&mut elm, user_message);
                         } else if let Some(system_message) = ue.1 {
                             match system_message {
-                                SystemMessageResponse::WasmAsset(data) => {
+                                SystemMessageResponse::WasmAsset(_id, _data) => {
                                     // give to elm assets
                                 }
                                 SystemMessageResponse::NoOp => {}

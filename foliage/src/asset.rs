@@ -1,5 +1,8 @@
+use bevy_ecs::prelude::Resource;
 use std::collections::HashMap;
+
 pub type AssetKey = i32;
+#[derive(Resource)]
 pub struct AssetContainer {
     pub assets: HashMap<AssetKey, Option<Vec<u8>>>,
 }

@@ -268,7 +268,11 @@ impl Elm {
             .in_set(ExternalSet::ViewBindings)
             .run_if(|cv: Res<CurrentView>| -> bool { cv.is_changed() }),));
     }
-    pub fn load_web_asset<W: Workflow>(&mut self, id: AssetKey, path: &str) {
+    pub fn load_web_asset<W: Workflow + Default + Sync + Send + 'static>(
+        &mut self,
+        id: AssetKey,
+        path: &str,
+    ) {
         self.container()
             .get_non_send_resource::<WorkflowConnectionBase<W>>()
             .unwrap()
