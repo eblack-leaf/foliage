@@ -58,10 +58,10 @@ impl Image {
             ),
         }
     }
-    pub fn storage(image_id: ImageId, storage: ImageStorage, data: Vec<u8>) -> Self {
+    pub fn storage(image_id: ImageId, storage: ImageStorage, data: Option<Vec<u8>>) -> Self {
         Self {
             image_id: DifferentialBundle::new(image_id),
-            image_data: ImageData(Option::from(data)),
+            image_data: ImageData(data),
             was_request: RequestFlag(true),
             image_storage: DifferentialBundle::new(storage),
             differentiable: Differentiable::new::<Self>(
@@ -109,6 +109,6 @@ impl Leaf for Image {
             clean_requests.after(CoreSet::RenderPacket),
             send_image_data.in_set(CoreSet::Differential),
         ));
-        differential_enable!(elm, ImageId, ImageStorage, ImageData);
+        differential_enable!(elm, ImageId, ImageStorage);
     }
 }

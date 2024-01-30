@@ -29,7 +29,7 @@ impl Leaf for Showcase {
         elm.container().spawn(Image::storage(
             ImageId(0),
             ImageStorage::some(Area::from((700, 700))),
-            vec![],
+            None,
         ));
         load_asset!(
             elm,

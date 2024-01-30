@@ -86,7 +86,7 @@ impl ImageGroup {
         ginkgo: &Ginkgo,
         layout: &wgpu::BindGroupLayout,
         storage: Area<NumericalContext>,
-    ) -> TexturePartition {
+    ) -> () {
         self.storage = storage;
         let tex = ginkgo.device().create_texture(&wgpu::TextureDescriptor {
             label: Some("image-tex"),
@@ -113,7 +113,7 @@ impl ImageGroup {
                     0,
                 )],
             }));
-        self.write_data(ginkgo)
+        // self.write_data(ginkgo)
     }
 }
 pub struct ImageRenderResources {
@@ -255,23 +255,22 @@ impl Render for Image {
                     .unwrap()
                     .queue_data(data);
                 wr = true;
+                resources.write_needed.insert(image_id);
             }
         }
         if let Some(storage) = render_packet.get::<ImageStorage>().unwrap().0 {
             // create bind group + run fill
-            let partition = resources.groups.get_mut(&image_id).unwrap().fill(
+            resources.groups.get_mut(&image_id).unwrap().fill(
                 ginkgo,
                 &resources.package_layout,
                 storage,
             );
-            resources.full_coords.insert(image_id, partition);
             wr = true;
         }
         if wr {
             for instance in resources.groups.get(&image_id).unwrap().coordinator.keys() {
                 resources.view_queue.insert((image_id, instance));
             }
-            resources.write_needed.insert(image_id);
             return ImageRenderPackage {
                 last: image_id,
                 was_request: true,
