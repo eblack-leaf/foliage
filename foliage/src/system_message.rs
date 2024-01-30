@@ -1,8 +1,5 @@
 use crate::asset::AssetKey;
 use serde::{Deserialize, Serialize};
-use wasm_bindgen::JsCast;
-use wasm_bindgen_futures::JsFuture;
-use web_sys::{js_sys, Request, RequestInit, RequestMode, Response};
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub(crate) enum SystemMessageAction {
@@ -34,11 +31,15 @@ impl<A> ActionMessage<A> {
         Self(None, Some(sm))
     }
 }
+#[allow(unused)]
 pub(crate) async fn system_message_response(a: SystemMessageAction) -> SystemMessageResponse {
     match a {
         SystemMessageAction::WasmAsset(asset_key, path) => {
             #[cfg(target_family = "wasm")]
             {
+                use wasm_bindgen::JsCast;
+                use wasm_bindgen_futures::JsFuture;
+                use web_sys::{js_sys, Request, RequestInit, RequestMode, Response};
                 let mut opts = RequestInit::new();
                 opts.method("GET");
                 opts.mode(RequestMode::Cors);

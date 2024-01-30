@@ -55,7 +55,6 @@ fn generate() {
         for i in range {
             let svg_title = format!("{}.svg", name);
             let tmp_input_dir = root.join("tmp").join(i.to_string());
-            let tmp_input = tmp_input_dir.join(svg_title.clone());
             let tmp_dest = tmp_input_dir.join(format!("{}.png", name));
             std::process::Command::new("inkscape")
                 .current_dir(tmp_input_dir.clone())

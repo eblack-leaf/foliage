@@ -1,5 +1,5 @@
-pub(crate) const TEXTURE_SIZE: u32 = 2048;
-pub(crate) const UPPER_BOUND: u32 = 356;
+pub(crate) const TEXTURE_SIZE: u32 = 874;
+pub(crate) const UPPER_BOUND: u32 = 200;
 pub(crate) const LOWER_BOUND: u32 = 12;
 pub(crate) const STEP: usize = 4;
 
