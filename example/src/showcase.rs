@@ -31,20 +31,28 @@ impl Leaf for Showcase {
             ImageStorage::some(Area::from((700, 700))),
             vec![],
         ));
-        load_asset!(elm, crate::Engen, 0, "img.png", "../assets/", "foliage/assets/");
+        load_asset!(
+            elm,
+            crate::Engen,
+            0,
+            "img.png",
+            "../assets/",
+            "foliage/assets/"
+        );
+        elm.container().spawn(OnFetch::new(0, |data, cmd| {
+            cmd.spawn(Image::fill(ImageId(0), data));
+        }));
         let handle = ViewHandle::new(0, 0);
-        elm.add_view_scene_binding::<AspectRatioImage, OnFetch>(
+        elm.add_view_scene_binding::<AspectRatioImage, ()>(
             handle,
             AspectRatioImageArgs::new(ImageId(0), (651, 454)),
             ResponsiveSegment::new(
-                0.2.relative(),
-                0.4.relative(),
-                0.6.relative(),
-                0.5.relative(),
+                0.1.relative(),
+                0.3.relative(),
+                0.8.relative().max(651.0).min(300.0),
+                0.6.relative().max(454.0),
             ),
-            OnFetch::new(0, |data, cmd| {
-                cmd.spawn(Image::fill(ImageId(0), data));
-            }),
+            (),
         );
         elm.add_view_scene_binding::<Button, ()>(
             handle,

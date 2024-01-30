@@ -45,9 +45,7 @@ impl Leaf for AssetContainer {
     fn attach(elm: &mut Elm) {
         elm.container().insert_resource(AssetContainer::default());
         elm.main().add_systems(
-            on_fetch
-                .in_set(CoreSet::ExternalEvent)
-                // .run_if(|ac: Res<AssetContainer>| ac.is_changed()),
+            on_fetch.in_set(CoreSet::ExternalEvent), // .run_if(|ac: Res<AssetContainer>| ac.is_changed()),
         );
     }
 }

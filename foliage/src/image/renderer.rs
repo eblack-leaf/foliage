@@ -49,7 +49,10 @@ impl ImageGroup {
         self.data_queued = true;
     }
     fn write_data(&mut self, ginkgo: &Ginkgo) -> TexturePartition {
-        if self.data.is_empty() { return TexturePartition::default() }
+        self.data_queued = false;
+        if self.data.is_empty() {
+            return TexturePartition::default();
+        }
         let slice = self.data.as_slice();
         let image = image::load_from_memory(slice).unwrap().to_rgba8();
         self.dimensions = (image.width(), image.height()).into();
@@ -110,7 +113,6 @@ impl ImageGroup {
                     0,
                 )],
             }));
-        self.data_queued = false;
         self.write_data(ginkgo)
     }
 }
@@ -122,6 +124,7 @@ pub struct ImageRenderResources {
     vertex_buffer: wgpu::Buffer,
     full_coords: HashMap<ImageId, TexturePartition>,
     view_queue: HashSet<(ImageId, Entity)>,
+    write_needed: HashSet<ImageId>,
 }
 pub struct ImageRenderPackage {
     last: ImageId,
@@ -227,6 +230,7 @@ impl Render for Image {
             groups: HashMap::new(),
             full_coords: HashMap::new(),
             view_queue: HashSet::new(),
+            write_needed: HashSet::new(),
         }
     }
 
@@ -244,12 +248,14 @@ impl Render for Image {
         let mut wr = false;
         if let Some(data) = image_data.0 {
             // queue fill
-            resources
-                .groups
-                .get_mut(&image_id)
-                .unwrap()
-                .queue_data(data);
-            wr = true;
+            if !data.is_empty() {
+                resources
+                    .groups
+                    .get_mut(&image_id)
+                    .unwrap()
+                    .queue_data(data);
+                wr = true;
+            }
         }
         if let Some(storage) = render_packet.get::<ImageStorage>().unwrap().0 {
             // create bind group + run fill
@@ -265,15 +271,7 @@ impl Render for Image {
             for instance in resources.groups.get(&image_id).unwrap().coordinator.keys() {
                 resources.view_queue.insert((image_id, instance));
             }
-            if resources.groups.get_mut(&image_id).unwrap().data_queued {
-                let partition = resources
-                    .groups
-                    .get_mut(&image_id)
-                    .unwrap()
-                    .write_data(ginkgo);
-                resources.full_coords.insert(image_id, partition);
-                resources.groups.get_mut(&image_id).unwrap().data_queued = false;
-            }
+            resources.write_needed.insert(image_id);
             return ImageRenderPackage {
                 last: image_id,
                 was_request: true,
@@ -367,6 +365,10 @@ impl Render for Image {
         _per_renderer_record_hook: &mut bool,
     ) {
         // iter groups and prepare coordinators
+        for id in resources.write_needed.drain() {
+            let partition = resources.groups.get_mut(&id).unwrap().write_data(ginkgo);
+            resources.full_coords.insert(id, partition);
+        }
         for (id, queued) in resources.view_queue.drain() {
             let full = resources.full_coords.get_mut(&id).unwrap().clone();
             resources
