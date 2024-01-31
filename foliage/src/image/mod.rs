@@ -6,17 +6,16 @@ use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::NumericalContext;
-use crate::differential::{Differentiable, DifferentialBundle};
+use crate::differential::{Despawn, Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::config::{CoreSet, ElmConfiguration};
 use crate::elm::leaf::{EmptySetDescriptor, Leaf};
 use crate::elm::Elm;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
-use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{IntoSystemConfigs, Resource};
 use bevy_ecs::query::{Added, Changed};
-use bevy_ecs::system::{Commands, Query};
+use bevy_ecs::system::Query;
 use serde::{Deserialize, Serialize};
 
 #[derive(Component, Clone, PartialEq, Serialize, Deserialize)]
@@ -79,10 +78,10 @@ impl ImageStorage {
         Self(Some(area))
     }
 }
-fn clean_requests(mut cmd: Commands, query: Query<(Entity, &RequestFlag), Added<RequestFlag>>) {
-    for (entity, was_request) in query.iter() {
+fn clean_requests(mut query: Query<(&mut Despawn, &RequestFlag), Added<RequestFlag>>) {
+    for (mut despawn, was_request) in query.iter_mut() {
         if was_request.0 {
-            cmd.entity(entity).despawn();
+            despawn.despawn();
         }
     }
 }

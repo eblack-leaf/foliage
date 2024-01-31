@@ -39,6 +39,11 @@ pub struct RenderPacketStore {
 }
 
 impl RenderPacketStore {
+    pub(crate) fn new() -> Self {
+        Self {
+            render_packet: None,
+        }
+    }
     pub(crate) fn retrieve(&mut self) -> RenderPacket {
         let data = self.render_packet.take().unwrap();
         self.render_packet.replace(RenderPacket::new());

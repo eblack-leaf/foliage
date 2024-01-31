@@ -2,7 +2,7 @@ use crate::ash::instruction::{
     RenderInstructionHandle, RenderInstructionsRecorder, RenderRecordBehavior,
 };
 use crate::ash::render::{Render, RenderPhase};
-use crate::ash::render_packet::RenderPacket;
+use crate::ash::render_packet::{RenderPacket, RenderPacketStore};
 use crate::ash::renderer::RenderPackage;
 use crate::color::Color;
 use crate::coordinate::area::{Area, CReprArea};
@@ -11,9 +11,8 @@ use crate::coordinate::position::CReprPosition;
 use crate::coordinate::section::Section;
 use crate::coordinate::NumericalContext;
 use crate::ginkgo::Ginkgo;
-use crate::icon::bundled_cov::ICON_RESOURCE_FILES;
 use crate::icon::vertex::{Vertex, VERTICES};
-use crate::icon::{Icon, IconId, IconScale};
+use crate::icon::{Icon, IconId, IconScale, RequestData, WasRequest};
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
 use crate::texture::coord::TexturePartition;
 use bevy_ecs::entity::Entity;
@@ -31,6 +30,49 @@ pub struct IconRenderResources {
     icon_textures: HashMap<IconId, (InstanceCoordinator<Entity>, wgpu::BindGroup)>,
     entity_to_icon: HashMap<Entity, IconId>,
     scale_to_partition: HashMap<u32, TexturePartition>,
+    icon_queue: HashMap<IconId, HashMap<Entity, RenderPacket>>,
+}
+impl IconRenderResources {
+    pub(crate) fn queue_icon(
+        &mut self,
+        id: IconId,
+        entity: Entity,
+        mut render_packet: RenderPacket,
+    ) {
+        if self.icon_queue.get(&id).is_none() {
+            self.icon_queue.insert(id, HashMap::new());
+        }
+        if let Some(packet) = self.icon_queue.get_mut(&id).unwrap().remove(&entity) {
+            let mut store = RenderPacketStore::new();
+            store.put(
+                render_packet.get::<CReprPosition>().unwrap_or(
+                    packet
+                        .get::<CReprPosition>()
+                        .unwrap_or(CReprPosition::default()),
+                ),
+            );
+            store.put(
+                render_packet
+                    .get::<CReprArea>()
+                    .unwrap_or(packet.get::<CReprArea>().unwrap_or(CReprArea::default())),
+            );
+            store.put(
+                render_packet
+                    .get::<Color>()
+                    .unwrap_or(packet.get::<Color>().unwrap_or(Color::default())),
+            );
+            store.put(
+                render_packet
+                    .get::<Layer>()
+                    .unwrap_or(packet.get::<Layer>().unwrap_or(Layer::default())),
+            );
+            render_packet = store.retrieve();
+        }
+        self.icon_queue
+            .get_mut(&id)
+            .unwrap()
+            .insert(entity, render_packet);
+    }
 }
 impl Icon {
     pub(crate) const TEXTURE_DIMENSIONS: u32 = 320;
@@ -68,6 +110,38 @@ impl Icon {
                     }),
             ),
         );
+    }
+
+    fn add_entity(
+        resources: &mut IconRenderResources,
+        entity: Entity,
+        render_packet: RenderPacket,
+        new: &IconId,
+    ) {
+        resources
+            .icon_textures
+            .get_mut(&new)
+            .unwrap()
+            .0
+            .queue_add(entity);
+        let scale = render_packet.get::<CReprArea>().unwrap();
+        let texture_partition = resources
+            .scale_to_partition
+            .get(&(IconScale::from_dim(scale.width).px() as u32))
+            .cloned()
+            .unwrap();
+        resources
+            .icon_textures
+            .get_mut(&new)
+            .unwrap()
+            .0
+            .queue_write(entity, texture_partition);
+        resources
+            .icon_textures
+            .get_mut(&new)
+            .unwrap()
+            .0
+            .queue_render_packet(entity, render_packet);
     }
 }
 pub(crate) fn placements() -> Vec<(u32, Section<NumericalContext>)> {
@@ -109,7 +183,7 @@ pub(crate) fn icon_scale_range() -> StepBy<RangeInclusive<u32>> {
 }
 impl Render for Icon {
     type Resources = IconRenderResources;
-    type RenderPackage = ();
+    type RenderPackage = bool;
 
     const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(5);
 
@@ -124,7 +198,7 @@ impl Render for Icon {
                     label: Some("icon-render-pipeline-bind-group-layout"),
                     entries: &[Ginkgo::texture_d2_bind_group_entry(0)],
                 });
-        let mut icon_textures = HashMap::new();
+        let icon_textures = HashMap::new();
         let placements = placements();
         let mut scale_to_partition = HashMap::new();
         for (scale, place) in placements {
@@ -136,15 +210,15 @@ impl Render for Icon {
                 ),
             );
         }
-        for (index, file) in ICON_RESOURCE_FILES.iter().enumerate() {
-            Self::create_icon_resource(
-                ginkgo,
-                &icon_bind_group_layout,
-                &mut icon_textures,
-                index,
-                file,
-            );
-        }
+        // for (index, file) in ICON_RESOURCE_FILES.iter().enumerate() {
+        //     Self::create_icon_resource(
+        //         ginkgo,
+        //         &icon_bind_group_layout,
+        //         &mut icon_textures,
+        //         index,
+        //         file,
+        //     );
+        // }
         let sampler = ginkgo
             .device()
             .create_sampler(&wgpu::SamplerDescriptor::default());
@@ -236,6 +310,7 @@ impl Render for Icon {
             icon_textures,
             entity_to_icon: HashMap::new(),
             scale_to_partition,
+            icon_queue: HashMap::default(),
         }
     }
 
@@ -246,55 +321,43 @@ impl Render for Icon {
         render_packet: RenderPacket,
     ) -> Self::RenderPackage {
         let new = render_packet.get::<IconId>().unwrap();
-        resources.entity_to_icon.insert(entity, new);
-        if resources.icon_textures.get(&new).is_none() {
+        if render_packet.get::<WasRequest>().unwrap().0 {
+            let data = render_packet
+                .get::<RequestData>()
+                .unwrap()
+                .0
+                .take()
+                .unwrap();
             Self::create_icon_resource(
                 ginkgo,
                 &resources.icon_bind_group_layout,
                 &mut resources.icon_textures,
                 new.0 as usize,
-                ICON_RESOURCE_FILES[new.0 as usize],
+                data.as_slice(),
             );
+            return true;
         }
-        resources
-            .icon_textures
-            .get_mut(&new)
-            .unwrap()
-            .0
-            .queue_add(entity);
-        let scale = render_packet.get::<CReprArea>().unwrap();
-        let texture_partition = resources
-            .scale_to_partition
-            .get(&(IconScale::from_dim(scale.width).px() as u32))
-            .cloned()
-            .unwrap();
-        resources
-            .icon_textures
-            .get_mut(&new)
-            .unwrap()
-            .0
-            .queue_write(entity, texture_partition);
-        resources
-            .icon_textures
-            .get_mut(&new)
-            .unwrap()
-            .0
-            .queue_render_packet(entity, render_packet);
+        resources.entity_to_icon.insert(entity, new);
+        if resources.icon_textures.get(&new).is_none() {
+            resources.queue_icon(new, entity, render_packet);
+        } else {
+            Self::add_entity(resources, entity, render_packet, &new);
+        }
+        false
     }
 
     fn on_package_removal(
         _ginkgo: &Ginkgo,
         resources: &mut Self::Resources,
         entity: Entity,
-        _package: RenderPackage<Self>,
+        package: RenderPackage<Self>,
     ) {
-        if let Some(icon_id) = resources.entity_to_icon.get(&entity) {
-            resources
-                .icon_textures
-                .get_mut(icon_id)
-                .unwrap()
-                .0
-                .queue_remove(entity);
+        if !package.package_data {
+            if let Some(icon_id) = resources.entity_to_icon.get(&entity) {
+                if let Some(c) = resources.icon_textures.get_mut(icon_id) {
+                    c.0.queue_remove(entity);
+                }
+            }
         }
     }
 
@@ -302,21 +365,19 @@ impl Render for Icon {
         _ginkgo: &Ginkgo,
         resources: &mut Self::Resources,
         entity: Entity,
-        _package: &mut RenderPackage<Self>,
+        package: &mut RenderPackage<Self>,
         render_packet: RenderPacket,
     ) {
+        if package.package_data {
+            return;
+        }
         let mut icon_id = *resources.entity_to_icon.get(&entity).unwrap();
         if let Some(id) = render_packet.get::<IconId>() {
+            if resources.icon_textures.get(&id).is_none() {
+                resources.queue_icon(id, entity, render_packet);
+                return;
+            }
             if icon_id != id {
-                if resources.icon_textures.get(&id).is_none() {
-                    Self::create_icon_resource(
-                        _ginkgo,
-                        &resources.icon_bind_group_layout,
-                        &mut resources.icon_textures,
-                        id.0 as usize,
-                        ICON_RESOURCE_FILES[id.0 as usize],
-                    );
-                }
                 resources
                     .icon_textures
                     .get_mut(&icon_id)
@@ -331,6 +392,11 @@ impl Render for Icon {
                     .0
                     .queue_add(entity);
                 resources.entity_to_icon.insert(entity, id);
+            }
+        } else {
+            if resources.icon_textures.get(&icon_id).is_none() {
+                resources.queue_icon(icon_id, entity, render_packet);
+                return;
             }
         }
         if let Some(scale) = render_packet.get::<CReprArea>() {
@@ -360,6 +426,17 @@ impl Render for Icon {
         per_renderer_record_hook: &mut bool,
     ) {
         let mut should_record = true;
+        let mut confirmed = vec![];
+        for (id, mapping) in resources.icon_queue.iter_mut() {
+            if resources.icon_textures.get(id).is_some() {
+                for (entity, packet) in mapping.drain() {
+                    confirmed.push((*id, entity, packet));
+                }
+            }
+        }
+        for (id, entity, packet) in confirmed {
+            Icon::add_entity(resources, entity, packet, &id);
+        }
         for (_id, (coordinator, _)) in resources.icon_textures.iter_mut() {
             if coordinator.prepare(ginkgo) {
                 should_record = true;

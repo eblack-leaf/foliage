@@ -259,7 +259,6 @@ impl Render for Image {
             }
         }
         if let Some(storage) = render_packet.get::<ImageStorage>().unwrap().0 {
-            // create bind group + run fill
             resources.groups.get_mut(&image_id).unwrap().fill(
                 ginkgo,
                 &resources.package_layout,

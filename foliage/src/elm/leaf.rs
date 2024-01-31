@@ -8,7 +8,7 @@ use std::marker::PhantomData;
 
 pub trait Leaf {
     type SetDescriptor: SystemSet + Hash + Eq + PartialEq + Copy + Clone + Debug;
-    fn config(elm_configuration: &mut ElmConfiguration);
+    fn config(_elm_configuration: &mut ElmConfiguration) {}
     fn attach(elm: &mut Elm);
 }
 #[derive(SystemSet, Hash, Eq, PartialEq, Copy, Clone, Debug)]

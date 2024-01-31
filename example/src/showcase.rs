@@ -8,7 +8,7 @@ use foliage::elm::config::ElmConfiguration;
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 use foliage::elm::Elm;
 use foliage::icon::bundled_cov::BundledIcon;
-use foliage::icon::IconId;
+use foliage::icon::{Icon, IconId};
 use foliage::image::{Image, ImageId, ImageStorage};
 use foliage::load_asset;
 use foliage::prebuilt::aspect_ratio_image::{AspectRatioImage, AspectRatioImageArgs};
@@ -54,6 +54,17 @@ impl Leaf for Showcase {
             ),
             (),
         );
+        load_asset!(
+            elm,
+            crate::Engen,
+            1,
+            "copy.gatl",
+            "../assets/icons/",
+            "/foliage/assets/icons/"
+        );
+        elm.container().spawn(OnFetch::new(1, |data, cmd| {
+            cmd.spawn(Icon::storage(IconId::new(BundledIcon::Copy), data));
+        }));
         elm.add_view_scene_binding::<Button, ()>(
             handle,
             ButtonArgs::new(

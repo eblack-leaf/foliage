@@ -1,19 +1,19 @@
+use crate::ash::render_packet::RenderPacketStore;
 use crate::color::Color;
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::{CoordinateUnit, InterfaceContext};
-use crate::differential::{Differentiable, Differential, DifferentialBundle};
-use crate::elm::config::{ElmConfiguration, ExternalSet};
+use crate::differential::{Despawn, Differentiable, Differential, DifferentialBundle};
+use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::elm::leaf::Leaf;
 use crate::elm::Elm;
-use crate::texture::factors::MipsLevel;
 #[allow(unused)]
 use crate::{coordinate, differential_enable};
 use bevy_ecs::component::Component;
+use bevy_ecs::prelude::{Added, Query, SystemSet};
 #[allow(unused)]
 use bevy_ecs::prelude::{Bundle, IntoSystemConfigs};
-use bevy_ecs::prelude::{Query, SystemSet};
 use bevy_ecs::query::Changed;
 use bundled_cov::BundledIcon;
 use serde::{Deserialize, Serialize};
@@ -22,20 +22,41 @@ pub mod bundled_cov;
 mod proc_gen;
 mod renderer;
 mod vertex;
-
+#[derive(Default, Component, Clone, Deserialize, Serialize)]
+pub(crate) struct RequestData(pub(crate) Option<Vec<u8>>);
+#[derive(Default, Component, Clone, PartialEq, Serialize, Deserialize)]
+pub(crate) struct WasRequest(pub(crate) bool);
 #[derive(Bundle, Clone)]
 pub struct Icon {
     scale: IconScale,
     icon_id: DifferentialBundle<IconId>,
     color: DifferentialBundle<Color>,
+    data: RequestData,
+    was_request: DifferentialBundle<WasRequest>,
     differentiable: Differentiable,
 }
 impl Icon {
     pub fn new<C: Into<Color>>(icon_id: IconId, scale: IconScale, color: C) -> Self {
         Self {
+            scale,
             icon_id: DifferentialBundle::new(icon_id),
             color: DifferentialBundle::new(color.into()),
-            scale,
+            data: RequestData::default(),
+            was_request: DifferentialBundle::new(WasRequest(false)),
+            differentiable: Differentiable::new::<Self>(
+                Position::default(),
+                Area::default(),
+                Layer::default(),
+            ),
+        }
+    }
+    pub fn storage(icon_id: IconId, data: Vec<u8>) -> Self {
+        Self {
+            scale: IconScale::from_dim(12.0),
+            icon_id: DifferentialBundle::new(icon_id),
+            color: DifferentialBundle::new(Color::default()),
+            data: RequestData(Some(data)),
+            was_request: DifferentialBundle::new(WasRequest(true)),
             differentiable: Differentiable::new::<Self>(
                 Position::default(),
                 Area::default(),
@@ -56,11 +77,24 @@ impl Leaf for Icon {
     }
 
     fn attach(elm: &mut Elm) {
-        differential_enable!(elm, CReprPosition, CReprArea, Color, IconId, MipsLevel);
+        differential_enable!(elm, CReprPosition, CReprArea, Color, IconId, WasRequest);
         elm.job.main().add_systems((
             scale_change.in_set(SetDescriptor::Area),
             id_changed.in_set(SetDescriptor::Area),
+            clean_requests.after(CoreSet::RenderPacket),
+            send_icon_data.in_set(CoreSet::Differential),
         ));
+    }
+}
+fn send_icon_data(
+    mut icon_requests: Query<(&mut RequestData, &mut RenderPacketStore), Changed<RequestData>>,
+) {
+    for (mut data, mut store) in icon_requests.iter_mut() {
+        if data.0.is_some() {
+            store.put(RequestData(Some(data.0.take().unwrap())));
+        } else {
+            store.put(RequestData(None));
+        }
     }
 }
 #[derive(Component, Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
@@ -100,6 +134,13 @@ fn id_changed(
         pos.push_cached();
         area.push_cached();
         color.push_cached();
+    }
+}
+fn clean_requests(mut query: Query<(&mut Despawn, &WasRequest), Added<WasRequest>>) {
+    for (mut despawn, was_request) in query.iter_mut() {
+        if was_request.0 {
+            despawn.despawn();
+        }
     }
 }
 #[derive(Component, Copy, Clone, Serialize, Deserialize, Debug)]
