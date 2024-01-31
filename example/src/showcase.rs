@@ -65,6 +65,17 @@ impl Leaf for Showcase {
         elm.container().spawn(OnFetch::new(1, |data, cmd| {
             cmd.spawn(Icon::storage(IconId::new(BundledIcon::Copy), data));
         }));
+        load_asset!(
+            elm,
+            crate::Engen,
+            2,
+            "command.gatl",
+            "../assets/icons/",
+            "/foliage/assets/icons/"
+        );
+        elm.container().spawn(OnFetch::new(2, |data, cmd| {
+            cmd.spawn(Icon::storage(IconId::new(BundledIcon::Command), data));
+        }));
         elm.add_view_scene_binding::<Button, ()>(
             handle,
             ButtonArgs::new(
@@ -89,7 +100,7 @@ impl Leaf for Showcase {
                 ButtonStyle::Fill,
                 TextValue::new("fill"),
                 MaxCharacters(4),
-                IconId::new(BundledIcon::Copy),
+                IconId::new(BundledIcon::Command),
                 Color::CYAN_MEDIUM,
                 Color::OFF_BLACK,
             ),
