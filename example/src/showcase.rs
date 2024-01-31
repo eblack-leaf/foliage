@@ -7,8 +7,7 @@ use foliage::coordinate::area::Area;
 use foliage::elm::config::ElmConfiguration;
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 use foliage::elm::Elm;
-use foliage::icon::bundled_cov::BundledIcon;
-use foliage::icon::{Icon, IconId};
+use foliage::icon::{FeatherIcon, Icon};
 use foliage::image::{Image, ImageId, ImageStorage};
 use foliage::load_asset;
 use foliage::prebuilt::aspect_ratio_image::{AspectRatioImage, AspectRatioImageArgs};
@@ -29,7 +28,6 @@ impl Leaf for Showcase {
         elm.container().spawn(Image::storage(
             ImageId(0),
             ImageStorage::some(Area::from((700, 700))),
-            None,
         ));
         load_asset!(
             elm,
@@ -63,7 +61,7 @@ impl Leaf for Showcase {
             "/foliage/assets/icons/"
         );
         elm.container().spawn(OnFetch::new(1, |data, cmd| {
-            cmd.spawn(Icon::storage(IconId::new(BundledIcon::Copy), data));
+            cmd.spawn(Icon::storage(FeatherIcon::Copy.id(), data));
         }));
         load_asset!(
             elm,
@@ -74,7 +72,7 @@ impl Leaf for Showcase {
             "/foliage/assets/icons/"
         );
         elm.container().spawn(OnFetch::new(2, |data, cmd| {
-            cmd.spawn(Icon::storage(IconId::new(BundledIcon::Command), data));
+            cmd.spawn(Icon::storage(FeatherIcon::Command.id(), data));
         }));
         elm.add_view_scene_binding::<Button, ()>(
             handle,
@@ -82,7 +80,7 @@ impl Leaf for Showcase {
                 ButtonStyle::Ring,
                 TextValue::new("ring"),
                 MaxCharacters(4),
-                IconId::new(BundledIcon::Copy),
+                FeatherIcon::Copy.id(),
                 Color::CYAN_MEDIUM,
                 Color::OFF_BLACK,
             ),
@@ -100,7 +98,7 @@ impl Leaf for Showcase {
                 ButtonStyle::Fill,
                 TextValue::new("fill"),
                 MaxCharacters(4),
-                IconId::new(BundledIcon::Command),
+                FeatherIcon::Command.id(),
                 Color::CYAN_MEDIUM,
                 Color::OFF_BLACK,
             ),

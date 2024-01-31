@@ -57,10 +57,10 @@ impl Image {
             ),
         }
     }
-    pub fn storage(image_id: ImageId, storage: ImageStorage, data: Option<Vec<u8>>) -> Self {
+    pub fn storage(image_id: ImageId, storage: ImageStorage) -> Self {
         Self {
             image_id: DifferentialBundle::new(image_id),
-            image_data: ImageData(data),
+            image_data: ImageData(None),
             was_request: RequestFlag(true),
             image_storage: DifferentialBundle::new(storage),
             differentiable: Differentiable::new::<Self>(

@@ -92,7 +92,7 @@ impl Icon {
             texture_data.as_slice(),
         );
         icon_textures.insert(
-            IconId(index as u32),
+            IconId::new(index as u32),
             (
                 InstanceCoordinatorBuilder::new(4)
                     .with_attribute::<CReprPosition>()
