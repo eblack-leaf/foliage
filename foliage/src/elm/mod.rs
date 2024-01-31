@@ -276,7 +276,14 @@ impl Elm {
         self.container()
             .get_non_send_resource::<WorkflowConnectionBase<W>>()
             .unwrap()
-            .system_send(SystemMessageAction::WasmAsset(id, format!("{}{}", web_sys::window().unwrap().origin(), path.to_string())));
+            .system_send(SystemMessageAction::WasmAsset(
+                id,
+                format!(
+                    "{}{}",
+                    web_sys::window().unwrap().origin(),
+                    path.to_string()
+                ),
+            ));
         self.container()
             .get_resource_mut::<AssetContainer>()
             .unwrap()

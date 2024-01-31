@@ -35,47 +35,17 @@ impl<A> ActionMessage<A> {
 pub(crate) async fn system_message_response(a: SystemMessageAction) -> SystemMessageResponse {
     match a {
         SystemMessageAction::WasmAsset(asset_key, path) => {
-            let res = reqwest::Client::new()
-            .get(path)
-            .header("Accept", "application/octet-stream")
-            .send()
-            .await.unwrap();
-
-            let text = res.bytes().await.unwrap();
-            return SystemMessageResponse::NoOp;
             #[cfg(target_family = "wasm")]
             {
+                let res = reqwest::Client::new()
+                    .get(path)
+                    .header("Accept", "application/octet-stream")
+                    .send()
+                    .await
+                    .unwrap();
 
-                // use wasm_bindgen::JsCast;
-                // use wasm_bindgen_futures::JsFuture;
-                // use web_sys::{js_sys, Request, RequestInit, RequestMode, Response};
-                // let mut opts = RequestInit::new();
-                // opts.method("GET");
-                // opts.mode(RequestMode::Cors);
-                // let window = web_sys::window().unwrap();
-                // let origin = window.origin();
-                // let url = path;
-                // if let Ok(request) = Request::new_with_str_and_init(&url, &opts) {
-                //     if request
-                //         .headers()
-                //         .set("Accept", "application/octet-stream")
-                //         .is_ok()
-                //     {
-                //         if let Ok(response) =
-                //             JsFuture::from(window.fetch_with_request(&request)).await
-                //         {
-                //             let response: Response = response.dyn_into().unwrap();
-                //             if let Ok(array) = response.array_buffer() {
-                //                 if let Ok(response) = JsFuture::from(array).await {
-                //                     return SystemMessageResponse::WasmAsset(
-                //                         asset_key,
-                //                         js_sys::Uint8Array::new(&response).to_vec(),
-                //                     );
-                //                 }
-                //             }
-                //         }
-                //     }
-                // }
+                let bytes = res.bytes().await.unwrap();
+                return SystemMessageResponse::WasmAsset(asset_key, bytes.to_vec());
             }
             SystemMessageResponse::NoOp
         }
