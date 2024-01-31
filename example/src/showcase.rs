@@ -37,7 +37,7 @@ impl Leaf for Showcase {
             0,
             "img.png",
             "../assets/",
-            "foliage/assets/"
+            "/foliage/assets/"
         );
         elm.container().spawn(OnFetch::new(0, |data, cmd| {
             cmd.spawn(Image::fill(ImageId(0), data));

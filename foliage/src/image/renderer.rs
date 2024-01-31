@@ -369,13 +369,14 @@ impl Render for Image {
             resources.full_coords.insert(id, partition);
         }
         for (id, queued) in resources.view_queue.drain() {
-            let full = resources.full_coords.get_mut(&id).unwrap().clone();
-            resources
-                .groups
-                .get_mut(&id)
-                .unwrap()
-                .coordinator
-                .queue_write(queued, full);
+            if let Some(coords) = resources.full_coords.get_mut(&id).cloned() {
+                resources
+                    .groups
+                    .get_mut(&id)
+                    .unwrap()
+                    .coordinator
+                    .queue_write(queued, coords);
+            }
         }
         for (_id, group) in resources.groups.iter_mut() {
             if group.coordinator.prepare(ginkgo) {
