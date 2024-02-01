@@ -5,7 +5,7 @@ use crate::differential::Despawn;
 use crate::elm::config::{ElmConfiguration, ExternalSet};
 use crate::elm::leaf::{Leaf, Tag};
 use crate::elm::Elm;
-use crate::icon::{Icon, IconScale, IconId};
+use crate::icon::{Icon, IconId, IconScale};
 use crate::scene::align::SceneAligner;
 use crate::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
 use crate::set_descriptor;

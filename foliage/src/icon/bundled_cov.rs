@@ -1,6 +1,6 @@
+use crate::icon::IconId;
 use bevy_ecs::component::Component;
 use serde::{Deserialize, Serialize};
-use crate::icon::IconId;
 
 #[repr(u32)]
 #[derive(Component, Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
@@ -293,7 +293,9 @@ pub enum FeatherIcon {
     ZoomOut,
 }
 impl FeatherIcon {
-    pub fn id(&self) -> IconId { IconId::new(*self as u32) }
+    pub fn id(&self) -> IconId {
+        IconId::new(*self as u32)
+    }
 }
 #[allow(unused)]
 pub(crate) const ICON_NAMES: [&'static str; 286] = [

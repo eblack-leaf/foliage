@@ -1,4 +1,4 @@
-use foliage::asset::OnFetch;
+use crate::Engen;
 use foliage::color::Color;
 use foliage::compositor::layout::Layout;
 use foliage::compositor::segment::{ResponsiveSegment, SegmentUnitNumber};
@@ -9,7 +9,7 @@ use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 use foliage::elm::Elm;
 use foliage::icon::{FeatherIcon, Icon};
 use foliage::image::{Image, ImageId, ImageStorage};
-use foliage::load_asset;
+use foliage::load_native_asset;
 use foliage::prebuilt::aspect_ratio_image::{AspectRatioImage, AspectRatioImageArgs};
 use foliage::prebuilt::button::{Button, ButtonArgs, ButtonStyle};
 use foliage::prebuilt::circle_progress_bar::CircleProgressBar;
@@ -29,17 +29,11 @@ impl Leaf for Showcase {
             ImageId(0),
             ImageStorage::some(Area::from((700, 700))),
         ));
-        load_asset!(
-            elm,
-            crate::Engen,
-            0,
-            "img.png",
-            "../assets/",
-            "/foliage/assets/"
-        );
-        elm.container().spawn(OnFetch::new(0, |data, cmd| {
+        elm.load_remote_asset::<Engen>(0, "/foliage/assets/img.png");
+        load_native_asset!(elm, 0, "../assets/img.png");
+        elm.on_fetch(0, |data, cmd| {
             cmd.spawn(Image::fill(ImageId(0), data));
-        }));
+        });
         let handle = ViewHandle::new(0, 0);
         elm.add_view_scene_binding::<AspectRatioImage, ()>(
             handle,
@@ -52,28 +46,16 @@ impl Leaf for Showcase {
             ),
             (),
         );
-        load_asset!(
-            elm,
-            crate::Engen,
-            1,
-            "copy.gatl",
-            "../assets/icons/",
-            "/foliage/assets/icons/"
-        );
-        elm.container().spawn(OnFetch::new(1, |data, cmd| {
+        elm.load_remote_asset::<Engen>(1, "/foliage/assets/icons/copy.gatl");
+        load_native_asset!(elm, 1, "../assets/icons/copy.gatl");
+        elm.on_fetch(1, |data, cmd| {
             cmd.spawn(Icon::storage(FeatherIcon::Copy.id(), data));
-        }));
-        load_asset!(
-            elm,
-            crate::Engen,
-            2,
-            "command.gatl",
-            "../assets/icons/",
-            "/foliage/assets/icons/"
-        );
-        elm.container().spawn(OnFetch::new(2, |data, cmd| {
+        });
+        elm.load_remote_asset::<Engen>(2, "/foliage/assets/icons/command.gatl");
+        load_native_asset!(elm, 2, "../assets/icons/command.gatl");
+        elm.on_fetch(2, |data, cmd| {
             cmd.spawn(Icon::storage(FeatherIcon::Command.id(), data));
-        }));
+        });
         elm.add_view_scene_binding::<Button, ()>(
             handle,
             ButtonArgs::new(

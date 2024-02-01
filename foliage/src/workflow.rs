@@ -81,6 +81,7 @@ impl<W: Workflow + Default + Send + Sync + 'static> WorkflowConnectionBase<W> {
         #[cfg(target_family = "wasm")]
         self.bridge.send(ActionMessage::user(action));
     }
+    #[allow(unused)]
     pub(crate) fn system_send(&self, system_message: SystemMessageAction) {
         cfg_if::cfg_if! {
             if #[cfg(target_family = "wasm")] {

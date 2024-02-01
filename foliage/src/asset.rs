@@ -17,22 +17,23 @@ impl AssetContainer {
     }
 }
 #[derive(Component, Clone)]
-pub struct OnFetch(pub AssetKey, pub Box<fn(Vec<u8>, &mut Commands)>);
+pub struct OnFetch(pub AssetKey, pub Box<AssetFetchFn>);
 impl OnFetch {
-    pub fn new(key: AssetKey, func: fn(Vec<u8>, &mut Commands)) -> Self {
+    pub fn new(key: AssetKey, func: AssetFetchFn) -> Self {
         Self(key, Box::new(func))
     }
 }
+pub type AssetFetchFn = fn(Vec<u8>, &mut Commands);
 fn on_fetch(
-    mut fetch_requests: Query<(Entity, &mut OnFetch)>,
+    fetch_requests: Query<(Entity, &OnFetch)>,
     mut cmd: Commands,
     assets: Res<AssetContainer>,
 ) {
-    for (entity, on_fetch) in fetch_requests.iter_mut() {
+    for (entity, on_fetch) in fetch_requests.iter() {
         if let Some(asset) = assets.assets.get(&on_fetch.0) {
             if let Some(asset) = asset {
                 on_fetch.1(asset.clone(), &mut cmd);
-                cmd.entity(entity).remove::<OnFetch>();
+                cmd.entity(entity).despawn();
             }
         }
     }
@@ -45,7 +46,15 @@ impl Leaf for AssetContainer {
     fn attach(elm: &mut Elm) {
         elm.container().insert_resource(AssetContainer::default());
         elm.main().add_systems(
-            on_fetch.in_set(CoreSet::ExternalEvent), // .run_if(|ac: Res<AssetContainer>| ac.is_changed()),
+            on_fetch.in_set(CoreSet::ProcessEvent), //.run_if(|ac: Res<AssetContainer>| ac.is_changed()),
         );
     }
+}
+
+#[macro_export]
+macro_rules! load_native_asset {
+    ($elm:ident, $id:expr, $p:literal) => {
+        #[cfg(not(target_family = "wasm"))]
+        $elm.store_local_asset($id, include_bytes!($p).to_vec());
+    };
 }

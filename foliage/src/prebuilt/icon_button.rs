@@ -5,7 +5,7 @@ use crate::differential::Despawn;
 use crate::elm::config::ElmConfiguration;
 use crate::elm::leaf::{EmptySetDescriptor, Leaf, Tag};
 use crate::elm::Elm;
-use crate::icon::{Icon, IconScale, IconId};
+use crate::icon::{Icon, IconId, IconScale};
 use crate::interaction::InteractionListener;
 use crate::panel::{Panel, PanelStyle};
 use crate::prebuilt::button::{BackgroundColor, BaseStyle, Button, ButtonStyle, ForegroundColor};

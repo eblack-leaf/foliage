@@ -16,7 +16,7 @@ pub fn entry(android_interface: AndroidInterface) {
         )
         .with_leaf::<Showcase>()
         .with_android_interface(android_interface)
-        .with_worker_path("foliage/worker.js")
+        .with_worker_path("./worker.js")
         .run::<Engen>();
 }
 #[derive(Default)]

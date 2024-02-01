@@ -15,8 +15,8 @@ use bevy_ecs::prelude::{Added, Query, SystemSet};
 #[allow(unused)]
 use bevy_ecs::prelude::{Bundle, IntoSystemConfigs};
 use bevy_ecs::query::Changed;
-use serde::{Deserialize, Serialize};
 pub use bundled_cov::FeatherIcon;
+use serde::{Deserialize, Serialize};
 mod bundled_cov;
 mod proc_gen;
 mod renderer;
@@ -99,7 +99,9 @@ fn send_icon_data(
 #[derive(Component, Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
 pub struct IconId(pub u32);
 impl IconId {
-    pub fn new(value: u32) -> Self { Self(value) }
+    pub fn new(value: u32) -> Self {
+        Self(value)
+    }
 }
 fn scale_change(
     mut query: Query<

@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::ash::render_packet::RenderPacketForwarder;
 use crate::ash::render_packet::RenderPacketPackage;
-use crate::asset::{AssetContainer, AssetKey};
+use crate::asset::{AssetContainer, AssetFetchFn, AssetKey, OnFetch};
 use crate::compositor::segment::ResponsiveSegment;
 use crate::compositor::{Compositor, CurrentView, Segmental, ViewHandle};
 use crate::coordinate::area::{Area, CReprArea};
@@ -29,9 +29,8 @@ use crate::ginkgo::viewport::ViewportHandle;
 use crate::interaction::InteractionListener;
 use crate::job::{Container, Job, Task};
 use crate::scene::{Anchor, Scene, SceneCoordinator};
-use crate::system_message::SystemMessageAction;
 use crate::window::ScaleFactor;
-use crate::workflow::{Workflow, WorkflowConnectionBase};
+use crate::workflow::Workflow;
 
 pub struct Elm {
     initialized: bool,
@@ -90,6 +89,14 @@ impl EventStage {
         }
     }
 }
+pub trait Fetch {
+    fn on_fetch(&mut self, key: AssetKey, func: AssetFetchFn);
+}
+impl<'w, 's> Fetch for Commands<'w, 's> {
+    fn on_fetch(&mut self, key: AssetKey, func: AssetFetchFn) {
+        self.spawn(OnFetch::new(key, func));
+    }
+}
 impl Elm {
     pub fn main(&mut self) -> &mut Task {
         self.job.main()
@@ -102,6 +109,9 @@ impl Elm {
     }
     pub fn container(&mut self) -> &mut Container {
         &mut self.job.container
+    }
+    pub fn on_fetch(&mut self, key: AssetKey, func: AssetFetchFn) {
+        self.container().spawn(OnFetch::new(key, func));
     }
     pub(crate) fn new() -> Self {
         Self {
@@ -268,26 +278,31 @@ impl Elm {
             .in_set(ExternalSet::ViewBindings)
             .run_if(|cv: Res<CurrentView>| -> bool { cv.is_changed() }),));
     }
-    pub fn load_remote_asset<W: Workflow + Default + Sync + Send + 'static>(
+    #[allow(unused)]
+    pub fn load_remote_asset<W: Workflow + Default + Send + Sync + 'static>(
         &mut self,
         id: AssetKey,
         path: &str,
     ) {
-        self.container()
-            .get_non_send_resource::<WorkflowConnectionBase<W>>()
-            .unwrap()
-            .system_send(SystemMessageAction::WasmAsset(
+        #[cfg(target_family = "wasm")]
+        {
+            let message = crate::system_message::SystemMessageAction::WasmAsset(
                 id,
                 format!(
                     "{}{}",
                     web_sys::window().unwrap().origin(),
                     path.to_string()
                 ),
-            ));
-        self.container()
-            .get_resource_mut::<AssetContainer>()
-            .unwrap()
-            .store(id, None);
+            );
+            self.container()
+                .get_non_send_resource::<crate::WorkflowConnectionBase<W>>()
+                .unwrap()
+                .system_send(message);
+            self.container()
+                .get_resource_mut::<crate::AssetContainer>()
+                .unwrap()
+                .store(id, None);
+        }
     }
     pub fn store_local_asset(&mut self, id: AssetKey, bytes: Vec<u8>) {
         self.container()

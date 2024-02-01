@@ -10,6 +10,7 @@ use window::{WindowDescriptor, WindowHandle};
 use winit::event::{Event, Ime, KeyEvent, MouseButton, StartCause, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget};
 
+use self::ash::leaflet::RenderLeafletStorage;
 use crate::ash::render::Render;
 use crate::ash::Ash;
 use crate::asset::AssetContainer;
@@ -44,8 +45,6 @@ use crate::time::Time;
 use crate::virtual_keyboard::VirtualKeyboardAdapter;
 use crate::workflow::{Workflow, WorkflowConnectionBase};
 use animate::trigger::Trigger;
-
-use self::ash::leaflet::RenderLeafletStorage;
 
 mod animate;
 pub mod ash;
