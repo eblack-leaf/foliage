@@ -9,13 +9,13 @@ use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 use foliage::elm::Elm;
 use foliage::icon::{FeatherIcon, Icon};
 use foliage::image::{Image, ImageId, ImageStorage};
-use foliage::load_native_asset;
 use foliage::prebuilt::aspect_ratio_image::{AspectRatioImage, AspectRatioImageArgs};
 use foliage::prebuilt::button::{Button, ButtonArgs, ButtonStyle};
 use foliage::prebuilt::circle_progress_bar::CircleProgressBar;
 use foliage::prebuilt::progress_bar::{ProgressBar, ProgressBarArgs};
 use foliage::text::{MaxCharacters, TextValue};
 use foliage::texture::factors::Progress;
+use foliage::{icon_fetcher, load_native_asset};
 
 pub(crate) struct Showcase {}
 impl Leaf for Showcase {
@@ -29,9 +29,10 @@ impl Leaf for Showcase {
             ImageId(0),
             ImageStorage::some(Area::from((700, 700))),
         ));
-        elm.load_remote_asset::<Engen>(0, "/foliage/assets/img.png");
-        load_native_asset!(elm, 0, "../assets/img.png");
-        elm.on_fetch(0, |data, cmd| {
+        #[cfg(target_family = "wasm")]
+        let img_id = elm.load_remote_asset::<Engen>("/foliage/assets/img.png");
+        load_native_asset!(elm, img_id, "../assets/img.png");
+        elm.on_fetch(img_id, |data, cmd| {
             cmd.spawn(Image::fill(ImageId(0), data));
         });
         let handle = ViewHandle::new(0, 0);
@@ -46,16 +47,14 @@ impl Leaf for Showcase {
             ),
             (),
         );
-        elm.load_remote_asset::<Engen>(1, "/foliage/assets/icons/copy.gatl");
-        load_native_asset!(elm, 1, "../assets/icons/copy.gatl");
-        elm.on_fetch(1, |data, cmd| {
-            cmd.spawn(Icon::storage(FeatherIcon::Copy.id(), data));
-        });
-        elm.load_remote_asset::<Engen>(2, "/foliage/assets/icons/command.gatl");
-        load_native_asset!(elm, 2, "../assets/icons/command.gatl");
-        elm.on_fetch(2, |data, cmd| {
-            cmd.spawn(Icon::storage(FeatherIcon::Command.id(), data));
-        });
+        elm.load_remote_icon::<Engen>(
+            icon_fetcher!(FeatherIcon::Copy),
+            "/foliage/assets/icons/copy.gatl",
+        );
+        elm.load_remote_icon::<Engen>(
+            icon_fetcher!(FeatherIcon::Command),
+            "/foliage/assets/icons/command.gatl",
+        );
         elm.add_view_scene_binding::<Button, ()>(
             handle,
             ButtonArgs::new(

@@ -6,7 +6,7 @@ use bevy_ecs::prelude::{Commands, Component, IntoSystemConfigs, Res, Resource};
 use bevy_ecs::system::Query;
 use std::collections::HashMap;
 
-pub type AssetKey = i32;
+pub type AssetKey = u128;
 #[derive(Resource, Default)]
 pub struct AssetContainer {
     pub assets: HashMap<AssetKey, Option<Vec<u8>>>,
@@ -53,8 +53,18 @@ impl Leaf for AssetContainer {
 
 #[macro_export]
 macro_rules! load_native_asset {
-    ($elm:ident, $id:expr, $p:literal) => {
+    ($elm:ident, $id:ident, $p:literal) => {
+        #[cfg(not(target_family = "wasm"))]
+        let $id = $elm.generate_asset_key();
         #[cfg(not(target_family = "wasm"))]
         $elm.store_local_asset($id, include_bytes!($p).to_vec());
+    };
+}
+#[macro_export]
+macro_rules! icon_fetcher {
+    ($fi:expr) => {
+        |data, cmd| {
+            cmd.spawn(Icon::storage($fi.id(), data));
+        }
     };
 }

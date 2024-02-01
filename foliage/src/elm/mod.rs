@@ -13,6 +13,7 @@ use bevy_ecs::system::{Commands, Query, ResMut, StaticSystemParam, SystemParam};
 use compact_str::{CompactString, ToCompactString};
 use leaf::Leaflet;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use crate::ash::render_packet::RenderPacketForwarder;
 use crate::ash::render_packet::RenderPacketPackage;
@@ -278,31 +279,46 @@ impl Elm {
             .in_set(ExternalSet::ViewBindings)
             .run_if(|cv: Res<CurrentView>| -> bool { cv.is_changed() }),));
     }
-    #[allow(unused)]
+    #[cfg(target_family = "wasm")]
     pub fn load_remote_asset<W: Workflow + Default + Send + Sync + 'static>(
         &mut self,
-        id: AssetKey,
+        path: &str,
+    ) -> AssetKey {
+        let id = self.generate_asset_key();
+        let message = crate::system_message::SystemMessageAction::WasmAsset(
+            id,
+            format!(
+                "{}{}",
+                web_sys::window().unwrap().origin(),
+                path.to_string()
+            ),
+        );
+        self.container()
+            .get_non_send_resource::<crate::WorkflowConnectionBase<W>>()
+            .unwrap()
+            .system_send(message);
+        self.container()
+            .get_resource_mut::<crate::AssetContainer>()
+            .unwrap()
+            .store(id, None);
+        return id;
+    }
+    #[allow(unused)]
+    pub fn load_remote_icon<W: Workflow + Default + Send + Sync + 'static>(
+        &mut self,
+        func: AssetFetchFn,
         path: &str,
     ) {
         #[cfg(target_family = "wasm")]
         {
-            let message = crate::system_message::SystemMessageAction::WasmAsset(
-                id,
-                format!(
-                    "{}{}",
-                    web_sys::window().unwrap().origin(),
-                    path.to_string()
-                ),
-            );
-            self.container()
-                .get_non_send_resource::<crate::WorkflowConnectionBase<W>>()
-                .unwrap()
-                .system_send(message);
-            self.container()
-                .get_resource_mut::<crate::AssetContainer>()
-                .unwrap()
-                .store(id, None);
+            use crate::icon::{Icon, IconId};
+            let id = self.load_remote_asset::<W>(path);
+            self.on_fetch(id, func);
         }
+    }
+    pub fn generate_asset_key(&self) -> AssetKey {
+        let id = Uuid::new_v4().as_u128();
+        id
     }
     pub fn store_local_asset(&mut self, id: AssetKey, bytes: Vec<u8>) {
         self.container()
