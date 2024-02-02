@@ -64,7 +64,7 @@ macro_rules! load_native_asset {
 macro_rules! icon_fetcher {
     ($fi:expr) => {
         |data, cmd| {
-            cmd.spawn(Icon::storage($fi.id(), data));
+            cmd.spawn($crate::icon::Icon::storage($fi.id(), data));
         }
     };
 }

@@ -1,0 +1,20 @@
+[build]
+target = "index.html"
+release = false
+dist = "dist"
+public_url = "/foliage/demo/"
+filehash = true
+
+[serve]
+address = "127.0.0.1"
+port = 8080
+open = false
+no_autoreload = true
+
+[clean]
+dist = "dist"
+cargo = false
+
+[tools]
+wasm_bindgen = "0.2.89"
+wasm_opt = "version_110"

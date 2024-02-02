@@ -1,9 +1,10 @@
-use crate::HOME;
+use crate::{Engen, HOME};
 use foliage::color::Color;
 use foliage::compositor::segment::{ResponsiveSegment, SegmentUnitNumber};
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 use foliage::elm::Elm;
 use foliage::icon::FeatherIcon;
+use foliage::icon_fetcher;
 use foliage::prebuilt::icon_text::{IconText, IconTextArgs};
 use foliage::text::{FontSize, MaxCharacters, Text, TextValue};
 
@@ -12,6 +13,10 @@ impl Leaf for Home {
     type SetDescriptor = EmptySetDescriptor;
 
     fn attach(elm: &mut Elm) {
+        elm.load_remote_icon::<Engen>(
+            icon_fetcher!(FeatherIcon::Terminal),
+            "/foliage/demo/assets/icons/terminal.gatl",
+        );
         elm.add_view_scene_binding::<IconText, ()>(
             HOME,
             IconTextArgs::new(
