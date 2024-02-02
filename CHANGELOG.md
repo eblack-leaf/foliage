@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### Refactor
+
+- Changelog+mdbook
+
 ### Rfx-web-lazy-loading-asset
 
 - Working
