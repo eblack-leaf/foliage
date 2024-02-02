@@ -15,7 +15,7 @@ impl Leaf for Home {
     fn attach(elm: &mut Elm) {
         elm.load_remote_icon::<Engen>(
             icon_fetcher!(FeatherIcon::Terminal),
-            "/foliage/demo/assets/icons/terminal.gatl",
+            "/foliage/assets/icons/terminal.gatl",
         );
         elm.add_view_scene_binding::<IconText, ()>(
             HOME,
