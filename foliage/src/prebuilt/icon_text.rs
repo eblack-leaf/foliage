@@ -10,7 +10,7 @@ use crate::scene::align::SceneAligner;
 use crate::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
 use crate::set_descriptor;
 use crate::text::font::MonospacedFont;
-use crate::text::{FontSize, MaxCharacters, Text, TextValue};
+use crate::text::{FontSize, GlyphColorChanges, MaxCharacters, Text, TextValue};
 use crate::window::ScaleFactor;
 use bevy_ecs::change_detection::Res;
 use bevy_ecs::component::Component;
@@ -26,6 +26,7 @@ pub struct IconText {
     text_value: TextValue,
     icon_color: IconColor,
     text_color: TextColor,
+    color_changes: GlyphColorChanges,
 }
 #[derive(Copy, Clone, Component, Default)]
 pub struct IconColor(pub Color);
@@ -78,7 +79,8 @@ impl Leaf for IconText {
 
     fn attach(elm: &mut Elm) {
         elm.main().add_systems(
-            resize
+            (resize, color_changes)
+                .chain()
                 .in_set(Self::SetDescriptor::Area)
                 .before(<Text as Leaf>::SetDescriptor::Area)
                 .before(<Icon as Leaf>::SetDescriptor::Area),
@@ -91,8 +93,8 @@ fn metrics(
     font: &MonospacedFont,
     scale_factor: &ScaleFactor,
 ) -> (IconScale, FontSize, CoordinateUnit, CoordinateUnit) {
-    let (fs, fa) = font.best_fit(*max_characters, area * (0.6, 0.9).into(), &scale_factor);
-    let icon_scale = IconScale::from_dim((fa.height * 0.9).min(fa.width * 0.3));
+    let (fs, fa) = font.best_fit(*max_characters, area * (0.6, 1.0).into(), &scale_factor);
+    let icon_scale = IconScale::from_dim((fa.height * 1.0).min(fa.width * 0.3));
     let spacing = (icon_scale.px() - area.height).abs() / 2f32;
     let text_offset = icon_scale.px() + spacing * 2f32;
     let total = icon_scale.px() + spacing + fa.width;
@@ -110,6 +112,23 @@ fn metrics(
         spacing + adjustment,
         text_offset + adjustment,
     )
+}
+fn color_changes(
+    mut scenes: Query<
+        (&SceneHandle, &GlyphColorChanges, &Despawn),
+        (Changed<GlyphColorChanges>, With<Tag<IconText>>),
+    >,
+    coordinator: Res<SceneCoordinator>,
+    mut color_changes: Query<&mut GlyphColorChanges, Without<Tag<IconText>>>,
+) {
+    for (handle, cc, despawn) in scenes.iter_mut() {
+        if despawn.should_despawn() {
+            continue;
+        }
+        let entity =
+            coordinator.binding_entity(&handle.access_chain().target(IconTextBindings::Text));
+        color_changes.get_mut(entity).unwrap().0 = cc.0.clone();
+    }
 }
 fn resize(
     scenes: Query<
@@ -200,6 +219,7 @@ impl Scene for IconText {
             text_value: args.text_value.clone(),
             icon_color: IconColor(args.icon_color),
             text_color: TextColor(args.text_color),
+            color_changes: GlyphColorChanges::default(),
         }
     }
 }

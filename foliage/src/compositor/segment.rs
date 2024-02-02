@@ -267,8 +267,10 @@ impl SegmentUnitDescriptor {
             handle_offset as CoordinateUnit * dim
         };
         let num = view_base + self.base * factor + self.offset;
-        num.min(self.max.unwrap_or(CoordinateUnit::MAX))
-            .max(self.min.unwrap_or(CoordinateUnit::MIN))
+        let val = num
+            .min(self.max.unwrap_or(CoordinateUnit::MAX))
+            .max(self.min.unwrap_or(CoordinateUnit::MIN));
+        val
     }
 }
 pub trait SegmentUnitNumber {

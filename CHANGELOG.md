@@ -4,8 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### Features
+
+- Website project updates for terminal style links
+- Website project updates for terminal style links
+- Website project updates for terminal style links
+- Website project updates for terminal style links
+
+## [0.1.0] - 2024-02-02
+
 ### Refactor
 
+- Changelog+mdbook
+- Changelog+mdbook
 - Changelog+mdbook
 
 ### Rfx-web-lazy-loading-asset

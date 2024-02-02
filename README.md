@@ -14,7 +14,7 @@ if need be.
 
 ### Website 
 
-Checkout the website | [Website](https://eblack-leaf.github.io/foliage) | 
+Checkout the website | [`Website`](https://eblack-leaf.github.io/foliage) | 
 
 This is home to
 - Book about the architecture
