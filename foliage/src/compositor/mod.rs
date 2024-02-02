@@ -23,7 +23,12 @@ pub mod layout;
 pub mod segment;
 
 #[derive(Resource, Copy, Clone)]
-pub struct CurrentView(pub ViewHandle);
+pub struct CurrentView(pub(crate) ViewHandle);
+impl CurrentView {
+    pub fn change_view<VH: Into<ViewHandle>>(&mut self, vh: VH) {
+        self.0 = vh.into();
+    }
+}
 #[derive(Resource)]
 pub struct Compositor {
     current: ViewHandle,

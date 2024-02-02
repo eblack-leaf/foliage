@@ -329,7 +329,7 @@ impl Elm {
     pub fn add_interaction_handler<IH: Component + 'static, Ext: SystemParam + 'static>(
         &mut self,
         trigger: InteractionHandlerTrigger,
-        handler: fn(&mut IH, &mut StaticSystemParam<Ext>),
+        handler: InteractionHandlerFn<IH, Ext>,
     ) {
         let func = move |mut ext: StaticSystemParam<Ext>,
                          mut ihs: Query<
@@ -350,7 +350,15 @@ impl Elm {
         };
         self.main().add_systems(func.in_set(ExternalSet::Process));
     }
+    pub fn view_trigger<C: Component + 'static>(
+        &mut self,
+        trigger: InteractionHandlerTrigger,
+        func: InteractionHandlerFn<C, ResMut<'static, CurrentView>>,
+    ) {
+        self.add_interaction_handler::<C, ResMut<'static, CurrentView>>(trigger, func);
+    }
 }
+pub type InteractionHandlerFn<IH, Ext> = fn(&mut IH, &mut StaticSystemParam<Ext>);
 pub enum InteractionHandlerTrigger {
     Active,
     Engaged,

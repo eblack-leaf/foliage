@@ -64,12 +64,9 @@ impl Leaf for Example {
             ),
             (),
         );
-        elm.add_interaction_handler::<ToLoginPage, ResMut<CurrentView>>(
-            InteractionHandlerTrigger::Active,
-            |_ih, ext_args| {
-                ext_args.0 = ViewHandle::new(0, 1);
-            },
-        );
+        elm.view_trigger::<ToLoginPage>(InteractionHandlerTrigger::Active, |_, cv| {
+            cv.change_view(ViewHandle::new(0, 1));
+        });
     }
 }
 
