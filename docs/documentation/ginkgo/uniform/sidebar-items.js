@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["AlignedUniform","Uniform"],"type":["AlignedUniformData"]};

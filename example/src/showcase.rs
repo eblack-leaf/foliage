@@ -30,7 +30,7 @@ impl Leaf for Showcase {
             ImageStorage::some(Area::from((700, 700))),
         ));
         #[cfg(target_family = "wasm")]
-        let img_id = elm.load_remote_asset::<Engen>("/foliage/assets/img.png");
+        let img_id = elm.load_remote_asset::<Engen>("/foliage/demo/assets/img.png");
         load_native_asset!(elm, img_id, "../assets/img.png");
         elm.on_fetch(img_id, |data, cmd| {
             cmd.spawn(Image::fill(ImageId(0), data));
@@ -49,11 +49,11 @@ impl Leaf for Showcase {
         );
         elm.load_remote_icon::<Engen>(
             icon_fetcher!(FeatherIcon::Copy),
-            "/foliage/assets/icons/copy.gatl",
+            "/foliage/demo/assets/icons/copy.gatl",
         );
         elm.load_remote_icon::<Engen>(
             icon_fetcher!(FeatherIcon::Command),
-            "/foliage/assets/icons/command.gatl",
+            "/foliage/demo/assets/icons/command.gatl",
         );
         elm.add_view_scene_binding::<Button, ()>(
             handle,

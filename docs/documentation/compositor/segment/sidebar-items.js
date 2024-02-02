@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["ResponsiveSegment","Segment","SegmentUnit","SegmentUnitDescriptor"],"trait":["SegmentUnitNumber"]};

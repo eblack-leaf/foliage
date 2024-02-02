@@ -12,6 +12,8 @@ foliage could stand for
 `F-lat` `O-rthographic` `L-ogic` `I-nterface` `A-nd` `G-raphical` `E-ngine`
 if need be. 
 
+More info can be found here [Website](https://eblack-leaf.github.io/foliage).
+
 ### Overview
 
 All the objects are flat in appearance for uniform aesthetics, 
