@@ -1,0 +1,18 @@
+[package]
+name = "website_entry"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+foliage = { path = "../../foliage"}
+website_system = { path = "../system"}
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
+tracing-subscriber-wasm = "0.1.0"
+console_error_panic_hook = "0.1.7"
+
+[[bin]]
+name = "worker"
+path = "src/worker.rs"

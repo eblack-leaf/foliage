@@ -250,7 +250,7 @@ pub type ViewHandleOffset = i32;
 #[derive(Copy, Clone, Default, Hash, Eq, PartialEq, Debug, Component)]
 pub struct ViewHandle(pub ViewHandleOffset, pub ViewHandleOffset);
 impl ViewHandle {
-    pub fn new(x: ViewHandleOffset, y: ViewHandleOffset) -> Self {
+    pub const fn new(x: ViewHandleOffset, y: ViewHandleOffset) -> Self {
         Self(x, y)
     }
     pub fn anchor(&self, area: Area<InterfaceContext>) -> Position<InterfaceContext> {

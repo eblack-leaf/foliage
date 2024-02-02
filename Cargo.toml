@@ -1,5 +1,12 @@
 [workspace]
-members = ["foliage", "application/example", "application/entry", "build_android"]
+members = [
+    "foliage",
+    "application/example",
+    "application/entry",
+    "build_android",
+    "website/entry",
+    "website/system",
+]
 resolver = "2"
 
 [profile.dev]
