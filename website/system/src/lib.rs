@@ -18,7 +18,7 @@ pub fn entry(app: AndroidInterface) {
             WindowDescriptor::new()
                 .with_resizable(true)
                 .with_title("website")
-                .with_desktop_dimensions((360, 800)),
+                .with_desktop_dimensions((800, 360)),
         )
         .run::<Engen>();
 }

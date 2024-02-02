@@ -37,7 +37,7 @@ impl Leaf for Home {
             icon_fetcher!(FeatherIcon::MoreVertical),
             "/foliage/assets/icons/more-vertical.gatl",
         );
-        elm.add_view_scene_binding::<IconText, GlyphColorChanges>(
+        elm.add_view_scene_binding::<IconText, _>(
             HOME,
             IconTextArgs::new(
                 FeatherIcon::Terminal.id(),
@@ -46,7 +46,9 @@ impl Leaf for Home {
                 Color::OFF_WHITE,
                 Color::GREY_MEDIUM,
             ),
-            ResponsiveSegment::new(0.15.relative(), 0.2.relative(), 0.7.relative(), 50.fixed())
+            ResponsiveSegment::new(0.15.relative(), 0.2.relative(), 0.7.relative(), 70.fixed())
+                .y_exception(Layout::LANDSCAPE, 0.05.relative())
+                .h_exception(Layout::LANDSCAPE_MOBILE, 50.fixed())
                 .at_layer(1),
             {
                 let mut changes = GlyphColorChanges::default();
@@ -61,15 +63,18 @@ impl Leaf for Home {
             Rectangle::new(Area::default(), Color::OFF_WHITE, Progress::full()),
             ResponsiveSegment::new(
                 0.2.relative(),
-                0.2.relative().offset(65.0),
+                0.2.relative().offset(85.0),
                 0.6.relative(),
                 3.fixed(),
             )
+            .x_exception(Layout::LANDSCAPE, 0.3.relative())
+            .y_exception(Layout::LANDSCAPE, 0.05.relative().offset(85.0))
+            .y_exception(Layout::LANDSCAPE_MOBILE, 0.05.relative().offset(55.0))
             .w_exception(Layout::LANDSCAPE, 0.4.relative())
-            .x_exception(Layout::LANDSCAPE, 0.3.relative()),
+            .at_layer(0),
             (),
         );
-        elm.add_view_scene_binding::<IconText, GlyphColorChanges>(
+        elm.add_view_scene_binding::<IconText, _>(
             HOME,
             IconTextArgs::new(
                 FeatherIcon::ChevronsRight.id(),
@@ -80,21 +85,20 @@ impl Leaf for Home {
             ),
             ResponsiveSegment::new(
                 0.1.relative(),
-                0.2.relative().offset(80.0),
+                0.2.relative().offset(100.0),
                 0.8.relative(),
                 40.fixed(),
             )
-            .at_layer(1)
-            .h_exception(Layout::LANDSCAPE, 25.fixed())
-            .y_exception(Layout::LANDSCAPE, 0.2.relative().offset(90.0))
-            .x_exception(Layout::LANDSCAPE, 0.3.relative())
-            .w_exception(Layout::LANDSCAPE, 0.45.relative())
             .x_exception(Layout::PORTRAIT_TABLET, 0.15.relative())
-            .y_exception(Layout::PORTRAIT_TABLET, 0.2.relative().offset(90.0))
+            .x_exception(Layout::LANDSCAPE, 0.3.relative())
             .x_exception(
                 [Layout::PORTRAIT_DESKTOP, Layout::PORTRAIT_WORKSTATION],
                 0.25.relative(),
             )
+            .y_exception(Layout::LANDSCAPE, 0.05.relative().offset(110.0))
+            .y_exception(Layout::LANDSCAPE_MOBILE, 0.05.relative().offset(75.0))
+            .y_exception(Layout::PORTRAIT_TABLET, 0.2.relative().offset(110.0))
+            .w_exception(Layout::LANDSCAPE, 0.45.relative())
             .h_exception(
                 [
                     Layout::PORTRAIT_TABLET,
@@ -102,7 +106,8 @@ impl Leaf for Home {
                     Layout::PORTRAIT_WORKSTATION,
                 ],
                 25.fixed(),
-            ),
+            )
+            .at_layer(1),
             {
                 let mut changes = GlyphColorChanges::default();
                 changes.0.insert(7, Color::RED_ORANGE_MEDIUM.into());
@@ -112,7 +117,7 @@ impl Leaf for Home {
                 changes
             },
         );
-        elm.add_view_scene_binding::<IconText, GlyphColorChanges>(
+        elm.add_view_scene_binding::<IconText, _>(
             HOME,
             IconTextArgs::new(
                 FeatherIcon::ChevronsRight.id(),
@@ -123,21 +128,20 @@ impl Leaf for Home {
             ),
             ResponsiveSegment::new(
                 0.1.relative(),
-                0.2.relative().offset(110.0),
+                0.2.relative().offset(200.0),
                 0.8.relative(),
                 40.fixed(),
             )
-            .at_layer(1)
-            .h_exception(Layout::LANDSCAPE, 25.fixed())
-            .y_exception(Layout::LANDSCAPE, 0.2.relative().offset(120.0))
             .x_exception(Layout::LANDSCAPE, 0.3.relative())
-            .w_exception(Layout::LANDSCAPE, 0.45.relative())
             .x_exception(Layout::PORTRAIT_TABLET, 0.15.relative())
-            .y_exception(Layout::PORTRAIT_TABLET, 0.2.relative().offset(120.0))
             .x_exception(
                 [Layout::PORTRAIT_DESKTOP, Layout::PORTRAIT_WORKSTATION],
                 0.25.relative(),
             )
+            .y_exception(Layout::LANDSCAPE, 0.05.relative().offset(210.0))
+            .y_exception(Layout::LANDSCAPE_MOBILE, 0.05.relative().offset(130.0))
+            .y_exception(Layout::PORTRAIT_TABLET, 0.2.relative().offset(210.0))
+            .w_exception(Layout::LANDSCAPE, 0.45.relative())
             .h_exception(
                 [
                     Layout::PORTRAIT_TABLET,
@@ -145,7 +149,8 @@ impl Leaf for Home {
                     Layout::PORTRAIT_WORKSTATION,
                 ],
                 25.fixed(),
-            ),
+            )
+            .at_layer(1),
             {
                 let mut changes = GlyphColorChanges::default();
                 changes.0.insert(14, Color::RED_ORANGE_MEDIUM.into());
@@ -155,7 +160,7 @@ impl Leaf for Home {
                 changes
             },
         );
-        elm.add_view_scene_binding::<IconText, GlyphColorChanges>(
+        elm.add_view_scene_binding::<IconText, _>(
             HOME,
             IconTextArgs::new(
                 FeatherIcon::ChevronsRight.id(),
@@ -166,21 +171,20 @@ impl Leaf for Home {
             ),
             ResponsiveSegment::new(
                 0.1.relative(),
-                0.2.relative().offset(140.0),
+                0.2.relative().offset(300.0),
                 0.8.relative(),
                 40.fixed(),
             )
-            .at_layer(1)
-            .h_exception(Layout::LANDSCAPE, 25.fixed())
-            .y_exception(Layout::LANDSCAPE, 0.2.relative().offset(150.0))
             .x_exception(Layout::LANDSCAPE, 0.3.relative())
-            .w_exception(Layout::LANDSCAPE, 0.45.relative())
-            .y_exception(Layout::PORTRAIT_TABLET, 0.2.relative().offset(150.0))
             .x_exception(
                 [Layout::PORTRAIT_DESKTOP, Layout::PORTRAIT_WORKSTATION],
                 0.25.relative(),
             )
             .x_exception(Layout::PORTRAIT_TABLET, 0.15.relative())
+            .y_exception(Layout::LANDSCAPE, 0.05.relative().offset(310.0))
+            .y_exception(Layout::LANDSCAPE_MOBILE, 0.05.relative().offset(190.0))
+            .y_exception(Layout::PORTRAIT_TABLET, 0.2.relative().offset(310.0))
+            .w_exception(Layout::LANDSCAPE, 0.45.relative())
             .h_exception(
                 [
                     Layout::PORTRAIT_TABLET,
@@ -188,7 +192,8 @@ impl Leaf for Home {
                     Layout::PORTRAIT_WORKSTATION,
                 ],
                 25.fixed(),
-            ),
+            )
+            .at_layer(1),
             {
                 let mut changes = GlyphColorChanges::default();
                 changes.0.insert(14, Color::RED_ORANGE_MEDIUM.into());
