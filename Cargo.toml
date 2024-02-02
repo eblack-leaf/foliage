@@ -2,5 +2,5 @@
 members = ["foliage", "application/example", "application/entry", "build_android"]
 resolver = "2"
 
-#[profile.test]
-#opt-level = 1
+[profile.dev]
+opt-level = 1
