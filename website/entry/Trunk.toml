@@ -2,7 +2,7 @@
 target = "index.html"
 release = false
 dist = "dist"
-public_url = "/foliage/demo/"
+public_url = "/foliage/"
 filehash = true
 
 [serve]
