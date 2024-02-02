@@ -1,0 +1,3 @@
+(function() {var implementors = {
+"foliage":[["impl&lt;Context: <a class=\"trait\" href=\"foliage/coordinate/trait.CoordinateContext.html\" title=\"trait foliage::coordinate::CoordinateContext\">CoordinateContext</a>&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/1.75.0/core/ops/arith/trait.AddAssign.html\" title=\"trait core::ops::arith::AddAssign\">AddAssign</a> for <a class=\"struct\" href=\"foliage/coordinate/position/struct.Position.html\" title=\"struct foliage::coordinate::position::Position\">Position</a>&lt;Context&gt;"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
