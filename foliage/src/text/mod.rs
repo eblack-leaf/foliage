@@ -44,16 +44,16 @@ pub struct Text {
     differentiable: Differentiable,
 }
 impl Text {
-    pub fn new(
+    pub fn new<C: Into<Color>>(
         max_characters: MaxCharacters,
         font_size: FontSize,
         text_value: TextValue,
-        color: Color,
+        color: C,
     ) -> Self {
         Self {
             max_characters,
             font_size: DifferentialBundle::new(font_size),
-            color: DifferentialBundle::new(color),
+            color: DifferentialBundle::new(color.into()),
             text_value_chars: DifferentialBundle::new(TextValueUniqueCharacters::new(&text_value)),
             glyph_adds: DifferentialBundle::new(GlyphChangeQueue::default()),
             glyph_removes: DifferentialBundle::new(GlyphRemoveQueue::default()),

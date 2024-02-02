@@ -12,7 +12,14 @@ foliage could stand for
 `F-lat` `O-rthographic` `L-ogic` `I-nterface` `A-nd` `G-raphical` `E-ngine`
 if need be. 
 
-More info can be found here [Website](https://eblack-leaf.github.io/foliage).
+### Website 
+
+Checkout the website | [Website](https://eblack-leaf.github.io/foliage) | 
+
+This is home to
+- Book about the architecture
+- Documentation
+- Demo project
 
 ### Overview
 
