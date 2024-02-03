@@ -24,7 +24,7 @@ use bevy_ecs::prelude::{Bundle, Commands, DetectChanges, Entity, IntoSystemConfi
 use bevy_ecs::query::{Changed, Or, With, Without};
 use bevy_ecs::system::{Query, Res, ResMut, SystemParamItem};
 use compact_str::CompactString;
-use derive_macros::SceneBinding;
+use foliage_macros::SceneBinding;
 use winit::keyboard::NamedKey;
 
 #[derive(Component, Clone, Default)]

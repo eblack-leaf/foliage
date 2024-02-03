@@ -46,7 +46,7 @@ use crate::time::Time;
 use crate::virtual_keyboard::VirtualKeyboardAdapter;
 use crate::workflow::{Workflow, WorkflowConnectionBase};
 use animate::trigger::Trigger;
-pub use derive_macros::{assets, SceneBinding};
+pub use foliage_macros::{assets, SceneBinding};
 mod animate;
 pub mod ash;
 pub mod asset;

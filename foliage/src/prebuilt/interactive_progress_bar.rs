@@ -18,7 +18,7 @@ use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Commands, IntoSystemConfigs};
 use bevy_ecs::query::{Changed, With, Without};
 use bevy_ecs::system::{Query, ResMut, SystemParamItem};
-use derive_macros::SceneBinding;
+use foliage_macros::SceneBinding;
 
 #[derive(Component)]
 pub struct ProgressPercent(pub f32);

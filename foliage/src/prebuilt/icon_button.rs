@@ -15,7 +15,7 @@ use bevy_ecs::bundle::Bundle;
 use bevy_ecs::prelude::{Commands, IntoSystemConfigs};
 use bevy_ecs::query::{Changed, Or, With, Without};
 use bevy_ecs::system::{Query, ResMut, SystemParamItem};
-use derive_macros::SceneBinding;
+use foliage_macros::SceneBinding;
 
 #[derive(Bundle)]
 pub struct IconButton {

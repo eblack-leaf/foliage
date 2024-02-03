@@ -17,7 +17,7 @@ use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
 use bevy_ecs::query::{Changed, Or, With, Without};
 use bevy_ecs::system::{Query, ResMut, SystemParamItem};
-use derive_macros::SceneBinding;
+use foliage_macros::SceneBinding;
 
 #[derive(Bundle)]
 pub struct IconText {
