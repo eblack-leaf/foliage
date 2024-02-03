@@ -31,38 +31,6 @@ pub fn scene_binding_derive(input: proc_macro::TokenStream) -> proc_macro::Token
     };
     gen.into()
 }
-#[proc_macro_derive(BevyComponent)]
-pub fn component_derive(_input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let found_crate = crate_name("foliage").expect("foliage is present in `Cargo.toml`");
-    let foliage = match found_crate {
-        FoundCrate::Itself => quote::quote!(crate),
-        FoundCrate::Name(name) => {
-            let ident = syn::Ident::new(&name, proc_macro2::Span::call_site());
-            quote::quote!( #ident )
-        }
-    };
-    let gen = quote::quote! {
-        use #foliage::bevy_ecs;
-        #[derive(#foliage::bevy_ecs::prelude::Component)]
-    };
-    gen.into()
-}
-#[proc_macro_derive(BevyResource)]
-pub fn resource_derive(_input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let found_crate = crate_name("foliage").expect("foliage is present in `Cargo.toml`");
-    let foliage = match found_crate {
-        FoundCrate::Itself => quote::quote!(crate),
-        FoundCrate::Name(name) => {
-            let ident = syn::Ident::new(&name, proc_macro2::Span::call_site());
-            quote::quote!( #ident )
-        }
-    };
-    let gen = quote::quote! {
-        use #foliage::bevy_ecs;
-        #[derive(#foliage::bevy_ecs::prelude::Resource)]
-    };
-    gen.into()
-}
 #[proc_macro_attribute]
 pub fn assets(
     attr: proc_macro::TokenStream,
@@ -163,19 +131,16 @@ pub fn assets(
                                 loaders.push(quote::quote!(
                                     {
                                         #[cfg(target_family = "wasm")]
-                                        elm.load_remote_icon::<#engen, _>(
-                                            #foliage::icon_fetcher!(#foliage::icon::FeatherIcon::#icon_label),
+                                        let id = elm.load_remote_asset::<#engen, _>(
                                             #remote
                                         );
-                                        #[cfg(not(target_family = "wasm"))] {
-                                            #foliage::load_native_asset!(elm, id, #native);
-                                            elm.on_fetch(
-                                                id,
-                                                #foliage::icon_fetcher!(#foliage::icon::FeatherIcon::#icon_label)
-                                            );
-                                        }
-
-                                        ()
+                                        #[cfg(not(target_family = "wasm"))]
+                                        #foliage::load_native_asset!(elm, id, #native);
+                                        elm.on_fetch(
+                                            id,
+                                            #foliage::icon_fetcher!(#foliage::icon::FeatherIcon::#icon_label)
+                                        );
+                                        id
                                     }
                                 ));
                             } else {

@@ -4,17 +4,6 @@ pub mod leaf;
 use std::any::TypeId;
 use std::marker::PhantomData;
 
-use anymap::AnyMap;
-use bevy_ecs::bundle::Bundle;
-use bevy_ecs::event::{event_update_system, Event, Events};
-use bevy_ecs::prelude::{Component, DetectChanges, IntoSystemConfigs, Res};
-use bevy_ecs::query::Changed;
-use bevy_ecs::system::{Commands, Query, ResMut, StaticSystemParam, SystemParam};
-use compact_str::{CompactString, ToCompactString};
-use leaf::Leaflet;
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-
 use crate::ash::render_packet::RenderPacketForwarder;
 use crate::ash::render_packet::RenderPacketPackage;
 use crate::asset::{AssetContainer, AssetFetchFn, AssetKey, OnFetch};
@@ -31,7 +20,18 @@ use crate::interaction::InteractionListener;
 use crate::job::{Container, Job, Task};
 use crate::scene::{Anchor, Scene, SceneCoordinator};
 use crate::window::ScaleFactor;
-use crate::workflow::Workflow;
+#[cfg(target_family = "wasm")]
+use crate::Workflow;
+use anymap::AnyMap;
+use bevy_ecs::bundle::Bundle;
+use bevy_ecs::event::{event_update_system, Event, Events};
+use bevy_ecs::prelude::{Component, DetectChanges, IntoSystemConfigs, Res};
+use bevy_ecs::query::Changed;
+use bevy_ecs::system::{Commands, Query, ResMut, StaticSystemParam, SystemParam};
+use compact_str::{CompactString, ToCompactString};
+use leaf::Leaflet;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 pub struct Elm {
     initialized: bool,
@@ -302,19 +302,6 @@ impl Elm {
             .unwrap()
             .store(id, None);
         return id;
-    }
-    #[allow(unused)]
-    pub fn load_remote_icon<W: Workflow + Default + Send + Sync + 'static, S: AsRef<str>>(
-        &mut self,
-        func: AssetFetchFn,
-        path: S,
-    ) {
-        #[cfg(target_family = "wasm")]
-        {
-            use crate::icon::{Icon, IconId};
-            let id = self.load_remote_asset::<W, S>(path);
-            self.on_fetch(id, func);
-        }
     }
     pub fn generate_asset_key(&self) -> AssetKey {
         let id = Uuid::new_v4().as_u128();

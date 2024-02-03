@@ -1,6 +1,5 @@
 use crate::Assets;
-use foliage::bevy_ecs;
-use foliage::bevy_ecs::component::Component;
+use foliage::bevy_ecs::prelude::Component;
 use foliage::color::Color;
 use foliage::compositor::layout::Layout;
 use foliage::compositor::segment::{ResponsiveSegment, SegmentUnitNumber};
@@ -113,5 +112,6 @@ impl Leaf for Showcase {
         });
     }
 }
+use foliage::bevy_ecs;
 #[derive(Component, Copy, Clone)]
 struct TestHook();

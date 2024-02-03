@@ -1,12 +1,11 @@
 mod showcase;
 
 use crate::showcase::Showcase;
-use foliage::asset::{AssetKey, IconAsset};
+use foliage::asset::AssetKey;
 use foliage::elm::Elm;
 use foliage::window::WindowDescriptor;
 use foliage::workflow::{EngenHandle, Workflow};
 use foliage::{AndroidInterface, Foliage};
-
 pub fn entry(android_interface: AndroidInterface) {
     Foliage::new()
         .with_window_descriptor(
@@ -43,7 +42,7 @@ pub(crate) struct Assets {
     #[asset(path = "img.png")]
     image_id: AssetKey,
     #[icon(path = "icons/copy.gatl", Copy)]
-    _copy_id: IconAsset,
-    #[icon(path = "icons/copy.gatl", Command)]
-    _command_id: IconAsset,
+    _copy_id: AssetKey,
+    #[icon(path = "icons/command.gatl", Command)]
+    _command_id: AssetKey,
 }

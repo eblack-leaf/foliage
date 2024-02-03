@@ -10,6 +10,16 @@ pub struct SceneBinding(pub i32);
 ```
 
 This can be converted to from `enum`s that are `#[repr(i32)]` given a trivial `From` implementation.
+This can be accomplished with a `derive` macro `foliage::SceneBinding`. 
+```rust
+#[derive(foliage::SceneBinding)]
+enum Bindings {
+    One,
+    Two,
+    // ...
+}
+```
+Currently only `enum`s are valid `derive` targets for this `proc-macro`.
 The `SceneBinding` is used to access elements via a `SceneAccessChain`. This is used by selecting the
 `target` element by navigating any sub-scene bindings to get to the desired target.
 
