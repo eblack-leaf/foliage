@@ -1,4 +1,4 @@
-use crate::{assets, Assets, Engen};
+use crate::Engen;
 use foliage::bevy_ecs;
 use foliage::bevy_ecs::component::Component;
 use foliage::color::Color;

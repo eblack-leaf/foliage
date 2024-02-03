@@ -39,9 +39,12 @@ impl Workflow for Engen {
 
 #[foliage::asset(Engen, "../assets/", "/foliage/demo/assets/")]
 struct Assets {
-    uuid: bytes("something.dat"),
+    // #[bytes("something.dat")]
+    something: bytes("something.dat"),
+    // #[img("img.png")]
     image_id: img("img.png"),
-    icon_id: icon("copy.icon"),
+    // #[icon("copy.gatl")]
+    icon_id: icon("copy.gatl"),
 }
 // use .get("img.png") to use
 // include #name::new(elm: &mut Elm) to create and give ids
