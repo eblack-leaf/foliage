@@ -161,7 +161,7 @@ impl Leaf for Home {
                 changes.0.insert(17, Color::RED_ORANGE_MEDIUM.into());
                 changes
             }
-            .extend(HrefLink::new("/foliage/documentation/index.html")),
+            .extend(HrefLink::new("/foliage/documentation/foliage/index.html")),
         );
         elm.add_view_scene_binding::<IconText, _>(
             HOME,
