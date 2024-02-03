@@ -1,12 +1,11 @@
 mod showcase;
 
 use crate::showcase::Showcase;
+use foliage::asset::{AssetKey, IconAsset};
 use foliage::elm::Elm;
 use foliage::window::WindowDescriptor;
 use foliage::workflow::{EngenHandle, Workflow};
-use foliage::{AndroidInterface, Foliage, icon_fetcher};
-use foliage::asset::AssetKey;
-use foliage::icon::FeatherIcon;
+use foliage::{AndroidInterface, Foliage};
 
 pub fn entry(android_interface: AndroidInterface) {
     Foliage::new()
@@ -37,14 +36,14 @@ impl Workflow for Engen {
     }
 }
 
-#[foliage::asset(Engen, "../assets/", "/foliage/demo/assets/")]
-struct Assets {
-    // #[bytes("something.dat")]
-    something: bytes("something.dat"),
-    // #[img("img.png")]
-    image_id: img("img.png"),
-    // #[icon("copy.gatl")]
-    icon_id: icon("copy.gatl"),
+#[foliage::assets(Engen, "../assets/", "/foliage/demo/assets/")]
+pub(crate) struct Assets {
+    #[asset(path = "something.dat")]
+    _something: AssetKey,
+    #[asset(path = "img.png")]
+    image_id: AssetKey,
+    #[icon(path = "icons/copy.gatl", Copy)]
+    _copy_id: IconAsset,
+    #[icon(path = "icons/copy.gatl", Command)]
+    _command_id: IconAsset,
 }
-// use .get("img.png") to use
-// include #name::new(elm: &mut Elm) to create and give ids

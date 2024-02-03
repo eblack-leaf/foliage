@@ -339,21 +339,7 @@ impl Render for Icon {
         }
         resources.entity_to_icon.insert(entity, new);
         if resources.icon_textures.get(&new).is_none() {
-            cfg_if::cfg_if! {
-                if #[cfg(not(target_family = "wasm"))] {
-                    use crate::icon::bundled_cov::ICON_RESOURCE_FILES;
-                    Self::create_icon_resource(
-                        ginkgo,
-                        &resources.icon_bind_group_layout,
-                        &mut resources.icon_textures,
-                        new.0 as usize,
-                        ICON_RESOURCE_FILES[new.0 as usize]
-                    );
-                    Self::add_entity(resources, entity, render_packet, &new);
-                } else {
-                    resources.queue_icon(new, entity, render_packet);
-                }
-            }
+            resources.queue_icon(new, entity, render_packet);
         } else {
             Self::add_entity(resources, entity, render_packet, &new);
         }
@@ -409,21 +395,8 @@ impl Render for Icon {
             }
         } else {
             if resources.icon_textures.get(&icon_id).is_none() {
-                cfg_if::cfg_if! {
-                    if #[cfg(target_family = "wasm")] {
-                        resources.queue_icon(icon_id, entity, render_packet);
-                        return;
-                    } else {
-                        use crate::icon::bundled_cov::ICON_RESOURCE_FILES;
-                        Self::create_icon_resource(
-                            ginkgo,
-                            &resources.icon_bind_group_layout,
-                            &mut resources.icon_textures,
-                            icon_id.0 as usize,
-                            ICON_RESOURCE_FILES[icon_id.0 as usize]
-                        );
-                    }
-                }
+                resources.queue_icon(icon_id, entity, render_packet);
+                return;
             }
         }
         if let Some(scale) = render_packet.get::<CReprArea>() {
@@ -453,26 +426,18 @@ impl Render for Icon {
         per_renderer_record_hook: &mut bool,
     ) {
         let mut should_record = true;
-        cfg_if::cfg_if!(
-            if #[cfg(target_family = "wasm")] {
-                {
-                    let mut confirmed = vec![];
-                    for (id, mapping) in resources.icon_queue.iter_mut() {
-                        if resources.icon_textures.get(id).is_some() {
-                            for (entity, packet) in mapping.drain() {
-                                confirmed.push((*id, entity, packet));
-                            }
-                        }
-                    }
-                    for (id, entity, packet) in confirmed {
-                        resources.icon_queue.remove(&id);
-                        Icon::add_entity(resources, entity, packet, &id);
-                    }
+        let mut confirmed = vec![];
+        for (id, mapping) in resources.icon_queue.iter_mut() {
+            if resources.icon_textures.get(id).is_some() {
+                for (entity, packet) in mapping.drain() {
+                    confirmed.push((*id, entity, packet));
                 }
-            } else {
-                // no queueing on native
             }
-        );
+        }
+        for (id, entity, packet) in confirmed {
+            resources.icon_queue.remove(&id);
+            Icon::add_entity(resources, entity, packet, &id);
+        }
         for (_id, (coordinator, _)) in resources.icon_textures.iter_mut() {
             if coordinator.prepare(ginkgo) {
                 should_record = true;

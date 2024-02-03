@@ -1,4 +1,4 @@
-use crate::Engen;
+use crate::Assets;
 use foliage::bevy_ecs;
 use foliage::bevy_ecs::component::Component;
 use foliage::color::Color;
@@ -17,7 +17,7 @@ use foliage::prebuilt::circle_progress_bar::CircleProgressBar;
 use foliage::prebuilt::progress_bar::{ProgressBar, ProgressBarArgs};
 use foliage::text::{MaxCharacters, TextValue};
 use foliage::texture::factors::Progress;
-use foliage::{icon_fetcher, load_native_asset};
+
 pub(crate) struct Showcase {}
 impl Leaf for Showcase {
     type SetDescriptor = EmptySetDescriptor;
@@ -30,22 +30,10 @@ impl Leaf for Showcase {
             ImageId(0),
             ImageStorage::some(Area::from((700, 700))),
         ));
-        // TODO `let assets = Assets::new(elm);` replaces below section
-        #[cfg(target_family = "wasm")]
-        let img_id = elm.load_remote_asset::<Engen>("/foliage/demo/assets/img.png");
-        load_native_asset!(elm, img_id, "../assets/img.png");
-        elm.on_fetch(img_id, |data, cmd| {
+        let assets = Assets::proc_gen_load(elm);
+        elm.on_fetch(assets.image_id, |data, cmd| {
             cmd.spawn(Image::fill(ImageId(0), data));
         });
-        elm.load_remote_icon::<Engen>(
-            icon_fetcher!(FeatherIcon::Copy),
-            "/foliage/demo/assets/icons/copy.gatl",
-        );
-        elm.load_remote_icon::<Engen>(
-            icon_fetcher!(FeatherIcon::Command),
-            "/foliage/demo/assets/icons/command.gatl",
-        );
-        // END TODO
         let handle = ViewHandle::new(0, 0);
         elm.add_view_scene_binding::<AspectRatioImage, ()>(
             handle,

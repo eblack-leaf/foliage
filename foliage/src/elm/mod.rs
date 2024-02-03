@@ -280,9 +280,9 @@ impl Elm {
             .run_if(|cv: Res<CurrentView>| -> bool { cv.is_changed() }),));
     }
     #[cfg(target_family = "wasm")]
-    pub fn load_remote_asset<W: Workflow + Default + Send + Sync + 'static>(
+    pub fn load_remote_asset<W: Workflow + Default + Send + Sync + 'static, S: AsRef<str>>(
         &mut self,
-        path: &str,
+        path: S,
     ) -> AssetKey {
         let id = self.generate_asset_key();
         let message = crate::system_message::SystemMessageAction::WasmAsset(
@@ -290,7 +290,7 @@ impl Elm {
             format!(
                 "{}{}",
                 web_sys::window().unwrap().origin(),
-                path.to_string()
+                path.as_ref().to_string()
             ),
         );
         self.container()
@@ -304,15 +304,15 @@ impl Elm {
         return id;
     }
     #[allow(unused)]
-    pub fn load_remote_icon<W: Workflow + Default + Send + Sync + 'static>(
+    pub fn load_remote_icon<W: Workflow + Default + Send + Sync + 'static, S: AsRef<str>>(
         &mut self,
         func: AssetFetchFn,
-        path: &str,
+        path: S,
     ) {
         #[cfg(target_family = "wasm")]
         {
             use crate::icon::{Icon, IconId};
-            let id = self.load_remote_asset::<W>(path);
+            let id = self.load_remote_asset::<W, S>(path);
             self.on_fetch(id, func);
         }
     }
