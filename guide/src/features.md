@@ -42,6 +42,7 @@ features.
 - [x] focus
 
 ### TODO
+- [ ] grid-responsive-segments
 - [ ] on_focus
 - [ ] text-input {tab-switch}
 - [ ] text-input {select-word}
