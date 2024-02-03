@@ -4,7 +4,9 @@ use crate::showcase::Showcase;
 use foliage::elm::Elm;
 use foliage::window::WindowDescriptor;
 use foliage::workflow::{EngenHandle, Workflow};
-use foliage::{AndroidInterface, Foliage};
+use foliage::{AndroidInterface, Foliage, icon_fetcher};
+use foliage::asset::AssetKey;
+use foliage::icon::FeatherIcon;
 
 pub fn entry(android_interface: AndroidInterface) {
     Foliage::new()
@@ -34,3 +36,12 @@ impl Workflow for Engen {
         tracing::trace!("got response: {:?}", response);
     }
 }
+
+#[foliage::asset(Engen, "../assets/", "/foliage/demo/assets/")]
+struct Assets {
+    uuid: bytes("something.dat"),
+    image_id: img("img.png"),
+    icon_id: icon("copy.icon"),
+}
+// use .get("img.png") to use
+// include #name::new(elm: &mut Elm) to create and give ids

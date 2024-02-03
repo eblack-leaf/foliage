@@ -28,3 +28,9 @@ pub fn scene_binding_derive(input: TokenStream) -> TokenStream {
     };
     gen.into()
 }
+#[proc_macro_attribute]
+pub fn asset(attr: TokenStream, func: TokenStream) -> TokenStream {
+    println!("attr: \"{}\"", attr.to_string());
+    println!("item: \"{}\"", func.to_string());
+    func
+}

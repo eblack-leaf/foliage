@@ -1,4 +1,4 @@
-use crate::Engen;
+use crate::{assets, Assets, Engen};
 use foliage::bevy_ecs;
 use foliage::bevy_ecs::component::Component;
 use foliage::color::Color;
@@ -9,7 +9,7 @@ use foliage::coordinate::area::Area;
 use foliage::elm::config::ElmConfiguration;
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 use foliage::elm::{Elm, InteractionHandlerTrigger};
-use foliage::icon::{FeatherIcon, Icon};
+use foliage::icon::FeatherIcon;
 use foliage::image::{Image, ImageId, ImageStorage};
 use foliage::prebuilt::aspect_ratio_image::{AspectRatioImage, AspectRatioImageArgs};
 use foliage::prebuilt::button::{Button, ButtonArgs, ButtonStyle};
@@ -30,12 +30,22 @@ impl Leaf for Showcase {
             ImageId(0),
             ImageStorage::some(Area::from((700, 700))),
         ));
+        // TODO `let assets = Assets::new(elm);` replaces below section
         #[cfg(target_family = "wasm")]
         let img_id = elm.load_remote_asset::<Engen>("/foliage/demo/assets/img.png");
         load_native_asset!(elm, img_id, "../assets/img.png");
         elm.on_fetch(img_id, |data, cmd| {
             cmd.spawn(Image::fill(ImageId(0), data));
         });
+        elm.load_remote_icon::<Engen>(
+            icon_fetcher!(FeatherIcon::Copy),
+            "/foliage/demo/assets/icons/copy.gatl",
+        );
+        elm.load_remote_icon::<Engen>(
+            icon_fetcher!(FeatherIcon::Command),
+            "/foliage/demo/assets/icons/command.gatl",
+        );
+        // END TODO
         let handle = ViewHandle::new(0, 0);
         elm.add_view_scene_binding::<AspectRatioImage, ()>(
             handle,
@@ -47,14 +57,6 @@ impl Leaf for Showcase {
                 0.6.relative().max(454.0),
             ),
             (),
-        );
-        elm.load_remote_icon::<Engen>(
-            icon_fetcher!(FeatherIcon::Copy),
-            "/foliage/demo/assets/icons/copy.gatl",
-        );
-        elm.load_remote_icon::<Engen>(
-            icon_fetcher!(FeatherIcon::Command),
-            "/foliage/demo/assets/icons/command.gatl",
         );
         elm.add_view_scene_binding::<Button, ()>(
             handle,
