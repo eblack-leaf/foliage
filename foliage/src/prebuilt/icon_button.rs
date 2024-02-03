@@ -10,11 +10,12 @@ use crate::interaction::InteractionListener;
 use crate::panel::{Panel, PanelStyle};
 use crate::prebuilt::button::{BackgroundColor, BaseStyle, Button, ButtonStyle, ForegroundColor};
 use crate::scene::align::SceneAligner;
-use crate::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
+use crate::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::prelude::{Commands, IntoSystemConfigs};
 use bevy_ecs::query::{Changed, Or, With, Without};
 use bevy_ecs::system::{Query, ResMut, SystemParamItem};
+use derive_macros::SceneBinding;
 
 #[derive(Bundle)]
 pub struct IconButton {
@@ -24,14 +25,10 @@ pub struct IconButton {
     foreground_color: ForegroundColor,
     background_color: BackgroundColor,
 }
+#[derive(SceneBinding)]
 pub enum IconButtonBindings {
     Panel,
     Icon,
-}
-impl From<IconButtonBindings> for SceneBinding {
-    fn from(value: IconButtonBindings) -> Self {
-        Self(value as i32)
-    }
 }
 pub struct IconButtonArgs {
     style: ButtonStyle,

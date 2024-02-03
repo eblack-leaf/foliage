@@ -5,7 +5,7 @@ members = [
     "application/entry",
     "build_android",
     "website/entry",
-    "website/system",
+    "website/system", "derive_macros",
 ]
 resolver = "2"
 

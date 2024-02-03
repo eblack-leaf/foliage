@@ -36,7 +36,7 @@ open = "5.0.1"
 pollster = "0.3.0"
 tokio = { version = "1.35.1", features = ["full"]}
 copypasta = "0.10.0"
-
+derive_macros = { path = "../derive_macros"}
 [dependencies.web-sys]
 version = "0.3.67"
 features = [

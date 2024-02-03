@@ -7,13 +7,14 @@ use crate::elm::leaf::{Leaf, Tag};
 use crate::elm::Elm;
 use crate::image::{Image, ImageId};
 use crate::scene::align::SceneAligner;
-use crate::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
+use crate::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
 use crate::set_descriptor;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Commands, IntoSystemConfigs};
 use bevy_ecs::query::{Changed, Or, With, Without};
 use bevy_ecs::system::{Query, ResMut, SystemParamItem};
+use derive_macros::SceneBinding;
 
 #[derive(Component, Copy, Clone)]
 pub struct ImageDimensions(pub Area<NumericalContext>);
@@ -28,13 +29,9 @@ pub struct AspectRatioImage {
     dims: ImageDimensions,
     id: ImageId,
 }
+#[derive(SceneBinding)]
 pub enum AspectRatioImageBindings {
     Image,
-}
-impl From<AspectRatioImageBindings> for SceneBinding {
-    fn from(value: AspectRatioImageBindings) -> Self {
-        Self(value as i32)
-    }
 }
 set_descriptor!(
     pub enum AspectRatioImageSets {

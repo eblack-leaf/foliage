@@ -67,7 +67,7 @@ impl Scene for CircleProgressBar {
     ) -> Self {
         let diameter = Diameter::new(anchor.0.section.width());
         binder.bind(
-            0,
+            ProgressBarBindings::Back,
             (0.near(), 0.near(), 1),
             Circle::new(
                 CircleStyle::ring(),
@@ -78,7 +78,7 @@ impl Scene for CircleProgressBar {
             cmd,
         );
         binder.bind(
-            1,
+            ProgressBarBindings::Fill,
             (0.near(), 0.near(), 0),
             Circle::new(
                 CircleStyle::ring(),

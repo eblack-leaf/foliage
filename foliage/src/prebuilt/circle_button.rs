@@ -10,11 +10,12 @@ use crate::icon::{Icon, IconId, IconScale};
 use crate::interaction::{InteractionListener, InteractionShape};
 use crate::prebuilt::button::{BackgroundColor, BaseStyle, Button, ButtonStyle, ForegroundColor};
 use crate::scene::align::SceneAligner;
-use crate::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
+use crate::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
 use crate::texture::factors::Progress;
 use bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
 use bevy_ecs::query::{Changed, Or, With, Without};
 use bevy_ecs::system::{Query, ResMut, SystemParamItem};
+use derive_macros::SceneBinding;
 
 #[derive(Bundle)]
 pub struct CircleButton {
@@ -87,14 +88,10 @@ fn resize(
         *areas.get_mut(circle).unwrap() = *area;
     }
 }
+#[derive(SceneBinding)]
 pub enum CircleButtonBindings {
     Circle,
     Icon,
-}
-impl From<CircleButtonBindings> for SceneBinding {
-    fn from(value: CircleButtonBindings) -> Self {
-        SceneBinding(value as i32)
-    }
 }
 pub struct CircleButtonArgs {
     pub icon_id: IconId,

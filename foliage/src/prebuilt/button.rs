@@ -10,7 +10,7 @@ use crate::interaction::InteractionListener;
 use crate::panel::{Panel, PanelStyle};
 use crate::prebuilt::icon_text::{IconColor, IconText, IconTextArgs, TextColor};
 use crate::scene::align::{SceneAligner, SceneAlignment};
-use crate::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
+use crate::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
 use crate::set_descriptor;
 use crate::text::font::MonospacedFont;
 use crate::text::{MaxCharacters, TextValue};
@@ -20,6 +20,7 @@ use bevy_ecs::change_detection::Res;
 use bevy_ecs::prelude::{Changed, Commands, Component, IntoSystemConfigs};
 use bevy_ecs::query::{Or, With, Without};
 use bevy_ecs::system::{Query, ResMut, SystemParamItem};
+use derive_macros::SceneBinding;
 
 #[derive(Bundle)]
 pub struct Button {
@@ -177,14 +178,10 @@ impl ButtonArgs {
         }
     }
 }
+#[derive(SceneBinding)]
 pub enum ButtonBindings {
     Panel,
     IconText,
-}
-impl From<ButtonBindings> for SceneBinding {
-    fn from(value: ButtonBindings) -> Self {
-        SceneBinding::from(value as i32)
-    }
 }
 impl Scene for Button {
     type Bindings = ButtonBindings;

@@ -7,7 +7,7 @@ use crate::elm::leaf::{Leaf, Tag};
 use crate::elm::Elm;
 use crate::icon::{Icon, IconId, IconScale};
 use crate::scene::align::SceneAligner;
-use crate::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
+use crate::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
 use crate::set_descriptor;
 use crate::text::font::MonospacedFont;
 use crate::text::{FontSize, GlyphColorChanges, MaxCharacters, Text, TextValue};
@@ -17,6 +17,7 @@ use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
 use bevy_ecs::query::{Changed, Or, With, Without};
 use bevy_ecs::system::{Query, ResMut, SystemParamItem};
+use derive_macros::SceneBinding;
 
 #[derive(Bundle)]
 pub struct IconText {
@@ -32,14 +33,10 @@ pub struct IconText {
 pub struct IconColor(pub Color);
 #[derive(Copy, Clone, Component, Default)]
 pub struct TextColor(pub Color);
+#[derive(SceneBinding)]
 pub enum IconTextBindings {
     Icon,
     Text,
-}
-impl From<IconTextBindings> for SceneBinding {
-    fn from(value: IconTextBindings) -> Self {
-        Self(value as i32)
-    }
 }
 pub struct IconTextArgs {
     id: IconId,

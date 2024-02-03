@@ -7,26 +7,23 @@ use crate::elm::leaf::{Leaf, Tag};
 use crate::elm::Elm;
 use crate::rectangle::Rectangle;
 use crate::scene::align::SceneAligner;
-use crate::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
+use crate::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
 use crate::set_descriptor;
 use crate::texture::factors::Progress;
 use bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
 use bevy_ecs::query::{Changed, Or, With, Without};
 use bevy_ecs::system::{Query, ResMut, SystemParamItem};
+use derive_macros::SceneBinding;
 
 #[derive(Bundle)]
 pub struct ProgressBar {
     tag: Tag<Self>,
     progress: Progress,
 }
+#[derive(SceneBinding)]
 pub enum ProgressBarBindings {
     Back,
     Fill,
-}
-impl From<ProgressBarBindings> for SceneBinding {
-    fn from(value: ProgressBarBindings) -> Self {
-        SceneBinding(value as i32)
-    }
 }
 set_descriptor!(
     pub enum ProgressBarSets {

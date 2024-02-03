@@ -11,7 +11,7 @@ use crate::panel::{Panel, PanelStyle};
 use crate::prebuilt::button::{BackgroundColor, ForegroundColor};
 use crate::rectangle::Rectangle;
 use crate::scene::align::SceneAligner;
-use crate::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
+use crate::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
 use crate::set_descriptor;
 use crate::text::font::MonospacedFont;
 use crate::text::{FontSize, GlyphColorChanges, MaxCharacters, Text, TextKey, TextValue};
@@ -24,7 +24,9 @@ use bevy_ecs::prelude::{Bundle, Commands, DetectChanges, Entity, IntoSystemConfi
 use bevy_ecs::query::{Changed, Or, With, Without};
 use bevy_ecs::system::{Query, Res, ResMut, SystemParamItem};
 use compact_str::CompactString;
+use derive_macros::SceneBinding;
 use winit::keyboard::NamedKey;
+
 #[derive(Component, Clone, Default)]
 pub struct ActualText(pub CompactString);
 #[derive(Component, Copy, Clone)]
@@ -156,15 +158,11 @@ impl TextInputArgs {
         }
     }
 }
+#[derive(SceneBinding)]
 pub enum TextInputBindings {
     Cursor,
     Panel,
     Text,
-}
-impl From<TextInputBindings> for SceneBinding {
-    fn from(value: TextInputBindings) -> Self {
-        Self(value as i32)
-    }
 }
 fn resize(
     mut scenes: Query<
