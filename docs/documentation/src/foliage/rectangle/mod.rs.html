@@ -106,10 +106,10 @@
     differentiable: Differentiable,
 }
 <span class="kw">impl </span>Rectangle {
-    <span class="kw">pub fn </span>new(area: Area&lt;InterfaceContext&gt;, color: Color, progress: Progress) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>new&lt;C: Into&lt;Color&gt;&gt;(area: Area&lt;InterfaceContext&gt;, color: C, progress: Progress) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             progress: DifferentialBundle::new(progress),
-            color: DifferentialBundle::new(color),
+            color: DifferentialBundle::new(color.into()),
             differentiable: Differentiable::new::&lt;<span class="self">Self</span>&gt;(
                 Position::default(),
                 area,

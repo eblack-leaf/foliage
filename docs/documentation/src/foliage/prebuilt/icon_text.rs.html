@@ -203,6 +203,26 @@
 <a href="#203" id="203">203</a>
 <a href="#204" id="204">204</a>
 <a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a>
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a>
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a>
+<a href="#223" id="223">223</a>
+<a href="#224" id="224">224</a>
+<a href="#225" id="225">225</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::color::Color;
 <span class="kw">use </span><span class="kw">crate</span>::coordinate::area::Area;
 <span class="kw">use </span><span class="kw">crate</span>::coordinate::{CoordinateUnit, InterfaceContext};
@@ -215,7 +235,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
 <span class="kw">use </span><span class="kw">crate</span>::set_descriptor;
 <span class="kw">use </span><span class="kw">crate</span>::text::font::MonospacedFont;
-<span class="kw">use </span><span class="kw">crate</span>::text::{FontSize, MaxCharacters, Text, TextValue};
+<span class="kw">use </span><span class="kw">crate</span>::text::{FontSize, GlyphColorChanges, MaxCharacters, Text, TextValue};
 <span class="kw">use </span><span class="kw">crate</span>::window::ScaleFactor;
 <span class="kw">use </span>bevy_ecs::change_detection::Res;
 <span class="kw">use </span>bevy_ecs::component::Component;
@@ -231,6 +251,7 @@
     text_value: TextValue,
     icon_color: IconColor,
     text_color: TextColor,
+    color_changes: GlyphColorChanges,
 }
 <span class="attr">#[derive(Copy, Clone, Component, Default)]
 </span><span class="kw">pub struct </span>IconColor(<span class="kw">pub </span>Color);
@@ -283,7 +304,8 @@
 
     <span class="kw">fn </span>attach(elm: <span class="kw-2">&amp;mut </span>Elm) {
         elm.main().add_systems(
-            resize
+            (resize, color_changes)
+                .chain()
                 .in_set(<span class="self">Self</span>::SetDescriptor::Area)
                 .before(&lt;Text <span class="kw">as </span>Leaf&gt;::SetDescriptor::Area)
                 .before(&lt;Icon <span class="kw">as </span>Leaf&gt;::SetDescriptor::Area),
@@ -296,8 +318,8 @@
     font: <span class="kw-2">&amp;</span>MonospacedFont,
     scale_factor: <span class="kw-2">&amp;</span>ScaleFactor,
 ) -&gt; (IconScale, FontSize, CoordinateUnit, CoordinateUnit) {
-    <span class="kw">let </span>(fs, fa) = font.best_fit(<span class="kw-2">*</span>max_characters, area * (<span class="number">0.6</span>, <span class="number">0.9</span>).into(), <span class="kw-2">&amp;</span>scale_factor);
-    <span class="kw">let </span>icon_scale = IconScale::from_dim((fa.height * <span class="number">0.8</span>).min(fa.width * <span class="number">0.3</span>));
+    <span class="kw">let </span>(fs, fa) = font.best_fit(<span class="kw-2">*</span>max_characters, area * (<span class="number">0.6</span>, <span class="number">1.0</span>).into(), <span class="kw-2">&amp;</span>scale_factor);
+    <span class="kw">let </span>icon_scale = IconScale::from_dim((fa.height * <span class="number">1.0</span>).min(fa.width * <span class="number">0.3</span>));
     <span class="kw">let </span>spacing = (icon_scale.px() - area.height).abs() / <span class="number">2f32</span>;
     <span class="kw">let </span>text_offset = icon_scale.px() + spacing * <span class="number">2f32</span>;
     <span class="kw">let </span>total = icon_scale.px() + spacing + fa.width;
@@ -315,6 +337,23 @@
         spacing + adjustment,
         text_offset + adjustment,
     )
+}
+<span class="kw">fn </span>color_changes(
+    <span class="kw-2">mut </span>scenes: Query&lt;
+        (<span class="kw-2">&amp;</span>SceneHandle, <span class="kw-2">&amp;</span>GlyphColorChanges, <span class="kw-2">&amp;</span>Despawn),
+        (Changed&lt;GlyphColorChanges&gt;, With&lt;Tag&lt;IconText&gt;&gt;),
+    &gt;,
+    coordinator: Res&lt;SceneCoordinator&gt;,
+    <span class="kw-2">mut </span>color_changes: Query&lt;<span class="kw-2">&amp;mut </span>GlyphColorChanges, Without&lt;Tag&lt;IconText&gt;&gt;&gt;,
+) {
+    <span class="kw">for </span>(handle, cc, despawn) <span class="kw">in </span>scenes.iter_mut() {
+        <span class="kw">if </span>despawn.should_despawn() {
+            <span class="kw">continue</span>;
+        }
+        <span class="kw">let </span>entity =
+            coordinator.binding_entity(<span class="kw-2">&amp;</span>handle.access_chain().target(IconTextBindings::Text));
+        color_changes.get_mut(entity).unwrap().<span class="number">0 </span>= cc.<span class="number">0</span>.clone();
+    }
 }
 <span class="kw">fn </span>resize(
     scenes: Query&lt;
@@ -405,6 +444,7 @@
             text_value: args.text_value.clone(),
             icon_color: IconColor(args.icon_color),
             text_color: TextColor(args.text_color),
+            color_changes: GlyphColorChanges::default(),
         }
     }
 }

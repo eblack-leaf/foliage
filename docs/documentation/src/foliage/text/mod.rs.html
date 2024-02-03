@@ -396,16 +396,16 @@
     differentiable: Differentiable,
 }
 <span class="kw">impl </span>Text {
-    <span class="kw">pub fn </span>new(
+    <span class="kw">pub fn </span>new&lt;C: Into&lt;Color&gt;&gt;(
         max_characters: MaxCharacters,
         font_size: FontSize,
         text_value: TextValue,
-        color: Color,
+        color: C,
     ) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             max_characters,
             font_size: DifferentialBundle::new(font_size),
-            color: DifferentialBundle::new(color),
+            color: DifferentialBundle::new(color.into()),
             text_value_chars: DifferentialBundle::new(TextValueUniqueCharacters::new(<span class="kw-2">&amp;</span>text_value)),
             glyph_adds: DifferentialBundle::new(GlyphChangeQueue::default()),
             glyph_removes: DifferentialBundle::new(GlyphRemoveQueue::default()),

@@ -338,6 +338,8 @@
 <a href="#338" id="338">338</a>
 <a href="#339" id="339">339</a>
 <a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::compositor::layout::Layout;
 <span class="kw">use </span><span class="kw">crate</span>::compositor::{ViewHandle, ViewHandleOffset};
 <span class="kw">use </span><span class="kw">crate</span>::coordinate::layer::Layer;
@@ -607,8 +609,10 @@
             handle_offset <span class="kw">as </span>CoordinateUnit * dim
         };
         <span class="kw">let </span>num = view_base + <span class="self">self</span>.base * factor + <span class="self">self</span>.offset;
-        num.min(<span class="self">self</span>.max.unwrap_or(CoordinateUnit::MAX))
-            .max(<span class="self">self</span>.min.unwrap_or(CoordinateUnit::MIN))
+        <span class="kw">let </span>val = num
+            .min(<span class="self">self</span>.max.unwrap_or(CoordinateUnit::MAX))
+            .max(<span class="self">self</span>.min.unwrap_or(CoordinateUnit::MIN));
+        val
     }
 }
 <span class="kw">pub trait </span>SegmentUnitNumber {

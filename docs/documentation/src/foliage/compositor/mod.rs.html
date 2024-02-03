@@ -266,6 +266,11 @@
 <a href="#266" id="266">266</a>
 <a href="#267" id="267">267</a>
 <a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::animate::trigger::Trigger;
 <span class="kw">use </span><span class="kw">crate</span>::compositor::layout::Layout;
 <span class="kw">use </span><span class="kw">crate</span>::compositor::segment::ResponsiveSegment;
@@ -291,7 +296,12 @@
 <span class="kw">pub mod </span>segment;
 
 <span class="attr">#[derive(Resource, Copy, Clone)]
-</span><span class="kw">pub struct </span>CurrentView(<span class="kw">pub </span>ViewHandle);
+</span><span class="kw">pub struct </span>CurrentView(<span class="kw">pub</span>(<span class="kw">crate</span>) ViewHandle);
+<span class="kw">impl </span>CurrentView {
+    <span class="kw">pub fn </span>change_view&lt;VH: Into&lt;ViewHandle&gt;&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, vh: VH) {
+        <span class="self">self</span>.<span class="number">0 </span>= vh.into();
+    }
+}
 <span class="attr">#[derive(Resource)]
 </span><span class="kw">pub struct </span>Compositor {
     current: ViewHandle,
@@ -513,7 +523,7 @@
 <span class="attr">#[derive(Copy, Clone, Default, Hash, Eq, PartialEq, Debug, Component)]
 </span><span class="kw">pub struct </span>ViewHandle(<span class="kw">pub </span>ViewHandleOffset, <span class="kw">pub </span>ViewHandleOffset);
 <span class="kw">impl </span>ViewHandle {
-    <span class="kw">pub fn </span>new(x: ViewHandleOffset, y: ViewHandleOffset) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub const fn </span>new(x: ViewHandleOffset, y: ViewHandleOffset) -&gt; <span class="self">Self </span>{
         <span class="self">Self</span>(x, y)
     }
     <span class="kw">pub fn </span>anchor(<span class="kw-2">&amp;</span><span class="self">self</span>, area: Area&lt;InterfaceContext&gt;) -&gt; Position&lt;InterfaceContext&gt; {

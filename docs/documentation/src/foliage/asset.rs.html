@@ -134,7 +134,7 @@
 </span><span class="macro">macro_rules! </span>icon_fetcher {
     (<span class="macro-nonterminal">$fi</span>:expr) =&gt; {
         |data, cmd| {
-            cmd.spawn(Icon::storage(<span class="macro-nonterminal">$fi</span>.id(), data));
+            cmd.spawn(<span class="macro-nonterminal">$crate::icon::Icon::storage</span>(<span class="macro-nonterminal">$fi</span>.id(), data));
         }
     };
 }

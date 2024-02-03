@@ -452,6 +452,9 @@
 <a href="#452" id="452">452</a>
 <a href="#453" id="453">453</a>
 <a href="#454" id="454">454</a>
+<a href="#455" id="455">455</a>
+<a href="#456" id="456">456</a>
+<a href="#457" id="457">457</a>
 </pre></div><pre class="rust"><code><span class="attr">#![allow(clippy::type_complexity)]
 
 </span><span class="kw">use </span>ash::identification::RenderIdentification;
@@ -482,6 +485,7 @@
     Interaction, InteractionEvent, InteractionId, InteractionPhase, KeyboardAdapter, KeyboardEvent,
     MouseAdapter,
 };
+<span class="kw">use </span><span class="kw">crate</span>::media::Media;
 <span class="kw">use </span><span class="kw">crate</span>::panel::Panel;
 <span class="kw">use </span><span class="kw">crate</span>::prebuilt::aspect_ratio_image::AspectRatioImage;
 <span class="kw">use </span><span class="kw">crate</span>::prebuilt::button::Button;
@@ -518,6 +522,7 @@
 <span class="kw">pub mod </span>instance;
 <span class="kw">pub mod </span>interaction;
 <span class="kw">pub mod </span>job;
+<span class="kw">pub mod </span>media;
 <span class="kw">pub mod </span>panel;
 <span class="kw">pub mod </span>prebuilt;
 <span class="kw">pub mod </span>rectangle;
@@ -593,6 +598,7 @@
             .with_leaf::&lt;VirtualKeyboardAdapter&gt;()
             .with_leaf::&lt;Clipboard&gt;()
             .with_leaf::&lt;AssetContainer&gt;()
+            .with_leaf::&lt;Media&gt;()
     }
     <span class="kw">pub fn </span>with_android_interface(<span class="kw-2">mut </span><span class="self">self</span>, android_interface: AndroidInterface) -&gt; <span class="self">Self </span>{
         <span class="self">self</span>.android_interface = android_interface;
@@ -905,5 +911,4 @@
             },
         );
     }
-}
-</code></pre></div></section></main></body></html>
+}</code></pre></div></section></main></body></html>

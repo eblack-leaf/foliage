@@ -378,6 +378,14 @@
 <a href="#378" id="378">378</a>
 <a href="#379" id="379">379</a>
 <a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
 </pre></div><pre class="rust"><code><span class="kw">pub mod </span>config;
 <span class="kw">pub mod </span>leaf;
 
@@ -431,13 +439,13 @@
         DifferentialLimiter(PhantomData)
     }
 }
-<span class="attr">#[derive(Bundle)]
-</span><span class="kw">pub struct </span>BundleExtension&lt;T: Bundle, S: Bundle&gt; {
+<span class="attr">#[derive(Bundle, Clone)]
+</span><span class="kw">pub struct </span>BundleExtension&lt;T: Bundle + Clone, S: Bundle + Clone&gt; {
     <span class="kw">pub </span>original: T,
     <span class="kw">pub </span>extension: S,
 }
 
-<span class="kw">impl</span>&lt;T: Bundle, S: Bundle&gt; BundleExtension&lt;T, S&gt; {
+<span class="kw">impl</span>&lt;T: Bundle + Clone, S: Bundle + Clone&gt; BundleExtension&lt;T, S&gt; {
     <span class="kw">pub fn </span>new(t: T, s: S) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             original: t,
@@ -448,13 +456,13 @@
 
 <span class="kw">pub trait </span>BundleExtend
 <span class="kw">where
-    </span><span class="self">Self</span>: Bundle + Sized,
+    </span><span class="self">Self</span>: Bundle + Sized + Clone,
 {
-    <span class="kw">fn </span>extend&lt;E: Bundle&gt;(<span class="self">self</span>, handle: E) -&gt; BundleExtension&lt;<span class="self">Self</span>, E&gt;;
+    <span class="kw">fn </span>extend&lt;E: Bundle + Clone&gt;(<span class="self">self</span>, handle: E) -&gt; BundleExtension&lt;<span class="self">Self</span>, E&gt;;
 }
 
-<span class="kw">impl</span>&lt;I: Bundle&gt; BundleExtend <span class="kw">for </span>I {
-    <span class="kw">fn </span>extend&lt;E: Bundle&gt;(<span class="self">self</span>, handle: E) -&gt; BundleExtension&lt;I, E&gt; {
+<span class="kw">impl</span>&lt;I: Bundle + Clone&gt; BundleExtend <span class="kw">for </span>I {
+    <span class="kw">fn </span>extend&lt;E: Bundle + Clone&gt;(<span class="self">self</span>, handle: E) -&gt; BundleExtension&lt;I, E&gt; {
         BundleExtension::new(<span class="self">self</span>, handle)
     }
 }
@@ -709,7 +717,7 @@
     <span class="kw">pub fn </span>add_interaction_handler&lt;IH: Component + <span class="lifetime">&#39;static</span>, Ext: SystemParam + <span class="lifetime">&#39;static</span>&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         trigger: InteractionHandlerTrigger,
-        handler: <span class="kw">fn</span>(<span class="kw-2">&amp;mut </span>IH, <span class="kw-2">&amp;mut </span>StaticSystemParam&lt;Ext&gt;),
+        handler: InteractionHandlerFn&lt;IH, Ext&gt;,
     ) {
         <span class="kw">let </span>func = <span class="kw">move </span>|<span class="kw-2">mut </span>ext: StaticSystemParam&lt;Ext&gt;,
                          <span class="kw-2">mut </span>ihs: Query&lt;
@@ -730,7 +738,15 @@
         };
         <span class="self">self</span>.main().add_systems(func.in_set(ExternalSet::Process));
     }
+    <span class="kw">pub fn </span>view_trigger&lt;C: Component + <span class="lifetime">&#39;static</span>&gt;(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        trigger: InteractionHandlerTrigger,
+        func: InteractionHandlerFn&lt;C, ResMut&lt;<span class="lifetime">&#39;static</span>, CurrentView&gt;&gt;,
+    ) {
+        <span class="self">self</span>.add_interaction_handler::&lt;C, ResMut&lt;<span class="lifetime">&#39;static</span>, CurrentView&gt;&gt;(trigger, func);
+    }
 }
+<span class="kw">pub type </span>InteractionHandlerFn&lt;IH, Ext&gt; = <span class="kw">fn</span>(<span class="kw-2">&amp;mut </span>IH, <span class="kw-2">&amp;mut </span>StaticSystemParam&lt;Ext&gt;);
 <span class="kw">pub enum </span>InteractionHandlerTrigger {
     Active,
     Engaged,
@@ -757,5 +773,4 @@
 </span><span class="kw">pub enum </span>ElementStyle {
     Ring,
     Fill,
-}
-</code></pre></div></section></main></body></html>
+}</code></pre></div></section></main></body></html>
