@@ -4,9 +4,10 @@ use foliage::compositor::layout::Layout;
 use foliage::compositor::segment::{ResponsiveSegment, SegmentUnitNumber};
 use foliage::coordinate::area::Area;
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
-use foliage::elm::Elm;
+use foliage::elm::{BundleExtend, Elm};
 use foliage::icon::FeatherIcon;
 use foliage::icon_fetcher;
+use foliage::media::HrefLink;
 use foliage::prebuilt::icon_text::{IconText, IconTextArgs};
 use foliage::rectangle::Rectangle;
 use foliage::text::{GlyphColorChanges, MaxCharacters, TextValue};
@@ -115,7 +116,8 @@ impl Leaf for Home {
                 changes.0.insert(9, Color::RED_ORANGE_MEDIUM.into());
                 changes.0.insert(10, Color::RED_ORANGE_MEDIUM.into());
                 changes
-            },
+            }
+            .extend(HrefLink::new("/foliage/book/index.html")),
         );
         elm.add_view_scene_binding::<IconText, _>(
             HOME,
@@ -158,7 +160,8 @@ impl Leaf for Home {
                 changes.0.insert(16, Color::RED_ORANGE_MEDIUM.into());
                 changes.0.insert(17, Color::RED_ORANGE_MEDIUM.into());
                 changes
-            },
+            }
+            .extend(HrefLink::new("/foliage/documentation/index.html")),
         );
         elm.add_view_scene_binding::<IconText, _>(
             HOME,
@@ -201,7 +204,8 @@ impl Leaf for Home {
                 changes.0.insert(16, Color::RED_ORANGE_MEDIUM.into());
                 changes.0.insert(17, Color::RED_ORANGE_MEDIUM.into());
                 changes
-            },
+            }
+            .extend(HrefLink::new("/foliage/demo/index.html")),
         );
     }
 }

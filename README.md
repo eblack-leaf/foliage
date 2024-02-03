@@ -2,6 +2,15 @@
 
 This library is a cross-platform ui with wgpu.rs and winit. It targets Desktop / Android (via ndk) / Web (via wasm).
 
+### Website
+
+Checkout the website | [`Website`](https://eblack-leaf.github.io/foliage) |
+
+This is home to
+- Book about the architecture
+- Documentation
+- Demo project
+
 ![parity](./parity.png)
 
 The name foliage arose from the need for a word defining a collection of 
@@ -12,14 +21,6 @@ foliage could stand for
 `F-lat` `O-rthographic` `L-ogic` `I-nterface` `A-nd` `G-raphical` `E-ngine`
 if need be. 
 
-### Website 
-
-Checkout the website | [`Website`](https://eblack-leaf.github.io/foliage) | 
-
-This is home to
-- Book about the architecture
-- Documentation
-- Demo project
 
 ### Overview
 

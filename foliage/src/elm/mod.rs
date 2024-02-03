@@ -51,13 +51,13 @@ impl<T> Default for DifferentialLimiter<T> {
         DifferentialLimiter(PhantomData)
     }
 }
-#[derive(Bundle)]
-pub struct BundleExtension<T: Bundle, S: Bundle> {
+#[derive(Bundle, Clone)]
+pub struct BundleExtension<T: Bundle + Clone, S: Bundle + Clone> {
     pub original: T,
     pub extension: S,
 }
 
-impl<T: Bundle, S: Bundle> BundleExtension<T, S> {
+impl<T: Bundle + Clone, S: Bundle + Clone> BundleExtension<T, S> {
     pub fn new(t: T, s: S) -> Self {
         Self {
             original: t,
@@ -68,13 +68,13 @@ impl<T: Bundle, S: Bundle> BundleExtension<T, S> {
 
 pub trait BundleExtend
 where
-    Self: Bundle + Sized,
+    Self: Bundle + Sized + Clone,
 {
-    fn extend<E: Bundle>(self, handle: E) -> BundleExtension<Self, E>;
+    fn extend<E: Bundle + Clone>(self, handle: E) -> BundleExtension<Self, E>;
 }
 
-impl<I: Bundle> BundleExtend for I {
-    fn extend<E: Bundle>(self, handle: E) -> BundleExtension<I, E> {
+impl<I: Bundle + Clone> BundleExtend for I {
+    fn extend<E: Bundle + Clone>(self, handle: E) -> BundleExtension<I, E> {
         BundleExtension::new(self, handle)
     }
 }

@@ -28,6 +28,7 @@ use crate::interaction::{
     Interaction, InteractionEvent, InteractionId, InteractionPhase, KeyboardAdapter, KeyboardEvent,
     MouseAdapter,
 };
+use crate::media::Media;
 use crate::panel::Panel;
 use crate::prebuilt::aspect_ratio_image::AspectRatioImage;
 use crate::prebuilt::button::Button;
@@ -64,6 +65,7 @@ pub mod image;
 pub mod instance;
 pub mod interaction;
 pub mod job;
+pub mod media;
 pub mod panel;
 pub mod prebuilt;
 pub mod rectangle;
@@ -139,6 +141,7 @@ impl Foliage {
             .with_leaf::<VirtualKeyboardAdapter>()
             .with_leaf::<Clipboard>()
             .with_leaf::<AssetContainer>()
+            .with_leaf::<Media>()
     }
     pub fn with_android_interface(mut self, android_interface: AndroidInterface) -> Self {
         self.android_interface = android_interface;

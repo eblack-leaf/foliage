@@ -54,6 +54,7 @@ commit_parsers = [
   { message = "^doc", group = "Documentation" },
   { message = "^perf", group = "Performance" },
   { message = "^refactor", group = "Refactor" },
+  { message = "^rfx", group = "Refactor" },
   { message = "^style", group = "Styling" },
   { message = "^test", group = "Testing" },
   { message = "^chore\\(release\\): prepare for", skip = true },
