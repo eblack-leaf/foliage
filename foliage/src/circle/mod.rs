@@ -113,7 +113,6 @@ fn diameter_set(
     for (_entity, mut diameter, mut area) in query.iter_mut() {
         *diameter = Diameter::new(area.width);
         *area = diameter.area();
-        println!("diameter: {:?} area: {:?}", diameter, area);
     }
 }
 

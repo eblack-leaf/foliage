@@ -30,7 +30,7 @@ impl Leaf for Showcase {
             ImageStorage::some(Area::from((700, 700))),
         ));
         let assets = Assets::proc_gen_load(elm);
-        elm.on_fetch(assets.image_id, |data, cmd| {
+        elm.on_fetch(*assets.f_asset.get(0).expect("f-asset-get"), |data, cmd| {
             cmd.spawn(Image::fill(ImageId(0), data));
         });
         let handle = ViewHandle::new(0, 0);

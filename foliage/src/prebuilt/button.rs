@@ -134,8 +134,8 @@ fn updates(
         if let Ok(mut content_area) = area_query.get_mut(panel_node) {
             *content_area = *button_area;
         }
-        let text_node = coordinator.binding_entity(&icon_text_ac);
-        if let Ok((mut ic, mut tc)) = colors.get_mut(text_node) {
+        let icon_text_node = coordinator.binding_entity(&icon_text_ac);
+        if let Ok((mut ic, mut tc)) = colors.get_mut(icon_text_node) {
             let color = match state {
                 ButtonStyle::Ring => foreground_color.0,
                 ButtonStyle::Fill => background_color.0,
@@ -143,10 +143,10 @@ fn updates(
             ic.0 = color;
             tc.0 = color;
         }
-        if let Ok(mut area) = area_query.get_mut(text_node) {
-            *area = *button_area * (0.9, 0.9).into();
+        if let Ok(mut area) = area_query.get_mut(icon_text_node) {
+            *area = *button_area * (0.9, 0.8).into();
         }
-        if let Ok(mut max_characters) = max_characters_query.get_mut(text_node) {
+        if let Ok(mut max_characters) = max_characters_query.get_mut(icon_text_node) {
             *max_characters = *max_char;
         }
     }
