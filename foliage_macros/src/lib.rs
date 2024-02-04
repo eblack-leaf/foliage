@@ -279,7 +279,9 @@ pub fn assets(
             }
         }
     }
+    let forwarded_attrs = definition.attrs;
     let gen = quote::quote! {
+        #(#forwarded_attrs)*
         pub(crate) struct #name {
             #(#field_iterator: #tys),*
         }
