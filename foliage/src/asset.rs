@@ -68,4 +68,3 @@ macro_rules! icon_fetcher {
         }
     };
 }
-pub type IconAsset = ();
