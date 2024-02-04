@@ -1,4 +1,5 @@
 use crate::{Engen, HOME};
+use foliage::asset::AssetKey;
 use foliage::color::Color;
 use foliage::compositor::layout::Layout;
 use foliage::compositor::segment::{ResponsiveSegment, SegmentUnitNumber};
@@ -6,38 +7,24 @@ use foliage::coordinate::area::Area;
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 use foliage::elm::{BundleExtend, Elm};
 use foliage::icon::FeatherIcon;
-use foliage::icon_fetcher;
 use foliage::media::HrefLink;
 use foliage::prebuilt::icon_text::{IconText, IconTextArgs};
 use foliage::rectangle::Rectangle;
 use foliage::text::{GlyphColorChanges, MaxCharacters, TextValue};
 use foliage::texture::factors::Progress;
-
+#[foliage::assets(crate::Engen, "../assets/", "/foliage/assets/")]
+struct Assets {
+    #[icon(path = "icons/terminal.gatl", Terminal)]
+    _terminal: AssetKey,
+    #[icon(path = "icons/chevrons-right.gatl", ChevronsRight)]
+    _chevrons_right: AssetKey,
+}
 pub(crate) struct Home {}
 impl Leaf for Home {
     type SetDescriptor = EmptySetDescriptor;
 
     fn attach(elm: &mut Elm) {
-        elm.load_remote_icon::<Engen>(
-            icon_fetcher!(FeatherIcon::Terminal),
-            "/foliage/assets/icons/terminal.gatl",
-        );
-        elm.load_remote_icon::<Engen>(
-            icon_fetcher!(FeatherIcon::Hash),
-            "/foliage/assets/icons/hash.gatl",
-        );
-        elm.load_remote_icon::<Engen>(
-            icon_fetcher!(FeatherIcon::ChevronRight),
-            "/foliage/assets/icons/chevron-right.gatl",
-        );
-        elm.load_remote_icon::<Engen>(
-            icon_fetcher!(FeatherIcon::ChevronsRight),
-            "/foliage/assets/icons/chevrons-right.gatl",
-        );
-        elm.load_remote_icon::<Engen>(
-            icon_fetcher!(FeatherIcon::MoreVertical),
-            "/foliage/assets/icons/more-vertical.gatl",
-        );
+        let _assets = Assets::proc_gen_load(elm);
         elm.add_view_scene_binding::<IconText, _>(
             HOME,
             IconTextArgs::new(
