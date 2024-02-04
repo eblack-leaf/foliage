@@ -40,11 +40,9 @@ pub(crate) struct Assets {
     #[asset(path = "something.dat")]
     _something: AssetKey,
     #[asset(path = "img.png")]
-    #[group = f_asset]
     image_id: AssetKey,
     #[icon(path = "icons/copy.gatl", Copy)]
     _copy_id: AssetKey,
-    #[group = f_asset]
     #[icon(path = "icons/command.gatl", Command)]
     _command_id: AssetKey,
 }

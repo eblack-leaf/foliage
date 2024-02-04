@@ -198,7 +198,14 @@ pub fn assets(
             quote::quote!(
                     elm.on_fetch(
                         id,
-                        #foliage::icon_fetcher!(#foliage::icon::FeatherIcon::#icon_label),
+                        |data, cmd| {
+                            cmd.spawn(
+                                #foliage::icon::Icon::storage(
+                                    #foliage::icon::FeatherIcon::#icon_label.id(),
+                                    data
+                                )
+                            );
+                        },
                     );
             )
         };
@@ -224,7 +231,10 @@ pub fn assets(
             use #foliage::workflow::Workflow;
             #[cfg(target_family = "wasm")]
             let id = elm.load_remote_asset::<#engen, _>(#remote);
-            #foliage::load_native_asset!(elm, id, #native);
+            #[cfg(not(target_family = "wasm"))]
+            let id = elm.generate_asset_key();
+            #[cfg(not(target_family = "wasm"))]
+            elm.store_local_asset(id, include_bytes!(#native).to_vec());
             #icon_extension
             id
         });
@@ -261,9 +271,7 @@ pub fn assets(
                     .members
                     .clone()
                     .iter()
-                    .map(|gm| {
-                        syn::parse2::<syn::Expr>(gm.to_token_stream()).expect("syn-expr-block")
-                    })
+                    .map(|gm| syn::parse2::<syn::Expr>(gm.to_token_stream()).expect("syn-expr"))
                     .collect::<Vec<syn::Expr>>();
                 loaders.push(quote::quote!(vec![#(#group_members),*]));
                 let ty = proc_macro2::TokenStream::from_str("Vec<AssetKey>").expect("vec-parsing");
