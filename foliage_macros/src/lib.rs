@@ -280,13 +280,14 @@ pub fn assets(
         }
     }
     let forwarded_attrs = definition.attrs;
+    let vis = definition.vis;
     let gen = quote::quote! {
         #(#forwarded_attrs)*
-        pub(crate) struct #name {
-            #(#field_iterator: #tys),*
+        #vis struct #name {
+            #(#vis #field_iterator: #tys),*
         }
         impl #name {
-            pub(crate) fn proc_gen_load(elm: &mut #foliage::elm::Elm) -> Self {
+            #vis fn proc_gen_load(elm: &mut #foliage::elm::Elm) -> Self {
                 Self {
                     #(#field_iterator: #loaders),*
                 }
