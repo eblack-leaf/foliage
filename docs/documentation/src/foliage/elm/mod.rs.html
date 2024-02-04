@@ -373,35 +373,11 @@
 <a href="#373" id="373">373</a>
 <a href="#374" id="374">374</a>
 <a href="#375" id="375">375</a>
-<a href="#376" id="376">376</a>
-<a href="#377" id="377">377</a>
-<a href="#378" id="378">378</a>
-<a href="#379" id="379">379</a>
-<a href="#380" id="380">380</a>
-<a href="#381" id="381">381</a>
-<a href="#382" id="382">382</a>
-<a href="#383" id="383">383</a>
-<a href="#384" id="384">384</a>
-<a href="#385" id="385">385</a>
-<a href="#386" id="386">386</a>
-<a href="#387" id="387">387</a>
-<a href="#388" id="388">388</a>
 </pre></div><pre class="rust"><code><span class="kw">pub mod </span>config;
 <span class="kw">pub mod </span>leaf;
 
 <span class="kw">use </span>std::any::TypeId;
 <span class="kw">use </span>std::marker::PhantomData;
-
-<span class="kw">use </span>anymap::AnyMap;
-<span class="kw">use </span>bevy_ecs::bundle::Bundle;
-<span class="kw">use </span>bevy_ecs::event::{event_update_system, Event, Events};
-<span class="kw">use </span>bevy_ecs::prelude::{Component, DetectChanges, IntoSystemConfigs, Res};
-<span class="kw">use </span>bevy_ecs::query::Changed;
-<span class="kw">use </span>bevy_ecs::system::{Commands, Query, ResMut, StaticSystemParam, SystemParam};
-<span class="kw">use </span>compact_str::{CompactString, ToCompactString};
-<span class="kw">use </span>leaf::Leaflet;
-<span class="kw">use </span>serde::{Deserialize, Serialize};
-<span class="kw">use </span>uuid::Uuid;
 
 <span class="kw">use </span><span class="kw">crate</span>::ash::render_packet::RenderPacketForwarder;
 <span class="kw">use </span><span class="kw">crate</span>::ash::render_packet::RenderPacketPackage;
@@ -419,7 +395,18 @@
 <span class="kw">use </span><span class="kw">crate</span>::job::{Container, Job, Task};
 <span class="kw">use </span><span class="kw">crate</span>::scene::{Anchor, Scene, SceneCoordinator};
 <span class="kw">use </span><span class="kw">crate</span>::window::ScaleFactor;
-<span class="kw">use </span><span class="kw">crate</span>::workflow::Workflow;
+<span class="attr">#[cfg(target_family = <span class="string">&quot;wasm&quot;</span>)]
+</span><span class="kw">use </span><span class="kw">crate</span>::Workflow;
+<span class="kw">use </span>anymap::AnyMap;
+<span class="kw">use </span>bevy_ecs::bundle::Bundle;
+<span class="kw">use </span>bevy_ecs::event::{event_update_system, Event, Events};
+<span class="kw">use </span>bevy_ecs::prelude::{Component, DetectChanges, IntoSystemConfigs, Res};
+<span class="kw">use </span>bevy_ecs::query::Changed;
+<span class="kw">use </span>bevy_ecs::system::{Commands, Query, ResMut, StaticSystemParam, SystemParam};
+<span class="kw">use </span>compact_str::{CompactString, ToCompactString};
+<span class="kw">use </span>leaf::Leaflet;
+<span class="kw">use </span>serde::{Deserialize, Serialize};
+<span class="kw">use </span>uuid::Uuid;
 
 <span class="kw">pub struct </span>Elm {
     initialized: bool,
@@ -668,9 +655,9 @@
             .run_if(|cv: Res&lt;CurrentView&gt;| -&gt; bool { cv.is_changed() }),));
     }
     <span class="attr">#[cfg(target_family = <span class="string">&quot;wasm&quot;</span>)]
-    </span><span class="kw">pub fn </span>load_remote_asset&lt;W: Workflow + Default + Send + Sync + <span class="lifetime">&#39;static</span>&gt;(
+    </span><span class="kw">pub fn </span>load_remote_asset&lt;W: Workflow + Default + Send + Sync + <span class="lifetime">&#39;static</span>, S: AsRef&lt;str&gt;&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        path: <span class="kw-2">&amp;</span>str,
+        path: S,
     ) -&gt; AssetKey {
         <span class="kw">let </span>id = <span class="self">self</span>.generate_asset_key();
         <span class="kw">let </span>message = <span class="kw">crate</span>::system_message::SystemMessageAction::WasmAsset(
@@ -678,7 +665,7 @@
             <span class="macro">format!</span>(
                 <span class="string">&quot;{}{}&quot;</span>,
                 web_sys::window().unwrap().origin(),
-                path.to_string()
+                path.as_ref().to_string()
             ),
         );
         <span class="self">self</span>.container()
@@ -690,19 +677,6 @@
             .unwrap()
             .store(id, <span class="prelude-val">None</span>);
         <span class="kw">return </span>id;
-    }
-    <span class="attr">#[allow(unused)]
-    </span><span class="kw">pub fn </span>load_remote_icon&lt;W: Workflow + Default + Send + Sync + <span class="lifetime">&#39;static</span>&gt;(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        func: AssetFetchFn,
-        path: <span class="kw-2">&amp;</span>str,
-    ) {
-        <span class="attr">#[cfg(target_family = <span class="string">&quot;wasm&quot;</span>)]
-        </span>{
-            <span class="kw">use </span><span class="kw">crate</span>::icon::{Icon, IconId};
-            <span class="kw">let </span>id = <span class="self">self</span>.load_remote_asset::&lt;W&gt;(path);
-            <span class="self">self</span>.on_fetch(id, func);
-        }
     }
     <span class="kw">pub fn </span>generate_asset_key(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; AssetKey {
         <span class="kw">let </span>id = Uuid::new_v4().as_u128();
@@ -773,4 +747,5 @@
 </span><span class="kw">pub enum </span>ElementStyle {
     Ring,
     Fill,
-}</code></pre></div></section></main></body></html>
+}
+</code></pre></div></section></main></body></html>

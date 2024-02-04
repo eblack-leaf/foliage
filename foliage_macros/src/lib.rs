@@ -240,7 +240,7 @@ pub fn assets(
         let f = syn::Ident::new(group.0, proc_macro2::Span::call_site());
         match group.1.ty {
             AssetStorageType::Single => {
-                let ty = syn::Ident::new("AssetKey", proc_macro2::Span::call_site());
+                let ty = proc_macro2::TokenStream::from_str("AssetKey").expect("asset-key");
                 let l = group
                     .1
                     .members

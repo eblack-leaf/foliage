@@ -160,7 +160,7 @@
     ) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>diameter = Diameter::new(anchor.<span class="number">0</span>.section.width());
         binder.bind(
-            <span class="number">0</span>,
+            ProgressBarBindings::Back,
             (<span class="number">0</span>.near(), <span class="number">0</span>.near(), <span class="number">1</span>),
             Circle::new(
                 CircleStyle::ring(),
@@ -171,7 +171,7 @@
             cmd,
         );
         binder.bind(
-            <span class="number">1</span>,
+            ProgressBarBindings::Fill,
             (<span class="number">0</span>.near(), <span class="number">0</span>.near(), <span class="number">0</span>),
             Circle::new(
                 CircleStyle::ring(),

@@ -236,9 +236,6 @@
 <a href="#236" id="236">236</a>
 <a href="#237" id="237">237</a>
 <a href="#238" id="238">238</a>
-<a href="#239" id="239">239</a>
-<a href="#240" id="240">240</a>
-<a href="#241" id="241">241</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::color::Color;
 <span class="kw">use </span><span class="kw">crate</span>::coordinate::area::Area;
 <span class="kw">use </span><span class="kw">crate</span>::coordinate::InterfaceContext;
@@ -251,7 +248,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::panel::{Panel, PanelStyle};
 <span class="kw">use </span><span class="kw">crate</span>::prebuilt::icon_text::{IconColor, IconText, IconTextArgs, TextColor};
 <span class="kw">use </span><span class="kw">crate</span>::scene::align::{SceneAligner, SceneAlignment};
-<span class="kw">use </span><span class="kw">crate</span>::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
+<span class="kw">use </span><span class="kw">crate</span>::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
 <span class="kw">use </span><span class="kw">crate</span>::set_descriptor;
 <span class="kw">use </span><span class="kw">crate</span>::text::font::MonospacedFont;
 <span class="kw">use </span><span class="kw">crate</span>::text::{MaxCharacters, TextValue};
@@ -261,6 +258,7 @@
 <span class="kw">use </span>bevy_ecs::prelude::{Changed, Commands, Component, IntoSystemConfigs};
 <span class="kw">use </span>bevy_ecs::query::{Or, With, Without};
 <span class="kw">use </span>bevy_ecs::system::{Query, ResMut, SystemParamItem};
+<span class="kw">use </span>foliage_macros::SceneBinding;
 
 <span class="attr">#[derive(Bundle)]
 </span><span class="kw">pub struct </span>Button {
@@ -374,8 +372,8 @@
         <span class="kw">if let </span><span class="prelude-val">Ok</span>(<span class="kw-2">mut </span>content_area) = area_query.get_mut(panel_node) {
             <span class="kw-2">*</span>content_area = <span class="kw-2">*</span>button_area;
         }
-        <span class="kw">let </span>text_node = coordinator.binding_entity(<span class="kw-2">&amp;</span>icon_text_ac);
-        <span class="kw">if let </span><span class="prelude-val">Ok</span>((<span class="kw-2">mut </span>ic, <span class="kw-2">mut </span>tc)) = colors.get_mut(text_node) {
+        <span class="kw">let </span>icon_text_node = coordinator.binding_entity(<span class="kw-2">&amp;</span>icon_text_ac);
+        <span class="kw">if let </span><span class="prelude-val">Ok</span>((<span class="kw-2">mut </span>ic, <span class="kw-2">mut </span>tc)) = colors.get_mut(icon_text_node) {
             <span class="kw">let </span>color = <span class="kw">match </span>state {
                 ButtonStyle::Ring =&gt; foreground_color.<span class="number">0</span>,
                 ButtonStyle::Fill =&gt; background_color.<span class="number">0</span>,
@@ -383,10 +381,10 @@
             ic.<span class="number">0 </span>= color;
             tc.<span class="number">0 </span>= color;
         }
-        <span class="kw">if let </span><span class="prelude-val">Ok</span>(<span class="kw-2">mut </span>area) = area_query.get_mut(text_node) {
-            <span class="kw-2">*</span>area = <span class="kw-2">*</span>button_area * (<span class="number">0.9</span>, <span class="number">0.9</span>).into();
+        <span class="kw">if let </span><span class="prelude-val">Ok</span>(<span class="kw-2">mut </span>area) = area_query.get_mut(icon_text_node) {
+            <span class="kw-2">*</span>area = <span class="kw-2">*</span>button_area * (<span class="number">0.9</span>, <span class="number">0.8</span>).into();
         }
-        <span class="kw">if let </span><span class="prelude-val">Ok</span>(<span class="kw-2">mut </span>max_characters) = max_characters_query.get_mut(text_node) {
+        <span class="kw">if let </span><span class="prelude-val">Ok</span>(<span class="kw-2">mut </span>max_characters) = max_characters_query.get_mut(icon_text_node) {
             <span class="kw-2">*</span>max_characters = <span class="kw-2">*</span>max_char;
         }
     }
@@ -418,14 +416,10 @@
         }
     }
 }
-<span class="kw">pub enum </span>ButtonBindings {
+<span class="attr">#[derive(SceneBinding)]
+</span><span class="kw">pub enum </span>ButtonBindings {
     Panel,
     IconText,
-}
-<span class="kw">impl </span>From&lt;ButtonBindings&gt; <span class="kw">for </span>SceneBinding {
-    <span class="kw">fn </span>from(value: ButtonBindings) -&gt; <span class="self">Self </span>{
-        SceneBinding::from(value <span class="kw">as </span>i32)
-    }
 }
 <span class="kw">impl </span>Scene <span class="kw">for </span>Button {
     <span class="kw">type </span>Bindings = ButtonBindings;

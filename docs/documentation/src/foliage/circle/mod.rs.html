@@ -149,7 +149,6 @@
 <a href="#149" id="149">149</a>
 <a href="#150" id="150">150</a>
 <a href="#151" id="151">151</a>
-<a href="#152" id="152">152</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>bevy_ecs::prelude::{Bundle, Component, Entity, SystemSet, With};
 <span class="kw">use </span>bevy_ecs::query::Changed;
 <span class="kw">use </span>bevy_ecs::system::Query;
@@ -265,7 +264,6 @@
     <span class="kw">for </span>(_entity, <span class="kw-2">mut </span>diameter, <span class="kw-2">mut </span>area) <span class="kw">in </span>query.iter_mut() {
         <span class="kw-2">*</span>diameter = Diameter::new(area.width);
         <span class="kw-2">*</span>area = diameter.area();
-        <span class="macro">println!</span>(<span class="string">&quot;diameter: {:?} area: {:?}&quot;</span>, diameter, area);
     }
 }
 

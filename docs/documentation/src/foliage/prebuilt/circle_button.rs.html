@@ -165,9 +165,6 @@
 <a href="#165" id="165">165</a>
 <a href="#166" id="166">166</a>
 <a href="#167" id="167">167</a>
-<a href="#168" id="168">168</a>
-<a href="#169" id="169">169</a>
-<a href="#170" id="170">170</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::circle::{Circle, CircleStyle, Diameter};
 <span class="kw">use </span><span class="kw">crate</span>::color::Color;
 <span class="kw">use </span><span class="kw">crate</span>::coordinate::area::Area;
@@ -180,11 +177,12 @@
 <span class="kw">use </span><span class="kw">crate</span>::interaction::{InteractionListener, InteractionShape};
 <span class="kw">use </span><span class="kw">crate</span>::prebuilt::button::{BackgroundColor, BaseStyle, Button, ButtonStyle, ForegroundColor};
 <span class="kw">use </span><span class="kw">crate</span>::scene::align::SceneAligner;
-<span class="kw">use </span><span class="kw">crate</span>::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
+<span class="kw">use </span><span class="kw">crate</span>::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
 <span class="kw">use </span><span class="kw">crate</span>::texture::factors::Progress;
 <span class="kw">use </span>bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
 <span class="kw">use </span>bevy_ecs::query::{Changed, Or, With, Without};
 <span class="kw">use </span>bevy_ecs::system::{Query, ResMut, SystemParamItem};
+<span class="kw">use </span>foliage_macros::SceneBinding;
 
 <span class="attr">#[derive(Bundle)]
 </span><span class="kw">pub struct </span>CircleButton {
@@ -257,14 +255,10 @@
         <span class="kw-2">*</span>areas.get_mut(circle).unwrap() = <span class="kw-2">*</span>area;
     }
 }
-<span class="kw">pub enum </span>CircleButtonBindings {
+<span class="attr">#[derive(SceneBinding)]
+</span><span class="kw">pub enum </span>CircleButtonBindings {
     Circle,
     Icon,
-}
-<span class="kw">impl </span>From&lt;CircleButtonBindings&gt; <span class="kw">for </span>SceneBinding {
-    <span class="kw">fn </span>from(value: CircleButtonBindings) -&gt; <span class="self">Self </span>{
-        SceneBinding(value <span class="kw">as </span>i32)
-    }
 }
 <span class="kw">pub struct </span>CircleButtonArgs {
     <span class="kw">pub </span>icon_id: IconId,

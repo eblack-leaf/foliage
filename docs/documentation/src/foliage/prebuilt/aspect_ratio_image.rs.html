@@ -133,9 +133,6 @@
 <a href="#133" id="133">133</a>
 <a href="#134" id="134">134</a>
 <a href="#135" id="135">135</a>
-<a href="#136" id="136">136</a>
-<a href="#137" id="137">137</a>
-<a href="#138" id="138">138</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::compositor::layout::AspectRatio;
 <span class="kw">use </span><span class="kw">crate</span>::coordinate::area::Area;
 <span class="kw">use </span><span class="kw">crate</span>::coordinate::{InterfaceContext, NumericalContext};
@@ -145,13 +142,14 @@
 <span class="kw">use </span><span class="kw">crate</span>::elm::Elm;
 <span class="kw">use </span><span class="kw">crate</span>::image::{Image, ImageId};
 <span class="kw">use </span><span class="kw">crate</span>::scene::align::SceneAligner;
-<span class="kw">use </span><span class="kw">crate</span>::scene::{Anchor, Scene, SceneBinder, SceneBinding, SceneCoordinator, SceneHandle};
+<span class="kw">use </span><span class="kw">crate</span>::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
 <span class="kw">use </span><span class="kw">crate</span>::set_descriptor;
 <span class="kw">use </span>bevy_ecs::bundle::Bundle;
 <span class="kw">use </span>bevy_ecs::component::Component;
 <span class="kw">use </span>bevy_ecs::prelude::{Commands, IntoSystemConfigs};
 <span class="kw">use </span>bevy_ecs::query::{Changed, Or, With, Without};
 <span class="kw">use </span>bevy_ecs::system::{Query, ResMut, SystemParamItem};
+<span class="kw">use </span>foliage_macros::SceneBinding;
 
 <span class="attr">#[derive(Component, Copy, Clone)]
 </span><span class="kw">pub struct </span>ImageDimensions(<span class="kw">pub </span>Area&lt;NumericalContext&gt;);
@@ -166,13 +164,9 @@
     dims: ImageDimensions,
     id: ImageId,
 }
-<span class="kw">pub enum </span>AspectRatioImageBindings {
+<span class="attr">#[derive(SceneBinding)]
+</span><span class="kw">pub enum </span>AspectRatioImageBindings {
     Image,
-}
-<span class="kw">impl </span>From&lt;AspectRatioImageBindings&gt; <span class="kw">for </span>SceneBinding {
-    <span class="kw">fn </span>from(value: AspectRatioImageBindings) -&gt; <span class="self">Self </span>{
-        <span class="self">Self</span>(value <span class="kw">as </span>i32)
-    }
 }
 <span class="macro">set_descriptor!</span>(
     <span class="kw">pub enum </span>AspectRatioImageSets {

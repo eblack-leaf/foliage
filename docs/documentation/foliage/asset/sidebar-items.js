@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["AssetContainer","OnFetch"],"type":["AssetFetchFn","AssetKey"]};
+window.SIDEBAR_ITEMS = {"struct":["AssetContainer","OnFetch"],"type":["AssetFetchFn","AssetKey","IconAsset"]};
