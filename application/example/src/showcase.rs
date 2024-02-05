@@ -21,6 +21,7 @@ impl Leaf for Showcase {
     fn config(_elm_configuration: &mut ElmConfiguration) {}
 
     fn attach(elm: &mut Elm) {
+        elm.configure_grid_base(Grid::new(4, 8));
         Elm::remove_web_element("loading");
         elm.container().spawn(Image::storage(
             ImageId(0),
@@ -35,7 +36,7 @@ impl Leaf for Showcase {
         elm.add_view_scene_binding(
             handle,
             AspectRatioImage::new(ImageId(0), (651, 454)),
-            ResponsiveSegment::mobile(1.near().to_end(2.far()), 1.near().to_end(1.far())),
+            ResponsiveSegment::mobile(1.near().to_end(4.far()), 4.near().to_end(8.far())),
             (),
         );
         elm.add_view_scene_binding(
@@ -61,7 +62,7 @@ impl Leaf for Showcase {
                 Color::CYAN_MEDIUM,
                 Color::OFF_BLACK,
             ),
-            ResponsiveSegment::mobile(1.near().to_end(2.far()), 1.near().to_end(1.far())),
+            ResponsiveSegment::mobile(3.near().to_end(4.far()), 1.near().to_end(1.far())),
             (),
         );
         elm.add_view_scene_binding(
@@ -71,17 +72,17 @@ impl Leaf for Showcase {
                 Color::CYAN_MEDIUM,
                 Color::GREY_DARK,
             ),
-            ResponsiveSegment::mobile(1.near().to_end(2.far()), 1.near().to_end(1.far())),
+            ResponsiveSegment::mobile(1.near().to_end(2.far()), 2.near().to_end(2.far())),
             (),
         );
         elm.add_view_scene_binding(
             handle,
-            ProgressBar::new(
+            CircleProgressBar::new(
                 Progress::new(0.0, 0.67),
                 Color::CYAN_MEDIUM,
                 Color::GREY_DARK,
             ),
-            ResponsiveSegment::mobile(1.near().to_end(2.far()), 1.near().to_end(1.far())),
+            ResponsiveSegment::mobile(1.near().to_end(2.far()), 3.near().to_end(3.far())),
             (),
         );
         elm.view_trigger::<TestHook>(InteractionHandlerTrigger::Active, |_, cv| {
@@ -90,7 +91,8 @@ impl Leaf for Showcase {
     }
 }
 use foliage::bevy_ecs;
-use foliage::compositor::r_segment::{ResponsiveSegment, SegmentUnitDesc};
+use foliage::compositor::segment::{Grid, ResponsiveSegment, SegmentUnitDesc};
+use foliage::prebuilt::circle_progress_bar::CircleProgressBar;
 
 #[derive(Component, Copy, Clone)]
 struct TestHook();

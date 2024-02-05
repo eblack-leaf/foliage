@@ -1,6 +1,6 @@
 use crate::animate::trigger::Trigger;
 use crate::compositor::layout::Layout;
-use crate::compositor::r_segment::{ResponsiveGrid, ResponsiveSegment};
+use crate::compositor::segment::{ResponsiveGrid, ResponsiveSegment};
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
@@ -20,8 +20,7 @@ use bevy_ecs::system::{Commands, Query, Res, ResMut, SystemParamItem};
 use std::collections::{HashMap, HashSet};
 
 pub mod layout;
-pub mod r_segment;
-// pub mod segment;
+pub mod segment;
 
 #[derive(Resource, Copy, Clone)]
 pub struct CurrentView(pub(crate) ViewHandle);
@@ -252,7 +251,7 @@ fn view_changed(
         cmd.spawn((
             Trigger(true),
             old,
-            Tag::<View>::new(), /* anchor-anim */
+            Tag::<View>::new(), /* TODO anchor-anim */
         ));
     }
 }

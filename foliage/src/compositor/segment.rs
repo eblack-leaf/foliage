@@ -1,342 +1,267 @@
 use crate::compositor::layout::Layout;
-use crate::compositor::{ViewHandle, ViewHandleOffset};
+use crate::compositor::ViewHandle;
+use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::section::Section;
 use crate::coordinate::{Coordinate, CoordinateUnit, InterfaceContext};
-use bevy_ecs::component::Component;
+use bevy_ecs::prelude::{Component, Resource};
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-
-#[derive(Component, Clone)]
-pub struct ResponsiveSegment {
-    pub view_handle: ViewHandle,
-    pub segment: Segment,
-    pub negations: HashSet<Layout>,
-    pub layer: Layer,
-}
-impl From<Layout> for Vec<Layout> {
-    fn from(value: Layout) -> Self {
-        vec![value]
+#[derive(Hash, Eq, PartialEq, Copy, Clone)]
+pub struct GridException(Layout, Option<ViewHandle>);
+impl GridException {
+    pub fn global(layout: Layout) -> Self {
+        Self(layout, None)
+    }
+    pub fn view_specific(layout: Layout, view_handle: ViewHandle) -> Self {
+        Self(layout, Some(view_handle))
     }
 }
+#[derive(Resource, Default)]
+pub struct ResponsiveGrid {
+    base: Grid,
+    exceptions: HashMap<GridException, Grid>,
+}
+impl ResponsiveGrid {
+    pub fn current(&self, layout: Layout, view_handle: ViewHandle) -> &Grid {
+        self.exceptions
+            .get(&GridException::view_specific(layout, view_handle))
+            .unwrap_or(&self.base)
+    }
+    pub fn add_base(&mut self, base: Grid) {
+        self.base = base;
+    }
+    pub fn add_global_exception(&mut self, layouts: &[Layout], exc: Grid) {
+        for l in layouts.iter() {
+            self.exceptions.insert(GridException::global(*l), exc);
+        }
+    }
+    pub fn add_view_specific_exceptions(
+        &mut self,
+        layouts: &[Layout],
+        view_handle: ViewHandle,
+        exc: Grid,
+    ) {
+        for l in layouts {
+            self.exceptions
+                .insert(GridException::view_specific(*l, view_handle), exc);
+        }
+    }
+}
+#[derive(Default, Copy, Clone)]
+pub struct GridTemplate {
+    columns: SegmentValue,
+    rows: SegmentValue,
+}
+
+impl GridTemplate {
+    fn new(columns: SegmentValue, rows: SegmentValue) -> GridTemplate {
+        Self { columns, rows }
+    }
+}
+#[derive(Default, Copy, Clone)]
+pub struct Grid {
+    gap_x: CoordinateUnit,
+    gap_y: CoordinateUnit,
+    template: GridTemplate,
+}
+impl Grid {
+    pub const DEFAULT_GAP: CoordinateUnit = 8.0;
+    pub fn new(columns: SegmentValue, rows: SegmentValue) -> Self {
+        Self {
+            gap_x: Self::DEFAULT_GAP,
+            gap_y: Self::DEFAULT_GAP,
+            template: GridTemplate::new(columns, rows),
+        }
+    }
+    pub fn horizontal(&self, area: Area<InterfaceContext>, unit: SegmentUnit) -> CoordinateUnit {
+        unit.value() * self.column_element_width(area.width) + unit.value() * self.gap_x
+            - self.column_element_width(area.width) * unit.bias.factor()
+    }
+    pub fn vertical(&self, area: Area<InterfaceContext>, unit: SegmentUnit) -> CoordinateUnit {
+        unit.value() * self.row_element_height(area.height) + unit.value() * self.gap_y
+            - self.row_element_height(area.height) * unit.bias.factor()
+    }
+    pub fn column_width(&self, dim: CoordinateUnit) -> CoordinateUnit {
+        dim / self.template.columns as CoordinateUnit
+    }
+    pub fn row_height(&self, dim: CoordinateUnit) -> CoordinateUnit {
+        dim / self.template.rows as CoordinateUnit
+    }
+    pub fn column_element_width(&self, dim: CoordinateUnit) -> CoordinateUnit {
+        self.column_width(dim) - self.gap_x * 2f32
+    }
+    pub fn row_element_height(&self, dim: CoordinateUnit) -> CoordinateUnit {
+        self.row_height(dim) - self.gap_y * 2f32
+    }
+    pub fn assign_gap(&mut self, _descriptor: GapDescriptor, _value: SegmentValue) {
+        todo!()
+    }
+}
+#[derive(Copy, Clone, Default, Hash, Eq, PartialEq)]
+pub struct Gap {
+    value: SegmentValue,
+}
+#[derive(Copy, Clone, Serialize, Deserialize, Hash, Eq, PartialEq)]
+enum GapCategory {
+    Horizontal,
+    Vertical,
+}
+#[derive(Copy, Clone, Serialize, Deserialize, Hash, PartialEq)]
+pub enum GapDescriptor {
+    Horizontal,
+    Vertical,
+    Both,
+}
+#[derive(Clone, Component)]
+pub struct ResponsiveSegment {
+    view_handle: ViewHandle,
+    base: Segment,
+    horizontal_exceptions: HashMap<Layout, SegmentUnitDescriptor>,
+    vertical_exceptions: HashMap<Layout, SegmentUnitDescriptor>,
+    negations: HashSet<Layout>,
+    layer: Layer,
+}
 impl ResponsiveSegment {
-    pub fn new<SU: Into<SegmentUnit>>(x: SU, y: SU, w: SU, h: SU) -> Self {
+    pub fn coordinate(
+        &self,
+        layout: Layout,
+        area: Area<InterfaceContext>,
+        grid: &ResponsiveGrid,
+    ) -> Option<Coordinate<InterfaceContext>> {
+        if self.negations.contains(&layout) {
+            return None;
+        }
+        let current = grid.current(layout, self.view_handle);
+        let left = current.horizontal(area, self.horizontal_value(&layout).begin);
+        let top = current.vertical(area, self.vertical_value(&layout).begin);
+        let right = current.horizontal(area, self.horizontal_value(&layout).end);
+        let bottom = current.vertical(area, self.vertical_value(&layout).end);
+        Some(Coordinate::new(
+            Section::from_left_top_right_bottom(left, top, right, bottom),
+            self.layer,
+        ))
+    }
+
+    fn vertical_value(&self, layout: &Layout) -> SegmentUnitDescriptor {
+        self.vertical_exceptions
+            .get(&layout)
+            .cloned()
+            .unwrap_or(self.base.vertical)
+    }
+
+    fn horizontal_value(&self, layout: &Layout) -> SegmentUnitDescriptor {
+        self.horizontal_exceptions
+            .get(&layout)
+            .cloned()
+            .unwrap_or(self.base.horizontal)
+    }
+    pub fn mobile(horizontal: SegmentUnitDescriptor, vertical: SegmentUnitDescriptor) -> Self {
         Self {
             view_handle: ViewHandle::default(),
-            segment: Segment::new(x, y, w, h),
+            base: Segment::new(horizontal, vertical),
+            horizontal_exceptions: Default::default(),
+            vertical_exceptions: Default::default(),
             negations: HashSet::new(),
             layer: Layer::default(),
         }
-    }
-    pub fn viewed_at<VH: Into<ViewHandle>>(mut self, vh: VH) -> Self {
-        self.view_handle = vh.into();
-        self
     }
     pub fn at_layer<L: Into<Layer>>(mut self, l: L) -> Self {
         self.layer = l.into();
         self
     }
-    pub fn coordinate(
-        &self,
-        layout: Layout,
-        section: Section<InterfaceContext>,
-    ) -> Option<Coordinate<InterfaceContext>> {
-        if self.negations.contains(&layout) {
-            return None;
-        }
-        Some(
-            Coordinate::default()
-                .with_position((
-                    self.segment.x.calc_x(self.view_handle, layout, section),
-                    self.segment.y.calc_y(self.view_handle, layout, section),
-                ))
-                .with_area((
-                    self.segment.w.calc_w(self.view_handle, layout, section),
-                    self.segment.h.calc_h(self.view_handle, layout, section),
-                ))
-                .with_layer(self.layer),
-        )
-    }
-    pub fn x_exception<SUD: Into<SegmentUnitDescriptor>, L: Into<Vec<Layout>>>(
+    pub fn horizontal_exception<L: AsRef<[Layout]>>(
         mut self,
         layouts: L,
-        sud: SUD,
+        exc: SegmentUnitDescriptor,
     ) -> Self {
-        let sud = sud.into();
-        for l in layouts.into() {
-            self.segment.x.exceptions.insert(l, sud);
+        let layouts = layouts.as_ref();
+        for l in layouts.iter() {
+            self.horizontal_exceptions.insert(*l, exc);
         }
         self
     }
-    pub fn y_exception<SUD: Into<SegmentUnitDescriptor>, L: Into<Vec<Layout>>>(
-        mut self,
-        layouts: L,
-        sud: SUD,
-    ) -> Self {
-        let sud = sud.into();
-        for l in layouts.into() {
-            self.segment.y.exceptions.insert(l, sud);
+    pub fn vertical_exception(mut self, layouts: &[Layout], exc: SegmentUnitDescriptor) -> Self {
+        for l in layouts.iter() {
+            self.vertical_exceptions.insert(*l, exc);
         }
         self
     }
-    pub fn w_exception<SUD: Into<SegmentUnitDescriptor>, L: Into<Vec<Layout>>>(
-        mut self,
-        layouts: L,
-        sud: SUD,
-    ) -> Self {
-        let sud = sud.into();
-        for l in layouts.into() {
-            self.segment.w.exceptions.insert(l, sud);
-        }
-        self
-    }
-    pub fn h_exception<SUD: Into<SegmentUnitDescriptor>, L: Into<Vec<Layout>>>(
-        mut self,
-        layouts: L,
-        sud: SUD,
-    ) -> Self {
-        let sud = sud.into();
-        for l in layouts.into() {
-            self.segment.h.exceptions.insert(l, sud);
-        }
-        self
-    }
-    pub fn without_portrait_mobile(mut self) -> Self {
-        self.negations.insert(Layout::PORTRAIT_MOBILE);
-        self
-    }
-    pub fn without_portrait_tablet(mut self) -> Self {
-        self.negations.insert(Layout::PORTRAIT_TABLET);
-        self
-    }
-    pub fn without_portrait_desktop(mut self) -> Self {
-        self.negations.insert(Layout::PORTRAIT_DESKTOP);
-        self
-    }
-    pub fn without_portrait_workstation(mut self) -> Self {
-        self.negations.insert(Layout::PORTRAIT_WORKSTATION);
-        self
-    }
-    pub fn without_landscape_mobile(mut self) -> Self {
-        self.negations.insert(Layout::LANDSCAPE_MOBILE);
-        self
-    }
-    pub fn without_landscape_tablet(mut self) -> Self {
-        self.negations.insert(Layout::LANDSCAPE_TABLET);
-        self
-    }
-    pub fn without_landscape_desktop(mut self) -> Self {
-        self.negations.insert(Layout::LANDSCAPE_DESKTOP);
-        self
-    }
-    pub fn without_landscape_workstation(mut self) -> Self {
-        self.negations.insert(Layout::LANDSCAPE_WORKSTATION);
+    pub fn viewed_at(mut self, view_handle: ViewHandle) -> Self {
+        self.view_handle = view_handle;
         self
     }
 }
-#[derive(Clone, Default)]
-pub struct Segment {
-    x: SegmentUnit,
-    y: SegmentUnit,
-    w: SegmentUnit,
-    h: SegmentUnit,
-}
-impl Segment {
-    pub fn new<SU: Into<SegmentUnit>>(x: SU, y: SU, w: SU, h: SU) -> Self {
-        Self {
-            x: x.into(),
-            y: y.into(),
-            w: w.into(),
-            h: h.into(),
-        }
-    }
-}
-#[derive(Clone, Default)]
-pub struct SegmentUnit {
-    base: SegmentUnitDescriptor,
-    exceptions: HashMap<Layout, SegmentUnitDescriptor>,
-}
-impl<SUD: Into<SegmentUnitDescriptor>> From<SUD> for SegmentUnit {
-    fn from(value: SUD) -> Self {
-        Self::new(value)
-    }
-}
-impl SegmentUnit {
-    pub fn new<SUD: Into<SegmentUnitDescriptor>>(sud: SUD) -> Self {
-        Self {
-            base: sud.into(),
-            exceptions: HashMap::new(),
-        }
-    }
-    pub fn calc_x(
-        &self,
-        vh: ViewHandle,
-        l: Layout,
-        vs: Section<InterfaceContext>,
-    ) -> CoordinateUnit {
-        self.exceptions
-            .get(&l)
-            .cloned()
-            .unwrap_or(self.base)
-            .calc(vh.0, vs.width(), false)
-    }
-    pub fn calc_w(
-        &self,
-        vh: ViewHandle,
-        l: Layout,
-        vs: Section<InterfaceContext>,
-    ) -> CoordinateUnit {
-        self.exceptions
-            .get(&l)
-            .cloned()
-            .unwrap_or(self.base)
-            .calc(vh.0, vs.width(), true)
-    }
-    pub fn calc_y(
-        &self,
-        vh: ViewHandle,
-        l: Layout,
-        vs: Section<InterfaceContext>,
-    ) -> CoordinateUnit {
-        self.exceptions
-            .get(&l)
-            .cloned()
-            .unwrap_or(self.base)
-            .calc(vh.1, vs.height(), false)
-    }
-    pub fn calc_h(
-        &self,
-        vh: ViewHandle,
-        l: Layout,
-        vs: Section<InterfaceContext>,
-    ) -> CoordinateUnit {
-        self.exceptions
-            .get(&l)
-            .cloned()
-            .unwrap_or(self.base)
-            .calc(vh.1, vs.height(), true)
-    }
-}
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone)]
 pub struct SegmentUnitDescriptor {
-    base: CoordinateUnit,
-    fixed: bool,
-    min: Option<CoordinateUnit>,
-    max: Option<CoordinateUnit>,
-    offset: CoordinateUnit,
+    begin: SegmentUnit,
+    end: SegmentUnit,
 }
 impl SegmentUnitDescriptor {
-    pub fn new(base: CoordinateUnit) -> Self {
+    fn new(begin: SegmentUnit, end: SegmentUnit) -> SegmentUnitDescriptor {
+        Self { begin, end }
+    }
+}
+#[derive(Copy, Clone)]
+pub struct Segment {
+    horizontal: SegmentUnitDescriptor,
+    vertical: SegmentUnitDescriptor,
+}
+
+impl Segment {
+    fn new(horizontal: SegmentUnitDescriptor, vertical: SegmentUnitDescriptor) -> Segment {
         Self {
-            base,
-            fixed: false,
-            min: None,
-            max: None,
-            offset: 0.0,
+            horizontal,
+            vertical,
         }
     }
-    pub fn relative(mut self) -> Self {
-        self.fixed = false;
-        self
-    }
-    pub fn fixed(mut self) -> Self {
-        self.fixed = true;
-        self
-    }
-    pub fn max(mut self, m: CoordinateUnit) -> Self {
-        self.max.replace(m);
-        self
-    }
-    pub fn min(mut self, m: CoordinateUnit) -> Self {
-        self.min.replace(m);
-        self
-    }
-    pub fn offset(mut self, o: CoordinateUnit) -> Self {
-        self.offset = o;
-        self
-    }
-    pub fn calc(
-        &self,
-        handle_offset: ViewHandleOffset,
-        dim: CoordinateUnit,
-        is_area: bool,
-    ) -> CoordinateUnit {
-        let factor = if self.fixed { 1.0 } else { dim };
-        let view_base = if is_area {
-            0.0
-        } else {
-            handle_offset as CoordinateUnit * dim
-        };
-        let num = view_base + self.base * factor + self.offset;
-        let val = num
-            .min(self.max.unwrap_or(CoordinateUnit::MAX))
-            .max(self.min.unwrap_or(CoordinateUnit::MIN));
-        val
-    }
 }
-pub trait SegmentUnitNumber {
-    fn relative(self) -> SegmentUnitDescriptor;
-    fn fixed(self) -> SegmentUnitDescriptor;
-}
-impl SegmentUnitNumber for CoordinateUnit {
-    fn relative(self) -> SegmentUnitDescriptor {
-        SegmentUnitDescriptor::new(self).relative()
-    }
 
-    fn fixed(self) -> SegmentUnitDescriptor {
-        SegmentUnitDescriptor::new(self).fixed()
+pub trait SegmentUnitDesc {
+    fn near(self) -> SegmentUnit;
+    fn far(self) -> SegmentUnit;
+}
+macro_rules! impl_segment_unit_desc {
+    ($($elem:ty),*) => {
+        $(impl SegmentUnitDesc for $elem {
+            fn near(self) -> SegmentUnit {
+                SegmentUnit::new(self as SegmentValue, SegmentBias::Near)
+            }
+
+            fn far(self) -> SegmentUnit {
+                SegmentUnit::new(self as SegmentValue, SegmentBias::Far)
+            }
+        })*
+    };
+}
+impl_segment_unit_desc!(i8, i16, i32, i64, u8, u16, u32, u64, f32, f64);
+#[derive(Copy, Clone, Serialize, Deserialize, Hash, PartialEq)]
+pub enum SegmentBias {
+    Near,
+    Far,
+}
+impl SegmentBias {
+    pub fn factor(self) -> CoordinateUnit {
+        match self {
+            SegmentBias::Near => 1.0,
+            SegmentBias::Far => 0.0,
+        }
     }
 }
-impl SegmentUnitNumber for i32 {
-    fn relative(self) -> SegmentUnitDescriptor {
-        SegmentUnitDescriptor::new(self as CoordinateUnit).relative()
-    }
-
-    fn fixed(self) -> SegmentUnitDescriptor {
-        SegmentUnitDescriptor::new(self as CoordinateUnit).fixed()
-    }
+pub type SegmentValue = u8;
+#[derive(Copy, Clone)]
+pub struct SegmentUnit {
+    value: SegmentValue,
+    bias: SegmentBias,
 }
-impl SegmentUnitNumber for u32 {
-    fn relative(self) -> SegmentUnitDescriptor {
-        SegmentUnitDescriptor::new(self as CoordinateUnit).relative()
+impl SegmentUnit {
+    fn value(&self) -> CoordinateUnit {
+        self.value as CoordinateUnit
     }
-
-    fn fixed(self) -> SegmentUnitDescriptor {
-        SegmentUnitDescriptor::new(self as CoordinateUnit).fixed()
+    pub fn new(value: SegmentValue, bias: SegmentBias) -> Self {
+        Self { value, bias }
     }
-}
-impl SegmentUnitNumber for u64 {
-    fn relative(self) -> SegmentUnitDescriptor {
-        SegmentUnitDescriptor::new(self as CoordinateUnit).relative()
-    }
-
-    fn fixed(self) -> SegmentUnitDescriptor {
-        SegmentUnitDescriptor::new(self as CoordinateUnit).fixed()
-    }
-}
-impl SegmentUnitNumber for i64 {
-    fn relative(self) -> SegmentUnitDescriptor {
-        SegmentUnitDescriptor::new(self as CoordinateUnit).relative()
-    }
-
-    fn fixed(self) -> SegmentUnitDescriptor {
-        SegmentUnitDescriptor::new(self as CoordinateUnit).fixed()
-    }
-}
-impl SegmentUnitNumber for f64 {
-    fn relative(self) -> SegmentUnitDescriptor {
-        SegmentUnitDescriptor::new(self as CoordinateUnit).relative()
-    }
-
-    fn fixed(self) -> SegmentUnitDescriptor {
-        SegmentUnitDescriptor::new(self as CoordinateUnit).fixed()
-    }
-}
-impl SegmentUnitNumber for usize {
-    fn relative(self) -> SegmentUnitDescriptor {
-        SegmentUnitDescriptor::new(self as CoordinateUnit).relative()
-    }
-
-    fn fixed(self) -> SegmentUnitDescriptor {
-        SegmentUnitDescriptor::new(self as CoordinateUnit).fixed()
+    pub fn to_end(self, su: SegmentUnit) -> SegmentUnitDescriptor {
+        SegmentUnitDescriptor::new(self, su)
     }
 }
