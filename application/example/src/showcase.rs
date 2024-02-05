@@ -1,7 +1,6 @@
 use crate::Assets;
 use foliage::bevy_ecs::prelude::Component;
 use foliage::color::Color;
-use foliage::compositor::layout::Layout;
 use foliage::compositor::ViewHandle;
 use foliage::coordinate::area::Area;
 use foliage::elm::config::ElmConfiguration;

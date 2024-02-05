@@ -45,7 +45,10 @@ impl Compositor {
         responsive_segment: ResponsiveSegment,
         cmd: &mut Commands,
     ) {
-        let entity = cmd.spawn(b).insert(Segmental::new(responsive_segment)).id();
+        let entity = cmd
+            .spawn(b)
+            .insert(Segmental::new(responsive_segment.viewed_at(view_handle)))
+            .id();
         self.add_to_view(view_handle, entity);
     }
     pub fn add_responsive_scene<S: Scene>(
@@ -60,7 +63,7 @@ impl Compositor {
         let (_handle, entity) =
             coordinator.spawn_scene::<S>(Anchor::default(), args, external_args, cmd);
         cmd.entity(entity)
-            .insert(Segmental::new(responsive_segment));
+            .insert(Segmental::new(responsive_segment.viewed_at(view_handle)));
         self.add_to_view(view_handle, entity);
     }
     pub fn new(area: Area<InterfaceContext>) -> Self {
