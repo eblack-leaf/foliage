@@ -126,7 +126,7 @@ pub fn assets(
                 panic!("only two attributes allowed && if more than one, one must be a #[group]");
             }
         } else {
-            let only = asset_attributes.get(0).expect("only-get");
+            let only = asset_attributes.first().expect("only-get");
             let name = only.path().get_ident().expect("only-name").to_string();
             let value = only
                 .meta
@@ -212,15 +212,13 @@ pub fn assets(
         let (native, remote) = {
             let native = syn::LitStr::new(
                 (native_origin.token().to_string() + res_path.to_string().as_str())
-                    .replace("\"", "")
-                    .replace("\\", "")
+                    .replace(['\"', '\\'], "")
                     .as_str(),
                 proc_macro2::Span::call_site(),
             );
             let remote = syn::LitStr::new(
                 (remote_origin.token().to_string() + res_path.to_string().as_str())
-                    .replace("\"", "")
-                    .replace("\\", "")
+                    .replace(['\"', '\\'], "")
                     .as_str(),
                 proc_macro2::Span::call_site(),
             );
