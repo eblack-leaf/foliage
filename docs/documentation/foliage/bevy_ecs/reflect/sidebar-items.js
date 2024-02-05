@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"struct":["AppTypeRegistry","ReflectBundle","ReflectBundleFns","ReflectComponent","ReflectComponentFns","ReflectMapEntities","ReflectResource","ReflectResourceFns"],"trait":["ReflectCommandExt"]};

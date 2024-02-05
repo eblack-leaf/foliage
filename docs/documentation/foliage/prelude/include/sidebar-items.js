@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"macro":["differential_enable","icon_fetcher","load_native_asset","set_descriptor"],"struct":["AndroidInterface","Foliage"]};
