@@ -59,23 +59,23 @@ impl GridTemplate {
         Self { columns, rows }
     }
 }
-#[derive(Default, Copy, Clone)]
-pub struct Grid {
-    gap_x: CoordinateUnit,
-    gap_y: CoordinateUnit,
-    template: GridTemplate,
-}
 pub enum GridRelativeValue {
     Anchored(CoordinateUnit),
     Fixed(CoordinateUnit),
 }
 impl GridRelativeValue {
-    pub fn value(self) -> CoordinateUnit {
+    fn value(self) -> CoordinateUnit {
         match self {
             GridRelativeValue::Anchored(value) => value,
             GridRelativeValue::Fixed(value) => value,
         }
     }
+}
+#[derive(Default, Copy, Clone)]
+pub struct Grid {
+    gap_x: CoordinateUnit,
+    gap_y: CoordinateUnit,
+    template: GridTemplate,
 }
 impl Grid {
     pub const DEFAULT_GAP: CoordinateUnit = 8.0;
@@ -120,18 +120,25 @@ impl Grid {
     pub fn row_element_height(&self, dim: CoordinateUnit) -> CoordinateUnit {
         self.row_height(dim) - self.gap_y * 2f32
     }
-    pub fn assign_gap(&mut self, _descriptor: GapDescriptor, _value: SegmentValue) {
-        todo!()
+    pub fn assign_gap(mut self, descriptor: GapDescriptor, value: CoordinateUnit) -> Self {
+        match descriptor {
+            GapDescriptor::Horizontal => {
+                self.gap_x = value;
+            }
+            GapDescriptor::Vertical => {
+                self.gap_y = value;
+            }
+            GapDescriptor::Both => {
+                self.gap_x = value;
+                self.gap_y = value;
+            }
+        }
+        self
     }
 }
 #[derive(Copy, Clone, Default, Hash, Eq, PartialEq)]
 pub struct Gap {
     value: SegmentValue,
-}
-#[derive(Copy, Clone, Serialize, Deserialize, Hash, Eq, PartialEq)]
-enum GapCategory {
-    Horizontal,
-    Vertical,
 }
 #[derive(Copy, Clone, Serialize, Deserialize, Hash, PartialEq)]
 pub enum GapDescriptor {
@@ -239,7 +246,7 @@ pub struct SegmentUnitDescriptor {
     end: SegmentUnit,
 }
 impl SegmentUnitDescriptor {
-    fn new(begin: SegmentUnit, end: SegmentUnit) -> SegmentUnitDescriptor {
+    pub fn new(begin: SegmentUnit, end: SegmentUnit) -> SegmentUnitDescriptor {
         Self { begin, end }
     }
 }
@@ -250,7 +257,7 @@ pub struct Segment {
 }
 
 impl Segment {
-    fn new(horizontal: SegmentUnitDescriptor, vertical: SegmentUnitDescriptor) -> Segment {
+    pub fn new(horizontal: SegmentUnitDescriptor, vertical: SegmentUnitDescriptor) -> Segment {
         Self {
             horizontal,
             vertical,
