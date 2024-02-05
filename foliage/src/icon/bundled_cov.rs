@@ -298,7 +298,7 @@ impl FeatherIcon {
     }
 }
 #[cfg(test)]
-pub(crate) const ICON_NAMES: [&'static str; 286] = [
+pub(crate) const ICON_NAMES: [&str; 286] = [
     "activity",
     "airplay",
     "alert-circle",

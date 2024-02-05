@@ -321,7 +321,7 @@ impl Group {
         self.members.push(member);
     }
 }
-fn get_group_value(asset_attributes: &Vec<Attribute>, i: i32) -> String {
+fn get_group_value(asset_attributes: &[Attribute], i: i32) -> String {
     asset_attributes
         .get(i as usize)
         .expect("asset-attribute-get")
