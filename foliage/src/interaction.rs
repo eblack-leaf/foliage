@@ -119,10 +119,8 @@ impl KeyboardAdapter {
             if cached != state {
                 return Option::from(KeyboardEvent::new(key, state, self.modifiers));
             }
-        } else {
-            if state.is_pressed() {
-                return Option::from(KeyboardEvent::new(key, state, self.modifiers));
-            }
+        } else if state.is_pressed() {
+            return Option::from(KeyboardEvent::new(key, state, self.modifiers));
         }
         None
     }

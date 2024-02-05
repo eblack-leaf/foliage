@@ -182,10 +182,8 @@ fn responsive_changed(
             if disabled.disabled() {
                 *disabled = Disabled::inactive();
             }
-        } else {
-            if !disabled.disabled() {
-                *disabled = Disabled::active();
-            }
+        } else if !disabled.disabled() {
+            *disabled = Disabled::active();
         }
     }
 }
@@ -229,10 +227,8 @@ fn viewport_changed(
                 if disabled.disabled() {
                     *disabled = Disabled::inactive();
                 }
-            } else {
-                if !disabled.disabled() {
-                    *disabled = Disabled::active();
-                }
+            } else if !disabled.disabled() {
+                *disabled = Disabled::active();
             }
         }
     }
@@ -288,12 +284,12 @@ impl ViewHandle {
         Self(x, y)
     }
     pub fn anchor(&self, area: Area<InterfaceContext>) -> Position<InterfaceContext> {
-        let position = (
+        
+        (
             self.0 as CoordinateUnit * area.width,
             -self.1 as CoordinateUnit * area.height,
         )
-            .into();
-        position
+            .into()
     }
 }
 #[derive(Default)]

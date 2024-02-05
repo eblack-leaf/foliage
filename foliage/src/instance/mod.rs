@@ -75,8 +75,7 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
     pub fn keys(&self) -> Vec<Key> {
         self.ordering
             .managed
-            .keys()
-            .map(|k| k.clone())
+            .keys().cloned()
             .collect::<Vec<Key>>()
     }
     pub fn has_key(&self, key: &Key) -> bool {

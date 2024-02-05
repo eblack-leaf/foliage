@@ -195,14 +195,14 @@ impl ResponsiveSegment {
 
     fn vertical_value(&self, layout: &Layout) -> SegmentUnitDescriptor {
         self.vertical_exceptions
-            .get(&layout)
+            .get(layout)
             .cloned()
             .unwrap_or(self.base.vertical)
     }
 
     fn horizontal_value(&self, layout: &Layout) -> SegmentUnitDescriptor {
         self.horizontal_exceptions
-            .get(&layout)
+            .get(layout)
             .cloned()
             .unwrap_or(self.base.horizontal)
     }

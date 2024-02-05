@@ -105,7 +105,7 @@ impl Icon {
                     .device()
                     .create_bind_group(&wgpu::BindGroupDescriptor {
                         label: Some("icon-bind-group"),
-                        layout: &icon_bind_group_layout,
+                        layout: icon_bind_group_layout,
                         entries: &[Ginkgo::texture_bind_group_entry(&view, 0)],
                     }),
             ),
@@ -120,7 +120,7 @@ impl Icon {
     ) {
         resources
             .icon_textures
-            .get_mut(&new)
+            .get_mut(new)
             .unwrap()
             .0
             .queue_add(entity);
@@ -132,13 +132,13 @@ impl Icon {
             .unwrap();
         resources
             .icon_textures
-            .get_mut(&new)
+            .get_mut(new)
             .unwrap()
             .0
             .queue_write(entity, texture_partition);
         resources
             .icon_textures
-            .get_mut(&new)
+            .get_mut(new)
             .unwrap()
             .0
             .queue_render_packet(entity, render_packet);
@@ -393,11 +393,9 @@ impl Render for Icon {
                     .queue_add(entity);
                 resources.entity_to_icon.insert(entity, id);
             }
-        } else {
-            if resources.icon_textures.get(&icon_id).is_none() {
-                resources.queue_icon(icon_id, entity, render_packet);
-                return;
-            }
+        } else if resources.icon_textures.get(&icon_id).is_none() {
+            resources.queue_icon(icon_id, entity, render_packet);
+            return;
         }
         if let Some(scale) = render_packet.get::<CReprArea>() {
             let texture_partition = resources

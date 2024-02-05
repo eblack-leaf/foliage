@@ -86,7 +86,7 @@ impl ImageGroup {
         ginkgo: &Ginkgo,
         layout: &wgpu::BindGroupLayout,
         storage: Area<NumericalContext>,
-    ) -> () {
+    ) {
         self.storage = storage;
         let tex = ginkgo.device().create_texture(&wgpu::TextureDescriptor {
             label: Some("image-tex"),
