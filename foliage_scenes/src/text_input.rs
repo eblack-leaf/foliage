@@ -91,18 +91,12 @@ impl Scene for TextInput {
             if args.text.0.is_empty() {
                 args.hint_text.clone().unwrap_or_default()
             } else {
-                TextValue::new(
-                    std::iter::repeat("*")
-                        .take(args.text.0.len())
-                        .collect::<String>(),
-                )
+                TextValue::new("*".repeat(args.text.0.len()))
             }
+        } else if args.text.0.is_empty() {
+            args.hint_text.clone().unwrap_or_default()
         } else {
-            if args.text.0.is_empty() {
-                args.hint_text.clone().unwrap_or_default()
-            } else {
-                args.text.clone()
-            }
+            args.text.clone()
         };
         binder.bind(
             TextInputBindings::Text,
@@ -426,26 +420,23 @@ fn handle_input(
                             NamedKey::Backspace => {
                                 // if pressed start slowly deleting
                                 // if released stop deleting
-                                if e.state.is_pressed() {
-                                    if !actual.0.is_empty() {
-                                        if let Some(u) = offset.0.checked_sub(1) {
-                                            if actual.0.chars().nth(u as usize).is_some() {
-                                                actual.0.remove(u as usize);
-                                                text_val.0.remove(u as usize);
-                                            }
-                                            bounded_offset(&mut offset, u, *max_chars, &actual.0);
+                                if e.state.is_pressed() && !actual.0.is_empty() {
+                                    if let Some(u) = offset.0.checked_sub(1) {
+                                        if actual.0.chars().nth(u as usize).is_some() {
+                                            actual.0.remove(u as usize);
+                                            text_val.0.remove(u as usize);
                                         }
+                                        bounded_offset(&mut offset, u, *max_chars, &actual.0);
                                     }
                                 }
                             }
                             NamedKey::Delete => {
-                                if e.state.is_pressed() {
-                                    if !actual.0.is_empty() {
-                                        if actual.0.chars().nth(offset.0 as usize).is_some() {
-                                            actual.0.remove(offset.0 as usize);
-                                            text_val.0.remove(offset.0 as usize);
-                                        }
-                                    }
+                                if e.state.is_pressed()
+                                    && !actual.0.is_empty()
+                                    && actual.0.chars().nth(offset.0 as usize).is_some()
+                                {
+                                    actual.0.remove(offset.0 as usize);
+                                    text_val.0.remove(offset.0 as usize);
                                 }
                             }
                             NamedKey::Space => {
@@ -481,11 +472,9 @@ fn handle_input(
                 }
                 let text_entity = coordinator
                     .binding_entity(&handle.access_chain().target(TextInputBindings::Text));
-                if focused_entity.0.is_some() {
-                    if focused_entity.0.unwrap() == entity {
-                        *texts.get_mut(text_entity).unwrap() = text_val.clone();
-                        continue;
-                    }
+                if focused_entity.0.is_some() && focused_entity.0.unwrap() == entity {
+                    *texts.get_mut(text_entity).unwrap() = text_val.clone();
+                    continue;
                 }
                 if actual.0.is_empty() {
                     *texts.get_mut(text_entity).unwrap() = hint.0.clone();

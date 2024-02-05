@@ -1,4 +1,4 @@
-use crate::icon_text::{IconColor, IconText, IconTextComponents, TextColor};
+use crate::icon_text::{IconColor, IconText, TextColor};
 use foliage::bevy_ecs;
 use foliage::bevy_ecs::bundle::Bundle;
 use foliage::bevy_ecs::change_detection::Res;
@@ -216,7 +216,7 @@ impl Scene for Button {
                 args.foreground_color,
                 args.foreground_color,
             ),
-            &external_args,
+            external_args,
             cmd,
         );
         Self::Components {

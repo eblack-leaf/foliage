@@ -1,6 +1,4 @@
-use crate::button::{
-    BackgroundColor, BaseStyle, Button, ButtonComponents, ButtonStyle, ForegroundColor,
-};
+use crate::button::{BackgroundColor, BaseStyle, Button, ButtonStyle, ForegroundColor};
 use foliage::bevy_ecs;
 use foliage::bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
 use foliage::bevy_ecs::query::{Changed, Or, With, Without};

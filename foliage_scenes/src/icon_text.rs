@@ -91,7 +91,7 @@ fn metrics(
     font: &MonospacedFont,
     scale_factor: &ScaleFactor,
 ) -> (IconScale, FontSize, CoordinateUnit, CoordinateUnit) {
-    let (fs, fa) = font.best_fit(*max_characters, area * (0.6, 1.0).into(), &scale_factor);
+    let (fs, fa) = font.best_fit(*max_characters, area * (0.6, 1.0).into(), scale_factor);
     let icon_scale = IconScale::from_dim((fa.height * 1.0).min(fa.width * 0.3));
     let spacing = (icon_scale.px() - area.height).abs() / 2f32;
     let text_offset = icon_scale.px() + spacing * 2f32;

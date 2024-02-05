@@ -1,4 +1,4 @@
-use crate::progress_bar::{ProgressBar, ProgressBarComponents};
+use crate::progress_bar::ProgressBar;
 use foliage::bevy_ecs;
 use foliage::bevy_ecs::bundle::Bundle;
 use foliage::bevy_ecs::component::Component;

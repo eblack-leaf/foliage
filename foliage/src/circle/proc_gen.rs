@@ -94,8 +94,7 @@ fn generate() {
     }
     let content = data
         .drain(..)
-        .map(|d| vec![d.0 as u8, d.1 as u8, d.2 as u8, d.3 as u8])
-        .flatten()
+        .flat_map(|d| vec![d.0 as u8, d.1 as u8, d.2 as u8, d.3 as u8])
         .collect::<Vec<u8>>();
     // save to file
     let serialized = rmp_serde::to_vec(&content).unwrap();

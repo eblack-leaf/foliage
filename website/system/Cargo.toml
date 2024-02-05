@@ -7,4 +7,5 @@ edition = "2021"
 
 [dependencies]
 foliage = { path = "../../foliage"}
+foliage_scenes = { path = "../../foliage_scenes"}
 tracing = "0.1.40"

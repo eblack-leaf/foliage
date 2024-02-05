@@ -1,17 +1,18 @@
-use crate::{Engen, HOME};
+use crate::HOME;
 use foliage::asset::AssetKey;
 use foliage::color::Color;
 use foliage::compositor::layout::Layout;
-use foliage::compositor::segment::{ResponsiveSegment, SegmentUnitNumber};
+use foliage::compositor::segment::{ResponsiveSegment, SegmentUnitDesc};
 use foliage::coordinate::area::Area;
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 use foliage::elm::{BundleExtend, Elm};
 use foliage::icon::FeatherIcon;
 use foliage::media::HrefLink;
-use foliage::prebuilt::icon_text::{IconText, IconTextComponents};
 use foliage::rectangle::Rectangle;
 use foliage::text::{GlyphColorChanges, MaxCharacters, TextValue};
 use foliage::texture::factors::Progress;
+use foliage_scenes::icon_text::IconText;
+
 #[foliage::assets(crate::Engen, "../assets/", "/foliage/assets/")]
 struct Assets {
     #[icon(path = "icons/terminal.gatl", Terminal)]
@@ -25,7 +26,7 @@ impl Leaf for Home {
 
     fn attach(elm: &mut Elm) {
         let _assets = Assets::proc_gen_load(elm);
-        elm.add_view_scene_binding::<IconTextComponents, _>(
+        elm.add_view_scene_binding(
             HOME,
             IconText::new(
                 FeatherIcon::Terminal.id(),
@@ -62,7 +63,7 @@ impl Leaf for Home {
             .at_layer(0),
             (),
         );
-        elm.add_view_scene_binding::<IconTextComponents, _>(
+        elm.add_view_scene_binding(
             HOME,
             IconText::new(
                 FeatherIcon::ChevronsRight.id(),
@@ -106,7 +107,7 @@ impl Leaf for Home {
             }
             .extend(HrefLink::new("/foliage/book/index.html")),
         );
-        elm.add_view_scene_binding::<IconTextComponents, _>(
+        elm.add_view_scene_binding(
             HOME,
             IconText::new(
                 FeatherIcon::ChevronsRight.id(),
@@ -150,7 +151,7 @@ impl Leaf for Home {
             }
             .extend(HrefLink::new("/foliage/documentation/foliage/index.html")),
         );
-        elm.add_view_scene_binding::<IconTextComponents, _>(
+        elm.add_view_scene_binding(
             HOME,
             IconText::new(
                 FeatherIcon::ChevronsRight.id(),
