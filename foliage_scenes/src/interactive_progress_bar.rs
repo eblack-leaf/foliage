@@ -1,24 +1,25 @@
-use crate::circle::{Circle, CircleStyle, Diameter};
-use crate::color::Color;
-use crate::coordinate::area::Area;
-use crate::coordinate::position::Position;
-use crate::coordinate::{CoordinateUnit, InterfaceContext};
-use crate::differential::Despawn;
-use crate::elm::config::{ElmConfiguration, ExternalSet};
-use crate::elm::leaf::{Leaf, Tag};
-use crate::elm::{BundleExtend, Elm};
-use crate::interaction::{InteractionListener, InteractionShape};
-use crate::prebuilt::progress_bar::{ProgressBar, ProgressBarComponents};
-use crate::scene::align::SceneAligner;
-use crate::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
-use crate::set_descriptor;
-use crate::texture::factors::Progress;
-use bevy_ecs::bundle::Bundle;
-use bevy_ecs::component::Component;
-use bevy_ecs::prelude::{Commands, IntoSystemConfigs};
-use bevy_ecs::query::{Changed, With, Without};
-use bevy_ecs::system::{Query, ResMut, SystemParamItem};
-use foliage_macros::SceneBinding;
+use crate::progress_bar::{ProgressBar, ProgressBarComponents};
+use foliage::bevy_ecs;
+use foliage::bevy_ecs::bundle::Bundle;
+use foliage::bevy_ecs::component::Component;
+use foliage::bevy_ecs::prelude::{Commands, IntoSystemConfigs};
+use foliage::bevy_ecs::query::{Changed, With, Without};
+use foliage::bevy_ecs::system::{Query, ResMut, SystemParamItem};
+use foliage::circle::{Circle, CircleStyle, Diameter};
+use foliage::color::Color;
+use foliage::coordinate::area::Area;
+use foliage::coordinate::position::Position;
+use foliage::coordinate::{CoordinateUnit, InterfaceContext};
+use foliage::differential::Despawn;
+use foliage::elm::config::{ElmConfiguration, ExternalSet};
+use foliage::elm::leaf::{Leaf, Tag};
+use foliage::elm::{BundleExtend, Elm};
+use foliage::interaction::{InteractionListener, InteractionShape};
+use foliage::scene::align::SceneAligner;
+use foliage::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
+use foliage::set_descriptor;
+use foliage::texture::factors::Progress;
+use foliage::SceneBinding;
 
 #[derive(Component)]
 pub struct ProgressPercent(pub f32);
@@ -52,7 +53,7 @@ set_descriptor!(
         Area,
     }
 );
-impl Leaf for InteractiveProgressBarComponents {
+impl Leaf for InteractiveProgressBar {
     type SetDescriptor = InteractiveProgressBarSets;
 
     fn config(elm_configuration: &mut ElmConfiguration) {
@@ -63,7 +64,7 @@ impl Leaf for InteractiveProgressBarComponents {
         elm.main().add_systems(((resize, interact)
             .chain()
             .in_set(Self::SetDescriptor::Area)
-            .before(<ProgressBarComponents as Leaf>::SetDescriptor::Area),));
+            .before(<ProgressBar as Leaf>::SetDescriptor::Area),));
     }
 }
 fn resize(
@@ -93,7 +94,7 @@ fn resize(
             .target(InteractiveProgressBarBindings::Progress);
         let prog = coordinator.binding_entity(&p_ac);
         rectangles.get_mut(prog).unwrap().width = area.width;
-        progress.get_mut(prog).unwrap().1 = percent.0;
+        *progress.get_mut(prog).unwrap().end_mut() = percent.0;
     }
 }
 fn metrics(area: Area<InterfaceContext>, percent: f32) -> CoordinateUnit {
@@ -140,7 +141,7 @@ fn interact(
                 percent.0 = percent.0.min(1.0).max(0.0);
                 coordinator.get_alignment_mut(&m_ac).pos.horizontal =
                     metrics(*area, percent.0).from_left();
-                progresses.get_mut(prog).unwrap().1 = percent.0;
+                *progresses.get_mut(prog).unwrap().end_mut() = percent.0;
                 hook.0.replace(listener.interaction.current);
             }
         }

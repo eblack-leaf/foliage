@@ -9,6 +9,7 @@ pub use wgpu;
 use window::{WindowDescriptor, WindowHandle};
 use winit::event::{Event, Ime, KeyEvent, MouseButton, StartCause, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget};
+pub use winit::keyboard::NamedKey;
 
 use self::ash::leaflet::RenderLeafletStorage;
 use crate::ash::render::Render;
@@ -19,6 +20,7 @@ use crate::clipboard::Clipboard;
 use crate::compositor::Compositor;
 use crate::coordinate::position::Position;
 use crate::coordinate::CoordinateUnit;
+use crate::elm::leaf::Leaves;
 use crate::elm::Elm;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::Ginkgo;
@@ -30,15 +32,6 @@ use crate::interaction::{
 };
 use crate::media::Media;
 use crate::panel::Panel;
-use crate::prebuilt::aspect_ratio_image::AspectRatioImageComponents;
-use crate::prebuilt::button::ButtonComponents;
-use crate::prebuilt::circle_button::CircleButtonComponents;
-use crate::prebuilt::circle_progress_bar::CircleProgressBarComponents;
-use crate::prebuilt::icon_button::IconButton;
-use crate::prebuilt::icon_text::IconTextComponents;
-use crate::prebuilt::interactive_progress_bar::InteractiveProgressBarComponents;
-use crate::prebuilt::progress_bar::ProgressBarComponents;
-use crate::prebuilt::text_input::TextInputComponents;
 use crate::rectangle::Rectangle;
 use crate::system_message::{ResponseMessage, SystemMessageResponse};
 use crate::text::Text;
@@ -47,6 +40,7 @@ use crate::virtual_keyboard::VirtualKeyboardAdapter;
 use crate::workflow::{Workflow, WorkflowConnectionBase};
 use animate::trigger::Trigger;
 pub use foliage_macros::{assets, SceneBinding};
+
 mod animate;
 pub mod ash;
 pub mod asset;
@@ -66,7 +60,6 @@ pub mod interaction;
 pub mod job;
 pub mod media;
 pub mod panel;
-pub mod prebuilt;
 pub mod rectangle;
 pub mod scene;
 pub(crate) mod system_message;
@@ -123,20 +116,11 @@ impl Foliage {
             .with_renderleaf::<Icon>()
             .with_renderleaf::<Text>()
             .with_renderleaf::<Image>()
-            .with_leaf::<ButtonComponents>()
-            .with_leaf::<IconButton>()
             .with_leaf::<Trigger>()
-            .with_leaf::<ProgressBarComponents>()
-            .with_leaf::<CircleProgressBarComponents>()
-            .with_leaf::<CircleButtonComponents>()
             .with_leaf::<Interaction>()
-            .with_leaf::<InteractiveProgressBarComponents>()
             .with_leaf::<ViewportHandle>()
             .with_leaf::<Compositor>()
             .with_leaf::<Time>()
-            .with_leaf::<AspectRatioImageComponents>()
-            .with_leaf::<IconTextComponents>()
-            .with_leaf::<TextInputComponents>()
             .with_leaf::<VirtualKeyboardAdapter>()
             .with_leaf::<Clipboard>()
             .with_leaf::<AssetContainer>()
@@ -149,6 +133,9 @@ impl Foliage {
     pub fn with_window_descriptor(mut self, desc: WindowDescriptor) -> Self {
         self.window_descriptor.replace(desc);
         self
+    }
+    pub fn with_leaves<L: Leaves>(self) -> Self {
+        L::leaves(self)
     }
     pub fn with_leaf<T: Leaf>(mut self) -> Self {
         self.leaf_queue

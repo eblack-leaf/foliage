@@ -1,5 +1,6 @@
 use crate::elm::config::ElmConfiguration;
 use crate::elm::Elm;
+use crate::Foliage;
 use bevy_ecs::component::Component;
 use bevy_ecs::schedule::SystemSet;
 use std::fmt::Debug;
@@ -48,4 +49,8 @@ impl<T> Default for Tag<T> {
     fn default() -> Self {
         Self::new()
     }
+}
+
+pub trait Leaves {
+    fn leaves(f: Foliage) -> Foliage;
 }

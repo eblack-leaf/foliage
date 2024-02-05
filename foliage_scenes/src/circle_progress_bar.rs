@@ -1,18 +1,19 @@
-use crate::circle::{Circle, CircleStyle, Diameter};
-use crate::color::Color;
-use crate::coordinate::area::Area;
-use crate::coordinate::InterfaceContext;
-use crate::differential::Despawn;
-use crate::elm::config::ElmConfiguration;
-use crate::elm::leaf::{Leaf, Tag};
-use crate::elm::Elm;
-use crate::prebuilt::progress_bar::{ProgressBarBindings, ProgressBarSets};
-use crate::scene::align::SceneAligner;
-use crate::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
-use crate::texture::factors::Progress;
-use bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs, ResMut};
-use bevy_ecs::query::{Changed, With, Without};
-use bevy_ecs::system::{Query, SystemParamItem};
+use crate::progress_bar::{ProgressBarBindings, ProgressBarSets};
+use foliage::bevy_ecs;
+use foliage::bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs, ResMut};
+use foliage::bevy_ecs::query::{Changed, With, Without};
+use foliage::bevy_ecs::system::{Query, SystemParamItem};
+use foliage::circle::{Circle, CircleStyle, Diameter};
+use foliage::color::Color;
+use foliage::coordinate::area::Area;
+use foliage::coordinate::InterfaceContext;
+use foliage::differential::Despawn;
+use foliage::elm::config::ElmConfiguration;
+use foliage::elm::leaf::{Leaf, Tag};
+use foliage::elm::Elm;
+use foliage::scene::align::SceneAligner;
+use foliage::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
+use foliage::texture::factors::Progress;
 
 #[derive(Bundle)]
 pub struct CircleProgressBarComponents {
@@ -43,7 +44,7 @@ fn resize(
         tracing::trace!("updating-circle-progress-bars");
     }
 }
-impl Leaf for CircleProgressBarComponents {
+impl Leaf for CircleProgressBar {
     type SetDescriptor = ProgressBarSets;
 
     fn config(_elm_configuration: &mut ElmConfiguration) {}

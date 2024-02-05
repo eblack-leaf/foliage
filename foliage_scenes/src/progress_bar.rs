@@ -1,20 +1,20 @@
-use crate::color::Color;
-use crate::coordinate::area::Area;
-use crate::coordinate::InterfaceContext;
-use crate::differential::Despawn;
-use crate::elm::config::{ElmConfiguration, ExternalSet};
-use crate::elm::leaf::{Leaf, Tag};
-use crate::elm::Elm;
-use crate::rectangle::Rectangle;
-use crate::scene::align::SceneAligner;
-use crate::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
-use crate::set_descriptor;
-use crate::texture::factors::Progress;
-use bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
-use bevy_ecs::query::{Changed, Or, With, Without};
-use bevy_ecs::system::{Query, ResMut, SystemParamItem};
-use foliage_macros::SceneBinding;
-
+use foliage::bevy_ecs;
+use foliage::bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
+use foliage::bevy_ecs::query::{Changed, Or, With, Without};
+use foliage::bevy_ecs::system::{Query, ResMut, SystemParamItem};
+use foliage::color::Color;
+use foliage::coordinate::area::Area;
+use foliage::coordinate::InterfaceContext;
+use foliage::differential::Despawn;
+use foliage::elm::config::{ElmConfiguration, ExternalSet};
+use foliage::elm::leaf::{Leaf, Tag};
+use foliage::elm::Elm;
+use foliage::rectangle::Rectangle;
+use foliage::scene::align::SceneAligner;
+use foliage::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
+use foliage::set_descriptor;
+use foliage::texture::factors::Progress;
+use foliage::SceneBinding;
 #[derive(Bundle)]
 pub struct ProgressBarComponents {
     tag: Tag<Self>,
@@ -30,7 +30,7 @@ set_descriptor!(
         Area,
     }
 );
-impl Leaf for ProgressBarComponents {
+impl Leaf for ProgressBar {
     type SetDescriptor = ProgressBarSets;
 
     fn config(elm_configuration: &mut ElmConfiguration) {
@@ -67,7 +67,7 @@ fn resize(
             coordinator.binding_entity(&handle.access_chain().target(ProgressBarBindings::Fill));
         *rectangles.get_mut(back).unwrap().0 = *area;
         *rectangles.get_mut(front).unwrap().0 = *area;
-        *rectangles.get_mut(front).unwrap().1 = Progress::new(0.0, progress.1);
+        *rectangles.get_mut(front).unwrap().1 = Progress::new(0.0, progress.end());
     }
 }
 #[derive(Clone)]

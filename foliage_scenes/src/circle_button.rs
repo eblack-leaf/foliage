@@ -1,23 +1,24 @@
-use crate::circle::{Circle, CircleStyle, Diameter};
-use crate::color::Color;
-use crate::coordinate::area::Area;
-use crate::coordinate::InterfaceContext;
-use crate::differential::Despawn;
-use crate::elm::config::ElmConfiguration;
-use crate::elm::leaf::{Leaf, Tag};
-use crate::elm::Elm;
-use crate::icon::{Icon, IconId, IconScale};
-use crate::interaction::{InteractionListener, InteractionShape};
-use crate::prebuilt::button::{
-    BackgroundColor, BaseStyle, ButtonComponents, ButtonStyle, ForegroundColor,
+use crate::button::{
+    BackgroundColor, BaseStyle, Button, ButtonComponents, ButtonStyle, ForegroundColor,
 };
-use crate::scene::align::SceneAligner;
-use crate::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
-use crate::texture::factors::Progress;
-use bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
-use bevy_ecs::query::{Changed, Or, With, Without};
-use bevy_ecs::system::{Query, ResMut, SystemParamItem};
-use foliage_macros::SceneBinding;
+use foliage::bevy_ecs;
+use foliage::bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
+use foliage::bevy_ecs::query::{Changed, Or, With, Without};
+use foliage::bevy_ecs::system::{Query, ResMut, SystemParamItem};
+use foliage::circle::{Circle, CircleStyle, Diameter};
+use foliage::color::Color;
+use foliage::coordinate::area::Area;
+use foliage::coordinate::InterfaceContext;
+use foliage::differential::Despawn;
+use foliage::elm::config::ElmConfiguration;
+use foliage::elm::leaf::{Leaf, Tag};
+use foliage::elm::Elm;
+use foliage::icon::{Icon, IconId, IconScale};
+use foliage::interaction::{InteractionListener, InteractionShape};
+use foliage::scene::align::SceneAligner;
+use foliage::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
+use foliage::texture::factors::Progress;
+use foliage::SceneBinding;
 
 #[derive(Bundle)]
 pub struct CircleButtonComponents {
@@ -27,14 +28,14 @@ pub struct CircleButtonComponents {
     foreground_color: ForegroundColor,
     background_color: BackgroundColor,
 }
-impl Leaf for CircleButtonComponents {
-    type SetDescriptor = <ButtonComponents as Leaf>::SetDescriptor;
+impl Leaf for CircleButton {
+    type SetDescriptor = <Button as Leaf>::SetDescriptor;
 
     fn config(_elm_configuration: &mut ElmConfiguration) {}
 
     fn attach(elm: &mut Elm) {
         elm.main().add_systems((resize
-            .in_set(<ButtonComponents as Leaf>::SetDescriptor::Area)
+            .in_set(<Button as Leaf>::SetDescriptor::Area)
             .before(<Circle as Leaf>::SetDescriptor::Area)
             .before(<Icon as Leaf>::SetDescriptor::Area),));
     }

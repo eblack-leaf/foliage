@@ -1,26 +1,27 @@
-use crate::color::Color;
-use crate::coordinate::area::Area;
-use crate::coordinate::InterfaceContext;
-use crate::differential::Despawn;
-use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
-use crate::elm::leaf::{Leaf, Tag};
-use crate::elm::Elm;
-use crate::icon::{Icon, IconId};
-use crate::interaction::InteractionListener;
-use crate::panel::{Panel, PanelStyle};
-use crate::prebuilt::icon_text::{IconColor, IconText, IconTextComponents, TextColor};
-use crate::scene::align::{SceneAligner, SceneAlignment};
-use crate::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
-use crate::set_descriptor;
-use crate::text::font::MonospacedFont;
-use crate::text::{MaxCharacters, TextValue};
-use crate::window::ScaleFactor;
-use bevy_ecs::bundle::Bundle;
-use bevy_ecs::change_detection::Res;
-use bevy_ecs::prelude::{Changed, Commands, Component, IntoSystemConfigs};
-use bevy_ecs::query::{Or, With, Without};
-use bevy_ecs::system::{Query, ResMut, SystemParamItem};
-use foliage_macros::SceneBinding;
+use crate::icon_text::{IconColor, IconText, IconTextComponents, TextColor};
+use foliage::bevy_ecs;
+use foliage::bevy_ecs::bundle::Bundle;
+use foliage::bevy_ecs::change_detection::Res;
+use foliage::bevy_ecs::prelude::{Changed, Commands, Component, IntoSystemConfigs};
+use foliage::bevy_ecs::query::{Or, With, Without};
+use foliage::bevy_ecs::system::{Query, ResMut, SystemParamItem};
+use foliage::color::Color;
+use foliage::coordinate::area::Area;
+use foliage::coordinate::InterfaceContext;
+use foliage::differential::Despawn;
+use foliage::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
+use foliage::elm::leaf::{Leaf, Tag};
+use foliage::elm::Elm;
+use foliage::icon::{Icon, IconId};
+use foliage::interaction::InteractionListener;
+use foliage::panel::{Panel, PanelStyle};
+use foliage::scene::align::{SceneAligner, SceneAlignment};
+use foliage::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
+use foliage::set_descriptor;
+use foliage::text::font::MonospacedFont;
+use foliage::text::{MaxCharacters, TextValue};
+use foliage::window::ScaleFactor;
+use foliage::SceneBinding;
 
 #[derive(Bundle)]
 pub struct ButtonComponents {
@@ -43,7 +44,7 @@ set_descriptor!(
         Area,
     }
 );
-impl Leaf for ButtonComponents {
+impl Leaf for Button {
     type SetDescriptor = SetDescriptors;
 
     fn config(elm_configuration: &mut ElmConfiguration) {
@@ -51,10 +52,10 @@ impl Leaf for ButtonComponents {
     }
 
     fn attach(elm: &mut Elm) {
-        elm.job.main().add_systems((
+        elm.main().add_systems((
             updates
                 .in_set(SetDescriptors::Area)
-                .before(<IconTextComponents as Leaf>::SetDescriptor::Area)
+                .before(<IconText as Leaf>::SetDescriptor::Area)
                 .before(<Panel as Leaf>::SetDescriptor::Area)
                 .before(<Icon as Leaf>::SetDescriptor::Area),
             interaction_color

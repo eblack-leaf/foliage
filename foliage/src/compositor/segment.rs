@@ -94,7 +94,8 @@ impl Grid {
             unit.value() * self.column_element_width(area.width)
                 + unit.value() * self.gap_x
                 + (unit.value() - 1f32).max(0.0) * self.gap_x
-                - self.column_element_width(area.width) * unit.bias.factor(),
+                - self.column_element_width(area.width) * unit.bias.factor()
+                + unit.offset.unwrap_or_default(),
         )
     }
     pub fn vertical(&self, area: Area<InterfaceContext>, unit: SegmentUnit) -> GridRelativeValue {
@@ -105,7 +106,8 @@ impl Grid {
             unit.value() * self.row_element_height(area.height)
                 + unit.value() * self.gap_y
                 + (unit.value() - 1f32).max(0.0) * self.gap_y
-                - self.row_element_height(area.height) * unit.bias.factor(),
+                - self.row_element_height(area.height) * unit.bias.factor()
+                + unit.offset.unwrap_or_default(),
         )
     }
     pub fn column_width(&self, dim: CoordinateUnit) -> CoordinateUnit {
@@ -305,6 +307,7 @@ pub struct SegmentUnit {
     value: SegmentValue,
     bias: SegmentBias,
     fixed: Option<CoordinateUnit>,
+    offset: Option<CoordinateUnit>,
 }
 impl SegmentUnit {
     fn value(&self) -> CoordinateUnit {
@@ -315,6 +318,7 @@ impl SegmentUnit {
             value,
             bias,
             fixed: None,
+            offset: None,
         }
     }
     pub fn fixed(value: CoordinateUnit) -> Self {
@@ -322,9 +326,14 @@ impl SegmentUnit {
             value: SegmentValue::default(),
             bias: SegmentBias::Near,
             fixed: Some(value),
+            offset: None,
         }
     }
     pub fn to_end(self, su: SegmentUnit) -> SegmentUnitDescriptor {
         SegmentUnitDescriptor::new(self, su)
+    }
+    pub fn offset(mut self, o: CoordinateUnit) -> Self {
+        self.offset.replace(o);
+        self
     }
 }

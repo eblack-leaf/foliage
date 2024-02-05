@@ -16,6 +16,7 @@ pub fn entry(android_interface: AndroidInterface) {
                 .with_desktop_dimensions((360, 800))
                 .with_resizable(true),
         )
+        .with_leaves::<foliage_scenes::Extensions>()
         .with_leaf::<Showcase>()
         .with_android_interface(android_interface)
         .with_worker_path("./worker.js")

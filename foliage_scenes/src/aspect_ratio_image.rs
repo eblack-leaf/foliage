@@ -1,21 +1,21 @@
-use crate::compositor::layout::AspectRatio;
-use crate::coordinate::area::Area;
-use crate::coordinate::{InterfaceContext, NumericalContext};
-use crate::differential::Despawn;
-use crate::elm::config::{ElmConfiguration, ExternalSet};
-use crate::elm::leaf::{Leaf, Tag};
-use crate::elm::Elm;
-use crate::image::{Image, ImageId};
-use crate::scene::align::SceneAligner;
-use crate::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
-use crate::set_descriptor;
-use bevy_ecs::bundle::Bundle;
-use bevy_ecs::component::Component;
-use bevy_ecs::prelude::{Commands, IntoSystemConfigs};
-use bevy_ecs::query::{Changed, Or, With, Without};
-use bevy_ecs::system::{Query, ResMut, SystemParamItem};
-use foliage_macros::SceneBinding;
-
+use foliage::bevy_ecs;
+use foliage::bevy_ecs::bundle::Bundle;
+use foliage::bevy_ecs::component::Component;
+use foliage::bevy_ecs::prelude::{Commands, IntoSystemConfigs};
+use foliage::bevy_ecs::query::{Changed, Or, With, Without};
+use foliage::bevy_ecs::system::{Query, ResMut, SystemParamItem};
+use foliage::compositor::layout::AspectRatio;
+use foliage::coordinate::area::Area;
+use foliage::coordinate::{InterfaceContext, NumericalContext};
+use foliage::differential::Despawn;
+use foliage::elm::config::{ElmConfiguration, ExternalSet};
+use foliage::elm::leaf::{Leaf, Tag};
+use foliage::elm::Elm;
+use foliage::image::{Image, ImageId};
+use foliage::scene::align::SceneAligner;
+use foliage::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
+use foliage::set_descriptor;
+use foliage::SceneBinding;
 #[derive(Component, Copy, Clone)]
 pub struct ImageDimensions(pub Area<NumericalContext>);
 impl<A: Into<Area<NumericalContext>>> From<A> for ImageDimensions {
@@ -48,7 +48,7 @@ fn metrics(area: Area<InterfaceContext>, dims: ImageDimensions) -> Area<Interfac
     }
     Area::new(attempted_width, attempted_height)
 }
-impl Leaf for AspectRatioImageComponents {
+impl Leaf for AspectRatioImage {
     type SetDescriptor = AspectRatioImageSets;
 
     fn config(elm_configuration: &mut ElmConfiguration) {

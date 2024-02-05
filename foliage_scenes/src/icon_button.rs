@@ -1,23 +1,24 @@
-use crate::color::Color;
-use crate::coordinate::area::Area;
-use crate::coordinate::InterfaceContext;
-use crate::differential::Despawn;
-use crate::elm::config::ElmConfiguration;
-use crate::elm::leaf::{EmptySetDescriptor, Leaf, Tag};
-use crate::elm::Elm;
-use crate::icon::{Icon, IconId, IconScale};
-use crate::interaction::InteractionListener;
-use crate::panel::{Panel, PanelStyle};
-use crate::prebuilt::button::{
-    BackgroundColor, BaseStyle, ButtonComponents, ButtonStyle, ForegroundColor,
+use crate::button::{
+    BackgroundColor, BaseStyle, Button, ButtonComponents, ButtonStyle, ForegroundColor,
 };
-use crate::scene::align::SceneAligner;
-use crate::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
-use bevy_ecs::bundle::Bundle;
-use bevy_ecs::prelude::{Commands, IntoSystemConfigs};
-use bevy_ecs::query::{Changed, Or, With, Without};
-use bevy_ecs::system::{Query, ResMut, SystemParamItem};
-use foliage_macros::SceneBinding;
+use foliage::bevy_ecs;
+use foliage::bevy_ecs::bundle::Bundle;
+use foliage::bevy_ecs::prelude::{Commands, IntoSystemConfigs};
+use foliage::bevy_ecs::query::{Changed, Or, With, Without};
+use foliage::bevy_ecs::system::{Query, ResMut, SystemParamItem};
+use foliage::color::Color;
+use foliage::coordinate::area::Area;
+use foliage::coordinate::InterfaceContext;
+use foliage::differential::Despawn;
+use foliage::elm::config::ElmConfiguration;
+use foliage::elm::leaf::{EmptySetDescriptor, Leaf, Tag};
+use foliage::elm::Elm;
+use foliage::icon::{Icon, IconId, IconScale};
+use foliage::interaction::InteractionListener;
+use foliage::panel::{Panel, PanelStyle};
+use foliage::scene::align::SceneAligner;
+use foliage::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
+use foliage::SceneBinding;
 
 #[derive(Bundle)]
 pub struct IconButtonComponents {
@@ -106,7 +107,7 @@ impl Leaf for IconButton {
 
     fn attach(elm: &mut Elm) {
         elm.main().add_systems((resize
-            .in_set(<ButtonComponents as Leaf>::SetDescriptor::Area)
+            .in_set(<Button as Leaf>::SetDescriptor::Area)
             .before(<Panel as Leaf>::SetDescriptor::Area),));
     }
 }

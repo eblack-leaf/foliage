@@ -1,11 +1,11 @@
 [package]
-name = "example"
+name = "foliage_scenes"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-foliage = {path = "../../foliage" }
-foliage_scenes = { path = "../../foliage_scenes"}
+foliage = { path = "../foliage" }
+compact_str = "0.7.1"
 tracing = "0.1.40"

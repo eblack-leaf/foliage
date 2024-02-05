@@ -1,24 +1,24 @@
-use crate::color::Color;
-use crate::coordinate::area::Area;
-use crate::coordinate::{CoordinateUnit, InterfaceContext};
-use crate::differential::Despawn;
-use crate::elm::config::{ElmConfiguration, ExternalSet};
-use crate::elm::leaf::{Leaf, Tag};
-use crate::elm::Elm;
-use crate::icon::{Icon, IconId, IconScale};
-use crate::scene::align::SceneAligner;
-use crate::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
-use crate::set_descriptor;
-use crate::text::font::MonospacedFont;
-use crate::text::{FontSize, GlyphColorChanges, MaxCharacters, Text, TextValue};
-use crate::window::ScaleFactor;
-use bevy_ecs::change_detection::Res;
-use bevy_ecs::component::Component;
-use bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
-use bevy_ecs::query::{Changed, Or, With, Without};
-use bevy_ecs::system::{Query, ResMut, SystemParamItem};
-use foliage_macros::SceneBinding;
-
+use foliage::bevy_ecs;
+use foliage::bevy_ecs::change_detection::Res;
+use foliage::bevy_ecs::component::Component;
+use foliage::bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
+use foliage::bevy_ecs::query::{Changed, Or, With, Without};
+use foliage::bevy_ecs::system::{Query, ResMut, SystemParamItem};
+use foliage::color::Color;
+use foliage::coordinate::area::Area;
+use foliage::coordinate::{CoordinateUnit, InterfaceContext};
+use foliage::differential::Despawn;
+use foliage::elm::config::{ElmConfiguration, ExternalSet};
+use foliage::elm::leaf::{Leaf, Tag};
+use foliage::elm::Elm;
+use foliage::icon::{Icon, IconId, IconScale};
+use foliage::scene::align::SceneAligner;
+use foliage::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
+use foliage::set_descriptor;
+use foliage::text::font::MonospacedFont;
+use foliage::text::{FontSize, GlyphColorChanges, MaxCharacters, Text, TextValue};
+use foliage::window::ScaleFactor;
+use foliage::SceneBinding;
 #[derive(Bundle)]
 pub struct IconTextComponents {
     tag: Tag<Self>,
@@ -68,7 +68,7 @@ set_descriptor!(
         Area,
     }
 );
-impl Leaf for IconTextComponents {
+impl Leaf for IconText {
     type SetDescriptor = IconTextSets;
 
     fn config(elm_configuration: &mut ElmConfiguration) {
