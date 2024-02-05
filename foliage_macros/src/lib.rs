@@ -34,6 +34,36 @@ pub fn scene_binding_derive(input: proc_macro::TokenStream) -> proc_macro::Token
     };
     gen.into()
 }
+#[proc_macro_derive(InnerSceneBinding)]
+pub fn inner_scene_binding_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = proc_macro2::TokenStream::from(input);
+    let ast: syn::DeriveInput = syn::parse2(input).unwrap();
+    let name = &ast.ident;
+    let found_crate =
+        crate_name("foliage_proper").expect("foliage_proper is present in `Cargo.toml`");
+    let foliage = match found_crate {
+        FoundCrate::Itself => quote::quote!(crate),
+        FoundCrate::Name(name) => {
+            let ident = syn::Ident::new(&name, proc_macro2::Span::call_site());
+            quote::quote!( #ident )
+        }
+    };
+    let gen = match &ast.data {
+        syn::Data::Enum(_) => {
+            quote::quote! {
+                impl From<#name> for #foliage::scene::SceneBinding {
+                    fn from(value: #name) -> Self {
+                        Self(value as i32)
+                    }
+                }
+            }
+        }
+        _ => {
+            quote::quote! {}
+        }
+    };
+    gen.into()
+}
 #[proc_macro_attribute]
 pub fn assets(
     attr: proc_macro::TokenStream,

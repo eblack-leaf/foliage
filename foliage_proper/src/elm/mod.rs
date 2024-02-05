@@ -310,7 +310,6 @@ impl Elm {
         return id;
     }
     pub fn generate_asset_key(&self) -> AssetKey {
-        
         Uuid::new_v4().as_u128()
     }
     pub fn store_local_asset(&mut self, id: AssetKey, bytes: Vec<u8>) {

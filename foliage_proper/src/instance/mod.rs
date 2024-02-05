@@ -73,10 +73,7 @@ impl<Key: Hash + Eq + PartialEq> InstanceOrdering<Key> {
 
 impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
     pub fn keys(&self) -> Vec<Key> {
-        self.ordering
-            .managed
-            .keys().cloned()
-            .collect::<Vec<Key>>()
+        self.ordering.managed.keys().cloned().collect::<Vec<Key>>()
     }
     pub fn has_key(&self, key: &Key) -> bool {
         self.ordering.index(key).is_some()

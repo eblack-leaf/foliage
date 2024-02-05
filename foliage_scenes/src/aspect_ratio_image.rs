@@ -1,21 +1,21 @@
-use foliage::bevy_ecs;
-use foliage::bevy_ecs::bundle::Bundle;
-use foliage::bevy_ecs::component::Component;
-use foliage::bevy_ecs::prelude::{Commands, IntoSystemConfigs};
-use foliage::bevy_ecs::query::{Changed, Or, With, Without};
-use foliage::bevy_ecs::system::{Query, ResMut, SystemParamItem};
-use foliage::compositor::layout::AspectRatio;
-use foliage::coordinate::area::Area;
-use foliage::coordinate::{InterfaceContext, NumericalContext};
-use foliage::differential::Despawn;
-use foliage::elm::config::{ElmConfiguration, ExternalSet};
-use foliage::elm::leaf::{Leaf, Tag};
-use foliage::elm::Elm;
-use foliage::image::{Image, ImageId};
-use foliage::scene::align::SceneAligner;
-use foliage::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
-use foliage::set_descriptor;
-use foliage::SceneBinding;
+use foliage_macros::InnerSceneBinding;
+use foliage_proper::bevy_ecs;
+use foliage_proper::bevy_ecs::bundle::Bundle;
+use foliage_proper::bevy_ecs::component::Component;
+use foliage_proper::bevy_ecs::prelude::{Commands, IntoSystemConfigs};
+use foliage_proper::bevy_ecs::query::{Changed, Or, With, Without};
+use foliage_proper::bevy_ecs::system::{Query, ResMut, SystemParamItem};
+use foliage_proper::compositor::layout::AspectRatio;
+use foliage_proper::coordinate::area::Area;
+use foliage_proper::coordinate::{InterfaceContext, NumericalContext};
+use foliage_proper::differential::Despawn;
+use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
+use foliage_proper::elm::leaf::{Leaf, Tag};
+use foliage_proper::elm::Elm;
+use foliage_proper::image::{Image, ImageId};
+use foliage_proper::scene::align::SceneAligner;
+use foliage_proper::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
+use foliage_proper::set_descriptor;
 #[derive(Component, Copy, Clone)]
 pub struct ImageDimensions(pub Area<NumericalContext>);
 impl<A: Into<Area<NumericalContext>>> From<A> for ImageDimensions {
@@ -29,7 +29,7 @@ pub struct AspectRatioImageComponents {
     dims: ImageDimensions,
     id: ImageId,
 }
-#[derive(SceneBinding)]
+#[derive(InnerSceneBinding)]
 pub enum AspectRatioImageBindings {
     Image,
 }

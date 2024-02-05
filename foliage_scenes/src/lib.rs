@@ -1,5 +1,5 @@
-use foliage::elm::leaf::Leaves;
-use foliage::Foliage;
+use foliage_proper::elm::leaf::Leaves;
+use foliage_proper::Foliage;
 
 pub mod aspect_ratio_image;
 pub mod button;
@@ -11,8 +11,8 @@ pub mod interactive_progress_bar;
 pub mod progress_bar;
 pub mod text_input;
 
-pub struct Extensions;
-impl Leaves for Extensions {
+pub struct SceneExtensions;
+impl Leaves for SceneExtensions {
     fn leaves(f: Foliage) -> Foliage {
         f.with_leaf::<aspect_ratio_image::AspectRatioImage>()
             .with_leaf::<button::Button>()

@@ -1,24 +1,24 @@
-use foliage::bevy_ecs;
-use foliage::bevy_ecs::change_detection::Res;
-use foliage::bevy_ecs::component::Component;
-use foliage::bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
-use foliage::bevy_ecs::query::{Changed, Or, With, Without};
-use foliage::bevy_ecs::system::{Query, ResMut, SystemParamItem};
-use foliage::color::Color;
-use foliage::coordinate::area::Area;
-use foliage::coordinate::{CoordinateUnit, InterfaceContext};
-use foliage::differential::Despawn;
-use foliage::elm::config::{ElmConfiguration, ExternalSet};
-use foliage::elm::leaf::{Leaf, Tag};
-use foliage::elm::Elm;
-use foliage::icon::{Icon, IconId, IconScale};
-use foliage::scene::align::SceneAligner;
-use foliage::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
-use foliage::set_descriptor;
-use foliage::text::font::MonospacedFont;
-use foliage::text::{FontSize, GlyphColorChanges, MaxCharacters, Text, TextValue};
-use foliage::window::ScaleFactor;
-use foliage::SceneBinding;
+use foliage_macros::InnerSceneBinding;
+use foliage_proper::bevy_ecs;
+use foliage_proper::bevy_ecs::change_detection::Res;
+use foliage_proper::bevy_ecs::component::Component;
+use foliage_proper::bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
+use foliage_proper::bevy_ecs::query::{Changed, Or, With, Without};
+use foliage_proper::bevy_ecs::system::{Query, ResMut, SystemParamItem};
+use foliage_proper::color::Color;
+use foliage_proper::coordinate::area::Area;
+use foliage_proper::coordinate::{CoordinateUnit, InterfaceContext};
+use foliage_proper::differential::Despawn;
+use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
+use foliage_proper::elm::leaf::{Leaf, Tag};
+use foliage_proper::elm::Elm;
+use foliage_proper::icon::{Icon, IconId, IconScale};
+use foliage_proper::scene::align::SceneAligner;
+use foliage_proper::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
+use foliage_proper::set_descriptor;
+use foliage_proper::text::font::MonospacedFont;
+use foliage_proper::text::{FontSize, GlyphColorChanges, MaxCharacters, Text, TextValue};
+use foliage_proper::window::ScaleFactor;
 #[derive(Bundle)]
 pub struct IconTextComponents {
     tag: Tag<Self>,
@@ -33,7 +33,7 @@ pub struct IconTextComponents {
 pub struct IconColor(pub Color);
 #[derive(Copy, Clone, Component, Default)]
 pub struct TextColor(pub Color);
-#[derive(SceneBinding)]
+#[derive(InnerSceneBinding)]
 pub enum IconTextBindings {
     Icon,
     Text,

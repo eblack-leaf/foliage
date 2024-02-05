@@ -1,27 +1,27 @@
 use crate::icon_text::{IconColor, IconText, TextColor};
-use foliage::bevy_ecs;
-use foliage::bevy_ecs::bundle::Bundle;
-use foliage::bevy_ecs::change_detection::Res;
-use foliage::bevy_ecs::prelude::{Changed, Commands, Component, IntoSystemConfigs};
-use foliage::bevy_ecs::query::{Or, With, Without};
-use foliage::bevy_ecs::system::{Query, ResMut, SystemParamItem};
-use foliage::color::Color;
-use foliage::coordinate::area::Area;
-use foliage::coordinate::InterfaceContext;
-use foliage::differential::Despawn;
-use foliage::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
-use foliage::elm::leaf::{Leaf, Tag};
-use foliage::elm::Elm;
-use foliage::icon::{Icon, IconId};
-use foliage::interaction::InteractionListener;
-use foliage::panel::{Panel, PanelStyle};
-use foliage::scene::align::{SceneAligner, SceneAlignment};
-use foliage::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
-use foliage::set_descriptor;
-use foliage::text::font::MonospacedFont;
-use foliage::text::{MaxCharacters, TextValue};
-use foliage::window::ScaleFactor;
-use foliage::SceneBinding;
+use foliage_macros::InnerSceneBinding;
+use foliage_proper::bevy_ecs;
+use foliage_proper::bevy_ecs::bundle::Bundle;
+use foliage_proper::bevy_ecs::change_detection::Res;
+use foliage_proper::bevy_ecs::prelude::{Changed, Commands, Component, IntoSystemConfigs};
+use foliage_proper::bevy_ecs::query::{Or, With, Without};
+use foliage_proper::bevy_ecs::system::{Query, ResMut, SystemParamItem};
+use foliage_proper::color::Color;
+use foliage_proper::coordinate::area::Area;
+use foliage_proper::coordinate::InterfaceContext;
+use foliage_proper::differential::Despawn;
+use foliage_proper::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
+use foliage_proper::elm::leaf::{Leaf, Tag};
+use foliage_proper::elm::Elm;
+use foliage_proper::icon::{Icon, IconId};
+use foliage_proper::interaction::InteractionListener;
+use foliage_proper::panel::{Panel, PanelStyle};
+use foliage_proper::scene::align::{SceneAligner, SceneAlignment};
+use foliage_proper::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
+use foliage_proper::set_descriptor;
+use foliage_proper::text::font::MonospacedFont;
+use foliage_proper::text::{MaxCharacters, TextValue};
+use foliage_proper::window::ScaleFactor;
 
 #[derive(Bundle)]
 pub struct ButtonComponents {
@@ -180,7 +180,7 @@ impl Button {
         }
     }
 }
-#[derive(SceneBinding)]
+#[derive(InnerSceneBinding)]
 pub enum ButtonBindings {
     Panel,
     IconText,

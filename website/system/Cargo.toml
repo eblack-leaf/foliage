@@ -6,6 +6,5 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-foliage = { path = "../../foliage"}
-foliage_scenes = { path = "../../foliage_scenes"}
+foliage = { path = "../../foliage", features = ["scenes", "derive"] }
 tracing = "0.1.40"

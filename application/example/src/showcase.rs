@@ -1,6 +1,9 @@
 use crate::Assets;
+use foliage::aspect_ratio_image::AspectRatioImage;
 use foliage::bevy_ecs;
 use foliage::bevy_ecs::prelude::Component;
+use foliage::button::{Button, ButtonStyle};
+use foliage::circle_progress_bar::CircleProgressBar;
 use foliage::color::Color;
 use foliage::compositor::segment::{Grid, ResponsiveSegment, SegmentUnitDesc};
 use foliage::compositor::ViewHandle;
@@ -10,12 +13,9 @@ use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 use foliage::elm::{Elm, InteractionHandlerTrigger};
 use foliage::icon::FeatherIcon;
 use foliage::image::{Image, ImageId, ImageStorage};
+use foliage::progress_bar::ProgressBar;
 use foliage::text::{MaxCharacters, TextValue};
 use foliage::texture::factors::Progress;
-use foliage_scenes::aspect_ratio_image::AspectRatioImage;
-use foliage_scenes::button::{Button, ButtonStyle};
-use foliage_scenes::circle_progress_bar::CircleProgressBar;
-use foliage_scenes::progress_bar::ProgressBar;
 
 pub(crate) struct Showcase {}
 impl Leaf for Showcase {

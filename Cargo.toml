@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "foliage",
+    "foliage_proper",
     "application/example",
     "application/entry",
     "build_android",
@@ -8,6 +8,7 @@ members = [
     "website/system",
     "foliage_macros",
     "foliage_scenes",
+    "foliage",
 ]
 resolver = "2"
 

@@ -284,7 +284,6 @@ impl ViewHandle {
         Self(x, y)
     }
     pub fn anchor(&self, area: Area<InterfaceContext>) -> Position<InterfaceContext> {
-        
         (
             self.0 as CoordinateUnit * area.width,
             -self.1 as CoordinateUnit * area.height,

@@ -7,11 +7,11 @@ use foliage::coordinate::area::Area;
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 use foliage::elm::{BundleExtend, Elm};
 use foliage::icon::FeatherIcon;
+use foliage::icon_text::IconText;
 use foliage::media::HrefLink;
 use foliage::rectangle::Rectangle;
 use foliage::text::{GlyphColorChanges, MaxCharacters, TextValue};
 use foliage::texture::factors::Progress;
-use foliage_scenes::icon_text::IconText;
 
 #[foliage::assets(crate::Engen, "../assets/", "/foliage/assets/")]
 struct Assets {

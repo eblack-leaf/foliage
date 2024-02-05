@@ -1,22 +1,22 @@
 use crate::button::{BackgroundColor, BaseStyle, Button, ButtonStyle, ForegroundColor};
-use foliage::bevy_ecs;
-use foliage::bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
-use foliage::bevy_ecs::query::{Changed, Or, With, Without};
-use foliage::bevy_ecs::system::{Query, ResMut, SystemParamItem};
-use foliage::circle::{Circle, CircleStyle, Diameter};
-use foliage::color::Color;
-use foliage::coordinate::area::Area;
-use foliage::coordinate::InterfaceContext;
-use foliage::differential::Despawn;
-use foliage::elm::config::ElmConfiguration;
-use foliage::elm::leaf::{Leaf, Tag};
-use foliage::elm::Elm;
-use foliage::icon::{Icon, IconId, IconScale};
-use foliage::interaction::{InteractionListener, InteractionShape};
-use foliage::scene::align::SceneAligner;
-use foliage::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
-use foliage::texture::factors::Progress;
-use foliage::SceneBinding;
+use foliage_macros::InnerSceneBinding;
+use foliage_proper::bevy_ecs;
+use foliage_proper::bevy_ecs::prelude::{Bundle, Commands, IntoSystemConfigs};
+use foliage_proper::bevy_ecs::query::{Changed, Or, With, Without};
+use foliage_proper::bevy_ecs::system::{Query, ResMut, SystemParamItem};
+use foliage_proper::circle::{Circle, CircleStyle, Diameter};
+use foliage_proper::color::Color;
+use foliage_proper::coordinate::area::Area;
+use foliage_proper::coordinate::InterfaceContext;
+use foliage_proper::differential::Despawn;
+use foliage_proper::elm::config::ElmConfiguration;
+use foliage_proper::elm::leaf::{Leaf, Tag};
+use foliage_proper::elm::Elm;
+use foliage_proper::icon::{Icon, IconId, IconScale};
+use foliage_proper::interaction::{InteractionListener, InteractionShape};
+use foliage_proper::scene::align::SceneAligner;
+use foliage_proper::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
+use foliage_proper::texture::factors::Progress;
 
 #[derive(Bundle)]
 pub struct CircleButtonComponents {
@@ -89,7 +89,7 @@ fn resize(
         *areas.get_mut(circle).unwrap() = *area;
     }
 }
-#[derive(SceneBinding)]
+#[derive(InnerSceneBinding)]
 pub enum CircleButtonBindings {
     Circle,
     Icon,
