@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["ElementStyle","EventStage","InteractionHandlerTrigger"],"mod":["config","leaf"],"struct":["BundleExtension","Disabled","Elm"],"trait":["BundleExtend","Fetch"],"type":["InteractionHandlerFn"]};

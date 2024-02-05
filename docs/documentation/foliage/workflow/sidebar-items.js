@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["start_web_worker"],"struct":["WorkflowConnectionBase"],"trait":["SingleThreadedWorkflow","Workflow"],"type":["EngenHandle","WorkflowConnection"]};

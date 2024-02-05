@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["AlignmentBias"],"struct":["AlignmentDisable","AlignmentPoint","LayerAlignment","PositionAlignment","SceneAlignment"],"trait":["SceneAligner"]};

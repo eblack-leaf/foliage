@@ -2,13 +2,16 @@
 
 use ash::identification::RenderIdentification;
 use ash::leaflet::RenderLeaflet;
+#[doc(hidden)]
 pub use bevy_ecs;
 use bevy_ecs::prelude::Resource;
 use elm::leaf::{Leaf, Leaflet};
+#[doc(hidden)]
 pub use wgpu;
 use window::{WindowDescriptor, WindowHandle};
 use winit::event::{Event, Ime, KeyEvent, MouseButton, StartCause, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget};
+#[doc(hidden)]
 pub use winit::keyboard::NamedKey;
 
 use self::ash::leaflet::RenderLeafletStorage;

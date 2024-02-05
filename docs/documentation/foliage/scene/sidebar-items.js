@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["SceneTarget"],"mod":["align"],"struct":["Anchor","BindingCoordinate","SceneAccessChain","SceneBinder","SceneBinding","SceneCoordinator","SceneHandle"],"trait":["Scene"]};

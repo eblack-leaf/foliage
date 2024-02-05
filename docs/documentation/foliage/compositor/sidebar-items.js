@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"mod":["layout","segment"],"struct":["Compositor","CurrentView","Segmental","View","ViewHandle"],"type":["ViewHandleOffset"]};

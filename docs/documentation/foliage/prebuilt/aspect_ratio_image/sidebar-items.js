@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["AspectRatioImageBindings","AspectRatioImageSets"],"struct":["AspectRatioImage","AspectRatioImageArgs","ImageDimensions"]};

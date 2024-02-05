@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"mod":["depth_texture","msaa","uniform","viewport"],"struct":["ClearColor","Ginkgo"]};

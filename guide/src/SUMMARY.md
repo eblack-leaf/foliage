@@ -2,7 +2,7 @@
 
 [Introduction](intro.md)
 
-- [Entry](guide.md)
+- [Entry](entry.md)
 - [Foliage](foliage.md)
 - [Leaf](leaf.md)
 - [Elm](elm.md)

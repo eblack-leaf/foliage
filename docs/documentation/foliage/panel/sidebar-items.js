@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["SetDescriptor"],"struct":["Panel","PanelContentArea","PanelStyle"]};

@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["SetDescriptor"],"mod":["font"],"struct":["CharacterDimension","FontSize","GlyphColorChanges","MaxCharacters","Text","TextValue"],"type":["TextKey"]};

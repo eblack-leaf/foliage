@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["InteractiveProgressBarBindings","InteractiveProgressBarSets"],"struct":["InteractiveProgressBar","InteractiveProgressBarArgs","ProgressPercent"]};
