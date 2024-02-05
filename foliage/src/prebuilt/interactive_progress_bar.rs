@@ -157,7 +157,7 @@ impl Scene for InteractiveProgressBar {
         let entity = binder.bind(
             InteractiveProgressBarBindings::Marker,
             (
-                metrics(anchor.0.section.area, args.percent).near(),
+                metrics(anchor.0.section.area, args.percent).from_left(),
                 0.center(),
                 0,
             ),
@@ -174,7 +174,7 @@ impl Scene for InteractiveProgressBar {
         tracing::trace!("binding-interactive-progress-marker: {:?}", entity);
         let (handle, entity) = binder.bind_scene::<ProgressBar>(
             InteractiveProgressBarBindings::Progress.into(),
-            (0.near(), 0.center(), 1).into(),
+            (0.from_left(), 0.center(), 1).into(),
             (anchor.0.section.area.width, 4f32).into(),
             &ProgressBarArgs::new(
                 Progress::new(0.0, args.percent),

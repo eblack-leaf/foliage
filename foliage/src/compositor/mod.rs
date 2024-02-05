@@ -1,6 +1,5 @@
 use crate::animate::trigger::Trigger;
 use crate::compositor::layout::Layout;
-use crate::compositor::segment::ResponsiveSegment;
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
@@ -20,7 +19,8 @@ use bevy_ecs::system::{Commands, Query, Res, ResMut};
 use std::collections::{HashMap, HashSet};
 
 pub mod layout;
-pub mod segment;
+mod r_segment;
+// pub mod segment;
 
 #[derive(Resource, Copy, Clone)]
 pub struct CurrentView(pub(crate) ViewHandle);

@@ -74,13 +74,13 @@ impl Scene for TextInput {
             .insert(InteractionListener::default());
         binder.bind(
             TextInputBindings::Panel,
-            (0.near(), 0.near(), 2),
+            (0.from_left(), 0.from_left(), 2),
             Panel::new(PanelStyle::fill(), anchor.0.section.area, args.background),
             cmd,
         );
         binder.bind(
             TextInputBindings::Cursor,
-            (SPACING.near(), 0.center(), 1),
+            (SPACING.from_left(), 0.center(), 1),
             Rectangle::new(
                 character_dims.to_numerical().as_interface(),
                 args.foreground.with_alpha(0.0),
@@ -107,7 +107,7 @@ impl Scene for TextInput {
         };
         binder.bind(
             TextInputBindings::Text,
-            (SPACING.near(), 0.center(), 0),
+            (SPACING.from_left(), 0.center(), 0),
             Text::new(args.max_chars, fs, display_text.clone(), args.foreground),
             cmd,
         );

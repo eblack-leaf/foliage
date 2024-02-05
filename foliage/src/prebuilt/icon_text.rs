@@ -199,13 +199,13 @@ impl Scene for IconText {
         );
         binder.bind(
             Self::Bindings::Icon,
-            (iap.near(), 0.center(), 0),
+            (iap.from_left(), 0.center(), 0),
             Icon::new(args.id, is, args.icon_color),
             cmd,
         );
         binder.bind(
             Self::Bindings::Text,
-            (tap.near(), 0.center(), 0),
+            (tap.from_left(), 0.center(), 0),
             Text::new(args.max_chars, fs, args.text_value.clone(), args.text_color),
             cmd,
         );

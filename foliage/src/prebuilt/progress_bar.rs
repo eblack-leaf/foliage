@@ -95,14 +95,14 @@ impl Scene for ProgressBar {
     ) -> Self {
         let entity = binder.bind(
             ProgressBarBindings::Back,
-            (0.near(), 0.near(), 1),
+            (0.from_left(), 0.from_left(), 1),
             Rectangle::new(anchor.0.section.area, args.back_color, Progress::full()),
             cmd,
         );
         tracing::trace!("binding-progress-back: {:?}", entity);
         let entity = binder.bind(
             ProgressBarBindings::Fill,
-            (0.near(), 0.near(), 0),
+            (0.from_left(), 0.from_left(), 0),
             Rectangle::new(anchor.0.section.area, args.fill_color, args.progress),
             cmd,
         );

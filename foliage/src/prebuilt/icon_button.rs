@@ -123,7 +123,7 @@ impl Scene for IconButton {
             .insert(InteractionListener::default());
         let entity = binder.bind(
             Self::Bindings::Panel,
-            (0.near(), 0.near(), 1),
+            (0.from_left(), 0.from_left(), 1),
             Panel::new(
                 match args.style {
                     ButtonStyle::Ring => PanelStyle::ring(),
