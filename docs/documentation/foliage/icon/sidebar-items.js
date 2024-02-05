@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["FeatherIcon","SetDescriptor"],"struct":["Icon","IconId","IconScale"]};

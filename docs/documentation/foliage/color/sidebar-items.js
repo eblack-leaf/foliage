@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["Color","ColorBuilder"],"type":["Rgb","Rgba"]};

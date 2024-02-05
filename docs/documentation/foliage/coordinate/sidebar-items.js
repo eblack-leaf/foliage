@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["area","layer","location","position","section"],"struct":["Coordinate","DeviceContext","InterfaceContext","NumericalContext","PositionAdjust"],"trait":["CoordinateContext"],"type":["CoordinateUnit"]};

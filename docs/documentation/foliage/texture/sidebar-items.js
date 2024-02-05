@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["coord","factors","fixed"],"struct":["AtlasBlock","AtlasEntry","TextureAtlas","TextureAtlasLocation"]};
