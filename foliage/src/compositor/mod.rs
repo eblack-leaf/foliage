@@ -165,7 +165,7 @@ fn responsive_changed(
         responsive.iter_mut()
     {
         if let Some(coord) =
-            segment.coordinate(compositor.layout(), viewport_handle.section().area, &grid)
+            segment.coordinate(compositor.layout(), viewport_handle.section(), &grid)
         {
             tracing::trace!("responsive-changed: {:?}", entity);
             if let Some(sh) = m_scene_handle {
@@ -212,7 +212,7 @@ fn viewport_changed(
             segments.iter_mut()
         {
             if let Some(coord) =
-                segment.coordinate(compositor.layout(), viewport_handle.section().area, &grid)
+                segment.coordinate(compositor.layout(), viewport_handle.section(), &grid)
             {
                 tracing::trace!("viewport-changed: {:?}", entity);
                 if let Some(sh) = m_scene_handle {

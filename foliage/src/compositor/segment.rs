@@ -65,6 +65,18 @@ pub struct Grid {
     gap_y: CoordinateUnit,
     template: GridTemplate,
 }
+pub enum GridRelativeValue {
+    Anchored(CoordinateUnit),
+    Fixed(CoordinateUnit),
+}
+impl GridRelativeValue {
+    pub fn value(self) -> CoordinateUnit {
+        match self {
+            GridRelativeValue::Anchored(value) => value,
+            GridRelativeValue::Fixed(value) => value,
+        }
+    }
+}
 impl Grid {
     pub const DEFAULT_GAP: CoordinateUnit = 8.0;
     pub fn new(columns: SegmentValue, rows: SegmentValue) -> Self {
@@ -74,13 +86,27 @@ impl Grid {
             template: GridTemplate::new(columns, rows),
         }
     }
-    pub fn horizontal(&self, area: Area<InterfaceContext>, unit: SegmentUnit) -> CoordinateUnit {
-        unit.value() * self.column_element_width(area.width) + unit.value() * self.gap_x
-            - self.column_element_width(area.width) * unit.bias.factor()
+    pub fn horizontal(&self, area: Area<InterfaceContext>, unit: SegmentUnit) -> GridRelativeValue {
+        if let Some(f) = unit.fixed {
+            return GridRelativeValue::Fixed(f);
+        }
+        GridRelativeValue::Anchored(
+            unit.value() * self.column_element_width(area.width)
+                + unit.value() * self.gap_x
+                + (unit.value() - 1f32).max(0.0) * self.gap_x
+                - self.column_element_width(area.width) * unit.bias.factor(),
+        )
     }
-    pub fn vertical(&self, area: Area<InterfaceContext>, unit: SegmentUnit) -> CoordinateUnit {
-        unit.value() * self.row_element_height(area.height) + unit.value() * self.gap_y
-            - self.row_element_height(area.height) * unit.bias.factor()
+    pub fn vertical(&self, area: Area<InterfaceContext>, unit: SegmentUnit) -> GridRelativeValue {
+        if let Some(f) = unit.fixed {
+            return GridRelativeValue::Fixed(f);
+        }
+        GridRelativeValue::Anchored(
+            unit.value() * self.row_element_height(area.height)
+                + unit.value() * self.gap_y
+                + (unit.value() - 1f32).max(0.0) * self.gap_y
+                - self.row_element_height(area.height) * unit.bias.factor(),
+        )
     }
     pub fn column_width(&self, dim: CoordinateUnit) -> CoordinateUnit {
         dim / self.template.columns as CoordinateUnit
@@ -126,19 +152,34 @@ impl ResponsiveSegment {
     pub fn coordinate(
         &self,
         layout: Layout,
-        area: Area<InterfaceContext>,
+        section: Section<InterfaceContext>,
         grid: &ResponsiveGrid,
     ) -> Option<Coordinate<InterfaceContext>> {
         if self.negations.contains(&layout) {
             return None;
         }
         let current = grid.current(layout, self.view_handle);
-        let left = current.horizontal(area, self.horizontal_value(&layout).begin);
-        let top = current.vertical(area, self.vertical_value(&layout).begin);
-        let right = current.horizontal(area, self.horizontal_value(&layout).end);
-        let bottom = current.vertical(area, self.vertical_value(&layout).end);
+        let left = current
+            .horizontal(section.area, self.horizontal_value(&layout).begin)
+            .value();
+        let top = current
+            .vertical(section.area, self.vertical_value(&layout).begin)
+            .value();
+        let width_or_right = current.horizontal(section.area, self.horizontal_value(&layout).end);
+        let height_or_bottom = current.vertical(section.area, self.vertical_value(&layout).end);
+        let width = match width_or_right {
+            GridRelativeValue::Anchored(value) => value - left,
+            GridRelativeValue::Fixed(value) => value,
+        };
+        let height = match height_or_bottom {
+            GridRelativeValue::Anchored(value) => value - top,
+            GridRelativeValue::Fixed(value) => value,
+        };
         Some(Coordinate::new(
-            Section::from_left_top_right_bottom(left, top, right, bottom),
+            Section::new(
+                (left + section.left(), top + section.top()),
+                (width, height),
+            ),
             self.layer,
         ))
     }
@@ -156,7 +197,7 @@ impl ResponsiveSegment {
             .cloned()
             .unwrap_or(self.base.horizontal)
     }
-    pub fn mobile(horizontal: SegmentUnitDescriptor, vertical: SegmentUnitDescriptor) -> Self {
+    pub fn base(horizontal: SegmentUnitDescriptor, vertical: SegmentUnitDescriptor) -> Self {
         Self {
             view_handle: ViewHandle::default(),
             base: Segment::new(horizontal, vertical),
@@ -216,10 +257,10 @@ impl Segment {
         }
     }
 }
-
 pub trait SegmentUnitDesc {
     fn near(self) -> SegmentUnit;
     fn far(self) -> SegmentUnit;
+    fn fixed(self) -> SegmentUnit;
 }
 macro_rules! impl_segment_unit_desc {
     ($($elem:ty),*) => {
@@ -227,16 +268,19 @@ macro_rules! impl_segment_unit_desc {
             fn near(self) -> SegmentUnit {
                 SegmentUnit::new(self as SegmentValue, SegmentBias::Near)
             }
-
             fn far(self) -> SegmentUnit {
                 SegmentUnit::new(self as SegmentValue, SegmentBias::Far)
+            }
+            fn fixed(self) -> SegmentUnit {
+                SegmentUnit::fixed(self as CoordinateUnit)
             }
         })*
     };
 }
 impl_segment_unit_desc!(i8, i16, i32, i64, u8, u16, u32, u64, f32, f64);
-#[derive(Copy, Clone, Serialize, Deserialize, Hash, PartialEq)]
+#[derive(Copy, Clone, Serialize, Deserialize, Hash, PartialEq, Default)]
 pub enum SegmentBias {
+    #[default]
     Near,
     Far,
 }
@@ -249,17 +293,29 @@ impl SegmentBias {
     }
 }
 pub type SegmentValue = u8;
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub struct SegmentUnit {
     value: SegmentValue,
     bias: SegmentBias,
+    fixed: Option<CoordinateUnit>,
 }
 impl SegmentUnit {
     fn value(&self) -> CoordinateUnit {
         self.value as CoordinateUnit
     }
     pub fn new(value: SegmentValue, bias: SegmentBias) -> Self {
-        Self { value, bias }
+        Self {
+            value,
+            bias,
+            fixed: None,
+        }
+    }
+    pub fn fixed(value: CoordinateUnit) -> Self {
+        Self {
+            value: SegmentValue::default(),
+            bias: SegmentBias::Near,
+            fixed: Some(value),
+        }
     }
     pub fn to_end(self, su: SegmentUnit) -> SegmentUnitDescriptor {
         SegmentUnitDescriptor::new(self, su)

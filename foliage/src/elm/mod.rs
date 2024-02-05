@@ -3,7 +3,6 @@ pub mod leaf;
 
 use std::any::TypeId;
 use std::marker::PhantomData;
-use std::ops::DerefMut;
 
 use crate::ash::render_packet::RenderPacketForwarder;
 use crate::ash::render_packet::RenderPacketPackage;

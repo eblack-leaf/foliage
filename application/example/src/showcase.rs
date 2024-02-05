@@ -1,6 +1,8 @@
 use crate::Assets;
+use foliage::bevy_ecs;
 use foliage::bevy_ecs::prelude::Component;
 use foliage::color::Color;
+use foliage::compositor::segment::{Grid, ResponsiveSegment, SegmentUnitDesc};
 use foliage::compositor::ViewHandle;
 use foliage::coordinate::area::Area;
 use foliage::elm::config::ElmConfiguration;
@@ -10,6 +12,7 @@ use foliage::icon::FeatherIcon;
 use foliage::image::{Image, ImageId, ImageStorage};
 use foliage::prebuilt::aspect_ratio_image::AspectRatioImage;
 use foliage::prebuilt::button::{Button, ButtonStyle};
+use foliage::prebuilt::circle_progress_bar::CircleProgressBar;
 use foliage::prebuilt::progress_bar::ProgressBar;
 use foliage::text::{MaxCharacters, TextValue};
 use foliage::texture::factors::Progress;
@@ -36,7 +39,7 @@ impl Leaf for Showcase {
         elm.add_view_scene_binding(
             handle,
             AspectRatioImage::new(ImageId(0), (651, 454)),
-            ResponsiveSegment::mobile(1.near().to_end(4.far()), 4.near().to_end(8.far())),
+            ResponsiveSegment::base(1.near().to_end(4.far()), 4.near().to_end(8.far())),
             (),
         );
         elm.add_view_scene_binding(
@@ -49,7 +52,7 @@ impl Leaf for Showcase {
                 Color::CYAN_MEDIUM,
                 Color::OFF_BLACK,
             ),
-            ResponsiveSegment::mobile(1.near().to_end(2.far()), 1.near().to_end(1.far())),
+            ResponsiveSegment::base(1.near().to_end(2.far()), 1.near().to_end(45.fixed())),
             (),
         );
         elm.add_view_scene_binding(
@@ -62,7 +65,7 @@ impl Leaf for Showcase {
                 Color::CYAN_MEDIUM,
                 Color::OFF_BLACK,
             ),
-            ResponsiveSegment::mobile(3.near().to_end(4.far()), 1.near().to_end(1.far())),
+            ResponsiveSegment::base(3.near().to_end(4.far()), 1.near().to_end(45.fixed())),
             (),
         );
         elm.add_view_scene_binding(
@@ -72,7 +75,7 @@ impl Leaf for Showcase {
                 Color::CYAN_MEDIUM,
                 Color::GREY_DARK,
             ),
-            ResponsiveSegment::mobile(1.near().to_end(2.far()), 2.near().to_end(2.far())),
+            ResponsiveSegment::base(1.near().to_end(2.far()), 3.near().to_end(4.fixed())),
             (),
         );
         elm.add_view_scene_binding(
@@ -82,7 +85,7 @@ impl Leaf for Showcase {
                 Color::CYAN_MEDIUM,
                 Color::GREY_DARK,
             ),
-            ResponsiveSegment::mobile(1.near().to_end(2.far()), 3.near().to_end(3.far())),
+            ResponsiveSegment::base(1.near().to_end(44.fixed()), 3.near().to_end(44.fixed())),
             (),
         );
         elm.view_trigger::<TestHook>(InteractionHandlerTrigger::Active, |_, cv| {
@@ -90,9 +93,6 @@ impl Leaf for Showcase {
         });
     }
 }
-use foliage::bevy_ecs;
-use foliage::compositor::segment::{Grid, ResponsiveSegment, SegmentUnitDesc};
-use foliage::prebuilt::circle_progress_bar::CircleProgressBar;
 
 #[derive(Component, Copy, Clone)]
 struct TestHook();
