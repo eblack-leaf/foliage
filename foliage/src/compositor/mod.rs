@@ -1,5 +1,6 @@
 use crate::animate::trigger::Trigger;
 use crate::compositor::layout::Layout;
+use crate::compositor::r_segment::{ResponsiveGrid, ResponsiveSegment};
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
@@ -9,17 +10,17 @@ use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::elm::leaf::{EmptySetDescriptor, Leaf, Tag};
 use crate::elm::{Disabled, Elm};
 use crate::ginkgo::viewport::ViewportHandle;
-use crate::scene::{SceneCoordinator, SceneHandle};
+use crate::scene::{Anchor, Scene, SceneCoordinator, SceneHandle};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{DetectChanges, IntoSystemConfigs, Resource};
 use bevy_ecs::query::{Changed, Or, With};
-use bevy_ecs::system::{Commands, Query, Res, ResMut};
+use bevy_ecs::system::{Commands, Query, Res, ResMut, SystemParamItem};
 use std::collections::{HashMap, HashSet};
 
 pub mod layout;
-mod r_segment;
+pub mod r_segment;
 // pub mod segment;
 
 #[derive(Resource, Copy, Clone)]
@@ -37,6 +38,31 @@ pub struct Compositor {
     entity_to_view: HashMap<Entity, ViewHandle>,
 }
 impl Compositor {
+    pub fn add_responsive<B: Bundle>(
+        &mut self,
+        b: B,
+        view_handle: ViewHandle,
+        responsive_segment: ResponsiveSegment,
+        cmd: &mut Commands,
+    ) {
+        let entity = cmd.spawn(b).insert(Segmental::new(responsive_segment)).id();
+        self.add_to_view(view_handle, entity);
+    }
+    pub fn add_responsive_scene<S: Scene>(
+        &mut self,
+        args: S,
+        view_handle: ViewHandle,
+        responsive_segment: ResponsiveSegment,
+        external_args: &SystemParamItem<S::ExternalArgs>,
+        coordinator: &mut SceneCoordinator,
+        cmd: &mut Commands,
+    ) {
+        let (_handle, entity) =
+            coordinator.spawn_scene::<S>(Anchor::default(), args, external_args, cmd);
+        cmd.entity(entity)
+            .insert(Segmental::new(responsive_segment));
+        self.add_to_view(view_handle, entity);
+    }
     pub fn new(area: Area<InterfaceContext>) -> Self {
         Self {
             current: ViewHandle::new(0, 0),
@@ -102,6 +128,7 @@ impl Leaf for Compositor {
         elm.job
             .container
             .insert_resource(CurrentView(ViewHandle::new(0, 0)));
+        elm.container().insert_resource(ResponsiveGrid::default());
         elm.main().add_systems((
             responsive_changed.in_set(CoreSet::Compositor),
             viewport_changed
@@ -130,11 +157,14 @@ fn responsive_changed(
     viewport_handle: Res<ViewportHandle>,
     compositor: Res<Compositor>,
     mut coordinator: ResMut<SceneCoordinator>,
+    grid: Res<ResponsiveGrid>,
 ) {
     for (entity, segment, mut pos, mut area, mut layer, mut disabled, m_scene_handle) in
         responsive.iter_mut()
     {
-        if let Some(coord) = segment.coordinate(compositor.layout(), viewport_handle.section()) {
+        if let Some(coord) =
+            segment.coordinate(compositor.layout(), viewport_handle.section().area, &grid)
+        {
             tracing::trace!("responsive-changed: {:?}", entity);
             if let Some(sh) = m_scene_handle {
                 tracing::trace!(
@@ -170,6 +200,7 @@ fn viewport_changed(
     )>,
     mut viewport_handle: ResMut<ViewportHandle>,
     mut coordinator: ResMut<SceneCoordinator>,
+    grid: Res<ResponsiveGrid>,
 ) {
     if viewport_handle.area_updated() {
         let new_area = viewport_handle.section().area;
@@ -178,7 +209,8 @@ fn viewport_changed(
         for (entity, segment, mut pos, mut area, mut layer, mut disabled, m_scene_handle) in
             segments.iter_mut()
         {
-            if let Some(coord) = segment.coordinate(compositor.layout(), viewport_handle.section())
+            if let Some(coord) =
+                segment.coordinate(compositor.layout(), viewport_handle.section().area, &grid)
             {
                 tracing::trace!("viewport-changed: {:?}", entity);
                 if let Some(sh) = m_scene_handle {

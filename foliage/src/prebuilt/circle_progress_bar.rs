@@ -1,11 +1,12 @@
 use crate::circle::{Circle, CircleStyle, Diameter};
+use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::InterfaceContext;
 use crate::differential::Despawn;
 use crate::elm::config::ElmConfiguration;
 use crate::elm::leaf::{Leaf, Tag};
 use crate::elm::Elm;
-use crate::prebuilt::progress_bar::{ProgressBarArgs, ProgressBarBindings, ProgressBarSets};
+use crate::prebuilt::progress_bar::{ProgressBarBindings, ProgressBarSets};
 use crate::scene::align::SceneAligner;
 use crate::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
 use crate::texture::factors::Progress;
@@ -14,15 +15,15 @@ use bevy_ecs::query::{Changed, With, Without};
 use bevy_ecs::system::{Query, SystemParamItem};
 
 #[derive(Bundle)]
-pub struct CircleProgressBar {
+pub struct CircleProgressBarComponents {
     tag: Tag<Self>,
 }
 fn resize(
-    mut circle_area: Query<&mut Area<InterfaceContext>, Without<Tag<CircleProgressBar>>>,
+    mut circle_area: Query<&mut Area<InterfaceContext>, Without<Tag<CircleProgressBarComponents>>>,
     scene: Query<
         (&SceneHandle, &Area<InterfaceContext>, &Despawn),
         (
-            With<Tag<CircleProgressBar>>,
+            With<Tag<CircleProgressBarComponents>>,
             Changed<Area<InterfaceContext>>,
         ),
     >,
@@ -42,7 +43,7 @@ fn resize(
         tracing::trace!("updating-circle-progress-bars");
     }
 }
-impl Leaf for CircleProgressBar {
+impl Leaf for CircleProgressBarComponents {
     type SetDescriptor = ProgressBarSets;
 
     fn config(_elm_configuration: &mut ElmConfiguration) {}
@@ -53,18 +54,33 @@ impl Leaf for CircleProgressBar {
             .before(<Circle as Leaf>::SetDescriptor::Area),));
     }
 }
+#[derive(Clone)]
+pub struct CircleProgressBar {
+    pub back_color: Color,
+    pub fill_color: Color,
+    pub progress: Progress,
+}
+impl CircleProgressBar {
+    pub fn new<C: Into<Color>>(progress: Progress, color: C, back_color: C) -> Self {
+        Self {
+            back_color: back_color.into(),
+            fill_color: color.into(),
+            progress,
+        }
+    }
+}
 impl Scene for CircleProgressBar {
     type Bindings = ProgressBarBindings;
-    type Args<'a> = ProgressBarArgs;
+    type Components = CircleProgressBarComponents;
     type ExternalArgs = ();
 
     fn bind_nodes(
         cmd: &mut Commands,
         anchor: Anchor,
-        args: &Self::Args<'_>,
+        args: Self,
         _external_args: &SystemParamItem<Self::ExternalArgs>,
         mut binder: SceneBinder<'_>,
-    ) -> Self {
+    ) -> Self::Components {
         let diameter = Diameter::new(anchor.0.section.width());
         binder.bind(
             ProgressBarBindings::Back,
@@ -88,6 +104,6 @@ impl Scene for CircleProgressBar {
             ),
             cmd,
         );
-        Self { tag: Tag::new() }
+        Self::Components { tag: Tag::new() }
     }
 }

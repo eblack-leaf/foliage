@@ -24,7 +24,7 @@ impl<A: Into<Area<NumericalContext>>> From<A> for ImageDimensions {
     }
 }
 #[derive(Bundle)]
-pub struct AspectRatioImage {
+pub struct AspectRatioImageComponents {
     tag: Tag<Self>,
     dims: ImageDimensions,
     id: ImageId,
@@ -48,7 +48,7 @@ fn metrics(area: Area<InterfaceContext>, dims: ImageDimensions) -> Area<Interfac
     }
     Area::new(attempted_width, attempted_height)
 }
-impl Leaf for AspectRatioImage {
+impl Leaf for AspectRatioImageComponents {
     type SetDescriptor = AspectRatioImageSets;
 
     fn config(elm_configuration: &mut ElmConfiguration) {
@@ -75,11 +75,14 @@ fn resize(
                 Changed<ImageId>,
                 Changed<ImageDimensions>,
             )>,
-            With<Tag<AspectRatioImage>>,
+            With<Tag<AspectRatioImageComponents>>,
         ),
     >,
     mut coordinator: ResMut<SceneCoordinator>,
-    mut images: Query<(&mut ImageId, &mut Area<InterfaceContext>), Without<Tag<AspectRatioImage>>>,
+    mut images: Query<
+        (&mut ImageId, &mut Area<InterfaceContext>),
+        Without<Tag<AspectRatioImageComponents>>,
+    >,
 ) {
     for (handle, area, despawn, id, dims) in scenes.iter() {
         if despawn.should_despawn() {
@@ -96,11 +99,12 @@ fn resize(
         *images.get_mut(image).unwrap().1 = aligned_dims;
     }
 }
-pub struct AspectRatioImageArgs {
+#[derive(Clone)]
+pub struct AspectRatioImage {
     id: ImageId,
     dims: ImageDimensions,
 }
-impl AspectRatioImageArgs {
+impl AspectRatioImage {
     pub fn new<ID: Into<ImageId>, DIM: Into<ImageDimensions>>(id: ID, dim: DIM) -> Self {
         Self {
             id: id.into(),
@@ -110,23 +114,23 @@ impl AspectRatioImageArgs {
 }
 impl Scene for AspectRatioImage {
     type Bindings = AspectRatioImageBindings;
-    type Args<'a> = AspectRatioImageArgs;
+    type Components = AspectRatioImageComponents;
     type ExternalArgs = ();
 
     fn bind_nodes(
         cmd: &mut Commands,
         _anchor: Anchor,
-        args: &Self::Args<'_>,
+        args: Self,
         _external_args: &SystemParamItem<Self::ExternalArgs>,
         mut binder: SceneBinder<'_>,
-    ) -> Self {
+    ) -> Self::Components {
         binder.bind(
             AspectRatioImageBindings::Image,
             (0.center(), 0.center(), 0),
             Image::new(args.id),
             cmd,
         );
-        Self {
+        Self::Components {
             tag: Tag::new(),
             dims: args.dims,
             id: args.id,

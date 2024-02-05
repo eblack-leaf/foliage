@@ -101,7 +101,7 @@ impl SceneCoordinator {
     pub fn spawn_scene<S: Scene>(
         &mut self,
         anchor: Anchor,
-        args: &S::Args<'_>,
+        args: S,
         external_args: &SystemParamItem<S::ExternalArgs>,
         cmd: &mut Commands,
     ) -> (SceneHandle, Entity) {
@@ -322,7 +322,7 @@ impl<'a> SceneBinder<'a> {
         binding: SceneBinding,
         alignment: SceneAlignment,
         area: Area<InterfaceContext>,
-        args: &S::Args<'_>,
+        args: S,
         external_args: &SystemParamItem<S::ExternalArgs>,
         cmd: &mut Commands,
     ) -> (SceneHandle, Entity) {
@@ -362,18 +362,18 @@ impl<'a> SceneBinder<'a> {
 }
 pub trait Scene
 where
-    Self: Bundle,
+    Self: Clone + Send + Sync + 'static,
 {
     type Bindings: Into<SceneBinding>;
-    type Args<'a>: Send + Sync;
-    type ExternalArgs: SystemParam;
+    type Components: Bundle;
+    type ExternalArgs: SystemParam + 'static;
     fn bind_nodes(
         cmd: &mut Commands,
         anchor: Anchor,
-        args: &Self::Args<'_>,
+        args: Self,
         external_args: &SystemParamItem<Self::ExternalArgs>,
         binder: SceneBinder<'_>,
-    ) -> Self;
+    ) -> Self::Components;
 }
 #[derive(Hash, Eq, PartialEq, Debug, Copy, Clone, Default, Component)]
 pub struct SceneHandle(pub i32);

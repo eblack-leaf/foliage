@@ -8,7 +8,7 @@ use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 use foliage::elm::{BundleExtend, Elm};
 use foliage::icon::FeatherIcon;
 use foliage::media::HrefLink;
-use foliage::prebuilt::icon_text::{IconText, IconTextArgs};
+use foliage::prebuilt::icon_text::{IconText, IconTextComponents};
 use foliage::rectangle::Rectangle;
 use foliage::text::{GlyphColorChanges, MaxCharacters, TextValue};
 use foliage::texture::factors::Progress;
@@ -25,9 +25,9 @@ impl Leaf for Home {
 
     fn attach(elm: &mut Elm) {
         let _assets = Assets::proc_gen_load(elm);
-        elm.add_view_scene_binding::<IconText, _>(
+        elm.add_view_scene_binding::<IconTextComponents, _>(
             HOME,
-            IconTextArgs::new(
+            IconText::new(
                 FeatherIcon::Terminal.id(),
                 MaxCharacters(10),
                 TextValue::new("foliage.rs"),
@@ -62,9 +62,9 @@ impl Leaf for Home {
             .at_layer(0),
             (),
         );
-        elm.add_view_scene_binding::<IconText, _>(
+        elm.add_view_scene_binding::<IconTextComponents, _>(
             HOME,
-            IconTextArgs::new(
+            IconText::new(
                 FeatherIcon::ChevronsRight.id(),
                 MaxCharacters(20),
                 TextValue::new("ls -la BOOK"),
@@ -106,9 +106,9 @@ impl Leaf for Home {
             }
             .extend(HrefLink::new("/foliage/book/index.html")),
         );
-        elm.add_view_scene_binding::<IconText, _>(
+        elm.add_view_scene_binding::<IconTextComponents, _>(
             HOME,
-            IconTextArgs::new(
+            IconText::new(
                 FeatherIcon::ChevronsRight.id(),
                 MaxCharacters(20),
                 TextValue::new("grep answer | DOCS"),
@@ -150,9 +150,9 @@ impl Leaf for Home {
             }
             .extend(HrefLink::new("/foliage/documentation/foliage/index.html")),
         );
-        elm.add_view_scene_binding::<IconText, _>(
+        elm.add_view_scene_binding::<IconTextComponents, _>(
             HOME,
-            IconTextArgs::new(
+            IconText::new(
                 FeatherIcon::ChevronsRight.id(),
                 MaxCharacters(20),
                 TextValue::new("chmod+x -wasm DEMO"),

@@ -30,15 +30,15 @@ use crate::interaction::{
 };
 use crate::media::Media;
 use crate::panel::Panel;
-use crate::prebuilt::aspect_ratio_image::AspectRatioImage;
-use crate::prebuilt::button::Button;
-use crate::prebuilt::circle_button::CircleButton;
-use crate::prebuilt::circle_progress_bar::CircleProgressBar;
+use crate::prebuilt::aspect_ratio_image::AspectRatioImageComponents;
+use crate::prebuilt::button::ButtonComponents;
+use crate::prebuilt::circle_button::CircleButtonComponents;
+use crate::prebuilt::circle_progress_bar::CircleProgressBarComponents;
 use crate::prebuilt::icon_button::IconButton;
-use crate::prebuilt::icon_text::IconText;
-use crate::prebuilt::interactive_progress_bar::InteractiveProgressBar;
-use crate::prebuilt::progress_bar::ProgressBar;
-use crate::prebuilt::text_input::TextInput;
+use crate::prebuilt::icon_text::IconTextComponents;
+use crate::prebuilt::interactive_progress_bar::InteractiveProgressBarComponents;
+use crate::prebuilt::progress_bar::ProgressBarComponents;
+use crate::prebuilt::text_input::TextInputComponents;
 use crate::rectangle::Rectangle;
 use crate::system_message::{ResponseMessage, SystemMessageResponse};
 use crate::text::Text;
@@ -59,7 +59,6 @@ pub mod differential;
 pub mod elm;
 mod generator;
 pub mod ginkgo;
-pub mod grid;
 pub mod icon;
 pub mod image;
 pub mod instance;
@@ -124,20 +123,20 @@ impl Foliage {
             .with_renderleaf::<Icon>()
             .with_renderleaf::<Text>()
             .with_renderleaf::<Image>()
-            .with_leaf::<Button>()
+            .with_leaf::<ButtonComponents>()
             .with_leaf::<IconButton>()
             .with_leaf::<Trigger>()
-            .with_leaf::<ProgressBar>()
-            .with_leaf::<CircleProgressBar>()
-            .with_leaf::<CircleButton>()
+            .with_leaf::<ProgressBarComponents>()
+            .with_leaf::<CircleProgressBarComponents>()
+            .with_leaf::<CircleButtonComponents>()
             .with_leaf::<Interaction>()
-            .with_leaf::<InteractiveProgressBar>()
+            .with_leaf::<InteractiveProgressBarComponents>()
             .with_leaf::<ViewportHandle>()
             .with_leaf::<Compositor>()
             .with_leaf::<Time>()
-            .with_leaf::<AspectRatioImage>()
-            .with_leaf::<IconText>()
-            .with_leaf::<TextInput>()
+            .with_leaf::<AspectRatioImageComponents>()
+            .with_leaf::<IconTextComponents>()
+            .with_leaf::<TextInputComponents>()
             .with_leaf::<VirtualKeyboardAdapter>()
             .with_leaf::<Clipboard>()
             .with_leaf::<AssetContainer>()

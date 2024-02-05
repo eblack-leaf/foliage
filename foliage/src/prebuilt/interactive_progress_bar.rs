@@ -8,7 +8,7 @@ use crate::elm::config::{ElmConfiguration, ExternalSet};
 use crate::elm::leaf::{Leaf, Tag};
 use crate::elm::{BundleExtend, Elm};
 use crate::interaction::{InteractionListener, InteractionShape};
-use crate::prebuilt::progress_bar::{ProgressBar, ProgressBarArgs};
+use crate::prebuilt::progress_bar::{ProgressBar, ProgressBarComponents};
 use crate::scene::align::SceneAligner;
 use crate::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
 use crate::set_descriptor;
@@ -23,7 +23,7 @@ use foliage_macros::SceneBinding;
 #[derive(Component)]
 pub struct ProgressPercent(pub f32);
 #[derive(Bundle)]
-pub struct InteractiveProgressBar {
+pub struct InteractiveProgressBarComponents {
     tag: Tag<Self>,
     percent: ProgressPercent,
 }
@@ -32,12 +32,13 @@ pub enum InteractiveProgressBarBindings {
     Marker,
     Progress,
 }
-pub struct InteractiveProgressBarArgs {
+#[derive(Clone)]
+pub struct InteractiveProgressBar {
     pub percent: f32,
     pub color: Color,
     pub back_color: Color,
 }
-impl InteractiveProgressBarArgs {
+impl InteractiveProgressBar {
     pub fn new<C: Into<Color>>(percent: f32, c: C, bc: C) -> Self {
         Self {
             color: c.into(),
@@ -51,7 +52,7 @@ set_descriptor!(
         Area,
     }
 );
-impl Leaf for InteractiveProgressBar {
+impl Leaf for InteractiveProgressBarComponents {
     type SetDescriptor = InteractiveProgressBarSets;
 
     fn config(elm_configuration: &mut ElmConfiguration) {
@@ -62,7 +63,7 @@ impl Leaf for InteractiveProgressBar {
         elm.main().add_systems(((resize, interact)
             .chain()
             .in_set(Self::SetDescriptor::Area)
-            .before(<ProgressBar as Leaf>::SetDescriptor::Area),));
+            .before(<ProgressBarComponents as Leaf>::SetDescriptor::Area),));
     }
 }
 fn resize(
@@ -70,11 +71,14 @@ fn resize(
         (&SceneHandle, &Area<InterfaceContext>, &ProgressPercent),
         (
             Changed<Area<InterfaceContext>>,
-            With<Tag<InteractiveProgressBar>>,
+            With<Tag<InteractiveProgressBarComponents>>,
         ),
     >,
     mut coordinator: ResMut<SceneCoordinator>,
-    mut rectangles: Query<&mut Area<InterfaceContext>, Without<Tag<InteractiveProgressBar>>>,
+    mut rectangles: Query<
+        &mut Area<InterfaceContext>,
+        Without<Tag<InteractiveProgressBarComponents>>,
+    >,
     mut progress: Query<&mut Progress>,
 ) {
     // tracing::trace!("updating-interactive-progress-bars");
@@ -83,7 +87,7 @@ fn resize(
         let m_ac = handle
             .access_chain()
             .target(InteractiveProgressBarBindings::Marker);
-        coordinator.get_alignment_mut(&m_ac).pos.horizontal = metrics(*area, percent.0).near();
+        coordinator.get_alignment_mut(&m_ac).pos.horizontal = metrics(*area, percent.0).from_left();
         let p_ac = handle
             .access_chain()
             .target(InteractiveProgressBarBindings::Progress);
@@ -135,7 +139,7 @@ fn interact(
                 percent.0 += p;
                 percent.0 = percent.0.min(1.0).max(0.0);
                 coordinator.get_alignment_mut(&m_ac).pos.horizontal =
-                    metrics(*area, percent.0).near();
+                    metrics(*area, percent.0).from_left();
                 progresses.get_mut(prog).unwrap().1 = percent.0;
                 hook.0.replace(listener.interaction.current);
             }
@@ -144,16 +148,16 @@ fn interact(
 }
 impl Scene for InteractiveProgressBar {
     type Bindings = InteractiveProgressBarBindings;
-    type Args<'a> = InteractiveProgressBarArgs;
+    type Components = InteractiveProgressBarComponents;
     type ExternalArgs = ();
 
     fn bind_nodes(
         cmd: &mut Commands,
         anchor: Anchor,
-        args: &Self::Args<'_>,
+        args: Self,
         _external_args: &SystemParamItem<Self::ExternalArgs>,
         mut binder: SceneBinder<'_>,
-    ) -> Self {
+    ) -> Self::Components {
         let entity = binder.bind(
             InteractiveProgressBarBindings::Marker,
             (
@@ -172,11 +176,11 @@ impl Scene for InteractiveProgressBar {
             cmd,
         );
         tracing::trace!("binding-interactive-progress-marker: {:?}", entity);
-        let (handle, entity) = binder.bind_scene::<ProgressBar>(
+        let (handle, entity) = binder.bind_scene(
             InteractiveProgressBarBindings::Progress.into(),
             (0.from_left(), 0.center(), 1).into(),
             (anchor.0.section.area.width, 4f32).into(),
-            &ProgressBarArgs::new(
+            ProgressBar::new(
                 Progress::new(0.0, args.percent),
                 args.color,
                 args.back_color,
@@ -192,7 +196,7 @@ impl Scene for InteractiveProgressBar {
         cmd.entity(entity)
             .insert(InteractionListener::default())
             .insert(InteractiveProgressBarHook::default());
-        Self {
+        Self::Components {
             tag: Tag::new(),
             percent: ProgressPercent(args.percent),
         }

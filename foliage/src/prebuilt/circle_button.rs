@@ -8,7 +8,9 @@ use crate::elm::leaf::{Leaf, Tag};
 use crate::elm::Elm;
 use crate::icon::{Icon, IconId, IconScale};
 use crate::interaction::{InteractionListener, InteractionShape};
-use crate::prebuilt::button::{BackgroundColor, BaseStyle, Button, ButtonStyle, ForegroundColor};
+use crate::prebuilt::button::{
+    BackgroundColor, BaseStyle, ButtonComponents, ButtonStyle, ForegroundColor,
+};
 use crate::scene::align::SceneAligner;
 use crate::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
 use crate::texture::factors::Progress;
@@ -18,21 +20,21 @@ use bevy_ecs::system::{Query, ResMut, SystemParamItem};
 use foliage_macros::SceneBinding;
 
 #[derive(Bundle)]
-pub struct CircleButton {
+pub struct CircleButtonComponents {
     tag: Tag<Self>,
     style: ButtonStyle,
     base: BaseStyle,
     foreground_color: ForegroundColor,
     background_color: BackgroundColor,
 }
-impl Leaf for CircleButton {
-    type SetDescriptor = <Button as Leaf>::SetDescriptor;
+impl Leaf for CircleButtonComponents {
+    type SetDescriptor = <ButtonComponents as Leaf>::SetDescriptor;
 
     fn config(_elm_configuration: &mut ElmConfiguration) {}
 
     fn attach(elm: &mut Elm) {
         elm.main().add_systems((resize
-            .in_set(<Button as Leaf>::SetDescriptor::Area)
+            .in_set(<ButtonComponents as Leaf>::SetDescriptor::Area)
             .before(<Circle as Leaf>::SetDescriptor::Area)
             .before(<Icon as Leaf>::SetDescriptor::Area),));
     }
@@ -54,12 +56,12 @@ fn resize(
                 Changed<ForegroundColor>,
                 Changed<BackgroundColor>,
             )>,
-            With<Tag<CircleButton>>,
+            With<Tag<CircleButtonComponents>>,
         ),
     >,
     mut coordinator: ResMut<SceneCoordinator>,
-    mut areas: Query<&mut Area<InterfaceContext>, Without<Tag<CircleButton>>>,
-    mut circles: Query<&mut CircleStyle, Without<Tag<CircleButton>>>,
+    mut areas: Query<&mut Area<InterfaceContext>, Without<Tag<CircleButtonComponents>>>,
+    mut circles: Query<&mut CircleStyle, Without<Tag<CircleButtonComponents>>>,
     mut colors: Query<&mut Color>,
 ) {
     for (handle, area, style, foreground, background, despawn) in scenes.iter() {
@@ -93,13 +95,14 @@ pub enum CircleButtonBindings {
     Circle,
     Icon,
 }
-pub struct CircleButtonArgs {
+#[derive(Clone)]
+pub struct CircleButton {
     pub icon_id: IconId,
     pub style: ButtonStyle,
     pub color: Color,
     pub back_color: Color,
 }
-impl CircleButtonArgs {
+impl CircleButton {
     pub fn new<I: Into<IconId>, BS: Into<ButtonStyle>, C: Into<Color>>(
         id: I,
         bs: BS,
@@ -116,16 +119,16 @@ impl CircleButtonArgs {
 }
 impl Scene for CircleButton {
     type Bindings = CircleButtonBindings;
-    type Args<'a> = CircleButtonArgs;
+    type Components = CircleButtonComponents;
     type ExternalArgs = ();
 
     fn bind_nodes(
         cmd: &mut Commands,
         anchor: Anchor,
-        args: &Self::Args<'_>,
+        args: Self,
         _external_args: &SystemParamItem<Self::ExternalArgs>,
         mut binder: SceneBinder<'_>,
-    ) -> Self {
+    ) -> Self::Components {
         let style = match args.style {
             ButtonStyle::Ring => CircleStyle::ring(),
             ButtonStyle::Fill => CircleStyle::fill(),
@@ -156,7 +159,7 @@ impl Scene for CircleButton {
             ),
             cmd,
         );
-        Self {
+        Self::Components {
             tag: Tag::new(),
             foreground_color: ForegroundColor(args.color),
             background_color: BackgroundColor(args.back_color),

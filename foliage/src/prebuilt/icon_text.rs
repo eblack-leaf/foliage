@@ -20,7 +20,7 @@ use bevy_ecs::system::{Query, ResMut, SystemParamItem};
 use foliage_macros::SceneBinding;
 
 #[derive(Bundle)]
-pub struct IconText {
+pub struct IconTextComponents {
     tag: Tag<Self>,
     id: IconId,
     max_chars: MaxCharacters,
@@ -38,14 +38,15 @@ pub enum IconTextBindings {
     Icon,
     Text,
 }
-pub struct IconTextArgs {
+#[derive(Clone)]
+pub struct IconText {
     id: IconId,
     max_chars: MaxCharacters,
     text_value: TextValue,
     icon_color: Color,
     text_color: Color,
 }
-impl IconTextArgs {
+impl IconText {
     pub fn new<ID: Into<IconId>, MC: Into<MaxCharacters>, TV: Into<TextValue>, C: Into<Color>>(
         id: ID,
         mc: MC,
@@ -67,7 +68,7 @@ set_descriptor!(
         Area,
     }
 );
-impl Leaf for IconText {
+impl Leaf for IconTextComponents {
     type SetDescriptor = IconTextSets;
 
     fn config(elm_configuration: &mut ElmConfiguration) {
@@ -113,10 +114,10 @@ fn metrics(
 fn color_changes(
     mut scenes: Query<
         (&SceneHandle, &GlyphColorChanges, &Despawn),
-        (Changed<GlyphColorChanges>, With<Tag<IconText>>),
+        (Changed<GlyphColorChanges>, With<Tag<IconTextComponents>>),
     >,
     coordinator: Res<SceneCoordinator>,
-    mut color_changes: Query<&mut GlyphColorChanges, Without<Tag<IconText>>>,
+    mut color_changes: Query<&mut GlyphColorChanges, Without<Tag<IconTextComponents>>>,
 ) {
     for (handle, cc, despawn) in scenes.iter_mut() {
         if despawn.should_despawn() {
@@ -148,12 +149,15 @@ fn resize(
                 Changed<IconColor>,
                 Changed<TextColor>,
             )>,
-            With<Tag<IconText>>,
+            With<Tag<IconTextComponents>>,
         ),
     >,
     mut coordinator: ResMut<SceneCoordinator>,
-    mut texts: Query<(&mut MaxCharacters, &mut TextValue, &mut FontSize), Without<Tag<IconText>>>,
-    mut icons: Query<(&mut IconId, &mut Area<InterfaceContext>), Without<Tag<IconText>>>,
+    mut texts: Query<
+        (&mut MaxCharacters, &mut TextValue, &mut FontSize),
+        Without<Tag<IconTextComponents>>,
+    >,
+    mut icons: Query<(&mut IconId, &mut Area<InterfaceContext>), Without<Tag<IconTextComponents>>>,
     mut colors: Query<&mut Color>,
     font: Res<MonospacedFont>,
     scale_factor: Res<ScaleFactor>,
@@ -165,10 +169,10 @@ fn resize(
         coordinator.update_anchor_area(*handle, *area);
         let (is, fs, iap, tap) = metrics(*area, max_char, &font, &scale_factor);
         let icon_ac = handle.access_chain().target(IconTextBindings::Icon);
-        coordinator.get_alignment_mut(&icon_ac).pos.horizontal = iap.near();
+        coordinator.get_alignment_mut(&icon_ac).pos.horizontal = iap.from_left();
         let icon_entity = coordinator.binding_entity(&icon_ac);
         let text_ac = handle.access_chain().target(IconTextBindings::Text);
-        coordinator.get_alignment_mut(&text_ac).pos.horizontal = tap.near();
+        coordinator.get_alignment_mut(&text_ac).pos.horizontal = tap.from_left();
         let text_entity = coordinator.binding_entity(&text_ac);
         *texts.get_mut(text_entity).unwrap().0 = *max_char;
         *texts.get_mut(text_entity).unwrap().1 = text_val.clone();
@@ -181,16 +185,16 @@ fn resize(
 }
 impl Scene for IconText {
     type Bindings = IconTextBindings;
-    type Args<'a> = IconTextArgs;
+    type Components = IconTextComponents;
     type ExternalArgs = (Res<'static, MonospacedFont>, Res<'static, ScaleFactor>);
 
     fn bind_nodes(
         cmd: &mut Commands,
         anchor: Anchor,
-        args: &Self::Args<'_>,
+        args: Self,
         external_args: &SystemParamItem<Self::ExternalArgs>,
         mut binder: SceneBinder<'_>,
-    ) -> Self {
+    ) -> Self::Components {
         let (is, fs, iap, tap) = metrics(
             anchor.0.section.area,
             &args.max_chars,
@@ -209,7 +213,7 @@ impl Scene for IconText {
             Text::new(args.max_chars, fs, args.text_value.clone(), args.text_color),
             cmd,
         );
-        Self {
+        Self::Components {
             tag: Tag::new(),
             id: args.id,
             max_chars: args.max_chars,

@@ -8,7 +8,9 @@ use crate::elm::Elm;
 use crate::icon::{Icon, IconId, IconScale};
 use crate::interaction::InteractionListener;
 use crate::panel::{Panel, PanelStyle};
-use crate::prebuilt::button::{BackgroundColor, BaseStyle, Button, ButtonStyle, ForegroundColor};
+use crate::prebuilt::button::{
+    BackgroundColor, BaseStyle, ButtonComponents, ButtonStyle, ForegroundColor,
+};
 use crate::scene::align::SceneAligner;
 use crate::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
 use bevy_ecs::bundle::Bundle;
@@ -18,7 +20,7 @@ use bevy_ecs::system::{Query, ResMut, SystemParamItem};
 use foliage_macros::SceneBinding;
 
 #[derive(Bundle)]
-pub struct IconButton {
+pub struct IconButtonComponents {
     tag: Tag<Self>,
     style: ButtonStyle,
     base: BaseStyle,
@@ -30,13 +32,14 @@ pub enum IconButtonBindings {
     Panel,
     Icon,
 }
-pub struct IconButtonArgs {
+#[derive(Clone)]
+pub struct IconButton {
     style: ButtonStyle,
     foreground_color: Color,
     background_color: Color,
     id: IconId,
 }
-impl IconButtonArgs {
+impl IconButton {
     pub fn new<C: Into<Color>, ID: Into<IconId>>(id: ID, style: ButtonStyle, fc: C, bc: C) -> Self {
         Self {
             style,
@@ -103,22 +106,22 @@ impl Leaf for IconButton {
 
     fn attach(elm: &mut Elm) {
         elm.main().add_systems((resize
-            .in_set(<Button as Leaf>::SetDescriptor::Area)
+            .in_set(<ButtonComponents as Leaf>::SetDescriptor::Area)
             .before(<Panel as Leaf>::SetDescriptor::Area),));
     }
 }
 impl Scene for IconButton {
     type Bindings = IconButtonBindings;
-    type Args<'a> = IconButtonArgs;
+    type Components = IconButtonComponents;
     type ExternalArgs = ();
 
     fn bind_nodes(
         cmd: &mut Commands,
         anchor: Anchor,
-        args: &Self::Args<'_>,
+        args: Self,
         _external_args: &SystemParamItem<Self::ExternalArgs>,
         mut binder: SceneBinder<'_>,
-    ) -> Self {
+    ) -> Self::Components {
         cmd.entity(binder.this())
             .insert(InteractionListener::default());
         let entity = binder.bind(
@@ -149,7 +152,7 @@ impl Scene for IconButton {
             cmd,
         );
         tracing::trace!("binding-icon-button-icon: {:?}", entity);
-        Self {
+        Self::Components {
             tag: Tag::new(),
             style: args.style,
             base: BaseStyle(args.style),

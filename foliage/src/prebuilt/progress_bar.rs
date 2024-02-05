@@ -16,7 +16,7 @@ use bevy_ecs::system::{Query, ResMut, SystemParamItem};
 use foliage_macros::SceneBinding;
 
 #[derive(Bundle)]
-pub struct ProgressBar {
+pub struct ProgressBarComponents {
     tag: Tag<Self>,
     progress: Progress,
 }
@@ -30,7 +30,7 @@ set_descriptor!(
         Area,
     }
 );
-impl Leaf for ProgressBar {
+impl Leaf for ProgressBarComponents {
     type SetDescriptor = ProgressBarSets;
 
     fn config(elm_configuration: &mut ElmConfiguration) {
@@ -46,11 +46,14 @@ fn resize(
     scenes: Query<
         (&SceneHandle, &Area<InterfaceContext>, &Progress, &Despawn),
         (
-            With<Tag<ProgressBar>>,
+            With<Tag<ProgressBarComponents>>,
             Or<(Changed<Area<InterfaceContext>>, Changed<Progress>)>,
         ),
     >,
-    mut rectangles: Query<(&mut Area<InterfaceContext>, &mut Progress), Without<Tag<ProgressBar>>>,
+    mut rectangles: Query<
+        (&mut Area<InterfaceContext>, &mut Progress),
+        Without<Tag<ProgressBarComponents>>,
+    >,
     mut coordinator: ResMut<SceneCoordinator>,
 ) {
     for (handle, area, progress, despawn) in scenes.iter() {
@@ -67,12 +70,13 @@ fn resize(
         *rectangles.get_mut(front).unwrap().1 = Progress::new(0.0, progress.1);
     }
 }
-pub struct ProgressBarArgs {
+#[derive(Clone)]
+pub struct ProgressBar {
     pub back_color: Color,
     pub fill_color: Color,
     pub progress: Progress,
 }
-impl ProgressBarArgs {
+impl ProgressBar {
     pub fn new<C: Into<Color>>(progress: Progress, color: C, back_color: C) -> Self {
         Self {
             back_color: back_color.into(),
@@ -83,16 +87,16 @@ impl ProgressBarArgs {
 }
 impl Scene for ProgressBar {
     type Bindings = ProgressBarBindings;
-    type Args<'a> = ProgressBarArgs;
+    type Components = ProgressBarComponents;
     type ExternalArgs = ();
 
     fn bind_nodes(
         cmd: &mut Commands,
         anchor: Anchor,
-        args: &Self::Args<'_>,
+        args: Self,
         _external_args: &SystemParamItem<Self::ExternalArgs>,
         mut binder: SceneBinder<'_>,
-    ) -> Self {
+    ) -> Self::Components {
         let entity = binder.bind(
             ProgressBarBindings::Back,
             (0.from_left(), 0.from_left(), 1),
@@ -107,7 +111,7 @@ impl Scene for ProgressBar {
             cmd,
         );
         tracing::trace!("binding-progress-fill: {:?}", entity);
-        Self {
+        Self::Components {
             tag: Tag::new(),
             progress: args.progress,
         }

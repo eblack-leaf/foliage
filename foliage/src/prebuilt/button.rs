@@ -8,7 +8,7 @@ use crate::elm::Elm;
 use crate::icon::{Icon, IconId};
 use crate::interaction::InteractionListener;
 use crate::panel::{Panel, PanelStyle};
-use crate::prebuilt::icon_text::{IconColor, IconText, IconTextArgs, TextColor};
+use crate::prebuilt::icon_text::{IconColor, IconText, IconTextComponents, TextColor};
 use crate::scene::align::{SceneAligner, SceneAlignment};
 use crate::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
 use crate::set_descriptor;
@@ -23,8 +23,8 @@ use bevy_ecs::system::{Query, ResMut, SystemParamItem};
 use foliage_macros::SceneBinding;
 
 #[derive(Bundle)]
-pub struct Button {
-    tag: Tag<Button>,
+pub struct ButtonComponents {
+    tag: Tag<ButtonComponents>,
     foreground_color: ForegroundColor,
     background_color: BackgroundColor,
     max_characters: MaxCharacters,
@@ -43,7 +43,7 @@ set_descriptor!(
         Area,
     }
 );
-impl Leaf for Button {
+impl Leaf for ButtonComponents {
     type SetDescriptor = SetDescriptors;
 
     fn config(elm_configuration: &mut ElmConfiguration) {
@@ -54,7 +54,7 @@ impl Leaf for Button {
         elm.job.main().add_systems((
             updates
                 .in_set(SetDescriptors::Area)
-                .before(<IconText as Leaf>::SetDescriptor::Area)
+                .before(<IconTextComponents as Leaf>::SetDescriptor::Area)
                 .before(<Panel as Leaf>::SetDescriptor::Area)
                 .before(<Icon as Leaf>::SetDescriptor::Area),
             interaction_color
@@ -107,13 +107,13 @@ fn updates(
                 Changed<BackgroundColor>,
                 Changed<ButtonStyle>,
             )>,
-            With<Tag<Button>>,
+            With<Tag<ButtonComponents>>,
         ),
     >,
-    mut area_query: Query<&mut Area<InterfaceContext>, Without<Tag<Button>>>,
-    mut max_characters_query: Query<&mut MaxCharacters, Without<Tag<Button>>>,
+    mut area_query: Query<&mut Area<InterfaceContext>, Without<Tag<ButtonComponents>>>,
+    mut max_characters_query: Query<&mut MaxCharacters, Without<Tag<ButtonComponents>>>,
     mut colors: Query<(&mut IconColor, &mut TextColor)>,
-    mut panel_styles: Query<(&mut PanelStyle, &mut Color), Without<Tag<Button>>>,
+    mut panel_styles: Query<(&mut PanelStyle, &mut Color), Without<Tag<ButtonComponents>>>,
     mut coordinator: ResMut<SceneCoordinator>,
 ) {
     for (handle, button_area, max_char, foreground_color, background_color, state, despawn) in
@@ -127,7 +127,7 @@ fn updates(
         coordinator.update_anchor_area(*handle, *button_area);
         let panel_node = coordinator.binding_entity(&panel_ac);
         if let Ok((mut style, mut color)) = panel_styles.get_mut(panel_node) {
-            let s = Button::fill_status(state);
+            let s = ButtonComponents::fill_status(state);
             *style = s;
             *color = foreground_color.0;
         }
@@ -151,7 +151,8 @@ fn updates(
         }
     }
 }
-pub struct ButtonArgs {
+#[derive(Clone)]
+pub struct Button {
     pub style: ButtonStyle,
     pub text: TextValue,
     pub max_char: MaxCharacters,
@@ -159,7 +160,7 @@ pub struct ButtonArgs {
     pub foreground_color: Color,
     pub background_color: Color,
 }
-impl ButtonArgs {
+impl Button {
     pub fn new<C: Into<Color>>(
         style: ButtonStyle,
         text: TextValue,
@@ -185,29 +186,29 @@ pub enum ButtonBindings {
 }
 impl Scene for Button {
     type Bindings = ButtonBindings;
-    type Args<'a> = ButtonArgs;
+    type Components = ButtonComponents;
     type ExternalArgs = (Res<'static, MonospacedFont>, Res<'static, ScaleFactor>);
     fn bind_nodes(
         cmd: &mut Commands,
         anchor: Anchor,
-        args: &Self::Args<'_>,
+        args: Self,
         external_args: &SystemParamItem<Self::ExternalArgs>,
         mut binder: SceneBinder,
-    ) -> Self {
+    ) -> Self::Components {
         cmd.entity(binder.this())
             .insert(InteractionListener::default());
-        let fill = Self::fill_status(&args.style);
+        let fill = Self::Components::fill_status(&args.style);
         binder.bind(
             ButtonBindings::Panel,
             (0.from_left(), 0.from_left(), 1),
             Panel::new(fill, anchor.0.section.area, args.foreground_color),
             cmd,
         );
-        binder.bind_scene::<IconText>(
+        binder.bind_scene(
             ButtonBindings::IconText.into(),
             SceneAlignment::from((0.center(), 0.center(), 0)),
             anchor.0.section.area * (0.8, 0.9).into(),
-            &IconTextArgs::new(
+            IconText::new(
                 args.icon_id,
                 args.max_char,
                 args.text.clone(),
@@ -217,8 +218,8 @@ impl Scene for Button {
             &external_args,
             cmd,
         );
-        Self {
-            tag: Tag::<Self>::new(),
+        Self::Components {
+            tag: Tag::<Self::Components>::new(),
             foreground_color: ForegroundColor(args.foreground_color),
             background_color: BackgroundColor(args.background_color),
             max_characters: args.max_char,
@@ -228,7 +229,7 @@ impl Scene for Button {
     }
 }
 
-impl Button {
+impl ButtonComponents {
     fn fill_status(style: &ButtonStyle) -> PanelStyle {
         match style {
             ButtonStyle::Ring => PanelStyle::ring(),

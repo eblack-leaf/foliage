@@ -32,7 +32,7 @@ pub struct ActualText(pub CompactString);
 #[derive(Component, Copy, Clone)]
 pub struct HintTextColor(pub Color);
 #[derive(Bundle)]
-pub struct TextInput {
+pub struct TextInputComponents {
     tag: Tag<Self>,
     text: TextValue,
     actual_text: ActualText,
@@ -52,16 +52,16 @@ const SPACING: CoordinateUnit = 4.0;
 pub(crate) struct CursorDims(pub(crate) Area<InterfaceContext>);
 impl Scene for TextInput {
     type Bindings = TextInputBindings;
-    type Args<'a> = TextInputArgs;
+    type Components = TextInputComponents;
     type ExternalArgs = (Res<'static, MonospacedFont>, Res<'static, ScaleFactor>);
 
     fn bind_nodes(
         cmd: &mut Commands,
         anchor: Anchor,
-        args: &Self::Args<'_>,
+        args: Self,
         external_args: &SystemParamItem<Self::ExternalArgs>,
         mut binder: SceneBinder<'_>,
-    ) -> Self {
+    ) -> Self::Components {
         let (fs, _fa) = external_args.0.best_fit(
             args.max_chars,
             anchor.0.section.area * (0.9, 0.9).into(),
@@ -111,7 +111,7 @@ impl Scene for TextInput {
             Text::new(args.max_chars, fs, display_text.clone(), args.foreground),
             cmd,
         );
-        Self {
+        Self::Components {
             tag: Tag::new(),
             text: display_text,
             actual_text: ActualText(args.text.0.clone()),
@@ -128,7 +128,8 @@ impl Scene for TextInput {
 }
 #[derive(Component, Copy, Clone, Default)]
 pub struct CursorOffset(pub u32);
-pub struct TextInputArgs {
+#[derive(Clone)]
+pub struct TextInput {
     max_chars: MaxCharacters,
     foreground: Color,
     background: Color,
@@ -137,7 +138,7 @@ pub struct TextInputArgs {
     is_password: bool,
     hint_color: Color,
 }
-impl TextInputArgs {
+impl TextInput {
     pub fn new<C: Into<Color>>(
         max_characters: MaxCharacters,
         text: TextValue,
@@ -185,14 +186,14 @@ fn resize(
                 Changed<MaxCharacters>,
                 Changed<HintTextColor>,
             )>,
-            With<Tag<TextInput>>,
+            With<Tag<TextInputComponents>>,
         ),
     >,
     mut coordinator: ResMut<SceneCoordinator>,
-    mut texts: Query<(&mut FontSize, &mut MaxCharacters), Without<Tag<TextInput>>>,
+    mut texts: Query<(&mut FontSize, &mut MaxCharacters), Without<Tag<TextInputComponents>>>,
     font: Res<MonospacedFont>,
     scale_factor: Res<ScaleFactor>,
-    mut areas: Query<&mut Area<InterfaceContext>, Without<Tag<TextInput>>>,
+    mut areas: Query<&mut Area<InterfaceContext>, Without<Tag<TextInputComponents>>>,
     mut colors: Query<&mut Color>,
     focused_entity: Res<FocusedEntity>,
 ) {
@@ -248,13 +249,13 @@ fn clear_cursor(
             &HintTextColor,
             &mut TextValue,
         ),
-        With<Tag<TextInput>>,
+        With<Tag<TextInputComponents>>,
     >,
     focused_entity: Res<FocusedEntity>,
     mut colors: Query<&mut Color>,
     coordinator: Res<SceneCoordinator>,
     mut color_changes: Query<&mut GlyphColorChanges>,
-    mut texts: Query<&mut TextValue, Without<Tag<TextInput>>>,
+    mut texts: Query<&mut TextValue, Without<Tag<TextInputComponents>>>,
 ) {
     for (entity, handle, despawn, actual, hint, htc, mut text_val) in scenes.iter_mut() {
         if despawn.should_despawn() {
@@ -299,12 +300,12 @@ fn cursor_on_click(
             &ForegroundColor,
             &mut TextValue,
         ),
-        (Changed<InteractionListener>, With<Tag<TextInput>>),
+        (Changed<InteractionListener>, With<Tag<TextInputComponents>>),
     >,
     virtual_keyboard: Res<VirtualKeyboardAdapter>,
     mut colors: Query<&mut Color>,
     coordinator: Res<SceneCoordinator>,
-    mut texts: Query<&mut TextValue, Without<Tag<TextInput>>>,
+    mut texts: Query<&mut TextValue, Without<Tag<TextInputComponents>>>,
 ) {
     for (pos, actual, handle, despawn, mut offset, listener, dims, mc, fc, mut text_val) in
         text_inputs.iter_mut()
@@ -343,7 +344,7 @@ fn update_cursor_alignment(
         ),
         (
             Or<(Changed<CursorOffset>, Changed<CursorDims>)>,
-            With<Tag<TextInput>>,
+            With<Tag<TextInputComponents>>,
         ),
     >,
     mut color_changes: Query<&mut GlyphColorChanges>,
@@ -368,7 +369,7 @@ fn update_cursor_alignment(
             }
         }
         coordinator.get_alignment_mut(&cursor).pos.horizontal =
-            (dims.0.width * offset.0 as f32 + SPACING).near();
+            (dims.0.width * offset.0 as f32 + SPACING).from_left();
     }
 }
 fn handle_input(
@@ -384,9 +385,9 @@ fn handle_input(
             &Despawn,
             &IsPassword,
         ),
-        With<Tag<TextInput>>,
+        With<Tag<TextInputComponents>>,
     >,
-    mut texts: Query<&mut TextValue, Without<Tag<TextInput>>>,
+    mut texts: Query<&mut TextValue, Without<Tag<TextInputComponents>>>,
     focused_entity: Res<FocusedEntity>,
     mut events: EventReader<KeyboardEvent>,
     coordinator: Res<SceneCoordinator>,
@@ -533,7 +534,7 @@ set_descriptor!(
         Area,
     }
 );
-impl Leaf for TextInput {
+impl Leaf for TextInputComponents {
     type SetDescriptor = TextInputSets;
 
     fn config(elm_configuration: &mut ElmConfiguration) {

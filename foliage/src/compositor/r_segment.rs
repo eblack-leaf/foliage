@@ -1,7 +1,8 @@
 use crate::compositor::layout::Layout;
+use crate::compositor::ViewHandle;
 use crate::coordinate::area::Area;
-use crate::coordinate::{CoordinateUnit, InterfaceContext};
-use bevy_ecs::prelude::Resource;
+use crate::coordinate::{Coordinate, CoordinateUnit, InterfaceContext};
+use bevy_ecs::prelude::{Component, Resource};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -10,6 +11,7 @@ pub struct ResponsiveGrid {
     base: Grid,
     exceptions: HashMap<Layout, Grid>,
 }
+#[derive(Default)]
 pub struct GridTemplate {
     columns: SegmentValue,
     rows: SegmentValue,
@@ -20,7 +22,7 @@ impl GridTemplate {
         Self { columns, rows }
     }
 }
-
+#[derive(Default)]
 pub struct Grid {
     gap: HashMap<GapCategory, Gap>,
     padding: HashMap<PaddingCategory, Padding>,
@@ -97,21 +99,31 @@ pub enum GapDescriptor {
     Vertical,
     Both,
 }
-#[derive(Clone)]
+#[derive(Clone, Component)]
 pub struct ResponsiveSegment {
+    view_handle: ViewHandle,
     base: Segment,
     horizontal_exceptions: HashMap<Layout, SegmentUnitDescriptor>,
     vertical_exceptions: HashMap<Layout, SegmentUnitDescriptor>,
 }
 impl ResponsiveSegment {
+    pub fn coordinate(
+        &self,
+        layout: Layout,
+        area: Area<InterfaceContext>,
+        grid: &ResponsiveGrid,
+    ) -> Option<Coordinate<InterfaceContext>> {
+        todo!()
+    }
     pub fn mobile(horizontal: SegmentUnitDescriptor, vertical: SegmentUnitDescriptor) -> Self {
         Self {
+            view_handle: ViewHandle::default(),
             base: Segment::new(horizontal, vertical),
             horizontal_exceptions: Default::default(),
             vertical_exceptions: Default::default(),
         }
     }
-    pub fn horizontal_exception<L: AsRef<&[Layout]>>(
+    pub fn horizontal_exception<L: AsRef<[Layout]>>(
         mut self,
         layouts: L,
         exc: SegmentUnitDescriptor,
@@ -122,15 +134,14 @@ impl ResponsiveSegment {
         }
         self
     }
-    pub fn vertical_exception<L: AsRef<&[Layout]>>(
-        mut self,
-        layouts: L,
-        exc: SegmentUnitDescriptor,
-    ) -> Self {
-        let layouts = layouts.as_ref();
+    pub fn vertical_exception(mut self, layouts: &[Layout], exc: SegmentUnitDescriptor) -> Self {
         for l in layouts.iter() {
             self.vertical_exceptions.insert(*l, exc);
         }
+        self
+    }
+    pub fn viewed_at(mut self, view_handle: ViewHandle) -> Self {
+        self.view_handle = view_handle;
         self
     }
 }
@@ -195,7 +206,7 @@ impl SegmentUnit {
     pub fn new(value: SegmentValue, bias: SegmentBias) -> Self {
         Self { value, bias }
     }
-    fn to(self, su: SegmentUnit) -> SegmentUnitDescriptor {
+    pub fn to_end(self, su: SegmentUnit) -> SegmentUnitDescriptor {
         SegmentUnitDescriptor::new(self, su)
     }
 }

@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 use crate::ash::render_packet::RenderPacketForwarder;
 use crate::ash::render_packet::RenderPacketPackage;
 use crate::asset::{AssetContainer, AssetFetchFn, AssetKey, OnFetch};
-use crate::compositor::segment::ResponsiveSegment;
+use crate::compositor::r_segment::ResponsiveSegment;
 use crate::compositor::{Compositor, CurrentView, Segmental, ViewHandle};
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
@@ -249,7 +249,7 @@ impl Elm {
     pub fn add_view_scene_binding<S: Scene, Ext: Bundle + Clone>(
         &mut self,
         view_handle: ViewHandle,
-        args: S::Args<'static>,
+        args: S,
         rs: ResponsiveSegment,
         ext: Ext,
     ) {
@@ -264,7 +264,7 @@ impl Elm {
                 if current.0 == view_handle {
                     let (_handle, entity) = coordinator.spawn_scene::<S>(
                         Anchor::default(),
-                        &args,
+                        args.clone(),
                         &external_args,
                         &mut cmd,
                     );
