@@ -52,7 +52,10 @@ impl Leaf for Showcase {
                 Color::CYAN_MEDIUM,
                 Color::OFF_BLACK,
             ),
-            ResponsiveSegment::base(1.near().to(2.far()), 1.near().to(45.fixed())),
+            ResponsiveSegment::base(1.near().to(2.far()), 1.near().to(1.far()))
+                .min_height(35.0)
+                .max_height(50.0)
+                .min_width(100.0),
             (),
         );
         elm.add_view_scene_binding(
@@ -65,7 +68,10 @@ impl Leaf for Showcase {
                 Color::CYAN_MEDIUM,
                 Color::OFF_BLACK,
             ),
-            ResponsiveSegment::base(3.near().to(4.far()), 1.near().to(45.fixed())),
+            ResponsiveSegment::base(3.near().to(4.far()), 1.near().to(1.far()))
+                .min_height(35.0)
+                .max_height(50.0)
+                .min_width(100.0),
             (),
         );
         elm.add_view_scene_binding(

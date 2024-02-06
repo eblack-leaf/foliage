@@ -1,7 +1,6 @@
 use crate::HOME;
 use foliage::asset::AssetKey;
 use foliage::color::Color;
-use foliage::compositor::layout::Layout;
 use foliage::compositor::segment::{Grid, ResponsiveSegment, SegmentUnitDesc};
 use foliage::coordinate::area::Area;
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
@@ -35,8 +34,10 @@ impl Leaf for Home {
                 Color::OFF_WHITE,
                 Color::GREY_MEDIUM,
             ),
-            ResponsiveSegment::base(2.near().to(5.far()), 1.near().to(2.near()))
-                .horizontal_exception(Layout::LIMITED_WIDTH, 1.near().to(6.far())),
+            ResponsiveSegment::base(2.near().to(5.far()), 1.near().offset(10.0).to(2.near()))
+                .min_width(200.0)
+                .min_height(50.0)
+                .max_height(80.0),
             {
                 let mut changes = GlyphColorChanges::default();
                 changes.0.insert(7, Color::RED_ORANGE_MEDIUM.into());
@@ -48,11 +49,7 @@ impl Leaf for Home {
         elm.add_view_binding(
             HOME,
             Rectangle::new(Area::default(), Color::OFF_WHITE, Progress::full()),
-            ResponsiveSegment::base(2.near().to(5.far()), 2.near().offset(20.0).to(4.fixed()))
-                .horizontal_exception(
-                    Layout::LIMITED_WIDTH,
-                    1.near().offset(30.0).to(6.far().offset(-30.0)),
-                ),
+            ResponsiveSegment::base(2.near().to(5.far()), 2.near().offset(20.0).to(4.fixed())),
             (),
         );
         elm.add_view_scene_binding(
@@ -64,8 +61,10 @@ impl Leaf for Home {
                 Color::OFF_WHITE,
                 Color::GREY_MEDIUM,
             ),
-            ResponsiveSegment::base(2.near().to(5.far()), 3.near().to(3.far()))
-                .horizontal_exception(Layout::LIMITED_WIDTH, 1.near().to(6.far())),
+            ResponsiveSegment::base(1.far().to(6.far()), 3.near().to(3.far()))
+                .min_width(250.0)
+                .min_height(30.0)
+                .max_height(50.0),
             {
                 let mut changes = GlyphColorChanges::default();
                 changes.0.insert(7, Color::RED_ORANGE_MEDIUM.into());
@@ -85,8 +84,10 @@ impl Leaf for Home {
                 Color::OFF_WHITE,
                 Color::GREY_MEDIUM,
             ),
-            ResponsiveSegment::base(2.near().to(5.far()), 4.near().to(4.far()))
-                .horizontal_exception(Layout::LIMITED_WIDTH, 1.near().to(6.far())),
+            ResponsiveSegment::base(1.far().to(6.far()), 4.near().to(4.far()))
+                .min_width(250.0)
+                .min_height(30.0)
+                .max_height(50.0),
             {
                 let mut changes = GlyphColorChanges::default();
                 changes.0.insert(14, Color::RED_ORANGE_MEDIUM.into());
@@ -106,8 +107,10 @@ impl Leaf for Home {
                 Color::OFF_WHITE,
                 Color::GREY_MEDIUM,
             ),
-            ResponsiveSegment::base(2.near().to(5.far()), 5.near().to(5.far()))
-                .horizontal_exception(Layout::LIMITED_WIDTH, 1.near().to(6.far())),
+            ResponsiveSegment::base(1.far().to(6.far()), 5.near().to(5.far()))
+                .min_width(250.0)
+                .min_height(30.0)
+                .max_height(50.0),
             {
                 let mut changes = GlyphColorChanges::default();
                 changes.0.insert(14, Color::RED_ORANGE_MEDIUM.into());

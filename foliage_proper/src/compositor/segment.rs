@@ -135,6 +135,9 @@ pub struct ResponsiveSegment {
     vertical_exceptions: HashMap<Layout, SegmentUnitDescriptor>,
     negations: HashSet<Layout>,
     layer: Layer,
+    min_height: Option<CoordinateUnit>,
+    max_height: Option<CoordinateUnit>,
+    min_width: Option<CoordinateUnit>,
 }
 impl ResponsiveSegment {
     pub fn coordinate(
@@ -162,6 +165,21 @@ impl ResponsiveSegment {
         let height = match height_or_bottom {
             GridRelativeValue::Anchored(value) => value - top,
             GridRelativeValue::Fixed(value) => value,
+        };
+        let width = if let Some(w) = self.min_width {
+            width.max(w)
+        } else {
+            width
+        };
+        let height = if let Some(h) = self.min_height {
+            height.max(h)
+        } else {
+            height
+        };
+        let height = if let Some(h) = self.max_height {
+            height.min(h)
+        } else {
+            height
         };
         Some(Coordinate::new(
             Section::new(
@@ -193,6 +211,9 @@ impl ResponsiveSegment {
             vertical_exceptions: Default::default(),
             negations: HashSet::new(),
             layer: Layer::default(),
+            min_height: None,
+            max_height: None,
+            min_width: None,
         }
     }
     pub fn at_layer<L: Into<Layer>>(mut self, l: L) -> Self {
@@ -254,6 +275,18 @@ impl ResponsiveSegment {
     }
     pub fn without_landscape_workstation(mut self) -> Self {
         self.negations.insert(Layout::LANDSCAPE_WORKSTATION);
+        self
+    }
+    pub fn min_height(mut self, m: CoordinateUnit) -> Self {
+        self.min_height.replace(m);
+        self
+    }
+    pub fn max_height(mut self, m: CoordinateUnit) -> Self {
+        self.max_height.replace(m);
+        self
+    }
+    pub fn min_width(mut self, m: CoordinateUnit) -> Self {
+        self.min_width.replace(m);
         self
     }
 }
@@ -323,8 +356,6 @@ pub struct SegmentUnit {
     bias: SegmentBias,
     fixed: Option<CoordinateUnit>,
     offset: Option<CoordinateUnit>,
-    min: Option<CoordinateUnit>,
-    max: Option<CoordinateUnit>,
 }
 impl SegmentUnit {
     fn value(&self) -> CoordinateUnit {
@@ -336,8 +367,6 @@ impl SegmentUnit {
             bias,
             fixed: None,
             offset: None,
-            min: None,
-            max: None,
         }
     }
     pub fn fixed(value: CoordinateUnit) -> Self {
@@ -346,8 +375,6 @@ impl SegmentUnit {
             bias: SegmentBias::Near,
             fixed: Some(value),
             offset: None,
-            min: None,
-            max: None,
         }
     }
     pub fn to(self, su: SegmentUnit) -> SegmentUnitDescriptor {
@@ -355,14 +382,6 @@ impl SegmentUnit {
     }
     pub fn offset(mut self, o: CoordinateUnit) -> Self {
         self.offset.replace(o);
-        self
-    }
-    pub fn min_height(mut self, m: CoordinateUnit) -> Self {
-        self.min.replace(m);
-        self
-    }
-    pub fn max_height(mut self, m: CoordinateUnit) -> Self {
-        self.max.replace(m);
         self
     }
 }
