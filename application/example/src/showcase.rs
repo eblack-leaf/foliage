@@ -24,7 +24,8 @@ impl Leaf for Showcase {
     fn config(_elm_configuration: &mut ElmConfiguration) {}
 
     fn attach(elm: &mut Elm) {
-        elm.configure_grid_base(Grid::new(4, 8));
+        let handle = ViewHandle::new(0, 0);
+        elm.configure_view_grid(handle, Grid::new(4, 8));
         Elm::remove_web_element("loading");
         elm.container().spawn(Image::storage(
             ImageId(0),
@@ -35,7 +36,6 @@ impl Leaf for Showcase {
             cmd.spawn(Image::fill(ImageId(0), data));
         });
         elm.container().insert_resource(assets);
-        let handle = ViewHandle::new(0, 0);
         elm.add_view_scene_binding(
             handle,
             AspectRatioImage::new(ImageId(0), (651, 454)),

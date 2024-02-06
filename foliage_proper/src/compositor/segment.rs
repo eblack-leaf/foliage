@@ -7,45 +7,18 @@ use crate::coordinate::{Coordinate, CoordinateUnit, InterfaceContext};
 use bevy_ecs::prelude::{Component, Resource};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-#[derive(Hash, Eq, PartialEq, Copy, Clone)]
-pub struct GridException(Layout, Option<ViewHandle>);
-impl GridException {
-    pub fn global(layout: Layout) -> Self {
-        Self(layout, None)
-    }
-    pub fn view_specific(layout: Layout, view_handle: ViewHandle) -> Self {
-        Self(layout, Some(view_handle))
-    }
-}
 #[derive(Resource, Default)]
 pub struct ResponsiveGrid {
-    base: Grid,
-    exceptions: HashMap<GridException, Grid>,
+    view_configs: HashMap<ViewHandle, Grid>,
 }
 impl ResponsiveGrid {
-    pub fn current(&self, layout: Layout, view_handle: ViewHandle) -> &Grid {
-        self.exceptions
-            .get(&GridException::view_specific(layout, view_handle))
-            .unwrap_or(&self.base)
+    pub fn current(&self, view_handle: ViewHandle) -> &Grid {
+        self.view_configs
+            .get(&view_handle)
+            .expect("view-not-configured-with-grid")
     }
-    pub fn add_base(&mut self, base: Grid) {
-        self.base = base;
-    }
-    pub fn add_global_exception(&mut self, layouts: &[Layout], exc: Grid) {
-        for l in layouts.iter() {
-            self.exceptions.insert(GridException::global(*l), exc);
-        }
-    }
-    pub fn add_view_specific_exceptions(
-        &mut self,
-        layouts: &[Layout],
-        view_handle: ViewHandle,
-        exc: Grid,
-    ) {
-        for l in layouts {
-            self.exceptions
-                .insert(GridException::view_specific(*l, view_handle), exc);
-        }
+    pub fn configure_view(&mut self, view_handle: ViewHandle, grid: Grid) {
+        self.view_configs.insert(view_handle, grid);
     }
 }
 #[derive(Default, Copy, Clone)]
@@ -167,7 +140,7 @@ impl ResponsiveSegment {
         if self.negations.contains(&layout) {
             return None;
         }
-        let current = grid.current(layout, self.view_handle);
+        let current = grid.current(self.view_handle);
         let left = current
             .horizontal(section.area, self.horizontal_value(&layout).begin)
             .value();
@@ -231,8 +204,12 @@ impl ResponsiveSegment {
         }
         self
     }
-    pub fn vertical_exception(mut self, layouts: &[Layout], exc: SegmentUnitDescriptor) -> Self {
-        for l in layouts.iter() {
+    pub fn vertical_exception<L: AsRef<[Layout]>>(
+        mut self,
+        layouts: L,
+        exc: SegmentUnitDescriptor,
+    ) -> Self {
+        for l in layouts.as_ref().iter() {
             self.vertical_exceptions.insert(*l, exc);
         }
         self

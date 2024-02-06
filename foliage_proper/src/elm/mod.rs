@@ -114,11 +114,11 @@ impl Elm {
     pub fn on_fetch(&mut self, key: AssetKey, func: AssetFetchFn) {
         self.container().spawn(OnFetch::new(key, func));
     }
-    pub fn configure_grid_base(&mut self, base: Grid) {
+    pub fn configure_view_grid(&mut self, view_handle: ViewHandle, grid: Grid) {
         self.container()
             .get_resource_mut::<ResponsiveGrid>()
             .expect("responsive-grid")
-            .add_base(base);
+            .configure_view(view_handle, grid);
     }
     pub(crate) fn new() -> Self {
         Self {

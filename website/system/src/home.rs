@@ -27,7 +27,7 @@ impl Leaf for Home {
 
     fn attach(elm: &mut Elm) {
         let _assets = Assets::proc_gen_load(elm);
-        elm.configure_grid_base(Grid::new(8, 12));
+        elm.configure_view_grid(Grid::new(8, 12));
         elm.add_view_scene_binding(
             HOME,
             IconText::new(
