@@ -1,10 +1,9 @@
-use proc_macro2::TokenTree;
 use proc_macro_crate::{crate_name, FoundCrate};
 use quote::ToTokens;
 use std::collections::HashMap;
 use std::str::FromStr;
 use syn::parse::ParseStream;
-use syn::{parse_macro_input, Attribute, Token};
+use syn::{parse_macro_input, Token};
 
 #[proc_macro_derive(SceneBinding)]
 pub fn scene_binding_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -164,7 +163,6 @@ pub fn assets(
             .unwrap()
             .push(generated_code);
     }
-    println!("gen-fields: {:?}", gen_fields);
     let mut field_iterator = vec![];
     let mut loaders = vec![];
     let mut tys = vec![];

@@ -40,14 +40,12 @@ impl Workflow for Engen {
 #[foliage::assets(Engen, "../assets/", "/foliage/demo/assets/")]
 #[derive(Resource, Clone)]
 pub(crate) struct Assets {
-    #[asset(path = "something.dat")]
-    #[group = f_asset]
+    #[bytes(path = "something.dat", group = f_asset)]
     _something: AssetKey,
-    #[asset(path = "img.png")]
-    #[group = f_asset]
+    #[bytes(path = "img.png", group = f_asset)]
     image_id: AssetKey,
-    #[icon(path = "icons/copy.gatl", Copy)]
+    #[icon(path = "icons/copy.gatl", opt = FeatherIcon::Copy)]
     _copy_id: AssetKey,
-    #[icon(path = "icons/command.gatl", Command)]
+    #[icon(path = "icons/command.gatl", opt = FeatherIcon::Command)]
     _command_id: AssetKey,
 }

@@ -91,25 +91,21 @@ fn metrics(
     font: &MonospacedFont,
     scale_factor: &ScaleFactor,
 ) -> (IconScale, FontSize, CoordinateUnit, CoordinateUnit) {
-    let (fs, fa) = font.best_fit(*max_characters, area * (0.6, 1.0).into(), scale_factor);
-    let icon_scale = IconScale::from_dim((fa.height * 1.0).min(fa.width * 0.3));
-    let spacing = (icon_scale.px() - area.height).abs() / 2f32;
-    let text_offset = icon_scale.px() + spacing * 2f32;
-    let total = icon_scale.px() + spacing + fa.width;
-    let half = total / 2f32;
-    let current_center = spacing + half;
-    let center_threshold = area.width * 0.5;
-    let adjustment = if current_center < center_threshold {
-        center_threshold - current_center
+    let spacing = 8.0;
+    let (fs, fa) = font.best_fit(*max_characters, area * (0.75, 1.0).into(), scale_factor);
+    let icon_scale = IconScale::from_dim(
+        ((area.width - spacing) * 0.25)
+            .min(area.height * 0.7)
+            .min(fa.height),
+    );
+    let center_x = area.width / 2f32;
+    let element_center_x = (icon_scale.px() + spacing + fa.width) / 2f32;
+    let offset = if element_center_x < center_x {
+        center_x - element_center_x
     } else {
-        0f32
+        0.0
     };
-    (
-        icon_scale,
-        fs,
-        spacing + adjustment,
-        text_offset + adjustment,
-    )
+    (icon_scale, fs, offset, offset + icon_scale.px() + spacing)
 }
 fn color_changes(
     mut scenes: Query<
