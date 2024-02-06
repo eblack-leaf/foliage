@@ -46,6 +46,8 @@ pub struct Layout {
     pub threshold: Threshold,
 }
 impl Layout {
+    pub const LIMITED_WIDTH: [Self; 2] = [Layout::PORTRAIT_MOBILE, Layout::PORTRAIT_TABLET];
+    pub const LIMITED_HEIGHT: [Self; 2] = [Layout::LANDSCAPE_MOBILE, Layout::LANDSCAPE_TABLET];
     pub const PORTRAIT_MOBILE: Self = Layout::new(Orientation::Portrait, Threshold::Mobile);
     pub const PORTRAIT_TABLET: Self = Layout::new(Orientation::Portrait, Threshold::Tablet);
     pub const PORTRAIT_DESKTOP: Self = Layout::new(Orientation::Portrait, Threshold::Desktop);

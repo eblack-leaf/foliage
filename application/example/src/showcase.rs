@@ -39,7 +39,7 @@ impl Leaf for Showcase {
         elm.add_view_scene_binding(
             handle,
             AspectRatioImage::new(ImageId(0), (651, 454)),
-            ResponsiveSegment::base(1.near().to_end(4.far()), 4.near().to_end(8.far())),
+            ResponsiveSegment::base(1.near().to(4.far()), 4.near().to(8.far())),
             (),
         );
         elm.add_view_scene_binding(
@@ -52,7 +52,7 @@ impl Leaf for Showcase {
                 Color::CYAN_MEDIUM,
                 Color::OFF_BLACK,
             ),
-            ResponsiveSegment::base(1.near().to_end(2.far()), 1.near().to_end(45.fixed())),
+            ResponsiveSegment::base(1.near().to(2.far()), 1.near().to(45.fixed())),
             (),
         );
         elm.add_view_scene_binding(
@@ -65,7 +65,7 @@ impl Leaf for Showcase {
                 Color::CYAN_MEDIUM,
                 Color::OFF_BLACK,
             ),
-            ResponsiveSegment::base(3.near().to_end(4.far()), 1.near().to_end(45.fixed())),
+            ResponsiveSegment::base(3.near().to(4.far()), 1.near().to(45.fixed())),
             (),
         );
         elm.add_view_scene_binding(
@@ -75,7 +75,7 @@ impl Leaf for Showcase {
                 Color::CYAN_MEDIUM,
                 Color::GREY_DARK,
             ),
-            ResponsiveSegment::base(1.near().to_end(2.far()), 3.far().to_end(4.fixed())),
+            ResponsiveSegment::base(1.near().to(2.far()), 3.far().to(4.fixed())),
             (),
         );
         elm.add_view_scene_binding(
@@ -85,7 +85,7 @@ impl Leaf for Showcase {
                 Color::CYAN_MEDIUM,
                 Color::GREY_DARK,
             ),
-            ResponsiveSegment::base(1.near().to_end(44.fixed()), 3.near().to_end(44.fixed())),
+            ResponsiveSegment::base(1.near().to(44.fixed()), 3.near().to(44.fixed())),
             (),
         );
         elm.view_trigger::<TestHook>(InteractionHandlerTrigger::Active, |_, cv| {

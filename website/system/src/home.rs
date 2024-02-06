@@ -25,7 +25,7 @@ impl Leaf for Home {
 
     fn attach(elm: &mut Elm) {
         let _assets = Assets::proc_gen_load(elm);
-        elm.configure_view_grid(HOME, Grid::new(8, 12));
+        elm.configure_view_grid(HOME, Grid::new(6, 6));
         elm.add_view_scene_binding(
             HOME,
             IconText::new(
@@ -35,11 +35,8 @@ impl Leaf for Home {
                 Color::OFF_WHITE,
                 Color::GREY_MEDIUM,
             ),
-            ResponsiveSegment::base(1.near().to_end(8.far()), 2.near().to_end(3.near()))
-                .vertical_exception(
-                    [Layout::LANDSCAPE_MOBILE, Layout::LANDSCAPE_TABLET],
-                    1.near().to_end(3.far()),
-                ),
+            ResponsiveSegment::base(2.near().to(5.far()), 1.near().to(2.near()))
+                .horizontal_exception(Layout::LIMITED_WIDTH, 1.near().to(6.far())),
             {
                 let mut changes = GlyphColorChanges::default();
                 changes.0.insert(7, Color::RED_ORANGE_MEDIUM.into());
@@ -51,14 +48,11 @@ impl Leaf for Home {
         elm.add_view_binding(
             HOME,
             Rectangle::new(Area::default(), Color::OFF_WHITE, Progress::full()),
-            ResponsiveSegment::base(
-                2.near().to_end(7.far()),
-                3.near().offset(25.0).to_end(4.fixed()),
-            )
-            .vertical_exception(
-                [Layout::LANDSCAPE_MOBILE, Layout::LANDSCAPE_TABLET],
-                3.far().offset(15.0).to_end(4.fixed()),
-            ),
+            ResponsiveSegment::base(2.near().to(5.far()), 2.near().offset(20.0).to(4.fixed()))
+                .horizontal_exception(
+                    Layout::LIMITED_WIDTH,
+                    1.near().offset(30.0).to(6.far().offset(-30.0)),
+                ),
             (),
         );
         elm.add_view_scene_binding(
@@ -70,15 +64,8 @@ impl Leaf for Home {
                 Color::OFF_WHITE,
                 Color::GREY_MEDIUM,
             ),
-            ResponsiveSegment::base(1.near().to_end(8.far()), 5.near().to_end(5.far()))
-                .vertical_exception(
-                    [Layout::LANDSCAPE_MOBILE, Layout::LANDSCAPE_TABLET],
-                    4.near().to_end(6.far()),
-                )
-                .horizontal_exception(
-                    [Layout::LANDSCAPE_MOBILE, Layout::LANDSCAPE_TABLET],
-                    3.near().to_end(6.far()),
-                ),
+            ResponsiveSegment::base(2.near().to(5.far()), 3.near().to(3.far()))
+                .horizontal_exception(Layout::LIMITED_WIDTH, 1.near().to(6.far())),
             {
                 let mut changes = GlyphColorChanges::default();
                 changes.0.insert(7, Color::RED_ORANGE_MEDIUM.into());
@@ -98,15 +85,8 @@ impl Leaf for Home {
                 Color::OFF_WHITE,
                 Color::GREY_MEDIUM,
             ),
-            ResponsiveSegment::base(1.near().to_end(8.far()), 7.near().to_end(7.far()))
-                .vertical_exception(
-                    [Layout::LANDSCAPE_MOBILE, Layout::LANDSCAPE_TABLET],
-                    7.near().to_end(9.far()),
-                )
-                .horizontal_exception(
-                    [Layout::LANDSCAPE_MOBILE, Layout::LANDSCAPE_TABLET],
-                    3.near().to_end(6.far()),
-                ),
+            ResponsiveSegment::base(2.near().to(5.far()), 4.near().to(4.far()))
+                .horizontal_exception(Layout::LIMITED_WIDTH, 1.near().to(6.far())),
             {
                 let mut changes = GlyphColorChanges::default();
                 changes.0.insert(14, Color::RED_ORANGE_MEDIUM.into());
@@ -126,15 +106,8 @@ impl Leaf for Home {
                 Color::OFF_WHITE,
                 Color::GREY_MEDIUM,
             ),
-            ResponsiveSegment::base(1.near().to_end(8.far()), 9.near().to_end(9.far()))
-                .vertical_exception(
-                    [Layout::LANDSCAPE_MOBILE, Layout::LANDSCAPE_TABLET],
-                    10.near().to_end(12.far()),
-                )
-                .horizontal_exception(
-                    [Layout::LANDSCAPE_MOBILE, Layout::LANDSCAPE_TABLET],
-                    3.near().to_end(6.far()),
-                ),
+            ResponsiveSegment::base(2.near().to(5.far()), 5.near().to(5.far()))
+                .horizontal_exception(Layout::LIMITED_WIDTH, 1.near().to(6.far())),
             {
                 let mut changes = GlyphColorChanges::default();
                 changes.0.insert(14, Color::RED_ORANGE_MEDIUM.into());

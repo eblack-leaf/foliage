@@ -59,14 +59,20 @@ impl Grid {
             template: GridTemplate::new(columns, rows),
         }
     }
+    pub fn gap_x(&self, dim: CoordinateUnit) -> CoordinateUnit {
+        self.gap_x.min(self.column_element_width(dim) * 0.25)
+    }
+    pub fn gap_y(&self, dim: CoordinateUnit) -> CoordinateUnit {
+        self.gap_x.min(self.row_element_height(dim) * 0.25)
+    }
     pub fn horizontal(&self, area: Area<InterfaceContext>, unit: SegmentUnit) -> GridRelativeValue {
         if let Some(f) = unit.fixed {
             return GridRelativeValue::Fixed(f);
         }
         GridRelativeValue::Anchored(
             unit.value() * self.column_element_width(area.width)
-                + unit.value() * self.gap_x
-                + (unit.value() - 1f32).max(0.0) * self.gap_x
+                + unit.value() * self.gap_x(area.width)
+                + (unit.value() - 1f32).max(0.0) * self.gap_x(area.width)
                 - self.column_element_width(area.width) * unit.bias.factor()
                 + unit.offset.unwrap_or_default(),
         )
@@ -77,8 +83,8 @@ impl Grid {
         }
         GridRelativeValue::Anchored(
             unit.value() * self.row_element_height(area.height)
-                + unit.value() * self.gap_y
-                + (unit.value() - 1f32).max(0.0) * self.gap_y
+                + unit.value() * self.gap_y(area.height)
+                + (unit.value() - 1f32).max(0.0) * self.gap_y(area.height)
                 - self.row_element_height(area.height) * unit.bias.factor()
                 + unit.offset.unwrap_or_default(),
         )
@@ -218,6 +224,38 @@ impl ResponsiveSegment {
         self.view_handle = view_handle;
         self
     }
+    pub fn without_portrait_mobile(mut self) -> Self {
+        self.negations.insert(Layout::PORTRAIT_MOBILE);
+        self
+    }
+    pub fn without_portrait_tablet(mut self) -> Self {
+        self.negations.insert(Layout::PORTRAIT_TABLET);
+        self
+    }
+    pub fn without_portrait_desktop(mut self) -> Self {
+        self.negations.insert(Layout::PORTRAIT_DESKTOP);
+        self
+    }
+    pub fn without_portrait_workstation(mut self) -> Self {
+        self.negations.insert(Layout::PORTRAIT_WORKSTATION);
+        self
+    }
+    pub fn without_landscape_mobile(mut self) -> Self {
+        self.negations.insert(Layout::LANDSCAPE_MOBILE);
+        self
+    }
+    pub fn without_landscape_tablet(mut self) -> Self {
+        self.negations.insert(Layout::LANDSCAPE_TABLET);
+        self
+    }
+    pub fn without_landscape_desktop(mut self) -> Self {
+        self.negations.insert(Layout::LANDSCAPE_DESKTOP);
+        self
+    }
+    pub fn without_landscape_workstation(mut self) -> Self {
+        self.negations.insert(Layout::LANDSCAPE_WORKSTATION);
+        self
+    }
 }
 #[derive(Copy, Clone)]
 pub struct SegmentUnitDescriptor {
@@ -285,6 +323,8 @@ pub struct SegmentUnit {
     bias: SegmentBias,
     fixed: Option<CoordinateUnit>,
     offset: Option<CoordinateUnit>,
+    min: Option<CoordinateUnit>,
+    max: Option<CoordinateUnit>,
 }
 impl SegmentUnit {
     fn value(&self) -> CoordinateUnit {
@@ -296,6 +336,8 @@ impl SegmentUnit {
             bias,
             fixed: None,
             offset: None,
+            min: None,
+            max: None,
         }
     }
     pub fn fixed(value: CoordinateUnit) -> Self {
@@ -304,13 +346,23 @@ impl SegmentUnit {
             bias: SegmentBias::Near,
             fixed: Some(value),
             offset: None,
+            min: None,
+            max: None,
         }
     }
-    pub fn to_end(self, su: SegmentUnit) -> SegmentUnitDescriptor {
+    pub fn to(self, su: SegmentUnit) -> SegmentUnitDescriptor {
         SegmentUnitDescriptor::new(self, su)
     }
     pub fn offset(mut self, o: CoordinateUnit) -> Self {
         self.offset.replace(o);
+        self
+    }
+    pub fn min_height(mut self, m: CoordinateUnit) -> Self {
+        self.min.replace(m);
+        self
+    }
+    pub fn max_height(mut self, m: CoordinateUnit) -> Self {
+        self.max.replace(m);
         self
     }
 }
