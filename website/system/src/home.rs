@@ -1,5 +1,3 @@
-#[cfg(target_family = "wasm")]
-use crate::Engen;
 use crate::HOME;
 use foliage::asset::AssetKey;
 use foliage::color::Color;
@@ -16,9 +14,9 @@ use foliage::text::{GlyphColorChanges, MaxCharacters, TextValue};
 use foliage::texture::factors::Progress;
 #[foliage::assets(crate::Engen, "../assets/", "/foliage/assets/")]
 struct Assets {
-    #[icon(path = "icons/terminal.gatl", Terminal)]
+    #[icon(path = "icons/terminal.gatl", opt = FeatherIcon::Terminal)]
     _terminal: AssetKey,
-    #[icon(path = "icons/chevrons-right.gatl", ChevronsRight)]
+    #[icon(path = "icons/chevrons-right.gatl", opt = FeatherIcon::ChevronsRight, group = g)]
     _chevrons_right: AssetKey,
 }
 pub(crate) struct Home {}
@@ -27,7 +25,7 @@ impl Leaf for Home {
 
     fn attach(elm: &mut Elm) {
         let _assets = Assets::proc_gen_load(elm);
-        elm.configure_view_grid(Grid::new(8, 12));
+        elm.configure_view_grid(HOME, Grid::new(8, 12));
         elm.add_view_scene_binding(
             HOME,
             IconText::new(

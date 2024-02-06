@@ -3,7 +3,8 @@ use proc_macro_crate::{crate_name, FoundCrate};
 use quote::ToTokens;
 use std::collections::HashMap;
 use std::str::FromStr;
-use syn::Attribute;
+use syn::parse::ParseStream;
+use syn::{parse_macro_input, Attribute, Token};
 
 #[proc_macro_derive(SceneBinding)]
 pub fn scene_binding_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -64,46 +65,14 @@ pub fn inner_scene_binding_derive(input: proc_macro::TokenStream) -> proc_macro:
     };
     gen.into()
 }
+
 #[proc_macro_attribute]
 pub fn assets(
-    attr: proc_macro::TokenStream,
+    attrs: proc_macro::TokenStream,
     input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
-    let attr = proc_macro2::TokenStream::from(attr);
-    // parse attr to get #engen / #native_origin / #remote_origin
-    let mut engen = None;
-    let mut native_origin = None;
-    let mut remote_origin = None;
-    for a in attr {
-        match &a {
-            TokenTree::Ident(ident) => {
-                let id =
-                    syn::Ident::new(ident.to_string().as_str(), proc_macro2::Span::call_site());
-                engen.replace(id);
-            }
-            TokenTree::Literal(lit) => {
-                if native_origin.is_none() {
-                    let lit_str =
-                        syn::LitStr::new(lit.to_string().as_str(), proc_macro2::Span::call_site());
-                    native_origin.replace(lit_str);
-                } else {
-                    let lit_str =
-                        syn::LitStr::new(lit.to_string().as_str(), proc_macro2::Span::call_site());
-                    remote_origin.replace(lit_str);
-                }
-            }
-            _ => {}
-        }
-    }
-    let engen = engen.unwrap();
-    let native_origin = native_origin.unwrap();
-    let remote_origin = remote_origin.unwrap();
-    // end parse
-    let modified_input = proc_macro2::TokenStream::from(input);
-    let definition: syn::ItemStruct =
-        syn::parse2(modified_input).expect("foliage::asset requires a struct definition");
-    let name = &definition.ident;
-    let mut groups = HashMap::new();
+    let asset_configuration = parse_macro_input!(attrs as AssetConfiguration);
+    let struct_definition = parse_macro_input!(input as syn::ItemStruct);
     let found_crate = crate_name("foliage").expect("foliage is present in `Cargo.toml`");
     let foliage = match found_crate {
         FoundCrate::Itself => quote::quote!(crate),
@@ -112,126 +81,43 @@ pub fn assets(
             quote::quote!( #ident )
         }
     };
-    for field in definition.fields.iter() {
-        let asset_attributes = field.attrs.clone();
-        let is_grouped = if asset_attributes.len() == 2 {
-            true
-        } else if asset_attributes.len() == 1 {
-            false
-        } else {
-            panic!("need an attribute to know where to load the asset.\nTry adding #[asset(path = \"<path>\" ...");
-        };
-        let (group_name, asset_type, asset_value) = if is_grouped {
-            let first = asset_attributes.first().expect("first-attribute-unwrap");
-            let first_identity = first.path().get_ident();
-            let first_attribute = first_identity
-                .expect("incorrect attribute specification")
-                .to_string();
-            let second = asset_attributes.get(1).expect("second-attribute");
-            let second_identity = second.path().get_ident();
-            let second_attribute = second_identity
-                .expect("incorrect attribute specification")
-                .to_string();
-            if first_attribute.contains("group") {
-                let group_name = get_group_value(&asset_attributes, 0);
-                let asset_type = second_identity.expect("second-identity").to_string();
-                let asset_value = second
-                    .meta
-                    .require_list()
-                    .expect("meta-list-parse")
-                    .to_token_stream()
-                    .to_string();
-                (group_name, asset_type, asset_value)
-            } else if second_attribute.contains("group") {
-                let group_name = get_group_value(&asset_attributes, 1);
-                let asset_type = first_identity.expect("asset-type").to_string();
-                let asset_value = first
-                    .meta
-                    .require_list()
-                    .expect("meta-list-parse")
-                    .to_token_stream()
-                    .to_string();
-                (group_name, asset_type, asset_value)
-            } else {
-                panic!("only two attributes allowed && if more than one, one must be a #[group]");
-            }
-        } else {
-            let only = asset_attributes.first().expect("only-get");
-            let name = only.path().get_ident().expect("only-name").to_string();
-            let value = only
-                .meta
-                .require_list()
-                .expect("meta-list-parse")
+    let mut gen_fields = HashMap::new();
+    for field in struct_definition.fields.iter() {
+        let field_attr = field.attrs.first().expect("no attribute on field");
+        let asset_type = field_attr
+            .path()
+            .require_ident()
+            .expect("must name attribute [bytes(...) | icon(...)]");
+        let args = field_attr
+            .parse_args::<Asset>()
+            .expect("error parsing asset from attribute");
+        let storage_identifier = if args.asset_group.is_some() {
+            args.asset_group
+                .unwrap()
+                .value
                 .to_token_stream()
-                .to_string();
-            (
-                field.ident.as_ref().expect("field-ident").to_string(),
-                name,
-                value,
-            )
-        };
-        if groups.get(&group_name).is_none() {
-            if is_grouped {
-                groups.insert(group_name.clone(), Group::new(AssetStorageType::Vec));
-            } else {
-                groups.insert(group_name.clone(), Group::new(AssetStorageType::Single));
-            }
-        }
-        let is_icon = asset_type.contains("icon");
-        let (res_path, icon_label) = if is_icon {
-            let icon_attributes = syn::parse2::<syn::MetaList>(
-                proc_macro2::TokenStream::from_str(asset_value.as_str())
-                    .expect("icon-attributes-from-asset-value"),
-            )
-            .expect("no meta list for icon attribute definition");
-            let mut icon_path = None;
-            let mut icon_label = None;
-            for t in icon_attributes.tokens.clone() {
-                match t {
-                    TokenTree::Group(_) => {}
-                    TokenTree::Ident(i) => {
-                        icon_label.replace(syn::Ident::new(
-                            i.to_string().as_str(),
-                            proc_macro2::Span::call_site(),
-                        ));
-                    }
-                    TokenTree::Punct(_) => {}
-                    TokenTree::Literal(lit) => {
-                        icon_path.replace(syn::LitStr::new(
-                            lit.to_string().as_str(),
-                            proc_macro2::Span::call_site(),
-                        ));
-                    }
-                }
-            }
-            let icon_path = icon_path.expect("invalid icon path");
-            let icon_label = icon_label.expect("invalid icon label");
-            (icon_path.to_token_stream(), icon_label.to_token_stream())
+                .to_string()
         } else {
-            let value = syn::parse2::<syn::MetaList>(
-                proc_macro2::TokenStream::from_str(asset_value.as_str())
-                    .expect("value-from-asset-value"),
-            )
-            .expect("value-parse-error");
-            (
-                value
-                    .parse_args::<syn::MetaNameValue>()
-                    .expect("arguments")
-                    .value
-                    .to_token_stream(),
-                proc_macro2::TokenStream::new(),
-            )
+            field
+                .ident
+                .as_ref()
+                .expect("need field identity without group")
+                .to_string()
         };
-        let icon_extension = if !is_icon {
+        let icon_extension = if asset_type.to_string() != "icon" {
             quote::quote!()
         } else {
+            let icon_label = &args
+                .asset_opt
+                .expect("must provide opt=FeatherIcon::<variant>")
+                .value;
             quote::quote!(
                     elm.on_fetch(
                         id,
                         |data, cmd| {
                             cmd.spawn(
                                 #foliage::icon::Icon::storage(
-                                    #foliage::icon::FeatherIcon::#icon_label.id(),
+                                    #foliage::icon::#icon_label.id(),
                                     data
                                 )
                             );
@@ -239,22 +125,26 @@ pub fn assets(
                     );
             )
         };
+        let engen = &asset_configuration.engen_path;
+        let asset_path = &args.asset_path.value;
         let (native, remote) = {
             let native = syn::LitStr::new(
-                (native_origin.token().to_string() + res_path.to_string().as_str())
-                    .replace(['\"', '\\'], "")
-                    .as_str(),
+                (asset_configuration.native_path.value()
+                    + asset_path.to_token_stream().to_string().as_str())
+                .replace(['\"', '\\'], "")
+                .as_str(),
                 proc_macro2::Span::call_site(),
             );
             let remote = syn::LitStr::new(
-                (remote_origin.token().to_string() + res_path.to_string().as_str())
-                    .replace(['\"', '\\'], "")
-                    .as_str(),
+                (asset_configuration.web_path.value()
+                    + asset_path.to_token_stream().to_string().as_str())
+                .replace(['\"', '\\'], "")
+                .as_str(),
                 proc_macro2::Span::call_site(),
             );
             (native, remote)
         };
-        let macro_definition = quote::quote!({
+        let generated_code = quote::quote!({
             #[cfg(target_family = "wasm")]
             use #foliage::workflow::Workflow;
             #[cfg(target_family = "wasm")]
@@ -266,49 +156,39 @@ pub fn assets(
             #icon_extension
             id
         });
-        groups
-            .get_mut(&group_name)
-            .expect("group_name-get")
-            .add(macro_definition);
+        if gen_fields.get(&storage_identifier).is_none() {
+            gen_fields.insert(storage_identifier.clone(), vec![]);
+        }
+        gen_fields
+            .get_mut(&storage_identifier)
+            .unwrap()
+            .push(generated_code);
     }
+    println!("gen-fields: {:?}", gen_fields);
     let mut field_iterator = vec![];
     let mut loaders = vec![];
     let mut tys = vec![];
-    for group in groups.iter() {
-        let f = syn::Ident::new(group.0, proc_macro2::Span::call_site());
-        match group.1.ty {
-            AssetStorageType::Single => {
-                let ty = proc_macro2::TokenStream::from_str("AssetKey").expect("asset-key");
-                let l = group
-                    .1
-                    .members
-                    .first()
-                    .expect("first-member-single")
-                    .to_token_stream();
-                let l = syn::parse2::<syn::Expr>(l).expect("expr-block");
-                field_iterator.push(quote::quote!(#f));
-                loaders.push(quote::quote!(
-                    #l
-                ));
-                tys.push(quote::quote!(#ty));
-            }
-            AssetStorageType::Vec => {
-                field_iterator.push(quote::quote!(#f));
-                let group_members = group
-                    .1
-                    .members
-                    .clone()
-                    .iter()
-                    .map(|gm| syn::parse2::<syn::Expr>(gm.to_token_stream()).expect("syn-expr"))
-                    .collect::<Vec<syn::Expr>>();
-                loaders.push(quote::quote!(vec![#(#group_members),*]));
-                let ty = proc_macro2::TokenStream::from_str("Vec<AssetKey>").expect("vec-parsing");
-                tys.push(quote::quote!(#ty));
-            }
+    for (id, mut tokens) in gen_fields {
+        let real_id = syn::Ident::new(id.as_str(), proc_macro2::Span::call_site());
+        field_iterator.push(quote::quote!(#real_id));
+        if tokens.len() == 1 {
+            let ty = proc_macro2::TokenStream::from_str("AssetKey").expect("asset-key");
+            tys.push(quote::quote!(#ty));
+            let l = tokens.first().unwrap();
+            loaders.push(quote::quote!(#l));
+        } else {
+            let ty = proc_macro2::TokenStream::from_str("Vec<AssetKey>").expect("vec-parsing");
+            tys.push(quote::quote!(#ty));
+            let group_members = tokens
+                .drain(..)
+                .map(|gm| syn::parse2::<syn::Expr>(gm).expect("syn-expr"))
+                .collect::<Vec<syn::Expr>>();
+            loaders.push(quote::quote!(vec![#(#group_members),*]));
         }
     }
-    let forwarded_attrs = definition.attrs;
-    let vis = definition.vis;
+    let forwarded_attrs = struct_definition.attrs;
+    let vis = struct_definition.vis;
+    let name = struct_definition.ident;
     let gen = quote::quote! {
         #(#forwarded_attrs)*
         #vis struct #name {
@@ -324,41 +204,61 @@ pub fn assets(
     };
     gen.into()
 }
-#[derive(PartialEq, Copy, Clone)]
-enum AssetStorageType {
-    Single,
-    Vec,
+struct AssetConfiguration {
+    engen_path: syn::TypePath,
+    native_path: syn::LitStr,
+    web_path: syn::LitStr,
 }
-struct Group {
-    ty: AssetStorageType,
-    members: Vec<proc_macro2::TokenStream>,
-}
-impl Group {
-    fn new(ty: AssetStorageType) -> Self {
-        Self {
-            ty,
-            members: vec![],
-        }
-    }
-    fn add(&mut self, member: proc_macro2::TokenStream) {
-        if self.ty == AssetStorageType::Single && !self.members.is_empty() {
-            panic!(
-                "attempting to add two assets to the same field.
-                Try grouping them with #[group = \"<group-name>\",
-                or renaming one of the assets field-name."
-            );
-        }
-        self.members.push(member);
+impl syn::parse::Parse for AssetConfiguration {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let engen_path: syn::TypePath = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let native_path: syn::LitStr = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let web_path: syn::LitStr = input.parse()?;
+        Ok(AssetConfiguration {
+            engen_path,
+            native_path,
+            web_path,
+        })
     }
 }
-fn get_group_value(asset_attributes: &[Attribute], i: i32) -> String {
-    asset_attributes
-        .get(i as usize)
-        .expect("asset-attribute-get")
-        .meta
-        .require_name_value()
-        .expect("group must have value = \"<name>\"")
-        .value
-        .to_token_stream()
-        .to_string()
+struct Asset {
+    asset_path: syn::MetaNameValue,
+    asset_group: Option<syn::MetaNameValue>,
+    asset_opt: Option<syn::MetaNameValue>,
+}
+impl syn::parse::Parse for Asset {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let asset_path: syn::MetaNameValue = input.parse()?;
+        let mut asset_group = None;
+        let mut asset_opt = None;
+        if input.parse::<Token![,]>().is_ok() {
+            let second: syn::MetaNameValue = input.parse()?;
+            let second_attribute_path = second
+                .path
+                .require_ident()
+                .expect("need attribute args ident");
+            if second_attribute_path.to_string() == "group" {
+                asset_group.replace(second);
+                if input.parse::<Token![,]>().is_ok() {
+                    let opt: syn::MetaNameValue = input.parse()?;
+                    asset_opt.replace(opt);
+                }
+            } else if second_attribute_path.to_string() == "opt" {
+                asset_opt.replace(second);
+                if input.parse::<Token![,]>().is_ok() {
+                    let group: syn::MetaNameValue = input.parse()?;
+                    asset_group.replace(group);
+                }
+            } else {
+                panic!("unsupported name-value pair");
+            }
+        }
+        Ok(Asset {
+            asset_path,
+            asset_group,
+            asset_opt,
+        })
+    }
 }
