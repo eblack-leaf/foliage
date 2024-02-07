@@ -152,6 +152,22 @@ pub(crate) fn max_character(
 }
 #[derive(Component, Default, Clone)]
 pub struct GlyphColorChanges(pub HashMap<TextKey, Color>);
+impl GlyphColorChanges {
+    pub fn new() -> Self {
+        Self::default()
+    }
+    pub fn with_change<C: Into<Color>>(mut self, offset: TextKey, c: C) -> Self {
+        self.0.insert(offset, c.into());
+        self
+    }
+    pub fn with_range<C: Into<Color>>(mut self, start: TextKey, end: TextKey, c: C) -> Self {
+        let color = c.into();
+        for i in start..=end {
+            self.0.insert(i, color);
+        }
+        self
+    }
+}
 pub(crate) fn changes(
     mut query: Query<
         (

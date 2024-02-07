@@ -13,9 +13,9 @@ use foliage::text::{GlyphColorChanges, MaxCharacters, TextValue};
 use foliage::texture::factors::Progress;
 #[foliage::assets(crate::Engen, "../assets/", "/foliage/assets/")]
 struct Assets {
-    #[icon(path = "icons/terminal.gatl", opt = FeatherIcon::Terminal)]
+    #[icon(path = "icons/terminal.icon", opt = FeatherIcon::Terminal)]
     _terminal: AssetKey,
-    #[icon(path = "icons/chevrons-right.gatl", opt = FeatherIcon::ChevronsRight, group = g)]
+    #[icon(path = "icons/chevrons-right.icon", opt = FeatherIcon::ChevronsRight, group = g)]
     _chevrons_right: AssetKey,
 }
 pub(crate) struct Home {}
@@ -35,16 +35,10 @@ impl Leaf for Home {
                 Color::GREY_MEDIUM,
             ),
             ResponsiveSegment::base(2.near().to(5.far()), 1.near().offset(10.0).to(2.near()))
-                .min_width(200.0)
                 .min_height(50.0)
-                .max_height(80.0),
-            {
-                let mut changes = GlyphColorChanges::default();
-                changes.0.insert(7, Color::RED_ORANGE_MEDIUM.into());
-                changes.0.insert(8, Color::RED_ORANGE_MEDIUM.into());
-                changes.0.insert(9, Color::RED_ORANGE_MEDIUM.into());
-                changes
-            },
+                .max_height(80.0)
+                .min_width(200.0),
+            GlyphColorChanges::new().with_range(7, 9, Color::RED_ORANGE_MEDIUM),
         );
         elm.add_view_binding(
             HOME,
@@ -61,19 +55,13 @@ impl Leaf for Home {
                 Color::OFF_WHITE,
                 Color::GREY_MEDIUM,
             ),
-            ResponsiveSegment::base(1.far().to(6.far()), 3.near().to(3.far()))
-                .min_width(250.0)
-                .min_height(30.0)
-                .max_height(50.0),
-            {
-                let mut changes = GlyphColorChanges::default();
-                changes.0.insert(7, Color::RED_ORANGE_MEDIUM.into());
-                changes.0.insert(8, Color::RED_ORANGE_MEDIUM.into());
-                changes.0.insert(9, Color::RED_ORANGE_MEDIUM.into());
-                changes.0.insert(10, Color::RED_ORANGE_MEDIUM.into());
-                changes
-            }
-            .extend(HrefLink::new("/foliage/book/index.html")),
+            ResponsiveSegment::base(2.near().to(5.far()), 3.near().to(3.far()))
+                .min_height(40.0)
+                .max_height(60.0)
+                .min_width(250.0),
+            GlyphColorChanges::new()
+                .with_range(7, 10, Color::RED_ORANGE_MEDIUM)
+                .extend(HrefLink::new("/foliage/book/index.html")),
         );
         elm.add_view_scene_binding(
             HOME,
@@ -84,19 +72,13 @@ impl Leaf for Home {
                 Color::OFF_WHITE,
                 Color::GREY_MEDIUM,
             ),
-            ResponsiveSegment::base(1.far().to(6.far()), 4.near().to(4.far()))
-                .min_width(250.0)
-                .min_height(30.0)
-                .max_height(50.0),
-            {
-                let mut changes = GlyphColorChanges::default();
-                changes.0.insert(14, Color::RED_ORANGE_MEDIUM.into());
-                changes.0.insert(15, Color::RED_ORANGE_MEDIUM.into());
-                changes.0.insert(16, Color::RED_ORANGE_MEDIUM.into());
-                changes.0.insert(17, Color::RED_ORANGE_MEDIUM.into());
-                changes
-            }
-            .extend(HrefLink::new("/foliage/documentation/foliage/index.html")),
+            ResponsiveSegment::base(2.near().to(5.far()), 4.near().to(4.far()))
+                .min_height(40.0)
+                .max_height(60.0)
+                .min_width(250.0),
+            GlyphColorChanges::new()
+                .with_range(14, 17, Color::RED_ORANGE_MEDIUM)
+                .extend(HrefLink::new("/foliage/documentation/foliage/index.html")),
         );
         elm.add_view_scene_binding(
             HOME,
@@ -107,19 +89,13 @@ impl Leaf for Home {
                 Color::OFF_WHITE,
                 Color::GREY_MEDIUM,
             ),
-            ResponsiveSegment::base(1.far().to(6.far()), 5.near().to(5.far()))
-                .min_width(250.0)
-                .min_height(30.0)
-                .max_height(50.0),
-            {
-                let mut changes = GlyphColorChanges::default();
-                changes.0.insert(14, Color::RED_ORANGE_MEDIUM.into());
-                changes.0.insert(15, Color::RED_ORANGE_MEDIUM.into());
-                changes.0.insert(16, Color::RED_ORANGE_MEDIUM.into());
-                changes.0.insert(17, Color::RED_ORANGE_MEDIUM.into());
-                changes
-            }
-            .extend(HrefLink::new("/foliage/demo/index.html")),
+            ResponsiveSegment::base(2.near().to(5.far()), 5.near().to(5.far()))
+                .min_height(40.0)
+                .max_height(60.0)
+                .min_width(250.0),
+            GlyphColorChanges::new()
+                .with_range(14, 17, Color::RED_ORANGE_MEDIUM)
+                .extend(HrefLink::new("/foliage/demo/index.html")),
         );
     }
 }
