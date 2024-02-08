@@ -346,6 +346,9 @@ impl ResponsiveSegment {
         self.max_width.replace(m);
         self
     }
+    pub fn constraint_exception<L: AsRef<[Layout]>>(self, _layouts: L, _exc: ()) -> Self {
+        todo!()
+    }
 }
 #[derive(Copy, Clone)]
 pub struct SegmentUnitDescriptor {

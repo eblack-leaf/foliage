@@ -52,7 +52,7 @@ impl Leaf for Home {
             IconText::new(
                 FeatherIcon::ChevronsRight.id(),
                 MaxCharacters(20),
-                TextValue::new("ls -la BOOK"),
+                TextValue::new("ls -la BOOK [arch]"),
                 Color::OFF_WHITE,
                 Color::GREY_MEDIUM,
             ),
