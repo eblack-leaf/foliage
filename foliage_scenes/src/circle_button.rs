@@ -20,7 +20,7 @@ use foliage_proper::texture::factors::Progress;
 
 #[derive(Bundle)]
 pub struct CircleButtonComponents {
-    tag: Tag<Self>,
+    tag: Tag<CircleButton>,
     style: ButtonStyle,
     base: BaseStyle,
     foreground_color: ForegroundColor,
@@ -55,12 +55,12 @@ fn resize(
                 Changed<ForegroundColor>,
                 Changed<BackgroundColor>,
             )>,
-            With<Tag<CircleButtonComponents>>,
+            With<Tag<CircleButton>>,
         ),
     >,
     mut coordinator: ResMut<SceneCoordinator>,
-    mut areas: Query<&mut Area<InterfaceContext>, Without<Tag<CircleButtonComponents>>>,
-    mut circles: Query<&mut CircleStyle, Without<Tag<CircleButtonComponents>>>,
+    mut areas: Query<&mut Area<InterfaceContext>, Without<Tag<CircleButton>>>,
+    mut circles: Query<&mut CircleStyle, Without<Tag<CircleButton>>>,
     mut colors: Query<&mut Color>,
 ) {
     for (handle, area, style, foreground, background, despawn) in scenes.iter() {

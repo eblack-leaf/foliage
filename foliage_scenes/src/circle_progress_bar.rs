@@ -17,14 +17,14 @@ use foliage_proper::texture::factors::Progress;
 
 #[derive(Bundle)]
 pub struct CircleProgressBarComponents {
-    tag: Tag<Self>,
+    tag: Tag<CircleProgressBar>,
 }
 fn resize(
-    mut circle_area: Query<&mut Area<InterfaceContext>, Without<Tag<CircleProgressBarComponents>>>,
+    mut circle_area: Query<&mut Area<InterfaceContext>, Without<Tag<CircleProgressBar>>>,
     scene: Query<
         (&SceneHandle, &Area<InterfaceContext>, &Despawn),
         (
-            With<Tag<CircleProgressBarComponents>>,
+            With<Tag<CircleProgressBar>>,
             Changed<Area<InterfaceContext>>,
         ),
     >,

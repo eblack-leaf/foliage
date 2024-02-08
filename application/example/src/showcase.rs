@@ -1,5 +1,4 @@
 use foliage::aspect_ratio_image::AspectRatioImage;
-use foliage::asset::AssetKey;
 use foliage::bevy_ecs;
 use foliage::bevy_ecs::prelude::{Component, Resource};
 use foliage::button::{Button, ButtonStyle};

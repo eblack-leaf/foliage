@@ -25,7 +25,7 @@ use foliage_proper::texture::factors::Progress;
 pub struct ProgressPercent(pub f32);
 #[derive(Bundle)]
 pub struct InteractiveProgressBarComponents {
-    tag: Tag<Self>,
+    tag: Tag<InteractiveProgressBar>,
     percent: ProgressPercent,
 }
 #[derive(InnerSceneBinding)]
@@ -72,14 +72,11 @@ fn resize(
         (&SceneHandle, &Area<InterfaceContext>, &ProgressPercent),
         (
             Changed<Area<InterfaceContext>>,
-            With<Tag<InteractiveProgressBarComponents>>,
+            With<Tag<InteractiveProgressBar>>,
         ),
     >,
     mut coordinator: ResMut<SceneCoordinator>,
-    mut rectangles: Query<
-        &mut Area<InterfaceContext>,
-        Without<Tag<InteractiveProgressBarComponents>>,
-    >,
+    mut rectangles: Query<&mut Area<InterfaceContext>, Without<Tag<InteractiveProgressBar>>>,
     mut progress: Query<&mut Progress>,
 ) {
     // tracing::trace!("updating-interactive-progress-bars");

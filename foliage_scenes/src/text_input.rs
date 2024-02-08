@@ -34,7 +34,7 @@ pub struct ActualText(pub CompactString);
 pub struct HintTextColor(pub Color);
 #[derive(Bundle)]
 pub struct TextInputComponents {
-    tag: Tag<Self>,
+    tag: Tag<TextInput>,
     text: TextValue,
     actual_text: ActualText,
     foreground: ForegroundColor,
@@ -181,14 +181,14 @@ fn resize(
                 Changed<MaxCharacters>,
                 Changed<HintTextColor>,
             )>,
-            With<Tag<TextInputComponents>>,
+            With<Tag<TextInput>>,
         ),
     >,
     mut coordinator: ResMut<SceneCoordinator>,
-    mut texts: Query<(&mut FontSize, &mut MaxCharacters), Without<Tag<TextInputComponents>>>,
+    mut texts: Query<(&mut FontSize, &mut MaxCharacters), Without<Tag<TextInput>>>,
     font: Res<MonospacedFont>,
     scale_factor: Res<ScaleFactor>,
-    mut areas: Query<&mut Area<InterfaceContext>, Without<Tag<TextInputComponents>>>,
+    mut areas: Query<&mut Area<InterfaceContext>, Without<Tag<TextInput>>>,
     mut colors: Query<&mut Color>,
     focused_entity: Res<FocusedEntity>,
 ) {
@@ -244,13 +244,13 @@ fn clear_cursor(
             &HintTextColor,
             &mut TextValue,
         ),
-        With<Tag<TextInputComponents>>,
+        With<Tag<TextInput>>,
     >,
     focused_entity: Res<FocusedEntity>,
     mut colors: Query<&mut Color>,
     coordinator: Res<SceneCoordinator>,
     mut color_changes: Query<&mut GlyphColorChanges>,
-    mut texts: Query<&mut TextValue, Without<Tag<TextInputComponents>>>,
+    mut texts: Query<&mut TextValue, Without<Tag<TextInput>>>,
 ) {
     for (entity, handle, despawn, actual, hint, htc, mut text_val) in scenes.iter_mut() {
         if despawn.should_despawn() {
@@ -295,12 +295,12 @@ fn cursor_on_click(
             &ForegroundColor,
             &mut TextValue,
         ),
-        (Changed<InteractionListener>, With<Tag<TextInputComponents>>),
+        (Changed<InteractionListener>, With<Tag<TextInput>>),
     >,
     virtual_keyboard: Res<VirtualKeyboardAdapter>,
     mut colors: Query<&mut Color>,
     coordinator: Res<SceneCoordinator>,
-    mut texts: Query<&mut TextValue, Without<Tag<TextInputComponents>>>,
+    mut texts: Query<&mut TextValue, Without<Tag<TextInput>>>,
 ) {
     for (pos, actual, handle, despawn, mut offset, listener, dims, mc, fc, mut text_val) in
         text_inputs.iter_mut()
@@ -339,7 +339,7 @@ fn update_cursor_alignment(
         ),
         (
             Or<(Changed<CursorOffset>, Changed<CursorDims>)>,
-            With<Tag<TextInputComponents>>,
+            With<Tag<TextInput>>,
         ),
     >,
     mut color_changes: Query<&mut GlyphColorChanges>,
@@ -380,9 +380,9 @@ fn handle_input(
             &Despawn,
             &IsPassword,
         ),
-        With<Tag<TextInputComponents>>,
+        With<Tag<TextInput>>,
     >,
-    mut texts: Query<&mut TextValue, Without<Tag<TextInputComponents>>>,
+    mut texts: Query<&mut TextValue, Without<Tag<TextInput>>>,
     focused_entity: Res<FocusedEntity>,
     mut events: EventReader<KeyboardEvent>,
     coordinator: Res<SceneCoordinator>,

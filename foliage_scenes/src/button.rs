@@ -25,7 +25,7 @@ use foliage_proper::window::ScaleFactor;
 
 #[derive(Bundle)]
 pub struct ButtonComponents {
-    tag: Tag<ButtonComponents>,
+    tag: Tag<Button>,
     foreground_color: ForegroundColor,
     background_color: BackgroundColor,
     max_characters: MaxCharacters,
@@ -108,13 +108,13 @@ fn updates(
                 Changed<BackgroundColor>,
                 Changed<ButtonStyle>,
             )>,
-            With<Tag<ButtonComponents>>,
+            With<Tag<Button>>,
         ),
     >,
-    mut area_query: Query<&mut Area<InterfaceContext>, Without<Tag<ButtonComponents>>>,
-    mut max_characters_query: Query<&mut MaxCharacters, Without<Tag<ButtonComponents>>>,
+    mut area_query: Query<&mut Area<InterfaceContext>, Without<Tag<Button>>>,
+    mut max_characters_query: Query<&mut MaxCharacters, Without<Tag<Button>>>,
     mut colors: Query<(&mut IconColor, &mut TextColor)>,
-    mut panel_styles: Query<(&mut PanelStyle, &mut Color), Without<Tag<ButtonComponents>>>,
+    mut panel_styles: Query<(&mut PanelStyle, &mut Color), Without<Tag<Button>>>,
     mut coordinator: ResMut<SceneCoordinator>,
     font: Res<MonospacedFont>,
     scale_factor: Res<ScaleFactor>,
@@ -224,7 +224,7 @@ impl Scene for Button {
             cmd,
         );
         Self::Components {
-            tag: Tag::<Self::Components>::new(),
+            tag: Tag::new(),
             foreground_color: ForegroundColor(args.foreground_color),
             background_color: BackgroundColor(args.background_color),
             max_characters: args.max_char,

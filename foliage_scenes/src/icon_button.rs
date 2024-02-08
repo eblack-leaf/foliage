@@ -20,7 +20,7 @@ use foliage_proper::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneH
 
 #[derive(Bundle)]
 pub struct IconButtonComponents {
-    tag: Tag<Self>,
+    tag: Tag<IconButton>,
     style: ButtonStyle,
     base: BaseStyle,
     foreground_color: ForegroundColor,

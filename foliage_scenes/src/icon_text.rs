@@ -21,7 +21,7 @@ use foliage_proper::text::{FontSize, GlyphColorChanges, MaxCharacters, Text, Tex
 use foliage_proper::window::ScaleFactor;
 #[derive(Bundle)]
 pub struct IconTextComponents {
-    tag: Tag<Self>,
+    tag: Tag<IconText>,
     id: IconId,
     max_chars: MaxCharacters,
     text_value: TextValue,
@@ -116,10 +116,10 @@ pub(crate) fn metrics(
 fn color_changes(
     mut scenes: Query<
         (&SceneHandle, &GlyphColorChanges, &Despawn),
-        (Changed<GlyphColorChanges>, With<Tag<IconTextComponents>>),
+        (Changed<GlyphColorChanges>, With<Tag<IconText>>),
     >,
     coordinator: Res<SceneCoordinator>,
-    mut color_changes: Query<&mut GlyphColorChanges, Without<Tag<IconTextComponents>>>,
+    mut color_changes: Query<&mut GlyphColorChanges, Without<Tag<IconText>>>,
 ) {
     for (handle, cc, despawn) in scenes.iter_mut() {
         if despawn.should_despawn() {
@@ -151,15 +151,12 @@ fn resize(
                 Changed<IconColor>,
                 Changed<TextColor>,
             )>,
-            With<Tag<IconTextComponents>>,
+            With<Tag<IconText>>,
         ),
     >,
     mut coordinator: ResMut<SceneCoordinator>,
-    mut texts: Query<
-        (&mut MaxCharacters, &mut TextValue, &mut FontSize),
-        Without<Tag<IconTextComponents>>,
-    >,
-    mut icons: Query<(&mut IconId, &mut Area<InterfaceContext>), Without<Tag<IconTextComponents>>>,
+    mut texts: Query<(&mut MaxCharacters, &mut TextValue, &mut FontSize), Without<Tag<IconText>>>,
+    mut icons: Query<(&mut IconId, &mut Area<InterfaceContext>), Without<Tag<IconText>>>,
     mut colors: Query<&mut Color>,
     font: Res<MonospacedFont>,
     scale_factor: Res<ScaleFactor>,

@@ -25,7 +25,7 @@ impl<A: Into<Area<NumericalContext>>> From<A> for ImageDimensions {
 }
 #[derive(Bundle)]
 pub struct AspectRatioImageComponents {
-    tag: Tag<Self>,
+    tag: Tag<AspectRatioImage>,
     dims: ImageDimensions,
     id: ImageId,
 }
@@ -75,14 +75,11 @@ fn resize(
                 Changed<ImageId>,
                 Changed<ImageDimensions>,
             )>,
-            With<Tag<AspectRatioImageComponents>>,
+            With<Tag<AspectRatioImage>>,
         ),
     >,
     mut coordinator: ResMut<SceneCoordinator>,
-    mut images: Query<
-        (&mut ImageId, &mut Area<InterfaceContext>),
-        Without<Tag<AspectRatioImageComponents>>,
-    >,
+    mut images: Query<(&mut ImageId, &mut Area<InterfaceContext>), Without<Tag<AspectRatioImage>>>,
 ) {
     for (handle, area, despawn, id, dims) in scenes.iter() {
         if despawn.should_despawn() {

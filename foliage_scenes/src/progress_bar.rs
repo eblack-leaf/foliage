@@ -17,7 +17,7 @@ use foliage_proper::set_descriptor;
 use foliage_proper::texture::factors::Progress;
 #[derive(Bundle)]
 pub struct ProgressBarComponents {
-    tag: Tag<Self>,
+    tag: Tag<ProgressBar>,
     progress: Progress,
 }
 #[derive(InnerSceneBinding)]
@@ -46,14 +46,11 @@ fn resize(
     scenes: Query<
         (&SceneHandle, &Area<InterfaceContext>, &Progress, &Despawn),
         (
-            With<Tag<ProgressBarComponents>>,
+            With<Tag<ProgressBar>>,
             Or<(Changed<Area<InterfaceContext>>, Changed<Progress>)>,
         ),
     >,
-    mut rectangles: Query<
-        (&mut Area<InterfaceContext>, &mut Progress),
-        Without<Tag<ProgressBarComponents>>,
-    >,
+    mut rectangles: Query<(&mut Area<InterfaceContext>, &mut Progress), Without<Tag<ProgressBar>>>,
     mut coordinator: ResMut<SceneCoordinator>,
 ) {
     for (handle, area, progress, despawn) in scenes.iter() {
