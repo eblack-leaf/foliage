@@ -7,6 +7,8 @@ use crate::coordinate::{Coordinate, CoordinateUnit, InterfaceContext};
 use bevy_ecs::prelude::{Component, Resource};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+use std::ops::Div;
+
 #[derive(Resource, Default)]
 pub struct ResponsiveGrid {
     view_configs: HashMap<ViewHandle, Grid>,
@@ -127,6 +129,19 @@ pub enum GapDescriptor {
     Vertical,
     Both,
 }
+#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, Default)]
+pub enum Justify {
+    #[default]
+    Center,
+    Left,
+    Right,
+    Bottom,
+    Top,
+    LeftTop,
+    LeftBottom,
+    RightTop,
+    RightBottom,
+}
 #[derive(Clone, Component)]
 pub struct ResponsiveSegment {
     view_handle: ViewHandle,
@@ -138,6 +153,8 @@ pub struct ResponsiveSegment {
     min_height: Option<CoordinateUnit>,
     max_height: Option<CoordinateUnit>,
     min_width: Option<CoordinateUnit>,
+    max_width: Option<CoordinateUnit>,
+    justification: Option<Justify>,
 }
 impl ResponsiveSegment {
     pub fn coordinate(
@@ -167,19 +184,50 @@ impl ResponsiveSegment {
             GridRelativeValue::Fixed(value) => value,
         };
         let width = if let Some(w) = self.min_width {
-            width.max(w)
+            let bounded = width.max(w);
+            bounded
         } else {
             width
         };
+        let (left, width) = if let Some(w) = self.max_width {
+            let bounded = width.min(w);
+            let adjusted_left = if bounded < width {
+                let diff = width - bounded;
+                let justification = self.justification.unwrap_or(Justify::Center);
+                match justification {
+                    Justify::Center => left + diff.div(2.0),
+                    Justify::Right | Justify::RightTop | Justify::RightBottom => left + diff,
+                    _ => left,
+                }
+            } else {
+                left
+            };
+            (adjusted_left, bounded)
+        } else {
+            (left, width)
+        };
         let height = if let Some(h) = self.min_height {
-            height.max(h)
+            let bounded = height.max(h);
+            bounded
         } else {
             height
         };
-        let height = if let Some(h) = self.max_height {
-            height.min(h)
+        let (top, height) = if let Some(h) = self.max_height {
+            let bounded = height.min(h);
+            let adjusted_top = if bounded < height {
+                let diff = height - bounded;
+                let justification = self.justification.unwrap_or(Justify::Center);
+                match justification {
+                    Justify::Center => top + diff.div(2.0),
+                    Justify::Bottom | Justify::RightBottom | Justify::LeftBottom => top + diff,
+                    _ => top,
+                }
+            } else {
+                top
+            };
+            (adjusted_top, bounded)
         } else {
-            height
+            (top, height)
         };
         Some(Coordinate::new(
             Section::new(
@@ -189,7 +237,10 @@ impl ResponsiveSegment {
             self.layer,
         ))
     }
-
+    pub fn justify(mut self, justify: Justify) -> Self {
+        self.justification.replace(justify);
+        self
+    }
     fn vertical_value(&self, layout: &Layout) -> SegmentUnitDescriptor {
         self.vertical_exceptions
             .get(layout)
@@ -214,6 +265,8 @@ impl ResponsiveSegment {
             min_height: None,
             max_height: None,
             min_width: None,
+            max_width: None,
+            justification: None,
         }
     }
     pub fn at_layer<L: Into<Layer>>(mut self, l: L) -> Self {
@@ -289,6 +342,10 @@ impl ResponsiveSegment {
         self.min_width.replace(m);
         self
     }
+    pub fn max_width(mut self, m: CoordinateUnit) -> Self {
+        self.max_width.replace(m);
+        self
+    }
 }
 #[derive(Copy, Clone)]
 pub struct SegmentUnitDescriptor {
@@ -342,7 +399,7 @@ pub enum SegmentBias {
     Far,
 }
 impl SegmentBias {
-    pub fn factor(self) -> CoordinateUnit {
+    pub(crate) fn factor(self) -> CoordinateUnit {
         match self {
             SegmentBias::Near => 1.0,
             SegmentBias::Far => 0.0,
