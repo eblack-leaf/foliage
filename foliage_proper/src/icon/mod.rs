@@ -35,10 +35,10 @@ pub struct Icon {
     differentiable: Differentiable,
 }
 impl Icon {
-    pub fn new<C: Into<Color>>(icon_id: IconId, scale: IconScale, color: C) -> Self {
+    pub fn new<ID: Into<IconId>, C: Into<Color>>(icon_id: ID, scale: IconScale, color: C) -> Self {
         Self {
             scale,
-            icon_id: DifferentialBundle::new(icon_id),
+            icon_id: DifferentialBundle::new(icon_id.into()),
             color: DifferentialBundle::new(color.into()),
             data: RequestData::default(),
             was_request: DifferentialBundle::new(WasRequest(false)),
@@ -49,10 +49,10 @@ impl Icon {
             ),
         }
     }
-    pub fn storage(icon_id: IconId, data: Vec<u8>) -> Self {
+    pub fn storage<ID: Into<IconId>>(icon_id: ID, data: Vec<u8>) -> Self {
         Self {
             scale: IconScale::from_dim(12.0),
-            icon_id: DifferentialBundle::new(icon_id),
+            icon_id: DifferentialBundle::new(icon_id.into()),
             color: DifferentialBundle::new(Color::default()),
             data: RequestData(Some(data)),
             was_request: DifferentialBundle::new(WasRequest(true)),

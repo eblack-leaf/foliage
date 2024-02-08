@@ -210,6 +210,12 @@ impl Elm {
             }
         }
     }
+    pub fn change_view(&mut self, vh: ViewHandle) {
+        self.container()
+            .get_resource_mut::<CurrentView>()
+            .unwrap()
+            .change_view(vh);
+    }
     fn add_view(&mut self, view_handle: ViewHandle) {
         self.container()
             .get_resource_mut::<Compositor>()
