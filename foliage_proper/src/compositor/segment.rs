@@ -227,7 +227,7 @@ impl ResponsiveSegment {
         };
         Some(Coordinate::new(
             Section::new(
-                (left + section.left(), top + section.top()),
+                (left + section.left(), top - section.top()),
                 (width, height),
             ),
             self.layer,
