@@ -103,6 +103,11 @@ impl IconId {
         Self(value)
     }
 }
+impl From<FeatherIcon> for IconId {
+    fn from(value: FeatherIcon) -> Self {
+        value.id()
+    }
+}
 fn scale_change(
     mut query: Query<
         (&mut IconScale, &mut Area<InterfaceContext>),
