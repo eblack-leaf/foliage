@@ -191,7 +191,7 @@ impl ResponsiveSegment {
                 let diff = width - bounded;
                 let justification = self.justification.unwrap_or(Justify::Center);
                 match justification {
-                    Justify::Center => left + diff.div(2.0),
+                    Justify::Center | Justify::Top | Justify::Bottom => left + diff.div(2.0),
                     Justify::Right | Justify::RightTop | Justify::RightBottom => left + diff,
                     _ => left,
                 }
@@ -214,7 +214,7 @@ impl ResponsiveSegment {
                 let diff = height - bounded;
                 let justification = self.justification.unwrap_or(Justify::Center);
                 match justification {
-                    Justify::Center => top + diff.div(2.0),
+                    Justify::Center | Justify::Left | Justify::Right => top + diff.div(2.0),
                     Justify::Bottom | Justify::RightBottom | Justify::LeftBottom => top + diff,
                     _ => top,
                 }
