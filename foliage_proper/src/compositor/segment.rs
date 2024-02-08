@@ -212,9 +212,9 @@ impl ResponsiveSegment {
             let bounded = height.min(h);
             let adjusted_top = if bounded < height {
                 let diff = height - bounded;
-                let justification = self.justification.unwrap_or(Center);
+                let justification = self.justification.unwrap_or(Justify::Center);
                 match justification {
-                    Center => top + diff.div(2.0),
+                    Justify::Center => top + diff.div(2.0),
                     Justify::Bottom | Justify::RightBottom | Justify::LeftBottom => top + diff,
                     _ => top,
                 }
