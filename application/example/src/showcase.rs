@@ -54,7 +54,7 @@ impl Leaf for Showcase {
             ),
             ResponsiveSegment::base(
                 1.near().to(2.far()).minimum(100.0).maximum(300.0),
-                1.near().to(1.far()).minimum(35.0).maximum(55.0),
+                1.near().to(1.far()).minimum(35.0).maximum(50.0),
             ),
             (),
         );
@@ -70,7 +70,7 @@ impl Leaf for Showcase {
             ),
             ResponsiveSegment::base(
                 3.near().to(4.far()).minimum(100.0).maximum(300.0),
-                1.near().to(1.far()).minimum(35.0).maximum(55.0),
+                1.near().to(1.far()).minimum(35.0).maximum(50.0),
             ),
             (),
         );
