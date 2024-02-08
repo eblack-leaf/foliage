@@ -85,12 +85,18 @@ impl Leaf for IconText {
         );
     }
 }
-fn metrics(
+pub(crate) fn metrics(
     area: Area<InterfaceContext>,
     max_characters: &MaxCharacters,
     font: &MonospacedFont,
     scale_factor: &ScaleFactor,
-) -> (IconScale, FontSize, CoordinateUnit, CoordinateUnit) {
+) -> (
+    IconScale,
+    FontSize,
+    Area<InterfaceContext>,
+    CoordinateUnit,
+    CoordinateUnit,
+) {
     let spacing = 8.0;
     let (fs, fa) = font.best_fit(*max_characters, area * (0.75, 1.0).into(), scale_factor);
     let icon_scale = IconScale::from_dim(
@@ -99,7 +105,13 @@ fn metrics(
             .min(fa.height),
     );
     let offset = 0.0;
-    (icon_scale, fs, offset, offset + icon_scale.px() + spacing)
+    (
+        icon_scale,
+        fs,
+        fa + (icon_scale.px(), icon_scale.px()).into() + (spacing, spacing).into(),
+        offset,
+        offset + icon_scale.px() + spacing,
+    )
 }
 fn color_changes(
     mut scenes: Query<
@@ -156,8 +168,8 @@ fn resize(
         if despawn.should_despawn() {
             continue;
         }
-        coordinator.update_anchor_area(*handle, *area);
-        let (is, fs, iap, tap) = metrics(*area, max_char, &font, &scale_factor);
+        let (is, fs, actual_area, iap, tap) = metrics(*area, max_char, &font, &scale_factor);
+        coordinator.update_anchor_area(*handle, actual_area);
         let icon_ac = handle.access_chain().target(IconTextBindings::Icon);
         coordinator.get_alignment_mut(&icon_ac).pos.horizontal = iap.from_left();
         let icon_entity = coordinator.binding_entity(&icon_ac);
@@ -185,7 +197,7 @@ impl Scene for IconText {
         external_args: &SystemParamItem<Self::ExternalArgs>,
         mut binder: SceneBinder<'_>,
     ) -> Self::Components {
-        let (is, fs, iap, tap) = metrics(
+        let (is, fs, _, iap, tap) = metrics(
             anchor.0.section.area,
             &args.max_chars,
             &external_args.0,

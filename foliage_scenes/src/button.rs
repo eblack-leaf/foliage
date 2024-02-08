@@ -116,6 +116,8 @@ fn updates(
     mut colors: Query<(&mut IconColor, &mut TextColor)>,
     mut panel_styles: Query<(&mut PanelStyle, &mut Color), Without<Tag<ButtonComponents>>>,
     mut coordinator: ResMut<SceneCoordinator>,
+    font: Res<MonospacedFont>,
+    scale_factor: Res<ScaleFactor>,
 ) {
     for (handle, button_area, max_char, foreground_color, background_color, state, despawn) in
         query.iter()
@@ -145,7 +147,9 @@ fn updates(
             tc.0 = color;
         }
         if let Ok(mut area) = area_query.get_mut(icon_text_node) {
-            *area = *button_area * (0.9, 0.8).into();
+            let ita = *button_area * (0.8, 0.9).into();
+            let metrics = crate::icon_text::metrics(ita, max_char, &font, &scale_factor);
+            *area = metrics.2;
         }
         if let Ok(mut max_characters) = max_characters_query.get_mut(icon_text_node) {
             *max_characters = *max_char;
