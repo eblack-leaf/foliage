@@ -169,14 +169,13 @@ pub fn assets(
     for (id, mut tokens) in gen_fields {
         let real_id = syn::Ident::new(id.as_str(), proc_macro2::Span::call_site());
         field_iterator.push(quote::quote!(#real_id));
+        let ty = proc_macro2::TokenStream::from_str("AssetKey").expect("asset-key");
         if tokens.len() == 1 {
-            let ty = proc_macro2::TokenStream::from_str("AssetKey").expect("asset-key");
-            tys.push(quote::quote!(#ty));
+            tys.push(quote::quote!(#foliage::asset::#ty));
             let l = tokens.first().unwrap();
             loaders.push(quote::quote!(#l));
         } else {
-            let ty = proc_macro2::TokenStream::from_str("Vec<AssetKey>").expect("vec-parsing");
-            tys.push(quote::quote!(#ty));
+            tys.push(quote::quote!(Vec<#foliage::asset::#ty>));
             let group_members = tokens
                 .drain(..)
                 .map(|gm| syn::parse2::<syn::Expr>(gm).expect("syn-expr"))
