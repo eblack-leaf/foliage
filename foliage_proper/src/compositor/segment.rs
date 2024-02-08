@@ -271,21 +271,21 @@ impl ResponsiveSegment {
     pub fn horizontal_exception<L: AsRef<[Layout]>>(
         mut self,
         layouts: L,
-        exc: SegmentUnitDescriptor,
+        exc: WellFormedSegmentUnitDescriptor,
     ) -> Self {
         let layouts = layouts.as_ref();
         for l in layouts.iter() {
-            self.horizontal_exceptions.insert(*l, exc);
+            self.horizontal_exceptions.insert(*l, exc.normal());
         }
         self
     }
     pub fn vertical_exception<L: AsRef<[Layout]>>(
         mut self,
         layouts: L,
-        exc: SegmentUnitDescriptor,
+        exc: WellFormedSegmentUnitDescriptor,
     ) -> Self {
         for l in layouts.as_ref().iter() {
-            self.vertical_exceptions.insert(*l, exc);
+            self.vertical_exceptions.insert(*l, exc.normal());
         }
         self
     }
