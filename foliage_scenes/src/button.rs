@@ -205,7 +205,7 @@ impl Scene for Button {
         let fill = Self::Components::fill_status(&args.style);
         binder.bind(
             ButtonBindings::Panel,
-            (0.from_left(), 0.from_left(), 1),
+            (0.close(), 0.close(), 1),
             Panel::new(fill, anchor.0.section.area, args.foreground_color),
             cmd,
         );

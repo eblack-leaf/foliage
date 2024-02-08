@@ -43,7 +43,7 @@ impl Leaf for Home {
         elm.add_view_binding(
             HOME,
             Rectangle::new(Area::default(), Color::OFF_WHITE, Progress::full()),
-            ResponsiveSegment::base(2.near().to(5.far()), 2.near().offset(20.0).to(4.fixed())),
+            ResponsiveSegment::base(2.near().to(5.far()), 2.near().offset(25.0).to(4.fixed())),
             (),
         );
         elm.add_view_scene_binding(

@@ -75,13 +75,13 @@ impl Scene for TextInput {
             .insert(InteractionListener::default());
         binder.bind(
             TextInputBindings::Panel,
-            (0.from_left(), 0.from_left(), 2),
+            (0.close(), 0.close(), 2),
             Panel::new(PanelStyle::fill(), anchor.0.section.area, args.background),
             cmd,
         );
         binder.bind(
             TextInputBindings::Cursor,
-            (SPACING.from_left(), 0.center(), 1),
+            (SPACING.close(), 0.center(), 1),
             Rectangle::new(
                 character_dims.to_numerical().as_interface(),
                 args.foreground.with_alpha(0.0),
@@ -102,7 +102,7 @@ impl Scene for TextInput {
         };
         binder.bind(
             TextInputBindings::Text,
-            (SPACING.from_left(), 0.center(), 0),
+            (SPACING.close(), 0.center(), 0),
             Text::new(args.max_chars, fs, display_text.clone(), args.foreground),
             cmd,
         );
@@ -364,7 +364,7 @@ fn update_cursor_alignment(
             }
         }
         coordinator.get_alignment_mut(&cursor).pos.horizontal =
-            (dims.0.width * offset.0 as f32 + SPACING).from_left();
+            (dims.0.width * offset.0 as f32 + SPACING).close();
     }
 }
 fn handle_input(

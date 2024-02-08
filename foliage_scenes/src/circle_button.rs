@@ -136,7 +136,7 @@ impl Scene for CircleButton {
             .insert(InteractionListener::default().with_shape(InteractionShape::Circle));
         binder.bind(
             CircleButtonBindings::Circle,
-            (0.from_left(), 0.from_left(), 1),
+            (0.close(), 0.close(), 1),
             Circle::new(
                 style,
                 Diameter::new(anchor.0.section.width()),

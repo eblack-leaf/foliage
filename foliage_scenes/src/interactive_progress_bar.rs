@@ -88,7 +88,7 @@ fn resize(
         let m_ac = handle
             .access_chain()
             .target(InteractiveProgressBarBindings::Marker);
-        coordinator.get_alignment_mut(&m_ac).pos.horizontal = metrics(*area, percent.0).from_left();
+        coordinator.get_alignment_mut(&m_ac).pos.horizontal = metrics(*area, percent.0).close();
         let p_ac = handle
             .access_chain()
             .target(InteractiveProgressBarBindings::Progress);
@@ -140,7 +140,7 @@ fn interact(
                 percent.0 += p;
                 percent.0 = percent.0.min(1.0).max(0.0);
                 coordinator.get_alignment_mut(&m_ac).pos.horizontal =
-                    metrics(*area, percent.0).from_left();
+                    metrics(*area, percent.0).close();
                 *progresses.get_mut(prog).unwrap().end_mut() = percent.0;
                 hook.0.replace(listener.interaction.current);
             }
@@ -162,7 +162,7 @@ impl Scene for InteractiveProgressBar {
         let entity = binder.bind(
             InteractiveProgressBarBindings::Marker,
             (
-                metrics(anchor.0.section.area, args.percent).from_left(),
+                metrics(anchor.0.section.area, args.percent).close(),
                 0.center(),
                 0,
             ),
@@ -179,7 +179,7 @@ impl Scene for InteractiveProgressBar {
         tracing::trace!("binding-interactive-progress-marker: {:?}", entity);
         let (handle, entity) = binder.bind_scene(
             InteractiveProgressBarBindings::Progress.into(),
-            (0.from_left(), 0.center(), 1).into(),
+            (0.close(), 0.center(), 1).into(),
             (anchor.0.section.area.width, 4f32).into(),
             ProgressBar::new(
                 Progress::new(0.0, args.percent),

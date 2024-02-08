@@ -41,16 +41,16 @@ impl<SAP: Into<AlignmentPoint>> From<(SAP, SAP, u32)> for SceneAlignment {
 }
 
 pub trait SceneAligner {
-    fn from_left(self) -> AlignmentPoint;
+    fn close(self) -> AlignmentPoint;
     fn center(self) -> AlignmentPoint;
-    fn from_right(self) -> AlignmentPoint;
+    fn away(self) -> AlignmentPoint;
 }
 macro_rules! impl_scene_aligner {
     ($($elem:ty),*) => {
         $(impl SceneAligner for $elem {
-            fn from_left(self) -> AlignmentPoint {
+            fn close(self) -> AlignmentPoint {
                 AlignmentPoint {
-                    bias: AlignmentBias::FromLeft,
+                    bias: AlignmentBias::Close,
                     offset: self as CoordinateUnit,
                 }
             }
@@ -60,9 +60,9 @@ macro_rules! impl_scene_aligner {
                     offset: self as CoordinateUnit,
                 }
             }
-            fn from_right(self) -> AlignmentPoint {
+            fn away(self) -> AlignmentPoint {
                 AlignmentPoint {
-                    bias: AlignmentBias::FromRight,
+                    bias: AlignmentBias::Away,
                     offset: self as CoordinateUnit,
                 }
             }
@@ -76,9 +76,9 @@ pub struct AlignmentDisable(pub bool);
 #[derive(Copy, Clone, Default)]
 pub enum AlignmentBias {
     #[default]
-    FromLeft,
+    Close,
     Center,
-    FromRight,
+    Away,
 }
 
 #[derive(Copy, Clone)]
@@ -115,20 +115,20 @@ impl PositionAlignment {
         node_area: Area<InterfaceContext>,
     ) -> Position<InterfaceContext> {
         let x = match self.horizontal.bias {
-            AlignmentBias::FromLeft => anchor.0.section.left() + self.horizontal.offset,
+            AlignmentBias::Close => anchor.0.section.left() + self.horizontal.offset,
             AlignmentBias::Center => {
                 anchor.0.section.center().x - node_area.width / 2f32 + self.horizontal.offset
             }
-            AlignmentBias::FromRight => {
+            AlignmentBias::Away => {
                 anchor.0.section.right() - self.horizontal.offset - node_area.width
             }
         };
         let y = match self.vertical.bias {
-            AlignmentBias::FromLeft => anchor.0.section.top() + self.vertical.offset,
+            AlignmentBias::Close => anchor.0.section.top() + self.vertical.offset,
             AlignmentBias::Center => {
                 anchor.0.section.center().y - node_area.height / 2f32 + self.vertical.offset
             }
-            AlignmentBias::FromRight => {
+            AlignmentBias::Away => {
                 anchor.0.section.bottom() - self.vertical.offset - node_area.height
             }
         };

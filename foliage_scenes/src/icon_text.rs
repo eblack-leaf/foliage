@@ -171,10 +171,10 @@ fn resize(
         let (is, fs, actual_area, iap, tap) = metrics(*area, max_char, &font, &scale_factor);
         coordinator.update_anchor_area(*handle, actual_area);
         let icon_ac = handle.access_chain().target(IconTextBindings::Icon);
-        coordinator.get_alignment_mut(&icon_ac).pos.horizontal = iap.from_left();
+        coordinator.get_alignment_mut(&icon_ac).pos.horizontal = iap.close();
         let icon_entity = coordinator.binding_entity(&icon_ac);
         let text_ac = handle.access_chain().target(IconTextBindings::Text);
-        coordinator.get_alignment_mut(&text_ac).pos.horizontal = tap.from_left();
+        coordinator.get_alignment_mut(&text_ac).pos.horizontal = tap.close();
         let text_entity = coordinator.binding_entity(&text_ac);
         *texts.get_mut(text_entity).unwrap().0 = *max_char;
         *texts.get_mut(text_entity).unwrap().1 = text_val.clone();
@@ -205,13 +205,13 @@ impl Scene for IconText {
         );
         binder.bind(
             Self::Bindings::Icon,
-            (iap.from_left(), 0.center(), 0),
+            (iap.close(), 0.center(), 0),
             Icon::new(args.id, is, args.icon_color),
             cmd,
         );
         binder.bind(
             Self::Bindings::Text,
-            (tap.from_left(), 0.center(), 0),
+            (tap.close(), 0.center(), 0),
             Text::new(args.max_chars, fs, args.text_value.clone(), args.text_color),
             cmd,
         );
