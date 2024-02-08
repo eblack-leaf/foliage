@@ -166,11 +166,11 @@ pub struct Button {
     pub background_color: Color,
 }
 impl Button {
-    pub fn new<C: Into<Color>>(
+    pub fn new<ID: Into<IconId>, C: Into<Color>>(
         style: ButtonStyle,
         text: TextValue,
         max_char: MaxCharacters,
-        icon_id: IconId,
+        icon_id: ID,
         foreground_color: C,
         background_color: C,
     ) -> Self {
@@ -178,7 +178,7 @@ impl Button {
             style,
             text,
             max_char,
-            icon_id,
+            icon_id: icon_id.into(),
             foreground_color: foreground_color.into(),
             background_color: background_color.into(),
         }
