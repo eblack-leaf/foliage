@@ -1,7 +1,7 @@
-use crate::Assets;
 use foliage::aspect_ratio_image::AspectRatioImage;
+use foliage::asset::AssetKey;
 use foliage::bevy_ecs;
-use foliage::bevy_ecs::prelude::Component;
+use foliage::bevy_ecs::prelude::{Component, Resource};
 use foliage::button::{Button, ButtonStyle};
 use foliage::circle_progress_bar::CircleProgressBar;
 use foliage::color::Color;
@@ -17,6 +17,18 @@ use foliage::progress_bar::ProgressBar;
 use foliage::text::{MaxCharacters, TextValue};
 use foliage::texture::factors::Progress;
 
+#[foliage::assets(crate::Engen, "../assets/", "/foliage/demo/assets/")]
+#[derive(Resource, Clone)]
+pub(crate) struct Assets {
+    #[bytes(path = "something.dat", group = f_asset)]
+    _something: AssetKey,
+    #[bytes(path = "img.png", group = f_asset)]
+    image_id: AssetKey,
+    #[icon(path = "icons/copy.gatl", opt = FeatherIcon::Copy)]
+    _copy_id: AssetKey,
+    #[icon(path = "icons/command.gatl", opt = FeatherIcon::Command)]
+    _command_id: AssetKey,
+}
 pub(crate) struct Showcase {}
 impl Leaf for Showcase {
     type SetDescriptor = EmptySetDescriptor;
@@ -53,8 +65,8 @@ impl Leaf for Showcase {
                 Color::OFF_BLACK,
             ),
             ResponsiveSegment::base(
-                1.near().to(2.far()).minimum(100.0).maximum(300.0),
-                1.near().to(1.far()).minimum(35.0).maximum(50.0),
+                1.near().to(2.far()).minimum(120.0).maximum(300.0),
+                1.near().to(1.far()).minimum(35.0).maximum(45.0),
             ),
             (),
         );
@@ -69,8 +81,8 @@ impl Leaf for Showcase {
                 Color::OFF_BLACK,
             ),
             ResponsiveSegment::base(
-                3.near().to(4.far()).minimum(100.0).maximum(300.0),
-                1.near().to(1.far()).minimum(35.0).maximum(50.0),
+                3.near().to(4.far()).minimum(120.0).maximum(300.0),
+                1.near().to(1.far()).minimum(35.0).maximum(45.0),
             ),
             (),
         );

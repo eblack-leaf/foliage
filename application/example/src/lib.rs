@@ -1,9 +1,6 @@
 mod showcase;
 
 use crate::showcase::Showcase;
-use foliage::asset::AssetKey;
-use foliage::bevy_ecs;
-use foliage::bevy_ecs::prelude::Resource;
 use foliage::elm::Elm;
 use foliage::window::WindowDescriptor;
 use foliage::workflow::{EngenHandle, Workflow};
@@ -36,16 +33,4 @@ impl Workflow for Engen {
     fn react(_elm: &mut Elm, response: Self::Response) {
         tracing::trace!("got response: {:?}", response);
     }
-}
-#[foliage::assets(Engen, "../assets/", "/foliage/demo/assets/")]
-#[derive(Resource, Clone)]
-pub(crate) struct Assets {
-    #[bytes(path = "something.dat", group = f_asset)]
-    _something: AssetKey,
-    #[bytes(path = "img.png", group = f_asset)]
-    image_id: AssetKey,
-    #[icon(path = "icons/copy.gatl", opt = FeatherIcon::Copy)]
-    _copy_id: AssetKey,
-    #[icon(path = "icons/command.gatl", opt = FeatherIcon::Command)]
-    _command_id: AssetKey,
 }

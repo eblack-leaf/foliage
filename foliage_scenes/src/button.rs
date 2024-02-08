@@ -147,7 +147,7 @@ fn updates(
             tc.0 = color;
         }
         if let Ok(mut area) = area_query.get_mut(icon_text_node) {
-            let ita = *button_area * (0.8, 0.9).into();
+            let ita = *button_area * (0.8, 0.8).into();
             let metrics = crate::icon_text::metrics(ita, max_char, &font, &scale_factor);
             *area = metrics.2;
         }
@@ -212,7 +212,7 @@ impl Scene for Button {
         binder.bind_scene(
             ButtonBindings::IconText.into(),
             SceneAlignment::from((0.center(), 0.center(), 0)),
-            anchor.0.section.area * (0.8, 0.9).into(),
+            anchor.0.section.area * (0.8, 0.8).into(),
             IconText::new(
                 args.icon_id,
                 args.max_char,
