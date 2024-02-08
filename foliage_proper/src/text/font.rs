@@ -10,13 +10,10 @@ impl MonospacedFont {
     pub const TEXT_HEIGHT_CORRECTION: f32 = 1.0;
     pub const MAX_CHECKED_FONT_SIZE: u32 = 500;
     pub fn character_dimensions(&self, px: CoordinateUnit) -> Area<DeviceContext> {
+        let horizontal_metrics = self.0.horizontal_line_metrics(px).unwrap();
         (
             self.0.metrics('a', px).advance_width.ceil(),
-            self.0
-                .horizontal_line_metrics(px)
-                .unwrap()
-                .new_line_size
-                .ceil(),
+            (horizontal_metrics.ascent - horizontal_metrics.descent).ceil(),
         )
             .into()
     }

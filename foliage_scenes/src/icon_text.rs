@@ -92,19 +92,12 @@ fn metrics(
     scale_factor: &ScaleFactor,
 ) -> (IconScale, FontSize, CoordinateUnit, CoordinateUnit) {
     let spacing = 8.0;
-    let (fs, fa) = font.best_fit(*max_characters, area * (0.75, 1.2).into(), scale_factor);
+    let (fs, fa) = font.best_fit(*max_characters, area * (0.75, 1.0).into(), scale_factor);
     let icon_scale = IconScale::from_dim(
         ((area.width - spacing) * 0.25)
             .min(area.height * 0.7)
             .min(fa.height),
     );
-    // let center_x = area.width / 2f32;
-    // let element_center_x = (icon_scale.px() + spacing + fa.width) / 2f32;
-    // let offset = if element_center_x < center_x {
-    //     center_x - element_center_x
-    // } else {
-    //     0.0
-    // };
     let offset = 0.0;
     (icon_scale, fs, offset, offset + icon_scale.px() + spacing)
 }

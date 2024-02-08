@@ -150,10 +150,6 @@ pub struct ResponsiveSegment {
     vertical_exceptions: HashMap<Layout, SegmentUnitDescriptor>,
     negations: HashSet<Layout>,
     layer: Layer,
-    min_height: Option<CoordinateUnit>,
-    max_height: Option<CoordinateUnit>,
-    min_width: Option<CoordinateUnit>,
-    max_width: Option<CoordinateUnit>,
     justification: Option<Justify>,
 }
 impl ResponsiveSegment {
@@ -183,13 +179,13 @@ impl ResponsiveSegment {
             GridRelativeValue::Anchored(value) => value - top,
             GridRelativeValue::Fixed(value) => value,
         };
-        let width = if let Some(w) = self.min_width {
+        let width = if let Some(w) = self.horizontal_value(&layout).min {
             let bounded = width.max(w);
             bounded
         } else {
             width
         };
-        let (left, width) = if let Some(w) = self.max_width {
+        let (left, width) = if let Some(w) = self.horizontal_value(&layout).max {
             let bounded = width.min(w);
             let adjusted_left = if bounded < width {
                 let diff = width - bounded;
@@ -206,19 +202,19 @@ impl ResponsiveSegment {
         } else {
             (left, width)
         };
-        let height = if let Some(h) = self.min_height {
+        let height = if let Some(h) = self.vertical_value(&layout).min {
             let bounded = height.max(h);
             bounded
         } else {
             height
         };
-        let (top, height) = if let Some(h) = self.max_height {
+        let (top, height) = if let Some(h) = self.vertical_value(&layout).max {
             let bounded = height.min(h);
             let adjusted_top = if bounded < height {
                 let diff = height - bounded;
-                let justification = self.justification.unwrap_or(Justify::Center);
+                let justification = self.justification.unwrap_or(Center);
                 match justification {
-                    Justify::Center => top + diff.div(2.0),
+                    Center => top + diff.div(2.0),
                     Justify::Bottom | Justify::RightBottom | Justify::LeftBottom => top + diff,
                     _ => top,
                 }
@@ -254,18 +250,17 @@ impl ResponsiveSegment {
             .cloned()
             .unwrap_or(self.base.horizontal)
     }
-    pub fn base(horizontal: SegmentUnitDescriptor, vertical: SegmentUnitDescriptor) -> Self {
+    pub fn base(
+        horizontal: WellFormedSegmentUnitDescriptor,
+        vertical: WellFormedSegmentUnitDescriptor,
+    ) -> Self {
         Self {
             view_handle: ViewHandle::default(),
-            base: Segment::new(horizontal, vertical),
+            base: Segment::new(horizontal.normal(), vertical.normal()),
             horizontal_exceptions: Default::default(),
             vertical_exceptions: Default::default(),
             negations: HashSet::new(),
             layer: Layer::default(),
-            min_height: None,
-            max_height: None,
-            min_width: None,
-            max_width: None,
             justification: None,
         }
     }
@@ -330,34 +325,35 @@ impl ResponsiveSegment {
         self.negations.insert(Layout::LANDSCAPE_WORKSTATION);
         self
     }
-    pub fn min_height(mut self, m: CoordinateUnit) -> Self {
-        self.min_height.replace(m);
-        self
-    }
-    pub fn max_height(mut self, m: CoordinateUnit) -> Self {
-        self.max_height.replace(m);
-        self
-    }
-    pub fn min_width(mut self, m: CoordinateUnit) -> Self {
-        self.min_width.replace(m);
-        self
-    }
-    pub fn max_width(mut self, m: CoordinateUnit) -> Self {
-        self.max_width.replace(m);
-        self
-    }
-    pub fn constraint_exception<L: AsRef<[Layout]>>(self, _layouts: L, _exc: ()) -> Self {
-        todo!()
-    }
 }
 #[derive(Copy, Clone)]
 pub struct SegmentUnitDescriptor {
     begin: SegmentUnit,
     end: SegmentUnit,
+    min: Option<CoordinateUnit>,
+    max: Option<CoordinateUnit>,
 }
 impl SegmentUnitDescriptor {
     pub fn new(begin: SegmentUnit, end: SegmentUnit) -> SegmentUnitDescriptor {
-        Self { begin, end }
+        Self {
+            begin,
+            end,
+            min: None,
+            max: None,
+        }
+    }
+    pub fn with_bounds(
+        begin: SegmentUnit,
+        end: SegmentUnit,
+        min: Option<CoordinateUnit>,
+        max: Option<CoordinateUnit>,
+    ) -> Self {
+        Self {
+            begin,
+            end,
+            min,
+            max,
+        }
     }
 }
 #[derive(Copy, Clone)]
@@ -437,11 +433,39 @@ impl SegmentUnit {
             offset: None,
         }
     }
-    pub fn to(self, su: SegmentUnit) -> SegmentUnitDescriptor {
-        SegmentUnitDescriptor::new(self, su)
+    pub fn to(self, su: SegmentUnit) -> WellFormedSegmentUnitDescriptor {
+        WellFormedSegmentUnitDescriptor::new(self, su)
     }
     pub fn offset(mut self, o: CoordinateUnit) -> Self {
         self.offset.replace(o);
         self
+    }
+}
+#[derive(Copy, Clone)]
+pub struct WellFormedSegmentUnitDescriptor {
+    begin: SegmentUnit,
+    end: SegmentUnit,
+    min: Option<CoordinateUnit>,
+    max: Option<CoordinateUnit>,
+}
+impl WellFormedSegmentUnitDescriptor {
+    pub fn new(begin: SegmentUnit, end: SegmentUnit) -> Self {
+        Self {
+            begin,
+            end,
+            min: None,
+            max: None,
+        }
+    }
+    pub fn minimum(mut self, m: CoordinateUnit) -> Self {
+        self.min.replace(m);
+        self
+    }
+    pub fn maximum(mut self, m: CoordinateUnit) -> Self {
+        self.max.replace(m);
+        self
+    }
+    fn normal(self) -> SegmentUnitDescriptor {
+        SegmentUnitDescriptor::with_bounds(self.begin, self.end, self.min, self.max)
     }
 }

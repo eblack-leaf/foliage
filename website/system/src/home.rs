@@ -34,11 +34,10 @@ impl Leaf for Home {
                 Color::OFF_WHITE,
                 Color::GREY_MEDIUM,
             ),
-            ResponsiveSegment::base(2.near().to(5.far()), 1.near().offset(10.0).to(2.near()))
-                .min_height(50.0)
-                .max_height(80.0)
-                .min_width(200.0)
-                .max_width(500.0),
+            ResponsiveSegment::base(
+                2.near().to(5.far()).minimum(200.0).maximum(500.0),
+                1.near().to(2.near()).minimum(50.0).maximum(80.0),
+            ),
             GlyphColorChanges::new().with_range(7, 9, Color::RED_ORANGE_MEDIUM),
         );
         elm.add_view_binding(
@@ -56,11 +55,10 @@ impl Leaf for Home {
                 Color::OFF_WHITE,
                 Color::GREY_MEDIUM,
             ),
-            ResponsiveSegment::base(2.near().to(5.far()), 3.near().to(3.far()))
-                .min_height(40.0)
-                .max_height(60.0)
-                .min_width(300.0)
-                .max_width(600.0),
+            ResponsiveSegment::base(
+                2.near().to(5.far()).minimum(300.0).maximum(600.0),
+                3.near().to(3.far()).minimum(40.0).maximum(60.0),
+            ),
             GlyphColorChanges::new()
                 .with_range(7, 10, Color::RED_ORANGE_MEDIUM)
                 .extend(HrefLink::new("/foliage/book/index.html")),
@@ -74,11 +72,10 @@ impl Leaf for Home {
                 Color::OFF_WHITE,
                 Color::GREY_MEDIUM,
             ),
-            ResponsiveSegment::base(2.near().to(5.far()), 4.near().to(4.far()))
-                .min_height(40.0)
-                .max_height(60.0)
-                .min_width(300.0)
-                .max_width(600.0),
+            ResponsiveSegment::base(
+                2.near().to(5.far()).minimum(300.0).maximum(600.0),
+                4.near().to(4.far()).minimum(40.0).maximum(60.0),
+            ),
             GlyphColorChanges::new()
                 .with_range(14, 17, Color::RED_ORANGE_MEDIUM)
                 .extend(HrefLink::new("/foliage/documentation/foliage/index.html")),
@@ -92,11 +89,10 @@ impl Leaf for Home {
                 Color::OFF_WHITE,
                 Color::GREY_MEDIUM,
             ),
-            ResponsiveSegment::base(2.near().to(5.far()), 5.near().to(5.far()))
-                .min_height(40.0)
-                .max_height(60.0)
-                .min_width(300.0)
-                .max_width(600.0),
+            ResponsiveSegment::base(
+                2.near().to(5.far()).minimum(300.0).maximum(600.0),
+                5.near().to(5.far()).minimum(40.0).maximum(60.0),
+            ),
             GlyphColorChanges::new()
                 .with_range(14, 17, Color::RED_ORANGE_MEDIUM)
                 .extend(HrefLink::new("/foliage/demo/index.html")),
