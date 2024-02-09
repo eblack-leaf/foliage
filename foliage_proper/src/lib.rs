@@ -48,6 +48,7 @@ pub mod ash;
 pub mod asset;
 pub mod circle;
 pub mod clipboard;
+// pub mod color;
 pub mod color;
 pub mod compositor;
 pub mod coordinate;

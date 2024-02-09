@@ -56,7 +56,7 @@ impl Ginkgo {
             viewport: None,
             depth_texture: None,
             msaa: None,
-            clear_color: ClearColor(Color::OFF_BLACK.into()),
+            clear_color: ClearColor(Color::BLACK),
             initialized: false,
             scale_factor: ScaleFactor::new(1.0),
         }

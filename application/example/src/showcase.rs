@@ -3,7 +3,7 @@ use foliage::bevy_ecs;
 use foliage::bevy_ecs::prelude::{Component, Resource};
 use foliage::button::{Button, ButtonStyle};
 use foliage::circle_progress_bar::CircleProgressBar;
-use foliage::color::Color;
+use foliage::color::{Color, Monochromatic, Orange};
 use foliage::compositor::segment::{Grid, ResponsiveSegment, SegmentUnitDesc};
 use foliage::compositor::ViewHandle;
 use foliage::coordinate::area::Area;
@@ -60,8 +60,8 @@ impl Leaf for Showcase {
                 TextValue::new("ring"),
                 MaxCharacters(4),
                 FeatherIcon::Copy.id(),
-                Color::CYAN_MEDIUM,
-                Color::OFF_BLACK,
+                Orange::BASE,
+                Color::BLACK,
             ),
             ResponsiveSegment::base(
                 1.near().to(2.far()).minimum(120.0).maximum(300.0),
@@ -76,8 +76,8 @@ impl Leaf for Showcase {
                 TextValue::new("fill"),
                 MaxCharacters(4),
                 FeatherIcon::Command.id(),
-                Color::CYAN_MEDIUM,
-                Color::OFF_BLACK,
+                Orange::MINUS_TWO,
+                Color::BLACK,
             ),
             ResponsiveSegment::base(
                 3.near().to(4.far()).minimum(120.0).maximum(300.0),
@@ -87,21 +87,13 @@ impl Leaf for Showcase {
         );
         elm.add_view_scene_binding(
             handle,
-            ProgressBar::new(
-                Progress::new(0.0, 0.67),
-                Color::CYAN_MEDIUM,
-                Color::GREY_DARK,
-            ),
+            ProgressBar::new(Progress::new(0.0, 0.67), Orange::PLUS_ONE, Color::GREY),
             ResponsiveSegment::base(1.near().to(2.far()), 3.far().to(4.fixed())),
             (),
         );
         elm.add_view_scene_binding(
             handle,
-            CircleProgressBar::new(
-                Progress::new(0.0, 0.67),
-                Color::CYAN_MEDIUM,
-                Color::GREY_DARK,
-            ),
+            CircleProgressBar::new(Progress::new(0.0, 0.67), Orange::PLUS_THREE, Color::GREY),
             ResponsiveSegment::base(1.near().to(44.fixed()), 3.near().to(44.fixed())),
             (),
         );

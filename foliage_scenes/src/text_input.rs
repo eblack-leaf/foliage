@@ -268,7 +268,7 @@ fn clear_cursor(
             if changed {
                 let ent = coordinator
                     .binding_entity(&handle.access_chain().target(TextInputBindings::Cursor));
-                colors.get_mut(ent).unwrap().alpha = 0.0;
+                *colors.get_mut(ent).unwrap().alpha_mut() = 0.0;
                 let ent = coordinator
                     .binding_entity(&handle.access_chain().target(TextInputBindings::Text));
                 if actual.0.is_empty() {
@@ -318,7 +318,7 @@ fn cursor_on_click(
             *colors.get_mut(text_ent).unwrap() = fc.0;
             let cursor_ent = coordinator
                 .binding_entity(&handle.access_chain().target(TextInputBindings::Cursor));
-            colors.get_mut(cursor_ent).unwrap().alpha = 1.0;
+            *colors.get_mut(cursor_ent).unwrap().alpha_mut() = 1.0;
             offset.0 = (((listener.interaction.current.x - pos.x - SPACING) / dims.0.width).floor()
                 as u32)
                 .min(mc.0.checked_sub(1).unwrap_or_default())
