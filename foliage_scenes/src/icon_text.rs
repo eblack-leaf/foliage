@@ -108,7 +108,7 @@ pub(crate) fn metrics(
     (
         icon_scale,
         fs,
-        fa + (icon_scale.px(), icon_scale.px()).into() + (spacing, spacing).into(),
+        fa + (icon_scale.px(), 0.0).into() + (spacing, 0.0).into(),
         offset,
         offset + icon_scale.px() + spacing,
     )
@@ -131,10 +131,10 @@ fn color_changes(
     }
 }
 fn resize(
-    scenes: Query<
+    mut scenes: Query<
         (
             &SceneHandle,
-            &Area<InterfaceContext>,
+            &mut Area<InterfaceContext>,
             &MaxCharacters,
             &TextValue,
             &IconId,
@@ -161,12 +161,13 @@ fn resize(
     font: Res<MonospacedFont>,
     scale_factor: Res<ScaleFactor>,
 ) {
-    for (handle, area, max_char, text_val, icon_id, despawn, ic, tc) in scenes.iter() {
+    for (handle, mut area, max_char, text_val, icon_id, despawn, ic, tc) in scenes.iter_mut() {
         if despawn.should_despawn() {
             continue;
         }
         let (is, fs, actual_area, iap, tap) = metrics(*area, max_char, &font, &scale_factor);
         coordinator.update_anchor_area(*handle, actual_area);
+        *area = actual_area;
         let icon_ac = handle.access_chain().target(IconTextBindings::Icon);
         coordinator.get_alignment_mut(&icon_ac).pos.horizontal = iap.close();
         let icon_entity = coordinator.binding_entity(&icon_ac);

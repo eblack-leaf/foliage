@@ -48,7 +48,6 @@ pub mod ash;
 pub mod asset;
 pub mod circle;
 pub mod clipboard;
-// pub mod color;
 pub mod color;
 pub mod compositor;
 pub mod coordinate;
@@ -221,6 +220,7 @@ impl Foliage {
                     event_loop_window_target.set_control_flow(ControlFlow::Wait);
                 } else {
                     tracing::trace!("job-polling");
+                    #[cfg(not(target_family = "wasm"))]
                     event_loop_window_target.set_control_flow(ControlFlow::Poll);
                 }
                 match event {

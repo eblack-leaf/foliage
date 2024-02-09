@@ -24,7 +24,7 @@ impl Default for Color {
 impl Color {
     pub const WHITE: Color = Color::rgb(0.95, 0.95, 0.95);
     pub const BLACK: Color = Color::rgb(0.005, 0.005, 0.005);
-    pub const GREY: Color = Color::rgb(0.35, 0.35, 0.35);
+    pub const GREY: Color = Color::rgb(0.15, 0.15, 0.15);
     pub const fn new(r: f32, g: f32, b: f32, a: f32) -> Self {
         Self { rgba: [r, g, b, a] }
     }

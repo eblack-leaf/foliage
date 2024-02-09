@@ -1,5 +1,5 @@
 use crate::HOME;
-use foliage::color::Color;
+use foliage::color::{Color, Monochromatic, Orange};
 use foliage::compositor::segment::{Grid, ResponsiveSegment, SegmentUnitDesc};
 use foliage::coordinate::area::Area;
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
@@ -30,19 +30,19 @@ impl Leaf for Home {
                 FeatherIcon::Terminal.id(),
                 MaxCharacters(10),
                 TextValue::new("foliage.rs"),
-                Color::OFF_WHITE,
-                Color::GREY_MEDIUM,
+                Color::WHITE,
+                Color::GREY,
             ),
             ResponsiveSegment::base(
                 2.near().to(5.far()).minimum(200.0).maximum(500.0),
                 1.near().to(2.near()).minimum(50.0).maximum(80.0),
             ),
-            GlyphColorChanges::new().with_range(7, 9, Color::RED_ORANGE_MEDIUM),
+            GlyphColorChanges::new().with_range(7, 9, Orange::MINUS_THREE),
         );
         elm.add_view_binding(
             HOME,
-            Rectangle::new(Area::default(), Color::OFF_WHITE, Progress::full()),
-            ResponsiveSegment::base(2.near().to(5.far()), 2.near().offset(30.0).to(4.fixed())),
+            Rectangle::new(Area::default(), Color::WHITE, Progress::full()),
+            ResponsiveSegment::base(2.near().to(5.far()), 2.near().offset(15.0).to(4.fixed())),
             (),
         );
         elm.add_view_scene_binding(
@@ -51,15 +51,15 @@ impl Leaf for Home {
                 FeatherIcon::ChevronsRight.id(),
                 MaxCharacters(20),
                 TextValue::new("ls -la BOOK [arch]"),
-                Color::OFF_WHITE,
-                Color::GREY_MEDIUM,
+                Color::WHITE,
+                Color::GREY,
             ),
             ResponsiveSegment::base(
-                2.near().to(5.far()).minimum(300.0).maximum(600.0),
+                2.near().to(5.far()).minimum(300.0).maximum(500.0),
                 3.near().to(3.far()).minimum(40.0).maximum(60.0),
             ),
             GlyphColorChanges::new()
-                .with_range(7, 10, Color::RED_ORANGE_MEDIUM)
+                .with_range(7, 10, Orange::MINUS_THREE)
                 .extend(HrefLink::new("/foliage/book/index.html")),
         );
         elm.add_view_scene_binding(
@@ -68,15 +68,15 @@ impl Leaf for Home {
                 FeatherIcon::ChevronsRight.id(),
                 MaxCharacters(20),
                 TextValue::new("grep answer | DOCS"),
-                Color::OFF_WHITE,
-                Color::GREY_MEDIUM,
+                Color::WHITE,
+                Color::GREY,
             ),
             ResponsiveSegment::base(
-                2.near().to(5.far()).minimum(300.0).maximum(600.0),
+                2.near().to(5.far()).minimum(300.0).maximum(500.0),
                 4.near().to(4.far()).minimum(40.0).maximum(60.0),
             ),
             GlyphColorChanges::new()
-                .with_range(14, 17, Color::RED_ORANGE_MEDIUM)
+                .with_range(14, 17, Orange::MINUS_THREE)
                 .extend(HrefLink::new("/foliage/documentation/foliage/index.html")),
         );
         elm.add_view_scene_binding(
@@ -85,15 +85,15 @@ impl Leaf for Home {
                 FeatherIcon::ChevronsRight.id(),
                 MaxCharacters(20),
                 TextValue::new("chmod+x -wasm DEMO"),
-                Color::OFF_WHITE,
-                Color::GREY_MEDIUM,
+                Color::WHITE,
+                Color::GREY,
             ),
             ResponsiveSegment::base(
-                2.near().to(5.far()).minimum(300.0).maximum(600.0),
+                2.near().to(5.far()).minimum(300.0).maximum(500.0),
                 5.near().to(5.far()).minimum(40.0).maximum(60.0),
             ),
             GlyphColorChanges::new()
-                .with_range(14, 17, Color::RED_ORANGE_MEDIUM)
+                .with_range(14, 17, Orange::MINUS_THREE)
                 .extend(HrefLink::new("/foliage/demo/index.html")),
         );
     }

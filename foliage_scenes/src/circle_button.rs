@@ -85,7 +85,7 @@ fn resize(
             ButtonStyle::Fill => CircleStyle::fill(),
         };
         *circles.get_mut(circle).unwrap() = cs;
-        areas.get_mut(icon).unwrap().width = area.width * 0.7;
+        areas.get_mut(icon).unwrap().width = area.width - 16.0;
         *areas.get_mut(circle).unwrap() = *area;
     }
 }
@@ -150,7 +150,7 @@ impl Scene for CircleButton {
             (0.center(), 0.center(), 0),
             Icon::new(
                 args.icon_id,
-                IconScale::from_dim(anchor.0.section.width() * 0.8),
+                IconScale::from_dim(anchor.0.section.width() - 16.0),
                 match args.style {
                     ButtonStyle::Ring => args.color,
                     ButtonStyle::Fill => args.back_color,

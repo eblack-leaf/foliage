@@ -87,7 +87,7 @@ fn resize(
             ButtonStyle::Fill => PanelStyle::fill(),
         };
         let icon = coordinator.binding_entity(&iac);
-        areas.get_mut(icon).unwrap().width = area.height * 0.9;
+        areas.get_mut(icon).unwrap().width = area.height * 0.7;
         match style {
             ButtonStyle::Ring => {
                 *colors.get_mut(icon).unwrap() = foreground.0;
@@ -142,7 +142,7 @@ impl Scene for IconButton {
             (0.center(), 0.center(), 0),
             Icon::new(
                 args.id,
-                IconScale::from_dim(anchor.0.section.area.height * 0.9),
+                IconScale::from_dim(anchor.0.section.area.height * 0.7),
                 match args.style {
                     ButtonStyle::Ring => args.foreground_color,
                     ButtonStyle::Fill => args.background_color,
