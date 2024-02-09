@@ -26,7 +26,7 @@ pub enum Orientation {
 }
 impl Orientation {
     pub fn from_area(area: Area<InterfaceContext>) -> Self {
-        if area.width > area.height {
+        if area.width >= area.height {
             Self::Landscape
         } else {
             Self::Portrait
