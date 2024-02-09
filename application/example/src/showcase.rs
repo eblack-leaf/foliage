@@ -89,7 +89,8 @@ impl Leaf for Showcase {
             ResponsiveSegment::base(
                 1.near().to(4.near()).minimum(135.0).maximum(217.0),
                 2.near().to(2.far()).minimum(35.0).maximum(40.0),
-            ),
+            )
+            .justify(Justify::Top),
             (),
         );
         elm.add_view_binding(
@@ -103,7 +104,8 @@ impl Leaf for Showcase {
             ResponsiveSegment::base(
                 4.far().to(8.near()),
                 2.near().to(2.far()).minimum(35.0).maximum(40.0),
-            ),
+            )
+            .justify(Justify::Top),
             (),
         );
         elm.add_view_scene_binding(
@@ -119,7 +121,8 @@ impl Leaf for Showcase {
             ResponsiveSegment::base(
                 1.near().to(4.near()).minimum(135.0).maximum(217.0),
                 3.near().to(3.far()).minimum(35.0).maximum(40.0),
-            ),
+            )
+            .justify(Justify::Top),
             (),
         );
         elm.add_view_binding(
@@ -133,7 +136,8 @@ impl Leaf for Showcase {
             ResponsiveSegment::base(
                 4.far().to(8.near()),
                 3.near().to(3.far()).minimum(35.0).maximum(40.0),
-            ),
+            )
+            .justify(Justify::Top),
             (),
         );
         elm.add_view_scene_binding(
@@ -147,7 +151,8 @@ impl Leaf for Showcase {
             ResponsiveSegment::base(
                 1.near().to(4.near()).minimum(40.0).maximum(40.0),
                 4.near().to(4.far()).minimum(40.0).maximum(40.0),
-            ),
+            )
+            .justify(Justify::Top),
             (),
         );
         elm.add_view_binding(
@@ -161,7 +166,8 @@ impl Leaf for Showcase {
             ResponsiveSegment::base(
                 4.far().to(8.near()),
                 4.near().to(4.far()).minimum(35.0).maximum(40.0),
-            ),
+            )
+            .justify(Justify::Top),
             (),
         );
         elm.add_view_scene_binding(
@@ -175,7 +181,8 @@ impl Leaf for Showcase {
             ResponsiveSegment::base(
                 1.near().to(4.near()).minimum(35.0).maximum(35.0),
                 5.near().to(5.far()).minimum(35.0).maximum(35.0),
-            ),
+            )
+            .justify(Justify::Top),
             (),
         );
         elm.add_view_binding(
@@ -183,13 +190,14 @@ impl Leaf for Showcase {
             Text::new(
                 MaxCharacters(11),
                 FontSize(24),
-                TextValue::new("Icon"),
+                TextValue::new("Icon-Only"),
                 Color::WHITE,
             ),
             ResponsiveSegment::base(
                 4.far().to(8.near()),
                 5.near().to(5.far()).minimum(35.0).maximum(40.0),
-            ),
+            )
+            .justify(Justify::Top),
             (),
         );
         elm.view_trigger::<TestHook>(InteractionHandlerTrigger::Active, |_, cv| {
