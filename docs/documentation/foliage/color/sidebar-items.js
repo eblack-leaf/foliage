@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["Color","ColorBuilder"],"type":["Rgb","Rgba"]};
+window.SIDEBAR_ITEMS = {"struct":["Color","Orange"],"trait":["Monochromatic"]};
