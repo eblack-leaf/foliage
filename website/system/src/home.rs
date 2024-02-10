@@ -1,5 +1,6 @@
 use crate::HOME;
-use foliage::color::{Color, Monochromatic, Orange};
+use foliage::color::monochromatic::{Monochromatic, Orange};
+use foliage::color::Color;
 use foliage::compositor::segment::{Grid, ResponsiveSegment, SegmentUnitDesc};
 use foliage::coordinate::area::Area;
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
@@ -10,6 +11,7 @@ use foliage::media::HrefLink;
 use foliage::rectangle::Rectangle;
 use foliage::text::{GlyphColorChanges, MaxCharacters, TextValue};
 use foliage::texture::factors::Progress;
+
 #[foliage::assets(crate::Engen, "../assets/", "/foliage/assets/")]
 struct Assets {
     #[icon(path = "icons/terminal.icon", opt = FeatherIcon::Terminal)]

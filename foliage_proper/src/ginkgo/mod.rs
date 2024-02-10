@@ -475,14 +475,13 @@ impl Ginkgo {
         }
     }
     pub(crate) fn get_surface_format(&self) -> TextureFormat {
-        *self
+        let formats = self
             .surface
             .as_ref()
             .expect("surface")
             .get_capabilities(self.adapter.as_ref().expect("adapter"))
-            .formats
-            .first()
-            .expect("surface format unsupported")
+            .formats;
+        *formats.first().expect("surface format unsupported")
     }
     pub(crate) async fn get_adapter(&mut self) {
         tracing::trace!("ginkgo:adapter-begin");
@@ -531,7 +530,7 @@ impl Ginkgo {
         tracing::trace!("ginkgo:device-end");
     }
     pub(crate) fn create_surface_configuration(&mut self, area: Area<DeviceContext>) {
-        let surface_format = self.get_surface_format();
+        let surface_format = self.get_surface_format().remove_srgb_suffix();
         self.configuration.replace(wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface_format,

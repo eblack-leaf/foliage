@@ -2,7 +2,8 @@ use foliage::bevy_ecs;
 use foliage::bevy_ecs::prelude::{Component, Resource};
 use foliage::button::{Button, ButtonStyle};
 use foliage::circle_button::CircleButton;
-use foliage::color::{Color, Monochromatic, Orange};
+use foliage::color::monochromatic::{Monochromatic, Orange as THEME_COLOR};
+use foliage::color::Color;
 use foliage::compositor::segment::{Grid, Justify, ResponsiveSegment, SegmentUnitDesc};
 use foliage::compositor::ViewHandle;
 use foliage::coordinate::area::Area;
@@ -83,7 +84,7 @@ impl Leaf for Showcase {
                 TextValue::new("copy"),
                 MaxCharacters(4),
                 FeatherIcon::Copy,
-                Orange::MINUS_TWO,
+                THEME_COLOR::MINUS_THREE,
                 Color::BLACK,
             ),
             ResponsiveSegment::base(
@@ -99,7 +100,7 @@ impl Leaf for Showcase {
                 MaxCharacters(11),
                 FontSize(24),
                 TextValue::new("Fill"),
-                Color::WHITE,
+                THEME_COLOR::MINUS_THREE,
             ),
             ResponsiveSegment::base(
                 4.far().to(8.near()),
@@ -111,11 +112,11 @@ impl Leaf for Showcase {
         elm.add_view_scene_binding(
             START,
             Button::new(
-                ButtonStyle::Ring,
+                ButtonStyle::Fill,
                 TextValue::new("copy"),
                 MaxCharacters(4),
                 FeatherIcon::Copy,
-                Orange::MINUS_TWO,
+                THEME_COLOR::MINUS_ONE,
                 Color::BLACK,
             ),
             ResponsiveSegment::base(
@@ -131,7 +132,7 @@ impl Leaf for Showcase {
                 MaxCharacters(11),
                 FontSize(24),
                 TextValue::new("Ring"),
-                Color::WHITE,
+                THEME_COLOR::MINUS_ONE,
             ),
             ResponsiveSegment::base(
                 4.far().to(8.near()),
@@ -145,7 +146,7 @@ impl Leaf for Showcase {
             CircleButton::new(
                 FeatherIcon::Copy,
                 ButtonStyle::Fill,
-                Orange::PLUS_ONE,
+                THEME_COLOR::PLUS_ONE,
                 Color::BLACK,
             ),
             ResponsiveSegment::base(
@@ -161,7 +162,7 @@ impl Leaf for Showcase {
                 MaxCharacters(11),
                 FontSize(24),
                 TextValue::new("Circle"),
-                Color::WHITE,
+                THEME_COLOR::PLUS_ONE,
             ),
             ResponsiveSegment::base(
                 4.far().to(8.near()),
@@ -174,8 +175,8 @@ impl Leaf for Showcase {
             START,
             IconButton::new(
                 FeatherIcon::Copy,
-                ButtonStyle::Ring,
-                Orange::BASE,
+                ButtonStyle::Fill,
+                THEME_COLOR::PLUS_THREE,
                 Color::BLACK,
             ),
             ResponsiveSegment::base(
@@ -191,7 +192,7 @@ impl Leaf for Showcase {
                 MaxCharacters(11),
                 FontSize(24),
                 TextValue::new("Icon-Only"),
-                Color::WHITE,
+                THEME_COLOR::PLUS_THREE,
             ),
             ResponsiveSegment::base(
                 4.far().to(8.near()),
