@@ -53,6 +53,7 @@ pub struct Grid {
     template: GridTemplate,
 }
 impl Grid {
+    pub const GAP_RATIO: CoordinateUnit = 0.15;
     pub const DEFAULT_GAP: CoordinateUnit = 8.0;
     pub fn new(columns: SegmentValue, rows: SegmentValue) -> Self {
         Self {
@@ -62,10 +63,10 @@ impl Grid {
         }
     }
     pub fn gap_x(&self, dim: CoordinateUnit) -> CoordinateUnit {
-        self.gap_x.min(self.column_element_width(dim) * 0.25)
+        self.gap_x.min(self.column_width(dim) * Self::GAP_RATIO)
     }
     pub fn gap_y(&self, dim: CoordinateUnit) -> CoordinateUnit {
-        self.gap_x.min(self.row_element_height(dim) * 0.25)
+        self.gap_x.min(self.row_height(dim) * Self::GAP_RATIO)
     }
     pub fn horizontal(&self, area: Area<InterfaceContext>, unit: SegmentUnit) -> GridRelativeValue {
         if let Some(f) = unit.fixed {
@@ -98,10 +99,10 @@ impl Grid {
         dim / self.template.rows as CoordinateUnit
     }
     pub fn column_element_width(&self, dim: CoordinateUnit) -> CoordinateUnit {
-        self.column_width(dim) - self.gap_x * 2f32
+        self.column_width(dim) - self.gap_x(dim) * 2f32
     }
     pub fn row_element_height(&self, dim: CoordinateUnit) -> CoordinateUnit {
-        self.row_height(dim) - self.gap_y * 2f32
+        self.row_height(dim) - self.gap_y(dim) * 2f32
     }
     pub fn assign_gap(mut self, descriptor: GapDescriptor, value: CoordinateUnit) -> Self {
         match descriptor {
@@ -237,9 +238,7 @@ impl ResponsiveSegment {
         self
     }
     fn vertical_value(&self, layout: &Layout) -> SegmentUnitDescriptor {
-        if let Some(exc) = self.exceptions
-            .get(layout)
-            .cloned(){
+        if let Some(exc) = self.exceptions.get(layout).cloned() {
             exc.vertical
         } else {
             self.base.vertical
@@ -247,14 +246,11 @@ impl ResponsiveSegment {
     }
 
     fn horizontal_value(&self, layout: &Layout) -> SegmentUnitDescriptor {
-        if let Some(exc) = self.exceptions
-            .get(layout)
-            .cloned(){
+        if let Some(exc) = self.exceptions.get(layout).cloned() {
             exc.horizontal
         } else {
             self.base.horizontal
         }
-
     }
     pub fn base(
         horizontal: WellFormedSegmentUnitDescriptor,
@@ -281,7 +277,8 @@ impl ResponsiveSegment {
     ) -> Self {
         let layouts = layouts.as_ref();
         for l in layouts.iter() {
-            self.exceptions.insert(*l, Segment::new(h_exc.normal(), v_exc.normal()));
+            self.exceptions
+                .insert(*l, Segment::new(h_exc.normal(), v_exc.normal()));
         }
         self
     }

@@ -4,6 +4,7 @@ use foliage::button::{Button, ButtonStyle};
 use foliage::circle_button::CircleButton;
 use foliage::color::monochromatic::{Asparagus as THEME_COLOR, Monochromatic};
 use foliage::color::Color;
+use foliage::compositor::layout::Layout;
 use foliage::compositor::segment::{Grid, Justify, ResponsiveSegment, SegmentUnitDesc};
 use foliage::compositor::ViewHandle;
 use foliage::coordinate::area::Area;
@@ -12,11 +13,8 @@ use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 use foliage::elm::{Elm, InteractionHandlerTrigger};
 use foliage::icon::FeatherIcon;
 use foliage::icon_button::IconButton;
-use foliage::icon_text::IconText;
 use foliage::image::{Image, ImageId, ImageStorage};
-use foliage::rectangle::Rectangle;
 use foliage::text::{FontSize, MaxCharacters, Text, TextValue};
-use foliage::texture::factors::Progress;
 
 #[foliage::assets(crate::Engen, "../assets/", "/foliage/demo/assets/")]
 #[derive(Resource, Clone)]
@@ -60,14 +58,13 @@ impl Leaf for Showcase {
                 MaxCharacters(11),
                 FontSize(24),
                 TextValue::new("button"),
-                THEME_COLOR::BASE,
+                Color::GREY,
             ),
             ResponsiveSegment::base(
                 4.near().to(5.far()).maximum(150.0),
-                1.near().to(1.far()).minimum(35.0).maximum(40.0),
+                1.near().to(1.far()).minimum(30.0).maximum(40.0),
             )
-                .justify(Justify::Top)
-                .without_portrait_mobile(),
+            .justify(Justify::Top),
             (),
         );
         elm.add_view_scene_binding(
@@ -82,7 +79,12 @@ impl Leaf for Showcase {
             ),
             ResponsiveSegment::base(
                 2.near().to(3.far()).minimum(135.0).maximum(217.0),
-                2.near().to(2.far()).minimum(35.0).maximum(40.0),
+                2.near().to(2.far()).minimum(30.0).maximum(40.0),
+            )
+            .exception(
+                [Layout::PORTRAIT_MOBILE],
+                1.near().to(4.far()),
+                2.near().to(2.far()).minimum(30.0).maximum(40.0),
             )
             .justify(Justify::Top),
             (),
@@ -92,21 +94,22 @@ impl Leaf for Showcase {
             Text::new(
                 MaxCharacters(11),
                 FontSize(24),
-                TextValue::new("Fill"),
+                TextValue::new("base"),
                 THEME_COLOR::MINUS_THREE,
             ),
             ResponsiveSegment::base(
                 4.near().to(4.far()),
-                2.near().to(2.far()).minimum(35.0).maximum(40.0),
+                2.near().to(2.far()).minimum(30.0).maximum(40.0),
             )
             .justify(Justify::Top)
-                .without_portrait_mobile(),
+            .without_portrait_mobile()
+            .without_portrait_tablet(),
             (),
         );
         elm.add_view_scene_binding(
             START,
             Button::new(
-                ButtonStyle::Fill,
+                ButtonStyle::Ring,
                 TextValue::new("copy"),
                 MaxCharacters(4),
                 FeatherIcon::Copy,
@@ -115,9 +118,14 @@ impl Leaf for Showcase {
             ),
             ResponsiveSegment::base(
                 5.near().to(6.far()).minimum(135.0).maximum(217.0),
-                2.near().to(2.far()).minimum(35.0).maximum(40.0),
+                2.near().to(2.far()).minimum(30.0).maximum(40.0),
             )
-                .justify(Justify::Top),
+            .exception(
+                [Layout::PORTRAIT_MOBILE],
+                5.near().to(8.far()),
+                2.near().to(2.far()).minimum(30.0).maximum(40.0),
+            )
+            .justify(Justify::Top),
             (),
         );
         elm.add_view_binding(
@@ -125,14 +133,16 @@ impl Leaf for Showcase {
             Text::new(
                 MaxCharacters(11),
                 FontSize(24),
-                TextValue::new("Fill"),
+                TextValue::new("base"),
                 THEME_COLOR::BASE,
             ),
             ResponsiveSegment::base(
                 7.near().to(7.far()),
-                2.near().to(2.far()).minimum(35.0).maximum(40.0),
+                2.near().to(2.far()).minimum(30.0).maximum(40.0),
             )
-                .justify(Justify::Top).without_portrait_mobile(),
+            .justify(Justify::Top)
+            .without_portrait_mobile()
+            .without_portrait_tablet(),
             (),
         );
         elm.add_view_scene_binding(
@@ -147,9 +157,14 @@ impl Leaf for Showcase {
             ),
             ResponsiveSegment::base(
                 2.near().to(3.far()).minimum(135.0).maximum(217.0),
-                3.near().to(3.far()).minimum(35.0).maximum(40.0),
+                3.near().to(3.far()).minimum(30.0).maximum(40.0),
             )
-                .justify(Justify::Top),
+            .exception(
+                [Layout::PORTRAIT_MOBILE],
+                1.near().to(4.far()),
+                3.near().to(3.far()).minimum(30.0).maximum(40.0),
+            )
+            .justify(Justify::Top),
             (),
         );
         elm.add_view_binding(
@@ -157,20 +172,22 @@ impl Leaf for Showcase {
             Text::new(
                 MaxCharacters(11),
                 FontSize(24),
-                TextValue::new("Fill"),
+                TextValue::new("text"),
                 THEME_COLOR::MINUS_TWO,
             ),
             ResponsiveSegment::base(
                 4.near().to(4.far()),
-                3.near().to(3.far()).minimum(35.0).maximum(40.0),
+                3.near().to(3.far()).minimum(30.0).maximum(40.0),
             )
-                .justify(Justify::Top).without_portrait_mobile(),
+            .justify(Justify::Top)
+            .without_portrait_mobile()
+            .without_portrait_tablet(),
             (),
         );
         elm.add_view_scene_binding(
             START,
             Button::new(
-                ButtonStyle::Fill,
+                ButtonStyle::Ring,
                 TextValue::new("copy"),
                 MaxCharacters(4),
                 FeatherIcon::Copy,
@@ -179,9 +196,14 @@ impl Leaf for Showcase {
             ),
             ResponsiveSegment::base(
                 5.near().to(6.far()).minimum(135.0).maximum(217.0),
-                3.near().to(3.far()).minimum(35.0).maximum(40.0),
+                3.near().to(3.far()).minimum(30.0).maximum(40.0),
             )
-                .justify(Justify::Top),
+            .exception(
+                [Layout::PORTRAIT_MOBILE],
+                5.near().to(8.far()),
+                3.near().to(3.far()).minimum(30.0).maximum(40.0),
+            )
+            .justify(Justify::Top),
             (),
         );
         elm.add_view_binding(
@@ -189,31 +211,31 @@ impl Leaf for Showcase {
             Text::new(
                 MaxCharacters(11),
                 FontSize(24),
-                TextValue::new("Fill"),
+                TextValue::new("text"),
                 THEME_COLOR::PLUS_ONE,
             ),
             ResponsiveSegment::base(
                 7.near().to(7.far()),
-                3.near().to(3.far()).minimum(35.0).maximum(40.0),
+                3.near().to(3.far()).minimum(30.0).maximum(40.0),
             )
-                .justify(Justify::Top).without_portrait_mobile(),
+            .justify(Justify::Top)
+            .without_portrait_mobile()
+            .without_portrait_tablet(),
             (),
         );
         elm.add_view_scene_binding(
             START,
-            Button::new(
-                ButtonStyle::Fill,
-                TextValue::new("copy"),
-                MaxCharacters(4),
+            CircleButton::new(
                 FeatherIcon::Copy,
+                ButtonStyle::Fill,
                 THEME_COLOR::MINUS_ONE,
                 Color::BLACK,
             ),
             ResponsiveSegment::base(
-                2.near().to(3.far()).minimum(135.0).maximum(217.0),
-                4.near().to(4.far()).minimum(35.0).maximum(40.0),
+                2.near().to(3.far()).fixed(40.0),
+                4.near().to(4.far()).fixed(40.0),
             )
-                .justify(Justify::Top),
+            .justify(Justify::Top),
             (),
         );
         elm.add_view_binding(
@@ -221,31 +243,36 @@ impl Leaf for Showcase {
             Text::new(
                 MaxCharacters(11),
                 FontSize(24),
-                TextValue::new("Fill"),
+                TextValue::new("circle"),
                 THEME_COLOR::MINUS_ONE,
             ),
             ResponsiveSegment::base(
                 4.near().to(4.far()),
-                4.near().to(4.far()).minimum(35.0).maximum(40.0),
+                4.near().to(4.far()).minimum(30.0).maximum(40.0),
             )
-                .justify(Justify::Top).without_portrait_mobile(),
+            .justify(Justify::Top)
+            .without_portrait_mobile()
+            .without_portrait_tablet(),
             (),
         );
         elm.add_view_scene_binding(
             START,
-            Button::new(
-                ButtonStyle::Fill,
-                TextValue::new("copy"),
-                MaxCharacters(4),
+            CircleButton::new(
                 FeatherIcon::Copy,
+                ButtonStyle::Ring,
                 THEME_COLOR::PLUS_TWO,
                 Color::BLACK,
             ),
             ResponsiveSegment::base(
-                5.near().to(6.far()).minimum(135.0).maximum(217.0),
-                4.near().to(4.far()).minimum(35.0).maximum(40.0),
+                5.near().to(6.far()).fixed(40.0),
+                4.near().to(4.far()).fixed(40.0),
             )
-                .justify(Justify::Top),
+            .exception(
+                [Layout::PORTRAIT_MOBILE],
+                6.near().to(6.far()).fixed(40.0),
+                4.near().to(4.far()).fixed(40.0),
+            )
+            .justify(Justify::Top),
             (),
         );
         elm.add_view_binding(
@@ -253,31 +280,31 @@ impl Leaf for Showcase {
             Text::new(
                 MaxCharacters(11),
                 FontSize(24),
-                TextValue::new("Fill"),
+                TextValue::new("circle"),
                 THEME_COLOR::PLUS_TWO,
             ),
             ResponsiveSegment::base(
                 7.near().to(7.far()),
-                4.near().to(4.far()).minimum(35.0).maximum(40.0),
+                4.near().to(4.far()).minimum(30.0).maximum(40.0),
             )
-                .justify(Justify::Top).without_portrait_mobile(),
+            .justify(Justify::Top)
+            .without_portrait_mobile()
+            .without_portrait_tablet(),
             (),
         );
         elm.add_view_scene_binding(
             START,
-            Button::new(
-                ButtonStyle::Fill,
-                TextValue::new("copy"),
-                MaxCharacters(4),
+            IconButton::new(
                 FeatherIcon::Copy,
+                ButtonStyle::Fill,
                 THEME_COLOR::BASE,
                 Color::BLACK,
             ),
             ResponsiveSegment::base(
-                2.near().to(3.far()).minimum(135.0).maximum(217.0),
-                5.near().to(5.far()).minimum(35.0).maximum(40.0),
+                2.near().to(3.far()).fixed(35.0),
+                5.near().to(5.far()).fixed(35.0),
             )
-                .justify(Justify::Top),
+            .justify(Justify::Top),
             (),
         );
         elm.add_view_binding(
@@ -285,31 +312,36 @@ impl Leaf for Showcase {
             Text::new(
                 MaxCharacters(11),
                 FontSize(24),
-                TextValue::new("Fill"),
+                TextValue::new("icon"),
                 THEME_COLOR::BASE,
             ),
             ResponsiveSegment::base(
                 4.near().to(4.far()),
-                5.near().to(5.far()).minimum(35.0).maximum(40.0),
+                5.near().to(5.far()).minimum(30.0).maximum(40.0),
             )
-                .justify(Justify::Top).without_portrait_mobile(),
+            .justify(Justify::Top)
+            .without_portrait_mobile()
+            .without_portrait_tablet(),
             (),
         );
         elm.add_view_scene_binding(
             START,
-            Button::new(
-                ButtonStyle::Fill,
-                TextValue::new("copy"),
-                MaxCharacters(4),
+            IconButton::new(
                 FeatherIcon::Copy,
+                ButtonStyle::Ring,
                 THEME_COLOR::PLUS_THREE,
                 Color::BLACK,
             ),
             ResponsiveSegment::base(
-                5.near().to(6.far()).minimum(135.0).maximum(217.0),
-                5.near().to(5.far()).minimum(35.0).maximum(40.0),
+                5.near().to(6.far()).fixed(35.0),
+                5.near().to(5.far()).fixed(35.0),
             )
-                .justify(Justify::Top),
+            .exception(
+                [Layout::PORTRAIT_MOBILE],
+                6.near().to(6.far()).fixed(35.0),
+                5.near().to(5.far()).fixed(35.0),
+            )
+            .justify(Justify::Top),
             (),
         );
         elm.add_view_binding(
@@ -317,111 +349,21 @@ impl Leaf for Showcase {
             Text::new(
                 MaxCharacters(11),
                 FontSize(24),
-                TextValue::new("Fill"),
+                TextValue::new("icon"),
                 THEME_COLOR::PLUS_THREE,
             ),
             ResponsiveSegment::base(
                 7.near().to(7.far()),
-                5.near().to(5.far()).minimum(35.0).maximum(40.0),
+                5.near().to(5.far()).minimum(30.0).maximum(40.0),
             )
-                .justify(Justify::Top).without_portrait_mobile(),
+            .justify(Justify::Top)
+            .without_portrait_mobile()
+            .without_portrait_tablet(),
             (),
         );
-        // elm.add_view_scene_binding(
-        //     START,
-        //     Button::new(
-        //         ButtonStyle::Fill,
-        //         TextValue::new("copy"),
-        //         MaxCharacters(4),
-        //         FeatherIcon::Copy,
-        //         THEME_COLOR::MINUS_ONE,
-        //         Color::BLACK,
-        //     ),
-        //     ResponsiveSegment::base(
-        //         1.near().to(4.near()).minimum(135.0).maximum(217.0),
-        //         3.near().to(3.far()).minimum(35.0).maximum(40.0),
-        //     )
-        //     .justify(Justify::Top),
-        //     (),
-        // );
-        // elm.add_view_binding(
-        //     START,
-        //     Text::new(
-        //         MaxCharacters(11),
-        //         FontSize(24),
-        //         TextValue::new("Ring"),
-        //         THEME_COLOR::MINUS_ONE,
-        //     ),
-        //     ResponsiveSegment::base(
-        //         4.far().to(8.near()),
-        //         3.near().to(3.far()).minimum(35.0).maximum(40.0),
-        //     )
-        //     .justify(Justify::Top),
-        //     (),
-        // );
-        // elm.add_view_scene_binding(
-        //     START,
-        //     CircleButton::new(
-        //         FeatherIcon::Copy,
-        //         ButtonStyle::Fill,
-        //         THEME_COLOR::PLUS_ONE,
-        //         Color::BLACK,
-        //     ),
-        //     ResponsiveSegment::base(
-        //         1.near().to(4.near()).minimum(40.0).maximum(40.0),
-        //         4.near().to(4.far()).minimum(40.0).maximum(40.0),
-        //     )
-        //     .justify(Justify::Top),
-        //     (),
-        // );
-        // elm.add_view_binding(
-        //     START,
-        //     Text::new(
-        //         MaxCharacters(11),
-        //         FontSize(24),
-        //         TextValue::new("Circle"),
-        //         THEME_COLOR::PLUS_ONE,
-        //     ),
-        //     ResponsiveSegment::base(
-        //         4.far().to(8.near()),
-        //         4.near().to(4.far()).minimum(35.0).maximum(40.0),
-        //     )
-        //     .justify(Justify::Top),
-        //     (),
-        // );
-        // elm.add_view_scene_binding(
-        //     START,
-        //     IconButton::new(
-        //         FeatherIcon::Copy,
-        //         ButtonStyle::Fill,
-        //         THEME_COLOR::PLUS_THREE,
-        //         Color::BLACK,
-        //     ),
-        //     ResponsiveSegment::base(
-        //         1.near().to(4.near()).minimum(35.0).maximum(35.0),
-        //         5.near().to(5.far()).minimum(35.0).maximum(35.0),
-        //     )
-        //     .justify(Justify::Top),
-        //     (),
-        // );
-        // elm.add_view_binding(
-        //     START,
-        //     Text::new(
-        //         MaxCharacters(11),
-        //         FontSize(24),
-        //         TextValue::new("Icon-Only"),
-        //         THEME_COLOR::PLUS_THREE,
-        //     ),
-        //     ResponsiveSegment::base(
-        //         4.far().to(8.near()),
-        //         5.near().to(5.far()).minimum(35.0).maximum(40.0),
-        //     )
-        //     .justify(Justify::Top),
-        //     (),
-        // );
-        // elm.view_trigger::<TestHook>(InteractionHandlerTrigger::Active, |_, cv| {
-        //     cv.change_view(TWO);
-        // });
+        elm.view_trigger::<TestHook>(InteractionHandlerTrigger::Active, |_, cv| {
+            cv.change_view(TWO);
+        });
     }
 }
 

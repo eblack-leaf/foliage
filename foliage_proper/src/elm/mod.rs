@@ -210,6 +210,7 @@ impl Elm {
             }
         }
     }
+    #[allow(unused)]
     pub fn change_view(&mut self, vh: ViewHandle) {
         self.container()
             .get_resource_mut::<CurrentView>()

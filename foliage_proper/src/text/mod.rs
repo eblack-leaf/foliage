@@ -12,7 +12,7 @@ use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::elm::leaf::Leaf;
-use crate::elm::Elm;
+use crate::elm::{Disabled, Elm};
 use crate::text::font::MonospacedFont;
 use crate::text::glyph::{CachedGlyph, Glyph};
 pub use crate::text::renderer::TextKey;
@@ -189,6 +189,7 @@ pub(crate) fn changes(
             Changed<MaxCharacters>,
             Changed<Color>,
             Changed<GlyphColorChanges>,
+            Changed<Disabled>,
         )>,
     >,
     font: Res<MonospacedFont>,
@@ -246,7 +247,8 @@ pub(crate) fn changes(
             let mut change = None;
             let glyph_key = GlyphKey::new(g.key);
             let mut total_update = false;
-            let filtered = g.x + g.width as f32 > scaled.width;
+            // let filtered = g.x + g.width as f32 > scaled.width;
+            let filtered = false;
             let mut key_change = Some((glyph_key, None));
             if let Some(cached) = cache.0.get_mut(&g.byte_offset) {
                 match cached {

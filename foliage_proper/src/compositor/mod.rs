@@ -39,8 +39,8 @@ pub struct Compositor {
 impl Compositor {
     pub fn add_responsive<B: Bundle>(
         &mut self,
-        b: B,
         view_handle: ViewHandle,
+        b: B,
         responsive_segment: ResponsiveSegment,
         cmd: &mut Commands,
     ) {
@@ -52,8 +52,8 @@ impl Compositor {
     }
     pub fn add_responsive_scene<S: Scene>(
         &mut self,
-        args: S,
         view_handle: ViewHandle,
+        args: S,
         responsive_segment: ResponsiveSegment,
         external_args: &SystemParamItem<S::ExternalArgs>,
         coordinator: &mut SceneCoordinator,

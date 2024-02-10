@@ -184,6 +184,7 @@ pub(crate) fn send_render_packet(
             &Despawn,
         ),
         Or<(
+            Changed<Disabled>,
             Changed<DifferentialDisable>,
             Changed<RenderPacketStore>,
             Changed<Despawn>,
