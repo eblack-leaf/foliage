@@ -41,7 +41,7 @@ impl Leaf for Home {
                 Color::BLACK,
             ),
             ResponsiveSegment::base(6.near().to(40.fixed()), 1.near().to(40.fixed())),
-            HrefLink::new("https://github.com/eblack-leaf/foliage"),
+            HrefLink::absolute("https://github.com/eblack-leaf/foliage"),
         );
         elm.add_view_scene_binding(
             HOME,
@@ -79,7 +79,7 @@ impl Leaf for Home {
             ),
             GlyphColorChanges::new()
                 .with_range(7, 10, StrongCyan::MINUS_ONE)
-                .extend(HrefLink::new("/foliage/book/index.html")),
+                .extend(HrefLink::relative("/foliage/book/index.html")),
         );
         elm.add_view_scene_binding(
             HOME,
@@ -96,7 +96,9 @@ impl Leaf for Home {
             ),
             GlyphColorChanges::new()
                 .with_range(14, 17, Magenta::MINUS_ONE)
-                .extend(HrefLink::new("/foliage/documentation/foliage/index.html")),
+                .extend(HrefLink::relative(
+                    "/foliage/documentation/foliage/index.html",
+                )),
         );
         elm.add_view_scene_binding(
             HOME,
@@ -113,7 +115,7 @@ impl Leaf for Home {
             ),
             GlyphColorChanges::new()
                 .with_range(14, 17, FluorescentYellow::MINUS_ONE)
-                .extend(HrefLink::new("/foliage/demo/index.html")),
+                .extend(HrefLink::relative("/foliage/demo/index.html")),
         );
     }
 }

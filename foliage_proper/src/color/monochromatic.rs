@@ -93,3 +93,15 @@ impl Monochromatic for MostlyDesaturatedDarkBlue {
     const MINUS_TWO: Color = Color::rgb(0.212, 0.282, 0.369);
     const MINUS_THREE: Color = Color::rgb(0.176, 0.235, 0.306);
 }
+
+pub struct DarkOliveGreen;
+
+impl Monochromatic for DarkOliveGreen {
+    const PLUS_THREE: Color = Color::rgb(0.498, 0.627, 0.275);
+    const PLUS_TWO: Color = Color::rgb(0.443, 0.557, 0.247);
+    const PLUS_ONE: Color = Color::rgb(0.388, 0.49, 0.216);
+    const BASE: Color = Color::rgb(0.333, 0.42, 0.184);
+    const MINUS_ONE: Color = Color::rgb(0.278, 0.349, 0.153);
+    const MINUS_TWO: Color = Color::rgb(0.224, 0.282, 0.122);
+    const MINUS_THREE: Color = Color::rgb(0.169, 0.212, 0.1);
+}

@@ -13,10 +13,17 @@ use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
 
 #[derive(Component, Clone, Default)]
-pub struct Href(CompactString);
+pub struct Href(CompactString, bool);
+
 impl Href {
-    pub fn new<S: AsRef<str>>(s: S) -> Self {
-        Self(CompactString::from(s.as_ref()))
+    pub(crate) fn absolute(&self) -> bool {
+        self.1
+    }
+}
+
+impl Href {
+    pub fn new<S: AsRef<str>>(s: S, abs: bool) -> Self {
+        Self(CompactString::from(s.as_ref()), abs)
     }
     pub fn link(&self) -> &str {
         self.0.as_str()
@@ -28,10 +35,16 @@ pub struct HrefLink {
     listener: InteractionListener,
 }
 impl HrefLink {
-    pub fn new<S: AsRef<str>>(href: S) -> Self {
+    pub fn absolute<S: AsRef<str>>(href: S) -> Self {
         Self {
-            href: Href::new(href),
+            href: Href::new(href, true),
             listener: InteractionListener::default(),
+        }
+    }
+    pub fn relative<S: AsRef<str>>(href: S) -> Self {
+        Self {
+            href: Href::new(href, false),
+            listener: Default::default(),
         }
     }
     pub fn with_circle_shape(mut self) -> Self {
@@ -45,7 +58,7 @@ fn navigation(hrefs: Query<(&Href, &InteractionListener, &Despawn)>) {
             continue;
         }
         if listener.active() {
-            Media::navigate_to(href.link());
+            Media::navigate_to(href.link(), href.absolute());
         }
     }
 }
@@ -64,12 +77,16 @@ impl Media {
     #[allow(unused)]
     const BUTTON_HANDLE: &'static str = "media-overlay-trigger";
     #[allow(unused)]
-    pub fn navigate_to(href: &str) {
+    pub fn navigate_to(href: &str, absolute: bool) {
         #[cfg(target_family = "wasm")]
         {
             if let Some(window) = web_sys::window() {
                 let origin = window.origin();
-                let url = format!("{}{}", origin, href);
+                let url = if absolute {
+                    href.to_string()
+                } else {
+                    format!("{}{}", origin, href)
+                };
                 let document = window.document();
                 if let Some(document) = document {
                     let node = document.create_element("div").unwrap();

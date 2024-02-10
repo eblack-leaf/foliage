@@ -2,7 +2,7 @@ use foliage::bevy_ecs;
 use foliage::bevy_ecs::prelude::{Component, Resource};
 use foliage::button::{Button, ButtonStyle};
 use foliage::circle_button::CircleButton;
-use foliage::color::monochromatic::{Magenta as THEME_COLOR, Monochromatic};
+use foliage::color::monochromatic::{DarkOliveGreen as THEME_COLOR, Monochromatic};
 use foliage::color::Color;
 use foliage::compositor::segment::{Grid, Justify, ResponsiveSegment, SegmentUnitDesc};
 use foliage::compositor::ViewHandle;
