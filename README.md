@@ -11,7 +11,7 @@ This is home to
 - Documentation
 - Demo project
 
-![parity](./parity.png)
+![parity](./showcase.png)
 
 The name foliage arose from the need for a word defining a collection of 
 something (aka the modules in this library). The parts are described in terms of leaves added to a pile thus 

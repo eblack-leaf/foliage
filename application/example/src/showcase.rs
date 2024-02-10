@@ -2,7 +2,7 @@ use foliage::bevy_ecs;
 use foliage::bevy_ecs::prelude::{Component, Resource};
 use foliage::button::{Button, ButtonStyle};
 use foliage::circle_button::CircleButton;
-use foliage::color::monochromatic::{Asparagus as THEME_COLOR, Monochromatic};
+use foliage::color::monochromatic::{Magenta as THEME_COLOR, Monochromatic};
 use foliage::color::Color;
 use foliage::compositor::layout::Layout;
 use foliage::compositor::segment::{Grid, Justify, ResponsiveSegment, SegmentUnitDesc};
@@ -51,7 +51,7 @@ impl Leaf for Showcase {
         ));
         elm.container().insert_resource(assets);
         // style starts below
-        elm.configure_view_grid(START, Grid::new(8, 7));
+        elm.configure_view_grid(START, Grid::new(8, 6));
         elm.add_view_binding(
             START,
             Text::new(
@@ -78,7 +78,7 @@ impl Leaf for Showcase {
                 Color::BLACK,
             ),
             ResponsiveSegment::base(
-                2.near().to(3.far()).minimum(135.0).maximum(217.0),
+                2.near().to(3.far()).minimum(115.0).maximum(217.0),
                 2.near().to(2.far()).minimum(30.0).maximum(40.0),
             )
             .exception(
@@ -117,7 +117,7 @@ impl Leaf for Showcase {
                 Color::BLACK,
             ),
             ResponsiveSegment::base(
-                5.near().to(6.far()).minimum(135.0).maximum(217.0),
+                5.near().to(6.far()).minimum(115.0).maximum(217.0),
                 2.near().to(2.far()).minimum(30.0).maximum(40.0),
             )
             .exception(
@@ -156,7 +156,7 @@ impl Leaf for Showcase {
                 Color::BLACK,
             ),
             ResponsiveSegment::base(
-                2.near().to(3.far()).minimum(135.0).maximum(217.0),
+                2.near().to(3.far()).minimum(115.0).maximum(217.0),
                 3.near().to(3.far()).minimum(30.0).maximum(40.0),
             )
             .exception(
@@ -195,7 +195,7 @@ impl Leaf for Showcase {
                 Color::BLACK,
             ),
             ResponsiveSegment::base(
-                5.near().to(6.far()).minimum(135.0).maximum(217.0),
+                5.near().to(6.far()).minimum(115.0).maximum(217.0),
                 3.near().to(3.far()).minimum(30.0).maximum(40.0),
             )
             .exception(
