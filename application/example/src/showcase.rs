@@ -57,11 +57,11 @@ impl Leaf for Showcase {
             Text::new(
                 MaxCharacters(11),
                 FontSize(24),
-                TextValue::new("button"),
+                TextValue::new("button.rs"),
                 Color::GREY,
             ),
             ResponsiveSegment::base(
-                4.near().to(5.far()).maximum(150.0),
+                3.far().to(5.far()).maximum(150.0),
                 1.near().to(1.far()).minimum(30.0).maximum(40.0),
             )
             .justify(Justify::Top),
@@ -235,6 +235,11 @@ impl Leaf for Showcase {
                 2.near().to(3.far()).fixed(40.0),
                 4.near().to(4.far()).fixed(40.0),
             )
+            .exception(
+                [Layout::PORTRAIT_MOBILE],
+                1.near().to(4.far()).fixed(40.0),
+                4.near().to(4.far()).fixed(40.0),
+            )
             .justify(Justify::Top),
             (),
         );
@@ -269,7 +274,7 @@ impl Leaf for Showcase {
             )
             .exception(
                 [Layout::PORTRAIT_MOBILE],
-                6.near().to(6.far()).fixed(40.0),
+                5.near().to(8.far()).fixed(40.0),
                 4.near().to(4.far()).fixed(40.0),
             )
             .justify(Justify::Top),
@@ -302,6 +307,11 @@ impl Leaf for Showcase {
             ),
             ResponsiveSegment::base(
                 2.near().to(3.far()).fixed(35.0),
+                5.near().to(5.far()).fixed(35.0),
+            )
+            .exception(
+                [Layout::PORTRAIT_MOBILE],
+                1.near().to(4.far()).fixed(35.0),
                 5.near().to(5.far()).fixed(35.0),
             )
             .justify(Justify::Top),
@@ -338,8 +348,8 @@ impl Leaf for Showcase {
             )
             .exception(
                 [Layout::PORTRAIT_MOBILE],
-                6.near().to(6.far()).fixed(35.0),
-                5.near().to(5.far()).fixed(35.0),
+                5.near().to(8.far()).fixed(35.0),
+                5.near().to(6.far()).fixed(35.0),
             )
             .justify(Justify::Top),
             (),
