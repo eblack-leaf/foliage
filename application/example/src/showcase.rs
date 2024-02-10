@@ -2,7 +2,7 @@ use foliage::bevy_ecs;
 use foliage::bevy_ecs::prelude::{Component, Resource};
 use foliage::button::{Button, ButtonStyle};
 use foliage::circle_button::CircleButton;
-use foliage::color::monochromatic::{Orange as THEME_COLOR, Monochromatic};
+use foliage::color::monochromatic::{Asparagus as THEME_COLOR, Monochromatic};
 use foliage::color::Color;
 use foliage::compositor::segment::{Grid, Justify, ResponsiveSegment, SegmentUnitDesc};
 use foliage::compositor::ViewHandle;
@@ -54,6 +54,22 @@ impl Leaf for Showcase {
         elm.container().insert_resource(assets);
         // style starts below
         elm.configure_view_grid(START, Grid::new(8, 7));
+        elm.add_view_binding(
+            START,
+            Text::new(
+                MaxCharacters(11),
+                FontSize(24),
+                TextValue::new("button"),
+                THEME_COLOR::BASE,
+            ),
+            ResponsiveSegment::base(
+                4.near().to(5.far()).maximum(150.0),
+                1.near().to(1.far()).minimum(35.0).maximum(40.0),
+            )
+                .justify(Justify::Top)
+                .without_portrait_mobile(),
+            (),
+        );
         elm.add_view_scene_binding(
             START,
             Button::new(
