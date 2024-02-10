@@ -1,5 +1,9 @@
 use crate::HOME;
-use foliage::color::monochromatic::{Monochromatic, Orange};
+use foliage::button::ButtonStyle;
+use foliage::circle_button::CircleButton;
+use foliage::color::monochromatic::{
+    FluorescentYellow, Magenta, Monochromatic, Orange, StrongCyan,
+};
 use foliage::color::Color;
 use foliage::compositor::segment::{Grid, ResponsiveSegment, SegmentUnitDesc};
 use foliage::coordinate::area::Area;
@@ -18,6 +22,8 @@ struct Assets {
     _terminal: AssetKey,
     #[icon(path = "icons/chevrons-right.icon", opt = FeatherIcon::ChevronsRight, group = g)]
     _chevrons_right: AssetKey,
+    #[icon(path = "icons/github.icon", opt = FeatherIcon::Github, group = g)]
+    _chevrons_right: AssetKey,
 }
 pub(crate) struct Home {}
 impl Leaf for Home {
@@ -26,6 +32,17 @@ impl Leaf for Home {
     fn attach(elm: &mut Elm) {
         let _assets = Assets::proc_gen_load(elm);
         elm.configure_view_grid(HOME, Grid::new(6, 6));
+        elm.add_view_scene_binding(
+            HOME,
+            CircleButton::new(
+                FeatherIcon::Github,
+                ButtonStyle::Fill,
+                Orange::MINUS_ONE,
+                Color::BLACK,
+            ),
+            ResponsiveSegment::base(6.near().to(40.fixed()), 1.near().to(40.fixed())),
+            HrefLink::new("https://github.com/eblack-leaf/foliage"),
+        );
         elm.add_view_scene_binding(
             HOME,
             IconText::new(
@@ -39,7 +56,7 @@ impl Leaf for Home {
                 2.near().to(5.far()).minimum(200.0).maximum(500.0),
                 1.near().to(2.near()).minimum(50.0).maximum(80.0),
             ),
-            GlyphColorChanges::new().with_range(7, 9, Orange::MINUS_THREE),
+            GlyphColorChanges::new().with_range(7, 9, Orange::MINUS_ONE),
         );
         elm.add_view_binding(
             HOME,
@@ -61,7 +78,7 @@ impl Leaf for Home {
                 3.near().to(3.far()).minimum(40.0).maximum(60.0),
             ),
             GlyphColorChanges::new()
-                .with_range(7, 10, Orange::MINUS_THREE)
+                .with_range(7, 10, StrongCyan::MINUS_ONE)
                 .extend(HrefLink::new("/foliage/book/index.html")),
         );
         elm.add_view_scene_binding(
@@ -78,7 +95,7 @@ impl Leaf for Home {
                 4.near().to(4.far()).minimum(40.0).maximum(60.0),
             ),
             GlyphColorChanges::new()
-                .with_range(14, 17, Orange::MINUS_THREE)
+                .with_range(14, 17, Magenta::MINUS_ONE)
                 .extend(HrefLink::new("/foliage/documentation/foliage/index.html")),
         );
         elm.add_view_scene_binding(
@@ -95,7 +112,7 @@ impl Leaf for Home {
                 5.near().to(5.far()).minimum(40.0).maximum(60.0),
             ),
             GlyphColorChanges::new()
-                .with_range(14, 17, Orange::MINUS_THREE)
+                .with_range(14, 17, FluorescentYellow::MINUS_ONE)
                 .extend(HrefLink::new("/foliage/demo/index.html")),
         );
     }
