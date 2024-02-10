@@ -146,8 +146,7 @@ pub enum Justify {
 pub struct ResponsiveSegment {
     view_handle: ViewHandle,
     base: Segment,
-    horizontal_exceptions: HashMap<Layout, SegmentUnitDescriptor>,
-    vertical_exceptions: HashMap<Layout, SegmentUnitDescriptor>,
+    exceptions: HashMap<Layout, Segment>,
     negations: HashSet<Layout>,
     layer: Layer,
     justification: Option<Justify>,
@@ -238,17 +237,24 @@ impl ResponsiveSegment {
         self
     }
     fn vertical_value(&self, layout: &Layout) -> SegmentUnitDescriptor {
-        self.vertical_exceptions
+        if let Some(exc) = self.exceptions
             .get(layout)
-            .cloned()
-            .unwrap_or(self.base.vertical)
+            .cloned(){
+            exc.vertical
+        } else {
+            self.base.vertical
+        }
     }
 
     fn horizontal_value(&self, layout: &Layout) -> SegmentUnitDescriptor {
-        self.horizontal_exceptions
+        if let Some(exc) = self.exceptions
             .get(layout)
-            .cloned()
-            .unwrap_or(self.base.horizontal)
+            .cloned(){
+            exc.horizontal
+        } else {
+            self.base.horizontal
+        }
+
     }
     pub fn base(
         horizontal: WellFormedSegmentUnitDescriptor,
@@ -257,8 +263,7 @@ impl ResponsiveSegment {
         Self {
             view_handle: ViewHandle::default(),
             base: Segment::new(horizontal.normal(), vertical.normal()),
-            horizontal_exceptions: Default::default(),
-            vertical_exceptions: Default::default(),
+            exceptions: Default::default(),
             negations: HashSet::new(),
             layer: Layer::default(),
             justification: None,
@@ -268,24 +273,15 @@ impl ResponsiveSegment {
         self.layer = l.into();
         self
     }
-    pub fn horizontal_exception<L: AsRef<[Layout]>>(
+    pub fn exception<L: AsRef<[Layout]>>(
         mut self,
         layouts: L,
-        exc: WellFormedSegmentUnitDescriptor,
+        h_exc: WellFormedSegmentUnitDescriptor,
+        v_exc: WellFormedSegmentUnitDescriptor,
     ) -> Self {
         let layouts = layouts.as_ref();
         for l in layouts.iter() {
-            self.horizontal_exceptions.insert(*l, exc.normal());
-        }
-        self
-    }
-    pub fn vertical_exception<L: AsRef<[Layout]>>(
-        mut self,
-        layouts: L,
-        exc: WellFormedSegmentUnitDescriptor,
-    ) -> Self {
-        for l in layouts.as_ref().iter() {
-            self.vertical_exceptions.insert(*l, exc.normal());
+            self.exceptions.insert(*l, Segment::new(h_exc.normal(), v_exc.normal()));
         }
         self
     }
@@ -373,7 +369,7 @@ impl Segment {
 pub trait SegmentUnitDesc {
     fn near(self) -> SegmentUnit;
     fn far(self) -> SegmentUnit;
-    fn fixed(self) -> SegmentUnit;
+    fn absolute(self) -> SegmentUnit;
 }
 macro_rules! impl_segment_unit_desc {
     ($($elem:ty),*) => {
@@ -384,8 +380,8 @@ macro_rules! impl_segment_unit_desc {
             fn far(self) -> SegmentUnit {
                 SegmentUnit::new(self as SegmentValue, SegmentBias::Far)
             }
-            fn fixed(self) -> SegmentUnit {
-                SegmentUnit::fixed(self as CoordinateUnit)
+            fn absolute(self) -> SegmentUnit {
+                SegmentUnit::absolute(self as CoordinateUnit)
             }
         })*
     };
@@ -425,7 +421,7 @@ impl SegmentUnit {
             offset: None,
         }
     }
-    pub fn fixed(value: CoordinateUnit) -> Self {
+    pub fn absolute(value: CoordinateUnit) -> Self {
         Self {
             value: SegmentValue::default(),
             bias: SegmentBias::Near,
@@ -464,6 +460,9 @@ impl WellFormedSegmentUnitDescriptor {
     pub fn maximum(mut self, m: CoordinateUnit) -> Self {
         self.max.replace(m);
         self
+    }
+    pub fn fixed(self, f: CoordinateUnit) -> Self {
+        self.minimum(f).maximum(f)
     }
     fn normal(self) -> SegmentUnitDescriptor {
         SegmentUnitDescriptor::with_bounds(self.begin, self.end, self.min, self.max)

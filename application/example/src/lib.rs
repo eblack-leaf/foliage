@@ -1,4 +1,5 @@
 mod showcase;
+// mod showcase_item;
 
 use crate::showcase::Showcase;
 use foliage::elm::Elm;
@@ -10,7 +11,7 @@ pub fn entry(android_interface: AndroidInterface) {
         .with_window_descriptor(
             WindowDescriptor::new()
                 .with_title("foliage")
-                .with_desktop_dimensions((360, 360))
+                .with_desktop_dimensions((720, 450))
                 .with_resizable(true),
         )
         .with_leaves::<foliage::SceneExtensions>()
