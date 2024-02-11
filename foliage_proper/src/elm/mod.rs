@@ -376,7 +376,7 @@ impl Disabled {
     pub fn active() -> Self {
         Self(true)
     }
-    pub fn inactive() -> Self {
+    pub fn not_disabled() -> Self {
         Self(false)
     }
 }

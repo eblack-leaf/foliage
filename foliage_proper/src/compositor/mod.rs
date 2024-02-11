@@ -180,7 +180,7 @@ fn responsive_changed(
             *area = coord.section.area;
             *layer = coord.layer;
             if disabled.disabled() {
-                *disabled = Disabled::inactive();
+                *disabled = Disabled::not_disabled();
             }
         } else if !disabled.disabled() {
             *disabled = Disabled::active();
@@ -225,7 +225,7 @@ fn viewport_changed(
                 *area = coord.section.area;
                 *layer = coord.layer;
                 if disabled.disabled() {
-                    *disabled = Disabled::inactive();
+                    *disabled = Disabled::not_disabled();
                 }
             } else if !disabled.disabled() {
                 *disabled = Disabled::active();

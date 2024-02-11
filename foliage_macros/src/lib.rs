@@ -3,7 +3,7 @@ use quote::ToTokens;
 use std::collections::HashMap;
 use std::str::FromStr;
 use syn::parse::ParseStream;
-use syn::{parse_macro_input, Token};
+use syn::{parse_macro_input, ItemEnum, Token};
 
 #[proc_macro_derive(SceneBinding)]
 pub fn scene_binding_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -66,9 +66,10 @@ pub fn inner_scene_binding_derive(input: proc_macro::TokenStream) -> proc_macro:
 }
 #[proc_macro_attribute]
 pub fn set_descriptor(
-    attrs: proc_macro::TokenStream,
+    _attrs: proc_macro::TokenStream,
     input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
+    let input = parse_macro_input!(input as ItemEnum);
     let found_crate = crate_name("foliage").expect("foliage is present in `Cargo.toml`");
     let foliage = match found_crate {
         FoundCrate::Itself => quote::quote!(crate),
@@ -85,9 +86,10 @@ pub fn set_descriptor(
 }
 #[proc_macro_attribute]
 pub fn inner_set_descriptor(
-    attrs: proc_macro::TokenStream,
+    _attrs: proc_macro::TokenStream,
     input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
+    let input = parse_macro_input!(input as ItemEnum);
     let found_crate =
         crate_name("foliage_proper").expect("foliage_proper is present in `Cargo.toml`");
     let foliage = match found_crate {
