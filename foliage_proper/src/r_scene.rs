@@ -1,6 +1,12 @@
+use crate::coordinate::area::Area;
 use crate::coordinate::{Coordinate, InterfaceContext};
-use bevy_ecs::prelude::{Commands, Entity, Query};
-
+use crate::differential::Despawn;
+use crate::elm::leaf::Tag;
+use bevy_ecs::bundle::Bundle;
+use bevy_ecs::prelude::{Commands, Component, Entity, Query};
+use bevy_ecs::query::{Changed, With, Without};
+use bevy_ecs::system::SystemParam;
+#[derive(Component, Copy, Clone, Default)]
 struct Anchor(Coordinate<InterfaceContext>);
 struct Alignment {
     // placement markers (grid or custom)
@@ -12,12 +18,43 @@ struct SceneNode {
 }
 struct ScenePtr(Entity);
 struct Bindings(Vec<SceneNode>);
+impl Bindings {
+    fn get<SB: Into<SceneBinding>>(&self, sb: SB) -> SceneNode {
+        todo!()
+    }
+}
+#[derive(Bundle)]
+struct TaggedComponents<T>(T, Tag<T>);
+fn config<S: Scene>(
+    mut query: Query<
+        (&mut Area<InterfaceContext>, &mut Anchor, &Despawn),
+        (With<Tag<S>>, Changed<Area<InterfaceContext>>),
+    >,
+    mut areas: Query<&mut Area<InterfaceContext>, Without<Tag<S>>>,
+    mut ext: S::ConfigParams,
+) {
+    for (mut area, mut anchor, despawn) in query.iter_mut() {
+        if despawn.should_despawn() {
+            continue;
+        }
+        // do rest
+        S::config(*anchor, area.as_mut(), &mut areas, &mut ext);
+        anchor.0.section.area = *area;
+    }
+}
 trait Scene {
-    type ConfigParams;
-    fn config(query: Query<(), ()>);
+    type ConfigParams: SystemParam;
+    type Components: Bundle;
+    // or i structure below query and call Scene::config(params) inside it after despawn.should_despawn() { continue }
+    fn config(
+        anchor: Anchor,
+        area: &mut Area<InterfaceContext>,
+        area_query: &mut Query<&mut Area<InterfaceContext>, Without<Tag<Self>>>,
+        ext: &mut Self::ConfigParams,
+    );
     // self is the Args to the scene
     // only create bindings; will be configured above
-    fn bind(self, cmd: &mut Commands) -> Entity;
+    fn bind(self, cmd: &mut Commands) -> TaggedComponents<Self::Components>;
 }
 fn resolve_anchor() {
     // queue resolution requests
