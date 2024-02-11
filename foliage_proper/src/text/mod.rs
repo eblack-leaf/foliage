@@ -46,13 +46,12 @@ pub struct Text {
 impl Text {
     pub fn new<C: Into<Color>>(
         max_characters: MaxCharacters,
-        font_size: FontSize,
         text_value: TextValue,
         color: C,
     ) -> Self {
         Self {
             max_characters,
-            font_size: DifferentialBundle::new(font_size),
+            font_size: DifferentialBundle::new(FontSize(0)),
             color: DifferentialBundle::new(color.into()),
             text_value_chars: DifferentialBundle::new(TextValueUniqueCharacters::new(&text_value)),
             glyph_adds: DifferentialBundle::new(GlyphChangeQueue::default()),
@@ -72,19 +71,6 @@ impl Text {
         }
     }
     pub const DEFAULT_OPT_SCALE: u32 = 40;
-    pub fn area_metrics(
-        font_size: FontSize,
-        max_characters: MaxCharacters,
-        font: &MonospacedFont,
-        scale_factor: &ScaleFactor,
-    ) -> (Area<InterfaceContext>, CharacterDimension) {
-        let dim =
-            CharacterDimension(font.character_dimensions(font_size.px(scale_factor.factor())));
-        let interface_dim = dim.0.to_interface(scale_factor.factor());
-        let width = interface_dim.width * max_characters.0 as f32;
-        let area = (width, interface_dim.height).into();
-        (area, dim)
-    }
 }
 #[derive(Component, Copy, Clone)]
 pub struct MaxCharacters(pub u32);
@@ -135,19 +121,20 @@ pub(crate) fn max_character(
     mut query: Query<
         (
             &MaxCharacters,
-            &FontSize,
+            &mut FontSize,
             &mut Area<InterfaceContext>,
             &mut CharacterDimension,
         ),
-        Or<(Changed<MaxCharacters>, Changed<FontSize>)>,
+        Or<(Changed<MaxCharacters>, Changed<Area<InterfaceContext>>)>,
     >,
     scale_factor: Res<ScaleFactor>,
     font: Res<MonospacedFont>,
 ) {
-    for (max, size, mut area, mut dim) in query.iter_mut() {
-        let (a, d) = Text::area_metrics(*size, *max, &font, &scale_factor);
-        *area = a;
-        *dim = d;
+    for (max, mut size, mut area, mut dim) in query.iter_mut() {
+        let (fs, fa) = font.best_fit(*max, *area, &scale_factor);
+        *size = fs;
+        *area = fa;
+        *dim = CharacterDimension(font.character_dimensions(fs.px(scale_factor.factor())));
     }
 }
 #[derive(Component, Default, Clone)]

@@ -62,6 +62,7 @@ pub mod interaction;
 pub mod job;
 pub mod media;
 pub mod panel;
+mod r_scene;
 pub mod rectangle;
 pub mod scene;
 pub(crate) mod system_message;
