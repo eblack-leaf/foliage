@@ -8,8 +8,7 @@ use crate::elm::Disabled;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::prelude::{Commands, Component, Entity, Query};
 use bevy_ecs::query::{Changed, With, Without};
-use bevy_ecs::system::{ParamSet, ResMut, SystemParam};
-use std::collections::HashSet;
+use bevy_ecs::system::{ParamSet, SystemParam};
 
 #[derive(Component, Copy, Clone, Default)]
 struct Anchor(Coordinate<InterfaceContext>);
@@ -69,42 +68,47 @@ struct IsScene;
 #[derive(Component, Copy, Clone)]
 struct IsDep;
 #[derive(Bundle)]
-struct SceneComponents<T>(
-    T,
-    Bindings,
-    Coordinate<InterfaceContext>,
-    Despawn,
-    Disabled,
-    Tag<T>,
-    Tag<IsScene>,
-);
-impl<T> SceneComponents<T> {
+struct SceneComponents<T: Bundle + Send + Sync + 'static> {
+    t: T,
+    bindings: Bindings,
+    coordinate: Coordinate<InterfaceContext>,
+    despawn: Despawn,
+    disabled: Disabled,
+    tag: Tag<T>,
+    scene_tag: Tag<IsScene>,
+}
+impl<T: Bundle + Send + Sync + 'static> SceneComponents<T> {
     fn new(coordinate: Coordinate<InterfaceContext>, bindings: Bindings, t: T) -> Self {
         Self {
-            0: t,
-            1: bindings,
-            2: coordinate,
-            3: Default::default(),
-            4: Disabled::not_disabled(),
-            5: Tag::new(),
-            6: Tag::new(),
+            t,
+            bindings,
+            coordinate,
+            despawn: Default::default(),
+            disabled: Default::default(),
+            tag: Tag::new(),
+            scene_tag: Tag::new(),
         }
     }
 }
 #[derive(Bundle)]
-struct SceneBindingComponents<T>(T, Tag<IsDep>, Anchor, Alignment);
-impl<T> SceneBindingComponents<T> {
+struct SceneBindingComponents<T: Bundle + Send + Sync + 'static> {
+    t: T,
+    tag: Tag<IsDep>,
+    anchor: Anchor,
+    alignment: Alignment,
+}
+impl<T: Bundle + Send + Sync + 'static> SceneBindingComponents<T> {
     fn new(t: T, anchor: Anchor, alignment: Alignment) -> Self {
         Self {
-            0: t,
-            1: Tag::new(),
-            2: anchor,
-            3: alignment,
+            t,
+            tag: Tag::new(),
+            anchor,
+            alignment,
         }
     }
 }
 // will need to add this for every scene added
-fn config<S: Scene>(
+fn config<S: Scene + Send + Sync + 'static>(
     query: Query<
         (&Area<InterfaceContext>, &Despawn, &Bindings),
         (With<Tag<S>>, Changed<Area<InterfaceContext>>),
@@ -121,7 +125,10 @@ fn config<S: Scene>(
         S::config(*area, &mut areas, &mut ext, bindings);
     }
 }
-trait Scene {
+trait Scene
+where
+    Self: Sized + Send + Sync + 'static,
+{
     type ConfigParams: SystemParam;
     type Components: Bundle;
     // or i structure below query and call Scene::config(params) inside it after despawn.should_despawn() { continue }
@@ -138,15 +145,23 @@ trait Scene {
 fn recursive_fetch(
     root_coordinate: Coordinate<InterfaceContext>,
     target_entity: Entity,
-    query: &Query<(&Anchor, &Alignment, Option<&Bindings>), With<Tag<IsDep>>>,
+    query: &Query<
+        (
+            &Anchor,
+            &Area<InterfaceContext>,
+            &Alignment,
+            Option<&Bindings>,
+        ),
+        With<Tag<IsDep>>,
+    >,
 ) -> Vec<(Entity, Anchor)> {
     let mut fetch = vec![];
     if let Ok(res) = query.get(target_entity) {
-        if let Some(bindings) = res.2 {
+        if let Some(bindings) = res.3 {
             for bind in bindings.0.iter() {
                 if let Ok(dep) = query.get(bind.entity) {
-                    let alignment = *dep.1;
-                    let anchor = Anchor(root_coordinate).aligned(alignment);
+                    let alignment = *dep.2;
+                    let anchor = Anchor(root_coordinate.with_area(*dep.1)).aligned(alignment);
                     fetch.push((bind.entity, anchor));
                     if bind.is_scene {
                         let others = recursive_fetch(anchor.0, bind.entity, &query);
@@ -169,15 +184,25 @@ fn resolve_anchor(
         (With<Tag<IsScene>>, Without<Tag<IsDep>>),
     >,
     mut deps: ParamSet<(
-        Query<(&Anchor, &Alignment, Option<&Bindings>), With<Tag<IsDep>>>,
-        Query<(&mut Anchor, &Alignment, Option<&Bindings>), With<Tag<IsDep>>>,
+        Query<
+            (
+                &Anchor,
+                &Area<InterfaceContext>,
+                &Alignment,
+                Option<&Bindings>,
+            ),
+            With<Tag<IsDep>>,
+        >,
+        Query<(&mut Anchor, &Area<InterfaceContext>, &Alignment), With<Tag<IsDep>>>,
     )>,
 ) {
     for (pos, area, layer, bindings) in roots.iter() {
         let coordinate = Coordinate::new((*pos, *area), *layer);
         for bind in bindings.0.iter() {
-            let alignment = *deps.p1().get_mut(bind.entity).unwrap().1;
-            *deps.p1().get_mut(bind.entity).unwrap().0 = Anchor(coordinate).aligned(alignment);
+            let alignment = *deps.p1().get_mut(bind.entity).unwrap().2;
+            let dep_area = *deps.p1().get_mut(bind.entity).unwrap().1;
+            *deps.p1().get_mut(bind.entity).unwrap().0 =
+                Anchor(coordinate.with_area(dep_area)).aligned(alignment);
             if bind.is_scene {
                 let rf = recursive_fetch(coordinate, bind.entity, &deps.p0());
                 for (e, a) in rf {
@@ -188,7 +213,7 @@ fn resolve_anchor(
     }
 }
 fn update_from_anchor() {
-    // if Changed<Anchor> then update from alignment
+    // if Changed<Anchor> then update from alignment (only pos + layer)
 }
 fn despawn_bindings() {
     // same root + loop deps as resolve_anchor

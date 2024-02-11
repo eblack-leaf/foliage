@@ -85,7 +85,7 @@ impl Leaf for Circle {
     type SetDescriptor = SetDescriptor;
 
     fn config(elm_configuration: &mut ElmConfiguration) {
-        elm_configuration.configure_hook::<Self>(ExternalSet::Configure, SetDescriptor::Area);
+        elm_configuration.configure_hook(ExternalSet::Configure, SetDescriptor::Area);
     }
 
     fn attach(elm: &mut Elm) {

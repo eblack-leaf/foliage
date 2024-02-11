@@ -70,6 +70,19 @@ impl Text {
             color_changes: GlyphColorChanges::default(),
         }
     }
+    pub(crate) fn area_metrics(
+        font_size: FontSize,
+        max_characters: MaxCharacters,
+        font: &MonospacedFont,
+        scale_factor: &ScaleFactor,
+    ) -> (Area<InterfaceContext>, CharacterDimension) {
+        let dim =
+            CharacterDimension(font.character_dimensions(font_size.px(scale_factor.factor())));
+        let interface_dim = dim.0.to_interface(scale_factor.factor());
+        let width = interface_dim.width * max_characters.0 as f32;
+        let area = (width, interface_dim.height).into();
+        (area, dim)
+    }
     pub const DEFAULT_OPT_SCALE: u32 = 40;
 }
 #[derive(Component, Copy, Clone)]
@@ -82,7 +95,7 @@ impl Leaf for Text {
     type SetDescriptor = SetDescriptor;
 
     fn config(elm_configuration: &mut ElmConfiguration) {
-        elm_configuration.configure_hook::<Self>(ExternalSet::Configure, SetDescriptor::Area);
+        elm_configuration.configure_hook(ExternalSet::Configure, SetDescriptor::Area);
     }
 
     fn attach(elm: &mut Elm) {

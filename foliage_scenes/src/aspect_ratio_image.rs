@@ -52,7 +52,7 @@ impl Leaf for AspectRatioImage {
     type SetDescriptor = AspectRatioImageSets;
 
     fn config(elm_configuration: &mut ElmConfiguration) {
-        elm_configuration.configure_hook::<Self>(ExternalSet::Configure, Self::SetDescriptor::Area);
+        elm_configuration.configure_hook(ExternalSet::Configure, Self::SetDescriptor::Area);
     }
 
     fn attach(elm: &mut Elm) {

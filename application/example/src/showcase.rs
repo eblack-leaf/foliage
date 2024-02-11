@@ -14,7 +14,7 @@ use foliage::elm::{Elm, InteractionHandlerTrigger};
 use foliage::icon::FeatherIcon;
 use foliage::icon_button::IconButton;
 use foliage::image::{Image, ImageId, ImageStorage};
-use foliage::text::{FontSize, MaxCharacters, Text, TextValue};
+use foliage::text::{MaxCharacters, Text, TextValue};
 
 #[foliage::assets(crate::Engen, "../assets/", "/foliage/demo/assets/")]
 #[derive(Resource, Clone)]
@@ -54,12 +54,7 @@ impl Leaf for Showcase {
         elm.configure_view_grid(START, Grid::new(8, 6));
         elm.add_view_binding(
             START,
-            Text::new(
-                MaxCharacters(11),
-                FontSize(24),
-                TextValue::new("button.rs"),
-                Color::GREY,
-            ),
+            Text::new(MaxCharacters(11), TextValue::new("button.rs"), Color::GREY),
             ResponsiveSegment::base(
                 3.far().to(5.far()).maximum(150.0),
                 1.near().to(1.far()).minimum(30.0).maximum(40.0),
@@ -93,7 +88,6 @@ impl Leaf for Showcase {
             START,
             Text::new(
                 MaxCharacters(11),
-                FontSize(24),
                 TextValue::new("base"),
                 THEME_COLOR::MINUS_THREE,
             ),
@@ -130,12 +124,7 @@ impl Leaf for Showcase {
         );
         elm.add_view_binding(
             START,
-            Text::new(
-                MaxCharacters(11),
-                FontSize(24),
-                TextValue::new("base"),
-                THEME_COLOR::BASE,
-            ),
+            Text::new(MaxCharacters(11), TextValue::new("base"), THEME_COLOR::BASE),
             ResponsiveSegment::base(
                 7.near().to(7.far()),
                 2.near().to(2.far()).minimum(30.0).maximum(40.0),
@@ -171,7 +160,6 @@ impl Leaf for Showcase {
             START,
             Text::new(
                 MaxCharacters(11),
-                FontSize(24),
                 TextValue::new("text"),
                 THEME_COLOR::MINUS_TWO,
             ),
@@ -210,7 +198,6 @@ impl Leaf for Showcase {
             START,
             Text::new(
                 MaxCharacters(11),
-                FontSize(24),
                 TextValue::new("text"),
                 THEME_COLOR::PLUS_ONE,
             ),
@@ -247,7 +234,6 @@ impl Leaf for Showcase {
             START,
             Text::new(
                 MaxCharacters(11),
-                FontSize(24),
                 TextValue::new("circle"),
                 THEME_COLOR::MINUS_ONE,
             ),
@@ -284,7 +270,6 @@ impl Leaf for Showcase {
             START,
             Text::new(
                 MaxCharacters(11),
-                FontSize(24),
                 TextValue::new("circle"),
                 THEME_COLOR::PLUS_TWO,
             ),
@@ -319,12 +304,7 @@ impl Leaf for Showcase {
         );
         elm.add_view_binding(
             START,
-            Text::new(
-                MaxCharacters(11),
-                FontSize(24),
-                TextValue::new("icon"),
-                THEME_COLOR::BASE,
-            ),
+            Text::new(MaxCharacters(11), TextValue::new("icon"), THEME_COLOR::BASE),
             ResponsiveSegment::base(
                 4.near().to(4.far()),
                 5.near().to(5.far()).minimum(30.0).maximum(40.0),
@@ -358,7 +338,6 @@ impl Leaf for Showcase {
             START,
             Text::new(
                 MaxCharacters(11),
-                FontSize(24),
                 TextValue::new("icon"),
                 THEME_COLOR::PLUS_THREE,
             ),

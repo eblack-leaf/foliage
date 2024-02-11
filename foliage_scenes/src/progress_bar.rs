@@ -34,7 +34,7 @@ impl Leaf for ProgressBar {
     type SetDescriptor = ProgressBarSets;
 
     fn config(elm_configuration: &mut ElmConfiguration) {
-        elm_configuration.configure_hook::<Self>(ExternalSet::Configure, ProgressBarSets::Area);
+        elm_configuration.configure_hook(ExternalSet::Configure, ProgressBarSets::Area);
     }
 
     fn attach(elm: &mut Elm) {

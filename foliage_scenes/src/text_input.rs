@@ -103,7 +103,7 @@ impl Scene for TextInput {
         binder.bind(
             TextInputBindings::Text,
             (SPACING.close(), 0.center(), 0),
-            Text::new(args.max_chars, fs, display_text.clone(), args.foreground),
+            Text::new(args.max_chars, display_text.clone(), args.foreground),
             cmd,
         );
         Self::Components {
@@ -528,7 +528,7 @@ impl Leaf for TextInput {
     type SetDescriptor = TextInputSets;
 
     fn config(elm_configuration: &mut ElmConfiguration) {
-        elm_configuration.configure_hook::<Self>(ExternalSet::Configure, Self::SetDescriptor::Area);
+        elm_configuration.configure_hook(ExternalSet::Configure, Self::SetDescriptor::Area);
     }
 
     fn attach(elm: &mut Elm) {

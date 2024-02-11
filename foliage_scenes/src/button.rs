@@ -48,7 +48,7 @@ impl Leaf for Button {
     type SetDescriptor = SetDescriptors;
 
     fn config(elm_configuration: &mut ElmConfiguration) {
-        elm_configuration.configure_hook::<Self>(ExternalSet::Configure, SetDescriptors::Area);
+        elm_configuration.configure_hook(ExternalSet::Configure, SetDescriptors::Area);
     }
 
     fn attach(elm: &mut Elm) {

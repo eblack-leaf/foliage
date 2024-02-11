@@ -72,7 +72,7 @@ impl Leaf for IconText {
     type SetDescriptor = IconTextSets;
 
     fn config(elm_configuration: &mut ElmConfiguration) {
-        elm_configuration.configure_hook::<Self>(ExternalSet::Configure, Self::SetDescriptor::Area);
+        elm_configuration.configure_hook(ExternalSet::Configure, Self::SetDescriptor::Area);
     }
 
     fn attach(elm: &mut Elm) {
@@ -210,7 +210,7 @@ impl Scene for IconText {
         binder.bind(
             Self::Bindings::Text,
             (tap.close(), 0.center(), 0),
-            Text::new(args.max_chars, fs, args.text_value.clone(), args.text_color),
+            Text::new(args.max_chars, args.text_value.clone(), args.text_color),
             cmd,
         );
         Self::Components {
