@@ -12,6 +12,7 @@ struct Alignment {
     // placement markers (grid or custom)
 }
 struct SceneBinding(i32);
+#[derive(Copy, Clone)]
 struct SceneNode {
     entity: Entity,
     is_scene: bool,
@@ -20,11 +21,12 @@ struct ScenePtr(Entity);
 struct Bindings(Vec<SceneNode>);
 impl Bindings {
     fn get<SB: Into<SceneBinding>>(&self, sb: SB) -> SceneNode {
-        todo!()
+        *self.0.get(sb.into().0 as usize).expect("no-scene-binding")
     }
 }
 #[derive(Bundle)]
 struct TaggedComponents<T>(T, Tag<T>);
+// will need to add this for every scene added
 fn config<S: Scene>(
     mut query: Query<
         (&mut Area<InterfaceContext>, &mut Anchor, &Despawn),
@@ -37,6 +39,7 @@ fn config<S: Scene>(
         if despawn.should_despawn() {
             continue;
         }
+        // disabled?
         // do rest
         S::config(*anchor, area.as_mut(), &mut areas, &mut ext);
         anchor.0.section.area = *area;
@@ -66,7 +69,4 @@ fn despawn_bindings() {
     // loop entity-pool (bindings) +
     //      if is_scene => loop that ones entity-pool
     //          despawn.signal_despawn()
-}
-fn scene_bind() {
-    // call Scene::bind(cmd)
 }

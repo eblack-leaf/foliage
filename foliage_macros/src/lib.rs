@@ -64,7 +64,45 @@ pub fn inner_scene_binding_derive(input: proc_macro::TokenStream) -> proc_macro:
     };
     gen.into()
 }
-
+#[proc_macro_attribute]
+pub fn set_descriptor(
+    attrs: proc_macro::TokenStream,
+    input: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    let found_crate = crate_name("foliage").expect("foliage is present in `Cargo.toml`");
+    let foliage = match found_crate {
+        FoundCrate::Itself => quote::quote!(crate),
+        FoundCrate::Name(name) => {
+            let ident = syn::Ident::new(&name, proc_macro2::Span::call_site());
+            quote::quote!( #ident )
+        }
+    };
+    let gen = quote::quote!(
+        #[derive(#foliage::bevy_ecs::prelude::SystemSet, Hash, Eq, PartialEq, Debug, Copy, Clone)]
+        #input
+    );
+    gen.into()
+}
+#[proc_macro_attribute]
+pub fn inner_set_descriptor(
+    attrs: proc_macro::TokenStream,
+    input: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    let found_crate =
+        crate_name("foliage_proper").expect("foliage_proper is present in `Cargo.toml`");
+    let foliage = match found_crate {
+        FoundCrate::Itself => quote::quote!(crate),
+        FoundCrate::Name(name) => {
+            let ident = syn::Ident::new(&name, proc_macro2::Span::call_site());
+            quote::quote!( #ident )
+        }
+    };
+    let gen = quote::quote!(
+        #[derive(#foliage::bevy_ecs::prelude::SystemSet, Hash, Eq, PartialEq, Debug, Copy, Clone)]
+        #input
+    );
+    gen.into()
+}
 #[proc_macro_attribute]
 pub fn assets(
     attrs: proc_macro::TokenStream,

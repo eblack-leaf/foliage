@@ -1,6 +1,9 @@
 use crate::elm::leaf::{Leaf, Leaflet};
 use crate::elm::Elm;
+use crate::scene::Scene;
 use bevy_ecs::prelude::{apply_deferred, IntoSystemConfigs, SystemSet};
+use std::fmt::Debug;
+use std::hash::Hash;
 
 #[derive(SystemSet, Hash, Eq, PartialEq, Debug, Copy, Clone)]
 pub enum ExternalSet {
@@ -27,13 +30,22 @@ pub enum CoreSet {
 }
 pub struct ElmConfiguration<'a>(&'a mut Elm);
 impl<'a> ElmConfiguration<'a> {
-    pub fn configure_hook<L: Leaf>(
+    pub fn configure_hook<L: SystemSet + Hash + Eq + PartialEq + Debug + Copy + Clone>(
         &mut self,
         external_set: ExternalSet,
-        hook: <L as Leaf>::SetDescriptor,
+        hook: L,
     ) {
         use bevy_ecs::prelude::IntoSystemSetConfigs;
         self.0.job.main().configure_sets(hook.in_set(external_set));
+    }
+    pub fn establish_scene_config<
+        S: Scene,
+        SET: SystemSet + Hash + Eq + PartialEq + Debug + Copy + Clone,
+    >(
+        &mut self,
+        set: SET,
+    ) {
+        // self.0.main().add_systems(r_scene::config<S>.in_set(set));
     }
     pub(crate) fn configure_elm(elm: &'a mut Elm, leaflets: &[Leaflet]) {
         use bevy_ecs::prelude::IntoSystemSetConfigs;
