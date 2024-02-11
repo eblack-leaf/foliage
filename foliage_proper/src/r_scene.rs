@@ -18,14 +18,44 @@ struct SceneNode {
     is_scene: bool,
 }
 struct ScenePtr(Entity);
+#[derive(Default)]
 struct Bindings(Vec<SceneNode>);
 impl Bindings {
     fn get<SB: Into<SceneBinding>>(&self, sb: SB) -> SceneNode {
         *self.0.get(sb.into().0 as usize).expect("no-scene-binding")
     }
+    fn bind<SB: Into<SceneBinding>, B: Bundle>(
+        &mut self,
+        sb: SB,
+        b: B,
+        cmd: &mut Commands,
+    ) -> Entity {
+        // add alignment stuff
+        todo!()
+    }
+    fn bind_scene<S: Scene, SB: Into<SceneBinding>>(
+        &mut self,
+        sb: SB,
+        s: S,
+        cmd: &mut Commands,
+    ) -> Entity {
+        // add alignment + scene stuff + ScenePtr for root
+        todo!()
+    }
 }
 #[derive(Bundle)]
-struct TaggedComponents<T>(T, Tag<T>);
+struct SceneComponents<T>(T, Bindings, Anchor, Despawn, Tag<T>);
+impl<T> SceneComponents<T> {
+    fn new(bindings: Bindings, t: T) -> Self {
+        Self {
+            0: t,
+            1: bindings,
+            2: Default::default(),
+            3: Default::default(),
+            4: Tag::new(),
+        }
+    }
+}
 // will need to add this for every scene added
 fn config<S: Scene>(
     mut query: Query<
@@ -57,7 +87,7 @@ trait Scene {
     );
     // self is the Args to the scene
     // only create bindings; will be configured above
-    fn bind(self, cmd: &mut Commands) -> TaggedComponents<Self::Components>;
+    fn bind(self, bindings: Bindings, cmd: &mut Commands) -> SceneComponents<Self::Components>;
 }
 fn resolve_anchor() {
     // queue resolution requests
