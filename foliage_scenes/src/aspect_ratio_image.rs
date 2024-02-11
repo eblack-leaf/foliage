@@ -1,4 +1,4 @@
-use foliage_macros::InnerSceneBinding;
+use foliage_macros::{inner_set_descriptor, InnerSceneBinding};
 use foliage_proper::bevy_ecs;
 use foliage_proper::bevy_ecs::bundle::Bundle;
 use foliage_proper::bevy_ecs::component::Component;
@@ -33,11 +33,10 @@ pub struct AspectRatioImageComponents {
 pub enum AspectRatioImageBindings {
     Image,
 }
-set_descriptor!(
-    pub enum AspectRatioImageSets {
-        Area,
-    }
-);
+#[inner_set_descriptor]
+pub enum AspectRatioImageSets {
+    Area,
+}
 fn metrics(area: Area<InterfaceContext>, dims: ImageDimensions) -> Area<InterfaceContext> {
     let ratio = AspectRatio::new(dims.0);
     let mut attempted_width = area.width;
@@ -53,13 +52,12 @@ impl Leaf for AspectRatioImage {
 
     fn config(elm_configuration: &mut ElmConfiguration) {
         elm_configuration.configure_hook(ExternalSet::Configure, Self::SetDescriptor::Area);
+        elm_configuration.establish_scene_config::<Self, _>(Self::SetDescriptor::Area);
     }
 
-    fn attach(elm: &mut Elm) {
-        elm.main()
-            .add_systems(resize.in_set(Self::SetDescriptor::Area));
-    }
+    fn attach(elm: &mut Elm) {}
 }
+// TODO make this the config for new Scene
 fn resize(
     scenes: Query<
         (
