@@ -23,6 +23,7 @@ impl Anchor {
             alignment.segment.vertical,
             self.0.layer + alignment.layer_offset,
             alignment.justify,
+            alignment.segment.aspect_ratio,
         ))
     }
 }
@@ -33,6 +34,7 @@ pub struct Alignment {
     layer_offset: Layer,
     justify: Option<Justify>,
 }
+
 impl
     From<(
         WellFormedSegmentUnitDescriptor,
@@ -45,17 +47,13 @@ impl
             WellFormedSegmentUnitDescriptor,
         ),
     ) -> Self {
-        Self::new(value.0, value.1, 0)
+        Self::new(Segment::new(value.0, value.1), 0)
     }
 }
 impl Alignment {
-    pub fn new<L: Into<Layer>>(
-        hd: WellFormedSegmentUnitDescriptor,
-        vd: WellFormedSegmentUnitDescriptor,
-        l: L,
-    ) -> Self {
+    pub fn new<L: Into<Layer>>(segment: Segment, l: L) -> Self {
         Self {
-            segment: Segment::new(hd.normal(), vd.normal()),
+            segment,
             layer_offset: l.into(),
             justify: None,
         }

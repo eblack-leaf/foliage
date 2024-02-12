@@ -1,4 +1,4 @@
-use crate::compositor::layout::Layout;
+use crate::compositor::layout::{AspectRatio, Layout};
 use crate::compositor::ViewHandle;
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
@@ -144,6 +144,7 @@ impl Grid {
         vertical: SegmentUnitDescriptor,
         layer: Layer,
         justification: Option<Justify>,
+        aspect_ratio: Option<AspectRatio>,
     ) -> Coordinate<InterfaceContext> {
         let left = self.horizontal(section.area, horizontal.begin).value();
         let top = self.vertical(section.area, vertical.begin).value();
@@ -157,6 +158,7 @@ impl Grid {
             GridRelativeValue::Anchored(value) => value - top,
             GridRelativeValue::Fixed(value) => value,
         };
+        // TODO aspect ratio set here then let min|max bound + justify
         let width = if let Some(w) = horizontal.min {
             let bounded = width.max(w);
             bounded
@@ -255,17 +257,21 @@ impl ResponsiveSegment {
             return None;
         }
         let current = grid.current(self.view_handle);
-        let horizontal_descriptor = self.horizontal_value(&layout);
-        let vertical_descriptor = self.vertical_value(&layout);
         Some(current.calculate_coordinate(
             section,
-            horizontal_descriptor,
-            vertical_descriptor,
+            self.horizontal_value(&layout),
+            self.vertical_value(&layout),
             self.layer,
             self.justification,
+            self.aspect_ratio(&layout),
         ))
     }
-
+    pub fn aspect_ratio(&self, layout: &Layout) -> Option<AspectRatio> {
+        self.exceptions
+            .get(layout)
+            .unwrap_or(&self.base)
+            .aspect_ratio
+    }
     pub fn justify(mut self, justify: Justify) -> Self {
         self.justification.replace(justify);
         self
@@ -285,13 +291,10 @@ impl ResponsiveSegment {
             self.base.horizontal
         }
     }
-    pub fn base(
-        horizontal: WellFormedSegmentUnitDescriptor,
-        vertical: WellFormedSegmentUnitDescriptor,
-    ) -> Self {
+    pub fn base(segment: Segment) -> Self {
         Self {
             view_handle: ViewHandle::default(),
-            base: Segment::new(horizontal.normal(), vertical.normal()),
+            base: segment,
             layer: Default::default(),
             justification: None,
             exceptions: Default::default(),
@@ -302,16 +305,10 @@ impl ResponsiveSegment {
         self.layer = l.into();
         self
     }
-    pub fn exception<L: AsRef<[Layout]>>(
-        mut self,
-        layouts: L,
-        h_exc: WellFormedSegmentUnitDescriptor,
-        v_exc: WellFormedSegmentUnitDescriptor,
-    ) -> Self {
+    pub fn exception<L: AsRef<[Layout]>>(mut self, layouts: L, segment: Segment) -> Self {
         let layouts = layouts.as_ref();
         for l in layouts.iter() {
-            self.exceptions
-                .insert(*l, Segment::new(h_exc.normal(), v_exc.normal()));
+            self.exceptions.insert(*l, segment);
         }
         self
     }
@@ -384,16 +381,56 @@ impl SegmentUnitDescriptor {
 }
 #[derive(Copy, Clone)]
 pub struct Segment {
-    pub(crate) horizontal: SegmentUnitDescriptor,
-    pub(crate) vertical: SegmentUnitDescriptor,
+    pub horizontal: SegmentUnitDescriptor,
+    pub vertical: SegmentUnitDescriptor,
+    pub aspect_ratio: Option<AspectRatio>,
 }
-
+impl<AR: Into<AspectRatio>>
+    From<(
+        WellFormedSegmentUnitDescriptor,
+        WellFormedSegmentUnitDescriptor,
+        AR,
+    )> for Segment
+{
+    fn from(
+        value: (
+            WellFormedSegmentUnitDescriptor,
+            WellFormedSegmentUnitDescriptor,
+            AR,
+        ),
+    ) -> Self {
+        Self::new(value.0, value.1).with_aspect(value.2.into())
+    }
+}
+impl
+    From<(
+        WellFormedSegmentUnitDescriptor,
+        WellFormedSegmentUnitDescriptor,
+    )> for Segment
+{
+    fn from(
+        value: (
+            WellFormedSegmentUnitDescriptor,
+            WellFormedSegmentUnitDescriptor,
+        ),
+    ) -> Self {
+        Self::new(value.0, value.1)
+    }
+}
 impl Segment {
-    pub fn new(horizontal: SegmentUnitDescriptor, vertical: SegmentUnitDescriptor) -> Segment {
+    pub fn new(
+        horizontal: WellFormedSegmentUnitDescriptor,
+        vertical: WellFormedSegmentUnitDescriptor,
+    ) -> Segment {
         Self {
-            horizontal,
-            vertical,
+            horizontal: horizontal.normal(),
+            vertical: vertical.normal(),
+            aspect_ratio: None,
         }
+    }
+    pub fn with_aspect(mut self, aspect_ratio: AspectRatio) -> Self {
+        self.aspect_ratio.replace(aspect_ratio);
+        self
     }
 }
 pub trait SegmentUnitDesc {
