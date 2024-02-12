@@ -1,4 +1,4 @@
-use crate::compositor::segment::{Grid, Segment, WellFormedSegmentUnitDescriptor};
+use crate::compositor::segment::{Grid, Justify, Segment, WellFormedSegmentUnitDescriptor};
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
@@ -27,6 +27,7 @@ impl Anchor {
 pub struct Alignment {
     segment: Segment,
     layer_offset: Layer,
+    justify: Option<Justify>,
 }
 impl Alignment {
     pub fn new<L: Into<Layer>>(
@@ -37,7 +38,12 @@ impl Alignment {
         Self {
             segment: Segment::new(hd.normal(), vd.normal()),
             layer_offset: l.into(),
+            justify: None,
         }
+    }
+    pub fn justify(mut self, justify: Justify) -> Self {
+        self.justify.replace(justify);
+        self
     }
 }
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
