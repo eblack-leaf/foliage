@@ -57,11 +57,10 @@ impl Compositor {
         responsive_segment: ResponsiveSegment,
         cmd: &mut Commands,
     ) {
-        let components = s.create(cmd);
-        let entity = cmd
-            .spawn(components)
-            .insert(Segmental::new(responsive_segment.viewed_at(view_handle)))
-            .id();
+        let (entity, components) = s.create(cmd);
+        cmd.entity(entity)
+            .insert(components)
+            .insert(Segmental::new(responsive_segment.viewed_at(view_handle)));
         self.add_to_view(view_handle, entity);
     }
     pub fn new(area: Area<InterfaceContext>) -> Self {

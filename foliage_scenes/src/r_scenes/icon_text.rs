@@ -138,7 +138,7 @@ impl Scene for IconText {
         }
     }
 
-    fn create(self, cmd: &mut Commands) -> SceneComponents<Self::Components> {
+    fn create(self, cmd: &mut Commands) -> (Entity, SceneComponents<Self::Components>) {
         let mut binder = Binder::new(cmd);
         binder.bind(
             IconTextBindings::Icon,
@@ -165,15 +165,18 @@ impl Scene for IconText {
             Text::new(self.max_chars, self.text_value.clone(), self.text_color),
             cmd,
         );
-        SceneComponents::new(
-            Grid::new(1, 1),
-            binder.bindings(),
-            IconTextComponents::new(
-                self.max_chars,
-                self.text_value,
-                self.icon_color,
-                self.text_color,
-                self.icon_id,
+        (
+            binder.root(),
+            SceneComponents::new(
+                Grid::new(1, 1),
+                binder.bindings(),
+                IconTextComponents::new(
+                    self.max_chars,
+                    self.text_value,
+                    self.icon_color,
+                    self.text_color,
+                    self.icon_id,
+                ),
             ),
         )
     }

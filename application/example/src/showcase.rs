@@ -2,7 +2,6 @@ use foliage::bevy_ecs;
 use foliage::bevy_ecs::prelude::{Component, Resource};
 use foliage::color::monochromatic::{Magenta as THEME_COLOR, Monochromatic};
 use foliage::color::Color;
-use foliage::compositor::layout::Layout;
 use foliage::compositor::segment::{Grid, Justify, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::compositor::ViewHandle;
 use foliage::coordinate::area::Area;
@@ -11,7 +10,10 @@ use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 use foliage::elm::{Elm, InteractionHandlerTrigger};
 use foliage::icon::FeatherIcon;
 use foliage::image::{Image, ImageId, ImageStorage};
+use foliage::r_scenes::icon_text::IconText;
+use foliage::rectangle::Rectangle;
 use foliage::text::{MaxCharacters, Text, TextValue};
+use foliage::texture::factors::Progress;
 
 #[foliage::assets(crate::Engen, "../assets/", "/foliage/demo/assets/")]
 #[derive(Resource, Clone)]
@@ -49,12 +51,28 @@ impl Leaf for Showcase {
         elm.container().insert_resource(assets);
         // style starts below
         elm.configure_view_grid(START, Grid::new(8, 6));
-        elm.add_view_binding(
+        elm.add_view_scene_binding(
             START,
-            Text::new(MaxCharacters(11), TextValue::new("button.rs"), Color::GREY),
+            IconText::new(
+                FeatherIcon::Tag,
+                THEME_COLOR::BASE,
+                MaxCharacters(11),
+                TextValue::new("button.rs"),
+                Color::GREY,
+            ),
             ResponsiveSegment::base(Segment::new(
                 3.far().to(5.far()).maximum(150.0),
-                1.near().to(1.far()).minimum(30.0).maximum(40.0),
+                1.near().to(1.far()).minimum(25.0).maximum(45.0),
+            ))
+            .justify(Justify::Top),
+            (),
+        );
+        elm.add_view_binding(
+            START,
+            Rectangle::new(Area::default(), THEME_COLOR::BASE, Progress::full()),
+            ResponsiveSegment::base(Segment::new(
+                3.far().to(5.far()).maximum(150.0),
+                1.near().to(1.far()).minimum(25.0).maximum(45.0),
             ))
             .justify(Justify::Top),
             (),

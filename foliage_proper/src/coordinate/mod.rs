@@ -85,4 +85,8 @@ impl<Context: CoordinateContext> Coordinate<Context> {
         self.layer = l.into();
         self
     }
+    pub fn moved_by<P: Into<Position<Context>>>(mut self, p: P) -> Self {
+        self.section.position += p.into();
+        self
+    }
 }

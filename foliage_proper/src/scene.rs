@@ -17,14 +17,16 @@ pub struct Anchor(Coordinate<InterfaceContext>);
 
 impl Anchor {
     pub(crate) fn aligned(&self, grid: Grid, alignment: Alignment) -> Self {
-        Self(grid.calculate_coordinate(
+        let coordinate = grid.calculate_coordinate(
             self.0.section,
             alignment.segment.horizontal,
             alignment.segment.vertical,
             self.0.layer + alignment.layer_offset,
             alignment.justify,
             alignment.segment.aspect_ratio,
-        ))
+        );
+        let moved = coordinate.moved_by(self.0.section.position);
+        Self(moved)
     }
 }
 
@@ -80,9 +82,13 @@ impl SceneNode {
     }
 }
 pub struct Binder(HashMap<SceneBinding, SceneNode>, Entity);
+
 impl Binder {
     pub fn new(cmd: &mut Commands) -> Self {
         Self(HashMap::new(), cmd.spawn_empty().id())
+    }
+    pub fn root(&self) -> Entity {
+        self.1
     }
     pub fn bind<SB: Into<SceneBinding>, SA: Into<Alignment>, B: Bundle>(
         &mut self,
@@ -103,15 +109,22 @@ impl Binder {
         self.0.insert(sb.into(), SceneNode::new(entity, false));
         entity
     }
-    pub fn bind_scene<S: Scene, SB: Into<SceneBinding>>(
+    pub fn bind_scene<S: Scene, SB: Into<SceneBinding>, SA: Into<Alignment>>(
         &mut self,
         sb: SB,
+        sa: SA,
         s: S,
         cmd: &mut Commands,
     ) -> Entity {
         // add alignment + scene stuff
-        let components = s.create(cmd);
-        let entity = cmd.spawn(components).id();
+        let (entity, components) = s.create(cmd);
+        cmd.entity(entity)
+            .insert(components)
+            .insert(SceneBindingComponents::new(
+                self.1,
+                Anchor::default(),
+                sa.into(),
+            ));
         self.0.insert(sb.into(), SceneNode::new(entity, true));
         entity
     }
@@ -225,7 +238,7 @@ where
     );
     // self is the Args to the scene
     // only create bindings; will be configured above
-    fn create(self, cmd: &mut Commands) -> SceneComponents<Self::Components>;
+    fn create(self, cmd: &mut Commands) -> (Entity, SceneComponents<Self::Components>);
 }
 #[derive(Component, Copy, Clone)]
 pub struct ScenePtr(Entity);
