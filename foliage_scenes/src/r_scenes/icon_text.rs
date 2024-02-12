@@ -3,7 +3,7 @@ use foliage_proper::bevy_ecs;
 use foliage_proper::bevy_ecs::bundle::Bundle;
 use foliage_proper::bevy_ecs::component::Component;
 use foliage_proper::bevy_ecs::entity::Entity;
-use foliage_proper::bevy_ecs::prelude::Commands;
+use foliage_proper::bevy_ecs::prelude::{Commands, With};
 use foliage_proper::bevy_ecs::query::{Changed, Or, Without};
 use foliage_proper::bevy_ecs::system::{Query, SystemParamItem};
 use foliage_proper::color::Color;
@@ -83,7 +83,8 @@ impl Leaf for IconText {
 
     fn config(elm_configuration: &mut ElmConfiguration) {
         elm_configuration.configure_hook(ExternalSet::Configure, Self::SetDescriptor::Area);
-        elm_configuration.establish_scene_config(Self::SetDescriptor::Area);
+        // TODO will need to configure before|after
+        elm_configuration.establish_scene_config::<Self, _>(Self::SetDescriptor::Area);
     }
 
     fn attach(_elm: &mut Elm) {}
@@ -100,6 +101,7 @@ impl Scene for IconText {
                 &'static IconColor,
                 &'static IconId,
             ),
+            With<Tag<IconText>>,
         >,
         Query<'static, 'static, &'static mut Color, Without<Tag<IconText>>>,
         Query<

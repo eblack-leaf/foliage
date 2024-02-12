@@ -1,1 +1,1 @@
-mod icon_text;
+pub mod icon_text;

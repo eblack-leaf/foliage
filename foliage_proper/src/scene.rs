@@ -68,7 +68,7 @@ impl Alignment {
     }
 }
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
-pub struct SceneBinding(i32);
+pub struct SceneBinding(pub i32);
 #[derive(Copy, Clone)]
 pub struct SceneNode {
     entity: Entity,
