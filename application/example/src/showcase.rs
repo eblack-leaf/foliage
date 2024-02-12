@@ -28,6 +28,8 @@ pub(crate) struct Assets {
     _command_id: AssetKey,
     #[icon(path = "icons/menu.icon", opt = FeatherIcon::Menu)]
     _command_id: AssetKey,
+    #[icon(path = "icons/tag.icon", opt = FeatherIcon::Tag)]
+    _command_id: AssetKey,
 }
 pub(crate) const START: ViewHandle = ViewHandle::new(0, 0);
 pub(crate) const TWO: ViewHandle = ViewHandle::new(0, 0);
