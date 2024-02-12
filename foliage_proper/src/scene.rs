@@ -122,8 +122,8 @@ impl Binder {
 #[derive(Component)]
 pub struct Bindings(HashMap<SceneBinding, SceneNode>);
 impl Bindings {
-    fn get<SB: Into<SceneBinding>>(&self, sb: SB) -> SceneNode {
-        *self.0.get(&sb.into()).expect("no-scene-binding")
+    pub fn get<SB: Into<SceneBinding>>(&self, sb: SB) -> Entity {
+        self.0.get(&sb.into()).expect("no-scene-binding").entity
     }
 }
 #[derive(Component, Copy, Clone)]
