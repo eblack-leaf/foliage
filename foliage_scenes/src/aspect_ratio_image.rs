@@ -13,9 +13,6 @@ use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
 use foliage_proper::elm::leaf::{Leaf, Tag};
 use foliage_proper::elm::Elm;
 use foliage_proper::image::{Image, ImageId};
-use foliage_proper::scene::align::SceneAligner;
-use foliage_proper::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
-use foliage_proper::set_descriptor;
 #[derive(Component, Copy, Clone)]
 pub struct ImageDimensions(pub Area<NumericalContext>);
 impl<A: Into<Area<NumericalContext>>> From<A> for ImageDimensions {

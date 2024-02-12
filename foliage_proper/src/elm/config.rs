@@ -1,4 +1,4 @@
-use crate::elm::leaf::{Leaf, Leaflet};
+use crate::elm::leaf::Leaflet;
 use crate::elm::Elm;
 use crate::scene::Scene;
 use bevy_ecs::prelude::{apply_deferred, IntoSystemConfigs, SystemSet};
@@ -68,8 +68,12 @@ impl<'a> ElmConfiguration<'a> {
                 .chain(),
         );
         elm.main().add_systems((
-            crate::scene::despawn_scenes.in_set(ExternalSet::ViewBindings),
-            crate::scene::place_scenes
+            crate::scene::despawn_bindings.in_set(ExternalSet::ViewBindings),
+            (
+                crate::scene::resolve_anchor,
+                crate::scene::update_from_anchor,
+            )
+                .chain()
                 .in_set(CoreSet::CoordinateFinalize)
                 .before(crate::coordinate::position_set)
                 .before(crate::coordinate::area_set),

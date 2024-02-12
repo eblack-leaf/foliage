@@ -10,7 +10,7 @@ use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::elm::leaf::{EmptySetDescriptor, Leaf, Tag};
 use crate::elm::{Disabled, Elm};
 use crate::ginkgo::viewport::ViewportHandle;
-use crate::scene::{Anchor, Scene, SceneCoordinator, SceneHandle};
+use crate::scene::Scene;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
@@ -53,16 +53,15 @@ impl Compositor {
     pub fn add_responsive_scene<S: Scene>(
         &mut self,
         view_handle: ViewHandle,
-        args: S,
+        s: S,
         responsive_segment: ResponsiveSegment,
-        external_args: &SystemParamItem<S::ExternalArgs>,
-        coordinator: &mut SceneCoordinator,
         cmd: &mut Commands,
     ) {
-        let (_handle, entity) =
-            coordinator.spawn_scene::<S>(Anchor::default(), args, external_args, cmd);
-        cmd.entity(entity)
-            .insert(Segmental::new(responsive_segment.viewed_at(view_handle)));
+        let components = s.create(cmd);
+        let entity = cmd
+            .spawn(components)
+            .insert(Segmental::new(responsive_segment.viewed_at(view_handle)))
+            .id();
         self.add_to_view(view_handle, entity);
     }
     pub fn new(area: Area<InterfaceContext>) -> Self {
@@ -152,30 +151,18 @@ fn responsive_changed(
             &mut Area<InterfaceContext>,
             &mut Layer,
             &mut Disabled,
-            Option<&SceneHandle>,
         ),
         Or<(Changed<ResponsiveSegment>, Changed<Disabled>)>,
     >,
     viewport_handle: Res<ViewportHandle>,
     compositor: Res<Compositor>,
-    mut coordinator: ResMut<SceneCoordinator>,
     grid: Res<ResponsiveGrid>,
 ) {
-    for (entity, segment, mut pos, mut area, mut layer, mut disabled, m_scene_handle) in
-        responsive.iter_mut()
-    {
+    for (entity, segment, mut pos, mut area, mut layer, mut disabled) in responsive.iter_mut() {
         if let Some(coord) =
             segment.coordinate(compositor.layout(), viewport_handle.section(), &grid)
         {
             tracing::trace!("responsive-changed: {:?}", entity);
-            if let Some(sh) = m_scene_handle {
-                tracing::trace!(
-                    "updating-anchor-from-compositor(responsive): {:?}:{:?}",
-                    sh,
-                    coord
-                );
-                coordinator.update_anchor(*sh, coord);
-            }
             *pos = coord.section.position;
             *area = coord.section.area;
             *layer = coord.layer;
@@ -196,31 +183,19 @@ fn viewport_changed(
         &mut Area<InterfaceContext>,
         &mut Layer,
         &mut Disabled,
-        Option<&SceneHandle>,
     )>,
     mut viewport_handle: ResMut<ViewportHandle>,
-    mut coordinator: ResMut<SceneCoordinator>,
     grid: Res<ResponsiveGrid>,
 ) {
     if viewport_handle.area_updated() {
         let new_area = viewport_handle.section().area;
         compositor.layout = Layout::from_area(new_area);
         viewport_handle.set_position(compositor.current.anchor(new_area));
-        for (entity, segment, mut pos, mut area, mut layer, mut disabled, m_scene_handle) in
-            segments.iter_mut()
-        {
+        for (entity, segment, mut pos, mut area, mut layer, mut disabled) in segments.iter_mut() {
             if let Some(coord) =
                 segment.coordinate(compositor.layout(), viewport_handle.section(), &grid)
             {
                 tracing::trace!("viewport-changed: {:?}", entity);
-                if let Some(sh) = m_scene_handle {
-                    tracing::trace!(
-                        "updating-anchor-from-compositor(viewport): {:?}:{:?}",
-                        sh,
-                        coord
-                    );
-                    coordinator.update_anchor(*sh, coord);
-                }
                 *pos = coord.section.position;
                 *area = coord.section.area;
                 *layer = coord.layer;

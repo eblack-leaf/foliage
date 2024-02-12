@@ -18,7 +18,7 @@ use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::interaction::InteractionListener;
 use crate::job::{Container, Job, Task};
-use crate::scene::{Anchor, Scene, SceneCoordinator};
+use crate::scene::Scene;
 use crate::window::ScaleFactor;
 #[cfg(target_family = "wasm")]
 use crate::Workflow;
@@ -154,9 +154,6 @@ impl Elm {
         self.enable_differential::<Layer>();
         self.job
             .container
-            .insert_resource(SceneCoordinator::default());
-        self.job
-            .container
             .insert_resource(RenderPacketForwarder::default());
         for leaf in leaflets {
             leaf.1(self)
@@ -259,7 +256,7 @@ impl Elm {
     pub fn send_event<E: Event>(&mut self, e: E) {
         self.container().send_event(e);
     }
-    pub fn add_view_scene_binding<S: Scene, Ext: Bundle + Clone>(
+    pub fn add_view_scene_binding<S: Scene + Clone, Ext: Bundle + Clone>(
         &mut self,
         view_handle: ViewHandle,
         args: S,
@@ -270,20 +267,15 @@ impl Elm {
         let responsive_segment = rs.viewed_at(view_handle);
         let func = move |current: Res<CurrentView>,
                          mut cmd: Commands,
-                         mut compositor: ResMut<Compositor>,
-                         external_args: StaticSystemParam<S::ExternalArgs>,
-                         mut coordinator: ResMut<SceneCoordinator>| {
+                         mut compositor: ResMut<Compositor>| {
             {
                 if current.0 == view_handle {
-                    let (_handle, entity) = coordinator.spawn_scene::<S>(
-                        Anchor::default(),
-                        args.clone(),
-                        &external_args,
-                        &mut cmd,
-                    );
-                    cmd.entity(entity)
+                    let components = args.clone().create(&mut cmd);
+                    let entity = cmd
+                        .spawn(components)
                         .insert(ext.clone())
-                        .insert(Segmental::new(responsive_segment.clone()));
+                        .insert(Segmental::new(responsive_segment.clone()))
+                        .id();
                     compositor.add_to_view(view_handle, entity);
                 }
             }

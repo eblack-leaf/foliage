@@ -16,8 +16,6 @@ use foliage_proper::elm::Elm;
 use foliage_proper::icon::{Icon, IconId};
 use foliage_proper::interaction::InteractionListener;
 use foliage_proper::panel::{Panel, PanelStyle};
-use foliage_proper::scene::align::{SceneAligner, SceneAlignment};
-use foliage_proper::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
 use foliage_proper::set_descriptor;
 use foliage_proper::text::font::MonospacedFont;
 use foliage_proper::text::{MaxCharacters, TextValue};

@@ -9,39 +9,51 @@ use bevy_ecs::bundle::Bundle;
 use bevy_ecs::prelude::{Commands, Component, Entity, Query};
 use bevy_ecs::query::{Changed, With, Without};
 use bevy_ecs::system::{ParamSet, SystemParam};
+use std::collections::HashMap;
 
 #[derive(Component, Copy, Clone, Default)]
-struct Anchor(Coordinate<InterfaceContext>);
+pub struct Anchor(Coordinate<InterfaceContext>);
 
 impl Anchor {
     pub(crate) fn aligned(&self, alignment: Alignment) -> Self {
+        // using width, get correct pos / layer offsets
         todo!()
     }
 }
 
 #[derive(Component, Copy, Clone)]
-struct Alignment {
+pub struct Alignment {
     // placement markers (grid or custom)
 }
+#[derive(Copy, Clone, Hash, Eq, PartialEq)]
+pub struct SceneBinding(i32);
 #[derive(Copy, Clone)]
-struct SceneBinding(i32);
-#[derive(Copy, Clone)]
-struct SceneNode {
+pub struct SceneNode {
     entity: Entity,
     is_scene: bool,
 }
-#[derive(Component, Copy, Clone)]
-struct ScenePtr(Entity);
-struct Binder(Vec<SceneNode>);
+impl SceneNode {
+    fn new(entity: Entity, is_scene: bool) -> Self {
+        Self { entity, is_scene }
+    }
+}
+#[derive(Default)]
+struct Binder(HashMap<SceneBinding, SceneNode>);
 impl Binder {
-    fn bind<SB: Into<SceneBinding>, B: Bundle>(
+    fn bind<SB: Into<SceneBinding>, SA: Into<Alignment>, B: Bundle>(
         &mut self,
         sb: SB,
+        sa: SA,
         b: B,
         cmd: &mut Commands,
     ) -> Entity {
         // add alignment stuff
-        todo!()
+        let entity = cmd
+            .spawn(b)
+            .insert(SceneBindingComponents::new(Anchor::default(), sa.into()))
+            .id();
+        self.0.insert(sb.into(), SceneNode::new(entity, false));
+        entity
     }
     fn bind_scene<S: Scene, SB: Into<SceneBinding>>(
         &mut self,
@@ -50,25 +62,28 @@ impl Binder {
         cmd: &mut Commands,
     ) -> Entity {
         // add alignment + scene stuff
-        todo!()
+        let components = s.create(cmd);
+        let entity = cmd.spawn(components).id();
+        self.0.insert(sb.into(), SceneNode::new(entity, true));
+        entity
     }
     fn bindings(self) -> Bindings {
         Bindings(self.0)
     }
 }
 #[derive(Default, Component)]
-struct Bindings(Vec<SceneNode>);
+pub struct Bindings(HashMap<SceneBinding, SceneNode>);
 impl Bindings {
     fn get<SB: Into<SceneBinding>>(&self, sb: SB) -> SceneNode {
-        *self.0.get(sb.into().0 as usize).expect("no-scene-binding")
+        *self.0.get(&sb.into()).expect("no-scene-binding")
     }
 }
 #[derive(Component, Copy, Clone)]
-struct IsScene;
+pub struct IsScene;
 #[derive(Component, Copy, Clone)]
-struct IsDep;
+pub struct IsDep;
 #[derive(Bundle)]
-struct SceneComponents<T: Bundle + Send + Sync + 'static> {
+pub struct SceneComponents<T: Bundle + Send + Sync + 'static> {
     t: T,
     bindings: Bindings,
     coordinate: Coordinate<InterfaceContext>,
@@ -78,11 +93,11 @@ struct SceneComponents<T: Bundle + Send + Sync + 'static> {
     scene_tag: Tag<IsScene>,
 }
 impl<T: Bundle + Send + Sync + 'static> SceneComponents<T> {
-    fn new(coordinate: Coordinate<InterfaceContext>, bindings: Bindings, t: T) -> Self {
+    pub fn new(bindings: Bindings, t: T) -> Self {
         Self {
             t,
             bindings,
-            coordinate,
+            coordinate: Coordinate::default(),
             despawn: Default::default(),
             disabled: Default::default(),
             tag: Tag::new(),
@@ -91,16 +106,14 @@ impl<T: Bundle + Send + Sync + 'static> SceneComponents<T> {
     }
 }
 #[derive(Bundle)]
-struct SceneBindingComponents<T: Bundle + Send + Sync + 'static> {
-    t: T,
+struct SceneBindingComponents {
     tag: Tag<IsDep>,
     anchor: Anchor,
     alignment: Alignment,
 }
-impl<T: Bundle + Send + Sync + 'static> SceneBindingComponents<T> {
-    fn new(t: T, anchor: Anchor, alignment: Alignment) -> Self {
+impl SceneBindingComponents {
+    fn new(anchor: Anchor, alignment: Alignment) -> Self {
         Self {
-            t,
             tag: Tag::new(),
             anchor,
             alignment,
@@ -110,22 +123,22 @@ impl<T: Bundle + Send + Sync + 'static> SceneBindingComponents<T> {
 // will need to add this for every scene added
 fn config<S: Scene + Send + Sync + 'static>(
     query: Query<
-        (&Area<InterfaceContext>, &Despawn, &Bindings),
+        (Entity, &Area<InterfaceContext>, &Despawn, &Bindings),
         (With<Tag<S>>, Changed<Area<InterfaceContext>>),
     >,
     mut areas: Query<&mut Area<InterfaceContext>, Without<Tag<S>>>,
     mut ext: S::ConfigParams,
 ) {
-    for (area, despawn, bindings) in query.iter() {
+    for (entity, area, despawn, bindings) in query.iter() {
         if despawn.should_despawn() {
             continue;
         }
         // disabled?
         // do rest
-        S::config(*area, &mut areas, &mut ext, bindings);
+        S::config(entity, *area, &mut areas, &mut ext, bindings);
     }
 }
-trait Scene
+pub trait Scene
 where
     Self: Sized + Send + Sync + 'static,
 {
@@ -133,6 +146,7 @@ where
     type Components: Bundle;
     // or i structure below query and call Scene::config(params) inside it after despawn.should_despawn() { continue }
     fn config(
+        entity: Entity,
         area: Area<InterfaceContext>,
         area_query: &mut Query<&mut Area<InterfaceContext>, Without<Tag<Self>>>,
         ext: &mut Self::ConfigParams,
@@ -140,7 +154,7 @@ where
     );
     // self is the Args to the scene
     // only create bindings; will be configured above
-    fn bind(self, binder: Binder, cmd: &mut Commands) -> SceneComponents<Self::Components>;
+    fn create(self, cmd: &mut Commands) -> SceneComponents<Self::Components>;
 }
 fn recursive_fetch(
     root_coordinate: Coordinate<InterfaceContext>,
@@ -158,7 +172,7 @@ fn recursive_fetch(
     let mut fetch = vec![];
     if let Ok(res) = query.get(target_entity) {
         if let Some(bindings) = res.3 {
-            for bind in bindings.0.iter() {
+            for (_, bind) in bindings.0.iter() {
                 if let Ok(dep) = query.get(bind.entity) {
                     let alignment = *dep.2;
                     let anchor = Anchor(root_coordinate.with_area(*dep.1)).aligned(alignment);
@@ -173,7 +187,7 @@ fn recursive_fetch(
     }
     fetch
 }
-fn resolve_anchor(
+pub(crate) fn resolve_anchor(
     roots: Query<
         (
             &Position<InterfaceContext>,
@@ -198,7 +212,7 @@ fn resolve_anchor(
 ) {
     for (pos, area, layer, bindings) in roots.iter() {
         let coordinate = Coordinate::new((*pos, *area), *layer);
-        for bind in bindings.0.iter() {
+        for (_, bind) in bindings.0.iter() {
             let alignment = *deps.p1().get_mut(bind.entity).unwrap().2;
             let dep_area = *deps.p1().get_mut(bind.entity).unwrap().1;
             *deps.p1().get_mut(bind.entity).unwrap().0 =
@@ -212,10 +226,15 @@ fn resolve_anchor(
         }
     }
 }
-fn update_from_anchor() {
-    // if Changed<Anchor> then update from alignment (only pos + layer)
+pub(crate) fn update_from_anchor(
+    mut anchors: Query<(&Anchor, &mut Position<InterfaceContext>, &mut Layer), Changed<Anchor>>,
+) {
+    for (anchor, mut pos, mut layer) in anchors.iter_mut() {
+        *pos = anchor.0.section.position;
+        *layer = anchor.0.layer;
+    }
 }
-fn despawn_bindings() {
+pub(crate) fn despawn_bindings() {
     // same root + loop deps as resolve_anchor
     // if one in chain is despawn => all subscenes will return should_despawn in recursive fetch
     // loop entity-pool (bindings) +

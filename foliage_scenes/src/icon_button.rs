@@ -15,8 +15,6 @@ use foliage_proper::elm::Elm;
 use foliage_proper::icon::{Icon, IconId, IconScale};
 use foliage_proper::interaction::InteractionListener;
 use foliage_proper::panel::{Panel, PanelStyle};
-use foliage_proper::scene::align::SceneAligner;
-use foliage_proper::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
 
 #[derive(Bundle)]
 pub struct IconButtonComponents {

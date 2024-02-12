@@ -16,8 +16,6 @@ use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
 use foliage_proper::elm::leaf::{Leaf, Tag};
 use foliage_proper::elm::{BundleExtend, Elm};
 use foliage_proper::interaction::{InteractionListener, InteractionShape};
-use foliage_proper::scene::align::SceneAligner;
-use foliage_proper::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
 use foliage_proper::set_descriptor;
 use foliage_proper::texture::factors::Progress;
 

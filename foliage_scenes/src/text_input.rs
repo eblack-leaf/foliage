@@ -20,8 +20,6 @@ use foliage_proper::elm::Elm;
 use foliage_proper::interaction::{FocusedEntity, InteractionListener, Key, KeyboardEvent};
 use foliage_proper::panel::{Panel, PanelStyle};
 use foliage_proper::rectangle::Rectangle;
-use foliage_proper::scene::align::SceneAligner;
-use foliage_proper::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
 use foliage_proper::text::font::MonospacedFont;
 use foliage_proper::text::{FontSize, GlyphColorChanges, MaxCharacters, Text, TextKey, TextValue};
 use foliage_proper::texture::factors::Progress;

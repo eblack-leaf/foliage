@@ -11,8 +11,6 @@ use foliage_proper::differential::Despawn;
 use foliage_proper::elm::config::ElmConfiguration;
 use foliage_proper::elm::leaf::{Leaf, Tag};
 use foliage_proper::elm::Elm;
-use foliage_proper::scene::align::SceneAligner;
-use foliage_proper::scene::{Anchor, Scene, SceneBinder, SceneCoordinator, SceneHandle};
 use foliage_proper::texture::factors::Progress;
 
 #[derive(Bundle)]
