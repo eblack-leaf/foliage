@@ -22,6 +22,7 @@ pub enum CoreSet {
     // ViewBindings,
     // Spawn,
     Compositor,
+    Coordinate,
     // Configure,
     CoordinateFinalize,
     Visibility,
@@ -59,6 +60,7 @@ impl<'a> ElmConfiguration<'a> {
                 ExternalSet::Spawn,
                 ExternalSet::ViewBindings,
                 CoreSet::Compositor,
+                CoreSet::Coordinate,
                 ExternalSet::Configure,
                 CoreSet::CoordinateFinalize,
                 CoreSet::Visibility,
@@ -74,9 +76,7 @@ impl<'a> ElmConfiguration<'a> {
                 crate::scene::update_from_anchor,
             )
                 .chain()
-                .in_set(CoreSet::CoordinateFinalize)
-                .before(crate::coordinate::position_set)
-                .before(crate::coordinate::area_set),
+                .in_set(CoreSet::Coordinate),
             crate::coordinate::position_set.in_set(CoreSet::CoordinateFinalize),
             crate::coordinate::area_set.in_set(CoreSet::CoordinateFinalize),
             crate::differential::send_render_packet.in_set(CoreSet::RenderPacket),
@@ -108,6 +108,9 @@ impl<'a> ElmConfiguration<'a> {
                 .before(CoreSet::Compositor),
             apply_deferred
                 .after(CoreSet::Compositor)
+                .before(CoreSet::Coordinate),
+            apply_deferred
+                .after(CoreSet::Coordinate)
                 .before(ExternalSet::Configure),
             apply_deferred
                 .after(ExternalSet::Configure)
