@@ -17,9 +17,13 @@ pub struct Anchor(Coordinate<InterfaceContext>);
 
 impl Anchor {
     pub(crate) fn aligned(&self, grid: Grid, alignment: Alignment) -> Self {
-        // calc grid and give back coordinate
-        // using self as aligner
-        todo!()
+        Self(grid.calculate_coordinate(
+            self.0.section,
+            alignment.segment.horizontal,
+            alignment.segment.vertical,
+            self.0.layer + alignment.layer_offset,
+            alignment.justify,
+        ))
     }
 }
 
@@ -28,6 +32,21 @@ pub struct Alignment {
     segment: Segment,
     layer_offset: Layer,
     justify: Option<Justify>,
+}
+impl
+    From<(
+        WellFormedSegmentUnitDescriptor,
+        WellFormedSegmentUnitDescriptor,
+    )> for Alignment
+{
+    fn from(
+        value: (
+            WellFormedSegmentUnitDescriptor,
+            WellFormedSegmentUnitDescriptor,
+        ),
+    ) -> Self {
+        Self::new(value.0, value.1, 0)
+    }
 }
 impl Alignment {
     pub fn new<L: Into<Layer>>(
@@ -45,6 +64,10 @@ impl Alignment {
         self.justify.replace(justify);
         self
     }
+    pub fn with_layer_offset<L: Into<Layer>>(mut self, l: L) -> Self {
+        self.layer_offset = l.into();
+        self
+    }
 }
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
 pub struct SceneBinding(i32);
@@ -58,9 +81,11 @@ impl SceneNode {
         Self { entity, is_scene }
     }
 }
-#[derive(Default)]
 struct Binder(HashMap<SceneBinding, SceneNode>, Entity);
 impl Binder {
+    pub fn new(cmd: &mut Commands) -> Self {
+        Self(HashMap::new(), cmd.spawn_empty().id())
+    }
     fn bind<SB: Into<SceneBinding>, SA: Into<Alignment>, B: Bundle>(
         &mut self,
         sb: SB,
@@ -96,7 +121,7 @@ impl Binder {
         Bindings(self.0)
     }
 }
-#[derive(Default, Component)]
+#[derive(Component)]
 pub struct Bindings(HashMap<SceneBinding, SceneNode>);
 impl Bindings {
     fn get<SB: Into<SceneBinding>>(&self, sb: SB) -> SceneNode {

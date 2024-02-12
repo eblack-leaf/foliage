@@ -16,7 +16,7 @@ use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{DetectChanges, IntoSystemConfigs, Resource};
 use bevy_ecs::query::{Changed, Or, With};
-use bevy_ecs::system::{Commands, Query, Res, ResMut, SystemParamItem};
+use bevy_ecs::system::{Commands, Query, Res, ResMut};
 use std::collections::{HashMap, HashSet};
 
 pub mod layout;

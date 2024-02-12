@@ -46,7 +46,7 @@ impl GridRelativeValue {
         }
     }
 }
-#[derive(Default, Copy, Clone)]
+#[derive(Component, Default, Copy, Clone)]
 pub struct Grid {
     gap_x: CoordinateUnit,
     gap_y: CoordinateUnit,
@@ -144,7 +144,7 @@ impl Grid {
         vertical: SegmentUnitDescriptor,
         layer: Layer,
         justification: Option<Justify>,
-    ) -> Option<Coordinate<InterfaceContext>> {
+    ) -> Coordinate<InterfaceContext> {
         let left = self.horizontal(section.area, horizontal.begin).value();
         let top = self.vertical(section.area, vertical.begin).value();
         let width_or_right = self.horizontal(section.area, horizontal.end);
@@ -203,13 +203,13 @@ impl Grid {
         } else {
             (top, height)
         };
-        Some(Coordinate::new(
+        Coordinate::new(
             Section::new(
                 (left + section.left(), top - section.top()),
                 (width, height),
             ),
             layer,
-        ))
+        )
     }
 }
 #[derive(Copy, Clone, Default, Hash, Eq, PartialEq)]
@@ -257,13 +257,13 @@ impl ResponsiveSegment {
         let current = grid.current(self.view_handle);
         let horizontal_descriptor = self.horizontal_value(&layout);
         let vertical_descriptor = self.vertical_value(&layout);
-        current.calculate_coordinate(
+        Some(current.calculate_coordinate(
             section,
             horizontal_descriptor,
             vertical_descriptor,
             self.layer,
             self.justification,
-        )
+        ))
     }
 
     pub fn justify(mut self, justify: Justify) -> Self {
@@ -384,8 +384,8 @@ impl SegmentUnitDescriptor {
 }
 #[derive(Copy, Clone)]
 pub struct Segment {
-    horizontal: SegmentUnitDescriptor,
-    vertical: SegmentUnitDescriptor,
+    pub(crate) horizontal: SegmentUnitDescriptor,
+    pub(crate) vertical: SegmentUnitDescriptor,
 }
 
 impl Segment {
