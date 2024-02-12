@@ -9,7 +9,7 @@ use crate::elm::Disabled;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::prelude::{Commands, Component, Entity, Query};
 use bevy_ecs::query::{Changed, Or, ReadOnlyWorldQuery, With, Without};
-use bevy_ecs::system::{ParamSet, SystemParam};
+use bevy_ecs::system::{ParamSet, StaticSystemParam, SystemParam, SystemParamItem};
 use std::collections::HashMap;
 
 #[derive(Component, Copy, Clone, Default)]
@@ -143,7 +143,7 @@ pub(crate) fn config<S: Scene + Send + Sync + 'static>(
             )>,
         ),
     >,
-    mut ext: S::Params,
+    mut ext: StaticSystemParam<S::Params>,
 ) {
     for (entity, pos, area, layer, despawn, bindings) in query.iter() {
         if despawn.should_despawn() {
@@ -164,14 +164,14 @@ where
     Self: Sized + Send + Sync + 'static,
 {
     const GRID: Grid;
-    type Params: SystemParam;
+    type Params: SystemParam + 'static;
     type Filter: ReadOnlyWorldQuery;
     type Components: Bundle;
     // or i structure below query and call Scene::config(params) inside it after despawn.should_despawn() { continue }
     fn config(
         entity: Entity,
         coordinate: Coordinate<InterfaceContext>,
-        ext: &mut Self::Params,
+        ext: &mut SystemParamItem<Self::Params>,
         bindings: &Bindings,
     );
     // self is the Args to the scene
