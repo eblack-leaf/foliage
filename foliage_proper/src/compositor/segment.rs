@@ -30,7 +30,7 @@ pub struct GridTemplate {
 }
 
 impl GridTemplate {
-    fn new(columns: SegmentValue, rows: SegmentValue) -> GridTemplate {
+    const fn new(columns: SegmentValue, rows: SegmentValue) -> GridTemplate {
         Self { columns, rows }
     }
 }
@@ -55,10 +55,22 @@ pub struct Grid {
 impl Grid {
     pub const GAP_RATIO: CoordinateUnit = 0.15;
     pub const DEFAULT_GAP: CoordinateUnit = 8.0;
-    pub fn new(columns: SegmentValue, rows: SegmentValue) -> Self {
+    pub const fn new(columns: SegmentValue, rows: SegmentValue) -> Self {
         Self {
             gap_x: Self::DEFAULT_GAP,
             gap_y: Self::DEFAULT_GAP,
+            template: GridTemplate::new(columns, rows),
+        }
+    }
+    pub const fn new_with_gap(
+        columns: SegmentValue,
+        rows: SegmentValue,
+        gx: CoordinateUnit,
+        gy: CoordinateUnit,
+    ) -> Self {
+        Self {
+            gap_x: gx,
+            gap_y: gy,
             template: GridTemplate::new(columns, rows),
         }
     }
@@ -69,8 +81,11 @@ impl Grid {
         self.gap_x.min(self.row_height(dim) * Self::GAP_RATIO)
     }
     pub fn horizontal(&self, area: Area<InterfaceContext>, unit: SegmentUnit) -> GridRelativeValue {
-        if let Some(f) = unit.fixed {
-            return GridRelativeValue::Fixed(f);
+        if let Some(a) = unit.absolute {
+            return GridRelativeValue::Fixed(a);
+        }
+        if let Some(r) = unit.relative {
+            return GridRelativeValue::Fixed(r * area.width);
         }
         GridRelativeValue::Anchored(
             unit.value() * self.column_element_width(area.width)
@@ -81,8 +96,11 @@ impl Grid {
         )
     }
     pub fn vertical(&self, area: Area<InterfaceContext>, unit: SegmentUnit) -> GridRelativeValue {
-        if let Some(f) = unit.fixed {
-            return GridRelativeValue::Fixed(f);
+        if let Some(a) = unit.absolute {
+            return GridRelativeValue::Fixed(a);
+        }
+        if let Some(r) = unit.relative {
+            return GridRelativeValue::Fixed(r * area.height);
         }
         GridRelativeValue::Anchored(
             unit.value() * self.row_element_height(area.height)
@@ -119,6 +137,81 @@ impl Grid {
         }
         self
     }
+    pub fn calculate_coordinate(
+        &self,
+        section: Section<InterfaceContext>,
+        raw: RawSegment,
+    ) -> Option<Coordinate<InterfaceContext>> {
+        let left = self
+            .horizontal(section.area, raw.segment.horizontal.begin)
+            .value();
+        let top = self
+            .vertical(section.area, raw.segment.vertical.begin)
+            .value();
+        let width_or_right = self.horizontal(section.area, raw.segment.horizontal.end);
+        let height_or_bottom = self.vertical(section.area, raw.segment.vertical.end);
+        let width = match width_or_right {
+            GridRelativeValue::Anchored(value) => value - left,
+            GridRelativeValue::Fixed(value) => value,
+        };
+        let height = match height_or_bottom {
+            GridRelativeValue::Anchored(value) => value - top,
+            GridRelativeValue::Fixed(value) => value,
+        };
+        let width = if let Some(w) = raw.segment.horizontal.min {
+            let bounded = width.max(w);
+            bounded
+        } else {
+            width
+        };
+        let (left, width) = if let Some(w) = raw.segment.horizontal.max {
+            let bounded = width.min(w);
+            let adjusted_left = if bounded < width {
+                let diff = width - bounded;
+                let justification = raw.justification.unwrap_or(Justify::Center);
+                match justification {
+                    Justify::Center | Justify::Top | Justify::Bottom => left + diff.div(2.0),
+                    Justify::Right | Justify::RightTop | Justify::RightBottom => left + diff,
+                    _ => left,
+                }
+            } else {
+                left
+            };
+            (adjusted_left, bounded)
+        } else {
+            (left, width)
+        };
+        let height = if let Some(h) = raw.segment.vertical.min {
+            let bounded = height.max(h);
+            bounded
+        } else {
+            height
+        };
+        let (top, height) = if let Some(h) = raw.segment.vertical.max {
+            let bounded = height.min(h);
+            let adjusted_top = if bounded < height {
+                let diff = height - bounded;
+                let justification = raw.justification.unwrap_or(Justify::Center);
+                match justification {
+                    Justify::Center | Justify::Left | Justify::Right => top + diff.div(2.0),
+                    Justify::Bottom | Justify::RightBottom | Justify::LeftBottom => top + diff,
+                    _ => top,
+                }
+            } else {
+                top
+            };
+            (adjusted_top, bounded)
+        } else {
+            (top, height)
+        };
+        Some(Coordinate::new(
+            Section::new(
+                (left + section.left(), top - section.top()),
+                (width, height),
+            ),
+            raw.layer,
+        ))
+    }
 }
 #[derive(Copy, Clone, Default, Hash, Eq, PartialEq)]
 pub struct Gap {
@@ -146,11 +239,24 @@ pub enum Justify {
 #[derive(Clone, Component)]
 pub struct ResponsiveSegment {
     view_handle: ViewHandle,
-    base: Segment,
+    raw: RawSegment,
     exceptions: HashMap<Layout, Segment>,
     negations: HashSet<Layout>,
+}
+#[derive(Copy, Clone)]
+pub struct RawSegment {
+    segment: Segment,
     layer: Layer,
     justification: Option<Justify>,
+}
+impl RawSegment {
+    pub fn new(segment: Segment, layer: Layer, justification: Option<Justify>) -> Self {
+        Self {
+            segment,
+            layer,
+            justification,
+        }
+    }
 }
 impl ResponsiveSegment {
     pub fn coordinate(
@@ -163,85 +269,27 @@ impl ResponsiveSegment {
             return None;
         }
         let current = grid.current(self.view_handle);
-        let left = current
-            .horizontal(section.area, self.horizontal_value(&layout).begin)
-            .value();
-        let top = current
-            .vertical(section.area, self.vertical_value(&layout).begin)
-            .value();
-        let width_or_right = current.horizontal(section.area, self.horizontal_value(&layout).end);
-        let height_or_bottom = current.vertical(section.area, self.vertical_value(&layout).end);
-        let width = match width_or_right {
-            GridRelativeValue::Anchored(value) => value - left,
-            GridRelativeValue::Fixed(value) => value,
-        };
-        let height = match height_or_bottom {
-            GridRelativeValue::Anchored(value) => value - top,
-            GridRelativeValue::Fixed(value) => value,
-        };
-        let width = if let Some(w) = self.horizontal_value(&layout).min {
-            let bounded = width.max(w);
-            bounded
-        } else {
-            width
-        };
-        let (left, width) = if let Some(w) = self.horizontal_value(&layout).max {
-            let bounded = width.min(w);
-            let adjusted_left = if bounded < width {
-                let diff = width - bounded;
-                let justification = self.justification.unwrap_or(Justify::Center);
-                match justification {
-                    Justify::Center | Justify::Top | Justify::Bottom => left + diff.div(2.0),
-                    Justify::Right | Justify::RightTop | Justify::RightBottom => left + diff,
-                    _ => left,
-                }
-            } else {
-                left
-            };
-            (adjusted_left, bounded)
-        } else {
-            (left, width)
-        };
-        let height = if let Some(h) = self.vertical_value(&layout).min {
-            let bounded = height.max(h);
-            bounded
-        } else {
-            height
-        };
-        let (top, height) = if let Some(h) = self.vertical_value(&layout).max {
-            let bounded = height.min(h);
-            let adjusted_top = if bounded < height {
-                let diff = height - bounded;
-                let justification = self.justification.unwrap_or(Justify::Center);
-                match justification {
-                    Justify::Center | Justify::Left | Justify::Right => top + diff.div(2.0),
-                    Justify::Bottom | Justify::RightBottom | Justify::LeftBottom => top + diff,
-                    _ => top,
-                }
-            } else {
-                top
-            };
-            (adjusted_top, bounded)
-        } else {
-            (top, height)
-        };
-        Some(Coordinate::new(
-            Section::new(
-                (left + section.left(), top - section.top()),
-                (width, height),
+        let horizontal_descriptor = self.horizontal_value(&layout);
+        let vertical_descriptor = self.vertical_value(&layout);
+        current.calculate_coordinate(
+            section,
+            RawSegment::new(
+                Segment::new(horizontal_descriptor, vertical_descriptor),
+                self.raw.layer,
+                self.raw.justification,
             ),
-            self.layer,
-        ))
+        )
     }
+
     pub fn justify(mut self, justify: Justify) -> Self {
-        self.justification.replace(justify);
+        self.raw.justification.replace(justify);
         self
     }
     fn vertical_value(&self, layout: &Layout) -> SegmentUnitDescriptor {
         if let Some(exc) = self.exceptions.get(layout).cloned() {
             exc.vertical
         } else {
-            self.base.vertical
+            self.raw.segment.vertical
         }
     }
 
@@ -249,7 +297,7 @@ impl ResponsiveSegment {
         if let Some(exc) = self.exceptions.get(layout).cloned() {
             exc.horizontal
         } else {
-            self.base.horizontal
+            self.raw.segment.horizontal
         }
     }
     pub fn base(
@@ -258,15 +306,17 @@ impl ResponsiveSegment {
     ) -> Self {
         Self {
             view_handle: ViewHandle::default(),
-            base: Segment::new(horizontal.normal(), vertical.normal()),
+            raw: RawSegment {
+                segment: Segment::new(horizontal.normal(), vertical.normal()),
+                layer: Default::default(),
+                justification: None,
+            },
             exceptions: Default::default(),
             negations: HashSet::new(),
-            layer: Layer::default(),
-            justification: None,
         }
     }
     pub fn at_layer<L: Into<Layer>>(mut self, l: L) -> Self {
-        self.layer = l.into();
+        self.raw.layer = l.into();
         self
     }
     pub fn exception<L: AsRef<[Layout]>>(
@@ -367,6 +417,7 @@ pub trait SegmentUnitDesc {
     fn near(self) -> SegmentUnit;
     fn far(self) -> SegmentUnit;
     fn absolute(self) -> SegmentUnit;
+    fn relative(self) -> SegmentUnit;
 }
 macro_rules! impl_segment_unit_desc {
     ($($elem:ty),*) => {
@@ -379,6 +430,9 @@ macro_rules! impl_segment_unit_desc {
             }
             fn absolute(self) -> SegmentUnit {
                 SegmentUnit::absolute(self as CoordinateUnit)
+            }
+            fn relative(self) -> SegmentUnit {
+                SegmentUnit::relative(self as CoordinateUnit)
             }
         })*
     };
@@ -403,7 +457,8 @@ pub type SegmentValue = u8;
 pub struct SegmentUnit {
     value: SegmentValue,
     bias: SegmentBias,
-    fixed: Option<CoordinateUnit>,
+    absolute: Option<CoordinateUnit>,
+    relative: Option<CoordinateUnit>,
     offset: Option<CoordinateUnit>,
 }
 impl SegmentUnit {
@@ -414,7 +469,8 @@ impl SegmentUnit {
         Self {
             value,
             bias,
-            fixed: None,
+            absolute: None,
+            relative: None,
             offset: None,
         }
     }
@@ -422,7 +478,17 @@ impl SegmentUnit {
         Self {
             value: SegmentValue::default(),
             bias: SegmentBias::Near,
-            fixed: Some(value),
+            absolute: Some(value),
+            relative: None,
+            offset: None,
+        }
+    }
+    pub fn relative(value: CoordinateUnit) -> Self {
+        Self {
+            value: 0,
+            bias: SegmentBias::Near,
+            absolute: None,
+            relative: Some(value),
             offset: None,
         }
     }

@@ -123,7 +123,7 @@ impl SceneBindingComponents {
     }
 }
 // will need to add this for every scene added
-fn config<S: Scene + Send + Sync + 'static>(
+pub(crate) fn config<S: Scene + Send + Sync + 'static>(
     query: Query<
         (
             Entity,
@@ -143,7 +143,7 @@ fn config<S: Scene + Send + Sync + 'static>(
             )>,
         ),
     >,
-    mut ext: S::ConfigParams,
+    mut ext: S::Params,
 ) {
     for (entity, pos, area, layer, despawn, bindings) in query.iter() {
         if despawn.should_despawn() {
@@ -164,14 +164,14 @@ where
     Self: Sized + Send + Sync + 'static,
 {
     const GRID: Grid;
-    type ConfigParams: SystemParam;
+    type Params: SystemParam;
     type Filter: ReadOnlyWorldQuery;
     type Components: Bundle;
     // or i structure below query and call Scene::config(params) inside it after despawn.should_despawn() { continue }
     fn config(
         entity: Entity,
         coordinate: Coordinate<InterfaceContext>,
-        ext: &mut Self::ConfigParams,
+        ext: &mut Self::Params,
         bindings: &Bindings,
     );
     // self is the Args to the scene
