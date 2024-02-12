@@ -79,12 +79,12 @@ impl SceneNode {
         Self { entity, is_scene }
     }
 }
-struct Binder(HashMap<SceneBinding, SceneNode>, Entity);
+pub struct Binder(HashMap<SceneBinding, SceneNode>, Entity);
 impl Binder {
     pub fn new(cmd: &mut Commands) -> Self {
         Self(HashMap::new(), cmd.spawn_empty().id())
     }
-    fn bind<SB: Into<SceneBinding>, SA: Into<Alignment>, B: Bundle>(
+    pub fn bind<SB: Into<SceneBinding>, SA: Into<Alignment>, B: Bundle>(
         &mut self,
         sb: SB,
         sa: SA,
@@ -103,7 +103,7 @@ impl Binder {
         self.0.insert(sb.into(), SceneNode::new(entity, false));
         entity
     }
-    fn bind_scene<S: Scene, SB: Into<SceneBinding>>(
+    pub fn bind_scene<S: Scene, SB: Into<SceneBinding>>(
         &mut self,
         sb: SB,
         s: S,
@@ -115,7 +115,7 @@ impl Binder {
         self.0.insert(sb.into(), SceneNode::new(entity, true));
         entity
     }
-    fn bindings(self) -> Bindings {
+    pub fn bindings(self) -> Bindings {
         Bindings(self.0)
     }
 }

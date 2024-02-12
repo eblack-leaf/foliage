@@ -158,29 +158,11 @@ impl Grid {
             GridRelativeValue::Anchored(value) => value - top,
             GridRelativeValue::Fixed(value) => value,
         };
-        // TODO aspect ratio set here then let min|max bound + justify
         let width = if let Some(w) = horizontal.min {
             let bounded = width.max(w);
             bounded
         } else {
             width
-        };
-        let (left, width) = if let Some(w) = horizontal.max {
-            let bounded = width.min(w);
-            let adjusted_left = if bounded < width {
-                let diff = width - bounded;
-                let justification = justification.unwrap_or(Justify::Center);
-                match justification {
-                    Justify::Center | Justify::Top | Justify::Bottom => left + diff.div(2.0),
-                    Justify::Right | Justify::RightTop | Justify::RightBottom => left + diff,
-                    _ => left,
-                }
-            } else {
-                left
-            };
-            (adjusted_left, bounded)
-        } else {
-            (left, width)
         };
         let height = if let Some(h) = vertical.min {
             let bounded = height.max(h);
@@ -188,20 +170,51 @@ impl Grid {
         } else {
             height
         };
-        let (top, height) = if let Some(h) = vertical.max {
-            let bounded = height.min(h);
-            let adjusted_top = if bounded < height {
-                let diff = height - bounded;
-                let justification = justification.unwrap_or(Justify::Center);
-                match justification {
-                    Justify::Center | Justify::Left | Justify::Right => top + diff.div(2.0),
-                    Justify::Bottom | Justify::RightBottom | Justify::LeftBottom => top + diff,
-                    _ => top,
-                }
-            } else {
-                top
+        let initial_width = width;
+        let initial_height = height;
+        let width = if let Some(w) = horizontal.max {
+            width.min(w)
+        } else {
+            width
+        };
+        let height = if let Some(h) = vertical.max {
+            height.min(h)
+        } else {
+            height
+        };
+        // ar
+        let (width, height) = if let Some(ar) = aspect_ratio {
+            let mut potential_height = height;
+            let mut attempted_width = height * ar.reciprocal();
+            while attempted_width > width {
+                potential_height -= 1f32;
+                attempted_width = potential_height * ar.reciprocal();
+            }
+            (attempted_width, potential_height)
+        } else {
+            (width, height)
+        };
+        let (left, width) = if width < initial_width {
+            let diff = initial_width - width;
+            let justification = justification.unwrap_or(Justify::Center);
+            let adjusted_left = match justification {
+                Justify::Center | Justify::Top | Justify::Bottom => left + diff.div(2.0),
+                Justify::Right | Justify::RightTop | Justify::RightBottom => left + diff,
+                _ => left,
             };
-            (adjusted_top, bounded)
+            (adjusted_left, width)
+        } else {
+            (left, width)
+        };
+        let (top, height) = if height < initial_height {
+            let diff = initial_height - height;
+            let justification = justification.unwrap_or(Justify::Center);
+            let adjusted_top = match justification {
+                Justify::Center | Justify::Left | Justify::Right => top + diff.div(2.0),
+                Justify::Bottom | Justify::RightBottom | Justify::LeftBottom => top + diff,
+                _ => top,
+            };
+            (adjusted_top, height)
         } else {
             (top, height)
         };
@@ -428,8 +441,8 @@ impl Segment {
             aspect_ratio: None,
         }
     }
-    pub fn with_aspect(mut self, aspect_ratio: AspectRatio) -> Self {
-        self.aspect_ratio.replace(aspect_ratio);
+    pub fn with_aspect<AR: Into<AspectRatio>>(mut self, aspect_ratio: AR) -> Self {
+        self.aspect_ratio.replace(aspect_ratio.into());
         self
     }
 }

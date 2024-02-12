@@ -35,9 +35,9 @@ pub struct Icon {
     differentiable: Differentiable,
 }
 impl Icon {
-    pub fn new<ID: Into<IconId>, C: Into<Color>>(icon_id: ID, scale: IconScale, color: C) -> Self {
+    pub fn new<ID: Into<IconId>, C: Into<Color>>(icon_id: ID, color: C) -> Self {
         Self {
-            scale,
+            scale: IconScale::default(),
             icon_id: DifferentialBundle::new(icon_id.into()),
             color: DifferentialBundle::new(color.into()),
             data: RequestData::default(),
@@ -147,7 +147,7 @@ fn clean_requests(mut query: Query<(&mut Despawn, &WasRequest), Added<WasRequest
         }
     }
 }
-#[derive(Component, Copy, Clone, Serialize, Deserialize, Debug)]
+#[derive(Component, Copy, Clone, Serialize, Deserialize, Debug, Default)]
 pub struct IconScale(pub(crate) CoordinateUnit);
 impl IconScale {
     pub(crate) const UPPER_BOUND: u32 = 100;
