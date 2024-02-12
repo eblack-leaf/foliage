@@ -30,7 +30,7 @@ pub struct GridTemplate {
 }
 
 impl GridTemplate {
-    const fn new(columns: SegmentValue, rows: SegmentValue) -> GridTemplate {
+    fn new(columns: SegmentValue, rows: SegmentValue) -> GridTemplate {
         Self { columns, rows }
     }
 }
@@ -55,22 +55,10 @@ pub struct Grid {
 impl Grid {
     pub const GAP_RATIO: CoordinateUnit = 0.15;
     pub const DEFAULT_GAP: CoordinateUnit = 8.0;
-    pub const fn new(columns: SegmentValue, rows: SegmentValue) -> Self {
+    pub fn new(columns: SegmentValue, rows: SegmentValue) -> Self {
         Self {
             gap_x: Self::DEFAULT_GAP,
             gap_y: Self::DEFAULT_GAP,
-            template: GridTemplate::new(columns, rows),
-        }
-    }
-    pub const fn new_with_gap(
-        columns: SegmentValue,
-        rows: SegmentValue,
-        gx: CoordinateUnit,
-        gy: CoordinateUnit,
-    ) -> Self {
-        Self {
-            gap_x: gx,
-            gap_y: gy,
             template: GridTemplate::new(columns, rows),
         }
     }
@@ -81,11 +69,8 @@ impl Grid {
         self.gap_x.min(self.row_height(dim) * Self::GAP_RATIO)
     }
     pub fn horizontal(&self, area: Area<InterfaceContext>, unit: SegmentUnit) -> GridRelativeValue {
-        if let Some(a) = unit.absolute {
-            return GridRelativeValue::Fixed(a);
-        }
-        if let Some(r) = unit.relative {
-            return GridRelativeValue::Fixed(r * area.width);
+        if let Some(f) = unit.fixed {
+            return GridRelativeValue::Fixed(f);
         }
         GridRelativeValue::Anchored(
             unit.value() * self.column_element_width(area.width)
@@ -96,11 +81,8 @@ impl Grid {
         )
     }
     pub fn vertical(&self, area: Area<InterfaceContext>, unit: SegmentUnit) -> GridRelativeValue {
-        if let Some(a) = unit.absolute {
-            return GridRelativeValue::Fixed(a);
-        }
-        if let Some(r) = unit.relative {
-            return GridRelativeValue::Fixed(r * area.height);
+        if let Some(f) = unit.fixed {
+            return GridRelativeValue::Fixed(f);
         }
         GridRelativeValue::Anchored(
             unit.value() * self.row_element_height(area.height)
@@ -385,7 +367,6 @@ pub trait SegmentUnitDesc {
     fn near(self) -> SegmentUnit;
     fn far(self) -> SegmentUnit;
     fn absolute(self) -> SegmentUnit;
-    fn relative(self) -> SegmentUnit;
 }
 macro_rules! impl_segment_unit_desc {
     ($($elem:ty),*) => {
@@ -398,9 +379,6 @@ macro_rules! impl_segment_unit_desc {
             }
             fn absolute(self) -> SegmentUnit {
                 SegmentUnit::absolute(self as CoordinateUnit)
-            }
-            fn relative(self) -> SegmentUnit {
-                SegmentUnit::relative(self as CoordinateUnit)
             }
         })*
     };
@@ -425,8 +403,7 @@ pub type SegmentValue = u8;
 pub struct SegmentUnit {
     value: SegmentValue,
     bias: SegmentBias,
-    absolute: Option<CoordinateUnit>,
-    relative: Option<CoordinateUnit>,
+    fixed: Option<CoordinateUnit>,
     offset: Option<CoordinateUnit>,
 }
 impl SegmentUnit {
@@ -437,8 +414,7 @@ impl SegmentUnit {
         Self {
             value,
             bias,
-            absolute: None,
-            relative: None,
+            fixed: None,
             offset: None,
         }
     }
@@ -446,17 +422,7 @@ impl SegmentUnit {
         Self {
             value: SegmentValue::default(),
             bias: SegmentBias::Near,
-            absolute: Some(value),
-            relative: None,
-            offset: None,
-        }
-    }
-    pub fn relative(value: CoordinateUnit) -> Self {
-        Self {
-            value: 0,
-            bias: SegmentBias::Near,
-            absolute: None,
-            relative: Some(value),
+            fixed: Some(value),
             offset: None,
         }
     }
