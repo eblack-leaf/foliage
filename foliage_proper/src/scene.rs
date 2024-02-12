@@ -1,4 +1,4 @@
-use crate::compositor::segment::Grid;
+use crate::compositor::segment::{Grid, Segment, WellFormedSegmentUnitDescriptor};
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
@@ -16,7 +16,7 @@ use std::collections::HashMap;
 pub struct Anchor(Coordinate<InterfaceContext>);
 
 impl Anchor {
-    pub(crate) fn aligned(&self, alignment: Alignment) -> Self {
+    pub(crate) fn aligned(&self, grid: Grid, alignment: Alignment) -> Self {
         // calc grid and give back coordinate
         // using self as aligner
         todo!()
@@ -25,7 +25,20 @@ impl Anchor {
 
 #[derive(Component, Copy, Clone)]
 pub struct Alignment {
-    // placement markers (grid or custom)
+    segment: Segment,
+    layer_offset: Layer,
+}
+impl Alignment {
+    pub fn new<L: Into<Layer>>(
+        hd: WellFormedSegmentUnitDescriptor,
+        vd: WellFormedSegmentUnitDescriptor,
+        l: L,
+    ) -> Self {
+        Self {
+            segment: Segment::new(hd.normal(), vd.normal()),
+            layer_offset: l.into(),
+        }
+    }
 }
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
 pub struct SceneBinding(i32);
@@ -40,7 +53,7 @@ impl SceneNode {
     }
 }
 #[derive(Default)]
-struct Binder(HashMap<SceneBinding, SceneNode>);
+struct Binder(HashMap<SceneBinding, SceneNode>, Entity);
 impl Binder {
     fn bind<SB: Into<SceneBinding>, SA: Into<Alignment>, B: Bundle>(
         &mut self,
@@ -52,7 +65,11 @@ impl Binder {
         // add alignment stuff
         let entity = cmd
             .spawn(b)
-            .insert(SceneBindingComponents::new(Anchor::default(), sa.into()))
+            .insert(SceneBindingComponents::new(
+                self.1,
+                Anchor::default(),
+                sa.into(),
+            ))
             .id();
         self.0.insert(sb.into(), SceneNode::new(entity, false));
         entity
@@ -93,9 +110,10 @@ pub struct SceneComponents<T: Bundle + Send + Sync + 'static> {
     disabled: Disabled,
     tag: Tag<T>,
     scene_tag: Tag<IsScene>,
+    grid: Grid,
 }
 impl<T: Bundle + Send + Sync + 'static> SceneComponents<T> {
-    pub fn new(bindings: Bindings, t: T) -> Self {
+    pub fn new(grid: Grid, bindings: Bindings, t: T) -> Self {
         Self {
             t,
             bindings,
@@ -104,6 +122,7 @@ impl<T: Bundle + Send + Sync + 'static> SceneComponents<T> {
             disabled: Default::default(),
             tag: Tag::new(),
             scene_tag: Tag::new(),
+            grid,
         }
     }
 }
@@ -112,13 +131,15 @@ struct SceneBindingComponents {
     tag: Tag<IsDep>,
     anchor: Anchor,
     alignment: Alignment,
+    ptr: ScenePtr,
 }
 impl SceneBindingComponents {
-    fn new(anchor: Anchor, alignment: Alignment) -> Self {
+    fn new(ptr: Entity, anchor: Anchor, alignment: Alignment) -> Self {
         Self {
             tag: Tag::new(),
             anchor,
             alignment,
+            ptr: ScenePtr(ptr),
         }
     }
 }
@@ -163,7 +184,6 @@ pub trait Scene
 where
     Self: Sized + Send + Sync + 'static,
 {
-    const GRID: Grid;
     type Params: SystemParam + 'static;
     type Filter: ReadOnlyWorldQuery;
     type Components: Bundle;
@@ -178,10 +198,13 @@ where
     // only create bindings; will be configured above
     fn create(self, cmd: &mut Commands) -> SceneComponents<Self::Components>;
 }
+#[derive(Component, Copy, Clone)]
+pub struct ScenePtr(Entity);
 fn recursive_fetch(
     root_coordinate: Coordinate<InterfaceContext>,
     target_entity: Entity,
-    query: &Query<(&Anchor, &Alignment, Option<&Bindings>), With<Tag<IsDep>>>,
+    query: &Query<(&Anchor, &Alignment, Option<&Bindings>, &ScenePtr), With<Tag<IsDep>>>,
+    grids: &Query<&Grid>,
 ) -> Vec<(Entity, Anchor)> {
     let mut fetch = vec![];
     if let Ok(res) = query.get(target_entity) {
@@ -189,10 +212,12 @@ fn recursive_fetch(
             for (_, bind) in bindings.0.iter() {
                 if let Ok(dep) = query.get(bind.entity) {
                     let alignment = *dep.1;
-                    let anchor = Anchor(root_coordinate).aligned(alignment);
+                    let ptr = *dep.3;
+                    let grid = *grids.get(ptr.0).expect("scene-grid");
+                    let anchor = Anchor(root_coordinate).aligned(grid, alignment);
                     fetch.push((bind.entity, anchor));
                     if bind.is_scene {
-                        let others = recursive_fetch(anchor.0, bind.entity, &query);
+                        let others = recursive_fetch(anchor.0, bind.entity, &query, &grids);
                         fetch.extend(others);
                     }
                 }
@@ -212,17 +237,20 @@ pub(crate) fn resolve_anchor(
         (With<Tag<IsScene>>, Without<Tag<IsDep>>),
     >,
     mut deps: ParamSet<(
-        Query<(&Anchor, &Alignment, Option<&Bindings>), With<Tag<IsDep>>>,
+        Query<(&Anchor, &Alignment, Option<&Bindings>, &ScenePtr), With<Tag<IsDep>>>,
         Query<&mut Anchor, With<Tag<IsDep>>>,
     )>,
+    grids: Query<&Grid>,
 ) {
     for (pos, area, layer, bindings) in roots.iter() {
         let coordinate = Coordinate::new((*pos, *area), *layer);
         for (_, bind) in bindings.0.iter() {
             let alignment = *deps.p0().get(bind.entity).unwrap().1;
-            *deps.p1().get_mut(bind.entity).unwrap() = Anchor(coordinate).aligned(alignment);
+            let ptr = *deps.p0().get(bind.entity).unwrap().3;
+            let grid = *grids.get(ptr.0).expect("scene-grid");
+            *deps.p1().get_mut(bind.entity).unwrap() = Anchor(coordinate).aligned(grid, alignment);
             if bind.is_scene {
-                let rf = recursive_fetch(coordinate, bind.entity, &deps.p0());
+                let rf = recursive_fetch(coordinate, bind.entity, &deps.p0(), &grids);
                 for (e, a) in rf {
                     *deps.p1().get_mut(e).unwrap() = a;
                 }

@@ -62,7 +62,7 @@ impl Grid {
             template: GridTemplate::new(columns, rows),
         }
     }
-    pub const fn new_with_gap(
+    pub const fn explicit(
         columns: SegmentValue,
         rows: SegmentValue,
         gx: CoordinateUnit,
@@ -140,16 +140,15 @@ impl Grid {
     pub fn calculate_coordinate(
         &self,
         section: Section<InterfaceContext>,
-        raw: RawSegment,
+        horizontal: SegmentUnitDescriptor,
+        vertical: SegmentUnitDescriptor,
+        layer: Layer,
+        justification: Option<Justify>,
     ) -> Option<Coordinate<InterfaceContext>> {
-        let left = self
-            .horizontal(section.area, raw.segment.horizontal.begin)
-            .value();
-        let top = self
-            .vertical(section.area, raw.segment.vertical.begin)
-            .value();
-        let width_or_right = self.horizontal(section.area, raw.segment.horizontal.end);
-        let height_or_bottom = self.vertical(section.area, raw.segment.vertical.end);
+        let left = self.horizontal(section.area, horizontal.begin).value();
+        let top = self.vertical(section.area, vertical.begin).value();
+        let width_or_right = self.horizontal(section.area, horizontal.end);
+        let height_or_bottom = self.vertical(section.area, vertical.end);
         let width = match width_or_right {
             GridRelativeValue::Anchored(value) => value - left,
             GridRelativeValue::Fixed(value) => value,
@@ -158,17 +157,17 @@ impl Grid {
             GridRelativeValue::Anchored(value) => value - top,
             GridRelativeValue::Fixed(value) => value,
         };
-        let width = if let Some(w) = raw.segment.horizontal.min {
+        let width = if let Some(w) = horizontal.min {
             let bounded = width.max(w);
             bounded
         } else {
             width
         };
-        let (left, width) = if let Some(w) = raw.segment.horizontal.max {
+        let (left, width) = if let Some(w) = horizontal.max {
             let bounded = width.min(w);
             let adjusted_left = if bounded < width {
                 let diff = width - bounded;
-                let justification = raw.justification.unwrap_or(Justify::Center);
+                let justification = justification.unwrap_or(Justify::Center);
                 match justification {
                     Justify::Center | Justify::Top | Justify::Bottom => left + diff.div(2.0),
                     Justify::Right | Justify::RightTop | Justify::RightBottom => left + diff,
@@ -181,17 +180,17 @@ impl Grid {
         } else {
             (left, width)
         };
-        let height = if let Some(h) = raw.segment.vertical.min {
+        let height = if let Some(h) = vertical.min {
             let bounded = height.max(h);
             bounded
         } else {
             height
         };
-        let (top, height) = if let Some(h) = raw.segment.vertical.max {
+        let (top, height) = if let Some(h) = vertical.max {
             let bounded = height.min(h);
             let adjusted_top = if bounded < height {
                 let diff = height - bounded;
-                let justification = raw.justification.unwrap_or(Justify::Center);
+                let justification = justification.unwrap_or(Justify::Center);
                 match justification {
                     Justify::Center | Justify::Left | Justify::Right => top + diff.div(2.0),
                     Justify::Bottom | Justify::RightBottom | Justify::LeftBottom => top + diff,
@@ -209,7 +208,7 @@ impl Grid {
                 (left + section.left(), top - section.top()),
                 (width, height),
             ),
-            raw.layer,
+            layer,
         ))
     }
 }
@@ -239,24 +238,11 @@ pub enum Justify {
 #[derive(Clone, Component)]
 pub struct ResponsiveSegment {
     view_handle: ViewHandle,
-    raw: RawSegment,
+    base: Segment,
+    justification: Option<Justify>,
+    layer: Layer,
     exceptions: HashMap<Layout, Segment>,
     negations: HashSet<Layout>,
-}
-#[derive(Copy, Clone)]
-pub struct RawSegment {
-    segment: Segment,
-    layer: Layer,
-    justification: Option<Justify>,
-}
-impl RawSegment {
-    pub fn new(segment: Segment, layer: Layer, justification: Option<Justify>) -> Self {
-        Self {
-            segment,
-            layer,
-            justification,
-        }
-    }
 }
 impl ResponsiveSegment {
     pub fn coordinate(
@@ -273,23 +259,22 @@ impl ResponsiveSegment {
         let vertical_descriptor = self.vertical_value(&layout);
         current.calculate_coordinate(
             section,
-            RawSegment::new(
-                Segment::new(horizontal_descriptor, vertical_descriptor),
-                self.raw.layer,
-                self.raw.justification,
-            ),
+            horizontal_descriptor,
+            vertical_descriptor,
+            self.layer,
+            self.justification,
         )
     }
 
     pub fn justify(mut self, justify: Justify) -> Self {
-        self.raw.justification.replace(justify);
+        self.justification.replace(justify);
         self
     }
     fn vertical_value(&self, layout: &Layout) -> SegmentUnitDescriptor {
         if let Some(exc) = self.exceptions.get(layout).cloned() {
             exc.vertical
         } else {
-            self.raw.segment.vertical
+            self.base.vertical
         }
     }
 
@@ -297,7 +282,7 @@ impl ResponsiveSegment {
         if let Some(exc) = self.exceptions.get(layout).cloned() {
             exc.horizontal
         } else {
-            self.raw.segment.horizontal
+            self.base.horizontal
         }
     }
     pub fn base(
@@ -306,17 +291,15 @@ impl ResponsiveSegment {
     ) -> Self {
         Self {
             view_handle: ViewHandle::default(),
-            raw: RawSegment {
-                segment: Segment::new(horizontal.normal(), vertical.normal()),
-                layer: Default::default(),
-                justification: None,
-            },
+            base: Segment::new(horizontal.normal(), vertical.normal()),
+            layer: Default::default(),
+            justification: None,
             exceptions: Default::default(),
             negations: HashSet::new(),
         }
     }
     pub fn at_layer<L: Into<Layer>>(mut self, l: L) -> Self {
-        self.raw.layer = l.into();
+        self.layer = l.into();
         self
     }
     pub fn exception<L: AsRef<[Layout]>>(
@@ -527,7 +510,7 @@ impl WellFormedSegmentUnitDescriptor {
     pub fn fixed(self, f: CoordinateUnit) -> Self {
         self.minimum(f).maximum(f)
     }
-    fn normal(self) -> SegmentUnitDescriptor {
+    pub(crate) fn normal(self) -> SegmentUnitDescriptor {
         SegmentUnitDescriptor::with_bounds(self.begin, self.end, self.min, self.max)
     }
 }
