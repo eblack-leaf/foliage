@@ -2,7 +2,9 @@ use foliage::bevy_ecs;
 use foliage::bevy_ecs::prelude::{Component, Resource};
 use foliage::color::monochromatic::{Magenta as THEME_COLOR, Monochromatic};
 use foliage::color::Color;
-use foliage::compositor::segment::{Grid, Justify, ResponsiveSegment, Segment, SegmentUnitDesc};
+use foliage::compositor::segment::{
+    Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc,
+};
 use foliage::compositor::ViewHandle;
 use foliage::coordinate::area::Area;
 use foliage::elm::config::ElmConfiguration;
@@ -50,7 +52,7 @@ impl Leaf for Showcase {
         ));
         elm.container().insert_resource(assets);
         // style starts below
-        elm.configure_view_grid(START, Grid::new(8, 6));
+        elm.configure_view_grid(START, MacroGrid::new(8, 6));
         elm.add_view_scene_binding(
             START,
             IconText::new(
@@ -60,8 +62,14 @@ impl Leaf for Showcase {
                 TextValue::new("button.rs"),
                 Color::GREY,
             ),
-            ResponsiveSegment::base(Segment::new(2.far().to(6.far()), 1.near().to(1.far())))
-                .justify(Justify::Top),
+            ResponsiveSegment::base(
+                Segment::new(
+                    2.far().to(6.far()).maximum(400.0),
+                    1.near().to(1.far()).minimum(30.0).maximum(60.0),
+                ),
+                // .with_aspect(11.0 / 2.0),
+            )
+            .justify(Justify::Top),
             (),
         );
         // elm.add_view_binding(

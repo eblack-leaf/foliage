@@ -7,7 +7,6 @@ pub(crate) const STEP: usize = 4;
 #[cfg(test)]
 fn generate() {
     use crate::circle;
-    use crate::color::Rgba;
     use crate::coordinate::area::Area;
     use crate::coordinate::section::Section;
     use crate::coordinate::CoordinateUnit;
@@ -20,7 +19,7 @@ fn generate() {
         .join("texture_resources");
     const RING_RATIO: CoordinateUnit = 0.95;
     const INTERVALS: u32 = 100;
-    let mut data = vec![Rgba::default(); (TEXTURE_SIZE * TEXTURE_SIZE) as usize];
+    let mut data = vec![(0f32, 0f32, 0f32, 0f32); (TEXTURE_SIZE * TEXTURE_SIZE) as usize];
     let placements = circle::new_placements();
     for (placement_index, diameter) in (LOWER_BOUND..=UPPER_BOUND).step_by(STEP).enumerate() {
         // make circle

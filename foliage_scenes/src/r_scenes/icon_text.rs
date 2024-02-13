@@ -7,14 +7,19 @@ use foliage_proper::bevy_ecs::prelude::{Commands, IntoSystemConfigs, With};
 use foliage_proper::bevy_ecs::query::{Changed, Or, Without};
 use foliage_proper::bevy_ecs::system::{Query, SystemParamItem};
 use foliage_proper::color::Color;
-use foliage_proper::compositor::segment::{GapDescriptor, Grid, Segment, SegmentUnitDesc};
-use foliage_proper::coordinate::{Coordinate, InterfaceContext};
+use foliage_proper::compositor::segment::{
+    GapDescriptor, MacroGrid, Segment, SegmentUnitDesc, SegmentValue,
+};
+use foliage_proper::coordinate::area::Area;
+use foliage_proper::coordinate::{Coordinate, CoordinateUnit, InterfaceContext};
 use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
 use foliage_proper::elm::leaf::{Leaf, Tag};
 use foliage_proper::elm::Elm;
 use foliage_proper::icon::{Icon, IconId};
+use foliage_proper::rectangle::Rectangle;
 use foliage_proper::scene::{Alignment, Binder, Bindings, Scene, SceneComponents};
 use foliage_proper::text::{MaxCharacters, Text, TextValue};
+use foliage_proper::texture::factors::Progress;
 
 #[derive(Clone)]
 pub struct IconText {
@@ -148,9 +153,8 @@ impl Scene for IconText {
             Alignment::new(
                 Segment::new(
                     1.near().to(1.far()).minimum(20.0).maximum(100.0),
-                    2.near()
-                        .offset(4.0)
-                        .to(3.far())
+                    0.2.relative()
+                        .to(0.7.relative())
                         .minimum(20.0)
                         .maximum(100.0),
                 )
@@ -160,35 +164,53 @@ impl Scene for IconText {
             Icon::new(self.icon_id, self.icon_color),
             cmd,
         );
+        let factor = 7;
         binder.bind(
             IconTextBindings::Text,
             Alignment::new(
                 Segment::new(
-                    2.near().to(5.far()),
-                    0.relative().to(1.relative()).minimum(24.0),
-                ),
+                    2.near().to(factor.far()),
+                    0.relative().to(1.relative()).minimum(24.0).maximum(100.0),
+                )
+                .with_aspect(self.max_chars.0 as CoordinateUnit / 2f32),
                 0,
             ),
             Text::new(self.max_chars, self.text_value.clone(), self.text_color),
             cmd,
         );
-        // binder.bind(
-        //     2,
-        //     Alignment::new(
-        //         Segment::new(
-        //             1.near().to(1.far()).minimum(20.0).maximum(100.0),
-        //             2.near().offset(4.0).to(4.far()).minimum(20.0).maximum(100.0),
-        //         )
-        //             .with_aspect(1.0),
-        //         5,
-        //     ),
-        //     Rectangle::new(Area::default(), Color::WHITE, Progress::full()),
-        //     cmd,
-        // );
+        binder.bind(
+            2,
+            Alignment::new(
+                Segment::new(
+                    1.near().to(1.far()).minimum(20.0).maximum(100.0),
+                    0.2.relative()
+                        .to(0.7.relative())
+                        .minimum(20.0)
+                        .maximum(100.0),
+                )
+                .with_aspect(1.0),
+                5,
+            ),
+            Rectangle::new(Area::default(), Color::WHITE, Progress::full()),
+            cmd,
+        );
+        binder.bind(
+            3,
+            Alignment::new(
+                Segment::new(
+                    2.near().to(factor.far()),
+                    0.relative().to(1.relative()).minimum(24.0).maximum(100.0),
+                )
+                .with_aspect(self.max_chars.0 as CoordinateUnit / 2f32),
+                5,
+            ),
+            Rectangle::new(Area::default(), Color::WHITE, Progress::full()),
+            cmd,
+        );
         (
             binder.root(),
             SceneComponents::new(
-                Grid::new(5, 4).assign_gap(GapDescriptor::Vertical, 0.0),
+                MacroGrid::new(factor as SegmentValue, 4).assign_gap(GapDescriptor::Both, 4.0),
                 binder.bindings(),
                 IconTextComponents::new(
                     self.max_chars,

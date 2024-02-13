@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 use crate::ash::render_packet::RenderPacketForwarder;
 use crate::ash::render_packet::RenderPacketPackage;
 use crate::asset::{AssetContainer, AssetFetchFn, AssetKey, OnFetch};
-use crate::compositor::segment::{Grid, ResponsiveGrid, ResponsiveSegment};
+use crate::compositor::segment::{MacroGrid, ResponsiveGrid, ResponsiveSegment};
 use crate::compositor::{Compositor, CurrentView, Segmental, ViewHandle};
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
@@ -114,7 +114,7 @@ impl Elm {
     pub fn on_fetch(&mut self, key: AssetKey, func: AssetFetchFn) {
         self.container().spawn(OnFetch::new(key, func));
     }
-    pub fn configure_view_grid(&mut self, view_handle: ViewHandle, grid: Grid) {
+    pub fn configure_view_grid(&mut self, view_handle: ViewHandle, grid: MacroGrid) {
         self.container()
             .get_resource_mut::<ResponsiveGrid>()
             .expect("responsive-grid")

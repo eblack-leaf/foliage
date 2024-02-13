@@ -1,4 +1,4 @@
-use crate::compositor::segment::{Grid, Justify, Segment, WellFormedSegmentUnitDescriptor};
+use crate::compositor::segment::{Justify, MacroGrid, Segment, WellFormedSegmentUnitDescriptor};
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
@@ -16,7 +16,7 @@ use std::collections::HashMap;
 pub struct Anchor(Coordinate<InterfaceContext>);
 
 impl Anchor {
-    pub(crate) fn aligned(&self, grid: Grid, alignment: Alignment) -> Self {
+    pub(crate) fn aligned(&self, grid: MacroGrid, alignment: Alignment) -> Self {
         let coordinate = grid.calculate_coordinate(
             self.0.section.with_position((0, 0)),
             alignment.segment.horizontal,
@@ -157,10 +157,10 @@ pub struct SceneComponents<T: Bundle + Send + Sync + 'static> {
     disabled: Disabled,
     tag: Tag<T>,
     scene_tag: Tag<IsScene>,
-    grid: Grid,
+    grid: MacroGrid,
 }
 impl<T: Bundle + Send + Sync + 'static> SceneComponents<T> {
-    pub fn new(grid: Grid, bindings: Bindings, t: T) -> Self {
+    pub fn new(grid: MacroGrid, bindings: Bindings, t: T) -> Self {
         Self {
             t,
             bindings,
@@ -251,7 +251,7 @@ fn recursive_fetch(
     root_coordinate: Coordinate<InterfaceContext>,
     target_entity: Entity,
     query: &Query<(&Anchor, &Alignment, Option<&Bindings>, &ScenePtr), With<Tag<IsDep>>>,
-    grids: &Query<&Grid>,
+    grids: &Query<&MacroGrid>,
 ) -> Vec<(Entity, Anchor)> {
     let mut fetch = vec![];
     if let Ok(res) = query.get(target_entity) {
@@ -287,7 +287,7 @@ pub(crate) fn resolve_anchor(
         Query<(&Anchor, &Alignment, Option<&Bindings>, &ScenePtr), With<Tag<IsDep>>>,
         Query<&mut Anchor, With<Tag<IsDep>>>,
     )>,
-    grids: Query<&Grid>,
+    grids: Query<&MacroGrid>,
 ) {
     for (pos, area, layer, bindings) in roots.iter() {
         let coordinate = Coordinate::new((*pos, *area), *layer);

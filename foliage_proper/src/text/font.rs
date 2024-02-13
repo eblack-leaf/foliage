@@ -48,3 +48,12 @@ impl MonospacedFont {
         (font_size, calc_area)
     }
 }
+
+#[test]
+fn chars() {
+    let mono = MonospacedFont::new(40);
+    for px in 13..200 {
+        let dims = mono.character_dimensions(px as CoordinateUnit);
+        println!("dims for {:?}: {:?}", px, dims);
+    }
+}

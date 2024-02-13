@@ -5,7 +5,7 @@ use foliage::color::monochromatic::{
     FluorescentYellow, Magenta, Monochromatic, Orange, StrongCyan,
 };
 use foliage::color::Color;
-use foliage::compositor::segment::{Grid, ResponsiveSegment, SegmentUnitDesc};
+use foliage::compositor::segment::{MacroGrid, ResponsiveSegment, SegmentUnitDesc};
 use foliage::coordinate::area::Area;
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 use foliage::elm::{BundleExtend, Elm};
@@ -31,7 +31,7 @@ impl Leaf for Home {
 
     fn attach(elm: &mut Elm) {
         let _assets = Assets::proc_gen_load(elm);
-        elm.configure_view_grid(HOME, Grid::new(6, 6));
+        elm.configure_view_grid(HOME, MacroGrid::new(6, 6));
         elm.add_view_scene_binding(
             HOME,
             CircleButton::new(

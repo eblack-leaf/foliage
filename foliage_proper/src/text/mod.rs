@@ -70,7 +70,7 @@ impl Text {
             color_changes: GlyphColorChanges::default(),
         }
     }
-    pub(crate) fn area_metrics(
+    pub fn area_metrics(
         font_size: FontSize,
         max_characters: MaxCharacters,
         font: &MonospacedFont,
@@ -154,6 +154,7 @@ pub(crate) fn max_character(
                     (area.height - fa.height) / 2f32,
                 ));
         }
+        area.width = fa.width;
         area.height = fa.height;
         *dim = CharacterDimension(font.character_dimensions(fs.px(scale_factor.factor())));
     }

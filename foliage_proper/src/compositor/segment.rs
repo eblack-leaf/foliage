@@ -11,15 +11,15 @@ use std::ops::Div;
 
 #[derive(Resource, Default)]
 pub struct ResponsiveGrid {
-    view_configs: HashMap<ViewHandle, Grid>,
+    view_configs: HashMap<ViewHandle, MacroGrid>,
 }
 impl ResponsiveGrid {
-    pub fn current(&self, view_handle: ViewHandle) -> &Grid {
+    pub fn current(&self, view_handle: ViewHandle) -> &MacroGrid {
         self.view_configs
             .get(&view_handle)
             .expect("view-not-configured-with-grid")
     }
-    pub fn configure_view(&mut self, view_handle: ViewHandle, grid: Grid) {
+    pub fn configure_view(&mut self, view_handle: ViewHandle, grid: MacroGrid) {
         self.view_configs.insert(view_handle, grid);
     }
 }
@@ -47,12 +47,12 @@ impl GridRelativeValue {
     }
 }
 #[derive(Component, Default, Copy, Clone)]
-pub struct Grid {
+pub struct MacroGrid {
     gap_x: CoordinateUnit,
     gap_y: CoordinateUnit,
     template: GridTemplate,
 }
-impl Grid {
+impl MacroGrid {
     pub const GAP_RATIO: CoordinateUnit = 0.15;
     pub const DEFAULT_GAP: CoordinateUnit = 8.0;
     pub const fn new(columns: SegmentValue, rows: SegmentValue) -> Self {
@@ -172,6 +172,7 @@ impl Grid {
         } else {
             (width, height)
         };
+        // end ar but is this before min / max so not look right?
         let width = if let Some(w) = horizontal.min {
             let bounded = width.max(w);
             bounded
@@ -194,7 +195,6 @@ impl Grid {
         } else {
             height
         };
-
         let (left, width) = if width < initial_w {
             let diff = initial_w - width;
             let justification = justification.unwrap_or(Justify::Center);

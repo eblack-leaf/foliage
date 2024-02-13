@@ -28,8 +28,9 @@ pub enum Orientation {
     Landscape,
 }
 impl Orientation {
+    pub const LANDSCAPE_CORRECTION_FACTOR: CoordinateUnit = 1.75;
     pub fn from_area(area: Area<InterfaceContext>) -> Self {
-        if area.width >= area.height {
+        if area.width >= area.height * Self::LANDSCAPE_CORRECTION_FACTOR {
             Self::Landscape
         } else {
             Self::Portrait
@@ -215,10 +216,10 @@ fn test_from_area() {
     expected = Layout::new(Orientation::Portrait, Threshold::Desktop);
     assert_eq!(actual, expected);
     actual = Layout::from_area((962, 601));
-    expected = Layout::new(Orientation::Landscape, Threshold::Tablet);
+    expected = Layout::new(Orientation::Portrait, Threshold::Desktop);
     assert_eq!(actual, expected);
     actual = Layout::from_area((1024, 768));
-    expected = Layout::new(Orientation::Landscape, Threshold::Desktop);
+    expected = Layout::new(Orientation::Portrait, Threshold::Desktop);
     assert_eq!(actual, expected);
     actual = Layout::from_area((1024, 1366));
     expected = Layout::new(Orientation::Portrait, Threshold::Desktop);
@@ -227,19 +228,19 @@ fn test_from_area() {
     expected = Layout::new(Orientation::Landscape, Threshold::Desktop);
     assert_eq!(actual, expected);
     actual = Layout::from_area((1280, 800));
-    expected = Layout::new(Orientation::Landscape, Threshold::Desktop);
+    expected = Layout::new(Orientation::Portrait, Threshold::Workstation);
     assert_eq!(actual, expected);
     actual = Layout::from_area((1280, 1024));
-    expected = Layout::new(Orientation::Landscape, Threshold::Workstation);
+    expected = Layout::new(Orientation::Portrait, Threshold::Workstation);
     assert_eq!(actual, expected);
     actual = Layout::from_area((1366, 768));
     expected = Layout::new(Orientation::Landscape, Threshold::Desktop);
     assert_eq!(actual, expected);
     actual = Layout::from_area((1366, 1024));
-    expected = Layout::new(Orientation::Landscape, Threshold::Workstation);
+    expected = Layout::new(Orientation::Portrait, Threshold::Workstation);
     assert_eq!(actual, expected);
     actual = Layout::from_area((1440, 900));
-    expected = Layout::new(Orientation::Landscape, Threshold::Workstation);
+    expected = Layout::new(Orientation::Portrait, Threshold::Workstation);
     assert_eq!(actual, expected);
     actual = Layout::from_area((1536, 864));
     expected = Layout::new(Orientation::Landscape, Threshold::Workstation);
