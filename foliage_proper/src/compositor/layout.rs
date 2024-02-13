@@ -4,6 +4,16 @@ use crate::coordinate::{CoordinateUnit, InterfaceContext, NumericalContext};
 pub struct AspectRatio(pub f32);
 
 impl AspectRatio {
+    pub fn determine<A: Into<Area<InterfaceContext>>>(self, area: A) -> Area<InterfaceContext> {
+        let area = area.into();
+        let mut attempted_width = area.width;
+        let mut attempted_height = area.width * self.reciprocal();
+        while attempted_height > area.height {
+            attempted_width -= 1f32;
+            attempted_height = attempted_width * self.reciprocal();
+        }
+        Area::from((attempted_width, attempted_height))
+    }
     pub fn new(area: Area<NumericalContext>) -> Self {
         Self(area.width / area.height)
     }

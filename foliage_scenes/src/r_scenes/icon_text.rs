@@ -15,7 +15,7 @@ use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
 use foliage_proper::elm::leaf::{Leaf, Tag};
 use foliage_proper::elm::Elm;
 use foliage_proper::icon::{Icon, IconId};
-use foliage_proper::scene::micro_grid::Alignment;
+use foliage_proper::scene::micro_grid::{Alignment, MicroGrid};
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents};
 use foliage_proper::text::{MaxCharacters, Text, TextValue};
 
@@ -148,32 +148,13 @@ impl Scene for IconText {
         let mut binder = Binder::new(cmd);
         binder.bind(
             IconTextBindings::Icon,
-            Alignment::new(
-                Segment::new(
-                    1.near().to(1.far()).minimum(20.0).maximum(100.0),
-                    0.2.relative()
-                        .to(0.8.relative())
-                        .minimum(20.0)
-                        .maximum(100.0),
-                )
-                .with_aspect(1.0),
-                0,
-            ),
+            Alignment::new(),
             Icon::new(self.icon_id, self.icon_color),
             cmd,
         );
-        let factor = 7;
         binder.bind(
             IconTextBindings::Text,
-            Alignment::new(
-                Segment::new(
-                    2.near().to(factor.far()),
-                    0.relative().to(1.relative()).minimum(24.0).maximum(100.0),
-                )
-                .with_aspect(self.max_chars.0 as CoordinateUnit / 2f32),
-                0,
-            )
-            .justify(Justify::Left),
+            Alignment::new(),
             Text::new(self.max_chars, self.text_value.clone(), self.text_color),
             cmd,
         );
@@ -209,7 +190,7 @@ impl Scene for IconText {
         (
             binder.root(),
             SceneComponents::new(
-                MacroGrid::new(factor as SegmentValue, 4).assign_gap(GapDescriptor::Both, 4.0),
+                MicroGrid::new(),
                 binder.bindings(),
                 IconTextComponents::new(
                     self.max_chars,

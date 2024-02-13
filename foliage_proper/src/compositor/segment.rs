@@ -162,13 +162,8 @@ impl MacroGrid {
         let initial_h = height;
         // ar
         let (width, height) = if let Some(ar) = aspect_ratio {
-            let mut attempted_width = width;
-            let mut attempted_height = width * ar.reciprocal();
-            while attempted_height > height {
-                attempted_width -= 1f32;
-                attempted_height = attempted_width * ar.reciprocal();
-            }
-            (attempted_width, attempted_height)
+            let d = ar.determine((width, height));
+            (d.width, d.height)
         } else {
             (width, height)
         };

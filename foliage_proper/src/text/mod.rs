@@ -90,7 +90,7 @@ impl Text {
 pub struct MaxCharacters(pub u32);
 impl MaxCharacters {
     pub fn mono_aspect(self) -> AspectRatio {
-        AspectRatio((self.0 / 2) as f32)
+        AspectRatio(self.0 as CoordinateUnit / 2f32)
     }
     pub fn new(v: u32) -> Self {
         Self(v)
