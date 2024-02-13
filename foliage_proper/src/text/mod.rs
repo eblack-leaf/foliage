@@ -154,7 +154,7 @@ pub(crate) fn max_character(
                     (area.height - fa.height) / 2f32,
                 ));
         }
-        *area = fa;
+        area.height = fa.height;
         *dim = CharacterDimension(font.character_dimensions(fs.px(scale_factor.factor())));
     }
 }

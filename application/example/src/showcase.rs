@@ -60,11 +60,8 @@ impl Leaf for Showcase {
                 TextValue::new("button.rs"),
                 Color::GREY,
             ),
-            ResponsiveSegment::base(Segment::new(
-                2.far().to(6.far()).maximum(300.0),
-                1.near().to(1.far()).minimum(20.0).maximum(55.0),
-            ))
-            .justify(Justify::Top),
+            ResponsiveSegment::base(Segment::new(2.far().to(6.far()), 1.near().to(1.far())))
+                .justify(Justify::Top),
             (),
         );
         // elm.add_view_binding(
