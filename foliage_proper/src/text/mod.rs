@@ -3,6 +3,7 @@ mod glyph;
 mod renderer;
 mod vertex;
 use crate::color::Color;
+use crate::compositor::layout::AspectRatio;
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
@@ -87,6 +88,19 @@ impl Text {
 }
 #[derive(Component, Copy, Clone)]
 pub struct MaxCharacters(pub u32);
+impl MaxCharacters {
+    pub fn mono_aspect(self) -> AspectRatio {
+        AspectRatio((self.0 / 2) as f32)
+    }
+    pub fn new(v: u32) -> Self {
+        Self(v)
+    }
+}
+impl From<i32> for MaxCharacters {
+    fn from(value: i32) -> Self {
+        Self(value as u32)
+    }
+}
 #[derive(SystemSet, Hash, Eq, PartialEq, Copy, Clone, Debug)]
 pub enum SetDescriptor {
     Update,
@@ -150,7 +164,7 @@ pub(crate) fn max_character(
         if area.height > fa.height {
             *pos = *pos
                 + Position::from((
-                    (area.width - fa.width) / 2f32,
+                    (area.width - fa.width).max(0.0) / 2f32,
                     (area.height - fa.height) / 2f32,
                 ));
         }

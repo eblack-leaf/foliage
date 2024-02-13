@@ -1,4 +1,5 @@
-use crate::compositor::segment::{Justify, MacroGrid, Segment, WellFormedSegmentUnitDescriptor};
+pub mod micro_grid;
+
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
@@ -6,69 +7,23 @@ use crate::coordinate::{Coordinate, InterfaceContext};
 use crate::differential::Despawn;
 use crate::elm::leaf::Tag;
 use crate::elm::Disabled;
+use crate::scene::micro_grid::MicroGrid;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::prelude::{Commands, Component, Entity, Query};
 use bevy_ecs::query::{Changed, Or, ReadOnlyWorldQuery, With, Without};
 use bevy_ecs::system::{ParamSet, StaticSystemParam, SystemParam, SystemParamItem};
+use micro_grid::Alignment;
 use std::collections::HashMap;
 
 #[derive(Component, Copy, Clone, Default)]
 pub struct Anchor(Coordinate<InterfaceContext>);
 
 impl Anchor {
-    pub(crate) fn aligned(&self, grid: MacroGrid, alignment: Alignment) -> Self {
-        let coordinate = grid.calculate_coordinate(
-            self.0.section.with_position((0, 0)),
-            alignment.segment.horizontal,
-            alignment.segment.vertical,
-            self.0.layer + alignment.layer_offset,
-            alignment.justify,
-            alignment.segment.aspect_ratio,
-        );
-        let moved = coordinate.moved_by(self.0.section.position);
-        Self(moved)
+    pub(crate) fn aligned(&self, grid: MicroGrid, alignment: Alignment) -> Self {
+        Anchor(grid.determine(self.0, alignment))
     }
 }
 
-#[derive(Component, Copy, Clone)]
-pub struct Alignment {
-    segment: Segment,
-    layer_offset: Layer,
-    justify: Option<Justify>,
-}
-
-impl
-    From<(
-        WellFormedSegmentUnitDescriptor,
-        WellFormedSegmentUnitDescriptor,
-    )> for Alignment
-{
-    fn from(
-        value: (
-            WellFormedSegmentUnitDescriptor,
-            WellFormedSegmentUnitDescriptor,
-        ),
-    ) -> Self {
-        Self::new(Segment::new(value.0, value.1), 0)
-    }
-}
-impl Alignment {
-    pub fn new<L: Into<Layer>>(segment: Segment, l: L) -> Self {
-        Self {
-            segment,
-            layer_offset: l.into(),
-            justify: None,
-        }
-    }
-    pub fn justify(mut self, justify: Justify) -> Self {
-        self.justify.replace(justify);
-        self
-    }
-    pub fn with_layer_offset<L: Into<Layer>>(mut self, l: L) -> Self {
-        self.layer_offset = l.into();
-        self
-    }
-}
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
 pub struct SceneBinding(pub i32);
 impl From<i32> for SceneBinding {
@@ -157,10 +112,10 @@ pub struct SceneComponents<T: Bundle + Send + Sync + 'static> {
     disabled: Disabled,
     tag: Tag<T>,
     scene_tag: Tag<IsScene>,
-    grid: MacroGrid,
+    grid: MicroGrid,
 }
 impl<T: Bundle + Send + Sync + 'static> SceneComponents<T> {
-    pub fn new(grid: MacroGrid, bindings: Bindings, t: T) -> Self {
+    pub fn new(grid: MicroGrid, bindings: Bindings, t: T) -> Self {
         Self {
             t,
             bindings,
@@ -251,7 +206,7 @@ fn recursive_fetch(
     root_coordinate: Coordinate<InterfaceContext>,
     target_entity: Entity,
     query: &Query<(&Anchor, &Alignment, Option<&Bindings>, &ScenePtr), With<Tag<IsDep>>>,
-    grids: &Query<&MacroGrid>,
+    grids: &Query<&MicroGrid>,
 ) -> Vec<(Entity, Anchor)> {
     let mut fetch = vec![];
     if let Ok(res) = query.get(target_entity) {
@@ -287,7 +242,7 @@ pub(crate) fn resolve_anchor(
         Query<(&Anchor, &Alignment, Option<&Bindings>, &ScenePtr), With<Tag<IsDep>>>,
         Query<&mut Anchor, With<Tag<IsDep>>>,
     )>,
-    grids: Query<&MacroGrid>,
+    grids: Query<&MicroGrid>,
 ) {
     for (pos, area, layer, bindings) in roots.iter() {
         let coordinate = Coordinate::new((*pos, *area), *layer);

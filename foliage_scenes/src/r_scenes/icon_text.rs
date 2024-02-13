@@ -10,16 +10,14 @@ use foliage_proper::color::Color;
 use foliage_proper::compositor::segment::{
     GapDescriptor, Justify, MacroGrid, Segment, SegmentUnitDesc, SegmentValue,
 };
-use foliage_proper::coordinate::area::Area;
 use foliage_proper::coordinate::{Coordinate, CoordinateUnit, InterfaceContext};
 use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
 use foliage_proper::elm::leaf::{Leaf, Tag};
 use foliage_proper::elm::Elm;
 use foliage_proper::icon::{Icon, IconId};
-use foliage_proper::rectangle::Rectangle;
-use foliage_proper::scene::{Alignment, Binder, Bindings, Scene, SceneComponents};
+use foliage_proper::scene::micro_grid::Alignment;
+use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents};
 use foliage_proper::text::{MaxCharacters, Text, TextValue};
-use foliage_proper::texture::factors::Progress;
 
 #[derive(Clone)]
 pub struct IconText {
