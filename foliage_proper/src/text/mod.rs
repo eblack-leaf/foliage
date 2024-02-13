@@ -89,13 +89,13 @@ impl Text {
 pub struct MaxCharacters(pub u32);
 #[derive(SystemSet, Hash, Eq, PartialEq, Copy, Clone, Debug)]
 pub enum SetDescriptor {
-    Area,
+    Update,
 }
 impl Leaf for Text {
     type SetDescriptor = SetDescriptor;
 
     fn config(elm_configuration: &mut ElmConfiguration) {
-        elm_configuration.configure_hook(ExternalSet::Configure, SetDescriptor::Area);
+        elm_configuration.configure_hook(ExternalSet::Configure, SetDescriptor::Update);
     }
 
     fn attach(elm: &mut Elm) {
@@ -114,10 +114,10 @@ impl Leaf for Text {
             .container
             .insert_resource(MonospacedFont::new(Self::DEFAULT_OPT_SCALE));
         elm.job.main().add_systems((
-            changes.in_set(Self::SetDescriptor::Area),
+            changes.in_set(Self::SetDescriptor::Update),
             max_character
                 .before(changes)
-                .in_set(Self::SetDescriptor::Area),
+                .in_set(Self::SetDescriptor::Update),
             clear_removes.after(CoreSet::Differential),
             clear_changes.after(CoreSet::Differential),
         ));
@@ -135,6 +135,7 @@ pub(crate) fn max_character(
         (
             &MaxCharacters,
             &mut FontSize,
+            &mut Position<InterfaceContext>,
             &mut Area<InterfaceContext>,
             &mut CharacterDimension,
         ),
@@ -143,9 +144,16 @@ pub(crate) fn max_character(
     scale_factor: Res<ScaleFactor>,
     font: Res<MonospacedFont>,
 ) {
-    for (max, mut size, mut area, mut dim) in query.iter_mut() {
+    for (max, mut size, mut pos, mut area, mut dim) in query.iter_mut() {
         let (fs, fa) = font.best_fit(*max, *area, &scale_factor);
         *size = fs;
+        if area.height > fa.height {
+            *pos = *pos
+                + Position::from((
+                    (area.width - fa.width) / 2f32,
+                    (area.height - fa.height) / 2f32,
+                ));
+        }
         *area = fa;
         *dim = CharacterDimension(font.character_dimensions(fs.px(scale_factor.factor())));
     }

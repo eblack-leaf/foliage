@@ -193,9 +193,9 @@ impl Interaction {
 }
 #[derive(Copy, Clone, Eq, PartialEq, Default)]
 pub enum InteractionShape {
-    Circle,
+    InteractiveCircle,
     #[default]
-    Rectangle,
+    InteractiveRectangle,
 }
 #[derive(Component, Copy, Clone, Default)]
 pub struct InteractionListener {
@@ -232,7 +232,7 @@ impl InteractionShapeActualized {
     pub(crate) fn contains(&self, position: Position<InterfaceContext>) -> bool {
         let center = self.1.center();
         match self.0 {
-            InteractionShape::Circle => {
+            InteractionShape::InteractiveCircle => {
                 if distance(
                     &Point::<f32, 2>::new(position.x, position.y),
                     &Point::<f32, 2>::new(center.x, center.y),
@@ -242,7 +242,7 @@ impl InteractionShapeActualized {
                 }
                 false
             }
-            InteractionShape::Rectangle => {
+            InteractionShape::InteractiveRectangle => {
                 if self.1.contains(position) {
                     return true;
                 }

@@ -13,6 +13,9 @@ impl AspectRatio {
     pub fn reciprocal(&self) -> f32 {
         1f32 / self.0
     }
+    pub fn value(&self) -> f32 {
+        self.0
+    }
 }
 impl From<f32> for AspectRatio {
     fn from(value: f32) -> Self {

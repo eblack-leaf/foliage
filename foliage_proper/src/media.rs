@@ -48,7 +48,8 @@ impl HrefLink {
         }
     }
     pub fn with_circle_shape(mut self) -> Self {
-        self.listener = InteractionListener::default().with_shape(InteractionShape::Circle);
+        self.listener =
+            InteractionListener::default().with_shape(InteractionShape::InteractiveCircle);
         self
     }
 }

@@ -11,9 +11,7 @@ use foliage::elm::{Elm, InteractionHandlerTrigger};
 use foliage::icon::FeatherIcon;
 use foliage::image::{Image, ImageId, ImageStorage};
 use foliage::r_scenes::icon_text::IconText;
-use foliage::rectangle::Rectangle;
 use foliage::text::{MaxCharacters, Text, TextValue};
-use foliage::texture::factors::Progress;
 
 #[foliage::assets(crate::Engen, "../assets/", "/foliage/demo/assets/")]
 #[derive(Resource, Clone)]
@@ -63,22 +61,22 @@ impl Leaf for Showcase {
                 Color::GREY,
             ),
             ResponsiveSegment::base(Segment::new(
-                3.far().to(5.far()).maximum(150.0),
-                1.near().to(1.far()).minimum(25.0).maximum(45.0),
+                2.far().to(6.far()).maximum(300.0),
+                1.near().to(1.far()).minimum(20.0).maximum(55.0),
             ))
             .justify(Justify::Top),
             (),
         );
-        elm.add_view_binding(
-            START,
-            Rectangle::new(Area::default(), THEME_COLOR::BASE, Progress::full()),
-            ResponsiveSegment::base(Segment::new(
-                3.far().to(5.far()).maximum(150.0),
-                1.near().to(1.far()).minimum(25.0).maximum(45.0),
-            ))
-            .justify(Justify::Top),
-            (),
-        );
+        // elm.add_view_binding(
+        //     START,
+        //     Rectangle::new(Area::default(), THEME_COLOR::MINUS_THREE, Progress::full()),
+        //     ResponsiveSegment::base(Segment::new(
+        //         2.far().to(6.far()).maximum(300.0),
+        //         1.near().to(1.far()).minimum(20.0).maximum(55.0),
+        //     ))
+        //     .justify(Justify::Top).at_layer(5),
+        //     (),
+        // );
         // elm.add_view_scene_binding(
         //     START,
         //     Button::new(

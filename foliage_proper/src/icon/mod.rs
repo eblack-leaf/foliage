@@ -110,13 +110,19 @@ impl From<FeatherIcon> for IconId {
 }
 fn scale_change(
     mut query: Query<
-        (&mut IconScale, &mut Area<InterfaceContext>),
+        (
+            &mut IconScale,
+            &mut Area<InterfaceContext>,
+            &mut Position<InterfaceContext>,
+        ),
         Changed<Area<InterfaceContext>>,
     >,
 ) {
     tracing::trace!("updating-icons");
-    for (mut scale, mut area) in query.iter_mut() {
+    for (mut scale, mut area, mut pos) in query.iter_mut() {
+        let initial_width = area.width;
         *scale = IconScale::from_dim(area.width);
+        *pos = *pos + Position::from((initial_width - scale.px(), initial_width - scale.px()));
         let initial_px = scale.px();
         area.width = initial_px;
         area.height = initial_px;

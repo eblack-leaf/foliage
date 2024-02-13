@@ -158,6 +158,8 @@ impl Grid {
             GridRelativeValue::Anchored(value) => value - top,
             GridRelativeValue::Fixed(value) => value,
         };
+        let initial_w = width;
+        let initial_h = height;
         let width = if let Some(w) = horizontal.min {
             let bounded = width.max(w);
             bounded
@@ -170,8 +172,6 @@ impl Grid {
         } else {
             height
         };
-        let initial_width = width;
-        let initial_height = height;
         let width = if let Some(w) = horizontal.max {
             width.min(w)
         } else {
@@ -184,18 +184,18 @@ impl Grid {
         };
         // ar
         let (width, height) = if let Some(ar) = aspect_ratio {
-            let mut potential_height = height;
-            let mut attempted_width = height * ar.reciprocal();
-            while attempted_width > width {
-                potential_height -= 1f32;
-                attempted_width = potential_height * ar.reciprocal();
+            let mut attempted_width = width;
+            let mut attempted_height = width * ar.reciprocal();
+            while attempted_height > height {
+                attempted_width -= 1f32;
+                attempted_height = attempted_width * ar.reciprocal();
             }
-            (attempted_width, potential_height)
+            (attempted_width, attempted_height)
         } else {
             (width, height)
         };
-        let (left, width) = if width < initial_width {
-            let diff = initial_width - width;
+        let (left, width) = if width < initial_w {
+            let diff = initial_w - width;
             let justification = justification.unwrap_or(Justify::Center);
             let adjusted_left = match justification {
                 Justify::Center | Justify::Top | Justify::Bottom => left + diff.div(2.0),
@@ -206,8 +206,8 @@ impl Grid {
         } else {
             (left, width)
         };
-        let (top, height) = if height < initial_height {
-            let diff = initial_height - height;
+        let (top, height) = if height < initial_h {
+            let diff = initial_h - height;
             let justification = justification.unwrap_or(Justify::Center);
             let adjusted_top = match justification {
                 Justify::Center | Justify::Left | Justify::Right => top + diff.div(2.0),

@@ -3,11 +3,11 @@ use foliage_proper::bevy_ecs;
 use foliage_proper::bevy_ecs::bundle::Bundle;
 use foliage_proper::bevy_ecs::component::Component;
 use foliage_proper::bevy_ecs::entity::Entity;
-use foliage_proper::bevy_ecs::prelude::{Commands, With};
+use foliage_proper::bevy_ecs::prelude::{Commands, IntoSystemConfigs, With};
 use foliage_proper::bevy_ecs::query::{Changed, Or, Without};
 use foliage_proper::bevy_ecs::system::{Query, SystemParamItem};
 use foliage_proper::color::Color;
-use foliage_proper::compositor::segment::{Grid, Segment, SegmentUnitDesc};
+use foliage_proper::compositor::segment::{GapDescriptor, Grid, Segment, SegmentUnitDesc};
 use foliage_proper::coordinate::{Coordinate, InterfaceContext};
 use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
 use foliage_proper::elm::leaf::{Leaf, Tag};
@@ -15,6 +15,7 @@ use foliage_proper::elm::Elm;
 use foliage_proper::icon::{Icon, IconId};
 use foliage_proper::scene::{Alignment, Binder, Bindings, Scene, SceneComponents};
 use foliage_proper::text::{MaxCharacters, Text, TextValue};
+
 #[derive(Clone)]
 pub struct IconText {
     pub icon_id: IconId,
@@ -83,11 +84,13 @@ impl Leaf for IconText {
 
     fn config(elm_configuration: &mut ElmConfiguration) {
         elm_configuration.configure_hook(ExternalSet::Configure, Self::SetDescriptor::Area);
-        // TODO will need to configure before|after
-        elm_configuration.establish_scene_config::<Self, _>(Self::SetDescriptor::Area);
     }
 
-    fn attach(_elm: &mut Elm) {}
+    fn attach(elm: &mut Elm) {
+        elm.main().add_systems(
+            foliage_proper::scene::config::<IconText>.in_set(Self::SetDescriptor::Area),
+        );
+    }
 }
 impl Scene for IconText {
     type Params = (
@@ -144,8 +147,12 @@ impl Scene for IconText {
             IconTextBindings::Icon,
             Alignment::new(
                 Segment::new(
-                    0.relative().to(0.25.relative()),
-                    0.relative().to(1.relative()),
+                    1.near().to(1.far()).minimum(20.0).maximum(100.0),
+                    2.near()
+                        .offset(4.0)
+                        .to(4.far())
+                        .minimum(20.0)
+                        .maximum(100.0),
                 )
                 .with_aspect(1.0),
                 0,
@@ -157,18 +164,31 @@ impl Scene for IconText {
             IconTextBindings::Text,
             Alignment::new(
                 Segment::new(
-                    0.3.relative().to(1.relative()),
-                    0.relative().to(1.relative()),
+                    2.near().to(5.far()),
+                    0.relative().to(1.relative()).minimum(24.0),
                 ),
                 0,
             ),
             Text::new(self.max_chars, self.text_value.clone(), self.text_color),
             cmd,
         );
+        // binder.bind(
+        //     2,
+        //     Alignment::new(
+        //         Segment::new(
+        //             1.near().to(1.far()).minimum(20.0).maximum(100.0),
+        //             2.near().offset(4.0).to(4.far()).minimum(20.0).maximum(100.0),
+        //         )
+        //             .with_aspect(1.0),
+        //         5,
+        //     ),
+        //     Rectangle::new(Area::default(), Color::WHITE, Progress::full()),
+        //     cmd,
+        // );
         (
             binder.root(),
             SceneComponents::new(
-                Grid::new(1, 1),
+                Grid::new(5, 5).assign_gap(GapDescriptor::Vertical, 0.0),
                 binder.bindings(),
                 IconTextComponents::new(
                     self.max_chars,

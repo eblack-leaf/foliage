@@ -94,8 +94,8 @@ impl<Context: CoordinateContext> Section<Context> {
         let right = self.right().min(other.right());
         Option::from(Self::from_left_top_right_bottom(left, top, right, bottom))
     }
-    pub fn with_position(mut self, position: Position<Context>) -> Self {
-        self.position = position;
+    pub fn with_position<P: Into<Position<Context>>>(mut self, position: P) -> Self {
+        self.position = position.into();
         self
     }
     pub fn with_area(mut self, area: Area<Context>) -> Self {

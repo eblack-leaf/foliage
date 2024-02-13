@@ -18,7 +18,7 @@ pub struct Anchor(Coordinate<InterfaceContext>);
 impl Anchor {
     pub(crate) fn aligned(&self, grid: Grid, alignment: Alignment) -> Self {
         let coordinate = grid.calculate_coordinate(
-            self.0.section,
+            self.0.section.with_position((0, 0)),
             alignment.segment.horizontal,
             alignment.segment.vertical,
             self.0.layer + alignment.layer_offset,
@@ -71,6 +71,11 @@ impl Alignment {
 }
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
 pub struct SceneBinding(pub i32);
+impl From<i32> for SceneBinding {
+    fn from(value: i32) -> Self {
+        Self(value)
+    }
+}
 #[derive(Copy, Clone)]
 pub struct SceneNode {
     entity: Entity,
@@ -186,7 +191,7 @@ impl SceneBindingComponents {
     }
 }
 // will need to add this for every scene added
-pub(crate) fn config<S: Scene + Send + Sync + 'static>(
+pub fn config<S: Scene + Send + Sync + 'static>(
     query: Query<
         (
             Entity,
