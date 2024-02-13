@@ -59,15 +59,14 @@ impl Leaf for Showcase {
                 FeatherIcon::Tag,
                 THEME_COLOR::BASE,
                 MaxCharacters(11),
-                TextValue::new("button.rs"),
+                TextValue::new("buttun.rs.couo"),
                 Color::GREY,
             ),
             ResponsiveSegment::base(
                 Segment::new(
-                    2.far().to(6.far()).maximum(400.0),
+                    2.far().to(6.far()).maximum(660.0),
                     1.near().to(1.far()).minimum(30.0).maximum(60.0),
-                ),
-                // .with_aspect(11.0 / 2.0),
+                ), // .with_aspect(11.0 / 2.0),
             )
             .justify(Justify::Top),
             (),

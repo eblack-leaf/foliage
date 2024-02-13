@@ -154,7 +154,7 @@ impl Scene for IconText {
                 Segment::new(
                     1.near().to(1.far()).minimum(20.0).maximum(100.0),
                     0.2.relative()
-                        .to(0.7.relative())
+                        .to(0.8.relative())
                         .minimum(20.0)
                         .maximum(100.0),
                 )
@@ -182,7 +182,7 @@ impl Scene for IconText {
             2,
             Alignment::new(
                 Segment::new(
-                    1.near().to(1.far()).minimum(20.0).maximum(100.0),
+                    1.near().to(1.far()).minimum(20.0).maximum(124.0),
                     0.2.relative()
                         .to(0.7.relative())
                         .minimum(20.0)
