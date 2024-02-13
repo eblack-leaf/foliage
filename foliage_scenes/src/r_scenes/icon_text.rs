@@ -150,7 +150,7 @@ impl Scene for IconText {
                     1.near().to(1.far()).minimum(20.0).maximum(100.0),
                     2.near()
                         .offset(4.0)
-                        .to(4.far())
+                        .to(3.far())
                         .minimum(20.0)
                         .maximum(100.0),
                 )
@@ -188,7 +188,7 @@ impl Scene for IconText {
         (
             binder.root(),
             SceneComponents::new(
-                Grid::new(5, 5).assign_gap(GapDescriptor::Vertical, 0.0),
+                Grid::new(5, 4).assign_gap(GapDescriptor::Vertical, 0.0),
                 binder.bindings(),
                 IconTextComponents::new(
                     self.max_chars,

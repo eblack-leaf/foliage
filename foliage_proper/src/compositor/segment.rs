@@ -160,6 +160,18 @@ impl Grid {
         };
         let initial_w = width;
         let initial_h = height;
+        // ar
+        let (width, height) = if let Some(ar) = aspect_ratio {
+            let mut attempted_width = width;
+            let mut attempted_height = width * ar.reciprocal();
+            while attempted_height > height {
+                attempted_width -= 1f32;
+                attempted_height = attempted_width * ar.reciprocal();
+            }
+            (attempted_width, attempted_height)
+        } else {
+            (width, height)
+        };
         let width = if let Some(w) = horizontal.min {
             let bounded = width.max(w);
             bounded
@@ -182,18 +194,7 @@ impl Grid {
         } else {
             height
         };
-        // ar
-        let (width, height) = if let Some(ar) = aspect_ratio {
-            let mut attempted_width = width;
-            let mut attempted_height = width * ar.reciprocal();
-            while attempted_height > height {
-                attempted_width -= 1f32;
-                attempted_height = attempted_width * ar.reciprocal();
-            }
-            (attempted_width, attempted_height)
-        } else {
-            (width, height)
-        };
+
         let (left, width) = if width < initial_w {
             let diff = initial_w - width;
             let justification = justification.unwrap_or(Justify::Center);
