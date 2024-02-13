@@ -8,7 +8,7 @@ use foliage_proper::bevy_ecs::query::{Changed, Or, Without};
 use foliage_proper::bevy_ecs::system::{Query, SystemParamItem};
 use foliage_proper::color::Color;
 use foliage_proper::compositor::segment::{
-    GapDescriptor, MacroGrid, Segment, SegmentUnitDesc, SegmentValue,
+    GapDescriptor, Justify, MacroGrid, Segment, SegmentUnitDesc, SegmentValue,
 };
 use foliage_proper::coordinate::area::Area;
 use foliage_proper::coordinate::{Coordinate, CoordinateUnit, InterfaceContext};
@@ -174,39 +174,40 @@ impl Scene for IconText {
                 )
                 .with_aspect(self.max_chars.0 as CoordinateUnit / 2f32),
                 0,
-            ),
+            )
+            .justify(Justify::Left),
             Text::new(self.max_chars, self.text_value.clone(), self.text_color),
             cmd,
         );
-        binder.bind(
-            2,
-            Alignment::new(
-                Segment::new(
-                    1.near().to(1.far()).minimum(20.0).maximum(124.0),
-                    0.2.relative()
-                        .to(0.7.relative())
-                        .minimum(20.0)
-                        .maximum(100.0),
-                )
-                .with_aspect(1.0),
-                5,
-            ),
-            Rectangle::new(Area::default(), Color::WHITE, Progress::full()),
-            cmd,
-        );
-        binder.bind(
-            3,
-            Alignment::new(
-                Segment::new(
-                    2.near().to(factor.far()),
-                    0.relative().to(1.relative()).minimum(24.0).maximum(100.0),
-                )
-                .with_aspect(self.max_chars.0 as CoordinateUnit / 2f32),
-                5,
-            ),
-            Rectangle::new(Area::default(), Color::WHITE, Progress::full()),
-            cmd,
-        );
+        // binder.bind(
+        //     2,
+        //     Alignment::new(
+        //         Segment::new(
+        //             1.near().to(1.far()).minimum(20.0).maximum(100.0),
+        //             0.2.relative()
+        //                 .to(0.7.relative())
+        //                 .minimum(20.0)
+        //                 .maximum(100.0),
+        //         )
+        //         .with_aspect(1.0),
+        //         5,
+        //     ),
+        //     Rectangle::new(Area::default(), Color::WHITE, Progress::full()),
+        //     cmd,
+        // );
+        // binder.bind(
+        //     3,
+        //     Alignment::new(
+        //         Segment::new(
+        //             2.near().to(factor.far()),
+        //             0.relative().to(1.relative()).minimum(24.0).maximum(100.0),
+        //         )
+        //         .with_aspect(self.max_chars.0 as CoordinateUnit / 2f32),
+        //         5,
+        //     ),
+        //     Rectangle::new(Area::default(), Color::WHITE, Progress::full()),
+        //     cmd,
+        // );
         (
             binder.root(),
             SceneComponents::new(

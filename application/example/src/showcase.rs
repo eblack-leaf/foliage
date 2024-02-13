@@ -62,12 +62,10 @@ impl Leaf for Showcase {
                 TextValue::new("buttun.rs.couo"),
                 Color::GREY,
             ),
-            ResponsiveSegment::base(
-                Segment::new(
-                    2.far().to(6.far()).maximum(660.0),
-                    1.near().to(1.far()).minimum(30.0).maximum(60.0),
-                ), // .with_aspect(11.0 / 2.0),
-            )
+            ResponsiveSegment::base(Segment::new(
+                3.near().to(6.far()).minimum(150.0).maximum(660.0),
+                1.near().to(1.far()).minimum(30.0).maximum(60.0),
+            ))
             .justify(Justify::Top),
             (),
         );
