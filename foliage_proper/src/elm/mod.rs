@@ -270,9 +270,8 @@ impl Elm {
                          mut compositor: ResMut<Compositor>| {
             {
                 if current.0 == view_handle {
-                    let (entity, components) = args.clone().create(&mut cmd);
+                    let entity = args.clone().create(&mut cmd);
                     cmd.entity(entity)
-                        .insert(components)
                         .insert(ext.clone())
                         .insert(Segmental::new(responsive_segment.clone()));
                     compositor.add_to_view(view_handle, entity);

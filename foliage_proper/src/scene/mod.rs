@@ -44,6 +44,15 @@ impl SceneNode {
 pub struct Binder(HashMap<SceneBinding, SceneNode>, Entity);
 
 impl Binder {
+    pub fn finish<S: Scene>(
+        self,
+        comps: SceneComponents<S::Components>,
+        cmd: &mut Commands,
+    ) -> Entity {
+        let entity = self.root();
+        cmd.entity(entity).insert(comps).insert(Bindings(self.0));
+        entity
+    }
     pub fn new(cmd: &mut Commands) -> Self {
         Self(HashMap::new(), cmd.spawn_empty().id())
     }
@@ -77,22 +86,17 @@ impl Binder {
         cmd: &mut Commands,
     ) -> Entity {
         // add alignment + scene stuff
-        let (entity, components) = s.create(cmd);
-        cmd.entity(entity)
-            .insert(components)
-            .insert(SceneBindingComponents::new(
-                self.1,
-                Anchor::default(),
-                sa.into(),
-            ));
+        let entity = s.create(cmd);
+        cmd.entity(entity).insert(SceneBindingComponents::new(
+            self.1,
+            Anchor::default(),
+            sa.into(),
+        ));
         self.0.insert(sb.into(), SceneNode::new(entity, true));
         entity
     }
-    pub fn bindings(self) -> Bindings {
-        Bindings(self.0)
-    }
 }
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct Bindings(HashMap<SceneBinding, SceneNode>);
 impl Bindings {
     pub fn get<SB: Into<SceneBinding>>(&self, sb: SB) -> Entity {
@@ -115,10 +119,10 @@ pub struct SceneComponents<T: Bundle + Send + Sync + 'static> {
     grid: MicroGrid,
 }
 impl<T: Bundle + Send + Sync + 'static> SceneComponents<T> {
-    pub fn new(grid: MicroGrid, bindings: Bindings, t: T) -> Self {
+    pub fn new(grid: MicroGrid, t: T) -> Self {
         Self {
             t,
-            bindings,
+            bindings: Bindings::default(),
             coordinate: Coordinate::default(),
             despawn: Default::default(),
             disabled: Default::default(),
@@ -198,7 +202,7 @@ where
     );
     // self is the Args to the scene
     // only create bindings; will be configured above
-    fn create(self, cmd: &mut Commands) -> (Entity, SceneComponents<Self::Components>);
+    fn create(self, cmd: &mut Commands) -> Entity;
 }
 #[derive(Component, Copy, Clone)]
 pub struct ScenePtr(Entity);

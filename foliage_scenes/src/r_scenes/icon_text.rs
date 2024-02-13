@@ -144,7 +144,7 @@ impl Scene for IconText {
         }
     }
 
-    fn create(self, cmd: &mut Commands) -> (Entity, SceneComponents<Self::Components>) {
+    fn create(self, cmd: &mut Commands) -> Entity {
         let mut binder = Binder::new(cmd);
         binder.bind(
             IconTextBindings::Icon,
@@ -187,12 +187,10 @@ impl Scene for IconText {
         //     Rectangle::new(Area::default(), Color::WHITE, Progress::full()),
         //     cmd,
         // );
-        (
-            binder.root(),
+        binder.finish::<Self>(
             SceneComponents::new(
                 MicroGrid::new(),
-                binder.bindings(),
-                IconTextComponents::new(
+                Self::Components::new(
                     self.max_chars,
                     self.text_value,
                     self.icon_color,
@@ -200,6 +198,7 @@ impl Scene for IconText {
                     self.icon_id,
                 ),
             ),
+            cmd,
         )
     }
 }
