@@ -7,14 +7,20 @@ use foliage_proper::bevy_ecs::prelude::{Commands, IntoSystemConfigs, With};
 use foliage_proper::bevy_ecs::query::{Changed, Or, Without};
 use foliage_proper::bevy_ecs::system::{Query, SystemParamItem};
 use foliage_proper::color::Color;
+use foliage_proper::compositor::layout::AspectRatio;
+use foliage_proper::coordinate::area::Area;
 use foliage_proper::coordinate::{Coordinate, InterfaceContext};
 use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
 use foliage_proper::elm::leaf::{Leaf, Tag};
 use foliage_proper::elm::Elm;
 use foliage_proper::icon::{Icon, IconId};
-use foliage_proper::scene::micro_grid::{Alignment, MicroGrid};
+use foliage_proper::rectangle::Rectangle;
+use foliage_proper::scene::micro_grid::{
+    Alignment, AlignmentDesc, AnchorDim, MicroGrid, RelativeMarker,
+};
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents};
 use foliage_proper::text::{MaxCharacters, Text, TextValue};
+use foliage_proper::texture::factors::Progress;
 
 #[derive(Clone)]
 pub struct IconText {
@@ -143,50 +149,59 @@ impl Scene for IconText {
 
     fn create(self, cmd: &mut Commands) -> Entity {
         let mut binder = Binder::new(cmd);
+        let aspect_determinant = self.max_chars.0 as f32 + 2f32;
+        let aspect = AspectRatio(aspect_determinant / 2f32);
+        let icon_percent = 1f32 / aspect_determinant;
+        let text_offset = -3f32 / aspect_determinant;
         binder.bind(
             IconTextBindings::Icon,
-            Alignment::new(),
+            Alignment::new(
+                (0.5 * icon_percent).percent_from(RelativeMarker::Left),
+                0.percent_from(RelativeMarker::Center),
+                icon_percent.percent_of(AnchorDim::Width),
+                icon_percent.percent_of(AnchorDim::Width),
+            ),
             Icon::new(self.icon_id, self.icon_color),
             cmd,
         );
         binder.bind(
             IconTextBindings::Text,
-            Alignment::new(),
+            Alignment::new(
+                text_offset.percent_from(RelativeMarker::Center),
+                0.percent_from(RelativeMarker::Center),
+                (1f32 - icon_percent * 2f32).percent_of(AnchorDim::Width),
+                1.percent_of(AnchorDim::Height),
+            ),
             Text::new(self.max_chars, self.text_value.clone(), self.text_color),
             cmd,
         );
-        // binder.bind(
-        //     2,
-        //     Alignment::new(
-        //         Segment::new(
-        //             1.near().to(1.far()).minimum(20.0).maximum(100.0),
-        //             0.2.relative()
-        //                 .to(0.7.relative())
-        //                 .minimum(20.0)
-        //                 .maximum(100.0),
-        //         )
-        //         .with_aspect(1.0),
-        //         5,
-        //     ),
-        //     Rectangle::new(Area::default(), Color::WHITE, Progress::full()),
-        //     cmd,
-        // );
-        // binder.bind(
-        //     3,
-        //     Alignment::new(
-        //         Segment::new(
-        //             2.near().to(factor.far()),
-        //             0.relative().to(1.relative()).minimum(24.0).maximum(100.0),
-        //         )
-        //         .with_aspect(self.max_chars.0 as CoordinateUnit / 2f32),
-        //         5,
-        //     ),
-        //     Rectangle::new(Area::default(), Color::WHITE, Progress::full()),
-        //     cmd,
-        // );
+        binder.bind(
+            2,
+            Alignment::new(
+                (0.5 * icon_percent).percent_from(RelativeMarker::Left),
+                0.percent_from(RelativeMarker::Center),
+                icon_percent.percent_of(AnchorDim::Width),
+                icon_percent.percent_of(AnchorDim::Width),
+            )
+            .with_layer(5),
+            Rectangle::new(Area::default(), Color::WHITE, Progress::full()),
+            cmd,
+        );
+        binder.bind(
+            3,
+            Alignment::new(
+                text_offset.percent_from(RelativeMarker::Center),
+                0.percent_from(RelativeMarker::Center),
+                (1f32 - icon_percent * 2f32).percent_of(AnchorDim::Width),
+                1.percent_of(AnchorDim::Height),
+            )
+            .with_layer(5),
+            Rectangle::new(Area::default(), Color::WHITE, Progress::full()),
+            cmd,
+        );
         binder.finish::<Self>(
             SceneComponents::new(
-                MicroGrid::new(),
+                MicroGrid::new().aspect(aspect).min_height(24.0),
                 Self::Components::new(
                     self.max_chars,
                     self.text_value,

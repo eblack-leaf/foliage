@@ -254,8 +254,7 @@ pub(crate) fn resolve_anchor(
             let ptr = *deps.p0().get(bind.entity).unwrap().3;
             let grid = grids.get(ptr.0).expect("scene-grid");
             let anchor = Anchor(coordinate).aligned(grid, deps.p0().get(bind.entity).unwrap().1);
-            *deps.p1().get_mut(bind.entity).unwrap() =
-                anchor;
+            *deps.p1().get_mut(bind.entity).unwrap() = anchor;
             if bind.is_scene {
                 let rf = recursive_fetch(anchor.0, bind.entity, &deps.p0(), &grids);
                 for (e, a) in rf {

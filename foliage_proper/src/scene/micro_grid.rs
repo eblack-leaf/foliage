@@ -12,6 +12,35 @@ pub struct MicroGrid {
     pub max_height: Option<CoordinateUnit>,
 }
 impl MicroGrid {
+    pub fn new() -> Self {
+        Self {
+            aspect: None,
+            min_width: None,
+            min_height: None,
+            max_width: None,
+            max_height: None,
+        }
+    }
+    pub fn aspect<AR: Into<AspectRatio>>(mut self, ar: AR) -> Self {
+        self.aspect.replace(ar.into());
+        self
+    }
+    pub fn min_width(mut self, mw: CoordinateUnit) -> Self {
+        self.min_width.replace(mw);
+        self
+    }
+    pub fn max_width(mut self, mw: CoordinateUnit) -> Self {
+        self.max_width.replace(mw);
+        self
+    }
+    pub fn min_height(mut self, mw: CoordinateUnit) -> Self {
+        self.min_height.replace(mw);
+        self
+    }
+    pub fn max_height(mut self, mw: CoordinateUnit) -> Self {
+        self.max_height.replace(mw);
+        self
+    }
     pub fn determine(
         &self,
         coordinate: Coordinate<InterfaceContext>,
@@ -69,8 +98,8 @@ impl MicroGrid {
         };
         let pos = if area.width < coordinate.section.width() {
             (
-                pos.x,
-                pos.y + (coordinate.section.width() - area.width) / 2f32,
+                pos.x + (coordinate.section.width() - area.width) / 2f32,
+                pos.y,
             )
                 .into()
         } else {
@@ -105,9 +134,9 @@ impl MicroGrid {
         let unit = relative_alignment.unit.value
             * match relative_alignment.unit.op {
                 AlignmentOp::Fixed => 1.0,
-                AlignmentOp::Percent => anchor.section.width(),
+                AlignmentOp::Percent => anchor.section.height(),
             };
-        location.x + unit - h / 2f32
+        location.y + unit - h / 2f32
     }
     pub fn calc_w(
         &self,
@@ -117,7 +146,13 @@ impl MicroGrid {
         alignment_unit.value
             * match alignment_unit.op {
                 AlignmentOp::Fixed => 1.0,
-                AlignmentOp::Percent => anchor.section.width(),
+                AlignmentOp::Percent => {
+                    if let Some(AnchorDim::Height) = alignment_unit.dim {
+                        anchor.section.height()
+                    } else {
+                        anchor.section.width()
+                    }
+                }
             }
     }
     pub fn calc_h(
@@ -128,7 +163,13 @@ impl MicroGrid {
         alignment_unit.value
             * match alignment_unit.op {
                 AlignmentOp::Fixed => 1.0,
-                AlignmentOp::Percent => anchor.section.width(),
+                AlignmentOp::Percent => {
+                    if let Some(AnchorDim::Width) = alignment_unit.dim {
+                        anchor.section.width()
+                    } else {
+                        anchor.section.height()
+                    }
+                }
             }
     }
 }
@@ -141,20 +182,23 @@ pub struct Alignment {
     pub layer: Layer,
 }
 impl Alignment {
-    pub fn new<L: Into<Layer>>(
+    pub fn new(
         x: RelativeAlignment,
         y: RelativeAlignment,
         w: AlignmentUnit,
         h: AlignmentUnit,
-        l: L,
     ) -> Self {
         Self {
             x,
             y,
             w,
             h,
-            layer: l.into(),
+            layer: Layer::default(),
         }
+    }
+    pub fn with_layer<L: Into<Layer>>(mut self, l: L) -> Self {
+        self.layer = l.into();
+        self
     }
 }
 #[derive(Copy, Clone)]
@@ -176,9 +220,9 @@ impl RelativeMarker {
         let height = anchor.section.height();
         match self {
             RelativeMarker::Center => center,
-            RelativeMarker::Left => (0, 0).into(),
+            RelativeMarker::Left => (anchor.section.left(), center.y).into(),
             RelativeMarker::Right => (anchor.section.right(), center.y).into(),
-            RelativeMarker::Top => (center.x, 0.0).into(),
+            RelativeMarker::Top => (center.x, anchor.section.top()).into(),
             RelativeMarker::Bottom => (center.x, anchor.section.bottom()).into(),
             RelativeMarker::MidLeft => center - (width / 4f32, 0.0).into(),
             RelativeMarker::MidRight => center + (width / 4f32, 0.0).into(),
@@ -201,10 +245,11 @@ impl RelativeAlignment {
 pub struct AlignmentUnit {
     pub value: CoordinateUnit,
     pub op: AlignmentOp,
+    pub dim: Option<AnchorDim>,
 }
 impl AlignmentUnit {
-    pub fn new(value: CoordinateUnit, op: AlignmentOp) -> Self {
-        Self { value, op }
+    pub fn new(value: CoordinateUnit, op: AlignmentOp, dim: Option<AnchorDim>) -> Self {
+        Self { value, op, dim }
     }
 }
 #[derive(Copy, Clone)]
@@ -212,27 +257,53 @@ pub enum AlignmentOp {
     Fixed,
     Percent,
 }
+#[derive(Copy, Clone)]
+pub enum AnchorDim {
+    Width,
+    Height,
+}
 pub trait AlignmentDesc {
     fn fixed_from(self, relative_marker: RelativeMarker) -> RelativeAlignment;
     fn percent_from(self, relative_marker: RelativeMarker) -> RelativeAlignment;
     fn fixed(self) -> AlignmentUnit;
-    fn percent(self) -> AlignmentUnit;
+    fn percent_of(self, dim: AnchorDim) -> AlignmentUnit;
 }
 macro_rules! impl_alignment_desc {
     ($($t:ty),*) => {
         $(
         impl AlignmentDesc for $t {
             fn fixed_from(self, relative_marker: RelativeMarker) -> RelativeAlignment {
-                RelativeAlignment::new(relative_marker, AlignmentUnit::new(self as CoordinateUnit, AlignmentOp::Fixed))
+                RelativeAlignment::new(
+                    relative_marker,
+                    AlignmentUnit::new(
+                        self as CoordinateUnit,
+                        AlignmentOp::Fixed,
+                        None
+                    )
+                )
             }
             fn percent_from(self, relative_marker: RelativeMarker) -> RelativeAlignment {
-                RelativeAlignment::new(relative_marker, AlignmentUnit::new(self as CoordinateUnit, AlignmentOp::Percent))
+                RelativeAlignment::new(
+                    relative_marker,
+                    AlignmentUnit::new(
+                        self as CoordinateUnit,
+                        AlignmentOp::Percent,
+                        None)
+                )
             }
             fn fixed(self) -> AlignmentUnit {
-                AlignmentUnit::new(self as CoordinateUnit, AlignmentOp::Fixed)
+                AlignmentUnit::new(
+                    self as CoordinateUnit,
+                    AlignmentOp::Fixed,
+                    None
+                )
             }
-            fn percent(self) -> AlignmentUnit {
-                AlignmentUnit::new(self as CoordinateUnit, AlignmentOp::Percent)
+            fn percent_of(self, dim: AnchorDim) -> AlignmentUnit {
+                AlignmentUnit::new(
+                    self as CoordinateUnit,
+                    AlignmentOp::Percent,
+                    Some(dim)
+                )
             }
         }
         )*
