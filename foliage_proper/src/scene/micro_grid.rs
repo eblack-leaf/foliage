@@ -1,101 +1,149 @@
 use crate::compositor::layout::AspectRatio;
 use crate::coordinate::layer::Layer;
-use crate::coordinate::section::Section;
+use crate::coordinate::position::Position;
 use crate::coordinate::{Coordinate, CoordinateUnit, InterfaceContext};
-use crate::scene::Anchor;
-use bevy_ecs::component::Component;
-use std::collections::HashMap;
-
-#[derive(Component, Clone)]
+use bevy_ecs::prelude::Component;
+#[derive(Component, Copy, Clone)]
 pub struct MicroGrid {
-    aspect: Option<AspectRatio>,
-    sub_sections: HashMap<MicroGridSectionId, MicroGridSection>,
-    min_width: Option<CoordinateUnit>,
-    max_width: Option<CoordinateUnit>,
-    min_height: Option<CoordinateUnit>,
-    max_height: Option<CoordinateUnit>,
+    pub aspect: Option<AspectRatio>,
+    pub min_width: Option<CoordinateUnit>,
+    pub min_height: Option<CoordinateUnit>,
+    pub max_width: Option<CoordinateUnit>,
+    pub max_height: Option<CoordinateUnit>,
 }
 impl MicroGrid {
-    pub fn new() -> Self {
-        Self {
-            aspect: None,
-            sub_sections: Default::default(),
-            min_width: None,
-            max_width: None,
-            min_height: None,
-            max_height: None,
-        }
-    }
-    pub fn section<ID: Into<MicroGridSectionId>, MGS: Into<MicroGridSection>>(
-        mut self,
-        id: ID,
-        mgs: MGS,
-    ) -> Self {
-        self.sub_sections.insert(id.into(), mgs.into());
-        self
-    }
-    pub fn aspect<AR: Into<AspectRatio>>(mut self, ar: AR) -> Self {
-        self.aspect.replace(ar.into());
-        self
-    }
-    pub fn minimum_width(mut self, w: CoordinateUnit) -> Self {
-        self.min_width.replace(w);
-        self
-    }
-    pub fn minimum_height(mut self, w: CoordinateUnit) -> Self {
-        self.min_width.replace(w);
-        self
-    }
-    pub fn maximum_width(mut self, w: CoordinateUnit) -> Self {
-        self.min_width.replace(w);
-        self
-    }
-    pub fn maximum_height(mut self, w: CoordinateUnit) -> Self {
-        self.min_width.replace(w);
-        self
-    }
-    // for confining anchor to aspect|min|max before giving to alignment
-    pub fn adjusted_anchor(&self, original: Anchor) -> Anchor {
-        todo!()
-    }
     pub fn determine(
         &self,
-        anchor: Coordinate<InterfaceContext>,
+        coordinate: Coordinate<InterfaceContext>,
         alignment: &Alignment,
     ) -> Coordinate<InterfaceContext> {
-        todo!()
+        let anchor = self.adjusted(coordinate);
+        let w = self.calc_w(anchor, alignment.w);
+        let h = self.calc_h(anchor, alignment.h);
+        let x = self.calc_x(anchor, alignment.x, w);
+        let y = self.calc_y(anchor, alignment.y, h);
+        Coordinate::default()
+            .with_position((x, y))
+            .with_area((w, h))
+            .with_layer(anchor.layer + alignment.layer)
+    }
+    pub fn adjusted(
+        &self,
+        coordinate: Coordinate<InterfaceContext>,
+    ) -> Coordinate<InterfaceContext> {
+        let area = coordinate.section.area;
+        let area = if let Some(w) = self.min_width {
+            (area.width.max(w), area.height).into()
+        } else {
+            area
+        };
+        let area = if let Some(w) = self.max_width {
+            (area.width.min(w), area.height).into()
+        } else {
+            area
+        };
+        let area = if let Some(h) = self.min_height {
+            (area.width, area.height.max(h)).into()
+        } else {
+            area
+        };
+        let area = if let Some(h) = self.max_height {
+            (area.width, area.height.min(h)).into()
+        } else {
+            area
+        };
+        let area = if let Some(ar) = self.aspect {
+            ar.determine(area)
+        } else {
+            area
+        };
+        let pos = coordinate.section.position;
+        let pos = if area.height < coordinate.section.height() {
+            (
+                pos.x,
+                pos.y + (coordinate.section.height() - area.height) / 2f32,
+            )
+                .into()
+        } else {
+            pos
+        };
+        let pos = if area.width < coordinate.section.width() {
+            (
+                pos.x,
+                pos.y + (coordinate.section.width() - area.width) / 2f32,
+            )
+                .into()
+        } else {
+            pos
+        };
+        Coordinate::default()
+            .with_position(pos)
+            .with_area(area)
+            .with_layer(coordinate.layer)
+    }
+    pub fn calc_x(
+        &self,
+        anchor: Coordinate<InterfaceContext>,
+        relative_alignment: RelativeAlignment,
+        w: CoordinateUnit,
+    ) -> CoordinateUnit {
+        let location = relative_alignment.marker.location(anchor);
+        let unit = relative_alignment.unit.value
+            * match relative_alignment.unit.op {
+                AlignmentOp::Fixed => 1.0,
+                AlignmentOp::Percent => anchor.section.width(),
+            };
+        location.x + unit - w / 2f32
+    }
+    pub fn calc_y(
+        &self,
+        anchor: Coordinate<InterfaceContext>,
+        relative_alignment: RelativeAlignment,
+        h: CoordinateUnit,
+    ) -> CoordinateUnit {
+        let location = relative_alignment.marker.location(anchor);
+        let unit = relative_alignment.unit.value
+            * match relative_alignment.unit.op {
+                AlignmentOp::Fixed => 1.0,
+                AlignmentOp::Percent => anchor.section.width(),
+            };
+        location.x + unit - h / 2f32
+    }
+    pub fn calc_w(
+        &self,
+        anchor: Coordinate<InterfaceContext>,
+        alignment_unit: AlignmentUnit,
+    ) -> CoordinateUnit {
+        alignment_unit.value
+            * match alignment_unit.op {
+                AlignmentOp::Fixed => 1.0,
+                AlignmentOp::Percent => anchor.section.width(),
+            }
+    }
+    pub fn calc_h(
+        &self,
+        anchor: Coordinate<InterfaceContext>,
+        alignment_unit: AlignmentUnit,
+    ) -> CoordinateUnit {
+        alignment_unit.value
+            * match alignment_unit.op {
+                AlignmentOp::Fixed => 1.0,
+                AlignmentOp::Percent => anchor.section.width(),
+            }
     }
 }
-#[derive(Clone)]
-pub struct MicroGridSection {
-    pub section: Section<InterfaceContext>,
-    // center is derivable, and other anchor points
-}
-
-impl MicroGridSection {
-    pub fn new<S: Into<Section<InterfaceContext>>>(s: S) -> Self {
-        Self { section: s.into() }
-    }
-}
-#[derive(Hash, Eq, PartialEq, Copy, Clone, Default)]
-pub struct MicroGridSectionId(pub i32);
-impl From<i32> for MicroGridSectionId {
-    fn from(value: i32) -> Self {
-        Self(value)
-    }
-}
-#[derive(Component, Clone)]
+#[derive(Component, Copy, Clone)]
 pub struct Alignment {
-    x: AlignmentUnit,
-    y: AlignmentUnit,
-    w: AlignmentUnit,
-    h: AlignmentUnit,
-    layer_offset: Layer,
+    pub x: RelativeAlignment,
+    pub y: RelativeAlignment,
+    pub w: AlignmentUnit,
+    pub h: AlignmentUnit,
+    pub layer: Layer,
 }
 impl Alignment {
     pub fn new<L: Into<Layer>>(
-        x: AlignmentUnit,
-        y: AlignmentUnit,
+        x: RelativeAlignment,
+        y: RelativeAlignment,
         w: AlignmentUnit,
         h: AlignmentUnit,
         l: L,
@@ -105,53 +153,89 @@ impl Alignment {
             y,
             w,
             h,
-            layer_offset: l.into(),
+            layer: l.into(),
         }
     }
-    pub fn aspect() {}
 }
-pub enum AlignmentOp {
-    PercentOf,
-    FixedOffset,
-}
-#[derive(Clone)]
-pub struct AlignmentUnitDescriptor {}
 #[derive(Copy, Clone)]
-pub enum ConditionalAlignment {
-    Min,
-    Max,
+pub enum RelativeMarker {
+    Center,
+    Left,
+    Right,
+    Top,
+    Bottom,
+    MidLeft,
+    MidRight,
+    MidTop,
+    MidBottom,
 }
-#[derive(Clone)]
+impl RelativeMarker {
+    pub fn location(self, anchor: Coordinate<InterfaceContext>) -> Position<InterfaceContext> {
+        let center = anchor.section.center();
+        let width = anchor.section.width();
+        let height = anchor.section.height();
+        match self {
+            RelativeMarker::Center => center,
+            RelativeMarker::Left => (0, 0).into(),
+            RelativeMarker::Right => (anchor.section.right(), center.y).into(),
+            RelativeMarker::Top => (center.x, 0.0).into(),
+            RelativeMarker::Bottom => (center.x, anchor.section.bottom()).into(),
+            RelativeMarker::MidLeft => center - (width / 4f32, 0.0).into(),
+            RelativeMarker::MidRight => center + (width / 4f32, 0.0).into(),
+            RelativeMarker::MidTop => center - (0.0, height / 4f32).into(),
+            RelativeMarker::MidBottom => center + (0.0, height / 4f32).into(),
+        }
+    }
+}
+#[derive(Copy, Clone)]
+pub struct RelativeAlignment {
+    pub marker: RelativeMarker,
+    pub unit: AlignmentUnit,
+}
+impl RelativeAlignment {
+    pub fn new(marker: RelativeMarker, unit: AlignmentUnit) -> Self {
+        Self { marker, unit }
+    }
+}
+#[derive(Copy, Clone)]
 pub struct AlignmentUnit {
-    base: AlignmentUnitDescriptor,
-    conditional: HashMap<ConditionalAlignment, AlignmentUnitDescriptor>,
-    max: Option<CoordinateUnit>,
-    min: Option<CoordinateUnit>,
+    pub value: CoordinateUnit,
+    pub op: AlignmentOp,
 }
 impl AlignmentUnit {
-    pub fn maximum() {}
-    pub fn minimum() {}
-    pub fn or_min(mut self, min: AlignmentUnitDescriptor) -> Self {
-        todo!()
+    pub fn new(value: CoordinateUnit, op: AlignmentOp) -> Self {
+        Self { value, op }
     }
-    pub fn or_max(mut self, max: AlignmentUnitDescriptor) -> Self {
-        todo!()
-    }
+}
+#[derive(Copy, Clone)]
+pub enum AlignmentOp {
+    Fixed,
+    Percent,
 }
 pub trait AlignmentDesc {
-    fn percent_of<MGS: Into<MicroGridSectionId>>(self, mgs: MGS) -> AlignmentUnitDescriptor;
-    fn centered_on<MGS: Into<MicroGridSectionId>>(self, mgs: MGS) -> AlignmentUnitDescriptor;
-    fn derived_from<OP: Into<AlignmentOp>>(
-        self,
-        op: OP,
-        base: AlignmentUnitDescriptor,
-    ) -> AlignmentUnitDescriptor;
+    fn fixed_from(self, relative_marker: RelativeMarker) -> RelativeAlignment;
+    fn percent_from(self, relative_marker: RelativeMarker) -> RelativeAlignment;
+    fn fixed(self) -> AlignmentUnit;
+    fn percent(self) -> AlignmentUnit;
 }
-#[test]
-fn example() {
-    let grid = MicroGrid::new();
-    let coordinate = Coordinate::default();
-    // let alignment = Alignment::new();
-    // let determined = grid.determine(coordinate, alignment);
-    // assert_eq!(determined, ...);
+macro_rules! impl_alignment_desc {
+    ($($t:ty),*) => {
+        $(
+        impl AlignmentDesc for $t {
+            fn fixed_from(self, relative_marker: RelativeMarker) -> RelativeAlignment {
+                RelativeAlignment::new(relative_marker, AlignmentUnit::new(self as CoordinateUnit, AlignmentOp::Fixed))
+            }
+            fn percent_from(self, relative_marker: RelativeMarker) -> RelativeAlignment {
+                RelativeAlignment::new(relative_marker, AlignmentUnit::new(self as CoordinateUnit, AlignmentOp::Percent))
+            }
+            fn fixed(self) -> AlignmentUnit {
+                AlignmentUnit::new(self as CoordinateUnit, AlignmentOp::Fixed)
+            }
+            fn percent(self) -> AlignmentUnit {
+                AlignmentUnit::new(self as CoordinateUnit, AlignmentOp::Percent)
+            }
+        }
+        )*
+    };
 }
+impl_alignment_desc!(i8, i16, i32, i64, u8, u16, u32, u64, f32, f64);

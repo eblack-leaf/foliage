@@ -160,14 +160,6 @@ impl MacroGrid {
         };
         let initial_w = width;
         let initial_h = height;
-        // ar
-        let (width, height) = if let Some(ar) = aspect_ratio {
-            let d = ar.determine((width, height));
-            (d.width, d.height)
-        } else {
-            (width, height)
-        };
-        // end ar but is this before min / max so not look right?
         let width = if let Some(w) = horizontal.min {
             let bounded = width.max(w);
             bounded
@@ -179,6 +171,12 @@ impl MacroGrid {
             bounded
         } else {
             height
+        };
+        let (width, height) = if let Some(ar) = aspect_ratio {
+            let d = ar.determine((width, height));
+            (d.width, d.height)
+        } else {
+            (width, height)
         };
         let width = if let Some(w) = horizontal.max {
             width.min(w)
