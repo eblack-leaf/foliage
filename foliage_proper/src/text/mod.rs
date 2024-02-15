@@ -71,6 +71,9 @@ impl Text {
             color_changes: GlyphColorChanges::default(),
         }
     }
+    pub fn aspect_ratio_for<MC: Into<MaxCharacters>>(mc: MC) -> AspectRatio {
+        mc.into().mono_aspect()
+    }
     pub fn area_metrics(
         font_size: FontSize,
         max_characters: MaxCharacters,
