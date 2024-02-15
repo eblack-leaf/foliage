@@ -19,7 +19,7 @@ use std::collections::HashMap;
 pub struct Anchor(Coordinate<InterfaceContext>);
 
 impl Anchor {
-    pub(crate) fn aligned(&self, grid: MicroGrid, alignment: Alignment) -> Self {
+    pub(crate) fn aligned(&self, grid: &MicroGrid, alignment: &Alignment) -> Self {
         Anchor(grid.determine(self.0, alignment))
     }
 }
@@ -217,9 +217,9 @@ fn recursive_fetch(
         if let Some(bindings) = res.2 {
             for (_, bind) in bindings.0.iter() {
                 if let Ok(dep) = query.get(bind.entity) {
-                    let alignment = *dep.1;
+                    let alignment = dep.1;
                     let ptr = *dep.3;
-                    let grid = *grids.get(ptr.0).expect("scene-grid");
+                    let grid = grids.get(ptr.0).expect("scene-grid");
                     let anchor = Anchor(root_coordinate).aligned(grid, alignment);
                     fetch.push((bind.entity, anchor));
                     if bind.is_scene {
@@ -251,10 +251,10 @@ pub(crate) fn resolve_anchor(
     for (pos, area, layer, bindings) in roots.iter() {
         let coordinate = Coordinate::new((*pos, *area), *layer);
         for (_, bind) in bindings.0.iter() {
-            let alignment = *deps.p0().get(bind.entity).unwrap().1;
             let ptr = *deps.p0().get(bind.entity).unwrap().3;
-            let grid = *grids.get(ptr.0).expect("scene-grid");
-            *deps.p1().get_mut(bind.entity).unwrap() = Anchor(coordinate).aligned(grid, alignment);
+            let grid = grids.get(ptr.0).expect("scene-grid");
+            *deps.p1().get_mut(bind.entity).unwrap() =
+                Anchor(coordinate).aligned(grid, deps.p0().get(bind.entity).unwrap().1);
             if bind.is_scene {
                 let rf = recursive_fetch(coordinate, bind.entity, &deps.p0(), &grids);
                 for (e, a) in rf {
