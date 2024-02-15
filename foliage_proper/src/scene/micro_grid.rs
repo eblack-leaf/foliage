@@ -54,7 +54,6 @@ impl MicroGrid {
         self.min_width.replace(w);
         self
     }
-    // for confining anchor to aspect|min|max before giving to alignment
     pub fn adjusted_anchor(&self, original: Anchor) -> Anchor {
         todo!()
     }
