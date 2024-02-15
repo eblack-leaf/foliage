@@ -2,6 +2,7 @@ use crate::compositor::layout::AspectRatio;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::section::Section;
 use crate::coordinate::{Coordinate, CoordinateUnit, InterfaceContext};
+use crate::scene::Anchor;
 use bevy_ecs::component::Component;
 use std::collections::HashMap;
 
@@ -9,12 +10,20 @@ use std::collections::HashMap;
 pub struct MicroGrid {
     aspect: Option<AspectRatio>,
     sub_sections: HashMap<MicroGridSectionId, MicroGridSection>,
+    min_width: Option<CoordinateUnit>,
+    max_width: Option<CoordinateUnit>,
+    min_height: Option<CoordinateUnit>,
+    max_height: Option<CoordinateUnit>,
 }
 impl MicroGrid {
     pub fn new() -> Self {
         Self {
             aspect: None,
             sub_sections: Default::default(),
+            min_width: None,
+            max_width: None,
+            min_height: None,
+            max_height: None,
         }
     }
     pub fn section<ID: Into<MicroGridSectionId>, MGS: Into<MicroGridSection>>(
@@ -25,10 +34,29 @@ impl MicroGrid {
         self.sub_sections.insert(id.into(), mgs.into());
         self
     }
-    // could be used to set the outer anchor box to enable justify in segment
     pub fn aspect<AR: Into<AspectRatio>>(mut self, ar: AR) -> Self {
         self.aspect.replace(ar.into());
         self
+    }
+    pub fn minimum_width(mut self, w: CoordinateUnit) -> Self {
+        self.min_width.replace(w);
+        self
+    }
+    pub fn minimum_height(mut self, w: CoordinateUnit) -> Self {
+        self.min_width.replace(w);
+        self
+    }
+    pub fn maximum_width(mut self, w: CoordinateUnit) -> Self {
+        self.min_width.replace(w);
+        self
+    }
+    pub fn maximum_height(mut self, w: CoordinateUnit) -> Self {
+        self.min_width.replace(w);
+        self
+    }
+    // for confining anchor to aspect|min|max before giving to alignment
+    pub fn adjusted_anchor(&self, original: Anchor) -> Anchor {
+        todo!()
     }
     pub fn determine(
         &self,
