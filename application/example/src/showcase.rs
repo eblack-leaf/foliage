@@ -1,6 +1,6 @@
 use foliage::bevy_ecs;
 use foliage::bevy_ecs::prelude::{Component, Resource};
-use foliage::color::monochromatic::{Magenta as THEME_COLOR, Monochromatic};
+use foliage::color::monochromatic::{Monochromatic, Orange as THEME_COLOR};
 use foliage::color::Color;
 use foliage::compositor::layout::Layout;
 use foliage::compositor::segment::{
@@ -126,7 +126,7 @@ impl Leaf for Showcase {
                     Color::BLACK,
                 ),
                 ElementStyle::fill(),
-                THEME_COLOR::BASE,
+                THEME_COLOR::MINUS_ONE,
                 Color::BLACK,
             ),
             ResponsiveSegment::base(Segment::new(
@@ -166,7 +166,7 @@ impl Leaf for Showcase {
                     Color::BLACK,
                 ),
                 ElementStyle::fill(),
-                THEME_COLOR::BASE,
+                THEME_COLOR::MINUS_TWO,
                 Color::BLACK,
             ),
             ResponsiveSegment::base(Segment::new(
@@ -188,7 +188,7 @@ impl Leaf for Showcase {
             Text::new(
                 MaxCharacters(11),
                 TextValue::new("text"),
-                THEME_COLOR::MINUS_TWO,
+                THEME_COLOR::PLUS_THREE,
             ),
             ResponsiveSegment::base(Segment::new(
                 4.near().to(5.far()),
