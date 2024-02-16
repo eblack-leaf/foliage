@@ -44,11 +44,7 @@ impl SceneNode {
 pub struct Binder(HashMap<SceneBinding, SceneNode>, Entity);
 
 impl Binder {
-    pub fn finish<S: Scene>(
-        self,
-        comps: SceneComponents<S::Components>,
-        cmd: &mut Commands,
-    ) -> Entity {
+    pub fn finish<S: Scene>(self, comps: SceneComponents<S>, cmd: &mut Commands) -> Entity {
         let entity = self.root();
         cmd.entity(entity).insert(comps).insert(Bindings(self.0));
         entity
@@ -108,18 +104,18 @@ pub struct IsScene;
 #[derive(Component, Copy, Clone)]
 pub struct IsDep;
 #[derive(Bundle)]
-pub struct SceneComponents<T: Bundle + Send + Sync + 'static> {
-    t: T,
+pub struct SceneComponents<S: Scene> {
+    t: S::Components,
     bindings: Bindings,
     coordinate: Coordinate<InterfaceContext>,
     despawn: Despawn,
     disabled: Disabled,
-    tag: Tag<T>,
+    tag: Tag<S>,
     scene_tag: Tag<IsScene>,
     grid: MicroGrid,
 }
-impl<T: Bundle + Send + Sync + 'static> SceneComponents<T> {
-    pub fn new(grid: MicroGrid, t: T) -> Self {
+impl<S: Scene> SceneComponents<S> {
+    pub fn new(grid: MicroGrid, t: S::Components) -> Self {
         Self {
             t,
             bindings: Bindings::default(),

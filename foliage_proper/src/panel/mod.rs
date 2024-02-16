@@ -1,7 +1,6 @@
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs, Query, SystemSet};
 use bevy_ecs::query::{Changed, With};
-use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
 
 use crate::color::Color;
@@ -12,42 +11,31 @@ use crate::coordinate::InterfaceContext;
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::config::{ElmConfiguration, ExternalSet};
-use crate::elm::leaf::Leaf;
-use crate::elm::Elm;
+use crate::elm::leaf::{Leaf, Tag};
+use crate::elm::{ElementStyle, Elm};
 
 mod proc_gen;
 mod renderer;
 mod vertex;
 
-#[repr(C)]
-#[derive(Component, Copy, Clone, PartialEq, Default, Pod, Zeroable, Serialize, Deserialize)]
-pub struct PanelStyle(pub(crate) f32);
-
-impl PanelStyle {
-    pub fn fill() -> Self {
-        Self(0.0)
-    }
-    pub fn ring() -> Self {
-        Self(1.0)
-    }
-}
-
 #[derive(Bundle, Clone)]
 pub struct Panel {
-    style: DifferentialBundle<PanelStyle>,
+    tag: Tag<Self>,
+    style: DifferentialBundle<ElementStyle>,
     color: DifferentialBundle<Color>,
     differentiable: Differentiable,
 }
 #[derive(Component, Copy, Clone, Serialize, Deserialize)]
 pub struct PanelContentArea(pub Area<InterfaceContext>);
 impl Panel {
-    pub fn new(style: PanelStyle, area: Area<InterfaceContext>, color: Color) -> Self {
+    pub fn new(style: ElementStyle, color: Color) -> Self {
         Self {
+            tag: Tag::new(),
             style: DifferentialBundle::new(style),
             color: DifferentialBundle::new(color),
             differentiable: Differentiable::new::<Self>(
                 Position::default(),
-                area,
+                Area::default(),
                 Layer::default(),
             ),
         }
@@ -65,7 +53,7 @@ impl Leaf for Panel {
     }
 
     fn attach(elm: &mut Elm) {
-        differential_enable!(elm, Color, PanelStyle);
+        differential_enable!(elm, Color, ElementStyle);
         elm.job
             .main()
             .add_systems((reduce_area.in_set(SetDescriptor::Area),));
@@ -74,7 +62,7 @@ impl Leaf for Panel {
 fn reduce_area(
     mut query: Query<
         &mut Area<InterfaceContext>,
-        (Changed<Area<InterfaceContext>>, With<PanelStyle>),
+        (Changed<Area<InterfaceContext>>, With<Tag<Panel>>),
     >,
 ) {
     tracing::trace!("updating-panels");

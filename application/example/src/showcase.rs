@@ -2,6 +2,7 @@ use foliage::bevy_ecs;
 use foliage::bevy_ecs::prelude::{Component, Resource};
 use foliage::color::monochromatic::{Magenta as THEME_COLOR, Monochromatic};
 use foliage::color::Color;
+use foliage::compositor::layout::Layout;
 use foliage::compositor::segment::{
     Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc,
 };
@@ -9,9 +10,10 @@ use foliage::compositor::ViewHandle;
 use foliage::coordinate::area::Area;
 use foliage::elm::config::ElmConfiguration;
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
-use foliage::elm::{Elm, InteractionHandlerTrigger};
+use foliage::elm::{ElementStyle, Elm, InteractionHandlerTrigger};
 use foliage::icon::FeatherIcon;
 use foliage::image::{Image, ImageId, ImageStorage};
+use foliage::r_scenes::button::Button;
 use foliage::r_scenes::icon_text::IconText;
 use foliage::text::{MaxCharacters, Text, TextValue};
 
@@ -56,41 +58,47 @@ impl Leaf for Showcase {
         elm.add_view_scene_binding(
             START,
             IconText::new(
-                FeatherIcon::Tag,
-                THEME_COLOR::BASE,
+                FeatherIcon::Menu,
+                Color::GREY,
                 MaxCharacters(11),
-                TextValue::new("buttun.rs.couo"),
+                TextValue::new("button.rs"),
                 Color::GREY,
             ),
             ResponsiveSegment::base(Segment::new(
                 3.near().to(6.far()),
-                1.near().to(1.far()).maximum(50.0),
+                1.near().to(1.far()).maximum(60.0),
             ))
             .justify(Justify::Top),
             (),
         );
-        // elm.add_view_scene_binding(
-        //     START,
-        //     Button::new(
-        //         ButtonStyle::Fill,
-        //         TextValue::new("copy"),
-        //         MaxCharacters(4),
-        //         FeatherIcon::Copy,
-        //         THEME_COLOR::MINUS_THREE,
-        //         Color::BLACK,
-        //     ),
-        //     ResponsiveSegment::base(
-        //         2.near().to(3.far()).minimum(115.0).maximum(217.0),
-        //         2.near().to(2.far()).minimum(30.0).maximum(40.0),
-        //     )
-        //     .exception(
-        //         [Layout::PORTRAIT_MOBILE],
-        //         1.near().to(4.far()),
-        //         2.near().to(2.far()).minimum(30.0).maximum(40.0),
-        //     )
-        //     .justify(Justify::Top),
-        //     (),
-        // );
+        elm.add_view_scene_binding(
+            START,
+            Button::new(
+                IconText::new(
+                    FeatherIcon::Copy,
+                    Color::BLACK,
+                    MaxCharacters(4),
+                    TextValue::new("copy"),
+                    Color::BLACK,
+                ),
+                ElementStyle::fill(),
+                THEME_COLOR::BASE,
+                Color::BLACK,
+            ),
+            ResponsiveSegment::base(Segment::new(
+                2.near().to(3.far()).minimum(115.0).maximum(217.0),
+                2.near().to(2.far()).minimum(30.0).maximum(40.0),
+            ))
+            .exception(
+                [Layout::PORTRAIT_MOBILE],
+                Segment::new(
+                    1.near().to(4.far()),
+                    2.near().to(2.far()).minimum(30.0).maximum(40.0),
+                ),
+            )
+            .justify(Justify::Top),
+            (),
+        );
         elm.add_view_binding(
             START,
             Text::new(

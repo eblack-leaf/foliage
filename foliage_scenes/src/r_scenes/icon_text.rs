@@ -169,7 +169,7 @@ impl Scene for IconText {
             Alignment::new(
                 text_offset.percent_from(RelativeMarker::Center),
                 0.percent_from(RelativeMarker::Center),
-                (1f32 - 1f32 / aspect_determinant).percent_of(AnchorDim::Width),
+                (1f32 - text_offset).percent_of(AnchorDim::Width),
                 1.percent_of(AnchorDim::Height),
             ),
             Text::new(self.max_chars, self.text_value.clone(), self.text_color),

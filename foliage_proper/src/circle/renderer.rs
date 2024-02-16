@@ -6,11 +6,12 @@ use crate::ash::render_packet::RenderPacket;
 use crate::ash::renderer::RenderPackage;
 use crate::circle::proc_gen::TEXTURE_SIZE;
 use crate::circle::vertex::{Vertex, VERTICES};
-use crate::circle::{Circle, CircleStyle, Diameter};
+use crate::circle::{Circle, Diameter};
 use crate::color::Color;
 use crate::coordinate::area::CReprArea;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::CReprPosition;
+use crate::elm::ElementStyle;
 use crate::ginkgo::Ginkgo;
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
 use crate::texture::coord::TexturePartition;
@@ -119,7 +120,7 @@ impl Render for Circle {
                             attributes: &wgpu::vertex_attr_array![5 => Float32x4],
                         },
                         wgpu::VertexBufferLayout {
-                            array_stride: Ginkgo::buffer_address::<CircleStyle>(1),
+                            array_stride: Ginkgo::buffer_address::<ElementStyle>(1),
                             step_mode: wgpu::VertexStepMode::Instance,
                             attributes: &wgpu::vertex_attr_array![6 => Float32],
                         },
@@ -151,7 +152,7 @@ impl Render for Circle {
             .with_attribute::<CReprArea>()
             .with_attribute::<Layer>()
             .with_attribute::<Color>()
-            .with_attribute::<CircleStyle>()
+            .with_attribute::<ElementStyle>()
             .with_attribute::<TexturePartition>()
             .with_attribute::<Progress>()
             .build(ginkgo);
@@ -267,7 +268,7 @@ impl Circle {
                 5,
                 resources
                     .instance_coordinator
-                    .buffer::<CircleStyle>()
+                    .buffer::<ElementStyle>()
                     .slice(..),
             );
             recorder.0.set_vertex_buffer(

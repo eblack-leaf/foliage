@@ -28,6 +28,7 @@ use bevy_ecs::event::{event_update_system, Event, Events};
 use bevy_ecs::prelude::{Component, DetectChanges, IntoSystemConfigs, Res};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Commands, Query, ResMut, StaticSystemParam, SystemParam};
+use bytemuck::{Pod, Zeroable};
 use compact_str::{CompactString, ToCompactString};
 use leaf::Leaflet;
 use serde::{Deserialize, Serialize};
@@ -370,8 +371,19 @@ impl Disabled {
         Self(false)
     }
 }
-#[derive(Component, Copy, Clone, Debug, Hash, PartialEq, Eq)]
-pub enum ElementStyle {
-    Ring,
-    Fill,
+#[repr(C)]
+#[derive(
+    Component, Copy, Clone, Debug, PartialEq, Pod, Zeroable, Serialize, Deserialize, Default,
+)]
+pub struct ElementStyle(pub(crate) f32);
+impl ElementStyle {
+    pub fn fill() -> Self {
+        Self(0.0)
+    }
+    pub fn ring() -> Self {
+        Self(1.0)
+    }
+    pub fn is_fill(&self) -> bool {
+        self.0 == 0.0
+    }
 }

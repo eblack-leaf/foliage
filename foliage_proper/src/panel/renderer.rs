@@ -10,11 +10,12 @@ use crate::color::Color;
 use crate::coordinate::area::CReprArea;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::CReprPosition;
+use crate::elm::ElementStyle;
 
 use crate::ginkgo::Ginkgo;
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
 use crate::panel::vertex::{Vertex, INDICES};
-use crate::panel::{Panel, PanelStyle};
+use crate::panel::Panel;
 
 pub struct PanelRenderResources {
     pipeline: wgpu::RenderPipeline,
@@ -141,7 +142,7 @@ impl Render for Panel {
                             attributes: &wgpu::vertex_attr_array![6 => Float32x4],
                         },
                         wgpu::VertexBufferLayout {
-                            array_stride: Ginkgo::buffer_address::<PanelStyle>(1),
+                            array_stride: Ginkgo::buffer_address::<ElementStyle>(1),
                             step_mode: wgpu::VertexStepMode::Instance,
                             attributes: &wgpu::vertex_attr_array![7 => Float32],
                         },
@@ -166,7 +167,7 @@ impl Render for Panel {
             .with_attribute::<CReprArea>()
             .with_attribute::<Layer>()
             .with_attribute::<Color>()
-            .with_attribute::<PanelStyle>()
+            .with_attribute::<ElementStyle>()
             .build(ginkgo);
         PanelRenderResources {
             pipeline,
@@ -271,7 +272,7 @@ impl Panel {
                 5,
                 resources
                     .instance_coordinator
-                    .buffer::<PanelStyle>()
+                    .buffer::<ElementStyle>()
                     .slice(..),
             );
             recorder.0.draw_indexed(

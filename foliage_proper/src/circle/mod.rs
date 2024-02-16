@@ -1,9 +1,7 @@
 use bevy_ecs::prelude::{Bundle, Component, Entity, SystemSet, With};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::Query;
-use bytemuck::{Pod, Zeroable};
 use proc_gen::{LOWER_BOUND, STEP, TEXTURE_SIZE, UPPER_BOUND};
-use serde::{Deserialize, Serialize};
 
 use crate::color::Color;
 use crate::coordinate::area::{Area, CReprArea};
@@ -15,30 +13,17 @@ use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::config::{ElmConfiguration, ExternalSet};
 use crate::elm::leaf::Leaf;
-use crate::elm::Elm;
+use crate::elm::{ElementStyle, Elm};
 use crate::texture::factors::{MipsLevel, Progress};
 
 mod proc_gen;
 mod renderer;
 mod vertex;
 
-#[repr(C)]
-#[derive(Component, Copy, Clone, PartialEq, Default, Pod, Zeroable, Serialize, Deserialize)]
-pub struct CircleStyle(pub(crate) f32);
-
-impl CircleStyle {
-    pub fn fill() -> Self {
-        Self(0.0)
-    }
-    pub fn ring() -> Self {
-        Self(1.0)
-    }
-}
-
 #[derive(Bundle, Clone)]
 pub struct Circle {
     diameter: Diameter,
-    style: DifferentialBundle<CircleStyle>,
+    style: DifferentialBundle<ElementStyle>,
     color: DifferentialBundle<Color>,
     progress: DifferentialBundle<Progress>,
     differentiable: Differentiable,
@@ -62,7 +47,7 @@ fn diameters() {
     assert_eq!(diameter.0, 36.0);
 }
 impl Circle {
-    pub fn new(style: CircleStyle, diameter: Diameter, color: Color, progress: Progress) -> Self {
+    pub fn new(style: ElementStyle, diameter: Diameter, color: Color, progress: Progress) -> Self {
         let area = Area::new(diameter.0, diameter.0);
         Self {
             diameter,
@@ -94,7 +79,7 @@ impl Leaf for Circle {
             CReprPosition,
             CReprArea,
             Color,
-            CircleStyle,
+            ElementStyle,
             Progress,
             MipsLevel
         );
@@ -107,7 +92,7 @@ impl Leaf for Circle {
 fn diameter_set(
     mut query: Query<
         (Entity, &mut Diameter, &mut Area<InterfaceContext>),
-        (Changed<Area<InterfaceContext>>, With<CircleStyle>),
+        (Changed<Area<InterfaceContext>>, With<ElementStyle>),
     >,
 ) {
     for (_entity, mut diameter, mut area) in query.iter_mut() {

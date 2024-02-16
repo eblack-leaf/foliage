@@ -5,11 +5,11 @@ use crate::coordinate::{Coordinate, CoordinateUnit, InterfaceContext};
 use bevy_ecs::prelude::Component;
 #[derive(Component, Copy, Clone)]
 pub struct MicroGrid {
-    pub aspect: Option<AspectRatio>,
-    pub min_width: Option<CoordinateUnit>,
-    pub min_height: Option<CoordinateUnit>,
-    pub max_width: Option<CoordinateUnit>,
-    pub max_height: Option<CoordinateUnit>,
+    aspect: Option<AspectRatio>,
+    min_width: Option<CoordinateUnit>,
+    min_height: Option<CoordinateUnit>,
+    max_width: Option<CoordinateUnit>,
+    max_height: Option<CoordinateUnit>,
 }
 impl MicroGrid {
     pub fn new() -> Self {
@@ -122,10 +122,19 @@ impl MicroGrid {
                 AlignmentOp::Fixed => 1.0,
                 AlignmentOp::Percent => anchor.section.width(),
             };
-        let x_offset = match relative_alignment.marker {
-            RelativeMarker::Left => 0.0,
-            RelativeMarker::Right => w,
-            _ => w / 2f32,
+        let x_offset = if let Some(a) = relative_alignment.unit.align {
+            match a {
+                Align::Center => w / 2f32,
+                Align::Left => 0.0,
+                Align::Right => w,
+                _ => 0.0,
+            }
+        } else {
+            match relative_alignment.marker {
+                RelativeMarker::Left => 0.0,
+                RelativeMarker::Right => w,
+                _ => w / 2f32,
+            }
         };
         location.x + unit - x_offset
     }
@@ -141,10 +150,19 @@ impl MicroGrid {
                 AlignmentOp::Fixed => 1.0,
                 AlignmentOp::Percent => anchor.section.height(),
             };
-        let y_offset = match relative_alignment.marker {
-            RelativeMarker::Top => 0.0,
-            RelativeMarker::Bottom => h,
-            _ => h / 2f32,
+        let y_offset = if let Some(a) = relative_alignment.unit.align {
+            match a {
+                Align::Center => h / 2f32,
+                Align::Top => 0.0,
+                Align::Bottom => h,
+                _ => 0.0,
+            }
+        } else {
+            match relative_alignment.marker {
+                RelativeMarker::Top => 0.0,
+                RelativeMarker::Bottom => h,
+                _ => h / 2f32,
+            }
         };
         location.y + unit - y_offset
     }
@@ -250,16 +268,43 @@ impl RelativeAlignment {
     pub fn new(marker: RelativeMarker, unit: AlignmentUnit) -> Self {
         Self { marker, unit }
     }
+    pub fn align(mut self, align: Align) -> Self {
+        self.unit = self.unit.align(align);
+        self
+    }
 }
 #[derive(Copy, Clone)]
 pub struct AlignmentUnit {
     pub value: CoordinateUnit,
     pub op: AlignmentOp,
     pub dim: Option<AnchorDim>,
+    pub align: Option<Align>,
+}
+#[derive(Copy, Clone)]
+pub enum Align {
+    Center,
+    Left,
+    Right,
+    Top,
+    Bottom,
 }
 impl AlignmentUnit {
-    pub fn new(value: CoordinateUnit, op: AlignmentOp, dim: Option<AnchorDim>) -> Self {
-        Self { value, op, dim }
+    pub fn new(
+        value: CoordinateUnit,
+        op: AlignmentOp,
+        dim: Option<AnchorDim>,
+        align: Option<Align>,
+    ) -> Self {
+        Self {
+            value,
+            op,
+            dim,
+            align,
+        }
+    }
+    pub fn align(mut self, align: Align) -> Self {
+        self.align.replace(align);
+        self
     }
 }
 #[derive(Copy, Clone)]
@@ -288,6 +333,7 @@ macro_rules! impl_alignment_desc {
                     AlignmentUnit::new(
                         self as CoordinateUnit,
                         AlignmentOp::Fixed,
+                        None,
                         None
                     )
                 )
@@ -298,13 +344,16 @@ macro_rules! impl_alignment_desc {
                     AlignmentUnit::new(
                         self as CoordinateUnit,
                         AlignmentOp::Percent,
-                        None)
+                        None,
+                        None
+                    )
                 )
             }
             fn fixed(self) -> AlignmentUnit {
                 AlignmentUnit::new(
                     self as CoordinateUnit,
                     AlignmentOp::Fixed,
+                    None,
                     None
                 )
             }
@@ -312,7 +361,8 @@ macro_rules! impl_alignment_desc {
                 AlignmentUnit::new(
                     self as CoordinateUnit,
                     AlignmentOp::Percent,
-                    Some(dim)
+                    Some(dim),
+                    None
                 )
             }
         }

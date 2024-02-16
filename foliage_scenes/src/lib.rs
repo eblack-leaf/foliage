@@ -16,5 +16,6 @@ pub struct SceneExtensions;
 impl Leaves for SceneExtensions {
     fn leaves(f: Foliage) -> Foliage {
         f.with_leaf::<r_scenes::icon_text::IconText>()
+            .with_leaf::<r_scenes::button::Button>()
     }
 }
