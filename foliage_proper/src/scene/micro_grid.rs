@@ -61,6 +61,11 @@ impl MicroGrid {
         coordinate: Coordinate<InterfaceContext>,
     ) -> Coordinate<InterfaceContext> {
         let area = coordinate.section.area;
+        let area = if let Some(ar) = self.aspect {
+            ar.determine(area)
+        } else {
+            area
+        };
         let area = if let Some(w) = self.min_width {
             (area.width.max(w), area.height).into()
         } else {
@@ -81,11 +86,7 @@ impl MicroGrid {
         } else {
             area
         };
-        let area = if let Some(ar) = self.aspect {
-            ar.determine(area)
-        } else {
-            area
-        };
+
         let pos = coordinate.section.position;
         let pos = if area.height < coordinate.section.height() {
             (

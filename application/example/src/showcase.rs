@@ -1,6 +1,6 @@
 use foliage::bevy_ecs;
 use foliage::bevy_ecs::prelude::{Component, Resource};
-use foliage::color::monochromatic::{Monochromatic, Orange as THEME_COLOR};
+use foliage::color::monochromatic::{AquaMarine as THEME_COLOR, Monochromatic};
 use foliage::color::Color;
 use foliage::compositor::layout::Layout;
 use foliage::compositor::segment::{

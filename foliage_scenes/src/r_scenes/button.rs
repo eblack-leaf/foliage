@@ -168,7 +168,7 @@ impl Scene for Button {
             SceneComponents::new(
                 MicroGrid::new()
                     .min_height(30.0)
-                    .min_width(30.0 * aspect)
+                    .min_width(40.0 * aspect)
                     .aspect(aspect),
                 ButtonComponents::new(
                     self.element_style,
