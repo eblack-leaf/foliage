@@ -122,7 +122,12 @@ impl MicroGrid {
                 AlignmentOp::Fixed => 1.0,
                 AlignmentOp::Percent => anchor.section.width(),
             };
-        location.x + unit - w / 2f32
+        let x_offset = match relative_alignment.marker {
+            RelativeMarker::Left => 0.0,
+            RelativeMarker::Right => w,
+            _ => w / 2f32,
+        };
+        location.x + unit - x_offset
     }
     pub fn calc_y(
         &self,
@@ -136,7 +141,12 @@ impl MicroGrid {
                 AlignmentOp::Fixed => 1.0,
                 AlignmentOp::Percent => anchor.section.height(),
             };
-        location.y + unit - h / 2f32
+        let y_offset = match relative_alignment.marker {
+            RelativeMarker::Top => 0.0,
+            RelativeMarker::Bottom => h,
+            _ => h / 2f32,
+        };
+        location.y + unit - y_offset
     }
     pub fn calc_w(
         &self,

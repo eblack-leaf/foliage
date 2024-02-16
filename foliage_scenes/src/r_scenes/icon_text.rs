@@ -151,12 +151,12 @@ impl Scene for IconText {
         let mut binder = Binder::new(cmd);
         let aspect_determinant = self.max_chars.0 as f32 + 2f32;
         let aspect = AspectRatio(aspect_determinant / 2f32);
-        let icon_percent = 1f32 / aspect_determinant;
-        let text_offset = -3f32 / aspect_determinant;
+        let icon_percent = 1.5f32 / aspect_determinant;
+        let text_offset = 1f32 / aspect_determinant;
         binder.bind(
             IconTextBindings::Icon,
             Alignment::new(
-                (0.5 * icon_percent).percent_from(RelativeMarker::Left),
+                0.0.percent_from(RelativeMarker::Left),
                 0.percent_from(RelativeMarker::Center),
                 icon_percent.percent_of(AnchorDim::Width),
                 icon_percent.percent_of(AnchorDim::Width),
@@ -169,7 +169,7 @@ impl Scene for IconText {
             Alignment::new(
                 text_offset.percent_from(RelativeMarker::Center),
                 0.percent_from(RelativeMarker::Center),
-                (1f32 - icon_percent * 2f32).percent_of(AnchorDim::Width),
+                (1f32 - 1f32 / aspect_determinant).percent_of(AnchorDim::Width),
                 1.percent_of(AnchorDim::Height),
             ),
             Text::new(self.max_chars, self.text_value.clone(), self.text_color),
@@ -178,7 +178,7 @@ impl Scene for IconText {
         binder.bind(
             2,
             Alignment::new(
-                (0.5 * icon_percent).percent_from(RelativeMarker::Left),
+                0.0.percent_from(RelativeMarker::Left),
                 0.percent_from(RelativeMarker::Center),
                 icon_percent.percent_of(AnchorDim::Width),
                 icon_percent.percent_of(AnchorDim::Width),
@@ -192,7 +192,7 @@ impl Scene for IconText {
             Alignment::new(
                 text_offset.percent_from(RelativeMarker::Center),
                 0.percent_from(RelativeMarker::Center),
-                (1f32 - icon_percent * 2f32).percent_of(AnchorDim::Width),
+                (1f32 - 1f32 / aspect_determinant).percent_of(AnchorDim::Width),
                 1.percent_of(AnchorDim::Height),
             )
             .with_layer(5),
@@ -201,7 +201,10 @@ impl Scene for IconText {
         );
         binder.finish::<Self>(
             SceneComponents::new(
-                MicroGrid::new().aspect(aspect).min_height(24.0),
+                MicroGrid::new()
+                    .aspect(aspect)
+                    .min_height(24.0)
+                    .min_width(24.0 * aspect.value()),
                 Self::Components::new(
                     self.max_chars,
                     self.text_value,
