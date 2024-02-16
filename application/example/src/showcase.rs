@@ -86,7 +86,7 @@ impl Leaf for Showcase {
                 Color::BLACK,
             ),
             ResponsiveSegment::base(Segment::new(
-                2.near().to(3.far()).minimum(115.0).maximum(217.0),
+                2.near().to(3.far()).minimum(115.0).maximum(350.0),
                 2.near().to(2.far()).minimum(30.0).maximum(40.0),
             ))
             .exception(
@@ -130,7 +130,7 @@ impl Leaf for Showcase {
                 Color::BLACK,
             ),
             ResponsiveSegment::base(Segment::new(
-                5.near().to(6.far()).minimum(115.0).maximum(217.0),
+                5.near().to(6.far()).minimum(115.0).maximum(350.0),
                 2.near().to(2.far()).minimum(30.0).maximum(40.0),
             ))
             .exception(
@@ -170,7 +170,7 @@ impl Leaf for Showcase {
                 Color::BLACK,
             ),
             ResponsiveSegment::base(Segment::new(
-                2.near().to(3.far()).minimum(115.0).maximum(217.0),
+                2.near().to(3.far()).minimum(115.0).maximum(350.0),
                 3.near().to(3.far()).minimum(30.0).maximum(40.0),
             ))
             .exception(
@@ -214,7 +214,7 @@ impl Leaf for Showcase {
                 Color::BLACK,
             ),
             ResponsiveSegment::base(Segment::new(
-                5.near().to(6.far()).minimum(115.0).maximum(217.0),
+                5.near().to(6.far()).minimum(115.0).maximum(350.0),
                 3.near().to(3.far()).minimum(30.0).maximum(40.0),
             ))
             .exception(

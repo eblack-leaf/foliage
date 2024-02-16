@@ -18,7 +18,7 @@ use foliage_proper::panel::Panel;
 use foliage_proper::scene::micro_grid::{
     Alignment, AlignmentDesc, AnchorDim, MicroGrid, RelativeMarker,
 };
-use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, ScenePtr};
+use foliage_proper::scene::{Binder, Bindings, BlankNode, Scene, SceneComponents, ScenePtr};
 #[derive(Clone)]
 pub struct Button {
     pub icon_text: IconText,
@@ -159,9 +159,9 @@ impl Scene for Button {
                 1.percent_of(AnchorDim::Width),
                 1.percent_of(AnchorDim::Height),
             ),
-            InteractionListener::default()
-                .extend(Tag::<ButtonInteractionHook>::new())
-                .extend(Coordinate::<InterfaceContext>::default()),
+            BlankNode::default()
+                .extend(InteractionListener::default())
+                .extend(Tag::<ButtonInteractionHook>::new()),
             cmd,
         );
         binder.finish::<Self>(

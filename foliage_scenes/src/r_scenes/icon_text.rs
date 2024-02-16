@@ -168,7 +168,7 @@ impl Scene for IconText {
             IconTextBindings::Text,
             Alignment::new(
                 text_offset.percent_from(RelativeMarker::Center),
-                0.percent_from(RelativeMarker::Center),
+                (-2).fixed_from(RelativeMarker::Center),
                 (1f32 - text_offset).percent_of(AnchorDim::Width),
                 1.percent_of(AnchorDim::Height),
             ),

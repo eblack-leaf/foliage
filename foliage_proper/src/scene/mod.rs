@@ -207,6 +207,10 @@ impl ScenePtr {
         self.0
     }
 }
+#[derive(Bundle, Copy, Clone, Default)]
+pub struct BlankNode {
+    coordinate: Coordinate<InterfaceContext>,
+}
 fn recursive_fetch(
     root_coordinate: Coordinate<InterfaceContext>,
     target_entity: Entity,
