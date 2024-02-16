@@ -62,7 +62,11 @@ impl Leaf for Showcase {
                 TextValue::new("buttun.rs.couo"),
                 Color::GREY,
             ),
-            ResponsiveSegment::base(Segment::new(3.near().to(6.far()), 1.near().to(1.far()))),
+            ResponsiveSegment::base(Segment::new(
+                3.near().to(6.far()),
+                1.near().to(1.far()).maximum(50.0),
+            ))
+            .justify(Justify::Top),
             (),
         );
         // elm.add_view_scene_binding(
