@@ -144,7 +144,7 @@ impl Scene for Button {
             ButtonBindings::IconText,
             Alignment::new(
                 0.fixed_from(RelativeMarker::Center),
-                0.fixed_from(RelativeMarker::Center),
+                0.0.percent_from(RelativeMarker::Center),
                 0.8.percent_of(AnchorDim::Width),
                 0.8.percent_of(AnchorDim::Height),
             ),
@@ -167,8 +167,8 @@ impl Scene for Button {
         binder.finish::<Self>(
             SceneComponents::new(
                 MicroGrid::new()
-                    .min_height(24.0)
-                    .min_width(24.0 * aspect)
+                    .min_height(30.0)
+                    .min_width(30.0 * aspect)
                     .aspect(aspect),
                 ButtonComponents::new(
                     self.element_style,

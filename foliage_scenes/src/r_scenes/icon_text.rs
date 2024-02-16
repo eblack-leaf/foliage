@@ -157,7 +157,7 @@ impl Scene for IconText {
             IconTextBindings::Icon,
             Alignment::new(
                 0.0.percent_from(RelativeMarker::Left),
-                4.fixed_from(RelativeMarker::Center),
+                2.fixed_from(RelativeMarker::Center),
                 icon_percent.percent_of(AnchorDim::Width),
                 icon_percent.percent_of(AnchorDim::Width),
             ),
@@ -179,8 +179,8 @@ impl Scene for IconText {
             SceneComponents::new(
                 MicroGrid::new()
                     .aspect(aspect)
-                    .min_height(24.0)
-                    .min_width(32.0 * aspect.value()),
+                    .min_height(20.0)
+                    .min_width(30.0 * aspect.value()),
                 Self::Components::new(
                     self.max_chars,
                     self.text_value,

@@ -107,7 +107,7 @@ impl Leaf for Showcase {
                 THEME_COLOR::MINUS_THREE,
             ),
             ResponsiveSegment::base(Segment::new(
-                4.near().to(4.far()),
+                4.near().to(5.far()),
                 2.near().to(2.far()).minimum(30.0).maximum(40.0),
             ))
             .justify(Justify::Top)
@@ -147,7 +147,7 @@ impl Leaf for Showcase {
             START,
             Text::new(MaxCharacters(11), TextValue::new("base"), THEME_COLOR::BASE),
             ResponsiveSegment::base(Segment::new(
-                7.near().to(7.far()),
+                7.near().to(8.far()),
                 2.near().to(2.far()).minimum(30.0).maximum(40.0),
             ))
             .justify(Justify::Top)
@@ -191,7 +191,7 @@ impl Leaf for Showcase {
                 THEME_COLOR::MINUS_TWO,
             ),
             ResponsiveSegment::base(Segment::new(
-                4.near().to(4.far()),
+                4.near().to(5.far()),
                 3.near().to(3.far()).minimum(30.0).maximum(40.0),
             ))
             .justify(Justify::Top)
@@ -235,7 +235,7 @@ impl Leaf for Showcase {
                 THEME_COLOR::PLUS_ONE,
             ),
             ResponsiveSegment::base(Segment::new(
-                7.near().to(7.far()),
+                7.near().to(8.far()),
                 3.near().to(3.far()).minimum(30.0).maximum(40.0),
             ))
             .justify(Justify::Top)
@@ -271,7 +271,7 @@ impl Leaf for Showcase {
                 THEME_COLOR::MINUS_ONE,
             ),
             ResponsiveSegment::base(Segment::new(
-                4.near().to(4.far()),
+                4.near().to(5.far()),
                 4.near().to(4.far()).minimum(30.0).maximum(40.0),
             ))
             .justify(Justify::Top)
@@ -307,7 +307,7 @@ impl Leaf for Showcase {
                 THEME_COLOR::PLUS_TWO,
             ),
             ResponsiveSegment::base(Segment::new(
-                7.near().to(7.far()),
+                7.near().to(8.far()),
                 4.near().to(4.far()).minimum(30.0).maximum(40.0),
             ))
             .justify(Justify::Top)
@@ -339,7 +339,7 @@ impl Leaf for Showcase {
             START,
             Text::new(MaxCharacters(11), TextValue::new("icon"), THEME_COLOR::BASE),
             ResponsiveSegment::base(Segment::new(
-                4.near().to(4.far()),
+                4.near().to(5.far()),
                 5.near().to(5.far()).minimum(30.0).maximum(40.0),
             ))
             .justify(Justify::Top)
@@ -375,7 +375,7 @@ impl Leaf for Showcase {
                 THEME_COLOR::PLUS_THREE,
             ),
             ResponsiveSegment::base(Segment::new(
-                7.near().to(7.far()),
+                7.near().to(8.far()),
                 5.near().to(5.far()).minimum(30.0).maximum(40.0),
             ))
             .justify(Justify::Top)
