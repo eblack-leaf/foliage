@@ -66,20 +66,20 @@ impl Icon {
 }
 #[derive(SystemSet, Hash, Eq, PartialEq, Copy, Clone, Debug)]
 pub enum SetDescriptor {
-    Area,
+    Update,
 }
 impl Leaf for Icon {
     type SetDescriptor = SetDescriptor;
 
     fn config(elm_configuration: &mut ElmConfiguration) {
-        elm_configuration.configure_hook(ExternalSet::Configure, SetDescriptor::Area);
+        elm_configuration.configure_hook(ExternalSet::Configure, SetDescriptor::Update);
     }
 
     fn attach(elm: &mut Elm) {
         differential_enable!(elm, CReprPosition, CReprArea, Color, IconId, WasRequest);
         elm.job.main().add_systems((
-            scale_change.in_set(SetDescriptor::Area),
-            id_changed.in_set(SetDescriptor::Area),
+            scale_change.in_set(SetDescriptor::Update),
+            id_changed.in_set(SetDescriptor::Update),
             clean_requests.after(CoreSet::RenderPacket),
             send_icon_data.in_set(CoreSet::Differential),
         ));

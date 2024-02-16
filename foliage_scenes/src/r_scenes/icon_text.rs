@@ -80,18 +80,21 @@ impl IconTextComponents {
 }
 #[inner_set_descriptor]
 pub enum IconTextConfig {
-    Area,
+    Update,
 }
 impl Leaf for IconText {
     type SetDescriptor = IconTextConfig;
 
     fn config(elm_configuration: &mut ElmConfiguration) {
-        elm_configuration.configure_hook(ExternalSet::Configure, Self::SetDescriptor::Area);
+        elm_configuration.configure_hook(ExternalSet::Configure, Self::SetDescriptor::Update);
     }
 
     fn attach(elm: &mut Elm) {
         elm.main().add_systems(
-            foliage_proper::scene::config::<IconText>.in_set(Self::SetDescriptor::Area),
+            foliage_proper::scene::config::<IconText>
+                .in_set(Self::SetDescriptor::Update)
+                .before(<Text as Leaf>::SetDescriptor::Update)
+                .before(<Icon as Leaf>::SetDescriptor::Update),
         );
     }
 }
@@ -177,7 +180,7 @@ impl Scene for IconText {
                 MicroGrid::new()
                     .aspect(aspect)
                     .min_height(24.0)
-                    .min_width(24.0 * aspect.value()),
+                    .min_width(32.0 * aspect.value()),
                 Self::Components::new(
                     self.max_chars,
                     self.text_value,
