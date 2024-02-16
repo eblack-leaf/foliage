@@ -35,7 +35,7 @@ impl Leaf for Interaction {
             .container
             .insert_resource(KeyboardAdapter::default());
         elm.main().add_systems((
-            (set_interaction_listeners, clear_engaged)
+            (set_interaction_listeners, clear_non_primary)
                 .chain()
                 .in_set(CoreSet::Interaction),
             clear_active.after(ExternalSet::Configure),
@@ -264,7 +264,7 @@ fn clear_active(mut active: Query<&mut InteractionListener, Changed<InteractionL
         }
     }
 }
-fn clear_engaged(
+fn clear_non_primary(
     mut engaged: Query<(Entity, &mut InteractionListener)>,
     primary_interaction_entity: Res<PrimaryInteractionEntity>,
 ) {

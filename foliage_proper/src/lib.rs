@@ -43,7 +43,7 @@ use crate::virtual_keyboard::VirtualKeyboardAdapter;
 use crate::workflow::{Workflow, WorkflowConnectionBase};
 use animate::trigger::Trigger;
 
-mod animate;
+pub mod animate;
 pub mod ash;
 pub mod asset;
 pub mod circle;

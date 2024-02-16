@@ -1,6 +1,7 @@
 use crate::r_scenes::icon_text::{IconColor, IconText, TextColor};
 use crate::r_scenes::{BackgroundColor, ForegroundColor};
 use foliage_macros::{inner_set_descriptor, InnerSceneBinding};
+use foliage_proper::animate::trigger::Trigger;
 use foliage_proper::bevy_ecs;
 use foliage_proper::bevy_ecs::bundle::Bundle;
 use foliage_proper::bevy_ecs::entity::Entity;
@@ -17,7 +18,7 @@ use foliage_proper::panel::Panel;
 use foliage_proper::scene::micro_grid::{
     Alignment, AlignmentDesc, AnchorDim, MicroGrid, RelativeMarker,
 };
-use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents};
+use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, ScenePtr};
 #[derive(Clone)]
 pub struct Button {
     pub icon_text: IconText,
@@ -48,6 +49,7 @@ pub struct ButtonComponents {
     pub foreground_color: ForegroundColor,
     pub background_color: BackgroundColor,
     current_style: CurrentStyle,
+    trigger: Trigger,
 }
 impl ButtonComponents {
     pub fn new<C: Into<Color>>(
@@ -60,6 +62,7 @@ impl ButtonComponents {
             foreground_color: ForegroundColor(foreground_color.into()),
             background_color: BackgroundColor(background_color.into()),
             current_style: CurrentStyle(element_style),
+            trigger: Trigger::default(),
         }
     }
 }
@@ -81,7 +84,7 @@ impl Scene for Button {
                 &'static ElementStyle,
                 &'static ForegroundColor,
                 &'static BackgroundColor,
-                &'static mut CurrentStyle,
+                &'static CurrentStyle,
             ),
             With<Tag<Button>>,
         >,
@@ -93,12 +96,12 @@ impl Scene for Button {
             (&'static mut IconColor, &'static mut TextColor),
             Without<Tag<Button>>,
         >,
-        Query<'static, 'static, &'static InteractionListener, Without<Tag<Button>>>,
     );
     type Filter = Or<(
         Changed<ElementStyle>,
         Changed<ForegroundColor>,
         Changed<BackgroundColor>,
+        Changed<CurrentStyle>,
     )>;
     type Components = ButtonComponents;
 
@@ -110,22 +113,9 @@ impl Scene for Button {
     ) {
         let icon_text = bindings.get(ButtonBindings::IconText);
         let panel = bindings.get(ButtonBindings::Panel);
-        if let Ok((est, fc, bc, mut cs)) = ext.0.get_mut(entity) {
+        if let Ok((_est, fc, bc, cs)) = ext.0.get(entity) {
             *ext.1.get_mut(panel).unwrap() = fc.0;
-            let il = ext.4.get(panel).unwrap().clone();
-            if il.engaged_start() {
-                if est.is_fill() {
-                    *ext.2.get_mut(panel).unwrap() = ElementStyle::ring();
-                    *cs = CurrentStyle(ElementStyle::ring());
-                } else {
-                    *ext.2.get_mut(panel).unwrap() = ElementStyle::fill();
-                    *cs = CurrentStyle(ElementStyle::fill());
-                }
-            }
-            if il.engaged_end() {
-                *ext.2.get_mut(panel).unwrap() = *est;
-                *cs = CurrentStyle(*est);
-            }
+            *ext.2.get_mut(panel).unwrap() = cs.0;
             if cs.0.is_fill() {
                 ext.3.get_mut(icon_text).unwrap().0 .0 = bc.0;
                 ext.3.get_mut(icon_text).unwrap().1 .0 = bc.0;
@@ -147,8 +137,7 @@ impl Scene for Button {
                 1.percent_of(AnchorDim::Width),
                 1.percent_of(AnchorDim::Height),
             ),
-            Panel::new(self.element_style, self.foreground_color)
-                .extend(InteractionListener::default()),
+            Panel::new(self.element_style, self.foreground_color),
             cmd,
         );
         binder.bind_scene(
@@ -160,6 +149,19 @@ impl Scene for Button {
                 0.8.percent_of(AnchorDim::Height),
             ),
             self.icon_text,
+            cmd,
+        );
+        binder.bind(
+            2,
+            Alignment::new(
+                0.fixed_from(RelativeMarker::Left),
+                0.fixed_from(RelativeMarker::Center),
+                1.percent_of(AnchorDim::Width),
+                1.percent_of(AnchorDim::Height),
+            ),
+            InteractionListener::default()
+                .extend(Tag::<ButtonInteractionHook>::new())
+                .extend(Coordinate::<InterfaceContext>::default()),
             cmd,
         );
         binder.finish::<Self>(
@@ -178,6 +180,37 @@ impl Scene for Button {
         )
     }
 }
+#[derive(Component, Copy, Clone)]
+struct ButtonInteractionHook();
+fn interaction(
+    mut buttons: Query<(&mut Trigger, &ElementStyle, &mut CurrentStyle), With<Tag<Button>>>,
+    interaction_pane: Query<
+        (&InteractionListener, &ScenePtr),
+        (
+            Without<Tag<Button>>,
+            With<Tag<ButtonInteractionHook>>,
+            Changed<InteractionListener>,
+        ),
+    >,
+) {
+    for (listener, ptr) in interaction_pane.iter() {
+        if let Ok((mut trigger, est, mut cs)) = buttons.get_mut(ptr.value()) {
+            if listener.engaged_start() {
+                if est.is_fill() {
+                    *cs = CurrentStyle(ElementStyle::ring());
+                } else {
+                    *cs = CurrentStyle(ElementStyle::fill());
+                }
+            }
+            if listener.engaged_end() {
+                *cs = CurrentStyle(*est);
+            }
+            if listener.active() {
+                trigger.set();
+            }
+        }
+    }
+}
 impl Leaf for Button {
     type SetDescriptor = SetDescriptor;
 
@@ -186,10 +219,11 @@ impl Leaf for Button {
     }
 
     fn attach(elm: &mut Elm) {
-        elm.main().add_systems(
+        elm.main().add_systems((
+            interaction.in_set(ExternalSet::InteractionTriggers),
             foliage_proper::scene::config::<Button>
                 .in_set(Self::SetDescriptor::Update)
                 .before(<IconText as Leaf>::SetDescriptor::Update),
-        );
+        ));
     }
 }

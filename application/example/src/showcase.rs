@@ -10,7 +10,7 @@ use foliage::compositor::ViewHandle;
 use foliage::coordinate::area::Area;
 use foliage::elm::config::ElmConfiguration;
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
-use foliage::elm::{ElementStyle, Elm, InteractionHandlerTrigger};
+use foliage::elm::{ElementStyle, Elm};
 use foliage::icon::FeatherIcon;
 use foliage::image::{Image, ImageId, ImageStorage};
 use foliage::r_scenes::button::Button;
@@ -365,7 +365,7 @@ impl Leaf for Showcase {
             .without_portrait_tablet(),
             (),
         );
-        elm.view_trigger::<TestHook>(InteractionHandlerTrigger::Active, |_, cv| {
+        elm.view_trigger::<TestHook>(|_, cv| {
             cv.change_view(TWO);
         });
     }

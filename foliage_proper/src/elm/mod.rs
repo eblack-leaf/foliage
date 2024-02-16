@@ -4,6 +4,7 @@ pub mod leaf;
 use std::any::TypeId;
 use std::marker::PhantomData;
 
+use crate::animate::trigger::Trigger;
 use crate::ash::render_packet::RenderPacketForwarder;
 use crate::ash::render_packet::RenderPacketPackage;
 use crate::asset::{AssetContainer, AssetFetchFn, AssetKey, OnFetch};
@@ -16,7 +17,6 @@ use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::ginkgo::viewport::ViewportHandle;
-use crate::interaction::InteractionListener;
 use crate::job::{Container, Job, Task};
 use crate::scene::Scene;
 use crate::window::ScaleFactor;
@@ -318,22 +318,12 @@ impl Elm {
     }
     pub fn add_interaction_handler<IH: Component + 'static, Ext: SystemParam + 'static>(
         &mut self,
-        trigger: InteractionHandlerTrigger,
         handler: InteractionHandlerFn<IH, Ext>,
     ) {
         let func = move |mut ext: StaticSystemParam<Ext>,
-                         mut ihs: Query<
-            (&InteractionListener, &mut IH),
-            Changed<InteractionListener>,
-        >| {
-            for (listener, mut ih) in ihs.iter_mut() {
-                let should_run = match trigger {
-                    InteractionHandlerTrigger::Active => listener.active(),
-                    InteractionHandlerTrigger::EngagedStart => listener.engaged_start(),
-                    InteractionHandlerTrigger::EngagedEnd => listener.engaged_end(),
-                    InteractionHandlerTrigger::Engaged => listener.engaged(),
-                };
-                if should_run {
+                         mut ihs: Query<(&Trigger, &mut IH), Changed<Trigger>>| {
+            for (trigger, mut ih) in ihs.iter_mut() {
+                if trigger.triggered() {
                     handler(&mut ih, &mut ext);
                 }
             }
@@ -342,19 +332,12 @@ impl Elm {
     }
     pub fn view_trigger<C: Component + 'static>(
         &mut self,
-        trigger: InteractionHandlerTrigger,
         func: InteractionHandlerFn<C, ResMut<'static, CurrentView>>,
     ) {
-        self.add_interaction_handler::<C, ResMut<'static, CurrentView>>(trigger, func);
+        self.add_interaction_handler::<C, ResMut<'static, CurrentView>>(func);
     }
 }
 pub type InteractionHandlerFn<IH, Ext> = fn(&mut IH, &mut StaticSystemParam<Ext>);
-pub enum InteractionHandlerTrigger {
-    Active,
-    Engaged,
-    EngagedStart,
-    EngagedEnd,
-}
 pub(crate) fn compact_string_type_id<T: 'static>() -> CompactString {
     format!("{:?}", TypeId::of::<T>()).to_compact_string()
 }

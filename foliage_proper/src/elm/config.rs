@@ -10,11 +10,13 @@ pub enum ExternalSet {
     ViewBindings,
     Spawn,
     Configure,
+    InteractionTriggers,
 }
 #[derive(SystemSet, Hash, Eq, PartialEq, Debug, Copy, Clone)]
 pub enum CoreSet {
     ExternalEvent,
     Interaction,
+    // InteractionTriggers,
     // Process,
     ProcessEvent,
     TransitionView,
@@ -44,6 +46,7 @@ impl<'a> ElmConfiguration<'a> {
             (
                 CoreSet::ExternalEvent,
                 CoreSet::Interaction,
+                ExternalSet::InteractionTriggers,
                 ExternalSet::Process,
                 CoreSet::ProcessEvent,
                 CoreSet::TransitionView,
@@ -80,6 +83,9 @@ impl<'a> ElmConfiguration<'a> {
                 .before(CoreSet::Interaction),
             apply_deferred
                 .after(CoreSet::Interaction)
+                .before(ExternalSet::InteractionTriggers),
+            apply_deferred
+                .after(ExternalSet::InteractionTriggers)
                 .before(ExternalSet::Process),
             apply_deferred
                 .after(ExternalSet::Process)

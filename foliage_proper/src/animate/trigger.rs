@@ -11,6 +11,9 @@ impl Trigger {
     pub fn triggered(&self) -> bool {
         self.0
     }
+    pub fn set(&mut self) {
+        self.0 = true;
+    }
 }
 fn clear_triggered(mut triggers: Query<&mut Trigger, Changed<Trigger>>) {
     for mut trigger in triggers.iter_mut() {

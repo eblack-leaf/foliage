@@ -202,6 +202,11 @@ where
 }
 #[derive(Component, Copy, Clone)]
 pub struct ScenePtr(Entity);
+impl ScenePtr {
+    pub fn value(self) -> Entity {
+        self.0
+    }
+}
 fn recursive_fetch(
     root_coordinate: Coordinate<InterfaceContext>,
     target_entity: Entity,
