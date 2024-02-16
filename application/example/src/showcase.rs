@@ -13,9 +13,7 @@ use foliage::elm::{Elm, InteractionHandlerTrigger};
 use foliage::icon::FeatherIcon;
 use foliage::image::{Image, ImageId, ImageStorage};
 use foliage::r_scenes::icon_text::IconText;
-use foliage::rectangle::Rectangle;
 use foliage::text::{MaxCharacters, Text, TextValue};
-use foliage::texture::factors::Progress;
 
 #[foliage::assets(crate::Engen, "../assets/", "/foliage/demo/assets/")]
 #[derive(Resource, Clone)]
@@ -65,13 +63,6 @@ impl Leaf for Showcase {
                 Color::GREY,
             ),
             ResponsiveSegment::base(Segment::new(3.near().to(6.far()), 1.near().to(1.far()))),
-            (),
-        );
-        elm.add_view_binding(
-            START,
-            Rectangle::new(Area::default(), THEME_COLOR::MINUS_THREE, Progress::full()),
-            ResponsiveSegment::base(Segment::new(3.near().to(6.far()), 1.near().to(1.far())))
-                .at_layer(9),
             (),
         );
         // elm.add_view_scene_binding(
