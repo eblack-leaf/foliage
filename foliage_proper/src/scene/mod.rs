@@ -13,7 +13,7 @@ use bevy_ecs::prelude::{Commands, Component, Entity, Query};
 use bevy_ecs::query::{Changed, Or, ReadOnlyWorldQuery, With, Without};
 use bevy_ecs::system::{ParamSet, StaticSystemParam, SystemParam, SystemParamItem};
 use micro_grid::Alignment;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Component, Copy, Clone, Default)]
 pub struct Anchor(Coordinate<InterfaceContext>);
@@ -173,7 +173,6 @@ pub fn config<S: Scene + Send + Sync + 'static>(
             continue;
         }
         // disabled?
-        // do rest
         S::config(
             entity,
             Coordinate::new((*pos, *area), *layer),
@@ -189,15 +188,12 @@ where
     type Params: SystemParam + 'static;
     type Filter: ReadOnlyWorldQuery;
     type Components: Bundle;
-    // or i structure below query and call Scene::config(params) inside it after despawn.should_despawn() { continue }
     fn config(
         entity: Entity,
         coordinate: Coordinate<InterfaceContext>,
         ext: &mut SystemParamItem<Self::Params>,
         bindings: &Bindings,
     );
-    // self is the Args to the scene
-    // only create bindings; will be configured above
     fn create(self, cmd: &mut Commands) -> Entity;
 }
 #[derive(Component, Copy, Clone)]
@@ -286,7 +282,31 @@ pub(crate) fn update_from_anchor(
         *layer = anchor.0.layer;
     }
 }
-pub(crate) fn despawn_bindings() {
+pub(crate) fn recursive_despawn(root: Entity, query: &Query<(Option<&Bindings>, &Despawn), Or<(With<Tag<IsScene>>, With<Tag<IsDep>>)>>) -> HashSet<Entity> {
+    let mut to_despawn = HashSet::new();
+    if let Ok(res) = query.get(root) {
+        to_despawn.insert()
+    }
+    to_despawn
+}
+pub(crate) fn despawn_bindings(
+    mut despawned: ParamSet<(
+        Query<(Option<&Bindings>, &Despawn), Or<(With<Tag<IsScene>>, With<Tag<IsDep>>)>>,
+        Query<&mut Despawn>,
+    )>,
+) {
+    for (bindings, mut despawn) in despawned.p0().iter() {
+        if despawn.should_despawn() {
+            if let Some(binds) = bindings {
+                for b in binds.0.iter() {
+                    let ents = recursive_despawn(b.1.entity, &despawned.p0());
+                    for e in ents {
+                        despawned.p1().get_mut(e).unwrap().despawn();
+                    }
+                }
+            }
+        }
+    }
     // same root + loop deps as resolve_anchor
     // if one in chain is despawn => all subscenes will return should_despawn in recursive fetch
     // loop entity-pool (bindings) +
