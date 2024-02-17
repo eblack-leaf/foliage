@@ -1,4 +1,5 @@
 use foliage::bevy_ecs;
+use foliage::bevy_ecs::entity::Entity;
 use foliage::bevy_ecs::prelude::{Component, Resource};
 use foliage::color::monochromatic::{AquaMarine as THEME_COLOR, Monochromatic};
 use foliage::color::Color;
@@ -97,7 +98,7 @@ impl Leaf for Showcase {
                 ),
             )
             .justify(Justify::Top),
-            (),
+            TestHook(),
         );
         elm.add_view_binding(
             START,
@@ -388,6 +389,7 @@ impl Leaf for Showcase {
         });
     }
 }
-
+#[derive(Component, Copy, Clone)]
+struct SampleHook(Entity);
 #[derive(Component, Copy, Clone)]
 struct TestHook();

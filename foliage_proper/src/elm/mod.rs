@@ -344,10 +344,10 @@ pub(crate) fn compact_string_type_id<T: 'static>() -> CompactString {
 #[derive(Component, Copy, Clone, Default)]
 pub struct Disabled(pub(crate) bool);
 impl Disabled {
-    pub fn disabled(&self) -> bool {
+    pub fn is_disabled(&self) -> bool {
         self.0
     }
-    pub fn active() -> Self {
+    pub fn disabled() -> Self {
         Self(true)
     }
     pub fn not_disabled() -> Self {

@@ -24,6 +24,7 @@ pub struct Differentiable {
     layer: DifferentialBundle<Layer>,
     disable: DifferentialDisable,
     despawn: Despawn,
+    disabled: Disabled,
     store: RenderPacketStore,
     render_id: RenderId,
     c_pos: DifferentialBundle<CReprPosition>,
@@ -48,6 +49,7 @@ impl Differentiable {
             render_id: T::render_id(),
             area,
             adjust: PositionAdjust(Position::default()),
+            disabled: Disabled::not_disabled(),
         }
     }
 }
@@ -205,7 +207,7 @@ pub(crate) fn send_render_packet(
 
 fn disable_check(disable: Option<&Disabled>) -> bool {
     disable
-        .and_then(|d| if d.disabled() { Some(()) } else { None })
+        .and_then(|d| if d.is_disabled() { Some(()) } else { None })
         .is_some()
 }
 

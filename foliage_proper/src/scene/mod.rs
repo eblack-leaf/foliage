@@ -134,6 +134,7 @@ struct SceneBindingComponents {
     anchor: Anchor,
     alignment: Alignment,
     ptr: ScenePtr,
+    despawn: Despawn,
 }
 impl SceneBindingComponents {
     fn new(ptr: Entity, anchor: Anchor, alignment: Alignment) -> Self {
@@ -142,6 +143,7 @@ impl SceneBindingComponents {
             anchor,
             alignment,
             ptr: ScenePtr(ptr),
+            despawn: Despawn::default(),
         }
     }
 }
@@ -282,10 +284,18 @@ pub(crate) fn update_from_anchor(
         *layer = anchor.0.layer;
     }
 }
-pub(crate) fn recursive_despawn(root: Entity, query: &Query<(Option<&Bindings>, &Despawn), Or<(With<Tag<IsScene>>, With<Tag<IsDep>>)>>) -> HashSet<Entity> {
+pub(crate) fn recursive_despawn(
+    root: Entity,
+    query: &Query<(Option<&Bindings>, &Despawn), Or<(With<Tag<IsScene>>, With<Tag<IsDep>>)>>,
+) -> HashSet<Entity> {
     let mut to_despawn = HashSet::new();
     if let Ok(res) = query.get(root) {
-        to_despawn.insert()
+        if let Some(binds) = res.0 {
+            for b in binds.0.iter() {
+                to_despawn.insert(b.1.entity);
+                to_despawn.extend(recursive_despawn(b.1.entity, &query));
+            }
+        }
     }
     to_despawn
 }
@@ -295,21 +305,23 @@ pub(crate) fn despawn_bindings(
         Query<&mut Despawn>,
     )>,
 ) {
-    for (bindings, mut despawn) in despawned.p0().iter() {
+    let mut to_despawn = HashSet::new();
+    for (bindings, despawn) in despawned.p0().iter() {
         if despawn.should_despawn() {
             if let Some(binds) = bindings {
                 for b in binds.0.iter() {
-                    let ents = recursive_despawn(b.1.entity, &despawned.p0());
-                    for e in ents {
-                        despawned.p1().get_mut(e).unwrap().despawn();
-                    }
+                    to_despawn.insert(b.1.entity);
                 }
             }
         }
     }
-    // same root + loop deps as resolve_anchor
-    // if one in chain is despawn => all subscenes will return should_despawn in recursive fetch
-    // loop entity-pool (bindings) +
-    //      if is_scene => loop that ones entity-pool
-    //          despawn.signal_despawn()
+    for e in to_despawn.clone() {
+        let entities = recursive_despawn(e, &despawned.p0());
+        to_despawn.extend(entities);
+    }
+    for e in to_despawn {
+        if let Ok(mut d) = despawned.p1().get_mut(e) {
+            d.despawn();
+        }
+    }
 }

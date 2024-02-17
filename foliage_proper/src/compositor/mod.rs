@@ -43,12 +43,13 @@ impl Compositor {
         b: B,
         responsive_segment: ResponsiveSegment,
         cmd: &mut Commands,
-    ) {
+    ) -> Entity {
         let entity = cmd
             .spawn(b)
             .insert(Segmental::new(responsive_segment.viewed_at(view_handle)))
             .id();
         self.add_to_view(view_handle, entity);
+        entity
     }
     pub fn add_responsive_scene<S: Scene>(
         &mut self,
@@ -56,11 +57,12 @@ impl Compositor {
         s: S,
         responsive_segment: ResponsiveSegment,
         cmd: &mut Commands,
-    ) {
+    ) -> Entity {
         let entity = s.create(cmd);
         cmd.entity(entity)
             .insert(Segmental::new(responsive_segment.viewed_at(view_handle)));
         self.add_to_view(view_handle, entity);
+        entity
     }
     pub fn new(area: Area<InterfaceContext>) -> Self {
         Self {
@@ -164,11 +166,11 @@ fn responsive_changed(
             *pos = coord.section.position;
             *area = coord.section.area;
             *layer = coord.layer;
-            if disabled.disabled() {
+            if disabled.is_disabled() {
                 *disabled = Disabled::not_disabled();
             }
-        } else if !disabled.disabled() {
-            *disabled = Disabled::active();
+        } else if !disabled.is_disabled() {
+            *disabled = Disabled::disabled();
         }
     }
 }
@@ -197,11 +199,11 @@ fn viewport_changed(
                 *pos = coord.section.position;
                 *area = coord.section.area;
                 *layer = coord.layer;
-                if disabled.disabled() {
+                if disabled.is_disabled() {
                     *disabled = Disabled::not_disabled();
                 }
-            } else if !disabled.disabled() {
-                *disabled = Disabled::active();
+            } else if !disabled.is_disabled() {
+                *disabled = Disabled::disabled();
             }
         }
     }
