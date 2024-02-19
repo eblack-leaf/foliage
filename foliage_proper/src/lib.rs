@@ -67,6 +67,7 @@ pub(crate) mod system_message;
 pub mod text;
 pub mod texture;
 pub mod time;
+mod tree;
 pub mod virtual_keyboard;
 pub mod window;
 pub mod workflow;
