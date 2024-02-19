@@ -44,10 +44,15 @@ impl SceneNode {
 pub struct Binder(HashMap<SceneBinding, SceneNode>, Entity);
 
 impl Binder {
-    pub fn finish<S: Scene>(self, comps: SceneComponents<S>, cmd: &mut Commands) -> Entity {
+    pub fn finish<S: Scene>(
+        self,
+        comps: SceneComponents<S>,
+        cmd: &mut Commands,
+    ) -> (Entity, Bindings) {
         let entity = self.root();
-        cmd.entity(entity).insert(comps).insert(Bindings(self.0));
-        entity
+        let bindings = Bindings(self.0);
+        cmd.entity(entity).insert(comps).insert(bindings.clone());
+        (entity, bindings)
     }
     pub fn new(cmd: &mut Commands) -> Self {
         Self(HashMap::new(), cmd.spawn_empty().id())
@@ -80,19 +85,19 @@ impl Binder {
         sa: SA,
         s: S,
         cmd: &mut Commands,
-    ) -> Entity {
+    ) -> (Entity, Bindings) {
         // add alignment + scene stuff
-        let entity = s.create(cmd);
+        let (entity, bindings) = s.create(cmd);
         cmd.entity(entity).insert(SceneBindingComponents::new(
             self.1,
             Anchor::default(),
             sa.into(),
         ));
         self.0.insert(sb.into(), SceneNode::new(entity, true));
-        entity
+        (entity, bindings)
     }
 }
-#[derive(Component, Default)]
+#[derive(Component, Default, Clone)]
 pub struct Bindings(HashMap<SceneBinding, SceneNode>);
 impl Bindings {
     pub fn get<SB: Into<SceneBinding>>(&self, sb: SB) -> Entity {
@@ -196,7 +201,7 @@ where
         ext: &mut SystemParamItem<Self::Params>,
         bindings: &Bindings,
     );
-    fn create(self, cmd: &mut Commands) -> Entity;
+    fn create(self, cmd: &mut Commands) -> (Entity, Bindings);
 }
 #[derive(Component, Copy, Clone)]
 pub struct ScenePtr(Entity);
@@ -299,6 +304,7 @@ pub(crate) fn recursive_despawn(
     }
     to_despawn
 }
+// TODO add disabled to this/ re-enabled
 pub(crate) fn despawn_bindings(
     mut despawned: ParamSet<(
         Query<(Option<&Bindings>, &Despawn), Or<(With<Tag<IsScene>>, With<Tag<IsDep>>)>>,

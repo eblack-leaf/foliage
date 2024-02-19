@@ -37,33 +37,33 @@ pub struct Compositor {
     entity_to_view: HashMap<Entity, ViewHandle>,
 }
 impl Compositor {
-    pub fn add_responsive<B: Bundle>(
-        &mut self,
-        view_handle: ViewHandle,
-        b: B,
-        responsive_segment: ResponsiveSegment,
-        cmd: &mut Commands,
-    ) -> Entity {
-        let entity = cmd
-            .spawn(b)
-            .insert(Segmental::new(responsive_segment.viewed_at(view_handle)))
-            .id();
-        self.add_to_view(view_handle, entity);
-        entity
-    }
-    pub fn add_responsive_scene<S: Scene>(
-        &mut self,
-        view_handle: ViewHandle,
-        s: S,
-        responsive_segment: ResponsiveSegment,
-        cmd: &mut Commands,
-    ) -> Entity {
-        let entity = s.create(cmd);
-        cmd.entity(entity)
-            .insert(Segmental::new(responsive_segment.viewed_at(view_handle)));
-        self.add_to_view(view_handle, entity);
-        entity
-    }
+    // pub fn add_responsive<B: Bundle>(
+    //     &mut self,
+    //     view_handle: ViewHandle,
+    //     b: B,
+    //     responsive_segment: ResponsiveSegment,
+    //     cmd: &mut Commands,
+    // ) -> Entity {
+    //     let entity = cmd
+    //         .spawn(b)
+    //         .insert(Segmental::new(responsive_segment.viewed_at(view_handle)))
+    //         .id();
+    //     self.add_to_view(view_handle, entity);
+    //     entity
+    // }
+    // pub fn add_responsive_scene<S: Scene>(
+    //     &mut self,
+    //     view_handle: ViewHandle,
+    //     s: S,
+    //     responsive_segment: ResponsiveSegment,
+    //     cmd: &mut Commands,
+    // ) -> Entity {
+    //     let entity = s.create(cmd);
+    //     cmd.entity(entity)
+    //         .insert(Segmental::new(responsive_segment.viewed_at(view_handle)));
+    //     self.add_to_view(view_handle, entity);
+    //     entity
+    // }
     pub fn new(area: Area<InterfaceContext>) -> Self {
         Self {
             current: ViewHandle::new(0, 0),

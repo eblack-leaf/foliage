@@ -147,7 +147,7 @@ impl Scene for IconText {
         }
     }
 
-    fn create(self, cmd: &mut Commands) -> Entity {
+    fn create(self, cmd: &mut Commands) -> (Entity, Bindings) {
         let mut binder = Binder::new(cmd);
         let aspect_determinant = self.max_chars.0 as f32 + 2f32;
         let aspect = AspectRatio(aspect_determinant / 2f32);

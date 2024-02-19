@@ -126,7 +126,7 @@ impl Scene for Button {
         }
     }
 
-    fn create(self, cmd: &mut Commands) -> Entity {
+    fn create(self, cmd: &mut Commands) -> (Entity, Bindings) {
         let mut binder = Binder::new(cmd);
         let aspect = (self.icon_text.max_chars.0 as f32 + 3f32) / 2f32;
         binder.bind(
