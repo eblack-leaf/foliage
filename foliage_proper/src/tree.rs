@@ -20,6 +20,7 @@ pub struct Tree {
     pub grid: MacroGrid,
     pub entity_pool: EntityPool,
     pub branches: Branches,
+    pub current_branch: BranchHandle,
 }
 pub struct TreeDescriptor<'a, 'w, 's> {
     root: Entity,
@@ -44,7 +45,11 @@ macro_rules! enable_branch {
     };
 }
 impl Tree {
-    pub fn root(grid: MacroGrid, cmd: &mut Commands) -> TreeDescriptor {
+    pub fn root<BR: Branch>(
+        grid: MacroGrid,
+        cmd: &mut Commands,
+        root_branch: BR,
+    ) -> TreeDescriptor {
         todo!()
     }
 }
