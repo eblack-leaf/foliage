@@ -69,5 +69,7 @@ impl Tree for ButtonTree {
         // set branch(entity) trigger.true to run on_enter
         // since defined with resources available in tree,
         // it can copy values to fn closure to not need to pull in resources
+        EntityPool::from([first], [(0, branch)])
+        // separate branches from elements but both are in pool to despawn
     }
 }

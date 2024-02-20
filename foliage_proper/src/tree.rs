@@ -9,7 +9,7 @@ use std::collections::{HashMap, HashSet};
 pub trait Tree {
     const GRID: MacroGrid;
     type Resources: SystemParam + 'static;
-    fn plant(cmd: &mut Commands, res: &mut SystemParamItem<Self::Resources>);
+    fn plant(cmd: &mut Commands, res: &mut SystemParamItem<Self::Resources>) -> EntityPool;
 }
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
 pub struct TreeHandle(pub i32);
@@ -64,6 +64,7 @@ impl OnEnter {
         Self { logic: f }
     }
 }
+pub struct BranchSet(pub BranchHandle);
 pub trait Responsive {
     fn responsive_scene<S: Scene>(&mut self, s: S, rs: ResponsiveSegment) -> (Entity, Bindings);
     fn responsive<B: Bundle>(&mut self, b: B, rs: ResponsiveSegment) -> Entity;
