@@ -23,7 +23,32 @@ impl Anchor {
         Anchor(grid.determine(self.0, alignment))
     }
 }
-
+pub struct SceneDesc {
+    root: Entity,
+    bindings: Bindings,
+}
+impl SceneDesc {
+    pub(crate) fn new(root: Entity, bindings: Bindings) -> Self {
+        Self { root, bindings }
+    }
+    pub fn extend<Ext: Bundle>(self, target: ExtendTarget, ext: Ext, cmd: &mut Commands) -> Self {
+        match target {
+            ExtendTarget::This => {
+                cmd.entity(self.root).insert(ext);
+            }
+            ExtendTarget::Binding(bind) => {
+                cmd.entity(self.bindings.get(bind)).insert(ext);
+            }
+        }
+        self
+    }
+    pub fn root(&self) -> Entity {
+        self.root
+    }
+    pub fn bindings(&self) -> &Bindings {
+        &self.bindings
+    }
+}
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
 pub struct SceneBinding(pub i32);
 impl From<i32> for SceneBinding {
@@ -44,15 +69,11 @@ impl SceneNode {
 pub struct Binder(HashMap<SceneBinding, SceneNode>, Entity);
 
 impl Binder {
-    pub fn finish<S: Scene>(
-        self,
-        comps: SceneComponents<S>,
-        cmd: &mut Commands,
-    ) -> (Entity, Bindings) {
+    pub fn finish<S: Scene>(self, comps: SceneComponents<S>, cmd: &mut Commands) -> SceneDesc {
         let entity = self.root();
         let bindings = Bindings(self.0);
         cmd.entity(entity).insert(comps).insert(bindings.clone());
-        (entity, bindings)
+        SceneDesc::new(entity, bindings)
     }
     pub fn new(cmd: &mut Commands) -> Self {
         Self(HashMap::new(), cmd.spawn_empty().id())
@@ -85,16 +106,18 @@ impl Binder {
         sa: SA,
         s: S,
         cmd: &mut Commands,
-    ) -> (Entity, Bindings) {
+    ) -> SceneDesc {
         // add alignment + scene stuff
-        let (entity, bindings) = s.create(cmd);
-        cmd.entity(entity).insert(SceneBindingComponents::new(
-            self.1,
-            Anchor::default(),
-            sa.into(),
-        ));
-        self.0.insert(sb.into(), SceneNode::new(entity, true));
-        (entity, bindings)
+        let scene_desc = s.create(cmd);
+        cmd.entity(scene_desc.root())
+            .insert(SceneBindingComponents::new(
+                self.1,
+                Anchor::default(),
+                sa.into(),
+            ));
+        self.0
+            .insert(sb.into(), SceneNode::new(scene_desc.root(), true));
+        scene_desc
     }
 }
 #[derive(Component, Default, Clone)]
@@ -201,7 +224,7 @@ where
         ext: &mut SystemParamItem<Self::Params>,
         bindings: &Bindings,
     );
-    fn create(self, cmd: &mut Commands) -> (Entity, Bindings);
+    fn create(self, cmd: &mut Commands) -> SceneDesc;
 }
 #[derive(Component, Copy, Clone)]
 pub struct ScenePtr(Entity);
@@ -330,4 +353,9 @@ pub(crate) fn despawn_bindings(
             d.despawn();
         }
     }
+}
+
+pub enum ExtendTarget {
+    This,
+    Binding(SceneBinding),
 }

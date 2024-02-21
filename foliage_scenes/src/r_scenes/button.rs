@@ -18,7 +18,9 @@ use foliage_proper::panel::Panel;
 use foliage_proper::scene::micro_grid::{
     Alignment, AlignmentDesc, AnchorDim, MicroGrid, RelativeMarker,
 };
-use foliage_proper::scene::{Binder, Bindings, BlankNode, Scene, SceneComponents, ScenePtr};
+use foliage_proper::scene::{
+    Binder, Bindings, BlankNode, Scene, SceneComponents, SceneDesc, ScenePtr,
+};
 #[derive(Clone)]
 pub struct Button {
     pub icon_text: IconText,
@@ -126,7 +128,7 @@ impl Scene for Button {
         }
     }
 
-    fn create(self, cmd: &mut Commands) -> (Entity, Bindings) {
+    fn create(self, cmd: &mut Commands) -> SceneDesc {
         let mut binder = Binder::new(cmd);
         let aspect = (self.icon_text.max_chars.0 as f32 + 3f32) / 2f32;
         binder.bind(

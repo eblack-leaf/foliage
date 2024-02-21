@@ -16,7 +16,7 @@ use foliage_proper::icon::{Icon, IconId};
 use foliage_proper::scene::micro_grid::{
     Alignment, AlignmentDesc, AnchorDim, MicroGrid, RelativeMarker,
 };
-use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents};
+use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneDesc};
 use foliage_proper::text::{MaxCharacters, Text, TextValue};
 
 #[derive(Clone)]
@@ -147,7 +147,7 @@ impl Scene for IconText {
         }
     }
 
-    fn create(self, cmd: &mut Commands) -> (Entity, Bindings) {
+    fn create(self, cmd: &mut Commands) -> SceneDesc {
         let mut binder = Binder::new(cmd);
         let aspect_determinant = self.max_chars.0 as f32 + 2f32;
         let aspect = AspectRatio(aspect_determinant / 2f32);
