@@ -11,7 +11,7 @@ use foliage::icon::FeatherIcon;
 use foliage::r_scenes::button::Button;
 use foliage::r_scenes::icon_text::IconText;
 use foliage::text::{MaxCharacters, TextValue};
-use foliage::tree::{Responsive, Seed, Tree};
+use foliage::tree::{Seed, Tree, TreeBinder};
 
 pub struct ButtonTree;
 impl Seed for ButtonTree {
@@ -19,24 +19,22 @@ impl Seed for ButtonTree {
     type Resources = ();
 
     fn plant(cmd: &mut Commands, _res: &mut SystemParamItem<Self::Resources>) -> Tree {
-        let mut tree = Tree::default();
-        tree.add_scene(
-            cmd.responsive_scene(
-                IconText::new(
-                    FeatherIcon::Menu,
-                    Color::GREY,
-                    MaxCharacters(11),
-                    TextValue::new("button.rs"),
-                    Color::GREY,
-                ),
-                ResponsiveSegment::base(Segment::new(
-                    3.near().to(6.far()),
-                    1.near().to(1.far()).maximum(60.0),
-                ))
-                .justify(Justify::Top),
+        let mut binder = TreeBinder::new(cmd);
+        binder.responsive_scene(
+            IconText::new(
+                FeatherIcon::Menu,
+                Color::GREY,
+                MaxCharacters(11),
+                TextValue::new("button.rs"),
+                Color::GREY,
             ),
+            ResponsiveSegment::base(Segment::new(
+                3.near().to(6.far()),
+                1.near().to(1.far()).maximum(60.0),
+            ))
+            .justify(Justify::Top),
         );
-        tree.branch();
-        tree
+
+        binder.tree()
     }
 }

@@ -3,7 +3,7 @@ use crate::compositor::segment::{MacroGrid, ResponsiveSegment};
 use crate::scene::{Binder, Bindings, ExtendTarget, Scene, SceneBinding, SceneDesc};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Bundle, Component};
-use bevy_ecs::query::{Changed, With};
+use bevy_ecs::query::Changed;
 use bevy_ecs::system::{
     Commands, Query, Res, ResMut, Resource, StaticSystemParam, SystemParam, SystemParamItem,
 };
@@ -164,10 +164,50 @@ impl<S: Scene + Clone> SceneBranch<S> {
 }
 #[derive(Component, Clone, Default)]
 pub struct Tree(pub HashSet<Entity>, HashMap<BranchHandle, Entity>);
-impl Tree {
-    // bind | bind-scene for this need
-    // create branch handle + forward Responsive::responsive_scene(&mut cmd) ...
+pub struct TreeBinder<'a, 'w, 's> {
+    cmd: &'a mut Commands<'w, 's>,
+    tree: Tree,
 }
+impl<'a, 'w, 's> TreeBinder<'a, 'w, 's> {
+    pub fn new(cmd: &'a mut Commands<'w, 's>) -> Self {
+        Self {
+            cmd,
+            tree: Tree::default(),
+        }
+    }
+    pub fn tree(self) -> Tree {
+        self.tree
+    }
+    pub fn responsive_scene<S: Scene>(&mut self, s: S, rs: ResponsiveSegment) -> SceneDesc {
+        let desc = self.cmd.responsive_scene(s, rs);
+        self.tree.0.insert(desc.root());
+        desc
+    }
+    pub fn responsive<B: Bundle>(&mut self, b: B, rs: ResponsiveSegment) -> Entity {
+        let ent = self.cmd.responsive(b, rs);
+        self.tree.0.insert(ent);
+        ent
+    }
+    pub fn branch<BR: Clone + Send + Sync + 'static, BH: Into<BranchHandle>>(
+        &mut self,
+        bh: BH,
+        br: BR,
+    ) -> BranchDesc {
+        let desc = self.cmd.branch(br);
+        self.tree.1.insert(bh.into(), desc.branch_entity);
+        desc
+    }
+    pub fn branch_scene<S: Scene + Clone, BH: Into<BranchHandle>>(
+        &mut self,
+        bh: BH,
+        s: S,
+    ) -> BranchDesc {
+        let desc = self.cmd.branch_scene(s);
+        self.tree.1.insert(bh.into(), desc.branch_entity);
+        desc
+    }
+}
+pub struct TreeBranch {}
 #[derive(Default, Resource)]
 pub struct Forest {
     current: Option<Tree>,
@@ -198,7 +238,7 @@ fn set_branch(query: Query<(Entity, &BranchSet)>, mut cmd: Commands, forest: Res
         }
     }
 }
-pub trait Responsive {
+trait Responsive {
     fn responsive_scene<S: Scene>(&mut self, s: S, rs: ResponsiveSegment) -> SceneDesc;
     fn responsive<B: Bundle>(&mut self, b: B, rs: ResponsiveSegment) -> Entity;
     fn branch<BR: Clone + Send + Sync + 'static>(&mut self, br: BR) -> BranchDesc;
