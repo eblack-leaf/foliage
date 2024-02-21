@@ -128,8 +128,7 @@ impl Scene for Button {
         }
     }
 
-    fn create(self, cmd: &mut Commands) -> SceneDesc {
-        let mut binder = Binder::new(cmd);
+    fn create(self, mut binder: Binder) -> SceneDesc {
         let aspect = (self.icon_text.max_chars.0 as f32 + 3f32) / 2f32;
         binder.bind(
             ButtonBindings::Panel,
@@ -140,7 +139,6 @@ impl Scene for Button {
                 1.percent_of(AnchorDim::Height),
             ),
             Panel::new(self.element_style, self.foreground_color),
-            cmd,
         );
         binder.bind_scene(
             ButtonBindings::IconText,
@@ -151,7 +149,6 @@ impl Scene for Button {
                 0.8.percent_of(AnchorDim::Height),
             ),
             self.icon_text,
-            cmd,
         );
         binder.bind(
             2,
@@ -164,22 +161,18 @@ impl Scene for Button {
             BlankNode::default()
                 .extend(InteractionListener::default())
                 .extend(Tag::<ButtonInteractionHook>::new()),
-            cmd,
         );
-        binder.finish::<Self>(
-            SceneComponents::new(
-                MicroGrid::new()
-                    .min_height(30.0)
-                    .min_width(40.0 * aspect)
-                    .aspect(aspect),
-                ButtonComponents::new(
-                    self.element_style,
-                    self.foreground_color,
-                    self.background_color,
-                ),
+        binder.finish::<Self>(SceneComponents::new(
+            MicroGrid::new()
+                .min_height(30.0)
+                .min_width(40.0 * aspect)
+                .aspect(aspect),
+            ButtonComponents::new(
+                self.element_style,
+                self.foreground_color,
+                self.background_color,
             ),
-            cmd,
-        )
+        ))
     }
 }
 #[derive(Component, Copy, Clone)]

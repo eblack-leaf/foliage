@@ -66,38 +66,49 @@ impl SceneNode {
         Self { entity, is_scene }
     }
 }
-pub struct Binder(HashMap<SceneBinding, SceneNode>, Entity);
+pub struct Binder<'a, 'w, 's> {
+    nodes: HashMap<SceneBinding, SceneNode>,
+    root: Entity,
+    cmd: &'a mut Commands<'w, 's>,
+}
 
-impl Binder {
-    pub fn finish<S: Scene>(self, comps: SceneComponents<S>, cmd: &mut Commands) -> SceneDesc {
+impl<'a, 'w, 's> Binder<'a, 'w, 's> {
+    pub fn finish<S: Scene>(self, comps: SceneComponents<S>) -> SceneDesc {
         let entity = self.root();
-        let bindings = Bindings(self.0);
-        cmd.entity(entity).insert(comps).insert(bindings.clone());
+        let bindings = Bindings(self.nodes);
+        self.cmd
+            .entity(entity)
+            .insert(comps)
+            .insert(bindings.clone());
         SceneDesc::new(entity, bindings)
     }
-    pub fn new(cmd: &mut Commands) -> Self {
-        Self(HashMap::new(), cmd.spawn_empty().id())
+    pub fn new(cmd: &'a mut Commands<'w, 's>, root: Option<Entity>) -> Self {
+        Self {
+            nodes: HashMap::new(),
+            root: root.unwrap_or(cmd.spawn_empty().id()),
+            cmd,
+        }
     }
     pub fn root(&self) -> Entity {
-        self.1
+        self.root
     }
     pub fn bind<SB: Into<SceneBinding>, SA: Into<Alignment>, B: Bundle>(
         &mut self,
         sb: SB,
         sa: SA,
         b: B,
-        cmd: &mut Commands,
     ) -> Entity {
         // add alignment stuff
-        let entity = cmd
+        let entity = self
+            .cmd
             .spawn(b)
             .insert(SceneBindingComponents::new(
-                self.1,
+                self.root,
                 Anchor::default(),
                 sa.into(),
             ))
             .id();
-        self.0.insert(sb.into(), SceneNode::new(entity, false));
+        self.nodes.insert(sb.into(), SceneNode::new(entity, false));
         entity
     }
     pub fn bind_scene<S: Scene, SB: Into<SceneBinding>, SA: Into<Alignment>>(
@@ -105,17 +116,17 @@ impl Binder {
         sb: SB,
         sa: SA,
         s: S,
-        cmd: &mut Commands,
     ) -> SceneDesc {
         // add alignment + scene stuff
-        let scene_desc = s.create(cmd);
-        cmd.entity(scene_desc.root())
+        let scene_desc = s.create(Binder::new(self.cmd, None));
+        self.cmd
+            .entity(scene_desc.root())
             .insert(SceneBindingComponents::new(
-                self.1,
+                self.root,
                 Anchor::default(),
                 sa.into(),
             ));
-        self.0
+        self.nodes
             .insert(sb.into(), SceneNode::new(scene_desc.root(), true));
         scene_desc
     }
@@ -224,7 +235,7 @@ where
         ext: &mut SystemParamItem<Self::Params>,
         bindings: &Bindings,
     );
-    fn create(self, cmd: &mut Commands) -> SceneDesc;
+    fn create(self, binder: Binder) -> SceneDesc;
 }
 #[derive(Component, Copy, Clone)]
 pub struct ScenePtr(Entity);

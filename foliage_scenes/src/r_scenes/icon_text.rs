@@ -147,8 +147,7 @@ impl Scene for IconText {
         }
     }
 
-    fn create(self, cmd: &mut Commands) -> SceneDesc {
-        let mut binder = Binder::new(cmd);
+    fn create(self, mut binder: Binder) -> SceneDesc {
         let aspect_determinant = self.max_chars.0 as f32 + 2f32;
         let aspect = AspectRatio(aspect_determinant / 2f32);
         let icon_percent = 1.0f32 / aspect_determinant;
@@ -162,7 +161,6 @@ impl Scene for IconText {
                 icon_percent.percent_of(AnchorDim::Width),
             ),
             Icon::new(self.icon_id, self.icon_color),
-            cmd,
         );
         binder.bind(
             IconTextBindings::Text,
@@ -173,23 +171,19 @@ impl Scene for IconText {
                 1.percent_of(AnchorDim::Height),
             ),
             Text::new(self.max_chars, self.text_value.clone(), self.text_color),
-            cmd,
         );
-        binder.finish::<Self>(
-            SceneComponents::new(
-                MicroGrid::new()
-                    .aspect(aspect)
-                    .min_height(20.0)
-                    .min_width(30.0 * aspect.value()),
-                Self::Components::new(
-                    self.max_chars,
-                    self.text_value,
-                    self.icon_color,
-                    self.text_color,
-                    self.icon_id,
-                ),
+        binder.finish::<Self>(SceneComponents::new(
+            MicroGrid::new()
+                .aspect(aspect)
+                .min_height(20.0)
+                .min_width(30.0 * aspect.value()),
+            Self::Components::new(
+                self.max_chars,
+                self.text_value,
+                self.icon_color,
+                self.text_color,
+                self.icon_id,
             ),
-            cmd,
-        )
+        ))
     }
 }

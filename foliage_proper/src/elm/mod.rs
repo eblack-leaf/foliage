@@ -18,7 +18,7 @@ use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::job::{Container, Job, Task};
-use crate::scene::Scene;
+use crate::scene::{Binder, Scene};
 use crate::window::ScaleFactor;
 #[cfg(target_family = "wasm")]
 use crate::Workflow;
@@ -271,7 +271,7 @@ impl Elm {
                          mut compositor: ResMut<Compositor>| {
             {
                 if current.0 == view_handle {
-                    let scene_desc = args.clone().create(&mut cmd);
+                    let scene_desc = args.clone().create(Binder::new(&mut cmd, None));
                     cmd.entity(scene_desc.root())
                         .insert(ext.clone())
                         .insert(Segmental::new(responsive_segment.clone()));
@@ -323,7 +323,7 @@ impl Elm {
         let func = move |mut ext: StaticSystemParam<Ext>,
                          mut ihs: Query<(&Trigger, &mut IH), Changed<Trigger>>| {
             for (trigger, mut ih) in ihs.iter_mut() {
-                if trigger.triggered() {
+                if trigger.active() {
                     handler(&mut ih, &mut ext);
                 }
             }

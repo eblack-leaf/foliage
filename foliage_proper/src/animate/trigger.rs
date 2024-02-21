@@ -8,11 +8,17 @@ use bevy_ecs::system::Query;
 #[derive(Default, Copy, Clone, Debug, Hash, Eq, PartialEq, Component)]
 pub struct Trigger(pub(crate) bool);
 impl Trigger {
-    pub fn triggered(&self) -> bool {
+    pub fn activated() -> Self {
+        Self(true)
+    }
+    pub fn active(&self) -> bool {
         self.0
     }
     pub fn set(&mut self) {
         self.0 = true;
+    }
+    pub fn deactivated() -> Self {
+        Self::default()
     }
 }
 fn clear_triggered(mut triggers: Query<&mut Trigger, Changed<Trigger>>) {

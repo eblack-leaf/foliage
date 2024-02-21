@@ -232,7 +232,7 @@ fn despawn_triggered(
     mut despawn: Query<&mut Despawn>,
 ) {
     for (trigger, handle) in triggers.iter() {
-        if trigger.triggered() {
+        if trigger.active() {
             let entities = compositor
                 .views
                 .get_mut(handle)
