@@ -11,14 +11,14 @@ use foliage::icon::FeatherIcon;
 use foliage::r_scenes::button::Button;
 use foliage::r_scenes::icon_text::IconText;
 use foliage::text::{MaxCharacters, TextValue};
-use foliage::tree::{EntityPool, Responsive, Tree};
+use foliage::tree::{Responsive, Tree, TreeDescriptor};
 
 pub struct ButtonTree;
 impl Tree for ButtonTree {
     const GRID: MacroGrid = MacroGrid::new(4, 4);
     type Resources = ();
 
-    fn plant(cmd: &mut Commands, _res: &mut SystemParamItem<Self::Resources>) {
+    fn plant(cmd: &mut Commands, _res: &mut SystemParamItem<Self::Resources>) -> TreeDescriptor {
         let (first, first_bindings) = cmd.responsive_scene(
             IconText::new(
                 FeatherIcon::Menu,
@@ -60,16 +60,16 @@ impl Tree for ButtonTree {
                 )
                 .justify(Justify::Top),
             );
-            EntityPool::from([one])
+            TreeDescriptor::new([one], [])
             // one will trigger despawns on the bindings so no need to include
         });
         // could use branch entity as value in handler for other button?
-        // but dont have elm here would need the same entity elsewhere or different
+        // but don't have elm here would need the same entity elsewhere or different
         // setting mechanism?
         // set branch(entity) trigger.true to run on_enter
         // since defined with resources available in tree,
         // it can copy values to fn closure to not need to pull in resources
-        EntityPool::from([first], [(0, branch)])
+        TreeDescriptor::new([first], [(0, branch)])
         // separate branches from elements but both are in pool to despawn
     }
 }

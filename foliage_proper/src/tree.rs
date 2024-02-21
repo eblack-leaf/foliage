@@ -9,7 +9,7 @@ use std::collections::{HashMap, HashSet};
 pub trait Tree {
     const GRID: MacroGrid;
     type Resources: SystemParam + 'static;
-    fn plant(cmd: &mut Commands, res: &mut SystemParamItem<Self::Resources>) -> EntityPool;
+    fn plant(cmd: &mut Commands, res: &mut SystemParamItem<Self::Resources>) -> TreeDescriptor;
 }
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
 pub struct TreeHandle(pub i32);
@@ -28,12 +28,12 @@ impl<T> BranchWrapper<T> {
 pub struct Branch {
     on_enter: OnEnter,
     trigger: Trigger,
-    pool: EntityPool,
+    pool: TreeDescriptor,
 }
 #[derive(Component, Clone, Default)]
-pub struct EntityPool(pub HashSet<Entity>);
-impl EntityPool {}
-impl<const N: usize> From<[Entity; N]> for EntityPool {
+pub struct TreeDescriptor(pub HashSet<Entity>);
+impl TreeDescriptor {}
+impl<const N: usize> From<[Entity; N]> for TreeDescriptor {
     fn from(value: [Entity; N]) -> Self {
         let mut set = HashSet::new();
         for v in value {
@@ -47,7 +47,7 @@ impl Branch {
         Self {
             on_enter: OnEnter::new(t),
             trigger: Trigger::default(),
-            pool: EntityPool::default(),
+            pool: TreeDescriptor::default(),
         }
     }
 }
@@ -58,7 +58,7 @@ pub struct Forest {
 pub struct OnEnter {
     logic: OnEnterFn,
 }
-pub type OnEnterFn = fn(cmd: &mut Commands) -> EntityPool;
+pub type OnEnterFn = fn(cmd: &mut Commands) -> TreeDescriptor;
 impl OnEnter {
     pub fn new(f: OnEnterFn) -> Self {
         Self { logic: f }
