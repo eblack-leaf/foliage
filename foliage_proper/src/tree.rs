@@ -1,6 +1,6 @@
 use crate::animate::trigger::Trigger;
 use crate::compositor::segment::{MacroGrid, ResponsiveSegment};
-use crate::scene::{ExtendTarget, Scene, SceneDesc};
+use crate::scene::{ExtendTarget, Scene, SceneBinding, SceneDesc};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Bundle, Component};
 use bevy_ecs::query::{Changed, With};
@@ -14,9 +14,7 @@ use std::marker::PhantomData;
 pub struct Navigation<SEED>(PhantomData<SEED>);
 impl<SEED> Navigation<SEED> {
     pub fn new() -> Self {
-        Self {
-            0: PhantomData,
-        }
+        Self { 0: PhantomData }
     }
 }
 fn sprout<SEED: Seed + Send + Sync + 'static>(
@@ -28,6 +26,7 @@ fn sprout<SEED: Seed + Send + Sync + 'static>(
 ) {
     if let Some(n) = navigation.iter().last() {
         // despawn current tree + all in pool
+        // or anim-out && @-end trigger despawn
         *grid = SEED::GRID;
         let tree = SEED::plant(&mut cmd, &mut ext);
         forest.current.replace(tree);
@@ -51,19 +50,27 @@ pub struct BranchHandle(pub i32);
 #[derive(Component)]
 pub struct Conditional<T> {
     wrapped: Option<T>,
+    target: BranchExtendTarget,
 }
 impl<T> Conditional<T> {
-    pub fn new(t: T) -> Self {
-        Self { wrapped: Some(t) }
+    pub fn new(e: BranchExtendTarget, t: T) -> Self {
+        Self {
+            wrapped: Some(t),
+            target: e,
+        }
     }
 }
 #[derive(Component)]
 pub struct ConditionalScene<S: Scene> {
     wrapped: Option<S>,
+    target: BranchExtendTarget,
 }
 impl<S: Scene> ConditionalScene<S> {
-    pub fn new(t: S) -> Self {
-        Self { wrapped: Some(t) }
+    pub fn new(e: BranchExtendTarget, t: S) -> Self {
+        Self {
+            wrapped: Some(t),
+            target: e,
+        }
     }
 }
 pub(crate) fn conditional_spawn<C>() {
@@ -72,26 +79,29 @@ pub(crate) fn conditional_spawn<C>() {
 pub(crate) fn conditional_scene_spawn<CS: Scene>() {
     // use target to spawn cond scene
 }
-#[derive(Component, Copy, Clone)]
-pub struct SpawnTarget(pub Entity);
 #[derive(Bundle)]
 pub struct Branch<T: Send + Sync + 'static> {
     conditional: Conditional<T>,
     trigger: Trigger,
-    spawn_target: SpawnTarget,
+}
+impl<T: Send + Sync + 'static> Branch<T> {
+    pub fn new(t: T, e: BranchExtendTarget) -> Self {
+        Self {
+            conditional: Conditional::<T>::new(e, t),
+            trigger: Trigger::default(),
+        }
+    }
 }
 #[derive(Bundle)]
 pub struct SceneBranch<T: Scene + Send + Sync + 'static> {
     conditional: ConditionalScene<T>,
     trigger: Trigger,
-    spawn_target: SpawnTarget,
 }
 impl<S: Scene> SceneBranch<S> {
-    pub fn new(t: S, e: Entity) -> Self {
+    pub fn new(t: S, e: BranchExtendTarget) -> Self {
         Self {
-            conditional: ConditionalScene::<S>::new(t),
+            conditional: ConditionalScene::<S>::new(e, t),
             trigger: Trigger::default(),
-            spawn_target: SpawnTarget(e),
         }
     }
 }
@@ -100,15 +110,6 @@ pub struct Tree(pub HashSet<Entity>, HashMap<BranchHandle, Entity>);
 impl Tree {
     // bind | bind-scene for this need
     // create branch handle + forward Responsive::responsive_scene(&mut cmd) ...
-}
-impl<T: Send + Sync + 'static> Branch<T> {
-    pub fn new(t: T, e: Entity) -> Self {
-        Self {
-            conditional: Conditional::<T>::new(t),
-            trigger: Trigger::default(),
-            spawn_target: SpawnTarget(e),
-        }
-    }
 }
 #[derive(Default, Resource)]
 pub struct Forest {
@@ -139,14 +140,22 @@ impl<'w, 's> Responsive for Commands<'w, 's> {
     }
     fn branch<BR: Send + Sync + 'static>(&mut self, br: BR) -> BranchDesc {
         let pre_spawned = self.spawn_empty().id();
-        let branch_id = self.spawn(Branch::new(br, pre_spawned)).id();
+        let branch_id = self
+            .spawn(Branch::new(br, BranchExtendTarget::This(pre_spawned)))
+            .id();
         BranchDesc::new(branch_id, pre_spawned)
     }
     fn branch_scene<S: Scene>(&mut self, s: S) -> BranchDesc {
         let pre_spawned = self.spawn_empty().id();
-        let branch_id = self.spawn(SceneBranch::new(s, pre_spawned)).id();
+        let branch_id = self
+            .spawn(SceneBranch::new(s, BranchExtendTarget::This(pre_spawned)))
+            .id();
         BranchDesc::new(branch_id, pre_spawned)
     }
+}
+pub enum BranchExtendTarget {
+    This(Entity),
+    BindingOf(Entity, SceneBinding),
 }
 pub struct BranchDesc {
     branch_entity: Entity,
@@ -165,7 +174,20 @@ impl BranchDesc {
         e: E,
         cmd: &mut Commands,
     ) -> Self {
-        cmd.entity(self.branch_entity).insert(Conditional::new(e));
+        match target {
+            ExtendTarget::This => {
+                cmd.entity(self.branch_entity).insert(Conditional::new(
+                    BranchExtendTarget::This(self.pre_spawned),
+                    e,
+                ));
+            }
+            ExtendTarget::Binding(bind) => {
+                cmd.entity(self.branch_entity).insert(Conditional::new(
+                    BranchExtendTarget::BindingOf(self.pre_spawned, bind),
+                    e,
+                ));
+            }
+        }
         self
     }
 }
