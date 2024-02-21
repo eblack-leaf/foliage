@@ -4,9 +4,7 @@ use crate::scene::{ExtendTarget, Scene, SceneBinding, SceneDesc};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Bundle, Component};
 use bevy_ecs::query::{Changed, With};
-use bevy_ecs::system::{
-    Commands, Query, ResMut, Resource, StaticSystemParam, SystemParam, SystemParamItem,
-};
+use bevy_ecs::system::{Commands, Query, Res, ResMut, Resource, StaticSystemParam, SystemParam, SystemParamItem};
 use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 
@@ -123,6 +121,9 @@ impl Forest {
 // Uses current-tree and sets condition for that branch using tree.branches
 #[derive(Component, Copy, Clone)]
 pub struct BranchSet(pub BranchHandle);
+fn set_branch(query: Query<&BranchSet>, mut cmd: Commands, forest: Res<Forest>) {
+    // set condition of branch-set.0 in forest.current.branches.get(bh)
+}
 pub trait Responsive {
     fn responsive_scene<S: Scene>(&mut self, s: S, rs: ResponsiveSegment) -> SceneDesc;
     fn responsive<B: Bundle>(&mut self, b: B, rs: ResponsiveSegment) -> Entity;
@@ -190,4 +191,8 @@ impl BranchDesc {
         }
         self
     }
+}
+// Derived-Value handler + other
+pub struct OnEnter<T> {
+
 }
