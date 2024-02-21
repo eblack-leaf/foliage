@@ -46,7 +46,7 @@ impl GridRelativeValue {
         }
     }
 }
-#[derive(Component, Default, Copy, Clone)]
+#[derive(Resource, Default, Copy, Clone)]
 pub struct MacroGrid {
     gap_x: CoordinateUnit,
     gap_y: CoordinateUnit,

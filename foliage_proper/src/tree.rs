@@ -1,25 +1,44 @@
 use crate::animate::trigger::Trigger;
 use crate::compositor::segment::{MacroGrid, ResponsiveSegment};
-use crate::scene::{Bindings, ExtendTarget, Scene, SceneDesc};
+use crate::scene::{ExtendTarget, Scene, SceneDesc};
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Bundle, Component, DetectChanges, Res};
+use bevy_ecs::prelude::{Bundle, Component};
+use bevy_ecs::query::{Changed, With};
 use bevy_ecs::system::{
-    Commands, ResMut, Resource, StaticSystemParam, SystemParam, SystemParamItem,
+    Commands, Query, ResMut, Resource, StaticSystemParam, SystemParam, SystemParamItem,
 };
 use std::collections::{HashMap, HashSet};
-#[derive(Resource, Copy, Clone, Default)]
-pub struct CurrentTree(pub TreeHandle);
-fn sprout<SEED: Seed>(
+use std::marker::PhantomData;
+
+#[derive(Component, Copy, Clone)]
+pub struct Navigation<SEED>(PhantomData<SEED>);
+impl<SEED> Navigation<SEED> {
+    pub fn new() -> Self {
+        Self {
+            0: PhantomData,
+        }
+    }
+}
+fn sprout<SEED: Seed + Send + Sync + 'static>(
     mut forest: ResMut<Forest>,
-    ct: ResMut<CurrentTree>,
+    navigation: Query<&Navigation<SEED>, Changed<Navigation<SEED>>>,
     mut cmd: Commands,
     mut ext: StaticSystemParam<SEED::Resources>,
+    mut grid: ResMut<MacroGrid>,
 ) {
-    if ct.is_changed() {
+    if let Some(n) = navigation.iter().last() {
         // despawn current tree + all in pool
-        let entity = forest.roots.get(&ct.0).expect("no-tree");
+        *grid = SEED::GRID;
         let tree = SEED::plant(&mut cmd, &mut ext);
-        forest.trees.insert(ct.0, tree);
+        forest.current.replace(tree);
+    }
+}
+fn clean_navigation<SEED: Seed + Send + Sync + 'static>(
+    navigation: Query<Entity, With<Navigation<SEED>>>,
+    mut cmd: Commands,
+) {
+    for n in navigation.iter() {
+        cmd.entity(n).despawn();
     }
 }
 pub trait Seed {
@@ -27,9 +46,6 @@ pub trait Seed {
     type Resources: SystemParam + 'static;
     fn plant(cmd: &mut Commands, res: &mut SystemParamItem<Self::Resources>) -> Tree;
 }
-
-#[derive(Copy, Clone, Hash, Eq, PartialEq, Default)]
-pub struct TreeHandle(pub i32);
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
 pub struct BranchHandle(pub i32);
 #[derive(Component)]
@@ -96,20 +112,16 @@ impl<T: Send + Sync + 'static> Branch<T> {
 }
 #[derive(Default, Resource)]
 pub struct Forest {
-    roots: HashMap<TreeHandle, Entity>,
-    trees: HashMap<TreeHandle, Tree>,
+    current: Option<Tree>,
 }
 impl Forest {
-    pub fn navigate_to(&self, th: TreeHandle) {
-        // delete current tree (or all others)
-        // and Seed::plant() with self.trees.get(&th).expect("navigation")
-        // navigation
+    pub fn navigate<N: Send + Sync + 'static>(cmd: &mut Commands) {
+        cmd.spawn(Navigation::<N>::new());
     }
 }
+// Uses current-tree and sets condition for that branch using tree.branches
 #[derive(Component, Copy, Clone)]
-pub struct TreeSet(pub TreeHandle);
-#[derive(Component, Copy, Clone)]
-pub struct BranchSet(pub TreeHandle, pub BranchHandle);
+pub struct BranchSet(pub BranchHandle);
 pub trait Responsive {
     fn responsive_scene<S: Scene>(&mut self, s: S, rs: ResponsiveSegment) -> SceneDesc;
     fn responsive<B: Bundle>(&mut self, b: B, rs: ResponsiveSegment) -> Entity;
