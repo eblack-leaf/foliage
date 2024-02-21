@@ -196,3 +196,17 @@ impl BranchDesc {
 pub struct OnEnter<T> {
 
 }
+fn viewport_changed() {}
+fn responsive_segment_changed() {}
+macro_rules! enable_conditional {
+    () => {};
+}
+macro_rules! enable_conditional_scene {
+    () => {};
+}
+macro_rules! enable_tree {
+    () => {};
+}
+macro_rules! enable_on_enter {
+    () => {};
+}
