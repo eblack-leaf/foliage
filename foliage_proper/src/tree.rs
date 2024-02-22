@@ -1,8 +1,17 @@
 use crate::animate::trigger::Trigger;
-use crate::compositor::segment::{MacroGrid, ResponsiveSegment};
+use crate::coordinate::area::Area;
+use crate::coordinate::layer::Layer;
+use crate::coordinate::position::Position;
+use crate::coordinate::InterfaceContext;
+use crate::elm::config::CoreSet;
+use crate::elm::leaf::{EmptySetDescriptor, Leaf};
+use crate::elm::{Disabled, Elm};
+use crate::ginkgo::viewport::ViewportHandle;
+use crate::layout::Layout;
 use crate::scene::{Binder, Bindings, ExtendTarget, Scene, SceneBinding, SceneDesc};
+use crate::segment::{MacroGrid, ResponsiveSegment};
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Bundle, Component};
+use bevy_ecs::prelude::{Bundle, Component, IntoSystemConfigs};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{
     Commands, Query, Res, ResMut, Resource, StaticSystemParam, SystemParam, SystemParamItem,
@@ -207,13 +216,12 @@ impl<'a, 'w, 's> TreeBinder<'a, 'w, 's> {
         desc
     }
 }
-pub struct TreeBranch {}
 #[derive(Default, Resource)]
 pub struct Forest {
     current: Option<Tree>,
 }
 impl Forest {
-    pub fn navigate<N: Send + Sync + 'static>(cmd: &mut Commands) {
+    pub fn navigate<N: Seed + Send + Sync + 'static>(cmd: &mut Commands) {
         cmd.spawn(Navigation::<N>::new());
     }
 }
@@ -318,8 +326,43 @@ impl BranchDesc {
 }
 // Derived-Value handler + other
 // pub struct OnEnter<T> {}
-fn viewport_changed() {}
-fn responsive_segment_changed() {}
+fn viewport_changed(
+    mut query: Query<(
+        &ResponsiveSegment,
+        &mut Position<InterfaceContext>,
+        &mut Area<InterfaceContext>,
+        &mut Layer,
+        &mut Disabled,
+    )>,
+    viewport_handle: Res<ViewportHandle>,
+    grid: Res<MacroGrid>,
+    mut layout: ResMut<Layout>,
+) {
+    if viewport_handle.area_updated() {
+        *layout = Layout::from_area(viewport_handle.section().area);
+        for (res_seg, mut pos, mut area, mut layer, mut disabled) in query.iter_mut() {
+            // calc
+        }
+    }
+}
+fn responsive_segment_changed(
+    mut query: Query<
+        (
+            &ResponsiveSegment,
+            &mut Position<InterfaceContext>,
+            &mut Area<InterfaceContext>,
+            &mut Layer,
+            &mut Disabled,
+        ),
+        Changed<ResponsiveSegment>,
+    >,
+    viewport_handle: Res<ViewportHandle>,
+    grid: Res<MacroGrid>,
+) {
+    for (res_seg, mut pos, mut area, mut layer, mut disabled) in query.iter_mut() {
+        // calc
+    }
+}
 macro_rules! enable_conditional {
     () => {};
 }
@@ -331,4 +374,15 @@ macro_rules! enable_tree {
 }
 macro_rules! enable_on_enter {
     () => {};
+}
+impl Leaf for Tree {
+    type SetDescriptor = EmptySetDescriptor;
+
+    fn attach(elm: &mut Elm) {
+        elm.main().add_systems((
+            viewport_changed.in_set(CoreSet::Compositor),
+            responsive_segment_changed.in_set(CoreSet::Compositor),
+            set_branch.in_set(CoreSet::BranchPrepare),
+        ));
+    }
 }

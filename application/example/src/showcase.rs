@@ -1,21 +1,19 @@
+use crate::button_tree::ButtonTree;
 use foliage::bevy_ecs;
 use foliage::bevy_ecs::entity::Entity;
 use foliage::bevy_ecs::prelude::{Component, Resource};
 use foliage::color::monochromatic::{AquaMarine as THEME_COLOR, Monochromatic};
 use foliage::color::Color;
-use foliage::compositor::layout::Layout;
-use foliage::compositor::segment::{
-    Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc,
-};
-use foliage::compositor::ViewHandle;
 use foliage::coordinate::area::Area;
 use foliage::elm::config::ElmConfiguration;
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 use foliage::elm::{ElementStyle, Elm};
 use foliage::icon::FeatherIcon;
 use foliage::image::{Image, ImageId, ImageStorage};
+use foliage::layout::Layout;
 use foliage::r_scenes::button::Button;
 use foliage::r_scenes::icon_text::IconText;
+use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::text::{MaxCharacters, Text, TextValue};
 
 #[foliage::assets(crate::Engen, "../assets/", "/foliage/demo/assets/")]
@@ -34,8 +32,6 @@ pub(crate) struct Assets {
     #[icon(path = "icons/tag.icon", opt = FeatherIcon::Tag)]
     _command_id: AssetKey,
 }
-pub(crate) const START: ViewHandle = ViewHandle::new(0, 0);
-pub(crate) const TWO: ViewHandle = ViewHandle::new(0, 0);
 pub(crate) struct Showcase {}
 impl Leaf for Showcase {
     type SetDescriptor = EmptySetDescriptor;
@@ -384,9 +380,7 @@ impl Leaf for Showcase {
             .without_portrait_tablet(),
             (),
         );
-        elm.view_trigger::<TestHook>(|_, cv| {
-            cv.change_view(TWO);
-        });
+        elm.view_trigger::<TestHook, ButtonTree>();
     }
 }
 #[derive(Component, Copy, Clone)]

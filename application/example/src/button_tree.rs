@@ -2,20 +2,18 @@ use foliage::bevy_ecs::prelude::Commands;
 use foliage::bevy_ecs::system::SystemParamItem;
 use foliage::color::monochromatic::{AquaMarine as THEME_COLOR, Monochromatic};
 use foliage::color::Color;
-use foliage::compositor::layout::Layout;
-use foliage::compositor::segment::{
-    Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc,
-};
 use foliage::elm::ElementStyle;
 use foliage::icon::FeatherIcon;
+use foliage::layout::Layout;
 use foliage::r_scenes::button::Button;
 use foliage::r_scenes::icon_text::IconText;
+use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::text::{MaxCharacters, TextValue};
 use foliage::tree::{Seed, Tree, TreeBinder};
 
 pub struct ButtonTree;
 impl Seed for ButtonTree {
-    const GRID: MacroGrid = MacroGrid::new(4, 4);
+    const GRID: MacroGrid = MacroGrid::new(8, 6);
     type Resources = ();
 
     fn plant(cmd: &mut Commands, _res: &mut SystemParamItem<Self::Resources>) -> Tree {

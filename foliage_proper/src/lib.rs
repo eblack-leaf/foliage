@@ -20,7 +20,6 @@ use crate::ash::Ash;
 use crate::asset::AssetContainer;
 use crate::circle::Circle;
 use crate::clipboard::Clipboard;
-use crate::compositor::Compositor;
 use crate::coordinate::position::Position;
 use crate::coordinate::CoordinateUnit;
 use crate::elm::leaf::Leaves;
@@ -39,6 +38,7 @@ use crate::rectangle::Rectangle;
 use crate::system_message::{ResponseMessage, SystemMessageResponse};
 use crate::text::Text;
 use crate::time::Time;
+use crate::tree::Tree;
 use crate::virtual_keyboard::VirtualKeyboardAdapter;
 use crate::workflow::{Workflow, WorkflowConnectionBase};
 use animate::trigger::Trigger;
@@ -49,7 +49,6 @@ pub mod asset;
 pub mod circle;
 pub mod clipboard;
 pub mod color;
-pub mod compositor;
 pub mod coordinate;
 pub mod differential;
 pub mod elm;
@@ -59,10 +58,12 @@ pub mod image;
 pub mod instance;
 pub mod interaction;
 pub mod job;
+pub mod layout;
 pub mod media;
 pub mod panel;
 pub mod rectangle;
 pub mod scene;
+pub mod segment;
 pub(crate) mod system_message;
 pub mod text;
 pub mod texture;
@@ -121,7 +122,7 @@ impl Foliage {
             .with_leaf::<Trigger>()
             .with_leaf::<Interaction>()
             .with_leaf::<ViewportHandle>()
-            .with_leaf::<Compositor>()
+            .with_leaf::<Tree>()
             .with_leaf::<Time>()
             .with_leaf::<VirtualKeyboardAdapter>()
             .with_leaf::<Clipboard>()

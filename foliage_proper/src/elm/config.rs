@@ -7,7 +7,9 @@ use std::hash::Hash;
 #[derive(SystemSet, Hash, Eq, PartialEq, Debug, Copy, Clone)]
 pub enum ExternalSet {
     Process,
-    ViewBindings,
+    Sprout,
+    BranchBind,
+    BranchExt,
     Spawn,
     Configure,
     InteractionTriggers,
@@ -19,8 +21,10 @@ pub enum CoreSet {
     // InteractionTriggers,
     // Process,
     ProcessEvent,
-    TransitionView,
-    // ViewBindings,
+    // Sprout,
+    BranchPrepare,
+    // BranchBind,
+    // BranchExt,
     // Spawn,
     Compositor,
     Coordinate,
@@ -49,9 +53,11 @@ impl<'a> ElmConfiguration<'a> {
                 ExternalSet::InteractionTriggers,
                 ExternalSet::Process,
                 CoreSet::ProcessEvent,
-                CoreSet::TransitionView,
+                ExternalSet::Sprout, // new
+                CoreSet::BranchPrepare,
+                ExternalSet::BranchBind,
+                ExternalSet::BranchExt, // end new
                 ExternalSet::Spawn,
-                ExternalSet::ViewBindings,
                 CoreSet::Compositor,
                 CoreSet::Coordinate,
                 ExternalSet::Configure,
@@ -63,7 +69,6 @@ impl<'a> ElmConfiguration<'a> {
                 .chain(),
         );
         elm.main().add_systems((
-            crate::scene::despawn_bindings.in_set(ExternalSet::ViewBindings),
             (
                 crate::scene::resolve_anchor,
                 crate::scene::update_from_anchor,
@@ -92,15 +97,21 @@ impl<'a> ElmConfiguration<'a> {
                 .before(CoreSet::ProcessEvent),
             apply_deferred
                 .after(CoreSet::ProcessEvent)
-                .before(CoreSet::TransitionView),
+                .before(ExternalSet::Sprout),
             apply_deferred
-                .after(CoreSet::TransitionView)
+                .after(ExternalSet::Sprout)
+                .before(CoreSet::BranchPrepare),
+            apply_deferred
+                .after(CoreSet::BranchPrepare)
+                .before(ExternalSet::BranchBind),
+            apply_deferred
+                .after(ExternalSet::BranchBind)
+                .before(ExternalSet::BranchExt),
+            apply_deferred
+                .after(ExternalSet::BranchExt)
                 .before(ExternalSet::Spawn),
             apply_deferred
                 .after(ExternalSet::Spawn)
-                .before(ExternalSet::ViewBindings),
-            apply_deferred
-                .after(ExternalSet::ViewBindings)
                 .before(CoreSet::Compositor),
             apply_deferred
                 .after(CoreSet::Compositor)

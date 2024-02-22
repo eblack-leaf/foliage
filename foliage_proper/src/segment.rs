@@ -1,28 +1,13 @@
-use crate::compositor::layout::{AspectRatio, Layout};
-use crate::compositor::ViewHandle;
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::section::Section;
 use crate::coordinate::{Coordinate, CoordinateUnit, InterfaceContext};
+use crate::layout::{AspectRatio, Layout};
 use bevy_ecs::prelude::{Component, Resource};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::ops::Div;
 
-#[derive(Resource, Default)]
-pub struct ResponsiveGrid {
-    view_configs: HashMap<ViewHandle, MacroGrid>,
-}
-impl ResponsiveGrid {
-    pub fn current(&self, view_handle: ViewHandle) -> &MacroGrid {
-        self.view_configs
-            .get(&view_handle)
-            .expect("view-not-configured-with-grid")
-    }
-    pub fn configure_view(&mut self, view_handle: ViewHandle, grid: MacroGrid) {
-        self.view_configs.insert(view_handle, grid);
-    }
-}
 #[derive(Default, Copy, Clone)]
 pub struct GridTemplate {
     columns: SegmentValue,
@@ -246,7 +231,6 @@ pub enum Justify {
 }
 #[derive(Clone, Component)]
 pub struct ResponsiveSegment {
-    view_handle: ViewHandle,
     base: Segment,
     justification: Option<Justify>,
     layer: Layer,
@@ -258,12 +242,11 @@ impl ResponsiveSegment {
         &self,
         layout: Layout,
         section: Section<InterfaceContext>,
-        grid: &ResponsiveGrid,
+        current: &MacroGrid,
     ) -> Option<Coordinate<InterfaceContext>> {
         if self.negations.contains(&layout) {
             return None;
         }
-        let current = grid.current(self.view_handle);
         Some(current.calculate_coordinate(
             section,
             self.horizontal_value(&layout),
@@ -300,7 +283,6 @@ impl ResponsiveSegment {
     }
     pub fn base(segment: Segment) -> Self {
         Self {
-            view_handle: ViewHandle::default(),
             base: segment,
             layer: Default::default(),
             justification: None,
@@ -317,10 +299,6 @@ impl ResponsiveSegment {
         for l in layouts.iter() {
             self.exceptions.insert(*l, segment);
         }
-        self
-    }
-    pub fn viewed_at(mut self, view_handle: ViewHandle) -> Self {
-        self.view_handle = view_handle;
         self
     }
     pub fn without_portrait_mobile(mut self) -> Self {

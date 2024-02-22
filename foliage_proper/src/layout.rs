@@ -1,5 +1,6 @@
 use crate::coordinate::area::Area;
 use crate::coordinate::{CoordinateUnit, InterfaceContext, NumericalContext};
+use bevy_ecs::prelude::Resource;
 #[derive(Copy, Clone, Default, Debug)]
 pub struct AspectRatio(pub f32);
 
@@ -54,7 +55,7 @@ pub enum Threshold {
     Desktop,
     Workstation,
 }
-#[derive(Hash, Eq, PartialEq, Copy, Clone, Debug)]
+#[derive(Hash, Eq, PartialEq, Copy, Clone, Debug, Resource)]
 pub struct Layout {
     pub orientation: Orientation,
     pub threshold: Threshold,

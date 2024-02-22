@@ -8,8 +8,6 @@ use crate::animate::trigger::Trigger;
 use crate::ash::render_packet::RenderPacketForwarder;
 use crate::ash::render_packet::RenderPacketPackage;
 use crate::asset::{AssetContainer, AssetFetchFn, AssetKey, OnFetch};
-use crate::compositor::segment::{MacroGrid, ResponsiveGrid, ResponsiveSegment};
-use crate::compositor::{Compositor, CurrentView, Segmental, ViewHandle};
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
@@ -19,6 +17,9 @@ use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::job::{Container, Job, Task};
 use crate::scene::{Binder, Scene};
+use crate::tree::{
+    conditional_extension, conditional_scene_spawn, conditional_spawn, Forest, Seed,
+};
 use crate::window::ScaleFactor;
 #[cfg(target_family = "wasm")]
 use crate::Workflow;
@@ -115,12 +116,6 @@ impl Elm {
     pub fn on_fetch(&mut self, key: AssetKey, func: AssetFetchFn) {
         self.container().spawn(OnFetch::new(key, func));
     }
-    pub fn configure_view_grid(&mut self, view_handle: ViewHandle, grid: MacroGrid) {
-        self.container()
-            .get_resource_mut::<ResponsiveGrid>()
-            .expect("responsive-grid")
-            .configure_view(view_handle, grid);
-    }
     pub(crate) fn new() -> Self {
         Self {
             initialized: false,
@@ -165,7 +160,6 @@ impl Elm {
         self.job
             .container
             .insert_resource(ViewportHandle::new(Section::default().with_area(area)));
-        self.job.container.insert_resource(Compositor::new(area));
     }
     pub(crate) fn set_viewport_handle_area(&mut self, area: Area<InterfaceContext>) {
         self.job
@@ -208,80 +202,8 @@ impl Elm {
             }
         }
     }
-    #[allow(unused)]
-    pub fn change_view(&mut self, vh: ViewHandle) {
-        self.container()
-            .get_resource_mut::<CurrentView>()
-            .unwrap()
-            .change_view(vh);
-    }
-    fn add_view(&mut self, view_handle: ViewHandle) {
-        self.container()
-            .get_resource_mut::<Compositor>()
-            .unwrap()
-            .add_view(view_handle);
-    }
-    pub fn add_view_binding<
-        VH: Into<ViewHandle>,
-        B: Bundle + Clone,
-        Ext: Bundle + Clone,
-        RS: Into<ResponsiveSegment>,
-    >(
-        &mut self,
-        vh: VH,
-        b: B,
-        rs: RS,
-        ext: Ext,
-    ) {
-        let view_handle = vh.into();
-        self.add_view(view_handle);
-        let responsive_segment = rs.into().viewed_at(view_handle);
-        let func = move |current: Res<CurrentView>,
-                         mut cmd: Commands,
-                         mut compositor: ResMut<Compositor>| {
-            {
-                if current.0 == view_handle {
-                    let entity = cmd
-                        .spawn(b.clone())
-                        .insert(ext.clone())
-                        .insert(Segmental::new(responsive_segment.clone()))
-                        .id();
-                    compositor.add_to_view(view_handle, entity);
-                }
-            }
-        };
-        self.main().add_systems((func
-            .in_set(ExternalSet::ViewBindings)
-            .run_if(|cv: Res<CurrentView>| -> bool { cv.is_changed() }),));
-    }
     pub fn send_event<E: Event>(&mut self, e: E) {
         self.container().send_event(e);
-    }
-    pub fn add_view_scene_binding<S: Scene + Clone, Ext: Bundle + Clone>(
-        &mut self,
-        view_handle: ViewHandle,
-        args: S,
-        rs: ResponsiveSegment,
-        ext: Ext,
-    ) {
-        self.add_view(view_handle);
-        let responsive_segment = rs.viewed_at(view_handle);
-        let func = move |current: Res<CurrentView>,
-                         mut cmd: Commands,
-                         mut compositor: ResMut<Compositor>| {
-            {
-                if current.0 == view_handle {
-                    let scene_desc = args.clone().create(Binder::new(&mut cmd, None));
-                    cmd.entity(scene_desc.root())
-                        .insert(ext.clone())
-                        .insert(Segmental::new(responsive_segment.clone()));
-                    compositor.add_to_view(view_handle, scene_desc.root());
-                }
-            }
-        };
-        self.main().add_systems((func
-            .in_set(ExternalSet::ViewBindings)
-            .run_if(|cv: Res<CurrentView>| -> bool { cv.is_changed() }),));
     }
     #[cfg(target_family = "wasm")]
     pub fn load_remote_asset<W: Workflow + Default + Send + Sync + 'static, S: AsRef<str>>(
@@ -330,11 +252,20 @@ impl Elm {
         };
         self.main().add_systems(func.in_set(ExternalSet::Process));
     }
-    pub fn view_trigger<C: Component + 'static>(
-        &mut self,
-        func: InteractionHandlerFn<C, ResMut<'static, CurrentView>>,
-    ) {
-        self.add_interaction_handler::<C, ResMut<'static, CurrentView>>(func);
+    pub fn view_trigger<H: Component + Send + 'static, C: Seed + Send + Sync + 'static>(&mut self) {
+        self.add_interaction_handler::<H, Commands>(|_ih, mut ext| {
+            Forest::navigate::<C>(&mut ext);
+        });
+    }
+    pub fn enable_conditional<C: Bundle + Clone + Send + Sync + 'static>(&mut self) {
+        self.main().add_systems((
+            conditional_spawn::<C>.in_set(ExternalSet::BranchBind),
+            conditional_extension::<C>.in_set(ExternalSet::BranchExt),
+        ));
+    }
+    pub fn enable_conditional_scene<S: Scene + Clone + Send + Sync + 'static>(&mut self) {
+        self.main()
+            .add_systems(conditional_scene_spawn::<S>.in_set(ExternalSet::BranchBind));
     }
 }
 pub type InteractionHandlerFn<IH, Ext> = fn(&mut IH, &mut StaticSystemParam<Ext>);
