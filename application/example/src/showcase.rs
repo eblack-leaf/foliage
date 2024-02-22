@@ -7,6 +7,7 @@ use foliage::elm::config::ElmConfiguration;
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 use foliage::elm::Elm;
 use foliage::image::{Image, ImageId, ImageStorage};
+use foliage::r_scenes::button::Button;
 use foliage::segment::ResponsiveSegment;
 use foliage::text::Text;
 use foliage::tree::{BranchHandle, BranchSet};
@@ -49,10 +50,12 @@ impl Leaf for Showcase {
         elm.navigate::<ShowcaseSeed>();
         elm.add_interaction_handler::<SampleHook, Commands>(|sh, cmd| {
             cmd.spawn(BranchSet(BranchHandle(0), sh.0));
+            cmd.spawn(BranchSet(BranchHandle(1), sh.0));
             sh.0 = !sh.0;
         });
         elm.enable_conditional::<Text>();
         elm.enable_conditional::<ResponsiveSegment>();
+        elm.enable_conditional_scene::<Button>();
         // style starts below
         // elm.configure_view_grid(START, MacroGrid::new(8, 6));
         // elm.add_view_scene_binding(

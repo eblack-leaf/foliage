@@ -16,7 +16,7 @@ use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::job::{Container, Job, Task};
-use crate::scene::{Binder, Scene};
+use crate::scene::Scene;
 use crate::tree::{
     conditional_extension, conditional_scene_spawn, conditional_spawn, sprout, Forest, Navigation,
     Seed,
@@ -27,9 +27,9 @@ use crate::Workflow;
 use anymap::AnyMap;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::event::{event_update_system, Event, Events};
-use bevy_ecs::prelude::{Component, DetectChanges, IntoSystemConfigs, Res};
+use bevy_ecs::prelude::{Component, DetectChanges, IntoSystemConfigs};
 use bevy_ecs::query::Changed;
-use bevy_ecs::system::{Commands, Query, ResMut, StaticSystemParam, SystemParam};
+use bevy_ecs::system::{Commands, Query, StaticSystemParam, SystemParam};
 use bytemuck::{Pod, Zeroable};
 use compact_str::{CompactString, ToCompactString};
 use leaf::Leaflet;
@@ -291,6 +291,12 @@ impl Disabled {
     }
     pub fn not_disabled() -> Self {
         Self(false)
+    }
+    pub fn disable(&mut self) {
+        self.0 = true;
+    }
+    pub fn enable(&mut self) {
+        self.0 = false;
     }
 }
 #[repr(C)]

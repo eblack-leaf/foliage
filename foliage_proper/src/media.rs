@@ -55,7 +55,7 @@ impl HrefLink {
 }
 fn navigation(hrefs: Query<(&Href, &InteractionListener, &Despawn)>) {
     for (href, listener, despawn) in hrefs.iter() {
-        if despawn.should_despawn() {
+        if despawn.is_despawned() {
             continue;
         }
         if listener.active() {

@@ -217,7 +217,7 @@ pub fn config<S: Scene + Send + Sync + 'static>(
     mut ext: StaticSystemParam<S::Params>,
 ) {
     for (entity, pos, area, layer, despawn, bindings) in query.iter() {
-        if despawn.should_despawn() {
+        if despawn.is_despawned() {
             continue;
         }
         // disabled?
@@ -330,45 +330,92 @@ pub(crate) fn update_from_anchor(
         *layer = anchor.0.layer;
     }
 }
-pub(crate) fn recursive_despawn(
+pub(crate) fn recursive_bindings(
     root: Entity,
-    query: &Query<(Option<&Bindings>, &Despawn), Or<(With<Tag<IsScene>>, With<Tag<IsDep>>)>>,
+    query: &Query<
+        (Option<&Bindings>, &Despawn, &Disabled),
+        Or<(
+            With<Tag<IsScene>>,
+            With<Tag<IsDep>>,
+            Or<(Changed<Despawn>, Changed<Disabled>)>,
+        )>,
+    >,
 ) -> HashSet<Entity> {
-    let mut to_despawn = HashSet::new();
+    let mut dependents = HashSet::new();
     if let Ok(res) = query.get(root) {
         if let Some(binds) = res.0 {
             for b in binds.0.iter() {
-                to_despawn.insert(b.1.entity);
-                to_despawn.extend(recursive_despawn(b.1.entity, &query));
+                dependents.insert(b.1.entity);
+                dependents.extend(recursive_bindings(b.1.entity, &query));
             }
         }
     }
-    to_despawn
+    dependents
 }
 // TODO add disabled to this/ re-enabled
 pub(crate) fn despawn_bindings(
-    mut despawned: ParamSet<(
-        Query<(Option<&Bindings>, &Despawn), Or<(With<Tag<IsScene>>, With<Tag<IsDep>>)>>,
-        Query<&mut Despawn>,
+    mut changed: ParamSet<(
+        Query<
+            (Option<&Bindings>, &Despawn, &Disabled),
+            Or<(
+                With<Tag<IsScene>>,
+                With<Tag<IsDep>>,
+                Or<(Changed<Despawn>, Changed<Disabled>)>,
+            )>,
+        >,
+        Query<(&mut Despawn, &mut Disabled)>,
     )>,
 ) {
     let mut to_despawn = HashSet::new();
-    for (bindings, despawn) in despawned.p0().iter() {
-        if despawn.should_despawn() {
+    let mut to_disable = HashSet::new();
+    let mut to_enable = HashSet::new();
+    for (bindings, despawn, disable) in changed.p0().iter() {
+        if despawn.is_despawned() {
             if let Some(binds) = bindings {
                 for b in binds.0.iter() {
                     to_despawn.insert(b.1.entity);
                 }
             }
         }
+        if disable.is_disabled() {
+            if let Some(binds) = bindings {
+                for b in binds.0.iter() {
+                    to_disable.insert(b.1.entity);
+                }
+            }
+        } else {
+            if let Some(binds) = bindings {
+                for b in binds.0.iter() {
+                    to_enable.insert(b.1.entity);
+                }
+            }
+        }
     }
     for e in to_despawn.clone() {
-        let entities = recursive_despawn(e, &despawned.p0());
+        let entities = recursive_bindings(e, &changed.p0());
         to_despawn.extend(entities);
     }
+    for e in to_disable.clone() {
+        let entities = recursive_bindings(e, &changed.p0());
+        to_disable.extend(entities);
+    }
+    for e in to_enable.clone() {
+        let entities = recursive_bindings(e, &changed.p0());
+        to_enable.extend(entities);
+    }
     for e in to_despawn {
-        if let Ok(mut d) = despawned.p1().get_mut(e) {
-            d.despawn();
+        if let Ok(mut d) = changed.p1().get_mut(e) {
+            d.0.despawn();
+        }
+    }
+    for e in to_disable {
+        if let Ok(mut d) = changed.p1().get_mut(e) {
+            d.1.disable();
+        }
+    }
+    for e in to_enable {
+        if let Ok(mut d) = changed.p1().get_mut(e) {
+            d.1.enable();
         }
     }
 }

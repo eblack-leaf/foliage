@@ -70,6 +70,7 @@ impl<'a> ElmConfiguration<'a> {
                 .chain(),
         );
         elm.main().add_systems((
+            crate::scene::despawn_bindings.in_set(ExternalSet::BranchExt),
             (
                 crate::scene::resolve_anchor,
                 crate::scene::update_from_anchor,

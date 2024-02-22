@@ -74,6 +74,33 @@ impl Seed for ShowcaseSeed {
             .without_portrait_mobile()
             .without_portrait_tablet(),
         );
+        binder.branch_scene(
+            1,
+            Button::new(
+                IconText::new(
+                    FeatherIcon::Copy,
+                    Color::BLACK,
+                    MaxCharacters(4),
+                    TextValue::new("copy"),
+                    Color::BLACK,
+                ),
+                ElementStyle::fill(),
+                THEME_COLOR::MINUS_ONE,
+                Color::BLACK,
+            ),
+            ResponsiveSegment::base(Segment::new(
+                5.near().to(6.far()).minimum(115.0).maximum(350.0),
+                2.near().to(2.far()).minimum(30.0).maximum(40.0),
+            ))
+            .exception(
+                [Layout::PORTRAIT_MOBILE],
+                Segment::new(
+                    5.near().to(8.far()),
+                    2.near().to(2.far()).minimum(30.0).maximum(40.0),
+                ),
+            )
+            .justify(Justify::Top),
+        );
         binder.tree()
     }
 }

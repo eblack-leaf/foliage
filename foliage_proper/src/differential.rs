@@ -195,7 +195,7 @@ pub(crate) fn send_render_packet(
     mut render_packet_forwarder: ResMut<RenderPacketForwarder>,
 ) {
     for (entity, mut packet, id, dif_disable, disable, despawn) in query.iter_mut() {
-        if dif_disable.is_disabled() || despawn.should_despawn() || disable_check(disable) {
+        if dif_disable.is_disabled() || despawn.is_despawned() || disable_check(disable) {
             tracing::trace!("removing render-packet: {:?}", entity);
             render_packet_forwarder.remove(id, entity);
         } else {
@@ -241,7 +241,7 @@ impl Despawn {
     pub fn despawn(&mut self) {
         self.0 = true;
     }
-    pub fn should_despawn(&self) -> bool {
+    pub fn is_despawned(&self) -> bool {
         self.0
     }
     pub fn signal_despawn() -> Self {
@@ -250,7 +250,7 @@ impl Despawn {
 }
 pub(crate) fn despawn(despawned: Query<(Entity, &Despawn), Changed<Despawn>>, mut cmd: Commands) {
     for (entity, despawn) in despawned.iter() {
-        if despawn.should_despawn() {
+        if despawn.is_despawned() {
             tracing::trace!("cleaning-up despawn-signaled: {:?}", entity);
             cmd.entity(entity).despawn();
         }
