@@ -37,7 +37,7 @@ pub(crate) fn sprout<SEED: Seed + Send + Sync + 'static>(
     mut grid: ResMut<MacroGrid>,
 ) {
     if let Some((_, n)) = navigation.iter().last() {
-        // despawn current tree + all in pool
+        // TODO despawn current tree + all in pool
         // or anim-out && @-end trigger despawn
         *grid = SEED::GRID;
         let tree = SEED::plant(&mut cmd, &mut ext);
@@ -93,9 +93,7 @@ pub(crate) fn conditional_spawn<C: Bundle + Clone + Send + Sync + 'static>(
     query: Query<(&Trigger, &Conditional<C>), Changed<Trigger>>,
     mut cmd: Commands,
 ) {
-    // use target to spawn cond comp
     for (trigger, cond) in query.iter() {
-        // handle extensions later
         if cond.is_extension {
             continue;
         }
@@ -121,9 +119,7 @@ pub(crate) fn conditional_scene_spawn<CS: Scene + Clone>(
     bindings: Query<&Bindings>,
     mut cmd: Commands,
 ) {
-    // use target to spawn cond scene
     for (trigger, cond) in query.iter() {
-        // handle extensions later
         if cond.is_extension {
             panic!("scenes-are-not allowed as extensions")
         }
@@ -374,7 +370,7 @@ impl BranchDesc {
         }
     }
 }
-// Derived-Value handler + other
+// TODO Derived-Value handler + other
 // pub struct OnEnter<T> {}
 fn viewport_changed(
     mut query: Query<(
