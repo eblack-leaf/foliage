@@ -1,20 +1,18 @@
-use foliage::bevy_ecs;
-use foliage::bevy_ecs::prelude::{Commands, Component};
+use foliage::bevy_ecs::prelude::Commands;
 use foliage::bevy_ecs::system::SystemParamItem;
 use foliage::color::monochromatic::{AquaMarine as THEME_COLOR, Monochromatic};
 use foliage::color::Color;
-use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
-use foliage::elm::{ElementStyle, Elm};
+use foliage::elm::ElementStyle;
 use foliage::icon::FeatherIcon;
 use foliage::layout::Layout;
 use foliage::r_scenes::button::Button;
+use foliage::r_scenes::circle_button::CircleButton;
 use foliage::r_scenes::icon_text::IconText;
-use foliage::scene::ExtendTarget;
 use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::text::{MaxCharacters, Text, TextValue};
-use foliage::tree::{BranchHandle, BranchSet, Seed, Tree, TreeBinder};
-pub struct ShowcaseSeed;
-impl Seed for ShowcaseSeed {
+use foliage::tree::{Seed, Tree, TreeBinder};
+pub struct Showcase;
+impl Seed for Showcase {
     const GRID: MacroGrid = MacroGrid::new(8, 6);
     type Resources = ();
 
@@ -34,7 +32,7 @@ impl Seed for ShowcaseSeed {
             ))
             .justify(Justify::Top),
         );
-        let desc = binder.responsive_scene(
+        binder.responsive_scene(
             Button::new(
                 IconText::new(
                     FeatherIcon::Copy,
@@ -60,9 +58,7 @@ impl Seed for ShowcaseSeed {
             )
             .justify(Justify::Top),
         );
-        binder.extend(desc.root(), SampleHook(true));
-        binder.branch(
-            0,
+        binder.responsive(
             Text::new(
                 MaxCharacters(11),
                 TextValue::new("base"),
@@ -76,8 +72,7 @@ impl Seed for ShowcaseSeed {
             .without_portrait_mobile()
             .without_portrait_tablet(),
         );
-        let other_desc = binder.branch_scene(
-            1,
+        binder.responsive_scene(
             Button::new(
                 IconText::new(
                     FeatherIcon::Copy,
@@ -103,9 +98,7 @@ impl Seed for ShowcaseSeed {
             )
             .justify(Justify::Top),
         );
-        binder.conditional_extend(other_desc, ExtendTarget::This, OtherHook(true));
-        binder.branch(
-            2,
+        binder.responsive(
             Text::new(MaxCharacters(11), TextValue::new("base"), THEME_COLOR::BASE),
             ResponsiveSegment::base(Segment::new(
                 7.near().to(8.far()),
@@ -116,8 +109,7 @@ impl Seed for ShowcaseSeed {
             .without_portrait_tablet(),
         );
         // tmp
-        binder.branch_scene(
-            3,
+        binder.responsive_scene(
             Button::new(
                 IconText::new(
                     FeatherIcon::Copy,
@@ -143,8 +135,7 @@ impl Seed for ShowcaseSeed {
             )
             .justify(Justify::Top),
         );
-        binder.branch(
-            4,
+        binder.responsive(
             Text::new(
                 MaxCharacters(11),
                 TextValue::new("text"),
@@ -158,8 +149,7 @@ impl Seed for ShowcaseSeed {
             .without_portrait_mobile()
             .without_portrait_tablet(),
         );
-        binder.branch_scene(
-            5,
+        binder.responsive_scene(
             Button::new(
                 IconText::new(
                     FeatherIcon::Copy,
@@ -185,38 +175,41 @@ impl Seed for ShowcaseSeed {
             )
             .justify(Justify::Top),
         );
+        binder.responsive(
+            Text::new(
+                MaxCharacters(11),
+                TextValue::new("text"),
+                THEME_COLOR::PLUS_ONE,
+            ),
+            ResponsiveSegment::base(Segment::new(
+                7.near().to(8.far()),
+                3.near().to(3.far()).minimum(30.0).maximum(40.0),
+            ))
+            .justify(Justify::Top)
+            .without_portrait_mobile()
+            .without_portrait_tablet(),
+        );
+        binder.responsive_scene(
+            CircleButton::new(
+                FeatherIcon::Copy,
+                ElementStyle::fill(),
+                THEME_COLOR::MINUS_ONE,
+                Color::BLACK,
+            ),
+            ResponsiveSegment::base(Segment::new(
+                2.near().to(3.far()).fixed(40.0),
+                4.near().to(4.far()).fixed(40.0),
+            ))
+            .exception(
+                [Layout::PORTRAIT_MOBILE],
+                Segment::new(
+                    1.near().to(4.far()).fixed(40.0),
+                    4.near().to(4.far()).fixed(40.0),
+                ),
+            )
+            .justify(Justify::Top),
+        );
+
         binder.tree()
-    }
-}
-#[derive(Component)]
-pub(crate) struct SampleHook(pub(crate) bool);
-#[derive(Component, Clone)]
-pub(crate) struct OtherHook(pub(crate) bool);
-
-impl Leaf for ShowcaseSeed {
-    type SetDescriptor = EmptySetDescriptor;
-
-    fn attach(elm: &mut Elm) {
-        elm.add_interaction_handler::<SampleHook, Commands>(|sh, cmd| {
-            cmd.spawn(BranchSet(BranchHandle(0), sh.0));
-            cmd.spawn(BranchSet(BranchHandle(1), sh.0));
-            cmd.spawn(BranchSet(BranchHandle(2), sh.0));
-            if !sh.0 {
-                cmd.spawn(BranchSet(BranchHandle(3), false));
-                cmd.spawn(BranchSet(BranchHandle(4), false));
-                cmd.spawn(BranchSet(BranchHandle(5), false));
-            }
-            sh.0 = !sh.0;
-        });
-        elm.add_interaction_handler::<OtherHook, Commands>(|sh, cmd| {
-            cmd.spawn(BranchSet(BranchHandle(3), sh.0));
-            cmd.spawn(BranchSet(BranchHandle(4), sh.0));
-            cmd.spawn(BranchSet(BranchHandle(5), sh.0));
-            sh.0 = !sh.0;
-        });
-        elm.enable_conditional::<Text>();
-        elm.enable_conditional::<ResponsiveSegment>();
-        elm.enable_conditional_scene::<Button>();
-        elm.enable_conditional::<OtherHook>();
     }
 }

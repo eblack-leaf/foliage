@@ -130,6 +130,7 @@ impl Scene for Button {
 
     fn create(self, mut binder: Binder) -> SceneDesc {
         let aspect = (self.icon_text.max_chars.0 as f32 + 3f32) / 2f32;
+        binder.extend(binder.root(), Tag::<ButtonInteractionHook>::new());
         binder.bind(
             ButtonBindings::Panel,
             Alignment::new(
@@ -176,13 +177,15 @@ impl Scene for Button {
     }
 }
 #[derive(Component, Copy, Clone)]
-struct ButtonInteractionHook();
+pub(crate) struct ButtonInteractionHook();
 fn interaction(
-    mut buttons: Query<(&mut Trigger, &ElementStyle, &mut CurrentStyle), With<Tag<Button>>>,
+    mut buttons: Query<
+        (&mut Trigger, &ElementStyle, &mut CurrentStyle),
+        With<Tag<ButtonInteractionHook>>,
+    >,
     interaction_pane: Query<
         (&InteractionListener, &ScenePtr),
         (
-            Without<Tag<Button>>,
             With<Tag<ButtonInteractionHook>>,
             Changed<InteractionListener>,
         ),

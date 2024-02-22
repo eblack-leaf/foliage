@@ -47,16 +47,15 @@ fn diameters() {
     assert_eq!(diameter.0, 36.0);
 }
 impl Circle {
-    pub fn new(style: ElementStyle, diameter: Diameter, color: Color, progress: Progress) -> Self {
-        let area = Area::new(diameter.0, diameter.0);
+    pub fn new(style: ElementStyle, color: Color, progress: Progress) -> Self {
         Self {
-            diameter,
+            diameter: Diameter::new(20.0),
             style: DifferentialBundle::new(style),
             color: DifferentialBundle::new(color),
             progress: DifferentialBundle::new(progress),
             differentiable: Differentiable::new::<Self>(
                 Position::default(),
-                area,
+                Area::default(),
                 Layer::default(),
             ),
         }
@@ -64,13 +63,13 @@ impl Circle {
 }
 #[derive(SystemSet, Hash, Eq, PartialEq, Copy, Clone, Debug)]
 pub enum SetDescriptor {
-    Area,
+    Update,
 }
 impl Leaf for Circle {
     type SetDescriptor = SetDescriptor;
 
     fn config(elm_configuration: &mut ElmConfiguration) {
-        elm_configuration.configure_hook(ExternalSet::Configure, SetDescriptor::Area);
+        elm_configuration.configure_hook(ExternalSet::Configure, SetDescriptor::Update);
     }
 
     fn attach(elm: &mut Elm) {
@@ -86,7 +85,7 @@ impl Leaf for Circle {
         use bevy_ecs::prelude::IntoSystemConfigs;
         elm.job
             .main()
-            .add_systems((diameter_set.in_set(SetDescriptor::Area),));
+            .add_systems((diameter_set.in_set(SetDescriptor::Update),));
     }
 }
 fn diameter_set(

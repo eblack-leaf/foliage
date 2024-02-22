@@ -1,15 +1,11 @@
-use crate::button_tree::{OtherHook, SampleHook, ShowcaseSeed};
+use crate::actual::Showcase;
 use foliage::bevy_ecs;
-use foliage::bevy_ecs::prelude::{Commands, Component, Resource};
+use foliage::bevy_ecs::prelude::{Component, Resource};
 use foliage::coordinate::area::Area;
 use foliage::elm::config::ElmConfiguration;
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 use foliage::elm::Elm;
 use foliage::image::{Image, ImageId, ImageStorage};
-use foliage::r_scenes::button::Button;
-use foliage::segment::ResponsiveSegment;
-use foliage::text::Text;
-use foliage::tree::{BranchHandle, BranchSet};
 
 #[foliage::assets(crate::Engen, "../assets/", "/foliage/demo/assets/")]
 #[derive(Resource, Clone)]
@@ -27,8 +23,8 @@ pub(crate) struct Assets {
     #[icon(path = "icons/tag.icon", opt = FeatherIcon::Tag)]
     _command_id: AssetKey,
 }
-pub(crate) struct Showcase {}
-impl Leaf for Showcase {
+pub(crate) struct ShowcaseMain {}
+impl Leaf for ShowcaseMain {
     type SetDescriptor = EmptySetDescriptor;
 
     fn config(_elm_configuration: &mut ElmConfiguration) {}
@@ -45,65 +41,19 @@ impl Leaf for Showcase {
             ImageStorage::some(Area::from((700, 700))),
         ));
         elm.container().insert_resource(assets);
-        elm.enable_seed::<ShowcaseSeed>();
-        elm.navigate::<ShowcaseSeed>();
-        elm.add_interaction_handler::<SampleHook, Commands>(|sh, cmd| {
-            cmd.spawn(BranchSet(BranchHandle(0), sh.0));
-            cmd.spawn(BranchSet(BranchHandle(1), sh.0));
-            cmd.spawn(BranchSet(BranchHandle(2), sh.0));
-            if !sh.0 {
-                cmd.spawn(BranchSet(BranchHandle(3), false));
-                cmd.spawn(BranchSet(BranchHandle(4), false));
-                cmd.spawn(BranchSet(BranchHandle(5), false));
-            }
-            sh.0 = !sh.0;
-        });
-        elm.add_interaction_handler::<OtherHook, Commands>(|sh, cmd| {
-            cmd.spawn(BranchSet(BranchHandle(3), sh.0));
-            cmd.spawn(BranchSet(BranchHandle(4), sh.0));
-            cmd.spawn(BranchSet(BranchHandle(5), sh.0));
-            sh.0 = !sh.0;
-        });
-        elm.enable_conditional::<Text>();
-        elm.enable_conditional::<ResponsiveSegment>();
-        elm.enable_conditional_scene::<Button>();
-        elm.enable_conditional::<OtherHook>();
+        elm.enable_seed::<Showcase>();
+        elm.navigate::<Showcase>();
+
         // style starts below
 
         // elm.add_view_binding(
         //     START,
-        //     Text::new(
-        //         MaxCharacters(11),
-        //         TextValue::new("text"),
-        //         THEME_COLOR::PLUS_ONE,
-        //     ),
-        //     ResponsiveSegment::base(Segment::new(
-        //         7.near().to(8.far()),
-        //         3.near().to(3.far()).minimum(30.0).maximum(40.0),
-        //     ))
-        //     .justify(Justify::Top)
-        //     .without_portrait_mobile()
-        //     .without_portrait_tablet(),
+
         //     (),
         // );
         // // elm.add_view_scene_binding(
         // //     START,
-        // //     CircleButton::new(
-        // //         FeatherIcon::Copy,
-        // //         ButtonStyle::Fill,
-        // //         THEME_COLOR::MINUS_ONE,
-        // //         Color::BLACK,
-        // //     ),
-        // //     ResponsiveSegment::base(
-        // //         2.near().to(3.far()).fixed(40.0),
-        // //         4.near().to(4.far()).fixed(40.0),
-        // //     )
-        // //     .exception(
-        // //         [Layout::PORTRAIT_MOBILE],
-        // //         1.near().to(4.far()).fixed(40.0),
-        // //         4.near().to(4.far()).fixed(40.0),
-        // //     )
-        // //     .justify(Justify::Top),
+
         // //     (),
         // // );
         // elm.add_view_binding(
@@ -226,7 +176,6 @@ impl Leaf for Showcase {
         //     .without_portrait_tablet(),
         //     (),
         // );
-        elm.view_trigger::<TestHook, ShowcaseSeed>();
     }
 }
 #[derive(Component, Copy, Clone)]

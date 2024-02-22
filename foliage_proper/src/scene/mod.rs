@@ -128,8 +128,8 @@ impl<'a, 'w, 's> Binder<'a, 'w, 's> {
     pub fn bind_conditional_scene<S>() {
         todo!()
     }
-    pub fn extend<Ext>() {
-        todo!()
+    pub fn extend<Ext: Bundle>(&mut self, entity: Entity, ext: Ext) {
+        self.cmd.entity(entity).insert(ext);
     }
     pub fn extend_conditional<Ext>() {
         todo!()

@@ -1,7 +1,8 @@
+mod actual;
 mod button_tree;
 mod showcase;
 
-use crate::showcase::Showcase;
+use crate::showcase::ShowcaseMain;
 use foliage::elm::Elm;
 use foliage::window::WindowDescriptor;
 use foliage::workflow::{EngenHandle, Workflow};
@@ -15,7 +16,7 @@ pub fn entry(android_interface: AndroidInterface) {
                 .with_resizable(true),
         )
         .with_leaves::<foliage::SceneExtensions>()
-        .with_leaf::<Showcase>()
+        .with_leaf::<ShowcaseMain>()
         .with_android_interface(android_interface)
         .with_worker_path("./worker.js")
         .run::<Engen>();
