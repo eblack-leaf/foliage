@@ -31,17 +31,6 @@ impl SceneDesc {
     pub(crate) fn new(root: Entity, bindings: Bindings) -> Self {
         Self { root, bindings }
     }
-    pub fn extend<Ext: Bundle>(self, target: ExtendTarget, ext: Ext, cmd: &mut Commands) -> Self {
-        match target {
-            ExtendTarget::This => {
-                cmd.entity(self.root).insert(ext);
-            }
-            ExtendTarget::Binding(bind) => {
-                cmd.entity(self.bindings.get(bind)).insert(ext);
-            }
-        }
-        self
-    }
     pub fn root(&self) -> Entity {
         self.root
     }
@@ -129,6 +118,18 @@ impl<'a, 'w, 's> Binder<'a, 'w, 's> {
         self.nodes
             .insert(sb.into(), SceneNode::new(scene_desc.root(), true));
         scene_desc
+    }
+    pub fn bind_conditional<C>() {
+        todo!()
+    }
+    pub fn bind_conditional_scene<S>() {
+        todo!()
+    }
+    pub fn extend<Ext>() {
+        todo!()
+    }
+    pub fn extend_conditional<Ext>() {
+        todo!()
     }
 }
 #[derive(Component, Default, Clone)]

@@ -1,12 +1,15 @@
-use crate::button_tree::ShowcaseSeed;
+use crate::button_tree::{SampleHook, ShowcaseSeed};
 use foliage::bevy_ecs;
 use foliage::bevy_ecs::entity::Entity;
-use foliage::bevy_ecs::prelude::{Component, Resource};
+use foliage::bevy_ecs::prelude::{Commands, Component, Resource};
 use foliage::coordinate::area::Area;
 use foliage::elm::config::ElmConfiguration;
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 use foliage::elm::Elm;
 use foliage::image::{Image, ImageId, ImageStorage};
+use foliage::segment::ResponsiveSegment;
+use foliage::text::Text;
+use foliage::tree::{BranchHandle, BranchSet};
 
 #[foliage::assets(crate::Engen, "../assets/", "/foliage/demo/assets/")]
 #[derive(Resource, Clone)]
@@ -44,6 +47,11 @@ impl Leaf for Showcase {
         elm.container().insert_resource(assets);
         elm.enable_seed::<ShowcaseSeed>();
         elm.navigate::<ShowcaseSeed>();
+        elm.add_interaction_handler::<SampleHook, Commands>(|_, cmd| {
+            cmd.spawn(BranchSet(BranchHandle(0)));
+        });
+        elm.enable_conditional::<Text>();
+        elm.enable_conditional::<ResponsiveSegment>();
         // style starts below
         // elm.configure_view_grid(START, MacroGrid::new(8, 6));
         // elm.add_view_scene_binding(
@@ -377,7 +385,5 @@ impl Leaf for Showcase {
         elm.view_trigger::<TestHook, ShowcaseSeed>();
     }
 }
-#[derive(Component, Copy, Clone)]
-struct SampleHook(Entity);
 #[derive(Component, Copy, Clone)]
 struct TestHook();

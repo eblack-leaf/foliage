@@ -51,6 +51,11 @@ pub trait Seed {
 }
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
 pub struct BranchHandle(pub i32);
+impl From<i32> for BranchHandle {
+    fn from(value: i32) -> Self {
+        Self(value)
+    }
+}
 #[derive(Component)]
 pub struct Conditional<T: Clone> {
     wrapped: T,
@@ -188,12 +193,16 @@ impl<'a, 'w, 's> TreeBinder<'a, 'w, 's> {
         self.tree
     }
     pub fn responsive_scene<S: Scene>(&mut self, s: S, rs: ResponsiveSegment) -> SceneDesc {
-        let desc = self.cmd.responsive_scene(s, rs);
+        let desc = {
+            let scene_desc = s.create(Binder::new(self.cmd, None));
+            self.cmd.entity(scene_desc.root()).insert(rs);
+            scene_desc
+        };
         self.tree.0.insert(desc.root());
         desc
     }
     pub fn responsive<B: Bundle>(&mut self, b: B, rs: ResponsiveSegment) -> Entity {
-        let ent = self.cmd.responsive(b, rs);
+        let ent = { self.cmd.spawn(b).insert(rs).id() };
         self.tree.0.insert(ent);
         ent
     }
@@ -201,8 +210,25 @@ impl<'a, 'w, 's> TreeBinder<'a, 'w, 's> {
         &mut self,
         bh: BH,
         br: BR,
+        rs: ResponsiveSegment,
     ) -> BranchDesc {
-        let desc = self.cmd.branch(br);
+        let desc = {
+            let pre_spawned = self.cmd.spawn_empty().id();
+            let branch_id = self
+                .cmd
+                .spawn(Branch::new(
+                    br,
+                    BranchExtendTarget::This(pre_spawned),
+                    false,
+                ))
+                .insert(Conditional::new(
+                    BranchExtendTarget::This(pre_spawned),
+                    rs,
+                    false,
+                ))
+                .id();
+            BranchDesc::new(branch_id, pre_spawned)
+        };
         self.tree.1.insert(bh.into(), desc.branch_entity);
         desc
     }
@@ -210,10 +236,57 @@ impl<'a, 'w, 's> TreeBinder<'a, 'w, 's> {
         &mut self,
         bh: BH,
         s: S,
+        rs: ResponsiveSegment,
     ) -> BranchDesc {
-        let desc = self.cmd.branch_scene(s);
+        let desc = {
+            let pre_spawned = self.cmd.spawn_empty().id();
+            let branch_id = self
+                .cmd
+                .spawn(SceneBranch::new(
+                    s,
+                    BranchExtendTarget::This(pre_spawned),
+                    false,
+                ))
+                .insert(Conditional::new(
+                    BranchExtendTarget::This(pre_spawned),
+                    rs,
+                    false,
+                ))
+                .id();
+            BranchDesc::new(branch_id, pre_spawned)
+        };
         self.tree.1.insert(bh.into(), desc.branch_entity);
         desc
+    }
+    pub fn extend<Ext: Bundle>(&mut self, entity: Entity, ext: Ext) {
+        self.cmd.entity(entity).insert(ext);
+    }
+    pub fn conditional_extend<Ext: Bundle + Clone>(
+        &mut self,
+        branch_desc: BranchDesc,
+        extend_target: ExtendTarget,
+        ext: Ext,
+    ) {
+        match extend_target {
+            ExtendTarget::This => {
+                self.cmd
+                    .entity(branch_desc.branch_entity)
+                    .insert(Conditional::<Ext>::new(
+                        BranchExtendTarget::This(branch_desc.pre_spawned),
+                        ext,
+                        true,
+                    ));
+            }
+            ExtendTarget::Binding(bind) => {
+                self.cmd
+                    .entity(branch_desc.branch_entity)
+                    .insert(Conditional::<Ext>::new(
+                        BranchExtendTarget::BindingOf(branch_desc.pre_spawned, bind),
+                        ext,
+                        true,
+                    ));
+            }
+        }
     }
 }
 #[derive(Default, Resource)]
@@ -246,44 +319,6 @@ fn set_branch(query: Query<(Entity, &BranchSet)>, mut cmd: Commands, forest: Res
         }
     }
 }
-trait Responsive {
-    fn responsive_scene<S: Scene>(&mut self, s: S, rs: ResponsiveSegment) -> SceneDesc;
-    fn responsive<B: Bundle>(&mut self, b: B, rs: ResponsiveSegment) -> Entity;
-    fn branch<BR: Clone + Send + Sync + 'static>(&mut self, br: BR) -> BranchDesc;
-    fn branch_scene<S: Scene + Clone>(&mut self, s: S) -> BranchDesc;
-}
-impl<'w, 's> Responsive for Commands<'w, 's> {
-    fn responsive_scene<S: Scene>(&mut self, s: S, rs: ResponsiveSegment) -> SceneDesc {
-        let scene_desc = s.create(Binder::new(self, None));
-        self.entity(scene_desc.root()).insert(rs);
-        scene_desc
-    }
-    fn responsive<B: Bundle>(&mut self, b: B, rs: ResponsiveSegment) -> Entity {
-        self.spawn(b).insert(rs).id()
-    }
-    fn branch<BR: Clone + Send + Sync + 'static>(&mut self, br: BR) -> BranchDesc {
-        let pre_spawned = self.spawn_empty().id();
-        let branch_id = self
-            .spawn(Branch::new(
-                br,
-                BranchExtendTarget::This(pre_spawned),
-                false,
-            ))
-            .id();
-        BranchDesc::new(branch_id, pre_spawned)
-    }
-    fn branch_scene<S: Scene + Clone>(&mut self, s: S) -> BranchDesc {
-        let pre_spawned = self.spawn_empty().id();
-        let branch_id = self
-            .spawn(SceneBranch::new(
-                s,
-                BranchExtendTarget::This(pre_spawned),
-                false,
-            ))
-            .id();
-        BranchDesc::new(branch_id, pre_spawned)
-    }
-}
 pub enum BranchExtendTarget {
     This(Entity),
     BindingOf(Entity, SceneBinding),
@@ -298,30 +333,6 @@ impl BranchDesc {
             branch_entity,
             pre_spawned,
         }
-    }
-    pub fn extend<E: Clone + Send + Sync + 'static>(
-        self,
-        target: ExtendTarget,
-        e: E,
-        cmd: &mut Commands,
-    ) -> Self {
-        match target {
-            ExtendTarget::This => {
-                cmd.entity(self.branch_entity).insert(Conditional::new(
-                    BranchExtendTarget::This(self.pre_spawned),
-                    e,
-                    true,
-                ));
-            }
-            ExtendTarget::Binding(bind) => {
-                cmd.entity(self.branch_entity).insert(Conditional::new(
-                    BranchExtendTarget::BindingOf(self.pre_spawned, bind),
-                    e,
-                    true,
-                ));
-            }
-        }
-        self
     }
 }
 // Derived-Value handler + other
