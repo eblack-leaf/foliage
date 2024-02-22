@@ -246,7 +246,7 @@ impl Elm {
         let func = move |mut ext: StaticSystemParam<Ext>,
                          mut ihs: Query<(&Trigger, &mut IH), Changed<Trigger>>| {
             for (trigger, mut ih) in ihs.iter_mut() {
-                if trigger.active() {
+                if trigger.is_active() {
                     handler(&mut ih, &mut ext);
                 }
             }

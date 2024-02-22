@@ -4,27 +4,42 @@ use crate::elm::Elm;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::Query;
-
+#[derive(Default, Copy, Clone, Debug, Hash, Eq, PartialEq)]
+pub enum TriggerState {
+    Active,
+    #[default]
+    Neutral,
+    Inverse,
+}
 #[derive(Default, Copy, Clone, Debug, Hash, Eq, PartialEq, Component)]
-pub struct Trigger(pub(crate) bool);
+pub struct Trigger(pub(crate) TriggerState);
 impl Trigger {
-    pub fn activated() -> Self {
-        Self(true)
+    pub fn active() -> Self {
+        Self(TriggerState::Active)
     }
-    pub fn active(&self) -> bool {
-        self.0
+    pub fn inverse() -> Self {
+        Self(TriggerState::Inverse)
     }
-    pub fn set(&mut self) {
-        self.0 = true;
+    pub fn neutral() -> Self {
+        Self(TriggerState::Neutral)
     }
-    pub fn deactivated() -> Self {
-        Self::default()
+    pub fn is_active(&self) -> bool {
+        self.0 == TriggerState::Active
+    }
+    pub fn is_inverse(&self) -> bool {
+        self.0 == TriggerState::Inverse
+    }
+    pub fn is_neutral(&self) -> bool {
+        self.0 == TriggerState::Neutral
+    }
+    pub fn set(&mut self, trigger_state: TriggerState) {
+        self.0 = trigger_state;
     }
 }
 fn clear_triggered(mut triggers: Query<&mut Trigger, Changed<Trigger>>) {
     for mut trigger in triggers.iter_mut() {
-        if trigger.0 {
-            trigger.0 = false;
+        if trigger.0 != TriggerState::Neutral {
+            trigger.0 = TriggerState::Neutral;
         }
     }
 }

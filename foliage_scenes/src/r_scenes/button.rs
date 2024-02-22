@@ -1,7 +1,7 @@
 use crate::r_scenes::icon_text::{IconColor, IconText, TextColor};
 use crate::r_scenes::{BackgroundColor, ForegroundColor};
 use foliage_macros::{inner_set_descriptor, InnerSceneBinding};
-use foliage_proper::animate::trigger::Trigger;
+use foliage_proper::animate::trigger::{Trigger, TriggerState};
 use foliage_proper::bevy_ecs;
 use foliage_proper::bevy_ecs::bundle::Bundle;
 use foliage_proper::bevy_ecs::entity::Entity;
@@ -201,7 +201,7 @@ fn interaction(
                 *cs = CurrentStyle(*est);
             }
             if listener.active() {
-                trigger.set();
+                trigger.set(TriggerState::Active);
             }
         }
     }

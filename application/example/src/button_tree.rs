@@ -58,7 +58,7 @@ impl Seed for ShowcaseSeed {
             )
             .justify(Justify::Top),
         );
-        binder.extend(desc.root(), SampleHook());
+        binder.extend(desc.root(), SampleHook(false));
         binder.branch(
             0,
             Text::new(
@@ -78,4 +78,4 @@ impl Seed for ShowcaseSeed {
     }
 }
 #[derive(Component)]
-pub(crate) struct SampleHook();
+pub(crate) struct SampleHook(pub(crate) bool);

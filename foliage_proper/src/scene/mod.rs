@@ -54,6 +54,9 @@ impl SceneNode {
     fn new(entity: Entity, is_scene: bool) -> Self {
         Self { entity, is_scene }
     }
+    pub fn entity(&self) -> Entity {
+        self.entity
+    }
 }
 pub struct Binder<'a, 'w, 's> {
     nodes: HashMap<SceneBinding, SceneNode>,
@@ -137,6 +140,9 @@ pub struct Bindings(HashMap<SceneBinding, SceneNode>);
 impl Bindings {
     pub fn get<SB: Into<SceneBinding>>(&self, sb: SB) -> Entity {
         self.0.get(&sb.into()).expect("no-scene-binding").entity
+    }
+    pub fn nodes(&self) -> &HashMap<SceneBinding, SceneNode> {
+        &self.0
     }
 }
 #[derive(Component, Copy, Clone)]

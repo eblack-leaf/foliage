@@ -3,12 +3,15 @@ use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::InterfaceContext;
+use crate::differential::Despawn;
 use crate::elm::config::CoreSet;
 use crate::elm::leaf::{EmptySetDescriptor, Leaf};
 use crate::elm::{Disabled, Elm};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::layout::Layout;
-use crate::scene::{Binder, Bindings, ExtendTarget, Scene, SceneBinding, SceneDesc};
+use crate::scene::{
+    Binder, Bindings, ExtendTarget, Scene, SceneBinding, SceneComponents, SceneDesc,
+};
 use crate::segment::{MacroGrid, ResponsiveSegment};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Bundle, Component, IntoSystemConfigs};
@@ -96,10 +99,17 @@ pub(crate) fn conditional_spawn<C: Bundle + Clone + Send + Sync + 'static>(
         if cond.is_extension {
             continue;
         }
-        if trigger.active() {
+        if trigger.is_active() {
             match cond.target {
                 BranchExtendTarget::This(entity) => {
                     cmd.entity(entity).insert(cond.wrapped.clone());
+                }
+                BranchExtendTarget::BindingOf(_, _) => {}
+            }
+        } else if trigger.is_inverse() {
+            match cond.target {
+                BranchExtendTarget::This(entity) => {
+                    cmd.entity(entity).remove::<C>();
                 }
                 BranchExtendTarget::BindingOf(_, _) => {}
             }
@@ -108,6 +118,7 @@ pub(crate) fn conditional_spawn<C: Bundle + Clone + Send + Sync + 'static>(
 }
 pub(crate) fn conditional_scene_spawn<CS: Scene + Clone>(
     query: Query<(&Trigger, &ConditionalScene<CS>), Changed<Trigger>>,
+    bindings: Query<&Bindings>,
     mut cmd: Commands,
 ) {
     // use target to spawn cond scene
@@ -116,13 +127,26 @@ pub(crate) fn conditional_scene_spawn<CS: Scene + Clone>(
         if cond.is_extension {
             panic!("scenes-are-not allowed as extensions")
         }
-        if trigger.active() {
+        if trigger.is_active() {
             match cond.target {
                 BranchExtendTarget::This(entity) => {
                     let _scene_desc = cond
                         .wrapped
                         .clone()
                         .create(Binder::new(&mut cmd, Some(entity)));
+                }
+                BranchExtendTarget::BindingOf(_, _) => {}
+            }
+        } else if trigger.is_inverse() {
+            match cond.target {
+                BranchExtendTarget::This(entity) => {
+                    // also despawn bindings completely which will trigger subscenes
+                    if let Ok(binds) = bindings.get(entity) {
+                        for (_, b) in binds.nodes().iter() {
+                            cmd.entity(b.entity()).insert(Despawn::signal_despawn());
+                        }
+                    }
+                    cmd.entity(entity).remove::<SceneComponents<CS>>();
                 }
                 BranchExtendTarget::BindingOf(_, _) => {}
             }
@@ -135,16 +159,27 @@ pub(crate) fn conditional_extension<C: Bundle + Clone + Send + Sync + 'static>(
     bindings: Query<&Bindings>,
 ) {
     for (trigger, cond) in query.iter() {
-        if trigger.active() {
-            if cond.is_extension {
-                match cond.target {
-                    BranchExtendTarget::This(entity) => {
-                        cmd.entity(entity).insert(cond.wrapped.clone());
-                    }
-                    BranchExtendTarget::BindingOf(parent, bind) => {
-                        cmd.entity(bindings.get(parent).unwrap().get(bind))
-                            .insert(cond.wrapped.clone());
-                    }
+        if !cond.is_extension {
+            continue;
+        }
+        if trigger.is_active() {
+            match cond.target {
+                BranchExtendTarget::This(entity) => {
+                    cmd.entity(entity).insert(cond.wrapped.clone());
+                }
+                BranchExtendTarget::BindingOf(parent, bind) => {
+                    cmd.entity(bindings.get(parent).unwrap().get(bind))
+                        .insert(cond.wrapped.clone());
+                }
+            }
+        } else if trigger.is_inverse() {
+            match cond.target {
+                BranchExtendTarget::This(entity) => {
+                    cmd.entity(entity).remove::<C>();
+                }
+                BranchExtendTarget::BindingOf(parent, bind) => {
+                    cmd.entity(bindings.get(parent).unwrap().get(bind))
+                        .remove::<C>();
                 }
             }
         }
@@ -300,11 +335,15 @@ impl Forest {
 }
 // Uses current-tree and sets condition for that branch using tree.branches
 #[derive(Component, Copy, Clone)]
-pub struct BranchSet(pub BranchHandle);
+pub struct BranchSet(pub BranchHandle, pub bool);
 fn set_branch(query: Query<(Entity, &BranchSet)>, mut cmd: Commands, forest: Res<Forest>) {
-    // set condition of branch-set.0 in forest.current.branches.get(bh)
     if forest.current.is_some() {
         for (entity, branch_request) in query.iter() {
+            let trigger = if branch_request.1 {
+                Trigger::inverse()
+            } else {
+                Trigger::active()
+            };
             cmd.entity(
                 *forest
                     .current
@@ -314,7 +353,7 @@ fn set_branch(query: Query<(Entity, &BranchSet)>, mut cmd: Commands, forest: Res
                     .get(&branch_request.0)
                     .expect("invalid-branch-request"),
             )
-            .insert(Trigger::activated());
+            .insert(trigger);
             cmd.entity(entity).despawn();
         }
     }
