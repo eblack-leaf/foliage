@@ -5,7 +5,7 @@ use foliage_proper::animate::trigger::{Trigger, TriggerState};
 use foliage_proper::bevy_ecs;
 use foliage_proper::bevy_ecs::bundle::Bundle;
 use foliage_proper::bevy_ecs::entity::Entity;
-use foliage_proper::bevy_ecs::prelude::{Changed, Commands, Component, IntoSystemConfigs, Or};
+use foliage_proper::bevy_ecs::prelude::{Changed, Component, IntoSystemConfigs, Or};
 use foliage_proper::bevy_ecs::query::{With, Without};
 use foliage_proper::bevy_ecs::system::{Query, SystemParamItem};
 use foliage_proper::color::Color;

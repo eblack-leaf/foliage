@@ -36,9 +36,10 @@ pub(crate) fn sprout<SEED: Seed + Send + Sync + 'static>(
     mut ext: StaticSystemParam<SEED::Resources>,
     mut grid: ResMut<MacroGrid>,
 ) {
-    if let Some((_, n)) = navigation.iter().last() {
+    if let Some((_, _n)) = navigation.iter().last() {
         // TODO despawn current tree + all in pool
         // or anim-out && @-end trigger despawn
+
         *grid = SEED::GRID;
         let tree = SEED::plant(&mut cmd, &mut ext);
         forest.current.replace(tree);
@@ -136,7 +137,6 @@ pub(crate) fn conditional_scene_spawn<CS: Scene + Clone>(
         } else if trigger.is_inverse() {
             match cond.target {
                 BranchExtendTarget::This(entity) => {
-                    // also despawn bindings completely which will trigger subscenes
                     if let Ok(binds) = bindings.get(entity) {
                         for (_, b) in binds.nodes().iter() {
                             cmd.entity(b.entity()).insert(Despawn::signal_despawn());
@@ -329,7 +329,6 @@ impl Forest {
         cmd.spawn(Navigation::<N>::new());
     }
 }
-// Uses current-tree and sets condition for that branch using tree.branches
 #[derive(Component, Copy, Clone)]
 pub struct BranchSet(pub BranchHandle, pub bool);
 fn set_branch(query: Query<(Entity, &BranchSet)>, mut cmd: Commands, forest: Res<Forest>) {
@@ -429,18 +428,6 @@ fn responsive_segment_changed(
             *disabled = Disabled::disabled();
         }
     }
-}
-macro_rules! enable_conditional {
-    () => {};
-}
-macro_rules! enable_conditional_scene {
-    () => {};
-}
-macro_rules! enable_tree {
-    () => {};
-}
-macro_rules! enable_on_enter {
-    () => {};
 }
 impl Leaf for Tree {
     type SetDescriptor = EmptySetDescriptor;

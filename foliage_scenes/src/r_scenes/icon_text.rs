@@ -3,7 +3,7 @@ use foliage_proper::bevy_ecs;
 use foliage_proper::bevy_ecs::bundle::Bundle;
 use foliage_proper::bevy_ecs::component::Component;
 use foliage_proper::bevy_ecs::entity::Entity;
-use foliage_proper::bevy_ecs::prelude::{Commands, IntoSystemConfigs, With};
+use foliage_proper::bevy_ecs::prelude::{IntoSystemConfigs, With};
 use foliage_proper::bevy_ecs::query::{Changed, Or, Without};
 use foliage_proper::bevy_ecs::system::{Query, SystemParamItem};
 use foliage_proper::color::Color;

@@ -1,6 +1,5 @@
 use crate::button_tree::{SampleHook, ShowcaseSeed};
 use foliage::bevy_ecs;
-use foliage::bevy_ecs::entity::Entity;
 use foliage::bevy_ecs::prelude::{Commands, Component, Resource};
 use foliage::coordinate::area::Area;
 use foliage::elm::config::ElmConfiguration;

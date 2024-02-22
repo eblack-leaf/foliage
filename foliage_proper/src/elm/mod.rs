@@ -27,7 +27,7 @@ use crate::Workflow;
 use anymap::AnyMap;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::event::{event_update_system, Event, Events};
-use bevy_ecs::prelude::{Component, DetectChanges, IntoSystemConfigs};
+use bevy_ecs::prelude::{Component, IntoSystemConfigs};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Commands, Query, StaticSystemParam, SystemParam};
 use bytemuck::{Pod, Zeroable};
