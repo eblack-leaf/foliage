@@ -44,54 +44,6 @@ impl Leaf for ShowcaseMain {
         elm.enable_seed::<Showcase>();
         elm.navigate::<Showcase>();
 
-        // style starts below
-
-        // elm.add_view_binding(
-        //     START,
-
-        //     (),
-        // );
-        // // elm.add_view_scene_binding(
-        // //     START,
-
-        // //     (),
-        // // );
-        // elm.add_view_binding(
-        //     START,
-        //     Text::new(
-        //         MaxCharacters(11),
-        //         TextValue::new("circle"),
-        //         THEME_COLOR::MINUS_ONE,
-        //     ),
-        //     ResponsiveSegment::base(Segment::new(
-        //         4.near().to(5.far()),
-        //         4.near().to(4.far()).minimum(30.0).maximum(40.0),
-        //     ))
-        //     .justify(Justify::Top)
-        //     .without_portrait_mobile()
-        //     .without_portrait_tablet(),
-        //     (),
-        // );
-        // // elm.add_view_scene_binding(
-        // //     START,
-        // //     CircleButton::new(
-        // //         FeatherIcon::Copy,
-        // //         ButtonStyle::Ring,
-        // //         THEME_COLOR::PLUS_TWO,
-        // //         Color::BLACK,
-        // //     ),
-        // //     ResponsiveSegment::base(
-        // //         5.near().to(6.far()).fixed(40.0),
-        // //         4.near().to(4.far()).fixed(40.0),
-        // //     )
-        // //     .exception(
-        // //         [Layout::PORTRAIT_MOBILE],
-        // //         5.near().to(8.far()).fixed(40.0),
-        // //         4.near().to(4.far()).fixed(40.0),
-        // //     )
-        // //     .justify(Justify::Top),
-        // //     (),
-        // // );
         // elm.add_view_binding(
         //     START,
         //     Text::new(

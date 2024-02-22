@@ -209,7 +209,40 @@ impl Seed for Showcase {
             )
             .justify(Justify::Top),
         );
-
+        binder.responsive(
+            Text::new(
+                MaxCharacters(11),
+                TextValue::new("circle"),
+                THEME_COLOR::MINUS_ONE,
+            ),
+            ResponsiveSegment::base(Segment::new(
+                4.near().to(5.far()),
+                4.near().to(4.far()).minimum(30.0).maximum(40.0),
+            ))
+            .justify(Justify::Top)
+            .without_portrait_mobile()
+            .without_portrait_tablet(),
+        );
+        binder.responsive_scene(
+            CircleButton::new(
+                FeatherIcon::Copy,
+                ElementStyle::ring(),
+                THEME_COLOR::PLUS_TWO,
+                Color::BLACK,
+            ),
+            ResponsiveSegment::base(Segment::new(
+                5.near().to(6.far()).fixed(40.0),
+                4.near().to(4.far()).fixed(40.0),
+            ))
+            .exception(
+                [Layout::PORTRAIT_MOBILE],
+                Segment::new(
+                    5.near().to(8.far()).fixed(40.0),
+                    4.near().to(4.far()).fixed(40.0),
+                ),
+            )
+            .justify(Justify::Top),
+        );
         binder.tree()
     }
 }
