@@ -334,7 +334,7 @@ pub struct BranchSet(pub BranchHandle, pub bool);
 fn set_branch(query: Query<(Entity, &BranchSet)>, mut cmd: Commands, forest: Res<Forest>) {
     if forest.current.is_some() {
         for (entity, branch_request) in query.iter() {
-            let trigger = if branch_request.1 {
+            let trigger = if !branch_request.1 {
                 Trigger::inverse()
             } else {
                 Trigger::active()

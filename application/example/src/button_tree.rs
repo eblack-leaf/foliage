@@ -8,6 +8,7 @@ use foliage::icon::FeatherIcon;
 use foliage::layout::Layout;
 use foliage::r_scenes::button::Button;
 use foliage::r_scenes::icon_text::IconText;
+use foliage::scene::ExtendTarget;
 use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::text::{MaxCharacters, Text, TextValue};
 use foliage::tree::{Seed, Tree, TreeBinder};
@@ -58,7 +59,7 @@ impl Seed for ShowcaseSeed {
             )
             .justify(Justify::Top),
         );
-        binder.extend(desc.root(), SampleHook(false));
+        binder.extend(desc.root(), SampleHook(true));
         binder.branch(
             0,
             Text::new(
@@ -74,7 +75,7 @@ impl Seed for ShowcaseSeed {
             .without_portrait_mobile()
             .without_portrait_tablet(),
         );
-        binder.branch_scene(
+        let other_desc = binder.branch_scene(
             1,
             Button::new(
                 IconText::new(
@@ -101,8 +102,94 @@ impl Seed for ShowcaseSeed {
             )
             .justify(Justify::Top),
         );
+        binder.conditional_extend(other_desc, ExtendTarget::This, OtherHook(true));
+        binder.branch(
+            2,
+            Text::new(MaxCharacters(11), TextValue::new("base"), THEME_COLOR::BASE),
+            ResponsiveSegment::base(Segment::new(
+                7.near().to(8.far()),
+                2.near().to(2.far()).minimum(30.0).maximum(40.0),
+            ))
+            .justify(Justify::Top)
+            .without_portrait_mobile()
+            .without_portrait_tablet(),
+        );
+        // tmp
+        binder.branch_scene(
+            3,
+            Button::new(
+                IconText::new(
+                    FeatherIcon::Copy,
+                    Color::BLACK,
+                    MaxCharacters(4),
+                    TextValue::new("copy"),
+                    Color::BLACK,
+                ),
+                ElementStyle::fill(),
+                THEME_COLOR::MINUS_TWO,
+                Color::BLACK,
+            ),
+            ResponsiveSegment::base(Segment::new(
+                2.near().to(3.far()).minimum(115.0).maximum(350.0),
+                3.near().to(3.far()).minimum(30.0).maximum(40.0),
+            ))
+            .exception(
+                [Layout::PORTRAIT_MOBILE],
+                Segment::new(
+                    1.near().to(4.far()),
+                    3.near().to(3.far()).minimum(30.0).maximum(40.0),
+                ),
+            )
+            .justify(Justify::Top),
+        );
+        binder.branch(
+            4,
+            Text::new(
+                MaxCharacters(11),
+                TextValue::new("text"),
+                THEME_COLOR::PLUS_THREE,
+            ),
+            ResponsiveSegment::base(Segment::new(
+                4.near().to(5.far()),
+                3.near().to(3.far()).minimum(30.0).maximum(40.0),
+            ))
+            .justify(Justify::Top)
+            .without_portrait_mobile()
+            .without_portrait_tablet(),
+        );
+        binder.branch_scene(
+            5,
+            Button::new(
+                IconText::new(
+                    FeatherIcon::Copy,
+                    Color::BLACK,
+                    MaxCharacters(4),
+                    TextValue::new("copy"),
+                    Color::BLACK,
+                ),
+                ElementStyle::fill(),
+                THEME_COLOR::BASE,
+                Color::BLACK,
+            ),
+            ResponsiveSegment::base(Segment::new(
+                5.near().to(6.far()).minimum(115.0).maximum(350.0),
+                3.near().to(3.far()).minimum(30.0).maximum(40.0),
+            ))
+            .exception(
+                [Layout::PORTRAIT_MOBILE],
+                Segment::new(
+                    5.near().to(8.far()),
+                    3.near().to(3.far()).minimum(30.0).maximum(40.0),
+                ),
+            )
+            .justify(Justify::Top),
+        );
+
+        // end tmp
         binder.tree()
     }
 }
 #[derive(Component)]
 pub(crate) struct SampleHook(pub(crate) bool);
+#[derive(Component, Clone)]
+pub(crate) struct OtherHook(pub(crate) bool);
