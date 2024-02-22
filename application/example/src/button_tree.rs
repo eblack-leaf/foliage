@@ -11,8 +11,8 @@ use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUn
 use foliage::text::{MaxCharacters, TextValue};
 use foliage::tree::{Seed, Tree, TreeBinder};
 
-pub struct ButtonTree;
-impl Seed for ButtonTree {
+pub struct ShowcaseSeed;
+impl Seed for ShowcaseSeed {
     const GRID: MacroGrid = MacroGrid::new(8, 6);
     type Resources = ();
 
@@ -32,7 +32,6 @@ impl Seed for ButtonTree {
             ))
             .justify(Justify::Top),
         );
-
         binder.tree()
     }
 }

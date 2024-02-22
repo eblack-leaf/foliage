@@ -18,7 +18,8 @@ use crate::ginkgo::viewport::ViewportHandle;
 use crate::job::{Container, Job, Task};
 use crate::scene::{Binder, Scene};
 use crate::tree::{
-    conditional_extension, conditional_scene_spawn, conditional_spawn, Forest, Seed,
+    conditional_extension, conditional_scene_spawn, conditional_spawn, sprout, Forest, Navigation,
+    Seed,
 };
 use crate::window::ScaleFactor;
 #[cfg(target_family = "wasm")]
@@ -266,6 +267,13 @@ impl Elm {
     pub fn enable_conditional_scene<S: Scene + Clone + Send + Sync + 'static>(&mut self) {
         self.main()
             .add_systems(conditional_scene_spawn::<S>.in_set(ExternalSet::BranchBind));
+    }
+    pub fn enable_seed<S: Seed + Send + Sync + 'static>(&mut self) {
+        self.main()
+            .add_systems(sprout::<S>.in_set(ExternalSet::Sprout));
+    }
+    pub fn navigate<S: Seed + Send + Sync + 'static>(&mut self) {
+        self.container().spawn(Navigation::<S>::new());
     }
 }
 pub type InteractionHandlerFn<IH, Ext> = fn(&mut IH, &mut StaticSystemParam<Ext>);

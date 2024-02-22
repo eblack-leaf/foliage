@@ -26,7 +26,7 @@ impl<SEED> Navigation<SEED> {
         Self { 0: PhantomData }
     }
 }
-fn sprout<SEED: Seed + Send + Sync + 'static>(
+pub(crate) fn sprout<SEED: Seed + Send + Sync + 'static>(
     mut forest: ResMut<Forest>,
     navigation: Query<(Entity, &Navigation<SEED>), Changed<Navigation<SEED>>>,
     mut cmd: Commands,
@@ -342,6 +342,16 @@ fn viewport_changed(
         *layout = Layout::from_area(viewport_handle.section().area);
         for (res_seg, mut pos, mut area, mut layer, mut disabled) in query.iter_mut() {
             // calc
+            if let Some(coord) = res_seg.coordinate(*layout, viewport_handle.section(), &grid) {
+                *pos = coord.section.position;
+                *area = coord.section.area;
+                *layer = coord.layer;
+                if disabled.is_disabled() {
+                    *disabled = Disabled::not_disabled();
+                }
+            } else {
+                *disabled = Disabled::disabled();
+            }
         }
     }
 }
@@ -357,10 +367,21 @@ fn responsive_segment_changed(
         Changed<ResponsiveSegment>,
     >,
     viewport_handle: Res<ViewportHandle>,
+    layout: Res<Layout>,
     grid: Res<MacroGrid>,
 ) {
     for (res_seg, mut pos, mut area, mut layer, mut disabled) in query.iter_mut() {
         // calc
+        if let Some(coord) = res_seg.coordinate(*layout, viewport_handle.section(), &grid) {
+            *pos = coord.section.position;
+            *area = coord.section.area;
+            *layer = coord.layer;
+            if disabled.is_disabled() {
+                *disabled = Disabled::not_disabled();
+            }
+        } else {
+            *disabled = Disabled::disabled();
+        }
     }
 }
 macro_rules! enable_conditional {
@@ -379,6 +400,9 @@ impl Leaf for Tree {
     type SetDescriptor = EmptySetDescriptor;
 
     fn attach(elm: &mut Elm) {
+        elm.container().insert_resource(Forest::default());
+        elm.container().insert_resource(Layout::PORTRAIT_MOBILE);
+        elm.container().insert_resource(MacroGrid::default());
         elm.main().add_systems((
             viewport_changed.in_set(CoreSet::Compositor),
             responsive_segment_changed.in_set(CoreSet::Compositor),
