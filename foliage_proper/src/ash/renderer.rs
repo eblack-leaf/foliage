@@ -2,6 +2,7 @@ use crate::ash::identification::RenderIdentification;
 use anymap::AnyMap;
 use bevy_ecs::entity::Entity;
 use std::cmp::Ordering;
+use std::collections::HashSet;
 
 use crate::ash::instruction::{
     RenderInstructionGroup, RenderInstructionHandle, RenderInstructionsRecorder,
@@ -32,13 +33,19 @@ impl<T: Render + 'static> Renderer<T> {
             updated: true,
         }
     }
-    pub(crate) fn prepare_packages(&mut self, ginkgo: &Ginkgo, queue: RenderPacketQueue) {
+    pub(crate) fn prepare_packages(
+        &mut self,
+        ginkgo: &Ginkgo,
+        queue: RenderPacketQueue,
+        orphaned: &HashSet<Entity>,
+    ) {
         Self::inner_prepare_packages(
             &mut self.resources,
             &mut self.packages,
             ginkgo,
             queue,
             &mut self.updated,
+            orphaned,
         );
     }
     fn inner_prepare_packages(
@@ -47,10 +54,13 @@ impl<T: Render + 'static> Renderer<T> {
         ginkgo: &Ginkgo,
         mut queue: RenderPacketQueue,
         updated_hook: &mut bool,
+        orphaned: &HashSet<Entity>,
     ) {
         let id = <T as RenderIdentification>::render_id();
         tracing::trace!("preparing-renderer:{:?}", id);
-        for entity in queue.retrieve_removals() {
+        let mut to_remove = queue.retrieve_removals();
+        to_remove.extend(orphaned);
+        for entity in to_remove {
             if let Some(index) = packages.index(entity) {
                 let old = packages.0.remove(index);
                 T::on_package_removal(ginkgo, resources, old.0, old.2);

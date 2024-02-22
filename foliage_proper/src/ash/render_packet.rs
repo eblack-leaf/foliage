@@ -78,6 +78,7 @@ pub(crate) struct RenderPacketForwarder {
     pub(crate) render_packets: HashMap<RenderPacketSignature, RenderPacket>,
     pub(crate) removals: HashMap<RenderId, HashSet<Entity>>,
     pub(crate) removal_queue: HashMap<RenderId, HashSet<Entity>>,
+    pub(crate) orphaned: HashSet<Entity>,
 }
 
 impl RenderPacketForwarder {
@@ -127,12 +128,16 @@ impl RenderPacketForwarder {
                 }
             }
         }
+        package.1.extend(self.orphaned.drain());
         package
     }
 }
 
 #[derive(Serialize, Deserialize, Default)]
-pub(crate) struct RenderPacketPackage(pub(crate) HashMap<RenderId, RenderPacketQueue>);
+pub(crate) struct RenderPacketPackage(
+    pub(crate) HashMap<RenderId, RenderPacketQueue>,
+    pub(crate) HashSet<Entity>,
+);
 
 impl RenderPacketPackage {
     pub(crate) fn obtain<T: Render + 'static>(&mut self) -> Option<RenderPacketQueue> {

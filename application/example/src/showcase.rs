@@ -47,7 +47,7 @@ impl Leaf for Showcase {
         elm.container().insert_resource(assets);
         elm.enable_seed::<ShowcaseSeed>();
         elm.navigate::<ShowcaseSeed>();
-        elm.add_interaction_handler::<SampleHook, Commands>(|mut sh, cmd| {
+        elm.add_interaction_handler::<SampleHook, Commands>(|sh, cmd| {
             cmd.spawn(BranchSet(BranchHandle(0), sh.0));
             sh.0 = !sh.0;
         });

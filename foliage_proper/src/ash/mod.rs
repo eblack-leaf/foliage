@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use anymap::AnyMap;
 use instruction::InstructionGroups;
@@ -25,7 +25,7 @@ pub(crate) struct Ash {
 impl Ash {
     pub(crate) fn new() -> Self {
         Self {
-            render_packet_package: Some(RenderPacketPackage(HashMap::new())),
+            render_packet_package: Some(RenderPacketPackage(HashMap::new(), HashSet::new())),
             renderer_handler: RendererStorage(AnyMap::new()),
             instruction_groups: InstructionGroups::default(),
             render_leaflets: RenderLeafletStorage::new(),

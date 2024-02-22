@@ -1,7 +1,7 @@
 use std::any::TypeId;
 
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Bundle, Commands, Component, Or, Query};
+use bevy_ecs::prelude::{Bundle, Commands, Component, Or, Query, RemovedComponents};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::ResMut;
 use compact_str::{CompactString, ToCompactString};
@@ -202,6 +202,15 @@ pub(crate) fn send_render_packet(
             tracing::trace!("forwarding render-packet: {:?}", entity);
             render_packet_forwarder.forward_packet(id, entity, packet.retrieve());
         }
+    }
+}
+
+pub(crate) fn clear_lost_differentials(
+    mut rem: RemovedComponents<RenderPacketStore>,
+    mut render_packet_forwarder: ResMut<RenderPacketForwarder>,
+) {
+    for e in rem.read() {
+        render_packet_forwarder.orphaned.insert(e);
     }
 }
 

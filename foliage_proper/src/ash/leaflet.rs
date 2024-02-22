@@ -25,7 +25,7 @@ impl RenderLeaflet {
         if let Some(queue) = queue_handler.obtain::<T>() {
             renderer_handler
                 .obtain_mut::<T>()
-                .prepare_packages(ginkgo, queue);
+                .prepare_packages(ginkgo, queue, &queue_handler.1);
         }
     }
     pub(crate) fn prepare_resources_wrapper<T: Render + 'static>(

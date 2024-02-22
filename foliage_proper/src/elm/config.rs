@@ -1,5 +1,6 @@
 use crate::elm::leaf::Leaflet;
 use crate::elm::Elm;
+use crate::job::Container;
 use bevy_ecs::prelude::{apply_deferred, IntoSystemConfigs, SystemSet};
 use std::fmt::Debug;
 use std::hash::Hash;
@@ -77,10 +78,15 @@ impl<'a> ElmConfiguration<'a> {
                 .in_set(CoreSet::Coordinate),
             crate::coordinate::position_set.in_set(CoreSet::CoordinateFinalize),
             crate::coordinate::area_set.in_set(CoreSet::CoordinateFinalize),
-            crate::differential::send_render_packet.in_set(CoreSet::RenderPacket),
+            (
+                crate::differential::send_render_packet,
+                crate::differential::clear_lost_differentials,
+            )
+                .in_set(CoreSet::RenderPacket),
             crate::differential::despawn
                 .in_set(CoreSet::RenderPacket)
                 .after(crate::differential::send_render_packet),
+            Container::clear_trackers.after(CoreSet::RenderPacket),
         ));
         elm.main().add_systems((
             apply_deferred
