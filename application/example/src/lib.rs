@@ -2,11 +2,13 @@ mod actual;
 mod button_tree;
 mod showcase;
 
+use crate::button_tree::ShowcaseSeed;
 use crate::showcase::ShowcaseMain;
 use foliage::elm::Elm;
 use foliage::window::WindowDescriptor;
 use foliage::workflow::{EngenHandle, Workflow};
 use foliage::{AndroidInterface, Foliage};
+
 pub fn entry(android_interface: AndroidInterface) {
     Foliage::new()
         .with_window_descriptor(
@@ -17,6 +19,7 @@ pub fn entry(android_interface: AndroidInterface) {
         )
         .with_leaves::<foliage::SceneExtensions>()
         .with_leaf::<ShowcaseMain>()
+        .with_leaf::<ShowcaseSeed>()
         .with_android_interface(android_interface)
         .with_worker_path("./worker.js")
         .run::<Engen>();

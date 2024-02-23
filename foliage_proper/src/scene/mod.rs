@@ -10,7 +10,7 @@ use crate::elm::Disabled;
 use crate::scene::micro_grid::MicroGrid;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::prelude::{Commands, Component, Entity, Query};
-use bevy_ecs::query::{Changed, Or, ReadOnlyWorldQuery, With, Without};
+use bevy_ecs::query::{Changed, Or, QueryFilter, With, Without};
 use bevy_ecs::system::{ParamSet, StaticSystemParam, SystemParam, SystemParamItem};
 use micro_grid::Alignment;
 use std::collections::{HashMap, HashSet};
@@ -234,7 +234,7 @@ where
     Self: Sized + Send + Sync + 'static,
 {
     type Params: SystemParam + 'static;
-    type Filter: ReadOnlyWorldQuery;
+    type Filter: QueryFilter;
     type Components: Bundle;
     fn config(
         entity: Entity,
@@ -352,7 +352,6 @@ pub(crate) fn recursive_bindings(
     }
     dependents
 }
-// TODO add disabled to this/ re-enabled
 pub(crate) fn despawn_bindings(
     mut changed: ParamSet<(
         Query<
