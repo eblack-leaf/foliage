@@ -1,3 +1,4 @@
+use foliage::aesthetic::{Aesthetic, Photosynthesis, Pigment};
 use foliage::bevy_ecs::prelude::Commands;
 use foliage::bevy_ecs::system::SystemParamItem;
 use foliage::color::monochromatic::{Monochromatic, Orange as THEME_COLOR};
@@ -12,15 +13,17 @@ use foliage::r_scenes::icon_text::IconText;
 use foliage::r_scenes::text_button::TextButton;
 use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::text::{MaxCharacters, Text, TextValue};
-use foliage::view::{Display, Rasterizer, View};
 pub struct Showcase;
-impl View for Showcase {
+impl Photosynthesis for Showcase {
     const GRID: MacroGrid = MacroGrid::new(8, 6);
     type Resources = ();
 
-    fn show(cmd: &mut Commands, _res: &mut SystemParamItem<Self::Resources>) -> Display {
-        let mut binder = Rasterizer::new(cmd);
-        binder.responsive_scene(
+    fn photosynthesize(
+        cmd: &mut Commands,
+        _res: &mut SystemParamItem<Self::Resources>,
+    ) -> Aesthetic {
+        let mut pigment = Pigment::new(cmd);
+        pigment.responsive_scene(
             IconText::new(
                 FeatherIcon::Menu,
                 Color::GREY,
@@ -34,7 +37,7 @@ impl View for Showcase {
             ))
             .justify(Justify::Top),
         );
-        binder.responsive_scene(
+        pigment.responsive_scene(
             Button::new(
                 IconText::new(
                     FeatherIcon::Copy,
@@ -57,7 +60,7 @@ impl View for Showcase {
             )
             .justify(Justify::Top),
         );
-        binder.responsive(
+        pigment.responsive(
             Text::new(
                 MaxCharacters(11),
                 TextValue::new("base"),
@@ -71,7 +74,7 @@ impl View for Showcase {
             .without_portrait_mobile()
             .without_portrait_tablet(),
         );
-        binder.responsive_scene(
+        pigment.responsive_scene(
             Button::new(
                 IconText::new(
                     FeatherIcon::Copy,
@@ -94,7 +97,7 @@ impl View for Showcase {
             )
             .justify(Justify::Top),
         );
-        binder.responsive(
+        pigment.responsive(
             Text::new(
                 MaxCharacters(11),
                 TextValue::new("base"),
@@ -108,7 +111,7 @@ impl View for Showcase {
             .without_portrait_mobile()
             .without_portrait_tablet(),
         );
-        binder.responsive_scene(
+        pigment.responsive_scene(
             TextButton::new(
                 TextValue::new("copy"),
                 MaxCharacters(4),
@@ -126,7 +129,7 @@ impl View for Showcase {
             )
             .justify(Justify::Top),
         );
-        binder.responsive(
+        pigment.responsive(
             Text::new(
                 MaxCharacters(11),
                 TextValue::new("text"),
@@ -140,7 +143,7 @@ impl View for Showcase {
             .without_portrait_mobile()
             .without_portrait_tablet(),
         );
-        binder.responsive_scene(
+        pigment.responsive_scene(
             TextButton::new(
                 TextValue::new("copy"),
                 MaxCharacters(4),
@@ -158,7 +161,7 @@ impl View for Showcase {
             )
             .justify(Justify::Top),
         );
-        binder.responsive(
+        pigment.responsive(
             Text::new(
                 MaxCharacters(11),
                 TextValue::new("text"),
@@ -172,7 +175,7 @@ impl View for Showcase {
             .without_portrait_mobile()
             .without_portrait_tablet(),
         );
-        binder.responsive_scene(
+        pigment.responsive_scene(
             CircleButton::new(
                 FeatherIcon::Copy,
                 ElementStyle::fill(),
@@ -192,7 +195,7 @@ impl View for Showcase {
             )
             .justify(Justify::Top),
         );
-        binder.responsive(
+        pigment.responsive(
             Text::new(
                 MaxCharacters(11),
                 TextValue::new("circle"),
@@ -206,7 +209,7 @@ impl View for Showcase {
             .without_portrait_mobile()
             .without_portrait_tablet(),
         );
-        binder.responsive_scene(
+        pigment.responsive_scene(
             CircleButton::new(
                 FeatherIcon::Copy,
                 ElementStyle::ring(),
@@ -226,7 +229,7 @@ impl View for Showcase {
             )
             .justify(Justify::Top),
         );
-        binder.responsive(
+        pigment.responsive(
             Text::new(
                 MaxCharacters(11),
                 TextValue::new("circle"),
@@ -240,7 +243,7 @@ impl View for Showcase {
             .without_portrait_mobile()
             .without_portrait_tablet(),
         );
-        binder.responsive_scene(
+        pigment.responsive_scene(
             IconButton::new(
                 FeatherIcon::Copy,
                 ElementStyle::fill(),
@@ -260,7 +263,7 @@ impl View for Showcase {
             )
             .justify(Justify::Top),
         );
-        binder.responsive(
+        pigment.responsive(
             Text::new(
                 MaxCharacters(11),
                 TextValue::new("icon"),
@@ -274,7 +277,7 @@ impl View for Showcase {
             .without_portrait_mobile()
             .without_portrait_tablet(),
         );
-        binder.responsive_scene(
+        pigment.responsive_scene(
             IconButton::new(
                 FeatherIcon::Copy,
                 ElementStyle::ring(),
@@ -294,7 +297,7 @@ impl View for Showcase {
             )
             .justify(Justify::Top),
         );
-        binder.responsive(
+        pigment.responsive(
             Text::new(
                 MaxCharacters(11),
                 TextValue::new("icon"),
@@ -308,6 +311,6 @@ impl View for Showcase {
             .without_portrait_mobile()
             .without_portrait_tablet(),
         );
-        binder.tree()
+        pigment.chlorophyll()
     }
 }

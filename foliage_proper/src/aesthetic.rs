@@ -23,15 +23,15 @@ use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 
 #[derive(Component, Copy, Clone)]
-pub struct Navigation<V>(PhantomData<V>);
-impl<V> Navigation<V> {
+pub struct Photosynthesize<V>(PhantomData<V>);
+impl<V> Photosynthesize<V> {
     pub fn new() -> Self {
         Self { 0: PhantomData }
     }
 }
-pub(crate) fn display<V: View + Send + Sync + 'static>(
+pub(crate) fn photosynthesize<V: Photosynthesis + Send + Sync + 'static>(
     mut compositor: ResMut<Compositor>,
-    navigation: Query<(Entity, &Navigation<V>), Changed<Navigation<V>>>,
+    navigation: Query<(Entity, &Photosynthesize<V>), Changed<Photosynthesize<V>>>,
     mut cmd: Commands,
     mut ext: StaticSystemParam<V::Resources>,
     mut grid: ResMut<MacroGrid>,
@@ -39,23 +39,23 @@ pub(crate) fn display<V: View + Send + Sync + 'static>(
     if let Some((_, _n)) = navigation.iter().last() {
         // TODO despawn current tree + all in pool
         // or anim-out && @-end trigger despawn
-
         *grid = V::GRID;
-        let tree = V::show(&mut cmd, &mut ext);
-        compositor.current.replace(tree);
+        let aesthetics = V::photosynthesize(&mut cmd, &mut ext);
+        compositor.current.replace(aesthetics);
     }
     for (e, _) in navigation.iter() {
         cmd.entity(e).despawn();
     }
 }
-pub trait View {
+pub trait Photosynthesis {
     const GRID: MacroGrid;
     type Resources: SystemParam + 'static;
-    fn show(cmd: &mut Commands, res: &mut SystemParamItem<Self::Resources>) -> Display;
+    fn photosynthesize(cmd: &mut Commands, res: &mut SystemParamItem<Self::Resources>)
+        -> Aesthetic;
 }
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
-pub struct ConditionHandle(pub i32);
-impl From<i32> for ConditionHandle {
+pub struct BranchHandle(pub i32);
+impl From<i32> for BranchHandle {
     fn from(value: i32) -> Self {
         Self(value)
     }
@@ -63,11 +63,11 @@ impl From<i32> for ConditionHandle {
 #[derive(Component)]
 pub struct Conditional<T: Clone> {
     wrapped: T,
-    target: ConditionExtendTarget,
+    target: BranchExtendTarget,
     is_extension: bool,
 }
 impl<T: Clone> Conditional<T> {
-    pub fn new(e: ConditionExtendTarget, t: T, is_extension: bool) -> Self {
+    pub fn new(e: BranchExtendTarget, t: T, is_extension: bool) -> Self {
         Self {
             wrapped: t,
             target: e,
@@ -78,11 +78,11 @@ impl<T: Clone> Conditional<T> {
 #[derive(Component)]
 pub struct ConditionalScene<S: Scene + Clone> {
     wrapped: S,
-    target: ConditionExtendTarget,
+    target: BranchExtendTarget,
     is_extension: bool,
 }
 impl<S: Scene + Clone> ConditionalScene<S> {
-    pub fn new(e: ConditionExtendTarget, t: S, is_extension: bool) -> Self {
+    pub fn new(e: BranchExtendTarget, t: S, is_extension: bool) -> Self {
         Self {
             wrapped: t,
             target: e,
@@ -100,17 +100,17 @@ pub(crate) fn conditional_spawn<C: Bundle + Clone + Send + Sync + 'static>(
         }
         if trigger.is_active() {
             match cond.target {
-                ConditionExtendTarget::This(entity) => {
+                BranchExtendTarget::This(entity) => {
                     cmd.entity(entity).insert(cond.wrapped.clone());
                 }
-                ConditionExtendTarget::BindingOf(_, _) => {}
+                BranchExtendTarget::BindingOf(_, _) => {}
             }
         } else if trigger.is_inverse() {
             match cond.target {
-                ConditionExtendTarget::This(entity) => {
+                BranchExtendTarget::This(entity) => {
                     cmd.entity(entity).remove::<C>();
                 }
-                ConditionExtendTarget::BindingOf(_, _) => {}
+                BranchExtendTarget::BindingOf(_, _) => {}
             }
         }
     }
@@ -126,17 +126,17 @@ pub(crate) fn conditional_scene_spawn<CS: Scene + Clone>(
         }
         if trigger.is_active() {
             match cond.target {
-                ConditionExtendTarget::This(entity) => {
+                BranchExtendTarget::This(entity) => {
                     let _scene_desc = cond
                         .wrapped
                         .clone()
                         .create(Binder::new(&mut cmd, Some(entity)));
                 }
-                ConditionExtendTarget::BindingOf(_, _) => {}
+                BranchExtendTarget::BindingOf(_, _) => {}
             }
         } else if trigger.is_inverse() {
             match cond.target {
-                ConditionExtendTarget::This(entity) => {
+                BranchExtendTarget::This(entity) => {
                     if let Ok(binds) = bindings.get(entity) {
                         for (_, b) in binds.nodes().iter() {
                             cmd.entity(b.entity()).insert(Despawn::signal_despawn());
@@ -144,7 +144,7 @@ pub(crate) fn conditional_scene_spawn<CS: Scene + Clone>(
                     }
                     cmd.entity(entity).remove::<SceneComponents<CS>>();
                 }
-                ConditionExtendTarget::BindingOf(_, _) => {}
+                BranchExtendTarget::BindingOf(_, _) => {}
             }
         }
     }
@@ -160,20 +160,20 @@ pub(crate) fn conditional_extension<C: Bundle + Clone + Send + Sync + 'static>(
         }
         if trigger.is_active() {
             match cond.target {
-                ConditionExtendTarget::This(entity) => {
+                BranchExtendTarget::This(entity) => {
                     cmd.entity(entity).insert(cond.wrapped.clone());
                 }
-                ConditionExtendTarget::BindingOf(parent, bind) => {
+                BranchExtendTarget::BindingOf(parent, bind) => {
                     cmd.entity(bindings.get(parent).unwrap().get(bind))
                         .insert(cond.wrapped.clone());
                 }
             }
         } else if trigger.is_inverse() {
             match cond.target {
-                ConditionExtendTarget::This(entity) => {
+                BranchExtendTarget::This(entity) => {
                     cmd.entity(entity).remove::<C>();
                 }
-                ConditionExtendTarget::BindingOf(parent, bind) => {
+                BranchExtendTarget::BindingOf(parent, bind) => {
                     cmd.entity(bindings.get(parent).unwrap().get(bind))
                         .remove::<C>();
                 }
@@ -182,12 +182,12 @@ pub(crate) fn conditional_extension<C: Bundle + Clone + Send + Sync + 'static>(
     }
 }
 #[derive(Bundle)]
-pub struct Condition<T: Clone + Send + Sync + 'static> {
+pub struct Branch<T: Clone + Send + Sync + 'static> {
     conditional: Conditional<T>,
     trigger: Trigger,
 }
-impl<T: Clone + Send + Sync + 'static> Condition<T> {
-    pub fn new(t: T, e: ConditionExtendTarget, is_extension: bool) -> Self {
+impl<T: Clone + Send + Sync + 'static> Branch<T> {
+    pub fn new(t: T, e: BranchExtendTarget, is_extension: bool) -> Self {
         Self {
             conditional: Conditional::<T>::new(e, t, is_extension),
             trigger: Trigger::default(),
@@ -195,12 +195,12 @@ impl<T: Clone + Send + Sync + 'static> Condition<T> {
     }
 }
 #[derive(Bundle)]
-pub struct SceneCondition<T: Clone + Scene + Send + Sync + 'static> {
+pub struct SceneBranch<T: Clone + Scene + Send + Sync + 'static> {
     conditional: ConditionalScene<T>,
     trigger: Trigger,
 }
-impl<S: Scene + Clone> SceneCondition<S> {
-    pub fn new(t: S, e: ConditionExtendTarget, is_extension: bool) -> Self {
+impl<S: Scene + Clone> SceneBranch<S> {
+    pub fn new(t: S, e: BranchExtendTarget, is_extension: bool) -> Self {
         Self {
             conditional: ConditionalScene::<S>::new(e, t, is_extension),
             trigger: Trigger::default(),
@@ -208,20 +208,20 @@ impl<S: Scene + Clone> SceneCondition<S> {
     }
 }
 #[derive(Component, Clone, Default)]
-pub struct Display(pub HashSet<Entity>, HashMap<ConditionHandle, Entity>);
-pub struct Rasterizer<'a, 'w, 's> {
+pub struct Aesthetic(pub HashSet<Entity>, HashMap<BranchHandle, Entity>);
+pub struct Pigment<'a, 'w, 's> {
     cmd: &'a mut Commands<'w, 's>,
-    tree: Display,
+    chlorophyll: Aesthetic,
 }
-impl<'a, 'w, 's> Rasterizer<'a, 'w, 's> {
+impl<'a, 'w, 's> Pigment<'a, 'w, 's> {
     pub fn new(cmd: &'a mut Commands<'w, 's>) -> Self {
         Self {
             cmd,
-            tree: Display::default(),
+            chlorophyll: Aesthetic::default(),
         }
     }
-    pub fn tree(self) -> Display {
-        self.tree
+    pub fn chlorophyll(self) -> Aesthetic {
+        self.chlorophyll
     }
     pub fn responsive_scene<S: Scene>(&mut self, s: S, rs: ResponsiveSegment) -> SceneDesc {
         let desc = {
@@ -229,15 +229,15 @@ impl<'a, 'w, 's> Rasterizer<'a, 'w, 's> {
             self.cmd.entity(scene_desc.root()).insert(rs);
             scene_desc
         };
-        self.tree.0.insert(desc.root());
+        self.chlorophyll.0.insert(desc.root());
         desc
     }
     pub fn responsive<B: Bundle>(&mut self, b: B, rs: ResponsiveSegment) -> Entity {
         let ent = { self.cmd.spawn(b).insert(rs).id() };
-        self.tree.0.insert(ent);
+        self.chlorophyll.0.insert(ent);
         ent
     }
-    pub fn conditional<BR: Clone + Send + Sync + 'static, BH: Into<ConditionHandle>>(
+    pub fn conditional<BR: Clone + Send + Sync + 'static, BH: Into<BranchHandle>>(
         &mut self,
         bh: BH,
         br: BR,
@@ -247,23 +247,23 @@ impl<'a, 'w, 's> Rasterizer<'a, 'w, 's> {
             let pre_spawned = self.cmd.spawn_empty().id();
             let branch_id = self
                 .cmd
-                .spawn(Condition::new(
+                .spawn(Branch::new(
                     br,
-                    ConditionExtendTarget::This(pre_spawned),
+                    BranchExtendTarget::This(pre_spawned),
                     false,
                 ))
                 .insert(Conditional::new(
-                    ConditionExtendTarget::This(pre_spawned),
+                    BranchExtendTarget::This(pre_spawned),
                     rs,
                     false,
                 ))
                 .id();
             ConditionDesc::new(branch_id, pre_spawned)
         };
-        self.tree.1.insert(bh.into(), desc.branch_entity);
+        self.chlorophyll.1.insert(bh.into(), desc.branch_entity);
         desc
     }
-    pub fn conditional_scene<S: Scene + Clone, BH: Into<ConditionHandle>>(
+    pub fn conditional_scene<S: Scene + Clone, BH: Into<BranchHandle>>(
         &mut self,
         bh: BH,
         s: S,
@@ -273,20 +273,20 @@ impl<'a, 'w, 's> Rasterizer<'a, 'w, 's> {
             let pre_spawned = self.cmd.spawn_empty().id();
             let branch_id = self
                 .cmd
-                .spawn(SceneCondition::new(
+                .spawn(SceneBranch::new(
                     s,
-                    ConditionExtendTarget::This(pre_spawned),
+                    BranchExtendTarget::This(pre_spawned),
                     false,
                 ))
                 .insert(Conditional::new(
-                    ConditionExtendTarget::This(pre_spawned),
+                    BranchExtendTarget::This(pre_spawned),
                     rs,
                     false,
                 ))
                 .id();
             ConditionDesc::new(branch_id, pre_spawned)
         };
-        self.tree.1.insert(bh.into(), desc.branch_entity);
+        self.chlorophyll.1.insert(bh.into(), desc.branch_entity);
         desc
     }
     pub fn extend<Ext: Bundle>(&mut self, entity: Entity, ext: Ext) {
@@ -303,7 +303,7 @@ impl<'a, 'w, 's> Rasterizer<'a, 'w, 's> {
                 self.cmd
                     .entity(branch_desc.branch_entity)
                     .insert(Conditional::<Ext>::new(
-                        ConditionExtendTarget::This(branch_desc.pre_spawned),
+                        BranchExtendTarget::This(branch_desc.pre_spawned),
                         ext,
                         true,
                     ));
@@ -312,7 +312,7 @@ impl<'a, 'w, 's> Rasterizer<'a, 'w, 's> {
                 self.cmd
                     .entity(branch_desc.branch_entity)
                     .insert(Conditional::<Ext>::new(
-                        ConditionExtendTarget::BindingOf(branch_desc.pre_spawned, bind),
+                        BranchExtendTarget::BindingOf(branch_desc.pre_spawned, bind),
                         ext,
                         true,
                     ));
@@ -322,16 +322,16 @@ impl<'a, 'w, 's> Rasterizer<'a, 'w, 's> {
 }
 #[derive(Default, Resource)]
 pub struct Compositor {
-    current: Option<Display>,
+    current: Option<Aesthetic>,
 }
 impl Compositor {
-    pub fn navigate<N: View + Send + Sync + 'static>(cmd: &mut Commands) {
+    pub fn photosynthesize<V: Photosynthesis + Send + Sync + 'static>(cmd: &mut Commands) {
         // TODO add transition logic here then spawn
-        cmd.spawn(Navigation::<N>::new());
+        cmd.spawn(Photosynthesize::<V>::new());
     }
 }
 #[derive(Component, Copy, Clone)]
-pub struct ConditionSet(pub ConditionHandle, pub bool);
+pub struct ConditionSet(pub BranchHandle, pub bool);
 fn set_branch(
     query: Query<(Entity, &ConditionSet)>,
     mut cmd: Commands,
@@ -358,7 +358,7 @@ fn set_branch(
         }
     }
 }
-pub enum ConditionExtendTarget {
+pub enum BranchExtendTarget {
     This(Entity),
     BindingOf(Entity, SceneBinding),
 }
@@ -434,7 +434,7 @@ fn responsive_segment_changed(
         }
     }
 }
-impl Leaf for Display {
+impl Leaf for Aesthetic {
     type SetDescriptor = EmptySetDescriptor;
 
     fn attach(elm: &mut Elm) {

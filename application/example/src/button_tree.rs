@@ -1,3 +1,4 @@
+use foliage::aesthetic::{Aesthetic, BranchHandle, ConditionSet, Photosynthesis, Pigment};
 use foliage::bevy_ecs;
 use foliage::bevy_ecs::prelude::{Commands, Component};
 use foliage::bevy_ecs::system::SystemParamItem;
@@ -12,14 +13,16 @@ use foliage::r_scenes::icon_text::IconText;
 use foliage::scene::ExtendTarget;
 use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::text::{MaxCharacters, Text, TextValue};
-use foliage::view::{ConditionHandle, ConditionSet, Display, Rasterizer, View};
 pub struct ShowcaseSeed;
-impl View for ShowcaseSeed {
+impl Photosynthesis for ShowcaseSeed {
     const GRID: MacroGrid = MacroGrid::new(8, 6);
     type Resources = ();
 
-    fn show(cmd: &mut Commands, _res: &mut SystemParamItem<Self::Resources>) -> Display {
-        let mut binder = Rasterizer::new(cmd);
+    fn photosynthesize(
+        cmd: &mut Commands,
+        _res: &mut SystemParamItem<Self::Resources>,
+    ) -> Aesthetic {
+        let mut binder = Pigment::new(cmd);
         binder.responsive_scene(
             IconText::new(
                 FeatherIcon::Menu,
@@ -185,7 +188,7 @@ impl View for ShowcaseSeed {
             )
             .justify(Justify::Top),
         );
-        binder.tree()
+        binder.chlorophyll()
     }
 }
 #[derive(Component)]
@@ -198,20 +201,20 @@ impl Leaf for ShowcaseSeed {
 
     fn attach(elm: &mut Elm) {
         elm.add_interaction_handler::<SampleHook, Commands>(|sh, cmd| {
-            cmd.spawn(ConditionSet(ConditionHandle(0), sh.0));
-            cmd.spawn(ConditionSet(ConditionHandle(1), sh.0));
-            cmd.spawn(ConditionSet(ConditionHandle(2), sh.0));
+            cmd.spawn(ConditionSet(BranchHandle(0), sh.0));
+            cmd.spawn(ConditionSet(BranchHandle(1), sh.0));
+            cmd.spawn(ConditionSet(BranchHandle(2), sh.0));
             if !sh.0 {
-                cmd.spawn(ConditionSet(ConditionHandle(3), false));
-                cmd.spawn(ConditionSet(ConditionHandle(4), false));
-                cmd.spawn(ConditionSet(ConditionHandle(5), false));
+                cmd.spawn(ConditionSet(BranchHandle(3), false));
+                cmd.spawn(ConditionSet(BranchHandle(4), false));
+                cmd.spawn(ConditionSet(BranchHandle(5), false));
             }
             sh.0 = !sh.0;
         });
         elm.add_interaction_handler::<OtherHook, Commands>(|sh, cmd| {
-            cmd.spawn(ConditionSet(ConditionHandle(3), sh.0));
-            cmd.spawn(ConditionSet(ConditionHandle(4), sh.0));
-            cmd.spawn(ConditionSet(ConditionHandle(5), sh.0));
+            cmd.spawn(ConditionSet(BranchHandle(3), sh.0));
+            cmd.spawn(ConditionSet(BranchHandle(4), sh.0));
+            cmd.spawn(ConditionSet(BranchHandle(5), sh.0));
             sh.0 = !sh.0;
         });
         elm.enable_conditional::<Text>();

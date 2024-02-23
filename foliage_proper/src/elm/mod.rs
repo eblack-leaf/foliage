@@ -4,6 +4,10 @@ pub mod leaf;
 use std::any::TypeId;
 use std::marker::PhantomData;
 
+use crate::aesthetic::{
+    conditional_extension, conditional_scene_spawn, conditional_spawn, photosynthesize, Compositor,
+    Photosynthesis, Photosynthesize,
+};
 use crate::animate::trigger::Trigger;
 use crate::ash::render_packet::RenderPacketForwarder;
 use crate::ash::render_packet::RenderPacketPackage;
@@ -17,10 +21,6 @@ use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::job::{Container, Job, Task};
 use crate::scene::Scene;
-use crate::view::{
-    conditional_extension, conditional_scene_spawn, conditional_spawn, display, Compositor,
-    Navigation, View,
-};
 use crate::window::ScaleFactor;
 #[cfg(target_family = "wasm")]
 use crate::Workflow;
@@ -253,9 +253,14 @@ impl Elm {
         };
         self.main().add_systems(func.in_set(ExternalSet::Process));
     }
-    pub fn view_trigger<H: Component + Send + 'static, C: View + Send + Sync + 'static>(&mut self) {
+    pub fn view_trigger<
+        H: Component + Send + 'static,
+        C: Photosynthesis + Send + Sync + 'static,
+    >(
+        &mut self,
+    ) {
         self.add_interaction_handler::<H, Commands>(|_ih, mut ext| {
-            Compositor::navigate::<C>(&mut ext);
+            Compositor::photosynthesize::<C>(&mut ext);
         });
     }
     pub fn enable_conditional<C: Bundle + Clone + Send + Sync + 'static>(&mut self) {
@@ -268,12 +273,12 @@ impl Elm {
         self.main()
             .add_systems(conditional_scene_spawn::<S>.in_set(ExternalSet::ConditionalBind));
     }
-    pub fn enable_view<S: View + Send + Sync + 'static>(&mut self) {
+    pub fn enable_aesthetic<S: Photosynthesis + Send + Sync + 'static>(&mut self) {
         self.main()
-            .add_systems(display::<S>.in_set(ExternalSet::Show));
+            .add_systems(photosynthesize::<S>.in_set(ExternalSet::Show));
     }
-    pub fn navigate<S: View + Send + Sync + 'static>(&mut self) {
-        self.container().spawn(Navigation::<S>::new());
+    pub fn photosynthesize<S: Photosynthesis + Send + Sync + 'static>(&mut self) {
+        self.container().spawn(Photosynthesize::<S>::new());
     }
 }
 pub type InteractionHandlerFn<IH, Ext> = fn(&mut IH, &mut StaticSystemParam<Ext>);
