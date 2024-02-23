@@ -12,15 +12,15 @@ use foliage::r_scenes::icon_text::IconText;
 use foliage::scene::ExtendTarget;
 use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::text::{MaxCharacters, Text, TextValue};
-use foliage::view::{BranchHandle, ConditionSet, Photosynthesis, Pigment, View};
+use foliage::view::{Aesthetic, BranchHandle, ConditionSet, Photosynthesis, View};
 pub struct ShowcaseSeed;
 impl Photosynthesis for ShowcaseSeed {
     const GRID: MacroGrid = MacroGrid::new(8, 6);
-    type Resources = ();
+    type Chlorophyll = ();
 
-    fn photosynthesize(cmd: &mut Commands, _res: &mut SystemParamItem<Self::Resources>) -> View {
-        let mut binder = Pigment::new(cmd);
-        binder.responsive_scene(
+    fn photosynthesize(cmd: &mut Commands, _res: &mut SystemParamItem<Self::Chlorophyll>) -> View {
+        let mut aesthetic = Aesthetic::new(cmd);
+        aesthetic.pigment_scene(
             IconText::new(
                 FeatherIcon::Menu,
                 Color::GREY,
@@ -34,7 +34,7 @@ impl Photosynthesis for ShowcaseSeed {
             ))
             .justify(Justify::Top),
         );
-        let desc = binder.responsive_scene(
+        let desc = aesthetic.pigment_scene(
             Button::new(
                 IconText::new(
                     FeatherIcon::Copy,
@@ -60,8 +60,8 @@ impl Photosynthesis for ShowcaseSeed {
             )
             .justify(Justify::Top),
         );
-        binder.extend(desc.root(), SampleHook(true));
-        binder.conditional(
+        aesthetic.extend(desc.root(), SampleHook(true));
+        aesthetic.conditional(
             0,
             Text::new(
                 MaxCharacters(11),
@@ -76,7 +76,7 @@ impl Photosynthesis for ShowcaseSeed {
             .without_portrait_mobile()
             .without_portrait_tablet(),
         );
-        let other_desc = binder.conditional_scene(
+        let other_desc = aesthetic.conditional_scene(
             1,
             Button::new(
                 IconText::new(
@@ -103,8 +103,8 @@ impl Photosynthesis for ShowcaseSeed {
             )
             .justify(Justify::Top),
         );
-        binder.conditional_extend(other_desc, ExtendTarget::This, OtherHook(true));
-        binder.conditional(
+        aesthetic.conditional_extend(other_desc, ExtendTarget::This, OtherHook(true));
+        aesthetic.conditional(
             2,
             Text::new(MaxCharacters(11), TextValue::new("base"), THEME_COLOR::BASE),
             ResponsiveSegment::base(Segment::new(
@@ -116,7 +116,7 @@ impl Photosynthesis for ShowcaseSeed {
             .without_portrait_tablet(),
         );
         // tmp
-        binder.conditional_scene(
+        aesthetic.conditional_scene(
             3,
             Button::new(
                 IconText::new(
@@ -143,7 +143,7 @@ impl Photosynthesis for ShowcaseSeed {
             )
             .justify(Justify::Top),
         );
-        binder.conditional(
+        aesthetic.conditional(
             4,
             Text::new(
                 MaxCharacters(11),
@@ -158,7 +158,7 @@ impl Photosynthesis for ShowcaseSeed {
             .without_portrait_mobile()
             .without_portrait_tablet(),
         );
-        binder.conditional_scene(
+        aesthetic.conditional_scene(
             5,
             Button::new(
                 IconText::new(
@@ -185,7 +185,7 @@ impl Photosynthesis for ShowcaseSeed {
             )
             .justify(Justify::Top),
         );
-        binder.chlorophyll()
+        aesthetic.view()
     }
 }
 #[derive(Component)]

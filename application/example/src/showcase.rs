@@ -1,46 +1,313 @@
-use crate::actual::Showcase;
-use foliage::bevy_ecs;
-use foliage::bevy_ecs::prelude::Resource;
-use foliage::coordinate::area::Area;
-use foliage::elm::config::ElmConfiguration;
-use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
-use foliage::elm::Elm;
-use foliage::image::{Image, ImageId, ImageStorage};
+use foliage::bevy_ecs::prelude::Commands;
+use foliage::bevy_ecs::system::SystemParamItem;
+use foliage::color::monochromatic::{Monochromatic, Orange as THEME_COLOR};
+use foliage::color::Color;
+use foliage::elm::ElementStyle;
+use foliage::icon::FeatherIcon;
+use foliage::layout::Layout;
+use foliage::r_scenes::button::Button;
+use foliage::r_scenes::circle_button::CircleButton;
+use foliage::r_scenes::icon_button::IconButton;
+use foliage::r_scenes::icon_text::IconText;
+use foliage::r_scenes::text_button::TextButton;
+use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
+use foliage::text::{MaxCharacters, Text, TextValue};
+use foliage::view::{Aesthetic, Photosynthesis, View};
+pub struct ButtonShowcase;
+impl Photosynthesis for ButtonShowcase {
+    const GRID: MacroGrid = MacroGrid::new(8, 6);
+    type Chlorophyll = ();
 
-#[foliage::assets(crate::Engen, "../assets/", "/foliage/demo/assets/")]
-#[derive(Resource, Clone)]
-pub(crate) struct Assets {
-    #[bytes(path = "something.dat", group = f_asset)]
-    _something: AssetKey,
-    #[bytes(path = "img.png", group = f_asset)]
-    image_id: AssetKey,
-    #[icon(path = "icons/copy.gatl", opt = FeatherIcon::Copy)]
-    _copy_id: AssetKey,
-    #[icon(path = "icons/command.gatl", opt = FeatherIcon::Command)]
-    _command_id: AssetKey,
-    #[icon(path = "icons/menu.icon", opt = FeatherIcon::Menu)]
-    _command_id: AssetKey,
-    #[icon(path = "icons/tag.icon", opt = FeatherIcon::Tag)]
-    _command_id: AssetKey,
-}
-pub(crate) struct ShowcaseMain {}
-impl Leaf for ShowcaseMain {
-    type SetDescriptor = EmptySetDescriptor;
-
-    fn config(_elm_configuration: &mut ElmConfiguration) {}
-
-    fn attach(elm: &mut Elm) {
-        Elm::remove_web_element("loading");
-        let assets = Assets::proc_gen_load(elm);
-        elm.on_fetch(*assets.f_asset.get(1).unwrap(), |data, cmd| {
-            cmd.spawn(Image::fill(ImageId(0), data));
-        });
-        elm.container().spawn(Image::storage(
-            ImageId(0),
-            ImageStorage::some(Area::from((700, 700))),
-        ));
-        elm.container().insert_resource(assets);
-        elm.enable_view::<Showcase>();
-        elm.photosynthesize::<Showcase>();
+    fn photosynthesize(cmd: &mut Commands, _res: &mut SystemParamItem<Self::Chlorophyll>) -> View {
+        let mut aesthetic = Aesthetic::new(cmd);
+        aesthetic.pigment_scene(
+            IconText::new(
+                FeatherIcon::Menu,
+                Color::GREY,
+                MaxCharacters(11),
+                TextValue::new("button.rs"),
+                Color::GREY,
+            ),
+            ResponsiveSegment::base(Segment::new(
+                3.near().to(6.far()),
+                1.near().to(1.far()).maximum(60.0),
+            ))
+            .justify(Justify::Top),
+        );
+        aesthetic.pigment_scene(
+            Button::new(
+                IconText::new(
+                    FeatherIcon::Copy,
+                    Color::BLACK,
+                    MaxCharacters(4),
+                    TextValue::new("copy"),
+                    Color::BLACK,
+                ),
+                ElementStyle::fill(),
+                THEME_COLOR::MINUS_THREE,
+                Color::BLACK,
+            ),
+            ResponsiveSegment::base(Segment::new(
+                2.near().to(3.far()).minimum(150.0),
+                2.near().to(2.far()).maximum(55.0),
+            ))
+            .exception(
+                [Layout::PORTRAIT_MOBILE],
+                Segment::new(1.near().to(4.far()), 2.near().to(2.far()).maximum(55.0)),
+            )
+            .justify(Justify::Top),
+        );
+        aesthetic.pigment(
+            Text::new(
+                MaxCharacters(11),
+                TextValue::new("base"),
+                THEME_COLOR::MINUS_THREE,
+            ),
+            ResponsiveSegment::base(Segment::new(
+                4.near().to(5.far()),
+                2.near().to(2.far()).minimum(30.0).maximum(40.0),
+            ))
+            .justify(Justify::Top)
+            .without_portrait_mobile()
+            .without_portrait_tablet(),
+        );
+        aesthetic.pigment_scene(
+            Button::new(
+                IconText::new(
+                    FeatherIcon::Copy,
+                    Color::BLACK,
+                    MaxCharacters(4),
+                    TextValue::new("copy"),
+                    Color::BLACK,
+                ),
+                ElementStyle::fill(),
+                THEME_COLOR::MINUS_THREE,
+                Color::BLACK,
+            ),
+            ResponsiveSegment::base(Segment::new(
+                5.near().to(6.far()).minimum(150.0),
+                2.near().to(2.far()).maximum(55.0),
+            ))
+            .exception(
+                [Layout::PORTRAIT_MOBILE],
+                Segment::new(5.near().to(8.far()), 2.near().to(2.far()).maximum(55.0)),
+            )
+            .justify(Justify::Top),
+        );
+        aesthetic.pigment(
+            Text::new(
+                MaxCharacters(11),
+                TextValue::new("base"),
+                THEME_COLOR::MINUS_THREE,
+            ),
+            ResponsiveSegment::base(Segment::new(
+                7.near().to(8.far()),
+                2.near().to(2.far()).minimum(30.0).maximum(40.0),
+            ))
+            .justify(Justify::Top)
+            .without_portrait_mobile()
+            .without_portrait_tablet(),
+        );
+        aesthetic.pigment_scene(
+            TextButton::new(
+                TextValue::new("copy"),
+                MaxCharacters(4),
+                ElementStyle::fill(),
+                THEME_COLOR::MINUS_ONE,
+                Color::BLACK,
+            ),
+            ResponsiveSegment::base(Segment::new(
+                2.near().to(3.far()).minimum(150.0),
+                3.near().to(3.far()).maximum(55.0),
+            ))
+            .exception(
+                [Layout::PORTRAIT_MOBILE],
+                Segment::new(1.near().to(4.far()), 3.near().to(3.far()).maximum(55.0)),
+            )
+            .justify(Justify::Top),
+        );
+        aesthetic.pigment(
+            Text::new(
+                MaxCharacters(11),
+                TextValue::new("text"),
+                THEME_COLOR::MINUS_ONE,
+            ),
+            ResponsiveSegment::base(Segment::new(
+                4.near().to(5.far()),
+                3.near().to(3.far()).minimum(30.0).maximum(40.0),
+            ))
+            .justify(Justify::Top)
+            .without_portrait_mobile()
+            .without_portrait_tablet(),
+        );
+        aesthetic.pigment_scene(
+            TextButton::new(
+                TextValue::new("copy"),
+                MaxCharacters(4),
+                ElementStyle::fill(),
+                THEME_COLOR::MINUS_ONE,
+                Color::BLACK,
+            ),
+            ResponsiveSegment::base(Segment::new(
+                5.near().to(6.far()).minimum(150.0),
+                3.near().to(3.far()).maximum(55.0),
+            ))
+            .exception(
+                [Layout::PORTRAIT_MOBILE],
+                Segment::new(5.near().to(8.far()), 3.near().to(3.far()).maximum(55.0)),
+            )
+            .justify(Justify::Top),
+        );
+        aesthetic.pigment(
+            Text::new(
+                MaxCharacters(11),
+                TextValue::new("text"),
+                THEME_COLOR::MINUS_ONE,
+            ),
+            ResponsiveSegment::base(Segment::new(
+                7.near().to(8.far()),
+                3.near().to(3.far()).minimum(30.0).maximum(40.0),
+            ))
+            .justify(Justify::Top)
+            .without_portrait_mobile()
+            .without_portrait_tablet(),
+        );
+        aesthetic.pigment_scene(
+            CircleButton::new(
+                FeatherIcon::Copy,
+                ElementStyle::fill(),
+                THEME_COLOR::PLUS_ONE,
+                Color::BLACK,
+            ),
+            ResponsiveSegment::base(Segment::new(
+                2.near().to(3.far()).maximum(60.0),
+                4.near().to(4.far()).maximum(60.0),
+            ))
+            .exception(
+                [Layout::PORTRAIT_MOBILE],
+                Segment::new(
+                    1.near().to(4.far()).maximum(60.0),
+                    4.near().to(4.far()).maximum(60.0),
+                ),
+            )
+            .justify(Justify::Top),
+        );
+        aesthetic.pigment(
+            Text::new(
+                MaxCharacters(11),
+                TextValue::new("circle"),
+                THEME_COLOR::PLUS_ONE,
+            ),
+            ResponsiveSegment::base(Segment::new(
+                4.near().to(5.far()),
+                4.near().to(4.far()).minimum(30.0).maximum(40.0),
+            ))
+            .justify(Justify::Top)
+            .without_portrait_mobile()
+            .without_portrait_tablet(),
+        );
+        aesthetic.pigment_scene(
+            CircleButton::new(
+                FeatherIcon::Copy,
+                ElementStyle::ring(),
+                THEME_COLOR::PLUS_ONE,
+                Color::BLACK,
+            ),
+            ResponsiveSegment::base(Segment::new(
+                5.near().to(6.far()).maximum(60.0),
+                4.near().to(4.far()).maximum(60.0),
+            ))
+            .exception(
+                [Layout::PORTRAIT_MOBILE],
+                Segment::new(
+                    5.near().to(8.far()).maximum(60.0),
+                    4.near().to(4.far()).maximum(60.0),
+                ),
+            )
+            .justify(Justify::Top),
+        );
+        aesthetic.pigment(
+            Text::new(
+                MaxCharacters(11),
+                TextValue::new("circle"),
+                THEME_COLOR::PLUS_ONE,
+            ),
+            ResponsiveSegment::base(Segment::new(
+                7.near().to(8.far()),
+                4.near().to(4.far()).minimum(30.0).maximum(40.0),
+            ))
+            .justify(Justify::Top)
+            .without_portrait_mobile()
+            .without_portrait_tablet(),
+        );
+        aesthetic.pigment_scene(
+            IconButton::new(
+                FeatherIcon::Copy,
+                ElementStyle::fill(),
+                THEME_COLOR::PLUS_THREE,
+                Color::BLACK,
+            ),
+            ResponsiveSegment::base(Segment::new(
+                2.near().to(3.far()).maximum(50.0),
+                5.near().to(5.far()).maximum(50.0),
+            ))
+            .exception(
+                [Layout::PORTRAIT_MOBILE],
+                Segment::new(
+                    1.near().to(4.far()).maximum(50.0),
+                    5.near().to(5.far()).maximum(50.0),
+                ),
+            )
+            .justify(Justify::Top),
+        );
+        aesthetic.pigment(
+            Text::new(
+                MaxCharacters(11),
+                TextValue::new("icon"),
+                THEME_COLOR::PLUS_THREE,
+            ),
+            ResponsiveSegment::base(Segment::new(
+                4.near().to(5.far()),
+                5.near().to(5.far()).minimum(30.0).maximum(40.0),
+            ))
+            .justify(Justify::Top)
+            .without_portrait_mobile()
+            .without_portrait_tablet(),
+        );
+        aesthetic.pigment_scene(
+            IconButton::new(
+                FeatherIcon::Copy,
+                ElementStyle::ring(),
+                THEME_COLOR::PLUS_THREE,
+                Color::BLACK,
+            ),
+            ResponsiveSegment::base(Segment::new(
+                5.near().to(6.far()).maximum(50.0),
+                5.near().to(5.far()).maximum(50.0),
+            ))
+            .exception(
+                [Layout::PORTRAIT_MOBILE],
+                Segment::new(
+                    5.near().to(8.far()).maximum(50.0),
+                    5.near().to(5.far()).maximum(50.0),
+                ),
+            )
+            .justify(Justify::Top),
+        );
+        aesthetic.pigment(
+            Text::new(
+                MaxCharacters(11),
+                TextValue::new("icon"),
+                THEME_COLOR::PLUS_THREE,
+            ),
+            ResponsiveSegment::base(Segment::new(
+                7.near().to(8.far()),
+                5.near().to(5.far()).minimum(30.0).maximum(40.0),
+            ))
+            .justify(Justify::Top)
+            .without_portrait_mobile()
+            .without_portrait_tablet(),
+        );
+        aesthetic.view()
     }
 }

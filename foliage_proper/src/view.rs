@@ -33,7 +33,7 @@ pub(crate) fn photosynthesize<V: Photosynthesis + Send + Sync + 'static>(
     mut compositor: ResMut<Compositor>,
     navigation: Query<(Entity, &Photosynthesize<V>), Changed<Photosynthesize<V>>>,
     mut cmd: Commands,
-    mut ext: StaticSystemParam<V::Resources>,
+    mut ext: StaticSystemParam<V::Chlorophyll>,
     mut grid: ResMut<MacroGrid>,
 ) {
     if let Some((_, _n)) = navigation.iter().last() {
@@ -49,8 +49,8 @@ pub(crate) fn photosynthesize<V: Photosynthesis + Send + Sync + 'static>(
 }
 pub trait Photosynthesis {
     const GRID: MacroGrid;
-    type Resources: SystemParam + 'static;
-    fn photosynthesize(cmd: &mut Commands, res: &mut SystemParamItem<Self::Resources>) -> View;
+    type Chlorophyll: SystemParam + 'static;
+    fn photosynthesize(cmd: &mut Commands, res: &mut SystemParamItem<Self::Chlorophyll>) -> View;
 }
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
 pub struct BranchHandle(pub i32);
@@ -208,21 +208,21 @@ impl<S: Scene + Clone> SceneBranch<S> {
 }
 #[derive(Component, Clone, Default)]
 pub struct View(pub HashSet<Entity>, HashMap<BranchHandle, Entity>);
-pub struct Pigment<'a, 'w, 's> {
+pub struct Aesthetic<'a, 'w, 's> {
     cmd: &'a mut Commands<'w, 's>,
     chlorophyll: View,
 }
-impl<'a, 'w, 's> Pigment<'a, 'w, 's> {
+impl<'a, 'w, 's> Aesthetic<'a, 'w, 's> {
     pub fn new(cmd: &'a mut Commands<'w, 's>) -> Self {
         Self {
             cmd,
             chlorophyll: View::default(),
         }
     }
-    pub fn chlorophyll(self) -> View {
+    pub fn view(self) -> View {
         self.chlorophyll
     }
-    pub fn responsive_scene<S: Scene>(&mut self, s: S, rs: ResponsiveSegment) -> SceneDesc {
+    pub fn pigment_scene<S: Scene>(&mut self, s: S, rs: ResponsiveSegment) -> SceneDesc {
         let desc = {
             let scene_desc = s.create(Binder::new(self.cmd, None));
             self.cmd.entity(scene_desc.root()).insert(rs);
@@ -231,7 +231,7 @@ impl<'a, 'w, 's> Pigment<'a, 'w, 's> {
         self.chlorophyll.0.insert(desc.root());
         desc
     }
-    pub fn responsive<B: Bundle>(&mut self, b: B, rs: ResponsiveSegment) -> Entity {
+    pub fn pigment<B: Bundle>(&mut self, b: B, rs: ResponsiveSegment) -> Entity {
         let ent = { self.cmd.spawn(b).insert(rs).id() };
         self.chlorophyll.0.insert(ent);
         ent
