@@ -18,5 +18,7 @@ impl Leaves for SceneExtensions {
         f.with_leaf::<r_scenes::icon_text::IconText>()
             .with_leaf::<r_scenes::button::Button>()
             .with_leaf::<r_scenes::circle_button::CircleButton>()
+            .with_leaf::<r_scenes::icon_button::IconButton>()
+            .with_leaf::<r_scenes::text_button::TextButton>()
     }
 }

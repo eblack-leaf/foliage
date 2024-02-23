@@ -146,7 +146,7 @@ impl Scene for Button {
             Alignment::new(
                 0.fixed_from(RelativeMarker::Center),
                 0.0.percent_from(RelativeMarker::Center),
-                0.8.percent_of(AnchorDim::Width),
+                0.9.percent_of(AnchorDim::Width),
                 0.8.percent_of(AnchorDim::Height),
             ),
             self.icon_text,
@@ -164,10 +164,7 @@ impl Scene for Button {
                 .extend(Tag::<ButtonInteractionHook>::new()),
         );
         binder.finish::<Self>(SceneComponents::new(
-            MicroGrid::new()
-                .min_height(30.0)
-                .min_width(40.0 * aspect)
-                .aspect(aspect),
+            MicroGrid::new().min_height(30.0).min_width(40.0 * aspect),
             ButtonComponents::new(
                 self.element_style,
                 self.foreground_color,

@@ -150,13 +150,13 @@ impl Scene for IconText {
     fn create(self, mut binder: Binder) -> SceneDesc {
         let aspect_determinant = self.max_chars.0 as f32 + 2f32;
         let aspect = AspectRatio(aspect_determinant / 2f32);
-        let icon_percent = 1.0f32 / aspect_determinant;
-        let text_offset = 1f32 / aspect_determinant;
+        let icon_percent = 1.50f32 / aspect_determinant;
+        let text_offset = 1.25f32 / aspect_determinant;
         binder.bind(
             IconTextBindings::Icon,
             Alignment::new(
                 0.0.percent_from(RelativeMarker::Left),
-                2.fixed_from(RelativeMarker::Center),
+                0.fixed_from(RelativeMarker::Center),
                 icon_percent.percent_of(AnchorDim::Width),
                 icon_percent.percent_of(AnchorDim::Width),
             ),
@@ -166,7 +166,7 @@ impl Scene for IconText {
             IconTextBindings::Text,
             Alignment::new(
                 text_offset.percent_from(RelativeMarker::Center),
-                (-2).fixed_from(RelativeMarker::Center),
+                0.fixed_from(RelativeMarker::Center),
                 (1f32 - text_offset).percent_of(AnchorDim::Width),
                 1.percent_of(AnchorDim::Height),
             ),
@@ -176,7 +176,7 @@ impl Scene for IconText {
             MicroGrid::new()
                 .aspect(aspect)
                 .min_height(20.0)
-                .min_width(30.0 * aspect.value()),
+                .min_width(20.0 * aspect.value()),
             Self::Components::new(
                 self.max_chars,
                 self.text_value,

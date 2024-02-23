@@ -1,6 +1,6 @@
 use crate::actual::Showcase;
 use foliage::bevy_ecs;
-use foliage::bevy_ecs::prelude::{Component, Resource};
+use foliage::bevy_ecs::prelude::Resource;
 use foliage::coordinate::area::Area;
 use foliage::elm::config::ElmConfiguration;
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
@@ -30,7 +30,6 @@ impl Leaf for ShowcaseMain {
     fn config(_elm_configuration: &mut ElmConfiguration) {}
 
     fn attach(elm: &mut Elm) {
-        // general setup
         Elm::remove_web_element("loading");
         let assets = Assets::proc_gen_load(elm);
         elm.on_fetch(*assets.f_asset.get(1).unwrap(), |data, cmd| {
@@ -43,92 +42,5 @@ impl Leaf for ShowcaseMain {
         elm.container().insert_resource(assets);
         elm.enable_seed::<Showcase>();
         elm.navigate::<Showcase>();
-
-        // elm.add_view_binding(
-        //     START,
-        //     Text::new(
-        //         MaxCharacters(11),
-        //         TextValue::new("circle"),
-        //         THEME_COLOR::PLUS_TWO,
-        //     ),
-        //     ResponsiveSegment::base(Segment::new(
-        //         7.near().to(8.far()),
-        //         4.near().to(4.far()).minimum(30.0).maximum(40.0),
-        //     ))
-        //     .justify(Justify::Top)
-        //     .without_portrait_mobile()
-        //     .without_portrait_tablet(),
-        //     (),
-        // );
-        // // elm.add_view_scene_binding(
-        // //     START,
-        // //     IconButton::new(
-        // //         FeatherIcon::Copy,
-        // //         ButtonStyle::Fill,
-        // //         THEME_COLOR::BASE,
-        // //         Color::BLACK,
-        // //     ),
-        // //     ResponsiveSegment::base(
-        // //         2.near().to(3.far()).fixed(35.0),
-        // //         5.near().to(5.far()).fixed(35.0),
-        // //     )
-        // //     .exception(
-        // //         [Layout::PORTRAIT_MOBILE],
-        // //         1.near().to(4.far()).fixed(35.0),
-        // //         5.near().to(5.far()).fixed(35.0),
-        // //     )
-        // //     .justify(Justify::Top),
-        // //     (),
-        // // );
-        // elm.add_view_binding(
-        //     START,
-        //     Text::new(MaxCharacters(11), TextValue::new("icon"), THEME_COLOR::BASE),
-        //     ResponsiveSegment::base(Segment::new(
-        //         4.near().to(5.far()),
-        //         5.near().to(5.far()).minimum(30.0).maximum(40.0),
-        //     ))
-        //     .justify(Justify::Top)
-        //     .without_portrait_mobile()
-        //     .without_portrait_tablet(),
-        //     (),
-        // );
-        // // elm.add_view_scene_binding(
-        // //     START,
-        // //     IconButton::new(
-        // //         FeatherIcon::Copy,
-        // //         ButtonStyle::Ring,
-        // //         THEME_COLOR::PLUS_THREE,
-        // //         Color::BLACK,
-        // //     ),
-        // //     ResponsiveSegment::base(
-        // //         5.near().to(6.far()).fixed(35.0),
-        // //         5.near().to(5.far()).fixed(35.0),
-        // //     )
-        // //     .exception(
-        // //         [Layout::PORTRAIT_MOBILE],
-        // //         5.near().to(8.far()).fixed(35.0),
-        // //         5.near().to(6.far()).fixed(35.0),
-        // //     )
-        // //     .justify(Justify::Top),
-        // //     (),
-        // // );
-        // elm.add_view_binding(
-        //     START,
-        //     Text::new(
-        //         MaxCharacters(11),
-        //         TextValue::new("icon"),
-        //         THEME_COLOR::PLUS_THREE,
-        //     ),
-        //     ResponsiveSegment::base(Segment::new(
-        //         7.near().to(8.far()),
-        //         5.near().to(5.far()).minimum(30.0).maximum(40.0),
-        //     ))
-        //     .justify(Justify::Top)
-        //     .without_portrait_mobile()
-        //     .without_portrait_tablet(),
-        //     (),
-        // );
     }
 }
-#[derive(Component, Copy, Clone)]
-struct TestHook();

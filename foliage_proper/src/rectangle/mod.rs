@@ -21,13 +21,13 @@ pub struct Rectangle {
     differentiable: Differentiable,
 }
 impl Rectangle {
-    pub fn new<C: Into<Color>>(area: Area<InterfaceContext>, color: C, progress: Progress) -> Self {
+    pub fn new<C: Into<Color>>(color: C, progress: Progress) -> Self {
         Self {
             progress: DifferentialBundle::new(progress),
             color: DifferentialBundle::new(color.into()),
             differentiable: Differentiable::new::<Self>(
                 Position::default(),
-                area,
+                Area::default(),
                 Layer::default(),
             ),
         }

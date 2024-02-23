@@ -122,7 +122,8 @@ fn scale_change(
     for (mut scale, mut area, mut pos) in query.iter_mut() {
         let initial_width = area.width.max(area.height);
         *scale = IconScale::from_dim(area.width.max(area.height));
-        *pos = *pos + Position::from((initial_width - scale.px(), initial_width - scale.px()));
+        let val = (initial_width - scale.px()) / 2f32;
+        *pos = *pos + Position::from((val, val));
         let initial_px = scale.px();
         area.width = initial_px;
         area.height = initial_px;

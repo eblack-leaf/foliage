@@ -124,7 +124,10 @@ impl Scene for CircleButton {
                 .extend(Tag::<ButtonInteractionHook>::new()),
         );
         binder.finish::<Self>(SceneComponents::new(
-            MicroGrid::new().aspect(1.0),
+            MicroGrid::new()
+                .aspect(1.0)
+                .min_width(44.0)
+                .min_height(44.0),
             ButtonComponents::new(
                 self.element_style,
                 self.foreground_color,

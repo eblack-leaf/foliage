@@ -3,8 +3,9 @@ use foliage_proper::color::Color;
 
 pub mod button;
 pub mod circle_button;
-mod icon_button;
+pub mod icon_button;
 pub mod icon_text;
+pub mod text_button;
 
 use foliage_proper::bevy_ecs;
 #[derive(Component, Copy, Clone, Default)]

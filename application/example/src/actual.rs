@@ -1,13 +1,15 @@
 use foliage::bevy_ecs::prelude::Commands;
 use foliage::bevy_ecs::system::SystemParamItem;
-use foliage::color::monochromatic::{AquaMarine as THEME_COLOR, Monochromatic};
+use foliage::color::monochromatic::{Monochromatic, Orange as THEME_COLOR};
 use foliage::color::Color;
 use foliage::elm::ElementStyle;
 use foliage::icon::FeatherIcon;
 use foliage::layout::Layout;
 use foliage::r_scenes::button::Button;
 use foliage::r_scenes::circle_button::CircleButton;
+use foliage::r_scenes::icon_button::IconButton;
 use foliage::r_scenes::icon_text::IconText;
+use foliage::r_scenes::text_button::TextButton;
 use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::text::{MaxCharacters, Text, TextValue};
 use foliage::tree::{Seed, Tree, TreeBinder};
@@ -46,15 +48,12 @@ impl Seed for Showcase {
                 Color::BLACK,
             ),
             ResponsiveSegment::base(Segment::new(
-                2.near().to(3.far()).minimum(115.0).maximum(350.0),
-                2.near().to(2.far()).minimum(30.0).maximum(40.0),
+                2.near().to(3.far()),
+                2.near().to(2.far()).maximum(55.0),
             ))
             .exception(
                 [Layout::PORTRAIT_MOBILE],
-                Segment::new(
-                    1.near().to(4.far()),
-                    2.near().to(2.far()).minimum(30.0).maximum(40.0),
-                ),
+                Segment::new(1.near().to(4.far()), 2.near().to(2.far()).maximum(55.0)),
             )
             .justify(Justify::Top),
         );
@@ -86,15 +85,12 @@ impl Seed for Showcase {
                 Color::BLACK,
             ),
             ResponsiveSegment::base(Segment::new(
-                5.near().to(6.far()).minimum(115.0).maximum(350.0),
-                2.near().to(2.far()).minimum(30.0).maximum(40.0),
+                5.near().to(6.far()),
+                2.near().to(2.far()).maximum(55.0),
             ))
             .exception(
                 [Layout::PORTRAIT_MOBILE],
-                Segment::new(
-                    5.near().to(8.far()),
-                    2.near().to(2.far()).minimum(30.0).maximum(40.0),
-                ),
+                Segment::new(5.near().to(8.far()), 2.near().to(2.far()).maximum(55.0)),
             )
             .justify(Justify::Top),
         );
@@ -108,30 +104,21 @@ impl Seed for Showcase {
             .without_portrait_mobile()
             .without_portrait_tablet(),
         );
-        // tmp
         binder.responsive_scene(
-            Button::new(
-                IconText::new(
-                    FeatherIcon::Copy,
-                    Color::BLACK,
-                    MaxCharacters(4),
-                    TextValue::new("copy"),
-                    Color::BLACK,
-                ),
+            TextButton::new(
+                TextValue::new("copy"),
+                MaxCharacters(4),
                 ElementStyle::fill(),
-                THEME_COLOR::MINUS_TWO,
+                THEME_COLOR::BASE,
                 Color::BLACK,
             ),
             ResponsiveSegment::base(Segment::new(
-                2.near().to(3.far()).minimum(115.0).maximum(350.0),
-                3.near().to(3.far()).minimum(30.0).maximum(40.0),
+                2.near().to(3.far()),
+                3.near().to(3.far()).maximum(55.0),
             ))
             .exception(
                 [Layout::PORTRAIT_MOBILE],
-                Segment::new(
-                    1.near().to(4.far()),
-                    3.near().to(3.far()).minimum(30.0).maximum(40.0),
-                ),
+                Segment::new(1.near().to(4.far()), 3.near().to(3.far()).maximum(55.0)),
             )
             .justify(Justify::Top),
         );
@@ -150,28 +137,20 @@ impl Seed for Showcase {
             .without_portrait_tablet(),
         );
         binder.responsive_scene(
-            Button::new(
-                IconText::new(
-                    FeatherIcon::Copy,
-                    Color::BLACK,
-                    MaxCharacters(4),
-                    TextValue::new("copy"),
-                    Color::BLACK,
-                ),
+            TextButton::new(
+                TextValue::new("copy"),
+                MaxCharacters(4),
                 ElementStyle::fill(),
                 THEME_COLOR::BASE,
                 Color::BLACK,
             ),
             ResponsiveSegment::base(Segment::new(
-                5.near().to(6.far()).minimum(115.0).maximum(350.0),
-                3.near().to(3.far()).minimum(30.0).maximum(40.0),
+                5.near().to(6.far()),
+                3.near().to(3.far()).maximum(55.0),
             ))
             .exception(
                 [Layout::PORTRAIT_MOBILE],
-                Segment::new(
-                    5.near().to(8.far()),
-                    3.near().to(3.far()).minimum(30.0).maximum(40.0),
-                ),
+                Segment::new(5.near().to(8.far()), 3.near().to(3.far()).maximum(55.0)),
             )
             .justify(Justify::Top),
         );
@@ -197,14 +176,14 @@ impl Seed for Showcase {
                 Color::BLACK,
             ),
             ResponsiveSegment::base(Segment::new(
-                2.near().to(3.far()).fixed(40.0),
-                4.near().to(4.far()).fixed(40.0),
+                2.near().to(3.far()).maximum(60.0),
+                4.near().to(4.far()).maximum(60.0),
             ))
             .exception(
                 [Layout::PORTRAIT_MOBILE],
                 Segment::new(
-                    1.near().to(4.far()).fixed(40.0),
-                    4.near().to(4.far()).fixed(40.0),
+                    1.near().to(4.far()).maximum(60.0),
+                    4.near().to(4.far()).maximum(60.0),
                 ),
             )
             .justify(Justify::Top),
@@ -231,17 +210,95 @@ impl Seed for Showcase {
                 Color::BLACK,
             ),
             ResponsiveSegment::base(Segment::new(
-                5.near().to(6.far()).fixed(40.0),
-                4.near().to(4.far()).fixed(40.0),
+                5.near().to(6.far()).maximum(60.0),
+                4.near().to(4.far()).maximum(60.0),
             ))
             .exception(
                 [Layout::PORTRAIT_MOBILE],
                 Segment::new(
-                    5.near().to(8.far()).fixed(40.0),
-                    4.near().to(4.far()).fixed(40.0),
+                    5.near().to(8.far()).maximum(60.0),
+                    4.near().to(4.far()).maximum(60.0),
                 ),
             )
             .justify(Justify::Top),
+        );
+        binder.responsive(
+            Text::new(
+                MaxCharacters(11),
+                TextValue::new("circle"),
+                THEME_COLOR::PLUS_TWO,
+            ),
+            ResponsiveSegment::base(Segment::new(
+                7.near().to(8.far()),
+                4.near().to(4.far()).minimum(30.0).maximum(40.0),
+            ))
+            .justify(Justify::Top)
+            .without_portrait_mobile()
+            .without_portrait_tablet(),
+        );
+        binder.responsive_scene(
+            IconButton::new(
+                FeatherIcon::Copy,
+                ElementStyle::fill(),
+                THEME_COLOR::BASE,
+                Color::BLACK,
+            ),
+            ResponsiveSegment::base(Segment::new(
+                2.near().to(3.far()).maximum(50.0),
+                5.near().to(5.far()).maximum(50.0),
+            ))
+            .exception(
+                [Layout::PORTRAIT_MOBILE],
+                Segment::new(
+                    1.near().to(4.far()).maximum(50.0),
+                    5.near().to(5.far()).maximum(50.0),
+                ),
+            )
+            .justify(Justify::Top),
+        );
+        binder.responsive(
+            Text::new(MaxCharacters(11), TextValue::new("icon"), THEME_COLOR::BASE),
+            ResponsiveSegment::base(Segment::new(
+                4.near().to(5.far()),
+                5.near().to(5.far()).minimum(30.0).maximum(40.0),
+            ))
+            .justify(Justify::Top)
+            .without_portrait_mobile()
+            .without_portrait_tablet(),
+        );
+        binder.responsive_scene(
+            IconButton::new(
+                FeatherIcon::Copy,
+                ElementStyle::ring(),
+                THEME_COLOR::PLUS_THREE,
+                Color::BLACK,
+            ),
+            ResponsiveSegment::base(Segment::new(
+                5.near().to(6.far()).maximum(50.0),
+                5.near().to(5.far()).maximum(50.0),
+            ))
+            .exception(
+                [Layout::PORTRAIT_MOBILE],
+                Segment::new(
+                    5.near().to(8.far()).maximum(50.0),
+                    5.near().to(5.far()).maximum(50.0),
+                ),
+            )
+            .justify(Justify::Top),
+        );
+        binder.responsive(
+            Text::new(
+                MaxCharacters(11),
+                TextValue::new("icon"),
+                THEME_COLOR::PLUS_THREE,
+            ),
+            ResponsiveSegment::base(Segment::new(
+                7.near().to(8.far()),
+                5.near().to(5.far()).minimum(30.0).maximum(40.0),
+            ))
+            .justify(Justify::Top)
+            .without_portrait_mobile()
+            .without_portrait_tablet(),
         );
         binder.tree()
     }
