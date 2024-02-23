@@ -40,8 +40,8 @@ pub(crate) fn photosynthesize<V: Photosynthesis + Send + Sync + 'static>(
         // TODO despawn current tree + all in pool
         // or anim-out && @-end trigger despawn
         *grid = V::GRID;
-        let aesthetics = V::photosynthesize(&mut cmd, &mut ext);
-        compositor.current.replace(aesthetics);
+        let view = V::photosynthesize(&mut cmd, &mut ext);
+        compositor.current.replace(view);
     }
     for (e, _) in navigation.iter() {
         cmd.entity(e).despawn();
@@ -50,8 +50,7 @@ pub(crate) fn photosynthesize<V: Photosynthesis + Send + Sync + 'static>(
 pub trait Photosynthesis {
     const GRID: MacroGrid;
     type Resources: SystemParam + 'static;
-    fn photosynthesize(cmd: &mut Commands, res: &mut SystemParamItem<Self::Resources>)
-        -> Aesthetic;
+    fn photosynthesize(cmd: &mut Commands, res: &mut SystemParamItem<Self::Resources>) -> View;
 }
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
 pub struct BranchHandle(pub i32);
@@ -208,19 +207,19 @@ impl<S: Scene + Clone> SceneBranch<S> {
     }
 }
 #[derive(Component, Clone, Default)]
-pub struct Aesthetic(pub HashSet<Entity>, HashMap<BranchHandle, Entity>);
+pub struct View(pub HashSet<Entity>, HashMap<BranchHandle, Entity>);
 pub struct Pigment<'a, 'w, 's> {
     cmd: &'a mut Commands<'w, 's>,
-    chlorophyll: Aesthetic,
+    chlorophyll: View,
 }
 impl<'a, 'w, 's> Pigment<'a, 'w, 's> {
     pub fn new(cmd: &'a mut Commands<'w, 's>) -> Self {
         Self {
             cmd,
-            chlorophyll: Aesthetic::default(),
+            chlorophyll: View::default(),
         }
     }
-    pub fn chlorophyll(self) -> Aesthetic {
+    pub fn chlorophyll(self) -> View {
         self.chlorophyll
     }
     pub fn responsive_scene<S: Scene>(&mut self, s: S, rs: ResponsiveSegment) -> SceneDesc {
@@ -322,7 +321,7 @@ impl<'a, 'w, 's> Pigment<'a, 'w, 's> {
 }
 #[derive(Default, Resource)]
 pub struct Compositor {
-    current: Option<Aesthetic>,
+    current: Option<View>,
 }
 impl Compositor {
     pub fn photosynthesize<V: Photosynthesis + Send + Sync + 'static>(cmd: &mut Commands) {
@@ -434,7 +433,7 @@ fn responsive_segment_changed(
         }
     }
 }
-impl Leaf for Aesthetic {
+impl Leaf for View {
     type SetDescriptor = EmptySetDescriptor;
 
     fn attach(elm: &mut Elm) {

@@ -15,7 +15,6 @@ use winit::event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget};
 pub use winit::keyboard::NamedKey;
 
 use self::ash::leaflet::RenderLeafletStorage;
-use crate::aesthetic::Aesthetic;
 use crate::ash::render::Render;
 use crate::ash::Ash;
 use crate::asset::AssetContainer;
@@ -39,11 +38,11 @@ use crate::rectangle::Rectangle;
 use crate::system_message::{ResponseMessage, SystemMessageResponse};
 use crate::text::Text;
 use crate::time::Time;
+use crate::view::View;
 use crate::virtual_keyboard::VirtualKeyboardAdapter;
 use crate::workflow::{Workflow, WorkflowConnectionBase};
 use animate::trigger::Trigger;
 
-pub mod aesthetic;
 pub mod animate;
 pub mod ash;
 pub mod asset;
@@ -69,6 +68,7 @@ pub(crate) mod system_message;
 pub mod text;
 pub mod texture;
 pub mod time;
+pub mod view;
 pub mod virtual_keyboard;
 pub mod window;
 pub mod workflow;
@@ -122,7 +122,7 @@ impl Foliage {
             .with_leaf::<Trigger>()
             .with_leaf::<Interaction>()
             .with_leaf::<ViewportHandle>()
-            .with_leaf::<Aesthetic>()
+            .with_leaf::<View>()
             .with_leaf::<Time>()
             .with_leaf::<VirtualKeyboardAdapter>()
             .with_leaf::<Clipboard>()

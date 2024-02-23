@@ -4,10 +4,6 @@ pub mod leaf;
 use std::any::TypeId;
 use std::marker::PhantomData;
 
-use crate::aesthetic::{
-    conditional_extension, conditional_scene_spawn, conditional_spawn, photosynthesize, Compositor,
-    Photosynthesis, Photosynthesize,
-};
 use crate::animate::trigger::Trigger;
 use crate::ash::render_packet::RenderPacketForwarder;
 use crate::ash::render_packet::RenderPacketPackage;
@@ -21,6 +17,10 @@ use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::job::{Container, Job, Task};
 use crate::scene::Scene;
+use crate::view::{
+    conditional_extension, conditional_scene_spawn, conditional_spawn, photosynthesize, Compositor,
+    Photosynthesis, Photosynthesize,
+};
 use crate::window::ScaleFactor;
 #[cfg(target_family = "wasm")]
 use crate::Workflow;
@@ -273,7 +273,7 @@ impl Elm {
         self.main()
             .add_systems(conditional_scene_spawn::<S>.in_set(ExternalSet::ConditionalBind));
     }
-    pub fn enable_aesthetic<S: Photosynthesis + Send + Sync + 'static>(&mut self) {
+    pub fn enable_view<S: Photosynthesis + Send + Sync + 'static>(&mut self) {
         self.main()
             .add_systems(photosynthesize::<S>.in_set(ExternalSet::Show));
     }

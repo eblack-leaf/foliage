@@ -1,4 +1,3 @@
-use foliage::aesthetic::{Aesthetic, BranchHandle, ConditionSet, Photosynthesis, Pigment};
 use foliage::bevy_ecs;
 use foliage::bevy_ecs::prelude::{Commands, Component};
 use foliage::bevy_ecs::system::SystemParamItem;
@@ -13,15 +12,13 @@ use foliage::r_scenes::icon_text::IconText;
 use foliage::scene::ExtendTarget;
 use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::text::{MaxCharacters, Text, TextValue};
+use foliage::view::{BranchHandle, ConditionSet, Photosynthesis, Pigment, View};
 pub struct ShowcaseSeed;
 impl Photosynthesis for ShowcaseSeed {
     const GRID: MacroGrid = MacroGrid::new(8, 6);
     type Resources = ();
 
-    fn photosynthesize(
-        cmd: &mut Commands,
-        _res: &mut SystemParamItem<Self::Resources>,
-    ) -> Aesthetic {
+    fn photosynthesize(cmd: &mut Commands, _res: &mut SystemParamItem<Self::Resources>) -> View {
         let mut binder = Pigment::new(cmd);
         binder.responsive_scene(
             IconText::new(

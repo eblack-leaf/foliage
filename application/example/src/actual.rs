@@ -1,4 +1,3 @@
-use foliage::aesthetic::{Aesthetic, Photosynthesis, Pigment};
 use foliage::bevy_ecs::prelude::Commands;
 use foliage::bevy_ecs::system::SystemParamItem;
 use foliage::color::monochromatic::{Monochromatic, Orange as THEME_COLOR};
@@ -13,15 +12,13 @@ use foliage::r_scenes::icon_text::IconText;
 use foliage::r_scenes::text_button::TextButton;
 use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::text::{MaxCharacters, Text, TextValue};
+use foliage::view::{Photosynthesis, Pigment, View};
 pub struct Showcase;
 impl Photosynthesis for Showcase {
     const GRID: MacroGrid = MacroGrid::new(8, 6);
     type Resources = ();
 
-    fn photosynthesize(
-        cmd: &mut Commands,
-        _res: &mut SystemParamItem<Self::Resources>,
-    ) -> Aesthetic {
+    fn photosynthesize(cmd: &mut Commands, _res: &mut SystemParamItem<Self::Resources>) -> View {
         let mut pigment = Pigment::new(cmd);
         pigment.responsive_scene(
             IconText::new(
