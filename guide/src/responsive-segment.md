@@ -48,10 +48,10 @@ You can add fixed offsets to the base locations with `.offset(...)`.
 You can also just `fix` the size for exact element sizing
 
 ```rust
-1.near().to(24.fixed())
+1.near().to(4.far()).fixed(44.0)
 ```
 
-which will start at `first` near and go `24` pixels from there.
+which will put both a `min`|`max` of `44.0`.
 
 Relative and absolute placements can be accomplished with 
 
