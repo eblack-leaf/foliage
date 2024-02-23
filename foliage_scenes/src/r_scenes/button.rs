@@ -164,7 +164,7 @@ impl Scene for Button {
                 .extend(Tag::<ButtonInteractionHook>::new()),
         );
         binder.finish::<Self>(SceneComponents::new(
-            MicroGrid::new().min_height(30.0).min_width(40.0 * aspect),
+            MicroGrid::new().min_height(30.0).min_width(30.0 * aspect),
             ButtonComponents::new(
                 self.element_style,
                 self.foreground_color,

@@ -44,11 +44,11 @@ impl Seed for Showcase {
                     Color::BLACK,
                 ),
                 ElementStyle::fill(),
-                THEME_COLOR::BASE,
+                THEME_COLOR::MINUS_THREE,
                 Color::BLACK,
             ),
             ResponsiveSegment::base(Segment::new(
-                2.near().to(3.far()),
+                2.near().to(3.far()).minimum(150.0),
                 2.near().to(2.far()).maximum(55.0),
             ))
             .exception(
@@ -81,11 +81,11 @@ impl Seed for Showcase {
                     Color::BLACK,
                 ),
                 ElementStyle::fill(),
-                THEME_COLOR::MINUS_ONE,
+                THEME_COLOR::MINUS_THREE,
                 Color::BLACK,
             ),
             ResponsiveSegment::base(Segment::new(
-                5.near().to(6.far()),
+                5.near().to(6.far()).minimum(150.0),
                 2.near().to(2.far()).maximum(55.0),
             ))
             .exception(
@@ -95,7 +95,11 @@ impl Seed for Showcase {
             .justify(Justify::Top),
         );
         binder.responsive(
-            Text::new(MaxCharacters(11), TextValue::new("base"), THEME_COLOR::BASE),
+            Text::new(
+                MaxCharacters(11),
+                TextValue::new("base"),
+                THEME_COLOR::MINUS_THREE,
+            ),
             ResponsiveSegment::base(Segment::new(
                 7.near().to(8.far()),
                 2.near().to(2.far()).minimum(30.0).maximum(40.0),
@@ -109,11 +113,11 @@ impl Seed for Showcase {
                 TextValue::new("copy"),
                 MaxCharacters(4),
                 ElementStyle::fill(),
-                THEME_COLOR::BASE,
+                THEME_COLOR::MINUS_ONE,
                 Color::BLACK,
             ),
             ResponsiveSegment::base(Segment::new(
-                2.near().to(3.far()),
+                2.near().to(3.far()).minimum(150.0),
                 3.near().to(3.far()).maximum(55.0),
             ))
             .exception(
@@ -126,7 +130,7 @@ impl Seed for Showcase {
             Text::new(
                 MaxCharacters(11),
                 TextValue::new("text"),
-                THEME_COLOR::PLUS_THREE,
+                THEME_COLOR::MINUS_ONE,
             ),
             ResponsiveSegment::base(Segment::new(
                 4.near().to(5.far()),
@@ -141,11 +145,11 @@ impl Seed for Showcase {
                 TextValue::new("copy"),
                 MaxCharacters(4),
                 ElementStyle::fill(),
-                THEME_COLOR::BASE,
+                THEME_COLOR::MINUS_ONE,
                 Color::BLACK,
             ),
             ResponsiveSegment::base(Segment::new(
-                5.near().to(6.far()),
+                5.near().to(6.far()).minimum(150.0),
                 3.near().to(3.far()).maximum(55.0),
             ))
             .exception(
@@ -158,7 +162,7 @@ impl Seed for Showcase {
             Text::new(
                 MaxCharacters(11),
                 TextValue::new("text"),
-                THEME_COLOR::PLUS_ONE,
+                THEME_COLOR::MINUS_ONE,
             ),
             ResponsiveSegment::base(Segment::new(
                 7.near().to(8.far()),
@@ -172,7 +176,7 @@ impl Seed for Showcase {
             CircleButton::new(
                 FeatherIcon::Copy,
                 ElementStyle::fill(),
-                THEME_COLOR::MINUS_ONE,
+                THEME_COLOR::PLUS_ONE,
                 Color::BLACK,
             ),
             ResponsiveSegment::base(Segment::new(
@@ -192,7 +196,7 @@ impl Seed for Showcase {
             Text::new(
                 MaxCharacters(11),
                 TextValue::new("circle"),
-                THEME_COLOR::MINUS_ONE,
+                THEME_COLOR::PLUS_ONE,
             ),
             ResponsiveSegment::base(Segment::new(
                 4.near().to(5.far()),
@@ -206,7 +210,7 @@ impl Seed for Showcase {
             CircleButton::new(
                 FeatherIcon::Copy,
                 ElementStyle::ring(),
-                THEME_COLOR::PLUS_TWO,
+                THEME_COLOR::PLUS_ONE,
                 Color::BLACK,
             ),
             ResponsiveSegment::base(Segment::new(
@@ -226,7 +230,7 @@ impl Seed for Showcase {
             Text::new(
                 MaxCharacters(11),
                 TextValue::new("circle"),
-                THEME_COLOR::PLUS_TWO,
+                THEME_COLOR::PLUS_ONE,
             ),
             ResponsiveSegment::base(Segment::new(
                 7.near().to(8.far()),
@@ -240,7 +244,7 @@ impl Seed for Showcase {
             IconButton::new(
                 FeatherIcon::Copy,
                 ElementStyle::fill(),
-                THEME_COLOR::BASE,
+                THEME_COLOR::PLUS_THREE,
                 Color::BLACK,
             ),
             ResponsiveSegment::base(Segment::new(
@@ -257,7 +261,11 @@ impl Seed for Showcase {
             .justify(Justify::Top),
         );
         binder.responsive(
-            Text::new(MaxCharacters(11), TextValue::new("icon"), THEME_COLOR::BASE),
+            Text::new(
+                MaxCharacters(11),
+                TextValue::new("icon"),
+                THEME_COLOR::PLUS_THREE,
+            ),
             ResponsiveSegment::base(Segment::new(
                 4.near().to(5.far()),
                 5.near().to(5.far()).minimum(30.0).maximum(40.0),

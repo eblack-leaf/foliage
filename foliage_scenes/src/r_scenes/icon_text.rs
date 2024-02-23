@@ -151,7 +151,7 @@ impl Scene for IconText {
         let aspect_determinant = self.max_chars.0 as f32 + 2f32;
         let aspect = AspectRatio(aspect_determinant / 2f32);
         let icon_percent = 1.50f32 / aspect_determinant;
-        let text_offset = 1.25f32 / aspect_determinant;
+        let text_offset = 1.0f32 / aspect_determinant;
         binder.bind(
             IconTextBindings::Icon,
             Alignment::new(
