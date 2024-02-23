@@ -17,9 +17,9 @@ use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::job::{Container, Job, Task};
 use crate::scene::Scene;
-use crate::tree::{
-    conditional_extension, conditional_scene_spawn, conditional_spawn, sprout, Forest, Navigation,
-    Seed,
+use crate::view::{
+    conditional_extension, conditional_scene_spawn, conditional_spawn, display, Compositor,
+    Navigation, View,
 };
 use crate::window::ScaleFactor;
 #[cfg(target_family = "wasm")]
@@ -253,26 +253,26 @@ impl Elm {
         };
         self.main().add_systems(func.in_set(ExternalSet::Process));
     }
-    pub fn view_trigger<H: Component + Send + 'static, C: Seed + Send + Sync + 'static>(&mut self) {
+    pub fn view_trigger<H: Component + Send + 'static, C: View + Send + Sync + 'static>(&mut self) {
         self.add_interaction_handler::<H, Commands>(|_ih, mut ext| {
-            Forest::navigate::<C>(&mut ext);
+            Compositor::navigate::<C>(&mut ext);
         });
     }
     pub fn enable_conditional<C: Bundle + Clone + Send + Sync + 'static>(&mut self) {
         self.main().add_systems((
-            conditional_spawn::<C>.in_set(ExternalSet::BranchBind),
-            conditional_extension::<C>.in_set(ExternalSet::BranchExt),
+            conditional_spawn::<C>.in_set(ExternalSet::ConditionalBind),
+            conditional_extension::<C>.in_set(ExternalSet::ConditionalExt),
         ));
     }
     pub fn enable_conditional_scene<S: Scene + Clone + Send + Sync + 'static>(&mut self) {
         self.main()
-            .add_systems(conditional_scene_spawn::<S>.in_set(ExternalSet::BranchBind));
+            .add_systems(conditional_scene_spawn::<S>.in_set(ExternalSet::ConditionalBind));
     }
-    pub fn enable_seed<S: Seed + Send + Sync + 'static>(&mut self) {
+    pub fn enable_seed<S: View + Send + Sync + 'static>(&mut self) {
         self.main()
-            .add_systems(sprout::<S>.in_set(ExternalSet::Sprout));
+            .add_systems(display::<S>.in_set(ExternalSet::Show));
     }
-    pub fn navigate<S: Seed + Send + Sync + 'static>(&mut self) {
+    pub fn navigate<S: View + Send + Sync + 'static>(&mut self) {
         self.container().spawn(Navigation::<S>::new());
     }
 }

@@ -1,0 +1,450 @@
+use crate::animate::trigger::Trigger;
+use crate::coordinate::area::Area;
+use crate::coordinate::layer::Layer;
+use crate::coordinate::position::Position;
+use crate::coordinate::InterfaceContext;
+use crate::differential::Despawn;
+use crate::elm::config::CoreSet;
+use crate::elm::leaf::{EmptySetDescriptor, Leaf};
+use crate::elm::{Disabled, Elm};
+use crate::ginkgo::viewport::ViewportHandle;
+use crate::layout::Layout;
+use crate::scene::{
+    Binder, Bindings, ExtendTarget, Scene, SceneBinding, SceneComponents, SceneDesc,
+};
+use crate::segment::{MacroGrid, ResponsiveSegment};
+use bevy_ecs::entity::Entity;
+use bevy_ecs::prelude::{Bundle, Component, IntoSystemConfigs};
+use bevy_ecs::query::Changed;
+use bevy_ecs::system::{
+    Commands, Query, Res, ResMut, Resource, StaticSystemParam, SystemParam, SystemParamItem,
+};
+use std::collections::{HashMap, HashSet};
+use std::marker::PhantomData;
+
+#[derive(Component, Copy, Clone)]
+pub struct Navigation<V>(PhantomData<V>);
+impl<V> Navigation<V> {
+    pub fn new() -> Self {
+        Self { 0: PhantomData }
+    }
+}
+pub(crate) fn display<V: View + Send + Sync + 'static>(
+    mut compositor: ResMut<Compositor>,
+    navigation: Query<(Entity, &Navigation<V>), Changed<Navigation<V>>>,
+    mut cmd: Commands,
+    mut ext: StaticSystemParam<V::Resources>,
+    mut grid: ResMut<MacroGrid>,
+) {
+    if let Some((_, _n)) = navigation.iter().last() {
+        // TODO despawn current tree + all in pool
+        // or anim-out && @-end trigger despawn
+
+        *grid = V::GRID;
+        let tree = V::show(&mut cmd, &mut ext);
+        compositor.current.replace(tree);
+    }
+    for (e, _) in navigation.iter() {
+        cmd.entity(e).despawn();
+    }
+}
+pub trait View {
+    const GRID: MacroGrid;
+    type Resources: SystemParam + 'static;
+    fn show(cmd: &mut Commands, res: &mut SystemParamItem<Self::Resources>) -> Display;
+}
+#[derive(Copy, Clone, Hash, Eq, PartialEq)]
+pub struct ConditionHandle(pub i32);
+impl From<i32> for ConditionHandle {
+    fn from(value: i32) -> Self {
+        Self(value)
+    }
+}
+#[derive(Component)]
+pub struct Conditional<T: Clone> {
+    wrapped: T,
+    target: ConditionExtendTarget,
+    is_extension: bool,
+}
+impl<T: Clone> Conditional<T> {
+    pub fn new(e: ConditionExtendTarget, t: T, is_extension: bool) -> Self {
+        Self {
+            wrapped: t,
+            target: e,
+            is_extension,
+        }
+    }
+}
+#[derive(Component)]
+pub struct ConditionalScene<S: Scene + Clone> {
+    wrapped: S,
+    target: ConditionExtendTarget,
+    is_extension: bool,
+}
+impl<S: Scene + Clone> ConditionalScene<S> {
+    pub fn new(e: ConditionExtendTarget, t: S, is_extension: bool) -> Self {
+        Self {
+            wrapped: t,
+            target: e,
+            is_extension,
+        }
+    }
+}
+pub(crate) fn conditional_spawn<C: Bundle + Clone + Send + Sync + 'static>(
+    query: Query<(&Trigger, &Conditional<C>), Changed<Trigger>>,
+    mut cmd: Commands,
+) {
+    for (trigger, cond) in query.iter() {
+        if cond.is_extension {
+            continue;
+        }
+        if trigger.is_active() {
+            match cond.target {
+                ConditionExtendTarget::This(entity) => {
+                    cmd.entity(entity).insert(cond.wrapped.clone());
+                }
+                ConditionExtendTarget::BindingOf(_, _) => {}
+            }
+        } else if trigger.is_inverse() {
+            match cond.target {
+                ConditionExtendTarget::This(entity) => {
+                    cmd.entity(entity).remove::<C>();
+                }
+                ConditionExtendTarget::BindingOf(_, _) => {}
+            }
+        }
+    }
+}
+pub(crate) fn conditional_scene_spawn<CS: Scene + Clone>(
+    query: Query<(&Trigger, &ConditionalScene<CS>), Changed<Trigger>>,
+    bindings: Query<&Bindings>,
+    mut cmd: Commands,
+) {
+    for (trigger, cond) in query.iter() {
+        if cond.is_extension {
+            panic!("scenes-are-not allowed as extensions")
+        }
+        if trigger.is_active() {
+            match cond.target {
+                ConditionExtendTarget::This(entity) => {
+                    let _scene_desc = cond
+                        .wrapped
+                        .clone()
+                        .create(Binder::new(&mut cmd, Some(entity)));
+                }
+                ConditionExtendTarget::BindingOf(_, _) => {}
+            }
+        } else if trigger.is_inverse() {
+            match cond.target {
+                ConditionExtendTarget::This(entity) => {
+                    if let Ok(binds) = bindings.get(entity) {
+                        for (_, b) in binds.nodes().iter() {
+                            cmd.entity(b.entity()).insert(Despawn::signal_despawn());
+                        }
+                    }
+                    cmd.entity(entity).remove::<SceneComponents<CS>>();
+                }
+                ConditionExtendTarget::BindingOf(_, _) => {}
+            }
+        }
+    }
+}
+pub(crate) fn conditional_extension<C: Bundle + Clone + Send + Sync + 'static>(
+    query: Query<(&Trigger, &Conditional<C>), Changed<Trigger>>,
+    mut cmd: Commands,
+    bindings: Query<&Bindings>,
+) {
+    for (trigger, cond) in query.iter() {
+        if !cond.is_extension {
+            continue;
+        }
+        if trigger.is_active() {
+            match cond.target {
+                ConditionExtendTarget::This(entity) => {
+                    cmd.entity(entity).insert(cond.wrapped.clone());
+                }
+                ConditionExtendTarget::BindingOf(parent, bind) => {
+                    cmd.entity(bindings.get(parent).unwrap().get(bind))
+                        .insert(cond.wrapped.clone());
+                }
+            }
+        } else if trigger.is_inverse() {
+            match cond.target {
+                ConditionExtendTarget::This(entity) => {
+                    cmd.entity(entity).remove::<C>();
+                }
+                ConditionExtendTarget::BindingOf(parent, bind) => {
+                    cmd.entity(bindings.get(parent).unwrap().get(bind))
+                        .remove::<C>();
+                }
+            }
+        }
+    }
+}
+#[derive(Bundle)]
+pub struct Condition<T: Clone + Send + Sync + 'static> {
+    conditional: Conditional<T>,
+    trigger: Trigger,
+}
+impl<T: Clone + Send + Sync + 'static> Condition<T> {
+    pub fn new(t: T, e: ConditionExtendTarget, is_extension: bool) -> Self {
+        Self {
+            conditional: Conditional::<T>::new(e, t, is_extension),
+            trigger: Trigger::default(),
+        }
+    }
+}
+#[derive(Bundle)]
+pub struct SceneCondition<T: Clone + Scene + Send + Sync + 'static> {
+    conditional: ConditionalScene<T>,
+    trigger: Trigger,
+}
+impl<S: Scene + Clone> SceneCondition<S> {
+    pub fn new(t: S, e: ConditionExtendTarget, is_extension: bool) -> Self {
+        Self {
+            conditional: ConditionalScene::<S>::new(e, t, is_extension),
+            trigger: Trigger::default(),
+        }
+    }
+}
+#[derive(Component, Clone, Default)]
+pub struct Display(pub HashSet<Entity>, HashMap<ConditionHandle, Entity>);
+pub struct Rasterizer<'a, 'w, 's> {
+    cmd: &'a mut Commands<'w, 's>,
+    tree: Display,
+}
+impl<'a, 'w, 's> Rasterizer<'a, 'w, 's> {
+    pub fn new(cmd: &'a mut Commands<'w, 's>) -> Self {
+        Self {
+            cmd,
+            tree: Display::default(),
+        }
+    }
+    pub fn tree(self) -> Display {
+        self.tree
+    }
+    pub fn responsive_scene<S: Scene>(&mut self, s: S, rs: ResponsiveSegment) -> SceneDesc {
+        let desc = {
+            let scene_desc = s.create(Binder::new(self.cmd, None));
+            self.cmd.entity(scene_desc.root()).insert(rs);
+            scene_desc
+        };
+        self.tree.0.insert(desc.root());
+        desc
+    }
+    pub fn responsive<B: Bundle>(&mut self, b: B, rs: ResponsiveSegment) -> Entity {
+        let ent = { self.cmd.spawn(b).insert(rs).id() };
+        self.tree.0.insert(ent);
+        ent
+    }
+    pub fn conditional<BR: Clone + Send + Sync + 'static, BH: Into<ConditionHandle>>(
+        &mut self,
+        bh: BH,
+        br: BR,
+        rs: ResponsiveSegment,
+    ) -> ConditionDesc {
+        let desc = {
+            let pre_spawned = self.cmd.spawn_empty().id();
+            let branch_id = self
+                .cmd
+                .spawn(Condition::new(
+                    br,
+                    ConditionExtendTarget::This(pre_spawned),
+                    false,
+                ))
+                .insert(Conditional::new(
+                    ConditionExtendTarget::This(pre_spawned),
+                    rs,
+                    false,
+                ))
+                .id();
+            ConditionDesc::new(branch_id, pre_spawned)
+        };
+        self.tree.1.insert(bh.into(), desc.branch_entity);
+        desc
+    }
+    pub fn conditional_scene<S: Scene + Clone, BH: Into<ConditionHandle>>(
+        &mut self,
+        bh: BH,
+        s: S,
+        rs: ResponsiveSegment,
+    ) -> ConditionDesc {
+        let desc = {
+            let pre_spawned = self.cmd.spawn_empty().id();
+            let branch_id = self
+                .cmd
+                .spawn(SceneCondition::new(
+                    s,
+                    ConditionExtendTarget::This(pre_spawned),
+                    false,
+                ))
+                .insert(Conditional::new(
+                    ConditionExtendTarget::This(pre_spawned),
+                    rs,
+                    false,
+                ))
+                .id();
+            ConditionDesc::new(branch_id, pre_spawned)
+        };
+        self.tree.1.insert(bh.into(), desc.branch_entity);
+        desc
+    }
+    pub fn extend<Ext: Bundle>(&mut self, entity: Entity, ext: Ext) {
+        self.cmd.entity(entity).insert(ext);
+    }
+    pub fn conditional_extend<Ext: Bundle + Clone>(
+        &mut self,
+        branch_desc: ConditionDesc,
+        extend_target: ExtendTarget,
+        ext: Ext,
+    ) {
+        match extend_target {
+            ExtendTarget::This => {
+                self.cmd
+                    .entity(branch_desc.branch_entity)
+                    .insert(Conditional::<Ext>::new(
+                        ConditionExtendTarget::This(branch_desc.pre_spawned),
+                        ext,
+                        true,
+                    ));
+            }
+            ExtendTarget::Binding(bind) => {
+                self.cmd
+                    .entity(branch_desc.branch_entity)
+                    .insert(Conditional::<Ext>::new(
+                        ConditionExtendTarget::BindingOf(branch_desc.pre_spawned, bind),
+                        ext,
+                        true,
+                    ));
+            }
+        }
+    }
+}
+#[derive(Default, Resource)]
+pub struct Compositor {
+    current: Option<Display>,
+}
+impl Compositor {
+    pub fn navigate<N: View + Send + Sync + 'static>(cmd: &mut Commands) {
+        // TODO add transition logic here then spawn
+        cmd.spawn(Navigation::<N>::new());
+    }
+}
+#[derive(Component, Copy, Clone)]
+pub struct ConditionSet(pub ConditionHandle, pub bool);
+fn set_branch(
+    query: Query<(Entity, &ConditionSet)>,
+    mut cmd: Commands,
+    compositor: Res<Compositor>,
+) {
+    if compositor.current.is_some() {
+        for (entity, branch_request) in query.iter() {
+            let trigger = if !branch_request.1 {
+                Trigger::inverse()
+            } else {
+                Trigger::active()
+            };
+            cmd.entity(
+                *compositor
+                    .current
+                    .as_ref()
+                    .unwrap()
+                    .1
+                    .get(&branch_request.0)
+                    .expect("invalid-condition-set"),
+            )
+            .insert(trigger);
+            cmd.entity(entity).despawn();
+        }
+    }
+}
+pub enum ConditionExtendTarget {
+    This(Entity),
+    BindingOf(Entity, SceneBinding),
+}
+pub struct ConditionDesc {
+    branch_entity: Entity,
+    pre_spawned: Entity,
+}
+impl ConditionDesc {
+    fn new(branch_entity: Entity, pre_spawned: Entity) -> Self {
+        Self {
+            branch_entity,
+            pre_spawned,
+        }
+    }
+}
+// TODO Derived-Value handler + other
+// pub struct OnEnter<T> {}
+fn viewport_changed(
+    mut query: Query<(
+        &ResponsiveSegment,
+        &mut Position<InterfaceContext>,
+        &mut Area<InterfaceContext>,
+        &mut Layer,
+        &mut Disabled,
+    )>,
+    viewport_handle: Res<ViewportHandle>,
+    grid: Res<MacroGrid>,
+    mut layout: ResMut<Layout>,
+) {
+    if viewport_handle.area_updated() {
+        *layout = Layout::from_area(viewport_handle.section().area);
+        for (res_seg, mut pos, mut area, mut layer, mut disabled) in query.iter_mut() {
+            // calc
+            if let Some(coord) = res_seg.coordinate(*layout, viewport_handle.section(), &grid) {
+                *pos = coord.section.position;
+                *area = coord.section.area;
+                *layer = coord.layer;
+                if disabled.is_disabled() {
+                    *disabled = Disabled::not_disabled();
+                }
+            } else {
+                *disabled = Disabled::disabled();
+            }
+        }
+    }
+}
+fn responsive_segment_changed(
+    mut query: Query<
+        (
+            &ResponsiveSegment,
+            &mut Position<InterfaceContext>,
+            &mut Area<InterfaceContext>,
+            &mut Layer,
+            &mut Disabled,
+        ),
+        Changed<ResponsiveSegment>,
+    >,
+    viewport_handle: Res<ViewportHandle>,
+    layout: Res<Layout>,
+    grid: Res<MacroGrid>,
+) {
+    for (res_seg, mut pos, mut area, mut layer, mut disabled) in query.iter_mut() {
+        // calc
+        if let Some(coord) = res_seg.coordinate(*layout, viewport_handle.section(), &grid) {
+            *pos = coord.section.position;
+            *area = coord.section.area;
+            *layer = coord.layer;
+            if disabled.is_disabled() {
+                *disabled = Disabled::not_disabled();
+            }
+        } else {
+            *disabled = Disabled::disabled();
+        }
+    }
+}
+impl Leaf for Display {
+    type SetDescriptor = EmptySetDescriptor;
+
+    fn attach(elm: &mut Elm) {
+        elm.container().insert_resource(Compositor::default());
+        elm.container().insert_resource(Layout::PORTRAIT_MOBILE);
+        elm.container().insert_resource(MacroGrid::default());
+        elm.main().add_systems((
+            viewport_changed.in_set(CoreSet::Compositor),
+            responsive_segment_changed.in_set(CoreSet::Compositor),
+            set_branch.in_set(CoreSet::ConditionPrepare),
+        ));
+    }
+}

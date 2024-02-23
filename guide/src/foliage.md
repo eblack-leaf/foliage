@@ -13,6 +13,7 @@ pub fn entry(android_interface: AndroidInterface) {
                 .with_resizable(true),
         )
         .with_leaf::<Showcase>()
+        .with_leaves::<ManyLeafs>()
         .with_android_interface(android_interface)
         .with_worker_path("./worker.js")
         .run::<Engen>();
@@ -26,4 +27,5 @@ a `Leaf + Render` implementor (see [`Leaf`](leaf.md) and [`Render`](render.md)).
 The `AndroidInterface` is a unit struct, `()`, on platforms other than `Android` and is used to 
 interact with the android lifecycle. The `.with_worker_path(<path>)` is to link with what you 
 named the binary to start the web worker. Finally, we `.run::<Engen>()` the instance to invoke the
-main loop. The `Engen` is an implementor of [`Workflow`](workflow.md).
+main loop. The `Engen` is an implementor of [`Workflow`](workflow.md). To include many `Leaf`s at once, use
+`.with_leaves::<T>()` where `T` is `impl Leaves`.

@@ -7,13 +7,13 @@ use std::hash::Hash;
 
 #[derive(SystemSet, Hash, Eq, PartialEq, Debug, Copy, Clone)]
 pub enum ExternalSet {
+    InteractionTriggers,
     Process,
-    Sprout,
-    BranchBind,
-    BranchExt,
+    Show,
+    ConditionalBind,
+    ConditionalExt,
     Spawn,
     Configure,
-    InteractionTriggers,
 }
 #[derive(SystemSet, Hash, Eq, PartialEq, Debug, Copy, Clone)]
 pub enum CoreSet {
@@ -23,7 +23,7 @@ pub enum CoreSet {
     // Process,
     ProcessEvent,
     // Sprout,
-    BranchPrepare,
+    ConditionPrepare,
     // BranchBind,
     // BranchExt,
     // Spawn,
@@ -54,10 +54,10 @@ impl<'a> ElmConfiguration<'a> {
                 ExternalSet::InteractionTriggers,
                 ExternalSet::Process,
                 CoreSet::ProcessEvent,
-                ExternalSet::Sprout, // new
-                CoreSet::BranchPrepare,
-                ExternalSet::BranchBind,
-                ExternalSet::BranchExt, // end new
+                ExternalSet::Show,
+                CoreSet::ConditionPrepare,
+                ExternalSet::ConditionalBind,
+                ExternalSet::ConditionalExt,
                 ExternalSet::Spawn,
                 CoreSet::Compositor,
                 CoreSet::Coordinate,
@@ -70,7 +70,7 @@ impl<'a> ElmConfiguration<'a> {
                 .chain(),
         );
         elm.main().add_systems((
-            crate::scene::despawn_bindings.in_set(ExternalSet::BranchExt),
+            crate::scene::despawn_bindings.in_set(ExternalSet::ConditionalExt),
             (
                 crate::scene::resolve_anchor,
                 crate::scene::update_from_anchor,
@@ -104,18 +104,18 @@ impl<'a> ElmConfiguration<'a> {
                 .before(CoreSet::ProcessEvent),
             apply_deferred
                 .after(CoreSet::ProcessEvent)
-                .before(ExternalSet::Sprout),
+                .before(ExternalSet::Show),
             apply_deferred
-                .after(ExternalSet::Sprout)
-                .before(CoreSet::BranchPrepare),
+                .after(ExternalSet::Show)
+                .before(CoreSet::ConditionPrepare),
             apply_deferred
-                .after(CoreSet::BranchPrepare)
-                .before(ExternalSet::BranchBind),
+                .after(CoreSet::ConditionPrepare)
+                .before(ExternalSet::ConditionalBind),
             apply_deferred
-                .after(ExternalSet::BranchBind)
-                .before(ExternalSet::BranchExt),
+                .after(ExternalSet::ConditionalBind)
+                .before(ExternalSet::ConditionalExt),
             apply_deferred
-                .after(ExternalSet::BranchExt)
+                .after(ExternalSet::ConditionalExt)
                 .before(ExternalSet::Spawn),
             apply_deferred
                 .after(ExternalSet::Spawn)

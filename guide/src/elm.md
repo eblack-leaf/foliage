@@ -25,26 +25,17 @@ returns a mutable reference to the storage of the `ecs`.
 Here you can `elm.container().spawn(...)` to add entities and `elm.container().insert_resource(...)`
 to add resources to the `ecs`.
 ```rust
-elm.add_view_scene_binding::<impl Scene, Ext>(...)
+elm.view_trigger::<Hook, View>();
 ```
-is for adding `Scene`s to the target `View` via a
-`ViewHandle` (see [`Scene`](scene.md) and [`View`](view.md)).
-```rust
-elm.view_trigger::<Hook>(
-    InteractionHandlerTrigger::Active, 
-    |hook, cv| { cv.change_view(vh); }
-);
-```
-can be used as a convenience method for setting an `interaction_handler` to change the `CurrentView`.
+can be used as a convenience method for setting an `interaction_handler` to change the `Current-Tree`.
 ```rust
 elm.add_interaction_handler::<Hook, Resources>(
-    InteractionHandlerTrigger::Active, 
     |hook, res| { ...}
-)
+);
 ```
 is used for adding handlers that run on the trigger condition and invoke your callback. [`Interaction`](interaction.md)
 ```rust
-elm.on_fetch(...)
+elm.on_fetch(...);
 ```
 is used for adding a triggered effect when an `Asset` loads; see [`Asset`](asset.md)
 ```rust
@@ -54,10 +45,17 @@ elm.send_event::<E>(...);
 are for configuring and interacting with
 events that can be triggered on the `ecs`.
 ```rust
-elm_configuration.configure_hook::<Self>(
+elm_configuration.configure_hook(
     ExternalSet::Configure, 
     Leaf::SetDescriptor::Label
 );
 ```
 `ElmConfiguration` can be used in a [`Leaf`](leaf.md) to add `SystemSet`s to the schedule to group
 systems added. 
+
+```rust
+elm.enable_conditional::<C>();
+elm.enable_conditional_scene::<S>();
+```
+
+can be used to enable runners to load conditional bundles|scenes.

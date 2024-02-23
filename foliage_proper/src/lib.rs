@@ -38,7 +38,7 @@ use crate::rectangle::Rectangle;
 use crate::system_message::{ResponseMessage, SystemMessageResponse};
 use crate::text::Text;
 use crate::time::Time;
-use crate::tree::Tree;
+use crate::view::Display;
 use crate::virtual_keyboard::VirtualKeyboardAdapter;
 use crate::workflow::{Workflow, WorkflowConnectionBase};
 use animate::trigger::Trigger;
@@ -68,7 +68,7 @@ pub(crate) mod system_message;
 pub mod text;
 pub mod texture;
 pub mod time;
-pub mod tree;
+pub mod view;
 pub mod virtual_keyboard;
 pub mod window;
 pub mod workflow;
@@ -122,7 +122,7 @@ impl Foliage {
             .with_leaf::<Trigger>()
             .with_leaf::<Interaction>()
             .with_leaf::<ViewportHandle>()
-            .with_leaf::<Tree>()
+            .with_leaf::<Display>()
             .with_leaf::<Time>()
             .with_leaf::<VirtualKeyboardAdapter>()
             .with_leaf::<Clipboard>()

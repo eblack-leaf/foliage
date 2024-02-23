@@ -12,14 +12,14 @@ use foliage::r_scenes::icon_text::IconText;
 use foliage::r_scenes::text_button::TextButton;
 use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::text::{MaxCharacters, Text, TextValue};
-use foliage::tree::{Seed, Tree, TreeBinder};
+use foliage::view::{Display, Rasterizer, View};
 pub struct Showcase;
-impl Seed for Showcase {
+impl View for Showcase {
     const GRID: MacroGrid = MacroGrid::new(8, 6);
     type Resources = ();
 
-    fn plant(cmd: &mut Commands, _res: &mut SystemParamItem<Self::Resources>) -> Tree {
-        let mut binder = TreeBinder::new(cmd);
+    fn show(cmd: &mut Commands, _res: &mut SystemParamItem<Self::Resources>) -> Display {
+        let mut binder = Rasterizer::new(cmd);
         binder.responsive_scene(
             IconText::new(
                 FeatherIcon::Menu,

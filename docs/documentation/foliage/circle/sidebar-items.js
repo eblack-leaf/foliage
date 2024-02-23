@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["SetDescriptor"],"struct":["Circle","CircleStyle","Diameter"]};
+window.SIDEBAR_ITEMS = {"enum":["SetDescriptor"],"struct":["Circle","Diameter"]};

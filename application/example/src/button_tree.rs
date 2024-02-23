@@ -12,14 +12,14 @@ use foliage::r_scenes::icon_text::IconText;
 use foliage::scene::ExtendTarget;
 use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::text::{MaxCharacters, Text, TextValue};
-use foliage::tree::{BranchHandle, BranchSet, Seed, Tree, TreeBinder};
+use foliage::view::{ConditionHandle, ConditionSet, Display, Rasterizer, View};
 pub struct ShowcaseSeed;
-impl Seed for ShowcaseSeed {
+impl View for ShowcaseSeed {
     const GRID: MacroGrid = MacroGrid::new(8, 6);
     type Resources = ();
 
-    fn plant(cmd: &mut Commands, _res: &mut SystemParamItem<Self::Resources>) -> Tree {
-        let mut binder = TreeBinder::new(cmd);
+    fn show(cmd: &mut Commands, _res: &mut SystemParamItem<Self::Resources>) -> Display {
+        let mut binder = Rasterizer::new(cmd);
         binder.responsive_scene(
             IconText::new(
                 FeatherIcon::Menu,
@@ -61,7 +61,7 @@ impl Seed for ShowcaseSeed {
             .justify(Justify::Top),
         );
         binder.extend(desc.root(), SampleHook(true));
-        binder.branch(
+        binder.conditional(
             0,
             Text::new(
                 MaxCharacters(11),
@@ -76,7 +76,7 @@ impl Seed for ShowcaseSeed {
             .without_portrait_mobile()
             .without_portrait_tablet(),
         );
-        let other_desc = binder.branch_scene(
+        let other_desc = binder.conditional_scene(
             1,
             Button::new(
                 IconText::new(
@@ -104,7 +104,7 @@ impl Seed for ShowcaseSeed {
             .justify(Justify::Top),
         );
         binder.conditional_extend(other_desc, ExtendTarget::This, OtherHook(true));
-        binder.branch(
+        binder.conditional(
             2,
             Text::new(MaxCharacters(11), TextValue::new("base"), THEME_COLOR::BASE),
             ResponsiveSegment::base(Segment::new(
@@ -116,7 +116,7 @@ impl Seed for ShowcaseSeed {
             .without_portrait_tablet(),
         );
         // tmp
-        binder.branch_scene(
+        binder.conditional_scene(
             3,
             Button::new(
                 IconText::new(
@@ -143,7 +143,7 @@ impl Seed for ShowcaseSeed {
             )
             .justify(Justify::Top),
         );
-        binder.branch(
+        binder.conditional(
             4,
             Text::new(
                 MaxCharacters(11),
@@ -158,7 +158,7 @@ impl Seed for ShowcaseSeed {
             .without_portrait_mobile()
             .without_portrait_tablet(),
         );
-        binder.branch_scene(
+        binder.conditional_scene(
             5,
             Button::new(
                 IconText::new(
@@ -198,20 +198,20 @@ impl Leaf for ShowcaseSeed {
 
     fn attach(elm: &mut Elm) {
         elm.add_interaction_handler::<SampleHook, Commands>(|sh, cmd| {
-            cmd.spawn(BranchSet(BranchHandle(0), sh.0));
-            cmd.spawn(BranchSet(BranchHandle(1), sh.0));
-            cmd.spawn(BranchSet(BranchHandle(2), sh.0));
+            cmd.spawn(ConditionSet(ConditionHandle(0), sh.0));
+            cmd.spawn(ConditionSet(ConditionHandle(1), sh.0));
+            cmd.spawn(ConditionSet(ConditionHandle(2), sh.0));
             if !sh.0 {
-                cmd.spawn(BranchSet(BranchHandle(3), false));
-                cmd.spawn(BranchSet(BranchHandle(4), false));
-                cmd.spawn(BranchSet(BranchHandle(5), false));
+                cmd.spawn(ConditionSet(ConditionHandle(3), false));
+                cmd.spawn(ConditionSet(ConditionHandle(4), false));
+                cmd.spawn(ConditionSet(ConditionHandle(5), false));
             }
             sh.0 = !sh.0;
         });
         elm.add_interaction_handler::<OtherHook, Commands>(|sh, cmd| {
-            cmd.spawn(BranchSet(BranchHandle(3), sh.0));
-            cmd.spawn(BranchSet(BranchHandle(4), sh.0));
-            cmd.spawn(BranchSet(BranchHandle(5), sh.0));
+            cmd.spawn(ConditionSet(ConditionHandle(3), sh.0));
+            cmd.spawn(ConditionSet(ConditionHandle(4), sh.0));
+            cmd.spawn(ConditionSet(ConditionHandle(5), sh.0));
             sh.0 = !sh.0;
         });
         elm.enable_conditional::<Text>();

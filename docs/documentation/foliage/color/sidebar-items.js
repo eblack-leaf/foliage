@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["Color","Orange"],"trait":["Monochromatic"]};
+window.SIDEBAR_ITEMS = {"mod":["monochromatic"],"struct":["Color"]};
