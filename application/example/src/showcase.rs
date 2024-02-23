@@ -40,7 +40,7 @@ impl Leaf for ShowcaseMain {
             ImageStorage::some(Area::from((700, 700))),
         ));
         elm.container().insert_resource(assets);
-        elm.enable_seed::<Showcase>();
+        elm.enable_view::<Showcase>();
         elm.navigate::<Showcase>();
     }
 }

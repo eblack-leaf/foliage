@@ -268,7 +268,7 @@ impl Elm {
         self.main()
             .add_systems(conditional_scene_spawn::<S>.in_set(ExternalSet::ConditionalBind));
     }
-    pub fn enable_seed<S: View + Send + Sync + 'static>(&mut self) {
+    pub fn enable_view<S: View + Send + Sync + 'static>(&mut self) {
         self.main()
             .add_systems(display::<S>.in_set(ExternalSet::Show));
     }
