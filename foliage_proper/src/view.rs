@@ -208,11 +208,11 @@ impl<S: Scene + Clone> SceneBranch<S> {
 }
 #[derive(Component, Clone, Default)]
 pub struct View(pub HashSet<Entity>, HashMap<BranchHandle, Entity>);
-pub struct Aesthetic<'a, 'w, 's> {
+pub struct ViewTree<'a, 'w, 's> {
     cmd: &'a mut Commands<'w, 's>,
     chlorophyll: View,
 }
-impl<'a, 'w, 's> Aesthetic<'a, 'w, 's> {
+impl<'a, 'w, 's> ViewTree<'a, 'w, 's> {
     pub fn new(cmd: &'a mut Commands<'w, 's>) -> Self {
         Self {
             cmd,
@@ -222,7 +222,7 @@ impl<'a, 'w, 's> Aesthetic<'a, 'w, 's> {
     pub fn view(self) -> View {
         self.chlorophyll
     }
-    pub fn pigment_scene<S: Scene>(&mut self, s: S, rs: ResponsiveSegment) -> SceneDesc {
+    pub fn add_scene<S: Scene>(&mut self, s: S, rs: ResponsiveSegment) -> SceneDesc {
         let desc = {
             let scene_desc = s.create(Binder::new(self.cmd, None));
             self.cmd.entity(scene_desc.root()).insert(rs);
@@ -231,7 +231,7 @@ impl<'a, 'w, 's> Aesthetic<'a, 'w, 's> {
         self.chlorophyll.0.insert(desc.root());
         desc
     }
-    pub fn pigment<B: Bundle>(&mut self, b: B, rs: ResponsiveSegment) -> Entity {
+    pub fn add<B: Bundle>(&mut self, b: B, rs: ResponsiveSegment) -> Entity {
         let ent = { self.cmd.spawn(b).insert(rs).id() };
         self.chlorophyll.0.insert(ent);
         ent

@@ -12,15 +12,15 @@ use foliage::r_scenes::icon_text::IconText;
 use foliage::r_scenes::text_button::TextButton;
 use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::text::{MaxCharacters, Text, TextValue};
-use foliage::view::{Aesthetic, Photosynthesis, View};
+use foliage::view::{Photosynthesis, View, ViewTree};
 pub struct ButtonShowcase;
 impl Photosynthesis for ButtonShowcase {
     const GRID: MacroGrid = MacroGrid::new(8, 6);
     type Chlorophyll = ();
 
     fn photosynthesize(cmd: &mut Commands, _res: &mut SystemParamItem<Self::Chlorophyll>) -> View {
-        let mut aesthetic = Aesthetic::new(cmd);
-        aesthetic.pigment_scene(
+        let mut view_tree = ViewTree::new(cmd);
+        view_tree.add_scene(
             IconText::new(
                 FeatherIcon::Menu,
                 Color::GREY,
@@ -34,7 +34,7 @@ impl Photosynthesis for ButtonShowcase {
             ))
             .justify(Justify::Top),
         );
-        aesthetic.pigment_scene(
+        view_tree.add_scene(
             Button::new(
                 IconText::new(
                     FeatherIcon::Copy,
@@ -57,7 +57,7 @@ impl Photosynthesis for ButtonShowcase {
             )
             .justify(Justify::Top),
         );
-        aesthetic.pigment(
+        view_tree.add(
             Text::new(
                 MaxCharacters(11),
                 TextValue::new("base"),
@@ -71,7 +71,7 @@ impl Photosynthesis for ButtonShowcase {
             .without_portrait_mobile()
             .without_portrait_tablet(),
         );
-        aesthetic.pigment_scene(
+        view_tree.add_scene(
             Button::new(
                 IconText::new(
                     FeatherIcon::Copy,
@@ -94,7 +94,7 @@ impl Photosynthesis for ButtonShowcase {
             )
             .justify(Justify::Top),
         );
-        aesthetic.pigment(
+        view_tree.add(
             Text::new(
                 MaxCharacters(11),
                 TextValue::new("base"),
@@ -108,7 +108,7 @@ impl Photosynthesis for ButtonShowcase {
             .without_portrait_mobile()
             .without_portrait_tablet(),
         );
-        aesthetic.pigment_scene(
+        view_tree.add_scene(
             TextButton::new(
                 TextValue::new("copy"),
                 MaxCharacters(4),
@@ -126,7 +126,7 @@ impl Photosynthesis for ButtonShowcase {
             )
             .justify(Justify::Top),
         );
-        aesthetic.pigment(
+        view_tree.add(
             Text::new(
                 MaxCharacters(11),
                 TextValue::new("text"),
@@ -140,7 +140,7 @@ impl Photosynthesis for ButtonShowcase {
             .without_portrait_mobile()
             .without_portrait_tablet(),
         );
-        aesthetic.pigment_scene(
+        view_tree.add_scene(
             TextButton::new(
                 TextValue::new("copy"),
                 MaxCharacters(4),
@@ -158,7 +158,7 @@ impl Photosynthesis for ButtonShowcase {
             )
             .justify(Justify::Top),
         );
-        aesthetic.pigment(
+        view_tree.add(
             Text::new(
                 MaxCharacters(11),
                 TextValue::new("text"),
@@ -172,7 +172,7 @@ impl Photosynthesis for ButtonShowcase {
             .without_portrait_mobile()
             .without_portrait_tablet(),
         );
-        aesthetic.pigment_scene(
+        view_tree.add_scene(
             CircleButton::new(
                 FeatherIcon::Copy,
                 ElementStyle::fill(),
@@ -192,7 +192,7 @@ impl Photosynthesis for ButtonShowcase {
             )
             .justify(Justify::Top),
         );
-        aesthetic.pigment(
+        view_tree.add(
             Text::new(
                 MaxCharacters(11),
                 TextValue::new("circle"),
@@ -206,7 +206,7 @@ impl Photosynthesis for ButtonShowcase {
             .without_portrait_mobile()
             .without_portrait_tablet(),
         );
-        aesthetic.pigment_scene(
+        view_tree.add_scene(
             CircleButton::new(
                 FeatherIcon::Copy,
                 ElementStyle::ring(),
@@ -226,7 +226,7 @@ impl Photosynthesis for ButtonShowcase {
             )
             .justify(Justify::Top),
         );
-        aesthetic.pigment(
+        view_tree.add(
             Text::new(
                 MaxCharacters(11),
                 TextValue::new("circle"),
@@ -240,7 +240,7 @@ impl Photosynthesis for ButtonShowcase {
             .without_portrait_mobile()
             .without_portrait_tablet(),
         );
-        aesthetic.pigment_scene(
+        view_tree.add_scene(
             IconButton::new(
                 FeatherIcon::Copy,
                 ElementStyle::fill(),
@@ -260,7 +260,7 @@ impl Photosynthesis for ButtonShowcase {
             )
             .justify(Justify::Top),
         );
-        aesthetic.pigment(
+        view_tree.add(
             Text::new(
                 MaxCharacters(11),
                 TextValue::new("icon"),
@@ -274,7 +274,7 @@ impl Photosynthesis for ButtonShowcase {
             .without_portrait_mobile()
             .without_portrait_tablet(),
         );
-        aesthetic.pigment_scene(
+        view_tree.add_scene(
             IconButton::new(
                 FeatherIcon::Copy,
                 ElementStyle::ring(),
@@ -294,7 +294,7 @@ impl Photosynthesis for ButtonShowcase {
             )
             .justify(Justify::Top),
         );
-        aesthetic.pigment(
+        view_tree.add(
             Text::new(
                 MaxCharacters(11),
                 TextValue::new("icon"),
@@ -308,6 +308,6 @@ impl Photosynthesis for ButtonShowcase {
             .without_portrait_mobile()
             .without_portrait_tablet(),
         );
-        aesthetic.view()
+        view_tree.view()
     }
 }

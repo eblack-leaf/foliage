@@ -277,7 +277,7 @@ impl Elm {
         self.main()
             .add_systems(photosynthesize::<S>.in_set(ExternalSet::Show));
     }
-    pub fn photosynthesize<S: Photosynthesis + Send + Sync + 'static>(&mut self) {
+    pub fn navigate_to<S: Photosynthesis + Send + Sync + 'static>(&mut self) {
         self.container().spawn(Photosynthesize::<S>::new());
     }
 }

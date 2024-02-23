@@ -1,7 +1,7 @@
 mod button_tree;
 mod showcase;
 
-use crate::button_tree::ShowcaseSeed;
+use crate::button_tree::BranchingButtonShowcase;
 use crate::showcase::ButtonShowcase;
 use foliage::bevy_ecs;
 use foliage::bevy_ecs::prelude::Resource;
@@ -23,7 +23,7 @@ pub fn entry(android_interface: AndroidInterface) {
         )
         .with_leaves::<foliage::SceneExtensions>()
         .with_leaf::<Main>()
-        .with_leaf::<ShowcaseSeed>()
+        .with_leaf::<BranchingButtonShowcase>()
         .with_android_interface(android_interface)
         .with_worker_path("./worker.js")
         .run::<Engen>();
@@ -80,6 +80,6 @@ impl Leaf for Main {
         ));
         elm.container().insert_resource(assets);
         elm.enable_view::<ButtonShowcase>();
-        elm.photosynthesize::<ButtonShowcase>();
+        elm.navigate_to::<ButtonShowcase>();
     }
 }
