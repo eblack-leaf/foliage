@@ -43,20 +43,20 @@ impl Panel {
 }
 #[derive(SystemSet, Hash, Eq, PartialEq, Copy, Clone, Debug)]
 pub enum SetDescriptor {
-    Area,
+    Update,
 }
 impl Leaf for Panel {
     type SetDescriptor = SetDescriptor;
 
     fn config(elm_configuration: &mut ElmConfiguration) {
-        elm_configuration.configure_hook(ExternalSet::Configure, SetDescriptor::Area);
+        elm_configuration.configure_hook(ExternalSet::Configure, SetDescriptor::Update);
     }
 
     fn attach(elm: &mut Elm) {
         differential_enable!(elm, Color, ElementStyle);
         elm.job
             .main()
-            .add_systems((reduce_area.in_set(SetDescriptor::Area),));
+            .add_systems((reduce_area.in_set(SetDescriptor::Update),));
     }
 }
 fn reduce_area(
