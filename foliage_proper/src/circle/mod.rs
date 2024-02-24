@@ -90,12 +90,20 @@ impl Leaf for Circle {
 }
 fn diameter_set(
     mut query: Query<
-        (Entity, &mut Diameter, &mut Area<InterfaceContext>),
+        (
+            Entity,
+            &mut Diameter,
+            &mut Area<InterfaceContext>,
+            &mut Position<InterfaceContext>,
+        ),
         (Changed<Area<InterfaceContext>>, With<ElementStyle>),
     >,
 ) {
-    for (_entity, mut diameter, mut area) in query.iter_mut() {
-        *diameter = Diameter::new(area.width);
+    for (_entity, mut diameter, mut area, mut pos) in query.iter_mut() {
+        let initial_dim = area.width.max(area.height);
+        *diameter = Diameter::new(initial_dim);
+        let val = (initial_dim - diameter.0) / 2f32;
+        *pos = *pos + Position::new(val, val);
         *area = diameter.area();
     }
 }

@@ -1,7 +1,9 @@
+use foliage::aesthetic::Aesthetic;
 use foliage::bevy_ecs::prelude::Commands;
 use foliage::bevy_ecs::system::SystemParamItem;
 use foliage::color::monochromatic::{Monochromatic, Orange as THEME_COLOR};
 use foliage::color::Color;
+use foliage::coordinate::CoordinateUnit;
 use foliage::elm::ElementStyle;
 use foliage::icon::FeatherIcon;
 use foliage::layout::Layout;
@@ -10,17 +12,115 @@ use foliage::r_scenes::circle_button::CircleButton;
 use foliage::r_scenes::icon_button::IconButton;
 use foliage::r_scenes::icon_text::IconText;
 use foliage::r_scenes::text_button::TextButton;
+use foliage::scene::Scene;
 use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::text::{MaxCharacters, Text, TextValue};
-use foliage::view::{Photosynthesis, View, ViewTree};
+use foliage::view::{Aesthetics, Photosynthesis, View};
+pub struct ShowcaseItem<T> {
+    first: T,
+    second: T,
+    desc: String,
+    row: i32,
+    max_w: Option<CoordinateUnit>,
+    max_h: Option<CoordinateUnit>,
+}
+impl<T> ShowcaseItem<T> {
+    pub fn new(
+        first: T,
+        second: T,
+        desc: String,
+        row: i32,
+        max_w: Option<CoordinateUnit>,
+        max_h: Option<CoordinateUnit>,
+    ) -> Self {
+        Self {
+            first,
+            second,
+            desc,
+            row,
+            max_w,
+            max_h,
+        }
+    }
+}
+impl<T: Scene> Aesthetic for ShowcaseItem<T> {
+    fn limn(self, aesthetics: &mut Aesthetics) {
+        aesthetics.add_scene(
+            self.first,
+            ResponsiveSegment::base(Segment::new(
+                2.near()
+                    .to(3.far())
+                    .minimum(150.0)
+                    .maximum(if let Some(m) = self.max_w { m } else { 5000.0 }),
+                self.row
+                    .near()
+                    .to(self.row.far())
+                    .maximum(if let Some(m) = self.max_h { m } else { 5000.0 }),
+            ))
+            .exception(
+                [Layout::PORTRAIT_MOBILE],
+                Segment::new(
+                    1.near()
+                        .to(4.far())
+                        .minimum(100.0)
+                        .maximum(if let Some(m) = self.max_w { m } else { 5000.0 }),
+                    self.row.near().to(self.row.far()).maximum(55.0),
+                ),
+            )
+            .justify(Justify::Top),
+        );
+        aesthetics.add_scene(
+            self.second,
+            ResponsiveSegment::base(Segment::new(
+                5.near()
+                    .to(6.far())
+                    .minimum(150.0)
+                    .maximum(if let Some(m) = self.max_w { m } else { 5000.0 }),
+                self.row
+                    .near()
+                    .to(self.row.far())
+                    .maximum(if let Some(m) = self.max_h { m } else { 5000.0 }),
+            ))
+            .exception(
+                [Layout::PORTRAIT_MOBILE],
+                Segment::new(
+                    5.near()
+                        .to(8.far())
+                        .minimum(100.0)
+                        .maximum(if let Some(m) = self.max_w { m } else { 5000.0 }),
+                    self.row.near().to(self.row.far()).maximum(55.0),
+                ),
+            )
+            .justify(Justify::Top),
+        );
+        aesthetics.add(
+            Text::new(
+                MaxCharacters(11),
+                TextValue::new(self.desc),
+                THEME_COLOR::MINUS_THREE,
+            ),
+            ResponsiveSegment::base(Segment::new(
+                7.near().to(8.far()),
+                self.row
+                    .near()
+                    .to(self.row.far())
+                    .minimum(30.0)
+                    .maximum(40.0),
+            ))
+            .without_portrait_mobile()
+            .without_portrait_tablet()
+            .justify(Justify::Top),
+        );
+    }
+}
 pub struct ButtonShowcase;
 impl Photosynthesis for ButtonShowcase {
     const GRID: MacroGrid = MacroGrid::new(8, 6);
     type Chlorophyll = ();
 
     fn photosynthesize(cmd: &mut Commands, _res: &mut SystemParamItem<Self::Chlorophyll>) -> View {
-        let mut view_tree = ViewTree::new(cmd);
-        view_tree.add_scene(
+        let mut aesthetics = Aesthetics::new(cmd);
+        aesthetics.add_scene(
             IconText::new(
                 FeatherIcon::Menu,
                 Color::GREY,
@@ -34,7 +134,7 @@ impl Photosynthesis for ButtonShowcase {
             ))
             .justify(Justify::Top),
         );
-        view_tree.add_scene(
+        ShowcaseItem::new(
             Button::new(
                 IconText::new(
                     FeatherIcon::Copy,
@@ -47,31 +147,6 @@ impl Photosynthesis for ButtonShowcase {
                 THEME_COLOR::MINUS_THREE,
                 Color::BLACK,
             ),
-            ResponsiveSegment::base(Segment::new(
-                2.near().to(3.far()).minimum(150.0),
-                2.near().to(2.far()).maximum(55.0),
-            ))
-            .exception(
-                [Layout::PORTRAIT_MOBILE],
-                Segment::new(1.near().to(4.far()), 2.near().to(2.far()).maximum(55.0)),
-            )
-            .justify(Justify::Top),
-        );
-        view_tree.add(
-            Text::new(
-                MaxCharacters(11),
-                TextValue::new("base"),
-                THEME_COLOR::MINUS_THREE,
-            ),
-            ResponsiveSegment::base(Segment::new(
-                4.near().to(5.far()),
-                2.near().to(2.far()).minimum(30.0).maximum(40.0),
-            ))
-            .justify(Justify::Top)
-            .without_portrait_mobile()
-            .without_portrait_tablet(),
-        );
-        view_tree.add_scene(
             Button::new(
                 IconText::new(
                     FeatherIcon::Copy,
@@ -80,35 +155,17 @@ impl Photosynthesis for ButtonShowcase {
                     TextValue::new("copy"),
                     Color::BLACK,
                 ),
-                ElementStyle::fill(),
+                ElementStyle::ring(),
                 THEME_COLOR::MINUS_THREE,
                 Color::BLACK,
             ),
-            ResponsiveSegment::base(Segment::new(
-                5.near().to(6.far()).minimum(150.0),
-                2.near().to(2.far()).maximum(55.0),
-            ))
-            .exception(
-                [Layout::PORTRAIT_MOBILE],
-                Segment::new(5.near().to(8.far()), 2.near().to(2.far()).maximum(55.0)),
-            )
-            .justify(Justify::Top),
-        );
-        view_tree.add(
-            Text::new(
-                MaxCharacters(11),
-                TextValue::new("base"),
-                THEME_COLOR::MINUS_THREE,
-            ),
-            ResponsiveSegment::base(Segment::new(
-                7.near().to(8.far()),
-                2.near().to(2.far()).minimum(30.0).maximum(40.0),
-            ))
-            .justify(Justify::Top)
-            .without_portrait_mobile()
-            .without_portrait_tablet(),
-        );
-        view_tree.add_scene(
+            "base".to_string(),
+            2,
+            None,
+            Some(55.0),
+        )
+        .limn(&mut aesthetics);
+        ShowcaseItem::new(
             TextButton::new(
                 TextValue::new("copy"),
                 MaxCharacters(4),
@@ -116,198 +173,57 @@ impl Photosynthesis for ButtonShowcase {
                 THEME_COLOR::MINUS_ONE,
                 Color::BLACK,
             ),
-            ResponsiveSegment::base(Segment::new(
-                2.near().to(3.far()).minimum(150.0),
-                3.near().to(3.far()).maximum(55.0),
-            ))
-            .exception(
-                [Layout::PORTRAIT_MOBILE],
-                Segment::new(1.near().to(4.far()), 3.near().to(3.far()).maximum(55.0)),
-            )
-            .justify(Justify::Top),
-        );
-        view_tree.add(
-            Text::new(
-                MaxCharacters(11),
-                TextValue::new("text"),
-                THEME_COLOR::MINUS_ONE,
-            ),
-            ResponsiveSegment::base(Segment::new(
-                4.near().to(5.far()),
-                3.near().to(3.far()).minimum(30.0).maximum(40.0),
-            ))
-            .justify(Justify::Top)
-            .without_portrait_mobile()
-            .without_portrait_tablet(),
-        );
-        view_tree.add_scene(
             TextButton::new(
                 TextValue::new("copy"),
                 MaxCharacters(4),
-                ElementStyle::fill(),
+                ElementStyle::ring(),
                 THEME_COLOR::MINUS_ONE,
                 Color::BLACK,
             ),
-            ResponsiveSegment::base(Segment::new(
-                5.near().to(6.far()).minimum(150.0),
-                3.near().to(3.far()).maximum(55.0),
-            ))
-            .exception(
-                [Layout::PORTRAIT_MOBILE],
-                Segment::new(5.near().to(8.far()), 3.near().to(3.far()).maximum(55.0)),
-            )
-            .justify(Justify::Top),
-        );
-        view_tree.add(
-            Text::new(
-                MaxCharacters(11),
-                TextValue::new("text"),
-                THEME_COLOR::MINUS_ONE,
-            ),
-            ResponsiveSegment::base(Segment::new(
-                7.near().to(8.far()),
-                3.near().to(3.far()).minimum(30.0).maximum(40.0),
-            ))
-            .justify(Justify::Top)
-            .without_portrait_mobile()
-            .without_portrait_tablet(),
-        );
-        view_tree.add_scene(
+            "text".to_string(),
+            3,
+            None,
+            Some(55.0),
+        )
+        .limn(&mut aesthetics);
+        ShowcaseItem::new(
             CircleButton::new(
                 FeatherIcon::Copy,
                 ElementStyle::fill(),
                 THEME_COLOR::PLUS_ONE,
                 Color::BLACK,
             ),
-            ResponsiveSegment::base(Segment::new(
-                2.near().to(3.far()).maximum(60.0),
-                4.near().to(4.far()).maximum(60.0),
-            ))
-            .exception(
-                [Layout::PORTRAIT_MOBILE],
-                Segment::new(
-                    1.near().to(4.far()).maximum(60.0),
-                    4.near().to(4.far()).maximum(60.0),
-                ),
-            )
-            .justify(Justify::Top),
-        );
-        view_tree.add(
-            Text::new(
-                MaxCharacters(11),
-                TextValue::new("circle"),
-                THEME_COLOR::PLUS_ONE,
-            ),
-            ResponsiveSegment::base(Segment::new(
-                4.near().to(5.far()),
-                4.near().to(4.far()).minimum(30.0).maximum(40.0),
-            ))
-            .justify(Justify::Top)
-            .without_portrait_mobile()
-            .without_portrait_tablet(),
-        );
-        view_tree.add_scene(
             CircleButton::new(
                 FeatherIcon::Copy,
                 ElementStyle::ring(),
                 THEME_COLOR::PLUS_ONE,
                 Color::BLACK,
             ),
-            ResponsiveSegment::base(Segment::new(
-                5.near().to(6.far()).maximum(60.0),
-                4.near().to(4.far()).maximum(60.0),
-            ))
-            .exception(
-                [Layout::PORTRAIT_MOBILE],
-                Segment::new(
-                    5.near().to(8.far()).maximum(60.0),
-                    4.near().to(4.far()).maximum(60.0),
-                ),
-            )
-            .justify(Justify::Top),
-        );
-        view_tree.add(
-            Text::new(
-                MaxCharacters(11),
-                TextValue::new("circle"),
-                THEME_COLOR::PLUS_ONE,
-            ),
-            ResponsiveSegment::base(Segment::new(
-                7.near().to(8.far()),
-                4.near().to(4.far()).minimum(30.0).maximum(40.0),
-            ))
-            .justify(Justify::Top)
-            .without_portrait_mobile()
-            .without_portrait_tablet(),
-        );
-        view_tree.add_scene(
+            "circle".to_string(),
+            4,
+            Some(55.0),
+            Some(55.0),
+        )
+        .limn(&mut aesthetics);
+        ShowcaseItem::new(
             IconButton::new(
                 FeatherIcon::Copy,
                 ElementStyle::fill(),
                 THEME_COLOR::PLUS_THREE,
                 Color::BLACK,
             ),
-            ResponsiveSegment::base(Segment::new(
-                2.near().to(3.far()).maximum(50.0),
-                5.near().to(5.far()).maximum(50.0),
-            ))
-            .exception(
-                [Layout::PORTRAIT_MOBILE],
-                Segment::new(
-                    1.near().to(4.far()).maximum(50.0),
-                    5.near().to(5.far()).maximum(50.0),
-                ),
-            )
-            .justify(Justify::Top),
-        );
-        view_tree.add(
-            Text::new(
-                MaxCharacters(11),
-                TextValue::new("icon"),
-                THEME_COLOR::PLUS_THREE,
-            ),
-            ResponsiveSegment::base(Segment::new(
-                4.near().to(5.far()),
-                5.near().to(5.far()).minimum(30.0).maximum(40.0),
-            ))
-            .justify(Justify::Top)
-            .without_portrait_mobile()
-            .without_portrait_tablet(),
-        );
-        view_tree.add_scene(
             IconButton::new(
                 FeatherIcon::Copy,
                 ElementStyle::ring(),
                 THEME_COLOR::PLUS_THREE,
                 Color::BLACK,
             ),
-            ResponsiveSegment::base(Segment::new(
-                5.near().to(6.far()).maximum(50.0),
-                5.near().to(5.far()).maximum(50.0),
-            ))
-            .exception(
-                [Layout::PORTRAIT_MOBILE],
-                Segment::new(
-                    5.near().to(8.far()).maximum(50.0),
-                    5.near().to(5.far()).maximum(50.0),
-                ),
-            )
-            .justify(Justify::Top),
-        );
-        view_tree.add(
-            Text::new(
-                MaxCharacters(11),
-                TextValue::new("icon"),
-                THEME_COLOR::PLUS_THREE,
-            ),
-            ResponsiveSegment::base(Segment::new(
-                7.near().to(8.far()),
-                5.near().to(5.far()).minimum(30.0).maximum(40.0),
-            ))
-            .justify(Justify::Top)
-            .without_portrait_mobile()
-            .without_portrait_tablet(),
-        );
-        view_tree.view()
+            "icon".to_string(),
+            5,
+            Some(45.0),
+            Some(45.0),
+        )
+        .limn(&mut aesthetics);
+        aesthetics.view()
     }
 }

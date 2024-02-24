@@ -12,15 +12,15 @@ use foliage::r_scenes::icon_text::IconText;
 use foliage::scene::ExtendTarget;
 use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::text::{MaxCharacters, Text, TextValue};
-use foliage::view::{BranchHandle, ConditionSet, Photosynthesis, View, ViewTree};
+use foliage::view::{Aesthetics, BranchHandle, ConditionSet, Photosynthesis, View};
 pub struct BranchingButtonShowcase;
 impl Photosynthesis for BranchingButtonShowcase {
     const GRID: MacroGrid = MacroGrid::new(8, 6);
     type Chlorophyll = ();
 
     fn photosynthesize(cmd: &mut Commands, _res: &mut SystemParamItem<Self::Chlorophyll>) -> View {
-        let mut view_tree = ViewTree::new(cmd);
-        view_tree.add_scene(
+        let mut aesthetics = Aesthetics::new(cmd);
+        aesthetics.add_scene(
             IconText::new(
                 FeatherIcon::Menu,
                 Color::GREY,
@@ -34,7 +34,7 @@ impl Photosynthesis for BranchingButtonShowcase {
             ))
             .justify(Justify::Top),
         );
-        let desc = view_tree.add_scene(
+        let desc = aesthetics.add_scene(
             Button::new(
                 IconText::new(
                     FeatherIcon::Copy,
@@ -60,8 +60,8 @@ impl Photosynthesis for BranchingButtonShowcase {
             )
             .justify(Justify::Top),
         );
-        view_tree.extend(desc.root(), SampleHook(true));
-        view_tree.conditional(
+        aesthetics.extend(desc.root(), SampleHook(true));
+        aesthetics.conditional(
             0,
             Text::new(
                 MaxCharacters(11),
@@ -76,7 +76,7 @@ impl Photosynthesis for BranchingButtonShowcase {
             .without_portrait_mobile()
             .without_portrait_tablet(),
         );
-        let other_desc = view_tree.conditional_scene(
+        let other_desc = aesthetics.conditional_scene(
             1,
             Button::new(
                 IconText::new(
@@ -103,8 +103,8 @@ impl Photosynthesis for BranchingButtonShowcase {
             )
             .justify(Justify::Top),
         );
-        view_tree.conditional_extend(other_desc, ExtendTarget::This, OtherHook(true));
-        view_tree.conditional(
+        aesthetics.conditional_extend(other_desc, ExtendTarget::This, OtherHook(true));
+        aesthetics.conditional(
             2,
             Text::new(MaxCharacters(11), TextValue::new("base"), THEME_COLOR::BASE),
             ResponsiveSegment::base(Segment::new(
@@ -116,7 +116,7 @@ impl Photosynthesis for BranchingButtonShowcase {
             .without_portrait_tablet(),
         );
         // tmp
-        view_tree.conditional_scene(
+        aesthetics.conditional_scene(
             3,
             Button::new(
                 IconText::new(
@@ -143,7 +143,7 @@ impl Photosynthesis for BranchingButtonShowcase {
             )
             .justify(Justify::Top),
         );
-        view_tree.conditional(
+        aesthetics.conditional(
             4,
             Text::new(
                 MaxCharacters(11),
@@ -158,7 +158,7 @@ impl Photosynthesis for BranchingButtonShowcase {
             .without_portrait_mobile()
             .without_portrait_tablet(),
         );
-        view_tree.conditional_scene(
+        aesthetics.conditional_scene(
             5,
             Button::new(
                 IconText::new(
@@ -185,7 +185,7 @@ impl Photosynthesis for BranchingButtonShowcase {
             )
             .justify(Justify::Top),
         );
-        view_tree.view()
+        aesthetics.view()
     }
 }
 #[derive(Component)]

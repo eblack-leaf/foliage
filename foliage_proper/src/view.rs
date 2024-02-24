@@ -39,6 +39,7 @@ pub(crate) fn photosynthesize<V: Photosynthesis + Send + Sync + 'static>(
     if let Some((_, _n)) = navigation.iter().last() {
         // TODO despawn current tree + all in pool
         // or anim-out && @-end trigger despawn
+
         *grid = V::GRID;
         let view = V::photosynthesize(&mut cmd, &mut ext);
         compositor.current.replace(view);
@@ -208,11 +209,11 @@ impl<S: Scene + Clone> SceneBranch<S> {
 }
 #[derive(Component, Clone, Default)]
 pub struct View(pub HashSet<Entity>, HashMap<BranchHandle, Entity>);
-pub struct ViewTree<'a, 'w, 's> {
+pub struct Aesthetics<'a, 'w, 's> {
     cmd: &'a mut Commands<'w, 's>,
     chlorophyll: View,
 }
-impl<'a, 'w, 's> ViewTree<'a, 'w, 's> {
+impl<'a, 'w, 's> Aesthetics<'a, 'w, 's> {
     pub fn new(cmd: &'a mut Commands<'w, 's>) -> Self {
         Self {
             cmd,
