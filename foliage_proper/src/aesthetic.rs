@@ -1,5 +1,5 @@
 use crate::view::Aesthetics;
 
 pub trait Aesthetic {
-    fn limn(self, aesthetics: &mut Aesthetics);
+    fn pigment(self, aesthetics: &mut Aesthetics);
 }

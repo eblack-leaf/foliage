@@ -44,7 +44,7 @@ impl<T> ButtonDisplay<T> {
     }
 }
 impl<T: Scene> Aesthetic for ButtonDisplay<T> {
-    fn limn(self, aesthetics: &mut Aesthetics) {
+    fn pigment(self, aesthetics: &mut Aesthetics) {
         aesthetics.add_scene(
             self.first,
             ResponsiveSegment::base(Segment::new(
@@ -64,7 +64,10 @@ impl<T: Scene> Aesthetic for ButtonDisplay<T> {
                         .to(4.far())
                         .minimum(100.0)
                         .maximum(if let Some(m) = self.max_w { m } else { 5000.0 }),
-                    self.row.near().to(self.row.far()).maximum(55.0),
+                    self.row
+                        .near()
+                        .to(self.row.far())
+                        .maximum(if let Some(m) = self.max_h { m } else { 55.0 }),
                 ),
             )
             .justify(Justify::Top),
@@ -88,7 +91,10 @@ impl<T: Scene> Aesthetic for ButtonDisplay<T> {
                         .to(8.far())
                         .minimum(100.0)
                         .maximum(if let Some(m) = self.max_w { m } else { 5000.0 }),
-                    self.row.near().to(self.row.far()).maximum(55.0),
+                    self.row
+                        .near()
+                        .to(self.row.far())
+                        .maximum(if let Some(m) = self.max_h { m } else { 55.0 }),
                 ),
             )
             .justify(Justify::Top),
@@ -162,9 +168,9 @@ impl Photosynthesis for ButtonShowcase {
             "base".to_string(),
             2,
             None,
-            Some(55.0),
+            Some(45.0),
         )
-        .limn(&mut aesthetics);
+        .pigment(&mut aesthetics);
         ButtonDisplay::new(
             TextButton::new(
                 TextValue::new("copy"),
@@ -183,9 +189,9 @@ impl Photosynthesis for ButtonShowcase {
             "text".to_string(),
             3,
             None,
-            Some(55.0),
+            Some(45.0),
         )
-        .limn(&mut aesthetics);
+        .pigment(&mut aesthetics);
         ButtonDisplay::new(
             CircleButton::new(
                 FeatherIcon::Copy,
@@ -204,7 +210,7 @@ impl Photosynthesis for ButtonShowcase {
             Some(55.0),
             Some(55.0),
         )
-        .limn(&mut aesthetics);
+        .pigment(&mut aesthetics);
         ButtonDisplay::new(
             IconButton::new(
                 FeatherIcon::Copy,
@@ -223,7 +229,7 @@ impl Photosynthesis for ButtonShowcase {
             Some(45.0),
             Some(45.0),
         )
-        .limn(&mut aesthetics);
+        .pigment(&mut aesthetics);
         aesthetics.view()
     }
 }

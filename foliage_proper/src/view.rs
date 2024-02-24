@@ -20,18 +20,17 @@ use bevy_ecs::system::{
     Commands, Query, Res, ResMut, Resource, StaticSystemParam, SystemParam, SystemParamItem,
 };
 use std::collections::{HashMap, HashSet};
-use std::marker::PhantomData;
 
 #[derive(Component, Copy, Clone)]
-pub struct Photosynthesize<V>(PhantomData<V>);
-impl<V> Photosynthesize<V> {
-    pub fn new() -> Self {
-        Self { 0: PhantomData }
+pub struct Photosynthesize(pub i32);
+impl Photosynthesize {
+    pub fn new(value: i32) -> Self {
+        Self(value)
     }
 }
 pub(crate) fn photosynthesize<V: Photosynthesis + Send + Sync + 'static>(
     mut compositor: ResMut<Compositor>,
-    navigation: Query<(Entity, &Photosynthesize<V>), Changed<Photosynthesize<V>>>,
+    navigation: Query<(Entity, &Photosynthesize)>,
     mut cmd: Commands,
     mut ext: StaticSystemParam<V::Chlorophyll>,
     mut grid: ResMut<MacroGrid>,
@@ -211,17 +210,17 @@ impl<S: Scene + Clone> SceneBranch<S> {
 pub struct View(pub HashSet<Entity>, HashMap<BranchHandle, Entity>);
 pub struct Aesthetics<'a, 'w, 's> {
     cmd: &'a mut Commands<'w, 's>,
-    chlorophyll: View,
+    view: View,
 }
 impl<'a, 'w, 's> Aesthetics<'a, 'w, 's> {
     pub fn new(cmd: &'a mut Commands<'w, 's>) -> Self {
         Self {
             cmd,
-            chlorophyll: View::default(),
+            view: View::default(),
         }
     }
     pub fn view(self) -> View {
-        self.chlorophyll
+        self.view
     }
     pub fn add_scene<S: Scene>(&mut self, s: S, rs: ResponsiveSegment) -> SceneDesc {
         let desc = {
@@ -229,12 +228,12 @@ impl<'a, 'w, 's> Aesthetics<'a, 'w, 's> {
             self.cmd.entity(scene_desc.root()).insert(rs);
             scene_desc
         };
-        self.chlorophyll.0.insert(desc.root());
+        self.view.0.insert(desc.root());
         desc
     }
     pub fn add<B: Bundle>(&mut self, b: B, rs: ResponsiveSegment) -> Entity {
         let ent = { self.cmd.spawn(b).insert(rs).id() };
-        self.chlorophyll.0.insert(ent);
+        self.view.0.insert(ent);
         ent
     }
     pub fn conditional<BR: Clone + Send + Sync + 'static, BH: Into<BranchHandle>>(
@@ -260,7 +259,7 @@ impl<'a, 'w, 's> Aesthetics<'a, 'w, 's> {
                 .id();
             ConditionDesc::new(branch_id, pre_spawned)
         };
-        self.chlorophyll.1.insert(bh.into(), desc.branch_entity);
+        self.view.1.insert(bh.into(), desc.branch_entity);
         desc
     }
     pub fn conditional_scene<S: Scene + Clone, BH: Into<BranchHandle>>(
@@ -286,7 +285,7 @@ impl<'a, 'w, 's> Aesthetics<'a, 'w, 's> {
                 .id();
             ConditionDesc::new(branch_id, pre_spawned)
         };
-        self.chlorophyll.1.insert(bh.into(), desc.branch_entity);
+        self.view.1.insert(bh.into(), desc.branch_entity);
         desc
     }
     pub fn extend<Ext: Bundle>(&mut self, entity: Entity, ext: Ext) {
@@ -323,11 +322,12 @@ impl<'a, 'w, 's> Aesthetics<'a, 'w, 's> {
 #[derive(Default, Resource)]
 pub struct Compositor {
     current: Option<View>,
+    persistent: Vec<View>,
 }
 impl Compositor {
-    pub fn photosynthesize<V: Photosynthesis + Send + Sync + 'static>(cmd: &mut Commands) {
+    pub fn photosynthesize(v: i32, cmd: &mut Commands) {
         // TODO add transition logic here then spawn
-        cmd.spawn(Photosynthesize::<V>::new());
+        cmd.spawn(Photosynthesize::new(v));
     }
 }
 #[derive(Component, Copy, Clone)]

@@ -262,7 +262,7 @@ impl Elm {
         &mut self,
     ) {
         self.add_interaction_handler::<H, Commands>(|_ih, mut ext| {
-            Compositor::photosynthesize::<C>(&mut ext);
+            Compositor::photosynthesize(0, &mut ext);
         });
     }
     pub fn enable_conditional<C: Bundle + Clone + Send + Sync + 'static>(&mut self) {
@@ -275,25 +275,12 @@ impl Elm {
         self.main()
             .add_systems(conditional_scene_spawn::<S>.in_set(ExternalSet::ConditionalBind));
     }
-    pub fn enable_view<S: Photosynthesis + Send + Sync + 'static>(&mut self) {
+    pub fn enable_view<S: Photosynthesis + Send + Sync + 'static>(&mut self, v: i32) {
         self.main()
             .add_systems(photosynthesize::<S>.in_set(ExternalSet::Show));
     }
     pub fn navigate_to<S: Photosynthesis + Send + Sync + 'static>(&mut self) {
-        self.container().spawn(Photosynthesize::<S>::new());
-    }
-    pub fn static_element<B: Bundle>(&mut self, b: B, rs: ResponsiveSegment) -> Entity {
-        self.container().spawn(b).insert(rs).id()
-    }
-    pub fn static_scene<S: Scene + Clone>(&mut self, s: S, rs: ResponsiveSegment) -> SceneDesc {
-        let desc = self
-            .container()
-            .run_system_once(move |mut cmd: Commands| -> SceneDesc {
-                let desc = s.clone().create(Binder::new(&mut cmd, None));
-                cmd.entity(desc.root()).insert(rs.clone());
-                return desc;
-            });
-        desc
+        self.container().spawn(Photosynthesize::new(0));
     }
 }
 pub type InteractionHandlerFn<IH, Ext> = fn(&mut IH, &mut StaticSystemParam<Ext>);
