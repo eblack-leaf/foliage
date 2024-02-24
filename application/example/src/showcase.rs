@@ -16,7 +16,7 @@ use foliage::scene::Scene;
 use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::text::{MaxCharacters, Text, TextValue};
 use foliage::view::{Aesthetics, Photosynthesis, View};
-pub struct ShowcaseItem<T> {
+struct ButtonDisplay<T> {
     first: T,
     second: T,
     desc: String,
@@ -24,7 +24,7 @@ pub struct ShowcaseItem<T> {
     max_w: Option<CoordinateUnit>,
     max_h: Option<CoordinateUnit>,
 }
-impl<T> ShowcaseItem<T> {
+impl<T> ButtonDisplay<T> {
     pub fn new(
         first: T,
         second: T,
@@ -43,7 +43,7 @@ impl<T> ShowcaseItem<T> {
         }
     }
 }
-impl<T: Scene> Aesthetic for ShowcaseItem<T> {
+impl<T: Scene> Aesthetic for ButtonDisplay<T> {
     fn limn(self, aesthetics: &mut Aesthetics) {
         aesthetics.add_scene(
             self.first,
@@ -134,7 +134,7 @@ impl Photosynthesis for ButtonShowcase {
             ))
             .justify(Justify::Top),
         );
-        ShowcaseItem::new(
+        ButtonDisplay::new(
             Button::new(
                 IconText::new(
                     FeatherIcon::Copy,
@@ -165,7 +165,7 @@ impl Photosynthesis for ButtonShowcase {
             Some(55.0),
         )
         .limn(&mut aesthetics);
-        ShowcaseItem::new(
+        ButtonDisplay::new(
             TextButton::new(
                 TextValue::new("copy"),
                 MaxCharacters(4),
@@ -186,7 +186,7 @@ impl Photosynthesis for ButtonShowcase {
             Some(55.0),
         )
         .limn(&mut aesthetics);
-        ShowcaseItem::new(
+        ButtonDisplay::new(
             CircleButton::new(
                 FeatherIcon::Copy,
                 ElementStyle::fill(),
@@ -205,7 +205,7 @@ impl Photosynthesis for ButtonShowcase {
             Some(55.0),
         )
         .limn(&mut aesthetics);
-        ShowcaseItem::new(
+        ButtonDisplay::new(
             IconButton::new(
                 FeatherIcon::Copy,
                 ElementStyle::fill(),
