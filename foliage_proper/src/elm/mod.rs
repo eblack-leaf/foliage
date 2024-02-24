@@ -16,7 +16,8 @@ use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::job::{Container, Job, Task};
-use crate::scene::Scene;
+use crate::scene::{Binder, Scene, SceneDesc};
+use crate::segment::ResponsiveSegment;
 use crate::view::{
     conditional_extension, conditional_scene_spawn, conditional_spawn, photosynthesize, Compositor,
     Photosynthesis, Photosynthesize,
@@ -26,10 +27,11 @@ use crate::window::ScaleFactor;
 use crate::Workflow;
 use anymap::AnyMap;
 use bevy_ecs::bundle::Bundle;
+use bevy_ecs::entity::Entity;
 use bevy_ecs::event::{event_update_system, Event, Events};
 use bevy_ecs::prelude::{Component, IntoSystemConfigs};
 use bevy_ecs::query::Changed;
-use bevy_ecs::system::{Commands, Query, StaticSystemParam, SystemParam};
+use bevy_ecs::system::{Commands, Query, RunSystemOnce, StaticSystemParam, SystemParam};
 use bytemuck::{Pod, Zeroable};
 use compact_str::{CompactString, ToCompactString};
 use leaf::Leaflet;
@@ -279,6 +281,19 @@ impl Elm {
     }
     pub fn navigate_to<S: Photosynthesis + Send + Sync + 'static>(&mut self) {
         self.container().spawn(Photosynthesize::<S>::new());
+    }
+    pub fn static_element<B: Bundle>(&mut self, b: B, rs: ResponsiveSegment) -> Entity {
+        self.container().spawn(b).insert(rs).id()
+    }
+    pub fn static_scene<S: Scene + Clone>(&mut self, s: S, rs: ResponsiveSegment) -> SceneDesc {
+        let desc = self
+            .container()
+            .run_system_once(move |mut cmd: Commands| -> SceneDesc {
+                let desc = s.clone().create(Binder::new(&mut cmd, None));
+                cmd.entity(desc.root()).insert(rs.clone());
+                return desc;
+            });
+        desc
     }
 }
 pub type InteractionHandlerFn<IH, Ext> = fn(&mut IH, &mut StaticSystemParam<Ext>);

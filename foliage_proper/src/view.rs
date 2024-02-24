@@ -376,6 +376,11 @@ impl ConditionDesc {
 }
 // TODO Derived-Value handler + other
 // pub struct OnEnter<T> {}
+
+// // NOTE: type inference fails here, so annotations are required on the closure.
+// commands.add(|w: &mut World| {
+// // Mutate the world however you want...
+// });
 fn viewport_changed(
     mut query: Query<(
         &ResponsiveSegment,
