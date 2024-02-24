@@ -262,7 +262,7 @@ impl Elm {
         &mut self,
     ) {
         self.add_interaction_handler::<H, Commands>(|_ih, mut ext| {
-            Compositor::photosynthesize(0, &mut ext);
+            Compositor::photosynthesize::<C>(&mut ext);
         });
     }
     pub fn enable_conditional<C: Bundle + Clone + Send + Sync + 'static>(&mut self) {
@@ -275,12 +275,12 @@ impl Elm {
         self.main()
             .add_systems(conditional_scene_spawn::<S>.in_set(ExternalSet::ConditionalBind));
     }
-    pub fn enable_view<S: Photosynthesis + Send + Sync + 'static>(&mut self, v: i32) {
+    pub fn enable_view<S: Photosynthesis + Send + Sync + 'static>(&mut self) {
         self.main()
             .add_systems(photosynthesize::<S>.in_set(ExternalSet::Show));
     }
-    pub fn navigate_to<S: Photosynthesis + Send + Sync + 'static>(&mut self) {
-        self.container().spawn(Photosynthesize::new(0));
+    pub fn navigate_to<V: Photosynthesis + Send + Sync + 'static>(&mut self) {
+        self.container().spawn(Photosynthesize::<V>::new());
     }
 }
 pub type InteractionHandlerFn<IH, Ext> = fn(&mut IH, &mut StaticSystemParam<Ext>);

@@ -12,7 +12,7 @@ use foliage::r_scenes::icon_text::IconText;
 use foliage::scene::ExtendTarget;
 use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::text::{MaxCharacters, Text, TextValue};
-use foliage::view::{Aesthetics, BranchHandle, ConditionSet, Photosynthesis, View};
+use foliage::view::{Aesthetics, BranchHandle, BranchSet, Photosynthesis, View};
 pub struct BranchingButtonShowcase;
 impl Photosynthesis for BranchingButtonShowcase {
     const GRID: MacroGrid = MacroGrid::new(8, 6);
@@ -198,20 +198,20 @@ impl Leaf for BranchingButtonShowcase {
 
     fn attach(elm: &mut Elm) {
         elm.add_interaction_handler::<SampleHook, Commands>(|sh, cmd| {
-            cmd.spawn(ConditionSet(BranchHandle(0), sh.0));
-            cmd.spawn(ConditionSet(BranchHandle(1), sh.0));
-            cmd.spawn(ConditionSet(BranchHandle(2), sh.0));
+            cmd.spawn(BranchSet(BranchHandle(0), sh.0));
+            cmd.spawn(BranchSet(BranchHandle(1), sh.0));
+            cmd.spawn(BranchSet(BranchHandle(2), sh.0));
             if !sh.0 {
-                cmd.spawn(ConditionSet(BranchHandle(3), false));
-                cmd.spawn(ConditionSet(BranchHandle(4), false));
-                cmd.spawn(ConditionSet(BranchHandle(5), false));
+                cmd.spawn(BranchSet(BranchHandle(3), false));
+                cmd.spawn(BranchSet(BranchHandle(4), false));
+                cmd.spawn(BranchSet(BranchHandle(5), false));
             }
             sh.0 = !sh.0;
         });
         elm.add_interaction_handler::<OtherHook, Commands>(|sh, cmd| {
-            cmd.spawn(ConditionSet(BranchHandle(3), sh.0));
-            cmd.spawn(ConditionSet(BranchHandle(4), sh.0));
-            cmd.spawn(ConditionSet(BranchHandle(5), sh.0));
+            cmd.spawn(BranchSet(BranchHandle(3), sh.0));
+            cmd.spawn(BranchSet(BranchHandle(4), sh.0));
+            cmd.spawn(BranchSet(BranchHandle(5), sh.0));
             sh.0 = !sh.0;
         });
         elm.enable_conditional::<Text>();

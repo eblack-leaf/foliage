@@ -20,17 +20,18 @@ use bevy_ecs::system::{
     Commands, Query, Res, ResMut, Resource, StaticSystemParam, SystemParam, SystemParamItem,
 };
 use std::collections::{HashMap, HashSet};
+use std::marker::PhantomData;
 
 #[derive(Component, Copy, Clone)]
-pub struct Photosynthesize(pub i32);
-impl Photosynthesize {
-    pub fn new(value: i32) -> Self {
-        Self(value)
+pub struct Photosynthesize<V>(PhantomData<V>);
+impl<V> Photosynthesize<V> {
+    pub fn new() -> Self {
+        Self { 0: PhantomData }
     }
 }
 pub(crate) fn photosynthesize<V: Photosynthesis + Send + Sync + 'static>(
     mut compositor: ResMut<Compositor>,
-    navigation: Query<(Entity, &Photosynthesize)>,
+    navigation: Query<(Entity, &Photosynthesize<V>), Changed<Photosynthesize<V>>>,
     mut cmd: Commands,
     mut ext: StaticSystemParam<V::Chlorophyll>,
     mut grid: ResMut<MacroGrid>,
@@ -325,15 +326,15 @@ pub struct Compositor {
     persistent: Vec<View>,
 }
 impl Compositor {
-    pub fn photosynthesize(v: i32, cmd: &mut Commands) {
+    pub fn photosynthesize<V: Photosynthesis + Send + Sync + 'static>(cmd: &mut Commands) {
         // TODO add transition logic here then spawn
-        cmd.spawn(Photosynthesize::new(v));
+        cmd.spawn(Photosynthesize::<V>::new());
     }
 }
 #[derive(Component, Copy, Clone)]
-pub struct ConditionSet(pub BranchHandle, pub bool);
-fn set_branch(
-    query: Query<(Entity, &ConditionSet)>,
+pub struct BranchSet(pub BranchHandle, pub bool);
+pub(crate) fn set_branch(
+    query: Query<(Entity, &BranchSet)>,
     mut cmd: Commands,
     compositor: Res<Compositor>,
 ) {
