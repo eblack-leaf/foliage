@@ -16,7 +16,7 @@ use foliage_proper::layout::AspectRatio;
 use foliage_proper::scene::micro_grid::{
     Alignment, AlignmentDesc, AnchorDim, MicroGrid, RelativeMarker,
 };
-use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneDesc};
+use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
 use foliage_proper::text::{MaxCharacters, Text, TextValue};
 
 #[derive(Clone)]
@@ -147,7 +147,7 @@ impl Scene for IconText {
         }
     }
 
-    fn create(self, mut binder: Binder) -> SceneDesc {
+    fn create(self, mut binder: Binder) -> SceneHandle {
         let aspect_determinant = self.max_chars.0 as f32 + 2f32;
         let aspect = AspectRatio(aspect_determinant / 2f32);
         let icon_percent = 1.50f32 / aspect_determinant;

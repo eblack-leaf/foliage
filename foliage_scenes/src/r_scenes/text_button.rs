@@ -16,7 +16,7 @@ use foliage_proper::panel::Panel;
 use foliage_proper::scene::micro_grid::{
     Alignment, AlignmentDesc, AnchorDim, MicroGrid, RelativeMarker,
 };
-use foliage_proper::scene::{Binder, Bindings, BlankNode, Scene, SceneComponents, SceneDesc};
+use foliage_proper::scene::{Binder, Bindings, BlankNode, Scene, SceneComponents, SceneHandle};
 use foliage_proper::text::{MaxCharacters, Text, TextValue};
 
 pub struct TextButton {
@@ -97,7 +97,7 @@ impl Scene for TextButton {
         }
     }
 
-    fn create(self, mut binder: Binder) -> SceneDesc {
+    fn create(self, mut binder: Binder) -> SceneHandle {
         let aspect = (self.max_chars.0 as f32 + 0f32) / 2f32;
         binder.extend(binder.root(), Tag::<ButtonInteractionHook>::new());
         binder.bind(

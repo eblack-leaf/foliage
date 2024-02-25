@@ -66,7 +66,7 @@ pub struct Branch<T: Clone + Send + Sync + 'static> {
 impl<T: Clone + Send + Sync + 'static> Branch<T> {
     pub fn new(t: T, e: SpawnTarget, is_extension: bool) -> Self {
         Self {
-            conditional: Conditional::<T>::new(e, t, is_extension),
+            conditional: Conditional::<T>::new(t, e, is_extension),
             trigger: Trigger::default(),
         }
     }
@@ -79,7 +79,7 @@ pub struct SceneBranch<T: Clone + Scene + Send + Sync + 'static> {
 impl<S: Scene + Clone> SceneBranch<S> {
     pub fn new(t: S, e: SpawnTarget, is_extension: bool) -> Self {
         Self {
-            conditional: ConditionalScene::<S>::new(e, t, is_extension),
+            conditional: ConditionalScene::<S>::new(t, e, is_extension),
             trigger: Trigger::default(),
         }
     }

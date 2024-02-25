@@ -1,5 +1,5 @@
-use crate::view::Aesthetics;
+use crate::view::ViewBuilder;
 
 pub trait Aesthetic {
-    fn pigment(self, aesthetics: &mut Aesthetics);
+    fn pigment(self, aesthetics: &mut ViewBuilder);
 }

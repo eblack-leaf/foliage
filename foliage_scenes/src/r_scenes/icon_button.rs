@@ -16,7 +16,7 @@ use foliage_proper::panel::Panel;
 use foliage_proper::scene::micro_grid::{
     Alignment, AlignmentDesc, AnchorDim, MicroGrid, RelativeMarker,
 };
-use foliage_proper::scene::{Binder, Bindings, BlankNode, Scene, SceneComponents, SceneDesc};
+use foliage_proper::scene::{Binder, Bindings, BlankNode, Scene, SceneComponents, SceneHandle};
 
 pub struct IconButton {
     element_style: ElementStyle,
@@ -86,7 +86,7 @@ impl Scene for IconButton {
         }
     }
 
-    fn create(self, mut binder: Binder) -> SceneDesc {
+    fn create(self, mut binder: Binder) -> SceneHandle {
         binder.extend(binder.root(), Tag::<ButtonInteractionHook>::new());
         binder.bind(
             IconButtonBindings::Panel,

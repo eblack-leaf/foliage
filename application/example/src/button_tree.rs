@@ -1,6 +1,5 @@
 use foliage::bevy_ecs;
 use foliage::bevy_ecs::prelude::{Commands, Component};
-use foliage::bevy_ecs::system::SystemParamItem;
 use foliage::color::monochromatic::{AquaMarine as THEME_COLOR, Monochromatic};
 use foliage::color::Color;
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
@@ -10,17 +9,13 @@ use foliage::layout::Layout;
 use foliage::r_scenes::button::Button;
 use foliage::r_scenes::icon_text::IconText;
 use foliage::scene::ExtendTarget;
-use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
+use foliage::segment::{Justify, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::text::{MaxCharacters, Text, TextValue};
-use foliage::view::{Aesthetics, BranchHandle, BranchSet, Photosynthesis, View};
+use foliage::view::{ViewBuilder, ViewDescriptor};
 pub struct BranchingButtonShowcase;
-impl Photosynthesis for BranchingButtonShowcase {
-    const GRID: MacroGrid = MacroGrid::new(8, 6);
-    type Chlorophyll = ();
-
-    fn photosynthesize(cmd: &mut Commands, _res: &mut SystemParamItem<Self::Chlorophyll>) -> View {
-        let mut aesthetics = Aesthetics::new(cmd);
-        aesthetics.add_scene(
+impl BranchingButtonShowcase {
+    fn photosynthesize(mut view_builder: ViewBuilder) -> ViewDescriptor {
+        view_builder.add_scene(
             IconText::new(
                 FeatherIcon::Menu,
                 Color::GREY,
@@ -34,7 +29,7 @@ impl Photosynthesis for BranchingButtonShowcase {
             ))
             .justify(Justify::Top),
         );
-        let desc = aesthetics.add_scene(
+        let desc = view_builder.add_scene(
             Button::new(
                 IconText::new(
                     FeatherIcon::Copy,
@@ -60,9 +55,8 @@ impl Photosynthesis for BranchingButtonShowcase {
             )
             .justify(Justify::Top),
         );
-        aesthetics.extend(desc.root(), SampleHook(true));
-        aesthetics.conditional(
-            0,
+        view_builder.extend(desc.root(), SampleHook(true));
+        view_builder.conditional(
             Text::new(
                 MaxCharacters(11),
                 TextValue::new("base"),
@@ -76,8 +70,7 @@ impl Photosynthesis for BranchingButtonShowcase {
             .without_portrait_mobile()
             .without_portrait_tablet(),
         );
-        let other_desc = aesthetics.conditional_scene(
-            1,
+        let other_desc = view_builder.conditional_scene(
             Button::new(
                 IconText::new(
                     FeatherIcon::Copy,
@@ -103,9 +96,8 @@ impl Photosynthesis for BranchingButtonShowcase {
             )
             .justify(Justify::Top),
         );
-        aesthetics.conditional_extend(other_desc, ExtendTarget::This, OtherHook(true));
-        aesthetics.conditional(
-            2,
+        view_builder.conditional_extend(other_desc, ExtendTarget::This, OtherHook(true));
+        view_builder.conditional(
             Text::new(MaxCharacters(11), TextValue::new("base"), THEME_COLOR::BASE),
             ResponsiveSegment::base(Segment::new(
                 7.near().to(8.far()),
@@ -115,9 +107,7 @@ impl Photosynthesis for BranchingButtonShowcase {
             .without_portrait_mobile()
             .without_portrait_tablet(),
         );
-        // tmp
-        aesthetics.conditional_scene(
-            3,
+        view_builder.conditional_scene(
             Button::new(
                 IconText::new(
                     FeatherIcon::Copy,
@@ -143,8 +133,7 @@ impl Photosynthesis for BranchingButtonShowcase {
             )
             .justify(Justify::Top),
         );
-        aesthetics.conditional(
-            4,
+        view_builder.conditional(
             Text::new(
                 MaxCharacters(11),
                 TextValue::new("text"),
@@ -158,8 +147,7 @@ impl Photosynthesis for BranchingButtonShowcase {
             .without_portrait_mobile()
             .without_portrait_tablet(),
         );
-        aesthetics.conditional_scene(
-            5,
+        view_builder.conditional_scene(
             Button::new(
                 IconText::new(
                     FeatherIcon::Copy,
@@ -185,7 +173,7 @@ impl Photosynthesis for BranchingButtonShowcase {
             )
             .justify(Justify::Top),
         );
-        aesthetics.view()
+        view_builder.finish()
     }
 }
 #[derive(Component)]
@@ -198,20 +186,20 @@ impl Leaf for BranchingButtonShowcase {
 
     fn attach(elm: &mut Elm) {
         elm.add_interaction_handler::<SampleHook, Commands>(|sh, cmd| {
-            cmd.spawn(BranchSet(BranchHandle(0), sh.0));
-            cmd.spawn(BranchSet(BranchHandle(1), sh.0));
-            cmd.spawn(BranchSet(BranchHandle(2), sh.0));
-            if !sh.0 {
-                cmd.spawn(BranchSet(BranchHandle(3), false));
-                cmd.spawn(BranchSet(BranchHandle(4), false));
-                cmd.spawn(BranchSet(BranchHandle(5), false));
-            }
+            // cmd.spawn(BranchSet(BranchHandle(0), sh.0));
+            // cmd.spawn(BranchSet(BranchHandle(1), sh.0));
+            // cmd.spawn(BranchSet(BranchHandle(2), sh.0));
+            // if !sh.0 {
+            //     cmd.spawn(BranchSet(BranchHandle(3), false));
+            //     cmd.spawn(BranchSet(BranchHandle(4), false));
+            //     cmd.spawn(BranchSet(BranchHandle(5), false));
+            // }
             sh.0 = !sh.0;
         });
         elm.add_interaction_handler::<OtherHook, Commands>(|sh, cmd| {
-            cmd.spawn(BranchSet(BranchHandle(3), sh.0));
-            cmd.spawn(BranchSet(BranchHandle(4), sh.0));
-            cmd.spawn(BranchSet(BranchHandle(5), sh.0));
+            // cmd.spawn(BranchSet(BranchHandle(3), sh.0));
+            // cmd.spawn(BranchSet(BranchHandle(4), sh.0));
+            // cmd.spawn(BranchSet(BranchHandle(5), sh.0));
             sh.0 = !sh.0;
         });
         elm.enable_conditional::<Text>();

@@ -16,7 +16,7 @@ use foliage_proper::interaction::{InteractionListener, InteractionShape};
 use foliage_proper::scene::micro_grid::{
     Alignment, AlignmentDesc, AnchorDim, MicroGrid, RelativeMarker,
 };
-use foliage_proper::scene::{Binder, Bindings, BlankNode, Scene, SceneComponents, SceneDesc};
+use foliage_proper::scene::{Binder, Bindings, BlankNode, Scene, SceneComponents, SceneHandle};
 use foliage_proper::texture::factors::Progress;
 #[derive(Clone)]
 pub struct CircleButton {
@@ -87,7 +87,7 @@ impl Scene for CircleButton {
         }
     }
 
-    fn create(self, mut binder: Binder) -> SceneDesc {
+    fn create(self, mut binder: Binder) -> SceneHandle {
         binder.extend(binder.root(), Tag::<ButtonInteractionHook>::new());
         binder.bind(
             CircleButtonBindings::Circle,

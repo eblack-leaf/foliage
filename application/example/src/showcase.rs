@@ -1,6 +1,4 @@
 use foliage::aesthetic::Aesthetic;
-use foliage::bevy_ecs::prelude::Commands;
-use foliage::bevy_ecs::system::SystemParamItem;
 use foliage::color::monochromatic::{Monochromatic, Orange as THEME_COLOR};
 use foliage::color::Color;
 use foliage::coordinate::CoordinateUnit;
@@ -13,9 +11,9 @@ use foliage::r_scenes::icon_button::IconButton;
 use foliage::r_scenes::icon_text::IconText;
 use foliage::r_scenes::text_button::TextButton;
 use foliage::scene::Scene;
-use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
+use foliage::segment::{Justify, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::text::{MaxCharacters, Text, TextValue};
-use foliage::view::{Aesthetics, Photosynthesis, View};
+use foliage::view::{ViewBuilder, ViewDescriptor};
 struct ButtonDisplay<T> {
     first: T,
     second: T,
@@ -44,8 +42,8 @@ impl<T> ButtonDisplay<T> {
     }
 }
 impl<T: Scene> Aesthetic for ButtonDisplay<T> {
-    fn pigment(self, aesthetics: &mut Aesthetics) {
-        aesthetics.add_scene(
+    fn pigment(self, view_builder: &mut ViewBuilder) {
+        view_builder.add_scene(
             self.first,
             ResponsiveSegment::base(Segment::new(
                 2.near()
@@ -72,7 +70,7 @@ impl<T: Scene> Aesthetic for ButtonDisplay<T> {
             )
             .justify(Justify::Top),
         );
-        aesthetics.add_scene(
+        view_builder.add_scene(
             self.second,
             ResponsiveSegment::base(Segment::new(
                 5.near()
@@ -99,7 +97,7 @@ impl<T: Scene> Aesthetic for ButtonDisplay<T> {
             )
             .justify(Justify::Top),
         );
-        aesthetics.add(
+        view_builder.add(
             Text::new(
                 MaxCharacters(11),
                 TextValue::new(self.desc),
@@ -120,13 +118,9 @@ impl<T: Scene> Aesthetic for ButtonDisplay<T> {
     }
 }
 pub struct ButtonShowcase;
-impl Photosynthesis for ButtonShowcase {
-    const GRID: MacroGrid = MacroGrid::new(8, 6);
-    type Chlorophyll = ();
-
-    fn photosynthesize(cmd: &mut Commands, _res: &mut SystemParamItem<Self::Chlorophyll>) -> View {
-        let mut aesthetics = Aesthetics::new(cmd);
-        aesthetics.add_scene(
+impl ButtonShowcase {
+    pub(crate) fn view(mut view_builder: ViewBuilder) -> ViewDescriptor {
+        view_builder.add_scene(
             IconText::new(
                 FeatherIcon::Menu,
                 Color::GREY,
@@ -170,7 +164,7 @@ impl Photosynthesis for ButtonShowcase {
             None,
             Some(45.0),
         )
-        .pigment(&mut aesthetics);
+        .pigment(&mut view_builder);
         ButtonDisplay::new(
             TextButton::new(
                 TextValue::new("copy"),
@@ -191,7 +185,7 @@ impl Photosynthesis for ButtonShowcase {
             None,
             Some(45.0),
         )
-        .pigment(&mut aesthetics);
+        .pigment(&mut view_builder);
         ButtonDisplay::new(
             CircleButton::new(
                 FeatherIcon::Copy,
@@ -210,7 +204,7 @@ impl Photosynthesis for ButtonShowcase {
             Some(55.0),
             Some(55.0),
         )
-        .pigment(&mut aesthetics);
+        .pigment(&mut view_builder);
         ButtonDisplay::new(
             IconButton::new(
                 FeatherIcon::Copy,
@@ -229,7 +223,7 @@ impl Photosynthesis for ButtonShowcase {
             Some(45.0),
             Some(45.0),
         )
-        .pigment(&mut aesthetics);
-        aesthetics.view()
+        .pigment(&mut view_builder);
+        view_builder.finish()
     }
 }

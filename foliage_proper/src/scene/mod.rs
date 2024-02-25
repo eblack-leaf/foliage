@@ -23,11 +23,11 @@ impl Anchor {
         Anchor(grid.determine(self.0, alignment))
     }
 }
-pub struct SceneDesc {
+pub struct SceneHandle {
     root: Entity,
     bindings: Bindings,
 }
-impl SceneDesc {
+impl SceneHandle {
     pub(crate) fn new(root: Entity, bindings: Bindings) -> Self {
         Self { root, bindings }
     }
@@ -65,14 +65,14 @@ pub struct Binder<'a, 'w, 's> {
 }
 
 impl<'a, 'w, 's> Binder<'a, 'w, 's> {
-    pub fn finish<S: Scene>(self, comps: SceneComponents<S>) -> SceneDesc {
+    pub fn finish<S: Scene>(self, comps: SceneComponents<S>) -> SceneHandle {
         let entity = self.root();
         let bindings = Bindings(self.nodes);
         self.cmd
             .entity(entity)
             .insert(comps)
             .insert(bindings.clone());
-        SceneDesc::new(entity, bindings)
+        SceneHandle::new(entity, bindings)
     }
     pub fn new(cmd: &'a mut Commands<'w, 's>, root: Option<Entity>) -> Self {
         Self {
@@ -108,7 +108,7 @@ impl<'a, 'w, 's> Binder<'a, 'w, 's> {
         sb: SB,
         sa: SA,
         s: S,
-    ) -> SceneDesc {
+    ) -> SceneHandle {
         // add alignment + scene stuff
         let scene_desc = s.create(Binder::new(self.cmd, None));
         self.cmd
@@ -242,7 +242,7 @@ where
         ext: &mut SystemParamItem<Self::Params>,
         bindings: &Bindings,
     );
-    fn create(self, binder: Binder) -> SceneDesc;
+    fn create(self, binder: Binder) -> SceneHandle;
 }
 #[derive(Component, Copy, Clone)]
 pub struct ScenePtr(Entity);

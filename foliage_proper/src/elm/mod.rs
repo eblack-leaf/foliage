@@ -17,16 +17,14 @@ use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::job::{Container, Job, Task};
-use crate::r_view::{Navigate, ViewHandle};
-use crate::scene::{Binder, Scene, SceneDesc};
-use crate::segment::{MacroGrid, ResponsiveSegment};
-use crate::view::{photosynthesize, Compositor, Photosynthesis, Photosynthesize};
+use crate::scene::Scene;
+use crate::segment::MacroGrid;
+use crate::view::{Compositor, Create, Navigate, View, ViewBuilder, ViewDescriptor, ViewHandle};
 use crate::window::ScaleFactor;
 #[cfg(target_family = "wasm")]
 use crate::Workflow;
 use anymap::AnyMap;
 use bevy_ecs::bundle::Bundle;
-use bevy_ecs::entity::Entity;
 use bevy_ecs::event::{event_update_system, Event, Events};
 use bevy_ecs::prelude::{Component, IntoSystemConfigs};
 use bevy_ecs::query::Changed;
@@ -254,16 +252,6 @@ impl Elm {
         };
         self.main().add_systems(func.in_set(ExternalSet::Process));
     }
-    pub fn view_trigger<
-        H: Component + Send + 'static,
-        C: Photosynthesis + Send + Sync + 'static,
-    >(
-        &mut self,
-    ) {
-        self.add_interaction_handler::<H, Commands>(|_ih, mut ext| {
-            Compositor::photosynthesize::<C>(&mut ext);
-        });
-    }
     pub fn enable_conditional<C: Bundle + Clone + Send + Sync + 'static>(&mut self) {
         self.main().add_systems((
             conditional_spawn::<C>.in_set(ExternalSet::ConditionalBind),
@@ -274,11 +262,30 @@ impl Elm {
         self.main()
             .add_systems(conditional_scene_spawn::<S>.in_set(ExternalSet::ConditionalBind));
     }
-    pub fn navigate_to(&mut self, vh: ViewHandle) {
-        self.container().spawn(Navigate(vh));
+    pub fn navigate_to<VH: Into<ViewHandle>>(&mut self, vh: VH) {
+        self.container().spawn(Navigate(vh.into()));
+    }
+    pub fn add_view<VH: Into<ViewHandle>>(&mut self, vh: VH, create: Create) {
+        self.container()
+            .get_resource_mut::<Compositor>()
+            .unwrap()
+            .views
+            .insert(vh.into(), View::new(create));
     }
     pub fn set_macro_grid(&mut self, macro_grid: MacroGrid) {
         self.container().insert_resource(macro_grid);
+    }
+    pub fn persistent_view<VH: Into<ViewHandle>>(&mut self, vh: VH, view: View) {
+        let desc = self
+            .container()
+            .run_system_once(move |mut cmd: Commands| -> ViewDescriptor {
+                (view.create)(ViewBuilder::new(&mut cmd))
+            });
+        self.container()
+            .get_resource_mut::<Compositor>()
+            .unwrap()
+            .persistent
+            .insert(vh.into(), desc);
     }
 }
 pub type InteractionHandlerFn<IH, Ext> = fn(&mut IH, &mut StaticSystemParam<Ext>);

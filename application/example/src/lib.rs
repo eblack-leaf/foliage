@@ -10,9 +10,11 @@ use foliage::elm::config::ElmConfiguration;
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 use foliage::elm::Elm;
 use foliage::image::{Image, ImageId, ImageStorage};
+use foliage::segment::MacroGrid;
 use foliage::window::WindowDescriptor;
 use foliage::workflow::{EngenHandle, Workflow};
 use foliage::{AndroidInterface, Foliage};
+
 pub fn entry(android_interface: AndroidInterface) {
     Foliage::new()
         .with_window_descriptor(
@@ -79,7 +81,8 @@ impl Leaf for Main {
             ImageStorage::some(Area::from((700, 700))),
         ));
         elm.container().insert_resource(assets);
-        elm.enable_view::<ButtonShowcase>();
-        elm.navigate_to::<ButtonShowcase>();
+        elm.set_macro_grid(MacroGrid::new(8, 6));
+        elm.add_view(0, ButtonShowcase::view);
+        elm.navigate_to(0);
     }
 }
