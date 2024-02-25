@@ -20,6 +20,7 @@ use crate::ash::Ash;
 use crate::asset::AssetContainer;
 use crate::circle::Circle;
 use crate::clipboard::Clipboard;
+use crate::conditional::ConditionSet;
 use crate::coordinate::position::Position;
 use crate::coordinate::CoordinateUnit;
 use crate::elm::leaf::Leaves;
@@ -125,6 +126,7 @@ impl Foliage {
             .with_leaf::<Interaction>()
             .with_leaf::<ViewportHandle>()
             .with_leaf::<View>()
+            .with_leaf::<ConditionSet>()
             .with_leaf::<Time>()
             .with_leaf::<VirtualKeyboardAdapter>()
             .with_leaf::<Clipboard>()

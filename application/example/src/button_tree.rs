@@ -14,7 +14,7 @@ use foliage::text::{MaxCharacters, Text, TextValue};
 use foliage::view::{ViewBuilder, ViewDescriptor};
 pub struct BranchingButtonShowcase;
 impl BranchingButtonShowcase {
-    fn photosynthesize(mut view_builder: ViewBuilder) -> ViewDescriptor {
+    fn view(mut view_builder: ViewBuilder) -> ViewDescriptor {
         view_builder.add_scene(
             IconText::new(
                 FeatherIcon::Menu,

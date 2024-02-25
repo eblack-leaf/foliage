@@ -1,12 +1,35 @@
-use crate::animate::trigger::Trigger;
+use crate::animate::trigger::{Trigger, TriggerState};
 use crate::differential::Despawn;
+use crate::elm::config::CoreSet;
+use crate::elm::leaf::{EmptySetDescriptor, Leaf};
+use crate::elm::Elm;
 use crate::scene::{Binder, Bindings, Scene, SceneBinding, SceneComponents};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Changed, Commands, Component, Query};
+use bevy_ecs::prelude::{Changed, Commands, Component, IntoSystemConfigs, Query};
 
 #[derive(Component, Copy, Clone)]
-pub struct ConditionSet(pub Entity);
+pub struct ConditionSet(pub Entity, pub TriggerState);
+fn set_condition(
+    query: Query<(Entity, &ConditionSet)>,
+    mut triggers: Query<&mut Trigger>,
+    mut cmd: Commands,
+) {
+    for (e, cs) in query.iter() {
+        if let Ok(mut t) = triggers.get_mut(cs.0) {
+            t.set(cs.1);
+        }
+        cmd.entity(e).despawn();
+    }
+}
+impl Leaf for ConditionSet {
+    type SetDescriptor = EmptySetDescriptor;
+
+    fn attach(elm: &mut Elm) {
+        elm.main()
+            .add_systems(set_condition.in_set(CoreSet::ConditionPrepare));
+    }
+}
 #[derive(Copy, Clone)]
 pub enum SpawnTarget {
     This(Entity),
