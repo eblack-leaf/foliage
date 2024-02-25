@@ -21,21 +21,20 @@ use std::collections::{HashMap, HashSet};
 
 pub struct ViewBuilder<'a, 'w, 's> {
     cmd: Option<&'a mut Commands<'w, 's>>,
-    view_accumulator: ViewDescriptor,
+    view_descriptor: ViewDescriptor,
     branch_handle: i32,
 }
 impl<'a, 'w, 's> ViewBuilder<'a, 'w, 's> {
     pub fn new(cmd: &'a mut Commands<'w, 's>) -> Self {
         Self {
             cmd: Some(cmd),
-            view_accumulator: ViewDescriptor::default(),
+            view_descriptor: ViewDescriptor::default(),
             branch_handle: 0,
         }
     }
     fn cmd(&mut self) -> &mut Commands<'w, 's> {
         self.cmd.as_deref_mut().unwrap()
     }
-    #[allow(unused)]
     pub fn apply_aesthetic<A: Aesthetic>(&mut self, a: A) -> ViewDescriptor {
         let cmd = self.cmd.take().unwrap();
         let mut sub_builder = Self::new(cmd);
@@ -49,12 +48,12 @@ impl<'a, 'w, 's> ViewBuilder<'a, 'w, 's> {
             self.cmd().entity(scene_desc.root()).insert(rs);
             scene_desc
         };
-        self.view_accumulator.pool.0.insert(desc.root());
+        self.view_descriptor.pool.0.insert(desc.root());
         desc
     }
     pub fn add<B: Bundle>(&mut self, b: B, rs: ResponsiveSegment) -> Entity {
         let ent = { self.cmd().spawn(b).insert(rs).id() };
-        self.view_accumulator.pool.0.insert(ent);
+        self.view_descriptor.pool.0.insert(ent);
         ent
     }
     pub fn conditional<BR: Clone + Send + Sync + 'static>(
@@ -71,7 +70,7 @@ impl<'a, 'w, 's> ViewBuilder<'a, 'w, 's> {
                 .id();
             ConditionHandle::new(branch_id, pre_spawned)
         };
-        self.view_accumulator
+        self.view_descriptor
             .branches
             .insert(self.branch_handle, desc.this());
         self.branch_handle += 1;
@@ -91,7 +90,7 @@ impl<'a, 'w, 's> ViewBuilder<'a, 'w, 's> {
                 .id();
             ConditionHandle::new(branch_id, pre_spawned)
         };
-        self.view_accumulator
+        self.view_descriptor
             .branches
             .insert(self.branch_handle, desc.this());
         self.branch_handle += 1;
@@ -124,7 +123,7 @@ impl<'a, 'w, 's> ViewBuilder<'a, 'w, 's> {
         }
     }
     pub fn finish(self) -> ViewDescriptor {
-        self.view_accumulator
+        self.view_descriptor
     }
 }
 #[derive(Default)]
