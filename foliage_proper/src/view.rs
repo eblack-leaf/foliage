@@ -4,6 +4,7 @@ use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::InterfaceContext;
+use crate::differential::Despawn;
 use crate::elm::config::CoreSet;
 use crate::elm::leaf::{EmptySetDescriptor, Leaf};
 use crate::elm::{Disabled, Elm};
@@ -152,6 +153,9 @@ fn navigation(
     if let Some((_e, n)) = query.iter().last() {
         if let Some(old) = compositor.current.take() {
             // despawn old
+            for e in old.pool.0 {
+                cmd.entity(e).insert(Despawn::signal_despawn());
+            }
         }
         // call .create(cmd) ...
         let desc = (compositor.views.get(&n.0).expect("view").create)(ViewBuilder::new(&mut cmd));

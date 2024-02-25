@@ -14,6 +14,7 @@ use foliage::text::{MaxCharacters, Text, TextValue};
 use foliage::view::{ViewBuilder, ViewDescriptor};
 pub struct BranchingButtonShowcase;
 impl BranchingButtonShowcase {
+    #[allow(unused)]
     fn view(mut view_builder: ViewBuilder) -> ViewDescriptor {
         view_builder.add_scene(
             IconText::new(
@@ -185,7 +186,7 @@ impl Leaf for BranchingButtonShowcase {
     type SetDescriptor = EmptySetDescriptor;
 
     fn attach(elm: &mut Elm) {
-        elm.add_interaction_handler::<SampleHook, Commands>(|sh, cmd| {
+        elm.add_interaction_handler::<SampleHook, Commands>(|sh, _cmd| {
             // cmd.spawn(BranchSet(BranchHandle(0), sh.0));
             // cmd.spawn(BranchSet(BranchHandle(1), sh.0));
             // cmd.spawn(BranchSet(BranchHandle(2), sh.0));
@@ -196,7 +197,7 @@ impl Leaf for BranchingButtonShowcase {
             // }
             sh.0 = !sh.0;
         });
-        elm.add_interaction_handler::<OtherHook, Commands>(|sh, cmd| {
+        elm.add_interaction_handler::<OtherHook, Commands>(|sh, _cmd| {
             // cmd.spawn(BranchSet(BranchHandle(3), sh.0));
             // cmd.spawn(BranchSet(BranchHandle(4), sh.0));
             // cmd.spawn(BranchSet(BranchHandle(5), sh.0));

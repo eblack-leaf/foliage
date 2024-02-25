@@ -24,6 +24,7 @@ pub struct ProgressBar {
     percent: f32,
 }
 impl ProgressBar {
+    #[allow(unused)]
     pub fn new<C: Into<Color>>(p: f32, fc: C, bc: C) -> Self {
         Self {
             foreground_color: fc.into(),
