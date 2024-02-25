@@ -20,12 +20,14 @@ use std::collections::{HashMap, HashSet};
 pub struct ViewBuilder<'a, 'w, 's> {
     cmd: &'a mut Commands<'w, 's>,
     view: ViewDescriptor,
+    branch_handle: i32,
 }
 impl<'a, 'w, 's> ViewBuilder<'a, 'w, 's> {
     pub fn new(cmd: &mut Commands) -> Self {
         Self {
             cmd,
             view: View::default(),
+            branch_handle: 0,
         }
     }
     pub fn add_scene<S: Scene>(&mut self, s: S, rs: ResponsiveSegment) -> SceneDesc {
@@ -44,7 +46,6 @@ impl<'a, 'w, 's> ViewBuilder<'a, 'w, 's> {
     }
     pub fn conditional<BR: Clone + Send + Sync + 'static>(
         &mut self,
-        bh: i32,
         br: BR,
         rs: ResponsiveSegment,
     ) -> ConditionHandle {
@@ -57,12 +58,12 @@ impl<'a, 'w, 's> ViewBuilder<'a, 'w, 's> {
                 .id();
             ConditionHandle::new(branch_id, pre_spawned)
         };
-        self.view.branches.insert(bh, desc.this());
+        self.view.branches.insert(self.branch_handle, desc.this());
+        self.branch_handle += 1;
         desc
     }
     pub fn conditional_scene<S: Scene + Clone>(
         &mut self,
-        bh: i32,
         s: S,
         rs: ResponsiveSegment,
     ) -> ConditionHandle {
@@ -75,7 +76,8 @@ impl<'a, 'w, 's> ViewBuilder<'a, 'w, 's> {
                 .id();
             ConditionHandle::new(branch_id, pre_spawned)
         };
-        self.view.branches.insert(bh, desc.this());
+        self.view.branches.insert(self.branch_handle, desc.this());
+        self.branch_handle += 1;
         desc
     }
     pub fn extend<Ext: Bundle>(&mut self, entity: Entity, ext: Ext) {
