@@ -40,7 +40,15 @@ impl<'a, 'w, 's> ViewBuilder<'a, 'w, 's> {
         let mut sub_builder = Self::new(cmd);
         a.pigment(&mut sub_builder);
         self.cmd.replace(sub_builder.cmd.take().unwrap());
-        sub_builder.finish()
+        let desc = sub_builder.finish();
+        self.view_descriptor.pool.0.extend(&desc.pool.0);
+        for b in desc.branches {
+            self.view_descriptor
+                .branches
+                .insert(b.0 + self.branch_handle, b.1);
+            self.branch_handle += 1;
+        }
+        desc
     }
     pub fn add_scene<S: Scene>(&mut self, s: S, rs: ResponsiveSegment) -> SceneHandle {
         let desc = {
