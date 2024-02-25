@@ -9,7 +9,6 @@ use std::hash::Hash;
 pub enum ExternalSet {
     InteractionTriggers,
     Process,
-    Show,
     ConditionalBind,
     ConditionalExt,
     Spawn,
@@ -22,7 +21,7 @@ pub enum CoreSet {
     // InteractionTriggers,
     // Process,
     ProcessEvent,
-    // Show,
+    Navigation,
     ConditionPrepare,
     // ConditionalBind,
     // ConditionalExt,
@@ -54,7 +53,7 @@ impl<'a> ElmConfiguration<'a> {
                 ExternalSet::InteractionTriggers,
                 ExternalSet::Process,
                 CoreSet::ProcessEvent,
-                ExternalSet::Show,
+                CoreSet::Navigation,
                 CoreSet::ConditionPrepare,
                 ExternalSet::ConditionalBind,
                 ExternalSet::ConditionalExt,
@@ -104,9 +103,9 @@ impl<'a> ElmConfiguration<'a> {
                 .before(CoreSet::ProcessEvent),
             apply_deferred
                 .after(CoreSet::ProcessEvent)
-                .before(ExternalSet::Show),
+                .before(CoreSet::Navigation),
             apply_deferred
-                .after(ExternalSet::Show)
+                .after(CoreSet::Navigation)
                 .before(CoreSet::ConditionPrepare),
             apply_deferred
                 .after(CoreSet::ConditionPrepare)

@@ -8,6 +8,7 @@ use crate::animate::trigger::Trigger;
 use crate::ash::render_packet::RenderPacketForwarder;
 use crate::ash::render_packet::RenderPacketPackage;
 use crate::asset::{AssetContainer, AssetFetchFn, AssetKey, OnFetch};
+use crate::conditional::{conditional_extension, conditional_scene_spawn, conditional_spawn};
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
@@ -16,12 +17,10 @@ use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::job::{Container, Job, Task};
+use crate::r_view::{Navigate, ViewHandle};
 use crate::scene::{Binder, Scene, SceneDesc};
 use crate::segment::ResponsiveSegment;
-use crate::view::{
-    conditional_extension, conditional_scene_spawn, conditional_spawn, photosynthesize, Compositor,
-    Photosynthesis, Photosynthesize,
-};
+use crate::view::{photosynthesize, Compositor, Photosynthesis, Photosynthesize};
 use crate::window::ScaleFactor;
 #[cfg(target_family = "wasm")]
 use crate::Workflow;
@@ -275,12 +274,8 @@ impl Elm {
         self.main()
             .add_systems(conditional_scene_spawn::<S>.in_set(ExternalSet::ConditionalBind));
     }
-    pub fn enable_view<S: Photosynthesis + Send + Sync + 'static>(&mut self) {
-        self.main()
-            .add_systems(photosynthesize::<S>.in_set(ExternalSet::Show));
-    }
-    pub fn navigate_to<V: Photosynthesis + Send + Sync + 'static>(&mut self) {
-        self.container().spawn(Photosynthesize::<V>::new());
+    pub fn navigate_to(&mut self, vh: ViewHandle) {
+        self.container().spawn(Navigate(vh));
     }
 }
 pub type InteractionHandlerFn<IH, Ext> = fn(&mut IH, &mut StaticSystemParam<Ext>);

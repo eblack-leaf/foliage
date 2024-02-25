@@ -12,6 +12,7 @@ pub enum SpawnTarget {
     This(Entity),
     BindingOf(Entity, SceneBinding),
 }
+#[derive(Component, Clone)]
 pub struct Conditional<C: Clone> {
     c: C,
     target: SpawnTarget,
@@ -26,6 +27,7 @@ impl<C: Clone> Conditional<C> {
         }
     }
 }
+#[derive(Component, Clone)]
 pub struct ConditionalScene<CS: Scene + Clone> {
     cs: CS,
     target: SpawnTarget,
@@ -40,6 +42,7 @@ impl<CS: Scene + Clone> ConditionalScene<CS> {
         }
     }
 }
+#[derive(Copy, Clone)]
 pub struct ConditionHandle {
     this: Entity,
     target: Entity,
@@ -51,7 +54,7 @@ impl ConditionHandle {
     pub fn target(&self) -> Entity {
         self.target
     }
-    fn new(this: Entity, target: Entity) -> Self {
+    pub(crate) fn new(this: Entity, target: Entity) -> Self {
         Self { this, target }
     }
 }
