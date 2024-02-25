@@ -19,7 +19,7 @@ use crate::ginkgo::viewport::ViewportHandle;
 use crate::job::{Container, Job, Task};
 use crate::r_view::{Navigate, ViewHandle};
 use crate::scene::{Binder, Scene, SceneDesc};
-use crate::segment::ResponsiveSegment;
+use crate::segment::{MacroGrid, ResponsiveSegment};
 use crate::view::{photosynthesize, Compositor, Photosynthesis, Photosynthesize};
 use crate::window::ScaleFactor;
 #[cfg(target_family = "wasm")]
@@ -276,6 +276,9 @@ impl Elm {
     }
     pub fn navigate_to(&mut self, vh: ViewHandle) {
         self.container().spawn(Navigate(vh));
+    }
+    pub fn set_macro_grid(&mut self, macro_grid: MacroGrid) {
+        self.container().insert_resource(macro_grid);
     }
 }
 pub type InteractionHandlerFn<IH, Ext> = fn(&mut IH, &mut StaticSystemParam<Ext>);

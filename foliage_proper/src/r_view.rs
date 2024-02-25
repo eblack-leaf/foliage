@@ -221,6 +221,8 @@ impl Leaf for View {
     type SetDescriptor = EmptySetDescriptor;
 
     fn attach(elm: &mut Elm) {
+        elm.container().insert_resource(Compositor::default());
+        elm.container().insert_resource(Layout::PORTRAIT_MOBILE);
         elm.main().add_systems((
             viewport_changed.in_set(CoreSet::Compositor),
             responsive_segment_changed.in_set(CoreSet::Compositor),
