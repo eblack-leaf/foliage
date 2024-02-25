@@ -42,10 +42,10 @@ impl<'a, 'w, 's> ViewBuilder<'a, 'w, 's> {
         self.cmd.replace(sub_builder.cmd.take().unwrap());
         let desc = sub_builder.finish();
         self.view_descriptor.pool.0.extend(&desc.pool.0);
-        for b in desc.branches {
+        for b in desc.branches.iter() {
             self.view_descriptor
                 .branches
-                .insert(b.0 + self.branch_handle, b.1);
+                .insert(b.0 + self.branch_handle, *b.1);
             self.branch_handle += 1;
         }
         desc
