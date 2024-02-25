@@ -1,3 +1,4 @@
+use crate::aesthetic::Aesthetic;
 use crate::conditional::{Branch, ConditionHandle, Conditional, SceneBranch, SpawnTarget};
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
@@ -18,29 +19,40 @@ use bevy_ecs::system::{Commands, Query, ResMut};
 use std::collections::{HashMap, HashSet};
 
 pub struct ViewBuilder<'a, 'w, 's> {
-    cmd: &'a mut Commands<'w, 's>,
+    cmd: Option<&'a mut Commands<'w, 's>>,
     view_accumulator: ViewDescriptor,
     branch_handle: i32,
 }
 impl<'a, 'w, 's> ViewBuilder<'a, 'w, 's> {
     pub fn new(cmd: &'a mut Commands<'w, 's>) -> Self {
         Self {
-            cmd,
+            cmd: Some(cmd),
             view_accumulator: ViewDescriptor::default(),
             branch_handle: 0,
         }
     }
+    fn cmd(&mut self) -> &mut Commands<'w, 's> {
+        self.cmd.as_deref_mut().unwrap()
+    }
+    #[allow(unused)]
+    pub fn apply_aesthetic<A: Aesthetic>(&mut self, a: A) -> ViewDescriptor {
+        let cmd = self.cmd.take().unwrap();
+        let mut sub_builder = Self::new(cmd);
+        a.pigment(&mut sub_builder);
+        self.cmd.replace(sub_builder.cmd.take().unwrap());
+        sub_builder.finish()
+    }
     pub fn add_scene<S: Scene>(&mut self, s: S, rs: ResponsiveSegment) -> SceneHandle {
         let desc = {
-            let scene_desc = s.create(Binder::new(self.cmd, None));
-            self.cmd.entity(scene_desc.root()).insert(rs);
+            let scene_desc = s.create(Binder::new(self.cmd.as_mut().unwrap(), None));
+            self.cmd().entity(scene_desc.root()).insert(rs);
             scene_desc
         };
         self.view_accumulator.pool.0.insert(desc.root());
         desc
     }
     pub fn add<B: Bundle>(&mut self, b: B, rs: ResponsiveSegment) -> Entity {
-        let ent = { self.cmd.spawn(b).insert(rs).id() };
+        let ent = { self.cmd().spawn(b).insert(rs).id() };
         self.view_accumulator.pool.0.insert(ent);
         ent
     }
@@ -50,9 +62,9 @@ impl<'a, 'w, 's> ViewBuilder<'a, 'w, 's> {
         rs: ResponsiveSegment,
     ) -> ConditionHandle {
         let desc = {
-            let pre_spawned = self.cmd.spawn_empty().id();
+            let pre_spawned = self.cmd.as_mut().unwrap().spawn_empty().id();
             let branch_id = self
-                .cmd
+                .cmd()
                 .spawn(Branch::new(br, SpawnTarget::This(pre_spawned), false))
                 .insert(Conditional::new(rs, SpawnTarget::This(pre_spawned), false))
                 .id();
@@ -70,9 +82,9 @@ impl<'a, 'w, 's> ViewBuilder<'a, 'w, 's> {
         rs: ResponsiveSegment,
     ) -> ConditionHandle {
         let desc = {
-            let pre_spawned = self.cmd.spawn_empty().id();
+            let pre_spawned = self.cmd.as_mut().unwrap().spawn_empty().id();
             let branch_id = self
-                .cmd
+                .cmd()
                 .spawn(SceneBranch::new(s, SpawnTarget::This(pre_spawned), false))
                 .insert(Conditional::new(rs, SpawnTarget::This(pre_spawned), false))
                 .id();
@@ -85,7 +97,7 @@ impl<'a, 'w, 's> ViewBuilder<'a, 'w, 's> {
         desc
     }
     pub fn extend<Ext: Bundle>(&mut self, entity: Entity, ext: Ext) {
-        self.cmd.entity(entity).insert(ext);
+        self.cmd().entity(entity).insert(ext);
     }
     pub fn conditional_extend<Ext: Bundle + Clone>(
         &mut self,
@@ -95,14 +107,14 @@ impl<'a, 'w, 's> ViewBuilder<'a, 'w, 's> {
     ) {
         match extend_target {
             ExtendTarget::This => {
-                self.cmd.entity(ch.this()).insert(Conditional::<Ext>::new(
+                self.cmd().entity(ch.this()).insert(Conditional::<Ext>::new(
                     ext,
                     SpawnTarget::This(ch.target()),
                     true,
                 ));
             }
             ExtendTarget::Binding(bind) => {
-                self.cmd.entity(ch.this()).insert(Conditional::<Ext>::new(
+                self.cmd().entity(ch.this()).insert(Conditional::<Ext>::new(
                     ext,
                     SpawnTarget::BindingOf(ch.target(), bind),
                     true,

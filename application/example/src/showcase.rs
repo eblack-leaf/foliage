@@ -134,7 +134,7 @@ impl ButtonShowcase {
             ))
             .justify(Justify::Top),
         );
-        ButtonDisplay::new(
+        view_builder.apply_aesthetic(ButtonDisplay::new(
             Button::new(
                 IconText::new(
                     FeatherIcon::Copy,
@@ -163,9 +163,8 @@ impl ButtonShowcase {
             2,
             None,
             Some(45.0),
-        )
-        .pigment(&mut view_builder);
-        ButtonDisplay::new(
+        ));
+        view_builder.apply_aesthetic(ButtonDisplay::new(
             TextButton::new(
                 TextValue::new("copy"),
                 MaxCharacters(4),
@@ -184,9 +183,8 @@ impl ButtonShowcase {
             3,
             None,
             Some(45.0),
-        )
-        .pigment(&mut view_builder);
-        ButtonDisplay::new(
+        ));
+        view_builder.apply_aesthetic(ButtonDisplay::new(
             CircleButton::new(
                 FeatherIcon::Copy,
                 ElementStyle::fill(),
@@ -203,9 +201,8 @@ impl ButtonShowcase {
             4,
             Some(55.0),
             Some(55.0),
-        )
-        .pigment(&mut view_builder);
-        ButtonDisplay::new(
+        ));
+        view_builder.apply_aesthetic(ButtonDisplay::new(
             IconButton::new(
                 FeatherIcon::Copy,
                 ElementStyle::fill(),
@@ -222,8 +219,7 @@ impl ButtonShowcase {
             5,
             Some(45.0),
             Some(45.0),
-        )
-        .pigment(&mut view_builder);
+        ));
         view_builder.finish()
     }
 }

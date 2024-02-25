@@ -1,6 +1,7 @@
 use crate::r_scenes::{BackgroundColor, ForegroundColor};
 use foliage_macros::{inner_set_descriptor, InnerSceneBinding};
 use foliage_proper::bevy_ecs;
+use foliage_proper::bevy_ecs::bundle::Bundle;
 use foliage_proper::bevy_ecs::entity::Entity;
 use foliage_proper::bevy_ecs::prelude::{Component, IntoSystemConfigs};
 use foliage_proper::bevy_ecs::query::{Changed, Or, Without};
@@ -10,7 +11,10 @@ use foliage_proper::coordinate::{Coordinate, InterfaceContext};
 use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
 use foliage_proper::elm::leaf::{Leaf, Tag};
 use foliage_proper::elm::Elm;
-use foliage_proper::scene::micro_grid::MicroGrid;
+use foliage_proper::rectangle::Rectangle;
+use foliage_proper::scene::micro_grid::{
+    Alignment, AlignmentDesc, AnchorDim, MicroGrid, RelativeMarker,
+};
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
 use foliage_proper::texture::factors::Progress;
 
@@ -44,6 +48,7 @@ impl ProgressPercent {
         Self(v.min(1.0).max(0.0))
     }
 }
+#[derive(Bundle)]
 pub struct ProgressBarComponents {
     pub foreground_color: ForegroundColor,
     pub background_color: BackgroundColor,
@@ -99,6 +104,26 @@ impl Scene for ProgressBar {
     }
 
     fn create(self, mut binder: Binder) -> SceneHandle {
+        binder.bind(
+            ProgressBarBindings::Fill,
+            Alignment::new(
+                0.fixed_from(RelativeMarker::Center),
+                0.fixed_from(RelativeMarker::Center),
+                1.percent_of(AnchorDim::Width),
+                1.percent_of(AnchorDim::Height),
+            ),
+            Rectangle::new(self.foreground_color, Progress::new(0.0, self.percent)),
+        );
+        binder.bind(
+            ProgressBarBindings::Back,
+            Alignment::new(
+                0.fixed_from(RelativeMarker::Center),
+                0.fixed_from(RelativeMarker::Center),
+                1.percent_of(AnchorDim::Width),
+                1.percent_of(AnchorDim::Height),
+            ),
+            Rectangle::new(self.background_color, Progress::full()),
+        );
         binder.finish::<Self>(SceneComponents::new(
             MicroGrid::new(),
             ProgressBarComponents::new(self.foreground_color, self.background_color, self.percent),
