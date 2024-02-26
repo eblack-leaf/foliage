@@ -7,12 +7,12 @@ mod scene;
 
 pub struct Dropdown<Display, ValueSetter> {
     rs: ResponsiveSegment,
-    displays: Vec<(Display, ValueSetter)>,
+    displays: Vec<Display>,
     // value setters (on-trigger of the interactive anonymous binding slots?)
     //
 }
 
-impl<Display, ValueSetter> Aesthetic for Dropdown<Display, ValueSetter> {
+impl<Display, DerivedValue> Aesthetic for Dropdown<Display, DerivedValue> {
     fn pigment(self, view_builder: &mut ViewBuilder) {
         let handle = view_builder.add_scene(
             DropdownScene::new(
