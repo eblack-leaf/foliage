@@ -9,12 +9,12 @@ use foliage::layout::Layout;
 use foliage::r_scenes::button::Button;
 use foliage::r_scenes::icon_text::IconText;
 use foliage::scene::ExtendTarget;
-use foliage::segment::{Justify, ResponsiveSegment, Segment, SegmentUnitDesc};
+use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::text::{MaxCharacters, Text, TextValue};
-use foliage::view::{ViewBuilder, ViewDescriptor};
+use foliage::view::{ViewBuilder, ViewDescriptor, Viewable};
 pub struct BranchingButtonShowcase;
-impl BranchingButtonShowcase {
-    #[allow(unused)]
+impl Viewable for BranchingButtonShowcase {
+    const GRID: MacroGrid = MacroGrid::new(8, 6);
     fn view(mut view_builder: ViewBuilder) -> ViewDescriptor {
         view_builder.add_scene(
             IconText::new(

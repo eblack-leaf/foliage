@@ -18,7 +18,17 @@ use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Changed, Component, IntoSystemConfigs, Resource};
 use bevy_ecs::system::{Commands, Query, ResMut};
 use std::collections::{HashMap, HashSet};
-
+#[derive(Copy, Clone, Component)]
+pub(crate) struct PersistentView(pub ViewHandle);
+impl PersistentView {
+    pub fn new<VH: Into<ViewHandle>>(vh: VH) -> Self {
+        Self(vh.into())
+    }
+}
+pub trait Viewable {
+    const GRID: MacroGrid;
+    fn view(view_builder: ViewBuilder) -> ViewDescriptor;
+}
 pub struct ViewBuilder<'a, 'w, 's> {
     cmd: Option<&'a mut Commands<'w, 's>>,
     view_descriptor: ViewDescriptor,
@@ -80,7 +90,7 @@ impl<'a, 'w, 's> ViewBuilder<'a, 'w, 's> {
         };
         self.view_descriptor
             .branches
-            .insert(self.branch_handle, desc.this());
+            .insert(self.branch_handle, desc);
         self.branch_handle += 1;
         desc
     }
@@ -100,7 +110,7 @@ impl<'a, 'w, 's> ViewBuilder<'a, 'w, 's> {
         };
         self.view_descriptor
             .branches
-            .insert(self.branch_handle, desc.this());
+            .insert(self.branch_handle, desc);
         self.branch_handle += 1;
         desc
     }
@@ -134,19 +144,30 @@ impl<'a, 'w, 's> ViewBuilder<'a, 'w, 's> {
         self.view_descriptor
     }
 }
+pub type Branches = HashMap<i32, ConditionHandle>;
 #[derive(Default)]
 pub struct ViewDescriptor {
     pool: EntityPool,
-    branches: HashMap<i32, Entity>,
+    branches: Branches,
+}
+impl ViewDescriptor {
+    pub fn pool(&self) -> &EntityPool {
+        &self.pool
+    }
+    pub fn branches(&self) -> &Branches {
+        &self.branches
+    }
 }
 pub type Create = fn(ViewBuilder) -> ViewDescriptor;
 pub struct View {
     pub(crate) create: Box<Create>,
+    pub(crate) grid: MacroGrid,
 }
 impl View {
-    pub fn new(create: Create) -> Self {
+    pub(crate) fn new(create: Create, macro_grid: MacroGrid) -> Self {
         Self {
             create: Box::new(create),
+            grid: macro_grid,
         }
     }
 }
@@ -156,6 +177,7 @@ fn navigation(
     query: Query<(Entity, &Navigate)>,
     mut cmd: Commands,
     mut compositor: ResMut<Compositor>,
+    mut macro_grid: ResMut<MacroGrid>,
 ) {
     if let Some((_e, n)) = query.iter().last() {
         if let Some(old) = compositor.current.take() {
@@ -165,7 +187,10 @@ fn navigation(
             }
         }
         // call .create(cmd) ...
-        let desc = (compositor.views.get(&n.0).expect("view").create)(ViewBuilder::new(&mut cmd));
+
+        let v = compositor.views.get(&n.0).expect("view");
+        *macro_grid = v.grid;
+        let desc = (v.create)(ViewBuilder::new(&mut cmd));
         // set view
         compositor.current.replace(desc);
     }
@@ -186,7 +211,7 @@ pub struct EntityPool(pub HashSet<Entity>);
 pub struct Compositor {
     pub(crate) views: HashMap<ViewHandle, View>,
     current: Option<ViewDescriptor>,
-    pub(crate) persistent: HashMap<ViewHandle, ViewDescriptor>,
+    pub(crate) persistent: HashMap<ViewHandle, (MacroGrid, ViewDescriptor)>,
 }
 fn viewport_changed(
     mut query: Query<(
@@ -195,16 +220,27 @@ fn viewport_changed(
         &mut Area<InterfaceContext>,
         &mut Layer,
         &mut Disabled,
+        Option<&PersistentView>,
     )>,
     viewport_handle: Res<ViewportHandle>,
     grid: Res<MacroGrid>,
     mut layout: ResMut<Layout>,
+    compositor: Res<Compositor>,
 ) {
     if viewport_handle.area_updated() {
         *layout = Layout::from_area(viewport_handle.section().area);
-        for (res_seg, mut pos, mut area, mut layer, mut disabled) in query.iter_mut() {
+        for (res_seg, mut pos, mut area, mut layer, mut disabled, pv) in query.iter_mut() {
             // calc
-            if let Some(coord) = res_seg.coordinate(*layout, viewport_handle.section(), &grid) {
+            let g = if let Some(pg) = pv {
+                &compositor
+                    .persistent
+                    .get(&pg.0)
+                    .expect("invalid-persistent-link")
+                    .0
+            } else {
+                &grid
+            };
+            if let Some(coord) = res_seg.coordinate(*layout, viewport_handle.section(), g) {
                 *pos = coord.section.position;
                 *area = coord.section.area;
                 *layer = coord.layer;
@@ -225,16 +261,27 @@ fn responsive_segment_changed(
             &mut Area<InterfaceContext>,
             &mut Layer,
             &mut Disabled,
+            Option<&PersistentView>,
         ),
         Changed<ResponsiveSegment>,
     >,
     viewport_handle: Res<ViewportHandle>,
     layout: Res<Layout>,
     grid: Res<MacroGrid>,
+    compositor: Res<Compositor>,
 ) {
-    for (res_seg, mut pos, mut area, mut layer, mut disabled) in query.iter_mut() {
+    for (res_seg, mut pos, mut area, mut layer, mut disabled, pv) in query.iter_mut() {
         // calc
-        if let Some(coord) = res_seg.coordinate(*layout, viewport_handle.section(), &grid) {
+        let g = if let Some(pg) = pv {
+            &compositor
+                .persistent
+                .get(&pg.0)
+                .expect("invalid-persistent-link")
+                .0
+        } else {
+            &grid
+        };
+        if let Some(coord) = res_seg.coordinate(*layout, viewport_handle.section(), g) {
             *pos = coord.section.position;
             *area = coord.section.area;
             *layer = coord.layer;
@@ -252,6 +299,7 @@ impl Leaf for View {
     fn attach(elm: &mut Elm) {
         elm.container().insert_resource(Compositor::default());
         elm.container().insert_resource(Layout::PORTRAIT_MOBILE);
+        elm.container().insert_resource(MacroGrid::new(8, 8));
         elm.main().add_systems((
             viewport_changed.in_set(CoreSet::Compositor),
             responsive_segment_changed.in_set(CoreSet::Compositor),

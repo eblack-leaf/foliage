@@ -11,9 +11,9 @@ use foliage::r_scenes::icon_button::IconButton;
 use foliage::r_scenes::icon_text::IconText;
 use foliage::r_scenes::text_button::TextButton;
 use foliage::scene::Scene;
-use foliage::segment::{Justify, ResponsiveSegment, Segment, SegmentUnitDesc};
+use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::text::{MaxCharacters, Text, TextValue};
-use foliage::view::{ViewBuilder, ViewDescriptor};
+use foliage::view::{ViewBuilder, ViewDescriptor, Viewable};
 struct ButtonDisplay<T> {
     first: T,
     second: T,
@@ -118,8 +118,9 @@ impl<T: Scene> Aesthetic for ButtonDisplay<T> {
     }
 }
 pub struct ButtonShowcase;
-impl ButtonShowcase {
-    pub(crate) fn view(mut view_builder: ViewBuilder) -> ViewDescriptor {
+impl Viewable for ButtonShowcase {
+    const GRID: MacroGrid = MacroGrid::new(8, 6);
+    fn view(mut view_builder: ViewBuilder) -> ViewDescriptor {
         view_builder.add_scene(
             IconText::new(
                 FeatherIcon::Menu,

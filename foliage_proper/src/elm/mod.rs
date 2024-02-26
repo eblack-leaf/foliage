@@ -18,8 +18,9 @@ use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::job::{Container, Job, Task};
 use crate::scene::Scene;
-use crate::segment::MacroGrid;
-use crate::view::{Compositor, Create, Navigate, View, ViewBuilder, ViewDescriptor, ViewHandle};
+use crate::view::{
+    Compositor, Navigate, PersistentView, View, ViewBuilder, ViewDescriptor, ViewHandle, Viewable,
+};
 use crate::window::ScaleFactor;
 #[cfg(target_family = "wasm")]
 use crate::Workflow;
@@ -265,27 +266,32 @@ impl Elm {
     pub fn navigate_to<VH: Into<ViewHandle>>(&mut self, vh: VH) {
         self.container().spawn(Navigate(vh.into()));
     }
-    pub fn add_view<VH: Into<ViewHandle>>(&mut self, vh: VH, create: Create) {
+    pub fn add_view<V: Viewable>(&mut self, vh: ViewHandle) {
         self.container()
             .get_resource_mut::<Compositor>()
             .unwrap()
             .views
-            .insert(vh.into(), View::new(create));
+            .insert(vh.into(), View::new(V::view, V::GRID));
     }
-    pub fn set_macro_grid(&mut self, macro_grid: MacroGrid) {
-        self.container().insert_resource(macro_grid);
-    }
-    pub fn persistent_view<VH: Into<ViewHandle>>(&mut self, vh: VH, view: View) {
+    pub fn persistent_view<V: Viewable>(&mut self, vh: ViewHandle) {
         let desc = self
             .container()
             .run_system_once(move |mut cmd: Commands| -> ViewDescriptor {
-                (view.create)(ViewBuilder::new(&mut cmd))
+                let d = V::view(ViewBuilder::new(&mut cmd));
+                for a in d.pool().0.iter() {
+                    cmd.entity(*a).insert(PersistentView::new(vh));
+                }
+                for b in d.branches().values() {
+                    cmd.entity(b.target()).insert(PersistentView::new(vh));
+                }
+                d
             });
+
         self.container()
             .get_resource_mut::<Compositor>()
             .unwrap()
             .persistent
-            .insert(vh.into(), desc);
+            .insert(vh, (V::GRID, desc));
     }
 }
 pub type InteractionHandlerFn<IH, Ext> = fn(&mut IH, &mut StaticSystemParam<Ext>);
