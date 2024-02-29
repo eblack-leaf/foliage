@@ -1,17 +1,15 @@
 use crate::r_scenes::text_button::TextButton;
+use crate::r_scenes::UIColor;
 use foliage_proper::bevy_ecs::entity::Entity;
 use foliage_proper::bevy_ecs::prelude::Component;
 use foliage_proper::bevy_ecs::system::SystemParamItem;
-use foliage_proper::color::Color;
 use foliage_proper::coordinate::{Coordinate, InterfaceContext};
-use foliage_proper::elm::{BundleExtend, ElementStyle};
-use foliage_proper::interaction::InteractionListener;
-use foliage_proper::panel::Panel;
+use foliage_proper::elm::ElementStyle;
 use foliage_proper::scene::micro_grid::{
     Alignment, AlignmentDesc, AnchorDim, MicroGrid, RelativeMarker,
 };
 use foliage_proper::scene::{Binder, Bindings, BlankNode, Scene, SceneComponents, SceneHandle};
-use foliage_proper::text::MaxCharacters;
+use foliage_proper::text::{MaxCharacters, TextValue};
 
 #[derive(Component, Copy, Clone)]
 pub enum ExpandDirection {
@@ -32,10 +30,16 @@ pub struct Displays(pub Vec<String>);
 pub(crate) struct DropdownScene {
     max_chars: MaxCharacters,
     element_style: ElementStyle,
-    display_color: Color,
+    displays: Displays,
+    ui_color: UIColor,
 }
 impl DropdownScene {
-    pub(crate) fn new(num_displays: usize, expand_direction: ExpandDirection) -> Self {
+    pub(crate) fn new(
+        displays: Displays,
+        expand_direction: ExpandDirection,
+        element_style: ElementStyle,
+        ui_color: UIColor,
+    ) -> Self {
         todo!()
     }
 }
@@ -43,13 +47,20 @@ pub struct DropdownSceneComponents {
     pub max_characters: MaxCharacters,
     pub style: ElementStyle,
     pub displays: Displays,
+    pub ui_color: UIColor,
 }
 impl DropdownSceneComponents {
-    pub fn new(mc: MaxCharacters, style: ElementStyle, displays: Displays) -> Self {
+    pub fn new(
+        mc: MaxCharacters,
+        style: ElementStyle,
+        displays: Displays,
+        ui_color: UIColor,
+    ) -> Self {
         Self {
             max_characters: mc,
             style,
             displays,
+            ui_color,
         }
     }
 }
@@ -64,24 +75,43 @@ impl Scene for DropdownScene {
         ext: &mut SystemParamItem<Self::Params>,
         bindings: &Bindings,
     ) {
+        // cfg style and display button colors
         todo!()
     }
 
     fn create(self, mut binder: Binder) -> SceneHandle {
+        // to have Selection<T> inserted
+        // + when change Selection<T> derive base-text value with the .to_string() of T (or From)
         binder.bind(0, Alignment::default(), BlankNode::default());
-        binder.bind(
-            2,
+        // base node
+        binder.bind_scene(
+            1,
             Alignment::new(
                 0.percent_from(RelativeMarker::Center),
                 0.percent_from(RelativeMarker::Center),
                 1.percent_of(AnchorDim::Width),
                 1.percent_of(AnchorDim::Height),
             ),
-            TextButton::new(),
+            TextButton::new(
+                TextValue::new(self.displays.0.get(0).expect("need at least one display")),
+                self.max_chars,
+                self.element_style,
+                self.ui_color,
+            ),
         );
+        for i in 1..self.displays.0.len() {
+            let binding = i + 1;
+            // bind conditional text-button with display value (parallel) + offset 1 (for base)
+            //
+        }
         binder.finish::<Self>(SceneComponents::new(
             MicroGrid::new(),
-            DropdownSceneComponents::new(self.max_chars, self.element_style),
+            DropdownSceneComponents::new(
+                self.max_chars,
+                self.element_style,
+                self.displays,
+                self.ui_color,
+            ),
         ))
     }
 }

@@ -1,5 +1,5 @@
 use crate::r_scenes::button::{Button, ButtonInteractionHook, CurrentStyle};
-use crate::r_scenes::{BackgroundColor, ForegroundColor};
+use crate::r_scenes::{BackgroundColor, ForegroundColor, UIColor};
 use foliage_macros::{inner_set_descriptor, InnerSceneBinding};
 use foliage_proper::bevy_ecs;
 use foliage_proper::bevy_ecs::entity::Entity;
@@ -22,23 +22,20 @@ use foliage_proper::text::{MaxCharacters, Text, TextValue};
 pub struct TextButton {
     element_style: ElementStyle,
     text_value: TextValue,
-    foreground_color: Color,
-    background_color: Color,
+    ui_color: UIColor,
     max_chars: MaxCharacters,
 }
 impl TextButton {
-    pub fn new<C: Into<Color>, MC: Into<MaxCharacters>>(
+    pub fn new<C: Into<UIColor>, MC: Into<MaxCharacters>>(
         text_value: TextValue,
         max_characters: MC,
         element_style: ElementStyle,
-        foreground_color: C,
-        background_color: C,
+        ui_color: C,
     ) -> Self {
         Self {
             element_style,
             text_value,
-            foreground_color: foreground_color.into(),
-            background_color: background_color.into(),
+            ui_color: ui_color.into(),
             max_chars: max_characters.into(),
         }
     }
@@ -108,7 +105,7 @@ impl Scene for TextButton {
                 1.percent_of(AnchorDim::Width),
                 1.percent_of(AnchorDim::Height),
             ),
-            Panel::new(self.element_style, self.foreground_color),
+            Panel::new(self.element_style, self.ui_color.foreground.0),
         );
         binder.bind(
             TextButtonBindings::Text,
@@ -121,7 +118,7 @@ impl Scene for TextButton {
             Text::new(
                 self.max_chars,
                 self.text_value.clone(),
-                self.background_color,
+                self.ui_color.background.0,
             ),
         );
         binder.bind(
@@ -141,8 +138,8 @@ impl Scene for TextButton {
             (
                 <Button as Scene>::Components::new(
                     self.element_style,
-                    self.foreground_color,
-                    self.background_color,
+                    self.ui_color.foreground.0,
+                    self.ui_color.background.0,
                 ),
                 self.text_value,
                 self.max_chars,

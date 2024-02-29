@@ -1,23 +1,24 @@
-use crate::r_scenes::dropdown::scene::DropdownScene;
+use crate::r_scenes::dropdown::scene::{Displays, DropdownScene, ExpandDirection};
 use foliage_proper::aesthetic::Aesthetic;
 use foliage_proper::segment::ResponsiveSegment;
 use foliage_proper::view::ViewBuilder;
 
 mod scene;
 
-pub struct Dropdown<Display, ValueSetter> {
+pub struct Dropdown<Value> {
     rs: ResponsiveSegment,
-    displays: Vec<Display>,
-    // value setters (on-trigger of the interactive anonymous binding slots?)
-    //
+    displays: Vec<String>,
+    values: Vec<Value>,
+    expand_direction: ExpandDirection,
 }
 
-impl<Display, DerivedValue> Aesthetic for Dropdown<Display, DerivedValue> {
+impl<Value> Aesthetic for Dropdown<Value> {
     fn pigment(self, view_builder: &mut ViewBuilder) {
         let handle = view_builder.add_scene(
             DropdownScene::new(
                 // num slots
-                self.displays.len(),
+                Displays(self.displays),
+                self.expand_direction,
             ),
             self.rs,
         );
