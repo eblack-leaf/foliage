@@ -8,6 +8,7 @@ pub mod icon_button;
 pub mod icon_text;
 pub(crate) mod progress_bar;
 pub mod text_button;
+mod text_panel;
 
 use foliage_proper::bevy_ecs;
 #[derive(Component, Copy, Clone, Default)]

@@ -202,7 +202,7 @@ impl MicroGrid {
             }
     }
 }
-#[derive(Component, Copy, Clone)]
+#[derive(Component, Copy, Clone, Default)]
 pub struct Alignment {
     pub x: RelativeAlignment,
     pub y: RelativeAlignment,
@@ -230,8 +230,9 @@ impl Alignment {
         self
     }
 }
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub enum RelativeMarker {
+    #[default]
     Center,
     Left,
     Right,
@@ -260,7 +261,7 @@ impl RelativeMarker {
         }
     }
 }
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub struct RelativeAlignment {
     pub marker: RelativeMarker,
     pub unit: AlignmentUnit,
@@ -274,15 +275,16 @@ impl RelativeAlignment {
         self
     }
 }
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub struct AlignmentUnit {
     pub value: CoordinateUnit,
     pub op: AlignmentOp,
     pub dim: Option<AnchorDim>,
     pub align: Option<Align>,
 }
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub enum Align {
+    #[default]
     Center,
     Left,
     Right,
@@ -308,13 +310,15 @@ impl AlignmentUnit {
         self
     }
 }
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub enum AlignmentOp {
     Fixed,
+    #[default]
     Percent,
 }
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub enum AnchorDim {
+    #[default]
     Width,
     Height,
 }
