@@ -69,10 +69,11 @@ impl<Value: Clone + Display + Send + Sync + 'static> Aesthetic for Dropdown<Valu
                 view_builder.place_on(sn.entity(), DropdownValue(value.clone()));
                 continue;
             }
-            view_builder.place_on(
-                sn.entity(),
-                DropdownValue(self.values.get(sb.0 as usize).unwrap().clone()),
-            );
+            let binding_value = self.values.get(sb.0 as usize).unwrap().clone();
+            view_builder.place_on(sn.entity(), DropdownValue(binding_value));
+            // can give text value initially, but then when create? will it override?
+            // should this be derived as well from Values.get(0)?
+            view_builder.place_on(sn.entity(), TextValue::new(binding_value.clone()));
         }
     }
 }
