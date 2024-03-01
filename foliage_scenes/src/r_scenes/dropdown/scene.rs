@@ -34,6 +34,8 @@ pub(crate) struct DropdownScene {
     element_style: ElementStyle,
     displays: Displays,
     ui_color: UIColor,
+    pub expanded_state: ExpandState,
+    pub expand_direction: ExpandDirection,
 }
 impl DropdownScene {
     pub(crate) fn new(
@@ -53,6 +55,8 @@ pub struct DropdownSceneComponents {
     pub style: ElementStyle,
     pub displays: Displays,
     pub ui_color: UIColor,
+    pub expanded_state: ExpandState,
+    pub expand_direction: ExpandDirection,
 }
 impl DropdownSceneComponents {
     pub fn new(
@@ -60,12 +64,16 @@ impl DropdownSceneComponents {
         style: ElementStyle,
         displays: Displays,
         ui_color: UIColor,
+        expand_direction: ExpandDirection,
+        expand_state: ExpandState,
     ) -> Self {
         Self {
             max_characters: mc,
             style,
             displays,
             ui_color,
+            expanded_state: expand_state,
+            expand_direction,
         }
     }
 }
@@ -106,6 +114,26 @@ impl Scene for DropdownScene {
         );
         for i in 1..self.displays.0.len() {
             let binding = i;
+            let offset = match self.expand_direction {
+                ExpandDirection::Up => i * -1,
+                ExpandDirection::Down => i,
+            };
+            binder.bind(
+                i,
+                Alignment::new(
+                    0.percent_from(RelativeMarker::Center),
+                    offset.percent_from(RelativeMarker::Top),
+                    1.percent_of(AnchorDim::Width),
+                    1.percent_of(AnchorDim::Height),
+                ),
+                TextButton::new(
+                    TextValue::new(self.displays.0.get(i).expect("need at least one display")),
+                    self.max_chars,
+                    self.element_style,
+                    self.ui_color.foreground.0,
+                    self.ui_color.background.0,
+                ),
+            );
             // bind conditional text-button with display value (parallel) + offset 1 (for base)
             //
         }

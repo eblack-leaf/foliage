@@ -60,35 +60,19 @@ impl<Value: Clone + Display + Send + Sync + 'static> Aesthetic for Dropdown<Valu
         );
         let value = self.values.get(0).expect("must have one value").clone();
         let value_string = value.to_string();
-        view_builder.place_on(handle.root(), Selection(value));
+        view_builder.place_on(handle.root(), Selection(value.clone()));
         for (sb, sn) in handle.bindings().nodes().iter() {
             // base-cfg
             if sb.0 == 0 {
                 // give base a Value<T>
-                view_builder.place_on(sn.entity(), TextValue::new(value_string.clone()));
                 // also derive from Selection would take care of this
+                view_builder.place_on(sn.entity(), TextValue::new(value_string.clone()));
+                view_builder.place_on(sn.entity(), DropdownValue(value.clone()));
                 continue;
             }
-            // each other node needs
-            // ---- on-trigger => set selection (index not Value) (InteractionTriggers?)
-            // ---- func for pulling string from changed selections (Process? but then cant read in process)
-            // ---- ^^^ put in process because this is automatic reading which would be something
-            // ---- ^^^ you would schedule there
-            // ----if I need on-trigger, then I could just set display value there?
             view_builder.place_conditional_scene_on(
                 sn.entity(),
-                TextButton::new(
-                    TextValue::new(
-                        self.values
-                            .get(sb.0 as usize)
-                            .expect("parallel-values & display required")
-                            .to_string(),
-                    ),
-                    MaxCharacters(max_chars as u32),
-                    self.element_style,
-                    self.ui_color.foreground.0,
-                    self.ui_color.background.0,
-                ),
+                DropdownValue(self.values.get(sb.0 as usize).unwrap().clone()),
             );
         }
     }
