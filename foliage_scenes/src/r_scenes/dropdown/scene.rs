@@ -8,9 +8,9 @@ use foliage_proper::elm::ElementStyle;
 use foliage_proper::scene::micro_grid::{
     Alignment, AlignmentDesc, AnchorDim, MicroGrid, RelativeMarker,
 };
-use foliage_proper::scene::{Binder, Bindings, BlankNode, Scene, SceneComponents, SceneHandle};
+use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
 use foliage_proper::text::{MaxCharacters, TextValue};
-
+use foliage_proper::bevy_ecs;
 #[derive(Component, Copy, Clone)]
 pub enum ExpandDirection {
     Up,
@@ -18,8 +18,8 @@ pub enum ExpandDirection {
 }
 #[derive(Component, Copy, Clone)]
 pub enum ExpandState {
-    Open,
-    Closed,
+    Expanded,
+    Collapsed,
 }
 #[derive(Component, Clone)]
 pub struct Selection<T: Clone>(pub T);
@@ -43,11 +43,14 @@ impl DropdownScene {
         todo!()
     }
 }
+#[derive(Component, Copy, Clone)]
+pub struct CurrentSelection(pub u32);
 pub struct DropdownSceneComponents {
     pub max_characters: MaxCharacters,
     pub style: ElementStyle,
     pub displays: Displays,
     pub ui_color: UIColor,
+
 }
 impl DropdownSceneComponents {
     pub fn new(
@@ -82,10 +85,9 @@ impl Scene for DropdownScene {
     fn create(self, mut binder: Binder) -> SceneHandle {
         // to have Selection<T> inserted
         // + when change Selection<T> derive base-text value with the .to_string() of T (or From)
-        binder.bind(0, Alignment::default(), BlankNode::default());
         // base node
         binder.bind_scene(
-            1,
+            0,
             Alignment::new(
                 0.percent_from(RelativeMarker::Center),
                 0.percent_from(RelativeMarker::Center),
@@ -100,7 +102,7 @@ impl Scene for DropdownScene {
             ),
         );
         for i in 1..self.displays.0.len() {
-            let binding = i + 1;
+            let binding = i;
             // bind conditional text-button with display value (parallel) + offset 1 (for base)
             //
         }
