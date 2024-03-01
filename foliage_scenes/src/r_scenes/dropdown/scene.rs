@@ -1,5 +1,7 @@
 use crate::r_scenes::text_button::TextButton;
 use crate::r_scenes::UIColor;
+use foliage_proper::bevy_ecs;
+use foliage_proper::bevy_ecs::bundle::Bundle;
 use foliage_proper::bevy_ecs::entity::Entity;
 use foliage_proper::bevy_ecs::prelude::Component;
 use foliage_proper::bevy_ecs::system::SystemParamItem;
@@ -10,7 +12,7 @@ use foliage_proper::scene::micro_grid::{
 };
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
 use foliage_proper::text::{MaxCharacters, TextValue};
-use foliage_proper::bevy_ecs;
+
 #[derive(Component, Copy, Clone)]
 pub enum ExpandDirection {
     Up,
@@ -45,12 +47,12 @@ impl DropdownScene {
 }
 #[derive(Component, Copy, Clone)]
 pub struct CurrentSelection(pub u32);
+#[derive(Bundle)]
 pub struct DropdownSceneComponents {
     pub max_characters: MaxCharacters,
     pub style: ElementStyle,
     pub displays: Displays,
     pub ui_color: UIColor,
-
 }
 impl DropdownSceneComponents {
     pub fn new(
@@ -98,7 +100,8 @@ impl Scene for DropdownScene {
                 TextValue::new(self.displays.0.get(0).expect("need at least one display")),
                 self.max_chars,
                 self.element_style,
-                self.ui_color,
+                self.ui_color.foreground.0,
+                self.ui_color.background.0,
             ),
         );
         for i in 1..self.displays.0.len() {

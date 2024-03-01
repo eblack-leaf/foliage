@@ -6,6 +6,7 @@ use crate::button_tree::BranchingButtonShowcase;
 use crate::showcase::ButtonShowcase;
 use foliage::bevy_ecs;
 use foliage::bevy_ecs::prelude::Resource;
+use foliage::color::monochromatic::Orange;
 use foliage::coordinate::area::Area;
 use foliage::elm::config::ElmConfiguration;
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
@@ -86,3 +87,4 @@ impl Leaf for Main {
         elm.navigate_to(0);
     }
 }
+pub(crate) type ThemeColor = Orange;

@@ -1,5 +1,6 @@
+use crate::ThemeColor;
 use foliage::aesthetic::Aesthetic;
-use foliage::color::monochromatic::{Monochromatic, Orange as THEME_COLOR};
+use foliage::color::monochromatic::Monochromatic;
 use foliage::color::Color;
 use foliage::coordinate::CoordinateUnit;
 use foliage::elm::ElementStyle;
@@ -14,6 +15,7 @@ use foliage::scene::Scene;
 use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::text::{MaxCharacters, Text, TextValue};
 use foliage::view::{ViewBuilder, ViewDescriptor, Viewable};
+
 struct ButtonDisplay<T> {
     first: T,
     second: T,
@@ -101,7 +103,7 @@ impl<T: Scene> Aesthetic for ButtonDisplay<T> {
             Text::new(
                 MaxCharacters(11),
                 TextValue::new(self.desc),
-                THEME_COLOR::MINUS_THREE,
+                ThemeColor::MINUS_THREE,
             ),
             ResponsiveSegment::base(Segment::new(
                 7.near().to(8.far()),
@@ -145,7 +147,7 @@ impl Viewable for ButtonShowcase {
                     Color::BLACK,
                 ),
                 ElementStyle::fill(),
-                THEME_COLOR::MINUS_THREE,
+                ThemeColor::MINUS_THREE,
                 Color::BLACK,
             ),
             Button::new(
@@ -157,7 +159,7 @@ impl Viewable for ButtonShowcase {
                     Color::BLACK,
                 ),
                 ElementStyle::ring(),
-                THEME_COLOR::MINUS_THREE,
+                ThemeColor::MINUS_THREE,
                 Color::BLACK,
             ),
             "base".to_string(),
@@ -170,14 +172,14 @@ impl Viewable for ButtonShowcase {
                 TextValue::new("copy"),
                 MaxCharacters(4),
                 ElementStyle::fill(),
-                THEME_COLOR::MINUS_ONE,
+                ThemeColor::MINUS_ONE,
                 Color::BLACK,
             ),
             TextButton::new(
                 TextValue::new("copy"),
                 MaxCharacters(4),
                 ElementStyle::ring(),
-                THEME_COLOR::MINUS_ONE,
+                ThemeColor::MINUS_ONE,
                 Color::BLACK,
             ),
             "text".to_string(),
@@ -189,13 +191,13 @@ impl Viewable for ButtonShowcase {
             CircleButton::new(
                 FeatherIcon::Copy,
                 ElementStyle::fill(),
-                THEME_COLOR::PLUS_ONE,
+                ThemeColor::PLUS_ONE,
                 Color::BLACK,
             ),
             CircleButton::new(
                 FeatherIcon::Copy,
                 ElementStyle::ring(),
-                THEME_COLOR::PLUS_ONE,
+                ThemeColor::PLUS_ONE,
                 Color::BLACK,
             ),
             "circle".to_string(),
@@ -207,13 +209,13 @@ impl Viewable for ButtonShowcase {
             IconButton::new(
                 FeatherIcon::Copy,
                 ElementStyle::fill(),
-                THEME_COLOR::PLUS_THREE,
+                ThemeColor::PLUS_THREE,
                 Color::BLACK,
             ),
             IconButton::new(
                 FeatherIcon::Copy,
                 ElementStyle::ring(),
-                THEME_COLOR::PLUS_THREE,
+                ThemeColor::PLUS_THREE,
                 Color::BLACK,
             ),
             "icon".to_string(),

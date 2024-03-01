@@ -1,5 +1,5 @@
 use crate::r_scenes::icon_text::{IconColor, IconText, TextColor};
-use crate::r_scenes::{BackgroundColor, ForegroundColor};
+use crate::r_scenes::{BackgroundColor, ForegroundColor, UIColor};
 use foliage_macros::{inner_set_descriptor, InnerSceneBinding};
 use foliage_proper::animate::trigger::{Trigger, TriggerState};
 use foliage_proper::bevy_ecs;
@@ -48,8 +48,7 @@ pub struct CurrentStyle(pub ElementStyle);
 #[derive(Bundle)]
 pub struct ButtonComponents {
     pub element_style: ElementStyle,
-    pub foreground_color: ForegroundColor,
-    pub background_color: BackgroundColor,
+    pub ui_color: UIColor,
     current_style: CurrentStyle,
     trigger: Trigger,
 }
@@ -61,8 +60,7 @@ impl ButtonComponents {
     ) -> Self {
         Self {
             element_style,
-            foreground_color: ForegroundColor(foreground_color.into()),
-            background_color: BackgroundColor(background_color.into()),
+            ui_color: UIColor::new(foreground_color.into(), background_color.into()),
             current_style: CurrentStyle(element_style),
             trigger: Trigger::default(),
         }
