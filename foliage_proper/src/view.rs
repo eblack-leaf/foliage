@@ -42,6 +42,32 @@ impl<'a, 'w, 's> ViewBuilder<'a, 'w, 's> {
             branch_handle: 0,
         }
     }
+    pub fn place_conditional_scene_on<S: Scene + Clone>(
+        &mut self,
+        entity: Entity,
+        s: S,
+    ) -> ConditionHandle {
+        let desc = {
+            let pre_spawned = self.cmd.as_mut().unwrap().spawn_empty().id();
+            self.cmd().entity(entity).insert(SceneBranch::new(
+                s,
+                SpawnTarget::This(pre_spawned),
+                false,
+            ));
+            ConditionHandle::new(entity, pre_spawned)
+        };
+        self.view_descriptor
+            .branches
+            .insert(self.branch_handle, desc);
+        self.branch_handle += 1;
+        desc
+    }
+    pub fn place_scene_on<S: Scene>(&mut self, entity: Entity, s: S) -> SceneHandle {
+        s.create(Binder::new(self.cmd.as_mut().unwrap(), Some(entity)))
+    }
+    pub fn place_on<B: Bundle>(&mut self, entity: Entity, b: B) {
+        self.cmd.as_mut().unwrap().entity(entity).insert(b);
+    }
     fn cmd(&mut self) -> &mut Commands<'w, 's> {
         self.cmd.as_deref_mut().unwrap()
     }

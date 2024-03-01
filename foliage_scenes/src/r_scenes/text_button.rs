@@ -18,7 +18,7 @@ use foliage_proper::scene::micro_grid::{
 };
 use foliage_proper::scene::{Binder, Bindings, BlankNode, Scene, SceneComponents, SceneHandle};
 use foliage_proper::text::{MaxCharacters, Text, TextValue};
-
+#[derive(Clone)]
 pub struct TextButton {
     element_style: ElementStyle,
     text_value: TextValue,
