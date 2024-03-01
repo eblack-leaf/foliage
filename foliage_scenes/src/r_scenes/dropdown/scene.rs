@@ -113,13 +113,13 @@ impl Scene for DropdownScene {
             ),
         );
         for i in 1..self.displays.0.len() {
-            let binding = i;
+            let binding = i as i32;
             let offset = match self.expand_direction {
-                ExpandDirection::Up => i * -1,
-                ExpandDirection::Down => i,
+                ExpandDirection::Up => binding * -1,
+                ExpandDirection::Down => binding,
             };
-            binder.bind(
-                i,
+            binder.bind_conditional_scene(
+                binding,
                 Alignment::new(
                     0.percent_from(RelativeMarker::Center),
                     offset.percent_from(RelativeMarker::Top),
@@ -127,7 +127,12 @@ impl Scene for DropdownScene {
                     1.percent_of(AnchorDim::Height),
                 ),
                 TextButton::new(
-                    TextValue::new(self.displays.0.get(i).expect("need at least one display")),
+                    TextValue::new(
+                        self.displays
+                            .0
+                            .get(binding as usize)
+                            .expect("need at least one display"),
+                    ),
                     self.max_chars,
                     self.element_style,
                     self.ui_color.foreground.0,
@@ -144,6 +149,8 @@ impl Scene for DropdownScene {
                 self.element_style,
                 self.displays,
                 self.ui_color,
+                self.expand_direction,
+                ExpandState::Collapsed,
             ),
         ))
     }

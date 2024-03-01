@@ -1,12 +1,11 @@
 use crate::r_scenes::dropdown::scene::{Displays, DropdownScene, ExpandDirection, Selection};
-use crate::r_scenes::text_button::TextButton;
 use crate::r_scenes::UIColor;
 use foliage_proper::aesthetic::Aesthetic;
 use foliage_proper::bevy_ecs;
 use foliage_proper::bevy_ecs::prelude::Component;
 use foliage_proper::elm::ElementStyle;
 use foliage_proper::segment::ResponsiveSegment;
-use foliage_proper::text::{MaxCharacters, TextValue};
+use foliage_proper::text::TextValue;
 use foliage_proper::view::ViewBuilder;
 use std::fmt::Display;
 pub mod scene;
@@ -70,7 +69,7 @@ impl<Value: Clone + Display + Send + Sync + 'static> Aesthetic for Dropdown<Valu
                 view_builder.place_on(sn.entity(), DropdownValue(value.clone()));
                 continue;
             }
-            view_builder.place_conditional_scene_on(
+            view_builder.place_on(
                 sn.entity(),
                 DropdownValue(self.values.get(sb.0 as usize).unwrap().clone()),
             );

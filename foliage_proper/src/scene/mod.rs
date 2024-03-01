@@ -125,7 +125,12 @@ impl<'a, 'w, 's> Binder<'a, 'w, 's> {
     pub fn bind_conditional<C>() {
         todo!()
     }
-    pub fn bind_conditional_scene<S>() {
+    pub fn bind_conditional_scene<S: Scene + Clone, SA: Into<Alignment>, SB: Into<SceneBinding>>(
+        &mut self,
+        sb: SB,
+        sa: SA,
+        s: S,
+    ) {
         todo!()
     }
     pub fn extend<Ext: Bundle>(&mut self, entity: Entity, ext: Ext) {
