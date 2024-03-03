@@ -1,5 +1,6 @@
 pub mod micro_grid;
 
+use crate::conditional::{Branch, ConditionHandle, Conditional, SceneBranch, SpawnTarget};
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
@@ -26,16 +27,25 @@ impl Anchor {
 pub struct SceneHandle {
     root: Entity,
     bindings: Bindings,
+    branches: Option<HashSet<Entity>>,
 }
+
 impl SceneHandle {
-    pub(crate) fn new(root: Entity, bindings: Bindings) -> Self {
-        Self { root, bindings }
+    pub(crate) fn new(root: Entity, bindings: Bindings, branches: Option<HashSet<Entity>>) -> Self {
+        Self {
+            root,
+            bindings,
+            branches,
+        }
     }
     pub fn root(&self) -> Entity {
         self.root
     }
     pub fn bindings(&self) -> &Bindings {
         &self.bindings
+    }
+    pub fn branches(&self) -> Option<&HashSet<Entity>> {
+        self.branches.as_ref()
     }
 }
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
@@ -45,21 +55,25 @@ impl From<i32> for SceneBinding {
         Self(value)
     }
 }
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct SceneNode {
     entity: Entity,
-    is_scene: bool,
+    bindings: Option<Bindings>,
 }
 impl SceneNode {
-    fn new(entity: Entity, is_scene: bool) -> Self {
-        Self { entity, is_scene }
+    fn new(entity: Entity, bindings: Option<Bindings>) -> Self {
+        Self { entity, bindings }
     }
     pub fn entity(&self) -> Entity {
         self.entity
     }
+    pub fn bindings(&self) -> Option<&Bindings> {
+        self.bindings.as_ref()
+    }
 }
 pub struct Binder<'a, 'w, 's> {
     nodes: HashMap<SceneBinding, SceneNode>,
+    branches: HashSet<Entity>,
     root: Entity,
     cmd: &'a mut Commands<'w, 's>,
 }
@@ -72,11 +86,20 @@ impl<'a, 'w, 's> Binder<'a, 'w, 's> {
             .entity(entity)
             .insert(comps)
             .insert(bindings.clone());
-        SceneHandle::new(entity, bindings)
+        SceneHandle::new(
+            entity,
+            bindings,
+            if self.branches.is_empty() {
+                None
+            } else {
+                Some(self.branches)
+            },
+        )
     }
     pub fn new(cmd: &'a mut Commands<'w, 's>, root: Option<Entity>) -> Self {
         Self {
             nodes: HashMap::new(),
+            branches: HashSet::new(),
             root: root.unwrap_or(cmd.spawn_empty().id()),
             cmd,
         }
@@ -100,7 +123,7 @@ impl<'a, 'w, 's> Binder<'a, 'w, 's> {
                 sa.into(),
             ))
             .id();
-        self.nodes.insert(sb.into(), SceneNode::new(entity, false));
+        self.nodes.insert(sb.into(), SceneNode::new(entity, None));
         entity
     }
     pub fn bind_scene<S: Scene, SB: Into<SceneBinding>, SA: Into<Alignment>>(
@@ -118,20 +141,55 @@ impl<'a, 'w, 's> Binder<'a, 'w, 's> {
                 Anchor::default(),
                 sa.into(),
             ));
-        self.nodes
-            .insert(sb.into(), SceneNode::new(scene_desc.root(), true));
+        self.nodes.insert(
+            sb.into(),
+            SceneNode::new(scene_desc.root(), Some(scene_desc.bindings.clone())),
+        );
         scene_desc
     }
-    pub fn bind_conditional<C>() {
-        todo!()
+    pub fn bind_conditional<
+        SB: Into<SceneBinding>,
+        SA: Into<Alignment>,
+        C: Clone + Send + Sync + 'static,
+    >(
+        &mut self,
+        sb: SB,
+        sa: SA,
+        b: C,
+    ) -> ConditionHandle {
+        let pre_spawned = self.cmd.spawn_empty().id();
+        let main = self
+            .cmd
+            .spawn(Branch::new(b, SpawnTarget::This(pre_spawned), false))
+            .insert(Conditional::new(
+                SceneBindingComponents::new(self.root, Anchor::default(), sa.into()),
+                SpawnTarget::This(pre_spawned),
+                false,
+            ))
+            .id();
+        self.nodes.insert(sb.into(), SceneNode::new(main, None));
+        self.branches.insert(main);
+        ConditionHandle::new(main, pre_spawned)
     }
     pub fn bind_conditional_scene<S: Scene + Clone, SA: Into<Alignment>, SB: Into<SceneBinding>>(
         &mut self,
         sb: SB,
         sa: SA,
         s: S,
-    ) {
-        todo!()
+    ) -> ConditionHandle {
+        let pre_spawned = self.cmd.spawn_empty().id();
+        let main = self
+            .cmd
+            .spawn(SceneBranch::new(s, SpawnTarget::This(pre_spawned), false))
+            .insert(Conditional::new(
+                SceneBindingComponents::new(self.root, Anchor::default(), sa.into()),
+                SpawnTarget::This(pre_spawned),
+                false,
+            ))
+            .id();
+        self.nodes.insert(sb.into(), SceneNode::new(main, None));
+        self.branches.insert(main);
+        ConditionHandle::new(main, pre_spawned)
     }
     pub fn extend<Ext: Bundle>(&mut self, entity: Entity, ext: Ext) {
         self.cmd.entity(entity).insert(ext);
@@ -179,8 +237,8 @@ impl<S: Scene> SceneComponents<S> {
         }
     }
 }
-#[derive(Bundle)]
-struct SceneBindingComponents {
+#[derive(Bundle, Clone)]
+pub(crate) struct SceneBindingComponents {
     tag: Tag<IsDep>,
     anchor: Anchor,
     alignment: Alignment,
@@ -276,7 +334,7 @@ fn recursive_fetch(
                     let grid = grids.get(ptr.0).expect("scene-grid");
                     let anchor = Anchor(root_coordinate).aligned(grid, alignment);
                     fetch.push((bind.entity, anchor));
-                    if bind.is_scene {
+                    if bind.bindings.is_some() {
                         let others = recursive_fetch(anchor.0, bind.entity, &query, &grids);
                         fetch.extend(others);
                     }
@@ -305,14 +363,17 @@ pub(crate) fn resolve_anchor(
     for (pos, area, layer, bindings) in roots.iter() {
         let coordinate = Coordinate::new((*pos, *area), *layer);
         for (_, bind) in bindings.0.iter() {
-            let ptr = *deps.p0().get(bind.entity).unwrap().3;
-            let grid = grids.get(ptr.0).expect("scene-grid");
-            let anchor = Anchor(coordinate).aligned(grid, deps.p0().get(bind.entity).unwrap().1);
-            *deps.p1().get_mut(bind.entity).unwrap() = anchor;
-            if bind.is_scene {
-                let rf = recursive_fetch(anchor.0, bind.entity, &deps.p0(), &grids);
-                for (e, a) in rf {
-                    *deps.p1().get_mut(e).unwrap() = a;
+            if let Ok(ptr) = deps.p0().get(bind.entity) {
+                let ptr = ptr.3 .0;
+                let grid = grids.get(ptr).expect("scene-grid");
+                let anchor =
+                    Anchor(coordinate).aligned(grid, deps.p0().get(bind.entity).unwrap().1);
+                *deps.p1().get_mut(bind.entity).unwrap() = anchor;
+                if bind.bindings.is_some() {
+                    let rf = recursive_fetch(anchor.0, bind.entity, &deps.p0(), &grids);
+                    for (e, a) in rf {
+                        *deps.p1().get_mut(e).unwrap() = a;
+                    }
                 }
             }
         }

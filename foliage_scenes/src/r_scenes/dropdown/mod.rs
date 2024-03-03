@@ -1,13 +1,21 @@
 use crate::r_scenes::dropdown::scene::{Displays, DropdownScene, ExpandDirection, Selection};
 use crate::r_scenes::UIColor;
 use foliage_proper::aesthetic::Aesthetic;
+use foliage_proper::animate::trigger::Trigger;
 use foliage_proper::bevy_ecs;
-use foliage_proper::bevy_ecs::prelude::Component;
-use foliage_proper::elm::ElementStyle;
+use foliage_proper::bevy_ecs::entity::Entity;
+use foliage_proper::bevy_ecs::prelude::{
+    Changed, Commands, Component, IntoSystemConfigs, Query, World,
+};
+use foliage_proper::bevy_ecs::system::Command;
+use foliage_proper::elm::leaf::{EmptySetDescriptor, Leaf};
+use foliage_proper::elm::{ElementStyle, Elm};
 use foliage_proper::segment::ResponsiveSegment;
 use foliage_proper::text::TextValue;
 use foliage_proper::view::ViewBuilder;
+use std::collections::HashSet;
 use std::fmt::Display;
+
 pub mod scene;
 pub type DropdownDisplay = String;
 #[derive(Component, Clone)]
@@ -50,7 +58,7 @@ impl<Value: Clone + Display + Send + Sync + 'static> Aesthetic for Dropdown<Valu
             .expect("could not find max-chars");
         let handle = view_builder.add_scene(
             DropdownScene::new(
-                Displays(self.displays),
+                Displays(self.displays.clone()),
                 self.expand_direction,
                 self.element_style,
                 self.ui_color,
@@ -58,11 +66,20 @@ impl<Value: Clone + Display + Send + Sync + 'static> Aesthetic for Dropdown<Valu
             self.rs,
         );
         let value = self.values.get(0).expect("must have one value").clone();
-        let value_string = value.to_string();
+        let value_string = self.displays.get(0).expect("must have one display");
         view_builder.place_on(handle.root(), Selection(value.clone()));
         for (sb, sn) in handle.bindings().nodes().iter() {
             // base-cfg
             if sb.0 == 0 {
+                // TODO make other handler to give to base
+                // will open all conditions
+                // view_builder.place_on(
+                //     sn.entity(),
+                //     OnSelect {
+                //         target: handle.bindings().get(0),
+                //         display: value_string.clone(),
+                //     },
+                // );
                 // give base a Value<T>
                 // also derive from Selection would take care of this
                 view_builder.place_on(sn.entity(), TextValue::new(value_string.clone()));
@@ -73,7 +90,38 @@ impl<Value: Clone + Display + Send + Sync + 'static> Aesthetic for Dropdown<Valu
             view_builder.place_on(sn.entity(), DropdownValue(binding_value));
             // can give text value initially, but then when created? will it override?
             // should this be derived as well from Values.get(0)?
-            view_builder.place_on(sn.entity(), TextValue::new(binding_value.clone()));
+            let value_string = self.displays.get(sb.0 as usize).unwrap();
+            view_builder.place_on(sn.entity(), TextValue::new(value_string));
+            // on_select is only for dependents, so this can uniformly close branches
+            view_builder.place_on(
+                sn.entity(),
+                OnSelect {
+                    target: handle.bindings().get(0),
+                    display: value_string.clone(),
+                    branches: handle.branches().unwrap().clone(),
+                },
+            );
+        }
+    }
+}
+#[derive(Component, Clone)]
+pub struct OnSelect {
+    target: Entity,
+    display: String,
+    branches: HashSet<Entity>,
+}
+impl Command for OnSelect {
+    fn apply(self, world: &mut World) {
+        *world.get_mut::<TextValue>(self.target).unwrap() = TextValue::new(self.display);
+
+        // close branches here? for on select
+        // or another on trigger type?
+    }
+}
+fn on_select(query: Query<(&Trigger, &OnSelect), Changed<Trigger>>, mut cmd: Commands) {
+    for (trigger, on_select) in query.iter() {
+        if trigger.is_active() {
+            cmd.add(on_select.clone());
         }
     }
 }

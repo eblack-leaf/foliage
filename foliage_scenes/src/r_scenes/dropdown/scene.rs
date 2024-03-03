@@ -1,17 +1,22 @@
+use crate::r_scenes::dropdown::on_select;
 use crate::r_scenes::text_button::TextButton;
 use crate::r_scenes::UIColor;
+use foliage_macros::inner_set_descriptor;
 use foliage_proper::bevy_ecs;
 use foliage_proper::bevy_ecs::bundle::Bundle;
 use foliage_proper::bevy_ecs::entity::Entity;
-use foliage_proper::bevy_ecs::prelude::Component;
+use foliage_proper::bevy_ecs::prelude::{Component, IntoSystemConfigs};
 use foliage_proper::bevy_ecs::system::SystemParamItem;
 use foliage_proper::coordinate::{Coordinate, InterfaceContext};
-use foliage_proper::elm::ElementStyle;
+use foliage_proper::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
+use foliage_proper::elm::leaf::Leaf;
+use foliage_proper::elm::{ElementStyle, Elm};
+use foliage_proper::panel::Panel;
 use foliage_proper::scene::micro_grid::{
     Alignment, AlignmentDesc, AnchorDim, MicroGrid, RelativeMarker,
 };
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
-use foliage_proper::text::{MaxCharacters, TextValue};
+use foliage_proper::text::{MaxCharacters, Text, TextValue};
 
 #[derive(Component, Copy, Clone)]
 pub enum ExpandDirection {
@@ -30,7 +35,6 @@ pub struct Values<T: Clone>(pub Vec<T>);
 #[derive(Component, Clone, Default)]
 pub struct Displays(pub Vec<String>);
 pub(crate) struct DropdownScene {
-    max_chars: MaxCharacters,
     element_style: ElementStyle,
     displays: Displays,
     ui_color: UIColor,
@@ -44,7 +48,13 @@ impl DropdownScene {
         element_style: ElementStyle,
         ui_color: UIColor,
     ) -> Self {
-        todo!()
+        Self {
+            element_style,
+            displays,
+            ui_color,
+            expanded_state: ExpandState::Collapsed,
+            expand_direction,
+        }
     }
 }
 #[derive(Component, Copy, Clone)]
@@ -89,13 +99,14 @@ impl Scene for DropdownScene {
         bindings: &Bindings,
     ) {
         // cfg style and display button colors
-        todo!()
     }
 
     fn create(self, mut binder: Binder) -> SceneHandle {
         // to have Selection<T> inserted
         // + when change Selection<T> derive base-text value with the .to_string() of T (or From)
         // base node
+        let max_chars =
+            MaxCharacters(self.displays.0.iter().map(|d| d.len()).max().unwrap() as u32);
         binder.bind_scene(
             0,
             Alignment::new(
@@ -106,7 +117,7 @@ impl Scene for DropdownScene {
             ),
             TextButton::new(
                 TextValue::new(self.displays.0.get(0).expect("need at least one display")),
-                self.max_chars,
+                max_chars,
                 self.element_style,
                 self.ui_color.foreground.0,
                 self.ui_color.background.0,
@@ -133,7 +144,7 @@ impl Scene for DropdownScene {
                             .get(binding as usize)
                             .expect("need at least one display"),
                     ),
-                    self.max_chars,
+                    max_chars,
                     self.element_style,
                     self.ui_color.foreground.0,
                     self.ui_color.background.0,
@@ -143,9 +154,9 @@ impl Scene for DropdownScene {
             //
         }
         binder.finish::<Self>(SceneComponents::new(
-            MicroGrid::new(),
+            MicroGrid::new().aspect_ratio((max_chars.0 as f32 + 2f32) / 2f32),
             DropdownSceneComponents::new(
-                self.max_chars,
+                max_chars,
                 self.element_style,
                 self.displays,
                 self.ui_color,
@@ -153,5 +164,27 @@ impl Scene for DropdownScene {
                 ExpandState::Collapsed,
             ),
         ))
+    }
+}
+#[inner_set_descriptor]
+pub enum SetDescriptor {
+    Update,
+}
+impl Leaf for DropdownScene {
+    type SetDescriptor = SetDescriptor;
+
+    fn config(_elm_configuration: &mut ElmConfiguration) {
+        _elm_configuration.configure_hook(ExternalSet::Configure, SetDescriptor::Update);
+    }
+
+    fn attach(elm: &mut Elm) {
+        elm.main().add_systems((
+            foliage_proper::scene::config::<DropdownScene>
+                .in_set(SetDescriptor::Update)
+                .before(<TextButton as Leaf>::SetDescriptor::Update)
+                .before(<Text as Leaf>::SetDescriptor::Update)
+                .before(<Panel as Leaf>::SetDescriptor::Update),
+            on_select.in_set(CoreSet::ProcessEvent),
+        ));
     }
 }

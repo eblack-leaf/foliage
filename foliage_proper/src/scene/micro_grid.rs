@@ -21,7 +21,7 @@ impl MicroGrid {
             max_height: None,
         }
     }
-    pub fn aspect<AR: Into<AspectRatio>>(mut self, ar: AR) -> Self {
+    pub fn aspect_ratio<AR: Into<AspectRatio>>(mut self, ar: AR) -> Self {
         self.aspect.replace(ar.into());
         self
     }

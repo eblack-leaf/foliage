@@ -3,13 +3,20 @@ use crate::differential::Despawn;
 use crate::elm::config::CoreSet;
 use crate::elm::leaf::{EmptySetDescriptor, Leaf};
 use crate::elm::Elm;
-use crate::scene::{Binder, Bindings, Scene, SceneBinding, SceneComponents};
+use crate::scene::{
+    Binder, Bindings, Scene, SceneBinding, SceneBindingComponents, SceneComponents,
+};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Changed, Commands, Component, IntoSystemConfigs, Query};
 
 #[derive(Component, Copy, Clone)]
 pub struct ConditionSet(pub Entity, pub TriggerState);
+impl ConditionSet {
+    pub fn new(entity: Entity, trigger_state: TriggerState) -> Self {
+        Self(entity, trigger_state)
+    }
+}
 fn set_condition(
     query: Query<(Entity, &ConditionSet)>,
     mut triggers: Query<&mut Trigger>,
@@ -133,11 +140,18 @@ pub(crate) fn conditional_spawn<C: Bundle + Clone + Send + Sync + 'static>(
     }
 }
 pub(crate) fn conditional_scene_spawn<CS: Scene + Clone>(
-    query: Query<(&Trigger, &ConditionalScene<CS>), Changed<Trigger>>,
+    query: Query<
+        (
+            &Trigger,
+            &ConditionalScene<CS>,
+            Option<&Conditional<SceneBindingComponents>>,
+        ),
+        Changed<Trigger>,
+    >,
     bindings: Query<&Bindings>,
     mut cmd: Commands,
 ) {
-    for (trigger, cond) in query.iter() {
+    for (trigger, cond, comps) in query.iter() {
         if cond.is_extension {
             panic!("scenes-are-not allowed as extensions")
         }
@@ -145,6 +159,9 @@ pub(crate) fn conditional_scene_spawn<CS: Scene + Clone>(
             match cond.target {
                 SpawnTarget::This(entity) => {
                     let _scene_desc = cond.cs.clone().create(Binder::new(&mut cmd, Some(entity)));
+                    if let Some(c) = comps.as_deref() {
+                        cmd.entity(_scene_desc.root()).insert(c.clone());
+                    }
                 }
                 SpawnTarget::BindingOf(_, _) => {}
             }

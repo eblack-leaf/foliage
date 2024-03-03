@@ -45,6 +45,7 @@ impl TextButton {
 pub enum TextButtonBindings {
     Panel,
     Text,
+    Interaction,
 }
 #[inner_set_descriptor]
 pub enum SetDescriptor {
@@ -123,7 +124,7 @@ impl Scene for TextButton {
             ),
         );
         binder.bind(
-            2,
+            TextButtonBindings::Interaction,
             Alignment::new(
                 0.percent_from(RelativeMarker::Center),
                 0.percent_from(RelativeMarker::Center),

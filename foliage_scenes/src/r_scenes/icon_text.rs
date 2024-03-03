@@ -174,7 +174,7 @@ impl Scene for IconText {
         );
         binder.finish::<Self>(SceneComponents::new(
             MicroGrid::new()
-                .aspect(aspect)
+                .aspect_ratio(aspect)
                 .min_height(20.0)
                 .min_width(20.0 * aspect.value()),
             Self::Components::new(

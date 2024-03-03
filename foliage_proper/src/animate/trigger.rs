@@ -3,7 +3,7 @@ use crate::elm::leaf::{EmptySetDescriptor, Leaf};
 use crate::elm::Elm;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs};
 use bevy_ecs::query::Changed;
-use bevy_ecs::system::Query;
+use bevy_ecs::system::{Command, Commands, Query};
 #[derive(Default, Copy, Clone, Debug, Hash, Eq, PartialEq)]
 pub enum TriggerState {
     Active,
@@ -50,6 +50,6 @@ impl Leaf for Trigger {
 
     fn attach(elm: &mut Elm) {
         elm.main()
-            .add_systems(clear_triggered.after(CoreSet::Differential));
+            .add_systems((clear_triggered.after(CoreSet::Differential),));
     }
 }

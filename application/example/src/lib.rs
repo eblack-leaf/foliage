@@ -3,6 +3,7 @@ mod overlay;
 mod showcase;
 
 use crate::button_tree::BranchingButtonShowcase;
+use crate::overlay::Overlay;
 use crate::showcase::ButtonShowcase;
 use foliage::bevy_ecs;
 use foliage::bevy_ecs::prelude::Resource;
@@ -83,6 +84,7 @@ impl Leaf for Main {
             ImageStorage::some(Area::from((700, 700))),
         ));
         elm.container().insert_resource(assets);
+        elm.persistent_view::<Overlay>(ViewHandle(1));
         elm.add_view::<ButtonShowcase>(ViewHandle(0));
         elm.navigate_to(0);
     }

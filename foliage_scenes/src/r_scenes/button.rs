@@ -70,6 +70,7 @@ impl ButtonComponents {
 pub enum ButtonBindings {
     Panel,
     IconText,
+    Interaction,
 }
 #[inner_set_descriptor]
 pub enum SetDescriptor {
@@ -150,7 +151,7 @@ impl Scene for Button {
             self.icon_text,
         );
         binder.bind(
-            2,
+            ButtonBindings::Interaction,
             Alignment::new(
                 0.fixed_from(RelativeMarker::Left),
                 0.fixed_from(RelativeMarker::Center),

@@ -125,7 +125,7 @@ impl Scene for CircleButton {
         );
         binder.finish::<Self>(SceneComponents::new(
             MicroGrid::new()
-                .aspect(1.0)
+                .aspect_ratio(1.0)
                 .min_width(44.0)
                 .min_height(44.0),
             ButtonComponents::new(
