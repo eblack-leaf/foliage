@@ -353,7 +353,7 @@ fn recursive_fetch(
                     let anchor = Anchor(root_coordinate).aligned(grid, alignment);
                     fetch.push((bind.entity, anchor));
                     if query.get(bind.entity).unwrap().2.is_some() {
-                        let others = recursive_fetch(anchor.0, bind.entity, &query, &grids);
+                        let others = recursive_fetch(anchor.0, bind.entity, query, grids);
                         fetch.extend(others);
                     }
                 }
@@ -430,7 +430,7 @@ pub(crate) fn recursive_bindings(
         if let Some(binds) = res.0 {
             for b in binds.0.iter() {
                 dependents.insert(b.1.entity);
-                dependents.extend(recursive_bindings(b.1.entity, &query));
+                dependents.extend(recursive_bindings(b.1.entity, query));
             }
         }
     }
@@ -466,11 +466,9 @@ pub(crate) fn despawn_bindings(
                     to_disable.insert(b.1.entity);
                 }
             }
-        } else {
-            if let Some(binds) = bindings {
-                for b in binds.0.iter() {
-                    to_enable.insert(b.1.entity);
-                }
+        } else if let Some(binds) = bindings {
+            for b in binds.0.iter() {
+                to_enable.insert(b.1.entity);
             }
         }
     }

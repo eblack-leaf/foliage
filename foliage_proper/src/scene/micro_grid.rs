@@ -11,6 +11,12 @@ pub struct MicroGrid {
     max_width: Option<CoordinateUnit>,
     max_height: Option<CoordinateUnit>,
 }
+impl Default for MicroGrid {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MicroGrid {
     pub fn new() -> Self {
         Self {

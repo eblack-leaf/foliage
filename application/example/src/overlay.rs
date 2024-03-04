@@ -1,5 +1,3 @@
-use crate::ThemeColor;
-use foliage::color::monochromatic::Monochromatic;
 use foliage::color::Color;
 use foliage::elm::ElementStyle;
 use foliage::r_scenes::dropdown::scene::ExpandDirection;

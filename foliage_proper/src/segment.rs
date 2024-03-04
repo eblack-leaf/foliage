@@ -146,14 +146,12 @@ impl MacroGrid {
         let initial_w = width;
         let initial_h = height;
         let width = if let Some(w) = horizontal.min {
-            let bounded = width.max(w);
-            bounded
+            width.max(w)
         } else {
             width
         };
         let height = if let Some(h) = vertical.min {
-            let bounded = height.max(h);
-            bounded
+            height.max(h)
         } else {
             height
         };

@@ -271,7 +271,7 @@ impl Elm {
             .get_resource_mut::<Compositor>()
             .unwrap()
             .views
-            .insert(vh.into(), View::new(V::view, V::GRID));
+            .insert(vh, View::new(V::view, V::GRID));
     }
     pub fn persistent_view<V: Viewable>(&mut self, vh: ViewHandle) {
         let desc = self

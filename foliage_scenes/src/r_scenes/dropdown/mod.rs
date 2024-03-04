@@ -4,12 +4,10 @@ use foliage_proper::aesthetic::Aesthetic;
 use foliage_proper::animate::trigger::Trigger;
 use foliage_proper::bevy_ecs;
 use foliage_proper::bevy_ecs::entity::Entity;
-use foliage_proper::bevy_ecs::prelude::{
-    Changed, Commands, Component, IntoSystemConfigs, Query, World,
-};
+use foliage_proper::bevy_ecs::prelude::{Changed, Commands, Component, Query, World};
 use foliage_proper::bevy_ecs::system::Command;
 use foliage_proper::conditional::ConditionHandle;
-use foliage_proper::elm::leaf::Leaf;
+
 use foliage_proper::elm::ElementStyle;
 use foliage_proper::segment::ResponsiveSegment;
 use foliage_proper::text::TextValue;
@@ -49,7 +47,7 @@ impl<Value: Clone> Dropdown<Value> {
 }
 impl<Value: Clone + Send + Sync + 'static> Aesthetic for Dropdown<Value> {
     fn pigment(self, view_builder: &mut ViewBuilder) {
-        let max_chars = self
+        let _max_chars = self
             .displays
             .iter()
             .map(|d| d.len())
@@ -64,8 +62,8 @@ impl<Value: Clone + Send + Sync + 'static> Aesthetic for Dropdown<Value> {
             ),
             self.rs,
         );
-        let value = self.values.get(0).expect("must have one value").clone();
-        let value_string = self.displays.get(0).expect("must have one display");
+        let value = self.values.first().expect("must have one value").clone();
+        let _value_string = self.displays.first().expect("must have one display");
         view_builder.place_on(handle.root(), Selection(value.clone()));
         for (sb, sn) in handle.bindings().nodes().iter() {
             // base-cfg

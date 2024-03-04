@@ -3,9 +3,7 @@ use crate::differential::Despawn;
 use crate::elm::config::CoreSet;
 use crate::elm::leaf::{EmptySetDescriptor, Leaf};
 use crate::elm::Elm;
-use crate::scene::{
-    Binder, Bindings, Scene, SceneBinding, SceneBindingComponents, SceneComponents,
-};
+use crate::scene::{Binder, Bindings, Scene, SceneBinding, SceneComponents};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Changed, Commands, Component, IntoSystemConfigs, Query};

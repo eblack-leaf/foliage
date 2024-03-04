@@ -3,7 +3,7 @@ use crate::elm::leaf::{EmptySetDescriptor, Leaf};
 use crate::elm::Elm;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs};
 use bevy_ecs::query::Changed;
-use bevy_ecs::system::{Command, Commands, Query};
+use bevy_ecs::system::Query;
 #[derive(Default, Copy, Clone, Debug, Hash, Eq, PartialEq)]
 pub enum TriggerState {
     Active,

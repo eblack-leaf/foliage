@@ -93,10 +93,10 @@ impl Scene for DropdownScene {
     type Components = DropdownSceneComponents;
 
     fn config(
-        entity: Entity,
-        coordinate: Coordinate<InterfaceContext>,
-        ext: &mut SystemParamItem<Self::Params>,
-        bindings: &Bindings,
+        _entity: Entity,
+        _coordinate: Coordinate<InterfaceContext>,
+        _ext: &mut SystemParamItem<Self::Params>,
+        _bindings: &Bindings,
     ) {
         // cfg style and display button colors
     }
@@ -116,7 +116,7 @@ impl Scene for DropdownScene {
                 1.percent_of(AnchorDim::Height),
             ),
             TextButton::new(
-                TextValue::new(self.displays.0.get(0).expect("need at least one display")),
+                TextValue::new(self.displays.0.first().expect("need at least one display")),
                 max_chars,
                 self.element_style,
                 self.ui_color.foreground.0,
@@ -126,7 +126,7 @@ impl Scene for DropdownScene {
         for i in 1..self.displays.0.len() {
             let binding = i as i32;
             let offset = match self.expand_direction {
-                ExpandDirection::Up => binding * -1,
+                ExpandDirection::Up => -binding,
                 ExpandDirection::Down => binding,
             } as f32
                 * 1.2;

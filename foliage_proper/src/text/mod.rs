@@ -165,11 +165,10 @@ pub(crate) fn max_character(
         let (fs, fa) = font.best_fit(*max, *area, &scale_factor);
         *size = fs;
         if area.height > fa.height || area.width > fa.width {
-            *pos = *pos
-                + Position::from((
-                    (area.width - fa.width).max(0.0) / 2f32,
-                    (area.height - fa.height) / 2f32,
-                ));
+            *pos += Position::from((
+                (area.width - fa.width).max(0.0) / 2f32,
+                (area.height - fa.height) / 2f32,
+            ));
         }
         area.width = fa.width;
         area.height = fa.height;

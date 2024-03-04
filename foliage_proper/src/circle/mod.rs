@@ -103,7 +103,7 @@ fn diameter_set(
         let initial_dim = area.width.max(area.height);
         *diameter = Diameter::new(initial_dim);
         let val = (initial_dim - diameter.0) / 2f32;
-        *pos = *pos + Position::new(val, val);
+        *pos += Position::new(val, val);
         *area = diameter.area();
     }
 }

@@ -143,7 +143,7 @@ pub fn assets(
                 .expect("need field identity without group")
                 .to_string()
         };
-        let icon_extension = if asset_type.to_string() != "icon" {
+        let icon_extension = if *asset_type != "icon" {
             quote::quote!()
         } else {
             let icon_label = &args
@@ -276,13 +276,13 @@ impl syn::parse::Parse for Asset {
                 .path
                 .require_ident()
                 .expect("need attribute args ident");
-            if second_attribute_path.to_string() == "group" {
+            if *second_attribute_path == "group" {
                 asset_group.replace(second);
                 if input.parse::<Token![,]>().is_ok() {
                     let opt: syn::MetaNameValue = input.parse()?;
                     asset_opt.replace(opt);
                 }
-            } else if second_attribute_path.to_string() == "opt" {
+            } else if *second_attribute_path == "opt" {
                 asset_opt.replace(second);
                 if input.parse::<Token![,]>().is_ok() {
                     let group: syn::MetaNameValue = input.parse()?;
