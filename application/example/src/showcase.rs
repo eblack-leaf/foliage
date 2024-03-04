@@ -126,20 +126,6 @@ pub struct ButtonShowcase;
 impl Viewable for ButtonShowcase {
     const GRID: MacroGrid = MacroGrid::new(8, 6);
     fn view(mut view_builder: ViewBuilder) -> ViewDescriptor {
-        // view_builder.add_scene(
-        //     IconText::new(
-        //         FeatherIcon::Menu,
-        //         Color::GREY,
-        //         MaxCharacters(11),
-        //         TextValue::new("button.rs"),
-        //         Color::GREY,
-        //     ),
-        //     ResponsiveSegment::base(Segment::new(
-        //         3.near().to(6.far()),
-        //         1.near().to(1.far()).maximum(60.0),
-        //     ))
-        //     .justify(Justify::Top),
-        // );
         view_builder.apply_aesthetic(ButtonDisplay::new(
             Button::new(
                 IconText::new(
