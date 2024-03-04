@@ -143,7 +143,7 @@ impl MicroGrid {
                 _ => w / 2f32,
             }
         };
-        location.x + unit - x_offset
+        location.x + unit - x_offset + relative_alignment.offset.unwrap_or_default()
     }
     pub fn calc_y(
         &self,
@@ -171,7 +171,7 @@ impl MicroGrid {
                 _ => h / 2f32,
             }
         };
-        location.y + unit - y_offset
+        location.y + unit - y_offset + relative_alignment.offset.unwrap_or_default()
     }
     pub fn calc_w(
         &self,
@@ -271,13 +271,22 @@ impl RelativeMarker {
 pub struct RelativeAlignment {
     pub marker: RelativeMarker,
     pub unit: AlignmentUnit,
+    pub offset: Option<CoordinateUnit>,
 }
 impl RelativeAlignment {
     pub fn new(marker: RelativeMarker, unit: AlignmentUnit) -> Self {
-        Self { marker, unit }
+        Self {
+            marker,
+            unit,
+            offset: None,
+        }
     }
     pub fn align(mut self, align: Align) -> Self {
         self.unit = self.unit.align(align);
+        self
+    }
+    pub fn offset(mut self, o: CoordinateUnit) -> Self {
+        self.offset.replace(o);
         self
     }
 }

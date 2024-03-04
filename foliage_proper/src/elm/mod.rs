@@ -323,10 +323,10 @@ impl Disabled {
 )]
 pub struct ElementStyle(pub(crate) f32);
 impl ElementStyle {
-    pub fn fill() -> Self {
+    pub fn normal() -> Self {
         Self(0.0)
     }
-    pub fn ring() -> Self {
+    pub fn inverted() -> Self {
         Self(1.0)
     }
     pub fn is_fill(&self) -> bool {

@@ -115,14 +115,15 @@ impl Scene for Button {
         let icon_text = bindings.get(ButtonBindings::IconText);
         let panel = bindings.get(ButtonBindings::Panel);
         if let Ok((_est, fc, bc, cs)) = ext.0.get(entity) {
-            *ext.1.get_mut(panel).unwrap() = fc.0;
             *ext.2.get_mut(panel).unwrap() = cs.0;
             if cs.0.is_fill() {
-                ext.3.get_mut(icon_text).unwrap().0 .0 = bc.0;
-                ext.3.get_mut(icon_text).unwrap().1 .0 = bc.0;
-            } else {
+                *ext.1.get_mut(panel).unwrap() = bc.0;
                 ext.3.get_mut(icon_text).unwrap().0 .0 = fc.0;
                 ext.3.get_mut(icon_text).unwrap().1 .0 = fc.0;
+            } else {
+                ext.3.get_mut(icon_text).unwrap().0 .0 = bc.0;
+                ext.3.get_mut(icon_text).unwrap().1 .0 = bc.0;
+                *ext.1.get_mut(panel).unwrap() = bc.0;
             }
         }
     }
@@ -191,9 +192,9 @@ fn interaction(
         if let Ok((mut trigger, est, mut cs)) = buttons.get_mut(ptr.value()) {
             if listener.engaged_start() {
                 if est.is_fill() {
-                    *cs = CurrentStyle(ElementStyle::ring());
+                    *cs = CurrentStyle(ElementStyle::inverted());
                 } else {
-                    *cs = CurrentStyle(ElementStyle::fill());
+                    *cs = CurrentStyle(ElementStyle::normal());
                 }
             }
             if listener.engaged_end() {

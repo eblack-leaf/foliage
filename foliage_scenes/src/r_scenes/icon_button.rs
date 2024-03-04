@@ -74,12 +74,13 @@ impl Scene for IconButton {
         let panel = bindings.get(IconButtonBindings::Panel);
         let icon = bindings.get(IconButtonBindings::Icon);
         if let Ok((_est, fc, bc, cs)) = ext.0.get(entity) {
-            *ext.1.get_mut(panel).unwrap() = fc.0;
             *ext.2.get_mut(panel).unwrap() = cs.0;
             if cs.0.is_fill() {
-                *ext.1.get_mut(icon).unwrap() = bc.0;
-            } else {
+                *ext.1.get_mut(panel).unwrap() = bc.0;
                 *ext.1.get_mut(icon).unwrap() = fc.0;
+            } else {
+                *ext.1.get_mut(panel).unwrap() = fc.0;
+                *ext.1.get_mut(icon).unwrap() = bc.0;
             }
         }
     }

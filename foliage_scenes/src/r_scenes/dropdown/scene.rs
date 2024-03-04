@@ -38,7 +38,6 @@ pub(crate) struct DropdownScene {
     element_style: ElementStyle,
     displays: Displays,
     ui_color: UIColor,
-    pub expanded_state: ExpandState,
     pub expand_direction: ExpandDirection,
 }
 impl DropdownScene {
@@ -52,7 +51,6 @@ impl DropdownScene {
             element_style,
             displays,
             ui_color,
-            expanded_state: ExpandState::Collapsed,
             expand_direction,
         }
     }
@@ -67,6 +65,7 @@ pub struct DropdownSceneComponents {
     pub ui_color: UIColor,
     pub expanded_state: ExpandState,
     pub expand_direction: ExpandDirection,
+    pub current: CurrentSelection,
 }
 impl DropdownSceneComponents {
     pub fn new(
@@ -75,15 +74,15 @@ impl DropdownSceneComponents {
         displays: Displays,
         ui_color: UIColor,
         expand_direction: ExpandDirection,
-        expand_state: ExpandState,
     ) -> Self {
         Self {
             max_characters: mc,
             style,
             displays,
             ui_color,
-            expanded_state: expand_state,
+            expanded_state: ExpandState::Collapsed,
             expand_direction,
+            current: CurrentSelection(0),
         }
     }
 }
@@ -102,9 +101,6 @@ impl Scene for DropdownScene {
     }
 
     fn create(self, mut binder: Binder) -> SceneHandle {
-        // to have Selection<T> inserted
-        // + when change Selection<T> derive base-text value with the .to_string() of T (or From)
-        // base node
         let max_chars =
             MaxCharacters(self.displays.0.iter().map(|d| d.len()).max().unwrap() as u32);
         binder.bind_scene(
@@ -128,13 +124,14 @@ impl Scene for DropdownScene {
             let offset = match self.expand_direction {
                 ExpandDirection::Up => -binding,
                 ExpandDirection::Down => binding,
-            } as f32
-                * 1.2;
+            };
             binder.bind_conditional_scene(
                 binding,
                 Alignment::new(
                     0.percent_from(RelativeMarker::Center),
-                    offset.percent_from(RelativeMarker::Top),
+                    offset
+                        .percent_from(RelativeMarker::Top)
+                        .offset(16.0 * i as f32),
                     1.percent_of(AnchorDim::Width),
                     1.percent_of(AnchorDim::Height),
                 ),
@@ -151,8 +148,6 @@ impl Scene for DropdownScene {
                     self.ui_color.background.0,
                 ),
             );
-            // bind conditional text-button with display value (parallel) + offset 1 (for base)
-            //
         }
         binder.finish::<Self>(SceneComponents::new(
             MicroGrid::new(),
@@ -162,7 +157,6 @@ impl Scene for DropdownScene {
                 self.displays,
                 self.ui_color,
                 self.expand_direction,
-                ExpandState::Collapsed,
             ),
         ))
     }

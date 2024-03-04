@@ -27,7 +27,7 @@ impl Viewable for Overlay {
             ))
             .justify(Justify::Top),
             ExpandDirection::Down,
-            ElementStyle::fill(),
+            ElementStyle::normal(),
             UIColor::new(Color::GREY, Color::WHITE),
         ));
         view_builder.finish()

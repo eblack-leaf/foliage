@@ -68,18 +68,6 @@ impl<Value: Clone + Send + Sync + 'static> Aesthetic for Dropdown<Value> {
         for (sb, sn) in handle.bindings().nodes().iter() {
             // base-cfg
             if sb.0 == 0 {
-                // TODO make other handler to give to base
-                // will open all conditions
-                // view_builder.place_on(
-                //     sn.entity(),
-                //     OnSelect {
-                //         target: handle.bindings().get(0),
-                //         display: value_string.clone(),
-                //     },
-                // );
-                // give base a Value<T>
-                // also derive from Selection would take care of this
-                // view_builder.place_on(sn.entity(), TextValue::new(value_string.clone()));
                 view_builder.place_on(sn.entity(), DropdownValue(value.clone()));
                 view_builder.place_on(
                     sn.entity(),
