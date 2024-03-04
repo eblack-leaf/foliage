@@ -10,7 +10,7 @@ use crate::elm::leaf::{EmptySetDescriptor, Leaf};
 use crate::elm::{Disabled, Elm};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::layout::Layout;
-use crate::scene::{Binder, ExtendTarget, Scene, SceneHandle};
+use crate::scene::{Binder, ExtendTarget, Scene, SceneBindingComponents, SceneHandle};
 use crate::segment::{MacroGrid, ResponsiveSegment};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::change_detection::Res;
@@ -323,6 +323,8 @@ impl Leaf for View {
     type SetDescriptor = EmptySetDescriptor;
 
     fn attach(elm: &mut Elm) {
+        elm.enable_conditional::<SceneBindingComponents>();
+        elm.enable_conditional::<ResponsiveSegment>();
         elm.container().insert_resource(Compositor::default());
         elm.container().insert_resource(Layout::PORTRAIT_MOBILE);
         elm.container().insert_resource(MacroGrid::new(8, 8));

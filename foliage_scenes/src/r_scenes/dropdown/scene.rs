@@ -1,4 +1,4 @@
-use crate::r_scenes::dropdown::on_select;
+use crate::r_scenes::dropdown::{on_expand, on_select};
 use crate::r_scenes::text_button::TextButton;
 use crate::r_scenes::UIColor;
 use foliage_macros::inner_set_descriptor;
@@ -178,13 +178,14 @@ impl Leaf for DropdownScene {
     }
 
     fn attach(elm: &mut Elm) {
+        elm.enable_conditional_scene::<TextButton>();
         elm.main().add_systems((
             foliage_proper::scene::config::<DropdownScene>
                 .in_set(SetDescriptor::Update)
                 .before(<TextButton as Leaf>::SetDescriptor::Update)
                 .before(<Text as Leaf>::SetDescriptor::Update)
                 .before(<Panel as Leaf>::SetDescriptor::Update),
-            on_select.in_set(CoreSet::ProcessEvent),
+            (on_select, on_expand).in_set(CoreSet::ProcessEvent),
         ));
     }
 }

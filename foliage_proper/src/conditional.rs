@@ -140,18 +140,11 @@ pub(crate) fn conditional_spawn<C: Bundle + Clone + Send + Sync + 'static>(
     }
 }
 pub(crate) fn conditional_scene_spawn<CS: Scene + Clone>(
-    query: Query<
-        (
-            &Trigger,
-            &ConditionalScene<CS>,
-            Option<&Conditional<SceneBindingComponents>>,
-        ),
-        Changed<Trigger>,
-    >,
+    query: Query<(&Trigger, &ConditionalScene<CS>), Changed<Trigger>>,
     bindings: Query<&Bindings>,
     mut cmd: Commands,
 ) {
-    for (trigger, cond, comps) in query.iter() {
+    for (trigger, cond) in query.iter() {
         if cond.is_extension {
             panic!("scenes-are-not allowed as extensions")
         }
@@ -159,9 +152,6 @@ pub(crate) fn conditional_scene_spawn<CS: Scene + Clone>(
             match cond.target {
                 SpawnTarget::This(entity) => {
                     let _scene_desc = cond.cs.clone().create(Binder::new(&mut cmd, Some(entity)));
-                    if let Some(c) = comps.as_deref() {
-                        cmd.entity(_scene_desc.root()).insert(c.clone());
-                    }
                 }
                 SpawnTarget::BindingOf(_, _) => {}
             }

@@ -27,11 +27,15 @@ impl Anchor {
 pub struct SceneHandle {
     root: Entity,
     bindings: Bindings,
-    branches: Option<HashSet<Entity>>,
+    branches: Option<Vec<ConditionHandle>>,
 }
 
 impl SceneHandle {
-    pub(crate) fn new(root: Entity, bindings: Bindings, branches: Option<HashSet<Entity>>) -> Self {
+    pub(crate) fn new(
+        root: Entity,
+        bindings: Bindings,
+        branches: Option<Vec<ConditionHandle>>,
+    ) -> Self {
         Self {
             root,
             bindings,
@@ -44,7 +48,7 @@ impl SceneHandle {
     pub fn bindings(&self) -> &Bindings {
         &self.bindings
     }
-    pub fn branches(&self) -> Option<&HashSet<Entity>> {
+    pub fn branches(&self) -> Option<&Vec<ConditionHandle>> {
         self.branches.as_ref()
     }
 }
@@ -59,10 +63,15 @@ impl From<i32> for SceneBinding {
 pub struct SceneNode {
     entity: Entity,
     bindings: Option<Bindings>,
+    branch: Option<ConditionHandle>,
 }
 impl SceneNode {
-    fn new(entity: Entity, bindings: Option<Bindings>) -> Self {
-        Self { entity, bindings }
+    fn new(entity: Entity, bindings: Option<Bindings>, branch: Option<ConditionHandle>) -> Self {
+        Self {
+            entity,
+            bindings,
+            branch,
+        }
     }
     pub fn entity(&self) -> Entity {
         self.entity
@@ -70,10 +79,13 @@ impl SceneNode {
     pub fn bindings(&self) -> Option<&Bindings> {
         self.bindings.as_ref()
     }
+    pub fn branch(&self) -> Option<ConditionHandle> {
+        self.branch
+    }
 }
 pub struct Binder<'a, 'w, 's> {
     nodes: HashMap<SceneBinding, SceneNode>,
-    branches: HashSet<Entity>,
+    branches: Vec<ConditionHandle>,
     root: Entity,
     cmd: &'a mut Commands<'w, 's>,
 }
@@ -99,7 +111,7 @@ impl<'a, 'w, 's> Binder<'a, 'w, 's> {
     pub fn new(cmd: &'a mut Commands<'w, 's>, root: Option<Entity>) -> Self {
         Self {
             nodes: HashMap::new(),
-            branches: HashSet::new(),
+            branches: Vec::new(),
             root: root.unwrap_or(cmd.spawn_empty().id()),
             cmd,
         }
@@ -123,7 +135,8 @@ impl<'a, 'w, 's> Binder<'a, 'w, 's> {
                 sa.into(),
             ))
             .id();
-        self.nodes.insert(sb.into(), SceneNode::new(entity, None));
+        self.nodes
+            .insert(sb.into(), SceneNode::new(entity, None, None));
         entity
     }
     pub fn bind_scene<S: Scene, SB: Into<SceneBinding>, SA: Into<Alignment>>(
@@ -143,7 +156,7 @@ impl<'a, 'w, 's> Binder<'a, 'w, 's> {
             ));
         self.nodes.insert(
             sb.into(),
-            SceneNode::new(scene_desc.root(), Some(scene_desc.bindings.clone())),
+            SceneNode::new(scene_desc.root(), Some(scene_desc.bindings.clone()), None),
         );
         scene_desc
     }
@@ -167,9 +180,11 @@ impl<'a, 'w, 's> Binder<'a, 'w, 's> {
                 false,
             ))
             .id();
-        self.nodes.insert(sb.into(), SceneNode::new(main, None));
-        self.branches.insert(main);
-        ConditionHandle::new(main, pre_spawned)
+        let handle = ConditionHandle::new(main, pre_spawned);
+        self.nodes
+            .insert(sb.into(), SceneNode::new(main, None, Some(handle)));
+        self.branches.push(handle);
+        handle
     }
     pub fn bind_conditional_scene<S: Scene + Clone, SA: Into<Alignment>, SB: Into<SceneBinding>>(
         &mut self,
@@ -187,9 +202,11 @@ impl<'a, 'w, 's> Binder<'a, 'w, 's> {
                 false,
             ))
             .id();
-        self.nodes.insert(sb.into(), SceneNode::new(main, None));
-        self.branches.insert(main);
-        ConditionHandle::new(main, pre_spawned)
+        let handle = ConditionHandle::new(main, pre_spawned);
+        self.nodes
+            .insert(sb.into(), SceneNode::new(main, None, Some(handle)));
+        self.branches.push(handle);
+        handle
     }
     pub fn extend<Ext: Bundle>(&mut self, entity: Entity, ext: Ext) {
         self.cmd.entity(entity).insert(ext);

@@ -8,12 +8,12 @@ use foliage_proper::bevy_ecs::prelude::{
     Changed, Commands, Component, IntoSystemConfigs, Query, World,
 };
 use foliage_proper::bevy_ecs::system::Command;
-use foliage_proper::elm::leaf::{EmptySetDescriptor, Leaf};
-use foliage_proper::elm::{ElementStyle, Elm};
+use foliage_proper::conditional::ConditionHandle;
+use foliage_proper::elm::leaf::Leaf;
+use foliage_proper::elm::ElementStyle;
 use foliage_proper::segment::ResponsiveSegment;
 use foliage_proper::text::TextValue;
 use foliage_proper::view::ViewBuilder;
-use std::collections::HashSet;
 use std::fmt::Display;
 
 pub mod scene;
@@ -84,6 +84,12 @@ impl<Value: Clone + Display + Send + Sync + 'static> Aesthetic for Dropdown<Valu
                 // also derive from Selection would take care of this
                 view_builder.place_on(sn.entity(), TextValue::new(value_string.clone()));
                 view_builder.place_on(sn.entity(), DropdownValue(value.clone()));
+                view_builder.place_on(
+                    sn.entity(),
+                    OnExpand {
+                        branches: handle.branches().unwrap().clone(),
+                    },
+                );
                 continue;
             }
             let binding_value = self.values.get(sb.0 as usize).unwrap().clone();
@@ -94,7 +100,7 @@ impl<Value: Clone + Display + Send + Sync + 'static> Aesthetic for Dropdown<Valu
             view_builder.place_on(sn.entity(), TextValue::new(value_string));
             // on_select is only for dependents, so this can uniformly close branches
             view_builder.place_on(
-                sn.entity(),
+                sn.branch().unwrap().target(),
                 OnSelect {
                     target: handle.bindings().get(0),
                     display: value_string.clone(),
@@ -105,16 +111,37 @@ impl<Value: Clone + Display + Send + Sync + 'static> Aesthetic for Dropdown<Valu
     }
 }
 #[derive(Component, Clone)]
+pub struct OnExpand {
+    branches: Vec<ConditionHandle>,
+}
+impl Command for OnExpand {
+    fn apply(self, world: &mut World) {
+        for branch in self.branches.iter() {
+            *world.get_mut::<Trigger>(branch.this()).unwrap() = Trigger::active();
+        }
+        // change expand state
+    }
+}
+fn on_expand(query: Query<(&Trigger, &OnExpand), Changed<Trigger>>, mut cmd: Commands) {
+    for (trigger, on_expand) in query.iter() {
+        if trigger.is_active() {
+            cmd.add(on_expand.clone());
+        }
+    }
+}
+#[derive(Component, Clone)]
 pub struct OnSelect {
     target: Entity,
     display: String,
-    branches: HashSet<Entity>,
+    branches: Vec<ConditionHandle>,
 }
 impl Command for OnSelect {
     fn apply(self, world: &mut World) {
         *world.get_mut::<TextValue>(self.target).unwrap() = TextValue::new(self.display);
-
         // close branches here? for on select
+        for branch in self.branches.iter() {
+            *world.get_mut::<Trigger>(branch.this()).unwrap() = Trigger::inverse();
+        }
         // or another on trigger type?
     }
 }
