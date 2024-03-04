@@ -14,7 +14,6 @@ use foliage_proper::elm::ElementStyle;
 use foliage_proper::segment::ResponsiveSegment;
 use foliage_proper::text::TextValue;
 use foliage_proper::view::ViewBuilder;
-use std::fmt::Display;
 
 pub mod scene;
 pub type DropdownDisplay = String;
@@ -48,7 +47,7 @@ impl<Value: Clone> Dropdown<Value> {
         }
     }
 }
-impl<Value: Clone + Display + Send + Sync + 'static> Aesthetic for Dropdown<Value> {
+impl<Value: Clone + Send + Sync + 'static> Aesthetic for Dropdown<Value> {
     fn pigment(self, view_builder: &mut ViewBuilder) {
         let max_chars = self
             .displays

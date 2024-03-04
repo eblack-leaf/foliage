@@ -136,7 +136,7 @@ impl Scene for TextButton {
                 .extend(Tag::<ButtonInteractionHook>::new()),
         );
         binder.finish::<Self>(SceneComponents::new(
-            MicroGrid::new().min_height(34.0).min_width(40.0 * aspect),
+            MicroGrid::new().min_height(24.0).min_width(40.0 * aspect),
             (
                 <Button as Scene>::Components::new(
                     self.element_style,

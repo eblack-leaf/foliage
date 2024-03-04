@@ -1,8 +1,6 @@
-mod button_tree;
 mod overlay;
 mod showcase;
 
-use crate::button_tree::BranchingButtonShowcase;
 use crate::overlay::Overlay;
 use crate::showcase::ButtonShowcase;
 use foliage::bevy_ecs;
@@ -28,7 +26,6 @@ pub fn entry(android_interface: AndroidInterface) {
         )
         .with_leaves::<foliage::SceneExtensions>()
         .with_leaf::<Main>()
-        .with_leaf::<BranchingButtonShowcase>()
         .with_android_interface(android_interface)
         .with_worker_path("./worker.js")
         .run::<Engen>();
@@ -85,8 +82,8 @@ impl Leaf for Main {
         ));
         elm.container().insert_resource(assets);
         elm.persistent_view::<Overlay>(ViewHandle(1));
-        // elm.add_view::<ButtonShowcase>(ViewHandle(0));
-        // elm.navigate_to(0);
+        elm.add_view::<ButtonShowcase>(ViewHandle(0));
+        elm.navigate_to(0);
     }
 }
 pub(crate) type ThemeColor = Orange;

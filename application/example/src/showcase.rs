@@ -70,7 +70,8 @@ impl<T: Scene> Aesthetic for ButtonDisplay<T> {
                         .maximum(if let Some(m) = self.max_h { m } else { 55.0 }),
                 ),
             )
-            .justify(Justify::Top),
+            .justify(Justify::Top)
+            .at_layer(5),
         );
         view_builder.add_scene(
             self.second,
@@ -97,7 +98,8 @@ impl<T: Scene> Aesthetic for ButtonDisplay<T> {
                         .maximum(if let Some(m) = self.max_h { m } else { 55.0 }),
                 ),
             )
-            .justify(Justify::Top),
+            .justify(Justify::Top)
+            .at_layer(5),
         );
         view_builder.add(
             Text::new(
@@ -115,7 +117,8 @@ impl<T: Scene> Aesthetic for ButtonDisplay<T> {
             ))
             .without_portrait_mobile()
             .without_portrait_tablet()
-            .justify(Justify::Top),
+            .justify(Justify::Top)
+            .at_layer(5),
         );
     }
 }

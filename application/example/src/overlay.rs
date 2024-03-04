@@ -24,13 +24,13 @@ impl Viewable for Overlay {
                 (String::from("opt-7"), 7),
             ],
             ResponsiveSegment::base(Segment::new(
-                3.near().to(6.far()),
+                3.near().to(6.far()).maximum(250.0),
                 1.near().to(1.far()).maximum(50.0),
             ))
             .justify(Justify::Top),
             ExpandDirection::Down,
             ElementStyle::fill(),
-            UIColor::new(ThemeColor::BASE, Color::BLACK),
+            UIColor::new(Color::GREY, Color::WHITE),
         ));
         view_builder.finish()
     }
