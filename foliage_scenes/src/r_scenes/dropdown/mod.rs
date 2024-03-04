@@ -82,7 +82,7 @@ impl<Value: Clone + Display + Send + Sync + 'static> Aesthetic for Dropdown<Valu
                 // );
                 // give base a Value<T>
                 // also derive from Selection would take care of this
-                view_builder.place_on(sn.entity(), TextValue::new(value_string.clone()));
+                // view_builder.place_on(sn.entity(), TextValue::new(value_string.clone()));
                 view_builder.place_on(sn.entity(), DropdownValue(value.clone()));
                 view_builder.place_on(
                     sn.entity(),
@@ -97,7 +97,7 @@ impl<Value: Clone + Display + Send + Sync + 'static> Aesthetic for Dropdown<Valu
             // can give text value initially, but then when created? will it override?
             // should this be derived as well from Values.get(0)?
             let value_string = self.displays.get(sb.0 as usize).unwrap();
-            view_builder.place_on(sn.entity(), TextValue::new(value_string));
+            // view_builder.place_on(sn.entity(), TextValue::new(value_string));
             // on_select is only for dependents, so this can uniformly close branches
             view_builder.place_on(
                 sn.branch().unwrap().target(),
