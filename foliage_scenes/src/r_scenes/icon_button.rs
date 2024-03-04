@@ -1,4 +1,4 @@
-use crate::r_scenes::button::{Button, ButtonInteractionHook, CurrentStyle};
+use crate::r_scenes::button::{Button, ButtonAesthetics, ButtonInteractionHook, CurrentStyle};
 use crate::r_scenes::{BackgroundColor, ForegroundColor, UIColor};
 use foliage_macros::{inner_set_descriptor, InnerSceneBinding};
 use foliage_proper::bevy_ecs;
@@ -128,6 +128,7 @@ impl Scene for IconButton {
                 self.element_style,
                 self.ui_color.foreground.0,
                 self.ui_color.background.0,
+                ButtonAesthetics::Invertible
             ),
         ))
     }

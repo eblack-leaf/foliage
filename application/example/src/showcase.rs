@@ -6,7 +6,7 @@ use foliage::coordinate::CoordinateUnit;
 use foliage::elm::ElementStyle;
 use foliage::icon::FeatherIcon;
 use foliage::layout::Layout;
-use foliage::r_scenes::button::Button;
+use foliage::r_scenes::button::{Button, ButtonAesthetics};
 use foliage::r_scenes::circle_button::CircleButton;
 use foliage::r_scenes::icon_button::IconButton;
 use foliage::r_scenes::icon_text::IconText;
@@ -136,8 +136,9 @@ impl Viewable for ButtonShowcase {
                     Color::BLACK,
                 ),
                 ElementStyle::normal(),
-                Color::BLACK,
-                ThemeColor::MINUS_THREE,
+                Color::DARK_GREY,
+                ThemeColor::MINUS_ONE,
+                ButtonAesthetics::Paneled
             ),
             Button::new(
                 IconText::new(
@@ -148,8 +149,9 @@ impl Viewable for ButtonShowcase {
                     Color::BLACK,
                 ),
                 ElementStyle::inverted(),
-                ThemeColor::MINUS_THREE,
-                Color::BLACK,
+                Color::DARK_GREY,
+                ThemeColor::MINUS_ONE,
+                ButtonAesthetics::Paneled
             ),
             "base".to_string(),
             2,

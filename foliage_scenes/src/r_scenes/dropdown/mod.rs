@@ -1,4 +1,6 @@
-use crate::r_scenes::dropdown::scene::{Displays, DropdownScene, ExpandDirection, Selection};
+use crate::r_scenes::dropdown::scene::{
+    Displays, DropdownScene, ExpandDirection, ExpandState, Selection,
+};
 use crate::r_scenes::UIColor;
 use foliage_proper::aesthetic::Aesthetic;
 use foliage_proper::animate::trigger::Trigger;
@@ -72,6 +74,7 @@ impl<Value: Clone + Send + Sync + 'static> Aesthetic for Dropdown<Value> {
                 view_builder.place_on(
                     sn.entity(),
                     OnExpand {
+                        target: handle.root(),
                         branches: handle.branches().unwrap().clone(),
                     },
                 );
@@ -87,6 +90,7 @@ impl<Value: Clone + Send + Sync + 'static> Aesthetic for Dropdown<Value> {
             view_builder.place_on(
                 sn.branch().unwrap().target(),
                 OnSelect {
+                    root: handle.root(),
                     target: handle.bindings().get(0),
                     display: value_string.clone(),
                     branches: handle.branches().unwrap().clone(),
@@ -97,14 +101,29 @@ impl<Value: Clone + Send + Sync + 'static> Aesthetic for Dropdown<Value> {
 }
 #[derive(Component, Clone)]
 pub struct OnExpand {
+    target: Entity,
     branches: Vec<ConditionHandle>,
 }
 impl Command for OnExpand {
     fn apply(self, world: &mut World) {
+        let state = world.get::<ExpandState>(self.target).unwrap().clone();
+        let trigger_state = match state {
+            ExpandState::Expanded => {
+                // collapse it
+                Trigger::inverse()
+            }
+            ExpandState::Collapsed => {
+                // expand it
+                Trigger::active()
+            }
+        };
         for branch in self.branches.iter() {
-            *world.get_mut::<Trigger>(branch.this()).unwrap() = Trigger::active();
+            *world.get_mut::<Trigger>(branch.this()).unwrap() = trigger_state;
         }
-        // change expand state
+        *world.get_mut::<ExpandState>(self.target).unwrap() = match state {
+            ExpandState::Expanded => ExpandState::Collapsed,
+            ExpandState::Collapsed => ExpandState::Expanded,
+        };
     }
 }
 fn on_expand(query: Query<(&Trigger, &OnExpand), Changed<Trigger>>, mut cmd: Commands) {
@@ -116,6 +135,7 @@ fn on_expand(query: Query<(&Trigger, &OnExpand), Changed<Trigger>>, mut cmd: Com
 }
 #[derive(Component, Clone)]
 pub struct OnSelect {
+    root: Entity,
     target: Entity,
     display: String,
     branches: Vec<ConditionHandle>,
@@ -128,6 +148,7 @@ impl Command for OnSelect {
             *world.get_mut::<Trigger>(branch.this()).unwrap() = Trigger::inverse();
         }
         // or another on trigger type?
+        *world.get_mut::<ExpandState>(self.root).unwrap() = ExpandState::Collapsed;
     }
 }
 fn on_select(query: Query<(&Trigger, &OnSelect), Changed<Trigger>>, mut cmd: Commands) {

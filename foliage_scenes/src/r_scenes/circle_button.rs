@@ -1,4 +1,4 @@
-use crate::r_scenes::button::{Button, ButtonComponents, ButtonInteractionHook, CurrentStyle};
+use crate::r_scenes::button::{Button, ButtonAesthetics, ButtonComponents, ButtonInteractionHook, CurrentStyle};
 use crate::r_scenes::{BackgroundColor, ForegroundColor};
 use foliage_macros::{inner_set_descriptor, InnerSceneBinding};
 use foliage_proper::bevy_ecs;
@@ -133,6 +133,7 @@ impl Scene for CircleButton {
                 self.element_style,
                 self.foreground_color,
                 self.background_color,
+                ButtonAesthetics::Invertible
             ),
         ))
     }
