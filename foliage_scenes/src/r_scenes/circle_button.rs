@@ -78,7 +78,7 @@ impl Scene for CircleButton {
         let icon = bindings.get(CircleButtonBindings::Icon);
         if let Ok((_est, fc, bc, cs)) = ext.0.get(entity) {
             *ext.2.get_mut(circle).unwrap() = cs.0;
-            if cs.0.is_fill() {
+            if cs.0.is_normal() {
                 *ext.1.get_mut(circle).unwrap() = bc.0;
                 *ext.1.get_mut(icon).unwrap() = fc.0;
             } else {

@@ -329,7 +329,7 @@ impl ElementStyle {
     pub fn inverted() -> Self {
         Self(1.0)
     }
-    pub fn is_fill(&self) -> bool {
+    pub fn is_normal(&self) -> bool {
         self.0 == 0.0
     }
 }

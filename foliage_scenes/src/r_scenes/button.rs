@@ -116,14 +116,26 @@ impl Scene for Button {
         let panel = bindings.get(ButtonBindings::Panel);
         if let Ok((_est, fc, bc, cs)) = ext.0.get(entity) {
             *ext.2.get_mut(panel).unwrap() = cs.0;
-            if cs.0.is_fill() {
-                *ext.1.get_mut(panel).unwrap() = bc.0;
-                ext.3.get_mut(icon_text).unwrap().0 .0 = fc.0;
-                ext.3.get_mut(icon_text).unwrap().1 .0 = fc.0;
+            if _est.is_normal() {
+                if cs.0.is_normal() {
+                    *ext.1.get_mut(panel).unwrap() = bc.0;
+                    ext.3.get_mut(icon_text).unwrap().0 .0 = fc.0;
+                    ext.3.get_mut(icon_text).unwrap().1 .0 = fc.0;
+                } else {
+                    ext.3.get_mut(icon_text).unwrap().0 .0 = bc.0;
+                    ext.3.get_mut(icon_text).unwrap().1 .0 = bc.0;
+                    *ext.1.get_mut(panel).unwrap() = bc.0;
+                }
             } else {
-                ext.3.get_mut(icon_text).unwrap().0 .0 = bc.0;
-                ext.3.get_mut(icon_text).unwrap().1 .0 = bc.0;
-                *ext.1.get_mut(panel).unwrap() = bc.0;
+                if cs.0.is_normal() {
+                    *ext.1.get_mut(panel).unwrap() = fc.0;
+                    ext.3.get_mut(icon_text).unwrap().0 .0 = bc.0;
+                    ext.3.get_mut(icon_text).unwrap().1 .0 = bc.0;
+                } else {
+                    *ext.1.get_mut(panel).unwrap() = fc.0;
+                    ext.3.get_mut(icon_text).unwrap().0 .0 = fc.0;
+                    ext.3.get_mut(icon_text).unwrap().1 .0 = fc.0;
+                }
             }
         }
     }
@@ -191,7 +203,7 @@ fn interaction(
     for (listener, ptr) in interaction_pane.iter() {
         if let Ok((mut trigger, est, mut cs)) = buttons.get_mut(ptr.value()) {
             if listener.engaged_start() {
-                if est.is_fill() {
+                if est.is_normal() {
                     *cs = CurrentStyle(ElementStyle::inverted());
                 } else {
                     *cs = CurrentStyle(ElementStyle::normal());

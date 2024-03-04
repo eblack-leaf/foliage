@@ -87,7 +87,7 @@ impl Scene for TextButton {
         if let Ok((_est, fc, bc, cs, tv)) = ext.0.get(entity) {
             ext.3.get_mut(text).unwrap().0 = tv.0.clone();
             *ext.2.get_mut(panel).unwrap() = cs.0;
-            if cs.0.is_fill() {
+            if cs.0.is_normal() {
                 *ext.1.get_mut(panel).unwrap() = bc.0;
                 *ext.1.get_mut(text).unwrap() = fc.0;
             } else {
