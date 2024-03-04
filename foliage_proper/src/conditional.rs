@@ -72,7 +72,7 @@ impl<CS: Scene + Clone> ConditionalScene<CS> {
         }
     }
 }
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct ConditionHandle {
     this: Entity,
     target: Entity,

@@ -14,7 +14,15 @@ impl Viewable for Overlay {
 
     fn view(mut view_builder: ViewBuilder) -> ViewDescriptor {
         view_builder.apply_aesthetic(Dropdown::<i32>::new(
-            [(String::from("opt-1"), 1), (String::from("opt-2"), 2)],
+            [
+                (String::from("opt-1"), 1),
+                (String::from("opt-2"), 2),
+                (String::from("opt-3"), 3),
+                (String::from("opt-4"), 4),
+                (String::from("opt-5"), 5),
+                (String::from("opt-6"), 6),
+                (String::from("opt-7"), 7),
+            ],
             ResponsiveSegment::base(Segment::new(
                 3.near().to(6.far()),
                 1.near().to(1.far()).maximum(50.0),

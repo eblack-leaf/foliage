@@ -24,6 +24,7 @@ impl Anchor {
         Anchor(grid.determine(self.0, alignment))
     }
 }
+#[derive(Debug)]
 pub struct SceneHandle {
     root: Entity,
     bindings: Bindings,
@@ -52,14 +53,14 @@ impl SceneHandle {
         self.branches.as_ref()
     }
 }
-#[derive(Copy, Clone, Hash, Eq, PartialEq)]
+#[derive(Copy, Clone, Hash, Eq, PartialEq, Debug)]
 pub struct SceneBinding(pub i32);
 impl From<i32> for SceneBinding {
     fn from(value: i32) -> Self {
         Self(value)
     }
 }
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SceneNode {
     entity: Entity,
     bindings: Option<Bindings>,
@@ -182,7 +183,7 @@ impl<'a, 'w, 's> Binder<'a, 'w, 's> {
             .id();
         let handle = ConditionHandle::new(main, pre_spawned);
         self.nodes
-            .insert(sb.into(), SceneNode::new(main, None, Some(handle)));
+            .insert(sb.into(), SceneNode::new(pre_spawned, None, Some(handle)));
         self.branches.push(handle);
         handle
     }
@@ -204,7 +205,7 @@ impl<'a, 'w, 's> Binder<'a, 'w, 's> {
             .id();
         let handle = ConditionHandle::new(main, pre_spawned);
         self.nodes
-            .insert(sb.into(), SceneNode::new(main, None, Some(handle)));
+            .insert(sb.into(), SceneNode::new(pre_spawned, None, Some(handle)));
         self.branches.push(handle);
         handle
     }
@@ -215,7 +216,7 @@ impl<'a, 'w, 's> Binder<'a, 'w, 's> {
         todo!()
     }
 }
-#[derive(Component, Default, Clone)]
+#[derive(Component, Default, Clone, Debug)]
 pub struct Bindings(HashMap<SceneBinding, SceneNode>);
 impl Bindings {
     pub fn get<SB: Into<SceneBinding>>(&self, sb: SB) -> Entity {
@@ -351,7 +352,7 @@ fn recursive_fetch(
                     let grid = grids.get(ptr.0).expect("scene-grid");
                     let anchor = Anchor(root_coordinate).aligned(grid, alignment);
                     fetch.push((bind.entity, anchor));
-                    if bind.bindings.is_some() {
+                    if query.get(bind.entity).unwrap().2.is_some() {
                         let others = recursive_fetch(anchor.0, bind.entity, &query, &grids);
                         fetch.extend(others);
                     }
@@ -386,7 +387,7 @@ pub(crate) fn resolve_anchor(
                 let anchor =
                     Anchor(coordinate).aligned(grid, deps.p0().get(bind.entity).unwrap().1);
                 *deps.p1().get_mut(bind.entity).unwrap() = anchor;
-                if bind.bindings.is_some() {
+                if deps.p0().get(bind.entity).unwrap().2.is_some() {
                     let rf = recursive_fetch(anchor.0, bind.entity, &deps.p0(), &grids);
                     for (e, a) in rf {
                         *deps.p1().get_mut(e).unwrap() = a;

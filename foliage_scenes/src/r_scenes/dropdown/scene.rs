@@ -128,7 +128,8 @@ impl Scene for DropdownScene {
             let offset = match self.expand_direction {
                 ExpandDirection::Up => binding * -1,
                 ExpandDirection::Down => binding,
-            };
+            } as f32
+                * 1.2;
             binder.bind_conditional_scene(
                 binding,
                 Alignment::new(
@@ -154,7 +155,7 @@ impl Scene for DropdownScene {
             //
         }
         binder.finish::<Self>(SceneComponents::new(
-            MicroGrid::new().aspect_ratio((max_chars.0 as f32 + 2f32) / 2f32),
+            MicroGrid::new(),
             DropdownSceneComponents::new(
                 max_chars,
                 self.element_style,
