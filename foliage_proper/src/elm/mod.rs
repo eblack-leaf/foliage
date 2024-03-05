@@ -8,7 +8,9 @@ use crate::animate::trigger::Trigger;
 use crate::ash::render_packet::RenderPacketForwarder;
 use crate::ash::render_packet::RenderPacketPackage;
 use crate::asset::{AssetContainer, AssetFetchFn, AssetKey, OnFetch};
-use crate::conditional::{conditional_extension, conditional_scene_spawn, conditional_spawn};
+use crate::conditional::{
+    conditional_command, conditional_extension, conditional_scene_spawn, conditional_spawn,
+};
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
@@ -29,7 +31,7 @@ use bevy_ecs::bundle::Bundle;
 use bevy_ecs::event::{event_update_system, Event, Events};
 use bevy_ecs::prelude::{Component, IntoSystemConfigs};
 use bevy_ecs::query::Changed;
-use bevy_ecs::system::{Commands, Query, RunSystemOnce, StaticSystemParam, SystemParam};
+use bevy_ecs::system::{Command, Commands, Query, RunSystemOnce, StaticSystemParam, SystemParam};
 use bytemuck::{Pod, Zeroable};
 use compact_str::{CompactString, ToCompactString};
 use leaf::Leaflet;
@@ -52,6 +54,12 @@ struct DifferentialLimiter<T>(PhantomData<T>);
 impl<T> Default for DifferentialLimiter<T> {
     fn default() -> Self {
         DifferentialLimiter(PhantomData)
+    }
+}
+struct ConditionalLimiter<C>(PhantomData<C>);
+impl<C> Default for ConditionalLimiter<C> {
+    fn default() -> Self {
+        ConditionalLimiter(PhantomData)
     }
 }
 #[derive(Bundle, Clone)]
@@ -254,14 +262,36 @@ impl Elm {
         self.main().add_systems(func.in_set(ExternalSet::Process));
     }
     pub fn enable_conditional<C: Bundle + Clone + Send + Sync + 'static>(&mut self) {
-        self.main().add_systems((
-            conditional_spawn::<C>.in_set(ExternalSet::ConditionalBind),
-            conditional_extension::<C>.in_set(ExternalSet::ConditionalExt),
-        ));
+        if self
+            .limiters
+            .insert::<ConditionalLimiter<C>>(ConditionalLimiter::default())
+            .is_none()
+        {
+            self.main().add_systems((
+                conditional_spawn::<C>.in_set(ExternalSet::ConditionalBind),
+                conditional_extension::<C>.in_set(ExternalSet::ConditionalExt),
+            ));
+        }
     }
     pub fn enable_conditional_scene<S: Scene + Clone + Send + Sync + 'static>(&mut self) {
-        self.main()
-            .add_systems(conditional_scene_spawn::<S>.in_set(ExternalSet::ConditionalBind));
+        if self
+            .limiters
+            .insert::<ConditionalLimiter<S>>(ConditionalLimiter::default())
+            .is_none()
+        {
+            self.main()
+                .add_systems(conditional_scene_spawn::<S>.in_set(ExternalSet::ConditionalBind));
+        }
+    }
+    pub fn enable_conditional_command<COMM: Command + Clone + Send + Sync + 'static>(&mut self) {
+        if self
+            .limiters
+            .insert::<ConditionalLimiter<COMM>>(ConditionalLimiter::default())
+            .is_none()
+        {
+            self.main()
+                .add_systems(conditional_command::<COMM>.in_set(CoreSet::ProcessEvent));
+        }
     }
     pub fn navigate_to<VH: Into<ViewHandle>>(&mut self, vh: VH) {
         self.container().spawn(Navigate(vh.into()));
@@ -323,13 +353,13 @@ impl Disabled {
 )]
 pub struct ElementStyle(pub(crate) f32);
 impl ElementStyle {
-    pub fn normal() -> Self {
+    pub fn fill() -> Self {
         Self(0.0)
     }
-    pub fn inverted() -> Self {
+    pub fn ring() -> Self {
         Self(1.0)
     }
-    pub fn is_normal(&self) -> bool {
+    pub fn is_fill(&self) -> bool {
         self.0 == 0.0
     }
 }

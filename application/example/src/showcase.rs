@@ -6,7 +6,7 @@ use foliage::coordinate::CoordinateUnit;
 use foliage::elm::ElementStyle;
 use foliage::icon::FeatherIcon;
 use foliage::layout::Layout;
-use foliage::r_scenes::button::{Button, ButtonAesthetics};
+use foliage::r_scenes::button::Button;
 use foliage::r_scenes::circle_button::CircleButton;
 use foliage::r_scenes::icon_button::IconButton;
 use foliage::r_scenes::icon_text::IconText;
@@ -135,10 +135,9 @@ impl Viewable for ButtonShowcase {
                     TextValue::new("copy"),
                     Color::BLACK,
                 ),
-                ElementStyle::normal(),
+                ElementStyle::fill(),
                 Color::DARK_GREY,
                 ThemeColor::MINUS_ONE,
-                ButtonAesthetics::Paneled
             ),
             Button::new(
                 IconText::new(
@@ -148,10 +147,9 @@ impl Viewable for ButtonShowcase {
                     TextValue::new("copy"),
                     Color::BLACK,
                 ),
-                ElementStyle::inverted(),
-                Color::DARK_GREY,
+                ElementStyle::ring(),
                 ThemeColor::MINUS_ONE,
-                ButtonAesthetics::Paneled
+                Color::DARK_GREY,
             ),
             "base".to_string(),
             2,
@@ -162,16 +160,16 @@ impl Viewable for ButtonShowcase {
             TextButton::new(
                 TextValue::new("copy"),
                 MaxCharacters(4),
-                ElementStyle::normal(),
+                ElementStyle::fill(),
                 Color::BLACK,
                 ThemeColor::MINUS_ONE,
             ),
             TextButton::new(
                 TextValue::new("copy"),
                 MaxCharacters(4),
-                ElementStyle::inverted(),
-                Color::BLACK,
+                ElementStyle::ring(),
                 ThemeColor::MINUS_ONE,
+                Color::BLACK,
             ),
             "text".to_string(),
             3,
@@ -181,15 +179,15 @@ impl Viewable for ButtonShowcase {
         view_builder.apply_aesthetic(ButtonDisplay::new(
             CircleButton::new(
                 FeatherIcon::Copy,
-                ElementStyle::normal(),
+                ElementStyle::fill(),
                 Color::BLACK,
                 ThemeColor::PLUS_ONE,
             ),
             CircleButton::new(
                 FeatherIcon::Copy,
-                ElementStyle::inverted(),
-                Color::BLACK,
+                ElementStyle::ring(),
                 ThemeColor::PLUS_ONE,
+                Color::BLACK,
             ),
             "circle".to_string(),
             4,
@@ -199,15 +197,15 @@ impl Viewable for ButtonShowcase {
         view_builder.apply_aesthetic(ButtonDisplay::new(
             IconButton::new(
                 FeatherIcon::Copy,
-                ElementStyle::normal(),
+                ElementStyle::fill(),
                 Color::BLACK,
                 ThemeColor::PLUS_THREE,
             ),
             IconButton::new(
                 FeatherIcon::Copy,
-                ElementStyle::inverted(),
-                Color::BLACK,
+                ElementStyle::ring(),
                 ThemeColor::PLUS_THREE,
+                Color::BLACK,
             ),
             "icon".to_string(),
             5,

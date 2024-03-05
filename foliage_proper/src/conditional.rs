@@ -7,6 +7,7 @@ use crate::scene::{Binder, Bindings, Scene, SceneBinding, SceneComponents};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Changed, Commands, Component, IntoSystemConfigs, Query};
+use bevy_ecs::system::Command;
 
 #[derive(Component, Copy, Clone)]
 pub struct ConditionSet(pub Entity, pub TriggerState);
@@ -197,6 +198,18 @@ pub(crate) fn conditional_extension<C: Bundle + Clone + Send + Sync + 'static>(
                         .remove::<C>();
                 }
             }
+        }
+    }
+}
+#[derive(Component)]
+pub struct ConditionalCommand<COMM: Command + Clone + Send + Sync + 'static>(pub COMM);
+pub(crate) fn conditional_command<COMM: Command + Clone + Send + Sync + 'static>(
+    query: Query<(&Trigger, &ConditionalCommand<COMM>), Changed<Trigger>>,
+    mut cmd: Commands,
+) {
+    for (trigger, comm) in query.iter() {
+        if trigger.is_active() {
+            cmd.add(comm.0.clone());
         }
     }
 }

@@ -27,7 +27,6 @@ pub struct Button {
     pub element_style: ElementStyle,
     pub foreground_color: Color,
     pub background_color: Color,
-    pub aesthetics: ButtonAesthetics,
 }
 impl Button {
     pub fn new<C: Into<Color>>(
@@ -35,14 +34,12 @@ impl Button {
         element_style: ElementStyle,
         foreground_color: C,
         background_color: C,
-        aesthetics: ButtonAesthetics
     ) -> Self {
         Self {
             icon_text,
             element_style,
             foreground_color: foreground_color.into(),
             background_color: background_color.into(),
-            aesthetics,
         }
     }
 }
@@ -54,21 +51,18 @@ pub struct ButtonComponents {
     pub ui_color: UIColor,
     current_style: CurrentStyle,
     trigger: Trigger,
-    pub aesthetics: ButtonAesthetics,
 }
 impl ButtonComponents {
     pub fn new<C: Into<Color>>(
         element_style: ElementStyle,
         foreground_color: C,
         background_color: C,
-        button_aesthetics: ButtonAesthetics,
     ) -> Self {
         Self {
             element_style,
             ui_color: UIColor::new(foreground_color.into(), background_color.into()),
             current_style: CurrentStyle(element_style),
             trigger: Trigger::default(),
-            aesthetics: button_aesthetics,
         }
     }
 }
@@ -76,12 +70,6 @@ impl ButtonComponents {
 pub enum ButtonBacking {
     Rounded,
     Square,
-}
-#[derive(Component, Copy, Clone)]
-pub enum ButtonAesthetics {
-    Minimal,
-    Paneled,
-    Invertible,
 }
 #[derive(InnerSceneBinding)]
 pub enum ButtonBindings {
@@ -103,7 +91,6 @@ impl Scene for Button {
                 &'static ForegroundColor,
                 &'static BackgroundColor,
                 &'static CurrentStyle,
-                &'static ButtonAesthetics,
             ),
             With<Tag<Button>>,
         >,
@@ -132,79 +119,27 @@ impl Scene for Button {
     ) {
         let icon_text = bindings.get(ButtonBindings::IconText);
         let panel = bindings.get(ButtonBindings::Panel);
-        if let Ok((_est, fc, bc, cs, ba)) = ext.0.get(entity) {
-            match *ba {
-                ButtonAesthetics::Minimal => {
-                    *ext.2.get_mut(panel).unwrap() = cs.0;
-                    if _est.is_normal() {
-                        if cs.0.is_normal() {
-                            *ext.1.get_mut(panel).unwrap() = bc.0;
-                            ext.3.get_mut(icon_text).unwrap().0 .0 = fc.0;
-                            ext.3.get_mut(icon_text).unwrap().1 .0 = fc.0;
-                        } else {
-                            ext.3.get_mut(icon_text).unwrap().0 .0 = bc.0;
-                            ext.3.get_mut(icon_text).unwrap().1 .0 = bc.0;
-                            *ext.1.get_mut(panel).unwrap() = fc.0;
-                        }
-                    } else {
-                        if cs.0.is_normal() {
-                            *ext.1.get_mut(panel).unwrap() = fc.0;
-                            ext.3.get_mut(icon_text).unwrap().0 .0 = bc.0;
-                            ext.3.get_mut(icon_text).unwrap().1 .0 = bc.0;
-                        } else {
-                            *ext.1.get_mut(panel).unwrap() = bc.0;
-                            ext.3.get_mut(icon_text).unwrap().0 .0 = fc.0;
-                            ext.3.get_mut(icon_text).unwrap().1 .0 = fc.0;
-                        }
-                    }
+        if let Ok((_est, fc, bc, cs)) = ext.0.get(entity) {
+            if _est.is_fill() {
+                if cs.0.is_fill() {
+                    *ext.1.get_mut(panel).unwrap() = bc.0;
+                    ext.3.get_mut(icon_text).unwrap().0 .0 = fc.0;
+                    ext.3.get_mut(icon_text).unwrap().1 .0 = fc.0;
+                } else {
+                    ext.3.get_mut(icon_text).unwrap().0 .0 = bc.0;
+                    ext.3.get_mut(icon_text).unwrap().1 .0 = bc.0;
+                    *ext.1.get_mut(panel).unwrap() = fc.0;
                 }
-                ButtonAesthetics::Paneled => {
-                    // *ext.2.get_mut(panel).unwrap() = cs.0;
-                    if _est.is_normal() {
-                        if cs.0.is_normal() {
-                            *ext.1.get_mut(panel).unwrap() = bc.0;
-                            ext.3.get_mut(icon_text).unwrap().0 .0 = fc.0;
-                            ext.3.get_mut(icon_text).unwrap().1 .0 = fc.0;
-                        } else {
-                            ext.3.get_mut(icon_text).unwrap().0 .0 = bc.0;
-                            ext.3.get_mut(icon_text).unwrap().1 .0 = bc.0;
-                            *ext.1.get_mut(panel).unwrap() = fc.0;
-                        }
-                    } else {
-                        if cs.0.is_normal() {
-                            *ext.1.get_mut(panel).unwrap() = fc.0;
-                            ext.3.get_mut(icon_text).unwrap().0 .0 = bc.0;
-                            ext.3.get_mut(icon_text).unwrap().1 .0 = bc.0;
-                        } else {
-                            *ext.1.get_mut(panel).unwrap() = bc.0;
-                            ext.3.get_mut(icon_text).unwrap().0 .0 = fc.0;
-                            ext.3.get_mut(icon_text).unwrap().1 .0 = fc.0;
-                        }
-                    }
-                }
-                ButtonAesthetics::Invertible => {
-                    *ext.2.get_mut(panel).unwrap() = cs.0;
-                    if _est.is_normal() {
-                        if cs.0.is_normal() {
-                            *ext.1.get_mut(panel).unwrap() = bc.0;
-                            ext.3.get_mut(icon_text).unwrap().0 .0 = fc.0;
-                            ext.3.get_mut(icon_text).unwrap().1 .0 = fc.0;
-                        } else {
-                            ext.3.get_mut(icon_text).unwrap().0 .0 = bc.0;
-                            ext.3.get_mut(icon_text).unwrap().1 .0 = bc.0;
-                            *ext.1.get_mut(panel).unwrap() = bc.0;
-                        }
-                    } else {
-                        if cs.0.is_normal() {
-                            *ext.1.get_mut(panel).unwrap() = fc.0;
-                            ext.3.get_mut(icon_text).unwrap().0 .0 = bc.0;
-                            ext.3.get_mut(icon_text).unwrap().1 .0 = bc.0;
-                        } else {
-                            *ext.1.get_mut(panel).unwrap() = fc.0;
-                            ext.3.get_mut(icon_text).unwrap().0 .0 = fc.0;
-                            ext.3.get_mut(icon_text).unwrap().1 .0 = fc.0;
-                        }
-                    }
+            } else {
+                *ext.2.get_mut(panel).unwrap() = cs.0;
+                if cs.0.is_fill() {
+                    *ext.1.get_mut(panel).unwrap() = fc.0;
+                    ext.3.get_mut(icon_text).unwrap().0 .0 = bc.0;
+                    ext.3.get_mut(icon_text).unwrap().1 .0 = bc.0;
+                } else {
+                    *ext.1.get_mut(panel).unwrap() = fc.0;
+                    ext.3.get_mut(icon_text).unwrap().0 .0 = fc.0;
+                    ext.3.get_mut(icon_text).unwrap().1 .0 = fc.0;
                 }
             }
         }
@@ -251,7 +186,6 @@ impl Scene for Button {
                 self.element_style,
                 self.foreground_color,
                 self.background_color,
-                self.aesthetics
             ),
         ))
     }
@@ -274,10 +208,10 @@ fn interaction(
     for (listener, ptr) in interaction_pane.iter() {
         if let Ok((mut trigger, est, mut cs)) = buttons.get_mut(ptr.value()) {
             if listener.engaged_start() {
-                if est.is_normal() {
-                    *cs = CurrentStyle(ElementStyle::inverted());
+                if est.is_fill() {
+                    *cs = CurrentStyle(ElementStyle::ring());
                 } else {
-                    *cs = CurrentStyle(ElementStyle::normal());
+                    *cs = CurrentStyle(ElementStyle::fill());
                 }
             }
             if listener.engaged_end() {

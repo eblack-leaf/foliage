@@ -1,4 +1,4 @@
-use crate::r_scenes::button::{Button, ButtonAesthetics, ButtonComponents, ButtonInteractionHook, CurrentStyle};
+use crate::r_scenes::button::{Button, ButtonComponents, ButtonInteractionHook, CurrentStyle};
 use crate::r_scenes::{BackgroundColor, ForegroundColor};
 use foliage_macros::{inner_set_descriptor, InnerSceneBinding};
 use foliage_proper::bevy_ecs;
@@ -77,13 +77,23 @@ impl Scene for CircleButton {
         let circle = bindings.get(CircleButtonBindings::Circle);
         let icon = bindings.get(CircleButtonBindings::Icon);
         if let Ok((_est, fc, bc, cs)) = ext.0.get(entity) {
-            *ext.2.get_mut(circle).unwrap() = cs.0;
-            if cs.0.is_normal() {
-                *ext.1.get_mut(circle).unwrap() = bc.0;
-                *ext.1.get_mut(icon).unwrap() = fc.0;
+            if _est.is_fill() {
+                if cs.0.is_fill() {
+                    *ext.1.get_mut(circle).unwrap() = bc.0;
+                    *ext.1.get_mut(icon).unwrap() = fc.0;
+                } else {
+                    *ext.1.get_mut(icon).unwrap() = bc.0;
+                    *ext.1.get_mut(circle).unwrap() = fc.0;
+                }
             } else {
-                *ext.1.get_mut(circle).unwrap() = fc.0;
-                *ext.1.get_mut(icon).unwrap() = bc.0;
+                *ext.2.get_mut(circle).unwrap() = cs.0;
+                if cs.0.is_fill() {
+                    *ext.1.get_mut(circle).unwrap() = fc.0;
+                    *ext.1.get_mut(icon).unwrap() = bc.0;
+                } else {
+                    *ext.1.get_mut(circle).unwrap() = fc.0;
+                    *ext.1.get_mut(icon).unwrap() = fc.0;
+                }
             }
         }
     }
@@ -133,7 +143,6 @@ impl Scene for CircleButton {
                 self.element_style,
                 self.foreground_color,
                 self.background_color,
-                ButtonAesthetics::Invertible
             ),
         ))
     }
