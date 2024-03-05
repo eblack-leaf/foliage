@@ -1,5 +1,5 @@
 use crate::r_scenes::button::{Button, ButtonInteractionHook, CurrentStyle};
-use crate::r_scenes::{BackgroundColor, ForegroundColor, UIColor};
+use crate::r_scenes::{BackgroundColor, Colors, ForegroundColor};
 use foliage_macros::{inner_set_descriptor, InnerSceneBinding};
 use foliage_proper::bevy_ecs;
 use foliage_proper::bevy_ecs::entity::Entity;
@@ -10,7 +10,7 @@ use foliage_proper::color::Color;
 use foliage_proper::coordinate::{Coordinate, InterfaceContext};
 use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
 use foliage_proper::elm::leaf::{Leaf, Tag};
-use foliage_proper::elm::{BundleExtend, ElementStyle, Elm};
+use foliage_proper::elm::{BundleExtend, Elm, Style};
 use foliage_proper::interaction::InteractionListener;
 use foliage_proper::panel::Panel;
 use foliage_proper::scene::micro_grid::{
@@ -20,23 +20,23 @@ use foliage_proper::scene::{Binder, Bindings, BlankNode, Scene, SceneComponents,
 use foliage_proper::text::{MaxCharacters, Text, TextValue};
 #[derive(Clone)]
 pub struct TextButton {
-    element_style: ElementStyle,
+    element_style: Style,
     text_value: TextValue,
-    ui_color: UIColor,
+    ui_color: Colors,
     max_chars: MaxCharacters,
 }
 impl TextButton {
     pub fn new<C: Into<Color>, MC: Into<MaxCharacters>>(
         text_value: TextValue,
         max_characters: MC,
-        element_style: ElementStyle,
+        element_style: Style,
         fc: C,
         bg: C,
     ) -> Self {
         Self {
             element_style,
             text_value,
-            ui_color: UIColor::new(fc.into(), bg.into()),
+            ui_color: Colors::new(fc.into(), bg.into()),
             max_chars: max_characters.into(),
         }
     }
@@ -57,7 +57,7 @@ impl Scene for TextButton {
             'static,
             'static,
             (
-                &'static ElementStyle,
+                &'static Style,
                 &'static ForegroundColor,
                 &'static BackgroundColor,
                 &'static CurrentStyle,
@@ -66,7 +66,7 @@ impl Scene for TextButton {
             With<Tag<TextButton>>,
         >,
         Query<'static, 'static, &'static mut Color, Without<Tag<TextButton>>>,
-        Query<'static, 'static, &'static mut ElementStyle, Without<Tag<TextButton>>>,
+        Query<'static, 'static, &'static mut Style, Without<Tag<TextButton>>>,
         Query<'static, 'static, &'static mut TextValue, Without<Tag<TextButton>>>,
     );
     type Filter = Or<(
@@ -97,11 +97,11 @@ impl Scene for TextButton {
             } else {
                 *ext.2.get_mut(panel).unwrap() = cs.0;
                 if cs.0.is_fill() {
-                    *ext.1.get_mut(panel).unwrap() = fc.0;
-                    *ext.1.get_mut(text).unwrap() = bc.0;
-                } else {
-                    *ext.1.get_mut(panel).unwrap() = fc.0;
+                    *ext.1.get_mut(panel).unwrap() = bc.0;
                     *ext.1.get_mut(text).unwrap() = fc.0;
+                } else {
+                    *ext.1.get_mut(panel).unwrap() = bc.0;
+                    *ext.1.get_mut(text).unwrap() = bc.0;
                 }
             }
         }

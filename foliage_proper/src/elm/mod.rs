@@ -351,8 +351,8 @@ impl Disabled {
 #[derive(
     Component, Copy, Clone, Debug, PartialEq, Pod, Zeroable, Serialize, Deserialize, Default,
 )]
-pub struct ElementStyle(pub(crate) f32);
-impl ElementStyle {
+pub struct Style(pub(crate) f32);
+impl Style {
     pub fn fill() -> Self {
         Self(0.0)
     }

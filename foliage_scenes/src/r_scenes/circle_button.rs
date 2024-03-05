@@ -10,7 +10,7 @@ use foliage_proper::color::Color;
 use foliage_proper::coordinate::{Coordinate, InterfaceContext};
 use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
 use foliage_proper::elm::leaf::{Leaf, Tag};
-use foliage_proper::elm::{BundleExtend, ElementStyle, Elm};
+use foliage_proper::elm::{BundleExtend, Elm, Style};
 use foliage_proper::icon::{Icon, IconId};
 use foliage_proper::interaction::{InteractionListener, InteractionShape};
 use foliage_proper::scene::micro_grid::{
@@ -21,14 +21,14 @@ use foliage_proper::texture::factors::Progress;
 #[derive(Clone)]
 pub struct CircleButton {
     icon_id: IconId,
-    element_style: ElementStyle,
+    element_style: Style,
     pub foreground_color: Color,
     pub background_color: Color,
 }
 impl CircleButton {
     pub fn new<ID: Into<IconId>, C: Into<Color>>(
         id: ID,
-        element_style: ElementStyle,
+        element_style: Style,
         fg: C,
         bg: C,
     ) -> Self {
@@ -55,7 +55,7 @@ impl Scene for CircleButton {
             'static,
             'static,
             (
-                &'static ElementStyle,
+                &'static Style,
                 &'static ForegroundColor,
                 &'static BackgroundColor,
                 &'static CurrentStyle,
@@ -63,7 +63,7 @@ impl Scene for CircleButton {
             With<Tag<CircleButton>>,
         >,
         Query<'static, 'static, &'static mut Color, Without<Tag<CircleButton>>>,
-        Query<'static, 'static, &'static mut ElementStyle, Without<Tag<CircleButton>>>,
+        Query<'static, 'static, &'static mut Style, Without<Tag<CircleButton>>>,
     );
     type Filter = <Button as Scene>::Filter;
     type Components = <Button as Scene>::Components;
@@ -88,11 +88,11 @@ impl Scene for CircleButton {
             } else {
                 *ext.2.get_mut(circle).unwrap() = cs.0;
                 if cs.0.is_fill() {
-                    *ext.1.get_mut(circle).unwrap() = fc.0;
-                    *ext.1.get_mut(icon).unwrap() = bc.0;
-                } else {
-                    *ext.1.get_mut(circle).unwrap() = fc.0;
+                    *ext.1.get_mut(circle).unwrap() = bc.0;
                     *ext.1.get_mut(icon).unwrap() = fc.0;
+                } else {
+                    *ext.1.get_mut(circle).unwrap() = bc.0;
+                    *ext.1.get_mut(icon).unwrap() = bc.0;
                 }
             }
         }

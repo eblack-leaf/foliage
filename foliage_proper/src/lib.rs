@@ -44,7 +44,6 @@ use crate::virtual_keyboard::VirtualKeyboardAdapter;
 use crate::workflow::{Workflow, WorkflowConnectionBase};
 use animate::trigger::Trigger;
 
-pub mod aesthetic;
 pub mod animate;
 pub mod ash;
 pub mod asset;
@@ -64,6 +63,7 @@ pub mod job;
 pub mod layout;
 pub mod media;
 pub mod panel;
+pub mod procedure;
 pub mod rectangle;
 pub mod scene;
 pub mod segment;

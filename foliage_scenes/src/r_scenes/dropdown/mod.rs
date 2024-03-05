@@ -1,16 +1,16 @@
 use crate::r_scenes::dropdown::scene::{
     Displays, DropdownScene, ExpandDirection, ExpandState, Selection,
 };
-use crate::r_scenes::UIColor;
-use foliage_proper::aesthetic::Aesthetic;
+use crate::r_scenes::Colors;
 use foliage_proper::animate::trigger::Trigger;
 use foliage_proper::bevy_ecs;
 use foliage_proper::bevy_ecs::entity::Entity;
 use foliage_proper::bevy_ecs::prelude::{Changed, Commands, Component, Query, World};
 use foliage_proper::bevy_ecs::system::Command;
 use foliage_proper::conditional::ConditionHandle;
+use foliage_proper::procedure::Procedure;
 
-use foliage_proper::elm::ElementStyle;
+use foliage_proper::elm::Style;
 use foliage_proper::segment::ResponsiveSegment;
 use foliage_proper::text::TextValue;
 use foliage_proper::view::ViewBuilder;
@@ -24,16 +24,16 @@ pub struct Dropdown<Value: Clone> {
     displays: Vec<DropdownDisplay>,
     values: Vec<Value>,
     expand_direction: ExpandDirection,
-    element_style: ElementStyle,
-    ui_color: UIColor,
+    element_style: Style,
+    ui_color: Colors,
 }
 impl<Value: Clone> Dropdown<Value> {
     pub fn new<const N: usize>(
         list: [(DropdownDisplay, Value); N],
         responsive_segment: ResponsiveSegment,
         expand_direction: ExpandDirection,
-        element_style: ElementStyle,
-        ui_color: UIColor,
+        element_style: Style,
+        ui_color: Colors,
     ) -> Self {
         let displays = list.iter().map(|dv| dv.0.clone()).collect();
         let values = list.iter().map(|dv| dv.1.clone()).collect();
@@ -47,8 +47,8 @@ impl<Value: Clone> Dropdown<Value> {
         }
     }
 }
-impl<Value: Clone + Send + Sync + 'static> Aesthetic for Dropdown<Value> {
-    fn pigment(self, view_builder: &mut ViewBuilder) {
+impl<Value: Clone + Send + Sync + 'static> Procedure for Dropdown<Value> {
+    fn steps(self, view_builder: &mut ViewBuilder) {
         let _max_chars = self
             .displays
             .iter()

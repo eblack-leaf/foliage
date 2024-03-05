@@ -1,6 +1,6 @@
 use crate::r_scenes::dropdown::{on_expand, on_select};
 use crate::r_scenes::text_button::TextButton;
-use crate::r_scenes::UIColor;
+use crate::r_scenes::Colors;
 use foliage_macros::inner_set_descriptor;
 use foliage_proper::bevy_ecs;
 use foliage_proper::bevy_ecs::bundle::Bundle;
@@ -10,7 +10,7 @@ use foliage_proper::bevy_ecs::system::SystemParamItem;
 use foliage_proper::coordinate::{Coordinate, InterfaceContext};
 use foliage_proper::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use foliage_proper::elm::leaf::Leaf;
-use foliage_proper::elm::{ElementStyle, Elm};
+use foliage_proper::elm::{Elm, Style};
 use foliage_proper::panel::Panel;
 use foliage_proper::scene::micro_grid::{
     Alignment, AlignmentDesc, AnchorDim, MicroGrid, RelativeMarker,
@@ -35,17 +35,17 @@ pub struct Values<T: Clone>(pub Vec<T>);
 #[derive(Component, Clone, Default)]
 pub struct Displays(pub Vec<String>);
 pub(crate) struct DropdownScene {
-    element_style: ElementStyle,
+    element_style: Style,
     displays: Displays,
-    ui_color: UIColor,
+    ui_color: Colors,
     pub expand_direction: ExpandDirection,
 }
 impl DropdownScene {
     pub(crate) fn new(
         displays: Displays,
         expand_direction: ExpandDirection,
-        element_style: ElementStyle,
-        ui_color: UIColor,
+        element_style: Style,
+        ui_color: Colors,
     ) -> Self {
         Self {
             element_style,
@@ -60,9 +60,9 @@ pub struct CurrentSelection(pub u32);
 #[derive(Bundle)]
 pub struct DropdownSceneComponents {
     pub max_characters: MaxCharacters,
-    pub style: ElementStyle,
+    pub style: Style,
     pub displays: Displays,
-    pub ui_color: UIColor,
+    pub ui_color: Colors,
     pub expanded_state: ExpandState,
     pub expand_direction: ExpandDirection,
     pub current: CurrentSelection,
@@ -70,9 +70,9 @@ pub struct DropdownSceneComponents {
 impl DropdownSceneComponents {
     pub fn new(
         mc: MaxCharacters,
-        style: ElementStyle,
+        style: Style,
         displays: Displays,
-        ui_color: UIColor,
+        ui_color: Colors,
         expand_direction: ExpandDirection,
     ) -> Self {
         Self {

@@ -1,11 +1,11 @@
 use crate::ThemeColor;
-use foliage::aesthetic::Aesthetic;
 use foliage::color::monochromatic::Monochromatic;
 use foliage::color::Color;
 use foliage::coordinate::CoordinateUnit;
-use foliage::elm::ElementStyle;
+use foliage::elm::Style;
 use foliage::icon::FeatherIcon;
 use foliage::layout::Layout;
+use foliage::procedure::Procedure;
 use foliage::r_scenes::button::Button;
 use foliage::r_scenes::circle_button::CircleButton;
 use foliage::r_scenes::icon_button::IconButton;
@@ -43,8 +43,8 @@ impl<T> ButtonDisplay<T> {
         }
     }
 }
-impl<T: Scene> Aesthetic for ButtonDisplay<T> {
-    fn pigment(self, view_builder: &mut ViewBuilder) {
+impl<T: Scene> Procedure for ButtonDisplay<T> {
+    fn steps(self, view_builder: &mut ViewBuilder) {
         view_builder.add_scene(
             self.first,
             ResponsiveSegment::base(Segment::new(
@@ -126,7 +126,7 @@ pub struct ButtonShowcase;
 impl Viewable for ButtonShowcase {
     const GRID: MacroGrid = MacroGrid::new(8, 6);
     fn view(mut view_builder: ViewBuilder) -> ViewDescriptor {
-        view_builder.apply_aesthetic(ButtonDisplay::new(
+        view_builder.apply(ButtonDisplay::new(
             Button::new(
                 IconText::new(
                     FeatherIcon::Copy,
@@ -135,7 +135,7 @@ impl Viewable for ButtonShowcase {
                     TextValue::new("copy"),
                     Color::BLACK,
                 ),
-                ElementStyle::fill(),
+                Style::fill(),
                 Color::DARK_GREY,
                 ThemeColor::MINUS_ONE,
             ),
@@ -147,65 +147,65 @@ impl Viewable for ButtonShowcase {
                     TextValue::new("copy"),
                     Color::BLACK,
                 ),
-                ElementStyle::ring(),
-                ThemeColor::MINUS_ONE,
+                Style::ring(),
                 Color::DARK_GREY,
+                ThemeColor::MINUS_ONE,
             ),
             "base".to_string(),
             2,
             None,
             Some(45.0),
         ));
-        view_builder.apply_aesthetic(ButtonDisplay::new(
+        view_builder.apply(ButtonDisplay::new(
             TextButton::new(
                 TextValue::new("copy"),
                 MaxCharacters(4),
-                ElementStyle::fill(),
+                Style::fill(),
                 Color::BLACK,
                 ThemeColor::MINUS_ONE,
             ),
             TextButton::new(
                 TextValue::new("copy"),
                 MaxCharacters(4),
-                ElementStyle::ring(),
-                ThemeColor::MINUS_ONE,
+                Style::ring(),
                 Color::BLACK,
+                ThemeColor::MINUS_ONE,
             ),
             "text".to_string(),
             3,
             None,
             Some(45.0),
         ));
-        view_builder.apply_aesthetic(ButtonDisplay::new(
+        view_builder.apply(ButtonDisplay::new(
             CircleButton::new(
                 FeatherIcon::Copy,
-                ElementStyle::fill(),
+                Style::fill(),
                 Color::BLACK,
                 ThemeColor::PLUS_ONE,
             ),
             CircleButton::new(
                 FeatherIcon::Copy,
-                ElementStyle::ring(),
-                ThemeColor::PLUS_ONE,
+                Style::ring(),
                 Color::BLACK,
+                ThemeColor::PLUS_ONE,
             ),
             "circle".to_string(),
             4,
             Some(55.0),
             Some(55.0),
         ));
-        view_builder.apply_aesthetic(ButtonDisplay::new(
+        view_builder.apply(ButtonDisplay::new(
             IconButton::new(
                 FeatherIcon::Copy,
-                ElementStyle::fill(),
+                Style::fill(),
                 Color::BLACK,
                 ThemeColor::PLUS_THREE,
             ),
             IconButton::new(
                 FeatherIcon::Copy,
-                ElementStyle::ring(),
-                ThemeColor::PLUS_THREE,
+                Style::ring(),
                 Color::BLACK,
+                ThemeColor::PLUS_THREE,
             ),
             "icon".to_string(),
             5,

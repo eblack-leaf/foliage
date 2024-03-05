@@ -11,7 +11,7 @@ use crate::color::Color;
 use crate::coordinate::area::CReprArea;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::CReprPosition;
-use crate::elm::ElementStyle;
+use crate::elm::Style;
 use crate::ginkgo::Ginkgo;
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
 use crate::texture::coord::TexturePartition;
@@ -120,7 +120,7 @@ impl Render for Circle {
                             attributes: &wgpu::vertex_attr_array![5 => Float32x4],
                         },
                         wgpu::VertexBufferLayout {
-                            array_stride: Ginkgo::buffer_address::<ElementStyle>(1),
+                            array_stride: Ginkgo::buffer_address::<Style>(1),
                             step_mode: wgpu::VertexStepMode::Instance,
                             attributes: &wgpu::vertex_attr_array![6 => Float32],
                         },
@@ -152,7 +152,7 @@ impl Render for Circle {
             .with_attribute::<CReprArea>()
             .with_attribute::<Layer>()
             .with_attribute::<Color>()
-            .with_attribute::<ElementStyle>()
+            .with_attribute::<Style>()
             .with_attribute::<TexturePartition>()
             .with_attribute::<Progress>()
             .build(ginkgo);
@@ -266,10 +266,7 @@ impl Circle {
             );
             recorder.0.set_vertex_buffer(
                 5,
-                resources
-                    .instance_coordinator
-                    .buffer::<ElementStyle>()
-                    .slice(..),
+                resources.instance_coordinator.buffer::<Style>().slice(..),
             );
             recorder.0.set_vertex_buffer(
                 6,

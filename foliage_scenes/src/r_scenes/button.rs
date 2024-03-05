@@ -1,5 +1,5 @@
 use crate::r_scenes::icon_text::{IconColor, IconText, TextColor};
-use crate::r_scenes::{BackgroundColor, ForegroundColor, UIColor};
+use crate::r_scenes::{BackgroundColor, Colors, ForegroundColor};
 use foliage_macros::{inner_set_descriptor, InnerSceneBinding};
 use foliage_proper::animate::trigger::{Trigger, TriggerState};
 use foliage_proper::bevy_ecs;
@@ -12,7 +12,7 @@ use foliage_proper::color::Color;
 use foliage_proper::coordinate::{Coordinate, InterfaceContext};
 use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
 use foliage_proper::elm::leaf::{Leaf, Tag};
-use foliage_proper::elm::{BundleExtend, ElementStyle, Elm};
+use foliage_proper::elm::{BundleExtend, Elm, Style};
 use foliage_proper::interaction::InteractionListener;
 use foliage_proper::panel::Panel;
 use foliage_proper::scene::micro_grid::{
@@ -24,14 +24,14 @@ use foliage_proper::scene::{
 #[derive(Clone)]
 pub struct Button {
     pub icon_text: IconText,
-    pub element_style: ElementStyle,
+    pub element_style: Style,
     pub foreground_color: Color,
     pub background_color: Color,
 }
 impl Button {
     pub fn new<C: Into<Color>>(
         icon_text: IconText,
-        element_style: ElementStyle,
+        element_style: Style,
         foreground_color: C,
         background_color: C,
     ) -> Self {
@@ -44,23 +44,23 @@ impl Button {
     }
 }
 #[derive(Component, Copy, Clone)]
-pub struct CurrentStyle(pub ElementStyle);
+pub struct CurrentStyle(pub Style);
 #[derive(Bundle)]
 pub struct ButtonComponents {
-    pub element_style: ElementStyle,
-    pub ui_color: UIColor,
+    pub element_style: Style,
+    pub ui_color: Colors,
     current_style: CurrentStyle,
     trigger: Trigger,
 }
 impl ButtonComponents {
     pub fn new<C: Into<Color>>(
-        element_style: ElementStyle,
+        element_style: Style,
         foreground_color: C,
         background_color: C,
     ) -> Self {
         Self {
             element_style,
-            ui_color: UIColor::new(foreground_color.into(), background_color.into()),
+            ui_color: Colors::new(foreground_color.into(), background_color.into()),
             current_style: CurrentStyle(element_style),
             trigger: Trigger::default(),
         }
@@ -87,7 +87,7 @@ impl Scene for Button {
             'static,
             'static,
             (
-                &'static ElementStyle,
+                &'static Style,
                 &'static ForegroundColor,
                 &'static BackgroundColor,
                 &'static CurrentStyle,
@@ -95,7 +95,7 @@ impl Scene for Button {
             With<Tag<Button>>,
         >,
         Query<'static, 'static, &'static mut Color, Without<Tag<Button>>>,
-        Query<'static, 'static, &'static mut ElementStyle, Without<Tag<Button>>>,
+        Query<'static, 'static, &'static mut Style, Without<Tag<Button>>>,
         Query<
             'static,
             'static,
@@ -104,7 +104,7 @@ impl Scene for Button {
         >,
     );
     type Filter = Or<(
-        Changed<ElementStyle>,
+        Changed<Style>,
         Changed<ForegroundColor>,
         Changed<BackgroundColor>,
         Changed<CurrentStyle>,
@@ -133,13 +133,13 @@ impl Scene for Button {
             } else {
                 *ext.2.get_mut(panel).unwrap() = cs.0;
                 if cs.0.is_fill() {
-                    *ext.1.get_mut(panel).unwrap() = fc.0;
-                    ext.3.get_mut(icon_text).unwrap().0 .0 = bc.0;
-                    ext.3.get_mut(icon_text).unwrap().1 .0 = bc.0;
-                } else {
-                    *ext.1.get_mut(panel).unwrap() = fc.0;
+                    *ext.1.get_mut(panel).unwrap() = bc.0;
                     ext.3.get_mut(icon_text).unwrap().0 .0 = fc.0;
                     ext.3.get_mut(icon_text).unwrap().1 .0 = fc.0;
+                } else {
+                    *ext.1.get_mut(panel).unwrap() = bc.0;
+                    ext.3.get_mut(icon_text).unwrap().0 .0 = bc.0;
+                    ext.3.get_mut(icon_text).unwrap().1 .0 = bc.0;
                 }
             }
         }
@@ -193,10 +193,7 @@ impl Scene for Button {
 #[derive(Component, Copy, Clone)]
 pub(crate) struct ButtonInteractionHook();
 fn interaction(
-    mut buttons: Query<
-        (&mut Trigger, &ElementStyle, &mut CurrentStyle),
-        With<Tag<ButtonInteractionHook>>,
-    >,
+    mut buttons: Query<(&mut Trigger, &Style, &mut CurrentStyle), With<Tag<ButtonInteractionHook>>>,
     interaction_pane: Query<
         (&InteractionListener, &ScenePtr),
         (
@@ -209,9 +206,9 @@ fn interaction(
         if let Ok((mut trigger, est, mut cs)) = buttons.get_mut(ptr.value()) {
             if listener.engaged_start() {
                 if est.is_fill() {
-                    *cs = CurrentStyle(ElementStyle::ring());
+                    *cs = CurrentStyle(Style::ring());
                 } else {
-                    *cs = CurrentStyle(ElementStyle::fill());
+                    *cs = CurrentStyle(Style::fill());
                 }
             }
             if listener.engaged_end() {

@@ -1,8 +1,8 @@
 use foliage::color::Color;
-use foliage::elm::ElementStyle;
+use foliage::elm::Style;
 use foliage::r_scenes::dropdown::scene::ExpandDirection;
 use foliage::r_scenes::dropdown::Dropdown;
-use foliage::r_scenes::UIColor;
+use foliage::r_scenes::Colors;
 use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::view::{ViewBuilder, ViewDescriptor, Viewable};
 
@@ -11,7 +11,7 @@ impl Viewable for Overlay {
     const GRID: MacroGrid = MacroGrid::new(8, 8);
 
     fn view(mut view_builder: ViewBuilder) -> ViewDescriptor {
-        view_builder.apply_aesthetic(Dropdown::<i32>::new(
+        view_builder.apply(Dropdown::<i32>::new(
             [
                 (String::from("opt-1"), 1),
                 (String::from("opt-2"), 2),
@@ -27,8 +27,8 @@ impl Viewable for Overlay {
             ))
             .justify(Justify::Top),
             ExpandDirection::Down,
-            ElementStyle::fill(),
-            UIColor::new(Color::WHITE, Color::DARK_GREY),
+            Style::fill(),
+            Colors::new(Color::WHITE, Color::DARK_GREY),
         ));
         view_builder.finish()
     }

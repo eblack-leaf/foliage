@@ -1,5 +1,5 @@
 use crate::r_scenes::button::{Button, ButtonInteractionHook, CurrentStyle};
-use crate::r_scenes::{BackgroundColor, ForegroundColor, UIColor};
+use crate::r_scenes::{BackgroundColor, Colors, ForegroundColor};
 use foliage_macros::{inner_set_descriptor, InnerSceneBinding};
 use foliage_proper::bevy_ecs;
 use foliage_proper::bevy_ecs::entity::Entity;
@@ -9,7 +9,7 @@ use foliage_proper::color::Color;
 use foliage_proper::coordinate::{Coordinate, InterfaceContext};
 use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
 use foliage_proper::elm::leaf::{Leaf, Tag};
-use foliage_proper::elm::{BundleExtend, ElementStyle, Elm};
+use foliage_proper::elm::{BundleExtend, Elm, Style};
 use foliage_proper::icon::{Icon, IconId};
 use foliage_proper::interaction::InteractionListener;
 use foliage_proper::panel::Panel;
@@ -19,21 +19,21 @@ use foliage_proper::scene::micro_grid::{
 use foliage_proper::scene::{Binder, Bindings, BlankNode, Scene, SceneComponents, SceneHandle};
 
 pub struct IconButton {
-    element_style: ElementStyle,
+    element_style: Style,
     icon_id: IconId,
-    ui_color: UIColor,
+    ui_color: Colors,
 }
 impl IconButton {
     pub fn new<ID: Into<IconId>, C: Into<Color>>(
         id: ID,
-        element_style: ElementStyle,
+        element_style: Style,
         fg: C,
         bg: C,
     ) -> Self {
         Self {
             element_style,
             icon_id: id.into(),
-            ui_color: UIColor::new(fg, bg),
+            ui_color: Colors::new(fg, bg),
         }
     }
 }
@@ -52,7 +52,7 @@ impl Scene for IconButton {
             'static,
             'static,
             (
-                &'static ElementStyle,
+                &'static Style,
                 &'static ForegroundColor,
                 &'static BackgroundColor,
                 &'static CurrentStyle,
@@ -60,7 +60,7 @@ impl Scene for IconButton {
             With<Tag<IconButton>>,
         >,
         Query<'static, 'static, &'static mut Color, Without<Tag<IconButton>>>,
-        Query<'static, 'static, &'static mut ElementStyle, Without<Tag<IconButton>>>,
+        Query<'static, 'static, &'static mut Style, Without<Tag<IconButton>>>,
     );
     type Filter = <Button as Scene>::Filter;
     type Components = <Button as Scene>::Components;
@@ -85,11 +85,11 @@ impl Scene for IconButton {
             } else {
                 *ext.2.get_mut(panel).unwrap() = cs.0;
                 if cs.0.is_fill() {
-                    *ext.1.get_mut(panel).unwrap() = fc.0;
-                    *ext.1.get_mut(icon).unwrap() = bc.0;
-                } else {
-                    *ext.1.get_mut(panel).unwrap() = fc.0;
+                    *ext.1.get_mut(panel).unwrap() = bc.0;
                     *ext.1.get_mut(icon).unwrap() = fc.0;
+                } else {
+                    *ext.1.get_mut(panel).unwrap() = bc.0;
+                    *ext.1.get_mut(icon).unwrap() = bc.0;
                 }
             }
         }

@@ -1,4 +1,3 @@
-use crate::aesthetic::Aesthetic;
 use crate::conditional::{Branch, ConditionHandle, Conditional, SceneBranch, SpawnTarget};
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
@@ -10,6 +9,7 @@ use crate::elm::leaf::{EmptySetDescriptor, Leaf};
 use crate::elm::{Disabled, Elm};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::layout::Layout;
+use crate::procedure::Procedure;
 use crate::scene::{Binder, ExtendTarget, Scene, SceneBindingComponents, SceneHandle};
 use crate::segment::{MacroGrid, ResponsiveSegment};
 use bevy_ecs::bundle::Bundle;
@@ -71,10 +71,10 @@ impl<'a, 'w, 's> ViewBuilder<'a, 'w, 's> {
     fn cmd(&mut self) -> &mut Commands<'w, 's> {
         self.cmd.as_deref_mut().unwrap()
     }
-    pub fn apply_aesthetic<A: Aesthetic>(&mut self, a: A) -> ViewDescriptor {
+    pub fn apply<A: Procedure>(&mut self, a: A) -> ViewDescriptor {
         let cmd = self.cmd.take().unwrap();
         let mut sub_builder = Self::new(cmd);
-        a.pigment(&mut sub_builder);
+        a.steps(&mut sub_builder);
         self.cmd.replace(sub_builder.cmd.take().unwrap());
         let desc = sub_builder.finish();
         self.view_descriptor.pool.0.extend(&desc.pool.0);

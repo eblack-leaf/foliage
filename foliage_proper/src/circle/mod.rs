@@ -13,7 +13,7 @@ use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::config::{ElmConfiguration, ExternalSet};
 use crate::elm::leaf::Leaf;
-use crate::elm::{ElementStyle, Elm};
+use crate::elm::{Elm, Style};
 use crate::texture::factors::{MipsLevel, Progress};
 
 mod proc_gen;
@@ -23,7 +23,7 @@ mod vertex;
 #[derive(Bundle, Clone)]
 pub struct Circle {
     diameter: Diameter,
-    style: DifferentialBundle<ElementStyle>,
+    style: DifferentialBundle<Style>,
     color: DifferentialBundle<Color>,
     progress: DifferentialBundle<Progress>,
     differentiable: Differentiable,
@@ -47,7 +47,7 @@ fn diameters() {
     assert_eq!(diameter.0, 36.0);
 }
 impl Circle {
-    pub fn new(style: ElementStyle, color: Color, progress: Progress) -> Self {
+    pub fn new(style: Style, color: Color, progress: Progress) -> Self {
         Self {
             diameter: Diameter::new(20.0),
             style: DifferentialBundle::new(style),
@@ -78,7 +78,7 @@ impl Leaf for Circle {
             CReprPosition,
             CReprArea,
             Color,
-            ElementStyle,
+            Style,
             Progress,
             MipsLevel
         );
@@ -96,7 +96,7 @@ fn diameter_set(
             &mut Area<InterfaceContext>,
             &mut Position<InterfaceContext>,
         ),
-        (Changed<Area<InterfaceContext>>, With<ElementStyle>),
+        (Changed<Area<InterfaceContext>>, With<Style>),
     >,
 ) {
     for (_entity, mut diameter, mut area, mut pos) in query.iter_mut() {

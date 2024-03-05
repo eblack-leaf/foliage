@@ -12,7 +12,7 @@ use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::config::{ElmConfiguration, ExternalSet};
 use crate::elm::leaf::{Leaf, Tag};
-use crate::elm::{ElementStyle, Elm};
+use crate::elm::{Elm, Style};
 
 mod proc_gen;
 mod renderer;
@@ -21,14 +21,14 @@ mod vertex;
 #[derive(Bundle, Clone)]
 pub struct Panel {
     tag: Tag<Self>,
-    style: DifferentialBundle<ElementStyle>,
+    style: DifferentialBundle<Style>,
     color: DifferentialBundle<Color>,
     differentiable: Differentiable,
 }
 #[derive(Component, Copy, Clone, Serialize, Deserialize)]
 pub struct PanelContentArea(pub Area<InterfaceContext>);
 impl Panel {
-    pub fn new(style: ElementStyle, color: Color) -> Self {
+    pub fn new(style: Style, color: Color) -> Self {
         Self {
             tag: Tag::new(),
             style: DifferentialBundle::new(style),
@@ -53,7 +53,7 @@ impl Leaf for Panel {
     }
 
     fn attach(elm: &mut Elm) {
-        differential_enable!(elm, Color, ElementStyle);
+        differential_enable!(elm, Color, Style);
         elm.job
             .main()
             .add_systems((reduce_area.in_set(SetDescriptor::Update),));
