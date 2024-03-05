@@ -124,7 +124,7 @@ impl<T: Scene> Procedure for ButtonDisplay<T> {
 }
 pub struct ButtonShowcase;
 impl Viewable for ButtonShowcase {
-    const GRID: MacroGrid = MacroGrid::new(8, 6);
+    const GRID: MacroGrid = MacroGrid::new(8, 5);
     fn view(mut view_builder: ViewBuilder) -> ViewDescriptor {
         view_builder.apply(ButtonDisplay::new(
             Button::new(
@@ -180,7 +180,7 @@ impl Viewable for ButtonShowcase {
             CircleButton::new(
                 FeatherIcon::Copy,
                 Style::fill(),
-                Color::BLACK,
+                Color::DARK_GREY,
                 ThemeColor::PLUS_ONE,
             ),
             CircleButton::new(
@@ -198,7 +198,7 @@ impl Viewable for ButtonShowcase {
             IconButton::new(
                 FeatherIcon::Copy,
                 Style::fill(),
-                Color::BLACK,
+                Color::DARK_GREY,
                 ThemeColor::PLUS_THREE,
             ),
             IconButton::new(

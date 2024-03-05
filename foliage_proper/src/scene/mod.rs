@@ -29,15 +29,11 @@ impl Anchor {
 pub struct SceneHandle {
     root: Entity,
     bindings: Bindings,
-    branches: Option<Vec<ConditionHandle>>,
+    branches: Option<BranchPool>,
 }
 
 impl SceneHandle {
-    pub(crate) fn new(
-        root: Entity,
-        bindings: Bindings,
-        branches: Option<Vec<ConditionHandle>>,
-    ) -> Self {
+    pub(crate) fn new(root: Entity, bindings: Bindings, branches: Option<BranchPool>) -> Self {
         Self {
             root,
             bindings,
@@ -50,7 +46,7 @@ impl SceneHandle {
     pub fn bindings(&self) -> &Bindings {
         &self.bindings
     }
-    pub fn branches(&self) -> Option<&Vec<ConditionHandle>> {
+    pub fn branches(&self) -> Option<&BranchPool> {
         self.branches.as_ref()
     }
 }

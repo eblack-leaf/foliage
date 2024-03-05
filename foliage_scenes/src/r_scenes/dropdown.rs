@@ -83,10 +83,10 @@ impl Scene for Dropdown {
     type Components = DropdownComponents;
 
     fn config(
-        entity: Entity,
-        coordinate: Coordinate<InterfaceContext>,
-        ext: &mut SystemParamItem<Self::Params>,
-        bindings: &Bindings,
+        _entity: Entity,
+        _coordinate: Coordinate<InterfaceContext>,
+        _ext: &mut SystemParamItem<Self::Params>,
+        _bindings: &Bindings,
     ) {
         // style changes here?
     }
@@ -156,7 +156,7 @@ impl Scene for Dropdown {
                     offset
                         .percent_from(RelativeMarker::Top)
                         .offset(option_offset),
-                    0.9.percent_of(AnchorDim::Width),
+                    0.95.percent_of(AnchorDim::Width),
                     0.9.percent_of(AnchorDim::Height),
                 ),
                 TextButton::new(
