@@ -189,6 +189,7 @@ impl MicroGrid {
                     }
                 }
             }
+            + alignment_unit.offset.unwrap_or_default()
     }
     pub fn calc_h(
         &self,
@@ -206,6 +207,7 @@ impl MicroGrid {
                     }
                 }
             }
+            + alignment_unit.offset.unwrap_or_default()
     }
 }
 #[derive(Component, Copy, Clone, Default)]
@@ -296,6 +298,7 @@ pub struct AlignmentUnit {
     pub op: AlignmentOp,
     pub dim: Option<AnchorDim>,
     pub align: Option<Align>,
+    pub offset: Option<CoordinateUnit>,
 }
 #[derive(Copy, Clone, Default)]
 pub enum Align {
@@ -312,16 +315,22 @@ impl AlignmentUnit {
         op: AlignmentOp,
         dim: Option<AnchorDim>,
         align: Option<Align>,
+        offset: Option<CoordinateUnit>,
     ) -> Self {
         Self {
             value,
             op,
             dim,
             align,
+            offset,
         }
     }
     pub fn align(mut self, align: Align) -> Self {
         self.align.replace(align);
+        self
+    }
+    pub fn offset(mut self, o: CoordinateUnit) -> Self {
+        self.offset.replace(o);
         self
     }
 }
@@ -354,7 +363,8 @@ macro_rules! impl_alignment_desc {
                         self as CoordinateUnit,
                         AlignmentOp::Fixed,
                         None,
-                        None
+                        None,
+                        None,
                     )
                 )
             }
@@ -365,7 +375,8 @@ macro_rules! impl_alignment_desc {
                         self as CoordinateUnit,
                         AlignmentOp::Percent,
                         None,
-                        None
+                        None,
+                        None,
                     )
                 )
             }
@@ -373,6 +384,7 @@ macro_rules! impl_alignment_desc {
                 AlignmentUnit::new(
                     self as CoordinateUnit,
                     AlignmentOp::Fixed,
+                    None,
                     None,
                     None
                 )
@@ -382,6 +394,7 @@ macro_rules! impl_alignment_desc {
                     self as CoordinateUnit,
                     AlignmentOp::Percent,
                     Some(dim),
+                    None,
                     None
                 )
             }

@@ -171,6 +171,7 @@ impl<'a, 'w, 's> ViewBuilder<'a, 'w, 's> {
     }
 }
 pub type Branches = HashMap<i32, ConditionHandle>;
+pub type BranchPool = Vec<ConditionHandle>;
 #[derive(Default)]
 pub struct ViewDescriptor {
     pool: EntityPool,

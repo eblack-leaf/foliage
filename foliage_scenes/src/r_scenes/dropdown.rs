@@ -7,14 +7,19 @@ use foliage_proper::bevy_ecs::bundle::Bundle;
 use foliage_proper::bevy_ecs::entity::Entity;
 use foliage_proper::bevy_ecs::prelude::{Component, World};
 use foliage_proper::bevy_ecs::system::{Command, SystemParamItem};
-use foliage_proper::conditional::ConditionHandle;
+use foliage_proper::conditional::ConditionalCommand;
 use foliage_proper::coordinate::{Coordinate, InterfaceContext};
 use foliage_proper::elm::leaf::Leaf;
-use foliage_proper::elm::Elm;
-use foliage_proper::scene::micro_grid::MicroGrid;
+use foliage_proper::elm::{Elm, Style};
+use foliage_proper::panel::Panel;
+use foliage_proper::scene::micro_grid::{
+    Alignment, AlignmentDesc, AnchorDim, MicroGrid, RelativeMarker,
+};
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
 use foliage_proper::text::{MaxCharacters, TextValue};
+use foliage_proper::view::BranchPool;
 
+use crate::r_scenes::text_button::TextButton;
 use crate::r_scenes::Colors;
 
 pub struct Dropdown {
@@ -50,7 +55,7 @@ impl DropdownOptions {
         }
     }
 }
-#[derive(Component, Copy, Clone)]
+#[derive(Component, Copy, Clone, Eq, PartialEq)]
 pub enum ExpandDirection {
     Up,
     Down,
@@ -86,22 +91,102 @@ impl Scene for Dropdown {
         // style changes here?
     }
 
-    fn create(self, binder: Binder) -> SceneHandle {
+    fn create(self, mut binder: Binder) -> SceneHandle {
         let max = MaxCharacters(self.options.options.iter().map(|o| o.len()).max().unwrap() as u32);
         // bind base
-
+        let base = binder.bind_scene(
+            DropdownBindings::Base,
+            Alignment::new(
+                0.percent_from(RelativeMarker::Center),
+                0.percent_from(RelativeMarker::Center),
+                1.percent_of(AnchorDim::Width),
+                1.percent_of(AnchorDim::Height),
+            ),
+            TextButton::new(
+                TextValue::new(self.options.options.get(0).unwrap()),
+                max,
+                Style::fill(),
+                self.colors.foreground.0,
+                self.colors.background.0,
+            ),
+        );
         // bind panel
+        let num_options = self.options.options.len() as i32;
+        let option_offset: f32 = if self.expand_direction == ExpandDirection::Down {
+            12.0
+        } else {
+            -12.0
+        };
+        binder.bind_conditional(
+            1,
+            Alignment::new(
+                0.percent_from(RelativeMarker::Center),
+                if self.expand_direction == ExpandDirection::Down {
+                    1
+                } else {
+                    num_options * -1
+                }
+                .percent_from(RelativeMarker::Top)
+                .offset(
+                    option_offset
+                        - if option_offset.is_sign_positive() {
+                            4.0
+                        } else {
+                            -4.0
+                        },
+                ),
+                1.percent_of(AnchorDim::Width),
+                num_options.percent_of(AnchorDim::Height).offset(4.0),
+            )
+            .with_layer(1),
+            Panel::new(Style::fill(), self.colors.background.0),
+        );
         // for each option
-        for binding in 0..self.options.options.iter().len() as i32 {
+        for (i, binding) in (2..self.options.options.iter().len() as i32 + 2).enumerate() {
+            let offset_index = i as i32 + 1;
             let offset = match self.expand_direction {
-                ExpandDirection::Up => -binding,
-                ExpandDirection::Down => binding,
+                ExpandDirection::Up => -offset_index,
+                ExpandDirection::Down => offset_index,
             };
             // -- bind conditional minimal text-button (fill)
+            binder.bind_conditional_scene(
+                binding,
+                Alignment::new(
+                    0.percent_from(RelativeMarker::Center),
+                    offset
+                        .percent_from(RelativeMarker::Top)
+                        .offset(option_offset),
+                    0.9.percent_of(AnchorDim::Width),
+                    0.9.percent_of(AnchorDim::Height),
+                ),
+                TextButton::new(
+                    TextValue::new(self.options.options.get(i).unwrap()),
+                    max,
+                    Style::fill(),
+                    self.colors.foreground.0,
+                    self.colors.background.0,
+                ),
+            );
         }
         // extend base with Expansion
-        // iter binder.branches() or save condition_handles
-        // -- extend w/ OnSelect
+        binder.extend(
+            base.root(),
+            ConditionalCommand(Expansion {
+                root: binder.root(),
+                branches: binder.branches().clone(),
+            }),
+        );
+        for (i, branch) in binder.branches().clone()[1..].iter().enumerate() {
+            binder.extend(
+                branch.target(),
+                ConditionalCommand(OnSelect {
+                    root: binder.root(),
+                    base: base.root(),
+                    branches: binder.branches().clone(),
+                    selection: i as u32,
+                }),
+            );
+        }
         binder.finish::<Self>(SceneComponents::new(
             MicroGrid::new(),
             DropdownComponents {
@@ -120,6 +205,8 @@ impl Leaf for Dropdown {
     type SetDescriptor = SetDescriptor;
 
     fn attach(elm: &mut Elm) {
+        elm.enable_conditional_scene::<TextButton>();
+        elm.enable_conditional::<Panel>();
         elm.enable_conditional_command::<OnSelect>();
         elm.enable_conditional_command::<Expansion>();
     }
@@ -128,7 +215,7 @@ impl Leaf for Dropdown {
 struct OnSelect {
     root: Entity,
     base: Entity,
-    branches: Vec<ConditionHandle>,
+    branches: BranchPool,
     selection: u32,
 }
 impl Command for OnSelect {
@@ -150,7 +237,7 @@ impl Command for OnSelect {
 #[derive(Clone)]
 struct Expansion {
     root: Entity,
-    branches: Vec<ConditionHandle>,
+    branches: BranchPool,
 }
 impl Command for Expansion {
     fn apply(self, world: &mut World) {

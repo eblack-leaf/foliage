@@ -9,6 +9,7 @@ use crate::differential::Despawn;
 use crate::elm::leaf::Tag;
 use crate::elm::Disabled;
 use crate::scene::micro_grid::MicroGrid;
+use crate::view::BranchPool;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::prelude::{Commands, Component, Entity, Query};
 use bevy_ecs::query::{Changed, Or, QueryFilter, With, Without};
@@ -86,7 +87,7 @@ impl SceneNode {
 }
 pub struct Binder<'a, 'w, 's> {
     nodes: HashMap<SceneBinding, SceneNode>,
-    branches: Vec<ConditionHandle>,
+    branches: BranchPool,
     root: Entity,
     cmd: &'a mut Commands<'w, 's>,
 }
@@ -108,6 +109,9 @@ impl<'a, 'w, 's> Binder<'a, 'w, 's> {
                 Some(self.branches)
             },
         )
+    }
+    pub fn branches(&self) -> &BranchPool {
+        &self.branches
     }
     pub fn new(cmd: &'a mut Commands<'w, 's>, root: Option<Entity>) -> Self {
         Self {
