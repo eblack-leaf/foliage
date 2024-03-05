@@ -2,7 +2,7 @@ mod overlay;
 mod showcase;
 
 use crate::overlay::Overlay;
-use crate::showcase::ButtonShowcase;
+use crate::showcase::progress::ProgressShowcase;
 use foliage::bevy_ecs;
 use foliage::bevy_ecs::prelude::Resource;
 use foliage::color::monochromatic::Orange;
@@ -15,6 +15,7 @@ use foliage::view::ViewHandle;
 use foliage::window::WindowDescriptor;
 use foliage::workflow::{EngenHandle, Workflow};
 use foliage::{AndroidInterface, Foliage};
+use showcase::button::ButtonShowcase;
 
 pub fn entry(android_interface: AndroidInterface) {
     Foliage::new()
@@ -83,6 +84,7 @@ impl Leaf for Main {
         elm.container().insert_resource(assets);
         elm.persistent_view::<Overlay>(ViewHandle(1));
         elm.add_view::<ButtonShowcase>(ViewHandle(0));
+        elm.add_view::<ProgressShowcase>(ViewHandle(2));
         elm.navigate_to(0);
     }
 }

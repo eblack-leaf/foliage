@@ -24,6 +24,7 @@ struct ButtonDisplay<T> {
     max_w: Option<CoordinateUnit>,
     max_h: Option<CoordinateUnit>,
 }
+
 impl<T> ButtonDisplay<T> {
     pub fn new(
         first: T,
@@ -43,6 +44,7 @@ impl<T> ButtonDisplay<T> {
         }
     }
 }
+
 impl<T: Scene> Procedure for ButtonDisplay<T> {
     fn steps(self, view_builder: &mut ViewBuilder) {
         view_builder.add_scene(
@@ -122,7 +124,9 @@ impl<T: Scene> Procedure for ButtonDisplay<T> {
         );
     }
 }
+
 pub struct ButtonShowcase;
+
 impl Viewable for ButtonShowcase {
     const GRID: MacroGrid = MacroGrid::new(8, 5);
     fn view(mut view_builder: ViewBuilder) -> ViewDescriptor {
