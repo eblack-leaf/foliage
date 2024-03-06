@@ -51,6 +51,7 @@ impl PageStructure {
 pub enum PageStructureBindings {
     PageDecrement,
     PageIncrement,
+    Display,
 }
 #[derive(Component, Copy, Clone)]
 pub struct Page(pub i32);
@@ -138,8 +139,10 @@ impl Scene for PageStructure {
                 1.percent_of(AnchorDim::Height),
             ),
         };
-        for i in 2..self.num_pages + 2 {
-            binder.bind(i as i32, element_alignment, BlankNode::default());
+        // bind display
+        // ...
+        for i in 3..self.num_pages + 3 {
+            binder.bind_conditional(i as i32, element_alignment, BlankNode::default());
         }
         binder.finish::<Self>(SceneComponents::new(
             MicroGrid::new(),
