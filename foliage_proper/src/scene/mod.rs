@@ -14,14 +14,14 @@ use bevy_ecs::bundle::Bundle;
 use bevy_ecs::prelude::{Commands, Component, Entity, Query};
 use bevy_ecs::query::{Changed, Or, QueryFilter, With, Without};
 use bevy_ecs::system::{ParamSet, StaticSystemParam, SystemParam, SystemParamItem};
-use micro_grid::Alignment;
+use micro_grid::MicroGridAlignment;
 use std::collections::{HashMap, HashSet};
 
 #[derive(Component, Copy, Clone, Default)]
 pub struct Anchor(Coordinate<InterfaceContext>);
 
 impl Anchor {
-    pub(crate) fn aligned(&self, grid: &MicroGrid, alignment: &Alignment) -> Self {
+    pub(crate) fn aligned(&self, grid: &MicroGrid, alignment: &MicroGridAlignment) -> Self {
         Anchor(grid.determine(self.0, alignment))
     }
 }
@@ -120,7 +120,7 @@ impl<'a, 'w, 's> Binder<'a, 'w, 's> {
     pub fn root(&self) -> Entity {
         self.root
     }
-    pub fn bind<SB: Into<SceneBinding>, SA: Into<Alignment>, B: Bundle>(
+    pub fn bind<SB: Into<SceneBinding>, SA: Into<MicroGridAlignment>, B: Bundle>(
         &mut self,
         sb: SB,
         sa: SA,
@@ -140,7 +140,7 @@ impl<'a, 'w, 's> Binder<'a, 'w, 's> {
             .insert(sb.into(), SceneNode::new(entity, None, None));
         entity
     }
-    pub fn bind_scene<S: Scene, SB: Into<SceneBinding>, SA: Into<Alignment>>(
+    pub fn bind_scene<S: Scene, SB: Into<SceneBinding>, SA: Into<MicroGridAlignment>>(
         &mut self,
         sb: SB,
         sa: SA,
@@ -163,7 +163,7 @@ impl<'a, 'w, 's> Binder<'a, 'w, 's> {
     }
     pub fn bind_conditional<
         SB: Into<SceneBinding>,
-        SA: Into<Alignment>,
+        SA: Into<MicroGridAlignment>,
         C: Clone + Send + Sync + 'static,
     >(
         &mut self,
@@ -187,7 +187,11 @@ impl<'a, 'w, 's> Binder<'a, 'w, 's> {
         self.branches.push(handle);
         handle
     }
-    pub fn bind_conditional_scene<S: Scene + Clone, SA: Into<Alignment>, SB: Into<SceneBinding>>(
+    pub fn bind_conditional_scene<
+        S: Scene + Clone,
+        SA: Into<MicroGridAlignment>,
+        SB: Into<SceneBinding>,
+    >(
         &mut self,
         sb: SB,
         sa: SA,
@@ -259,12 +263,12 @@ impl<S: Scene> SceneComponents<S> {
 pub(crate) struct SceneBindingComponents {
     tag: Tag<IsDep>,
     anchor: Anchor,
-    alignment: Alignment,
+    alignment: MicroGridAlignment,
     ptr: ScenePtr,
     despawn: Despawn,
 }
 impl SceneBindingComponents {
-    fn new(ptr: Entity, anchor: Anchor, alignment: Alignment) -> Self {
+    fn new(ptr: Entity, anchor: Anchor, alignment: MicroGridAlignment) -> Self {
         Self {
             tag: Tag::new(),
             anchor,
@@ -319,7 +323,7 @@ pub struct BlankNode {
 fn recursive_fetch(
     root_coordinate: Coordinate<InterfaceContext>,
     target_entity: Entity,
-    query: &Query<(&Anchor, &Alignment, Option<&Bindings>, &ScenePtr), With<Tag<IsDep>>>,
+    query: &Query<(&Anchor, &MicroGridAlignment, Option<&Bindings>, &ScenePtr), With<Tag<IsDep>>>,
     grids: &Query<&MicroGrid>,
 ) -> Vec<(Entity, Anchor)> {
     let mut fetch = vec![];
@@ -353,7 +357,7 @@ pub(crate) fn resolve_anchor(
         (With<Tag<IsScene>>, Without<Tag<IsDep>>),
     >,
     mut deps: ParamSet<(
-        Query<(&Anchor, &Alignment, Option<&Bindings>, &ScenePtr), With<Tag<IsDep>>>,
+        Query<(&Anchor, &MicroGridAlignment, Option<&Bindings>, &ScenePtr), With<Tag<IsDep>>>,
         Query<&mut Anchor, With<Tag<IsDep>>>,
     )>,
     grids: Query<&MicroGrid>,

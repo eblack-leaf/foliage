@@ -11,7 +11,7 @@ use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
 use foliage_proper::elm::leaf::{Leaf, Tag};
 use foliage_proper::elm::{Elm, Style};
 use foliage_proper::scene::micro_grid::{
-    Alignment, AlignmentDesc, AnchorDim, MicroGrid, RelativeMarker,
+    AlignmentDesc, AnchorDim, MicroGrid, MicroGridAlignment, RelativeMarker,
 };
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
 use foliage_proper::texture::factors::Progress;
@@ -81,7 +81,7 @@ impl Scene for CircleProgressBar {
     fn create(self, mut binder: Binder) -> SceneHandle {
         binder.bind(
             CircleProgressBarBindings::Fill,
-            Alignment::new(
+            MicroGridAlignment::new(
                 0.percent_from(RelativeMarker::Center),
                 0.percent_from(RelativeMarker::Center),
                 1.percent_of(AnchorDim::Width),
@@ -95,7 +95,7 @@ impl Scene for CircleProgressBar {
         );
         binder.bind(
             CircleProgressBarBindings::Back,
-            Alignment::new(
+            MicroGridAlignment::new(
                 0.percent_from(RelativeMarker::Center),
                 0.percent_from(RelativeMarker::Center),
                 1.percent_of(AnchorDim::Width),

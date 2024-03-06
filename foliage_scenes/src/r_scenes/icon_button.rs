@@ -11,7 +11,7 @@ use foliage_proper::icon::{Icon, IconId};
 use foliage_proper::interaction::InteractionListener;
 use foliage_proper::panel::Panel;
 use foliage_proper::scene::micro_grid::{
-    Alignment, AlignmentDesc, AnchorDim, MicroGrid, RelativeMarker,
+    AlignmentDesc, AnchorDim, MicroGrid, MicroGridAlignment, RelativeMarker,
 };
 use foliage_proper::scene::{Binder, Bindings, BlankNode, Scene, SceneComponents, SceneHandle};
 
@@ -21,19 +21,18 @@ use crate::r_scenes::{BackgroundColor, Colors, ForegroundColor};
 pub struct IconButton {
     element_style: Style,
     icon_id: IconId,
-    ui_color: Colors,
+    colors: Colors,
 }
 impl IconButton {
     pub fn new<ID: Into<IconId>, C: Into<Color>>(
         id: ID,
         element_style: Style,
-        fg: C,
-        bg: C,
+        colors: Colors,
     ) -> Self {
         Self {
             element_style,
             icon_id: id.into(),
-            ui_color: Colors::new(fg, bg),
+            colors,
         }
     }
 }
@@ -94,27 +93,27 @@ impl Scene for IconButton {
         binder.extend(binder.root(), Tag::<ButtonInteractionHook>::new());
         binder.bind(
             IconButtonBindings::Panel,
-            Alignment::new(
+            MicroGridAlignment::new(
                 0.percent_from(RelativeMarker::Center),
                 0.percent_from(RelativeMarker::Center),
                 1.percent_of(AnchorDim::Width),
                 1.percent_of(AnchorDim::Height),
             ),
-            Panel::new(self.element_style, self.ui_color.foreground.0),
+            Panel::new(self.element_style, self.colors.foreground.0),
         );
         binder.bind(
             IconButtonBindings::Icon,
-            Alignment::new(
+            MicroGridAlignment::new(
                 0.fixed_from(RelativeMarker::Center),
                 0.fixed_from(RelativeMarker::Center),
                 0.7.percent_of(AnchorDim::Width),
                 0.7.percent_of(AnchorDim::Width),
             ),
-            Icon::new(self.icon_id, self.ui_color.background.0),
+            Icon::new(self.icon_id, self.colors.background.0),
         );
         binder.bind(
             2,
-            Alignment::new(
+            MicroGridAlignment::new(
                 0.percent_from(RelativeMarker::Center),
                 0.percent_from(RelativeMarker::Center),
                 1.percent_of(AnchorDim::Width),
@@ -131,8 +130,8 @@ impl Scene for IconButton {
                 .min_width(34.0),
             <Button as Scene>::Components::new(
                 self.element_style,
-                self.ui_color.foreground.0,
-                self.ui_color.background.0,
+                self.colors.foreground.0,
+                self.colors.background.0,
             ),
         ))
     }

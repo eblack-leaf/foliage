@@ -13,7 +13,7 @@ use foliage_proper::elm::Elm;
 use foliage_proper::icon::{Icon, IconId};
 use foliage_proper::layout::AspectRatio;
 use foliage_proper::scene::micro_grid::{
-    Alignment, AlignmentDesc, AnchorDim, MicroGrid, RelativeMarker,
+    AlignmentDesc, AnchorDim, MicroGrid, MicroGridAlignment, RelativeMarker,
 };
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
 use foliage_proper::text::{MaxCharacters, Text, TextValue};
@@ -148,7 +148,7 @@ impl Scene for IconText {
         let text_offset = 1.0f32 / aspect_determinant;
         binder.bind(
             IconTextBindings::Icon,
-            Alignment::new(
+            MicroGridAlignment::new(
                 0.0.percent_from(RelativeMarker::Left),
                 0.fixed_from(RelativeMarker::Center),
                 icon_percent.percent_of(AnchorDim::Width),
@@ -158,7 +158,7 @@ impl Scene for IconText {
         );
         binder.bind(
             IconTextBindings::Text,
-            Alignment::new(
+            MicroGridAlignment::new(
                 text_offset.percent_from(RelativeMarker::Center),
                 0.fixed_from(RelativeMarker::Center),
                 (1f32 - text_offset).percent_of(AnchorDim::Width),

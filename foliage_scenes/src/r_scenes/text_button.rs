@@ -11,7 +11,7 @@ use foliage_proper::elm::{BundleExtend, Elm, Style};
 use foliage_proper::interaction::InteractionListener;
 use foliage_proper::panel::Panel;
 use foliage_proper::scene::micro_grid::{
-    Alignment, AlignmentDesc, AnchorDim, MicroGrid, RelativeMarker,
+    AlignmentDesc, AnchorDim, MicroGrid, MicroGridAlignment, RelativeMarker,
 };
 use foliage_proper::scene::{Binder, Bindings, BlankNode, Scene, SceneComponents, SceneHandle};
 use foliage_proper::text::{MaxCharacters, Text, TextValue};
@@ -108,7 +108,7 @@ impl Scene for TextButton {
         binder.extend(binder.root(), Tag::<ButtonInteractionHook>::new());
         binder.bind(
             TextButtonBindings::Panel,
-            Alignment::new(
+            MicroGridAlignment::new(
                 0.percent_from(RelativeMarker::Center),
                 0.percent_from(RelativeMarker::Center),
                 1.percent_of(AnchorDim::Width),
@@ -118,7 +118,7 @@ impl Scene for TextButton {
         );
         binder.bind(
             TextButtonBindings::Text,
-            Alignment::new(
+            MicroGridAlignment::new(
                 0.fixed_from(RelativeMarker::Center),
                 0.fixed_from(RelativeMarker::Center),
                 0.7.percent_of(AnchorDim::Width),
@@ -132,7 +132,7 @@ impl Scene for TextButton {
         );
         binder.bind(
             TextButtonBindings::Interaction,
-            Alignment::new(
+            MicroGridAlignment::new(
                 0.percent_from(RelativeMarker::Center),
                 0.percent_from(RelativeMarker::Center),
                 1.percent_of(AnchorDim::Width),

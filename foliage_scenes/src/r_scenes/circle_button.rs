@@ -11,33 +11,30 @@ use foliage_proper::elm::{BundleExtend, Elm, Style};
 use foliage_proper::icon::{Icon, IconId};
 use foliage_proper::interaction::{InteractionListener, InteractionShape};
 use foliage_proper::scene::micro_grid::{
-    Alignment, AlignmentDesc, AnchorDim, MicroGrid, RelativeMarker,
+    AlignmentDesc, AnchorDim, MicroGrid, MicroGridAlignment, RelativeMarker,
 };
 use foliage_proper::scene::{Binder, Bindings, BlankNode, Scene, SceneComponents, SceneHandle};
 use foliage_proper::texture::factors::Progress;
 
 use crate::r_scenes::button::{Button, ButtonComponents, ButtonInteractionHook, CurrentStyle};
-use crate::r_scenes::{BackgroundColor, ForegroundColor};
+use crate::r_scenes::{BackgroundColor, Colors, ForegroundColor};
 
 #[derive(Clone)]
 pub struct CircleButton {
     icon_id: IconId,
     element_style: Style,
-    pub foreground_color: Color,
-    pub background_color: Color,
+    pub colors: Colors,
 }
 impl CircleButton {
     pub fn new<ID: Into<IconId>, C: Into<Color>>(
         id: ID,
         element_style: Style,
-        fg: C,
-        bg: C,
+        colors: Colors,
     ) -> Self {
         Self {
             icon_id: id.into(),
             element_style,
-            foreground_color: fg.into(),
-            background_color: bg.into(),
+            colors,
         }
     }
 }
@@ -98,27 +95,31 @@ impl Scene for CircleButton {
         binder.extend(binder.root(), Tag::<ButtonInteractionHook>::new());
         binder.bind(
             CircleButtonBindings::Circle,
-            Alignment::new(
+            MicroGridAlignment::new(
                 0.fixed_from(RelativeMarker::Center),
                 0.fixed_from(RelativeMarker::Center),
                 1.percent_of(AnchorDim::Width),
                 1.percent_of(AnchorDim::Height),
             ),
-            Circle::new(self.element_style, self.foreground_color, Progress::full()),
+            Circle::new(
+                self.element_style,
+                self.colors.foreground.0,
+                Progress::full(),
+            ),
         );
         binder.bind(
             CircleButtonBindings::Icon,
-            Alignment::new(
+            MicroGridAlignment::new(
                 0.fixed_from(RelativeMarker::Center),
                 0.fixed_from(RelativeMarker::Center),
                 0.5.percent_of(AnchorDim::Width),
                 0.5.percent_of(AnchorDim::Width),
             ),
-            Icon::new(self.icon_id, self.background_color),
+            Icon::new(self.icon_id, self.colors.background.0),
         );
         binder.bind(
             2,
-            Alignment::new(
+            MicroGridAlignment::new(
                 0.fixed_from(RelativeMarker::Left),
                 0.fixed_from(RelativeMarker::Center),
                 1.percent_of(AnchorDim::Width),
@@ -135,11 +136,7 @@ impl Scene for CircleButton {
                 .aspect_ratio(1.0)
                 .min_width(44.0)
                 .min_height(44.0),
-            ButtonComponents::new(
-                self.element_style,
-                self.foreground_color,
-                self.background_color,
-            ),
+            ButtonComponents::new(self.element_style, self.colors),
         ))
     }
 }

@@ -11,7 +11,7 @@ use foliage_proper::elm::leaf::{Leaf, Tag};
 use foliage_proper::elm::Elm;
 use foliage_proper::rectangle::Rectangle;
 use foliage_proper::scene::micro_grid::{
-    Alignment, AlignmentDesc, AnchorDim, MicroGrid, RelativeMarker,
+    AlignmentDesc, AnchorDim, MicroGrid, MicroGridAlignment, RelativeMarker,
 };
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
 use foliage_proper::texture::factors::Progress;
@@ -102,7 +102,7 @@ impl Scene for ProgressBar {
     fn create(self, mut binder: Binder) -> SceneHandle {
         binder.bind(
             ProgressBarBindings::Fill,
-            Alignment::new(
+            MicroGridAlignment::new(
                 0.fixed_from(RelativeMarker::Center),
                 0.fixed_from(RelativeMarker::Center),
                 1.percent_of(AnchorDim::Width),
@@ -112,7 +112,7 @@ impl Scene for ProgressBar {
         );
         binder.bind(
             ProgressBarBindings::Back,
-            Alignment::new(
+            MicroGridAlignment::new(
                 0.fixed_from(RelativeMarker::Center),
                 0.fixed_from(RelativeMarker::Center),
                 1.percent_of(AnchorDim::Width),

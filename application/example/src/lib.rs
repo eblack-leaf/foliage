@@ -2,6 +2,7 @@ mod overlay;
 mod showcase;
 
 use crate::overlay::Overlay;
+use crate::showcase::icon::IconShowcase;
 use crate::showcase::progress::ProgressShowcase;
 use foliage::bevy_ecs;
 use foliage::bevy_ecs::prelude::Resource;
@@ -85,8 +86,10 @@ impl Leaf for Main {
         elm.persistent_view::<Overlay>(ViewHandle(0));
         elm.add_view::<ButtonShowcase>(BUTTON);
         elm.add_view::<ProgressShowcase>(PROGRESS);
+        elm.add_view::<IconShowcase>(ICON);
         elm.navigate_to(BUTTON);
     }
 }
 pub(crate) const BUTTON: ViewHandle = ViewHandle(1);
 pub(crate) const PROGRESS: ViewHandle = ViewHandle(2);
+pub(crate) const ICON: ViewHandle = ViewHandle(3);

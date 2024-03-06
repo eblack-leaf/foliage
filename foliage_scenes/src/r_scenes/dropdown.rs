@@ -12,7 +12,7 @@ use foliage_proper::elm::leaf::Leaf;
 use foliage_proper::elm::{Elm, Style};
 use foliage_proper::panel::Panel;
 use foliage_proper::scene::micro_grid::{
-    Alignment, AlignmentDesc, AnchorDim, MicroGrid, RelativeMarker,
+    AlignmentDesc, AnchorDim, MicroGrid, MicroGridAlignment, RelativeMarker,
 };
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
 use foliage_proper::text::{MaxCharacters, TextValue};
@@ -90,7 +90,7 @@ impl Scene for Dropdown {
         // bind base
         let base = binder.bind_scene(
             DropdownBindings::Base,
-            Alignment::new(
+            MicroGridAlignment::new(
                 0.percent_from(RelativeMarker::Center),
                 0.percent_from(RelativeMarker::Center),
                 1.percent_of(AnchorDim::Width),
@@ -113,7 +113,7 @@ impl Scene for Dropdown {
         };
         binder.bind_conditional(
             1,
-            Alignment::new(
+            MicroGridAlignment::new(
                 0.percent_from(RelativeMarker::Center),
                 if self.expand_direction == ExpandDirection::Down {
                     1
@@ -145,7 +145,7 @@ impl Scene for Dropdown {
             // -- bind conditional minimal text-button (fill)
             binder.bind_conditional_scene(
                 binding,
-                Alignment::new(
+                MicroGridAlignment::new(
                     0.percent_from(RelativeMarker::Center),
                     offset
                         .percent_from(RelativeMarker::Top)

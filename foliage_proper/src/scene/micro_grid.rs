@@ -50,7 +50,7 @@ impl MicroGrid {
     pub fn determine(
         &self,
         coordinate: Coordinate<InterfaceContext>,
-        alignment: &Alignment,
+        alignment: &MicroGridAlignment,
     ) -> Coordinate<InterfaceContext> {
         let anchor = self.adjusted(coordinate);
         let w = self.calc_w(anchor, alignment.w);
@@ -211,14 +211,14 @@ impl MicroGrid {
     }
 }
 #[derive(Component, Copy, Clone, Default)]
-pub struct Alignment {
+pub struct MicroGridAlignment {
     pub x: RelativeAlignment,
     pub y: RelativeAlignment,
     pub w: AlignmentUnit,
     pub h: AlignmentUnit,
     pub layer: Layer,
 }
-impl Alignment {
+impl MicroGridAlignment {
     pub fn new(
         x: RelativeAlignment,
         y: RelativeAlignment,

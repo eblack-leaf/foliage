@@ -7,6 +7,7 @@ pub mod circle_progress_bar;
 pub mod dropdown;
 pub mod icon_button;
 pub mod icon_text;
+mod paged;
 pub mod progress_bar;
 pub mod text_button;
 

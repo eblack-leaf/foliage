@@ -13,7 +13,7 @@ use foliage_proper::elm::{BundleExtend, Elm, Style};
 use foliage_proper::interaction::InteractionListener;
 use foliage_proper::panel::Panel;
 use foliage_proper::scene::micro_grid::{
-    Alignment, AlignmentDesc, AnchorDim, MicroGrid, RelativeMarker,
+    AlignmentDesc, AnchorDim, MicroGrid, MicroGridAlignment, RelativeMarker,
 };
 use foliage_proper::scene::{
     Binder, Bindings, BlankNode, Scene, SceneComponents, SceneHandle, ScenePtr,
@@ -49,19 +49,15 @@ pub struct CurrentStyle(pub Style);
 #[derive(Bundle)]
 pub struct ButtonComponents {
     pub element_style: Style,
-    pub ui_color: Colors,
+    pub colors: Colors,
     current_style: CurrentStyle,
     trigger: Trigger,
 }
 impl ButtonComponents {
-    pub fn new<C: Into<Color>>(
-        element_style: Style,
-        foreground_color: C,
-        background_color: C,
-    ) -> Self {
+    pub fn new<C: Into<Color>>(element_style: Style, colors: Colors) -> Self {
         Self {
             element_style,
-            ui_color: Colors::new(foreground_color.into(), background_color.into()),
+            colors,
             current_style: CurrentStyle(element_style),
             trigger: Trigger::default(),
         }
@@ -146,7 +142,7 @@ impl Scene for Button {
         binder.extend(binder.root(), Tag::<ButtonInteractionHook>::new());
         binder.bind(
             ButtonBindings::Panel,
-            Alignment::new(
+            MicroGridAlignment::new(
                 0.fixed_from(RelativeMarker::Left),
                 0.fixed_from(RelativeMarker::Center),
                 1.percent_of(AnchorDim::Width),
@@ -156,7 +152,7 @@ impl Scene for Button {
         );
         binder.bind_scene(
             ButtonBindings::IconText,
-            Alignment::new(
+            MicroGridAlignment::new(
                 0.fixed_from(RelativeMarker::Center),
                 0.0.percent_from(RelativeMarker::Center),
                 0.9.percent_of(AnchorDim::Width),
@@ -166,7 +162,7 @@ impl Scene for Button {
         );
         binder.bind(
             ButtonBindings::Interaction,
-            Alignment::new(
+            MicroGridAlignment::new(
                 0.fixed_from(RelativeMarker::Left),
                 0.fixed_from(RelativeMarker::Center),
                 1.percent_of(AnchorDim::Width),
@@ -178,11 +174,7 @@ impl Scene for Button {
         );
         binder.finish::<Self>(SceneComponents::new(
             MicroGrid::new().min_height(24.0).min_width(30.0 * aspect),
-            ButtonComponents::new(
-                self.element_style,
-                self.foreground_color,
-                self.background_color,
-            ),
+            ButtonComponents::new(self.element_style, self.colors),
         ))
     }
 }

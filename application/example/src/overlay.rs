@@ -5,7 +5,7 @@ use foliage::r_scenes::Colors;
 use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::view::{Navigate, ViewBuilder, ViewDescriptor, Viewable};
 
-use crate::{BUTTON, PROGRESS};
+use crate::{BUTTON, ICON, PROGRESS};
 
 pub struct Overlay;
 impl Viewable for Overlay {
@@ -34,6 +34,10 @@ impl Viewable for Overlay {
         view_builder.extend(
             branches.get(1).unwrap().target(),
             ConditionalCommand(Navigate(PROGRESS)),
+        );
+        view_builder.extend(
+            branches.get(2).unwrap().target(),
+            ConditionalCommand(Navigate(ICON)),
         );
         // ...
         view_builder.finish()
