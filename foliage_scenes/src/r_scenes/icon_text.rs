@@ -130,12 +130,7 @@ impl Scene for IconText {
     )>;
     type Components = IconTextComponents;
 
-    fn config(
-        entity: Entity,
-        _coordinate: Coordinate<InterfaceContext>,
-        ext: &mut SystemParamItem<Self::Params>,
-        bindings: &Bindings,
-    ) {
+    fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
         let icon = bindings.get(IconTextBindings::Icon);
         let text = bindings.get(IconTextBindings::Text);
         if let Ok((mc, tc, tv, ic, id)) = ext.0.get(entity) {

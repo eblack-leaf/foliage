@@ -303,10 +303,8 @@ pub fn config<S: Scene + Send + Sync + 'static>(
         }
         // disabled?
         S::config(
-            entity,
-            Coordinate::new((*pos, *area), *layer),
-            &mut ext,
-            bindings,
+            entity, // Coordinate::new((*pos, *area), *layer),
+            &mut ext, bindings,
         );
     }
 }
@@ -319,7 +317,7 @@ where
     type Components: Bundle;
     fn config(
         entity: Entity,
-        coordinate: Coordinate<InterfaceContext>,
+        // coordinate: Coordinate<InterfaceContext>,
         ext: &mut SystemParamItem<Self::Params>,
         bindings: &Bindings,
     );

@@ -233,7 +233,7 @@ impl Alignment {
             layer: Layer::default(),
         }
     }
-    pub fn with_layer<L: Into<Layer>>(mut self, l: L) -> Self {
+    pub fn offset_layer<L: Into<Layer>>(mut self, l: L) -> Self {
         self.layer = l.into();
         self
     }

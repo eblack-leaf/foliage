@@ -3,6 +3,7 @@ use foliage_proper::color::Color;
 
 pub mod button;
 pub mod circle_button;
+pub mod circle_progress_bar;
 pub mod dropdown;
 pub mod icon_button;
 pub mod icon_text;

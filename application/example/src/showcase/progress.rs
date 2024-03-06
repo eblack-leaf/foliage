@@ -3,7 +3,9 @@ use foliage::color::Color;
 use foliage::elm::Style;
 use foliage::icon::FeatherIcon;
 use foliage::r_scenes::circle_button::CircleButton;
+use foliage::r_scenes::circle_progress_bar::CircleProgressBar;
 use foliage::r_scenes::progress_bar::ProgressBar;
+use foliage::r_scenes::Colors;
 use foliage::segment::{MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::view::{ViewBuilder, ViewDescriptor, Viewable};
 
@@ -34,10 +36,10 @@ impl Viewable for ProgressShowcase {
             .at_layer(5),
         );
         view_builder.add_scene(
-            ProgressBar::new(0.70, AquaMarine::BASE, Color::DARK_GREY),
+            CircleProgressBar::new(0.70, Colors::new(AquaMarine::BASE, Color::DARK_GREY)),
             ResponsiveSegment::base(Segment::new(
-                2.near().to(5.far()),
-                3.near().to(3.far()).fixed(4.0),
+                2.near().to(5.far()).maximum(50.0),
+                3.near().to(3.far()),
             ))
             .at_layer(5),
         );

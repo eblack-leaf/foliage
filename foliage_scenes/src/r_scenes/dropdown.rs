@@ -82,12 +82,7 @@ impl Scene for Dropdown {
     type Filter = ();
     type Components = DropdownComponents;
 
-    fn config(
-        _entity: Entity,
-        _coordinate: Coordinate<InterfaceContext>,
-        _ext: &mut SystemParamItem<Self::Params>,
-        _bindings: &Bindings,
-    ) {
+    fn config(_entity: Entity, _ext: &mut SystemParamItem<Self::Params>, _bindings: &Bindings) {
         // style changes here?
     }
 
@@ -138,7 +133,7 @@ impl Scene for Dropdown {
                 1.percent_of(AnchorDim::Width),
                 num_options.percent_of(AnchorDim::Height).offset(4.0),
             )
-            .with_layer(1),
+            .offset_layer(1),
             Panel::new(Style::fill(), self.colors.background.0),
         );
         // for each option
