@@ -6,7 +6,7 @@ pub mod circle_button;
 pub mod dropdown;
 pub mod icon_button;
 pub mod icon_text;
-pub(crate) mod progress_bar;
+pub mod progress_bar;
 pub mod text_button;
 
 use foliage_proper::bevy_ecs;

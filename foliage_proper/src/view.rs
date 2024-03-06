@@ -15,8 +15,8 @@ use crate::segment::{MacroGrid, ResponsiveSegment};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::change_detection::Res;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Changed, Component, IntoSystemConfigs, Resource};
-use bevy_ecs::system::{Commands, Query, ResMut};
+use bevy_ecs::prelude::{Changed, Component, IntoSystemConfigs, Resource, World};
+use bevy_ecs::system::{Command, Commands, Query, ResMut};
 use std::collections::{HashMap, HashSet};
 #[derive(Copy, Clone, Component)]
 pub(crate) struct PersistentView(pub ViewHandle);
@@ -198,6 +198,11 @@ impl View {
         }
     }
 }
+impl Command for Navigate {
+    fn apply(self, world: &mut World) {
+        world.spawn(self);
+    }
+}
 #[derive(Component, Copy, Clone)]
 pub struct Navigate(pub ViewHandle);
 fn navigation(
@@ -326,6 +331,7 @@ impl Leaf for View {
     fn attach(elm: &mut Elm) {
         elm.enable_conditional::<SceneBindingComponents>();
         elm.enable_conditional::<ResponsiveSegment>();
+        elm.enable_conditional_command::<Navigate>();
         elm.container().insert_resource(Compositor::default());
         elm.container().insert_resource(Layout::PORTRAIT_MOBILE);
         elm.container().insert_resource(MacroGrid::new(8, 8));

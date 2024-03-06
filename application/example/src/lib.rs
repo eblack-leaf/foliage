@@ -82,10 +82,11 @@ impl Leaf for Main {
             ImageStorage::some(Area::from((700, 700))),
         ));
         elm.container().insert_resource(assets);
-        elm.persistent_view::<Overlay>(ViewHandle(1));
-        elm.add_view::<ButtonShowcase>(ViewHandle(0));
-        elm.add_view::<ProgressShowcase>(ViewHandle(2));
-        elm.navigate_to(0);
+        elm.persistent_view::<Overlay>(ViewHandle(0));
+        elm.add_view::<ButtonShowcase>(BUTTON);
+        elm.add_view::<ProgressShowcase>(PROGRESS);
+        elm.navigate_to(BUTTON);
     }
 }
-pub(crate) type ThemeColor = Orange;
+pub(crate) const BUTTON: ViewHandle = ViewHandle(1);
+pub(crate) const PROGRESS: ViewHandle = ViewHandle(2);

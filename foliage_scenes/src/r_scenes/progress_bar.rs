@@ -122,7 +122,8 @@ impl Scene for ProgressBar {
                 0.fixed_from(RelativeMarker::Center),
                 1.percent_of(AnchorDim::Width),
                 1.percent_of(AnchorDim::Height),
-            ),
+            )
+            .with_layer(1),
             Rectangle::new(self.background_color, Progress::full()),
         );
         binder.finish::<Self>(SceneComponents::new(

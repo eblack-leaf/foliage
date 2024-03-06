@@ -1,4 +1,4 @@
-use crate::ThemeColor;
+use crate::Orange;
 use foliage::color::monochromatic::Monochromatic;
 use foliage::color::Color;
 use foliage::coordinate::CoordinateUnit;
@@ -107,7 +107,7 @@ impl<T: Scene> Procedure for ButtonDisplay<T> {
             Text::new(
                 MaxCharacters(11),
                 TextValue::new(self.desc),
-                ThemeColor::MINUS_THREE,
+                Orange::MINUS_THREE,
             ),
             ResponsiveSegment::base(Segment::new(
                 7.near().to(8.far()),
@@ -141,7 +141,7 @@ impl Viewable for ButtonShowcase {
                 ),
                 Style::fill(),
                 Color::DARK_GREY,
-                ThemeColor::MINUS_ONE,
+                Orange::MINUS_TWO,
             ),
             Button::new(
                 IconText::new(
@@ -153,7 +153,7 @@ impl Viewable for ButtonShowcase {
                 ),
                 Style::ring(),
                 Color::DARK_GREY,
-                ThemeColor::MINUS_ONE,
+                Orange::MINUS_TWO,
             ),
             "base".to_string(),
             2,
@@ -166,14 +166,14 @@ impl Viewable for ButtonShowcase {
                 MaxCharacters(4),
                 Style::fill(),
                 Color::BLACK,
-                ThemeColor::MINUS_ONE,
+                Orange::MINUS_ONE,
             ),
             TextButton::new(
                 TextValue::new("copy"),
                 MaxCharacters(4),
                 Style::ring(),
                 Color::BLACK,
-                ThemeColor::MINUS_ONE,
+                Orange::MINUS_ONE,
             ),
             "text".to_string(),
             3,
@@ -185,14 +185,9 @@ impl Viewable for ButtonShowcase {
                 FeatherIcon::Copy,
                 Style::fill(),
                 Color::DARK_GREY,
-                ThemeColor::PLUS_ONE,
+                Orange::BASE,
             ),
-            CircleButton::new(
-                FeatherIcon::Copy,
-                Style::ring(),
-                Color::BLACK,
-                ThemeColor::PLUS_ONE,
-            ),
+            CircleButton::new(FeatherIcon::Copy, Style::ring(), Color::BLACK, Orange::BASE),
             "circle".to_string(),
             4,
             Some(55.0),
@@ -203,13 +198,13 @@ impl Viewable for ButtonShowcase {
                 FeatherIcon::Copy,
                 Style::fill(),
                 Color::DARK_GREY,
-                ThemeColor::PLUS_THREE,
+                Orange::PLUS_TWO,
             ),
             IconButton::new(
                 FeatherIcon::Copy,
                 Style::ring(),
                 Color::BLACK,
-                ThemeColor::PLUS_THREE,
+                Orange::PLUS_TWO,
             ),
             "icon".to_string(),
             5,
