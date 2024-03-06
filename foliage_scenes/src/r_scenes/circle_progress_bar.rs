@@ -4,7 +4,7 @@ use foliage_proper::bevy_ecs::bundle::Bundle;
 use foliage_proper::bevy_ecs::entity::Entity;
 use foliage_proper::bevy_ecs::prelude::{Changed, IntoSystemConfigs, Or, Query};
 use foliage_proper::bevy_ecs::query::{With, Without};
-use foliage_proper::bevy_ecs::system::{SystemParam, SystemParamItem};
+use foliage_proper::bevy_ecs::system::SystemParamItem;
 use foliage_proper::circle::Circle;
 use foliage_proper::color::Color;
 use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};

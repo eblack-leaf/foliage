@@ -1,5 +1,3 @@
-use crate::r_scenes::icon_text::{IconColor, IconText, TextColor};
-use crate::r_scenes::{BackgroundColor, Colors, ForegroundColor};
 use foliage_macros::{inner_set_descriptor, InnerSceneBinding};
 use foliage_proper::animate::trigger::{Trigger, TriggerState};
 use foliage_proper::bevy_ecs;
@@ -9,7 +7,6 @@ use foliage_proper::bevy_ecs::prelude::{Changed, Component, IntoSystemConfigs, O
 use foliage_proper::bevy_ecs::query::{With, Without};
 use foliage_proper::bevy_ecs::system::{Query, SystemParamItem};
 use foliage_proper::color::Color;
-use foliage_proper::coordinate::{Coordinate, InterfaceContext};
 use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
 use foliage_proper::elm::leaf::{Leaf, Tag};
 use foliage_proper::elm::{BundleExtend, Elm, Style};
@@ -21,6 +18,10 @@ use foliage_proper::scene::micro_grid::{
 use foliage_proper::scene::{
     Binder, Bindings, BlankNode, Scene, SceneComponents, SceneHandle, ScenePtr,
 };
+
+use crate::r_scenes::icon_text::{IconColor, IconText, TextColor};
+use crate::r_scenes::{BackgroundColor, Colors, ForegroundColor};
+
 #[derive(Clone)]
 pub struct Button {
     pub icon_text: IconText,

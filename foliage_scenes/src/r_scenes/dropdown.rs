@@ -8,7 +8,6 @@ use foliage_proper::bevy_ecs::entity::Entity;
 use foliage_proper::bevy_ecs::prelude::{Component, World};
 use foliage_proper::bevy_ecs::system::{Command, SystemParamItem};
 use foliage_proper::conditional::ConditionalCommand;
-use foliage_proper::coordinate::{Coordinate, InterfaceContext};
 use foliage_proper::elm::leaf::Leaf;
 use foliage_proper::elm::{Elm, Style};
 use foliage_proper::panel::Panel;

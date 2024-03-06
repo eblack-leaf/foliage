@@ -276,28 +276,10 @@ impl SceneBindingComponents {
 }
 // will need to add this for every scene added
 pub fn config<S: Scene + Send + Sync + 'static>(
-    query: Query<
-        (
-            Entity,
-            &Position<InterfaceContext>,
-            &Area<InterfaceContext>,
-            &Layer,
-            &Despawn,
-            &Bindings,
-        ),
-        (
-            With<Tag<S>>,
-            Or<(
-                Changed<Area<InterfaceContext>>,
-                Changed<Position<InterfaceContext>>,
-                Changed<Layer>,
-                S::Filter,
-            )>,
-        ),
-    >,
+    query: Query<(Entity, &Despawn, &Bindings), (With<Tag<S>>, Or<(S::Filter,)>)>,
     mut ext: StaticSystemParam<S::Params>,
 ) {
-    for (entity, pos, area, layer, despawn, bindings) in query.iter() {
+    for (entity, despawn, bindings) in query.iter() {
         if despawn.is_despawned() {
             continue;
         }
