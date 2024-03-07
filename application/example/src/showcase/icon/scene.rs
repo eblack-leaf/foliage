@@ -1,6 +1,6 @@
 use foliage::bevy_ecs::entity::Entity;
 use foliage::bevy_ecs::system::SystemParamItem;
-use foliage::color::monochromatic::{Monochromatic, StrongCyan};
+use foliage::color::monochromatic::{FluorescentYellow, Monochromatic};
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 use foliage::elm::Elm;
 use foliage::icon::{FeatherIcon, Icon};
@@ -38,15 +38,15 @@ impl Scene for IconDisplay {
                     24.fixed(),
                 );
                 let color = if y == 0 {
-                    StrongCyan::MINUS_TWO
+                    FluorescentYellow::MINUS_ONE
                 } else if y == 1 {
-                    StrongCyan::MINUS_ONE
+                    FluorescentYellow::BASE
                 } else if y == 2 {
-                    StrongCyan::BASE
+                    FluorescentYellow::PLUS_ONE
                 } else if y == 3 {
-                    StrongCyan::PLUS_ONE
+                    FluorescentYellow::PLUS_TWO
                 } else {
-                    StrongCyan::PLUS_TWO
+                    FluorescentYellow::PLUS_THREE
                 };
                 binder.bind(
                     index,

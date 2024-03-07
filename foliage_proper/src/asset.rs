@@ -10,10 +10,26 @@ pub type AssetKey = u128;
 #[derive(Resource, Default)]
 pub struct AssetContainer {
     pub assets: HashMap<AssetKey, Option<Vec<u8>>>,
+    cached_loading: Option<bool>,
 }
 impl AssetContainer {
     pub fn store(&mut self, id: AssetKey, bytes: Option<Vec<u8>>) {
         self.assets.insert(id, bytes);
+    }
+    pub(crate) fn loading(&mut self) -> bool {
+        if self.cached_loading.is_some() {
+            return false;
+        }
+        let is_loading = false;
+        for a in self.assets.values() {
+            if a.is_none() {
+                return true;
+            }
+        }
+        if is_loading == false {
+            self.cached_loading.replace(is_loading);
+        }
+        is_loading
     }
 }
 #[derive(Component, Clone)]

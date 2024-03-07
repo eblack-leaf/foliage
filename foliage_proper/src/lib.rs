@@ -434,7 +434,14 @@ impl Foliage {
                     }
                     Event::AboutToWait => {
                         if elm.job.resumed() && drawn {
-                            elm.job.exec_main();
+                            if !elm
+                                .container()
+                                .get_resource_mut::<AssetContainer>()
+                                .unwrap()
+                                .loading()
+                            {
+                                elm.job.exec_main();
+                            }
                             window_handle.value().request_redraw();
                             tracing::trace!("elm:exec-main");
                             drawn = false;

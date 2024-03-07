@@ -1,4 +1,4 @@
-use foliage::color::monochromatic::{Monochromatic, StrongCyan};
+use foliage::color::monochromatic::{FluorescentYellow, Monochromatic};
 use foliage::color::Color;
 use foliage::icon::FeatherIcon;
 use foliage::r_scenes::paged::Paged;
@@ -26,7 +26,7 @@ impl Viewable for IconShowcase {
         }
         view_builder.apply(Paged::new(
             icon_groupings,
-            Colors::new(StrongCyan::BASE, Color::DARK_GREY),
+            Colors::new(FluorescentYellow::BASE, Color::DARK_GREY),
             Direction::Horizontal,
             ResponsiveSegment::base(Segment::new(1.near().to(8.far()), 2.near().to(5.far())))
                 .at_layer(5),
