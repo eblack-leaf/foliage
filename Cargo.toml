@@ -13,5 +13,5 @@ members = [
 ]
 resolver = "2"
 
-#[profile.dev]
-#opt-level = 1
+[profile.dev]
+opt-level = 1
