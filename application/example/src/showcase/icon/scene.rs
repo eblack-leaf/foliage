@@ -1,6 +1,6 @@
 use foliage::bevy_ecs::entity::Entity;
 use foliage::bevy_ecs::system::SystemParamItem;
-use foliage::color::monochromatic::{Asparagus, Monochromatic};
+use foliage::color::monochromatic::{Monochromatic, StrongCyan};
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 use foliage::elm::Elm;
 use foliage::icon::{FeatherIcon, Icon};
@@ -25,10 +25,10 @@ impl Scene for IconDisplay {
     }
 
     fn create(self, mut binder: Binder) -> SceneHandle {
-        let interval = 1f32 / 4f32;
+        let interval = 1f32 / 5f32;
         let mut index = 0;
-        for x in 1..=3 {
-            for y in 1..=3 {
+        for x in 1..=4 {
+            for y in 0..=4 {
                 let x_amount = x as f32 * interval;
                 let y_amount = y as f32 * interval;
                 let alignment = MicroGridAlignment::new(
@@ -37,12 +37,16 @@ impl Scene for IconDisplay {
                     24.fixed(),
                     24.fixed(),
                 );
-                let color = if y == 1 {
-                    Asparagus::MINUS_ONE
+                let color = if y == 0 {
+                    StrongCyan::MINUS_TWO
+                } else if y == 1 {
+                    StrongCyan::MINUS_ONE
                 } else if y == 2 {
-                    Asparagus::BASE
+                    StrongCyan::BASE
+                } else if y == 3 {
+                    StrongCyan::PLUS_ONE
                 } else {
-                    Asparagus::PLUS_ONE
+                    StrongCyan::PLUS_TWO
                 };
                 binder.bind(
                     index,

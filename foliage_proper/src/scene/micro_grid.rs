@@ -143,7 +143,7 @@ impl MicroGrid {
                 _ => w / 2f32,
             }
         };
-        location.x + unit - x_offset + relative_alignment.offset.unwrap_or_default()
+        location.x + unit - x_offset + relative_alignment.adjustment.unwrap_or_default()
     }
     pub fn calc_y(
         &self,
@@ -171,7 +171,7 @@ impl MicroGrid {
                 _ => h / 2f32,
             }
         };
-        location.y + unit - y_offset + relative_alignment.offset.unwrap_or_default()
+        location.y + unit - y_offset + relative_alignment.adjustment.unwrap_or_default()
     }
     pub fn calc_w(
         &self,
@@ -189,7 +189,7 @@ impl MicroGrid {
                     }
                 }
             }
-            + alignment_unit.offset.unwrap_or_default()
+            + alignment_unit.adjustment.unwrap_or_default()
     }
     pub fn calc_h(
         &self,
@@ -207,7 +207,7 @@ impl MicroGrid {
                     }
                 }
             }
-            + alignment_unit.offset.unwrap_or_default()
+            + alignment_unit.adjustment.unwrap_or_default()
     }
 }
 #[derive(Component, Copy, Clone, Default)]
@@ -273,22 +273,22 @@ impl RelativeMarker {
 pub struct RelativeAlignment {
     pub marker: RelativeMarker,
     pub unit: AlignmentUnit,
-    pub offset: Option<CoordinateUnit>,
+    pub adjustment: Option<CoordinateUnit>,
 }
 impl RelativeAlignment {
     pub fn new(marker: RelativeMarker, unit: AlignmentUnit) -> Self {
         Self {
             marker,
             unit,
-            offset: None,
+            adjustment: None,
         }
     }
     pub fn align(mut self, align: Align) -> Self {
         self.unit = self.unit.align(align);
         self
     }
-    pub fn offset(mut self, o: CoordinateUnit) -> Self {
-        self.offset.replace(o);
+    pub fn adjust(mut self, o: CoordinateUnit) -> Self {
+        self.adjustment.replace(o);
         self
     }
 }
@@ -298,7 +298,7 @@ pub struct AlignmentUnit {
     pub op: AlignmentOp,
     pub dim: Option<AnchorDim>,
     pub align: Option<Align>,
-    pub offset: Option<CoordinateUnit>,
+    pub adjustment: Option<CoordinateUnit>,
 }
 #[derive(Copy, Clone, Default)]
 pub enum Align {
@@ -315,22 +315,22 @@ impl AlignmentUnit {
         op: AlignmentOp,
         dim: Option<AnchorDim>,
         align: Option<Align>,
-        offset: Option<CoordinateUnit>,
+        adjustment: Option<CoordinateUnit>,
     ) -> Self {
         Self {
             value,
             op,
             dim,
             align,
-            offset,
+            adjustment,
         }
     }
     pub fn align(mut self, align: Align) -> Self {
         self.align.replace(align);
         self
     }
-    pub fn offset(mut self, o: CoordinateUnit) -> Self {
-        self.offset.replace(o);
+    pub fn adjust(mut self, o: CoordinateUnit) -> Self {
+        self.adjustment.replace(o);
         self
     }
 }

@@ -121,7 +121,7 @@ impl Scene for Dropdown {
                     num_options * -1
                 }
                 .percent_from(RelativeMarker::Top)
-                .offset(
+                .adjust(
                     option_offset
                         - if option_offset.is_sign_positive() {
                             4.0
@@ -130,7 +130,7 @@ impl Scene for Dropdown {
                         },
                 ),
                 1.percent_of(AnchorDim::Width),
-                num_options.percent_of(AnchorDim::Height).offset(4.0),
+                num_options.percent_of(AnchorDim::Height).adjust(4.0),
             )
             .offset_layer(1),
             Panel::new(Style::fill(), self.colors.background.0),
@@ -149,7 +149,7 @@ impl Scene for Dropdown {
                     0.percent_from(RelativeMarker::Center),
                     offset
                         .percent_from(RelativeMarker::Top)
-                        .offset(option_offset),
+                        .adjust(option_offset),
                     0.95.percent_of(AnchorDim::Width),
                     0.9.percent_of(AnchorDim::Height),
                 ),

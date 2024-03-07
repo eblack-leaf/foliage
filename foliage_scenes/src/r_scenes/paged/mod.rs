@@ -1,5 +1,6 @@
 use crate::r_scenes::paged::scene::PageStructure;
 use crate::r_scenes::{Colors, Direction};
+use foliage_proper::animate::trigger::Trigger;
 use foliage_proper::icon::FeatherIcon;
 use foliage_proper::procedure::Procedure;
 use foliage_proper::scene::Scene;
@@ -49,6 +50,9 @@ impl<P: Scene + Clone> Procedure for Paged<P> {
         );
         for (i, branch) in handle.branches().unwrap().iter().enumerate() {
             view_builder.place_conditional_scene_on(*branch, self.elements.get(i).unwrap().clone());
+            if i == 0 {
+                view_builder.extend(branch.this(), Trigger::active());
+            }
         }
     }
 }

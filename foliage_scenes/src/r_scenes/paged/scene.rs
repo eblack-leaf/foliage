@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use foliage_macros::{inner_set_descriptor, InnerSceneBinding};
 use foliage_proper::animate::trigger::Trigger;
 use foliage_proper::bevy_ecs;
@@ -21,7 +19,7 @@ use foliage_proper::scene::micro_grid::{
 use foliage_proper::scene::{Binder, Bindings, BlankNode, Scene, SceneComponents, SceneHandle};
 
 use crate::r_scenes::circle_button::CircleButton;
-use crate::r_scenes::ellipsis::Ellipsis;
+use crate::r_scenes::ellipsis::{Ellipsis, Selected};
 use crate::r_scenes::{BackgroundColor, Colors, Direction, ForegroundColor};
 
 pub struct PageStructure {
@@ -56,9 +54,12 @@ pub enum PageStructureBindings {
 }
 #[derive(Component, Copy, Clone)]
 pub struct Page(pub i32);
+#[derive(Component, Copy, Clone)]
+pub struct PageMax(pub u32);
 #[derive(Bundle)]
 pub struct PageStructureComponents {
     pub page: Page,
+    pub page_max: PageMax,
     pub colors: Colors,
 }
 impl Scene for PageStructure {
@@ -93,16 +94,16 @@ impl Scene for PageStructure {
     fn create(self, mut binder: Binder) -> SceneHandle {
         let decrement_alignment = match self.direction {
             Direction::Horizontal => MicroGridAlignment::new(
-                0.percent_from(RelativeMarker::Left),
+                4.fixed_from(RelativeMarker::Left),
                 0.percent_from(RelativeMarker::Center),
-                40.fixed(),
-                40.fixed(),
+                38.fixed(),
+                38.fixed(),
             ),
             Direction::Vertical => MicroGridAlignment::new(
-                0.percent_from(RelativeMarker::Left),
                 0.percent_from(RelativeMarker::Center),
-                40.fixed(),
-                40.fixed(),
+                0.percent_from(RelativeMarker::Top),
+                38.fixed(),
+                38.fixed(),
             ),
         };
         let decrement = binder.bind_scene(
@@ -112,16 +113,16 @@ impl Scene for PageStructure {
         );
         let increment_alignment = match self.direction {
             Direction::Horizontal => MicroGridAlignment::new(
-                0.percent_from(RelativeMarker::Right),
+                (-4).fixed_from(RelativeMarker::Right),
                 0.percent_from(RelativeMarker::Center),
-                40.fixed(),
-                40.fixed(),
+                38.fixed(),
+                38.fixed(),
             ),
             Direction::Vertical => MicroGridAlignment::new(
-                0.percent_from(RelativeMarker::Right),
                 0.percent_from(RelativeMarker::Center),
-                40.fixed(),
-                40.fixed(),
+                0.percent_from(RelativeMarker::Bottom),
+                38.fixed(),
+                38.fixed(),
             ),
         };
         let increment = binder.bind_scene(
@@ -133,8 +134,8 @@ impl Scene for PageStructure {
             Direction::Horizontal => MicroGridAlignment::new(
                 48.fixed_from(RelativeMarker::Left),
                 0.percent_from(RelativeMarker::Top),
-                0.75.percent_of(AnchorDim::Width),
-                0.9.percent_of(AnchorDim::Height),
+                1.0.percent_of(AnchorDim::Width).adjust(-48.0 * 2.0),
+                1.0.percent_of(AnchorDim::Height).adjust(-25.0),
             ),
             Direction::Vertical => MicroGridAlignment::new(
                 0.125.percent_from(RelativeMarker::Left),
@@ -147,7 +148,7 @@ impl Scene for PageStructure {
         let display_alignment = match self.direction {
             Direction::Horizontal => MicroGridAlignment::new(
                 0.0.percent_from(RelativeMarker::Center),
-                0.0.percent_from(RelativeMarker::Bottom),
+                0.0.percent_from(RelativeMarker::Bottom).adjust(-4.0),
                 0.6.percent_of(AnchorDim::Width),
                 20.fixed(),
             ),
@@ -158,26 +159,31 @@ impl Scene for PageStructure {
                 20.fixed(),
             ),
         };
-        binder.bind_scene(
+        let display = binder.bind_scene(
             PageStructureBindings::Display,
             display_alignment,
-            Ellipsis::new(self.num_pages, self.direction, self.colors, Some(0)),
+            Ellipsis::new(
+                self.num_pages,
+                self.direction,
+                self.colors.foreground.0,
+                Some(0),
+            ),
         );
-        let mut to_be_bound = HashSet::new();
+        let mut to_be_bound = vec![];
         for i in 3..self.num_pages + 3 {
-            to_be_bound.insert(
+            to_be_bound.push(
                 binder
                     .bind_conditional(i as i32, element_alignment, BlankNode::default())
                     .this(),
             );
         }
-        binder.extend(binder.binding(3).entity(), Trigger::active());
         binder.extend(
             decrement.root(),
             ConditionalCommand(SelectionChange {
                 bindings: to_be_bound.clone(),
                 root: binder.root(),
                 page_change: -1,
+                display: display.root(),
             }),
         );
         binder.extend(
@@ -186,12 +192,14 @@ impl Scene for PageStructure {
                 bindings: to_be_bound.clone(),
                 root: binder.root(),
                 page_change: 1,
+                display: display.root(),
             }),
         );
         binder.finish::<Self>(SceneComponents::new(
             MicroGrid::new().min_height(200.0),
             PageStructureComponents {
                 page: Page(0),
+                page_max: PageMax(self.num_pages),
                 colors: self.colors,
             },
         ))
@@ -221,18 +229,29 @@ impl Leaf for PageStructure {
 }
 #[derive(Clone)]
 struct SelectionChange {
-    bindings: HashSet<Entity>,
+    bindings: Vec<Entity>,
     root: Entity,
     page_change: i32,
+    display: Entity,
 }
 impl Command for SelectionChange {
     fn apply(self, world: &mut World) {
+        let max = world.get::<PageMax>(self.root).unwrap().0 as i32;
+        let initial = world.get::<Page>(self.root).unwrap().0;
+        let new = initial.checked_add(self.page_change).unwrap_or_default();
+        if new == -1 {
+            return;
+        }
+        if new >= max {
+            return;
+        }
+        world.get_mut::<Page>(self.root).unwrap().0 = new;
         let selected = world.get::<Page>(self.root).unwrap().0;
-        world.get_mut::<Page>(self.root).unwrap().0 = selected
-            .checked_add(self.page_change)
-            .unwrap_or_default()
-            .max(0);
-        let selected = world.get::<Page>(self.root).unwrap().0;
+        world
+            .get_mut::<Selected>(self.display)
+            .unwrap()
+            .0
+            .replace(selected as u32);
         for (i, branch) in self.bindings.iter().enumerate() {
             *world.get_mut::<Trigger>(*branch).unwrap() = if i == selected as usize {
                 Trigger::active()
