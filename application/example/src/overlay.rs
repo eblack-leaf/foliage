@@ -15,7 +15,7 @@ impl Viewable for Overlay {
         let handle = view_builder.add_scene(
             Dropdown::new(
                 DropdownOptions::new([
-                    "button", "progress", "icon", "image", "text", "utility", "misc",
+                    "button", "progress", "icon", // "image", "text", "utility", "misc",
                 ]),
                 ExpandDirection::Down,
                 Colors::new(Color::GREY, Color::DARK_GREY),

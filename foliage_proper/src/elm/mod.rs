@@ -28,6 +28,7 @@ use crate::window::ScaleFactor;
 use crate::Workflow;
 use anymap::AnyMap;
 use bevy_ecs::bundle::Bundle;
+use bevy_ecs::entity::Entity;
 use bevy_ecs::event::{event_update_system, Event, Events};
 use bevy_ecs::prelude::{Component, IntoSystemConfigs};
 use bevy_ecs::query::Changed;
@@ -160,6 +161,8 @@ impl Elm {
         self.job
             .container
             .insert_resource(RenderPacketForwarder::default());
+        self.main()
+            .add_systems(remove_web_element.in_set(CoreSet::ExternalEvent));
         for leaf in leaflets {
             leaf.1(self)
         }
@@ -201,15 +204,8 @@ impl Elm {
         self.job.resume();
         self.initialized = true;
     }
-    pub fn remove_web_element(_id: &'static str) {
-        #[cfg(target_family = "wasm")]
-        {
-            use wasm_bindgen::JsCast;
-            let document = web_sys::window().unwrap().document().unwrap();
-            if let Some(elem) = document.get_element_by_id(_id) {
-                elem.dyn_into::<web_sys::HtmlElement>().unwrap().remove();
-            }
-        }
+    pub fn remove_web_element(&mut self, id: &'static str) {
+        self.container().spawn(WebElementRemoval::new(id));
     }
     pub fn send_event<E: Event>(&mut self, e: E) {
         self.container().send_event(e);
@@ -361,5 +357,25 @@ impl Style {
     }
     pub fn is_fill(&self) -> bool {
         self.0 == 0.0
+    }
+}
+#[derive(Component, Clone)]
+pub struct WebElementRemoval(pub String);
+impl WebElementRemoval {
+    pub fn new<S: AsRef<str>>(s: S) -> Self {
+        Self(s.as_ref().to_string())
+    }
+}
+pub(crate) fn remove_web_element(query: Query<(Entity, &WebElementRemoval)>, mut cmd: Commands) {
+    for (entity, _removal) in query.iter() {
+        #[cfg(target_family = "wasm")]
+        {
+            use wasm_bindgen::JsCast;
+            let document = web_sys::window().unwrap().document().unwrap();
+            if let Some(elem) = document.get_element_by_id(_removal.0.as_str()) {
+                elem.dyn_into::<web_sys::HtmlElement>().unwrap().remove();
+            }
+        }
+        cmd.entity(entity).despawn();
     }
 }

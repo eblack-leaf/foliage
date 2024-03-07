@@ -58,7 +58,7 @@ impl Leaf for Main {
     fn config(_elm_configuration: &mut ElmConfiguration) {}
 
     fn attach(elm: &mut Elm) {
-        Elm::remove_web_element("loading");
+        elm.remove_web_element("loading");
         let assets = AssetGen::proc_gen_load(elm);
         elm.on_fetch(*assets.generated.get(0).unwrap(), |data, cmd| {
             cmd.spawn(Image::fill(ImageId(0), data));
