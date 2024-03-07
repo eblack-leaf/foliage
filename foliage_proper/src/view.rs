@@ -44,17 +44,18 @@ impl<'a, 'w, 's> ViewBuilder<'a, 'w, 's> {
     }
     pub fn place_conditional_scene_on<S: Scene + Clone>(
         &mut self,
-        entity: Entity,
+        condition_handle: ConditionHandle,
         s: S,
     ) -> ConditionHandle {
         let desc = {
-            let pre_spawned = self.cmd.as_mut().unwrap().spawn_empty().id();
-            self.cmd().entity(entity).insert(SceneBranch::new(
-                s,
-                SpawnTarget::This(pre_spawned),
-                false,
-            ));
-            ConditionHandle::new(entity, pre_spawned)
+            self.cmd()
+                .entity(condition_handle.this())
+                .insert(SceneBranch::new(
+                    s,
+                    SpawnTarget::This(condition_handle.target()),
+                    false,
+                ));
+            condition_handle
         };
         self.view_descriptor
             .branches

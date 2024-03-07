@@ -47,9 +47,8 @@ impl<P: Scene + Clone> Procedure for Paged<P> {
             ),
             self.responsive,
         );
-        for (i, element) in self.elements.iter().enumerate() {
-            view_builder
-                .place_conditional_scene_on(handle.bindings().get(i as i32 + 3), element.clone());
+        for (i, branch) in handle.branches().unwrap().iter().enumerate() {
+            view_builder.place_conditional_scene_on(*branch, self.elements.get(i).unwrap().clone());
         }
     }
 }
