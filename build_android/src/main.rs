@@ -135,7 +135,7 @@ fn build_template(args: &Args) {
         .join("main")
         .join("java")
         .join("co")
-        .join("../../foliage_proper")
+        .join("foliage")
         .join("app")
         .join("MainActivity.java");
     let build_dest = args.app_source.join("app").join("build.gradle");

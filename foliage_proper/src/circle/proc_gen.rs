@@ -17,7 +17,7 @@ fn generate() {
         .join("src")
         .join("circle")
         .join("texture_resources");
-    const RING_RATIO: CoordinateUnit = 0.95;
+    const RING_RATIO: CoordinateUnit = 0.9;
     const INTERVALS: u32 = 100;
     let mut data = vec![(0f32, 0f32, 0f32, 0f32); (TEXTURE_SIZE * TEXTURE_SIZE) as usize];
     let placements = circle::new_placements();
