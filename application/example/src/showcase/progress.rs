@@ -29,7 +29,7 @@ impl Viewable for ProgressShowcase {
                 Colors::new(AquaMarine::BASE, Color::DARK_GREY),
             ),
             ResponsiveSegment::base(Segment::new(
-                6.near().to(6.far()).maximum(50.0),
+                7.near().to(8.far()).maximum(50.0),
                 2.near().to(2.far()),
             ))
             .at_layer(5),
@@ -49,7 +49,7 @@ impl Viewable for ProgressShowcase {
                 Colors::new(AquaMarine::BASE, Color::DARK_GREY),
             ),
             ResponsiveSegment::base(Segment::new(
-                6.near().to(6.far()).maximum(50.0),
+                7.near().to(8.far()).maximum(50.0),
                 3.near().to(3.far()),
             ))
             .at_layer(5),

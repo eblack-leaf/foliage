@@ -122,8 +122,8 @@ impl Scene for IconButton {
         binder.finish::<Self>(SceneComponents::new(
             MicroGrid::new()
                 .aspect_ratio(1.0)
-                .min_height(34.0)
-                .min_width(34.0),
+                .min_height(36.0)
+                .min_width(36.0),
             <Button as Scene>::Components::new(self.element_style, self.colors),
         ))
     }

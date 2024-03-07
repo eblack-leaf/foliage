@@ -96,14 +96,14 @@ impl Scene for PageStructure {
             Direction::Horizontal => MicroGridAlignment::new(
                 4.fixed_from(RelativeMarker::Left),
                 0.percent_from(RelativeMarker::Center),
-                38.fixed(),
-                38.fixed(),
+                44.fixed(),
+                44.fixed(),
             ),
             Direction::Vertical => MicroGridAlignment::new(
                 0.percent_from(RelativeMarker::Center),
                 0.percent_from(RelativeMarker::Top),
-                38.fixed(),
-                38.fixed(),
+                44.fixed(),
+                44.fixed(),
             ),
         };
         let decrement = binder.bind_scene(
@@ -115,14 +115,14 @@ impl Scene for PageStructure {
             Direction::Horizontal => MicroGridAlignment::new(
                 (-4).fixed_from(RelativeMarker::Right),
                 0.percent_from(RelativeMarker::Center),
-                38.fixed(),
-                38.fixed(),
+                44.fixed(),
+                44.fixed(),
             ),
             Direction::Vertical => MicroGridAlignment::new(
                 0.percent_from(RelativeMarker::Center),
-                0.percent_from(RelativeMarker::Bottom),
-                38.fixed(),
-                38.fixed(),
+                (-4).percent_from(RelativeMarker::Bottom),
+                44.fixed(),
+                44.fixed(),
             ),
         };
         let increment = binder.bind_scene(
@@ -132,16 +132,16 @@ impl Scene for PageStructure {
         );
         let element_alignment = match self.direction {
             Direction::Horizontal => MicroGridAlignment::new(
-                48.fixed_from(RelativeMarker::Left),
+                52.fixed_from(RelativeMarker::Left),
                 0.percent_from(RelativeMarker::Top),
-                1.0.percent_of(AnchorDim::Width).adjust(-48.0 * 2.0),
-                1.0.percent_of(AnchorDim::Height).adjust(-25.0),
+                1.0.percent_of(AnchorDim::Width).adjust(-52.0 * 2.0),
+                1.0.percent_of(AnchorDim::Height).adjust(-24.0),
             ),
             Direction::Vertical => MicroGridAlignment::new(
-                0.125.percent_from(RelativeMarker::Left),
-                0.percent_from(RelativeMarker::Center),
-                0.75.percent_of(AnchorDim::Width),
-                1.percent_of(AnchorDim::Height),
+                0.percent_from(RelativeMarker::Left),
+                52.fixed_from(RelativeMarker::Top),
+                1.0.percent_of(AnchorDim::Width).adjust(-24.0),
+                1.0.percent_of(AnchorDim::Height).adjust(-52.0 * 2.0),
             ),
         };
         // bind display

@@ -135,10 +135,10 @@ impl Viewable for ButtonShowcase {
             Button::new(
                 IconText::new(
                     FeatherIcon::Copy,
-                    Color::BLACK,
+                    Color::DARK_GREY,
                     MaxCharacters(4),
                     TextValue::new("copy"),
-                    Color::BLACK,
+                    Color::DARK_GREY,
                 ),
                 Style::fill(),
                 Colors::new(Color::DARK_GREY, Orange::MINUS_TWO),
@@ -146,10 +146,10 @@ impl Viewable for ButtonShowcase {
             Button::new(
                 IconText::new(
                     FeatherIcon::Copy,
-                    Color::BLACK,
+                    Color::DARK_GREY,
                     MaxCharacters(4),
                     TextValue::new("copy"),
-                    Color::BLACK,
+                    Color::DARK_GREY,
                 ),
                 Style::ring(),
                 Colors::new(Color::DARK_GREY, Orange::MINUS_TWO),
@@ -164,14 +164,14 @@ impl Viewable for ButtonShowcase {
                 TextValue::new("copy"),
                 MaxCharacters(4),
                 Style::fill(),
-                Color::BLACK,
+                Color::DARK_GREY,
                 Orange::MINUS_ONE,
             ),
             TextButton::new(
                 TextValue::new("copy"),
                 MaxCharacters(4),
                 Style::ring(),
-                Color::BLACK,
+                Color::DARK_GREY,
                 Orange::MINUS_ONE,
             ),
             "text".to_string(),
@@ -188,7 +188,7 @@ impl Viewable for ButtonShowcase {
             CircleButton::new(
                 FeatherIcon::Copy,
                 Style::ring(),
-                Colors::new(Color::BLACK, Orange::BASE),
+                Colors::new(Color::DARK_GREY, Orange::BASE),
             ),
             "circle".to_string(),
             4,
@@ -204,12 +204,12 @@ impl Viewable for ButtonShowcase {
             IconButton::new(
                 FeatherIcon::Copy,
                 Style::ring(),
-                Colors::new(Color::BLACK, Orange::PLUS_TWO),
+                Colors::new(Color::DARK_GREY, Orange::PLUS_TWO),
             ),
             "icon".to_string(),
             5,
-            Some(45.0),
-            Some(45.0),
+            Some(40.0),
+            Some(40.0),
         ));
         view_builder.finish()
     }

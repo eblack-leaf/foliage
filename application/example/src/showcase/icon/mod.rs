@@ -30,8 +30,8 @@ impl Viewable for IconShowcase {
             Direction::Horizontal,
             ResponsiveSegment::base(Segment::new(1.near().to(8.far()), 2.near().to(5.far())))
                 .at_layer(5),
-            FeatherIcon::ChevronLeft,
-            FeatherIcon::ChevronRight,
+            FeatherIcon::Minus,
+            FeatherIcon::Plus,
         ));
         view_builder.finish()
     }
