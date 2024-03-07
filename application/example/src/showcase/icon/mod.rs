@@ -8,7 +8,7 @@ use foliage::view::{ViewBuilder, ViewDescriptor, Viewable};
 
 use crate::showcase::icon::scene::IconDisplay;
 
-mod scene;
+pub mod scene;
 
 pub struct IconShowcase;
 impl Viewable for IconShowcase {
@@ -54,20 +54,18 @@ impl Viewable for IconShowcase {
         //     .at_layer(5),
         // );
         let mut icon_groupings = vec![];
-        let mut last = 0;
         for i in (0..286).step_by(9) {
             icon_groupings.push(IconDisplay::new(
                 (i..i + 9)
                     .map(|a| FeatherIcon::from(a as u32))
                     .collect::<Vec<FeatherIcon>>(),
             ));
-            last = i;
         }
         view_builder.apply(Paged::new(
             icon_groupings,
             Colors::new(Asparagus::BASE, Color::DARK_GREY),
             Direction::Horizontal,
-            ResponsiveSegment::base(Segment::new(2.near().to(8.far()), 2.near().to(5.far())))
+            ResponsiveSegment::base(Segment::new(1.near().to(8.far()), 2.near().to(5.far())))
                 .at_layer(5),
             FeatherIcon::ChevronLeft,
             FeatherIcon::ChevronRight,

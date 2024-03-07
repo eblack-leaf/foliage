@@ -1,6 +1,8 @@
 use foliage::bevy_ecs::entity::Entity;
 use foliage::bevy_ecs::system::SystemParamItem;
 use foliage::color::monochromatic::{Asparagus, Monochromatic};
+use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
+use foliage::elm::Elm;
 use foliage::icon::{FeatherIcon, Icon};
 use foliage::scene::micro_grid::{AlignmentDesc, MicroGrid, MicroGridAlignment, RelativeMarker};
 use foliage::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
@@ -18,24 +20,26 @@ impl Scene for IconDisplay {
     type Filter = ();
     type Components = ();
 
-    fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
+    fn config(_entity: Entity, _ext: &mut SystemParamItem<Self::Params>, _bindings: &Bindings) {
         todo!()
     }
 
     fn create(self, mut binder: Binder) -> SceneHandle {
-        let interval = 1f32 / 9f32;
+        let interval = 1f32 / 4f32;
         let mut index = 0;
-        for x in 0..3 {
-            for y in 0..3 {
+        for x in 1..=3 {
+            for y in 1..=3 {
+                let x_amount = x as f32 * interval;
+                let y_amount = y as f32 * interval;
                 let alignment = MicroGridAlignment::new(
-                    (x as f32 * interval).percent_from(RelativeMarker::Left),
-                    (y as f32 * interval).percent_from(RelativeMarker::Top),
+                    x_amount.percent_from(RelativeMarker::Left),
+                    y_amount.percent_from(RelativeMarker::Top),
                     24.fixed(),
                     24.fixed(),
                 );
-                let color = if y == 0 {
+                let color = if y == 1 {
                     Asparagus::MINUS_ONE
-                } else if y == 1 {
+                } else if y == 2 {
                     Asparagus::BASE
                 } else {
                     Asparagus::PLUS_ONE
@@ -49,5 +53,12 @@ impl Scene for IconDisplay {
             }
         }
         binder.finish::<Self>(SceneComponents::new(MicroGrid::new(), ()))
+    }
+}
+impl Leaf for IconDisplay {
+    type SetDescriptor = EmptySetDescriptor;
+
+    fn attach(elm: &mut Elm) {
+        elm.enable_conditional_scene::<IconDisplay>();
     }
 }

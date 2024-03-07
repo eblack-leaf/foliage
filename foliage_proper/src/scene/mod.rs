@@ -323,6 +323,17 @@ impl ScenePtr {
 pub struct BlankNode {
     coordinate: Coordinate<InterfaceContext>,
 }
+impl Scene for BlankNode {
+    type Params = ();
+    type Filter = ();
+    type Components = ();
+
+    fn config(_entity: Entity, _ext: &mut SystemParamItem<Self::Params>, _bindings: &Bindings) {}
+
+    fn create(self, binder: Binder) -> SceneHandle {
+        binder.finish::<Self>(SceneComponents::new(MicroGrid::new(), ()))
+    }
+}
 fn recursive_fetch(
     root_coordinate: Coordinate<InterfaceContext>,
     target_entity: Entity,

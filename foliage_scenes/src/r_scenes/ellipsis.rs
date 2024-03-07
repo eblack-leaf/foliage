@@ -58,12 +58,13 @@ impl Scene for Ellipsis {
     }
 
     fn create(self, mut binder: Binder) -> SceneHandle {
+        let amount = self.amount.min(7);
         let aspect = match self.direction {
-            Direction::Horizontal => self.amount as f32,
-            Direction::Vertical => 1f32 / self.amount as f32,
+            Direction::Horizontal => amount as f32,
+            Direction::Vertical => 1f32 / amount as f32,
         };
-        let clean_interval = 1f32 / self.amount as f32;
-        let interval = 1f32 / (self.amount as f32 + 2f32);
+        let clean_interval = 1f32 / amount as f32;
+        let interval = 1f32 / (amount as f32 + 2f32);
         let alignment = |i: f32| match self.direction {
             Direction::Horizontal => MicroGridAlignment::new(
                 (i * clean_interval).percent_from(RelativeMarker::Left),
@@ -78,7 +79,8 @@ impl Scene for Ellipsis {
                 interval.percent_of(AnchorDim::Height),
             ),
         };
-        for i in 0..self.amount {
+
+        for i in 0..amount {
             let style = if let Some(u) = self.selected {
                 if i == u {
                     Style::fill()

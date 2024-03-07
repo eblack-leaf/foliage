@@ -4,10 +4,9 @@ mod showcase;
 
 use crate::assets_gen::AssetGen;
 use crate::overlay::Overlay;
+use crate::showcase::icon::scene::IconDisplay;
 use crate::showcase::icon::IconShowcase;
 use crate::showcase::progress::ProgressShowcase;
-use foliage::bevy_ecs;
-use foliage::bevy_ecs::prelude::Resource;
 use foliage::color::monochromatic::Orange;
 use foliage::coordinate::area::Area;
 use foliage::elm::config::ElmConfiguration;
@@ -30,6 +29,7 @@ pub fn entry(android_interface: AndroidInterface) {
         )
         .with_leaves::<foliage::SceneExtensions>()
         .with_leaf::<Main>()
+        .with_leaf::<IconDisplay>()
         .with_android_interface(android_interface)
         .with_worker_path("./worker.js")
         .run::<Engen>();
