@@ -26,21 +26,14 @@ use crate::r_scenes::{BackgroundColor, Colors, ForegroundColor};
 pub struct Button {
     pub icon_text: IconText,
     pub element_style: Style,
-    pub foreground_color: Color,
-    pub background_color: Color,
+    pub colors: Colors,
 }
 impl Button {
-    pub fn new<C: Into<Color>>(
-        icon_text: IconText,
-        element_style: Style,
-        foreground_color: C,
-        background_color: C,
-    ) -> Self {
+    pub fn new(icon_text: IconText, element_style: Style, colors: Colors) -> Self {
         Self {
             icon_text,
             element_style,
-            foreground_color: foreground_color.into(),
-            background_color: background_color.into(),
+            colors,
         }
     }
 }
@@ -54,7 +47,7 @@ pub struct ButtonComponents {
     trigger: Trigger,
 }
 impl ButtonComponents {
-    pub fn new<C: Into<Color>>(element_style: Style, colors: Colors) -> Self {
+    pub fn new(element_style: Style, colors: Colors) -> Self {
         Self {
             element_style,
             colors,
@@ -148,7 +141,7 @@ impl Scene for Button {
                 1.percent_of(AnchorDim::Width),
                 1.percent_of(AnchorDim::Height),
             ),
-            Panel::new(self.element_style, self.foreground_color),
+            Panel::new(self.element_style, self.colors.foreground.0),
         );
         binder.bind_scene(
             ButtonBindings::IconText,

@@ -23,5 +23,7 @@ impl Leaves for SceneExtensions {
             .with_leaf::<r_scenes::progress_bar::ProgressBar>()
             .with_leaf::<r_scenes::circle_progress_bar::CircleProgressBar>()
             .with_leaf::<r_scenes::dropdown::Dropdown>()
+            .with_leaf::<r_scenes::ellipsis::Ellipsis>()
+            .with_leaf::<r_scenes::paged::scene::PageStructure>()
     }
 }

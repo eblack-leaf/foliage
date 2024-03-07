@@ -26,8 +26,7 @@ impl Viewable for ProgressShowcase {
             CircleButton::new(
                 FeatherIcon::Copy,
                 Style::fill(),
-                AquaMarine::BASE,
-                Color::DARK_GREY,
+                Colors::new(AquaMarine::BASE, Color::DARK_GREY),
             ),
             ResponsiveSegment::base(Segment::new(
                 6.near().to(6.far()).maximum(50.0),
@@ -47,8 +46,7 @@ impl Viewable for ProgressShowcase {
             CircleButton::new(
                 FeatherIcon::Copy,
                 Style::fill(),
-                AquaMarine::BASE,
-                Color::DARK_GREY,
+                Colors::new(AquaMarine::BASE, Color::DARK_GREY),
             ),
             ResponsiveSegment::base(Segment::new(
                 6.near().to(6.far()).maximum(50.0),

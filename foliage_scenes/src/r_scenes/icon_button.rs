@@ -24,11 +24,7 @@ pub struct IconButton {
     colors: Colors,
 }
 impl IconButton {
-    pub fn new<ID: Into<IconId>, C: Into<Color>>(
-        id: ID,
-        element_style: Style,
-        colors: Colors,
-    ) -> Self {
+    pub fn new<ID: Into<IconId>>(id: ID, element_style: Style, colors: Colors) -> Self {
         Self {
             element_style,
             icon_id: id.into(),
@@ -128,11 +124,7 @@ impl Scene for IconButton {
                 .aspect_ratio(1.0)
                 .min_height(34.0)
                 .min_width(34.0),
-            <Button as Scene>::Components::new(
-                self.element_style,
-                self.colors.foreground.0,
-                self.colors.background.0,
-            ),
+            <Button as Scene>::Components::new(self.element_style, self.colors),
         ))
     }
 }

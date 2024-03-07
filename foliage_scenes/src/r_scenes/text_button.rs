@@ -23,7 +23,7 @@ use crate::r_scenes::{BackgroundColor, Colors, ForegroundColor};
 pub struct TextButton {
     element_style: Style,
     text_value: TextValue,
-    ui_color: Colors,
+    colors: Colors,
     max_chars: MaxCharacters,
 }
 impl TextButton {
@@ -37,7 +37,7 @@ impl TextButton {
         Self {
             element_style,
             text_value,
-            ui_color: Colors::new(fc.into(), bg.into()),
+            colors: Colors::new(fc.into(), bg.into()),
             max_chars: max_characters.into(),
         }
     }
@@ -114,7 +114,7 @@ impl Scene for TextButton {
                 1.percent_of(AnchorDim::Width),
                 1.percent_of(AnchorDim::Height),
             ),
-            Panel::new(self.element_style, self.ui_color.foreground.0),
+            Panel::new(self.element_style, self.colors.foreground.0),
         );
         binder.bind(
             TextButtonBindings::Text,
@@ -127,7 +127,7 @@ impl Scene for TextButton {
             Text::new(
                 self.max_chars,
                 self.text_value.clone(),
-                self.ui_color.background.0,
+                self.colors.background.0,
             ),
         );
         binder.bind(
@@ -145,11 +145,7 @@ impl Scene for TextButton {
         binder.finish::<Self>(SceneComponents::new(
             MicroGrid::new().min_height(24.0).min_width(40.0 * aspect),
             (
-                <Button as Scene>::Components::new(
-                    self.element_style,
-                    self.ui_color.foreground.0,
-                    self.ui_color.background.0,
-                ),
+                <Button as Scene>::Components::new(self.element_style, self.colors),
                 self.text_value,
                 self.max_chars,
             ),

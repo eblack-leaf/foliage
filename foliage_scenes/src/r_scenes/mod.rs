@@ -5,9 +5,10 @@ pub mod button;
 pub mod circle_button;
 pub mod circle_progress_bar;
 pub mod dropdown;
+pub(crate) mod ellipsis;
 pub mod icon_button;
 pub mod icon_text;
-mod paged;
+pub(crate) mod paged;
 pub mod progress_bar;
 pub mod text_button;
 
@@ -76,4 +77,9 @@ impl Aesthetics {
         self.style = s;
         self
     }
+}
+#[derive(Copy, Clone, Component)]
+pub enum Direction {
+    Horizontal,
+    Vertical,
 }

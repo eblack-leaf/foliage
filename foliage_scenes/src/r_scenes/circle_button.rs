@@ -26,11 +26,7 @@ pub struct CircleButton {
     pub colors: Colors,
 }
 impl CircleButton {
-    pub fn new<ID: Into<IconId>, C: Into<Color>>(
-        id: ID,
-        element_style: Style,
-        colors: Colors,
-    ) -> Self {
+    pub fn new<ID: Into<IconId>>(id: ID, element_style: Style, colors: Colors) -> Self {
         Self {
             icon_id: id.into(),
             element_style,

@@ -11,6 +11,7 @@ use foliage::r_scenes::circle_button::CircleButton;
 use foliage::r_scenes::icon_button::IconButton;
 use foliage::r_scenes::icon_text::IconText;
 use foliage::r_scenes::text_button::TextButton;
+use foliage::r_scenes::Colors;
 use foliage::scene::Scene;
 use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::text::{MaxCharacters, Text, TextValue};
@@ -140,8 +141,7 @@ impl Viewable for ButtonShowcase {
                     Color::BLACK,
                 ),
                 Style::fill(),
-                Color::DARK_GREY,
-                Orange::MINUS_TWO,
+                Colors::new(Color::DARK_GREY, Orange::MINUS_TWO),
             ),
             Button::new(
                 IconText::new(
@@ -152,8 +152,7 @@ impl Viewable for ButtonShowcase {
                     Color::BLACK,
                 ),
                 Style::ring(),
-                Color::DARK_GREY,
-                Orange::MINUS_TWO,
+                Colors::new(Color::DARK_GREY, Orange::MINUS_TWO),
             ),
             "base".to_string(),
             2,
@@ -184,10 +183,13 @@ impl Viewable for ButtonShowcase {
             CircleButton::new(
                 FeatherIcon::Copy,
                 Style::fill(),
-                Color::DARK_GREY,
-                Orange::BASE,
+                Colors::new(Color::DARK_GREY, Orange::BASE),
             ),
-            CircleButton::new(FeatherIcon::Copy, Style::ring(), Color::BLACK, Orange::BASE),
+            CircleButton::new(
+                FeatherIcon::Copy,
+                Style::ring(),
+                Colors::new(Color::BLACK, Orange::BASE),
+            ),
             "circle".to_string(),
             4,
             Some(55.0),
@@ -197,14 +199,12 @@ impl Viewable for ButtonShowcase {
             IconButton::new(
                 FeatherIcon::Copy,
                 Style::fill(),
-                Color::DARK_GREY,
-                Orange::PLUS_TWO,
+                Colors::new(Color::DARK_GREY, Orange::PLUS_TWO),
             ),
             IconButton::new(
                 FeatherIcon::Copy,
                 Style::ring(),
-                Color::BLACK,
-                Orange::PLUS_TWO,
+                Colors::new(Color::BLACK, Orange::PLUS_TWO),
             ),
             "icon".to_string(),
             5,
