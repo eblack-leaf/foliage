@@ -1,6 +1,8 @@
+mod assets_gen;
 mod overlay;
 mod showcase;
 
+use crate::assets_gen::AssetsGen;
 use crate::overlay::Overlay;
 use crate::showcase::icon::IconShowcase;
 use crate::showcase::progress::ProgressShowcase;
@@ -48,23 +50,6 @@ impl Workflow for Engen {
     }
 }
 
-#[foliage::assets(Engen, "../assets/", "/foliage/demo/assets/")]
-#[derive(Resource, Clone)]
-pub(crate) struct Assets {
-    #[bytes(path = "something.dat", group = f_asset)]
-    _something: AssetKey,
-    #[bytes(path = "img.png", group = f_asset)]
-    image_id: AssetKey,
-    #[icon(path = "icons/copy.gatl", opt = FeatherIcon::Copy)]
-    _copy_id: AssetKey,
-    #[icon(path = "icons/command.gatl", opt = FeatherIcon::Command)]
-    _command_id: AssetKey,
-    #[icon(path = "icons/menu.icon", opt = FeatherIcon::Menu)]
-    _command_id: AssetKey,
-    #[icon(path = "icons/tag.icon", opt = FeatherIcon::Tag)]
-    _command_id: AssetKey,
-}
-
 pub(crate) struct Main {}
 
 impl Leaf for Main {
@@ -74,8 +59,8 @@ impl Leaf for Main {
 
     fn attach(elm: &mut Elm) {
         Elm::remove_web_element("loading");
-        let assets = Assets::proc_gen_load(elm);
-        elm.on_fetch(*assets.f_asset.get(1).unwrap(), |data, cmd| {
+        let assets = AssetsGen::proc_gen_load(elm);
+        elm.on_fetch(*assets.generated.get(0).unwrap(), |data, cmd| {
             cmd.spawn(Image::fill(ImageId(0), data));
         });
         elm.container().spawn(Image::storage(

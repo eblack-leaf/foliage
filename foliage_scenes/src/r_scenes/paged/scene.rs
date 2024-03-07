@@ -163,8 +163,9 @@ impl Scene for PageStructure {
             Ellipsis::new(self.num_pages, self.direction, self.colors, Some(0)),
         );
         for i in 3..self.num_pages + 3 {
-            binder.bind_conditional(i as i32, element_alignment, BlankNode::default());
+            binder.bind(i as i32, element_alignment, BlankNode::default());
         }
+        binder.extend(binder.binding(3).entity(), Trigger::active());
         binder.extend(
             decrement.root(),
             ConditionalCommand(SelectionChange {

@@ -1,9 +1,10 @@
 use crate::icon::IconId;
 use bevy_ecs::component::Component;
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 
 #[repr(u32)]
-#[derive(Component, Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
+#[derive(Component, Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize, Debug)]
 pub enum FeatherIcon {
     Activity = 0,
     Airplay,
@@ -292,12 +293,33 @@ pub enum FeatherIcon {
     ZoomIn,
     ZoomOut,
 }
+
+impl Display for FeatherIcon {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(format!("{:?}", self).replace("\"", "").as_str())
+    }
+}
+
 impl FeatherIcon {
     pub fn id(self) -> IconId {
         IconId::new(self as u32)
     }
 }
-#[cfg(test)]
+impl From<&str> for FeatherIcon {
+    fn from(value: &str) -> Self {
+        if let Some(index) = ICON_NAMES.iter().position(|&i| i == value) {
+            let i = index as u32;
+            return i.into();
+        } else {
+            FeatherIcon::ChevronRight
+        }
+    }
+}
+impl From<u32> for FeatherIcon {
+    fn from(value: u32) -> Self {
+        unsafe { std::mem::transmute(value) }
+    }
+}
 pub(crate) const ICON_NAMES: [&str; 286] = [
     "activity",
     "airplay",

@@ -117,6 +117,9 @@ impl<'a, 'w, 's> Binder<'a, 'w, 's> {
             cmd,
         }
     }
+    pub fn binding<SB: Into<SceneBinding>>(&self, sb: SB) -> &SceneNode {
+        self.nodes.get(&sb.into()).unwrap()
+    }
     pub fn root(&self) -> Entity {
         self.root
     }

@@ -9,6 +9,7 @@ members = [
     "foliage_macros",
     "foliage_scenes",
     "foliage",
+    "asset_gen",
 ]
 resolver = "2"
 

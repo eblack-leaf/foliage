@@ -50,8 +50,8 @@ impl Scene for Ellipsis {
     type Filter = ();
     type Components = EllipsisComponents;
 
-    fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
-        for b in bindings.nodes().iter() {
+    fn config(_entity: Entity, _ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
+        for _b in bindings.nodes().iter() {
             // update colors
             // update selected style?
         }

@@ -2,6 +2,7 @@ use crate::r_scenes::paged::scene::PageStructure;
 use crate::r_scenes::{Colors, Direction};
 use foliage_proper::icon::FeatherIcon;
 use foliage_proper::procedure::Procedure;
+use foliage_proper::scene::Scene;
 use foliage_proper::segment::ResponsiveSegment;
 use foliage_proper::view::ViewBuilder;
 
@@ -15,7 +16,26 @@ pub struct Paged<P> {
     pub increment_icon: FeatherIcon,
     pub decrement_icon: FeatherIcon,
 }
-impl<P> Procedure for Paged<P> {
+impl<P: Scene> Paged<P> {
+    pub fn new(
+        elements: Vec<P>,
+        colors: Colors,
+        direction: Direction,
+        responsive_segment: ResponsiveSegment,
+        decrement_icon: FeatherIcon,
+        increment_icon: FeatherIcon,
+    ) -> Self {
+        Self {
+            elements,
+            colors,
+            direction,
+            responsive: responsive_segment,
+            increment_icon,
+            decrement_icon,
+        }
+    }
+}
+impl<P: Scene + Clone> Procedure for Paged<P> {
     fn steps(self, view_builder: &mut ViewBuilder) {
         let handle = view_builder.add_scene(
             PageStructure::new(
@@ -27,6 +47,9 @@ impl<P> Procedure for Paged<P> {
             ),
             self.responsive,
         );
-        for element in self.elements.iter() {}
+        for (i, element) in self.elements.iter().enumerate() {
+            view_builder
+                .place_conditional_scene_on(handle.bindings().get(i as i32 + 3), element.clone());
+        }
     }
 }
