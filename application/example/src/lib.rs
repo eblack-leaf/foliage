@@ -2,7 +2,7 @@ mod assets_gen;
 mod overlay;
 mod showcase;
 
-use crate::assets_gen::AssetsGen;
+use crate::assets_gen::AssetGen;
 use crate::overlay::Overlay;
 use crate::showcase::icon::IconShowcase;
 use crate::showcase::progress::ProgressShowcase;
@@ -59,7 +59,7 @@ impl Leaf for Main {
 
     fn attach(elm: &mut Elm) {
         Elm::remove_web_element("loading");
-        let assets = AssetsGen::proc_gen_load(elm);
+        let assets = AssetGen::proc_gen_load(elm);
         elm.on_fetch(*assets.generated.get(0).unwrap(), |data, cmd| {
             cmd.spawn(Image::fill(ImageId(0), data));
         });

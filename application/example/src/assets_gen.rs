@@ -2,7 +2,7 @@ use foliage::bevy_ecs;
 use foliage::bevy_ecs::prelude::Resource;
 #[foliage::assets(crate::Engen, "../assets/", "/foliage/demo/assets/")]
 #[derive(Resource, Clone)]
-pub(crate) struct AssetsGen {
+pub(crate) struct AssetGen {
     #[bytes(path = "img.png", group = generated)]
     _id: AssetKey,
     #[icon(path = "icons/skip-forward.icon", opt = FeatherIcon::SkipForward)]
