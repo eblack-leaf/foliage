@@ -11,6 +11,7 @@ pub mod icon_text;
 pub mod paged;
 pub mod progress_bar;
 pub mod text_button;
+mod text_input;
 
 use foliage_proper::bevy_ecs;
 use foliage_proper::bevy_ecs::bundle::Bundle;
@@ -22,6 +23,8 @@ pub struct ForegroundColor(pub Color);
 
 #[derive(Component, Copy, Clone, Default)]
 pub struct BackgroundColor(pub Color);
+#[derive(Component, Copy, Clone, Default)]
+pub struct AlternateColor(pub Color);
 impl From<Color> for ForegroundColor {
     fn from(value: Color) -> Self {
         ForegroundColor(value)
@@ -32,16 +35,23 @@ impl From<Color> for BackgroundColor {
         BackgroundColor(value)
     }
 }
+impl From<Color> for AlternateColor {
+    fn from(value: Color) -> Self {
+        AlternateColor(value)
+    }
+}
 #[derive(Bundle, Copy, Clone)]
 pub struct Colors {
     foreground: ForegroundColor,
     background: BackgroundColor,
+    alternate: AlternateColor,
 }
 impl Colors {
     pub fn new<C: Into<Color>>(fc: C, bc: C) -> Self {
         Self {
             foreground: fc.into().into(),
             background: bc.into().into(),
+            alternate: AlternateColor(Color::GREY),
         }
     }
     pub fn with_foreground<C: Into<Color>>(mut self, c: C) -> Self {
@@ -50,6 +60,10 @@ impl Colors {
     }
     pub fn with_background<C: Into<Color>>(mut self, c: C) -> Self {
         self.background.0 = c.into();
+        self
+    }
+    pub fn with_alternate<C: Into<Color>>(mut self, c: C) -> Self {
+        self.alternate.0 = c.into();
         self
     }
 }

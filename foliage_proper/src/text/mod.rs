@@ -374,6 +374,11 @@ impl TextValue {
         Self(CompactString::new(s))
     }
 }
+impl From<String> for TextValue {
+    fn from(value: String) -> Self {
+        Self::new(value)
+    }
+}
 #[derive(Component, Copy, Clone, Serialize, Deserialize, PartialEq)]
 pub(crate) struct TextValueUniqueCharacters(pub(crate) u32);
 impl TextValueUniqueCharacters {
