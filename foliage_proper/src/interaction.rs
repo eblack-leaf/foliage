@@ -236,7 +236,7 @@ impl InteractionShapeActualized {
                 if distance(
                     &Point::<f32, 2>::new(position.x, position.y),
                     &Point::<f32, 2>::new(center.x, center.y),
-                ) < self.1.width() / 2f32
+                ) <= self.1.width() / 2f32
                 {
                     return true;
                 }
