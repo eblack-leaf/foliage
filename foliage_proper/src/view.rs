@@ -225,7 +225,6 @@ fn navigation(
             }
         }
         // call .create(cmd) ...
-
         let v = compositor.views.get(&n.0).expect("view");
         *macro_grid = v.grid;
         let desc = (v.create)(ViewBuilder::new(&mut cmd));

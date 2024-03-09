@@ -11,13 +11,14 @@ use foliage_proper::coordinate::layer::Layer;
 use foliage_proper::coordinate::position::Position;
 use foliage_proper::coordinate::{Coordinate, InterfaceContext};
 use foliage_proper::elm::leaf::Tag;
+use foliage_proper::interaction::InteractionListener;
 use foliage_proper::rectangle::Rectangle;
 use foliage_proper::scene::micro_grid::{
     AlignmentDesc, AnchorDim, MicroGrid, MicroGridAlignment, RelativeMarker,
 };
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
 use foliage_proper::text::font::MonospacedFont;
-use foliage_proper::text::{MaxCharacters, Text, TextValue};
+use foliage_proper::text::{GlyphColorChanges, MaxCharacters, Text, TextValue};
 use foliage_proper::texture::factors::Progress;
 use foliage_proper::window::ScaleFactor;
 
@@ -52,6 +53,21 @@ pub struct InteractiveTextComponents {
     pub text: TextValue,
     pub max_chars: MaxCharacters,
     pub colors: Colors,
+    pub spt: SelectionProcessTrigger,
+}
+#[derive(Component, Copy, Clone)]
+pub struct SelectionProcessTrigger(bool);
+fn select(
+    mut query: Query<
+        (&InteractionListener, &mut SelectionProcessTrigger),
+        Changed<InteractionListener>,
+    >,
+) {
+    for (listener, mut spt) in query.iter_mut() {
+        if listener.engaged() {
+            spt.0 = true;
+        }
+    }
 }
 impl Scene for InteractiveText {
     type Params = (
@@ -63,6 +79,7 @@ impl Scene for InteractiveText {
                 &'static BackgroundColor,
                 &'static MaxCharacters,
                 &'static TextValue,
+                &'static mut Selection,
             ),
             With<Tag<InteractiveText>>,
         >,
@@ -79,6 +96,12 @@ impl Scene for InteractiveText {
         >,
         Res<'static, MonospacedFont>,
         Res<'static, ScaleFactor>,
+        Query<
+            'static,
+            'static,
+            (&'static mut GlyphColorChanges, &'static mut TextValue),
+            Without<Tag<InteractiveText>>,
+        >,
     );
     type Filter = Or<(
         Changed<Position<InterfaceContext>>,
@@ -86,6 +109,8 @@ impl Scene for InteractiveText {
         Changed<Layer>,
         Changed<ForegroundColor>,
         Changed<BackgroundColor>,
+        Changed<Selection>,
+        Changed<SelectionProcessTrigger>,
     )>;
     type Components = InteractiveTextComponents;
 
@@ -96,14 +121,19 @@ impl Scene for InteractiveText {
         bindings: &Bindings,
     ) {
         let text = bindings.get(0);
-        if let Ok((fc, bc, mc, tv)) = ext.0.get(entity) {
+        if let Ok((fc, bc, mc, tv, sel)) = ext.0.get_mut(entity) {
             let (fs, fa, dims) = ext.2.best_fit(*mc, _coordinate.section.area, &ext.3);
-            for letter in 0..mc.0 {}
+            // update selection to fit letters present + bounds
+            for letter in 0..mc.0 {
+                // iter mc to refresh all slots on value change | selection change
+                // update rectangle-color + text-glyph-color-change
+                // to match selection
+            }
         }
     }
 
     fn create(self, mut binder: Binder) -> SceneHandle {
-        binder.bind(
+        let text = binder.bind(
             0,
             MicroGridAlignment::new(
                 0.percent_from(RelativeMarker::Center),
@@ -113,11 +143,12 @@ impl Scene for InteractiveText {
             ),
             Text::new(self.max_chars, self.text_value, self.colors.foreground.0),
         );
+        binder.extend(text, InteractionListener::default());
         for letter in 0..self.max_chars.0 {
-            binder.bind_conditional(
+            binder.bind(
                 letter as i32 + 1,
                 MicroGridAlignment::unaligned(),
-                Rectangle::new(self.colors.foreground.0, Progress::full()),
+                Rectangle::new(self.colors.foreground.0.with_alpha(0.0), Progress::full()),
             );
         }
         binder.finish::<Self>(SceneComponents::new(
@@ -127,6 +158,7 @@ impl Scene for InteractiveText {
                 text: self.text_value.clone(),
                 max_chars: self.max_chars,
                 colors: self.colors,
+                spt: SelectionProcessTrigger(false),
             },
         ))
     }
