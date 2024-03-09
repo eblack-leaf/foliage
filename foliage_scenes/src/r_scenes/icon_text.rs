@@ -148,7 +148,7 @@ impl Scene for IconText {
 
     fn create(self, mut binder: Binder) -> SceneHandle {
         let aspect = self.max_chars.mono_aspect().value() * 1.5;
-        let determinant = (self.max_chars.0 as f32 + 5f32);
+        let determinant = self.max_chars.0 as f32 + 5f32;
         let icon_percent = 1.50f32 / determinant;
         let text_offset = 1.0f32 / determinant;
         binder.bind(

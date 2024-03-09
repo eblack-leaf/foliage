@@ -1,8 +1,9 @@
 use crate::r_scenes::{BackgroundColor, Colors, ForegroundColor};
+use foliage_macros::inner_set_descriptor;
 use foliage_proper::bevy_ecs;
 use foliage_proper::bevy_ecs::bundle::Bundle;
 use foliage_proper::bevy_ecs::entity::Entity;
-use foliage_proper::bevy_ecs::prelude::{Component, Or};
+use foliage_proper::bevy_ecs::prelude::{Component, IntoSystemConfigs, Or};
 use foliage_proper::bevy_ecs::query::{Changed, With, Without};
 use foliage_proper::bevy_ecs::system::{Query, Res, SystemParamItem};
 use foliage_proper::color::Color;
@@ -10,7 +11,9 @@ use foliage_proper::coordinate::area::Area;
 use foliage_proper::coordinate::layer::Layer;
 use foliage_proper::coordinate::position::Position;
 use foliage_proper::coordinate::{Coordinate, InterfaceContext};
-use foliage_proper::elm::leaf::Tag;
+use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
+use foliage_proper::elm::leaf::{Leaf, Tag};
+use foliage_proper::elm::Elm;
 use foliage_proper::interaction::InteractionListener;
 use foliage_proper::rectangle::Rectangle;
 use foliage_proper::scene::micro_grid::{
@@ -132,6 +135,7 @@ impl Scene for InteractiveText {
             for letter in 0..mc.0 {
                 // iter mc to refresh all slots on value change | selection change
                 // update rectangle-color + text-glyph-color-change
+                // update rectangle-coordinate
                 // to match selection
             }
         }
@@ -170,5 +174,25 @@ impl Scene for InteractiveText {
                 spt: SelectionProcessTrigger(false),
             },
         ))
+    }
+}
+#[inner_set_descriptor]
+pub enum SetDescriptor {
+    Update,
+}
+impl Leaf for InteractiveText {
+    type SetDescriptor = SetDescriptor;
+
+    fn config(_elm_configuration: &mut ElmConfiguration) {
+        _elm_configuration.configure_hook(ExternalSet::Configure, SetDescriptor::Update);
+    }
+
+    fn attach(elm: &mut Elm) {
+        elm.main().add_systems((
+            foliage_proper::scene::config::<InteractiveText>
+                .in_set(SetDescriptor::Update)
+                .before(<Text as Leaf>::SetDescriptor::Update),
+            select.in_set(ExternalSet::InteractionTriggers),
+        ));
     }
 }
