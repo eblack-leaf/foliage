@@ -106,8 +106,7 @@ impl Scene for Dropdown {
                 TextValue::new(self.options.options.get(0).unwrap()),
                 max,
                 Style::fill(),
-                self.colors.foreground.0,
-                self.colors.background.0,
+                Colors::new(self.colors.foreground.0, self.colors.background.0),
             ),
         );
         // bind panel
@@ -163,8 +162,7 @@ impl Scene for Dropdown {
                     TextValue::new(self.options.options.get(i).unwrap()),
                     max,
                     Style::fill(),
-                    self.colors.foreground.0,
-                    self.colors.background.0,
+                    Colors::new(self.colors.foreground.0, self.colors.background.0),
                 ),
             );
         }

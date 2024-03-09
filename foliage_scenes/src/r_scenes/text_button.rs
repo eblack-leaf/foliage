@@ -28,17 +28,16 @@ pub struct TextButton {
     max_chars: MaxCharacters,
 }
 impl TextButton {
-    pub fn new<C: Into<Color>, MC: Into<MaxCharacters>>(
+    pub fn new<MC: Into<MaxCharacters>>(
         text_value: TextValue,
         max_characters: MC,
         element_style: Style,
-        fc: C,
-        bg: C,
+        colors: Colors,
     ) -> Self {
         Self {
             element_style,
             text_value,
-            colors: Colors::new(fc.into(), bg.into()),
+            colors,
             max_chars: max_characters.into(),
         }
     }

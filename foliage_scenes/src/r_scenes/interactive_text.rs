@@ -99,7 +99,11 @@ impl Scene for InteractiveText {
         Query<
             'static,
             'static,
-            (&'static mut GlyphColorChanges, &'static mut TextValue),
+            (
+                &'static mut GlyphColorChanges,
+                &'static mut TextValue,
+                &'static InteractionListener,
+            ),
             Without<Tag<InteractiveText>>,
         >,
     );
@@ -124,6 +128,7 @@ impl Scene for InteractiveText {
         if let Ok((fc, bc, mc, tv, sel)) = ext.0.get_mut(entity) {
             let (fs, fa, dims) = ext.2.best_fit(*mc, _coordinate.section.area, &ext.3);
             // update selection to fit letters present + bounds
+            // using listener.interaction.current + begin on listener.engaged_start()
             for letter in 0..mc.0 {
                 // iter mc to refresh all slots on value change | selection change
                 // update rectangle-color + text-glyph-color-change
@@ -141,7 +146,11 @@ impl Scene for InteractiveText {
                 1.percent_of(AnchorDim::Width),
                 1.percent_of(AnchorDim::Height),
             ),
-            Text::new(self.max_chars, self.text_value, self.colors.foreground.0),
+            Text::new(
+                self.max_chars,
+                self.text_value.clone(),
+                self.colors.foreground.0,
+            ),
         );
         binder.extend(text, InteractionListener::default());
         for letter in 0..self.max_chars.0 {
@@ -152,7 +161,7 @@ impl Scene for InteractiveText {
             );
         }
         binder.finish::<Self>(SceneComponents::new(
-            MicroGrid::new(),
+            MicroGrid::new().aspect_ratio(self.max_chars.mono_aspect()),
             InteractiveTextComponents {
                 selection: Selection::new(String::default(), None, None),
                 text: self.text_value.clone(),

@@ -1,5 +1,4 @@
 use foliage::color::Color;
-use foliage::conditional::ConditionalCommand;
 use foliage::r_scenes::dropdown::{Dropdown, DropdownOptions, ExpandDirection};
 use foliage::r_scenes::Colors;
 use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
