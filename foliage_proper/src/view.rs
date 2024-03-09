@@ -1,4 +1,6 @@
-use crate::conditional::{Branch, ConditionHandle, Conditional, SceneBranch, SpawnTarget};
+use crate::conditional::{
+    Branch, ConditionHandle, Conditional, ConditionalCommand, SceneBranch, SpawnTarget,
+};
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
@@ -143,6 +145,9 @@ impl<'a, 'w, 's> ViewBuilder<'a, 'w, 's> {
     }
     pub fn extend<Ext: Bundle>(&mut self, entity: Entity, ext: Ext) {
         self.cmd().entity(entity).insert(ext);
+    }
+    pub fn add_command_to<C: Command + Clone + Sync>(&mut self, entity: Entity, comm: C) {
+        self.cmd().entity(entity).insert(ConditionalCommand(comm));
     }
     pub fn conditional_extend<Ext: Bundle + Clone>(
         &mut self,

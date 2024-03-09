@@ -27,18 +27,9 @@ impl Viewable for Overlay {
             .justify(Justify::Top),
         );
         let branches = &handle.branches().unwrap()[1..];
-        view_builder.extend(
-            branches.get(0).unwrap().target(),
-            ConditionalCommand(Navigate(BUTTON)),
-        );
-        view_builder.extend(
-            branches.get(1).unwrap().target(),
-            ConditionalCommand(Navigate(PROGRESS)),
-        );
-        view_builder.extend(
-            branches.get(2).unwrap().target(),
-            ConditionalCommand(Navigate(ICON)),
-        );
+        view_builder.add_command_to(branches.get(0).unwrap().target(), Navigate(BUTTON));
+        view_builder.add_command_to(branches.get(1).unwrap().target(), Navigate(PROGRESS));
+        view_builder.add_command_to(branches.get(2).unwrap().target(), Navigate(ICON));
         // ...
         view_builder.finish()
     }
