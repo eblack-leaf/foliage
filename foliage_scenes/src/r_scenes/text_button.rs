@@ -5,6 +5,7 @@ use foliage_proper::bevy_ecs::prelude::{IntoSystemConfigs, Or, Query, With, With
 use foliage_proper::bevy_ecs::query::Changed;
 use foliage_proper::bevy_ecs::system::SystemParamItem;
 use foliage_proper::color::Color;
+use foliage_proper::coordinate::{Coordinate, InterfaceContext};
 use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
 use foliage_proper::elm::leaf::{Leaf, Tag};
 use foliage_proper::elm::{BundleExtend, Elm, Style};
@@ -77,7 +78,12 @@ impl Scene for TextButton {
     )>;
     type Components = (<Button as Scene>::Components, TextValue, MaxCharacters);
 
-    fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
+    fn config(
+        entity: Entity,
+        _coordinate: Coordinate<InterfaceContext>,
+        ext: &mut SystemParamItem<Self::Params>,
+        bindings: &Bindings,
+    ) {
         let panel = bindings.get(TextButtonBindings::Panel);
         let text = bindings.get(TextButtonBindings::Text);
         if let Ok((_est, fc, bc, cs, tv)) = ext.0.get(entity) {
@@ -104,7 +110,7 @@ impl Scene for TextButton {
     }
 
     fn create(self, mut binder: Binder) -> SceneHandle {
-        let aspect = (self.max_chars.0 as f32 + 0f32) / 2f32;
+        let aspect = self.max_chars.mono_aspect();
         binder.extend(binder.root(), Tag::<ButtonInteractionHook>::new());
         binder.bind(
             TextButtonBindings::Panel,
@@ -143,7 +149,9 @@ impl Scene for TextButton {
                 .extend(Tag::<ButtonInteractionHook>::new()),
         );
         binder.finish::<Self>(SceneComponents::new(
-            MicroGrid::new().min_height(24.0).min_width(40.0 * aspect),
+            MicroGrid::new()
+                .min_height(24.0)
+                .min_width(40.0 * aspect.value()),
             (
                 <Button as Scene>::Components::new(self.element_style, self.colors),
                 self.text_value,

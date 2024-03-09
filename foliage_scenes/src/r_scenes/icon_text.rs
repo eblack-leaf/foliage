@@ -7,6 +7,7 @@ use foliage_proper::bevy_ecs::prelude::{IntoSystemConfigs, With};
 use foliage_proper::bevy_ecs::query::{Changed, Or, Without};
 use foliage_proper::bevy_ecs::system::{Query, SystemParamItem};
 use foliage_proper::color::Color;
+use foliage_proper::coordinate::{Coordinate, InterfaceContext};
 use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
 use foliage_proper::elm::leaf::{Leaf, Tag};
 use foliage_proper::elm::Elm;
@@ -129,7 +130,12 @@ impl Scene for IconText {
     )>;
     type Components = IconTextComponents;
 
-    fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
+    fn config(
+        entity: Entity,
+        _coordinate: Coordinate<InterfaceContext>,
+        ext: &mut SystemParamItem<Self::Params>,
+        bindings: &Bindings,
+    ) {
         let icon = bindings.get(IconTextBindings::Icon);
         let text = bindings.get(IconTextBindings::Text);
         if let Ok((mc, tc, tv, ic, id)) = ext.0.get(entity) {
@@ -142,10 +148,9 @@ impl Scene for IconText {
     }
 
     fn create(self, mut binder: Binder) -> SceneHandle {
-        let aspect_determinant = self.max_chars.0 as f32 + 2f32;
-        let aspect = AspectRatio(aspect_determinant / 2f32);
-        let icon_percent = 1.50f32 / aspect_determinant;
-        let text_offset = 1.0f32 / aspect_determinant;
+        let aspect = self.max_chars.mono_aspect().value() * 1.25;
+        let icon_percent = 1.50f32 / self.max_chars.0 as f32;
+        let text_offset = 1.0f32 / self.max_chars.0 as f32;
         binder.bind(
             IconTextBindings::Icon,
             MicroGridAlignment::new(
@@ -170,7 +175,7 @@ impl Scene for IconText {
             MicroGrid::new()
                 .aspect_ratio(aspect)
                 .min_height(20.0)
-                .min_width(20.0 * aspect.value()),
+                .min_width(20.0 * aspect),
             Self::Components::new(
                 self.max_chars,
                 self.text_value,

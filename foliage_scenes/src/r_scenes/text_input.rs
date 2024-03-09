@@ -6,6 +6,7 @@ use foliage_proper::bevy_ecs::bundle::Bundle;
 use foliage_proper::bevy_ecs::entity::Entity;
 use foliage_proper::bevy_ecs::prelude::Component;
 use foliage_proper::bevy_ecs::system::SystemParamItem;
+use foliage_proper::coordinate::{Coordinate, InterfaceContext};
 use foliage_proper::elm::Style;
 use foliage_proper::panel::Panel;
 use foliage_proper::scene::micro_grid::{
@@ -14,6 +15,7 @@ use foliage_proper::scene::micro_grid::{
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
 use foliage_proper::text::{MaxCharacters, Text, TextValue};
 
+use crate::r_scenes::interactive_text::InteractiveText;
 use crate::r_scenes::Colors;
 
 pub struct TextInput {
@@ -49,7 +51,7 @@ pub enum TextInputMode {
 pub struct ActualText(pub CompactString);
 impl ActualText {
     pub fn to_password(mut self) -> TextValue {
-        let hidden = self.0.chars().map(|_i| "*").collect::<String>().into();
+        let hidden = self.0.chars().map(|_i| "*").collect::<String>();
         TextValue::new(hidden)
     }
 }
@@ -57,11 +59,6 @@ impl From<String> for ActualText {
     fn from(value: String) -> Self {
         Self(CompactString::new(value))
     }
-}
-#[derive(Component, Clone)]
-pub struct Cursor {
-    pub start: u32,
-    pub span: Option<i32>,
 }
 #[derive(Bundle, Clone)]
 pub struct TextInputComponents {
@@ -85,7 +82,12 @@ impl Scene for TextInput {
     type Filter = ();
     type Components = TextInputComponents;
 
-    fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
+    fn config(
+        entity: Entity,
+        _coordinate: Coordinate<InterfaceContext>,
+        ext: &mut SystemParamItem<Self::Params>,
+        bindings: &Bindings,
+    ) {
         // style
     }
 
@@ -101,7 +103,7 @@ impl Scene for TextInput {
             .offset_layer(2),
             Panel::new(Style::fill(), self.colors.foreground.0),
         );
-        binder.bind(
+        binder.bind_scene(
             TextInputBindings::Text,
             MicroGridAlignment::new(
                 0.percent_from(RelativeMarker::Center),
@@ -110,19 +112,15 @@ impl Scene for TextInput {
                 0.9.percent_of(AnchorDim::Height),
             )
             .offset_layer(1),
-            Text::new(
-                self.max_chars,
-                self.text.clone().into(),
-                self.colors.foreground.0,
-            ),
+            InteractiveText::new(self.max_chars, self.text.clone().into(), self.colors),
         );
         let actual: ActualText = self.text.into();
         binder.finish::<Self>(SceneComponents::new(
-            MicroGrid::new().aspect_ratio((self.max_chars.0 + 3) as f32 / 2f32),
+            MicroGrid::new().aspect_ratio(self.max_chars.mono_aspect().value() * 1.25),
             TextInputComponents {
                 actual: actual.clone(),
                 display: match self.mode {
-                    TextInputMode::Normal => actual.clone().0.into(),
+                    TextInputMode::Normal => actual.clone().0.as_str().into(),
                     TextInputMode::Password => actual.clone().to_password(),
                 },
                 max_chars: self.max_chars,

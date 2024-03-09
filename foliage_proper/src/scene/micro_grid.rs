@@ -51,16 +51,21 @@ impl MicroGrid {
         &self,
         coordinate: Coordinate<InterfaceContext>,
         alignment: &MicroGridAlignment,
-    ) -> Coordinate<InterfaceContext> {
+    ) -> Option<Coordinate<InterfaceContext>> {
+        if alignment.unaligned {
+            return None;
+        }
         let anchor = self.adjusted(coordinate);
         let w = self.calc_w(anchor, alignment.w);
         let h = self.calc_h(anchor, alignment.h);
         let x = self.calc_x(anchor, alignment.x, w);
         let y = self.calc_y(anchor, alignment.y, h);
-        Coordinate::default()
-            .with_position((x, y))
-            .with_area((w, h))
-            .with_layer(anchor.layer + alignment.layer)
+        Some(
+            Coordinate::default()
+                .with_position((x, y))
+                .with_area((w, h))
+                .with_layer(anchor.layer + alignment.layer),
+        )
     }
     pub fn adjusted(
         &self,
@@ -217,6 +222,7 @@ pub struct MicroGridAlignment {
     pub w: AlignmentUnit,
     pub h: AlignmentUnit,
     pub layer: Layer,
+    unaligned: bool,
 }
 impl MicroGridAlignment {
     pub fn new(
@@ -231,6 +237,17 @@ impl MicroGridAlignment {
             w,
             h,
             layer: Layer::default(),
+            unaligned: false,
+        }
+    }
+    pub fn unaligned() -> Self {
+        Self {
+            x: Default::default(),
+            y: Default::default(),
+            w: Default::default(),
+            h: Default::default(),
+            layer: Default::default(),
+            unaligned: true,
         }
     }
     pub fn offset_layer<L: Into<Layer>>(mut self, l: L) -> Self {

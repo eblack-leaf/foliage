@@ -9,6 +9,7 @@ use foliage_proper::bevy_ecs::query::{With, Without};
 use foliage_proper::bevy_ecs::system::{Command, Query, SystemParamItem};
 use foliage_proper::circle::Circle;
 use foliage_proper::conditional::ConditionalCommand;
+use foliage_proper::coordinate::{Coordinate, InterfaceContext};
 use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
 use foliage_proper::elm::leaf::{Leaf, Tag};
 use foliage_proper::elm::{Elm, Style};
@@ -80,7 +81,12 @@ impl Scene for PageStructure {
     type Filter = ();
     type Components = PageStructureComponents;
 
-    fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
+    fn config(
+        entity: Entity,
+        _coordinate: Coordinate<InterfaceContext>,
+        ext: &mut SystemParamItem<Self::Params>,
+        bindings: &Bindings,
+    ) {
         let decrement = bindings.get(PageStructureBindings::PageDecrement);
         let increment = bindings.get(PageStructureBindings::PageIncrement);
         if let Ok((fc, bc)) = ext.0.get(entity) {

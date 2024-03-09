@@ -5,6 +5,7 @@ use foliage_proper::bevy_ecs::prelude::{IntoSystemConfigs, Query, With, Without}
 use foliage_proper::bevy_ecs::system::SystemParamItem;
 use foliage_proper::circle::Circle;
 use foliage_proper::color::Color;
+use foliage_proper::coordinate::{Coordinate, InterfaceContext};
 use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
 use foliage_proper::elm::leaf::{Leaf, Tag};
 use foliage_proper::elm::{BundleExtend, Elm, Style};
@@ -62,7 +63,12 @@ impl Scene for CircleButton {
     type Filter = <Button as Scene>::Filter;
     type Components = <Button as Scene>::Components;
 
-    fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
+    fn config(
+        entity: Entity,
+        _coordinate: Coordinate<InterfaceContext>,
+        ext: &mut SystemParamItem<Self::Params>,
+        bindings: &Bindings,
+    ) {
         let circle = bindings.get(CircleButtonBindings::Circle);
         let icon = bindings.get(CircleButtonBindings::Icon);
         if let Ok((_est, fc, bc, cs)) = ext.0.get(entity) {

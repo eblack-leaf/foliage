@@ -7,6 +7,7 @@ use foliage_proper::bevy_ecs::prelude::{Changed, Component, IntoSystemConfigs, O
 use foliage_proper::bevy_ecs::query::{With, Without};
 use foliage_proper::bevy_ecs::system::{Query, SystemParamItem};
 use foliage_proper::color::Color;
+use foliage_proper::coordinate::{Coordinate, InterfaceContext};
 use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
 use foliage_proper::elm::leaf::{Leaf, Tag};
 use foliage_proper::elm::{BundleExtend, Elm, Style};
@@ -101,7 +102,12 @@ impl Scene for Button {
     )>;
     type Components = ButtonComponents;
 
-    fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
+    fn config(
+        entity: Entity,
+        _coordinate: Coordinate<InterfaceContext>,
+        ext: &mut SystemParamItem<Self::Params>,
+        bindings: &Bindings,
+    ) {
         let icon_text = bindings.get(ButtonBindings::IconText);
         let panel = bindings.get(ButtonBindings::Panel);
         if let Ok((_est, fc, bc, cs)) = ext.0.get(entity) {
@@ -131,7 +137,7 @@ impl Scene for Button {
     }
 
     fn create(self, mut binder: Binder) -> SceneHandle {
-        let aspect = (self.icon_text.max_chars.0 as f32 + 3f32) / 2f32;
+        let aspect = self.icon_text.max_chars.mono_aspect().value() * 1.25;
         binder.extend(binder.root(), Tag::<ButtonInteractionHook>::new());
         binder.bind(
             ButtonBindings::Panel,

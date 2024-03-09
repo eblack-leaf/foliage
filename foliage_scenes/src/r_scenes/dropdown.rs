@@ -8,6 +8,7 @@ use foliage_proper::bevy_ecs::entity::Entity;
 use foliage_proper::bevy_ecs::prelude::{Component, World};
 use foliage_proper::bevy_ecs::system::{Command, SystemParamItem};
 use foliage_proper::conditional::ConditionalCommand;
+use foliage_proper::coordinate::{Coordinate, InterfaceContext};
 use foliage_proper::elm::leaf::Leaf;
 use foliage_proper::elm::{Elm, Style};
 use foliage_proper::panel::Panel;
@@ -81,7 +82,12 @@ impl Scene for Dropdown {
     type Filter = ();
     type Components = DropdownComponents;
 
-    fn config(_entity: Entity, _ext: &mut SystemParamItem<Self::Params>, _bindings: &Bindings) {
+    fn config(
+        _entity: Entity,
+        _coordinate: Coordinate<InterfaceContext>,
+        _ext: &mut SystemParamItem<Self::Params>,
+        _bindings: &Bindings,
+    ) {
         // style changes here?
     }
 

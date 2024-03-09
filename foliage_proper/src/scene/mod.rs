@@ -21,8 +21,11 @@ use std::collections::{HashMap, HashSet};
 pub struct Anchor(Coordinate<InterfaceContext>);
 
 impl Anchor {
-    pub(crate) fn aligned(&self, grid: &MicroGrid, alignment: &MicroGridAlignment) -> Self {
-        Anchor(grid.determine(self.0, alignment))
+    pub(crate) fn aligned(&self, grid: &MicroGrid, alignment: &MicroGridAlignment) -> Option<Self> {
+        if let Some(a) = grid.determine(self.0, alignment) {
+            return Some(Anchor(a));
+        }
+        None
     }
 }
 #[derive(Debug)]
@@ -283,17 +286,29 @@ impl SceneBindingComponents {
 }
 // will need to add this for every scene added
 pub fn config<S: Scene + Send + Sync + 'static>(
-    query: Query<(Entity, &Despawn, &Bindings), (With<Tag<S>>, Or<(S::Filter,)>)>,
+    query: Query<
+        (
+            Entity,
+            &Position<InterfaceContext>,
+            &Area<InterfaceContext>,
+            &Layer,
+            &Despawn,
+            &Bindings,
+        ),
+        (With<Tag<S>>, Or<(S::Filter,)>),
+    >,
     mut ext: StaticSystemParam<S::Params>,
 ) {
-    for (entity, despawn, bindings) in query.iter() {
+    for (entity, pos, area, layer, despawn, bindings) in query.iter() {
         if despawn.is_despawned() {
             continue;
         }
         // disabled?
         S::config(
-            entity, // Coordinate::new((*pos, *area), *layer),
-            &mut ext, bindings,
+            entity,
+            Coordinate::new((*pos, *area), *layer),
+            &mut ext,
+            bindings,
         );
     }
 }
@@ -306,7 +321,7 @@ where
     type Components: Bundle;
     fn config(
         entity: Entity,
-        // coordinate: Coordinate<InterfaceContext>,
+        coordinate: Coordinate<InterfaceContext>,
         ext: &mut SystemParamItem<Self::Params>,
         bindings: &Bindings,
     );
@@ -328,7 +343,13 @@ impl Scene for BlankNode {
     type Filter = ();
     type Components = ();
 
-    fn config(_entity: Entity, _ext: &mut SystemParamItem<Self::Params>, _bindings: &Bindings) {}
+    fn config(
+        _entity: Entity,
+        _coordinate: Coordinate<InterfaceContext>,
+        _ext: &mut SystemParamItem<Self::Params>,
+        _bindings: &Bindings,
+    ) {
+    }
 
     fn create(self, binder: Binder) -> SceneHandle {
         binder.finish::<Self>(SceneComponents::new(MicroGrid::new(), ()))
@@ -348,11 +369,12 @@ fn recursive_fetch(
                     let alignment = dep.1;
                     let ptr = *dep.3;
                     let grid = grids.get(ptr.0).expect("scene-grid");
-                    let anchor = Anchor(root_coordinate).aligned(grid, alignment);
-                    fetch.push((bind.entity, anchor));
-                    if query.get(bind.entity).unwrap().2.is_some() {
-                        let others = recursive_fetch(anchor.0, bind.entity, query, grids);
-                        fetch.extend(others);
+                    if let Some(anchor) = Anchor(root_coordinate).aligned(grid, alignment) {
+                        fetch.push((bind.entity, anchor));
+                        if query.get(bind.entity).unwrap().2.is_some() {
+                            let others = recursive_fetch(anchor.0, bind.entity, query, grids);
+                            fetch.extend(others);
+                        }
                     }
                 }
             }
@@ -382,13 +404,15 @@ pub(crate) fn resolve_anchor(
             if let Ok(ptr) = deps.p0().get(bind.entity) {
                 let ptr = ptr.3 .0;
                 let grid = grids.get(ptr).expect("scene-grid");
-                let anchor =
-                    Anchor(coordinate).aligned(grid, deps.p0().get(bind.entity).unwrap().1);
-                *deps.p1().get_mut(bind.entity).unwrap() = anchor;
-                if deps.p0().get(bind.entity).unwrap().2.is_some() {
-                    let rf = recursive_fetch(anchor.0, bind.entity, &deps.p0(), &grids);
-                    for (e, a) in rf {
-                        *deps.p1().get_mut(e).unwrap() = a;
+                if let Some(anchor) =
+                    Anchor(coordinate).aligned(grid, deps.p0().get(bind.entity).unwrap().1)
+                {
+                    *deps.p1().get_mut(bind.entity).unwrap() = anchor;
+                    if deps.p0().get(bind.entity).unwrap().2.is_some() {
+                        let rf = recursive_fetch(anchor.0, bind.entity, &deps.p0(), &grids);
+                        for (e, a) in rf {
+                            *deps.p1().get_mut(e).unwrap() = a;
+                        }
                     }
                 }
             }

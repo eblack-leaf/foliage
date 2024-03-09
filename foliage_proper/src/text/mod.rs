@@ -45,6 +45,7 @@ pub struct Text {
     differentiable: Differentiable,
 }
 impl Text {
+    pub const MONOSPACED_ASPECT: f32 = 0.45;
     pub fn new<C: Into<Color>>(
         max_characters: MaxCharacters,
         text_value: TextValue,
@@ -93,7 +94,7 @@ impl Text {
 pub struct MaxCharacters(pub u32);
 impl MaxCharacters {
     pub fn mono_aspect(self) -> AspectRatio {
-        AspectRatio(self.0 as CoordinateUnit / 2f32)
+        AspectRatio(self.0 as CoordinateUnit * Text::MONOSPACED_ASPECT)
     }
     pub fn new(v: u32) -> Self {
         Self(v)
@@ -377,6 +378,11 @@ impl TextValue {
 impl From<String> for TextValue {
     fn from(value: String) -> Self {
         Self::new(value)
+    }
+}
+impl From<&str> for TextValue {
+    fn from(value: &str) -> Self {
+        TextValue::new(value)
     }
 }
 #[derive(Component, Copy, Clone, Serialize, Deserialize, PartialEq)]

@@ -8,10 +8,11 @@ pub mod dropdown;
 pub mod ellipsis;
 pub mod icon_button;
 pub mod icon_text;
+pub mod interactive_text;
 pub mod paged;
 pub mod progress_bar;
 pub mod text_button;
-mod text_input;
+pub mod text_input;
 
 use foliage_proper::bevy_ecs;
 use foliage_proper::bevy_ecs::bundle::Bundle;

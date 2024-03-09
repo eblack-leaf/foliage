@@ -6,6 +6,7 @@ use foliage_proper::bevy_ecs::prelude::{Component, IntoSystemConfigs};
 use foliage_proper::bevy_ecs::query::{Changed, Or, Without};
 use foliage_proper::bevy_ecs::system::{Query, SystemParamItem};
 use foliage_proper::color::Color;
+use foliage_proper::coordinate::{Coordinate, InterfaceContext};
 use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
 use foliage_proper::elm::leaf::{Leaf, Tag};
 use foliage_proper::elm::Elm;
@@ -89,7 +90,12 @@ impl Scene for ProgressBar {
     )>;
     type Components = ProgressBarComponents;
 
-    fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
+    fn config(
+        entity: Entity,
+        _coordinate: Coordinate<InterfaceContext>,
+        ext: &mut SystemParamItem<Self::Params>,
+        bindings: &Bindings,
+    ) {
         let fill = bindings.get(ProgressBarBindings::Fill);
         let back = bindings.get(ProgressBarBindings::Back);
         if let Ok((fc, bc, pp)) = ext.0.get(entity) {
