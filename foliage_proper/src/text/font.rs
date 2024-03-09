@@ -1,6 +1,6 @@
 use crate::coordinate::area::Area;
 use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
-use crate::text::{FontSize, MaxCharacters, Text};
+use crate::text::{CharacterDimension, FontSize, MaxCharacters, Text};
 use crate::window::ScaleFactor;
 use bevy_ecs::system::Resource;
 
@@ -34,18 +34,20 @@ impl MonospacedFont {
         max_characters: MaxCharacters,
         extent: Area<InterfaceContext>,
         scale_factor: &ScaleFactor,
-    ) -> (FontSize, Area<InterfaceContext>) {
+    ) -> (FontSize, Area<InterfaceContext>, CharacterDimension) {
         let mut calc_area = Area::default();
         let mut font_size = FontSize(0);
+        let mut dims = CharacterDimension(Area::default());
         while calc_area.height <= extent.height
             && calc_area.width <= extent.width
             && font_size.0 < Self::MAX_CHECKED_FONT_SIZE
         {
             let area_metrics = Text::area_metrics(font_size, max_characters, self, scale_factor);
             calc_area = area_metrics.0;
+            dims = area_metrics.1;
             font_size.0 += 1;
         }
-        (font_size, calc_area)
+        (font_size, calc_area, dims)
     }
 }
 

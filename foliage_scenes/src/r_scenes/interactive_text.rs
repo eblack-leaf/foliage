@@ -1,17 +1,25 @@
-use crate::r_scenes::Colors;
+use crate::r_scenes::{BackgroundColor, Colors, ForegroundColor};
 use foliage_proper::bevy_ecs;
 use foliage_proper::bevy_ecs::bundle::Bundle;
 use foliage_proper::bevy_ecs::entity::Entity;
-use foliage_proper::bevy_ecs::prelude::Component;
-use foliage_proper::bevy_ecs::system::SystemParamItem;
+use foliage_proper::bevy_ecs::prelude::{Component, Or};
+use foliage_proper::bevy_ecs::query::{Changed, With, Without};
+use foliage_proper::bevy_ecs::system::{Query, Res, SystemParamItem};
+use foliage_proper::color::Color;
+use foliage_proper::coordinate::area::Area;
+use foliage_proper::coordinate::layer::Layer;
+use foliage_proper::coordinate::position::Position;
 use foliage_proper::coordinate::{Coordinate, InterfaceContext};
+use foliage_proper::elm::leaf::Tag;
 use foliage_proper::rectangle::Rectangle;
 use foliage_proper::scene::micro_grid::{
     AlignmentDesc, AnchorDim, MicroGrid, MicroGridAlignment, RelativeMarker,
 };
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
+use foliage_proper::text::font::MonospacedFont;
 use foliage_proper::text::{MaxCharacters, Text, TextValue};
 use foliage_proper::texture::factors::Progress;
+use foliage_proper::window::ScaleFactor;
 
 pub struct InteractiveText {
     pub max_chars: MaxCharacters,
@@ -41,10 +49,44 @@ impl Selection {
 #[derive(Bundle)]
 pub struct InteractiveTextComponents {
     pub selection: Selection,
+    pub text: TextValue,
+    pub max_chars: MaxCharacters,
+    pub colors: Colors,
 }
 impl Scene for InteractiveText {
-    type Params = ();
-    type Filter = ();
+    type Params = (
+        Query<
+            'static,
+            'static,
+            (
+                &'static ForegroundColor,
+                &'static BackgroundColor,
+                &'static MaxCharacters,
+                &'static TextValue,
+            ),
+            With<Tag<InteractiveText>>,
+        >,
+        Query<
+            'static,
+            'static,
+            (
+                &'static mut Position<InterfaceContext>,
+                &'static mut Area<InterfaceContext>,
+                &'static mut Layer,
+                &'static mut Color,
+            ),
+            Without<Tag<InteractiveText>>,
+        >,
+        Res<'static, MonospacedFont>,
+        Res<'static, ScaleFactor>,
+    );
+    type Filter = Or<(
+        Changed<Position<InterfaceContext>>,
+        Changed<Area<InterfaceContext>>,
+        Changed<Layer>,
+        Changed<ForegroundColor>,
+        Changed<BackgroundColor>,
+    )>;
     type Components = InteractiveTextComponents;
 
     fn config(
@@ -53,7 +95,11 @@ impl Scene for InteractiveText {
         ext: &mut SystemParamItem<Self::Params>,
         bindings: &Bindings,
     ) {
-        todo!()
+        let text = bindings.get(0);
+        if let Ok((fc, bc, mc, tv)) = ext.0.get(entity) {
+            let (fs, fa, dims) = ext.2.best_fit(*mc, _coordinate.section.area, &ext.3);
+            for letter in 0..mc.0 {}
+        }
     }
 
     fn create(self, mut binder: Binder) -> SceneHandle {
@@ -78,6 +124,9 @@ impl Scene for InteractiveText {
             MicroGrid::new(),
             InteractiveTextComponents {
                 selection: Selection::new(String::default(), None, None),
+                text: self.text_value.clone(),
+                max_chars: self.max_chars,
+                colors: self.colors,
             },
         ))
     }

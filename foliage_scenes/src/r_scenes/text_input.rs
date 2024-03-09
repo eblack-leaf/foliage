@@ -50,7 +50,7 @@ pub enum TextInputMode {
 #[derive(Component, Clone, Default)]
 pub struct ActualText(pub CompactString);
 impl ActualText {
-    pub fn to_password(mut self) -> TextValue {
+    pub fn to_password(self) -> TextValue {
         let hidden = self.0.chars().map(|_i| "*").collect::<String>();
         TextValue::new(hidden)
     }

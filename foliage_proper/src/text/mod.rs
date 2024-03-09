@@ -163,7 +163,7 @@ pub(crate) fn max_character(
     font: Res<MonospacedFont>,
 ) {
     for (max, mut size, mut pos, mut area, mut dim) in query.iter_mut() {
-        let (fs, fa) = font.best_fit(*max, *area, &scale_factor);
+        let (fs, fa, dims) = font.best_fit(*max, *area, &scale_factor);
         *size = fs;
         if area.height > fa.height || area.width > fa.width {
             *pos += Position::from((
@@ -173,7 +173,7 @@ pub(crate) fn max_character(
         }
         area.width = fa.width;
         area.height = fa.height;
-        *dim = CharacterDimension(font.character_dimensions(fs.px(scale_factor.factor())));
+        *dim = dims;
     }
 }
 #[derive(Component, Default, Clone)]
