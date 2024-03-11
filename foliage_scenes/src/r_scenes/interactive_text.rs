@@ -73,22 +73,7 @@ pub struct InteractiveTextComponents {
     pub text: TextValue,
     pub max_chars: MaxCharacters,
     pub colors: Colors,
-    pub spt: SelectionProcessTrigger,
     pub dims: CharacterDimension,
-}
-#[derive(Component, Copy, Clone)]
-pub struct SelectionProcessTrigger(bool);
-fn select(
-    mut query: Query<
-        (&InteractionListener, &mut SelectionProcessTrigger),
-        Changed<InteractionListener>,
-    >,
-) {
-    for (listener, mut spt) in query.iter_mut() {
-        if listener.engaged() {
-            spt.0 = true;
-        }
-    }
 }
 fn update_selection(
     font: Res<MonospacedFont>,
@@ -183,13 +168,13 @@ impl Scene for InteractiveText {
         Changed<ForegroundColor>,
         Changed<BackgroundColor>,
         Changed<Selection>,
-        Changed<SelectionProcessTrigger>,
     )>;
     type Components = InteractiveTextComponents;
 
     fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
         let text = bindings.get(0);
         if let Ok((fc, bc, mc, tv, dims, sel)) = ext.0.get(entity) {
+            let mut color_changes = GlyphColorChanges::new();
             for letter in 1..mc.0 + 1 {
                 let pos = *ext.1.get(text).unwrap().0;
                 let layer = *ext.1.get(text).unwrap().2;
@@ -197,7 +182,7 @@ impl Scene for InteractiveText {
                     pos + Position::new((letter as f32 - 1f32) * dims.dimensions().width, 0.0);
                 *ext.1.get_mut(bindings.get(letter as i32)).unwrap().1 = dims.dimensions();
                 *ext.1.get_mut(bindings.get(letter as i32)).unwrap().2 = layer + 1.into();
-                let mut color_changes = GlyphColorChanges::new();
+
                 if let Some(_c) = tv.0.get((letter - 1) as usize..letter as usize) {
                     if sel.contains((letter - 1) as i32) {
                         *ext.1
@@ -214,12 +199,13 @@ impl Scene for InteractiveText {
                             .alpha_mut() = 0.0;
                     }
                 }
-                *ext.4.get_mut(text).unwrap().0 = color_changes;
                 // iter mc to refresh all slots on value change | selection change
                 // update rectangle-color + text-glyph-color-change
                 // update rectangle-coordinate
                 // to match selection
             }
+            println!("color-changes: {:?}", color_changes);
+            *ext.4.get_mut(text).unwrap().0 = color_changes;
         }
     }
 
@@ -253,7 +239,6 @@ impl Scene for InteractiveText {
                 text: self.text_value.clone(),
                 max_chars: self.max_chars,
                 colors: self.colors,
-                spt: SelectionProcessTrigger(false),
                 dims: CharacterDimension::new(Area::default()),
             },
         ))
@@ -271,15 +256,12 @@ impl Leaf for InteractiveText {
     }
 
     fn attach(elm: &mut Elm) {
-        elm.main().add_systems((
-            (
-                update_selection,
-                foliage_proper::scene::config::<InteractiveText>,
-            )
-                .chain()
-                .in_set(SetDescriptor::Update)
-                .before(<Text as Leaf>::SetDescriptor::Update),
-            select.in_set(ExternalSet::InteractionTriggers),
-        ));
+        elm.main().add_systems(((
+            update_selection,
+            foliage_proper::scene::config::<InteractiveText>,
+        )
+            .chain()
+            .in_set(SetDescriptor::Update)
+            .before(<Text as Leaf>::SetDescriptor::Update),));
     }
 }

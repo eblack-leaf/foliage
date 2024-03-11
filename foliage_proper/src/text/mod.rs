@@ -180,7 +180,7 @@ pub(crate) fn max_character(
         *dim = dims;
     }
 }
-#[derive(Component, Default, Clone)]
+#[derive(Component, Default, Clone, Debug)]
 pub struct GlyphColorChanges(pub HashMap<TextKey, Color>);
 impl GlyphColorChanges {
     pub fn new() -> Self {
@@ -305,14 +305,16 @@ pub(crate) fn changes(
             }
             if total_update {
                 let section = Section::<DeviceContext>::new((g.x, g.y), (g.width, g.height));
+                let glyph_color = *color_changes.0.get(&g.byte_offset).unwrap_or(color);
                 cache.0.insert(
                     g.byte_offset,
                     CachedGlyph::Present(Glyph {
                         key: glyph_key,
                         section,
-                        color: *color_changes.0.get(&g.byte_offset).unwrap_or(color),
+                        color: glyph_color,
                     }),
                 );
+                // println!("changing-color:{:?}", glyph_color);
                 tracing::trace!(
                     "updating-glyph {:?} using {:?} -------------------------------------------",
                     g.byte_offset,
@@ -321,7 +323,7 @@ pub(crate) fn changes(
                 change.replace(GlyphChange {
                     key: key_change,
                     section: Some(section),
-                    color: Some(*color_changes.0.get(&g.byte_offset).unwrap_or(color)),
+                    color: Some(glyph_color),
                 });
             }
             if let Some(c) = change {

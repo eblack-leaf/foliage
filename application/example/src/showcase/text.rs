@@ -2,10 +2,8 @@ use foliage::color::monochromatic::{Asparagus, Monochromatic};
 use foliage::color::Color;
 use foliage::r_scenes::interactive_text::InteractiveText;
 use foliage::r_scenes::Colors;
-use foliage::rectangle::Rectangle;
 use foliage::segment::{MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::text::{MaxCharacters, TextValue};
-use foliage::texture::factors::Progress;
 use foliage::view::{ViewBuilder, ViewDescriptor, Viewable};
 
 pub struct TextShowcase;
