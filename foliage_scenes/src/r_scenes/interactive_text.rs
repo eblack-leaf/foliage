@@ -1,4 +1,3 @@
-use crate::r_scenes::{BackgroundColor, Colors, ForegroundColor};
 use foliage_macros::inner_set_descriptor;
 use foliage_proper::bevy_ecs;
 use foliage_proper::bevy_ecs::bundle::Bundle;
@@ -10,7 +9,7 @@ use foliage_proper::color::Color;
 use foliage_proper::coordinate::area::Area;
 use foliage_proper::coordinate::layer::Layer;
 use foliage_proper::coordinate::position::Position;
-use foliage_proper::coordinate::{Coordinate, InterfaceContext};
+use foliage_proper::coordinate::InterfaceContext;
 use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
 use foliage_proper::elm::leaf::{Leaf, Tag};
 use foliage_proper::elm::Elm;
@@ -26,6 +25,8 @@ use foliage_proper::text::{
 };
 use foliage_proper::texture::factors::Progress;
 use foliage_proper::window::ScaleFactor;
+
+use crate::r_scenes::{BackgroundColor, Colors, ForegroundColor};
 
 pub struct InteractiveText {
     pub max_chars: MaxCharacters,
@@ -90,15 +91,35 @@ fn update_selection(
             &InteractionListener,
             &Position<InterfaceContext>,
             &Area<InterfaceContext>,
+            &Layer,
         ),
-        Changed<InteractionListener>,
+        Or<(
+            Changed<InteractionListener>,
+            Changed<Position<InterfaceContext>>,
+            Changed<Area<InterfaceContext>>,
+        )>,
+    >,
+    mut rectangles: Query<
+        (
+            &mut Position<InterfaceContext>,
+            &mut Area<InterfaceContext>,
+            &mut Layer,
+        ),
+        Without<InteractionListener>,
     >,
 ) {
     for (mc, mut sel, tv, bindings, mut d) in query.iter_mut() {
         // update selection to fit letters present + bounds
-        if let Ok((listener, pos, area)) = listeners.get(bindings.get(0)) {
+        if let Ok((listener, pos, area, layer)) = listeners.get(bindings.get(0)) {
             let (_fs, _fa, dims) = font.best_fit(*mc, *area, &scale_factor);
             *d = dims;
+            for letter in 1..mc.0 + 1 {
+                *rectangles.get_mut(bindings.get(letter as i32)).unwrap().0 =
+                    *pos + Position::new((letter as f32 - 1f32) * dims.dimensions().width, 0.0);
+                *rectangles.get_mut(bindings.get(letter as i32)).unwrap().1 =
+                    dims.dimensions().to_numerical().as_interface();
+                *rectangles.get_mut(bindings.get(letter as i32)).unwrap().2 = *layer + 1.into();
+            }
             let text_key = ((listener.interaction.current.x - pos.x).max(0.0)
                 / dims.dimensions().width)
                 .floor()
@@ -132,7 +153,6 @@ impl Scene for InteractiveText {
                 &'static BackgroundColor,
                 &'static MaxCharacters,
                 &'static TextValue,
-                &'static CharacterDimension,
                 &'static Selection,
             ),
             With<Tag<InteractiveText>>,
@@ -162,27 +182,18 @@ impl Scene for InteractiveText {
         >,
     );
     type Filter = Or<(
-        Changed<Position<InterfaceContext>>,
-        Changed<Area<InterfaceContext>>,
-        Changed<Layer>,
         Changed<ForegroundColor>,
         Changed<BackgroundColor>,
         Changed<Selection>,
+        Changed<TextValue>,
     )>;
     type Components = InteractiveTextComponents;
 
     fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
         let text = bindings.get(0);
-        if let Ok((fc, bc, mc, tv, dims, sel)) = ext.0.get(entity) {
+        if let Ok((_fc, bc, mc, tv, sel)) = ext.0.get(entity) {
             let mut color_changes = GlyphColorChanges::new();
             for letter in 1..mc.0 + 1 {
-                let pos = *ext.1.get(text).unwrap().0;
-                let layer = *ext.1.get(text).unwrap().2;
-                *ext.1.get_mut(bindings.get(letter as i32)).unwrap().0 =
-                    pos + Position::new((letter as f32 - 1f32) * dims.dimensions().width, 0.0);
-                *ext.1.get_mut(bindings.get(letter as i32)).unwrap().1 = dims.dimensions();
-                *ext.1.get_mut(bindings.get(letter as i32)).unwrap().2 = layer + 1.into();
-
                 if let Some(_c) = tv.0.get((letter - 1) as usize..letter as usize) {
                     if sel.contains((letter - 1) as i32) {
                         *ext.1
@@ -199,12 +210,8 @@ impl Scene for InteractiveText {
                             .alpha_mut() = 0.0;
                     }
                 }
-                // iter mc to refresh all slots on value change | selection change
-                // update rectangle-color + text-glyph-color-change
-                // update rectangle-coordinate
-                // to match selection
             }
-            println!("color-changes: {:?}", color_changes);
+            // set text-value
             *ext.4.get_mut(text).unwrap().0 = color_changes;
         }
     }
