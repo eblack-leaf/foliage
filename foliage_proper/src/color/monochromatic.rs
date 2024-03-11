@@ -105,3 +105,15 @@ impl Monochromatic for DarkOliveGreen {
     const MINUS_TWO: Color = Color::rgb(0.224, 0.282, 0.122);
     const MINUS_THREE: Color = Color::rgb(0.169, 0.212, 0.1);
 }
+
+pub struct Greyscale;
+
+impl Monochromatic for Greyscale {
+    const PLUS_THREE: Color = Color::rgb(0.45, 0.45, 0.45);
+    const PLUS_TWO: Color = Color::rgb(0.40, 0.40, 0.40);
+    const PLUS_ONE: Color = Color::rgb(0.35, 0.35, 0.35);
+    const BASE: Color = Color::rgb(0.30, 0.30, 0.30);
+    const MINUS_ONE: Color = Color::rgb(0.25, 0.25, 0.25);
+    const MINUS_TWO: Color = Color::rgb(0.20, 0.20, 0.20);
+    const MINUS_THREE: Color = Color::rgb(0.15, 0.15, 0.15);
+}

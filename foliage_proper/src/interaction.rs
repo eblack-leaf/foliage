@@ -205,6 +205,7 @@ pub struct InteractionListener {
     engaged_start: bool,
     engaged_end: bool,
     shape: InteractionShape,
+    lost_focus: bool,
 }
 impl InteractionListener {
     pub fn with_shape(mut self, shape: InteractionShape) -> Self {
@@ -222,6 +223,9 @@ impl InteractionListener {
     }
     pub fn engaged_end(&self) -> bool {
         self.engaged_end
+    }
+    pub fn lost_focus(&self) -> bool {
+        self.lost_focus
     }
     pub(crate) fn shape(&self, section: Section<InterfaceContext>) -> InteractionShapeActualized {
         InteractionShapeActualized(self.shape, section)
@@ -261,6 +265,9 @@ fn clear_active(mut active: Query<&mut InteractionListener, Changed<InteractionL
         }
         if e.engaged_end {
             e.engaged_end = false;
+        }
+        if e.lost_focus {
+            e.lost_focus = false;
         }
     }
 }
@@ -331,7 +338,9 @@ pub fn set_interaction_listeners(
                 listeners.get_mut(grab.0).unwrap().1.engaged_start = true;
                 listeners.get_mut(grab.0).unwrap().1.interaction = Interaction::new(position);
             } else {
-                focused_entity.0.take();
+                if let Some(e) = focused_entity.0.take() {
+                    listeners.get_mut(e).unwrap().1.lost_focus = true;
+                }
             }
         } else if ie.id == primary.0.unwrap() {
             match ie.phase {
@@ -367,17 +376,23 @@ pub fn set_interaction_listeners(
                             listener.engaged = false;
                             listener.engaged_end = true;
                         } else {
-                            focused_entity.0.take();
+                            if let Some(e) = focused_entity.0.take() {
+                                listeners.get_mut(e).unwrap().1.lost_focus = true;
+                            }
                         }
                     } else {
-                        focused_entity.0.take();
+                        if let Some(e) = focused_entity.0.take() {
+                            listeners.get_mut(e).unwrap().1.lost_focus = true;
+                        }
                     }
                     primary.0.take();
                 }
                 InteractionPhase::Cancel => {
                     primary.0.take();
                     primary_entity.0.take();
-                    focused_entity.0.take();
+                    if let Some(e) = focused_entity.0.take() {
+                        listeners.get_mut(e).unwrap().1.lost_focus = true;
+                    }
                 }
             }
         }

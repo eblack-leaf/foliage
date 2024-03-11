@@ -1,3 +1,4 @@
+use foliage::color::monochromatic::{Greyscale, Monochromatic};
 use foliage::color::Color;
 use foliage::r_scenes::dropdown::{Dropdown, DropdownOptions, ExpandDirection};
 use foliage::r_scenes::Colors;
@@ -17,7 +18,7 @@ impl Viewable for Overlay {
                     "button", "progress", "icon", "text", // "image", "utility", "misc",
                 ]),
                 ExpandDirection::Down,
-                Colors::new(Color::GREY, Color::DARK_GREY),
+                Colors::new(Greyscale::PLUS_TWO, Greyscale::MINUS_THREE),
             ),
             ResponsiveSegment::base(Segment::new(
                 3.near().to(6.far()).maximum(250.0),

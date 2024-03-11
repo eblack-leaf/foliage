@@ -1,5 +1,5 @@
 use crate::Orange;
-use foliage::color::monochromatic::Monochromatic;
+use foliage::color::monochromatic::{Greyscale, Monochromatic};
 use foliage::color::Color;
 use foliage::coordinate::CoordinateUnit;
 use foliage::elm::Style;
@@ -135,24 +135,24 @@ impl Viewable for ButtonShowcase {
             Button::new(
                 IconText::new(
                     FeatherIcon::Copy,
-                    Color::DARK_GREY,
+                    Greyscale::MINUS_THREE,
                     MaxCharacters(4),
                     TextValue::new("copy"),
-                    Color::DARK_GREY,
+                    Greyscale::MINUS_THREE,
                 ),
                 Style::fill(),
-                Colors::new(Color::DARK_GREY, Orange::MINUS_TWO),
+                Colors::new(Greyscale::MINUS_THREE, Orange::MINUS_TWO),
             ),
             Button::new(
                 IconText::new(
                     FeatherIcon::Copy,
-                    Color::DARK_GREY,
+                    Greyscale::MINUS_THREE,
                     MaxCharacters(4),
                     TextValue::new("copy"),
-                    Color::DARK_GREY,
+                    Greyscale::MINUS_THREE,
                 ),
                 Style::ring(),
-                Colors::new(Color::DARK_GREY, Orange::MINUS_TWO),
+                Colors::new(Greyscale::MINUS_THREE, Orange::MINUS_TWO),
             ),
             "base".to_string(),
             2,
@@ -164,13 +164,13 @@ impl Viewable for ButtonShowcase {
                 TextValue::new("copy"),
                 MaxCharacters(4),
                 Style::fill(),
-                Colors::new(Color::DARK_GREY, Orange::MINUS_ONE),
+                Colors::new(Greyscale::MINUS_THREE, Orange::MINUS_ONE),
             ),
             TextButton::new(
                 TextValue::new("copy"),
                 MaxCharacters(4),
                 Style::ring(),
-                Colors::new(Color::DARK_GREY, Orange::MINUS_ONE),
+                Colors::new(Greyscale::MINUS_THREE, Orange::MINUS_ONE),
             ),
             "text".to_string(),
             3,
@@ -181,12 +181,12 @@ impl Viewable for ButtonShowcase {
             CircleButton::new(
                 FeatherIcon::Copy,
                 Style::fill(),
-                Colors::new(Color::DARK_GREY, Orange::BASE),
+                Colors::new(Greyscale::MINUS_THREE, Orange::BASE),
             ),
             CircleButton::new(
                 FeatherIcon::Copy,
                 Style::ring(),
-                Colors::new(Color::DARK_GREY, Orange::BASE),
+                Colors::new(Greyscale::MINUS_THREE, Orange::BASE),
             ),
             "circle".to_string(),
             4,
@@ -197,12 +197,12 @@ impl Viewable for ButtonShowcase {
             IconButton::new(
                 FeatherIcon::Copy,
                 Style::fill(),
-                Colors::new(Color::DARK_GREY, Orange::PLUS_TWO),
+                Colors::new(Greyscale::MINUS_THREE, Orange::PLUS_TWO),
             ),
             IconButton::new(
                 FeatherIcon::Copy,
                 Style::ring(),
-                Colors::new(Color::DARK_GREY, Orange::PLUS_TWO),
+                Colors::new(Greyscale::MINUS_THREE, Orange::PLUS_TWO),
             ),
             "icon".to_string(),
             5,

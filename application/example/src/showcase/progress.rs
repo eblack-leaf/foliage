@@ -1,4 +1,4 @@
-use foliage::color::monochromatic::{AquaMarine, Monochromatic};
+use foliage::color::monochromatic::{AquaMarine, Greyscale, Monochromatic};
 use foliage::color::Color;
 use foliage::elm::Style;
 use foliage::icon::FeatherIcon;
@@ -15,7 +15,7 @@ impl Viewable for ProgressShowcase {
 
     fn view(mut view_builder: ViewBuilder) -> ViewDescriptor {
         view_builder.add_scene(
-            ProgressBar::new(0.30, AquaMarine::BASE, Color::DARK_GREY),
+            ProgressBar::new(0.30, AquaMarine::BASE, Greyscale::MINUS_THREE),
             ResponsiveSegment::base(Segment::new(
                 2.near().to(5.far()),
                 2.near().to(2.far()).fixed(4.0),
@@ -26,7 +26,7 @@ impl Viewable for ProgressShowcase {
             CircleButton::new(
                 FeatherIcon::Copy,
                 Style::fill(),
-                Colors::new(AquaMarine::BASE, Color::DARK_GREY),
+                Colors::new(AquaMarine::BASE, Greyscale::MINUS_THREE),
             ),
             ResponsiveSegment::base(Segment::new(
                 7.near().to(8.far()).maximum(50.0),
@@ -35,7 +35,7 @@ impl Viewable for ProgressShowcase {
             .at_layer(5),
         );
         view_builder.add_scene(
-            CircleProgressBar::new(0.70, Colors::new(AquaMarine::BASE, Color::DARK_GREY)),
+            CircleProgressBar::new(0.70, Colors::new(AquaMarine::BASE, Greyscale::MINUS_THREE)),
             ResponsiveSegment::base(Segment::new(
                 2.near().to(5.far()).maximum(50.0),
                 3.near().to(3.far()),
@@ -46,7 +46,7 @@ impl Viewable for ProgressShowcase {
             CircleButton::new(
                 FeatherIcon::Copy,
                 Style::fill(),
-                Colors::new(AquaMarine::BASE, Color::DARK_GREY),
+                Colors::new(AquaMarine::BASE, Greyscale::MINUS_THREE),
             ),
             ResponsiveSegment::base(Segment::new(
                 7.near().to(8.far()).maximum(50.0),

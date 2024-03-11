@@ -16,7 +16,7 @@ pub mod text_input;
 
 use foliage_proper::bevy_ecs;
 use foliage_proper::bevy_ecs::bundle::Bundle;
-use foliage_proper::color::monochromatic::Monochromatic;
+use foliage_proper::color::monochromatic::{Greyscale, Monochromatic};
 use foliage_proper::elm::Style;
 
 #[derive(Component, Copy, Clone, Default)]
@@ -52,7 +52,7 @@ impl Colors {
         Self {
             foreground: fc.into().into(),
             background: bc.into().into(),
-            alternate: AlternateColor(Color::GREY),
+            alternate: AlternateColor(Greyscale::BASE),
         }
     }
     pub fn with_foreground<C: Into<Color>>(mut self, c: C) -> Self {
@@ -76,7 +76,7 @@ pub struct Aesthetics {
 impl Aesthetics {
     pub fn themed<M: Monochromatic>() -> Self {
         Self {
-            colors: Colors::new(M::BASE, Color::DARK_GREY),
+            colors: Colors::new(M::BASE, Greyscale::MINUS_THREE),
             style: Style::default(),
         }
     }
