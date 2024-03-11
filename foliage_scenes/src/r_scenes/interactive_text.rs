@@ -109,15 +109,13 @@ fn update_selection(
     >,
 ) {
     for (mc, mut sel, tv, bindings, mut d) in query.iter_mut() {
-        // update selection to fit letters present + bounds
         if let Ok((listener, pos, area, layer)) = listeners.get(bindings.get(0)) {
             let (_fs, _fa, dims) = font.best_fit(*mc, *area, &scale_factor);
             *d = dims;
             for letter in 1..mc.0 + 1 {
                 *rectangles.get_mut(bindings.get(letter as i32)).unwrap().0 =
                     *pos + Position::new((letter as f32 - 1f32) * dims.dimensions().width, 0.0);
-                *rectangles.get_mut(bindings.get(letter as i32)).unwrap().1 =
-                    dims.dimensions().to_numerical().as_interface();
+                *rectangles.get_mut(bindings.get(letter as i32)).unwrap().1 = dims.dimensions();
                 *rectangles.get_mut(bindings.get(letter as i32)).unwrap().2 = *layer + 1.into();
             }
             let text_key = ((listener.interaction.current.x - pos.x).max(0.0)
@@ -139,7 +137,6 @@ fn update_selection(
                 // store selection string
                 // finish span
             }
-            println!("selection:{:?}", sel);
         }
     }
 }

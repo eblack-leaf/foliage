@@ -81,8 +81,10 @@ impl Text {
         font: &MonospacedFont,
         scale_factor: &ScaleFactor,
     ) -> (Area<InterfaceContext>, CharacterDimension) {
-        let dim =
-            CharacterDimension(font.character_dimensions(font_size.px(scale_factor.factor())));
+        let dim = CharacterDimension(
+            font.character_dimensions(font_size.px(scale_factor.factor()))
+                .to_interface(scale_factor.factor()),
+        );
         let width = dim.dimensions().width * max_characters.0 as f32;
         let area = (width, dim.dimensions().height).into();
         (area, dim)
@@ -141,12 +143,12 @@ impl Leaf for Text {
     }
 }
 #[derive(Component, Copy, Clone)]
-pub struct CharacterDimension(pub(crate) Area<DeviceContext>);
+pub struct CharacterDimension(pub(crate) Area<InterfaceContext>);
 impl CharacterDimension {
-    pub fn new<A: Into<Area<DeviceContext>>>(a: A) -> Self {
+    pub fn new<A: Into<Area<InterfaceContext>>>(a: A) -> Self {
         Self(a.into())
     }
-    pub fn dimensions(&self) -> Area<DeviceContext> {
+    pub fn dimensions(&self) -> Area<InterfaceContext> {
         self.0
     }
 }

@@ -286,28 +286,15 @@ impl SceneBindingComponents {
 }
 // will need to add this for every scene added
 pub fn config<S: Scene + Send + Sync + 'static>(
-    query: Query<
-        (
-            Entity,
-            &Position<InterfaceContext>,
-            &Area<InterfaceContext>,
-            &Layer,
-            &Despawn,
-            &Bindings,
-        ),
-        (With<Tag<S>>, Or<(S::Filter,)>),
-    >,
+    query: Query<(Entity, &Despawn, &Bindings), (With<Tag<S>>, Or<(S::Filter,)>)>,
     mut ext: StaticSystemParam<S::Params>,
 ) {
-    for (entity, pos, area, layer, despawn, bindings) in query.iter() {
+    for (entity, despawn, bindings) in query.iter() {
         if despawn.is_despawned() {
             continue;
         }
         // disabled?
-        S::config(
-            entity, // Coordinate::new((*pos, *area), *layer),
-            &mut ext, bindings,
-        );
+        S::config(entity, &mut ext, bindings);
     }
 }
 pub trait Scene
@@ -317,12 +304,7 @@ where
     type Params: SystemParam + 'static;
     type Filter: QueryFilter;
     type Components: Bundle;
-    fn config(
-        entity: Entity,
-        // coordinate: Coordinate<InterfaceContext>,
-        ext: &mut SystemParamItem<Self::Params>,
-        bindings: &Bindings,
-    );
+    fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings);
     fn create(self, binder: Binder) -> SceneHandle;
 }
 #[derive(Component, Copy, Clone)]
@@ -341,13 +323,7 @@ impl Scene for BlankNode {
     type Filter = ();
     type Components = ();
 
-    fn config(
-        _entity: Entity,
-        // _coordinate: Coordinate<InterfaceContext>,
-        _ext: &mut SystemParamItem<Self::Params>,
-        _bindings: &Bindings,
-    ) {
-    }
+    fn config(_entity: Entity, _ext: &mut SystemParamItem<Self::Params>, _bindings: &Bindings) {}
 
     fn create(self, binder: Binder) -> SceneHandle {
         binder.finish::<Self>(SceneComponents::new(MicroGrid::new(), ()))
