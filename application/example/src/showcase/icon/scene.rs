@@ -1,12 +1,12 @@
 use foliage::bevy_ecs::entity::Entity;
 use foliage::bevy_ecs::system::SystemParamItem;
 use foliage::color::monochromatic::{FluorescentYellow, Monochromatic};
-use foliage::coordinate::{Coordinate, InterfaceContext};
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 use foliage::elm::Elm;
 use foliage::icon::{FeatherIcon, Icon};
 use foliage::scene::micro_grid::{AlignmentDesc, MicroGrid, MicroGridAlignment, RelativeMarker};
 use foliage::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
+
 #[derive(Clone)]
 pub struct IconDisplay {
     pub icons: Vec<FeatherIcon>,
@@ -21,12 +21,7 @@ impl Scene for IconDisplay {
     type Filter = ();
     type Components = ();
 
-    fn config(
-        _entity: Entity,
-        _coordinate: Coordinate<InterfaceContext>,
-        _ext: &mut SystemParamItem<Self::Params>,
-        _bindings: &Bindings,
-    ) {
+    fn config(_entity: Entity, _ext: &mut SystemParamItem<Self::Params>, _bindings: &Bindings) {
         todo!()
     }
 

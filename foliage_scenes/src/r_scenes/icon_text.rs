@@ -7,7 +7,6 @@ use foliage_proper::bevy_ecs::prelude::{IntoSystemConfigs, With};
 use foliage_proper::bevy_ecs::query::{Changed, Or, Without};
 use foliage_proper::bevy_ecs::system::{Query, SystemParamItem};
 use foliage_proper::color::Color;
-use foliage_proper::coordinate::{Coordinate, InterfaceContext};
 use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
 use foliage_proper::elm::leaf::{Leaf, Tag};
 use foliage_proper::elm::Elm;
@@ -129,12 +128,7 @@ impl Scene for IconText {
     )>;
     type Components = IconTextComponents;
 
-    fn config(
-        entity: Entity,
-        _coordinate: Coordinate<InterfaceContext>,
-        ext: &mut SystemParamItem<Self::Params>,
-        bindings: &Bindings,
-    ) {
+    fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
         let icon = bindings.get(IconTextBindings::Icon);
         let text = bindings.get(IconTextBindings::Text);
         if let Ok((mc, tc, tv, ic, id)) = ext.0.get(entity) {

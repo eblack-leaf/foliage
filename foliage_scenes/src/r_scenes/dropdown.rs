@@ -82,12 +82,7 @@ impl Scene for Dropdown {
     type Filter = ();
     type Components = DropdownComponents;
 
-    fn config(
-        _entity: Entity,
-        _coordinate: Coordinate<InterfaceContext>,
-        _ext: &mut SystemParamItem<Self::Params>,
-        _bindings: &Bindings,
-    ) {
+    fn config(_entity: Entity, _ext: &mut SystemParamItem<Self::Params>, _bindings: &Bindings) {
         // style changes here?
     }
 

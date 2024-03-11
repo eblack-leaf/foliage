@@ -69,12 +69,7 @@ impl Scene for CircleProgressBar {
     )>;
     type Components = CircleProgressBarComponents;
 
-    fn config(
-        entity: Entity,
-        _coordinate: Coordinate<InterfaceContext>,
-        ext: &mut SystemParamItem<Self::Params>,
-        bindings: &Bindings,
-    ) {
+    fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
         let fill = bindings.get(CircleProgressBarBindings::Fill);
         let back = bindings.get(CircleProgressBarBindings::Back);
         if let Ok((fc, bc, pp)) = ext.0.get(entity) {

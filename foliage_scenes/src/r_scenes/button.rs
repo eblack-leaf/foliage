@@ -102,12 +102,7 @@ impl Scene for Button {
     )>;
     type Components = ButtonComponents;
 
-    fn config(
-        entity: Entity,
-        _coordinate: Coordinate<InterfaceContext>,
-        ext: &mut SystemParamItem<Self::Params>,
-        bindings: &Bindings,
-    ) {
+    fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
         let icon_text = bindings.get(ButtonBindings::IconText);
         let panel = bindings.get(ButtonBindings::Panel);
         if let Ok((_est, fc, bc, cs)) = ext.0.get(entity) {

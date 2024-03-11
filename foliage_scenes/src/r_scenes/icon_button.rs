@@ -61,12 +61,7 @@ impl Scene for IconButton {
     type Filter = <Button as Scene>::Filter;
     type Components = <Button as Scene>::Components;
 
-    fn config(
-        entity: Entity,
-        _coordinate: Coordinate<InterfaceContext>,
-        ext: &mut SystemParamItem<Self::Params>,
-        bindings: &Bindings,
-    ) {
+    fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
         let panel = bindings.get(IconButtonBindings::Panel);
         let icon = bindings.get(IconButtonBindings::Icon);
         if let Ok((_est, fc, bc, cs)) = ext.0.get(entity) {

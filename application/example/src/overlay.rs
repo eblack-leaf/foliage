@@ -4,7 +4,7 @@ use foliage::r_scenes::Colors;
 use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::view::{Navigate, ViewBuilder, ViewDescriptor, Viewable};
 
-use crate::{BUTTON, ICON, PROGRESS};
+use crate::{BUTTON, ICON, PROGRESS, TEXT};
 
 pub struct Overlay;
 impl Viewable for Overlay {
@@ -14,7 +14,7 @@ impl Viewable for Overlay {
         let handle = view_builder.add_scene(
             Dropdown::new(
                 DropdownOptions::new([
-                    "button", "progress", "icon", // "image", "text", "utility", "misc",
+                    "button", "progress", "icon", "text", // "image", "utility", "misc",
                 ]),
                 ExpandDirection::Down,
                 Colors::new(Color::GREY, Color::DARK_GREY),
@@ -29,6 +29,7 @@ impl Viewable for Overlay {
         view_builder.add_command_to(branches.get(0).unwrap().target(), Navigate(BUTTON));
         view_builder.add_command_to(branches.get(1).unwrap().target(), Navigate(PROGRESS));
         view_builder.add_command_to(branches.get(2).unwrap().target(), Navigate(ICON));
+        view_builder.add_command_to(branches.get(3).unwrap().target(), Navigate(TEXT));
         // ...
         view_builder.finish()
     }

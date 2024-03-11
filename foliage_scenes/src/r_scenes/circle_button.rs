@@ -63,12 +63,7 @@ impl Scene for CircleButton {
     type Filter = <Button as Scene>::Filter;
     type Components = <Button as Scene>::Components;
 
-    fn config(
-        entity: Entity,
-        _coordinate: Coordinate<InterfaceContext>,
-        ext: &mut SystemParamItem<Self::Params>,
-        bindings: &Bindings,
-    ) {
+    fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
         let circle = bindings.get(CircleButtonBindings::Circle);
         let icon = bindings.get(CircleButtonBindings::Icon);
         if let Ok((_est, fc, bc, cs)) = ext.0.get(entity) {

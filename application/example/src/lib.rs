@@ -7,6 +7,7 @@ use crate::overlay::Overlay;
 use crate::showcase::icon::scene::IconDisplay;
 use crate::showcase::icon::IconShowcase;
 use crate::showcase::progress::ProgressShowcase;
+use crate::showcase::text::TextShowcase;
 use foliage::color::monochromatic::Orange;
 use foliage::coordinate::area::Area;
 use foliage::elm::config::ElmConfiguration;
@@ -72,9 +73,11 @@ impl Leaf for Main {
         elm.add_view::<ButtonShowcase>(BUTTON);
         elm.add_view::<ProgressShowcase>(PROGRESS);
         elm.add_view::<IconShowcase>(ICON);
+        elm.add_view::<TextShowcase>(TEXT);
         elm.navigate_to(BUTTON);
     }
 }
 pub(crate) const BUTTON: ViewHandle = ViewHandle(1);
 pub(crate) const PROGRESS: ViewHandle = ViewHandle(2);
 pub(crate) const ICON: ViewHandle = ViewHandle(3);
+pub(crate) const TEXT: ViewHandle = ViewHandle(4);

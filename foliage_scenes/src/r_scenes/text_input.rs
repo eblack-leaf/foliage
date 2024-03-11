@@ -13,7 +13,7 @@ use foliage_proper::scene::micro_grid::{
     AlignmentDesc, AnchorDim, MicroGrid, MicroGridAlignment, RelativeMarker,
 };
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
-use foliage_proper::text::{MaxCharacters, Text, TextValue};
+use foliage_proper::text::{MaxCharacters, TextValue};
 
 use crate::r_scenes::interactive_text::InteractiveText;
 use crate::r_scenes::Colors;
@@ -81,13 +81,8 @@ impl Scene for TextInput {
     type Params = ();
     type Filter = ();
     type Components = TextInputComponents;
-
-    fn config(
-        entity: Entity,
-        _coordinate: Coordinate<InterfaceContext>,
-        ext: &mut SystemParamItem<Self::Params>,
-        bindings: &Bindings,
-    ) {
+    #[allow(unused)]
+    fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
         // style
     }
 

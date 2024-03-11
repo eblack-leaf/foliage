@@ -21,7 +21,9 @@ use foliage_proper::scene::micro_grid::{
 };
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
 use foliage_proper::text::font::MonospacedFont;
-use foliage_proper::text::{GlyphColorChanges, MaxCharacters, Text, TextValue};
+use foliage_proper::text::{
+    CharacterDimension, GlyphColorChanges, MaxCharacters, Text, TextKey, TextValue,
+};
 use foliage_proper::texture::factors::Progress;
 use foliage_proper::window::ScaleFactor;
 
@@ -39,15 +41,30 @@ impl InteractiveText {
         }
     }
 }
-#[derive(Component)]
+#[derive(Component, Debug)]
 pub struct Selection {
     pub value: String,
-    pub start: Option<u32>,
+    pub start: Option<i32>,
     pub span: Option<i32>,
 }
 impl Selection {
-    pub fn new(value: String, start: Option<u32>, span: Option<i32>) -> Self {
+    pub fn new(value: String, start: Option<i32>, span: Option<i32>) -> Self {
         Self { value, start, span }
+    }
+    pub fn contains(&self, i: i32) -> bool {
+        if let Some(start) = self.start {
+            if i == start {
+                return true;
+            }
+            if let Some(span) = self.span {
+                for x in start..(start + span) {
+                    if x == i {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
     }
 }
 #[derive(Bundle)]
@@ -57,6 +74,7 @@ pub struct InteractiveTextComponents {
     pub max_chars: MaxCharacters,
     pub colors: Colors,
     pub spt: SelectionProcessTrigger,
+    pub dims: CharacterDimension,
 }
 #[derive(Component, Copy, Clone)]
 pub struct SelectionProcessTrigger(bool);
@@ -72,6 +90,53 @@ fn select(
         }
     }
 }
+fn update_selection(
+    font: Res<MonospacedFont>,
+    scale_factor: Res<ScaleFactor>,
+    mut query: Query<(
+        &MaxCharacters,
+        &mut Selection,
+        &TextValue,
+        &Bindings,
+        &mut CharacterDimension,
+    )>,
+    listeners: Query<
+        (
+            &InteractionListener,
+            &Position<InterfaceContext>,
+            &Area<InterfaceContext>,
+        ),
+        Changed<InteractionListener>,
+    >,
+) {
+    for (mc, mut sel, tv, bindings, mut d) in query.iter_mut() {
+        // update selection to fit letters present + bounds
+        if let Ok((listener, pos, area)) = listeners.get(bindings.get(0)) {
+            let (_fs, _fa, dims) = font.best_fit(*mc, *area, &scale_factor);
+            *d = dims;
+            let text_key = ((listener.interaction.current.x - pos.x).max(0.0)
+                / dims.dimensions().width)
+                .floor()
+                .min(tv.0.len() as f32 + 1f32)
+                .min(mc.0 as f32);
+            if listener.engaged_start() {
+                // get x offset and set start
+                sel.start.replace(text_key as i32);
+                sel.value = String::default();
+            }
+            if listener.engaged() {
+                let i = text_key as i32 - sel.start.unwrap();
+                sel.span.replace(i);
+                // update span with location
+            }
+            if listener.engaged_end() {
+                // store selection string
+                // finish span
+            }
+            println!("selection:{:?}", sel);
+        }
+    }
+}
 impl Scene for InteractiveText {
     type Params = (
         Query<
@@ -82,7 +147,8 @@ impl Scene for InteractiveText {
                 &'static BackgroundColor,
                 &'static MaxCharacters,
                 &'static TextValue,
-                &'static mut Selection,
+                &'static CharacterDimension,
+                &'static Selection,
             ),
             With<Tag<InteractiveText>>,
         >,
@@ -121,18 +187,34 @@ impl Scene for InteractiveText {
     )>;
     type Components = InteractiveTextComponents;
 
-    fn config(
-        entity: Entity,
-        _coordinate: Coordinate<InterfaceContext>,
-        ext: &mut SystemParamItem<Self::Params>,
-        bindings: &Bindings,
-    ) {
+    fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
         let text = bindings.get(0);
-        if let Ok((fc, bc, mc, tv, sel)) = ext.0.get_mut(entity) {
-            let (fs, fa, dims) = ext.2.best_fit(*mc, _coordinate.section.area, &ext.3);
-            // update selection to fit letters present + bounds
-            // using listener.interaction.current + begin on listener.engaged_start()
-            for letter in 0..mc.0 {
+        if let Ok((fc, bc, mc, tv, dims, sel)) = ext.0.get(entity) {
+            for letter in 1..mc.0 + 1 {
+                let pos = *ext.1.get(text).unwrap().0;
+                let layer = *ext.1.get(text).unwrap().2;
+                *ext.1.get_mut(bindings.get(letter as i32)).unwrap().0 =
+                    pos + Position::new((letter as f32 - 1f32) * dims.dimensions().width, 0.0);
+                *ext.1.get_mut(bindings.get(letter as i32)).unwrap().1 = dims.dimensions();
+                *ext.1.get_mut(bindings.get(letter as i32)).unwrap().2 = layer + 1.into();
+                let mut color_changes = GlyphColorChanges::new();
+                if let Some(_c) = tv.0.get((letter - 1) as usize..letter as usize) {
+                    if sel.contains((letter - 1) as i32) {
+                        *ext.1
+                            .get_mut(bindings.get(letter as i32))
+                            .unwrap()
+                            .3
+                            .alpha_mut() = 1.0;
+                        color_changes.0.insert((letter - 1) as TextKey, bc.0);
+                    } else {
+                        *ext.1
+                            .get_mut(bindings.get(letter as i32))
+                            .unwrap()
+                            .3
+                            .alpha_mut() = 0.0;
+                    }
+                }
+                *ext.4.get_mut(text).unwrap().0 = color_changes;
                 // iter mc to refresh all slots on value change | selection change
                 // update rectangle-color + text-glyph-color-change
                 // update rectangle-coordinate
@@ -172,6 +254,7 @@ impl Scene for InteractiveText {
                 max_chars: self.max_chars,
                 colors: self.colors,
                 spt: SelectionProcessTrigger(false),
+                dims: CharacterDimension::new(Area::default()),
             },
         ))
     }
@@ -189,7 +272,11 @@ impl Leaf for InteractiveText {
 
     fn attach(elm: &mut Elm) {
         elm.main().add_systems((
-            foliage_proper::scene::config::<InteractiveText>
+            (
+                update_selection,
+                foliage_proper::scene::config::<InteractiveText>,
+            )
+                .chain()
                 .in_set(SetDescriptor::Update)
                 .before(<Text as Leaf>::SetDescriptor::Update),
             select.in_set(ExternalSet::InteractionTriggers),

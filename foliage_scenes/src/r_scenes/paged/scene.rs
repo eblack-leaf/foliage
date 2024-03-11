@@ -81,12 +81,7 @@ impl Scene for PageStructure {
     type Filter = ();
     type Components = PageStructureComponents;
 
-    fn config(
-        entity: Entity,
-        _coordinate: Coordinate<InterfaceContext>,
-        ext: &mut SystemParamItem<Self::Params>,
-        bindings: &Bindings,
-    ) {
+    fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
         let decrement = bindings.get(PageStructureBindings::PageDecrement);
         let increment = bindings.get(PageStructureBindings::PageIncrement);
         if let Ok((fc, bc)) = ext.0.get(entity) {

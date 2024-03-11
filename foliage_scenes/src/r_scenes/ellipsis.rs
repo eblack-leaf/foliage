@@ -59,12 +59,7 @@ impl Scene for Ellipsis {
     type Filter = Or<(Changed<Selected>, Changed<Color>)>;
     type Components = EllipsisComponents;
 
-    fn config(
-        _entity: Entity,
-        _coordinate: Coordinate<InterfaceContext>,
-        ext: &mut SystemParamItem<Self::Params>,
-        bindings: &Bindings,
-    ) {
+    fn config(_entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
         if let Ok((fc, select, total)) = ext.0.get(_entity) {
             for b in bindings.nodes().values() {
                 *ext.2.get_mut(b.entity()).unwrap() = *fc;

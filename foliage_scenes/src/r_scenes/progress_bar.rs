@@ -90,12 +90,7 @@ impl Scene for ProgressBar {
     )>;
     type Components = ProgressBarComponents;
 
-    fn config(
-        entity: Entity,
-        _coordinate: Coordinate<InterfaceContext>,
-        ext: &mut SystemParamItem<Self::Params>,
-        bindings: &Bindings,
-    ) {
+    fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
         let fill = bindings.get(ProgressBarBindings::Fill);
         let back = bindings.get(ProgressBarBindings::Back);
         if let Ok((fc, bc, pp)) = ext.0.get(entity) {
