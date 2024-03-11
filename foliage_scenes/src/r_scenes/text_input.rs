@@ -6,7 +6,7 @@ use foliage_proper::bevy_ecs::bundle::Bundle;
 use foliage_proper::bevy_ecs::entity::Entity;
 use foliage_proper::bevy_ecs::prelude::Component;
 use foliage_proper::bevy_ecs::system::SystemParamItem;
-use foliage_proper::coordinate::{Coordinate, InterfaceContext};
+
 use foliage_proper::elm::Style;
 use foliage_proper::panel::Panel;
 use foliage_proper::scene::micro_grid::{

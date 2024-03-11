@@ -8,7 +8,7 @@ use foliage_proper::bevy_ecs::entity::Entity;
 use foliage_proper::bevy_ecs::prelude::{Component, World};
 use foliage_proper::bevy_ecs::system::{Command, SystemParamItem};
 use foliage_proper::conditional::ConditionalCommand;
-use foliage_proper::coordinate::{Coordinate, InterfaceContext};
+
 use foliage_proper::elm::leaf::Leaf;
 use foliage_proper::elm::{Elm, Style};
 use foliage_proper::panel::Panel;
@@ -47,11 +47,7 @@ pub struct DropdownOptions {
 impl DropdownOptions {
     pub fn new<const N: usize>(opts: [&'static str; N]) -> Self {
         Self {
-            options: opts
-                .to_vec()
-                .drain(..)
-                .map(|s| CompactString::new(s))
-                .collect(),
+            options: opts.to_vec().drain(..).map(CompactString::new).collect(),
         }
     }
 }
@@ -98,7 +94,7 @@ impl Scene for Dropdown {
                 1.percent_of(AnchorDim::Height),
             ),
             TextButton::new(
-                TextValue::new(self.options.options.get(0).unwrap()),
+                TextValue::new(self.options.options.first().unwrap()),
                 max,
                 Style::fill(),
                 Colors::new(self.colors.foreground.0, self.colors.background.0),
@@ -118,7 +114,7 @@ impl Scene for Dropdown {
                 if self.expand_direction == ExpandDirection::Down {
                     1
                 } else {
-                    num_options * -1
+                    -num_options
                 }
                 .percent_from(RelativeMarker::Top)
                 .adjust(
@@ -234,7 +230,7 @@ struct Expansion {
 }
 impl Command for Expansion {
     fn apply(self, world: &mut World) {
-        let state = world.get::<ExpandState>(self.root).unwrap().clone();
+        let state = *world.get::<ExpandState>(self.root).unwrap();
         let trigger_state = match state {
             ExpandState::Expanded => {
                 // collapse it

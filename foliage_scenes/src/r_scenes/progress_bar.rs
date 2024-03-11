@@ -6,7 +6,7 @@ use foliage_proper::bevy_ecs::prelude::{Component, IntoSystemConfigs};
 use foliage_proper::bevy_ecs::query::{Changed, Or, Without};
 use foliage_proper::bevy_ecs::system::{Query, SystemParamItem};
 use foliage_proper::color::Color;
-use foliage_proper::coordinate::{Coordinate, InterfaceContext};
+
 use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
 use foliage_proper::elm::leaf::{Leaf, Tag};
 use foliage_proper::elm::Elm;
