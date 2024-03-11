@@ -44,12 +44,12 @@ impl InteractiveText {
 }
 #[derive(Component, Debug)]
 pub struct Selection {
-    pub value: String,
+    pub value: Option<String>,
     pub start: Option<i32>,
     pub span: Option<i32>,
 }
 impl Selection {
-    pub fn new(value: String, start: Option<i32>, span: Option<i32>) -> Self {
+    pub fn new(value: Option<String>, start: Option<i32>, span: Option<i32>) -> Self {
         Self { value, start, span }
     }
     pub fn contains(&self, i: i32) -> bool {
@@ -58,15 +58,39 @@ impl Selection {
                 return true;
             }
             if let Some(span) = self.span {
-                for x in start..(start + span) {
-                    if x == i {
-                        return true;
+                if span.is_positive() {
+                    for x in start..=(start + span) {
+                        if x == i {
+                            return true;
+                        }
+                    }
+                } else {
+                    for x in (start + span)..start {
+                        if x == i {
+                            return true;
+                        }
                     }
                 }
             }
         }
         false
     }
+}
+#[cfg(test)]
+#[test]
+fn test_selection() {
+    let selection = Selection::new(None, Some(0), Some(4));
+    assert_eq!(selection.contains(0), true);
+    assert_eq!(selection.contains(1), true);
+    assert_eq!(selection.contains(2), true);
+    assert_eq!(selection.contains(3), true);
+    assert_eq!(selection.contains(4), true);
+    let selection = Selection::new(None, Some(4), Some(-4));
+    assert_eq!(selection.contains(0), true);
+    assert_eq!(selection.contains(1), true);
+    assert_eq!(selection.contains(2), true);
+    assert_eq!(selection.contains(3), true);
+    assert_eq!(selection.contains(4), true);
 }
 #[derive(Bundle)]
 pub struct InteractiveTextComponents {
@@ -121,17 +145,15 @@ fn update_selection(
             let text_key = ((listener.interaction.current.x - pos.x).max(0.0)
                 / dims.dimensions().width)
                 .floor()
-                .min(tv.0.len() as f32 + 1f32)
-                .min(mc.0 as f32);
+                .min(tv.0.len() as f32)
+                .min(mc.0.checked_sub(1).unwrap_or_default() as f32);
             if listener.engaged_start() {
-                // get x offset and set start
                 sel.start.replace(text_key as i32);
-                sel.value = String::default();
+                sel.value = None;
             }
             if listener.engaged() {
                 let i = text_key as i32 - sel.start.unwrap();
                 sel.span.replace(i);
-                // update span with location
             }
             if listener.engaged_end() {
                 // store selection string
@@ -239,7 +261,7 @@ impl Scene for InteractiveText {
         binder.finish::<Self>(SceneComponents::new(
             MicroGrid::new().aspect_ratio(self.max_chars.mono_aspect()),
             InteractiveTextComponents {
-                selection: Selection::new(String::default(), None, None),
+                selection: Selection::new(None, None, None),
                 text: self.text_value.clone(),
                 max_chars: self.max_chars,
                 colors: self.colors,
