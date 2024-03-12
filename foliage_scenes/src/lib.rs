@@ -1,3 +1,12 @@
+use foliage_proper::bevy_ecs;
+use foliage_proper::bevy_ecs::bundle::Bundle;
+use foliage_proper::bevy_ecs::component::Component;
+use foliage_proper::color::monochromatic::{Greyscale, Monochromatic};
+use foliage_proper::color::Color;
+use foliage_proper::elm::leaf::Leaves;
+use foliage_proper::elm::Style;
+use foliage_proper::Foliage;
+
 pub mod button;
 pub mod circle_button;
 pub mod circle_progress_bar;
@@ -10,26 +19,6 @@ pub mod paged;
 pub mod progress_bar;
 pub mod text_button;
 pub mod text_input;
-
-use crate::button::Button;
-use crate::circle_button::CircleButton;
-use crate::circle_progress_bar::CircleProgressBar;
-use crate::dropdown::Dropdown;
-use crate::ellipsis::Ellipsis;
-use crate::icon_button::IconButton;
-use crate::interactive_text::InteractiveText;
-use crate::paged::scene::PageStructure;
-use crate::progress_bar::ProgressBar;
-use crate::text_button::TextButton;
-use crate::text_input::TextInput;
-use foliage_proper::bevy_ecs;
-use foliage_proper::bevy_ecs::bundle::Bundle;
-use foliage_proper::bevy_ecs::component::Component;
-use foliage_proper::color::monochromatic::{Greyscale, Monochromatic};
-use foliage_proper::color::Color;
-use foliage_proper::elm::leaf::{EmptySetDescriptor, Leaf, Leaves};
-use foliage_proper::elm::{Elm, Style};
-use foliage_proper::Foliage;
 
 pub struct SceneExtensions;
 impl Leaves for SceneExtensions {

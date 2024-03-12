@@ -1,3 +1,4 @@
+use crate::animate::trigger::Trigger;
 use crate::conditional::{
     Branch, ConditionHandle, Conditional, ConditionalCommand, SceneBranch, SpawnTarget,
 };
@@ -20,6 +21,7 @@ use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Changed, Component, IntoSystemConfigs, Resource, World};
 use bevy_ecs::system::{Command, Commands, Query, ResMut};
 use std::collections::{HashMap, HashSet};
+
 #[derive(Copy, Clone, Component)]
 pub(crate) struct PersistentView(pub ViewHandle);
 impl PersistentView {
@@ -220,6 +222,9 @@ fn navigation(
     if let Some((_e, n)) = query.iter().last() {
         if let Some(old) = compositor.current.take() {
             // despawn old
+            for b in old.branches {
+                cmd.entity(b.1.this()).insert(Trigger::inverse());
+            }
             for e in old.pool.0 {
                 cmd.entity(e).insert(Despawn::signal_despawn());
             }
