@@ -1,10 +1,10 @@
 use foliage::color::monochromatic::{Asparagus, Greyscale, Monochromatic};
-use foliage::r_scenes::interactive_text::InteractiveText;
-use foliage::r_scenes::text_input::{TextInput, TextInputMode};
-use foliage::r_scenes::Colors;
+use foliage::interactive_text::InteractiveText;
 use foliage::segment::{MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::text::{MaxCharacters, TextValue};
+use foliage::text_input::{TextInput, TextInputMode};
 use foliage::view::{ViewBuilder, ViewDescriptor, Viewable};
+use foliage::Colors;
 
 pub struct TextShowcase;
 impl Viewable for TextShowcase {

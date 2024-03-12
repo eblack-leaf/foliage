@@ -17,7 +17,7 @@ use foliage_proper::scene::micro_grid::{
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
 use foliage_proper::texture::factors::Progress;
 
-use crate::r_scenes::Direction;
+use crate::Direction;
 
 pub struct Ellipsis {
     pub amount: u32,

@@ -1,20 +1,20 @@
 use crate::Orange;
+use foliage::button::Button;
+use foliage::circle_button::CircleButton;
 use foliage::color::monochromatic::{Greyscale, Monochromatic};
 use foliage::coordinate::CoordinateUnit;
 use foliage::elm::Style;
 use foliage::icon::FeatherIcon;
+use foliage::icon_button::IconButton;
+use foliage::icon_text::IconText;
 use foliage::layout::Layout;
 use foliage::procedure::Procedure;
-use foliage::r_scenes::button::Button;
-use foliage::r_scenes::circle_button::CircleButton;
-use foliage::r_scenes::icon_button::IconButton;
-use foliage::r_scenes::icon_text::IconText;
-use foliage::r_scenes::text_button::TextButton;
-use foliage::r_scenes::Colors;
 use foliage::scene::Scene;
 use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::text::{MaxCharacters, Text, TextValue};
+use foliage::text_button::TextButton;
 use foliage::view::{ViewBuilder, ViewDescriptor, Viewable};
+use foliage::Colors;
 
 struct ButtonDisplay<T> {
     first: T,

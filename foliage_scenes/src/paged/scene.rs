@@ -10,6 +10,7 @@ use foliage_proper::bevy_ecs::system::{Command, Query, SystemParamItem};
 use foliage_proper::circle::Circle;
 use foliage_proper::conditional::ConditionalCommand;
 
+use crate::{BackgroundColor, Colors, Direction, ForegroundColor};
 use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
 use foliage_proper::elm::leaf::{Leaf, Tag};
 use foliage_proper::elm::{Elm, Style};
@@ -19,9 +20,8 @@ use foliage_proper::scene::micro_grid::{
 };
 use foliage_proper::scene::{Binder, Bindings, BlankNode, Scene, SceneComponents, SceneHandle};
 
-use crate::r_scenes::circle_button::CircleButton;
-use crate::r_scenes::ellipsis::{Ellipsis, Selected};
-use crate::r_scenes::{BackgroundColor, Colors, Direction, ForegroundColor};
+use crate::circle_button::CircleButton;
+use crate::ellipsis::{Ellipsis, Selected};
 
 pub struct PageStructure {
     pub decrement_icon: FeatherIcon,

@@ -19,8 +19,8 @@ use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandl
 use foliage_proper::text::{MaxCharacters, TextValue};
 use foliage_proper::view::BranchPool;
 
-use crate::r_scenes::text_button::TextButton;
-use crate::r_scenes::Colors;
+use crate::text_button::TextButton;
+use crate::Colors;
 
 pub struct Dropdown {
     pub options: DropdownOptions,

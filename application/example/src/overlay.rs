@@ -1,8 +1,8 @@
 use foliage::color::monochromatic::{Greyscale, Monochromatic};
-use foliage::r_scenes::dropdown::{Dropdown, DropdownOptions, ExpandDirection};
-use foliage::r_scenes::Colors;
+use foliage::dropdown::{Dropdown, DropdownOptions, ExpandDirection};
 use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::view::{Navigate, ViewBuilder, ViewDescriptor, Viewable};
+use foliage::Colors;
 
 use crate::{BUTTON, ICON, PROGRESS, TEXT};
 

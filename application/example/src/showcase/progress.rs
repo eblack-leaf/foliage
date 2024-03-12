@@ -1,12 +1,12 @@
+use foliage::circle_button::CircleButton;
+use foliage::circle_progress_bar::CircleProgressBar;
 use foliage::color::monochromatic::{AquaMarine, Greyscale, Monochromatic};
 use foliage::elm::Style;
 use foliage::icon::FeatherIcon;
-use foliage::r_scenes::circle_button::CircleButton;
-use foliage::r_scenes::circle_progress_bar::CircleProgressBar;
-use foliage::r_scenes::progress_bar::ProgressBar;
-use foliage::r_scenes::Colors;
+use foliage::progress_bar::ProgressBar;
 use foliage::segment::{MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::view::{ViewBuilder, ViewDescriptor, Viewable};
+use foliage::Colors;
 
 pub struct ProgressShowcase;
 impl Viewable for ProgressShowcase {

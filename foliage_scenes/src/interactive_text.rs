@@ -1,3 +1,4 @@
+use crate::{BackgroundColor, Colors, ForegroundColor};
 use foliage_macros::{inner_set_descriptor, InnerSceneBinding};
 use foliage_proper::bevy_ecs;
 use foliage_proper::bevy_ecs::bundle::Bundle;
@@ -26,8 +27,6 @@ use foliage_proper::text::{
 use foliage_proper::texture::factors::Progress;
 use foliage_proper::window::ScaleFactor;
 use std::ops::RangeInclusive;
-
-use crate::r_scenes::{BackgroundColor, Colors, ForegroundColor};
 
 pub struct InteractiveText {
     pub max_chars: MaxCharacters,

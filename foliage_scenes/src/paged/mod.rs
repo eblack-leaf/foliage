@@ -1,5 +1,5 @@
-use crate::r_scenes::paged::scene::PageStructure;
-use crate::r_scenes::{Colors, Direction};
+use crate::paged::scene::PageStructure;
+use crate::{Colors, Direction};
 use foliage_proper::animate::trigger::Trigger;
 use foliage_proper::icon::FeatherIcon;
 use foliage_proper::procedure::Procedure;

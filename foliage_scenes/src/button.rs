@@ -8,6 +8,7 @@ use foliage_proper::bevy_ecs::query::{With, Without};
 use foliage_proper::bevy_ecs::system::{Query, SystemParamItem};
 use foliage_proper::color::Color;
 
+use crate::{BackgroundColor, Colors, ForegroundColor};
 use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
 use foliage_proper::elm::leaf::{Leaf, Tag};
 use foliage_proper::elm::{BundleExtend, Elm, Style};
@@ -20,8 +21,7 @@ use foliage_proper::scene::{
     Binder, Bindings, BlankNode, Scene, SceneComponents, SceneHandle, ScenePtr,
 };
 
-use crate::r_scenes::icon_text::{IconColor, IconText, TextColor};
-use crate::r_scenes::{BackgroundColor, Colors, ForegroundColor};
+use crate::icon_text::{IconColor, IconText, TextColor};
 
 #[derive(Clone)]
 pub struct Button {

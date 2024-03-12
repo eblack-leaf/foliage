@@ -6,6 +6,7 @@ use foliage_proper::bevy_ecs::system::SystemParamItem;
 use foliage_proper::circle::Circle;
 use foliage_proper::color::Color;
 
+use crate::{BackgroundColor, Colors, ForegroundColor};
 use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
 use foliage_proper::elm::leaf::{Leaf, Tag};
 use foliage_proper::elm::{BundleExtend, Elm, Style};
@@ -17,8 +18,7 @@ use foliage_proper::scene::micro_grid::{
 use foliage_proper::scene::{Binder, Bindings, BlankNode, Scene, SceneComponents, SceneHandle};
 use foliage_proper::texture::factors::Progress;
 
-use crate::r_scenes::button::{Button, ButtonComponents, ButtonInteractionHook, CurrentStyle};
-use crate::r_scenes::{BackgroundColor, Colors, ForegroundColor};
+use crate::button::{Button, ButtonComponents, ButtonInteractionHook, CurrentStyle};
 
 #[derive(Clone)]
 pub struct CircleButton {

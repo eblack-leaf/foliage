@@ -1,9 +1,9 @@
 use foliage::color::monochromatic::{FluorescentYellow, Greyscale, Monochromatic};
 use foliage::icon::FeatherIcon;
-use foliage::r_scenes::paged::Paged;
-use foliage::r_scenes::{Colors, Direction};
+use foliage::paged::Paged;
 use foliage::segment::{MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::view::{ViewBuilder, ViewDescriptor, Viewable};
+use foliage::{Colors, Direction};
 
 use crate::showcase::icon::scene::IconDisplay;
 
