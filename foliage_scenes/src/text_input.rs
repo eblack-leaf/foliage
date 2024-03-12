@@ -1,7 +1,7 @@
-use compact_str::{CompactString, ToCompactString};
 use std::ops::Add;
 
-use crate::{BackgroundColor, Colors, ForegroundColor};
+use compact_str::{CompactString, ToCompactString};
+
 use foliage_macros::{inner_set_descriptor, InnerSceneBinding};
 use foliage_proper::bevy_ecs;
 use foliage_proper::bevy_ecs::bundle::Bundle;
@@ -24,6 +24,7 @@ use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandl
 use foliage_proper::text::{MaxCharacters, TextValue};
 
 use crate::interactive_text::{InteractiveText, InteractiveTextBindings, Selection};
+use crate::{AlternateColor, BackgroundColor, Colors, ForegroundColor};
 
 pub struct TextInput {
     pub max_chars: MaxCharacters,
@@ -58,125 +59,117 @@ fn input(
 ) {
     for (mut sel, it_bindings, ptr) in selections.iter_mut() {
         let interactive_text = it_bindings.get(InteractiveTextBindings::Text);
-        {
-            if let Ok((mut actual, mc)) = text_inputs.get_mut(ptr.value()) {
-                if listeners.get(interactive_text).unwrap().lost_focus() && actual.0.is_empty() {
-                    actual.0.clear();
-                }
-                if let Some(e) = focused_entity.0 {
-                    if e == interactive_text {
-                        if listeners.get(interactive_text).unwrap().engaged_start()
-                            && actual.0.is_empty()
-                        {
-                            actual.0.clear();
-                            sel.start.replace(0);
-                        }
-                        if let Some(start) = sel.start {
-                            for e in keyboards.read() {
-                                match e.sequence() {
-                                    InputSequence::CtrlX => {
-                                        // remove selection + copy to clipboard
-                                    }
-                                    InputSequence::CtrlC => {
-                                        // copy to clipboard
-                                    }
-                                    InputSequence::CtrlA => {
-                                        // select all
-                                    }
-                                    InputSequence::CtrlZ => {
-                                        // last?
-                                    }
-                                    InputSequence::Backspace => {
-                                        if e.state.is_pressed() {
-                                            if sel.range().is_some() {
-                                                clear_selection(&mut sel, &mut actual);
-                                            } else {
-                                                // delete start - 1 if possible
-                                                if start != 0 {
-                                                    actual.0.remove(start as usize - 1);
-                                                    sel.start.replace(start - 1);
-                                                }
-                                            }
-                                        }
-                                    }
-                                    InputSequence::Enter => {
-                                        // handle action?
-                                    }
-                                    InputSequence::Character(char) => {
-                                        if e.state.is_pressed() {
+        if let Ok((mut actual, mc)) = text_inputs.get_mut(ptr.value()) {
+            if listeners.get(interactive_text).unwrap().lost_focus() && actual.0.is_empty() {
+                trigger_config(&mut actual);
+            }
+            if let Some(e) = focused_entity.0 {
+                if e == interactive_text {
+                    if listeners.get(interactive_text).unwrap().engaged_start()
+                        && actual.0.is_empty()
+                    {
+                        trigger_config(&mut actual);
+                        sel.start.replace(0);
+                    }
+                    if let Some(start) = sel.start {
+                        for e in keyboards.read() {
+                            match e.sequence() {
+                                InputSequence::CtrlX => {
+                                    // remove selection + copy to clipboard
+                                }
+                                InputSequence::CtrlC => {
+                                    // copy to clipboard
+                                }
+                                InputSequence::CtrlA => {
+                                    // select all
+                                }
+                                InputSequence::CtrlZ => {
+                                    // last?
+                                }
+                                InputSequence::Backspace => {
+                                    if e.state.is_pressed() {
+                                        if sel.range().is_some() {
                                             clear_selection(&mut sel, &mut actual);
-                                            if actual.0.len() + char.len() <= mc.0 as usize {
-                                                actual.0.insert_str(
-                                                    sel.start.unwrap() as usize,
-                                                    char.as_str(),
-                                                );
-                                                let updated_start =
-                                                    sel.start.unwrap() + char.len() as i32;
-                                                sel.start.replace(
-                                                    updated_start
-                                                        .max(0)
-                                                        .min(actual.0.len() as i32)
-                                                        .min(
-                                                            mc.0.checked_sub(1).unwrap_or_default()
-                                                                as i32,
-                                                        ),
-                                                );
+                                        } else {
+                                            // delete start - 1 if possible
+                                            if start != 0 {
+                                                actual.0.remove(start as usize - 1);
+                                                sel.start.replace(start - 1);
                                             }
                                         }
                                     }
-                                    InputSequence::ArrowLeft => {
-                                        // if shift
-                                        if e.state.is_pressed() {
-                                            let new_start = start - 1;
-                                            sel.start.replace(new_start.max(0));
-                                        }
-                                    }
-                                    InputSequence::ArrowLeftShift => {
-                                        // highlight left
-                                        // move start
-                                    }
-                                    InputSequence::ArrowRight => {
-                                        // move start
-                                        if e.state.is_pressed() {
-                                            let new_start = start + 1;
+                                }
+                                InputSequence::Enter => {
+                                    // handle action?
+                                }
+                                InputSequence::Character(char) => {
+                                    if e.state.is_pressed() {
+                                        clear_selection(&mut sel, &mut actual);
+                                        if actual.0.len() + char.len() <= mc.0 as usize {
+                                            actual.0.insert_str(
+                                                sel.start.unwrap() as usize,
+                                                char.as_str(),
+                                            );
+                                            let updated_start =
+                                                sel.start.unwrap() + char.len() as i32;
                                             sel.start.replace(
-                                                new_start
+                                                updated_start
+                                                    .max(0)
                                                     .min(actual.0.len() as i32)
                                                     .min(mc.0.checked_sub(1).unwrap_or_default()
                                                         as i32),
                                             );
                                         }
                                     }
-                                    InputSequence::ArrowRightShift => {
-                                        // highlight right
-                                        // move start
+                                }
+                                InputSequence::ArrowLeft => {
+                                    // if shift
+                                    if e.state.is_pressed() {
+                                        let new_start = start - 1;
+                                        sel.start.replace(new_start.max(0));
                                     }
-                                    InputSequence::Space => {
-                                        // insert whitespace
-                                        if e.state.is_pressed() {
-                                            clear_selection(&mut sel, &mut actual);
-                                            if actual.0.len() + 1 <= mc.0 as usize {
-                                                actual
-                                                    .0
-                                                    .insert_str(sel.start.unwrap() as usize, " ");
-                                                let updated_start = sel.start.unwrap() + 1;
-                                                sel.start.replace(
-                                                    updated_start
-                                                        .max(0)
-                                                        .min(actual.0.len() as i32)
-                                                        .min(
-                                                            mc.0.checked_sub(1).unwrap_or_default()
-                                                                as i32,
-                                                        ),
-                                                );
-                                            }
+                                }
+                                InputSequence::ArrowLeftShift => {
+                                    // highlight left
+                                    // move start
+                                }
+                                InputSequence::ArrowRight => {
+                                    // move start
+                                    if e.state.is_pressed() {
+                                        let new_start = start + 1;
+                                        sel.start.replace(
+                                            new_start
+                                                .min(actual.0.len() as i32)
+                                                .min(mc.0.checked_sub(1).unwrap_or_default()
+                                                    as i32),
+                                        );
+                                    }
+                                }
+                                InputSequence::ArrowRightShift => {
+                                    // highlight right
+                                    // move start
+                                }
+                                InputSequence::Space => {
+                                    // insert whitespace
+                                    if e.state.is_pressed() {
+                                        clear_selection(&mut sel, &mut actual);
+                                        if actual.0.len() + 1 <= mc.0 as usize {
+                                            actual.0.insert_str(sel.start.unwrap() as usize, " ");
+                                            let updated_start = sel.start.unwrap() + 1;
+                                            sel.start.replace(
+                                                updated_start
+                                                    .max(0)
+                                                    .min(actual.0.len() as i32)
+                                                    .min(mc.0.checked_sub(1).unwrap_or_default()
+                                                        as i32),
+                                            );
                                         }
                                     }
-                                    InputSequence::Delete => {
-                                        // delete current space
-                                    }
-                                    _ => {}
                                 }
+                                InputSequence::Delete => {
+                                    // delete current space
+                                }
+                                _ => {}
                             }
                         }
                     }
@@ -185,6 +178,11 @@ fn input(
         }
     }
 }
+
+fn trigger_config(actual: &mut ActualText) {
+    actual.0.clear();
+}
+
 fn clear_selection(sel: &mut Selection, actual: &mut ActualText) {
     if let Some(r) = sel.range() {
         actual.0.replace_range(
@@ -247,6 +245,7 @@ impl Scene for TextInput {
                 &'static MaxCharacters,
                 &'static ForegroundColor,
                 &'static BackgroundColor,
+                &'static AlternateColor,
                 &'static TextInputMode,
             ),
             With<Tag<TextInput>>,
@@ -270,6 +269,7 @@ impl Scene for TextInput {
         Changed<MaxCharacters>,
         Changed<ForegroundColor>,
         Changed<BackgroundColor>,
+        Changed<AlternateColor>,
         Changed<HintText>,
     )>;
     type Components = TextInputComponents;
@@ -282,19 +282,20 @@ impl Scene for TextInput {
             .unwrap()
             .get(InteractiveTextBindings::Text);
         let started = ext.3.get(sub_i_text).unwrap().engaged_start();
-        if let Ok((at, ht, mc, fc, bc, mode)) = ext.0.get(entity) {
+        if let Ok((at, ht, mc, fc, bc, ac, mode)) = ext.0.get(entity) {
             let value = match mode {
                 TextInputMode::Normal => TextValue::new(at.0.clone()),
                 TextInputMode::Password => at.clone().to_password(),
             };
             let value = if value.0.is_empty() && !started {
+                *ext.1.get_mut(i_text).unwrap().2 = ac.0.into();
                 TextValue::new(ht.0.clone())
             } else {
+                *ext.1.get_mut(i_text).unwrap().2 = *fc;
                 value
             };
             *ext.1.get_mut(i_text).unwrap().0 = value;
             *ext.1.get_mut(i_text).unwrap().1 = *mc;
-            *ext.1.get_mut(i_text).unwrap().2 = *fc;
             *ext.1.get_mut(i_text).unwrap().3 = *bc;
         }
     }

@@ -133,6 +133,7 @@ fn update_selection(
             Changed<InteractionListener>,
             Changed<Position<InterfaceContext>>,
             Changed<Area<InterfaceContext>>,
+            Changed<Layer>,
         )>,
     >,
     mut rectangles: Query<
@@ -179,6 +180,10 @@ fn update_selection(
                 // store selection string
                 // finish span
             }
+            // TODO if mc.0 > last
+            // -- add more transparent rectangles and add to bindings
+            //      if mc.0 < last
+            // -- remove bindings over mc.0
         }
     }
 }
@@ -247,9 +252,6 @@ impl Scene for InteractiveText {
                         .3
                         .alpha_mut() = 0.0;
                 }
-                // if let Some(_c) = tv.0.get((letter - 1) as usize..letter as usize) {
-                //
-                // }
             }
             *ext.4.get_mut(text).unwrap().1 = tv.clone();
             *ext.4.get_mut(text).unwrap().0 = color_changes;
