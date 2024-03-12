@@ -234,22 +234,23 @@ impl Scene for InteractiveText {
         if let Ok((_fc, bc, mc, tv, sel)) = ext.0.get(entity) {
             let mut color_changes = GlyphColorChanges::new();
             for letter in 1..mc.0 + 1 {
-                if let Some(_c) = tv.0.get((letter - 1) as usize..letter as usize) {
-                    if sel.contains((letter - 1) as i32) {
-                        *ext.1
-                            .get_mut(bindings.get(letter as i32))
-                            .unwrap()
-                            .3
-                            .alpha_mut() = 1.0;
-                        color_changes.0.insert((letter - 1) as TextKey, bc.0);
-                    } else {
-                        *ext.1
-                            .get_mut(bindings.get(letter as i32))
-                            .unwrap()
-                            .3
-                            .alpha_mut() = 0.0;
-                    }
+                if sel.contains((letter - 1) as i32) {
+                    *ext.1
+                        .get_mut(bindings.get(letter as i32))
+                        .unwrap()
+                        .3
+                        .alpha_mut() = 1.0;
+                    color_changes.0.insert((letter - 1) as TextKey, bc.0);
+                } else {
+                    *ext.1
+                        .get_mut(bindings.get(letter as i32))
+                        .unwrap()
+                        .3
+                        .alpha_mut() = 0.0;
                 }
+                // if let Some(_c) = tv.0.get((letter - 1) as usize..letter as usize) {
+                //
+                // }
             }
             *ext.4.get_mut(text).unwrap().1 = tv.clone();
             *ext.4.get_mut(text).unwrap().0 = color_changes;

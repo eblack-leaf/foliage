@@ -1,4 +1,5 @@
 use compact_str::{CompactString, ToCompactString};
+use std::ops::Add;
 
 use foliage_macros::{inner_set_descriptor, InnerSceneBinding};
 use foliage_proper::bevy_ecs;
@@ -72,13 +73,23 @@ fn input(
                                     // last?
                                 }
                                 InputSequence::Backspace => {
-                                    if let Some(r) = sel.range() {
-                                        for i in r.rev() {
-                                            actual.0.remove(i as usize);
+                                    if e.state.is_pressed() {
+                                        if let Some(r) = sel.range() {
+                                            for i in r.rev() {
+                                                actual.0.remove(i as usize);
+                                                *sel.start.as_mut().unwrap() -= 1;
+                                            }
+                                            // update sel.start to be at new place
+                                            *sel.span.as_mut().unwrap() = 0;
+                                            *sel.start.as_mut().unwrap() =
+                                                sel.start.unwrap().add(1).max(0);
+                                        } else {
+                                            // delete start - 1 if possible
+                                            if start != 0 {
+                                                actual.0.remove(start as usize - 1);
+                                                sel.start.replace(start - 1);
+                                            }
                                         }
-                                        // update sel.start to be at new place
-                                    } else {
-                                        // delete start - 1 if possible
                                     }
                                 }
                                 InputSequence::Enter => {
@@ -89,34 +100,47 @@ fn input(
                                         if let Some(r) = sel.range() {
                                             for i in r.rev() {
                                                 actual.0.remove(i as usize);
+                                                *sel.start.as_mut().unwrap() -= 1;
                                             }
                                             // update start
+                                            *sel.span.as_mut().unwrap() = 0;
+                                            *sel.start.as_mut().unwrap() =
+                                                sel.start.unwrap().add(1).max(0);
                                         }
-                                        actual
-                                            .0
-                                            .insert_str(sel.start.unwrap() as usize, char.as_str());
-                                        let updated_start = sel.start.unwrap() + char.len() as i32;
-                                        sel.start.replace(
-                                            updated_start
-                                                .max(0)
-                                                .min(actual.0.len() as i32)
-                                                .min(mc.0.checked_sub(1).unwrap_or_default() as i32),
-                                        );
+                                        if actual.0.len() + char.len() <= mc.0 as usize {
+                                            actual.0.insert_str(
+                                                sel.start.unwrap() as usize,
+                                                char.as_str(),
+                                            );
+                                            let updated_start =
+                                                sel.start.unwrap() + char.len() as i32;
+                                            sel.start.replace(
+                                                updated_start
+                                                    .max(0)
+                                                    .min(actual.0.len() as i32)
+                                                    .min(mc.0.checked_sub(1).unwrap_or_default()
+                                                        as i32),
+                                            );
+                                        }
                                     }
                                 }
                                 InputSequence::ArrowLeft => {
                                     // move start
-                                    let new_start = start - 1;
-                                    sel.start.replace(new_start.max(0));
+                                    if e.state.is_pressed() {
+                                        let new_start = start - 1;
+                                        sel.start.replace(new_start.max(0));
+                                    }
                                 }
                                 InputSequence::ArrowRight => {
                                     // move start
-                                    let new_start = start + 1;
-                                    sel.start.replace(
-                                        new_start
-                                            .min(actual.0.len() as i32)
-                                            .min(mc.0.checked_sub(1).unwrap_or_default() as i32),
-                                    );
+                                    if e.state.is_pressed() {
+                                        let new_start = start + 1;
+                                        sel.start.replace(
+                                            new_start
+                                                .min(actual.0.len() as i32)
+                                                .min(mc.0.checked_sub(1).unwrap_or_default() as i32),
+                                        );
+                                    }
                                 }
                                 InputSequence::Space => {
                                     // insert whitespace
