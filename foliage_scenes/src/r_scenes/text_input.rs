@@ -85,22 +85,24 @@ fn input(
                                     // handle action?
                                 }
                                 InputSequence::Character(char) => {
-                                    if let Some(r) = sel.range() {
-                                        for i in r.rev() {
-                                            actual.0.remove(i as usize);
+                                    if e.state.is_pressed() {
+                                        if let Some(r) = sel.range() {
+                                            for i in r.rev() {
+                                                actual.0.remove(i as usize);
+                                            }
+                                            // update start
                                         }
-                                        // update start
+                                        actual
+                                            .0
+                                            .insert_str(sel.start.unwrap() as usize, char.as_str());
+                                        let updated_start = sel.start.unwrap() + char.len() as i32;
+                                        sel.start.replace(
+                                            updated_start
+                                                .max(0)
+                                                .min(actual.0.len() as i32)
+                                                .min(mc.0.checked_sub(1).unwrap_or_default() as i32),
+                                        );
                                     }
-                                    actual
-                                        .0
-                                        .insert_str(sel.start.unwrap() as usize, char.as_str());
-                                    let updated_start = sel.start.unwrap() + char.len() as i32;
-                                    sel.start.replace(
-                                        updated_start
-                                            .max(0)
-                                            .min(actual.0.len() as i32)
-                                            .min(mc.0.checked_sub(1).unwrap_or_default() as i32),
-                                    );
                                 }
                                 InputSequence::ArrowLeft => {
                                     // move start

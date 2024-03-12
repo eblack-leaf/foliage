@@ -59,6 +59,9 @@ impl Selection {
     pub fn range(&self) -> Option<RangeInclusive<i32>> {
         if let Some(start) = self.start {
             if let Some(span) = self.span {
+                if span == 0 {
+                    return None;
+                }
                 return if span.is_positive() {
                     Some(start..=(start + span))
                 } else {
@@ -74,9 +77,11 @@ impl Selection {
                 return true;
             }
             if let Some(_span) = self.span {
-                for x in self.range().unwrap() {
-                    if x == i {
-                        return true;
+                if let Some(r) = self.range() {
+                    for x in r {
+                        if x == i {
+                            return true;
+                        }
                     }
                 }
             }
