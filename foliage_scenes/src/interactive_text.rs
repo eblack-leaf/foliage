@@ -164,6 +164,10 @@ fn update_selection(
                 .floor()
                 .min(tv.0.len() as f32)
                 .min(mc.0.checked_sub(1).unwrap_or_default() as f32);
+            if listener.lost_focus() {
+                sel.start.take();
+                sel.span.take();
+            }
             if listener.engaged_start() {
                 sel.start.replace(text_key as i32);
             }
@@ -174,10 +178,6 @@ fn update_selection(
             if listener.engaged_end() {
                 // store selection string
                 // finish span
-            }
-            if listener.lost_focus() {
-                sel.start.take();
-                sel.span.take();
             }
         }
     }

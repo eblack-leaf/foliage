@@ -27,13 +27,27 @@ impl Viewable for TextShowcase {
             TextInput::new(
                 TextInputMode::Normal,
                 MaxCharacters(10),
-                "a".to_string(),
-                None,
+                "".to_string(),
+                Some("username".into()),
                 Colors::new(Asparagus::BASE, Greyscale::MINUS_THREE),
             ),
             ResponsiveSegment::base(Segment::new(
                 2.near().to(6.far()),
                 3.near().to(3.far()).maximum(50.0),
+            ))
+            .at_layer(5),
+        );
+        view_builder.add_scene(
+            TextInput::new(
+                TextInputMode::Password,
+                MaxCharacters(10),
+                "".to_string(),
+                Some("password".into()),
+                Colors::new(Asparagus::BASE, Greyscale::MINUS_THREE),
+            ),
+            ResponsiveSegment::base(Segment::new(
+                2.near().to(6.far()),
+                4.near().to(4.far()).maximum(50.0),
             ))
             .at_layer(5),
         );
