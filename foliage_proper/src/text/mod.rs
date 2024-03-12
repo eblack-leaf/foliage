@@ -118,6 +118,7 @@ impl Leaf for Text {
     }
 
     fn attach(elm: &mut Elm) {
+        elm.enable_conditional::<Text>();
         differential_enable!(
             elm,
             CReprPosition,

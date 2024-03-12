@@ -39,6 +39,7 @@ impl Leaf for Rectangle {
     fn config(_elm_configuration: &mut ElmConfiguration) {}
 
     fn attach(elm: &mut Elm) {
+        elm.enable_conditional::<Rectangle>();
         differential_enable!(elm, CReprPosition, CReprArea, Progress, Color);
     }
 }

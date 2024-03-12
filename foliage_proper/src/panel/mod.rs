@@ -53,6 +53,7 @@ impl Leaf for Panel {
     }
 
     fn attach(elm: &mut Elm) {
+        elm.enable_conditional::<Panel>();
         differential_enable!(elm, Color, Style);
         elm.job
             .main()

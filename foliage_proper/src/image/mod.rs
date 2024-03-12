@@ -104,6 +104,7 @@ impl Leaf for Image {
     fn config(_elm_configuration: &mut ElmConfiguration) {}
 
     fn attach(elm: &mut Elm) {
+        elm.enable_conditional::<Image>();
         elm.main().add_systems((
             clean_requests.after(CoreSet::RenderPacket),
             send_image_data.in_set(CoreSet::Differential),

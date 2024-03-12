@@ -73,6 +73,7 @@ impl Leaf for Circle {
     }
 
     fn attach(elm: &mut Elm) {
+        elm.enable_conditional::<Circle>();
         differential_enable!(
             elm,
             CReprPosition,

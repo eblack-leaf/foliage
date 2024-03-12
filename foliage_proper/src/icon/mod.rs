@@ -76,6 +76,7 @@ impl Leaf for Icon {
     }
 
     fn attach(elm: &mut Elm) {
+        elm.enable_conditional::<Icon>();
         differential_enable!(elm, CReprPosition, CReprArea, Color, IconId, WasRequest);
         elm.job.main().add_systems((
             scale_change.in_set(SetDescriptor::Update),
