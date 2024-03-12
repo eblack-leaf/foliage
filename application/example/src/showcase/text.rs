@@ -1,5 +1,6 @@
 use foliage::color::monochromatic::{Asparagus, Greyscale, Monochromatic};
 use foliage::r_scenes::interactive_text::InteractiveText;
+use foliage::r_scenes::text_input::{TextInput, TextInputMode};
 use foliage::r_scenes::Colors;
 use foliage::segment::{MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::text::{MaxCharacters, TextValue};
@@ -22,14 +23,20 @@ impl Viewable for TextShowcase {
             ))
             .at_layer(5),
         );
-        // view_builder.add(
-        //     Rectangle::new(Asparagus::MINUS_THREE, Progress::full()),
-        //     ResponsiveSegment::base(Segment::new(
-        //         2.near().to(6.far()),
-        //         2.near().to(2.far()).maximum(50.0),
-        //     ))
-        //     .at_layer(6),
-        // );
+        view_builder.add_scene(
+            TextInput::new(
+                TextInputMode::Normal,
+                MaxCharacters(10),
+                "a".to_string(),
+                None,
+                Colors::new(Asparagus::BASE, Greyscale::MINUS_THREE),
+            ),
+            ResponsiveSegment::base(Segment::new(
+                2.near().to(6.far()),
+                3.near().to(3.far()).maximum(50.0),
+            ))
+            .at_layer(5),
+        );
         view_builder.finish()
     }
 }

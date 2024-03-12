@@ -1,4 +1,4 @@
-use compact_str::CompactString;
+use compact_str::{CompactString, ToCompactString};
 
 use foliage_macros::{inner_set_descriptor, InnerSceneBinding};
 use foliage_proper::bevy_ecs;
@@ -16,10 +16,10 @@ use foliage_proper::panel::Panel;
 use foliage_proper::scene::micro_grid::{
     AlignmentDesc, AnchorDim, MicroGrid, MicroGridAlignment, RelativeMarker,
 };
-use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
+use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle, ScenePtr};
 use foliage_proper::text::{MaxCharacters, TextValue};
 
-use crate::r_scenes::interactive_text::{InteractiveText, Selection};
+use crate::r_scenes::interactive_text::{InteractiveText, InteractiveTextBindings, Selection};
 use crate::r_scenes::{BackgroundColor, Colors, ForegroundColor};
 
 pub struct TextInput {
@@ -48,82 +48,92 @@ impl TextInput {
 }
 fn input(
     mut keyboards: EventReader<KeyboardEvent>,
-    mut text_inputs: Query<(
-        &mut Selection,
-        &TextInputMode,
-        &mut ActualText,
-        &Bindings,
-        &MaxCharacters,
-    )>,
+    mut text_inputs: Query<(&mut ActualText, &MaxCharacters)>,
     focused_entity: Res<FocusedEntity>,
+    mut selections: Query<(&mut Selection, &Bindings, &ScenePtr), With<Tag<InteractiveText>>>,
 ) {
     if let Some(e) = focused_entity.0 {
-        if let Ok((mut sel, mode, mut actual, bindings, mc)) = text_inputs.get_mut(e) {
-            if let Some(start) = sel.start {
-                for e in keyboards.read() {
-                    match e.sequence() {
-                        InputSequence::CtrlX => {
-                            // remove selection + copy to clipboard
-                        }
-                        InputSequence::CtrlC => {
-                            // copy to clipboard
-                        }
-                        InputSequence::CtrlA => {
-                            // select all
-                        }
-                        InputSequence::CtrlZ => {
-                            // last?
-                        }
-                        InputSequence::Backspace => {
-                            if let Some(r) = sel.range() {
-                                for i in r.rev() {
-                                    actual.0.remove(i as usize);
+        for (mut sel, it_bindings, ptr) in selections.iter_mut() {
+            if e == it_bindings.get(InteractiveTextBindings::Text) {
+                if let Ok((mut actual, mc)) = text_inputs.get_mut(ptr.value()) {
+                    if let Some(start) = sel.start {
+                        for e in keyboards.read() {
+                            match e.sequence() {
+                                InputSequence::CtrlX => {
+                                    // remove selection + copy to clipboard
                                 }
-                                // update sel.start to be at new place
-                            } else {
-                                // delete start - 1 if possible
+                                InputSequence::CtrlC => {
+                                    // copy to clipboard
+                                }
+                                InputSequence::CtrlA => {
+                                    // select all
+                                }
+                                InputSequence::CtrlZ => {
+                                    // last?
+                                }
+                                InputSequence::Backspace => {
+                                    if let Some(r) = sel.range() {
+                                        for i in r.rev() {
+                                            actual.0.remove(i as usize);
+                                        }
+                                        // update sel.start to be at new place
+                                    } else {
+                                        // delete start - 1 if possible
+                                    }
+                                }
+                                InputSequence::Enter => {
+                                    // handle action?
+                                }
+                                InputSequence::Character(char) => {
+                                    if let Some(r) = sel.range() {
+                                        for i in r.rev() {
+                                            actual.0.remove(i as usize);
+                                        }
+                                        // update start
+                                    }
+                                    actual
+                                        .0
+                                        .insert_str(sel.start.unwrap() as usize, char.as_str());
+                                    let updated_start = sel.start.unwrap() + char.len() as i32;
+                                    sel.start.replace(
+                                        updated_start
+                                            .max(0)
+                                            .min(actual.0.len() as i32)
+                                            .min(mc.0.checked_sub(1).unwrap_or_default() as i32),
+                                    );
+                                }
+                                InputSequence::ArrowLeft => {
+                                    // move start
+                                    let new_start = start - 1;
+                                    sel.start.replace(new_start.max(0));
+                                }
+                                InputSequence::ArrowRight => {
+                                    // move start
+                                    let new_start = start + 1;
+                                    sel.start.replace(
+                                        new_start
+                                            .min(actual.0.len() as i32)
+                                            .min(mc.0.checked_sub(1).unwrap_or_default() as i32),
+                                    );
+                                }
+                                InputSequence::Space => {
+                                    // insert whitespace
+                                }
+                                InputSequence::Delete => {
+                                    // delete current space
+                                }
+                                _ => {}
                             }
                         }
-                        InputSequence::Enter => {
-                            // handle action?
-                        }
-                        InputSequence::Character(char) => {
-                            if let Some(r) = sel.range() {
-                                for i in r.rev() {
-                                    actual.0.remove(i as usize);
-                                }
-                                // update start
-                            }
-                            actual
-                                .0
-                                .insert_str(sel.start.unwrap() as usize, char.as_str());
-                            let updated_start = sel.start.unwrap() + char.len() as i32;
-                            sel.start.replace(
-                                updated_start
-                                    .max(0)
-                                    .min(actual.0.len() as i32)
-                                    .min(mc.0.checked_sub(1).unwrap_or_default() as i32),
-                            );
-                        }
-                        InputSequence::ArrowLeft => {
-                            // move start
-                        }
-                        InputSequence::ArrowRight => {
-                            // move start
-                        }
-                        InputSequence::Space => {
-                            // insert whitespace
-                        }
-                        InputSequence::Delete => {
-                            // delete current space
-                        }
-                        _ => {}
                     }
                 }
             }
         }
     }
 }
+
+#[derive(Component, Clone)]
+pub struct HintText(pub CompactString);
 #[derive(Component, Copy, Clone)]
 pub enum TextInputMode {
     Normal,
@@ -145,11 +155,10 @@ impl From<String> for ActualText {
 #[derive(Bundle, Clone)]
 pub struct TextInputComponents {
     pub actual: ActualText,
-    pub display: TextValue,
     pub max_chars: MaxCharacters,
     pub colors: Colors,
     pub mode: TextInputMode,
-    pub selection: Selection,
+    pub hint_text: HintText,
 }
 #[derive(InnerSceneBinding)]
 pub enum TextInputBindings {
@@ -167,7 +176,7 @@ impl Scene for TextInput {
             'static,
             (
                 &'static ActualText,
-                &'static Selection,
+                &'static HintText,
                 &'static MaxCharacters,
                 &'static ForegroundColor,
                 &'static BackgroundColor,
@@ -180,7 +189,6 @@ impl Scene for TextInput {
             'static,
             (
                 &'static mut TextValue,
-                &'static mut Selection,
                 &'static mut MaxCharacters,
                 &'static mut ForegroundColor,
                 &'static mut BackgroundColor,
@@ -190,24 +198,29 @@ impl Scene for TextInput {
     );
     type Filter = Or<(
         Changed<ActualText>,
-        Changed<Selection>,
         Changed<MaxCharacters>,
         Changed<ForegroundColor>,
         Changed<BackgroundColor>,
+        Changed<HintText>,
     )>;
     type Components = TextInputComponents;
     #[allow(unused)]
     fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
         let i_text = bindings.get(TextInputBindings::Text);
-        if let Ok((at, sel, mc, fc, bc, mode)) = ext.0.get(entity) {
-            *ext.1.get_mut(i_text).unwrap().0 = match mode {
+        if let Ok((at, ht, mc, fc, bc, mode)) = ext.0.get(entity) {
+            let value = match mode {
                 TextInputMode::Normal => TextValue::new(at.0.clone()),
                 TextInputMode::Password => at.clone().to_password(),
             };
-            *ext.1.get_mut(i_text).unwrap().1 = *sel;
-            *ext.1.get_mut(i_text).unwrap().2 = *mc;
-            *ext.1.get_mut(i_text).unwrap().3 = *fc;
-            *ext.1.get_mut(i_text).unwrap().4 = *bc;
+            let value = if value.0.is_empty() {
+                TextValue::new(ht.0.clone())
+            } else {
+                value
+            };
+            *ext.1.get_mut(i_text).unwrap().0 = value;
+            *ext.1.get_mut(i_text).unwrap().1 = *mc;
+            *ext.1.get_mut(i_text).unwrap().2 = *fc;
+            *ext.1.get_mut(i_text).unwrap().3 = *bc;
         }
     }
 
@@ -220,9 +233,10 @@ impl Scene for TextInput {
                 1.percent_of(AnchorDim::Width),
                 1.percent_of(AnchorDim::Height),
             )
-            .offset_layer(2),
-            Panel::new(Style::fill(), self.colors.foreground.0),
+            .offset_layer(3),
+            Panel::new(Style::fill(), self.colors.background.0),
         );
+        let actual: ActualText = self.text.into();
         binder.bind_scene(
             TextInputBindings::Text,
             MicroGridAlignment::new(
@@ -232,21 +246,23 @@ impl Scene for TextInput {
                 0.9.percent_of(AnchorDim::Height),
             )
             .offset_layer(1),
-            InteractiveText::new(self.max_chars, self.text.clone().into(), self.colors),
-        );
-        let actual: ActualText = self.text.into();
-        binder.finish::<Self>(SceneComponents::new(
-            MicroGrid::new().aspect_ratio(self.max_chars.mono_aspect().value() * 1.25),
-            TextInputComponents {
-                actual: actual.clone(),
-                display: match self.mode {
+            InteractiveText::new(
+                self.max_chars,
+                match self.mode {
                     TextInputMode::Normal => actual.clone().0.as_str().into(),
                     TextInputMode::Password => actual.clone().to_password(),
                 },
+                self.colors,
+            ),
+        );
+        binder.finish::<Self>(SceneComponents::new(
+            MicroGrid::new().aspect_ratio(self.max_chars.mono_aspect().value() * 1.25),
+            TextInputComponents {
+                actual,
                 max_chars: self.max_chars,
                 colors: self.colors,
                 mode: self.mode,
-                selection: Selection::default(),
+                hint_text: HintText(self.hint_text.unwrap_or_default().to_compact_string()),
             },
         ))
     }

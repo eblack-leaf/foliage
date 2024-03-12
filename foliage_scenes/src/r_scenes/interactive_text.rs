@@ -1,4 +1,4 @@
-use foliage_macros::inner_set_descriptor;
+use foliage_macros::{inner_set_descriptor, InnerSceneBinding};
 use foliage_proper::bevy_ecs;
 use foliage_proper::bevy_ecs::bundle::Bundle;
 use foliage_proper::bevy_ecs::entity::Entity;
@@ -42,6 +42,10 @@ impl InteractiveText {
             colors,
         }
     }
+}
+#[derive(InnerSceneBinding)]
+pub enum InteractiveTextBindings {
+    Text,
 }
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct Selection {
@@ -245,7 +249,7 @@ impl Scene for InteractiveText {
 
     fn create(self, mut binder: Binder) -> SceneHandle {
         let text = binder.bind(
-            0,
+            InteractiveTextBindings::Text,
             MicroGridAlignment::new(
                 0.percent_from(RelativeMarker::Center),
                 0.percent_from(RelativeMarker::Center),
