@@ -195,7 +195,7 @@ impl Render for Rectangle {
         per_renderer_record_hook: &mut bool,
     ) {
         let should_record = resources.instance_coordinator.prepare(ginkgo);
-        if should_record {
+        if should_record || true {
             *per_renderer_record_hook = true;
         }
     }
