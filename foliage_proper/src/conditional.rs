@@ -150,6 +150,7 @@ pub(crate) fn conditional_scene_spawn<CS: Scene + Clone>(
         if trigger.is_active() {
             match cond.target {
                 SpawnTarget::This(entity) => {
+                    cmd.entity(entity).remove::<SceneComponents<CS>>();
                     let _scene_desc = cond.cs.clone().create(Binder::new(&mut cmd, Some(entity)));
                 }
                 SpawnTarget::BindingOf(_, _) => {}
