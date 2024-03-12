@@ -67,8 +67,20 @@ impl KeyboardEvent {
         match &self.key {
             Key::Named(name) => match name {
                 NamedKey::Backspace => InputSequence::Backspace,
-                NamedKey::ArrowLeft => InputSequence::ArrowLeft,
-                NamedKey::ArrowRight => InputSequence::ArrowRight,
+                NamedKey::ArrowLeft => {
+                    if self.modifiers.state() == ModifiersState::SHIFT {
+                        InputSequence::ArrowLeftShift
+                    } else {
+                        InputSequence::ArrowLeft
+                    }
+                }
+                NamedKey::ArrowRight => {
+                    if self.modifiers.state() == ModifiersState::SHIFT {
+                        InputSequence::ArrowRightShift
+                    } else {
+                        InputSequence::ArrowRight
+                    }
+                }
                 NamedKey::Space => InputSequence::Space,
                 NamedKey::Enter => InputSequence::Enter,
                 NamedKey::Delete => InputSequence::Delete,
@@ -107,6 +119,8 @@ pub enum InputSequence {
     Unidentified,
     Space,
     Delete,
+    ArrowLeftShift,
+    ArrowRightShift,
 }
 #[derive(Resource, Default)]
 pub struct PrimaryInteraction(pub(crate) Option<InteractionId>);

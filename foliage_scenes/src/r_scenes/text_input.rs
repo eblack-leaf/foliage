@@ -74,15 +74,8 @@ fn input(
                                 }
                                 InputSequence::Backspace => {
                                     if e.state.is_pressed() {
-                                        if let Some(r) = sel.range() {
-                                            for i in r.rev() {
-                                                actual.0.remove(i as usize);
-                                                *sel.start.as_mut().unwrap() -= 1;
-                                            }
-                                            // update sel.start to be at new place
-                                            *sel.span.as_mut().unwrap() = 0;
-                                            *sel.start.as_mut().unwrap() =
-                                                sel.start.unwrap().add(1).max(0);
+                                        if sel.range().is_some() {
+                                            clear_selection(&mut sel, &mut actual);
                                         } else {
                                             // delete start - 1 if possible
                                             if start != 0 {
@@ -97,16 +90,7 @@ fn input(
                                 }
                                 InputSequence::Character(char) => {
                                     if e.state.is_pressed() {
-                                        if let Some(r) = sel.range() {
-                                            for i in r.rev() {
-                                                actual.0.remove(i as usize);
-                                                *sel.start.as_mut().unwrap() -= 1;
-                                            }
-                                            // update start
-                                            *sel.span.as_mut().unwrap() = 0;
-                                            *sel.start.as_mut().unwrap() =
-                                                sel.start.unwrap().add(1).max(0);
-                                        }
+                                        clear_selection(&mut sel, &mut actual);
                                         if actual.0.len() + char.len() <= mc.0 as usize {
                                             actual.0.insert_str(
                                                 sel.start.unwrap() as usize,
@@ -125,11 +109,15 @@ fn input(
                                     }
                                 }
                                 InputSequence::ArrowLeft => {
-                                    // move start
+                                    // if shift
                                     if e.state.is_pressed() {
                                         let new_start = start - 1;
                                         sel.start.replace(new_start.max(0));
                                     }
+                                }
+                                InputSequence::ArrowLeftShift => {
+                                    // highlight left
+                                    // move start
                                 }
                                 InputSequence::ArrowRight => {
                                     // move start
@@ -142,8 +130,26 @@ fn input(
                                         );
                                     }
                                 }
+                                InputSequence::ArrowRightShift => {
+                                    // highlight right
+                                    // move start
+                                }
                                 InputSequence::Space => {
                                     // insert whitespace
+                                    if e.state.is_pressed() {
+                                        clear_selection(&mut sel, &mut actual);
+                                        if actual.0.len() + 1 <= mc.0 as usize {
+                                            actual.0.insert_str(sel.start.unwrap() as usize, " ");
+                                            let updated_start = sel.start.unwrap() + 1;
+                                            sel.start.replace(
+                                                updated_start
+                                                    .max(0)
+                                                    .min(actual.0.len() as i32)
+                                                    .min(mc.0.checked_sub(1).unwrap_or_default()
+                                                        as i32),
+                                            );
+                                        }
+                                    }
                                 }
                                 InputSequence::Delete => {
                                     // delete current space
@@ -157,7 +163,20 @@ fn input(
         }
     }
 }
-
+fn clear_selection(sel: &mut Selection, actual: &mut ActualText) {
+    if let Some(r) = sel.range() {
+        actual.0.replace_range(
+            *r.start() as usize
+                ..=(*r.end() as usize).min(actual.0.len().checked_sub(1).unwrap_or_default()),
+            "",
+        );
+        for _i in r {
+            *sel.start.as_mut().unwrap() -= 1;
+        }
+        *sel.span.as_mut().unwrap() = 0;
+        *sel.start.as_mut().unwrap() = sel.start.unwrap().add(1).max(0);
+    }
+}
 #[derive(Component, Clone)]
 pub struct HintText(pub CompactString);
 #[derive(Component, Copy, Clone)]
