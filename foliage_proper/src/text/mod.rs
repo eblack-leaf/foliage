@@ -244,7 +244,7 @@ pub(crate) fn changes(
         placer.0.reset(&fontdue::layout::LayoutSettings {
             max_width: None,
             max_height: Some(scaled.height),
-            line_height: MonospacedFont::TEXT_HEIGHT_CORRECTION,
+            line_height: MonospacedFont::LINE_HEIGHT,
             wrap_style: fontdue::layout::WrapStyle::Letter,
             ..fontdue::layout::LayoutSettings::default()
         });

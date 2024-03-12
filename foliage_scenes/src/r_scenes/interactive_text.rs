@@ -146,12 +146,17 @@ fn update_selection(
     >,
 ) {
     for (mc, mut sel, tv, bindings, mut d) in query.iter_mut() {
-        if let Ok((listener, pos, area, layer)) = listeners.get(bindings.get(0)) {
+        if let Ok((listener, pos, area, layer)) =
+            listeners.get(bindings.get(InteractiveTextBindings::Text))
+        {
             let (_fs, _fa, dims) = font.best_fit(*mc, *area, &scale_factor);
             *d = dims;
             for letter in 1..mc.0 + 1 {
-                *rectangles.get_mut(bindings.get(letter as i32)).unwrap().0 =
-                    *pos + Position::new((letter as f32 - 1f32) * dims.dimensions().width, 0.0);
+                *rectangles.get_mut(bindings.get(letter as i32)).unwrap().0 = *pos
+                    + Position::<InterfaceContext>::new(
+                        (letter as f32 - 1f32) * dims.dimensions().width,
+                        0.0,
+                    );
                 *rectangles.get_mut(bindings.get(letter as i32)).unwrap().1 = dims.dimensions();
                 *rectangles.get_mut(bindings.get(letter as i32)).unwrap().2 = *layer + 1.into();
             }
@@ -175,7 +180,6 @@ fn update_selection(
                 sel.start.take();
                 sel.span.take();
             }
-            // bound selection here
         }
     }
 }

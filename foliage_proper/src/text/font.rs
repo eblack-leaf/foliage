@@ -7,7 +7,7 @@ use bevy_ecs::system::Resource;
 #[derive(Resource)]
 pub struct MonospacedFont(pub fontdue::Font);
 impl MonospacedFont {
-    pub const TEXT_HEIGHT_CORRECTION: f32 = 1.0;
+    pub const LINE_HEIGHT: f32 = 1.0;
     pub const MAX_CHECKED_FONT_SIZE: u32 = 500;
     pub fn character_dimensions(&self, px: CoordinateUnit) -> Area<DeviceContext> {
         let horizontal_metrics = self.0.horizontal_line_metrics(px).unwrap();
@@ -42,10 +42,10 @@ impl MonospacedFont {
             && calc_area.width <= extent.width
             && font_size.0 < Self::MAX_CHECKED_FONT_SIZE
         {
+            font_size.0 += 1;
             let area_metrics = Text::area_metrics(font_size, max_characters, self, scale_factor);
             calc_area = area_metrics.0;
             dims = area_metrics.1;
-            font_size.0 += 1;
         }
         (font_size, calc_area, dims)
     }
