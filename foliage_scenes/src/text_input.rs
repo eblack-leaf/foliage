@@ -332,7 +332,7 @@ impl Scene for TextInput {
             ),
         );
         binder.finish::<Self>(SceneComponents::new(
-            MicroGrid::new().aspect_ratio(self.max_chars.mono_aspect().value() * 1.25),
+            MicroGrid::new(),
             TextInputComponents {
                 actual,
                 max_chars: self.max_chars,
