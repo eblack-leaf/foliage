@@ -29,7 +29,8 @@ impl Viewable for TextShowcase {
                 MaxCharacters(10),
                 "".to_string(),
                 Some("username".into()),
-                Colors::new(Asparagus::BASE, Greyscale::MINUS_THREE),
+                Colors::new(Asparagus::BASE, Greyscale::MINUS_THREE)
+                    .with_alternate(Greyscale::BASE),
             ),
             ResponsiveSegment::base(Segment::new(
                 2.near().to(6.far()),

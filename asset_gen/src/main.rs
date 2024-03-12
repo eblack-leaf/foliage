@@ -5,12 +5,14 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     let asset_dir = args.get(1).unwrap();
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .canonicalize()
+        .unwrap();
+    let actual_asset_dir = root
         .parent()
         .unwrap()
         .canonicalize()
-        .unwrap();
-    let actual_asset_dir = root.join(asset_dir);
-    let output_file = args.get(2).unwrap();
+        .unwrap()
+        .join(asset_dir);
     let mut output = vec![];
     output.push("#[foliage::assets()]".to_string());
     output.push("#[derive(Resource, Clone)]".to_string());
@@ -59,7 +61,7 @@ fn main() {
         }
     }
     output.push("}".to_string());
-    let o_file = root.join(output_file);
+    let o_file = root.join("generated.rs");
     std::fs::write(
         o_file,
         output.iter().map(|o| o.clone() + "\n").collect::<String>(),

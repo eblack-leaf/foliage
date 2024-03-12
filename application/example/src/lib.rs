@@ -1,8 +1,8 @@
-mod assets_gen;
+mod generated;
 mod overlay;
 mod showcase;
 
-use crate::assets_gen::AssetGen;
+use crate::generated::AssetGen;
 use crate::overlay::Overlay;
 use crate::showcase::icon::scene::IconDisplay;
 use crate::showcase::icon::IconShowcase;
