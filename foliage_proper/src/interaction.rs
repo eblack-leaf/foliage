@@ -394,6 +394,7 @@ pub fn set_interaction_listeners(
                 tracing::trace!("grabbing primary: {:?}", grab.0);
                 primary.0.replace(ie.id);
                 primary_entity.0.replace(grab.0);
+                focused_entity.0.replace(grab.0);
                 listeners.get_mut(grab.0).unwrap().1.engaged = true;
                 listeners.get_mut(grab.0).unwrap().1.engaged_start = true;
                 listeners.get_mut(grab.0).unwrap().1.interaction = Interaction::new(position);
