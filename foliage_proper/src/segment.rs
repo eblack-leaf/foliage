@@ -67,10 +67,10 @@ impl MacroGrid {
     }
     pub fn horizontal(&self, area: Area<InterfaceContext>, unit: SegmentUnit) -> GridRelativeValue {
         if let Some(a) = unit.absolute {
-            return GridRelativeValue::Fixed(a);
+            return GridRelativeValue::Fixed(a + unit.offset.unwrap_or_default());
         }
         if let Some(r) = unit.relative {
-            return GridRelativeValue::Fixed(r * area.width);
+            return GridRelativeValue::Fixed(r * area.width + unit.offset.unwrap_or_default());
         }
         GridRelativeValue::Anchored(
             unit.value() * self.column_element_width(area.width)
@@ -82,10 +82,10 @@ impl MacroGrid {
     }
     pub fn vertical(&self, area: Area<InterfaceContext>, unit: SegmentUnit) -> GridRelativeValue {
         if let Some(a) = unit.absolute {
-            return GridRelativeValue::Fixed(a);
+            return GridRelativeValue::Fixed(a + unit.offset.unwrap_or_default());
         }
         if let Some(r) = unit.relative {
-            return GridRelativeValue::Fixed(r * area.height);
+            return GridRelativeValue::Fixed(r * area.height + unit.offset.unwrap_or_default());
         }
         GridRelativeValue::Anchored(
             unit.value() * self.row_element_height(area.height)
