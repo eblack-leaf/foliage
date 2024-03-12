@@ -13,9 +13,11 @@ use bevy_ecs::event::{Event, EventReader};
 use bevy_ecs::prelude::{DetectChanges, Entity, IntoSystemConfigs};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Query, Res, ResMut, Resource};
+use compact_str::{CompactString, ToCompactString};
 use nalgebra::{distance, Point};
 use std::collections::HashMap;
 use winit::event::{ElementState, Modifiers, MouseButton, TouchPhase};
+use winit::keyboard::{ModifiersState, NamedKey};
 
 impl Leaf for Interaction {
     type SetDescriptor = EmptySetDescriptor;
@@ -61,6 +63,50 @@ impl KeyboardEvent {
             modifiers: mods,
         }
     }
+    pub fn sequence(&self) -> InputSequence {
+        match &self.key {
+            Key::Named(name) => match name {
+                NamedKey::Backspace => InputSequence::Backspace,
+                NamedKey::ArrowLeft => InputSequence::ArrowLeft,
+                NamedKey::ArrowRight => InputSequence::ArrowRight,
+                NamedKey::Space => InputSequence::Space,
+                NamedKey::Enter => InputSequence::Enter,
+                NamedKey::Delete => InputSequence::Delete,
+                _ => InputSequence::Unidentified,
+            },
+            Key::Character(char) => {
+                let value = char.to_lowercase();
+                if value.contains("a") && self.modifiers.state() == ModifiersState::CONTROL {
+                    InputSequence::CtrlA
+                } else if value.contains("x") && self.modifiers.state() == ModifiersState::CONTROL {
+                    InputSequence::CtrlX
+                } else if value.contains("c") && self.modifiers.state() == ModifiersState::CONTROL {
+                    InputSequence::CtrlC
+                } else {
+                    InputSequence::Character(char.to_compact_string())
+                }
+            }
+            Key::Unidentified(_) => InputSequence::Unidentified,
+            Key::Dead(_) => InputSequence::Unidentified,
+        }
+    }
+}
+#[derive(Clone)]
+pub enum InputSequence {
+    CtrlX,
+    CtrlC,
+    CtrlA,
+    CtrlZ,
+    Backspace,
+    Enter,
+    Character(CompactString),
+    ArrowLeft,
+    ArrowRight,
+    ArrowDown,
+    ArrowUp,
+    Unidentified,
+    Space,
+    Delete,
 }
 #[derive(Resource, Default)]
 pub struct PrimaryInteraction(pub(crate) Option<InteractionId>);
@@ -339,7 +385,9 @@ pub fn set_interaction_listeners(
                 listeners.get_mut(grab.0).unwrap().1.interaction = Interaction::new(position);
             } else {
                 if let Some(e) = focused_entity.0.take() {
-                    listeners.get_mut(e).unwrap().1.lost_focus = true;
+                    if let Ok(mut list) = listeners.get_mut(e) {
+                        list.1.lost_focus = true;
+                    }
                 }
             }
         } else if ie.id == primary.0.unwrap() {
@@ -362,13 +410,17 @@ pub fn set_interaction_listeners(
                 }
                 InteractionPhase::End => {
                     if let Some(prime) = primary_entity.0.take() {
+                        let mut to_be_unfocused = None;
                         if let Ok((_, mut listener, pos, area, _)) = listeners.get_mut(prime) {
                             let section = Section::new(*pos, *area);
                             if listener.shape(section).contains(position) {
                                 listener.interaction.current = position;
                                 listener.interaction.end.replace(position);
                                 if let Some(old) = focused_entity.0.replace(prime) {
-                                    if old != prime {}
+                                    if old != prime {
+                                        // defer
+                                        to_be_unfocused.replace(old);
+                                    }
                                 }
                                 listener.active = true;
                             }
@@ -377,12 +429,21 @@ pub fn set_interaction_listeners(
                             listener.engaged_end = true;
                         } else {
                             if let Some(e) = focused_entity.0.take() {
-                                listeners.get_mut(e).unwrap().1.lost_focus = true;
+                                if let Ok(mut list) = listeners.get_mut(e) {
+                                    list.1.lost_focus = true;
+                                }
+                            }
+                        }
+                        if let Some(e) = to_be_unfocused {
+                            if let Ok(mut list) = listeners.get_mut(e) {
+                                list.1.lost_focus = true;
                             }
                         }
                     } else {
                         if let Some(e) = focused_entity.0.take() {
-                            listeners.get_mut(e).unwrap().1.lost_focus = true;
+                            if let Ok(mut list) = listeners.get_mut(e) {
+                                list.1.lost_focus = true;
+                            }
                         }
                     }
                     primary.0.take();
@@ -391,7 +452,9 @@ pub fn set_interaction_listeners(
                     primary.0.take();
                     primary_entity.0.take();
                     if let Some(e) = focused_entity.0.take() {
-                        listeners.get_mut(e).unwrap().1.lost_focus = true;
+                        if let Ok(mut list) = listeners.get_mut(e) {
+                            list.1.lost_focus = true;
+                        }
                     }
                 }
             }

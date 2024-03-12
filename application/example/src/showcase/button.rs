@@ -1,6 +1,5 @@
 use crate::Orange;
 use foliage::color::monochromatic::{Greyscale, Monochromatic};
-use foliage::color::Color;
 use foliage::coordinate::CoordinateUnit;
 use foliage::elm::Style;
 use foliage::icon::FeatherIcon;

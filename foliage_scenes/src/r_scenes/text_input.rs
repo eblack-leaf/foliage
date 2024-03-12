@@ -4,10 +4,14 @@ use foliage_macros::{inner_set_descriptor, InnerSceneBinding};
 use foliage_proper::bevy_ecs;
 use foliage_proper::bevy_ecs::bundle::Bundle;
 use foliage_proper::bevy_ecs::entity::Entity;
-use foliage_proper::bevy_ecs::prelude::Component;
-use foliage_proper::bevy_ecs::system::SystemParamItem;
-
-use foliage_proper::elm::Style;
+use foliage_proper::bevy_ecs::event::EventReader;
+use foliage_proper::bevy_ecs::prelude::{Component, IntoSystemConfigs};
+use foliage_proper::bevy_ecs::query::{Changed, Or, With, Without};
+use foliage_proper::bevy_ecs::system::{Query, Res, SystemParamItem};
+use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
+use foliage_proper::elm::leaf::{Leaf, Tag};
+use foliage_proper::elm::{Elm, Style};
+use foliage_proper::interaction::{FocusedEntity, InputSequence, KeyboardEvent};
 use foliage_proper::panel::Panel;
 use foliage_proper::scene::micro_grid::{
     AlignmentDesc, AnchorDim, MicroGrid, MicroGridAlignment, RelativeMarker,
@@ -15,8 +19,8 @@ use foliage_proper::scene::micro_grid::{
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
 use foliage_proper::text::{MaxCharacters, TextValue};
 
-use crate::r_scenes::interactive_text::InteractiveText;
-use crate::r_scenes::Colors;
+use crate::r_scenes::interactive_text::{InteractiveText, Selection};
+use crate::r_scenes::{BackgroundColor, Colors, ForegroundColor};
 
 pub struct TextInput {
     pub max_chars: MaxCharacters,
@@ -39,6 +43,84 @@ impl TextInput {
             text,
             hint_text,
             mode,
+        }
+    }
+}
+fn input(
+    mut keyboards: EventReader<KeyboardEvent>,
+    mut text_inputs: Query<(
+        &mut Selection,
+        &TextInputMode,
+        &mut ActualText,
+        &Bindings,
+        &MaxCharacters,
+    )>,
+    focused_entity: Res<FocusedEntity>,
+) {
+    if let Some(e) = focused_entity.0 {
+        if let Ok((mut sel, mode, mut actual, bindings, mc)) = text_inputs.get_mut(e) {
+            if let Some(start) = sel.start {
+                for e in keyboards.read() {
+                    match e.sequence() {
+                        InputSequence::CtrlX => {
+                            // remove selection + copy to clipboard
+                        }
+                        InputSequence::CtrlC => {
+                            // copy to clipboard
+                        }
+                        InputSequence::CtrlA => {
+                            // select all
+                        }
+                        InputSequence::CtrlZ => {
+                            // last?
+                        }
+                        InputSequence::Backspace => {
+                            if let Some(r) = sel.range() {
+                                for i in r.rev() {
+                                    actual.0.remove(i as usize);
+                                }
+                                // update sel.start to be at new place
+                            } else {
+                                // delete start - 1 if possible
+                            }
+                        }
+                        InputSequence::Enter => {
+                            // handle action?
+                        }
+                        InputSequence::Character(char) => {
+                            if let Some(r) = sel.range() {
+                                for i in r.rev() {
+                                    actual.0.remove(i as usize);
+                                }
+                                // update start
+                            }
+                            actual
+                                .0
+                                .insert_str(sel.start.unwrap() as usize, char.as_str());
+                            let updated_start = sel.start.unwrap() + char.len() as i32;
+                            sel.start.replace(
+                                updated_start
+                                    .max(0)
+                                    .min(actual.0.len() as i32)
+                                    .min(mc.0.checked_sub(1).unwrap_or_default() as i32),
+                            );
+                        }
+                        InputSequence::ArrowLeft => {
+                            // move start
+                        }
+                        InputSequence::ArrowRight => {
+                            // move start
+                        }
+                        InputSequence::Space => {
+                            // insert whitespace
+                        }
+                        InputSequence::Delete => {
+                            // delete current space
+                        }
+                        _ => {}
+                    }
+                }
+            }
         }
     }
 }
@@ -67,6 +149,7 @@ pub struct TextInputComponents {
     pub max_chars: MaxCharacters,
     pub colors: Colors,
     pub mode: TextInputMode,
+    pub selection: Selection,
 }
 #[derive(InnerSceneBinding)]
 pub enum TextInputBindings {
@@ -78,12 +161,54 @@ pub enum SetDescriptor {
     Update,
 }
 impl Scene for TextInput {
-    type Params = ();
-    type Filter = ();
+    type Params = (
+        Query<
+            'static,
+            'static,
+            (
+                &'static ActualText,
+                &'static Selection,
+                &'static MaxCharacters,
+                &'static ForegroundColor,
+                &'static BackgroundColor,
+                &'static TextInputMode,
+            ),
+            With<Tag<TextInput>>,
+        >,
+        Query<
+            'static,
+            'static,
+            (
+                &'static mut TextValue,
+                &'static mut Selection,
+                &'static mut MaxCharacters,
+                &'static mut ForegroundColor,
+                &'static mut BackgroundColor,
+            ),
+            Without<Tag<TextInput>>,
+        >,
+    );
+    type Filter = Or<(
+        Changed<ActualText>,
+        Changed<Selection>,
+        Changed<MaxCharacters>,
+        Changed<ForegroundColor>,
+        Changed<BackgroundColor>,
+    )>;
     type Components = TextInputComponents;
     #[allow(unused)]
     fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
-        // style
+        let i_text = bindings.get(TextInputBindings::Text);
+        if let Ok((at, sel, mc, fc, bc, mode)) = ext.0.get(entity) {
+            *ext.1.get_mut(i_text).unwrap().0 = match mode {
+                TextInputMode::Normal => TextValue::new(at.0.clone()),
+                TextInputMode::Password => at.clone().to_password(),
+            };
+            *ext.1.get_mut(i_text).unwrap().1 = *sel;
+            *ext.1.get_mut(i_text).unwrap().2 = *mc;
+            *ext.1.get_mut(i_text).unwrap().3 = *fc;
+            *ext.1.get_mut(i_text).unwrap().4 = *bc;
+        }
     }
 
     fn create(self, mut binder: Binder) -> SceneHandle {
@@ -121,7 +246,24 @@ impl Scene for TextInput {
                 max_chars: self.max_chars,
                 colors: self.colors,
                 mode: self.mode,
+                selection: Selection::default(),
             },
         ))
+    }
+}
+impl Leaf for TextInput {
+    type SetDescriptor = SetDescriptor;
+
+    fn config(_elm_configuration: &mut ElmConfiguration) {
+        _elm_configuration.configure_hook(ExternalSet::Configure, SetDescriptor::Update);
+    }
+
+    fn attach(elm: &mut Elm) {
+        elm.main().add_systems(
+            (input, foliage_proper::scene::config::<TextInput>)
+                .chain()
+                .in_set(SetDescriptor::Update)
+                .before(<InteractiveText as Leaf>::SetDescriptor::Update),
+        );
     }
 }

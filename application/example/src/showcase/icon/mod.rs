@@ -1,5 +1,4 @@
 use foliage::color::monochromatic::{FluorescentYellow, Greyscale, Monochromatic};
-use foliage::color::Color;
 use foliage::icon::FeatherIcon;
 use foliage::r_scenes::paged::Paged;
 use foliage::r_scenes::{Colors, Direction};

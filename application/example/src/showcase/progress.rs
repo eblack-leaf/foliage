@@ -1,5 +1,4 @@
 use foliage::color::monochromatic::{AquaMarine, Greyscale, Monochromatic};
-use foliage::color::Color;
 use foliage::elm::Style;
 use foliage::icon::FeatherIcon;
 use foliage::r_scenes::circle_button::CircleButton;

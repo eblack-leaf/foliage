@@ -1,5 +1,4 @@
 use foliage::color::monochromatic::{Asparagus, Greyscale, Monochromatic};
-use foliage::color::Color;
 use foliage::r_scenes::interactive_text::InteractiveText;
 use foliage::r_scenes::Colors;
 use foliage::segment::{MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
