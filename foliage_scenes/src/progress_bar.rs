@@ -17,7 +17,7 @@ use foliage_proper::scene::micro_grid::{
 };
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
 use foliage_proper::texture::factors::Progress;
-
+#[derive(Clone)]
 pub struct ProgressBar {
     foreground_color: Color,
     background_color: Color,
@@ -135,6 +135,7 @@ impl Leaf for ProgressBar {
     }
 
     fn attach(elm: &mut Elm) {
+        elm.enable_conditional_scene::<ProgressBar>();
         elm.main().add_systems(
             foliage_proper::scene::config::<ProgressBar>.in_set(SetDescriptor::Update),
         );

@@ -19,7 +19,7 @@ use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandl
 use foliage_proper::texture::factors::Progress;
 
 use crate::progress_bar::ProgressPercent;
-
+#[derive(Clone)]
 pub struct CircleProgressBar {
     pub percent: f32,
     pub colors: Colors,
@@ -122,6 +122,7 @@ impl Leaf for CircleProgressBar {
     }
 
     fn attach(elm: &mut Elm) {
+        elm.enable_conditional_scene::<CircleProgressBar>();
         elm.main().add_systems(
             foliage_proper::scene::config::<CircleProgressBar>
                 .in_set(SetDescriptor::Update)

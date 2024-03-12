@@ -210,6 +210,7 @@ impl Leaf for Button {
     }
 
     fn attach(elm: &mut Elm) {
+        elm.enable_conditional_scene::<Button>();
         elm.main().add_systems((
             interaction.in_set(ExternalSet::InteractionTriggers),
             foliage_proper::scene::config::<Button>

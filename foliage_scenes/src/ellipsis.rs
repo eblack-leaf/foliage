@@ -18,7 +18,7 @@ use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandl
 use foliage_proper::texture::factors::Progress;
 
 use crate::Direction;
-
+#[derive(Clone)]
 pub struct Ellipsis {
     pub amount: u32,
     pub direction: Direction,
@@ -149,6 +149,7 @@ impl Leaf for Ellipsis {
         elm_configuration.configure_hook(ExternalSet::Configure, SetDescriptor::Update);
     }
     fn attach(elm: &mut Elm) {
+        elm.enable_conditional_scene::<Ellipsis>();
         elm.main()
             .add_systems(foliage_proper::scene::config::<Ellipsis>.in_set(SetDescriptor::Update));
     }

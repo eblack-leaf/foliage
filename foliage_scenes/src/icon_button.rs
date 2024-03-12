@@ -18,7 +18,7 @@ use foliage_proper::scene::micro_grid::{
 use foliage_proper::scene::{Binder, Bindings, BlankNode, Scene, SceneComponents, SceneHandle};
 
 use crate::button::{Button, ButtonInteractionHook, CurrentStyle};
-
+#[derive(Clone)]
 pub struct IconButton {
     element_style: Style,
     icon_id: IconId,
@@ -137,6 +137,7 @@ impl Leaf for IconButton {
     }
 
     fn attach(elm: &mut Elm) {
+        elm.enable_conditional_scene::<IconButton>();
         elm.main().add_systems(
             foliage_proper::scene::config::<IconButton>
                 .in_set(SetDescriptor::Update)

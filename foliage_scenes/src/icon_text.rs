@@ -88,6 +88,7 @@ impl Leaf for IconText {
     }
 
     fn attach(elm: &mut Elm) {
+        elm.enable_conditional_scene::<IconText>();
         elm.main().add_systems(
             foliage_proper::scene::config::<IconText>
                 .in_set(Self::SetDescriptor::Update)

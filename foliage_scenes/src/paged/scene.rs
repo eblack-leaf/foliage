@@ -22,7 +22,7 @@ use foliage_proper::scene::{Binder, Bindings, BlankNode, Scene, SceneComponents,
 
 use crate::circle_button::CircleButton;
 use crate::ellipsis::{Ellipsis, Selected};
-
+#[derive(Clone)]
 pub struct PageStructure {
     pub decrement_icon: FeatherIcon,
     pub increment_icon: FeatherIcon,

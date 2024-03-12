@@ -25,7 +25,7 @@ use foliage_proper::text::{MaxCharacters, TextValue};
 
 use crate::interactive_text::{InteractiveText, InteractiveTextBindings, Selection};
 use crate::{AlternateColor, BackgroundColor, Colors, ForegroundColor};
-
+#[derive(Clone)]
 pub struct TextInput {
     pub max_chars: MaxCharacters,
     pub colors: Colors,
@@ -351,6 +351,7 @@ impl Leaf for TextInput {
     }
 
     fn attach(elm: &mut Elm) {
+        elm.enable_conditional_scene::<TextInput>();
         elm.main().add_systems(
             (input, foliage_proper::scene::config::<TextInput>)
                 .chain()

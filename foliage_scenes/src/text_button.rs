@@ -162,6 +162,7 @@ impl Leaf for TextButton {
     }
 
     fn attach(elm: &mut Elm) {
+        elm.enable_conditional_scene::<TextButton>();
         elm.main().add_systems(
             foliage_proper::scene::config::<TextButton>
                 .in_set(SetDescriptor::Update)

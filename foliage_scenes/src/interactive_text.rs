@@ -27,7 +27,7 @@ use foliage_proper::text::{
 use foliage_proper::texture::factors::Progress;
 use foliage_proper::window::ScaleFactor;
 use std::ops::RangeInclusive;
-
+#[derive(Clone)]
 pub struct InteractiveText {
     pub max_chars: MaxCharacters,
     pub text_value: TextValue,
@@ -305,6 +305,7 @@ impl Leaf for InteractiveText {
     }
 
     fn attach(elm: &mut Elm) {
+        elm.enable_conditional_scene::<InteractiveText>();
         elm.main().add_systems(((
             update_selection,
             foliage_proper::scene::config::<InteractiveText>,

@@ -145,6 +145,7 @@ impl Leaf for CircleButton {
     }
 
     fn attach(elm: &mut Elm) {
+        elm.enable_conditional_scene::<CircleButton>();
         elm.main().add_systems(
             foliage_proper::scene::config::<CircleButton>
                 .in_set(SetDescriptor::Update)

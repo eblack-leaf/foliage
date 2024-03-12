@@ -21,7 +21,7 @@ use foliage_proper::view::BranchPool;
 
 use crate::text_button::TextButton;
 use crate::Colors;
-
+#[derive(Clone)]
 pub struct Dropdown {
     pub options: DropdownOptions,
     pub expand_direction: ExpandDirection,
@@ -194,6 +194,7 @@ impl Leaf for Dropdown {
     type SetDescriptor = SetDescriptor;
 
     fn attach(elm: &mut Elm) {
+        elm.enable_conditional_scene::<Dropdown>();
         elm.enable_conditional_scene::<TextButton>();
         elm.enable_conditional::<Panel>();
         elm.enable_conditional_command::<OnSelect>();
