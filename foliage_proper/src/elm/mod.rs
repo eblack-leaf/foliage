@@ -1,10 +1,20 @@
-pub mod config;
-pub mod leaf;
-
 use std::any::TypeId;
 use std::marker::PhantomData;
 
-use crate::animate::trigger::Trigger;
+use anymap::AnyMap;
+use bevy_ecs::bundle::Bundle;
+use bevy_ecs::entity::Entity;
+use bevy_ecs::event::{event_update_system, Event, Events};
+use bevy_ecs::prelude::{Component, IntoSystemConfigs};
+use bevy_ecs::query::Changed;
+use bevy_ecs::system::{Command, Commands, Query, RunSystemOnce, StaticSystemParam, SystemParam};
+use bytemuck::{Pod, Zeroable};
+use compact_str::{CompactString, ToCompactString};
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+use leaf::Leaflet;
+
 use crate::ash::render_packet::RenderPacketForwarder;
 use crate::ash::render_packet::RenderPacketPackage;
 use crate::asset::{AssetContainer, AssetFetchFn, AssetKey, OnFetch};
@@ -27,18 +37,9 @@ use crate::view::{
 use crate::window::ScaleFactor;
 #[cfg(target_family = "wasm")]
 use crate::Workflow;
-use anymap::AnyMap;
-use bevy_ecs::bundle::Bundle;
-use bevy_ecs::entity::Entity;
-use bevy_ecs::event::{event_update_system, Event, Events};
-use bevy_ecs::prelude::{Component, IntoSystemConfigs};
-use bevy_ecs::query::Changed;
-use bevy_ecs::system::{Command, Commands, Query, RunSystemOnce, StaticSystemParam, SystemParam};
-use bytemuck::{Pod, Zeroable};
-use compact_str::{CompactString, ToCompactString};
-use leaf::Leaflet;
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+
+pub mod config;
+pub mod leaf;
 
 pub struct Elm {
     initialized: bool,
