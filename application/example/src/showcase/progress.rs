@@ -14,7 +14,7 @@ impl Viewable for ProgressShowcase {
 
     fn view(mut view_builder: ViewBuilder) -> ViewDescriptor {
         view_builder.add_scene(
-            ProgressBar::new(0.30, AquaMarine::BASE, Greyscale::MINUS_THREE),
+            ProgressBar::new(0.30, Colors::new(AquaMarine::BASE, Greyscale::MINUS_THREE)),
             ResponsiveSegment::base(Segment::new(
                 2.near().to(5.far()),
                 2.near().to(2.far()).fixed(4.0),

@@ -7,7 +7,7 @@ use foliage_proper::bevy_ecs::query::{Changed, Or, Without};
 use foliage_proper::bevy_ecs::system::{Query, SystemParamItem};
 use foliage_proper::color::Color;
 
-use crate::{BackgroundColor, ForegroundColor};
+use crate::{BackgroundColor, Colors, ForegroundColor};
 use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
 use foliage_proper::elm::leaf::{Leaf, Tag};
 use foliage_proper::elm::Elm;
@@ -19,18 +19,13 @@ use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandl
 use foliage_proper::texture::factors::Progress;
 #[derive(Clone)]
 pub struct ProgressBar {
-    foreground_color: Color,
-    background_color: Color,
+    colors: Colors,
     percent: f32,
 }
 impl ProgressBar {
     #[allow(unused)]
-    pub fn new<C: Into<Color>>(p: f32, fc: C, bc: C) -> Self {
-        Self {
-            foreground_color: fc.into(),
-            background_color: bc.into(),
-            percent: p,
-        }
+    pub fn new(p: f32, colors: Colors) -> Self {
+        Self { colors, percent: p }
     }
 }
 #[derive(InnerSceneBinding)]
@@ -108,7 +103,7 @@ impl Scene for ProgressBar {
                 1.percent_of(AnchorDim::Width),
                 1.percent_of(AnchorDim::Height),
             ),
-            Rectangle::new(self.foreground_color, Progress::new(0.0, self.percent)),
+            Rectangle::new(self.colors.foreground.0, Progress::new(0.0, self.percent)),
         );
         binder.bind(
             ProgressBarBindings::Back,
@@ -119,11 +114,15 @@ impl Scene for ProgressBar {
                 1.percent_of(AnchorDim::Height),
             )
             .offset_layer(1),
-            Rectangle::new(self.background_color, Progress::full()),
+            Rectangle::new(self.colors.background.0, Progress::full()),
         );
         binder.finish::<Self>(SceneComponents::new(
             MicroGrid::new(),
-            ProgressBarComponents::new(self.foreground_color, self.background_color, self.percent),
+            ProgressBarComponents::new(
+                self.colors.foreground.0,
+                self.colors.background.0,
+                self.percent,
+            ),
         ))
     }
 }
