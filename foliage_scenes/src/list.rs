@@ -46,7 +46,7 @@ impl Scene for ListBase {
     }
 
     fn create(self, mut binder: Binder) -> SceneHandle {
-        let interval = 1f32 / (self.num_items as f32 + 3f32);
+        let interval = 1f32 / self.num_items as f32 * 0.9;
         for i in 0..self.num_items {
             binder.bind(
                 i as i32,
