@@ -18,6 +18,7 @@ use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::ginkgo::viewport::ViewportHandle;
+use crate::interaction::InteractionListener;
 use crate::job::{Container, Job, Task};
 use crate::scene::Scene;
 use crate::view::{
@@ -248,9 +249,12 @@ impl Elm {
         handler: InteractionHandlerFn<IH, Ext>,
     ) {
         let func = move |mut ext: StaticSystemParam<Ext>,
-                         mut ihs: Query<(&Trigger, &mut IH), Changed<Trigger>>| {
+                         mut ihs: Query<
+            (&InteractionListener, &mut IH),
+            Changed<InteractionListener>,
+        >| {
             for (trigger, mut ih) in ihs.iter_mut() {
-                if trigger.is_active() {
+                if trigger.active() {
                     handler(&mut ih, &mut ext);
                 }
             }
