@@ -46,13 +46,15 @@ impl Scene for ListBase {
     }
 
     fn create(self, mut binder: Binder) -> SceneHandle {
-        let interval = 1f32 / self.num_items as f32 * 0.8;
+        let interval = 1f32 / self.num_items as f32 * 0.85;
         for i in 0..self.num_items {
             binder.bind(
                 i as i32,
                 MicroGridAlignment::new(
                     0.percent_from(RelativeMarker::Center),
-                    (i as f32 * interval).percent_from(RelativeMarker::Top),
+                    (i as f32 * interval)
+                        .percent_from(RelativeMarker::Top)
+                        .adjust(i as f32 * 8.0),
                     1.percent_of(AnchorDim::Width),
                     interval.percent_of(AnchorDim::Height),
                 ),
