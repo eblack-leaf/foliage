@@ -12,6 +12,11 @@ pub struct List<T> {
     pub items: Vec<T>,
     pub rs: ResponsiveSegment,
 }
+impl<T: Scene + Clone> List<T> {
+    pub fn new(items: Vec<T>, rs: ResponsiveSegment) -> Self {
+        Self { items, rs }
+    }
+}
 impl<T: Scene + Clone> Procedure for List<T> {
     fn steps(self, view_builder: &mut ViewBuilder) {
         let scene = view_builder.add_scene(ListBase::new(self.items.len() as u32), self.rs);
