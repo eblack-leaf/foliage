@@ -56,7 +56,7 @@ impl Scene for ListBase {
                         .percent_from(RelativeMarker::Top)
                         .adjust(i as f32 * 8.0),
                     1.percent_of(AnchorDim::Width),
-                    interval.percent_of(AnchorDim::Height),
+                    interval.percent_of(AnchorDim::Height).adjust(-8.0),
                 ),
                 BlankNode::default(),
             );
