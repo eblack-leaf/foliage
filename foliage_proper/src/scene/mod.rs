@@ -28,7 +28,7 @@ impl Anchor {
         None
     }
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SceneHandle {
     root: Entity,
     bindings: Bindings,
