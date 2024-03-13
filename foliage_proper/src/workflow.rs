@@ -27,7 +27,7 @@ pub trait SingleThreadedWorkflow {
 #[cfg(target_family = "wasm")]
 pub type EngenHandle<W> = Arc<std::sync::Mutex<W>>;
 #[cfg(not(target_family = "wasm"))]
-pub type EngenHandle<W> = Arc<std::sync::Mutex<W>>;
+pub type EngenHandle<W> = Arc<tokio::sync::Mutex<W>>;
 pub type WorkflowConnection<W> = NonSend<'static, WorkflowConnectionBase<W>>;
 pub struct WorkflowConnectionBase<W: Workflow + Default + Send + Sync + 'static> {
     // channel for native
@@ -42,7 +42,7 @@ async fn native_handler<W: Workflow + Default + Send + Sync + 'static>(
     proxy: EventLoopProxy<ResponseMessage<W::Response>>,
     mut receiver: tokio::sync::mpsc::UnboundedReceiver<ActionMessage<W::Action>>,
 ) {
-    let engen = Engen(Arc::new(std::sync::Mutex::new(W::default())));
+    let engen = Engen(Arc::new(tokio::sync::Mutex::new(W::default())));
     loop {
         while let Some(action) = receiver.recv().await {
             if let Some(a) = action.0 {
@@ -103,7 +103,7 @@ impl<W: Workflow + Default + 'static + Send + Sync> Worker for Engen<W> {
             if #[cfg(target_family = "wasm")] {
                 Engen(Arc::new(std::sync::Mutex::new(W::default())))
             } else {
-                Engen(Arc::new(std::sync::Mutex::new(W::default())))
+                Engen(Arc::new(tokio::sync::Mutex::new(W::default())))
             }
         }
     }
