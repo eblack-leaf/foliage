@@ -217,6 +217,7 @@ impl Command for OnSelect {
             .get(self.selection as usize)
             .unwrap()
             .clone();
+        world.get_mut::<CurrentSelection>(self.root).unwrap().0 = self.selection;
         *world.get_mut::<TextValue>(self.base).unwrap() = TextValue::new(value);
         for branch in self.branches.iter() {
             *world.get_mut::<Trigger>(branch.this()).unwrap() = Trigger::inverse();
