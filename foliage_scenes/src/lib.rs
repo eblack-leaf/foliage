@@ -15,6 +15,7 @@ pub mod ellipsis;
 pub mod icon_button;
 pub mod icon_text;
 pub mod interactive_text;
+mod list;
 pub mod paged;
 pub mod progress_bar;
 pub mod text_button;

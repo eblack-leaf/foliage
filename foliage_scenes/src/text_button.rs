@@ -145,7 +145,7 @@ impl Scene for TextButton {
         binder.finish::<Self>(SceneComponents::new(
             MicroGrid::new()
                 .min_height(24.0)
-                .min_width(40.0 * aspect.value()),
+                .min_width(30.0 * aspect.value()),
             (
                 <Button as Scene>::Components::new(self.element_style, self.colors),
                 self.text_value,
