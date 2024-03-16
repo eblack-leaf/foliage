@@ -23,10 +23,10 @@ pub struct Ellipsis {
     pub amount: u32,
     pub direction: Direction,
     pub color: Color,
-    pub selected: Option<u32>,
+    pub selected: Vec<u32>,
 }
 impl Ellipsis {
-    pub fn new(amount: u32, direction: Direction, color: Color, selected: Option<u32>) -> Self {
+    pub fn new(amount: u32, direction: Direction, color: Color, selected: Vec<u32>) -> Self {
         Self {
             amount,
             direction,
@@ -35,8 +35,8 @@ impl Ellipsis {
         }
     }
 }
-#[derive(Component, Copy, Clone)]
-pub struct Selected(pub Option<u32>);
+#[derive(Component, Clone)]
+pub struct Selected(pub Vec<u32>);
 #[derive(Component, Copy, Clone)]
 pub struct Total(pub u32);
 #[derive(Bundle)]
@@ -62,28 +62,12 @@ impl Scene for Ellipsis {
     fn config(_entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
         if let Ok((fc, select, total)) = ext.0.get(_entity) {
             for b in bindings.nodes().values() {
+                *ext.1.get_mut(b.entity()).unwrap() = Style::ring();
                 *ext.2.get_mut(b.entity()).unwrap() = *fc;
             }
-            if let Some(s) = select.0 {
-                for b in bindings.nodes().values() {
-                    *ext.1.get_mut(b.entity()).unwrap() = Style::ring();
-                }
-                if s < total.0 {
-                    if total.0 > 7 {
-                        if s < total.0 - 3 && s > 3 {
-                            *ext.1.get_mut(bindings.get(3i32)).unwrap() = Style::fill();
-                        } else if s == total.0 - 3 {
-                            *ext.1.get_mut(bindings.get(4)).unwrap() = Style::fill();
-                        } else if s == total.0 - 2 {
-                            *ext.1.get_mut(bindings.get(5)).unwrap() = Style::fill();
-                        } else if s == total.0 - 1 {
-                            *ext.1.get_mut(bindings.get(6)).unwrap() = Style::fill();
-                        } else {
-                            *ext.1.get_mut(bindings.get(s as i32)).unwrap() = Style::fill();
-                        }
-                    } else {
-                        *ext.1.get_mut(bindings.get(s as i32)).unwrap() = Style::fill();
-                    }
+            for e in select.0.iter() {
+                if *e < total.0 {
+                    *ext.1.get_mut(bindings.get(*e as i32)).unwrap() = Style::fill();
                 }
             }
         }
@@ -114,12 +98,8 @@ impl Scene for Ellipsis {
         };
 
         for i in 0..amount {
-            let style = if let Some(u) = self.selected {
-                if i == u {
-                    Style::fill()
-                } else {
-                    Style::ring()
-                }
+            let style = if self.selected.contains(&i) {
+                Style::fill()
             } else {
                 Style::ring()
             };

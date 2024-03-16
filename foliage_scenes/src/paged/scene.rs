@@ -28,7 +28,7 @@ pub struct PageStructure {
     pub increment_icon: FeatherIcon,
     pub colors: Colors,
     pub direction: Direction,
-    pub num_pages: u32,
+    pub num_pages: i32,
 }
 impl PageStructure {
     pub fn new(
@@ -43,7 +43,7 @@ impl PageStructure {
             increment_icon: i,
             colors: c,
             direction,
-            num_pages,
+            num_pages: num_pages as i32,
         }
     }
 }
@@ -56,7 +56,7 @@ pub enum PageStructureBindings {
 #[derive(Component, Copy, Clone)]
 pub struct Page(pub i32);
 #[derive(Component, Copy, Clone)]
-pub struct PageMax(pub u32);
+pub struct PageMax(pub i32);
 #[derive(Bundle)]
 pub struct PageStructureComponents {
     pub page: Page,
@@ -68,7 +68,12 @@ impl Scene for PageStructure {
         Query<
             'static,
             'static,
-            (&'static ForegroundColor, &'static BackgroundColor),
+            (
+                &'static ForegroundColor,
+                &'static BackgroundColor,
+                &'static Page,
+                &'static PageMax,
+            ),
             With<Tag<PageStructure>>,
         >,
         Query<
@@ -77,6 +82,7 @@ impl Scene for PageStructure {
             (&'static mut ForegroundColor, &'static mut BackgroundColor),
             Without<Tag<PageStructure>>,
         >,
+        Query<'static, 'static, &'static mut Selected, Without<Tag<PageStructure>>>,
     );
     type Filter = ();
     type Components = PageStructureComponents;
@@ -84,7 +90,25 @@ impl Scene for PageStructure {
     fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
         let decrement = bindings.get(PageStructureBindings::PageDecrement);
         let increment = bindings.get(PageStructureBindings::PageIncrement);
-        if let Ok((fc, bc)) = ext.0.get(entity) {
+        let display = bindings.get(PageStructureBindings::Display);
+        if let Ok((fc, bc, page, total)) = ext.0.get(entity) {
+            if page.0 < total.0 {
+                if total.0 > 7 {
+                    if page.0 < total.0 - 3 && page.0 > 3 {
+                        ext.2.get_mut(display).unwrap().0 = vec![3];
+                    } else if page.0 == total.0 - 3 {
+                        ext.2.get_mut(display).unwrap().0 = vec![4];
+                    } else if page.0 == total.0 - 2 {
+                        ext.2.get_mut(display).unwrap().0 = vec![5];
+                    } else if page.0 == total.0 - 1 {
+                        ext.2.get_mut(display).unwrap().0 = vec![6];
+                    } else {
+                        ext.2.get_mut(display).unwrap().0 = vec![page.0 as u32];
+                    }
+                } else {
+                    ext.2.get_mut(display).unwrap().0 = vec![page.0 as u32];
+                }
+            }
             *ext.1.get_mut(decrement).unwrap().0 = *fc;
             *ext.1.get_mut(decrement).unwrap().1 = *bc;
             *ext.1.get_mut(increment).unwrap().0 = *fc;
@@ -164,10 +188,10 @@ impl Scene for PageStructure {
             PageStructureBindings::Display,
             display_alignment,
             Ellipsis::new(
-                self.num_pages,
+                self.num_pages as u32,
                 self.direction,
                 self.colors.foreground.0,
-                Some(0),
+                vec![0],
             ),
         );
         let mut to_be_bound = vec![];
@@ -248,11 +272,7 @@ impl Command for SelectionChange {
         }
         world.get_mut::<Page>(self.root).unwrap().0 = new;
         let selected = world.get::<Page>(self.root).unwrap().0;
-        world
-            .get_mut::<Selected>(self.display)
-            .unwrap()
-            .0
-            .replace(selected as u32);
+        world.get_mut::<Selected>(self.display).unwrap().0 = vec![selected as u32];
         for (i, branch) in self.bindings.iter().enumerate() {
             *world.get_mut::<Trigger>(*branch).unwrap() = if i == selected as usize {
                 Trigger::active()
