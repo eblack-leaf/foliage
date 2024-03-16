@@ -101,7 +101,7 @@ impl<W: Workflow + Default + 'static + Send + Sync> Worker for Engen<W> {
     fn create(_scope: &WorkerScope<Self>) -> Self {
         cfg_if::cfg_if! {
             if #[cfg(target_family = "wasm")] {
-                Engen(Arc::new(std::sync::Mutex::new(W::default())))
+                Engen(Arc::new(W::default()))
             } else {
                 Engen(Arc::new(W::default()))
             }
