@@ -91,8 +91,8 @@ pub struct NotificationsComponents {
 }
 fn engage_notification_bar(
     query: Query<(Entity, &Notification), Without<Tag<NotificationBar>>>,
-    notification_listener: Query<(&mut Notification), With<Tag<NotificationBar>>>,
-    mut trigger_element: Query<(&mut NotificationState, &mut Trigger, &NotificationHandle)>,
+    notification_listener: Query<&mut Notification, With<Tag<NotificationBar>>>,
+    trigger_element: Query<(&mut NotificationState, &mut Trigger, &NotificationHandle)>,
     mut cmd: Commands,
 ) {
     for (entity, notification) in query.iter() {
