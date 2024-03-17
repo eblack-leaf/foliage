@@ -6,6 +6,7 @@ use ash::leaflet::RenderLeaflet;
 pub use bevy_ecs;
 use bevy_ecs::prelude::Resource;
 use elm::leaf::{Leaf, Leaflet};
+use std::future::Future;
 #[doc(hidden)]
 pub use wgpu;
 use window::{WindowDescriptor, WindowHandle};
@@ -41,7 +42,7 @@ use crate::text::Text;
 use crate::time::Time;
 use crate::view::View;
 use crate::virtual_keyboard::VirtualKeyboardAdapter;
-use crate::workflow::{Workflow, WorkflowConnectionBase};
+use crate::workflow::{Workflow, WorkflowHandle};
 use animate::trigger::Trigger;
 
 pub mod animate;
@@ -165,19 +166,31 @@ impl Foliage {
     pub fn with_renderleaf<T: Leaf + Render + 'static>(self) -> Self {
         self.with_leaf::<T>().with_renderer::<T>()
     }
-    pub fn run<W: Workflow + Default + Send + Sync + 'static>(self) {
+    pub fn run<
+        W: Workflow + Default + Send + Sync + 'static,
+        Fut: Future<Output = W::Response> + std::marker::Send,
+    >(
+        self,
+        fut: fn(action: W::Action) -> Fut,
+    ) {
         cfg_if::cfg_if! {
             if #[cfg(target_family = "wasm")] {
-                wasm_bindgen_futures::spawn_local(self.internal_run::<W>());
+                wasm_bindgen_futures::spawn_local(self.internal_run::<W, Fut>(fut));
             } else {
                 let rt = tokio::runtime::Runtime::new();
                 rt.unwrap().block_on(
-                    self.internal_run::<W>()
+                    self.internal_run::<W, Fut>(fut)
                 );
             }
         }
     }
-    async fn internal_run<W: Workflow + Default + Send + Sync + 'static>(mut self) {
+    async fn internal_run<
+        W: Workflow + Default + Send + Sync + 'static,
+        Fut: Future<Output = W::Response> + std::marker::Send + 'static,
+    >(
+        mut self,
+        fut: fn(action: W::Action) -> Fut,
+    ) {
         let mut event_loop_builder = EventLoop::<ResponseMessage<W::Response>>::with_user_event();
         cfg_if::cfg_if! {
             if #[cfg(target_os = "android")] {
@@ -211,7 +224,7 @@ impl Foliage {
         }
         let mut elm = Elm::new();
         let proxy = event_loop.create_proxy();
-        let bridge = WorkflowConnectionBase::<W>::new(proxy, self.worker_path);
+        let bridge = WorkflowHandle::<W>::new(proxy, self.worker_path, fut);
         elm.container().insert_non_send_resource(bridge);
         elm.container().insert_resource(self.android_interface);
         let mut ash = Ash::new();

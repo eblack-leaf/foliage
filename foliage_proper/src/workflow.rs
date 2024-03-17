@@ -3,15 +3,31 @@ use crate::system_message::{
     system_message_response, ActionMessage, ResponseMessage, SystemMessageAction,
     SystemMessageResponse,
 };
-use bevy_ecs::system::NonSend;
 use gloo_worker::{HandlerId, Worker, WorkerScope};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
-use std::sync::Arc;
+use std::future::Future;
 use winit::event_loop::EventLoopProxy;
-
-#[trait_variant::make(Workflow: Send)]
-pub trait SingleThreadedWorkflow {
+#[derive(Clone)]
+pub struct WorkflowConfiguration<Action, Response, Fut>
+where
+    Fut: Future<Output = Response>,
+    Fut: Clone,
+{
+    pub process: fn(action: Action) -> Fut,
+}
+impl<Action, Response, Fut> WorkflowConfiguration<Action, Response, Fut>
+where
+    Fut: Future<Output = Response> + std::clone::Clone,
+{
+    pub fn new(process: fn(action: Action) -> Fut) -> Self {
+        Self { process }
+    }
+}
+pub trait Workflow
+where
+    Self: Send + Sync + 'static + Sized,
+{
     type Action: Debug + Clone + Send + Sync + Sized + 'static + Serialize + for<'a> Deserialize<'a>;
     type Response: Debug
         + Clone
@@ -21,32 +37,28 @@ pub trait SingleThreadedWorkflow {
         + 'static
         + Serialize
         + for<'a> Deserialize<'a>;
-    async fn process(action: Self::Action) -> Self::Response;
+    fn workflow<Fut: Future<Output = Self::Response> + std::clone::Clone>(
+    ) -> WorkflowConfiguration<Self::Action, Self::Response, Fut>;
     fn react(elm: &mut Elm, response: Self::Response);
 }
-#[cfg(target_family = "wasm")]
-pub type EngenHandle<W> = Arc<W>;
-#[cfg(not(target_family = "wasm"))]
-pub type EngenHandle<W> = Arc<W>;
-pub type WorkflowConnection<W> = NonSend<'static, WorkflowConnectionBase<W>>;
-pub struct WorkflowConnectionBase<W: Workflow + Default + Send + Sync + 'static> {
+pub struct WorkflowHandle<W: Workflow> {
     // channel for native
     #[cfg(not(target_family = "wasm"))]
     bridge: tokio::sync::mpsc::UnboundedSender<ActionMessage<W::Action>>,
     // worker-bridge for web
     #[cfg(target_family = "wasm")]
-    bridge: gloo_worker::WorkerBridge<Engen<W>>,
+    bridge: gloo_worker::WorkerBridge<WorkflowEngen<W>>,
 }
 #[cfg(not(target_family = "wasm"))]
-async fn native_handler<W: Workflow + Default + Send + Sync + 'static>(
+async fn native_handler<W: Workflow, Fut: Future<Output = W::Response>>(
     proxy: EventLoopProxy<ResponseMessage<W::Response>>,
     mut receiver: tokio::sync::mpsc::UnboundedReceiver<ActionMessage<W::Action>>,
+    fut: fn(action: W::Action) -> Fut,
 ) {
-    // let engen = Engen(Arc::new(W::default()));
     loop {
         while let Some(action) = receiver.recv().await {
             if let Some(a) = action.0 {
-                let response = W::process(a).await;
+                let response = fut(a).await;
                 proxy.send_event(ResponseMessage::user(response)).unwrap();
             } else if let Some(s) = action.1 {
                 let response = system_message_response(s).await;
@@ -55,19 +67,23 @@ async fn native_handler<W: Workflow + Default + Send + Sync + 'static>(
         }
     }
 }
-impl<W: Workflow + Default + Send + Sync + 'static> WorkflowConnectionBase<W> {
-    pub(crate) fn new(proxy: EventLoopProxy<ResponseMessage<W::Response>>, _wp: String) -> Self {
+impl<W: Workflow> WorkflowHandle<W> {
+    pub(crate) fn new<Fut: Future<Output = W::Response> + std::marker::Send + 'static>(
+        proxy: EventLoopProxy<ResponseMessage<W::Response>>,
+        _wp: String,
+        fut: fn(action: W::Action) -> Fut,
+    ) -> Self {
         cfg_if::cfg_if! {
             if #[cfg(target_family = "wasm")] {
                 use gloo_worker::Spawnable;
-                let bridge = Engen::<W>::spawner()
+                let bridge = WorkflowEngen::<W>::spawner()
                 .callback(move |response| {
                     let _ = proxy.send_event(response);
                 })
                 .spawn(_wp.as_str());
             } else {
                 let (sender, receiver) = tokio::sync::mpsc::unbounded_channel();
-                tokio::task::spawn(native_handler::<W>(proxy, receiver));
+                tokio::task::spawn(native_handler::<W, Fut>(proxy, receiver, fut));
                 let bridge = sender;
             }
         }
@@ -92,20 +108,23 @@ impl<W: Workflow + Default + Send + Sync + 'static> WorkflowConnectionBase<W> {
         }
     }
 }
-pub(crate) struct Engen<W: Workflow + Default + Send + Sync + 'static>(pub(crate) EngenHandle<W>);
-impl<W: Workflow + Default + 'static + Send + Sync> Worker for Engen<W> {
-    type Message = OutputWrapper<W>;
+struct WorkflowEngen<W: Workflow, Fut>
+where
+    Fut: Future<Output = W::Response> + std::clone::Clone,
+{
+    config: WorkflowConfiguration<W::Action, W::Response, Fut>,
+}
+impl<W: Workflow, Fut> Worker for WorkflowEngen<W, Fut>
+where
+    Fut: Future<Output = W::Response> + 'static + std::clone::Clone,
+{
+    type Message = OutputWrapper<W, Fut>;
     type Input = ActionMessage<W::Action>;
     type Output = ResponseMessage<W::Response>;
 
     fn create(_scope: &WorkerScope<Self>) -> Self {
-        cfg_if::cfg_if! {
-            if #[cfg(target_family = "wasm")] {
-                Engen(Arc::new(W::default()))
-            } else {
-                Engen(Arc::new(W::default()))
-            }
-        }
+        let config = W::workflow();
+        WorkflowEngen::<W, Fut> { config }
     }
 
     fn update(&mut self, scope: &WorkerScope<Self>, msg: Self::Message) {
@@ -113,36 +132,41 @@ impl<W: Workflow + Default + 'static + Send + Sync> Worker for Engen<W> {
     }
 
     fn received(&mut self, scope: &WorkerScope<Self>, msg: Self::Input, id: HandlerId) {
-        let arc = self.0.clone();
         scope.send_future(async move {
             let response = if let Some(a) = msg.0 {
-                ResponseMessage::user(<W as Workflow>::process(a).await)
+                ResponseMessage::user((self.config.clone().process)(a).await)
             } else if let Some(s) = msg.1 {
                 ResponseMessage::system(system_message_response(s).await)
             } else {
                 ResponseMessage::system(SystemMessageResponse::NoOp)
             };
             OutputWrapper::new(id, response)
-        })
+        });
     }
 }
-pub(crate) struct OutputWrapper<W: Workflow + Default + 'static + Send + Sync> {
+pub(crate) struct OutputWrapper<
+    W: Workflow,
+    Fut: Future<Output = W::Response> + 'static + std::clone::Clone,
+> {
     pub(crate) handler_id: HandlerId,
-    pub(crate) response: <Engen<W> as Worker>::Output,
+    pub(crate) response: <WorkflowEngen<W, Fut> as Worker>::Output,
 }
 
-impl<T: Workflow + Default + 'static + Send + Sync> OutputWrapper<T>
+impl<W: Workflow, Fut: Future<Output = W::Response> + std::clone::Clone> OutputWrapper<W, Fut>
 where
     Self: Sized,
 {
-    pub(crate) fn new(handler_id: HandlerId, response: <Engen<T> as Worker>::Output) -> Self {
+    pub(crate) fn new(
+        handler_id: HandlerId,
+        response: <WorkflowEngen<W, Fut> as Worker>::Output,
+    ) -> Self {
         Self {
             handler_id,
             response,
         }
     }
 }
-pub fn start_web_worker<W: Workflow + Default + 'static + Send + Sync>() {
+pub fn start_web_worker<W: Workflow>() {
     #[cfg(target_family = "wasm")]
     {
         use gloo_worker::Registrable;
