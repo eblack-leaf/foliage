@@ -11,7 +11,8 @@ use crate::system_message::{
     SystemMessageResponse,
 };
 
-#[async_trait::async_trait]
+#[cfg_attr(target_family = "wasm", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_family = "wasm"), async_trait::async_trait)]
 pub trait Workflow
 where
     Self: Send + Sync + 'static + Sized + Default,
