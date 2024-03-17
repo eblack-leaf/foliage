@@ -227,7 +227,7 @@ impl Elm {
             ),
         );
         self.container()
-            .get_non_send_resource::<crate::WorkflowConnectionBase<W>>()
+            .get_non_send_resource::<crate::WorkflowBridge<W>>()
             .unwrap()
             .system_send(message);
         self.container()

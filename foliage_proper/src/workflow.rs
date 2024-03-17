@@ -1,16 +1,20 @@
+use std::fmt::Debug;
+use std::sync::Arc;
+
+use gloo_worker::{HandlerId, Worker, WorkerScope};
+use serde::{Deserialize, Serialize};
+use winit::event_loop::EventLoopProxy;
+
 use crate::elm::Elm;
 use crate::system_message::{
     system_message_response, ActionMessage, ResponseMessage, SystemMessageAction,
     SystemMessageResponse,
 };
-use gloo_worker::{HandlerId, Worker, WorkerScope};
-use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
-use std::future::Future;
-use winit::event_loop::EventLoopProxy;
+
+#[async_trait::async_trait]
 pub trait Workflow
 where
-    Self: Send + Sync + 'static + Sized,
+    Self: Send + Sync + 'static + Sized + Default,
 {
     type Action: Debug + Clone + Send + Sync + Sized + 'static + Serialize + for<'a> Deserialize<'a>;
     type Response: Debug
@@ -21,10 +25,10 @@ where
         + 'static
         + Serialize
         + for<'a> Deserialize<'a>;
-    fn workflow<Fut: Future<Output = Self::Response>>() -> Box<fn(action: Self::Action) -> Fut>;
+    async fn process(handle: Arc<Self>, action: Self::Action) -> Self::Response;
     fn react(elm: &mut Elm, response: Self::Response);
 }
-pub struct WorkflowHandle<W: Workflow> {
+pub struct WorkflowBridge<W: Workflow> {
     // channel for native
     #[cfg(not(target_family = "wasm"))]
     bridge: tokio::sync::mpsc::UnboundedSender<ActionMessage<W::Action>>,
@@ -33,15 +37,15 @@ pub struct WorkflowHandle<W: Workflow> {
     bridge: gloo_worker::WorkerBridge<WorkflowEngen<W>>,
 }
 #[cfg(not(target_family = "wasm"))]
-async fn native_handler<W: Workflow, Fut: Future<Output = W::Response>>(
+async fn native_handler<W: Workflow>(
     proxy: EventLoopProxy<ResponseMessage<W::Response>>,
     mut receiver: tokio::sync::mpsc::UnboundedReceiver<ActionMessage<W::Action>>,
-    fut: fn(action: W::Action) -> Fut,
 ) {
+    let engen = WorkflowEngen::<W>::new();
     loop {
         while let Some(action) = receiver.recv().await {
             if let Some(a) = action.0 {
-                let response = fut(a).await;
+                let response = W::process(engen.handle(), a).await;
                 proxy.send_event(ResponseMessage::user(response)).unwrap();
             } else if let Some(s) = action.1 {
                 let response = system_message_response(s).await;
@@ -50,12 +54,8 @@ async fn native_handler<W: Workflow, Fut: Future<Output = W::Response>>(
         }
     }
 }
-impl<W: Workflow> WorkflowHandle<W> {
-    pub(crate) fn new<Fut: Future<Output = W::Response> + std::marker::Send + 'static>(
-        proxy: EventLoopProxy<ResponseMessage<W::Response>>,
-        _wp: String,
-        fut: fn(action: W::Action) -> Fut,
-    ) -> Self {
+impl<W: Workflow> WorkflowBridge<W> {
+    pub(crate) fn new(proxy: EventLoopProxy<ResponseMessage<W::Response>>, _wp: String) -> Self {
         cfg_if::cfg_if! {
             if #[cfg(target_family = "wasm")] {
                 use gloo_worker::Spawnable;
@@ -66,7 +66,7 @@ impl<W: Workflow> WorkflowHandle<W> {
                 .spawn(_wp.as_str());
             } else {
                 let (sender, receiver) = tokio::sync::mpsc::unbounded_channel();
-                tokio::task::spawn(native_handler::<W, Fut>(proxy, receiver, fut));
+                tokio::task::spawn(native_handler::<W>(proxy, receiver));
                 let bridge = sender;
             }
         }
@@ -91,23 +91,26 @@ impl<W: Workflow> WorkflowHandle<W> {
         }
     }
 }
-struct WorkflowEngen<W: Workflow, Fut>
-where
-    Fut: Future<Output = W::Response> + std::clone::Clone,
-{
-    pub process: fn(action: W::Action) -> Fut,
+pub(crate) struct WorkflowEngen<W: Workflow> {
+    pub engen: Arc<W>,
 }
-impl<W: Workflow, Fut> Worker for WorkflowEngen<W, Fut>
-where
-    Fut: Future<Output = W::Response> + 'static + std::clone::Clone,
-{
-    type Message = OutputWrapper<W, Fut>;
+impl<W: Workflow> WorkflowEngen<W> {
+    pub(crate) fn new() -> Self {
+        Self {
+            engen: Arc::new(W::default()),
+        }
+    }
+    pub(crate) fn handle(&self) -> Arc<W> {
+        self.engen.clone()
+    }
+}
+impl<W: Workflow> Worker for WorkflowEngen<W> {
+    type Message = OutputWrapper<W>;
     type Input = ActionMessage<W::Action>;
     type Output = ResponseMessage<W::Response>;
 
     fn create(_scope: &WorkerScope<Self>) -> Self {
-        let process = W::workflow::<Fut>();
-        WorkflowEngen::<W, Fut> { process: *process }
+        WorkflowEngen::<W>::new()
     }
 
     fn update(&mut self, scope: &WorkerScope<Self>, msg: Self::Message) {
@@ -115,10 +118,10 @@ where
     }
 
     fn received(&mut self, scope: &WorkerScope<Self>, msg: Self::Input, id: HandlerId) {
-        let func = self.process;
+        let arc = self.handle();
         scope.send_future(async move {
             let response = if let Some(a) = msg.0 {
-                ResponseMessage::user(func(a).await)
+                ResponseMessage::user(W::process(arc, a).await)
             } else if let Some(s) = msg.1 {
                 ResponseMessage::system(system_message_response(s).await)
             } else {
@@ -128,21 +131,18 @@ where
         });
     }
 }
-pub(crate) struct OutputWrapper<
-    W: Workflow,
-    Fut: Future<Output = W::Response> + 'static + std::clone::Clone,
-> {
+pub(crate) struct OutputWrapper<W: Workflow> {
     pub(crate) handler_id: HandlerId,
-    pub(crate) response: <WorkflowEngen<W, Fut> as Worker>::Output,
+    pub(crate) response: <WorkflowEngen<W> as Worker>::Output,
 }
 
-impl<W: Workflow, Fut: Future<Output = W::Response> + std::clone::Clone> OutputWrapper<W, Fut>
+impl<W: Workflow> OutputWrapper<W>
 where
     Self: Sized,
 {
     pub(crate) fn new(
         handler_id: HandlerId,
-        response: <WorkflowEngen<W, Fut> as Worker>::Output,
+        response: <WorkflowEngen<W> as Worker>::Output,
     ) -> Self {
         Self {
             handler_id,
@@ -155,6 +155,6 @@ pub fn start_web_worker<W: Workflow>() {
     {
         use gloo_worker::Registrable;
         console_error_panic_hook::set_once();
-        Engen::<W>::registrar().register();
+        WorkflowEngen::<W>::registrar().register();
     }
 }

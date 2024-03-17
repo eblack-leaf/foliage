@@ -1,4 +1,3 @@
-use crate::Orange;
 use foliage::button::Button;
 use foliage::circle_button::CircleButton;
 use foliage::color::monochromatic::{Greyscale, Monochromatic};
@@ -15,6 +14,8 @@ use foliage::text::{MaxCharacters, Text, TextValue};
 use foliage::text_button::TextButton;
 use foliage::view::{ViewBuilder, ViewDescriptor, Viewable};
 use foliage::Colors;
+
+use crate::Orange;
 
 struct ButtonDisplay<T> {
     first: T,
@@ -44,7 +45,6 @@ impl<T> ButtonDisplay<T> {
         }
     }
 }
-
 impl<T: Scene> Procedure for ButtonDisplay<T> {
     fn steps(self, view_builder: &mut ViewBuilder) {
         view_builder.add_scene(
