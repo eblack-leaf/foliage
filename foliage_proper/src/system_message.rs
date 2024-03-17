@@ -43,7 +43,6 @@ pub(crate) async fn system_message_response(a: SystemMessageAction) -> SystemMes
                     .send()
                     .await
                     .unwrap();
-
                 let bytes = res.bytes().await.unwrap();
                 return SystemMessageResponse::WasmAsset(asset_key, bytes.to_vec());
             }
