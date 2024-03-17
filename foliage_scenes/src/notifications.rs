@@ -2,6 +2,7 @@ use crate::Colors;
 use compact_str::{CompactString, ToCompactString};
 use foliage_macros::{inner_set_descriptor, InnerSceneBinding};
 use foliage_proper::bevy_ecs;
+use foliage_proper::bevy_ecs::bundle::Bundle;
 use foliage_proper::bevy_ecs::entity::Entity;
 use foliage_proper::bevy_ecs::prelude::{Component, IntoSystemConfigs};
 use foliage_proper::bevy_ecs::query::{Changed, With, Without};
@@ -43,22 +44,31 @@ impl Leaf for Notifications {
         ));
     }
 }
+#[derive(Component, Copy, Clone)]
 pub enum NotificationState {
     Showing,
     Hidden,
 }
 #[derive(InnerSceneBinding)]
-pub enum NotificationsBindings {
+pub enum SnackBarBindings {
     Background,
     LineOne,
     LineTwo,
 }
+#[derive(Bundle)]
+pub struct NotificationsComponents {
+    pub state: NotificationState,
+    pub notification: Notification,
+}
 fn engage_notification_bar(
-    query: Query<(Entity, &Notification, &mut NotificationState), Without<Tag<Notifications>>>,
-    mut notes: Query<&mut Notification, With<Tag<Notifications>>>,
+    query: Query<(Entity, &Notification), Without<Tag<Notifications>>>,
+    notification_listener: Query<
+        (&mut Notification, &mut NotificationState, &Bindings),
+        With<Tag<Notifications>>,
+    >,
     mut cmd: Commands,
 ) {
-    for (entity, notification, state) in query.iter() {
+    for (entity, notification) in query.iter() {
         // enable notification bar conditionals,
         // if !already_open,
         // -- anim from offscreen position_adjust
@@ -71,11 +81,11 @@ fn engage_notification_bar(
 impl Scene for Notifications {
     type Params = (Query<'static, 'static, &'static Notification>,);
     type Filter = Changed<Notification>;
-    type Components = ();
+    type Components = NotificationsComponents;
 
     fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
-        let one = bindings.get(NotificationsBindings::LineOne);
-        let two = bindings.get(NotificationsBindings::LineTwo);
+        let one = bindings.get(SnackBarBindings::LineOne);
+        let two = bindings.get(SnackBarBindings::LineTwo);
         if let Ok(notification) = ext.0.get(entity) {
             if !notification.0.is_empty() {
                 // replace text split if too big
@@ -85,7 +95,7 @@ impl Scene for Notifications {
 
     fn create(self, mut binder: Binder) -> SceneHandle {
         binder.bind(
-            NotificationsBindings::Background,
+            SnackBarBindings::Background,
             MicroGridAlignment::new(
                 0.percent_from(RelativeMarker::Center),
                 0.percent_from(RelativeMarker::Center),
@@ -95,7 +105,7 @@ impl Scene for Notifications {
             Panel::new(Style::fill(), self.colors.background.0),
         );
         binder.bind(
-            NotificationsBindings::LineOne,
+            SnackBarBindings::LineOne,
             MicroGridAlignment::new(
                 0.percent_from(RelativeMarker::Left),
                 0.percent_from(RelativeMarker::Top),
@@ -109,7 +119,7 @@ impl Scene for Notifications {
             ),
         );
         binder.bind(
-            NotificationsBindings::LineTwo,
+            SnackBarBindings::LineTwo,
             MicroGridAlignment::new(
                 0.percent_from(RelativeMarker::Left),
                 0.5.percent_from(RelativeMarker::Top),
@@ -122,6 +132,12 @@ impl Scene for Notifications {
                 self.colors.foreground.0,
             ),
         );
-        binder.finish::<Self>(SceneComponents::new(MicroGrid::new(), ()))
+        binder.finish::<Self>(SceneComponents::new(
+            MicroGrid::new(),
+            NotificationsComponents {
+                state: NotificationState::Hidden,
+                notification: Notification::new(""),
+            },
+        ))
     }
 }
