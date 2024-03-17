@@ -44,7 +44,8 @@ async fn tester() -> i32 {
 pub struct Engen {
     data: i32,
 }
-#[async_trait::async_trait]
+#[cfg_attr(target_family = "wasm", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_family = "wasm"), async_trait::async_trait)]
 impl Workflow for Engen {
     type Action = u32;
     type Response = i32;
