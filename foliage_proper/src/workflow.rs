@@ -8,22 +8,6 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::future::Future;
 use winit::event_loop::EventLoopProxy;
-#[derive(Clone)]
-pub struct WorkflowConfiguration<Action, Response, Fut>
-where
-    Fut: Future<Output = Response>,
-    Fut: Clone,
-{
-    pub process: fn(action: Action) -> Fut,
-}
-impl<Action, Response, Fut> WorkflowConfiguration<Action, Response, Fut>
-where
-    Fut: Future<Output = Response> + std::clone::Clone,
-{
-    pub fn new(process: fn(action: Action) -> Fut) -> Self {
-        Self { process }
-    }
-}
 pub trait Workflow
 where
     Self: Send + Sync + 'static + Sized,
@@ -37,8 +21,7 @@ where
         + 'static
         + Serialize
         + for<'a> Deserialize<'a>;
-    fn workflow<Fut: Future<Output = Self::Response> + std::clone::Clone>(
-    ) -> WorkflowConfiguration<Self::Action, Self::Response, Fut>;
+    fn workflow<Fut: Future<Output = Self::Response>>() -> Box<fn(action: Self::Action) -> Fut>;
     fn react(elm: &mut Elm, response: Self::Response);
 }
 pub struct WorkflowHandle<W: Workflow> {
@@ -112,7 +95,7 @@ struct WorkflowEngen<W: Workflow, Fut>
 where
     Fut: Future<Output = W::Response> + std::clone::Clone,
 {
-    config: WorkflowConfiguration<W::Action, W::Response, Fut>,
+    pub process: fn(action: W::Action) -> Fut,
 }
 impl<W: Workflow, Fut> Worker for WorkflowEngen<W, Fut>
 where
@@ -123,8 +106,8 @@ where
     type Output = ResponseMessage<W::Response>;
 
     fn create(_scope: &WorkerScope<Self>) -> Self {
-        let config = W::workflow();
-        WorkflowEngen::<W, Fut> { config }
+        let process = W::workflow::<Fut>();
+        WorkflowEngen::<W, Fut> { process: *process }
     }
 
     fn update(&mut self, scope: &WorkerScope<Self>, msg: Self::Message) {
@@ -132,9 +115,10 @@ where
     }
 
     fn received(&mut self, scope: &WorkerScope<Self>, msg: Self::Input, id: HandlerId) {
+        let func = self.process;
         scope.send_future(async move {
             let response = if let Some(a) = msg.0 {
-                ResponseMessage::user((self.config.clone().process)(a).await)
+                ResponseMessage::user(func(a).await)
             } else if let Some(s) = msg.1 {
                 ResponseMessage::system(system_message_response(s).await)
             } else {

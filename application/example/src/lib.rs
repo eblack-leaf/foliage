@@ -16,9 +16,10 @@ use foliage::elm::Elm;
 use foliage::image::{Image, ImageId, ImageStorage};
 use foliage::view::ViewHandle;
 use foliage::window::WindowDescriptor;
-use foliage::workflow::{EngenHandle, Workflow};
+use foliage::workflow::Workflow;
 use foliage::{AndroidInterface, Foliage};
 use showcase::button::ButtonShowcase;
+use std::future::Future;
 
 pub fn entry(android_interface: AndroidInterface) {
     Foliage::new()
@@ -33,7 +34,11 @@ pub fn entry(android_interface: AndroidInterface) {
         .with_leaf::<IconDisplay>()
         .with_android_interface(android_interface)
         .with_worker_path("./worker.js")
-        .run::<Engen>();
+        .run::<Engen, _>(process);
+}
+async fn process(action: <Engen as Workflow>::Action) -> <Engen as Workflow>::Response {
+    tracing::trace!("received: {:?}", action);
+    (action + 1) as i32
 }
 #[derive(Default)]
 pub struct Engen {}
@@ -41,9 +46,8 @@ impl Workflow for Engen {
     type Action = u32;
     type Response = i32;
 
-    async fn process(action: Self::Action) -> Self::Response {
-        tracing::trace!("received: {:?}", action);
-        (action + 1) as i32
+    fn workflow<Fut: Future<Output = Self::Response>>() -> Box<fn(Self::Action) -> Fut> {
+        Box::new(process)
     }
 
     fn react(_elm: &mut Elm, response: Self::Response) {

@@ -168,7 +168,7 @@ impl Foliage {
     }
     pub fn run<
         W: Workflow + Default + Send + Sync + 'static,
-        Fut: Future<Output = W::Response> + std::marker::Send,
+        Fut: Future<Output = W::Response> + std::marker::Send + 'static,
     >(
         self,
         fut: fn(action: W::Action) -> Fut,
