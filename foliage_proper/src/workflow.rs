@@ -21,7 +21,7 @@ pub trait SingleThreadedWorkflow {
         + 'static
         + Serialize
         + for<'a> Deserialize<'a>;
-    async fn process(arc: EngenHandle<Self>, action: Self::Action) -> Self::Response;
+    async fn process(action: Self::Action) -> Self::Response;
     fn react(elm: &mut Elm, response: Self::Response);
 }
 #[cfg(target_family = "wasm")]
@@ -42,11 +42,11 @@ async fn native_handler<W: Workflow + Default + Send + Sync + 'static>(
     proxy: EventLoopProxy<ResponseMessage<W::Response>>,
     mut receiver: tokio::sync::mpsc::UnboundedReceiver<ActionMessage<W::Action>>,
 ) {
-    let engen = Engen(Arc::new(W::default()));
+    // let engen = Engen(Arc::new(W::default()));
     loop {
         while let Some(action) = receiver.recv().await {
             if let Some(a) = action.0 {
-                let response = W::process(engen.0.clone(), a).await;
+                let response = W::process(a).await;
                 proxy.send_event(ResponseMessage::user(response)).unwrap();
             } else if let Some(s) = action.1 {
                 let response = system_message_response(s).await;
@@ -116,7 +116,7 @@ impl<W: Workflow + Default + 'static + Send + Sync> Worker for Engen<W> {
         let arc = self.0.clone();
         scope.send_future(async move {
             let response = if let Some(a) = msg.0 {
-                ResponseMessage::user(<W as Workflow>::process(arc, a).await)
+                ResponseMessage::user(<W as Workflow>::process(a).await)
             } else if let Some(s) = msg.1 {
                 ResponseMessage::system(system_message_response(s).await)
             } else {

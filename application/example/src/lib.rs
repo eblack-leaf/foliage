@@ -41,7 +41,7 @@ impl Workflow for Engen {
     type Action = u32;
     type Response = i32;
 
-    async fn process(_arc: EngenHandle<Self>, action: Self::Action) -> Self::Response {
+    async fn process(action: Self::Action) -> Self::Response {
         tracing::trace!("received: {:?}", action);
         (action + 1) as i32
     }
