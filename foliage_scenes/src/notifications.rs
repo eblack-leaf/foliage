@@ -46,6 +46,11 @@ impl Procedure for NotificationBar {
 pub struct NotificationBar {
     pub colors: Colors,
 }
+impl NotificationBar {
+    pub fn new(colors: Colors) -> Self {
+        Self { colors }
+    }
+}
 #[inner_set_descriptor]
 pub enum SetDescriptor {
     Update,
@@ -73,7 +78,7 @@ pub enum NotificationState {
     Hidden,
 }
 #[derive(InnerSceneBinding)]
-pub enum SnackBarBindings {
+pub enum NotificationBarBindings {
     Background,
     LineOne,
     LineTwo,
@@ -106,8 +111,8 @@ impl Scene for NotificationBar {
     type Components = NotificationsComponents;
 
     fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
-        let one = bindings.get(SnackBarBindings::LineOne);
-        let two = bindings.get(SnackBarBindings::LineTwo);
+        let one = bindings.get(NotificationBarBindings::LineOne);
+        let two = bindings.get(NotificationBarBindings::LineTwo);
         if let Ok(notification) = ext.0.get(entity) {
             if !notification.0.is_empty() {
                 // replace text split if too big
@@ -117,7 +122,7 @@ impl Scene for NotificationBar {
 
     fn create(self, mut binder: Binder) -> SceneHandle {
         binder.bind(
-            SnackBarBindings::Background,
+            NotificationBarBindings::Background,
             MicroGridAlignment::new(
                 0.percent_from(RelativeMarker::Center),
                 0.percent_from(RelativeMarker::Center),
@@ -127,7 +132,7 @@ impl Scene for NotificationBar {
             Panel::new(Style::fill(), self.colors.background.0),
         );
         binder.bind(
-            SnackBarBindings::LineOne,
+            NotificationBarBindings::LineOne,
             MicroGridAlignment::new(
                 0.percent_from(RelativeMarker::Left),
                 0.percent_from(RelativeMarker::Top),
@@ -141,7 +146,7 @@ impl Scene for NotificationBar {
             ),
         );
         binder.bind(
-            SnackBarBindings::LineTwo,
+            NotificationBarBindings::LineTwo,
             MicroGridAlignment::new(
                 0.percent_from(RelativeMarker::Left),
                 0.5.percent_from(RelativeMarker::Top),
