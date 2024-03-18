@@ -35,7 +35,7 @@ fn generate() {
         let placement = placements.get(placement_index).unwrap().1;
         let offset = placement.position;
         for i in 0..INTERVALS {
-            let current = 2f64 * PI / INTERVALS as f64 * i as f64;
+            let current = 2f64 * PI / INTERVALS as f64 * (i + 1) as f64;
             for y in 0..diameter {
                 for x in 0..diameter {
                     let index = offset.x as u32 + (offset.y as u32 + y) * TEXTURE_SIZE + x;
@@ -71,7 +71,7 @@ fn generate() {
                             data.get_mut(index as usize).as_mut().unwrap().1 += ring_additive;
                         }
                     }
-                    if angle > current {
+                    if angle >= current {
                         let inverse_x = y;
                         let inverse_y = x;
                         let index = offset.x as u32

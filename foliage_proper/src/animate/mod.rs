@@ -64,13 +64,13 @@ impl Interpolator {
         }
     }
     fn interpolate(&mut self, elapsed: TimeDelta) -> InterpolationPercent {
-        let linear = (1f32
+        let linear = 1f32
             - self
                 .total
                 .checked_sub(elapsed)
                 .unwrap_or_default()
                 .as_millis() as f32
-                / self.total.as_millis() as f32);
+                / self.total.as_millis() as f32;
         InterpolationPercent(linear)
     }
 }
