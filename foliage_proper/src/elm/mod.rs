@@ -13,6 +13,7 @@ use compact_str::{CompactString, ToCompactString};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::animate::{Animation, Interpolate};
 use leaf::Leaflet;
 
 use crate::ash::render_packet::RenderPacketForwarder;
@@ -63,6 +64,12 @@ struct ConditionalLimiter<C>(PhantomData<C>);
 impl<C> Default for ConditionalLimiter<C> {
     fn default() -> Self {
         ConditionalLimiter(PhantomData)
+    }
+}
+struct AnimationLimiter<C>(PhantomData<C>);
+impl<C> Default for AnimationLimiter<C> {
+    fn default() -> Self {
+        AnimationLimiter(PhantomData)
     }
 }
 #[derive(Bundle, Clone)]
@@ -323,6 +330,17 @@ impl Elm {
             .unwrap()
             .persistent
             .insert(vh, (V::GRID, desc));
+    }
+    pub fn enable_animation<I: Interpolate>(&mut self) {
+        if self
+            .limiters
+            .insert(AnimationLimiter::<I>::default())
+            .is_none()
+        {
+            self.enable_conditional_command::<Animation<I>>();
+            self.main()
+                .add_systems(crate::animate::apply::<I>.in_set(ExternalSet::Animation));
+        }
     }
 }
 pub type InteractionHandlerFn<IH, Ext> = fn(&mut IH, &mut StaticSystemParam<Ext>);

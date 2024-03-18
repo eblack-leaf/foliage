@@ -46,6 +46,9 @@ impl<'a, 'w, 's> ViewBuilder<'a, 'w, 's> {
             branch_handle: 0,
         }
     }
+    pub fn add_simple<S: Bundle>(&mut self, s: S) -> Entity {
+        self.cmd().spawn(s).id()
+    }
     pub fn place_conditional_scene_on<S: Scene + Clone>(
         &mut self,
         condition_handle: ConditionHandle,

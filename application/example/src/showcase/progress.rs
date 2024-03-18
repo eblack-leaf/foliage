@@ -1,10 +1,13 @@
+use foliage::animate::Animate;
 use foliage::circle_button::CircleButton;
-use foliage::circle_progress_bar::CircleProgressBar;
+use foliage::circle_progress_bar::{CircleProgressBar, CircleProgressBarBindings};
 use foliage::color::monochromatic::{AquaMarine, Greyscale, Monochromatic};
 use foliage::elm::Style;
 use foliage::icon::FeatherIcon;
-use foliage::progress_bar::ProgressBar;
+use foliage::progress_bar::{ProgressBar, ProgressBarBindings, ProgressPercent};
 use foliage::segment::{MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
+use foliage::texture::factors::Progress;
+use foliage::time::TimeDelta;
 use foliage::view::{ViewBuilder, ViewDescriptor, Viewable};
 use foliage::Colors;
 
@@ -13,7 +16,7 @@ impl Viewable for ProgressShowcase {
     const GRID: MacroGrid = MacroGrid::new(8, 5);
 
     fn view(mut view_builder: ViewBuilder) -> ViewDescriptor {
-        view_builder.add_scene(
+        let a = view_builder.add_scene(
             ProgressBar::new(0.30, Colors::new(AquaMarine::BASE, Greyscale::MINUS_THREE)),
             ResponsiveSegment::base(Segment::new(
                 2.near().to(5.far()),
@@ -21,7 +24,7 @@ impl Viewable for ProgressShowcase {
             ))
             .at_layer(5),
         );
-        view_builder.add_scene(
+        let e = view_builder.add_scene(
             CircleButton::new(
                 FeatherIcon::Copy,
                 Style::fill(),
@@ -33,7 +36,13 @@ impl Viewable for ProgressShowcase {
             ))
             .at_layer(5),
         );
-        view_builder.add_scene(
+        view_builder.add_command_to(
+            e.root(),
+            a.root()
+                .animate(ProgressPercent(0.15))
+                .to(ProgressPercent(1.0), TimeDelta::from_secs(3)),
+        );
+        let b = view_builder.add_scene(
             CircleProgressBar::new(0.70, Colors::new(AquaMarine::BASE, Greyscale::MINUS_THREE)),
             ResponsiveSegment::base(Segment::new(
                 2.near().to(5.far()).maximum(50.0),
@@ -41,7 +50,7 @@ impl Viewable for ProgressShowcase {
             ))
             .at_layer(5),
         );
-        view_builder.add_scene(
+        let d = view_builder.add_scene(
             CircleButton::new(
                 FeatherIcon::Copy,
                 Style::fill(),
@@ -52,6 +61,12 @@ impl Viewable for ProgressShowcase {
                 3.near().to(3.far()),
             ))
             .at_layer(5),
+        );
+        view_builder.add_command_to(
+            d.root(),
+            b.root()
+                .animate(ProgressPercent(0.15))
+                .to(ProgressPercent(1.0), TimeDelta::from_secs(3)),
         );
         view_builder.finish()
     }

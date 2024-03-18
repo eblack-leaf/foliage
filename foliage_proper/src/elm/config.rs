@@ -8,6 +8,7 @@ use std::hash::Hash;
 #[derive(SystemSet, Hash, Eq, PartialEq, Debug, Copy, Clone)]
 pub enum ExternalSet {
     InteractionTriggers,
+    Animation,
     Process,
     ConditionalBind,
     ConditionalExt,
@@ -19,6 +20,7 @@ pub enum CoreSet {
     ExternalEvent,
     Interaction,
     // InteractionTriggers,
+    // Animation,
     // Process,
     ProcessEvent,
     Navigation,
@@ -51,6 +53,7 @@ impl<'a> ElmConfiguration<'a> {
                 CoreSet::ExternalEvent,
                 CoreSet::Interaction,
                 ExternalSet::InteractionTriggers,
+                ExternalSet::Animation,
                 ExternalSet::Process,
                 CoreSet::ProcessEvent,
                 CoreSet::Navigation,
@@ -97,6 +100,9 @@ impl<'a> ElmConfiguration<'a> {
                 .before(ExternalSet::InteractionTriggers),
             apply_deferred
                 .after(ExternalSet::InteractionTriggers)
+                .before(ExternalSet::Animation),
+            apply_deferred
+                .after(ExternalSet::Animation)
                 .before(ExternalSet::Process),
             apply_deferred
                 .after(ExternalSet::Process)

@@ -1,5 +1,8 @@
+use crate::animate::{Interpolate, Interpolation, InterpolationExtraction};
 use crate::coordinate::area::Area;
 use crate::coordinate::DeviceContext;
+use crate::elm::leaf::{EmptySetDescriptor, Leaf};
+use crate::elm::Elm;
 use bevy_ecs::component::Component;
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
@@ -33,7 +36,31 @@ impl MipsLevel {
 #[repr(C)]
 #[derive(Component, Copy, Clone, PartialEq, Default, Pod, Zeroable, Serialize, Deserialize)]
 pub struct Progress(pub(crate) f32, pub(crate) f32);
+impl Interpolate for Progress {
+    fn interpolations(&self, end: &Self) -> Vec<Interpolation> {
+        vec![
+            Interpolation::new(self.0, end.0),
+            Interpolation::new(self.1, end.1),
+        ]
+    }
+    fn apply(&self, extracts: Vec<InterpolationExtraction>) -> Self {
+        let mut this = self.clone();
+        if let Some(e) = extracts.get(0) {
+            this.0 += e.0;
+        }
+        if let Some(e) = extracts.get(1) {
+            this.1 += e.0;
+        }
+        this
+    }
+}
+impl Leaf for Progress {
+    type SetDescriptor = EmptySetDescriptor;
 
+    fn attach(elm: &mut Elm) {
+        elm.enable_animation::<Progress>();
+    }
+}
 impl Progress {
     pub fn full() -> Self {
         Self(0.0, 1.0)

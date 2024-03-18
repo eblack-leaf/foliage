@@ -1,4 +1,5 @@
 use foliage_macros::{inner_set_descriptor, InnerSceneBinding};
+use foliage_proper::animate::{Interpolate, Interpolation, InterpolationExtraction};
 use foliage_proper::bevy_ecs;
 use foliage_proper::bevy_ecs::bundle::Bundle;
 use foliage_proper::bevy_ecs::entity::Entity;
@@ -126,6 +127,19 @@ impl Scene for ProgressBar {
         ))
     }
 }
+impl Interpolate for ProgressPercent {
+    fn interpolations(&self, end: &Self) -> Vec<Interpolation> {
+        vec![Interpolation::new(self.0, end.0)]
+    }
+
+    fn apply(&self, extracts: Vec<InterpolationExtraction>) -> Self {
+        Self(if let Some(e) = extracts.get(0) {
+            self.0 + e.0
+        } else {
+            self.0
+        })
+    }
+}
 impl Leaf for ProgressBar {
     type SetDescriptor = SetDescriptor;
 
@@ -134,6 +148,7 @@ impl Leaf for ProgressBar {
     }
 
     fn attach(elm: &mut Elm) {
+        elm.enable_animation::<ProgressPercent>();
         elm.enable_conditional_scene::<ProgressBar>();
         elm.main().add_systems(
             foliage_proper::scene::config::<ProgressBar>.in_set(SetDescriptor::Update),

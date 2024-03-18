@@ -38,6 +38,7 @@ use crate::panel::Panel;
 use crate::rectangle::Rectangle;
 use crate::system_message::{ResponseMessage, SystemMessageResponse};
 use crate::text::Text;
+use crate::texture::factors::Progress;
 use crate::time::Time;
 use crate::view::View;
 use crate::virtual_keyboard::VirtualKeyboardAdapter;
@@ -132,6 +133,7 @@ impl Foliage {
             .with_leaf::<Clipboard>()
             .with_leaf::<AssetContainer>()
             .with_leaf::<Media>()
+            .with_leaf::<Progress>()
     }
     pub fn with_android_interface(mut self, android_interface: AndroidInterface) -> Self {
         self.android_interface = android_interface;
