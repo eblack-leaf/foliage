@@ -1,12 +1,11 @@
 use foliage::animate::Animate;
 use foliage::circle_button::CircleButton;
-use foliage::circle_progress_bar::{CircleProgressBar, CircleProgressBarBindings};
+use foliage::circle_progress_bar::CircleProgressBar;
 use foliage::color::monochromatic::{AquaMarine, Greyscale, Monochromatic};
 use foliage::elm::Style;
 use foliage::icon::FeatherIcon;
-use foliage::progress_bar::{ProgressBar, ProgressBarBindings, ProgressPercent};
+use foliage::progress_bar::{ProgressBar, ProgressPercent};
 use foliage::segment::{MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
-use foliage::texture::factors::Progress;
 use foliage::time::TimeDelta;
 use foliage::view::{ViewBuilder, ViewDescriptor, Viewable};
 use foliage::Colors;
