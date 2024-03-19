@@ -143,7 +143,7 @@ impl<Context: CoordinateContext> Div for Area<Context> {
 }
 impl<Context: CoordinateContext> AddAssign for Area<Context> {
     fn add_assign(&mut self, rhs: Self) {
-       *self = *self + rhs;
+        *self = *self + rhs;
     }
 }
 impl<Context: CoordinateContext> MulAssign for Area<Context> {

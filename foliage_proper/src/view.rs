@@ -1,3 +1,11 @@
+use std::collections::{HashMap, HashSet};
+
+use bevy_ecs::bundle::Bundle;
+use bevy_ecs::change_detection::Res;
+use bevy_ecs::entity::Entity;
+use bevy_ecs::prelude::{Changed, Component, IntoSystemConfigs, Or, Resource, World};
+use bevy_ecs::system::{Command, Commands, ParamSet, Query, ResMut};
+
 use crate::animate::trigger::Trigger;
 use crate::conditional::{
     Branch, ConditionHandle, Conditional, ConditionalCommand, SceneBranch, SpawnTarget,
@@ -5,7 +13,7 @@ use crate::conditional::{
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
-use crate::coordinate::InterfaceContext;
+use crate::coordinate::{InterfaceContext, PositionAdjust};
 use crate::differential::Despawn;
 use crate::elm::config::CoreSet;
 use crate::elm::leaf::{EmptySetDescriptor, Leaf};
@@ -15,12 +23,6 @@ use crate::layout::Layout;
 use crate::procedure::Procedure;
 use crate::scene::{Binder, ExtendTarget, Scene, SceneBindingComponents, SceneHandle};
 use crate::segment::{MacroGrid, ResponsiveSegment};
-use bevy_ecs::bundle::Bundle;
-use bevy_ecs::change_detection::Res;
-use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Changed, Component, IntoSystemConfigs, Resource, World};
-use bevy_ecs::system::{Command, Commands, Query, ResMut};
-use std::collections::{HashMap, HashSet};
 
 #[derive(Copy, Clone, Component)]
 pub(crate) struct PersistentView(pub ViewHandle);
@@ -255,86 +257,108 @@ pub struct Compositor {
     current: Option<ViewDescriptor>,
     pub(crate) persistent: HashMap<ViewHandle, (MacroGrid, ViewDescriptor)>,
 }
-fn viewport_changed(
-    mut query: Query<(
-        &ResponsiveSegment,
-        &mut Position<InterfaceContext>,
-        &mut Area<InterfaceContext>,
-        &mut Layer,
-        &mut Disabled,
-        Option<&PersistentView>,
-    )>,
-    viewport_handle: Res<ViewportHandle>,
-    grid: Res<MacroGrid>,
-    mut layout: ResMut<Layout>,
-    compositor: Res<Compositor>,
-) {
-    if viewport_handle.area_updated() {
-        *layout = Layout::from_area(viewport_handle.section().area);
-        for (res_seg, mut pos, mut area, mut layer, mut disabled, pv) in query.iter_mut() {
-            // calc
-            let g = if let Some(pg) = pv {
-                &compositor
-                    .persistent
-                    .get(&pg.0)
-                    .expect("invalid-persistent-link")
-                    .0
-            } else {
-                &grid
-            };
-            if let Some(coord) = res_seg.coordinate(*layout, viewport_handle.section(), g) {
-                *pos = coord.section.position;
-                *area = coord.section.area;
-                *layer = coord.layer;
-                if disabled.is_disabled() {
-                    *disabled = Disabled::not_disabled();
-                }
-            } else {
-                *disabled = Disabled::disabled();
-            }
-        }
-    }
-}
-fn responsive_segment_changed(
-    mut query: Query<
-        (
+fn responsive_segment_changes(
+    mut changed: ParamSet<(
+        Query<
+            (
+                &ResponsiveSegment,
+                &mut Position<InterfaceContext>,
+                &mut Area<InterfaceContext>,
+                &mut Layer,
+                &mut Disabled,
+                Option<&PersistentView>,
+                Option<&PositionAdjust>,
+            ),
+            Or<(Changed<ResponsiveSegment>, Changed<PositionAdjust>)>,
+        >,
+        Query<(
             &ResponsiveSegment,
             &mut Position<InterfaceContext>,
             &mut Area<InterfaceContext>,
             &mut Layer,
             &mut Disabled,
             Option<&PersistentView>,
-        ),
-        Changed<ResponsiveSegment>,
-    >,
+            Option<&PositionAdjust>,
+        )>,
+    )>,
     viewport_handle: Res<ViewportHandle>,
-    layout: Res<Layout>,
+    mut layout: ResMut<Layout>,
     grid: Res<MacroGrid>,
     compositor: Res<Compositor>,
 ) {
-    for (res_seg, mut pos, mut area, mut layer, mut disabled, pv) in query.iter_mut() {
-        // calc
-        let g = if let Some(pg) = pv {
-            &compositor
-                .persistent
-                .get(&pg.0)
-                .expect("invalid-persistent-link")
-                .0
-        } else {
-            &grid
-        };
-        if let Some(coord) = res_seg.coordinate(*layout, viewport_handle.section(), g) {
-            *pos = coord.section.position;
-            *area = coord.section.area;
-            *layer = coord.layer;
-            if disabled.is_disabled() {
-                *disabled = Disabled::not_disabled();
-            }
-        } else {
-            *disabled = Disabled::disabled();
+    if viewport_handle.area_updated() {
+        for (res_seg, mut pos, mut area, mut layer, mut disabled, pv, pos_adjust) in
+            changed.p1().iter_mut()
+        {
+            calculate_res_seg(
+                &viewport_handle,
+                &mut layout,
+                &grid,
+                &compositor,
+                res_seg,
+                &mut pos,
+                &mut area,
+                &mut layer,
+                &mut disabled,
+                pv,
+                pos_adjust,
+            );
         }
+    } else {
+        for (res_seg, mut pos, mut area, mut layer, mut disabled, pv, pos_adjust) in
+            changed.p0().iter_mut()
+        {
+            calculate_res_seg(
+                &viewport_handle,
+                &mut layout,
+                &grid,
+                &compositor,
+                res_seg,
+                &mut pos,
+                &mut area,
+                &mut layer,
+                &mut disabled,
+                pv,
+                pos_adjust,
+            );
+        }
+    };
+}
+
+fn calculate_res_seg(
+    viewport_handle: &ViewportHandle,
+    layout: &mut Layout,
+    grid: &MacroGrid,
+    compositor: &Compositor,
+    res_seg: &ResponsiveSegment,
+    pos: &mut Position<InterfaceContext>,
+    area: &mut Area<InterfaceContext>,
+    layer: &mut Layer,
+    disabled: &mut Disabled,
+    pv: Option<&PersistentView>,
+    pos_adjust: Option<&PositionAdjust>,
+) {
+    let g = if let Some(pg) = pv {
+        &compositor
+            .persistent
+            .get(&pg.0)
+            .expect("invalid-persistent-link")
+            .0
+    } else {
+        &grid
+    };
+    if let Some(coord) = res_seg.coordinate(*layout, viewport_handle.section(), g) {
+        *pos = coord.section.position + pos_adjust.cloned().unwrap_or_default().0;
+        *area = coord.section.area;
+        *layer = coord.layer;
+        if disabled.is_disabled() {
+            *disabled = Disabled::not_disabled();
+        }
+    } else {
+        *disabled = Disabled::disabled();
     }
 }
+
 impl Leaf for View {
     type SetDescriptor = EmptySetDescriptor;
 
@@ -346,8 +370,7 @@ impl Leaf for View {
         elm.container().insert_resource(Layout::PORTRAIT_MOBILE);
         elm.container().insert_resource(MacroGrid::new(8, 8));
         elm.main().add_systems((
-            viewport_changed.in_set(CoreSet::Compositor),
-            responsive_segment_changed.in_set(CoreSet::Compositor),
+            responsive_segment_changes.in_set(CoreSet::Compositor),
             navigation.in_set(CoreSet::Navigation),
         ));
     }

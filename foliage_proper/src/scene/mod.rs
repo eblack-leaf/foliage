@@ -6,7 +6,7 @@ use crate::conditional::{
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
-use crate::coordinate::{Coordinate, InterfaceContext};
+use crate::coordinate::{Coordinate, InterfaceContext, PositionAdjust};
 use crate::differential::Despawn;
 use crate::elm::config::{CoreSet, ExternalSet};
 use crate::elm::leaf::{EmptySetDescriptor, Leaf, Tag};
@@ -338,7 +338,16 @@ impl Scene for BlankNode {
 fn recursive_fetch(
     root_coordinate: Coordinate<InterfaceContext>,
     target_entity: Entity,
-    query: &Query<(&Anchor, &MicroGridAlignment, Option<&Bindings>, &ScenePtr), With<Tag<IsDep>>>,
+    query: &Query<
+        (
+            &Anchor,
+            &MicroGridAlignment,
+            Option<&Bindings>,
+            &ScenePtr,
+            Option<&PositionAdjust>,
+        ),
+        With<Tag<IsDep>>,
+    >,
     grids: &Query<&MicroGrid>,
 ) -> Vec<(Entity, Anchor)> {
     let mut fetch = vec![];
@@ -350,6 +359,9 @@ fn recursive_fetch(
                     let ptr = *dep.3;
                     let grid = grids.get(ptr.0).expect("scene-grid");
                     if let Some(anchor) = Anchor(root_coordinate).aligned(grid, alignment) {
+                        let anchor = Anchor(anchor.0.with_position(
+                            anchor.0.section.position + dep.4.cloned().unwrap_or_default().0,
+                        ));
                         fetch.push((bind.entity, anchor));
                         if query.get(bind.entity).unwrap().2.is_some() {
                             let others = recursive_fetch(anchor.0, bind.entity, query, grids);
@@ -369,27 +381,43 @@ pub(crate) fn resolve_anchor(
             &Area<InterfaceContext>,
             &Layer,
             &Bindings,
+            Option<&PositionAdjust>,
         ),
         (With<Tag<IsScene>>, Without<Tag<IsDep>>),
     >,
     mut deps: ParamSet<(
-        Query<(&Anchor, &MicroGridAlignment, Option<&Bindings>, &ScenePtr), With<Tag<IsDep>>>,
+        Query<
+            (
+                &Anchor,
+                &MicroGridAlignment,
+                Option<&Bindings>,
+                &ScenePtr,
+                Option<&PositionAdjust>,
+            ),
+            With<Tag<IsDep>>,
+        >,
         Query<&mut Anchor, With<Tag<IsDep>>>,
     )>,
     grids: Query<&MicroGrid>,
 ) {
-    for (pos, area, layer, bindings) in roots.iter() {
-        let coordinate = Coordinate::new((*pos, *area), *layer);
+    for (pos, area, layer, bindings, pos_adjust) in roots.iter() {
+        let root_coordinate = Coordinate::new((*pos, *area), *layer);
         for (_, bind) in bindings.0.iter() {
-            if let Ok(ptr) = deps.p0().get(bind.entity) {
-                let ptr = ptr.3 .0;
+            if let Ok(dep) = deps.p0().get(bind.entity) {
+                let ptr = dep.3 .0;
+                let adjust = dep.4.cloned().unwrap_or_default().0;
                 let grid = grids.get(ptr).expect("scene-grid");
-                if let Some(anchor) =
-                    Anchor(coordinate).aligned(grid, deps.p0().get(bind.entity).unwrap().1)
+                if let Some(aligned_anchor) =
+                    Anchor(root_coordinate).aligned(grid, deps.p0().get(bind.entity).unwrap().1)
                 {
-                    *deps.p1().get_mut(bind.entity).unwrap() = anchor;
+                    let aligned_anchor = Anchor(
+                        aligned_anchor
+                            .0
+                            .with_position(aligned_anchor.0.section.position + adjust),
+                    );
+                    *deps.p1().get_mut(bind.entity).unwrap() = aligned_anchor;
                     if deps.p0().get(bind.entity).unwrap().2.is_some() {
-                        let rf = recursive_fetch(anchor.0, bind.entity, &deps.p0(), &grids);
+                        let rf = recursive_fetch(aligned_anchor.0, bind.entity, &deps.p0(), &grids);
                         for (e, a) in rf {
                             *deps.p1().get_mut(e).unwrap() = a;
                         }

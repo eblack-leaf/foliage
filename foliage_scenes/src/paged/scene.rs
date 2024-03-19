@@ -200,19 +200,16 @@ impl Scene for PageStructure {
         );
         let mut to_be_bound = vec![];
         for i in 3..self.num_pages + 3 {
-            let e = binder.bind_conditional(
-                i,
-                element_alignment,
-                BlankNode::default().extend(PositionAdjust(Position::default())),
+            let e = binder.bind_conditional(i, element_alignment, BlankNode::default());
+            binder.extend(e.target(), PositionAdjust::default());
+            binder.add_command_to(
+                e.this(),
+                e.target().animate(
+                    Some(PositionAdjust(Position::new(-100.0, 0.0))),
+                    PositionAdjust(Position::default()),
+                    TimeDelta::from_secs(1),
+                ),
             );
-            // binder.add_command_to(
-            //     e.this(),
-            //     e.target().animate(
-            //         Some(PositionAdjust(Position::new(-100.0, 0.0))),
-            //         PositionAdjust(Position::default()),
-            //         TimeDelta::from_secs(1),
-            //     ),
-            // );
             to_be_bound.push(e.this());
         }
         binder.extend(

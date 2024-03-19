@@ -65,21 +65,21 @@ impl Viewable for ProgressShowcase {
             ))
             .at_layer(5),
         );
-        // view_builder.add_command_to(
-        //     d.root(),
-        //     b.root().animate(
-        //         Some(ProgressPercent(0.15)),
-        //         ProgressPercent(1.0),
-        //         TimeDelta::from_secs(1),
-        //     ),
-        // );
-        view_builder.extend(b.root(), PositionAdjust(Position::new(1.0, 0.0)));
         view_builder.add_command_to(
             d.root(),
             b.root().animate(
-                Some(PositionAdjust(Position::new(1.0, 0.0))),
+                Some(ProgressPercent(0.15)),
+                ProgressPercent(1.0),
+                TimeDelta::from_secs(6),
+            ),
+        );
+        view_builder.extend(b.root(), PositionAdjust(Position::new(-200.0, 0.0)));
+        view_builder.add_command_to(
+            d.root(),
+            b.root().animate(
+                Some(PositionAdjust(Position::new(-200.0, 0.0))),
                 PositionAdjust(Position::default()),
-                TimeDelta::from_secs(2),
+                TimeDelta::from_secs(6),
             ),
         );
         view_builder.finish()
