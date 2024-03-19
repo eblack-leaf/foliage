@@ -3,7 +3,7 @@ use bevy_ecs::prelude::{Component, Entity, World};
 use bevy_ecs::system::{Command, Commands, Query, Res};
 
 pub mod trigger;
-pub const ANIMATE_SKIP_RESISTANCE: u64 = 167;
+pub const ANIMATE_SKIP_RESISTANCE: u64 = 42;
 #[derive(Copy, Clone)]
 struct AnimateTarget(pub Entity);
 #[derive(Copy, Clone)]
@@ -38,11 +38,48 @@ where
     fn apply(&self, extracts: Vec<InterpolationExtraction>) -> Self;
 }
 pub trait Animate {
-    fn animate<I: Interpolate>(self, i: I) -> Animation<I>;
+    fn animate<I: Interpolate>(
+        self,
+        start: Option<I>,
+        end: I,
+        duration: TimeDelta,
+    ) -> OverwriteAnimation<I>;
+    fn composable_animate<I: Interpolate>(
+        self,
+        start: Option<I>,
+        end: I,
+        duration: TimeDelta,
+    ) -> ComposableAnimation<I>;
 }
 impl Animate for Entity {
-    fn animate<I: Interpolate>(self, i: I) -> Animation<I> {
-        Animation::new(self, i, InterpolationMethod::Sinusoidal)
+    fn animate<I: Interpolate>(
+        self,
+        start: Option<I>,
+        end: I,
+        duration: TimeDelta,
+    ) -> OverwriteAnimation<I> {
+        OverwriteAnimation(Animation::<I>::new(
+            self,
+            start,
+            end,
+            duration,
+            InterpolationMethod::Sinusoidal,
+        ))
+    }
+
+    fn composable_animate<I: Interpolate>(
+        self,
+        start: Option<I>,
+        end: I,
+        duration: TimeDelta,
+    ) -> ComposableAnimation<I> {
+        ComposableAnimation(Animation::<I>::new(
+            self,
+            start,
+            end,
+            duration,
+            InterpolationMethod::Sinusoidal,
+        ))
     }
 }
 #[derive(Copy, Clone)]
@@ -74,39 +111,47 @@ impl Interpolator {
         InterpolationPercent(linear)
     }
 }
-impl<I: Interpolate> Command for Animation<I> {
+impl<I: Interpolate> Command for OverwriteAnimation<I> {
     fn apply(self, world: &mut World) {
-        world.spawn(self);
+        world.entity_mut(self.0.target.0).insert(self.0);
+    }
+}
+#[derive(Clone)]
+pub struct OverwriteAnimation<I: Interpolate>(pub Animation<I>);
+#[derive(Clone)]
+pub struct ComposableAnimation<I: Interpolate>(pub Animation<I>);
+impl<I: Interpolate> Command for ComposableAnimation<I> {
+    fn apply(self, world: &mut World) {
+        world.spawn(self.0);
     }
 }
 #[derive(Component, Clone)]
 pub struct Animation<I: Interpolate> {
     started: bool,
     interpolations: Vec<Interpolation>,
-    current_value: I,
-    end_value: Option<I>,
+    current_value: Option<I>,
+    end_value: I,
     duration: TimeDelta,
     target: AnimateTarget,
     interpolator: Interpolator,
 }
 impl<I: Interpolate> Animation<I> {
-    fn new(target: Entity, i: I, interpolation_method: InterpolationMethod) -> Self {
+    fn new(
+        target: Entity,
+        start: Option<I>,
+        end: I,
+        duration: TimeDelta,
+        interpolation_method: InterpolationMethod,
+    ) -> Self {
         Self {
             started: false,
             interpolations: vec![],
-            current_value: i,
-            end_value: None,
-            duration: TimeDelta::default(),
+            current_value: start,
+            end_value: end,
+            duration,
             target: AnimateTarget(target),
-            interpolator: Interpolator::new(interpolation_method, TimeDelta::default()),
+            interpolator: Interpolator::new(interpolation_method, duration),
         }
-    }
-    pub fn to(mut self, i: I, duration: TimeDelta) -> Self {
-        self.interpolations = I::interpolations(&self.current_value, &i);
-        self.duration = duration;
-        self.interpolator.total = duration;
-        self.end_value.replace(i);
-        self
     }
 }
 pub(crate) fn apply<I: Interpolate>(
@@ -120,6 +165,12 @@ pub(crate) fn apply<I: Interpolate>(
         .min(TimeDelta::from_millis(ANIMATE_SKIP_RESISTANCE));
     for (entity, mut animation) in query.iter_mut() {
         if !animation.started {
+            let start = if let Some(start) = animation.current_value.clone() {
+                start
+            } else {
+                targets.get(animation.target.0).unwrap().clone()
+            };
+            animation.interpolations = I::interpolations(&start, &animation.end_value);
             animation.started = true;
             continue;
         }
@@ -145,18 +196,18 @@ pub(crate) fn apply<I: Interpolate>(
             }
         }
         if !extracts.is_empty() {
-            let new_value = animation.current_value.apply(extracts);
-            animation.current_value = new_value;
+            let new_value = animation.current_value.as_ref().unwrap().apply(extracts);
+            animation.current_value.replace(new_value);
             if let Ok(mut value) = targets.get_mut(animation.target.0) {
-                *value = animation.current_value.clone();
+                *value = animation.current_value.as_ref().unwrap().clone();
             } else {
                 // orphaned
-                cmd.entity(entity).despawn();
+                cmd.entity(entity).remove::<Animation<I>>();
             }
         }
         if all_done {
             // end anim and not already done from orphaned?
-            cmd.entity(entity).despawn();
+            cmd.entity(entity).remove::<Animation<I>>();
         }
     }
 }

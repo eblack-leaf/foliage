@@ -37,9 +37,11 @@ impl Viewable for ProgressShowcase {
         );
         view_builder.add_command_to(
             e.root(),
-            a.root()
-                .animate(ProgressPercent(0.15))
-                .to(ProgressPercent(1.0), TimeDelta::from_secs(3)),
+            a.root().animate(
+                Some(ProgressPercent(0.15)),
+                ProgressPercent(1.0),
+                TimeDelta::from_secs(3),
+            ),
         );
         let b = view_builder.add_scene(
             CircleProgressBar::new(0.70, Colors::new(AquaMarine::BASE, Greyscale::MINUS_THREE)),
@@ -63,9 +65,11 @@ impl Viewable for ProgressShowcase {
         );
         view_builder.add_command_to(
             d.root(),
-            b.root()
-                .animate(ProgressPercent(0.15))
-                .to(ProgressPercent(1.0), TimeDelta::from_secs(3)),
+            b.root().animate(
+                Some(ProgressPercent(0.15)),
+                ProgressPercent(1.0),
+                TimeDelta::from_secs(3),
+            ),
         );
         view_builder.finish()
     }

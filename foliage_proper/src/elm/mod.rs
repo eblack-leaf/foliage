@@ -13,7 +13,7 @@ use compact_str::{CompactString, ToCompactString};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::animate::{Animation, Interpolate};
+use crate::animate::{Animation, ComposableAnimation, Interpolate, OverwriteAnimation};
 use leaf::Leaflet;
 
 use crate::ash::render_packet::RenderPacketForwarder;
@@ -337,7 +337,8 @@ impl Elm {
             .insert(AnimationLimiter::<I>::default())
             .is_none()
         {
-            self.enable_conditional_command::<Animation<I>>();
+            self.enable_conditional_command::<OverwriteAnimation<I>>();
+            self.enable_conditional_command::<ComposableAnimation<I>>();
             self.main()
                 .add_systems(crate::animate::apply::<I>.in_set(ExternalSet::Animation));
         }
