@@ -15,7 +15,7 @@ use uuid::Uuid;
 
 use leaf::Leaflet;
 
-use crate::animate::{ComposableAnimation, Interpolate, OverwriteAnimation};
+use crate::animate::{Animation, ComposableAnimation, Interpolate, OverwriteAnimation};
 use crate::ash::render_packet::RenderPacketForwarder;
 use crate::ash::render_packet::RenderPacketPackage;
 use crate::asset::{AssetContainer, AssetFetchFn, AssetKey, OnFetch};
@@ -339,6 +339,7 @@ impl Elm {
         if limit {
             self.enable_conditional_command::<OverwriteAnimation<I>>();
             self.enable_conditional_command::<ComposableAnimation<I>>();
+            self.enable_conditional::<Animation<I>>();
             self.main()
                 .add_systems(crate::animate::apply::<I>.in_set(ExternalSet::Animation));
         }

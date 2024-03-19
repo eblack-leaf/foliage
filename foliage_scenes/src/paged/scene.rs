@@ -9,7 +9,7 @@ use foliage_proper::bevy_ecs::prelude::{IntoSystemConfigs, World};
 use foliage_proper::bevy_ecs::query::{With, Without};
 use foliage_proper::bevy_ecs::system::{Command, Query, SystemParamItem};
 use foliage_proper::circle::Circle;
-use foliage_proper::conditional::ConditionalCommand;
+use foliage_proper::conditional::{Conditional, ConditionalCommand, SpawnTarget};
 use foliage_proper::coordinate::position::Position;
 use foliage_proper::coordinate::PositionAdjust;
 
@@ -201,14 +201,16 @@ impl Scene for PageStructure {
         let mut to_be_bound = vec![];
         for i in 3..self.num_pages + 3 {
             let e = binder.bind_conditional(i, element_alignment, BlankNode::default());
-            binder.extend(e.target(), PositionAdjust::default());
-            binder.add_command_to(
-                e.this(),
-                e.target().animate(
-                    Some(PositionAdjust(Position::new(-100.0, 0.0))),
-                    PositionAdjust(Position::default()),
-                    TimeDelta::from_secs(1),
-                ),
+            binder.extend(e.target(), PositionAdjust(Position::new(-100.0, 0.0)));
+            binder.extend_conditional(
+                e,
+                e.target()
+                    .animate(
+                        Some(PositionAdjust(Position::new(-100.0, 0.0))),
+                        PositionAdjust(Position::default()),
+                        TimeDelta::from_secs(1),
+                    )
+                    .0,
             );
             to_be_bound.push(e.this());
         }
@@ -271,7 +273,7 @@ struct SelectionChange {
 }
 impl Command for SelectionChange {
     fn apply(self, world: &mut World) {
-        let max = world.get::<PageMax>(self.root).unwrap().0 as i32;
+        let max = world.get::<PageMax>(self.root).unwrap().0;
         let initial = world.get::<Page>(self.root).unwrap().0;
         let new = initial.checked_add(self.page_change).unwrap_or_default();
         if new == -1 {

@@ -228,8 +228,18 @@ impl<'a, 'w, 's> Binder<'a, 'w, 's> {
     pub fn add_command_to<C: Command + Clone + Sync>(&mut self, entity: Entity, comm: C) {
         self.cmd.entity(entity).insert(ConditionalCommand(comm));
     }
-    pub fn extend_conditional<Ext>() {
-        todo!()
+    pub fn extend_conditional<Ext: Bundle + Clone>(
+        &mut self,
+        condition_handle: ConditionHandle,
+        ext: Ext,
+    ) {
+        self.cmd
+            .entity(condition_handle.this())
+            .insert(Conditional::new(
+                ext,
+                SpawnTarget::This(condition_handle.target()),
+                false,
+            ));
     }
 }
 #[derive(Component, Default, Clone, Debug)]
@@ -381,7 +391,6 @@ pub(crate) fn resolve_anchor(
             &Area<InterfaceContext>,
             &Layer,
             &Bindings,
-            Option<&PositionAdjust>,
         ),
         (With<Tag<IsScene>>, Without<Tag<IsDep>>),
     >,
@@ -400,7 +409,7 @@ pub(crate) fn resolve_anchor(
     )>,
     grids: Query<&MicroGrid>,
 ) {
-    for (pos, area, layer, bindings, pos_adjust) in roots.iter() {
+    for (pos, area, layer, bindings) in roots.iter() {
         let root_coordinate = Coordinate::new((*pos, *area), *layer);
         for (_, bind) in bindings.0.iter() {
             if let Ok(dep) = deps.p0().get(bind.entity) {
