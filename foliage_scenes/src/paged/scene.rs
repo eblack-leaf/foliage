@@ -1,5 +1,6 @@
 use foliage_macros::{inner_set_descriptor, InnerSceneBinding};
 use foliage_proper::animate::trigger::Trigger;
+use foliage_proper::animate::Animate;
 use foliage_proper::bevy_ecs;
 use foliage_proper::bevy_ecs::bundle::Bundle;
 use foliage_proper::bevy_ecs::component::Component;
@@ -9,16 +10,19 @@ use foliage_proper::bevy_ecs::query::{With, Without};
 use foliage_proper::bevy_ecs::system::{Command, Query, SystemParamItem};
 use foliage_proper::circle::Circle;
 use foliage_proper::conditional::ConditionalCommand;
+use foliage_proper::coordinate::position::Position;
+use foliage_proper::coordinate::PositionAdjust;
 
 use crate::{BackgroundColor, Colors, Direction, ForegroundColor};
 use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
 use foliage_proper::elm::leaf::{Leaf, Tag};
-use foliage_proper::elm::{Elm, Style};
+use foliage_proper::elm::{BundleExtend, Elm, Style};
 use foliage_proper::icon::{FeatherIcon, Icon};
 use foliage_proper::scene::micro_grid::{
     AlignmentDesc, AnchorDim, MicroGrid, MicroGridAlignment, RelativeMarker,
 };
 use foliage_proper::scene::{Binder, Bindings, BlankNode, Scene, SceneComponents, SceneHandle};
+use foliage_proper::time::TimeDelta;
 
 use crate::circle_button::CircleButton;
 use crate::ellipsis::{Ellipsis, Selected};
@@ -196,11 +200,20 @@ impl Scene for PageStructure {
         );
         let mut to_be_bound = vec![];
         for i in 3..self.num_pages + 3 {
-            to_be_bound.push(
-                binder
-                    .bind_conditional(i as i32, element_alignment, BlankNode::default())
-                    .this(),
+            let e = binder.bind_conditional(
+                i,
+                element_alignment,
+                BlankNode::default().extend(PositionAdjust(Position::default())),
             );
+            // binder.add_command_to(
+            //     e.this(),
+            //     e.target().animate(
+            //         Some(PositionAdjust(Position::new(-100.0, 0.0))),
+            //         PositionAdjust(Position::default()),
+            //         TimeDelta::from_secs(1),
+            //     ),
+            // );
+            to_be_bound.push(e.this());
         }
         binder.extend(
             decrement.root(),

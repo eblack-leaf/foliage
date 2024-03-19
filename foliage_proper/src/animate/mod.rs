@@ -14,6 +14,7 @@ impl InterpolationPercent {
         Self(1.0)
     }
 }
+#[derive(Default, Copy, Clone)]
 pub struct InterpolationExtraction(pub f32);
 #[derive(Copy, Clone)]
 pub struct Interpolation {

@@ -23,6 +23,7 @@ use crate::clipboard::Clipboard;
 use crate::conditional::ConditionSet;
 use crate::coordinate::position::Position;
 use crate::coordinate::CoordinateUnit;
+use crate::differential::Differentiable;
 use crate::elm::leaf::Leaves;
 use crate::elm::Elm;
 use crate::ginkgo::viewport::ViewportHandle;
@@ -36,6 +37,7 @@ use crate::interaction::{
 use crate::media::Media;
 use crate::panel::Panel;
 use crate::rectangle::Rectangle;
+use crate::scene::SceneHandle;
 use crate::system_message::{ResponseMessage, SystemMessageResponse};
 use crate::text::Text;
 use crate::texture::factors::Progress;
@@ -134,6 +136,9 @@ impl Foliage {
             .with_leaf::<AssetContainer>()
             .with_leaf::<Media>()
             .with_leaf::<Progress>()
+            .with_leaf::<SceneHandle>()
+            .with_leaf::<Differentiable>()
+            .with_leaf::<CoordinateUnit>()
     }
     pub fn with_android_interface(mut self, android_interface: AndroidInterface) -> Self {
         self.android_interface = android_interface;

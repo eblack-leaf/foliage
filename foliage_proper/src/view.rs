@@ -46,9 +46,6 @@ impl<'a, 'w, 's> ViewBuilder<'a, 'w, 's> {
             branch_handle: 0,
         }
     }
-    pub fn add_simple<S: Bundle>(&mut self, s: S) -> Entity {
-        self.cmd().spawn(s).id()
-    }
     pub fn place_conditional_scene_on<S: Scene + Clone>(
         &mut self,
         condition_handle: ConditionHandle,
@@ -76,7 +73,7 @@ impl<'a, 'w, 's> ViewBuilder<'a, 'w, 's> {
     pub fn place_on<B: Bundle>(&mut self, entity: Entity, b: B) {
         self.cmd.as_mut().unwrap().entity(entity).insert(b);
     }
-    fn cmd(&mut self) -> &mut Commands<'w, 's> {
+    pub fn cmd(&mut self) -> &mut Commands<'w, 's> {
         self.cmd.as_deref_mut().unwrap()
     }
     pub fn apply<A: Procedure>(&mut self, a: A) -> ViewDescriptor {

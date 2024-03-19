@@ -13,9 +13,9 @@ use compact_str::{CompactString, ToCompactString};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::animate::{Animation, ComposableAnimation, Interpolate, OverwriteAnimation};
 use leaf::Leaflet;
 
+use crate::animate::{ComposableAnimation, Interpolate, OverwriteAnimation};
 use crate::ash::render_packet::RenderPacketForwarder;
 use crate::ash::render_packet::RenderPacketPackage;
 use crate::asset::{AssetContainer, AssetFetchFn, AssetKey, OnFetch};
@@ -332,11 +332,11 @@ impl Elm {
             .insert(vh, (V::GRID, desc));
     }
     pub fn enable_animation<I: Interpolate>(&mut self) {
-        if self
+        let limit = self
             .limiters
             .insert(AnimationLimiter::<I>::default())
-            .is_none()
-        {
+            .is_none();
+        if limit {
             self.enable_conditional_command::<OverwriteAnimation<I>>();
             self.enable_conditional_command::<ComposableAnimation<I>>();
             self.main()

@@ -2,6 +2,8 @@ use foliage::animate::Animate;
 use foliage::circle_button::CircleButton;
 use foliage::circle_progress_bar::CircleProgressBar;
 use foliage::color::monochromatic::{AquaMarine, Greyscale, Monochromatic};
+use foliage::coordinate::position::Position;
+use foliage::coordinate::PositionAdjust;
 use foliage::elm::Style;
 use foliage::icon::FeatherIcon;
 use foliage::progress_bar::{ProgressBar, ProgressPercent};
@@ -63,12 +65,21 @@ impl Viewable for ProgressShowcase {
             ))
             .at_layer(5),
         );
+        // view_builder.add_command_to(
+        //     d.root(),
+        //     b.root().animate(
+        //         Some(ProgressPercent(0.15)),
+        //         ProgressPercent(1.0),
+        //         TimeDelta::from_secs(1),
+        //     ),
+        // );
+        view_builder.extend(b.root(), PositionAdjust(Position::new(-300.0, 0.0)));
         view_builder.add_command_to(
             d.root(),
             b.root().animate(
-                Some(ProgressPercent(0.15)),
-                ProgressPercent(1.0),
-                TimeDelta::from_secs(1),
+                Some(PositionAdjust(Position::new(-300.0, 0.0))),
+                PositionAdjust(Position::default()),
+                TimeDelta::from_secs(2),
             ),
         );
         view_builder.finish()

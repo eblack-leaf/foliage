@@ -1,7 +1,9 @@
 use std::any::TypeId;
 
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Bundle, Commands, Component, Or, Query, RemovedComponents};
+use bevy_ecs::prelude::{
+    Bundle, Commands, Component, IntoSystemConfigs, Or, Query, RemovedComponents,
+};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::ResMut;
 use compact_str::{CompactString, ToCompactString};
@@ -15,7 +17,10 @@ use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::{InterfaceContext, PositionAdjust};
-use crate::elm::Disabled;
+use crate::elm::config::CoreSet;
+use crate::elm::leaf::{EmptySetDescriptor, Leaf};
+use crate::elm::{Disabled, Elm};
+use crate::job::Container;
 
 #[derive(Bundle, Clone)]
 pub struct Differentiable {
@@ -254,5 +259,18 @@ pub(crate) fn despawn(despawned: Query<(Entity, &Despawn), Changed<Despawn>>, mu
             tracing::trace!("cleaning-up despawn-signaled: {:?}", entity);
             cmd.entity(entity).despawn();
         }
+    }
+}
+impl Leaf for Differentiable {
+    type SetDescriptor = EmptySetDescriptor;
+
+    fn attach(elm: &mut Elm) {
+        elm.main().add_systems((
+            (send_render_packet, clear_lost_differentials).in_set(CoreSet::RenderPacket),
+            despawn
+                .in_set(CoreSet::RenderPacket)
+                .after(send_render_packet),
+            Container::clear_trackers.after(CoreSet::RenderPacket),
+        ));
     }
 }

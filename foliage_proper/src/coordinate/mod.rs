@@ -4,10 +4,14 @@ use crate::coordinate::location::Location;
 use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::section::Section;
 
+use crate::animate::{Interpolate, Interpolation, InterpolationExtraction};
+use crate::elm::config::CoreSet;
+use crate::elm::leaf::{EmptySetDescriptor, Leaf};
+use crate::elm::Elm;
 use crate::window::ScaleFactor;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
-use bevy_ecs::prelude::Query;
+use bevy_ecs::prelude::{IntoSystemConfigs, Query};
 use bevy_ecs::system::Res;
 use serde::{Deserialize, Serialize};
 
@@ -32,8 +36,26 @@ pub struct NumericalContext;
 impl CoordinateContext for DeviceContext {}
 impl CoordinateContext for InterfaceContext {}
 impl CoordinateContext for NumericalContext {}
-#[derive(Component, Copy, Clone)]
+#[derive(Component, Copy, Clone, Default)]
 pub struct PositionAdjust(pub Position<InterfaceContext>);
+impl Interpolate for PositionAdjust {
+    fn interpolations(&self, end: &Self) -> Vec<Interpolation> {
+        vec![
+            Interpolation::new(self.0.x, end.0.x),
+            Interpolation::new(self.0.y, end.0.y),
+        ]
+    }
+
+    fn apply(&self, extracts: Vec<InterpolationExtraction>) -> Self {
+        Self(
+            self.0
+                + Position::new(
+                    extracts.get(0).cloned().unwrap_or_default().0,
+                    extracts.get(1).cloned().unwrap_or_default().0,
+                ),
+        )
+    }
+}
 pub(crate) fn position_set(
     mut query: Query<(
         &mut CReprPosition,
@@ -43,6 +65,9 @@ pub(crate) fn position_set(
     scale_factor: Res<ScaleFactor>,
 ) {
     for (mut c_repr, pos, adjust) in query.iter_mut() {
+        if adjust.0 != Position::default() {
+            println!("got it");
+        }
         *c_repr = (*pos + adjust.0).to_device(scale_factor.factor()).to_c();
         c_repr.x = c_repr.x.round();
         c_repr.y = c_repr.y.round();
@@ -88,5 +113,16 @@ impl<Context: CoordinateContext> Coordinate<Context> {
     pub fn moved_by<P: Into<Position<Context>>>(mut self, p: P) -> Self {
         self.section.position += p.into();
         self
+    }
+}
+impl Leaf for CoordinateUnit {
+    type SetDescriptor = EmptySetDescriptor;
+
+    fn attach(elm: &mut Elm) {
+        elm.enable_animation::<PositionAdjust>();
+        elm.main().add_systems((
+            position_set.in_set(CoreSet::CoordinateFinalize),
+            area_set.in_set(CoreSet::CoordinateFinalize),
+        ));
     }
 }
