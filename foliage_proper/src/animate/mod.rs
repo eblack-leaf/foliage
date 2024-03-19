@@ -1,9 +1,10 @@
+use crate::time::timer::TIME_SKIP_RESISTANCE;
 use crate::time::{Time, TimeDelta};
 use bevy_ecs::prelude::{Component, Entity, World};
 use bevy_ecs::system::{Command, Commands, Query, Res};
 
 pub mod trigger;
-pub const ANIMATE_SKIP_RESISTANCE: u64 = 42;
+
 #[derive(Copy, Clone)]
 struct AnimateTarget(pub Entity);
 #[derive(Copy, Clone)]
@@ -160,9 +161,7 @@ pub(crate) fn apply<I: Interpolate>(
     time: Res<Time>,
     mut cmd: Commands,
 ) {
-    let time_elapsed = time
-        .frame_diff()
-        .min(TimeDelta::from_millis(ANIMATE_SKIP_RESISTANCE));
+    let time_elapsed = time.frame_diff().min(TIME_SKIP_RESISTANCE);
     for (entity, mut animation) in query.iter_mut() {
         if !animation.started {
             let start = if let Some(start) = animation.current_value.clone() {

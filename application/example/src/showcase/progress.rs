@@ -40,7 +40,7 @@ impl Viewable for ProgressShowcase {
             a.root().animate(
                 Some(ProgressPercent(0.15)),
                 ProgressPercent(1.0),
-                TimeDelta::from_secs(3),
+                TimeDelta::from_secs(1),
             ),
         );
         let b = view_builder.add_scene(
@@ -68,7 +68,7 @@ impl Viewable for ProgressShowcase {
             b.root().animate(
                 Some(ProgressPercent(0.15)),
                 ProgressPercent(1.0),
-                TimeDelta::from_secs(3),
+                TimeDelta::from_secs(1),
             ),
         );
         view_builder.finish()

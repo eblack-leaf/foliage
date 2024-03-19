@@ -1,7 +1,7 @@
 #[allow(unused)]
 pub mod timer;
 
-use crate::elm::config::{CoreSet, ElmConfiguration};
+use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::elm::leaf::{EmptySetDescriptor, Leaf};
 use crate::elm::Elm;
 use bevy_ecs::prelude::{IntoSystemConfigs, Resource};
@@ -68,7 +68,9 @@ impl Leaf for Time {
     fn attach(elm: &mut Elm) {
         elm.job.container.insert_resource(Time::new());
         elm.startup().add_systems(start_time);
-        elm.main()
-            .add_systems((read_time.in_set(CoreSet::ExternalEvent),));
+        elm.main().add_systems((
+            read_time.in_set(CoreSet::ExternalEvent),
+            timer::update.in_set(ExternalSet::Animation),
+        ));
     }
 }
