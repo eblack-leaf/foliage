@@ -30,7 +30,7 @@ pub enum CoreSet {
     // ConditionalExt,
     // Spawn,
     Compositor,
-    Coordinate,
+    SceneCoordinate,
     // Configure,
     CoordinateFinalize,
     Visibility,
@@ -63,7 +63,7 @@ impl<'a> ElmConfiguration<'a> {
                 ExternalSet::ConditionalExt,
                 ExternalSet::Spawn,
                 CoreSet::Compositor,
-                CoreSet::Coordinate,
+                CoreSet::SceneCoordinate,
                 ExternalSet::Configure,
                 CoreSet::CoordinateFinalize,
                 CoreSet::Visibility,
@@ -108,9 +108,9 @@ impl<'a> ElmConfiguration<'a> {
                 .before(CoreSet::Compositor),
             apply_deferred
                 .after(CoreSet::Compositor)
-                .before(CoreSet::Coordinate),
+                .before(CoreSet::SceneCoordinate),
             apply_deferred
-                .after(CoreSet::Coordinate)
+                .after(CoreSet::SceneCoordinate)
                 .before(ExternalSet::Configure),
             apply_deferred
                 .after(ExternalSet::Configure)

@@ -73,11 +73,11 @@ impl Viewable for ProgressShowcase {
         //         TimeDelta::from_secs(1),
         //     ),
         // );
-        view_builder.extend(b.root(), PositionAdjust(Position::new(-300.0, 0.0)));
+        view_builder.extend(b.root(), PositionAdjust(Position::new(1.0, 0.0)));
         view_builder.add_command_to(
             d.root(),
             b.root().animate(
-                Some(PositionAdjust(Position::new(-300.0, 0.0))),
+                Some(PositionAdjust(Position::new(1.0, 0.0))),
                 PositionAdjust(Position::default()),
                 TimeDelta::from_secs(2),
             ),

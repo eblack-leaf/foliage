@@ -1,5 +1,5 @@
 use std::marker::PhantomData;
-use std::ops::{Add, Div, DivAssign, Mul, MulAssign, Sub};
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub};
 
 use bevy_ecs::prelude::Component;
 use bytemuck::{Pod, Zeroable};
@@ -141,7 +141,11 @@ impl<Context: CoordinateContext> Div for Area<Context> {
         Area::<Context>::new(self.width / rhs.width, self.height / rhs.height)
     }
 }
-
+impl<Context: CoordinateContext> AddAssign for Area<Context> {
+    fn add_assign(&mut self, rhs: Self) {
+       *self = *self + rhs;
+    }
+}
 impl<Context: CoordinateContext> MulAssign for Area<Context> {
     fn mul_assign(&mut self, rhs: Self) {
         *self = *self * rhs;

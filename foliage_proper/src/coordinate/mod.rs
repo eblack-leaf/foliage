@@ -12,6 +12,7 @@ use crate::window::ScaleFactor;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{IntoSystemConfigs, Query};
+use bevy_ecs::query::{Changed, Or};
 use bevy_ecs::system::Res;
 use serde::{Deserialize, Serialize};
 
@@ -56,21 +57,50 @@ impl Interpolate for PositionAdjust {
         )
     }
 }
+#[derive(Component, Copy, Clone, Default)]
+pub struct AreaAdjust(pub Area<InterfaceContext>);
+impl Interpolate for AreaAdjust {
+    fn interpolations(&self, end: &Self) -> Vec<Interpolation> {
+        vec![
+            Interpolation::new(self.0.width, end.0.width),
+            Interpolation::new(self.0.height, end.0.height),
+        ]
+    }
+
+    fn apply(&self, extracts: Vec<InterpolationExtraction>) -> Self {
+        let mut copy = *self;
+        copy.0.width += extracts.get(0).cloned().unwrap_or_default().0;
+        copy.0.height += extracts.get(1).cloned().unwrap_or_default().0;
+        copy
+    }
+}
+pub(crate) fn position_adjust(
+    mut query: Query<(&mut Position<InterfaceContext>, &PositionAdjust), Or<(Changed<PositionAdjust>, Changed<Position<InterfaceContext>>)>>
+) {
+    for (mut pos, adj) in query.iter_mut() {
+        *pos = *pos + adj.0;
+    }
+}
 pub(crate) fn position_set(
     mut query: Query<(
         &mut CReprPosition,
         &Position<InterfaceContext>,
-        &PositionAdjust,
-    )>,
+    ), Changed<Position<InterfaceContext>>>,
     scale_factor: Res<ScaleFactor>,
 ) {
-    for (mut c_repr, pos, adjust) in query.iter_mut() {
-        if adjust.0 != Position::default() {
-            println!("got it");
-        }
-        *c_repr = (*pos + adjust.0).to_device(scale_factor.factor()).to_c();
+    for (mut c_repr, pos) in query.iter_mut() {
+        *c_repr = (*pos).to_device(scale_factor.factor()).to_c();
         c_repr.x = c_repr.x.round();
         c_repr.y = c_repr.y.round();
+    }
+}
+pub(crate) fn area_adjust(
+    mut query: Query<(&mut Area<InterfaceContext>, &AreaAdjust), Or<(Changed<AreaAdjust>, Changed<Area<InterfaceContext>>)>>
+) {
+    for (mut area, adj) in query.iter_mut() {
+        if adj.0 != Area::default() {
+            *area += adj.0;
+        }
     }
 }
 pub(crate) fn area_set(
@@ -121,8 +151,8 @@ impl Leaf for CoordinateUnit {
     fn attach(elm: &mut Elm) {
         elm.enable_animation::<PositionAdjust>();
         elm.main().add_systems((
-            position_set.in_set(CoreSet::CoordinateFinalize),
-            area_set.in_set(CoreSet::CoordinateFinalize),
+            (position_adjust, position_set).chain().in_set(CoreSet::CoordinateFinalize),
+            (area_adjust, area_set).chain().in_set(CoreSet::CoordinateFinalize),
         ));
     }
 }

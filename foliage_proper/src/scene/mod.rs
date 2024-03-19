@@ -515,7 +515,7 @@ impl Leaf for SceneHandle {
             despawn_bindings.in_set(ExternalSet::ConditionalExt),
             (resolve_anchor, update_from_anchor)
                 .chain()
-                .in_set(CoreSet::Coordinate),
+                .in_set(CoreSet::SceneCoordinate),
         ));
     }
 }
