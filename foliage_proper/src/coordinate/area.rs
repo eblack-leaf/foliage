@@ -28,18 +28,18 @@ impl<Context: CoordinateContext> Area<Context> {
 }
 
 impl<Context: CoordinateContext> Area<Context> {
-    pub fn new(width: CoordinateUnit, height: CoordinateUnit) -> Self {
+    pub const fn new(width: CoordinateUnit, height: CoordinateUnit) -> Self {
         Self {
             width,
             height,
             _phantom: PhantomData,
         }
     }
-    pub fn to_numerical(self) -> Area<NumericalContext> {
+    pub const fn to_numerical(self) -> Area<NumericalContext> {
         Area::<NumericalContext>::new(self.width, self.height)
     }
     /// return a copy as raw struct for gpu interactions
-    pub fn to_c(self) -> CReprArea {
+    pub const fn to_c(self) -> CReprArea {
         CReprArea {
             width: self.width,
             height: self.height,
