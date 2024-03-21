@@ -10,7 +10,7 @@ use crate::differential::{DifferentialId, DifferentialIdentification};
 
 pub type RenderPacketDifferential = Option<Vec<u8>>;
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct RenderPacket(pub HashMap<DifferentialId, RenderPacketDifferential>);
 
 impl Default for RenderPacket {
@@ -45,6 +45,7 @@ impl RenderPacketStore {
         }
     }
     pub(crate) fn retrieve(&mut self) -> RenderPacket {
+        tracing::trace!("retrieving render-packet");
         let data = self.render_packet.take().unwrap();
         self.render_packet.replace(RenderPacket::new());
         data
@@ -83,6 +84,7 @@ pub(crate) struct RenderPacketForwarder {
 
 impl RenderPacketForwarder {
     pub(crate) fn forward_packet(&mut self, id: &RenderId, entity: Entity, packet: RenderPacket) {
+        tracing::trace!("forwarding-packet");
         self.render_packets
             .insert(RenderPacketSignature(id.clone(), entity), packet);
         if let Some(rems) = self.removals.get_mut(id) {
@@ -90,6 +92,7 @@ impl RenderPacketForwarder {
         }
     }
     pub(crate) fn remove(&mut self, id: &RenderId, entity: Entity) {
+        tracing::trace!("removing-packet");
         if self.removal_queue.get(id).is_none() {
             self.removal_queue.insert(id.clone(), HashSet::new());
         }
@@ -100,6 +103,7 @@ impl RenderPacketForwarder {
             .remove(&RenderPacketSignature(id.clone(), entity));
     }
     pub(crate) fn package_for_transit(&mut self) -> RenderPacketPackage {
+        tracing::trace!("packaging render-packets");
         let mut package = RenderPacketPackage::default();
         for (signature, packet) in self.render_packets.drain() {
             if package.0.get(&signature.0).is_none() {
@@ -148,7 +152,7 @@ impl RenderPacketPackage {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct RenderPacketQueue(pub HashMap<Entity, RenderPacket>, pub Vec<Entity>);
 
 impl RenderPacketQueue {

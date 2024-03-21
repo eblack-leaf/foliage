@@ -6,6 +6,7 @@ use crate::generated::AssetGen;
 use crate::overlay::Overlay;
 use crate::showcase::icon::scene::IconDisplay;
 use crate::showcase::icon::IconShowcase;
+use crate::showcase::image::ImageShowcase;
 use crate::showcase::progress::ProgressShowcase;
 use crate::showcase::text::TextShowcase;
 use foliage::color::monochromatic::Orange;
@@ -85,6 +86,7 @@ impl Leaf for Main {
         elm.add_view::<ProgressShowcase>(PROGRESS);
         elm.add_view::<IconShowcase>(ICON);
         elm.add_view::<TextShowcase>(TEXT);
+        elm.add_view::<ImageShowcase>(IMAGE);
         elm.navigate_to(BUTTON);
     }
 }
@@ -92,3 +94,4 @@ pub(crate) const BUTTON: ViewHandle = ViewHandle(1);
 pub(crate) const PROGRESS: ViewHandle = ViewHandle(2);
 pub(crate) const ICON: ViewHandle = ViewHandle(3);
 pub(crate) const TEXT: ViewHandle = ViewHandle(4);
+pub(crate) const IMAGE: ViewHandle = ViewHandle(5);

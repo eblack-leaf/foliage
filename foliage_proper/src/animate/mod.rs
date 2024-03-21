@@ -171,6 +171,11 @@ pub(crate) fn apply<I: Interpolate>(
                 targets.get(animation.target.0).unwrap().clone()
             };
             animation.interpolations = I::interpolations(&start, &animation.end_value);
+            tracing::trace!(
+                "starting animation: {:?}, w/ length: {:?}",
+                entity,
+                animation.duration
+            );
             animation.started = true;
             continue;
         }
@@ -180,15 +185,18 @@ pub(crate) fn apply<I: Interpolate>(
             .unwrap_or_default();
         animation.duration = time_remaining;
         let percent = if time_remaining.is_zero() {
+            tracing::trace!("extract-remaining from {:?}", entity);
             InterpolationPercent::remaining()
         } else {
+            tracing::trace!("get interpolation percent for {:?}", entity);
             animation.interpolator.interpolate(time_elapsed)
         };
         let mut extracts = vec![];
         let mut all_done = true;
-        for interpolation in animation.interpolations.iter_mut() {
+        for (i, interpolation) in animation.interpolations.iter_mut().enumerate() {
             let amount = interpolation.total * percent.0;
             let extract = amount.min(interpolation.remaining);
+            tracing::trace!("extracting {:?} from {:?}", extract, i);
             interpolation.remaining -= extract;
             extracts.push(InterpolationExtraction(extract * interpolation.factor));
             if interpolation.remaining != 0.0 {
@@ -202,11 +210,13 @@ pub(crate) fn apply<I: Interpolate>(
                 *value = animation.current_value.as_ref().unwrap().clone();
             } else {
                 // orphaned
+                tracing::trace!("orphaned-animation: {:?}", entity);
                 cmd.entity(entity).remove::<Animation<I>>();
             }
         }
         if all_done {
             // end anim and not already done from orphaned?
+            tracing::trace!("animation done: {:?}", entity);
             cmd.entity(entity).remove::<Animation<I>>();
         }
     }

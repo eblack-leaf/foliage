@@ -113,7 +113,7 @@ impl DifferentialDisable {
     }
 }
 
-#[derive(Hash, Eq, PartialEq, Serialize, Deserialize, Clone)]
+#[derive(Hash, Eq, PartialEq, Serialize, Deserialize, Clone, Debug)]
 pub struct DifferentialId(pub(crate) CompactString);
 
 pub trait DifferentialIdentification {

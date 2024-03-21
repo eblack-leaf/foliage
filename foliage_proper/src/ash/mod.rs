@@ -32,25 +32,22 @@ impl Ash {
         }
     }
     pub(crate) fn establish(&mut self, ginkgo: &Ginkgo, render_leaflets: RenderLeafletStorage) {
-        tracing::trace!("establish");
-        tracing::trace!("register");
+        tracing::trace!("establishing render-leaflets");
         for (_id, leaf) in render_leaflets.iter() {
             (leaf.register_fn)(self, ginkgo);
         }
         self.render_leaflets = render_leaflets;
-        tracing::trace!("sort-by-layer");
         self.instruction_groups
             .instruction_groups
             .sort_by(|lhs, rhs| lhs.1.partial_cmp(&rhs.1).unwrap());
     }
     pub(crate) fn extract(&mut self, package: RenderPacketPackage) {
-        tracing::trace!("extract");
+        tracing::trace!("extracting render-packet-package");
         self.render_packet_package.replace(package);
     }
     pub(crate) fn prepare(&mut self, ginkgo: &Ginkgo) {
-        tracing::trace!("prepare");
+        tracing::trace!("preparing render-leaflets");
         for (_id, leaf) in self.render_leaflets.iter() {
-            // tracing::trace!("preparing");
             (leaf.prepare_packages_fn)(
                 &mut self.renderer_handler,
                 ginkgo,
@@ -60,7 +57,7 @@ impl Ash {
         }
     }
     pub(crate) fn record(&mut self, ginkgo: &Ginkgo) {
-        tracing::trace!("record-check");
+        tracing::trace!("recording render-leaflets");
         for (id, leaf) in self.render_leaflets.iter() {
             let instructions_changed = (leaf.record_fn)(&mut self.renderer_handler, ginkgo);
             if instructions_changed {

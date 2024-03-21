@@ -1,3 +1,4 @@
+use crate::IMAGE;
 use foliage::color::monochromatic::{Greyscale, Monochromatic};
 use foliage::dropdown::{Dropdown, DropdownOptions, ExpandDirection};
 use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
@@ -14,7 +15,7 @@ impl Viewable for Overlay {
         let handle = view_builder.add_scene(
             Dropdown::new(
                 DropdownOptions::new([
-                    "button", "progress", "icon", "text", // "image", "utility", "misc",
+                    "button", "progress", "icon", "text", "image", // "utility", "misc",
                 ]),
                 ExpandDirection::Down,
                 Colors::new(Greyscale::PLUS_TWO, Greyscale::MINUS_THREE),
@@ -30,6 +31,7 @@ impl Viewable for Overlay {
         view_builder.add_command_to(branches.get(1).unwrap().target(), Navigate(PROGRESS));
         view_builder.add_command_to(branches.get(2).unwrap().target(), Navigate(ICON));
         view_builder.add_command_to(branches.get(3).unwrap().target(), Navigate(TEXT));
+        view_builder.add_command_to(branches.get(4).unwrap().target(), Navigate(IMAGE));
         // ...
         view_builder.finish()
     }

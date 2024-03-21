@@ -16,7 +16,8 @@ pub mod icon_button;
 pub mod icon_text;
 pub mod interactive_text;
 pub mod list;
-mod notifications;
+#[allow(unused)]
+pub mod notifications;
 pub mod paged;
 pub mod progress_bar;
 pub mod text_button;

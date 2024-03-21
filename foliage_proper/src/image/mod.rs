@@ -82,6 +82,7 @@ fn clean_requests(mut query: Query<(&mut Despawn, &RequestFlag), Added<RequestFl
     for (mut despawn, was_request) in query.iter_mut() {
         if was_request.0 {
             despawn.despawn();
+            tracing::trace!("despawning image-request")
         }
     }
 }
@@ -91,8 +92,11 @@ fn send_image_data(
     for (mut data, mut store) in image_requests.iter_mut() {
         if data.0.is_some() {
             store.put(ImageData(Some(data.0.take().unwrap())));
+            tracing::trace!("sending data");
+            println!("sending data");
         } else {
             store.put(ImageData(None));
+            println!("sending no data");
         }
     }
 }

@@ -311,6 +311,7 @@ impl Render for Image {
         package: RenderPackage<Self>,
     ) {
         if !package.package_data.was_request {
+            println!("removing image");
             resources
                 .groups
                 .get_mut(&package.package_data.last)
@@ -328,7 +329,9 @@ impl Render for Image {
         render_packet: RenderPacket,
     ) {
         if !package.package_data.was_request {
+            println!("preparing image");
             if let Some(id) = render_packet.get::<ImageId>() {
+                println!("id-changed");
                 resources
                     .groups
                     .get_mut(&package.package_data.last)
@@ -364,11 +367,13 @@ impl Render for Image {
     ) {
         // iter groups and prepare coordinators
         for id in resources.write_needed.drain() {
+            println!("write-needed");
             let partition = resources.groups.get_mut(&id).unwrap().write_data(ginkgo);
             resources.full_coords.insert(id, partition);
         }
         for (id, queued) in resources.view_queue.drain() {
             if let Some(coords) = resources.full_coords.get_mut(&id).cloned() {
+                println!("coords adjusted");
                 resources
                     .groups
                     .get_mut(&id)
@@ -379,6 +384,7 @@ impl Render for Image {
         }
         for (_id, group) in resources.groups.iter_mut() {
             if group.coordinator.prepare(ginkgo) {
+                println!("setting render record hook");
                 *_per_renderer_record_hook = true;
             }
         }
@@ -400,6 +406,7 @@ fn record<'a>(
         .set_vertex_buffer(0, resources.vertex_buffer.slice(..));
     for (_id, group) in resources.groups.iter() {
         if group.coordinator.has_instances() {
+            println!("re-recording");
             recorder
                 .0
                 .set_bind_group(1, group.bind_group.as_ref().unwrap(), &[]);
@@ -420,5 +427,6 @@ fn record<'a>(
                 .draw(0..VERTICES.len() as u32, 0..group.coordinator.instances());
         }
     }
+    println!("finish-recording");
     Some(recorder.finish())
 }

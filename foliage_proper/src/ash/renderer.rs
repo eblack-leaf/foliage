@@ -39,6 +39,7 @@ impl<T: Render + 'static> Renderer<T> {
         queue: RenderPacketQueue,
         orphaned: &HashSet<Entity>,
     ) {
+        tracing::trace!("preparing-packages");
         Self::inner_prepare_packages(
             &mut self.resources,
             &mut self.packages,
@@ -63,6 +64,7 @@ impl<T: Render + 'static> Renderer<T> {
         for entity in to_remove {
             if let Some(index) = packages.index(entity) {
                 let old = packages.0.remove(index);
+                tracing::trace!("removing package:{:?} w/ entity:{:?}", index, old.0);
                 T::on_package_removal(ginkgo, resources, old.0, old.2);
                 *updated_hook = true;
             }
@@ -71,6 +73,7 @@ impl<T: Render + 'static> Renderer<T> {
         for (entity, layer, package) in packages.0.iter_mut() {
             if let Some(render_packet) = queue.retrieve_packet(*entity) {
                 if let Some(l) = render_packet.get::<Layer>() {
+                    tracing::trace!("sorting by layer:{:?}", l);
                     *layer = l;
                     should_sort = true;
                     *updated_hook = true;
@@ -81,6 +84,7 @@ impl<T: Render + 'static> Renderer<T> {
             }
         }
         if !queue.0.is_empty() {
+            tracing::trace!("adding remaining queued packages");
             for (entity, render_packet) in queue.0.drain() {
                 packages.0.push((
                     entity,
@@ -92,10 +96,12 @@ impl<T: Render + 'static> Renderer<T> {
             *updated_hook = true;
         }
         if should_sort {
+            tracing::trace!("sorting-by-layer from should-sort");
             packages.order_by_layer();
         }
     }
     pub(crate) fn resource_preparation(&mut self, ginkgo: &Ginkgo) {
+        tracing::trace!("resource-preparation");
         Self::inner_resource_preparation(
             &mut self.resources,
             ginkgo,
@@ -110,7 +116,9 @@ impl<T: Render + 'static> Renderer<T> {
         T::prepare_resources(resources, ginkgo, per_renderer_record_hook);
     }
     pub(crate) fn record(&mut self, ginkgo: &Ginkgo) -> bool {
+        tracing::trace!("attempting-to-record:{:?}", self.updated);
         if self.updated {
+            tracing::trace!("recording initiated");
             Self::inner_record(
                 &self.resources,
                 &mut self.packages,
@@ -136,6 +144,7 @@ impl<T: Render + 'static> Renderer<T> {
         match render_record_behavior {
             RenderRecordBehavior::PerRenderer(behavior) => {
                 if per_renderer_record_hook {
+                    tracing::trace!("per-renderer hook engaged");
                     let recorder = RenderInstructionsRecorder::new(ginkgo);
                     if let Some(instructions) = behavior(resources, recorder) {
                         render_instruction_group.0 = vec![instructions];
@@ -143,16 +152,22 @@ impl<T: Render + 'static> Renderer<T> {
                 }
             }
             RenderRecordBehavior::PerPackage(behavior) => {
+                tracing::trace!("attempting to record per-package");
                 render_instruction_group.0.clear();
                 for (_entity, _layer, package) in packages.0.iter_mut() {
                     if package.should_record {
+                        tracing::trace!("package recording-initiated");
                         let recorder = RenderInstructionsRecorder::new(ginkgo);
                         if let Some(instructions) = behavior(resources, package, recorder) {
                             package.instruction_handle.replace(instructions.clone());
-                            package.should_record = false;
                         }
+                        package.should_record = false;
                     }
                     if let Some(instructions) = package.instruction_handle.as_ref() {
+                        tracing::trace!(
+                            "adding package-instructions to group. len:{:?}",
+                            render_instruction_group.0.len()
+                        );
                         render_instruction_group.0.push(instructions.clone());
                     }
                 }

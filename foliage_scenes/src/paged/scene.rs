@@ -9,14 +9,12 @@ use foliage_proper::bevy_ecs::prelude::{IntoSystemConfigs, World};
 use foliage_proper::bevy_ecs::query::{With, Without};
 use foliage_proper::bevy_ecs::system::{Command, Query, SystemParamItem};
 use foliage_proper::circle::Circle;
-use foliage_proper::conditional::{Conditional, ConditionalCommand, SpawnTarget};
+use foliage_proper::conditional::ConditionalCommand;
 use foliage_proper::coordinate::position::Position;
 use foliage_proper::coordinate::PositionAdjust;
-
-use crate::{BackgroundColor, Colors, Direction, ForegroundColor};
 use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
 use foliage_proper::elm::leaf::{Leaf, Tag};
-use foliage_proper::elm::{BundleExtend, Elm, Style};
+use foliage_proper::elm::{Elm, Style};
 use foliage_proper::icon::{FeatherIcon, Icon};
 use foliage_proper::scene::micro_grid::{
     AlignmentDesc, AnchorDim, MicroGrid, MicroGridAlignment, RelativeMarker,
@@ -26,6 +24,8 @@ use foliage_proper::time::TimeDelta;
 
 use crate::circle_button::CircleButton;
 use crate::ellipsis::{Ellipsis, Selected};
+use crate::{BackgroundColor, Colors, Direction, ForegroundColor};
+
 #[derive(Clone)]
 pub struct PageStructure {
     pub decrement_icon: FeatherIcon,
