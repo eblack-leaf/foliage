@@ -38,6 +38,7 @@ impl Render for Circle {
     const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(4);
 
     fn create_resources(ginkgo: &Ginkgo) -> Self::Resources {
+        tracing::trace!("creating-circle-resources");
         let shader = ginkgo
             .device()
             .create_shader_module(wgpu::include_wgsl!("circle.wgsl"));

@@ -81,6 +81,7 @@ pub(crate) fn position_set(
     >,
     scale_factor: Res<ScaleFactor>,
 ) {
+    tracing::trace!("setting position");
     for (mut c_repr, pos) in query.iter_mut() {
         *c_repr = (*pos).to_device(scale_factor.factor()).to_c();
         c_repr.x = c_repr.x.round();
@@ -91,6 +92,7 @@ pub(crate) fn area_set(
     mut query: Query<(&mut CReprArea, &Area<InterfaceContext>)>,
     scale_factor: Res<ScaleFactor>,
 ) {
+    tracing::trace!("setting area");
     for (mut c_repr, area) in query.iter_mut() {
         *c_repr = area.to_device(scale_factor.factor()).to_c();
         c_repr.width = c_repr.width.round();

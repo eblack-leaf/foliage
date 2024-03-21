@@ -100,6 +100,7 @@ fn diameter_set(
         (Changed<Area<InterfaceContext>>, With<Style>),
     >,
 ) {
+    tracing::trace!("setting-diameter");
     for (_entity, mut diameter, mut area, mut pos) in query.iter_mut() {
         let initial_dim = area.width.max(area.height);
         *diameter = Diameter::new(initial_dim);

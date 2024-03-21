@@ -84,6 +84,7 @@ impl Icon {
         index: usize,
         file: &[u8],
     ) {
+        tracing::trace!("create icon resource for:{:?}", index);
         let texture_data = rmp_serde::from_slice::<Vec<u8>>(file).ok().unwrap();
         let (_texture, view) = ginkgo.texture_r8unorm_d2(
             Icon::TEXTURE_DIMENSIONS,
@@ -320,8 +321,10 @@ impl Render for Icon {
         entity: Entity,
         render_packet: RenderPacket,
     ) -> Self::RenderPackage {
+        tracing::trace!("creating render-package:{:?}", entity);
         let new = render_packet.get::<IconId>().unwrap();
         if render_packet.get::<WasRequest>().unwrap().0 {
+            tracing::trace!("fulfilling icon request:{:?}", entity);
             let data = render_packet
                 .get::<RequestData>()
                 .unwrap()
@@ -353,6 +356,7 @@ impl Render for Icon {
         package: RenderPackage<Self>,
     ) {
         if !package.package_data {
+            tracing::trace!("removing package for :{:?}", entity);
             if let Some(icon_id) = resources.entity_to_icon.get(&entity) {
                 if let Some(c) = resources.icon_textures.get_mut(icon_id) {
                     c.0.queue_remove(entity);
@@ -378,6 +382,7 @@ impl Render for Icon {
                 return;
             }
             if icon_id != id {
+                tracing::trace!("icon-id changed:{:?}", id);
                 resources
                     .icon_textures
                     .get_mut(&icon_id)
@@ -398,6 +403,7 @@ impl Render for Icon {
             return;
         }
         if let Some(scale) = render_packet.get::<CReprArea>() {
+            tracing::trace!("icon-scale:{:?}", scale);
             let texture_partition = resources
                 .scale_to_partition
                 .get(&(IconScale::from_dim(scale.width).px() as u32))
@@ -427,6 +433,7 @@ impl Render for Icon {
         let mut confirmed = vec![];
         for (id, mapping) in resources.icon_queue.iter_mut() {
             if resources.icon_textures.get(id).is_some() {
+                tracing::trace!("icon-id confirmed:{:?}", id);
                 for (entity, packet) in mapping.drain() {
                     confirmed.push((*id, entity, packet));
                 }
@@ -434,6 +441,7 @@ impl Render for Icon {
         }
         for (id, entity, packet) in confirmed {
             resources.icon_queue.remove(&id);
+            tracing::trace!("icon add:{:?}", id);
             Icon::add_entity(resources, entity, packet, &id);
         }
         for (_id, (coordinator, _)) in resources.icon_textures.iter_mut() {
@@ -456,8 +464,9 @@ impl Icon {
         resources: &'a IconRenderResources,
         mut recorder: RenderInstructionsRecorder<'a>,
     ) -> Option<RenderInstructionHandle> {
-        for (_, (instance_coordinator, bind_group)) in resources.icon_textures.iter() {
+        for (id, (instance_coordinator, bind_group)) in resources.icon_textures.iter() {
             if instance_coordinator.has_instances() {
+                tracing::trace!("recording icon:{:?}", id);
                 recorder.0.set_pipeline(&resources.pipeline);
                 recorder.0.set_bind_group(0, &resources.bind_group, &[]);
                 recorder.0.set_bind_group(1, bind_group, &[]);

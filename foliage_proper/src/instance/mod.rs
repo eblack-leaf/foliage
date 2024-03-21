@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::fmt::Debug;
 use std::hash::Hash;
 
 use anymap::AnyMap;
@@ -21,7 +22,7 @@ pub struct InstanceCoordinatorBuilder<Key: Hash + Eq> {
     capacity: u32,
 }
 
-impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinatorBuilder<Key> {
+impl<Key: Hash + Eq + Clone + 'static + Debug> InstanceCoordinatorBuilder<Key> {
     pub fn new(capacity: u32) -> Self {
         Self {
             instance_fns: vec![],
@@ -71,7 +72,7 @@ impl<Key: Hash + Eq + PartialEq> InstanceOrdering<Key> {
     }
 }
 
-impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
+impl<Key: Hash + Eq + Clone + 'static + Debug> InstanceCoordinator<Key> {
     pub fn keys(&self) -> Vec<Key> {
         self.ordering.managed.keys().cloned().collect::<Vec<Key>>()
     }
@@ -89,10 +90,12 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
         let mut should_record = false;
         if let Some(removed) = self.removed_indices() {
             if !removed.is_empty() {
+                tracing::trace!("should remove indices:{:?}", ());
                 should_record = true;
                 self.needs_ordering = true;
             }
             let instances = self.instances_minus_one();
+            tracing::trace!("inner-remove:{:?}", ());
             Self::inner_remove(
                 &self.attribute_fns,
                 &mut self.attributes,
@@ -101,18 +104,21 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
             );
         }
         for key in self.adds.drain().collect::<Vec<Key>>() {
+            tracing::trace!("adding key:{:?}", key);
             self.ordering.managed.insert(key, Layer::default());
             self.needs_ordering = true;
             should_record = true;
         }
         // write layer_writes
         for (key, layer) in self.layer_writes.drain().collect::<Vec<(Key, Layer)>>() {
+            tracing::trace!("need ordering for:{:?}:{:?}", key, layer);
             self.ordering.managed.insert(key, layer);
             self.needs_ordering = true;
             should_record = true;
         }
         // sort by layer
         if self.needs_ordering {
+            tracing::trace!("ordering:{:?}", ());
             let mut order = self
                 .ordering
                 .managed
@@ -134,6 +140,7 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
             self.needs_ordering = false;
         }
         if let Some(count) = self.should_grow() {
+            tracing::trace!("growing by:{:?}", count);
             let instances = self.instances_minus_one();
             Self::inner_grow(
                 &self.attribute_fns,
@@ -157,19 +164,23 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
     }
     pub fn queue_add(&mut self, key: Key) {
         if !self.has_key(&key) {
+            tracing::trace!("adding:{:?}", key);
             self.adds.insert(key);
         }
     }
     pub fn queue_remove(&mut self, key: Key) {
         if self.has_key(&key) {
+            tracing::trace!("removing:{:?}", key);
             self.removes.insert(key);
         }
     }
     pub fn queue_key_layer_change(&mut self, key: Key, layer: Layer) {
+        tracing::trace!("layer-changed-for:{:?}:{:?}", key, layer);
         self.layer_writes.insert(key, layer);
     }
     pub fn queue_write<T: Clone + 'static>(&mut self, key: Key, t: T) {
         if !self.removes.contains(&key) {
+            tracing::trace!("queuing write for:{:?}", key);
             self.attribute_writes
                 .get_mut::<InstanceAttributeWriteQueue<Key, T>>()
                 .unwrap()
@@ -195,6 +206,7 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
             if let Some(layer) = render_packet.get::<Layer>() {
                 self.queue_key_layer_change(key.clone(), layer);
             }
+            tracing::trace!("queuing render packet:{:?}", key);
             Self::inner_queue_render_packet(
                 &self.attribute_fns,
                 &mut self.attribute_writes,
@@ -229,6 +241,7 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
     fn new(ginkgo: &Ginkgo, attribute_fns: Vec<AttributeFn<Key>>, capacity: u32) -> Self {
         let (attributes, attribute_writes) =
             Self::establish_attributes(ginkgo, &attribute_fns, capacity);
+        tracing::trace!("creating instance coordinator w/ capacity:{:?}", capacity);
         Self {
             ordering: InstanceOrdering::new(),
             adds: HashSet::new(),
@@ -270,6 +283,7 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
                     .get(key)
                     .is_none()
                 {
+                    tracing::trace!("reordering:{:?}", key);
                     attribute_writes
                         .get_mut::<InstanceAttributeWriteQueue<Key, T>>()
                         .unwrap()
@@ -288,6 +302,7 @@ impl<Key: Hash + Eq + Clone + 'static> InstanceCoordinator<Key> {
         instances: u32,
     ) {
         for attr_fn in attribute_fns.iter() {
+            tracing::trace!("writing attribute w/ instances:{:?}", instances);
             (attr_fn.write)(ordering, attributes, attribute_writes, ginkgo, instances);
         }
     }

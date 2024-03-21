@@ -11,6 +11,7 @@ use crate::elm::Elm;
 #[allow(unused)]
 use crate::{coordinate, differential_enable};
 use bevy_ecs::component::Component;
+use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Added, Query, SystemSet};
 #[allow(unused)]
 use bevy_ecs::prelude::{Bundle, IntoSystemConfigs};
@@ -89,15 +90,18 @@ impl Leaf for Icon {
 fn send_icon_data(
     mut icon_requests: Query<(&mut RequestData, &mut RenderPacketStore), Changed<RequestData>>,
 ) {
+    tracing::trace!("sending icon data");
     for (mut data, mut store) in icon_requests.iter_mut() {
         if data.0.is_some() {
+            tracing::trace!("sending data:{:?}", ());
             store.put(RequestData(Some(data.0.take().unwrap())));
         } else {
+            tracing::trace!("sending no data:{:?}", ());
             store.put(RequestData(None));
         }
     }
 }
-#[derive(Component, Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
+#[derive(Component, Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize, Debug)]
 pub struct IconId(pub u32);
 impl IconId {
     pub fn new(value: u32) -> Self {
@@ -119,7 +123,7 @@ fn scale_change(
         Changed<Area<InterfaceContext>>,
     >,
 ) {
-    tracing::trace!("updating-icons");
+    tracing::trace!("scaling-icons");
     for (mut scale, mut area, mut pos) in query.iter_mut() {
         let initial_width = area.width.max(area.height);
         *scale = IconScale::from_dim(area.width.max(area.height));
@@ -133,6 +137,7 @@ fn scale_change(
 fn id_changed(
     mut icons: Query<
         (
+            Entity,
             &mut Differential<Layer>,
             &mut Differential<CReprPosition>,
             &mut Differential<CReprArea>,
@@ -141,16 +146,18 @@ fn id_changed(
         Changed<IconId>,
     >,
 ) {
-    for (mut layer, mut pos, mut area, mut color) in icons.iter_mut() {
+    for (entity, mut layer, mut pos, mut area, mut color) in icons.iter_mut() {
+        tracing::trace!("icon-id-changed:{:?}", entity);
         layer.push_cached();
         pos.push_cached();
         area.push_cached();
         color.push_cached();
     }
 }
-fn clean_requests(mut query: Query<(&mut Despawn, &WasRequest), Added<WasRequest>>) {
-    for (mut despawn, was_request) in query.iter_mut() {
+fn clean_requests(mut query: Query<(Entity, &mut Despawn, &WasRequest), Added<WasRequest>>) {
+    for (entity, mut despawn, was_request) in query.iter_mut() {
         if was_request.0 {
+            tracing::trace!("despawning icon-request:{:?}", entity);
             despawn.despawn();
         }
     }

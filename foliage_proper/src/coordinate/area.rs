@@ -72,7 +72,9 @@ impl Area<NumericalContext> {
     }
 }
 #[repr(C)]
-#[derive(Pod, Zeroable, Copy, Clone, Default, Component, Serialize, Deserialize, PartialEq)]
+#[derive(
+    Pod, Zeroable, Copy, Clone, Default, Component, Serialize, Deserialize, PartialEq, Debug,
+)]
 pub struct CReprArea {
     pub width: CoordinateUnit,
     pub height: CoordinateUnit,

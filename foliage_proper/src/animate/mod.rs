@@ -87,6 +87,7 @@ impl Animate for Entity {
 #[derive(Copy, Clone)]
 pub enum InterpolationMethod {
     Sinusoidal,
+    Linear,
 }
 #[derive(Clone)]
 struct Interpolator {

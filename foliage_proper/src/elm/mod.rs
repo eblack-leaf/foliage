@@ -99,6 +99,7 @@ impl<I: Bundle + Clone> BundleExtend for I {
         BundleExtension::new(self, handle)
     }
 }
+#[derive(Debug)]
 pub enum EventStage {
     External,
     Process,
@@ -143,9 +144,11 @@ impl Elm {
         }
     }
     pub(crate) fn set_scale_factor(&mut self, factor: CoordinateUnit) {
+        tracing::trace!("setting scale_factor: {:?}", factor);
         self.job.container.insert_resource(ScaleFactor::new(factor));
     }
     pub(crate) fn viewport_handle_changes(&mut self) -> Option<Position<InterfaceContext>> {
+        tracing::trace!("pulling-viewport-handle-changes");
         self.job
             .container
             .get_resource_mut::<ViewportHandle>()
@@ -153,6 +156,7 @@ impl Elm {
             .changes()
     }
     pub(crate) fn render_packet_package(&mut self) -> RenderPacketPackage {
+        tracing::trace!("packaging-render-packet forwarded");
         self.job
             .container
             .get_resource_mut::<RenderPacketForwarder>()
@@ -178,11 +182,13 @@ impl Elm {
         self.initialized = true;
     }
     pub(crate) fn attach_viewport_handle(&mut self, area: Area<InterfaceContext>) {
+        tracing::trace!("attaching viewport handle :{:?}", area);
         self.job
             .container
             .insert_resource(ViewportHandle::new(Section::default().with_area(area)));
     }
     pub(crate) fn set_viewport_handle_area(&mut self, area: Area<InterfaceContext>) {
+        tracing::trace!("setting viewport handle :{:?}", area);
         self.job
             .container
             .get_resource_mut::<ViewportHandle>()
@@ -190,6 +196,7 @@ impl Elm {
             .adjust_area(area);
     }
     pub fn add_event<E: Event>(&mut self, stage: EventStage) {
+        tracing::trace!("add event to :{:?}", stage);
         self.job.container.insert_resource(Events::<E>::default());
         self.main()
             .add_systems((event_update_system::<E>.in_set(stage.set()),));
@@ -200,6 +207,7 @@ impl Elm {
         &mut self,
     ) {
         if self.limiters.get::<DifferentialLimiter<T>>().is_none() {
+            tracing::trace!("enabling differential :{:?}", ());
             self.job.main().add_systems((
                 crate::differential::differential::<T>.in_set(CoreSet::Differential),
                 crate::differential::send_on_differential_disable_changed::<T>
@@ -209,14 +217,17 @@ impl Elm {
         }
     }
     pub(crate) fn finish_initialization(&mut self) {
+        tracing::trace!("finish initialization :{:?}", ());
         self.job.exec_startup();
         self.job.resume();
         self.initialized = true;
     }
     pub fn remove_web_element(&mut self, id: &'static str) {
+        tracing::trace!("remove web element :{:?}", ());
         self.container().spawn(WebElementRemoval::new(id));
     }
     pub fn send_event<E: Event>(&mut self, e: E) {
+        tracing::trace!("send event :{:?}", ());
         self.container().send_event(e);
     }
     #[cfg(target_family = "wasm")]
@@ -224,6 +235,7 @@ impl Elm {
         &mut self,
         path: S,
     ) -> AssetKey {
+        tracing::trace!("load-remote-asset :{:?}", path.as_ref());
         let id = self.generate_asset_key();
         let message = crate::system_message::SystemMessageAction::WasmAsset(
             id,
@@ -244,9 +256,12 @@ impl Elm {
         return id;
     }
     pub fn generate_asset_key(&self) -> AssetKey {
-        Uuid::new_v4().as_u128()
+        let key = Uuid::new_v4().as_u128();
+        tracing::trace!("generate asset-key :{:?}", key);
+        key
     }
     pub fn store_local_asset(&mut self, id: AssetKey, bytes: Vec<u8>) {
+        tracing::trace!("storing asset :{:?}", id);
         self.container()
             .get_resource_mut::<AssetContainer>()
             .unwrap()
@@ -267,6 +282,7 @@ impl Elm {
                 }
             }
         };
+        tracing::trace!("adding interaction-handler :{:?}", ());
         self.main().add_systems(func.in_set(ExternalSet::Process));
     }
     pub fn enable_conditional<C: Bundle + Clone + Send + Sync + 'static>(&mut self) {
@@ -275,6 +291,7 @@ impl Elm {
             .insert::<ConditionalLimiter<C>>(ConditionalLimiter::default())
             .is_none()
         {
+            tracing::trace!("enabling-conditional:{:?}", ());
             self.main().add_systems((
                 conditional_spawn::<C>.in_set(ExternalSet::ConditionalBind),
                 conditional_extension::<C>.in_set(ExternalSet::ConditionalExt),
@@ -287,6 +304,7 @@ impl Elm {
             .insert::<ConditionalLimiter<S>>(ConditionalLimiter::default())
             .is_none()
         {
+            tracing::trace!("enabling-conditional-scene:{:?}", ());
             self.main()
                 .add_systems(conditional_scene_spawn::<S>.in_set(ExternalSet::ConditionalBind));
         }
@@ -297,6 +315,7 @@ impl Elm {
             .insert::<ConditionalLimiter<COMM>>(ConditionalLimiter::default())
             .is_none()
         {
+            tracing::trace!("enabling-conditional-command:{:?}", ());
             self.main()
                 .add_systems(conditional_command::<COMM>.in_set(CoreSet::ProcessEvent));
         }
@@ -337,6 +356,7 @@ impl Elm {
             .insert(AnimationLimiter::<I>::default())
             .is_none();
         if limit {
+            tracing::trace!("enabling-animation:{:?}", ());
             self.enable_conditional_command::<OverwriteAnimation<I>>();
             self.enable_conditional_command::<ComposableAnimation<I>>();
             self.enable_conditional::<Animation<I>>();

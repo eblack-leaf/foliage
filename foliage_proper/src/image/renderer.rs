@@ -241,6 +241,7 @@ impl Render for Image {
         render_packet: RenderPacket,
     ) -> Self::RenderPackage {
         let image_id = render_packet.get::<ImageId>().unwrap();
+        tracing::trace!("creating package for image:{:?}", image_id);
         if resources.groups.get(&image_id).is_none() {
             resources.groups.insert(image_id, ImageGroup::new(ginkgo));
         }
@@ -249,6 +250,7 @@ impl Render for Image {
         if let Some(data) = image_data.0 {
             // queue fill
             if !data.is_empty() {
+                tracing::trace!("image-id queued:{:?}", image_id);
                 resources
                     .groups
                     .get_mut(&image_id)
@@ -259,6 +261,7 @@ impl Render for Image {
             }
         }
         if let Some(storage) = render_packet.get::<ImageStorage>().unwrap().0 {
+            tracing::trace!("fill image-id:{:?}", image_id);
             resources.groups.get_mut(&image_id).unwrap().fill(
                 ginkgo,
                 &resources.package_layout,
@@ -267,6 +270,7 @@ impl Render for Image {
             wr = true;
         }
         if wr {
+            tracing::trace!("view-queue image-id:{:?}", image_id);
             for instance in resources.groups.get(&image_id).unwrap().coordinator.keys() {
                 resources.view_queue.insert((image_id, instance));
             }
@@ -275,6 +279,7 @@ impl Render for Image {
                 was_request: true,
             };
         } else {
+            tracing::trace!("create image instance for:{:?}", image_id);
             resources
                 .groups
                 .get_mut(&image_id)
@@ -282,6 +287,7 @@ impl Render for Image {
                 .coordinator
                 .queue_add(entity);
             if let Some(view) = resources.full_coords.get(&image_id) {
+                tracing::trace!("image-id coords available on-create:{:?}", image_id);
                 resources
                     .groups
                     .get_mut(&image_id)
@@ -289,6 +295,7 @@ impl Render for Image {
                     .coordinator
                     .queue_write(entity, *view);
             } else {
+                tracing::trace!("defer fill image-id:{:?}", image_id);
                 resources.view_queue.insert((image_id, entity));
             }
             resources
@@ -311,10 +318,11 @@ impl Render for Image {
         package: RenderPackage<Self>,
     ) {
         if !package.package_data.was_request {
-            println!("removing image");
+            let id = &package.package_data.last;
+            tracing::trace!("fill image-id:{:?}", id);
             resources
                 .groups
-                .get_mut(&package.package_data.last)
+                .get_mut(id)
                 .unwrap()
                 .coordinator
                 .queue_remove(entity);
@@ -329,9 +337,9 @@ impl Render for Image {
         render_packet: RenderPacket,
     ) {
         if !package.package_data.was_request {
-            println!("preparing image");
+            tracing::trace!("preparing image:{:?}", entity);
             if let Some(id) = render_packet.get::<ImageId>() {
-                println!("id-changed");
+                tracing::trace!("changed image-id:{:?}", id);
                 resources
                     .groups
                     .get_mut(&package.package_data.last)
@@ -339,6 +347,7 @@ impl Render for Image {
                     .coordinator
                     .queue_remove(entity);
                 if resources.groups.get(&id).is_none() {
+                    tracing::trace!("on-fly creation of image-id:{:?}", id);
                     resources.groups.insert(id, ImageGroup::new(ginkgo));
                 }
                 resources
@@ -347,6 +356,7 @@ impl Render for Image {
                     .unwrap()
                     .coordinator
                     .queue_add(entity);
+                tracing::trace!("deferring image-id:{:?}", id);
                 resources.view_queue.insert((id, entity));
                 package.package_data.last = id;
                 package.signal_record();
@@ -367,13 +377,13 @@ impl Render for Image {
     ) {
         // iter groups and prepare coordinators
         for id in resources.write_needed.drain() {
-            println!("write-needed");
             let partition = resources.groups.get_mut(&id).unwrap().write_data(ginkgo);
+            tracing::trace!("write image-id:{:?} w/ partition:{:?}", id, partition);
             resources.full_coords.insert(id, partition);
         }
         for (id, queued) in resources.view_queue.drain() {
             if let Some(coords) = resources.full_coords.get_mut(&id).cloned() {
-                println!("coords adjusted");
+                tracing::trace!("coords adjusted for image-id:{:?}", id);
                 resources
                     .groups
                     .get_mut(&id)
@@ -384,7 +394,7 @@ impl Render for Image {
         }
         for (_id, group) in resources.groups.iter_mut() {
             if group.coordinator.prepare(ginkgo) {
-                println!("setting render record hook");
+                tracing::trace!("setting render record hook");
                 *_per_renderer_record_hook = true;
             }
         }
@@ -404,9 +414,9 @@ fn record<'a>(
     recorder
         .0
         .set_vertex_buffer(0, resources.vertex_buffer.slice(..));
-    for (_id, group) in resources.groups.iter() {
+    for (id, group) in resources.groups.iter() {
         if group.coordinator.has_instances() {
-            println!("re-recording");
+            tracing::trace!("recording images for:{:?}", id);
             recorder
                 .0
                 .set_bind_group(1, group.bind_group.as_ref().unwrap(), &[]);
@@ -427,6 +437,6 @@ fn record<'a>(
                 .draw(0..VERTICES.len() as u32, 0..group.coordinator.instances());
         }
     }
-    println!("finish-recording");
+    tracing::trace!("finish-recording");
     Some(recorder.finish())
 }

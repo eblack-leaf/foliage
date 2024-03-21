@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::hash::Hash;
 
 use crate::ash::render_packet::RenderPacket;
@@ -18,7 +19,7 @@ pub(crate) struct AttributeFn<Key: Hash + Eq> {
     pub(crate) queue_packet: Box<fn(&mut AnyMap, Key, &mut RenderPacket)>,
 }
 
-impl<Key: Hash + Eq + Clone + 'static> AttributeFn<Key> {
+impl<Key: Hash + Eq + Clone + 'static + Debug> AttributeFn<Key> {
     pub(crate) fn for_attribute<
         T: Default + Clone + Pod + Zeroable + 'static + for<'a> Deserialize<'a>,
     >() -> Self {
@@ -42,7 +43,7 @@ pub(crate) struct InstanceAttribute<Key: Hash + Eq + Clone + 'static, T> {
     write_range: WriteRange,
 }
 
-impl<Key: Hash + Eq + Clone + 'static, T: Default + Clone + Pod + Zeroable>
+impl<Key: Hash + Eq + Clone + 'static + Debug, T: Default + Clone + Pod + Zeroable>
     InstanceAttribute<Key, T>
 {
     pub(crate) fn new(ginkgo: &Ginkgo, count: u32) -> Self {
@@ -77,9 +78,11 @@ impl<Key: Hash + Eq + Clone + 'static, T: Default + Clone + Pod + Zeroable>
             }
             if let Some((start, _end)) = self.write_range.as_mut() {
                 if index < *start {
+                    tracing::trace!("updating bound for write-range:{:?}", key);
                     *start = index;
                 }
             }
+            tracing::trace!("inserting data for:{:?}", index);
             *self.cpu.get_mut(index as usize).unwrap() = data;
             self.key_to_t.insert(key, data);
             needs_write = true;
