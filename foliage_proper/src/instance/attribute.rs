@@ -92,6 +92,7 @@ impl<Key: Hash + Eq + Clone + 'static + Debug, T: Default + Clone + Pod + Zeroab
                 if range.0 > range.1 {
                     return;
                 }
+                tracing::trace!("queue to buffer write-range:{:?}:{:?}", range.0, range.1);
                 // let slice = &self.cpu[range.0 as usize..=range.1 as usize];
                 let slice = &self.cpu[..];
                 let _start_address = Ginkgo::buffer_address::<T>(range.0);
@@ -105,6 +106,7 @@ impl<Key: Hash + Eq + Clone + 'static + Debug, T: Default + Clone + Pod + Zeroab
     }
     pub(crate) fn remove(&mut self, indices: &Vec<(Key, Index)>, instances: u32) {
         if !indices.is_empty() {
+            tracing::trace!("removing instances:{:?}", instances);
             let write_start = indices.last().unwrap().1;
             for (key, _index) in indices.iter() {
                 self.key_to_t.remove(key);
@@ -114,6 +116,7 @@ impl<Key: Hash + Eq + Clone + 'static + Debug, T: Default + Clone + Pod + Zeroab
         }
     }
     pub(crate) fn grow(&mut self, ginkgo: &Ginkgo, count: u32, instances: u32) {
+        tracing::trace!("grow-to:{:?}", count);
         self.cpu.resize(count as usize, T::default());
         self.gpu = Self::gpu_buffer(ginkgo, count);
         self.write_range.replace((0, instances));
