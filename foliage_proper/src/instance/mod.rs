@@ -302,7 +302,6 @@ impl<Key: Hash + Eq + Clone + 'static + Debug> InstanceCoordinator<Key> {
         instances: u32,
     ) {
         for attr_fn in attribute_fns.iter() {
-            tracing::trace!("writing attribute w/ instances:{:?}", instances);
             (attr_fn.write)(ordering, attributes, attribute_writes, ginkgo, instances);
         }
     }

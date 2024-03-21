@@ -144,7 +144,7 @@ pub(crate) fn differential<
 ) {
     for (entity, t, mut diff, mut render_packet_store) in query.iter_mut() {
         if diff.updated(t) {
-            tracing::trace!("differential-updated: {:?}", entity);
+            // tracing::trace!("differential-updated: {:?}", entity);
             render_packet_store.put(diff.differential().take().unwrap());
         }
     }

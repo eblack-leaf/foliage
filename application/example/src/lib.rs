@@ -73,13 +73,13 @@ impl Leaf for Main {
     fn attach(elm: &mut Elm) {
         elm.remove_web_element("loading");
         let assets = AssetGen::proc_gen_load(elm);
+        elm.container().spawn(Image::storage(
+            ImageId(0),
+            ImageStorage::some(Area::from((651, 454))),
+        ));
         elm.on_fetch(*assets.generated.get(0).unwrap(), |data, cmd| {
             cmd.spawn(Image::fill(ImageId(0), data));
         });
-        elm.container().spawn(Image::storage(
-            ImageId(0),
-            ImageStorage::some(Area::from((700, 700))),
-        ));
         elm.container().insert_resource(assets);
         elm.persistent_view::<Overlay>(ViewHandle(0));
         elm.add_view::<ButtonShowcase>(BUTTON);

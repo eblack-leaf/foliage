@@ -12,9 +12,7 @@ impl Viewable for ImageShowcase {
     fn view(mut view_builder: ViewBuilder) -> ViewDescriptor {
         view_builder.add(
             Image::new(ImageId(0)),
-            ResponsiveSegment::base(
-                Segment::new(2.near().to(4.far()), 2.near().to(6.far())).with_aspect(651.0 / 454.0),
-            ),
+            ResponsiveSegment::base(Segment::new(2.near().to(6.far()), 2.near().to(6.far()))),
         );
         view_builder.finish()
     }
@@ -23,9 +21,9 @@ impl Leaf for ImageShowcase {
     type SetDescriptor = EmptySetDescriptor;
 
     fn attach(elm: &mut Elm) {
-        elm.container().spawn(Image::storage(
-            ImageId(0),
-            ImageStorage::some(Area::new(651.0, 454.0)),
-        ));
+        // elm.container().spawn(Image::storage(
+        //     ImageId(0),
+        //     ImageStorage::some(Area::new(651.0, 454.0)),
+        // ));
     }
 }

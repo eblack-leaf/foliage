@@ -339,27 +339,29 @@ impl Render for Image {
         if !package.package_data.was_request {
             tracing::trace!("preparing image:{:?}", entity);
             if let Some(id) = render_packet.get::<ImageId>() {
-                tracing::trace!("changed image-id:{:?}", id);
-                resources
-                    .groups
-                    .get_mut(&package.package_data.last)
-                    .unwrap()
-                    .coordinator
-                    .queue_remove(entity);
-                if resources.groups.get(&id).is_none() {
-                    tracing::trace!("on-fly creation of image-id:{:?}", id);
-                    resources.groups.insert(id, ImageGroup::new(ginkgo));
+                if id != package.package_data.last {
+                    tracing::trace!("changed image-id:{:?}", id);
+                    resources
+                        .groups
+                        .get_mut(&package.package_data.last)
+                        .unwrap()
+                        .coordinator
+                        .queue_remove(entity);
+                    if resources.groups.get(&id).is_none() {
+                        tracing::trace!("on-fly creation of image-id:{:?}", id);
+                        resources.groups.insert(id, ImageGroup::new(ginkgo));
+                    }
+                    resources
+                        .groups
+                        .get_mut(&id)
+                        .unwrap()
+                        .coordinator
+                        .queue_add(entity);
+                    tracing::trace!("deferring image-id:{:?}", id);
+                    resources.view_queue.insert((id, entity));
+                    package.package_data.last = id;
+                    package.signal_record();
                 }
-                resources
-                    .groups
-                    .get_mut(&id)
-                    .unwrap()
-                    .coordinator
-                    .queue_add(entity);
-                tracing::trace!("deferring image-id:{:?}", id);
-                resources.view_queue.insert((id, entity));
-                package.package_data.last = id;
-                package.signal_record();
             }
             resources
                 .groups

@@ -90,7 +90,6 @@ impl Leaf for Icon {
 fn send_icon_data(
     mut icon_requests: Query<(&mut RequestData, &mut RenderPacketStore), Changed<RequestData>>,
 ) {
-    tracing::trace!("sending icon data");
     for (mut data, mut store) in icon_requests.iter_mut() {
         if data.0.is_some() {
             tracing::trace!("sending data:{:?}", ());
