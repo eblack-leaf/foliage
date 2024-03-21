@@ -37,7 +37,7 @@ pub(crate) struct GlyphChangeQueue(pub(crate) Vec<(TextKey, GlyphChange)>);
 #[derive(Component, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub(crate) struct GlyphRemoveQueue(pub(crate) Vec<(TextKey, GlyphKey)>);
 
-#[derive(Component, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Component, Clone, Serialize, Deserialize, PartialEq, Debug)]
 pub(crate) struct Glyph {
     pub(crate) key: GlyphKey,
     pub(crate) section: Section<DeviceContext>,

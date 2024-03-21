@@ -251,7 +251,9 @@ pub(crate) fn changes(
         });
         let max_char_limited_text_value =
             &value.0.as_str()[0..max_chars.0.min(value.0.len() as u32) as usize];
+        tracing::trace!("limited by max-char to:{:?}", max_char_limited_text_value);
         *unique = TextValueUniqueCharacters::new(value);
+        tracing::trace!("unique-characters:{:?}", *unique);
         placer.0.append(
             &[&font.0],
             &fontdue::layout::TextStyle::new(
@@ -265,6 +267,7 @@ pub(crate) fn changes(
             for cached in cache.0.drain() {
                 match cached.1 {
                     CachedGlyph::Present(g) => {
+                        tracing::trace!("removing non-filtered glyphs:{:?}", g);
                         removes.0.push((cached.0, g.key));
                     }
                     CachedGlyph::Filtered => {}
@@ -273,6 +276,7 @@ pub(crate) fn changes(
         }
         for g in glyphs {
             if g.parent.is_ascii_control() {
+                tracing::trace!("skipping control-character:{:?}", g);
                 continue;
             }
             let mut change = None;
@@ -284,15 +288,26 @@ pub(crate) fn changes(
             if let Some(cached) = cache.0.get_mut(&g.byte_offset) {
                 match cached {
                     CachedGlyph::Present(glyph) => {
+                        let color_change =
+                            *color_changes.0.get(&g.byte_offset).unwrap_or(&glyph.color);
                         if filtered {
+                            tracing::trace!(
+                                "filtering present glyph at:{:?} {:?}",
+                                g.byte_offset,
+                                glyph.key
+                            );
                             removes.0.push((g.byte_offset, glyph.key));
                             *cached = CachedGlyph::Filtered;
                         } else if glyph.key != glyph_key {
+                            tracing::trace!(
+                                "present-key different than requested:{:?} - {:?}",
+                                glyph.key,
+                                glyph_key
+                            );
                             key_change.as_mut().unwrap().1.replace(glyph.key);
                             total_update = true;
-                        } else {
-                            // color change cache check
-                            total_update = true;
+                        } else if glyph.color != color_change {
+                            glyph.color = color_change;
                         }
                     }
                     CachedGlyph::Filtered => {
@@ -302,11 +317,19 @@ pub(crate) fn changes(
                     }
                 }
             } else {
+                tracing::trace!("not in cache--total-update:{:?}", g);
                 total_update = true;
             }
             if total_update {
                 let section = Section::<DeviceContext>::new((g.x, g.y), (g.width, g.height));
                 let glyph_color = *color_changes.0.get(&g.byte_offset).unwrap_or(color);
+                tracing::trace!(
+                    "total-update:{:?} {:?}, {:?}, {:?}",
+                    g.parent,
+                    g.byte_offset,
+                    section,
+                    glyph_color
+                );
                 cache.0.insert(
                     g.byte_offset,
                     CachedGlyph::Present(Glyph {
@@ -315,12 +338,6 @@ pub(crate) fn changes(
                         color: glyph_color,
                     }),
                 );
-                // println!("changing-color:{:?}", glyph_color);
-                tracing::trace!(
-                    "updating-glyph {:?} using {:?} -------------------------------------------",
-                    g.byte_offset,
-                    g.parent
-                );
                 change.replace(GlyphChange {
                     key: key_change,
                     section: Some(section),
@@ -328,16 +345,19 @@ pub(crate) fn changes(
                 });
             }
             if let Some(c) = change {
+                tracing::trace!("pushing change:{:?}", c);
                 changes.0.push((g.byte_offset, c));
             }
         }
         let glyphs_len = glyphs.len();
         let mut removals = vec![];
         if glyphs_len < cache.0.len() {
+            tracing::trace!("cached greater than current:{:?}", glyphs_len);
             for (a, b) in cache.0.iter() {
                 if a >= &glyphs_len {
                     match b {
                         CachedGlyph::Present(glyph) => {
+                            tracing::trace!("queueing remove for:{:?}", glyph);
                             removals.push((*a, glyph.key));
                         }
                         CachedGlyph::Filtered => {}
@@ -392,7 +412,7 @@ impl From<&str> for TextValue {
         TextValue::new(value)
     }
 }
-#[derive(Component, Copy, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Component, Copy, Clone, Serialize, Deserialize, PartialEq, Debug)]
 pub(crate) struct TextValueUniqueCharacters(pub(crate) u32);
 impl TextValueUniqueCharacters {
     pub(crate) fn new(value: &TextValue) -> Self {

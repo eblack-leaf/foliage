@@ -67,6 +67,7 @@ impl<ResourceKey: Hash + Eq + Clone, TexelData: Default + Sized + Clone + Pod + 
         data: &[TexelData],
     ) -> TexturePartition {
         let position = location.position(self.block);
+        tracing::trace!("writing to location: {:?} w/ extent: {:?}", position, extent);
         ginkgo.queue().write_texture(
             wgpu::ImageCopyTexture {
                 texture: &self.texture,

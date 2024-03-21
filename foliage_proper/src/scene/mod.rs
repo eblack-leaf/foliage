@@ -97,6 +97,7 @@ pub struct Binder<'a, 'w, 's> {
 impl<'a, 'w, 's> Binder<'a, 'w, 's> {
     pub fn finish<S: Scene>(self, comps: SceneComponents<S>) -> SceneHandle {
         let entity = self.root();
+        tracing::trace!("finishing binder:{:?}", entity);
         let bindings = Bindings(self.nodes);
         self.cmd
             .entity(entity)
@@ -145,6 +146,7 @@ impl<'a, 'w, 's> Binder<'a, 'w, 's> {
                 sa.into(),
             ))
             .id();
+        tracing::trace!("binding:{:?}", entity);
         self.nodes
             .insert(sb.into(), SceneNode::new(entity, None, None));
         entity
@@ -164,6 +166,7 @@ impl<'a, 'w, 's> Binder<'a, 'w, 's> {
                 Anchor::default(),
                 sa.into(),
             ));
+        tracing::trace!("binding-scene:{:?}", scene_desc.root());
         self.nodes.insert(
             sb.into(),
             SceneNode::new(scene_desc.root(), Some(scene_desc.bindings.clone()), None),
@@ -191,6 +194,7 @@ impl<'a, 'w, 's> Binder<'a, 'w, 's> {
             ))
             .id();
         let handle = ConditionHandle::new(main, pre_spawned);
+        tracing::trace!("binding-conditional:{:?}", handle);
         self.nodes
             .insert(sb.into(), SceneNode::new(pre_spawned, None, Some(handle)));
         self.branches.push(handle);
@@ -217,15 +221,18 @@ impl<'a, 'w, 's> Binder<'a, 'w, 's> {
             ))
             .id();
         let handle = ConditionHandle::new(main, pre_spawned);
+        tracing::trace!("binding-conditional-scene:{:?}", handle);
         self.nodes
             .insert(sb.into(), SceneNode::new(pre_spawned, None, Some(handle)));
         self.branches.push(handle);
         handle
     }
     pub fn extend<Ext: Bundle>(&mut self, entity: Entity, ext: Ext) {
+        tracing::trace!("extending:{:?}", entity);
         self.cmd.entity(entity).insert(ext);
     }
     pub fn add_command_to<C: Command + Clone + Sync>(&mut self, entity: Entity, comm: C) {
+        tracing::trace!("adding command to:{:?}", entity);
         self.cmd.entity(entity).insert(ConditionalCommand(comm));
     }
     pub fn extend_conditional<Ext: Bundle + Clone>(
@@ -233,6 +240,7 @@ impl<'a, 'w, 's> Binder<'a, 'w, 's> {
         condition_handle: ConditionHandle,
         ext: Ext,
     ) {
+        tracing::trace!("extending :{:?} w/ conditional", condition_handle);
         self.cmd
             .entity(condition_handle.this())
             .insert(Conditional::new(
@@ -309,6 +317,7 @@ pub fn config<S: Scene + Send + Sync + 'static>(
         if despawn.is_despawned() {
             continue;
         }
+        tracing::trace!("scene::config for:{:?}", entity);
         // disabled?
         S::config(entity, &mut ext, bindings);
     }
@@ -365,6 +374,11 @@ fn recursive_fetch(
         if let Some(bindings) = res.2 {
             for (_, bind) in bindings.0.iter() {
                 if let Ok(dep) = query.get(bind.entity) {
+                    tracing::trace!(
+                        "aligning dependent:{:?} to root-coordinate:{:?}",
+                        bind.entity,
+                        root_coordinate
+                    );
                     let alignment = dep.1;
                     let ptr = *dep.3;
                     let grid = grids.get(ptr.0).expect("scene-grid");
@@ -372,6 +386,7 @@ fn recursive_fetch(
                         let anchor = Anchor(anchor.0.with_position(
                             anchor.0.section.position + dep.4.cloned().unwrap_or_default().0,
                         ));
+                        tracing::trace!("adjusted-anchor:{:?}", anchor.0);
                         fetch.push((bind.entity, anchor));
                         if query.get(bind.entity).unwrap().2.is_some() {
                             let others = recursive_fetch(anchor.0, bind.entity, query, grids);
@@ -413,6 +428,11 @@ pub(crate) fn resolve_anchor(
         let root_coordinate = Coordinate::new((*pos, *area), *layer);
         for (_, bind) in bindings.0.iter() {
             if let Ok(dep) = deps.p0().get(bind.entity) {
+                tracing::trace!(
+                    "aligning dependent:{:?} to root-coordinate:{:?}",
+                    bind.entity,
+                    root_coordinate
+                );
                 let ptr = dep.3 .0;
                 let adjust = dep.4.cloned().unwrap_or_default().0;
                 let grid = grids.get(ptr).expect("scene-grid");
@@ -424,6 +444,7 @@ pub(crate) fn resolve_anchor(
                             .0
                             .with_position(aligned_anchor.0.section.position + adjust),
                     );
+                    tracing::trace!("aligned-anchor:{:?}", aligned_anchor.0);
                     *deps.p1().get_mut(bind.entity).unwrap() = aligned_anchor;
                     if deps.p0().get(bind.entity).unwrap().2.is_some() {
                         let rf = recursive_fetch(aligned_anchor.0, bind.entity, &deps.p0(), &grids);

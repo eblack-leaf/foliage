@@ -189,6 +189,7 @@ impl Render for Panel {
         entity: Entity,
         render_packet: RenderPacket,
     ) -> Self::RenderPackage {
+        tracing::trace!("creating panel-package");
         resources.instance_coordinator.queue_add(entity);
         resources
             .instance_coordinator
@@ -201,6 +202,7 @@ impl Render for Panel {
         entity: Entity,
         _package: RenderPackage<Self>,
     ) {
+        tracing::trace!("removing panel:{:?}", ());
         resources.instance_coordinator.queue_remove(entity);
     }
 
@@ -211,6 +213,7 @@ impl Render for Panel {
         _package: &mut RenderPackage<Self>,
         render_packet: RenderPacket,
     ) {
+        tracing::trace!("preparing panel:{:?}", ());
         resources
             .instance_coordinator
             .queue_render_packet(entity, render_packet);
@@ -221,6 +224,7 @@ impl Render for Panel {
         ginkgo: &Ginkgo,
         per_renderer_record_hook: &mut bool,
     ) {
+        tracing::trace!("preparing panel resources:{:?}", ());
         let should_record = resources.instance_coordinator.prepare(ginkgo);
         if should_record {
             *per_renderer_record_hook = true;
@@ -238,6 +242,7 @@ impl Panel {
         mut recorder: RenderInstructionsRecorder<'a>,
     ) -> Option<RenderInstructionHandle> {
         if resources.instance_coordinator.has_instances() {
+            tracing::trace!("recording panel:{:?}", ());
             recorder.0.set_pipeline(&resources.pipeline);
             recorder.0.set_bind_group(0, &resources.bind_group, &[]);
             recorder

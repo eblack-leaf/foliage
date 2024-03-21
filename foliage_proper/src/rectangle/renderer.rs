@@ -162,6 +162,7 @@ impl Render for Rectangle {
         entity: Entity,
         render_packet: RenderPacket,
     ) -> Self::RenderPackage {
+        tracing::trace!("creating rectangle:{:?}", ());
         resources.instance_coordinator.queue_add(entity);
         resources
             .instance_coordinator
@@ -174,6 +175,7 @@ impl Render for Rectangle {
         entity: Entity,
         _package: RenderPackage<Self>,
     ) {
+        tracing::trace!("creating rectangle:{:?}", ());
         resources.instance_coordinator.queue_remove(entity);
     }
 
@@ -184,6 +186,7 @@ impl Render for Rectangle {
         _package: &mut RenderPackage<Self>,
         render_packet: RenderPacket,
     ) {
+        tracing::trace!("preparing rectangle:{:?}", ());
         resources
             .instance_coordinator
             .queue_render_packet(entity, render_packet);
@@ -210,6 +213,7 @@ impl Rectangle {
         resources: &'a RectangleRenderResources,
         mut recorder: RenderInstructionsRecorder<'a>,
     ) -> Option<RenderInstructionHandle> {
+        tracing::trace!("recording rectangle:{:?}", ());
         if resources.instance_coordinator.has_instances() {
             recorder.0.set_pipeline(&resources.pipeline);
             recorder.0.set_bind_group(0, &resources.bind_group, &[]);

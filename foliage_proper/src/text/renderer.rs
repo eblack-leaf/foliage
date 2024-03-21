@@ -217,6 +217,7 @@ impl Render for Text {
         _entity: Entity,
         _package: RenderPackage<Self>,
     ) {
+        tracing::trace!("removing text-package:{:?}", _entity);
         // do nothing?
     }
 
@@ -337,12 +338,14 @@ impl Render for Text {
                 }
                 if let Some((new, old)) = glyph.key {
                     if let Some(old) = old {
-                        tracing::trace!(
-                            "removing reference to old: {:?} from new {:?}",
-                            old.glyph_index,
-                            new.glyph_index
-                        );
-                        package.package_data.atlas.remove_reference(key, old);
+                        if old != new {
+                            tracing::trace!(
+                                "removing reference to old: {:?} from new {:?}",
+                                old.glyph_index,
+                                new.glyph_index
+                            );
+                            package.package_data.atlas.remove_reference(key, old);
+                        }
                     }
                     if !package.package_data.atlas.has_key(&new) {
                         tracing::trace!("rasterizing new: {:?}", new.glyph_index);
@@ -366,6 +369,7 @@ impl Render for Text {
                 }
                 // color
                 if let Some(color) = glyph.color {
+                    tracing::trace!("writing text-glyph-color: {:?}", color);
                     package
                         .package_data
                         .instance_coordinator
@@ -373,6 +377,7 @@ impl Render for Text {
                 }
                 // section changes
                 if let Some(section) = glyph.section {
+                    tracing::trace!("updating text-glyph-section: {:?}", section);
                     package
                         .package_data
                         .instance_coordinator
@@ -395,6 +400,7 @@ impl Render for Text {
         _ginkgo: &Ginkgo,
         _per_renderer_record_hook: &mut bool,
     ) {
+        tracing::trace!("prepare text-resources: {:?}", ());
         // do nothing?
     }
 
