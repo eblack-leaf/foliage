@@ -228,6 +228,17 @@ impl<
             .unwrap()
             .remove(&ref_key);
         // if size == 0 remove?
+        if self.logical.references.get(&res_key).unwrap().is_empty() {
+            self.hardware.key_to_partition.remove(&res_key);
+            self.logical.entries.remove(&res_key);
+            for (loc, key) in self.hardware.locations.iter_mut() {
+                if let Some(k) = key {
+                    if *k == res_key {
+                        key.take();
+                    }
+                }
+            }
+        }
     }
     pub fn add_reference(&mut self, ref_key: ReferenceKey, res_key: ResourceKey) {
         if self.logical.references.get(&res_key).is_none() {
