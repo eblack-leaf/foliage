@@ -9,7 +9,7 @@ use tracing_subscriber::Layer;
 
 fn main() {
     let targets = Targets::new()
-        .with_target("foliage_proper::text", Level::TRACE)
+        // .with_target("foliage_proper::text", Level::TRACE)
         .with_target("example", Level::TRACE)
         .with_target("entry", Level::TRACE);
     #[cfg(not(target_family = "wasm"))]
