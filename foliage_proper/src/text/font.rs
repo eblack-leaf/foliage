@@ -1,8 +1,10 @@
+use bevy_ecs::system::Resource;
+
 use crate::coordinate::area::Area;
 use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
-use crate::text::{CharacterDimension, FontSize, MaxCharacters, Text};
+use crate::text::front_end::{TextLines, TextMetrics};
+use crate::text::{CharacterDimension, FontSize, MaxCharacters};
 use crate::window::ScaleFactor;
-use bevy_ecs::system::Resource;
 
 #[derive(Resource)]
 pub struct MonospacedFont(pub fontdue::Font);
@@ -29,6 +31,31 @@ impl MonospacedFont {
             .expect("font"),
         )
     }
+    pub fn metrics(
+        &self,
+        mc: &MaxCharacters,
+        lines: &TextLines,
+        area: Area<InterfaceContext>,
+        scale_factor: &ScaleFactor,
+    ) -> TextMetrics {
+        let per_line = mc.0.checked_div(lines.0).unwrap_or_default();
+        let (fs, fa, d) = self.best_fit(per_line.into(), area, scale_factor);
+        TextMetrics::new(fs, fa, d)
+    }
+    fn area_metrics(
+        font_size: FontSize,
+        max_characters: MaxCharacters,
+        font: &MonospacedFont,
+        scale_factor: &ScaleFactor,
+    ) -> (Area<InterfaceContext>, CharacterDimension) {
+        let dim = CharacterDimension(
+            font.character_dimensions(font_size.px(scale_factor.factor()))
+                .to_interface(scale_factor.factor()),
+        );
+        let width = dim.dimensions().width * max_characters.0 as f32;
+        let area = (width, dim.dimensions().height).into();
+        (area, dim)
+    }
     pub fn best_fit(
         &self,
         max_characters: MaxCharacters,
@@ -43,7 +70,7 @@ impl MonospacedFont {
             && font_size.0 < Self::MAX_CHECKED_FONT_SIZE
         {
             font_size.0 += 1;
-            let area_metrics = Text::area_metrics(font_size, max_characters, self, scale_factor);
+            let area_metrics = Self::area_metrics(font_size, max_characters, self, scale_factor);
             calc_area = area_metrics.0;
             dims = area_metrics.1;
         }

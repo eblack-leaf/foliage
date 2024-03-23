@@ -1,7 +1,9 @@
 pub mod font;
+mod front_end;
 mod glyph;
 mod renderer;
 mod vertex;
+
 use crate::color::Color;
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
@@ -75,20 +77,6 @@ impl Text {
     pub fn aspect_ratio_for<MC: Into<MaxCharacters>>(mc: MC) -> AspectRatio {
         mc.into().mono_aspect()
     }
-    pub fn area_metrics(
-        font_size: FontSize,
-        max_characters: MaxCharacters,
-        font: &MonospacedFont,
-        scale_factor: &ScaleFactor,
-    ) -> (Area<InterfaceContext>, CharacterDimension) {
-        let dim = CharacterDimension(
-            font.character_dimensions(font_size.px(scale_factor.factor()))
-                .to_interface(scale_factor.factor()),
-        );
-        let width = dim.dimensions().width * max_characters.0 as f32;
-        let area = (width, dim.dimensions().height).into();
-        (area, dim)
-    }
     pub const DEFAULT_OPT_SCALE: u32 = 40;
 }
 #[derive(Component, Copy, Clone)]
@@ -104,6 +92,11 @@ impl MaxCharacters {
 impl From<i32> for MaxCharacters {
     fn from(value: i32) -> Self {
         Self(value as u32)
+    }
+}
+impl From<u32> for MaxCharacters {
+    fn from(value: u32) -> Self {
+        Self(value)
     }
 }
 #[derive(SystemSet, Hash, Eq, PartialEq, Copy, Clone, Debug)]
