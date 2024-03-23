@@ -288,8 +288,7 @@ pub(crate) fn changes(
             if let Some(cached) = cache.0.get_mut(&g.byte_offset) {
                 match cached {
                     CachedGlyph::Present(glyph) => {
-                        let color_change =
-                            *color_changes.0.get(&g.byte_offset).unwrap_or(&glyph.color);
+                        let color_change = *color_changes.0.get(&g.byte_offset).unwrap_or(color);
                         if filtered {
                             tracing::trace!(
                                 "filtering present glyph at:{:?} {:?}",
@@ -308,6 +307,8 @@ pub(crate) fn changes(
                             total_update = true;
                         } else if glyph.color != color_change {
                             glyph.color = color_change;
+                            change.replace(GlyphChange::default());
+                            change.as_mut().unwrap().color.replace(glyph.color);
                         }
                     }
                     CachedGlyph::Filtered => {
