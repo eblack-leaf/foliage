@@ -274,8 +274,11 @@ impl<
     pub fn capacity(&self) -> u32 {
         self.hardware.capacity
     }
-    pub fn entries_mut(&mut self) -> IterMut<'_, ResourceKey, AtlasEntry<TexelData>> {
-        self.logical.entries.iter_mut()
+    pub fn entries_mut(&mut self) -> &mut HashMap<ResourceKey, AtlasEntry<TexelData>> {
+        &mut self.logical.entries
+    }
+    pub fn entries(&mut self) -> &HashMap<ResourceKey, AtlasEntry<TexelData>> {
+        &self.logical.entries
     }
     pub fn block(&self) -> AtlasBlock {
         self.hardware.block

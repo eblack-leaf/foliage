@@ -19,6 +19,7 @@ use crate::text::vertex::{Vertex, VERTICES};
 use crate::texture::coord::TexturePartition;
 use crate::texture::{AtlasBlock, TextureAtlas};
 use bevy_ecs::entity::Entity;
+use std::collections::HashSet;
 
 pub struct TextRenderResources {
     pipeline: wgpu::RenderPipeline,
@@ -255,90 +256,103 @@ impl Render for Text {
             package.package_data.uniform.update(ginkgo.queue());
         }
         let mut glyph_changes = render_packet.get::<TextGlyphChanges>();
+        let mut new_glyph_count = 0;
+        let mut to_rasterize = HashSet::new();
+        let mut coord_write = HashSet::new();
+        let mut font_size_changed = false;
+        if let Some(fs) = render_packet.get::<FontSize>() {
+            if fs != package.package_data.font_size {
+                font_size_changed = true;
+                package.package_data.font_size = fs;
+                let block = AtlasBlock(
+                    resources
+                        .font
+                        .character_dimensions(fs.px(ginkgo.scale_factor()))
+                        .to_numerical(),
+                );
+                package.package_data.block = block;
+                for key in package.package_data.atlas.entries().keys() {
+                    to_rasterize.insert(*key);
+                }
+            }
+        }
         if let Some(mut changes) = glyph_changes.as_mut() {
             for (key, glyph) in changes.removed.drain() {
                 tracing::trace!("removing-text-glyph: {:?}:{:?}", key, glyph);
                 match glyph {
                     Glyph::Control => {}
                     Glyph::Char(ch) => {
-                        package.package_data.atlas.remove_reference(key, ch.key);
                         package.package_data.instance_coordinator.queue_remove(key);
+                        package.package_data.atlas.remove_reference(key, ch.key);
                     }
                 }
             }
+            new_glyph_count = changes
+                .added
+                .iter()
+                .map(|(k, v)| {
+                    match v {
+                        Glyph::Control => {}
+                        Glyph::Char(ch) => {
+                            if !package.package_data.atlas.has_key(&ch.key) {
+                                return 1;
+                            }
+                        }
+                    }
+                    0
+                })
+                .sum();
             for (key, glyph) in changes.added.drain() {
                 match glyph {
                     Glyph::Control => {}
                     Glyph::Char(ch) => {
+                        package.package_data.instance_coordinator.queue_add(key);
+                        if !package.package_data.atlas.has_key(&ch.key) {
+                            to_rasterize.insert(ch.key);
+                        }
+                        coord_write.insert((key, ch.key));
+                        package
+                            .package_data
+                            .instance_coordinator
+                            .queue_write(key, ch.section.unwrap().position.to_c());
+                        package
+                            .package_data
+                            .instance_coordinator
+                            .queue_write(key, ch.section.unwrap().area.to_c());
                         package.package_data.atlas.add_reference(key, ch.key);
                     }
                 }
             }
         }
-        // end new iteration
-
-        let glyph_changes = render_packet.get::<GlyphChangeQueue>();
-        let font_size_change = render_packet.get::<FontSize>();
-        let new_glyph_key_count = {
-            let mut count = 0;
-            if let Some(changes) = glyph_changes.as_ref() {
-                for (_, change) in changes.0.iter() {
-                    if let Some(key) = change.key {
-                        if !package.package_data.atlas.has_key(&key.0) {
-                            tracing::trace!("incrementing-new-glyph-count");
-                            count += 1;
-                        }
-                    }
-                }
-            }
-            count
-        };
-        let mut font_size_changed = false;
-        if font_size_change.is_some() {
-            let font_size = font_size_change.unwrap();
-            if font_size != package.package_data.font_size {
-                tracing::trace!("font-size-changed: {:?}", font_size);
-                package.package_data.font_size = font_size;
-                let block = AtlasBlock(
-                    resources
-                        .font
-                        .character_dimensions(font_size.px(ginkgo.scale_factor()))
-                        .to_numerical(),
-                );
-                package.package_data.block = block;
-                font_size_changed = true;
-            }
-        }
-        if package.package_data.atlas.would_grow(new_glyph_key_count) || font_size_changed {
-            tracing::trace!(
-                "growing atlas by {:?} | font_size_changed:{:?}",
-                new_glyph_key_count,
-                font_size_changed
-            );
-            for (key, entry) in package.package_data.atlas.entries_mut() {
-                tracing::trace!("rewriting entry: {:?}", key);
-                if font_size_changed {
-                    let rasterization = resources.font.0.rasterize_indexed(
-                        key.glyph_index,
-                        package.package_data.font_size.px(ginkgo.scale_factor()),
-                    );
-                    entry.set(
-                        (rasterization.0.width, rasterization.0.height).into(),
-                        rasterization.1,
-                    );
-                }
-            }
-            for (key, partition) in package.package_data.atlas.grow_by(
-                new_glyph_key_count,
+        let grown = package.package_data.atlas.would_grow(new_glyph_count);
+        if grown {
+            for (a, b) in package.package_data.atlas.grow_by(
+                new_glyph_count,
                 ginkgo,
                 package.package_data.block,
             ) {
-                tracing::trace!("queuing rewrite for {:?}:{:?}", key, partition);
-                package
-                    .package_data
-                    .instance_coordinator
-                    .queue_write(key, partition);
+                package.package_data.instance_coordinator.queue_write(a, b);
             }
+        }
+        for r in to_rasterize {
+            let rasterization = resources.font.0.rasterize_indexed(
+                r.glyph_index,
+                package.package_data.font_size.px(ginkgo.scale_factor()),
+            );
+            let rasterization_extent = (rasterization.0.width, rasterization.0.height).into();
+            package
+                .package_data
+                .atlas
+                .write_next(r, ginkgo, rasterization_extent, rasterization.1);
+        }
+        for (k, w) in coord_write {
+            let partition = package.package_data.atlas.get(&w).unwrap();
+            package
+                .package_data
+                .instance_coordinator
+                .queue_write(k, partition);
+        }
+        if grown || font_size_changed {
             tracing::trace!("rebinding-text-bind-group");
             package.package_data.bind_group =
                 ginkgo
@@ -352,65 +366,6 @@ impl Render for Text {
                         ],
                     });
             package.signal_record();
-        }
-        if let Some(changes) = glyph_changes {
-            for (key, glyph) in changes.0 {
-                if !package.package_data.instance_coordinator.has_key(&key) {
-                    tracing::trace!("adding key: {:?}", key);
-                    package.package_data.instance_coordinator.queue_add(key);
-                }
-                if let Some((new, old)) = glyph.key {
-                    if let Some(old) = old {
-                        if old != new {
-                            tracing::trace!(
-                                "removing reference to old: {:?} from new {:?}",
-                                old.glyph_index,
-                                new.glyph_index
-                            );
-                            package.package_data.atlas.remove_reference(key, old);
-                        }
-                    }
-                    if !package.package_data.atlas.has_key(&new) {
-                        tracing::trace!("rasterizing new: {:?}", new.glyph_index);
-                        let rasterization = resources.font.0.rasterize_indexed(
-                            new.glyph_index,
-                            package.package_data.font_size.px(ginkgo.scale_factor()),
-                        );
-                        package.package_data.atlas.write_next(
-                            new,
-                            ginkgo,
-                            (rasterization.0.width, rasterization.0.height).into(),
-                            rasterization.1,
-                        );
-                    }
-                    tracing::trace!("adding reference to new: {:?}", new.glyph_index);
-                    package.package_data.atlas.add_reference(key, new);
-                    package
-                        .package_data
-                        .instance_coordinator
-                        .queue_write(key, package.package_data.atlas.get(&new).unwrap());
-                }
-                // color
-                if let Some(color) = glyph.color {
-                    tracing::trace!("writing text-glyph-color: {:?}", color);
-                    package
-                        .package_data
-                        .instance_coordinator
-                        .queue_write(key, color);
-                }
-                // section changes
-                if let Some(section) = glyph.section {
-                    tracing::trace!("updating text-glyph-section: {:?}", section);
-                    package
-                        .package_data
-                        .instance_coordinator
-                        .queue_write(key, section.position.to_c());
-                    package
-                        .package_data
-                        .instance_coordinator
-                        .queue_write(key, section.area.to_c());
-                }
-            }
         }
         if package.package_data.instance_coordinator.prepare(ginkgo) {
             tracing::trace!("text signal record");
