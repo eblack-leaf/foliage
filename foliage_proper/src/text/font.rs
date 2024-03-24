@@ -43,7 +43,7 @@ impl MonospacedFont {
             area / Area::new(1.0, lines.0 as f32),
             scale_factor,
         );
-        TextMetrics::new(fs, fa * Area::new(1.0, lines.0 as f32), d)
+        TextMetrics::new(fs, fa * Area::new(1.0, lines.0 as f32), d, per_line)
     }
     fn area_metrics(
         font_size: FontSize,
@@ -59,7 +59,7 @@ impl MonospacedFont {
         let area = (width, dim.dimensions().height).into();
         (area, dim)
     }
-    pub fn best_fit(
+    fn best_fit(
         &self,
         max_characters: MaxCharacters,
         extent: Area<InterfaceContext>,

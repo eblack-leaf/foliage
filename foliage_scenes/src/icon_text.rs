@@ -164,7 +164,7 @@ impl Scene for IconText {
                 (1f32 - text_offset).percent_of(AnchorDim::Width),
                 1.percent_of(AnchorDim::Height),
             ),
-            Text::new(self.max_chars, self.text_value.clone(), self.text_color),
+            Text::new(self.text_value.clone(), self.max_chars, 1, self.text_color),
         );
         binder.finish::<Self>(SceneComponents::new(
             MicroGrid::new()

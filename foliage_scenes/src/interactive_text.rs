@@ -22,7 +22,7 @@ use foliage_proper::scene::micro_grid::{
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
 use foliage_proper::text::font::MonospacedFont;
 use foliage_proper::text::{
-    CharacterDimension, MaxCharacters, Text, TextColorExceptions, TextKey, TextValue,
+    CharacterDimension, MaxCharacters, Text, TextColorExceptions, TextKey, TextLines, TextValue,
 };
 use foliage_proper::texture::factors::Progress;
 use foliage_proper::window::ScaleFactor;
@@ -30,14 +30,21 @@ use std::ops::RangeInclusive;
 #[derive(Clone)]
 pub struct InteractiveText {
     pub max_chars: MaxCharacters,
+    pub lines: TextLines,
     pub text_value: TextValue,
     pub colors: Colors,
 }
 impl InteractiveText {
-    pub fn new(max_characters: MaxCharacters, text_value: TextValue, colors: Colors) -> Self {
+    pub fn new<MC: Into<MaxCharacters>, TL: Into<TextLines>, TV: Into<TextValue>>(
+        max_characters: MC,
+        lines: TL,
+        text_value: TV,
+        colors: Colors,
+    ) -> Self {
         Self {
-            max_chars: max_characters,
-            text_value,
+            max_chars: max_characters.into(),
+            lines: lines.into(),
+            text_value: text_value.into(),
             colors,
         }
     }
@@ -109,6 +116,7 @@ pub struct InteractiveTextComponents {
     pub selection: Selection,
     pub text: TextValue,
     pub max_chars: MaxCharacters,
+    pub lines: TextLines,
     pub colors: Colors,
     pub dims: CharacterDimension,
 }
@@ -117,6 +125,7 @@ fn update_selection(
     scale_factor: Res<ScaleFactor>,
     mut query: Query<(
         &MaxCharacters,
+        &TextLines,
         &mut Selection,
         &TextValue,
         &Bindings,
@@ -145,23 +154,25 @@ fn update_selection(
         Without<InteractionListener>,
     >,
 ) {
-    for (mc, mut sel, tv, bindings, mut d) in query.iter_mut() {
+    for (mc, lines, mut sel, tv, bindings, mut d) in query.iter_mut() {
         if let Ok((listener, pos, area, layer)) =
             listeners.get(bindings.get(InteractiveTextBindings::Text))
         {
-            let (_fs, _fa, dims) = font.best_fit(*mc, *area, &scale_factor);
-            *d = dims;
+            let metrics = font.line_metrics(mc, lines, *area, &scale_factor);
+            *d = metrics.character_dimensions;
+
             for letter in 1..mc.0 + 1 {
                 *rectangles.get_mut(bindings.get(letter as i32)).unwrap().0 = *pos
                     + Position::<InterfaceContext>::new(
-                        (letter as f32 - 1f32) * dims.dimensions().width,
+                        (letter as f32 - 1f32) * metrics.character_dimensions.dimensions().width,
                         0.0,
                     );
-                *rectangles.get_mut(bindings.get(letter as i32)).unwrap().1 = dims.dimensions();
+                *rectangles.get_mut(bindings.get(letter as i32)).unwrap().1 =
+                    metrics.character_dimensions.dimensions();
                 *rectangles.get_mut(bindings.get(letter as i32)).unwrap().2 = *layer + 1.into();
             }
             let text_key = ((listener.interaction.current.x - pos.x).max(0.0)
-                / dims.dimensions().width)
+                / metrics.character_dimensions.dimensions().width)
                 .floor()
                 .min(tv.0.len() as f32)
                 .min(mc.0.checked_sub(1).unwrap_or_default() as f32);

@@ -31,6 +31,7 @@ pub struct Text {
     exceptions: TextColorExceptions,
     tool: TextPlacementTool,
     placement: TextPlacement,
+    cached: CachedTextPlacement,
     wrap: TextLineWrap,
     dims: CharacterDimension,
     color_changes: DifferentialBundle<TextColorChanges>,
@@ -113,14 +114,21 @@ pub struct TextMetrics {
     pub font_size: FontSize,
     pub area: Area<InterfaceContext>,
     pub character_dimensions: CharacterDimension,
+    pub per_line: MaxCharacters,
 }
 
 impl TextMetrics {
-    pub fn new(fs: FontSize, fa: Area<InterfaceContext>, d: CharacterDimension) -> Self {
+    pub fn new(
+        fs: FontSize,
+        fa: Area<InterfaceContext>,
+        d: CharacterDimension,
+        per_line: u32,
+    ) -> Self {
         Self {
             font_size: fs,
             area: fa,
             character_dimensions: d,
+            per_line: per_line.into(),
         }
     }
 }
@@ -140,20 +148,21 @@ impl Text {
         mc.into().mono_aspect()
     }
     pub const DEFAULT_OPT_SCALE: u32 = 40;
-    pub fn new<S: AsRef<str>, MC: Into<MaxCharacters>, L: Into<TextLines>, C: Into<Color>>(
+    pub fn new<S: Into<TextValue>, MC: Into<MaxCharacters>, L: Into<TextLines>, C: Into<Color>>(
         s: S,
         mc: MC,
         l: L,
         c: C,
     ) -> Self {
         Self {
-            value: TextValue::new(s),
+            value: s.into(),
             max_chars: mc.into(),
             lines: l.into(),
             color: DifferentialBundle::new(c.into()),
             exceptions: TextColorExceptions::blank(),
             tool: TextPlacementTool::default(),
             placement: TextPlacement::default(),
+            cached: CachedTextPlacement::default(),
             wrap: TextLineWrap::Word,
             dims: CharacterDimension(Area::default()),
             color_changes: DifferentialBundle::new(TextColorChanges::default()),
@@ -253,7 +262,7 @@ impl GlyphKey {
 
 #[derive(Component, Default, Clone)]
 pub struct TextPlacement(pub HashMap<TextKey, Glyph>);
-
+#[derive(Component, Default, Clone)]
 pub struct CachedTextPlacement(pub HashMap<TextKey, Glyph>);
 
 impl TextPlacement {
@@ -420,7 +429,7 @@ fn color_diff(
         )>,
     >,
 ) {
-    for (color, excepts, changes, placement) in query.iter_mut() {
+    for (color, excepts, mut changes, placement) in query.iter_mut() {
         for (tk, _) in placement.glyphs().iter() {
             changes.0.insert(*tk, *color);
         }
