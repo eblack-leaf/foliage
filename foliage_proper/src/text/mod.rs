@@ -271,9 +271,13 @@ impl TextLineWrap {
     }
 }
 
-#[derive(Component, Clone)]
+#[derive(Component)]
 pub struct TextPlacementTool(fontdue::layout::Layout);
-
+impl Clone for TextPlacementTool {
+    fn clone(&self) -> Self {
+        Self::default()
+    }
+}
 impl Default for TextPlacementTool {
     fn default() -> Self {
         Self(fontdue::layout::Layout::new(

@@ -22,7 +22,7 @@ use foliage_proper::scene::micro_grid::{
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
 use foliage_proper::text::font::MonospacedFont;
 use foliage_proper::text::{
-    CharacterDimension, GlyphColorChanges, MaxCharacters, Text, TextKey, TextValue,
+    CharacterDimension, TextColorExceptions, MaxCharacters, Text, TextKey, TextValue,
 };
 use foliage_proper::texture::factors::Progress;
 use foliage_proper::window::ScaleFactor;
@@ -218,7 +218,7 @@ impl Scene for InteractiveText {
             'static,
             'static,
             (
-                &'static mut GlyphColorChanges,
+                &'static mut TextColorExceptions,
                 &'static mut TextValue,
                 &'static InteractionListener,
             ),
@@ -236,7 +236,7 @@ impl Scene for InteractiveText {
     fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
         let text = bindings.get(0);
         if let Ok((_fc, bc, mc, tv, sel)) = ext.0.get(entity) {
-            let mut color_changes = GlyphColorChanges::new();
+            let mut color_changes = TextColorExceptions::blank();
             for letter in 1..mc.0 + 1 {
                 if sel.contains((letter - 1) as i32) {
                     *ext.1
@@ -268,8 +268,9 @@ impl Scene for InteractiveText {
                 1.percent_of(AnchorDim::Height),
             ),
             Text::new(
+                self.text_value.0.clone(),
                 self.max_chars,
-                self.text_value.clone(),
+
                 self.colors.foreground.0,
             ),
         );
