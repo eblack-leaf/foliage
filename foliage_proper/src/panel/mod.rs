@@ -33,8 +33,7 @@ impl Panel {
             tag: Tag::new(),
             style: DifferentialBundle::new(style),
             color: DifferentialBundle::new(color),
-            differentiable: Differentiable::new::<Self>(
-            ),
+            differentiable: Differentiable::new::<Self>(),
         }
     }
 }

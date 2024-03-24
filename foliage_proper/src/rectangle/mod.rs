@@ -24,8 +24,7 @@ impl Rectangle {
         Self {
             progress: DifferentialBundle::new(progress),
             color: DifferentialBundle::new(color.into()),
-            differentiable: Differentiable::new::<Self>(
-            ),
+            differentiable: Differentiable::new::<Self>(),
         }
     }
 }

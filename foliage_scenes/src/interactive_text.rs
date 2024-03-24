@@ -22,7 +22,7 @@ use foliage_proper::scene::micro_grid::{
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
 use foliage_proper::text::font::MonospacedFont;
 use foliage_proper::text::{
-    CharacterDimension, TextColorExceptions, MaxCharacters, Text, TextKey, TextValue,
+    CharacterDimension, MaxCharacters, Text, TextColorExceptions, TextKey, TextValue,
 };
 use foliage_proper::texture::factors::Progress;
 use foliage_proper::window::ScaleFactor;
@@ -270,7 +270,6 @@ impl Scene for InteractiveText {
             Text::new(
                 self.text_value.0.clone(),
                 self.max_chars,
-
                 self.colors.foreground.0,
             ),
         );

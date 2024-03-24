@@ -1,22 +1,22 @@
-use std::collections::{HashMap, HashSet};
-use bevy_ecs::component::Component;
-use compact_str::{CompactString, ToCompactString};
-use serde::{Deserialize, Serialize};
-use bevy_ecs::bundle::Bundle;
-use bevy_ecs::prelude::{Changed, IntoSystemConfigs, Or, Query, SystemSet};
-use bevy_ecs::change_detection::Res;
 use crate::color::Color;
 use crate::coordinate::area::Area;
-use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
 use crate::coordinate::section::Section;
+use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
-use crate::elm::Elm;
 use crate::elm::leaf::Leaf;
+use crate::elm::Elm;
 use crate::layout::AspectRatio;
 use crate::text::font::MonospacedFont;
 use crate::window::ScaleFactor;
+use bevy_ecs::bundle::Bundle;
+use bevy_ecs::change_detection::Res;
+use bevy_ecs::component::Component;
+use bevy_ecs::prelude::{Changed, IntoSystemConfigs, Or, Query, SystemSet};
+use compact_str::{CompactString, ToCompactString};
+use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet};
 
 pub mod font;
 mod renderer;
@@ -77,7 +77,9 @@ impl Leaf for Text {
         elm.container()
             .insert_resource(MonospacedFont::new(Self::DEFAULT_OPT_SCALE));
         elm.main().add_systems((
-            place_text.in_set(SetDescriptor::Update),
+            (place_text, distill_changes, color_diff)
+                .chain()
+                .in_set(SetDescriptor::Update),
             clear_changes.after(CoreSet::Differential),
         ));
     }
@@ -254,7 +256,11 @@ pub struct TextPlacement(pub HashMap<TextKey, Glyph>);
 
 pub struct CachedTextPlacement(pub HashMap<TextKey, Glyph>);
 
-impl TextPlacement {}
+impl TextPlacement {
+    pub fn glyphs(&self) -> &HashMap<TextKey, Glyph> {
+        &self.0
+    }
+}
 
 #[derive(Copy, Clone, Component)]
 pub enum TextLineWrap {
@@ -375,7 +381,54 @@ fn place_text(
         *placement = tool.placed_glyphs();
     }
 }
-
+fn distill_changes(
+    mut query: Query<
+        (
+            &TextPlacement,
+            &mut CachedTextPlacement,
+            &mut TextGlyphChanges,
+        ),
+        Changed<TextPlacement>,
+    >,
+) {
+    for (placement, mut cached, mut changes) in query.iter_mut() {
+        for (tk, g) in placement.glyphs().iter() {
+            if let Some(old) = cached.0.get(tk) {
+                if old != g {
+                    changes.added.insert(*tk, g.clone());
+                    changes.removed.insert(*tk, old.clone());
+                }
+            } else {
+                changes.added.insert(*tk, g.clone());
+            }
+        }
+        cached.0 = placement.0.clone();
+    }
+}
+fn color_diff(
+    mut query: Query<
+        (
+            &Color,
+            &TextColorExceptions,
+            &mut TextColorChanges,
+            &TextPlacement,
+        ),
+        Or<(
+            Changed<TextColorExceptions>,
+            Changed<Color>,
+            Changed<TextPlacement>,
+        )>,
+    >,
+) {
+    for (color, excepts, changes, placement) in query.iter_mut() {
+        for (tk, _) in placement.glyphs().iter() {
+            changes.0.insert(*tk, *color);
+        }
+        for (tk, c) in excepts.exceptions.iter() {
+            changes.0.insert(*tk, *c);
+        }
+    }
+}
 #[derive(Component, Copy, Clone, Serialize, Deserialize, PartialEq, Debug, Default)]
 pub(crate) struct TextValueUniqueCharacters(pub(crate) u32);
 
@@ -440,4 +493,3 @@ fn clear_changes(
         b.0.clear();
     }
 }
-

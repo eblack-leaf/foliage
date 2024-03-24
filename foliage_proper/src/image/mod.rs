@@ -37,8 +37,7 @@ impl Image {
             image_data: ImageData(None),
             was_request: RequestFlag::default(),
             image_storage: DifferentialBundle::new(ImageStorage::default()),
-            differentiable: Differentiable::new::<Self>(
-            ),
+            differentiable: Differentiable::new::<Self>(),
         }
     }
     pub fn fill(image_id: ImageId, data: Vec<u8>) -> Self {
@@ -47,8 +46,7 @@ impl Image {
             image_data: ImageData(Option::from(data)),
             was_request: RequestFlag(true),
             image_storage: DifferentialBundle::new(ImageStorage::default()),
-            differentiable: Differentiable::new::<Self>(
-            ),
+            differentiable: Differentiable::new::<Self>(),
         }
     }
     pub fn storage(image_id: ImageId, storage: ImageStorage) -> Self {
@@ -57,8 +55,7 @@ impl Image {
             image_data: ImageData(None),
             was_request: RequestFlag(true),
             image_storage: DifferentialBundle::new(storage),
-            differentiable: Differentiable::new::<Self>(
-            ),
+            differentiable: Differentiable::new::<Self>(),
         }
     }
 }

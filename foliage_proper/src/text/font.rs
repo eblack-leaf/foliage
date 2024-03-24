@@ -37,7 +37,7 @@ impl MonospacedFont {
         area: Area<InterfaceContext>,
         scale_factor: &ScaleFactor,
     ) -> TextMetrics {
-        let per_line = mc.0.checked_div(lines.0).unwrap_or_default();
+        let per_line = (mc.0 as f32 / lines.0 as f32).ceil() as u32;
         let (fs, fa, d) = self.best_fit(
             per_line.into(),
             area / Area::new(1.0, lines.0 as f32),

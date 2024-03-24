@@ -14,11 +14,13 @@ use crate::ginkgo::Ginkgo;
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
 use crate::text::font::MonospacedFont;
 use crate::text::vertex::{Vertex, VERTICES};
+use crate::text::{
+    FontSize, Glyph, GlyphKey, Text, TextColorChanges, TextGlyphChanges, TextValueUniqueCharacters,
+};
 use crate::texture::coord::TexturePartition;
 use crate::texture::{AtlasBlock, TextureAtlas};
 use bevy_ecs::entity::Entity;
 use std::collections::HashSet;
-use crate::text::{FontSize, Glyph, GlyphKey, Text, TextColorChanges, TextGlyphChanges, TextValueUniqueCharacters};
 
 pub struct TextRenderResources {
     pipeline: wgpu::RenderPipeline,
@@ -365,6 +367,11 @@ impl Render for Text {
                         ],
                     });
             package.signal_record();
+        }
+        if let Some(mut color_changes) = render_packet.get::<TextColorChanges>() {
+            for (tk, c) in color_changes.0.drain() {
+                package.package_data.instance_coordinator.queue_write(tk, c);
+            }
         }
         if package.package_data.instance_coordinator.prepare(ginkgo) {
             tracing::trace!("text signal record");
