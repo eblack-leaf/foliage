@@ -1,5 +1,6 @@
 use crate::color::Color;
 use crate::coordinate::area::Area;
+use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
 use crate::differential::{Differentiable, DifferentialBundle};
@@ -26,7 +27,7 @@ mod vertex;
 pub struct Text {
     pub value: TextValue,
     pub max_chars: MaxCharacters,
-    pub lines: TextLines,
+    pub lines: TextLineMax,
     pub color: DifferentialBundle<Color>,
     exceptions: TextColorExceptions,
     tool: TextPlacementTool,
@@ -38,9 +39,58 @@ pub struct Text {
     glyph_changes: DifferentialBundle<TextGlyphChanges>,
     font_size: DifferentialBundle<FontSize>,
     unique: DifferentialBundle<TextValueUniqueCharacters>,
+    line_span: TextLineSpan,
+    line_structure: TextLineStructure,
     differentiable: Differentiable,
 }
-
+impl Text {
+    pub const MONOSPACED_ASPECT: f32 = 0.45;
+    pub fn aspect_ratio_for<MC: Into<MaxCharacters>>(mc: MC) -> AspectRatio {
+        mc.into().mono_aspect()
+    }
+    pub const DEFAULT_OPT_SCALE: u32 = 40;
+    pub fn new<
+        S: Into<TextValue>,
+        MC: Into<MaxCharacters>,
+        L: Into<TextLineMax>,
+        C: Into<Color>,
+    >(
+        s: S,
+        mc: MC,
+        l: L,
+        c: C,
+    ) -> Self {
+        Self {
+            value: s.into(),
+            max_chars: mc.into(),
+            lines: l.into(),
+            color: DifferentialBundle::new(c.into()),
+            exceptions: TextColorExceptions::blank(),
+            tool: TextPlacementTool::default(),
+            placement: TextPlacement::default(),
+            cached: CachedTextPlacement::default(),
+            wrap: TextLineWrap::Word,
+            dims: CharacterDimension(Area::default()),
+            color_changes: DifferentialBundle::new(TextColorChanges::default()),
+            glyph_changes: DifferentialBundle::new(TextGlyphChanges::default()),
+            font_size: DifferentialBundle::new(FontSize::default()),
+            unique: DifferentialBundle::new(TextValueUniqueCharacters::default()),
+            line_span: TextLineSpan::default(),
+            line_structure: TextLineStructure::default(),
+            differentiable: Differentiable::new::<Self>(),
+        }
+    }
+    pub fn with_letter_wrap(mut self) -> Self {
+        self.wrap = TextLineWrap::Letter;
+        self
+    }
+}
+#[derive(Component, Copy, Clone, Default)]
+pub struct TextLineSpan(pub u32);
+#[derive(Copy, Clone, Hash, Eq, PartialEq)]
+pub struct TextLineLocation(pub u32, pub u32);
+#[derive(Component, Clone, Default)]
+pub struct TextLineStructure(pub HashMap<TextLineLocation, TextKey>);
 #[derive(Component, Copy, Clone)]
 pub struct CharacterDimension(pub(crate) Area<InterfaceContext>);
 
@@ -142,52 +192,16 @@ impl FontSize {
     }
 }
 
-impl Text {
-    pub const MONOSPACED_ASPECT: f32 = 0.45;
-    pub fn aspect_ratio_for<MC: Into<MaxCharacters>>(mc: MC) -> AspectRatio {
-        mc.into().mono_aspect()
-    }
-    pub const DEFAULT_OPT_SCALE: u32 = 40;
-    pub fn new<S: Into<TextValue>, MC: Into<MaxCharacters>, L: Into<TextLines>, C: Into<Color>>(
-        s: S,
-        mc: MC,
-        l: L,
-        c: C,
-    ) -> Self {
-        Self {
-            value: s.into(),
-            max_chars: mc.into(),
-            lines: l.into(),
-            color: DifferentialBundle::new(c.into()),
-            exceptions: TextColorExceptions::blank(),
-            tool: TextPlacementTool::default(),
-            placement: TextPlacement::default(),
-            cached: CachedTextPlacement::default(),
-            wrap: TextLineWrap::Word,
-            dims: CharacterDimension(Area::default()),
-            color_changes: DifferentialBundle::new(TextColorChanges::default()),
-            glyph_changes: DifferentialBundle::new(TextGlyphChanges::default()),
-            font_size: DifferentialBundle::new(FontSize::default()),
-            unique: DifferentialBundle::new(TextValueUniqueCharacters::default()),
-            differentiable: Differentiable::new::<Self>(),
-        }
-    }
-    pub fn with_letter_wrap(mut self) -> Self {
-        self.wrap = TextLineWrap::Letter;
-        self
-    }
-}
-
 #[derive(Copy, Clone, Component)]
-pub struct TextLines(pub u32);
+pub struct TextLineMax(pub u32);
 
-impl From<i32> for TextLines {
+impl From<i32> for TextLineMax {
     fn from(value: i32) -> Self {
         Self(value as u32)
     }
 }
 
-impl From<u32> for TextLines {
+impl From<u32> for TextLineMax {
     fn from(value: u32) -> Self {
         Self(value)
     }
@@ -345,7 +359,7 @@ fn place_text(
         (
             &TextValue,
             &MaxCharacters,
-            &TextLines,
+            &TextLineMax,
             &TextLineWrap,
             &mut TextPlacement,
             &mut Area<InterfaceContext>,
@@ -353,11 +367,13 @@ fn place_text(
             &mut TextValueUniqueCharacters,
             &mut CharacterDimension,
             &mut TextPlacementTool,
+            &mut TextLineSpan,
+            &mut TextLineStructure,
         ),
         Or<(
             Changed<TextValue>,
             Changed<MaxCharacters>,
-            Changed<TextLines>,
+            Changed<TextLineMax>,
             Changed<Area<InterfaceContext>>,
             Changed<TextLineWrap>,
         )>,
@@ -376,9 +392,12 @@ fn place_text(
         mut unique,
         mut dims,
         mut tool,
+        mut span,
+        mut structure,
     ) in query.iter_mut()
     {
         let metrics = font.line_metrics(mc, lines, *area, &scale_factor);
+        span.0 = metrics.per_line.0;
         *font_size = metrics.font_size;
         *dims = metrics.character_dimensions;
         let aligned_area = metrics.area; // TODO make fit bounds better
@@ -388,6 +407,16 @@ fn place_text(
         *unique = TextValueUniqueCharacters::new(limited);
         tool.place(&font, limited, metrics.font_size, &scale_factor);
         *placement = tool.placed_glyphs();
+        for g in placement.0.iter() {
+            match g.1 {
+                Glyph::Control => {}
+                Glyph::Char(ch) => {
+                    let a = ch.section.position / Position::new(dims.0.width, dims.0.height);
+                    let line_location = TextLineLocation(a.x.floor() as u32, a.y.floor() as u32);
+                    structure.0.insert(line_location, *g.0);
+                }
+            }
+        }
     }
 }
 fn distill_changes(

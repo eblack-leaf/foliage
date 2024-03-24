@@ -22,7 +22,7 @@ use foliage_proper::scene::micro_grid::{
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
 use foliage_proper::text::font::MonospacedFont;
 use foliage_proper::text::{
-    CharacterDimension, MaxCharacters, Text, TextColorExceptions, TextKey, TextLines, TextValue,
+    CharacterDimension, MaxCharacters, Text, TextColorExceptions, TextKey, TextLineMax, TextValue,
 };
 use foliage_proper::texture::factors::Progress;
 use foliage_proper::window::ScaleFactor;
@@ -30,12 +30,12 @@ use std::ops::RangeInclusive;
 #[derive(Clone)]
 pub struct InteractiveText {
     pub max_chars: MaxCharacters,
-    pub lines: TextLines,
+    pub lines: TextLineMax,
     pub text_value: TextValue,
     pub colors: Colors,
 }
 impl InteractiveText {
-    pub fn new<MC: Into<MaxCharacters>, TL: Into<TextLines>, TV: Into<TextValue>>(
+    pub fn new<MC: Into<MaxCharacters>, TL: Into<TextLineMax>, TV: Into<TextValue>>(
         max_characters: MC,
         lines: TL,
         text_value: TV,
@@ -116,7 +116,7 @@ pub struct InteractiveTextComponents {
     pub selection: Selection,
     pub text: TextValue,
     pub max_chars: MaxCharacters,
-    pub lines: TextLines,
+    pub lines: TextLineMax,
     pub colors: Colors,
     pub dims: CharacterDimension,
 }
@@ -125,7 +125,7 @@ fn update_selection(
     scale_factor: Res<ScaleFactor>,
     mut query: Query<(
         &MaxCharacters,
-        &TextLines,
+        &TextLineMax,
         &mut Selection,
         &TextValue,
         &Bindings,

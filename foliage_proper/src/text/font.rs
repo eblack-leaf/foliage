@@ -2,7 +2,7 @@ use bevy_ecs::system::Resource;
 
 use crate::coordinate::area::Area;
 use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
-use crate::text::{CharacterDimension, FontSize, MaxCharacters, TextLines, TextMetrics};
+use crate::text::{CharacterDimension, FontSize, MaxCharacters, TextLineMax, TextMetrics};
 use crate::window::ScaleFactor;
 
 #[derive(Resource)]
@@ -33,7 +33,7 @@ impl MonospacedFont {
     pub fn line_metrics(
         &self,
         mc: &MaxCharacters,
-        lines: &TextLines,
+        lines: &TextLineMax,
         area: Area<InterfaceContext>,
         scale_factor: &ScaleFactor,
     ) -> TextMetrics {
