@@ -13,13 +13,12 @@ use crate::ginkgo::uniform::AlignedUniform;
 use crate::ginkgo::Ginkgo;
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
 use crate::text::font::MonospacedFont;
-use crate::text::front_end::{FontSize, Text, TextValueUniqueCharacters};
-use crate::text::front_end::{Glyph, GlyphKey, TextColorChanges, TextGlyphChanges};
 use crate::text::vertex::{Vertex, VERTICES};
 use crate::texture::coord::TexturePartition;
 use crate::texture::{AtlasBlock, TextureAtlas};
 use bevy_ecs::entity::Entity;
 use std::collections::HashSet;
+use crate::text::{FontSize, Glyph, GlyphKey, Text, TextColorChanges, TextGlyphChanges, TextValueUniqueCharacters};
 
 pub struct TextRenderResources {
     pipeline: wgpu::RenderPipeline,
@@ -193,8 +192,8 @@ impl Render for Text {
                     }
                     atlas.add_reference(key, ch.key);
                     instance_coordinator.queue_add(key);
-                    instance_coordinator.queue_write(key, ch.section.unwrap().position.to_c());
-                    instance_coordinator.queue_write(key, ch.section.unwrap().area.to_c());
+                    instance_coordinator.queue_write(key, ch.section.position.to_c());
+                    instance_coordinator.queue_write(key, ch.section.area.to_c());
                     instance_coordinator.queue_write(key, base_color);
                     instance_coordinator.queue_write(key, atlas.get(&ch.key).unwrap());
                 }
@@ -314,11 +313,11 @@ impl Render for Text {
                         package
                             .package_data
                             .instance_coordinator
-                            .queue_write(key, ch.section.unwrap().position.to_c());
+                            .queue_write(key, ch.section.position.to_c());
                         package
                             .package_data
                             .instance_coordinator
-                            .queue_write(key, ch.section.unwrap().area.to_c());
+                            .queue_write(key, ch.section.area.to_c());
                         package.package_data.atlas.add_reference(key, ch.key);
                     }
                 }

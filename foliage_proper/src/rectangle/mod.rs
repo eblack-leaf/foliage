@@ -25,9 +25,6 @@ impl Rectangle {
             progress: DifferentialBundle::new(progress),
             color: DifferentialBundle::new(color.into()),
             differentiable: Differentiable::new::<Self>(
-                Position::default(),
-                Area::default(),
-                Layer::default(),
             ),
         }
     }

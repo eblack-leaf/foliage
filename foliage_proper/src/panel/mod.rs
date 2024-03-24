@@ -34,9 +34,6 @@ impl Panel {
             style: DifferentialBundle::new(style),
             color: DifferentialBundle::new(color),
             differentiable: Differentiable::new::<Self>(
-                Position::default(),
-                Area::default(),
-                Layer::default(),
             ),
         }
     }

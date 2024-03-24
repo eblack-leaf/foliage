@@ -38,9 +38,6 @@ impl Image {
             was_request: RequestFlag::default(),
             image_storage: DifferentialBundle::new(ImageStorage::default()),
             differentiable: Differentiable::new::<Self>(
-                Position::default(),
-                Area::default(),
-                Layer::default(),
             ),
         }
     }
@@ -51,9 +48,6 @@ impl Image {
             was_request: RequestFlag(true),
             image_storage: DifferentialBundle::new(ImageStorage::default()),
             differentiable: Differentiable::new::<Self>(
-                Position::default(),
-                Area::default(),
-                Layer::default(),
             ),
         }
     }
@@ -64,9 +58,6 @@ impl Image {
             was_request: RequestFlag(true),
             image_storage: DifferentialBundle::new(storage),
             differentiable: Differentiable::new::<Self>(
-                Position::default(),
-                Area::default(),
-                Layer::default(),
             ),
         }
     }
