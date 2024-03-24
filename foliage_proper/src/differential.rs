@@ -36,7 +36,11 @@ pub struct Differentiable {
     c_area: DifferentialBundle<CReprArea>,
     adjust: PositionAdjust,
 }
-
+impl Default for Differentiable {
+    fn default() -> Self {
+        Differentiable::new(Position::default(), Area::default(), Layer::default())
+    }
+}
 impl Differentiable {
     pub fn new<T: Render + 'static>(
         position: Position<InterfaceContext>,

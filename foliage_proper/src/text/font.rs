@@ -31,7 +31,7 @@ impl MonospacedFont {
             .expect("font"),
         )
     }
-    pub fn metrics(
+    pub fn line_metrics(
         &self,
         mc: &MaxCharacters,
         lines: &TextLines,
@@ -39,8 +39,12 @@ impl MonospacedFont {
         scale_factor: &ScaleFactor,
     ) -> TextMetrics {
         let per_line = mc.0.checked_div(lines.0).unwrap_or_default();
-        let (fs, fa, d) = self.best_fit(per_line.into(), area, scale_factor);
-        TextMetrics::new(fs, fa, d)
+        let (fs, fa, d) = self.best_fit(
+            per_line.into(),
+            area / Area::new(1.0, lines.0 as f32),
+            scale_factor,
+        );
+        TextMetrics::new(fs, fa * Area::new(1.0, lines.0 as f32), d)
     }
     fn area_metrics(
         font_size: FontSize,

@@ -2,6 +2,7 @@ use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::section::Section;
 use crate::coordinate::{DeviceContext, InterfaceContext};
+use crate::differential::{Differentiable, DifferentialBundle};
 use crate::text::font::MonospacedFont;
 use crate::text::{CharacterDimension, FontSize, MaxCharacters};
 use crate::window::ScaleFactor;
@@ -16,18 +17,26 @@ pub struct Text {
     pub value: TextValue,
     pub max_chars: MaxCharacters,
     pub lines: TextLines,
-    pub color: Color,
+    pub color: DifferentialBundle<Color>,
+    exceptions: TextColorExceptions,
+    tool: TextPlacementTool,
+    placement: TextPlacement,
+    color_changes: DifferentialBundle<TextColorChanges>,
+    glyph_changes: DifferentialBundle<TextGlyphChanges>,
+    font_size: DifferentialBundle<FontSize>,
+    unique: DifferentialBundle<TextValueUniqueCharacters>,
+    differentiable: Differentiable,
 }
 pub struct TextMetrics {
     pub font_size: FontSize,
-    pub extent: Area<InterfaceContext>,
+    pub area: Area<InterfaceContext>,
     pub character_dimensions: CharacterDimension,
 }
 impl TextMetrics {
     pub fn new(fs: FontSize, fa: Area<InterfaceContext>, d: CharacterDimension) -> Self {
         Self {
             font_size: fs,
-            extent: fa,
+            area: fa,
             character_dimensions: d,
         }
     }
@@ -43,7 +52,15 @@ impl Text {
             value: TextValue::new(s),
             max_chars: mc.into(),
             lines: l.into(),
-            color: c.into(),
+            color: DifferentialBundle::new(c.into()),
+            exceptions: TextColorExceptions::blank(),
+            tool: TextPlacementTool::default(),
+            placement: TextPlacement::default(),
+            color_changes: DifferentialBundle::new(TextColorChanges::default()),
+            glyph_changes: DifferentialBundle::new(TextGlyphChanges::default()),
+            font_size: DifferentialBundle::new(FontSize::default()),
+            unique: DifferentialBundle::new(TextValueUniqueCharacters::default()),
+            differentiable: Differentiable::default(),
         }
     }
 }
@@ -82,10 +99,12 @@ impl From<&str> for TextValue {
     }
 }
 pub type TextKey = usize;
+#[derive(PartialEq)]
 pub enum Glyph {
     Control,
     Char(CharGlyph),
 }
+#[derive(PartialEq)]
 pub struct CharGlyph {
     pub key: GlyphKey,
     pub section: Section<DeviceContext>,
@@ -115,7 +134,7 @@ impl GlyphKey {
         }
     }
 }
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct TextPlacement(pub HashMap<TextKey, Glyph>);
 impl TextPlacement {}
 #[derive(Copy, Clone, Component)]
@@ -133,6 +152,13 @@ impl TextLineWrap {
 }
 #[derive(Component)]
 pub struct TextPlacementTool(fontdue::layout::Layout);
+impl Default for TextPlacementTool {
+    fn default() -> Self {
+        Self(fontdue::layout::Layout::new(
+            fontdue::layout::CoordinateSystem::PositiveYDown,
+        ))
+    }
+}
 impl TextPlacementTool {
     pub fn configure(&mut self, area: Area<InterfaceContext>, wrap: TextLineWrap) {
         self.0.reset(&fontdue::layout::LayoutSettings {
@@ -189,6 +215,8 @@ fn value_to_buffer(
             Changed<TextValue>,
             Changed<MaxCharacters>,
             Changed<TextLines>,
+            Changed<Area<InterfaceContext>>,
+            Changed<TextLineWrap>,
         )>,
     >,
     scale_factor: Res<ScaleFactor>,
@@ -207,23 +235,71 @@ fn value_to_buffer(
         mut tool,
     ) in query.iter_mut()
     {
-        let metrics = font.metrics(mc, lines, *area, &scale_factor);
+        let metrics = font.line_metrics(mc, lines, *area, &scale_factor);
         *font_size = metrics.font_size;
         *dims = metrics.character_dimensions;
-        *unique = TextValueUniqueCharacters::new(value);
+        *area = metrics.area;
         tool.configure(*area, *wrap);
-        tool.place(&font, value.limited(*mc), metrics.font_size, &scale_factor);
+        let limited = value.limited(*mc);
+        *unique = TextValueUniqueCharacters::new(limited);
+        tool.place(&font, limited, metrics.font_size, &scale_factor);
         *placement = tool.placed_glyphs();
     }
 }
-#[derive(Component, Copy, Clone, Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Component, Copy, Clone, Serialize, Deserialize, PartialEq, Debug, Default)]
 pub(crate) struct TextValueUniqueCharacters(pub(crate) u32);
 impl TextValueUniqueCharacters {
-    pub(crate) fn new(value: &TextValue) -> Self {
+    pub(crate) fn new(value: &str) -> Self {
         let mut uc = HashSet::new();
-        for ch in value.0.chars() {
+        for ch in value.chars() {
             uc.insert(ch);
         }
         Self(uc.len() as u32)
+    }
+}
+#[derive(Component)]
+pub struct TextColorExceptions {
+    pub exceptions: HashMap<TextKey, Color>,
+}
+impl TextColorExceptions {
+    pub fn blank() -> Self {
+        Self {
+            exceptions: HashMap::new(),
+        }
+    }
+    pub fn with<C: Into<Color>>(mut self, key: TextKey, c: C) -> Self {
+        self.exceptions.insert(key, c.into());
+        self
+    }
+    pub fn with_range<C: Into<Color>>(mut self, start: TextKey, end: TextKey, c: C) -> Self {
+        let color = c.into();
+        for i in start..=end {
+            self.exceptions.insert(i, color);
+        }
+        self
+    }
+}
+#[derive(Component, Clone, Default)]
+pub(crate) struct TextColorChanges(pub HashMap<TextKey, Color>);
+#[derive(Component, Clone, Default)]
+pub(crate) struct TextGlyphChanges {
+    pub(crate) added: HashMap<TextKey, Glyph>,
+    pub(crate) removed: HashMap<TextKey, Glyph>,
+}
+impl TextGlyphChanges {
+    pub(crate) fn clear(&mut self) {
+        self.added.clear();
+        self.removed.clear();
+    }
+}
+fn clear_changes(
+    mut query: Query<
+        (&mut TextGlyphChanges, &mut TextColorChanges),
+        Or<(Changed<TextGlyphChanges>, Changed<TextColorChanges>)>,
+    >,
+) {
+    for (mut a, mut b) in query.iter_mut() {
+        a.clear();
+        b.0.clear();
     }
 }
