@@ -53,11 +53,7 @@ impl Circle {
             style: DifferentialBundle::new(style),
             color: DifferentialBundle::new(color),
             progress: DifferentialBundle::new(progress),
-            differentiable: Differentiable::new::<Self>(
-                Position::default(),
-                Area::default(),
-                Layer::default(),
-            ),
+            differentiable: Differentiable::new::<Self>(),
         }
     }
 }

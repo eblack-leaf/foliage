@@ -43,11 +43,7 @@ impl Icon {
             color: DifferentialBundle::new(color.into()),
             data: RequestData::default(),
             was_request: DifferentialBundle::new(WasRequest(false)),
-            differentiable: Differentiable::new::<Self>(
-                Position::default(),
-                Area::default(),
-                Layer::default(),
-            ),
+            differentiable: Differentiable::new::<Self>(),
         }
     }
     pub fn storage<ID: Into<IconId>>(icon_id: ID, data: Vec<u8>) -> Self {
@@ -57,11 +53,7 @@ impl Icon {
             color: DifferentialBundle::new(Color::default()),
             data: RequestData(Some(data)),
             was_request: DifferentialBundle::new(WasRequest(true)),
-            differentiable: Differentiable::new::<Self>(
-                Position::default(),
-                Area::default(),
-                Layer::default(),
-            ),
+            differentiable: Differentiable::new::<Self>(),
         }
     }
 }

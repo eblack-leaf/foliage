@@ -1,18 +1,23 @@
 use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::section::Section;
-use crate::coordinate::{DeviceContext, InterfaceContext};
+use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
 use crate::differential::{Differentiable, DifferentialBundle};
+use crate::differential_enable;
+use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
+use crate::elm::leaf::Leaf;
+use crate::elm::Elm;
+use crate::layout::AspectRatio;
 use crate::text::font::MonospacedFont;
-use crate::text::{CharacterDimension, FontSize, MaxCharacters};
 use crate::window::ScaleFactor;
-use bevy_ecs::prelude::{Component, Or};
+use bevy_ecs::bundle::Bundle;
+use bevy_ecs::prelude::{Component, IntoSystemConfigs, Or, SystemSet};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Query, Res};
 use compact_str::{CompactString, ToCompactString};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-
+#[derive(Bundle, Clone)]
 pub struct Text {
     pub value: TextValue,
     pub max_chars: MaxCharacters,
@@ -21,11 +26,72 @@ pub struct Text {
     exceptions: TextColorExceptions,
     tool: TextPlacementTool,
     placement: TextPlacement,
+    wrap: TextLineWrap,
+    dims: CharacterDimension,
     color_changes: DifferentialBundle<TextColorChanges>,
     glyph_changes: DifferentialBundle<TextGlyphChanges>,
     font_size: DifferentialBundle<FontSize>,
     unique: DifferentialBundle<TextValueUniqueCharacters>,
     differentiable: Differentiable,
+}
+#[derive(Component, Copy, Clone)]
+pub struct CharacterDimension(pub(crate) Area<InterfaceContext>);
+impl CharacterDimension {
+    pub fn new<A: Into<Area<InterfaceContext>>>(a: A) -> Self {
+        Self(a.into())
+    }
+    pub fn dimensions(&self) -> Area<InterfaceContext> {
+        self.0
+    }
+}
+#[derive(SystemSet, Hash, Eq, PartialEq, Copy, Clone, Debug)]
+pub enum SetDescriptor {
+    Update,
+}
+impl Leaf for Text {
+    type SetDescriptor = SetDescriptor;
+
+    fn config(_elm_configuration: &mut ElmConfiguration) {
+        _elm_configuration.configure_hook(ExternalSet::Configure, SetDescriptor::Update);
+    }
+
+    fn attach(elm: &mut Elm) {
+        elm.enable_conditional::<Text>();
+        differential_enable!(
+            elm,
+            TextValue,
+            FontSize,
+            TextValueUniqueCharacters,
+            TextGlyphChanges,
+            TextColorChanges
+        );
+        elm.container()
+            .insert_resource(MonospacedFont::new(Self::DEFAULT_OPT_SCALE));
+        elm.main().add_systems((
+            place_text.in_set(SetDescriptor::Update),
+            clear_changes.after(CoreSet::Differential),
+        ));
+    }
+}
+#[derive(Component, Copy, Clone)]
+pub struct MaxCharacters(pub u32);
+impl MaxCharacters {
+    pub fn mono_aspect(self) -> AspectRatio {
+        AspectRatio(self.0 as CoordinateUnit * crate::text::Text::MONOSPACED_ASPECT)
+    }
+    pub fn new(v: u32) -> Self {
+        Self(v)
+    }
+}
+impl From<i32> for MaxCharacters {
+    fn from(value: i32) -> Self {
+        Self(value as u32)
+    }
+}
+impl From<u32> for MaxCharacters {
+    fn from(value: u32) -> Self {
+        Self(value)
+    }
 }
 pub struct TextMetrics {
     pub font_size: FontSize,
@@ -41,7 +107,19 @@ impl TextMetrics {
         }
     }
 }
+#[derive(Component, Copy, Clone, Default, Serialize, Deserialize, PartialEq, Debug)]
+pub struct FontSize(pub u32);
+impl FontSize {
+    pub fn px(&self, scale_factor: CoordinateUnit) -> CoordinateUnit {
+        self.0 as CoordinateUnit * scale_factor
+    }
+}
 impl Text {
+    pub const MONOSPACED_ASPECT: f32 = 0.45;
+    pub fn aspect_ratio_for<MC: Into<MaxCharacters>>(mc: MC) -> AspectRatio {
+        mc.into().mono_aspect()
+    }
+    pub const DEFAULT_OPT_SCALE: u32 = 40;
     pub fn new<S: AsRef<str>, MC: Into<MaxCharacters>, L: Into<TextLines>, C: Into<Color>>(
         s: S,
         mc: MC,
@@ -56,12 +134,18 @@ impl Text {
             exceptions: TextColorExceptions::blank(),
             tool: TextPlacementTool::default(),
             placement: TextPlacement::default(),
+            wrap: TextLineWrap::Word,
+            dims: CharacterDimension(Area::default()),
             color_changes: DifferentialBundle::new(TextColorChanges::default()),
             glyph_changes: DifferentialBundle::new(TextGlyphChanges::default()),
             font_size: DifferentialBundle::new(FontSize::default()),
             unique: DifferentialBundle::new(TextValueUniqueCharacters::default()),
-            differentiable: Differentiable::default(),
+            differentiable: Differentiable::new::<Self>(),
         }
+    }
+    pub fn with_letter_wrap(mut self) -> Self {
+        self.wrap = TextLineWrap::Letter;
+        self
     }
 }
 #[derive(Copy, Clone, Component)]
@@ -99,12 +183,12 @@ impl From<&str> for TextValue {
     }
 }
 pub type TextKey = usize;
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum Glyph {
     Control,
     Char(CharGlyph),
 }
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub struct CharGlyph {
     pub key: GlyphKey,
     pub section: Section<DeviceContext>,
@@ -136,6 +220,7 @@ impl GlyphKey {
 }
 #[derive(Component, Default)]
 pub struct TextPlacement(pub HashMap<TextKey, Glyph>);
+pub struct CachedTextPlacement(pub HashMap<TextKey, Glyph>);
 impl TextPlacement {}
 #[derive(Copy, Clone, Component)]
 pub enum TextLineWrap {
@@ -197,7 +282,7 @@ impl TextPlacementTool {
         TextPlacement(mapping)
     }
 }
-fn value_to_buffer(
+fn place_text(
     mut query: Query<
         (
             &TextValue,
@@ -238,7 +323,8 @@ fn value_to_buffer(
         let metrics = font.line_metrics(mc, lines, *area, &scale_factor);
         *font_size = metrics.font_size;
         *dims = metrics.character_dimensions;
-        *area = metrics.area;
+        let aligned_area = metrics.area; // TODO make fit bounds better
+        *area = aligned_area;
         tool.configure(*area, *wrap);
         let limited = value.limited(*mc);
         *unique = TextValueUniqueCharacters::new(limited);
@@ -279,9 +365,9 @@ impl TextColorExceptions {
         self
     }
 }
-#[derive(Component, Clone, Default)]
+#[derive(Component, Clone, Default, PartialEq)]
 pub(crate) struct TextColorChanges(pub HashMap<TextKey, Color>);
-#[derive(Component, Clone, Default)]
+#[derive(Component, Clone, Default, PartialEq)]
 pub(crate) struct TextGlyphChanges {
     pub(crate) added: HashMap<TextKey, Glyph>,
     pub(crate) removed: HashMap<TextKey, Glyph>,

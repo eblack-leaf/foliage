@@ -13,9 +13,9 @@ use crate::ginkgo::uniform::AlignedUniform;
 use crate::ginkgo::Ginkgo;
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
 use crate::text::font::MonospacedFont;
-use crate::text::glyph::{GlyphChangeQueue, GlyphKey, GlyphRemoveQueue};
+use crate::text::front_end::{FontSize, Text, TextValueUniqueCharacters};
+use crate::text::front_end::{Glyph, GlyphKey, TextColorChanges, TextGlyphChanges};
 use crate::text::vertex::{Vertex, VERTICES};
-use crate::text::{FontSize, Text, TextValueUniqueCharacters};
 use crate::texture::coord::TexturePartition;
 use crate::texture::{AtlasBlock, TextureAtlas};
 use bevy_ecs::entity::Entity;
@@ -153,6 +153,7 @@ impl Render for Text {
         let unique_characters = render_packet.get::<TextValueUniqueCharacters>().unwrap();
         let pos = render_packet.get::<CReprPosition>().unwrap();
         let layer = render_packet.get::<Layer>().unwrap();
+        let base_color = render_packet.get::<Color>().unwrap();
         let uniform = AlignedUniform::new(ginkgo.device(), Some([pos.x, pos.y, layer.z, 0.0]));
         let mut atlas = TextureAtlas::new(
             ginkgo,
@@ -171,23 +172,35 @@ impl Render for Text {
             .with_attribute::<Color>()
             .with_attribute::<TexturePartition>()
             .build(ginkgo);
-        for (key, glyph) in render_packet.get::<GlyphChangeQueue>().unwrap().0.drain(..) {
-            let (glyph_key, _) = glyph.key.unwrap();
-            if !atlas.has_key(&glyph_key) {
-                let rasterization = resources
-                    .font
-                    .0
-                    .rasterize_indexed(glyph_key.glyph_index, font_size.px(ginkgo.scale_factor()));
-                let extent: Area<NumericalContext> =
-                    (rasterization.0.width, rasterization.0.height).into();
-                atlas.write_next(glyph_key, ginkgo, extent, rasterization.1);
+        for (key, glyph) in render_packet
+            .get::<TextGlyphChanges>()
+            .unwrap()
+            .added
+            .drain()
+        {
+            match glyph {
+                Glyph::Control => {}
+                Glyph::Char(ch) => {
+                    if !atlas.has_key(&ch.key) {
+                        let rasterization = resources.font.0.rasterize_indexed(
+                            ch.key.glyph_index,
+                            font_size.px(ginkgo.scale_factor()),
+                        );
+                        let extent: Area<NumericalContext> =
+                            (rasterization.0.width, rasterization.0.height).into();
+                        atlas.write_next(ch.key, ginkgo, extent, rasterization.1);
+                    }
+                    atlas.add_reference(key, ch.key);
+                    instance_coordinator.queue_add(key);
+                    instance_coordinator.queue_write(key, ch.section.unwrap().position.to_c());
+                    instance_coordinator.queue_write(key, ch.section.unwrap().area.to_c());
+                    instance_coordinator.queue_write(key, base_color);
+                    instance_coordinator.queue_write(key, atlas.get(&ch.key).unwrap());
+                }
             }
-            atlas.add_reference(key, glyph_key);
-            instance_coordinator.queue_add(key);
-            instance_coordinator.queue_write(key, glyph.section.unwrap().position.to_c());
-            instance_coordinator.queue_write(key, glyph.section.unwrap().area.to_c());
-            instance_coordinator.queue_write(key, glyph.color.unwrap());
-            instance_coordinator.queue_write(key, atlas.get(&glyph_key).unwrap());
+        }
+        for (key, color) in render_packet.get::<TextColorChanges>().unwrap().0.drain() {
+            instance_coordinator.queue_write(key, color);
         }
         instance_coordinator.prepare(ginkgo);
         let bind_group = ginkgo
@@ -241,19 +254,29 @@ impl Render for Text {
             tracing::trace!("updating-text-uniform");
             package.package_data.uniform.update(ginkgo.queue());
         }
-        if let Some(removes) = render_packet.get::<GlyphRemoveQueue>() {
-            for change in removes.0 {
-                tracing::trace!("removing-text-glyph: {:?}:{:?}", change.0, change.1);
-                package
-                    .package_data
-                    .atlas
-                    .remove_reference(change.0, change.1);
-                package
-                    .package_data
-                    .instance_coordinator
-                    .queue_remove(change.0);
+        let mut glyph_changes = render_packet.get::<TextGlyphChanges>();
+        if let Some(mut changes) = glyph_changes.as_mut() {
+            for (key, glyph) in changes.removed.drain() {
+                tracing::trace!("removing-text-glyph: {:?}:{:?}", key, glyph);
+                match glyph {
+                    Glyph::Control => {}
+                    Glyph::Char(ch) => {
+                        package.package_data.atlas.remove_reference(key, ch.key);
+                        package.package_data.instance_coordinator.queue_remove(key);
+                    }
+                }
+            }
+            for (key, glyph) in changes.added.drain() {
+                match glyph {
+                    Glyph::Control => {}
+                    Glyph::Char(ch) => {
+                        package.package_data.atlas.add_reference(key, ch.key);
+                    }
+                }
             }
         }
+        // end new iteration
+
         let glyph_changes = render_packet.get::<GlyphChangeQueue>();
         let font_size_change = render_packet.get::<FontSize>();
         let new_glyph_key_count = {

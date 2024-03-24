@@ -36,27 +36,18 @@ pub struct Differentiable {
     c_area: DifferentialBundle<CReprArea>,
     adjust: PositionAdjust,
 }
-impl Default for Differentiable {
-    fn default() -> Self {
-        Differentiable::new(Position::default(), Area::default(), Layer::default())
-    }
-}
 impl Differentiable {
-    pub fn new<T: Render + 'static>(
-        position: Position<InterfaceContext>,
-        area: Area<InterfaceContext>,
-        layer: Layer,
-    ) -> Self {
+    pub fn new<T: Render + 'static>() -> Self {
         Self {
-            position,
+            position: Position::default(),
             c_pos: DifferentialBundle::new(CReprPosition::default()),
             c_area: DifferentialBundle::new(CReprArea::default()),
-            layer: DifferentialBundle::new(layer),
+            layer: DifferentialBundle::new(Layer::default()),
             despawn: Despawn::default(),
             disable: DifferentialDisable::default(),
             store: RenderPacketStore::default(),
             render_id: T::render_id(),
-            area,
+            area: Area::default(),
             adjust: PositionAdjust(Position::default()),
             disabled: Disabled::not_disabled(),
         }

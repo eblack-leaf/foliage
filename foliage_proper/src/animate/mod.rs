@@ -40,18 +40,8 @@ where
     fn apply(&self, extracts: Vec<InterpolationExtraction>) -> Self;
 }
 pub trait Animate {
-    fn animate<I: Interpolate>(
-        self,
-        start: Option<I>,
-        end: I,
-        duration: TimeDelta,
-    ) -> OverwriteAnimation<I>;
-    fn composable_animate<I: Interpolate>(
-        self,
-        start: Option<I>,
-        end: I,
-        duration: TimeDelta,
-    ) -> ComposableAnimation<I>;
+    fn animate<I: Interpolate>(self, start: Option<I>, end: I, duration: TimeDelta)
+        -> Animation<I>;
 }
 impl Animate for Entity {
     fn animate<I: Interpolate>(
@@ -59,29 +49,8 @@ impl Animate for Entity {
         start: Option<I>,
         end: I,
         duration: TimeDelta,
-    ) -> OverwriteAnimation<I> {
-        OverwriteAnimation(Animation::<I>::new(
-            self,
-            start,
-            end,
-            duration,
-            InterpolationMethod::Sinusoidal,
-        ))
-    }
-
-    fn composable_animate<I: Interpolate>(
-        self,
-        start: Option<I>,
-        end: I,
-        duration: TimeDelta,
-    ) -> ComposableAnimation<I> {
-        ComposableAnimation(Animation::<I>::new(
-            self,
-            start,
-            end,
-            duration,
-            InterpolationMethod::Sinusoidal,
-        ))
+    ) -> Animation<I> {
+        Animation::<I>::new(self, start, end, duration, InterpolationMethod::Sinusoidal)
     }
 }
 #[derive(Copy, Clone)]
@@ -112,20 +81,6 @@ impl Interpolator {
                 .as_millis() as f32
                 / self.total.as_millis() as f32;
         InterpolationPercent(linear)
-    }
-}
-impl<I: Interpolate> Command for OverwriteAnimation<I> {
-    fn apply(self, world: &mut World) {
-        world.entity_mut(self.0.target.0).insert(self.0);
-    }
-}
-#[derive(Clone)]
-pub struct OverwriteAnimation<I: Interpolate>(pub Animation<I>);
-#[derive(Clone)]
-pub struct ComposableAnimation<I: Interpolate>(pub Animation<I>);
-impl<I: Interpolate> Command for ComposableAnimation<I> {
-    fn apply(self, world: &mut World) {
-        world.spawn(self.0);
     }
 }
 #[derive(Component, Clone)]
