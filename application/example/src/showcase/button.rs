@@ -10,7 +10,7 @@ use foliage::layout::Layout;
 use foliage::procedure::Procedure;
 use foliage::scene::Scene;
 use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
-use foliage::text::{MaxCharacters, Text, TextValue};
+use foliage::text::{MaxCharacters, Text, TextLineStructure, TextValue};
 use foliage::text_button::TextButton;
 use foliage::view::{ViewBuilder, ViewDescriptor, Viewable};
 use foliage::Colors;
@@ -105,8 +105,8 @@ impl<T: Scene> Procedure for ButtonDisplay<T> {
         );
         view_builder.add(
             Text::new(
-                MaxCharacters(11),
                 TextValue::new(self.desc),
+                TextLineStructure::new(11, 1),
                 Orange::MINUS_THREE,
             ),
             ResponsiveSegment::base(Segment::new(
@@ -135,7 +135,7 @@ impl Viewable for ButtonShowcase {
                 IconText::new(
                     FeatherIcon::Copy,
                     Greyscale::MINUS_THREE,
-                    MaxCharacters(4),
+                    TextLineStructure::new(4, 1),
                     TextValue::new("copy"),
                     Greyscale::MINUS_THREE,
                 ),
@@ -146,7 +146,7 @@ impl Viewable for ButtonShowcase {
                 IconText::new(
                     FeatherIcon::Copy,
                     Greyscale::MINUS_THREE,
-                    MaxCharacters(4),
+                    TextLineStructure::new(4, 1),
                     TextValue::new("copy"),
                     Greyscale::MINUS_THREE,
                 ),
@@ -161,13 +161,13 @@ impl Viewable for ButtonShowcase {
         view_builder.apply(ButtonDisplay::new(
             TextButton::new(
                 TextValue::new("copy"),
-                MaxCharacters(4),
+                TextLineStructure::new(4, 1),
                 Style::fill(),
                 Colors::new(Greyscale::MINUS_THREE, Orange::MINUS_ONE),
             ),
             TextButton::new(
                 TextValue::new("copy"),
-                MaxCharacters(4),
+                TextLineStructure::new(4, 1),
                 Style::ring(),
                 Colors::new(Greyscale::MINUS_THREE, Orange::MINUS_ONE),
             ),

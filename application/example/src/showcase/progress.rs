@@ -37,7 +37,7 @@ impl Viewable for ProgressShowcase {
             ))
             .at_layer(5),
         );
-        view_builder.add_command_to(
+        view_builder.place_conditional_on(
             e.root(),
             a.root().animate(
                 Some(ProgressPercent(0.15)),
@@ -65,7 +65,7 @@ impl Viewable for ProgressShowcase {
             ))
             .at_layer(5),
         );
-        view_builder.add_command_to(
+        view_builder.place_conditional_on(
             d.root(),
             b.root().animate(
                 Some(ProgressPercent(0.15)),
@@ -74,7 +74,7 @@ impl Viewable for ProgressShowcase {
             ),
         );
         view_builder.extend(b.root(), PositionAdjust(Position::new(-200.0, 0.0)));
-        view_builder.add_command_to(
+        view_builder.place_conditional_on(
             d.root(),
             b.root().animate(
                 Some(PositionAdjust(Position::new(-200.0, 0.0))),

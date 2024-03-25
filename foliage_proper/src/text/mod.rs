@@ -343,7 +343,7 @@ impl TextPlacementTool {
         let mut mapping = HashMap::new();
         for g in self.0.glyphs() {
             let glyph = if g.parent.is_ascii_control() {
-                Glyph::Control
+                continue;
             } else {
                 Glyph::Char(CharGlyph::new(
                     GlyphKey::new(g.key),
@@ -431,14 +431,17 @@ fn distill_changes(
 ) {
     for (placement, mut cached, mut changes) in query.iter_mut() {
         for (tk, g) in placement.glyphs().iter() {
-            if let Some(old) = cached.0.get(tk) {
-                if old != g {
+            if let Some(old) = cached.0.remove(tk) {
+                if &old != g {
                     changes.added.insert(*tk, g.clone());
-                    changes.removed.insert(*tk, old.clone());
+                    // changes.removed.insert(*tk, old.clone());
                 }
             } else {
                 changes.added.insert(*tk, g.clone());
             }
+        }
+        for (tk, g) in cached.0.drain() {
+            changes.removed.insert(tk, g);
         }
         cached.0 = placement.0.clone();
     }

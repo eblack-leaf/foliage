@@ -75,6 +75,11 @@ impl<'a, 'w, 's> ViewBuilder<'a, 'w, 's> {
     pub fn place_on<B: Bundle>(&mut self, entity: Entity, b: B) {
         self.cmd.as_mut().unwrap().entity(entity).insert(b);
     }
+    pub fn place_conditional_on<C: Bundle + Clone>(&mut self, entity: Entity, c: C) {
+        self.cmd()
+            .entity(entity)
+            .insert(Conditional::new(c, SpawnTarget::This(entity), false));
+    }
     pub fn cmd(&mut self) -> &mut Commands<'w, 's> {
         self.cmd.as_deref_mut().unwrap()
     }
@@ -153,7 +158,7 @@ impl<'a, 'w, 's> ViewBuilder<'a, 'w, 's> {
     pub fn add_command_to<C: Command + Clone + Sync>(&mut self, entity: Entity, comm: C) {
         self.cmd().entity(entity).insert(ConditionalCommand(comm));
     }
-    pub fn conditional_extend<Ext: Bundle + Clone>(
+    pub fn extend_conditional<Ext: Bundle + Clone>(
         &mut self,
         ch: ConditionHandle,
         extend_target: ExtendTarget,

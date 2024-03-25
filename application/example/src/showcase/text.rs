@@ -1,7 +1,7 @@
 use foliage::color::monochromatic::{Asparagus, Greyscale, Monochromatic};
 use foliage::interactive_text::InteractiveText;
 use foliage::segment::{MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
-use foliage::text::{MaxCharacters, TextValue};
+use foliage::text::{MaxCharacters, TextLineStructure, TextValue};
 use foliage::text_input::{TextInput, TextInputMode};
 use foliage::view::{ViewBuilder, ViewDescriptor, Viewable};
 use foliage::Colors;
@@ -13,7 +13,7 @@ impl Viewable for TextShowcase {
     fn view(mut view_builder: ViewBuilder) -> ViewDescriptor {
         view_builder.add_scene(
             InteractiveText::new(
-                MaxCharacters(6),
+                TextLineStructure::new(5, 1),
                 TextValue::new("hello"),
                 Colors::new(Asparagus::BASE, Greyscale::MINUS_THREE),
             ),
@@ -26,7 +26,7 @@ impl Viewable for TextShowcase {
         view_builder.add_scene(
             TextInput::new(
                 TextInputMode::Normal,
-                MaxCharacters(10),
+                TextLineStructure::new(10, 1),
                 "".to_string(),
                 Some("username".into()),
                 Colors::new(Asparagus::BASE, Greyscale::MINUS_THREE)
@@ -41,7 +41,7 @@ impl Viewable for TextShowcase {
         view_builder.add_scene(
             TextInput::new(
                 TextInputMode::Password,
-                MaxCharacters(10),
+                TextLineStructure::new(10, 1),
                 "".to_string(),
                 Some("password".into()),
                 Colors::new(Asparagus::BASE, Greyscale::MINUS_THREE),
