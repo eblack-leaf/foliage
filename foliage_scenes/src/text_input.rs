@@ -92,10 +92,7 @@ fn input(
                                         } else {
                                             // delete preceding char
                                         }
-                                        if start != TextLineLocation::raw(0, 0) {
-                                            // move start back one
-                                            selection.move_cursor(-1);
-                                        }
+                                        selection.move_cursor(-1);
                                     }
                                 }
                                 InputSequence::Enter => {
