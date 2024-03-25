@@ -1,3 +1,12 @@
+use std::collections::{HashMap, HashSet};
+
+use bevy_ecs::bundle::Bundle;
+use bevy_ecs::change_detection::Res;
+use bevy_ecs::component::Component;
+use bevy_ecs::prelude::{Changed, IntoSystemConfigs, Or, Query, SystemSet};
+use compact_str::{CompactString, ToCompactString};
+use serde::{Deserialize, Serialize};
+
 use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
@@ -11,13 +20,6 @@ use crate::elm::Elm;
 use crate::layout::AspectRatio;
 use crate::text::font::MonospacedFont;
 use crate::window::ScaleFactor;
-use bevy_ecs::bundle::Bundle;
-use bevy_ecs::change_detection::Res;
-use bevy_ecs::component::Component;
-use bevy_ecs::prelude::{Changed, IntoSystemConfigs, Or, Query, SystemSet};
-use compact_str::{CompactString, ToCompactString};
-use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
 
 pub mod font;
 mod renderer;

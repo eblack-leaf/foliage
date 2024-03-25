@@ -100,56 +100,76 @@ impl Selection {
         }
         accumulator
     }
-    pub fn clear(&self, tv: &mut CompactString) {}
-    // pub fn range(&self) -> Option<RangeInclusive<i32>> {
-    //     if let Some(start) = self.start {
-    //         if let Some(span) = self.end {
-    //             if span == 0 {
-    //                 return None;
-    //             }
-    //             return if span.is_positive() {
-    //                 Some(start..=(start + span))
-    //             } else {
-    //                 Some((start + span)..=start)
-    //             };
-    //         }
-    //     }
-    //     None
-    // }
-    // pub fn contains(&self, i: i32) -> bool {
-    //     if let Some(start) = self.start {
-    //         if i == start {
-    //             return true;
-    //         }
-    //         if let Some(_span) = self.end {
-    //             if let Some(r) = self.range() {
-    //                 for x in r {
-    //                     if x == i {
-    //                         return true;
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     }
-    //     false
-    // }
+    pub fn text_span(&self, tv: &CompactString) -> Option<RangeInclusive<usize>> {
+        if let Some(r) = self.range() {
+            let mut lowest = None;
+            let mut highest = None;
+            for i in r {
+                if tv.get(i..i + 1).is_some() {
+                    if highest.is_none() {
+                        highest.replace(i);
+                    }
+                    if lowest.is_none() {
+                        lowest.replace(i);
+                    }
+                    if i > highest.unwrap() {
+                        highest.replace(i);
+                    }
+                    if i < lowest.unwrap() {
+                        lowest.replace(i);
+                    }
+                }
+            }
+            if lowest.is_some() && highest.is_some() {
+                return Some(lowest.unwrap()..=highest.unwrap());
+            }
+        }
+        None
+    }
+    pub fn move_cursor(&mut self, amount: i32) {
+        todo!()
+    }
+    pub fn insert_chars(
+        &mut self,
+        tv: &mut CompactString,
+        chars: &CompactString,
+        tls: &TextLineStructure,
+    ) {
+        if tv.len() + chars.len() <= tls.max_chars().0 as usize {
+            tv.insert_str(tls.letter(self.start.unwrap()), chars.as_str());
+            self.start
+                .replace(tls.next_location(self.start.unwrap(), tv.len(), chars.len()));
+            self.end.replace(self.start.unwrap());
+        }
+    }
+    pub fn spans_multiple(&self) -> bool {
+        if let Some(r) = self.range() {
+            return r.count() > 1;
+        }
+        false
+    }
+    pub fn has_positive_span(&self) -> bool {
+        if let Some(start) = self.start {
+            if let Some(end) = self.end {
+                return start < end;
+            }
+        }
+        false
+    }
+    pub fn clear_selection_for(&mut self, tv: &mut CompactString) {
+        if let Some(s) = self.text_span(tv) {
+            if self.has_positive_span() {
+                self.end.replace(self.start.unwrap());
+            } else {
+                self.start.replace(self.end.unwrap());
+            }
+            tv.replace_range(s, "");
+        }
+    }
 }
 #[cfg(test)]
 #[test]
-fn test_selection() {
-    // let selection = Selection::new(Some(0), Some(4));
-    // assert_eq!(selection.contains(0), true);
-    // assert_eq!(selection.contains(1), true);
-    // assert_eq!(selection.contains(2), true);
-    // assert_eq!(selection.contains(3), true);
-    // assert_eq!(selection.contains(4), true);
-    // let selection = Selection::new(Some(4), Some(-4));
-    // assert_eq!(selection.contains(0), true);
-    // assert_eq!(selection.contains(1), true);
-    // assert_eq!(selection.contains(2), true);
-    // assert_eq!(selection.contains(3), true);
-    // assert_eq!(selection.contains(4), true);
-}
+fn test_selection() {}
 #[derive(Bundle)]
 pub struct InteractiveTextComponents {
     pub selection: Selection,
