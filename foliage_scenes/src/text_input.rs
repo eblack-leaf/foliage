@@ -91,8 +91,10 @@ fn input(
                                             selection.clear_selection_for(&mut actual.0);
                                         } else {
                                             // delete preceding char
+                                            selection.move_cursor(*tls, -1);
+                                            selection.clear_selection_for(&mut actual.0);
                                         }
-                                        selection.move_cursor(-1);
+                                        selection.move_cursor(*tls, -1);
                                     }
                                 }
                                 InputSequence::Enter => {
@@ -100,16 +102,13 @@ fn input(
                                 }
                                 InputSequence::Character(char) => {
                                     if e.state.is_pressed() {
-                                        if selection.spans_multiple() {
-                                            selection.clear_selection_for(&mut actual.0);
-                                        }
                                         selection.insert_chars(&mut actual.0, &char, tls);
                                     }
                                 }
                                 InputSequence::ArrowLeft => {
                                     // if shift
                                     if e.state.is_pressed() {
-                                        selection.move_cursor(-1);
+                                        selection.move_cursor(*tls, -1);
                                     }
                                 }
                                 InputSequence::ArrowLeftShift => {
@@ -119,7 +118,7 @@ fn input(
                                 InputSequence::ArrowRight => {
                                     // move start
                                     if e.state.is_pressed() {
-                                        selection.move_cursor(1);
+                                        selection.move_cursor(*tls, 1);
                                     }
                                 }
                                 InputSequence::ArrowRightShift => {
@@ -129,9 +128,6 @@ fn input(
                                 InputSequence::Space => {
                                     // insert whitespace
                                     if e.state.is_pressed() {
-                                        if selection.spans_multiple() {
-                                            selection.clear_selection_for(&mut actual.0);
-                                        }
                                         selection.insert_chars(
                                             &mut actual.0,
                                             &" ".to_compact_string(),

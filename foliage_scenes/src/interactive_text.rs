@@ -126,8 +126,9 @@ impl Selection {
         }
         None
     }
-    pub fn move_cursor(&mut self, amount: i32) {
-        todo!()
+    pub fn move_cursor(&mut self, text_line_structure: TextLineStructure, amount: i32) {
+        self.start
+            .replace(text_line_structure.next_location(self.start.unwrap_or_default(), amount));
     }
     pub fn insert_chars(
         &mut self,
@@ -135,10 +136,14 @@ impl Selection {
         chars: &CompactString,
         tls: &TextLineStructure,
     ) {
+        if self.spans_multiple() {
+            self.clear_selection_for(tv);
+        }
         if tv.len() + chars.len() <= tls.max_chars().0 as usize {
+            // if positive? or have to clear selection first for this to work
             tv.insert_str(tls.letter(self.start.unwrap()), chars.as_str());
-            self.start
-                .replace(tls.next_location(self.start.unwrap(), tv.len(), chars.len()));
+            let next = tls.next_location(self.start.unwrap(), chars.len() as i32);
+            self.start.replace(next);
             self.end.replace(self.start.unwrap());
         }
     }

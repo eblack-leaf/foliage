@@ -84,6 +84,25 @@ impl TextLineStructure {
     pub fn new(per_line: u32, lines: u32) -> Self {
         Self { lines, per_line }
     }
+    pub fn next_location(&self, location: TextLineLocation, skip_amount: i32) -> TextLineLocation {
+        let projected = location.0 as i32 + skip_amount;
+        return if projected.is_negative() {
+            let overflow = projected.abs();
+            let line_skip = overflow / self.per_line as i32;
+            let horizontal = overflow % self.per_line as i32;
+            let vertical = location.1 as i32 - line_skip;
+            TextLineLocation::raw(horizontal as u32, (vertical as u32).min(self.lines))
+        } else {
+            if projected > self.per_line as i32 {
+                let overflow = projected - self.per_line as i32;
+                let line_skip = overflow / self.per_line as i32;
+                let horizontal = overflow % self.per_line as i32;
+                let vertical = location.1 as i32 + line_skip;
+                return TextLineLocation::raw(horizontal as u32, (vertical as u32).min(self.lines));
+            }
+            TextLineLocation::raw(projected as u32, location.1)
+        };
+    }
     pub fn letter(&self, l: TextLineLocation) -> TextKey {
         (self.per_line * l.1 + l.0) as TextKey
     }
@@ -96,7 +115,7 @@ impl TextLineStructure {
     }
 }
 
-#[derive(Copy, Clone, Hash, Eq, PartialEq, PartialOrd, Debug)]
+#[derive(Copy, Clone, Hash, Eq, PartialEq, PartialOrd, Debug, Default)]
 pub struct TextLineLocation(pub u32, pub u32);
 
 impl TextLineLocation {
