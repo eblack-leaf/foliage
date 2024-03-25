@@ -259,14 +259,14 @@ pub enum Glyph {
 }
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
-pub struct CharGlyph {
-    pub key: GlyphKey,
-    pub section: Section<DeviceContext>,
-    pub parent: char,
+pub(crate) struct CharGlyph {
+    pub(crate) key: GlyphKey,
+    pub(crate) section: Section<DeviceContext>,
+    pub(crate) parent: char,
 }
 
 impl CharGlyph {
-    pub fn new(key: GlyphKey, section: Section<DeviceContext>, parent: char) -> Self {
+    pub(crate) fn new(key: GlyphKey, section: Section<DeviceContext>, parent: char) -> Self {
         Self {
             key,
             section,

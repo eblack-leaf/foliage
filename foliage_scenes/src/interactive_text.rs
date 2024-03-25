@@ -241,7 +241,8 @@ fn update_selection(
                 sel.start.take();
                 sel.end.take();
             }
-            let current = TextLineLocation::new(listener.interaction.current, d.dimensions());
+            let current =
+                TextLineLocation::new(listener.interaction.current - *pos, d.dimensions());
             if listener.engaged_start() {
                 sel.start.replace(current);
             }
