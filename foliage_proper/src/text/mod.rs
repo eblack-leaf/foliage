@@ -27,20 +27,18 @@ mod vertex;
 pub struct Text {
     pub value: TextValue,
     pub max_chars: MaxCharacters,
-    pub lines: TextLineMax,
+    pub lines: TextLineStructure,
     pub color: DifferentialBundle<Color>,
     exceptions: TextColorExceptions,
     tool: TextPlacementTool,
     placement: TextPlacement,
     cached: CachedTextPlacement,
-    wrap: TextLineWrap,
     dims: CharacterDimension,
     color_changes: DifferentialBundle<TextColorChanges>,
     glyph_changes: DifferentialBundle<TextGlyphChanges>,
     font_size: DifferentialBundle<FontSize>,
     unique: DifferentialBundle<TextValueUniqueCharacters>,
-    line_span: TextLineSpan,
-    line_structure: TextLineStructure,
+    line_structure: TextLinePlacement,
     differentiable: Differentiable,
 }
 impl Text {
@@ -49,51 +47,56 @@ impl Text {
         mc.into().mono_aspect()
     }
     pub const DEFAULT_OPT_SCALE: u32 = 40;
-    pub fn new<
-        S: Into<TextValue>,
-        MC: Into<MaxCharacters>,
-        L: Into<TextLineMax>,
-        C: Into<Color>,
-    >(
+    pub fn new<S: Into<TextValue>, TLS: Into<TextLineStructure>, C: Into<Color>>(
         s: S,
-        mc: MC,
-        l: L,
+        tls: TLS,
         c: C,
     ) -> Self {
+        let lines = tls.into();
         Self {
             value: s.into(),
-            max_chars: mc.into(),
-            lines: l.into(),
+            max_chars: lines.max_chars(),
+            lines,
             color: DifferentialBundle::new(c.into()),
             exceptions: TextColorExceptions::blank(),
             tool: TextPlacementTool::default(),
             placement: TextPlacement::default(),
             cached: CachedTextPlacement::default(),
-            wrap: TextLineWrap::Word,
             dims: CharacterDimension(Area::default()),
             color_changes: DifferentialBundle::new(TextColorChanges::default()),
             glyph_changes: DifferentialBundle::new(TextGlyphChanges::default()),
             font_size: DifferentialBundle::new(FontSize::default()),
             unique: DifferentialBundle::new(TextValueUniqueCharacters::default()),
-            line_span: TextLineSpan::default(),
-            line_structure: TextLineStructure::default(),
+            line_structure: TextLinePlacement::default(),
             differentiable: Differentiable::new::<Self>(),
         }
     }
-    pub fn with_letter_wrap(mut self) -> Self {
-        self.wrap = TextLineWrap::Letter;
-        self
-    }
 }
 #[derive(Component, Copy, Clone, Default)]
-pub struct TextLineSpan(pub u32);
-#[derive(Copy, Clone, Hash, Eq, PartialEq)]
+pub struct TextLineStructure {
+    pub lines: u32,
+    pub per_line: u32,
+}
+
+impl TextLineStructure {
+    pub fn max_chars(&self) -> MaxCharacters {
+        (self.lines * self.per_line).into()
+    }
+}
+
+#[derive(Copy, Clone, Hash, Eq, PartialEq, PartialOrd)]
 pub struct TextLineLocation(pub u32, pub u32);
+impl TextLineLocation {
+    pub fn new(c: Position<InterfaceContext>, b: Area<InterfaceContext>) -> Self {
+        let a = c / Position::new(b.width, b.height);
+        TextLineLocation(a.x.floor() as u32, a.y.floor() as u32)
+    }
+}
+
 #[derive(Component, Clone, Default)]
-pub struct TextLineStructure(pub HashMap<TextLineLocation, TextKey>);
+pub struct TextLinePlacement(pub HashMap<TextLineLocation, TextKey>);
 #[derive(Component, Copy, Clone)]
 pub struct CharacterDimension(pub(crate) Area<InterfaceContext>);
-
 impl CharacterDimension {
     pub fn new<A: Into<Area<InterfaceContext>>>(a: A) -> Self {
         Self(a.into())
@@ -102,12 +105,10 @@ impl CharacterDimension {
         self.0
     }
 }
-
 #[derive(SystemSet, Hash, Eq, PartialEq, Copy, Clone, Debug)]
 pub enum SetDescriptor {
     Update,
 }
-
 impl Leaf for Text {
     type SetDescriptor = SetDescriptor;
 
@@ -138,7 +139,6 @@ impl Leaf for Text {
 
 #[derive(Component, Copy, Clone)]
 pub struct MaxCharacters(pub u32);
-
 impl MaxCharacters {
     pub fn mono_aspect(self) -> AspectRatio {
         AspectRatio(self.0 as CoordinateUnit * crate::text::Text::MONOSPACED_ASPECT)
@@ -147,38 +147,34 @@ impl MaxCharacters {
         Self(v)
     }
 }
-
 impl From<i32> for MaxCharacters {
     fn from(value: i32) -> Self {
         Self(value as u32)
     }
 }
-
 impl From<u32> for MaxCharacters {
     fn from(value: u32) -> Self {
         Self(value)
     }
 }
-
 pub struct TextMetrics {
     pub font_size: FontSize,
     pub area: Area<InterfaceContext>,
     pub character_dimensions: CharacterDimension,
-    pub per_line: MaxCharacters,
+    pub max_chars: MaxCharacters,
 }
-
 impl TextMetrics {
     pub fn new(
         fs: FontSize,
         fa: Area<InterfaceContext>,
         d: CharacterDimension,
-        per_line: u32,
+        mc: MaxCharacters,
     ) -> Self {
         Self {
             font_size: fs,
             area: fa,
             character_dimensions: d,
-            per_line: per_line.into(),
+            max_chars: mc,
         }
     }
 }
@@ -191,22 +187,6 @@ impl FontSize {
         self.0 as CoordinateUnit * scale_factor
     }
 }
-
-#[derive(Copy, Clone, Component)]
-pub struct TextLineMax(pub u32);
-
-impl From<i32> for TextLineMax {
-    fn from(value: i32) -> Self {
-        Self(value as u32)
-    }
-}
-
-impl From<u32> for TextLineMax {
-    fn from(value: u32) -> Self {
-        Self(value)
-    }
-}
-
 #[derive(Component, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TextValue(pub CompactString);
 
@@ -285,21 +265,6 @@ impl TextPlacement {
     }
 }
 
-#[derive(Copy, Clone, Component)]
-pub enum TextLineWrap {
-    Letter,
-    Word,
-}
-
-impl TextLineWrap {
-    fn to_fontdue(&self) -> fontdue::layout::WrapStyle {
-        match self {
-            TextLineWrap::Letter => fontdue::layout::WrapStyle::Letter,
-            TextLineWrap::Word => fontdue::layout::WrapStyle::Word,
-        }
-    }
-}
-
 #[derive(Component)]
 pub struct TextPlacementTool(fontdue::layout::Layout);
 impl Clone for TextPlacementTool {
@@ -316,11 +281,11 @@ impl Default for TextPlacementTool {
 }
 
 impl TextPlacementTool {
-    pub fn configure(&mut self, area: Area<InterfaceContext>, wrap: TextLineWrap) {
+    pub fn configure(&mut self, area: Area<InterfaceContext>) {
         self.0.reset(&fontdue::layout::LayoutSettings {
             max_width: Some(area.width),
             max_height: Some(area.height),
-            wrap_style: wrap.to_fontdue(),
+            wrap_style: fontdue::layout::WrapStyle::Letter,
             ..fontdue::layout::LayoutSettings::default()
         });
     }
@@ -358,24 +323,21 @@ fn place_text(
     mut query: Query<
         (
             &TextValue,
-            &MaxCharacters,
-            &TextLineMax,
-            &TextLineWrap,
+            &TextLineStructure,
+            &mut MaxCharacters,
             &mut TextPlacement,
             &mut Area<InterfaceContext>,
             &mut FontSize,
             &mut TextValueUniqueCharacters,
             &mut CharacterDimension,
             &mut TextPlacementTool,
-            &mut TextLineSpan,
-            &mut TextLineStructure,
+            &mut TextLinePlacement,
         ),
         Or<(
             Changed<TextValue>,
             Changed<MaxCharacters>,
-            Changed<TextLineMax>,
+            Changed<TextLineStructure>,
             Changed<Area<InterfaceContext>>,
-            Changed<TextLineWrap>,
         )>,
     >,
     scale_factor: Res<ScaleFactor>,
@@ -383,26 +345,24 @@ fn place_text(
 ) {
     for (
         value,
-        mc,
-        lines,
-        wrap,
+        structure,
+        mut mc,
         mut placement,
         mut area,
         mut font_size,
         mut unique,
         mut dims,
         mut tool,
-        mut span,
-        mut structure,
+        mut line_placement,
     ) in query.iter_mut()
     {
-        let metrics = font.line_metrics(mc, lines, *area, &scale_factor);
-        span.0 = metrics.per_line.0;
+        let metrics = font.line_metrics(structure, *area, &scale_factor);
+        *mc = metrics.max_chars;
         *font_size = metrics.font_size;
         *dims = metrics.character_dimensions;
         let aligned_area = metrics.area; // TODO make fit bounds better
         *area = aligned_area;
-        tool.configure(*area, *wrap);
+        tool.configure(*area);
         let limited = value.limited(*mc);
         *unique = TextValueUniqueCharacters::new(limited);
         tool.place(&font, limited, metrics.font_size, &scale_factor);
@@ -411,9 +371,11 @@ fn place_text(
             match g.1 {
                 Glyph::Control => {}
                 Glyph::Char(ch) => {
-                    let a = ch.section.position / Position::new(dims.0.width, dims.0.height);
-                    let line_location = TextLineLocation(a.x.floor() as u32, a.y.floor() as u32);
-                    structure.0.insert(line_location, *g.0);
+                    let line_location = TextLineLocation::new(
+                        ch.section.position.to_interface(1.0),
+                        dims.dimensions(),
+                    );
+                    line_placement.0.insert(line_location, *g.0);
                 }
             }
         }

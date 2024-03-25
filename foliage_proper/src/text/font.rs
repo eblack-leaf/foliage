@@ -2,7 +2,7 @@ use bevy_ecs::system::Resource;
 
 use crate::coordinate::area::Area;
 use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
-use crate::text::{CharacterDimension, FontSize, MaxCharacters, TextLineMax, TextMetrics};
+use crate::text::{CharacterDimension, FontSize, TextLineStructure, TextMetrics};
 use crate::window::ScaleFactor;
 
 #[derive(Resource)]
@@ -32,22 +32,25 @@ impl MonospacedFont {
     }
     pub fn line_metrics(
         &self,
-        mc: &MaxCharacters,
-        lines: &TextLineMax,
+        structure: &TextLineStructure,
         area: Area<InterfaceContext>,
         scale_factor: &ScaleFactor,
     ) -> TextMetrics {
-        let per_line = (mc.0 as f32 / lines.0 as f32).ceil() as u32;
         let (fs, fa, d) = self.best_fit(
-            per_line.into(),
-            area / Area::new(1.0, lines.0 as f32),
+            structure.per_line,
+            area / Area::new(1.0, structure.lines as f32),
             scale_factor,
         );
-        TextMetrics::new(fs, fa * Area::new(1.0, lines.0 as f32), d, per_line)
+        TextMetrics::new(
+            fs,
+            fa * Area::new(1.0, structure.lines as f32),
+            d,
+            structure.max_chars(),
+        )
     }
     fn area_metrics(
         font_size: FontSize,
-        max_characters: MaxCharacters,
+        per_line: u32,
         font: &MonospacedFont,
         scale_factor: &ScaleFactor,
     ) -> (Area<InterfaceContext>, CharacterDimension) {
@@ -55,13 +58,13 @@ impl MonospacedFont {
             font.character_dimensions(font_size.px(scale_factor.factor()))
                 .to_interface(scale_factor.factor()),
         );
-        let width = dim.dimensions().width * max_characters.0 as f32;
+        let width = dim.dimensions().width * per_line as f32;
         let area = (width, dim.dimensions().height).into();
         (area, dim)
     }
     fn best_fit(
         &self,
-        max_characters: MaxCharacters,
+        per_line: u32,
         extent: Area<InterfaceContext>,
         scale_factor: &ScaleFactor,
     ) -> (FontSize, Area<InterfaceContext>, CharacterDimension) {
@@ -73,7 +76,7 @@ impl MonospacedFont {
             && font_size.0 < Self::MAX_CHECKED_FONT_SIZE
         {
             font_size.0 += 1;
-            let area_metrics = Self::area_metrics(font_size, max_characters, self, scale_factor);
+            let area_metrics = Self::area_metrics(font_size, per_line, self, scale_factor);
             calc_area = area_metrics.0;
             dims = area_metrics.1;
         }

@@ -193,7 +193,7 @@ fn clear_selection(sel: &mut Selection, actual: &mut ActualText) {
         for _i in r {
             *sel.start.as_mut().unwrap() -= 1;
         }
-        *sel.span.as_mut().unwrap() = 0;
+        *sel.end.as_mut().unwrap() = 0;
         *sel.start.as_mut().unwrap() = sel.start.unwrap().add(1).max(0);
     }
 }

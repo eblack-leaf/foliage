@@ -1,4 +1,3 @@
-use crate::{BackgroundColor, Colors, ForegroundColor};
 use foliage_macros::{inner_set_descriptor, InnerSceneBinding};
 use foliage_proper::bevy_ecs;
 use foliage_proper::bevy_ecs::bundle::Bundle;
@@ -22,28 +21,29 @@ use foliage_proper::scene::micro_grid::{
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
 use foliage_proper::text::font::MonospacedFont;
 use foliage_proper::text::{
-    CharacterDimension, MaxCharacters, Text, TextColorExceptions, TextKey, TextLineMax, TextValue,
+    CharacterDimension, MaxCharacters, Text, TextColorExceptions, TextKey, TextLineLocation,
+    TextLineStructure, TextValue,
 };
 use foliage_proper::texture::factors::Progress;
 use foliage_proper::window::ScaleFactor;
 use std::ops::RangeInclusive;
+
+use crate::{BackgroundColor, Colors, ForegroundColor};
+
 #[derive(Clone)]
 pub struct InteractiveText {
-    pub max_chars: MaxCharacters,
-    pub lines: TextLineMax,
+    pub line_structure: TextLineStructure,
     pub text_value: TextValue,
     pub colors: Colors,
 }
 impl InteractiveText {
-    pub fn new<MC: Into<MaxCharacters>, TL: Into<TextLineMax>, TV: Into<TextValue>>(
-        max_characters: MC,
-        lines: TL,
+    pub fn new<TLS: Into<TextLineStructure>, TV: Into<TextValue>>(
+        tls: TLS,
         text_value: TV,
         colors: Colors,
     ) -> Self {
         Self {
-            max_chars: max_characters.into(),
-            lines: lines.into(),
+            line_structure: tls.into(),
             text_value: text_value.into(),
             colors,
         }
@@ -55,68 +55,85 @@ pub enum InteractiveTextBindings {
 }
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct Selection {
-    pub start: Option<i32>,
-    pub span: Option<i32>,
+    pub start: Option<TextLineLocation>,
+    pub end: Option<TextLineLocation>,
+    pub span: Option<(usize, usize)>,
 }
 impl Selection {
-    pub fn new(start: Option<i32>, span: Option<i32>) -> Self {
-        Self { start, span }
+    pub fn new(start: Option<TextLineLocation>, end: Option<TextLineLocation>) -> Self {
+        Self {
+            start,
+            end,
+            span: None,
+        }
     }
-    pub fn range(&self) -> Option<RangeInclusive<i32>> {
+    pub fn derive_span(&mut self) {
         if let Some(start) = self.start {
-            if let Some(span) = self.span {
-                if span == 0 {
-                    return None;
-                }
-                return if span.is_positive() {
-                    Some(start..=(start + span))
-                } else {
-                    Some((start + span)..=start)
-                };
+            if let Some(end) = self.end {
+                self.span.replace((0, 0));
             }
+        }
+    }
+    pub fn range(&self) -> Option<RangeInclusive<usize>> {
+        if let Some(span) = self.span {
+            return Some(span.0..=span.1);
         }
         None
     }
-    pub fn contains(&self, i: i32) -> bool {
-        if let Some(start) = self.start {
-            if i == start {
-                return true;
-            }
-            if let Some(_span) = self.span {
-                if let Some(r) = self.range() {
-                    for x in r {
-                        if x == i {
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-        false
-    }
+    // pub fn range(&self) -> Option<RangeInclusive<i32>> {
+    //     if let Some(start) = self.start {
+    //         if let Some(span) = self.end {
+    //             if span == 0 {
+    //                 return None;
+    //             }
+    //             return if span.is_positive() {
+    //                 Some(start..=(start + span))
+    //             } else {
+    //                 Some((start + span)..=start)
+    //             };
+    //         }
+    //     }
+    //     None
+    // }
+    // pub fn contains(&self, i: i32) -> bool {
+    //     if let Some(start) = self.start {
+    //         if i == start {
+    //             return true;
+    //         }
+    //         if let Some(_span) = self.end {
+    //             if let Some(r) = self.range() {
+    //                 for x in r {
+    //                     if x == i {
+    //                         return true;
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     false
+    // }
 }
 #[cfg(test)]
 #[test]
 fn test_selection() {
-    let selection = Selection::new(Some(0), Some(4));
-    assert_eq!(selection.contains(0), true);
-    assert_eq!(selection.contains(1), true);
-    assert_eq!(selection.contains(2), true);
-    assert_eq!(selection.contains(3), true);
-    assert_eq!(selection.contains(4), true);
-    let selection = Selection::new(Some(4), Some(-4));
-    assert_eq!(selection.contains(0), true);
-    assert_eq!(selection.contains(1), true);
-    assert_eq!(selection.contains(2), true);
-    assert_eq!(selection.contains(3), true);
-    assert_eq!(selection.contains(4), true);
+    // let selection = Selection::new(Some(0), Some(4));
+    // assert_eq!(selection.contains(0), true);
+    // assert_eq!(selection.contains(1), true);
+    // assert_eq!(selection.contains(2), true);
+    // assert_eq!(selection.contains(3), true);
+    // assert_eq!(selection.contains(4), true);
+    // let selection = Selection::new(Some(4), Some(-4));
+    // assert_eq!(selection.contains(0), true);
+    // assert_eq!(selection.contains(1), true);
+    // assert_eq!(selection.contains(2), true);
+    // assert_eq!(selection.contains(3), true);
+    // assert_eq!(selection.contains(4), true);
 }
 #[derive(Bundle)]
 pub struct InteractiveTextComponents {
     pub selection: Selection,
     pub text: TextValue,
-    pub max_chars: MaxCharacters,
-    pub lines: TextLineMax,
+    pub line_structure: TextLineStructure,
     pub colors: Colors,
     pub dims: CharacterDimension,
 }
@@ -124,8 +141,7 @@ fn update_selection(
     font: Res<MonospacedFont>,
     scale_factor: Res<ScaleFactor>,
     mut query: Query<(
-        &MaxCharacters,
-        &TextLineMax,
+        &TextLineStructure,
         &mut Selection,
         &TextValue,
         &Bindings,
@@ -154,47 +170,39 @@ fn update_selection(
         Without<InteractionListener>,
     >,
 ) {
-    for (mc, lines, mut sel, tv, bindings, mut d) in query.iter_mut() {
+    for (line_structure, mut sel, tv, bindings, mut d) in query.iter_mut() {
         if let Ok((listener, pos, area, layer)) =
             listeners.get(bindings.get(InteractiveTextBindings::Text))
         {
-            let metrics = font.line_metrics(mc, lines, *area, &scale_factor);
+            let metrics = font.line_metrics(line_structure, *area, &scale_factor);
             *d = metrics.character_dimensions;
-
-            for letter in 1..mc.0 + 1 {
-                *rectangles.get_mut(bindings.get(letter as i32)).unwrap().0 = *pos
-                    + Position::<InterfaceContext>::new(
-                        (letter as f32 - 1f32) * metrics.character_dimensions.dimensions().width,
-                        0.0,
-                    );
-                *rectangles.get_mut(bindings.get(letter as i32)).unwrap().1 =
-                    metrics.character_dimensions.dimensions();
-                *rectangles.get_mut(bindings.get(letter as i32)).unwrap().2 = *layer + 1.into();
+            // resize bindings
+            for y in 0..line_structure.lines {
+                for x in 0..line_structure.per_line {
+                    let letter_binding = x + line_structure.per_line * y + 1;
+                    let entity = bindings.get(letter_binding as i32);
+                    *rectangles.get_mut(entity).unwrap().0 = *pos
+                        + Position::new(
+                            x as f32 * d.dimensions().width,
+                            y as f32 * d.dimensions().height,
+                        );
+                    *rectangles.get_mut(entity).unwrap().1 = d.dimensions();
+                    *rectangles.get_mut(entity).unwrap().2 = *layer + 1.into();
+                }
             }
-            let text_key = ((listener.interaction.current.x - pos.x).max(0.0)
-                / metrics.character_dimensions.dimensions().width)
-                .floor()
-                .min(tv.0.len() as f32)
-                .min(mc.0.checked_sub(1).unwrap_or_default() as f32);
+            // get current position
             if listener.lost_focus() {
                 sel.start.take();
-                sel.span.take();
+                sel.end.take();
             }
+            let current = TextLineLocation::new(listener.interaction.current, d.dimensions());
             if listener.engaged_start() {
-                sel.start.replace(text_key as i32);
+                sel.start.replace(current);
             }
             if listener.engaged() {
-                let i = text_key as i32 - sel.start.unwrap();
-                sel.span.replace(i);
+                sel.end.replace(current);
+                sel.derive_span();
             }
-            if listener.engaged_end() {
-                // store selection string
-                // finish span
-            }
-            // TODO if mc.0 > last
-            // -- add more transparent rectangles and add to bindings
-            //      if mc.0 < last
-            // -- remove bindings over mc.0
         }
     }
 }
@@ -206,7 +214,7 @@ impl Scene for InteractiveText {
             (
                 &'static ForegroundColor,
                 &'static BackgroundColor,
-                &'static MaxCharacters,
+                &'static TextLineStructure,
                 &'static TextValue,
                 &'static Selection,
             ),
@@ -246,22 +254,19 @@ impl Scene for InteractiveText {
 
     fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
         let text = bindings.get(0);
-        if let Ok((_fc, bc, mc, tv, sel)) = ext.0.get(entity) {
+        if let Ok((_fc, bc, ls, tv, sel)) = ext.0.get(entity) {
             let mut color_changes = TextColorExceptions::blank();
-            for letter in 1..mc.0 + 1 {
-                if sel.contains((letter - 1) as i32) {
+            for i in 1..=ls.max_chars().0 {
+                *ext.1.get_mut(bindings.get(i as i32)).unwrap().3.alpha_mut() = 0.0;
+            }
+            if let Some(r) = sel.range() {
+                for i in r {
                     *ext.1
-                        .get_mut(bindings.get(letter as i32))
+                        .get_mut(bindings.get(i as i32 + 1))
                         .unwrap()
                         .3
                         .alpha_mut() = 1.0;
-                    color_changes.0.insert((letter - 1) as TextKey, bc.0);
-                } else {
-                    *ext.1
-                        .get_mut(bindings.get(letter as i32))
-                        .unwrap()
-                        .3
-                        .alpha_mut() = 0.0;
+                    color_changes.exceptions.insert(i, bc.0);
                 }
             }
             *ext.4.get_mut(text).unwrap().1 = tv.clone();
@@ -279,13 +284,13 @@ impl Scene for InteractiveText {
                 1.percent_of(AnchorDim::Height),
             ),
             Text::new(
-                self.text_value.0.clone(),
-                self.max_chars,
+                self.text_value.clone(),
+                self.line_structure,
                 self.colors.foreground.0,
             ),
         );
         binder.extend(text, InteractionListener::default());
-        for letter in 0..self.max_chars.0 {
+        for letter in 0..self.line_structure.max_chars().0 {
             binder.bind(
                 letter as i32 + 1,
                 MicroGridAlignment::unaligned(),
@@ -293,11 +298,11 @@ impl Scene for InteractiveText {
             );
         }
         binder.finish::<Self>(SceneComponents::new(
-            MicroGrid::new().aspect_ratio(self.max_chars.mono_aspect()),
+            MicroGrid::new().aspect_ratio(self.line_structure.max_chars().mono_aspect()),
             InteractiveTextComponents {
                 selection: Selection::default(),
                 text: self.text_value.clone(),
-                max_chars: self.max_chars,
+                line_structure: self.line_structure,
                 colors: self.colors,
                 dims: CharacterDimension::new(Area::default()),
             },
