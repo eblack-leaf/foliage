@@ -79,21 +79,18 @@ pub struct TextLineStructure {
 }
 
 impl TextLineStructure {
-    pub fn with_lines(mut self, l: u32) -> Self {
-        self.lines = l;
-        self
-    }
-}
-
-impl TextLineStructure {
     pub fn new(per_line: u32, lines: u32) -> Self {
         Self { lines, per_line }
     }
-}
-
-impl TextLineStructure {
+    pub fn letter(&self, l: TextLineLocation) -> TextKey {
+        (self.per_line * l.1 + l.0) as TextKey
+    }
     pub fn max_chars(&self) -> MaxCharacters {
         (self.lines * self.per_line).into()
+    }
+    pub fn with_lines(mut self, l: u32) -> Self {
+        self.lines = l;
+        self
     }
 }
 
@@ -109,7 +106,7 @@ impl TextLineLocation {
 impl TextLineLocation {
     pub fn new(c: Position<InterfaceContext>, b: Area<InterfaceContext>) -> Self {
         let a = c / Position::new(b.width, b.height);
-        TextLineLocation(a.x.floor() as u32, a.y.floor() as u32)
+        TextLineLocation(a.x.floor().max(0.0) as u32, a.y.floor().max(0.0) as u32)
     }
 }
 

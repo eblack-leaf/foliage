@@ -1,3 +1,4 @@
+use compact_str::{CompactString, ToCompactString};
 use std::ops::RangeInclusive;
 
 use foliage_macros::{inner_set_descriptor, InnerSceneBinding};
@@ -67,10 +68,20 @@ impl Selection {
             span: None,
         }
     }
-    pub fn derive_span(&mut self) {
+    pub fn derive_span(&mut self, text_line_structure: TextLineStructure) {
         if let Some(start) = self.start {
             if let Some(end) = self.end {
-                self.span.replace((0, 0));
+                if start == end || start < end {
+                    self.span.replace((
+                        text_line_structure.letter(start),
+                        text_line_structure.letter(end),
+                    ));
+                } else {
+                    self.span.replace((
+                        text_line_structure.letter(end),
+                        text_line_structure.letter(start),
+                    ));
+                }
             }
         }
     }
@@ -80,6 +91,16 @@ impl Selection {
         }
         None
     }
+    pub fn substring(&self, tv: &CompactString) -> CompactString {
+        let mut accumulator = CompactString::default();
+        if let Some(r) = self.range() {
+            for i in r {
+                accumulator += tv.get(i..i + 1).unwrap_or_default();
+            }
+        }
+        accumulator
+    }
+    pub fn clear(&self, tv: &mut CompactString) {}
     // pub fn range(&self) -> Option<RangeInclusive<i32>> {
     //     if let Some(start) = self.start {
     //         if let Some(span) = self.end {
@@ -201,7 +222,7 @@ fn update_selection(
             }
             if listener.engaged() {
                 sel.end.replace(current);
-                sel.derive_span();
+                sel.derive_span(*line_structure);
             }
         }
     }
