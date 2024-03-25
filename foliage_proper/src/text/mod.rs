@@ -99,6 +99,13 @@ impl TextLineStructure {
 
 #[derive(Copy, Clone, Hash, Eq, PartialEq, PartialOrd, Debug)]
 pub struct TextLineLocation(pub u32, pub u32);
+
+impl TextLineLocation {
+    pub fn raw(x: u32, y: u32) -> TextLineLocation {
+        Self(x, y)
+    }
+}
+
 impl TextLineLocation {
     pub fn new(c: Position<InterfaceContext>, b: Area<InterfaceContext>) -> Self {
         let a = c / Position::new(b.width, b.height);

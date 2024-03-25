@@ -21,13 +21,13 @@ use foliage_proper::scene::micro_grid::{
     AlignmentDesc, AnchorDim, MicroGrid, MicroGridAlignment, RelativeMarker,
 };
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle, ScenePtr};
-use foliage_proper::text::{MaxCharacters, TextValue};
+use foliage_proper::text::{MaxCharacters, TextLineLocation, TextLineStructure, TextValue};
 
 use crate::interactive_text::{InteractiveText, InteractiveTextBindings, Selection};
 use crate::{AlternateColor, BackgroundColor, Colors, ForegroundColor};
 #[derive(Clone)]
 pub struct TextInput {
-    pub max_chars: MaxCharacters,
+    pub line_structure: TextLineStructure,
     pub colors: Colors,
     pub text: String,
     pub hint_text: Option<String>,
@@ -36,13 +36,13 @@ pub struct TextInput {
 impl TextInput {
     pub fn new(
         mode: TextInputMode,
-        max_characters: MaxCharacters,
+        tls: TextLineStructure,
         text: String,
         hint_text: Option<String>,
         colors: Colors,
     ) -> Self {
         Self {
-            max_chars: max_characters,
+            line_structure: tls,
             colors,
             text,
             hint_text,
@@ -52,14 +52,14 @@ impl TextInput {
 }
 fn input(
     mut keyboards: EventReader<KeyboardEvent>,
-    mut text_inputs: Query<(&mut ActualText, &MaxCharacters)>,
+    mut text_inputs: Query<(&mut ActualText, &TextLineStructure)>,
     focused_entity: Res<FocusedEntity>,
     mut selections: Query<(&mut Selection, &Bindings, &ScenePtr), With<Tag<InteractiveText>>>,
     listeners: Query<&InteractionListener>,
 ) {
     for (mut sel, it_bindings, ptr) in selections.iter_mut() {
         let interactive_text = it_bindings.get(InteractiveTextBindings::Text);
-        if let Ok((mut actual, mc)) = text_inputs.get_mut(ptr.value()) {
+        if let Ok((mut actual, tls)) = text_inputs.get_mut(ptr.value()) {
             if listeners.get(interactive_text).unwrap().lost_focus() && actual.0.is_empty() {
                 trigger_config(&mut actual);
             }
@@ -69,7 +69,7 @@ fn input(
                         && actual.0.is_empty()
                     {
                         trigger_config(&mut actual);
-                        sel.start.replace(0);
+                        sel.start.replace(TextLineLocation::raw(0, 0));
                     }
                     if let Some(start) = sel.start {
                         for e in keyboards.read() {
@@ -92,7 +92,7 @@ fn input(
                                             clear_selection(&mut sel, &mut actual);
                                         } else {
                                             // delete start - 1 if possible
-                                            if start != 0 {
+                                            if start != TextLineLocation::raw(0, 0) {
                                                 actual.0.remove(start as usize - 1);
                                                 sel.start.replace(start - 1);
                                             }
@@ -105,7 +105,7 @@ fn input(
                                 InputSequence::Character(char) => {
                                     if e.state.is_pressed() {
                                         clear_selection(&mut sel, &mut actual);
-                                        if actual.0.len() + char.len() <= mc.0 as usize {
+                                        if actual.0.len() + char.len() <= tls.0 as usize {
                                             actual.0.insert_str(
                                                 sel.start.unwrap() as usize,
                                                 char.as_str(),
@@ -116,7 +116,7 @@ fn input(
                                                 updated_start
                                                     .max(0)
                                                     .min(actual.0.len() as i32)
-                                                    .min(mc.0.checked_sub(1).unwrap_or_default()
+                                                    .min(tls.0.checked_sub(1).unwrap_or_default()
                                                         as i32),
                                             );
                                         }
@@ -138,10 +138,9 @@ fn input(
                                     if e.state.is_pressed() {
                                         let new_start = start + 1;
                                         sel.start.replace(
-                                            new_start
-                                                .min(actual.0.len() as i32)
-                                                .min(mc.0.checked_sub(1).unwrap_or_default()
-                                                    as i32),
+                                            new_start.min(actual.0.len() as i32).min(
+                                                tls.0.checked_sub(1).unwrap_or_default() as i32,
+                                            ),
                                         );
                                     }
                                 }
@@ -153,14 +152,14 @@ fn input(
                                     // insert whitespace
                                     if e.state.is_pressed() {
                                         clear_selection(&mut sel, &mut actual);
-                                        if actual.0.len() + 1 <= mc.0 as usize {
+                                        if actual.0.len() + 1 <= tls.0 as usize {
                                             actual.0.insert_str(sel.start.unwrap() as usize, " ");
                                             let updated_start = sel.start.unwrap() + 1;
                                             sel.start.replace(
                                                 updated_start
                                                     .max(0)
                                                     .min(actual.0.len() as i32)
-                                                    .min(mc.0.checked_sub(1).unwrap_or_default()
+                                                    .min(tls.0.checked_sub(1).unwrap_or_default()
                                                         as i32),
                                             );
                                         }
@@ -323,7 +322,7 @@ impl Scene for TextInput {
             )
             .offset_layer(1),
             InteractiveText::new(
-                self.max_chars,
+                self.line_structure,
                 match self.mode {
                     TextInputMode::Normal => actual.clone().0.as_str().into(),
                     TextInputMode::Password => actual.clone().to_password(),
@@ -335,7 +334,7 @@ impl Scene for TextInput {
             MicroGrid::new(),
             TextInputComponents {
                 actual,
-                max_chars: self.max_chars,
+                max_chars: self.line_structure,
                 colors: self.colors,
                 mode: self.mode,
                 hint_text: HintText(self.hint_text.unwrap_or_default().to_compact_string()),
