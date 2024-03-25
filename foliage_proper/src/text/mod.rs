@@ -253,7 +253,7 @@ impl From<&str> for TextValue {
 pub type TextKey = usize;
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
-pub enum Glyph {
+pub(crate) enum Glyph {
     Control,
     Char(CharGlyph),
 }
@@ -293,18 +293,18 @@ impl GlyphKey {
 }
 
 #[derive(Component, Default, Clone)]
-pub struct TextPlacement(pub HashMap<TextKey, Glyph>);
+pub(crate) struct TextPlacement(pub HashMap<TextKey, Glyph>);
 #[derive(Component, Default, Clone)]
-pub struct CachedTextPlacement(pub HashMap<TextKey, Glyph>);
+pub(crate) struct CachedTextPlacement(pub HashMap<TextKey, Glyph>);
 
 impl TextPlacement {
-    pub fn glyphs(&self) -> &HashMap<TextKey, Glyph> {
+    pub(crate) fn glyphs(&self) -> &HashMap<TextKey, Glyph> {
         &self.0
     }
 }
 
 #[derive(Component)]
-pub struct TextPlacementTool(fontdue::layout::Layout);
+pub(crate) struct TextPlacementTool(fontdue::layout::Layout);
 impl Clone for TextPlacementTool {
     fn clone(&self) -> Self {
         Self::default()
@@ -319,7 +319,7 @@ impl Default for TextPlacementTool {
 }
 
 impl TextPlacementTool {
-    pub fn configure(&mut self, area: Area<InterfaceContext>) {
+    pub(crate) fn configure(&mut self, area: Area<InterfaceContext>) {
         self.0.reset(&fontdue::layout::LayoutSettings {
             max_width: Some(area.width),
             max_height: Some(area.height),
@@ -327,7 +327,7 @@ impl TextPlacementTool {
             ..fontdue::layout::LayoutSettings::default()
         });
     }
-    pub fn place(
+    pub(crate) fn place(
         &mut self,
         font: &MonospacedFont,
         value: &str,
@@ -339,7 +339,7 @@ impl TextPlacementTool {
             &fontdue::layout::TextStyle::new(value, size.px(scale_factor.factor()), 0),
         );
     }
-    pub fn placed_glyphs(&self) -> TextPlacement {
+    pub(crate) fn placed_glyphs(&self) -> TextPlacement {
         let mut mapping = HashMap::new();
         for g in self.0.glyphs() {
             let glyph = if g.parent.is_ascii_control() {
