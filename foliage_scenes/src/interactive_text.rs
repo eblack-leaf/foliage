@@ -1,3 +1,5 @@
+use std::ops::RangeInclusive;
+
 use foliage_macros::{inner_set_descriptor, InnerSceneBinding};
 use foliage_proper::bevy_ecs;
 use foliage_proper::bevy_ecs::bundle::Bundle;
@@ -21,12 +23,10 @@ use foliage_proper::scene::micro_grid::{
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
 use foliage_proper::text::font::MonospacedFont;
 use foliage_proper::text::{
-    CharacterDimension, MaxCharacters, Text, TextColorExceptions, TextKey, TextLineLocation,
-    TextLineStructure, TextValue,
+    CharacterDimension, Text, TextColorExceptions, TextLineLocation, TextLineStructure, TextValue,
 };
 use foliage_proper::texture::factors::Progress;
 use foliage_proper::window::ScaleFactor;
-use std::ops::RangeInclusive;
 
 use crate::{BackgroundColor, Colors, ForegroundColor};
 

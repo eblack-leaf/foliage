@@ -132,7 +132,13 @@ impl Scene for Button {
     }
 
     fn create(self, mut binder: Binder) -> SceneHandle {
-        let aspect = self.icon_text.max_chars.mono_aspect().value() * 1.25;
+        let aspect = self
+            .icon_text
+            .text_line_structure
+            .max_chars()
+            .mono_aspect()
+            .value()
+            * 1.25;
         binder.extend(binder.root(), Tag::<ButtonInteractionHook>::new());
         binder.bind(
             ButtonBindings::Panel,

@@ -15,28 +15,33 @@ use foliage_proper::scene::micro_grid::{
     AlignmentDesc, AnchorDim, MicroGrid, MicroGridAlignment, RelativeMarker,
 };
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
-use foliage_proper::text::{MaxCharacters, Text, TextValue};
+use foliage_proper::text::{MaxCharacters, Text, TextLineStructure, TextValue};
 
 #[derive(Clone)]
 pub struct IconText {
     pub icon_id: IconId,
     pub icon_color: Color,
-    pub max_chars: MaxCharacters,
+    pub text_line_structure: TextLineStructure,
     pub text_value: TextValue,
     pub text_color: Color,
 }
 impl IconText {
-    pub fn new<ID: Into<IconId>, C: Into<Color>, TV: Into<TextValue>, MC: Into<MaxCharacters>>(
+    pub fn new<
+        ID: Into<IconId>,
+        C: Into<Color>,
+        TV: Into<TextValue>,
+        TLS: Into<TextLineStructure>,
+    >(
         id: ID,
         ic: C,
-        mc: MC,
+        tls: TLS,
         tv: TV,
         tc: C,
     ) -> Self {
         Self {
             icon_id: id.into(),
             icon_color: ic.into(),
-            max_chars: mc.into(),
+            text_line_structure: tls.into(),
             text_value: tv.into(),
             text_color: tc.into(),
         }
@@ -53,22 +58,27 @@ pub struct IconColor(pub Color);
 pub struct TextColor(pub Color);
 #[derive(Bundle)]
 pub struct IconTextComponents {
-    pub max_char: MaxCharacters,
+    pub line_structure: TextLineStructure,
     pub text_value: TextValue,
     pub icon_color: IconColor,
     pub text_color: TextColor,
     pub icon_id: IconId,
 }
 impl IconTextComponents {
-    pub fn new<ID: Into<IconId>, C: Into<Color>, TV: Into<TextValue>, MC: Into<MaxCharacters>>(
-        mc: MC,
+    pub fn new<
+        ID: Into<IconId>,
+        C: Into<Color>,
+        TV: Into<TextValue>,
+        TLS: Into<TextLineStructure>,
+    >(
+        tls: TLS,
         tv: TV,
         ic: C,
         tc: C,
         id: ID,
     ) -> Self {
         Self {
-            max_char: mc.into(),
+            line_structure: tls.into(),
             text_value: tv.into(),
             icon_color: IconColor(ic.into()),
             text_color: TextColor(tc.into()),
@@ -103,7 +113,7 @@ impl Scene for IconText {
             'static,
             'static,
             (
-                &'static MaxCharacters,
+                &'static TextLineStructure,
                 &'static TextColor,
                 &'static TextValue,
                 &'static IconColor,
@@ -115,13 +125,13 @@ impl Scene for IconText {
         Query<
             'static,
             'static,
-            (&'static mut TextValue, &'static mut MaxCharacters),
+            (&'static mut TextValue, &'static mut TextLineStructure),
             Without<Tag<IconText>>,
         >,
         Query<'static, 'static, &'static mut IconId, Without<Tag<IconText>>>,
     );
     type Filter = Or<(
-        Changed<MaxCharacters>,
+        Changed<TextLineStructure>,
         Changed<TextColor>,
         Changed<TextValue>,
         Changed<IconColor>,
@@ -132,18 +142,18 @@ impl Scene for IconText {
     fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
         let icon = bindings.get(IconTextBindings::Icon);
         let text = bindings.get(IconTextBindings::Text);
-        if let Ok((mc, tc, tv, ic, id)) = ext.0.get(entity) {
+        if let Ok((tls, tc, tv, ic, id)) = ext.0.get(entity) {
             *ext.1.get_mut(icon).unwrap() = ic.0;
             *ext.1.get_mut(text).unwrap() = tc.0;
             *ext.2.get_mut(text).unwrap().0 = tv.clone();
-            *ext.2.get_mut(text).unwrap().1 = *mc;
+            *ext.2.get_mut(text).unwrap().1 = *tls;
             *ext.3.get_mut(icon).unwrap() = *id;
         }
     }
 
     fn create(self, mut binder: Binder) -> SceneHandle {
-        let aspect = self.max_chars.mono_aspect().value() * 1.5;
-        let determinant = self.max_chars.0 as f32 + 3f32;
+        let aspect = self.text_line_structure.max_chars().mono_aspect().value() * 1.5;
+        let determinant = self.text_line_structure.max_chars().0 as f32 + 3f32;
         let icon_percent = 1.50f32 / determinant;
         let text_offset = 1.0f32 / determinant;
         binder.bind(
@@ -164,7 +174,11 @@ impl Scene for IconText {
                 (1f32 - text_offset).percent_of(AnchorDim::Width),
                 1.percent_of(AnchorDim::Height),
             ),
-            Text::new(self.text_value.clone(), self.max_chars, 1, self.text_color),
+            Text::new(
+                self.text_value.clone(),
+                TextLineStructure::new(self.text_line_structure.per_line, 1),
+                self.text_color,
+            ),
         );
         binder.finish::<Self>(SceneComponents::new(
             MicroGrid::new()
@@ -172,7 +186,7 @@ impl Scene for IconText {
                 .min_height(20.0)
                 .min_width(20.0 * aspect),
             Self::Components::new(
-                self.max_chars,
+                self.text_line_structure,
                 self.text_value,
                 self.icon_color,
                 self.text_color,

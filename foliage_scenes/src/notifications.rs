@@ -19,7 +19,7 @@ use foliage_proper::scene::micro_grid::{
 };
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
 use foliage_proper::segment::{ResponsiveSegment, Segment, SegmentUnitDesc};
-use foliage_proper::text::{MaxCharacters, Text, TextValue};
+use foliage_proper::text::{MaxCharacters, Text, TextLineStructure, TextValue};
 use foliage_proper::view::ViewBuilder;
 
 #[derive(Clone, Component)]
@@ -80,8 +80,7 @@ pub enum NotificationState {
 #[derive(InnerSceneBinding)]
 pub enum NotificationBarBindings {
     Background,
-    LineOne,
-    LineTwo,
+    Info,
 }
 #[derive(Component)]
 struct NotificationHandle(ConditionHandle);
@@ -111,8 +110,7 @@ impl Scene for NotificationBar {
     type Components = NotificationsComponents;
 
     fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
-        let one = bindings.get(NotificationBarBindings::LineOne);
-        let two = bindings.get(NotificationBarBindings::LineTwo);
+        let one = bindings.get(NotificationBarBindings::Info);
         if let Ok(notification) = ext.0.get(entity) {
             if !notification.0.is_empty() {
                 // replace text split if too big
@@ -132,7 +130,7 @@ impl Scene for NotificationBar {
             Panel::new(Style::fill(), self.colors.background.0),
         );
         binder.bind(
-            NotificationBarBindings::LineOne,
+            NotificationBarBindings::Info,
             MicroGridAlignment::new(
                 0.percent_from(RelativeMarker::Left),
                 0.percent_from(RelativeMarker::Top),
@@ -140,22 +138,8 @@ impl Scene for NotificationBar {
                 0.5.percent_of(AnchorDim::Height),
             ),
             Text::new(
-                MaxCharacters(30),
                 TextValue::new(""),
-                self.colors.foreground.0,
-            ),
-        );
-        binder.bind(
-            NotificationBarBindings::LineTwo,
-            MicroGridAlignment::new(
-                0.percent_from(RelativeMarker::Left),
-                0.5.percent_from(RelativeMarker::Top),
-                0.9.percent_of(AnchorDim::Width),
-                0.5.percent_of(AnchorDim::Height),
-            ),
-            Text::new(
-                MaxCharacters(30),
-                TextValue::new(""),
+                TextLineStructure::new(30, 2),
                 self.colors.foreground.0,
             ),
         );

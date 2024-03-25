@@ -16,7 +16,7 @@ use foliage_proper::scene::micro_grid::{
     AlignmentDesc, AnchorDim, MicroGrid, MicroGridAlignment, RelativeMarker,
 };
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
-use foliage_proper::text::{MaxCharacters, TextValue};
+use foliage_proper::text::{MaxCharacters, TextLineStructure, TextValue};
 use foliage_proper::view::BranchPool;
 
 use crate::text_button::TextButton;
@@ -85,6 +85,7 @@ impl Scene for Dropdown {
     fn create(self, mut binder: Binder) -> SceneHandle {
         let max = MaxCharacters(self.options.options.iter().map(|o| o.len()).max().unwrap() as u32);
         // bind base
+        let structure = TextLineStructure::new(max.0, 1);
         let base = binder.bind_scene(
             DropdownBindings::Base,
             MicroGridAlignment::new(
@@ -95,7 +96,7 @@ impl Scene for Dropdown {
             ),
             TextButton::new(
                 TextValue::new(self.options.options.first().unwrap()),
-                max,
+                structure,
                 Style::fill(),
                 Colors::new(self.colors.foreground.0, self.colors.background.0),
             ),
@@ -151,7 +152,7 @@ impl Scene for Dropdown {
                 ),
                 TextButton::new(
                     TextValue::new(self.options.options.get(i).unwrap()),
-                    max,
+                    structure,
                     Style::fill(),
                     Colors::new(self.colors.foreground.0, self.colors.background.0),
                 ),

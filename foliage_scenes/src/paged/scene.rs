@@ -204,13 +204,11 @@ impl Scene for PageStructure {
             binder.extend(e.target(), PositionAdjust(Position::new(-100.0, 0.0)));
             binder.extend_conditional(
                 e,
-                e.target()
-                    .animate(
-                        Some(PositionAdjust(Position::new(-100.0, 0.0))),
-                        PositionAdjust(Position::default()),
-                        TimeDelta::from_secs(1),
-                    )
-                    .0,
+                e.target().animate(
+                    Some(PositionAdjust(Position::new(-100.0, 0.0))),
+                    PositionAdjust(Position::default()),
+                    TimeDelta::from_secs(1),
+                ),
             );
             to_be_bound.push(e.this());
         }

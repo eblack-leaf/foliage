@@ -16,7 +16,7 @@ use foliage_proper::scene::micro_grid::{
     AlignmentDesc, AnchorDim, MicroGrid, MicroGridAlignment, RelativeMarker,
 };
 use foliage_proper::scene::{Binder, Bindings, BlankNode, Scene, SceneComponents, SceneHandle};
-use foliage_proper::text::{MaxCharacters, Text, TextValue};
+use foliage_proper::text::{MaxCharacters, Text, TextLineStructure, TextValue};
 
 use crate::button::{Button, ButtonInteractionHook, CurrentStyle};
 
@@ -25,12 +25,12 @@ pub struct TextButton {
     element_style: Style,
     text_value: TextValue,
     colors: Colors,
-    max_chars: MaxCharacters,
+    lines: TextLineStructure,
 }
 impl TextButton {
-    pub fn new<MC: Into<MaxCharacters>>(
+    pub fn new<TLS: Into<TextLineStructure>>(
         text_value: TextValue,
-        max_characters: MC,
+        lines: TLS,
         element_style: Style,
         colors: Colors,
     ) -> Self {
@@ -38,7 +38,7 @@ impl TextButton {
             element_style,
             text_value,
             colors,
-            max_chars: max_characters.into(),
+            lines: lines.into(),
         }
     }
 }
@@ -73,9 +73,9 @@ impl Scene for TextButton {
     type Filter = Or<(
         <Button as Scene>::Filter,
         Changed<TextValue>,
-        Changed<MaxCharacters>,
+        Changed<TextLineStructure>,
     )>;
-    type Components = (<Button as Scene>::Components, TextValue, MaxCharacters);
+    type Components = (<Button as Scene>::Components, TextValue, TextLineStructure);
 
     fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
         let panel = bindings.get(TextButtonBindings::Panel);
@@ -104,7 +104,7 @@ impl Scene for TextButton {
     }
 
     fn create(self, mut binder: Binder) -> SceneHandle {
-        let aspect = self.max_chars.mono_aspect();
+        let aspect = self.lines.max_chars().mono_aspect();
         binder.extend(binder.root(), Tag::<ButtonInteractionHook>::new());
         binder.bind(
             TextButtonBindings::Panel,
@@ -116,6 +116,7 @@ impl Scene for TextButton {
             ),
             Panel::new(self.element_style, self.colors.foreground.0),
         );
+        let adjusted_lines = self.lines.with_lines(1);
         binder.bind(
             TextButtonBindings::Text,
             MicroGridAlignment::new(
@@ -125,8 +126,8 @@ impl Scene for TextButton {
                 0.8.percent_of(AnchorDim::Height),
             ),
             Text::new(
-                self.max_chars,
                 self.text_value.clone(),
+                adjusted_lines,
                 self.colors.background.0,
             ),
         );
@@ -149,7 +150,7 @@ impl Scene for TextButton {
             (
                 <Button as Scene>::Components::new(self.element_style, self.colors),
                 self.text_value,
-                self.max_chars,
+                adjusted_lines,
             ),
         ))
     }

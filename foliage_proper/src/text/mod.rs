@@ -79,12 +79,25 @@ pub struct TextLineStructure {
 }
 
 impl TextLineStructure {
+    pub fn with_lines(mut self, l: u32) -> Self {
+        self.lines = l;
+        self
+    }
+}
+
+impl TextLineStructure {
+    pub fn new(per_line: u32, lines: u32) -> Self {
+        Self { lines, per_line }
+    }
+}
+
+impl TextLineStructure {
     pub fn max_chars(&self) -> MaxCharacters {
         (self.lines * self.per_line).into()
     }
 }
 
-#[derive(Copy, Clone, Hash, Eq, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Hash, Eq, PartialEq, PartialOrd, Debug)]
 pub struct TextLineLocation(pub u32, pub u32);
 impl TextLineLocation {
     pub fn new(c: Position<InterfaceContext>, b: Area<InterfaceContext>) -> Self {
