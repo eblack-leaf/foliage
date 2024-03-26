@@ -244,6 +244,7 @@ fn update_selection(
             if listener.lost_focus() {
                 sel.start.take();
                 sel.end.take();
+                sel.span.take();
             }
             let current = TextLineLocation::new(
                 listener.interaction.current - *pos - offset.0,
@@ -312,7 +313,7 @@ impl Scene for InteractiveText {
             for i in 1..=ls.max_chars().0 {
                 *ext.1.get_mut(bindings.get(i as i32)).unwrap().3.alpha_mut() = 0.0;
             }
-            if let Some(r) = sel.range() {
+            if let Some(r) = sel.text_span(&tv.0) {
                 for i in r {
                     *ext.1
                         .get_mut(bindings.get(i as i32 + 1))

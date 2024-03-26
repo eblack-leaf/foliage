@@ -1,11 +1,8 @@
 use foliage::color::monochromatic::{Asparagus, Greyscale, Monochromatic};
-use foliage::color::Color;
 use foliage::interactive_text::InteractiveText;
-use foliage::rectangle::Rectangle;
 use foliage::segment::{MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::text::{TextLineStructure, TextValue};
 use foliage::text_input::{TextInput, TextInputMode};
-use foliage::texture::factors::Progress;
 use foliage::view::{ViewBuilder, ViewDescriptor, Viewable};
 use foliage::Colors;
 
@@ -23,11 +20,6 @@ impl Viewable for TextShowcase {
             ResponsiveSegment::base(Segment::new(2.near().to(6.far()), 2.near().to(2.far())))
                 .at_layer(5),
         );
-        // view_builder.add(
-        //     Rectangle::new(Color::WHITE, Progress::full()),
-        //     ResponsiveSegment::base(Segment::new(2.near().to(6.far()), 2.near().to(2.far())))
-        //         .at_layer(6),
-        // );
         view_builder.add_scene(
             TextInput::new(
                 TextInputMode::Normal,
