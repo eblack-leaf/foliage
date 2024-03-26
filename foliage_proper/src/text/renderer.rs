@@ -290,27 +290,6 @@ impl Render for Text {
                     0
                 })
                 .sum();
-            for (key, glyph) in changes.added.drain() {
-                match glyph {
-                    Glyph::Control => {}
-                    Glyph::Char(ch) => {
-                        package.package_data.instance_coordinator.queue_add(key);
-                        if !package.package_data.atlas.has_key(&ch.key) {
-                            to_rasterize.insert(ch.key);
-                        }
-                        coord_write.insert((key, ch.key));
-                        package
-                            .package_data
-                            .instance_coordinator
-                            .queue_write(key, ch.section.position.to_c());
-                        package
-                            .package_data
-                            .instance_coordinator
-                            .queue_write(key, ch.section.area.to_c());
-                        package.package_data.atlas.add_reference(key, ch.key);
-                    }
-                }
-            }
         }
         if let Some(fs) = render_packet.get::<FontSize>() {
             if fs != package.package_data.font_size {
@@ -338,6 +317,29 @@ impl Render for Text {
                 package.package_data.instance_coordinator.queue_write(a, b);
             }
         }
+        if let Some(changes) = glyph_changes.as_mut() {
+            for (key, glyph) in changes.added.drain() {
+                match glyph {
+                    Glyph::Control => {}
+                    Glyph::Char(ch) => {
+                        package.package_data.instance_coordinator.queue_add(key);
+                        if !package.package_data.atlas.has_key(&ch.key) {
+                            to_rasterize.insert(ch.key);
+                        }
+                        coord_write.insert((key, ch.key));
+                        package
+                            .package_data
+                            .instance_coordinator
+                            .queue_write(key, ch.section.position.to_c());
+                        package
+                            .package_data
+                            .instance_coordinator
+                            .queue_write(key, ch.section.area.to_c());
+                        package.package_data.atlas.add_reference(key, ch.key);
+                    }
+                }
+            }
+        }
         for r in to_rasterize {
             let rasterization = resources.font.0.rasterize_indexed(
                 r.glyph_index,
@@ -349,6 +351,7 @@ impl Render for Text {
                 .atlas
                 .write_next(r, ginkgo, rasterization_extent, rasterization.1);
         }
+
         for (k, w) in coord_write {
             let partition = package.package_data.atlas.get(&w).unwrap();
             package
