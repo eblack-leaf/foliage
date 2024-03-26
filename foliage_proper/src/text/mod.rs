@@ -41,6 +41,7 @@ pub struct Text {
     font_size: DifferentialBundle<FontSize>,
     unique: DifferentialBundle<TextValueUniqueCharacters>,
     line_structure: TextLinePlacement,
+    offset: TextOffset,
     differentiable: Differentiable,
 }
 impl Text {
@@ -70,6 +71,7 @@ impl Text {
             font_size: DifferentialBundle::new(FontSize::default()),
             unique: DifferentialBundle::new(TextValueUniqueCharacters::default()),
             line_structure: TextLinePlacement::default(),
+            offset: TextOffset(Position::default()),
             differentiable: Differentiable::new::<Self>(),
         }
     }
@@ -132,7 +134,8 @@ impl TextLineLocation {
         TextLineLocation(horizontal, vertical)
     }
 }
-
+#[derive(Component, Copy, Clone)]
+pub struct TextOffset(pub Position<InterfaceContext>);
 #[derive(Component, Clone, Default)]
 pub struct TextLinePlacement(pub HashMap<TextLineLocation, TextKey>);
 #[derive(Component, Copy, Clone)]
@@ -373,6 +376,7 @@ fn place_text(
             &mut TextPlacementTool,
             &mut TextLinePlacement,
             &mut Position<InterfaceContext>,
+            &mut TextOffset,
         ),
         Or<(
             Changed<TextValue>,
@@ -396,6 +400,7 @@ fn place_text(
         mut tool,
         mut line_placement,
         mut pos,
+        mut offset,
     ) in query.iter_mut()
     {
         let metrics = font.line_metrics(structure, *area, &scale_factor);
@@ -405,7 +410,9 @@ fn place_text(
         let aligned_area = metrics.area; // TODO make fit bounds better
         if aligned_area < *area {
             let diff = (*area - aligned_area) / Area::new(2.0, 2.0);
-            *pos = *pos + Position::new(diff.width, diff.height);
+            let o = Position::new(diff.width, diff.height);
+            offset.0 = o;
+            *pos = *pos + o;
         }
         *area = aligned_area;
         tool.configure(*area);

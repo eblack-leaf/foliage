@@ -23,11 +23,11 @@ impl Viewable for TextShowcase {
             ResponsiveSegment::base(Segment::new(2.near().to(6.far()), 2.near().to(2.far())))
                 .at_layer(5),
         );
-        view_builder.add(
-            Rectangle::new(Color::WHITE, Progress::full()),
-            ResponsiveSegment::base(Segment::new(2.near().to(6.far()), 2.near().to(2.far())))
-                .at_layer(6),
-        );
+        // view_builder.add(
+        //     Rectangle::new(Color::WHITE, Progress::full()),
+        //     ResponsiveSegment::base(Segment::new(2.near().to(6.far()), 2.near().to(2.far())))
+        //         .at_layer(6),
+        // );
         view_builder.add_scene(
             TextInput::new(
                 TextInputMode::Normal,

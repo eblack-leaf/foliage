@@ -25,7 +25,8 @@ use foliage_proper::scene::micro_grid::{
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
 use foliage_proper::text::font::MonospacedFont;
 use foliage_proper::text::{
-    CharacterDimension, Text, TextColorExceptions, TextLineLocation, TextLineStructure, TextValue,
+    CharacterDimension, Text, TextColorExceptions, TextLineLocation, TextLineStructure, TextOffset,
+    TextValue,
 };
 use foliage_proper::texture::factors::Progress;
 use foliage_proper::window::ScaleFactor;
@@ -200,6 +201,7 @@ fn update_selection(
             &Position<InterfaceContext>,
             &Area<InterfaceContext>,
             &Layer,
+            &TextOffset,
         ),
         Or<(
             Changed<InteractionListener>,
@@ -218,7 +220,7 @@ fn update_selection(
     >,
 ) {
     for (line_structure, mut sel, _tv, bindings, mut d) in query.iter_mut() {
-        if let Ok((listener, pos, area, layer)) =
+        if let Ok((listener, pos, area, layer, offset)) =
             listeners.get(bindings.get(InteractiveTextBindings::Text))
         {
             let metrics = font.line_metrics(line_structure, *area, &scale_factor);
@@ -229,6 +231,7 @@ fn update_selection(
                     let letter_binding = x + line_structure.per_line * y + 1;
                     let entity = bindings.get(letter_binding as i32);
                     *rectangles.get_mut(entity).unwrap().0 = *pos
+                        + offset.0
                         + Position::new(
                             x as f32 * d.dimensions().width,
                             y as f32 * d.dimensions().height,
@@ -242,8 +245,10 @@ fn update_selection(
                 sel.start.take();
                 sel.end.take();
             }
-            let current =
-                TextLineLocation::new(listener.interaction.current - *pos, d.dimensions());
+            let current = TextLineLocation::new(
+                listener.interaction.current - *pos - offset.0,
+                d.dimensions(),
+            );
             if listener.engaged_start() {
                 sel.start.replace(current);
             }
