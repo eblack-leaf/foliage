@@ -21,7 +21,7 @@ pub mod fixed;
 #[derive(Hash, Eq, PartialEq, Copy, Clone, Ord, PartialOrd, Debug)]
 pub struct TextureAtlasLocation(pub u32, pub u32);
 impl TextureAtlasLocation {
-    pub const PADDING: f32 = 1.0;
+    pub const PADDING: f32 = 0.0;
     pub fn position(&self, block: AtlasBlock) -> Position<NumericalContext> {
         (
             self.0 as f32 * (block.0.width + Self::PADDING),
@@ -123,7 +123,10 @@ impl<ResourceKey: Hash + Eq + Clone, TexelData: Default + Sized + Clone + Pod + 
             }
         }
         let actual = TextureAtlasLocation(logical_dim, logical_dim).position(block);
-        let actual = Area::new(actual.x, actual.y);
+        let actual = Area::new(
+            actual.x + block.0.width + 4.0,
+            actual.y + block.0.height + 4.0,
+        );
         let texture = ginkgo.device.as_ref().unwrap().create_texture_with_data(
             ginkgo.queue.as_ref().unwrap(),
             &wgpu::TextureDescriptor {
