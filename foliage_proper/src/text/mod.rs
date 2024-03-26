@@ -370,6 +370,7 @@ fn place_text(
             &mut CharacterDimension,
             &mut TextPlacementTool,
             &mut TextLinePlacement,
+            &mut Position<InterfaceContext>,
         ),
         Or<(
             Changed<TextValue>,
@@ -392,6 +393,7 @@ fn place_text(
         mut dims,
         mut tool,
         mut line_placement,
+        mut pos,
     ) in query.iter_mut()
     {
         let metrics = font.line_metrics(structure, *area, &scale_factor);
@@ -399,6 +401,10 @@ fn place_text(
         *font_size = metrics.font_size;
         *dims = metrics.character_dimensions;
         let aligned_area = metrics.area; // TODO make fit bounds better
+        if aligned_area < *area {
+            let diff = (*area - aligned_area) / Area::new(2.0, 2.0);
+            *pos = *pos + Position::new(diff.width, diff.height);
+        }
         *area = aligned_area;
         tool.configure(*area);
         let limited = value.limited(*mc);

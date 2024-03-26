@@ -292,6 +292,7 @@ fn responsive_segment_changes(
     compositor: Res<Compositor>,
 ) {
     if viewport_handle.area_updated() {
+        *layout = Layout::from_area(viewport_handle.section().area);
         for (res_seg, mut pos, mut area, mut layer, mut disabled, pv, pos_adjust) in
             changed.p1().iter_mut()
         {

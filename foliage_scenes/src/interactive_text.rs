@@ -217,7 +217,7 @@ fn update_selection(
         Without<InteractionListener>,
     >,
 ) {
-    for (line_structure, mut sel, tv, bindings, mut d) in query.iter_mut() {
+    for (line_structure, mut sel, _tv, bindings, mut d) in query.iter_mut() {
         if let Ok((listener, pos, area, layer)) =
             listeners.get(bindings.get(InteractiveTextBindings::Text))
         {
