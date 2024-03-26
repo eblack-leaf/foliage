@@ -1,5 +1,6 @@
-use compact_str::{CompactString, ToCompactString};
 use std::ops::RangeInclusive;
+
+use compact_str::CompactString;
 
 use foliage_macros::{inner_set_descriptor, InnerSceneBinding};
 use foliage_proper::bevy_ecs;

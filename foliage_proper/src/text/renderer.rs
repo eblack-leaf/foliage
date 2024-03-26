@@ -261,23 +261,7 @@ impl Render for Text {
         let mut to_rasterize = HashSet::new();
         let mut coord_write = HashSet::new();
         let mut font_size_changed = false;
-        if let Some(fs) = render_packet.get::<FontSize>() {
-            if fs != package.package_data.font_size {
-                font_size_changed = true;
-                package.package_data.font_size = fs;
-                let block = AtlasBlock(
-                    resources
-                        .font
-                        .character_dimensions(fs.px(ginkgo.scale_factor()))
-                        .to_numerical(),
-                );
-                package.package_data.block = block;
-                for key in package.package_data.atlas.entries().keys() {
-                    to_rasterize.insert(*key);
-                }
-            }
-        }
-        if let Some(mut changes) = glyph_changes.as_mut() {
+        if let Some(changes) = glyph_changes.as_mut() {
             for (key, glyph) in changes.removed.drain() {
                 tracing::trace!("removing-text-glyph: {:?}:{:?}", key, glyph);
                 match glyph {
@@ -288,10 +272,13 @@ impl Render for Text {
                     }
                 }
             }
+            if package.package_data.instance_coordinator.clear_removes() {
+                package.signal_record();
+            }
             new_glyph_count = changes
                 .added
                 .iter()
-                .map(|(k, v)| {
+                .map(|(_k, v)| {
                     match v {
                         Glyph::Control => {}
                         Glyph::Char(ch) => {
@@ -322,6 +309,22 @@ impl Render for Text {
                             .queue_write(key, ch.section.area.to_c());
                         package.package_data.atlas.add_reference(key, ch.key);
                     }
+                }
+            }
+        }
+        if let Some(fs) = render_packet.get::<FontSize>() {
+            if fs != package.package_data.font_size {
+                font_size_changed = true;
+                package.package_data.font_size = fs;
+                let block = AtlasBlock(
+                    resources
+                        .font
+                        .character_dimensions(fs.px(ginkgo.scale_factor()))
+                        .to_numerical(),
+                );
+                package.package_data.block = block;
+                for key in package.package_data.atlas.entries().keys() {
+                    to_rasterize.insert(*key);
                 }
             }
         }

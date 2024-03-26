@@ -3,8 +3,6 @@ mod vertex;
 
 use crate::ash::render_packet::RenderPacketStore;
 use crate::coordinate::area::Area;
-use crate::coordinate::layer::Layer;
-use crate::coordinate::position::Position;
 use crate::coordinate::NumericalContext;
 use crate::differential::{Despawn, Differentiable, DifferentialBundle};
 use crate::differential_enable;

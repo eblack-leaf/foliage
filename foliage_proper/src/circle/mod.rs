@@ -5,7 +5,6 @@ use proc_gen::{LOWER_BOUND, STEP, TEXTURE_SIZE, UPPER_BOUND};
 
 use crate::color::Color;
 use crate::coordinate::area::{Area, CReprArea};
-use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, InterfaceContext, NumericalContext};

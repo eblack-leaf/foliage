@@ -1,7 +1,6 @@
-use foliage::coordinate::area::Area;
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 use foliage::elm::Elm;
-use foliage::image::{Image, ImageId, ImageStorage};
+use foliage::image::{Image, ImageId};
 use foliage::segment::{MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::view::{ViewBuilder, ViewDescriptor, Viewable};
 
@@ -21,7 +20,7 @@ impl Viewable for ImageShowcase {
 impl Leaf for ImageShowcase {
     type SetDescriptor = EmptySetDescriptor;
 
-    fn attach(elm: &mut Elm) {
+    fn attach(_elm: &mut Elm) {
         // elm.container().spawn(Image::storage(
         //     ImageId(0),
         //     ImageStorage::some(Area::new(651.0, 454.0)),

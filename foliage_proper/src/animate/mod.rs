@@ -1,7 +1,7 @@
 use crate::time::timer::TIME_SKIP_RESISTANCE;
 use crate::time::{Time, TimeDelta};
-use bevy_ecs::prelude::{Component, Entity, World};
-use bevy_ecs::system::{Command, Commands, Query, Res};
+use bevy_ecs::prelude::{Component, Entity};
+use bevy_ecs::system::{Commands, Query, Res};
 
 pub mod trigger;
 
@@ -60,7 +60,9 @@ pub enum InterpolationMethod {
 }
 #[derive(Clone)]
 struct Interpolator {
+    #[allow(unused)]
     method: InterpolationMethod,
+    #[allow(unused)]
     current: InterpolationPercent,
     total: TimeDelta,
 }

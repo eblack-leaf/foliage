@@ -433,8 +433,8 @@ fn distill_changes(
         for (tk, g) in placement.glyphs().iter() {
             if let Some(old) = cached.0.remove(tk) {
                 if &old != g {
+                    changes.removed.insert(*tk, old.clone());
                     changes.added.insert(*tk, g.clone());
-                    // changes.removed.insert(*tk, old.clone());
                 }
             } else {
                 changes.added.insert(*tk, g.clone());

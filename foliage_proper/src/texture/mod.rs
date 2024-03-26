@@ -1,6 +1,5 @@
 use bytemuck::{Pod, Zeroable};
 use coord::TexturePartition;
-use std::collections::hash_map::IterMut;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::hash::Hash;
@@ -231,7 +230,7 @@ impl<
         if self.logical.references.get(&res_key).unwrap().is_empty() {
             self.hardware.key_to_partition.remove(&res_key);
             self.logical.entries.remove(&res_key);
-            for (loc, key) in self.hardware.locations.iter_mut() {
+            for (_loc, key) in self.hardware.locations.iter_mut() {
                 if let Some(k) = key {
                     if *k == res_key {
                         key.take();

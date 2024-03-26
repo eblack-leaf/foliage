@@ -70,7 +70,7 @@ fn input(
                         trigger_config(&mut actual);
                         selection.start.replace(TextLineLocation::raw(0, 0));
                     }
-                    if let Some(start) = selection.start {
+                    if selection.start.is_some() {
                         for e in keyboards.read() {
                             match e.sequence() {
                                 InputSequence::CtrlX => {

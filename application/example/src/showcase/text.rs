@@ -1,7 +1,7 @@
 use foliage::color::monochromatic::{Asparagus, Greyscale, Monochromatic};
 use foliage::interactive_text::InteractiveText;
 use foliage::segment::{MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
-use foliage::text::{MaxCharacters, TextLineStructure, TextValue};
+use foliage::text::{TextLineStructure, TextValue};
 use foliage::text_input::{TextInput, TextInputMode};
 use foliage::view::{ViewBuilder, ViewDescriptor, Viewable};
 use foliage::Colors;

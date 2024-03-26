@@ -10,7 +10,7 @@ use foliage::layout::Layout;
 use foliage::procedure::Procedure;
 use foliage::scene::Scene;
 use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
-use foliage::text::{MaxCharacters, Text, TextLineStructure, TextValue};
+use foliage::text::{Text, TextLineStructure, TextValue};
 use foliage::text_button::TextButton;
 use foliage::view::{ViewBuilder, ViewDescriptor, Viewable};
 use foliage::Colors;

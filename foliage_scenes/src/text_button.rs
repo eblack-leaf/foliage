@@ -5,8 +5,6 @@ use foliage_proper::bevy_ecs::prelude::{IntoSystemConfigs, Or, Query, With, With
 use foliage_proper::bevy_ecs::query::Changed;
 use foliage_proper::bevy_ecs::system::SystemParamItem;
 use foliage_proper::color::Color;
-
-use crate::{BackgroundColor, Colors, ForegroundColor};
 use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
 use foliage_proper::elm::leaf::{Leaf, Tag};
 use foliage_proper::elm::{BundleExtend, Elm, Style};
@@ -16,9 +14,10 @@ use foliage_proper::scene::micro_grid::{
     AlignmentDesc, AnchorDim, MicroGrid, MicroGridAlignment, RelativeMarker,
 };
 use foliage_proper::scene::{Binder, Bindings, BlankNode, Scene, SceneComponents, SceneHandle};
-use foliage_proper::text::{MaxCharacters, Text, TextLineStructure, TextValue};
+use foliage_proper::text::{Text, TextLineStructure, TextValue};
 
 use crate::button::{Button, ButtonInteractionHook, CurrentStyle};
+use crate::{BackgroundColor, Colors, ForegroundColor};
 
 #[derive(Clone)]
 pub struct TextButton {

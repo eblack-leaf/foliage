@@ -15,7 +15,7 @@ use foliage_proper::scene::micro_grid::{
     AlignmentDesc, AnchorDim, MicroGrid, MicroGridAlignment, RelativeMarker,
 };
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
-use foliage_proper::text::{MaxCharacters, Text, TextLineStructure, TextValue};
+use foliage_proper::text::{Text, TextLineStructure, TextValue};
 
 #[derive(Clone)]
 pub struct IconText {

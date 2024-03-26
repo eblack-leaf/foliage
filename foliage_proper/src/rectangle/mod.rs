@@ -1,14 +1,14 @@
+use bevy_ecs::prelude::Bundle;
+
 use crate::color::Color;
-use crate::coordinate::area::{Area, CReprArea};
-use crate::coordinate::layer::Layer;
-use crate::coordinate::position::{CReprPosition, Position};
+use crate::coordinate::area::CReprArea;
+use crate::coordinate::position::CReprPosition;
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::config::ElmConfiguration;
 use crate::elm::leaf::{EmptySetDescriptor, Leaf};
 use crate::elm::Elm;
 use crate::texture::factors::Progress;
-use bevy_ecs::prelude::Bundle;
 
 mod proc_gen;
 mod renderer;

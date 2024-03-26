@@ -87,22 +87,7 @@ impl<Key: Hash + Eq + Clone + 'static + Debug> InstanceCoordinator<Key> {
             .unwrap_or_default() as u32
     }
     pub fn prepare(&mut self, ginkgo: &Ginkgo) -> bool {
-        let mut should_record = false;
-        if let Some(removed) = self.removed_indices() {
-            if !removed.is_empty() {
-                tracing::trace!("should remove indices:{:?}", ());
-                should_record = true;
-                self.needs_ordering = true;
-            }
-            let instances = self.instances_minus_one();
-            tracing::trace!("inner-remove:{:?}", ());
-            Self::inner_remove(
-                &self.attribute_fns,
-                &mut self.attributes,
-                &removed,
-                instances,
-            );
-        }
+        let mut should_record = self.clear_removes();
         for key in self.adds.drain().collect::<Vec<Key>>() {
             tracing::trace!("adding key:{:?}", key);
             self.ordering.managed.insert(key, Layer::default());
@@ -160,6 +145,26 @@ impl<Key: Hash + Eq + Clone + 'static + Debug> InstanceCoordinator<Key> {
             ginkgo,
             instances,
         );
+        should_record
+    }
+
+    pub fn clear_removes(&mut self) -> bool {
+        let mut should_record = false;
+        if let Some(removed) = self.removed_indices() {
+            if !removed.is_empty() {
+                tracing::trace!("should remove indices:{:?}", ());
+                should_record = true;
+                self.needs_ordering = true;
+            }
+            let instances = self.instances_minus_one();
+            tracing::trace!("inner-remove:{:?}", ());
+            Self::inner_remove(
+                &self.attribute_fns,
+                &mut self.attributes,
+                &removed,
+                instances,
+            );
+        }
         should_record
     }
     pub fn queue_add(&mut self, key: Key) {

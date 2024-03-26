@@ -133,13 +133,12 @@ pub(crate) fn differential<
         + for<'a> Deserialize<'a>,
 >(
     mut query: Query<
-        (Entity, &T, &mut Differential<T>, &mut RenderPacketStore),
+        (&T, &mut Differential<T>, &mut RenderPacketStore),
         Or<(Changed<T>, Changed<Differential<T>>)>,
     >,
 ) {
-    for (entity, t, mut diff, mut render_packet_store) in query.iter_mut() {
+    for (t, mut diff, mut render_packet_store) in query.iter_mut() {
         if diff.updated(t) {
-            // tracing::trace!("differential-updated: {:?}", entity);
             render_packet_store.put(diff.differential().take().unwrap());
         }
     }

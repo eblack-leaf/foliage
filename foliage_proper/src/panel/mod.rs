@@ -5,8 +5,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::color::Color;
 use crate::coordinate::area::Area;
-use crate::coordinate::layer::Layer;
-use crate::coordinate::position::Position;
 use crate::coordinate::InterfaceContext;
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
