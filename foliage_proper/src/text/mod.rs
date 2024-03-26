@@ -127,7 +127,9 @@ impl TextLineLocation {
 impl TextLineLocation {
     pub fn new(c: Position<InterfaceContext>, b: Area<InterfaceContext>) -> Self {
         let a = c / Position::new(b.width, b.height);
-        TextLineLocation(a.x.floor().max(0.0) as u32, a.y.floor().max(0.0) as u32)
+        let horizontal = a.x.floor().max(0.0) as u32;
+        let vertical = a.y.floor().max(0.0) as u32;
+        TextLineLocation(horizontal, vertical)
     }
 }
 
