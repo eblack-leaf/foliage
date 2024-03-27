@@ -19,7 +19,7 @@ use foliage_proper::scene::micro_grid::{
 };
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
 use foliage_proper::segment::{ResponsiveSegment, Segment, SegmentUnitDesc};
-use foliage_proper::text::{MaxCharacters, Text, TextLineStructure, TextValue};
+use foliage_proper::text::{Text, TextLineStructure, TextValue};
 use foliage_proper::view::ViewBuilder;
 
 #[derive(Clone, Component)]

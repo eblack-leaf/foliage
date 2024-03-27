@@ -88,11 +88,11 @@ fn input(
                                 InputSequence::Backspace => {
                                     if e.state.is_pressed() {
                                         if selection.spans_multiple() {
-                                            selection.clear_selection_for(&mut actual.0);
+                                            selection.clear_selection_for(&mut actual.0, *tls);
                                         } else {
                                             // delete preceding char
                                             selection.move_cursor(*tls, -1);
-                                            selection.clear_selection_for(&mut actual.0);
+                                            selection.clear_selection_for(&mut actual.0, *tls);
                                         }
                                         selection.move_cursor(*tls, -1);
                                     }

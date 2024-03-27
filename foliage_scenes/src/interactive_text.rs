@@ -139,11 +139,14 @@ impl Selection {
         tls: &TextLineStructure,
     ) {
         if self.spans_multiple() {
-            self.clear_selection_for(tv);
+            self.clear_selection_for(tv, *tls);
         }
         if tv.len() + chars.len() <= tls.max_chars().0 as usize {
             // if positive? or have to clear selection first for this to work
-            tv.insert_str(tls.letter(self.start.unwrap()), chars.as_str());
+            let letter = tls.letter(self.start.unwrap());
+            if tv.is_char_boundary(letter) {
+                tv.insert_str(letter, chars.as_str());
+            }
             let next = tls.next_location(self.start.unwrap(), chars.len() as i32);
             self.start.replace(next);
             self.end.replace(self.start.unwrap());
@@ -163,13 +166,18 @@ impl Selection {
         }
         false
     }
-    pub fn clear_selection_for(&mut self, tv: &mut CompactString) {
+    pub fn clear_selection_for(
+        &mut self,
+        tv: &mut CompactString,
+        text_line_structure: TextLineStructure,
+    ) {
         if let Some(s) = self.text_span(tv) {
             if self.has_positive_span() {
                 self.end.replace(self.start.unwrap());
             } else {
                 self.start.replace(self.end.unwrap());
             }
+            self.derive_span(text_line_structure);
             tv.replace_range(s, "");
         }
     }
