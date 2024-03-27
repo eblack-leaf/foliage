@@ -131,6 +131,8 @@ impl Selection {
     pub fn move_cursor(&mut self, text_line_structure: TextLineStructure, amount: i32) {
         self.start
             .replace(text_line_structure.next_location(self.start.unwrap_or_default(), amount));
+        self.end.replace(self.start.unwrap());
+        self.derive_span(text_line_structure);
     }
     pub fn insert_chars(
         &mut self,
