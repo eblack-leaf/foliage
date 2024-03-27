@@ -15,7 +15,7 @@ use crate::scene::micro_grid::MicroGrid;
 use crate::view::BranchPool;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::prelude::{Commands, Component, Entity, IntoSystemConfigs, Query};
-use bevy_ecs::query::{Changed, Or, QueryFilter, With, Without};
+use bevy_ecs::query::{Changed, Or, ReadOnlyWorldQuery, With, Without};
 use bevy_ecs::system::{Command, ParamSet, StaticSystemParam, SystemParam, SystemParamItem};
 use micro_grid::MicroGridAlignment;
 use std::collections::{HashMap, HashSet};
@@ -312,7 +312,9 @@ impl SceneBindingComponents {
 pub fn config<S: Scene + Send + Sync + 'static>(
     query: Query<(Entity, &Despawn, &Bindings), (With<Tag<S>>, Or<(S::Filter,)>)>,
     mut ext: StaticSystemParam<S::Params>,
-) {
+) where
+    <S as Scene>::Filter: ReadOnlyWorldQuery,
+{
     for (entity, despawn, bindings) in query.iter() {
         if despawn.is_despawned() {
             continue;
@@ -327,7 +329,7 @@ where
     Self: Sized + Send + Sync + 'static,
 {
     type Params: SystemParam + 'static;
-    type Filter: QueryFilter;
+    type Filter;
     type Components: Bundle;
     fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings);
     fn create(self, binder: Binder) -> SceneHandle;
