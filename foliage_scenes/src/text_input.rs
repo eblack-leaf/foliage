@@ -81,6 +81,7 @@ fn input(
                                 }
                                 InputSequence::CtrlA => {
                                     // select all
+                                    println!("ctl-a");
                                 }
                                 InputSequence::CtrlZ => {
                                     // last?
