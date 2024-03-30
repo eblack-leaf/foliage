@@ -19,7 +19,7 @@ use foliage_proper::scene::micro_grid::{
     AlignmentDesc, AnchorDim, MicroGrid, MicroGridAlignment, RelativeMarker,
 };
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle, ScenePtr};
-use foliage_proper::text::{TextLineLocation, TextLineStructure, TextValue};
+use foliage_proper::text::{MaxCharacters, TextLineLocation, TextLineStructure, TextValue};
 
 use crate::interactive_text::{InteractiveText, InteractiveTextBindings, Selection};
 use crate::{AlternateColor, BackgroundColor, Colors, ForegroundColor};
@@ -82,6 +82,8 @@ fn input(
                                 InputSequence::CtrlA => {
                                     // select all
                                     println!("ctl-a");
+                                    selection.start.replace(TextLineLocation::raw(0, 0));
+                                    selection.end.replace(tls.last());
                                 }
                                 InputSequence::CtrlZ => {
                                     // last?
@@ -293,8 +295,11 @@ impl Scene for TextInput {
                 self.colors,
             ),
         );
+        let determinant: MaxCharacters = self.line_structure.per_line.into();
         binder.finish::<Self>(SceneComponents::new(
-            MicroGrid::new(),
+            MicroGrid::new().aspect_ratio(
+                determinant.mono_aspect().value() * 1.0 / self.line_structure.lines as f32,
+            ),
             TextInputComponents {
                 actual,
                 max_chars: self.line_structure,

@@ -13,11 +13,11 @@ impl Viewable for TextShowcase {
     fn view(mut view_builder: ViewBuilder) -> ViewDescriptor {
         view_builder.add_scene(
             InteractiveText::new(
-                TextLineStructure::new(15, 3),
+                TextLineStructure::new(30, 2),
                 TextValue::new("hello okay there is a lot to do so lets get it done right..."),
                 Colors::new(Asparagus::BASE, Greyscale::MINUS_THREE),
             ),
-            ResponsiveSegment::base(Segment::new(2.near().to(7.far()), 2.near().to(3.far())))
+            ResponsiveSegment::base(Segment::new(2.near().to(7.far()), 2.near().to(2.far())))
                 .at_layer(5),
         );
         view_builder.add_scene(
@@ -29,11 +29,8 @@ impl Viewable for TextShowcase {
                 Colors::new(Asparagus::BASE, Greyscale::MINUS_THREE)
                     .with_alternate(Greyscale::BASE),
             ),
-            ResponsiveSegment::base(Segment::new(
-                2.near().to(6.far()),
-                4.near().to(5.far()).maximum(45.0),
-            ))
-            .at_layer(5),
+            ResponsiveSegment::base(Segment::new(2.near().to(6.far()), 3.near().to(5.far())))
+                .at_layer(5),
         );
         // view_builder.add_scene(
         //     TextInput::new(

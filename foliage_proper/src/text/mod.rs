@@ -115,6 +115,15 @@ impl TextLineStructure {
     pub fn new(per_line: u32, lines: u32) -> Self {
         Self { lines, per_line }
     }
+    pub fn per_line_index(&self) -> u32 {
+        self.per_line.checked_sub(1).unwrap_or_default()
+    }
+    pub fn lines_index(&self) -> u32 {
+        self.lines.checked_sub(1).unwrap_or_default()
+    }
+    pub fn last(&self) -> TextLineLocation {
+        TextLineLocation::raw(self.per_line_index(), self.lines_index())
+    }
     pub fn next_location(&self, location: TextLineLocation, skip_amount: i32) -> TextLineLocation {
         let projected = location.0 as i32 + skip_amount;
         return if projected.is_negative() {
@@ -125,32 +134,24 @@ impl TextLineStructure {
             if vertical.is_negative() {
                 return TextLineLocation::raw(0, 0);
             }
-            TextLineLocation::raw(
-                horizontal as u32,
-                (vertical as u32).min(self.lines.checked_sub(1).unwrap_or_default()),
-            )
+            TextLineLocation::raw(horizontal as u32, (vertical as u32).min(self.lines_index()))
         } else {
             if projected >= self.per_line as i32 {
                 let overflow = projected - self.per_line as i32;
                 let line_skip = overflow / self.per_line as i32;
                 let horizontal = overflow % self.per_line as i32;
                 let vertical = location.1 as i32 + line_skip + 1;
-                if vertical as u32 > self.lines.checked_sub(1).unwrap_or_default() {
-                    return TextLineLocation::raw(
-                        self.per_line.checked_sub(1).unwrap_or_default(),
-                        self.lines.checked_sub(1).unwrap_or_default(),
-                    );
+                if vertical as u32 > self.lines_index() {
+                    return self.last();
                 }
                 return TextLineLocation::raw(
                     horizontal as u32,
-                    (vertical as u32).min(self.lines.checked_sub(1).unwrap_or_default()),
+                    (vertical as u32).min(self.lines_index()),
                 );
             }
             TextLineLocation::raw(
-                (projected.max(0) as u32).min(self.per_line.checked_sub(1).unwrap_or_default()),
-                location
-                    .1
-                    .min(self.lines.checked_sub(1).unwrap_or_default()),
+                (projected.max(0) as u32).min(self.per_line_index()),
+                location.1.min(self.lines_index()),
             )
         };
     }

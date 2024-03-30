@@ -73,15 +73,15 @@ impl Viewable for ProgressShowcase {
                 TimeDelta::from_secs(6),
             ),
         );
-        view_builder.extend(b.root(), PositionAdjust(Position::new(-200.0, 0.0)));
-        view_builder.place_conditional_on(
-            d.root(),
-            b.root().animate(
-                Some(PositionAdjust(Position::new(-200.0, 0.0))),
-                PositionAdjust(Position::default()),
-                TimeDelta::from_secs(6),
-            ),
-        );
+        // view_builder.extend(b.root(), PositionAdjust(Position::new(-200.0, 0.0)));
+        // view_builder.place_conditional_on(
+        //     d.root(),
+        //     b.root().animate(
+        //         Some(PositionAdjust(Position::new(-200.0, 0.0))),
+        //         PositionAdjust(Position::default()),
+        //         TimeDelta::from_secs(6),
+        //     ),
+        // );
         view_builder.finish()
     }
 }
