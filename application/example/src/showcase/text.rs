@@ -1,11 +1,8 @@
 use foliage::color::monochromatic::{Asparagus, Greyscale, Monochromatic};
-use foliage::color::Color;
 use foliage::interactive_text::InteractiveText;
-use foliage::rectangle::Rectangle;
 use foliage::segment::{MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
-use foliage::text::{Text, TextLineStructure, TextValue};
+use foliage::text::{TextLineStructure, TextValue};
 use foliage::text_input::{TextInput, TextInputMode};
-use foliage::texture::factors::Progress;
 use foliage::view::{ViewBuilder, ViewDescriptor, Viewable};
 use foliage::Colors;
 
