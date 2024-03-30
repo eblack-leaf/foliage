@@ -104,6 +104,12 @@ fn text_line_structure_test() {
     assert_eq!(next, TextLineLocation::raw(7, 2));
     let next = tls.next_location(TextLineLocation::raw(12, 0), 36);
     assert_eq!(next, TextLineLocation::raw(14, 2));
+    let next = tls.next_location(TextLineLocation::raw(0, 1), -1);
+    assert_eq!(next, TextLineLocation::raw(14, 0));
+    let next = tls.next_location(TextLineLocation::raw(0, 1), -5);
+    assert_eq!(next, TextLineLocation::raw(10, 0));
+    let next = tls.next_location(TextLineLocation::raw(10, 2), -26);
+    assert_eq!(next, TextLineLocation::raw(14, 0));
 }
 impl TextLineStructure {
     pub fn new(per_line: u32, lines: u32) -> Self {
@@ -114,12 +120,15 @@ impl TextLineStructure {
         return if projected.is_negative() {
             let overflow = projected.abs();
             let line_skip = overflow / self.per_line as i32;
-            let horizontal = overflow % self.per_line as i32;
+            let horizontal = (projected + self.per_line as i32) + self.per_line as i32 * line_skip;
             let vertical = location.1 as i32 - line_skip - 1;
             if vertical.is_negative() {
                 return TextLineLocation::raw(0, 0);
             }
-            TextLineLocation::raw(horizontal as u32, (vertical as u32).min(self.lines))
+            TextLineLocation::raw(
+                horizontal as u32,
+                (vertical as u32).min(self.lines.checked_sub(1).unwrap_or_default()),
+            )
         } else {
             if projected >= self.per_line as i32 {
                 let overflow = projected - self.per_line as i32;
@@ -138,8 +147,10 @@ impl TextLineStructure {
                 );
             }
             TextLineLocation::raw(
-                (projected.max(0) as u32).min(self.per_line),
-                location.1.min(self.lines),
+                (projected.max(0) as u32).min(self.per_line.checked_sub(1).unwrap_or_default()),
+                location
+                    .1
+                    .min(self.lines.checked_sub(1).unwrap_or_default()),
             )
         };
     }
