@@ -81,7 +81,30 @@ pub struct TextLineStructure {
     pub lines: u32,
     pub per_line: u32,
 }
-
+#[cfg(test)]
+#[test]
+fn text_line_structure_test() {
+    let tls = TextLineStructure::new(5, 1);
+    let next = tls.next_location(TextLineLocation::raw(0, 0), 1);
+    assert_eq!(next, TextLineLocation::raw(1, 0));
+    let next = tls.next_location(TextLineLocation::raw(1, 0), 1);
+    assert_eq!(next, TextLineLocation::raw(2, 0));
+    let next = tls.next_location(TextLineLocation::raw(2, 0), 1);
+    assert_eq!(next, TextLineLocation::raw(3, 0));
+    let next = tls.next_location(TextLineLocation::raw(3, 0), 1);
+    assert_eq!(next, TextLineLocation::raw(4, 0));
+    let next = tls.next_location(TextLineLocation::raw(4, 0), 1);
+    assert_eq!(next, TextLineLocation::raw(4, 0));
+    let tls = TextLineStructure::new(15, 3);
+    let next = tls.next_location(TextLineLocation::raw(0, 0), -1);
+    assert_eq!(next, TextLineLocation::raw(0, 0));
+    let next = tls.next_location(TextLineLocation::raw(12, 0), 5);
+    assert_eq!(next, TextLineLocation::raw(2, 1));
+    let next = tls.next_location(TextLineLocation::raw(12, 0), 25);
+    assert_eq!(next, TextLineLocation::raw(7, 2));
+    let next = tls.next_location(TextLineLocation::raw(12, 0), 36);
+    assert_eq!(next, TextLineLocation::raw(14, 2));
+}
 impl TextLineStructure {
     pub fn new(per_line: u32, lines: u32) -> Self {
         Self { lines, per_line }
@@ -92,17 +115,32 @@ impl TextLineStructure {
             let overflow = projected.abs();
             let line_skip = overflow / self.per_line as i32;
             let horizontal = overflow % self.per_line as i32;
-            let vertical = location.1 as i32 - line_skip;
+            let vertical = location.1 as i32 - line_skip - 1;
+            if vertical.is_negative() {
+                return TextLineLocation::raw(0, 0);
+            }
             TextLineLocation::raw(horizontal as u32, (vertical as u32).min(self.lines))
         } else {
-            if projected > self.per_line as i32 {
+            if projected >= self.per_line as i32 {
                 let overflow = projected - self.per_line as i32;
                 let line_skip = overflow / self.per_line as i32;
                 let horizontal = overflow % self.per_line as i32;
-                let vertical = location.1 as i32 + line_skip;
-                return TextLineLocation::raw(horizontal as u32, (vertical as u32).min(self.lines));
+                let vertical = location.1 as i32 + line_skip + 1;
+                if vertical as u32 > self.lines.checked_sub(1).unwrap_or_default() {
+                    return TextLineLocation::raw(
+                        self.per_line.checked_sub(1).unwrap_or_default(),
+                        self.lines.checked_sub(1).unwrap_or_default(),
+                    );
+                }
+                return TextLineLocation::raw(
+                    horizontal as u32,
+                    (vertical as u32).min(self.lines.checked_sub(1).unwrap_or_default()),
+                );
             }
-            TextLineLocation::raw(projected as u32, location.1)
+            TextLineLocation::raw(
+                (projected.max(0) as u32).min(self.per_line),
+                location.1.min(self.lines),
+            )
         };
     }
     pub fn letter(&self, l: TextLineLocation) -> TextKey {
@@ -234,6 +272,20 @@ impl FontSize {
 pub struct TextValue(pub CompactString);
 
 impl TextValue {
+    pub fn is_letter(&self, i: usize) -> bool {
+        let exists = self.0.get(i..i + 1).is_some();
+        if exists {
+            self.0
+                .get(i..i + 1)
+                .unwrap()
+                .chars()
+                .map(|c| c.is_control() as i32)
+                .sum::<i32>()
+                == 0
+        } else {
+            false
+        }
+    }
     pub fn new<S: AsRef<str>>(s: S) -> Self {
         Self(s.as_ref().to_compact_string())
     }

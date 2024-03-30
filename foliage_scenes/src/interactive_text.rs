@@ -128,11 +128,14 @@ impl Selection {
         }
         None
     }
+
     pub fn move_cursor(&mut self, text_line_structure: TextLineStructure, amount: i32) {
-        self.start
-            .replace(text_line_structure.next_location(self.start.unwrap_or_default(), amount));
-        self.end.replace(self.start.unwrap());
-        self.derive_span(text_line_structure);
+        if self.start.is_some() {
+            self.start
+                .replace(text_line_structure.next_location(self.start.unwrap(), amount));
+            self.end.replace(self.start.unwrap());
+            self.derive_span(text_line_structure);
+        }
     }
     pub fn insert_chars(
         &mut self,
@@ -152,6 +155,7 @@ impl Selection {
             let next = tls.next_location(self.start.unwrap(), chars.len() as i32);
             self.start.replace(next);
             self.end.replace(self.start.unwrap());
+            self.derive_span(*tls);
         }
     }
     pub fn spans_multiple(&self) -> bool {
@@ -229,7 +233,7 @@ fn update_selection(
         Without<InteractionListener>,
     >,
 ) {
-    for (line_structure, mut sel, _tv, bindings, mut d) in query.iter_mut() {
+    for (line_structure, mut sel, tv, bindings, mut d) in query.iter_mut() {
         if let Ok((listener, pos, area, layer, offset)) =
             listeners.get(bindings.get(InteractiveTextBindings::Text))
         {
@@ -261,10 +265,18 @@ fn update_selection(
                 d.dimensions(),
             );
             if listener.engaged_start() {
-                sel.start.replace(current);
+                if tv.0.is_empty() {
+                    sel.start.replace(TextLineLocation::raw(0, 0));
+                } else {
+                    sel.start.replace(current);
+                }
             }
             if listener.engaged() {
-                sel.end.replace(current);
+                if tv.0.is_empty() {
+                    sel.end.replace(TextLineLocation::raw(0, 0));
+                } else {
+                    sel.end.replace(current);
+                }
                 sel.derive_span(*line_structure);
             }
         }
@@ -323,14 +335,14 @@ impl Scene for InteractiveText {
             for i in 1..=ls.max_chars().0 {
                 *ext.1.get_mut(bindings.get(i as i32)).unwrap().3.alpha_mut() = 0.0;
             }
-            if let Some(r) = sel.text_span(&tv.0) {
+            if let Some(r) = sel.range() {
                 for i in r {
-                    *ext.1
-                        .get_mut(bindings.get(i as i32 + 1))
-                        .unwrap()
-                        .3
-                        .alpha_mut() = 1.0;
-                    color_changes.exceptions.insert(i, bc.0);
+                    if let Some(b) = bindings.node(i as i32 + 1) {
+                        *ext.1.get_mut(b.entity()).unwrap().3.alpha_mut() = 1.0;
+                        if tv.is_letter(i) {
+                            color_changes.exceptions.insert(i, bc.0);
+                        }
+                    }
                 }
             }
             *ext.4.get_mut(text).unwrap().1 = tv.clone();
@@ -362,7 +374,7 @@ impl Scene for InteractiveText {
             );
         }
         binder.finish::<Self>(SceneComponents::new(
-            MicroGrid::new().aspect_ratio(self.line_structure.max_chars().mono_aspect()),
+            MicroGrid::new(),
             InteractiveTextComponents {
                 selection: Selection::default(),
                 text: self.text_value.clone(),

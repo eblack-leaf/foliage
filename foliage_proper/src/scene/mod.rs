@@ -256,6 +256,9 @@ impl Bindings {
     pub fn get<SB: Into<SceneBinding>>(&self, sb: SB) -> Entity {
         self.0.get(&sb.into()).expect("no-scene-binding").entity
     }
+    pub fn node<SB: Into<SceneBinding>>(&self, sb: SB) -> Option<&SceneNode> {
+        self.0.get(&sb.into())
+    }
     pub fn nodes(&self) -> &HashMap<SceneBinding, SceneNode> {
         &self.0
     }

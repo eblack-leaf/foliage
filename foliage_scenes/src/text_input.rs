@@ -95,7 +95,7 @@ fn input(
                                             selection.move_cursor(*tls, -1);
                                             selection.clear_selection_for(&mut actual.0, *tls);
                                         }
-                                        selection.move_cursor(*tls, -1);
+                                        // selection.move_cursor(*tls, -1);
                                     }
                                 }
                                 InputSequence::Enter => {
