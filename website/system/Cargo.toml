@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 foliage = { path = "../../foliage", features = ["scenes", "derive"] }
 tracing = "0.1.40"
+async-trait = "0.1.79"

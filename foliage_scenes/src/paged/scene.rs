@@ -1,6 +1,5 @@
 use foliage_macros::{inner_set_descriptor, InnerSceneBinding};
 use foliage_proper::animate::trigger::Trigger;
-use foliage_proper::animate::Animate;
 use foliage_proper::bevy_ecs;
 use foliage_proper::bevy_ecs::bundle::Bundle;
 use foliage_proper::bevy_ecs::component::Component;
@@ -10,8 +9,6 @@ use foliage_proper::bevy_ecs::query::{With, Without};
 use foliage_proper::bevy_ecs::system::{Command, Query, SystemParamItem};
 use foliage_proper::circle::Circle;
 use foliage_proper::conditional::ConditionalCommand;
-use foliage_proper::coordinate::position::Position;
-use foliage_proper::coordinate::PositionAdjust;
 use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
 use foliage_proper::elm::leaf::{Leaf, Tag};
 use foliage_proper::elm::{Elm, Style};
@@ -20,7 +17,6 @@ use foliage_proper::scene::micro_grid::{
     AlignmentDesc, AnchorDim, MicroGrid, MicroGridAlignment, RelativeMarker,
 };
 use foliage_proper::scene::{Binder, Bindings, BlankNode, Scene, SceneComponents, SceneHandle};
-use foliage_proper::time::TimeDelta;
 
 use crate::circle_button::CircleButton;
 use crate::ellipsis::{Ellipsis, Selected};

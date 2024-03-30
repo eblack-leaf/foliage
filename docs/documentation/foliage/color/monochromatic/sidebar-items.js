@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["AquaMarine","Asparagus","DarkOliveGreen","FluorescentYellow","Magenta","MostlyDesaturatedDarkBlue","Orange","StrongCyan"],"trait":["Monochromatic"]};
+window.SIDEBAR_ITEMS = {"struct":["AquaMarine","Asparagus","DarkOliveGreen","FluorescentYellow","Greyscale","Magenta","MostlyDesaturatedDarkBlue","Orange","StrongCyan"],"trait":["Monochromatic"]};

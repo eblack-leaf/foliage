@@ -1,11 +1,11 @@
 mod home;
 
 use crate::home::Home;
-use foliage::compositor::ViewHandle;
 use foliage::elm::Elm;
 use foliage::window::WindowDescriptor;
-use foliage::workflow::{EngenHandle, Workflow};
+use foliage::workflow::Workflow;
 use foliage::{AndroidInterface, Foliage};
+use std::sync::Arc;
 
 #[derive(Default)]
 pub struct Engen {}
@@ -23,12 +23,13 @@ pub fn entry(app: AndroidInterface) {
         )
         .run::<Engen>();
 }
-pub(crate) const HOME: ViewHandle = ViewHandle::new(0, 0);
+#[cfg_attr(target_family = "wasm", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_family = "wasm"), async_trait::async_trait)]
 impl Workflow for Engen {
     type Action = ();
     type Response = ();
 
-    async fn process(_arc: EngenHandle<Self>, _action: Self::Action) -> Self::Response {
+    async fn process(_handle: Arc<Self>, _action: Self::Action) -> Self::Response {
         ()
     }
 

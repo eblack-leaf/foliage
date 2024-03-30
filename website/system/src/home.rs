@@ -1,20 +1,19 @@
-use crate::HOME;
-use foliage::button::ButtonStyle;
 use foliage::circle_button::CircleButton;
 use foliage::color::monochromatic::{
-    FluorescentYellow, Magenta, Monochromatic, Orange, StrongCyan,
+    FluorescentYellow, Greyscale, Magenta, Monochromatic, Orange, StrongCyan,
 };
 use foliage::color::Color;
-use foliage::compositor::segment::{MacroGrid, ResponsiveSegment, SegmentUnitDesc};
-use foliage::coordinate::area::Area;
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
-use foliage::elm::{BundleExtend, Elm};
+use foliage::elm::{BundleExtend, Elm, Style};
 use foliage::icon::FeatherIcon;
-use foliage::icon_text::IconText;
-use foliage::media::HrefLink;
+use foliage::icon_text::{IconText, IconTextBindings};
+use foliage::media::{Href, HrefLink};
 use foliage::rectangle::Rectangle;
-use foliage::text::{GlyphColorChanges, MaxCharacters, TextValue};
+use foliage::segment::{MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
+use foliage::text::{TextColorExceptions, TextLineStructure, TextValue};
 use foliage::texture::factors::Progress;
+use foliage::view::{ViewBuilder, ViewDescriptor, ViewHandle, Viewable};
+use foliage::Colors;
 
 #[foliage::assets(crate::Engen, "../assets/", "/foliage/assets/")]
 struct Assets {
@@ -31,91 +30,97 @@ impl Leaf for Home {
 
     fn attach(elm: &mut Elm) {
         let _assets = Assets::proc_gen_load(elm);
-        elm.configure_view_grid(HOME, MacroGrid::new(6, 6));
-        elm.add_view_scene_binding(
-            HOME,
+        elm.add_view::<Home>(ViewHandle(0));
+        elm.navigate_to(ViewHandle(0));
+    }
+}
+impl Viewable for Home {
+    const GRID: MacroGrid = MacroGrid::new(6, 6);
+
+    fn view(mut view_builder: ViewBuilder) -> ViewDescriptor {
+        let a = view_builder.add_scene(
             CircleButton::new(
                 FeatherIcon::Github,
-                ButtonStyle::Fill,
-                Orange::MINUS_ONE,
-                Color::BLACK,
+                Style::fill(),
+                Colors::new(Greyscale::MINUS_THREE, Orange::BASE),
             ),
-            ResponsiveSegment::base(6.near().to(40.fixed()), 1.near().to(40.fixed())),
-            HrefLink::absolute("https://github.com/eblack-leaf/foliage"),
+            ResponsiveSegment::base(Segment::new(6.near().to(6.far()), 1.near().to(1.far()))),
         );
-        elm.add_view_scene_binding(
-            HOME,
+        view_builder.extend(
+            a.bindings().get(2),
+            Href::new("https://github.com/eblack-leaf/foliage", true),
+        );
+        let b = view_builder.add_scene(
             IconText::new(
                 FeatherIcon::Terminal.id(),
-                MaxCharacters(10),
-                TextValue::new("foliage.rs"),
                 Color::WHITE,
-                Color::GREY,
+                TextLineStructure::new(10, 1),
+                TextValue::new("foliage.rs"),
+                Greyscale::BASE,
             ),
-            ResponsiveSegment::base(
-                2.near().to(5.far()).minimum(200.0).maximum(500.0),
-                1.near().to(2.near()).minimum(50.0).maximum(80.0),
-            ),
-            GlyphColorChanges::new().with_range(7, 9, Orange::MINUS_ONE),
+            ResponsiveSegment::base(Segment::new(2.near().to(5.far()), 1.near().to(2.near()))),
         );
-        elm.add_view_binding(
-            HOME,
-            Rectangle::new(Area::default(), Color::WHITE, Progress::full()),
-            ResponsiveSegment::base(2.near().to(5.far()), 2.near().offset(15.0).to(4.fixed())),
-            (),
+        view_builder.extend(
+            b.bindings().get(IconTextBindings::Text),
+            TextColorExceptions::blank().with_range(7, 9, Orange::MINUS_ONE),
         );
-        elm.add_view_scene_binding(
-            HOME,
+        view_builder.add(
+            Rectangle::new(Color::WHITE, Progress::full()),
+            ResponsiveSegment::base(Segment::new(
+                2.near().to(5.far()),
+                2.near().offset(15.0).to(4.absolute()),
+            )),
+        );
+        let c = view_builder.add_scene(
             IconText::new(
                 FeatherIcon::ChevronsRight.id(),
-                MaxCharacters(20),
-                TextValue::new("ls -la BOOK [arch]"),
                 Color::WHITE,
-                Color::GREY,
+                TextLineStructure::new(20, 1),
+                TextValue::new("ls -la BOOK [arch]"),
+                Greyscale::BASE,
             ),
-            ResponsiveSegment::base(
-                2.near().to(5.far()).minimum(300.0).maximum(500.0),
-                3.near().to(3.far()).minimum(40.0).maximum(60.0),
-            ),
-            GlyphColorChanges::new()
+            ResponsiveSegment::base(Segment::new(2.near().to(5.far()), 3.near().to(3.far()))),
+        );
+        view_builder.extend(
+            c.bindings().get(IconTextBindings::Text),
+            TextColorExceptions::blank()
                 .with_range(7, 10, StrongCyan::MINUS_ONE)
                 .extend(HrefLink::relative("/foliage/book/index.html")),
         );
-        elm.add_view_scene_binding(
-            HOME,
+        let d = view_builder.add_scene(
             IconText::new(
                 FeatherIcon::ChevronsRight.id(),
-                MaxCharacters(20),
-                TextValue::new("grep answer | DOCS"),
                 Color::WHITE,
-                Color::GREY,
+                TextLineStructure::new(20, 1),
+                TextValue::new("grep answer | DOCS"),
+                Greyscale::BASE,
             ),
-            ResponsiveSegment::base(
-                2.near().to(5.far()).minimum(300.0).maximum(500.0),
-                4.near().to(4.far()).minimum(40.0).maximum(60.0),
-            ),
-            GlyphColorChanges::new()
+            ResponsiveSegment::base(Segment::new(2.near().to(5.far()), 4.near().to(4.far()))),
+        );
+        view_builder.extend(
+            d.bindings().get(IconTextBindings::Text),
+            TextColorExceptions::blank()
                 .with_range(14, 17, Magenta::MINUS_ONE)
                 .extend(HrefLink::relative(
                     "/foliage/documentation/foliage/index.html",
                 )),
         );
-        elm.add_view_scene_binding(
-            HOME,
+        let e = view_builder.add_scene(
             IconText::new(
                 FeatherIcon::ChevronsRight.id(),
-                MaxCharacters(20),
-                TextValue::new("chmod+x -wasm DEMO"),
                 Color::WHITE,
-                Color::GREY,
+                TextLineStructure::new(20, 1),
+                TextValue::new("chmod+x -wasm DEMO"),
+                Greyscale::BASE,
             ),
-            ResponsiveSegment::base(
-                2.near().to(5.far()).minimum(300.0).maximum(500.0),
-                5.near().to(5.far()).minimum(40.0).maximum(60.0),
-            ),
-            GlyphColorChanges::new()
+            ResponsiveSegment::base(Segment::new(2.near().to(5.far()), 5.near().to(5.far()))),
+        );
+        view_builder.extend(
+            e.bindings().get(IconTextBindings::Text),
+            TextColorExceptions::blank()
                 .with_range(14, 17, FluorescentYellow::MINUS_ONE)
                 .extend(HrefLink::relative("/foliage/demo/index.html")),
         );
+        view_builder.finish()
     }
 }

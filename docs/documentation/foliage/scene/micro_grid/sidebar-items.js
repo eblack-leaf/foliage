@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Align","AlignmentOp","AnchorDim","RelativeMarker"],"struct":["Alignment","AlignmentUnit","MicroGrid","RelativeAlignment"],"trait":["AlignmentDesc"]};
+window.SIDEBAR_ITEMS = {"enum":["Align","AlignmentOp","AnchorDim","RelativeMarker"],"struct":["AlignmentUnit","MicroGrid","MicroGridAlignment","RelativeAlignment"],"trait":["AlignmentDesc"]};

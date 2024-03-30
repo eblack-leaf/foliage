@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["EventStage"],"mod":["config","leaf"],"struct":["BundleExtension","Disabled","ElementStyle","Elm"],"trait":["BundleExtend","Fetch"],"type":["InteractionHandlerFn"]};
+window.SIDEBAR_ITEMS = {"enum":["EventStage"],"mod":["config","leaf"],"struct":["BundleExtension","Disabled","Elm","Style","WebElementRemoval"],"trait":["BundleExtend","Fetch"],"type":["InteractionHandlerFn"]};

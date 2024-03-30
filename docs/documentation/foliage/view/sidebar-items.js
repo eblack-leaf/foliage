@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ConditionExtendTarget"],"struct":["Compositor","Condition","ConditionDesc","ConditionHandle","ConditionSet","Conditional","ConditionalScene","Display","Navigation","Rasterizer","SceneCondition"],"trait":["View"]};
+window.SIDEBAR_ITEMS = {"struct":["Compositor","EntityPool","Navigate","View","ViewBuilder","ViewDescriptor","ViewHandle"],"trait":["Viewable"],"type":["BranchPool","Branches","Create"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["SpawnTarget"],"struct":["Branch","ConditionHandle","ConditionSet","Conditional","ConditionalCommand","ConditionalScene","SceneBranch"]};

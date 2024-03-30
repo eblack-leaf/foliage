@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["trigger"],"trait":["Animate"]};
+window.SIDEBAR_ITEMS = {"enum":["InterpolationMethod"],"mod":["trigger"],"struct":["Animation","Interpolation","InterpolationExtraction"],"trait":["Animate","Interpolate"]};
