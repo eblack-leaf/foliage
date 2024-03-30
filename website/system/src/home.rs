@@ -44,7 +44,10 @@ impl Viewable for Home {
                 Style::fill(),
                 Colors::new(Greyscale::MINUS_THREE, Orange::BASE),
             ),
-            ResponsiveSegment::base(Segment::new(6.near().to(6.far()), 1.near().to(1.far()))),
+            ResponsiveSegment::base(Segment::new(
+                6.near().to(6.far()).fixed(40.0),
+                1.near().to(1.far()).fixed(40.0),
+            )),
         );
         view_builder.extend(
             a.bindings().get(2),
