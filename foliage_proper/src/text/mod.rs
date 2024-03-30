@@ -287,7 +287,13 @@ impl TextValue {
         }
     }
     pub fn new<S: AsRef<str>>(s: S) -> Self {
-        Self(s.as_ref().to_compact_string())
+        Self(
+            s.as_ref()
+                .chars()
+                .filter(|c| !c.is_control())
+                .collect::<String>()
+                .to_compact_string(),
+        )
     }
     pub fn limited<MC: Into<MaxCharacters>>(&self, mc: MC) -> &str {
         let max_chars = mc.into();

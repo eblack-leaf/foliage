@@ -86,6 +86,9 @@ fn input(
                                 InputSequence::CtrlZ => {
                                     // last?
                                 }
+                                InputSequence::CtrlV => {
+                                    // paste
+                                }
                                 InputSequence::Backspace => {
                                     if e.state.is_pressed() {
                                         if selection.spans_multiple() {
@@ -138,6 +141,9 @@ fn input(
                                 }
                                 InputSequence::Delete => {
                                     // delete current space
+                                    if e.state.is_pressed() {
+                                        selection.clear_selection_for(&mut actual.0, *tls);
+                                    }
                                 }
                                 _ => {}
                             }

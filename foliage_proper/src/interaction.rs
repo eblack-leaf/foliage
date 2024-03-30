@@ -94,6 +94,8 @@ impl KeyboardEvent {
                     InputSequence::CtrlX
                 } else if value.contains("c") && self.modifiers.state() == ModifiersState::CONTROL {
                     InputSequence::CtrlC
+                } else if value.contains("v") && self.modifiers.state() == ModifiersState::CONTROL {
+                    InputSequence::CtrlV
                 } else {
                     InputSequence::Character(char.to_compact_string())
                 }
@@ -121,6 +123,7 @@ pub enum InputSequence {
     Delete,
     ArrowLeftShift,
     ArrowRightShift,
+    CtrlV,
 }
 #[derive(Resource, Default)]
 pub struct PrimaryInteraction(pub(crate) Option<InteractionId>);
