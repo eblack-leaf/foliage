@@ -25,7 +25,7 @@ impl Viewable for TextShowcase {
                 TextInputMode::Normal,
                 TextLineStructure::new(15, 2),
                 "".to_string(),
-                Some("username".into()),
+                Some("type here...".into()),
                 Colors::new(Asparagus::BASE, Greyscale::MINUS_THREE)
                     .with_alternate(Greyscale::BASE),
             ),

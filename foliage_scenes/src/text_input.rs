@@ -5,9 +5,10 @@ use foliage_proper::bevy_ecs;
 use foliage_proper::bevy_ecs::bundle::Bundle;
 use foliage_proper::bevy_ecs::entity::Entity;
 use foliage_proper::bevy_ecs::event::EventReader;
-use foliage_proper::bevy_ecs::prelude::{Component, IntoSystemConfigs};
+use foliage_proper::bevy_ecs::prelude::{Component, IntoSystemConfigs, NonSendMut};
 use foliage_proper::bevy_ecs::query::{Changed, Or, With, Without};
 use foliage_proper::bevy_ecs::system::{Query, Res, SystemParamItem};
+use foliage_proper::clipboard::Clipboard;
 use foliage_proper::elm::config::{ElmConfiguration, ExternalSet};
 use foliage_proper::elm::leaf::{Leaf, Tag};
 use foliage_proper::elm::{Elm, Style};
@@ -75,6 +76,7 @@ fn input(
     mut selections: Query<(&mut Selection, &Bindings, &ScenePtr), With<Tag<InteractiveText>>>,
     listeners: Query<&InteractionListener>,
     time: Res<Time>,
+    mut clipboard: NonSendMut<Clipboard>,
 ) {
     for (mut selection, it_bindings, ptr) in selections.iter_mut() {
         let interactive_text = it_bindings.get(InteractiveTextBindings::Text);
@@ -98,9 +100,16 @@ fn input(
                             match e.sequence() {
                                 InputSequence::CtrlX => {
                                     // remove selection + copy to clipboard
+                                    if e.state.is_pressed() {
+                                        clipboard.write(selection.substring(&actual.0).to_string());
+                                        selection.clear_selection_for(&mut actual.0, *tls);
+                                    }
                                 }
                                 InputSequence::CtrlC => {
                                     // copy to clipboard
+                                    if e.state.is_pressed() {
+                                        clipboard.write(selection.substring(&actual.0).to_string());
+                                    }
                                 }
                                 InputSequence::CtrlA => {
                                     // select all
@@ -116,6 +125,13 @@ fn input(
                                 }
                                 InputSequence::CtrlV => {
                                     // paste
+                                    if e.state.is_pressed() {
+                                        selection.insert_chars(
+                                            &mut actual.0,
+                                            &clipboard.read().to_compact_string(),
+                                            tls,
+                                        );
+                                    }
                                 }
                                 InputSequence::Backspace => {
                                     if e.state.is_pressed() {

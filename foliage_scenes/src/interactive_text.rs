@@ -330,8 +330,12 @@ impl Scene for InteractiveText {
 
     fn config(entity: Entity, ext: &mut SystemParamItem<Self::Params>, bindings: &Bindings) {
         let text = bindings.get(0);
-        if let Ok((_fc, bc, ls, tv, sel)) = ext.0.get(entity) {
+        if let Ok((fc, bc, ls, tv, sel)) = ext.0.get(entity) {
             let mut color_changes = TextColorExceptions::blank();
+            *ext.1
+                .get_mut(bindings.get(InteractiveTextBindings::Text))
+                .unwrap()
+                .3 = fc.0;
             for i in 1..=ls.max_chars().0 {
                 *ext.1.get_mut(bindings.get(i as i32)).unwrap().3.alpha_mut() = 0.0;
             }

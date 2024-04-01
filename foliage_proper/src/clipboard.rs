@@ -29,14 +29,41 @@ impl Clipboard {
             handle: if handle.is_some() { Some(()) } else { None },
         }
     }
+    pub fn read(&mut self) -> String {
+        if self.handle.is_none() {
+            return String::default();
+        }
+        #[cfg(target_family = "wasm")]
+        {
+            // TODO "move this to system-message"? cant get value
+            // TODO back from future if put in spawn_local
+            // TODO also window() + navigator() not in web-worker?
+            return String::default();
+        }
+        #[cfg(not(target_family = "wasm"))]
+        return self
+            .handle
+            .as_mut()
+            .unwrap()
+            .get_contents()
+            .unwrap_or_default();
+    }
     pub fn write(&mut self, data: String) {
         if self.handle.is_none() {
             return;
         }
         #[cfg(target_family = "wasm")]
-        if let Some(h) = web_sys::window().expect("window").navigator().clipboard() {
-            // TODO handle promise
-            let _promise = h.write_text(data.as_str());
+        {
+            // TODO may not work as in separate web-worker? can access clipboard to write to?
+            wasm_bindgen_futures::spawn_local(async move {
+                if let Some(h) = web_sys::window().expect("window").navigator().clipboard() {
+                    let _promise = h.write_text(data.as_str());
+                    wasm_bindgen_futures::JsFuture::from(_promise)
+                        .await
+                        .expect("clipboard-error");
+                    return;
+                }
+            });
         }
         #[cfg(not(target_family = "wasm"))]
         if let Some(h) = self.handle.as_mut() {
