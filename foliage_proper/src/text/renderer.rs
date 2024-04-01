@@ -302,9 +302,6 @@ impl Render for Text {
                         .to_numerical(),
                 );
                 package.package_data.block = block;
-                for key in package.package_data.atlas.entries().keys() {
-                    to_rasterize.insert(*key);
-                }
             }
         }
         let grown = package.package_data.atlas.would_grow(new_glyph_count);
@@ -317,6 +314,7 @@ impl Render for Text {
                 package.package_data.instance_coordinator.queue_write(a, b);
             }
         }
+
         if let Some(changes) = glyph_changes.as_mut() {
             for (key, glyph) in changes.added.drain() {
                 match glyph {

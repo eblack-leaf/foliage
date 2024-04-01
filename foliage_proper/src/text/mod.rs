@@ -450,7 +450,6 @@ fn place_text(
         ),
         Or<(
             Changed<TextValue>,
-            Changed<MaxCharacters>,
             Changed<TextLineStructure>,
             Changed<Area<InterfaceContext>>,
         )>,
@@ -526,7 +525,9 @@ fn distill_changes(
             }
         }
         for (tk, g) in cached.0.drain() {
-            changes.removed.insert(tk, g);
+            if !placement.0.contains_key(&tk) {
+                changes.removed.insert(tk, g);
+            }
         }
         cached.0 = placement.0.clone();
     }

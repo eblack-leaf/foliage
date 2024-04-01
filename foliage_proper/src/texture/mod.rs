@@ -21,7 +21,7 @@ pub mod fixed;
 #[derive(Hash, Eq, PartialEq, Copy, Clone, Ord, PartialOrd, Debug)]
 pub struct TextureAtlasLocation(pub u32, pub u32);
 impl TextureAtlasLocation {
-    pub const PADDING: f32 = 2.0;
+    pub const PADDING: f32 = 8.0;
     pub fn position(&self, block: AtlasBlock) -> Position<NumericalContext> {
         (
             self.0 as f32 * (block.0.width + Self::PADDING),
