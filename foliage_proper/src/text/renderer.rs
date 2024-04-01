@@ -305,7 +305,7 @@ impl Render for Text {
             }
         }
         let grown = package.package_data.atlas.would_grow(new_glyph_count);
-        if grown {
+        if grown || font_size_changed {
             for (a, b) in package.package_data.atlas.grow_by(
                 new_glyph_count,
                 ginkgo,
