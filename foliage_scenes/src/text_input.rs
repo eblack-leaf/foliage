@@ -20,6 +20,7 @@ use foliage_proper::scene::micro_grid::{
 };
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle, ScenePtr};
 use foliage_proper::text::{MaxCharacters, TextLineLocation, TextLineStructure, TextValue};
+use foliage_proper::time::{Time, TimeDelta};
 
 use crate::interactive_text::{InteractiveText, InteractiveTextBindings, Selection};
 use crate::{AlternateColor, BackgroundColor, Colors, ForegroundColor};
@@ -49,18 +50,40 @@ impl TextInput {
         }
     }
 }
+#[derive(Component, Clone)]
+pub(crate) struct TextInputController {
+    pub(crate) backspace_held: bool,
+    pub(crate) backspace_time_hold: TimeDelta,
+}
+impl TextInputController {
+    pub(crate) fn new() -> Self {
+        Self {
+            backspace_held: false,
+            backspace_time_hold: Default::default(),
+        }
+    }
+    pub(crate) const INPUT_TIME_LIMITER: TimeDelta = TimeDelta::from_millis(84);
+}
 fn input(
     mut keyboards: EventReader<KeyboardEvent>,
-    mut text_inputs: Query<(&mut ActualText, &TextLineStructure)>,
+    mut text_inputs: Query<(
+        &mut ActualText,
+        &TextLineStructure,
+        &mut TextInputController,
+    )>,
     focused_entity: Res<FocusedEntity>,
     mut selections: Query<(&mut Selection, &Bindings, &ScenePtr), With<Tag<InteractiveText>>>,
     listeners: Query<&InteractionListener>,
+    time: Res<Time>,
 ) {
     for (mut selection, it_bindings, ptr) in selections.iter_mut() {
         let interactive_text = it_bindings.get(InteractiveTextBindings::Text);
-        if let Ok((mut actual, tls)) = text_inputs.get_mut(ptr.value()) {
-            if listeners.get(interactive_text).unwrap().lost_focus() && actual.0.is_empty() {
-                trigger_config(&mut actual);
+        if let Ok((mut actual, tls, mut controller)) = text_inputs.get_mut(ptr.value()) {
+            if listeners.get(interactive_text).unwrap().lost_focus() {
+                if actual.0.is_empty() {
+                    trigger_config(&mut actual);
+                }
+                controller.backspace_held = false;
             }
             if let Some(e) = focused_entity.0 {
                 if e == interactive_text {
@@ -81,9 +104,12 @@ fn input(
                                 }
                                 InputSequence::CtrlA => {
                                     // select all
-                                    println!("ctl-a");
-                                    selection.start.replace(TextLineLocation::raw(0, 0));
-                                    selection.end.replace(tls.last());
+                                    if e.state.is_pressed() {
+                                        tracing::trace!("ctl-a");
+                                        selection.start.replace(TextLineLocation::raw(0, 0));
+                                        selection.end.replace(tls.last());
+                                        selection.derive_span(*tls);
+                                    }
                                 }
                                 InputSequence::CtrlZ => {
                                     // last?
@@ -93,14 +119,12 @@ fn input(
                                 }
                                 InputSequence::Backspace => {
                                     if e.state.is_pressed() {
-                                        if selection.spans_multiple() {
-                                            selection.clear_selection_for(&mut actual.0, *tls);
-                                        } else {
-                                            // delete preceding char
-                                            selection.move_cursor(*tls, -1);
-                                            selection.clear_selection_for(&mut actual.0, *tls);
-                                        }
-                                        // selection.move_cursor(*tls, -1);
+                                        controller.backspace_held = true;
+                                        controller.backspace_time_hold =
+                                            TextInputController::INPUT_TIME_LIMITER;
+                                        backspace_logic(&mut selection, &mut actual, tls);
+                                    } else {
+                                        controller.backspace_held = false;
                                     }
                                 }
                                 InputSequence::Enter => {
@@ -150,10 +174,36 @@ fn input(
                                 _ => {}
                             }
                         }
+                        if controller.backspace_held {
+                            controller.backspace_time_hold = controller
+                                .backspace_time_hold
+                                .checked_sub(time.frame_diff())
+                                .unwrap_or_default();
+                            if controller.backspace_time_hold.is_zero() {
+                                backspace_logic(&mut selection, &mut actual, tls);
+                                controller.backspace_time_hold =
+                                    TextInputController::INPUT_TIME_LIMITER;
+                            }
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+fn backspace_logic(selection: &mut Selection, actual: &mut ActualText, tls: &TextLineStructure) {
+    if selection.spans_multiple() {
+        selection.clear_selection_for(&mut actual.0, *tls);
+    } else {
+        // delete preceding char
+        if let Some(s) = selection.start {
+            if s == TextLineLocation::default() {
+                return;
+            }
+        }
+        selection.move_cursor(*tls, -1);
+        selection.clear_selection_for(&mut actual.0, *tls);
     }
 }
 
@@ -188,6 +238,7 @@ pub struct TextInputComponents {
     pub colors: Colors,
     pub mode: TextInputMode,
     pub hint_text: HintText,
+    controller: TextInputController,
 }
 #[derive(InnerSceneBinding)]
 pub enum TextInputBindings {
@@ -306,6 +357,7 @@ impl Scene for TextInput {
                 colors: self.colors,
                 mode: self.mode,
                 hint_text: HintText(self.hint_text.unwrap_or_default().to_compact_string()),
+                controller: TextInputController::new(),
             },
         ))
     }
