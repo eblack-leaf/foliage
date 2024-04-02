@@ -1,7 +1,9 @@
+use crate::animate::trigger::Trigger;
 use crate::time::timer::TIME_SKIP_RESISTANCE;
 use crate::time::{Time, TimeDelta};
 use bevy_ecs::prelude::{Component, Entity};
 use bevy_ecs::system::{Commands, Query, Res};
+use std::collections::HashSet;
 
 pub mod trigger;
 
@@ -94,6 +96,7 @@ pub struct Animation<I: Interpolate> {
     duration: TimeDelta,
     target: AnimateTarget,
     interpolator: Interpolator,
+    on_end: HashSet<Entity>,
 }
 impl<I: Interpolate> Animation<I> {
     fn new(
@@ -111,7 +114,12 @@ impl<I: Interpolate> Animation<I> {
             duration,
             target: AnimateTarget(target),
             interpolator: Interpolator::new(interpolation_method, duration),
+            on_end: HashSet::new(),
         }
+    }
+    pub fn with_on_end(mut self, entity: Entity) -> Self {
+        self.on_end.insert(entity);
+        self
     }
 }
 pub(crate) fn apply<I: Interpolate>(
@@ -175,6 +183,9 @@ pub(crate) fn apply<I: Interpolate>(
         if all_done {
             // end anim and not already done from orphaned?
             tracing::trace!("animation done: {:?}", entity);
+            for trigger in animation.on_end.iter() {
+                cmd.entity(*trigger).insert(Trigger::active());
+            }
             cmd.entity(entity).remove::<Animation<I>>();
         }
     }
