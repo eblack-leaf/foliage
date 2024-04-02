@@ -25,8 +25,8 @@ use foliage_proper::scene::micro_grid::{
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
 use foliage_proper::text::font::MonospacedFont;
 use foliage_proper::text::{
-    CharacterDimension, Text, TextColorExceptions, TextLineLocation, TextLineStructure, TextOffset,
-    TextValue,
+    CharacterDimension, MaxCharacters, Text, TextColorExceptions, TextLineLocation,
+    TextLineStructure, TextOffset, TextValue,
 };
 use foliage_proper::texture::factors::Progress;
 use foliage_proper::window::ScaleFactor;
@@ -364,8 +364,8 @@ impl Scene for InteractiveText {
                 1.percent_of(AnchorDim::Height),
             ),
             Text::new(
-                self.text_value.clone(),
                 self.line_structure,
+                self.text_value.clone(),
                 self.colors.foreground.0,
             ),
         );
@@ -377,7 +377,11 @@ impl Scene for InteractiveText {
                 Rectangle::new(self.colors.foreground.0.with_alpha(0.0), Progress::full()),
             );
         }
+        let determinant: MaxCharacters = self.line_structure.per_line.into();
         binder.finish::<Self>(SceneComponents::new(
+            // MicroGrid::new().aspect_ratio(
+            //     determinant.mono_aspect().value() * 1.25 / self.line_structure.lines as f32,
+            // ),
             MicroGrid::new(),
             InteractiveTextComponents {
                 selection: Selection::default(),

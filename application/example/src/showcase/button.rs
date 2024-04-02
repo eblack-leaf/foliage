@@ -105,8 +105,8 @@ impl<T: Scene> Procedure for ButtonDisplay<T> {
         );
         view_builder.add(
             Text::new(
-                TextValue::new(self.desc),
                 TextLineStructure::new(11, 1),
+                TextValue::new(self.desc),
                 Orange::MINUS_THREE,
             ),
             ResponsiveSegment::base(Segment::new(

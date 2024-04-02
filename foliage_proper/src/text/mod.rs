@@ -51,8 +51,8 @@ impl Text {
     }
     pub const DEFAULT_OPT_SCALE: u32 = 40;
     pub fn new<S: Into<TextValue>, TLS: Into<TextLineStructure>, C: Into<Color>>(
-        s: S,
         tls: TLS,
+        s: S,
         c: C,
     ) -> Self {
         let lines = tls.into();
@@ -477,12 +477,12 @@ fn place_text(
         *font_size = metrics.font_size;
         *dims = metrics.character_dimensions;
         let aligned_area = metrics.area; // TODO make fit bounds better
-        if aligned_area < *area {
-            let diff = (*area - aligned_area) / Area::new(2.0, 2.0);
-            let o = Position::new(diff.width, diff.height);
-            offset.0 = o;
-            *pos = *pos + o;
-        }
+                                         // if aligned_area < *area {
+                                         //     let diff = (*area - aligned_area) / Area::new(2.0, 2.0);
+                                         //     let o = Position::new(diff.width, diff.height);
+                                         //     offset.0 = o;
+                                         //     *pos = *pos + o;
+                                         // }
         *area = aligned_area;
         tool.configure(*area);
         let limited = value.limited(*mc);

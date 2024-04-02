@@ -175,8 +175,8 @@ impl Scene for IconText {
                 1.percent_of(AnchorDim::Height),
             ),
             Text::new(
-                self.text_value.clone(),
                 TextLineStructure::new(self.text_line_structure.per_line, 1),
+                self.text_value.clone(),
                 self.text_color,
             ),
         );

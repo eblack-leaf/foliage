@@ -138,8 +138,8 @@ impl Scene for NotificationBar {
                 0.5.percent_of(AnchorDim::Height),
             ),
             Text::new(
-                TextValue::new(""),
                 TextLineStructure::new(30, 2),
+                TextValue::new(""),
                 self.colors.foreground.0,
             ),
         );

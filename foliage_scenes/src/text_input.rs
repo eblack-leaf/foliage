@@ -347,8 +347,8 @@ impl Scene for TextInput {
         binder.bind_scene(
             TextInputBindings::Text,
             MicroGridAlignment::new(
-                0.percent_from(RelativeMarker::Center),
-                0.percent_from(RelativeMarker::Center),
+                4.0.fixed_from(RelativeMarker::Left),
+                4.0.fixed_from(RelativeMarker::Top),
                 0.9.percent_of(AnchorDim::Width),
                 0.9.percent_of(AnchorDim::Height),
             )
@@ -365,8 +365,9 @@ impl Scene for TextInput {
         let determinant: MaxCharacters = self.line_structure.per_line.into();
         binder.finish::<Self>(SceneComponents::new(
             MicroGrid::new().aspect_ratio(
-                determinant.mono_aspect().value() * 1.0 / self.line_structure.lines as f32,
+                determinant.mono_aspect().value() * 1.05 / self.line_structure.lines as f32,
             ),
+            // MicroGrid::new(),
             TextInputComponents {
                 actual,
                 max_chars: self.line_structure,

@@ -125,8 +125,8 @@ impl Scene for TextButton {
                 0.8.percent_of(AnchorDim::Height),
             ),
             Text::new(
-                self.text_value.clone(),
                 adjusted_lines,
+                self.text_value.clone(),
                 self.colors.background.0,
             ),
         );
