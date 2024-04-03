@@ -55,7 +55,7 @@ pub mod clipboard;
 pub mod color;
 pub mod conditional;
 pub mod coordinate;
-mod derivation;
+pub mod derivation;
 pub mod differential;
 pub mod elm;
 pub mod ginkgo;

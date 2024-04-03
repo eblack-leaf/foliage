@@ -45,7 +45,7 @@ pub struct Text {
     differentiable: Differentiable,
 }
 impl Text {
-    pub const MONOSPACED_ASPECT: f32 = 0.45;
+    pub const MONOSPACED_ASPECT: f32 = 0.467;
     pub fn aspect_ratio_for<MC: Into<MaxCharacters>>(mc: MC) -> AspectRatio {
         mc.into().mono_aspect()
     }
@@ -188,7 +188,7 @@ impl TextLineLocation {
 pub struct TextOffset(pub Position<InterfaceContext>);
 #[derive(Component, Clone, Default)]
 pub struct TextLinePlacement(pub HashMap<TextLineLocation, TextKey>);
-#[derive(Component, Copy, Clone)]
+#[derive(Component, Copy, Clone, Debug)]
 pub struct CharacterDimension(pub(crate) Area<InterfaceContext>);
 impl CharacterDimension {
     pub fn new<A: Into<Area<InterfaceContext>>>(a: A) -> Self {

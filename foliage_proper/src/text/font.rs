@@ -75,8 +75,13 @@ impl MonospacedFont {
             && calc_area.width <= extent.width
             && font_size.0 < Self::MAX_CHECKED_FONT_SIZE
         {
+            let projected = font_size.0 + 1;
+            let area_metrics =
+                Self::area_metrics(FontSize(projected), per_line, self, scale_factor);
+            if area_metrics.0 > extent {
+                break;
+            }
             font_size.0 += 1;
-            let area_metrics = Self::area_metrics(font_size, per_line, self, scale_factor);
             calc_area = area_metrics.0;
             dims = area_metrics.1;
         }
@@ -90,5 +95,13 @@ fn chars() {
     for px in 13..200 {
         let dims = mono.character_dimensions(px as CoordinateUnit);
         println!("dims for {:?}: {:?}", px, dims);
+    }
+}
+#[test]
+fn best_fitting() {
+    let font = MonospacedFont::new(40);
+    for x in 0..100 {
+        let fit = font.best_fit(x, Area::new(300.0, 100.0), &ScaleFactor::new(2.0));
+        println!("per_line: {:?} {:?}, {}, {}", x, fit.0, fit.1, fit.2 .0);
     }
 }

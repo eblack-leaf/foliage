@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use std::marker::PhantomData;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub};
 
@@ -15,7 +16,11 @@ pub struct Area<Context: CoordinateContext> {
     pub height: CoordinateUnit,
     _phantom: PhantomData<Context>,
 }
-
+impl<Context: CoordinateContext> Display for Area<Context> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("Area: w:{} h:{}", self.width, self.height))
+    }
+}
 impl<Context: CoordinateContext> Area<Context> {
     pub fn min_bound<A: Into<Self>>(&self, bounds: A) -> Self {
         let b = bounds.into();
