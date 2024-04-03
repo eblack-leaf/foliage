@@ -11,8 +11,10 @@ impl Viewable for ImageShowcase {
     fn view(mut view_builder: ViewBuilder) -> ViewDescriptor {
         view_builder.add(
             Image::new(ImageId(0)),
-            ResponsiveSegment::base(Segment::new(2.near().to(6.far()), 2.near().to(5.far())))
-                .at_layer(5),
+            ResponsiveSegment::base(
+                Segment::new(2.near().to(6.far()), 2.near().to(5.far())).with_aspect(651.0 / 454.0),
+            )
+            .at_layer(5),
         );
         view_builder.finish()
     }

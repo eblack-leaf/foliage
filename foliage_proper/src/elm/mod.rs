@@ -5,7 +5,7 @@ use anymap::AnyMap;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::{event_update_system, Event, Events};
-use bevy_ecs::prelude::{Component, IntoSystemConfigs};
+use bevy_ecs::prelude::{Component, IntoSystemConfigs, Resource};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Command, Commands, Query, RunSystemOnce, StaticSystemParam, SystemParam};
 use bytemuck::{Pod, Zeroable};
@@ -27,6 +27,7 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, InterfaceContext};
+use crate::derivation::{component_derive_value, resource_derive_value};
 use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::interaction::InteractionListener;
@@ -70,6 +71,18 @@ struct AnimationLimiter<C>(PhantomData<C>);
 impl<C> Default for AnimationLimiter<C> {
     fn default() -> Self {
         AnimationLimiter(PhantomData)
+    }
+}
+struct ComponentDerivationLimiter<C, D>(PhantomData<C>, PhantomData<D>);
+impl<C, D> Default for ComponentDerivationLimiter<C, D> {
+    fn default() -> Self {
+        ComponentDerivationLimiter(PhantomData, PhantomData)
+    }
+}
+struct ResourceDerivationLimiter<C, D>(PhantomData<C>, PhantomData<D>);
+impl<C, D> Default for ResourceDerivationLimiter<C, D> {
+    fn default() -> Self {
+        ResourceDerivationLimiter(PhantomData, PhantomData)
     }
 }
 #[derive(Bundle, Clone)]
@@ -318,6 +331,36 @@ impl Elm {
             tracing::trace!("enabling-conditional-command:{:?}", ());
             self.main()
                 .add_systems(conditional_command::<COMM>.in_set(CoreSet::ProcessEvent));
+        }
+    }
+    pub fn enable_component_derivation<
+        I: Into<D> + Component + Clone,
+        D: Component + 'static + Send + Sync,
+    >(
+        &mut self,
+    ) {
+        if self
+            .limiters
+            .insert::<ComponentDerivationLimiter<I, D>>(ComponentDerivationLimiter::default())
+            .is_none()
+        {
+            self.main()
+                .add_systems(component_derive_value::<I, D>.in_set(CoreSet::ProcessEvent));
+        }
+    }
+    pub fn enable_resource_derivation<
+        R: Into<V> + Resource + Clone,
+        V: Component + 'static + Send + Sync,
+    >(
+        &mut self,
+    ) {
+        if self
+            .limiters
+            .insert::<ResourceDerivationLimiter<R, V>>(ResourceDerivationLimiter::default())
+            .is_none()
+        {
+            self.main()
+                .add_systems(resource_derive_value::<R, V>.in_set(CoreSet::ProcessEvent));
         }
     }
     pub fn navigate_to<VH: Into<ViewHandle>>(&mut self, vh: VH) {
