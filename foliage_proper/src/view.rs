@@ -233,6 +233,7 @@ fn navigation(
                 cmd.entity(b.1.this()).insert(Trigger::inverse());
             }
             for e in old.pool.0 {
+                println!("deleting from pool:{:?}", e);
                 cmd.entity(e).insert(Despawn::signal_despawn());
             }
         }

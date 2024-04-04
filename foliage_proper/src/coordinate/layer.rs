@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use std::ops::{Add, Sub};
 
 use crate::CoordinateUnit;
@@ -24,7 +25,11 @@ use serde::{Deserialize, Serialize};
 pub struct Layer {
     pub z: CoordinateUnit,
 }
-
+impl Display for Layer {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("Layer | z:{}", self.z))
+    }
+}
 impl Layer {
     pub const fn new(z: CoordinateUnit) -> Self {
         Self { z }

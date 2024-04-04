@@ -260,11 +260,8 @@ fn update_selection(
                 sel.end.take();
                 sel.span.take();
             }
-            let current = TextLineLocation::new(
-                listener.interaction.current - *pos - offset.0,
-                d.dimensions(),
-            );
-            println!("projected-current:{:?}", current);
+            let current =
+                TextLineLocation::new(listener.interaction.current - *pos, d.dimensions());
             if listener.engaged_start() {
                 println!("current-interaction:{:?}", current);
                 if tv.0.is_empty() {
@@ -371,6 +368,7 @@ impl Scene for InteractiveText {
                 self.colors.foreground.0,
             ),
         );
+        println!("text-handle: {:?}", text);
         binder.extend(text, InteractionListener::default());
         for letter in 0..self.line_structure.max_chars().0 {
             binder.bind(
@@ -379,6 +377,16 @@ impl Scene for InteractiveText {
                 Rectangle::new(self.colors.foreground.0.with_alpha(0.0), Progress::full()),
             );
         }
+        // binder.bind(
+        //     3000,
+        //     MicroGridAlignment::new(
+        //         0.percent_from(RelativeMarker::Center),
+        //         0.percent_from(RelativeMarker::Center),
+        //         1.percent_of(AnchorDim::Width),
+        //         1.percent_of(AnchorDim::Height),
+        //     ),
+        //     Rectangle::new(Color::WHITE, Progress::full())
+        // );
         // let determinant: MaxCharacters = self.line_structure.per_line.into();
         binder.finish::<Self>(SceneComponents::new(
             // MicroGrid::new().aspect_ratio(

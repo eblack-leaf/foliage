@@ -18,7 +18,7 @@ pub struct Area<Context: CoordinateContext> {
 }
 impl<Context: CoordinateContext> Display for Area<Context> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("Area: w:{} h:{}", self.width, self.height))
+        f.write_fmt(format_args!("Area | w:{} h:{}", self.width, self.height))
     }
 }
 impl<Context: CoordinateContext> Area<Context> {

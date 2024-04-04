@@ -5,13 +5,18 @@ use crate::coordinate::{
 };
 use bevy_ecs::bundle::Bundle;
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 
 #[derive(Bundle, Copy, Clone, PartialOrd, PartialEq, Default, Serialize, Deserialize, Debug)]
 pub struct Section<Context: CoordinateContext> {
     pub position: Position<Context>,
     pub area: Area<Context>,
 }
-
+impl<Context: CoordinateContext> Display for Section<Context> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("Section | {}, {}", self.position, self.area))
+    }
+}
 impl<Context: CoordinateContext> Section<Context> {
     pub fn new<P: Into<Position<Context>>, A: Into<Area<Context>>>(position: P, area: A) -> Self {
         Self {

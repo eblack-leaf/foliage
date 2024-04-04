@@ -160,7 +160,7 @@ impl Scene for Button {
             ),
             self.icon_text,
         );
-        binder.bind(
+        let interacter = binder.bind(
             ButtonBindings::Interaction,
             MicroGridAlignment::new(
                 0.fixed_from(RelativeMarker::Left),
@@ -172,6 +172,7 @@ impl Scene for Button {
                 .extend(InteractionListener::default())
                 .extend(Tag::<ButtonInteractionHook>::new()),
         );
+        println!("interacter:{:?}", interacter);
         binder.finish::<Self>(SceneComponents::new(
             MicroGrid::new().min_height(24.0).min_width(30.0 * aspect),
             ButtonComponents::new(self.element_style, self.colors),

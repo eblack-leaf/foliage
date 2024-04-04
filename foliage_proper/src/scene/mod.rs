@@ -347,6 +347,8 @@ impl ScenePtr {
 #[derive(Bundle, Copy, Clone, Default)]
 pub struct BlankNode {
     coordinate: Coordinate<InterfaceContext>,
+    despawn: Despawn,
+    disabled: Disabled,
 }
 impl Scene for BlankNode {
     type Params = ();
@@ -483,11 +485,7 @@ pub(crate) fn recursive_bindings(
     root: Entity,
     query: &Query<
         (Option<&Bindings>, &Despawn, &Disabled),
-        Or<(
-            With<Tag<IsScene>>,
-            With<Tag<IsDep>>,
-            Or<(Changed<Despawn>, Changed<Disabled>)>,
-        )>,
+        Or<(With<Tag<IsScene>>, With<Tag<IsDep>>)>,
     >,
 ) -> HashSet<Entity> {
     let mut dependents = HashSet::new();
@@ -512,6 +510,7 @@ pub(crate) fn despawn_bindings(
             )>,
         >,
         Query<(&mut Despawn, &mut Disabled)>,
+        Query<(Option<&Bindings>, &Despawn, &Disabled), Or<(With<Tag<IsScene>>, With<Tag<IsDep>>)>>,
     )>,
 ) {
     let mut to_despawn = HashSet::new();
@@ -524,29 +523,30 @@ pub(crate) fn despawn_bindings(
                     to_despawn.insert(b.1.entity);
                 }
             }
-        }
-        if disable.is_disabled() {
-            if let Some(binds) = bindings {
-                for b in binds.0.iter() {
-                    to_disable.insert(b.1.entity);
+        } else {
+            if disable.is_disabled() {
+                if let Some(binds) = bindings {
+                    for b in binds.0.iter() {
+                        to_disable.insert(b.1.entity);
+                    }
                 }
-            }
-        } else if let Some(binds) = bindings {
-            for b in binds.0.iter() {
-                to_enable.insert(b.1.entity);
+            } else if let Some(binds) = bindings {
+                for b in binds.0.iter() {
+                    to_enable.insert(b.1.entity);
+                }
             }
         }
     }
     for e in to_despawn.clone() {
-        let entities = recursive_bindings(e, &changed.p0());
+        let entities = recursive_bindings(e, &changed.p2());
         to_despawn.extend(entities);
     }
     for e in to_disable.clone() {
-        let entities = recursive_bindings(e, &changed.p0());
+        let entities = recursive_bindings(e, &changed.p2());
         to_disable.extend(entities);
     }
     for e in to_enable.clone() {
-        let entities = recursive_bindings(e, &changed.p0());
+        let entities = recursive_bindings(e, &changed.p2());
         to_enable.extend(entities);
     }
     for e in to_despawn {

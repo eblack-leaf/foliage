@@ -5,6 +5,7 @@ use crate::coordinate::{
 use bevy_ecs::prelude::Component;
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 use std::marker::PhantomData;
 use std::ops::{Add, AddAssign, Div, Sub};
 
@@ -14,7 +15,11 @@ pub struct Position<Context: CoordinateContext> {
     pub y: CoordinateUnit,
     _phantom: PhantomData<Context>,
 }
-
+impl<Context: CoordinateContext> Display for Position<Context> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("Pos | x:{} y:{}", self.x, self.y))
+    }
+}
 impl<Context: CoordinateContext> Position<Context> {
     pub fn new(x: CoordinateUnit, y: CoordinateUnit) -> Self {
         Self {

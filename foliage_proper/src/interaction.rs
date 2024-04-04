@@ -387,10 +387,18 @@ pub fn set_interaction_listeners(
             for (entity, listener, pos, area, layer) in listeners.iter_mut() {
                 let section = Section::new(*pos, *area);
                 if listener.shape(section).contains(position) {
+                    tracing::trace!(
+                        "contained-interaction w/: {:?}, {}, {}",
+                        entity,
+                        section,
+                        layer
+                    );
                     if grabbed.is_none() {
+                        tracing::trace!("setting-grabbed-interaction:{:?}", entity);
                         grabbed.replace((entity, *layer));
                     }
-                    if grabbed.unwrap().1 >= *layer {
+                    if grabbed.unwrap().1 > *layer {
+                        tracing::trace!("setting-grabbed-interaction:{:?}", entity);
                         grabbed.replace((entity, *layer));
                     }
                 }
@@ -422,7 +430,7 @@ pub fn set_interaction_listeners(
                 InteractionPhase::Moved => {
                     if let Some(prime) = primary_entity.0 {
                         if let Ok((_, mut listener, _, _, _)) = listeners.get_mut(prime) {
-                            tracing::trace!("updating prime-current: {:?}-@-{:?}", prime, position);
+                            tracing::trace!("updating prime-current: {:?}-@-{}", prime, position);
                             listener.interaction.current = position;
                         } else {
                             primary.0.take();
@@ -448,7 +456,7 @@ pub fn set_interaction_listeners(
                                 }
                                 listener.active = true;
                             }
-                            tracing::trace!("ending prime: {:?}-@-{:?}", prime, position);
+                            tracing::trace!("ending prime: {:?}-@-{}", prime, position);
                             listener.engaged = false;
                             listener.engaged_end = true;
                         } else {

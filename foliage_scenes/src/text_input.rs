@@ -349,8 +349,8 @@ impl Scene for TextInput {
             MicroGridAlignment::new(
                 4.0.fixed_from(RelativeMarker::Left),
                 4.0.fixed_from(RelativeMarker::Top),
-                0.9.percent_of(AnchorDim::Width),
-                0.9.percent_of(AnchorDim::Height),
+                1.percent_of(AnchorDim::Width),
+                1.percent_of(AnchorDim::Height),
             )
             .offset_layer(1),
             InteractiveText::new(
