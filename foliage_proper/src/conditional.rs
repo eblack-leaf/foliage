@@ -83,7 +83,7 @@ impl ConditionHandle {
     pub fn target(&self) -> Entity {
         self.target
     }
-    pub(crate) fn new(this: Entity, target: Entity) -> Self {
+    pub fn new(this: Entity, target: Entity) -> Self {
         Self { this, target }
     }
 }
