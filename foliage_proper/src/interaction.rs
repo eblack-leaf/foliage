@@ -1,3 +1,4 @@
+use crate::animate::trigger::Trigger;
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
@@ -8,6 +9,7 @@ use crate::elm::leaf::{EmptySetDescriptor, Leaf};
 use crate::elm::{Elm, EventStage};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::window::ScaleFactor;
+use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
 use bevy_ecs::event::{Event, EventReader};
 use bevy_ecs::prelude::{DetectChanges, Entity, IntoSystemConfigs};
@@ -37,7 +39,7 @@ impl Leaf for Interaction {
             .container
             .insert_resource(KeyboardAdapter::default());
         elm.main().add_systems((
-            (set_interaction_listeners, clear_non_primary)
+            (set_interaction_listeners, clear_non_primary, on_interaction)
                 .chain()
                 .in_set(CoreSet::Interaction),
             clear_active.after(ExternalSet::Configure),
@@ -319,6 +321,57 @@ impl InteractionShapeActualized {
             }
         }
     }
+}
+#[derive(Bundle, Clone, Copy)]
+pub struct InteractionStateTrigger {
+    pub state: InteractionState,
+    pub trigger: Trigger,
+}
+impl InteractionStateTrigger {
+    pub fn new(state: InteractionState) -> Self {
+        Self {
+            state,
+            trigger: Trigger::default(),
+        }
+    }
+}
+fn on_interaction(
+    mut interactives: Query<
+        (&InteractionListener, &InteractionState, &mut Trigger),
+        Changed<InteractionListener>,
+    >,
+) {
+    for (listener, state, mut trigger) in interactives.iter_mut() {
+        match state {
+            InteractionState::Active => {
+                if listener.active() {
+                    *trigger = Trigger::active();
+                }
+            }
+            InteractionState::EngagedStart => {
+                if listener.engaged_start() {
+                    *trigger = Trigger::active();
+                }
+            }
+            InteractionState::Engaged => {
+                if listener.engaged() {
+                    *trigger = Trigger::active();
+                }
+            }
+            InteractionState::EngagedEnd => {
+                if listener.engaged_end() {
+                    *trigger = Trigger::active();
+                }
+            }
+        }
+    }
+}
+#[derive(Copy, Clone, Component)]
+pub enum InteractionState {
+    Active,
+    EngagedStart,
+    Engaged,
+    EngagedEnd,
 }
 fn clear_active(mut active: Query<&mut InteractionListener, Changed<InteractionListener>>) {
     for mut e in active.iter_mut() {
