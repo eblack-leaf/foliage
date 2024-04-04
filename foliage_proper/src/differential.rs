@@ -250,9 +250,6 @@ impl Despawn {
 pub(crate) fn despawn(despawned: Query<(Entity, &Despawn), Changed<Despawn>>, mut cmd: Commands) {
     for (entity, despawn) in despawned.iter() {
         if despawn.is_despawned() {
-            if true {
-                println!("deleting: {:?}", entity);
-            }
             tracing::trace!("cleaning-up despawn-signaled: {:?}", entity);
             cmd.entity(entity).despawn();
         }

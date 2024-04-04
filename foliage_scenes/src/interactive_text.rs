@@ -263,7 +263,6 @@ fn update_selection(
             let current =
                 TextLineLocation::new(listener.interaction.current - *pos, d.dimensions());
             if listener.engaged_start() {
-                println!("current-interaction:{:?}", current);
                 if tv.0.is_empty() {
                     sel.start.replace(TextLineLocation::raw(0, 0));
                 } else {
@@ -368,7 +367,6 @@ impl Scene for InteractiveText {
                 self.colors.foreground.0,
             ),
         );
-        println!("text-handle: {:?}", text);
         binder.extend(text, InteractionListener::default());
         for letter in 0..self.line_structure.max_chars().0 {
             binder.bind(
