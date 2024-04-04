@@ -1,4 +1,4 @@
-use compact_str::CompactString;
+use compact_str::{CompactString, ToCompactString};
 
 use foliage_macros::{inner_set_descriptor, InnerSceneBinding};
 use foliage_proper::animate::trigger::Trigger;
@@ -45,9 +45,13 @@ pub struct DropdownOptions {
     pub options: Vec<CompactString>,
 }
 impl DropdownOptions {
-    pub fn new<const N: usize>(opts: [&'static str; N]) -> Self {
+    pub fn new<V: AsRef<[S]>, S: AsRef<str>>(mut opts: V) -> Self {
         Self {
-            options: opts.to_vec().drain(..).map(CompactString::new).collect(),
+            options: opts
+                .as_ref()
+                .iter()
+                .map(|s| s.as_ref().to_compact_string())
+                .collect(),
         }
     }
 }
