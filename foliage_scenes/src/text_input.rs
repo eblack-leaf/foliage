@@ -364,10 +364,10 @@ impl Scene for TextInput {
         );
         let determinant: MaxCharacters = self.line_structure.per_line.into();
         binder.finish::<Self>(SceneComponents::new(
-            MicroGrid::new().aspect_ratio(
-                determinant.mono_aspect().value() * 1.05 / self.line_structure.lines as f32,
-            ),
-            // MicroGrid::new(),
+            // MicroGrid::new().aspect_ratio(
+            //     determinant.mono_aspect().value() * 1.0 / self.line_structure.lines as f32,
+            // ),
+            MicroGrid::new(),
             TextInputComponents {
                 actual,
                 max_chars: self.line_structure,

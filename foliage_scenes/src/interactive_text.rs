@@ -264,7 +264,9 @@ fn update_selection(
                 listener.interaction.current - *pos - offset.0,
                 d.dimensions(),
             );
+            println!("projected-current:{:?}", current);
             if listener.engaged_start() {
+                println!("current-interaction:{:?}", current);
                 if tv.0.is_empty() {
                     sel.start.replace(TextLineLocation::raw(0, 0));
                 } else {
@@ -377,10 +379,10 @@ impl Scene for InteractiveText {
                 Rectangle::new(self.colors.foreground.0.with_alpha(0.0), Progress::full()),
             );
         }
-        let determinant: MaxCharacters = self.line_structure.per_line.into();
+        // let determinant: MaxCharacters = self.line_structure.per_line.into();
         binder.finish::<Self>(SceneComponents::new(
             // MicroGrid::new().aspect_ratio(
-            //     determinant.mono_aspect().value() * 1.25 / self.line_structure.lines as f32,
+            //     determinant.mono_aspect().value() * 1.00 / self.line_structure.lines as f32,
             // ),
             MicroGrid::new(),
             InteractiveTextComponents {

@@ -11,25 +11,25 @@ impl Viewable for TextShowcase {
     const GRID: MacroGrid = MacroGrid::new(8, 5);
 
     fn view(mut view_builder: ViewBuilder) -> ViewDescriptor {
-        view_builder.add_scene(
-            InteractiveText::new(
-                TextLineStructure::new(30, 2),
-                TextValue::new("Click to start selection.     Drag to extend section."),
-                Colors::new(Asparagus::BASE, Greyscale::MINUS_THREE),
-            ),
-            ResponsiveSegment::base(Segment::new(2.near().to(7.far()), 2.near().to(2.far())))
-                .at_layer(5),
-        );
+        // view_builder.add_scene(
+        //     InteractiveText::new(
+        //         TextLineStructure::new(30, 2),
+        //         TextValue::new("Click to start selection.     Drag to extend section."),
+        //         Colors::new(Asparagus::BASE, Greyscale::MINUS_THREE),
+        //     ),
+        //     ResponsiveSegment::base(Segment::new(2.near().to(7.far()), 2.near().to(2.far())))
+        //         .at_layer(5),
+        // );
         view_builder.add_scene(
             TextInput::new(
                 TextInputMode::Normal,
-                TextLineStructure::new(15, 2),
+                TextLineStructure::new(20, 20),
                 "".to_string(),
-                Some("type here...".into()),
+                Some("type here...type here...".into()),
                 Colors::new(Asparagus::BASE, Greyscale::MINUS_THREE)
                     .with_alternate(Greyscale::BASE),
             ),
-            ResponsiveSegment::base(Segment::new(2.near().to(7.far()), 3.near().to(5.far())))
+            ResponsiveSegment::base(Segment::new(1.near().to(8.far()), 2.near().to(5.far())))
                 .at_layer(5),
         );
         // view_builder.add_scene(
