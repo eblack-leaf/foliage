@@ -348,28 +348,28 @@ fn on_interaction(
         match state {
             InteractionState::Active => {
                 if listener.active() {
-                    if let Ok(trigger) = triggers.get_mut(entity_to_trigger.0) {
+                    if let Ok(mut trigger) = triggers.get_mut(entity_to_trigger.0) {
                         *trigger = Trigger::active();
                     }
                 }
             }
             InteractionState::EngagedStart => {
                 if listener.engaged_start() {
-                    if let Ok(trigger) = triggers.get_mut(entity_to_trigger.0) {
+                    if let Ok(mut trigger) = triggers.get_mut(entity_to_trigger.0) {
                         *trigger = Trigger::active();
                     }
                 }
             }
             InteractionState::Engaged => {
                 if listener.engaged() {
-                    if let Ok(trigger) = triggers.get_mut(entity_to_trigger.0) {
+                    if let Ok(mut trigger) = triggers.get_mut(entity_to_trigger.0) {
                         *trigger = Trigger::active();
                     }
                 }
             }
             InteractionState::EngagedEnd => {
                 if listener.engaged_end() {
-                    if let Ok(trigger) = triggers.get_mut(entity_to_trigger.0) {
+                    if let Ok(mut trigger) = triggers.get_mut(entity_to_trigger.0) {
                         *trigger = Trigger::active();
                     }
                 }

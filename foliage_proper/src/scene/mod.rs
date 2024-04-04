@@ -235,6 +235,7 @@ impl<'a, 'w, 's> Binder<'a, 'w, 's> {
         tracing::trace!("adding command to:{:?}", entity);
         self.cmd.entity(entity).insert(ConditionalCommand(comm));
     }
+
     pub fn extend_conditional<Ext: Bundle + Clone>(
         &mut self,
         condition_handle: ConditionHandle,
