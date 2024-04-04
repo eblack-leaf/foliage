@@ -207,7 +207,7 @@ pub(crate) fn conditional_extension<C: Bundle + Clone + Send + Sync + 'static>(
         }
     }
 }
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct ConditionalCommand<COMM: Command + Clone + Send + Sync + 'static>(pub COMM);
 pub(crate) fn conditional_command<COMM: Command + Clone + Send + Sync + 'static>(
     query: Query<(&Trigger, &ConditionalCommand<COMM>), Changed<Trigger>>,
