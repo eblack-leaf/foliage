@@ -322,45 +322,56 @@ impl InteractionShapeActualized {
         }
     }
 }
+#[derive(Component, Copy, Clone)]
+pub struct TriggerEntity(pub Entity);
 #[derive(Bundle, Clone, Copy)]
 pub struct InteractionStateTrigger {
     pub state: InteractionState,
-    pub trigger: Trigger,
+    pub trigger: TriggerEntity,
 }
 impl InteractionStateTrigger {
-    pub fn new(state: InteractionState) -> Self {
+    pub fn new(state: InteractionState, entity: Entity) -> Self {
         Self {
             state,
-            trigger: Trigger::default(),
+            trigger: TriggerEntity(entity),
         }
     }
 }
 fn on_interaction(
-    mut interactives: Query<
-        (&InteractionListener, &InteractionState, &mut Trigger),
+    interactives: Query<
+        (&InteractionListener, &InteractionState, &TriggerEntity),
         Changed<InteractionListener>,
     >,
+    mut triggers: Query<&mut Trigger>,
 ) {
-    for (listener, state, mut trigger) in interactives.iter_mut() {
+    for (listener, state, mut entity_to_trigger) in interactives.iter() {
         match state {
             InteractionState::Active => {
                 if listener.active() {
-                    *trigger = Trigger::active();
+                    if let Ok(trigger) = triggers.get_mut(entity_to_trigger.0) {
+                        *trigger = Trigger::active();
+                    }
                 }
             }
             InteractionState::EngagedStart => {
                 if listener.engaged_start() {
-                    *trigger = Trigger::active();
+                    if let Ok(trigger) = triggers.get_mut(entity_to_trigger.0) {
+                        *trigger = Trigger::active();
+                    }
                 }
             }
             InteractionState::Engaged => {
                 if listener.engaged() {
-                    *trigger = Trigger::active();
+                    if let Ok(trigger) = triggers.get_mut(entity_to_trigger.0) {
+                        *trigger = Trigger::active();
+                    }
                 }
             }
             InteractionState::EngagedEnd => {
                 if listener.engaged_end() {
-                    *trigger = Trigger::active();
+                    if let Ok(trigger) = triggers.get_mut(entity_to_trigger.0) {
+                        *trigger = Trigger::active();
+                    }
                 }
             }
         }
