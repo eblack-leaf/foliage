@@ -321,7 +321,7 @@ impl Elm {
             tracing::trace!("enabling-conditional-scene:{:?}", ());
             self.main().add_systems((
                 conditional_scene_spawn::<S>.in_set(ExternalSet::ConditionalBind),
-                clean_scene::<S>.in_set(ExternalSet::Spawn),
+                clean_scene::<S>.in_set(CoreSet::ProcessEvent),
             ));
         }
     }
