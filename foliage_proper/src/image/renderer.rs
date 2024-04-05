@@ -133,7 +133,7 @@ pub struct ImageRenderPackage {
 impl Render for Image {
     type Resources = ImageRenderResources;
     type RenderPackage = ImageRenderPackage;
-    const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(6);
+    const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(2);
 
     fn create_resources(ginkgo: &Ginkgo) -> Self::Resources {
         let resource_layout =

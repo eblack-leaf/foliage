@@ -35,7 +35,7 @@ pub struct CircleRenderResources {
 impl Render for Circle {
     type Resources = CircleRenderResources;
     type RenderPackage = ();
-    const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(4);
+    const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(3);
 
     fn create_resources(ginkgo: &Ginkgo) -> Self::Resources {
         tracing::trace!("creating-circle-resources");
