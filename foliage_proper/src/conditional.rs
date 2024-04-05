@@ -1,12 +1,13 @@
 use crate::animate::trigger::{Trigger, TriggerState};
 use crate::differential::Despawn;
 use crate::elm::config::CoreSet;
-use crate::elm::leaf::{EmptySetDescriptor, Leaf};
+use crate::elm::leaf::{EmptySetDescriptor, Leaf, Tag};
 use crate::elm::Elm;
-use crate::scene::{Binder, Bindings, Scene, SceneBinding, SceneComponents};
+use crate::scene::{Binder, Bindings, IsScene, Scene, SceneBinding, SceneComponents};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Changed, Commands, Component, IntoSystemConfigs, Query};
+use bevy_ecs::query::With;
 use bevy_ecs::system::Command;
 
 #[derive(Component, Copy, Clone)]
@@ -135,6 +136,21 @@ pub(crate) fn conditional_spawn<C: Bundle + Clone + Send + Sync + 'static>(
                 }
                 SpawnTarget::BindingOf(_, _) => {}
             }
+        }
+    }
+}
+#[derive(Copy, Clone, Component)]
+pub struct SceneClean {}
+pub(crate) fn clean_scene<CS: Scene + Clone>(
+    query: Query<(Entity, &Bindings), (With<SceneClean>, With<Tag<IsScene>>)>,
+    mut cmd: Commands,
+) {
+    for (entity, bindings) in query.iter() {
+        cmd.entity(entity)
+            .remove::<SceneClean>()
+            .remove::<SceneComponents<CS>>();
+        for b in bindings.nodes().iter() {
+            cmd.entity(b.1.entity()).insert(Despawn::signal_despawn());
         }
     }
 }

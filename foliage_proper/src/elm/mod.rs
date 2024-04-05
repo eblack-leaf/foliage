@@ -20,7 +20,8 @@ use crate::ash::render_packet::RenderPacketForwarder;
 use crate::ash::render_packet::RenderPacketPackage;
 use crate::asset::{AssetContainer, AssetFetchFn, AssetKey, OnFetch};
 use crate::conditional::{
-    conditional_command, conditional_extension, conditional_scene_spawn, conditional_spawn,
+    clean_scene, conditional_command, conditional_extension, conditional_scene_spawn,
+    conditional_spawn,
 };
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
@@ -318,8 +319,10 @@ impl Elm {
             .is_none()
         {
             tracing::trace!("enabling-conditional-scene:{:?}", ());
-            self.main()
-                .add_systems(conditional_scene_spawn::<S>.in_set(ExternalSet::ConditionalBind));
+            self.main().add_systems((
+                conditional_scene_spawn::<S>.in_set(ExternalSet::ConditionalBind),
+                clean_scene::<S>.in_set(ExternalSet::Spawn),
+            ));
         }
     }
     pub fn enable_conditional_command<COMM: Command + Clone + Send + Sync + 'static>(&mut self) {
