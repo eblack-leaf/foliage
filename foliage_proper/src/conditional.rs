@@ -139,7 +139,7 @@ pub(crate) fn conditional_spawn<C: Bundle + Clone + Send + Sync + 'static>(
         }
     }
 }
-#[derive(Copy, Clone, Component)]
+#[derive(Copy, Clone, Component, Default)]
 pub struct SceneClean {}
 pub(crate) fn clean_scene<CS: Scene + Clone>(
     query: Query<(Entity, &Bindings), (With<SceneClean>, With<Tag<IsScene>>)>,
