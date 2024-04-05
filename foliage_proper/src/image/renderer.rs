@@ -54,12 +54,12 @@ impl ImageGroup {
             return TexturePartition::default();
         }
         let slice = self.data.as_slice();
-        let image = image::load_from_memory(slice).unwrap().to_rgba8();
+        let image = image::load_from_memory(slice).unwrap().to_rgba32f();
         self.dimensions = (image.width(), image.height()).into();
         let image_bytes = image
             .pixels()
             .flat_map(|p| p.0.to_vec())
-            .collect::<Vec<u8>>();
+            .collect::<Vec<f32>>();
         ginkgo.queue().write_texture(
             wgpu::ImageCopyTexture {
                 texture: &self.tex.as_ref().unwrap().0,
@@ -67,10 +67,12 @@ impl ImageGroup {
                 origin: wgpu::Origin3d::default(),
                 aspect: wgpu::TextureAspect::All,
             },
-            image_bytes.as_slice(),
+            bytemuck::cast_slice(image_bytes.as_slice()),
             wgpu::ImageDataLayout {
                 offset: 0,
-                bytes_per_row: Option::from(self.dimensions.width as u32 * 4),
+                bytes_per_row: Option::from(
+                    self.dimensions.width as u32 * std::mem::size_of::<f32>() as u32 * 4,
+                ),
                 rows_per_image: Option::from(self.dimensions.height as u32),
             },
             wgpu::Extent3d {
@@ -98,9 +100,9 @@ impl ImageGroup {
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            format: wgpu::TextureFormat::Rgba32Float,
             usage: wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::TEXTURE_BINDING,
-            view_formats: &[wgpu::TextureFormat::Rgba8UnormSrgb],
+            view_formats: &[wgpu::TextureFormat::Rgba32Float],
         });
         let tex_view = tex.create_view(&wgpu::TextureViewDescriptor::default());
         self.tex.replace((tex, tex_view));
