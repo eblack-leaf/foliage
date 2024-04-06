@@ -75,7 +75,7 @@ impl Leaf for Main {
         let assets = AssetGen::proc_gen_load(elm);
         elm.container().spawn(Image::storage(
             ImageId(0),
-            ImageStorage::some(Area::from((651, 454))),
+            ImageStorage::some(Area::from((880, 511))),
         ));
         elm.on_fetch(*assets.generated.get(0).unwrap(), |data, cmd| {
             cmd.spawn(Image::fill(ImageId(0), data));
