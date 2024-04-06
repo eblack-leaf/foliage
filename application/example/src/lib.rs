@@ -35,7 +35,7 @@ pub fn entry(android_interface: AndroidInterface) {
         .with_leaf::<IconDisplay>()
         .with_leaf::<TextValueResource>()
         .with_android_interface(android_interface)
-        .with_worker_path("./demo/worker.js")
+        .with_worker_path("./worker.js")
         .run::<Engen>();
 }
 async fn tester() -> i32 {
