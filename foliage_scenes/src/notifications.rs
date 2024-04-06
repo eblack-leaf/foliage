@@ -90,18 +90,31 @@ pub struct NotificationsComponents {
 }
 fn engage_notification_bar(
     query: Query<(Entity, &Notification), Without<Tag<NotificationBar>>>,
-    notification_listener: Query<&mut Notification, With<Tag<NotificationBar>>>,
-    trigger_element: Query<(&mut NotificationState, &mut Trigger, &NotificationHandle)>,
+    mut notification_listener: Query<&mut Notification, With<Tag<NotificationBar>>>,
+    mut trigger_element: Query<(&mut NotificationState, &mut Trigger, &NotificationHandle)>,
     mut cmd: Commands,
 ) {
     for (entity, notification) in query.iter() {
-        // enable notification bar conditional,
-        // if !already_open,
-        // -- anim from offscreen position_adjust
-        // -- anim includes on-end 30s timer w/ on-end (timer) anim to hidden
-        // -- change state to Showing
-        // signal text-change by replacing notes with new selection
-        cmd.entity(entity).despawn();
+        let mut processed = false;
+        for (mut state, mut trigger, handle) in trigger_element.iter_mut() {
+            match *state {
+                NotificationState::Showing => continue,
+                NotificationState::Hidden => {
+                    // we processed this notification so
+                    processed = true;
+                    // engage trigger
+                    // change state to showing
+                    // anim from offscreen
+                    // timer w/ on-end to hide then anim w/ on-end close conditional
+                }
+            }
+            for mut notif in notification_listener.iter_mut() {
+                notif.0 = notification.0.clone();
+            }
+        }
+        if processed {
+            cmd.entity(entity).despawn();
+        }
     }
 }
 impl Scene for NotificationBar {

@@ -12,8 +12,7 @@ impl Viewable for ImageShowcase {
         view_builder.add(
             Image::new(ImageId(0)),
             ResponsiveSegment::base(
-                Segment::new(2.near().to(6.far()), 2.near().to(5.far()))
-                    .with_aspect(651.0 / 454.0),
+                Segment::new(2.near().to(6.far()), 2.near().to(5.far())).with_aspect(651.0 / 454.0),
             )
             .at_layer(5),
         );

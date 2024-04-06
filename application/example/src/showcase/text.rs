@@ -1,15 +1,15 @@
+use foliage::bevy_ecs;
 use foliage::bevy_ecs::prelude::Resource;
 use foliage::color::monochromatic::{Asparagus, Greyscale, Monochromatic};
+use foliage::derivation::ResourceDerivedValue;
+use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
+use foliage::elm::Elm;
 use foliage::interactive_text::InteractiveText;
 use foliage::segment::{MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::text::{TextLineStructure, TextValue};
 use foliage::text_input::{TextInput, TextInputBindings, TextInputMode};
 use foliage::view::{ViewBuilder, ViewDescriptor, Viewable};
 use foliage::Colors;
-use foliage::derivation::ResourceDerivedValue;
-use foliage::bevy_ecs;
-use foliage::elm::Elm;
-use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 
 pub struct TextShowcase;
 impl Viewable for TextShowcase {
@@ -37,7 +37,10 @@ impl Viewable for TextShowcase {
             ResponsiveSegment::base(Segment::new(1.near().to(8.far()), 2.near().to(5.far())))
                 .at_layer(5),
         );
-        view_builder.extend(input.bindings().get(TextInputBindings::Text), ResourceDerivedValue::<TextValueResource, TextValue>::new());
+        view_builder.extend(
+            input.bindings().get(TextInputBindings::Text),
+            ResourceDerivedValue::<TextValueResource, TextValue>::new(),
+        );
         // view_builder.add_scene(
         //     TextInput::new(
         //         TextInputMode::Password,
@@ -67,6 +70,9 @@ impl Leaf for TextValueResource {
 
     fn attach(elm: &mut Elm) {
         elm.enable_resource_derivation::<TextValueResource, TextValue>();
-        elm.container().insert_resource(TextValueResource(String::from("type here to test input...")));
+        elm.container()
+            .insert_resource(TextValueResource(String::from(
+                "type here to test input...",
+            )));
     }
 }
