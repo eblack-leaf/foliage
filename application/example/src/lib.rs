@@ -8,7 +8,7 @@ use crate::showcase::icon::scene::IconDisplay;
 use crate::showcase::icon::IconShowcase;
 use crate::showcase::image::ImageShowcase;
 use crate::showcase::progress::ProgressShowcase;
-use crate::showcase::text::TextShowcase;
+use crate::showcase::text::{TextShowcase, TextValueResource};
 use foliage::color::monochromatic::Orange;
 use foliage::coordinate::area::Area;
 use foliage::elm::config::ElmConfiguration;
@@ -33,8 +33,9 @@ pub fn entry(android_interface: AndroidInterface) {
         .with_leaves::<foliage::SceneExtensions>()
         .with_leaf::<Main>()
         .with_leaf::<IconDisplay>()
+        .with_leaf::<TextValueResource>()
         .with_android_interface(android_interface)
-        .with_worker_path("./worker.js")
+        .with_worker_path("./demo/worker.js")
         .run::<Engen>();
 }
 async fn tester() -> i32 {
@@ -75,7 +76,7 @@ impl Leaf for Main {
         let assets = AssetGen::proc_gen_load(elm);
         elm.container().spawn(Image::storage(
             ImageId(0),
-            ImageStorage::some(Area::from((880, 511))),
+            ImageStorage::some(Area::from((651, 454))),
         ));
         elm.on_fetch(*assets.generated.get(0).unwrap(), |data, cmd| {
             cmd.spawn(Image::fill(ImageId(0), data));
