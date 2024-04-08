@@ -45,7 +45,7 @@ pub struct DropdownOptions {
     pub options: Vec<CompactString>,
 }
 impl DropdownOptions {
-    pub fn new<V: AsRef<[S]>, S: AsRef<str>>(mut opts: V) -> Self {
+    pub fn new<V: AsRef<[S]>, S: AsRef<str>>(opts: V) -> Self {
         Self {
             options: opts
                 .as_ref()

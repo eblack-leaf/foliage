@@ -142,6 +142,7 @@ pub(crate) fn apply<I: Interpolate>(
                 entity,
                 animation.duration
             );
+            animation.current_value.replace(start);
             animation.started = true;
             continue;
         }

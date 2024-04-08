@@ -45,6 +45,11 @@ impl ProgressPercent {
         Self(v.min(1.0).max(0.0))
     }
 }
+impl From<f32> for ProgressPercent {
+    fn from(value: f32) -> Self {
+        Self(value)
+    }
+}
 #[derive(Bundle)]
 pub struct ProgressBarComponents {
     pub foreground_color: ForegroundColor,
