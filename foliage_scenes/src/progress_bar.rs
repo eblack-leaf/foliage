@@ -38,7 +38,7 @@ pub enum ProgressBarBindings {
 pub enum SetDescriptor {
     Update,
 }
-#[derive(Component, Copy, Clone, Default)]
+#[derive(Component, Copy, Clone, Default, PartialEq)]
 pub struct ProgressPercent(pub f32);
 impl ProgressPercent {
     pub fn new(v: f32) -> Self {
