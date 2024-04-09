@@ -4,7 +4,6 @@ use foliage::color::monochromatic::{Asparagus, Greyscale, Monochromatic};
 use foliage::derivation::ResourceDerivedValue;
 use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 use foliage::elm::Elm;
-use foliage::interactive_text::InteractiveText;
 use foliage::segment::{MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::text::{TextLineStructure, TextValue};
 use foliage::text_input::{TextInput, TextInputBindings, TextInputMode};

@@ -160,7 +160,7 @@ impl Scene for Button {
             ),
             self.icon_text,
         );
-        let interacter = binder.bind(
+        let _interacter = binder.bind(
             ButtonBindings::Interaction,
             MicroGridAlignment::new(
                 0.fixed_from(RelativeMarker::Left),

@@ -260,8 +260,10 @@ fn update_selection(
                 sel.end.take();
                 sel.span.take();
             }
-            let current =
-                TextLineLocation::new(listener.interaction.current - *pos, d.dimensions());
+            let current = TextLineLocation::new(
+                listener.interaction.current - *pos - offset.0,
+                d.dimensions(),
+            );
             if listener.engaged_start() {
                 if tv.0.is_empty() {
                     sel.start.replace(TextLineLocation::raw(0, 0));

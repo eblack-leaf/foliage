@@ -344,7 +344,7 @@ fn on_interaction(
     >,
     mut triggers: Query<&mut Trigger>,
 ) {
-    for (listener, state, mut entity_to_trigger) in interactives.iter() {
+    for (listener, state, entity_to_trigger) in interactives.iter() {
         match state {
             InteractionState::Active => {
                 if listener.active() {
