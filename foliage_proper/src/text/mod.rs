@@ -42,6 +42,7 @@ pub struct Text {
     unique: DifferentialBundle<TextValueUniqueCharacters>,
     line_structure: TextLinePlacement,
     offset: TextOffset,
+    align: TextAlign,
     differentiable: Differentiable,
 }
 impl Text {
@@ -72,9 +73,19 @@ impl Text {
             unique: DifferentialBundle::new(TextValueUniqueCharacters::default()),
             line_structure: TextLinePlacement::default(),
             offset: TextOffset(Position::default()),
+            align: TextAlign::LeftTop,
             differentiable: Differentiable::new::<Self>(),
         }
     }
+    pub fn centered(mut self) -> Self {
+        self.align = TextAlign::Centered;
+        self
+    }
+}
+#[derive(Copy, Clone, Component, Eq, PartialEq)]
+pub enum TextAlign {
+    LeftTop,
+    Centered,
 }
 #[derive(Component, Copy, Clone, Default)]
 pub struct TextLineStructure {
@@ -447,6 +458,7 @@ fn place_text(
             &mut TextLinePlacement,
             &mut Position<InterfaceContext>,
             &mut TextOffset,
+            &TextAlign,
         ),
         Or<(
             Changed<TextValue>,
@@ -470,6 +482,7 @@ fn place_text(
         mut line_placement,
         mut pos,
         mut offset,
+        align,
     ) in query.iter_mut()
     {
         let metrics = font.line_metrics(structure, *area, &scale_factor);
@@ -477,7 +490,7 @@ fn place_text(
         *font_size = metrics.font_size;
         *dims = metrics.character_dimensions;
         let aligned_area = metrics.area; // TODO make fit bounds better
-        if aligned_area < *area {
+        if aligned_area < *area && *align == TextAlign::Centered {
             let diff = (*area - aligned_area) / Area::new(2.0, 2.0);
             let o = Position::new(diff.width, diff.height);
             offset.0 = o;

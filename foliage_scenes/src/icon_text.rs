@@ -178,7 +178,8 @@ impl Scene for IconText {
                 TextLineStructure::new(self.text_line_structure.per_line, 1),
                 self.text_value.clone(),
                 self.text_color,
-            ),
+            )
+            .centered(),
         );
         binder.finish::<Self>(SceneComponents::new(
             MicroGrid::new()

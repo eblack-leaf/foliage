@@ -128,7 +128,8 @@ impl Scene for TextButton {
                 adjusted_lines,
                 self.text_value.clone(),
                 self.colors.background.0,
-            ),
+            )
+            .centered(),
         );
         binder.bind(
             TextButtonBindings::Interaction,
