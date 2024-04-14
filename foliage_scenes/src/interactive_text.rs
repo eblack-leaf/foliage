@@ -367,7 +367,8 @@ impl Scene for InteractiveText {
                 self.line_structure,
                 self.text_value.clone(),
                 self.colors.foreground.0,
-            ),
+            )
+            .centered(),
         );
         binder.extend(text, InteractionListener::default());
         for letter in 0..self.line_structure.max_chars().0 {
