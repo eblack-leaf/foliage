@@ -33,7 +33,7 @@ impl Viewable for TextShowcase {
                 Colors::new(Asparagus::BASE, Greyscale::MINUS_THREE)
                     .with_alternate(Greyscale::BASE),
             ),
-            ResponsiveSegment::base(Segment::new(1.near().to(8.far()), 2.near().to(5.far())))
+            ResponsiveSegment::base(Segment::new(2.near().to(7.far()), 2.near().to(4.far())))
                 .at_layer(5),
         );
         view_builder.extend(

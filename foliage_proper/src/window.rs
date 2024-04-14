@@ -53,12 +53,16 @@ impl WindowHandle {
         event_loop: &EventLoopWindowTarget,
         window_descriptor: &WindowDescriptor,
     ) -> Self {
+        let area = window_descriptor
+            .desktop_dimensions
+            .unwrap_or(Area::new(290.0, 290.0));
+        let min_size = PhysicalSize::new(area.width, area.height);
         #[allow(unused_mut)]
         let mut builder = Window::builder()
             .with_resizable(window_descriptor.resizable)
             .with_title(window_descriptor.title.unwrap_or_default())
             .with_resizable(window_descriptor.resizable)
-            .with_min_inner_size(winit::dpi::PhysicalSize::new(290, 290));
+            .with_min_inner_size(min_size);
         #[cfg(all(
             not(target_family = "wasm"),
             not(target_os = "android"),
