@@ -70,7 +70,9 @@ impl<'a, 'w, 's> ViewBuilder<'a, 'w, 's> {
         desc
     }
     pub fn place_scene_on<S: Scene>(&mut self, entity: Entity, s: S) -> SceneHandle {
-        s.create(Binder::new(self.cmd.as_mut().unwrap(), Some(entity)))
+        let handle = s.create(Binder::new(self.cmd.as_mut().unwrap(), Some(entity)));
+        self.view_descriptor.scene_handles.push(handle.clone());
+        handle
     }
     pub fn place_on<B: Bundle>(&mut self, entity: Entity, b: B) {
         self.cmd.as_mut().unwrap().entity(entity).insert(b);
@@ -105,6 +107,7 @@ impl<'a, 'w, 's> ViewBuilder<'a, 'w, 's> {
             scene_desc
         };
         self.view_descriptor.pool.0.insert(desc.root());
+        self.view_descriptor.scene_handles.push(desc.clone());
         desc
     }
     pub fn add<B: Bundle>(&mut self, b: B, rs: ResponsiveSegment) -> Entity {
@@ -191,6 +194,7 @@ pub type BranchPool = Vec<ConditionHandle>;
 pub struct ViewDescriptor {
     pool: EntityPool,
     branches: Branches,
+    scene_handles: Vec<SceneHandle>,
 }
 impl ViewDescriptor {
     pub fn pool(&self) -> &EntityPool {
@@ -198,6 +202,9 @@ impl ViewDescriptor {
     }
     pub fn branches(&self) -> &Branches {
         &self.branches
+    }
+    pub fn scenes(&self) -> &Vec<SceneHandle> {
+        &self.scene_handles
     }
 }
 pub type Create = fn(ViewBuilder) -> ViewDescriptor;

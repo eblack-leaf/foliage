@@ -337,7 +337,7 @@ impl Elm {
         }
     }
     pub fn enable_component_derivation<
-        I: Into<D> + Component + Clone,
+        I: Component + Clone,
         D: Component + 'static + Send + Sync,
     >(
         &mut self,
@@ -351,10 +351,7 @@ impl Elm {
                 .add_systems(component_derive_value::<I, D>.in_set(CoreSet::ProcessEvent));
         }
     }
-    pub fn enable_resource_derivation<
-        R: Into<V> + Resource + Clone,
-        V: Component + 'static + Send + Sync,
-    >(
+    pub fn enable_resource_derivation<R: Resource + Clone, V: Component + 'static + Send + Sync>(
         &mut self,
     ) {
         if self

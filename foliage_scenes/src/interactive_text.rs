@@ -390,10 +390,10 @@ impl Scene for InteractiveText {
         // );
         let determinant: MaxCharacters = self.line_structure.per_line.into();
         binder.finish::<Self>(SceneComponents::new(
-            MicroGrid::new().aspect_ratio(
-                determinant.mono_aspect().value() * 1.00 / self.line_structure.lines as f32,
-            ),
-            // MicroGrid::new(),
+            // MicroGrid::new().aspect_ratio(
+            //     determinant.mono_aspect().value() * 1.00 / self.line_structure.lines as f32,
+            // ),
+            MicroGrid::new(),
             InteractiveTextComponents {
                 selection: Selection::default(),
                 text: self.text_value.clone(),
