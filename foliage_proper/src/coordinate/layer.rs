@@ -1,10 +1,11 @@
 use std::fmt::{Display, Formatter};
 use std::ops::{Add, Sub};
 
-use crate::CoordinateUnit;
 use bevy_ecs::component::Component;
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
+
+use crate::CoordinateUnit;
 
 /// Layer represents what plane this entity resides on. Used to differentiate z coords in
 /// rendering.

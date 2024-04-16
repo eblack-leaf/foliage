@@ -1,12 +1,14 @@
+use std::collections::{HashMap, HashSet};
+use std::ops::Div;
+
+use bevy_ecs::prelude::{Component, Resource};
+use serde::{Deserialize, Serialize};
+
+use crate::coordinate::{Coordinate, CoordinateUnit, InterfaceContext};
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::section::Section;
-use crate::coordinate::{Coordinate, CoordinateUnit, InterfaceContext};
 use crate::layout::{AspectRatio, Layout};
-use bevy_ecs::prelude::{Component, Resource};
-use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
-use std::ops::Div;
 
 #[derive(Default, Copy, Clone)]
 pub struct GridTemplate {

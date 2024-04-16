@@ -1,24 +1,27 @@
-pub mod micro_grid;
+use std::collections::{HashMap, HashSet};
 
-use crate::conditional::{
-    Branch, ConditionHandle, Conditional, ConditionalCommand, SceneBranch, SpawnTarget,
-};
-use crate::coordinate::area::Area;
-use crate::coordinate::layer::Layer;
-use crate::coordinate::position::Position;
-use crate::coordinate::{Coordinate, InterfaceContext, PositionAdjust};
-use crate::differential::Despawn;
-use crate::elm::config::{CoreSet, ExternalSet};
-use crate::elm::leaf::{EmptySetDescriptor, Leaf, Tag};
-use crate::elm::{Disabled, Elm};
-use crate::scene::micro_grid::MicroGrid;
-use crate::view::BranchPool;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::prelude::{Commands, Component, Entity, IntoSystemConfigs, Query};
 use bevy_ecs::query::{Changed, Or, ReadOnlyWorldQuery, With, Without};
 use bevy_ecs::system::{Command, ParamSet, StaticSystemParam, SystemParam, SystemParamItem};
+
 use micro_grid::MicroGridAlignment;
-use std::collections::{HashMap, HashSet};
+
+use crate::conditional::{
+    Branch, Conditional, ConditionalCommand, ConditionHandle, SceneBranch, SpawnTarget,
+};
+use crate::coordinate::{Coordinate, InterfaceContext, PositionAdjust};
+use crate::coordinate::area::Area;
+use crate::coordinate::layer::Layer;
+use crate::coordinate::position::Position;
+use crate::differential::Despawn;
+use crate::elm::{Disabled, Elm};
+use crate::elm::config::{CoreSet, ExternalSet};
+use crate::elm::leaf::{EmptySetDescriptor, Leaf, Tag};
+use crate::scene::micro_grid::MicroGrid;
+use crate::view::BranchPool;
+
+pub mod micro_grid;
 
 #[derive(Component, Copy, Clone, Default)]
 pub struct Anchor(Coordinate<InterfaceContext>);

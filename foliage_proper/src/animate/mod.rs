@@ -1,9 +1,11 @@
-use crate::animate::trigger::Trigger;
-use crate::time::timer::TIME_SKIP_RESISTANCE;
-use crate::time::{Time, TimeDelta};
+use std::collections::HashSet;
+
 use bevy_ecs::prelude::{Component, Entity};
 use bevy_ecs::system::{Commands, Query, Res};
-use std::collections::HashSet;
+
+use crate::animate::trigger::Trigger;
+use crate::time::{Time, TimeDelta};
+use crate::time::timer::TIME_SKIP_RESISTANCE;
 
 pub mod trigger;
 

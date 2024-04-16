@@ -1,11 +1,12 @@
-use crate::animate::{Interpolate, Interpolation, InterpolationExtraction};
-use crate::coordinate::area::Area;
-use crate::coordinate::DeviceContext;
-use crate::elm::leaf::{EmptySetDescriptor, Leaf};
-use crate::elm::Elm;
 use bevy_ecs::component::Component;
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
+
+use crate::animate::{Interpolate, Interpolation, InterpolationExtraction};
+use crate::coordinate::area::Area;
+use crate::coordinate::DeviceContext;
+use crate::elm::Elm;
+use crate::elm::leaf::{EmptySetDescriptor, Leaf};
 
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default, Serialize, Deserialize, Component, PartialEq)]

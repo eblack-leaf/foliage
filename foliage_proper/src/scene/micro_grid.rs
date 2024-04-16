@@ -1,8 +1,10 @@
+use bevy_ecs::prelude::Component;
+
+use crate::coordinate::{Coordinate, CoordinateUnit, InterfaceContext};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
-use crate::coordinate::{Coordinate, CoordinateUnit, InterfaceContext};
 use crate::layout::AspectRatio;
-use bevy_ecs::prelude::Component;
+
 #[derive(Component, Copy, Clone)]
 pub struct MicroGrid {
     aspect: Option<AspectRatio>,

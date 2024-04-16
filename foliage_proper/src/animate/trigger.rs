@@ -1,9 +1,11 @@
-use crate::elm::config::{CoreSet, ElmConfiguration};
-use crate::elm::leaf::{EmptySetDescriptor, Leaf};
-use crate::elm::Elm;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::Query;
+
+use crate::elm::config::{CoreSet, ElmConfiguration};
+use crate::elm::Elm;
+use crate::elm::leaf::{EmptySetDescriptor, Leaf};
+
 #[derive(Default, Copy, Clone, Debug, Hash, Eq, PartialEq)]
 pub enum TriggerState {
     Active,

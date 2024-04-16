@@ -1,6 +1,7 @@
+use bytemuck::{Pod, Zeroable};
+
 use crate::coordinate::position::CReprPosition;
 use crate::texture::coord::TextureCoordinates;
-use bytemuck::{Pod, Zeroable};
 
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default)]

@@ -1,8 +1,9 @@
-use crate::animate::trigger::{Trigger, TriggerState};
-use crate::time::{Time, TimeDelta};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::Component;
 use bevy_ecs::system::{Commands, Query, Res};
+
+use crate::animate::trigger::Trigger;
+use crate::time::{Time, TimeDelta};
 
 #[derive(Copy, Clone)]
 pub enum TimerState {

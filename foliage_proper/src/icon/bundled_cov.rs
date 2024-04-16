@@ -1,7 +1,9 @@
-use crate::icon::IconId;
+use std::fmt::{Display, Formatter};
+
 use bevy_ecs::component::Component;
 use serde::{Deserialize, Serialize};
-use std::fmt::{Display, Formatter};
+
+use crate::icon::IconId;
 
 #[repr(u32)]
 #[derive(Component, Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize, Debug)]

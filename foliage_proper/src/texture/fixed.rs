@@ -1,14 +1,16 @@
-use crate::coordinate::area::Area;
-use crate::coordinate::section::Section;
-use crate::coordinate::{CoordinateUnit, NumericalContext};
-use crate::ginkgo::Ginkgo;
-use crate::texture::coord::TexturePartition;
-use bytemuck::{Pod, Zeroable};
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::marker::PhantomData;
-use wgpu::util::DeviceExt;
+
+use bytemuck::{Pod, Zeroable};
 use wgpu::{Extent3d, TextureDimension, TextureUsages};
+use wgpu::util::DeviceExt;
+
+use crate::coordinate::{CoordinateUnit, NumericalContext};
+use crate::coordinate::area::Area;
+use crate::coordinate::section::Section;
+use crate::ginkgo::Ginkgo;
+use crate::texture::coord::TexturePartition;
 
 pub struct FixedAtlas<
     ReferenceKey: Hash + Eq + Clone,

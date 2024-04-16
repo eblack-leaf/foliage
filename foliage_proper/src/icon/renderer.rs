@@ -1,3 +1,10 @@
+use std::collections::HashMap;
+use std::iter::StepBy;
+use std::ops::RangeInclusive;
+
+use bevy_ecs::entity::Entity;
+use wgpu::{BindGroup, BindGroupLayout};
+
 use crate::ash::instruction::{
     RenderInstructionHandle, RenderInstructionsRecorder, RenderRecordBehavior,
 };
@@ -7,19 +14,14 @@ use crate::ash::renderer::RenderPackage;
 use crate::color::Color;
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
+use crate::coordinate::NumericalContext;
 use crate::coordinate::position::CReprPosition;
 use crate::coordinate::section::Section;
-use crate::coordinate::NumericalContext;
 use crate::ginkgo::Ginkgo;
-use crate::icon::vertex::{Vertex, VERTICES};
 use crate::icon::{Icon, IconId, IconScale, RequestData, WasRequest};
+use crate::icon::vertex::{Vertex, VERTICES};
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
 use crate::texture::coord::TexturePartition;
-use bevy_ecs::entity::Entity;
-use std::collections::HashMap;
-use std::iter::StepBy;
-use std::ops::RangeInclusive;
-use wgpu::{BindGroup, BindGroupLayout};
 
 pub struct IconRenderResources {
     pipeline: wgpu::RenderPipeline,

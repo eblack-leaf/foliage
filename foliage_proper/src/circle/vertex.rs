@@ -1,5 +1,6 @@
-use crate::coordinate::position::CReprPosition;
 use bytemuck::{Pod, Zeroable};
+
+use crate::coordinate::position::CReprPosition;
 
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default)]

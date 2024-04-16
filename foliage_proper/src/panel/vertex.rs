@@ -1,7 +1,7 @@
 use bytemuck::{Pod, Zeroable};
 
-use crate::coordinate::position::CReprPosition;
 use crate::coordinate::CoordinateUnit;
+use crate::coordinate::position::CReprPosition;
 use crate::texture::coord::TextureCoordinates;
 
 #[repr(C)]

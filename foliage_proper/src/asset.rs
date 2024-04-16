@@ -1,10 +1,12 @@
-use crate::elm::config::{CoreSet, ElmConfiguration};
-use crate::elm::leaf::{EmptySetDescriptor, Leaf};
-use crate::elm::Elm;
+use std::collections::HashMap;
+
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Commands, Component, IntoSystemConfigs, Res, Resource};
 use bevy_ecs::system::Query;
-use std::collections::HashMap;
+
+use crate::elm::config::{CoreSet, ElmConfiguration};
+use crate::elm::Elm;
+use crate::elm::leaf::{EmptySetDescriptor, Leaf};
 
 pub type AssetKey = u128;
 #[derive(Resource, Default)]

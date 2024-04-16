@@ -1,14 +1,15 @@
-use crate::animate::trigger::{Trigger, TriggerState};
-use crate::differential::Despawn;
-use crate::elm::config::CoreSet;
-use crate::elm::leaf::{EmptySetDescriptor, Leaf, Tag};
-use crate::elm::Elm;
-use crate::scene::{Binder, Bindings, IsScene, Scene, SceneBinding, SceneComponents};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Changed, Commands, Component, IntoSystemConfigs, Query};
 use bevy_ecs::query::With;
 use bevy_ecs::system::Command;
+
+use crate::animate::trigger::{Trigger, TriggerState};
+use crate::differential::Despawn;
+use crate::elm::config::CoreSet;
+use crate::elm::Elm;
+use crate::elm::leaf::{EmptySetDescriptor, Leaf, Tag};
+use crate::scene::{Binder, Bindings, IsScene, Scene, SceneBinding, SceneComponents};
 
 #[derive(Component, Copy, Clone)]
 pub struct ConditionSet(pub Entity, pub TriggerState);

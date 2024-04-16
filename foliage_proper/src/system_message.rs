@@ -1,5 +1,6 @@
-use crate::asset::AssetKey;
 use serde::{Deserialize, Serialize};
+
+use crate::asset::AssetKey;
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub(crate) enum SystemMessageAction {

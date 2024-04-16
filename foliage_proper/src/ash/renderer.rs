@@ -1,9 +1,10 @@
-use crate::ash::identification::RenderIdentification;
-use anymap::AnyMap;
-use bevy_ecs::entity::Entity;
 use std::cmp::Ordering;
 use std::collections::HashSet;
 
+use anymap::AnyMap;
+use bevy_ecs::entity::Entity;
+
+use crate::ash::identification::RenderIdentification;
 use crate::ash::instruction::{
     RenderInstructionGroup, RenderInstructionHandle, RenderInstructionsRecorder,
     RenderRecordBehavior,

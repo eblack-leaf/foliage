@@ -1,7 +1,8 @@
+use wgpu::{DepthStencilState, TextureFormat};
+
 use crate::coordinate::area::Area;
 use crate::coordinate::DeviceContext;
 use crate::ginkgo::msaa::Msaa;
-use wgpu::{DepthStencilState, TextureFormat};
 
 pub(crate) struct DepthTexture {
     pub(crate) format: wgpu::TextureFormat,

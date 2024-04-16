@@ -1,11 +1,12 @@
+use std::collections::HashMap;
+
+use crate::ash::Ash;
 use crate::ash::identification::{RenderId, RenderIdentification};
 use crate::ash::instruction::RenderInstructionGroup;
 use crate::ash::render::Render;
 use crate::ash::render_packet::RenderPacketPackage;
 use crate::ash::renderer::RendererStorage;
-use crate::ash::Ash;
 use crate::ginkgo::Ginkgo;
-use std::collections::HashMap;
 
 pub(crate) struct RenderLeaflet {
     pub(crate) register_fn: Box<fn(&mut Ash, &Ginkgo)>,

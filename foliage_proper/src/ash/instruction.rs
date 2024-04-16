@@ -1,8 +1,9 @@
+use std::rc::Rc;
+
 use crate::ash::identification::RenderId;
 use crate::ash::render::{Render, RenderPhase};
 use crate::ash::renderer::{RenderPackage, RenderPackageStorage};
 use crate::ginkgo::Ginkgo;
-use std::rc::Rc;
 
 pub struct RenderInstructionsRecorder<'a>(pub wgpu::RenderBundleEncoder<'a>);
 

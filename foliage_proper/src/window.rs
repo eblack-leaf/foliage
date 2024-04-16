@@ -1,13 +1,13 @@
-use bevy_ecs::prelude::Resource;
 use std::sync::Arc;
 
+use bevy_ecs::prelude::Resource;
 #[cfg(all(not(target_os = "android"), not(target_family = "wasm")))]
 use winit::dpi::PhysicalSize;
 use winit::event_loop::EventLoopWindowTarget;
 use winit::window::Window;
 
-use crate::coordinate::area::Area;
 use crate::coordinate::{CoordinateUnit, DeviceContext};
+use crate::coordinate::area::Area;
 
 #[derive(Default, Clone)]
 pub struct WindowDescriptor {

@@ -3,8 +3,8 @@ use std::hash::Hash;
 
 use bevy_ecs::prelude::{apply_deferred, IntoSystemConfigs, SystemSet};
 
-use crate::elm::leaf::Leaflet;
 use crate::elm::Elm;
+use crate::elm::leaf::Leaflet;
 
 #[derive(SystemSet, Hash, Eq, PartialEq, Debug, Copy, Clone)]
 pub enum ExternalSet {

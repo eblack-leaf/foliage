@@ -2,11 +2,11 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::hash::Hash;
 
-use crate::ash::render_packet::RenderPacket;
 use anymap::AnyMap;
 use bytemuck::{Pod, Zeroable};
 use serde::Deserialize;
 
+use crate::ash::render_packet::RenderPacket;
 use crate::ginkgo::Ginkgo;
 use crate::instance::{Index, InstanceCoordinator, InstanceOrdering};
 

@@ -1,16 +1,18 @@
-use bytemuck::{Pod, Zeroable};
-use coord::TexturePartition;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::marker::PhantomData;
-use wgpu::util::DeviceExt;
-use wgpu::{Extent3d, TextureDimension, TextureUsages};
 
+use bytemuck::{Pod, Zeroable};
+use wgpu::{Extent3d, TextureDimension, TextureUsages};
+use wgpu::util::DeviceExt;
+
+use coord::TexturePartition;
+
+use crate::coordinate::{CoordinateUnit, NumericalContext};
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
-use crate::coordinate::{CoordinateUnit, NumericalContext};
 use crate::ginkgo::Ginkgo;
 
 pub mod coord;

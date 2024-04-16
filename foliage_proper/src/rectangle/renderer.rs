@@ -1,3 +1,5 @@
+use bevy_ecs::entity::Entity;
+
 use crate::ash::instruction::{
     RenderInstructionHandle, RenderInstructionsRecorder, RenderRecordBehavior,
 };
@@ -10,10 +12,9 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::position::CReprPosition;
 use crate::ginkgo::Ginkgo;
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
-use crate::rectangle::vertex::{Vertex, VERTICES};
 use crate::rectangle::Rectangle;
+use crate::rectangle::vertex::{Vertex, VERTICES};
 use crate::texture::factors::Progress;
-use bevy_ecs::entity::Entity;
 
 pub struct RectangleRenderResources {
     pipeline: wgpu::RenderPipeline,

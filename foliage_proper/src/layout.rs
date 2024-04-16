@@ -1,6 +1,8 @@
-use crate::coordinate::area::Area;
-use crate::coordinate::{CoordinateUnit, InterfaceContext, NumericalContext};
 use bevy_ecs::prelude::Resource;
+
+use crate::coordinate::{CoordinateUnit, InterfaceContext, NumericalContext};
+use crate::coordinate::area::Area;
+
 #[derive(Copy, Clone, Default, Debug)]
 pub struct AspectRatio(pub f32);
 

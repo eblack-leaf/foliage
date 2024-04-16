@@ -1,14 +1,13 @@
 use foliage::bevy_ecs;
 use foliage::bevy_ecs::prelude::Resource;
 use foliage::color::monochromatic::{Asparagus, Greyscale, Monochromatic};
-use foliage::derivation::ResourceDerivedValue;
-use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
+use foliage::Colors;
 use foliage::elm::Elm;
+use foliage::elm::leaf::{EmptySetDescriptor, Leaf};
 use foliage::segment::{MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::text::{TextLineStructure, TextValue};
-use foliage::text_input::{TextInput, TextInputBindings, TextInputMode};
-use foliage::view::{ViewBuilder, ViewDescriptor, Viewable};
-use foliage::Colors;
+use foliage::text_input::{TextInput, TextInputMode};
+use foliage::view::{Viewable, ViewBuilder, ViewDescriptor};
 
 pub struct TextShowcase;
 impl Viewable for TextShowcase {

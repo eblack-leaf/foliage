@@ -1,8 +1,9 @@
-use crate::coordinate::area::Area;
-use crate::coordinate::section::Section;
-use crate::coordinate::{CoordinateUnit, NumericalContext};
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
+
+use crate::coordinate::{CoordinateUnit, NumericalContext};
+use crate::coordinate::area::Area;
+use crate::coordinate::section::Section;
 
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default)]

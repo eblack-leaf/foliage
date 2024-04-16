@@ -1,12 +1,16 @@
+use std::collections::HashMap;
+
+use bevy_ecs::entity::Entity;
+
 use crate::ash::instruction::{
     RenderInstructionHandle, RenderInstructionsRecorder, RenderRecordBehavior,
 };
 use crate::ash::render::{Render, RenderPhase};
 use crate::ash::render_packet::RenderPacket;
 use crate::ash::renderer::RenderPackage;
+use crate::circle::{Circle, Diameter};
 use crate::circle::proc_gen::TEXTURE_SIZE;
 use crate::circle::vertex::{Vertex, VERTICES};
-use crate::circle::{Circle, Diameter};
 use crate::color::Color;
 use crate::coordinate::area::CReprArea;
 use crate::coordinate::layer::Layer;
@@ -16,8 +20,6 @@ use crate::ginkgo::Ginkgo;
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
 use crate::texture::coord::TexturePartition;
 use crate::texture::factors::Progress;
-use bevy_ecs::entity::Entity;
-use std::collections::HashMap;
 
 pub struct CircleRenderResources {
     pipeline: wgpu::RenderPipeline,

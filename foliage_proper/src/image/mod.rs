@@ -1,5 +1,9 @@
-mod renderer;
-mod vertex;
+use bevy_ecs::bundle::Bundle;
+use bevy_ecs::component::Component;
+use bevy_ecs::prelude::{IntoSystemConfigs, Resource};
+use bevy_ecs::query::{Added, Changed};
+use bevy_ecs::system::Query;
+use serde::{Deserialize, Serialize};
 
 use crate::ash::render_packet::RenderPacketStore;
 use crate::coordinate::area::Area;
@@ -7,14 +11,11 @@ use crate::coordinate::NumericalContext;
 use crate::differential::{Despawn, Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::config::{CoreSet, ElmConfiguration};
-use crate::elm::leaf::{EmptySetDescriptor, Leaf};
 use crate::elm::Elm;
-use bevy_ecs::bundle::Bundle;
-use bevy_ecs::component::Component;
-use bevy_ecs::prelude::{IntoSystemConfigs, Resource};
-use bevy_ecs::query::{Added, Changed};
-use bevy_ecs::system::Query;
-use serde::{Deserialize, Serialize};
+use crate::elm::leaf::{EmptySetDescriptor, Leaf};
+
+mod renderer;
+mod vertex;
 
 #[derive(Component, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ImageData(pub Option<Vec<u8>>);

@@ -11,11 +11,10 @@ use crate::coordinate::area::CReprArea;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::CReprPosition;
 use crate::elm::Style;
-
 use crate::ginkgo::Ginkgo;
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
-use crate::panel::vertex::{Vertex, INDICES};
 use crate::panel::Panel;
+use crate::panel::vertex::{INDICES, Vertex};
 
 pub struct PanelRenderResources {
     pipeline: wgpu::RenderPipeline,

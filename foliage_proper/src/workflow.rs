@@ -7,7 +7,7 @@ use winit::event_loop::EventLoopProxy;
 
 use crate::elm::Elm;
 use crate::system_message::{
-    system_message_response, ActionMessage, ResponseMessage, SystemMessageAction,
+    ActionMessage, ResponseMessage, system_message_response, SystemMessageAction,
     SystemMessageResponse,
 };
 

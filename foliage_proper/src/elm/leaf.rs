@@ -1,11 +1,13 @@
-use crate::elm::config::ElmConfiguration;
-use crate::elm::Elm;
-use crate::Foliage;
-use bevy_ecs::component::Component;
-use bevy_ecs::schedule::SystemSet;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::marker::PhantomData;
+
+use bevy_ecs::component::Component;
+use bevy_ecs::schedule::SystemSet;
+
+use crate::elm::config::ElmConfiguration;
+use crate::elm::Elm;
+use crate::Foliage;
 
 pub trait Leaf {
     type SetDescriptor: SystemSet + Hash + Eq + PartialEq + Copy + Clone + Debug;

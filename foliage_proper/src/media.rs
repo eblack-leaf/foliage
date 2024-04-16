@@ -1,16 +1,17 @@
-use crate::differential::Despawn;
-use crate::elm::config::CoreSet;
-use crate::elm::leaf::{EmptySetDescriptor, Leaf};
-use crate::elm::Elm;
-use crate::interaction::{InteractionListener, InteractionShape};
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Bundle, IntoSystemConfigs};
 use bevy_ecs::system::Query;
 use compact_str::CompactString;
 #[cfg(target_family = "wasm")]
-use wasm_bindgen::prelude::Closure;
-#[cfg(target_family = "wasm")]
 use wasm_bindgen::JsCast;
+#[cfg(target_family = "wasm")]
+use wasm_bindgen::prelude::Closure;
+
+use crate::differential::Despawn;
+use crate::elm::config::CoreSet;
+use crate::elm::Elm;
+use crate::elm::leaf::{EmptySetDescriptor, Leaf};
+use crate::interaction::{InteractionListener, InteractionShape};
 
 #[derive(Component, Clone, Default)]
 pub struct Href(CompactString, bool);

@@ -1,14 +1,5 @@
-use crate::animate::trigger::Trigger;
-use crate::coordinate::area::Area;
-use crate::coordinate::layer::Layer;
-use crate::coordinate::position::Position;
-use crate::coordinate::section::Section;
-use crate::coordinate::{DeviceContext, InterfaceContext};
-use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
-use crate::elm::leaf::{EmptySetDescriptor, Leaf};
-use crate::elm::{Elm, EventStage};
-use crate::ginkgo::viewport::ViewportHandle;
-use crate::window::ScaleFactor;
+use std::collections::HashMap;
+
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
 use bevy_ecs::event::{Event, EventReader};
@@ -17,9 +8,20 @@ use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Query, Res, ResMut, Resource};
 use compact_str::{CompactString, ToCompactString};
 use nalgebra::{distance, Point};
-use std::collections::HashMap;
 use winit::event::{ElementState, Modifiers, MouseButton, TouchPhase};
 use winit::keyboard::{ModifiersState, NamedKey};
+
+use crate::animate::trigger::Trigger;
+use crate::coordinate::{DeviceContext, InterfaceContext};
+use crate::coordinate::area::Area;
+use crate::coordinate::layer::Layer;
+use crate::coordinate::position::Position;
+use crate::coordinate::section::Section;
+use crate::elm::{Elm, EventStage};
+use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
+use crate::elm::leaf::{EmptySetDescriptor, Leaf};
+use crate::ginkgo::viewport::ViewportHandle;
+use crate::window::ScaleFactor;
 
 impl Leaf for Interaction {
     type SetDescriptor = EmptySetDescriptor;
