@@ -36,24 +36,6 @@ impl Viewable for TextShowcase {
             ResponsiveSegment::base(Segment::new(2.near().to(7.far()), 2.near().to(4.far())))
                 .at_layer(5),
         );
-        view_builder.extend(
-            input.bindings().get(TextInputBindings::Text),
-            ResourceDerivedValue::<TextValueResource, TextValue>::new(),
-        );
-        // view_builder.add_scene(
-        //     TextInput::new(
-        //         TextInputMode::Password,
-        //         TextLineStructure::new(15, 1),
-        //         "".to_string(),
-        //         Some("password".into()),
-        //         Colors::new(Asparagus::BASE, Greyscale::MINUS_THREE),
-        //     ),
-        //     ResponsiveSegment::base(Segment::new(
-        //         2.near().to(6.far()),
-        //         5.near().to(5.far()).maximum(45.0),
-        //     ))
-        //     .at_layer(5),
-        // );
         view_builder.finish()
     }
 }
