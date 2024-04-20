@@ -2,8 +2,8 @@
 use copypasta::ClipboardProvider;
 
 use crate::elm::config::ElmConfiguration;
-use crate::elm::Elm;
 use crate::elm::leaf::{EmptySetDescriptor, Leaf};
+use crate::elm::Elm;
 
 pub struct Clipboard {
     #[cfg(not(target_family = "wasm"))]

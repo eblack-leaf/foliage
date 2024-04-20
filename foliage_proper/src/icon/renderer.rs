@@ -14,12 +14,12 @@ use crate::ash::renderer::RenderPackage;
 use crate::color::Color;
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
-use crate::coordinate::NumericalContext;
 use crate::coordinate::position::CReprPosition;
 use crate::coordinate::section::Section;
+use crate::coordinate::NumericalContext;
 use crate::ginkgo::Ginkgo;
-use crate::icon::{Icon, IconId, IconScale, RequestData, WasRequest};
 use crate::icon::vertex::{Vertex, VERTICES};
+use crate::icon::{Icon, IconId, IconScale, RequestData, WasRequest};
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
 use crate::texture::coord::TexturePartition;
 

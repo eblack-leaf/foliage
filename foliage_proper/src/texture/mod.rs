@@ -4,15 +4,15 @@ use std::hash::Hash;
 use std::marker::PhantomData;
 
 use bytemuck::{Pod, Zeroable};
-use wgpu::{Extent3d, TextureDimension, TextureUsages};
 use wgpu::util::DeviceExt;
+use wgpu::{Extent3d, TextureDimension, TextureUsages};
 
 use coord::TexturePartition;
 
-use crate::coordinate::{CoordinateUnit, NumericalContext};
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
+use crate::coordinate::{CoordinateUnit, NumericalContext};
 use crate::ginkgo::Ginkgo;
 
 pub mod coord;

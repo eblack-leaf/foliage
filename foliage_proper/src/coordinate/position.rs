@@ -6,10 +6,10 @@ use bevy_ecs::prelude::Component;
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
 
+use crate::coordinate::area::Area;
 use crate::coordinate::{
     CoordinateContext, CoordinateUnit, DeviceContext, InterfaceContext, NumericalContext,
 };
-use crate::coordinate::area::Area;
 
 #[derive(Serialize, Deserialize, Copy, Clone, Component, PartialOrd, PartialEq, Default, Debug)]
 pub struct Position<Context: CoordinateContext> {

@@ -1,7 +1,7 @@
 use bevy_ecs::system::Resource;
 
-use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
 use crate::coordinate::area::Area;
+use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
 use crate::text::{CharacterDimension, FontSize, TextLineStructure, TextMetrics};
 use crate::window::ScaleFactor;
 

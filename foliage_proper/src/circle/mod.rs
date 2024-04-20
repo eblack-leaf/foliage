@@ -5,15 +5,15 @@ use bevy_ecs::system::Query;
 use proc_gen::{LOWER_BOUND, STEP, TEXTURE_SIZE, UPPER_BOUND};
 
 use crate::color::Color;
-use crate::coordinate::{CoordinateUnit, InterfaceContext, NumericalContext};
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::section::Section;
+use crate::coordinate::{CoordinateUnit, InterfaceContext, NumericalContext};
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
-use crate::elm::{Elm, Style};
 use crate::elm::config::{ElmConfiguration, ExternalSet};
 use crate::elm::leaf::Leaf;
+use crate::elm::{Elm, Style};
 use crate::texture::factors::{MipsLevel, Progress};
 
 mod proc_gen;

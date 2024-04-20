@@ -8,9 +8,9 @@ use crate::ash::instruction::{
 use crate::ash::render::{Render, RenderPhase};
 use crate::ash::render_packet::RenderPacket;
 use crate::ash::renderer::RenderPackage;
-use crate::circle::{Circle, Diameter};
 use crate::circle::proc_gen::TEXTURE_SIZE;
 use crate::circle::vertex::{Vertex, VERTICES};
+use crate::circle::{Circle, Diameter};
 use crate::color::Color;
 use crate::coordinate::area::CReprArea;
 use crate::coordinate::layer::Layer;

@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 use anymap::AnyMap;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::event::{Event, event_update_system, Events};
+use bevy_ecs::event::{event_update_system, Event, Events};
 use bevy_ecs::prelude::{Component, IntoSystemConfigs, Resource};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Command, Commands, Query, RunSystemOnce, StaticSystemParam, SystemParam};
@@ -23,11 +23,11 @@ use crate::conditional::{
     clean_scene, conditional_command, conditional_extension, conditional_scene_spawn,
     conditional_spawn,
 };
-use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::section::Section;
+use crate::coordinate::{CoordinateUnit, InterfaceContext};
 use crate::derivation::{component_derive_value, resource_derive_value};
 use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
 use crate::ginkgo::viewport::ViewportHandle;
@@ -35,7 +35,7 @@ use crate::interaction::InteractionListener;
 use crate::job::{Container, Job, Task};
 use crate::scene::Scene;
 use crate::view::{
-    Compositor, Navigate, PersistentView, View, Viewable, ViewBuilder, ViewDescriptor, ViewHandle,
+    Compositor, Navigate, PersistentView, View, ViewBuilder, ViewDescriptor, ViewHandle, Viewable,
 };
 use crate::window::ScaleFactor;
 #[cfg(target_family = "wasm")]

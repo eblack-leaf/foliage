@@ -6,8 +6,8 @@ use crate::coordinate::position::CReprPosition;
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::config::ElmConfiguration;
-use crate::elm::Elm;
 use crate::elm::leaf::{EmptySetDescriptor, Leaf};
+use crate::elm::Elm;
 use crate::texture::factors::Progress;
 
 mod proc_gen;

@@ -1,9 +1,9 @@
 use bevy_ecs::prelude::Bundle;
 use serde::{Deserialize, Serialize};
 
-use crate::coordinate::CoordinateContext;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
+use crate::coordinate::CoordinateContext;
 
 #[derive(Bundle, Copy, Clone, Default, Serialize, Deserialize, PartialEq, PartialOrd, Debug)]
 pub struct Location<Context: CoordinateContext> {

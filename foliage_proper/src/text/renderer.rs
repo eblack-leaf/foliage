@@ -9,20 +9,20 @@ use crate::ash::render::{Render, RenderPhase};
 use crate::ash::render_packet::RenderPacket;
 use crate::ash::renderer::RenderPackage;
 use crate::color::Color;
-use crate::coordinate::{CoordinateUnit, NumericalContext};
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::CReprPosition;
-use crate::ginkgo::Ginkgo;
+use crate::coordinate::{CoordinateUnit, NumericalContext};
 use crate::ginkgo::uniform::AlignedUniform;
+use crate::ginkgo::Ginkgo;
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
+use crate::text::font::MonospacedFont;
+use crate::text::vertex::{Vertex, VERTICES};
 use crate::text::{
     FontSize, Glyph, GlyphKey, Text, TextColorChanges, TextGlyphChanges, TextValueUniqueCharacters,
 };
-use crate::text::font::MonospacedFont;
-use crate::text::vertex::{Vertex, VERTICES};
-use crate::texture::{AtlasBlock, TextureAtlas};
 use crate::texture::coord::TexturePartition;
+use crate::texture::{AtlasBlock, TextureAtlas};
 
 pub struct TextRenderResources {
     pipeline: wgpu::RenderPipeline,

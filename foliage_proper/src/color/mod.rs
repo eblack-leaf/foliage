@@ -1,3 +1,4 @@
+use crate::animate::{Interpolate, Interpolation, InterpolationExtraction};
 use bevy_ecs::component::Component;
 use serde::{Deserialize, Serialize};
 
@@ -62,5 +63,43 @@ impl From<Color> for wgpu::Color {
             b: color.blue() as f64,
             a: color.alpha() as f64,
         }
+    }
+}
+
+impl Interpolate for Color {
+    fn interpolations(&self, end: &Self) -> Vec<Interpolation> {
+        vec![
+            Interpolation::new(self.red(), end.red()),
+            Interpolation::new(self.green(), end.green()),
+            Interpolation::new(self.blue(), end.blue()),
+            Interpolation::new(self.alpha(), end.alpha()),
+        ]
+    }
+
+    fn apply(&self, extracts: Vec<InterpolationExtraction>) -> Self {
+        Self::rgb(
+            extracts
+                .get(0)
+                .cloned()
+                .unwrap_or(InterpolationExtraction(self.red()))
+                .0,
+            extracts
+                .get(0)
+                .cloned()
+                .unwrap_or(InterpolationExtraction(self.green()))
+                .0,
+            extracts
+                .get(0)
+                .cloned()
+                .unwrap_or(InterpolationExtraction(self.blue()))
+                .0,
+        )
+        .with_alpha(
+            extracts
+                .get(0)
+                .cloned()
+                .unwrap_or(InterpolationExtraction(self.alpha()))
+                .0,
+        )
     }
 }

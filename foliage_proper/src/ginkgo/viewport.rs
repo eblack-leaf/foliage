@@ -4,14 +4,14 @@ use nalgebra::{matrix, SMatrix};
 use serde::{Deserialize, Serialize};
 use wgpu::Queue;
 
-use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
+use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
 use crate::elm::config::{CoreSet, ElmConfiguration};
-use crate::elm::Elm;
 use crate::elm::leaf::{EmptySetDescriptor, Leaf};
+use crate::elm::Elm;
 use crate::ginkgo::uniform::Uniform;
 
 #[derive(Serialize, Deserialize, Copy, Clone, Resource)]

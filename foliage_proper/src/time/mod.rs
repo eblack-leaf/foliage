@@ -2,8 +2,8 @@ use bevy_ecs::prelude::{IntoSystemConfigs, Resource};
 use bevy_ecs::system::ResMut;
 
 use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
-use crate::elm::Elm;
 use crate::elm::leaf::{EmptySetDescriptor, Leaf};
+use crate::elm::Elm;
 
 #[allow(unused)]
 pub mod timer;

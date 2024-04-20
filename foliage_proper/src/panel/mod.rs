@@ -8,9 +8,9 @@ use crate::coordinate::area::Area;
 use crate::coordinate::InterfaceContext;
 use crate::differential::{Differentiable, DifferentialBundle};
 use crate::differential_enable;
-use crate::elm::{Elm, Style};
 use crate::elm::config::{ElmConfiguration, ExternalSet};
 use crate::elm::leaf::{Leaf, Tag};
+use crate::elm::{Elm, Style};
 
 mod proc_gen;
 mod renderer;

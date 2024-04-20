@@ -5,8 +5,8 @@ use bevy_ecs::prelude::{Commands, Component, IntoSystemConfigs, Res, Resource};
 use bevy_ecs::system::Query;
 
 use crate::elm::config::{CoreSet, ElmConfiguration};
-use crate::elm::Elm;
 use crate::elm::leaf::{EmptySetDescriptor, Leaf};
+use crate::elm::Elm;
 
 pub type AssetKey = u128;
 #[derive(Resource, Default)]

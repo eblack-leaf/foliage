@@ -1,9 +1,9 @@
 use bevy_ecs::prelude::{Component, Resource};
 
-use crate::AndroidInterface;
 use crate::elm::config::ElmConfiguration;
-use crate::elm::Elm;
 use crate::elm::leaf::{EmptySetDescriptor, Leaf};
+use crate::elm::Elm;
+use crate::AndroidInterface;
 
 /// Adapter to interface with soft-input (VirtualKeyboard)
 #[derive(Resource)]

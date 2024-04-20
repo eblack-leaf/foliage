@@ -1,10 +1,11 @@
+use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::Query;
 
 use crate::elm::config::{CoreSet, ElmConfiguration};
-use crate::elm::Elm;
 use crate::elm::leaf::{EmptySetDescriptor, Leaf};
+use crate::elm::Elm;
 
 #[derive(Default, Copy, Clone, Debug, Hash, Eq, PartialEq)]
 pub enum TriggerState {
@@ -53,5 +54,21 @@ impl Leaf for Trigger {
     fn attach(elm: &mut Elm) {
         elm.main()
             .add_systems((clear_triggered.after(CoreSet::Differential),));
+    }
+}
+#[derive(Copy, Clone)]
+pub struct TriggerEntity {
+    pub trigger: Trigger,
+    pub entity: Entity,
+}
+impl TriggerEntity {
+    pub fn new(entity: Entity, trigger: Trigger) -> Self {
+        Self { trigger, entity }
+    }
+    pub fn trigger(&self) -> Trigger {
+        self.trigger
+    }
+    pub fn entity(&self) -> Entity {
+        self.entity
     }
 }

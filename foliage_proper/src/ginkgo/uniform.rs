@@ -1,6 +1,6 @@
 use bytemuck::{Pod, Zeroable};
-use wgpu::BindGroupEntry;
 use wgpu::util::DeviceExt;
+use wgpu::BindGroupEntry;
 
 pub struct Uniform<Data: Pod + Zeroable> {
     pub data: Data,

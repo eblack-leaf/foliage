@@ -12,8 +12,8 @@ use crate::coordinate::location::Location;
 use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::section::Section;
 use crate::elm::config::CoreSet;
-use crate::elm::Elm;
 use crate::elm::leaf::{EmptySetDescriptor, Leaf};
+use crate::elm::Elm;
 use crate::window::ScaleFactor;
 
 pub mod area;

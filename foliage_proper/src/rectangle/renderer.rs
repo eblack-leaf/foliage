@@ -12,8 +12,8 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::position::CReprPosition;
 use crate::ginkgo::Ginkgo;
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
-use crate::rectangle::Rectangle;
 use crate::rectangle::vertex::{Vertex, VERTICES};
+use crate::rectangle::Rectangle;
 use crate::texture::factors::Progress;
 
 pub struct RectangleRenderResources {

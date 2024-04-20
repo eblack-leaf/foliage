@@ -3,9 +3,9 @@ use std::collections::HashSet;
 use bevy_ecs::prelude::{Component, Entity};
 use bevy_ecs::system::{Commands, Query, Res};
 
-use crate::animate::trigger::Trigger;
-use crate::time::{Time, TimeDelta};
+use crate::animate::trigger::{Trigger, TriggerEntity};
 use crate::time::timer::TIME_SKIP_RESISTANCE;
+use crate::time::{Time, TimeDelta};
 
 pub mod trigger;
 
@@ -44,8 +44,13 @@ where
     fn apply(&self, extracts: Vec<InterpolationExtraction>) -> Self;
 }
 pub trait Animate {
-    fn animate<I: Interpolate>(self, start: Option<I>, end: I, duration: TimeDelta)
-        -> Animation<I>;
+    fn animate<I: Interpolate>(
+        self,
+        start: Option<I>,
+        end: I,
+        duration: TimeDelta,
+        delay: Option<TimeDelta>,
+    ) -> Animation<I>;
 }
 impl Animate for Entity {
     fn animate<I: Interpolate>(
@@ -53,8 +58,16 @@ impl Animate for Entity {
         start: Option<I>,
         end: I,
         duration: TimeDelta,
+        delay: Option<TimeDelta>,
     ) -> Animation<I> {
-        Animation::<I>::new(self, start, end, duration, InterpolationMethod::Sinusoidal)
+        Animation::<I>::new(
+            self,
+            start,
+            end,
+            duration,
+            delay,
+            InterpolationMethod::Sinusoidal,
+        )
     }
 }
 #[derive(Copy, Clone)]
@@ -95,10 +108,11 @@ pub struct Animation<I: Interpolate> {
     interpolations: Vec<Interpolation>,
     current_value: Option<I>,
     end_value: I,
+    delay: Option<TimeDelta>,
     duration: TimeDelta,
     target: AnimateTarget,
     interpolator: Interpolator,
-    on_end: HashSet<Entity>,
+    on_end: Vec<TriggerEntity>,
 }
 impl<I: Interpolate> Animation<I> {
     fn new(
@@ -106,6 +120,7 @@ impl<I: Interpolate> Animation<I> {
         start: Option<I>,
         end: I,
         duration: TimeDelta,
+        delay: Option<TimeDelta>,
         interpolation_method: InterpolationMethod,
     ) -> Self {
         Self {
@@ -113,14 +128,15 @@ impl<I: Interpolate> Animation<I> {
             interpolations: vec![],
             current_value: start,
             end_value: end,
+            delay,
             duration,
             target: AnimateTarget(target),
             interpolator: Interpolator::new(interpolation_method, duration),
-            on_end: HashSet::new(),
+            on_end: Vec::new(),
         }
     }
-    pub fn with_on_end(mut self, entity: Entity) -> Self {
-        self.on_end.insert(entity);
+    pub fn with_on_end(mut self, trigger_entity: TriggerEntity) -> Self {
+        self.on_end.push(trigger_entity);
         self
     }
 }
@@ -186,8 +202,9 @@ pub(crate) fn apply<I: Interpolate>(
         if all_done {
             // end anim and not already done from orphaned?
             tracing::trace!("animation done: {:?}", entity);
-            for trigger in animation.on_end.iter() {
-                cmd.entity(*trigger).insert(Trigger::active());
+            for trigger_entity in animation.on_end.iter() {
+                cmd.entity(trigger_entity.entity)
+                    .insert(trigger_entity.trigger);
             }
             cmd.entity(entity).remove::<Animation<I>>();
         }

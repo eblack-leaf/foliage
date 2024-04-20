@@ -11,8 +11,8 @@ use crate::coordinate::NumericalContext;
 use crate::differential::{Despawn, Differentiable, DifferentialBundle};
 use crate::differential_enable;
 use crate::elm::config::{CoreSet, ElmConfiguration};
-use crate::elm::Elm;
 use crate::elm::leaf::{EmptySetDescriptor, Leaf};
+use crate::elm::Elm;
 
 mod renderer;
 mod vertex;

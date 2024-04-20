@@ -2,13 +2,13 @@
 use std::path::Path;
 
 use bytemuck::{Pod, Zeroable};
+use wgpu::util::DeviceExt;
 use wgpu::{
     BindGroupEntry, BindGroupLayoutEntry, Buffer, BufferAddress, ColorTargetState,
     DepthStencilState, Extent3d, FragmentState, InstanceDescriptor, LoadOp, MultisampleState,
     PrimitiveState, RenderPassColorAttachment, RenderPassDepthStencilAttachment, ShaderModule,
     StoreOp, TextureDimension, TextureFormat, TextureUsages, TextureView,
 };
-use wgpu::util::DeviceExt;
 use winit::event_loop::EventLoopWindowTarget;
 
 use depth_texture::DepthTexture;
@@ -16,10 +16,10 @@ use msaa::Msaa;
 use viewport::Viewport;
 
 use crate::color::Color;
-use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
+use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
 use crate::window::{ScaleFactor, WindowDescriptor, WindowHandle};
 
 pub mod depth_texture;

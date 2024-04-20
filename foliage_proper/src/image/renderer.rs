@@ -11,12 +11,12 @@ use crate::ash::render_packet::RenderPacket;
 use crate::ash::renderer::RenderPackage;
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::layer::Layer;
-use crate::coordinate::NumericalContext;
 use crate::coordinate::position::CReprPosition;
 use crate::coordinate::section::Section;
+use crate::coordinate::NumericalContext;
 use crate::ginkgo::Ginkgo;
-use crate::image::{Image, ImageData, ImageId, ImageStorage};
 use crate::image::vertex::{Vertex, VERTICES};
+use crate::image::{Image, ImageData, ImageId, ImageStorage};
 use crate::instance::{InstanceCoordinator, InstanceCoordinatorBuilder};
 use crate::texture::coord::TexturePartition;
 

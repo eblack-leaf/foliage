@@ -6,8 +6,8 @@ use winit::dpi::PhysicalSize;
 use winit::event_loop::EventLoopWindowTarget;
 use winit::window::Window;
 
-use crate::coordinate::{CoordinateUnit, DeviceContext};
 use crate::coordinate::area::Area;
+use crate::coordinate::{CoordinateUnit, DeviceContext};
 
 #[derive(Default, Clone)]
 pub struct WindowDescriptor {
