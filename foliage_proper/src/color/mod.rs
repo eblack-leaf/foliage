@@ -1,4 +1,6 @@
 use crate::animate::{Interpolate, Interpolation, InterpolationExtraction};
+use crate::elm::leaf::{EmptySetDescriptor, Leaf};
+use crate::elm::Elm;
 use bevy_ecs::component::Component;
 use serde::{Deserialize, Serialize};
 
@@ -101,5 +103,12 @@ impl Interpolate for Color {
                 .unwrap_or(InterpolationExtraction(self.alpha()))
                 .0,
         )
+    }
+}
+impl Leaf for Color {
+    type SetDescriptor = EmptySetDescriptor;
+
+    fn attach(elm: &mut Elm) {
+        elm.enable_animation::<Color>();
     }
 }

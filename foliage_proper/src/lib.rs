@@ -21,6 +21,7 @@ use crate::ash::Ash;
 use crate::asset::AssetContainer;
 use crate::circle::Circle;
 use crate::clipboard::Clipboard;
+use crate::color::Color;
 use crate::conditional::ConditionSet;
 use crate::coordinate::position::Position;
 use crate::coordinate::CoordinateUnit;
@@ -142,6 +143,7 @@ impl Foliage {
             .with_leaf::<SceneHandle>()
             .with_leaf::<Differentiable>()
             .with_leaf::<CoordinateUnit>()
+            .with_leaf::<Color>()
     }
     pub fn with_android_interface(mut self, android_interface: AndroidInterface) -> Self {
         self.android_interface = android_interface;
