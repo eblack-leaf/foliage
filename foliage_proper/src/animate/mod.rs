@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use bevy_ecs::prelude::{Component, Entity};
 use bevy_ecs::system::{Commands, Query, Res};
 
-use crate::animate::trigger::{Trigger, TriggerEntity};
+use crate::animate::trigger::{EntityToTrigger, Trigger};
 use crate::time::timer::TIME_SKIP_RESISTANCE;
 use crate::time::{Time, TimeDelta};
 
@@ -112,7 +112,7 @@ pub struct Animation<I: Interpolate> {
     duration: TimeDelta,
     target: AnimateTarget,
     interpolator: Interpolator,
-    on_end: Vec<TriggerEntity>,
+    on_end: Vec<EntityToTrigger>,
 }
 impl<I: Interpolate> Animation<I> {
     fn new(
@@ -135,8 +135,8 @@ impl<I: Interpolate> Animation<I> {
             on_end: Vec::new(),
         }
     }
-    pub fn with_on_end(mut self, trigger_entity: TriggerEntity) -> Self {
-        self.on_end.push(trigger_entity);
+    pub fn with_on_end<ETT: Into<EntityToTrigger>>(mut self, ett: ETT) -> Self {
+        self.on_end.push(ett.into());
         self
     }
 }
@@ -148,7 +148,13 @@ pub(crate) fn apply<I: Interpolate>(
 ) {
     let time_elapsed = time.frame_diff().min(TIME_SKIP_RESISTANCE);
     for (entity, mut animation) in query.iter_mut() {
-        if !animation.started {
+        if let Some(ad) = animation.delay.as_mut() {
+            if !ad.is_zero() {
+                *ad = ad.checked_sub(time_elapsed).unwrap_or_default();
+                continue;
+            }
+        }
+        if !animation.started && animation.delay.unwrap_or_default().is_zero() {
             let start = if let Some(start) = animation.current_value.clone() {
                 start
             } else {

@@ -80,29 +80,11 @@ impl Interpolate for Color {
 
     fn apply(&self, extracts: Vec<InterpolationExtraction>) -> Self {
         Self::rgb(
-            extracts
-                .get(0)
-                .cloned()
-                .unwrap_or(InterpolationExtraction(self.red()))
-                .0,
-            extracts
-                .get(0)
-                .cloned()
-                .unwrap_or(InterpolationExtraction(self.green()))
-                .0,
-            extracts
-                .get(0)
-                .cloned()
-                .unwrap_or(InterpolationExtraction(self.blue()))
-                .0,
+            self.red() + extracts.get(0).cloned().unwrap_or_default().0,
+            self.green() + extracts.get(1).cloned().unwrap_or_default().0,
+            self.blue() + extracts.get(2).cloned().unwrap_or_default().0,
         )
-        .with_alpha(
-            extracts
-                .get(0)
-                .cloned()
-                .unwrap_or(InterpolationExtraction(self.alpha()))
-                .0,
-        )
+        .with_alpha(self.alpha() + extracts.get(3).cloned().unwrap_or_default().0)
     }
 }
 impl Leaf for Color {

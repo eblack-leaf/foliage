@@ -57,11 +57,11 @@ impl Leaf for Trigger {
     }
 }
 #[derive(Copy, Clone)]
-pub struct TriggerEntity {
+pub struct EntityToTrigger {
     pub trigger: Trigger,
     pub entity: Entity,
 }
-impl TriggerEntity {
+impl EntityToTrigger {
     pub fn new(entity: Entity, trigger: Trigger) -> Self {
         Self { trigger, entity }
     }
@@ -70,5 +70,10 @@ impl TriggerEntity {
     }
     pub fn entity(&self) -> Entity {
         self.entity
+    }
+}
+impl From<(Entity, Trigger)> for EntityToTrigger {
+    fn from(value: (Entity, Trigger)) -> Self {
+        Self::new(value.0, value.1)
     }
 }

@@ -388,7 +388,7 @@ impl Scene for InteractiveText {
         //     ),
         //     Rectangle::new(Color::WHITE, Progress::full())
         // );
-        let determinant: MaxCharacters = self.line_structure.per_line.into();
+        // let determinant: MaxCharacters = self.line_structure.per_line.into();
         binder.finish::<Self>(SceneComponents::new(
             // MicroGrid::new().aspect_ratio(
             //     determinant.mono_aspect().value() * 1.00 / self.line_structure.lines as f32,
