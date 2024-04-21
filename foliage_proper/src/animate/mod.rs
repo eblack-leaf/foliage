@@ -1,9 +1,7 @@
-use std::collections::HashSet;
-
 use bevy_ecs::prelude::{Component, Entity};
 use bevy_ecs::system::{Commands, Query, Res};
 
-use crate::animate::trigger::{EntityToTrigger, Trigger};
+use crate::animate::trigger::EntityToTrigger;
 use crate::time::timer::TIME_SKIP_RESISTANCE;
 use crate::time::{Time, TimeDelta};
 

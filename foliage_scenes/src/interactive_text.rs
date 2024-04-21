@@ -25,8 +25,8 @@ use foliage_proper::scene::micro_grid::{
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle};
 use foliage_proper::text::font::MonospacedFont;
 use foliage_proper::text::{
-    CharacterDimension, MaxCharacters, Text, TextColorExceptions, TextLineLocation,
-    TextLineStructure, TextOffset, TextValue,
+    CharacterDimension, Text, TextColorExceptions, TextLineLocation, TextLineStructure, TextOffset,
+    TextValue,
 };
 use foliage_proper::texture::factors::Progress;
 use foliage_proper::window::ScaleFactor;
