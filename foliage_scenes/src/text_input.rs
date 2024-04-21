@@ -20,7 +20,7 @@ use foliage_proper::scene::micro_grid::{
     AlignmentDesc, AnchorDim, MicroGrid, MicroGridAlignment, RelativeMarker,
 };
 use foliage_proper::scene::{Binder, Bindings, Scene, SceneComponents, SceneHandle, ScenePtr};
-use foliage_proper::text::{MaxCharacters, TextLineLocation, TextLineStructure, TextValue};
+use foliage_proper::text::{TextLineLocation, TextLineStructure, TextValue};
 use foliage_proper::time::{Time, TimeDelta};
 
 use crate::interactive_text::{InteractiveText, InteractiveTextBindings, Selection};
