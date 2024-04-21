@@ -7,6 +7,7 @@ use foliage::icon::FeatherIcon;
 use foliage::icon_button::IconButton;
 use foliage::icon_text::IconText;
 use foliage::layout::Layout;
+use foliage::notifications::Notification;
 use foliage::procedure::Procedure;
 use foliage::scene::Scene;
 use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
@@ -47,7 +48,7 @@ impl<T> ButtonDisplay<T> {
 }
 impl<T: Scene> Procedure for ButtonDisplay<T> {
     fn steps(self, view_builder: &mut ViewBuilder) {
-        view_builder.add_scene(
+        let first = view_builder.add_scene(
             self.first,
             ResponsiveSegment::base(Segment::new(
                 2.near()
@@ -75,6 +76,7 @@ impl<T: Scene> Procedure for ButtonDisplay<T> {
             .justify(Justify::Top)
             .at_layer(5),
         );
+        view_builder.add_command_to(first.root(), Notification::new("tester-tester"));
         view_builder.add_scene(
             self.second,
             ResponsiveSegment::base(Segment::new(

@@ -1,3 +1,4 @@
+use crate::notifications::NotificationBar;
 use foliage_proper::bevy_ecs;
 use foliage_proper::bevy_ecs::bundle::Bundle;
 use foliage_proper::bevy_ecs::component::Component;
@@ -38,6 +39,7 @@ impl Leaves for SceneExtensions {
             .with_leaf::<paged::scene::PageStructure>()
             .with_leaf::<interactive_text::InteractiveText>()
             .with_leaf::<text_input::TextInput>()
+            .with_leaf::<NotificationBar>()
     }
 }
 #[derive(Component, Copy, Clone, Default)]

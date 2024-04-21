@@ -1,6 +1,7 @@
 use crate::IMAGE;
 use foliage::color::monochromatic::{Greyscale, Monochromatic};
 use foliage::dropdown::{Dropdown, DropdownOptions, ExpandDirection};
+use foliage::notifications::NotificationBar;
 use foliage::segment::{Justify, MacroGrid, ResponsiveSegment, Segment, SegmentUnitDesc};
 use foliage::view::{Navigate, ViewBuilder, ViewDescriptor, Viewable};
 use foliage::Colors;
@@ -33,6 +34,10 @@ impl Viewable for Overlay {
         view_builder.add_command_to(branches.get(3).unwrap().target(), Navigate(TEXT));
         view_builder.add_command_to(branches.get(4).unwrap().target(), Navigate(IMAGE));
         // ...
+        view_builder.apply(NotificationBar::new(Colors::new(
+            Greyscale::PLUS_THREE,
+            Greyscale::MINUS_THREE,
+        )));
         view_builder.finish()
     }
 }

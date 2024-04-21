@@ -23,7 +23,7 @@ impl Viewable for TextShowcase {
         //     ResponsiveSegment::base(Segment::new(2.near().to(7.far()), 2.near().to(2.far())))
         //         .at_layer(5),
         // );
-        let input = view_builder.add_scene(
+        let _input = view_builder.add_scene(
             TextInput::new(
                 TextInputMode::Normal,
                 TextLineStructure::new(20, 20),

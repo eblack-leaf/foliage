@@ -23,7 +23,7 @@ impl<Context: CoordinateContext> Display for Position<Context> {
     }
 }
 impl<Context: CoordinateContext> Position<Context> {
-    pub fn new(x: CoordinateUnit, y: CoordinateUnit) -> Self {
+    pub const fn new(x: CoordinateUnit, y: CoordinateUnit) -> Self {
         Self {
             x,
             y,
