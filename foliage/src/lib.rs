@@ -2,7 +2,7 @@ mod coordinate;
 mod interop;
 mod window;
 
-use crate::window::WindowHandle;
+use crate::window::Engen;
 pub use coordinate::{Area, CoordinateUnit, Coordinates};
 pub use interop::AndroidConnection;
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -19,7 +19,7 @@ impl Foliage {
     pub fn run(self) {
         let event_loop = EventLoop::new().unwrap();
         event_loop.set_control_flow(ControlFlow::Wait);
-        let mut window_handle = WindowHandle::default();
+        let mut window_handle = Engen::default();
         event_loop
             .run_app(&mut window_handle)
             .expect("event-loop-run-app");

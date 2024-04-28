@@ -3,14 +3,10 @@ use winit::event::{DeviceEvent, DeviceId, StartCause, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
 use winit::window::{Window, WindowAttributes, WindowId};
 #[derive(Default)]
-pub struct WindowHandle {
+pub struct Engen {
     handle: Option<Window>,
 }
-impl ApplicationHandler for WindowHandle {
-    fn new_events(&mut self, event_loop: &ActiveEventLoop, cause: StartCause) {
-        todo!()
-    }
-
+impl ApplicationHandler for Engen {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         self.handle.replace(
             event_loop
@@ -18,42 +14,46 @@ impl ApplicationHandler for WindowHandle {
                 .unwrap(),
         );
     }
-
-    fn user_event(&mut self, event_loop: &ActiveEventLoop, event: ()) {
-        todo!()
-    }
-
     fn window_event(
         &mut self,
         event_loop: &ActiveEventLoop,
         window_id: WindowId,
         event: WindowEvent,
     ) {
-        todo!()
-    }
-
-    fn device_event(
-        &mut self,
-        event_loop: &ActiveEventLoop,
-        device_id: DeviceId,
-        event: DeviceEvent,
-    ) {
-        todo!()
-    }
-
-    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        todo!()
-    }
-
-    fn suspended(&mut self, event_loop: &ActiveEventLoop) {
-        todo!()
-    }
-
-    fn exiting(&mut self, event_loop: &ActiveEventLoop) {
-        todo!()
-    }
-
-    fn memory_warning(&mut self, event_loop: &ActiveEventLoop) {
-        todo!()
+        match event {
+            WindowEvent::ActivationTokenDone { .. } => {}
+            WindowEvent::Resized(_) => {}
+            WindowEvent::Moved(_) => {}
+            WindowEvent::CloseRequested => {
+                event_loop.exit();
+            }
+            WindowEvent::Destroyed => {}
+            WindowEvent::DroppedFile(_) => {}
+            WindowEvent::HoveredFile(_) => {}
+            WindowEvent::HoveredFileCancelled => {}
+            WindowEvent::Focused(_) => {}
+            WindowEvent::KeyboardInput { .. } => {}
+            WindowEvent::ModifiersChanged(_) => {}
+            WindowEvent::Ime(_) => {}
+            WindowEvent::CursorMoved { .. } => {}
+            WindowEvent::CursorEntered { .. } => {}
+            WindowEvent::CursorLeft { .. } => {}
+            WindowEvent::MouseWheel { .. } => {}
+            WindowEvent::MouseInput { .. } => {}
+            WindowEvent::PinchGesture { .. } => {}
+            WindowEvent::PanGesture { .. } => {}
+            WindowEvent::DoubleTapGesture { .. } => {}
+            WindowEvent::RotationGesture { .. } => {}
+            WindowEvent::TouchpadPressure { .. } => {}
+            WindowEvent::AxisMotion { .. } => {}
+            WindowEvent::Touch(_) => {}
+            WindowEvent::ScaleFactorChanged { .. } => {}
+            WindowEvent::ThemeChanged(_) => {}
+            WindowEvent::Occluded(_) => {}
+            WindowEvent::RedrawRequested => {
+                // if !drawn => draw
+                // which implies that WindowHandle needs to store that somehow
+            }
+        }
     }
 }
