@@ -1,49 +1,57 @@
+mod ash;
 mod coordinate;
+mod ginkgo;
 mod interop;
 mod window;
 
+use crate::ash::Ash;
+use crate::ginkgo::Ginkgo;
+pub use ash::Render;
 pub use coordinate::{Area, CoordinateUnit, Coordinates};
 pub use interop::AndroidConnection;
-use window::WindowHandle;
+use window::Willow;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::{WindowAttributes, WindowId};
 
-pub struct Foliage {}
+pub struct Foliage {
+    willow: Willow,
+    ash: Ash,
+    ginkgo: Ginkgo,
+}
 impl Foliage {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            willow: Willow::default(),
+            ash: Ash::default(),
+            ginkgo: Ginkgo::default(),
+        }
     }
     pub fn set_window_size<A: Into<Area>>(&mut self, a: A) {}
     pub fn set_worker_path<S: AsRef<str>>(&mut self, s: S) {}
     pub fn set_window_title<S: AsRef<str>>(&mut self, s: S) {}
     pub fn set_android_connection(&mut self, ac: AndroidConnection) {}
-    pub fn run(self) {
+    pub fn add_renderer<R: Render>(&mut self) {
+        // queue to render engen a call to Render::create
+    }
+    pub fn run(mut self) {
         let event_loop = EventLoop::new().unwrap();
         event_loop.set_control_flow(ControlFlow::Wait);
-        let mut engen = Engen::default();
-        event_loop.run_app(&mut engen).expect("event-loop-run-app");
+        event_loop.run_app(&mut self).expect("event-loop-run-app");
     }
 }
 
-#[derive(Default)]
-pub struct Engen {
-    window_handle: WindowHandle,
-}
-
-impl ApplicationHandler for Engen {
+impl ApplicationHandler for Foliage {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        self.window_handle.handle.replace(
+        self.willow.handle.replace(
             event_loop
                 .create_window(
                     WindowAttributes::default()
-                        .with_title(self.window_handle.title.clone().unwrap_or_default())
-                        .with_resizable(self.window_handle.resizable.unwrap_or(true))
+                        .with_title(self.willow.title.clone().unwrap_or_default())
+                        .with_resizable(self.willow.resizable.unwrap_or(true))
                         .with_min_inner_size(
-                            self.window_handle
-                                .min_size
-                                .unwrap_or(Area::device((320, 320))),
+                            self.willow.min_size.unwrap_or(Area::device((320, 320))),
                         ),
                 )
                 .unwrap(),
