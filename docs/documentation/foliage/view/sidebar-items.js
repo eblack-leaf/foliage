@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"struct":["Compositor","EntityPool","Navigate","View","ViewBuilder","ViewDescriptor","ViewHandle"],"trait":["Viewable"],"type":["BranchPool","Branches","Create"]};

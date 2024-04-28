@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"struct":["AquaMarine","Asparagus","DarkOliveGreen","FluorescentYellow","Greyscale","Magenta","MostlyDesaturatedDarkBlue","Orange","StrongCyan"],"trait":["Monochromatic"]};

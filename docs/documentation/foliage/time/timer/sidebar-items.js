@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"constant":["TIME_SKIP_RESISTANCE"],"enum":["TimerState"],"struct":["Timer"]};

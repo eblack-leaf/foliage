@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["InputSequence","InteractionPhase","InteractionShape"],"fn":["set_interaction_listeners"],"struct":["FocusedEntity","Interaction","InteractionEvent","InteractionId","InteractionListener","KeyboardAdapter","KeyboardEvent","MouseAdapter","PrimaryInteraction","PrimaryInteractionEntity"],"type":["Key","Mods","State"]};

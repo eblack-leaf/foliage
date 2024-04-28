@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"mod":["attribute"],"struct":["InstanceCoordinator","InstanceCoordinatorBuilder"],"type":["Index"]};

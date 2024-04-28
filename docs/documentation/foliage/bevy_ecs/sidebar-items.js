@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"macro":["all_tuples"],"mod":["archetype","bundle","change_detection","component","entity","event","prelude","ptr","query","reflect","removal_detection","schedule","storage","system","world"]};

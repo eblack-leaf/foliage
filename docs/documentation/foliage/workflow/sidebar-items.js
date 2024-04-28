@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["start_web_worker"],"struct":["WorkflowBridge"],"trait":["Workflow"]};
