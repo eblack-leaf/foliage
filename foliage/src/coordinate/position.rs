@@ -2,17 +2,20 @@ use crate::coordinate::{CoordinateContext, DeviceContext, LogicalContext, Numeri
 use crate::{CoordinateUnit, Coordinates};
 use std::marker::PhantomData;
 use winit::dpi::{LogicalPosition, PhysicalPosition};
-
+#[derive(Copy, Clone, Default)]
 pub struct Position<Context: CoordinateContext> {
     pub coordinates: Coordinates<2>,
     _phantom: PhantomData<Context>,
 }
 impl Position<NumericalContext> {
     pub fn logical<C: Into<Coordinates<2>>>(c: C) -> Position<LogicalContext> {
-        Position::<LogicalContext>::new(c)
+        Position::new(c)
     }
     pub fn device<C: Into<Coordinates<2>>>(c: C) -> Position<DeviceContext> {
-        Position::<DeviceContext>::new(c)
+        Position::new(c)
+    }
+    pub fn numerical<C: Into<Coordinates<2>>>(c: C) -> Position<NumericalContext> {
+        Position::new(c)
     }
 }
 impl<Context: CoordinateContext> Position<Context> {

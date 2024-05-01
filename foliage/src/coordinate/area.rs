@@ -11,10 +11,13 @@ pub struct Area<Context: CoordinateContext> {
 }
 impl Area<NumericalContext> {
     pub fn logical<C: Into<Coordinates<2>>>(c: C) -> Area<LogicalContext> {
-        Area::<LogicalContext>::new(c)
+        Area::new(c)
     }
     pub fn device<C: Into<Coordinates<2>>>(c: C) -> Area<DeviceContext> {
-        Area::<DeviceContext>::new(c)
+        Area::new(c)
+    }
+    pub fn numerical<C: Into<Coordinates<2>>>(c: C) -> Area<NumericalContext> {
+        Area::new(c)
     }
 }
 impl<Context: CoordinateContext> Area<Context> {

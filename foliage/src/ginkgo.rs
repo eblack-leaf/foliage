@@ -1,6 +1,6 @@
-use crate::coordinate::DeviceContext;
+use crate::coordinate::{DeviceContext, LogicalContext, Position};
 use crate::willow::Willow;
-use crate::Area;
+use crate::{Area, Section};
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 use wgpu::{
@@ -269,10 +269,31 @@ impl<Repr: Pod + Zeroable + PartialEq> AggregateUniform<Repr> {
         self.uniform.data[i] = r;
     }
 }
-#[derive(Default)]
 pub struct Viewport {}
 impl Viewport {
+    pub(crate) fn translate(&mut self, position: Position<LogicalContext>) {
+        todo!()
+    }
+    pub(crate) fn resize(&mut self, area: Area<DeviceContext>) {
+        todo!()
+    }
     pub(crate) fn new() -> Self {
         Self {}
+    }
+}
+#[derive(Default)]
+pub struct ViewportHandle {
+    translation: Position<LogicalContext>,
+    area: Area<LogicalContext>,
+}
+impl ViewportHandle {
+    pub fn translate(&mut self, position: Position<LogicalContext>) {
+        todo!()
+    }
+    pub(crate) fn read_size_change(&mut self, area: Area<DeviceContext>) {
+        todo!()
+    }
+    pub fn section(&self) -> Section<LogicalContext> {
+        todo!()
     }
 }

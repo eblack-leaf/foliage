@@ -4,7 +4,7 @@ use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::WindowId;
 
 pub use ash::Render;
-pub use coordinate::{Area, CoordinateUnit, Coordinates};
+pub use coordinate::{Area, CoordinateUnit, Coordinates, Position, Section};
 use willow::Willow;
 
 use crate::ash::Ash;

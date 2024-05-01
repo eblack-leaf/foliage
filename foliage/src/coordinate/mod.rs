@@ -1,8 +1,11 @@
 mod area;
 mod position;
+mod section;
 
 pub use area::Area;
 use bytemuck::{Pod, Zeroable};
+pub use position::Position;
+pub use section::Section;
 use serde::{Deserialize, Serialize};
 pub trait CoordinateContext
 where
