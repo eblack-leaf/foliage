@@ -300,7 +300,7 @@ impl ViewportHandle {
     pub fn translate(&mut self, position: Position<LogicalContext>) {
         todo!()
     }
-    pub(crate) fn read_size_change(&mut self, area: Area<DeviceContext>) {
+    pub(crate) fn resize(&mut self, area: Area<DeviceContext>) {
         todo!()
     }
     pub fn section(&self) -> Section<LogicalContext> {
