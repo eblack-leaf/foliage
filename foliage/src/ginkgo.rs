@@ -14,8 +14,21 @@ use wgpu::{
 pub(crate) struct Ginkgo {
     context: Option<GraphicContext>,
     configuration: Option<ViewConfiguration>,
+    viewport: Option<Viewport>,
 }
 impl Ginkgo {
+    pub(crate) fn viewport(&self) -> &Viewport {
+        self.viewport.as_ref().unwrap()
+    }
+    pub(crate) fn position_viewport(&mut self, position: Position<LogicalContext>) {
+        todo!()
+    }
+    pub(crate) fn create_viewport(&mut self, willow: &Willow) {
+        todo!()
+    }
+    pub(crate) fn resize_viewport(&mut self, willow: &Willow) {
+        self.viewport.as_mut().unwrap().resize(willow.actual_area());
+    }
     pub(crate) fn recreate_surface(&mut self, willow: &Willow) {
         self.context.as_mut().unwrap().surface = self
             .context()
@@ -97,9 +110,7 @@ impl Ginkgo {
         self.context()
             .surface
             .configure(&self.context().device, &config);
-        let viewport = Viewport::new();
         self.configuration.replace(ViewConfiguration {
-            viewport,
             msaa,
             depth,
             scale_factor,
@@ -122,7 +133,6 @@ pub(crate) struct GraphicContext {
     pub(crate) surface_format: TextureFormat,
 }
 pub(crate) struct ViewConfiguration {
-    pub(crate) viewport: Viewport,
     pub(crate) msaa: Msaa,
     pub(crate) depth: Depth,
     pub(crate) scale_factor: ScaleFactor,
@@ -254,7 +264,7 @@ impl<Data: Pod + Zeroable + PartialEq> Uniform<Data> {
     }
 }
 pub struct AggregateUniform<Repr: Pod + Zeroable + PartialEq> {
-    uniform: Uniform<[Repr; 4]>,
+    pub uniform: Uniform<[Repr; 4]>,
 }
 impl<Repr: Pod + Zeroable + PartialEq> AggregateUniform<Repr> {
     pub fn new(ginkgo: &Ginkgo, d: [Repr; 4]) -> Self {

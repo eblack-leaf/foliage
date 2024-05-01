@@ -88,16 +88,19 @@ impl ApplicationHandler for Foliage {
             self.willow.connect(event_loop);
             pollster::block_on(self.ginkgo.acquire_context(&self.willow));
             self.ginkgo.configure_view(&self.willow);
+            self.ginkgo.create_viewport(&self.willow);
         } else {
             #[cfg(target_os = "android")]
             {
                 self.ginkgo.recreate_surface(&self.willow);
                 self.ginkgo.configure_view(&self.willow);
+                self.ginkgo.resize_viewport(&self.willow);
             }
         }
         #[cfg(target_family = "wasm")]
         if !self.ginkgo.configured() {
             self.ginkgo.configure_view(&self.willow);
+            self.ginkgo.resize_viewport(&self.willow);
         }
     }
     fn window_event(
@@ -108,7 +111,11 @@ impl ApplicationHandler for Foliage {
     ) {
         match event {
             WindowEvent::ActivationTokenDone { .. } => {}
-            WindowEvent::Resized(_) => {}
+            WindowEvent::Resized(_) => {
+                // elm.resize_viewport_handle(&self.willow);
+                self.ginkgo.configure_view(&self.willow);
+                self.ginkgo.resize_viewport(&self.willow);
+            }
             WindowEvent::Moved(_) => {}
             WindowEvent::CloseRequested => {
                 event_loop.exit();
@@ -133,7 +140,14 @@ impl ApplicationHandler for Foliage {
             WindowEvent::TouchpadPressure { .. } => {}
             WindowEvent::AxisMotion { .. } => {}
             WindowEvent::Touch(_) => {}
-            WindowEvent::ScaleFactorChanged { .. } => {}
+            WindowEvent::ScaleFactorChanged {
+                scale_factor: _scale_factor,
+                ..
+            } => {
+                // elm.resize_viewport_handle(&self.willow);
+                self.ginkgo.configure_view(&self.willow);
+                self.ginkgo.resize_viewport(&self.willow);
+            }
             WindowEvent::ThemeChanged(_) => {}
             WindowEvent::Occluded(_) => {}
             WindowEvent::RedrawRequested => {
