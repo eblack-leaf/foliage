@@ -1,15 +1,16 @@
 mod ash;
+mod color;
 mod coordinate;
 mod ginkgo;
 mod interop;
-mod window;
+mod willow;
 
 use crate::ash::Ash;
 use crate::ginkgo::Ginkgo;
 pub use ash::Render;
 pub use coordinate::{Area, CoordinateUnit, Coordinates};
 pub use interop::AndroidConnection;
-use window::Willow;
+use willow::Willow;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};

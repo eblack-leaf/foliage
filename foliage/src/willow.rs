@@ -9,3 +9,8 @@ pub(crate) struct Willow {
     pub(crate) max_size: Option<Area>,
     pub(crate) resizable: Option<bool>,
 }
+impl Willow {
+    pub(crate) fn window(&self) -> &Window {
+        self.handle.as_ref().unwrap()
+    }
+}
