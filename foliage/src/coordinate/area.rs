@@ -47,3 +47,8 @@ impl From<Area<DeviceContext>> for Size {
         Self::new(PhysicalSize::new(value.width(), value.height()))
     }
 }
+impl From<PhysicalSize<u32>> for Area<DeviceContext> {
+    fn from(value: PhysicalSize<u32>) -> Self {
+        Self::new((value.width, value.height))
+    }
+}

@@ -13,7 +13,11 @@ pub(crate) struct Willow {
     pub(crate) max_size: Option<Area<DeviceContext>>,
     pub(crate) resizable: Option<bool>,
 }
+
 impl Willow {
+    pub(crate) fn actual_area(&self) -> Area<DeviceContext> {
+        self.handle.0.clone().unwrap().inner_size().into()
+    }
     pub(crate) fn window(&self) -> Arc<Window> {
         self.handle.0.clone().unwrap()
     }

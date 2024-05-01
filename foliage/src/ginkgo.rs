@@ -1,4 +1,6 @@
+use crate::coordinate::DeviceContext;
 use crate::willow::Willow;
+use crate::Area;
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 use wgpu::{
@@ -14,6 +16,12 @@ pub(crate) struct Ginkgo {
     configuration: Option<ViewConfiguration>,
 }
 impl Ginkgo {
+    pub(crate) fn acquired(&self) -> bool {
+        self.context.is_some()
+    }
+    pub(crate) fn configured(&self) -> bool {
+        self.configuration.is_some()
+    }
     pub(crate) async fn acquire_context(&mut self, willow: &Willow) {
         let instance = wgpu::Instance::new(InstanceDescriptor {
             backends: wgpu::Backends::all(),
@@ -56,28 +64,41 @@ impl Ginkgo {
             )
             .await
             .expect("device/queue");
-        let config = SurfaceConfiguration {
-            usage: TextureUsages::RENDER_ATTACHMENT,
-            format: TextureFormat::R8Unorm,
-            width: willow.window().inner_size().width,
-            height: willow.window().inner_size().height,
-            present_mode: PresentMode::Fifo,
-            desired_maximum_frame_latency: 2,
-            alpha_mode: CompositeAlphaMode::Auto,
-            view_formats: vec![surface_format],
-        };
-        surface.configure(&device, &config);
         self.context.replace(GraphicContext {
             surface,
             instance,
             adapter,
             device,
             queue,
-            config,
             surface_format,
         });
-        let msaa = Msaa::new(self.context(), 1);
-        let depth = Depth::new(self.context(), &msaa);
+    }
+    pub(crate) fn configure_view(&mut self, willow: &Willow) {
+        let scale_factor = ScaleFactor::new(willow.window().scale_factor() as f32);
+        let area = willow.actual_area().max(Area::device((1, 1)));
+        let msaa = Msaa::new(self.context(), 1, area);
+        let depth = Depth::new(self.context(), &msaa, area);
+        let config = SurfaceConfiguration {
+            usage: TextureUsages::RENDER_ATTACHMENT,
+            format: TextureFormat::R8Unorm,
+            width: area.width() as u32,
+            height: area.height() as u32,
+            present_mode: PresentMode::Fifo,
+            desired_maximum_frame_latency: 2,
+            alpha_mode: CompositeAlphaMode::Auto,
+            view_formats: vec![self.context().surface_format],
+        };
+        self.context()
+            .surface
+            .configure(&self.context().device, &config);
+        let viewport = Viewport::new();
+        self.configuration.replace(ViewConfiguration {
+            viewport,
+            msaa,
+            depth,
+            scale_factor,
+            config,
+        });
     }
     pub(crate) fn context(&self) -> &GraphicContext {
         self.context.as_ref().unwrap()
@@ -92,7 +113,6 @@ pub(crate) struct GraphicContext {
     pub(crate) adapter: wgpu::Adapter,
     pub(crate) device: wgpu::Device,
     pub(crate) queue: wgpu::Queue,
-    pub(crate) config: wgpu::SurfaceConfiguration,
     pub(crate) surface_format: TextureFormat,
 }
 pub(crate) struct ViewConfiguration {
@@ -100,6 +120,7 @@ pub(crate) struct ViewConfiguration {
     pub(crate) msaa: Msaa,
     pub(crate) depth: Depth,
     pub(crate) scale_factor: ScaleFactor,
+    pub(crate) config: SurfaceConfiguration,
 }
 pub struct ScaleFactor(f32);
 impl Default for ScaleFactor {
@@ -119,15 +140,15 @@ pub(crate) struct Depth {
     pub(crate) view: wgpu::TextureView,
 }
 impl Depth {
-    pub(crate) fn new(context: &GraphicContext, msaa: &Msaa) -> Self {
+    pub(crate) fn new(context: &GraphicContext, msaa: &Msaa, area: Area<DeviceContext>) -> Self {
         Self {
             view: context
                 .device
                 .create_texture(&TextureDescriptor {
                     label: Some("depth"),
                     size: Extent3d {
-                        width: context.config.width,
-                        height: context.config.height,
+                        width: area.width().max(1.0) as u32,
+                        height: area.height().max(1.0) as u32,
                         depth_or_array_layers: 0,
                     },
                     mip_level_count: 1,
@@ -151,16 +172,20 @@ impl Msaa {
     pub fn samples(&self) -> u32 {
         self.actual
     }
-    pub(crate) fn new(context: &GraphicContext, requested: u32) -> Self {
+    pub(crate) fn new(context: &GraphicContext, requested: u32, area: Area<DeviceContext>) -> Self {
         let flags = context
             .adapter
-            .get_texture_format_features(context.config.format)
+            .get_texture_format_features(context.surface_format)
             .flags;
         let max_samples = {
             if flags.contains(TextureFormatFeatureFlags::MULTISAMPLE_X16) {
                 16
             } else if flags.contains(TextureFormatFeatureFlags::MULTISAMPLE_X8) {
                 8
+            } else if flags.contains(TextureFormatFeatureFlags::MULTISAMPLE_X4) {
+                4
+            } else if flags.contains(TextureFormatFeatureFlags::MULTISAMPLE_X2) {
+                2
             } else {
                 1
             }
@@ -176,14 +201,14 @@ impl Msaa {
                         .create_texture(&TextureDescriptor {
                             label: Some("msaa"),
                             size: Extent3d {
-                                width: context.config.width,
-                                height: context.config.height,
+                                width: area.width() as u32,
+                                height: area.height() as u32,
                                 depth_or_array_layers: 1,
                             },
                             mip_level_count: 1,
                             sample_count: actual,
                             dimension: TextureDimension::D2,
-                            format: context.config.format,
+                            format: context.surface_format,
                             usage: TextureUsages::RENDER_ATTACHMENT,
                             view_formats: &[],
                         })
@@ -240,3 +265,8 @@ impl<Repr: Pod + Zeroable + PartialEq> AggregateUniform<Repr> {
 }
 #[derive(Default)]
 pub struct Viewport {}
+impl Viewport {
+    pub(crate) fn new() -> Self {
+        Self {}
+    }
+}

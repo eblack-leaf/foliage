@@ -1,26 +1,31 @@
+use std::sync::Arc;
+
+use winit::application::ApplicationHandler;
+use winit::event::WindowEvent;
+use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
+use winit::window::{WindowAttributes, WindowId};
+
+pub use ash::Render;
+pub use coordinate::{Area, CoordinateUnit, Coordinates};
+use willow::Willow;
+
+use crate::ash::Ash;
+use crate::coordinate::DeviceContext;
+use crate::ginkgo::Ginkgo;
+use crate::willow::WindowHandle;
+
 mod ash;
 mod color;
 mod coordinate;
 mod ginkgo;
 mod willow;
 
-use crate::ash::Ash;
-use crate::coordinate::DeviceContext;
-use crate::ginkgo::Ginkgo;
-use crate::willow::WindowHandle;
-pub use ash::Render;
-pub use coordinate::{Area, CoordinateUnit, Coordinates};
-use std::sync::Arc;
-use willow::Willow;
-use winit::application::ApplicationHandler;
-use winit::event::WindowEvent;
-use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
-use winit::window::{Window, WindowAttributes, WindowId};
-
 pub struct Foliage {
     willow: Willow,
     ash: Ash,
     ginkgo: Ginkgo,
+    worker_path: String,
+    android_connection: AndroidConnection,
 }
 impl Foliage {
     pub fn new() -> Self {
@@ -28,12 +33,22 @@ impl Foliage {
             willow: Willow::default(),
             ash: Ash::default(),
             ginkgo: Ginkgo::default(),
+            worker_path: "".to_string(),
+            android_connection: AndroidConnection::default(),
         }
     }
-    pub fn set_window_size<A: Into<Area<DeviceContext>>>(&mut self, a: A) {}
-    pub fn set_worker_path<S: AsRef<str>>(&mut self, s: S) {}
-    pub fn set_window_title<S: AsRef<str>>(&mut self, s: S) {}
-    pub fn set_android_connection(&mut self, ac: AndroidConnection) {}
+    pub fn set_window_size<A: Into<Area<DeviceContext>>>(&mut self, a: A) {
+        self.willow.requested_size.replace(a.into());
+    }
+    pub fn set_worker_path<S: AsRef<str>>(&mut self, s: S) {
+        self.worker_path = s.as_ref().to_string();
+    }
+    pub fn set_window_title<S: AsRef<str>>(&mut self, s: S) {
+        self.willow.title.replace(s.as_ref().to_string());
+    }
+    pub fn set_android_connection(&mut self, ac: AndroidConnection) {
+        self.android_connection = ac;
+    }
     pub fn add_renderer<R: Render>(&mut self) {
         // queue to render engen a call to Render::create
     }
@@ -49,25 +64,50 @@ impl Foliage {
     async fn internal_run(mut self) {
         let event_loop = EventLoop::new().unwrap();
         event_loop.set_control_flow(ControlFlow::Wait);
-        event_loop.run_app(&mut self).expect("event-loop-run-app");
+        cfg_if::cfg_if! {
+            if #[cfg(target_arch = "wasm32")] {
+                use winit::platform::web::EventLoopExtWebSys;
+                let event_loop_function = EventLoop::spawn_app;
+            } else {
+                let event_loop_function = EventLoop::run_app;
+            }
+        }
+        let proxy = event_loop.create_proxy();
+        // elm
+        // bridge
+        // insert bridge into ecs
+        // ash
+        (event_loop_function)(event_loop, &mut self).expect("event-loop-run-app");
     }
 }
 
 impl ApplicationHandler for Foliage {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        let requested_area = self.willow.requested_area();
-        let attributes = WindowAttributes::default()
-            .with_title(self.willow.title.clone().unwrap_or_default())
-            .with_resizable(self.willow.resizable.unwrap_or(true))
-            .with_min_inner_size(self.willow.min_size.unwrap_or(Area::device((320, 320))));
-        #[cfg(all(
-            not(target_family = "wasm"),
-            not(target_os = "android"),
-            not(target_os = "ios")
-        ))]
-        let attributes = attributes.with_inner_size(requested_area);
-        let window = event_loop.create_window(attributes).unwrap();
-        self.willow.handle = WindowHandle(Some(Arc::new(window)));
+        #[cfg(not(target_family = "wasm"))]
+        if !self.ginkgo.acquired() {
+            let requested_area = self.willow.requested_area();
+            let attributes = WindowAttributes::default()
+                .with_title(self.willow.title.clone().unwrap_or_default())
+                .with_resizable(self.willow.resizable.unwrap_or(true))
+                .with_min_inner_size(self.willow.min_size.unwrap_or(Area::device((320, 320))));
+            #[cfg(all(
+                not(target_family = "wasm"),
+                not(target_os = "android"),
+                not(target_os = "ios")
+            ))]
+            let attributes = attributes.with_inner_size(requested_area);
+            let window = event_loop.create_window(attributes).unwrap();
+            self.willow.handle = WindowHandle(Some(Arc::new(window)));
+            pollster::block_on(self.ginkgo.acquire_context(&self.willow));
+            self.ginkgo.configure_view(&self.willow);
+        } else {
+            // cfg-android-only
+            // recreate surface + reconfigure-view
+        }
+        #[cfg(target_family = "wasm")]
+        if !self.ginkgo.configured() {
+            self.ginkgo.configure_view(&self.willow);
+        }
     }
     fn window_event(
         &mut self,
