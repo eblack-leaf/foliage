@@ -2,7 +2,10 @@ use crate::willow::Willow;
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 use wgpu::{
-    DeviceDescriptor, Features, InstanceDescriptor, Limits, PowerPreference, RequestAdapterOptions,
+    CompositeAlphaMode, DeviceDescriptor, Extent3d, Features, InstanceDescriptor, Limits,
+    PowerPreference, PresentMode, RequestAdapterOptions, SurfaceConfiguration, TextureDescriptor,
+    TextureDimension, TextureFormat, TextureFormatFeatureFlags, TextureUsages,
+    TextureViewDescriptor,
 };
 
 #[derive(Default)]
@@ -28,6 +31,12 @@ impl Ginkgo {
             })
             .await
             .expect("adapter");
+        let surface_format = surface
+            .get_capabilities(&adapter)
+            .formats
+            .first()
+            .expect("surface-format")
+            .remove_srgb_suffix();
         let features = Features::default() | Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES;
         cfg_if::cfg_if! {
             if #[cfg(any(target_os = "android", target_family = "wasm"))] {
@@ -47,13 +56,28 @@ impl Ginkgo {
             )
             .await
             .expect("device/queue");
+        let config = SurfaceConfiguration {
+            usage: TextureUsages::RENDER_ATTACHMENT,
+            format: TextureFormat::R8Unorm,
+            width: willow.window().inner_size().width,
+            height: willow.window().inner_size().height,
+            present_mode: PresentMode::Fifo,
+            desired_maximum_frame_latency: 2,
+            alpha_mode: CompositeAlphaMode::Auto,
+            view_formats: vec![surface_format],
+        };
+        surface.configure(&device, &config);
         self.context.replace(GraphicContext {
             surface,
             instance,
             adapter,
             device,
             queue,
+            config,
+            surface_format,
         });
+        let msaa = Msaa::new(self.context(), 1);
+        let depth = Depth::new(self.context(), &msaa);
     }
     pub(crate) fn context(&self) -> &GraphicContext {
         self.context.as_ref().unwrap()
@@ -68,6 +92,8 @@ pub(crate) struct GraphicContext {
     pub(crate) adapter: wgpu::Adapter,
     pub(crate) device: wgpu::Device,
     pub(crate) queue: wgpu::Queue,
+    pub(crate) config: wgpu::SurfaceConfiguration,
+    pub(crate) surface_format: TextureFormat,
 }
 pub(crate) struct ViewConfiguration {
     pub(crate) viewport: Viewport,
@@ -90,14 +116,84 @@ impl ScaleFactor {
     }
 }
 pub(crate) struct Depth {
-    pub(crate) format: wgpu::TextureFormat,
-    pub(crate) texture: wgpu::Texture,
     pub(crate) view: wgpu::TextureView,
 }
-pub(crate) struct Msaa {
+impl Depth {
+    pub(crate) fn new(context: &GraphicContext, msaa: &Msaa) -> Self {
+        Self {
+            view: context
+                .device
+                .create_texture(&TextureDescriptor {
+                    label: Some("depth"),
+                    size: Extent3d {
+                        width: context.config.width,
+                        height: context.config.height,
+                        depth_or_array_layers: 0,
+                    },
+                    mip_level_count: 1,
+                    sample_count: msaa.samples(),
+                    dimension: TextureDimension::D2,
+                    format: Depth::FORMAT,
+                    usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
+                    view_formats: &[Depth::FORMAT],
+                })
+                .create_view(&TextureViewDescriptor::default()),
+        }
+    }
+    pub(crate) const FORMAT: TextureFormat = TextureFormat::Depth24PlusStencil8;
+}
+pub struct Msaa {
     pub(crate) max_samples: u32,
     pub(crate) actual: u32,
     pub(crate) view: Option<wgpu::TextureView>,
+}
+impl Msaa {
+    pub fn samples(&self) -> u32 {
+        self.actual
+    }
+    pub(crate) fn new(context: &GraphicContext, requested: u32) -> Self {
+        let flags = context
+            .adapter
+            .get_texture_format_features(context.config.format)
+            .flags;
+        let max_samples = {
+            if flags.contains(TextureFormatFeatureFlags::MULTISAMPLE_X16) {
+                16
+            } else if flags.contains(TextureFormatFeatureFlags::MULTISAMPLE_X8) {
+                8
+            } else {
+                1
+            }
+        };
+        let actual = requested.min(max_samples);
+        Self {
+            max_samples,
+            actual,
+            view: if actual > 1 {
+                Some(
+                    context
+                        .device
+                        .create_texture(&TextureDescriptor {
+                            label: Some("msaa"),
+                            size: Extent3d {
+                                width: context.config.width,
+                                height: context.config.height,
+                                depth_or_array_layers: 1,
+                            },
+                            mip_level_count: 1,
+                            sample_count: actual,
+                            dimension: TextureDimension::D2,
+                            format: context.config.format,
+                            usage: TextureUsages::RENDER_ATTACHMENT,
+                            view_formats: &[],
+                        })
+                        .create_view(&TextureViewDescriptor::default()),
+                )
+            } else {
+                None
+            },
+        }
+    }
 }
 pub struct Uniform<Data: Pod + Zeroable> {
     pub data: Data,

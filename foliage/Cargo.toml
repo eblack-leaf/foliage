@@ -12,3 +12,7 @@ wgpu = { version = "0.20.0", features = ["metal", "webgl", "wgsl"]}
 bevy_ecs = "0.13.2"
 serde = { version = "1.0.199", features = ["derive"] }
 cfg-if = "1.0.0"
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+pollster = "0.3.0"
+[target.'cfg(target_family = "wasm")'.dependencies]
+wasm-bindgen-futures = "0.4.42"
