@@ -1,9 +1,7 @@
-use std::sync::Arc;
-
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
-use winit::window::{WindowAttributes, WindowId};
+use winit::window::WindowId;
 
 pub use ash::Render;
 pub use coordinate::{Area, CoordinateUnit, Coordinates};
@@ -12,7 +10,6 @@ use willow::Willow;
 use crate::ash::Ash;
 use crate::coordinate::DeviceContext;
 use crate::ginkgo::Ginkgo;
-use crate::willow::WindowHandle;
 
 mod ash;
 mod color;
@@ -106,7 +103,7 @@ impl ApplicationHandler for Foliage {
     fn window_event(
         &mut self,
         event_loop: &ActiveEventLoop,
-        window_id: WindowId,
+        _window_id: WindowId,
         event: WindowEvent,
     ) {
         match event {

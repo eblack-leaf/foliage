@@ -36,7 +36,6 @@ impl Ginkgo {
             dx12_shader_compiler: wgpu::Dx12Compiler::Fxc,
             gles_minor_version: wgpu::Gles3MinorVersion::Automatic,
         });
-        let scale_factor = ScaleFactor::new(willow.window().scale_factor() as f32);
         let surface = instance.create_surface(willow.window()).expect("window");
         let adapter = instance
             .request_adapter(&RequestAdapterOptions {
@@ -87,7 +86,7 @@ impl Ginkgo {
         let depth = Depth::new(self.context(), &msaa, area);
         let config = SurfaceConfiguration {
             usage: TextureUsages::RENDER_ATTACHMENT,
-            format: TextureFormat::R8Unorm,
+            format: self.context().surface_format,
             width: area.width() as u32,
             height: area.height() as u32,
             present_mode: PresentMode::Fifo,
