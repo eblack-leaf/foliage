@@ -72,11 +72,14 @@ impl Foliage {
                 let event_loop_function = EventLoop::run_app;
             }
         }
+        #[cfg(target_family = "wasm")]
+        if !self.ginkgo.acquired() {
+            self.willow.connect(&event_loop);
+            self.ginkgo.acquire_context(&self.willow).await;
+        }
         let proxy = event_loop.create_proxy();
-        // elm
         // bridge
         // insert bridge into ecs
-        // ash
         (event_loop_function)(event_loop, &mut self).expect("event-loop-run-app");
     }
 }
@@ -85,24 +88,15 @@ impl ApplicationHandler for Foliage {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         #[cfg(not(target_family = "wasm"))]
         if !self.ginkgo.acquired() {
-            let requested_area = self.willow.requested_area();
-            let attributes = WindowAttributes::default()
-                .with_title(self.willow.title.clone().unwrap_or_default())
-                .with_resizable(self.willow.resizable.unwrap_or(true))
-                .with_min_inner_size(self.willow.min_size.unwrap_or(Area::device((320, 320))));
-            #[cfg(all(
-                not(target_family = "wasm"),
-                not(target_os = "android"),
-                not(target_os = "ios")
-            ))]
-            let attributes = attributes.with_inner_size(requested_area);
-            let window = event_loop.create_window(attributes).unwrap();
-            self.willow.handle = WindowHandle(Some(Arc::new(window)));
+            self.willow.connect(event_loop);
             pollster::block_on(self.ginkgo.acquire_context(&self.willow));
             self.ginkgo.configure_view(&self.willow);
         } else {
-            // cfg-android-only
-            // recreate surface + reconfigure-view
+            #[cfg(target_os = "android")]
+            {
+                self.ginkgo.recreate_surface(&self.willow);
+                self.ginkgo.configure_view(&self.willow);
+            }
         }
         #[cfg(target_family = "wasm")]
         if !self.ginkgo.configured() {

@@ -1,7 +1,8 @@
 use crate::coordinate::DeviceContext;
 use crate::Area;
 use std::sync::Arc;
-use winit::window::Window;
+use winit::event_loop::ActiveEventLoop;
+use winit::window::{Window, WindowAttributes};
 #[derive(Clone, Default)]
 pub(crate) struct WindowHandle(pub(crate) Option<Arc<Window>>);
 #[derive(Default)]
@@ -15,6 +16,21 @@ pub(crate) struct Willow {
 }
 
 impl Willow {
+    pub(crate) fn connect(&mut self, event_loop: &ActiveEventLoop) {
+        let requested_area = self.requested_area();
+        let attributes = WindowAttributes::default()
+            .with_title(self.title.clone().unwrap_or_default())
+            .with_resizable(self.resizable.unwrap_or(true))
+            .with_min_inner_size(self.min_size.unwrap_or(Area::device((320, 320))));
+        #[cfg(all(
+            not(target_family = "wasm"),
+            not(target_os = "android"),
+            not(target_os = "ios")
+        ))]
+        let attributes = attributes.with_inner_size(requested_area);
+        let window = event_loop.create_window(attributes).unwrap();
+        self.handle = WindowHandle(Some(Arc::new(window)));
+    }
     pub(crate) fn actual_area(&self) -> Area<DeviceContext> {
         self.handle.0.clone().unwrap().inner_size().into()
     }

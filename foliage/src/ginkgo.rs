@@ -16,6 +16,13 @@ pub(crate) struct Ginkgo {
     configuration: Option<ViewConfiguration>,
 }
 impl Ginkgo {
+    pub(crate) fn recreate_surface(&mut self, willow: &Willow) {
+        self.context.as_mut().unwrap().surface = self
+            .context()
+            .instance
+            .create_surface(willow.window())
+            .expect("surface");
+    }
     pub(crate) fn acquired(&self) -> bool {
         self.context.is_some()
     }
