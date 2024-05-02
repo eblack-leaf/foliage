@@ -32,6 +32,16 @@ impl<Context: CoordinateContext> Position<Context> {
         self.coordinates.0[0]
     }
 }
+impl Position<LogicalContext> {
+    pub fn to_device(self, factor: f32) -> Position<DeviceContext> {
+        Position::device((self.x() * factor, self.y() * factor))
+    }
+}
+impl Position<DeviceContext> {
+    pub fn to_logical(self, factor: f32) -> Position<LogicalContext> {
+        Position::logical((self.x() / factor, self.y() / factor))
+    }
+}
 impl From<LogicalPosition<f32>> for Position<LogicalContext> {
     fn from(value: LogicalPosition<f32>) -> Self {
         Self::new((value.x, value.y))

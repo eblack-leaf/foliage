@@ -40,6 +40,16 @@ impl<Context: CoordinateContext> Area<Context> {
         Self::new((self.width().max(o.width()), self.height().max(o.height())))
     }
 }
+impl Area<LogicalContext> {
+    pub fn to_device(self, factor: f32) -> Area<DeviceContext> {
+        Area::device((self.width() * factor, self.height() * factor))
+    }
+}
+impl Area<DeviceContext> {
+    pub fn to_logical(self, factor: f32) -> Area<LogicalContext> {
+        Area::logical((self.width() / factor, self.height() / factor))
+    }
+}
 impl From<Area<LogicalContext>> for Size {
     fn from(value: Area<LogicalContext>) -> Self {
         Self::new(LogicalSize::new(value.width(), value.height()))

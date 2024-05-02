@@ -4,11 +4,13 @@ use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::WindowId;
 
 pub use ash::Render;
-pub use coordinate::{Area, CoordinateUnit, Coordinates, Position, Section};
+pub use coordinate::{
+    Area, CoordinateUnit, Coordinates, DeviceContext, Layer, LogicalContext, NumericalContext,
+    Position, Section,
+};
 use willow::Willow;
 
 use crate::ash::Ash;
-use crate::coordinate::DeviceContext;
 use crate::ginkgo::Ginkgo;
 
 mod ash;

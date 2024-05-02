@@ -3,7 +3,7 @@ use crate::coordinate::{
 };
 use crate::{Area, CoordinateUnit, Coordinates};
 use std::marker::PhantomData;
-
+#[derive(Copy, Clone, Default)]
 pub struct Section<Context: CoordinateContext> {
     pub position: Position<Context>,
     pub area: Area<Context>,

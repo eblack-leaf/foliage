@@ -1,9 +1,11 @@
 mod area;
+mod layer;
 mod position;
 mod section;
 
 pub use area::Area;
 use bytemuck::{Pod, Zeroable};
+pub use layer::Layer;
 pub use position::Position;
 pub use section::Section;
 use serde::{Deserialize, Serialize};
