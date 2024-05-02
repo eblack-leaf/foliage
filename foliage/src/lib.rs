@@ -102,7 +102,7 @@ impl ApplicationHandler for Foliage {
         #[cfg(target_family = "wasm")]
         if !self.ginkgo.configured() {
             self.ginkgo.configure_view(&self.willow);
-            self.ginkgo.resize_viewport(&self.willow);
+            self.ginkgo.create_viewport(&self.willow);
         }
     }
     fn window_event(
@@ -116,7 +116,7 @@ impl ApplicationHandler for Foliage {
             WindowEvent::Resized(_) => {
                 // elm.resize_viewport_handle(&self.willow);
                 self.ginkgo.configure_view(&self.willow);
-                self.ginkgo.resize_viewport(&self.willow);
+                self.ginkgo.size_viewport(&self.willow);
             }
             WindowEvent::Moved(_) => {}
             WindowEvent::CloseRequested => {
@@ -148,7 +148,7 @@ impl ApplicationHandler for Foliage {
             } => {
                 // elm.resize_viewport_handle(&self.willow);
                 self.ginkgo.configure_view(&self.willow);
-                self.ginkgo.resize_viewport(&self.willow);
+                self.ginkgo.size_viewport(&self.willow);
             }
             WindowEvent::ThemeChanged(_) => {}
             WindowEvent::Occluded(_) => {}

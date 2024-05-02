@@ -55,4 +55,16 @@ impl<Context: CoordinateContext> Section<Context> {
     pub fn contacts(&self, o: Self) -> bool {
         todo!()
     }
+    pub fn min(self, o: Self) -> Self {
+        Self::new(
+            self.position.min(o.position).coordinates,
+            self.area.min(o.area).coordinates,
+        )
+    }
+    pub fn max(self, o: Self) -> Self {
+        Self::new(
+            self.position.max(o.position).coordinates,
+            self.area.max(o.area).coordinates,
+        )
+    }
 }

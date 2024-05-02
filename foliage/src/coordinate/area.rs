@@ -39,6 +39,9 @@ impl<Context: CoordinateContext> Area<Context> {
     pub fn max(&self, o: Self) -> Self {
         Self::new((self.width().max(o.width()), self.height().max(o.height())))
     }
+    pub fn to_numerical(self) -> Area<NumericalContext> {
+        Area::numerical((self.width(), self.height()))
+    }
 }
 impl Area<LogicalContext> {
     pub fn to_device(self, factor: f32) -> Area<DeviceContext> {

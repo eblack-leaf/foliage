@@ -17,6 +17,12 @@ impl Position<NumericalContext> {
     pub fn numerical<C: Into<Coordinates<2>>>(c: C) -> Position<NumericalContext> {
         Position::new(c)
     }
+    pub fn as_logical(self) -> Position<LogicalContext> {
+        Position::logical(self.coordinates)
+    }
+    pub fn as_device(self) -> Position<DeviceContext> {
+        Position::device(self.coordinates)
+    }
 }
 impl<Context: CoordinateContext> Position<Context> {
     pub fn new<C: Into<Coordinates<2>>>(c: C) -> Self {
@@ -30,6 +36,15 @@ impl<Context: CoordinateContext> Position<Context> {
     }
     pub fn y(&self) -> CoordinateUnit {
         self.coordinates.0[0]
+    }
+    pub fn to_numerical(self) -> Position<NumericalContext> {
+        Position::numerical((self.x(), self.y()))
+    }
+    pub fn min(self, o: Self) -> Self {
+        Self::new((self.x().min(o.x()), self.y().min(o.y())))
+    }
+    pub fn max(self, o: Self) -> Self {
+        Self::new((self.x().max(o.x()), self.y().max(o.y())))
     }
 }
 impl Position<LogicalContext> {

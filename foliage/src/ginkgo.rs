@@ -1,5 +1,5 @@
 use crate::coordinate::{DeviceContext, LogicalContext, NumericalContext, Position};
-use crate::willow::Willow;
+use crate::willow::{NearFarDescriptor, Willow};
 use crate::{Area, CoordinateUnit, Section};
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
@@ -20,14 +20,27 @@ impl Ginkgo {
     pub(crate) fn viewport(&self) -> &Viewport {
         self.viewport.as_ref().unwrap()
     }
-    pub(crate) fn position_viewport(&mut self, position: Position<LogicalContext>) {
-        todo!()
+    pub(crate) fn position_viewport(&mut self, position: Position<NumericalContext>) {
+        self.viewport
+            .as_mut()
+            .unwrap()
+            .set_position(position, self.context.as_ref().unwrap());
     }
     pub(crate) fn create_viewport(&mut self, willow: &Willow) {
-        todo!()
+        self.viewport.replace(Viewport::new(
+            self.context(),
+            Section::new(
+                willow.starting_position.unwrap_or_default().coordinates,
+                willow.actual_area().coordinates,
+            ),
+            willow.near_far.unwrap_or_default(),
+        ));
     }
-    pub(crate) fn resize_viewport(&mut self, willow: &Willow) {
-        self.viewport.as_mut().unwrap().resize(willow.actual_area());
+    pub(crate) fn size_viewport(&mut self, willow: &Willow) {
+        self.viewport.as_mut().unwrap().set_size(
+            willow.actual_area().to_numerical(),
+            self.context.as_ref().unwrap(),
+        );
     }
     pub(crate) fn recreate_surface(&mut self, willow: &Willow) {
         self.context.as_mut().unwrap().surface = self
@@ -241,19 +254,17 @@ pub struct Uniform<Data: Pod + Zeroable> {
     pub buffer: wgpu::Buffer,
 }
 impl<Data: Pod + Zeroable + PartialEq> Uniform<Data> {
-    pub fn write(&mut self, ginkgo: &Ginkgo, data: Data) {
+    pub fn write(&mut self, context: &GraphicContext, data: Data) {
         if self.data != data {
-            ginkgo
-                .context()
+            context
                 .queue
                 .write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[data]));
         }
     }
-    pub fn new(ginkgo: &Ginkgo, data: Data) -> Self {
+    pub fn new(context: &GraphicContext, data: Data) -> Self {
         Self {
             data,
-            buffer: ginkgo
-                .context()
+            buffer: context
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("uniform"),
@@ -267,13 +278,13 @@ pub struct AggregateUniform<Repr: Pod + Zeroable + PartialEq> {
     pub uniform: Uniform<[Repr; 4]>,
 }
 impl<Repr: Pod + Zeroable + PartialEq> AggregateUniform<Repr> {
-    pub fn new(ginkgo: &Ginkgo, d: [Repr; 4]) -> Self {
+    pub fn new(context: &GraphicContext, d: [Repr; 4]) -> Self {
         Self {
-            uniform: Uniform::new(ginkgo, d),
+            uniform: Uniform::new(context, d),
         }
     }
-    pub fn write(&mut self, ginkgo: &Ginkgo) {
-        self.uniform.write(ginkgo, self.uniform.data);
+    pub fn write(&mut self, context: &GraphicContext) {
+        self.uniform.write(context, self.uniform.data);
     }
     pub fn set(&mut self, i: usize, r: Repr) {
         self.uniform.data[i] = r;
@@ -282,43 +293,58 @@ impl<Repr: Pod + Zeroable + PartialEq> AggregateUniform<Repr> {
 type ViewportRepresentation = [[CoordinateUnit; 4]; 4];
 pub struct Viewport {
     translation: Position<NumericalContext>,
-    area: Area<DeviceContext>,
-    near_far: (f32, f32),
-    projection: ViewportRepresentation,
+    area: Area<NumericalContext>,
+    near_far: NearFarDescriptor,
+    matrix: ViewportRepresentation,
     uniform: Uniform<ViewportRepresentation>,
 }
 impl Viewport {
-    pub(crate) fn reposition(&mut self, position: Position<NumericalContext>) {
-        // save position
-        // redo projection
-        // update uniform
-        todo!()
+    pub(crate) fn set_position(
+        &mut self,
+        position: Position<NumericalContext>,
+        context: &GraphicContext,
+    ) {
+        self.translation = position.to_numerical();
+        self.matrix = self.remake();
+        self.uniform.write(context, self.matrix);
     }
-    pub(crate) fn resize(&mut self, area: Area<DeviceContext>) {
-        todo!()
+    pub(crate) fn set_size(&mut self, area: Area<NumericalContext>, context: &GraphicContext) {
+        self.area = area;
+        self.matrix = self.remake();
+        self.uniform.write(context, self.matrix);
+    }
+
+    fn remake(&mut self) -> ViewportRepresentation {
+        Self::generate(
+            Section::new(self.translation.coordinates, self.area.coordinates),
+            self.near_far,
+        )
     }
     pub(crate) fn new(
-        ginkgo: &Ginkgo,
-        section: Section<DeviceContext>,
-        near_far: (f32, f32),
+        context: &GraphicContext,
+        section: Section<NumericalContext>,
+        near_far: NearFarDescriptor,
     ) -> Self {
-        let projection = Self::generate(section, near_far);
+        let matrix = Self::generate(section, near_far);
         Self {
             translation: section.position.to_numerical(),
             area: section.area,
             near_far,
-            projection,
-            uniform: Uniform::new(ginkgo, projection),
+            matrix,
+            uniform: Uniform::new(context, matrix),
         }
     }
-    fn generate(section: Section<DeviceContext>, near_far: (f32, f32)) -> ViewportRepresentation {
+    fn generate(
+        section: Section<NumericalContext>,
+        near_far: NearFarDescriptor,
+    ) -> ViewportRepresentation {
         let right_left = 2f32 / (section.right() - section.x());
         let top_bottom = 2f32 / (section.y() - section.bottom());
-        let nf = 1f32 / (near_far.1 - near_far.0);
+        let nf = 1f32 / (near_far.far.0 - near_far.near.0);
         [
-            [right_left, 0f32, 0f32, right_left * section.x() - 1f32],
-            [0f32, top_bottom, 0f32, top_bottom * section.y() + 1f32],
-            [0f32, 0f32, nf, nf * near_far.0],
+            [right_left, 0f32, 0f32, right_left * -section.x() - 1f32],
+            [0f32, top_bottom, 0f32, top_bottom * -section.y() + 1f32],
+            [0f32, 0f32, nf, nf * near_far.near.0],
             [0f32, 0f32, 0f32, 1f32],
         ]
     }
@@ -326,16 +352,16 @@ impl Viewport {
 #[derive(Default)]
 pub struct ViewportHandle {
     translation: Position<NumericalContext>,
-    area: Area<LogicalContext>,
+    area: Area<NumericalContext>,
 }
 impl ViewportHandle {
     pub fn translate(&mut self, position: Position<NumericalContext>) {
         todo!()
     }
-    pub(crate) fn resize(&mut self, area: Area<DeviceContext>) {
+    pub(crate) fn resize(&mut self, area: Area<NumericalContext>) {
         todo!()
     }
-    pub fn section(&self) -> Section<LogicalContext> {
+    pub fn section(&self) -> Section<NumericalContext> {
         todo!()
     }
 }

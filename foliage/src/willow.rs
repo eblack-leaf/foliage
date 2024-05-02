@@ -1,5 +1,5 @@
 use crate::coordinate::DeviceContext;
-use crate::Area;
+use crate::{Area, Layer, NumericalContext, Position};
 use std::sync::Arc;
 use winit::event_loop::ActiveEventLoop;
 use winit::window::{Window, WindowAttributes};
@@ -13,8 +13,30 @@ pub(crate) struct Willow {
     pub(crate) title: Option<String>,
     pub(crate) max_size: Option<Area<DeviceContext>>,
     pub(crate) resizable: Option<bool>,
+    pub(crate) starting_position: Option<Position<NumericalContext>>,
+    pub(crate) near_far: Option<NearFarDescriptor>,
 }
-
+#[derive(Copy, Clone)]
+pub struct NearFarDescriptor {
+    pub(crate) near: Layer,
+    pub(crate) far: Layer,
+}
+impl NearFarDescriptor {
+    pub fn new<L: Into<Layer>>(near: L, far: L) -> Self {
+        Self {
+            near: near.into(),
+            far: far.into(),
+        }
+    }
+}
+impl Default for NearFarDescriptor {
+    fn default() -> Self {
+        Self {
+            near: Layer::new(0f32),
+            far: Layer::new(100f32),
+        }
+    }
+}
 impl Willow {
     pub(crate) fn connect(&mut self, event_loop: &ActiveEventLoop) {
         let requested_area = self.requested_area();
