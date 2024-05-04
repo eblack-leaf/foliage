@@ -8,6 +8,7 @@ pub use coordinate::{
     Area, CoordinateUnit, Coordinates, DeviceContext, Layer, LogicalContext, NumericalContext,
     Position, Section,
 };
+pub use elm::Elm;
 use willow::Willow;
 
 use crate::ash::Ash;
@@ -18,6 +19,7 @@ mod color;
 mod coordinate;
 mod ginkgo;
 mod willow;
+mod elm;
 
 pub struct Foliage {
     willow: Willow,
