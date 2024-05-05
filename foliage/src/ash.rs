@@ -1,29 +1,36 @@
-use std::any::TypeId;
 use crate::color::Color;
 use crate::ginkgo::Ginkgo;
 use crate::Elm;
+use bevy_ecs::world::World;
 use serde::{Deserialize, Serialize};
+use std::any::TypeId;
 use std::cmp::Ordering;
 use std::collections::HashMap;
-use wgpu::{CommandEncoderDescriptor, RenderPassDescriptor, TextureViewDescriptor};
+use wgpu::{
+    CommandEncoderDescriptor, RenderBundle, RenderPass, RenderPassDescriptor, TextureViewDescriptor,
+};
 #[derive(Default)]
 pub(crate) struct Ash {
     pub(crate) renderers: RendererStructure,
     pub(crate) creation: Vec<Box<fn(&mut RendererStructure, &Ginkgo)>>,
     pub(crate) render_fns: Vec<Box<fn(&mut RendererStructure, &Ginkgo, &Elm)>>,
+    pub(crate) bundles: Vec<Box<fn(&RendererStructure) -> Vec<&RenderBundle>>>,
 }
-pub(crate) type RendererStructure = HashMap<TypeId, Renderer>;
-pub(crate) struct Renderer {
+#[derive(Default)]
+pub(crate) struct RendererStructure {
+    pub(crate) renderers: World,
+}
+pub(crate) struct Renderer<R: Render> {
     pub(crate) phase: RenderPhase,
     pub(crate) directives: Vec<RenderDirective>,
-    pub(crate) resource_handle: Vec<u8>,
+    pub(crate) resource_handle: R,
 }
-impl Renderer {
-    pub(crate) fn new(render_phase: RenderPhase) -> Self {
+impl<R: Render> Renderer<R> {
+    pub(crate) fn new(ginkgo: &Ginkgo) -> Self {
         Self {
-            phase: render_phase,
+            phase: R::RENDER_PHASE,
             directives: vec![],
-            resource_handle: vec![],
+            resource_handle: R::create_resources(ginkgo),
         }
     }
 }
@@ -74,19 +81,33 @@ impl PartialOrd for RenderPhase {
 impl Ash {
     pub(crate) fn add_renderer<R: Render>(&mut self) {
         self.creation.push(Box::new(|r, g| {
-            let mut renderer = Renderer::new(R::RENDER_PHASE);
-            let h = Box::new(R::create_resources(g));
-            renderer.resource_handle = ;
-            r.push(renderer);
+            let renderer = Renderer::<R>::new(g);
+            r.renderers.insert_non_send_resource(renderer);
         }));
-        self.render_fns.push(
-            Box::new(|r, g, e| {
-                let renderer = r.get(&TypeId::of::<R>()).expect("renderer-not-present");
-                let resources = rmp_serde::from_slice(renderer.resource_handle.as_slice()).expect("incorrect-interpretation");
-                let extract = R::extract(e);
-
-            })
-        );
+        self.render_fns.push(Box::new(|r, g, e| {
+            let renderer = &mut *r
+                .renderers
+                .get_non_send_resource_mut::<Renderer<R>>()
+                .unwrap();
+            let extract = R::extract(e);
+            if R::prepare(renderer, extract) {
+                R::record(renderer, g);
+            }
+        }));
+        self.bundles.push(Box::new(|r| -> Vec<&RenderBundle> {
+            r.renderers
+                .get_non_send_resource::<Renderer<R>>()
+                .unwrap()
+                .directives
+                .iter()
+                .map(|d| &d.0)
+                .collect::<Vec<&RenderBundle>>()
+        }))
+    }
+    pub(crate) fn render(&mut self, ginkgo: &Ginkgo, elm: &Elm) {
+        for r_fn in self.render_fns.iter() {
+            (r_fn)(&mut self.renderers, ginkgo, elm);
+        }
     }
     pub(crate) fn present(&self, ginkgo: &Ginkgo) {
         let surface_texture = ginkgo.surface_texture();
@@ -107,13 +128,9 @@ impl Ash {
             timestamp_writes: None,
             occlusion_query_set: None,
         });
-        for (_, r) in self.renderers.iter() {
-            rpass.execute_bundles(
-                r.directives
-                    .iter()
-                    .map(|d| &d.0)
-                    .collect::<Vec<&wgpu::RenderBundle>>(),
-            );
+        for r_fn in self.bundles.iter() {
+            let instructions = (r_fn)(&self.renderers);
+            rpass.execute_bundles(instructions);
         }
         drop(rpass);
         ginkgo
@@ -123,7 +140,7 @@ impl Ash {
         surface_texture.present();
     }
 }
-pub struct RenderDirective(pub(crate) wgpu::RenderBundle);
+pub struct RenderDirective(pub(crate) RenderBundle);
 pub struct RenderDirectiveRecorder<'a>(pub(crate) wgpu::RenderBundleEncoder<'a>);
 impl<'a> RenderDirectiveRecorder<'a> {
     pub fn new(ginkgo: &'a Ginkgo) -> Self {
@@ -133,11 +150,11 @@ impl<'a> RenderDirectiveRecorder<'a> {
         todo!()
     }
 }
-pub trait Render {
+pub trait Render where Self: Sized + 'static {
     const RENDER_PHASE: RenderPhase;
     fn create_resources(ginkgo: &Ginkgo) -> Self;
     type Extraction;
     fn extract(elm: &Elm) -> Self::Extraction;
-    fn prepare(&mut self, extract: Self::Extraction) -> bool;
-    fn record(renderer: &mut Renderer, ginkgo: &Ginkgo);
+    fn prepare(renderer: &mut Renderer<Self>, extract: Self::Extraction) -> bool;
+    fn record(renderer: &mut Renderer<Self>, ginkgo: &Ginkgo);
 }
