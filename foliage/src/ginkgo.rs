@@ -1,14 +1,17 @@
-use crate::coordinate::{DeviceContext, LogicalContext, NumericalContext, Position};
-use crate::willow::{NearFarDescriptor, Willow};
-use crate::{Area, CoordinateUnit, Section};
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 use wgpu::{
-    CompositeAlphaMode, DeviceDescriptor, Extent3d, Features, InstanceDescriptor, Limits,
-    PowerPreference, PresentMode, RequestAdapterOptions, SurfaceConfiguration, TextureDescriptor,
-    TextureDimension, TextureFormat, TextureFormatFeatureFlags, TextureUsages,
-    TextureViewDescriptor,
+    CompositeAlphaMode, DeviceDescriptor, Extent3d, Features, InstanceDescriptor, Limits, LoadOp,
+    Operations, PowerPreference, PresentMode, RenderPassColorAttachment,
+    RenderPassDepthStencilAttachment, RequestAdapterOptions, StoreOp, SurfaceConfiguration,
+    TextureDescriptor, TextureDimension, TextureFormat, TextureFormatFeatureFlags, TextureUsages,
+    TextureView, TextureViewDescriptor,
 };
+
+use crate::color::Color;
+use crate::coordinate::{DeviceContext, NumericalContext, Position};
+use crate::willow::{NearFarDescriptor, Willow};
+use crate::{Area, CoordinateUnit, Section};
 
 #[derive(Default)]
 pub(crate) struct Ginkgo {
@@ -17,6 +20,51 @@ pub(crate) struct Ginkgo {
     viewport: Option<Viewport>,
 }
 impl Ginkgo {
+    pub(crate) fn color_attachment<'a>(
+        &'a self,
+        surface_view: &'a TextureView,
+        clear_color: Color,
+    ) -> [Option<RenderPassColorAttachment>; 1] {
+        let (view, resolve_target) = match self.configuration().msaa.view.as_ref() {
+            None => (surface_view, None),
+            Some(v) => (v, Some(surface_view)),
+        };
+        [Some(RenderPassColorAttachment {
+            view,
+            resolve_target,
+            ops: Operations {
+                load: LoadOp::Clear(clear_color.into()),
+                store: self.configuration().msaa.color_attachment_store_op(),
+            },
+        })]
+    }
+    pub(crate) fn depth_stencil_attachment(&self) -> Option<RenderPassDepthStencilAttachment> {
+        Some(RenderPassDepthStencilAttachment {
+            view: &self.configuration().depth.view,
+            depth_ops: Some(Operations {
+                load: LoadOp::Clear(self.viewport().near_far.far.0),
+                store: StoreOp::Store,
+            }),
+            stencil_ops: Some(Operations {
+                load: LoadOp::Clear(0u32),
+                store: StoreOp::Store,
+            }),
+        })
+    }
+    pub(crate) fn surface_texture(&self) -> wgpu::SurfaceTexture {
+        let context = self.context();
+        return if let Ok(frame) = context.surface.get_current_texture() {
+            frame
+        } else {
+            context
+                .surface
+                .configure(&context.device, &self.configuration().config);
+            context
+                .surface
+                .get_current_texture()
+                .expect("swapchain-configure")
+        };
+    }
     pub(crate) fn viewport(&self) -> &Viewport {
         self.viewport.as_ref().unwrap()
     }
@@ -198,6 +246,13 @@ pub struct Msaa {
     pub(crate) view: Option<wgpu::TextureView>,
 }
 impl Msaa {
+    pub(crate) fn color_attachment_store_op(&self) -> wgpu::StoreOp {
+        if self.samples() == 1u32 {
+            wgpu::StoreOp::Store
+        } else {
+            wgpu::StoreOp::Discard
+        }
+    }
     pub fn samples(&self) -> u32 {
         self.actual
     }

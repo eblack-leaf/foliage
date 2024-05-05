@@ -17,9 +17,9 @@ use crate::ginkgo::Ginkgo;
 mod ash;
 mod color;
 mod coordinate;
+mod elm;
 mod ginkgo;
 mod willow;
-mod elm;
 
 pub struct Foliage {
     willow: Willow,

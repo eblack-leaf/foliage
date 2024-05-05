@@ -1,3 +1,1 @@
-pub struct Elm {
-
-}
+pub struct Elm {}
