@@ -1,20 +1,22 @@
 use crate::color::Color;
-use crate::ginkgo::Ginkgo;
+use crate::ginkgo::{Depth, Ginkgo};
 use crate::Elm;
 use bevy_ecs::world::World;
 use serde::{Deserialize, Serialize};
 use std::any::TypeId;
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::hash::Hash;
 use wgpu::{
-    CommandEncoderDescriptor, RenderBundle, RenderPass, RenderPassDescriptor, TextureViewDescriptor,
+    CommandEncoderDescriptor, RenderBundle, RenderBundleDepthStencil, RenderBundleDescriptor,
+    RenderBundleEncoderDescriptor, RenderPass, RenderPassDescriptor, TextureViewDescriptor,
 };
 #[derive(Default)]
 pub(crate) struct Ash {
     pub(crate) renderers: RendererStructure,
     pub(crate) creation: Vec<Box<fn(&mut RendererStructure, &Ginkgo)>>,
     pub(crate) render_fns: Vec<Box<fn(&mut RendererStructure, &Ginkgo, &Elm)>>,
-    pub(crate) bundles: Vec<Box<fn(&RendererStructure) -> Vec<&RenderBundle>>>,
+    pub(crate) renderer_instructions: Vec<Box<fn(&RendererStructure) -> Vec<&RenderBundle>>>,
 }
 #[derive(Default)]
 pub(crate) struct RendererStructure {
@@ -22,14 +24,27 @@ pub(crate) struct RendererStructure {
 }
 pub(crate) struct Renderer<R: Render> {
     pub(crate) phase: RenderPhase,
-    pub(crate) directives: Vec<RenderDirective>,
-    pub(crate) resource_handle: R,
+    pub directive_manager: RenderDirectiveManager<R>,
+    pub resource_handle: R,
+}
+pub struct RenderDirectiveManager<R: Render> {
+    pub(crate) directives: HashMap<R::DirectiveGroupKey, RenderDirective>,
+}
+impl<R: Render> RenderDirectiveManager<R> {
+    pub(crate) fn new() -> Self {
+        Self {
+            directives: HashMap::new(),
+        }
+    }
+    pub fn add(&mut self, key: R::DirectiveGroupKey, render_directive: RenderDirective) {
+        self.directives.insert(key, render_directive);
+    }
 }
 impl<R: Render> Renderer<R> {
     pub(crate) fn new(ginkgo: &Ginkgo) -> Self {
         Self {
             phase: R::RENDER_PHASE,
-            directives: vec![],
+            directive_manager: RenderDirectiveManager::new(),
             resource_handle: R::create_resources(ginkgo),
         }
     }
@@ -79,6 +94,11 @@ impl PartialOrd for RenderPhase {
     }
 }
 impl Ash {
+    pub(crate) fn initialize(&mut self, ginkgo: &Ginkgo) {
+        for c_fn in self.creation.iter() {
+            (c_fn)(&mut self.renderers, ginkgo);
+        }
+    }
     pub(crate) fn add_renderer<R: Render>(&mut self) {
         self.creation.push(Box::new(|r, g| {
             let renderer = Renderer::<R>::new(g);
@@ -94,22 +114,22 @@ impl Ash {
                 R::record(renderer, g);
             }
         }));
-        self.bundles.push(Box::new(|r| -> Vec<&RenderBundle> {
-            r.renderers
-                .get_non_send_resource::<Renderer<R>>()
-                .unwrap()
-                .directives
-                .iter()
-                .map(|d| &d.0)
-                .collect::<Vec<&RenderBundle>>()
-        }))
+        self.renderer_instructions
+            .push(Box::new(|r| -> Vec<&RenderBundle> {
+                r.renderers
+                    .get_non_send_resource::<Renderer<R>>()
+                    .unwrap()
+                    .directive_manager
+                    .directives
+                    .iter()
+                    .map(|(_, d)| &d.0)
+                    .collect::<Vec<&RenderBundle>>()
+            }))
     }
     pub(crate) fn render(&mut self, ginkgo: &Ginkgo, elm: &Elm) {
         for r_fn in self.render_fns.iter() {
             (r_fn)(&mut self.renderers, ginkgo, elm);
         }
-    }
-    pub(crate) fn present(&self, ginkgo: &Ginkgo) {
         let surface_texture = ginkgo.surface_texture();
         let view = surface_texture
             .texture
@@ -128,7 +148,7 @@ impl Ash {
             timestamp_writes: None,
             occlusion_query_set: None,
         });
-        for r_fn in self.bundles.iter() {
+        for r_fn in self.renderer_instructions.iter() {
             let instructions = (r_fn)(&self.renderers);
             rpass.execute_bundles(instructions);
         }
@@ -144,13 +164,34 @@ pub struct RenderDirective(pub(crate) RenderBundle);
 pub struct RenderDirectiveRecorder<'a>(pub(crate) wgpu::RenderBundleEncoder<'a>);
 impl<'a> RenderDirectiveRecorder<'a> {
     pub fn new(ginkgo: &'a Ginkgo) -> Self {
-        todo!()
+        Self(
+            ginkgo
+                .context()
+                .device
+                .create_render_bundle_encoder(&RenderBundleEncoderDescriptor {
+                    label: Some("recorder"),
+                    color_formats: &[Some(ginkgo.configuration().config.format)],
+                    depth_stencil: Option::from(RenderBundleDepthStencil {
+                        format: Depth::FORMAT,
+                        depth_read_only: false,
+                        stencil_read_only: false,
+                    }),
+                    sample_count: ginkgo.configuration().msaa.samples(),
+                    multiview: None,
+                }),
+        )
     }
     pub fn finish(self) -> RenderDirective {
-        todo!()
+        RenderDirective(self.0.finish(&RenderBundleDescriptor {
+            label: Some("recorder-finish"),
+        }))
     }
 }
-pub trait Render where Self: Sized + 'static {
+pub trait Render
+where
+    Self: Sized + 'static,
+{
+    type DirectiveGroupKey: Hash + Eq + Copy + Clone;
     const RENDER_PHASE: RenderPhase;
     fn create_resources(ginkgo: &Ginkgo) -> Self;
     type Extraction;
