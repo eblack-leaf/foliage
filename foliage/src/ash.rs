@@ -1,16 +1,17 @@
-use crate::color::Color;
-use crate::ginkgo::{Depth, Ginkgo};
-use crate::Elm;
-use bevy_ecs::world::World;
-use serde::{Deserialize, Serialize};
-use std::any::TypeId;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::hash::Hash;
+
+use bevy_ecs::world::World;
 use wgpu::{
     CommandEncoderDescriptor, RenderBundle, RenderBundleDepthStencil, RenderBundleDescriptor,
-    RenderBundleEncoderDescriptor, RenderPass, RenderPassDescriptor, TextureViewDescriptor,
+    RenderBundleEncoderDescriptor, RenderPassDescriptor, TextureViewDescriptor,
 };
+
+use crate::color::Color;
+use crate::ginkgo::{Depth, Ginkgo};
+use crate::Elm;
+
 #[derive(Default)]
 pub(crate) struct Ash {
     pub(crate) renderers: RendererStructure,
@@ -129,7 +130,7 @@ impl Ash {
                     .iter()
                     .map(|(_, d)| &d.0)
                     .collect::<Vec<&RenderBundle>>()
-            }))
+            }));
     }
     pub(crate) fn render(&mut self, ginkgo: &Ginkgo, elm: &Elm) {
         for r_fn in self.render_fns.iter() {

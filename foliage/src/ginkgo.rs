@@ -1,6 +1,5 @@
 use bevy_ecs::prelude::Resource;
 use bytemuck::{Pod, Zeroable};
-use std::ops::AddAssign;
 use wgpu::util::DeviceExt;
 use wgpu::{
     CompositeAlphaMode, DeviceDescriptor, Extent3d, Features, InstanceDescriptor, Limits, LoadOp,
@@ -11,7 +10,7 @@ use wgpu::{
 };
 
 use crate::color::Color;
-use crate::coordinate::{CoordinateContext, DeviceContext, NumericalContext, Position};
+use crate::coordinate::{DeviceContext, NumericalContext, Position};
 use crate::willow::{NearFarDescriptor, Willow};
 use crate::{Area, CoordinateUnit, Section};
 
@@ -426,9 +425,9 @@ impl ViewportHandle {
         None
     }
     pub(crate) fn resize(&mut self, area: Area<NumericalContext>) {
-        todo!()
+        self.area = area;
     }
     pub fn section(&self) -> Section<NumericalContext> {
-        todo!()
+        Section::new(self.translation.coordinates, self.area.coordinates)
     }
 }

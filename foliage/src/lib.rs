@@ -96,6 +96,7 @@ impl ApplicationHandler for Foliage {
             self.ginkgo.configure_view(&self.willow);
             self.ginkgo.create_viewport(&self.willow);
             self.ash.initialize(&self.ginkgo);
+            self.elm.initialize();
         } else {
             #[cfg(target_os = "android")]
             {
@@ -109,6 +110,7 @@ impl ApplicationHandler for Foliage {
             self.ginkgo.configure_view(&self.willow);
             self.ginkgo.create_viewport(&self.willow);
             self.ash.initialize(&self.ginkgo);
+            self.elm.initialize();
         }
     }
     fn window_event(
@@ -161,7 +163,7 @@ impl ApplicationHandler for Foliage {
             WindowEvent::RedrawRequested => {
                 if !self.ash.drawn {
                     if let Some(vc) = self.elm.viewport_handle_changes() {
-                        // give changes to ginkgo w/ update viewport uniform position
+                        self.ginkgo.position_viewport(vc);
                     }
                     self.ash.render(&self.ginkgo, &self.elm);
                     self.ash.drawn = true;
@@ -170,8 +172,9 @@ impl ApplicationHandler for Foliage {
         }
     }
     fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
-        if self.ash.drawn {
+        if self.ash.drawn && self.elm.initialized() {
             self.elm.process();
+            self.willow.window().request_redraw();
             self.ash.drawn = false;
         }
     }
@@ -182,4 +185,6 @@ impl ApplicationHandler for Foliage {
 pub struct AndroidConnection();
 
 #[cfg(target_os = "android")]
-pub struct AndroidConnection();
+pub struct AndroidConnection(pub AndroidApp);
+#[cfg(target_os = "android")]
+pub type AndroidApp = winit::platform::android::activity::AndroidApp;
