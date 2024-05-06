@@ -17,6 +17,7 @@ pub(crate) struct Ash {
     pub(crate) creation: Vec<Box<fn(&mut RendererStructure, &Ginkgo)>>,
     pub(crate) render_fns: Vec<Box<fn(&mut RendererStructure, &Ginkgo, &Elm)>>,
     pub(crate) renderer_instructions: Vec<Box<fn(&RendererStructure) -> Vec<&RenderBundle>>>,
+    pub(crate) drawn: bool,
 }
 #[derive(Default)]
 pub(crate) struct RendererStructure {
@@ -36,8 +37,11 @@ impl<R: Render> RenderDirectiveManager<R> {
             directives: HashMap::new(),
         }
     }
-    pub fn add(&mut self, key: R::DirectiveGroupKey, render_directive: RenderDirective) {
+    pub fn fill(&mut self, key: R::DirectiveGroupKey, render_directive: RenderDirective) {
         self.directives.insert(key, render_directive);
+    }
+    pub fn remove(&mut self, key: R::DirectiveGroupKey) {
+        self.directives.remove(&key);
     }
 }
 impl<R: Render> Renderer<R> {
@@ -98,6 +102,7 @@ impl Ash {
         for c_fn in self.creation.iter() {
             (c_fn)(&mut self.renderers, ginkgo);
         }
+        // self.drawn = true;
     }
     pub(crate) fn add_renderer<R: Render>(&mut self) {
         self.creation.push(Box::new(|r, g| {

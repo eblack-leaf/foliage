@@ -25,6 +25,7 @@ pub struct Foliage {
     willow: Willow,
     ash: Ash,
     ginkgo: Ginkgo,
+    elm: Elm,
     worker_path: String,
     android_connection: AndroidConnection,
 }
@@ -34,6 +35,7 @@ impl Foliage {
             willow: Willow::default(),
             ash: Ash::default(),
             ginkgo: Ginkgo::default(),
+            elm: Elm::default(),
             worker_path: "".to_string(),
             android_connection: AndroidConnection::default(),
         }
@@ -51,7 +53,7 @@ impl Foliage {
         self.android_connection = ac;
     }
     pub fn add_renderer<R: Render>(&mut self) {
-        // queue to render engen a call to Render::create
+        self.ash.add_renderer::<R>();
     }
     pub fn run(mut self) {
         cfg_if::cfg_if! {
@@ -93,6 +95,7 @@ impl ApplicationHandler for Foliage {
             pollster::block_on(self.ginkgo.acquire_context(&self.willow));
             self.ginkgo.configure_view(&self.willow);
             self.ginkgo.create_viewport(&self.willow);
+            self.ash.initialize(&self.ginkgo);
         } else {
             #[cfg(target_os = "android")]
             {
@@ -105,6 +108,7 @@ impl ApplicationHandler for Foliage {
         if !self.ginkgo.configured() {
             self.ginkgo.configure_view(&self.willow);
             self.ginkgo.create_viewport(&self.willow);
+            self.ash.initialize(&self.ginkgo);
         }
     }
     fn window_event(
@@ -116,7 +120,7 @@ impl ApplicationHandler for Foliage {
         match event {
             WindowEvent::ActivationTokenDone { .. } => {}
             WindowEvent::Resized(_) => {
-                // elm.resize_viewport_handle(&self.willow);
+                self.elm.adjust_viewport_handle(&self.willow);
                 self.ginkgo.configure_view(&self.willow);
                 self.ginkgo.size_viewport(&self.willow);
             }
@@ -148,16 +152,27 @@ impl ApplicationHandler for Foliage {
                 scale_factor: _scale_factor,
                 ..
             } => {
-                // elm.resize_viewport_handle(&self.willow);
+                self.elm.adjust_viewport_handle(&self.willow);
                 self.ginkgo.configure_view(&self.willow);
                 self.ginkgo.size_viewport(&self.willow);
             }
             WindowEvent::ThemeChanged(_) => {}
             WindowEvent::Occluded(_) => {}
             WindowEvent::RedrawRequested => {
-                // if !drawn => draw
-                // which implies that WindowHandle needs to store that somehow
+                if !self.ash.drawn {
+                    if let Some(vc) = self.elm.viewport_handle_changes() {
+                        // give changes to ginkgo w/ update viewport uniform position
+                    }
+                    self.ash.render(&self.ginkgo, &self.elm);
+                    self.ash.drawn = true;
+                }
             }
+        }
+    }
+    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
+        if self.ash.drawn {
+            self.elm.process();
+            self.ash.drawn = false;
         }
     }
 }

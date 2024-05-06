@@ -1,6 +1,7 @@
 use crate::coordinate::{CoordinateContext, DeviceContext, LogicalContext, NumericalContext};
 use crate::{CoordinateUnit, Coordinates};
 use std::marker::PhantomData;
+use std::ops::AddAssign;
 use winit::dpi::{LogicalPosition, PhysicalPosition};
 #[derive(Copy, Clone, Default)]
 pub struct Position<Context: CoordinateContext> {
@@ -22,6 +23,11 @@ impl Position<NumericalContext> {
     }
     pub fn as_device(self) -> Position<DeviceContext> {
         Position::device(self.coordinates)
+    }
+}
+impl<Context: CoordinateContext> AddAssign for Position<Context> {
+    fn add_assign(&mut self, rhs: Self) {
+        self.coordinates = (self.x() + rhs.x(), self.y() + rhs.y()).into();
     }
 }
 impl<Context: CoordinateContext> Position<Context> {
