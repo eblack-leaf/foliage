@@ -96,7 +96,7 @@ impl ApplicationHandler for Foliage {
             self.ginkgo.configure_view(&self.willow);
             self.ginkgo.create_viewport(&self.willow);
             self.ash.initialize(&self.ginkgo);
-            self.elm.initialize();
+            self.elm.initialize(self.willow.actual_area().to_numerical());
         } else {
             #[cfg(target_os = "android")]
             {
@@ -110,7 +110,7 @@ impl ApplicationHandler for Foliage {
             self.ginkgo.configure_view(&self.willow);
             self.ginkgo.create_viewport(&self.willow);
             self.ash.initialize(&self.ginkgo);
-            self.elm.initialize();
+            self.elm.initialize(self.willow.actual_area().to_numerical());
         }
     }
     fn window_event(

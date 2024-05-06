@@ -215,7 +215,7 @@ impl ScaleFactor {
     }
 }
 pub(crate) struct Depth {
-    pub(crate) view: wgpu::TextureView,
+    pub(crate) view: TextureView,
 }
 impl Depth {
     pub(crate) fn new(context: &GraphicContext, msaa: &Msaa, area: Area<DeviceContext>) -> Self {
@@ -227,7 +227,7 @@ impl Depth {
                     size: Extent3d {
                         width: area.width().max(1.0) as u32,
                         height: area.height().max(1.0) as u32,
-                        depth_or_array_layers: 0,
+                        depth_or_array_layers: 1,
                     },
                     mip_level_count: 1,
                     sample_count: msaa.samples(),
@@ -413,6 +413,13 @@ pub struct ViewportHandle {
 }
 
 impl ViewportHandle {
+    pub(crate) fn new(area: Area<NumericalContext>) -> Self {
+        Self {
+            translation: Position::default(),
+            area,
+            changes: false,
+        }
+    }
     pub fn translate(&mut self, position: Position<NumericalContext>) {
         self.translation += position;
         self.changes = true;

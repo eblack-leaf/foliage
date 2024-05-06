@@ -1,6 +1,6 @@
 use crate::ginkgo::ViewportHandle;
 use crate::willow::Willow;
-use crate::{NumericalContext, Position};
+use crate::{Area, NumericalContext, Position};
 use bevy_ecs::prelude::Schedule;
 use bevy_ecs::schedule::ExecutorKind;
 use bevy_ecs::world::World;
@@ -35,8 +35,9 @@ impl Elm {
     pub(crate) fn initialized(&self) -> bool {
         self.initialized
     }
-    pub(crate) fn initialize(&mut self) {
+    pub(crate) fn initialize(&mut self, window_area: Area<NumericalContext>) {
         // attach leafs?
+        self.ecs.world.insert_resource(ViewportHandle::new(window_area));
         self.scheduler.exec_startup(&mut self.ecs);
         self.initialized = true;
     }
