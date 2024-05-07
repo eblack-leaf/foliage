@@ -10,8 +10,8 @@ use wgpu::{
 };
 
 use crate::color::Color;
-use crate::ginkgo::{Depth, Ginkgo};
 use crate::Elm;
+use crate::ginkgo::{Depth, Ginkgo};
 
 #[derive(Default)]
 pub(crate) struct Ash {
@@ -21,18 +21,22 @@ pub(crate) struct Ash {
     pub(crate) renderer_instructions: Vec<Box<fn(&RendererStructure) -> Vec<&RenderBundle>>>,
     pub(crate) drawn: bool,
 }
+
 #[derive(Default)]
 pub(crate) struct RendererStructure {
     pub(crate) renderers: World,
 }
+
 pub(crate) struct Renderer<R: Render> {
     pub(crate) phase: RenderPhase,
     pub directive_manager: RenderDirectiveManager<R>,
     pub resource_handle: R,
 }
+
 pub struct RenderDirectiveManager<R: Render> {
     pub(crate) directives: HashMap<R::DirectiveGroupKey, RenderDirective>,
 }
+
 impl<R: Render> RenderDirectiveManager<R> {
     pub(crate) fn new() -> Self {
         Self {
@@ -46,6 +50,7 @@ impl<R: Render> RenderDirectiveManager<R> {
         self.directives.remove(&key);
     }
 }
+
 impl<R: Render> Renderer<R> {
     pub(crate) fn new(ginkgo: &Ginkgo) -> Self {
         Self {
@@ -55,6 +60,7 @@ impl<R: Render> Renderer<R> {
         }
     }
 }
+
 #[derive(Copy, Clone)]
 pub enum RenderPhase {
     Opaque,
@@ -99,6 +105,7 @@ impl PartialOrd for RenderPhase {
         }
     }
 }
+
 impl Ash {
     pub(crate) fn initialize(&mut self, ginkgo: &Ginkgo) {
         for c_fn in self.creation.iter() {
@@ -167,8 +174,11 @@ impl Ash {
         surface_texture.present();
     }
 }
+
 pub struct RenderDirective(pub(crate) RenderBundle);
+
 pub struct RenderDirectiveRecorder<'a>(pub(crate) wgpu::RenderBundleEncoder<'a>);
+
 impl<'a> RenderDirectiveRecorder<'a> {
     pub fn new(ginkgo: &'a Ginkgo) -> Self {
         Self(
@@ -194,9 +204,10 @@ impl<'a> RenderDirectiveRecorder<'a> {
         }))
     }
 }
+
 pub trait Render
-where
-    Self: Sized + 'static,
+    where
+        Self: Sized + 'static,
 {
     type Vertex: Pod + Zeroable;
     type DirectiveGroupKey: Hash + Eq + Copy + Clone;

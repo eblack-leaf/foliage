@@ -1,22 +1,22 @@
-pub use ash::Render;
 pub use bevy_ecs;
-pub use coordinate::{
-    Area, CoordinateUnit, Coordinates, DeviceContext, Layer, LogicalContext, NumericalContext,
-    Position, Section,
-};
-pub use elm::Elm;
 pub use wgpu;
-use willow::Willow;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::WindowId;
 
+pub use ash::Render;
+pub use coordinate::{
+    Area, Coordinates, CoordinateUnit, DeviceContext, Layer, LogicalContext, NumericalContext,
+    Position, Section,
+};
+pub use elm::Elm;
+use willow::Willow;
+
 use crate::ash::Ash;
 use crate::ginkgo::Ginkgo;
 
 mod ash;
-mod aspen;
 mod color;
 mod coordinate;
 mod elm;
@@ -32,6 +32,7 @@ pub struct Foliage {
     worker_path: String,
     android_connection: AndroidConnection,
 }
+
 impl Foliage {
     pub fn new() -> Self {
         Self {
@@ -191,5 +192,6 @@ pub struct AndroidConnection();
 
 #[cfg(target_os = "android")]
 pub struct AndroidConnection(pub AndroidApp);
+
 #[cfg(target_os = "android")]
 pub type AndroidApp = winit::platform::android::activity::AndroidApp;

@@ -1,27 +1,170 @@
 use bevy_ecs::prelude::Resource;
 use bytemuck::{Pod, Zeroable};
-use wgpu::util::DeviceExt;
 use wgpu::{
-    BindGroupEntry, BlendState, ColorTargetState, CompareFunction, CompositeAlphaMode,
-    DepthStencilState, DeviceDescriptor, Extent3d, Features, InstanceDescriptor, Limits, LoadOp,
-    MultisampleState, Operations, PowerPreference, PresentMode, RenderPassColorAttachment,
-    RenderPassDepthStencilAttachment, RequestAdapterOptions, StoreOp, SurfaceConfiguration,
-    TextureDescriptor, TextureDimension, TextureFormat, TextureFormatFeatureFlags, TextureUsages,
-    TextureView, TextureViewDescriptor,
+    BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
+    BindGroupLayoutEntry, BindingType, BlendState, Buffer, BufferUsages, ColorTargetState,
+    CompareFunction, CompositeAlphaMode, DepthStencilState, DeviceDescriptor, Extent3d, Features,
+    FragmentState, InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations,
+    PipelineLayout, PipelineLayoutDescriptor, PowerPreference, PresentMode, PrimitiveState,
+    RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPipeline,
+    RenderPipelineDescriptor, RequestAdapterOptions, ShaderModule, ShaderModuleDescriptor,
+    ShaderStages, StoreOp, SurfaceConfiguration, TextureDescriptor, TextureDimension,
+    TextureFormat, TextureFormatFeatureFlags, TextureSampleType, TextureUsages, TextureView,
+    TextureViewDescriptor, TextureViewDimension,
 };
+use wgpu::util::DeviceExt;
 
+use crate::{Area, CoordinateUnit, Render, Section};
 use crate::color::Color;
 use crate::coordinate::{DeviceContext, NumericalContext, Position};
 use crate::willow::{NearFarDescriptor, Willow};
-use crate::{Area, CoordinateUnit, Section};
 
 #[derive(Default)]
-pub(crate) struct Ginkgo {
+pub struct Ginkgo {
     context: Option<GraphicContext>,
     configuration: Option<ViewConfiguration>,
     viewport: Option<Viewport>,
 }
+
+pub struct BindingBuilder {
+    binding: u32,
+    stage: Option<ShaderStages>,
+    binding_type: Option<BindingType>,
+}
+
+impl BindingBuilder {
+    pub fn new(binding: u32) -> Self {
+        Self {
+            binding,
+            stage: None,
+            binding_type: None,
+        }
+    }
+
+    pub fn with_stage(mut self, stage: ShaderStages) -> Self {
+        self.stage.replace(stage);
+        self
+    }
+    pub fn texture_entry(
+        mut self,
+        dim: TextureViewDimension,
+        sample_type: TextureSampleType,
+    ) -> BindGroupLayoutEntry {
+        BindGroupLayoutEntry {
+            binding: self.binding,
+            visibility: self.shader_stages(),
+            ty: BindingType::Texture {
+                sample_type,
+                view_dimension: dim,
+                multisampled: false,
+            },
+            count: None,
+        }
+    }
+    pub fn uniform_entry(mut self) -> BindGroupLayoutEntry {
+        BindGroupLayoutEntry {
+            binding: self.binding,
+            visibility: self.shader_stages(),
+            ty: BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Uniform,
+                has_dynamic_offset: false,
+                min_binding_size: None,
+            },
+            count: None,
+        }
+    }
+    pub fn sampler_entry(mut self) -> BindGroupLayoutEntry {
+        BindGroupLayoutEntry {
+            binding: self.binding,
+            visibility: self.shader_stages(),
+            ty: BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
+            count: None,
+        }
+    }
+
+    fn shader_stages(&mut self) -> ShaderStages {
+        self.stage.expect("need shader-stages")
+    }
+    pub fn with_entry_type(mut self, binding_type: BindingType) -> BindGroupLayoutEntry {
+        BindGroupLayoutEntry {
+            binding: self.binding,
+            visibility: self.shader_stages(),
+            ty: binding_type,
+            count: None,
+        }
+    }
+}
+
 impl Ginkgo {
+    pub fn fragment_state<'a>(
+        module: &'a ShaderModule,
+        entry_point: &'a str,
+        targets: &'a [Option<ColorTargetState>],
+    ) -> Option<FragmentState<'a>> {
+        Some(FragmentState {
+            module,
+            entry_point,
+            compilation_options: Default::default(),
+            targets,
+        })
+    }
+    pub fn texture_bind_group_entry(view: &TextureView, binding: u32) -> BindGroupEntry {
+        BindGroupEntry {
+            binding,
+            resource: wgpu::BindingResource::TextureView(view),
+        }
+    }
+    pub fn sampler_bind_group_entry(sampler: &wgpu::Sampler, binding: u32) -> BindGroupEntry {
+        BindGroupEntry {
+            binding,
+            resource: wgpu::BindingResource::Sampler(sampler),
+        }
+    }
+    pub fn triangle_list_primitive() -> PrimitiveState {
+        PrimitiveState {
+            topology: wgpu::PrimitiveTopology::TriangleList,
+            strip_index_format: None,
+            front_face: wgpu::FrontFace::Ccw,
+            cull_mode: Some(wgpu::Face::Back),
+            unclipped_depth: false,
+            polygon_mode: wgpu::PolygonMode::Fill,
+            conservative: false,
+        }
+    }
+    pub fn bind_group_layout_entry(binding: u32) -> BindingBuilder {
+        BindingBuilder::new(binding)
+    }
+    pub fn bind_group_layout(&self, desc: &BindGroupLayoutDescriptor) -> BindGroupLayout {
+        let bind_group_layout = self.context().device.create_bind_group_layout(desc);
+        bind_group_layout
+    }
+    pub fn bind_group(&self, desc: &BindGroupDescriptor) -> BindGroup {
+        let bind_group = self.context().device.create_bind_group(desc);
+        bind_group
+    }
+    pub fn create_pipeline_layout(&self, desc: &PipelineLayoutDescriptor) -> PipelineLayout {
+        let layout = self.context().device.create_pipeline_layout(desc);
+        layout
+    }
+    pub fn create_shader(&self, shader_source: ShaderModuleDescriptor) -> ShaderModule {
+        let shader = self.context().device.create_shader_module(shader_source);
+        shader
+    }
+    pub fn create_vertex_buffer<R: Render, VB: AsRef<[R::Vertex]>>(&self, vb_data: VB) -> Buffer {
+        let vertex_buffer =
+            self.context()
+                .device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("vertex-buffer"),
+                    contents: bytemuck::cast_slice(vb_data.as_ref()),
+                    usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
+                });
+        vertex_buffer
+    }
+    pub fn create_pipeline(&self, desc: &RenderPipelineDescriptor) -> RenderPipeline {
+        let pipeline = self.context().device.create_render_pipeline(desc);
+        pipeline
+    }
     pub(crate) fn alpha_color_target_state(&self) -> [Option<ColorTargetState>; 1] {
         [Some(ColorTargetState {
             format: self.configuration().config.format,
@@ -215,6 +358,7 @@ impl Ginkgo {
         self.configuration.as_ref().unwrap()
     }
 }
+
 pub(crate) struct GraphicContext {
     pub(crate) surface: wgpu::Surface<'static>,
     pub(crate) instance: wgpu::Instance,
@@ -223,18 +367,22 @@ pub(crate) struct GraphicContext {
     pub(crate) queue: wgpu::Queue,
     pub(crate) surface_format: TextureFormat,
 }
+
 pub(crate) struct ViewConfiguration {
     pub(crate) msaa: Msaa,
     pub(crate) depth: Depth,
     pub(crate) scale_factor: ScaleFactor,
     pub(crate) config: SurfaceConfiguration,
 }
+
 pub struct ScaleFactor(f32);
+
 impl Default for ScaleFactor {
     fn default() -> Self {
         Self(1.0)
     }
 }
+
 impl ScaleFactor {
     pub fn value(&self) -> f32 {
         self.0
@@ -243,9 +391,11 @@ impl ScaleFactor {
         Self(f.round())
     }
 }
+
 pub(crate) struct Depth {
     pub(crate) view: TextureView,
 }
+
 impl Depth {
     pub(crate) fn new(context: &GraphicContext, msaa: &Msaa, area: Area<DeviceContext>) -> Self {
         Self {
@@ -270,11 +420,13 @@ impl Depth {
     }
     pub(crate) const FORMAT: TextureFormat = TextureFormat::Depth24PlusStencil8;
 }
+
 pub struct Msaa {
     pub(crate) max_samples: u32,
     pub(crate) actual: u32,
     pub(crate) view: Option<wgpu::TextureView>,
 }
+
 impl Msaa {
     pub(crate) fn color_attachment_store_op(&self) -> wgpu::StoreOp {
         if self.samples() == 1u32 {
@@ -334,10 +486,12 @@ impl Msaa {
         }
     }
 }
+
 pub struct Uniform<Data: Pod + Zeroable> {
     pub data: Data,
     pub buffer: wgpu::Buffer,
 }
+
 impl<Data: Pod + Zeroable + PartialEq> Uniform<Data> {
     pub fn write(&mut self, context: &GraphicContext, data: Data) {
         if self.data != data {
@@ -359,9 +513,11 @@ impl<Data: Pod + Zeroable + PartialEq> Uniform<Data> {
         }
     }
 }
+
 pub struct AggregateUniform<Repr: Pod + Zeroable + PartialEq> {
     pub uniform: Uniform<[Repr; 4]>,
 }
+
 impl<Repr: Pod + Zeroable + PartialEq> AggregateUniform<Repr> {
     pub fn new(context: &GraphicContext, d: [Repr; 4]) -> Self {
         Self {
@@ -375,7 +531,9 @@ impl<Repr: Pod + Zeroable + PartialEq> AggregateUniform<Repr> {
         self.uniform.data[i] = r;
     }
 }
+
 type ViewportRepresentation = [[CoordinateUnit; 4]; 4];
+
 pub struct Viewport {
     translation: Position<NumericalContext>,
     area: Area<NumericalContext>,
@@ -383,6 +541,7 @@ pub struct Viewport {
     matrix: ViewportRepresentation,
     uniform: Uniform<ViewportRepresentation>,
 }
+
 impl Viewport {
     pub(crate) fn set_position(
         &mut self,
@@ -434,6 +593,7 @@ impl Viewport {
         ]
     }
 }
+
 #[derive(Default, Resource)]
 pub struct ViewportHandle {
     translation: Position<NumericalContext>,
