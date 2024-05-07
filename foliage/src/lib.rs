@@ -1,29 +1,25 @@
 pub use bevy_ecs;
 pub use wgpu;
+use willow::Willow;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::WindowId;
 
-pub use ash::Render;
-pub use coordinate::{
-    Area, CoordinateUnit, Coordinates, DeviceContext, Layer, LogicalContext, NumericalContext,
-    Position, Section,
-};
-pub use elm::Elm;
-use willow::Willow;
-
-use crate::ash::Ash;
+use crate::ash::{Ash, Render};
+use crate::coordinate::area::Area;
+use crate::coordinate::DeviceContext;
+use crate::elm::Elm;
 use crate::ginkgo::Ginkgo;
 
-mod ash;
-mod color;
-mod coordinate;
-mod elm;
-mod ginkgo;
-mod instances;
-mod panel;
-mod willow;
+pub mod ash;
+pub mod color;
+pub mod coordinate;
+pub mod elm;
+pub mod ginkgo;
+pub mod instances;
+pub mod panel;
+pub mod willow;
 
 pub struct Foliage {
     willow: Willow,

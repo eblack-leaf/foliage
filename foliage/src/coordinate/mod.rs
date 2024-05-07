@@ -1,15 +1,10 @@
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
 
-pub use area::Area;
-pub use layer::Layer;
-pub use position::Position;
-pub use section::Section;
-
-mod area;
-mod layer;
-mod position;
-mod section;
+pub mod area;
+pub mod layer;
+pub mod position;
+pub mod section;
 
 pub trait CoordinateContext
 where
@@ -42,6 +37,8 @@ impl Coordinates {
     pub const fn new(a: CoordinateUnit, b: CoordinateUnit) -> Self {
         Self([a, b])
     }
+    pub const fn first(&self) -> CoordinateUnit { self.0[0] }
+    pub const fn second(&self) -> CoordinateUnit { self.0[1] }
 }
 
 impl Default for Coordinates {

@@ -4,8 +4,9 @@ use std::ops::AddAssign;
 
 use winit::dpi::{LogicalPosition, PhysicalPosition};
 
-use crate::coordinate::{CoordinateContext, DeviceContext, LogicalContext, NumericalContext};
-use crate::{CoordinateUnit, Coordinates};
+use crate::coordinate::{
+    CoordinateContext, CoordinateUnit, Coordinates, DeviceContext, LogicalContext, NumericalContext,
+};
 
 #[derive(Copy, Clone, Default)]
 pub struct Position<Context: CoordinateContext> {

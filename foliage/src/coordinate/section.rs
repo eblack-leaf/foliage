@@ -1,9 +1,10 @@
 use std::marker::PhantomData;
 
+use crate::coordinate::area::Area;
+use crate::coordinate::position::Position;
 use crate::coordinate::{
-    CoordinateContext, DeviceContext, LogicalContext, NumericalContext, Position,
+    CoordinateContext, CoordinateUnit, Coordinates, DeviceContext, LogicalContext, NumericalContext,
 };
-use crate::{Area, CoordinateUnit, Coordinates};
 
 #[derive(Copy, Clone, Default)]
 pub struct Section<Context: CoordinateContext> {

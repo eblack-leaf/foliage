@@ -3,7 +3,7 @@ use bevy_ecs::world::World;
 use bytemuck::{Pod, Zeroable};
 use std::collections::HashMap;
 use std::hash::Hash;
-use wgpu::{BufferDescriptor, BufferUsages};
+use wgpu::{BufferDescriptor, BufferUsages, VertexAttribute, VertexBufferLayout, VertexStepMode};
 
 pub struct Instances<Key: Hash + Eq + Copy + Clone> {
     world: World,
@@ -89,18 +89,18 @@ impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
         }
     }
 }
-struct Attribute<A> {
+struct Attribute<A: Pod + Zeroable> {
     cpu: Vec<A>,
     gpu: wgpu::Buffer,
     write_needed: bool,
 }
-impl<A> Attribute<A> {
+impl<A: Pod + Zeroable> Attribute<A> {
     fn new(ginkgo: &Ginkgo, capacity: u32) -> Self {
         Self {
             cpu: Vec::with_capacity(capacity as usize),
             gpu: ginkgo.context().device.create_buffer(&BufferDescriptor {
                 label: Some("attribute-buffer"),
-                size: Ginkgo::buffer_size::<A>(capacity),
+                size: Ginkgo::memory_size::<A>(capacity),
                 usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
                 mapped_at_creation: false,
             }),
@@ -117,12 +117,16 @@ impl<A> Attribute<A> {
     fn grow(&mut self, ginkgo: &Ginkgo, c: u32) {
         let cpu = self.cpu.drain(..).collect::<Vec<A>>();
         *self = Self::new(ginkgo, c);
-        self.cpu = cpu;
+        self.cpu.extend(cpu);
         self.write_needed = true;
     }
     fn write_cpu_to_gpu(&mut self, ginkgo: &Ginkgo) {
         if self.write_needed {
-            // TODO write to gpu up to len() of cpu
+            let slice = &self.cpu[..];
+            ginkgo
+                .context()
+                .queue
+                .write_buffer(&self.gpu, 0, bytemuck::cast_slice(slice));
             self.write_needed = false;
         }
     }

@@ -1,4 +1,6 @@
-#[derive(Copy, Clone, Default, PartialEq, PartialOrd)]
+use bytemuck::{Pod, Zeroable};
+#[repr(C)]
+#[derive(Copy, Clone, Default, PartialEq, PartialOrd, Pod, Zeroable)]
 pub struct Layer(pub f32);
 
 impl Layer {

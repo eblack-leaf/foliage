@@ -8,16 +8,19 @@ use wgpu::{
     Extent3d, Features, FragmentState, InstanceDescriptor, Limits, LoadOp, MultisampleState,
     Operations, PipelineLayout, PipelineLayoutDescriptor, PowerPreference, PresentMode,
     PrimitiveState, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPipeline,
-    RenderPipelineDescriptor, RequestAdapterOptions, ShaderModule, ShaderModuleDescriptor,
-    ShaderStages, StoreOp, SurfaceConfiguration, TextureDescriptor, TextureDimension,
-    TextureFormat, TextureFormatFeatureFlags, TextureSampleType, TextureUsages, TextureView,
-    TextureViewDescriptor, TextureViewDimension,
+    RenderPipelineDescriptor, RequestAdapterOptions, Sampler, SamplerDescriptor, ShaderModule,
+    ShaderModuleDescriptor, ShaderStages, StoreOp, SurfaceConfiguration, Texture,
+    TextureDescriptor, TextureDimension, TextureFormat, TextureFormatFeatureFlags,
+    TextureSampleType, TextureUsages, TextureView, TextureViewDescriptor, TextureViewDimension,
+    VertexAttribute, VertexBufferLayout, VertexStepMode,
 };
 
 use crate::color::Color;
-use crate::coordinate::{DeviceContext, NumericalContext, Position};
+use crate::coordinate::area::Area;
+use crate::coordinate::position::Position;
+use crate::coordinate::section::Section;
+use crate::coordinate::{CoordinateUnit, DeviceContext, NumericalContext};
 use crate::willow::{NearFarDescriptor, Willow};
-use crate::{Area, CoordinateUnit, Section};
 
 #[derive(Default)]
 pub struct Ginkgo {
@@ -96,7 +99,52 @@ impl BindingBuilder {
 }
 
 impl Ginkgo {
-    pub fn buffer_size<B>(n: u32) -> BufferAddress {
+    pub fn vertex_buffer_layout<A: Pod + Zeroable>(
+        step: VertexStepMode,
+        attrs: &'static [VertexAttribute],
+    ) -> VertexBufferLayout<'static> {
+        VertexBufferLayout {
+            array_stride: Ginkgo::memory_size::<A>(1),
+            step_mode: step,
+            attributes: attrs,
+        }
+    }
+    pub fn create_sampler(&self) -> Sampler {
+        self.context()
+            .device
+            .create_sampler(&SamplerDescriptor::default())
+    }
+    pub fn create_texture(
+        &self,
+        format: TextureFormat,
+        width: u32,
+        height: u32,
+        mips: u32,
+        data: &[u8],
+    ) -> (Texture, TextureView) {
+        let texture = self.context().device.create_texture_with_data(
+            &self.context().queue,
+            &TextureDescriptor {
+                label: Some("ginkgo-texture"),
+                size: Extent3d {
+                    width,
+                    height,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: mips,
+                sample_count: 1,
+                dimension: TextureDimension::D2,
+                format,
+                usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
+                view_formats: &[format],
+            },
+            wgpu::util::TextureDataOrder::LayerMajor,
+            data,
+        );
+        let view = texture.create_view(&TextureViewDescriptor::default());
+        (texture, view)
+    }
+    pub fn memory_size<B>(n: u32) -> BufferAddress {
         (std::mem::size_of::<B>() * n as usize) as BufferAddress
     }
     pub fn fragment_state<'a>(
@@ -167,6 +215,15 @@ impl Ginkgo {
     pub fn create_pipeline(&self, desc: &RenderPipelineDescriptor) -> RenderPipeline {
         let pipeline = self.context().device.create_render_pipeline(desc);
         pipeline
+    }
+    pub fn uniform_bind_group_entry<U: Pod + Zeroable>(
+        uniform: &Uniform<U>,
+        binding: u32,
+    ) -> BindGroupEntry {
+        BindGroupEntry {
+            binding,
+            resource: uniform.buffer.as_entire_binding(),
+        }
     }
     pub(crate) fn alpha_color_target_state(&self) -> [Option<ColorTargetState>; 1] {
         [Some(ColorTargetState {

@@ -4,9 +4,8 @@ use std::marker::PhantomData;
 use winit::dpi::{LogicalSize, PhysicalSize, Size};
 
 use crate::coordinate::{
-    CoordinateContext, Coordinates, DeviceContext, LogicalContext, NumericalContext,
+    CoordinateContext, CoordinateUnit, Coordinates, DeviceContext, LogicalContext, NumericalContext,
 };
-use crate::CoordinateUnit;
 
 #[derive(Copy, Clone, Default)]
 pub struct Area<Context: CoordinateContext> {

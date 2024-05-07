@@ -1,10 +1,12 @@
 use std::sync::Arc;
 
+use crate::coordinate::area::Area;
 use winit::event_loop::ActiveEventLoop;
 use winit::window::{Window, WindowAttributes};
 
-use crate::coordinate::DeviceContext;
-use crate::{Area, Layer, NumericalContext, Position};
+use crate::coordinate::layer::Layer;
+use crate::coordinate::position::Position;
+use crate::coordinate::{DeviceContext, NumericalContext};
 
 #[derive(Clone, Default)]
 pub(crate) struct WindowHandle(pub(crate) Option<Arc<Window>>);
