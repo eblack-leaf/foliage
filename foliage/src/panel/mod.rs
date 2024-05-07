@@ -1,9 +1,13 @@
-use bevy_ecs::prelude::Entity;
 use bytemuck::{Pod, Zeroable};
-use wgpu::{include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, PipelineLayoutDescriptor, RenderPipeline, RenderPipelineDescriptor, ShaderModule, VertexState, ShaderStages};
+use wgpu::{
+    include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor,
+    PipelineLayoutDescriptor, RenderPipeline, RenderPipelineDescriptor, ShaderModule, ShaderStages,
+    VertexState,
+};
 
 use crate::ash::{RenderPhase, Renderer};
 use crate::ginkgo::Ginkgo;
+use crate::instances::Instances;
 use crate::{Coordinates, Elm, Render};
 
 #[repr(C)]
@@ -46,7 +50,9 @@ impl Render for PanelResources {
         let bind_group_layout = ginkgo.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: Some("panel-bind-group-layout"),
             entries: &[
-                Ginkgo::bind_group_layout_entry(0).at_stages(ShaderStages::VERTEX).uniform_entry(),
+                Ginkgo::bind_group_layout_entry(0)
+                    .at_stages(ShaderStages::VERTEX)
+                    .uniform_entry(),
                 // uniforms
                 // texture (pre-solved)
             ],
@@ -85,6 +91,7 @@ impl Render for PanelResources {
             ),
             multiview: None,
         });
+        let instances = Instances::<i32>::new(4).with_attribute::<i32>(ginkgo);
         Self {
             pipeline,
             vertex_buffer,

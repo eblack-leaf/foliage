@@ -1,0 +1,129 @@
+use crate::ginkgo::Ginkgo;
+use bevy_ecs::world::World;
+use bytemuck::{Pod, Zeroable};
+use std::collections::HashMap;
+use std::hash::Hash;
+use wgpu::{BufferDescriptor, BufferUsages};
+
+pub struct Instances<Key: Hash + Eq + Copy + Clone> {
+    world: World,
+    capacity: u32,
+    map: HashMap<Key, usize>,
+    order: Vec<Key>,
+    removal_fns: Vec<Box<fn(&mut World, usize)>>,
+    grow_fns: Vec<Box<fn(&mut World, u32, &Ginkgo)>>,
+    cpu_to_gpu: Vec<Box<fn(&mut World, &Ginkgo)>>,
+}
+impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
+    pub fn new(initial_capacity: u32) -> Self {
+        Self {
+            world: World::default(),
+            capacity: initial_capacity,
+            map: HashMap::new(),
+            order: vec![],
+            removal_fns: vec![],
+            grow_fns: vec![],
+            cpu_to_gpu: vec![],
+        }
+    }
+    pub fn with_attribute<A: Pod + Zeroable>(mut self, ginkgo: &Ginkgo) -> Self {
+        self.world
+            .insert_non_send_resource(Attribute::<A>::new(ginkgo, self.capacity));
+        self.removal_fns.push(Box::new(|w, i| {
+            w.get_non_send_resource_mut::<Attribute<A>>()
+                .expect("attribute")
+                .remove(i);
+        }));
+        self.grow_fns.push(Box::new(|w, c, g| {
+            w.get_non_send_resource_mut::<Attribute<A>>()
+                .expect("attribute")
+                .grow(g, c);
+        }));
+        self.cpu_to_gpu.push(Box::new(|w, g| {
+            w.get_non_send_resource_mut::<Attribute<A>>()
+                .expect("attribute")
+                .write_cpu_to_gpu(g);
+        }));
+        self
+    }
+    pub fn remove(&mut self, key: Key) {
+        let index = self.map.remove(&key).expect("not-found");
+        self.order.remove(index);
+        for r_fn in self.removal_fns.iter() {
+            (r_fn)(&mut self.world, index);
+        }
+    }
+    pub fn add(&mut self, key: Key) {
+        let index = self.order.len();
+        self.order.push(key);
+        self.map.insert(key, index);
+    }
+    pub fn resolve_changes(&mut self, ginkgo: &Ginkgo) {
+        let ordering = self
+            .order
+            .iter()
+            .enumerate()
+            .map(|(i, k)| (i, *k))
+            .collect::<Vec<(usize, Key)>>();
+        for (i, k) in ordering {
+            self.map.insert(k, i);
+        }
+        let order_len = self.order.len() as u32;
+        if order_len > self.capacity {
+            for g_fn in self.grow_fns.iter() {
+                (g_fn)(&mut self.world, order_len, ginkgo);
+            }
+            self.capacity = order_len;
+        }
+    }
+    pub fn queue_write<A: Pod + Zeroable>(&mut self, key: Key, a: A) {
+        let index = *self.map.get(&key).expect("key");
+        self.world
+            .get_non_send_resource_mut::<Attribute<A>>()
+            .expect("attribute-setup")
+            .queue_write(index, a);
+    }
+    pub fn write_cpu_to_gpu(&mut self, ginkgo: &Ginkgo) {
+        for w_fn in self.cpu_to_gpu.iter() {
+            (w_fn)(&mut self.world, ginkgo);
+        }
+    }
+}
+struct Attribute<A> {
+    cpu: Vec<A>,
+    gpu: wgpu::Buffer,
+    write_needed: bool,
+}
+impl<A> Attribute<A> {
+    fn new(ginkgo: &Ginkgo, capacity: u32) -> Self {
+        Self {
+            cpu: Vec::with_capacity(capacity as usize),
+            gpu: ginkgo.context().device.create_buffer(&BufferDescriptor {
+                label: Some("attribute-buffer"),
+                size: Ginkgo::buffer_size::<A>(capacity),
+                usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
+                mapped_at_creation: false,
+            }),
+            write_needed: false,
+        }
+    }
+    fn remove(&mut self, index: usize) {
+        self.cpu.remove(index);
+        self.write_needed = true;
+    }
+    fn queue_write(&mut self, index: usize, a: A) {
+        *self.cpu.get_mut(index).expect("index") = a;
+    }
+    fn grow(&mut self, ginkgo: &Ginkgo, c: u32) {
+        let cpu = self.cpu.drain(..).collect::<Vec<A>>();
+        *self = Self::new(ginkgo, c);
+        self.cpu = cpu;
+        self.write_needed = true;
+    }
+    fn write_cpu_to_gpu(&mut self, ginkgo: &Ginkgo) {
+        if self.write_needed {
+            // TODO write to gpu up to len() of cpu
+            self.write_needed = false;
+        }
+    }
+}

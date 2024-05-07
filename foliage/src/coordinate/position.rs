@@ -1,3 +1,4 @@
+use bytemuck::{Pod, Zeroable};
 use std::marker::PhantomData;
 use std::ops::AddAssign;
 
@@ -11,7 +12,9 @@ pub struct Position<Context: CoordinateContext> {
     pub coordinates: Coordinates,
     _phantom: PhantomData<Context>,
 }
-
+#[repr(C)]
+#[derive(Pod, Zeroable, Copy, Clone, Default)]
+pub struct CPosition(pub Coordinates);
 impl Position<NumericalContext> {
     pub fn logical<C: Into<Coordinates>>(c: C) -> Position<LogicalContext> {
         Position::new(c)
@@ -42,6 +45,9 @@ impl<Context: CoordinateContext> Position<Context> {
             coordinates: c.into(),
             _phantom: PhantomData,
         }
+    }
+    pub fn to_c(self) -> CPosition {
+        CPosition(self.coordinates)
     }
     pub fn x(&self) -> CoordinateUnit {
         self.coordinates.0[0]

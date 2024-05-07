@@ -3,11 +3,11 @@ use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
-    BindGroupLayoutEntry, BindingType, BlendState, Buffer, BufferUsages, ColorTargetState,
-    CompareFunction, CompositeAlphaMode, DepthStencilState, DeviceDescriptor, Extent3d, Features,
-    FragmentState, InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations,
-    PipelineLayout, PipelineLayoutDescriptor, PowerPreference, PresentMode, PrimitiveState,
-    RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPipeline,
+    BindGroupLayoutEntry, BindingType, BlendState, Buffer, BufferAddress, BufferUsages,
+    ColorTargetState, CompareFunction, CompositeAlphaMode, DepthStencilState, DeviceDescriptor,
+    Extent3d, Features, FragmentState, InstanceDescriptor, Limits, LoadOp, MultisampleState,
+    Operations, PipelineLayout, PipelineLayoutDescriptor, PowerPreference, PresentMode,
+    PrimitiveState, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPipeline,
     RenderPipelineDescriptor, RequestAdapterOptions, ShaderModule, ShaderModuleDescriptor,
     ShaderStages, StoreOp, SurfaceConfiguration, TextureDescriptor, TextureDimension,
     TextureFormat, TextureFormatFeatureFlags, TextureSampleType, TextureUsages, TextureView,
@@ -17,7 +17,7 @@ use wgpu::{
 use crate::color::Color;
 use crate::coordinate::{DeviceContext, NumericalContext, Position};
 use crate::willow::{NearFarDescriptor, Willow};
-use crate::{Area, CoordinateUnit, Render, Section};
+use crate::{Area, CoordinateUnit, Section};
 
 #[derive(Default)]
 pub struct Ginkgo {
@@ -96,6 +96,9 @@ impl BindingBuilder {
 }
 
 impl Ginkgo {
+    pub fn buffer_size<B>(n: u32) -> BufferAddress {
+        (std::mem::size_of::<B>() * n as usize) as BufferAddress
+    }
     pub fn fragment_state<'a>(
         module: &'a ShaderModule,
         entry_point: &'a str,

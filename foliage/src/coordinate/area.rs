@@ -1,3 +1,4 @@
+use bytemuck::{Pod, Zeroable};
 use std::marker::PhantomData;
 
 use winit::dpi::{LogicalSize, PhysicalSize, Size};
@@ -12,7 +13,9 @@ pub struct Area<Context: CoordinateContext> {
     pub coordinates: Coordinates,
     _phantom: PhantomData<Context>,
 }
-
+#[repr(C)]
+#[derive(Pod, Zeroable, Copy, Clone, Default)]
+pub struct CArea(pub Coordinates);
 impl Area<NumericalContext> {
     pub fn logical<C: Into<Coordinates>>(c: C) -> Area<LogicalContext> {
         Area::new(c)
@@ -24,13 +27,15 @@ impl Area<NumericalContext> {
         Area::new(c)
     }
 }
-
 impl<Context: CoordinateContext> Area<Context> {
     pub fn new<C: Into<Coordinates>>(c: C) -> Self {
         Self {
             coordinates: c.into(),
             _phantom: PhantomData,
         }
+    }
+    pub fn to_c(self) -> CArea {
+        CArea(self.coordinates)
     }
     pub fn width(&self) -> CoordinateUnit {
         self.coordinates.0[0]

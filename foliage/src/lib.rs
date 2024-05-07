@@ -21,6 +21,7 @@ mod color;
 mod coordinate;
 mod elm;
 mod ginkgo;
+mod instances;
 mod panel;
 mod willow;
 
