@@ -1,14 +1,17 @@
+use std::marker::PhantomData;
+
+use crate::{Area, Coordinates, CoordinateUnit};
 use crate::coordinate::{
     CoordinateContext, DeviceContext, LogicalContext, NumericalContext, Position,
 };
-use crate::{Area, CoordinateUnit, Coordinates};
-use std::marker::PhantomData;
+
 #[derive(Copy, Clone, Default)]
 pub struct Section<Context: CoordinateContext> {
     pub position: Position<Context>,
     pub area: Area<Context>,
     _phantom: PhantomData<Context>,
 }
+
 impl Section<NumericalContext> {
     pub fn device<C: Into<Coordinates>>(p: C, a: C) -> Section<DeviceContext> {
         Section::new(p, a)
@@ -20,6 +23,7 @@ impl Section<NumericalContext> {
         Section::new(p, a)
     }
 }
+
 impl<Context: CoordinateContext> Section<Context> {
     pub fn new<C: Into<Coordinates>>(p: C, a: C) -> Self {
         Self {

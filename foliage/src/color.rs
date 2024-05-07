@@ -2,16 +2,18 @@ use serde::{Deserialize, Serialize};
 
 #[repr(C)]
 #[derive(
-    bytemuck::Pod, bytemuck::Zeroable, Copy, Clone, PartialEq, Serialize, Deserialize, Debug,
+bytemuck::Pod, bytemuck::Zeroable, Copy, Clone, PartialEq, Serialize, Deserialize, Debug,
 )]
 pub struct Color {
     rgba: [f32; 4],
 }
+
 impl Default for Color {
     fn default() -> Self {
         Self::BLACK
     }
 }
+
 impl Color {
     pub const WHITE: Color = Color::rgb(0.90, 0.90, 0.90);
     pub const BLACK: Color = Color::rgb(0.10, 0.10, 0.10);
@@ -43,6 +45,7 @@ impl Color {
         &mut self.rgba[3]
     }
 }
+
 impl From<Color> for wgpu::Color {
     fn from(color: Color) -> Self {
         Self {

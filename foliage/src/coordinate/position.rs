@@ -1,13 +1,17 @@
-use crate::coordinate::{CoordinateContext, DeviceContext, LogicalContext, NumericalContext};
-use crate::{CoordinateUnit, Coordinates};
 use std::marker::PhantomData;
 use std::ops::AddAssign;
+
 use winit::dpi::{LogicalPosition, PhysicalPosition};
+
+use crate::{Coordinates, CoordinateUnit};
+use crate::coordinate::{CoordinateContext, DeviceContext, LogicalContext, NumericalContext};
+
 #[derive(Copy, Clone, Default)]
 pub struct Position<Context: CoordinateContext> {
     pub coordinates: Coordinates,
     _phantom: PhantomData<Context>,
 }
+
 impl Position<NumericalContext> {
     pub fn logical<C: Into<Coordinates>>(c: C) -> Position<LogicalContext> {
         Position::new(c)
@@ -25,11 +29,13 @@ impl Position<NumericalContext> {
         Position::device(self.coordinates)
     }
 }
+
 impl<Context: CoordinateContext> AddAssign for Position<Context> {
     fn add_assign(&mut self, rhs: Self) {
         self.coordinates = (self.x() + rhs.x(), self.y() + rhs.y()).into();
     }
 }
+
 impl<Context: CoordinateContext> Position<Context> {
     pub fn new<C: Into<Coordinates>>(c: C) -> Self {
         Self {
@@ -53,21 +59,25 @@ impl<Context: CoordinateContext> Position<Context> {
         Self::new((self.x().max(o.x()), self.y().max(o.y())))
     }
 }
+
 impl Position<LogicalContext> {
     pub fn to_device(self, factor: f32) -> Position<DeviceContext> {
         Position::device((self.x() * factor, self.y() * factor))
     }
 }
+
 impl Position<DeviceContext> {
     pub fn to_logical(self, factor: f32) -> Position<LogicalContext> {
         Position::logical((self.x() / factor, self.y() / factor))
     }
 }
+
 impl From<LogicalPosition<f32>> for Position<LogicalContext> {
     fn from(value: LogicalPosition<f32>) -> Self {
         Self::new((value.x, value.y))
     }
 }
+
 impl From<PhysicalPosition<f32>> for Position<DeviceContext> {
     fn from(value: PhysicalPosition<f32>) -> Self {
         Self::new((value.x, value.y))

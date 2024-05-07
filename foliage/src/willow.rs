@@ -1,10 +1,14 @@
-use crate::coordinate::DeviceContext;
-use crate::{Area, Layer, NumericalContext, Position};
 use std::sync::Arc;
+
 use winit::event_loop::ActiveEventLoop;
 use winit::window::{Window, WindowAttributes};
+
+use crate::{Area, Layer, NumericalContext, Position};
+use crate::coordinate::DeviceContext;
+
 #[derive(Clone, Default)]
 pub(crate) struct WindowHandle(pub(crate) Option<Arc<Window>>);
+
 #[derive(Default)]
 pub(crate) struct Willow {
     pub(crate) handle: WindowHandle,
@@ -16,11 +20,13 @@ pub(crate) struct Willow {
     pub(crate) starting_position: Option<Position<NumericalContext>>,
     pub(crate) near_far: Option<NearFarDescriptor>,
 }
+
 #[derive(Copy, Clone)]
 pub struct NearFarDescriptor {
     pub(crate) near: Layer,
     pub(crate) far: Layer,
 }
+
 impl NearFarDescriptor {
     pub fn new<L: Into<Layer>>(near: L, far: L) -> Self {
         Self {
@@ -29,6 +35,7 @@ impl NearFarDescriptor {
         }
     }
 }
+
 impl Default for NearFarDescriptor {
     fn default() -> Self {
         Self {
@@ -37,6 +44,7 @@ impl Default for NearFarDescriptor {
         }
     }
 }
+
 impl Willow {
     pub(crate) fn connect(&mut self, event_loop: &ActiveEventLoop) {
         let requested_area = self.requested_area();
@@ -45,11 +53,11 @@ impl Willow {
             .with_resizable(self.resizable.unwrap_or(true))
             .with_min_inner_size(self.min_size.unwrap_or(Area::device((320, 320))));
         #[cfg(all(
-            not(target_family = "wasm"),
-            not(target_os = "android"),
-            not(target_os = "ios")
+        not(target_family = "wasm"),
+        not(target_os = "android"),
+        not(target_os = "ios")
         ))]
-        let attributes = attributes.with_inner_size(requested_area);
+            let attributes = attributes.with_inner_size(requested_area);
         let window = event_loop.create_window(attributes).unwrap();
         self.handle = WindowHandle(Some(Arc::new(window)));
     }

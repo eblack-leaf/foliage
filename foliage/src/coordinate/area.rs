@@ -1,14 +1,18 @@
+use std::marker::PhantomData;
+
+use winit::dpi::{LogicalSize, PhysicalSize, Size};
+
 use crate::coordinate::{
     CoordinateContext, Coordinates, DeviceContext, LogicalContext, NumericalContext,
 };
 use crate::CoordinateUnit;
-use std::marker::PhantomData;
-use winit::dpi::{LogicalSize, PhysicalSize, Size};
+
 #[derive(Copy, Clone, Default)]
 pub struct Area<Context: CoordinateContext> {
     pub coordinates: Coordinates,
     _phantom: PhantomData<Context>,
 }
+
 impl Area<NumericalContext> {
     pub fn logical<C: Into<Coordinates>>(c: C) -> Area<LogicalContext> {
         Area::new(c)
@@ -20,6 +24,7 @@ impl Area<NumericalContext> {
         Area::new(c)
     }
 }
+
 impl<Context: CoordinateContext> Area<Context> {
     pub fn new<C: Into<Coordinates>>(c: C) -> Self {
         Self {
@@ -43,26 +48,31 @@ impl<Context: CoordinateContext> Area<Context> {
         Area::numerical((self.width(), self.height()))
     }
 }
+
 impl Area<LogicalContext> {
     pub fn to_device(self, factor: f32) -> Area<DeviceContext> {
         Area::device((self.width() * factor, self.height() * factor))
     }
 }
+
 impl Area<DeviceContext> {
     pub fn to_logical(self, factor: f32) -> Area<LogicalContext> {
         Area::logical((self.width() / factor, self.height() / factor))
     }
 }
+
 impl From<Area<LogicalContext>> for Size {
     fn from(value: Area<LogicalContext>) -> Self {
         Self::new(LogicalSize::new(value.width(), value.height()))
     }
 }
+
 impl From<Area<DeviceContext>> for Size {
     fn from(value: Area<DeviceContext>) -> Self {
         Self::new(PhysicalSize::new(value.width(), value.height()))
     }
 }
+
 impl From<PhysicalSize<u32>> for Area<DeviceContext> {
     fn from(value: PhysicalSize<u32>) -> Self {
         Self::new((value.width, value.height))

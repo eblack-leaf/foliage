@@ -1,37 +1,48 @@
+use bytemuck::{Pod, Zeroable};
+use serde::{Deserialize, Serialize};
+
+pub use area::Area;
+pub use layer::Layer;
+pub use position::Position;
+pub use section::Section;
+
 mod area;
 mod layer;
 mod position;
 mod section;
 
-pub use area::Area;
-use bytemuck::{Pod, Zeroable};
-pub use layer::Layer;
-pub use position::Position;
-pub use section::Section;
-use serde::{Deserialize, Serialize};
 pub trait CoordinateContext
-where
-    Self: Send + Sync + 'static + Copy + Clone,
-{
-}
+    where
+        Self: Send + Sync + 'static + Copy + Clone,
+{}
+
 #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug, Serialize, Deserialize)]
 pub struct DeviceContext;
+
 #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug, Serialize, Deserialize)]
 pub struct LogicalContext;
+
 #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug, Serialize, Deserialize)]
 pub struct NumericalContext;
+
 impl CoordinateContext for DeviceContext {}
+
 impl CoordinateContext for LogicalContext {}
+
 impl CoordinateContext for NumericalContext {}
+
 pub type CoordinateUnit = f32;
+
 #[repr(C)]
 #[derive(Copy, Clone, PartialOrd, PartialEq, Pod, Zeroable)]
 pub struct Coordinates(pub [CoordinateUnit; 2]);
+
 impl Coordinates {
     pub const fn new(a: CoordinateUnit, b: CoordinateUnit) -> Self {
         Self([a, b])
     }
 }
+
 impl Default for Coordinates {
     fn default() -> Self {
         Self([CoordinateUnit::default(); 2])
