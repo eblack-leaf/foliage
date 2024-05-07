@@ -24,21 +24,27 @@ impl CoordinateContext for DeviceContext {}
 impl CoordinateContext for LogicalContext {}
 impl CoordinateContext for NumericalContext {}
 pub type CoordinateUnit = f32;
-#[derive(Copy, Clone, PartialOrd, PartialEq)]
-pub struct Coordinates<const N: usize>(pub [CoordinateUnit; N]);
-impl<const N: usize> Default for Coordinates<N> {
+#[repr(C)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Pod, Zeroable)]
+pub struct Coordinates(pub [CoordinateUnit; 2]);
+impl Coordinates {
+    pub const fn new(a: CoordinateUnit, b: CoordinateUnit) -> Self {
+        Self([a, b])
+    }
+}
+impl Default for Coordinates {
     fn default() -> Self {
-        Self([CoordinateUnit::default(); N])
+        Self([CoordinateUnit::default(); 2])
     }
 }
 macro_rules! permutation_coordinate_impl {
     ($a:ty, $b:ty) => {
-        impl From<($a, $b)> for Coordinates<2> {
+        impl From<($a, $b)> for Coordinates {
             fn from(value: ($a, $b)) -> Self {
                 Self([value.0 as CoordinateUnit, value.1 as CoordinateUnit])
             }
         }
-        impl From<($b, $a)> for Coordinates<2> {
+        impl From<($b, $a)> for Coordinates {
             fn from(value: ($b, $a)) -> Self {
                 Self([value.0 as CoordinateUnit, value.1 as CoordinateUnit])
             }
@@ -47,7 +53,7 @@ macro_rules! permutation_coordinate_impl {
 }
 macro_rules! single_coordinate_impl {
     ($a:ty) => {
-        impl From<($a, $a)> for Coordinates<2> {
+        impl From<($a, $a)> for Coordinates {
             fn from(value: ($a, $a)) -> Self {
                 Self([value.0 as CoordinateUnit, value.1 as CoordinateUnit])
             }

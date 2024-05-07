@@ -37,7 +37,9 @@ impl Elm {
     }
     pub(crate) fn initialize(&mut self, window_area: Area<NumericalContext>) {
         // attach leafs?
-        self.ecs.world.insert_resource(ViewportHandle::new(window_area));
+        self.ecs
+            .world
+            .insert_resource(ViewportHandle::new(window_area));
         self.scheduler.exec_startup(&mut self.ecs);
         self.initialized = true;
     }

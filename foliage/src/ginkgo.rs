@@ -2,8 +2,9 @@ use bevy_ecs::prelude::Resource;
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 use wgpu::{
-    CompositeAlphaMode, DeviceDescriptor, Extent3d, Features, InstanceDescriptor, Limits, LoadOp,
-    Operations, PowerPreference, PresentMode, RenderPassColorAttachment,
+    BindGroupEntry, BlendState, ColorTargetState, CompareFunction, CompositeAlphaMode,
+    DepthStencilState, DeviceDescriptor, Extent3d, Features, InstanceDescriptor, Limits, LoadOp,
+    MultisampleState, Operations, PowerPreference, PresentMode, RenderPassColorAttachment,
     RenderPassDepthStencilAttachment, RequestAdapterOptions, StoreOp, SurfaceConfiguration,
     TextureDescriptor, TextureDimension, TextureFormat, TextureFormatFeatureFlags, TextureUsages,
     TextureView, TextureViewDescriptor,
@@ -21,6 +22,34 @@ pub(crate) struct Ginkgo {
     viewport: Option<Viewport>,
 }
 impl Ginkgo {
+    pub(crate) fn alpha_color_target_state(&self) -> [Option<ColorTargetState>; 1] {
+        [Some(ColorTargetState {
+            format: self.configuration().config.format,
+            blend: Some(BlendState::ALPHA_BLENDING),
+            write_mask: Default::default(),
+        })]
+    }
+    pub(crate) fn msaa_state(&self) -> MultisampleState {
+        MultisampleState {
+            count: self.configuration().msaa.samples(),
+            ..MultisampleState::default()
+        }
+    }
+    pub(crate) fn depth_stencil_state(&self) -> Option<DepthStencilState> {
+        Some(DepthStencilState {
+            format: Depth::FORMAT,
+            depth_write_enabled: true,
+            depth_compare: CompareFunction::LessEqual,
+            stencil: Default::default(),
+            bias: Default::default(),
+        })
+    }
+    pub(crate) fn viewport_bind_group_entry(&self, binding: u32) -> BindGroupEntry {
+        BindGroupEntry {
+            binding,
+            resource: self.viewport().uniform.buffer.as_entire_binding(),
+        }
+    }
     pub(crate) fn color_attachment<'a>(
         &'a self,
         surface_view: &'a TextureView,

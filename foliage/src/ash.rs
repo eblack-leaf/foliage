@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::hash::Hash;
 
 use bevy_ecs::world::World;
+use bytemuck::{Pod, Zeroable};
 use wgpu::{
     CommandEncoderDescriptor, RenderBundle, RenderBundleDepthStencil, RenderBundleDescriptor,
     RenderBundleEncoderDescriptor, RenderPassDescriptor, TextureViewDescriptor,
@@ -197,6 +198,7 @@ pub trait Render
 where
     Self: Sized + 'static,
 {
+    type Vertex: Pod + Zeroable;
     type DirectiveGroupKey: Hash + Eq + Copy + Clone;
     const RENDER_PHASE: RenderPhase;
     fn create_resources(ginkgo: &Ginkgo) -> Self;

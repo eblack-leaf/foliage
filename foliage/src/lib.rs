@@ -1,24 +1,27 @@
-use winit::application::ApplicationHandler;
-use winit::event::WindowEvent;
-use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
-use winit::window::WindowId;
-
 pub use ash::Render;
+pub use bevy_ecs;
 pub use coordinate::{
     Area, CoordinateUnit, Coordinates, DeviceContext, Layer, LogicalContext, NumericalContext,
     Position, Section,
 };
 pub use elm::Elm;
+pub use wgpu;
 use willow::Willow;
+use winit::application::ApplicationHandler;
+use winit::event::WindowEvent;
+use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
+use winit::window::WindowId;
 
 use crate::ash::Ash;
 use crate::ginkgo::Ginkgo;
 
 mod ash;
+mod aspen;
 mod color;
 mod coordinate;
 mod elm;
 mod ginkgo;
+mod panel;
 mod willow;
 
 pub struct Foliage {
@@ -96,7 +99,8 @@ impl ApplicationHandler for Foliage {
             self.ginkgo.configure_view(&self.willow);
             self.ginkgo.create_viewport(&self.willow);
             self.ash.initialize(&self.ginkgo);
-            self.elm.initialize(self.willow.actual_area().to_numerical());
+            self.elm
+                .initialize(self.willow.actual_area().to_numerical());
         } else {
             #[cfg(target_os = "android")]
             {
@@ -110,7 +114,8 @@ impl ApplicationHandler for Foliage {
             self.ginkgo.configure_view(&self.willow);
             self.ginkgo.create_viewport(&self.willow);
             self.ash.initialize(&self.ginkgo);
-            self.elm.initialize(self.willow.actual_area().to_numerical());
+            self.elm
+                .initialize(self.willow.actual_area().to_numerical());
         }
     }
     fn window_event(

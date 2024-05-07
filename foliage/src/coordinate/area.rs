@@ -6,22 +6,22 @@ use std::marker::PhantomData;
 use winit::dpi::{LogicalSize, PhysicalSize, Size};
 #[derive(Copy, Clone, Default)]
 pub struct Area<Context: CoordinateContext> {
-    pub coordinates: Coordinates<2>,
+    pub coordinates: Coordinates,
     _phantom: PhantomData<Context>,
 }
 impl Area<NumericalContext> {
-    pub fn logical<C: Into<Coordinates<2>>>(c: C) -> Area<LogicalContext> {
+    pub fn logical<C: Into<Coordinates>>(c: C) -> Area<LogicalContext> {
         Area::new(c)
     }
-    pub fn device<C: Into<Coordinates<2>>>(c: C) -> Area<DeviceContext> {
+    pub fn device<C: Into<Coordinates>>(c: C) -> Area<DeviceContext> {
         Area::new(c)
     }
-    pub fn numerical<C: Into<Coordinates<2>>>(c: C) -> Area<NumericalContext> {
+    pub fn numerical<C: Into<Coordinates>>(c: C) -> Area<NumericalContext> {
         Area::new(c)
     }
 }
 impl<Context: CoordinateContext> Area<Context> {
-    pub fn new<C: Into<Coordinates<2>>>(c: C) -> Self {
+    pub fn new<C: Into<Coordinates>>(c: C) -> Self {
         Self {
             coordinates: c.into(),
             _phantom: PhantomData,

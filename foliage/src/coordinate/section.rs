@@ -10,18 +10,18 @@ pub struct Section<Context: CoordinateContext> {
     _phantom: PhantomData<Context>,
 }
 impl Section<NumericalContext> {
-    pub fn device<C: Into<Coordinates<2>>>(p: C, a: C) -> Section<DeviceContext> {
+    pub fn device<C: Into<Coordinates>>(p: C, a: C) -> Section<DeviceContext> {
         Section::new(p, a)
     }
-    pub fn logical<C: Into<Coordinates<2>>>(p: C, a: C) -> Section<LogicalContext> {
+    pub fn logical<C: Into<Coordinates>>(p: C, a: C) -> Section<LogicalContext> {
         Section::new(p, a)
     }
-    pub fn numerical<C: Into<Coordinates<2>>>(p: C, a: C) -> Section<NumericalContext> {
+    pub fn numerical<C: Into<Coordinates>>(p: C, a: C) -> Section<NumericalContext> {
         Section::new(p, a)
     }
 }
 impl<Context: CoordinateContext> Section<Context> {
-    pub fn new<C: Into<Coordinates<2>>>(p: C, a: C) -> Self {
+    pub fn new<C: Into<Coordinates>>(p: C, a: C) -> Self {
         Self {
             position: Position::new(p),
             area: Area::new(a),
@@ -46,7 +46,7 @@ impl<Context: CoordinateContext> Section<Context> {
     pub fn bottom(&self) -> CoordinateUnit {
         self.y() + self.height()
     }
-    pub fn center(&self) -> Coordinates<2> {
+    pub fn center(&self) -> Coordinates {
         todo!()
     }
     pub fn intersection(&self) -> Option<Section<Context>> {

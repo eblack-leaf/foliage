@@ -5,17 +5,17 @@ use std::ops::AddAssign;
 use winit::dpi::{LogicalPosition, PhysicalPosition};
 #[derive(Copy, Clone, Default)]
 pub struct Position<Context: CoordinateContext> {
-    pub coordinates: Coordinates<2>,
+    pub coordinates: Coordinates,
     _phantom: PhantomData<Context>,
 }
 impl Position<NumericalContext> {
-    pub fn logical<C: Into<Coordinates<2>>>(c: C) -> Position<LogicalContext> {
+    pub fn logical<C: Into<Coordinates>>(c: C) -> Position<LogicalContext> {
         Position::new(c)
     }
-    pub fn device<C: Into<Coordinates<2>>>(c: C) -> Position<DeviceContext> {
+    pub fn device<C: Into<Coordinates>>(c: C) -> Position<DeviceContext> {
         Position::new(c)
     }
-    pub fn numerical<C: Into<Coordinates<2>>>(c: C) -> Position<NumericalContext> {
+    pub fn numerical<C: Into<Coordinates>>(c: C) -> Position<NumericalContext> {
         Position::new(c)
     }
     pub fn as_logical(self) -> Position<LogicalContext> {
@@ -31,7 +31,7 @@ impl<Context: CoordinateContext> AddAssign for Position<Context> {
     }
 }
 impl<Context: CoordinateContext> Position<Context> {
-    pub fn new<C: Into<Coordinates<2>>>(c: C) -> Self {
+    pub fn new<C: Into<Coordinates>>(c: C) -> Self {
         Self {
             coordinates: c.into(),
             _phantom: PhantomData,
