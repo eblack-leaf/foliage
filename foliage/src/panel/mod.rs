@@ -37,7 +37,7 @@ pub struct PanelResources {
 
 impl Render for PanelResources {
     type Vertex = Vertex;
-    type DirectiveGroupKey = Entity;
+    type DirectiveGroupKey = i32;
     const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(0);
 
     fn create_resources(ginkgo: &Ginkgo) -> Self {
