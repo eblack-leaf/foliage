@@ -3,8 +3,8 @@ use std::sync::Arc;
 use winit::event_loop::ActiveEventLoop;
 use winit::window::{Window, WindowAttributes};
 
-use crate::{Area, Layer, NumericalContext, Position};
 use crate::coordinate::DeviceContext;
+use crate::{Area, Layer, NumericalContext, Position};
 
 #[derive(Clone, Default)]
 pub(crate) struct WindowHandle(pub(crate) Option<Arc<Window>>);
@@ -53,11 +53,11 @@ impl Willow {
             .with_resizable(self.resizable.unwrap_or(true))
             .with_min_inner_size(self.min_size.unwrap_or(Area::device((320, 320))));
         #[cfg(all(
-        not(target_family = "wasm"),
-        not(target_os = "android"),
-        not(target_os = "ios")
+            not(target_family = "wasm"),
+            not(target_os = "android"),
+            not(target_os = "ios")
         ))]
-            let attributes = attributes.with_inner_size(requested_area);
+        let attributes = attributes.with_inner_size(requested_area);
         let window = event_loop.create_window(attributes).unwrap();
         self.handle = WindowHandle(Some(Arc::new(window)));
     }

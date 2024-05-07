@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 #[repr(C)]
 #[derive(
-bytemuck::Pod, bytemuck::Zeroable, Copy, Clone, PartialEq, Serialize, Deserialize, Debug,
+    bytemuck::Pod, bytemuck::Zeroable, Copy, Clone, PartialEq, Serialize, Deserialize, Debug,
 )]
 pub struct Color {
     rgba: [f32; 4],

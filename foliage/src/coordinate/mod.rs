@@ -12,9 +12,10 @@ mod position;
 mod section;
 
 pub trait CoordinateContext
-    where
-        Self: Send + Sync + 'static + Copy + Clone,
-{}
+where
+    Self: Send + Sync + 'static + Copy + Clone,
+{
+}
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug, Serialize, Deserialize)]
 pub struct DeviceContext;

@@ -10,8 +10,8 @@ use wgpu::{
 };
 
 use crate::color::Color;
-use crate::Elm;
 use crate::ginkgo::{Depth, Ginkgo};
+use crate::Elm;
 
 #[derive(Default)]
 pub(crate) struct Ash {
@@ -206,8 +206,8 @@ impl<'a> RenderDirectiveRecorder<'a> {
 }
 
 pub trait Render
-    where
-        Self: Sized + 'static,
+where
+    Self: Sized + 'static,
 {
     type Vertex: Pod + Zeroable;
     type DirectiveGroupKey: Hash + Eq + Copy + Clone;

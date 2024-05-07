@@ -2,9 +2,9 @@ use bevy_ecs::prelude::Schedule;
 use bevy_ecs::schedule::ExecutorKind;
 use bevy_ecs::world::World;
 
-use crate::{Area, NumericalContext, Position};
 use crate::ginkgo::ViewportHandle;
 use crate::willow::Willow;
+use crate::{Area, NumericalContext, Position};
 
 #[derive(Default)]
 pub struct Scheduler {

@@ -7,7 +7,7 @@ use winit::window::WindowId;
 
 pub use ash::Render;
 pub use coordinate::{
-    Area, Coordinates, CoordinateUnit, DeviceContext, Layer, LogicalContext, NumericalContext,
+    Area, CoordinateUnit, Coordinates, DeviceContext, Layer, LogicalContext, NumericalContext,
     Position, Section,
 };
 pub use elm::Elm;

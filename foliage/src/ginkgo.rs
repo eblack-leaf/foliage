@@ -1,5 +1,6 @@
 use bevy_ecs::prelude::Resource;
 use bytemuck::{Pod, Zeroable};
+use wgpu::util::DeviceExt;
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
     BindGroupLayoutEntry, BindingType, BlendState, Buffer, BufferUsages, ColorTargetState,
@@ -12,12 +13,11 @@ use wgpu::{
     TextureFormat, TextureFormatFeatureFlags, TextureSampleType, TextureUsages, TextureView,
     TextureViewDescriptor, TextureViewDimension,
 };
-use wgpu::util::DeviceExt;
 
-use crate::{Area, CoordinateUnit, Render, Section};
 use crate::color::Color;
 use crate::coordinate::{DeviceContext, NumericalContext, Position};
 use crate::willow::{NearFarDescriptor, Willow};
+use crate::{Area, CoordinateUnit, Render, Section};
 
 #[derive(Default)]
 pub struct Ginkgo {
@@ -41,7 +41,7 @@ impl BindingBuilder {
         }
     }
 
-    pub fn with_stage(mut self, stage: ShaderStages) -> Self {
+    pub fn at_stages(mut self, stage: ShaderStages) -> Self {
         self.stage.replace(stage);
         self
     }
@@ -134,11 +134,11 @@ impl Ginkgo {
     pub fn bind_group_layout_entry(binding: u32) -> BindingBuilder {
         BindingBuilder::new(binding)
     }
-    pub fn bind_group_layout(&self, desc: &BindGroupLayoutDescriptor) -> BindGroupLayout {
+    pub fn create_bind_group_layout(&self, desc: &BindGroupLayoutDescriptor) -> BindGroupLayout {
         let bind_group_layout = self.context().device.create_bind_group_layout(desc);
         bind_group_layout
     }
-    pub fn bind_group(&self, desc: &BindGroupDescriptor) -> BindGroup {
+    pub fn create_bind_group(&self, desc: &BindGroupDescriptor) -> BindGroup {
         let bind_group = self.context().device.create_bind_group(desc);
         bind_group
     }
@@ -150,7 +150,7 @@ impl Ginkgo {
         let shader = self.context().device.create_shader_module(shader_source);
         shader
     }
-    pub fn create_vertex_buffer<R: Render, VB: AsRef<[R::Vertex]>>(&self, vb_data: VB) -> Buffer {
+    pub fn create_vertex_buffer<R: Pod + Zeroable, VB: AsRef<[R]>>(&self, vb_data: VB) -> Buffer {
         let vertex_buffer =
             self.context()
                 .device
@@ -359,19 +359,19 @@ impl Ginkgo {
     }
 }
 
-pub(crate) struct GraphicContext {
+pub struct GraphicContext {
     pub(crate) surface: wgpu::Surface<'static>,
     pub(crate) instance: wgpu::Instance,
     pub(crate) adapter: wgpu::Adapter,
-    pub(crate) device: wgpu::Device,
-    pub(crate) queue: wgpu::Queue,
-    pub(crate) surface_format: TextureFormat,
+    pub device: wgpu::Device,
+    pub queue: wgpu::Queue,
+    pub surface_format: TextureFormat,
 }
 
-pub(crate) struct ViewConfiguration {
-    pub(crate) msaa: Msaa,
+pub struct ViewConfiguration {
+    pub msaa: Msaa,
     pub(crate) depth: Depth,
-    pub(crate) scale_factor: ScaleFactor,
+    pub scale_factor: ScaleFactor,
     pub(crate) config: SurfaceConfiguration,
 }
 

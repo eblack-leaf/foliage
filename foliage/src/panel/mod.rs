@@ -1,13 +1,10 @@
 use bevy_ecs::prelude::Entity;
 use bytemuck::{Pod, Zeroable};
-use wgpu::{
-    BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, include_wgsl,
-    PipelineLayoutDescriptor, RenderPipeline, RenderPipelineDescriptor, ShaderModule, VertexState,
-};
+use wgpu::{include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, PipelineLayoutDescriptor, RenderPipeline, RenderPipelineDescriptor, ShaderModule, VertexState, ShaderStages};
 
-use crate::{Coordinates, Elm, Render};
-use crate::ash::{Renderer, RenderPhase};
+use crate::ash::{RenderPhase, Renderer};
 use crate::ginkgo::Ginkgo;
+use crate::{Coordinates, Elm, Render};
 
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default)]
@@ -45,16 +42,16 @@ impl Render for PanelResources {
 
     fn create_resources(ginkgo: &Ginkgo) -> Self {
         let shader = ginkgo.create_shader(include_wgsl!("panel.wgsl"));
-        let vertex_buffer = ginkgo.create_vertex_buffer::<Self, _>(VERTICES);
-        let bind_group_layout = ginkgo.bind_group_layout(&BindGroupLayoutDescriptor {
+        let vertex_buffer = ginkgo.create_vertex_buffer(VERTICES);
+        let bind_group_layout = ginkgo.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: Some("panel-bind-group-layout"),
             entries: &[
-                Ginkgo::bind_group_layout_entry(0).uniform_entry(),
+                Ginkgo::bind_group_layout_entry(0).at_stages(ShaderStages::VERTEX).uniform_entry(),
                 // uniforms
                 // texture (pre-solved)
             ],
         });
-        let bind_group = ginkgo.bind_group(&BindGroupDescriptor {
+        let bind_group = ginkgo.create_bind_group(&BindGroupDescriptor {
             label: Some("panel-bind-group"),
             layout: &bind_group_layout,
             entries: &[
