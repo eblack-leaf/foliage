@@ -1,14 +1,15 @@
-use bytemuck::{Pod, Zeroable};
 use std::marker::PhantomData;
 use std::ops::AddAssign;
 
+use bevy_ecs::prelude::Component;
+use bytemuck::{Pod, Zeroable};
 use winit::dpi::{LogicalPosition, PhysicalPosition};
 
 use crate::coordinate::{
     CoordinateContext, CoordinateUnit, Coordinates, DeviceContext, LogicalContext, NumericalContext,
 };
 
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone, Default, Component)]
 pub struct Position<Context: CoordinateContext> {
     pub coordinates: Coordinates,
     _phantom: PhantomData<Context>,

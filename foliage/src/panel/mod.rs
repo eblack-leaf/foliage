@@ -3,14 +3,14 @@ use bevy_ecs::prelude::Component;
 use bytemuck::{Pod, Zeroable};
 use wgpu::{
     include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor,
-    PipelineLayoutDescriptor, RenderPipeline, RenderPipelineDescriptor, ShaderModule, ShaderStages,
-    TextureFormat, TextureSampleType, TextureViewDimension, VertexBufferLayout, VertexState,
-    VertexStepMode,
+    PipelineLayoutDescriptor, RenderPipeline, RenderPipelineDescriptor, ShaderStages,
+    TextureFormat, TextureSampleType, TextureViewDimension, VertexState, VertexStepMode,
 };
 
 use crate::ash::{RenderPhase, Renderer};
 use crate::coordinate::area::CArea;
 use crate::coordinate::layer::Layer;
+use crate::coordinate::placement::Placement;
 use crate::coordinate::position::{CPosition, Position};
 use crate::coordinate::{Coordinates, LogicalContext};
 use crate::ginkgo::{Ginkgo, Uniform};
@@ -19,6 +19,7 @@ use crate::{Elm, Render};
 
 #[derive(Bundle)]
 pub struct Panel {
+    placement: Placement<LogicalContext>,
     intersection: PanelIntersection,
     corner_depths: PanelCornerDepths,
     corner_positions: PanelCornerPositions,
@@ -31,6 +32,7 @@ impl PanelCornerDepths {
     pub fn set_top_left(&mut self, v: f32) {
         self.0[0] = v;
     }
+    // ...
 }
 #[repr(C)]
 #[derive(Component, Copy, Clone, Pod, Zeroable, Default, PartialEq)]
@@ -95,8 +97,7 @@ impl Render for PanelResources {
         });
         let (_texture, texture_view) = ginkgo.create_texture(
             TextureFormat::Rgba8Unorm,
-            PANEL_CIRCLE_TEXTURE_DIMS.first() as u32,
-            PANEL_CIRCLE_TEXTURE_DIMS.second() as u32,
+            PANEL_CIRCLE_TEXTURE_DIMS,
             1,
             vec![].as_slice(),
         );
@@ -111,14 +112,14 @@ impl Render for PanelResources {
                 Ginkgo::sampler_bind_group_entry(&sampler, 3),
             ],
         });
-        let pl_layout = ginkgo.create_pipeline_layout(&PipelineLayoutDescriptor {
+        let pipeline_layout = ginkgo.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("panel-pipeline-layout-descriptor"),
             bind_group_layouts: &[&bind_group_layout],
             push_constant_ranges: &[],
         });
         let pipeline = ginkgo.create_pipeline(&RenderPipelineDescriptor {
             label: Some("panel-render-pipeline"),
-            layout: Option::from(&pl_layout),
+            layout: Option::from(&pipeline_layout),
             vertex: VertexState {
                 module: &shader,
                 entry_point: "vertex_entry",
@@ -161,7 +162,7 @@ impl Render for PanelResources {
             vertex_buffer,
             bind_group_layout,
             bind_group,
-            instances
+            instances,
         }
     }
 

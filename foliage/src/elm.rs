@@ -1,10 +1,10 @@
-use crate::coordinate::area::Area;
-use crate::coordinate::position::Position;
-use crate::coordinate::NumericalContext;
 use bevy_ecs::prelude::Schedule;
 use bevy_ecs::schedule::ExecutorKind;
 use bevy_ecs::world::World;
 
+use crate::coordinate::area::Area;
+use crate::coordinate::position::Position;
+use crate::coordinate::NumericalContext;
 use crate::ginkgo::ViewportHandle;
 use crate::willow::Willow;
 

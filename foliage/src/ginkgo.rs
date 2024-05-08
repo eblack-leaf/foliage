@@ -19,7 +19,7 @@ use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
-use crate::coordinate::{CoordinateUnit, DeviceContext, NumericalContext};
+use crate::coordinate::{CoordinateUnit, Coordinates, DeviceContext, NumericalContext};
 use crate::willow::{NearFarDescriptor, Willow};
 
 #[derive(Default)]
@@ -117,8 +117,7 @@ impl Ginkgo {
     pub fn create_texture(
         &self,
         format: TextureFormat,
-        width: u32,
-        height: u32,
+        coordinates: Coordinates,
         mips: u32,
         data: &[u8],
     ) -> (Texture, TextureView) {
@@ -127,8 +126,8 @@ impl Ginkgo {
             &TextureDescriptor {
                 label: Some("ginkgo-texture"),
                 size: Extent3d {
-                    width,
-                    height,
+                    width: coordinates.horizontal() as u32,
+                    height: coordinates.vertical() as u32,
                     depth_or_array_layers: 1,
                 },
                 mip_level_count: mips,

@@ -1,9 +1,11 @@
-use crate::ginkgo::Ginkgo;
-use bevy_ecs::world::World;
-use bytemuck::{Pod, Zeroable};
 use std::collections::HashMap;
 use std::hash::Hash;
-use wgpu::{BufferDescriptor, BufferUsages, VertexAttribute, VertexBufferLayout, VertexStepMode};
+
+use bevy_ecs::world::World;
+use bytemuck::{Pod, Zeroable};
+use wgpu::{BufferDescriptor, BufferUsages};
+
+use crate::ginkgo::Ginkgo;
 
 pub struct Instances<Key: Hash + Eq + Copy + Clone> {
     world: World,
@@ -15,6 +17,13 @@ pub struct Instances<Key: Hash + Eq + Copy + Clone> {
     cpu_to_gpu: Vec<Box<fn(&mut World, &Ginkgo)>>,
 }
 impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
+    pub fn buffer<A: Pod + Zeroable>(&self) -> &wgpu::Buffer {
+        &self
+            .world
+            .get_non_send_resource::<Attribute<A>>()
+            .expect("attribute")
+            .gpu
+    }
     pub fn new(initial_capacity: u32) -> Self {
         Self {
             world: World::default(),

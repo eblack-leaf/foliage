@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use bevy_ecs::bundle::Bundle;
 
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
@@ -6,11 +6,10 @@ use crate::coordinate::{
     CoordinateContext, CoordinateUnit, Coordinates, DeviceContext, LogicalContext, NumericalContext,
 };
 
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone, Default, Bundle)]
 pub struct Section<Context: CoordinateContext> {
     pub position: Position<Context>,
     pub area: Area<Context>,
-    _phantom: PhantomData<Context>,
 }
 
 impl Section<NumericalContext> {
@@ -30,7 +29,6 @@ impl<Context: CoordinateContext> Section<Context> {
         Self {
             position: Position::new(p),
             area: Area::new(a),
-            _phantom: PhantomData,
         }
     }
     pub fn x(&self) -> CoordinateUnit {

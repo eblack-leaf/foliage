@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use crate::coordinate::area::Area;
 use winit::event_loop::ActiveEventLoop;
 use winit::window::{Window, WindowAttributes};
 
+use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::{DeviceContext, NumericalContext};

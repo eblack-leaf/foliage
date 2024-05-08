@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod area;
 pub mod layer;
+pub mod placement;
 pub mod position;
 pub mod section;
 
@@ -11,36 +12,30 @@ where
     Self: Send + Sync + 'static + Copy + Clone,
 {
 }
-
 #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug, Serialize, Deserialize)]
 pub struct DeviceContext;
-
 #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug, Serialize, Deserialize)]
 pub struct LogicalContext;
-
 #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug, Serialize, Deserialize)]
 pub struct NumericalContext;
-
 impl CoordinateContext for DeviceContext {}
-
 impl CoordinateContext for LogicalContext {}
-
 impl CoordinateContext for NumericalContext {}
-
 pub type CoordinateUnit = f32;
-
 #[repr(C)]
 #[derive(Copy, Clone, PartialOrd, PartialEq, Pod, Zeroable)]
 pub struct Coordinates(pub [CoordinateUnit; 2]);
-
 impl Coordinates {
     pub const fn new(a: CoordinateUnit, b: CoordinateUnit) -> Self {
         Self([a, b])
     }
-    pub const fn first(&self) -> CoordinateUnit { self.0[0] }
-    pub const fn second(&self) -> CoordinateUnit { self.0[1] }
+    pub const fn horizontal(&self) -> CoordinateUnit {
+        self.0[0]
+    }
+    pub const fn vertical(&self) -> CoordinateUnit {
+        self.0[1]
+    }
 }
-
 impl Default for Coordinates {
     fn default() -> Self {
         Self([CoordinateUnit::default(); 2])

@@ -1,13 +1,14 @@
-use bytemuck::{Pod, Zeroable};
 use std::marker::PhantomData;
 
+use bevy_ecs::prelude::Component;
+use bytemuck::{Pod, Zeroable};
 use winit::dpi::{LogicalSize, PhysicalSize, Size};
 
 use crate::coordinate::{
     CoordinateContext, CoordinateUnit, Coordinates, DeviceContext, LogicalContext, NumericalContext,
 };
 
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone, Default, Component)]
 pub struct Area<Context: CoordinateContext> {
     pub coordinates: Coordinates,
     _phantom: PhantomData<Context>,
