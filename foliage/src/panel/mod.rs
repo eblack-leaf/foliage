@@ -23,38 +23,30 @@ use crate::{Elm, Render};
 #[derive(Bundle)]
 pub struct Panel {
     placement: Placement<LogicalContext>,
-    intersection: PanelIntersection, // on resize => change intersection
-    corner_depths: PanelCornerDepths, // user-updated
-    corner_i: CornerI,               // derived from both above
-    corner_ii: CornerII,
-    corner_iii: CornerIII,
-    corner_iv: CornerIV,
+    corner_percent_rounded: CornerPercentRounded,
+    corner_depths: CornerDepth,
 }
-#[derive(Component, Copy, Clone)]
-pub(crate) struct PanelIntersection(pub(crate) [Position<LogicalContext>; 2]);
-#[derive(Component, Copy, Clone)]
-pub struct PanelCornerDepths([f32; 4]);
-impl PanelCornerDepths {
+#[derive(Component, Copy, Clone, Default)]
+pub struct CornerPercentRounded(pub(crate) [f32; 4]);
+impl CornerPercentRounded {
     pub fn set_top_left(&mut self, v: f32) {
         self.0[0] = v.min(1.0).max(0.0);
     }
     // ...
 }
 #[repr(C)]
-#[derive(Component, Copy, Clone, Pod, Zeroable, Default, PartialEq)]
-pub(crate) struct PanelCornerPositions(pub(crate) [Coordinates; 8]);
+#[derive(Component, Copy, Clone, Pod, Zeroable)]
+pub(crate) struct CornerDepth(pub(crate) [f32; 4]);
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default)]
 pub struct Vertex {
     position: Coordinates,
 }
-
 impl Vertex {
     pub(crate) const fn new(position: Coordinates) -> Self {
         Self { position }
     }
 }
-
 pub(crate) const VERTICES: [Vertex; 6] = [
     Vertex::new(Coordinates::new(1f32, 0f32)),
     Vertex::new(Coordinates::new(0f32, 0f32)),
@@ -63,7 +55,6 @@ pub(crate) const VERTICES: [Vertex; 6] = [
     Vertex::new(Coordinates::new(0f32, 1f32)),
     Vertex::new(Coordinates::new(1f32, 1f32)),
 ];
-
 pub struct PanelResources {
     pipeline: RenderPipeline,
     vertex_buffer: wgpu::Buffer,
@@ -73,16 +64,7 @@ pub struct PanelResources {
 }
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default, Component)]
-pub(crate) struct CornerI(pub [f32; 4]);
-#[repr(C)]
-#[derive(Pod, Zeroable, Copy, Clone, Default, Component)]
-pub(crate) struct CornerII(pub [f32; 4]);
-#[repr(C)]
-#[derive(Pod, Zeroable, Copy, Clone, Default, Component)]
-pub(crate) struct CornerIII(pub [f32; 4]);
-#[repr(C)]
-#[derive(Pod, Zeroable, Copy, Clone, Default, Component)]
-pub(crate) struct CornerIV(pub [f32; 4]);
+pub(crate) struct CornerDepths(pub [f32; 4]);
 pub(crate) const PANEL_CIRCLE_TEXTURE_DIMS: Coordinates = Coordinates::new(100.0, 100.0);
 impl Render for Panel {
     type Vertex = Vertex;
@@ -160,21 +142,9 @@ impl Render for Panel {
                         VertexStepMode::Instance,
                         &wgpu::vertex_attr_array![4 => Float32x4],
                     ),
-                    Ginkgo::vertex_buffer_layout::<CornerI>(
+                    Ginkgo::vertex_buffer_layout::<CornerDepth>(
                         VertexStepMode::Instance,
                         &wgpu::vertex_attr_array![5 => Float32x4],
-                    ),
-                    Ginkgo::vertex_buffer_layout::<CornerII>(
-                        VertexStepMode::Instance,
-                        &wgpu::vertex_attr_array![6 => Float32x4],
-                    ),
-                    Ginkgo::vertex_buffer_layout::<CornerIII>(
-                        VertexStepMode::Instance,
-                        &wgpu::vertex_attr_array![7 => Float32x4],
-                    ),
-                    Ginkgo::vertex_buffer_layout::<CornerIV>(
-                        VertexStepMode::Instance,
-                        &wgpu::vertex_attr_array![8 => Float32x4],
                     ),
                 ],
             },
@@ -193,10 +163,7 @@ impl Render for Panel {
             .with_attribute::<GpuArea>(ginkgo)
             .with_attribute::<Layer>(ginkgo)
             .with_attribute::<Color>(ginkgo)
-            .with_attribute::<CornerI>(ginkgo)
-            .with_attribute::<CornerII>(ginkgo)
-            .with_attribute::<CornerIII>(ginkgo)
-            .with_attribute::<CornerIV>(ginkgo);
+            .with_attribute::<CornerDepth>(ginkgo);
         Self::Resources {
             pipeline,
             vertex_buffer,
