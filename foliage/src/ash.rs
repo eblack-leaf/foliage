@@ -30,7 +30,7 @@ pub(crate) struct RendererStructure {
 pub(crate) struct Renderer<R: Render> {
     pub(crate) phase: RenderPhase,
     pub directive_manager: RenderDirectiveManager<R>,
-    pub resource_handle: R,
+    pub resource_handle: R::Resources,
 }
 
 pub struct RenderDirectiveManager<R: Render> {
@@ -212,7 +212,8 @@ where
     type Vertex: Pod + Zeroable;
     type DirectiveGroupKey: Hash + Eq + Copy + Clone;
     const RENDER_PHASE: RenderPhase;
-    fn create_resources(ginkgo: &Ginkgo) -> Self;
+    type Resources;
+    fn create_resources(ginkgo: &Ginkgo) -> Self::Resources;
     type Extraction;
     fn extract(elm: &Elm) -> Self::Extraction;
     fn prepare(renderer: &mut Renderer<Self>, extract: Self::Extraction) -> bool;

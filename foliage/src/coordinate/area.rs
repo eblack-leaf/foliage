@@ -15,7 +15,7 @@ pub struct Area<Context: CoordinateContext> {
 }
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default)]
-pub struct CArea(pub Coordinates);
+pub struct GpuArea(pub Coordinates);
 impl Area<NumericalContext> {
     pub fn logical<C: Into<Coordinates>>(c: C) -> Area<LogicalContext> {
         Area::new(c)
@@ -34,8 +34,8 @@ impl<Context: CoordinateContext> Area<Context> {
             _phantom: PhantomData,
         }
     }
-    pub fn to_c(self) -> CArea {
-        CArea(self.coordinates)
+    pub fn to_gpu(self) -> GpuArea {
+        GpuArea(self.coordinates)
     }
     pub fn width(&self) -> CoordinateUnit {
         self.coordinates.0[0]

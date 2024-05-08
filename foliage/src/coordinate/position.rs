@@ -16,7 +16,7 @@ pub struct Position<Context: CoordinateContext> {
 }
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default)]
-pub struct CPosition(pub Coordinates);
+pub struct GpuPosition(pub Coordinates);
 impl Position<NumericalContext> {
     pub fn logical<C: Into<Coordinates>>(c: C) -> Position<LogicalContext> {
         Position::new(c)
@@ -48,8 +48,8 @@ impl<Context: CoordinateContext> Position<Context> {
             _phantom: PhantomData,
         }
     }
-    pub fn to_c(self) -> CPosition {
-        CPosition(self.coordinates)
+    pub fn to_gpu(self) -> GpuPosition {
+        GpuPosition(self.coordinates)
     }
     pub fn x(&self) -> CoordinateUnit {
         self.coordinates.0[0]
