@@ -14,7 +14,7 @@ pub struct Area<Context: CoordinateContext> {
     _phantom: PhantomData<Context>,
 }
 #[repr(C)]
-#[derive(Pod, Zeroable, Copy, Clone, Default)]
+#[derive(Pod, Zeroable, Copy, Clone, Default, Component, PartialEq)]
 pub struct GpuArea(pub Coordinates);
 impl Area<NumericalContext> {
     pub fn logical<C: Into<Coordinates>>(c: C) -> Area<LogicalContext> {

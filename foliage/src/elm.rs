@@ -1,10 +1,14 @@
-use bevy_ecs::prelude::Schedule;
+use crate::ash::Render;
+use bevy_ecs::entity::Entity;
+use bevy_ecs::prelude::{Component, Schedule};
 use bevy_ecs::schedule::ExecutorKind;
 use bevy_ecs::world::World;
+use std::collections::HashSet;
 
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::NumericalContext;
+use crate::differential::{RenderAddQueue, RenderLink, RenderPacket, RenderRemoveQueue};
 use crate::ginkgo::ViewportHandle;
 use crate::willow::Willow;
 
@@ -48,6 +52,7 @@ impl Elm {
         self.ecs
             .world
             .insert_resource(ViewportHandle::new(window_area));
+        self.ecs.world.insert_resource(RenderRemoveQueue::default());
         self.scheduler.exec_startup(&mut self.ecs);
         self.initialized = true;
     }
@@ -67,5 +72,40 @@ impl Elm {
             .get_resource_mut::<ViewportHandle>()
             .unwrap()
             .resize(willow.actual_area().to_numerical());
+    }
+}
+pub struct RenderQueueHandle<'a> {
+    elm: &'a mut Elm,
+}
+impl<'a> RenderQueueHandle<'a> {
+    pub(crate) fn new(elm: &'a mut Elm) -> Self {
+        Self { elm }
+    }
+    pub fn read_removes<R: Render>(&mut self) -> HashSet<Entity> {
+        self.elm
+            .ecs
+            .world
+            .get_resource_mut::<RenderRemoveQueue>()
+            .unwrap()
+            .queue
+            .get_mut(&RenderLink::new::<R>())
+            .expect("remove-queue")
+            .drain()
+            .collect()
+    }
+    pub fn read_adds<R: Render, D: Component + Clone + PartialEq>(
+        &mut self,
+    ) -> Vec<RenderPacket<D>> {
+        self.elm
+            .ecs
+            .world
+            .get_resource_mut::<RenderAddQueue<D>>()
+            .expect("render-queue")
+            .queue
+            .get_mut(&RenderLink::new::<R>())
+            .expect("render-queue")
+            .drain()
+            .map(|a| a.into())
+            .collect()
     }
 }

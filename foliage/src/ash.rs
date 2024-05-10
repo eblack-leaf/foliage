@@ -10,6 +10,7 @@ use wgpu::{
 };
 
 use crate::color::Color;
+use crate::elm::RenderQueueHandle;
 use crate::ginkgo::{Depth, Ginkgo};
 use crate::Elm;
 
@@ -17,7 +18,7 @@ use crate::Elm;
 pub(crate) struct Ash {
     pub(crate) renderers: RendererStructure,
     pub(crate) creation: Vec<Box<fn(&mut RendererStructure, &Ginkgo)>>,
-    pub(crate) render_fns: Vec<Box<fn(&mut RendererStructure, &Ginkgo, &Elm)>>,
+    pub(crate) render_fns: Vec<Box<fn(&mut RendererStructure, &Ginkgo, &mut RenderQueueHandle)>>,
     pub(crate) renderer_instructions: Vec<Box<fn(&RendererStructure) -> Vec<&RenderBundle>>>,
     pub(crate) drawn: bool,
 }
@@ -118,13 +119,12 @@ impl Ash {
             let renderer = Renderer::<R>::new(g);
             r.renderers.insert_non_send_resource(renderer);
         }));
-        self.render_fns.push(Box::new(|r, g, e| {
+        self.render_fns.push(Box::new(|r, g, rqh| {
             let renderer = &mut *r
                 .renderers
                 .get_non_send_resource_mut::<Renderer<R>>()
                 .unwrap();
-            let extract = R::extract(e);
-            if R::prepare(renderer, extract) {
+            if R::prepare(renderer, rqh, g) {
                 R::record(renderer, g);
             }
         }));
@@ -140,9 +140,10 @@ impl Ash {
                     .collect::<Vec<&RenderBundle>>()
             }));
     }
-    pub(crate) fn render(&mut self, ginkgo: &Ginkgo, elm: &Elm) {
+    pub(crate) fn render(&mut self, ginkgo: &Ginkgo, elm: &mut Elm) {
+        let mut handle = RenderQueueHandle::new(elm);
         for r_fn in self.render_fns.iter() {
-            (r_fn)(&mut self.renderers, ginkgo, elm);
+            (r_fn)(&mut self.renderers, ginkgo, &mut handle);
         }
         let surface_texture = ginkgo.surface_texture();
         let view = surface_texture
@@ -214,8 +215,10 @@ where
     const RENDER_PHASE: RenderPhase;
     type Resources;
     fn create_resources(ginkgo: &Ginkgo) -> Self::Resources;
-    type Extraction;
-    fn extract(elm: &Elm) -> Self::Extraction;
-    fn prepare(renderer: &mut Renderer<Self>, extract: Self::Extraction) -> bool;
+    fn prepare(
+        renderer: &mut Renderer<Self>,
+        queue_handle: &mut RenderQueueHandle,
+        ginkgo: &Ginkgo,
+    ) -> bool;
     fn record(renderer: &mut Renderer<Self>, ginkgo: &Ginkgo);
 }

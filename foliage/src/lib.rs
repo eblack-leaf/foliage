@@ -16,6 +16,7 @@ use crate::ginkgo::Ginkgo;
 pub mod ash;
 pub mod color;
 pub mod coordinate;
+mod differential;
 pub mod elm;
 pub mod ginkgo;
 pub mod instances;
@@ -169,7 +170,7 @@ impl ApplicationHandler for Foliage {
                     if let Some(vc) = self.elm.viewport_handle_changes() {
                         self.ginkgo.position_viewport(vc);
                     }
-                    self.ash.render(&self.ginkgo, &self.elm);
+                    self.ash.render(&self.ginkgo, &mut self.elm);
                     self.ash.drawn = true;
                 }
             }

@@ -67,7 +67,11 @@ impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
         self.order.push(key);
         self.map.insert(key, index);
     }
-    pub fn resolve_changes(&mut self, ginkgo: &Ginkgo) {
+    pub fn has_key(&self, k: &Key) -> bool {
+        self.map.contains_key(k)
+    }
+    pub fn resolve_changes(&mut self, ginkgo: &Ginkgo) -> bool {
+        let mut grown = false;
         let ordering = self
             .order
             .iter()
@@ -83,7 +87,9 @@ impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
                 (g_fn)(&mut self.world, order_len, ginkgo);
             }
             self.capacity = order_len;
+            grown = true;
         }
+        grown
     }
     pub fn queue_write<A: Pod + Zeroable>(&mut self, key: Key, a: A) {
         let index = *self.map.get(&key).expect("key");

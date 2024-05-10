@@ -16,6 +16,7 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::placement::Placement;
 use crate::coordinate::position::{GpuPosition, Position};
 use crate::coordinate::{Coordinates, LogicalContext};
+use crate::elm::RenderQueueHandle;
 use crate::ginkgo::Ginkgo;
 use crate::instances::Instances;
 use crate::{Elm, Render};
@@ -173,14 +174,27 @@ impl Render for Panel {
         }
     }
 
-    type Extraction = ();
-
-    fn extract(elm: &Elm) -> Self::Extraction {
-        ()
-    }
-
-    fn prepare(renderer: &mut Renderer<Self>, extract: Self::Extraction) -> bool {
-        false
+    fn prepare(
+        renderer: &mut Renderer<Self>,
+        queue_handle: &mut RenderQueueHandle,
+        ginkgo: &Ginkgo,
+    ) -> bool {
+        let mut should_record = false;
+        for entity in queue_handle.read_removes::<Self>() {
+            // process-removes
+        }
+        for packet in queue_handle.read_adds::<Self, GpuPosition>() {
+            if !renderer.resource_handle.instances.has_key(&packet.entity) {
+                renderer.resource_handle.instances.add(packet.entity);
+            }
+            renderer
+                .resource_handle
+                .instances
+                .queue_write(packet.entity, packet.value);
+        }
+        should_record = renderer.resource_handle.instances.resolve_changes(ginkgo);
+        renderer.resource_handle.instances.write_cpu_to_gpu(ginkgo);
+        should_record
     }
 
     fn record(renderer: &mut Renderer<Self>, ginkgo: &Ginkgo) {

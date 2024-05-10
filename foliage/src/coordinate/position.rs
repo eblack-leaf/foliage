@@ -15,7 +15,7 @@ pub struct Position<Context: CoordinateContext> {
     _phantom: PhantomData<Context>,
 }
 #[repr(C)]
-#[derive(Pod, Zeroable, Copy, Clone, Default)]
+#[derive(Pod, Zeroable, Copy, Clone, Default, Component, PartialEq)]
 pub struct GpuPosition(pub Coordinates);
 impl Position<NumericalContext> {
     pub fn logical<C: Into<Coordinates>>(c: C) -> Position<LogicalContext> {
