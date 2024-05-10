@@ -1,22 +1,27 @@
-use crate::ash::Render;
+use std::any::TypeId;
+use std::collections::{HashMap, HashSet};
+
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::prelude::{Component, Entity};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Query, ResMut, Resource};
-use std::any::TypeId;
-use std::collections::{HashMap, HashSet};
+
+use crate::ash::Render;
 
 #[derive(Component, Clone, Eq, PartialEq, Hash, Copy)]
 pub struct RenderLink(TypeId);
+
 impl RenderLink {
     pub fn new<R: Render>() -> Self {
         Self(TypeId::of::<R>())
     }
 }
+
 #[derive(Resource)]
 pub struct RenderAddQueue<D: Component> {
     pub queue: HashMap<RenderLink, HashMap<Entity, D>>,
 }
+
 impl<D: Component> Default for RenderAddQueue<D> {
     fn default() -> Self {
         Self {
@@ -24,15 +29,18 @@ impl<D: Component> Default for RenderAddQueue<D> {
         }
     }
 }
+
 #[derive(Resource, Default)]
 pub struct RenderRemoveQueue {
     pub queue: HashMap<RenderLink, HashSet<Entity>>,
 }
+
 #[derive(Bundle)]
 pub struct Differentiable<D: Component + PartialEq + Clone> {
     pub component: D,
     pub diff: CachedDifferential<D>,
 }
+
 impl<D: Component + PartialEq + Clone> Differentiable<D> {
     pub fn new(d: D) -> Self {
         Self {
@@ -41,19 +49,23 @@ impl<D: Component + PartialEq + Clone> Differentiable<D> {
         }
     }
 }
+
 #[derive(Component)]
 pub struct CachedDifferential<D: Component + PartialEq + Clone> {
     pub(crate) last: Option<D>,
 }
+
 impl<D: Component + PartialEq + Clone> CachedDifferential<D> {
     pub(crate) fn new() -> Self {
         Self { last: None }
     }
 }
+
 pub struct RenderPacket<D: Component + PartialEq + Clone> {
     pub entity: Entity,
     pub value: D,
 }
+
 impl<D: Component + PartialEq + Clone> From<(Entity, D)> for RenderPacket<D> {
     fn from(value: (Entity, D)) -> Self {
         Self {
@@ -62,6 +74,7 @@ impl<D: Component + PartialEq + Clone> From<(Entity, D)> for RenderPacket<D> {
         }
     }
 }
+
 pub(crate) fn differential<D: Component + PartialEq + Clone + Send + Sync + 'static>(
     mut components: Query<(Entity, &RenderLink, &D, &mut CachedDifferential<D>), Changed<D>>,
     mut render_queue: ResMut<RenderAddQueue<D>>,

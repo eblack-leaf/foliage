@@ -6,7 +6,7 @@ use bytemuck::{Pod, Zeroable};
 use winit::dpi::{LogicalPosition, PhysicalPosition};
 
 use crate::coordinate::{
-    CoordinateContext, CoordinateUnit, Coordinates, DeviceContext, LogicalContext, NumericalContext,
+    CoordinateContext, Coordinates, CoordinateUnit, DeviceContext, LogicalContext, NumericalContext,
 };
 
 #[derive(Copy, Clone, Default, Component)]
@@ -14,9 +14,11 @@ pub struct Position<Context: CoordinateContext> {
     pub coordinates: Coordinates,
     _phantom: PhantomData<Context>,
 }
+
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default, Component, PartialEq)]
 pub struct GpuPosition(pub Coordinates);
+
 impl Position<NumericalContext> {
     pub fn logical<C: Into<Coordinates>>(c: C) -> Position<LogicalContext> {
         Position::new(c)

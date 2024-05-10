@@ -5,7 +5,7 @@ use bytemuck::{Pod, Zeroable};
 use winit::dpi::{LogicalSize, PhysicalSize, Size};
 
 use crate::coordinate::{
-    CoordinateContext, CoordinateUnit, Coordinates, DeviceContext, LogicalContext, NumericalContext,
+    CoordinateContext, Coordinates, CoordinateUnit, DeviceContext, LogicalContext, NumericalContext,
 };
 
 #[derive(Copy, Clone, Default, Component)]
@@ -13,9 +13,11 @@ pub struct Area<Context: CoordinateContext> {
     pub coordinates: Coordinates,
     _phantom: PhantomData<Context>,
 }
+
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default, Component, PartialEq)]
 pub struct GpuArea(pub Coordinates);
+
 impl Area<NumericalContext> {
     pub fn logical<C: Into<Coordinates>>(c: C) -> Area<LogicalContext> {
         Area::new(c)
@@ -27,6 +29,7 @@ impl Area<NumericalContext> {
         Area::new(c)
     }
 }
+
 impl<Context: CoordinateContext> Area<Context> {
     pub fn new<C: Into<Coordinates>>(c: C) -> Self {
         Self {

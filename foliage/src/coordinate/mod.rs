@@ -8,23 +8,31 @@ pub mod position;
 pub mod section;
 
 pub trait CoordinateContext
-where
-    Self: Send + Sync + 'static + Copy + Clone,
-{
-}
+    where
+        Self: Send + Sync + 'static + Copy + Clone,
+{}
+
 #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug, Serialize, Deserialize)]
 pub struct DeviceContext;
+
 #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug, Serialize, Deserialize)]
 pub struct LogicalContext;
+
 #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug, Serialize, Deserialize)]
 pub struct NumericalContext;
+
 impl CoordinateContext for DeviceContext {}
+
 impl CoordinateContext for LogicalContext {}
+
 impl CoordinateContext for NumericalContext {}
+
 pub type CoordinateUnit = f32;
+
 #[repr(C)]
 #[derive(Copy, Clone, PartialOrd, PartialEq, Pod, Zeroable)]
 pub struct Coordinates(pub [CoordinateUnit; 2]);
+
 impl Coordinates {
     pub const fn new(a: CoordinateUnit, b: CoordinateUnit) -> Self {
         Self([a, b])
@@ -36,6 +44,7 @@ impl Coordinates {
         self.0[1]
     }
 }
+
 impl Default for Coordinates {
     fn default() -> Self {
         Self([CoordinateUnit::default(); 2])
@@ -79,3 +88,5 @@ permutation_coordinate_impl!(f32, usize);
 permutation_coordinate_impl!(i32, usize);
 permutation_coordinate_impl!(u32, usize);
 permutation_coordinate_impl!(f64, usize);
+
+// TODO fn to distill Position / Area => GpuPosition / GpuArea w/ ScaleFactor

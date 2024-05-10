@@ -1,22 +1,22 @@
-use crate::ash::Render;
+use std::collections::{HashMap, HashSet};
+use std::marker::PhantomData;
+
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, Schedule};
 use bevy_ecs::schedule::ExecutorKind;
-use bevy_ecs::world::World;
-use std::collections::{HashMap, HashSet};
-use std::marker::PhantomData;
 use bevy_ecs::system::Resource;
+use bevy_ecs::world::World;
 
+use crate::ash::Render;
 use crate::coordinate::area::Area;
-use crate::coordinate::position::Position;
 use crate::coordinate::NumericalContext;
+use crate::coordinate::position::Position;
 use crate::differential::{
     differential, RenderAddQueue, RenderLink, RenderPacket,
     RenderRemoveQueue,
 };
 use crate::ginkgo::ViewportHandle;
 use crate::willow::Willow;
-use crate::Leaf;
 
 #[derive(Default)]
 pub struct Scheduler {
@@ -49,13 +49,16 @@ pub struct Elm {
     initialized: bool,
     leaf_fns: Vec<Box<fn(&mut Elm)>>,
 }
+
 #[derive(Resource)]
 pub(crate) struct DifferentialScheduleLimiter<D>(PhantomData<D>);
+
 impl<D> Default for DifferentialScheduleLimiter<D> {
     fn default() -> Self {
         Self(PhantomData)
     }
 }
+
 impl Elm {
     pub fn enable_differential<R: Render, D: Component + PartialEq + Clone>(&mut self) {
         if !self
@@ -63,7 +66,7 @@ impl Elm {
             .world
             .contains_resource::<DifferentialScheduleLimiter<D>>()
         {
-            self.scheduler.main.add_systems((differential::<D>,));
+            self.scheduler.main.add_systems((differential::<D>, ));
             self.ecs
                 .world
                 .insert_resource(DifferentialScheduleLimiter::<D>::default())
@@ -123,9 +126,11 @@ impl Elm {
             .resize(willow.actual_area().to_numerical());
     }
 }
+
 pub struct RenderQueueHandle<'a> {
     elm: &'a mut Elm,
 }
+
 impl<'a> RenderQueueHandle<'a> {
     pub(crate) fn new(elm: &'a mut Elm) -> Self {
         Self { elm }

@@ -16,6 +16,7 @@ pub struct Instances<Key: Hash + Eq + Copy + Clone> {
     grow_fns: Vec<Box<fn(&mut World, u32, &Ginkgo)>>,
     cpu_to_gpu: Vec<Box<fn(&mut World, &Ginkgo)>>,
 }
+
 impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
     pub fn buffer<A: Pod + Zeroable>(&self) -> &wgpu::Buffer {
         &self
@@ -104,11 +105,13 @@ impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
         }
     }
 }
+
 struct Attribute<A: Pod + Zeroable> {
     cpu: Vec<A>,
     gpu: wgpu::Buffer,
     write_needed: bool,
 }
+
 impl<A: Pod + Zeroable> Attribute<A> {
     fn new(ginkgo: &Ginkgo, capacity: u32) -> Self {
         Self {

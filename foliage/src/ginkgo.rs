@@ -1,7 +1,7 @@
+use std::path::Path;
+
 use bevy_ecs::prelude::Resource;
 use bytemuck::{Pod, Zeroable};
-use std::path::Path;
-use wgpu::util::DeviceExt;
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
     BindGroupLayoutEntry, BindingType, BlendState, Buffer, BufferAddress, BufferUsages,
@@ -15,12 +15,13 @@ use wgpu::{
     TextureSampleType, TextureUsages, TextureView, TextureViewDescriptor, TextureViewDimension,
     VertexAttribute, VertexBufferLayout, VertexStepMode,
 };
+use wgpu::util::DeviceExt;
 
 use crate::color::Color;
+use crate::coordinate::{Coordinates, CoordinateUnit, DeviceContext, NumericalContext};
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
-use crate::coordinate::{CoordinateUnit, Coordinates, DeviceContext, NumericalContext};
 use crate::willow::{NearFarDescriptor, Willow};
 
 #[derive(Default)]
@@ -113,7 +114,7 @@ impl Ginkgo {
         let texture_data = image
             .to_rgba8()
             .enumerate_pixels()
-            .map(|p| -> u8 { p.2 .0[3] })
+            .map(|p| -> u8 { p.2.0[3] })
             .collect::<Vec<u8>>();
         texture_data
     }

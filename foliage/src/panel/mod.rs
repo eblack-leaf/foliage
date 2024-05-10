@@ -1,25 +1,27 @@
+use std::path::Path;
+
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::Component;
 use bytemuck::{Pod, Zeroable};
-use std::path::Path;
 use wgpu::{
-    include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor,
+    BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, include_wgsl,
     PipelineLayoutDescriptor, RenderPipeline, RenderPipelineDescriptor, ShaderStages,
     TextureFormat, TextureSampleType, TextureViewDimension, VertexState, VertexStepMode,
 };
 
-use crate::ash::{RenderPhase, Renderer};
+use crate::{Elm, Leaf, Render};
+use crate::ash::{Renderer, RenderPhase};
 use crate::color::Color;
+use crate::coordinate::{Coordinates, LogicalContext};
 use crate::coordinate::area::GpuArea;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::placement::Placement;
-use crate::coordinate::position::{GpuPosition, Position};
-use crate::coordinate::{Coordinates, LogicalContext};
+use crate::coordinate::position::GpuPosition;
 use crate::elm::RenderQueueHandle;
 use crate::ginkgo::Ginkgo;
 use crate::instances::Instances;
-use crate::{Elm, Leaf, Render};
+
 impl Leaf for Panel {
     fn attach(elm: &mut Elm) {
         elm.enable_differential::<Panel, GpuPosition>();
@@ -29,33 +31,40 @@ impl Leaf for Panel {
         elm.enable_differential::<Panel, CornerDepth>();
     }
 }
+
 #[derive(Bundle)]
 pub struct Panel {
     placement: Placement<LogicalContext>,
     corner_percent_rounded: CornerPercentRounded,
     corner_depths: CornerDepth,
 }
+
 #[derive(Component, Copy, Clone, Default)]
 pub struct CornerPercentRounded(pub(crate) [f32; 4]);
+
 impl CornerPercentRounded {
     pub fn set_top_left(&mut self, v: f32) {
         self.0[0] = v.min(1.0).max(0.0);
     }
     // ...
 }
+
 #[repr(C)]
 #[derive(Component, Copy, Clone, Pod, Zeroable, PartialEq)]
 pub(crate) struct CornerDepth(pub(crate) [f32; 4]);
+
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default)]
 pub struct Vertex {
     position: Coordinates,
 }
+
 impl Vertex {
     pub(crate) const fn new(position: Coordinates) -> Self {
         Self { position }
     }
 }
+
 pub(crate) const VERTICES: [Vertex; 6] = [
     Vertex::new(Coordinates::new(1f32, 0f32)),
     Vertex::new(Coordinates::new(0f32, 0f32)),
@@ -64,6 +73,7 @@ pub(crate) const VERTICES: [Vertex; 6] = [
     Vertex::new(Coordinates::new(0f32, 1f32)),
     Vertex::new(Coordinates::new(1f32, 1f32)),
 ];
+
 pub struct PanelResources {
     pipeline: RenderPipeline,
     vertex_buffer: wgpu::Buffer,
@@ -71,7 +81,9 @@ pub struct PanelResources {
     bind_group: BindGroup,
     instances: Instances<Entity>,
 }
+
 pub(crate) const PANEL_CIRCLE_TEXTURE_DIMS: Coordinates = Coordinates::new(100.0, 100.0);
+
 impl Render for Panel {
     type Vertex = Vertex;
     type DirectiveGroupKey = i32;
@@ -206,6 +218,7 @@ impl Render for Panel {
         todo!()
     }
 }
+
 #[test]
 fn make_cov() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
