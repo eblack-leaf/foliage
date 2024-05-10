@@ -1,10 +1,10 @@
 use bevy_ecs::bundle::Bundle;
 
-use crate::coordinate::{
-    CoordinateContext, Coordinates, CoordinateUnit, DeviceContext, LogicalContext, NumericalContext,
-};
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
+use crate::coordinate::{
+    CoordinateContext, CoordinateUnit, Coordinates, DeviceContext, LogicalContext, NumericalContext,
+};
 
 #[derive(Copy, Clone, Default, Bundle)]
 pub struct Section<Context: CoordinateContext> {

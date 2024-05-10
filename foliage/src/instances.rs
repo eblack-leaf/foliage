@@ -18,6 +18,12 @@ pub struct Instances<Key: Hash + Eq + Copy + Clone> {
 }
 
 impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
+    pub fn checked_write<A: Pod + Zeroable>(&mut self, key: Key, a: A) {
+        if !self.has_key(&key) {
+            self.add(key.clone());
+        }
+        self.queue_write(key, a);
+    }
     pub fn buffer<A: Pod + Zeroable>(&self) -> &wgpu::Buffer {
         &self
             .world

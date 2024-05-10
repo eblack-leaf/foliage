@@ -1,8 +1,8 @@
 use bevy_ecs::bundle::Bundle;
 
-use crate::coordinate::CoordinateContext;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::section::Section;
+use crate::coordinate::CoordinateContext;
 
 #[derive(Bundle)]
 pub struct Placement<Context: CoordinateContext> {

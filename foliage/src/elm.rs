@@ -9,11 +9,10 @@ use bevy_ecs::world::World;
 
 use crate::ash::Render;
 use crate::coordinate::area::Area;
-use crate::coordinate::NumericalContext;
 use crate::coordinate::position::Position;
+use crate::coordinate::NumericalContext;
 use crate::differential::{
-    differential, RenderAddQueue, RenderLink, RenderPacket,
-    RenderRemoveQueue,
+    differential, RenderAddQueue, RenderLink, RenderPacket, RenderRemoveQueue,
 };
 use crate::ginkgo::ViewportHandle;
 use crate::willow::Willow;
@@ -66,7 +65,7 @@ impl Elm {
             .world
             .contains_resource::<DifferentialScheduleLimiter<D>>()
         {
-            self.scheduler.main.add_systems((differential::<D>, ));
+            self.scheduler.main.add_systems((differential::<D>,));
             self.ecs
                 .world
                 .insert_resource(DifferentialScheduleLimiter::<D>::default())

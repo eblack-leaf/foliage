@@ -5,7 +5,7 @@ use bytemuck::{Pod, Zeroable};
 use winit::dpi::{LogicalSize, PhysicalSize, Size};
 
 use crate::coordinate::{
-    CoordinateContext, Coordinates, CoordinateUnit, DeviceContext, LogicalContext, NumericalContext,
+    CoordinateContext, CoordinateUnit, Coordinates, DeviceContext, LogicalContext, NumericalContext,
 };
 
 #[derive(Copy, Clone, Default, Component)]

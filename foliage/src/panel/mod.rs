@@ -5,22 +5,22 @@ use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::Component;
 use bytemuck::{Pod, Zeroable};
 use wgpu::{
-    BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, include_wgsl,
+    include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor,
     PipelineLayoutDescriptor, RenderPipeline, RenderPipelineDescriptor, ShaderStages,
     TextureFormat, TextureSampleType, TextureViewDimension, VertexState, VertexStepMode,
 };
 
-use crate::{Elm, Leaf, Render};
-use crate::ash::{Renderer, RenderPhase};
+use crate::ash::{RenderPhase, Renderer};
 use crate::color::Color;
-use crate::coordinate::{Coordinates, LogicalContext};
 use crate::coordinate::area::GpuArea;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::placement::Placement;
 use crate::coordinate::position::GpuPosition;
+use crate::coordinate::{Coordinates, LogicalContext};
 use crate::elm::RenderQueueHandle;
 use crate::ginkgo::Ginkgo;
 use crate::instances::Instances;
+use crate::{Elm, Leaf, Render};
 
 impl Leaf for Panel {
     fn attach(elm: &mut Elm) {
@@ -201,16 +201,37 @@ impl Render for Panel {
             renderer.resource_handle.instances.remove(entity);
         }
         for packet in queue_handle.read_adds::<Self, GpuPosition>() {
-            if !renderer.resource_handle.instances.has_key(&packet.entity) {
-                renderer.resource_handle.instances.add(packet.entity);
-            }
             renderer
                 .resource_handle
                 .instances
-                .queue_write(packet.entity, packet.value);
+                .checked_write(packet.entity, packet.value);
+        }
+        for packet in queue_handle.read_adds::<Self, GpuArea>() {
+            renderer
+                .resource_handle
+                .instances
+                .checked_write(packet.entity, packet.value);
+        }
+        for packet in queue_handle.read_adds::<Self, Layer>() {
+            renderer
+                .resource_handle
+                .instances
+                .checked_write(packet.entity, packet.value);
+        }
+        for packet in queue_handle.read_adds::<Self, Color>() {
+            renderer
+                .resource_handle
+                .instances
+                .checked_write(packet.entity, packet.value);
+        }
+        for packet in queue_handle.read_adds::<Self, CornerDepth>() {
+            renderer
+                .resource_handle
+                .instances
+                .checked_write(packet.entity, packet.value);
         }
         should_record = renderer.resource_handle.instances.resolve_changes(ginkgo);
-        renderer.resource_handle.instances.write_cpu_to_gpu(ginkgo);
+        renderer.resource_handle.instances.write_cpu_to_gpu(ginkgo);// can combine w/ above?
         should_record
     }
 
