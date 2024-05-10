@@ -3,14 +3,20 @@ use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, Schedule};
 use bevy_ecs::schedule::ExecutorKind;
 use bevy_ecs::world::World;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+use std::marker::PhantomData;
+use bevy_ecs::system::Resource;
 
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::NumericalContext;
-use crate::differential::{RenderAddQueue, RenderLink, RenderPacket, RenderRemoveQueue};
+use crate::differential::{
+    differential, RenderAddQueue, RenderLink, RenderPacket,
+    RenderRemoveQueue,
+};
 use crate::ginkgo::ViewportHandle;
 use crate::willow::Willow;
+use crate::Leaf;
 
 #[derive(Default)]
 pub struct Scheduler {
@@ -41,18 +47,61 @@ pub struct Elm {
     pub ecs: Ecs,
     pub scheduler: Scheduler,
     initialized: bool,
+    leaf_fns: Vec<Box<fn(&mut Elm)>>,
 }
-
+#[derive(Resource)]
+pub(crate) struct DifferentialScheduleLimiter<D>(PhantomData<D>);
+impl<D> Default for DifferentialScheduleLimiter<D> {
+    fn default() -> Self {
+        Self(PhantomData)
+    }
+}
 impl Elm {
+    pub fn enable_differential<R: Render, D: Component + PartialEq + Clone>(&mut self) {
+        if !self
+            .ecs
+            .world
+            .contains_resource::<DifferentialScheduleLimiter<D>>()
+        {
+            self.scheduler.main.add_systems((differential::<D>,));
+            self.ecs
+                .world
+                .insert_resource(DifferentialScheduleLimiter::<D>::default())
+        }
+        if !self.ecs.world.contains_resource::<RenderAddQueue<D>>() {
+            self.ecs
+                .world
+                .insert_resource(RenderAddQueue::<D>::default());
+        }
+        let link = RenderLink::new::<R>();
+        self.ecs
+            .world
+            .get_resource_mut::<RenderAddQueue<D>>()
+            .unwrap()
+            .queue
+            .insert(link, HashMap::new());
+        self.ecs
+            .world
+            .get_resource_mut::<RenderRemoveQueue>()
+            .unwrap()
+            .queue
+            .insert(link, HashSet::new());
+    }
     pub(crate) fn initialized(&self) -> bool {
         self.initialized
     }
-    pub(crate) fn initialize(&mut self, window_area: Area<NumericalContext>) {
-        // attach leafs?
+    pub(crate) fn initialize(
+        &mut self,
+        window_area: Area<NumericalContext>,
+        leaf_fns: Vec<Box<fn(&mut Elm)>>,
+    ) {
         self.ecs
             .world
             .insert_resource(ViewportHandle::new(window_area));
         self.ecs.world.insert_resource(RenderRemoveQueue::default());
+        for leaf_fn in leaf_fns {
+            (leaf_fn)(self);
+        }
         self.scheduler.exec_startup(&mut self.ecs);
         self.initialized = true;
     }

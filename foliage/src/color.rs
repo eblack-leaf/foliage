@@ -1,8 +1,17 @@
+use bevy_ecs::prelude::Component;
 use serde::{Deserialize, Serialize};
 
 #[repr(C)]
 #[derive(
-    bytemuck::Pod, bytemuck::Zeroable, Copy, Clone, PartialEq, Serialize, Deserialize, Debug,
+    bytemuck::Pod,
+    bytemuck::Zeroable,
+    Copy,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    Debug,
+    Component,
 )]
 pub struct Color {
     rgba: [f32; 4],

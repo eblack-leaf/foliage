@@ -30,6 +30,7 @@ pub struct Foliage {
     elm: Elm,
     worker_path: String,
     android_connection: AndroidConnection,
+    leaf_fns: Vec<Box<fn(&mut Elm)>>,
 }
 
 impl Foliage {
@@ -41,6 +42,7 @@ impl Foliage {
             elm: Elm::default(),
             worker_path: "".to_string(),
             android_connection: AndroidConnection::default(),
+            leaf_fns: vec![],
         }
     }
     pub fn set_window_size<A: Into<Area<DeviceContext>>>(&mut self, a: A) {
@@ -54,6 +56,11 @@ impl Foliage {
     }
     pub fn set_android_connection(&mut self, ac: AndroidConnection) {
         self.android_connection = ac;
+    }
+    pub fn attach_leaf<L: Leaf>(&mut self) {
+        self.leaf_fns.push(Box::new(|e| {
+            L::attach(e);
+        }));
     }
     pub fn add_renderer<R: Render>(&mut self) {
         self.ash.add_renderer::<R>();
@@ -99,8 +106,10 @@ impl ApplicationHandler for Foliage {
             self.ginkgo.configure_view(&self.willow);
             self.ginkgo.create_viewport(&self.willow);
             self.ash.initialize(&self.ginkgo);
-            self.elm
-                .initialize(self.willow.actual_area().to_numerical());
+            self.elm.initialize(
+                self.willow.actual_area().to_numerical(),
+                self.leaf_fns.drain(..).collect(),
+            );
         } else {
             #[cfg(target_os = "android")]
             {
@@ -194,3 +203,7 @@ pub struct AndroidConnection(pub AndroidApp);
 
 #[cfg(target_os = "android")]
 pub type AndroidApp = winit::platform::android::activity::AndroidApp;
+
+pub trait Leaf {
+    fn attach(elm: &mut Elm) {}
+}

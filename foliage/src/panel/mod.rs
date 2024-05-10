@@ -19,8 +19,16 @@ use crate::coordinate::{Coordinates, LogicalContext};
 use crate::elm::RenderQueueHandle;
 use crate::ginkgo::Ginkgo;
 use crate::instances::Instances;
-use crate::{Elm, Render};
-
+use crate::{Elm, Leaf, Render};
+impl Leaf for Panel {
+    fn attach(elm: &mut Elm) {
+        elm.enable_differential::<Panel, GpuPosition>();
+        elm.enable_differential::<Panel, GpuArea>();
+        elm.enable_differential::<Panel, Layer>();
+        elm.enable_differential::<Panel, Color>();
+        elm.enable_differential::<Panel, CornerDepth>();
+    }
+}
 #[derive(Bundle)]
 pub struct Panel {
     placement: Placement<LogicalContext>,
@@ -36,7 +44,7 @@ impl CornerPercentRounded {
     // ...
 }
 #[repr(C)]
-#[derive(Component, Copy, Clone, Pod, Zeroable)]
+#[derive(Component, Copy, Clone, Pod, Zeroable, PartialEq)]
 pub(crate) struct CornerDepth(pub(crate) [f32; 4]);
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default)]
@@ -63,9 +71,6 @@ pub struct PanelResources {
     bind_group: BindGroup,
     instances: Instances<Entity>,
 }
-#[repr(C)]
-#[derive(Pod, Zeroable, Copy, Clone, Default, Component)]
-pub(crate) struct CornerDepths(pub [f32; 4]);
 pub(crate) const PANEL_CIRCLE_TEXTURE_DIMS: Coordinates = Coordinates::new(100.0, 100.0);
 impl Render for Panel {
     type Vertex = Vertex;
@@ -181,7 +186,7 @@ impl Render for Panel {
     ) -> bool {
         let mut should_record = false;
         for entity in queue_handle.read_removes::<Self>() {
-            // process-removes
+            renderer.resource_handle.instances.remove(entity);
         }
         for packet in queue_handle.read_adds::<Self, GpuPosition>() {
             if !renderer.resource_handle.instances.has_key(&packet.entity) {
