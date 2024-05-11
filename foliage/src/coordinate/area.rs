@@ -8,14 +8,14 @@ use crate::coordinate::{
     CoordinateContext, CoordinateUnit, Coordinates, DeviceContext, LogicalContext, NumericalContext,
 };
 
-#[derive(Copy, Clone, Default, Component)]
+#[derive(Copy, Clone, Default, Component, PartialEq)]
 pub struct Area<Context: CoordinateContext> {
     pub coordinates: Coordinates,
     _phantom: PhantomData<Context>,
 }
 
 #[repr(C)]
-#[derive(Pod, Zeroable, Copy, Clone, Default, Component, PartialEq)]
+#[derive(Pod, Zeroable, Copy, Clone, Default, Component, PartialEq, Debug)]
 pub struct GpuArea(pub Coordinates);
 
 impl Area<NumericalContext> {

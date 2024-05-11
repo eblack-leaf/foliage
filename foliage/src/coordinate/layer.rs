@@ -2,7 +2,7 @@ use bevy_ecs::prelude::Component;
 use bytemuck::{Pod, Zeroable};
 
 #[repr(C)]
-#[derive(Copy, Clone, Default, PartialEq, PartialOrd, Pod, Zeroable, Component)]
+#[derive(Copy, Clone, Default, PartialEq, PartialOrd, Pod, Zeroable, Component, Debug)]
 pub struct Layer(pub f32);
 
 impl Layer {

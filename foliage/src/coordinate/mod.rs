@@ -1,3 +1,11 @@
+use crate::coordinate::area::{Area, GpuArea};
+use crate::coordinate::position::{GpuPosition, Position};
+use crate::elm::{Elm, ScheduleMarkers};
+use crate::ginkgo::ScaleFactor;
+use crate::Leaf;
+use bevy_ecs::prelude::IntoSystemConfigs;
+use bevy_ecs::query::Changed;
+use bevy_ecs::system::{Query, Res};
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
 
@@ -31,7 +39,7 @@ impl CoordinateContext for NumericalContext {}
 pub type CoordinateUnit = f32;
 
 #[repr(C)]
-#[derive(Copy, Clone, PartialOrd, PartialEq, Pod, Zeroable)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Pod, Zeroable, Debug)]
 pub struct Coordinates(pub [CoordinateUnit; 2]);
 
 impl Coordinates {
@@ -91,3 +99,25 @@ permutation_coordinate_impl!(u32, usize);
 permutation_coordinate_impl!(f64, usize);
 
 // TODO fn to distill Position / Area => GpuPosition / GpuArea w/ ScaleFactor
+impl Leaf for Coordinates {
+    fn attach(elm: &mut Elm) {
+        elm.scheduler
+            .main
+            .add_systems(coordinate_resolve.in_set(ScheduleMarkers::Coordinate));
+    }
+}
+fn coordinate_resolve(
+    mut placed_pos: Query<
+        (&mut GpuPosition, &Position<LogicalContext>),
+        Changed<Position<LogicalContext>>,
+    >,
+    mut placed_areas: Query<(&mut GpuArea, &Area<LogicalContext>), Changed<Area<LogicalContext>>>,
+    scale_factor: Res<ScaleFactor>,
+) {
+    for (mut gpu, logical) in placed_pos.iter_mut() {
+        *gpu = logical.to_device(scale_factor.value()).to_gpu();
+    }
+    for (mut gpu, logical) in placed_areas.iter_mut() {
+        *gpu = logical.to_device(scale_factor.value()).to_gpu();
+    }
+}

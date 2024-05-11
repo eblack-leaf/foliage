@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::hash::Hash;
 
 use bevy_ecs::world::World;
@@ -18,13 +19,16 @@ pub struct Instances<Key: Hash + Eq + Copy + Clone> {
 }
 
 impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
-    pub fn checked_write<A: Pod + Zeroable>(&mut self, key: Key, a: A) {
+    pub fn num_instances(&self) -> u32 {
+        self.order.len() as u32
+    }
+    pub fn checked_write<A: Pod + Zeroable + Default + Debug>(&mut self, key: Key, a: A) {
         if !self.has_key(&key) {
             self.add(key.clone());
         }
         self.queue_write(key, a);
     }
-    pub fn buffer<A: Pod + Zeroable>(&self) -> &wgpu::Buffer {
+    pub fn buffer<A: Pod + Zeroable + Default>(&self) -> &wgpu::Buffer {
         &self
             .world
             .get_non_send_resource::<Attribute<A>>()
@@ -42,7 +46,7 @@ impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
             cpu_to_gpu: vec![],
         }
     }
-    pub fn with_attribute<A: Pod + Zeroable>(mut self, ginkgo: &Ginkgo) -> Self {
+    pub fn with_attribute<A: Pod + Zeroable + Default + Debug>(mut self, ginkgo: &Ginkgo) -> Self {
         self.world
             .insert_non_send_resource(Attribute::<A>::new(ginkgo, self.capacity));
         self.removal_fns.push(Box::new(|w, i| {
@@ -98,7 +102,7 @@ impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
         }
         grown
     }
-    pub fn queue_write<A: Pod + Zeroable>(&mut self, key: Key, a: A) {
+    pub fn queue_write<A: Pod + Zeroable + Default + Debug>(&mut self, key: Key, a: A) {
         let index = *self.map.get(&key).expect("key");
         self.world
             .get_non_send_resource_mut::<Attribute<A>>()
@@ -112,16 +116,16 @@ impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
     }
 }
 
-struct Attribute<A: Pod + Zeroable> {
+struct Attribute<A: Pod + Zeroable + Default> {
     cpu: Vec<A>,
     gpu: wgpu::Buffer,
     write_needed: bool,
 }
 
-impl<A: Pod + Zeroable> Attribute<A> {
+impl<A: Pod + Zeroable + Default + Debug> Attribute<A> {
     fn new(ginkgo: &Ginkgo, capacity: u32) -> Self {
         Self {
-            cpu: Vec::with_capacity(capacity as usize),
+            cpu: vec![A::default(); capacity as usize],
             gpu: ginkgo.context().device.create_buffer(&BufferDescriptor {
                 label: Some("attribute-buffer"),
                 size: Ginkgo::memory_size::<A>(capacity),
@@ -136,6 +140,12 @@ impl<A: Pod + Zeroable> Attribute<A> {
         self.write_needed = true;
     }
     fn queue_write(&mut self, index: usize, a: A) {
+        println!(
+            "queueing write for {} w/ len: {} @ a: {:?}",
+            index,
+            self.cpu.len(),
+            a
+        );
         *self.cpu.get_mut(index).expect("index") = a;
     }
     fn grow(&mut self, ginkgo: &Ginkgo, c: u32) {

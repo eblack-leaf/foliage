@@ -452,7 +452,7 @@ pub struct ViewConfiguration {
     pub scale_factor: ScaleFactor,
     pub(crate) config: SurfaceConfiguration,
 }
-
+#[derive(Copy, Clone, PartialEq, Resource)]
 pub struct ScaleFactor(f32);
 
 impl Default for ScaleFactor {

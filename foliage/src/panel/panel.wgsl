@@ -36,10 +36,11 @@ fn vertex_entry(vertex: Vertex) -> Fragment {
         (vertex.area.x - vertex.corners.w),
         (vertex.area.y - vertex.corners.w)
     );
-    let normalized_i = local_i / vertex.corners.x / 2.0;
-    let normalized_ii = local_ii / vertex.corners.y / 2.0;
-    let normalized_iii = local_iii / vertex.corners.z / 2.0;
-    let normalized_iv = local_iv / vertex.corners.w / 2.0;
+    let non_zero_divide_factor = 0.00001;
+    let normalized_i = local_i / max(vertex.corners.x, non_zero_divide_factor) / 2.0;
+    let normalized_ii = local_ii / max(vertex.corners.y, non_zero_divide_factor) / 2.0;
+    let normalized_iii = local_iii / max(vertex.corners.z, non_zero_divide_factor) / 2.0;
+    let normalized_iv = local_iv / max(vertex.corners.w, non_zero_divide_factor) / 2.0;
     let tex = vec3<f32>(
             1.0 * f32(in_corner_i) +
             1.0 * f32(in_corner_ii) +

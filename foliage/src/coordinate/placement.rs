@@ -4,7 +4,7 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::section::Section;
 use crate::coordinate::CoordinateContext;
 
-#[derive(Bundle)]
+#[derive(Bundle, Default)]
 pub struct Placement<Context: CoordinateContext> {
     pub section: Section<Context>,
     pub layer: Layer,

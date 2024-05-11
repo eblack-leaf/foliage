@@ -10,13 +10,14 @@ use wgpu::{
     TextureFormat, TextureSampleType, TextureViewDimension, VertexState, VertexStepMode,
 };
 
-use crate::ash::{RenderPhase, Renderer};
+use crate::ash::{RenderDirectiveRecorder, RenderPhase, Renderer};
 use crate::color::Color;
-use crate::coordinate::area::GpuArea;
+use crate::coordinate::area::{Area, GpuArea};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::placement::Placement;
-use crate::coordinate::position::GpuPosition;
+use crate::coordinate::position::{GpuPosition, Position};
 use crate::coordinate::{Coordinates, LogicalContext};
+use crate::differential::{Differentiable, RenderLink};
 use crate::elm::RenderQueueHandle;
 use crate::ginkgo::Ginkgo;
 use crate::instances::Instances;
@@ -34,11 +35,35 @@ impl Leaf for Panel {
 
 #[derive(Bundle)]
 pub struct Panel {
-    placement: Placement<LogicalContext>,
+    render_link: RenderLink,
+    pos: Position<LogicalContext>,
+    area: Area<LogicalContext>,
+    layer: Differentiable<Layer>,
+    gpu_section: Differentiable<GpuPosition>,
+    gpu_area: Differentiable<GpuArea>,
+    color: Differentiable<Color>,
     corner_percent_rounded: CornerPercentRounded,
-    corner_depths: CornerDepth,
+    corner_depths: Differentiable<CornerDepth>,
 }
-
+impl Panel {
+    pub fn new(
+        placement: Placement<LogicalContext>,
+        corner_percent_rounded: CornerPercentRounded,
+        color: Color,
+    ) -> Self {
+        Self {
+            render_link: RenderLink::new::<Self>(),
+            pos: placement.section.position,
+            area: placement.section.area,
+            layer: Differentiable::new(placement.layer),
+            gpu_section: Differentiable::new(GpuPosition::default()),
+            gpu_area: Differentiable::new(GpuArea::default()),
+            color: Differentiable::new(color),
+            corner_percent_rounded,
+            corner_depths: Differentiable::new(CornerDepth::default()),
+        }
+    }
+}
 #[derive(Component, Copy, Clone, Default)]
 pub struct CornerPercentRounded(pub(crate) [f32; 4]);
 
@@ -50,7 +75,7 @@ impl CornerPercentRounded {
 }
 
 #[repr(C)]
-#[derive(Component, Copy, Clone, Pod, Zeroable, PartialEq)]
+#[derive(Component, Copy, Clone, Pod, Zeroable, PartialEq, Default, Debug)]
 pub(crate) struct CornerDepth(pub(crate) [f32; 4]);
 
 #[repr(C)]
@@ -196,7 +221,6 @@ impl Render for Panel {
         queue_handle: &mut RenderQueueHandle,
         ginkgo: &Ginkgo,
     ) -> bool {
-        let mut should_record = false;
         for entity in queue_handle.read_removes::<Self>() {
             renderer.resource_handle.instances.remove(entity);
         }
@@ -230,13 +254,68 @@ impl Render for Panel {
                 .instances
                 .checked_write(packet.entity, packet.value);
         }
-        should_record = renderer.resource_handle.instances.resolve_changes(ginkgo);
-        renderer.resource_handle.instances.write_cpu_to_gpu(ginkgo);// can combine w/ above?
-        should_record
+        let should_record = renderer.resource_handle.instances.resolve_changes(ginkgo);
+        renderer.resource_handle.instances.write_cpu_to_gpu(ginkgo); // can combine w/ above?
+        true
     }
 
     fn record(renderer: &mut Renderer<Self>, ginkgo: &Ginkgo) {
-        todo!()
+        let mut recorder = RenderDirectiveRecorder::new(ginkgo);
+        if renderer.resource_handle.instances.num_instances() > 0 {
+            recorder.0.set_pipeline(&renderer.resource_handle.pipeline);
+            recorder
+                .0
+                .set_bind_group(0, &renderer.resource_handle.bind_group, &[]);
+            recorder
+                .0
+                .set_vertex_buffer(0, renderer.resource_handle.vertex_buffer.slice(..));
+            recorder.0.set_vertex_buffer(
+                1,
+                renderer
+                    .resource_handle
+                    .instances
+                    .buffer::<GpuPosition>()
+                    .slice(..),
+            );
+            recorder.0.set_vertex_buffer(
+                2,
+                renderer
+                    .resource_handle
+                    .instances
+                    .buffer::<GpuArea>()
+                    .slice(..),
+            );
+            recorder.0.set_vertex_buffer(
+                3,
+                renderer
+                    .resource_handle
+                    .instances
+                    .buffer::<Layer>()
+                    .slice(..),
+            );
+            recorder.0.set_vertex_buffer(
+                4,
+                renderer
+                    .resource_handle
+                    .instances
+                    .buffer::<Color>()
+                    .slice(..),
+            );
+            recorder.0.set_vertex_buffer(
+                5,
+                renderer
+                    .resource_handle
+                    .instances
+                    .buffer::<CornerDepth>()
+                    .slice(..),
+            );
+            recorder.0.draw(
+                0..VERTICES.len() as u32,
+                0..renderer.resource_handle.instances.num_instances(),
+            );
+        }
+        let directive = recorder.finish();
+        renderer.directive_manager.fill(0, directive);
     }
 }
 

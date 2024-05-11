@@ -1,4 +1,6 @@
 pub use bevy_ecs;
+use bevy_ecs::bundle::Bundle;
+use bevy_ecs::prelude::Entity;
 pub use wgpu;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
@@ -65,6 +67,9 @@ impl Foliage {
     pub fn add_renderer<R: Render>(&mut self) {
         self.ash.add_renderer::<R>();
     }
+    pub fn spawn<B: Bundle>(&mut self, b: B) -> Entity {
+        self.elm.ecs.world.spawn(b).id()
+    }
     pub fn run(mut self) {
         cfg_if::cfg_if! {
             if #[cfg(target_family = "wasm")] {
@@ -108,6 +113,7 @@ impl ApplicationHandler for Foliage {
             self.ash.initialize(&self.ginkgo);
             self.elm.initialize(
                 self.willow.actual_area().to_numerical(),
+                self.ginkgo.configuration().scale_factor,
                 self.leaf_fns.drain(..).collect(),
             );
         } else {
@@ -123,8 +129,11 @@ impl ApplicationHandler for Foliage {
             self.ginkgo.configure_view(&self.willow);
             self.ginkgo.create_viewport(&self.willow);
             self.ash.initialize(&self.ginkgo);
-            self.elm
-                .initialize(self.willow.actual_area().to_numerical());
+            self.elm.initialize(
+                self.willow.actual_area().to_numerical(),
+                self.ginkgo.configuration().scale_factor,
+                self.leaf_fns.drain(..).collect(),
+            );
         }
     }
     fn window_event(
@@ -205,5 +214,5 @@ pub struct AndroidConnection(pub AndroidApp);
 pub type AndroidApp = winit::platform::android::activity::AndroidApp;
 
 pub trait Leaf {
-    fn attach(elm: &mut Elm) {}
+    fn attach(elm: &mut Elm);
 }

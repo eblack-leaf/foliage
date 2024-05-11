@@ -2,7 +2,9 @@ use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Component, Schedule};
+use bevy_ecs::prelude::{
+    apply_deferred, Component, IntoSystemConfigs, IntoSystemSetConfigs, Schedule, SystemSet,
+};
 use bevy_ecs::schedule::ExecutorKind;
 use bevy_ecs::system::Resource;
 use bevy_ecs::world::World;
@@ -14,7 +16,7 @@ use crate::coordinate::NumericalContext;
 use crate::differential::{
     differential, RenderAddQueue, RenderLink, RenderPacket, RenderRemoveQueue,
 };
-use crate::ginkgo::ViewportHandle;
+use crate::ginkgo::{ScaleFactor, ViewportHandle};
 use crate::willow::Willow;
 
 #[derive(Default)]
@@ -65,7 +67,9 @@ impl Elm {
             .world
             .contains_resource::<DifferentialScheduleLimiter<D>>()
         {
-            self.scheduler.main.add_systems((differential::<D>,));
+            self.scheduler
+                .main
+                .add_systems((differential::<D>.in_set(ScheduleMarkers::Differential),));
             self.ecs
                 .world
                 .insert_resource(DifferentialScheduleLimiter::<D>::default())
@@ -95,12 +99,23 @@ impl Elm {
     pub(crate) fn initialize(
         &mut self,
         window_area: Area<NumericalContext>,
+        scale_factor: ScaleFactor,
         leaf_fns: Vec<Box<fn(&mut Elm)>>,
     ) {
         self.ecs
             .world
             .insert_resource(ViewportHandle::new(window_area));
+        self.ecs.world.insert_resource(scale_factor);
         self.ecs.world.insert_resource(RenderRemoveQueue::default());
+        self.scheduler
+            .main
+            .configure_sets((ScheduleMarkers::Coordinate, ScheduleMarkers::Differential).chain());
+        // TODO below is just example, no flush needed yet
+        self.scheduler.main.add_systems(
+            apply_deferred
+                .after(ScheduleMarkers::Coordinate)
+                .before(ScheduleMarkers::Differential),
+        );
         for leaf_fn in leaf_fns {
             (leaf_fn)(self);
         }
@@ -149,11 +164,13 @@ impl<'a> RenderQueueHandle<'a> {
     pub fn read_adds<R: Render, D: Component + Clone + PartialEq>(
         &mut self,
     ) -> Vec<RenderPacket<D>> {
-        self.elm
+        let mut queue = self
+            .elm
             .ecs
             .world
             .get_resource_mut::<RenderAddQueue<D>>()
-            .expect("render-queue")
+            .expect("render-queue");
+        queue
             .queue
             .get_mut(&RenderLink::new::<R>())
             .expect("render-queue")
@@ -161,4 +178,9 @@ impl<'a> RenderQueueHandle<'a> {
             .map(|a| a.into())
             .collect()
     }
+}
+#[derive(SystemSet, Hash, Eq, PartialEq, Debug, Copy, Clone)]
+pub enum ScheduleMarkers {
+    Coordinate,
+    Differential,
 }
