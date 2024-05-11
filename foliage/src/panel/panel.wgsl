@@ -60,5 +60,5 @@ fn vertex_entry(vertex: Vertex) -> Fragment {
 @fragment
 fn fragment_entry(frag: Fragment) -> @location(0) vec4<f32> {
     let coverage = textureSample(circle_texture, circle_sampler, frag.tex.yz).r * frag.tex.x + 1.0 * f32(frag.tex.x == 0.0);
-    return vec4<f32>(frag.color.rgb, frag.color.a * coverage);;
+    return vec4<f32>(frag.color.rgb, frag.color.a * coverage);
 }
