@@ -60,7 +60,7 @@ impl Panel {
             gpu_area: Differentiable::new(GpuArea::default()),
             color: Differentiable::new(color),
             corner_percent_rounded,
-            corner_depths: Differentiable::new(CornerDepth([10.0, 10.0, 10.0, 10.0])),
+            corner_depths: Differentiable::new(CornerDepth([5.0, 10.0, 15.0, 20.0])),
         }
     }
 }

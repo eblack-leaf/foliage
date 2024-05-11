@@ -29,15 +29,16 @@ fn vertex_entry(vertex: Vertex) -> Fragment {
 }
 @fragment
 fn fragment_entry(frag: Fragment) -> @location(0) vec4<f32> {
-    let in_corner_i: bool = frag.position.x > (frag.section.z - frag.corners.x) && frag.position.y < frag.corners.x;
-    let in_corner_ii: bool = frag.position.x < frag.corners.y && frag.position.y < frag.corners.y;
-    let in_corner_iii: bool = frag.position.x < frag.corners.z && frag.position.y > (frag.section.w - frag.corners.z);
-    let in_corner_iv: bool = frag.position.x > (frag.section.z - frag.corners.w) &&
-        frag.position.y > (frag.section.w - frag.corners.w);
-    let local_i = frag.position.xy - vec2<f32>((frag.section.z - frag.corners.x), 0.0);
-    let local_ii = frag.position.xy;
-    let local_iii = frag.position.xy - vec2<f32>(0.0, (frag.section.w - frag.corners.z));
-    let local_iv = frag.position.xy - vec2<f32>(
+    let local_pos = frag.position.xy - frag.section.xy;
+    let in_corner_i: bool = local_pos.x > (frag.section.z - frag.corners.x) && local_pos.y < frag.corners.x;
+    let in_corner_ii: bool = local_pos.x < frag.corners.y && local_pos.y < frag.corners.y;
+    let in_corner_iii: bool = local_pos.x < frag.corners.z && local_pos.y > (frag.section.w - frag.corners.z);
+    let in_corner_iv: bool = local_pos.x > (frag.section.z - frag.corners.w) &&
+        local_pos.y > (frag.section.w - frag.corners.w);
+    let local_i = local_pos - vec2<f32>((frag.section.z - frag.corners.x), 0.0);
+    let local_ii = local_pos;
+    let local_iii = local_pos - vec2<f32>(0.0, (frag.section.w - frag.corners.z));
+    let local_iv = local_pos - vec2<f32>(
         (frag.section.z - frag.corners.w),
         (frag.section.w - frag.corners.w)
     );
