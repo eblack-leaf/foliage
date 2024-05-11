@@ -147,6 +147,7 @@ impl<A: Pod + Zeroable + Default + Debug> Attribute<A> {
             a
         );
         *self.cpu.get_mut(index).expect("index") = a;
+        self.write_needed = true;
     }
     fn grow(&mut self, ginkgo: &Ginkgo, c: u32) {
         let cpu = self.cpu.drain(..).collect::<Vec<A>>();
