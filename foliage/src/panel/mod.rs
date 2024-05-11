@@ -60,7 +60,7 @@ impl Panel {
             gpu_area: Differentiable::new(GpuArea::default()),
             color: Differentiable::new(color),
             corner_percent_rounded,
-            corner_depths: Differentiable::new(CornerDepth([5.0, 10.0, 15.0, 20.0])),
+            corner_depths: Differentiable::new(CornerDepth([20.0, 30.0, 40.0, 0.0])),
         }
     }
 }
@@ -324,7 +324,7 @@ fn make_cov() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("src")
         .join("panel");
-    let png = root.join("circ.png");
-    let cov = root.join("circ.cov");
+    let png = root.join("circ-500.png");
+    let cov = root.join("circ-500.cov");
     Ginkgo::png_to_cov(png, cov);
 }
