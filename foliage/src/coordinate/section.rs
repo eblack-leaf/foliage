@@ -1,8 +1,7 @@
 use bevy_ecs::bundle::Bundle;
-use bytemuck::{Pod, Zeroable};
 
-use crate::coordinate::area::{Area, GpuArea};
-use crate::coordinate::position::{GpuPosition, Position};
+use crate::coordinate::area::Area;
+use crate::coordinate::position::Position;
 use crate::coordinate::{
     CoordinateContext, CoordinateUnit, Coordinates, DeviceContext, LogicalContext, NumericalContext,
 };

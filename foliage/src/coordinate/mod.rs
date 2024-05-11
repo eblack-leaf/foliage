@@ -1,13 +1,14 @@
-use crate::coordinate::area::{Area, GpuArea};
-use crate::coordinate::position::{GpuPosition, Position};
-use crate::elm::{Elm, ScheduleMarkers};
-use crate::ginkgo::ScaleFactor;
-use crate::Leaf;
 use bevy_ecs::prelude::IntoSystemConfigs;
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Query, Res};
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
+
+use crate::coordinate::area::{Area, GpuArea};
+use crate::coordinate::position::{GpuPosition, Position};
+use crate::elm::{Elm, ScheduleMarkers};
+use crate::ginkgo::ScaleFactor;
+use crate::Leaf;
 
 pub mod area;
 pub mod layer;

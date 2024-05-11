@@ -60,7 +60,7 @@ impl Panel {
             gpu_area: Differentiable::new(GpuArea::default()),
             color: Differentiable::new(color),
             corner_percent_rounded,
-            corner_depths: Differentiable::new(CornerDepth::default()),
+            corner_depths: Differentiable::new(CornerDepth([10.0, 10.0, 10.0, 10.0])),
         }
     }
 }
@@ -256,7 +256,7 @@ impl Render for Panel {
         }
         let should_record = renderer.resource_handle.instances.resolve_changes(ginkgo);
         renderer.resource_handle.instances.write_cpu_to_gpu(ginkgo); // can combine w/ above?
-        true
+        true // TODO first run will not get triggered
     }
 
     fn record(renderer: &mut Renderer<Self>, ginkgo: &Ginkgo) {

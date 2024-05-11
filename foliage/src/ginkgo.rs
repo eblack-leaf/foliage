@@ -663,13 +663,7 @@ impl Viewport {
         let right_left = 2f32 / (section.right() - section.x());
         let top_bottom = 2f32 / (section.y() - section.bottom());
         let nf = 1f32 / (near_far.far.0 - near_far.near.0);
-        let row_major = [
-            [right_left, 0f32, 0f32, right_left * -section.x() - 1f32],
-            [0f32, top_bottom, 0f32, top_bottom * -section.y() + 1f32],
-            [0f32, 0f32, nf, nf * near_far.near.0],
-            [0f32, 0f32, 0f32, 1f32],
-        ];
-        let column_major = [
+        let matrix = [
             [right_left, 0f32, 0f32, 0f32],
             [0f32, top_bottom, 0f32, 0f32],
             [0f32, 0f32, nf, 0f32],
@@ -680,7 +674,7 @@ impl Viewport {
                 1f32,
             ],
         ];
-        column_major
+        matrix
     }
 }
 
