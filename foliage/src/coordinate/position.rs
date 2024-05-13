@@ -54,7 +54,7 @@ impl<Context: CoordinateContext> Position<Context> {
         self.coordinates.0[0]
     }
     pub fn y(&self) -> CoordinateUnit {
-        self.coordinates.0[0]
+        self.coordinates.0[1]
     }
     pub fn to_numerical(self) -> Position<NumericalContext> {
         Position::numerical((self.x(), self.y()))
@@ -91,5 +91,10 @@ impl From<LogicalPosition<f32>> for Position<LogicalContext> {
 impl From<PhysicalPosition<f32>> for Position<DeviceContext> {
     fn from(value: PhysicalPosition<f32>) -> Self {
         Self::new((value.x, value.y))
+    }
+}
+impl<Context: CoordinateContext, C: Into<Coordinates>> From<C> for Position<Context> {
+    fn from(value: C) -> Self {
+        Self::new(value)
     }
 }

@@ -4,6 +4,7 @@ use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs, Query};
 use bevy_ecs::query::{Changed, Or};
+use bevy_ecs::system::Res;
 use bytemuck::{Pod, Zeroable};
 use wgpu::{
     include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor,
@@ -17,11 +18,11 @@ use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::placement::Placement;
 use crate::coordinate::position::Position;
-use crate::coordinate::section::GpuSection;
+use crate::coordinate::section::{GpuSection, Section};
 use crate::coordinate::{Coordinates, LogicalContext};
 use crate::differential::{Differentiable, RenderLink};
 use crate::elm::{RenderQueueHandle, ScheduleMarkers};
-use crate::ginkgo::Ginkgo;
+use crate::ginkgo::{Ginkgo, ScaleFactor};
 use crate::instances::Instances;
 use crate::{Elm, Leaf, Render};
 
@@ -79,37 +80,53 @@ impl Panel {
 pub struct CornerPercentRounded(pub(crate) [(f32, bool); 4]);
 
 impl CornerPercentRounded {
-    pub(crate) fn top_right_changed(&mut self) -> bool {
+    pub(crate) fn top_right_changed(&mut self) -> Option<f32> {
         let ret = self.0[0].1;
         self.0[0].1 = false;
-        ret
+        if ret {
+            Option::from(self.0[3].0)
+        } else {
+            None
+        }
     }
     pub fn set_top_right(&mut self, v: f32) {
         self.0[0].0 = v.min(1.0).max(0.0);
         self.0[0].1 = true;
     }
-    pub(crate) fn top_left_changed(&mut self) -> bool {
+    pub(crate) fn top_left_changed(&mut self) -> Option<f32> {
         let ret = self.0[1].1;
         self.0[1].1 = false;
-        ret
+        if ret {
+            Option::from(self.0[3].0)
+        } else {
+            None
+        }
     }
     pub fn set_top_left(&mut self, v: f32) {
         self.0[1].0 = v.min(1.0).max(0.0);
         self.0[1].1 = true;
     }
-    pub(crate) fn bottom_left_changed(&mut self) -> bool {
+    pub(crate) fn bottom_left_changed(&mut self) -> Option<f32> {
         let ret = self.0[2].1;
         self.0[2].1 = false;
-        ret
+        if ret {
+            Option::from(self.0[3].0)
+        } else {
+            None
+        }
     }
     pub fn set_bottom_left(&mut self, v: f32) {
         self.0[2].0 = v.min(1.0).max(0.0);
         self.0[2].1 = true;
     }
-    pub(crate) fn bottom_right_changed(&mut self) -> bool {
+    pub(crate) fn bottom_right_changed(&mut self) -> Option<f32> {
         let ret = self.0[3].1;
         self.0[3].1 = false;
-        ret
+        if ret {
+            Option::from(self.0[3].0)
+        } else {
+            None
+        }
     }
     pub fn set_bottom_right(&mut self, v: f32) {
         self.0[3].0 = v.min(1.0).max(0.0);
@@ -133,19 +150,30 @@ fn percent_rounded_to_corner(
             Changed<Area<LogicalContext>>,
         )>,
     >,
+    scale_factor: Res<ScaleFactor>,
 ) {
     for (mut i, mut ii, mut iii, mut iv, mut percents, pos, area) in query.iter_mut() {
-        if percents.top_right_changed() {
-            *i = CornerI([10.0, 10.0, 0.0]);
+        let section = Section::new(*pos, *area).to_device(scale_factor.value());
+        let half_height = section.height() / 2f32;
+        if let Some(f) = percents.top_right_changed() {
+            let delta = half_height * f;
+            let position = Position::numerical((section.right() - delta, section.y() + delta));
+            *i = CornerI([position.x(), position.y(), delta]);
         }
-        if percents.top_left_changed() {
-            *ii = CornerII([0.0, 0.0, 0.0]);
+        if let Some(f) = percents.top_left_changed() {
+            let delta = half_height * f;
+            let position = Position::numerical((section.x() + delta, section.y() + delta));
+            *ii = CornerII([position.x(), position.y(), delta]);
         }
-        if percents.bottom_left_changed() {
-            *iii = CornerIII([0.0, 0.0, 0.0]);
+        if let Some(f) = percents.bottom_left_changed() {
+            let delta = half_height * f;
+            let position = Position::numerical((section.x() + delta, section.bottom() - delta));
+            *iii = CornerIII([position.x(), position.y(), delta]);
         }
-        if percents.bottom_right_changed() {
-            *iv = CornerIV([0.0, 0.0, 0.0]);
+        if let Some(f) = percents.bottom_right_changed() {
+            let delta = half_height * f;
+            let position = Position::numerical((section.right() - delta, section.bottom() - delta));
+            *iv = CornerIV([position.x(), position.y(), delta]);
         }
     }
 }

@@ -28,7 +28,10 @@ impl GpuSection {
     }
 }
 impl Section<NumericalContext> {
-    pub fn device<C: Into<Coordinates>>(p: C, a: C) -> Section<DeviceContext> {
+    pub fn device<P: Into<Position<DeviceContext>>, A: Into<Area<DeviceContext>>>(
+        p: P,
+        a: A,
+    ) -> Section<DeviceContext> {
         Section::new(p, a)
     }
     pub fn logical<C: Into<Coordinates>>(p: C, a: C) -> Section<LogicalContext> {
@@ -38,12 +41,21 @@ impl Section<NumericalContext> {
         Section::new(p, a)
     }
 }
-
+impl Section<DeviceContext> {
+    pub fn to_gpu(self) -> GpuSection {
+        GpuSection::new(self.position.to_gpu(), self.area.to_gpu())
+    }
+}
+impl Section<LogicalContext> {
+    pub fn to_device(self, factor: f32) -> Section<DeviceContext> {
+        Section::new(self.position.to_device(factor), self.area.to_device(factor))
+    }
+}
 impl<Context: CoordinateContext> Section<Context> {
-    pub fn new<C: Into<Coordinates>, D: Into<Coordinates>>(p: C, a: D) -> Self {
+    pub fn new<C: Into<Position<Context>>, D: Into<Area<Context>>>(p: C, a: D) -> Self {
         Self {
-            position: Position::new(p),
-            area: Area::new(a),
+            position: p.into(),
+            area: a.into(),
         }
     }
     pub fn x(&self) -> CoordinateUnit {
@@ -84,6 +96,9 @@ impl<Context: CoordinateContext> Section<Context> {
             self.position.max(o.position).coordinates,
             self.area.max(o.area).coordinates,
         )
+    }
+    pub fn to_numerical(self) -> Section<NumericalContext> {
+        Section::new(self.position.to_numerical(), self.area.to_numerical())
     }
 }
 impl<Context: CoordinateContext, C: Into<Coordinates>, D: Into<Coordinates>> From<(C, D)>
