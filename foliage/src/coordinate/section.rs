@@ -1,7 +1,9 @@
 use bevy_ecs::bundle::Bundle;
+use bevy_ecs::component::Component;
+use bytemuck::{Pod, Zeroable};
 
-use crate::coordinate::area::Area;
-use crate::coordinate::position::Position;
+use crate::coordinate::area::{Area, GpuArea};
+use crate::coordinate::position::{GpuPosition, Position};
 use crate::coordinate::{
     CoordinateContext, CoordinateUnit, Coordinates, DeviceContext, LogicalContext, NumericalContext,
 };
@@ -10,6 +12,20 @@ use crate::coordinate::{
 pub struct Section<Context: CoordinateContext> {
     pub position: Position<Context>,
     pub area: Area<Context>,
+}
+#[repr(C)]
+#[derive(Pod, Zeroable, Copy, Clone, Default, Component, PartialEq, Debug)]
+pub struct GpuSection {
+    pub pos: GpuPosition,
+    pub area: GpuArea,
+}
+impl GpuSection {
+    pub fn new(p: GpuPosition, a: GpuArea) -> Self {
+        Self {
+            pos: p.into(),
+            area: a.into(),
+        }
+    }
 }
 impl Section<NumericalContext> {
     pub fn device<C: Into<Coordinates>>(p: C, a: C) -> Section<DeviceContext> {
@@ -24,7 +40,7 @@ impl Section<NumericalContext> {
 }
 
 impl<Context: CoordinateContext> Section<Context> {
-    pub fn new<C: Into<Coordinates>>(p: C, a: C) -> Self {
+    pub fn new<C: Into<Coordinates>, D: Into<Coordinates>>(p: C, a: D) -> Self {
         Self {
             position: Position::new(p),
             area: Area::new(a),
@@ -68,5 +84,12 @@ impl<Context: CoordinateContext> Section<Context> {
             self.position.max(o.position).coordinates,
             self.area.max(o.area).coordinates,
         )
+    }
+}
+impl<Context: CoordinateContext, C: Into<Coordinates>, D: Into<Coordinates>> From<(C, D)>
+    for Section<Context>
+{
+    fn from(value: (C, D)) -> Self {
+        Self::new(value.0, value.1)
     }
 }

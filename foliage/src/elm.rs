@@ -107,15 +107,22 @@ impl Elm {
             .insert_resource(ViewportHandle::new(window_area));
         self.ecs.world.insert_resource(scale_factor);
         self.ecs.world.insert_resource(RenderRemoveQueue::default());
-        self.scheduler
-            .main
-            .configure_sets((ScheduleMarkers::Coordinate, ScheduleMarkers::Differential).chain());
-        // TODO below is just example, no flush needed yet
-        self.scheduler.main.add_systems(
+        self.scheduler.main.configure_sets(
+            (
+                ScheduleMarkers::Config,
+                ScheduleMarkers::Coordinate,
+                ScheduleMarkers::Differential,
+            )
+                .chain(),
+        );
+        self.scheduler.main.add_systems((
+            apply_deferred
+                .after(ScheduleMarkers::Config)
+                .before(ScheduleMarkers::Coordinate),
             apply_deferred
                 .after(ScheduleMarkers::Coordinate)
                 .before(ScheduleMarkers::Differential),
-        );
+        ));
         for leaf_fn in leaf_fns {
             (leaf_fn)(self);
         }
@@ -183,4 +190,5 @@ impl<'a> RenderQueueHandle<'a> {
 pub enum ScheduleMarkers {
     Coordinate,
     Differential,
+    Config,
 }

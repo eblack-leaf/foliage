@@ -50,9 +50,6 @@ impl<Context: CoordinateContext> Position<Context> {
             _phantom: PhantomData,
         }
     }
-    pub fn to_gpu(self) -> GpuPosition {
-        GpuPosition(self.coordinates)
-    }
     pub fn x(&self) -> CoordinateUnit {
         self.coordinates.0[0]
     }
@@ -79,6 +76,9 @@ impl Position<LogicalContext> {
 impl Position<DeviceContext> {
     pub fn to_logical(self, factor: f32) -> Position<LogicalContext> {
         Position::logical((self.x() / factor, self.y() / factor))
+    }
+    pub fn to_gpu(self) -> GpuPosition {
+        GpuPosition(self.coordinates)
     }
 }
 

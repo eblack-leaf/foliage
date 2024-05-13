@@ -1,4 +1,4 @@
-use bevy_ecs::prelude::IntoSystemConfigs;
+use bevy_ecs::prelude::{IntoSystemConfigs, Or};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Query, Res};
 use bytemuck::{Pod, Zeroable};
@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::coordinate::area::{Area, GpuArea};
 use crate::coordinate::position::{GpuPosition, Position};
+use crate::coordinate::section::GpuSection;
 use crate::elm::{Elm, ScheduleMarkers};
 use crate::ginkgo::ScaleFactor;
 use crate::Leaf;
@@ -109,16 +110,20 @@ impl Leaf for Coordinates {
 }
 fn coordinate_resolve(
     mut placed_pos: Query<
-        (&mut GpuPosition, &Position<LogicalContext>),
-        Changed<Position<LogicalContext>>,
+        (
+            &mut GpuSection,
+            &Position<LogicalContext>,
+            &Area<LogicalContext>,
+        ),
+        Or<(
+            Changed<Position<LogicalContext>>,
+            Changed<Area<LogicalContext>>,
+        )>,
     >,
-    mut placed_areas: Query<(&mut GpuArea, &Area<LogicalContext>), Changed<Area<LogicalContext>>>,
     scale_factor: Res<ScaleFactor>,
 ) {
-    for (mut gpu, logical) in placed_pos.iter_mut() {
-        *gpu = logical.to_device(scale_factor.value()).to_gpu();
-    }
-    for (mut gpu, logical) in placed_areas.iter_mut() {
-        *gpu = logical.to_device(scale_factor.value()).to_gpu();
+    for (mut gpu, pos, area) in placed_pos.iter_mut() {
+        gpu.pos = pos.to_device(scale_factor.value()).to_gpu();
+        gpu.area = area.to_device(scale_factor.value()).to_gpu();
     }
 }

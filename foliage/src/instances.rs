@@ -16,6 +16,7 @@ pub struct Instances<Key: Hash + Eq + Copy + Clone> {
     removal_fns: Vec<Box<fn(&mut World, usize)>>,
     grow_fns: Vec<Box<fn(&mut World, u32, &Ginkgo)>>,
     cpu_to_gpu: Vec<Box<fn(&mut World, &Ginkgo)>>,
+    update_needed: bool,
 }
 
 impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
@@ -44,6 +45,7 @@ impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
             removal_fns: vec![],
             grow_fns: vec![],
             cpu_to_gpu: vec![],
+            update_needed: false,
         }
     }
     pub fn with_attribute<A: Pod + Zeroable + Default + Debug>(mut self, ginkgo: &Ginkgo) -> Self {
@@ -71,12 +73,14 @@ impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
         self.order.remove(index);
         for r_fn in self.removal_fns.iter() {
             (r_fn)(&mut self.world, index);
+            self.update_needed = true;
         }
     }
     pub fn add(&mut self, key: Key) {
         let index = self.order.len();
         self.order.push(key);
         self.map.insert(key, index);
+        self.update_needed = true;
     }
     pub fn has_key(&self, k: &Key) -> bool {
         self.map.contains_key(k)
@@ -100,7 +104,9 @@ impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
             self.capacity = order_len;
             grown = true;
         }
-        grown
+        let update_needed = self.update_needed;
+        self.update_needed = false;
+        grown || update_needed
     }
     pub fn queue_write<A: Pod + Zeroable + Default + Debug>(&mut self, key: Key, a: A) {
         let index = *self.map.get(&key).expect("key");

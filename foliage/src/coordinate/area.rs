@@ -37,9 +37,7 @@ impl<Context: CoordinateContext> Area<Context> {
             _phantom: PhantomData,
         }
     }
-    pub fn to_gpu(self) -> GpuArea {
-        GpuArea(self.coordinates)
-    }
+
     pub fn width(&self) -> CoordinateUnit {
         self.coordinates.0[0]
     }
@@ -66,6 +64,9 @@ impl Area<LogicalContext> {
 impl Area<DeviceContext> {
     pub fn to_logical(self, factor: f32) -> Area<LogicalContext> {
         Area::logical((self.width() / factor, self.height() / factor))
+    }
+    pub fn to_gpu(self) -> GpuArea {
+        GpuArea(self.coordinates)
     }
 }
 

@@ -2,34 +2,41 @@ use std::path::Path;
 
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::Component;
+use bevy_ecs::prelude::{Component, IntoSystemConfigs, Query};
+use bevy_ecs::query::{Changed, Or};
 use bytemuck::{Pod, Zeroable};
 use wgpu::{
     include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor,
-    PipelineLayoutDescriptor, RenderPipeline, RenderPipelineDescriptor, ShaderStages,
-    TextureFormat, TextureSampleType, TextureViewDimension, VertexState, VertexStepMode,
+    PipelineLayoutDescriptor, RenderPipeline, RenderPipelineDescriptor, ShaderStages, VertexState,
+    VertexStepMode,
 };
 
 use crate::ash::{RenderDirectiveRecorder, RenderPhase, Renderer};
 use crate::color::Color;
-use crate::coordinate::area::{Area, GpuArea};
+use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::placement::Placement;
-use crate::coordinate::position::{GpuPosition, Position};
+use crate::coordinate::position::Position;
+use crate::coordinate::section::GpuSection;
 use crate::coordinate::{Coordinates, LogicalContext};
 use crate::differential::{Differentiable, RenderLink};
-use crate::elm::RenderQueueHandle;
+use crate::elm::{RenderQueueHandle, ScheduleMarkers};
 use crate::ginkgo::Ginkgo;
 use crate::instances::Instances;
 use crate::{Elm, Leaf, Render};
 
 impl Leaf for Panel {
     fn attach(elm: &mut Elm) {
-        elm.enable_differential::<Panel, GpuPosition>();
-        elm.enable_differential::<Panel, GpuArea>();
+        elm.enable_differential::<Panel, GpuSection>();
         elm.enable_differential::<Panel, Layer>();
         elm.enable_differential::<Panel, Color>();
-        elm.enable_differential::<Panel, CornerDepth>();
+        elm.enable_differential::<Panel, CornerI>();
+        elm.enable_differential::<Panel, CornerII>();
+        elm.enable_differential::<Panel, CornerIII>();
+        elm.enable_differential::<Panel, CornerIV>();
+        elm.scheduler
+            .main
+            .add_systems(percent_rounded_to_corner.in_set(ScheduleMarkers::Config));
     }
 }
 
@@ -39,11 +46,13 @@ pub struct Panel {
     pos: Position<LogicalContext>,
     area: Area<LogicalContext>,
     layer: Differentiable<Layer>,
-    gpu_section: Differentiable<GpuPosition>,
-    gpu_area: Differentiable<GpuArea>,
+    gpu_section: Differentiable<GpuSection>,
     color: Differentiable<Color>,
     corner_percent_rounded: CornerPercentRounded,
-    corner_depths: Differentiable<CornerDepth>,
+    corner_i: Differentiable<CornerI>,
+    corner_ii: Differentiable<CornerII>,
+    corner_iii: Differentiable<CornerIII>,
+    corner_iv: Differentiable<CornerIV>,
 }
 impl Panel {
     pub fn new(
@@ -56,28 +65,102 @@ impl Panel {
             pos: placement.section.position,
             area: placement.section.area,
             layer: Differentiable::new(placement.layer),
-            gpu_section: Differentiable::new(GpuPosition::default()),
-            gpu_area: Differentiable::new(GpuArea::default()),
+            gpu_section: Differentiable::new(GpuSection::default()),
             color: Differentiable::new(color),
             corner_percent_rounded,
-            corner_depths: Differentiable::new(CornerDepth([20.0, 30.0, 40.0, 0.0])),
+            corner_i: Differentiable::new(CornerI::default()),
+            corner_ii: Differentiable::new(CornerII::default()),
+            corner_iii: Differentiable::new(CornerIII::default()),
+            corner_iv: Differentiable::new(CornerIV::default()),
         }
     }
 }
 #[derive(Component, Copy, Clone, Default)]
-pub struct CornerPercentRounded(pub(crate) [f32; 4]);
+pub struct CornerPercentRounded(pub(crate) [(f32, bool); 4]);
 
 impl CornerPercentRounded {
-    pub fn set_top_left(&mut self, v: f32) {
-        self.0[0] = v.min(1.0).max(0.0);
+    pub(crate) fn top_right_changed(&mut self) -> bool {
+        let ret = self.0[0].1;
+        self.0[0].1 = false;
+        ret
     }
-    // ...
+    pub fn set_top_right(&mut self, v: f32) {
+        self.0[0].0 = v.min(1.0).max(0.0);
+        self.0[0].1 = true;
+    }
+    pub(crate) fn top_left_changed(&mut self) -> bool {
+        let ret = self.0[1].1;
+        self.0[1].1 = false;
+        ret
+    }
+    pub fn set_top_left(&mut self, v: f32) {
+        self.0[1].0 = v.min(1.0).max(0.0);
+        self.0[1].1 = true;
+    }
+    pub(crate) fn bottom_left_changed(&mut self) -> bool {
+        let ret = self.0[2].1;
+        self.0[2].1 = false;
+        ret
+    }
+    pub fn set_bottom_left(&mut self, v: f32) {
+        self.0[2].0 = v.min(1.0).max(0.0);
+        self.0[2].1 = true;
+    }
+    pub(crate) fn bottom_right_changed(&mut self) -> bool {
+        let ret = self.0[3].1;
+        self.0[3].1 = false;
+        ret
+    }
+    pub fn set_bottom_right(&mut self, v: f32) {
+        self.0[3].0 = v.min(1.0).max(0.0);
+        self.0[3].1 = true;
+    }
 }
-
+fn percent_rounded_to_corner(
+    mut query: Query<
+        (
+            &mut CornerI,
+            &mut CornerII,
+            &mut CornerIII,
+            &mut CornerIV,
+            &mut CornerPercentRounded,
+            &Position<LogicalContext>,
+            &Area<LogicalContext>,
+        ),
+        Or<(
+            Changed<CornerPercentRounded>,
+            Changed<Position<LogicalContext>>,
+            Changed<Area<LogicalContext>>,
+        )>,
+    >,
+) {
+    for (mut i, mut ii, mut iii, mut iv, mut percents, pos, area) in query.iter_mut() {
+        if percents.top_right_changed() {
+            *i = CornerI([10.0, 10.0, 0.0]);
+        }
+        if percents.top_left_changed() {
+            *ii = CornerII([0.0, 0.0, 0.0]);
+        }
+        if percents.bottom_left_changed() {
+            *iii = CornerIII([0.0, 0.0, 0.0]);
+        }
+        if percents.bottom_right_changed() {
+            *iv = CornerIV([0.0, 0.0, 0.0]);
+        }
+    }
+}
 #[repr(C)]
 #[derive(Component, Copy, Clone, Pod, Zeroable, PartialEq, Default, Debug)]
-pub(crate) struct CornerDepth(pub(crate) [f32; 4]);
-
+pub(crate) struct CornerI(pub(crate) [f32; 3]);
+#[repr(C)]
+#[derive(Component, Copy, Clone, Pod, Zeroable, PartialEq, Default, Debug)]
+pub(crate) struct CornerII(pub(crate) [f32; 3]);
+#[repr(C)]
+#[derive(Component, Copy, Clone, Pod, Zeroable, PartialEq, Default, Debug)]
+pub(crate) struct CornerIII(pub(crate) [f32; 3]);
+#[repr(C)]
+#[derive(Component, Copy, Clone, Pod, Zeroable, PartialEq, Default, Debug)]
+pub(crate) struct CornerIV(pub(crate) [f32; 3]);
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default)]
 pub struct Vertex {
@@ -107,8 +190,6 @@ pub struct PanelResources {
     instances: Instances<Entity>,
 }
 
-pub(crate) const PANEL_CIRCLE_TEXTURE_DIMS: Coordinates = Coordinates::new(100.0, 100.0);
-
 impl Render for Panel {
     type Vertex = Vertex;
     type DirectiveGroupKey = i32;
@@ -119,38 +200,14 @@ impl Render for Panel {
         let vertex_buffer = ginkgo.create_vertex_buffer(VERTICES);
         let bind_group_layout = ginkgo.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: Some("panel-bind-group-layout"),
-            entries: &[
-                Ginkgo::bind_group_layout_entry(0)
-                    .at_stages(ShaderStages::VERTEX)
-                    .uniform_entry(),
-                Ginkgo::bind_group_layout_entry(1)
-                    .at_stages(ShaderStages::FRAGMENT)
-                    .texture_entry(
-                        TextureViewDimension::D2,
-                        TextureSampleType::Float { filterable: false },
-                    ),
-                Ginkgo::bind_group_layout_entry(2)
-                    .at_stages(ShaderStages::FRAGMENT)
-                    .sampler_entry(),
-            ],
+            entries: &[Ginkgo::bind_group_layout_entry(0)
+                .at_stages(ShaderStages::VERTEX)
+                .uniform_entry()],
         });
-        let tex_data =
-            rmp_serde::from_slice::<Vec<u8>>(include_bytes!("circ.cov")).expect("corrupt-bytes");
-        let (_texture, texture_view) = ginkgo.create_texture(
-            TextureFormat::R8Unorm,
-            PANEL_CIRCLE_TEXTURE_DIMS,
-            1,
-            tex_data.as_slice(),
-        );
-        let sampler = ginkgo.create_sampler();
         let bind_group = ginkgo.create_bind_group(&BindGroupDescriptor {
             label: Some("panel-bind-group"),
             layout: &bind_group_layout,
-            entries: &[
-                ginkgo.viewport_bind_group_entry(0),
-                Ginkgo::texture_bind_group_entry(&texture_view, 1),
-                Ginkgo::sampler_bind_group_entry(&sampler, 2),
-            ],
+            entries: &[ginkgo.viewport_bind_group_entry(0)],
         });
         let pipeline_layout = ginkgo.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("panel-pipeline-layout-descriptor"),
@@ -169,25 +226,33 @@ impl Render for Panel {
                         VertexStepMode::Vertex,
                         &wgpu::vertex_attr_array![0 => Float32x2],
                     ),
-                    Ginkgo::vertex_buffer_layout::<GpuPosition>(
+                    Ginkgo::vertex_buffer_layout::<GpuSection>(
                         VertexStepMode::Instance,
-                        &wgpu::vertex_attr_array![1 => Float32x2],
-                    ),
-                    Ginkgo::vertex_buffer_layout::<GpuArea>(
-                        VertexStepMode::Instance,
-                        &wgpu::vertex_attr_array![2 => Float32x2],
+                        &wgpu::vertex_attr_array![1 => Float32x4],
                     ),
                     Ginkgo::vertex_buffer_layout::<Layer>(
                         VertexStepMode::Instance,
-                        &wgpu::vertex_attr_array![3 => Float32],
+                        &wgpu::vertex_attr_array![2 => Float32],
                     ),
                     Ginkgo::vertex_buffer_layout::<Color>(
                         VertexStepMode::Instance,
-                        &wgpu::vertex_attr_array![4 => Float32x4],
+                        &wgpu::vertex_attr_array![3 => Float32x4],
                     ),
-                    Ginkgo::vertex_buffer_layout::<CornerDepth>(
+                    Ginkgo::vertex_buffer_layout::<CornerI>(
                         VertexStepMode::Instance,
-                        &wgpu::vertex_attr_array![5 => Float32x4],
+                        &wgpu::vertex_attr_array![4 => Float32x3],
+                    ),
+                    Ginkgo::vertex_buffer_layout::<CornerII>(
+                        VertexStepMode::Instance,
+                        &wgpu::vertex_attr_array![5 => Float32x3],
+                    ),
+                    Ginkgo::vertex_buffer_layout::<CornerIII>(
+                        VertexStepMode::Instance,
+                        &wgpu::vertex_attr_array![6 => Float32x3],
+                    ),
+                    Ginkgo::vertex_buffer_layout::<CornerIV>(
+                        VertexStepMode::Instance,
+                        &wgpu::vertex_attr_array![7 => Float32x3],
                     ),
                 ],
             },
@@ -202,11 +267,13 @@ impl Render for Panel {
             multiview: None,
         });
         let instances = Instances::<Entity>::new(4)
-            .with_attribute::<GpuPosition>(ginkgo)
-            .with_attribute::<GpuArea>(ginkgo)
+            .with_attribute::<GpuSection>(ginkgo)
             .with_attribute::<Layer>(ginkgo)
             .with_attribute::<Color>(ginkgo)
-            .with_attribute::<CornerDepth>(ginkgo);
+            .with_attribute::<CornerI>(ginkgo)
+            .with_attribute::<CornerII>(ginkgo)
+            .with_attribute::<CornerIII>(ginkgo)
+            .with_attribute::<CornerIV>(ginkgo);
         Self::Resources {
             pipeline,
             vertex_buffer,
@@ -224,13 +291,7 @@ impl Render for Panel {
         for entity in queue_handle.read_removes::<Self>() {
             renderer.resource_handle.instances.remove(entity);
         }
-        for packet in queue_handle.read_adds::<Self, GpuPosition>() {
-            renderer
-                .resource_handle
-                .instances
-                .checked_write(packet.entity, packet.value);
-        }
-        for packet in queue_handle.read_adds::<Self, GpuArea>() {
+        for packet in queue_handle.read_adds::<Self, GpuSection>() {
             renderer
                 .resource_handle
                 .instances
@@ -248,7 +309,25 @@ impl Render for Panel {
                 .instances
                 .checked_write(packet.entity, packet.value);
         }
-        for packet in queue_handle.read_adds::<Self, CornerDepth>() {
+        for packet in queue_handle.read_adds::<Self, CornerI>() {
+            renderer
+                .resource_handle
+                .instances
+                .checked_write(packet.entity, packet.value);
+        }
+        for packet in queue_handle.read_adds::<Self, CornerII>() {
+            renderer
+                .resource_handle
+                .instances
+                .checked_write(packet.entity, packet.value);
+        }
+        for packet in queue_handle.read_adds::<Self, CornerIII>() {
+            renderer
+                .resource_handle
+                .instances
+                .checked_write(packet.entity, packet.value);
+        }
+        for packet in queue_handle.read_adds::<Self, CornerIV>() {
             renderer
                 .resource_handle
                 .instances
@@ -256,7 +335,7 @@ impl Render for Panel {
         }
         let should_record = renderer.resource_handle.instances.resolve_changes(ginkgo);
         renderer.resource_handle.instances.write_cpu_to_gpu(ginkgo); // can combine w/ above?
-        true // TODO first run will not get triggered
+        should_record
     }
 
     fn record(renderer: &mut Renderer<Self>, ginkgo: &Ginkgo) {
@@ -274,7 +353,7 @@ impl Render for Panel {
                 renderer
                     .resource_handle
                     .instances
-                    .buffer::<GpuPosition>()
+                    .buffer::<GpuSection>()
                     .slice(..),
             );
             recorder.0.set_vertex_buffer(
@@ -282,7 +361,7 @@ impl Render for Panel {
                 renderer
                     .resource_handle
                     .instances
-                    .buffer::<GpuArea>()
+                    .buffer::<Layer>()
                     .slice(..),
             );
             recorder.0.set_vertex_buffer(
@@ -290,7 +369,7 @@ impl Render for Panel {
                 renderer
                     .resource_handle
                     .instances
-                    .buffer::<Layer>()
+                    .buffer::<Color>()
                     .slice(..),
             );
             recorder.0.set_vertex_buffer(
@@ -298,7 +377,7 @@ impl Render for Panel {
                 renderer
                     .resource_handle
                     .instances
-                    .buffer::<Color>()
+                    .buffer::<CornerI>()
                     .slice(..),
             );
             recorder.0.set_vertex_buffer(
@@ -306,7 +385,23 @@ impl Render for Panel {
                 renderer
                     .resource_handle
                     .instances
-                    .buffer::<CornerDepth>()
+                    .buffer::<CornerII>()
+                    .slice(..),
+            );
+            recorder.0.set_vertex_buffer(
+                6,
+                renderer
+                    .resource_handle
+                    .instances
+                    .buffer::<CornerIII>()
+                    .slice(..),
+            );
+            recorder.0.set_vertex_buffer(
+                7,
+                renderer
+                    .resource_handle
+                    .instances
+                    .buffer::<CornerIV>()
                     .slice(..),
             );
             recorder.0.draw(
@@ -317,14 +412,4 @@ impl Render for Panel {
         let directive = recorder.finish();
         renderer.directive_manager.fill(0, directive);
     }
-}
-
-#[test]
-fn make_cov() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("src")
-        .join("panel");
-    let png = root.join("circ-500.png");
-    let cov = root.join("circ-500.cov");
-    Ginkgo::png_to_cov(png, cov);
 }
