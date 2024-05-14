@@ -4,8 +4,8 @@ use bevy_ecs::system::{Query, Res};
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
 
-use crate::coordinate::area::{Area, GpuArea};
-use crate::coordinate::position::{GpuPosition, Position};
+use crate::coordinate::area::Area;
+use crate::coordinate::position::Position;
 use crate::coordinate::section::GpuSection;
 use crate::elm::{Elm, ScheduleMarkers};
 use crate::ginkgo::ScaleFactor;

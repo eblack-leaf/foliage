@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs, Query};
@@ -20,7 +18,7 @@ use crate::coordinate::placement::Placement;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::{GpuSection, Section};
 use crate::coordinate::{Coordinates, LogicalContext};
-use crate::differential::{Differentiable, RenderLink};
+use crate::differential::{Differential, RenderLink};
 use crate::elm::{RenderQueueHandle, ScheduleMarkers};
 use crate::ginkgo::{Ginkgo, ScaleFactor};
 use crate::instances::Instances;
@@ -46,40 +44,67 @@ pub struct Panel {
     render_link: RenderLink,
     pos: Position<LogicalContext>,
     area: Area<LogicalContext>,
-    layer: Differentiable<Layer>,
-    gpu_section: Differentiable<GpuSection>,
-    color: Differentiable<Color>,
-    corner_percent_rounded: CornerPercentRounded,
-    corner_i: Differentiable<CornerI>,
-    corner_ii: Differentiable<CornerII>,
-    corner_iii: Differentiable<CornerIII>,
-    corner_iv: Differentiable<CornerIV>,
+    layer: Differential<Layer>,
+    gpu_section: Differential<GpuSection>,
+    color: Differential<Color>,
+    panel_corner_rounding: PanelCornerRounding,
+    corner_i: Differential<CornerI>,
+    corner_ii: Differential<CornerII>,
+    corner_iii: Differential<CornerIII>,
+    corner_iv: Differential<CornerIV>,
 }
 impl Panel {
     pub fn new(
         placement: Placement<LogicalContext>,
-        corner_percent_rounded: CornerPercentRounded,
+        panel_corner_rounding: PanelCornerRounding,
         color: Color,
     ) -> Self {
         Self {
             render_link: RenderLink::new::<Self>(),
             pos: placement.section.position,
             area: placement.section.area,
-            layer: Differentiable::new(placement.layer),
-            gpu_section: Differentiable::new(GpuSection::default()),
-            color: Differentiable::new(color),
-            corner_percent_rounded,
-            corner_i: Differentiable::new(CornerI::default()),
-            corner_ii: Differentiable::new(CornerII::default()),
-            corner_iii: Differentiable::new(CornerIII::default()),
-            corner_iv: Differentiable::new(CornerIV::default()),
+            layer: Differential::new(placement.layer),
+            gpu_section: Differential::new(GpuSection::default()),
+            color: Differential::new(color),
+            panel_corner_rounding,
+            corner_i: Differential::new(CornerI::default()),
+            corner_ii: Differential::new(CornerII::default()),
+            corner_iii: Differential::new(CornerIII::default()),
+            corner_iv: Differential::new(CornerIV::default()),
         }
     }
 }
 #[derive(Component, Copy, Clone, Default)]
-pub struct CornerPercentRounded(pub(crate) [(f32, bool); 4]);
+pub struct PanelCornerRounding(pub(crate) [(f32, bool); 4]);
 
-impl CornerPercentRounded {
+impl PanelCornerRounding {
+    pub fn all(v: f32) -> Self {
+        Self([(v.min(1.0).max(0.0), true); 4])
+    }
+    pub fn top(v: f32) -> Self {
+        let mut this = Self::all(v);
+        this.set_bottom_left(0.0);
+        this.set_bottom_right(0.0);
+        this
+    }
+    pub fn bottom(v: f32) -> Self {
+        let mut this = Self::all(v);
+        this.set_top_left(0.0);
+        this.set_top_right(0.0);
+        this
+    }
+    pub fn right(v: f32) -> Self {
+        let mut this = Self::all(v);
+        this.set_top_left(0.0);
+        this.set_top_right(0.0);
+        this
+    }
+    pub fn left(v: f32) -> Self {
+        let mut this = Self::all(v);
+        this.set_top_left(0.0);
+        this.set_top_right(0.0);
+        this
+    }
     pub(crate) fn top_right_changed(&mut self) -> Option<f32> {
         let ret = self.0[0].1;
         self.0[0].1 = false;
@@ -140,12 +165,12 @@ fn percent_rounded_to_corner(
             &mut CornerII,
             &mut CornerIII,
             &mut CornerIV,
-            &mut CornerPercentRounded,
+            &mut PanelCornerRounding,
             &Position<LogicalContext>,
             &Area<LogicalContext>,
         ),
         Or<(
-            Changed<CornerPercentRounded>,
+            Changed<PanelCornerRounding>,
             Changed<Position<LogicalContext>>,
             Changed<Area<LogicalContext>>,
         )>,
@@ -154,24 +179,24 @@ fn percent_rounded_to_corner(
 ) {
     for (mut i, mut ii, mut iii, mut iv, mut percents, pos, area) in query.iter_mut() {
         let section = Section::new(*pos, *area).to_device(scale_factor.value());
-        let half_height = section.height() / 2f32;
+        let half_smallest = section.height().min(section.width()) / 2f32;
         if let Some(f) = percents.top_right_changed() {
-            let delta = half_height * f;
+            let delta = half_smallest * f;
             let position = Position::numerical((section.right() - delta, section.y() + delta));
             *i = CornerI([position.x(), position.y(), delta]);
         }
         if let Some(f) = percents.top_left_changed() {
-            let delta = half_height * f;
+            let delta = half_smallest * f;
             let position = Position::numerical((section.x() + delta, section.y() + delta));
             *ii = CornerII([position.x(), position.y(), delta]);
         }
         if let Some(f) = percents.bottom_left_changed() {
-            let delta = half_height * f;
+            let delta = half_smallest * f;
             let position = Position::numerical((section.x() + delta, section.bottom() - delta));
             *iii = CornerIII([position.x(), position.y(), delta]);
         }
         if let Some(f) = percents.bottom_right_changed() {
-            let delta = half_height * f;
+            let delta = half_smallest * f;
             let position = Position::numerical((section.right() - delta, section.bottom() - delta));
             *iv = CornerIV([position.x(), position.y(), delta]);
         }
@@ -219,7 +244,6 @@ pub struct PanelResources {
 }
 
 impl Render for Panel {
-    type Vertex = Vertex;
     type DirectiveGroupKey = i32;
     const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(0);
     type Resources = PanelResources;

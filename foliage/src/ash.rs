@@ -210,7 +210,6 @@ pub trait Render
 where
     Self: Sized + 'static,
 {
-    type Vertex: Pod + Zeroable;
     type DirectiveGroupKey: Hash + Eq + Copy + Clone;
     const RENDER_PHASE: RenderPhase;
     type Resources;

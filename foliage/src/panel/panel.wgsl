@@ -40,10 +40,14 @@ fn vertex_entry(vertex: Vertex) -> Fragment {
 @fragment
 fn fragment_entry(frag: Fragment) -> @location(0) vec4<f32> {
     let interval = 0.75;
-    let in_corner_i: bool = frag.position.x >= frag.corner_i.x && frag.position.y <= frag.corner_i.y && frag.corner_i.z != 0.0;
-    let in_corner_ii: bool = frag.position.x <= frag.corner_ii.x && frag.position.y <= frag.corner_ii.y && frag.corner_ii.z != 0.0;
-    let in_corner_iii: bool = frag.position.x <= frag.corner_iii.x && frag.position.y >= frag.corner_iii.y && frag.corner_iii.z != 0.0;
-    let in_corner_iv: bool = frag.position.x >= frag.corner_iv.x && frag.position.y >= frag.corner_iv.y && frag.corner_iv.z != 0.0;
+    let in_corner_i: bool = frag.position.x >= frag.corner_i.x && frag.position.y <= frag.corner_i.y
+        && frag.corner_i.z != 0.0;
+    let in_corner_ii: bool = frag.position.x <= frag.corner_ii.x && frag.position.y <= frag.corner_ii.y
+        && frag.corner_ii.z != 0.0;
+    let in_corner_iii: bool = frag.position.x <= frag.corner_iii.x && frag.position.y >= frag.corner_iii.y
+        && frag.corner_iii.z != 0.0;
+    let in_corner_iv: bool = frag.position.x >= frag.corner_iv.x && frag.position.y >= frag.corner_iv.y
+        && frag.corner_iv.z != 0.0;
     let actual_i = distance(frag.position.xy, frag.corner_i.xy);
     let actual_ii = distance(frag.position.xy, frag.corner_ii.xy);
     let actual_iii = distance(frag.position.xy, frag.corner_iii.xy);

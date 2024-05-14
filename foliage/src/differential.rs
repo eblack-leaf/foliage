@@ -36,26 +36,26 @@ pub struct RenderRemoveQueue {
 }
 
 #[derive(Bundle)]
-pub struct Differentiable<D: Component + PartialEq + Clone> {
+pub struct Differential<D: Component + PartialEq + Clone> {
     pub component: D,
-    pub diff: CachedDifferential<D>,
+    pub cache: DifferentialCache<D>,
 }
 
-impl<D: Component + PartialEq + Clone> Differentiable<D> {
+impl<D: Component + PartialEq + Clone> Differential<D> {
     pub fn new(d: D) -> Self {
         Self {
             component: d,
-            diff: CachedDifferential::new(),
+            cache: DifferentialCache::new(),
         }
     }
 }
 
 #[derive(Component)]
-pub struct CachedDifferential<D: Component + PartialEq + Clone> {
+pub struct DifferentialCache<D: Component + PartialEq + Clone> {
     pub(crate) last: Option<D>,
 }
 
-impl<D: Component + PartialEq + Clone> CachedDifferential<D> {
+impl<D: Component + PartialEq + Clone> DifferentialCache<D> {
     pub(crate) fn new() -> Self {
         Self { last: None }
     }
@@ -76,7 +76,7 @@ impl<D: Component + PartialEq + Clone> From<(Entity, D)> for RenderPacket<D> {
 }
 
 pub(crate) fn differential<D: Component + PartialEq + Clone + Send + Sync + 'static>(
-    mut components: Query<(Entity, &RenderLink, &D, &mut CachedDifferential<D>), Changed<D>>,
+    mut components: Query<(Entity, &RenderLink, &D, &mut DifferentialCache<D>), Changed<D>>,
     mut render_queue: ResMut<RenderAddQueue<D>>,
 ) {
     for (entity, link, d, mut cache) in components.iter_mut() {

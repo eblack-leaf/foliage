@@ -29,12 +29,6 @@ impl Position<NumericalContext> {
     pub fn numerical<C: Into<Coordinates>>(c: C) -> Position<NumericalContext> {
         Position::new(c)
     }
-    pub fn as_logical(self) -> Position<LogicalContext> {
-        Position::logical(self.coordinates)
-    }
-    pub fn as_device(self) -> Position<DeviceContext> {
-        Position::device(self.coordinates)
-    }
 }
 
 impl<Context: CoordinateContext> AddAssign for Position<Context> {

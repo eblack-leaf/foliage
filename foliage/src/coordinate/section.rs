@@ -34,10 +34,16 @@ impl Section<NumericalContext> {
     ) -> Section<DeviceContext> {
         Section::new(p, a)
     }
-    pub fn logical<C: Into<Coordinates>>(p: C, a: C) -> Section<LogicalContext> {
+    pub fn logical<P: Into<Position<LogicalContext>>, A: Into<Area<LogicalContext>>>(
+        p: P,
+        a: A,
+    ) -> Section<LogicalContext> {
         Section::new(p, a)
     }
-    pub fn numerical<C: Into<Coordinates>>(p: C, a: C) -> Section<NumericalContext> {
+    pub fn numerical<P: Into<Position<NumericalContext>>, A: Into<Area<NumericalContext>>>(
+        p: P,
+        a: A,
+    ) -> Section<NumericalContext> {
         Section::new(p, a)
     }
 }
