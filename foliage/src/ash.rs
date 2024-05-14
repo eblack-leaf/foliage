@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use std::hash::Hash;
 
 use bevy_ecs::world::World;
-use bytemuck::{Pod, Zeroable};
 use wgpu::{
     CommandEncoderDescriptor, RenderBundle, RenderBundleDepthStencil, RenderBundleDescriptor,
     RenderBundleEncoderDescriptor, RenderPassDescriptor, TextureViewDescriptor,

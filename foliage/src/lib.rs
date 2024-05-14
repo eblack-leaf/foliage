@@ -11,9 +11,10 @@ use willow::Willow;
 
 use crate::ash::{Ash, Render};
 use crate::coordinate::area::Area;
-use crate::coordinate::DeviceContext;
+use crate::coordinate::{Coordinates, DeviceContext};
 use crate::elm::Elm;
 use crate::ginkgo::Ginkgo;
+use crate::panel::Panel;
 
 pub mod ash;
 pub mod color;
@@ -33,6 +34,7 @@ pub struct Foliage {
     worker_path: String,
     android_connection: AndroidConnection,
     leaf_fns: Vec<Box<fn(&mut Elm)>>,
+    leaves_fns: Vec<Box<fn(&mut Foliage)>>,
 }
 
 impl Foliage {
@@ -45,6 +47,7 @@ impl Foliage {
             worker_path: "".to_string(),
             android_connection: AndroidConnection::default(),
             leaf_fns: vec![],
+            leaves_fns: vec![],
         }
     }
     pub fn set_window_size<A: Into<Area<DeviceContext>>>(&mut self, a: A) {
@@ -62,6 +65,11 @@ impl Foliage {
     pub fn attach_leaf<L: Leaf>(&mut self) {
         self.leaf_fns.push(Box::new(|e| {
             L::attach(e);
+        }));
+    }
+    pub fn attach_leaves<L: Leaves>(&mut self) {
+        self.leaves_fns.push(Box::new(|f| {
+            L::attach(f);
         }));
     }
     pub fn add_renderer<R: Render>(&mut self) {
@@ -100,6 +108,16 @@ impl Foliage {
         // insert bridge into ecs
         (event_loop_function)(event_loop, &mut self).expect("event-loop-run-app");
     }
+
+    fn leaves_attach(&mut self) {
+        for leaves_fn in self
+            .leaves_fns
+            .drain(..)
+            .collect::<Vec<Box<fn(&mut Foliage)>>>()
+        {
+            (leaves_fn)(self);
+        }
+    }
 }
 
 impl ApplicationHandler for Foliage {
@@ -110,12 +128,13 @@ impl ApplicationHandler for Foliage {
             pollster::block_on(self.ginkgo.acquire_context(&self.willow));
             self.ginkgo.configure_view(&self.willow);
             self.ginkgo.create_viewport(&self.willow);
-            self.ash.initialize(&self.ginkgo);
-            self.elm.initialize(
+            self.elm.configure(
                 self.willow.actual_area().to_numerical(),
                 self.ginkgo.configuration().scale_factor,
-                self.leaf_fns.drain(..).collect(),
             );
+            self.leaves_attach();
+            self.elm.initialize(self.leaf_fns.drain(..).collect());
+            self.ash.initialize(&self.ginkgo);
         } else {
             #[cfg(target_os = "android")]
             {
@@ -128,12 +147,13 @@ impl ApplicationHandler for Foliage {
         if !self.ginkgo.configured() {
             self.ginkgo.configure_view(&self.willow);
             self.ginkgo.create_viewport(&self.willow);
-            self.ash.initialize(&self.ginkgo);
-            self.elm.initialize(
+            self.elm.configure(
                 self.willow.actual_area().to_numerical(),
                 self.ginkgo.configuration().scale_factor,
-                self.leaf_fns.drain(..).collect(),
             );
+            self.leaves_attach();
+            self.elm.initialize(self.leaf_fns.drain(..).collect());
+            self.ash.initialize(&self.ginkgo);
         }
     }
     fn window_event(
@@ -148,6 +168,7 @@ impl ApplicationHandler for Foliage {
                 self.elm.adjust_viewport_handle(&self.willow);
                 self.ginkgo.configure_view(&self.willow);
                 self.ginkgo.size_viewport(&self.willow);
+                self.willow.window().request_redraw();
             }
             WindowEvent::Moved(_) => {}
             WindowEvent::CloseRequested => {
@@ -215,4 +236,15 @@ pub type AndroidApp = winit::platform::android::activity::AndroidApp;
 
 pub trait Leaf {
     fn attach(elm: &mut Elm);
+}
+pub trait Leaves {
+    fn attach(foliage: &mut Foliage);
+}
+pub struct Extensions;
+impl Leaves for Extensions {
+    fn attach(foliage: &mut Foliage) {
+        foliage.attach_leaf::<Panel>();
+        foliage.add_renderer::<Panel>();
+        foliage.attach_leaf::<Coordinates>();
+    }
 }

@@ -75,88 +75,22 @@ impl Panel {
     }
 }
 #[derive(Component, Copy, Clone, Default)]
-pub struct PanelCornerRounding(pub(crate) [(f32, bool); 4]);
+pub struct PanelCornerRounding(pub(crate) [f32; 4]);
 
 impl PanelCornerRounding {
     pub fn all(v: f32) -> Self {
-        Self([(v.min(1.0).max(0.0), true); 4])
+        let v = v.max(0.0).min(1.0);
+        Self([v; 4])
     }
     pub fn top(v: f32) -> Self {
-        let mut this = Self::all(v);
-        this.set_bottom_left(0.0);
-        this.set_bottom_right(0.0);
-        this
+        let v = v.max(0.0).min(1.0);
+        Self([v, v, 0.0, 0.0])
     }
     pub fn bottom(v: f32) -> Self {
-        let mut this = Self::all(v);
-        this.set_top_left(0.0);
-        this.set_top_right(0.0);
-        this
+        let v = v.max(0.0).min(1.0);
+        Self([0.0, 0.0, v, v])
     }
-    pub fn right(v: f32) -> Self {
-        let mut this = Self::all(v);
-        this.set_top_left(0.0);
-        this.set_top_right(0.0);
-        this
-    }
-    pub fn left(v: f32) -> Self {
-        let mut this = Self::all(v);
-        this.set_top_left(0.0);
-        this.set_top_right(0.0);
-        this
-    }
-    pub(crate) fn top_right_changed(&mut self) -> Option<f32> {
-        let ret = self.0[0].1;
-        self.0[0].1 = false;
-        if ret {
-            Option::from(self.0[3].0)
-        } else {
-            None
-        }
-    }
-    pub fn set_top_right(&mut self, v: f32) {
-        self.0[0].0 = v.min(1.0).max(0.0);
-        self.0[0].1 = true;
-    }
-    pub(crate) fn top_left_changed(&mut self) -> Option<f32> {
-        let ret = self.0[1].1;
-        self.0[1].1 = false;
-        if ret {
-            Option::from(self.0[3].0)
-        } else {
-            None
-        }
-    }
-    pub fn set_top_left(&mut self, v: f32) {
-        self.0[1].0 = v.min(1.0).max(0.0);
-        self.0[1].1 = true;
-    }
-    pub(crate) fn bottom_left_changed(&mut self) -> Option<f32> {
-        let ret = self.0[2].1;
-        self.0[2].1 = false;
-        if ret {
-            Option::from(self.0[3].0)
-        } else {
-            None
-        }
-    }
-    pub fn set_bottom_left(&mut self, v: f32) {
-        self.0[2].0 = v.min(1.0).max(0.0);
-        self.0[2].1 = true;
-    }
-    pub(crate) fn bottom_right_changed(&mut self) -> Option<f32> {
-        let ret = self.0[3].1;
-        self.0[3].1 = false;
-        if ret {
-            Option::from(self.0[3].0)
-        } else {
-            None
-        }
-    }
-    pub fn set_bottom_right(&mut self, v: f32) {
-        self.0[3].0 = v.min(1.0).max(0.0);
-        self.0[3].1 = true;
-    }
+    // ...
 }
 fn percent_rounded_to_corner(
     mut query: Query<
@@ -180,26 +114,18 @@ fn percent_rounded_to_corner(
     for (mut i, mut ii, mut iii, mut iv, mut percents, pos, area) in query.iter_mut() {
         let section = Section::new(*pos, *area).to_device(scale_factor.value());
         let half_smallest = section.height().min(section.width()) / 2f32;
-        if let Some(f) = percents.top_right_changed() {
-            let delta = half_smallest * f;
-            let position = Position::numerical((section.right() - delta, section.y() + delta));
-            *i = CornerI([position.x(), position.y(), delta]);
-        }
-        if let Some(f) = percents.top_left_changed() {
-            let delta = half_smallest * f;
-            let position = Position::numerical((section.x() + delta, section.y() + delta));
-            *ii = CornerII([position.x(), position.y(), delta]);
-        }
-        if let Some(f) = percents.bottom_left_changed() {
-            let delta = half_smallest * f;
-            let position = Position::numerical((section.x() + delta, section.bottom() - delta));
-            *iii = CornerIII([position.x(), position.y(), delta]);
-        }
-        if let Some(f) = percents.bottom_right_changed() {
-            let delta = half_smallest * f;
-            let position = Position::numerical((section.right() - delta, section.bottom() - delta));
-            *iv = CornerIV([position.x(), position.y(), delta]);
-        }
+        let delta = half_smallest * percents.0[0];
+        let position = Position::numerical((section.right() - delta, section.y() + delta));
+        *i = CornerI([position.x(), position.y(), delta]);
+        let delta = half_smallest * percents.0[1];
+        let position = Position::numerical((section.x() + delta, section.y() + delta));
+        *ii = CornerII([position.x(), position.y(), delta]);
+        let delta = half_smallest * percents.0[2];
+        let position = Position::numerical((section.x() + delta, section.bottom() - delta));
+        *iii = CornerIII([position.x(), position.y(), delta]);
+        let delta = half_smallest * percents.0[3];
+        let position = Position::numerical((section.right() - delta, section.bottom() - delta));
+        *iv = CornerIV([position.x(), position.y(), delta]);
     }
 }
 #[repr(C)]

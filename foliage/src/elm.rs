@@ -96,11 +96,18 @@ impl Elm {
     pub(crate) fn initialized(&self) -> bool {
         self.initialized
     }
-    pub(crate) fn initialize(
+    pub(crate) fn initialize(&mut self, leaf_fns: Vec<Box<fn(&mut Elm)>>) {
+        for leaf_fn in leaf_fns {
+            (leaf_fn)(self);
+        }
+        self.scheduler.exec_startup(&mut self.ecs);
+        self.initialized = true;
+    }
+
+    pub(crate) fn configure(
         &mut self,
         window_area: Area<NumericalContext>,
         scale_factor: ScaleFactor,
-        leaf_fns: Vec<Box<fn(&mut Elm)>>,
     ) {
         self.ecs
             .world
@@ -123,11 +130,6 @@ impl Elm {
                 .after(ScheduleMarkers::Coordinate)
                 .before(ScheduleMarkers::Differential),
         ));
-        for leaf_fn in leaf_fns {
-            (leaf_fn)(self);
-        }
-        self.scheduler.exec_startup(&mut self.ecs);
-        self.initialized = true;
     }
     pub(crate) fn process(&mut self) {
         self.scheduler.exec_main(&mut self.ecs);
