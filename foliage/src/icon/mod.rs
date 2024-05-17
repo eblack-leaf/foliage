@@ -187,12 +187,25 @@ impl Render for Icon {
         ginkgo: &Ginkgo,
     ) -> bool {
         for entity in queue_handle.read_removes::<Self>() {
-            renderer.resource_handle.group_mut(entity).instances.remove(entity);
+            renderer
+                .resource_handle
+                .group_mut(entity)
+                .instances
+                .remove(entity);
             renderer.resource_handle.entity_to_icon.remove(&entity);
         }
         for packet in queue_handle.read_adds::<Self, IconId>() {
-            if !renderer.resource_handle.entity_to_icon.contains_key(&packet.entity) {
-
+            if renderer
+                .resource_handle
+                .entity_to_icon
+                .insert(packet.entity, packet.value)
+                .is_none()
+            {
+                renderer
+                    .resource_handle
+                    .group_mut(packet.entity)
+                    .instances
+                    .add(packet.entity);
             }
         }
         true
