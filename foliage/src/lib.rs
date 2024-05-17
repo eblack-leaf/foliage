@@ -22,6 +22,7 @@ pub mod coordinate;
 mod differential;
 pub mod elm;
 pub mod ginkgo;
+mod icon;
 pub mod instances;
 pub mod panel;
 pub mod willow;
