@@ -10,7 +10,8 @@ use wgpu::{
 
 use crate::color::Color;
 use crate::elm::RenderQueueHandle;
-use crate::ginkgo::{Depth, Ginkgo};
+use crate::ginkgo::depth::Depth;
+use crate::ginkgo::Ginkgo;
 use crate::Elm;
 
 #[derive(Default)]

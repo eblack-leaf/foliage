@@ -14,6 +14,7 @@ use crate::coordinate::area::Area;
 use crate::coordinate::{Coordinates, DeviceContext};
 use crate::elm::Elm;
 use crate::ginkgo::Ginkgo;
+use crate::icon::Icon;
 use crate::panel::Panel;
 
 pub mod ash;
@@ -247,5 +248,7 @@ impl Leaves for Extensions {
         foliage.attach_leaf::<Panel>();
         foliage.add_renderer::<Panel>();
         foliage.attach_leaf::<Coordinates>();
+        foliage.attach_leaf::<Icon>();
+        foliage.add_renderer::<Icon>();
     }
 }

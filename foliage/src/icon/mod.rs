@@ -7,19 +7,45 @@ use bytemuck::{Pod, Zeroable};
 use wgpu::{
     include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor,
     PipelineLayoutDescriptor, RenderPipeline, RenderPipelineDescriptor, ShaderStages,
-    TextureSampleType, TextureViewDimension, VertexState, VertexStepMode,
+    TextureFormat, TextureSampleType, TextureViewDimension, VertexState, VertexStepMode,
 };
 
-use crate::ash::{Render, RenderPhase, Renderer};
+use crate::ash::{Render, RenderDirectiveRecorder, RenderPhase, Renderer};
 use crate::color::Color;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::section::{GpuSection, Section};
 use crate::coordinate::{Coordinates, LogicalContext};
 use crate::differential::{Differential, RenderLink};
-use crate::elm::RenderQueueHandle;
+use crate::elm::{Elm, RenderQueueHandle};
+use crate::ginkgo::mips::Mips;
 use crate::ginkgo::Ginkgo;
 use crate::instances::Instances;
+use crate::Leaf;
 
+impl Leaf for Icon {
+    fn attach(elm: &mut Elm) {
+        elm.enable_differential::<Self, GpuSection>();
+        elm.enable_differential::<Self, Layer>();
+        elm.enable_differential::<Self, Color>();
+        elm.enable_differential::<Self, Mips>();
+        elm.enable_differential::<Self, IconData>();
+    }
+}
+#[derive(Component, Clone, PartialEq)]
+pub struct IconData(pub IconId, pub Vec<u8>);
+#[derive(Bundle)]
+pub struct IconRequest {
+    data: Differential<IconData>,
+    link: RenderLink,
+}
+impl IconRequest {
+    pub fn new<I: Into<IconId>>(id: I, data: Vec<u8>) -> Self {
+        Self {
+            data: Differential::new(IconData(id.into(), data)),
+            link: RenderLink::new::<Icon>(),
+        }
+    }
+}
 #[derive(Bundle)]
 pub struct Icon {
     link: RenderLink,
@@ -52,8 +78,9 @@ impl From<i32> for IconId {
 pub(crate) struct IconGroup {
     bind_group: BindGroup,
     instances: Instances<Entity>,
+    should_record: bool,
 }
-pub(crate) struct IconResources {
+pub struct IconResources {
     pipeline: RenderPipeline,
     vertex_buffer: wgpu::Buffer,
     bind_group: BindGroup,
@@ -67,7 +94,7 @@ impl IconResources {
             .get(self.entity_to_icon.get(&entity).unwrap())
             .unwrap()
     }
-    pub(crate) fn group_mut(&mut self, entity: Entity) -> &mut IconGroup {
+    pub(crate) fn group_mut_from_entity(&mut self, entity: Entity) -> &mut IconGroup {
         self.groups
             .get_mut(self.entity_to_icon.get(&entity).unwrap())
             .unwrap()
@@ -159,6 +186,10 @@ impl Render for Icon {
                         VertexStepMode::Instance,
                         &wgpu::vertex_attr_array![3 => Float32x4],
                     ),
+                    Ginkgo::vertex_buffer_layout::<Mips>(
+                        VertexStepMode::Instance,
+                        &wgpu::vertex_attr_array![4 => Float32],
+                    ),
                 ],
             },
             primitive: Ginkgo::triangle_list_primitive(),
@@ -186,32 +217,136 @@ impl Render for Icon {
         queue_handle: &mut RenderQueueHandle,
         ginkgo: &Ginkgo,
     ) -> bool {
+        for packet in queue_handle.read_adds::<Self, IconData>() {
+            let (_, view) = ginkgo.create_texture(
+                TextureFormat::R8Unorm,
+                Self::SCALE,
+                3,
+                packet.value.1.as_slice(),
+            );
+            renderer.resource_handle.groups.insert(
+                packet.value.0,
+                IconGroup {
+                    bind_group: ginkgo.create_bind_group(&BindGroupDescriptor {
+                        label: Some("icon-group-bind-group"),
+                        layout: &renderer.resource_handle.icon_group_layout,
+                        entries: &[Ginkgo::texture_bind_group_entry(&view, 0)],
+                    }),
+                    instances: Instances::new(1)
+                        .with_attribute::<GpuSection>(ginkgo)
+                        .with_attribute::<Layer>(ginkgo)
+                        .with_attribute::<Color>(ginkgo)
+                        .with_attribute::<Mips>(ginkgo),
+                    should_record: false,
+                },
+            );
+        }
         for entity in queue_handle.read_removes::<Self>() {
             renderer
                 .resource_handle
-                .group_mut(entity)
+                .group_mut_from_entity(entity)
                 .instances
                 .remove(entity);
             renderer.resource_handle.entity_to_icon.remove(&entity);
         }
         for packet in queue_handle.read_adds::<Self, IconId>() {
-            if renderer
+            let old = renderer
                 .resource_handle
                 .entity_to_icon
-                .insert(packet.entity, packet.value)
-                .is_none()
-            {
+                .insert(packet.entity, packet.value);
+            renderer
+                .resource_handle
+                .group_mut_from_entity(packet.entity)
+                .instances
+                .add(packet.entity);
+            if let Some(o) = old {
                 renderer
                     .resource_handle
-                    .group_mut(packet.entity)
+                    .groups
+                    .get_mut(&o)
+                    .unwrap()
                     .instances
-                    .add(packet.entity);
+                    .remove(packet.entity);
             }
         }
-        true
+        for packet in queue_handle.read_adds::<Self, GpuSection>() {
+            renderer
+                .resource_handle
+                .group_mut_from_entity(packet.entity)
+                .instances
+                .checked_write(packet.entity, packet.value);
+            let scale_factor = ginkgo.configuration().scale_factor.value();
+            if scale_factor == 3f32 {
+                renderer
+                    .resource_handle
+                    .group_mut_from_entity(packet.entity)
+                    .instances
+                    .checked_write(packet.entity, Mips(2f32));
+            } else if scale_factor == 2f32 {
+                renderer
+                    .resource_handle
+                    .group_mut_from_entity(packet.entity)
+                    .instances
+                    .checked_write(packet.entity, Mips(1f32));
+            } else {
+                renderer
+                    .resource_handle
+                    .group_mut_from_entity(packet.entity)
+                    .instances
+                    .checked_write(packet.entity, Mips(0f32));
+            }
+        }
+        for packet in queue_handle.read_adds::<Self, Layer>() {
+            renderer
+                .resource_handle
+                .group_mut_from_entity(packet.entity)
+                .instances
+                .checked_write(packet.entity, packet.value);
+        }
+        for packet in queue_handle.read_adds::<Self, Color>() {
+            renderer
+                .resource_handle
+                .group_mut_from_entity(packet.entity)
+                .instances
+                .checked_write(packet.entity, packet.value);
+        }
+        let mut should_record = false;
+        for (_i, g) in renderer.resource_handle.groups.iter_mut() {
+            if g.instances.resolve_changes(ginkgo) {
+                should_record = true;
+                g.should_record = true;
+            }
+        }
+        should_record
     }
 
     fn record(renderer: &mut Renderer<Self>, ginkgo: &Ginkgo) {
-        todo!()
+        for (icon_id, group) in renderer.resource_handle.groups.iter() {
+            if group.should_record {
+                let mut recorder = RenderDirectiveRecorder::new(ginkgo);
+                if group.instances.num_instances() > 0 {
+                    recorder.0.set_pipeline(&renderer.resource_handle.pipeline);
+                    recorder
+                        .0
+                        .set_vertex_buffer(0, renderer.resource_handle.vertex_buffer.slice(..));
+                    recorder
+                        .0
+                        .set_vertex_buffer(1, group.instances.buffer::<GpuSection>().slice(..));
+                    recorder
+                        .0
+                        .set_vertex_buffer(2, group.instances.buffer::<Layer>().slice(..));
+                    recorder
+                        .0
+                        .set_vertex_buffer(3, group.instances.buffer::<Color>().slice(..));
+                    recorder
+                        .0
+                        .set_vertex_buffer(4, group.instances.buffer::<Mips>().slice(..));
+                    recorder
+                        .0
+                        .draw(0..VERTICES.len() as u32, 0..group.instances.num_instances());
+                }
+                renderer.directive_manager.fill(*icon_id, recorder.finish());
+            }
+        }
     }
 }

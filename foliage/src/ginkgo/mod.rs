@@ -1,19 +1,22 @@
 use std::path::Path;
 
 use bevy_ecs::prelude::Resource;
+use binding::BindingBuilder;
 use bytemuck::{Pod, Zeroable};
+use depth::Depth;
+use msaa::Msaa;
+use viewport::Viewport;
 use wgpu::util::DeviceExt;
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
-    BindGroupLayoutEntry, BindingType, BlendState, Buffer, BufferAddress, BufferUsages,
-    ColorTargetState, CompareFunction, CompositeAlphaMode, DepthStencilState, DeviceDescriptor,
-    Extent3d, Features, FragmentState, InstanceDescriptor, Limits, LoadOp, MultisampleState,
-    Operations, PipelineLayout, PipelineLayoutDescriptor, PowerPreference, PresentMode,
-    PrimitiveState, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPipeline,
+    BlendState, Buffer, BufferAddress, BufferUsages, ColorTargetState, CompareFunction,
+    CompositeAlphaMode, DepthStencilState, DeviceDescriptor, Extent3d, Features, FragmentState,
+    InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations, PipelineLayout,
+    PipelineLayoutDescriptor, PowerPreference, PresentMode, PrimitiveState,
+    RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPipeline,
     RenderPipelineDescriptor, RequestAdapterOptions, Sampler, SamplerDescriptor, ShaderModule,
-    ShaderModuleDescriptor, ShaderStages, StoreOp, SurfaceConfiguration, Texture,
-    TextureDescriptor, TextureDimension, TextureFormat, TextureFormatFeatureFlags,
-    TextureSampleType, TextureUsages, TextureView, TextureViewDescriptor, TextureViewDimension,
+    ShaderModuleDescriptor, StoreOp, SurfaceConfiguration, Texture, TextureDescriptor,
+    TextureDimension, TextureFormat, TextureUsages, TextureView, TextureViewDescriptor,
     VertexAttribute, VertexBufferLayout, VertexStepMode,
 };
 
@@ -21,83 +24,20 @@ use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
-use crate::coordinate::{CoordinateUnit, Coordinates, DeviceContext, NumericalContext};
-use crate::willow::{NearFarDescriptor, Willow};
+use crate::coordinate::{Coordinates, NumericalContext};
+use crate::willow::Willow;
+
+pub mod binding;
+pub mod depth;
+pub mod mips;
+pub mod msaa;
+pub mod viewport;
 
 #[derive(Default)]
 pub struct Ginkgo {
     context: Option<GraphicContext>,
     configuration: Option<ViewConfiguration>,
     viewport: Option<Viewport>,
-}
-
-pub struct BindingBuilder {
-    binding: u32,
-    stage: Option<ShaderStages>,
-    binding_type: Option<BindingType>,
-}
-
-impl BindingBuilder {
-    pub fn new(binding: u32) -> Self {
-        Self {
-            binding,
-            stage: None,
-            binding_type: None,
-        }
-    }
-
-    pub fn at_stages(mut self, stage: ShaderStages) -> Self {
-        self.stage.replace(stage);
-        self
-    }
-    pub fn texture_entry(
-        mut self,
-        dim: TextureViewDimension,
-        sample_type: TextureSampleType,
-    ) -> BindGroupLayoutEntry {
-        BindGroupLayoutEntry {
-            binding: self.binding,
-            visibility: self.shader_stages(),
-            ty: BindingType::Texture {
-                sample_type,
-                view_dimension: dim,
-                multisampled: false,
-            },
-            count: None,
-        }
-    }
-    pub fn uniform_entry(mut self) -> BindGroupLayoutEntry {
-        BindGroupLayoutEntry {
-            binding: self.binding,
-            visibility: self.shader_stages(),
-            ty: BindingType::Buffer {
-                ty: wgpu::BufferBindingType::Uniform,
-                has_dynamic_offset: false,
-                min_binding_size: None,
-            },
-            count: None,
-        }
-    }
-    pub fn sampler_entry(mut self) -> BindGroupLayoutEntry {
-        BindGroupLayoutEntry {
-            binding: self.binding,
-            visibility: self.shader_stages(),
-            ty: BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
-            count: None,
-        }
-    }
-
-    fn shader_stages(&mut self) -> ShaderStages {
-        self.stage.expect("need shader-stages")
-    }
-    pub fn with_entry_type(mut self, binding_type: BindingType) -> BindGroupLayoutEntry {
-        BindGroupLayoutEntry {
-            binding: self.binding,
-            visibility: self.shader_stages(),
-            ty: binding_type,
-            count: None,
-        }
-    }
 }
 
 impl Ginkgo {
@@ -470,101 +410,6 @@ impl ScaleFactor {
     }
 }
 
-pub(crate) struct Depth {
-    pub(crate) view: TextureView,
-}
-
-impl Depth {
-    pub(crate) fn new(context: &GraphicContext, msaa: &Msaa, area: Area<DeviceContext>) -> Self {
-        Self {
-            view: context
-                .device
-                .create_texture(&TextureDescriptor {
-                    label: Some("depth"),
-                    size: Extent3d {
-                        width: area.width().max(1.0) as u32,
-                        height: area.height().max(1.0) as u32,
-                        depth_or_array_layers: 1,
-                    },
-                    mip_level_count: 1,
-                    sample_count: msaa.samples(),
-                    dimension: TextureDimension::D2,
-                    format: Depth::FORMAT,
-                    usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
-                    view_formats: &[Depth::FORMAT],
-                })
-                .create_view(&TextureViewDescriptor::default()),
-        }
-    }
-    pub(crate) const FORMAT: TextureFormat = TextureFormat::Depth24PlusStencil8;
-}
-
-pub struct Msaa {
-    pub(crate) max_samples: u32,
-    pub(crate) actual: u32,
-    pub(crate) view: Option<wgpu::TextureView>,
-}
-
-impl Msaa {
-    pub(crate) fn color_attachment_store_op(&self) -> wgpu::StoreOp {
-        if self.samples() == 1u32 {
-            wgpu::StoreOp::Store
-        } else {
-            wgpu::StoreOp::Discard
-        }
-    }
-    pub fn samples(&self) -> u32 {
-        self.actual
-    }
-    pub(crate) fn new(context: &GraphicContext, requested: u32, area: Area<DeviceContext>) -> Self {
-        let flags = context
-            .adapter
-            .get_texture_format_features(context.surface_format)
-            .flags;
-        let max_samples = {
-            if flags.contains(TextureFormatFeatureFlags::MULTISAMPLE_X16) {
-                16
-            } else if flags.contains(TextureFormatFeatureFlags::MULTISAMPLE_X8) {
-                8
-            } else if flags.contains(TextureFormatFeatureFlags::MULTISAMPLE_X4) {
-                4
-            } else if flags.contains(TextureFormatFeatureFlags::MULTISAMPLE_X2) {
-                2
-            } else {
-                1
-            }
-        };
-        let actual = requested.min(max_samples);
-        Self {
-            max_samples,
-            actual,
-            view: if actual > 1 {
-                Some(
-                    context
-                        .device
-                        .create_texture(&TextureDescriptor {
-                            label: Some("msaa"),
-                            size: Extent3d {
-                                width: area.width() as u32,
-                                height: area.height() as u32,
-                                depth_or_array_layers: 1,
-                            },
-                            mip_level_count: 1,
-                            sample_count: actual,
-                            dimension: TextureDimension::D2,
-                            format: context.surface_format,
-                            usage: TextureUsages::RENDER_ATTACHMENT,
-                            view_formats: &[],
-                        })
-                        .create_view(&TextureViewDescriptor::default()),
-                )
-            } else {
-                None
-            },
-        }
-    }
-}
-
 pub struct Uniform<Data: Pod + Zeroable> {
     pub data: Data,
     pub buffer: wgpu::Buffer,
@@ -607,107 +452,5 @@ impl<Repr: Pod + Zeroable + PartialEq> AggregateUniform<Repr> {
     }
     pub fn set(&mut self, i: usize, r: Repr) {
         self.uniform.data[i] = r;
-    }
-}
-
-type ViewportRepresentation = [[CoordinateUnit; 4]; 4];
-
-pub struct Viewport {
-    translation: Position<NumericalContext>,
-    area: Area<NumericalContext>,
-    near_far: NearFarDescriptor,
-    matrix: ViewportRepresentation,
-    uniform: Uniform<ViewportRepresentation>,
-}
-
-impl Viewport {
-    pub(crate) fn set_position(
-        &mut self,
-        position: Position<NumericalContext>,
-        context: &GraphicContext,
-    ) {
-        self.translation = position.to_numerical();
-        self.matrix = self.remake();
-        self.uniform.write(context, self.matrix);
-    }
-    pub(crate) fn set_size(&mut self, area: Area<NumericalContext>, context: &GraphicContext) {
-        self.area = area;
-        self.matrix = self.remake();
-        self.uniform.write(context, self.matrix);
-    }
-
-    fn remake(&mut self) -> ViewportRepresentation {
-        Self::generate(
-            Section::new(self.translation.coordinates, self.area.coordinates),
-            self.near_far,
-        )
-    }
-    pub(crate) fn new(
-        context: &GraphicContext,
-        section: Section<NumericalContext>,
-        near_far: NearFarDescriptor,
-    ) -> Self {
-        let matrix = Self::generate(section, near_far);
-        Self {
-            translation: section.position.to_numerical(),
-            area: section.area,
-            near_far,
-            matrix,
-            uniform: Uniform::new(context, matrix),
-        }
-    }
-    fn generate(
-        section: Section<NumericalContext>,
-        near_far: NearFarDescriptor,
-    ) -> ViewportRepresentation {
-        let right_left = 2f32 / (section.right() - section.x());
-        let top_bottom = 2f32 / (section.y() - section.bottom());
-        let nf = 1f32 / (near_far.far.0 - near_far.near.0);
-        let matrix = [
-            [right_left, 0f32, 0f32, 0f32],
-            [0f32, top_bottom, 0f32, 0f32],
-            [0f32, 0f32, nf, 0f32],
-            [
-                right_left * -section.x() - 1f32,
-                top_bottom * -section.y() + 1f32,
-                nf * near_far.near.0,
-                1f32,
-            ],
-        ];
-        matrix
-    }
-}
-
-#[derive(Default, Resource)]
-pub struct ViewportHandle {
-    translation: Position<NumericalContext>,
-    area: Area<NumericalContext>,
-    changes: bool,
-}
-
-impl ViewportHandle {
-    pub(crate) fn new(area: Area<NumericalContext>) -> Self {
-        Self {
-            translation: Position::default(),
-            area,
-            changes: false,
-        }
-    }
-    pub fn translate(&mut self, position: Position<NumericalContext>) {
-        self.translation += position;
-        self.changes = true;
-    }
-    pub(crate) fn changes(&mut self) -> Option<Position<NumericalContext>> {
-        if self.changes {
-            self.changes = false;
-            return Some(self.translation);
-        }
-        None
-    }
-    pub(crate) fn resize(&mut self, area: Area<NumericalContext>) {
-        self.area = area;
-    }
-    pub fn section(&self) -> Section<NumericalContext> {
-        Section::new(self.translation.coordinates, self.area.coordinates)
     }
 }

@@ -16,7 +16,8 @@ use crate::coordinate::NumericalContext;
 use crate::differential::{
     differential, RenderAddQueue, RenderLink, RenderPacket, RenderRemoveQueue,
 };
-use crate::ginkgo::{ScaleFactor, ViewportHandle};
+use crate::ginkgo::viewport::ViewportHandle;
+use crate::ginkgo::ScaleFactor;
 use crate::willow::Willow;
 
 #[derive(Default)]
