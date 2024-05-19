@@ -1,3 +1,5 @@
+mod proc_gen;
+
 use std::collections::HashMap;
 
 use bevy_ecs::bundle::Bundle;

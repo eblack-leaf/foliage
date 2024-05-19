@@ -27,6 +27,7 @@ mod icon;
 pub mod instances;
 pub mod panel;
 pub mod willow;
+mod asset;
 
 pub struct Foliage {
     willow: Willow,
@@ -242,8 +243,8 @@ pub trait Leaf {
 pub trait Leaves {
     fn attach(foliage: &mut Foliage);
 }
-pub struct Extensions;
-impl Leaves for Extensions {
+pub struct CoreLeaves;
+impl Leaves for CoreLeaves {
     fn attach(foliage: &mut Foliage) {
         foliage.attach_leaf::<Panel>();
         foliage.add_renderer::<Panel>();
