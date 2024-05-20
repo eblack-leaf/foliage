@@ -1,10 +1,10 @@
-mod proc_gen;
-
 use std::collections::HashMap;
 
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::Component;
+use bevy_ecs::prelude::{Component, IntoSystemConfigs};
+use bevy_ecs::query::Changed;
+use bevy_ecs::system::Query;
 use bytemuck::{Pod, Zeroable};
 use wgpu::{
     include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor,
@@ -14,23 +14,35 @@ use wgpu::{
 
 use crate::ash::{Render, RenderDirectiveRecorder, RenderPhase, Renderer};
 use crate::color::Color;
+use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
+use crate::coordinate::position::Position;
 use crate::coordinate::section::{GpuSection, Section};
 use crate::coordinate::{Coordinates, LogicalContext};
 use crate::differential::{Differential, RenderLink};
-use crate::elm::{Elm, RenderQueueHandle};
+use crate::elm::{Elm, RenderQueueHandle, ScheduleMarkers};
 use crate::ginkgo::mips::Mips;
 use crate::ginkgo::Ginkgo;
 use crate::instances::Instances;
 use crate::Leaf;
 
+mod proc_gen;
+
 impl Leaf for Icon {
     fn attach(elm: &mut Elm) {
+        elm.enable_differential::<Self, IconId>();
         elm.enable_differential::<Self, GpuSection>();
         elm.enable_differential::<Self, Layer>();
         elm.enable_differential::<Self, Color>();
-        elm.enable_differential::<Self, Mips>();
         elm.enable_differential::<Self, IconData>();
+        elm.scheduler
+            .main
+            .add_systems(icon_scale.in_set(ScheduleMarkers::Config));
+    }
+}
+fn icon_scale(mut icons: Query<(&mut Area<LogicalContext>), Changed<Area<LogicalContext>>>) {
+    for (mut area) in icons.iter_mut() {
+        *area = Area::logical(Icon::SCALE);
     }
 }
 #[derive(Component, Clone, PartialEq)]
@@ -59,10 +71,15 @@ pub struct Icon {
 }
 impl Icon {
     pub const SCALE: Coordinates = Coordinates::new(24f32, 24f32);
-    pub fn new<I: Into<IconId>, L: Into<Layer>>(id: I, color: Color, l: L) -> Self {
+    pub fn new<I: Into<IconId>, L: Into<Layer>, P: Into<Position<LogicalContext>>>(
+        id: I,
+        color: Color,
+        position: P,
+        l: L,
+    ) -> Self {
         Self {
             link: RenderLink::new::<Icon>(),
-            section: Default::default(),
+            section: Section::new(position, Area::new(Icon::SCALE)),
             layer: Differential::new(l.into()),
             gpu_section: Differential::new(GpuSection::default()),
             id: Differential::new(id.into()),
@@ -323,7 +340,7 @@ impl Render for Icon {
     }
 
     fn record(renderer: &mut Renderer<Self>, ginkgo: &Ginkgo) {
-        for (icon_id, group) in renderer.resource_handle.groups.iter() {
+        for (icon_id, group) in renderer.resource_handle.groups.iter_mut() {
             if group.should_record {
                 let mut recorder = RenderDirectiveRecorder::new(ginkgo);
                 if group.instances.num_instances() > 0 {
@@ -348,6 +365,7 @@ impl Render for Icon {
                         .draw(0..VERTICES.len() as u32, 0..group.instances.num_instances());
                 }
                 renderer.directive_manager.fill(*icon_id, recorder.finish());
+                group.should_record = false;
             }
         }
     }

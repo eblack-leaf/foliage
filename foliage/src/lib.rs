@@ -18,16 +18,16 @@ use crate::icon::Icon;
 use crate::panel::Panel;
 
 pub mod ash;
+mod asset;
 pub mod color;
 pub mod coordinate;
 mod differential;
 pub mod elm;
 pub mod ginkgo;
-mod icon;
+pub mod icon;
 pub mod instances;
 pub mod panel;
 pub mod willow;
-mod asset;
 
 pub struct Foliage {
     willow: Willow,

@@ -106,6 +106,7 @@ impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
         }
         let update_needed = self.update_needed;
         self.update_needed = false;
+        self.write_cpu_to_gpu(ginkgo);
         grown || update_needed
     }
     pub fn queue_write<A: Pod + Zeroable + Default + Debug>(&mut self, key: Key, a: A) {

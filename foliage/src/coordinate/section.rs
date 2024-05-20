@@ -58,7 +58,7 @@ impl Section<LogicalContext> {
     }
 }
 impl<Context: CoordinateContext> Section<Context> {
-    pub fn new<C: Into<Position<Context>>, D: Into<Area<Context>>>(p: C, a: D) -> Self {
+    pub fn new<P: Into<Position<Context>>, A: Into<Area<Context>>>(p: P, a: A) -> Self {
         Self {
             position: p.into(),
             area: a.into(),

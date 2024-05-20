@@ -312,7 +312,6 @@ impl Render for Panel {
                 .checked_write(packet.entity, packet.value);
         }
         let should_record = renderer.resource_handle.instances.resolve_changes(ginkgo);
-        renderer.resource_handle.instances.write_cpu_to_gpu(ginkgo); // can combine w/ above?
         should_record
     }
 
