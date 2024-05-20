@@ -22,8 +22,8 @@ use crate::willow::Willow;
 
 #[derive(Default)]
 pub struct Scheduler {
-    pub(crate) startup: Schedule,
-    pub(crate) main: Schedule,
+    pub startup: Schedule,
+    pub main: Schedule,
 }
 
 impl Scheduler {

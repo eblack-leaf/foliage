@@ -28,6 +28,7 @@ pub mod icon;
 pub mod instances;
 pub mod panel;
 pub mod willow;
+mod image;
 
 pub struct Foliage {
     willow: Willow,
