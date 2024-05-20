@@ -141,7 +141,7 @@ pub(crate) const VERTICES: [Vertex; 6] = [
 ];
 impl Render for Icon {
     type DirectiveGroupKey = IconId;
-    const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(1);
+    const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(0);
     type Resources = IconResources;
 
     fn create_resources(ginkgo: &Ginkgo) -> Self::Resources {
@@ -345,6 +345,8 @@ impl Render for Icon {
                 let mut recorder = RenderDirectiveRecorder::new(ginkgo);
                 if group.instances.num_instances() > 0 {
                     recorder.0.set_pipeline(&renderer.resource_handle.pipeline);
+                    recorder.0.set_bind_group(0, &renderer.resource_handle.bind_group, &[]);
+                    recorder.0.set_bind_group(1, &group.bind_group, &[]);
                     recorder
                         .0
                         .set_vertex_buffer(0, renderer.resource_handle.vertex_buffer.slice(..));
