@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs};
-use bevy_ecs::query::Changed;
+use bevy_ecs::query::{Changed, With};
 use bevy_ecs::system::Query;
 use bytemuck::{Pod, Zeroable};
 use wgpu::{
@@ -40,7 +40,9 @@ impl Leaf for Icon {
             .add_systems(icon_scale.in_set(ScheduleMarkers::Config));
     }
 }
-fn icon_scale(mut icons: Query<(&mut Area<LogicalContext>), Changed<Area<LogicalContext>>>) {
+fn icon_scale(
+    mut icons: Query<(&mut Area<LogicalContext>), (Changed<Area<LogicalContext>>, With<IconId>)>,
+) {
     for (mut area) in icons.iter_mut() {
         *area = Area::logical(Icon::SCALE);
     }
@@ -345,7 +347,9 @@ impl Render for Icon {
                 let mut recorder = RenderDirectiveRecorder::new(ginkgo);
                 if group.instances.num_instances() > 0 {
                     recorder.0.set_pipeline(&renderer.resource_handle.pipeline);
-                    recorder.0.set_bind_group(0, &renderer.resource_handle.bind_group, &[]);
+                    recorder
+                        .0
+                        .set_bind_group(0, &renderer.resource_handle.bind_group, &[]);
                     recorder.0.set_bind_group(1, &group.bind_group, &[]);
                     recorder
                         .0

@@ -56,7 +56,9 @@ fn load() {
                 .to_str()
                 .unwrap()
                 .replace(".cov", ".icon");
-            let bytes = std::fs::read(entry.path()).unwrap();
+            let bytes =
+                rmp_serde::from_slice::<Vec<u8>>(std::fs::read(entry.path()).unwrap().as_slice())
+                    .unwrap();
             if size == "24" {
                 twenty_fours.insert(dest.clone(), bytes);
             } else if size == "48" {

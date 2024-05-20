@@ -2,3 +2,6 @@
 members = ["foliage"]
 
 resolver = "2"
+
+[profile.test]
+opt-level = 1
