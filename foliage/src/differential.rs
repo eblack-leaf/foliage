@@ -2,7 +2,7 @@ use std::any::TypeId;
 use std::collections::{HashMap, HashSet};
 
 use bevy_ecs::bundle::Bundle;
-use bevy_ecs::prelude::{Component, Entity};
+use bevy_ecs::prelude::{Component, Entity, RemovedComponents};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Query, ResMut, Resource};
 
@@ -97,4 +97,12 @@ pub(crate) fn differential<D: Component + PartialEq + Clone + Send + Sync + 'sta
         }
     }
 }
-pub struct
+pub(crate) fn removal<R: Component + Send + Sync + 'static>(
+    mut removed: RemovedComponents<R>,
+    mut render_remove_queue: ResMut<RenderRemoveQueue>
+) {
+    for entity in removed.read() {
+        // TODO need render-link to assign so change structure to Despawn::bullshit
+    }
+}
+
