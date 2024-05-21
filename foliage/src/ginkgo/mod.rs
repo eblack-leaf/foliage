@@ -31,6 +31,7 @@ pub mod binding;
 pub mod depth;
 pub mod mips;
 pub mod msaa;
+pub mod texture;
 pub mod viewport;
 
 #[derive(Default)]

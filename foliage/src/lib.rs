@@ -25,10 +25,10 @@ mod differential;
 pub mod elm;
 pub mod ginkgo;
 pub mod icon;
+mod image;
 pub mod instances;
 pub mod panel;
 pub mod willow;
-mod image;
 
 pub struct Foliage {
     willow: Willow,
