@@ -37,17 +37,22 @@ impl<Context: CoordinateContext> Area<Context> {
             _phantom: PhantomData,
         }
     }
-
     pub fn width(&self) -> CoordinateUnit {
         self.coordinates.0[0]
     }
     pub fn height(&self) -> CoordinateUnit {
         self.coordinates.0[1]
     }
-    pub fn min(&self, o: Self) -> Self {
+    pub fn normalized<C: Into<Coordinates>>(self, c: C) -> Self {
+        let c = c.into();
+        Self::new(self.coordinates.normalized(c))
+    }
+    pub fn min<O: Into<Self>>(&self, o: O) -> Self {
+        let o = o.into();
         Self::new((self.width().min(o.width()), self.height().min(o.height())))
     }
-    pub fn max(&self, o: Self) -> Self {
+    pub fn max<O: Into<Self>>(&self, o: O) -> Self {
+        let o = o.into();
         Self::new((self.width().max(o.width()), self.height().max(o.height())))
     }
     pub fn to_numerical(self) -> Area<NumericalContext> {

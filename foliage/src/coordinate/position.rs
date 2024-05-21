@@ -53,10 +53,16 @@ impl<Context: CoordinateContext> Position<Context> {
     pub fn to_numerical(self) -> Position<NumericalContext> {
         Position::numerical((self.x(), self.y()))
     }
-    pub fn min(self, o: Self) -> Self {
+    pub fn normalized<C: Into<Coordinates>>(self, c: C) -> Self {
+        let c = c.into();
+        Self::new(self.coordinates.normalized(c))
+    }
+    pub fn min<O: Into<Self>>(self, o: O) -> Self {
+        let o = o.into();
         Self::new((self.x().min(o.x()), self.y().min(o.y())))
     }
-    pub fn max(self, o: Self) -> Self {
+    pub fn max<O: Into<Self>>(self, o: O) -> Self {
+        let o = o.into();
         Self::new((self.x().max(o.x()), self.y().max(o.y())))
     }
 }

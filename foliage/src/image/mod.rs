@@ -1,28 +1,122 @@
-use crate::ash::{Render, RenderPhase, Renderer};
-use crate::coordinate::layer::Layer;
-use crate::coordinate::section::GpuSection;
-use crate::coordinate::Coordinates;
-use crate::elm::{Elm, RenderQueueHandle};
-use crate::ginkgo::texture::TextureCoordinates;
-use crate::ginkgo::Ginkgo;
-use crate::Leaf;
-use bevy_ecs::bundle::Bundle;
-use bevy_ecs::prelude::Component;
-use bytemuck::{Pod, Zeroable};
 use std::collections::HashMap;
+
+use bevy_ecs::bundle::Bundle;
+use bevy_ecs::entity::Entity;
+use bevy_ecs::prelude::Component;
+use bevy_ecs::query::{Changed, Or, With};
+use bevy_ecs::system::Query;
+use bytemuck::{Pod, Zeroable};
 use wgpu::{
     include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor,
     PipelineLayoutDescriptor, RenderPipeline, RenderPipelineDescriptor, ShaderStages,
     TextureSampleType, TextureView, TextureViewDimension, VertexState, VertexStepMode,
 };
 
+use crate::ash::{Render, RenderPhase, Renderer};
+use crate::coordinate::area::Area;
+use crate::coordinate::layer::Layer;
+use crate::coordinate::section::{GpuSection, Section};
+use crate::coordinate::{Coordinates, LogicalContext};
+use crate::differential::{Differential, RenderLink};
+use crate::elm::{Elm, RenderQueueHandle};
+use crate::ginkgo::texture::TextureCoordinates;
+use crate::ginkgo::Ginkgo;
+use crate::instances::Instances;
+use crate::Leaf;
+
+#[derive(Copy, Clone, Component)]
+pub struct AspectRatio(pub f32);
+impl AspectRatio {
+    pub fn from_dimensions(w: f32, h: f32) -> Self {
+        Self(w / h)
+    }
+    pub fn from_coordinates(c: Coordinates) -> Self {
+        Self(c.horizontal() / c.vertical())
+    }
+    pub fn new(r: f32) -> Self {
+        Self(r)
+    }
+    pub fn constrain(&self, o: Coordinates) -> Coordinates {
+        todo!()
+    }
+}
 #[derive(Bundle)]
 pub struct Image {
-    id: ImageId,
+    link: RenderLink,
+    id: Differential<ImageId>,
+    gpu_section: Differential<GpuSection>,
+    section: Section<LogicalContext>,
+    layer: Differential<Layer>,
+    aspect_ratio: AspectRatio,
+}
+#[derive(Bundle)]
+pub struct ImageFill {
+    link: RenderLink,
+    data: Differential<ImageFillInfo>,
+}
+impl Image {
+    pub fn slot<I: Into<ImageId>, C: Into<Coordinates>>(id: I, c: C) -> ImageSlot {
+        ImageSlot {
+            link: RenderLink::new::<Image>(),
+            extent: Differential::new(ImageSlotInfo(id.into(), c.into())),
+        }
+    }
+    pub fn fill<I: Into<ImageId>, C: Into<Coordinates>>(id: I, data: Vec<u8>, extent: C) -> ImageFill {
+        ImageFill {
+            link: RenderLink::new::<Image>(),
+            data: Differential::new(ImageFillInfo(id.into(), data, extent.into())),
+        }
+    }
+    pub fn instance<
+        I: Into<ImageId>,
+        S: Into<Section<LogicalContext>>,
+        L: Into<Layer>,
+    >(
+        id: I,
+        s: S,
+        l: L,
+    ) -> Self {
+        let s = s.into();
+        Self {
+            link: RenderLink::new::<Image>(),
+            id: Differential::new(id.into()),
+            gpu_section: Differential::new(GpuSection::default()),
+            section: s,
+            layer: Differential::new(l.into()),
+            aspect_ratio: AspectRatio::from_coordinates(s.area.coordinates),
+        }
+    }
+    pub fn with_aspect_ratio(mut self, a: AspectRatio) -> Self {
+        self.aspect_ratio = a;
+        self
+    }
+}
+fn constrain(
+    mut images: Query<
+        (&AspectRatio, &mut Area<LogicalContext>),
+        (With<ImageId>, Or<(Changed<AspectRatio>, Changed<Area<LogicalContext>>)>),
+    >,
+) {
+    for (ratio, mut area) in images.iter_mut() {
+        area.coordinates = ratio.constrain(area.coordinates);
+    }
+}
+#[derive(Component, Clone, PartialEq)]
+pub struct ImageFillInfo(pub ImageId, pub Vec<u8>, pub Coordinates);
+#[derive(Component, Clone, PartialEq)]
+pub struct ImageSlotInfo(pub ImageId, pub Coordinates);
+#[derive(Bundle)]
+pub struct ImageSlot {
+    link: RenderLink,
+    extent: Differential<ImageSlotInfo>,
 }
 impl Leaf for Image {
     fn attach(elm: &mut Elm) {
-        todo!()
+        elm.enable_differential::<Self, ImageId>();
+        elm.enable_differential::<Self, GpuSection>();
+        elm.enable_differential::<Self, Layer>();
+        elm.enable_differential::<Self, ImageFillInfo>();
+        elm.enable_differential::<Self, ImageSlotInfo>();
     }
 }
 #[repr(C)]
@@ -53,11 +147,15 @@ pub struct ImageResources {
     vertex_buffer: wgpu::Buffer,
     bind_group: BindGroup,
     group_layout: BindGroupLayout,
-    images: HashMap<ImageId, ImageGroup>,
+    groups: HashMap<ImageId, ImageGroup>,
+    entity_to_image: HashMap<Entity, ImageId>,
 }
 pub(crate) struct ImageGroup {
     view: TextureView,
     bind_group: BindGroup,
+    instances: Instances<Entity>,
+    extent: Coordinates,
+    texture_coordinates: TextureCoordinates,
 }
 impl Render for Image {
     type DirectiveGroupKey = ImageId;
@@ -141,7 +239,8 @@ impl Render for Image {
             vertex_buffer: ginkgo.create_vertex_buffer(VERTICES),
             bind_group,
             group_layout,
-            images: HashMap::new(),
+            groups: HashMap::new(),
+            entity_to_image: Default::default(),
         }
     }
 
@@ -150,7 +249,31 @@ impl Render for Image {
         queue_handle: &mut RenderQueueHandle,
         ginkgo: &Ginkgo,
     ) -> bool {
-        todo!()
+        for packet in queue_handle.read_removes::<Self>() {
+            let id = renderer.resource_handle.entity_to_image.remove(&packet);
+            if let Some(id) = id {
+                renderer.resource_handle.groups.get_mut(&id).unwrap().instances.remove(packet);
+            }
+        }
+        for packet in queue_handle.read_adds::<Self, ImageSlotInfo>() {
+            // create group with packet.id
+            // save texture extent with packet.id
+        }
+        for packet in queue_handle.read_adds::<Self, ImageFillInfo>() {
+            // fill group @ packet.id
+            // set tx-coordinates for packet.id
+        }
+        for packet in queue_handle.read_adds::<Self, ImageId>() {
+            // add instance of packet.entity to group @ packet.value
+        }
+        // ... other attributes
+        for packet in queue_handle.read_adds::<Self, GpuSection>() {
+            // checked write
+        }
+        for packet in queue_handle.read_adds::<Self, Layer>() {
+            // checked write
+        }
+        true
     }
 
     fn record(renderer: &mut Renderer<Self>, ginkgo: &Ginkgo) {

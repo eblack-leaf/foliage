@@ -97,3 +97,4 @@ pub(crate) fn differential<D: Component + PartialEq + Clone + Send + Sync + 'sta
         }
     }
 }
+pub struct

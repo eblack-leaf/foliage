@@ -91,6 +91,13 @@ impl<Context: CoordinateContext> Section<Context> {
     pub fn contacts(&self, o: Self) -> bool {
         todo!()
     }
+    pub fn normalized<C: Into<Coordinates>>(&self, c: C) -> Self {
+        let c = c.into();
+        Self::new(
+            self.position.coordinates.normalized(c),
+            self.area.coordinates.normalized(c),
+        )
+    }
     pub fn min(self, o: Self) -> Self {
         Self::new(
             self.position.min(o.position).coordinates,

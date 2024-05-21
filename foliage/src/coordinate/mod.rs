@@ -54,6 +54,13 @@ impl Coordinates {
     pub const fn vertical(&self) -> CoordinateUnit {
         self.0[1]
     }
+    pub fn normalized<C: Into<Coordinates>>(&self, c: C) -> Self {
+        let c = c.into();
+        Self::new(
+            self.horizontal() / c.horizontal(),
+            self.vertical() / c.vertical(),
+        )
+    }
 }
 
 impl Default for Coordinates {
