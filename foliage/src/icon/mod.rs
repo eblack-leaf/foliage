@@ -41,9 +41,9 @@ impl Leaf for Icon {
     }
 }
 fn icon_scale(
-    mut icons: Query<(&mut Area<LogicalContext>), (Changed<Area<LogicalContext>>, With<IconId>)>,
+    mut icons: Query<&mut Area<LogicalContext>, (Changed<Area<LogicalContext>>, With<IconId>)>,
 ) {
-    for (mut area) in icons.iter_mut() {
+    for mut area in icons.iter_mut() {
         *area = Area::logical(Icon::SCALE);
     }
 }

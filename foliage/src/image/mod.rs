@@ -303,8 +303,6 @@ impl Render for Image {
             renderer.resource_handle.groups.insert(
                 packet.value.0,
                 ImageGroup {
-                    tex,
-                    view,
                     bind_group: ginkgo.create_bind_group(&BindGroupDescriptor {
                         label: Some("image-group-bind-group"),
                         layout: &renderer.resource_handle.group_layout,
@@ -318,6 +316,8 @@ impl Render for Image {
                     image_extent: Default::default(),
                     texture_coordinates: Default::default(),
                     should_record: false,
+                    tex,
+                    view,
                 },
             );
         }

@@ -70,7 +70,8 @@ impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
     }
     pub fn clear(&mut self) -> Vec<Key> {
         let mut removed = vec![];
-        for e in self.order.iter().cloned() {
+        let cloned = self.order.clone();
+        for e in cloned {
             removed.push(e);
             self.remove(e);
         }
