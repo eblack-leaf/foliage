@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::Component;
+use bevy_ecs::prelude::{Component, IntoSystemConfigs};
 use bevy_ecs::query::{Changed, Or, With};
 use bevy_ecs::system::Query;
 use bytemuck::{Pod, Zeroable};
@@ -19,7 +19,7 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::section::{GpuSection, Section};
 use crate::coordinate::{Coordinates, LogicalContext};
 use crate::differential::{Differential, RenderLink};
-use crate::elm::{Elm, RenderQueueHandle};
+use crate::elm::{Elm, RenderQueueHandle, ScheduleMarkers};
 use crate::ginkgo::texture::TextureCoordinates;
 use crate::ginkgo::Ginkgo;
 use crate::instances::Instances;
@@ -118,6 +118,9 @@ impl Leaf for Image {
         elm.enable_differential::<Self, Layer>();
         elm.enable_differential::<Self, ImageFill>();
         elm.enable_differential::<Self, ImageSlotDescriptor>();
+        elm.scheduler
+            .main
+            .add_systems(constrain.in_set(ScheduleMarkers::Config));
     }
 }
 #[repr(C)]
@@ -159,6 +162,7 @@ pub(crate) struct ImageGroup {
     slot_extent: Coordinates,
     image_extent: Coordinates,
     texture_coordinates: TextureCoordinates,
+    should_record: bool,
 }
 impl Render for Image {
     type DirectiveGroupKey = ImageSlotId;
@@ -284,6 +288,7 @@ impl Render for Image {
                     slot_extent: packet.value.1,
                     image_extent: Default::default(),
                     texture_coordinates: Default::default(),
+                    should_record: false,
                 },
             );
         }
@@ -391,7 +396,14 @@ impl Render for Image {
                 .instances
                 .checked_write(packet.entity, packet.value);
         }
-        true
+        let mut should_record = false;
+        for (_, group) in renderer.resource_handle.groups.iter_mut() {
+            if group.instances.resolve_changes(ginkgo) {
+                should_record = true;
+                group.should_record = true;
+            }
+        }
+        should_record
     }
 
     fn record(renderer: &mut Renderer<Self>, ginkgo: &Ginkgo) {
