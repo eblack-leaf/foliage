@@ -68,6 +68,14 @@ impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
         }));
         self
     }
+    pub fn clear(&mut self) -> Vec<Key> {
+        let mut removed = vec![];
+        for e in self.order.iter().cloned() {
+            removed.push(e);
+            self.remove(e);
+        }
+        return removed;
+    }
     pub fn remove(&mut self, key: Key) {
         let index = self.map.remove(&key).expect("not-found");
         self.order.remove(index);

@@ -99,10 +99,9 @@ pub(crate) fn differential<D: Component + PartialEq + Clone + Send + Sync + 'sta
 }
 pub(crate) fn removal<R: Component + Send + Sync + 'static>(
     mut removed: RemovedComponents<R>,
-    mut render_remove_queue: ResMut<RenderRemoveQueue>
+    mut render_remove_queue: ResMut<RenderRemoveQueue>,
 ) {
     for entity in removed.read() {
         // TODO need render-link to assign so change structure to Despawn::bullshit
     }
 }
-
