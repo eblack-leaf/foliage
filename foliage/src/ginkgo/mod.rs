@@ -61,8 +61,8 @@ impl Ginkgo {
     }
     pub fn vertex_buffer_layout<A: Pod + Zeroable>(
         step: VertexStepMode,
-        attrs: &'static [VertexAttribute],
-    ) -> VertexBufferLayout<'static> {
+        attrs: &[VertexAttribute],
+    ) -> VertexBufferLayout {
         VertexBufferLayout {
             array_stride: Ginkgo::memory_size::<A>(1),
             step_mode: step,

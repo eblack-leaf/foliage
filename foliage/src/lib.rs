@@ -15,6 +15,7 @@ use crate::coordinate::{Coordinates, DeviceContext};
 use crate::elm::Elm;
 use crate::ginkgo::Ginkgo;
 use crate::icon::Icon;
+use crate::image::Image;
 use crate::panel::Panel;
 
 pub mod ash;
@@ -25,7 +26,7 @@ mod differential;
 pub mod elm;
 pub mod ginkgo;
 pub mod icon;
-mod image;
+pub mod image;
 pub mod instances;
 pub mod panel;
 pub mod willow;
@@ -252,5 +253,7 @@ impl Leaves for CoreLeaves {
         foliage.attach_leaf::<Coordinates>();
         foliage.attach_leaf::<Icon>();
         foliage.add_renderer::<Icon>();
+        foliage.attach_leaf::<Image>();
+        foliage.add_renderer::<Image>();
     }
 }

@@ -7,22 +7,22 @@ use bevy_ecs::query::{Changed, Or, With};
 use bevy_ecs::system::Query;
 use bytemuck::{Pod, Zeroable};
 use wgpu::{
-    BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, Extent3d,
-    ImageCopyTexture, ImageDataLayout, include_wgsl, Origin3d, PipelineLayoutDescriptor,
+    include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor,
+    Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, PipelineLayoutDescriptor,
     RenderPipeline, RenderPipelineDescriptor, ShaderStages, Texture, TextureAspect, TextureFormat,
     TextureSampleType, TextureView, TextureViewDimension, VertexState, VertexStepMode,
 };
 
-use crate::ash::{Render, RenderDirectiveRecorder, Renderer, RenderPhase};
-use crate::coordinate::{Coordinates, LogicalContext};
+use crate::ash::{Render, RenderDirectiveRecorder, RenderPhase, Renderer};
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::{GpuSection, Section};
+use crate::coordinate::{Coordinates, LogicalContext};
 use crate::differential::{Differential, RenderLink};
 use crate::elm::{Elm, RenderQueueHandle, ScheduleMarkers};
-use crate::ginkgo::Ginkgo;
 use crate::ginkgo::texture::TextureCoordinates;
+use crate::ginkgo::Ginkgo;
 use crate::instances::Instances;
 use crate::Leaf;
 
@@ -67,12 +67,7 @@ impl Image {
             extent: Differential::new(ImageSlotDescriptor(id.into(), c.into())),
         }
     }
-    pub fn new<
-        I: Into<ImageSlotId>,
-        S: Into<Section<LogicalContext>>,
-        L: Into<Layer>,
-        C: Into<Coordinates>,
-    >(
+    pub fn new<I: Into<ImageSlotId>, S: Into<Section<LogicalContext>>, L: Into<Layer>>(
         id: I,
         s: S,
         l: L,
@@ -175,6 +170,11 @@ pub(crate) const VERTICES: [Vertex; 6] = [
 ];
 #[derive(Copy, Clone, Component, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct ImageSlotId(pub i32);
+impl From<i32> for ImageSlotId {
+    fn from(value: i32) -> Self {
+        Self(value)
+    }
+}
 pub struct ImageResources {
     pipeline: RenderPipeline,
     vertex_buffer: wgpu::Buffer,
@@ -195,7 +195,7 @@ pub(crate) struct ImageGroup {
 }
 impl Render for Image {
     type DirectiveGroupKey = ImageSlotId;
-    const RENDER_PHASE: RenderPhase = RenderPhase::Opaque;
+    const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(2);
     type Resources = ImageResources;
 
     fn create_resources(ginkgo: &Ginkgo) -> Self::Resources {
@@ -244,19 +244,19 @@ impl Render for Image {
                 buffers: &[
                     Ginkgo::vertex_buffer_layout::<Vertex>(
                         VertexStepMode::Vertex,
-                        &wgpu::vertex_attr_array![0 => Float32x4],
+                        &wgpu::vertex_attr_array![0 => Float32x2, 1 => Uint32x2],
                     ),
                     Ginkgo::vertex_buffer_layout::<GpuSection>(
                         VertexStepMode::Instance,
-                        &wgpu::vertex_attr_array![1 => Float32x4],
+                        &wgpu::vertex_attr_array![2 => Float32x4],
                     ),
                     Ginkgo::vertex_buffer_layout::<Layer>(
                         VertexStepMode::Instance,
-                        &wgpu::vertex_attr_array![2 => Float32],
+                        &wgpu::vertex_attr_array![3 => Float32],
                     ),
                     Ginkgo::vertex_buffer_layout::<TextureCoordinates>(
                         VertexStepMode::Instance,
-                        &wgpu::vertex_attr_array![3 => Float32x4],
+                        &wgpu::vertex_attr_array![4 => Float32x4],
                     ),
                 ],
             },
@@ -298,8 +298,16 @@ impl Render for Image {
             }
         }
         for packet in queue_handle.read_adds::<Self, ImageSlotDescriptor>() {
-            let (tex, view) =
-                ginkgo.create_texture(TextureFormat::Rgba32Float, packet.value.1, 1, &[]);
+            let (tex, view) = ginkgo.create_texture(
+                TextureFormat::Rgba32Float,
+                packet.value.1,
+                1,
+                bytemuck::cast_slice(&vec![
+                    0f32;
+                    4 * packet.value.1.horizontal() as usize
+                        * packet.value.1.vertical() as usize
+                ]),
+            );
             renderer.resource_handle.groups.insert(
                 packet.value.0,
                 ImageGroup {
