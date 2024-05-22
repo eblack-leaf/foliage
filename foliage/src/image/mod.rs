@@ -151,22 +151,22 @@ impl Leaf for Image {
 #[derive(Pod, Zeroable, Copy, Clone, Default)]
 pub struct Vertex {
     position: Coordinates,
-    tx_index: Coordinates,
+    tx_index: [u32; 2],
 }
 
 impl Vertex {
-    pub(crate) const fn new(position: Coordinates, tx_index: Coordinates) -> Self {
+    pub(crate) const fn new(position: Coordinates, tx_index: [u32; 2]) -> Self {
         Self { position, tx_index }
     }
 }
 
 pub(crate) const VERTICES: [Vertex; 6] = [
-    Vertex::new(Coordinates::new(1f32, 0f32), Coordinates::new(0f32, 2f32)),
-    Vertex::new(Coordinates::new(0f32, 0f32), Coordinates::new(0f32, 1f32)),
-    Vertex::new(Coordinates::new(0f32, 1f32), Coordinates::new(0f32, 3f32)),
-    Vertex::new(Coordinates::new(1f32, 0f32), Coordinates::new(0f32, 2f32)),
-    Vertex::new(Coordinates::new(0f32, 1f32), Coordinates::new(0f32, 3f32)),
-    Vertex::new(Coordinates::new(1f32, 1f32), Coordinates::new(2f32, 3f32)),
+    Vertex::new(Coordinates::new(1f32, 0f32), [2, 1]),
+    Vertex::new(Coordinates::new(0f32, 0f32), [0, 1]),
+    Vertex::new(Coordinates::new(0f32, 1f32), [0, 3]),
+    Vertex::new(Coordinates::new(1f32, 0f32), [2, 1]),
+    Vertex::new(Coordinates::new(0f32, 1f32), [0, 3]),
+    Vertex::new(Coordinates::new(1f32, 1f32), [2, 3]),
 ];
 #[derive(Copy, Clone, Component, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct ImageSlotId(pub i32);
