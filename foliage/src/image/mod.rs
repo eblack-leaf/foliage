@@ -195,7 +195,7 @@ pub(crate) struct ImageGroup {
 }
 impl Render for Image {
     type DirectiveGroupKey = ImageSlotId;
-    const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(2);
+    const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(1);
     type Resources = ImageResources;
 
     fn create_resources(ginkgo: &Ginkgo) -> Self::Resources {

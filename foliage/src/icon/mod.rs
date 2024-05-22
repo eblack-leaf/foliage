@@ -143,7 +143,7 @@ pub(crate) const VERTICES: [Vertex; 6] = [
 ];
 impl Render for Icon {
     type DirectiveGroupKey = IconId;
-    const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(0);
+    const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(2);
     type Resources = IconResources;
 
     fn create_resources(ginkgo: &Ginkgo) -> Self::Resources {
