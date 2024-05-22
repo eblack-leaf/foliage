@@ -7,21 +7,22 @@ use bevy_ecs::query::{Changed, Or, With};
 use bevy_ecs::system::Query;
 use bytemuck::{Pod, Zeroable};
 use wgpu::{
-    include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor,
-    Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, PipelineLayoutDescriptor,
+    BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, Extent3d,
+    ImageCopyTexture, ImageDataLayout, include_wgsl, Origin3d, PipelineLayoutDescriptor,
     RenderPipeline, RenderPipelineDescriptor, ShaderStages, Texture, TextureAspect, TextureFormat,
     TextureSampleType, TextureView, TextureViewDimension, VertexState, VertexStepMode,
 };
 
-use crate::ash::{Render, RenderPhase, Renderer};
+use crate::ash::{Render, RenderDirectiveRecorder, Renderer, RenderPhase};
+use crate::coordinate::{Coordinates, LogicalContext};
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
+use crate::coordinate::position::Position;
 use crate::coordinate::section::{GpuSection, Section};
-use crate::coordinate::{Coordinates, LogicalContext};
 use crate::differential::{Differential, RenderLink};
 use crate::elm::{Elm, RenderQueueHandle, ScheduleMarkers};
-use crate::ginkgo::texture::TextureCoordinates;
 use crate::ginkgo::Ginkgo;
+use crate::ginkgo::texture::TextureCoordinates;
 use crate::instances::Instances;
 use crate::Leaf;
 
@@ -41,6 +42,11 @@ impl AspectRatio {
         todo!()
     }
 }
+impl From<f32> for AspectRatio {
+    fn from(value: f32) -> Self {
+        Self::new(value)
+    }
+}
 #[derive(Bundle)]
 pub struct Image {
     link: RenderLink,
@@ -48,6 +54,10 @@ pub struct Image {
     gpu_section: Differential<GpuSection>,
     section: Section<LogicalContext>,
     layer: Differential<Layer>,
+}
+#[derive(Bundle)]
+pub struct AspectRatioImage {
+    image: Image,
     aspect_ratio: AspectRatio,
 }
 impl Image {
@@ -57,7 +67,7 @@ impl Image {
             extent: Differential::new(ImageSlotDescriptor(id.into(), c.into())),
         }
     }
-    pub fn fill<
+    pub fn new<
         I: Into<ImageSlotId>,
         S: Into<Section<LogicalContext>>,
         L: Into<Layer>,
@@ -82,25 +92,44 @@ impl Image {
             gpu_section: Differential::new(GpuSection::default()),
             section: s,
             layer: Differential::new(l.into()),
-            aspect_ratio: AspectRatio::from_coordinates(dimensions),
         }
     }
-    pub fn with_aspect_ratio(mut self, a: AspectRatio) -> Self {
-        self.aspect_ratio = a;
-        self
+    pub fn with_aspect_ratio<A: Into<AspectRatio>>(mut self, a: A) -> AspectRatioImage {
+        AspectRatioImage {
+            aspect_ratio: a.into(),
+            image: self,
+        }
+    }
+    pub fn inherit_aspect_ratio(mut self) -> AspectRatioImage {
+        AspectRatioImage {
+            aspect_ratio: AspectRatio::from_coordinates(self.fill.component.2),
+            image: self,
+        }
     }
 }
+
 fn constrain(
     mut images: Query<
-        (&AspectRatio, &mut Area<LogicalContext>),
+        (
+            &AspectRatio,
+            &mut Position<LogicalContext>,
+            &mut Area<LogicalContext>,
+        ),
         (
             With<ImageFill>,
-            Or<(Changed<AspectRatio>, Changed<Area<LogicalContext>>)>,
+            Or<(
+                Changed<AspectRatio>,
+                Changed<Area<LogicalContext>>,
+                Changed<Position<LogicalContext>>,
+            )>,
         ),
     >,
 ) {
-    for (ratio, mut area) in images.iter_mut() {
-        area.coordinates = ratio.constrain(area.coordinates);
+    for (ratio, mut pos, mut area) in images.iter_mut() {
+        let old = area.coordinates;
+        let new = ratio.constrain(area.coordinates);
+        area.coordinates = new;
+        pos.coordinates = pos.coordinates + (old - new) / 2f32;
     }
 }
 #[derive(Component, Clone, PartialEq)]
@@ -407,6 +436,35 @@ impl Render for Image {
     }
 
     fn record(renderer: &mut Renderer<Self>, ginkgo: &Ginkgo) {
-        todo!()
+        for (slot_id, group) in renderer.resource_handle.groups.iter_mut() {
+            if group.should_record {
+                let mut recorder = RenderDirectiveRecorder::new(ginkgo);
+                if group.instances.num_instances() > 0 {
+                    recorder.0.set_pipeline(&renderer.resource_handle.pipeline);
+                    recorder
+                        .0
+                        .set_bind_group(0, &renderer.resource_handle.bind_group, &[]);
+                    recorder.0.set_bind_group(1, &group.bind_group, &[]);
+                    recorder
+                        .0
+                        .set_vertex_buffer(0, renderer.resource_handle.vertex_buffer.slice(..));
+                    recorder
+                        .0
+                        .set_vertex_buffer(1, group.instances.buffer::<GpuSection>().slice(..));
+                    recorder
+                        .0
+                        .set_vertex_buffer(2, group.instances.buffer::<Layer>().slice(..));
+                    recorder.0.set_vertex_buffer(
+                        3,
+                        group.instances.buffer::<TextureCoordinates>().slice(..),
+                    );
+                    recorder
+                        .0
+                        .draw(0..VERTICES.len() as u32, 0..group.instances.num_instances());
+                }
+                renderer.directive_manager.fill(*slot_id, recorder.finish());
+                group.should_record = false;
+            }
+        }
     }
 }

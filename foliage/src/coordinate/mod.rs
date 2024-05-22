@@ -3,6 +3,7 @@ use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Query, Res};
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
+use std::ops::{Add, Div, Sub};
 
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
@@ -132,5 +133,35 @@ fn coordinate_resolve(
     for (mut gpu, pos, area) in placed_pos.iter_mut() {
         gpu.pos = pos.to_device(scale_factor.value()).to_gpu();
         gpu.area = area.to_device(scale_factor.value()).to_gpu();
+    }
+}
+
+impl Sub for Coordinates {
+    type Output = Coordinates;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Coordinates::new(
+            self.horizontal() - rhs.horizontal(),
+            self.vertical() - rhs.vertical(),
+        )
+    }
+}
+
+impl Div<f32> for Coordinates {
+    type Output = Coordinates;
+
+    fn div(self, rhs: f32) -> Self::Output {
+        Coordinates::new(self.horizontal() / rhs, self.vertical() / rhs)
+    }
+}
+
+impl Add for Coordinates {
+    type Output = Coordinates;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Coordinates::new(
+            self.horizontal() + rhs.horizontal(),
+            self.vertical() + rhs.vertical(),
+        )
     }
 }
