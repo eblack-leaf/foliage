@@ -94,13 +94,13 @@ impl Image {
             layer: Differential::new(l.into()),
         }
     }
-    pub fn with_aspect_ratio<A: Into<AspectRatio>>(mut self, a: A) -> AspectRatioImage {
+    pub fn with_aspect_ratio<A: Into<AspectRatio>>(self, a: A) -> AspectRatioImage {
         AspectRatioImage {
             aspect_ratio: a.into(),
             image: self,
         }
     }
-    pub fn inherit_aspect_ratio(mut self) -> AspectRatioImage {
+    pub fn inherit_aspect_ratio(self) -> AspectRatioImage {
         AspectRatioImage {
             aspect_ratio: AspectRatio::from_coordinates(self.fill.component.2),
             image: self,
