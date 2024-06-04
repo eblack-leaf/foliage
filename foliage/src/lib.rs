@@ -29,6 +29,7 @@ pub mod icon;
 pub mod image;
 pub mod instances;
 pub mod panel;
+mod signal;
 pub mod willow;
 
 pub struct Foliage {
