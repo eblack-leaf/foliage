@@ -30,6 +30,17 @@ pub(crate) fn signaled_clean(
         }
     }
 }
+// #[derive(Component)]
+// pub struct SignalFilter {
+//     // predicate stuff
+// }
+// pub(crate) fn filter_signals(
+//     mut signals: Query<(&mut Signal, &SignalFilter), Changed<Signal>>
+// ) {
+//     for (mut signal, filter) in signals.iter_mut() {
+//         // match predicate and adjust signal accordingly
+//     }
+// }
 pub(crate) fn clear_signal(mut signals: Query<(&mut Signal), Changed<Signal>>) {
     for mut signal in signals.iter_mut() {
         *signal = Signal::default();
