@@ -9,49 +9,51 @@ impl Signal {
     pub fn neutral(&self) -> bool {
         self.message == 0
     }
-    pub fn low(&self) -> bool {
+    pub fn clean(&self) -> bool {
         self.message == 1
     }
-    pub fn high(&self) -> bool {
+    pub fn spawn(&self) -> bool {
         self.message == 2
     }
 }
+#[derive(Bundle)]
+pub(crate) struct Signaler {
+    signal: Signal,
+    target: TriggerTarget,
+}
+impl Signaler {
+    pub(crate) fn new(target: TriggerTarget) -> Self {
+        Self {
+            signal: Default::default(),
+            target,
+        }
+    }
+}
 #[derive(Component)]
-pub struct TriggerTarget(pub Entity);
+pub struct TriggerTarget(pub(crate) Entity);
 #[derive(Component)]
-pub struct TriggeredBundle<B: Bundle + 'static + Send + Sync + Clone>(pub B);
+pub struct TriggeredAttribute<B: Bundle + 'static + Send + Sync + Clone>(pub B);
 pub(crate) fn signaled_clean(
     mut to_clean: Query<(&mut Signal, &TriggerTarget), Changed<Signal>>,
     mut cmd: Commands,
 ) {
     for (mut signal, target) in to_clean.iter_mut() {
-        if signal.low() {
+        if signal.clean() {
             cmd.entity(target.0).insert(Clean::should_clean());
         }
     }
 }
-// #[derive(Component)]
-// pub struct SignalFilter {
-//     // predicate stuff
-// }
-// pub(crate) fn filter_signals(
-//     mut signals: Query<(&mut Signal, &SignalFilter), Changed<Signal>>
-// ) {
-//     for (mut signal, filter) in signals.iter_mut() {
-//         // match predicate and adjust signal accordingly
-//     }
-// }
 pub(crate) fn clear_signal(mut signals: Query<(&mut Signal), Changed<Signal>>) {
     for mut signal in signals.iter_mut() {
         *signal = Signal::default();
     }
 }
 pub(crate) fn signaled_spawn<B: Bundle + 'static + Send + Sync + Clone>(
-    to_spawn: Query<(&Signal, &TriggeredBundle<B>, &TriggerTarget), Changed<Signal>>,
+    to_spawn: Query<(&Signal, &TriggeredAttribute<B>, &TriggerTarget), Changed<Signal>>,
     mut cmd: Commands,
 ) {
     for (signal, bundle, target) in to_spawn.iter() {
-        if signal.high() {
+        if signal.spawn() {
             cmd.entity(target.0).insert(bundle.0.clone());
         }
     }

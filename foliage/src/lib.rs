@@ -17,19 +17,23 @@ use crate::ginkgo::Ginkgo;
 use crate::icon::Icon;
 use crate::image::Image;
 use crate::panel::Panel;
+use crate::signal::{Signaler, TriggerTarget};
+use crate::view::{Stage, View, ViewHandle, ViewStage};
 
 pub mod ash;
-mod asset;
+pub mod asset;
 pub mod color;
 pub mod coordinate;
 mod differential;
 pub mod elm;
 pub mod ginkgo;
+pub mod grid;
 pub mod icon;
 pub mod image;
 pub mod instances;
 pub mod panel;
-mod signal;
+pub mod signal;
+pub mod view;
 pub mod willow;
 
 pub struct Foliage {
@@ -81,10 +85,21 @@ impl Foliage {
     pub fn add_renderer<R: Render>(&mut self) {
         self.ash.add_renderer::<R>();
     }
-    pub fn spawn<B: Bundle>(&mut self, b: B) -> Entity {
-        self.elm.ecs.world.spawn(b).id()
+    pub fn create_view(&mut self) -> ViewConfig {
+        let handle = self.elm.ecs.world.spawn(View::new()).id();
+        // add placement + default components???
+        ViewConfig {
+            root: handle,
+            reference: &mut self.elm,
+        }
     }
-    pub fn run(mut self) {
+    pub fn view(&mut self, vh: ViewHandle) -> ViewReference {
+        ViewReference {
+            root: vh.0,
+            reference: &mut self.elm,
+        }
+    }
+    pub fn run(self) {
         cfg_if::cfg_if! {
             if #[cfg(target_family = "wasm")] {
                 wasm_bindgen_futures::spawn_local(self.internal_run());
@@ -125,7 +140,105 @@ impl Foliage {
         }
     }
 }
-
+pub struct ViewConfig<'a> {
+    root: Entity,
+    reference: &'a mut Elm,
+}
+impl<'a> ViewConfig<'a> {
+    pub fn template(mut self) -> Self {
+        self
+    }
+    pub fn padding(mut self) -> Self {
+        self
+    }
+    pub fn handle(self) -> ViewHandle {
+        ViewHandle(self.root)
+    }
+}
+pub struct ViewReference<'a> {
+    root: Entity,
+    reference: &'a mut Elm,
+}
+pub struct TargetReference<'a> {
+    root: Entity,
+    this: Entity,
+    reference: &'a mut Elm,
+}
+pub struct StageReference<'a> {
+    root: Entity,
+    reference: &'a mut Elm,
+    stage: Stage,
+}
+pub struct SignalReference<'a> {
+    root: Entity,
+    this: Entity,
+    reference: &'a mut Elm,
+    stage: Stage,
+}
+impl<'a> StageReference<'a> {
+    pub fn add_signal(mut self, target: TriggerTarget) -> SignalReference<'a> {
+        let signal = self.reference.ecs.world.spawn(Signaler::new(target)).id();
+        SignalReference {
+            root: self.root,
+            this: signal,
+            reference: self.reference,
+            stage: self.stage,
+        }
+    }
+}
+impl<'a> SignalReference<'a> {
+    pub fn with_attribute<A: Bundle + 'static + Clone + Send + Sync>(mut self, a: A) -> Self {
+        self
+    }
+    pub fn with_transition(mut self) -> Self {
+        self
+    }
+    pub fn filtered(mut self) -> Self {
+        self
+    }
+}
+impl<'a> TargetReference<'a> {
+    pub fn handle(self) -> TriggerTarget {
+        TriggerTarget(self.this)
+    }
+}
+impl<'a> ViewReference<'a> {
+    pub fn add_target(mut self) -> TargetReference<'a> {
+        let target = self.reference.ecs.world.spawn_empty().id();
+        TargetReference {
+            root: self.root,
+            this: target,
+            reference: self.reference,
+        }
+    }
+    pub fn create_stage(&mut self) -> Stage {
+        let stage = self
+            .reference
+            .ecs
+            .world
+            .entity(self.root)
+            .get::<View>()
+            .expect("no-view")
+            .stages
+            .len();
+        self.reference
+            .ecs
+            .world
+            .entity_mut(self.root)
+            .get_mut::<View>()
+            .expect("no-view")
+            .stages
+            .push(ViewStage::default());
+        Stage(stage as i32)
+    }
+    pub fn stage(&mut self, stage: Stage) -> StageReference {
+        StageReference {
+            root: self.root,
+            stage,
+            reference: self.reference,
+        }
+    }
+}
 impl ApplicationHandler for Foliage {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         #[cfg(not(target_family = "wasm"))]
