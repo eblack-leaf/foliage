@@ -18,7 +18,7 @@ use crate::icon::Icon;
 use crate::image::Image;
 use crate::panel::Panel;
 use crate::signal::{Signaler, TriggerTarget};
-use crate::view::{Stage, View, ViewHandle, ViewStage};
+use crate::view::{SignalHandle, Stage, View, ViewHandle, ViewStage};
 
 pub mod ash;
 pub mod asset;
@@ -178,6 +178,16 @@ pub struct SignalReference<'a> {
 impl<'a> StageReference<'a> {
     pub fn add_signal(mut self, target: TriggerTarget) -> SignalReference<'a> {
         let signal = self.reference.ecs.world.spawn(Signaler::new(target)).id();
+        self.reference
+            .ecs
+            .world
+            .get_mut::<View>(self.root)
+            .expect("no-view")
+            .stages
+            .get_mut(self.stage.0 as usize)
+            .expect("invalid-stage")
+            .signals
+            .push(SignalHandle::new(signal));
         SignalReference {
             root: self.root,
             this: signal,
@@ -205,6 +215,13 @@ impl<'a> TargetReference<'a> {
 impl<'a> ViewReference<'a> {
     pub fn add_target(mut self) -> TargetReference<'a> {
         let target = self.reference.ecs.world.spawn_empty().id();
+        self.reference
+            .ecs
+            .world
+            .get_mut::<View>(self.root)
+            .expect("no-view")
+            .targets
+            .insert(TriggerTarget(target));
         TargetReference {
             root: self.root,
             this: target,

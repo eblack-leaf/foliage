@@ -29,7 +29,7 @@ impl Signaler {
         }
     }
 }
-#[derive(Component)]
+#[derive(Component, Hash, Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
 pub struct TriggerTarget(pub(crate) Entity);
 #[derive(Component)]
 pub struct TriggeredAttribute<B: Bundle + 'static + Send + Sync + Clone>(pub B);
