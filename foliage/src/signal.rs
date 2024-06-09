@@ -43,7 +43,7 @@ pub(crate) fn signaled_clean(
         }
     }
 }
-pub(crate) fn clear_signal(mut signals: Query<(&mut Signal), Changed<Signal>>) {
+pub(crate) fn clear_signal(mut signals: Query<&mut Signal, Changed<Signal>>) {
     for mut signal in signals.iter_mut() {
         *signal = Signal::default();
     }
