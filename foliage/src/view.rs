@@ -11,7 +11,7 @@ pub struct Stage(pub(crate) i32);
 #[derive(Component)]
 pub struct View {
     pub(crate) stages: Vec<ViewStage>,
-    current: Stage,
+    pub(crate) current: Stage,
     pub(crate) targets: HashSet<TriggerTarget>,
 }
 impl View {
@@ -47,9 +47,9 @@ pub struct SignalHandle {
 }
 #[derive(Component, Eq, PartialEq, Copy, Clone)]
 pub enum SignalConfirmation {
-    Engaged,// switch to engaged on stage-change for each target
-    Neutral,// will need to attempt to set confirmed
-    Confirmed,// and if transition still running => set back to engaged
+    Engaged,   // switch to engaged on stage-change for each target
+    Neutral,   // will need to attempt to set confirmed
+    Confirmed, // and if transition still running => set back to engaged
 }
 pub(crate) fn signal_confirmation(
     mut views: Query<&mut View>,
