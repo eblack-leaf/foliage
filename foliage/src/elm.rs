@@ -1,3 +1,4 @@
+use bevy_ecs::bundle::Bundle;
 use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 
@@ -60,7 +61,14 @@ impl<D> Default for DifferentialScheduleLimiter<D> {
         Self(PhantomData)
     }
 }
+#[derive(Resource)]
+pub(crate) struct SignalLimiter<D>(PhantomData<D>);
 
+impl<D> Default for SignalLimiter<D> {
+    fn default() -> Self {
+        Self(PhantomData)
+    }
+}
 impl Elm {
     pub fn enable_differential<R: Render, D: Component + PartialEq + Clone>(&mut self) {
         if !self
@@ -96,6 +104,14 @@ impl Elm {
     }
     pub(crate) fn initialized(&self) -> bool {
         self.initialized
+    }
+    pub(crate) fn checked_add_signal_fns<A: Bundle + Clone + 'static + Send + Sync>(&mut self) {
+        if !self.ecs.world.contains_resource::<SignalLimiter<A>>() {
+            // spawn + clean
+            self.ecs
+                .world
+                .insert_resource(SignalLimiter::<A>::default());
+        }
     }
     pub(crate) fn initialize(&mut self, leaf_fns: Vec<Box<fn(&mut Elm)>>) {
         for leaf_fn in leaf_fns {

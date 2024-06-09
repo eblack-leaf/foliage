@@ -1,7 +1,9 @@
 use crate::differential::{RenderLink, RenderRemoveQueue};
+use crate::view::SignalConfirmation;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Bundle, Changed, Commands, Component, Query, ResMut};
-#[derive(Component, Default)]
+
+#[derive(Component, Default, Copy, Clone)]
 pub struct Signal {
     message: i32,
 }
@@ -9,11 +11,17 @@ impl Signal {
     pub fn neutral(&self) -> bool {
         self.message == 0
     }
-    pub fn clean(&self) -> bool {
+    pub fn should_clean(&self) -> bool {
         self.message == 1
     }
-    pub fn spawn(&self) -> bool {
+    pub fn should_spawn(&self) -> bool {
         self.message == 2
+    }
+    pub fn clean() -> Self {
+        Self { message: 1 }
+    }
+    pub fn spawn() -> Self {
+        Self { message: 2 }
     }
 }
 #[derive(Bundle)]
@@ -38,7 +46,7 @@ pub(crate) fn signaled_clean(
     mut cmd: Commands,
 ) {
     for (mut signal, target) in to_clean.iter_mut() {
-        if signal.clean() {
+        if signal.should_clean() {
             cmd.entity(target.0).insert(Clean::should_clean());
         }
     }
@@ -53,7 +61,7 @@ pub(crate) fn signaled_spawn<B: Bundle + 'static + Send + Sync + Clone>(
     mut cmd: Commands,
 ) {
     for (signal, bundle, target) in to_spawn.iter() {
-        if signal.spawn() {
+        if signal.should_spawn() {
             cmd.entity(target.0).insert(bundle.0.clone());
         }
     }
@@ -85,7 +93,12 @@ pub(crate) fn clean(
                     .insert(entity);
             }
             clean.should_clean = false;
-            cmd.entity(entity).retain::<Clean>();
+            cmd.entity(entity).retain::<TargetComponents>();
         }
     }
+}
+#[derive(Bundle, Default)]
+pub(crate) struct TargetComponents {
+    clean: Clean,
+    confirm: SignalConfirmation,
 }

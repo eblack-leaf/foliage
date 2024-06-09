@@ -17,8 +17,10 @@ use crate::ginkgo::Ginkgo;
 use crate::icon::Icon;
 use crate::image::Image;
 use crate::panel::Panel;
-use crate::signal::{Signaler, TriggerTarget};
-use crate::view::{SignalHandle, Stage, View, ViewHandle, ViewStage};
+use crate::signal::{Signal, Signaler, TargetComponents, TriggerTarget};
+use crate::view::{
+    SignalConfirmation, SignalHandle, Stage, StagedSignal, View, ViewHandle, ViewStage,
+};
 
 pub mod ash;
 pub mod asset;
@@ -187,7 +189,13 @@ impl<'a> StageReference<'a> {
             .get_mut(self.stage.0 as usize)
             .expect("invalid-stage")
             .signals
-            .push(SignalHandle::new(signal));
+            .insert(
+                signal,
+                StagedSignal {
+                    handle: SignalHandle::new(signal),
+                    state_on_stage_start: Signal::default(),
+                },
+            );
         SignalReference {
             root: self.root,
             this: signal,
@@ -198,9 +206,26 @@ impl<'a> StageReference<'a> {
 }
 impl<'a> SignalReference<'a> {
     pub fn with_attribute<A: Bundle + 'static + Clone + Send + Sync>(mut self, a: A) -> Self {
+        self.reference.checked_add_signal_fns::<A>();
         self
     }
+    pub fn clean(mut self) {
+        self.reference
+            .ecs
+            .world
+            .get_mut::<View>(self.root)
+            .expect("no-view")
+            .stages
+            .get_mut(self.stage.0 as usize)
+            .expect("no-stage")
+            .signals
+            .get_mut(&self.this)
+            .expect("no-signal")
+            .state_on_stage_start = Signal::clean();
+        // set Signal::clean() when stage fires instead of Signal::spawn()
+    }
     pub fn with_transition(mut self) -> Self {
+        // TODO self.reference.checked_add_transition_fns::<T>();
         self
     }
     pub fn filtered(mut self) -> Self {
@@ -214,7 +239,12 @@ impl<'a> TargetReference<'a> {
 }
 impl<'a> ViewReference<'a> {
     pub fn add_target(mut self) -> TargetReference<'a> {
-        let target = self.reference.ecs.world.spawn_empty().id();
+        let target = self
+            .reference
+            .ecs
+            .world
+            .spawn(TargetComponents::default())
+            .id();
         self.reference
             .ecs
             .world
