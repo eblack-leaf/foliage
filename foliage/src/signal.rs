@@ -119,6 +119,12 @@ pub struct LayoutFilter {
 }
 
 impl LayoutFilter {
+    pub fn new() -> Self {
+        Self {
+            mode: FilterMode::None,
+            collection: LayoutSet(HashSet::new()),
+        }
+    }
     pub fn should_filter(&self, current: Layout) -> bool {
         todo!()
     }
