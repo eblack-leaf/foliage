@@ -115,7 +115,7 @@ impl Elm {
     }
     pub(crate) fn checked_add_signal_fns<A: Bundle + Clone + 'static + Send + Sync>(&mut self) {
         if !self.ecs.world.contains_resource::<SignalLimiter<A>>() {
-            // spawn + clean
+            // signaled_spawn
             self.ecs
                 .world
                 .insert_resource(SignalLimiter::<A>::default());
