@@ -1,6 +1,8 @@
 pub use bevy_ecs;
 use bevy_ecs::bundle::Bundle;
-use bevy_ecs::prelude::Entity;
+use bevy_ecs::prelude::{Commands, Component, Entity};
+use bevy_ecs::query::Changed;
+use bevy_ecs::system::{Command, Query};
 pub use wgpu;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
@@ -17,10 +19,12 @@ use crate::ginkgo::Ginkgo;
 use crate::icon::Icon;
 use crate::image::Image;
 use crate::panel::Panel;
-use crate::signal::{Signal, Signaler, TargetComponents, TriggerTarget};
+use crate::signal::{Signal, Signaler, TargetComponents, TriggerTarget, TriggeredAttribute};
 use crate::view::{
-    SignalConfirmation, SignalHandle, Stage, StagedSignal, View, ViewHandle, ViewStage,
+    CurrentViewStage, SignalConfirmation, SignalHandle, Stage, StagedSignal, View, ViewActive,
+    ViewComponents, ViewHandle, ViewStage,
 };
+use signal::LayoutFilter;
 
 pub mod ash;
 pub mod asset;
@@ -88,8 +92,7 @@ impl Foliage {
         self.ash.add_renderer::<R>();
     }
     pub fn create_view(&mut self) -> ViewConfig {
-        let handle = self.elm.ecs.world.spawn(View::new()).id();
-        // add placement + default components???
+        let handle = self.elm.ecs.world.spawn(ViewComponents::new()).id();
         ViewConfig {
             root: handle,
             reference: &mut self.elm,
@@ -100,6 +103,21 @@ impl Foliage {
             root: vh.0,
             reference: &mut self.elm,
         }
+    }
+    pub fn create_action<A: Command + Clone + Send + Sync + 'static>(
+        &mut self,
+        a: A,
+    ) -> ActionHandle {
+        self.elm.checked_add_action_fns::<A>();
+        let handle = self
+            .elm
+            .ecs
+            .world
+            .spawn((TriggeredAction(a), Signal::default()))
+            .id();
+        // signal that matches to a triggered-action (command) that spawns it on self + gives to a cmd to execute
+        // can be added to OnClick(...) to set logic triggers
+        ActionHandle(handle)
     }
     pub fn run(self) {
         cfg_if::cfg_if! {
@@ -139,6 +157,20 @@ impl Foliage {
             .collect::<Vec<Box<fn(&mut Foliage)>>>()
         {
             (leaves_fn)(self);
+        }
+    }
+}
+#[derive(Copy, Clone)]
+pub struct ActionHandle(pub(crate) Entity);
+#[derive(Component)]
+pub(crate) struct TriggeredAction<A: Command + Send + Sync + 'static + Clone>(pub(crate) A);
+pub(crate) fn engage_action<A: Command + Send + Sync + 'static + Clone>(
+    actions: Query<(&Signal, &TriggeredAction<A>), Changed<Signal>>,
+    mut cmd: Commands,
+) {
+    for (signal, action) in actions.iter() {
+        if signal.should_spawn() {
+            cmd.add(action.0.clone());
         }
     }
 }
@@ -192,7 +224,7 @@ impl<'a> StageReference<'a> {
             .insert(
                 signal,
                 StagedSignal {
-                    handle: SignalHandle::new(signal),
+                    handle: SignalHandle(signal),
                     state_on_stage_start: Signal::default(),
                 },
             );
@@ -203,13 +235,33 @@ impl<'a> StageReference<'a> {
             stage: self.stage,
         }
     }
+    pub fn on_end(mut self, action_handle: ActionHandle) -> Self {
+        // action to hook to when the stage is confirmed done
+        self.reference
+            .ecs
+            .world
+            .get_mut::<View>(self.root)
+            .expect("no-view")
+            .stages
+            .get_mut(self.stage.0 as usize)
+            .expect("no-stage")
+            .on_end
+            .replace(action_handle);
+        self
+    }
 }
 impl<'a> SignalReference<'a> {
     pub fn with_attribute<A: Bundle + 'static + Clone + Send + Sync>(mut self, a: A) -> Self {
         self.reference.checked_add_signal_fns::<A>();
+        self.reference
+            .ecs
+            .world
+            .entity_mut(self.this)
+            .insert(TriggeredAttribute(a));
         self
     }
     pub fn clean(mut self) {
+        // set Signal::clean() when stage fires instead of Signal::spawn()
         self.reference
             .ecs
             .world
@@ -222,13 +274,18 @@ impl<'a> SignalReference<'a> {
             .get_mut(&self.this)
             .expect("no-signal")
             .state_on_stage_start = Signal::clean();
-        // set Signal::clean() when stage fires instead of Signal::spawn()
     }
     pub fn with_transition(mut self) -> Self {
         // TODO self.reference.checked_add_transition_fns::<T>();
         self
     }
-    pub fn filtered(mut self) -> Self {
+    pub fn filtered(mut self, layout_filter: LayoutFilter) -> Self {
+        // only by layout + resignal on layout-change to reset
+        self.reference
+            .ecs
+            .world
+            .entity_mut(self.this)
+            .insert(layout_filter);
         self
     }
 }
@@ -257,6 +314,22 @@ impl<'a> ViewReference<'a> {
             this: target,
             reference: self.reference,
         }
+    }
+    pub fn set_initial_stage(mut self, stage: Stage) {
+        self.reference
+            .ecs
+            .world
+            .get_mut::<CurrentViewStage>(self.root)
+            .expect("no-current")
+            .stage = stage;
+    }
+    pub fn activate(mut self) {
+        self.reference
+            .ecs
+            .world
+            .get_mut::<ViewActive>(self.root)
+            .expect("no-active")
+            .0 = true;
     }
     pub fn create_stage(&mut self) -> Stage {
         let stage = self

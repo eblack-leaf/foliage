@@ -1,7 +1,22 @@
+use foliage::bevy_ecs::prelude::World;
+use foliage::bevy_ecs::system::Command;
 use foliage::coordinate::section::Section;
 use foliage::image::Image;
+use foliage::view::{CurrentViewStage, Stage, ViewHandle};
 use foliage::{CoreLeaves, Foliage};
-
+#[derive(Clone)]
+struct Next {
+    view: ViewHandle,
+    next_stage: Stage,
+}
+impl Command for Next {
+    fn apply(self, world: &mut World) {
+        world
+            .get_mut::<CurrentViewStage>(self.view.repr())
+            .expect("no-current")
+            .set(self.next_stage);
+    }
+}
 fn main() {
     let mut foliage = Foliage::new();
     foliage.set_window_size((400, 600));
@@ -9,8 +24,18 @@ fn main() {
     let view = foliage.create_view().template().padding().handle();
     let initial = foliage.view(view).create_stage();
     let element_creation = foliage.view(view).create_stage();
+    foliage.view(view).set_initial_stage(initial);
+    foliage.view(view).activate();
     let background = foliage.view(view).add_target().handle();
     let gallery_icon = foliage.view(view).add_target().handle();
+    let initial_to_creation = foliage.create_action(Next {
+        view,
+        next_stage: element_creation,
+    });
+    foliage
+        .view(view)
+        .stage(initial)
+        .on_end(initial_to_creation);
     foliage
         .view(view)
         .stage(initial)

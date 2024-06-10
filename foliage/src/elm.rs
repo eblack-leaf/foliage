@@ -7,7 +7,7 @@ use bevy_ecs::prelude::{
     apply_deferred, Component, IntoSystemConfigs, IntoSystemSetConfigs, Schedule, SystemSet,
 };
 use bevy_ecs::schedule::ExecutorKind;
-use bevy_ecs::system::Resource;
+use bevy_ecs::system::{Command, Resource};
 use bevy_ecs::world::World;
 
 use crate::ash::Render;
@@ -69,6 +69,14 @@ impl<D> Default for SignalLimiter<D> {
         Self(PhantomData)
     }
 }
+#[derive(Resource)]
+pub(crate) struct ActionLimiter<D>(PhantomData<D>);
+
+impl<D> Default for ActionLimiter<D> {
+    fn default() -> Self {
+        Self(PhantomData)
+    }
+}
 impl Elm {
     pub fn enable_differential<R: Render, D: Component + PartialEq + Clone>(&mut self) {
         if !self
@@ -111,6 +119,14 @@ impl Elm {
             self.ecs
                 .world
                 .insert_resource(SignalLimiter::<A>::default());
+        }
+    }
+    pub(crate) fn checked_add_action_fns<A: Command + Clone + 'static + Send + Sync>(&mut self) {
+        if !self.ecs.world.contains_resource::<ActionLimiter<A>>() {
+            // engage_action
+            self.ecs
+                .world
+                .insert_resource(ActionLimiter::<A>::default());
         }
     }
     pub(crate) fn initialize(&mut self, leaf_fns: Vec<Box<fn(&mut Elm)>>) {
