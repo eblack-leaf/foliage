@@ -44,8 +44,7 @@ fn main() {
         .stage(initial)
         .add_signal(background)
         .with_attribute(()) // 0 - 1 grid-placement w/ exceptions + relative (0% - 100%)
-        .with_transition()// the PositionAdjust transition to move
-        .filtered(LayoutFilter::new()); // different grid-placements @ diff layouts
+        .with_transition(); // the PositionAdjust transition to move
     foliage
         .view(view)
         .stage(element_creation)
