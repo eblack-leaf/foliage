@@ -69,6 +69,7 @@ fn main() {
         .view(view)
         .stage(element_creation)
         .add_signal(gallery_icon_backward)
+        .with_attribute((), None) // Base Icon
         .with_attribute(
             (), // down icon-id + on-click for down-image-action on img-target
             Option::from(LayoutFilter::new(
