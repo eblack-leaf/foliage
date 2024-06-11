@@ -2,10 +2,11 @@ use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::LogicalContext;
+use crate::ginkgo::viewport::ViewportHandle;
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::DetectChanges;
 use bevy_ecs::query::Changed;
-use bevy_ecs::system::{Query, Res, Resource};
+use bevy_ecs::system::{Query, Res, ResMut, Resource};
 use bitflags::bitflags;
 
 pub struct Grid {}
@@ -48,6 +49,15 @@ pub(crate) fn place_on_grid(
 }
 pub struct Padding {}
 pub struct GridTemplate {}
+pub(crate) fn viewport_changes_layout(
+    viewport_handle: Res<ViewportHandle>,
+    mut layout: ResMut<Layout>,
+    mut config: ResMut<LayoutConfig>,
+) {
+    if viewport_handle.is_changed() {
+        // recalculate layout + config
+    }
+}
 #[derive(Resource)]
 pub struct Layout {
     grid: Grid,
