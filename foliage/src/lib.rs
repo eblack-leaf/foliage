@@ -259,23 +259,17 @@ impl<'a> SignalReference<'a> {
         F: Into<LayoutFilter>,
     >(
         mut self,
-        base: A,
-        exception: (A, F),
+        a: A,
+        filter: F,
     ) -> Self {
-        let exceptional_layout_config = exception.1.into();
-        let base_layout_config = !exceptional_layout_config.config;
+        let exceptional_layout_config = filter.into();
         self.reference.checked_add_signal_fns::<A>();
         self.reference
             .ecs
             .world
             .entity_mut(self.this)
-            .insert(FilteredTriggeredAttribute(base, base_layout_config.into()));
-        self.reference
-            .ecs
-            .world
-            .entity_mut(self.this)
             .insert(FilteredTriggeredAttribute(
-                exception.0,
+                a,
                 exceptional_layout_config.into(),
             ));
         self

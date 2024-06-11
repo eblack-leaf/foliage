@@ -50,14 +50,14 @@ fn main() {
         .stage(element_creation)
         .add_signal_targeting(gallery_icon_forward)
         .with_attribute(()) // Base Icon
-        .with_filtered_attribute((), ((), LayoutConfig::LANDSCAPE_MOBILE)) // up @ landscape-mobile | up-transition (on-click)
+        .with_filtered_attribute((), LayoutConfig::LANDSCAPE_MOBILE) // up @ landscape-mobile | up-transition (on-click)
         .with_transition();
     foliage
         .view(view)
         .stage(element_creation)
         .add_signal_targeting(gallery_icon_backward)
         .with_attribute(()) // Base Icon
-        .with_filtered_attribute((), ((), LayoutConfig::LANDSCAPE_MOBILE)) // down @ landscape-mobile | down-transition (on-click)
+        .with_filtered_attribute((), LayoutConfig::LANDSCAPE_MOBILE) // down @ landscape-mobile | down-transition (on-click)
         .with_transition();
     let slot = Image::slot(0, (400, 400));
     // stage-2 when image created signal this attribute based on the current photo selection
