@@ -46,10 +46,24 @@ impl Signaler {
 #[derive(Component, Hash, Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
 pub struct TriggerTarget(pub(crate) Entity);
 #[derive(Component)]
-pub(crate) struct TriggeredAttribute<B: Bundle + 'static + Send + Sync + Clone>(
-    pub(crate) B,
-    pub(crate) Option<LayoutFilter>,
+pub(crate) struct TriggeredAttribute<A: Bundle + 'static + Send + Sync + Clone>(pub(crate) A);
+#[derive(Component)]
+pub(crate) struct FilteredTriggeredAttribute<A: Bundle + 'static + Send + Sync + Clone>(
+    pub(crate) A,
+    pub(crate) LayoutFilter,
 );
+// TODO run after the regular signaled-spawn to clear base + filtered bundle dependencies
+pub(crate) fn filtered_signaled_spawn<A: Bundle + 'static + Send + Sync + Clone>(
+    to_spawn: Query<(&Signal, &FilteredTriggeredAttribute<A>, &TriggerTarget), Changed<Signal>>,
+    mut cmd: Commands,
+    layout_config: Res<LayoutConfig>,
+) {
+    for (signal, attribute, target) in to_spawn.iter() {
+        if signal.should_spawn() && attribute.1.accepts(*layout_config) {
+            cmd.entity(target.0).insert(attribute.0.clone());
+        }
+    }
+}
 pub(crate) fn signaled_clean(
     mut to_clean: Query<(&mut Signal, &TriggerTarget), Changed<Signal>>,
     mut cmd: Commands,
@@ -65,24 +79,13 @@ pub(crate) fn clear_signal(mut signals: Query<&mut Signal, Changed<Signal>>) {
         *signal = Signal::default();
     }
 }
-pub(crate) fn signaled_spawn<B: Bundle + 'static + Send + Sync + Clone>(
-    to_spawn: Query<(&Signal, &TriggeredAttribute<B>, &TriggerTarget), Changed<Signal>>,
+pub(crate) fn signaled_spawn<A: Bundle + 'static + Send + Sync + Clone>(
+    to_spawn: Query<(&Signal, &TriggeredAttribute<A>, &TriggerTarget), Changed<Signal>>,
     mut cmd: Commands,
-    layout_config: Res<LayoutConfig>,
 ) {
     for (signal, attribute, target) in to_spawn.iter() {
         if signal.should_spawn() {
-            let mut should_spawn = false;
-            if let Some(filter) = attribute.1 {
-                if filter.accepts(*layout_config) {
-                    should_spawn = true;
-                }
-            } else {
-                should_spawn = true;
-            }
-            if should_spawn {
-                cmd.entity(target.0).insert(attribute.0.clone());
-            }
+            cmd.entity(target.0).insert(attribute.0.clone());
         }
     }
 }
@@ -142,19 +145,19 @@ bitflags! {
 // set of layouts this will (not) signal at
 #[derive(Component, Copy, Clone)]
 pub struct LayoutFilter {
-    mode: FilterMode,
-    config: LayoutConfig,
+    pub(crate) config: LayoutConfig,
 }
-
+impl From<LayoutConfig> for LayoutFilter {
+    fn from(value: LayoutConfig) -> Self {
+        Self::new(value)
+    }
+}
 impl LayoutFilter {
-    pub fn new(mode: FilterMode, config: LayoutConfig) -> Self {
-        Self { mode, config }
+    pub fn new(config: LayoutConfig) -> Self {
+        Self { config }
     }
     pub fn accepts(&self, current: LayoutConfig) -> bool {
-        match self.mode {
-            FilterMode::None => (current & self.config).is_empty(),
-            FilterMode::Any => !(current & self.config).is_empty(),
-        }
+        !(current & self.config).is_empty()
     }
 }
 

@@ -42,48 +42,22 @@ fn main() {
     foliage
         .view(view)
         .stage(initial)
-        .add_signal(background)
-        .with_attribute((), None) // 0 - 1 grid-placement w/ exceptions + relative (0% - 100%)
+        .add_signal_targeting(background)
+        .with_attribute(()) // 0 - 1 grid-placement w/ exceptions + relative (0% - 100%)
         .with_transition(); // the PositionAdjust transition to move
     foliage
         .view(view)
         .stage(element_creation)
-        .add_signal(gallery_icon_forward)
-        .with_attribute((), None) // Base Icon
-        .with_attribute(
-            (), // up icon-id + on-click for up-image-action on img-target
-            Option::from(LayoutFilter::new(
-                FilterMode::Any,
-                LayoutConfig::PORTRAIT_MOBILE,
-            )),
-        )
-        .with_attribute(
-            (), // right icon-id + on-click for right-image-action on img-target
-            Some(LayoutFilter::new(
-                FilterMode::None,
-                LayoutConfig::PORTRAIT_MOBILE,
-            )),
-        )
+        .add_signal_targeting(gallery_icon_forward)
+        .with_attribute(()) // Base Icon
+        .with_filtered_attribute((), ((), LayoutConfig::LANDSCAPE_MOBILE)) // up @ landscape-mobile | up-transition (on-click)
         .with_transition();
     foliage
         .view(view)
         .stage(element_creation)
-        .add_signal(gallery_icon_backward)
-        .with_attribute((), None) // Base Icon
-        .with_attribute(
-            (), // down icon-id + on-click for down-image-action on img-target
-            Option::from(LayoutFilter::new(
-                FilterMode::Any,
-                LayoutConfig::PORTRAIT_MOBILE,
-            )),
-        )
-        .with_attribute(
-            (), // left icon-id + on-click for left-image-action on img-target
-            Some(LayoutFilter::new(
-                FilterMode::None,
-                LayoutConfig::PORTRAIT_MOBILE,
-            )),
-        )
+        .add_signal_targeting(gallery_icon_backward)
+        .with_attribute(()) // Base Icon
+        .with_filtered_attribute((), ((), LayoutConfig::LANDSCAPE_MOBILE)) // down @ landscape-mobile | down-transition (on-click)
         .with_transition();
     let slot = Image::slot(0, (400, 400));
     // stage-2 when image created signal this attribute based on the current photo selection

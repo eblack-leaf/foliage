@@ -19,7 +19,10 @@ use crate::ginkgo::Ginkgo;
 use crate::icon::Icon;
 use crate::image::Image;
 use crate::panel::Panel;
-use crate::signal::{Signal, Signaler, TargetComponents, TriggerTarget, TriggeredAttribute};
+use crate::signal::{
+    FilteredTriggeredAttribute, Signal, Signaler, TargetComponents, TriggerTarget,
+    TriggeredAttribute,
+};
 use crate::view::{
     CurrentViewStage, SignalConfirmation, SignalHandle, Stage, StagedSignal, View, ViewActive,
     ViewComponents, ViewHandle, ViewStage,
@@ -210,7 +213,7 @@ pub struct SignalReference<'a> {
     stage: Stage,
 }
 impl<'a> StageReference<'a> {
-    pub fn add_signal(mut self, target: TriggerTarget) -> SignalReference<'a> {
+    pub fn add_signal_targeting(mut self, target: TriggerTarget) -> SignalReference<'a> {
         let signal = self.reference.ecs.world.spawn(Signaler::new(target)).id();
         self.reference
             .ecs
@@ -251,17 +254,39 @@ impl<'a> StageReference<'a> {
     }
 }
 impl<'a> SignalReference<'a> {
-    pub fn with_attribute<A: Bundle + 'static + Clone + Send + Sync>(
+    pub fn with_filtered_attribute<
+        A: Bundle + 'static + Clone + Send + Sync,
+        F: Into<LayoutFilter>,
+    >(
         mut self,
-        a: A,
-        filter: Option<LayoutFilter>,
+        base: A,
+        exception: (A, F),
     ) -> Self {
+        let exceptional_layout_config = exception.1.into();
+        let base_layout_config = !exceptional_layout_config.config;
         self.reference.checked_add_signal_fns::<A>();
         self.reference
             .ecs
             .world
             .entity_mut(self.this)
-            .insert(TriggeredAttribute(a, filter));
+            .insert(FilteredTriggeredAttribute(base, base_layout_config.into()));
+        self.reference
+            .ecs
+            .world
+            .entity_mut(self.this)
+            .insert(FilteredTriggeredAttribute(
+                exception.0,
+                exceptional_layout_config.into(),
+            ));
+        self
+    }
+    pub fn with_attribute<A: Bundle + 'static + Clone + Send + Sync>(mut self, a: A) -> Self {
+        self.reference.checked_add_signal_fns::<A>();
+        self.reference
+            .ecs
+            .world
+            .entity_mut(self.this)
+            .insert(TriggeredAttribute(a));
         self
     }
     pub fn clean(mut self) {
