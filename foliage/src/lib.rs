@@ -251,13 +251,17 @@ impl<'a> StageReference<'a> {
     }
 }
 impl<'a> SignalReference<'a> {
-    pub fn with_attribute<A: Bundle + 'static + Clone + Send + Sync>(mut self, a: A) -> Self {
+    pub fn with_attribute<A: Bundle + 'static + Clone + Send + Sync>(
+        mut self,
+        a: A,
+        filter: Option<LayoutFilter>,
+    ) -> Self {
         self.reference.checked_add_signal_fns::<A>();
         self.reference
             .ecs
             .world
             .entity_mut(self.this)
-            .insert(TriggeredAttribute(a));
+            .insert(TriggeredAttribute(a, filter));
         self
     }
     pub fn clean(mut self) {
@@ -279,8 +283,7 @@ impl<'a> SignalReference<'a> {
         // TODO self.reference.checked_add_transition_fns::<T>();
         self
     }
-    pub fn filtered(mut self, layout_filter: LayoutFilter) -> Self {
-        // only by layout + resignal on layout-change to reset
+    pub fn filter_signal(mut self, layout_filter: LayoutFilter) -> Self {
         self.reference
             .ecs
             .world

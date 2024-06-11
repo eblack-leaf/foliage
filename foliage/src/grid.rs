@@ -1,3 +1,4 @@
+use crate::signal::LayoutConfig;
 use bevy_ecs::system::Resource;
 
 pub struct Grid {}
@@ -6,7 +7,7 @@ pub struct GridPlacement {
 }
 pub struct Padding {}
 pub struct GridTemplate {}
-#[derive(Resource, Hash, Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
+#[derive(Resource)]
 pub struct Layout {
     horizontal: i32,
     vertical: i32,

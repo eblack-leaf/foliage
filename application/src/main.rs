@@ -2,7 +2,7 @@ use foliage::bevy_ecs::prelude::World;
 use foliage::bevy_ecs::system::Command;
 use foliage::coordinate::section::Section;
 use foliage::image::Image;
-use foliage::signal::LayoutFilter;
+use foliage::signal::{FilterMode, LayoutConfig, LayoutFilter};
 use foliage::view::{CurrentViewStage, Stage, ViewHandle};
 use foliage::{CoreLeaves, Foliage};
 
@@ -43,36 +43,47 @@ fn main() {
         .view(view)
         .stage(initial)
         .add_signal(background)
-        .with_attribute(()) // 0 - 1 grid-placement w/ exceptions + relative (0% - 100%)
+        .with_attribute((), None) // 0 - 1 grid-placement w/ exceptions + relative (0% - 100%)
         .with_transition(); // the PositionAdjust transition to move
     foliage
         .view(view)
         .stage(element_creation)
         .add_signal(gallery_icon_forward)
-        .with_attribute(())
-        .with_transition()
-        .filtered(LayoutFilter::new()); // filter forward attribute of (up) arrow at portrait
-    foliage
-        .view(view)
-        .stage(element_creation)
-        .add_signal(gallery_icon_forward)
-        .with_attribute(())
-        .with_transition()
-        .filtered(LayoutFilter::new()); // filter forward attribute of (right) arrow at landscape
+        .with_attribute((), None) // Base Icon
+        .with_attribute(
+            (), // up icon-id + on-click for up-image-action on img-target
+            Option::from(LayoutFilter::new(
+                FilterMode::Any,
+                LayoutConfig::PORTRAIT_MOBILE,
+            )),
+        )
+        .with_attribute(
+            (), // right icon-id + on-click for right-image-action on img-target
+            Some(LayoutFilter::new(
+                FilterMode::None,
+                LayoutConfig::PORTRAIT_MOBILE,
+            )),
+        )
+        .with_transition();
     foliage
         .view(view)
         .stage(element_creation)
         .add_signal(gallery_icon_backward)
-        .with_attribute(())
-        .with_transition()
-        .filtered(LayoutFilter::new()); // filter forward attribute of (down) arrow at portrait
-    foliage
-        .view(view)
-        .stage(element_creation)
-        .add_signal(gallery_icon_backward)
-        .with_attribute(())
-        .with_transition()
-        .filtered(LayoutFilter::new()); // filter forward attribute of (left) arrow at landscape
+        .with_attribute(
+            (), // down icon-id + on-click for down-image-action on img-target
+            Option::from(LayoutFilter::new(
+                FilterMode::Any,
+                LayoutConfig::PORTRAIT_MOBILE,
+            )),
+        )
+        .with_attribute(
+            (), // left icon-id + on-click for left-image-action on img-target
+            Some(LayoutFilter::new(
+                FilterMode::None,
+                LayoutConfig::PORTRAIT_MOBILE,
+            )),
+        )
+        .with_transition();
     let slot = Image::slot(0, (400, 400));
     // stage-2 when image created signal this attribute based on the current photo selection
     let fill = Image::new(

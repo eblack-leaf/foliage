@@ -1,10 +1,10 @@
-use crate::differential::{RenderLink, RenderRemoveQueue};
-use crate::grid::Layout;
-use crate::view::SignalConfirmation;
 use bevy_ecs::change_detection::Res;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Bundle, Changed, Commands, Component, Query, ResMut};
-use std::collections::HashSet;
+use bevy_ecs::prelude::{Bundle, Changed, Commands, Component, Query, ResMut, Resource};
+use bitflags::bitflags;
+
+use crate::differential::{RenderLink, RenderRemoveQueue};
+use crate::view::SignalConfirmation;
 
 #[derive(Component, Default, Copy, Clone)]
 pub struct Signal {
@@ -46,7 +46,10 @@ impl Signaler {
 #[derive(Component, Hash, Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
 pub struct TriggerTarget(pub(crate) Entity);
 #[derive(Component)]
-pub struct TriggeredAttribute<B: Bundle + 'static + Send + Sync + Clone>(pub B);
+pub(crate) struct TriggeredAttribute<B: Bundle + 'static + Send + Sync + Clone>(
+    pub(crate) B,
+    pub(crate) Option<LayoutFilter>,
+);
 pub(crate) fn signaled_clean(
     mut to_clean: Query<(&mut Signal, &TriggerTarget), Changed<Signal>>,
     mut cmd: Commands,
@@ -65,10 +68,21 @@ pub(crate) fn clear_signal(mut signals: Query<&mut Signal, Changed<Signal>>) {
 pub(crate) fn signaled_spawn<B: Bundle + 'static + Send + Sync + Clone>(
     to_spawn: Query<(&Signal, &TriggeredAttribute<B>, &TriggerTarget), Changed<Signal>>,
     mut cmd: Commands,
+    layout_config: Res<LayoutConfig>,
 ) {
-    for (signal, bundle, target) in to_spawn.iter() {
+    for (signal, attribute, target) in to_spawn.iter() {
         if signal.should_spawn() {
-            cmd.entity(target.0).insert(bundle.0.clone());
+            let mut should_spawn = false;
+            if let Some(filter) = attribute.1 {
+                if filter.accepts(*layout_config) {
+                    should_spawn = true;
+                }
+            } else {
+                should_spawn = true;
+            }
+            if should_spawn {
+                cmd.entity(target.0).insert(attribute.0.clone());
+            }
         }
     }
 }
@@ -108,41 +122,54 @@ pub(crate) struct TargetComponents {
     clean: Clean,
     confirm: SignalConfirmation,
 }
+#[derive(Resource, Copy, Clone)]
+pub struct LayoutConfig(u16);
 
-pub struct LayoutSet(pub HashSet<Layout>);
+bitflags! {
+    impl LayoutConfig: u16 {
+        const BASE_MOBILE = 1;
+        const PORTRAIT_MOBILE = 1 << 1;
+        const LANDSCAPE_MOBILE = 1 << 2;
+        const PORTRAIT_TABLET = 1 << 3;
+        const LANDSCAPE_TABLET = 1 << 4;
+        const PORTRAIT_DESKTOP = 1 << 5;
+        const LANDSCAPE_DESKTOP = 1 << 6;
+        const BASE_TABLET = 1 << 7;
+        const BASE_DESKTOP = 1 << 8;
+    }
+}
 
 // set of layouts this will (not) signal at
-#[derive(Component)]
+#[derive(Component, Copy, Clone)]
 pub struct LayoutFilter {
     mode: FilterMode,
-    collection: LayoutSet,
+    config: LayoutConfig,
 }
 
 impl LayoutFilter {
-    pub fn new() -> Self {
-        Self {
-            mode: FilterMode::None,
-            collection: LayoutSet(HashSet::new()),
-        }
+    pub fn new(mode: FilterMode, config: LayoutConfig) -> Self {
+        Self { mode, config }
     }
-    pub fn should_filter(&self, current: Layout) -> bool {
-        todo!()
+    pub fn accepts(&self, current: LayoutConfig) -> bool {
+        match self.mode {
+            FilterMode::None => (current & self.config).is_empty(),
+            FilterMode::Any => !(current & self.config).is_empty(),
+        }
     }
 }
 
 pub(crate) fn filter_signal(
     mut signals: Query<(&mut Signal, &LayoutFilter), Changed<Signal>>,
-    layout: Res<Layout>,
+    layout_config: Res<LayoutConfig>,
 ) {
     for (mut signal, filter) in signals.iter_mut() {
-        if filter.should_filter(*layout) {
+        if filter.accepts(*layout_config) {
             *signal = Signal::default();
         }
     }
 }
-
+#[derive(Copy, Clone)]
 pub enum FilterMode {
     None,
     Any,
-    All,
 }
