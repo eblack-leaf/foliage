@@ -1,9 +1,10 @@
+use std::ops::{Add, Div, Sub};
+
 use bevy_ecs::prelude::{IntoSystemConfigs, Or};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Query, Res};
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
-use std::ops::{Add, Div, Sub};
 
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;

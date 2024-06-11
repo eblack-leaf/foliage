@@ -2,7 +2,7 @@ use std::any::TypeId;
 use std::collections::{HashMap, HashSet};
 
 use bevy_ecs::bundle::Bundle;
-use bevy_ecs::prelude::{Component, Entity, RemovedComponents};
+use bevy_ecs::prelude::{Component, Entity};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Query, ResMut, Resource};
 

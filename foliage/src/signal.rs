@@ -1,10 +1,10 @@
 use bevy_ecs::change_detection::Res;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Bundle, Changed, Commands, Component, Query, ResMut, Resource};
-use bitflags::bitflags;
+use bevy_ecs::prelude::{Bundle, Changed, Commands, Component, Query, ResMut};
 
 use crate::differential::{RenderLink, RenderRemoveQueue};
-use crate::view::SignalConfirmation;
+use crate::grid::{LayoutConfig, LayoutFilter};
+use crate::view::{SignalConfirmation, ViewHandle};
 
 #[derive(Component, Default, Copy, Clone)]
 pub struct Signal {
@@ -120,44 +120,19 @@ pub(crate) fn clean(
         }
     }
 }
-#[derive(Bundle, Default)]
+#[derive(Bundle)]
 pub(crate) struct TargetComponents {
     clean: Clean,
     confirm: SignalConfirmation,
+    handle: ViewHandle,
 }
-#[derive(Resource, Copy, Clone)]
-pub struct LayoutConfig(u16);
-
-bitflags! {
-    impl LayoutConfig: u16 {
-        const BASE_MOBILE = 1;
-        const PORTRAIT_MOBILE = 1 << 1;
-        const LANDSCAPE_MOBILE = 1 << 2;
-        const PORTRAIT_TABLET = 1 << 3;
-        const LANDSCAPE_TABLET = 1 << 4;
-        const PORTRAIT_DESKTOP = 1 << 5;
-        const LANDSCAPE_DESKTOP = 1 << 6;
-        const BASE_TABLET = 1 << 7;
-        const BASE_DESKTOP = 1 << 8;
-    }
-}
-
-// set of layouts this will (not) signal at
-#[derive(Component, Copy, Clone)]
-pub struct LayoutFilter {
-    pub(crate) config: LayoutConfig,
-}
-impl From<LayoutConfig> for LayoutFilter {
-    fn from(value: LayoutConfig) -> Self {
-        Self::new(value)
-    }
-}
-impl LayoutFilter {
-    pub fn new(config: LayoutConfig) -> Self {
-        Self { config }
-    }
-    pub fn accepts(&self, current: LayoutConfig) -> bool {
-        !(current & self.config).is_empty()
+impl TargetComponents {
+    pub(crate) fn new(handle: ViewHandle) -> Self {
+        Self {
+            clean: Default::default(),
+            confirm: Default::default(),
+            handle,
+        }
     }
 }
 

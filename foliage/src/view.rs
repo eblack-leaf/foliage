@@ -1,30 +1,38 @@
-use crate::grid::Layout;
-use crate::signal::{Signal, TriggerTarget};
-use crate::ActionHandle;
+use std::collections::{HashMap, HashSet};
+
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{DetectChanges, Entity};
-use bevy_ecs::query::{Changed, Or};
+use bevy_ecs::query::{Changed, Or, With};
 use bevy_ecs::system::{Commands, Query, Res};
-use std::collections::{HashMap, HashSet};
+
+use crate::coordinate::area::Area;
+use crate::coordinate::layer::Layer;
+use crate::coordinate::position::Position;
+use crate::coordinate::LogicalContext;
+use crate::grid::{Grid, GridPlacement, Layout};
+use crate::signal::{Signal, TriggerTarget};
+use crate::ActionHandle;
 
 #[derive(Bundle)]
 pub(crate) struct ViewComponents {
     view: View,
     active: ViewActive,
     current: CurrentViewStage,
-    // add placement + default components???
+    grid: ViewGrid, // targets use this grid instead of main
+                    // add placement + default components???
 }
 impl ViewComponents {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(grid: Grid) -> Self {
         Self {
             view: View::new(),
             active: ViewActive(false),
             current: Default::default(),
+            grid: ViewGrid(grid),
         }
     }
 }
-#[derive(Clone, Copy)]
+#[derive(Component, Clone, Copy)]
 pub struct ViewHandle(pub(crate) Entity);
 impl ViewHandle {
     pub fn repr(&self) -> Entity {
@@ -39,8 +47,53 @@ pub struct View {
     pub(crate) targets: HashSet<TriggerTarget>,
 }
 #[derive(Component)]
+pub struct ViewGrid(pub Grid);
+pub(crate) fn on_view_grid_change(
+    views: Query<(&View, &ViewGrid, &ViewActive), Changed<ViewGrid>>,
+    mut targets: Query<
+        (
+            &mut Position<LogicalContext>,
+            &mut Area<LogicalContext>,
+            &mut Layer,
+            &GridPlacement,
+        ),
+        With<ViewHandle>,
+    >,
+) {
+    for (view, grid, active) in views.iter() {
+        if active.0 {
+            for target in view.targets.iter() {
+                if let Ok((mut pos, mut area, mut layer, placement)) = targets.get_mut(target.0) {
+                    // calculate with view-grid + give to pos / area / layer
+                }
+            }
+        }
+    }
+}
+pub(crate) fn on_target_grid_placement_change(
+    views: Query<(&ViewGrid, &ViewActive)>,
+    mut targets: Query<
+        (
+            &mut Position<LogicalContext>,
+            &mut Area<LogicalContext>,
+            &mut Layer,
+            &GridPlacement,
+            &ViewHandle,
+        ),
+        Changed<GridPlacement>,
+    >,
+) {
+    for (mut pos, mut area, mut layer, placement, handle) in targets.iter_mut() {
+        if let Ok((grid, active)) = views.get(handle.0) {
+            if active.0 {
+                // calculate with view-grid + give to pos / area / layer
+            }
+        }
+    }
+}
+#[derive(Component)]
 pub struct ViewActive(pub(crate) bool);
-pub(crate) fn activate_view(
+pub(crate) fn cleanup_view(
     mut views: Query<(&View, &ViewActive, &CurrentViewStage), Changed<ViewActive>>,
 ) {
     for (view, active, current) in views.iter() {

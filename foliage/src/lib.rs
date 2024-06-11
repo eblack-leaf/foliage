@@ -9,6 +9,7 @@ use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::WindowId;
 
+use grid::LayoutFilter;
 use willow::Willow;
 
 use crate::ash::{Ash, Render};
@@ -16,6 +17,7 @@ use crate::coordinate::area::Area;
 use crate::coordinate::{Coordinates, DeviceContext};
 use crate::elm::Elm;
 use crate::ginkgo::Ginkgo;
+use crate::grid::Grid;
 use crate::icon::Icon;
 use crate::image::Image;
 use crate::panel::Panel;
@@ -24,10 +26,9 @@ use crate::signal::{
     TriggeredAttribute,
 };
 use crate::view::{
-    CurrentViewStage, SignalConfirmation, SignalHandle, Stage, StagedSignal, View, ViewActive,
-    ViewComponents, ViewHandle, ViewStage,
+    CurrentViewStage, SignalHandle, Stage, StagedSignal, View, ViewActive, ViewComponents,
+    ViewHandle, ViewStage,
 };
-use signal::LayoutFilter;
 
 pub mod ash;
 pub mod asset;
@@ -94,8 +95,8 @@ impl Foliage {
     pub fn add_renderer<R: Render>(&mut self) {
         self.ash.add_renderer::<R>();
     }
-    pub fn create_view(&mut self) -> ViewConfig {
-        let handle = self.elm.ecs.world.spawn(ViewComponents::new()).id();
+    pub fn create_view(&mut self, grid: Grid) -> ViewConfig {
+        let handle = self.elm.ecs.world.spawn(ViewComponents::new(grid)).id();
         ViewConfig {
             root: handle,
             reference: &mut self.elm,
@@ -322,7 +323,7 @@ impl<'a> ViewReference<'a> {
             .reference
             .ecs
             .world
-            .spawn(TargetComponents::default())
+            .spawn(TargetComponents::new(ViewHandle(self.root)))
             .id();
         self.reference
             .ecs

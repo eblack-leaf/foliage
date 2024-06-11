@@ -1,7 +1,7 @@
-use bevy_ecs::bundle::Bundle;
 use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 
+use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{
     apply_deferred, Component, IntoSystemConfigs, IntoSystemSetConfigs, Schedule, SystemSet,

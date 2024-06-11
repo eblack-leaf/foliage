@@ -1,8 +1,8 @@
 use foliage::bevy_ecs::prelude::World;
 use foliage::bevy_ecs::system::Command;
 use foliage::coordinate::section::Section;
+use foliage::grid::{Grid, LayoutConfig};
 use foliage::image::Image;
-use foliage::signal::{FilterMode, LayoutConfig, LayoutFilter};
 use foliage::view::{CurrentViewStage, Stage, ViewHandle};
 use foliage::{CoreLeaves, Foliage};
 
@@ -23,7 +23,11 @@ fn main() {
     let mut foliage = Foliage::new();
     foliage.set_window_size((400, 600));
     foliage.attach_leaves::<CoreLeaves>();
-    let view = foliage.create_view().template().padding().handle();
+    let view = foliage
+        .create_view(Grid::new())
+        .template()
+        .padding()
+        .handle();
     let initial = foliage.view(view).create_stage();
     let element_creation = foliage.view(view).create_stage();
     foliage.view(view).set_initial_stage(initial);

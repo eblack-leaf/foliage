@@ -1,10 +1,11 @@
+use bevy_ecs::prelude::Resource;
+
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, NumericalContext};
 use crate::ginkgo::{GraphicContext, Uniform};
 use crate::willow::NearFarDescriptor;
-use bevy_ecs::prelude::Resource;
 
 type ViewportRepresentation = [[CoordinateUnit; 4]; 4];
 

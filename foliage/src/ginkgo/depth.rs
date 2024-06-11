@@ -1,11 +1,12 @@
-use crate::coordinate::area::Area;
-use crate::coordinate::DeviceContext;
-use crate::ginkgo::msaa::Msaa;
-use crate::ginkgo::GraphicContext;
 use wgpu::{
     Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages, TextureView,
     TextureViewDescriptor,
 };
+
+use crate::coordinate::area::Area;
+use crate::coordinate::DeviceContext;
+use crate::ginkgo::msaa::Msaa;
+use crate::ginkgo::GraphicContext;
 
 pub(crate) struct Depth {
     pub(crate) view: TextureView,

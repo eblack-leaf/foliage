@@ -1,11 +1,7 @@
 use std::path::Path;
 
 use bevy_ecs::prelude::Resource;
-use binding::BindingBuilder;
 use bytemuck::{Pod, Zeroable};
-use depth::Depth;
-use msaa::Msaa;
-use viewport::Viewport;
 use wgpu::util::DeviceExt;
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
@@ -19,6 +15,11 @@ use wgpu::{
     TextureDimension, TextureFormat, TextureUsages, TextureView, TextureViewDescriptor,
     VertexAttribute, VertexBufferLayout, VertexStepMode,
 };
+
+use binding::BindingBuilder;
+use depth::Depth;
+use msaa::Msaa;
+use viewport::Viewport;
 
 use crate::color::Color;
 use crate::coordinate::area::Area;
