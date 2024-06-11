@@ -48,6 +48,15 @@ pub struct View {
 }
 #[derive(Component)]
 pub struct ViewGrid(pub Grid);
+pub(crate) fn set_view_grid(mut views: Query<(&mut ViewGrid, &ViewActive)>, layout: Res<Layout>) {
+    if layout.is_changed() {
+        for (mut grid, active) in views.iter_mut() {
+            if active.0 {
+                // redo view-grid
+            }
+        }
+    }
+}
 pub(crate) fn on_view_grid_change(
     views: Query<(&View, &ViewGrid, &ViewActive), Changed<ViewGrid>>,
     mut targets: Query<

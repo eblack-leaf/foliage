@@ -1,5 +1,11 @@
+use crate::coordinate::area::Area;
+use crate::coordinate::layer::Layer;
+use crate::coordinate::position::Position;
+use crate::coordinate::LogicalContext;
 use bevy_ecs::component::Component;
-use bevy_ecs::system::Resource;
+use bevy_ecs::prelude::DetectChanges;
+use bevy_ecs::query::Changed;
+use bevy_ecs::system::{Query, Res, Resource};
 use bitflags::bitflags;
 
 pub struct Grid {}
@@ -11,6 +17,34 @@ impl Grid {
 #[derive(Component, Copy, Clone)]
 pub struct GridPlacement {
     // 1.span(2) ...
+}
+pub(crate) fn place_on_grid(
+    mut placed: Query<
+        (
+            &mut Position<LogicalContext>,
+            &mut Area<LogicalContext>,
+            &mut Layer,
+            &GridPlacement,
+        ),
+        Changed<GridPlacement>,
+    >,
+    mut layout_changed: Query<(
+        &mut Position<LogicalContext>,
+        &mut Area<LogicalContext>,
+        &mut Layer,
+        &GridPlacement,
+    )>,
+    layout_config: Res<LayoutConfig>,
+    layout: Res<Layout>,
+) {
+    for (mut pos, mut area, mut layer, placement) in placed.iter_mut() {
+        // calculate using layout-grid
+    }
+    if layout.is_changed() {
+        for (mut pos, mut area, mut layer, placement) in layout_changed.iter_mut() {
+            // calculate using layout-grid
+        }
+    }
 }
 pub struct Padding {}
 pub struct GridTemplate {}
