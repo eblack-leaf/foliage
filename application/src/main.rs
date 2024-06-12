@@ -2,7 +2,7 @@ use foliage::bevy_ecs::prelude::World;
 use foliage::bevy_ecs::system::Command;
 use foliage::coordinate::placement::Placement;
 use foliage::coordinate::section::Section;
-use foliage::grid::{Grid, GridTemplate, LayoutConfig};
+use foliage::grid::{Grid, GridCoordinate, GridPlacement, GridTemplate, LayoutConfiguration};
 use foliage::image::Image;
 use foliage::view::{CurrentViewStage, Stage, ViewHandle};
 use foliage::{CoreLeaves, Foliage};
@@ -31,11 +31,13 @@ fn main() {
         .handle();
     let initial = foliage.view(view).create_stage();
     let element_creation = foliage.view(view).create_stage();
+    let image_selection = foliage.view(view).create_stage();
     foliage.view(view).set_initial_stage(initial);
     foliage.view(view).activate();
     let background = foliage.view(view).add_target().handle();
-    let gallery_icon_forward = foliage.view(view).add_target().handle();
-    let gallery_icon_backward = foliage.view(view).add_target().handle();
+    let gallery_text = foliage.view(view).add_target().handle();
+    let image_forward_icon = foliage.view(view).add_target().handle();
+    let image_backward_icon = foliage.view(view).add_target().handle();
     let initial_to_creation = foliage.create_action(Next {
         view,
         next_stage: element_creation,
@@ -53,16 +55,27 @@ fn main() {
     foliage
         .view(view)
         .stage(element_creation)
-        .add_signal_targeting(gallery_icon_forward)
-        .with_attribute(()) // Base Icon
-        .with_filtered_attribute((), LayoutConfig::LANDSCAPE_MOBILE) // up @ landscape-mobile | up-transition (on-click)
+        .add_signal_targeting(gallery_text)
+        .with_attribute(GridPlacement::new(2.span(2), 1.span(1)));
+    foliage
+        .view(view)
+        .stage(image_selection)
+        .add_signal_targeting(image_forward_icon)
+        .with_attribute(GridPlacement::new(1.span(1), 1.span(1))) // Base Icon
+        .with_filtered_attribute(
+            (),
+            LayoutConfiguration::FOUR_EIGHT | LayoutConfiguration::FOUR_TWELVE,
+        ) // up @ landscape-mobile | up-transition (on-click)
         .with_transition();
     foliage
         .view(view)
-        .stage(element_creation)
-        .add_signal_targeting(gallery_icon_backward)
+        .stage(image_selection)
+        .add_signal_targeting(image_backward_icon)
         .with_attribute(()) // Base Icon
-        .with_filtered_attribute((), LayoutConfig::LANDSCAPE_MOBILE) // down @ landscape-mobile | down-transition (on-click)
+        .with_filtered_attribute(
+            (),
+            LayoutConfiguration::FOUR_EIGHT | LayoutConfiguration::FOUR_TWELVE,
+        ) // down @ landscape-mobile | down-transition (on-click)
         .with_transition();
     let slot = Image::slot(0, (400, 400));
     // stage-2 when image created signal this attribute based on the current photo selection
