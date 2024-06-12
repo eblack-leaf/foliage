@@ -183,12 +183,6 @@ pub struct ViewConfig<'a> {
     reference: &'a mut Elm,
 }
 impl<'a> ViewConfig<'a> {
-    pub fn template(mut self) -> Self {
-        self
-    }
-    pub fn padding(mut self) -> Self {
-        self
-    }
     pub fn handle(self) -> ViewHandle {
         ViewHandle(self.root)
     }

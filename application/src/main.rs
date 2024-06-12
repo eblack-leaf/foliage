@@ -26,8 +26,6 @@ fn main() {
     foliage.attach_leaves::<CoreLeaves>();
     let view = foliage
         .create_view(Grid::new(GridTemplate::new(3, 2)))
-        .template()
-        .padding()
         .handle();
     let initial = foliage.view(view).create_stage();
     let element_creation = foliage.view(view).create_stage();
