@@ -1,7 +1,8 @@
 use foliage::bevy_ecs::prelude::World;
 use foliage::bevy_ecs::system::Command;
+use foliage::coordinate::placement::Placement;
 use foliage::coordinate::section::Section;
-use foliage::grid::{Grid, LayoutConfig};
+use foliage::grid::{Grid, GridTemplate, LayoutConfig};
 use foliage::image::Image;
 use foliage::view::{CurrentViewStage, Stage, ViewHandle};
 use foliage::{CoreLeaves, Foliage};
@@ -24,7 +25,7 @@ fn main() {
     foliage.set_window_size((400, 600));
     foliage.attach_leaves::<CoreLeaves>();
     let view = foliage
-        .create_view(Grid::new())
+        .create_view(Grid::new(GridTemplate::new(3, 2)))
         .template()
         .padding()
         .handle();

@@ -1,5 +1,5 @@
 use std::marker::PhantomData;
-use std::ops::AddAssign;
+use std::ops::{Add, AddAssign};
 
 use bevy_ecs::prelude::Component;
 use bytemuck::{Pod, Zeroable};
@@ -96,5 +96,13 @@ impl From<PhysicalPosition<f32>> for Position<DeviceContext> {
 impl<Context: CoordinateContext, C: Into<Coordinates>> From<C> for Position<Context> {
     fn from(value: C) -> Self {
         Self::new(value)
+    }
+}
+
+impl<Context: CoordinateContext> Add for Position<Context> {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self::new(self.coordinates + rhs.coordinates)
     }
 }

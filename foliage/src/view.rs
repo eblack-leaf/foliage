@@ -8,10 +8,11 @@ use bevy_ecs::system::{Commands, Query, Res};
 
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
+use crate::coordinate::placement::Placement;
 use crate::coordinate::position::Position;
 use crate::coordinate::LogicalContext;
-use crate::grid::{Grid, GridPlacement, Layout};
-use crate::signal::{Signal, TriggerTarget};
+use crate::grid::{Grid, GridPlacement, Layout, LayoutConfig};
+use crate::signal::{Clean, Signal, TriggerTarget};
 use crate::ActionHandle;
 
 #[derive(Bundle)]
@@ -20,7 +21,7 @@ pub(crate) struct ViewComponents {
     active: ViewActive,
     current: CurrentViewStage,
     grid: ViewGrid, // targets use this grid instead of main
-                    // add placement + default components???
+    placement: Placement<LogicalContext>,
 }
 impl ViewComponents {
     pub(crate) fn new(grid: Grid) -> Self {
@@ -29,6 +30,7 @@ impl ViewComponents {
             active: ViewActive(false),
             current: Default::default(),
             grid: ViewGrid(grid),
+            placement: Default::default(),
         }
     }
 }
@@ -46,14 +48,31 @@ pub struct View {
     pub(crate) stages: Vec<ViewStage>,
     pub(crate) targets: HashSet<TriggerTarget>,
 }
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct ViewGrid(pub Grid);
-pub(crate) fn set_view_grid(mut views: Query<(&mut ViewGrid, &ViewActive)>, layout: Res<Layout>) {
-    if layout.is_changed() {
-        for (mut grid, active) in views.iter_mut() {
-            if active.0 {
-                // redo view-grid
-            }
+pub(crate) fn adjust_view_grid_on_change(
+    mut views: Query<
+        (
+            &Position<LogicalContext>,
+            &Area<LogicalContext>,
+            &Layer,
+            &mut ViewGrid,
+            &ViewActive,
+        ),
+        Or<(
+            Changed<Position<LogicalContext>>,
+            Changed<Area<LogicalContext>>,
+            Changed<Layer>,
+        )>,
+    >,
+    config: Res<LayoutConfig>,
+) {
+    for (pos, area, layer, mut view_grid, active) in views.iter_mut() {
+        if active.0 {
+            view_grid.0 = view_grid
+                .0
+                .clone()
+                .placed_at(Placement::new((pos.coordinates, area.coordinates), *layer));
         }
     }
 }
@@ -68,12 +87,19 @@ pub(crate) fn on_view_grid_change(
         ),
         With<ViewHandle>,
     >,
+    config: Res<LayoutConfig>,
 ) {
     for (view, grid, active) in views.iter() {
         if active.0 {
             for target in view.targets.iter() {
-                if let Ok((mut pos, mut area, mut layer, placement)) = targets.get_mut(target.0) {
+                if let Ok((mut pos, mut area, mut layer, grid_placement)) =
+                    targets.get_mut(target.0)
+                {
                     // calculate with view-grid + give to pos / area / layer
+                    let placement = grid.0.place(grid_placement.clone(), *config);
+                    *pos = placement.section.position;
+                    *area = placement.section.area;
+                    *layer = placement.layer;
                 }
             }
         }
@@ -91,11 +117,16 @@ pub(crate) fn on_target_grid_placement_change(
         ),
         Changed<GridPlacement>,
     >,
+    config: Res<LayoutConfig>,
 ) {
-    for (mut pos, mut area, mut layer, placement, handle) in targets.iter_mut() {
+    for (mut pos, mut area, mut layer, grid_placement, handle) in targets.iter_mut() {
         if let Ok((grid, active)) = views.get(handle.0) {
             if active.0 {
                 // calculate with view-grid + give to pos / area / layer
+                let placement = grid.0.place(grid_placement.clone(), *config);
+                *pos = placement.section.position;
+                *area = placement.section.area;
+                *layer = placement.layer;
             }
         }
     }
@@ -104,11 +135,13 @@ pub(crate) fn on_target_grid_placement_change(
 pub struct ViewActive(pub(crate) bool);
 pub(crate) fn cleanup_view(
     mut views: Query<(&View, &ViewActive, &CurrentViewStage), Changed<ViewActive>>,
+    mut cmd: Commands,
 ) {
     for (view, active, current) in views.iter() {
         if !active.0 {
-            // cleanup stage if necessary
-            // clean all targets? (give target-entity Clean::should_clean())
+            for target in view.targets.iter() {
+                cmd.entity(target.0).insert(Clean::should_clean());
+            }
         }
     }
 }
