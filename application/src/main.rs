@@ -61,7 +61,18 @@ fn main() {
         .view(view)
         .stage(image_selection)
         .add_signal_targeting(image_forward_icon)
-        .with_attribute(GridPlacement::new(1.span(1), 1.span(1))) // Base Icon
+        .with_attribute(GridPlacement::new(
+            1.except(
+                LayoutConfiguration::FOUR_EIGHT | LayoutConfiguration::FOUR_TWELVE,
+                2,
+            )
+            .span(1),
+            2.except(
+                LayoutConfiguration::FOUR_EIGHT | LayoutConfiguration::FOUR_TWELVE,
+                1,
+            )
+            .span(1),
+        )) // Base Icon
         .with_filtered_attribute(
             (),
             LayoutConfiguration::FOUR_EIGHT | LayoutConfiguration::FOUR_TWELVE,
