@@ -29,7 +29,7 @@ fn main() {
     foliage.set_window_size((400, 600));
     foliage.attach_leaves::<CoreLeaves>();
     let view = foliage
-        .create_view(Grid::new(GridTemplate::new(3, 2)))
+        .create_view(Grid::new(3, 2))
         .handle();
     let initial = foliage.view(view).create_stage();
     let element_creation = foliage.view(view).create_stage();

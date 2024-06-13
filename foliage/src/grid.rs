@@ -1,7 +1,7 @@
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::DetectChanges;
 use bevy_ecs::query::Changed;
-use bevy_ecs::system::{Query, Res, ResMut, Resource};
+use bevy_ecs::system::{ParamSet, Query, Res, ResMut, Resource};
 use bitflags::bitflags;
 
 use crate::coordinate::area::Area;
@@ -22,13 +22,13 @@ pub struct Grid {
 }
 
 impl Grid {
-    pub fn new(grid_template: GridTemplate) -> Self {
+    pub fn new(cols: i32, rows: i32) -> Self {
         Self {
             gap: Gap { x: 8.0, y: 8.0 },
             placement: Placement::default(),
             column_size: 0.0,
             row_size: 0.0,
-            grid_template,
+            grid_template: GridTemplate::new(cols, rows),
         }
     }
     pub fn placed_at(mut self, placement: Placement<LogicalContext>) -> Self {
@@ -190,32 +190,34 @@ pub struct GridException {
     horizontal: GridRange,
 }
 pub(crate) fn place_on_grid(
-    mut placed: Query<
-        (
+    mut placed: ParamSet<(
+        Query<(
             &mut Position<LogicalContext>,
             &mut Area<LogicalContext>,
             &mut Layer,
             &GridPlacement,
-        ),
-        Changed<GridPlacement>,
-    >,
-    mut layout_changed: Query<(
-        &mut Position<LogicalContext>,
-        &mut Area<LogicalContext>,
-        &mut Layer,
-        &GridPlacement,
+        )>,
+        Query<
+            (
+                &mut Position<LogicalContext>,
+                &mut Area<LogicalContext>,
+                &mut Layer,
+                &GridPlacement,
+            ),
+            Changed<GridPlacement>,
+        >,
     )>,
     layout_config: Res<LayoutConfiguration>,
     layout: Res<Layout>,
 ) {
-    for (mut pos, mut area, mut layer, grid_placement) in placed.iter_mut() {
+    for (mut pos, mut area, mut layer, grid_placement) in placed.p1().iter_mut() {
         let placement = layout.grid.place(grid_placement.clone(), *layout_config);
         *pos = placement.section.position;
         *area = placement.section.area;
         *layer = placement.layer;
     }
     if layout.is_changed() {
-        for (mut pos, mut area, mut layer, grid_placement) in layout_changed.iter_mut() {
+        for (mut pos, mut area, mut layer, grid_placement) in placed.p0().iter_mut() {
             let placement = layout.grid.place(grid_placement.clone(), *layout_config);
             *pos = placement.section.position;
             *area = placement.section.area;
@@ -255,7 +257,7 @@ pub(crate) fn viewport_changes_layout(
             ),
             0,
         );
-        layout.grid = Grid::new(t).placed_at(placement).with_gap(layout.grid.gap);
+        layout.grid = Grid::new(t.cols, t.rows).placed_at(placement).with_gap(layout.grid.gap);
     }
 }
 #[derive(Resource)]
@@ -263,6 +265,11 @@ pub struct Layout {
     grid: Grid,
 }
 impl Layout {
+    pub(crate) fn new(grid: Grid) -> Self {
+        Self {
+            grid,
+        }
+    }
     pub(crate) const SMALL_HORIZONTAL_THRESHOLD: f32 = 640.0;
     pub(crate) const LARGE_HORIZONTAL_THRESHOLD: f32 = 880.0;
     pub(crate) const SMALL_VERTICAL_THRESHOLD: f32 = 440.0;

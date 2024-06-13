@@ -20,9 +20,9 @@ use crate::differential::{
 use crate::engage_action;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::ScaleFactor;
-use crate::grid::{place_on_grid, viewport_changes_layout};
+use crate::grid::{Grid, Layout, LayoutConfiguration, place_on_grid, viewport_changes_layout};
 use crate::signal::{
-    clean, filter_signal, filtered_signaled_spawn, signaled_clean, signaled_spawn,
+    clean, clear_signal, filter_signal, filtered_signaled_spawn, signaled_clean, signaled_spawn,
 };
 use crate::view::{
     adjust_view_grid_on_change, attempt_to_confirm, cleanup_view, on_target_grid_placement_change,
@@ -172,6 +172,8 @@ impl Elm {
             .insert_resource(ViewportHandle::new(window_area));
         self.ecs.world.insert_resource(scale_factor);
         self.ecs.world.insert_resource(RenderRemoveQueue::default());
+        self.ecs.world.insert_resource(Layout::new(Grid::new(4, 4)));
+        self.ecs.world.insert_resource(LayoutConfiguration::FOUR_FOUR);
         self.scheduler.main.configure_sets(
             (
                 ScheduleMarkers::External,
@@ -207,10 +209,38 @@ impl Elm {
                 .in_set(ScheduleMarkers::GridPlacement)
                 .after(adjust_view_grid_on_change),
             attempt_to_confirm.in_set(ScheduleMarkers::SignalConfirmationStart),
+            clear_signal.after(ScheduleMarkers::Differential),
         ));
         self.scheduler.main.add_systems((
             apply_deferred
+                .after(ScheduleMarkers::External)
+                .before(ScheduleMarkers::SignalConfirmation),
+            apply_deferred
+                .after(ScheduleMarkers::SignalConfirmation)
+                .before(ScheduleMarkers::Action),
+            apply_deferred
+                .after(ScheduleMarkers::Action)
+                .before(ScheduleMarkers::SignalStage),
+            apply_deferred
+                .after(ScheduleMarkers::SignalStage)
+                .before(ScheduleMarkers::Spawn),
+            apply_deferred
+                .after(ScheduleMarkers::Spawn)
+                .before(ScheduleMarkers::SpawnFiltered),
+            apply_deferred
+                .after(ScheduleMarkers::SpawnFiltered)
+                .before(ScheduleMarkers::Clean),
+            apply_deferred
+                .after(ScheduleMarkers::Clean)
+                .before(ScheduleMarkers::GridPlacement),
+            apply_deferred
+                .after(ScheduleMarkers::GridPlacement)
+                .before(ScheduleMarkers::Config),
+            apply_deferred
                 .after(ScheduleMarkers::Config)
+                .before(ScheduleMarkers::SignalConfirmationStart),
+            apply_deferred
+                .after(ScheduleMarkers::SignalConfirmationStart)
                 .before(ScheduleMarkers::FinalizeCoordinate),
             apply_deferred
                 .after(ScheduleMarkers::FinalizeCoordinate)
