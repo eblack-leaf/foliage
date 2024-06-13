@@ -62,7 +62,7 @@ impl IconRequest {
         }
     }
 }
-#[derive(Bundle)]
+#[derive(Bundle, Clone)]
 pub struct Icon {
     link: RenderLink,
     section: Section<LogicalContext>,

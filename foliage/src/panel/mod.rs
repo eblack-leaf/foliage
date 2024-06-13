@@ -39,7 +39,7 @@ impl Leaf for Panel {
     }
 }
 
-#[derive(Bundle)]
+#[derive(Bundle, Clone)]
 pub struct Panel {
     render_link: RenderLink,
     pos: Position<LogicalContext>,

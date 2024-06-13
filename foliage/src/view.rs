@@ -65,7 +65,6 @@ pub(crate) fn adjust_view_grid_on_change(
             Changed<Layer>,
         )>,
     >,
-    config: Res<LayoutConfiguration>,
 ) {
     for (pos, area, layer, mut view_grid, active) in views.iter_mut() {
         if active.0 {

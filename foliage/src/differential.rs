@@ -35,7 +35,7 @@ pub struct RenderRemoveQueue {
     pub queue: HashMap<RenderLink, HashSet<Entity>>,
 }
 
-#[derive(Bundle)]
+#[derive(Bundle, Clone)]
 pub struct Differential<D: Component + PartialEq + Clone> {
     pub component: D,
     pub cache: DifferentialCache<D>,
@@ -50,7 +50,7 @@ impl<D: Component + PartialEq + Clone> Differential<D> {
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct DifferentialCache<D: Component + PartialEq + Clone> {
     pub(crate) last: Option<D>,
 }

@@ -114,7 +114,7 @@ impl Leaf for Coordinates {
     fn attach(elm: &mut Elm) {
         elm.scheduler
             .main
-            .add_systems(coordinate_resolve.in_set(ScheduleMarkers::Coordinate));
+            .add_systems(coordinate_resolve.in_set(ScheduleMarkers::FinalizeCoordinate));
     }
 }
 fn coordinate_resolve(

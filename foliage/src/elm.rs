@@ -17,8 +17,17 @@ use crate::coordinate::NumericalContext;
 use crate::differential::{
     differential, RenderAddQueue, RenderLink, RenderPacket, RenderRemoveQueue,
 };
+use crate::engage_action;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::ScaleFactor;
+use crate::grid::{place_on_grid, viewport_changes_layout};
+use crate::signal::{
+    clean, filter_signal, filtered_signaled_spawn, signaled_clean, signaled_spawn,
+};
+use crate::view::{
+    adjust_view_grid_on_change, attempt_to_confirm, cleanup_view, on_target_grid_placement_change,
+    on_view_grid_change, resignal_on_layout_change, signal_confirmation, signal_stage,
+};
 use crate::willow::Willow;
 
 #[derive(Default)]
@@ -115,7 +124,21 @@ impl Elm {
     }
     pub(crate) fn checked_add_signal_fns<A: Bundle + Clone + 'static + Send + Sync>(&mut self) {
         if !self.ecs.world.contains_resource::<SignalLimiter<A>>() {
-            // signaled_spawn
+            self.scheduler
+                .main
+                .add_systems(signaled_spawn::<A>.in_set(ScheduleMarkers::Spawn));
+            self.ecs
+                .world
+                .insert_resource(SignalLimiter::<A>::default());
+        }
+    }
+    pub(crate) fn checked_add_filtered_signal_fns<A: Bundle + Clone + 'static + Send + Sync>(
+        &mut self,
+    ) {
+        if !self.ecs.world.contains_resource::<SignalLimiter<A>>() {
+            self.scheduler
+                .main
+                .add_systems(filtered_signaled_spawn::<A>.in_set(ScheduleMarkers::SpawnFiltered));
             self.ecs
                 .world
                 .insert_resource(SignalLimiter::<A>::default());
@@ -123,7 +146,9 @@ impl Elm {
     }
     pub(crate) fn checked_add_action_fns<A: Command + Clone + 'static + Send + Sync>(&mut self) {
         if !self.ecs.world.contains_resource::<ActionLimiter<A>>() {
-            // engage_action
+            self.scheduler
+                .main
+                .add_systems(engage_action::<A>.in_set(ScheduleMarkers::Action));
             self.ecs
                 .world
                 .insert_resource(ActionLimiter::<A>::default());
@@ -149,18 +174,46 @@ impl Elm {
         self.ecs.world.insert_resource(RenderRemoveQueue::default());
         self.scheduler.main.configure_sets(
             (
+                ScheduleMarkers::External,
+                ScheduleMarkers::SignalConfirmation,
+                ScheduleMarkers::Action,
+                ScheduleMarkers::SignalStage,
+                ScheduleMarkers::Spawn,
+                ScheduleMarkers::SpawnFiltered,
+                ScheduleMarkers::Clean,
+                ScheduleMarkers::GridPlacement,
                 ScheduleMarkers::Config,
-                ScheduleMarkers::Coordinate,
+                ScheduleMarkers::SignalConfirmationStart,
+                ScheduleMarkers::FinalizeCoordinate,
                 ScheduleMarkers::Differential,
             )
                 .chain(),
         );
         self.scheduler.main.add_systems((
+            viewport_changes_layout.in_set(ScheduleMarkers::External),
+            signal_confirmation.in_set(ScheduleMarkers::SignalConfirmation),
+            (signal_stage, resignal_on_layout_change)
+                .in_set(ScheduleMarkers::SignalStage)
+                .before(filter_signal),
+            filter_signal.in_set(ScheduleMarkers::SignalStage),
+            (cleanup_view, signaled_clean, apply_deferred, clean)
+                .chain()
+                .in_set(ScheduleMarkers::Clean),
+            place_on_grid.in_set(ScheduleMarkers::GridPlacement),
+            adjust_view_grid_on_change
+                .in_set(ScheduleMarkers::GridPlacement)
+                .after(place_on_grid),
+            (on_view_grid_change, on_target_grid_placement_change)
+                .in_set(ScheduleMarkers::GridPlacement)
+                .after(adjust_view_grid_on_change),
+            attempt_to_confirm.in_set(ScheduleMarkers::SignalConfirmationStart),
+        ));
+        self.scheduler.main.add_systems((
             apply_deferred
                 .after(ScheduleMarkers::Config)
-                .before(ScheduleMarkers::Coordinate),
+                .before(ScheduleMarkers::FinalizeCoordinate),
             apply_deferred
-                .after(ScheduleMarkers::Coordinate)
+                .after(ScheduleMarkers::FinalizeCoordinate)
                 .before(ScheduleMarkers::Differential),
         ));
     }
@@ -223,7 +276,16 @@ impl<'a> RenderQueueHandle<'a> {
 }
 #[derive(SystemSet, Hash, Eq, PartialEq, Debug, Copy, Clone)]
 pub enum ScheduleMarkers {
-    Coordinate,
+    FinalizeCoordinate,
     Differential,
     Config,
+    Spawn,
+    SpawnFiltered,
+    Action,
+    SignalStage,
+    External,
+    GridPlacement,
+    SignalConfirmation,
+    SignalConfirmationStart,
+    Clean,
 }

@@ -1,8 +1,13 @@
 use foliage::bevy_ecs::prelude::World;
 use foliage::bevy_ecs::system::Command;
+use foliage::color::Color;
+use foliage::coordinate::placement::Placement;
+use foliage::coordinate::position::Position;
 use foliage::coordinate::section::Section;
 use foliage::grid::{Grid, GridCoordinate, GridPlacement, GridTemplate, LayoutConfiguration};
+use foliage::icon::{Icon, IconId};
 use foliage::image::Image;
+use foliage::panel::{Panel, PanelCornerRounding};
 use foliage::view::{CurrentViewStage, Stage, ViewHandle};
 use foliage::{CoreLeaves, Foliage};
 
@@ -47,24 +52,32 @@ fn main() {
         .view(view)
         .stage(initial)
         .add_signal_targeting(background)
+        .with_attribute(Panel::new(
+            Placement::default(),
+            PanelCornerRounding::all(4f32),
+            Color::WHITE,
+        ))
         .with_attribute(GridPlacement::new(1.span(3), 1.span(2)).ignore_gap())
         .with_transition(); // the PositionAdjust transition to move
     foliage
         .view(view)
         .stage(element_creation)
         .add_signal_targeting(gallery_text)
+        .with_attribute(()) // text placeholder
         .with_attribute(GridPlacement::new(2.span(2), 1.span(1)));
     foliage
         .view(view)
         .stage(image_selection)
         .add_signal_targeting(image_forward_icon)
+        .with_attribute(Icon::new(IconId(0), Color::BLACK, Position::default(), 1))
         .with_attribute(GridPlacement::new(1.span(1), 2.span(1)).except(
             LayoutConfiguration::EIGHT_FOUR | LayoutConfiguration::TWELVE_FOUR,
             2.span(1),
             1.span(1),
         ))
+        .with_attribute(()) // on-click (normal aka left-right)
         .with_filtered_attribute(
-            (),
+            (IconId(1), (/* on-click (up-down) */)),
             LayoutConfiguration::EIGHT_FOUR | LayoutConfiguration::TWELVE_FOUR,
         ) // up @ landscape-mobile | up-transition (on-click)
         .with_transition();
