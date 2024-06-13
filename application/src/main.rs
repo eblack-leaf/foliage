@@ -1,6 +1,5 @@
 use foliage::bevy_ecs::prelude::World;
 use foliage::bevy_ecs::system::Command;
-use foliage::coordinate::placement::Placement;
 use foliage::coordinate::section::Section;
 use foliage::grid::{Grid, GridCoordinate, GridPlacement, GridTemplate, LayoutConfiguration};
 use foliage::image::Image;
@@ -48,7 +47,7 @@ fn main() {
         .view(view)
         .stage(initial)
         .add_signal_targeting(background)
-        .with_attribute(()) // 0 - 1 grid-placement w/ exceptions + relative (0% - 100%)
+        .with_attribute(GridPlacement::new(1.span(3), 1.span(2)).ignore_gap())
         .with_transition(); // the PositionAdjust transition to move
     foliage
         .view(view)
@@ -59,32 +58,15 @@ fn main() {
         .view(view)
         .stage(image_selection)
         .add_signal_targeting(image_forward_icon)
-        .with_attribute(GridPlacement::new(
-            1.except(
-                LayoutConfiguration::FOUR_EIGHT | LayoutConfiguration::FOUR_TWELVE,
-                2,
-            )
-            .span(1),
-            2.except(
-                LayoutConfiguration::FOUR_EIGHT | LayoutConfiguration::FOUR_TWELVE,
-                1,
-            )
-            .span(1),
-        )) // Base Icon
+        .with_attribute(GridPlacement::new(1.span(1), 2.span(1)).except(
+            LayoutConfiguration::EIGHT_FOUR | LayoutConfiguration::TWELVE_FOUR,
+            2.span(1),
+            1.span(1),
+        ))
         .with_filtered_attribute(
             (),
-            LayoutConfiguration::FOUR_EIGHT | LayoutConfiguration::FOUR_TWELVE,
+            LayoutConfiguration::EIGHT_FOUR | LayoutConfiguration::TWELVE_FOUR,
         ) // up @ landscape-mobile | up-transition (on-click)
-        .with_transition();
-    foliage
-        .view(view)
-        .stage(image_selection)
-        .add_signal_targeting(image_backward_icon)
-        .with_attribute(()) // Base Icon
-        .with_filtered_attribute(
-            (),
-            LayoutConfiguration::FOUR_EIGHT | LayoutConfiguration::FOUR_TWELVE,
-        ) // down @ landscape-mobile | down-transition (on-click)
         .with_transition();
     let slot = Image::slot(0, (400, 400));
     // stage-2 when image created signal this attribute based on the current photo selection

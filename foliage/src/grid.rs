@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::DetectChanges;
 use bevy_ecs::query::Changed;
@@ -50,22 +48,24 @@ impl Grid {
         config: LayoutConfiguration,
     ) -> Placement<LogicalContext> {
         let mut placement = Placement::default();
+        let horizontal_range = grid_placement.horizontal(config);
+        let vertical_range = grid_placement.vertical(config);
         placement.section.position = self.placement.section.position
             + Position::logical((
-                self.column_size * grid_placement.horizontal.begin(config)
+                self.column_size * horizontal_range.begin()
                     + grid_placement.padding.x
-                    + self.gap.x,
-                self.row_size * grid_placement.vertical.begin(config)
+                    + self.gap.x * grid_placement.gap_ignore,
+                self.row_size * vertical_range.begin()
                     + grid_placement.padding.y
-                    + self.gap.y,
+                    + self.gap.y * grid_placement.gap_ignore,
             ));
         placement.section.area = Area::logical((
-            self.column_size * grid_placement.horizontal.span(config)
+            self.column_size * horizontal_range.span()
                 - grid_placement.padding.x * 2f32
-                - self.gap.x * 2f32,
-            self.row_size * grid_placement.vertical.span(config)
+                - self.gap.x * 2f32 * grid_placement.gap_ignore,
+            self.row_size * vertical_range.span()
                 - grid_placement.padding.y * 2f32
-                - self.gap.y * 2f32,
+                - self.gap.y * 2f32 * grid_placement.gap_ignore,
         ));
         placement.layer = self.placement.layer + grid_placement.layer_offset;
         placement
@@ -82,14 +82,55 @@ pub struct GridPlacement {
     vertical: GridRange,
     layer_offset: Layer,
     padding: Padding,
+    gap_ignore: f32,
+    exceptions: Vec<GridException>,
 }
 impl GridPlacement {
+    pub fn horizontal(&self, config: LayoutConfiguration) -> GridRange {
+        let mut range = self.horizontal;
+        for except in self.exceptions.iter() {
+            let filter = LayoutFilter::from(except.config);
+            if filter.accepts(config) {
+                range = except.horizontal;
+            }
+        }
+        range
+    }
+    pub fn vertical(&self, config: LayoutConfiguration) -> GridRange {
+        let mut range = self.vertical;
+        for except in self.exceptions.iter() {
+            let filter = LayoutFilter::from(except.config);
+            if filter.accepts(config) {
+                range = except.vertical;
+            }
+        }
+        range
+    }
+    pub fn except(
+        mut self,
+        config: LayoutConfiguration,
+        horizontal: GridRange,
+        vertical: GridRange,
+    ) -> Self {
+        self.exceptions.push(GridException {
+            config,
+            horizontal,
+            vertical,
+        });
+        self
+    }
+    pub fn ignore_gap(mut self) -> Self {
+        self.gap_ignore = 0.0;
+        self
+    }
     pub fn new(h: GridRange, v: GridRange) -> Self {
         Self {
             horizontal: h,
             vertical: v,
             layer_offset: Default::default(),
             padding: Padding::default(),
+            gap_ignore: 1.0,
+            exceptions: vec![],
         }
     }
     pub fn offset_layer<L: Into<Layer>>(mut self, l: L) -> Self {
@@ -103,62 +144,34 @@ impl GridPlacement {
 }
 pub trait GridCoordinate {
     fn span<I: Into<GridIndex>>(self, i: I) -> GridRange;
-    fn except(self, layout_configuration: LayoutConfiguration, i: i32) -> GridIndex;
 }
 impl GridCoordinate for i32 {
     fn span<I: Into<GridIndex>>(self, i: I) -> GridRange {
-        GridRange {
-            start: self.into(),
-            span: i.into(),
-        }
-    }
-    fn except(self, layout_configuration: LayoutConfiguration, i: i32) -> GridIndex {
-        GridIndex::new(self).except(layout_configuration, i)
+        GridRange::new(self, i)
     }
 }
-impl GridCoordinate for GridIndex {
-    fn span<I: Into<GridIndex>>(self, i: I) -> GridRange {
-        GridRange {
-            start: self,
-            span: i.into(),
-        }
-    }
-
-    fn except(self, layout_configuration: LayoutConfiguration, i: i32) -> GridIndex {
-        self.except(layout_configuration, i)
-    }
-}
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct GridRange {
     start: GridIndex,
     span: GridIndex,
 }
 impl GridRange {
-    pub fn begin(&self, config: LayoutConfiguration) -> f32 {
-        let mut index = self.start.base - 1;
-        for except in self.start.exceptions.iter() {
-            let filter = LayoutFilter::from(except.config);
-            if filter.accepts(config) {
-                index = except.index - 1;
-            }
+    pub fn new<IA: Into<GridIndex>, IB: Into<GridIndex>>(start: IA, span: IB) -> Self {
+        Self {
+            start: start.into(),
+            span: span.into(),
         }
-        index as f32
     }
-    pub fn span(&self, config: LayoutConfiguration) -> f32 {
-        let mut index = self.span.base;
-        for except in self.span.exceptions.iter() {
-            let filter = LayoutFilter::from(except.config);
-            if filter.accepts(config) {
-                index = except.index;
-            }
-        }
-        index as f32
+    pub(crate) fn begin(&self) -> CoordinateUnit {
+        (self.start.base - 1) as CoordinateUnit
+    }
+    pub(crate) fn span(&self) -> CoordinateUnit {
+        self.span.base as CoordinateUnit
     }
 }
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct GridIndex {
     base: i32,
-    exceptions: HashSet<GridException>,
 }
 impl From<i32> for GridIndex {
     fn from(value: i32) -> Self {
@@ -167,20 +180,14 @@ impl From<i32> for GridIndex {
 }
 impl GridIndex {
     pub fn new(base: i32) -> Self {
-        Self {
-            base,
-            exceptions: Default::default(),
-        }
-    }
-    pub fn except(mut self, config: LayoutConfiguration, index: i32) -> Self {
-        self.exceptions.insert(GridException { config, index });
-        self
+        Self { base }
     }
 }
-#[derive(Hash, Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
+#[derive(Clone, Copy)]
 pub struct GridException {
     config: LayoutConfiguration,
-    index: i32,
+    vertical: GridRange,
+    horizontal: GridRange,
 }
 pub(crate) fn place_on_grid(
     mut placed: Query<
