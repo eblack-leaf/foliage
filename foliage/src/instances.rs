@@ -88,6 +88,7 @@ impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
     pub fn add(&mut self, key: Key) {
         let index = self.order.len();
         self.order.push(key);
+        println!("inserting {}", index);
         self.map.insert(key, index);
         self.update_needed = true;
     }
@@ -152,6 +153,7 @@ impl<A: Pod + Zeroable + Default + Debug> Attribute<A> {
         }
     }
     fn remove(&mut self, index: usize) {
+        println!("removing {}", index);
         self.cpu.remove(index);
         self.write_needed = true;
     }

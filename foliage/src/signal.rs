@@ -60,6 +60,7 @@ pub(crate) fn filtered_signaled_spawn<A: Bundle + 'static + Send + Sync + Clone>
 ) {
     for (signal, attribute, target) in to_spawn.iter() {
         if signal.should_spawn() && attribute.1.accepts(*layout_config) {
+            println!("filtered spawning on {:?}", target.0);
             cmd.entity(target.0).insert(attribute.0.clone());
         }
     }
@@ -85,6 +86,7 @@ pub(crate) fn signaled_spawn<A: Bundle + 'static + Send + Sync + Clone>(
 ) {
     for (signal, attribute, target) in to_spawn.iter() {
         if signal.should_spawn() {
+            println!("spawning on {:?}", target.0);
             cmd.entity(target.0).insert(attribute.0.clone());
         }
     }

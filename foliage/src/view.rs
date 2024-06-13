@@ -167,7 +167,7 @@ impl View {
             .get(stage.0 as usize)
             .expect("no-stage")
             .confirmed
-            == self.targets
+            != self.targets
     }
 }
 pub(crate) struct StagedSignal {

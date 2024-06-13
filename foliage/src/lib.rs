@@ -97,6 +97,9 @@ impl Foliage {
     pub fn add_renderer<R: Render>(&mut self) {
         self.ash.add_renderer::<R>();
     }
+    pub fn spawn<B: Bundle + 'static + Send + Sync>(&mut self, b: B) {
+        self.elm.ecs.world.spawn(b);
+    }
     pub fn create_view(&mut self, grid_placement: GridPlacement, grid: Grid) -> ViewConfig {
         let handle = self
             .elm
@@ -230,7 +233,7 @@ impl<'a> StageReference<'a> {
                 signal,
                 StagedSignal {
                     handle: SignalHandle(signal),
-                    state_on_stage_start: Signal::default(),
+                    state_on_stage_start: Signal::spawn(),
                 },
             );
         SignalReference {
@@ -265,7 +268,7 @@ impl<'a> SignalReference<'a> {
         filter: F,
     ) -> Self {
         let exceptional_layout_config = filter.into();
-        self.reference.checked_add_signal_fns::<A>();
+        self.reference.checked_add_filtered_signal_fns::<A>();
         self.reference
             .ecs
             .world

@@ -271,6 +271,7 @@ impl Render for Icon {
             renderer.resource_handle.entity_to_icon.remove(&entity);
         }
         for packet in queue_handle.read_adds::<Self, IconId>() {
+            println!("adding icon-id {}", packet.value.0);
             let old = renderer
                 .resource_handle
                 .entity_to_icon
