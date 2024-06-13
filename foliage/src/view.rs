@@ -22,15 +22,17 @@ pub(crate) struct ViewComponents {
     current: CurrentViewStage,
     grid: ViewGrid, // targets use this grid instead of main
     placement: Placement<LogicalContext>,
+    grid_placement: GridPlacement,
 }
 impl ViewComponents {
-    pub(crate) fn new(grid: Grid) -> Self {
+    pub(crate) fn new(grid_placement: GridPlacement, grid: Grid) -> Self {
         Self {
             view: View::new(),
             active: ViewActive(false),
             current: Default::default(),
             grid: ViewGrid(grid),
             placement: Default::default(),
+            grid_placement,
         }
     }
 }

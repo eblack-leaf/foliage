@@ -20,7 +20,7 @@ use crate::differential::{
 use crate::engage_action;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::ScaleFactor;
-use crate::grid::{Grid, Layout, LayoutConfiguration, place_on_grid, viewport_changes_layout};
+use crate::grid::{place_on_grid, viewport_changes_layout, Grid, Layout, LayoutConfiguration};
 use crate::signal::{
     clean, clear_signal, filter_signal, filtered_signaled_spawn, signaled_clean, signaled_spawn,
 };
@@ -173,7 +173,9 @@ impl Elm {
         self.ecs.world.insert_resource(scale_factor);
         self.ecs.world.insert_resource(RenderRemoveQueue::default());
         self.ecs.world.insert_resource(Layout::new(Grid::new(4, 4)));
-        self.ecs.world.insert_resource(LayoutConfiguration::FOUR_FOUR);
+        self.ecs
+            .world
+            .insert_resource(LayoutConfiguration::FOUR_FOUR);
         self.scheduler.main.configure_sets(
             (
                 ScheduleMarkers::External,
@@ -183,7 +185,7 @@ impl Elm {
                 ScheduleMarkers::Spawn,
                 ScheduleMarkers::SpawnFiltered,
                 ScheduleMarkers::Clean,
-                ScheduleMarkers::GridPlacement,
+                ScheduleMarkers::GridSemantics,
                 ScheduleMarkers::Config,
                 ScheduleMarkers::SignalConfirmationStart,
                 ScheduleMarkers::FinalizeCoordinate,
@@ -201,12 +203,12 @@ impl Elm {
             (cleanup_view, signaled_clean, apply_deferred, clean)
                 .chain()
                 .in_set(ScheduleMarkers::Clean),
-            place_on_grid.in_set(ScheduleMarkers::GridPlacement),
+            place_on_grid.in_set(ScheduleMarkers::GridSemantics),
             adjust_view_grid_on_change
-                .in_set(ScheduleMarkers::GridPlacement)
+                .in_set(ScheduleMarkers::GridSemantics)
                 .after(place_on_grid),
             (on_view_grid_change, on_target_grid_placement_change)
-                .in_set(ScheduleMarkers::GridPlacement)
+                .in_set(ScheduleMarkers::GridSemantics)
                 .after(adjust_view_grid_on_change),
             attempt_to_confirm.in_set(ScheduleMarkers::SignalConfirmationStart),
             clear_signal.after(ScheduleMarkers::Differential),
@@ -232,9 +234,9 @@ impl Elm {
                 .before(ScheduleMarkers::Clean),
             apply_deferred
                 .after(ScheduleMarkers::Clean)
-                .before(ScheduleMarkers::GridPlacement),
+                .before(ScheduleMarkers::GridSemantics),
             apply_deferred
-                .after(ScheduleMarkers::GridPlacement)
+                .after(ScheduleMarkers::GridSemantics)
                 .before(ScheduleMarkers::Config),
             apply_deferred
                 .after(ScheduleMarkers::Config)
@@ -314,7 +316,7 @@ pub enum ScheduleMarkers {
     Action,
     SignalStage,
     External,
-    GridPlacement,
+    GridSemantics,
     SignalConfirmation,
     SignalConfirmationStart,
     Clean,

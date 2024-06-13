@@ -257,7 +257,9 @@ pub(crate) fn viewport_changes_layout(
             ),
             0,
         );
-        layout.grid = Grid::new(t.cols, t.rows).placed_at(placement).with_gap(layout.grid.gap);
+        layout.grid = Grid::new(t.cols, t.rows)
+            .placed_at(placement)
+            .with_gap(layout.grid.gap);
     }
 }
 #[derive(Resource)]
@@ -266,9 +268,7 @@ pub struct Layout {
 }
 impl Layout {
     pub(crate) fn new(grid: Grid) -> Self {
-        Self {
-            grid,
-        }
+        Self { grid }
     }
     pub(crate) const SMALL_HORIZONTAL_THRESHOLD: f32 = 640.0;
     pub(crate) const LARGE_HORIZONTAL_THRESHOLD: f32 = 880.0;

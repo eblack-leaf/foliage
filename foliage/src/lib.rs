@@ -17,7 +17,7 @@ use crate::coordinate::area::Area;
 use crate::coordinate::{Coordinates, DeviceContext};
 use crate::elm::Elm;
 use crate::ginkgo::Ginkgo;
-use crate::grid::Grid;
+use crate::grid::{Grid, GridPlacement};
 use crate::icon::Icon;
 use crate::image::Image;
 use crate::panel::Panel;
@@ -59,7 +59,7 @@ pub struct Foliage {
 
 impl Foliage {
     pub fn new() -> Self {
-        Self {
+        let mut this = Self {
             willow: Willow::default(),
             ash: Ash::default(),
             ginkgo: Ginkgo::default(),
@@ -68,7 +68,9 @@ impl Foliage {
             android_connection: AndroidConnection::default(),
             leaf_fns: vec![],
             leaves_fns: vec![],
-        }
+        };
+        this.attach_leaves::<CoreLeaves>();
+        this
     }
     pub fn set_window_size<A: Into<Area<DeviceContext>>>(&mut self, a: A) {
         self.willow.requested_size.replace(a.into());
@@ -95,8 +97,13 @@ impl Foliage {
     pub fn add_renderer<R: Render>(&mut self) {
         self.ash.add_renderer::<R>();
     }
-    pub fn create_view(&mut self, grid: Grid) -> ViewConfig {
-        let handle = self.elm.ecs.world.spawn(ViewComponents::new(grid)).id();
+    pub fn create_view(&mut self, grid_placement: GridPlacement, grid: Grid) -> ViewConfig {
+        let handle = self
+            .elm
+            .ecs
+            .world
+            .spawn(ViewComponents::new(grid_placement, grid))
+            .id();
         ViewConfig {
             root: handle,
             reference: &mut self.elm,
