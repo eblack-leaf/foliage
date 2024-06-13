@@ -245,7 +245,9 @@ pub(crate) fn viewport_changes_layout(
 ) {
     if viewport_handle.is_changed() {
         let (c, t) = Layout::configuration(viewport_handle.section().area.coordinates);
-        *config = c;
+        if &c != config.as_ref() {
+            *config = c;
+        }
         let placement = Placement::new(
             Section::new(
                 viewport_handle.section().position.coordinates,
