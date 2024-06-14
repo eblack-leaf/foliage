@@ -114,6 +114,12 @@ impl Elm {
             .insert(link, HashMap::new());
         self.ecs
             .world
+            .get_resource_mut::<RenderAddQueue<D>>()
+            .unwrap()
+            .cache
+            .insert(link, HashMap::new());
+        self.ecs
+            .world
             .get_resource_mut::<RenderRemoveQueue>()
             .unwrap()
             .queue
