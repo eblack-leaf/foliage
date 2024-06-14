@@ -28,7 +28,7 @@ fn main() {
     let mut foliage = Foliage::new();
     foliage.set_window_size((400, 600));
     let view = foliage
-        .create_view(GridPlacement::new(1.span(4), 1.span(4)), Grid::new(3, 2))
+        .create_view(GridPlacement::new(1.span(4), 1.span(2)), Grid::new(3, 2))
         .handle();
     let initial = foliage.view(view).create_stage();
     foliage.spawn(IconRequest::new(
@@ -66,7 +66,7 @@ fn main() {
         .add_signal_targeting(background)
         .with_attribute(Panel::new(
             Placement::default(),
-            PanelCornerRounding::all(0.1),
+            PanelCornerRounding::all(0.05),
             Color::WHITE,
         ))
         .with_attribute(

@@ -270,10 +270,10 @@ impl Layout {
     pub(crate) fn new(grid: Grid) -> Self {
         Self { grid }
     }
-    pub(crate) const SMALL_HORIZONTAL_THRESHOLD: f32 = 640.0;
-    pub(crate) const LARGE_HORIZONTAL_THRESHOLD: f32 = 880.0;
-    pub(crate) const SMALL_VERTICAL_THRESHOLD: f32 = 440.0;
-    pub(crate) const LARGE_VERTICAL_THRESHOLD: f32 = 640.0;
+    pub(crate) const SMALL_HORIZONTAL_THRESHOLD: f32 = 440.0;
+    pub(crate) const LARGE_HORIZONTAL_THRESHOLD: f32 = 740.0;
+    pub(crate) const SMALL_VERTICAL_THRESHOLD: f32 = 360.0;
+    pub(crate) const LARGE_VERTICAL_THRESHOLD: f32 = 560.0;
     pub(crate) fn configuration(coordinates: Coordinates) -> (LayoutConfiguration, GridTemplate) {
         let mut columns = 4;
         if coordinates.horizontal() > Self::SMALL_HORIZONTAL_THRESHOLD {
