@@ -54,13 +54,13 @@ impl<D: Component + PartialEq + Clone> Differential<D> {
 
 #[derive(Component, Clone)]
 pub struct DifferentialCache<D: Component + PartialEq + Clone> {
-    _phantom: PhantomData<D>
+    _phantom: PhantomData<D>,
 }
 
 impl<D: Component + PartialEq + Clone> DifferentialCache<D> {
     pub(crate) fn new() -> Self {
         Self {
-            _phantom: PhantomData
+            _phantom: PhantomData,
         }
     }
 }
@@ -91,7 +91,11 @@ pub(crate) fn differential<D: Component + PartialEq + Clone + Send + Sync + 'sta
         } else {
             false
         };
-        render_queue.cache.get_mut(link).unwrap().insert(entity, d.clone());
+        render_queue
+            .cache
+            .get_mut(link)
+            .unwrap()
+            .insert(entity, d.clone());
         if different {
             render_queue
                 .queue

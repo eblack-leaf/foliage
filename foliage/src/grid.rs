@@ -266,12 +266,6 @@ pub(crate) fn viewport_changes_layout(
 pub struct Layout {
     grid: Grid,
 }
-#[cfg(test)]
-#[test]
-fn layout_tests() {
-    let (c, t) = Layout::configuration(Coordinates::from((400, 600)));
-
-}
 impl Layout {
     pub(crate) fn new(grid: Grid) -> Self {
         Self { grid }

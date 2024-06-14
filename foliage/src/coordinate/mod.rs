@@ -158,7 +158,10 @@ impl Div<f32> for Coordinates {
 impl Div<Coordinates> for Coordinates {
     type Output = Coordinates;
     fn div(self, rhs: Coordinates) -> Self::Output {
-        Coordinates::new(self.horizontal() / rhs.horizontal(), self.vertical() / rhs.vertical())
+        Coordinates::new(
+            self.horizontal() / rhs.horizontal(),
+            self.vertical() / rhs.vertical(),
+        )
     }
 }
 impl Add for Coordinates {
