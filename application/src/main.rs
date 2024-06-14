@@ -4,7 +4,7 @@ use foliage::color::Color;
 use foliage::coordinate::placement::Placement;
 use foliage::coordinate::position::Position;
 use foliage::coordinate::section::Section;
-use foliage::grid::{Grid, GridCoordinate, GridPlacement, LayoutConfiguration};
+use foliage::grid::{Grid, GridCoordinate, GridPlacement, Layout};
 use foliage::icon::{Icon, IconId, IconRequest};
 use foliage::image::Image;
 use foliage::panel::{Panel, PanelCornerRounding};
@@ -81,7 +81,7 @@ fn main() {
         .add_signal_targeting(gallery_icon)
         .with_attribute(Icon::new(IconId(1), Color::BLACK, Position::default(), 1))
         .with_attribute(GridPlacement::new(1.span(1), 1.span(1)).except(
-            LayoutConfiguration::EIGHT_FOUR | LayoutConfiguration::TWELVE_FOUR,
+            Layout::LANDSCAPE_MOBILE | Layout::LANDSCAPE_EXT,
             2.span(1),
             2.span(1),
         ));
@@ -97,14 +97,14 @@ fn main() {
         .add_signal_targeting(image_forward_icon)
         .with_attribute(Icon::new(IconId(1), Color::BLACK, Position::default(), 1))
         .with_attribute(GridPlacement::new(1.span(1), 2.span(1)).except(
-            LayoutConfiguration::EIGHT_FOUR | LayoutConfiguration::TWELVE_FOUR,
+            Layout::LANDSCAPE_MOBILE | Layout::LANDSCAPE_EXT,
             2.span(1),
             1.span(1),
         ))
         .with_attribute(()) // on-click (normal aka left-right)
         .with_filtered_attribute(
             (IconId(2), (/* on-click (up-down) */)),
-            LayoutConfiguration::EIGHT_FOUR | LayoutConfiguration::TWELVE_FOUR,
+            Layout::LANDSCAPE_MOBILE | Layout::LANDSCAPE_EXT,
         ) // up @ landscape-mobile | up-transition (on-click)
         .with_transition();
     let slot = Image::slot(0, (400, 400));

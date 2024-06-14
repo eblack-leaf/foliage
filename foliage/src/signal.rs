@@ -3,7 +3,7 @@ use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Bundle, Changed, Commands, Component, Query, ResMut};
 
 use crate::differential::{RenderLink, RenderRemoveQueue};
-use crate::grid::{LayoutConfiguration, LayoutFilter};
+use crate::grid::{Layout, LayoutFilter};
 use crate::view::{SignalConfirmation, ViewHandle};
 
 #[derive(Component, Default, Copy, Clone)]
@@ -56,7 +56,7 @@ pub(crate) struct FilteredTriggeredAttribute<A: Bundle + 'static + Send + Sync +
 pub(crate) fn filtered_signaled_spawn<A: Bundle + 'static + Send + Sync + Clone>(
     to_spawn: Query<(&Signal, &FilteredTriggeredAttribute<A>, &TriggerTarget), Changed<Signal>>,
     mut cmd: Commands,
-    layout_config: Res<LayoutConfiguration>,
+    layout_config: Res<Layout>,
 ) {
     for (signal, attribute, target) in to_spawn.iter() {
         if signal.should_spawn() && attribute.1.accepts(*layout_config) {
@@ -138,7 +138,7 @@ impl TargetComponents {
 
 pub(crate) fn filter_signal(
     mut signals: Query<(&mut Signal, &LayoutFilter), Changed<Signal>>,
-    layout_config: Res<LayoutConfiguration>,
+    layout_config: Res<Layout>,
 ) {
     for (mut signal, filter) in signals.iter_mut() {
         if filter.accepts(*layout_config) {

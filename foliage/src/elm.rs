@@ -20,7 +20,7 @@ use crate::differential::{
 use crate::engage_action;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::ScaleFactor;
-use crate::grid::{place_on_grid, viewport_changes_layout, Grid, Layout, LayoutConfiguration};
+use crate::grid::{place_on_grid, viewport_changes_layout, Grid, Layout, LayoutGrid};
 use crate::signal::{
     clean, clear_signal, filter_signal, filtered_signaled_spawn, signaled_clean, signaled_spawn,
 };
@@ -178,10 +178,10 @@ impl Elm {
             .insert_resource(ViewportHandle::new(window_area));
         self.ecs.world.insert_resource(scale_factor);
         self.ecs.world.insert_resource(RenderRemoveQueue::default());
-        self.ecs.world.insert_resource(Layout::new(Grid::new(4, 4)));
         self.ecs
             .world
-            .insert_resource(LayoutConfiguration::FOUR_FOUR);
+            .insert_resource(LayoutGrid::new(Grid::new(4, 4)));
+        self.ecs.world.insert_resource(Layout::SQUARE);
         self.scheduler.main.configure_sets(
             (
                 ScheduleMarkers::External,

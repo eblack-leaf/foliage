@@ -45,7 +45,7 @@ impl Grid {
     pub fn place(
         &self,
         grid_placement: GridPlacement,
-        config: LayoutConfiguration,
+        config: Layout,
     ) -> Placement<LogicalContext> {
         let mut placement = Placement::default();
         let horizontal_range = grid_placement.horizontal(config);
@@ -86,7 +86,7 @@ pub struct GridPlacement {
     exceptions: Vec<GridException>,
 }
 impl GridPlacement {
-    pub fn horizontal(&self, config: LayoutConfiguration) -> GridRange {
+    pub fn horizontal(&self, config: Layout) -> GridRange {
         let mut range = self.horizontal;
         for except in self.exceptions.iter() {
             let filter = LayoutFilter::from(except.config);
@@ -96,7 +96,7 @@ impl GridPlacement {
         }
         range
     }
-    pub fn vertical(&self, config: LayoutConfiguration) -> GridRange {
+    pub fn vertical(&self, config: Layout) -> GridRange {
         let mut range = self.vertical;
         for except in self.exceptions.iter() {
             let filter = LayoutFilter::from(except.config);
@@ -106,12 +106,7 @@ impl GridPlacement {
         }
         range
     }
-    pub fn except(
-        mut self,
-        config: LayoutConfiguration,
-        horizontal: GridRange,
-        vertical: GridRange,
-    ) -> Self {
+    pub fn except(mut self, config: Layout, horizontal: GridRange, vertical: GridRange) -> Self {
         self.exceptions.push(GridException {
             config,
             horizontal,
@@ -185,7 +180,7 @@ impl GridIndex {
 }
 #[derive(Clone, Copy)]
 pub struct GridException {
-    config: LayoutConfiguration,
+    config: Layout,
     vertical: GridRange,
     horizontal: GridRange,
 }
@@ -207,8 +202,8 @@ pub(crate) fn place_on_grid(
             Changed<GridPlacement>,
         >,
     )>,
-    layout_config: Res<LayoutConfiguration>,
-    layout: Res<Layout>,
+    layout_config: Res<Layout>,
+    layout: Res<LayoutGrid>,
 ) {
     for (mut pos, mut area, mut layer, grid_placement) in placed.p1().iter_mut() {
         let placement = layout.grid.place(grid_placement.clone(), *layout_config);
@@ -242,13 +237,13 @@ impl GridTemplate {
 }
 pub(crate) fn viewport_changes_layout(
     viewport_handle: Res<ViewportHandle>,
+    mut layout_grid: ResMut<LayoutGrid>,
     mut layout: ResMut<Layout>,
-    mut config: ResMut<LayoutConfiguration>,
 ) {
     if viewport_handle.is_changed() {
-        let (c, t) = Layout::configuration(viewport_handle.section().area.coordinates);
-        if &c != config.as_ref() {
-            *config = c;
+        let (l, t) = LayoutGrid::configuration(viewport_handle.section().area.coordinates);
+        if &l != layout.as_ref() {
+            *layout = l;
         }
         let placement = Placement::new(
             Section::new(
@@ -257,16 +252,16 @@ pub(crate) fn viewport_changes_layout(
             ),
             0,
         );
-        layout.grid = Grid::new(t.cols, t.rows)
+        layout_grid.grid = Grid::new(t.cols, t.rows)
             .placed_at(placement)
-            .with_gap(layout.grid.gap);
+            .with_gap(layout_grid.grid.gap);
     }
 }
 #[derive(Resource)]
-pub struct Layout {
+pub struct LayoutGrid {
     grid: Grid,
 }
-impl Layout {
+impl LayoutGrid {
     pub(crate) fn new(grid: Grid) -> Self {
         Self { grid }
     }
@@ -274,7 +269,7 @@ impl Layout {
     pub(crate) const LARGE_HORIZONTAL_THRESHOLD: f32 = 740.0;
     pub(crate) const SMALL_VERTICAL_THRESHOLD: f32 = 360.0;
     pub(crate) const LARGE_VERTICAL_THRESHOLD: f32 = 560.0;
-    pub(crate) fn configuration(coordinates: Coordinates) -> (LayoutConfiguration, GridTemplate) {
+    pub(crate) fn configuration(coordinates: Coordinates) -> (Layout, GridTemplate) {
         let mut columns = 4;
         if coordinates.horizontal() > Self::SMALL_HORIZONTAL_THRESHOLD {
             columns = 8
@@ -290,68 +285,68 @@ impl Layout {
             rows = 12;
         }
         let orientation = if columns == 4 && rows == 8 {
-            LayoutConfiguration::FOUR_EIGHT
+            Layout::PORTRAIT_MOBILE
         } else if columns == 4 && rows == 12 {
-            LayoutConfiguration::FOUR_TWELVE
+            Layout::PORTRAIT_EXT
         } else if columns == 8 && rows == 4 {
-            LayoutConfiguration::EIGHT_FOUR
+            Layout::LANDSCAPE_MOBILE
         } else if columns == 8 && rows == 8 {
-            LayoutConfiguration::EIGHT_EIGHT
+            Layout::SQUARE_EXT
         } else if columns == 8 && rows == 12 {
-            LayoutConfiguration::EIGHT_TWELVE
+            Layout::TALL_DESKTOP
         } else if columns == 12 && rows == 4 {
-            LayoutConfiguration::TWELVE_FOUR
+            Layout::LANDSCAPE_EXT
         } else if columns == 12 && rows == 8 {
-            LayoutConfiguration::TWELVE_EIGHT
+            Layout::WIDE_DESKTOP
         } else if columns == 12 && rows == 12 {
-            LayoutConfiguration::TWELVE_TWELVE
+            Layout::SQUARE_MAX
         } else {
-            LayoutConfiguration::FOUR_FOUR
+            Layout::SQUARE
         };
         (orientation, GridTemplate::new(columns, rows))
     }
 }
 #[derive(Resource, Copy, Clone, Eq, Hash, PartialEq, Ord, PartialOrd)]
-pub struct LayoutConfiguration(u16);
+pub struct Layout(u16);
 // set of layouts this will signal at
 #[derive(Component, Copy, Clone)]
 pub struct LayoutFilter {
-    pub(crate) config: LayoutConfiguration,
+    pub(crate) config: Layout,
 }
 
-impl From<LayoutConfiguration> for LayoutFilter {
-    fn from(value: LayoutConfiguration) -> Self {
+impl From<Layout> for LayoutFilter {
+    fn from(value: Layout) -> Self {
         Self::new(value)
     }
 }
 
 impl LayoutFilter {
-    pub fn new(config: LayoutConfiguration) -> Self {
+    pub fn new(config: Layout) -> Self {
         Self { config }
     }
-    pub fn accepts(&self, current: LayoutConfiguration) -> bool {
+    pub fn accepts(&self, current: Layout) -> bool {
         self.config.contains(current)
     }
 }
 
 bitflags! {
-    impl LayoutConfiguration: u16 {
-        const FOUR_FOUR = 1;
-        const FOUR_EIGHT = 1 << 1;
-        const FOUR_TWELVE = 1 << 2;
-        const EIGHT_FOUR = 1 << 3;
-        const EIGHT_EIGHT = 1 << 4;
-        const EIGHT_TWELVE = 1 << 5;
-        const TWELVE_FOUR = 1 << 6;
-        const TWELVE_EIGHT = 1 << 7;
-        const TWELVE_TWELVE = 1 << 8;
+    impl Layout: u16 {
+        const SQUARE = 1;
+        const SQUARE_EXT = 1 << 1;
+        const SQUARE_MAX = 1 << 2;
+        const PORTRAIT_MOBILE = 1 << 3;
+        const PORTRAIT_EXT = 1 << 4;
+        const LANDSCAPE_MOBILE = 1 << 5;
+        const LANDSCAPE_EXT = 1 << 6;
+        const TALL_DESKTOP = 1 << 7;
+        const WIDE_DESKTOP = 1 << 8;
     }
 }
 #[cfg(test)]
 #[test]
 fn bitflags_test() {
-    let config = LayoutConfiguration::EIGHT_FOUR | LayoutConfiguration::TWELVE_FOUR;
+    let config = Layout::LANDSCAPE_MOBILE | Layout::LANDSCAPE_EXT;
     let filter = LayoutFilter::from(config);
-    let accept = filter.accepts(LayoutConfiguration::EIGHT_FOUR);
+    let accept = filter.accepts(Layout::LANDSCAPE_MOBILE);
     assert_eq!(accept, true);
 }

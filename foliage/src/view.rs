@@ -11,7 +11,7 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::placement::Placement;
 use crate::coordinate::position::Position;
 use crate::coordinate::LogicalContext;
-use crate::grid::{Grid, GridPlacement, Layout, LayoutConfiguration};
+use crate::grid::{Grid, GridPlacement, Layout, LayoutGrid};
 use crate::signal::{Clean, Signal, TriggerTarget};
 use crate::ActionHandle;
 
@@ -88,7 +88,7 @@ pub(crate) fn on_view_grid_change(
         ),
         With<ViewHandle>,
     >,
-    config: Res<LayoutConfiguration>,
+    config: Res<Layout>,
 ) {
     for (view, grid, active) in views.iter() {
         if active.0 {
@@ -118,7 +118,7 @@ pub(crate) fn on_target_grid_placement_change(
         ),
         Changed<GridPlacement>,
     >,
-    config: Res<LayoutConfiguration>,
+    config: Res<Layout>,
 ) {
     for (mut pos, mut area, mut layer, grid_placement, handle) in targets.iter_mut() {
         if let Ok((grid, active)) = views.get(handle.0) {
@@ -220,7 +220,7 @@ pub(crate) fn signal_stage(
 }
 pub(crate) fn resignal_on_layout_change(
     mut views: Query<(&mut View, &CurrentViewStage, &ViewActive)>,
-    layout: Res<Layout>,
+    layout: Res<LayoutGrid>,
     mut cmd: Commands,
 ) {
     if layout.is_changed() {
