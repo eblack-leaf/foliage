@@ -35,14 +35,14 @@ fn main() {
         0,
         include_bytes!("assets/menu.icon").to_vec(),
     ));
-    // foliage.spawn(IconRequest::new(
-    //     1,
-    //     include_bytes!("assets/calendar.icon").to_vec(),
-    // ));
-    // foliage.spawn(IconRequest::new(
-    //     2,
-    //     include_bytes!("assets/archive.icon").to_vec(),
-    // ));
+    foliage.spawn(IconRequest::new(
+        1,
+        include_bytes!("assets/calendar.icon").to_vec(),
+    ));
+    foliage.spawn(IconRequest::new(
+        2,
+        include_bytes!("assets/archive.icon").to_vec(),
+    ));
     let element_creation = foliage.view(view).create_stage();
     let image_selection = foliage.view(view).create_stage();
     foliage.view(view).set_initial_stage(initial);
@@ -79,37 +79,37 @@ fn main() {
         .view(view)
         .stage(element_creation)
         .add_signal_targeting(gallery_icon)
-        .with_attribute(Icon::new(IconId(0), Color::BLACK, Position::default(), 1))
+        .with_attribute(Icon::new(IconId(2), Color::BLACK, Position::default(), 1))
         .with_attribute(GridPlacement::new(1.span(1), 1.span(1)));
-    // foliage
-    //     .view(view)
-    //     .stage(element_creation)
-    //     .add_signal_targeting(gallery_text)
-    //     .with_attribute(()) // text placeholder
-    //     .with_attribute(GridPlacement::new(2.span(2), 1.span(1)));
-    // foliage
-    //     .view(view)
-    //     .stage(image_selection)
-    //     .add_signal_targeting(image_forward_icon)
-    //     .with_attribute(Icon::new(IconId(1), Color::BLACK, Position::default(), 1))
-    //     .with_attribute(GridPlacement::new(1.span(1), 2.span(1)).except(
-    //         LayoutConfiguration::EIGHT_FOUR | LayoutConfiguration::TWELVE_FOUR,
-    //         2.span(1),
-    //         1.span(1),
-    //     ))
-    //     .with_attribute(()) // on-click (normal aka left-right)
-    //     .with_filtered_attribute(
-    //         (IconId(2), (/* on-click (up-down) */)),
-    //         LayoutConfiguration::EIGHT_FOUR | LayoutConfiguration::TWELVE_FOUR,
-    //     ) // up @ landscape-mobile | up-transition (on-click)
-    //     .with_transition();
-    // let slot = Image::slot(0, (400, 400));
-    // // stage-2 when image created signal this attribute based on the current photo selection
-    // let fill = Image::new(
-    //     0,
-    //     Section::new((10, 10), (200, 200)),
-    //     0,
-    //     include_bytes!("test_image.png").to_vec(),
-    // );
+    foliage
+        .view(view)
+        .stage(element_creation)
+        .add_signal_targeting(gallery_text)
+        .with_attribute(()) // text placeholder
+        .with_attribute(GridPlacement::new(2.span(2), 1.span(1)));
+    foliage
+        .view(view)
+        .stage(image_selection)
+        .add_signal_targeting(image_forward_icon)
+        .with_attribute(Icon::new(IconId(1), Color::BLACK, Position::default(), 1))
+        .with_attribute(GridPlacement::new(1.span(1), 2.span(1)).except(
+            LayoutConfiguration::EIGHT_FOUR | LayoutConfiguration::TWELVE_FOUR,
+            2.span(1),
+            1.span(1),
+        ))
+        .with_attribute(()) // on-click (normal aka left-right)
+        .with_filtered_attribute(
+            (IconId(2), (/* on-click (up-down) */)),
+            LayoutConfiguration::EIGHT_FOUR | LayoutConfiguration::TWELVE_FOUR,
+        ) // up @ landscape-mobile | up-transition (on-click)
+        .with_transition();
+    let slot = Image::slot(0, (400, 400));
+    // stage-2 when image created signal this attribute based on the current photo selection
+    let fill = Image::new(
+        0,
+        Section::new((10, 10), (200, 200)),
+        0,
+        include_bytes!("test_image.png").to_vec(),
+    );
     foliage.run();
 }
