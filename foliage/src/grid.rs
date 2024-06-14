@@ -266,6 +266,12 @@ pub(crate) fn viewport_changes_layout(
 pub struct Layout {
     grid: Grid,
 }
+#[cfg(test)]
+#[test]
+fn layout_tests() {
+    let (c, t) = Layout::configuration(Coordinates::from((400, 600)));
+
+}
 impl Layout {
     pub(crate) fn new(grid: Grid) -> Self {
         Self { grid }
@@ -291,6 +297,20 @@ impl Layout {
         }
         let orientation = if columns == 4 && rows == 8 {
             LayoutConfiguration::FOUR_EIGHT
+        } else if columns == 4 && rows == 12 {
+            LayoutConfiguration::FOUR_TWELVE
+        } else if columns == 8 && rows == 4 {
+            LayoutConfiguration::EIGHT_FOUR
+        } else if columns == 8 && rows == 8 {
+            LayoutConfiguration::EIGHT_EIGHT
+        } else if columns == 8 && rows == 12 {
+            LayoutConfiguration::EIGHT_TWELVE
+        } else if columns == 12 && rows == 4 {
+            LayoutConfiguration::TWELVE_FOUR
+        } else if columns == 12 && rows == 8 {
+            LayoutConfiguration::TWELVE_EIGHT
+        } else if columns == 12 && rows == 12 {
+            LayoutConfiguration::TWELVE_TWELVE
         } else {
             LayoutConfiguration::FOUR_FOUR
         };
@@ -316,7 +336,7 @@ impl LayoutFilter {
         Self { config }
     }
     pub fn accepts(&self, current: LayoutConfiguration) -> bool {
-        !(current & self.config).is_empty()
+        self.config.contains(current)
     }
 }
 
@@ -332,4 +352,12 @@ bitflags! {
         const TWELVE_EIGHT = 1 << 7;
         const TWELVE_TWELVE = 1 << 8;
     }
+}
+#[cfg(test)]
+#[test]
+fn bitflags_test() {
+    let config = LayoutConfiguration::EIGHT_FOUR | LayoutConfiguration::TWELVE_FOUR;
+    let filter = LayoutFilter::from(config);
+    let accept = filter.accepts(LayoutConfiguration::EIGHT_FOUR);
+    assert_eq!(accept, true);
 }
