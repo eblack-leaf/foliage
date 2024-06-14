@@ -79,7 +79,7 @@ fn main() {
         .view(view)
         .stage(element_creation)
         .add_signal_targeting(gallery_icon)
-        .with_attribute(Icon::new(IconId(2), Color::BLACK, Position::default(), 1))
+        .with_attribute(Icon::new(IconId(1), Color::BLACK, Position::default(), 1))
         .with_attribute(GridPlacement::new(1.span(1), 1.span(1)));
     foliage
         .view(view)

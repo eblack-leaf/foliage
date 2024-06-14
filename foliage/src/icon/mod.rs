@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::ops::{Div, Sub};
 
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
@@ -40,11 +41,16 @@ impl Leaf for Icon {
             .add_systems(icon_scale.in_set(ScheduleMarkers::Config));
     }
 }
+
 fn icon_scale(
-    mut icons: Query<&mut Area<LogicalContext>, (Changed<Area<LogicalContext>>, With<IconId>)>,
+    mut icons: Query<(&mut Position<LogicalContext>, &mut Area<LogicalContext>), (Changed<Area<LogicalContext>>, With<IconId>)>,
 ) {
-    for mut area in icons.iter_mut() {
-        *area = Area::logical(Icon::SCALE);
+    for (mut pos, mut area) in icons.iter_mut() {
+        let old = *area;
+        let new = Area::logical(Icon::SCALE);
+        let diff = (old - new).max((0, 0)) / Area::logical((2, 2));
+        *pos = *pos + Position::logical(diff.coordinates);
+        *area = new;
     }
 }
 #[derive(Component, Clone, PartialEq)]

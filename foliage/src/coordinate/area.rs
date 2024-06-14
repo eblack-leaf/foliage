@@ -1,4 +1,5 @@
 use std::marker::PhantomData;
+use std::ops::{Div, Sub};
 
 use bevy_ecs::prelude::Component;
 use bytemuck::{Pod, Zeroable};
@@ -95,5 +96,21 @@ impl From<PhysicalSize<u32>> for Area<DeviceContext> {
 impl<Context: CoordinateContext, C: Into<Coordinates>> From<C> for Area<Context> {
     fn from(value: C) -> Self {
         Self::new(value)
+    }
+}
+
+impl<Context: CoordinateContext> Sub for Area<Context> {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        (self.coordinates - rhs.coordinates).into()
+    }
+}
+
+impl<Context: CoordinateContext> Div for Area<Context> {
+    type Output = Self;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        (self.coordinates / rhs.coordinates).into()
     }
 }
