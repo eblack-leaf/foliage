@@ -220,10 +220,10 @@ pub(crate) fn signal_stage(
 }
 pub(crate) fn resignal_on_layout_change(
     mut views: Query<(&mut View, &CurrentViewStage, &ViewActive)>,
-    layout: Res<LayoutGrid>,
+    layout_grid: Res<LayoutGrid>,
     mut cmd: Commands,
 ) {
-    if layout.is_changed() {
+    if layout_grid.is_changed() {
         for (mut view, current, active) in views.iter_mut() {
             if active.0 {
                 for target in view.targets.iter() {

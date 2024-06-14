@@ -203,17 +203,17 @@ pub(crate) fn place_on_grid(
         >,
     )>,
     layout_config: Res<Layout>,
-    layout: Res<LayoutGrid>,
+    layout_grid: Res<LayoutGrid>,
 ) {
     for (mut pos, mut area, mut layer, grid_placement) in placed.p1().iter_mut() {
-        let placement = layout.grid.place(grid_placement.clone(), *layout_config);
+        let placement = layout_grid.grid.place(grid_placement.clone(), *layout_config);
         *pos = placement.section.position;
         *area = placement.section.area;
         *layer = placement.layer;
     }
-    if layout.is_changed() {
+    if layout_grid.is_changed() {
         for (mut pos, mut area, mut layer, grid_placement) in placed.p0().iter_mut() {
-            let placement = layout.grid.place(grid_placement.clone(), *layout_config);
+            let placement = layout_grid.grid.place(grid_placement.clone(), *layout_config);
             *pos = placement.section.position;
             *area = placement.section.area;
             *layer = placement.layer;
