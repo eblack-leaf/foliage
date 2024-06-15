@@ -20,6 +20,7 @@ use crate::ginkgo::Ginkgo;
 use crate::grid::{Grid, GridPlacement};
 use crate::icon::Icon;
 use crate::image::Image;
+use crate::interaction::KeyboardAdapter;
 use crate::panel::Panel;
 use crate::signal::{
     FilteredTriggeredAttribute, Signal, Signaler, TargetComponents, TriggerTarget,
@@ -41,6 +42,7 @@ pub mod grid;
 pub mod icon;
 pub mod image;
 pub mod instances;
+mod interaction;
 pub mod panel;
 pub mod signal;
 pub mod view;
@@ -445,8 +447,30 @@ impl ApplicationHandler for Foliage {
             WindowEvent::HoveredFile(_) => {}
             WindowEvent::HoveredFileCancelled => {}
             WindowEvent::Focused(_) => {}
-            WindowEvent::KeyboardInput { .. } => {}
-            WindowEvent::ModifiersChanged(_) => {}
+            WindowEvent::KeyboardInput {
+                device_id: _device_id,
+                event,
+                ..
+            } => {
+                if let Some(event) = self
+                    .elm
+                    .ecs
+                    .world
+                    .get_resource_mut::<KeyboardAdapter>()
+                    .expect("keys")
+                    .cache_different(event.logical_key, event.state)
+                {
+                    // send event
+                }
+            }
+            WindowEvent::ModifiersChanged(e) => {
+                self.elm
+                    .ecs
+                    .world
+                    .get_resource_mut::<KeyboardAdapter>()
+                    .expect("keyboard-adapter")
+                    .current_modifiers = e.state();
+            }
             WindowEvent::Ime(_) => {}
             WindowEvent::CursorMoved { .. } => {}
             WindowEvent::CursorEntered { .. } => {}
