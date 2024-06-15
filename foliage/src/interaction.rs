@@ -1,7 +1,9 @@
-use bevy_ecs::prelude::{Event, Resource};
+use bevy_ecs::prelude::{Component, Event, Resource};
 use std::collections::HashMap;
 use winit::event::ElementState;
 use winit::keyboard::{Key, ModifiersState};
+use crate::view::SignalHandle;
+
 #[derive(Event)]
 pub struct KeyboardInteraction {
     pub input_sequence: InputSequence,
@@ -16,6 +18,10 @@ pub struct InputSequence {
 pub(crate) struct KeyboardAdapter {
     cache: HashMap<Key, ElementState>,
     pub(crate) current_modifiers: ModifiersState,
+}
+#[derive(Component)]
+pub struct KeyBindings {
+    bindings: HashMap<InputSequence, SignalHandle>,
 }
 impl KeyboardAdapter {
     pub(crate) fn cache_different(
