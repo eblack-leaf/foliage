@@ -20,7 +20,7 @@ use crate::ginkgo::Ginkgo;
 use crate::grid::{Grid, GridPlacement};
 use crate::icon::Icon;
 use crate::image::Image;
-use crate::interaction::KeyboardAdapter;
+use interaction::keyboard::KeyboardAdapter;
 use crate::panel::Panel;
 use crate::signal::{
     FilteredTriggeredAttribute, Signal, Signaler, TargetComponents, TriggerTarget,
