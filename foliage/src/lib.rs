@@ -14,13 +14,15 @@ use willow::Willow;
 
 use crate::ash::{Ash, Render};
 use crate::coordinate::area::Area;
+use crate::coordinate::position::Position;
 use crate::coordinate::{Coordinates, DeviceContext};
 use crate::elm::Elm;
-use crate::ginkgo::Ginkgo;
+use crate::ginkgo::viewport::ViewportHandle;
+use crate::ginkgo::{Ginkgo, ScaleFactor};
 use crate::grid::{Grid, GridPlacement};
 use crate::icon::Icon;
 use crate::image::Image;
-use interaction::keyboard::KeyboardAdapter;
+use crate::interaction::mouse::MouseAdapter;
 use crate::panel::Panel;
 use crate::signal::{
     FilteredTriggeredAttribute, Signal, Signaler, TargetComponents, TriggerTarget,
@@ -30,6 +32,7 @@ use crate::view::{
     CurrentViewStage, SignalHandle, Stage, StagedSignal, View, ViewActive, ViewComponents,
     ViewHandle, ViewStage,
 };
+use interaction::keyboard::KeyboardAdapter;
 
 pub mod ash;
 pub mod asset;
@@ -472,18 +475,62 @@ impl ApplicationHandler for Foliage {
                     .current_modifiers = e.state();
             }
             WindowEvent::Ime(_) => {}
-            WindowEvent::CursorMoved { .. } => {}
+            WindowEvent::CursorMoved {
+                device_id: _device_id,
+                position,
+            } => {
+                let scale_factor = self
+                    .elm
+                    .ecs
+                    .world
+                    .get_resource::<ScaleFactor>()
+                    .expect("scale")
+                    .clone();
+                self.elm
+                    .ecs
+                    .world
+                    .get_resource_mut::<MouseAdapter>()
+                    .expect("mouse-adapter")
+                    .cursor = Position::device((position.x, position.y))
+                    .to_logical(scale_factor.value())
+                    + self
+                        .elm
+                        .ecs
+                        .world
+                        .get_resource::<ViewportHandle>()
+                        .expect("vh")
+                        .section()
+                        .position
+                        .as_logical();
+            }
             WindowEvent::CursorEntered { .. } => {}
             WindowEvent::CursorLeft { .. } => {}
             WindowEvent::MouseWheel { .. } => {}
-            WindowEvent::MouseInput { .. } => {}
+            WindowEvent::MouseInput {
+                device_id: _device_id,
+                state,
+                button,
+            } => {
+                if let Some(e) = self
+                    .elm
+                    .ecs
+                    .world
+                    .get_resource_mut::<MouseAdapter>()
+                    .expect("mouse-adapter")
+                    .cache_different(button, state)
+                {
+                    // send event
+                }
+            }
             WindowEvent::PinchGesture { .. } => {}
             WindowEvent::PanGesture { .. } => {}
             WindowEvent::DoubleTapGesture { .. } => {}
             WindowEvent::RotationGesture { .. } => {}
             WindowEvent::TouchpadPressure { .. } => {}
             WindowEvent::AxisMotion { .. } => {}
-            WindowEvent::Touch(_) => {}
+            WindowEvent::Touch(t) => {
+                // touch_adapter => cache_different => event
+            }
             WindowEvent::ScaleFactorChanged {
                 scale_factor: _scale_factor,
                 ..

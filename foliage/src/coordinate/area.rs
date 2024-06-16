@@ -29,6 +29,12 @@ impl Area<NumericalContext> {
     pub fn numerical<C: Into<Coordinates>>(c: C) -> Area<NumericalContext> {
         Area::new(c)
     }
+    pub fn as_logical(self) -> Area<LogicalContext> {
+        Self::logical(self.coordinates)
+    }
+    pub fn as_device(self) -> Area<DeviceContext> {
+        Self::device(self.coordinates)
+    }
 }
 
 impl<Context: CoordinateContext> Area<Context> {

@@ -1,10 +1,10 @@
-use winit::keyboard::{Key, ModifiersState};
-use winit::event::ElementState;
-use bevy_ecs::component::Component;
-use std::collections::HashMap;
-use bevy_ecs::prelude::Resource;
-use bevy_ecs::event::Event;
 use crate::view::SignalHandle;
+use bevy_ecs::component::Component;
+use bevy_ecs::event::Event;
+use bevy_ecs::prelude::Resource;
+use std::collections::HashMap;
+use winit::event::ElementState;
+use winit::keyboard::{Key, ModifiersState};
 
 #[derive(Event)]
 pub struct KeyboardInteraction {

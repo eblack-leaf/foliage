@@ -1,6 +1,5 @@
 use bevy_ecs::prelude::{Component, Event, Resource};
 
-pub(crate) mod keyboard;
-mod mouse;
-mod click;
-
+pub mod click;
+pub mod keyboard;
+pub mod mouse;
