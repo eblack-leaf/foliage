@@ -22,6 +22,7 @@ use crate::ginkgo::{Ginkgo, ScaleFactor};
 use crate::grid::{Grid, GridPlacement};
 use crate::icon::Icon;
 use crate::image::Image;
+use crate::interaction::click::TouchAdapter;
 use crate::interaction::mouse::MouseAdapter;
 use crate::panel::Panel;
 use crate::signal::{
@@ -486,12 +487,7 @@ impl ApplicationHandler for Foliage {
                     .get_resource::<ScaleFactor>()
                     .expect("scale")
                     .clone();
-                self.elm
-                    .ecs
-                    .world
-                    .get_resource_mut::<MouseAdapter>()
-                    .expect("mouse-adapter")
-                    .cursor = Position::device((position.x, position.y))
+                let updated_position = Position::device((position.x, position.y))
                     .to_logical(scale_factor.value())
                     + self
                         .elm
@@ -502,6 +498,16 @@ impl ApplicationHandler for Foliage {
                         .section()
                         .position
                         .as_logical();
+                if let Some(event) = self
+                    .elm
+                    .ecs
+                    .world
+                    .get_resource_mut::<MouseAdapter>()
+                    .expect("mouse-adapter")
+                    .set_cursor(updated_position)
+                {
+                    // send event
+                }
             }
             WindowEvent::CursorEntered { .. } => {}
             WindowEvent::CursorLeft { .. } => {}
@@ -529,7 +535,23 @@ impl ApplicationHandler for Foliage {
             WindowEvent::TouchpadPressure { .. } => {}
             WindowEvent::AxisMotion { .. } => {}
             WindowEvent::Touch(t) => {
-                // touch_adapter => cache_different => event
+                let scale_factor = self
+                    .elm
+                    .ecs
+                    .world
+                    .get_resource::<ScaleFactor>()
+                    .expect("scale-factor")
+                    .clone();
+                if let Some(e) = self
+                    .elm
+                    .ecs
+                    .world
+                    .get_resource_mut::<TouchAdapter>()
+                    .expect("touch-adapter")
+                    .read_touch(t, &scale_factor)
+                {
+                    // send event
+                }
             }
             WindowEvent::ScaleFactorChanged {
                 scale_factor: _scale_factor,
