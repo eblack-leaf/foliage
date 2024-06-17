@@ -48,6 +48,7 @@ pub mod image;
 pub mod instances;
 mod interaction;
 pub mod panel;
+mod r_interaction;
 pub mod signal;
 pub mod view;
 pub mod willow;

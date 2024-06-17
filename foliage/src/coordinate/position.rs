@@ -56,6 +56,9 @@ impl<Context: CoordinateContext> Position<Context> {
     pub fn y(&self) -> CoordinateUnit {
         self.coordinates.0[1]
     }
+    pub fn distance(self, o: Self) -> CoordinateUnit {
+        ((self.x() - o.x()).powi(2) + (self.y() - o.y()).powi(2)).sqrt()
+    }
     pub fn to_numerical(self) -> Position<NumericalContext> {
         Position::numerical((self.x(), self.y()))
     }

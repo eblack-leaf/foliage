@@ -82,14 +82,20 @@ impl<Context: CoordinateContext> Section<Context> {
     pub fn bottom(&self) -> CoordinateUnit {
         self.y() + self.height()
     }
-    pub fn center(&self) -> Coordinates {
-        todo!()
+    pub fn center(&self) -> Position<Context> {
+        Position::new((
+            self.x() + self.width() / 2f32,
+            self.y() + self.height() / 2f32,
+        ))
     }
     pub fn intersection(&self) -> Option<Section<Context>> {
         todo!()
     }
     pub fn contacts(&self, o: Self) -> bool {
         todo!()
+    }
+    pub fn contains(&self, p: Position<Context>) -> bool {
+        p.x() <= self.right() && p.x() >= self.x() && p.y() <= self.bottom() && p.y() >= self.y()
     }
     pub fn normalized<C: Into<Coordinates>>(&self, c: C) -> Self {
         let c = c.into();

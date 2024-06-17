@@ -5,9 +5,10 @@ use winit::event::{Touch, TouchPhase};
 use crate::coordinate::position::Position;
 use crate::coordinate::LogicalContext;
 use crate::ginkgo::ScaleFactor;
+pub struct ClickEvent {}
 #[derive(Event, Copy, Clone)]
-pub struct CancelInteraction {}
-#[derive(Event, Copy, Clone, Default)]
+pub struct CancelInteractionEvent {}
+#[derive(Copy, Clone, Default)]
 pub struct ClickInteraction {
     start: Position<LogicalContext>,
     current: Position<LogicalContext>,
@@ -49,7 +50,7 @@ impl TouchAdapter {
         &mut self,
         touch: Touch,
         scale_factor: &ScaleFactor,
-    ) -> (Option<ClickInteraction>, Option<CancelInteraction>) {
+    ) -> (Option<ClickInteraction>, Option<CancelInteractionEvent>) {
         let position =
             Position::device((touch.location.x, touch.location.y)).to_logical(scale_factor.value());
         if self.primary.is_none() {
@@ -71,7 +72,7 @@ impl TouchAdapter {
                     }
                     TouchPhase::Cancelled => {
                         self.primary.take();
-                        return (None, Some(CancelInteraction {}));
+                        return (None, Some(CancelInteractionEvent {}));
                     }
                 }
             }
