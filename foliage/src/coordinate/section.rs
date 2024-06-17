@@ -88,7 +88,7 @@ impl<Context: CoordinateContext> Section<Context> {
             self.y() + self.height() / 2f32,
         ))
     }
-    pub fn intersection(&self) -> Option<Section<Context>> {
+    pub fn intersection(&self, o: Self) -> Option<Section<Context>> {
         todo!()
     }
     pub fn contacts(&self, o: Self) -> bool {

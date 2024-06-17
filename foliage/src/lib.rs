@@ -461,7 +461,7 @@ impl ApplicationHandler for Foliage {
                     .expect("keys")
                     .parse(event.logical_key, event.state)
                 {
-                    // send event
+                    self.elm.ecs.world.send_event(event);
                 }
             }
             WindowEvent::ModifiersChanged(new_mods) => {
@@ -501,7 +501,7 @@ impl ApplicationHandler for Foliage {
                     .expect("mouse-adapter")
                     .set_cursor(position, viewport_position, scale_factor)
                 {
-                    // send event
+                    self.elm.ecs.world.send_event(event);
                 }
             }
             WindowEvent::CursorEntered { .. } => {}
@@ -520,7 +520,7 @@ impl ApplicationHandler for Foliage {
                     .expect("mouse-adapter")
                     .parse(button, state)
                 {
-                    // send event
+                    self.elm.ecs.world.send_event(event);
                 }
             }
             WindowEvent::PinchGesture { .. } => {}
@@ -554,7 +554,7 @@ impl ApplicationHandler for Foliage {
                     .expect("touch-adapter")
                     .parse(t, viewport_position, scale_factor)
                 {
-                    // send event
+                    self.elm.ecs.world.send_event(event);
                 }
             }
             WindowEvent::ScaleFactorChanged {
