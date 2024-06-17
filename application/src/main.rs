@@ -7,6 +7,7 @@ use foliage::coordinate::section::Section;
 use foliage::grid::{Grid, GridCoordinate, GridPlacement, Layout};
 use foliage::icon::{Icon, IconId, IconRequest};
 use foliage::image::Image;
+use foliage::interaction::ClickInteractionListener;
 use foliage::panel::{Panel, PanelCornerRounding};
 use foliage::view::{CurrentViewStage, Stage, ViewHandle};
 use foliage::Foliage;
@@ -84,7 +85,8 @@ fn main() {
             Layout::LANDSCAPE_MOBILE | Layout::LANDSCAPE_EXT,
             2.span(1),
             2.span(1),
-        ));
+        ))
+        .with_attribute(ClickInteractionListener::new());
     foliage
         .view(view)
         .stage(element_creation)

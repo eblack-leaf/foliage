@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::event::{Event, event_update_system, Events};
+use bevy_ecs::event::{event_update_system, Event, Events};
 use bevy_ecs::prelude::{
     apply_deferred, Component, IntoSystemConfigs, IntoSystemSetConfigs, Schedule, SystemSet,
 };
@@ -22,7 +22,9 @@ use crate::engage_action;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::ScaleFactor;
 use crate::grid::{place_on_grid, viewport_changes_layout, Grid, Layout, LayoutGrid};
-use crate::interaction::{FocusedEntity, InteractiveEntity, KeyboardAdapter, MouseAdapter, TouchAdapter};
+use crate::interaction::{
+    FocusedEntity, InteractiveEntity, KeyboardAdapter, MouseAdapter, TouchAdapter,
+};
 use crate::signal::{
     clean, clear_signal, filter_signal, filtered_signaled_spawn, signaled_clean, signaled_spawn,
 };
@@ -100,12 +102,11 @@ impl Elm {
     pub fn enable_event<E: Event + Send + Sync + 'static>(&mut self) {
         if !self.ecs.world.contains_resource::<EventLimiter<E>>() {
             self.ecs.world.insert_resource(Events::<E>::default());
-            self.scheduler.main.add_systems(
-                (event_update_system::<E>.in_set(ScheduleMarkers::Events),)
-            );
+            self.scheduler
+                .main
+                .add_systems((event_update_system::<E>.in_set(ScheduleMarkers::Events),));
             self.ecs.world.insert_resource(EventLimiter::<E>::default());
         }
-
     }
     pub fn enable_differential<R: Render, D: Component + PartialEq + Clone>(&mut self) {
         if !self

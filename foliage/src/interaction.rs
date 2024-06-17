@@ -86,24 +86,26 @@ impl MouseAdapter {
         viewport_position: Position<LogicalContext>,
         scale_factor: ScaleFactor,
     ) -> Option<ClickInteraction> {
+        let adjusted_position =
+            Position::device((position.x, position.y)).to_logical(scale_factor.value());
+        self.cursor = adjusted_position;
         if self.started {
             return Some(ClickInteraction::new(
                 ClickPhase::Moved,
-                Position::device((position.x, position.y)).to_logical(scale_factor.value())
-                    + viewport_position,
+                adjusted_position + viewport_position,
             ));
         }
         None
     }
 }
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq)]
 pub enum ClickPhase {
     Start,
     Moved,
     End,
     Cancel,
 }
-#[derive(Event)]
+#[derive(Event, Debug, Copy, Clone)]
 pub struct ClickInteraction {
     click_phase: ClickPhase,
     position: Position<LogicalContext>,
@@ -116,7 +118,7 @@ impl ClickInteraction {
         }
     }
 }
-#[derive(Default, Copy, Clone)]
+#[derive(Default, Copy, Clone, Debug)]
 pub struct Click {
     pub start: Position<LogicalContext>,
     pub current: Position<LogicalContext>,
@@ -133,7 +135,7 @@ impl Click {
 }
 #[derive(Default, Copy, Clone, Component)]
 pub struct ClickInteractionListener {
-    pub click: Option<Click>,
+    pub click: Click,
     pub focused: bool,
     pub engaged_start: bool,
     pub engaged: bool,
@@ -151,7 +153,7 @@ impl ClickInteractionListener {
     }
 }
 #[derive(Resource, Default)]
-pub(crate) struct InteractiveEntity(pub(crate) Option<(Entity)>);
+pub(crate) struct InteractiveEntity(pub(crate) Option<Entity>);
 #[derive(Resource, Default)]
 pub(crate) struct FocusedEntity(pub(crate) Option<Entity>);
 #[derive(Copy, Clone, Default)]
@@ -204,12 +206,8 @@ pub(crate) fn listen_for_interactions(
                             listeners.get_mut(entity).unwrap().1.focused = false;
                         }
                         grabbed.0.replace(grab.0);
-                        listeners
-                            .get_mut(grab.0)
-                            .unwrap()
-                            .1
-                            .click
-                            .replace(Click::new(event.position));
+                        listeners.get_mut(grab.0).expect("starting").1.click =
+                            Click::new(event.position);
                         listeners.get_mut(grab.0).unwrap().1.focused = true;
                         listeners.get_mut(grab.0).unwrap().1.engaged = true;
                         listeners.get_mut(grab.0).unwrap().1.engaged_start = true;
@@ -222,7 +220,7 @@ pub(crate) fn listen_for_interactions(
             }
             ClickPhase::Moved => {
                 if let Some(g) = grabbed.0 {
-                    listeners.get_mut(g).unwrap().1.click.unwrap().current = event.position;
+                    listeners.get_mut(g).unwrap().1.click.current = event.position;
                 }
             }
             ClickPhase::End => {
@@ -235,10 +233,9 @@ pub(crate) fn listen_for_interactions(
                     }
                     listeners
                         .get_mut(g)
-                        .unwrap()
+                        .expect("ending")
                         .1
                         .click
-                        .unwrap()
                         .end
                         .replace(event.position);
                     listeners.get_mut(g).unwrap().1.engaged_end = true;
@@ -246,7 +243,6 @@ pub(crate) fn listen_for_interactions(
             }
             ClickPhase::Cancel => {
                 if let Some(g) = grabbed.0.take() {
-                    listeners.get_mut(g).unwrap().1.click.take();
                     listeners.get_mut(g).unwrap().1.engaged_end = true;
                     listeners.get_mut(g).unwrap().1.engaged = false;
                 }
@@ -254,24 +250,23 @@ pub(crate) fn listen_for_interactions(
         }
     }
 }
-pub(crate) fn reset_click_listener_flags(mut listeners: Query<(&mut ClickInteractionListener)>) {
+pub(crate) fn reset_click_listener_flags(
+    mut listeners: Query<&mut ClickInteractionListener>,
+) {
     for mut listener in listeners.iter_mut() {
         listener.engaged_start = false;
         listener.engaged_end = false;
         listener.active = false;
     }
 }
-#[derive(Event, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Event, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Debug)]
 pub struct InputSequence {
     key: Key,
     mods: ModifiersState,
 }
 impl InputSequence {
     pub fn new(key: Key, mods: ModifiersState) -> Self {
-        Self {
-            key,
-            mods,
-        }
+        Self { key, mods }
     }
 }
 #[derive(Resource, Default)]

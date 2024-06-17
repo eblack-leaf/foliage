@@ -135,10 +135,10 @@ pub(crate) fn on_target_grid_placement_change(
 #[derive(Component)]
 pub struct ViewActive(pub(crate) bool);
 pub(crate) fn cleanup_view(
-    mut views: Query<(&View, &ViewActive, &CurrentViewStage), Changed<ViewActive>>,
+    mut views: Query<(&View, &ViewActive), Changed<ViewActive>>,
     mut cmd: Commands,
 ) {
-    for (view, active, current) in views.iter() {
+    for (view, active) in views.iter() {
         if !active.0 {
             for target in view.targets.iter() {
                 cmd.entity(target.0).insert(Clean::should_clean());
@@ -220,10 +220,10 @@ pub(crate) fn signal_stage(
 }
 pub(crate) fn resignal_on_layout_change(
     mut views: Query<(&mut View, &CurrentViewStage, &ViewActive)>,
-    layout_grid: Res<LayoutGrid>,
+    layout: Res<Layout>,
     mut cmd: Commands,
 ) {
-    if layout_grid.is_changed() {
+    if layout.is_changed() {
         for (mut view, current, active) in views.iter_mut() {
             if active.0 {
                 for target in view.targets.iter() {
