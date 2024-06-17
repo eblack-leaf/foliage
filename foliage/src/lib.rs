@@ -14,7 +14,6 @@ use willow::Willow;
 
 use crate::ash::{Ash, Render};
 use crate::coordinate::area::Area;
-use crate::coordinate::position::Position;
 use crate::coordinate::{Coordinates, DeviceContext};
 use crate::elm::Elm;
 use crate::ginkgo::viewport::ViewportHandle;
@@ -22,8 +21,7 @@ use crate::ginkgo::{Ginkgo, ScaleFactor};
 use crate::grid::{Grid, GridPlacement};
 use crate::icon::Icon;
 use crate::image::Image;
-use crate::interaction::click::TouchAdapter;
-use crate::interaction::mouse::MouseAdapter;
+use crate::interaction::{ClickInteractionListener, KeyboardAdapter, MouseAdapter, TouchAdapter};
 use crate::panel::Panel;
 use crate::signal::{
     FilteredTriggeredAttribute, Signal, Signaler, TargetComponents, TriggerTarget,
@@ -33,7 +31,6 @@ use crate::view::{
     CurrentViewStage, SignalHandle, Stage, StagedSignal, View, ViewActive, ViewComponents,
     ViewHandle, ViewStage,
 };
-use interaction::keyboard::KeyboardAdapter;
 
 pub mod ash;
 pub mod asset;
@@ -46,9 +43,8 @@ pub mod grid;
 pub mod icon;
 pub mod image;
 pub mod instances;
-mod interaction;
+pub mod interaction;
 pub mod panel;
-mod r_interaction;
 pub mod signal;
 pub mod view;
 pub mod willow;
@@ -463,18 +459,18 @@ impl ApplicationHandler for Foliage {
                     .world
                     .get_resource_mut::<KeyboardAdapter>()
                     .expect("keys")
-                    .cache_different(event.logical_key, event.state)
+                    .parse(event.logical_key, event.state)
                 {
                     // send event
                 }
             }
-            WindowEvent::ModifiersChanged(e) => {
+            WindowEvent::ModifiersChanged(new_mods) => {
                 self.elm
                     .ecs
                     .world
                     .get_resource_mut::<KeyboardAdapter>()
                     .expect("keyboard-adapter")
-                    .current_modifiers = e.state();
+                    .mods = new_mods.state();
             }
             WindowEvent::Ime(_) => {}
             WindowEvent::CursorMoved {
@@ -488,24 +484,22 @@ impl ApplicationHandler for Foliage {
                     .get_resource::<ScaleFactor>()
                     .expect("scale")
                     .clone();
-                let updated_position = Position::device((position.x, position.y))
-                    .to_logical(scale_factor.value())
-                    + self
-                        .elm
-                        .ecs
-                        .world
-                        .get_resource::<ViewportHandle>()
-                        .expect("vh")
-                        .section()
-                        .position
-                        .as_logical();
+                let viewport_position = self
+                    .elm
+                    .ecs
+                    .world
+                    .get_resource::<ViewportHandle>()
+                    .expect("vh")
+                    .section()
+                    .position
+                    .as_logical();
                 if let Some(event) = self
                     .elm
                     .ecs
                     .world
                     .get_resource_mut::<MouseAdapter>()
                     .expect("mouse-adapter")
-                    .set_cursor(updated_position)
+                    .set_cursor(position, viewport_position, scale_factor)
                 {
                     // send event
                 }
@@ -518,13 +512,13 @@ impl ApplicationHandler for Foliage {
                 state,
                 button,
             } => {
-                if let Some(e) = self
+                if let Some(event) = self
                     .elm
                     .ecs
                     .world
                     .get_resource_mut::<MouseAdapter>()
                     .expect("mouse-adapter")
-                    .cache_different(button, state)
+                    .parse(button, state)
                 {
                     // send event
                 }
@@ -543,13 +537,22 @@ impl ApplicationHandler for Foliage {
                     .get_resource::<ScaleFactor>()
                     .expect("scale-factor")
                     .clone();
-                if let Some(e) = self
+                let viewport_position = self
+                    .elm
+                    .ecs
+                    .world
+                    .get_resource::<ViewportHandle>()
+                    .expect("vh")
+                    .section()
+                    .position
+                    .as_logical();
+                if let Some(event) = self
                     .elm
                     .ecs
                     .world
                     .get_resource_mut::<TouchAdapter>()
                     .expect("touch-adapter")
-                    .read_touch(t, &scale_factor)
+                    .parse(t, viewport_position, scale_factor)
                 {
                     // send event
                 }
@@ -610,5 +613,6 @@ impl Leaves for CoreLeaves {
         foliage.add_renderer::<Icon>();
         foliage.attach_leaf::<Image>();
         foliage.add_renderer::<Image>();
+        foliage.attach_leaf::<ClickInteractionListener>();
     }
 }

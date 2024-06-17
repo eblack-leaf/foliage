@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
+use bevy_ecs::event::{Event, event_update_system, Events};
 use bevy_ecs::prelude::{
     apply_deferred, Component, IntoSystemConfigs, IntoSystemSetConfigs, Schedule, SystemSet,
 };
@@ -21,6 +22,7 @@ use crate::engage_action;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::ScaleFactor;
 use crate::grid::{place_on_grid, viewport_changes_layout, Grid, Layout, LayoutGrid};
+use crate::interaction::{FocusedEntity, InteractiveEntity, KeyboardAdapter, MouseAdapter, TouchAdapter};
 use crate::signal::{
     clean, clear_signal, filter_signal, filtered_signaled_spawn, signaled_clean, signaled_spawn,
 };
@@ -86,7 +88,25 @@ impl<D> Default for ActionLimiter<D> {
         Self(PhantomData)
     }
 }
+#[derive(Resource)]
+pub(crate) struct EventLimiter<D>(PhantomData<D>);
+
+impl<D> Default for EventLimiter<D> {
+    fn default() -> Self {
+        Self(PhantomData)
+    }
+}
 impl Elm {
+    pub fn enable_event<E: Event + Send + Sync + 'static>(&mut self) {
+        if !self.ecs.world.contains_resource::<EventLimiter<E>>() {
+            self.ecs.world.insert_resource(Events::<E>::default());
+            self.scheduler.main.add_systems(
+                (event_update_system::<E>.in_set(ScheduleMarkers::Events),)
+            );
+            self.ecs.world.insert_resource(EventLimiter::<E>::default());
+        }
+
+    }
     pub fn enable_differential<R: Render, D: Component + PartialEq + Clone>(&mut self) {
         if !self
             .ecs
@@ -182,6 +202,11 @@ impl Elm {
             .world
             .insert_resource(LayoutGrid::new(Grid::new(4, 4)));
         self.ecs.world.insert_resource(Layout::SQUARE);
+        self.ecs.world.insert_resource(TouchAdapter::default());
+        self.ecs.world.insert_resource(MouseAdapter::default());
+        self.ecs.world.insert_resource(KeyboardAdapter::default());
+        self.ecs.world.insert_resource(InteractiveEntity::default());
+        self.ecs.world.insert_resource(FocusedEntity::default());
         self.scheduler.main.configure_sets(
             (
                 ScheduleMarkers::External,
@@ -326,4 +351,6 @@ pub enum ScheduleMarkers {
     SignalConfirmation,
     SignalConfirmationStart,
     Clean,
+    Interaction,
+    Events,
 }

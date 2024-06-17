@@ -3,14 +3,18 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
+use crate::elm::{Elm, ScheduleMarkers};
 use crate::ginkgo::ScaleFactor;
+use crate::Leaf;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::{Event, EventReader};
-use bevy_ecs::prelude::Component;
+use bevy_ecs::prelude::{Component, IntoSystemConfigs};
 use bevy_ecs::system::{Query, ResMut, Resource};
+use std::collections::HashMap;
 use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, MouseButton, Touch, TouchPhase};
-
+use winit::keyboard::{Key, ModifiersState};
+#[derive(Resource, Default)]
 pub(crate) struct TouchAdapter {
     primary: Option<u64>,
 }
@@ -48,6 +52,7 @@ impl TouchAdapter {
         None
     }
 }
+#[derive(Resource, Default)]
 pub(crate) struct MouseAdapter {
     started: bool,
     cursor: Position<LogicalContext>,
@@ -145,9 +150,9 @@ impl ClickInteractionListener {
         self
     }
 }
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub(crate) struct InteractiveEntity(pub(crate) Option<(Entity)>);
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub(crate) struct FocusedEntity(pub(crate) Option<Entity>);
 #[derive(Copy, Clone, Default)]
 pub enum ClickInteractionShape {
@@ -256,6 +261,41 @@ pub(crate) fn reset_click_listener_flags(mut listeners: Query<(&mut ClickInterac
         listener.active = false;
     }
 }
+#[derive(Event, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+pub struct InputSequence {
+    key: Key,
+    mods: ModifiersState,
+}
+impl InputSequence {
+    pub fn new(key: Key, mods: ModifiersState) -> Self {
+        Self {
+            key,
+            mods,
+        }
+    }
+}
+#[derive(Resource, Default)]
 pub(crate) struct KeyboardAdapter {
-
+    cache: HashMap<Key, ElementState>,
+    pub(crate) mods: ModifiersState,
+}
+impl KeyboardAdapter {
+    pub(crate) fn parse(&mut self, key: Key, state: ElementState) -> Option<InputSequence> {
+        if let Some(cached) = self.cache.insert(key.clone(), state) {
+            if cached != state && state.is_pressed() {
+                return Some(InputSequence::new(key, self.mods));
+            }
+        }
+        None
+    }
+}
+impl Leaf for ClickInteractionListener {
+    fn attach(elm: &mut Elm) {
+        elm.scheduler.main.add_systems((
+            listen_for_interactions.in_set(ScheduleMarkers::Interaction),
+            reset_click_listener_flags.after(ScheduleMarkers::Config),
+        ));
+        elm.enable_event::<ClickInteraction>();
+        elm.enable_event::<InputSequence>();
+    }
 }
