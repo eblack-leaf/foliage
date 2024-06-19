@@ -350,11 +350,6 @@ impl ApplicationHandler for Foliage {
                 ginkgo.acquire_context(&handle).await;
                 sender.send(ginkgo).ok();
             });
-            // ginkgo.acquire_context(&self.willow).await; how await?
-            // TODO wasm-bindgen-futures::spawn_local( window.clone() + async move { ginkgo.acquire_context(window).await + sender.send(ginkgo) })
-            // then once booted - resume normal flow
-            // desktop boots in place with pollster (above)
-            // then finish once get ginkgo in-place
         }
     }
     fn window_event(
@@ -363,7 +358,6 @@ impl ApplicationHandler for Foliage {
         _window_id: WindowId,
         event: WindowEvent,
     ) {
-        // if !booted => queue
         #[cfg(target_family = "wasm")]
         if !self.booted {
             self.queue.push(event);
@@ -372,7 +366,6 @@ impl ApplicationHandler for Foliage {
         self.process_event(event, event_loop);
     }
     fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
-        // check recv for boot signal + finish boot
         #[cfg(target_family = "wasm")]
         if !self.booted && self.recv.is_some() {
             if let Some(m) = self.recv.as_mut().unwrap().try_recv().ok() {
