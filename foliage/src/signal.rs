@@ -1,6 +1,7 @@
 use bevy_ecs::change_detection::Res;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Bundle, Changed, Commands, Component, Query, ResMut};
+use bevy_ecs::system::Command;
 
 use crate::differential::{RenderLink, RenderRemoveQueue};
 use crate::grid::{Layout, LayoutFilter};
@@ -150,4 +151,21 @@ pub(crate) fn filter_signal(
 pub enum FilterMode {
     None,
     Any,
+}
+
+#[derive(Copy, Clone)]
+pub struct ActionHandle(pub(crate) Entity);
+
+#[derive(Component)]
+pub(crate) struct TriggeredAction<A: Command + Send + Sync + 'static + Clone>(pub(crate) A);
+
+pub(crate) fn engage_action<A: Command + Send + Sync + 'static + Clone>(
+    actions: Query<(&Signal, &TriggeredAction<A>), Changed<Signal>>,
+    mut cmd: Commands,
+) {
+    for (signal, action) in actions.iter() {
+        if signal.should_spawn() {
+            cmd.add(action.0.clone());
+        }
+    }
 }

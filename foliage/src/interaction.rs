@@ -250,9 +250,7 @@ pub(crate) fn listen_for_interactions(
         }
     }
 }
-pub(crate) fn reset_click_listener_flags(
-    mut listeners: Query<&mut ClickInteractionListener>,
-) {
+pub(crate) fn reset_click_listener_flags(mut listeners: Query<&mut ClickInteractionListener>) {
     for mut listener in listeners.iter_mut() {
         listener.engaged_start = false;
         listener.engaged_end = false;

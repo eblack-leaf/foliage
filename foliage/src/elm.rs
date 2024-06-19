@@ -18,13 +18,13 @@ use crate::coordinate::NumericalContext;
 use crate::differential::{
     differential, RenderAddQueue, RenderLink, RenderPacket, RenderRemoveQueue,
 };
-use crate::engage_action;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::ScaleFactor;
 use crate::grid::{place_on_grid, viewport_changes_layout, Grid, Layout, LayoutGrid};
 use crate::interaction::{
     FocusedEntity, InteractiveEntity, KeyboardAdapter, MouseAdapter, TouchAdapter,
 };
+use crate::signal::engage_action;
 use crate::signal::{
     clean, clear_signal, filter_signal, filtered_signaled_spawn, signaled_clean, signaled_spawn,
 };

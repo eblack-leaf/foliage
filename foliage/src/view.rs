@@ -12,8 +12,8 @@ use crate::coordinate::placement::Placement;
 use crate::coordinate::position::Position;
 use crate::coordinate::LogicalContext;
 use crate::grid::{Grid, GridPlacement, Layout, LayoutGrid};
+use crate::signal::ActionHandle;
 use crate::signal::{Clean, Signal, TriggerTarget};
-use crate::ActionHandle;
 
 #[derive(Bundle)]
 pub(crate) struct ViewComponents {

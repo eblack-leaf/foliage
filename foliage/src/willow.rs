@@ -11,7 +11,7 @@ use crate::coordinate::{DeviceContext, NumericalContext};
 #[derive(Clone, Default)]
 pub(crate) struct WindowHandle(pub(crate) Option<Arc<Window>>);
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub(crate) struct Willow {
     pub(crate) handle: WindowHandle,
     pub(crate) min_size: Option<Area<DeviceContext>>,
@@ -61,6 +61,17 @@ impl Willow {
         ))]
         let attributes = attributes.with_inner_size(requested_area);
         let window = event_loop.create_window(attributes).unwrap();
+        #[cfg(target_family = "wasm")]
+        {
+            use winit::platform::web::WindowExtWebSys;
+            let canvas = window.canvas().expect("window-canvas");
+            // css?
+            web_sys::window()
+                .and_then(|win| win.document())
+                .and_then(|doc| doc.body())
+                .and_then(|body| body.append_child(&canvas).ok())
+                .expect("append-canvas");
+        }
         self.handle = WindowHandle(Some(Arc::new(window)));
     }
     pub(crate) fn actual_area(&self) -> Area<DeviceContext> {

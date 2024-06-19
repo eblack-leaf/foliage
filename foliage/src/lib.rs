@@ -1,15 +1,15 @@
 pub use bevy_ecs;
 use bevy_ecs::bundle::Bundle;
-use bevy_ecs::prelude::{Commands, Component, Entity};
-use bevy_ecs::query::Changed;
-use bevy_ecs::system::{Command, Query};
+use bevy_ecs::prelude::Component;
+use bevy_ecs::system::Command;
 pub use wgpu;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::WindowId;
 
-use grid::LayoutFilter;
+use reference::{ViewConfig, ViewReference};
+use signal::{ActionHandle, TriggeredAction};
 use willow::Willow;
 
 use crate::ash::{Ash, Render};
@@ -23,15 +23,9 @@ use crate::icon::Icon;
 use crate::image::Image;
 use crate::interaction::{ClickInteractionListener, KeyboardAdapter, MouseAdapter, TouchAdapter};
 use crate::panel::Panel;
-use crate::signal::{
-    FilteredTriggeredAttribute, Signal, Signaler, TargetComponents, TriggerTarget,
-    TriggeredAttribute,
-};
-use crate::view::{
-    CurrentViewStage, SignalHandle, Stage, StagedSignal, View, ViewActive, ViewComponents,
-    ViewHandle, ViewStage,
-};
-
+use crate::signal::Signal;
+use crate::view::{ViewComponents, ViewHandle};
+use futures_channel::oneshot;
 pub mod ash;
 pub mod asset;
 pub mod color;
@@ -45,6 +39,7 @@ pub mod image;
 pub mod instances;
 pub mod interaction;
 pub mod panel;
+mod reference;
 pub mod signal;
 pub mod view;
 pub mod willow;
@@ -54,10 +49,13 @@ pub struct Foliage {
     ash: Ash,
     ginkgo: Ginkgo,
     elm: Elm,
-    worker_path: String,
     android_connection: AndroidConnection,
     leaf_fns: Vec<Box<fn(&mut Elm)>>,
     leaves_fns: Vec<Box<fn(&mut Foliage)>>,
+    booted: bool,
+    queue: Vec<WindowEvent>,
+    sender: Option<oneshot::Sender<Ginkgo>>,
+    recv: Option<oneshot::Receiver<Ginkgo>>
 }
 
 impl Foliage {
@@ -67,19 +65,19 @@ impl Foliage {
             ash: Ash::default(),
             ginkgo: Ginkgo::default(),
             elm: Elm::default(),
-            worker_path: "".to_string(),
             android_connection: AndroidConnection::default(),
             leaf_fns: vec![],
             leaves_fns: vec![],
+            booted: false,
+            queue: vec![],
+            sender: None,
+            recv: None,
         };
         this.attach_leaves::<CoreLeaves>();
         this
     }
     pub fn set_window_size<A: Into<Area<DeviceContext>>>(&mut self, a: A) {
         self.willow.requested_size.replace(a.into());
-    }
-    pub fn set_worker_path<S: AsRef<str>>(&mut self, s: S) {
-        self.worker_path = s.as_ref().to_string();
     }
     pub fn set_window_title<S: AsRef<str>>(&mut self, s: S) {
         self.willow.title.replace(s.as_ref().to_string());
@@ -136,35 +134,24 @@ impl Foliage {
         // can be added to OnClick(...) to set logic triggers
         ActionHandle(handle)
     }
-    pub fn run(self) {
-        cfg_if::cfg_if! {
-            if #[cfg(target_family = "wasm")] {
-                wasm_bindgen_futures::spawn_local(self.internal_run());
-            } else {
-                pollster::block_on(self.internal_run());
-            }
-        }
-    }
-    async fn internal_run(mut self) {
+    pub fn run(mut self) {
         let event_loop = EventLoop::new().unwrap();
         event_loop.set_control_flow(ControlFlow::Wait);
+        let proxy = event_loop.create_proxy();
         cfg_if::cfg_if! {
             if #[cfg(target_arch = "wasm32")] {
+                console_error_panic_hook::set_once();
+                let (sender, recv) = oneshot::channel();
+                self.sender.replace(sender);
+                self.recv.replace(recv);
                 use winit::platform::web::EventLoopExtWebSys;
                 let event_loop_function = EventLoop::spawn_app;
+                (event_loop_function)(event_loop, self);
             } else {
                 let event_loop_function = EventLoop::run_app;
+                (event_loop_function)(event_loop, &mut self).expect("event-loop-run-app");
             }
         }
-        #[cfg(target_family = "wasm")]
-        if !self.ginkgo.acquired() {
-            self.willow.connect(&event_loop);
-            self.ginkgo.acquire_context(&self.willow).await;
-        }
-        let proxy = event_loop.create_proxy();
-        // bridge
-        // insert bridge into ecs
-        (event_loop_function)(event_loop, &mut self).expect("event-loop-run-app");
     }
 
     fn leaves_attach(&mut self) {
@@ -176,261 +163,19 @@ impl Foliage {
             (leaves_fn)(self);
         }
     }
-}
-#[derive(Copy, Clone)]
-pub struct ActionHandle(pub(crate) Entity);
-#[derive(Component)]
-pub(crate) struct TriggeredAction<A: Command + Send + Sync + 'static + Clone>(pub(crate) A);
-pub(crate) fn engage_action<A: Command + Send + Sync + 'static + Clone>(
-    actions: Query<(&Signal, &TriggeredAction<A>), Changed<Signal>>,
-    mut cmd: Commands,
-) {
-    for (signal, action) in actions.iter() {
-        if signal.should_spawn() {
-            cmd.add(action.0.clone());
-        }
+    fn finish_boot(&mut self) {
+        self.ginkgo.configure_view(&self.willow);
+        self.ginkgo.create_viewport(&self.willow);
+        self.elm.configure(
+            self.willow.actual_area().to_numerical(),
+            self.ginkgo.configuration().scale_factor,
+        );
+        self.leaves_attach();
+        self.elm.initialize(self.leaf_fns.drain(..).collect());
+        self.ash.initialize(&self.ginkgo);
+        self.booted = true;
     }
-}
-pub struct ViewConfig<'a> {
-    root: Entity,
-    reference: &'a mut Elm,
-}
-impl<'a> ViewConfig<'a> {
-    pub fn handle(self) -> ViewHandle {
-        ViewHandle(self.root)
-    }
-}
-pub struct ViewReference<'a> {
-    root: Entity,
-    reference: &'a mut Elm,
-}
-pub struct TargetReference<'a> {
-    root: Entity,
-    this: Entity,
-    reference: &'a mut Elm,
-}
-pub struct StageReference<'a> {
-    root: Entity,
-    reference: &'a mut Elm,
-    stage: Stage,
-}
-pub struct SignalReference<'a> {
-    root: Entity,
-    this: Entity,
-    reference: &'a mut Elm,
-    stage: Stage,
-}
-impl<'a> StageReference<'a> {
-    pub fn add_signal_targeting(mut self, target: TriggerTarget) -> SignalReference<'a> {
-        let signal = self.reference.ecs.world.spawn(Signaler::new(target)).id();
-        self.reference
-            .ecs
-            .world
-            .get_mut::<View>(self.root)
-            .expect("no-view")
-            .stages
-            .get_mut(self.stage.0 as usize)
-            .expect("invalid-stage")
-            .signals
-            .insert(
-                signal,
-                StagedSignal {
-                    handle: SignalHandle(signal),
-                    state_on_stage_start: Signal::spawn(),
-                },
-            );
-        SignalReference {
-            root: self.root,
-            this: signal,
-            reference: self.reference,
-            stage: self.stage,
-        }
-    }
-    pub fn on_end(mut self, action_handle: ActionHandle) -> Self {
-        // action to hook to when the stage is confirmed done
-        self.reference
-            .ecs
-            .world
-            .get_mut::<View>(self.root)
-            .expect("no-view")
-            .stages
-            .get_mut(self.stage.0 as usize)
-            .expect("no-stage")
-            .on_end
-            .replace(action_handle);
-        self
-    }
-}
-impl<'a> SignalReference<'a> {
-    pub fn with_filtered_attribute<
-        A: Bundle + 'static + Clone + Send + Sync,
-        F: Into<LayoutFilter>,
-    >(
-        mut self,
-        a: A,
-        filter: F,
-    ) -> Self {
-        let exceptional_layout_config = filter.into();
-        self.reference.checked_add_filtered_signal_fns::<A>();
-        self.reference
-            .ecs
-            .world
-            .entity_mut(self.this)
-            .insert(FilteredTriggeredAttribute(
-                a,
-                exceptional_layout_config.into(),
-            ));
-        self
-    }
-    pub fn with_attribute<A: Bundle + 'static + Clone + Send + Sync>(mut self, a: A) -> Self {
-        self.reference.checked_add_signal_fns::<A>();
-        self.reference
-            .ecs
-            .world
-            .entity_mut(self.this)
-            .insert(TriggeredAttribute(a));
-        self
-    }
-    pub fn clean(mut self) {
-        // set Signal::clean() when stage fires instead of Signal::spawn()
-        self.reference
-            .ecs
-            .world
-            .get_mut::<View>(self.root)
-            .expect("no-view")
-            .stages
-            .get_mut(self.stage.0 as usize)
-            .expect("no-stage")
-            .signals
-            .get_mut(&self.this)
-            .expect("no-signal")
-            .state_on_stage_start = Signal::clean();
-    }
-    pub fn with_transition(mut self) -> Self {
-        // TODO self.reference.checked_add_transition_fns::<T>();
-        self
-    }
-    pub fn filter_signal(mut self, layout_filter: LayoutFilter) -> Self {
-        self.reference
-            .ecs
-            .world
-            .entity_mut(self.this)
-            .insert(layout_filter);
-        self
-    }
-}
-impl<'a> TargetReference<'a> {
-    pub fn handle(self) -> TriggerTarget {
-        TriggerTarget(self.this)
-    }
-}
-impl<'a> ViewReference<'a> {
-    pub fn add_target(mut self) -> TargetReference<'a> {
-        let target = self
-            .reference
-            .ecs
-            .world
-            .spawn(TargetComponents::new(ViewHandle(self.root)))
-            .id();
-        self.reference
-            .ecs
-            .world
-            .get_mut::<View>(self.root)
-            .expect("no-view")
-            .targets
-            .insert(TriggerTarget(target));
-        TargetReference {
-            root: self.root,
-            this: target,
-            reference: self.reference,
-        }
-    }
-    pub fn set_initial_stage(mut self, stage: Stage) {
-        self.reference
-            .ecs
-            .world
-            .get_mut::<CurrentViewStage>(self.root)
-            .expect("no-current")
-            .stage = stage;
-    }
-    pub fn activate(mut self) {
-        self.reference
-            .ecs
-            .world
-            .get_mut::<ViewActive>(self.root)
-            .expect("no-active")
-            .0 = true;
-    }
-    pub fn create_stage(&mut self) -> Stage {
-        let stage = self
-            .reference
-            .ecs
-            .world
-            .entity(self.root)
-            .get::<View>()
-            .expect("no-view")
-            .stages
-            .len();
-        self.reference
-            .ecs
-            .world
-            .entity_mut(self.root)
-            .get_mut::<View>()
-            .expect("no-view")
-            .stages
-            .push(ViewStage::default());
-        Stage(stage as i32)
-    }
-    pub fn stage(&mut self, stage: Stage) -> StageReference {
-        StageReference {
-            root: self.root,
-            stage,
-            reference: self.reference,
-        }
-    }
-}
-impl ApplicationHandler for Foliage {
-    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        #[cfg(not(target_family = "wasm"))]
-        if !self.ginkgo.acquired() {
-            self.willow.connect(event_loop);
-            pollster::block_on(self.ginkgo.acquire_context(&self.willow));
-            self.ginkgo.configure_view(&self.willow);
-            self.ginkgo.create_viewport(&self.willow);
-            self.elm.configure(
-                self.willow.actual_area().to_numerical(),
-                self.ginkgo.configuration().scale_factor,
-            );
-            self.leaves_attach();
-            self.elm.initialize(self.leaf_fns.drain(..).collect());
-            self.ash.initialize(&self.ginkgo);
-        } else {
-            #[cfg(target_os = "android")]
-            {
-                self.ginkgo.recreate_surface(&self.willow);
-                self.ginkgo.configure_view(&self.willow);
-                self.ginkgo.resize_viewport(&self.willow);
-            }
-        }
-        #[cfg(target_family = "wasm")]
-        if !self.ginkgo.configured() {
-            self.ginkgo.configure_view(&self.willow);
-            self.ginkgo.create_viewport(&self.willow);
-            self.elm.configure(
-                self.willow.actual_area().to_numerical(),
-                self.ginkgo.configuration().scale_factor,
-            );
-            self.leaves_attach();
-            self.elm.initialize(self.leaf_fns.drain(..).collect());
-            self.ash.initialize(&self.ginkgo);
-        }
-    }
-    fn window_event(
-        &mut self,
-        event_loop: &ActiveEventLoop,
-        _window_id: WindowId,
-        event: WindowEvent,
-    ) {
+    fn process_event(&mut self, event: WindowEvent, event_loop: &ActiveEventLoop) {
         match event {
             WindowEvent::ActivationTokenDone { .. } => {}
             WindowEvent::Resized(_) => {
@@ -578,8 +323,70 @@ impl ApplicationHandler for Foliage {
             }
         }
     }
+}
+
+impl ApplicationHandler for Foliage {
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        #[cfg(not(target_family = "wasm"))]
+        if !self.ginkgo.acquired() {
+            self.willow.connect(event_loop);
+            pollster::block_on(self.ginkgo.acquire_context(&self.willow));
+            self.finish_boot();
+        } else {
+            #[cfg(target_os = "android")]
+            {
+                self.ginkgo.recreate_surface(&self.willow);
+                self.ginkgo.configure_view(&self.willow);
+                self.ginkgo.resize_viewport(&self.willow);
+            }
+        }
+        #[cfg(target_family = "wasm")]
+        if !self.ginkgo.acquired() {
+            self.willow.connect(event_loop);
+            let handle = self.willow.clone();
+            let sender = self.sender.take().expect("sender");
+            wasm_bindgen_futures::spawn_local(async move {
+                let mut ginkgo = Ginkgo::default();
+                ginkgo.acquire_context(&handle).await;
+                sender.send(ginkgo).ok();
+            });
+            // ginkgo.acquire_context(&self.willow).await; how await?
+            // TODO wasm-bindgen-futures::spawn_local( window.clone() + async move { ginkgo.acquire_context(window).await + sender.send(ginkgo) })
+            // then once booted - resume normal flow
+            // desktop boots in place with pollster (above)
+            // then finish once get ginkgo in-place
+        }
+    }
+    fn window_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        _window_id: WindowId,
+        event: WindowEvent,
+    ) {
+        // if !booted => queue
+        #[cfg(target_family = "wasm")]
+        if !self.booted {
+            self.queue.push(event);
+            return;
+        }
+        self.process_event(event, event_loop);
+    }
     fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
-        if self.ash.drawn && self.elm.initialized() {
+        // check recv for boot signal + finish boot
+        #[cfg(target_family = "wasm")]
+        if !self.booted && self.recv.is_some() {
+            if let Some(m) = self.recv.as_mut().unwrap().try_recv().ok() {
+                if let Some(g) = m {
+                    self.ginkgo = g;
+                    self.finish_boot();
+                    let queue = self.queue.drain(..).collect::<Vec<WindowEvent>>();
+                    for event in queue {
+                        self.process_event(event, _event_loop);
+                    }
+                }
+            }
+        }
+        if self.ash.drawn && self.elm.initialized() && self.booted {
             self.elm.process();
             self.willow.window().request_redraw();
             self.ash.drawn = false;

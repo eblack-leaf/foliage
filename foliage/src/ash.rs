@@ -112,7 +112,7 @@ impl Ash {
         for c_fn in self.creation.iter() {
             (c_fn)(&mut self.renderers, ginkgo);
         }
-        // self.drawn = true;
+        self.drawn = true;
     }
     pub(crate) fn add_renderer<R: Render>(&mut self) {
         self.creation.push(Box::new(|r, g| {
