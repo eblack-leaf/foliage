@@ -65,7 +65,7 @@ impl Willow {
         {
             use winit::platform::web::WindowExtWebSys;
             let canvas = window.canvas().expect("window-canvas");
-            // css?
+            canvas.style().set_css_text("height: 100%; width: 100%;");
             web_sys::window()
                 .and_then(|win| win.document())
                 .and_then(|doc| doc.body())
