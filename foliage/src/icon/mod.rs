@@ -82,16 +82,11 @@ pub struct Icon {
 }
 impl Icon {
     pub const SCALE: Coordinates = Coordinates::new(24f32, 24f32);
-    pub fn new<I: Into<IconId>, L: Into<Layer>, P: Into<Position<LogicalContext>>>(
-        id: I,
-        color: Color,
-        position: P,
-        l: L,
-    ) -> Self {
+    pub fn new<I: Into<IconId>>(id: I, color: Color) -> Self {
         Self {
             link: RenderLink::new::<Icon>(),
-            section: Section::new(position, Area::new(Icon::SCALE)),
-            layer: Differential::new(l.into()),
+            section: Section::new(Position::default(), Area::new(Icon::SCALE)),
+            layer: Differential::new(Layer::default()),
             gpu_section: Differential::new(GpuSection::default()),
             id: Differential::new(id.into()),
             color: Differential::new(color),

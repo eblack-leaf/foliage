@@ -47,23 +47,19 @@ pub struct Panel {
     layer: Differential<Layer>,
     gpu_section: Differential<GpuSection>,
     color: Differential<Color>,
-    panel_corner_rounding: PanelCornerRounding,
+    panel_corner_rounding: Rounding,
     corner_i: Differential<CornerI>,
     corner_ii: Differential<CornerII>,
     corner_iii: Differential<CornerIII>,
     corner_iv: Differential<CornerIV>,
 }
 impl Panel {
-    pub fn new(
-        placement: Placement<LogicalContext>,
-        panel_corner_rounding: PanelCornerRounding,
-        color: Color,
-    ) -> Self {
+    pub fn new(panel_corner_rounding: Rounding, color: Color) -> Self {
         Self {
             render_link: RenderLink::new::<Self>(),
-            pos: placement.section.position,
-            area: placement.section.area,
-            layer: Differential::new(placement.layer),
+            pos: Position::default(),
+            area: Area::default(),
+            layer: Differential::new(Layer::default()),
             gpu_section: Differential::new(GpuSection::default()),
             color: Differential::new(color),
             panel_corner_rounding,
@@ -75,9 +71,9 @@ impl Panel {
     }
 }
 #[derive(Component, Copy, Clone, Default)]
-pub struct PanelCornerRounding(pub(crate) [f32; 4]);
+pub struct Rounding(pub(crate) [f32; 4]);
 
-impl PanelCornerRounding {
+impl Rounding {
     pub fn all(v: f32) -> Self {
         let v = v.max(0.0).min(1.0);
         Self([v; 4])
@@ -99,12 +95,12 @@ fn percent_rounded_to_corner(
             &mut CornerII,
             &mut CornerIII,
             &mut CornerIV,
-            &mut PanelCornerRounding,
+            &mut Rounding,
             &Position<LogicalContext>,
             &Area<LogicalContext>,
         ),
         Or<(
-            Changed<PanelCornerRounding>,
+            Changed<Rounding>,
             Changed<Position<LogicalContext>>,
             Changed<Area<LogicalContext>>,
         )>,

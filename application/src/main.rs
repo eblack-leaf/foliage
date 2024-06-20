@@ -8,7 +8,7 @@ use foliage::grid::{Grid, GridCoordinate, GridPlacement, Layout};
 use foliage::icon::{Icon, IconId, IconRequest};
 use foliage::image::Image;
 use foliage::interaction::ClickInteractionListener;
-use foliage::panel::{Panel, PanelCornerRounding};
+use foliage::panel::{Panel, Rounding};
 use foliage::view::{CurrentViewStage, Stage, ViewHandle};
 use foliage::Foliage;
 
@@ -53,6 +53,7 @@ fn main() {
     let gallery_text = foliage.view(view).add_target().handle();
     let image_forward_icon = foliage.view(view).add_target().handle();
     let image_backward_icon = foliage.view(view).add_target().handle();
+    let image = foliage.view(view).add_target().handle();
     let initial_to_creation = foliage.create_action(Next {
         view,
         next_stage: element_creation,
@@ -65,11 +66,7 @@ fn main() {
         .view(view)
         .stage(initial)
         .add_signal_targeting(background)
-        .with_attribute(Panel::new(
-            Placement::default(),
-            PanelCornerRounding::all(0.05),
-            Color::WHITE,
-        ))
+        .with_attribute(Panel::new(Rounding::all(0.05), Color::WHITE))
         .with_attribute(
             GridPlacement::new(1.span(3), 1.span(2))
                 .ignore_gap()
@@ -80,7 +77,7 @@ fn main() {
         .view(view)
         .stage(element_creation)
         .add_signal_targeting(gallery_icon)
-        .with_attribute(Icon::new(IconId(1), Color::BLACK, Position::default(), 1))
+        .with_attribute(Icon::new(IconId(1), Color::BLACK))
         .with_attribute(GridPlacement::new(1.span(1), 1.span(1)).except(
             Layout::LANDSCAPE_MOBILE | Layout::LANDSCAPE_EXT,
             2.span(1),
@@ -97,7 +94,7 @@ fn main() {
         .view(view)
         .stage(image_selection)
         .add_signal_targeting(image_forward_icon)
-        .with_attribute(Icon::new(IconId(1), Color::BLACK, Position::default(), 1))
+        .with_attribute(Icon::new(IconId(1), Color::BLACK))
         .with_attribute(GridPlacement::new(1.span(1), 2.span(1)).except(
             Layout::LANDSCAPE_MOBILE | Layout::LANDSCAPE_EXT,
             2.span(1),
@@ -109,13 +106,12 @@ fn main() {
             Layout::LANDSCAPE_MOBILE | Layout::LANDSCAPE_EXT,
         ) // up @ landscape-mobile | up-transition (on-click)
         .with_transition();
-    let slot = Image::slot(0, (400, 400));
-    // stage-2 when image created signal this attribute based on the current photo selection
-    let fill = Image::new(
-        0,
-        Section::new((10, 10), (200, 200)),
-        0,
-        include_bytes!("test_image.png").to_vec(),
+    foliage.view(view).stage(image_selection).add_signal_targeting(image).with_attribute(
+        () // should be on-retrieve that updates with gallery-index somehow
     );
+    let mem = Image::memory(0, (400, 400));
+    foliage.spawn(mem);
+    // stage-2 when image created signal this attribute based on the current photo selection
+    let fill = Image::new(0, include_bytes!("test_image.png").to_vec());
     foliage.run();
 }

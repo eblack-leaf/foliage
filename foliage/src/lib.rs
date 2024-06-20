@@ -13,6 +13,7 @@ use signal::{ActionHandle, TriggeredAction};
 use willow::Willow;
 
 use crate::ash::{Ash, Render};
+use crate::asset::{Asset, AssetFetch, AssetKey, AssetLoader};
 use crate::coordinate::area::Area;
 use crate::coordinate::{Coordinates, DeviceContext};
 use crate::elm::Elm;
@@ -26,6 +27,7 @@ use crate::panel::Panel;
 use crate::signal::Signal;
 use crate::view::{ViewComponents, ViewHandle};
 use futures_channel::oneshot;
+
 pub mod ash;
 pub mod asset;
 pub mod color;
@@ -55,7 +57,7 @@ pub struct Foliage {
     booted: bool,
     queue: Vec<WindowEvent>,
     sender: Option<oneshot::Sender<Ginkgo>>,
-    recv: Option<oneshot::Receiver<Ginkgo>>
+    recv: Option<oneshot::Receiver<Ginkgo>>,
 }
 
 impl Foliage {
@@ -153,7 +155,43 @@ impl Foliage {
             }
         }
     }
-
+    #[cfg(target_family = "wasm")]
+    fn load_remote_asset(&mut self, path: &str) -> AssetKey {
+        let key = AssetLoader::generate_key();
+        let (fetch, sender) = AssetFetch::new(key);
+        self.elm
+            .ecs
+            .world
+            .get_resource_mut::<AssetLoader>()
+            .expect("asset-loader")
+            .queue_fetch(fetch);
+        let path = format!("{}{}", web_sys::window().expect("window").origin(), path);
+        wasm_bindgen_futures::spawn_local(async move {
+            let asset = reqwest::Client::new()
+                .get(path)
+                .header("Accept", "application/octet-stream")
+                .send()
+                .await
+                .expect("asset-request")
+                .bytes()
+                .await
+                .expect("asset-bytes")
+                .to_vec();
+            sender.send(Asset::new(asset)).ok();
+        });
+        key
+    }
+    pub fn load_native_asset(&mut self, bytes: Vec<u8>) -> AssetKey {
+        let key = AssetLoader::generate_key();
+        self.elm
+            .ecs
+            .world
+            .get_resource_mut::<AssetLoader>()
+            .expect("asset-loader")
+            .assets
+            .insert(key.clone(), Asset::new(bytes));
+        key
+    }
     fn leaves_attach(&mut self) {
         for leaves_fn in self
             .leaves_fns

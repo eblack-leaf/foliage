@@ -61,19 +61,13 @@ pub struct AspectRatioImage {
     aspect_ratio: AspectRatio,
 }
 impl Image {
-    pub fn slot<I: Into<ImageSlotId>, C: Into<Coordinates>>(id: I, c: C) -> ImageSlot {
+    pub fn memory<I: Into<ImageSlotId>, C: Into<Coordinates>>(id: I, c: C) -> ImageSlot {
         ImageSlot {
             link: RenderLink::new::<Image>(),
             extent: Differential::new(ImageSlotDescriptor(id.into(), c.into())),
         }
     }
-    pub fn new<I: Into<ImageSlotId>, S: Into<Section<LogicalContext>>, L: Into<Layer>>(
-        id: I,
-        s: S,
-        l: L,
-        data: Vec<u8>,
-    ) -> Self {
-        let s = s.into();
+    pub fn new<I: Into<ImageSlotId>>(id: I, data: Vec<u8>) -> Self {
         let slice = data.as_slice();
         let image = image::load_from_memory(slice).unwrap().to_rgba32f();
         let dimensions = Coordinates::new(image.width() as f32, image.height() as f32);
@@ -85,8 +79,8 @@ impl Image {
             link: RenderLink::new::<Image>(),
             fill: Differential::new(ImageFill(id.into(), image_bytes, dimensions)),
             gpu_section: Differential::new(GpuSection::default()),
-            section: s,
-            layer: Differential::new(l.into()),
+            section: Section::default(),
+            layer: Differential::new(Layer::default()),
         }
     }
     pub fn with_aspect_ratio<A: Into<AspectRatio>>(self, a: A) -> AspectRatioImage {
