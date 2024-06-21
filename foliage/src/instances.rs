@@ -86,10 +86,12 @@ impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
         }
     }
     pub fn add(&mut self, key: Key) {
-        let index = self.order.len();
-        self.order.push(key);
-        self.map.insert(key, index);
-        self.update_needed = true;
+        if !self.has_key(&key) {
+            let index = self.order.len();
+            self.order.push(key);
+            self.map.insert(key, index);
+            self.update_needed = true;
+        }
     }
     pub fn has_key(&self, k: &Key) -> bool {
         self.map.contains_key(k)
@@ -152,7 +154,7 @@ impl<A: Pod + Zeroable + Default + Debug> Attribute<A> {
         }
     }
     fn remove(&mut self, index: usize) {
-        self.cpu.remove(index);
+        *self.cpu.get_mut(index).expect("index") = A::default();
         self.write_needed = true;
     }
     fn queue_write(&mut self, index: usize, a: A) {

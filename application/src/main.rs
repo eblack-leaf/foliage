@@ -62,9 +62,7 @@ impl Command for ChangeImage {
             .current_image();
         world
             .entity_mut(self.0.value())
-            .insert(OnRetrieve::new(key, |asset| {
-                Image::new(0, asset).inherit_aspect_ratio()
-            }));
+            .insert(OnRetrieve::new(key, |asset| Image::new(0, asset)));
     }
 }
 fn main() {
@@ -97,10 +95,13 @@ fn main() {
     foliage.view(view).activate();
     let background = foliage.view(view).add_target().handle();
     let gallery_icon = foliage.view(view).add_target().handle();
+    println!("gallery-icon: {:?}", gallery_icon.value());
     let gallery_text = foliage.view(view).add_target().handle();
     let image_forward_icon = foliage.view(view).add_target().handle();
+    println!("image-forward-icon: {:?}", image_forward_icon.value());
     let image_backward_icon = foliage.view(view).add_target().handle();
     let image = foliage.view(view).add_target().handle();
+    println!("image: {:?}", image.value());
     let initial_to_creation = foliage.create_action(Next {
         view,
         next_stage: element_creation,
@@ -108,6 +109,10 @@ fn main() {
     let creation_to_selection = foliage.create_action(Next {
         view,
         next_stage: image_selection,
+    });
+    let back_to_creation = foliage.create_action(Next {
+        view,
+        next_stage: element_creation,
     });
     let load_gallery_image = foliage.create_action(ChangeImage(image, 0));
     let page_left = foliage.create_action(ChangeImage(image, -1));
@@ -142,9 +147,24 @@ fn main() {
     foliage
         .view(view)
         .stage(element_creation)
+        .add_signal_targeting(image)
+        .clean();
+    foliage
+        .view(view)
+        .stage(element_creation)
+        .add_signal_targeting(image_forward_icon)
+        .clean();
+    foliage
+        .view(view)
+        .stage(element_creation)
         .add_signal_targeting(gallery_text)
         .with_attribute(()) // text placeholder
         .with_attribute(GridPlacement::new(2.span(2), 1.span(1)));
+    foliage
+        .view(view)
+        .stage(image_selection)
+        .add_signal_targeting(gallery_icon)
+        .clean();
     foliage
         .view(view)
         .stage(image_selection)
@@ -155,13 +175,14 @@ fn main() {
             2.span(1),
             1.span(1),
         ))
-        .with_attribute(OnClick::new(page_right))
+        .with_attribute(OnClick::new(back_to_creation))
         .with_filtered_attribute(IconId(2), Layout::LANDSCAPE_MOBILE | Layout::LANDSCAPE_EXT)
+        .with_attribute(ClickInteractionListener::new())
         .with_transition();
-    foliage
-        .view(view)
-        .stage(image_selection)
-        .signal_action(load_gallery_image);
+    // foliage
+    //     .view(view)
+    //     .stage(image_selection)
+    //     .signal_action(load_gallery_image);
     foliage
         .view(view)
         .stage(image_selection)

@@ -224,7 +224,9 @@ pub(crate) fn listen_for_interactions(
                     }
                     if let Some(grab) = grab_info {
                         if let Some(entity) = focused.0.replace(grab.0) {
-                            listeners.get_mut(entity).unwrap().1.focused = false;
+                            if let Ok(mut l) = listeners.get_mut(entity) {
+                                l.1.focused = false;
+                            }
                         }
                         grabbed.0.replace(grab.0);
                         listeners.get_mut(grab.0).expect("starting").1.click =
@@ -234,7 +236,9 @@ pub(crate) fn listen_for_interactions(
                         listeners.get_mut(grab.0).unwrap().1.engaged_start = true;
                     } else {
                         if let Some(entity) = focused.0.take() {
-                            listeners.get_mut(entity).unwrap().1.focused = false;
+                            if let Ok(mut l) = listeners.get_mut(entity) {
+                                l.1.focused = false;
+                            }
                         }
                     }
                 }

@@ -285,13 +285,15 @@ impl Render for Icon {
                 .instances
                 .add(packet.entity);
             if let Some(o) = old {
-                renderer
-                    .resource_handle
-                    .groups
-                    .get_mut(&o)
-                    .unwrap()
-                    .instances
-                    .remove(packet.entity);
+                if o != packet.value {
+                    renderer
+                        .resource_handle
+                        .groups
+                        .get_mut(&o)
+                        .unwrap()
+                        .instances
+                        .remove(packet.entity);
+                }
             }
         }
         for packet in queue_handle.read_adds::<Self, GpuSection>() {
