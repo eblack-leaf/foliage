@@ -142,6 +142,10 @@ fn main() {
         view,
         next_stage: element_creation,
     });
+    let creation_to_selection = foliage.create_action(Next {
+        view,
+        next_stage: image_selection,
+    });
     let load_gallery_image = foliage.create_action(LoadImage(image));
     let page_left = foliage.create_action(PageLeft(image));
     let page_right = foliage.create_action(PageRight(image));
@@ -149,6 +153,10 @@ fn main() {
         .view(view)
         .stage(initial)
         .on_end(initial_to_creation);
+    foliage
+        .view(view)
+        .stage(element_creation)
+        .on_end(creation_to_selection);
     foliage
         .view(view)
         .stage(initial)
@@ -164,7 +172,7 @@ fn main() {
         .view(view)
         .stage(element_creation)
         .add_signal_targeting(gallery_icon)
-        .with_attribute(Icon::new(IconId(1), Color::BLACK))
+        .with_attribute(Icon::new(IconId(0), Color::BLACK))
         .with_attribute(GridPlacement::new(1.span(1), 1.span(1)).except(
             Layout::LANDSCAPE_MOBILE,
             2.span(1),

@@ -160,7 +160,7 @@ impl Foliage {
         }
     }
     #[cfg(target_family = "wasm")]
-    fn load_remote_asset(&mut self, path: &str) -> AssetKey {
+    pub fn load_remote_asset(&mut self, path: &str) -> AssetKey {
         let key = AssetLoader::generate_key();
         let (fetch, sender) = AssetFetch::new(key);
         self.elm
@@ -169,8 +169,9 @@ impl Foliage {
             .get_resource_mut::<AssetLoader>()
             .expect("asset-loader")
             .queue_fetch(fetch);
-        let path = format!("{}{}", web_sys::window().expect("window").origin(), path);
+        let path = format!("{}/{}", web_sys::window().expect("window").origin(), path);
         wasm_bindgen_futures::spawn_local(async move {
+            println!("path: {:?}", path);
             let asset = reqwest::Client::new()
                 .get(path)
                 .header("Accept", "application/octet-stream")

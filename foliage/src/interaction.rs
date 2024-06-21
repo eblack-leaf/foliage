@@ -306,7 +306,9 @@ impl KeyboardAdapter {
 impl Leaf for ClickInteractionListener {
     fn attach(elm: &mut Elm) {
         elm.scheduler.main.add_systems((
-            (listen_for_interactions, on_click).chain().in_set(ScheduleMarkers::Interaction),
+            (listen_for_interactions, on_click)
+                .chain()
+                .in_set(ScheduleMarkers::Interaction),
             reset_click_listener_flags.after(ScheduleMarkers::Config),
         ));
         elm.enable_event::<ClickInteraction>();

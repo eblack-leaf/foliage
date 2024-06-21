@@ -12,7 +12,7 @@ use bevy_ecs::system::{Command, Resource};
 use bevy_ecs::world::World;
 
 use crate::ash::Render;
-use crate::asset::{AssetLoader, await_assets, on_retrieve};
+use crate::asset::{await_assets, on_retrieve, AssetLoader};
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::NumericalContext;
