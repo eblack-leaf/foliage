@@ -1,6 +1,6 @@
 pub use bevy_ecs;
 use bevy_ecs::bundle::Bundle;
-use bevy_ecs::prelude::Component;
+use bevy_ecs::prelude::{Component, Resource};
 use bevy_ecs::system::Command;
 pub use wgpu;
 use winit::application::ApplicationHandler;
@@ -76,6 +76,7 @@ impl Foliage {
             recv: None,
         };
         this.attach_leaves::<CoreLeaves>();
+        this.elm.ecs.world.insert_resource(AssetLoader::default());
         this
     }
     pub fn set_window_size<A: Into<Area<DeviceContext>>>(&mut self, a: A) {
@@ -136,6 +137,9 @@ impl Foliage {
         // can be added to OnClick(...) to set logic triggers
         ActionHandle(handle)
     }
+    pub fn insert_resource<R: Resource>(&mut self, r: R) {
+        self.elm.ecs.world.insert_resource(r);
+    }
     pub fn run(mut self) {
         let event_loop = EventLoop::new().unwrap();
         event_loop.set_control_flow(ControlFlow::Wait);
@@ -181,6 +185,7 @@ impl Foliage {
         });
         key
     }
+    #[cfg(not(target_family = "wasm"))]
     pub fn load_native_asset(&mut self, bytes: Vec<u8>) -> AssetKey {
         let key = AssetLoader::generate_key();
         self.elm

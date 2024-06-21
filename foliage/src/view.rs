@@ -189,6 +189,11 @@ impl Default for ViewStage {
     }
 }
 pub struct SignalHandle(pub(crate) Entity);
+impl SignalHandle {
+    pub fn value(&self) -> Entity {
+        self.0
+    }
+}
 pub(crate) fn signal_stage(
     mut views: Query<
         (&mut View, &CurrentViewStage, &ViewActive),

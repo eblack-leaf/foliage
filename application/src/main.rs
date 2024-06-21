@@ -1,16 +1,16 @@
-use foliage::bevy_ecs::prelude::World;
+use foliage::asset::{AssetKey, OnRetrieve};
+use foliage::bevy_ecs::prelude::{Resource, World};
 use foliage::bevy_ecs::system::Command;
 use foliage::color::Color;
-use foliage::coordinate::placement::Placement;
-use foliage::coordinate::position::Position;
-use foliage::coordinate::section::Section;
 use foliage::grid::{Grid, GridCoordinate, GridPlacement, Layout};
 use foliage::icon::{Icon, IconId, IconRequest};
 use foliage::image::Image;
-use foliage::interaction::ClickInteractionListener;
+use foliage::interaction::{ClickInteractionListener, OnClick};
 use foliage::panel::{Panel, Rounding};
+use foliage::signal::TriggerTarget;
 use foliage::view::{CurrentViewStage, Stage, ViewHandle};
 use foliage::Foliage;
+use foliage::{bevy_ecs, load_asset};
 
 #[derive(Clone)]
 struct Next {
@@ -23,6 +23,86 @@ impl Command for Next {
             .get_mut::<CurrentViewStage>(self.view.repr())
             .expect("no-current")
             .set(self.next_stage);
+    }
+}
+#[derive(Resource)]
+struct GalleryImages {
+    images: Vec<AssetKey>,
+    current: usize,
+}
+impl GalleryImages {
+    fn load(foliage: &mut Foliage) -> Self {
+        load_asset!(foliage, "assets/test_image.png", one);
+        Self {
+            images: vec![one],
+            current: 0,
+        }
+    }
+    fn current_image(&self) -> AssetKey {
+        *self.images.get(self.current).expect("unloaded-asset")
+    }
+    fn advance_left(&mut self) {
+        self.current = self.current.checked_sub(1).unwrap_or_default()
+    }
+    fn advance_right(&mut self) {
+        self.current = self
+            .current
+            .checked_add(1)
+            .unwrap_or_default()
+            .max(self.images.len().checked_sub(1).unwrap_or_default());
+    }
+}
+#[derive(Clone)]
+struct LoadImage(TriggerTarget);
+impl Command for LoadImage {
+    fn apply(self, world: &mut World) {
+        let key = world
+            .get_resource_mut::<GalleryImages>()
+            .expect("gallery-images")
+            .current_image();
+        world
+            .entity_mut(self.0.value())
+            .insert(OnRetrieve::new(key, |asset| {
+                Image::new(0, asset).inherit_aspect_ratio()
+            }));
+    }
+}
+#[derive(Clone)]
+struct PageLeft(TriggerTarget);
+impl Command for PageLeft {
+    fn apply(self, world: &mut World) {
+        world
+            .get_resource_mut::<GalleryImages>()
+            .expect("gallery-images")
+            .advance_left();
+        let key = world
+            .get_resource_mut::<GalleryImages>()
+            .expect("gallery-images")
+            .current_image();
+        world
+            .entity_mut(self.0.value())
+            .insert(OnRetrieve::new(key, |asset| {
+                Image::new(0, asset).inherit_aspect_ratio()
+            }));
+    }
+}
+#[derive(Clone)]
+struct PageRight(TriggerTarget);
+impl Command for PageRight {
+    fn apply(self, world: &mut World) {
+        world
+            .get_resource_mut::<GalleryImages>()
+            .expect("gallery-images")
+            .advance_right();
+        let key = world
+            .get_resource_mut::<GalleryImages>()
+            .expect("gallery-images")
+            .current_image();
+        world
+            .entity_mut(self.0.value())
+            .insert(OnRetrieve::new(key, |asset| {
+                Image::new(0, asset).inherit_aspect_ratio()
+            }));
     }
 }
 fn main() {
@@ -44,6 +124,10 @@ fn main() {
         2,
         include_bytes!("assets/archive.icon").to_vec(),
     ));
+    let images = GalleryImages::load(&mut foliage);
+    foliage.insert_resource(images);
+    let mem = Image::memory(0, (1200, 1200));
+    foliage.spawn(mem);
     let element_creation = foliage.view(view).create_stage();
     let image_selection = foliage.view(view).create_stage();
     foliage.view(view).set_initial_stage(initial);
@@ -58,6 +142,9 @@ fn main() {
         view,
         next_stage: element_creation,
     });
+    let load_gallery_image = foliage.create_action(LoadImage(image));
+    let page_left = foliage.create_action(PageLeft(image));
+    let page_right = foliage.create_action(PageRight(image));
     foliage
         .view(view)
         .stage(initial)
@@ -79,7 +166,7 @@ fn main() {
         .add_signal_targeting(gallery_icon)
         .with_attribute(Icon::new(IconId(1), Color::BLACK))
         .with_attribute(GridPlacement::new(1.span(1), 1.span(1)).except(
-            Layout::LANDSCAPE_MOBILE | Layout::LANDSCAPE_EXT,
+            Layout::LANDSCAPE_MOBILE,
             2.span(1),
             2.span(1),
         ))
@@ -96,22 +183,25 @@ fn main() {
         .add_signal_targeting(image_forward_icon)
         .with_attribute(Icon::new(IconId(1), Color::BLACK))
         .with_attribute(GridPlacement::new(1.span(1), 2.span(1)).except(
-            Layout::LANDSCAPE_MOBILE | Layout::LANDSCAPE_EXT,
+            Layout::LANDSCAPE_MOBILE,
             2.span(1),
             1.span(1),
         ))
-        .with_attribute(()) // on-click (normal aka left-right)
-        .with_filtered_attribute(
-            (IconId(2), (/* on-click (up-down) */)),
-            Layout::LANDSCAPE_MOBILE | Layout::LANDSCAPE_EXT,
-        ) // up @ landscape-mobile | up-transition (on-click)
+        .with_attribute(OnClick::new(page_right))
+        .with_filtered_attribute(IconId(2), Layout::LANDSCAPE_MOBILE | Layout::LANDSCAPE_EXT)
         .with_transition();
-    foliage.view(view).stage(image_selection).add_signal_targeting(image).with_attribute(
-        () // should be on-retrieve that updates with gallery-index somehow
-    );
-    let mem = Image::memory(0, (400, 400));
-    foliage.spawn(mem);
-    // stage-2 when image created signal this attribute based on the current photo selection
-    let fill = Image::new(0, include_bytes!("test_image.png").to_vec());
+    foliage
+        .view(view)
+        .stage(image_selection)
+        .signal_action(load_gallery_image);
+    foliage
+        .view(view)
+        .stage(image_selection)
+        .add_signal_targeting(image)
+        .with_attribute(GridPlacement::new(1.span(1), 1.span(1)).except(
+            Layout::LANDSCAPE_MOBILE,
+            1.span(1),
+            1.span(1),
+        ));
     foliage.run();
 }

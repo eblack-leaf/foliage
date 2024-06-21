@@ -46,6 +46,11 @@ impl Signaler {
 }
 #[derive(Component, Hash, Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
 pub struct TriggerTarget(pub(crate) Entity);
+impl TriggerTarget {
+    pub fn value(&self) -> Entity {
+        self.0
+    }
+}
 #[derive(Component)]
 pub(crate) struct TriggeredAttribute<A: Bundle + 'static + Send + Sync + Clone>(pub(crate) A);
 #[derive(Component)]
@@ -155,7 +160,24 @@ pub enum FilterMode {
 
 #[derive(Copy, Clone)]
 pub struct ActionHandle(pub(crate) Entity);
-
+impl ActionHandle {
+    pub fn value(&self) -> Entity {
+        self.0
+    }
+}
+#[derive(Bundle)]
+pub(crate) struct ActionSignal<A: Command + Send + Sync + 'static + Clone> {
+    signal: Signal,
+    action: TriggeredAction<A>,
+}
+impl<A: Command + Send + Sync + 'static + Clone> ActionSignal<A> {
+    pub(crate) fn new(a: A) -> Self {
+        Self {
+            signal: Default::default(),
+            action: TriggeredAction(a),
+        }
+    }
+}
 #[derive(Component)]
 pub(crate) struct TriggeredAction<A: Command + Send + Sync + 'static + Clone>(pub(crate) A);
 

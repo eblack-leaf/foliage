@@ -5,15 +5,17 @@ use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
 use crate::elm::{Elm, ScheduleMarkers};
 use crate::ginkgo::ScaleFactor;
+use crate::signal::{ActionHandle, Signal};
 use crate::Leaf;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::{Event, EventReader};
 use bevy_ecs::prelude::{Component, IntoSystemConfigs};
-use bevy_ecs::system::{Query, ResMut, Resource};
+use bevy_ecs::system::{Commands, Query, ResMut, Resource};
 use std::collections::HashMap;
 use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, MouseButton, Touch, TouchPhase};
 use winit::keyboard::{Key, ModifiersState};
+
 #[derive(Resource, Default)]
 pub(crate) struct TouchAdapter {
     primary: Option<u64>,
@@ -170,6 +172,25 @@ impl ClickInteractionShape {
         }
     }
 }
+#[derive(Component, Copy, Clone)]
+pub struct OnClick(pub(crate) ActionHandle);
+impl OnClick {
+    pub fn new(action_handle: ActionHandle) -> Self {
+        Self(action_handle)
+    }
+}
+pub(crate) fn on_click(
+    on_clicks: Query<(&OnClick, &ClickInteractionListener)>,
+    mut actions: Query<&mut Signal>,
+) {
+    for (on_click, listener) in on_clicks.iter() {
+        if listener.active {
+            *actions
+                .get_mut(on_click.0.value())
+                .expect("no-corresponding-action") = Signal::spawn();
+        }
+    }
+}
 pub(crate) fn listen_for_interactions(
     mut listeners: Query<(
         Entity,
@@ -285,7 +306,7 @@ impl KeyboardAdapter {
 impl Leaf for ClickInteractionListener {
     fn attach(elm: &mut Elm) {
         elm.scheduler.main.add_systems((
-            listen_for_interactions.in_set(ScheduleMarkers::Interaction),
+            (listen_for_interactions, on_click).chain().in_set(ScheduleMarkers::Interaction),
             reset_click_listener_flags.after(ScheduleMarkers::Config),
         ));
         elm.enable_event::<ClickInteraction>();

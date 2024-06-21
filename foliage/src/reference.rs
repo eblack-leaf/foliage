@@ -1,6 +1,6 @@
 use crate::elm::Elm;
 use crate::grid::LayoutFilter;
-use crate::signal::ActionHandle;
+use crate::signal::{ActionHandle, ActionSignal};
 use crate::signal::{
     FilteredTriggeredAttribute, Signal, Signaler, TargetComponents, TriggerTarget,
     TriggeredAttribute,
@@ -71,6 +71,25 @@ impl<'a> StageReference<'a> {
             reference: self.reference,
             stage: self.stage,
         }
+    }
+    pub fn signal_action(mut self, action_handle: ActionHandle) -> Self {
+        self.reference
+            .ecs
+            .world
+            .get_mut::<View>(self.root)
+            .expect("no-view")
+            .stages
+            .get_mut(self.stage.0 as usize)
+            .expect("no-stage")
+            .signals
+            .insert(
+                action_handle.value(),
+                StagedSignal {
+                    handle: SignalHandle(action_handle.value()),
+                    state_on_stage_start: Signal::spawn(),
+                },
+            );
+        self
     }
     pub fn on_end(mut self, action_handle: ActionHandle) -> Self {
         // action to hook to when the stage is confirmed done

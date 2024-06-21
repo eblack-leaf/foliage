@@ -1,26 +1,50 @@
-use bevy_ecs::system::{Commands, ResMut, Resource};
+use bevy_ecs::bundle::Bundle;
+use bevy_ecs::entity::Entity;
+use bevy_ecs::prelude::Component;
+use bevy_ecs::system::{Command, Commands, Query, Res, ResMut, Resource};
 use futures_channel::oneshot::{Receiver, Sender};
 use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub struct AssetLoader {
     pub(crate) assets: HashMap<AssetKey, Asset>,
     awaiting: HashMap<AssetKey, AssetFetch>,
 }
-pub type AssetFn = fn(Vec<u8>, &mut Commands);
-pub struct OnRetrieve {
+pub type AssetFn<B> = fn(Vec<u8>) -> B;
+#[derive(Component)]
+pub struct OnRetrieve<B> {
     key: AssetKey,
-    func: Box<AssetFn>,
+    bundle_using: Box<AssetFn<B>>,
 }
-pub(crate) fn on_retrieve() {}
+impl<B: Bundle + 'static + Send + Sync> OnRetrieve<B> {
+    pub fn new(key: AssetKey, func: AssetFn<B>) -> Self {
+        Self {
+            key,
+            bundle_using: Box::new(func),
+        }
+    }
+}
+pub(crate) fn on_retrieve<B: Bundle + Send + Sync + 'static>(
+    mut retrievers: Query<(Entity, &OnRetrieve<B>)>,
+    mut cmd: Commands,
+    asset_loader: Res<AssetLoader>,
+) {
+    for (entity, on_retrieve) in retrievers.iter() {
+        if let Some(asset) = asset_loader.retrieve(on_retrieve.key) {
+            cmd.entity(entity).remove::<OnRetrieve<B>>();
+            cmd.entity(entity)
+                .insert((on_retrieve.bundle_using)(asset.data));
+        }
+    }
+}
 pub(crate) fn await_assets(mut asset_loader: ResMut<AssetLoader>) {
     if !asset_loader.awaiting.is_empty() {
-        let mut finished = HashSet::<(AssetKey, Asset)>::new();
+        let mut finished = Vec::<(AssetKey, Asset)>::new();
         for (key, mut fetch) in asset_loader.awaiting.iter_mut() {
             if let Some(f) = fetch.recv.try_recv().ok() {
                 if let Some(f) = f {
-                    finished.insert((key.clone(), f));
+                    finished.push((key.clone(), f));
                 }
             }
         }
@@ -35,18 +59,19 @@ impl AssetLoader {
         self.assets.get(&key).cloned()
     }
     pub(crate) fn queue_fetch(&mut self, fetch: AssetFetch) {
-        self.awaiting.push(fetch);
+        self.awaiting.insert(fetch.key, fetch);
     }
     pub fn generate_key() -> AssetKey {
         Uuid::new_v4().as_u128()
     }
 }
+#[macro_export]
 macro_rules! load_asset {
-    (foliage:ident, path:lit) => {
+    ($foliage:ident, $path:literal, $id:ident) => {
         #[cfg(target_family = "wasm")]
-        // foliage.load_remote_asset($path)
+        let $id = $foliage.load_remote_asset($path);
         #[cfg(not(target_family = "wasm"))]
-        // foliage.load_native_asset(include_bytes!($path).to_vec())
+        let $id = $foliage.load_native_asset(include_bytes!($path).to_vec());
     };
 }
 pub type AssetKey = u128;

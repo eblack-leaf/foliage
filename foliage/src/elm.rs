@@ -12,6 +12,7 @@ use bevy_ecs::system::{Command, Resource};
 use bevy_ecs::world::World;
 
 use crate::ash::Render;
+use crate::asset::{AssetLoader, await_assets, on_retrieve};
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::NumericalContext;
@@ -98,6 +99,14 @@ impl<D> Default for EventLimiter<D> {
         Self(PhantomData)
     }
 }
+#[derive(Resource)]
+pub(crate) struct RetrieveLimiter<D>(PhantomData<D>);
+
+impl<D> Default for RetrieveLimiter<D> {
+    fn default() -> Self {
+        Self(PhantomData)
+    }
+}
 impl Elm {
     pub fn enable_event<E: Event + Send + Sync + 'static>(&mut self) {
         if !self.ecs.world.contains_resource::<EventLimiter<E>>() {
@@ -173,9 +182,10 @@ impl Elm {
     }
     pub(crate) fn checked_add_action_fns<A: Command + Clone + 'static + Send + Sync>(&mut self) {
         if !self.ecs.world.contains_resource::<ActionLimiter<A>>() {
-            self.scheduler
-                .main
-                .add_systems(engage_action::<A>.in_set(ScheduleMarkers::Action));
+            self.scheduler.main.add_systems((
+                engage_action::<A>.in_set(ScheduleMarkers::Action),
+                engage_action::<A>.in_set(ScheduleMarkers::StageActions),
+            ));
             self.ecs
                 .world
                 .insert_resource(ActionLimiter::<A>::default());
@@ -210,10 +220,13 @@ impl Elm {
         self.ecs.world.insert_resource(FocusedEntity::default());
         self.scheduler.main.configure_sets(
             (
+                ScheduleMarkers::Events,
                 ScheduleMarkers::External,
+                ScheduleMarkers::Interaction,
                 ScheduleMarkers::SignalConfirmation,
                 ScheduleMarkers::Action,
                 ScheduleMarkers::SignalStage,
+                ScheduleMarkers::StageActions,
                 ScheduleMarkers::Spawn,
                 ScheduleMarkers::SpawnFiltered,
                 ScheduleMarkers::Clean,
@@ -226,7 +239,7 @@ impl Elm {
                 .chain(),
         );
         self.scheduler.main.add_systems((
-            viewport_changes_layout.in_set(ScheduleMarkers::External),
+            (viewport_changes_layout, await_assets).in_set(ScheduleMarkers::External),
             signal_confirmation.in_set(ScheduleMarkers::SignalConfirmation),
             (signal_stage, resignal_on_layout_change)
                 .in_set(ScheduleMarkers::SignalStage)
@@ -247,7 +260,13 @@ impl Elm {
         ));
         self.scheduler.main.add_systems((
             apply_deferred
+                .after(ScheduleMarkers::Events)
+                .before(ScheduleMarkers::External),
+            apply_deferred
                 .after(ScheduleMarkers::External)
+                .before(ScheduleMarkers::Interaction),
+            apply_deferred
+                .after(ScheduleMarkers::Interaction)
                 .before(ScheduleMarkers::SignalConfirmation),
             apply_deferred
                 .after(ScheduleMarkers::SignalConfirmation)
@@ -257,6 +276,9 @@ impl Elm {
                 .before(ScheduleMarkers::SignalStage),
             apply_deferred
                 .after(ScheduleMarkers::SignalStage)
+                .before(ScheduleMarkers::StageActions),
+            apply_deferred
+                .after(ScheduleMarkers::StageActions)
                 .before(ScheduleMarkers::Spawn),
             apply_deferred
                 .after(ScheduleMarkers::Spawn)
@@ -297,6 +319,16 @@ impl Elm {
             .get_resource_mut::<ViewportHandle>()
             .unwrap()
             .resize(willow.actual_area().to_numerical());
+    }
+    pub(crate) fn enable_retrieve<B: Bundle + Send + Sync + 'static>(&mut self) {
+        if !self.ecs.world.contains_resource::<RetrieveLimiter<B>>() {
+            self.scheduler
+                .main
+                .add_systems(on_retrieve::<B>.in_set(ScheduleMarkers::Spawn));
+            self.ecs
+                .world
+                .insert_resource(RetrieveLimiter::<B>::default());
+        }
     }
 }
 
@@ -354,4 +386,5 @@ pub enum ScheduleMarkers {
     Clean,
     Interaction,
     Events,
+    StageActions,
 }

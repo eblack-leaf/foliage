@@ -139,6 +139,8 @@ impl Leaf for Image {
         elm.scheduler
             .main
             .add_systems(constrain.in_set(ScheduleMarkers::Config));
+        elm.enable_retrieve::<Image>();
+        elm.enable_retrieve::<AspectRatioImage>();
     }
 }
 #[repr(C)]
