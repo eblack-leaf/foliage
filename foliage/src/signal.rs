@@ -182,12 +182,13 @@ impl<A: Command + Send + Sync + 'static + Clone> ActionSignal<A> {
 pub(crate) struct TriggeredAction<A: Command + Send + Sync + 'static + Clone>(pub(crate) A);
 
 pub(crate) fn engage_action<A: Command + Send + Sync + 'static + Clone>(
-    actions: Query<(&Signal, &TriggeredAction<A>), Changed<Signal>>,
+    mut actions: Query<(&mut Signal, &TriggeredAction<A>), Changed<Signal>>,
     mut cmd: Commands,
 ) {
-    for (signal, action) in actions.iter() {
+    for (mut signal, action) in actions.iter_mut() {
         if signal.should_spawn() {
             cmd.add(action.0.clone());
+            *signal = Signal::default();
         }
     }
 }

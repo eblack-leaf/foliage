@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::event::{event_update_system, Event, Events};
+use bevy_ecs::event::{Event, event_update_system, Events};
 use bevy_ecs::prelude::{
     apply_deferred, Component, IntoSystemConfigs, IntoSystemSetConfigs, Schedule, SystemSet,
 };
@@ -12,23 +12,23 @@ use bevy_ecs::system::{Command, Resource};
 use bevy_ecs::world::World;
 
 use crate::ash::Render;
-use crate::asset::{await_assets, on_retrieve, AssetLoader};
+use crate::asset::{await_assets, on_retrieve};
 use crate::coordinate::area::Area;
-use crate::coordinate::position::Position;
 use crate::coordinate::NumericalContext;
+use crate::coordinate::position::Position;
 use crate::differential::{
     differential, RenderAddQueue, RenderLink, RenderPacket, RenderRemoveQueue,
 };
-use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::ScaleFactor;
-use crate::grid::{place_on_grid, viewport_changes_layout, Grid, Layout, LayoutGrid};
+use crate::ginkgo::viewport::ViewportHandle;
+use crate::grid::{Grid, Layout, LayoutGrid, place_on_grid, viewport_changes_layout};
 use crate::interaction::{
     FocusedEntity, InteractiveEntity, KeyboardAdapter, MouseAdapter, TouchAdapter,
 };
-use crate::signal::engage_action;
 use crate::signal::{
     clean, clear_signal, filter_signal, filtered_signaled_spawn, signaled_clean, signaled_spawn,
 };
+use crate::signal::engage_action;
 use crate::view::{
     adjust_view_grid_on_change, attempt_to_confirm, cleanup_view, on_target_grid_placement_change,
     on_view_grid_change, resignal_on_layout_change, signal_confirmation, signal_stage,
