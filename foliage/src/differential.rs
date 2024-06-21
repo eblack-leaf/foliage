@@ -83,8 +83,16 @@ pub(crate) fn added_invalidate<D: Component + PartialEq + Clone + Send + Sync + 
     mut render_queue: ResMut<RenderAddQueue<D>>,
 ) {
     for (entity, link, d) in added.iter() {
-        render_queue.cache.get_mut(link).unwrap().insert(entity, d.clone());
-        render_queue.queue.get_mut(link).unwrap().insert(entity, d.clone());
+        render_queue
+            .cache
+            .get_mut(link)
+            .unwrap()
+            .insert(entity, d.clone());
+        render_queue
+            .queue
+            .get_mut(link)
+            .unwrap()
+            .insert(entity, d.clone());
     }
 }
 pub(crate) fn differential<D: Component + PartialEq + Clone + Send + Sync + 'static>(

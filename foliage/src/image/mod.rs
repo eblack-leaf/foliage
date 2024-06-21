@@ -290,7 +290,7 @@ impl Render for Image {
                     .get_mut(&id)
                     .unwrap()
                     .instances
-                    .remove(entity);
+                    .queue_remove(entity);
             }
         }
         for packet in queue_handle.read_adds::<Self, ImageSlotDescriptor>() {

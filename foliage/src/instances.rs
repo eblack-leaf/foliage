@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::hash::Hash;
 
@@ -17,6 +17,7 @@ pub struct Instances<Key: Hash + Eq + Copy + Clone> {
     grow_fns: Vec<Box<fn(&mut World, u32, &Ginkgo)>>,
     cpu_to_gpu: Vec<Box<fn(&mut World, &Ginkgo)>>,
     update_needed: bool,
+    removal_queue: HashSet<Key>,
 }
 
 impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
@@ -46,6 +47,7 @@ impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
             grow_fns: vec![],
             cpu_to_gpu: vec![],
             update_needed: false,
+            removal_queue: HashSet::new(),
         }
     }
     pub fn with_attribute<A: Pod + Zeroable + Default + Debug>(mut self, ginkgo: &Ginkgo) -> Self {
@@ -73,12 +75,15 @@ impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
         let cloned = self.order.clone();
         for e in cloned {
             removed.push(e);
-            self.remove(e);
+            self.queue_remove(e);
         }
+        self.process_removals();
         return removed;
     }
-    pub fn remove(&mut self, key: Key) {
-        let index = self.map.remove(&key).expect("not-found");
+    pub fn queue_remove(&mut self, key: Key) {
+        self.removal_queue.insert(key);
+    }
+    pub(crate) fn remove(&mut self, index: usize) {
         self.order.remove(index);
         for r_fn in self.removal_fns.iter() {
             (r_fn)(&mut self.world, index);
@@ -96,8 +101,21 @@ impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
     pub fn has_key(&self, k: &Key) -> bool {
         self.map.contains_key(k)
     }
+    pub(crate) fn process_removals(&mut self) {
+        let removed = self.removal_queue.drain().collect::<Vec<Key>>();
+        let mut orders = removed
+            .iter()
+            .map(|r| self.map.remove(r).unwrap())
+            .collect::<Vec<usize>>();
+        orders.sort();
+        orders.reverse();
+        for o in orders {
+            self.remove(o);
+        }
+    }
     pub fn resolve_changes(&mut self, ginkgo: &Ginkgo) -> bool {
         let mut grown = false;
+        self.process_removals();
         let ordering = self
             .order
             .iter()
@@ -142,11 +160,12 @@ struct Attribute<A: Pod + Zeroable + Default> {
 
 impl<A: Pod + Zeroable + Default + Debug> Attribute<A> {
     fn new(ginkgo: &Ginkgo, capacity: u32) -> Self {
+        let size = Ginkgo::memory_size::<A>(capacity);
         Self {
             cpu: vec![A::default(); capacity as usize],
             gpu: ginkgo.context().device.create_buffer(&BufferDescriptor {
                 label: Some("attribute-buffer"),
-                size: Ginkgo::memory_size::<A>(capacity),
+                size,
                 usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
                 mapped_at_creation: false,
             }),
@@ -158,13 +177,17 @@ impl<A: Pod + Zeroable + Default + Debug> Attribute<A> {
         self.write_needed = true;
     }
     fn queue_write(&mut self, index: usize, a: A) {
+        if self.cpu.len() <= index {
+            self.cpu
+                .resize(index.checked_add(1).unwrap_or_default(), A::default());
+        }
         *self.cpu.get_mut(index).expect("index") = a;
         self.write_needed = true;
     }
     fn grow(&mut self, ginkgo: &Ginkgo, c: u32) {
         let cpu = self.cpu.drain(..).collect::<Vec<A>>();
         *self = Self::new(ginkgo, c);
-        self.cpu.extend(cpu);
+        self.cpu = cpu;
         self.write_needed = true;
     }
     fn write_cpu_to_gpu(&mut self, ginkgo: &Ginkgo) {

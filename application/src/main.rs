@@ -95,6 +95,7 @@ fn main() {
     foliage.view(view).activate();
     let background = foliage.view(view).add_target().handle();
     let gallery_icon = foliage.view(view).add_target().handle();
+    let about_icon = foliage.view(view).add_target().handle();
     println!("gallery-icon: {:?}", gallery_icon.value());
     let gallery_text = foliage.view(view).add_target().handle();
     let image_forward_icon = foliage.view(view).add_target().handle();
@@ -139,6 +140,18 @@ fn main() {
         .with_attribute(Icon::new(IconId(0), Color::BLACK))
         .with_attribute(GridPlacement::new(1.span(1), 1.span(1)).except(
             Layout::LANDSCAPE_MOBILE,
+            1.span(1),
+            1.span(1),
+        ))
+        .with_attribute(ClickInteractionListener::new())
+        .with_attribute(OnClick::new(creation_to_selection));
+    foliage
+        .view(view)
+        .stage(element_creation)
+        .add_signal_targeting(about_icon)
+        .with_attribute(Icon::new(IconId(0), Color::BLACK))
+        .with_attribute(GridPlacement::new(2.span(1), 2.span(1)).except(
+            Layout::LANDSCAPE_MOBILE,
             2.span(1),
             2.span(1),
         ))
@@ -164,6 +177,11 @@ fn main() {
         .view(view)
         .stage(image_selection)
         .add_signal_targeting(gallery_icon)
+        .clean();
+    foliage
+        .view(view)
+        .stage(image_selection)
+        .add_signal_targeting(about_icon)
         .clean();
     foliage
         .view(view)

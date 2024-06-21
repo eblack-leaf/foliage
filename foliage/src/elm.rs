@@ -16,7 +16,9 @@ use crate::asset::{await_assets, on_retrieve};
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::NumericalContext;
-use crate::differential::{added_invalidate, differential, RenderAddQueue, RenderLink, RenderPacket, RenderRemoveQueue};
+use crate::differential::{
+    added_invalidate, differential, RenderAddQueue, RenderLink, RenderPacket, RenderRemoveQueue,
+};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::ScaleFactor;
 use crate::grid::{place_on_grid, viewport_changes_layout, Grid, Layout, LayoutGrid};
@@ -121,9 +123,10 @@ impl Elm {
             .world
             .contains_resource::<DifferentialScheduleLimiter<D>>()
         {
-            self.scheduler
-                .main
-                .add_systems((differential::<D>.in_set(ScheduleMarkers::Differential), added_invalidate::<D>.in_set(ScheduleMarkers::Differential)));
+            self.scheduler.main.add_systems((
+                differential::<D>.in_set(ScheduleMarkers::Differential),
+                added_invalidate::<D>.in_set(ScheduleMarkers::Differential),
+            ));
             self.ecs
                 .world
                 .insert_resource(DifferentialScheduleLimiter::<D>::default())

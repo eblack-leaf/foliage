@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ops::{Div, Sub};
 
 use bevy_ecs::bundle::Bundle;
@@ -271,7 +271,7 @@ impl Render for Icon {
                 .resource_handle
                 .group_mut_from_entity(entity)
                 .instances
-                .remove(entity);
+                .queue_remove(entity);
             renderer.resource_handle.entity_to_icon.remove(&entity);
         }
         for packet in queue_handle.read_adds::<Self, IconId>() {
@@ -292,10 +292,11 @@ impl Render for Icon {
                         .get_mut(&o)
                         .unwrap()
                         .instances
-                        .remove(packet.entity);
+                        .queue_remove(packet.entity);
                 }
             }
         }
+        // TODO update cpu len of each attribute?
         for packet in queue_handle.read_adds::<Self, GpuSection>() {
             renderer
                 .resource_handle

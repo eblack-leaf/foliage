@@ -186,7 +186,6 @@ impl Foliage {
             path
         );
         wasm_bindgen_futures::spawn_local(async move {
-            println!("path: {:?}", path);
             let asset = reqwest::Client::new()
                 .get(path)
                 .header("Accept", "application/octet-stream")
