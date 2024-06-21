@@ -63,7 +63,7 @@ impl Command for LoadImage {
         world
             .entity_mut(self.0.value())
             .insert(OnRetrieve::new(key, |asset| {
-                Image::new(0, asset)
+                Image::new(0, asset).inherit_aspect_ratio()
             }));
     }
 }
@@ -153,10 +153,6 @@ fn main() {
         .view(view)
         .stage(initial)
         .on_end(initial_to_creation);
-    // foliage
-    //     .view(view)
-    //     .stage(element_creation)
-    //     .on_end(creation_to_selection);
     foliage
         .view(view)
         .stage(initial)
