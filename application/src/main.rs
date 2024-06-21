@@ -75,15 +75,15 @@ fn main() {
     let initial = foliage.view(view).create_stage();
     foliage.spawn(IconRequest::new(
         0,
-        include_bytes!("assets/menu.icon").to_vec(),
+        include_bytes!("assets/activity.icon").to_vec(),
     ));
     foliage.spawn(IconRequest::new(
         1,
-        include_bytes!("assets/calendar.icon").to_vec(),
+        include_bytes!("assets/airplay.icon").to_vec(),
     ));
     foliage.spawn(IconRequest::new(
         2,
-        include_bytes!("assets/archive.icon").to_vec(),
+        include_bytes!("assets/alert-circle.icon").to_vec(),
     ));
     let images = GalleryImages::load(&mut foliage);
     foliage.insert_resource(images);

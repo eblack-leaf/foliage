@@ -43,9 +43,11 @@ impl TouchAdapter {
                         return Some(ClickInteraction::new(ClickPhase::Moved, position));
                     }
                     TouchPhase::Ended => {
+                        self.primary.take();
                         return Some(ClickInteraction::new(ClickPhase::End, position));
                     }
                     TouchPhase::Cancelled => {
+                        self.primary.take();
                         return Some(ClickInteraction::new(ClickPhase::Cancel, position));
                     }
                 }

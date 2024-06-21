@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use bevy_ecs::prelude::Resource;
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
@@ -30,7 +28,6 @@ use crate::willow::Willow;
 
 pub mod binding;
 pub mod depth;
-pub mod mips;
 pub mod msaa;
 pub mod texture;
 pub mod viewport;
@@ -44,13 +41,13 @@ pub struct Ginkgo {
 
 impl Ginkgo {
     #[cfg(not(target_family = "wasm"))]
-    pub fn png_to_cov<P: AsRef<Path>>(png: P, cov: P) {
+    pub fn png_to_cov<P: AsRef<std::path::Path>>(png: P, cov: P) {
         let data = Ginkgo::png_to_r8unorm_d2(png);
         let content = rmp_serde::to_vec(data.as_slice()).unwrap();
         std::fs::write(cov, content).unwrap();
     }
     #[cfg(not(target_family = "wasm"))]
-    pub fn png_to_r8unorm_d2<P: AsRef<Path>>(path: P) -> Vec<u8> {
+    pub fn png_to_r8unorm_d2<P: AsRef<std::path::Path>>(path: P) -> Vec<u8> {
         let image = image::load_from_memory(std::fs::read(path).unwrap().as_slice())
             .expect("png-to-r8unorm-d2");
         let texture_data = image

@@ -68,10 +68,10 @@ fn load() {
             }
         }
     }
-    for (dest, bytes) in twenty_fours.drain() {
+    for (dest, bytes) in ninety_six.drain() {
         let mut aggregate = bytes;
         aggregate.extend(forty_eights.get(&dest).unwrap().clone());
-        aggregate.extend(ninety_six.get(&dest).unwrap().clone());
+        aggregate.extend(twenty_fours.get(&dest).unwrap().clone());
         std::fs::write(root.join("icon").join(dest), aggregate).unwrap();
     }
 }

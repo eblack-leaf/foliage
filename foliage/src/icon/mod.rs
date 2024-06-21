@@ -22,7 +22,7 @@ use crate::coordinate::section::{GpuSection, Section};
 use crate::coordinate::{Coordinates, LogicalContext};
 use crate::differential::{Differential, RenderLink};
 use crate::elm::{Elm, RenderQueueHandle, ScheduleMarkers};
-use crate::ginkgo::mips::Mips;
+use crate::ginkgo::texture::Mips;
 use crate::ginkgo::Ginkgo;
 use crate::instances::Instances;
 use crate::Leaf;
@@ -82,6 +82,7 @@ pub struct Icon {
 }
 impl Icon {
     pub const SCALE: Coordinates = Coordinates::new(24f32, 24f32);
+    pub const TEXTURE_SCALE: Coordinates = Coordinates::new(96f32, 96f32);
     pub fn new<I: Into<IconId>>(id: I, color: Color) -> Self {
         Self {
             link: RenderLink::new::<Icon>(),
@@ -245,7 +246,7 @@ impl Render for Icon {
         for packet in queue_handle.read_adds::<Self, IconData>() {
             let (_, view) = ginkgo.create_texture(
                 TextureFormat::R8Unorm,
-                Self::SCALE,
+                Self::TEXTURE_SCALE,
                 3,
                 packet.value.1.as_slice(),
             );
@@ -309,7 +310,7 @@ impl Render for Icon {
                     .resource_handle
                     .group_mut_from_entity(packet.entity)
                     .instances
-                    .checked_write(packet.entity, Mips(2f32));
+                    .checked_write(packet.entity, Mips(0f32));
             } else if scale_factor == 2f32 {
                 renderer
                     .resource_handle
@@ -321,7 +322,7 @@ impl Render for Icon {
                     .resource_handle
                     .group_mut_from_entity(packet.entity)
                     .instances
-                    .checked_write(packet.entity, Mips(0f32));
+                    .checked_write(packet.entity, Mips(2f32));
             }
         }
         for packet in queue_handle.read_adds::<Self, Layer>() {
