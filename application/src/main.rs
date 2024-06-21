@@ -174,7 +174,8 @@ fn main() {
             2.span(1),
             2.span(1),
         ))
-        .with_attribute(ClickInteractionListener::new()).with_attribute(OnClick::new(creation_to_selection));
+        .with_attribute(ClickInteractionListener::new())
+        .with_attribute(OnClick::new(creation_to_selection));
     foliage
         .view(view)
         .stage(element_creation)
