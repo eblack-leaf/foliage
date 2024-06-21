@@ -58,6 +58,7 @@ pub struct Foliage {
     queue: Vec<WindowEvent>,
     sender: Option<oneshot::Sender<Ginkgo>>,
     recv: Option<oneshot::Receiver<Ginkgo>>,
+    base_url: String,
 }
 
 impl Foliage {
@@ -74,10 +75,15 @@ impl Foliage {
             queue: vec![],
             sender: None,
             recv: None,
+            base_url: "".to_string(),
         };
         this.attach_leaves::<CoreLeaves>();
         this.elm.ecs.world.insert_resource(AssetLoader::default());
         this
+    }
+    pub fn set_base_url<S: AsRef<str>>(&mut self, s: S) {
+        // TODO ensure no leading or trailing "/"
+        self.base_url = s.as_ref().to_string();
     }
     pub fn set_window_size<A: Into<Area<DeviceContext>>>(&mut self, a: A) {
         self.willow.requested_size.replace(a.into());
@@ -159,6 +165,9 @@ impl Foliage {
             }
         }
     }
+    pub fn enable_retrieve<B: Bundle + Send + Sync + 'static>(&mut self) {
+        self.elm.enable_retrieve::<B>();
+    }
     #[cfg(target_family = "wasm")]
     pub fn load_remote_asset(&mut self, path: &str) -> AssetKey {
         let key = AssetLoader::generate_key();
@@ -169,7 +178,13 @@ impl Foliage {
             .get_resource_mut::<AssetLoader>()
             .expect("asset-loader")
             .queue_fetch(fetch);
-        let path = format!("{}/{}", web_sys::window().expect("window").origin(), path);
+        // TODO sanitize path for "/" leading / trailing
+        let path = format!(
+            "{}/{}/{}",
+            web_sys::window().expect("window").origin(),
+            self.base_url,
+            path
+        );
         wasm_bindgen_futures::spawn_local(async move {
             println!("path: {:?}", path);
             let asset = reqwest::Client::new()

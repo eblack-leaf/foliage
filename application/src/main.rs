@@ -70,6 +70,7 @@ impl Command for ChangeImage {
 fn main() {
     let mut foliage = Foliage::new();
     foliage.set_window_size((400, 600));
+    foliage.set_base_url("");
     let view = foliage
         .create_view(GridPlacement::new(1.span(4), 1.span(2)), Grid::new(3, 2))
         .handle();
