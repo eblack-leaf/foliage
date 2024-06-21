@@ -153,10 +153,10 @@ fn main() {
         .view(view)
         .stage(initial)
         .on_end(initial_to_creation);
-    foliage
-        .view(view)
-        .stage(element_creation)
-        .on_end(creation_to_selection);
+    // foliage
+    //     .view(view)
+    //     .stage(element_creation)
+    //     .on_end(creation_to_selection);
     foliage
         .view(view)
         .stage(initial)
@@ -178,7 +178,7 @@ fn main() {
             2.span(1),
             2.span(1),
         ))
-        .with_attribute(ClickInteractionListener::new());
+        .with_attribute(ClickInteractionListener::new()).with_attribute(OnClick::new(creation_to_selection));
     foliage
         .view(view)
         .stage(element_creation)
