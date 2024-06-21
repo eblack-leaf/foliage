@@ -41,59 +41,21 @@ impl GalleryImages {
     fn current_image(&self) -> AssetKey {
         *self.images.get(self.current).expect("unloaded-asset")
     }
-    fn advance_left(&mut self) {
-        self.current = self.current.checked_sub(1).unwrap_or_default()
-    }
-    fn advance_right(&mut self) {
-        self.current = self
-            .current
-            .checked_add(1)
-            .unwrap_or_default()
-            .max(self.images.len().checked_sub(1).unwrap_or_default());
+    fn advance(&mut self, amount: i32) {
+        self.current = (self.current as i32 + amount)
+            .max(0)
+            .min(self.images.len().checked_sub(1).unwrap_or_default() as i32)
+            as usize;
     }
 }
 #[derive(Clone)]
-struct LoadImage(TriggerTarget);
-impl Command for LoadImage {
-    fn apply(self, world: &mut World) {
-        let key = world
-            .get_resource_mut::<GalleryImages>()
-            .expect("gallery-images")
-            .current_image();
-        world
-            .entity_mut(self.0.value())
-            .insert(OnRetrieve::new(key, |asset| {
-                Image::new(0, asset).inherit_aspect_ratio()
-            }));
-    }
-}
-#[derive(Clone)]
-struct PageLeft(TriggerTarget);
-impl Command for PageLeft {
+struct ChangeImage(TriggerTarget, i32);
+impl Command for ChangeImage {
     fn apply(self, world: &mut World) {
         world
             .get_resource_mut::<GalleryImages>()
             .expect("gallery-images")
-            .advance_left();
-        let key = world
-            .get_resource_mut::<GalleryImages>()
-            .expect("gallery-images")
-            .current_image();
-        world
-            .entity_mut(self.0.value())
-            .insert(OnRetrieve::new(key, |asset| {
-                Image::new(0, asset).inherit_aspect_ratio()
-            }));
-    }
-}
-#[derive(Clone)]
-struct PageRight(TriggerTarget);
-impl Command for PageRight {
-    fn apply(self, world: &mut World) {
-        world
-            .get_resource_mut::<GalleryImages>()
-            .expect("gallery-images")
-            .advance_right();
+            .advance(self.1);
         let key = world
             .get_resource_mut::<GalleryImages>()
             .expect("gallery-images")
@@ -146,9 +108,9 @@ fn main() {
         view,
         next_stage: image_selection,
     });
-    let load_gallery_image = foliage.create_action(LoadImage(image));
-    let page_left = foliage.create_action(PageLeft(image));
-    let page_right = foliage.create_action(PageRight(image));
+    let load_gallery_image = foliage.create_action(ChangeImage(image, 0));
+    let page_left = foliage.create_action(ChangeImage(image, -1));
+    let page_right = foliage.create_action(ChangeImage(image, 1));
     foliage
         .view(view)
         .stage(initial)
