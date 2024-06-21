@@ -3,6 +3,7 @@ use bevy_ecs::prelude::DetectChanges;
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{ParamSet, Query, Res, ResMut, Resource};
 use bitflags::bitflags;
+use web_sys::wasm_bindgen::JsValue;
 
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
@@ -248,6 +249,11 @@ pub(crate) fn viewport_changes_layout(
         let (l, t) = LayoutGrid::configuration(viewport_handle.section().area.coordinates);
         if &l != layout.as_ref() {
             *layout = l;
+            #[cfg(target_family = "wasm")]
+            {
+                let gl: JsValue = layout.as_ref().0.into();
+                web_sys::console::log_2(&"grid layout: ".into(), &gl);
+            }
         }
         let placement = Placement::new(
             Section::new(
@@ -256,6 +262,12 @@ pub(crate) fn viewport_changes_layout(
             ),
             0,
         );
+        #[cfg(target_family = "wasm")]
+        {
+            let tc: JsValue = t.cols.into();
+            let tr: JsValue = t.rows.into();
+            web_sys::console::log_4(&"grid-col-row: ".into(), &tc, &" : ".into(), &tr);
+        }
         layout_grid.grid = Grid::new(t.cols, t.rows)
             .placed_at(placement)
             .with_gap(layout_grid.grid.gap);
@@ -270,9 +282,9 @@ impl LayoutGrid {
         Self { grid }
     }
     pub(crate) const SMALL_HORIZONTAL_THRESHOLD: f32 = 440.0;
-    pub(crate) const LARGE_HORIZONTAL_THRESHOLD: f32 = 740.0;
-    pub(crate) const SMALL_VERTICAL_THRESHOLD: f32 = 360.0;
-    pub(crate) const LARGE_VERTICAL_THRESHOLD: f32 = 560.0;
+    pub(crate) const LARGE_HORIZONTAL_THRESHOLD: f32 = 800.0;
+    pub(crate) const SMALL_VERTICAL_THRESHOLD: f32 = 440.0;
+    pub(crate) const LARGE_VERTICAL_THRESHOLD: f32 = 800.0;
     pub(crate) fn configuration(coordinates: Coordinates) -> (Layout, GridTemplate) {
         let mut columns = 4;
         if coordinates.horizontal() > Self::SMALL_HORIZONTAL_THRESHOLD {

@@ -27,5 +27,5 @@ console_error_panic_hook = "0.1.7"
 package = "web-sys"
 version = "0.3.64"
 features = [
-
+    "console"
 ]

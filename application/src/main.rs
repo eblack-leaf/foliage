@@ -70,7 +70,7 @@ fn main() {
     foliage.set_window_size((400, 600));
     foliage.set_base_url("");
     let view = foliage
-        .create_view(GridPlacement::new(1.span(4), 1.span(2)), Grid::new(3, 2))
+        .create_view(GridPlacement::new(1.span(4), 1.span(8)), Grid::new(3, 2))
         .handle();
     let initial = foliage.view(view).create_stage();
     foliage.spawn(IconRequest::new(
@@ -150,9 +150,9 @@ fn main() {
         .stage(element_creation)
         .add_signal_targeting(about_icon)
         .with_attribute(Icon::new(IconId(0), Color::BLACK))
-        .with_attribute(GridPlacement::new(2.span(1), 2.span(1)).except(
+        .with_attribute(GridPlacement::new(3.span(1), 2.span(1)).except(
             Layout::LANDSCAPE_MOBILE,
-            2.span(1),
+            3.span(1),
             2.span(1),
         ))
         .with_attribute(ClickInteractionListener::new())
