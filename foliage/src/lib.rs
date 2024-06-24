@@ -82,7 +82,6 @@ impl Foliage {
         this
     }
     pub fn set_base_url<S: AsRef<str>>(&mut self, s: S) {
-        // TODO ensure no leading or trailing "/"
         self.base_url = s.as_ref().to_string();
     }
     pub fn set_window_size<A: Into<Area<DeviceContext>>>(&mut self, a: A) {

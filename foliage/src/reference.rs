@@ -6,7 +6,7 @@ use crate::signal::{
     TriggeredAttribute,
 };
 use crate::view::{
-    CurrentViewStage, SignalHandle, Stage, StagedSignal, View, ViewActive, ViewHandle, ViewStage,
+    CurrentViewStage, SignalHandle, Stage, StagedSignal, View, ViewHandle, ViewStage,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
@@ -102,7 +102,7 @@ impl<'a> StageReference<'a> {
             .get_mut(self.stage.0 as usize)
             .expect("no-stage")
             .on_end
-            .replace(action_handle);
+            .insert(action_handle);
         self
     }
 }
@@ -200,14 +200,6 @@ impl<'a> ViewReference<'a> {
             .get_mut::<CurrentViewStage>(self.root)
             .expect("no-current")
             .stage = stage;
-    }
-    pub fn activate(mut self) {
-        self.reference
-            .ecs
-            .world
-            .get_mut::<ViewActive>(self.root)
-            .expect("no-active")
-            .0 = true;
     }
     pub fn create_stage(&mut self) -> Stage {
         let stage = self

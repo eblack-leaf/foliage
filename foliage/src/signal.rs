@@ -97,7 +97,7 @@ pub(crate) fn signaled_spawn<A: Bundle + 'static + Send + Sync + Clone>(
 }
 #[derive(Component, Copy, Clone, Default)]
 pub struct Clean {
-    should_clean: bool,
+    pub(crate) should_clean: bool,
 }
 impl Clean {
     pub fn clean_entity(&mut self) {
@@ -158,7 +158,7 @@ pub enum FilterMode {
     Any,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Eq, Hash, PartialEq, Copy, Clone)]
 pub struct ActionHandle(pub(crate) Entity);
 impl ActionHandle {
     pub fn value(&self) -> Entity {

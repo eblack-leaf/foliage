@@ -319,7 +319,8 @@ impl Elm {
             .changes()
     }
     pub(crate) fn adjust_viewport_handle(&mut self, willow: &Willow) {
-        let scale_value = self.ecs
+        let scale_value = self
+            .ecs
             .world
             .get_resource::<ScaleFactor>()
             .unwrap()
@@ -328,14 +329,7 @@ impl Elm {
             .world
             .get_resource_mut::<ViewportHandle>()
             .unwrap()
-            .resize(
-                willow
-                    .actual_area()
-                    .to_logical(
-                        scale_value,
-                    )
-                    .to_numerical(),
-            );
+            .resize(willow.actual_area().to_logical(scale_value).to_numerical());
     }
     pub(crate) fn enable_retrieve<B: Bundle + Send + Sync + 'static>(&mut self) {
         if !self.ecs.world.contains_resource::<RetrieveLimiter<B>>() {

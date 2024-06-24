@@ -3,7 +3,6 @@ use bevy_ecs::prelude::DetectChanges;
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{ParamSet, Query, Res, ResMut, Resource};
 use bitflags::bitflags;
-use web_sys::wasm_bindgen::JsValue;
 
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
@@ -251,6 +250,7 @@ pub(crate) fn viewport_changes_layout(
             *layout = l;
             #[cfg(target_family = "wasm")]
             {
+                use web_sys::wasm_bindgen::JsValue;
                 let gl: JsValue = layout.as_ref().0.into();
                 web_sys::console::log_2(&"grid layout: ".into(), &gl);
             }
@@ -264,6 +264,7 @@ pub(crate) fn viewport_changes_layout(
         );
         #[cfg(target_family = "wasm")]
         {
+            use web_sys::wasm_bindgen::JsValue;
             let tc: JsValue = t.cols.into();
             let tr: JsValue = t.rows.into();
             web_sys::console::log_4(&"grid-col-row: ".into(), &tc, &" : ".into(), &tr);
