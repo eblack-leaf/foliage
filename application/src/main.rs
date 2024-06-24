@@ -118,15 +118,15 @@ fn main() {
     let control_panel = foliage
         .create_view(
             GridPlacement::new(1.span(2), 2.span(2))
-                .except(Layout::LANDSCAPE_MOBILE, 5.span(3), 1.span(4))
-                .except(Layout::LANDSCAPE_EXT, 9.span(3), 1.span(4))
-                .except(Layout::PORTRAIT_MOBILE, 1.span(4), 5.span(3))
-                .except(Layout::PORTRAIT_EXT, 1.span(4), 9.span(3))
-                .except(Layout::SQUARE_EXT, 2.span(6), 5.span(3))
-                .except(Layout::SQUARE_MAX, 3.span(6), 9.span(3))
-                .except(Layout::WIDE_DESKTOP, 3.span(6), 5.span(3))
-                .except(Layout::TALL_DESKTOP, 3.span(6), 9.span(3)),
-            Grid::new(3, 2),
+                .except(Layout::LANDSCAPE_MOBILE, 6.span(3), 1.span(4))
+                .except(Layout::LANDSCAPE_EXT, 10.span(3), 1.span(4))
+                .except(Layout::PORTRAIT_MOBILE, 1.span(4), 6.span(3))
+                .except(Layout::PORTRAIT_EXT, 1.span(4), 10.span(3))
+                .except(Layout::SQUARE_EXT, 4.span(5), 6.span(3))
+                .except(Layout::SQUARE_MAX, 4.span(5), 10.span(3))
+                .except(Layout::WIDE_DESKTOP, 3.span(6), 6.span(3))
+                .except(Layout::TALL_DESKTOP, 3.span(6), 10.span(3)),
+            Grid::new(3, 4),
         )
         .handle();
     let initial = foliage.view(control_panel).create_stage();
@@ -161,7 +161,7 @@ fn main() {
         view: control_panel,
         next_stage: gallery_or_about,
     });
-    let creation_to_selection = foliage.create_action(Next {
+    let creation_to_gallery = foliage.create_action(Next {
         view: control_panel,
         next_stage: image_controls,
     });
@@ -183,25 +183,24 @@ fn main() {
         .add_signal_targeting(background)
         .with_attribute(Panel::new(Rounding::all(0.05), Color::WHITE))
         .with_attribute(
-            GridPlacement::new(1.span(3), 1.span(2))
+            GridPlacement::new(1.span(3), 1.span(4))
                 .ignore_gap()
                 .offset_layer(5),
-        )
-        .with_transition(); // the PositionAdjust transition to move
+        );
     foliage
         .view(control_panel)
         .stage(gallery_or_about)
         .add_signal_targeting(gallery_icon)
         .with_attribute(Icon::new(IconId(0), Color::BLACK))
-        .with_attribute(GridPlacement::new(1.span(1), 1.span(1)))
+        .with_attribute(GridPlacement::new(1.span(1), 1.span(2)))
         .with_attribute(ClickInteractionListener::new())
-        .with_attribute(OnClick::new(creation_to_selection));
+        .with_attribute(OnClick::new(creation_to_gallery));
     foliage
         .view(control_panel)
         .stage(gallery_or_about)
         .add_signal_targeting(about_icon)
         .with_attribute(Icon::new(IconId(0), Color::BLACK))
-        .with_attribute(GridPlacement::new(1.span(1), 2.span(1)))
+        .with_attribute(GridPlacement::new(1.span(1), 3.span(2)))
         .with_attribute(ClickInteractionListener::new())
         .with_attribute(OnClick::new(creation_to_about));
     foliage
@@ -222,12 +221,12 @@ fn main() {
         .clean();
     foliage
         .view(control_panel)
-        .stage(gallery_or_about)
+        .stage(image_controls)
         .add_signal_targeting(gallery_choice_text)
         .clean();
     foliage
         .view(control_panel)
-        .stage(gallery_or_about)
+        .stage(image_controls)
         .add_signal_targeting(about_choice_text)
         .clean();
     foliage
@@ -238,6 +237,28 @@ fn main() {
     foliage
         .view(control_panel)
         .stage(image_controls)
+        .add_signal_targeting(about_icon)
+        .clean();
+
+
+    foliage
+        .view(control_panel)
+        .stage(about_controls)
+        .add_signal_targeting(gallery_choice_text)
+        .clean();
+    foliage
+        .view(control_panel)
+        .stage(about_controls)
+        .add_signal_targeting(about_choice_text)
+        .clean();
+    foliage
+        .view(control_panel)
+        .stage(about_controls)
+        .add_signal_targeting(gallery_icon)
+        .clean();
+    foliage
+        .view(control_panel)
+        .stage(about_controls)
         .add_signal_targeting(about_icon)
         .clean();
     foliage.run();

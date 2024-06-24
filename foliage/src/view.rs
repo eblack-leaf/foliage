@@ -98,7 +98,7 @@ pub(crate) fn on_view_grid_change(
     }
 }
 pub(crate) fn on_target_grid_placement_change(
-    views: Query<(&ViewGrid)>,
+    views: Query<&ViewGrid>,
     mut targets: Query<
         (
             &mut Position<LogicalContext>,
@@ -120,7 +120,7 @@ pub(crate) fn on_target_grid_placement_change(
         }
     }
 }
-pub(crate) fn cleanup_view(mut views: Query<(&View, &Clean), Changed<Clean>>, mut cmd: Commands) {
+pub(crate) fn cleanup_view(views: Query<(&View, &Clean), Changed<Clean>>, mut cmd: Commands) {
     for (view, clean) in views.iter() {
         if clean.should_clean {
             for target in view.targets.iter() {

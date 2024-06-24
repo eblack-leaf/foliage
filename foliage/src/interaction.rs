@@ -11,7 +11,7 @@ use bevy_ecs::entity::Entity;
 use bevy_ecs::event::{Event, EventReader};
 use bevy_ecs::prelude::{Component, IntoSystemConfigs};
 use bevy_ecs::system::{Commands, Query, ResMut, Resource};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, MouseButton, Touch, TouchPhase};
 use winit::keyboard::{Key, ModifiersState};
@@ -174,11 +174,17 @@ impl ClickInteractionShape {
         }
     }
 }
-#[derive(Component, Copy, Clone)]
-pub struct OnClick(pub(crate) ActionHandle);
+#[derive(Component, Clone)]
+pub struct OnClick(pub(crate) HashSet<ActionHandle>);
 impl OnClick {
     pub fn new(action_handle: ActionHandle) -> Self {
-        Self(action_handle)
+        let mut this = Self(HashSet::new());
+        this.0.insert(action_handle);
+        this
+    }
+    pub fn with(mut self, action_handle: ActionHandle) -> Self {
+        self.0.insert(action_handle);
+        self
     }
 }
 pub(crate) fn on_click(
@@ -187,9 +193,12 @@ pub(crate) fn on_click(
 ) {
     for (on_click, listener) in on_clicks.iter() {
         if listener.active {
-            *actions
-                .get_mut(on_click.0.value())
-                .expect("no-corresponding-action") = Signal::spawn();
+            for handle in on_click.0.iter() {
+                *actions
+                    .get_mut(handle.value())
+                    .expect("no-corresponding-action") = Signal::spawn();
+            }
+
         }
     }
 }

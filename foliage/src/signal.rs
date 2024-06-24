@@ -74,7 +74,7 @@ pub(crate) fn signaled_clean(
     mut to_clean: Query<(&mut Signal, &TriggerTarget), Changed<Signal>>,
     mut cmd: Commands,
 ) {
-    for (mut signal, target) in to_clean.iter_mut() {
+    for (signal, target) in to_clean.iter_mut() {
         if signal.should_clean() {
             cmd.entity(target.0).insert(Clean::should_clean());
         }
@@ -185,7 +185,7 @@ pub(crate) fn engage_action<A: Command + Send + Sync + 'static + Clone>(
     actions: Query<(&Signal, &TriggeredAction<A>), Changed<Signal>>,
     mut cmd: Commands,
 ) {
-    for (mut signal, action) in actions.iter() {
+    for (signal, action) in actions.iter() {
         if signal.should_spawn() {
             cmd.add(action.0.clone());
         }

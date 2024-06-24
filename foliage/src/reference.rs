@@ -47,7 +47,7 @@ pub struct SignalReference<'a> {
 }
 
 impl<'a> StageReference<'a> {
-    pub fn add_signal_targeting(mut self, target: TriggerTarget) -> SignalReference<'a> {
+    pub fn add_signal_targeting(self, target: TriggerTarget) -> SignalReference<'a> {
         let signal = self.reference.ecs.world.spawn(Signaler::new(target)).id();
         self.reference
             .ecs
@@ -72,7 +72,7 @@ impl<'a> StageReference<'a> {
             stage: self.stage,
         }
     }
-    pub fn signal_action(mut self, action_handle: ActionHandle) -> Self {
+    pub fn signal_action(self, action_handle: ActionHandle) -> Self {
         self.reference
             .ecs
             .world
@@ -91,7 +91,7 @@ impl<'a> StageReference<'a> {
             );
         self
     }
-    pub fn on_end(mut self, action_handle: ActionHandle) -> Self {
+    pub fn on_end(self, action_handle: ActionHandle) -> Self {
         // action to hook to when the stage is confirmed done
         self.reference
             .ecs
@@ -112,7 +112,7 @@ impl<'a> SignalReference<'a> {
         A: Bundle + 'static + Clone + Send + Sync,
         F: Into<LayoutFilter>,
     >(
-        mut self,
+        self,
         a: A,
         filter: F,
     ) -> Self {
@@ -128,7 +128,7 @@ impl<'a> SignalReference<'a> {
             ));
         self
     }
-    pub fn with_attribute<A: Bundle + 'static + Clone + Send + Sync>(mut self, a: A) -> Self {
+    pub fn with_attribute<A: Bundle + 'static + Clone + Send + Sync>(self, a: A) -> Self {
         self.reference.checked_add_signal_fns::<A>();
         self.reference
             .ecs
@@ -137,7 +137,7 @@ impl<'a> SignalReference<'a> {
             .insert(TriggeredAttribute(a));
         self
     }
-    pub fn clean(mut self) {
+    pub fn clean(self) {
         // set Signal::clean() when stage fires instead of Signal::spawn()
         self.reference
             .ecs
@@ -152,11 +152,11 @@ impl<'a> SignalReference<'a> {
             .expect("no-signal")
             .state_on_stage_start = Signal::clean();
     }
-    pub fn with_transition(mut self) -> Self {
+    pub fn with_transition(self) -> Self {
         // TODO self.reference.checked_add_transition_fns::<T>();
         self
     }
-    pub fn filter_signal(mut self, layout_filter: LayoutFilter) -> Self {
+    pub fn filter_signal(self, layout_filter: LayoutFilter) -> Self {
         self.reference
             .ecs
             .world
@@ -173,7 +173,7 @@ impl<'a> TargetReference<'a> {
 }
 
 impl<'a> ViewReference<'a> {
-    pub fn add_target(mut self) -> TargetReference<'a> {
+    pub fn add_target(self) -> TargetReference<'a> {
         let target = self
             .reference
             .ecs
@@ -193,7 +193,7 @@ impl<'a> ViewReference<'a> {
             reference: self.reference,
         }
     }
-    pub fn set_initial_stage(mut self, stage: Stage) {
+    pub fn set_initial_stage(self, stage: Stage) {
         self.reference
             .ecs
             .world

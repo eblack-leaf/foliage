@@ -107,7 +107,7 @@ fn percent_rounded_to_corner(
     >,
     scale_factor: Res<ScaleFactor>,
 ) {
-    for (mut i, mut ii, mut iii, mut iv, mut percents, pos, area) in query.iter_mut() {
+    for (mut i, mut ii, mut iii, mut iv, percents, pos, area) in query.iter_mut() {
         let section = Section::new(*pos, *area).to_device(scale_factor.value());
         let half_smallest = section.height().min(section.width()) / 2f32;
         let delta = half_smallest * percents.0[0];

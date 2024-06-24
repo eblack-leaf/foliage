@@ -26,7 +26,7 @@ impl<B: Bundle + 'static + Send + Sync> OnRetrieve<B> {
     }
 }
 pub(crate) fn on_retrieve<B: Bundle + Send + Sync + 'static>(
-    mut retrievers: Query<(Entity, &OnRetrieve<B>)>,
+    retrievers: Query<(Entity, &OnRetrieve<B>)>,
     mut cmd: Commands,
     asset_loader: Res<AssetLoader>,
 ) {
@@ -41,7 +41,7 @@ pub(crate) fn on_retrieve<B: Bundle + Send + Sync + 'static>(
 pub(crate) fn await_assets(mut asset_loader: ResMut<AssetLoader>) {
     if !asset_loader.awaiting.is_empty() {
         let mut finished = Vec::<(AssetKey, Asset)>::new();
-        for (key, mut fetch) in asset_loader.awaiting.iter_mut() {
+        for (key, fetch) in asset_loader.awaiting.iter_mut() {
             if let Some(f) = fetch.recv.try_recv().ok() {
                 if let Some(f) = f {
                     finished.push((key.clone(), f));

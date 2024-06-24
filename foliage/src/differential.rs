@@ -96,7 +96,7 @@ pub(crate) fn added_invalidate<D: Component + PartialEq + Clone + Send + Sync + 
     }
 }
 pub(crate) fn differential<D: Component + PartialEq + Clone + Send + Sync + 'static>(
-    mut components: Query<(Entity, &RenderLink, &D), (Changed<D>, With<DifferentialCache<D>>)>,
+    components: Query<(Entity, &RenderLink, &D), (Changed<D>, With<DifferentialCache<D>>)>,
     mut render_queue: ResMut<RenderAddQueue<D>>,
 ) {
     for (entity, link, d) in components.iter() {
