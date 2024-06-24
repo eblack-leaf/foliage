@@ -198,7 +198,6 @@ pub(crate) fn on_click(
                     .get_mut(handle.value())
                     .expect("no-corresponding-action") = Signal::spawn();
             }
-
         }
     }
 }

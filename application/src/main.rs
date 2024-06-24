@@ -65,6 +65,13 @@ impl Command for ChangeImage {
             .insert(OnRetrieve::new(key, |asset| Image::new(0, asset)));
     }
 }
+#[derive(Clone)]
+struct ClipboardMessage(&'static str);
+impl Command for ClipboardMessage {
+    fn apply(self, world: &mut World) {
+        // get clipboard + write message.0 to it
+    }
+}
 fn main() {
     let mut foliage = Foliage::new();
     foliage.set_window_size((800, 360));
@@ -79,6 +86,8 @@ fn main() {
         .handle();
     let image = foliage.view(content).add_target().handle();
     let content_gallery = foliage.view(content).create_stage();
+    let content_about = foliage.view(content).create_stage();
+    let content_blank = foliage.view(content).create_stage();
     let load_gallery_image = foliage.create_action(ChangeImage(image, 0));
     let page_left = foliage.create_action(ChangeImage(image, -1));
     let page_right = foliage.create_action(ChangeImage(image, 1));
@@ -95,8 +104,6 @@ fn main() {
                 .except(Layout::LANDSCAPE_MOBILE, 1.span(1), 1.span(1))
                 .except(Layout::LANDSCAPE_EXT, 1.span(1), 1.span(1)),
         );
-    let content_about = foliage.view(content).create_stage();
-    let content_blank = foliage.view(content).create_stage();
     foliage
         .view(content)
         .stage(content_blank)
@@ -110,7 +117,7 @@ fn main() {
         view: content,
         next_stage: content_about,
     });
-    let back_to_blank = foliage.create_action(Next {
+    let to_content_blank = foliage.create_action(Next {
         view: content,
         next_stage: content_blank,
     });
@@ -157,26 +164,27 @@ fn main() {
     let about_choice_text = foliage.view(control_panel).add_target().handle();
     let image_forward_icon = foliage.view(control_panel).add_target().handle();
     let image_backward_icon = foliage.view(control_panel).add_target().handle();
-    let initial_to_creation = foliage.create_action(Next {
+    let home = foliage.view(control_panel).add_target().handle();
+    let twitter_copy = foliage.view(control_panel).add_target().handle();
+    let email_copy = foliage.view(control_panel).add_target().handle();
+    let to_creation = foliage.create_action(Next {
         view: control_panel,
         next_stage: gallery_or_about,
     });
-    let creation_to_gallery = foliage.create_action(Next {
+    let to_image_controls = foliage.create_action(Next {
         view: control_panel,
         next_stage: image_controls,
     });
-    let creation_to_about = foliage.create_action(Next {
+    let to_about_controls = foliage.create_action(Next {
         view: control_panel,
         next_stage: about_controls,
     });
-    let back_to_creation = foliage.create_action(Next {
-        view: control_panel,
-        next_stage: gallery_or_about,
-    });
+    let copy_twitter_address = foliage.create_action(ClipboardMessage("jblack@twitter"));
+    let copy_email_address = foliage.create_action(ClipboardMessage("jblack@gmail.com"));
     foliage
         .view(control_panel)
         .stage(initial)
-        .on_end(initial_to_creation);
+        .on_end(to_creation);
     foliage
         .view(control_panel)
         .stage(initial)
@@ -194,7 +202,7 @@ fn main() {
         .with_attribute(Icon::new(IconId(0), Color::BLACK))
         .with_attribute(GridPlacement::new(1.span(1), 1.span(2)))
         .with_attribute(ClickInteractionListener::new())
-        .with_attribute(OnClick::new(creation_to_gallery));
+        .with_attribute(OnClick::new(to_image_controls));
     foliage
         .view(control_panel)
         .stage(gallery_or_about)
@@ -202,13 +210,14 @@ fn main() {
         .with_attribute(Icon::new(IconId(0), Color::BLACK))
         .with_attribute(GridPlacement::new(1.span(1), 3.span(2)))
         .with_attribute(ClickInteractionListener::new())
-        .with_attribute(OnClick::new(creation_to_about));
+        .with_attribute(OnClick::new(to_about_controls));
     foliage
         .view(control_panel)
         .stage(gallery_or_about)
         .add_signal_targeting(gallery_choice_text)
         .with_attribute(()) // text placeholder
         .with_attribute(GridPlacement::new(2.span(2), 1.span(1)));
+
     foliage
         .view(control_panel)
         .stage(gallery_or_about)
@@ -219,6 +228,23 @@ fn main() {
         .stage(gallery_or_about)
         .add_signal_targeting(image_backward_icon)
         .clean();
+    foliage
+        .view(control_panel)
+        .stage(gallery_or_about)
+        .add_signal_targeting(home)
+        .clean();
+    foliage
+        .view(control_panel)
+        .stage(gallery_or_about)
+        .add_signal_targeting(twitter_copy)
+        .clean();
+    foliage
+        .view(control_panel)
+        .stage(gallery_or_about)
+        .add_signal_targeting(email_copy)
+        .clean();
+
+
     foliage
         .view(control_panel)
         .stage(image_controls)
@@ -240,7 +266,57 @@ fn main() {
         .add_signal_targeting(about_icon)
         .clean();
 
+    foliage
+        .view(control_panel)
+        .stage(image_controls)
+        .add_signal_targeting(image_forward_icon)
+        .with_attribute(Icon::new(IconId(1), Color::BLACK))
+        .with_filtered_attribute(IconId(2), Layout::LANDSCAPE_MOBILE | Layout::LANDSCAPE_EXT)
+        .with_attribute(GridPlacement::new(2.span(1), 1.span(1)))
+        .with_attribute(ClickInteractionListener::new())
+        .with_attribute(OnClick::new(page_right));
+    foliage
+        .view(control_panel)
+        .stage(image_controls)
+        .add_signal_targeting(image_backward_icon)
+        .with_attribute(Icon::new(IconId(1), Color::BLACK))
+        .with_filtered_attribute(IconId(2), Layout::LANDSCAPE_MOBILE | Layout::LANDSCAPE_EXT)
+        .with_attribute(GridPlacement::new(2.span(1), 4.span(1)))
+        .with_attribute(ClickInteractionListener::new())
+        .with_attribute(OnClick::new(page_left));
+    foliage
+        .view(control_panel)
+        .stage(image_controls)
+        .add_signal_targeting(home)
+        .with_attribute(Icon::new(IconId(1), Color::BLACK))
+        .with_attribute(OnClick::new(to_creation).with(to_content_blank))
+        .with_attribute(GridPlacement::new(1.span(1), 1.span(1)))
+        .with_attribute(ClickInteractionListener::new());
 
+    foliage
+        .view(control_panel)
+        .stage(about_controls)
+        .add_signal_targeting(home)
+        .with_attribute(Icon::new(IconId(1), Color::BLACK))
+        .with_attribute(OnClick::new(to_creation).with(to_content_blank))
+        .with_attribute(GridPlacement::new(1.span(1), 1.span(1)))
+        .with_attribute(ClickInteractionListener::new());
+    foliage
+        .view(control_panel)
+        .stage(about_controls)
+        .add_signal_targeting(twitter_copy)
+        .with_attribute(Icon::new(IconId(2), Color::BLACK))
+        .with_attribute(GridPlacement::new(1.span(1), 2.span(1)))
+        .with_attribute(ClickInteractionListener::new())
+        .with_attribute(OnClick::new(copy_twitter_address));
+    foliage
+        .view(control_panel)
+        .stage(about_controls)
+        .add_signal_targeting(email_copy)
+        .with_attribute(Icon::new(IconId(2), Color::BLACK))
+        .with_attribute(GridPlacement::new(1.span(1), 3.span(1)))
+        .with_attribute(ClickInteractionListener::new())
+        .with_attribute(OnClick::new(copy_email_address));
     foliage
         .view(control_panel)
         .stage(about_controls)
