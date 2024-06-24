@@ -100,9 +100,7 @@ fn main() {
         .stage(content_gallery)
         .add_signal_targeting(image)
         .with_attribute(
-            GridPlacement::new(1.span(1), 1.span(1))
-                .except(Layout::LANDSCAPE_MOBILE, 1.span(1), 1.span(1))
-                .except(Layout::LANDSCAPE_EXT, 1.span(1), 1.span(1)),
+            GridPlacement::new(1.span(3), 1.span(3))
         );
     foliage
         .view(content)
@@ -202,7 +200,7 @@ fn main() {
         .with_attribute(Icon::new(IconId(0), Color::BLACK))
         .with_attribute(GridPlacement::new(1.span(1), 1.span(2)))
         .with_attribute(ClickInteractionListener::new())
-        .with_attribute(OnClick::new(to_image_controls));
+        .with_attribute(OnClick::new(to_image_controls).with(to_content_gallery));
     foliage
         .view(control_panel)
         .stage(gallery_or_about)
