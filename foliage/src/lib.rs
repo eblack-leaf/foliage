@@ -2,6 +2,7 @@ pub use bevy_ecs;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::prelude::{Component, Resource};
 use bevy_ecs::system::Command;
+use futures_channel::oneshot;
 pub use wgpu;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
@@ -13,12 +14,12 @@ use signal::{ActionHandle, TriggeredAction};
 use willow::Willow;
 
 use crate::ash::{Ash, Render};
-use crate::asset::{Asset, AssetFetch, AssetKey, AssetLoader};
-use crate::coordinate::area::Area;
+use crate::asset::{Asset, AssetKey, AssetLoader};
 use crate::coordinate::{Coordinates, DeviceContext};
+use crate::coordinate::area::Area;
 use crate::elm::Elm;
-use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::{Ginkgo, ScaleFactor};
+use crate::ginkgo::viewport::ViewportHandle;
 use crate::grid::{Grid, GridPlacement};
 use crate::icon::Icon;
 use crate::image::Image;
@@ -26,7 +27,6 @@ use crate::interaction::{ClickInteractionListener, KeyboardAdapter, MouseAdapter
 use crate::panel::Panel;
 use crate::signal::Signal;
 use crate::view::{ViewComponents, ViewHandle};
-use futures_channel::oneshot;
 
 pub mod ash;
 pub mod asset;

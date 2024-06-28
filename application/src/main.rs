@@ -72,6 +72,29 @@ impl Command for ClipboardMessage {
         // get clipboard + write message.0 to it
     }
 }
+enum ContentTargets {
+    FirstName,
+    LastName,
+    Title,
+    Image,
+    CloseImage,
+}
+enum ContentStages {
+    Blank,
+    Gallery,
+    About
+}
+enum ControlTargets {
+    PageLeft,
+    PageRight,
+    CopyTwitter,
+    CopyEmail,
+    Background
+}
+enum ControlStages {
+    Initial,
+
+}
 fn main() {
     let mut foliage = Foliage::new();
     foliage.set_window_size((800, 360));
@@ -83,7 +106,23 @@ fn main() {
                 .except(Layout::LANDSCAPE_EXT, 3.span(6), 1.span(4)),
             Grid::new(3, 3),
         )
-        .handle();
+        .with_target(ContentTargets::Image)
+        .with_stage();
+    let control_panel = foliage
+        .create_view(
+            GridPlacement::new(1.span(2), 2.span(2))
+                .except(Layout::LANDSCAPE_MOBILE, 6.span(3), 1.span(4))
+                .except(Layout::LANDSCAPE_EXT, 10.span(3), 1.span(4))
+                .except(Layout::PORTRAIT_MOBILE, 1.span(4), 6.span(3))
+                .except(Layout::PORTRAIT_EXT, 1.span(4), 10.span(3))
+                .except(Layout::SQUARE_EXT, 4.span(5), 6.span(3))
+                .except(Layout::SQUARE_MAX, 4.span(5), 10.span(3))
+                .except(Layout::WIDE_DESKTOP, 3.span(6), 6.span(3))
+                .except(Layout::TALL_DESKTOP, 3.span(6), 10.span(3)),
+            Grid::new(3, 4),
+        )
+        .with_target()
+        .with_stage();
     let image = foliage.view(content).add_target().handle();
     let content_gallery = foliage.view(content).create_stage();
     let content_about = foliage.view(content).create_stage();
@@ -120,20 +159,6 @@ fn main() {
         next_stage: content_blank,
     });
     foliage.view(content).set_initial_stage(content_blank);
-    let control_panel = foliage
-        .create_view(
-            GridPlacement::new(1.span(2), 2.span(2))
-                .except(Layout::LANDSCAPE_MOBILE, 6.span(3), 1.span(4))
-                .except(Layout::LANDSCAPE_EXT, 10.span(3), 1.span(4))
-                .except(Layout::PORTRAIT_MOBILE, 1.span(4), 6.span(3))
-                .except(Layout::PORTRAIT_EXT, 1.span(4), 10.span(3))
-                .except(Layout::SQUARE_EXT, 4.span(5), 6.span(3))
-                .except(Layout::SQUARE_MAX, 4.span(5), 10.span(3))
-                .except(Layout::WIDE_DESKTOP, 3.span(6), 6.span(3))
-                .except(Layout::TALL_DESKTOP, 3.span(6), 10.span(3)),
-            Grid::new(3, 4),
-        )
-        .handle();
     let initial = foliage.view(control_panel).create_stage();
     foliage.spawn(IconRequest::new(
         0,
