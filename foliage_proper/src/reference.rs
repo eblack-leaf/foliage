@@ -11,7 +11,8 @@ use crate::signal::{
     TriggeredAttribute,
 };
 use crate::view::{
-    CurrentViewStage, SignalHandle, Stage, StagedSignal, View, ViewHandle, ViewStage,
+    CurrentViewStage, SignalHandle, Stage, StageBinding, StagedSignal, TargetBinding, View,
+    ViewHandle, ViewStage,
 };
 use crate::Foliage;
 
@@ -21,10 +22,6 @@ pub struct ViewConfig<'a> {
     pub(crate) targets: HashMap<TargetBinding, TriggerTarget>,
     pub(crate) stages: HashMap<StageBinding, Stage>,
 }
-#[derive(Hash, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
-pub struct TargetBinding(pub(crate) i32);
-#[derive(Hash, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
-pub struct StageBinding(pub(crate) i32);
 
 pub struct StageBuilder<'a> {
     binding: StageBinding,
@@ -45,7 +42,11 @@ impl<'a> ViewConfig<'a> {
     pub fn handle(&self) -> ViewHandle {
         ViewHandle(self.root)
     }
-    pub fn define_stage(&mut self, sb: SB, func: StageDefinition) -> StageBuilder<'a> {
+    pub fn define_stage<SB: Into<StageBinding>>(
+        &mut self,
+        sb: SB,
+        func: StageDefinition,
+    ) -> StageBuilder<'a> {
         todo!()
     }
     pub(crate) fn add_target(&mut self) -> TriggerTarget {
@@ -118,7 +119,7 @@ pub struct TargetReference<'a> {
 
 pub struct StageReference<'a> {
     root: Entity,
-    reference: &'a mut Elm,
+    reference: Option<&'a mut Elm>,
     stage: Stage,
     targets: HashMap<TargetBinding, TriggerTarget>,
     stages: HashMap<StageBinding, Stage>,
@@ -127,7 +128,7 @@ pub struct StageReference<'a> {
 pub struct SignalReference<'a> {
     root: Entity,
     this: Entity,
-    reference: &'a mut Elm,
+    reference: Option<&'a mut Elm>,
     stage: Stage,
 }
 
@@ -140,8 +141,17 @@ impl<'a> StageReference<'a> {
         target: TriggerTarget,
         a_fn: fn(SignalReference<'a>) -> SignalReference<'a>,
     ) {
-        let signal = self.reference.ecs.world.spawn(Signaler::new(target)).id();
+        let signal = self
+            .reference
+            .as_ref()
+            .unwrap()
+            .ecs
+            .world
+            .spawn(Signaler::new(target))
+            .id();
         self.reference
+            .as_ref()
+            .unwrap()
             .ecs
             .world
             .get_mut::<View>(self.root)
@@ -160,7 +170,7 @@ impl<'a> StageReference<'a> {
         let mut sr = SignalReference {
             root: self.root,
             this: signal,
-            reference: self.reference.take().unwrap(),
+            reference: Some(self.reference.take().unwrap()),
             stage: self.stage,
         };
         sr = (a_fn)(sr);
@@ -169,6 +179,8 @@ impl<'a> StageReference<'a> {
     }
     pub fn signal_action(&mut self, action_handle: ActionHandle) {
         self.reference
+            .as_ref()
+            .unwrap()
             .ecs
             .world
             .get_mut::<View>(self.root)
@@ -187,6 +199,8 @@ impl<'a> StageReference<'a> {
     }
     pub fn on_end(&mut self, action_handle: ActionHandle) {
         self.reference
+            .as_ref()
+            .unwrap()
             .ecs
             .world
             .get_mut::<View>(self.root)
@@ -196,7 +210,6 @@ impl<'a> StageReference<'a> {
             .expect("no-stage")
             .on_end
             .insert(action_handle);
-        self
     }
 }
 
@@ -212,6 +225,8 @@ impl<'a> SignalReference<'a> {
         let exceptional_layout_config = filter.into();
         self.reference.checked_add_filtered_signal_fns::<A>();
         self.reference
+            .as_ref()
+            .unwrap()
             .ecs
             .world
             .entity_mut(self.this)
@@ -224,6 +239,8 @@ impl<'a> SignalReference<'a> {
     pub fn with_attribute<A: Bundle + 'static + Clone + Send + Sync>(self, a: A) -> Self {
         self.reference.checked_add_signal_fns::<A>();
         self.reference
+            .as_ref()
+            .unwrap()
             .ecs
             .world
             .entity_mut(self.this)
@@ -233,6 +250,8 @@ impl<'a> SignalReference<'a> {
     pub fn clean(self) -> Self {
         // set Signal::clean() when stage fires instead of Signal::spawn()
         self.reference
+            .as_ref()
+            .unwrap()
             .ecs
             .world
             .get_mut::<View>(self.root)
@@ -252,6 +271,8 @@ impl<'a> SignalReference<'a> {
     }
     pub fn filter_signal(self, layout_filter: LayoutFilter) -> Self {
         self.reference
+            .as_ref()
+            .unwrap()
             .ecs
             .world
             .entity_mut(self.this)

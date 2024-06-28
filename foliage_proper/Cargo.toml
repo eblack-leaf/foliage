@@ -1,0 +1,31 @@
+[package]
+name = "foliage_proper"
+version = "0.4.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bytemuck = { version = "1.15.0" , features = ["derive"]}
+winit = { version = "0.30.2" , features = ["android-game-activity"]}
+wgpu = { version = "0.20.0", features = ["metal", "webgl", "wgsl"]}
+bevy_ecs = "0.13.2"
+serde = { version = "1.0.199", features = ["derive"] }
+cfg-if = "1.0.0"
+rmp-serde = "1.3.0"
+image = "0.25.1"
+bitflags = "2.5.0"
+futures-channel = "0.3.30"
+uuid = "1.8.0"
+reqwest = "0.12.5"
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+pollster = "0.3.0"
+[target.'cfg(target_family = "wasm")'.dependencies]
+wasm-bindgen-futures = "0.4.42"
+console_error_panic_hook = "0.1.7"
+[target.'cfg(target_family = "wasm")'.dependencies.web_sys]
+package = "web-sys"
+version = "0.3.64"
+features = [
+    "console"
+]

@@ -9,8 +9,8 @@ use foliage::interaction::{ClickInteractionListener, OnClick};
 use foliage::panel::{Panel, Rounding};
 use foliage::signal::TriggerTarget;
 use foliage::view::{CurrentViewStage, Stage, ViewHandle};
-use foliage::Foliage;
 use foliage::{bevy_ecs, load_asset};
+use foliage::{stage_binding, target_binding, Foliage};
 
 #[derive(Clone)]
 struct Next {
@@ -72,17 +72,20 @@ impl Command for ClipboardMessage {
         // get clipboard + write message.0 to it
     }
 }
+#[target_binding]
 enum ContentTargets {
     FirstName,
     LastName,
     Title,
     Image,
 }
+#[stage_binding]
 enum ContentStages {
     Initial,
     Gallery,
     About,
 }
+#[target_binding]
 enum ControlTargets {
     PageLeft,
     PageRight,
@@ -93,6 +96,7 @@ enum ControlTargets {
     GalleryIcon,
     AboutIcon,
 }
+#[stage_binding]
 enum ControlStages {
     Initial,
     Creation,
@@ -212,7 +216,6 @@ fn main() {
         //     .add_signal_targeting(image)
         //     .clean();
     });
-
 
     control_panel
         .define_stage(ControlStages::Initial, |stage| {

@@ -1,0 +1,13 @@
+[package]
+name = "foliage_macros"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = "2.0.68"
+quote = "1.0.35"
+proc-macro-crate = "3.1.0"
+proc-macro2 = "1.0.78"

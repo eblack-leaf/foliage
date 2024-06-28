@@ -1,5 +1,5 @@
 [workspace]
-members = [ "application","foliage"]
+members = [ "application","foliage", "foliage_macros", "foliage_proper"]
 
 resolver = "2"
 

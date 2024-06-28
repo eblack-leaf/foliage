@@ -11,7 +11,7 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::placement::Placement;
 use crate::coordinate::position::Position;
 use crate::coordinate::LogicalContext;
-use crate::grid::{Grid, GridPlacement, Layout, LayoutGrid};
+use crate::grid::{Grid, GridPlacement, Layout};
 use crate::signal::ActionHandle;
 use crate::signal::{Clean, Signal, TriggerTarget};
 
@@ -129,6 +129,7 @@ pub(crate) fn cleanup_view(views: Query<(&View, &Clean), Changed<Clean>>, mut cm
         }
     }
 }
+
 #[derive(Component, Copy, Clone, Default)]
 pub struct CurrentViewStage {
     pub(crate) stage: Stage,
@@ -281,3 +282,9 @@ pub(crate) fn signal_confirmation(
         }
     }
 }
+
+#[derive(Hash, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+pub struct TargetBinding(pub(crate) i32);
+
+#[derive(Hash, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+pub struct StageBinding(pub(crate) i32);
