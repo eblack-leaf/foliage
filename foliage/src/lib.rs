@@ -15,11 +15,11 @@ use willow::Willow;
 
 use crate::ash::{Ash, Render};
 use crate::asset::{Asset, AssetKey, AssetLoader};
-use crate::coordinate::{Coordinates, DeviceContext};
 use crate::coordinate::area::Area;
+use crate::coordinate::{Coordinates, DeviceContext};
 use crate::elm::Elm;
-use crate::ginkgo::{Ginkgo, ScaleFactor};
 use crate::ginkgo::viewport::ViewportHandle;
+use crate::ginkgo::{Ginkgo, ScaleFactor};
 use crate::grid::{Grid, GridPlacement};
 use crate::icon::Icon;
 use crate::image::Image;
@@ -119,6 +119,8 @@ impl Foliage {
         ViewConfig {
             root: handle,
             reference: &mut self.elm,
+            targets: Default::default(),
+            stages: Default::default(),
         }
     }
     pub fn view(&mut self, vh: ViewHandle) -> ViewReference {

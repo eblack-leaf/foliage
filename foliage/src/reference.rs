@@ -1,6 +1,11 @@
+use std::collections::HashMap;
+
+use bevy_ecs::bundle::Bundle;
+use bevy_ecs::entity::Entity;
+
 use crate::elm::Elm;
 use crate::grid::LayoutFilter;
-use crate::signal::{ActionHandle, ActionSignal};
+use crate::signal::ActionHandle;
 use crate::signal::{
     FilteredTriggeredAttribute, Signal, Signaler, TargetComponents, TriggerTarget,
     TriggeredAttribute,
@@ -8,17 +13,95 @@ use crate::signal::{
 use crate::view::{
     CurrentViewStage, SignalHandle, Stage, StagedSignal, View, ViewHandle, ViewStage,
 };
-use bevy_ecs::bundle::Bundle;
-use bevy_ecs::entity::Entity;
+use crate::Foliage;
 
 pub struct ViewConfig<'a> {
     pub(crate) root: Entity,
     pub(crate) reference: &'a mut Elm,
+    pub(crate) targets: HashMap<TargetBinding, TriggerTarget>,
+    pub(crate) stages: HashMap<StageBinding, Stage>,
 }
+#[derive(Hash, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+pub struct TargetBinding(pub(crate) i32);
+#[derive(Hash, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+pub struct StageBinding(pub(crate) i32);
 
+pub struct StageBuilder<'a> {
+    binding: StageBinding,
+    func: StageDefinition<'a>,
+}
+impl<'a> StageBuilder<'a> {
+    pub fn build(self, foliage: &mut Foliage) {
+        todo!()
+    }
+}
+pub type StageDefinition<'a> = fn(&mut StageReference<'a>);
 impl<'a> ViewConfig<'a> {
-    pub fn handle(self) -> ViewHandle {
+    pub fn with_target<T: Into<TargetBinding>>(mut self, t: T) -> Self {
+        let target = self.add_target();
+        self.targets.insert(t, target);
+        self
+    }
+    pub fn handle(&self) -> ViewHandle {
         ViewHandle(self.root)
+    }
+    pub fn define_stage(&mut self, sb: SB, func: StageDefinition) -> StageBuilder<'a> {
+        todo!()
+    }
+    pub(crate) fn add_target(&mut self) -> TriggerTarget {
+        let target = self
+            .reference
+            .ecs
+            .world
+            .spawn(TargetComponents::new(ViewHandle(self.root)))
+            .id();
+        let trigger_target = TriggerTarget(target);
+        self.reference
+            .ecs
+            .world
+            .get_mut::<View>(self.root)
+            .expect("no-view")
+            .targets
+            .insert(trigger_target);
+        trigger_target
+    }
+    pub fn set_initial_stage<SB: Into<StageBinding>>(self, b: SB) -> Self {
+        let stage = *self.stages.get(&b.into()).expect("no-such-stage");
+        self.reference
+            .ecs
+            .world
+            .get_mut::<CurrentViewStage>(self.root)
+            .expect("no-current")
+            .stage = stage;
+        self
+    }
+    pub fn with_stage<SB: Into<StageBinding>>(mut self, sb: SB) -> Self {
+        let index = self
+            .reference
+            .ecs
+            .world
+            .entity(self.root)
+            .get::<View>()
+            .expect("no-view")
+            .stages
+            .len();
+        self.reference
+            .ecs
+            .world
+            .entity_mut(self.root)
+            .get_mut::<View>()
+            .expect("no-view")
+            .stages
+            .push(ViewStage::default());
+        let stage = Stage(index as i32);
+        self.stages.insert(sb.into(), stage);
+        self
+    }
+    pub fn target<TB: Into<TargetBinding>>(&self, tb: TB) -> TriggerTarget {
+        *self.targets.get(&tb.into()).expect("no-target")
+    }
+    pub fn stage<SB: Into<StageBinding>>(&self, sb: SB) -> Stage {
+        *self.stages.get(&sb.into()).expect("no-such-stage")
     }
 }
 
@@ -37,6 +120,8 @@ pub struct StageReference<'a> {
     root: Entity,
     reference: &'a mut Elm,
     stage: Stage,
+    targets: HashMap<TargetBinding, TriggerTarget>,
+    stages: HashMap<StageBinding, Stage>,
 }
 
 pub struct SignalReference<'a> {
@@ -47,7 +132,14 @@ pub struct SignalReference<'a> {
 }
 
 impl<'a> StageReference<'a> {
-    pub fn add_signal_targeting(self, target: TriggerTarget) -> SignalReference<'a> {
+    pub fn target<TB: Into<TargetBinding>>(&self, tb: TB) -> TriggerTarget {
+        *self.targets.get(&tb.into()).expect("no-target")
+    }
+    pub fn add_signal_targeting(
+        &mut self,
+        target: TriggerTarget,
+        a_fn: fn(SignalReference<'a>) -> SignalReference<'a>,
+    ) {
         let signal = self.reference.ecs.world.spawn(Signaler::new(target)).id();
         self.reference
             .ecs
@@ -65,14 +157,17 @@ impl<'a> StageReference<'a> {
                     state_on_stage_start: Signal::spawn(),
                 },
             );
-        SignalReference {
+        let mut sr = SignalReference {
             root: self.root,
             this: signal,
-            reference: self.reference,
+            reference: self.reference.take().unwrap(),
             stage: self.stage,
-        }
+        };
+        sr = (a_fn)(sr);
+        self.reference
+            .replace(sr.reference.take().expect("signal-reference"));
     }
-    pub fn signal_action(self, action_handle: ActionHandle) -> Self {
+    pub fn signal_action(&mut self, action_handle: ActionHandle) {
         self.reference
             .ecs
             .world
@@ -89,10 +184,8 @@ impl<'a> StageReference<'a> {
                     state_on_stage_start: Signal::spawn(),
                 },
             );
-        self
     }
-    pub fn on_end(self, action_handle: ActionHandle) -> Self {
-        // action to hook to when the stage is confirmed done
+    pub fn on_end(&mut self, action_handle: ActionHandle) {
         self.reference
             .ecs
             .world
@@ -137,7 +230,7 @@ impl<'a> SignalReference<'a> {
             .insert(TriggeredAttribute(a));
         self
     }
-    pub fn clean(self) {
+    pub fn clean(self) -> Self {
         // set Signal::clean() when stage fires instead of Signal::spawn()
         self.reference
             .ecs
@@ -151,6 +244,7 @@ impl<'a> SignalReference<'a> {
             .get_mut(&self.this)
             .expect("no-signal")
             .state_on_stage_start = Signal::clean();
+        self
     }
     pub fn with_transition(self) -> Self {
         // TODO self.reference.checked_add_transition_fns::<T>();
@@ -169,63 +263,5 @@ impl<'a> SignalReference<'a> {
 impl<'a> TargetReference<'a> {
     pub fn handle(self) -> TriggerTarget {
         TriggerTarget(self.this)
-    }
-}
-
-impl<'a> ViewReference<'a> {
-    pub fn add_target(self) -> TargetReference<'a> {
-        let target = self
-            .reference
-            .ecs
-            .world
-            .spawn(TargetComponents::new(ViewHandle(self.root)))
-            .id();
-        self.reference
-            .ecs
-            .world
-            .get_mut::<View>(self.root)
-            .expect("no-view")
-            .targets
-            .insert(TriggerTarget(target));
-        TargetReference {
-            root: self.root,
-            this: target,
-            reference: self.reference,
-        }
-    }
-    pub fn set_initial_stage(self, stage: Stage) {
-        self.reference
-            .ecs
-            .world
-            .get_mut::<CurrentViewStage>(self.root)
-            .expect("no-current")
-            .stage = stage;
-    }
-    pub fn create_stage(&mut self) -> Stage {
-        let stage = self
-            .reference
-            .ecs
-            .world
-            .entity(self.root)
-            .get::<View>()
-            .expect("no-view")
-            .stages
-            .len();
-        self.reference
-            .ecs
-            .world
-            .entity_mut(self.root)
-            .get_mut::<View>()
-            .expect("no-view")
-            .stages
-            .push(ViewStage::default());
-        Stage(stage as i32)
-    }
-    pub fn stage(&mut self, stage: Stage) -> StageReference {
-        StageReference {
-            root: self.root,
-            stage,
-            reference: self.reference,
-        }
     }
 }
