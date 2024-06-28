@@ -1,6 +1,7 @@
+use std::ops::Add;
+
 use bevy_ecs::prelude::Component;
 use bytemuck::{Pod, Zeroable};
-use std::ops::Add;
 
 #[repr(C)]
 #[derive(Copy, Clone, Default, PartialEq, PartialOrd, Pod, Zeroable, Component, Debug)]

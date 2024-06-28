@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 
 use bevy_ecs::bundle::Bundle;
-use bevy_ecs::prelude::{Component, Entity, RemovedComponents, With};
+use bevy_ecs::prelude::{Component, Entity, With};
 use bevy_ecs::query::{Added, Changed};
 use bevy_ecs::system::{Query, ResMut, Resource};
 
@@ -79,7 +79,7 @@ impl<D: Component + PartialEq + Clone> From<(Entity, D)> for RenderPacket<D> {
     }
 }
 pub(crate) fn added_invalidate<D: Component + PartialEq + Clone + Send + Sync + 'static>(
-    mut added: Query<(Entity, &RenderLink, &D), (Added<D>, With<DifferentialCache<D>>)>,
+    added: Query<(Entity, &RenderLink, &D), (Added<D>, With<DifferentialCache<D>>)>,
     mut render_queue: ResMut<RenderAddQueue<D>>,
 ) {
     for (entity, link, d) in added.iter() {

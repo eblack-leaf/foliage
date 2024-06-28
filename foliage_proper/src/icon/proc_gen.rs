@@ -1,8 +1,7 @@
-use std::collections::HashMap;
-
 #[test]
 fn load() {
     use crate::ginkgo::Ginkgo;
+    use std::collections::HashMap;
     use std::path::Path;
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("src")

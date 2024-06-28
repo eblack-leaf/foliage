@@ -28,7 +28,7 @@ pub(crate) struct RendererStructure {
     pub(crate) renderers: World,
 }
 
-pub(crate) struct Renderer<R: Render> {
+pub struct Renderer<R: Render> {
     pub(crate) phase: RenderPhase,
     pub directive_manager: RenderDirectiveManager<R>,
     pub resource_handle: R::Resources,

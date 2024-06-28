@@ -14,7 +14,6 @@ use crate::ash::{RenderDirectiveRecorder, RenderPhase, Renderer};
 use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
-use crate::coordinate::placement::Placement;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::{GpuSection, Section};
 use crate::coordinate::{Coordinates, LogicalContext};

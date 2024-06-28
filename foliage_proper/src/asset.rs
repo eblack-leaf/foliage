@@ -1,9 +1,10 @@
+use std::collections::HashMap;
+
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::Component;
-use bevy_ecs::system::{Command, Commands, Query, Res, ResMut, Resource};
+use bevy_ecs::system::{Commands, Query, Res, ResMut, Resource};
 use futures_channel::oneshot::{Receiver, Sender};
-use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 #[derive(Resource, Default)]
@@ -58,6 +59,7 @@ impl AssetLoader {
     pub fn retrieve(&self, key: AssetKey) -> Option<Asset> {
         self.assets.get(&key).cloned()
     }
+    #[allow(unused)]
     pub(crate) fn queue_fetch(&mut self, fetch: AssetFetch) {
         self.awaiting.insert(fetch.key, fetch);
     }

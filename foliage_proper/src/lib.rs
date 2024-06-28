@@ -1,6 +1,6 @@
 pub use bevy_ecs;
 use bevy_ecs::bundle::Bundle;
-use bevy_ecs::prelude::{Component, Resource};
+use bevy_ecs::prelude::Resource;
 use bevy_ecs::system::Command;
 use futures_channel::oneshot;
 pub use wgpu;
@@ -55,8 +55,11 @@ pub struct Foliage {
     leaf_fns: Vec<Box<fn(&mut Elm)>>,
     leaves_fns: Vec<Box<fn(&mut Foliage)>>,
     booted: bool,
+    #[allow(unused)]
     queue: Vec<WindowEvent>,
+    #[allow(unused)]
     sender: Option<oneshot::Sender<Ginkgo>>,
+    #[allow(unused)]
     recv: Option<oneshot::Receiver<Ginkgo>>,
     base_url: String,
 }

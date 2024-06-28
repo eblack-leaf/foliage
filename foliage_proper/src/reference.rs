@@ -27,14 +27,6 @@ pub struct ViewConfig {
     pub(crate) targets: HashMap<TargetBinding, TriggerTarget>,
     pub(crate) stages: HashMap<StageBinding, Stage>,
 }
-pub struct StageBuilder<'a> {
-    root: Entity,
-    pub(crate) targets: HashMap<TargetBinding, TriggerTarget>,
-    pub(crate) stages: HashMap<StageBinding, Stage>,
-    binding: StageBinding,
-    func: Box<StageDefinition<'a>>,
-}
-pub type StageDefinition<'a> = fn(&mut StageReference<'a>);
 impl<'a> ViewConfigBuilder<'a> {
     pub fn with_target<T: Into<TargetBinding>>(mut self, t: T) -> Self {
         let target = self.add_target();
