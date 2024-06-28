@@ -137,7 +137,8 @@ fn main() {
         .with_stage(ContentStages::Initial)
         .with_stage(ContentStages::Gallery)
         .with_stage(ContentStages::About)
-        .set_initial_stage(ContentStages::Initial);
+        .set_initial_stage(ContentStages::Initial)
+        .finish();
 
     let load_gallery_image =
         foliage.create_action(ChangeImage(content.target(ContentTargets::Image), 0));
@@ -182,7 +183,8 @@ fn main() {
         .with_stage(ControlStages::Creation)
         .with_stage(ControlStages::Gallery)
         .with_stage(ControlStages::About)
-        .set_initial_stage(ControlStages::Initial);
+        .set_initial_stage(ControlStages::Initial)
+        .finish();
 
     let copy_twitter_address = foliage.create_action(ClipboardMessage("jblack@twitter"));
     let copy_email_address = foliage.create_action(ClipboardMessage("jblack@gmail.com"));

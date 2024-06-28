@@ -52,6 +52,9 @@ impl<'a> ViewConfig<'a> {
     pub fn handle(&self) -> ViewHandle {
         ViewHandle(self.root)
     }
+    pub fn finish(&mut self) {
+        self.reference.take().unwrap();
+    }
     pub fn define_stage<SB: Into<StageBinding>>(
         &mut self,
         sb: SB,
