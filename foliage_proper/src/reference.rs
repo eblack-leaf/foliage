@@ -18,25 +18,35 @@ use crate::Foliage;
 
 pub struct ViewConfig<'a> {
     pub(crate) root: Entity,
-    pub(crate) reference: &'a mut Elm,
+    pub(crate) reference: Option<&'a mut Elm>,
     pub(crate) targets: HashMap<TargetBinding, TriggerTarget>,
     pub(crate) stages: HashMap<StageBinding, Stage>,
 }
 
 pub struct StageBuilder<'a> {
+    root: Entity,
+    pub(crate) targets: HashMap<TargetBinding, TriggerTarget>,
+    pub(crate) stages: HashMap<StageBinding, Stage>,
     binding: StageBinding,
-    func: StageDefinition<'a>,
+    func: Box<StageDefinition<'a>>,
 }
 impl<'a> StageBuilder<'a> {
-    pub fn build(self, foliage: &mut Foliage) {
-        todo!()
+    pub fn build(self, foliage: &'a mut Foliage) {
+        let mut stage_ref = StageReference {
+            root: self.root,
+            reference: Some(&mut foliage.elm),
+            stage: *self.stages.get(&self.binding).unwrap(),
+            targets: self.targets,
+            stages: self.stages,
+        };
+        (self.func)(&mut stage_ref);
     }
 }
 pub type StageDefinition<'a> = fn(&mut StageReference<'a>);
 impl<'a> ViewConfig<'a> {
     pub fn with_target<T: Into<TargetBinding>>(mut self, t: T) -> Self {
         let target = self.add_target();
-        self.targets.insert(t, target);
+        self.targets.insert(t.into(), target);
         self
     }
     pub fn handle(&self) -> ViewHandle {
@@ -45,19 +55,30 @@ impl<'a> ViewConfig<'a> {
     pub fn define_stage<SB: Into<StageBinding>>(
         &mut self,
         sb: SB,
-        func: StageDefinition,
+        func: StageDefinition<'a>,
     ) -> StageBuilder<'a> {
-        todo!()
+        let binding = sb.into();
+        StageBuilder {
+            root: self.root,
+            targets: self.targets.clone(),
+            stages: self.stages.clone(),
+            binding,
+            func: Box::new(func),
+        }
     }
     pub(crate) fn add_target(&mut self) -> TriggerTarget {
         let target = self
             .reference
+            .as_mut()
+            .unwrap()
             .ecs
             .world
             .spawn(TargetComponents::new(ViewHandle(self.root)))
             .id();
         let trigger_target = TriggerTarget(target);
         self.reference
+            .as_mut()
+            .unwrap()
             .ecs
             .world
             .get_mut::<View>(self.root)
@@ -66,9 +87,11 @@ impl<'a> ViewConfig<'a> {
             .insert(trigger_target);
         trigger_target
     }
-    pub fn set_initial_stage<SB: Into<StageBinding>>(self, b: SB) -> Self {
+    pub fn set_initial_stage<SB: Into<StageBinding>>(mut self, b: SB) -> Self {
         let stage = *self.stages.get(&b.into()).expect("no-such-stage");
         self.reference
+            .as_mut()
+            .unwrap()
             .ecs
             .world
             .get_mut::<CurrentViewStage>(self.root)
@@ -79,6 +102,8 @@ impl<'a> ViewConfig<'a> {
     pub fn with_stage<SB: Into<StageBinding>>(mut self, sb: SB) -> Self {
         let index = self
             .reference
+            .as_mut()
+            .unwrap()
             .ecs
             .world
             .entity(self.root)
@@ -87,6 +112,8 @@ impl<'a> ViewConfig<'a> {
             .stages
             .len();
         self.reference
+            .as_mut()
+            .unwrap()
             .ecs
             .world
             .entity_mut(self.root)
@@ -143,14 +170,14 @@ impl<'a> StageReference<'a> {
     ) {
         let signal = self
             .reference
-            .as_ref()
+            .as_mut()
             .unwrap()
             .ecs
             .world
             .spawn(Signaler::new(target))
             .id();
         self.reference
-            .as_ref()
+            .as_mut()
             .unwrap()
             .ecs
             .world
@@ -179,7 +206,7 @@ impl<'a> StageReference<'a> {
     }
     pub fn signal_action(&mut self, action_handle: ActionHandle) {
         self.reference
-            .as_ref()
+            .as_mut()
             .unwrap()
             .ecs
             .world
@@ -199,7 +226,7 @@ impl<'a> StageReference<'a> {
     }
     pub fn on_end(&mut self, action_handle: ActionHandle) {
         self.reference
-            .as_ref()
+            .as_mut()
             .unwrap()
             .ecs
             .world
@@ -218,14 +245,14 @@ impl<'a> SignalReference<'a> {
         A: Bundle + 'static + Clone + Send + Sync,
         F: Into<LayoutFilter>,
     >(
-        self,
+        mut self,
         a: A,
         filter: F,
     ) -> Self {
         let exceptional_layout_config = filter.into();
-        self.reference.checked_add_filtered_signal_fns::<A>();
+        self.reference.as_mut().unwrap().checked_add_filtered_signal_fns::<A>();
         self.reference
-            .as_ref()
+            .as_mut()
             .unwrap()
             .ecs
             .world
@@ -236,10 +263,10 @@ impl<'a> SignalReference<'a> {
             ));
         self
     }
-    pub fn with_attribute<A: Bundle + 'static + Clone + Send + Sync>(self, a: A) -> Self {
-        self.reference.checked_add_signal_fns::<A>();
+    pub fn with_attribute<A: Bundle + 'static + Clone + Send + Sync>(mut self, a: A) -> Self {
+        self.reference.as_mut().unwrap().checked_add_signal_fns::<A>();
         self.reference
-            .as_ref()
+            .as_mut()
             .unwrap()
             .ecs
             .world
@@ -247,10 +274,10 @@ impl<'a> SignalReference<'a> {
             .insert(TriggeredAttribute(a));
         self
     }
-    pub fn clean(self) -> Self {
+    pub fn clean(mut self) -> Self {
         // set Signal::clean() when stage fires instead of Signal::spawn()
         self.reference
-            .as_ref()
+            .as_mut()
             .unwrap()
             .ecs
             .world
@@ -269,9 +296,9 @@ impl<'a> SignalReference<'a> {
         // TODO self.reference.checked_add_transition_fns::<T>();
         self
     }
-    pub fn filter_signal(self, layout_filter: LayoutFilter) -> Self {
+    pub fn filter_signal(mut self, layout_filter: LayoutFilter) -> Self {
         self.reference
-            .as_ref()
+            .as_mut()
             .unwrap()
             .ecs
             .world

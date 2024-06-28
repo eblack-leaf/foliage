@@ -118,7 +118,7 @@ impl Foliage {
             .id();
         ViewConfig {
             root: handle,
-            reference: &mut self.elm,
+            reference: Some(&mut self.elm),
             targets: Default::default(),
             stages: Default::default(),
         }

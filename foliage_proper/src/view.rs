@@ -284,7 +284,7 @@ pub(crate) fn signal_confirmation(
 }
 
 #[derive(Hash, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
-pub struct TargetBinding(pub(crate) i32);
+pub struct TargetBinding(pub i32);
 
 #[derive(Hash, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
-pub struct StageBinding(pub(crate) i32);
+pub struct StageBinding(pub i32);

@@ -201,7 +201,7 @@ fn main() {
     });
 
     content
-        .define_stage(ContentStages::Gallery, |stage| {
+        .define_stage(ContentStages::Gallery, move |stage| {
             stage.signal_action(load_gallery_image);
             stage.add_signal_targeting(stage.target(ContentTargets::Image), |sr| {
                 sr.with_attribute(GridPlacement::new(1.span(3), 1.span(3)))
