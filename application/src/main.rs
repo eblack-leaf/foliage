@@ -202,25 +202,32 @@ fn main() {
         next_stage: control_panel.stage(ControlStages::About),
     });
 
-    content
-        .define_stage(ContentStages::Gallery, |stage| {
+    content.define_stage(
+        ContentStages::Gallery,
+        |stage| {
             stage.signal_action(load_gallery_image);
             stage.add_signal_targeting(stage.target(ContentTargets::Image), |sr| {
                 sr.with_attribute(GridPlacement::new(1.span(3), 1.span(3)))
             });
-        })
-        .build(&mut foliage);
+        },
+        &mut foliage,
+    );
 
-    content.define_stage(ContentStages::Initial, |stage| {
-        // foliage
-        //     .view(content)
-        //     .stage(content_blank)
-        //     .add_signal_targeting(image)
-        //     .clean();
-    });
+    content.define_stage(
+        ContentStages::Initial,
+        |stage| {
+            // foliage
+            //     .view(content)
+            //     .stage(content_blank)
+            //     .add_signal_targeting(image)
+            //     .clean();
+        },
+        &mut foliage,
+    );
 
-    control_panel
-        .define_stage(ControlStages::Initial, |stage| {
+    control_panel.define_stage(
+        ControlStages::Initial,
+        |stage| {
             stage.add_signal_targeting(stage.target(ControlTargets::Background), |sr| {
                 sr.with_attribute(Panel::new(Rounding::all(0.05), Color::WHITE))
                     .with_attribute(
@@ -233,11 +240,13 @@ fn main() {
             //     .view(control_panel)
             //     .stage(initial)
             //     .on_end(to_creation);
-        })
-        .build(&mut foliage);
+        },
+        &mut foliage,
+    );
 
-    control_panel
-        .define_stage(ControlStages::Creation, |stage| {
+    control_panel.define_stage(
+        ControlStages::Creation,
+        |stage| {
             stage.add_signal_targeting(stage.target(ControlTargets::GalleryIcon), |sr| {
                 sr.with_attribute(Icon::new(IconId(0), Color::BLACK))
                     .with_attribute(GridPlacement::new(1.span(1), 1.span(2)))
@@ -255,86 +264,95 @@ fn main() {
             stage.add_signal_targeting(stage.target(ControlTargets::Home), |sr| sr.clean());
             stage.add_signal_targeting(stage.target(ControlTargets::CopyTwitter), |sr| sr.clean());
             stage.add_signal_targeting(stage.target(ControlTargets::CopyEmail), |sr| sr.clean());
-        })
-        .build(&mut foliage);
+        },
+        &mut foliage,
+    );
 
-    control_panel.define_stage(ControlStages::Gallery, |stage| {
-        stage.add_signal_targeting(stage.target(ControlTargets::GalleryIcon), |sr| sr.clean());
-        stage.add_signal_targeting(stage.target(ControlTargets::AboutIcon), |sr| sr.clean());
-        // foliage
-        //     .view(control_panel)
-        //     .stage(image_controls)
-        //     .add_signal_targeting(image_forward_icon)
-        //     .with_attribute(Icon::new(IconId(1), Color::BLACK))
-        //     .with_filtered_attribute(IconId(2), Layout::LANDSCAPE_MOBILE | Layout::LANDSCAPE_EXT)
-        //     .with_attribute(GridPlacement::new(2.span(1), 1.span(1)))
-        //     .with_attribute(ClickInteractionListener::new())
-        //     .with_attribute(OnClick::new(page_right));
-        // foliage
-        //     .view(control_panel)
-        //     .stage(image_controls)
-        //     .add_signal_targeting(image_backward_icon)
-        //     .with_attribute(Icon::new(IconId(1), Color::BLACK))
-        //     .with_filtered_attribute(IconId(2), Layout::LANDSCAPE_MOBILE | Layout::LANDSCAPE_EXT)
-        //     .with_attribute(GridPlacement::new(2.span(1), 4.span(1)))
-        //     .with_attribute(ClickInteractionListener::new())
-        //     .with_attribute(OnClick::new(page_left));
-        // foliage
-        //     .view(control_panel)
-        //     .stage(image_controls)
-        //     .add_signal_targeting(home)
-        //     .with_attribute(Icon::new(IconId(1), Color::BLACK))
-        //     .with_attribute(OnClick::new(to_creation).with(to_content_blank))
-        //     .with_attribute(GridPlacement::new(1.span(1), 1.span(1)))
-        //     .with_attribute(ClickInteractionListener::new());
-    });
+    control_panel.define_stage(
+        ControlStages::Gallery,
+        |stage| {
+            stage.add_signal_targeting(stage.target(ControlTargets::GalleryIcon), |sr| sr.clean());
+            stage.add_signal_targeting(stage.target(ControlTargets::AboutIcon), |sr| sr.clean());
+            // foliage
+            //     .view(control_panel)
+            //     .stage(image_controls)
+            //     .add_signal_targeting(image_forward_icon)
+            //     .with_attribute(Icon::new(IconId(1), Color::BLACK))
+            //     .with_filtered_attribute(IconId(2), Layout::LANDSCAPE_MOBILE | Layout::LANDSCAPE_EXT)
+            //     .with_attribute(GridPlacement::new(2.span(1), 1.span(1)))
+            //     .with_attribute(ClickInteractionListener::new())
+            //     .with_attribute(OnClick::new(page_right));
+            // foliage
+            //     .view(control_panel)
+            //     .stage(image_controls)
+            //     .add_signal_targeting(image_backward_icon)
+            //     .with_attribute(Icon::new(IconId(1), Color::BLACK))
+            //     .with_filtered_attribute(IconId(2), Layout::LANDSCAPE_MOBILE | Layout::LANDSCAPE_EXT)
+            //     .with_attribute(GridPlacement::new(2.span(1), 4.span(1)))
+            //     .with_attribute(ClickInteractionListener::new())
+            //     .with_attribute(OnClick::new(page_left));
+            // foliage
+            //     .view(control_panel)
+            //     .stage(image_controls)
+            //     .add_signal_targeting(home)
+            //     .with_attribute(Icon::new(IconId(1), Color::BLACK))
+            //     .with_attribute(OnClick::new(to_creation).with(to_content_blank))
+            //     .with_attribute(GridPlacement::new(1.span(1), 1.span(1)))
+            //     .with_attribute(ClickInteractionListener::new());
+        },
+        &mut foliage,
+    );
 
-    control_panel.define_stage(ControlStages::About, |stage| {
-        // foliage
-        //     .view(control_panel)
-        //     .stage(about_controls)
-        //     .add_signal_targeting(home)
-        //     .with_attribute(Icon::new(IconId(1), Color::BLACK))
-        //     .with_attribute(OnClick::new(to_creation).with(to_content_blank))
-        //     .with_attribute(GridPlacement::new(1.span(1), 1.span(1)))
-        //     .with_attribute(ClickInteractionListener::new());
-        // foliage
-        //     .view(control_panel)
-        //     .stage(about_controls)
-        //     .add_signal_targeting(twitter_copy)
-        //     .with_attribute(Icon::new(IconId(2), Color::BLACK))
-        //     .with_attribute(GridPlacement::new(1.span(1), 2.span(1)))
-        //     .with_attribute(ClickInteractionListener::new())
-        //     .with_attribute(OnClick::new(copy_twitter_address));
-        // foliage
-        //     .view(control_panel)
-        //     .stage(about_controls)
-        //     .add_signal_targeting(email_copy)
-        //     .with_attribute(Icon::new(IconId(2), Color::BLACK))
-        //     .with_attribute(GridPlacement::new(1.span(1), 3.span(1)))
-        //     .with_attribute(ClickInteractionListener::new())
-        //     .with_attribute(OnClick::new(copy_email_address));
-        // foliage
-        //     .view(control_panel)
-        //     .stage(about_controls)
-        //     .add_signal_targeting(gallery_choice_text)
-        //     .clean();
-        // foliage
-        //     .view(control_panel)
-        //     .stage(about_controls)
-        //     .add_signal_targeting(about_choice_text)
-        //     .clean();
-        // foliage
-        //     .view(control_panel)
-        //     .stage(about_controls)
-        //     .add_signal_targeting(gallery_icon)
-        //     .clean();
-        // foliage
-        //     .view(control_panel)
-        //     .stage(about_controls)
-        //     .add_signal_targeting(about_icon)
-        //     .clean();
-    });
+    control_panel.define_stage(
+        ControlStages::About,
+        |stage| {
+            // foliage
+            //     .view(control_panel)
+            //     .stage(about_controls)
+            //     .add_signal_targeting(home)
+            //     .with_attribute(Icon::new(IconId(1), Color::BLACK))
+            //     .with_attribute(OnClick::new(to_creation).with(to_content_blank))
+            //     .with_attribute(GridPlacement::new(1.span(1), 1.span(1)))
+            //     .with_attribute(ClickInteractionListener::new());
+            // foliage
+            //     .view(control_panel)
+            //     .stage(about_controls)
+            //     .add_signal_targeting(twitter_copy)
+            //     .with_attribute(Icon::new(IconId(2), Color::BLACK))
+            //     .with_attribute(GridPlacement::new(1.span(1), 2.span(1)))
+            //     .with_attribute(ClickInteractionListener::new())
+            //     .with_attribute(OnClick::new(copy_twitter_address));
+            // foliage
+            //     .view(control_panel)
+            //     .stage(about_controls)
+            //     .add_signal_targeting(email_copy)
+            //     .with_attribute(Icon::new(IconId(2), Color::BLACK))
+            //     .with_attribute(GridPlacement::new(1.span(1), 3.span(1)))
+            //     .with_attribute(ClickInteractionListener::new())
+            //     .with_attribute(OnClick::new(copy_email_address));
+            // foliage
+            //     .view(control_panel)
+            //     .stage(about_controls)
+            //     .add_signal_targeting(gallery_choice_text)
+            //     .clean();
+            // foliage
+            //     .view(control_panel)
+            //     .stage(about_controls)
+            //     .add_signal_targeting(about_choice_text)
+            //     .clean();
+            // foliage
+            //     .view(control_panel)
+            //     .stage(about_controls)
+            //     .add_signal_targeting(gallery_icon)
+            //     .clean();
+            // foliage
+            //     .view(control_panel)
+            //     .stage(about_controls)
+            //     .add_signal_targeting(about_icon)
+            //     .clean();
+        },
+        &mut foliage,
+    );
 
     foliage.run();
 }

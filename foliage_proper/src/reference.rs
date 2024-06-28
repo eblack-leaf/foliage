@@ -16,13 +16,17 @@ use crate::view::{
 };
 use crate::Foliage;
 
-pub struct ViewConfig<'a> {
+pub struct ViewConfigBuilder<'a> {
     pub(crate) root: Entity,
     pub(crate) reference: Option<&'a mut Elm>,
     pub(crate) targets: HashMap<TargetBinding, TriggerTarget>,
     pub(crate) stages: HashMap<StageBinding, Stage>,
 }
-
+pub struct ViewConfig {
+    pub(crate) root: Entity,
+    pub(crate) targets: HashMap<TargetBinding, TriggerTarget>,
+    pub(crate) stages: HashMap<StageBinding, Stage>,
+}
 pub struct StageBuilder<'a> {
     root: Entity,
     pub(crate) targets: HashMap<TargetBinding, TriggerTarget>,
@@ -30,44 +34,19 @@ pub struct StageBuilder<'a> {
     binding: StageBinding,
     func: Box<StageDefinition<'a>>,
 }
-impl<'a> StageBuilder<'a> {
-    pub fn build(self, foliage: &'a mut Foliage) {
-        let mut stage_ref = StageReference {
-            root: self.root,
-            reference: Some(&mut foliage.elm),
-            stage: *self.stages.get(&self.binding).unwrap(),
-            targets: self.targets,
-            stages: self.stages,
-        };
-        (self.func)(&mut stage_ref);
-    }
-}
 pub type StageDefinition<'a> = fn(&mut StageReference<'a>);
-impl<'a> ViewConfig<'a> {
+impl<'a> ViewConfigBuilder<'a> {
     pub fn with_target<T: Into<TargetBinding>>(mut self, t: T) -> Self {
         let target = self.add_target();
         self.targets.insert(t.into(), target);
         self
     }
-    pub fn handle(&self) -> ViewHandle {
-        ViewHandle(self.root)
-    }
-    pub fn finish(mut self) -> Self {
+    pub fn finish(mut self) -> ViewConfig {
         self.reference.take().unwrap();
-        self
-    }
-    pub fn define_stage<SB: Into<StageBinding>>(
-        &mut self,
-        sb: SB,
-        func: StageDefinition<'a>,
-    ) -> StageBuilder<'a> {
-        let binding = sb.into();
-        StageBuilder {
+        ViewConfig {
             root: self.root,
-            targets: self.targets.clone(),
-            stages: self.stages.clone(),
-            binding,
-            func: Box::new(func),
+            targets: self.targets,
+            stages: self.stages,
         }
     }
     pub(crate) fn add_target(&mut self) -> TriggerTarget {
@@ -129,6 +108,27 @@ impl<'a> ViewConfig<'a> {
         self.stages.insert(sb.into(), stage);
         self
     }
+}
+impl ViewConfig {
+    pub fn define_stage<'a, SB: Into<StageBinding>, SF: FnOnce(&mut StageReference<'a>)>(
+        &mut self,
+        sb: SB,
+        func: SF,
+        foliage: &'a mut Foliage,
+    ) {
+        let binding = sb.into();
+        let mut stage_ref = StageReference {
+            root: self.root,
+            reference: Some(&mut foliage.elm),
+            stage: *self.stages.get(&binding).unwrap(),
+            targets: self.targets.clone(),
+            stages: self.stages.clone(),
+        };
+        (func)(&mut stage_ref);
+    }
+    pub fn handle(&self) -> ViewHandle {
+        ViewHandle(self.root)
+    }
     pub fn target<TB: Into<TargetBinding>>(&self, tb: TB) -> TriggerTarget {
         *self.targets.get(&tb.into()).expect("no-target")
     }
@@ -136,7 +136,6 @@ impl<'a> ViewConfig<'a> {
         *self.stages.get(&sb.into()).expect("no-such-stage")
     }
 }
-
 pub struct ViewReference<'a> {
     pub(crate) root: Entity,
     pub(crate) reference: &'a mut Elm,
@@ -167,10 +166,10 @@ impl<'a> StageReference<'a> {
     pub fn target<TB: Into<TargetBinding>>(&self, tb: TB) -> TriggerTarget {
         *self.targets.get(&tb.into()).expect("no-target")
     }
-    pub fn add_signal_targeting(
+    pub fn add_signal_targeting<AFn: FnOnce(SignalReference<'a>) -> SignalReference<'a>>(
         &mut self,
         target: TriggerTarget,
-        a_fn: fn(SignalReference<'a>) -> SignalReference<'a>,
+        a_fn: AFn,
     ) {
         let signal = self
             .reference
@@ -254,7 +253,10 @@ impl<'a> SignalReference<'a> {
         filter: F,
     ) -> Self {
         let exceptional_layout_config = filter.into();
-        self.reference.as_mut().unwrap().checked_add_filtered_signal_fns::<A>();
+        self.reference
+            .as_mut()
+            .unwrap()
+            .checked_add_filtered_signal_fns::<A>();
         self.reference
             .as_mut()
             .unwrap()
@@ -268,7 +270,10 @@ impl<'a> SignalReference<'a> {
         self
     }
     pub fn with_attribute<A: Bundle + 'static + Clone + Send + Sync>(mut self, a: A) -> Self {
-        self.reference.as_mut().unwrap().checked_add_signal_fns::<A>();
+        self.reference
+            .as_mut()
+            .unwrap()
+            .checked_add_signal_fns::<A>();
         self.reference
             .as_mut()
             .unwrap()

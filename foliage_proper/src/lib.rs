@@ -9,7 +9,7 @@ use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::WindowId;
 
-use reference::{ViewConfig, ViewReference};
+use reference::{ViewConfigBuilder, ViewReference};
 use signal::{ActionHandle, TriggeredAction};
 use willow::Willow;
 
@@ -109,14 +109,14 @@ impl Foliage {
     pub fn spawn<B: Bundle + 'static + Send + Sync>(&mut self, b: B) {
         self.elm.ecs.world.spawn(b);
     }
-    pub fn create_view(&mut self, grid_placement: GridPlacement, grid: Grid) -> ViewConfig {
+    pub fn create_view(&mut self, grid_placement: GridPlacement, grid: Grid) -> ViewConfigBuilder {
         let handle = self
             .elm
             .ecs
             .world
             .spawn(ViewComponents::new(grid_placement, grid))
             .id();
-        ViewConfig {
+        ViewConfigBuilder {
             root: handle,
             reference: Some(&mut self.elm),
             targets: Default::default(),
