@@ -175,7 +175,7 @@ impl Foliage {
     #[cfg(target_family = "wasm")]
     pub fn load_remote_asset(&mut self, path: &str) -> AssetKey {
         let key = AssetLoader::generate_key();
-        let (fetch, sender) = AssetFetch::new(key);
+        let (fetch, sender) = crate::asset::AssetFetch::new(key);
         self.elm
             .ecs
             .world
