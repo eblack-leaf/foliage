@@ -62,7 +62,7 @@ impl Command for ChangeImage {
             .current_image();
         world
             .entity_mut(self.0.value())
-            .insert(OnRetrieve::new(key, |asset| Image::new(0, asset)));
+            .insert(OnRetrieve::new(key, |asset| Image::new(0, asset).crop()));
     }
 }
 #[derive(Clone)]

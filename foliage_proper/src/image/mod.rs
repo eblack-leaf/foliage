@@ -38,6 +38,27 @@ impl AspectRatio {
     pub fn new(r: f32) -> Self {
         Self(r)
     }
+    pub fn reciprocal(&self) -> f32 {
+        1f32 / self.0
+    }
+    pub fn constrain(&self, target: Coordinates) -> Coordinates {
+        let mut attempted_width = target.horizontal();
+        let mut attempted_height = target.horizontal() * self.reciprocal();
+        while attempted_height > target.vertical() {
+            attempted_width -= 1f32;
+            attempted_height = attempted_width * self.reciprocal();
+        }
+        Coordinates::new(attempted_width, attempted_height)
+    }
+    pub fn grow_to_cover(&self, target: Coordinates) -> Coordinates {
+        let mut attempted_width = target.horizontal();
+        let mut attempted_height = attempted_width * self.reciprocal();
+        while attempted_height < target.vertical() {
+            attempted_width += 1f32;
+            attempted_height = attempted_width * self.reciprocal();
+        }
+        Coordinates::new(attempted_width, attempted_height)
+    }
 }
 impl From<f32> for AspectRatio {
     fn from(value: f32) -> Self {
@@ -91,6 +112,10 @@ impl Image {
             ImageView::Aspect(AspectRatio::from_coordinates(self.fill.component.2));
         self
     }
+    pub fn crop(mut self) -> Self {
+        self.view.component = ImageView::Crop(Section::default());
+        self
+    }
 }
 #[derive(Copy, Clone, Component, PartialEq)]
 pub enum ImageView {
@@ -115,42 +140,31 @@ fn constrain(
 ) {
     for (fill, mut view, mut pos, mut area) in images.iter_mut() {
         let old = Section::new(*pos, *area);
-        match view {
+        match view.as_ref().clone() {
             ImageView::Aspect(a) => {
                 // keep the biggest aspect ratio can fit inside bounds
-                let new = Section::default();
+                let new_area = a.constrain(old.area.coordinates);
+                let diff = (old.area.coordinates - new_area) / 2f32;
+                let new = Section::logical(old.position.coordinates + diff, new_area);
                 area.coordinates = new.area.coordinates;
-                pos.coordinates =
-                    pos.coordinates + (old.position - new.position).coordinates / 2f32;
+                pos.coordinates = new.position.coordinates;
             }
             ImageView::Crop(_) => {
-                let aspect = AspectRatio::from_coordinates(fill.2);;
-                let fill_extent = fill.2;
-                let fill_extent = if fill_extent.horizontal() < old.width() {
-                    // expand w/ aspect ratio until meets old
-                    fill_extent
-                } else {
-                    fill_extent
-                };
-                let fill_extent = if fill_extent.vertical() < old.height() {
-                    // expand w/ aspect ratio until meets old
-                    fill_extent
-                } else {
-                    fill_extent
-                };
-                let fill_section = Section::logical(old.position, fill_extent);
+                let aspect = AspectRatio::from_coordinates(fill.2);
+                let adjusted_extent = aspect.grow_to_cover(old.area.coordinates);
+                let fill_section = Section::logical(old.position, adjusted_extent);
                 let center_diff = old.center() - fill_section.center();
                 let adjusted_fill_section =
                     Section::logical(fill_section.position + center_diff, fill_section.area);
                 let tex_coords_adjustments = Section::numerical(
                     (
-                        (adjusted_fill_section.x() - old.x()) / adjusted_fill_section.width(),
-                        (adjusted_fill_section.y() - old.y()) / adjusted_fill_section.height(),
+                        (old.x() - adjusted_fill_section.x()) / adjusted_fill_section.width(),
+                        (old.y() - adjusted_fill_section.y()) / adjusted_fill_section.height(),
                     ),
                     (
-                        1f32 - (adjusted_fill_section.right() - old.right())
+                        (adjusted_fill_section.right() - old.right())
                             / adjusted_fill_section.width(),
-                        1f32 - (adjusted_fill_section.bottom() - old.bottom())
+                        (adjusted_fill_section.bottom() - old.bottom())
                             / adjusted_fill_section.height(),
                     ),
                 );
@@ -480,15 +494,15 @@ impl Render for Image {
                     TextureCoordinates::new(
                         (
                             tex_coords.top_left.horizontal()
-                                + image_extent.horizontal() * adjustments.x(),
+                                + tex_coords.bottom_right.horizontal() * adjustments.x(),
                             tex_coords.top_left.vertical()
-                                + image_extent.vertical() * adjustments.y(),
+                                + tex_coords.bottom_right.vertical() * adjustments.y(),
                         ),
                         (
                             tex_coords.bottom_right.horizontal()
-                                - image_extent.horizontal() * adjustments.width(),
+                                - tex_coords.bottom_right.horizontal() * adjustments.width(),
                             tex_coords.bottom_right.vertical()
-                                - image_extent.vertical() * adjustments.height(),
+                                - tex_coords.bottom_right.vertical() * adjustments.height(),
                         ),
                     )
                 }
