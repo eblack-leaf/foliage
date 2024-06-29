@@ -256,7 +256,7 @@ fn main() {
             stage.add_signal_targeting(stage.target(ControlTargets::PageRight), |s| {
                 s.with_attribute(Icon::new(IconId(1), Color::BLACK))
                     .with_filtered_attribute(
-                        IconId(2),
+                        IconId(1),
                         Layout::LANDSCAPE_MOBILE | Layout::LANDSCAPE_EXT,
                     )
                     .with_attribute(GridPlacement::new(2.span(1), 1.span(1)))
@@ -266,7 +266,7 @@ fn main() {
             stage.add_signal_targeting(stage.target(ControlTargets::PageLeft), |s| {
                 s.with_attribute(Icon::new(IconId(1), Color::BLACK))
                     .with_filtered_attribute(
-                        IconId(2),
+                        IconId(1),
                         Layout::LANDSCAPE_MOBILE | Layout::LANDSCAPE_EXT,
                     )
                     .with_attribute(GridPlacement::new(2.span(1), 4.span(1)))
