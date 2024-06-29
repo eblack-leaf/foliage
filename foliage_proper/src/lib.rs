@@ -143,8 +143,6 @@ impl Foliage {
             .world
             .spawn((TriggeredAction(a), Signal::default()))
             .id();
-        // signal that matches to a triggered-action (command) that spawns it on self + gives to a cmd to execute
-        // can be added to OnClick(...) to set logic triggers
         ActionHandle(handle)
     }
     pub fn insert_resource<R: Resource>(&mut self, r: R) {
@@ -182,7 +180,6 @@ impl Foliage {
             .get_resource_mut::<AssetLoader>()
             .expect("asset-loader")
             .queue_fetch(fetch);
-        // TODO sanitize path for "/" leading / trailing
         let path = format!(
             "{}/{}/{}",
             web_sys::window().expect("window").origin(),

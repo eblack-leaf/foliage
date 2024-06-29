@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs};
-use bevy_ecs::query::{Changed, Or, With};
+use bevy_ecs::query::{Changed, Or};
 use bevy_ecs::system::Query;
 use bytemuck::{Pod, Zeroable};
 use wgpu::{
@@ -18,7 +18,7 @@ use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::{GpuSection, Section};
-use crate::coordinate::{Coordinates, LogicalContext};
+use crate::coordinate::{Coordinates, LogicalContext, NumericalContext};
 use crate::differential::{Differential, RenderLink};
 use crate::elm::{Elm, RenderQueueHandle, ScheduleMarkers};
 use crate::ginkgo::texture::TextureCoordinates;
@@ -26,7 +26,7 @@ use crate::ginkgo::Ginkgo;
 use crate::instances::Instances;
 use crate::Leaf;
 
-#[derive(Copy, Clone, Component)]
+#[derive(Copy, Clone, Component, PartialEq)]
 pub struct AspectRatio(pub f32);
 impl AspectRatio {
     pub fn from_dimensions(w: f32, h: f32) -> Self {
@@ -38,9 +38,6 @@ impl AspectRatio {
     pub fn new(r: f32) -> Self {
         Self(r)
     }
-    pub fn constrain(&self, o: Coordinates) -> Coordinates {
-        todo!()
-    }
 }
 impl From<f32> for AspectRatio {
     fn from(value: f32) -> Self {
@@ -51,6 +48,7 @@ impl From<f32> for AspectRatio {
 pub struct Image {
     link: RenderLink,
     fill: Differential<ImageFill>,
+    view: Differential<ImageView>,
     gpu_section: Differential<GpuSection>,
     section: Section<LogicalContext>,
     layer: Differential<Layer>,
@@ -78,47 +76,88 @@ impl Image {
         Self {
             link: RenderLink::new::<Image>(),
             fill: Differential::new(ImageFill(id.into(), image_bytes, dimensions)),
+            view: Differential::new(ImageView::Stretch),
             gpu_section: Differential::new(GpuSection::default()),
             section: Section::default(),
             layer: Differential::new(Layer::default()),
         }
     }
-    pub fn with_aspect_ratio<A: Into<AspectRatio>>(self, a: A) -> AspectRatioImage {
-        AspectRatioImage {
-            aspect_ratio: a.into(),
-            image: self,
-        }
+    pub fn with_aspect_ratio<A: Into<AspectRatio>>(mut self, a: A) -> Self {
+        self.view.component = ImageView::Aspect(a.into());
+        self
     }
-    pub fn inherit_aspect_ratio(self) -> AspectRatioImage {
-        AspectRatioImage {
-            aspect_ratio: AspectRatio::from_coordinates(self.fill.component.2),
-            image: self,
-        }
+    pub fn inherit_aspect_ratio(mut self) -> Self {
+        self.view.component =
+            ImageView::Aspect(AspectRatio::from_coordinates(self.fill.component.2));
+        self
     }
 }
-
+#[derive(Copy, Clone, Component, PartialEq)]
+pub enum ImageView {
+    Aspect(AspectRatio),
+    Stretch,
+    Crop(Section<NumericalContext>),
+}
 fn constrain(
     mut images: Query<
         (
-            &AspectRatio,
+            &ImageFill,
+            &mut ImageView,
             &mut Position<LogicalContext>,
             &mut Area<LogicalContext>,
         ),
-        (
-            With<ImageFill>,
-            Or<(
-                Changed<AspectRatio>,
-                Changed<Area<LogicalContext>>,
-                Changed<Position<LogicalContext>>,
-            )>,
-        ),
+        Or<(
+            Changed<ImageView>,
+            Changed<Area<LogicalContext>>,
+            Changed<Position<LogicalContext>>,
+        )>,
     >,
 ) {
-    for (ratio, mut pos, mut area) in images.iter_mut() {
-        let old = area.coordinates;
-        let new = ratio.constrain(area.coordinates);
-        area.coordinates = new;
-        pos.coordinates = pos.coordinates + (old - new) / 2f32;
+    for (fill, mut view, mut pos, mut area) in images.iter_mut() {
+        let old = Section::new(*pos, *area);
+        match view {
+            ImageView::Aspect(a) => {
+                // keep the biggest aspect ratio can fit inside bounds
+                let new = Section::default();
+                area.coordinates = new.area.coordinates;
+                pos.coordinates =
+                    pos.coordinates + (old.position - new.position).coordinates / 2f32;
+            }
+            ImageView::Crop(_) => {
+                let aspect = AspectRatio::from_coordinates(fill.2);;
+                let fill_extent = fill.2;
+                let fill_extent = if fill_extent.horizontal() < old.width() {
+                    // expand w/ aspect ratio until meets old
+                    fill_extent
+                } else {
+                    fill_extent
+                };
+                let fill_extent = if fill_extent.vertical() < old.height() {
+                    // expand w/ aspect ratio until meets old
+                    fill_extent
+                } else {
+                    fill_extent
+                };
+                let fill_section = Section::logical(old.position, fill_extent);
+                let center_diff = old.center() - fill_section.center();
+                let adjusted_fill_section =
+                    Section::logical(fill_section.position + center_diff, fill_section.area);
+                let tex_coords_adjustments = Section::numerical(
+                    (
+                        (adjusted_fill_section.x() - old.x()) / adjusted_fill_section.width(),
+                        (adjusted_fill_section.y() - old.y()) / adjusted_fill_section.height(),
+                    ),
+                    (
+                        1f32 - (adjusted_fill_section.right() - old.right())
+                            / adjusted_fill_section.width(),
+                        1f32 - (adjusted_fill_section.bottom() - old.bottom())
+                            / adjusted_fill_section.height(),
+                    ),
+                );
+                *view = ImageView::Crop(tex_coords_adjustments);
+            }
+            _ => {}
+        };
     }
 }
 #[derive(Component, Clone, PartialEq)]
@@ -136,11 +175,11 @@ impl Leaf for Image {
         elm.enable_differential::<Self, Layer>();
         elm.enable_differential::<Self, ImageFill>();
         elm.enable_differential::<Self, ImageSlotDescriptor>();
+        elm.enable_differential::<Self, ImageView>();
         elm.scheduler
             .main
             .add_systems(constrain.in_set(ScheduleMarkers::Config));
         elm.enable_retrieve::<Image>();
-        elm.enable_retrieve::<AspectRatioImage>();
     }
 }
 #[repr(C)]
@@ -414,6 +453,53 @@ impl Render for Image {
                 .unwrap()
                 .instances
                 .checked_write(packet.entity, packet.value);
+        }
+        for packet in queue_handle.read_adds::<Self, ImageView>() {
+            let id = *renderer
+                .resource_handle
+                .entity_to_image
+                .get(&packet.entity)
+                .unwrap();
+            let tex_coords = renderer
+                .resource_handle
+                .groups
+                .get(&id)
+                .unwrap()
+                .texture_coordinates;
+            let image_extent = renderer
+                .resource_handle
+                .groups
+                .get(&id)
+                .unwrap()
+                .image_extent;
+            let new = match packet.value {
+                ImageView::Aspect(_) => tex_coords,
+                ImageView::Stretch => tex_coords,
+                ImageView::Crop(adjustments) => {
+                    // adjust coords by crop amount
+                    TextureCoordinates::new(
+                        (
+                            tex_coords.top_left.horizontal()
+                                + image_extent.horizontal() * adjustments.x(),
+                            tex_coords.top_left.vertical()
+                                + image_extent.vertical() * adjustments.y(),
+                        ),
+                        (
+                            tex_coords.bottom_right.horizontal()
+                                - image_extent.horizontal() * adjustments.width(),
+                            tex_coords.bottom_right.vertical()
+                                - image_extent.vertical() * adjustments.height(),
+                        ),
+                    )
+                }
+            };
+            renderer
+                .resource_handle
+                .groups
+                .get_mut(&id)
+                .unwrap()
+                .instances
+                .checked_write(packet.entity, new);
         }
         for packet in queue_handle.read_adds::<Self, Layer>() {
             let id = *renderer
