@@ -43,6 +43,7 @@ pub mod interaction;
 pub mod panel;
 mod reference;
 pub mod signal;
+mod text;
 pub mod view;
 pub mod willow;
 
