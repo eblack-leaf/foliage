@@ -480,12 +480,6 @@ impl Render for Image {
                 .get(&id)
                 .unwrap()
                 .texture_coordinates;
-            let image_extent = renderer
-                .resource_handle
-                .groups
-                .get(&id)
-                .unwrap()
-                .image_extent;
             let new = match packet.value {
                 ImageView::Aspect(_) => tex_coords,
                 ImageView::Stretch => tex_coords,

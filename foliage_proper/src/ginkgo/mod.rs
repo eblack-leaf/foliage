@@ -436,11 +436,11 @@ impl<Data: Pod + Zeroable + PartialEq> Uniform<Data> {
     }
 }
 
-pub struct AggregateUniform<Repr: Pod + Zeroable + PartialEq> {
+pub struct VectorUniform<Repr: Pod + Zeroable + PartialEq> {
     pub uniform: Uniform<[Repr; 4]>,
 }
 
-impl<Repr: Pod + Zeroable + PartialEq> AggregateUniform<Repr> {
+impl<Repr: Pod + Zeroable + PartialEq> VectorUniform<Repr> {
     pub fn new(context: &GraphicContext, d: [Repr; 4]) -> Self {
         Self {
             uniform: Uniform::new(context, d),

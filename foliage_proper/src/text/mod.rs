@@ -1,3 +1,17 @@
+use std::collections::HashMap;
+
+use bevy_ecs::bundle::Bundle;
+use bevy_ecs::entity::Entity;
+use bevy_ecs::prelude::Component;
+use bytemuck::{Pod, Zeroable};
+use serde::{Deserialize, Serialize};
+use wgpu::{
+    include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayoutDescriptor,
+    PipelineLayoutDescriptor, RenderPipelineDescriptor, ShaderStages, TextureSampleType,
+    TextureViewDimension, VertexState, VertexStepMode,
+};
+use wgpu::{BindGroupLayout, RenderPipeline};
+
 use crate::ash::{Render, RenderPhase, Renderer};
 use crate::color::Color;
 use crate::coordinate::layer::Layer;
@@ -5,21 +19,10 @@ use crate::coordinate::section::{GpuSection, Section};
 use crate::coordinate::{Coordinates, DeviceContext, LogicalContext};
 use crate::differential::{Differential, RenderLink};
 use crate::elm::{Elm, RenderQueueHandle};
-use crate::ginkgo::Ginkgo;
+use crate::ginkgo::texture::TextureCoordinates;
+use crate::ginkgo::{Ginkgo, VectorUniform};
 use crate::instances::Instances;
 use crate::Leaf;
-use bevy_ecs::bundle::Bundle;
-use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::Component;
-use bytemuck::{Pod, Zeroable};
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use wgpu::{
-    include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayoutDescriptor,
-    PipelineLayoutDescriptor, RenderPipelineDescriptor, ShaderStages, TextureSampleType,
-    TextureViewDimension, VertexState,
-};
-use wgpu::{BindGroupLayout, RenderPipeline};
 
 #[derive(Bundle)]
 pub struct Text {
@@ -62,6 +65,7 @@ pub struct GlyphColors {
 pub(crate) struct TextGroup {
     bind_group: BindGroup,
     instances: Instances<GlyphOffset>,
+    pos_and_layer: VectorUniform<f32>,
     should_record: bool,
 }
 pub struct TextResources {
@@ -75,19 +79,22 @@ pub struct TextResources {
 #[derive(Pod, Zeroable, Copy, Clone, Default)]
 pub struct Vertex {
     position: Coordinates,
+    tx_index: [u32; 2],
 }
+
 impl Vertex {
-    pub(crate) const fn new(position: Coordinates) -> Self {
-        Self { position }
+    pub(crate) const fn new(position: Coordinates, tx_index: [u32; 2]) -> Self {
+        Self { position, tx_index }
     }
 }
+
 pub(crate) const VERTICES: [Vertex; 6] = [
-    Vertex::new(Coordinates::new(1f32, 0f32)),
-    Vertex::new(Coordinates::new(0f32, 0f32)),
-    Vertex::new(Coordinates::new(0f32, 1f32)),
-    Vertex::new(Coordinates::new(1f32, 0f32)),
-    Vertex::new(Coordinates::new(0f32, 1f32)),
-    Vertex::new(Coordinates::new(1f32, 1f32)),
+    Vertex::new(Coordinates::new(1f32, 0f32), [2, 1]),
+    Vertex::new(Coordinates::new(0f32, 0f32), [0, 1]),
+    Vertex::new(Coordinates::new(0f32, 1f32), [0, 3]),
+    Vertex::new(Coordinates::new(1f32, 0f32), [2, 1]),
+    Vertex::new(Coordinates::new(0f32, 1f32), [0, 3]),
+    Vertex::new(Coordinates::new(1f32, 1f32), [2, 3]),
 ];
 impl Render for Text {
     type DirectiveGroupKey = Entity;
@@ -119,12 +126,17 @@ impl Render for Text {
         });
         let group_layout = ginkgo.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: Some("text-group-bind-group-layout"),
-            entries: &[Ginkgo::bind_group_layout_entry(0)
-                .at_stages(ShaderStages::FRAGMENT)
-                .texture_entry(
-                    TextureViewDimension::D2,
-                    TextureSampleType::Float { filterable: false },
-                )],
+            entries: &[
+                Ginkgo::bind_group_layout_entry(0)
+                    .at_stages(ShaderStages::FRAGMENT)
+                    .texture_entry(
+                        TextureViewDimension::D2,
+                        TextureSampleType::Float { filterable: false },
+                    ),
+                Ginkgo::bind_group_layout_entry(1)
+                    .at_stages(ShaderStages::VERTEX)
+                    .uniform_entry(),
+            ],
         });
         let pipeline_layout = ginkgo.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("text-pipeline-layout"),
@@ -138,7 +150,28 @@ impl Render for Text {
                 module: &shader,
                 entry_point: "vertex_entry",
                 compilation_options: Default::default(),
-                buffers: &[],
+                buffers: &[
+                    Ginkgo::vertex_buffer_layout::<Vertex>(
+                        VertexStepMode::Vertex,
+                        &wgpu::vertex_attr_array![0 => Float32x2, 1 => Uint32x2],
+                    ),
+                    Ginkgo::vertex_buffer_layout::<GpuSection>(
+                        VertexStepMode::Instance,
+                        &wgpu::vertex_attr_array![2 => Float32x4],
+                    ),
+                    Ginkgo::vertex_buffer_layout::<Layer>(
+                        VertexStepMode::Instance,
+                        &wgpu::vertex_attr_array![3 => Float32],
+                    ),
+                    Ginkgo::vertex_buffer_layout::<Color>(
+                        VertexStepMode::Instance,
+                        &wgpu::vertex_attr_array![4 => Float32x4],
+                    ),
+                    Ginkgo::vertex_buffer_layout::<TextureCoordinates>(
+                        VertexStepMode::Instance,
+                        &wgpu::vertex_attr_array![5 => Float32x4],
+                    ),
+                ],
             },
             primitive: Ginkgo::triangle_list_primitive(),
             depth_stencil: ginkgo.depth_stencil_state(),
