@@ -21,7 +21,7 @@ use crate::coordinate::section::{GpuSection, Section};
 use crate::coordinate::{Coordinates, LogicalContext};
 use crate::differential::{Differential, RenderLink};
 use crate::elm::{Elm, RenderQueueHandle, ScheduleMarkers};
-use crate::ginkgo::texture::Mips;
+use crate::texture::Mips;
 use crate::ginkgo::Ginkgo;
 use crate::instances::Instances;
 use crate::Leaf;

@@ -1,19 +1,49 @@
-use std::collections::{HashMap, HashSet};
-use std::hash::Hash;
-
+use bevy_ecs::prelude::Component;
 use bytemuck::{Pod, Zeroable};
+use std::hash::Hash;
 use wgpu::{Texture, TextureFormat, TextureView};
-
+use std::collections::{HashMap, HashSet};
 use crate::coordinate::section::Section;
-use crate::coordinate::Coordinates;
-use crate::ginkgo::texture::TextureCoordinates;
+use crate::coordinate::{Coordinates, NumericalContext};
 use crate::ginkgo::Ginkgo;
+
+#[repr(C)]
+#[derive(Copy, Clone, Default, Debug, Component, PartialEq, Pod, Zeroable)]
+pub struct TextureCoordinates {
+    pub top_left: Coordinates,
+    pub bottom_right: Coordinates,
+}
+impl TextureCoordinates {
+    pub fn new<TL: Into<Coordinates>, BR: Into<Coordinates>>(tl: TL, br: BR) -> Self {
+        Self {
+            top_left: tl.into(),
+            bottom_right: br.into(),
+        }
+    }
+    pub fn from_section<S: Into<Section<NumericalContext>>, C: Into<Coordinates>>(
+        part: S,
+        whole: C,
+    ) -> Self {
+        let s = part.into().normalized(whole);
+        Self::new(
+            s.position.min((1.0, 1.0)).max((0.0, 0.0)).coordinates,
+            s.area.min((1.0, 1.0)).max((0.0, 0.0)).coordinates,
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Pod, Zeroable, Component, Copy, Clone, PartialEq, Default, Debug)]
+pub struct Mips(pub f32);
+
 #[derive(Hash, Eq, PartialEq, Copy, Clone)]
 pub struct AtlasLocation(pub u32, pub u32);
+
 pub struct PartitionInfo {
     tex_coords: TextureCoordinates,
     location: AtlasLocation,
 }
+
 pub struct TextureAtlas<
     Key: Hash + Clone,
     Referrer: Hash,
@@ -30,11 +60,13 @@ pub struct TextureAtlas<
     references: HashMap<Key, HashSet<Referrer>>,
     entries: HashMap<Key, AtlasEntry<TexelData>>,
 }
+
 #[derive(Clone)]
 pub struct AtlasEntryInfo<Key: Clone> {
     key: Key,
     tex_coords: TextureCoordinates,
 }
+
 impl<
         Key: Hash + Clone + Eq,
         Referrer: Hash + Eq,
@@ -175,11 +207,13 @@ impl<
         self.partitions.get(&key).unwrap().tex_coords
     }
 }
+
 #[derive(Clone)]
 pub struct AtlasEntry<TexelData: Default + Sized + Clone + Pod + Zeroable> {
     data: Vec<TexelData>,
     extent: Coordinates,
 }
+
 impl<TexelData: Default + Sized + Clone + Pod + Zeroable> AtlasEntry<TexelData> {
     pub fn new<C: Into<Coordinates>>(data: Vec<TexelData>, extent: C) -> Self {
         Self {

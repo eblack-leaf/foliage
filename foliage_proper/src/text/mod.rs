@@ -19,7 +19,7 @@ use crate::coordinate::section::{GpuSection, Section};
 use crate::coordinate::{Coordinates, DeviceContext, LogicalContext};
 use crate::differential::{Differential, RenderLink};
 use crate::elm::{Elm, RenderQueueHandle};
-use crate::ginkgo::texture::TextureCoordinates;
+use crate::texture::TextureCoordinates;
 use crate::ginkgo::{Ginkgo, VectorUniform};
 use crate::instances::Instances;
 use crate::Leaf;

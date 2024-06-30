@@ -43,10 +43,10 @@ pub mod interaction;
 pub mod panel;
 mod reference;
 pub mod signal;
-mod text;
-mod texture_atlas;
+pub mod text;
 pub mod view;
 pub mod willow;
+pub mod texture;
 
 pub struct Foliage {
     willow: Willow,
