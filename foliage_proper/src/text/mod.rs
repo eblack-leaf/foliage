@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::Component;
+use bevy_ecs::prelude::{Component, Resource};
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
 use wgpu::{
@@ -23,8 +23,15 @@ use crate::ginkgo::texture::TextureCoordinates;
 use crate::ginkgo::{Ginkgo, VectorUniform};
 use crate::instances::Instances;
 use crate::Leaf;
-
-#[derive(Bundle)]
+impl Leaf for Text {
+    fn attach(elm: &mut Elm) {
+        elm.enable_differential::<Self, GpuSection>();
+        elm.enable_differential::<Self, Layer>();
+        elm.enable_differential::<Self, Glyphs>();
+        elm.ecs.world.insert_resource(MonospacedFont::new(40));
+    }
+}
+#[derive(Bundle, Clone)]
 pub struct Text {
     link: RenderLink,
     section: Section<LogicalContext>,
@@ -47,11 +54,28 @@ impl GlyphKey {
         }
     }
 }
+#[derive(Resource)]
+pub struct MonospacedFont(pub(crate) fontdue::Font);
+impl MonospacedFont {
+    pub(crate) fn new(opt_scale: u32) -> Self {
+        Self(
+            fontdue::Font::from_bytes(
+                include_bytes!("JetBrainsMono-Medium.ttf").as_slice(),
+                fontdue::FontSettings {
+                    scale: opt_scale as f32,
+                    ..fontdue::FontSettings::default()
+                },
+            )
+            .expect("font"),
+        )
+    }
+}
 #[derive(PartialEq, Clone)]
 pub(crate) struct Glyph {
     pub(crate) key: GlyphKey,
     pub(crate) section: Section<DeviceContext>,
     pub(crate) parent: char,
+    pub(crate) color: Color,
 }
 pub type GlyphOffset = usize;
 #[derive(PartialEq, Clone, Component)]
@@ -81,13 +105,11 @@ pub struct Vertex {
     position: Coordinates,
     tx_index: [u32; 2],
 }
-
 impl Vertex {
     pub(crate) const fn new(position: Coordinates, tx_index: [u32; 2]) -> Self {
         Self { position, tx_index }
     }
 }
-
 pub(crate) const VERTICES: [Vertex; 6] = [
     Vertex::new(Coordinates::new(1f32, 0f32), [2, 1]),
     Vertex::new(Coordinates::new(0f32, 0f32), [0, 1]),
@@ -202,13 +224,5 @@ impl Render for Text {
 
     fn record(renderer: &mut Renderer<Self>, ginkgo: &Ginkgo) {
         todo!()
-    }
-}
-impl Leaf for Text {
-    fn attach(elm: &mut Elm) {
-        elm.enable_differential::<Self, GpuSection>();
-        elm.enable_differential::<Self, Layer>();
-        elm.enable_differential::<Self, Glyphs>();
-        elm.enable_differential::<Self, GlyphColors>();
     }
 }

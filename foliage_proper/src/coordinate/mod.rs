@@ -1,4 +1,4 @@
-use std::ops::{Add, Div, Sub};
+use std::ops::{Add, Div, Mul, Sub};
 
 use bevy_ecs::prelude::{IntoSystemConfigs, Or};
 use bevy_ecs::query::Changed;
@@ -172,5 +172,17 @@ impl Add for Coordinates {
             self.horizontal() + rhs.horizontal(),
             self.vertical() + rhs.vertical(),
         )
+    }
+}
+
+impl Mul for Coordinates {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        (
+            self.horizontal() * rhs.horizontal(),
+            self.vertical() * rhs.vertical(),
+        )
+            .into()
     }
 }

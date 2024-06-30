@@ -5,9 +5,9 @@ use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
     BlendState, Buffer, BufferAddress, BufferUsages, ColorTargetState, CompareFunction,
     CompositeAlphaMode, DepthStencilState, DeviceDescriptor, Extent3d, Features, FragmentState,
-    InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations, PipelineLayout,
-    PipelineLayoutDescriptor, PowerPreference, PresentMode, PrimitiveState,
-    RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPipeline,
+    ImageCopyTexture, ImageDataLayout, InstanceDescriptor, Limits, LoadOp, MultisampleState,
+    Operations, Origin3d, PipelineLayout, PipelineLayoutDescriptor, PowerPreference, PresentMode,
+    PrimitiveState, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPipeline,
     RenderPipelineDescriptor, RequestAdapterOptions, Sampler, SamplerDescriptor, ShaderModule,
     ShaderModuleDescriptor, StoreOp, SurfaceConfiguration, Texture, TextureDescriptor,
     TextureDimension, TextureFormat, TextureUsages, TextureView, TextureViewDescriptor,
@@ -23,7 +23,7 @@ use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
-use crate::coordinate::{Coordinates, NumericalContext};
+use crate::coordinate::{CoordinateUnit, Coordinates, NumericalContext};
 use crate::willow::Willow;
 
 pub mod binding;
@@ -40,6 +40,42 @@ pub struct Ginkgo {
 }
 
 impl Ginkgo {
+    pub fn write_texture<TexelData: Default + Sized + Clone + Pod + Zeroable>(
+        &self,
+        texture: &Texture,
+        position: Coordinates,
+        extent: Coordinates,
+        data: Vec<TexelData>,
+    ) {
+        self.context().queue.write_texture(
+            ImageCopyTexture {
+                texture,
+                mip_level: 0,
+                origin: Origin3d {
+                    x: position.horizontal() as u32,
+                    y: position.vertical() as u32,
+                    z: 0,
+                },
+                aspect: Default::default(),
+            },
+            bytemuck::cast_slice(&data),
+            ImageDataLayout {
+                offset: 0,
+                bytes_per_row: Some(
+                    (extent.horizontal() * std::mem::size_of::<TexelData>() as CoordinateUnit)
+                        as u32,
+                ),
+                rows_per_image: Some(
+                    (extent.vertical() * std::mem::size_of::<TexelData>() as CoordinateUnit) as u32,
+                ),
+            },
+            Extent3d {
+                width: extent.horizontal() as u32,
+                height: extent.vertical() as u32,
+                depth_or_array_layers: 1,
+            },
+        );
+    }
     #[cfg(not(target_family = "wasm"))]
     pub fn png_to_cov<P: AsRef<std::path::Path>>(png: P, cov: P) {
         let data = Ginkgo::png_to_r8unorm_d2(png);
