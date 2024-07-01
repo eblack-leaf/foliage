@@ -44,9 +44,9 @@ pub mod panel;
 mod reference;
 pub mod signal;
 pub mod text;
+pub mod texture;
 pub mod view;
 pub mod willow;
-pub mod texture;
 
 pub struct Foliage {
     willow: Willow,

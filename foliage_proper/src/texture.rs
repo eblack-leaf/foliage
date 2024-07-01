@@ -1,11 +1,11 @@
-use bevy_ecs::prelude::Component;
-use bytemuck::{Pod, Zeroable};
-use std::hash::Hash;
-use wgpu::{Texture, TextureFormat, TextureView};
-use std::collections::{HashMap, HashSet};
 use crate::coordinate::section::Section;
 use crate::coordinate::{Coordinates, NumericalContext};
 use crate::ginkgo::Ginkgo;
+use bevy_ecs::prelude::Component;
+use bytemuck::{Pod, Zeroable};
+use std::collections::{HashMap, HashSet};
+use std::hash::Hash;
+use wgpu::{Texture, TextureFormat, TextureView};
 
 #[repr(C)]
 #[derive(Copy, Clone, Default, Debug, Component, PartialEq, Pod, Zeroable)]
@@ -31,22 +31,18 @@ impl TextureCoordinates {
         )
     }
 }
-
 #[repr(C)]
 #[derive(Pod, Zeroable, Component, Copy, Clone, PartialEq, Default, Debug)]
 pub struct Mips(pub f32);
-
 #[derive(Hash, Eq, PartialEq, Copy, Clone)]
 pub struct AtlasLocation(pub u32, pub u32);
-
 pub struct PartitionInfo {
     tex_coords: TextureCoordinates,
     location: AtlasLocation,
 }
-
 pub struct TextureAtlas<
     Key: Hash + Clone,
-    Referrer: Hash,
+    Referrer: Hash + Clone,
     TexelData: Default + Sized + Clone + Pod + Zeroable,
 > {
     texture: Texture,
@@ -60,13 +56,11 @@ pub struct TextureAtlas<
     references: HashMap<Key, HashSet<Referrer>>,
     entries: HashMap<Key, AtlasEntry<TexelData>>,
 }
-
 #[derive(Clone)]
-pub struct AtlasEntryInfo<Key: Clone> {
-    key: Key,
-    tex_coords: TextureCoordinates,
+pub struct AtlasChangeInfo<Referrer: Clone> {
+    pub key: Referrer,
+    pub tex_coords: TextureCoordinates,
 }
-
 impl<
         Key: Hash + Clone + Eq,
         Referrer: Hash + Eq,
@@ -104,7 +98,9 @@ impl<
             entries: Default::default(),
         }
     }
-
+    pub fn view(&self) -> &TextureView {
+        &self.view
+    }
     fn config(capacity: u32, block: Coordinates) -> (HashSet<AtlasLocation>, Coordinates) {
         let mut logical_dim = ((capacity as f32).sqrt().floor() as u32).max(1);
         while logical_dim.pow(2) < capacity {
@@ -147,7 +143,7 @@ impl<
             self.remove_entry(key);
         }
     }
-    pub fn resolve(&mut self, ginkgo: &Ginkgo) -> Vec<AtlasEntryInfo<Key>> {
+    pub fn resolve(&mut self, ginkgo: &Ginkgo) -> Vec<AtlasChangeInfo<Referrer>> {
         let mut added = Vec::new();
         for entry in self.entries.iter() {
             if self.partitions.get(entry.0).is_none() {
@@ -196,10 +192,12 @@ impl<
                 location,
             };
             self.partitions.insert(add.0.clone(), partition_info);
-            changed.push(AtlasEntryInfo {
-                key: add.0,
-                tex_coords,
-            });
+            for referrer in self.references.get(&add.0).unwrap().iter() {
+                changed.push(AtlasChangeInfo {
+                    key: referrer.clone(),
+                    tex_coords,
+                });
+            }
         }
         changed
     }

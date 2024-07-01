@@ -7,8 +7,8 @@ use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
 use wgpu::{
     include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayoutDescriptor,
-    PipelineLayoutDescriptor, RenderPipelineDescriptor, ShaderStages, TextureSampleType,
-    TextureViewDimension, VertexState, VertexStepMode,
+    PipelineLayoutDescriptor, RenderPipelineDescriptor, ShaderStages, TextureFormat,
+    TextureSampleType, TextureViewDimension, VertexState, VertexStepMode,
 };
 use wgpu::{BindGroupLayout, RenderPipeline};
 
@@ -19,15 +19,16 @@ use crate::coordinate::section::{GpuSection, Section};
 use crate::coordinate::{Coordinates, DeviceContext, LogicalContext};
 use crate::differential::{Differential, RenderLink};
 use crate::elm::{Elm, RenderQueueHandle};
-use crate::texture::TextureCoordinates;
 use crate::ginkgo::{Ginkgo, VectorUniform};
 use crate::instances::Instances;
+use crate::texture::{TextureAtlas, TextureCoordinates};
 use crate::Leaf;
 impl Leaf for Text {
     fn attach(elm: &mut Elm) {
         elm.enable_differential::<Self, GpuSection>();
         elm.enable_differential::<Self, Layer>();
         elm.enable_differential::<Self, Glyphs>();
+        elm.enable_differential::<Self, GlyphMetrics>();
         elm.ecs.world.insert_resource(MonospacedFont::new(40));
     }
 }
@@ -78,6 +79,12 @@ pub(crate) struct Glyph {
     pub(crate) color: Color,
 }
 pub type GlyphOffset = usize;
+// TODO in systems only update GlyphMetrics on block-size change, not unique-characters
+#[derive(Component, Copy, Clone, PartialEq)]
+pub(crate) struct GlyphMetrics {
+    unique_characters: u32,
+    block: Coordinates,
+}
 #[derive(PartialEq, Clone, Component)]
 pub(crate) struct Glyphs {
     glyphs: HashMap<GlyphOffset, Glyph>,
@@ -87,6 +94,7 @@ pub struct GlyphColors {
     position_to_color: HashMap<GlyphOffset, Color>,
 }
 pub(crate) struct TextGroup {
+    texture_atlas: TextureAtlas<GlyphKey, GlyphOffset, u8>,
     bind_group: BindGroup,
     instances: Instances<GlyphOffset>,
     pos_and_layer: VectorUniform<f32>,
@@ -181,17 +189,13 @@ impl Render for Text {
                         VertexStepMode::Instance,
                         &wgpu::vertex_attr_array![2 => Float32x4],
                     ),
-                    Ginkgo::vertex_buffer_layout::<Layer>(
-                        VertexStepMode::Instance,
-                        &wgpu::vertex_attr_array![3 => Float32],
-                    ),
                     Ginkgo::vertex_buffer_layout::<Color>(
                         VertexStepMode::Instance,
-                        &wgpu::vertex_attr_array![4 => Float32x4],
+                        &wgpu::vertex_attr_array![3 => Float32x4],
                     ),
                     Ginkgo::vertex_buffer_layout::<TextureCoordinates>(
                         VertexStepMode::Instance,
-                        &wgpu::vertex_attr_array![5 => Float32x4],
+                        &wgpu::vertex_attr_array![4 => Float32x4],
                     ),
                 ],
             },
@@ -219,7 +223,160 @@ impl Render for Text {
         queue_handle: &mut RenderQueueHandle,
         ginkgo: &Ginkgo,
     ) -> bool {
-        todo!()
+        for packet in queue_handle.read_removes::<Self>() {
+            renderer.resource_handle.groups.remove(&packet);
+        }
+        for packet in queue_handle.read_adds::<Self, GlyphMetrics>() {
+            let atlas = TextureAtlas::new(
+                ginkgo,
+                packet.value.block,
+                packet.value.unique_characters,
+                TextureFormat::R8Unorm,
+            );
+            let uniform = VectorUniform::new(ginkgo.context(), [0.0, 0.0, 0.0, 0.0]);
+            let bind_group = ginkgo.create_bind_group(&BindGroupDescriptor {
+                label: Some("text-group-bind-group"),
+                layout: &renderer.resource_handle.group_layout,
+                entries: &[
+                    Ginkgo::texture_bind_group_entry(atlas.view(), 0),
+                    Ginkgo::uniform_bind_group_entry(&uniform.uniform, 1),
+                ],
+            });
+            renderer.resource_handle.groups.insert(
+                packet.entity,
+                TextGroup {
+                    texture_atlas: atlas,
+                    bind_group,
+                    instances: Instances::new(packet.value.unique_characters)
+                        .with_attribute::<GpuSection>(ginkgo)
+                        .with_attribute::<Color>(ginkgo)
+                        .with_attribute::<TextureCoordinates>(ginkgo),
+                    pos_and_layer: uniform,
+                    should_record: false,
+                },
+            );
+        }
+        for packet in queue_handle.read_adds::<Self, GpuSection>() {
+            renderer
+                .resource_handle
+                .groups
+                .get_mut(&packet.entity)
+                .unwrap()
+                .pos_and_layer
+                .set(0, packet.value.pos.0.horizontal());
+            renderer
+                .resource_handle
+                .groups
+                .get_mut(&packet.entity)
+                .unwrap()
+                .pos_and_layer
+                .set(1, packet.value.pos.0.vertical());
+            renderer
+                .resource_handle
+                .groups
+                .get_mut(&packet.entity)
+                .unwrap()
+                .pos_and_layer
+                .write(ginkgo.context());
+        }
+        for packet in queue_handle.read_adds::<Self, Layer>() {
+            renderer
+                .resource_handle
+                .groups
+                .get_mut(&packet.entity)
+                .unwrap()
+                .pos_and_layer
+                .set(2, packet.value.0);
+            renderer
+                .resource_handle
+                .groups
+                .get_mut(&packet.entity)
+                .unwrap()
+                .pos_and_layer
+                .write(ginkgo.context());
+        }
+        for packet in queue_handle.read_adds::<Self, Glyphs>() {
+            for (offset, glyph) in packet.value.glyphs.iter() {
+                renderer
+                    .resource_handle
+                    .groups
+                    .get_mut(&packet.entity)
+                    .unwrap()
+                    .instances
+                    .add(*offset);
+                renderer
+                    .resource_handle
+                    .groups
+                    .get_mut(&packet.entity)
+                    .unwrap()
+                    .instances
+                    .checked_write(*offset, glyph.section.to_gpu());
+                renderer
+                    .resource_handle
+                    .groups
+                    .get_mut(&packet.entity)
+                    .unwrap()
+                    .instances
+                    .checked_write(*offset, glyph.color);
+                if !renderer
+                    .resource_handle
+                    .groups
+                    .get_mut(&packet.entity)
+                    .unwrap()
+                    .texture_atlas
+                    .has_key(glyph.key)
+                {
+                    // rasterize + add to atlas + reference
+                    // + queue_write
+                } else {
+                    let tex_coords = renderer
+                        .resource_handle
+                        .groups
+                        .get_mut(&packet.entity)
+                        .unwrap()
+                        .texture_atlas
+                        .tex_coordinates(glyph.key);
+                    renderer
+                        .resource_handle
+                        .groups
+                        .get_mut(&packet.entity)
+                        .unwrap()
+                        .instances
+                        .checked_write(*offset, tex_coords);
+                    renderer
+                        .resource_handle
+                        .groups
+                        .get_mut(&packet.entity)
+                        .unwrap()
+                        .texture_atlas
+                        .add_reference(glyph.key, *offset);
+                }
+            }
+            let changed = renderer
+                .resource_handle
+                .groups
+                .get_mut(&packet.entity)
+                .unwrap()
+                .texture_atlas
+                .resolve(ginkgo);
+            for info in changed {
+                renderer
+                    .resource_handle
+                    .groups
+                    .get_mut(&packet.entity)
+                    .unwrap()
+                    .instances
+                    .checked_write(info.key, info.tex_coords);
+            }
+        }
+        let mut should_record = false;
+        for (_, group) in renderer.resource_handle.groups.iter() {
+            // TODO change to resolve here to get should_record (not store in group)
+            if group.should_record {
+                should_record = true;
+            }
+        }
+        should_record
     }
 
     fn record(renderer: &mut Renderer<Self>, ginkgo: &Ginkgo) {

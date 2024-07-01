@@ -23,7 +23,7 @@ use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
-use crate::coordinate::{Coordinates, CoordinateUnit, NumericalContext};
+use crate::coordinate::{CoordinateUnit, Coordinates, NumericalContext};
 use crate::willow::Willow;
 
 pub mod binding;

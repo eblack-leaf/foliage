@@ -13,8 +13,7 @@ var<uniform> pos_and_layer: vec4<f32>;
 struct Vertex {
     @location(0) vertex_pos: vec2f,
     @location(1) tx_index: vec2<u32>,
-    @location(1) section: vec4f,
-    @location(2) layer: f32,
+    @location(2) section: vec4f,
     @location(3) color: vec4f,
     @location(4) tex_coords: vec4f
 };

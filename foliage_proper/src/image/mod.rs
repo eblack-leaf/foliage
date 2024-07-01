@@ -21,9 +21,9 @@ use crate::coordinate::section::{GpuSection, Section};
 use crate::coordinate::{Coordinates, LogicalContext, NumericalContext};
 use crate::differential::{Differential, RenderLink};
 use crate::elm::{Elm, RenderQueueHandle, ScheduleMarkers};
-use crate::texture::TextureCoordinates;
 use crate::ginkgo::Ginkgo;
 use crate::instances::Instances;
+use crate::texture::TextureCoordinates;
 use crate::Leaf;
 
 #[derive(Copy, Clone, Component, PartialEq)]
