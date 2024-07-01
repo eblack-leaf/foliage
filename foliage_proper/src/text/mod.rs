@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
@@ -21,7 +21,7 @@ use crate::differential::{Differential, RenderLink};
 use crate::elm::{Elm, RenderQueueHandle};
 use crate::ginkgo::{Ginkgo, VectorUniform};
 use crate::instances::Instances;
-use crate::texture::{TextureAtlas, TextureCoordinates};
+use crate::texture::{AtlasEntry, TextureAtlas, TextureCoordinates};
 use crate::Leaf;
 impl Leaf for Text {
     fn attach(elm: &mut Elm) {
@@ -79,15 +79,18 @@ pub(crate) struct Glyph {
     pub(crate) color: Color,
 }
 pub type GlyphOffset = usize;
-// TODO in systems only update GlyphMetrics on block-size change, not unique-characters
 #[derive(Component, Copy, Clone, PartialEq)]
 pub(crate) struct GlyphMetrics {
+    // TODO in systems only update GlyphMetrics on block-size change, not unique-characters
     unique_characters: u32,
     block: Coordinates,
 }
 #[derive(PartialEq, Clone, Component)]
 pub(crate) struct Glyphs {
     glyphs: HashMap<GlyphOffset, Glyph>,
+    // TODO clean after differential
+    removed: HashSet<GlyphOffset>,
+    font_size: f32,
 }
 #[derive(PartialEq, Clone, Component)]
 pub struct GlyphColors {
@@ -98,7 +101,6 @@ pub(crate) struct TextGroup {
     bind_group: BindGroup,
     instances: Instances<GlyphOffset>,
     pos_and_layer: VectorUniform<f32>,
-    should_record: bool,
 }
 pub struct TextResources {
     pipeline: RenderPipeline,
@@ -106,6 +108,7 @@ pub struct TextResources {
     bind_group: BindGroup,
     group_layout: BindGroupLayout,
     groups: HashMap<Entity, TextGroup>,
+    font: MonospacedFont,
 }
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default)]
@@ -215,6 +218,7 @@ impl Render for Text {
             bind_group,
             group_layout,
             groups: Default::default(),
+            font: MonospacedFont::new(40 * ginkgo.configuration().scale_factor.value() as u32),
         }
     }
 
@@ -252,7 +256,6 @@ impl Render for Text {
                         .with_attribute::<Color>(ginkgo)
                         .with_attribute::<TextureCoordinates>(ginkgo),
                     pos_and_layer: uniform,
-                    should_record: false,
                 },
             );
         }
@@ -296,6 +299,16 @@ impl Render for Text {
                 .write(ginkgo.context());
         }
         for packet in queue_handle.read_adds::<Self, Glyphs>() {
+            for offset in packet.value.removed.iter() {
+                renderer
+                    .resource_handle
+                    .groups
+                    .get_mut(&packet.entity)
+                    .unwrap()
+                    .instances
+                    .queue_remove(*offset);
+            }
+            let mut queued_tex_reads = HashSet::new();
             for (offset, glyph) in packet.value.glyphs.iter() {
                 renderer
                     .resource_handle
@@ -326,8 +339,20 @@ impl Render for Text {
                     .texture_atlas
                     .has_key(glyph.key)
                 {
-                    // rasterize + add to atlas + reference
-                    // + queue_write
+                    let (metrics, rasterization) = renderer
+                        .resource_handle
+                        .font
+                        .0
+                        .rasterize_indexed(glyph.key.glyph_index, packet.value.font_size);
+                    let entry = AtlasEntry::new(rasterization, (metrics.width, metrics.height));
+                    renderer
+                        .resource_handle
+                        .groups
+                        .get_mut(&packet.entity)
+                        .unwrap()
+                        .texture_atlas
+                        .add_entry(glyph.key, entry);
+                    queued_tex_reads.insert((glyph.key, *offset));
                 } else {
                     let tex_coords = renderer
                         .resource_handle
@@ -343,14 +368,14 @@ impl Render for Text {
                         .unwrap()
                         .instances
                         .checked_write(*offset, tex_coords);
-                    renderer
-                        .resource_handle
-                        .groups
-                        .get_mut(&packet.entity)
-                        .unwrap()
-                        .texture_atlas
-                        .add_reference(glyph.key, *offset);
                 }
+                renderer
+                    .resource_handle
+                    .groups
+                    .get_mut(&packet.entity)
+                    .unwrap()
+                    .texture_atlas
+                    .add_reference(glyph.key, *offset);
             }
             let changed = renderer
                 .resource_handle
@@ -368,11 +393,26 @@ impl Render for Text {
                     .instances
                     .checked_write(info.key, info.tex_coords);
             }
+            for (key, referrer) in queued_tex_reads {
+                let tex_coords = renderer
+                    .resource_handle
+                    .groups
+                    .get_mut(&packet.entity)
+                    .unwrap()
+                    .texture_atlas
+                    .tex_coordinates(key);
+                renderer
+                    .resource_handle
+                    .groups
+                    .get_mut(&packet.entity)
+                    .unwrap()
+                    .instances
+                    .checked_write(referrer, tex_coords);
+            }
         }
         let mut should_record = false;
-        for (_, group) in renderer.resource_handle.groups.iter() {
-            // TODO change to resolve here to get should_record (not store in group)
-            if group.should_record {
+        for (_, group) in renderer.resource_handle.groups.iter_mut() {
+            if group.instances.resolve_changes(ginkgo) {
                 should_record = true;
             }
         }

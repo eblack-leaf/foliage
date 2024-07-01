@@ -81,7 +81,9 @@ impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
         return removed;
     }
     pub fn queue_remove(&mut self, key: Key) {
-        self.removal_queue.insert(key);
+        if self.has_key(&key) {
+            self.removal_queue.insert(key);
+        }
     }
     pub(crate) fn remove(&mut self, index: usize) {
         self.order.remove(index);
@@ -138,7 +140,7 @@ impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
         self.write_cpu_to_gpu(ginkgo);
         grown || update_needed
     }
-    pub fn queue_write<A: Pod + Zeroable + Default + Debug>(&mut self, key: Key, a: A) {
+    fn queue_write<A: Pod + Zeroable + Default + Debug>(&mut self, key: Key, a: A) {
         let index = *self.map.get(&key).expect("key");
         self.world
             .get_non_send_resource_mut::<Attribute<A>>()

@@ -63,7 +63,7 @@ pub struct AtlasChangeInfo<Referrer: Clone> {
 }
 impl<
         Key: Hash + Clone + Eq,
-        Referrer: Hash + Eq,
+        Referrer: Hash + Eq + Clone,
         TexelData: Default + Sized + Clone + Pod + Zeroable,
     > TextureAtlas<Key, Referrer, TexelData>
 {
