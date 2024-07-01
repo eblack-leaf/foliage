@@ -3,7 +3,10 @@ use std::collections::{HashMap, HashSet};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, Resource};
+use bevy_ecs::query::Changed;
+use bevy_ecs::system::{Query, Res};
 use bytemuck::{Pod, Zeroable};
+use fontdue::layout::CoordinateSystem;
 use serde::{Deserialize, Serialize};
 use wgpu::{
     include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayoutDescriptor,
@@ -14,12 +17,14 @@ use wgpu::{BindGroupLayout, RenderPipeline};
 
 use crate::ash::{Render, RenderPhase, Renderer};
 use crate::color::Color;
+use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
+use crate::coordinate::position::Position;
 use crate::coordinate::section::{GpuSection, Section};
 use crate::coordinate::{Coordinates, DeviceContext, LogicalContext};
 use crate::differential::{Differential, RenderLink};
 use crate::elm::{Elm, RenderQueueHandle};
-use crate::ginkgo::{Ginkgo, VectorUniform};
+use crate::ginkgo::{Ginkgo, ScaleFactor, VectorUniform};
 use crate::instances::Instances;
 use crate::texture::{AtlasEntry, TextureAtlas, TextureCoordinates};
 use crate::Leaf;
@@ -35,6 +40,7 @@ impl Leaf for Text {
 #[derive(Bundle, Clone)]
 pub struct Text {
     link: RenderLink,
+    value: TextValue,
     section: Section<LogicalContext>,
     layer: Differential<Layer>,
     gpu_section: Differential<GpuSection>,
@@ -70,6 +76,13 @@ impl MonospacedFont {
             .expect("font"),
         )
     }
+    pub(crate) fn best_fit(
+        &self,
+        bounds: Section<LogicalContext>,
+        scale_value: f32,
+    ) -> (Section<LogicalContext>, f32, Coordinates) {
+        todo!()
+    }
 }
 #[derive(PartialEq, Clone)]
 pub(crate) struct Glyph {
@@ -81,26 +94,110 @@ pub(crate) struct Glyph {
 pub type GlyphOffset = usize;
 #[derive(Component, Copy, Clone, PartialEq)]
 pub(crate) struct GlyphMetrics {
-    // TODO in systems only update GlyphMetrics on block-size change, not unique-characters
     unique_characters: u32,
     block: Coordinates,
 }
 #[derive(PartialEq, Clone, Component)]
 pub(crate) struct Glyphs {
     glyphs: HashMap<GlyphOffset, Glyph>,
-    // TODO clean after differential
     removed: HashSet<GlyphOffset>,
     font_size: f32,
 }
 #[derive(PartialEq, Clone, Component)]
 pub struct GlyphColors {
+    base: Color,
     position_to_color: HashMap<GlyphOffset, Color>,
+}
+impl GlyphColors {
+    pub fn obtain(&self, offset: GlyphOffset) -> Color {
+        if let Some(alternate) = self.position_to_color.get(&offset) {
+            *alternate
+        } else {
+            self.base
+        }
+    }
+}
+#[derive(Clone, Component)]
+pub struct TextValue(pub String);
+impl TextValue {
+    pub fn num_unique_characters(&self) -> u32 {
+        todo!()
+    }
+}
+pub(crate) fn color_changes(mut texts: Query<(&mut Glyphs, &GlyphColors), Changed<GlyphColors>>) {
+    for (mut glyphs, colors) in texts.iter_mut() {
+        for (offset, glyph) in glyphs.glyphs.iter_mut() {
+            glyph.color = colors.obtain(*offset);
+        }
+    }
+}
+pub(crate) fn distill(
+    mut texts: Query<
+        (
+            &TextValue,
+            &mut Glyphs,
+            &GlyphColors,
+            &mut Area<LogicalContext>,
+            &mut Position<LogicalContext>,
+            &mut GlyphMetrics,
+        ),
+        Changed<TextValue>,
+    >,
+    font: Res<MonospacedFont>,
+    scale_factor: Res<ScaleFactor>,
+) {
+    for (value, mut glyphs, colors, mut area, mut pos, mut metrics) in texts.iter_mut() {
+        let mut placer = fontdue::layout::Layout::new(CoordinateSystem::PositiveYDown);
+        placer.reset(&fontdue::layout::LayoutSettings {
+            max_width: Some(area.width()),
+            max_height: Some(area.height()),
+            ..fontdue::layout::LayoutSettings::default()
+        });
+        let (adjusted_bounds, projected_font_size, character_size) =
+            font.best_fit(Section::new(*pos, *area), scale_factor.value());
+        pos.coordinates = adjusted_bounds.position.coordinates;
+        area.coordinates = adjusted_bounds.area.coordinates;
+        glyphs.font_size = projected_font_size;
+        placer.append(
+            &[&font.0],
+            &fontdue::layout::TextStyle::new(value.0.as_str(), glyphs.font_size, 0),
+        );
+        if metrics.block != character_size {
+            metrics.block = character_size;
+            metrics.unique_characters = value.num_unique_characters();
+        }
+        let old_glyphs = glyphs.glyphs.drain().collect::<Vec<(GlyphOffset, Glyph)>>();
+        glyphs.removed.clear();
+        for glyph in placer.glyphs().iter() {
+            // TODO filter?
+            glyphs.glyphs.insert(
+                glyph.byte_offset,
+                Glyph {
+                    key: GlyphKey::new(glyph.key),
+                    section: Section::new((glyph.x, glyph.y), (glyph.width, glyph.height)),
+                    parent: glyph.parent,
+                    color: colors.obtain(glyph.byte_offset),
+                },
+            )
+        }
+        for (offset, glyph) in old_glyphs {
+            if !glyphs.glyphs.contains_key(&offset) {
+                glyphs.removed.insert(offset);
+            }
+        }
+    }
+}
+pub(crate) fn clear_removed(mut texts: Query<(&mut Glyphs)>) {
+    for mut glyphs in texts.iter_mut() {
+        glyphs.removed.clear();
+    }
 }
 pub(crate) struct TextGroup {
     texture_atlas: TextureAtlas<GlyphKey, GlyphOffset, u8>,
     bind_group: BindGroup,
     instances: Instances<GlyphOffset>,
     pos_and_layer: VectorUniform<f32>,
+    should_record: bool,
 }
 pub struct TextResources {
     pipeline: RenderPipeline,
@@ -256,6 +353,7 @@ impl Render for Text {
                         .with_attribute::<Color>(ginkgo)
                         .with_attribute::<TextureCoordinates>(ginkgo),
                     pos_and_layer: uniform,
+                    should_record: false,
                 },
             );
         }
@@ -307,6 +405,7 @@ impl Render for Text {
                     .unwrap()
                     .instances
                     .queue_remove(*offset);
+                // TODO remove reference to glyph.key
             }
             let mut queued_tex_reads = HashSet::new();
             for (offset, glyph) in packet.value.glyphs.iter() {
@@ -413,6 +512,7 @@ impl Render for Text {
         let mut should_record = false;
         for (_, group) in renderer.resource_handle.groups.iter_mut() {
             if group.instances.resolve_changes(ginkgo) {
+                group.should_record = true;
                 should_record = true;
             }
         }
