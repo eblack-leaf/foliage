@@ -155,6 +155,8 @@ pub(crate) fn distill(
         });
         let (adjusted_bounds, projected_font_size, character_size) =
             font.best_fit(Section::new(*pos, *area), scale_factor.value());
+        // TODO read actual area + set bounds accordingly
+        // actual = max-extent of iterating each glyph.width/x/y/...
         pos.coordinates = adjusted_bounds.position.coordinates;
         area.coordinates = adjusted_bounds.area.coordinates;
         glyphs.font_size = projected_font_size;
@@ -315,7 +317,7 @@ impl Render for Text {
             bind_group,
             group_layout,
             groups: Default::default(),
-            font: MonospacedFont::new(40 * ginkgo.configuration().scale_factor.value() as u32),
+            font: MonospacedFont::new(40),
         }
     }
 
