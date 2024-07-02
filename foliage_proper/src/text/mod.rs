@@ -389,8 +389,22 @@ impl Render for Text {
         queue_handle: &mut RenderQueueHandle,
         ginkgo: &Ginkgo,
     ) -> bool {
+        let mut should_record = false;
         for packet in queue_handle.read_removes::<Self>() {
-            renderer.resource_handle.groups.remove(&packet);
+            renderer
+                .resource_handle
+                .groups
+                .get_mut(&packet)
+                .unwrap()
+                .should_record = true;
+            should_record = true;
+            renderer
+                .resource_handle
+                .groups
+                .get_mut(&packet)
+                .unwrap()
+                .instances
+                .clear();
         }
         for packet in queue_handle.read_adds::<Self, GlyphMetrics>() {
             let atlas = TextureAtlas::new(
@@ -574,7 +588,6 @@ impl Render for Text {
                     .checked_write(referrer, tex_coords);
             }
         }
-        let mut should_record = false;
         for (_, group) in renderer.resource_handle.groups.iter_mut() {
             if group.instances.resolve_changes(ginkgo) {
                 group.should_record = true;
