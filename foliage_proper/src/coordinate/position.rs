@@ -50,6 +50,9 @@ impl<Context: CoordinateContext> Position<Context> {
             _phantom: PhantomData,
         }
     }
+    pub fn rounded(self) -> Self {
+        Self::new((self.x().round(), self.y().round()))
+    }
     pub fn x(&self) -> CoordinateUnit {
         self.coordinates.0[0]
     }

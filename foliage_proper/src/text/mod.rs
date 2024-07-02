@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs, Resource};
-use bevy_ecs::query::Changed;
+use bevy_ecs::query::{Changed, Or};
 use bevy_ecs::system::{Query, Res};
 use bytemuck::{Pod, Zeroable};
 use fontdue::layout::CoordinateSystem;
@@ -36,7 +36,7 @@ impl Leaf for Text {
         elm.enable_differential::<Self, GlyphMetrics>();
         elm.ecs.world.insert_resource(MonospacedFont::new(40));
         elm.scheduler.main.add_systems((
-            (distill, color_changes).in_set(ScheduleMarkers::Config),
+            (distill, color_changes, reset_position.after(distill)).in_set(ScheduleMarkers::Config),
             clear_removed.after(ScheduleMarkers::Differential),
         ));
     }
@@ -51,6 +51,7 @@ pub struct Text {
     glyphs: Differential<Glyphs>,
     glyph_colors: GlyphColors,
     metrics: Differential<GlyphMetrics>,
+    adjusted: AdjustedSection,
 }
 impl Text {
     pub fn new<S: AsRef<str>, C: Into<Color>>(tv: S, color: C) -> Self {
@@ -66,6 +67,7 @@ impl Text {
                 position_to_color: Default::default(),
             },
             metrics: Differential::new(GlyphMetrics::default()),
+            adjusted: AdjustedSection(Section::default()),
         }
     }
 }
@@ -151,6 +153,16 @@ pub(crate) fn color_changes(mut texts: Query<(&mut Glyphs, &GlyphColors), Change
         }
     }
 }
+#[derive(Component, Copy, Clone)]
+pub(crate) struct AdjustedSection(pub(crate) Section<LogicalContext>);
+pub(crate) fn reset_position(
+    mut texts: Query<(&mut Position<LogicalContext>, &mut Area<LogicalContext>, &AdjustedSection), Or<(Changed<Position<LogicalContext>>, Changed<Area<LogicalContext>>, Changed<AdjustedSection>)>>
+) {
+    for (mut pos, mut area, adjusted_bounds) in texts.iter_mut() {
+        pos.coordinates = adjusted_bounds.0.position.coordinates;
+        area.coordinates = adjusted_bounds.0.area.coordinates;
+    }
+}
 pub(crate) fn distill(
     mut texts: Query<
         (
@@ -160,13 +172,14 @@ pub(crate) fn distill(
             &mut Area<LogicalContext>,
             &mut Position<LogicalContext>,
             &mut GlyphMetrics,
+            &mut AdjustedSection,
         ),
         Changed<TextValue>,
     >,
     font: Res<MonospacedFont>,
     scale_factor: Res<ScaleFactor>,
 ) {
-    for (value, mut glyphs, colors, mut area, mut pos, mut metrics) in texts.iter_mut() {
+    for (value, mut glyphs, colors, area, pos, mut metrics, mut adjusted) in texts.iter_mut() {
         let mut placer = fontdue::layout::Layout::new(CoordinateSystem::PositiveYDown);
         let scaled_area = area.to_device(scale_factor.value());
         placer.reset(&fontdue::layout::LayoutSettings {
@@ -216,8 +229,7 @@ pub(crate) fn distill(
                 Section::logical(adjusted_section.position + diff, adjusted_section.area);
             (final_size, final_section, final_dims)
         };
-        pos.coordinates = adjusted_bounds.position.coordinates;
-        area.coordinates = adjusted_bounds.area.coordinates;
+        adjusted.0 = adjusted_bounds;
         glyphs.font_size = projected_font_size;
         placer.append(
             &[&font.0],

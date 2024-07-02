@@ -44,6 +44,9 @@ impl<Context: CoordinateContext> Area<Context> {
             _phantom: PhantomData,
         }
     }
+    pub fn rounded(self) -> Self {
+        Self::new((self.width().round(), self.height().round()))
+    }
     pub fn width(&self) -> CoordinateUnit {
         self.coordinates.0[0]
     }

@@ -125,6 +125,9 @@ impl<Context: CoordinateContext> Section<Context> {
     pub fn to_numerical(self) -> Section<NumericalContext> {
         Section::new(self.position.to_numerical(), self.area.to_numerical())
     }
+    pub fn rounded(self) -> Self {
+        Self::new(self.position.rounded(), self.area.rounded())
+    }
 }
 impl<Context: CoordinateContext, C: Into<Coordinates>, D: Into<Coordinates>> From<(C, D)>
     for Section<Context>
