@@ -451,7 +451,9 @@ pub struct Uniform<Data: Pod + Zeroable> {
 
 impl<Data: Pod + Zeroable + PartialEq> Uniform<Data> {
     pub fn write(&mut self, context: &GraphicContext, data: Data) {
-        context.queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[data]));
+        context
+            .queue
+            .write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[data]));
     }
     pub fn new(context: &GraphicContext, data: Data) -> Self {
         Self {

@@ -161,7 +161,11 @@ pub(crate) fn distill(
             &mut Position<LogicalContext>,
             &mut GlyphMetrics,
         ),
-        Or<(Changed<TextValue>, Changed<Position<LogicalContext>>, Changed<Area<LogicalContext>>)>,
+        Or<(
+            Changed<TextValue>,
+            Changed<Position<LogicalContext>>,
+            Changed<Area<LogicalContext>>,
+        )>,
     >,
     font: Res<MonospacedFont>,
     scale_factor: Res<ScaleFactor>,
