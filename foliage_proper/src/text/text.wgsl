@@ -8,7 +8,7 @@ var text_sampler: sampler;
 @binding(0)
 var text_texture: texture_2d<f32>;
 @group(1)
-@binding(0)
+@binding(1)
 var<uniform> pos_and_layer: vec4<f32>;
 struct Vertex {
     @location(0) vertex_pos: vec2f,

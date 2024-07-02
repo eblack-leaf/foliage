@@ -76,15 +76,12 @@ impl<
     ) -> Self {
         let block = block.into();
         let (possible_locations, texture_extent) = Self::config(capacity, block);
-        let (texture, view) = ginkgo.create_texture(
-            format,
-            texture_extent,
-            1,
-            bytemuck::cast_slice(&vec![
-                TexelData::default();
-                (block.horizontal() * block.vertical()) as usize
-            ]),
-        );
+        let data = vec![
+            TexelData::default();
+            (texture_extent.horizontal() * texture_extent.vertical()) as usize
+        ];
+        let (texture, view) =
+            ginkgo.create_texture(format, texture_extent, 1, bytemuck::cast_slice(&data));
         Self {
             texture,
             view,

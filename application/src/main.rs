@@ -8,6 +8,7 @@ use foliage::image::Image;
 use foliage::interaction::{ClickInteractionListener, OnClick};
 use foliage::panel::{Panel, Rounding};
 use foliage::signal::TriggerTarget;
+use foliage::text::Text;
 use foliage::view::{CurrentViewStage, Stage, ViewHandle};
 use foliage::{bevy_ecs, load_asset};
 use foliage::{stage_binding, target_binding, Foliage};
@@ -95,6 +96,7 @@ enum ControlTargets {
     Home,
     GalleryIcon,
     AboutIcon,
+    GalleryText,
 }
 #[stage_binding]
 enum ControlStages {
@@ -167,6 +169,7 @@ fn main() {
         )
         .with_target(ControlTargets::Background)
         .with_target(ControlTargets::GalleryIcon)
+        .with_target(ControlTargets::GalleryText)
         .with_target(ControlTargets::AboutIcon)
         .with_target(ControlTargets::PageLeft)
         .with_target(ControlTargets::PageRight)
@@ -239,6 +242,10 @@ fn main() {
                     .with_attribute(GridPlacement::new(1.span(1), 3.span(2)))
                     .with_attribute(ClickInteractionListener::new())
                     .with_attribute(OnClick::new(to_about_controls))
+            });
+            stage.add_signal_targeting(stage.target(ControlTargets::GalleryText), |s| {
+                s.with_attribute(Text::new("hello-there", Color::BLACK))
+                    .with_attribute(GridPlacement::new(2.span(2), 1.span(2)))
             });
             stage.add_signal_targeting(stage.target(ControlTargets::PageRight), |sr| sr.clean());
             stage.add_signal_targeting(stage.target(ControlTargets::PageLeft), |sr| sr.clean());

@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Component, Resource};
+use bevy_ecs::prelude::{Component, IntoSystemConfigs, Resource};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Query, Res};
 use bytemuck::{Pod, Zeroable};
@@ -15,7 +15,7 @@ use wgpu::{
 };
 use wgpu::{BindGroupLayout, RenderPipeline};
 
-use crate::ash::{Render, RenderPhase, Renderer};
+use crate::ash::{Render, RenderDirectiveRecorder, RenderPhase, Renderer};
 use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
@@ -23,7 +23,7 @@ use crate::coordinate::position::Position;
 use crate::coordinate::section::{GpuSection, Section};
 use crate::coordinate::{Coordinates, DeviceContext, LogicalContext};
 use crate::differential::{Differential, RenderLink};
-use crate::elm::{Elm, RenderQueueHandle};
+use crate::elm::{Elm, RenderQueueHandle, ScheduleMarkers};
 use crate::ginkgo::{Ginkgo, ScaleFactor, VectorUniform};
 use crate::instances::Instances;
 use crate::texture::{AtlasEntry, TextureAtlas, TextureCoordinates};
@@ -35,6 +35,10 @@ impl Leaf for Text {
         elm.enable_differential::<Self, Glyphs>();
         elm.enable_differential::<Self, GlyphMetrics>();
         elm.ecs.world.insert_resource(MonospacedFont::new(40));
+        elm.scheduler.main.add_systems((
+            (distill, color_changes).in_set(ScheduleMarkers::Config),
+            clear_removed.after(ScheduleMarkers::Differential),
+        ));
     }
 }
 #[derive(Bundle, Clone)]
@@ -45,6 +49,25 @@ pub struct Text {
     layer: Differential<Layer>,
     gpu_section: Differential<GpuSection>,
     glyphs: Differential<Glyphs>,
+    glyph_colors: GlyphColors,
+    metrics: Differential<GlyphMetrics>,
+}
+impl Text {
+    pub fn new<S: AsRef<str>, C: Into<Color>>(tv: S, color: C) -> Self {
+        Self {
+            link: RenderLink::new::<Self>(),
+            value: TextValue(tv.as_ref().to_string()),
+            section: Default::default(),
+            layer: Differential::new(Layer::default()),
+            gpu_section: Differential::new(GpuSection::default()),
+            glyphs: Differential::new(Glyphs::default()),
+            glyph_colors: GlyphColors {
+                base: color.into(),
+                position_to_color: Default::default(),
+            },
+            metrics: Differential::new(GlyphMetrics::default()),
+        }
+    }
 }
 #[derive(Serialize, Deserialize, Copy, Clone, Hash, Eq, PartialEq, Debug)]
 pub(crate) struct GlyphKey {
@@ -76,13 +99,6 @@ impl MonospacedFont {
             .expect("font"),
         )
     }
-    pub(crate) fn best_fit(
-        &self,
-        bounds: Section<LogicalContext>,
-        scale_value: f32,
-    ) -> (Section<LogicalContext>, f32, Coordinates) {
-        todo!()
-    }
 }
 #[derive(PartialEq, Clone)]
 pub(crate) struct Glyph {
@@ -92,12 +108,12 @@ pub(crate) struct Glyph {
     pub(crate) color: Color,
 }
 pub type GlyphOffset = usize;
-#[derive(Component, Copy, Clone, PartialEq)]
+#[derive(Component, Copy, Clone, PartialEq, Default)]
 pub(crate) struct GlyphMetrics {
     unique_characters: u32,
     block: Coordinates,
 }
-#[derive(PartialEq, Clone, Component)]
+#[derive(PartialEq, Clone, Component, Default)]
 pub(crate) struct Glyphs {
     glyphs: HashMap<GlyphOffset, Glyph>,
     removed: HashSet<GlyphOffset>,
@@ -121,7 +137,11 @@ impl GlyphColors {
 pub struct TextValue(pub String);
 impl TextValue {
     pub fn num_unique_characters(&self) -> u32 {
-        todo!()
+        let mut uc = HashSet::new();
+        for c in self.0.chars() {
+            uc.insert(c);
+        }
+        uc.len() as u32
     }
 }
 pub(crate) fn color_changes(mut texts: Query<(&mut Glyphs, &GlyphColors), Changed<GlyphColors>>) {
@@ -148,15 +168,54 @@ pub(crate) fn distill(
 ) {
     for (value, mut glyphs, colors, mut area, mut pos, mut metrics) in texts.iter_mut() {
         let mut placer = fontdue::layout::Layout::new(CoordinateSystem::PositiveYDown);
+        let scaled_area = area.to_device(scale_factor.value());
         placer.reset(&fontdue::layout::LayoutSettings {
-            max_width: Some(area.width()),
-            max_height: Some(area.height()),
+            max_width: Some(scaled_area.width()),
+            max_height: Some(scaled_area.height()),
             ..fontdue::layout::LayoutSettings::default()
         });
-        let (adjusted_bounds, projected_font_size, character_size) =
-            font.best_fit(Section::new(*pos, *area), scale_factor.value());
-        // TODO read actual area + set bounds accordingly
-        // actual = max-extent of iterating each glyph.width/x/y/...
+        let mut line_counts = Vec::new();
+        for line in value.0.lines() {
+            line_counts.push(line.len());
+        }
+        let num_lines = line_counts.len();
+        let max_in_a_line = line_counts.iter().max().copied().unwrap_or_default();
+        let (projected_font_size, adjusted_bounds, character_size) = {
+            let mut attempted_size = 0f32;
+            let mut attempted_dims = Coordinates::new(0.0, 0.0);
+            let mut character_dims = Coordinates::default();
+            while attempted_dims < scaled_area.coordinates {
+                attempted_size += 1f32 * scale_factor.value();
+                let metrics = font.0.metrics('a', attempted_size);
+                let horizontal_metrics = font.0.horizontal_line_metrics(attempted_size).unwrap();
+                character_dims = Coordinates::new(
+                    metrics.advance_width.ceil(),
+                    (horizontal_metrics.ascent - horizontal_metrics.descent).ceil(),
+                );
+                attempted_dims = Coordinates::new(
+                    character_dims.horizontal() * max_in_a_line as f32,
+                    character_dims.vertical() * num_lines as f32,
+                );
+            }
+            let final_size = (attempted_size - 1.0).max(1.0);
+            let metrics = font.0.metrics('a', final_size);
+            let horizontal_metrics = font.0.horizontal_line_metrics(final_size).unwrap();
+            let final_dims = Coordinates::new(
+                metrics.advance_width.ceil(),
+                (horizontal_metrics.ascent - horizontal_metrics.descent).ceil(),
+            );
+            let final_area = Coordinates::new(
+                character_dims.horizontal() * max_in_a_line as f32,
+                character_dims.vertical() * num_lines as f32,
+            );
+            let adjusted_section = Section::device(pos.to_device(scale_factor.value()), final_area)
+                .to_logical(scale_factor.value());
+            let old = Section::logical(*pos, *area);
+            let diff = old.center() - adjusted_section.center();
+            let final_section =
+                Section::logical(adjusted_section.position + diff, adjusted_section.area);
+            (final_size, final_section, final_dims)
+        };
         pos.coordinates = adjusted_bounds.position.coordinates;
         area.coordinates = adjusted_bounds.area.coordinates;
         glyphs.font_size = projected_font_size;
@@ -180,7 +239,7 @@ pub(crate) fn distill(
                     parent: glyph.parent,
                     color: colors.obtain(glyph.byte_offset),
                 },
-            )
+            );
         }
         for (offset, glyph) in old_glyphs {
             if !glyphs.glyphs.contains_key(&offset) {
@@ -522,6 +581,35 @@ impl Render for Text {
     }
 
     fn record(renderer: &mut Renderer<Self>, ginkgo: &Ginkgo) {
-        todo!()
+        for (entity, group) in renderer.resource_handle.groups.iter_mut() {
+            if group.should_record {
+                let mut recorder = RenderDirectiveRecorder::new(ginkgo);
+                if group.instances.num_instances() > 0 {
+                    recorder.0.set_pipeline(&renderer.resource_handle.pipeline);
+                    recorder
+                        .0
+                        .set_bind_group(0, &renderer.resource_handle.bind_group, &[]);
+                    recorder.0.set_bind_group(1, &group.bind_group, &[]);
+                    recorder
+                        .0
+                        .set_vertex_buffer(0, renderer.resource_handle.vertex_buffer.slice(..));
+                    recorder
+                        .0
+                        .set_vertex_buffer(1, group.instances.buffer::<GpuSection>().slice(..));
+                    recorder
+                        .0
+                        .set_vertex_buffer(2, group.instances.buffer::<Color>().slice(..));
+                    recorder.0.set_vertex_buffer(
+                        3,
+                        group.instances.buffer::<TextureCoordinates>().slice(..),
+                    );
+                    recorder
+                        .0
+                        .draw(0..VERTICES.len() as u32, 0..group.instances.num_instances());
+                }
+                renderer.directive_manager.fill(*entity, recorder.finish());
+                group.should_record = false;
+            }
+        }
     }
 }

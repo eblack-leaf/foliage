@@ -51,6 +51,12 @@ impl Section<DeviceContext> {
     pub fn to_gpu(self) -> GpuSection {
         GpuSection::new(self.position.to_gpu(), self.area.to_gpu())
     }
+    pub fn to_logical(self, scale_factor: f32) -> Section<LogicalContext> {
+        Section::new(
+            self.position.to_logical(scale_factor),
+            self.area.to_logical(scale_factor),
+        )
+    }
 }
 impl Section<LogicalContext> {
     pub fn to_device(self, factor: f32) -> Section<DeviceContext> {
