@@ -25,9 +25,10 @@ impl TextureCoordinates {
         whole: C,
     ) -> Self {
         let s = part.into().normalized(whole);
+        let pos_coords = s.position.min((1.0, 1.0)).max((0.0, 0.0)).coordinates;
         Self::new(
-            s.position.min((1.0, 1.0)).max((0.0, 0.0)).coordinates,
-            s.area.min((1.0, 1.0)).max((0.0, 0.0)).coordinates,
+            pos_coords,
+            pos_coords + s.area.min((1.0, 1.0)).max((0.0, 0.0)).coordinates,
         )
     }
 }
