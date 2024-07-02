@@ -13,7 +13,7 @@ pub struct AssetLoader {
     awaiting: HashMap<AssetKey, AssetFetch>,
 }
 pub type AssetFn<B> = fn(Vec<u8>) -> B;
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct OnRetrieve<B> {
     key: AssetKey,
     bundle_using: Box<AssetFn<B>>,

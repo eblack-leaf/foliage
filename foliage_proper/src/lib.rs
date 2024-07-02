@@ -42,7 +42,7 @@ pub mod image;
 pub mod instances;
 pub mod interaction;
 pub mod panel;
-mod reference;
+pub mod reference;
 pub mod signal;
 pub mod text;
 pub mod texture;

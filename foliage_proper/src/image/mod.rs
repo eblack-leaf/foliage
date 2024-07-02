@@ -65,7 +65,7 @@ impl From<f32> for AspectRatio {
         Self::new(value)
     }
 }
-#[derive(Bundle)]
+#[derive(Bundle, Clone)]
 pub struct Image {
     link: RenderLink,
     fill: Differential<ImageFill>,
