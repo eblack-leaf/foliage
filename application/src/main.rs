@@ -97,6 +97,7 @@ enum ControlTargets {
     GalleryIcon,
     AboutIcon,
     GalleryText,
+    AboutText,
 }
 #[stage_binding]
 enum ControlStages {
@@ -170,6 +171,7 @@ fn main() {
         .with_target(ControlTargets::Background)
         .with_target(ControlTargets::GalleryIcon)
         .with_target(ControlTargets::GalleryText)
+        .with_target(ControlTargets::AboutText)
         .with_target(ControlTargets::AboutIcon)
         .with_target(ControlTargets::PageLeft)
         .with_target(ControlTargets::PageRight)
@@ -244,8 +246,12 @@ fn main() {
                     .with_attribute(OnClick::new(to_about_controls))
             });
             stage.add_signal_targeting(stage.target(ControlTargets::GalleryText), |s| {
-                s.with_attribute(Text::new("hello-there", Color::BLACK))
+                s.with_attribute(Text::new("gallery", Color::BLACK))
                     .with_attribute(GridPlacement::new(2.span(2), 1.span(2)))
+            });
+            stage.add_signal_targeting(stage.target(ControlTargets::AboutText), |s| {
+                s.with_attribute(Text::new("about  ", Color::BLACK))
+                    .with_attribute(GridPlacement::new(2.span(2), 3.span(2)))
             });
             stage.add_signal_targeting(stage.target(ControlTargets::PageRight), |sr| sr.clean());
             stage.add_signal_targeting(stage.target(ControlTargets::PageLeft), |sr| sr.clean());
@@ -260,6 +266,8 @@ fn main() {
         |stage| {
             stage.add_signal_targeting(stage.target(ControlTargets::GalleryIcon), |sr| sr.clean());
             stage.add_signal_targeting(stage.target(ControlTargets::AboutIcon), |sr| sr.clean());
+            stage.add_signal_targeting(stage.target(ControlTargets::GalleryText), |sr| sr.clean());
+            stage.add_signal_targeting(stage.target(ControlTargets::AboutText), |sr| sr.clean());
             stage.add_signal_targeting(stage.target(ControlTargets::PageRight), |s| {
                 s.with_attribute(Icon::new(IconId(1), Color::BLACK))
                     .with_filtered_attribute(
@@ -312,6 +320,8 @@ fn main() {
             });
             stage.add_signal_targeting(stage.target(ControlTargets::GalleryIcon), |sr| sr.clean());
             stage.add_signal_targeting(stage.target(ControlTargets::AboutIcon), |sr| sr.clean());
+            stage.add_signal_targeting(stage.target(ControlTargets::GalleryText), |sr| sr.clean());
+            stage.add_signal_targeting(stage.target(ControlTargets::AboutText), |sr| sr.clean());
         },
         &mut foliage,
     );
