@@ -244,7 +244,7 @@ fn main() {
                     .with_attribute(OnClick::new(to_about_controls))
             });
             stage.add_signal_targeting(stage.target(ControlTargets::GalleryText), |s| {
-                s.with_attribute(Text::new("hello-there", Color::WHITE))
+                s.with_attribute(Text::new("hello-there", Color::BLACK))
                     .with_attribute(GridPlacement::new(2.span(2), 1.span(2)))
             });
             stage.add_signal_targeting(stage.target(ControlTargets::PageRight), |sr| sr.clean());
