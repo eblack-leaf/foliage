@@ -33,10 +33,18 @@ struct GalleryImages {
 }
 impl GalleryImages {
     fn load(foliage: &mut Foliage) -> Self {
-        load_asset!(foliage, "assets/test_image.png", one);
-        load_asset!(foliage, "assets/Ubuntu-Logo.png", two);
+        load_asset!(foliage, "assets/gallery/painting_0.jpg", one);
+        load_asset!(foliage, "assets/gallery/painting_1.jpg", two);
+        load_asset!(foliage, "assets/gallery/painting_2.jpg", three);
+        load_asset!(foliage, "assets/gallery/painting_3.jpg", four);
+        load_asset!(foliage, "assets/gallery/painting_4.jpg", five);
+        load_asset!(foliage, "assets/gallery/painting_5.jpg", six);
+        load_asset!(foliage, "assets/gallery/painting_6.jpg", seven);
+        load_asset!(foliage, "assets/gallery/painting_7.jpg", eight);
+        let mem = Image::memory(0, (1400, 1400));
+        foliage.spawn(mem);
         Self {
-            images: vec![one, two],
+            images: vec![one, two, three, four, five, six, seven, eight],
             current: 0,
         }
     }
@@ -126,8 +134,6 @@ fn main() {
     ));
     let images = GalleryImages::load(&mut foliage);
     foliage.insert_resource(images);
-    let mem = Image::memory(0, (1200, 1200));
-    foliage.spawn(mem);
     let mut content = foliage
         .create_view(
             GridPlacement::new(1.span(2), 1.span(2))
