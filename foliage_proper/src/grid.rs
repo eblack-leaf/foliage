@@ -240,11 +240,11 @@ impl GridTemplate {
     }
 }
 pub(crate) fn viewport_changes_layout(
-    viewport_handle: Res<ViewportHandle>,
+    mut viewport_handle: ResMut<ViewportHandle>,
     mut layout_grid: ResMut<LayoutGrid>,
     mut layout: ResMut<Layout>,
 ) {
-    if viewport_handle.is_changed() {
+    if viewport_handle.updated() {
         let (l, t) = LayoutGrid::configuration(viewport_handle.section().area.coordinates);
         if &l != layout.as_ref() {
             *layout = l;

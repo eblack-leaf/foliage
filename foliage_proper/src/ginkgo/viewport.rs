@@ -80,6 +80,7 @@ pub struct ViewportHandle {
     translation: Position<NumericalContext>,
     area: Area<NumericalContext>,
     changes: bool,
+    updated: bool,
 }
 
 impl ViewportHandle {
@@ -88,6 +89,7 @@ impl ViewportHandle {
             translation: Position::default(),
             area,
             changes: false,
+            updated: false,
         }
     }
     pub fn translate(&mut self, position: Position<NumericalContext>) {
@@ -102,7 +104,16 @@ impl ViewportHandle {
         None
     }
     pub(crate) fn resize(&mut self, area: Area<NumericalContext>) {
+        self.updated = true;
         self.area = area;
+    }
+    pub(crate) fn updated(&mut self) -> bool {
+        let mut val = false;
+        if self.updated {
+            val = true;
+            self.updated = false;
+        }
+        val
     }
     pub fn section(&self) -> Section<NumericalContext> {
         Section::new(self.translation.coordinates, self.area.coordinates)
