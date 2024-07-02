@@ -405,6 +405,7 @@ impl Render for Text {
                 .unwrap()
                 .instances
                 .clear();
+            renderer.directive_manager.remove(packet);
         }
         for packet in queue_handle.read_adds::<Self, GlyphMetrics>() {
             let atlas = TextureAtlas::new(

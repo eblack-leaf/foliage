@@ -8,7 +8,7 @@ use crate::coordinate::{
     CoordinateContext, CoordinateUnit, Coordinates, DeviceContext, LogicalContext, NumericalContext,
 };
 
-#[derive(Copy, Clone, Default, Bundle, PartialEq)]
+#[derive(Copy, Clone, Default, Bundle, PartialEq, Debug)]
 pub struct Section<Context: CoordinateContext> {
     pub position: Position<Context>,
     pub area: Area<Context>,

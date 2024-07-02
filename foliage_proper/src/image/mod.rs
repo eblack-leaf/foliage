@@ -74,11 +74,6 @@ pub struct Image {
     section: Section<LogicalContext>,
     layer: Differential<Layer>,
 }
-#[derive(Bundle)]
-pub struct AspectRatioImage {
-    image: Image,
-    aspect_ratio: AspectRatio,
-}
 impl Image {
     pub fn memory<I: Into<ImageSlotId>, C: Into<Coordinates>>(id: I, c: C) -> ImageSlot {
         ImageSlot {

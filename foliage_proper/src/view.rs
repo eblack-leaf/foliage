@@ -107,7 +107,11 @@ pub(crate) fn on_target_grid_placement_change(
             &GridPlacement,
             &ViewHandle,
         ),
-        Changed<GridPlacement>,
+        Or<(
+            Changed<GridPlacement>,
+            Changed<Position<LogicalContext>>,
+            Changed<Area<LogicalContext>>,
+        )>,
     >,
     config: Res<Layout>,
 ) {

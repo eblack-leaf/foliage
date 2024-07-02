@@ -54,12 +54,14 @@ impl<D: Component + PartialEq + Clone> Differential<D> {
 
 #[derive(Component, Clone)]
 pub struct DifferentialCache<D: Component + PartialEq + Clone> {
+    added: bool,
     _phantom: PhantomData<D>,
 }
 
 impl<D: Component + PartialEq + Clone> DifferentialCache<D> {
     pub(crate) fn new() -> Self {
         Self {
+            added: true,
             _phantom: PhantomData,
         }
     }
@@ -79,20 +81,26 @@ impl<D: Component + PartialEq + Clone> From<(Entity, D)> for RenderPacket<D> {
     }
 }
 pub(crate) fn added_invalidate<D: Component + PartialEq + Clone + Send + Sync + 'static>(
-    added: Query<(Entity, &RenderLink, &D), (Added<D>, With<DifferentialCache<D>>)>,
+    mut added: Query<
+        (Entity, &RenderLink, &D, &mut DifferentialCache<D>),
+        (Changed<D>, With<DifferentialCache<D>>),
+    >,
     mut render_queue: ResMut<RenderAddQueue<D>>,
 ) {
-    for (entity, link, d) in added.iter() {
-        render_queue
-            .cache
-            .get_mut(link)
-            .unwrap()
-            .insert(entity, d.clone());
-        render_queue
-            .queue
-            .get_mut(link)
-            .unwrap()
-            .insert(entity, d.clone());
+    for (entity, link, d, mut local_cache) in added.iter_mut() {
+        if local_cache.added {
+            render_queue
+                .cache
+                .get_mut(link)
+                .unwrap()
+                .insert(entity, d.clone());
+            render_queue
+                .queue
+                .get_mut(link)
+                .unwrap()
+                .insert(entity, d.clone());
+            local_cache.added = false;
+        }
     }
 }
 pub(crate) fn differential<D: Component + PartialEq + Clone + Send + Sync + 'static>(

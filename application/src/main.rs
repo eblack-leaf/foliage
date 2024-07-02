@@ -34,8 +34,9 @@ struct GalleryImages {
 impl GalleryImages {
     fn load(foliage: &mut Foliage) -> Self {
         load_asset!(foliage, "assets/test_image.png", one);
+        load_asset!(foliage, "assets/Ubuntu-Logo.png", two);
         Self {
-            images: vec![one],
+            images: vec![one, two],
             current: 0,
         }
     }
@@ -47,6 +48,7 @@ impl GalleryImages {
             .max(0)
             .min(self.images.len().checked_sub(1).unwrap_or_default() as i32)
             as usize;
+        println!("current gallery image-{}", self.current);
     }
 }
 #[derive(Clone)]
