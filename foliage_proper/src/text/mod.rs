@@ -335,7 +335,7 @@ impl Render for Text {
         });
         let pipeline_layout = ginkgo.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("text-pipeline-layout"),
-            bind_group_layouts: &[&bind_group_layout, &group_layout],
+            bind_group_layouts: &[&group_layout, &bind_group_layout],
             push_constant_ranges: &[],
         });
         let pipeline = ginkgo.create_pipeline(&RenderPipelineDescriptor {
@@ -606,8 +606,8 @@ impl Render for Text {
                     recorder.0.set_pipeline(&renderer.resource_handle.pipeline);
                     recorder
                         .0
-                        .set_bind_group(0, &renderer.resource_handle.bind_group, &[]);
-                    recorder.0.set_bind_group(1, &group.bind_group, &[]);
+                        .set_bind_group(1, &renderer.resource_handle.bind_group, &[]);
+                    recorder.0.set_bind_group(0, &group.bind_group, &[]);
                     recorder
                         .0
                         .set_vertex_buffer(0, renderer.resource_handle.vertex_buffer.slice(..));
