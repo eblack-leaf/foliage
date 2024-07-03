@@ -351,7 +351,8 @@ impl Render for Image {
                 1,
                 bytemuck::cast_slice(&vec![
                     0f32;
-                    Self::PRECISION * packet.value.1.horizontal() as usize
+                    Self::PRECISION
+                        * packet.value.1.horizontal() as usize
                         * packet.value.1.vertical() as usize
                 ]),
             );
@@ -393,7 +394,9 @@ impl Render for Image {
                 ImageDataLayout {
                     offset: 0,
                     bytes_per_row: Some(
-                        packet.value.2.horizontal() as u32 * std::mem::size_of::<f32>() as u32 * Self::PRECISION as u32,
+                        packet.value.2.horizontal() as u32
+                            * std::mem::size_of::<f32>() as u32
+                            * Self::PRECISION as u32,
                     ),
                     rows_per_image: Some(packet.value.2.vertical() as u32),
                 },
