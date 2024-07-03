@@ -2,12 +2,14 @@ use foliage::asset::{AssetKey, OnRetrieve};
 use foliage::bevy_ecs::prelude::{Resource, World};
 use foliage::bevy_ecs::system::Command;
 use foliage::color::Color;
-use foliage::grid::{Grid, GridCoordinate, GridPlacement, Layout};
+use foliage::coordinate::Coordinates;
+use foliage::grid::{Grid, GridCoordinate, GridPlacement, Layout, Padding};
 use foliage::icon::{Icon, IconId, IconRequest};
 use foliage::image::Image;
 use foliage::interaction::{ClickInteractionListener, OnClick};
 use foliage::panel::{Panel, Rounding};
 use foliage::signal::TriggerTarget;
+use foliage::style::InteractiveColor;
 use foliage::text::Text;
 use foliage::view::{CurrentViewStage, Stage, ViewHandle};
 use foliage::{bevy_ecs, load_asset};
@@ -107,6 +109,7 @@ enum ControlTargets {
     Background,
     Home,
     GalleryIcon,
+    GalleryIconBackdrop,
     AboutIcon,
     GalleryText,
     AboutText,
@@ -180,6 +183,7 @@ fn main() {
         )
         .with_target(ControlTargets::Background)
         .with_target(ControlTargets::GalleryIcon)
+        .with_target(ControlTargets::GalleryIconBackdrop)
         .with_target(ControlTargets::GalleryText)
         .with_target(ControlTargets::AboutText)
         .with_target(ControlTargets::AboutIcon)
@@ -244,10 +248,22 @@ fn main() {
         ControlStages::Creation,
         |stage| {
             stage.add_signal_targeting(stage.target(ControlTargets::GalleryIcon), |sr| {
-                sr.with_attribute(Icon::new(IconId(0), Color::BLACK))
+                sr.with_attribute(Icon::new(IconId(0), Color::WHITE))
                     .with_attribute(GridPlacement::new(1.span(1), 1.span(2)))
-                    .with_attribute(ClickInteractionListener::new())
+            });
+            let linked = vec![stage.target(ControlTargets::GalleryIcon)];
+            stage.add_signal_targeting(stage.target(ControlTargets::GalleryIconBackdrop), |s| {
+                s.with_attribute(Panel::new(Rounding::all(1.0), Color::BLACK))
+                    .with_attribute(
+                        InteractiveColor::new(Color::BLACK, Color::WHITE).with_linked(linked),
+                    )
+                    .with_attribute(ClickInteractionListener::new().as_circle())
                     .with_attribute(OnClick::new(to_image_controls).with(to_content_gallery))
+                    .with_attribute(
+                        GridPlacement::new(1.span(1), 1.span(2))
+                            .fixed_area(Coordinates::new(48.0, 48.0))
+                            .offset_layer(1),
+                    )
             });
             stage.add_signal_targeting(stage.target(ControlTargets::AboutIcon), |sr| {
                 sr.with_attribute(Icon::new(IconId(0), Color::BLACK))
@@ -275,6 +291,9 @@ fn main() {
         ControlStages::Gallery,
         |stage| {
             stage.add_signal_targeting(stage.target(ControlTargets::GalleryIcon), |sr| sr.clean());
+            stage.add_signal_targeting(stage.target(ControlTargets::GalleryIconBackdrop), |sr| {
+                sr.clean()
+            });
             stage.add_signal_targeting(stage.target(ControlTargets::AboutIcon), |sr| sr.clean());
             stage.add_signal_targeting(stage.target(ControlTargets::GalleryText), |sr| sr.clean());
             stage.add_signal_targeting(stage.target(ControlTargets::AboutText), |sr| sr.clean());

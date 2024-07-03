@@ -26,6 +26,7 @@ use crate::image::Image;
 use crate::interaction::{ClickInteractionListener, KeyboardAdapter, MouseAdapter, TouchAdapter};
 use crate::panel::Panel;
 use crate::signal::Signal;
+use crate::style::Style;
 use crate::text::Text;
 use crate::view::{ViewComponents, ViewHandle};
 
@@ -44,6 +45,7 @@ pub mod interaction;
 pub mod panel;
 pub mod reference;
 pub mod signal;
+pub mod style;
 pub mod text;
 pub mod texture;
 pub mod view;
@@ -478,5 +480,6 @@ impl Leaves for CoreLeaves {
         foliage.attach_leaf::<ClickInteractionListener>();
         foliage.attach_leaf::<Text>();
         foliage.add_renderer::<Text>();
+        foliage.attach_leaf::<Style>();
     }
 }

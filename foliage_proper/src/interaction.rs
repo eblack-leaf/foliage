@@ -171,7 +171,14 @@ pub enum ClickInteractionShape {
 impl ClickInteractionShape {
     pub fn contains(&self, p: Position<LogicalContext>, section: Section<LogicalContext>) -> bool {
         match self {
-            ClickInteractionShape::Circle => section.center().distance(p) <= section.area.width(),
+            ClickInteractionShape::Circle =>  {
+                let distance = section.center().distance(p);
+                println!("distance {:?} p: {:?}, s: {:?}", distance, p, section);
+                if distance <= section.area.width() / 2f32 {
+                    return true
+                }
+                false
+            },
             ClickInteractionShape::Rectangle => section.contains(p),
         }
     }
@@ -262,10 +269,12 @@ pub(crate) fn listen_for_interactions(
             }
             ClickPhase::End => {
                 if let Some(g) = grabbed.0.take() {
+                    let section = Section::new(*listeners.get(g).unwrap().2, *listeners.get(g).unwrap().3);
                     if listeners.get(g).unwrap().1.shape.contains(
                         event.position,
-                        Section::new(*listeners.get(g).unwrap().2, *listeners.get(g).unwrap().3),
+                        section,
                     ) {
+                        println!("active w/ p: {:?} section {:?}", event.position, section);
                         listeners.get_mut(g).unwrap().1.active = true;
                     }
                     listeners

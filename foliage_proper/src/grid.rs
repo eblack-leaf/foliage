@@ -68,6 +68,12 @@ impl Grid {
                 - self.gap.y * 2f32 * grid_placement.gap_ignore,
         ));
         placement.layer = self.placement.layer + grid_placement.layer_offset;
+        if let Some(fixed) = grid_placement.fixed_area {
+            let diff = placement.section.center()
+                - Section::new(placement.section.position, fixed).center();
+            placement.section.area = fixed.into();
+            placement.section.position += diff;
+        }
         placement
     }
 }
@@ -84,6 +90,7 @@ pub struct GridPlacement {
     padding: Padding,
     gap_ignore: f32,
     exceptions: Vec<GridException>,
+    fixed_area: Option<Coordinates>,
 }
 impl GridPlacement {
     pub fn horizontal(&self, config: Layout) -> GridRange {
@@ -126,7 +133,12 @@ impl GridPlacement {
             padding: Padding::default(),
             gap_ignore: 1.0,
             exceptions: vec![],
+            fixed_area: None,
         }
+    }
+    pub fn fixed_area<C: Into<Coordinates>>(mut self, c: C) -> Self {
+        self.fixed_area.replace(c.into());
+        self
     }
     pub fn offset_layer<L: Into<Layer>>(mut self, l: L) -> Self {
         self.layer_offset = l.into();
@@ -228,6 +240,17 @@ pub(crate) fn place_on_grid(
 pub struct Padding {
     x: CoordinateUnit,
     y: CoordinateUnit,
+}
+impl Padding {
+    pub fn new(x: CoordinateUnit, y: CoordinateUnit) -> Self {
+        Self { x, y }
+    }
+    pub fn x(x: CoordinateUnit) -> Self {
+        Self { x, y: 0.0 }
+    }
+    pub fn y(y: CoordinateUnit) -> Self {
+        Self { x: 0.0, y }
+    }
 }
 #[derive(Copy, Clone)]
 pub struct GridTemplate {
