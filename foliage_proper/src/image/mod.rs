@@ -74,7 +74,10 @@ pub struct Image {
     section: Section<LogicalContext>,
     layer: Differential<Layer>,
 }
+type ImageBitsRepr = u8;
 impl Image {
+    const PRECISION: usize = 1;
+    const FORMAT: TextureFormat = TextureFormat::Rgba8Unorm;
     pub fn memory<I: Into<ImageSlotId>, C: Into<Coordinates>>(id: I, c: C) -> ImageSlot {
         ImageSlot {
             link: RenderLink::new::<Image>(),
@@ -83,12 +86,12 @@ impl Image {
     }
     pub fn new<I: Into<ImageSlotId>>(id: I, data: Vec<u8>) -> Self {
         let slice = data.as_slice();
-        let image = image::load_from_memory(slice).unwrap().to_rgba32f();
+        let image = image::load_from_memory(slice).unwrap().to_rgba8();
         let dimensions = Coordinates::new(image.width() as f32, image.height() as f32);
         let image_bytes = image
             .pixels()
             .flat_map(|p| p.0.to_vec())
-            .collect::<Vec<f32>>();
+            .collect::<Vec<ImageBitsRepr>>();
         Self {
             link: RenderLink::new::<Image>(),
             fill: Differential::new(ImageFill(id.into(), image_bytes, dimensions)),
@@ -170,7 +173,7 @@ fn constrain(
     }
 }
 #[derive(Component, Clone, PartialEq)]
-pub struct ImageFill(pub ImageSlotId, pub Vec<f32>, pub Coordinates);
+pub struct ImageFill(pub ImageSlotId, pub Vec<ImageBitsRepr>, pub Coordinates);
 #[derive(Component, Clone, PartialEq)]
 pub struct ImageSlotDescriptor(pub ImageSlotId, pub Coordinates);
 #[derive(Bundle)]
@@ -343,12 +346,12 @@ impl Render for Image {
         }
         for packet in queue_handle.read_adds::<Self, ImageSlotDescriptor>() {
             let (tex, view) = ginkgo.create_texture(
-                TextureFormat::Rgba32Float,
+                Self::FORMAT,
                 packet.value.1,
                 1,
                 bytemuck::cast_slice(&vec![
                     0f32;
-                    4 * packet.value.1.horizontal() as usize
+                    Self::PRECISION * packet.value.1.horizontal() as usize
                         * packet.value.1.vertical() as usize
                 ]),
             );
@@ -390,7 +393,7 @@ impl Render for Image {
                 ImageDataLayout {
                     offset: 0,
                     bytes_per_row: Some(
-                        packet.value.2.horizontal() as u32 * std::mem::size_of::<f32>() as u32 * 4,
+                        packet.value.2.horizontal() as u32 * std::mem::size_of::<f32>() as u32 * Self::PRECISION as u32,
                     ),
                     rows_per_image: Some(packet.value.2.vertical() as u32),
                 },

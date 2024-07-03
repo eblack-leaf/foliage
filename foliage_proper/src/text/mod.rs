@@ -252,7 +252,7 @@ pub(crate) fn distill(
         }
     }
 }
-pub(crate) fn clear_removed(mut texts: Query<(&mut Glyphs)>) {
+pub(crate) fn clear_removed(mut texts: Query<&mut Glyphs>) {
     for mut glyphs in texts.iter_mut() {
         glyphs.removed.clear();
     }
