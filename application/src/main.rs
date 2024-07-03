@@ -233,7 +233,7 @@ fn main() {
         ControlStages::Initial,
         |stage| {
             stage.add_signal_targeting(stage.target(ControlTargets::Background), |sr| {
-                sr.with_attribute(Panel::new(Rounding::all(0.05), Color::WHITE))
+                sr.with_attribute(Panel::new(Rounding::all(0.05), Color::BLACK))
                     .with_attribute(
                         GridPlacement::new(1.span(3), 1.span(4))
                             .ignore_gap()
@@ -248,14 +248,14 @@ fn main() {
         ControlStages::Creation,
         |stage| {
             stage.add_signal_targeting(stage.target(ControlTargets::GalleryIcon), |sr| {
-                sr.with_attribute(Icon::new(IconId(0), Color::WHITE))
+                sr.with_attribute(Icon::new(IconId(0), Color::BLACK))
                     .with_attribute(GridPlacement::new(1.span(1), 1.span(2)))
             });
             let linked = vec![stage.target(ControlTargets::GalleryIcon)];
             stage.add_signal_targeting(stage.target(ControlTargets::GalleryIconBackdrop), |s| {
-                s.with_attribute(Panel::new(Rounding::all(1.0), Color::BLACK))
+                s.with_attribute(Panel::new(Rounding::all(1.0), Color::WHITE))
                     .with_attribute(
-                        InteractiveColor::new(Color::BLACK, Color::WHITE).with_linked(linked),
+                        InteractiveColor::new(Color::WHITE, Color::BLACK).with_linked(linked),
                     )
                     .with_attribute(ClickInteractionListener::new().as_circle())
                     .with_attribute(OnClick::new(to_image_controls).with(to_content_gallery))
@@ -266,17 +266,17 @@ fn main() {
                     )
             });
             stage.add_signal_targeting(stage.target(ControlTargets::AboutIcon), |sr| {
-                sr.with_attribute(Icon::new(IconId(0), Color::BLACK))
+                sr.with_attribute(Icon::new(IconId(0), Color::WHITE))
                     .with_attribute(GridPlacement::new(1.span(1), 3.span(2)))
                     .with_attribute(ClickInteractionListener::new())
                     .with_attribute(OnClick::new(to_about_controls))
             });
             stage.add_signal_targeting(stage.target(ControlTargets::GalleryText), |s| {
-                s.with_attribute(Text::new("gallery", Color::BLACK))
+                s.with_attribute(Text::new("gallery", Color::WHITE))
                     .with_attribute(GridPlacement::new(2.span(2), 1.span(2)))
             });
             stage.add_signal_targeting(stage.target(ControlTargets::AboutText), |s| {
-                s.with_attribute(Text::new("about  ", Color::BLACK))
+                s.with_attribute(Text::new("about  ", Color::WHITE))
                     .with_attribute(GridPlacement::new(2.span(2), 3.span(2)))
             });
             stage.add_signal_targeting(stage.target(ControlTargets::PageRight), |sr| sr.clean());
@@ -308,7 +308,7 @@ fn main() {
                     .with_attribute(OnClick::new(page_right))
             });
             stage.add_signal_targeting(stage.target(ControlTargets::PageLeft), |s| {
-                s.with_attribute(Icon::new(IconId(1), Color::BLACK))
+                s.with_attribute(Icon::new(IconId(1), Color::WHITE))
                     .with_filtered_attribute(
                         IconId(1),
                         Layout::LANDSCAPE_MOBILE | Layout::LANDSCAPE_EXT,
@@ -318,7 +318,7 @@ fn main() {
                     .with_attribute(OnClick::new(page_left))
             });
             stage.add_signal_targeting(stage.target(ControlTargets::Home), |s| {
-                s.with_attribute(Icon::new(IconId(1), Color::BLACK))
+                s.with_attribute(Icon::new(IconId(1), Color::WHITE))
                     .with_attribute(OnClick::new(to_creation).with(to_content_blank))
                     .with_attribute(GridPlacement::new(1.span(1), 1.span(1)))
                     .with_attribute(ClickInteractionListener::new())
@@ -330,19 +330,19 @@ fn main() {
         ControlStages::About,
         |stage| {
             stage.add_signal_targeting(stage.target(ControlTargets::Home), |sr| {
-                sr.with_attribute(Icon::new(IconId(1), Color::BLACK))
+                sr.with_attribute(Icon::new(IconId(1), Color::WHITE))
                     .with_attribute(OnClick::new(to_creation).with(to_content_blank))
                     .with_attribute(GridPlacement::new(1.span(1), 1.span(1)))
                     .with_attribute(ClickInteractionListener::new())
             });
             stage.add_signal_targeting(stage.target(ControlTargets::CopyTwitter), |sr| {
-                sr.with_attribute(Icon::new(IconId(2), Color::BLACK))
+                sr.with_attribute(Icon::new(IconId(2), Color::WHITE))
                     .with_attribute(GridPlacement::new(1.span(1), 2.span(1)))
                     .with_attribute(ClickInteractionListener::new())
                     .with_attribute(OnClick::new(copy_twitter_address))
             });
             stage.add_signal_targeting(stage.target(ControlTargets::CopyEmail), |sr| {
-                sr.with_attribute(Icon::new(IconId(2), Color::BLACK))
+                sr.with_attribute(Icon::new(IconId(2), Color::WHITE))
                     .with_attribute(GridPlacement::new(1.span(1), 3.span(1)))
                     .with_attribute(ClickInteractionListener::new())
                     .with_attribute(OnClick::new(copy_email_address))

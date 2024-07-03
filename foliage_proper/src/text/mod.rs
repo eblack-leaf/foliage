@@ -200,17 +200,17 @@ pub(crate) fn distill(
                 let metrics = font.0.metrics('a', attempted_size);
                 let horizontal_metrics = font.0.horizontal_line_metrics(attempted_size).unwrap();
                 character_dims = Coordinates::new(
-                    metrics.advance_width.ceil(),
-                    (horizontal_metrics.ascent - horizontal_metrics.descent).ceil(),
+                    (metrics.advance_width * 1.1).ceil(),
+                    ((horizontal_metrics.ascent - horizontal_metrics.descent) * 1.1).ceil(),
                 );
                 attempted_dims = Coordinates::new(
                     character_dims.horizontal() * max_in_a_line as f32,
                     character_dims.vertical() * num_lines as f32,
                 );
             }
-            let final_size = (attempted_size - 1.0).max(1.0);
-            let metrics = font.0.metrics('a', final_size);
-            let horizontal_metrics = font.0.horizontal_line_metrics(final_size).unwrap();
+            let final_font_size = (attempted_size - 1.0 * scale_factor.value()).max(1.0);
+            let metrics = font.0.metrics('a', final_font_size);
+            let horizontal_metrics = font.0.horizontal_line_metrics(final_font_size).unwrap();
             let final_dims = Coordinates::new(
                 metrics.advance_width.ceil(),
                 (horizontal_metrics.ascent - horizontal_metrics.descent).ceil(),
@@ -225,7 +225,7 @@ pub(crate) fn distill(
             let diff = old.center() - adjusted_section.center();
             let final_section =
                 Section::logical(adjusted_section.position + diff, adjusted_section.area);
-            (final_size, final_section, final_dims)
+            (final_font_size, final_section, final_dims)
         };
         pos.coordinates = adjusted_bounds.position.coordinates;
         area.coordinates = adjusted_bounds.area.coordinates;
