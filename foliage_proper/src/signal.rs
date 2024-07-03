@@ -1,11 +1,12 @@
 use bevy_ecs::change_detection::Res;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Bundle, Changed, Commands, Component, Query, ResMut};
+use bevy_ecs::query::Without;
 use bevy_ecs::system::Command;
 
 use crate::differential::{RenderLink, RenderRemoveQueue};
 use crate::grid::{Layout, LayoutFilter};
-use crate::view::{SignalConfirmation, ViewHandle};
+use crate::view::{SignalConfirmation, View, ViewHandle};
 
 #[derive(Component, Default, Copy, Clone)]
 pub struct Signal {
@@ -108,7 +109,7 @@ impl Clean {
     }
 }
 pub(crate) fn clean(
-    mut to_clean: Query<(Entity, &mut Clean, Option<&RenderLink>)>,
+    mut to_clean: Query<(Entity, &mut Clean, Option<&RenderLink>), Without<View>>,
     mut remove_queue: ResMut<RenderRemoveQueue>,
     mut cmd: Commands,
 ) {

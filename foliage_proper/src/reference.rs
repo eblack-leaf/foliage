@@ -5,7 +5,7 @@ use bevy_ecs::entity::Entity;
 
 use crate::elm::Elm;
 use crate::grid::LayoutFilter;
-use crate::signal::ActionHandle;
+use crate::signal::{ActionHandle, Clean};
 use crate::signal::{
     FilteredTriggeredAttribute, Signal, Signaler, TargetComponents, TriggerTarget,
     TriggeredAttribute,
@@ -157,6 +157,9 @@ pub struct SignalReference<'a> {
 impl<'a> StageReference<'a> {
     pub fn target<TB: Into<TargetBinding>>(&self, tb: TB) -> TriggerTarget {
         *self.targets.get(&tb.into()).expect("no-target")
+    }
+    pub fn clean_view(&mut self) {
+        self.add_signal_targeting(TriggerTarget(self.root), |s| s.with_attribute(Clean::should_clean()));
     }
     pub fn add_signal_targeting<AFn: FnOnce(SignalReference<'a>) -> SignalReference<'a>>(
         &mut self,

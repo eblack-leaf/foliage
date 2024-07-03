@@ -215,7 +215,7 @@ fn main() {
     content.define_stage(
         ContentStages::Initial,
         |stage| {
-            stage.add_signal_targeting(stage.target(ContentTargets::Image), |s| s.clean());
+            stage.clean_view();
         },
         &mut foliage,
     );

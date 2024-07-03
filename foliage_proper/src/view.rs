@@ -124,12 +124,16 @@ pub(crate) fn on_target_grid_placement_change(
         }
     }
 }
-pub(crate) fn cleanup_view(views: Query<(&View, &Clean), Changed<Clean>>, mut cmd: Commands) {
-    for (view, clean) in views.iter() {
+pub(crate) fn cleanup_view(
+    mut views: Query<(&View, &mut Clean), Changed<Clean>>,
+    mut cmd: Commands,
+) {
+    for (view, mut clean) in views.iter_mut() {
         if clean.should_clean {
             for target in view.targets.iter() {
                 cmd.entity(target.0).insert(Clean::should_clean());
             }
+            clean.should_clean = false;
         }
     }
 }
