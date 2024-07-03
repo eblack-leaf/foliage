@@ -50,10 +50,12 @@ pub struct Text {
     gpu_section: Differential<GpuSection>,
     glyphs: Differential<Glyphs>,
     glyph_colors: GlyphColors,
+    color: Color,
     metrics: Differential<GlyphMetrics>,
 }
 impl Text {
     pub fn new<S: AsRef<str>, C: Into<Color>>(tv: S, color: C) -> Self {
+        let color = color.into();
         Self {
             link: RenderLink::new::<Self>(),
             value: TextValue(tv.as_ref().to_string()),
@@ -62,9 +64,9 @@ impl Text {
             gpu_section: Differential::new(GpuSection::default()),
             glyphs: Differential::new(Glyphs::default()),
             glyph_colors: GlyphColors {
-                base: color.into(),
                 position_to_color: Default::default(),
             },
+            color,
             metrics: Differential::new(GlyphMetrics::default()),
         }
     }
@@ -121,15 +123,14 @@ pub(crate) struct Glyphs {
 }
 #[derive(PartialEq, Clone, Component)]
 pub struct GlyphColors {
-    base: Color,
     position_to_color: HashMap<GlyphOffset, Color>,
 }
 impl GlyphColors {
-    pub fn obtain(&self, offset: GlyphOffset) -> Color {
+    pub fn obtain(&self, base: Color, offset: GlyphOffset) -> Color {
         if let Some(alternate) = self.position_to_color.get(&offset) {
             *alternate
         } else {
-            self.base
+            base
         }
     }
 }
@@ -144,10 +145,15 @@ impl TextValue {
         uc.len() as u32
     }
 }
-pub(crate) fn color_changes(mut texts: Query<(&mut Glyphs, &GlyphColors), Changed<GlyphColors>>) {
-    for (mut glyphs, colors) in texts.iter_mut() {
+pub(crate) fn color_changes(
+    mut texts: Query<
+        (&mut Glyphs, &GlyphColors, &Color),
+        Or<(Changed<GlyphColors>, Changed<Color>)>,
+    >,
+) {
+    for (mut glyphs, colors, base) in texts.iter_mut() {
         for (offset, glyph) in glyphs.glyphs.iter_mut() {
-            glyph.color = colors.obtain(*offset);
+            glyph.color = colors.obtain(*base, *offset);
         }
     }
 }
@@ -157,6 +163,7 @@ pub(crate) fn distill(
             &TextValue,
             &mut Glyphs,
             &GlyphColors,
+            &Color,
             &mut Area<LogicalContext>,
             &mut Position<LogicalContext>,
             &mut GlyphMetrics,
@@ -170,7 +177,7 @@ pub(crate) fn distill(
     font: Res<MonospacedFont>,
     scale_factor: Res<ScaleFactor>,
 ) {
-    for (value, mut glyphs, colors, mut area, mut pos, mut metrics) in texts.iter_mut() {
+    for (value, mut glyphs, colors, base, mut area, mut pos, mut metrics) in texts.iter_mut() {
         let mut placer = fontdue::layout::Layout::new(CoordinateSystem::PositiveYDown);
         let scaled_area = area.to_device(scale_factor.value());
         placer.reset(&fontdue::layout::LayoutSettings {
@@ -241,7 +248,7 @@ pub(crate) fn distill(
                     key: GlyphKey::new(glyph.key),
                     section: Section::new((glyph.x, glyph.y), (glyph.width, glyph.height)),
                     parent: glyph.parent,
-                    color: colors.obtain(glyph.byte_offset),
+                    color: colors.obtain(*base, glyph.byte_offset),
                 },
             );
         }
