@@ -485,22 +485,20 @@ impl Render for Image {
             let new = match packet.value {
                 ImageView::Aspect(_) => tex_coords,
                 ImageView::Stretch => tex_coords,
-                ImageView::Crop(adjustments) => {
-                    TextureCoordinates::new(
-                        (
-                            tex_coords.top_left.horizontal()
-                                + tex_coords.bottom_right.horizontal() * adjustments.x(),
-                            tex_coords.top_left.vertical()
-                                + tex_coords.bottom_right.vertical() * adjustments.y(),
-                        ),
-                        (
-                            tex_coords.bottom_right.horizontal()
-                                - tex_coords.bottom_right.horizontal() * adjustments.width(),
-                            tex_coords.bottom_right.vertical()
-                                - tex_coords.bottom_right.vertical() * adjustments.height(),
-                        ),
-                    )
-                }
+                ImageView::Crop(adjustments) => TextureCoordinates::new(
+                    (
+                        tex_coords.top_left.horizontal()
+                            + tex_coords.bottom_right.horizontal() * adjustments.x(),
+                        tex_coords.top_left.vertical()
+                            + tex_coords.bottom_right.vertical() * adjustments.y(),
+                    ),
+                    (
+                        tex_coords.bottom_right.horizontal()
+                            - tex_coords.bottom_right.horizontal() * adjustments.width(),
+                        tex_coords.bottom_right.vertical()
+                            - tex_coords.bottom_right.vertical() * adjustments.height(),
+                    ),
+                ),
             };
             renderer
                 .resource_handle
