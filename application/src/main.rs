@@ -332,12 +332,14 @@ fn main() {
         gallery_content.handle(),
         gallery_content.stage(GalleryContentStages::Off),
     ));
-    let forward = foliage.create_action(
-        ChangePainting(1, gallery_content.target(GalleryContentTargets::Image))
-    );
-    let backward = foliage.create_action(
-        ChangePainting(-1, gallery_content.target(GalleryContentTargets::Image))
-    );
+    let forward = foliage.create_action(ChangePainting(
+        1,
+        gallery_content.target(GalleryContentTargets::Image),
+    ));
+    let backward = foliage.create_action(ChangePainting(
+        -1,
+        gallery_content.target(GalleryContentTargets::Image),
+    ));
     gallery_controls.define_stage(
         GalleryControlStages::On,
         |stage| {
@@ -365,7 +367,9 @@ fn main() {
                 |s| {
                     s.with_attribute(Panel::new(Rounding::all(1.0), Color::WHITE))
                         .with_attribute(ClickInteractionListener::new().as_circle())
-                        .with_attribute(GridPlacement::new(2.span(1), 3.span(1)).fixed_area((48, 48)))
+                        .with_attribute(
+                            GridPlacement::new(2.span(1), 3.span(1)).fixed_area((48, 48)),
+                        )
                         .with_attribute(
                             InteractiveColor::new(Color::WHITE, Color::BLACK).with_linked(linked),
                         )
@@ -398,14 +402,14 @@ fn main() {
                     "Oil & Wax on Canvas", // 19
                     Color::WHITE,
                 ))
-                    .with_attribute(GridPlacement::new(1.span(4), 1.span(1)))
+                .with_attribute(GridPlacement::new(1.span(4), 1.span(1)))
             });
             stage.add_signal_targeting(stage.target(GalleryControlTargets::Info), |s| {
                 s.with_attribute(Text::new(
                     "[untitled] - 2019  ", // 19
                     Color::WHITE,
                 ))
-                    .with_attribute(GridPlacement::new(1.span(4), 2.span(1)))
+                .with_attribute(GridPlacement::new(1.span(4), 2.span(1)))
             });
         },
         &mut foliage,
@@ -421,9 +425,10 @@ fn main() {
         |stage| stage.clean_view(),
         &mut foliage,
     );
-    let load_image = foliage.create_action(
-        ChangePainting(0, gallery_content.target(GalleryContentTargets::Image))
-    );
+    let load_image = foliage.create_action(ChangePainting(
+        0,
+        gallery_content.target(GalleryContentTargets::Image),
+    ));
     gallery_content.define_stage(
         GalleryContentStages::On,
         |stage| {
@@ -524,7 +529,9 @@ fn main() {
                 stage.target(AboutControlTargets::TwitterIconBackdrop),
                 |s| {
                     s.with_attribute(Panel::new(Rounding::all(1.0), Color::WHITE))
-                        .with_attribute(GridPlacement::new(1.span(1), 2.span(1)).fixed_area((48, 48)))
+                        .with_attribute(
+                            GridPlacement::new(1.span(1), 2.span(1)).fixed_area((48, 48)),
+                        )
                         .with_attribute(ClickInteractionListener::new().as_circle())
                         .with_attribute(
                             InteractiveColor::new(Color::WHITE, Color::BLACK).with_linked(linked),
@@ -555,7 +562,7 @@ fn main() {
                     "Jim Black is an artist from Richmond, VA",
                     Color::WHITE,
                 ))
-                    .with_attribute(GridPlacement::new(1.span(1), 2.span(2)))
+                .with_attribute(GridPlacement::new(1.span(1), 2.span(2)))
             });
             stage.add_signal_targeting(stage.target(AboutContentTargets::Picture), |s| {
                 s.with_attribute(OnRetrieve::new(bio_pic, |asset| {
@@ -590,7 +597,9 @@ fn main() {
                 stage.target(IntroControlTargets::GalleryIconBackdrop),
                 |s| {
                     s.with_attribute(Panel::new(Rounding::all(1.0), Color::WHITE))
-                        .with_attribute(GridPlacement::new(1.span(1), 1.span(2)).fixed_area((48, 48)))
+                        .with_attribute(
+                            GridPlacement::new(1.span(1), 1.span(2)).fixed_area((48, 48)),
+                        )
                         .with_attribute(
                             InteractiveColor::new(Color::WHITE, Color::BLACK).with_linked(linked),
                         )

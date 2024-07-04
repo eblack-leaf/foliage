@@ -74,10 +74,10 @@ pub struct Image {
     section: Section<LogicalContext>,
     layer: Differential<Layer>,
 }
-type ImageBitsRepr = f32;
+type ImageBitsRepr = u8;
 impl Image {
-    const PRECISION: usize = 4;
-    const FORMAT: TextureFormat = TextureFormat::Rgba32Float;
+    const PRECISION: usize = 1;
+    const FORMAT: TextureFormat = TextureFormat::Rgba8Unorm;
     pub fn memory<I: Into<ImageSlotId>, C: Into<Coordinates>>(id: I, c: C) -> ImageSlot {
         ImageSlot {
             link: RenderLink::new::<Image>(),
@@ -85,9 +85,8 @@ impl Image {
         }
     }
     pub fn new<I: Into<ImageSlotId>>(id: I, data: Vec<u8>) -> Self {
-        let slice = data.as_slice();
         // Note: Change when Self::PRECISION == 4 to .to_rgba32f()
-        let image = image::load_from_memory(slice).unwrap().to_rgba32f();
+        let image = image::load_from_memory(data.as_slice()).unwrap().to_rgba8();
         let dimensions = Coordinates::new(image.width() as f32, image.height() as f32);
         let image_bytes = image
             .pixels()

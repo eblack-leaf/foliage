@@ -6,7 +6,7 @@ public_url = "/"
 filehash = true
 
 [serve]
-address = "192.168.1.120"
+address = "192.168.1.183"
 port = 8080
 open = false
 no_autoreload = true
