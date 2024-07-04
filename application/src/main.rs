@@ -29,6 +29,7 @@ impl Media {
         *self.paintings.get(self.current_painting).unwrap()
     }
 }
+const IMAGE_SLOT: i32 = 0;
 #[derive(Clone)]
 struct ChangePainting(i32, TriggerTarget);
 impl Command for ChangePainting {
@@ -37,7 +38,7 @@ impl Command for ChangePainting {
         world
             .entity_mut(self.1.value())
             .insert(OnRetrieve::new(key, |asset| {
-                Image::new(0, asset).inherit_aspect_ratio()
+                Image::new(IMAGE_SLOT, asset).inherit_aspect_ratio()
             }));
     }
 }
@@ -63,8 +64,11 @@ enum GalleryContentTargets {
 #[target_binding]
 enum GalleryControlTargets {
     Forward,
+    ForwardBackdrop,
     Backward,
+    BackwardBackdrop,
     Home,
+    HomeBackdrop,
     Current,     // 1 | 60
     Description, // title + desc
     Info,        // year + materials
@@ -78,6 +82,7 @@ enum AboutContentTargets {
 #[target_binding]
 enum AboutControlTargets {
     Home,
+    HomeBackdrop,
     TwitterIcon,
     TwitterIconBackdrop,
     TwitterText,
@@ -191,6 +196,8 @@ fn main() {
         IconHandles::About.value(),
         include_bytes!("assets/icons/at-sign.icon"),
     );
+    foliage.spawn(Image::memory(IMAGE_SLOT, (1400, 1400)));
+    let bio_pic = load_asset!(foliage, "assets/media/gallery-bio.jpg");
     let media = Media {
         paintings: vec![
             load_asset!(foliage, "assets/gallery/painting_0.jpg"),
@@ -293,9 +300,12 @@ fn main() {
         .with_stage(GalleryControlStages::Off)
         .with_stage(GalleryControlStages::On)
         .with_target(GalleryControlTargets::Forward)
+        .with_target(GalleryControlTargets::ForwardBackdrop)
         .with_target(GalleryControlTargets::Backward)
+        .with_target(GalleryControlTargets::BackwardBackdrop)
         .with_target(GalleryControlTargets::Current)
         .with_target(GalleryControlTargets::Home)
+        .with_target(GalleryControlTargets::HomeBackdrop)
         .with_target(GalleryControlTargets::Info)
         .with_target(GalleryControlTargets::Description)
         .finish();
@@ -304,10 +314,65 @@ fn main() {
         |stage| stage.clean_view(),
         &mut foliage,
     );
+    let to_intro_controls_from_gallery = foliage.create_action(SwitchView::new(
+        intro_controls.handle(),
+        intro_controls.stage(IntroControlStages::On),
+        gallery_controls.handle(),
+        gallery_controls.stage(GalleryControlStages::Off),
+    ));
+    let mut gallery_content = foliage
+        .create_view(GridPlacement::new(1.span(1), 1.span(1)), Grid::new(1, 1))
+        .with_stage(GalleryContentStages::Off)
+        .with_stage(GalleryContentStages::On)
+        .with_target(GalleryContentTargets::Image)
+        .finish();
+    let to_intro_content_from_gallery = foliage.create_action(SwitchView::new(
+        intro_content.handle(),
+        intro_content.stage(IntroContentStages::On),
+        gallery_content.handle(),
+        gallery_content.stage(GalleryContentStages::Off),
+    ));
     gallery_controls.define_stage(
         GalleryControlStages::On,
         |stage| {
-            // TODO
+            stage.add_signal_targeting(stage.target(GalleryControlTargets::Forward), |s| {
+                s.with_attribute(Icon::new(IconHandles::Forward.value(), Color::BLACK))
+            });
+            stage.add_signal_targeting(stage.target(GalleryControlTargets::ForwardBackdrop), |s| {
+                s.with_attribute(Panel::new(Rounding::all(1.0), Color::WHITE))
+            });
+            stage.add_signal_targeting(stage.target(GalleryControlTargets::Backward), |s| {
+                s.with_attribute(Icon::new(IconHandles::Backward.value(), Color::BLACK))
+            });
+            stage
+                .add_signal_targeting(stage.target(GalleryControlTargets::BackwardBackdrop), |s| {
+                    s.with_attribute(Panel::new(Rounding::all(1.0), Color::WHITE))
+                });
+            stage.add_signal_targeting(stage.target(GalleryControlTargets::Home), |s| {
+                s.with_attribute(Icon::new(IconHandles::Home.value(), Color::BLACK))
+            });
+            stage.add_signal_targeting(stage.target(GalleryControlTargets::HomeBackdrop), |s| {
+                s.with_attribute(Panel::new(Rounding::all(0.1), Color::WHITE))
+                    .with_attribute(
+                        OnClick::new(to_intro_controls_from_gallery)
+                            .with(to_intro_content_from_gallery),
+                    )
+            });
+            stage.add_signal_targeting(stage.target(GalleryControlTargets::Current), |s| {
+                s.with_attribute(Text::new("1 | 60", Color::WHITE))
+            });
+            stage.add_signal_targeting(stage.target(GalleryControlTargets::Description), |s| {
+                s.with_attribute(Text::new(
+                    "Oil & Wax on Canvas", // 19
+                    Color::WHITE,
+                ))
+            });
+            stage.add_signal_targeting(stage.target(GalleryControlTargets::Info), |s| {
+                s.with_attribute(Text::new(
+                    "[untitled] - 2019  ", // 19
+                    Color::WHITE,
+                ))
+            });
         },
         &mut foliage,
     );
@@ -317,12 +382,6 @@ fn main() {
         intro_controls.handle(),
         intro_controls.stage(GalleryControlStages::Off),
     ));
-    let mut gallery_content = foliage
-        .create_view(GridPlacement::new(1.span(1), 1.span(1)), Grid::new(1, 1))
-        .with_stage(GalleryContentStages::Off)
-        .with_stage(GalleryContentStages::On)
-        .with_target(GalleryContentTargets::Image)
-        .finish();
     gallery_content.define_stage(
         GalleryContentStages::Off,
         |stage| stage.clean_view(),
@@ -331,7 +390,9 @@ fn main() {
     gallery_content.define_stage(
         GalleryContentStages::On,
         |stage| {
-            // TODO
+            stage.add_signal_targeting(stage.target(GalleryContentTargets::Image), |s| {
+                s.with_attribute(GridPlacement::new(1.span(1), 1.span(1)))
+            });
         },
         &mut foliage,
     );
@@ -340,6 +401,101 @@ fn main() {
         gallery_content.stage(GalleryContentStages::On),
         intro_content.handle(),
         intro_content.stage(IntroContentStages::Off),
+    ));
+    let mut about_controls = foliage
+        .create_view(GridPlacement::new(1.span(1), 1.span(1)), Grid::new(1, 1))
+        .with_stage(AboutControlStages::Off)
+        .with_stage(AboutControlStages::On)
+        .with_target(AboutControlTargets::Home)
+        .with_target(AboutControlTargets::HomeBackdrop)
+        .with_target(AboutControlTargets::TwitterIcon)
+        .with_target(AboutControlTargets::TwitterIconBackdrop)
+        .with_target(AboutControlTargets::TwitterText)
+        .with_target(AboutControlTargets::EmailIcon)
+        .with_target(AboutControlTargets::EmailIconBackdrop)
+        .with_target(AboutControlTargets::EmailText)
+        .finish();
+    about_controls.define_stage(
+        AboutControlStages::Off,
+        |stage| stage.clean_view(),
+        &mut foliage,
+    );
+    about_controls.define_stage(
+        AboutControlStages::On,
+        |stage| {
+            stage.add_signal_targeting(stage.target(AboutControlTargets::Home), |s| {
+                s.with_attribute(Icon::new(IconHandles::Home.value(), Color::BLACK))
+            });
+            stage.add_signal_targeting(stage.target(AboutControlTargets::HomeBackdrop), |s| {
+                s.with_attribute(Panel::new(Rounding::all(0.1), Color::WHITE))
+            });
+            stage.add_signal_targeting(stage.target(AboutControlTargets::EmailIcon), |s| {
+                s.with_attribute(Icon::new(IconHandles::Email.value(), Color::BLACK))
+            });
+            stage.add_signal_targeting(stage.target(AboutControlTargets::EmailIconBackdrop), |s| {
+                s.with_attribute(Panel::new(Rounding::all(1.0), Color::WHITE))
+            });
+            stage.add_signal_targeting(stage.target(AboutControlTargets::EmailText), |s| {
+                s.with_attribute(Text::new("jimblack@gmail.com", Color::WHITE))
+            });
+            stage.add_signal_targeting(stage.target(AboutControlTargets::TwitterIcon), |s| {
+                s.with_attribute(Icon::new(IconHandles::Twitter.value(), Color::BLACK))
+            });
+            stage.add_signal_targeting(
+                stage.target(AboutControlTargets::TwitterIconBackdrop),
+                |s| s.with_attribute(Panel::new(Rounding::all(1.0), Color::WHITE)),
+            );
+            stage.add_signal_targeting(stage.target(AboutControlTargets::TwitterText), |s| {
+                s.with_attribute(Text::new("@jimblackrva", Color::WHITE))
+            });
+        },
+        &mut foliage,
+    );
+    let mut about_content = foliage
+        .create_view(GridPlacement::new(1.span(1), 1.span(1)), Grid::new(1, 1))
+        .with_stage(AboutContentStages::Off)
+        .with_stage(AboutContentStages::On)
+        .with_target(AboutContentTargets::Name)
+        .with_target(AboutContentTargets::Bio)
+        .with_target(AboutContentTargets::Picture)
+        .finish();
+    about_content.define_stage(
+        AboutContentStages::Off,
+        |stage| stage.clean_view(),
+        &mut foliage,
+    );
+    about_content.define_stage(
+        AboutContentStages::On,
+        |stage| {
+            stage.add_signal_targeting(stage.target(AboutContentTargets::Name), |s| {
+                s.with_attribute(Text::new("Jim Black", Color::WHITE))
+            });
+            stage.add_signal_targeting(stage.target(AboutContentTargets::Bio), |s| {
+                s.with_attribute(Text::new(
+                    "Jim Black is an artist from Richmond, VA",
+                    Color::WHITE,
+                ))
+            });
+            stage.add_signal_targeting(stage.target(AboutContentTargets::Picture), |s| {
+                s.with_attribute(OnRetrieve::new(bio_pic, |asset| {
+                    Image::new(IMAGE_SLOT, asset).inherit_aspect_ratio()
+                }))
+                .with_attribute(GridPlacement::new(1.span(1), 1.span(1)))
+            });
+        },
+        &mut foliage,
+    );
+    let show_about_controls = foliage.create_action(SwitchView::new(
+        about_controls.handle(),
+        about_controls.stage(AboutControlStages::On),
+        intro_controls.handle(),
+        intro_controls.stage(IntroControlStages::Off),
+    ));
+    let show_about_content = foliage.create_action(SwitchView::new(
+        about_content.handle(),
+        about_content.stage(AboutControlStages::On),
+        intro_content.handle(),
+        intro_content.stage(IntroControlStages::Off),
     ));
     intro_controls.define_stage(
         IntroControlStages::On,
@@ -363,6 +519,26 @@ fn main() {
                         )
                 },
             );
+            stage.add_signal_targeting(stage.target(IntroControlTargets::AboutIcon), |s| {
+                s.with_attribute(Icon::new(IconHandles::About.value(), Color::BLACK))
+                    .with_attribute(GridPlacement::new(1.span(1), 1.span(1)))
+            });
+            let linked = vec![stage.target(IntroControlTargets::AboutIcon)];
+            stage.add_signal_targeting(stage.target(IntroControlTargets::AboutIconBackdrop), |s| {
+                s.with_attribute(Panel::new(Rounding::all(1.0), Color::WHITE))
+                    .with_attribute(GridPlacement::new(1.span(1), 1.span(1)))
+                    .with_attribute(
+                        InteractiveColor::new(Color::WHITE, Color::BLACK).with_linked(linked),
+                    )
+                    .with_attribute(ClickInteractionListener::new().as_circle())
+                    .with_attribute(OnClick::new(show_about_controls).with(show_about_content))
+            });
+            stage.add_signal_targeting(stage.target(IntroControlTargets::GalleryText), |s| {
+                s.with_attribute(Text::new("GALLERY", Color::WHITE))
+            });
+            stage.add_signal_targeting(stage.target(IntroControlTargets::AboutText), |s| {
+                s.with_attribute(Text::new("ABOUT  ", Color::WHITE))
+            });
         },
         &mut foliage,
     );
