@@ -273,7 +273,6 @@ pub(crate) fn listen_for_interactions(
                         .shape
                         .contains(event.position, section)
                     {
-                        println!("active w/ p: {:?} section {:?}", event.position, section);
                         listeners.get_mut(g).unwrap().1.active = true;
                     }
                     listeners

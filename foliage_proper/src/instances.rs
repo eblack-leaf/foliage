@@ -175,7 +175,8 @@ impl<A: Pod + Zeroable + Default + Debug> Attribute<A> {
         }
     }
     fn remove(&mut self, index: usize) {
-        *self.cpu.get_mut(index).expect("index") = A::default();
+        // *self.cpu.get_mut(index).expect("index") = A::default();
+        self.cpu.remove(index);
         self.write_needed = true;
     }
     fn queue_write(&mut self, index: usize, a: A) {
@@ -195,6 +196,7 @@ impl<A: Pod + Zeroable + Default + Debug> Attribute<A> {
     fn write_cpu_to_gpu(&mut self, ginkgo: &Ginkgo) {
         if self.write_needed {
             let slice = &self.cpu[..];
+            println!("writing slice: {:?}", slice);
             ginkgo
                 .context()
                 .queue
