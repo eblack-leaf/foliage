@@ -49,7 +49,7 @@ pub(crate) fn alternate_color_on_engage(
                 cmd.entity(linked.value()).insert(alt.base);
             }
             *color = alt.alternate_color;
-        } else if listener.engaged_end {
+        } else if listener.engaged_end || !listener.engaged {
             for linked in alt.linked.iter() {
                 cmd.entity(linked.value()).insert(alt.alternate_color);
             }
