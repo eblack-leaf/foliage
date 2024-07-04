@@ -338,21 +338,38 @@ fn main() {
             stage.add_signal_targeting(stage.target(GalleryControlTargets::Forward), |s| {
                 s.with_attribute(Icon::new(IconHandles::Forward.value(), Color::BLACK))
             });
+            let linked = vec![stage.target(GalleryControlTargets::Forward)];
             stage.add_signal_targeting(stage.target(GalleryControlTargets::ForwardBackdrop), |s| {
                 s.with_attribute(Panel::new(Rounding::all(1.0), Color::WHITE))
+                    .with_attribute(ClickInteractionListener::new().as_circle())
+                    .with_attribute(
+                        InteractiveColor::new(Color::WHITE, Color::BLACK).with_linked(linked),
+                    )
             });
             stage.add_signal_targeting(stage.target(GalleryControlTargets::Backward), |s| {
                 s.with_attribute(Icon::new(IconHandles::Backward.value(), Color::BLACK))
             });
-            stage
-                .add_signal_targeting(stage.target(GalleryControlTargets::BackwardBackdrop), |s| {
+            let linked = vec![stage.target(GalleryControlTargets::Backward)];
+            stage.add_signal_targeting(
+                stage.target(GalleryControlTargets::BackwardBackdrop),
+                |s| {
                     s.with_attribute(Panel::new(Rounding::all(1.0), Color::WHITE))
-                });
+                        .with_attribute(ClickInteractionListener::new().as_circle())
+                        .with_attribute(
+                            InteractiveColor::new(Color::WHITE, Color::BLACK).with_linked(linked),
+                        )
+                },
+            );
             stage.add_signal_targeting(stage.target(GalleryControlTargets::Home), |s| {
                 s.with_attribute(Icon::new(IconHandles::Home.value(), Color::BLACK))
             });
+            let linked = vec![stage.target(GalleryControlTargets::Home)];
             stage.add_signal_targeting(stage.target(GalleryControlTargets::HomeBackdrop), |s| {
                 s.with_attribute(Panel::new(Rounding::all(0.1), Color::WHITE))
+                    .with_attribute(
+                        InteractiveColor::new(Color::WHITE, Color::BLACK).with_linked(linked),
+                    )
+                    .with_attribute(ClickInteractionListener::new())
                     .with_attribute(
                         OnClick::new(to_intro_controls_from_gallery)
                             .with(to_intro_content_from_gallery),
@@ -420,37 +437,12 @@ fn main() {
         |stage| stage.clean_view(),
         &mut foliage,
     );
-    about_controls.define_stage(
-        AboutControlStages::On,
-        |stage| {
-            stage.add_signal_targeting(stage.target(AboutControlTargets::Home), |s| {
-                s.with_attribute(Icon::new(IconHandles::Home.value(), Color::BLACK))
-            });
-            stage.add_signal_targeting(stage.target(AboutControlTargets::HomeBackdrop), |s| {
-                s.with_attribute(Panel::new(Rounding::all(0.1), Color::WHITE))
-            });
-            stage.add_signal_targeting(stage.target(AboutControlTargets::EmailIcon), |s| {
-                s.with_attribute(Icon::new(IconHandles::Email.value(), Color::BLACK))
-            });
-            stage.add_signal_targeting(stage.target(AboutControlTargets::EmailIconBackdrop), |s| {
-                s.with_attribute(Panel::new(Rounding::all(1.0), Color::WHITE))
-            });
-            stage.add_signal_targeting(stage.target(AboutControlTargets::EmailText), |s| {
-                s.with_attribute(Text::new("jimblack@gmail.com", Color::WHITE))
-            });
-            stage.add_signal_targeting(stage.target(AboutControlTargets::TwitterIcon), |s| {
-                s.with_attribute(Icon::new(IconHandles::Twitter.value(), Color::BLACK))
-            });
-            stage.add_signal_targeting(
-                stage.target(AboutControlTargets::TwitterIconBackdrop),
-                |s| s.with_attribute(Panel::new(Rounding::all(1.0), Color::WHITE)),
-            );
-            stage.add_signal_targeting(stage.target(AboutControlTargets::TwitterText), |s| {
-                s.with_attribute(Text::new("@jimblackrva", Color::WHITE))
-            });
-        },
-        &mut foliage,
-    );
+    let to_intro_controls_from_about = foliage.create_action(SwitchView::new(
+        intro_controls.handle(),
+        intro_controls.stage(IntroControlStages::On),
+        about_controls.handle(),
+        about_controls.stage(AboutControlStages::Off),
+    ));
     let mut about_content = foliage
         .create_view(GridPlacement::new(1.span(1), 1.span(1)), Grid::new(1, 1))
         .with_stage(AboutContentStages::Off)
@@ -459,6 +451,64 @@ fn main() {
         .with_target(AboutContentTargets::Bio)
         .with_target(AboutContentTargets::Picture)
         .finish();
+    let to_intro_content_from_about = foliage.create_action(SwitchView::new(
+        intro_content.handle(),
+        intro_content.stage(IntroContentStages::On),
+        about_content.handle(),
+        about_content.stage(AboutContentStages::Off),
+    ));
+    about_controls.define_stage(
+        AboutControlStages::On,
+        |stage| {
+            stage.add_signal_targeting(stage.target(AboutControlTargets::Home), |s| {
+                s.with_attribute(Icon::new(IconHandles::Home.value(), Color::BLACK))
+            });
+            let linked = vec![stage.target(AboutControlTargets::Home)];
+            stage.add_signal_targeting(stage.target(AboutControlTargets::HomeBackdrop), |s| {
+                s.with_attribute(Panel::new(Rounding::all(0.1), Color::WHITE))
+                    .with_attribute(
+                        InteractiveColor::new(Color::WHITE, Color::BLACK).with_linked(linked),
+                    )
+                    .with_attribute(ClickInteractionListener::new())
+                    .with_attribute(
+                        OnClick::new(to_intro_controls_from_about)
+                            .with(to_intro_content_from_about),
+                    )
+            });
+            stage.add_signal_targeting(stage.target(AboutControlTargets::EmailIcon), |s| {
+                s.with_attribute(Icon::new(IconHandles::Email.value(), Color::BLACK))
+            });
+            let linked = vec![stage.target(AboutControlTargets::EmailIcon)];
+            stage.add_signal_targeting(stage.target(AboutControlTargets::EmailIconBackdrop), |s| {
+                s.with_attribute(Panel::new(Rounding::all(1.0), Color::WHITE))
+                    .with_attribute(ClickInteractionListener::new().as_circle())
+                    .with_attribute(
+                        InteractiveColor::new(Color::WHITE, Color::BLACK).with_linked(linked),
+                    )
+            });
+            stage.add_signal_targeting(stage.target(AboutControlTargets::EmailText), |s| {
+                s.with_attribute(Text::new("jimblack@gmail.com", Color::WHITE))
+            });
+            stage.add_signal_targeting(stage.target(AboutControlTargets::TwitterIcon), |s| {
+                s.with_attribute(Icon::new(IconHandles::Twitter.value(), Color::BLACK))
+            });
+            let linked = vec![stage.target(AboutControlTargets::TwitterIcon)];
+            stage.add_signal_targeting(
+                stage.target(AboutControlTargets::TwitterIconBackdrop),
+                |s| {
+                    s.with_attribute(Panel::new(Rounding::all(1.0), Color::WHITE))
+                        .with_attribute(ClickInteractionListener::new().as_circle())
+                        .with_attribute(
+                            InteractiveColor::new(Color::WHITE, Color::BLACK).with_linked(linked),
+                        )
+                },
+            );
+            stage.add_signal_targeting(stage.target(AboutControlTargets::TwitterText), |s| {
+                s.with_attribute(Text::new("@jimblackrva", Color::WHITE))
+            });
+        },
+        &mut foliage,
+    );
     about_content.define_stage(
         AboutContentStages::Off,
         |stage| stage.clean_view(),
