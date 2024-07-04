@@ -2,9 +2,8 @@ use foliage::asset::{AssetKey, OnRetrieve};
 use foliage::bevy_ecs::prelude::{Resource, World};
 use foliage::bevy_ecs::system::Command;
 use foliage::color::Color;
-use foliage::coordinate::Coordinates;
-use foliage::grid::{Grid, GridCoordinate, GridPlacement, Layout, Padding};
-use foliage::icon::{Icon, IconId, IconRequest};
+use foliage::grid::{Grid, GridCoordinate, GridPlacement};
+use foliage::icon::Icon;
 use foliage::image::Image;
 use foliage::interaction::{ClickInteractionListener, OnClick};
 use foliage::panel::{Panel, Rounding};
@@ -15,344 +14,358 @@ use foliage::view::{CurrentViewStage, Stage, ViewHandle};
 use foliage::{bevy_ecs, load_asset};
 use foliage::{stage_binding, target_binding, Foliage};
 
-#[derive(Clone)]
-struct Next {
-    view: ViewHandle,
-    next_stage: Stage,
-}
-impl Command for Next {
-    fn apply(self, world: &mut World) {
-        world
-            .get_mut::<CurrentViewStage>(self.view.repr())
-            .expect("no-current")
-            .set(self.next_stage);
-    }
-}
 #[derive(Resource)]
-struct GalleryImages {
-    images: Vec<AssetKey>,
-    current: usize,
+struct Media {
+    paintings: Vec<AssetKey>,
+    current_painting: usize,
+    personal: Vec<AssetKey>,
 }
-impl GalleryImages {
-    fn load(foliage: &mut Foliage) -> Self {
-        load_asset!(foliage, "assets/gallery/painting_0.jpg", one);
-        load_asset!(foliage, "assets/gallery/painting_1.jpg", two);
-        load_asset!(foliage, "assets/gallery/painting_2.jpg", three);
-        load_asset!(foliage, "assets/gallery/painting_3.jpg", four);
-        load_asset!(foliage, "assets/gallery/painting_4.jpg", five);
-        load_asset!(foliage, "assets/gallery/painting_5.jpg", six);
-        load_asset!(foliage, "assets/gallery/painting_6.jpg", seven);
-        load_asset!(foliage, "assets/gallery/painting_7.jpg", eight);
-        let mem = Image::memory(0, (1400, 1400));
-        foliage.spawn(mem);
-        Self {
-            images: vec![one, two, three, four, five, six, seven, eight],
-            current: 0,
-        }
-    }
-    fn current_image(&self) -> AssetKey {
-        *self.images.get(self.current).expect("unloaded-asset")
-    }
-    fn advance(&mut self, amount: i32) {
-        self.current = (self.current as i32 + amount)
+impl Media {
+    fn advance(&mut self, amount: i32) -> AssetKey {
+        self.current_painting = (self.current_painting as i32 + amount)
             .max(0)
-            .min(self.images.len().checked_sub(1).unwrap_or_default() as i32)
+            .min(self.paintings.len().checked_sub(1).unwrap_or_default() as i32)
             as usize;
-        println!("current gallery image-{}", self.current);
+        *self.paintings.get(self.current_painting).unwrap()
     }
 }
 #[derive(Clone)]
-struct ChangeImage(TriggerTarget, i32);
-impl Command for ChangeImage {
+struct ChangePainting(i32, TriggerTarget);
+impl Command for ChangePainting {
     fn apply(self, world: &mut World) {
+        let key = world.get_resource_mut::<Media>().unwrap().advance(self.0);
         world
-            .get_resource_mut::<GalleryImages>()
-            .expect("gallery-images")
-            .advance(self.1);
-        let key = world
-            .get_resource_mut::<GalleryImages>()
-            .expect("gallery-images")
-            .current_image();
-        world
-            .entity_mut(self.0.value())
+            .entity_mut(self.1.value())
             .insert(OnRetrieve::new(key, |asset| {
                 Image::new(0, asset).inherit_aspect_ratio()
             }));
     }
 }
-#[derive(Clone)]
-struct ClipboardMessage(&'static str);
-impl Command for ClipboardMessage {
-    fn apply(self, world: &mut World) {
-        // get clipboard + write message.0 to it
-    }
-}
 #[target_binding]
-enum ContentTargets {
+enum IntroContentTargets {
     FirstName,
     LastName,
-    Title,
-    Image,
-}
-#[stage_binding]
-enum ContentStages {
-    Initial,
-    Gallery,
-    About,
+    Artist,
 }
 #[target_binding]
-enum ControlTargets {
-    PageLeft,
-    PageRight,
-    CopyTwitter,
-    CopyEmail,
-    Background,
-    Home,
+enum IntroControlTargets {
     GalleryIcon,
     GalleryIconBackdrop,
-    AboutIcon,
     GalleryText,
+    AboutIcon,
+    AboutIconBackdrop,
     AboutText,
 }
+#[target_binding]
+enum GalleryContentTargets {
+    Image,
+}
+#[target_binding]
+enum GalleryControlTargets {
+    Forward,
+    Backward,
+    Home,
+    Current,     // 1 | 60
+    Description, // title + desc
+    Info,        // year + materials
+}
+#[target_binding]
+enum AboutContentTargets {
+    Name,
+    Bio,
+    Picture,
+}
+#[target_binding]
+enum AboutControlTargets {
+    Home,
+    TwitterIcon,
+    TwitterIconBackdrop,
+    TwitterText,
+    EmailIcon,
+    EmailIconBackdrop,
+    EmailText,
+}
 #[stage_binding]
-enum ControlStages {
-    Initial,
-    Creation,
+enum IntroContentStages {
+    On,
+    Off,
+}
+#[stage_binding]
+enum IntroControlStages {
+    On,
+    Off,
+}
+#[stage_binding]
+enum GalleryContentStages {
+    On,
+    Off,
+}
+#[stage_binding]
+enum AboutContentStages {
+    On,
+    Off,
+}
+#[stage_binding]
+enum GalleryControlStages {
+    On,
+    Off,
+}
+#[stage_binding]
+enum AboutControlStages {
+    On,
+    Off,
+}
+#[derive(Clone)]
+struct SwitchView {
+    on: ViewHandle,
+    on_stage: Stage,
+    off: ViewHandle,
+    off_stage: Stage,
+}
+impl SwitchView {
+    fn new(on: ViewHandle, on_stage: Stage, off: ViewHandle, off_stage: Stage) -> Self {
+        Self {
+            on,
+            on_stage,
+            off,
+            off_stage,
+        }
+    }
+}
+impl Command for SwitchView {
+    fn apply(self, world: &mut World) {
+        world
+            .get_mut::<CurrentViewStage>(self.on.repr())
+            .unwrap()
+            .set(self.on_stage);
+        world
+            .get_mut::<CurrentViewStage>(self.off.repr())
+            .unwrap()
+            .set(self.off_stage);
+    }
+}
+#[derive(Copy, Clone)]
+enum IconHandles {
+    Home,
+    Forward,
+    Backward,
+    Twitter,
+    Email,
     Gallery,
     About,
+}
+impl IconHandles {
+    fn value(self) -> i32 {
+        self as i32
+    }
 }
 fn main() {
     let mut foliage = Foliage::new();
-    foliage.set_window_size((800, 360));
+    foliage.set_window_size((360, 800));
     foliage.set_base_url("");
-    foliage.spawn(IconRequest::new(
-        0,
-        include_bytes!("assets/activity.icon").to_vec(),
-    ));
-    foliage.spawn(IconRequest::new(
-        1,
-        include_bytes!("assets/airplay.icon").to_vec(),
-    ));
-    foliage.spawn(IconRequest::new(
-        2,
-        include_bytes!("assets/alert-circle.icon").to_vec(),
-    ));
-    let images = GalleryImages::load(&mut foliage);
-    foliage.insert_resource(images);
-    let mut content = foliage
-        .create_view(
-            GridPlacement::new(1.span(2), 1.span(2))
-                .except(Layout::LANDSCAPE_MOBILE, 1.span(5), 1.span(4))
-                .except(Layout::LANDSCAPE_EXT, 3.span(6), 1.span(4)),
-            Grid::new(3, 3),
-        )
-        .with_target(ContentTargets::Image)
-        .with_stage(ContentStages::Initial)
-        .with_stage(ContentStages::Gallery)
-        .with_stage(ContentStages::About)
-        .set_initial_stage(ContentStages::Initial)
+    foliage.load_icon(
+        IconHandles::Home.value(),
+        include_bytes!("assets/icons/home.icon"),
+    );
+    foliage.load_icon(
+        IconHandles::Forward.value(),
+        include_bytes!("assets/icons/chevrons-right.icon"),
+    );
+    foliage.load_icon(
+        IconHandles::Backward.value(),
+        include_bytes!("assets/icons/chevrons-left.icon"),
+    );
+    foliage.load_icon(
+        IconHandles::Twitter.value(),
+        include_bytes!("assets/icons/twitter.icon"),
+    );
+    foliage.load_icon(
+        IconHandles::Email.value(),
+        include_bytes!("assets/icons/inbox.icon"),
+    );
+    foliage.load_icon(
+        IconHandles::Gallery.value(),
+        include_bytes!("assets/icons/grid.icon"),
+    );
+    foliage.load_icon(
+        IconHandles::About.value(),
+        include_bytes!("assets/icons/at-sign.icon"),
+    );
+    let media = Media {
+        paintings: vec![
+            load_asset!(foliage, "assets/gallery/painting_0.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_1.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_2.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_3.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_4.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_5.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_6.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_7.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_8.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_9.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_10.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_11.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_12.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_13.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_14.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_15.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_16.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_17.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_18.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_19.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_20.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_21.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_22.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_23.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_24.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_25.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_26.jpg"),
+            // load_asset!(foliage, "assets/gallery/painting_27.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_28.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_29.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_30.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_31.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_32.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_33.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_34.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_35.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_36.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_37.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_38.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_39.jpg"),
+            load_asset!(foliage, "assets/gallery/painting_40.jpg"),
+        ],
+        current_painting: 0,
+        personal: vec![],
+    };
+    foliage.insert_resource(media);
+    let mut intro_content = foliage
+        .create_view(GridPlacement::new(1.span(1), 1.span(1)), Grid::new(3, 4))
+        .with_stage(IntroContentStages::Off)
+        .with_stage(IntroContentStages::On)
+        .with_target(IntroContentTargets::FirstName)
+        .with_target(IntroContentTargets::LastName)
+        .with_target(IntroContentTargets::Artist)
+        .set_initial_stage(IntroContentStages::On)
         .finish();
-    let load_gallery_image =
-        foliage.create_action(ChangeImage(content.target(ContentTargets::Image), 0));
-    let page_left = foliage.create_action(ChangeImage(content.target(ContentTargets::Image), -1));
-    let page_right = foliage.create_action(ChangeImage(content.target(ContentTargets::Image), 1));
-    let to_content_gallery = foliage.create_action(Next {
-        view: content.handle(),
-        next_stage: content.stage(ContentStages::Gallery),
-    });
-    let to_content_about = foliage.create_action(Next {
-        view: content.handle(),
-        next_stage: content.stage(ContentStages::About),
-    });
-    let to_content_blank = foliage.create_action(Next {
-        view: content.handle(),
-        next_stage: content.stage(ContentStages::Initial),
-    });
-    let mut control_panel = foliage
-        .create_view(
-            GridPlacement::new(1.span(2), 2.span(2))
-                .except(Layout::LANDSCAPE_MOBILE, 6.span(3), 1.span(4))
-                .except(Layout::LANDSCAPE_EXT, 10.span(3), 1.span(4))
-                .except(Layout::PORTRAIT_MOBILE, 1.span(4), 6.span(3))
-                .except(Layout::PORTRAIT_EXT, 1.span(4), 10.span(3))
-                .except(Layout::SQUARE_EXT, 4.span(5), 6.span(3))
-                .except(Layout::SQUARE_MAX, 4.span(5), 10.span(3))
-                .except(Layout::WIDE_DESKTOP, 3.span(6), 6.span(3))
-                .except(Layout::TALL_DESKTOP, 3.span(6), 10.span(3)),
-            Grid::new(3, 4),
-        )
-        .with_target(ControlTargets::Background)
-        .with_target(ControlTargets::GalleryIcon)
-        .with_target(ControlTargets::GalleryIconBackdrop)
-        .with_target(ControlTargets::GalleryText)
-        .with_target(ControlTargets::AboutText)
-        .with_target(ControlTargets::AboutIcon)
-        .with_target(ControlTargets::PageLeft)
-        .with_target(ControlTargets::PageRight)
-        .with_target(ControlTargets::Home)
-        .with_target(ControlTargets::CopyTwitter)
-        .with_target(ControlTargets::CopyEmail)
-        .with_stage(ControlStages::Initial)
-        .with_stage(ControlStages::Creation)
-        .with_stage(ControlStages::Gallery)
-        .with_stage(ControlStages::About)
-        .set_initial_stage(ControlStages::Initial)
+    intro_content.define_stage(
+        IntroContentStages::Off,
+        |stage| stage.clean_view(),
+        &mut foliage,
+    );
+    intro_content.define_stage(
+        IntroContentStages::On,
+        |stage| {
+            stage.add_signal_targeting(stage.target(IntroContentTargets::FirstName), |s| {
+                s.with_attribute(Text::new("JIM", Color::WHITE))
+                    .with_attribute(GridPlacement::new(1.span(1), 1.span(1)))
+            });
+            stage.add_signal_targeting(stage.target(IntroContentTargets::LastName), |s| {
+                s.with_attribute(Text::new("BLACK", Color::WHITE))
+                    .with_attribute(GridPlacement::new(1.span(1), 1.span(1)))
+            });
+            stage.add_signal_targeting(stage.target(IntroContentTargets::Artist), |s| {
+                s.with_attribute(Text::new("RVA | ARTIST", Color::WHITE))
+                    .with_attribute(GridPlacement::new(1.span(1), 1.span(1)))
+            });
+        },
+        &mut foliage,
+    );
+    let mut intro_controls = foliage
+        .create_view(GridPlacement::new(1.span(1), 1.span(1)), Grid::new(1, 1))
+        .with_stage(IntroControlStages::Off)
+        .with_stage(IntroControlStages::On)
+        .with_target(IntroControlTargets::GalleryIcon)
+        .with_target(IntroControlTargets::GalleryIconBackdrop)
+        .with_target(IntroControlTargets::AboutIcon)
+        .with_target(IntroControlTargets::AboutIconBackdrop)
+        .with_target(IntroControlTargets::GalleryText)
+        .with_target(IntroControlTargets::AboutText)
+        .set_initial_stage(IntroControlStages::On)
         .finish();
-    let copy_twitter_address = foliage.create_action(ClipboardMessage("jblack@twitter"));
-    let copy_email_address = foliage.create_action(ClipboardMessage("jblack@gmail.com"));
-    let to_creation = foliage.create_action(Next {
-        view: control_panel.handle(),
-        next_stage: control_panel.stage(ControlStages::Creation),
-    });
-    let to_image_controls = foliage.create_action(Next {
-        view: control_panel.handle(),
-        next_stage: control_panel.stage(ControlStages::Gallery),
-    });
-    let to_about_controls = foliage.create_action(Next {
-        view: control_panel.handle(),
-        next_stage: control_panel.stage(ControlStages::About),
-    });
-    content.define_stage(
-        ContentStages::Initial,
+    intro_controls.define_stage(
+        IntroControlStages::Off,
+        |stage| stage.clean_view(),
+        &mut foliage,
+    );
+    let mut gallery_controls = foliage
+        .create_view(GridPlacement::new(1.span(1), 1.span(1)), Grid::new(1, 1))
+        .with_stage(GalleryControlStages::Off)
+        .with_stage(GalleryControlStages::On)
+        .with_target(GalleryControlTargets::Forward)
+        .with_target(GalleryControlTargets::Backward)
+        .with_target(GalleryControlTargets::Current)
+        .with_target(GalleryControlTargets::Home)
+        .with_target(GalleryControlTargets::Info)
+        .with_target(GalleryControlTargets::Description)
+        .finish();
+    gallery_controls.define_stage(
+        GalleryControlStages::Off,
+        |stage| stage.clean_view(),
+        &mut foliage,
+    );
+    gallery_controls.define_stage(
+        GalleryControlStages::On,
         |stage| {
-            stage.clean_view();
+            // TODO
         },
         &mut foliage,
     );
-    content.define_stage(
-        ContentStages::Gallery,
+    let show_gallery_controls = foliage.create_action(SwitchView::new(
+        gallery_controls.handle(),
+        gallery_controls.stage(GalleryControlStages::On),
+        intro_controls.handle(),
+        intro_controls.stage(GalleryControlStages::Off),
+    ));
+    let mut gallery_content = foliage
+        .create_view(GridPlacement::new(1.span(1), 1.span(1)), Grid::new(1, 1))
+        .with_stage(GalleryContentStages::Off)
+        .with_stage(GalleryContentStages::On)
+        .with_target(GalleryContentTargets::Image)
+        .finish();
+    gallery_content.define_stage(
+        GalleryContentStages::Off,
+        |stage| stage.clean_view(),
+        &mut foliage,
+    );
+    gallery_content.define_stage(
+        GalleryContentStages::On,
         |stage| {
-            stage.signal_action(load_gallery_image);
-            stage.add_signal_targeting(stage.target(ContentTargets::Image), |sr| {
-                sr.with_attribute(GridPlacement::new(1.span(3), 1.span(3)))
-            });
+            // TODO
         },
         &mut foliage,
     );
-    control_panel.define_stage(
-        ControlStages::Initial,
+    let show_gallery_content = foliage.create_action(SwitchView::new(
+        gallery_content.handle(),
+        gallery_content.stage(GalleryContentStages::On),
+        intro_content.handle(),
+        intro_content.stage(IntroContentStages::Off),
+    ));
+    intro_controls.define_stage(
+        IntroControlStages::On,
         |stage| {
-            stage.add_signal_targeting(stage.target(ControlTargets::Background), |sr| {
-                sr.with_attribute(Panel::new(Rounding::all(0.05), Color::BLACK))
-                    .with_attribute(
-                        GridPlacement::new(1.span(3), 1.span(4))
-                            .ignore_gap()
-                            .offset_layer(5),
-                    )
-            });
-            stage.on_end(to_creation);
-        },
-        &mut foliage,
-    );
-    control_panel.define_stage(
-        ControlStages::Creation,
-        |stage| {
-            stage.add_signal_targeting(stage.target(ControlTargets::GalleryIcon), |sr| {
-                sr.with_attribute(Icon::new(IconId(0), Color::BLACK))
-                    .with_attribute(GridPlacement::new(1.span(1), 1.span(2)))
-            });
-            let linked = vec![stage.target(ControlTargets::GalleryIcon)];
-            stage.add_signal_targeting(stage.target(ControlTargets::GalleryIconBackdrop), |s| {
-                s.with_attribute(Panel::new(Rounding::all(1.0), Color::WHITE))
-                    .with_attribute(
-                        InteractiveColor::new(Color::WHITE, Color::BLACK).with_linked(linked),
-                    )
-                    .with_attribute(ClickInteractionListener::new().as_circle())
-                    .with_attribute(OnClick::new(to_image_controls).with(to_content_gallery))
-                    .with_attribute(
-                        GridPlacement::new(1.span(1), 1.span(2))
-                            .fixed_area(Coordinates::new(48.0, 48.0))
-                            .offset_layer(1),
-                    )
-            });
-            stage.add_signal_targeting(stage.target(ControlTargets::AboutIcon), |sr| {
-                sr.with_attribute(Icon::new(IconId(0), Color::WHITE))
-                    .with_attribute(GridPlacement::new(1.span(1), 3.span(2)))
-                    .with_attribute(ClickInteractionListener::new())
-                    .with_attribute(OnClick::new(to_about_controls))
-            });
-            stage.add_signal_targeting(stage.target(ControlTargets::GalleryText), |s| {
-                s.with_attribute(Text::new("gallery", Color::WHITE))
-                    .with_attribute(GridPlacement::new(2.span(2), 1.span(2)))
-            });
-            stage.add_signal_targeting(stage.target(ControlTargets::AboutText), |s| {
-                s.with_attribute(Text::new("about  ", Color::WHITE))
-                    .with_attribute(GridPlacement::new(2.span(2), 3.span(2)))
-            });
-            stage.add_signal_targeting(stage.target(ControlTargets::PageRight), |sr| sr.clean());
-            stage.add_signal_targeting(stage.target(ControlTargets::PageLeft), |sr| sr.clean());
-            stage.add_signal_targeting(stage.target(ControlTargets::Home), |sr| sr.clean());
-            stage.add_signal_targeting(stage.target(ControlTargets::CopyTwitter), |sr| sr.clean());
-            stage.add_signal_targeting(stage.target(ControlTargets::CopyEmail), |sr| sr.clean());
-        },
-        &mut foliage,
-    );
-    control_panel.define_stage(
-        ControlStages::Gallery,
-        |stage| {
-            stage.add_signal_targeting(stage.target(ControlTargets::GalleryIcon), |sr| sr.clean());
-            stage.add_signal_targeting(stage.target(ControlTargets::GalleryIconBackdrop), |sr| {
-                sr.clean()
-            });
-            stage.add_signal_targeting(stage.target(ControlTargets::AboutIcon), |sr| sr.clean());
-            stage.add_signal_targeting(stage.target(ControlTargets::GalleryText), |sr| sr.clean());
-            stage.add_signal_targeting(stage.target(ControlTargets::AboutText), |sr| sr.clean());
-            stage.add_signal_targeting(stage.target(ControlTargets::PageRight), |s| {
-                s.with_attribute(Icon::new(IconId(1), Color::BLACK))
-                    .with_filtered_attribute(
-                        IconId(1),
-                        Layout::LANDSCAPE_MOBILE | Layout::LANDSCAPE_EXT,
-                    )
-                    .with_attribute(GridPlacement::new(2.span(1), 1.span(1)))
-                    .with_attribute(ClickInteractionListener::new())
-                    .with_attribute(OnClick::new(page_right))
-            });
-            stage.add_signal_targeting(stage.target(ControlTargets::PageLeft), |s| {
-                s.with_attribute(Icon::new(IconId(1), Color::WHITE))
-                    .with_filtered_attribute(
-                        IconId(1),
-                        Layout::LANDSCAPE_MOBILE | Layout::LANDSCAPE_EXT,
-                    )
-                    .with_attribute(GridPlacement::new(2.span(1), 4.span(1)))
-                    .with_attribute(ClickInteractionListener::new())
-                    .with_attribute(OnClick::new(page_left))
-            });
-            stage.add_signal_targeting(stage.target(ControlTargets::Home), |s| {
-                s.with_attribute(Icon::new(IconId(1), Color::WHITE))
-                    .with_attribute(OnClick::new(to_creation).with(to_content_blank))
+            stage.add_signal_targeting(stage.target(IntroControlTargets::GalleryIcon), |s| {
+                s.with_attribute(Icon::new(IconHandles::Gallery.value(), Color::BLACK))
                     .with_attribute(GridPlacement::new(1.span(1), 1.span(1)))
-                    .with_attribute(ClickInteractionListener::new())
             });
+            let linked = vec![stage.target(IntroControlTargets::GalleryIcon)];
+            stage.add_signal_targeting(
+                stage.target(IntroControlTargets::GalleryIconBackdrop),
+                |s| {
+                    s.with_attribute(Panel::new(Rounding::all(1.0), Color::WHITE))
+                        .with_attribute(GridPlacement::new(1.span(1), 1.span(1)))
+                        .with_attribute(
+                            InteractiveColor::new(Color::WHITE, Color::BLACK).with_linked(linked),
+                        )
+                        .with_attribute(ClickInteractionListener::new().as_circle())
+                        .with_attribute(
+                            OnClick::new(show_gallery_controls).with(show_gallery_content),
+                        )
+                },
+            );
         },
         &mut foliage,
     );
-    control_panel.define_stage(
-        ControlStages::About,
-        |stage| {
-            stage.add_signal_targeting(stage.target(ControlTargets::Home), |sr| {
-                sr.with_attribute(Icon::new(IconId(1), Color::WHITE))
-                    .with_attribute(OnClick::new(to_creation).with(to_content_blank))
-                    .with_attribute(GridPlacement::new(1.span(1), 1.span(1)))
-                    .with_attribute(ClickInteractionListener::new())
-            });
-            stage.add_signal_targeting(stage.target(ControlTargets::CopyTwitter), |sr| {
-                sr.with_attribute(Icon::new(IconId(2), Color::WHITE))
-                    .with_attribute(GridPlacement::new(1.span(1), 2.span(1)))
-                    .with_attribute(ClickInteractionListener::new())
-                    .with_attribute(OnClick::new(copy_twitter_address))
-            });
-            stage.add_signal_targeting(stage.target(ControlTargets::CopyEmail), |sr| {
-                sr.with_attribute(Icon::new(IconId(2), Color::WHITE))
-                    .with_attribute(GridPlacement::new(1.span(1), 3.span(1)))
-                    .with_attribute(ClickInteractionListener::new())
-                    .with_attribute(OnClick::new(copy_email_address))
-            });
-            stage.add_signal_targeting(stage.target(ControlTargets::GalleryIcon), |sr| sr.clean());
-            stage.add_signal_targeting(stage.target(ControlTargets::AboutIcon), |sr| sr.clean());
-            stage.add_signal_targeting(stage.target(ControlTargets::GalleryText), |sr| sr.clean());
-            stage.add_signal_targeting(stage.target(ControlTargets::AboutText), |sr| sr.clean());
-        },
-        &mut foliage,
-    );
+
     foliage.run();
 }

@@ -21,7 +21,7 @@ use crate::elm::Elm;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::{Ginkgo, ScaleFactor};
 use crate::grid::{Grid, GridPlacement};
-use crate::icon::Icon;
+use crate::icon::{Icon, IconId, IconRequest};
 use crate::image::Image;
 use crate::interaction::{ClickInteractionListener, KeyboardAdapter, MouseAdapter, TouchAdapter};
 use crate::panel::Panel;
@@ -88,6 +88,9 @@ impl Foliage {
         this.attach_leaves::<CoreLeaves>();
         this.elm.ecs.world.insert_resource(AssetLoader::default());
         this
+    }
+    pub fn load_icon<ID: Into<IconId>, B: AsRef<[u8]>>(&mut self, id: ID, bytes: B) {
+        self.spawn(IconRequest::new(id, bytes.as_ref().to_vec()));
     }
     pub fn set_base_url<S: AsRef<str>>(&mut self, s: S) {
         self.base_url = s.as_ref().to_string();

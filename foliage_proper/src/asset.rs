@@ -69,12 +69,13 @@ impl AssetLoader {
 }
 #[macro_export]
 macro_rules! load_asset {
-    ($foliage:ident, $path:literal, $id:ident) => {
+    ($foliage:ident, $path:literal) => {{
         #[cfg(target_family = "wasm")]
-        let $id = $foliage.load_remote_asset($path);
+        let id = $foliage.load_remote_asset($path);
         #[cfg(not(target_family = "wasm"))]
-        let $id = $foliage.load_native_asset(include_bytes!($path).to_vec());
-    };
+        let id = $foliage.load_native_asset(include_bytes!($path).to_vec());
+        id
+    }};
 }
 pub type AssetKey = u128;
 #[derive(Clone)]

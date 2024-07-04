@@ -159,7 +159,9 @@ impl<'a> StageReference<'a> {
         *self.targets.get(&tb.into()).expect("no-target")
     }
     pub fn clean_view(&mut self) {
-        self.add_signal_targeting(TriggerTarget(self.root), |s| s.with_attribute(Clean::should_clean()));
+        self.add_signal_targeting(TriggerTarget(self.root), |s| {
+            s.with_attribute(Clean::should_clean())
+        });
     }
     pub fn add_signal_targeting<AFn: FnOnce(SignalReference<'a>) -> SignalReference<'a>>(
         &mut self,
