@@ -1,6 +1,7 @@
 use foliage::asset::{AssetKey, OnRetrieve};
 use foliage::bevy_ecs::prelude::{Resource, World};
 use foliage::bevy_ecs::system::Command;
+use foliage::clipboard::ClipboardWrite;
 use foliage::color::{Color, Grey, Monochromatic};
 use foliage::grid::{Grid, GridCoordinate, GridPlacement};
 use foliage::icon::Icon;
@@ -164,6 +165,8 @@ impl IconHandles {
         self as i32
     }
 }
+const TWITTER_HANDLE: &str = "jblack";
+const EMAIL_HANDLE: &str = "jblack";
 fn main() {
     let mut foliage = Foliage::new();
     foliage.set_window_size((360, 800));
@@ -485,6 +488,8 @@ fn main() {
         about_content.handle(),
         about_content.stage(AboutContentStages::Off),
     ));
+    let copy_twitter = foliage.create_action(ClipboardWrite::new(TWITTER_HANDLE));
+    let copy_email = foliage.create_action(ClipboardWrite::new(EMAIL_HANDLE));
     about_controls.define_stage(
         AboutControlStages::On,
         |stage| {
@@ -517,9 +522,10 @@ fn main() {
                     .with_attribute(
                         InteractiveColor::new(Color::WHITE, Color::BLACK).with_linked(linked),
                     )
+                    .with_attribute(OnClick::new(copy_email))
             });
             stage.add_signal_targeting(stage.target(AboutControlTargets::EmailText), |s| {
-                s.with_attribute(Text::new("jimblack@gmail.com", FontSize::Sm, Grey::BASE))
+                s.with_attribute(Text::new(EMAIL_HANDLE, FontSize::Sm, Grey::BASE))
                     .with_attribute(GridPlacement::new(2.span(3), 1.span(1)))
             });
             stage.add_signal_targeting(stage.target(AboutControlTargets::TwitterIcon), |s| {
@@ -538,10 +544,11 @@ fn main() {
                         .with_attribute(
                             InteractiveColor::new(Color::WHITE, Color::BLACK).with_linked(linked),
                         )
+                        .with_attribute(OnClick::new(copy_twitter))
                 },
             );
             stage.add_signal_targeting(stage.target(AboutControlTargets::TwitterText), |s| {
-                s.with_attribute(Text::new("@jimblackrva      ", FontSize::Sm, Grey::BASE))
+                s.with_attribute(Text::new(TWITTER_HANDLE, FontSize::Sm, Grey::BASE))
                     .with_attribute(GridPlacement::new(2.span(3), 2.span(1)))
             });
         },
@@ -629,10 +636,14 @@ fn main() {
             stage.add_signal_targeting(stage.target(IntroControlTargets::GalleryText), |s| {
                 s.with_attribute(Text::new("GALLERY", FontSize::Md, Color::WHITE))
                     .with_attribute(GridPlacement::new(2.span(2), 1.span(2)))
+                    .with_attribute(ClickInteractionListener::new())
+                    .with_attribute(OnClick::new(show_gallery_controls).with(show_gallery_content))
             });
             stage.add_signal_targeting(stage.target(IntroControlTargets::AboutText), |s| {
                 s.with_attribute(Text::new("ABOUT  ", FontSize::Md, Color::WHITE))
                     .with_attribute(GridPlacement::new(2.span(2), 3.span(2)))
+                    .with_attribute(ClickInteractionListener::new())
+                    .with_attribute(OnClick::new(show_about_controls).with(show_about_content))
             });
         },
         &mut foliage,

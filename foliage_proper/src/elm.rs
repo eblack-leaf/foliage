@@ -13,6 +13,7 @@ use bevy_ecs::world::World;
 
 use crate::ash::Render;
 use crate::asset::{await_assets, on_retrieve};
+use crate::clipboard::{read_retrieve, Clipboard};
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::NumericalContext;
@@ -103,6 +104,14 @@ impl<D> Default for EventLimiter<D> {
 pub(crate) struct RetrieveLimiter<D>(PhantomData<D>);
 
 impl<D> Default for RetrieveLimiter<D> {
+    fn default() -> Self {
+        Self(PhantomData)
+    }
+}
+#[derive(Resource)]
+pub(crate) struct ClipboardRetrieveLimiter<D>(PhantomData<D>);
+
+impl<D> Default for ClipboardRetrieveLimiter<D> {
     fn default() -> Self {
         Self(PhantomData)
     }
@@ -219,6 +228,7 @@ impl Elm {
         self.ecs.world.insert_resource(KeyboardAdapter::default());
         self.ecs.world.insert_resource(InteractiveEntity::default());
         self.ecs.world.insert_resource(FocusedEntity::default());
+        self.ecs.world.insert_non_send_resource(Clipboard::new());
         self.scheduler.main.configure_sets(
             (
                 ScheduleMarkers::Events,
@@ -330,6 +340,20 @@ impl Elm {
             .get_resource_mut::<ViewportHandle>()
             .unwrap()
             .resize(willow.actual_area().to_logical(scale_value).to_numerical());
+    }
+    pub(crate) fn enable_clipboard_retrieve<B: Bundle + Send + Sync + 'static>(&mut self) {
+        if !self
+            .ecs
+            .world
+            .contains_resource::<ClipboardRetrieveLimiter<B>>()
+        {
+            self.scheduler
+                .main
+                .add_systems(read_retrieve::<B>.in_set(ScheduleMarkers::External));
+            self.ecs
+                .world
+                .insert_resource(ClipboardRetrieveLimiter::<B>::default());
+        }
     }
     pub(crate) fn enable_retrieve<B: Bundle + Send + Sync + 'static>(&mut self) {
         if !self.ecs.world.contains_resource::<RetrieveLimiter<B>>() {

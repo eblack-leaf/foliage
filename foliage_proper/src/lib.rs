@@ -27,11 +27,12 @@ use crate::interaction::{ClickInteractionListener, KeyboardAdapter, MouseAdapter
 use crate::panel::Panel;
 use crate::signal::Signal;
 use crate::style::Style;
-use crate::text::Text;
+use crate::text::{Text, TextValue};
 use crate::view::{ViewComponents, ViewHandle};
 
 pub mod ash;
 pub mod asset;
+pub mod clipboard;
 pub mod color;
 pub mod coordinate;
 mod differential;
@@ -174,6 +175,9 @@ impl Foliage {
                 (event_loop_function)(event_loop, &mut self).expect("event-loop-run-app");
             }
         }
+    }
+    pub fn enable_clipboard_retrieve<B: Bundle + Send + Sync + 'static>(&mut self) {
+        self.elm.enable_clipboard_retrieve::<B>();
     }
     pub fn enable_retrieve<B: Bundle + Send + Sync + 'static>(&mut self) {
         self.elm.enable_retrieve::<B>();
@@ -484,5 +488,6 @@ impl Leaves for CoreLeaves {
         foliage.attach_leaf::<Text>();
         foliage.add_renderer::<Text>();
         foliage.attach_leaf::<Style>();
+        foliage.enable_clipboard_retrieve::<TextValue>();
     }
 }
