@@ -74,16 +74,13 @@ impl Text {
     }
 }
 #[derive(Copy, Clone, Component)]
-pub enum FontSize {
-    Xs = 14,
-    Sm = 18,
-    Md = 28,
-    Lg = 48,
-    Xl = 72,
-}
+pub struct FontSize(pub(crate) f32);
 impl FontSize {
+    pub fn new(v: u32) -> Self {
+        Self(v as f32)
+    }
     pub fn value(&self) -> f32 {
-        *self as i32 as f32
+        self.0
     }
 }
 #[derive(Serialize, Deserialize, Copy, Clone, Hash, Eq, PartialEq, Debug)]
@@ -152,6 +149,9 @@ impl GlyphColors {
 #[derive(Clone, Component)]
 pub struct TextValue(pub String);
 impl TextValue {
+    pub fn new<S: AsRef<str>>(s: S) -> Self {
+        Self(s.as_ref().to_string())
+    }
     pub fn num_unique_characters(&self) -> u32 {
         let mut uc = HashSet::new();
         for c in self.0.chars() {

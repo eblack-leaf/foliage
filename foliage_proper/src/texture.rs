@@ -110,6 +110,9 @@ impl<
                 possible_locations.insert(AtlasLocation(x, y));
             }
         }
+        if capacity == 0 {
+            possible_locations.clear();
+        }
         let texture_extent = Coordinates::new(
             logical_dim as f32 * (block.horizontal() + Self::PADDING),
             logical_dim as f32 * (block.vertical() + Self::PADDING),
