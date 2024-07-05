@@ -470,7 +470,7 @@ fn main() {
         about_controls.stage(AboutControlStages::Off),
     ));
     let mut about_content = foliage
-        .create_view(GridPlacement::new(1.span(4), 1.span(6)), Grid::new(1, 8))
+        .create_view(GridPlacement::new(1.span(4), 1.span(6)), Grid::new(4, 8))
         .with_stage(AboutContentStages::Off)
         .with_stage(AboutContentStages::On)
         .with_target(AboutContentTargets::Name)
@@ -555,24 +555,20 @@ fn main() {
         |stage| {
             stage.add_signal_targeting(stage.target(AboutContentTargets::Name), |s| {
                 s.with_attribute(Text::new("Jim Black", Color::WHITE))
-                    .with_attribute(GridPlacement::new(1.span(1), 1.span(1)))
+                    .with_attribute(GridPlacement::new(1.span(4), 1.span(1)))
             });
             stage.add_signal_targeting(stage.target(AboutContentTargets::Bio), |s| {
                 s.with_attribute(Text::new(
-                    "Jim Black is an artist \n\
-                    from Richmond, VA.\n\
-                    Master's of Fine Arts \n\
-                    from VCU, with a focus \n\
-                    on abstract aesthetics",
+                    "Jim Black is an artist from Richmond, VA. Master's of Fine Arts from VCU, with a focus on abstract aesthetics",
                     Color::WHITE,
                 ))
-                .with_attribute(GridPlacement::new(1.span(1), 2.span(2)))
+                .with_attribute(GridPlacement::new(2.span(2), 2.span(2)))
             });
             stage.add_signal_targeting(stage.target(AboutContentTargets::Picture), |s| {
                 s.with_attribute(OnRetrieve::new(bio_pic, |asset| {
                     Image::new(IMAGE_SLOT, asset).inherit_aspect_ratio()
                 }))
-                .with_attribute(GridPlacement::new(1.span(1), 4.span(5)))
+                .with_attribute(GridPlacement::new(1.span(4), 4.span(5)))
             });
         },
         &mut foliage,
