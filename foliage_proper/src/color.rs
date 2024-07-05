@@ -65,3 +65,16 @@ impl From<Color> for wgpu::Color {
         }
     }
 }
+
+pub trait Monochromatic {
+    const DARK: Color;
+    const BASE: Color;
+    const LIGHT: Color;
+}
+
+pub struct Grey;
+impl Monochromatic for Grey {
+    const DARK: Color = Color::rgb(0.15, 0.15, 0.15);
+    const BASE: Color = Color::rgb(0.5, 0.5, 0.5);
+    const LIGHT: Color = Color::rgb(0.75, 0.75, 0.75);
+}

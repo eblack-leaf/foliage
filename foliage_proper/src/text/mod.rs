@@ -195,7 +195,9 @@ pub(crate) fn distill(
             let mut attempted_size = 0f32;
             let mut attempted_dims = Coordinates::new(0.0, 0.0);
             let mut character_dims = Coordinates::default();
-            while attempted_dims < scaled_area.coordinates {
+            while attempted_dims.horizontal() < scaled_area.coordinates.horizontal()
+                && attempted_dims.vertical() < scaled_area.coordinates.vertical()
+            {
                 attempted_size += 1f32 * scale_factor.value();
                 let metrics = font.0.metrics('a', attempted_size);
                 let horizontal_metrics = font.0.horizontal_line_metrics(attempted_size).unwrap();

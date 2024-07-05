@@ -1,7 +1,7 @@
 use foliage::asset::{AssetKey, OnRetrieve};
 use foliage::bevy_ecs::prelude::{Resource, World};
 use foliage::bevy_ecs::system::Command;
-use foliage::color::Color;
+use foliage::color::{Color, Grey, Monochromatic};
 use foliage::grid::{Grid, GridCoordinate, GridPlacement};
 use foliage::icon::Icon;
 use foliage::image::Image;
@@ -247,7 +247,7 @@ fn main() {
     };
     foliage.insert_resource(media);
     let mut intro_content = foliage
-        .create_view(GridPlacement::new(1.span(4), 1.span(5)), Grid::new(4, 3))
+        .create_view(GridPlacement::new(1.span(4), 1.span(5)), Grid::new(4, 5))
         .with_stage(IntroContentStages::Off)
         .with_stage(IntroContentStages::On)
         .with_target(IntroContentTargets::FirstName)
@@ -265,21 +265,21 @@ fn main() {
         |stage| {
             stage.add_signal_targeting(stage.target(IntroContentTargets::FirstName), |s| {
                 s.with_attribute(Text::new("JIM", Color::WHITE))
-                    .with_attribute(GridPlacement::new(1.span(4), 1.span(1)))
+                    .with_attribute(GridPlacement::new(1.span(4), 1.span(2)))
             });
             stage.add_signal_targeting(stage.target(IntroContentTargets::LastName), |s| {
-                s.with_attribute(Text::new("BLACK", Color::WHITE))
-                    .with_attribute(GridPlacement::new(2.span(3), 2.span(1)))
+                s.with_attribute(Text::new("BLACK", Grey::LIGHT))
+                    .with_attribute(GridPlacement::new(2.span(2), 3.span(2)))
             });
             stage.add_signal_targeting(stage.target(IntroContentTargets::Artist), |s| {
-                s.with_attribute(Text::new("RVA | ARTIST", Color::WHITE))
-                    .with_attribute(GridPlacement::new(2.span(3), 3.span(1)))
+                s.with_attribute(Text::new("RVA | ARTIST", Grey::BASE))
+                    .with_attribute(GridPlacement::new(2.span(2), 5.span(1)))
             });
         },
         &mut foliage,
     );
     let mut intro_controls = foliage
-        .create_view(GridPlacement::new(1.span(4), 6.span(3)), Grid::new(3, 4))
+        .create_view(GridPlacement::new(1.span(4), 7.span(2)), Grid::new(3, 4))
         .with_stage(IntroControlStages::Off)
         .with_stage(IntroControlStages::On)
         .with_target(IntroControlTargets::GalleryIcon)
@@ -296,7 +296,7 @@ fn main() {
         &mut foliage,
     );
     let mut gallery_controls = foliage
-        .create_view(GridPlacement::new(1.span(4), 6.span(3)), Grid::new(4, 3))
+        .create_view(GridPlacement::new(1.span(4), 7.span(2)), Grid::new(4, 3))
         .with_stage(GalleryControlStages::Off)
         .with_stage(GalleryControlStages::On)
         .with_target(GalleryControlTargets::Forward)
@@ -377,15 +377,15 @@ fn main() {
                 },
             );
             stage.add_signal_targeting(stage.target(GalleryControlTargets::Home), |s| {
-                s.with_attribute(Icon::new(IconHandles::Home.value(), Color::BLACK))
+                s.with_attribute(Icon::new(IconHandles::Home.value(), Color::WHITE))
                     .with_attribute(GridPlacement::new(1.span(1), 3.span(1)))
             });
             let linked = vec![stage.target(GalleryControlTargets::Home)];
             stage.add_signal_targeting(stage.target(GalleryControlTargets::HomeBackdrop), |s| {
-                s.with_attribute(Panel::new(Rounding::all(0.1), Color::WHITE))
+                s.with_attribute(Panel::new(Rounding::all(1.0), Grey::DARK))
                     .with_attribute(GridPlacement::new(1.span(1), 3.span(1)).fixed_area((48, 48)))
                     .with_attribute(
-                        InteractiveColor::new(Color::WHITE, Color::BLACK).with_linked(linked),
+                        InteractiveColor::new(Grey::DARK, Color::WHITE).with_linked(linked),
                     )
                     .with_attribute(ClickInteractionListener::new())
                     .with_attribute(
@@ -446,7 +446,7 @@ fn main() {
         intro_content.stage(IntroContentStages::Off),
     ));
     let mut about_controls = foliage
-        .create_view(GridPlacement::new(1.span(4), 6.span(3)), Grid::new(4, 3))
+        .create_view(GridPlacement::new(1.span(4), 7.span(2)), Grid::new(4, 3))
         .with_stage(AboutControlStages::Off)
         .with_stage(AboutControlStages::On)
         .with_target(AboutControlTargets::Home)
@@ -470,7 +470,7 @@ fn main() {
         about_controls.stage(AboutControlStages::Off),
     ));
     let mut about_content = foliage
-        .create_view(GridPlacement::new(1.span(4), 1.span(5)), Grid::new(1, 6))
+        .create_view(GridPlacement::new(1.span(4), 1.span(6)), Grid::new(1, 8))
         .with_stage(AboutContentStages::Off)
         .with_stage(AboutContentStages::On)
         .with_target(AboutContentTargets::Name)
@@ -487,15 +487,15 @@ fn main() {
         AboutControlStages::On,
         |stage| {
             stage.add_signal_targeting(stage.target(AboutControlTargets::Home), |s| {
-                s.with_attribute(Icon::new(IconHandles::Home.value(), Color::BLACK))
+                s.with_attribute(Icon::new(IconHandles::Home.value(), Color::WHITE))
                     .with_attribute(GridPlacement::new(1.span(1), 3.span(1)))
             });
             let linked = vec![stage.target(AboutControlTargets::Home)];
             stage.add_signal_targeting(stage.target(AboutControlTargets::HomeBackdrop), |s| {
-                s.with_attribute(Panel::new(Rounding::all(0.1), Color::WHITE))
+                s.with_attribute(Panel::new(Rounding::all(1.0), Grey::DARK))
                     .with_attribute(GridPlacement::new(1.span(1), 3.span(1)).fixed_area((48, 48)))
                     .with_attribute(
-                        InteractiveColor::new(Color::WHITE, Color::BLACK).with_linked(linked),
+                        InteractiveColor::new(Grey::DARK, Color::WHITE).with_linked(linked),
                     )
                     .with_attribute(ClickInteractionListener::new())
                     .with_attribute(
@@ -517,7 +517,7 @@ fn main() {
                     )
             });
             stage.add_signal_targeting(stage.target(AboutControlTargets::EmailText), |s| {
-                s.with_attribute(Text::new("jimblack@gmail.com", Color::WHITE))
+                s.with_attribute(Text::new("jimblack@gmail.com", Grey::BASE))
                     .with_attribute(GridPlacement::new(2.span(3), 1.span(1)))
             });
             stage.add_signal_targeting(stage.target(AboutControlTargets::TwitterIcon), |s| {
@@ -539,7 +539,7 @@ fn main() {
                 },
             );
             stage.add_signal_targeting(stage.target(AboutControlTargets::TwitterText), |s| {
-                s.with_attribute(Text::new("@jimblackrva      ", Color::WHITE))
+                s.with_attribute(Text::new("@jimblackrva      ", Grey::BASE))
                     .with_attribute(GridPlacement::new(2.span(3), 2.span(1)))
             });
         },
@@ -559,7 +559,11 @@ fn main() {
             });
             stage.add_signal_targeting(stage.target(AboutContentTargets::Bio), |s| {
                 s.with_attribute(Text::new(
-                    "Jim Black is an artist from Richmond, VA",
+                    "Jim Black is an artist \n\
+                    from Richmond, VA.\n\
+                    Master's of Fine Arts \n\
+                    from VCU, with a focus \n\
+                    on abstract aesthetics",
                     Color::WHITE,
                 ))
                 .with_attribute(GridPlacement::new(1.span(1), 2.span(2)))
@@ -568,7 +572,7 @@ fn main() {
                 s.with_attribute(OnRetrieve::new(bio_pic, |asset| {
                     Image::new(IMAGE_SLOT, asset).inherit_aspect_ratio()
                 }))
-                .with_attribute(GridPlacement::new(1.span(1), 3.span(3)))
+                .with_attribute(GridPlacement::new(1.span(1), 4.span(5)))
             });
         },
         &mut foliage,

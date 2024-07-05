@@ -196,7 +196,6 @@ impl<A: Pod + Zeroable + Default + Debug> Attribute<A> {
     fn write_cpu_to_gpu(&mut self, ginkgo: &Ginkgo) {
         if self.write_needed {
             let slice = &self.cpu[..];
-            println!("writing slice: {:?}", slice);
             ginkgo
                 .context()
                 .queue
