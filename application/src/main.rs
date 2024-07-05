@@ -88,19 +88,19 @@ impl Command for ChangePainting {
         world.entity_mut(self.current.value()).insert(Text::new(
             current_string,
             FontSize::new(20),
-            Color::WHITE,
+            Grey::LIGHT,
         ));
         let desc_string = world.get_resource::<Media>().unwrap().desc_string();
         world.entity_mut(self.desc.value()).insert(Text::new(
             desc_string,
             FontSize::new(20),
-            Color::WHITE,
+            Grey::LIGHT,
         ));
         let info_string = world.get_resource::<Media>().unwrap().info_string();
         world.entity_mut(self.info.value()).insert(Text::new(
             info_string,
             FontSize::new(20),
-            Color::WHITE,
+            Grey::LIGHT,
         ));
     }
 }
@@ -131,9 +131,9 @@ enum GalleryControlTargets {
     BackwardBackdrop,
     Home,
     HomeBackdrop,
-    Current,     // 1 | 60
-    Description, // title + desc
-    Info,        // year + materials
+    Current,
+    Description,
+    Info,
 }
 #[target_binding]
 enum AboutContentTargets {
@@ -145,11 +145,8 @@ enum AboutContentTargets {
 enum AboutControlTargets {
     Home,
     HomeBackdrop,
-    TwitterIcon,
-    TwitterIconBackdrop,
-    TwitterText,
-    EmailIcon,
-    EmailIconBackdrop,
+    InstagramIcon,
+    InstagramIconBackdrop,
     EmailText,
 }
 #[stage_binding]
@@ -216,7 +213,7 @@ enum IconHandles {
     Home,
     Forward,
     Backward,
-    Twitter,
+    Instagram,
     Email,
     Gallery,
     About,
@@ -226,7 +223,7 @@ impl IconHandles {
         self as i32
     }
 }
-const TWITTER_HANDLE: &str = "@jimblackrva";
+const INSTAGRAM_HANDLE: &str = "@jimblackrva";
 const EMAIL_HANDLE: &str = "jimblack@gmail.com";
 const PROCESS_DESCRIPTION: &str = "My paintings are developed by applying numerous layers of oil \
 paint and cold wax with frequent scraping of the surface throughout the process. \
@@ -239,11 +236,11 @@ painting to present a ragged eloquence, and hopefully have a presence about them
 brings viewers closer. ";
 const BIO_TEXT: &str =
     "Abstract painter Jim Black has been active in the vibrant Richmond Virginia \
-                     art scene for over 20 years. A native of North Carolina, Jim completed his BFA \
-                      in Painting and Printmaking from Virginia Commonwealth University in 2003. \
-                      He has exhibited his work in numerous galleries in Virginia. \
-                      His paintings are part of private and corporate collections in Virginia, \
-                      California, Chicago, Florida, Colorado, Philadelphia and Washington DC.";
+     art scene for over 20 years. A native of North Carolina, Jim completed his BFA \
+      in Painting and Printmaking from Virginia Commonwealth University in 2003. \
+      He has exhibited his work in numerous galleries in Virginia. \
+      His paintings are part of private and corporate collections in Virginia, \
+      California, Chicago, Florida, Colorado, Philadelphia and Washington DC.";
 fn main() {
     let mut foliage = Foliage::new();
     foliage.set_window_size((360, 800));
@@ -261,8 +258,8 @@ fn main() {
         include_bytes!("assets/icons/chevrons-left.icon"),
     );
     foliage.load_icon(
-        IconHandles::Twitter.value(),
-        include_bytes!("assets/icons/twitter.icon"),
+        IconHandles::Instagram.value(),
+        include_bytes!("assets/icons/instagram.icon"),
     );
     foliage.load_icon(
         IconHandles::Email.value(),
@@ -691,11 +688,8 @@ fn main() {
         .with_stage(AboutControlStages::On)
         .with_target(AboutControlTargets::Home)
         .with_target(AboutControlTargets::HomeBackdrop)
-        .with_target(AboutControlTargets::TwitterIcon)
-        .with_target(AboutControlTargets::TwitterIconBackdrop)
-        .with_target(AboutControlTargets::TwitterText)
-        .with_target(AboutControlTargets::EmailIcon)
-        .with_target(AboutControlTargets::EmailIconBackdrop)
+        .with_target(AboutControlTargets::InstagramIcon)
+        .with_target(AboutControlTargets::InstagramIconBackdrop)
         .with_target(AboutControlTargets::EmailText)
         .finish();
     about_controls.define_stage(
@@ -723,7 +717,7 @@ fn main() {
         about_content.handle(),
         about_content.stage(AboutContentStages::Off),
     ));
-    let copy_twitter = foliage.create_action(ClipboardWrite::new(TWITTER_HANDLE));
+    let copy_instagram = foliage.create_action(ClipboardWrite::new(INSTAGRAM_HANDLE));
     let copy_email = foliage.create_action(ClipboardWrite::new(EMAIL_HANDLE));
     about_controls.define_stage(
         AboutControlStages::On,
@@ -745,33 +739,19 @@ fn main() {
                             .with(to_intro_content_from_about),
                     )
             });
-            // stage.add_signal_targeting(stage.target(AboutControlTargets::EmailIcon), |s| {
-            //     s.with_attribute(Icon::new(IconHandles::Email.value(), Color::BLACK))
-            //         .with_attribute(GridPlacement::new(2.span(1), 1.span(1)))
-            // });
-            // let linked = vec![stage.target(AboutControlTargets::EmailIcon)];
-            // stage.add_signal_targeting(stage.target(AboutControlTargets::EmailIconBackdrop), |s| {
-            //     s.with_attribute(Panel::new(Rounding::all(1.0), Color::WHITE))
-            //         .with_attribute(GridPlacement::new(2.span(1), 1.span(1)).fixed_area((48, 48)))
-            //         .with_attribute(ClickInteractionListener::new().as_circle())
-            //         .with_attribute(
-            //             InteractiveColor::new(Color::WHITE, Color::BLACK).with_linked(linked),
-            //         )
-            //         .with_attribute(OnClick::new(copy_email))
-            // });
             stage.add_signal_targeting(stage.target(AboutControlTargets::EmailText), |s| {
-                s.with_attribute(Text::new(EMAIL_HANDLE, FontSize::new(16), Grey::BASE))
+                s.with_attribute(Text::new(EMAIL_HANDLE, FontSize::new(16), Grey::LIGHT))
                     .with_attribute(GridPlacement::new(3.span(3), 1.span(1)))
                     .with_attribute(ClickInteractionListener::new())
                     .with_attribute(OnClick::new(copy_email))
             });
-            stage.add_signal_targeting(stage.target(AboutControlTargets::TwitterIcon), |s| {
-                s.with_attribute(Icon::new(IconHandles::Twitter.value(), Color::BLACK))
+            stage.add_signal_targeting(stage.target(AboutControlTargets::InstagramIcon), |s| {
+                s.with_attribute(Icon::new(IconHandles::Instagram.value(), Color::BLACK))
                     .with_attribute(GridPlacement::new(2.span(1), 1.span(1)))
             });
-            let linked = vec![stage.target(AboutControlTargets::TwitterIcon)];
+            let linked = vec![stage.target(AboutControlTargets::InstagramIcon)];
             stage.add_signal_targeting(
-                stage.target(AboutControlTargets::TwitterIconBackdrop),
+                stage.target(AboutControlTargets::InstagramIconBackdrop),
                 |s| {
                     s.with_attribute(Panel::new(Rounding::all(1.0), Color::WHITE))
                         .with_attribute(
@@ -781,13 +761,9 @@ fn main() {
                         .with_attribute(
                             InteractiveColor::new(Color::WHITE, Color::BLACK).with_linked(linked),
                         )
-                        .with_attribute(OnClick::new(copy_twitter))
+                        .with_attribute(OnClick::new(copy_instagram))
                 },
             );
-            // stage.add_signal_targeting(stage.target(AboutControlTargets::TwitterText), |s| {
-            //     s.with_attribute(Text::new(TWITTER_HANDLE, FontSize::Sm, Grey::BASE))
-            //         .with_attribute(GridPlacement::new(2.span(3), 2.span(1)))
-            // });
         },
         &mut foliage,
     );
