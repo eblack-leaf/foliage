@@ -1,5 +1,3 @@
-use std::collections::{HashMap, HashSet};
-
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs, Resource};
@@ -8,6 +6,8 @@ use bevy_ecs::system::{Query, Res};
 use bytemuck::{Pod, Zeroable};
 use fontdue::layout::CoordinateSystem;
 use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet};
+use std::ops::Sub;
 use wgpu::{
     include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayoutDescriptor,
     PipelineLayoutDescriptor, RenderPipelineDescriptor, ShaderStages, TextureFormat,
@@ -52,9 +52,10 @@ pub struct Text {
     glyph_colors: GlyphColors,
     color: Color,
     metrics: Differential<GlyphMetrics>,
+    font_size: FontSize,
 }
 impl Text {
-    pub fn new<S: AsRef<str>, C: Into<Color>>(tv: S, color: C) -> Self {
+    pub fn new<S: AsRef<str>, C: Into<Color>>(tv: S, font_size: FontSize, color: C) -> Self {
         let color = color.into();
         Self {
             link: RenderLink::new::<Self>(),
@@ -68,7 +69,21 @@ impl Text {
             },
             color,
             metrics: Differential::new(GlyphMetrics::default()),
+            font_size,
         }
+    }
+}
+#[derive(Copy, Clone, Component)]
+pub enum FontSize {
+    Xs = 14,
+    Sm = 18,
+    Md = 28,
+    Lg = 48,
+    Xl = 72,
+}
+impl FontSize {
+    pub fn value(&self) -> f32 {
+        *self as i32 as f32
     }
 }
 #[derive(Serialize, Deserialize, Copy, Clone, Hash, Eq, PartialEq, Debug)]
@@ -157,6 +172,7 @@ pub(crate) fn color_changes(
         }
     }
 }
+
 pub(crate) fn distill(
     mut texts: Query<
         (
@@ -167,17 +183,21 @@ pub(crate) fn distill(
             &mut Area<LogicalContext>,
             &mut Position<LogicalContext>,
             &mut GlyphMetrics,
+            &FontSize,
         ),
         Or<(
             Changed<TextValue>,
             Changed<Position<LogicalContext>>,
             Changed<Area<LogicalContext>>,
+            Changed<FontSize>,
         )>,
     >,
     font: Res<MonospacedFont>,
     scale_factor: Res<ScaleFactor>,
 ) {
-    for (value, mut glyphs, colors, base, mut area, mut pos, mut metrics) in texts.iter_mut() {
+    for (value, mut glyphs, colors, base, mut area, mut pos, mut metrics, font_size) in
+        texts.iter_mut()
+    {
         let mut placer = fontdue::layout::Layout::new(CoordinateSystem::PositiveYDown);
         let scaled_area = area.to_device(scale_factor.value());
         placer.reset(&fontdue::layout::LayoutSettings {
@@ -185,75 +205,59 @@ pub(crate) fn distill(
             max_height: Some(scaled_area.height()),
             ..fontdue::layout::LayoutSettings::default()
         });
-        let mut line_counts = Vec::new();
-        for line in value.0.lines() {
-            line_counts.push(line.len());
-        }
-        let num_lines = line_counts.len();
-        let max_in_a_line = line_counts.iter().max().copied().unwrap_or_default();
-        let (projected_font_size, adjusted_bounds, character_size) = {
-            let mut attempted_size = 0f32;
-            let mut attempted_dims = Coordinates::new(0.0, 0.0);
-            let mut character_dims = Coordinates::default();
-            while attempted_dims.horizontal() < scaled_area.coordinates.horizontal()
-                && attempted_dims.vertical() < scaled_area.coordinates.vertical()
-            {
-                attempted_size += 1f32 * scale_factor.value();
-                let metrics = font.0.metrics('a', attempted_size);
-                let horizontal_metrics = font.0.horizontal_line_metrics(attempted_size).unwrap();
-                character_dims = Coordinates::new(
-                    (metrics.advance_width * 1.1).ceil(),
-                    ((horizontal_metrics.ascent - horizontal_metrics.descent) * 1.1).ceil(),
-                );
-                attempted_dims = Coordinates::new(
-                    character_dims.horizontal() * max_in_a_line as f32,
-                    character_dims.vertical() * num_lines as f32,
-                );
-            }
-            let final_font_size = (attempted_size - 1.0 * scale_factor.value()).max(1.0);
-            let metrics = font.0.metrics('a', final_font_size);
-            let horizontal_metrics = font.0.horizontal_line_metrics(final_font_size).unwrap();
-            let final_dims = Coordinates::new(
-                metrics.advance_width.ceil(),
+        let projected = font_size.value() * scale_factor.value();
+        let character_dims = {
+            let character_metrics = font.0.metrics('a', projected);
+            let horizontal_metrics = font.0.horizontal_line_metrics(projected).unwrap();
+            Coordinates::new(
+                (character_metrics.advance_width).ceil(),
                 (horizontal_metrics.ascent - horizontal_metrics.descent).ceil(),
-            );
-            let final_area = Coordinates::new(
-                character_dims.horizontal() * max_in_a_line as f32,
-                character_dims.vertical() * num_lines as f32,
-            );
-            let adjusted_section = Section::device(pos.to_device(scale_factor.value()), final_area)
-                .to_logical(scale_factor.value());
-            let old = Section::logical(*pos, *area);
-            let diff = old.center() - adjusted_section.center();
-            let final_section =
-                Section::logical(adjusted_section.position + diff, adjusted_section.area);
-            (final_font_size, final_section, final_dims)
+            )
         };
-        pos.coordinates = adjusted_bounds.position.coordinates;
-        area.coordinates = adjusted_bounds.area.coordinates;
-        glyphs.font_size = projected_font_size;
+        glyphs.font_size = projected;
         placer.append(
             &[&font.0],
             &fontdue::layout::TextStyle::new(value.0.as_str(), glyphs.font_size, 0),
         );
-        if metrics.block != character_size {
-            metrics.block = character_size;
+        if metrics.block != character_dims {
+            metrics.block = character_dims;
             metrics.unique_characters = value.num_unique_characters();
         }
         let old_glyphs = glyphs.glyphs.drain().collect::<Vec<(GlyphOffset, Glyph)>>();
         glyphs.removed.clear();
+        let mut new_extent = Coordinates::default();
         for glyph in placer.glyphs().iter() {
             // TODO filter?
+            let section = Section::new((glyph.x, glyph.y), (glyph.width, glyph.height));
+            if section.right() > new_extent.horizontal() {
+                new_extent.0[0] = section.right();
+            }
+            if section.bottom() > new_extent.vertical() {
+                new_extent.0[1] = section.bottom();
+            }
             glyphs.glyphs.insert(
                 glyph.byte_offset,
                 Glyph {
                     key: GlyphKey::new(glyph.key),
-                    section: Section::new((glyph.x, glyph.y), (glyph.width, glyph.height)),
+                    section,
                     parent: glyph.parent,
                     color: colors.obtain(*base, glyph.byte_offset),
                 },
             );
         }
+        let num_lines = (new_extent.vertical() / character_dims.vertical()).ceil();
+        let old = Section::logical(*pos, *area);
+        let adjusted = Section::device(
+            pos.to_device(scale_factor.value()),
+            (
+                new_extent.horizontal(),
+                character_dims.vertical() * num_lines * 1.1,
+            ),
+        )
+        .to_logical(scale_factor.value());
+        let diff = old.center() - adjusted.center();
+        pos.coordinates = (old.position + diff).coordinates;
+        area.coordinates = adjusted.area.coordinates;
         for (offset, glyph) in old_glyphs {
             if !glyphs.glyphs.contains_key(&offset) {
                 glyphs.removed.insert(offset);

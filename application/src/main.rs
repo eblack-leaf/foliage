@@ -9,7 +9,7 @@ use foliage::interaction::{ClickInteractionListener, OnClick};
 use foliage::panel::{Panel, Rounding};
 use foliage::signal::TriggerTarget;
 use foliage::style::InteractiveColor;
-use foliage::text::Text;
+use foliage::text::{FontSize, Text};
 use foliage::view::{CurrentViewStage, Stage, ViewHandle};
 use foliage::{bevy_ecs, load_asset};
 use foliage::{stage_binding, target_binding, Foliage};
@@ -264,15 +264,15 @@ fn main() {
         IntroContentStages::On,
         |stage| {
             stage.add_signal_targeting(stage.target(IntroContentTargets::FirstName), |s| {
-                s.with_attribute(Text::new("JIM", Color::WHITE))
+                s.with_attribute(Text::new("JIM", FontSize::Xl, Color::WHITE))
                     .with_attribute(GridPlacement::new(1.span(4), 1.span(1)))
             });
             stage.add_signal_targeting(stage.target(IntroContentTargets::LastName), |s| {
-                s.with_attribute(Text::new("BLACK", Grey::LIGHT))
+                s.with_attribute(Text::new("BLACK", FontSize::Lg, Grey::LIGHT))
                     .with_attribute(GridPlacement::new(2.span(2), 2.span(1)))
             });
             stage.add_signal_targeting(stage.target(IntroContentTargets::Artist), |s| {
-                s.with_attribute(Text::new("RVA | ARTIST", Grey::BASE))
+                s.with_attribute(Text::new("RVA | ARTIST", FontSize::Sm, Grey::BASE))
                     .with_attribute(GridPlacement::new(2.span(2), 3.span(1)))
             });
         },
@@ -394,12 +394,13 @@ fn main() {
                     )
             });
             stage.add_signal_targeting(stage.target(GalleryControlTargets::Current), |s| {
-                s.with_attribute(Text::new("1|60", Color::WHITE))
+                s.with_attribute(Text::new("1|60", FontSize::Sm, Color::WHITE))
                     .with_attribute(GridPlacement::new(3.span(1), 3.span(1)))
             });
             stage.add_signal_targeting(stage.target(GalleryControlTargets::Description), |s| {
                 s.with_attribute(Text::new(
                     "Oil & Wax on Canvas", // 19
+                    FontSize::Sm,
                     Color::WHITE,
                 ))
                 .with_attribute(GridPlacement::new(1.span(4), 1.span(1)))
@@ -407,6 +408,7 @@ fn main() {
             stage.add_signal_targeting(stage.target(GalleryControlTargets::Info), |s| {
                 s.with_attribute(Text::new(
                     "[untitled] - 2019  ", // 19
+                    FontSize::Sm,
                     Color::WHITE,
                 ))
                 .with_attribute(GridPlacement::new(1.span(4), 2.span(1)))
@@ -517,7 +519,7 @@ fn main() {
                     )
             });
             stage.add_signal_targeting(stage.target(AboutControlTargets::EmailText), |s| {
-                s.with_attribute(Text::new("jimblack@gmail.com", Grey::BASE))
+                s.with_attribute(Text::new("jimblack@gmail.com", FontSize::Sm, Grey::BASE))
                     .with_attribute(GridPlacement::new(2.span(3), 1.span(1)))
             });
             stage.add_signal_targeting(stage.target(AboutControlTargets::TwitterIcon), |s| {
@@ -539,7 +541,7 @@ fn main() {
                 },
             );
             stage.add_signal_targeting(stage.target(AboutControlTargets::TwitterText), |s| {
-                s.with_attribute(Text::new("@jimblackrva      ", Grey::BASE))
+                s.with_attribute(Text::new("@jimblackrva      ", FontSize::Sm, Grey::BASE))
                     .with_attribute(GridPlacement::new(2.span(3), 2.span(1)))
             });
         },
@@ -554,15 +556,16 @@ fn main() {
         AboutContentStages::On,
         |stage| {
             stage.add_signal_targeting(stage.target(AboutContentTargets::Name), |s| {
-                s.with_attribute(Text::new("Jim Black", Color::WHITE))
+                s.with_attribute(Text::new("Jim Black", FontSize::Lg, Color::WHITE))
                     .with_attribute(GridPlacement::new(1.span(4), 1.span(1)))
             });
             stage.add_signal_targeting(stage.target(AboutContentTargets::Bio), |s| {
                 s.with_attribute(Text::new(
                     "Jim Black is an artist from Richmond, VA. Master's of Fine Arts from VCU, with a focus on abstract aesthetics",
+                    FontSize::Xs,
                     Color::WHITE,
                 ))
-                .with_attribute(GridPlacement::new(2.span(2), 2.span(2)))
+                .with_attribute(GridPlacement::new(1.span(4), 2.span(2)))
             });
             stage.add_signal_targeting(stage.target(AboutContentTargets::Picture), |s| {
                 s.with_attribute(OnRetrieve::new(bio_pic, |asset| {
@@ -624,11 +627,11 @@ fn main() {
                     .with_attribute(OnClick::new(show_about_controls).with(show_about_content))
             });
             stage.add_signal_targeting(stage.target(IntroControlTargets::GalleryText), |s| {
-                s.with_attribute(Text::new("GALLERY", Color::WHITE))
+                s.with_attribute(Text::new("GALLERY", FontSize::Md, Color::WHITE))
                     .with_attribute(GridPlacement::new(2.span(2), 1.span(2)))
             });
             stage.add_signal_targeting(stage.target(IntroControlTargets::AboutText), |s| {
-                s.with_attribute(Text::new("ABOUT  ", Color::WHITE))
+                s.with_attribute(Text::new("ABOUT  ", FontSize::Md, Color::WHITE))
                     .with_attribute(GridPlacement::new(2.span(2), 3.span(2)))
             });
         },
