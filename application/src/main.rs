@@ -1,3 +1,5 @@
+use foliage::{bevy_ecs, load_asset};
+use foliage::{Foliage, stage_binding, target_binding};
 use foliage::asset::{AssetKey, OnRetrieve};
 use foliage::bevy_ecs::prelude::{Resource, World};
 use foliage::bevy_ecs::system::Command;
@@ -10,10 +12,8 @@ use foliage::interaction::{ClickInteractionListener, OnClick};
 use foliage::panel::{Panel, Rounding};
 use foliage::signal::TriggerTarget;
 use foliage::style::InteractiveColor;
-use foliage::text::{FontSize, Text, TextValue};
+use foliage::text::{FontSize, Text};
 use foliage::view::{CurrentViewStage, Stage, ViewHandle};
-use foliage::{bevy_ecs, load_asset};
-use foliage::{stage_binding, target_binding, Foliage};
 
 #[derive(Resource)]
 struct Media {
