@@ -1,17 +1,21 @@
-#[cfg(not(target_family = "wasm"))]
-use std::path::Path;
-
+use bevy_ecs::prelude::Resource;
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 use wgpu::{
-    BindGroupEntry, BindGroupLayoutEntry, Buffer, BufferAddress, ColorTargetState,
-    DepthStencilState, Extent3d, FragmentState, InstanceDescriptor, LoadOp, MultisampleState,
-    PrimitiveState, RenderPassColorAttachment, RenderPassDepthStencilAttachment, ShaderModule,
-    StoreOp, TextureDimension, TextureFormat, TextureUsages, TextureView,
+    BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
+    BlendState, Buffer, BufferAddress, BufferUsages, ColorTargetState, CompareFunction,
+    CompositeAlphaMode, DepthStencilState, DeviceDescriptor, Extent3d, Features, FragmentState,
+    ImageCopyTexture, ImageDataLayout, InstanceDescriptor, Limits, LoadOp, MultisampleState,
+    Operations, Origin3d, PipelineLayout, PipelineLayoutDescriptor, PowerPreference, PresentMode,
+    PrimitiveState, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPipeline,
+    RenderPipelineDescriptor, RequestAdapterOptions, Sampler, SamplerDescriptor, ShaderModule,
+    ShaderModuleDescriptor, StoreOp, SurfaceConfiguration, Texture, TextureDescriptor,
+    TextureDimension, TextureFormat, TextureUsages, TextureView, TextureViewDescriptor,
+    VertexAttribute, VertexBufferLayout, VertexStepMode,
 };
-use winit::event_loop::EventLoopWindowTarget;
 
-use depth_texture::DepthTexture;
+use binding::BindingBuilder;
+use depth::Depth;
 use msaa::Msaa;
 use viewport::Viewport;
 
@@ -19,69 +23,123 @@ use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
-use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
-use crate::window::{ScaleFactor, WindowDescriptor, WindowHandle};
+use crate::coordinate::{CoordinateUnit, Coordinates, NumericalContext};
+use crate::willow::Willow;
 
-pub mod depth_texture;
+pub mod binding;
+pub mod depth;
 pub mod msaa;
-pub mod uniform;
 pub mod viewport;
 
-#[derive(Copy, Clone)]
-pub struct ClearColor(pub Color);
-
+#[derive(Default)]
 pub struct Ginkgo {
-    pub instance: Option<wgpu::Instance>,
-    pub surface: Option<wgpu::Surface<'static>>,
-    pub adapter: Option<wgpu::Adapter>,
-    pub device: Option<wgpu::Device>,
-    pub queue: Option<wgpu::Queue>,
-    pub configuration: Option<wgpu::SurfaceConfiguration>,
-    pub viewport: Option<Viewport>,
-    pub(crate) depth_texture: Option<DepthTexture>,
-    pub msaa: Option<Msaa>,
-    pub clear_color: ClearColor,
-    pub(crate) initialized: bool,
-    scale_factor: ScaleFactor,
+    context: Option<GraphicContext>,
+    configuration: Option<ViewConfiguration>,
+    viewport: Option<Viewport>,
 }
 
 impl Ginkgo {
-    pub(crate) fn new() -> Self {
-        Self {
-            instance: None,
-            surface: None,
-            adapter: None,
-            device: None,
-            queue: None,
-            configuration: None,
-            viewport: None,
-            depth_texture: None,
-            msaa: None,
-            clear_color: ClearColor(Color::BLACK),
-            initialized: false,
-            scale_factor: ScaleFactor::new(1.0),
+    pub fn write_texture<TexelData: Default + Sized + Clone + Pod + Zeroable>(
+        &self,
+        texture: &Texture,
+        position: Coordinates,
+        extent: Coordinates,
+        data: Vec<TexelData>,
+    ) {
+        self.context().queue.write_texture(
+            ImageCopyTexture {
+                texture,
+                mip_level: 0,
+                origin: Origin3d {
+                    x: position.horizontal() as u32,
+                    y: position.vertical() as u32,
+                    z: 0,
+                },
+                aspect: Default::default(),
+            },
+            bytemuck::cast_slice(&data),
+            ImageDataLayout {
+                offset: 0,
+                bytes_per_row: Some(
+                    (extent.horizontal() * std::mem::size_of::<TexelData>() as CoordinateUnit)
+                        as u32,
+                ),
+                rows_per_image: Some(
+                    (extent.vertical() * std::mem::size_of::<TexelData>() as CoordinateUnit) as u32,
+                ),
+            },
+            Extent3d {
+                width: extent.horizontal() as u32,
+                height: extent.vertical() as u32,
+                depth_or_array_layers: 1,
+            },
+        );
+    }
+    #[cfg(not(target_family = "wasm"))]
+    pub fn png_to_cov<P: AsRef<std::path::Path>>(png: P, cov: P) {
+        let data = Ginkgo::png_to_r8unorm_d2(png);
+        let content = rmp_serde::to_vec(data.as_slice()).unwrap();
+        std::fs::write(cov, content).unwrap();
+    }
+    #[cfg(not(target_family = "wasm"))]
+    pub fn png_to_r8unorm_d2<P: AsRef<std::path::Path>>(path: P) -> Vec<u8> {
+        let image = image::load_from_memory(std::fs::read(path).unwrap().as_slice())
+            .expect("png-to-r8unorm-d2");
+        let texture_data = image
+            .to_rgba8()
+            .enumerate_pixels()
+            .map(|p| -> u8 { p.2 .0[3] })
+            .collect::<Vec<u8>>();
+        texture_data
+    }
+    pub fn vertex_buffer_layout<A: Pod + Zeroable>(
+        step: VertexStepMode,
+        attrs: &[VertexAttribute],
+    ) -> VertexBufferLayout {
+        VertexBufferLayout {
+            array_stride: Ginkgo::memory_size::<A>(1),
+            step_mode: step,
+            attributes: attrs,
         }
     }
-    pub fn scale_factor(&self) -> CoordinateUnit {
-        self.scale_factor.factor()
+    pub fn create_sampler(&self) -> Sampler {
+        self.context()
+            .device
+            .create_sampler(&SamplerDescriptor::default())
     }
-    pub(crate) fn set_scale_factor(&mut self, factor: CoordinateUnit) {
-        self.scale_factor = ScaleFactor::new(factor);
+    pub fn create_texture(
+        &self,
+        format: TextureFormat,
+        coordinates: Coordinates,
+        mips: u32,
+        data: &[u8],
+    ) -> (Texture, TextureView) {
+        let texture = self.context().device.create_texture_with_data(
+            &self.context().queue,
+            &TextureDescriptor {
+                label: Some("ginkgo-texture"),
+                size: Extent3d {
+                    width: coordinates.horizontal() as u32,
+                    height: coordinates.vertical() as u32,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: mips,
+                sample_count: 1,
+                dimension: TextureDimension::D2,
+                format,
+                usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
+                view_formats: &[format],
+            },
+            wgpu::util::TextureDataOrder::LayerMajor,
+            data,
+        );
+        let view = texture.create_view(&TextureViewDescriptor::default());
+        (texture, view)
     }
-    pub fn viewport_bind_group_entry(&self, binding: u32) -> BindGroupEntry {
-        BindGroupEntry {
-            binding,
-            resource: self
-                .viewport
-                .as_ref()
-                .unwrap()
-                .gpu_repr
-                .buffer
-                .as_entire_binding(),
-        }
+    pub fn memory_size<B>(n: u32) -> BufferAddress {
+        (std::mem::size_of::<B>() * n as usize) as BufferAddress
     }
     pub fn fragment_state<'a>(
-        &'a self,
         module: &'a ShaderModule,
         entry_point: &'a str,
         targets: &'a [Option<ColorTargetState>],
@@ -89,27 +147,9 @@ impl Ginkgo {
         Some(FragmentState {
             module,
             entry_point,
+            compilation_options: Default::default(),
             targets,
         })
-    }
-    pub fn buffer_address<T>(count: u32) -> BufferAddress {
-        (std::mem::size_of::<T>() * count as usize) as BufferAddress
-    }
-    pub fn vertex_buffer_with_data<T: Pod + Zeroable>(&self, t: &[T], label: &str) -> Buffer {
-        self.device()
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some(label),
-                contents: bytemuck::cast_slice(t),
-                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-            })
-    }
-    pub fn index_buffer_with_data<T: Pod + Zeroable>(&self, t: &[T], label: &str) -> Buffer {
-        self.device()
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some(label),
-                contents: bytemuck::cast_slice(t),
-                usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
-            })
     }
     pub fn texture_bind_group_entry(view: &TextureView, binding: u32) -> BindGroupEntry {
         BindGroupEntry {
@@ -123,110 +163,6 @@ impl Ginkgo {
             resource: wgpu::BindingResource::Sampler(sampler),
         }
     }
-    #[cfg(not(target_family = "wasm"))]
-    pub fn png_to_cov<P: AsRef<Path>>(png: P, cov: P) {
-        let data = Ginkgo::png_to_r8unorm_d2(png);
-        let content = rmp_serde::to_vec(data.as_slice()).unwrap();
-        std::fs::write(cov, content).unwrap();
-    }
-    #[cfg(not(target_family = "wasm"))]
-    pub fn png_to_r8unorm_d2<P: AsRef<Path>>(path: P) -> Vec<u8> {
-        let image = image::load_from_memory(std::fs::read(path).unwrap().as_slice())
-            .expect("png-to-r8unorm-d2");
-        let texture_data = image
-            .to_rgba8()
-            .enumerate_pixels()
-            .map(|p| -> u8 { p.2 .0[3] })
-            .collect::<Vec<u8>>();
-        texture_data
-    }
-    pub fn texture_r8unorm_d2(
-        &self,
-        width: u32,
-        height: u32,
-        mips: u32,
-        data: &[u8],
-    ) -> (wgpu::Texture, TextureView) {
-        let texture = self.device().create_texture_with_data(
-            self.queue(),
-            &wgpu::TextureDescriptor {
-                label: Some("ginkgo-r8unorm-d2"),
-                size: Extent3d {
-                    width,
-                    height,
-                    depth_or_array_layers: 1,
-                },
-                mip_level_count: mips,
-                sample_count: 1,
-                dimension: TextureDimension::D2,
-                format: TextureFormat::R8Unorm,
-                usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
-                view_formats: &[TextureFormat::R8Unorm],
-            },
-            wgpu::util::TextureDataOrder::LayerMajor,
-            data,
-        );
-        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-        (texture, view)
-    }
-    pub fn texture_rgba8unorm_srgb_d2(
-        &self,
-        width: u32,
-        height: u32,
-        mips: u32,
-        data: &[u8],
-    ) -> (wgpu::Texture, TextureView) {
-        let texture = self.device().create_texture_with_data(
-            self.queue(),
-            &wgpu::TextureDescriptor {
-                label: Some("ginkgo-rgba8unorm-srgb-d2"),
-                size: Extent3d {
-                    width,
-                    height,
-                    depth_or_array_layers: 1,
-                },
-                mip_level_count: mips,
-                sample_count: 1,
-                dimension: TextureDimension::D2,
-                format: TextureFormat::Rgba8UnormSrgb,
-                usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
-                view_formats: &[TextureFormat::Rgba8UnormSrgb],
-            },
-            wgpu::util::TextureDataOrder::LayerMajor,
-            data,
-        );
-        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-        (texture, view)
-    }
-    pub fn texture_rgba8unorm_d2(
-        &self,
-        width: u32,
-        height: u32,
-        mips: u32,
-        data: &[u8],
-    ) -> (wgpu::Texture, TextureView) {
-        let texture = self.device().create_texture_with_data(
-            self.queue(),
-            &wgpu::TextureDescriptor {
-                label: Some("ginkgo-rgba8unorm-d2"),
-                size: Extent3d {
-                    width,
-                    height,
-                    depth_or_array_layers: 1,
-                },
-                mip_level_count: mips,
-                sample_count: 1,
-                dimension: TextureDimension::D2,
-                format: TextureFormat::Rgba8Unorm,
-                usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
-                view_formats: &[TextureFormat::Rgba8Unorm],
-            },
-            wgpu::util::TextureDataOrder::LayerMajor,
-            data,
-        );
-        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-        (texture, view)
-    }
     pub fn triangle_list_primitive() -> PrimitiveState {
         PrimitiveState {
             topology: wgpu::PrimitiveTopology::TriangleList,
@@ -238,326 +174,315 @@ impl Ginkgo {
             conservative: false,
         }
     }
-    pub fn sampler_bind_group_layout_entry(binding: u32) -> BindGroupLayoutEntry {
-        BindGroupLayoutEntry {
+    pub fn bind_group_layout_entry(binding: u32) -> BindingBuilder {
+        BindingBuilder::new(binding)
+    }
+    pub fn create_bind_group_layout(&self, desc: &BindGroupLayoutDescriptor) -> BindGroupLayout {
+        let bind_group_layout = self.context().device.create_bind_group_layout(desc);
+        bind_group_layout
+    }
+    pub fn create_bind_group(&self, desc: &BindGroupDescriptor) -> BindGroup {
+        let bind_group = self.context().device.create_bind_group(desc);
+        bind_group
+    }
+    pub fn create_pipeline_layout(&self, desc: &PipelineLayoutDescriptor) -> PipelineLayout {
+        let layout = self.context().device.create_pipeline_layout(desc);
+        layout
+    }
+    pub fn create_shader(&self, shader_source: ShaderModuleDescriptor) -> ShaderModule {
+        let shader = self.context().device.create_shader_module(shader_source);
+        shader
+    }
+    pub fn create_vertex_buffer<R: Pod + Zeroable, VB: AsRef<[R]>>(&self, vb_data: VB) -> Buffer {
+        let vertex_buffer =
+            self.context()
+                .device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("vertex-buffer"),
+                    contents: bytemuck::cast_slice(vb_data.as_ref()),
+                    usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
+                });
+        vertex_buffer
+    }
+    pub fn create_pipeline(&self, desc: &RenderPipelineDescriptor) -> RenderPipeline {
+        let pipeline = self.context().device.create_render_pipeline(desc);
+        pipeline
+    }
+    pub fn uniform_bind_group_entry<U: Pod + Zeroable>(
+        uniform: &Uniform<U>,
+        binding: u32,
+    ) -> BindGroupEntry {
+        BindGroupEntry {
             binding,
-            visibility: wgpu::ShaderStages::FRAGMENT,
-            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
-            count: None,
+            resource: uniform.buffer.as_entire_binding(),
         }
     }
-    pub fn texture_d2_bind_group_entry(binding: u32) -> BindGroupLayoutEntry {
-        BindGroupLayoutEntry {
-            binding,
-            visibility: wgpu::ShaderStages::FRAGMENT,
-            ty: wgpu::BindingType::Texture {
-                sample_type: wgpu::TextureSampleType::Float { filterable: false },
-                view_dimension: wgpu::TextureViewDimension::D2,
-                multisampled: false,
-            },
-            count: None,
-        }
-    }
-    pub fn vertex_uniform_bind_group_layout_entry(binding: u32) -> BindGroupLayoutEntry {
-        wgpu::BindGroupLayoutEntry {
-            binding,
-            visibility: wgpu::ShaderStages::VERTEX,
-            ty: wgpu::BindingType::Buffer {
-                ty: wgpu::BufferBindingType::Uniform,
-                has_dynamic_offset: false,
-                min_binding_size: None,
-            },
-            count: None,
-        }
-    }
-    pub fn alpha_color_target_state(&self) -> [Option<ColorTargetState>; 1] {
+    pub(crate) fn alpha_color_target_state(&self) -> [Option<ColorTargetState>; 1] {
         [Some(ColorTargetState {
-            format: self.configuration.as_ref().unwrap().format,
-            blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+            format: self.configuration().config.format,
+            blend: Some(BlendState::ALPHA_BLENDING),
             write_mask: Default::default(),
         })]
     }
-    pub fn msaa_multisample_state(&self) -> MultisampleState {
-        self.msaa.as_ref().unwrap().multisample_state()
+    pub(crate) fn msaa_state(&self) -> MultisampleState {
+        MultisampleState {
+            count: self.configuration().msaa.samples(),
+            ..MultisampleState::default()
+        }
     }
-    pub fn device(&self) -> &wgpu::Device {
-        self.device.as_ref().unwrap()
+    pub(crate) fn depth_stencil_state(&self) -> Option<DepthStencilState> {
+        Some(DepthStencilState {
+            format: Depth::FORMAT,
+            depth_write_enabled: true,
+            depth_compare: CompareFunction::LessEqual,
+            stencil: Default::default(),
+            bias: Default::default(),
+        })
     }
-    pub fn queue(&self) -> &wgpu::Queue {
-        self.queue.as_ref().unwrap()
+    pub(crate) fn viewport_bind_group_entry(&self, binding: u32) -> BindGroupEntry {
+        BindGroupEntry {
+            binding,
+            resource: self.viewport().uniform.buffer.as_entire_binding(),
+        }
     }
     pub(crate) fn color_attachment<'a>(
         &'a self,
-        surface_texture_view: &'a wgpu::TextureView,
+        surface_view: &'a TextureView,
+        clear_color: Color,
     ) -> [Option<RenderPassColorAttachment>; 1] {
-        let (view, resolve_target) = match self
-            .msaa
-            .as_ref()
-            .unwrap()
-            .multisampled_texture_view
-            .as_ref()
-        {
-            None => (surface_texture_view, None),
-            Some(v) => (v, Some(surface_texture_view)),
+        let (view, resolve_target) = match self.configuration().msaa.view.as_ref() {
+            None => (surface_view, None),
+            Some(v) => (v, Some(surface_view)),
         };
-        [Some(wgpu::RenderPassColorAttachment {
+        [Some(RenderPassColorAttachment {
             view,
             resolve_target,
-            ops: wgpu::Operations {
-                load: LoadOp::Clear(self.clear_color.0.into()),
-                store: self.msaa.as_ref().unwrap().color_attachment_store_op(),
+            ops: Operations {
+                load: LoadOp::Clear(clear_color.into()),
+                store: self.configuration().msaa.color_attachment_store_op(),
             },
         })]
     }
-    pub fn depth_stencil_state(&self) -> Option<DepthStencilState> {
-        Some(self.depth_texture.as_ref().unwrap().depth_stencil_state())
-    }
     pub(crate) fn depth_stencil_attachment(&self) -> Option<RenderPassDepthStencilAttachment> {
         Some(RenderPassDepthStencilAttachment {
-            view: self.depth_texture.as_ref().unwrap().view(),
-            depth_ops: Some(wgpu::Operations {
-                load: LoadOp::Clear(self.viewport.as_ref().unwrap().far_layer().z),
+            view: &self.configuration().depth.view,
+            depth_ops: Some(Operations {
+                load: LoadOp::Clear(self.viewport().near_far.far.0),
                 store: StoreOp::Store,
             }),
-            stencil_ops: Some(wgpu::Operations {
+            stencil_ops: Some(Operations {
                 load: LoadOp::Clear(0u32),
                 store: StoreOp::Store,
             }),
         })
     }
-    pub(crate) fn color_attachment_format(&self) -> [Option<TextureFormat>; 1] {
-        [Some(self.configuration.as_ref().unwrap().format)]
-    }
-    pub(crate) fn msaa_samples(&self) -> u32 {
-        self.msaa.as_ref().unwrap().samples()
-    }
-    pub(crate) fn render_bundle_depth_stencil(&self) -> Option<wgpu::RenderBundleDepthStencil> {
-        Some(wgpu::RenderBundleDepthStencil {
-            format: self.depth_texture.as_ref().unwrap().format,
-            depth_read_only: false,
-            stencil_read_only: false,
-        })
-    }
-    pub(crate) fn get_instance(&mut self) {
-        self.instance
-            .replace(wgpu::Instance::new(InstanceDescriptor {
-                backends: wgpu::Backends::all(),
-                flags: wgpu::InstanceFlags::default(),
-                dx12_shader_compiler: wgpu::Dx12Compiler::Fxc,
-                gles_minor_version: wgpu::Gles3MinorVersion::Automatic,
-            }));
-    }
-    pub(crate) fn suspend(&mut self) {
-        #[cfg(target_os = "android")]
-        {
-            self.surface.take();
-            self.depth_texture.take();
-        }
-    }
-    pub(crate) fn create_depth_texture(&mut self, area: Area<DeviceContext>) {
-        self.depth_texture.replace(DepthTexture::new(
-            self.device.as_ref().unwrap(),
-            area,
-            TextureFormat::Depth24PlusStencil8,
-            self.msaa.as_ref().unwrap(),
-        ));
-    }
-    pub(crate) fn create_msaa(&mut self, requested: u32) {
-        let msaa_flags = self
-            .adapter
-            .as_ref()
-            .unwrap()
-            .get_texture_format_features(self.configuration.as_ref().unwrap().format)
-            .flags;
-        let max_sample_count = {
-            // TODO add 16 if possible
-            if msaa_flags.contains(wgpu::TextureFormatFeatureFlags::MULTISAMPLE_X8) {
-                8
-            } else if msaa_flags.contains(wgpu::TextureFormatFeatureFlags::MULTISAMPLE_X4) {
-                4
-            } else if msaa_flags.contains(wgpu::TextureFormatFeatureFlags::MULTISAMPLE_X2) {
-                2
-            } else {
-                1
-            }
+    pub(crate) fn surface_texture(&self) -> wgpu::SurfaceTexture {
+        let context = self.context();
+        return if let Ok(frame) = context.surface.get_current_texture() {
+            frame
+        } else {
+            context
+                .surface
+                .configure(&context.device, &self.configuration().config);
+            context
+                .surface
+                .get_current_texture()
+                .expect("swapchain-configure")
         };
-        self.msaa.replace(Msaa::new(
-            self.device.as_ref().unwrap(),
-            self.configuration.as_ref().unwrap(),
-            max_sample_count as u32,
-            requested,
-        ));
     }
-    pub(crate) fn create_viewport(&mut self, section: Section<DeviceContext>) {
-        let viewport = Viewport::new(
-            self.device.as_ref().unwrap(),
-            section,
-            (0.into(), 100.into()),
-        );
-        self.viewport.replace(viewport);
+    pub(crate) fn viewport(&self) -> &Viewport {
+        self.viewport.as_ref().unwrap()
     }
-    pub(crate) async fn initialize(&mut self, window_handle: WindowHandle) {
-        self.get_instance();
-        self.create_surface(window_handle);
-        self.get_adapter().await;
-        self.get_device_and_queue().await;
-    }
-    pub(crate) fn post_window_initialization(
-        &mut self,
-        window_handle: &WindowHandle,
-    ) -> Area<InterfaceContext> {
-        let area = window_handle.area();
-        let scale_factor = window_handle.scale_factor();
-        self.create_surface_configuration(area);
-        self.create_msaa(1);
-        self.resize(area, scale_factor)
-    }
-    pub(crate) fn adjust_viewport(&mut self, section: Section<DeviceContext>) {
+    pub(crate) fn position_viewport(&mut self, position: Position<NumericalContext>) {
         self.viewport
             .as_mut()
             .unwrap()
-            .adjust(self.queue.as_ref().unwrap(), section);
+            .set_position(position, self.context.as_ref().unwrap());
     }
-    pub(crate) fn adjust_viewport_pos(&mut self, position: Option<Position<InterfaceContext>>) {
-        if let Some(position) = position {
-            self.viewport.as_mut().unwrap().adjust_pos(
-                self.queue.as_ref().unwrap(),
-                position.to_device(self.scale_factor.factor()),
-            );
-        }
+    pub(crate) fn create_viewport(&mut self, willow: &Willow) {
+        self.viewport.replace(Viewport::new(
+            self.context(),
+            Section::new(
+                willow.starting_position.unwrap_or_default().coordinates,
+                willow.actual_area().coordinates,
+            ),
+            willow.near_far.unwrap_or_default(),
+        ));
     }
-    pub(crate) fn resize(
-        &mut self,
-        area: Area<DeviceContext>,
-        scale_factor: CoordinateUnit,
-    ) -> Area<InterfaceContext> {
-        self.scale_factor = ScaleFactor::new(scale_factor);
-        self.create_surface_configuration(area);
-        self.configure_surface();
-        self.create_depth_texture(area);
-        if self.viewport.is_none() {
-            self.create_viewport(Section::new((0, 0), area));
-        } else {
-            let section = self.viewport.as_ref().unwrap().section();
-            self.adjust_viewport(section.with_area(area));
-        };
-        area.to_interface(self.scale_factor.factor())
+    pub(crate) fn size_viewport(&mut self, willow: &Willow) {
+        self.viewport.as_mut().unwrap().set_size(
+            willow.actual_area().to_numerical(),
+            self.context.as_ref().unwrap(),
+        );
     }
-    pub(crate) fn resume(
-        &mut self,
-        _event_loop_window_target: &EventLoopWindowTarget,
-        window: &mut WindowHandle,
-        _desc: &WindowDescriptor,
-    ) -> Option<Area<InterfaceContext>> {
-        return if !self.initialized {
-            #[cfg(not(target_family = "wasm"))]
-            {
-                *window = WindowHandle::some(_event_loop_window_target, _desc);
-                self.scale_factor = ScaleFactor::new(window.scale_factor());
-                pollster::block_on(self.initialize(window.clone()));
-            }
-            let viewport_area = self.post_window_initialization(window);
-            self.initialized = true;
-            Some(viewport_area)
-        } else {
-            #[cfg(target_os = "android")]
-            {
-                self.create_surface(window.clone());
-                self.resize(window.area(), window.scale_factor());
-            }
-            None
-        };
-    }
-    pub(crate) fn create_surface(&mut self, window: WindowHandle) {
-        if let Some(instance) = self.instance.as_ref() {
-            self.scale_factor = ScaleFactor::new(window.scale_factor());
-            self.surface
-                .replace(instance.create_surface(window.0.unwrap()).expect("surface"));
-        }
-    }
-    pub(crate) fn get_surface_format(&self) -> TextureFormat {
-        let formats = self
-            .surface
-            .as_ref()
-            .expect("surface")
-            .get_capabilities(self.adapter.as_ref().expect("adapter"))
-            .formats;
-        *formats.first().expect("surface format unsupported")
-    }
-    pub(crate) async fn get_adapter(&mut self) {
-        tracing::trace!("ginkgo:adapter-begin");
-        let adapter = self
+    pub(crate) fn recreate_surface(&mut self, willow: &Willow) {
+        self.context.as_mut().unwrap().surface = self
+            .context()
             .instance
-            .as_ref()
-            .unwrap()
-            .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::default(),
+            .create_surface(willow.window())
+            .expect("surface");
+    }
+    pub(crate) fn acquired(&self) -> bool {
+        self.context.is_some()
+    }
+    pub(crate) fn configured(&self) -> bool {
+        self.configuration.is_some()
+    }
+    pub(crate) async fn acquire_context(&mut self, willow: &Willow) {
+        let instance = wgpu::Instance::new(InstanceDescriptor {
+            backends: wgpu::Backends::all(),
+            flags: wgpu::InstanceFlags::default(),
+            dx12_shader_compiler: wgpu::Dx12Compiler::Fxc,
+            gles_minor_version: wgpu::Gles3MinorVersion::Automatic,
+        });
+        let surface = instance.create_surface(willow.window()).expect("window");
+        let adapter = instance
+            .request_adapter(&RequestAdapterOptions {
+                power_preference: PowerPreference::default(),
                 force_fallback_adapter: false,
-                compatible_surface: self.surface.as_ref(),
+                compatible_surface: Some(&surface),
             })
             .await
-            .expect("adapter request failed");
-        self.adapter.replace(adapter);
-        tracing::trace!("ginkgo:adapter-end");
-    }
-    pub(crate) async fn get_device_and_queue(&mut self) {
-        tracing::trace!("ginkgo:device-begin");
-        let features =
-            wgpu::Features::default() | wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES;
+            .expect("adapter");
+        let surface_format = surface
+            .get_capabilities(&adapter)
+            .formats
+            .first()
+            .expect("surface-format")
+            .remove_srgb_suffix();
+        let features = Features::default() | Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES;
         cfg_if::cfg_if! {
             if #[cfg(any(target_os = "android", target_family = "wasm"))] {
-                let limits = wgpu::Limits::downlevel_webgl2_defaults();
+                let limits = Limits::downlevel_webgl2_defaults();
             } else {
-                let limits = wgpu::Limits::default();
+                let limits = Limits::default();
             }
         }
-        let limits = limits.using_resolution(self.adapter.as_ref().expect("adapter").limits());
-        let (device, queue) = self
-            .adapter
-            .as_ref()
-            .unwrap()
+        let (device, queue) = adapter
             .request_device(
-                &wgpu::DeviceDescriptor {
+                &DeviceDescriptor {
                     label: Some("device/queue"),
                     required_features: features,
-                    required_limits: limits,
+                    required_limits: limits.using_resolution(adapter.limits()),
                 },
                 None,
             )
             .await
-            .expect("device/queue request failed");
-        self.device.replace(device);
-        self.queue.replace(queue);
-        tracing::trace!("ginkgo:device-end");
-    }
-    pub(crate) fn create_surface_configuration(&mut self, area: Area<DeviceContext>) {
-        let surface_format = self.get_surface_format().remove_srgb_suffix();
-        self.configuration.replace(wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface_format,
-            width: area.width.max(1f32) as u32,
-            height: area.height.max(1f32) as u32,
-            present_mode: wgpu::PresentMode::Fifo,
-            desired_maximum_frame_latency: 2,
-            alpha_mode: wgpu::CompositeAlphaMode::Auto,
-            view_formats: vec![surface_format],
+            .expect("device/queue");
+        self.context.replace(GraphicContext {
+            surface,
+            instance,
+            adapter,
+            device,
+            queue,
+            surface_format,
         });
     }
-    pub(crate) fn configure_surface(&self) {
-        self.surface.as_ref().unwrap().configure(
-            self.device.as_ref().unwrap(),
-            self.configuration.as_ref().unwrap(),
-        );
+    pub(crate) fn configure_view(&mut self, willow: &Willow) {
+        let scale_factor = ScaleFactor::new(willow.window().scale_factor() as f32);
+        let area = willow.actual_area().max(Area::device((1, 1)));
+        let msaa = Msaa::new(self.context(), 1, area);
+        let depth = Depth::new(self.context(), &msaa, area);
+        let config = SurfaceConfiguration {
+            usage: TextureUsages::RENDER_ATTACHMENT,
+            format: self.context().surface_format,
+            width: area.width() as u32,
+            height: area.height() as u32,
+            present_mode: PresentMode::Fifo,
+            desired_maximum_frame_latency: 2,
+            alpha_mode: CompositeAlphaMode::Auto,
+            view_formats: vec![self.context().surface_format],
+        };
+        self.context()
+            .surface
+            .configure(&self.context().device, &config);
+        self.configuration.replace(ViewConfiguration {
+            msaa,
+            depth,
+            scale_factor,
+            config,
+        });
     }
-    pub(crate) fn surface_texture(&mut self) -> Option<wgpu::SurfaceTexture> {
-        if let Some(surface) = self.surface.as_ref() {
-            return if let Ok(frame) = surface.get_current_texture() {
-                Some(frame)
-            } else {
-                self.configure_surface();
-                Some(surface.get_current_texture().expect("swapchain"))
-            };
+    pub(crate) fn context(&self) -> &GraphicContext {
+        self.context.as_ref().unwrap()
+    }
+    pub(crate) fn configuration(&self) -> &ViewConfiguration {
+        self.configuration.as_ref().unwrap()
+    }
+}
+
+pub struct GraphicContext {
+    pub(crate) surface: wgpu::Surface<'static>,
+    pub(crate) instance: wgpu::Instance,
+    pub(crate) adapter: wgpu::Adapter,
+    pub device: wgpu::Device,
+    pub queue: wgpu::Queue,
+    pub surface_format: TextureFormat,
+}
+
+pub struct ViewConfiguration {
+    pub msaa: Msaa,
+    pub(crate) depth: Depth,
+    pub scale_factor: ScaleFactor,
+    pub(crate) config: SurfaceConfiguration,
+}
+#[derive(Copy, Clone, PartialEq, Resource)]
+pub struct ScaleFactor(f32);
+
+impl Default for ScaleFactor {
+    fn default() -> Self {
+        Self(1.0)
+    }
+}
+
+impl ScaleFactor {
+    pub fn value(&self) -> f32 {
+        self.0
+    }
+    pub fn new(f: f32) -> Self {
+        Self(f.round())
+    }
+}
+
+pub struct Uniform<Data: Pod + Zeroable> {
+    pub data: Data,
+    pub buffer: wgpu::Buffer,
+}
+
+impl<Data: Pod + Zeroable + PartialEq> Uniform<Data> {
+    pub fn write(&mut self, context: &GraphicContext, data: Data) {
+        context
+            .queue
+            .write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[data]));
+    }
+    pub fn new(context: &GraphicContext, data: Data) -> Self {
+        Self {
+            data,
+            buffer: context
+                .device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("uniform"),
+                    contents: bytemuck::cast_slice(&[data]),
+                    usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                }),
         }
-        None
+    }
+}
+
+pub struct VectorUniform<Repr: Pod + Zeroable + PartialEq> {
+    pub uniform: Uniform<[Repr; 4]>,
+}
+
+impl<Repr: Pod + Zeroable + PartialEq> VectorUniform<Repr> {
+    pub fn new(context: &GraphicContext, d: [Repr; 4]) -> Self {
+        Self {
+            uniform: Uniform::new(context, d),
+        }
+    }
+    pub fn write(&mut self, context: &GraphicContext) {
+        self.uniform.write(context, self.uniform.data);
+    }
+    pub fn set(&mut self, i: usize, r: Repr) {
+        self.uniform.data[i] = r;
     }
 }

@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"struct":["Despawn","Differentiable","Differential","DifferentialBundle","DifferentialDisable","DifferentialId"],"trait":["DifferentialIdentification"]};

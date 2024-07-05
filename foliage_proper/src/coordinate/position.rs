@@ -1,136 +1,136 @@
-use std::fmt::{Display, Formatter};
 use std::marker::PhantomData;
 use std::ops::{Add, AddAssign, Div, Sub};
 
 use bevy_ecs::prelude::Component;
 use bytemuck::{Pod, Zeroable};
-use serde::{Deserialize, Serialize};
+use winit::dpi::{LogicalPosition, PhysicalPosition};
 
-use crate::coordinate::area::Area;
 use crate::coordinate::{
-    CoordinateContext, CoordinateUnit, DeviceContext, InterfaceContext, NumericalContext,
+    CoordinateContext, CoordinateUnit, Coordinates, DeviceContext, LogicalContext, NumericalContext,
 };
 
-#[derive(Serialize, Deserialize, Copy, Clone, Component, PartialOrd, PartialEq, Default, Debug)]
+#[derive(Copy, Clone, Default, Component, PartialEq, Debug)]
 pub struct Position<Context: CoordinateContext> {
-    pub x: CoordinateUnit,
-    pub y: CoordinateUnit,
+    pub coordinates: Coordinates,
     _phantom: PhantomData<Context>,
 }
-impl<Context: CoordinateContext> Display for Position<Context> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("Pos | x:{} y:{}", self.x, self.y))
-    }
-}
-impl<Context: CoordinateContext> Position<Context> {
-    pub const fn new(x: CoordinateUnit, y: CoordinateUnit) -> Self {
-        Self {
-            x,
-            y,
-            _phantom: PhantomData,
-        }
-    }
-    /// returns a copy as just a number.
-    pub fn to_numerical(self) -> Position<NumericalContext> {
-        Position::<NumericalContext>::new(self.x, self.y)
-    }
-    /// returns a copy as a raw position
-    pub fn to_c(self) -> CReprPosition {
-        CReprPosition {
-            x: self.x,
-            y: self.y,
-        }
-    }
-    pub fn normalized(self, area: Area<Context>) -> Position<Context> {
-        (self.x / area.width, self.y / area.height).into()
-    }
-}
 
-impl Position<InterfaceContext> {
-    /// useful for converting to a device position accounting for scale factor
-    pub fn to_device(self, scale_factor: CoordinateUnit) -> Position<DeviceContext> {
-        Position::<DeviceContext>::new(self.x * scale_factor, self.y * scale_factor)
-    }
-}
-
-impl Position<DeviceContext> {
-    /// converts to interface context accounting for scale factor
-    pub fn to_interface(self, scale_factor: CoordinateUnit) -> Position<InterfaceContext> {
-        Position::<InterfaceContext>::new(self.x / scale_factor, self.y / scale_factor)
-    }
-}
-
-impl<Context: CoordinateContext> Add for Position<Context> {
-    type Output = Position<Context>;
-    fn add(self, rhs: Self) -> Self::Output {
-        Position::<Context>::new(self.x + rhs.x, self.y + rhs.y)
-    }
-}
-
-impl<Context: CoordinateContext> Sub for Position<Context> {
-    type Output = Position<Context>;
-    fn sub(self, rhs: Self) -> Self::Output {
-        Position::<Context>::new(self.x - rhs.x, self.y - rhs.y)
-    }
-}
-
-impl<Context: CoordinateContext> Div for Position<Context> {
-    type Output = Position<Context>;
-
-    fn div(self, rhs: Self) -> Self::Output {
-        Position::<Context>::new(self.x / rhs.x, self.y / rhs.y)
-    }
-}
-
-/// Raw position for interacting with C
 #[repr(C)]
-#[derive(
-    Pod, Zeroable, Copy, Clone, Default, Serialize, Deserialize, Debug, Component, PartialEq,
-)]
-pub struct CReprPosition {
-    pub(crate) x: CoordinateUnit,
-    pub(crate) y: CoordinateUnit,
-}
+#[derive(Pod, Zeroable, Copy, Clone, Default, Component, PartialEq, Debug)]
+pub struct GpuPosition(pub Coordinates);
 
-impl CReprPosition {
-    pub const fn new(x: CoordinateUnit, y: CoordinateUnit) -> Self {
-        Self { x, y }
+impl Position<NumericalContext> {
+    pub fn logical<C: Into<Coordinates>>(c: C) -> Position<LogicalContext> {
+        Position::new(c)
     }
-}
-
-impl<Context: CoordinateContext> From<(CoordinateUnit, CoordinateUnit)> for Position<Context> {
-    fn from(value: (CoordinateUnit, CoordinateUnit)) -> Self {
-        Position::<Context>::new(value.0, value.1)
+    pub fn device<C: Into<Coordinates>>(c: C) -> Position<DeviceContext> {
+        Position::new(c)
     }
-}
-
-impl<Context: CoordinateContext> From<(f64, f64)> for Position<Context> {
-    fn from(value: (f64, f64)) -> Self {
-        Position::<Context>::new(value.0 as CoordinateUnit, value.1 as CoordinateUnit)
+    pub fn numerical<C: Into<Coordinates>>(c: C) -> Position<NumericalContext> {
+        Position::new(c)
     }
-}
-
-impl<Context: CoordinateContext> From<(u32, u32)> for Position<Context> {
-    fn from(value: (u32, u32)) -> Self {
-        Position::<Context>::new(value.0 as CoordinateUnit, value.1 as CoordinateUnit)
+    pub fn as_logical(self) -> Position<LogicalContext> {
+        Position::logical(self.coordinates)
     }
-}
-
-impl<Context: CoordinateContext> From<(i32, i32)> for Position<Context> {
-    fn from(value: (i32, i32)) -> Self {
-        Position::<Context>::new(value.0 as CoordinateUnit, value.1 as CoordinateUnit)
-    }
-}
-
-impl<Context: CoordinateContext> From<(usize, usize)> for Position<Context> {
-    fn from(value: (usize, usize)) -> Self {
-        Position::<Context>::new(value.0 as CoordinateUnit, value.1 as CoordinateUnit)
+    pub fn as_device(self) -> Position<DeviceContext> {
+        Position::device(self.coordinates)
     }
 }
 
 impl<Context: CoordinateContext> AddAssign for Position<Context> {
     fn add_assign(&mut self, rhs: Self) {
-        self.x += rhs.x;
-        self.y += rhs.y;
+        self.coordinates = (self.x() + rhs.x(), self.y() + rhs.y()).into();
+    }
+}
+
+impl<Context: CoordinateContext> Position<Context> {
+    pub fn new<C: Into<Coordinates>>(c: C) -> Self {
+        Self {
+            coordinates: c.into(),
+            _phantom: PhantomData,
+        }
+    }
+    pub fn rounded(self) -> Self {
+        Self::new((self.x().round(), self.y().round()))
+    }
+    pub fn x(&self) -> CoordinateUnit {
+        self.coordinates.0[0]
+    }
+    pub fn y(&self) -> CoordinateUnit {
+        self.coordinates.0[1]
+    }
+    pub fn distance(self, o: Self) -> CoordinateUnit {
+        ((self.x() - o.x()).powi(2) + (self.y() - o.y()).powi(2)).sqrt()
+    }
+    pub fn to_numerical(self) -> Position<NumericalContext> {
+        Position::numerical((self.x(), self.y()))
+    }
+    pub fn normalized<C: Into<Coordinates>>(self, c: C) -> Self {
+        let c = c.into();
+        Self::new(self.coordinates.normalized(c))
+    }
+    pub fn min<O: Into<Self>>(self, o: O) -> Self {
+        let o = o.into();
+        Self::new((self.x().min(o.x()), self.y().min(o.y())))
+    }
+    pub fn max<O: Into<Self>>(self, o: O) -> Self {
+        let o = o.into();
+        Self::new((self.x().max(o.x()), self.y().max(o.y())))
+    }
+}
+
+impl Position<LogicalContext> {
+    pub fn to_device(self, factor: f32) -> Position<DeviceContext> {
+        Position::device((self.x() * factor, self.y() * factor))
+    }
+}
+
+impl Position<DeviceContext> {
+    pub fn to_logical(self, factor: f32) -> Position<LogicalContext> {
+        Position::logical((self.x() / factor, self.y() / factor))
+    }
+    pub fn to_gpu(self) -> GpuPosition {
+        GpuPosition(self.coordinates)
+    }
+}
+
+impl From<LogicalPosition<f32>> for Position<LogicalContext> {
+    fn from(value: LogicalPosition<f32>) -> Self {
+        Self::new((value.x, value.y))
+    }
+}
+
+impl From<PhysicalPosition<f32>> for Position<DeviceContext> {
+    fn from(value: PhysicalPosition<f32>) -> Self {
+        Self::new((value.x, value.y))
+    }
+}
+impl<Context: CoordinateContext, C: Into<Coordinates>> From<C> for Position<Context> {
+    fn from(value: C) -> Self {
+        Self::new(value)
+    }
+}
+
+impl<Context: CoordinateContext> Add for Position<Context> {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self::new(self.coordinates + rhs.coordinates)
+    }
+}
+
+impl<Context: CoordinateContext> Sub for Position<Context> {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        (self.coordinates - rhs.coordinates).into()
+    }
+}
+
+impl<Context: CoordinateContext> Div<f32> for Position<Context> {
+    type Output = Self;
+
+    fn div(self, rhs: f32) -> Self::Output {
+        (self.coordinates / rhs).into()
     }
 }

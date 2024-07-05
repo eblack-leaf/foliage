@@ -1,176 +1,385 @@
-use bevy_ecs::component::Component;
+use std::collections::HashMap;
+
+use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Added, Query, SystemSet};
-#[allow(unused)]
-use bevy_ecs::prelude::{Bundle, IntoSystemConfigs};
-use bevy_ecs::query::Changed;
-use serde::{Deserialize, Serialize};
+use bevy_ecs::prelude::{Component, IntoSystemConfigs};
+use bevy_ecs::query::{Changed, With};
+use bevy_ecs::system::Query;
+use bytemuck::{Pod, Zeroable};
+use wgpu::{
+    include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor,
+    PipelineLayoutDescriptor, RenderPipeline, RenderPipelineDescriptor, ShaderStages,
+    TextureFormat, TextureSampleType, TextureViewDimension, VertexState, VertexStepMode,
+};
 
-pub use bundled_cov::FeatherIcon;
-
-use crate::ash::render_packet::RenderPacketStore;
+use crate::ash::{Render, RenderDirectiveRecorder, RenderPhase, Renderer};
 use crate::color::Color;
-use crate::coordinate::area::{Area, CReprArea};
+use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
-use crate::coordinate::position::{CReprPosition, Position};
-use crate::coordinate::{CoordinateUnit, InterfaceContext};
-use crate::differential::{Despawn, Differentiable, Differential, DifferentialBundle};
-use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
-use crate::elm::leaf::Leaf;
-use crate::elm::Elm;
-#[allow(unused)]
-use crate::{coordinate, differential_enable};
+use crate::coordinate::position::Position;
+use crate::coordinate::section::{GpuSection, Section};
+use crate::coordinate::{Coordinates, LogicalContext};
+use crate::differential::{Differential, RenderLink};
+use crate::elm::{Elm, RenderQueueHandle, ScheduleMarkers};
+use crate::ginkgo::Ginkgo;
+use crate::instances::Instances;
+use crate::texture::Mips;
+use crate::Leaf;
 
-mod bundled_cov;
 mod proc_gen;
-mod renderer;
-mod vertex;
-#[derive(Default, Component, Clone, Deserialize, Serialize)]
-pub(crate) struct RequestData(pub(crate) Option<Vec<u8>>);
-#[derive(Default, Component, Clone, PartialEq, Serialize, Deserialize)]
-pub(crate) struct WasRequest(pub(crate) bool);
+
+impl Leaf for Icon {
+    fn attach(elm: &mut Elm) {
+        elm.enable_differential::<Self, IconId>();
+        elm.enable_differential::<Self, GpuSection>();
+        elm.enable_differential::<Self, Layer>();
+        elm.enable_differential::<Self, Color>();
+        elm.enable_differential::<Self, IconData>();
+        elm.scheduler
+            .main
+            .add_systems(icon_scale.in_set(ScheduleMarkers::Config));
+    }
+}
+
+fn icon_scale(
+    mut icons: Query<
+        (&mut Position<LogicalContext>, &mut Area<LogicalContext>),
+        (Changed<Area<LogicalContext>>, With<IconId>),
+    >,
+) {
+    for (mut pos, mut area) in icons.iter_mut() {
+        let old = *area;
+        let new = Area::logical(Icon::SCALE);
+        let diff = (old - new).max((0, 0)) / Area::logical((2, 2));
+        *pos = *pos + Position::logical(diff.coordinates);
+        *area = new;
+    }
+}
+#[derive(Component, Clone, PartialEq)]
+pub struct IconData(pub IconId, pub Vec<u8>);
+#[derive(Bundle)]
+pub struct IconRequest {
+    data: Differential<IconData>,
+    link: RenderLink,
+}
+impl IconRequest {
+    pub fn new<I: Into<IconId>>(id: I, data: Vec<u8>) -> Self {
+        Self {
+            data: Differential::new(IconData(id.into(), data)),
+            link: RenderLink::new::<Icon>(),
+        }
+    }
+}
 #[derive(Bundle, Clone)]
 pub struct Icon {
-    scale: IconScale,
-    icon_id: DifferentialBundle<IconId>,
-    color: DifferentialBundle<Color>,
-    data: RequestData,
-    was_request: DifferentialBundle<WasRequest>,
-    differentiable: Differentiable,
+    link: RenderLink,
+    section: Section<LogicalContext>,
+    layer: Differential<Layer>,
+    gpu_section: Differential<GpuSection>,
+    id: Differential<IconId>,
+    color: Differential<Color>,
 }
 impl Icon {
-    pub fn new<ID: Into<IconId>, C: Into<Color>>(icon_id: ID, color: C) -> Self {
+    pub const SCALE: Coordinates = Coordinates::new(24f32, 24f32);
+    pub const TEXTURE_SCALE: Coordinates = Coordinates::new(96f32, 96f32);
+    pub fn new<I: Into<IconId>>(id: I, color: Color) -> Self {
         Self {
-            scale: IconScale::default(),
-            icon_id: DifferentialBundle::new(icon_id.into()),
-            color: DifferentialBundle::new(color.into()),
-            data: RequestData::default(),
-            was_request: DifferentialBundle::new(WasRequest(false)),
-            differentiable: Differentiable::new::<Self>(),
-        }
-    }
-    pub fn storage<ID: Into<IconId>>(icon_id: ID, data: Vec<u8>) -> Self {
-        Self {
-            scale: IconScale::from_dim(12.0),
-            icon_id: DifferentialBundle::new(icon_id.into()),
-            color: DifferentialBundle::new(Color::default()),
-            data: RequestData(Some(data)),
-            was_request: DifferentialBundle::new(WasRequest(true)),
-            differentiable: Differentiable::new::<Self>(),
+            link: RenderLink::new::<Icon>(),
+            section: Section::new(Position::default(), Area::new(Icon::SCALE)),
+            layer: Differential::new(Layer::default()),
+            gpu_section: Differential::new(GpuSection::default()),
+            id: Differential::new(id.into()),
+            color: Differential::new(color),
         }
     }
 }
-#[derive(SystemSet, Hash, Eq, PartialEq, Copy, Clone, Debug)]
-pub enum SetDescriptor {
-    Update,
-}
-impl Leaf for Icon {
-    type SetDescriptor = SetDescriptor;
-
-    fn config(elm_configuration: &mut ElmConfiguration) {
-        elm_configuration.configure_hook(ExternalSet::Configure, SetDescriptor::Update);
-    }
-
-    fn attach(elm: &mut Elm) {
-        elm.enable_conditional::<Icon>();
-        differential_enable!(elm, CReprPosition, CReprArea, Color, IconId, WasRequest);
-        elm.job.main().add_systems((
-            scale_change.in_set(SetDescriptor::Update),
-            id_changed.in_set(SetDescriptor::Update),
-            clean_requests.after(CoreSet::RenderPacket),
-            send_icon_data.in_set(CoreSet::Differential),
-        ));
-    }
-}
-fn send_icon_data(
-    mut icon_requests: Query<(&mut RequestData, &mut RenderPacketStore), Changed<RequestData>>,
-) {
-    for (mut data, mut store) in icon_requests.iter_mut() {
-        if data.0.is_some() {
-            tracing::trace!("sending data:{:?}", ());
-            store.put(RequestData(Some(data.0.take().unwrap())));
-        } else {
-            tracing::trace!("sending no data:{:?}", ());
-            store.put(RequestData(None));
-        }
-    }
-}
-#[derive(Component, Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize, Debug)]
-pub struct IconId(pub u32);
-impl IconId {
-    pub fn new(value: u32) -> Self {
+#[derive(Hash, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Component)]
+pub struct IconId(pub i32);
+impl From<i32> for IconId {
+    fn from(value: i32) -> Self {
         Self(value)
     }
 }
-impl From<FeatherIcon> for IconId {
-    fn from(value: FeatherIcon) -> Self {
-        value.id()
+pub(crate) struct IconGroup {
+    bind_group: BindGroup,
+    instances: Instances<Entity>,
+    should_record: bool,
+}
+pub struct IconResources {
+    pipeline: RenderPipeline,
+    vertex_buffer: wgpu::Buffer,
+    bind_group: BindGroup,
+    icon_group_layout: BindGroupLayout,
+    groups: HashMap<IconId, IconGroup>,
+    entity_to_icon: HashMap<Entity, IconId>,
+}
+impl IconResources {
+    pub(crate) fn group(&self, entity: Entity) -> &IconGroup {
+        self.groups
+            .get(self.entity_to_icon.get(&entity).unwrap())
+            .unwrap()
+    }
+    pub(crate) fn group_mut_from_entity(&mut self, entity: Entity) -> &mut IconGroup {
+        self.groups
+            .get_mut(self.entity_to_icon.get(&entity).unwrap())
+            .unwrap()
     }
 }
-fn scale_change(
-    mut query: Query<
-        (
-            &mut IconScale,
-            &mut Area<InterfaceContext>,
-            &mut Position<InterfaceContext>,
-        ),
-        Changed<Area<InterfaceContext>>,
-    >,
-) {
-    tracing::trace!("scaling-icons");
-    for (mut scale, mut area, mut pos) in query.iter_mut() {
-        let initial_width = area.width.max(area.height);
-        *scale = IconScale::from_dim(area.width.max(area.height));
-        let val = (initial_width - scale.px()) / 2f32;
-        *pos += Position::from((val, val));
-        let initial_px = scale.px();
-        area.width = initial_px;
-        area.height = initial_px;
+#[repr(C)]
+#[derive(Pod, Zeroable, Copy, Clone, Default)]
+pub struct Vertex {
+    position: Coordinates,
+}
+
+impl Vertex {
+    pub(crate) const fn new(position: Coordinates) -> Self {
+        Self { position }
     }
 }
-fn id_changed(
-    mut icons: Query<
-        (
-            Entity,
-            &mut Differential<Layer>,
-            &mut Differential<CReprPosition>,
-            &mut Differential<CReprArea>,
-            &mut Differential<Color>,
-        ),
-        Changed<IconId>,
-    >,
-) {
-    for (entity, mut layer, mut pos, mut area, mut color) in icons.iter_mut() {
-        tracing::trace!("icon-id-changed:{:?}", entity);
-        layer.push_cached();
-        pos.push_cached();
-        area.push_cached();
-        color.push_cached();
-    }
-}
-fn clean_requests(mut query: Query<(Entity, &mut Despawn, &WasRequest), Added<WasRequest>>) {
-    for (entity, mut despawn, was_request) in query.iter_mut() {
-        if was_request.0 {
-            tracing::trace!("despawning icon-request:{:?}", entity);
-            despawn.despawn();
+
+pub(crate) const VERTICES: [Vertex; 6] = [
+    Vertex::new(Coordinates::new(1f32, 0f32)),
+    Vertex::new(Coordinates::new(0f32, 0f32)),
+    Vertex::new(Coordinates::new(0f32, 1f32)),
+    Vertex::new(Coordinates::new(1f32, 0f32)),
+    Vertex::new(Coordinates::new(0f32, 1f32)),
+    Vertex::new(Coordinates::new(1f32, 1f32)),
+];
+impl Render for Icon {
+    type DirectiveGroupKey = IconId;
+    const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(2);
+    type Resources = IconResources;
+
+    fn create_resources(ginkgo: &Ginkgo) -> Self::Resources {
+        let shader = ginkgo.create_shader(include_wgsl!("icon.wgsl"));
+        let vertex_buffer = ginkgo.create_vertex_buffer(VERTICES);
+        let bind_group_layout = ginkgo.create_bind_group_layout(&BindGroupLayoutDescriptor {
+            label: Some("icon-bind-group-layout"),
+            entries: &[
+                Ginkgo::bind_group_layout_entry(0)
+                    .at_stages(ShaderStages::VERTEX)
+                    .uniform_entry(),
+                Ginkgo::bind_group_layout_entry(1)
+                    .at_stages(ShaderStages::FRAGMENT)
+                    .sampler_entry(),
+            ],
+        });
+        let sampler = ginkgo.create_sampler();
+        let bind_group = ginkgo.create_bind_group(&BindGroupDescriptor {
+            label: Some("icon-bind-group"),
+            layout: &bind_group_layout,
+            entries: &[
+                ginkgo.viewport_bind_group_entry(0),
+                Ginkgo::sampler_bind_group_entry(&sampler, 1),
+            ],
+        });
+        let icon_group_layout = ginkgo.create_bind_group_layout(&BindGroupLayoutDescriptor {
+            label: Some("icon-group-bind-group-layout"),
+            entries: &[Ginkgo::bind_group_layout_entry(0)
+                .at_stages(ShaderStages::FRAGMENT)
+                .texture_entry(
+                    TextureViewDimension::D2,
+                    TextureSampleType::Float { filterable: false },
+                )],
+        });
+        let pipeline_layout = ginkgo.create_pipeline_layout(&PipelineLayoutDescriptor {
+            label: Some("icon-pipeline-layout"),
+            bind_group_layouts: &[&icon_group_layout, &bind_group_layout],
+            push_constant_ranges: &[],
+        });
+        let pipeline = ginkgo.create_pipeline(&RenderPipelineDescriptor {
+            label: Some("icon-render-pipeline"),
+            layout: Some(&pipeline_layout),
+            vertex: VertexState {
+                module: &shader,
+                entry_point: "vertex_entry",
+                compilation_options: Default::default(),
+                buffers: &[
+                    Ginkgo::vertex_buffer_layout::<Vertex>(
+                        VertexStepMode::Vertex,
+                        &wgpu::vertex_attr_array![0 => Float32x2],
+                    ),
+                    Ginkgo::vertex_buffer_layout::<GpuSection>(
+                        VertexStepMode::Instance,
+                        &wgpu::vertex_attr_array![1 => Float32x4],
+                    ),
+                    Ginkgo::vertex_buffer_layout::<Layer>(
+                        VertexStepMode::Instance,
+                        &wgpu::vertex_attr_array![2 => Float32],
+                    ),
+                    Ginkgo::vertex_buffer_layout::<Color>(
+                        VertexStepMode::Instance,
+                        &wgpu::vertex_attr_array![3 => Float32x4],
+                    ),
+                    Ginkgo::vertex_buffer_layout::<Mips>(
+                        VertexStepMode::Instance,
+                        &wgpu::vertex_attr_array![4 => Float32],
+                    ),
+                ],
+            },
+            primitive: Ginkgo::triangle_list_primitive(),
+            depth_stencil: ginkgo.depth_stencil_state(),
+            multisample: ginkgo.msaa_state(),
+            fragment: Ginkgo::fragment_state(
+                &shader,
+                "fragment_entry",
+                &ginkgo.alpha_color_target_state(),
+            ),
+            multiview: None,
+        });
+        IconResources {
+            pipeline,
+            vertex_buffer,
+            bind_group,
+            icon_group_layout,
+            groups: HashMap::new(),
+            entity_to_icon: Default::default(),
         }
     }
-}
-#[derive(Component, Copy, Clone, Serialize, Deserialize, Debug, Default)]
-pub struct IconScale(pub(crate) CoordinateUnit);
-impl IconScale {
-    pub(crate) const UPPER_BOUND: u32 = 100;
-    pub(crate) const LOWER_BOUND: u32 = 20;
-    pub(crate) const INTERVAL: u32 = 4;
-    pub fn px(self) -> CoordinateUnit {
-        self.0
+
+    fn prepare(
+        renderer: &mut Renderer<Self>,
+        queue_handle: &mut RenderQueueHandle,
+        ginkgo: &Ginkgo,
+    ) -> bool {
+        for packet in queue_handle.read_adds::<Self, IconData>() {
+            let (_, view) = ginkgo.create_texture(
+                TextureFormat::R8Unorm,
+                Self::TEXTURE_SCALE,
+                3,
+                packet.value.1.as_slice(),
+            );
+            renderer.resource_handle.groups.insert(
+                packet.value.0,
+                IconGroup {
+                    bind_group: ginkgo.create_bind_group(&BindGroupDescriptor {
+                        label: Some("icon-group-bind-group"),
+                        layout: &renderer.resource_handle.icon_group_layout,
+                        entries: &[Ginkgo::texture_bind_group_entry(&view, 0)],
+                    }),
+                    instances: Instances::new(1)
+                        .with_attribute::<GpuSection>(ginkgo)
+                        .with_attribute::<Layer>(ginkgo)
+                        .with_attribute::<Color>(ginkgo)
+                        .with_attribute::<Mips>(ginkgo),
+                    should_record: false,
+                },
+            );
+        }
+        for entity in queue_handle.read_removes::<Self>() {
+            renderer
+                .resource_handle
+                .group_mut_from_entity(entity)
+                .instances
+                .queue_remove(entity);
+            renderer.resource_handle.entity_to_icon.remove(&entity);
+        }
+        for packet in queue_handle.read_adds::<Self, IconId>() {
+            let old = renderer
+                .resource_handle
+                .entity_to_icon
+                .insert(packet.entity, packet.value);
+            renderer
+                .resource_handle
+                .group_mut_from_entity(packet.entity)
+                .instances
+                .add(packet.entity);
+            if let Some(o) = old {
+                if o != packet.value {
+                    renderer
+                        .resource_handle
+                        .groups
+                        .get_mut(&o)
+                        .unwrap()
+                        .instances
+                        .queue_remove(packet.entity);
+                }
+            }
+        }
+        // TODO update cpu len of each attribute?
+        for packet in queue_handle.read_adds::<Self, GpuSection>() {
+            renderer
+                .resource_handle
+                .group_mut_from_entity(packet.entity)
+                .instances
+                .checked_write(packet.entity, packet.value);
+            let scale_factor = ginkgo.configuration().scale_factor.value();
+            if scale_factor == 3f32 {
+                renderer
+                    .resource_handle
+                    .group_mut_from_entity(packet.entity)
+                    .instances
+                    .checked_write(packet.entity, Mips(0f32));
+            } else if scale_factor == 2f32 {
+                renderer
+                    .resource_handle
+                    .group_mut_from_entity(packet.entity)
+                    .instances
+                    .checked_write(packet.entity, Mips(1f32));
+            } else {
+                renderer
+                    .resource_handle
+                    .group_mut_from_entity(packet.entity)
+                    .instances
+                    .checked_write(packet.entity, Mips(2f32));
+            }
+        }
+        for packet in queue_handle.read_adds::<Self, Layer>() {
+            renderer
+                .resource_handle
+                .group_mut_from_entity(packet.entity)
+                .instances
+                .checked_write(packet.entity, packet.value);
+        }
+        for packet in queue_handle.read_adds::<Self, Color>() {
+            renderer
+                .resource_handle
+                .group_mut_from_entity(packet.entity)
+                .instances
+                .checked_write(packet.entity, packet.value);
+        }
+        let mut should_record = false;
+        for (_i, g) in renderer.resource_handle.groups.iter_mut() {
+            if g.instances.resolve_changes(ginkgo) {
+                should_record = true;
+                g.should_record = true;
+            }
+        }
+        should_record
     }
-    pub fn from_dim(r: CoordinateUnit) -> Self {
-        let r = r - r % Self::INTERVAL as CoordinateUnit;
-        Self(
-            r.min(Self::UPPER_BOUND as f32)
-                .max(Self::LOWER_BOUND as f32)
-                .floor(),
-        )
+
+    fn record(renderer: &mut Renderer<Self>, ginkgo: &Ginkgo) {
+        for (icon_id, group) in renderer.resource_handle.groups.iter_mut() {
+            if group.should_record {
+                let mut recorder = RenderDirectiveRecorder::new(ginkgo);
+                if group.instances.num_instances() > 0 {
+                    recorder.0.set_pipeline(&renderer.resource_handle.pipeline);
+                    recorder
+                        .0
+                        .set_bind_group(1, &renderer.resource_handle.bind_group, &[]);
+                    recorder.0.set_bind_group(0, &group.bind_group, &[]);
+                    recorder
+                        .0
+                        .set_vertex_buffer(0, renderer.resource_handle.vertex_buffer.slice(..));
+                    recorder
+                        .0
+                        .set_vertex_buffer(1, group.instances.buffer::<GpuSection>().slice(..));
+                    recorder
+                        .0
+                        .set_vertex_buffer(2, group.instances.buffer::<Layer>().slice(..));
+                    recorder
+                        .0
+                        .set_vertex_buffer(3, group.instances.buffer::<Color>().slice(..));
+                    recorder
+                        .0
+                        .set_vertex_buffer(4, group.instances.buffer::<Mips>().slice(..));
+                    recorder
+                        .0
+                        .draw(0..VERTICES.len() as u32, 0..group.instances.num_instances());
+                }
+                renderer.directive_manager.fill(*icon_id, recorder.finish());
+                group.should_record = false;
+            }
+        }
     }
 }

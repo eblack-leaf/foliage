@@ -1,18 +1,7 @@
 [workspace]
-members = [
-    "foliage_proper",
-    "application/example",
-    "application/entry",
-    "build_android",
-    "website/entry",
-    "website/system",
-    "foliage_macros",
-    "foliage_scenes",
-    "foliage",
-    "asset_gen",
-]
+members = [ "application","foliage", "foliage_macros", "foliage_proper"]
+
 resolver = "2"
 
-[profile.dev]
+[profile.test]
 opt-level = 1
-debug = true

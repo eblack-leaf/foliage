@@ -1,166 +1,125 @@
-use std::fmt::{Display, Formatter};
 use std::marker::PhantomData;
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub};
+use std::ops::{Div, Sub};
 
 use bevy_ecs::prelude::Component;
 use bytemuck::{Pod, Zeroable};
-use serde::{Deserialize, Serialize};
+use winit::dpi::{LogicalSize, PhysicalSize, Size};
 
 use crate::coordinate::{
-    CoordinateContext, CoordinateUnit, DeviceContext, InterfaceContext, NumericalContext,
+    CoordinateContext, CoordinateUnit, Coordinates, DeviceContext, LogicalContext, NumericalContext,
 };
 
-#[derive(Serialize, Deserialize, Copy, Clone, Component, PartialOrd, PartialEq, Default, Debug)]
+#[derive(Copy, Clone, Default, Component, PartialEq, Debug)]
 pub struct Area<Context: CoordinateContext> {
-    pub width: CoordinateUnit,
-    pub height: CoordinateUnit,
+    pub coordinates: Coordinates,
     _phantom: PhantomData<Context>,
 }
-impl<Context: CoordinateContext> Display for Area<Context> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("Area | w:{} h:{}", self.width, self.height))
+
+#[repr(C)]
+#[derive(Pod, Zeroable, Copy, Clone, Default, Component, PartialEq, Debug)]
+pub struct GpuArea(pub Coordinates);
+
+impl Area<NumericalContext> {
+    pub fn logical<C: Into<Coordinates>>(c: C) -> Area<LogicalContext> {
+        Area::new(c)
     }
-}
-impl<Context: CoordinateContext> Area<Context> {
-    pub fn min_bound<A: Into<Self>>(&self, bounds: A) -> Self {
-        let b = bounds.into();
-        (self.width.max(b.width), self.height.max(b.height)).into()
+    pub fn device<C: Into<Coordinates>>(c: C) -> Area<DeviceContext> {
+        Area::new(c)
     }
-    pub fn max_bound<A: Into<Self>>(&self, bounds: A) -> Self {
-        let b = bounds.into();
-        (self.width.min(b.width), self.height.min(b.height)).into()
+    pub fn numerical<C: Into<Coordinates>>(c: C) -> Area<NumericalContext> {
+        Area::new(c)
+    }
+    pub fn as_logical(self) -> Area<LogicalContext> {
+        Self::logical(self.coordinates)
+    }
+    pub fn as_device(self) -> Area<DeviceContext> {
+        Self::device(self.coordinates)
     }
 }
 
 impl<Context: CoordinateContext> Area<Context> {
-    pub const fn new(width: CoordinateUnit, height: CoordinateUnit) -> Self {
+    pub fn new<C: Into<Coordinates>>(c: C) -> Self {
         Self {
-            width,
-            height,
+            coordinates: c.into(),
             _phantom: PhantomData,
         }
     }
-    pub const fn to_numerical(self) -> Area<NumericalContext> {
-        Area::<NumericalContext>::new(self.width, self.height)
+    pub fn rounded(self) -> Self {
+        Self::new((self.width().round(), self.height().round()))
     }
-    /// return a copy as raw struct for gpu interactions
-    pub const fn to_c(self) -> CReprArea {
-        CReprArea {
-            width: self.width,
-            height: self.height,
-        }
+    pub fn width(&self) -> CoordinateUnit {
+        self.coordinates.0[0]
     }
-    pub fn normalized(self, area: Area<Context>) -> Area<Context> {
-        (self.width / area.width, self.height / area.height).into()
+    pub fn height(&self) -> CoordinateUnit {
+        self.coordinates.0[1]
+    }
+    pub fn normalized<C: Into<Coordinates>>(self, c: C) -> Self {
+        let c = c.into();
+        Self::new(self.coordinates.normalized(c))
+    }
+    pub fn min<O: Into<Self>>(&self, o: O) -> Self {
+        let o = o.into();
+        Self::new((self.width().min(o.width()), self.height().min(o.height())))
+    }
+    pub fn max<O: Into<Self>>(&self, o: O) -> Self {
+        let o = o.into();
+        Self::new((self.width().max(o.width()), self.height().max(o.height())))
+    }
+    pub fn to_numerical(self) -> Area<NumericalContext> {
+        Area::numerical((self.width(), self.height()))
     }
 }
 
-impl Area<InterfaceContext> {
-    /// accounts for scale factor to convert this to device area
-    pub fn to_device(self, scale_factor: CoordinateUnit) -> Area<DeviceContext> {
-        Area::<DeviceContext>::new(self.width * scale_factor, self.height * scale_factor)
+impl Area<LogicalContext> {
+    pub fn to_device(self, factor: f32) -> Area<DeviceContext> {
+        Area::device((self.width() * factor, self.height() * factor))
     }
 }
 
 impl Area<DeviceContext> {
-    /// accounts for scale factor to convert this to interface area
-    pub fn to_interface(self, scale_factor: CoordinateUnit) -> Area<InterfaceContext> {
-        Area::<InterfaceContext>::new(self.width / scale_factor, self.height / scale_factor)
+    pub fn to_logical(self, factor: f32) -> Area<LogicalContext> {
+        Area::logical((self.width() / factor, self.height() / factor))
     }
-}
-impl Area<NumericalContext> {
-    pub fn as_interface(self) -> Area<InterfaceContext> {
-        (self.width, self.height).into()
-    }
-    pub fn as_device(self) -> Area<DeviceContext> {
-        (self.width, self.height).into()
-    }
-}
-#[repr(C)]
-#[derive(
-    Pod, Zeroable, Copy, Clone, Default, Component, Serialize, Deserialize, PartialEq, Debug,
-)]
-pub struct CReprArea {
-    pub width: CoordinateUnit,
-    pub height: CoordinateUnit,
-}
-
-impl CReprArea {
-    pub fn new(width: CoordinateUnit, height: CoordinateUnit) -> Self {
-        Self { width, height }
+    pub fn to_gpu(self) -> GpuArea {
+        GpuArea(self.coordinates)
     }
 }
 
-impl<Context: CoordinateContext> From<(usize, usize)> for Area<Context> {
-    fn from(value: (usize, usize)) -> Self {
-        Self::new(value.0 as CoordinateUnit, value.1 as CoordinateUnit)
+impl From<Area<LogicalContext>> for Size {
+    fn from(value: Area<LogicalContext>) -> Self {
+        Self::new(LogicalSize::new(value.width(), value.height()))
     }
 }
 
-impl<Context: CoordinateContext> From<(i32, i32)> for Area<Context> {
-    fn from(value: (i32, i32)) -> Self {
-        Self::new(value.0 as CoordinateUnit, value.1 as CoordinateUnit)
+impl From<Area<DeviceContext>> for Size {
+    fn from(value: Area<DeviceContext>) -> Self {
+        Self::new(PhysicalSize::new(value.width(), value.height()))
     }
 }
 
-impl<Context: CoordinateContext> From<(i32, f32)> for Area<Context> {
-    fn from(value: (i32, f32)) -> Self {
-        Self::new(value.0 as CoordinateUnit, value.1 as CoordinateUnit)
+impl From<PhysicalSize<u32>> for Area<DeviceContext> {
+    fn from(value: PhysicalSize<u32>) -> Self {
+        Self::new((value.width, value.height))
     }
 }
-
-impl<Context: CoordinateContext> From<(CoordinateUnit, CoordinateUnit)> for Area<Context> {
-    fn from(value: (CoordinateUnit, CoordinateUnit)) -> Self {
-        Self::new(value.0, value.1)
-    }
-}
-
-impl<Context: CoordinateContext> From<(u32, u32)> for Area<Context> {
-    fn from(value: (u32, u32)) -> Self {
-        Self::new(value.0 as CoordinateUnit, value.1 as CoordinateUnit)
-    }
-}
-
-impl<Context: CoordinateContext> Mul for Area<Context> {
-    type Output = Area<Context>;
-    fn mul(self, rhs: Self) -> Self::Output {
-        Area::<Context>::new(self.width * rhs.width, self.height * rhs.height)
-    }
-}
-
-impl<Context: CoordinateContext> Add for Area<Context> {
-    type Output = Area<Context>;
-    fn add(self, rhs: Self) -> Self::Output {
-        Area::<Context>::new(self.width + rhs.width, self.height + rhs.height)
+impl<Context: CoordinateContext, C: Into<Coordinates>> From<C> for Area<Context> {
+    fn from(value: C) -> Self {
+        Self::new(value)
     }
 }
 
 impl<Context: CoordinateContext> Sub for Area<Context> {
-    type Output = Area<Context>;
+    type Output = Self;
+
     fn sub(self, rhs: Self) -> Self::Output {
-        Area::<Context>::new(self.width - rhs.width, self.height - rhs.height)
+        (self.coordinates - rhs.coordinates).into()
     }
 }
 
 impl<Context: CoordinateContext> Div for Area<Context> {
-    type Output = Area<Context>;
-    fn div(self, rhs: Self) -> Self::Output {
-        Area::<Context>::new(self.width / rhs.width, self.height / rhs.height)
-    }
-}
-impl<Context: CoordinateContext> AddAssign for Area<Context> {
-    fn add_assign(&mut self, rhs: Self) {
-        *self = *self + rhs;
-    }
-}
-impl<Context: CoordinateContext> MulAssign for Area<Context> {
-    fn mul_assign(&mut self, rhs: Self) {
-        *self = *self * rhs;
-    }
-}
+    type Output = Self;
 
-impl<Context: CoordinateContext> DivAssign for Area<Context> {
-    fn div_assign(&mut self, rhs: Self) {
-        *self = *self / rhs;
+    fn div(self, rhs: Self) -> Self::Output {
+        (self.coordinates / rhs.coordinates).into()
     }
 }

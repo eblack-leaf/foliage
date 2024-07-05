@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["EmptySetDescriptor"],"struct":["Tag"],"trait":["Leaf","Leaves"]};

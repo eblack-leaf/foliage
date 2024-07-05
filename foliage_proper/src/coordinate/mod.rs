@@ -1,144 +1,188 @@
-use bevy_ecs::bundle::Bundle;
-use bevy_ecs::component::Component;
-use bevy_ecs::prelude::{IntoSystemConfigs, Query};
+use std::ops::{Add, Div, Mul, Sub};
+
+use bevy_ecs::prelude::{IntoSystemConfigs, Or};
 use bevy_ecs::query::Changed;
-use bevy_ecs::system::Res;
+use bevy_ecs::system::{Query, Res};
+use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
 
-use crate::animate::{Interpolate, Interpolation, InterpolationExtraction};
-use crate::coordinate::area::{Area, CReprArea};
-use crate::coordinate::layer::Layer;
-use crate::coordinate::location::Location;
-use crate::coordinate::position::{CReprPosition, Position};
-use crate::coordinate::section::Section;
-use crate::elm::config::CoreSet;
-use crate::elm::leaf::{EmptySetDescriptor, Leaf};
-use crate::elm::Elm;
-use crate::window::ScaleFactor;
+use crate::coordinate::area::Area;
+use crate::coordinate::position::Position;
+use crate::coordinate::section::GpuSection;
+use crate::elm::{Elm, ScheduleMarkers};
+use crate::ginkgo::ScaleFactor;
+use crate::Leaf;
 
 pub mod area;
 pub mod layer;
-pub mod location;
+pub mod placement;
 pub mod position;
 pub mod section;
 
-pub type CoordinateUnit = f32;
 pub trait CoordinateContext
 where
     Self: Send + Sync + 'static + Copy + Clone,
 {
 }
+
 #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug, Serialize, Deserialize)]
 pub struct DeviceContext;
+
 #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug, Serialize, Deserialize)]
-pub struct InterfaceContext;
+pub struct LogicalContext;
+
 #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug, Serialize, Deserialize)]
 pub struct NumericalContext;
-impl CoordinateContext for DeviceContext {}
-impl CoordinateContext for InterfaceContext {}
-impl CoordinateContext for NumericalContext {}
-#[derive(Component, Copy, Clone, Default)]
-pub struct PositionAdjust(pub Position<InterfaceContext>);
-impl Interpolate for PositionAdjust {
-    fn interpolations(&self, end: &Self) -> Vec<Interpolation> {
-        vec![
-            Interpolation::new(self.0.x, end.0.x),
-            Interpolation::new(self.0.y, end.0.y),
-        ]
-    }
 
-    fn apply(&self, extracts: Vec<InterpolationExtraction>) -> Self {
-        Self(
-            self.0
-                + Position::new(
-                    extracts.get(0).cloned().unwrap_or_default().0,
-                    extracts.get(1).cloned().unwrap_or_default().0,
-                ),
+impl CoordinateContext for DeviceContext {}
+
+impl CoordinateContext for LogicalContext {}
+
+impl CoordinateContext for NumericalContext {}
+
+pub type CoordinateUnit = f32;
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Pod, Zeroable, Debug)]
+pub struct Coordinates(pub [CoordinateUnit; 2]);
+
+impl Coordinates {
+    pub const fn new(a: CoordinateUnit, b: CoordinateUnit) -> Self {
+        Self([a, b])
+    }
+    pub const fn horizontal(&self) -> CoordinateUnit {
+        self.0[0]
+    }
+    pub const fn vertical(&self) -> CoordinateUnit {
+        self.0[1]
+    }
+    pub fn normalized<C: Into<Coordinates>>(&self, c: C) -> Self {
+        let c = c.into();
+        Self::new(
+            self.horizontal() / c.horizontal(),
+            self.vertical() / c.vertical(),
         )
     }
 }
-#[derive(Component, Copy, Clone, Default)]
-pub struct AreaAdjust(pub Area<InterfaceContext>);
-impl Interpolate for AreaAdjust {
-    fn interpolations(&self, end: &Self) -> Vec<Interpolation> {
-        vec![
-            Interpolation::new(self.0.width, end.0.width),
-            Interpolation::new(self.0.height, end.0.height),
-        ]
-    }
 
-    fn apply(&self, extracts: Vec<InterpolationExtraction>) -> Self {
-        let mut copy = *self;
-        copy.0.width += extracts.get(0).cloned().unwrap_or_default().0;
-        copy.0.height += extracts.get(1).cloned().unwrap_or_default().0;
-        copy
+impl Default for Coordinates {
+    fn default() -> Self {
+        Self([CoordinateUnit::default(); 2])
     }
 }
-pub(crate) fn position_set(
-    mut query: Query<
-        (&mut CReprPosition, &Position<InterfaceContext>),
-        Changed<Position<InterfaceContext>>,
+macro_rules! permutation_coordinate_impl {
+    ($a:ty, $b:ty) => {
+        impl From<($a, $b)> for Coordinates {
+            fn from(value: ($a, $b)) -> Self {
+                Self([value.0 as CoordinateUnit, value.1 as CoordinateUnit])
+            }
+        }
+        impl From<($b, $a)> for Coordinates {
+            fn from(value: ($b, $a)) -> Self {
+                Self([value.0 as CoordinateUnit, value.1 as CoordinateUnit])
+            }
+        }
+    };
+}
+macro_rules! single_coordinate_impl {
+    ($a:ty) => {
+        impl From<($a, $a)> for Coordinates {
+            fn from(value: ($a, $a)) -> Self {
+                Self([value.0 as CoordinateUnit, value.1 as CoordinateUnit])
+            }
+        }
+    };
+}
+single_coordinate_impl!(f32);
+single_coordinate_impl!(f64);
+permutation_coordinate_impl!(f32, f64);
+single_coordinate_impl!(i32);
+permutation_coordinate_impl!(f32, i32);
+permutation_coordinate_impl!(f64, i32);
+single_coordinate_impl!(u32);
+permutation_coordinate_impl!(f32, u32);
+permutation_coordinate_impl!(i32, u32);
+permutation_coordinate_impl!(f64, u32);
+single_coordinate_impl!(usize);
+permutation_coordinate_impl!(f32, usize);
+permutation_coordinate_impl!(i32, usize);
+permutation_coordinate_impl!(u32, usize);
+permutation_coordinate_impl!(f64, usize);
+
+// TODO fn to distill Position / Area => GpuPosition / GpuArea w/ ScaleFactor
+impl Leaf for Coordinates {
+    fn attach(elm: &mut Elm) {
+        elm.scheduler
+            .main
+            .add_systems(coordinate_resolve.in_set(ScheduleMarkers::FinalizeCoordinate));
+    }
+}
+fn coordinate_resolve(
+    mut placed_pos: Query<
+        (
+            &mut GpuSection,
+            &Position<LogicalContext>,
+            &Area<LogicalContext>,
+        ),
+        Or<(
+            Changed<Position<LogicalContext>>,
+            Changed<Area<LogicalContext>>,
+        )>,
     >,
     scale_factor: Res<ScaleFactor>,
 ) {
-    tracing::trace!("setting position");
-    for (mut c_repr, pos) in query.iter_mut() {
-        *c_repr = (*pos).to_device(scale_factor.factor()).to_c();
-        c_repr.x = c_repr.x.round();
-        c_repr.y = c_repr.y.round();
+    for (mut gpu, pos, area) in placed_pos.iter_mut() {
+        gpu.pos = pos.to_device(scale_factor.value()).rounded().to_gpu();
+        gpu.area = area.to_device(scale_factor.value()).rounded().to_gpu();
     }
 }
-pub(crate) fn area_set(
-    mut query: Query<(&mut CReprArea, &Area<InterfaceContext>)>,
-    scale_factor: Res<ScaleFactor>,
-) {
-    tracing::trace!("setting area");
-    for (mut c_repr, area) in query.iter_mut() {
-        *c_repr = area.to_device(scale_factor.factor()).to_c();
-        c_repr.width = c_repr.width.round();
-        c_repr.height = c_repr.height.round();
-    }
-}
-#[derive(Copy, Clone, Bundle, Default, PartialEq, Debug)]
-pub struct Coordinate<Context: CoordinateContext> {
-    pub section: Section<Context>,
-    pub layer: Layer,
-}
-impl<Context: CoordinateContext> Coordinate<Context> {
-    pub fn new<S: Into<Section<Context>>, L: Into<Layer>>(s: S, l: L) -> Self {
-        Self {
-            section: s.into(),
-            layer: l.into(),
-        }
-    }
-    pub fn location(&self) -> Location<Context> {
-        Location::new(self.section.position, self.layer)
-    }
-    pub fn with_area<A: Into<Area<Context>>>(mut self, a: A) -> Self {
-        self.section.area = a.into();
-        self
-    }
-    pub fn with_position<P: Into<Position<Context>>>(mut self, p: P) -> Self {
-        self.section.position = p.into();
-        self
-    }
-    pub fn with_layer<L: Into<Layer>>(mut self, l: L) -> Self {
-        self.layer = l.into();
-        self
-    }
-    pub fn moved_by<P: Into<Position<Context>>>(mut self, p: P) -> Self {
-        self.section.position += p.into();
-        self
-    }
-}
-impl Leaf for CoordinateUnit {
-    type SetDescriptor = EmptySetDescriptor;
 
-    fn attach(elm: &mut Elm) {
-        elm.enable_animation::<PositionAdjust>();
-        elm.main().add_systems((
-            position_set.in_set(CoreSet::CoordinateFinalize),
-            area_set.in_set(CoreSet::CoordinateFinalize),
-        ));
+impl Sub for Coordinates {
+    type Output = Coordinates;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Coordinates::new(
+            self.horizontal() - rhs.horizontal(),
+            self.vertical() - rhs.vertical(),
+        )
+    }
+}
+
+impl Div<f32> for Coordinates {
+    type Output = Coordinates;
+
+    fn div(self, rhs: f32) -> Self::Output {
+        Coordinates::new(self.horizontal() / rhs, self.vertical() / rhs)
+    }
+}
+impl Div<Coordinates> for Coordinates {
+    type Output = Coordinates;
+    fn div(self, rhs: Coordinates) -> Self::Output {
+        Coordinates::new(
+            self.horizontal() / rhs.horizontal(),
+            self.vertical() / rhs.vertical(),
+        )
+    }
+}
+impl Add for Coordinates {
+    type Output = Coordinates;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Coordinates::new(
+            self.horizontal() + rhs.horizontal(),
+            self.vertical() + rhs.vertical(),
+        )
+    }
+}
+
+impl Mul for Coordinates {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        (
+            self.horizontal() * rhs.horizontal(),
+            self.vertical() * rhs.vertical(),
+        )
+            .into()
     }
 }

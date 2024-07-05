@@ -1,10 +1,97 @@
+use crate::signal::TriggerTarget;
+use bevy_ecs::bundle::Bundle;
+use bevy_ecs::component::Component;
+use bevy_ecs::prelude::{Entity, World};
+use bevy_ecs::system::{Command, Commands, Query};
 #[cfg(not(target_family = "wasm"))]
 use copypasta::ClipboardProvider;
+use futures_channel::oneshot;
 
-use crate::elm::config::ElmConfiguration;
-use crate::elm::leaf::{EmptySetDescriptor, Leaf};
-use crate::elm::Elm;
-
+#[derive(Clone)]
+pub struct ClipboardWrite {
+    message: String,
+}
+impl ClipboardWrite {
+    pub fn new<S: AsRef<str>>(s: S) -> Self {
+        Self {
+            message: s.as_ref().to_string(),
+        }
+    }
+}
+impl Command for ClipboardWrite {
+    fn apply(self, world: &mut World) {
+        world
+            .get_non_send_resource_mut::<Clipboard>()
+            .unwrap()
+            .write(self.message);
+    }
+}
+pub type ClipboardReadFn<B> = fn(String) -> B;
+#[derive(Clone)]
+pub struct ClipboardRead<B: Bundle> {
+    target: TriggerTarget,
+    on_read: Box<ClipboardReadFn<B>>,
+}
+impl<B: Bundle> ClipboardRead<B> {
+    pub fn new(target: TriggerTarget, on_read: ClipboardReadFn<B>) -> Self {
+        Self {
+            target,
+            on_read: Box::new(on_read),
+        }
+    }
+}
+#[derive(Component)]
+pub(crate) struct ClipboardReadRetrieve<B: Bundle> {
+    message_recv: oneshot::Receiver<String>,
+    on_read: Box<ClipboardReadFn<B>>,
+}
+pub(crate) fn read_retrieve<B: Bundle + Send + Sync + 'static>(
+    mut texts: Query<(Entity, &mut ClipboardReadRetrieve<B>)>,
+    mut cmd: Commands,
+) {
+    for (entity, mut retrieve) in texts.iter_mut() {
+        if let Some(m) = retrieve.message_recv.try_recv().ok() {
+            if let Some(m) = m {
+                cmd.entity(entity).insert((retrieve.on_read)(m));
+            }
+        }
+    }
+}
+impl<B: Bundle> Command for ClipboardRead<B> {
+    fn apply(self, world: &mut World) {
+        #[cfg(not(target_family = "wasm"))]
+        {
+            let message = world
+                .get_non_send_resource_mut::<Clipboard>()
+                .unwrap()
+                .read();
+            world
+                .entity_mut(self.target.value())
+                .insert((self.on_read)(message));
+        }
+        #[cfg(target_family = "wasm")]
+        {
+            let (sender, recv) = oneshot::channel();
+            // spawn local w/ sender
+            wasm_bindgen_futures::spawn_local(async move {
+                if let Some(c) = web_sys::window().expect("window").navigator().clipboard() {
+                    let _message = wasm_bindgen_futures::JsFuture::from(c.read_text())
+                        .await
+                        .ok();
+                    if let Some(m) = _message {
+                        sender.send(m.as_string().unwrap()).ok();
+                    }
+                }
+            });
+            world
+                .entity_mut(self.target.value())
+                .insert(ClipboardReadRetrieve {
+                    message_recv: recv,
+                    on_read: self.on_read,
+                });
+        }
+    }
+}
 pub struct Clipboard {
     #[cfg(not(target_family = "wasm"))]
     pub handle: Option<copypasta::ClipboardContext>,
@@ -30,18 +117,11 @@ impl Clipboard {
             handle: if handle.is_some() { Some(()) } else { None },
         }
     }
+    #[cfg(not(target_family = "wasm"))]
     pub fn read(&mut self) -> String {
         if self.handle.is_none() {
             return String::default();
         }
-        #[cfg(target_family = "wasm")]
-        {
-            // TODO "move this to system-message"? cant get value
-            // TODO back from future if put in spawn_local
-            // TODO also window() + navigator() not in web-worker?
-            return String::default();
-        }
-        #[cfg(not(target_family = "wasm"))]
         return self
             .handle
             .as_mut()
@@ -55,29 +135,16 @@ impl Clipboard {
         }
         #[cfg(target_family = "wasm")]
         {
-            // TODO may not work as in separate web-worker? can access clipboard to write to?
-            wasm_bindgen_futures::spawn_local(async move {
-                if let Some(h) = web_sys::window().expect("window").navigator().clipboard() {
-                    let _promise = h.write_text(data.as_str());
-                    wasm_bindgen_futures::JsFuture::from(_promise)
-                        .await
-                        .expect("clipboard-error");
-                    return;
-                }
-            });
+            if let Some(c) = web_sys::window().expect("window").navigator().clipboard() {
+                let promise = c.write_text(data.as_str());
+                wasm_bindgen_futures::spawn_local(async move {
+                    let _message = wasm_bindgen_futures::JsFuture::from(promise).await.ok();
+                });
+            }
         }
         #[cfg(not(target_family = "wasm"))]
         if let Some(h) = self.handle.as_mut() {
             h.set_contents(data).expect("clipboard writing");
         }
-    }
-}
-impl Leaf for Clipboard {
-    type SetDescriptor = EmptySetDescriptor;
-
-    fn config(_elm_configuration: &mut ElmConfiguration) {}
-
-    fn attach(elm: &mut Elm) {
-        elm.container().insert_non_send_resource(Clipboard::new());
     }
 }

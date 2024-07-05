@@ -1,131 +1,121 @@
-use bevy_ecs::prelude::{IntoSystemConfigs, Resource};
-use bevy_ecs::system::ResMut;
-use nalgebra::{matrix, SMatrix};
-use serde::{Deserialize, Serialize};
-use wgpu::Queue;
+use bevy_ecs::prelude::Resource;
 
 use crate::coordinate::area::Area;
-use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
-use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
-use crate::elm::config::{CoreSet, ElmConfiguration};
-use crate::elm::leaf::{EmptySetDescriptor, Leaf};
-use crate::elm::Elm;
-use crate::ginkgo::uniform::Uniform;
+use crate::coordinate::{CoordinateUnit, NumericalContext};
+use crate::ginkgo::{GraphicContext, Uniform};
+use crate::willow::NearFarDescriptor;
 
-#[derive(Serialize, Deserialize, Copy, Clone, Resource)]
-pub struct ViewportHandle {
-    pub(crate) section: Section<InterfaceContext>,
-    changes_present: bool,
-    pub(crate) area_updated: bool,
-}
+type ViewportRepresentation = [[CoordinateUnit; 4]; 4];
 
-impl ViewportHandle {
-    pub fn new(section: Section<InterfaceContext>) -> Self {
-        Self {
-            section,
-            changes_present: false,
-            area_updated: true,
-        }
-    }
-    pub fn section(&self) -> Section<InterfaceContext> {
-        self.section
-    }
-    pub fn area_updated(&self) -> bool {
-        self.area_updated
-    }
-    pub(crate) fn changes(&mut self) -> Option<Position<InterfaceContext>> {
-        if self.changes_present {
-            self.changes_present = false;
-            return Some(self.section.position);
-        }
-        None
-    }
-    pub(crate) fn adjust_area(&mut self, area: Area<InterfaceContext>) {
-        self.area_updated = true;
-        self.section.area = area;
-    }
-    pub fn adjust_position(&mut self, x: CoordinateUnit, y: CoordinateUnit) {
-        self.section.position += Position::new(x, y);
-        self.changes_present = true;
-    }
-    pub fn set_position(&mut self, position: Position<InterfaceContext>) {
-        self.section.position = position;
-        self.changes_present = true;
-    }
-}
-impl Leaf for ViewportHandle {
-    type SetDescriptor = EmptySetDescriptor;
-
-    fn config(_elm_configuration: &mut ElmConfiguration) {}
-
-    fn attach(elm: &mut Elm) {
-        elm.main()
-            .add_systems(clear_viewport_handle.after(CoreSet::Differential));
-    }
-}
-fn clear_viewport_handle(mut viewport_handle: ResMut<ViewportHandle>) {
-    if viewport_handle.area_updated() {
-        viewport_handle.area_updated = false;
-    }
-}
 pub struct Viewport {
-    pub(crate) section: Section<DeviceContext>,
-    pub(crate) near_far: (Layer, Layer),
-    pub(crate) repr: nalgebra::Matrix4<CoordinateUnit>,
-    pub(crate) gpu_repr: Uniform<GpuRepr>,
+    translation: Position<NumericalContext>,
+    area: Area<NumericalContext>,
+    pub(crate) near_far: NearFarDescriptor,
+    matrix: ViewportRepresentation,
+    pub(crate) uniform: Uniform<ViewportRepresentation>,
 }
 
 impl Viewport {
-    pub fn far_layer(&self) -> Layer {
-        self.near_far.1
+    pub(crate) fn set_position(
+        &mut self,
+        position: Position<NumericalContext>,
+        context: &GraphicContext,
+    ) {
+        self.translation = position.to_numerical();
+        self.matrix = self.remake();
+        self.uniform.write(context, self.matrix);
     }
-    pub(crate) fn new(
-        device: &wgpu::Device,
-        section: Section<DeviceContext>,
-        near_far: (Layer, Layer),
-    ) -> Self {
-        let repr = Self::matrix(section, near_far);
-        let gpu_repr = Uniform::new(device, repr.data.0);
-        Self {
-            section,
-            near_far,
-            repr,
-            gpu_repr,
-        }
+    pub(crate) fn set_size(&mut self, area: Area<NumericalContext>, context: &GraphicContext) {
+        self.area = area;
+        self.matrix = self.remake();
+        self.uniform.write(context, self.matrix);
     }
 
-    fn matrix(section: Section<DeviceContext>, near_far: (Layer, Layer)) -> SMatrix<f32, 4, 4> {
-        tracing::trace!("matrix-section: {:?}", section);
-        let translation = nalgebra::Matrix::new_translation(&nalgebra::vector![
-            section.left(),
-            section.top(),
-            0f32
-        ]);
-        let projection = matrix![2f32/(section.right() - section.left()), 0.0, 0.0, -1.0;
-                                    0.0, 2f32/(section.top() - section.bottom()), 0.0, 1.0;
-                                    0.0, 0.0, 1.0/(near_far.1 - near_far.0).z, 0.0;
-                                    0.0, 0.0, 0.0, 1.0];
-        projection * translation
+    fn remake(&mut self) -> ViewportRepresentation {
+        Self::generate(
+            Section::new(self.translation.coordinates, self.area.coordinates),
+            self.near_far,
+        )
     }
-    pub fn section(&self) -> Section<DeviceContext> {
-        self.section
+    pub(crate) fn new(
+        context: &GraphicContext,
+        section: Section<NumericalContext>,
+        near_far: NearFarDescriptor,
+    ) -> Self {
+        let matrix = Self::generate(section, near_far);
+        Self {
+            translation: section.position.to_numerical(),
+            area: section.area,
+            near_far,
+            matrix,
+            uniform: Uniform::new(context, matrix),
+        }
     }
-    pub(crate) fn adjust_pos(&mut self, queue: &Queue, position: Position<DeviceContext>) {
-        self.section = self.section.with_position(position);
-        self.adjust(queue, self.section);
-    }
-    pub(crate) fn adjust(&mut self, queue: &wgpu::Queue, section: Section<DeviceContext>) {
-        self.repr = Self::matrix(section, self.near_far);
-        self.section = section;
-        self.gpu_repr.update(queue, self.repr.data.0);
+    fn generate(
+        section: Section<NumericalContext>,
+        near_far: NearFarDescriptor,
+    ) -> ViewportRepresentation {
+        let right_left = 2f32 / (section.right() - section.x());
+        let top_bottom = 2f32 / (section.y() - section.bottom());
+        let nf = 1f32 / (near_far.far.0 - near_far.near.0);
+        let matrix = [
+            [right_left, 0f32, 0f32, 0f32],
+            [0f32, top_bottom, 0f32, 0f32],
+            [0f32, 0f32, nf, 0f32],
+            [
+                right_left * -section.x() - 1f32,
+                top_bottom * -section.y() + 1f32,
+                nf * near_far.near.0,
+                1f32,
+            ],
+        ];
+        matrix
     }
 }
-pub(crate) type GpuRepr = [[CoordinateUnit; 4]; 4];
-#[cfg(test)]
-#[test]
-fn test_matrix() {
-    let matrix = Viewport::matrix(Section::new((0, -800), (360, 800)), (0.into(), 100.into()));
-    println!("matrix: {:?}", matrix);
+
+#[derive(Default, Resource)]
+pub struct ViewportHandle {
+    translation: Position<NumericalContext>,
+    area: Area<NumericalContext>,
+    changes: bool,
+    updated: bool,
+}
+
+impl ViewportHandle {
+    pub(crate) fn new(area: Area<NumericalContext>) -> Self {
+        Self {
+            translation: Position::default(),
+            area,
+            changes: false,
+            updated: false,
+        }
+    }
+    pub fn translate(&mut self, position: Position<NumericalContext>) {
+        self.translation += position;
+        self.changes = true;
+    }
+    pub(crate) fn changes(&mut self) -> Option<Position<NumericalContext>> {
+        if self.changes {
+            self.changes = false;
+            return Some(self.translation);
+        }
+        None
+    }
+    pub(crate) fn resize(&mut self, area: Area<NumericalContext>) {
+        self.updated = true;
+        self.area = area;
+    }
+    pub(crate) fn updated(&mut self) -> bool {
+        let mut val = false;
+        if self.updated {
+            val = true;
+            self.updated = false;
+        }
+        val
+    }
+    pub fn section(&self) -> Section<NumericalContext> {
+        Section::new(self.translation.coordinates, self.area.coordinates)
+    }
 }

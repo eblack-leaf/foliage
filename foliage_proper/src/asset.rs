@@ -1,88 +1,99 @@
 use std::collections::HashMap;
 
+use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Commands, Component, IntoSystemConfigs, Res, Resource};
-use bevy_ecs::system::Query;
+use bevy_ecs::prelude::Component;
+use bevy_ecs::system::{Commands, Query, Res, ResMut, Resource};
+use futures_channel::oneshot::{Receiver, Sender};
+use uuid::Uuid;
 
-use crate::elm::config::{CoreSet, ElmConfiguration};
-use crate::elm::leaf::{EmptySetDescriptor, Leaf};
-use crate::elm::Elm;
-
-pub type AssetKey = u128;
 #[derive(Resource, Default)]
-pub struct AssetContainer {
-    pub assets: HashMap<AssetKey, Option<Vec<u8>>>,
-    cached_loading: Option<bool>,
+pub struct AssetLoader {
+    pub(crate) assets: HashMap<AssetKey, Asset>,
+    awaiting: HashMap<AssetKey, AssetFetch>,
 }
-impl AssetContainer {
-    pub fn store(&mut self, id: AssetKey, bytes: Option<Vec<u8>>) {
-        self.assets.insert(id, bytes);
-    }
-    pub(crate) fn loading(&mut self) -> bool {
-        if self.cached_loading.is_some() {
-            return false;
-        }
-        let is_loading = false;
-        for a in self.assets.values() {
-            if a.is_none() {
-                return true;
-            }
-        }
-        if is_loading == false {
-            self.cached_loading.replace(is_loading);
-        }
-        is_loading
-    }
-}
+pub type AssetFn<B> = fn(Vec<u8>) -> B;
 #[derive(Component, Clone)]
-pub struct OnFetch(pub AssetKey, pub Box<AssetFetchFn>);
-impl OnFetch {
-    pub fn new(key: AssetKey, func: AssetFetchFn) -> Self {
-        Self(key, Box::new(func))
+pub struct OnRetrieve<B> {
+    key: AssetKey,
+    bundle_using: Box<AssetFn<B>>,
+}
+impl<B: Bundle + 'static + Send + Sync> OnRetrieve<B> {
+    pub fn new(key: AssetKey, func: AssetFn<B>) -> Self {
+        Self {
+            key,
+            bundle_using: Box::new(func),
+        }
     }
 }
-pub type AssetFetchFn = fn(Vec<u8>, &mut Commands);
-fn on_fetch(
-    fetch_requests: Query<(Entity, &OnFetch)>,
+pub(crate) fn on_retrieve<B: Bundle + Send + Sync + 'static>(
+    retrievers: Query<(Entity, &OnRetrieve<B>)>,
     mut cmd: Commands,
-    assets: Res<AssetContainer>,
+    asset_loader: Res<AssetLoader>,
 ) {
-    for (entity, on_fetch) in fetch_requests.iter() {
-        if let Some(asset) = assets.assets.get(&on_fetch.0) {
-            if let Some(asset) = asset {
-                on_fetch.1(asset.clone(), &mut cmd);
-                cmd.entity(entity).despawn();
+    for (entity, on_retrieve) in retrievers.iter() {
+        if let Some(asset) = asset_loader.retrieve(on_retrieve.key) {
+            cmd.entity(entity).remove::<OnRetrieve<B>>();
+            cmd.entity(entity)
+                .insert((on_retrieve.bundle_using)(asset.data));
+        }
+    }
+}
+pub(crate) fn await_assets(mut asset_loader: ResMut<AssetLoader>) {
+    if !asset_loader.awaiting.is_empty() {
+        let mut finished = Vec::<(AssetKey, Asset)>::new();
+        for (key, fetch) in asset_loader.awaiting.iter_mut() {
+            if let Some(f) = fetch.recv.try_recv().ok() {
+                if let Some(f) = f {
+                    finished.push((key.clone(), f));
+                }
             }
         }
-    }
-}
-impl Leaf for AssetContainer {
-    type SetDescriptor = EmptySetDescriptor;
-
-    fn config(_elm_configuration: &mut ElmConfiguration) {}
-
-    fn attach(elm: &mut Elm) {
-        elm.container().insert_resource(AssetContainer::default());
-        elm.main().add_systems(
-            on_fetch.in_set(CoreSet::ProcessEvent), //.run_if(|ac: Res<AssetContainer>| ac.is_changed()),
-        );
-    }
-}
-
-#[macro_export]
-macro_rules! load_native_asset {
-    ($elm:ident, $id:ident, $p:literal) => {
-        #[cfg(not(target_family = "wasm"))]
-        let $id = $elm.generate_asset_key();
-        #[cfg(not(target_family = "wasm"))]
-        $elm.store_local_asset($id, include_bytes!($p).to_vec());
-    };
-}
-#[macro_export]
-macro_rules! icon_fetcher {
-    ($fi:expr) => {
-        |data, cmd| {
-            cmd.spawn($crate::icon::Icon::storage($fi.id(), data));
+        for (key, asset) in finished {
+            asset_loader.awaiting.remove(&key);
+            asset_loader.assets.insert(key, asset);
         }
-    };
+    }
+}
+impl AssetLoader {
+    pub fn retrieve(&self, key: AssetKey) -> Option<Asset> {
+        self.assets.get(&key).cloned()
+    }
+    #[allow(unused)]
+    pub(crate) fn queue_fetch(&mut self, fetch: AssetFetch) {
+        self.awaiting.insert(fetch.key, fetch);
+    }
+    pub fn generate_key() -> AssetKey {
+        Uuid::new_v4().as_u128()
+    }
+}
+#[macro_export]
+macro_rules! load_asset {
+    ($foliage:ident, $path:literal) => {{
+        #[cfg(target_family = "wasm")]
+        let id = $foliage.load_remote_asset($path);
+        #[cfg(not(target_family = "wasm"))]
+        let id = $foliage.load_native_asset(include_bytes!($path).to_vec());
+        id
+    }};
+}
+pub type AssetKey = u128;
+#[derive(Clone)]
+pub struct Asset {
+    pub data: Vec<u8>,
+}
+impl Asset {
+    pub fn new(data: Vec<u8>) -> Self {
+        Self { data }
+    }
+}
+pub(crate) struct AssetFetch {
+    pub(crate) key: AssetKey,
+    pub(crate) recv: Receiver<Asset>,
+}
+impl AssetFetch {
+    pub(crate) fn new(key: AssetKey) -> (Self, Sender<Asset>) {
+        let (sender, recv) = futures_channel::oneshot::channel();
+        (Self { key, recv }, sender)
+    }
 }

@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"mod":["identification","instruction","leaflet","render","render_packet","renderer"]};

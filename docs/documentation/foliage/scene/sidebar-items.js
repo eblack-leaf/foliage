@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["ExtendTarget"],"fn":["config"],"mod":["micro_grid"],"struct":["Anchor","Binder","Bindings","BlankNode","IsDep","IsScene","SceneBinding","SceneComponents","SceneHandle","SceneNode","ScenePtr"],"trait":["Scene"]};

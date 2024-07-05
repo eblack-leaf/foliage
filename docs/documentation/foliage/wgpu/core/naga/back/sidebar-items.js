@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"mod":["glsl","msl","spv"],"struct":["RayFlag"]};

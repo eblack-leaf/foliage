@@ -1,68 +1,37 @@
-use std::fmt::{Display, Formatter};
-use std::ops::{Add, Sub};
+use std::ops::Add;
 
-use bevy_ecs::component::Component;
+use bevy_ecs::prelude::Component;
 use bytemuck::{Pod, Zeroable};
-use serde::{Deserialize, Serialize};
 
-use crate::CoordinateUnit;
-
-/// Layer represents what plane this entity resides on. Used to differentiate z coords in
-/// rendering.
 #[repr(C)]
-#[derive(
-    Component,
-    Copy,
-    Clone,
-    PartialOrd,
-    PartialEq,
-    Default,
-    Pod,
-    Zeroable,
-    Serialize,
-    Deserialize,
-    Debug,
-)]
-pub struct Layer {
-    pub z: CoordinateUnit,
-}
-impl Display for Layer {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("Layer | z:{}", self.z))
+#[derive(Copy, Clone, Default, PartialEq, PartialOrd, Pod, Zeroable, Component, Debug)]
+pub struct Layer(pub f32);
+impl Add for Layer {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self::new(self.0 + rhs.0)
     }
 }
 impl Layer {
-    pub const fn new(z: CoordinateUnit) -> Self {
-        Self { z }
+    pub fn new(l: f32) -> Self {
+        Self(l)
     }
 }
-impl From<u32> for Layer {
-    fn from(value: u32) -> Self {
-        Self::new(value as CoordinateUnit)
-    }
+macro_rules! layer_conversion_implementation {
+    ($i:ty) => {
+        impl From<$i> for Layer {
+            fn from(value: $i) -> Self {
+                Self::new(value as f32)
+            }
+        }
+    };
 }
-impl From<i32> for Layer {
-    fn from(value: i32) -> Self {
-        Layer::new(value as CoordinateUnit)
-    }
-}
-impl From<f32> for Layer {
-    fn from(value: f32) -> Self {
-        Layer::new(value)
-    }
-}
-
-impl Add for Layer {
-    type Output = Layer;
-    fn add(self, rhs: Self) -> Self::Output {
-        Layer::new(self.z + rhs.z)
-    }
-}
-
-impl Sub for Layer {
-    type Output = Self;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        Layer::new(self.z - rhs.z)
-    }
-}
+layer_conversion_implementation!(f32);
+layer_conversion_implementation!(i32);
+layer_conversion_implementation!(u32);
+layer_conversion_implementation!(usize);
+layer_conversion_implementation!(isize);
+layer_conversion_implementation!(f64);
+layer_conversion_implementation!(i64);
+layer_conversion_implementation!(u64);

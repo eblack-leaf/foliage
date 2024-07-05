@@ -1,561 +1,340 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
-use bevy_ecs::bundle::Bundle;
-use bevy_ecs::component::Component;
+use bevy_ecs::entity::Entity;
 use bevy_ecs::event::{Event, EventReader};
-use bevy_ecs::prelude::{DetectChanges, Entity, IntoSystemConfigs};
-use bevy_ecs::query::Changed;
-use bevy_ecs::system::{Query, Res, ResMut, Resource};
-use compact_str::{CompactString, ToCompactString};
-use nalgebra::{distance, Point};
-use winit::event::{ElementState, Modifiers, MouseButton, TouchPhase};
-use winit::keyboard::{ModifiersState, NamedKey};
+use bevy_ecs::prelude::{Component, IntoSystemConfigs};
+use bevy_ecs::system::{Query, ResMut, Resource};
+use winit::dpi::PhysicalPosition;
+use winit::event::{ElementState, MouseButton, Touch, TouchPhase};
+use winit::keyboard::{Key, ModifiersState};
 
-use crate::animate::trigger::Trigger;
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
-use crate::coordinate::{DeviceContext, InterfaceContext};
-use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
-use crate::elm::leaf::{EmptySetDescriptor, Leaf};
-use crate::elm::{Elm, EventStage};
-use crate::ginkgo::viewport::ViewportHandle;
-use crate::window::ScaleFactor;
+use crate::coordinate::LogicalContext;
+use crate::elm::{Elm, ScheduleMarkers};
+use crate::ginkgo::ScaleFactor;
+use crate::signal::{ActionHandle, Signal};
+use crate::Leaf;
 
-impl Leaf for Interaction {
-    type SetDescriptor = EmptySetDescriptor;
-
-    fn config(_elm_configuration: &mut ElmConfiguration) {}
-
-    fn attach(elm: &mut Elm) {
-        elm.job
-            .container
-            .insert_resource(PrimaryInteraction::default());
-        elm.job
-            .container
-            .insert_resource(PrimaryInteractionEntity::default());
-        elm.job.container.insert_resource(FocusedEntity::default());
-        elm.job.container.insert_resource(MouseAdapter::default());
-        elm.job
-            .container
-            .insert_resource(KeyboardAdapter::default());
-        elm.main().add_systems((
-            (set_interaction_listeners, clear_non_primary, on_interaction)
-                .chain()
-                .in_set(CoreSet::Interaction),
-            clear_active.after(ExternalSet::Configure),
-        ));
-        elm.add_event::<InteractionEvent>(EventStage::External);
-        elm.add_event::<KeyboardEvent>(EventStage::External);
-    }
+#[derive(Resource, Default)]
+pub(crate) struct TouchAdapter {
+    primary: Option<u64>,
 }
-#[derive(Event, Debug, Clone)]
-pub struct KeyboardEvent {
-    pub key: Key,
-    pub state: State,
-    pub modifiers: Mods,
-}
-pub type Key = winit::keyboard::Key;
-pub type State = ElementState;
-pub type Mods = Modifiers;
-impl KeyboardEvent {
-    pub fn new(key: Key, state: State, mods: Mods) -> Self {
-        Self {
-            key,
-            state,
-            modifiers: mods,
-        }
-    }
-    pub fn sequence(&self) -> InputSequence {
-        match &self.key {
-            Key::Named(name) => match name {
-                NamedKey::Backspace => InputSequence::Backspace,
-                NamedKey::ArrowLeft => {
-                    if self.modifiers.state() == ModifiersState::SHIFT {
-                        InputSequence::ArrowLeftShift
-                    } else {
-                        InputSequence::ArrowLeft
+impl TouchAdapter {
+    pub(crate) fn parse(
+        &mut self,
+        touch: Touch,
+        viewport_position: Position<LogicalContext>,
+        scale_factor: ScaleFactor,
+    ) -> Option<ClickInteraction> {
+        let position = Position::device((touch.location.x, touch.location.y))
+            .to_logical(scale_factor.value())
+            + viewport_position;
+        if self.primary.is_none() {
+            if touch.phase == TouchPhase::Started {
+                self.primary.replace(touch.id);
+                return Some(ClickInteraction::new(ClickPhase::Start, position));
+            }
+        } else {
+            if self.primary.unwrap() == touch.id {
+                match touch.phase {
+                    TouchPhase::Started => {}
+                    TouchPhase::Moved => {
+                        return Some(ClickInteraction::new(ClickPhase::Moved, position));
                     }
-                }
-                NamedKey::ArrowRight => {
-                    if self.modifiers.state() == ModifiersState::SHIFT {
-                        InputSequence::ArrowRightShift
-                    } else {
-                        InputSequence::ArrowRight
+                    TouchPhase::Ended => {
+                        self.primary.take();
+                        return Some(ClickInteraction::new(ClickPhase::End, position));
                     }
-                }
-                NamedKey::Space => InputSequence::Space,
-                NamedKey::Enter => InputSequence::Enter,
-                NamedKey::Delete => InputSequence::Delete,
-                _ => InputSequence::Unidentified,
-            },
-            Key::Character(char) => {
-                let value = char.to_lowercase();
-                if value.contains("a") && self.modifiers.state() == ModifiersState::CONTROL {
-                    InputSequence::CtrlA
-                } else if value.contains("x") && self.modifiers.state() == ModifiersState::CONTROL {
-                    InputSequence::CtrlX
-                } else if value.contains("c") && self.modifiers.state() == ModifiersState::CONTROL {
-                    InputSequence::CtrlC
-                } else if value.contains("v") && self.modifiers.state() == ModifiersState::CONTROL {
-                    InputSequence::CtrlV
-                } else {
-                    InputSequence::Character(char.to_compact_string())
+                    TouchPhase::Cancelled => {
+                        self.primary.take();
+                        return Some(ClickInteraction::new(ClickPhase::Cancel, position));
+                    }
                 }
             }
-            Key::Unidentified(_) => InputSequence::Unidentified,
-            Key::Dead(_) => InputSequence::Unidentified,
         }
+        None
     }
-}
-#[derive(Clone)]
-pub enum InputSequence {
-    CtrlX,
-    CtrlC,
-    CtrlA,
-    CtrlZ,
-    Backspace,
-    Enter,
-    Character(CompactString),
-    ArrowLeft,
-    ArrowRight,
-    ArrowDown,
-    ArrowUp,
-    Unidentified,
-    Space,
-    Delete,
-    ArrowLeftShift,
-    ArrowRightShift,
-    CtrlV,
 }
 #[derive(Resource, Default)]
-pub struct PrimaryInteraction(pub(crate) Option<InteractionId>);
-#[derive(Copy, Clone, Eq, PartialEq, Hash)]
-pub struct InteractionId(pub(crate) i32);
-impl InteractionId {
-    // Number to offset touch.ids to avoid collision with mouse buttons
-    pub(crate) const INTERACTION_ID_COLLISION_AVOIDANCE: i32 = 30;
+pub(crate) struct MouseAdapter {
+    started: bool,
+    cursor: Position<LogicalContext>,
 }
-impl From<MouseButton> for InteractionId {
-    fn from(value: MouseButton) -> Self {
-        match value {
-            MouseButton::Left => Self(0),
-            MouseButton::Right => Self(1),
-            MouseButton::Middle => Self(2),
-            MouseButton::Back => Self(3),
-            MouseButton::Forward => Self(4),
-            MouseButton::Other(o) => Self(4 + o as i32),
+impl MouseAdapter {
+    pub(crate) fn parse(
+        &mut self,
+        mouse_button: MouseButton,
+        state: ElementState,
+    ) -> Option<ClickInteraction> {
+        if mouse_button != MouseButton::Left {
+            return None;
         }
+        if self.started {
+            if !state.is_pressed() {
+                self.started = false;
+                return Some(ClickInteraction::new(ClickPhase::End, self.cursor));
+            }
+        }
+        if !self.started {
+            if state.is_pressed() {
+                self.started = true;
+                return Some(ClickInteraction::new(ClickPhase::Start, self.cursor));
+            }
+        }
+        None
+    }
+    pub(crate) fn set_cursor(
+        &mut self,
+        position: PhysicalPosition<f64>,
+        viewport_position: Position<LogicalContext>,
+        scale_factor: ScaleFactor,
+    ) -> Option<ClickInteraction> {
+        let adjusted_position =
+            Position::device((position.x, position.y)).to_logical(scale_factor.value());
+        self.cursor = adjusted_position;
+        if self.started {
+            return Some(ClickInteraction::new(
+                ClickPhase::Moved,
+                adjusted_position + viewport_position,
+            ));
+        }
+        None
     }
 }
-impl From<u64> for InteractionId {
-    fn from(value: u64) -> Self {
-        Self(InteractionId::INTERACTION_ID_COLLISION_AVOIDANCE + value as i32)
-    }
-}
-#[derive(Copy, Clone, PartialEq, Eq)]
-pub enum InteractionPhase {
-    Begin,
+#[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq)]
+pub enum ClickPhase {
+    Start,
     Moved,
     End,
     Cancel,
 }
-impl From<TouchPhase> for InteractionPhase {
-    fn from(value: TouchPhase) -> Self {
-        match value {
-            TouchPhase::Started => InteractionPhase::Begin,
-            TouchPhase::Moved => InteractionPhase::Moved,
-            TouchPhase::Ended => InteractionPhase::End,
-            TouchPhase::Cancelled => InteractionPhase::Cancel,
-        }
-    }
+#[derive(Event, Debug, Copy, Clone)]
+pub struct ClickInteraction {
+    click_phase: ClickPhase,
+    position: Position<LogicalContext>,
 }
-#[derive(Default, Resource)]
-pub struct KeyboardAdapter {
-    cache: HashMap<winit::keyboard::Key, ElementState>,
-    modifiers: Modifiers,
-}
-impl KeyboardAdapter {
-    pub(crate) fn cache_checked(
-        &mut self,
-        key: winit::keyboard::Key,
-        state: ElementState,
-    ) -> Option<KeyboardEvent> {
-        if let Some(cached) = self.cache.insert(key.clone(), state) {
-            if cached != state {
-                return Option::from(KeyboardEvent::new(key, state, self.modifiers));
-            }
-        } else if state.is_pressed() {
-            return Option::from(KeyboardEvent::new(key, state, self.modifiers));
-        }
-        None
-    }
-    pub(crate) fn update_modifiers(&mut self, modifiers: Modifiers) {
-        self.modifiers = modifiers;
-    }
-}
-
-#[derive(Resource, Default)]
-pub struct MouseAdapter(
-    pub HashMap<MouseButton, ElementState>,
-    pub Position<DeviceContext>,
-);
-impl MouseAdapter {
-    pub fn button_pressed(&mut self, button: MouseButton, state: ElementState) -> bool {
-        let mut r_val = false;
-        if let Some(cached) = self.0.get_mut(&button) {
-            if !cached.is_pressed() && state.is_pressed() {
-                r_val = true;
-            }
-            *cached = state;
-        } else {
-            if state.is_pressed() {
-                r_val = true;
-            }
-            self.0.insert(button, state);
-        }
-        r_val
-    }
-    pub fn update_location<P: Into<Position<DeviceContext>>>(&mut self, p: P) {
-        self.1 = p.into();
-    }
-}
-#[derive(Event)]
-pub struct InteractionEvent {
-    pub phase: InteractionPhase,
-    pub id: InteractionId,
-    pub location: Position<DeviceContext>,
-}
-impl InteractionEvent {
-    pub fn new<
-        IP: Into<InteractionPhase>,
-        ID: Into<InteractionId>,
-        P: Into<Position<DeviceContext>>,
-    >(
-        phase: IP,
-        id: ID,
-        location: P,
-    ) -> Self {
+impl ClickInteraction {
+    pub fn new(click_phase: ClickPhase, position: Position<LogicalContext>) -> Self {
         Self {
-            phase: phase.into(),
-            id: id.into(),
-            location: location.into(),
+            click_phase,
+            position,
         }
     }
 }
-#[derive(Copy, Clone, Default)]
-pub struct Interaction {
-    pub begin: Position<InterfaceContext>,
-    pub current: Position<InterfaceContext>,
-    pub end: Option<Position<InterfaceContext>>,
+#[derive(Default, Copy, Clone, Debug)]
+pub struct Click {
+    pub start: Position<LogicalContext>,
+    pub current: Position<LogicalContext>,
+    pub end: Option<Position<LogicalContext>>,
 }
-impl Interaction {
-    pub fn new<P: Into<Position<InterfaceContext>>>(begin: P) -> Self {
-        let position = begin.into();
+impl Click {
+    pub fn new(start: Position<LogicalContext>) -> Self {
         Self {
-            begin: position,
-            current: position,
+            start,
+            current: start,
             end: None,
         }
     }
 }
-#[derive(Copy, Clone, Eq, PartialEq, Default)]
-pub enum InteractionShape {
-    InteractiveCircle,
-    #[default]
-    InteractiveRectangle,
+#[derive(Default, Copy, Clone, Component)]
+pub struct ClickInteractionListener {
+    pub click: Click,
+    pub focused: bool,
+    pub engaged_start: bool,
+    pub engaged: bool,
+    pub engaged_end: bool,
+    pub active: bool,
+    pub shape: ClickInteractionShape,
 }
-#[derive(Component, Copy, Clone, Default)]
-pub struct InteractionListener {
-    active: bool,
-    pub interaction: Interaction,
-    engaged: bool,
-    engaged_start: bool,
-    engaged_end: bool,
-    shape: InteractionShape,
-    lost_focus: bool,
-}
-impl InteractionListener {
-    pub fn with_shape(mut self, shape: InteractionShape) -> Self {
-        self.shape = shape;
+impl ClickInteractionListener {
+    pub fn new() -> Self {
+        Self::default()
+    }
+    pub fn as_circle(mut self) -> Self {
+        self.shape = ClickInteractionShape::Circle;
         self
     }
-    pub fn active(&self) -> bool {
-        self.active
-    }
-    pub fn engaged(&self) -> bool {
-        self.engaged
-    }
-    pub fn engaged_start(&self) -> bool {
-        self.engaged_start
-    }
-    pub fn engaged_end(&self) -> bool {
-        self.engaged_end
-    }
-    pub fn lost_focus(&self) -> bool {
-        self.lost_focus
-    }
-    pub(crate) fn shape(&self, section: Section<InterfaceContext>) -> InteractionShapeActualized {
-        InteractionShapeActualized(self.shape, section)
-    }
-}
-pub(crate) struct InteractionShapeActualized(InteractionShape, Section<InterfaceContext>);
-impl InteractionShapeActualized {
-    pub(crate) fn contains(&self, position: Position<InterfaceContext>) -> bool {
-        let center = self.1.center();
-        match self.0 {
-            InteractionShape::InteractiveCircle => {
-                if distance(
-                    &Point::<f32, 2>::new(position.x, position.y),
-                    &Point::<f32, 2>::new(center.x, center.y),
-                ) <= self.1.width() / 2f32
-                {
-                    return true;
-                }
-                false
-            }
-            InteractionShape::InteractiveRectangle => {
-                if self.1.contains(position) {
-                    return true;
-                }
-                false
-            }
-        }
-    }
-}
-#[derive(Component, Copy, Clone)]
-pub struct TriggerEntity(pub Entity);
-#[derive(Bundle, Clone, Copy)]
-pub struct InteractionStateTrigger {
-    pub state: InteractionState,
-    pub trigger: TriggerEntity,
-}
-impl InteractionStateTrigger {
-    pub fn new(state: InteractionState, entity: Entity) -> Self {
-        Self {
-            state,
-            trigger: TriggerEntity(entity),
-        }
-    }
-}
-fn on_interaction(
-    interactives: Query<
-        (&InteractionListener, &InteractionState, &TriggerEntity),
-        Changed<InteractionListener>,
-    >,
-    mut triggers: Query<&mut Trigger>,
-) {
-    for (listener, state, entity_to_trigger) in interactives.iter() {
-        match state {
-            InteractionState::Active => {
-                if listener.active() {
-                    if let Ok(mut trigger) = triggers.get_mut(entity_to_trigger.0) {
-                        *trigger = Trigger::active();
-                    }
-                }
-            }
-            InteractionState::EngagedStart => {
-                if listener.engaged_start() {
-                    if let Ok(mut trigger) = triggers.get_mut(entity_to_trigger.0) {
-                        *trigger = Trigger::active();
-                    }
-                }
-            }
-            InteractionState::Engaged => {
-                if listener.engaged() {
-                    if let Ok(mut trigger) = triggers.get_mut(entity_to_trigger.0) {
-                        *trigger = Trigger::active();
-                    }
-                }
-            }
-            InteractionState::EngagedEnd => {
-                if listener.engaged_end() {
-                    if let Ok(mut trigger) = triggers.get_mut(entity_to_trigger.0) {
-                        *trigger = Trigger::active();
-                    }
-                }
-            }
-        }
-    }
-}
-#[derive(Copy, Clone, Component)]
-pub enum InteractionState {
-    Active,
-    EngagedStart,
-    Engaged,
-    EngagedEnd,
-}
-fn clear_active(mut active: Query<&mut InteractionListener, Changed<InteractionListener>>) {
-    for mut e in active.iter_mut() {
-        if e.active {
-            e.active = false;
-        }
-        if e.engaged_start {
-            e.engaged_start = false;
-        }
-        if e.engaged_end {
-            e.engaged_end = false;
-        }
-        if e.lost_focus {
-            e.lost_focus = false;
-        }
-    }
-}
-fn clear_non_primary(
-    mut engaged: Query<(Entity, &mut InteractionListener)>,
-    primary_interaction_entity: Res<PrimaryInteractionEntity>,
-) {
-    if primary_interaction_entity.is_changed() {
-        for (entity, mut listener) in engaged.iter_mut() {
-            if listener.engaged {
-                if let Some(prime) = primary_interaction_entity.0 {
-                    if prime != entity {
-                        tracing::trace!("clearing orphaned-engaged-entity: {:?}", entity);
-                        listener.engaged = false;
-                    }
-                } else {
-                    tracing::trace!("clearing engaged-entity: {:?}", entity);
-                    listener.engaged = false;
-                }
-            }
-        }
-    }
 }
 #[derive(Resource, Default)]
-pub struct PrimaryInteractionEntity(pub Option<Entity>);
+pub(crate) struct InteractiveEntity(pub(crate) Option<Entity>);
 #[derive(Resource, Default)]
-pub struct FocusedEntity(pub Option<Entity>);
-pub fn set_interaction_listeners(
-    viewport_handle: Res<ViewportHandle>,
-    scale_factor: Res<ScaleFactor>,
-    mut events: EventReader<InteractionEvent>,
+pub(crate) struct FocusedEntity(pub(crate) Option<Entity>);
+#[derive(Copy, Clone, Default)]
+pub enum ClickInteractionShape {
+    Circle,
+    #[default]
+    Rectangle,
+}
+impl ClickInteractionShape {
+    pub fn contains(&self, p: Position<LogicalContext>, section: Section<LogicalContext>) -> bool {
+        match self {
+            ClickInteractionShape::Circle => {
+                section.center().distance(p) <= section.area.width() / 2f32
+            }
+            ClickInteractionShape::Rectangle => section.contains(p),
+        }
+    }
+}
+#[derive(Component, Clone)]
+pub struct OnClick(pub(crate) HashSet<ActionHandle>);
+impl OnClick {
+    pub fn new(action_handle: ActionHandle) -> Self {
+        let mut this = Self(HashSet::new());
+        this.0.insert(action_handle);
+        this
+    }
+    pub fn with(mut self, action_handle: ActionHandle) -> Self {
+        self.0.insert(action_handle);
+        self
+    }
+}
+pub(crate) fn on_click(
+    on_clicks: Query<(&OnClick, &ClickInteractionListener)>,
+    mut actions: Query<&mut Signal>,
+) {
+    for (on_click, listener) in on_clicks.iter() {
+        if listener.active {
+            for handle in on_click.0.iter() {
+                *actions
+                    .get_mut(handle.value())
+                    .expect("no-corresponding-action") = Signal::spawn();
+            }
+        }
+    }
+}
+pub(crate) fn listen_for_interactions(
     mut listeners: Query<(
         Entity,
-        &mut InteractionListener,
-        &Position<InterfaceContext>,
-        &Area<InterfaceContext>,
+        &mut ClickInteractionListener,
+        &Position<LogicalContext>,
+        &Area<LogicalContext>,
         &Layer,
     )>,
-    mut primary: ResMut<PrimaryInteraction>,
-    mut primary_entity: ResMut<PrimaryInteractionEntity>,
-    mut focused_entity: ResMut<FocusedEntity>,
+    mut events: EventReader<ClickInteraction>,
+    mut grabbed: ResMut<InteractiveEntity>,
+    mut focused: ResMut<FocusedEntity>,
 ) {
-    for ie in events.read() {
-        let position =
-            ie.location.to_interface(scale_factor.factor()) - viewport_handle.section.position;
-        if primary.0.is_none() {
-            primary_entity.0.take();
-            if ie.phase != InteractionPhase::Begin {
-                continue;
-            }
-            let mut grabbed = None;
-            for (entity, listener, pos, area, layer) in listeners.iter_mut() {
-                let section = Section::new(*pos, *area);
-                if listener.shape(section).contains(position) {
-                    tracing::trace!(
-                        "contained-interaction w/: {:?}, {}, {}",
-                        entity,
-                        section,
-                        layer
-                    );
-                    if grabbed.is_none() {
-                        tracing::trace!("setting-grabbed-interaction:{:?}", entity);
-                        grabbed.replace((entity, *layer));
-                    }
-                    if grabbed.unwrap().1 > *layer {
-                        tracing::trace!("setting-grabbed-interaction:{:?}", entity);
-                        grabbed.replace((entity, *layer));
-                    }
-                }
-            }
-            if let Some(grab) = grabbed {
-                tracing::trace!("grabbing primary: {:?}", grab.0);
-                primary.0.replace(ie.id);
-                primary_entity.0.replace(grab.0);
-                if let Some(f) = focused_entity.0.replace(grab.0) {
-                    if let Ok(mut list) = listeners.get_mut(f) {
-                        list.1.lost_focus = true;
-                    }
-                }
-                listeners.get_mut(grab.0).unwrap().1.engaged = true;
-                listeners.get_mut(grab.0).unwrap().1.engaged_start = true;
-                listeners.get_mut(grab.0).unwrap().1.interaction = Interaction::new(position);
-            } else {
-                if let Some(e) = focused_entity.0.take() {
-                    if let Ok(mut list) = listeners.get_mut(e) {
-                        list.1.lost_focus = true;
-                    }
-                }
-            }
-        } else if ie.id == primary.0.unwrap() {
-            match ie.phase {
-                InteractionPhase::Begin => {
-                    // skip
-                }
-                InteractionPhase::Moved => {
-                    if let Some(prime) = primary_entity.0 {
-                        if let Ok((_, mut listener, _, _, _)) = listeners.get_mut(prime) {
-                            tracing::trace!("updating prime-current: {:?}-@-{}", prime, position);
-                            listener.interaction.current = position;
-                        } else {
-                            primary.0.take();
-                            primary_entity.0.take();
-                        }
-                    } else {
-                        primary.0.take();
-                    }
-                }
-                InteractionPhase::End => {
-                    if let Some(prime) = primary_entity.0.take() {
-                        let mut to_be_unfocused = None;
-                        if let Ok((_, mut listener, pos, area, _)) = listeners.get_mut(prime) {
-                            let section = Section::new(*pos, *area);
-                            if listener.shape(section).contains(position) {
-                                listener.interaction.current = position;
-                                listener.interaction.end.replace(position);
-                                if let Some(old) = focused_entity.0.replace(prime) {
-                                    if old != prime {
-                                        // defer
-                                        to_be_unfocused.replace(old);
-                                    }
-                                }
-                                listener.active = true;
-                            }
-                            tracing::trace!("ending prime: {:?}-@-{}", prime, position);
-                            listener.engaged = false;
-                            listener.engaged_end = true;
-                        } else {
-                            if let Some(e) = focused_entity.0.take() {
-                                if let Ok(mut list) = listeners.get_mut(e) {
-                                    list.1.lost_focus = true;
+    for event in events.read() {
+        match event.click_phase {
+            ClickPhase::Start => {
+                if grabbed.0.is_none() {
+                    let mut grab_info = None;
+                    for (entity, listener, pos, area, layer) in listeners.iter_mut() {
+                        if listener
+                            .shape
+                            .contains(event.position, Section::new(*pos, *area))
+                        {
+                            if grab_info.is_none() {
+                                grab_info.replace((entity, *layer));
+                            } else {
+                                if *layer < grab_info.unwrap().1 {
+                                    grab_info.replace((entity, *layer));
                                 }
                             }
                         }
-                        if let Some(e) = to_be_unfocused {
-                            if let Ok(mut list) = listeners.get_mut(e) {
-                                list.1.lost_focus = true;
+                    }
+                    if let Some(grab) = grab_info {
+                        if let Some(entity) = focused.0.replace(grab.0) {
+                            if let Ok(mut l) = listeners.get_mut(entity) {
+                                l.1.focused = false;
                             }
                         }
+                        grabbed.0.replace(grab.0);
+                        listeners.get_mut(grab.0).expect("starting").1.click =
+                            Click::new(event.position);
+                        listeners.get_mut(grab.0).unwrap().1.focused = true;
+                        listeners.get_mut(grab.0).unwrap().1.engaged = true;
+                        listeners.get_mut(grab.0).unwrap().1.engaged_start = true;
                     } else {
-                        if let Some(e) = focused_entity.0.take() {
-                            if let Ok(mut list) = listeners.get_mut(e) {
-                                list.1.lost_focus = true;
+                        if let Some(entity) = focused.0.take() {
+                            if let Ok(mut l) = listeners.get_mut(entity) {
+                                l.1.focused = false;
                             }
                         }
                     }
-                    primary.0.take();
                 }
-                InteractionPhase::Cancel => {
-                    primary.0.take();
-                    primary_entity.0.take();
-                    if let Some(e) = focused_entity.0.take() {
-                        if let Ok(mut list) = listeners.get_mut(e) {
-                            list.1.lost_focus = true;
-                        }
+            }
+            ClickPhase::Moved => {
+                if let Some(g) = grabbed.0 {
+                    listeners.get_mut(g).unwrap().1.click.current = event.position;
+                }
+            }
+            ClickPhase::End => {
+                if let Some(g) = grabbed.0.take() {
+                    let section =
+                        Section::new(*listeners.get(g).unwrap().2, *listeners.get(g).unwrap().3);
+                    if listeners
+                        .get(g)
+                        .unwrap()
+                        .1
+                        .shape
+                        .contains(event.position, section)
+                    {
+                        listeners.get_mut(g).unwrap().1.active = true;
                     }
+                    listeners
+                        .get_mut(g)
+                        .expect("ending")
+                        .1
+                        .click
+                        .end
+                        .replace(event.position);
+                    listeners.get_mut(g).unwrap().1.engaged_end = true;
+                }
+            }
+            ClickPhase::Cancel => {
+                if let Some(g) = grabbed.0.take() {
+                    listeners.get_mut(g).unwrap().1.engaged_end = true;
+                    listeners.get_mut(g).unwrap().1.engaged = false;
                 }
             }
         }
+    }
+}
+pub(crate) fn reset_click_listener_flags(mut listeners: Query<&mut ClickInteractionListener>) {
+    for mut listener in listeners.iter_mut() {
+        listener.engaged_start = false;
+        listener.engaged_end = false;
+        listener.active = false;
+    }
+}
+#[derive(Event, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Debug)]
+pub struct InputSequence {
+    key: Key,
+    mods: ModifiersState,
+}
+impl InputSequence {
+    pub fn new(key: Key, mods: ModifiersState) -> Self {
+        Self { key, mods }
+    }
+}
+#[derive(Resource, Default)]
+pub(crate) struct KeyboardAdapter {
+    cache: HashMap<Key, ElementState>,
+    pub(crate) mods: ModifiersState,
+}
+impl KeyboardAdapter {
+    pub(crate) fn parse(&mut self, key: Key, state: ElementState) -> Option<InputSequence> {
+        if let Some(cached) = self.cache.insert(key.clone(), state) {
+            if cached != state && state.is_pressed() {
+                return Some(InputSequence::new(key, self.mods));
+            }
+        }
+        None
+    }
+}
+impl Leaf for ClickInteractionListener {
+    fn attach(elm: &mut Elm) {
+        elm.scheduler.main.add_systems((
+            (listen_for_interactions, on_click)
+                .chain()
+                .in_set(ScheduleMarkers::Interaction),
+            reset_click_listener_flags.after(ScheduleMarkers::Config),
+        ));
+        elm.enable_event::<ClickInteraction>();
+        elm.enable_event::<InputSequence>();
     }
 }

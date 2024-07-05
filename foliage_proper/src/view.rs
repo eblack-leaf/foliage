@@ -1,390 +1,298 @@
 use std::collections::{HashMap, HashSet};
 
 use bevy_ecs::bundle::Bundle;
-use bevy_ecs::change_detection::Res;
-use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Changed, Component, IntoSystemConfigs, Or, Resource, World};
-use bevy_ecs::system::{Command, Commands, ParamSet, Query, ResMut};
+use bevy_ecs::component::Component;
+use bevy_ecs::prelude::{DetectChanges, Entity};
+use bevy_ecs::query::{Changed, Or, With};
+use bevy_ecs::system::{Commands, Query, Res};
 
-use crate::animate::trigger::Trigger;
-use crate::conditional::{
-    Branch, ConditionHandle, Conditional, ConditionalCommand, SceneBranch, SpawnTarget,
-};
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
+use crate::coordinate::placement::Placement;
 use crate::coordinate::position::Position;
-use crate::coordinate::{InterfaceContext, PositionAdjust};
-use crate::differential::Despawn;
-use crate::elm::config::CoreSet;
-use crate::elm::leaf::{EmptySetDescriptor, Leaf};
-use crate::elm::{Disabled, Elm};
-use crate::ginkgo::viewport::ViewportHandle;
-use crate::layout::Layout;
-use crate::procedure::Procedure;
-use crate::scene::{Binder, ExtendTarget, Scene, SceneBindingComponents, SceneHandle};
-use crate::segment::{MacroGrid, ResponsiveSegment};
+use crate::coordinate::LogicalContext;
+use crate::grid::{Grid, GridPlacement, Layout};
+use crate::signal::ActionHandle;
+use crate::signal::{Clean, Signal, TriggerTarget};
 
-#[derive(Copy, Clone, Component)]
-pub(crate) struct PersistentView(pub ViewHandle);
-impl PersistentView {
-    pub fn new<VH: Into<ViewHandle>>(vh: VH) -> Self {
-        Self(vh.into())
-    }
+#[derive(Bundle)]
+pub(crate) struct ViewComponents {
+    view: View,
+    current: CurrentViewStage,
+    grid: ViewGrid, // targets use this grid instead of main
+    placement: Placement<LogicalContext>,
+    grid_placement: GridPlacement,
 }
-pub trait Viewable {
-    const GRID: MacroGrid;
-    fn view(view_builder: ViewBuilder) -> ViewDescriptor;
-}
-pub struct ViewBuilder<'a, 'w, 's> {
-    cmd: Option<&'a mut Commands<'w, 's>>,
-    view_descriptor: ViewDescriptor,
-    branch_handle: i32,
-}
-impl<'a, 'w, 's> ViewBuilder<'a, 'w, 's> {
-    pub fn new(cmd: &'a mut Commands<'w, 's>) -> Self {
+impl ViewComponents {
+    pub(crate) fn new(grid_placement: GridPlacement, grid: Grid) -> Self {
         Self {
-            cmd: Some(cmd),
-            view_descriptor: ViewDescriptor::default(),
-            branch_handle: 0,
+            view: View::new(),
+            current: Default::default(),
+            grid: ViewGrid(grid),
+            placement: Default::default(),
+            grid_placement,
         }
     }
-    pub fn place_conditional_scene_on<S: Scene + Clone>(
-        &mut self,
-        condition_handle: ConditionHandle,
-        s: S,
-    ) -> ConditionHandle {
-        let desc = {
-            self.cmd()
-                .entity(condition_handle.this())
-                .insert(SceneBranch::new(
-                    s,
-                    SpawnTarget::This(condition_handle.target()),
-                    false,
-                ));
-            condition_handle
-        };
-        self.view_descriptor
-            .branches
-            .insert(self.branch_handle, desc);
-        self.branch_handle += 1;
-        desc
-    }
-    pub fn place_scene_on<S: Scene>(&mut self, entity: Entity, s: S) -> SceneHandle {
-        let handle = s.create(Binder::new(self.cmd.as_mut().unwrap(), Some(entity)));
-        self.view_descriptor.scene_handles.push(handle.clone());
-        handle
-    }
-    pub fn place_on<B: Bundle>(&mut self, entity: Entity, b: B) {
-        self.cmd.as_mut().unwrap().entity(entity).insert(b);
-    }
-    pub fn place_conditional_on<C: Bundle + Clone>(&mut self, entity: Entity, c: C) {
-        self.cmd()
-            .entity(entity)
-            .insert(Conditional::new(c, SpawnTarget::This(entity), false));
-    }
-    pub fn cmd(&mut self) -> &mut Commands<'w, 's> {
-        self.cmd.as_deref_mut().unwrap()
-    }
-    pub fn apply<A: Procedure>(&mut self, a: A) -> ViewDescriptor {
-        let cmd = self.cmd.take().unwrap();
-        let mut sub_builder = Self::new(cmd);
-        a.steps(&mut sub_builder);
-        self.cmd.replace(sub_builder.cmd.take().unwrap());
-        let desc = sub_builder.finish();
-        self.view_descriptor.pool.0.extend(&desc.pool.0);
-        for b in desc.branches.iter() {
-            self.view_descriptor
-                .branches
-                .insert(b.0 + self.branch_handle, *b.1);
-            self.branch_handle += 1;
-        }
-        desc
-    }
-    pub fn add_scene<S: Scene>(&mut self, s: S, rs: ResponsiveSegment) -> SceneHandle {
-        let desc = {
-            let scene_desc = s.create(Binder::new(self.cmd.as_mut().unwrap(), None));
-            self.cmd().entity(scene_desc.root()).insert(rs);
-            scene_desc
-        };
-        self.view_descriptor.pool.0.insert(desc.root());
-        self.view_descriptor.scene_handles.push(desc.clone());
-        desc
-    }
-    pub fn add<B: Bundle>(&mut self, b: B, rs: ResponsiveSegment) -> Entity {
-        let ent = { self.cmd().spawn(b).insert(rs).id() };
-        self.view_descriptor.pool.0.insert(ent);
-        ent
-    }
-    pub fn conditional<BR: Clone + Send + Sync + 'static>(
-        &mut self,
-        br: BR,
-        rs: ResponsiveSegment,
-    ) -> ConditionHandle {
-        let desc = {
-            let pre_spawned = self.cmd.as_mut().unwrap().spawn_empty().id();
-            let branch_id = self
-                .cmd()
-                .spawn(Branch::new(br, SpawnTarget::This(pre_spawned), false))
-                .insert(Conditional::new(rs, SpawnTarget::This(pre_spawned), false))
-                .id();
-            ConditionHandle::new(branch_id, pre_spawned)
-        };
-        self.view_descriptor
-            .branches
-            .insert(self.branch_handle, desc);
-        self.branch_handle += 1;
-        desc
-    }
-    pub fn conditional_scene<S: Scene + Clone>(
-        &mut self,
-        s: S,
-        rs: ResponsiveSegment,
-    ) -> ConditionHandle {
-        let desc = {
-            let pre_spawned = self.cmd.as_mut().unwrap().spawn_empty().id();
-            let branch_id = self
-                .cmd()
-                .spawn(SceneBranch::new(s, SpawnTarget::This(pre_spawned), false))
-                .insert(Conditional::new(rs, SpawnTarget::This(pre_spawned), false))
-                .id();
-            ConditionHandle::new(branch_id, pre_spawned)
-        };
-        self.view_descriptor
-            .branches
-            .insert(self.branch_handle, desc);
-        self.branch_handle += 1;
-        desc
-    }
-    pub fn extend<Ext: Bundle>(&mut self, entity: Entity, ext: Ext) {
-        self.cmd().entity(entity).insert(ext);
-    }
-    pub fn add_command_to<C: Command + Clone + Sync>(&mut self, entity: Entity, comm: C) {
-        self.cmd().entity(entity).insert(ConditionalCommand(comm));
-    }
-    pub fn extend_conditional<Ext: Bundle + Clone>(
-        &mut self,
-        ch: ConditionHandle,
-        extend_target: ExtendTarget,
-        ext: Ext,
-    ) {
-        match extend_target {
-            ExtendTarget::This => {
-                self.cmd().entity(ch.this()).insert(Conditional::<Ext>::new(
-                    ext,
-                    SpawnTarget::This(ch.target()),
-                    true,
-                ));
-            }
-            ExtendTarget::Binding(bind) => {
-                self.cmd().entity(ch.this()).insert(Conditional::<Ext>::new(
-                    ext,
-                    SpawnTarget::BindingOf(ch.target(), bind),
-                    true,
-                ));
-            }
-        }
-    }
-    pub fn finish(self) -> ViewDescriptor {
-        self.view_descriptor
+}
+#[derive(Component, Clone, Copy)]
+pub struct ViewHandle(pub(crate) Entity);
+impl ViewHandle {
+    pub fn repr(&self) -> Entity {
+        self.0
     }
 }
-pub type Branches = HashMap<i32, ConditionHandle>;
-pub type BranchPool = Vec<ConditionHandle>;
-#[derive(Default)]
-pub struct ViewDescriptor {
-    pool: EntityPool,
-    branches: Branches,
-    scene_handles: Vec<SceneHandle>,
-}
-impl ViewDescriptor {
-    pub fn pool(&self) -> &EntityPool {
-        &self.pool
-    }
-    pub fn branches(&self) -> &Branches {
-        &self.branches
-    }
-    pub fn scenes(&self) -> &Vec<SceneHandle> {
-        &self.scene_handles
-    }
-}
-pub type Create = fn(ViewBuilder) -> ViewDescriptor;
+#[derive(Copy, Clone, Default)]
+pub struct Stage(pub(crate) i32);
+#[derive(Component)]
 pub struct View {
-    pub(crate) create: Box<Create>,
-    pub(crate) grid: MacroGrid,
+    pub(crate) stages: Vec<ViewStage>,
+    pub(crate) targets: HashSet<TriggerTarget>,
+}
+#[derive(Component, Clone)]
+pub struct ViewGrid(pub Grid);
+pub(crate) fn adjust_view_grid_on_change(
+    mut views: Query<
+        (
+            &Position<LogicalContext>,
+            &Area<LogicalContext>,
+            &Layer,
+            &mut ViewGrid,
+        ),
+        Or<(
+            Changed<Position<LogicalContext>>,
+            Changed<Area<LogicalContext>>,
+            Changed<Layer>,
+        )>,
+    >,
+) {
+    for (pos, area, layer, mut view_grid) in views.iter_mut() {
+        view_grid.0 = view_grid
+            .0
+            .clone()
+            .placed_at(Placement::new((pos.coordinates, area.coordinates), *layer));
+    }
+}
+pub(crate) fn on_view_grid_change(
+    views: Query<(&View, &ViewGrid), Changed<ViewGrid>>,
+    mut targets: Query<
+        (
+            &mut Position<LogicalContext>,
+            &mut Area<LogicalContext>,
+            &mut Layer,
+            &GridPlacement,
+        ),
+        With<ViewHandle>,
+    >,
+    config: Res<Layout>,
+) {
+    for (view, grid) in views.iter() {
+        for target in view.targets.iter() {
+            if let Ok((mut pos, mut area, mut layer, grid_placement)) = targets.get_mut(target.0) {
+                // calculate with view-grid + give to pos / area / layer
+                let placement = grid.0.place(grid_placement.clone(), *config);
+                *pos = placement.section.position;
+                *area = placement.section.area;
+                *layer = placement.layer;
+            }
+        }
+    }
+}
+pub(crate) fn on_target_grid_placement_change(
+    views: Query<&ViewGrid>,
+    mut targets: Query<
+        (
+            &mut Position<LogicalContext>,
+            &mut Area<LogicalContext>,
+            &mut Layer,
+            &GridPlacement,
+            &ViewHandle,
+        ),
+        Or<(
+            Changed<GridPlacement>,
+            Changed<Position<LogicalContext>>,
+            Changed<Area<LogicalContext>>,
+        )>,
+    >,
+    config: Res<Layout>,
+) {
+    for (mut pos, mut area, mut layer, grid_placement, handle) in targets.iter_mut() {
+        if let Ok(grid) = views.get(handle.0) {
+            let placement = grid.0.place(grid_placement.clone(), *config);
+            *pos = placement.section.position;
+            *area = placement.section.area;
+            *layer = placement.layer;
+        }
+    }
+}
+pub(crate) fn cleanup_view(
+    mut views: Query<(&View, &mut Clean), Changed<Clean>>,
+    mut cmd: Commands,
+) {
+    for (view, mut clean) in views.iter_mut() {
+        if clean.should_clean {
+            for target in view.targets.iter() {
+                cmd.entity(target.0).insert(Clean::should_clean());
+            }
+            clean.should_clean = false;
+        }
+    }
+}
+
+#[derive(Component, Copy, Clone, Default)]
+pub struct CurrentViewStage {
+    pub(crate) stage: Stage,
+}
+impl CurrentViewStage {
+    pub fn set(&mut self, stage: Stage) {
+        self.stage = stage;
+    }
 }
 impl View {
-    pub(crate) fn new(create: Create, macro_grid: MacroGrid) -> Self {
+    pub(crate) fn new() -> Self {
         Self {
-            create: Box::new(create),
-            grid: macro_grid,
+            stages: vec![],
+            targets: Default::default(),
+        }
+    }
+    pub(crate) fn awaiting_confirmation(&self, stage: Stage) -> bool {
+        self.stages
+            .get(stage.0 as usize)
+            .expect("no-stage")
+            .confirmed
+            != self.targets
+    }
+}
+pub(crate) struct StagedSignal {
+    pub(crate) handle: SignalHandle,
+    pub(crate) state_on_stage_start: Signal,
+}
+pub struct ViewStage {
+    pub(crate) signals: HashMap<Entity, StagedSignal>,
+    confirmed: HashSet<TriggerTarget>,
+    pub(crate) on_end: HashSet<ActionHandle>,
+}
+impl Default for ViewStage {
+    fn default() -> Self {
+        ViewStage {
+            signals: HashMap::new(),
+            confirmed: HashSet::new(),
+            on_end: HashSet::new(),
         }
     }
 }
-impl Command for Navigate {
-    fn apply(self, world: &mut World) {
-        world.spawn(self);
+pub struct SignalHandle(pub(crate) Entity);
+impl SignalHandle {
+    pub fn value(&self) -> Entity {
+        self.0
     }
 }
-#[derive(Component, Copy, Clone)]
-pub struct Navigate(pub ViewHandle);
-fn navigation(
-    query: Query<(Entity, &Navigate)>,
+pub(crate) fn signal_stage(
+    mut views: Query<(&mut View, &CurrentViewStage), Changed<CurrentViewStage>>,
     mut cmd: Commands,
-    mut compositor: ResMut<Compositor>,
-    mut macro_grid: ResMut<MacroGrid>,
 ) {
-    if let Some((_e, n)) = query.iter().last() {
-        if let Some(old) = compositor.current.take() {
-            // despawn old
-            for b in old.branches {
-                cmd.entity(b.1.this()).insert(Trigger::inverse());
-            }
-            for e in old.pool.0 {
-                cmd.entity(e).insert(Despawn::signal_despawn());
-            }
+    for (mut view, current) in views.iter_mut() {
+        for target in view.targets.iter() {
+            cmd.entity(target.0).insert(SignalConfirmation::Engaged);
         }
-        // call .create(cmd) ...
-        let v = compositor.views.get(&n.0).expect("view");
-        *macro_grid = v.grid;
-        let desc = (v.create)(ViewBuilder::new(&mut cmd));
-        // set view
-        compositor.current.replace(desc);
-    }
-    for (e, _) in query.iter() {
-        cmd.entity(e).despawn();
-    }
-}
-#[derive(Copy, Clone, Hash, Eq, PartialEq, Debug, Default)]
-pub struct ViewHandle(pub i32);
-impl From<i32> for ViewHandle {
-    fn from(value: i32) -> Self {
-        Self(value)
-    }
-}
-#[derive(Clone, Default)]
-pub struct EntityPool(pub HashSet<Entity>);
-#[derive(Resource, Default)]
-pub struct Compositor {
-    pub(crate) views: HashMap<ViewHandle, View>,
-    current: Option<ViewDescriptor>,
-    pub(crate) persistent: HashMap<ViewHandle, (MacroGrid, ViewDescriptor)>,
-}
-fn responsive_segment_changes(
-    mut changed: ParamSet<(
-        Query<
-            (
-                &ResponsiveSegment,
-                &mut Position<InterfaceContext>,
-                &mut Area<InterfaceContext>,
-                &mut Layer,
-                &mut Disabled,
-                Option<&PersistentView>,
-                Option<&PositionAdjust>,
-            ),
-            Or<(Changed<ResponsiveSegment>, Changed<PositionAdjust>)>,
-        >,
-        Query<(
-            &ResponsiveSegment,
-            &mut Position<InterfaceContext>,
-            &mut Area<InterfaceContext>,
-            &mut Layer,
-            &mut Disabled,
-            Option<&PersistentView>,
-            Option<&PositionAdjust>,
-        )>,
-    )>,
-    viewport_handle: Res<ViewportHandle>,
-    mut layout: ResMut<Layout>,
-    grid: Res<MacroGrid>,
-    compositor: Res<Compositor>,
-) {
-    if viewport_handle.area_updated() {
-        *layout = Layout::from_area(viewport_handle.section().area);
-        for (res_seg, mut pos, mut area, mut layer, mut disabled, pv, pos_adjust) in
-            changed.p1().iter_mut()
+        view.stages
+            .get_mut(current.stage.0 as usize)
+            .expect("no-stage")
+            .confirmed
+            .clear();
+        for signal in view
+            .stages
+            .get(current.stage.0 as usize)
+            .expect("no-stage")
+            .signals
+            .iter()
         {
-            calculate_res_seg(
-                &viewport_handle,
-                &mut layout,
-                &grid,
-                &compositor,
-                res_seg,
-                &mut pos,
-                &mut area,
-                &mut layer,
-                &mut disabled,
-                pv,
-                pos_adjust,
-            );
+            cmd.entity(*signal.0).insert(signal.1.state_on_stage_start);
         }
-    } else {
-        for (res_seg, mut pos, mut area, mut layer, mut disabled, pv, pos_adjust) in
-            changed.p0().iter_mut()
-        {
-            calculate_res_seg(
-                &viewport_handle,
-                &mut layout,
-                &grid,
-                &compositor,
-                res_seg,
-                &mut pos,
-                &mut area,
-                &mut layer,
-                &mut disabled,
-                pv,
-                pos_adjust,
-            );
-        }
-    };
+    }
 }
-
-fn calculate_res_seg(
-    viewport_handle: &ViewportHandle,
-    layout: &mut Layout,
-    grid: &MacroGrid,
-    compositor: &Compositor,
-    res_seg: &ResponsiveSegment,
-    pos: &mut Position<InterfaceContext>,
-    area: &mut Area<InterfaceContext>,
-    layer: &mut Layer,
-    disabled: &mut Disabled,
-    pv: Option<&PersistentView>,
-    pos_adjust: Option<&PositionAdjust>,
+pub(crate) fn resignal_on_layout_change(
+    mut views: Query<(&mut View, &CurrentViewStage)>,
+    layout: Res<Layout>,
+    mut cmd: Commands,
 ) {
-    let g = if let Some(pg) = pv {
-        &compositor
-            .persistent
-            .get(&pg.0)
-            .expect("invalid-persistent-link")
-            .0
-    } else {
-        &grid
-    };
-    if let Some(coord) = res_seg.coordinate(*layout, viewport_handle.section(), g) {
-        *pos = coord.section.position + pos_adjust.cloned().unwrap_or_default().0;
-        *area = coord.section.area;
-        *layer = coord.layer;
-        if disabled.is_disabled() {
-            *disabled = Disabled::not_disabled();
+    if layout.is_changed() {
+        for (mut view, current) in views.iter_mut() {
+            for target in view.targets.iter() {
+                cmd.entity(target.0).insert(SignalConfirmation::Engaged);
+            }
+            view.stages
+                .get_mut(current.stage.0 as usize)
+                .expect("no-stage")
+                .confirmed
+                .clear();
+            for signal in view
+                .stages
+                .get(current.stage.0 as usize)
+                .expect("no-stage")
+                .signals
+                .iter()
+            {
+                cmd.entity(*signal.0).insert(signal.1.state_on_stage_start);
+            }
         }
-    } else {
-        *disabled = Disabled::disabled();
+    }
+}
+// TODO transitions will need to set to ::Engaged if ::Confirmed && has transition after this
+pub(crate) fn attempt_to_confirm(mut confirmees: Query<&mut SignalConfirmation>) {
+    for mut confirm in confirmees.iter_mut() {
+        if *confirm == SignalConfirmation::Engaged {
+            *confirm = SignalConfirmation::Confirmed;
+        }
+    }
+}
+#[derive(Component, Eq, PartialEq, Copy, Clone, Default)]
+pub enum SignalConfirmation {
+    Engaged, // switch to engaged on stage-change for each target
+    #[default]
+    Neutral, // will need to attempt to set confirmed
+    Confirmed, // and if transition still running => set back to engaged
+}
+pub(crate) fn signal_confirmation(
+    mut views: Query<(&mut View, &CurrentViewStage)>,
+    mut targets: Query<&mut SignalConfirmation, Changed<SignalConfirmation>>,
+    mut cmd: Commands,
+) {
+    for (mut view, current) in views.iter_mut() {
+        if view.awaiting_confirmation(current.stage) {
+            let mut confirmed_targets = HashSet::new();
+            for target in view.targets.iter() {
+                if let Ok(mut c) = targets.get_mut(target.0) {
+                    if *c == SignalConfirmation::Confirmed {
+                        confirmed_targets.insert(*target);
+                        *c = SignalConfirmation::Neutral;
+                    }
+                }
+            }
+            for target in confirmed_targets {
+                let index = current.stage.0 as usize;
+                view.stages
+                    .get_mut(index)
+                    .expect("no-stage")
+                    .confirmed
+                    .insert(target);
+            }
+            if !view.awaiting_confirmation(current.stage) {
+                for end in view
+                    .stages
+                    .get(current.stage.0 as usize)
+                    .expect("no-stage")
+                    .on_end
+                    .iter()
+                {
+                    cmd.entity(end.0).insert(Signal::spawn());
+                }
+            }
+        }
     }
 }
 
-impl Leaf for View {
-    type SetDescriptor = EmptySetDescriptor;
+#[derive(Hash, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+pub struct TargetBinding(pub i32);
 
-    fn attach(elm: &mut Elm) {
-        elm.enable_conditional::<SceneBindingComponents>();
-        elm.enable_conditional::<ResponsiveSegment>();
-        elm.enable_conditional_command::<Navigate>();
-        elm.container().insert_resource(Compositor::default());
-        elm.container().insert_resource(Layout::PORTRAIT_MOBILE);
-        elm.container().insert_resource(MacroGrid::new(8, 8));
-        elm.main().add_systems((
-            responsive_segment_changes.in_set(CoreSet::Compositor),
-            navigation.in_set(CoreSet::Navigation),
-        ));
-    }
-}
+#[derive(Hash, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+pub struct StageBinding(pub i32);

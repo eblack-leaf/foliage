@@ -1,373 +1,94 @@
-use std::collections::{HashMap, HashSet};
-
 use bevy_ecs::bundle::Bundle;
-use bevy_ecs::change_detection::Res;
-use bevy_ecs::component::Component;
-use bevy_ecs::prelude::{Changed, IntoSystemConfigs, Or, Query, SystemSet};
-use compact_str::{CompactString, ToCompactString};
+use bevy_ecs::entity::Entity;
+use bevy_ecs::prelude::{Component, IntoSystemConfigs, Resource};
+use bevy_ecs::query::{Changed, Or};
+use bevy_ecs::system::{Query, Res};
+use bytemuck::{Pod, Zeroable};
+use fontdue::layout::CoordinateSystem;
 use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet};
+use std::ops::Sub;
+use wgpu::{
+    include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayoutDescriptor,
+    PipelineLayoutDescriptor, RenderPipelineDescriptor, ShaderStages, TextureFormat,
+    TextureSampleType, TextureViewDimension, VertexState, VertexStepMode,
+};
+use wgpu::{BindGroupLayout, RenderPipeline};
 
+use crate::ash::{Render, RenderDirectiveRecorder, RenderPhase, Renderer};
 use crate::color::Color;
 use crate::coordinate::area::Area;
+use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
-use crate::coordinate::section::Section;
-use crate::coordinate::{CoordinateUnit, DeviceContext, InterfaceContext};
-use crate::differential::{Differentiable, DifferentialBundle};
-use crate::differential_enable;
-use crate::elm::config::{CoreSet, ElmConfiguration, ExternalSet};
-use crate::elm::leaf::Leaf;
-use crate::elm::Elm;
-use crate::layout::AspectRatio;
-use crate::text::font::MonospacedFont;
-use crate::window::ScaleFactor;
-
-pub mod font;
-mod renderer;
-mod vertex;
-
-#[derive(Bundle, Clone)]
-pub struct Text {
-    pub value: TextValue,
-    pub max_chars: MaxCharacters,
-    pub lines: TextLineStructure,
-    pub color: DifferentialBundle<Color>,
-    exceptions: TextColorExceptions,
-    tool: TextPlacementTool,
-    placement: TextPlacement,
-    cached: CachedTextPlacement,
-    dims: CharacterDimension,
-    color_changes: DifferentialBundle<TextColorChanges>,
-    glyph_changes: DifferentialBundle<TextGlyphChanges>,
-    font_size: DifferentialBundle<FontSize>,
-    unique: DifferentialBundle<TextValueUniqueCharacters>,
-    line_structure: TextLinePlacement,
-    offset: TextOffset,
-    align: TextAlign,
-    differentiable: Differentiable,
-}
-impl Text {
-    pub const MONOSPACED_ASPECT: f32 = 0.467;
-    pub fn aspect_ratio_for<MC: Into<MaxCharacters>>(mc: MC) -> AspectRatio {
-        mc.into().mono_aspect()
-    }
-    pub const DEFAULT_OPT_SCALE: u32 = 40;
-    pub fn new<S: Into<TextValue>, TLS: Into<TextLineStructure>, C: Into<Color>>(
-        tls: TLS,
-        s: S,
-        c: C,
-    ) -> Self {
-        let lines = tls.into();
-        Self {
-            value: s.into(),
-            max_chars: lines.max_chars(),
-            lines,
-            color: DifferentialBundle::new(c.into()),
-            exceptions: TextColorExceptions::blank(),
-            tool: TextPlacementTool::default(),
-            placement: TextPlacement::default(),
-            cached: CachedTextPlacement::default(),
-            dims: CharacterDimension(Area::default()),
-            color_changes: DifferentialBundle::new(TextColorChanges::default()),
-            glyph_changes: DifferentialBundle::new(TextGlyphChanges::default()),
-            font_size: DifferentialBundle::new(FontSize::default()),
-            unique: DifferentialBundle::new(TextValueUniqueCharacters::default()),
-            line_structure: TextLinePlacement::default(),
-            offset: TextOffset(Position::default()),
-            align: TextAlign::LeftTop,
-            differentiable: Differentiable::new::<Self>(),
-        }
-    }
-    pub fn centered(mut self) -> Self {
-        self.align = TextAlign::Centered;
-        self
-    }
-}
-#[derive(Copy, Clone, Component, Eq, PartialEq)]
-pub enum TextAlign {
-    LeftTop,
-    Centered,
-}
-#[derive(Component, Copy, Clone, Default)]
-pub struct TextLineStructure {
-    pub lines: u32,
-    pub per_line: u32,
-}
-#[cfg(test)]
-#[test]
-fn text_line_structure_test() {
-    let tls = TextLineStructure::new(5, 1);
-    let next = tls.next_location(TextLineLocation::raw(0, 0), 1);
-    assert_eq!(next, TextLineLocation::raw(1, 0));
-    let next = tls.next_location(TextLineLocation::raw(1, 0), 1);
-    assert_eq!(next, TextLineLocation::raw(2, 0));
-    let next = tls.next_location(TextLineLocation::raw(2, 0), 1);
-    assert_eq!(next, TextLineLocation::raw(3, 0));
-    let next = tls.next_location(TextLineLocation::raw(3, 0), 1);
-    assert_eq!(next, TextLineLocation::raw(4, 0));
-    let next = tls.next_location(TextLineLocation::raw(4, 0), 1);
-    assert_eq!(next, TextLineLocation::raw(4, 0));
-    let tls = TextLineStructure::new(15, 3);
-    let next = tls.next_location(TextLineLocation::raw(0, 0), -1);
-    assert_eq!(next, TextLineLocation::raw(0, 0));
-    let next = tls.next_location(TextLineLocation::raw(12, 0), 5);
-    assert_eq!(next, TextLineLocation::raw(2, 1));
-    let next = tls.next_location(TextLineLocation::raw(12, 0), 25);
-    assert_eq!(next, TextLineLocation::raw(7, 2));
-    let next = tls.next_location(TextLineLocation::raw(12, 0), 36);
-    assert_eq!(next, TextLineLocation::raw(14, 2));
-    let next = tls.next_location(TextLineLocation::raw(0, 1), -1);
-    assert_eq!(next, TextLineLocation::raw(14, 0));
-    let next = tls.next_location(TextLineLocation::raw(0, 1), -5);
-    assert_eq!(next, TextLineLocation::raw(10, 0));
-    let next = tls.next_location(TextLineLocation::raw(10, 2), -26);
-    assert_eq!(next, TextLineLocation::raw(14, 0));
-}
-impl TextLineStructure {
-    pub fn new(per_line: u32, lines: u32) -> Self {
-        Self { lines, per_line }
-    }
-    pub fn per_line_index(&self) -> u32 {
-        self.per_line.checked_sub(1).unwrap_or_default()
-    }
-    pub fn lines_index(&self) -> u32 {
-        self.lines.checked_sub(1).unwrap_or_default()
-    }
-    pub fn last(&self) -> TextLineLocation {
-        TextLineLocation::raw(self.per_line_index(), self.lines_index())
-    }
-    pub fn next_location(&self, location: TextLineLocation, skip_amount: i32) -> TextLineLocation {
-        let projected = location.0 as i32 + skip_amount;
-        return if projected.is_negative() {
-            let overflow = projected.abs();
-            let line_skip = overflow / self.per_line as i32;
-            let horizontal = (projected + self.per_line as i32) + self.per_line as i32 * line_skip;
-            let vertical = location.1 as i32 - line_skip - 1;
-            if vertical.is_negative() {
-                return TextLineLocation::raw(0, 0);
-            }
-            TextLineLocation::raw(horizontal as u32, (vertical as u32).min(self.lines_index()))
-        } else {
-            if projected >= self.per_line as i32 {
-                let overflow = projected - self.per_line as i32;
-                let line_skip = overflow / self.per_line as i32;
-                let horizontal = overflow % self.per_line as i32;
-                let vertical = location.1 as i32 + line_skip + 1;
-                if vertical as u32 > self.lines_index() {
-                    return self.last();
-                }
-                return TextLineLocation::raw(
-                    horizontal as u32,
-                    (vertical as u32).min(self.lines_index()),
-                );
-            }
-            TextLineLocation::raw(
-                (projected.max(0) as u32).min(self.per_line_index()),
-                location.1.min(self.lines_index()),
-            )
-        };
-    }
-    pub fn letter(&self, l: TextLineLocation) -> TextKey {
-        (self.per_line * l.1 + l.0) as TextKey
-    }
-    pub fn max_chars(&self) -> MaxCharacters {
-        (self.lines * self.per_line).into()
-    }
-    pub fn with_lines(mut self, l: u32) -> Self {
-        self.lines = l;
-        self
-    }
-}
-
-#[derive(Copy, Clone, Hash, Eq, PartialEq, PartialOrd, Debug, Default)]
-pub struct TextLineLocation(pub u32, pub u32);
-
-impl TextLineLocation {
-    pub fn raw(x: u32, y: u32) -> TextLineLocation {
-        Self(x, y)
-    }
-}
-
-impl TextLineLocation {
-    pub fn new(c: Position<InterfaceContext>, b: Area<InterfaceContext>) -> Self {
-        let a = c / Position::new(b.width, b.height);
-        let horizontal = a.x.floor().max(0.0) as u32;
-        let vertical = a.y.floor().max(0.0) as u32;
-        TextLineLocation(horizontal, vertical)
-    }
-}
-#[derive(Component, Copy, Clone)]
-pub struct TextOffset(pub Position<InterfaceContext>);
-#[derive(Component, Clone, Default)]
-pub struct TextLinePlacement(pub HashMap<TextLineLocation, TextKey>);
-#[derive(Component, Copy, Clone, Debug)]
-pub struct CharacterDimension(pub(crate) Area<InterfaceContext>);
-impl CharacterDimension {
-    pub fn new<A: Into<Area<InterfaceContext>>>(a: A) -> Self {
-        Self(a.into())
-    }
-    pub fn dimensions(&self) -> Area<InterfaceContext> {
-        self.0
-    }
-}
-#[derive(SystemSet, Hash, Eq, PartialEq, Copy, Clone, Debug)]
-pub enum SetDescriptor {
-    Update,
-}
+use crate::coordinate::section::{GpuSection, Section};
+use crate::coordinate::{Coordinates, DeviceContext, LogicalContext};
+use crate::differential::{Differential, RenderLink};
+use crate::elm::{Elm, RenderQueueHandle, ScheduleMarkers};
+use crate::ginkgo::{Ginkgo, ScaleFactor, VectorUniform};
+use crate::instances::Instances;
+use crate::texture::{AtlasEntry, TextureAtlas, TextureCoordinates};
+use crate::Leaf;
 impl Leaf for Text {
-    type SetDescriptor = SetDescriptor;
-
-    fn config(_elm_configuration: &mut ElmConfiguration) {
-        _elm_configuration.configure_hook(ExternalSet::Configure, SetDescriptor::Update);
-    }
-
     fn attach(elm: &mut Elm) {
-        elm.enable_conditional::<Text>();
-        differential_enable!(
-            elm,
-            TextValue,
-            FontSize,
-            TextValueUniqueCharacters,
-            TextGlyphChanges,
-            TextColorChanges
-        );
-        elm.container()
-            .insert_resource(MonospacedFont::new(Self::DEFAULT_OPT_SCALE));
-        elm.main().add_systems((
-            (place_text, distill_changes, color_diff)
-                .chain()
-                .in_set(SetDescriptor::Update),
-            clear_changes.after(CoreSet::Differential),
+        elm.enable_differential::<Self, GpuSection>();
+        elm.enable_differential::<Self, Layer>();
+        elm.enable_differential::<Self, Glyphs>();
+        elm.enable_differential::<Self, GlyphMetrics>();
+        elm.ecs.world.insert_resource(MonospacedFont::new(40));
+        elm.scheduler.main.add_systems((
+            (distill, color_changes).in_set(ScheduleMarkers::Config),
+            clear_removed.after(ScheduleMarkers::Differential),
         ));
     }
 }
-
-#[derive(Component, Copy, Clone)]
-pub struct MaxCharacters(pub u32);
-impl MaxCharacters {
-    pub fn mono_aspect(self) -> AspectRatio {
-        AspectRatio(self.0 as CoordinateUnit * crate::text::Text::MONOSPACED_ASPECT)
-    }
-    pub fn new(v: u32) -> Self {
-        Self(v)
-    }
+#[derive(Bundle, Clone)]
+pub struct Text {
+    link: RenderLink,
+    value: TextValue,
+    section: Section<LogicalContext>,
+    layer: Differential<Layer>,
+    gpu_section: Differential<GpuSection>,
+    glyphs: Differential<Glyphs>,
+    glyph_colors: GlyphColors,
+    color: Color,
+    metrics: Differential<GlyphMetrics>,
+    font_size: FontSize,
 }
-impl From<i32> for MaxCharacters {
-    fn from(value: i32) -> Self {
-        Self(value as u32)
-    }
-}
-impl From<u32> for MaxCharacters {
-    fn from(value: u32) -> Self {
-        Self(value)
-    }
-}
-pub struct TextMetrics {
-    pub font_size: FontSize,
-    pub area: Area<InterfaceContext>,
-    pub character_dimensions: CharacterDimension,
-    pub max_chars: MaxCharacters,
-}
-impl TextMetrics {
-    pub fn new(
-        fs: FontSize,
-        fa: Area<InterfaceContext>,
-        d: CharacterDimension,
-        mc: MaxCharacters,
-    ) -> Self {
+impl Text {
+    pub fn new<S: AsRef<str>, C: Into<Color>>(tv: S, font_size: FontSize, color: C) -> Self {
+        let color = color.into();
         Self {
-            font_size: fs,
-            area: fa,
-            character_dimensions: d,
-            max_chars: mc,
+            link: RenderLink::new::<Self>(),
+            value: TextValue(tv.as_ref().to_string()),
+            section: Default::default(),
+            layer: Differential::new(Layer::default()),
+            gpu_section: Differential::new(GpuSection::default()),
+            glyphs: Differential::new(Glyphs::default()),
+            glyph_colors: GlyphColors {
+                position_to_color: Default::default(),
+            },
+            color,
+            metrics: Differential::new(GlyphMetrics::default()),
+            font_size,
         }
     }
 }
-
-#[derive(Component, Copy, Clone, Default, Serialize, Deserialize, PartialEq, Debug)]
-pub struct FontSize(pub u32);
-
+#[derive(Copy, Clone, Component)]
+pub struct FontSize(pub(crate) f32);
 impl FontSize {
-    pub fn px(&self, scale_factor: CoordinateUnit) -> CoordinateUnit {
-        self.0 as CoordinateUnit * scale_factor
+    pub fn new(v: u32) -> Self {
+        Self(v as f32)
+    }
+    pub fn value(&self) -> f32 {
+        self.0
     }
 }
-#[derive(Component, Clone, PartialEq, Serialize, Deserialize)]
-pub struct TextValue(pub CompactString);
-
-impl TextValue {
-    pub fn is_letter(&self, i: usize) -> bool {
-        let exists = self.0.get(i..i + 1).is_some();
-        if exists {
-            self.0
-                .get(i..i + 1)
-                .unwrap()
-                .chars()
-                .map(|c| c.is_control() as i32)
-                .sum::<i32>()
-                == 0
-        } else {
-            false
-        }
-    }
-    pub fn new<S: AsRef<str>>(s: S) -> Self {
-        Self(
-            s.as_ref()
-                .chars()
-                .filter(|c| !c.is_control())
-                .collect::<String>()
-                .to_compact_string(),
-        )
-    }
-    pub fn limited<MC: Into<MaxCharacters>>(&self, mc: MC) -> &str {
-        let max_chars = mc.into();
-        &self.0.as_str()[0..max_chars.0.min(self.0.len() as u32) as usize]
-    }
-}
-
-impl From<String> for TextValue {
-    fn from(value: String) -> Self {
-        Self::new(value)
-    }
-}
-
-impl From<&str> for TextValue {
-    fn from(value: &str) -> Self {
-        TextValue::new(value)
-    }
-}
-
-pub type TextKey = usize;
-
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
-pub(crate) enum Glyph {
-    Control,
-    Char(CharGlyph),
-}
-
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
-pub(crate) struct CharGlyph {
-    pub(crate) key: GlyphKey,
-    pub(crate) section: Section<DeviceContext>,
-    pub(crate) parent: char,
-}
-
-impl CharGlyph {
-    pub(crate) fn new(key: GlyphKey, section: Section<DeviceContext>, parent: char) -> Self {
-        Self {
-            key,
-            section,
-            parent,
-        }
-    }
-}
-
 #[derive(Serialize, Deserialize, Copy, Clone, Hash, Eq, PartialEq, Debug)]
 pub(crate) struct GlyphKey {
     pub(crate) glyph_index: u16,
     pub(crate) px: u32,
     pub(crate) font_hash: usize,
 }
-
 impl GlyphKey {
     pub(crate) fn new(raster_config: fontdue::layout::GlyphRasterConfig) -> Self {
         Self {
@@ -377,259 +98,549 @@ impl GlyphKey {
         }
     }
 }
-
-#[derive(Component, Default, Clone)]
-pub(crate) struct TextPlacement(pub HashMap<TextKey, Glyph>);
-#[derive(Component, Default, Clone)]
-pub(crate) struct CachedTextPlacement(pub HashMap<TextKey, Glyph>);
-
-impl TextPlacement {
-    pub(crate) fn glyphs(&self) -> &HashMap<TextKey, Glyph> {
-        &self.0
+#[derive(Resource)]
+pub struct MonospacedFont(pub(crate) fontdue::Font);
+impl MonospacedFont {
+    pub(crate) fn new(opt_scale: u32) -> Self {
+        Self(
+            fontdue::Font::from_bytes(
+                include_bytes!("JetBrainsMono-Medium.ttf").as_slice(),
+                fontdue::FontSettings {
+                    scale: opt_scale as f32,
+                    ..fontdue::FontSettings::default()
+                },
+            )
+            .expect("font"),
+        )
     }
 }
-
-#[derive(Component)]
-pub(crate) struct TextPlacementTool(fontdue::layout::Layout);
-impl Clone for TextPlacementTool {
-    fn clone(&self) -> Self {
-        Self::default()
-    }
+#[derive(PartialEq, Clone)]
+pub(crate) struct Glyph {
+    pub(crate) key: GlyphKey,
+    pub(crate) section: Section<DeviceContext>,
+    pub(crate) parent: char,
+    pub(crate) color: Color,
 }
-impl Default for TextPlacementTool {
-    fn default() -> Self {
-        Self(fontdue::layout::Layout::new(
-            fontdue::layout::CoordinateSystem::PositiveYDown,
-        ))
-    }
+pub type GlyphOffset = usize;
+#[derive(Component, Copy, Clone, PartialEq, Default)]
+pub(crate) struct GlyphMetrics {
+    unique_characters: u32,
+    block: Coordinates,
 }
-
-impl TextPlacementTool {
-    pub(crate) fn configure(&mut self, area: Area<InterfaceContext>) {
-        self.0.reset(&fontdue::layout::LayoutSettings {
-            max_width: Some(area.width),
-            max_height: Some(area.height),
-            wrap_style: fontdue::layout::WrapStyle::Letter,
-            ..fontdue::layout::LayoutSettings::default()
-        });
-    }
-    pub(crate) fn place(
-        &mut self,
-        font: &MonospacedFont,
-        value: &str,
-        size: FontSize,
-        scale_factor: &ScaleFactor,
-    ) {
-        self.0.append(
-            &[&font.0],
-            &fontdue::layout::TextStyle::new(value, size.px(scale_factor.factor()), 0),
-        );
-    }
-    pub(crate) fn placed_glyphs(&self) -> TextPlacement {
-        let mut mapping = HashMap::new();
-        for g in self.0.glyphs() {
-            let glyph = if g.parent.is_ascii_control() {
-                continue;
-            } else {
-                Glyph::Char(CharGlyph::new(
-                    GlyphKey::new(g.key),
-                    Section::new((g.x, g.y), (g.width, g.height)),
-                    g.parent,
-                ))
-            };
-            mapping.insert(g.byte_offset, glyph);
+#[derive(PartialEq, Clone, Component, Default)]
+pub(crate) struct Glyphs {
+    glyphs: HashMap<GlyphOffset, Glyph>,
+    removed: HashSet<GlyphOffset>,
+    font_size: f32,
+}
+#[derive(PartialEq, Clone, Component)]
+pub struct GlyphColors {
+    position_to_color: HashMap<GlyphOffset, Color>,
+}
+impl GlyphColors {
+    pub fn obtain(&self, base: Color, offset: GlyphOffset) -> Color {
+        if let Some(alternate) = self.position_to_color.get(&offset) {
+            *alternate
+        } else {
+            base
         }
-        TextPlacement(mapping)
+    }
+}
+#[derive(Clone, Component)]
+pub struct TextValue(pub String);
+impl TextValue {
+    pub fn new<S: AsRef<str>>(s: S) -> Self {
+        Self(s.as_ref().to_string())
+    }
+    pub fn num_unique_characters(&self) -> u32 {
+        let mut uc = HashSet::new();
+        for c in self.0.chars() {
+            uc.insert(c);
+        }
+        uc.len() as u32
+    }
+}
+pub(crate) fn color_changes(
+    mut texts: Query<
+        (&mut Glyphs, &GlyphColors, &Color),
+        Or<(Changed<GlyphColors>, Changed<Color>)>,
+    >,
+) {
+    for (mut glyphs, colors, base) in texts.iter_mut() {
+        for (offset, glyph) in glyphs.glyphs.iter_mut() {
+            glyph.color = colors.obtain(*base, *offset);
+        }
     }
 }
 
-fn place_text(
-    mut query: Query<
+pub(crate) fn distill(
+    mut texts: Query<
         (
             &TextValue,
-            &TextLineStructure,
-            &mut MaxCharacters,
-            &mut TextPlacement,
-            &mut Area<InterfaceContext>,
-            &mut FontSize,
-            &mut TextValueUniqueCharacters,
-            &mut CharacterDimension,
-            &mut TextPlacementTool,
-            &mut TextLinePlacement,
-            &mut Position<InterfaceContext>,
-            &mut TextOffset,
-            &TextAlign,
+            &mut Glyphs,
+            &GlyphColors,
+            &Color,
+            &mut Area<LogicalContext>,
+            &mut Position<LogicalContext>,
+            &mut GlyphMetrics,
+            &FontSize,
         ),
         Or<(
             Changed<TextValue>,
-            Changed<TextLineStructure>,
-            Changed<Area<InterfaceContext>>,
+            Changed<Position<LogicalContext>>,
+            Changed<Area<LogicalContext>>,
+            Changed<FontSize>,
         )>,
     >,
-    scale_factor: Res<ScaleFactor>,
     font: Res<MonospacedFont>,
+    scale_factor: Res<ScaleFactor>,
 ) {
-    for (
-        value,
-        structure,
-        mut mc,
-        mut placement,
-        mut area,
-        mut font_size,
-        mut unique,
-        mut dims,
-        mut tool,
-        mut line_placement,
-        mut pos,
-        mut offset,
-        align,
-    ) in query.iter_mut()
+    for (value, mut glyphs, colors, base, mut area, mut pos, mut metrics, font_size) in
+        texts.iter_mut()
     {
-        let metrics = font.line_metrics(structure, *area, &scale_factor);
-        *mc = metrics.max_chars;
-        *font_size = metrics.font_size;
-        *dims = metrics.character_dimensions;
-        let aligned_area = metrics.area; // TODO make fit bounds better
-        if aligned_area < *area && *align == TextAlign::Centered {
-            let diff = (*area - aligned_area) / Area::new(2.0, 2.0);
-            let o = Position::new(diff.width, diff.height);
-            offset.0 = o;
-            *pos = *pos + o;
+        let mut placer = fontdue::layout::Layout::new(CoordinateSystem::PositiveYDown);
+        let scaled_area = area.to_device(scale_factor.value());
+        placer.reset(&fontdue::layout::LayoutSettings {
+            max_width: Some(scaled_area.width()),
+            max_height: Some(scaled_area.height()),
+            ..fontdue::layout::LayoutSettings::default()
+        });
+        let projected = font_size.value() * scale_factor.value();
+        let character_dims = {
+            let character_metrics = font.0.metrics('a', projected);
+            let horizontal_metrics = font.0.horizontal_line_metrics(projected).unwrap();
+            Coordinates::new(
+                (character_metrics.advance_width).ceil(),
+                (horizontal_metrics.ascent - horizontal_metrics.descent).ceil(),
+            )
+        };
+        glyphs.font_size = projected;
+        placer.append(
+            &[&font.0],
+            &fontdue::layout::TextStyle::new(value.0.as_str(), glyphs.font_size, 0),
+        );
+        if metrics.block != character_dims {
+            metrics.block = character_dims;
+            metrics.unique_characters = value.num_unique_characters();
         }
-        *area = aligned_area;
-        tool.configure(*area);
-        let limited = value.limited(*mc);
-        *unique = TextValueUniqueCharacters::new(limited);
-        tool.place(&font, limited, metrics.font_size, &scale_factor);
-        *placement = tool.placed_glyphs();
-        for g in placement.0.iter() {
-            match g.1 {
-                Glyph::Control => {}
-                Glyph::Char(ch) => {
-                    let line_location = TextLineLocation::new(
-                        ch.section.position.to_interface(1.0),
-                        dims.dimensions(),
+        let old_glyphs = glyphs.glyphs.drain().collect::<Vec<(GlyphOffset, Glyph)>>();
+        glyphs.removed.clear();
+        let mut new_extent = Coordinates::default();
+        for glyph in placer.glyphs().iter() {
+            // TODO filter?
+            let section = Section::new((glyph.x, glyph.y), (glyph.width, glyph.height));
+            if section.right() > new_extent.horizontal() {
+                new_extent.0[0] = section.right();
+            }
+            if section.bottom() > new_extent.vertical() {
+                new_extent.0[1] = section.bottom();
+            }
+            glyphs.glyphs.insert(
+                glyph.byte_offset,
+                Glyph {
+                    key: GlyphKey::new(glyph.key),
+                    section,
+                    parent: glyph.parent,
+                    color: colors.obtain(*base, glyph.byte_offset),
+                },
+            );
+        }
+        let num_lines = (new_extent.vertical() / character_dims.vertical()).ceil();
+        let old = Section::logical(*pos, *area);
+        let adjusted = Section::device(
+            pos.to_device(scale_factor.value()),
+            (
+                new_extent.horizontal(),
+                character_dims.vertical() * num_lines * 1.1,
+            ),
+        )
+        .to_logical(scale_factor.value());
+        let diff = old.center() - adjusted.center();
+        pos.coordinates = (old.position + diff).coordinates;
+        area.coordinates = adjusted.area.coordinates;
+        for (offset, glyph) in old_glyphs {
+            if !glyphs.glyphs.contains_key(&offset) {
+                glyphs.removed.insert(offset);
+            }
+        }
+    }
+}
+pub(crate) fn clear_removed(mut texts: Query<&mut Glyphs>) {
+    for mut glyphs in texts.iter_mut() {
+        glyphs.removed.clear();
+    }
+}
+pub(crate) struct TextGroup {
+    texture_atlas: TextureAtlas<GlyphKey, GlyphOffset, u8>,
+    bind_group: BindGroup,
+    instances: Instances<GlyphOffset>,
+    pos_and_layer: VectorUniform<f32>,
+    should_record: bool,
+}
+pub struct TextResources {
+    pipeline: RenderPipeline,
+    vertex_buffer: wgpu::Buffer,
+    bind_group: BindGroup,
+    group_layout: BindGroupLayout,
+    groups: HashMap<Entity, TextGroup>,
+    font: MonospacedFont,
+}
+#[repr(C)]
+#[derive(Pod, Zeroable, Copy, Clone, Default)]
+pub struct Vertex {
+    position: Coordinates,
+    tx_index: [u32; 2],
+}
+impl Vertex {
+    pub(crate) const fn new(position: Coordinates, tx_index: [u32; 2]) -> Self {
+        Self { position, tx_index }
+    }
+}
+pub(crate) const VERTICES: [Vertex; 6] = [
+    Vertex::new(Coordinates::new(1f32, 0f32), [2, 1]),
+    Vertex::new(Coordinates::new(0f32, 0f32), [0, 1]),
+    Vertex::new(Coordinates::new(0f32, 1f32), [0, 3]),
+    Vertex::new(Coordinates::new(1f32, 0f32), [2, 1]),
+    Vertex::new(Coordinates::new(0f32, 1f32), [0, 3]),
+    Vertex::new(Coordinates::new(1f32, 1f32), [2, 3]),
+];
+impl Render for Text {
+    type DirectiveGroupKey = Entity;
+    const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(3);
+    type Resources = TextResources;
+
+    fn create_resources(ginkgo: &Ginkgo) -> Self::Resources {
+        let shader = ginkgo.create_shader(include_wgsl!("text.wgsl"));
+        let vertex_buffer = ginkgo.create_vertex_buffer(VERTICES);
+        let bind_group_layout = ginkgo.create_bind_group_layout(&BindGroupLayoutDescriptor {
+            label: Some("text-bind-group-layout"),
+            entries: &[
+                Ginkgo::bind_group_layout_entry(0)
+                    .at_stages(ShaderStages::VERTEX)
+                    .uniform_entry(),
+                Ginkgo::bind_group_layout_entry(1)
+                    .at_stages(ShaderStages::FRAGMENT)
+                    .sampler_entry(),
+            ],
+        });
+        let sampler = ginkgo.create_sampler();
+        let bind_group = ginkgo.create_bind_group(&BindGroupDescriptor {
+            label: Some("text-bind-group"),
+            layout: &bind_group_layout,
+            entries: &[
+                ginkgo.viewport_bind_group_entry(0),
+                Ginkgo::sampler_bind_group_entry(&sampler, 1),
+            ],
+        });
+        let group_layout = ginkgo.create_bind_group_layout(&BindGroupLayoutDescriptor {
+            label: Some("text-group-bind-group-layout"),
+            entries: &[
+                Ginkgo::bind_group_layout_entry(0)
+                    .at_stages(ShaderStages::FRAGMENT)
+                    .texture_entry(
+                        TextureViewDimension::D2,
+                        TextureSampleType::Float { filterable: false },
+                    ),
+                Ginkgo::bind_group_layout_entry(1)
+                    .at_stages(ShaderStages::VERTEX)
+                    .uniform_entry(),
+            ],
+        });
+        let pipeline_layout = ginkgo.create_pipeline_layout(&PipelineLayoutDescriptor {
+            label: Some("text-pipeline-layout"),
+            bind_group_layouts: &[&group_layout, &bind_group_layout],
+            push_constant_ranges: &[],
+        });
+        let pipeline = ginkgo.create_pipeline(&RenderPipelineDescriptor {
+            label: Some("text-render-pipeline"),
+            layout: Some(&pipeline_layout),
+            vertex: VertexState {
+                module: &shader,
+                entry_point: "vertex_entry",
+                compilation_options: Default::default(),
+                buffers: &[
+                    Ginkgo::vertex_buffer_layout::<Vertex>(
+                        VertexStepMode::Vertex,
+                        &wgpu::vertex_attr_array![0 => Float32x2, 1 => Uint32x2],
+                    ),
+                    Ginkgo::vertex_buffer_layout::<GpuSection>(
+                        VertexStepMode::Instance,
+                        &wgpu::vertex_attr_array![2 => Float32x4],
+                    ),
+                    Ginkgo::vertex_buffer_layout::<Color>(
+                        VertexStepMode::Instance,
+                        &wgpu::vertex_attr_array![3 => Float32x4],
+                    ),
+                    Ginkgo::vertex_buffer_layout::<TextureCoordinates>(
+                        VertexStepMode::Instance,
+                        &wgpu::vertex_attr_array![4 => Float32x4],
+                    ),
+                ],
+            },
+            primitive: Ginkgo::triangle_list_primitive(),
+            depth_stencil: ginkgo.depth_stencil_state(),
+            multisample: ginkgo.msaa_state(),
+            fragment: Ginkgo::fragment_state(
+                &shader,
+                "fragment_entry",
+                &ginkgo.alpha_color_target_state(),
+            ),
+            multiview: None,
+        });
+        TextResources {
+            pipeline,
+            vertex_buffer,
+            bind_group,
+            group_layout,
+            groups: Default::default(),
+            font: MonospacedFont::new(40),
+        }
+    }
+
+    fn prepare(
+        renderer: &mut Renderer<Self>,
+        queue_handle: &mut RenderQueueHandle,
+        ginkgo: &Ginkgo,
+    ) -> bool {
+        let mut should_record = false;
+        for packet in queue_handle.read_removes::<Self>() {
+            renderer
+                .resource_handle
+                .groups
+                .get_mut(&packet)
+                .unwrap()
+                .should_record = true;
+            should_record = true;
+            renderer
+                .resource_handle
+                .groups
+                .get_mut(&packet)
+                .unwrap()
+                .instances
+                .clear();
+            renderer.directive_manager.remove(packet);
+        }
+        for packet in queue_handle.read_adds::<Self, GlyphMetrics>() {
+            let atlas = TextureAtlas::new(
+                ginkgo,
+                packet.value.block,
+                packet.value.unique_characters,
+                TextureFormat::R8Unorm,
+            );
+            let uniform = VectorUniform::new(ginkgo.context(), [0.0, 0.0, 0.0, 0.0]);
+            let bind_group = ginkgo.create_bind_group(&BindGroupDescriptor {
+                label: Some("text-group-bind-group"),
+                layout: &renderer.resource_handle.group_layout,
+                entries: &[
+                    Ginkgo::texture_bind_group_entry(atlas.view(), 0),
+                    Ginkgo::uniform_bind_group_entry(&uniform.uniform, 1),
+                ],
+            });
+            renderer.resource_handle.groups.insert(
+                packet.entity,
+                TextGroup {
+                    texture_atlas: atlas,
+                    bind_group,
+                    instances: Instances::new(packet.value.unique_characters)
+                        .with_attribute::<GpuSection>(ginkgo)
+                        .with_attribute::<Color>(ginkgo)
+                        .with_attribute::<TextureCoordinates>(ginkgo),
+                    pos_and_layer: uniform,
+                    should_record: false,
+                },
+            );
+        }
+        for packet in queue_handle.read_adds::<Self, GpuSection>() {
+            renderer
+                .resource_handle
+                .groups
+                .get_mut(&packet.entity)
+                .unwrap()
+                .pos_and_layer
+                .set(0, packet.value.pos.0.horizontal());
+            renderer
+                .resource_handle
+                .groups
+                .get_mut(&packet.entity)
+                .unwrap()
+                .pos_and_layer
+                .set(1, packet.value.pos.0.vertical());
+            renderer
+                .resource_handle
+                .groups
+                .get_mut(&packet.entity)
+                .unwrap()
+                .pos_and_layer
+                .write(ginkgo.context());
+        }
+        for packet in queue_handle.read_adds::<Self, Layer>() {
+            renderer
+                .resource_handle
+                .groups
+                .get_mut(&packet.entity)
+                .unwrap()
+                .pos_and_layer
+                .set(2, packet.value.0);
+            renderer
+                .resource_handle
+                .groups
+                .get_mut(&packet.entity)
+                .unwrap()
+                .pos_and_layer
+                .write(ginkgo.context());
+        }
+        for packet in queue_handle.read_adds::<Self, Glyphs>() {
+            for offset in packet.value.removed.iter() {
+                renderer
+                    .resource_handle
+                    .groups
+                    .get_mut(&packet.entity)
+                    .unwrap()
+                    .instances
+                    .queue_remove(*offset);
+                // TODO remove reference to glyph.key
+            }
+            let mut queued_tex_reads = HashSet::new();
+            for (offset, glyph) in packet.value.glyphs.iter() {
+                renderer
+                    .resource_handle
+                    .groups
+                    .get_mut(&packet.entity)
+                    .unwrap()
+                    .instances
+                    .add(*offset);
+                renderer
+                    .resource_handle
+                    .groups
+                    .get_mut(&packet.entity)
+                    .unwrap()
+                    .instances
+                    .checked_write(*offset, glyph.section.to_gpu());
+                renderer
+                    .resource_handle
+                    .groups
+                    .get_mut(&packet.entity)
+                    .unwrap()
+                    .instances
+                    .checked_write(*offset, glyph.color);
+                if !renderer
+                    .resource_handle
+                    .groups
+                    .get_mut(&packet.entity)
+                    .unwrap()
+                    .texture_atlas
+                    .has_key(glyph.key)
+                {
+                    let (metrics, rasterization) = renderer
+                        .resource_handle
+                        .font
+                        .0
+                        .rasterize_indexed(glyph.key.glyph_index, packet.value.font_size);
+                    let entry = AtlasEntry::new(rasterization, (metrics.width, metrics.height));
+                    renderer
+                        .resource_handle
+                        .groups
+                        .get_mut(&packet.entity)
+                        .unwrap()
+                        .texture_atlas
+                        .add_entry(glyph.key, entry);
+                    queued_tex_reads.insert((glyph.key, *offset));
+                } else {
+                    let tex_coords = renderer
+                        .resource_handle
+                        .groups
+                        .get_mut(&packet.entity)
+                        .unwrap()
+                        .texture_atlas
+                        .tex_coordinates(glyph.key);
+                    renderer
+                        .resource_handle
+                        .groups
+                        .get_mut(&packet.entity)
+                        .unwrap()
+                        .instances
+                        .checked_write(*offset, tex_coords);
+                }
+                renderer
+                    .resource_handle
+                    .groups
+                    .get_mut(&packet.entity)
+                    .unwrap()
+                    .texture_atlas
+                    .add_reference(glyph.key, *offset);
+            }
+            let changed = renderer
+                .resource_handle
+                .groups
+                .get_mut(&packet.entity)
+                .unwrap()
+                .texture_atlas
+                .resolve(ginkgo);
+            for info in changed {
+                renderer
+                    .resource_handle
+                    .groups
+                    .get_mut(&packet.entity)
+                    .unwrap()
+                    .instances
+                    .checked_write(info.key, info.tex_coords);
+            }
+            for (key, referrer) in queued_tex_reads {
+                let tex_coords = renderer
+                    .resource_handle
+                    .groups
+                    .get_mut(&packet.entity)
+                    .unwrap()
+                    .texture_atlas
+                    .tex_coordinates(key);
+                renderer
+                    .resource_handle
+                    .groups
+                    .get_mut(&packet.entity)
+                    .unwrap()
+                    .instances
+                    .checked_write(referrer, tex_coords);
+            }
+        }
+        for (_, group) in renderer.resource_handle.groups.iter_mut() {
+            if group.instances.resolve_changes(ginkgo) {
+                group.should_record = true;
+                should_record = true;
+            }
+        }
+        should_record
+    }
+
+    fn record(renderer: &mut Renderer<Self>, ginkgo: &Ginkgo) {
+        for (entity, group) in renderer.resource_handle.groups.iter_mut() {
+            if group.should_record {
+                let mut recorder = RenderDirectiveRecorder::new(ginkgo);
+                if group.instances.num_instances() > 0 {
+                    recorder.0.set_pipeline(&renderer.resource_handle.pipeline);
+                    recorder
+                        .0
+                        .set_bind_group(1, &renderer.resource_handle.bind_group, &[]);
+                    recorder.0.set_bind_group(0, &group.bind_group, &[]);
+                    recorder
+                        .0
+                        .set_vertex_buffer(0, renderer.resource_handle.vertex_buffer.slice(..));
+                    recorder
+                        .0
+                        .set_vertex_buffer(1, group.instances.buffer::<GpuSection>().slice(..));
+                    recorder
+                        .0
+                        .set_vertex_buffer(2, group.instances.buffer::<Color>().slice(..));
+                    recorder.0.set_vertex_buffer(
+                        3,
+                        group.instances.buffer::<TextureCoordinates>().slice(..),
                     );
-                    line_placement.0.insert(line_location, *g.0);
+                    recorder
+                        .0
+                        .draw(0..VERTICES.len() as u32, 0..group.instances.num_instances());
                 }
+                renderer.directive_manager.fill(*entity, recorder.finish());
+                group.should_record = false;
             }
         }
-    }
-}
-fn distill_changes(
-    mut query: Query<
-        (
-            &TextPlacement,
-            &mut CachedTextPlacement,
-            &mut TextGlyphChanges,
-        ),
-        Changed<TextPlacement>,
-    >,
-) {
-    for (placement, mut cached, mut changes) in query.iter_mut() {
-        for (tk, g) in placement.glyphs().iter() {
-            if let Some(old) = cached.0.remove(tk) {
-                if &old != g {
-                    changes.removed.insert(*tk, old.clone());
-                    changes.added.insert(*tk, g.clone());
-                }
-            } else {
-                changes.added.insert(*tk, g.clone());
-            }
-        }
-        for (tk, g) in cached.0.drain() {
-            if !placement.0.contains_key(&tk) {
-                changes.removed.insert(tk, g);
-            }
-        }
-        cached.0 = placement.0.clone();
-    }
-}
-fn color_diff(
-    mut query: Query<
-        (
-            &Color,
-            &TextColorExceptions,
-            &mut TextColorChanges,
-            &TextPlacement,
-        ),
-        Or<(
-            Changed<TextColorExceptions>,
-            Changed<Color>,
-            Changed<TextPlacement>,
-        )>,
-    >,
-) {
-    for (color, excepts, mut changes, placement) in query.iter_mut() {
-        for (tk, _) in placement.glyphs().iter() {
-            changes.0.insert(*tk, *color);
-        }
-        for (tk, c) in excepts.exceptions.iter() {
-            changes.0.insert(*tk, *c);
-        }
-    }
-}
-#[derive(Component, Copy, Clone, Serialize, Deserialize, PartialEq, Debug, Default)]
-pub(crate) struct TextValueUniqueCharacters(pub(crate) u32);
-
-impl TextValueUniqueCharacters {
-    pub(crate) fn new(value: &str) -> Self {
-        let mut uc = HashSet::new();
-        for ch in value.chars() {
-            uc.insert(ch);
-        }
-        Self(uc.len() as u32)
-    }
-}
-
-#[derive(Component, Clone, Default)]
-pub struct TextColorExceptions {
-    pub exceptions: HashMap<TextKey, Color>,
-}
-
-impl TextColorExceptions {
-    pub fn blank() -> Self {
-        Self {
-            exceptions: HashMap::new(),
-        }
-    }
-    pub fn with<C: Into<Color>>(mut self, key: TextKey, c: C) -> Self {
-        self.exceptions.insert(key, c.into());
-        self
-    }
-    pub fn with_range<C: Into<Color>>(mut self, start: TextKey, end: TextKey, c: C) -> Self {
-        let color = c.into();
-        for i in start..=end {
-            self.exceptions.insert(i, color);
-        }
-        self
-    }
-}
-
-#[derive(Component, Clone, Default, PartialEq, Serialize, Deserialize)]
-pub(crate) struct TextColorChanges(pub HashMap<TextKey, Color>);
-
-#[derive(Component, Clone, Default, PartialEq, Serialize, Deserialize)]
-pub(crate) struct TextGlyphChanges {
-    pub(crate) added: HashMap<TextKey, Glyph>,
-    pub(crate) removed: HashMap<TextKey, Glyph>,
-}
-
-impl TextGlyphChanges {
-    pub(crate) fn clear(&mut self) {
-        self.added.clear();
-        self.removed.clear();
-    }
-}
-
-fn clear_changes(
-    mut query: Query<
-        (&mut TextGlyphChanges, &mut TextColorChanges),
-        Or<(Changed<TextGlyphChanges>, Changed<TextColorChanges>)>,
-    >,
-) {
-    for (mut a, mut b) in query.iter_mut() {
-        a.clear();
-        b.0.clear();
     }
 }

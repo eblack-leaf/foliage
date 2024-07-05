@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"derive":["Component"],"enum":["StorageType"],"struct":["ComponentDescriptor","ComponentId","ComponentIdFor","ComponentInfo","ComponentTicks","Components","SparseStorage","TableStorage","Tick","TickCells"],"trait":["Component","ComponentStorage"]};

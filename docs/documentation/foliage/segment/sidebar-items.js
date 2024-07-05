@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["GapDescriptor","GridRelativeValue","Justify","SegmentBias"],"struct":["Gap","GridTemplate","MacroGrid","ResponsiveSegment","Segment","SegmentUnit","SegmentUnitDescriptor","WellFormedSegmentUnitDescriptor"],"trait":["SegmentUnitDesc"],"type":["SegmentValue"]};
