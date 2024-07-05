@@ -247,7 +247,7 @@ fn main() {
     };
     foliage.insert_resource(media);
     let mut intro_content = foliage
-        .create_view(GridPlacement::new(1.span(4), 1.span(5)), Grid::new(4, 5))
+        .create_view(GridPlacement::new(1.span(4), 1.span(5)), Grid::new(4, 3))
         .with_stage(IntroContentStages::Off)
         .with_stage(IntroContentStages::On)
         .with_target(IntroContentTargets::FirstName)
@@ -265,15 +265,15 @@ fn main() {
         |stage| {
             stage.add_signal_targeting(stage.target(IntroContentTargets::FirstName), |s| {
                 s.with_attribute(Text::new("JIM", Color::WHITE))
-                    .with_attribute(GridPlacement::new(1.span(4), 1.span(2)))
+                    .with_attribute(GridPlacement::new(1.span(4), 1.span(1)))
             });
             stage.add_signal_targeting(stage.target(IntroContentTargets::LastName), |s| {
                 s.with_attribute(Text::new("BLACK", Grey::LIGHT))
-                    .with_attribute(GridPlacement::new(2.span(2), 3.span(2)))
+                    .with_attribute(GridPlacement::new(2.span(2), 2.span(1)))
             });
             stage.add_signal_targeting(stage.target(IntroContentTargets::Artist), |s| {
                 s.with_attribute(Text::new("RVA | ARTIST", Grey::BASE))
-                    .with_attribute(GridPlacement::new(2.span(2), 5.span(1)))
+                    .with_attribute(GridPlacement::new(2.span(2), 3.span(1)))
             });
         },
         &mut foliage,
@@ -321,7 +321,7 @@ fn main() {
         gallery_controls.stage(GalleryControlStages::Off),
     ));
     let mut gallery_content = foliage
-        .create_view(GridPlacement::new(1.span(4), 1.span(5)), Grid::new(1, 1))
+        .create_view(GridPlacement::new(1.span(4), 1.span(6)), Grid::new(1, 1))
         .with_stage(GalleryContentStages::Off)
         .with_stage(GalleryContentStages::On)
         .with_target(GalleryContentTargets::Image)
