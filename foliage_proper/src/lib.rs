@@ -35,7 +35,7 @@ pub mod asset;
 pub mod clipboard;
 pub mod color;
 pub mod coordinate;
-mod derive;
+pub mod derive;
 mod differential;
 pub mod elm;
 pub mod ginkgo;
