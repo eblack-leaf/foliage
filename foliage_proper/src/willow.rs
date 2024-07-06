@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use winit::event_loop::ActiveEventLoop;
-use winit::platform::web::WindowExtWebSys;
 use winit::window::{Window, WindowAttributes};
 
 use crate::coordinate::area::Area;

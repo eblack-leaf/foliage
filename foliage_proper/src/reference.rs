@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 
-use bevy_ecs::bundle::Bundle;
-use bevy_ecs::entity::Entity;
-
+use crate::derive::{DeriveFn, DerivedValue};
 use crate::elm::Elm;
 use crate::grid::LayoutFilter;
 use crate::signal::{ActionHandle, Clean};
@@ -15,6 +13,9 @@ use crate::view::{
     ViewHandle, ViewStage,
 };
 use crate::Foliage;
+use bevy_ecs::bundle::Bundle;
+use bevy_ecs::entity::Entity;
+use bevy_ecs::prelude::Resource;
 
 pub struct ViewConfigBuilder<'a> {
     pub(crate) root: Entity,
@@ -241,6 +242,16 @@ impl<'a> StageReference<'a> {
 }
 
 impl<'a> SignalReference<'a> {
+    pub fn with_derived_attribute<
+        D: Resource + Send + Sync + 'static + Clone,
+        B: Bundle + Send + Sync + 'static + Clone,
+    >(
+        mut self,
+        func: DeriveFn<D, B>,
+    ) -> Self {
+        self.reference.as_mut().unwrap().enable_derive::<D, B>();
+        self.with_attribute(DerivedValue::new(func))
+    }
     pub fn with_filtered_attribute<
         A: Bundle + 'static + Clone + Send + Sync,
         F: Into<LayoutFilter>,

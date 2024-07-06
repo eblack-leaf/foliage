@@ -17,6 +17,7 @@ use crate::clipboard::{read_retrieve, Clipboard};
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::NumericalContext;
+use crate::derive::on_derive;
 use crate::differential::{
     added_invalidate, differential, RenderAddQueue, RenderLink, RenderPacket, RenderRemoveQueue,
 };
@@ -114,6 +115,14 @@ pub(crate) struct ClipboardRetrieveLimiter<D>(PhantomData<D>);
 impl<D> Default for ClipboardRetrieveLimiter<D> {
     fn default() -> Self {
         Self(PhantomData)
+    }
+}
+#[derive(Resource)]
+pub(crate) struct DeriveLimiter<D, B>(PhantomData<D>, PhantomData<B>);
+
+impl<D, B> Default for DeriveLimiter<D, B> {
+    fn default() -> Self {
+        Self(PhantomData, PhantomData)
     }
 }
 impl Elm {
@@ -242,6 +251,7 @@ impl Elm {
                 ScheduleMarkers::SpawnFiltered,
                 ScheduleMarkers::Clean,
                 ScheduleMarkers::GridSemantics,
+                ScheduleMarkers::Preparation,
                 ScheduleMarkers::Config,
                 ScheduleMarkers::SignalConfirmationStart,
                 ScheduleMarkers::FinalizeCoordinate,
@@ -306,6 +316,9 @@ impl Elm {
                 .before(ScheduleMarkers::GridSemantics),
             apply_deferred
                 .after(ScheduleMarkers::GridSemantics)
+                .before(ScheduleMarkers::Preparation),
+            apply_deferred
+                .after(ScheduleMarkers::Preparation)
                 .before(ScheduleMarkers::Config),
             apply_deferred
                 .after(ScheduleMarkers::Config)
@@ -365,6 +378,21 @@ impl Elm {
                 .insert_resource(RetrieveLimiter::<B>::default());
         }
     }
+    pub(crate) fn enable_derive<
+        D: Resource + Send + Sync + 'static + Clone,
+        B: Bundle + Send + Sync + 'static + Clone,
+    >(
+        &mut self,
+    ) {
+        if !self.ecs.world.contains_resource::<DeriveLimiter<D, B>>() {
+            self.scheduler
+                .main
+                .add_systems(on_derive::<D, B>.in_set(ScheduleMarkers::Preparation));
+            self.ecs
+                .world
+                .insert_resource(DeriveLimiter::<D, B>::default());
+        }
+    }
 }
 
 pub struct RenderQueueHandle<'a> {
@@ -422,4 +450,5 @@ pub enum ScheduleMarkers {
     Interaction,
     Events,
     StageActions,
+    Preparation,
 }
