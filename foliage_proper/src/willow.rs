@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use winit::event_loop::ActiveEventLoop;
+use winit::platform::web::WindowExtWebSys;
 use winit::window::{Window, WindowAttributes};
 
 use crate::coordinate::area::Area;
@@ -64,6 +65,7 @@ impl Willow {
         #[cfg(target_family = "wasm")]
         {
             use winit::platform::web::WindowExtWebSys;
+            window.set_prevent_default(true);
             let canvas = window.canvas().expect("window-canvas");
             canvas.style().set_css_text("height: 100%; width: 100%;");
             web_sys::window()
