@@ -167,7 +167,7 @@ impl<
                 1,
                 bytemuck::cast_slice(&vec![
                     TexelData::default();
-                    (self.block_size.horizontal() * self.block_size.vertical())
+                    (texture_extent.horizontal() * texture_extent.vertical())
                         as usize
                 ]),
             );
