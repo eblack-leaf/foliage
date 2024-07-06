@@ -117,7 +117,9 @@ impl Clipboard {
         if handle.is_some() {
             use web_sys::wasm_bindgen;
             let closure = wasm_bindgen::closure::Closure::<dyn FnMut(_)>::new(
-                move |_e: web_sys::Event| {},
+                move |_e: web_sys::ClipboardEvent| {
+
+                },
             );
             let listener = closure.as_ref().unchecked_ref();
             web_sys::window()
