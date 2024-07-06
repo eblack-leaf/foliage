@@ -144,7 +144,7 @@ impl<
             self.remove_entry(key);
         }
     }
-    pub fn resolve(&mut self, ginkgo: &Ginkgo) -> Vec<AtlasChangeInfo<Referrer>> {
+    pub fn resolve(&mut self, ginkgo: &Ginkgo) -> (Vec<AtlasChangeInfo<Referrer>>, bool) {
         let mut added = Vec::new();
         for entry in self.entries.iter() {
             if self.partitions.get(entry.0).is_none() {
@@ -154,7 +154,9 @@ impl<
                 ));
             }
         }
+        let mut grown = false;
         if added.len() > self.possible_locations.len() {
+            grown = true;
             let difference = added.len() - self.possible_locations.len();
             let new_capacity = self.capacity + difference as u32;
             let (possible_locations, texture_extent) = Self::config(new_capacity, self.block_size);
@@ -200,7 +202,7 @@ impl<
                 });
             }
         }
-        changed
+        (changed, grown)
     }
     pub fn tex_coordinates(&self, key: Key) -> TextureCoordinates {
         self.partitions.get(&key).unwrap().tex_coords

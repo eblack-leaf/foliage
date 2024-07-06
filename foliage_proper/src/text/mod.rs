@@ -569,13 +569,48 @@ impl Render for Text {
                     .texture_atlas
                     .add_reference(glyph.key, *offset);
             }
-            let changed = renderer
+            let (changed, grown) = renderer
                 .resource_handle
                 .groups
                 .get_mut(&packet.entity)
                 .unwrap()
                 .texture_atlas
                 .resolve(ginkgo);
+            if grown {
+                // remake bind group
+                let new_bind_group = ginkgo.create_bind_group(&BindGroupDescriptor {
+                    label: Some("text-group-bind-group"),
+                    layout: &renderer.resource_handle.group_layout,
+                    entries: &[
+                        Ginkgo::texture_bind_group_entry(
+                            renderer
+                                .resource_handle
+                                .groups
+                                .get(&packet.entity)
+                                .unwrap()
+                                .texture_atlas
+                                .view(),
+                            0,
+                        ),
+                        Ginkgo::uniform_bind_group_entry(
+                            &renderer
+                                .resource_handle
+                                .groups
+                                .get(&packet.entity)
+                                .unwrap()
+                                .pos_and_layer
+                                .uniform,
+                            1,
+                        ),
+                    ],
+                });
+                renderer
+                    .resource_handle
+                    .groups
+                    .get_mut(&packet.entity)
+                    .unwrap()
+                    .bind_group = new_bind_group;
+            }
             for info in changed {
                 renderer
                     .resource_handle
