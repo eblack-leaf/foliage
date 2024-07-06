@@ -6,6 +6,7 @@ use bevy_ecs::system::{Command, Commands, Query};
 #[cfg(not(target_family = "wasm"))]
 use copypasta::ClipboardProvider;
 use futures_channel::oneshot;
+use web_sys::wasm_bindgen::JsCast;
 
 #[derive(Clone)]
 pub struct ClipboardWrite {
@@ -113,6 +114,20 @@ impl Clipboard {
     #[cfg(target_family = "wasm")]
     pub(crate) fn new() -> Self {
         let handle = web_sys::window().expect("window").navigator().clipboard();
+        if handle.is_some() {
+            use web_sys::wasm_bindgen;
+            let closure = wasm_bindgen::closure::Closure::<dyn FnMut(_)>::new(
+                move |_e: web_sys::Event| {},
+            );
+            let listener = closure.as_ref().unchecked_ref();
+            web_sys::window()
+                .expect("window")
+                .document()
+                .unwrap()
+                .add_event_listener_with_callback("copy", listener)
+                .ok();
+            drop(closure);
+        }
         Self {
             handle: if handle.is_some() { Some(()) } else { None },
         }

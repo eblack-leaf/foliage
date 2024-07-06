@@ -31,5 +31,6 @@ version = "0.3.64"
 features = [
     "console",
     "Navigator",
-    "Clipboard"
+    "Clipboard",
+    "ClipboardEvent"
 ]
