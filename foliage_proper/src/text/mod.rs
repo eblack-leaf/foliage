@@ -611,6 +611,7 @@ impl Render for Text {
                     .unwrap()
                     .bind_group = new_bind_group;
                 renderer.resource_handle.groups.get_mut(&packet.entity).unwrap().should_record = true;
+                should_record = true;
             }
             for info in changed {
                 renderer
