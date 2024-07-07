@@ -549,7 +549,7 @@ impl Render for Text {
                         .groups
                         .get_mut(&packet.entity)
                         .unwrap()
-                        .texture_atlas.entries);
+                        .texture_atlas.entries.len());
                     queued_tex_reads.insert((glyph.key, *offset));
                 } else {
                     let tex_coords = renderer
