@@ -162,7 +162,7 @@ impl<
             let (possible_locations, texture_extent) = Self::config(new_capacity, self.block_size);
             self.texture_extent = texture_extent;
             self.possible_locations = possible_locations;
-            self.capacity = new_capacity;
+            self.capacity = possible_locations.len() as u32;
             let (texture, view) = ginkgo.create_texture(
                 self.format,
                 texture_extent,
