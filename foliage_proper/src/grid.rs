@@ -270,6 +270,7 @@ pub(crate) fn viewport_changes_layout(
     if viewport_handle.updated() {
         let (l, t) = LayoutGrid::configuration(viewport_handle.section().area.coordinates);
         if &l != layout.as_ref() {
+            tracing::trace!("grid-layout:{:?}", l);
             *layout = l;
         }
         let placement = Placement::new(
@@ -293,7 +294,7 @@ impl LayoutGrid {
         Self { grid }
     }
     pub(crate) const SMALL_HORIZONTAL_THRESHOLD: f32 = 440.0;
-    pub(crate) const LARGE_HORIZONTAL_THRESHOLD: f32 = 800.0;
+    pub(crate) const LARGE_HORIZONTAL_THRESHOLD: f32 = 900.0;
     pub(crate) const SMALL_VERTICAL_THRESHOLD: f32 = 440.0;
     pub(crate) const LARGE_VERTICAL_THRESHOLD: f32 = 800.0;
     pub(crate) fn configuration(coordinates: Coordinates) -> (Layout, GridTemplate) {
@@ -333,7 +334,7 @@ impl LayoutGrid {
         (orientation, GridTemplate::new(columns, rows))
     }
 }
-#[derive(Resource, Copy, Clone, Eq, Hash, PartialEq, Ord, PartialOrd)]
+#[derive(Resource, Copy, Clone, Eq, Hash, PartialEq, Ord, PartialOrd, Debug)]
 pub struct Layout(u16);
 // set of layouts this will signal at
 #[derive(Component, Copy, Clone)]

@@ -3,6 +3,10 @@ use bevy_ecs::bundle::Bundle;
 use bevy_ecs::prelude::Resource;
 use bevy_ecs::system::Command;
 use futures_channel::oneshot;
+use tracing_subscriber::filter::Targets;
+use tracing_subscriber::Layer;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
 pub use wgpu;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
@@ -175,6 +179,30 @@ impl Foliage {
                 let event_loop_function = EventLoop::run_app;
                 (event_loop_function)(event_loop, &mut self).expect("event-loop-run-app");
             }
+        }
+    }
+    pub fn enable_tracing(&self, targets: Targets) {
+        #[cfg(not(target_family = "wasm"))]
+        tracing_subscriber::registry()
+            .with(
+                tracing_subscriber::fmt::layer()
+                    .compact()
+                    .with_filter(targets),
+            )
+            .init();
+        #[cfg(target_family = "wasm")]
+        {
+            tracing_subscriber::registry()
+                .with(
+                    tracing_subscriber::fmt::layer()
+                        .with_writer(
+                            tracing_subscriber_wasm::MakeConsoleWriter::default()
+                                .map_trace_level_to(tracing::Level::TRACE),
+                        )
+                        .without_time()
+                        .with_filter(targets),
+                )
+                .init();
         }
     }
     pub fn enable_clipboard_retrieve<B: Bundle + Send + Sync + 'static>(&mut self) {

@@ -104,6 +104,7 @@ impl<
         while logical_dim.pow(2) < capacity {
             logical_dim += 1;
         }
+        tracing::trace!("configuring texture-atlas logical:{:?} && requested-capacity:{:?}", logical_dim, capacity);
         let mut possible_locations = HashSet::new();
         for x in 0..logical_dim {
             for y in 0..logical_dim {
@@ -159,10 +160,12 @@ impl<
             grown = true;
             let difference = added.len() - self.possible_locations.len();
             let new_capacity = self.capacity + difference as u32;
+            tracing::trace!("configuring from {:?} to {:?} and diff: {:?}", self.capacity, new_capacity, difference);
             let (possible_locations, texture_extent) = Self::config(new_capacity, self.block_size);
             self.texture_extent = texture_extent;
             self.possible_locations = possible_locations;
             self.capacity = self.possible_locations.len() as u32;
+            tracing::trace!("texture-atlas-capacity:{:?} for added:{:?} and total-entries:{:?}", self.capacity, added.len(), self.entries.len());
             let (texture, view) = ginkgo.create_texture(
                 self.format,
                 texture_extent,

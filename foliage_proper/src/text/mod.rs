@@ -569,6 +569,7 @@ impl Render for Text {
                     .texture_atlas
                     .add_reference(glyph.key, *offset);
             }
+            tracing::trace!("resolving texture-atlas for:{:?}", packet.entity);
             let (changed, grown) = renderer
                 .resource_handle
                 .groups
