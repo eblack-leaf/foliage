@@ -101,7 +101,7 @@ impl Foliage {
     pub fn set_base_url<S: AsRef<str>>(&mut self, s: S) {
         self.base_url = s.as_ref().to_string();
     }
-    pub fn set_window_size<A: Into<Area<DeviceContext>>>(&mut self, a: A) {
+    pub fn set_desktop_size<A: Into<Area<DeviceContext>>>(&mut self, a: A) {
         self.willow.requested_size.replace(a.into());
     }
     pub fn set_window_title<S: AsRef<str>>(&mut self, s: S) {

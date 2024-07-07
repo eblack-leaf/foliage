@@ -3,6 +3,7 @@ use bevy_ecs::prelude::DetectChanges;
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{ParamSet, Query, Res, ResMut, Resource};
 use bitflags::bitflags;
+use std::collections::HashSet;
 
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
@@ -92,6 +93,23 @@ pub struct GridPlacement {
     exceptions: Vec<GridException>,
     fixed_area: Option<Coordinates>,
 }
+pub struct LayoutConfig {
+    layouts: Vec<Layout>,
+}
+impl From<Layout> for LayoutConfig {
+    fn from(value: Layout) -> Self {
+        LayoutConfig {
+            layouts: vec![value],
+        }
+    }
+}
+impl<L: AsRef<[Layout]>> From<L> for LayoutConfig {
+    fn from(value: L) -> Self {
+        LayoutConfig {
+            layouts: value.as_ref().to_vec(),
+        }
+    }
+}
 impl GridPlacement {
     pub fn horizontal(&self, config: Layout) -> GridRange {
         let mut range = self.horizontal;
@@ -113,12 +131,21 @@ impl GridPlacement {
         }
         range
     }
-    pub fn except(mut self, config: Layout, horizontal: GridRange, vertical: GridRange) -> Self {
-        self.exceptions.push(GridException {
-            config,
-            horizontal,
-            vertical,
-        });
+    pub fn except<L: Into<LayoutConfig>>(
+        mut self,
+        config: L,
+        horizontal: GridRange,
+        vertical: GridRange,
+    ) -> Self {
+        let config = config.into();
+        for c in config.layouts {
+            self.exceptions.push(GridException {
+                config: c,
+                horizontal,
+                vertical,
+            });
+        }
+
         self
     }
     pub fn ignore_gap(mut self) -> Self {
@@ -214,22 +241,18 @@ pub(crate) fn place_on_grid(
             Changed<GridPlacement>,
         >,
     )>,
-    layout_config: Res<Layout>,
+    layout: Res<Layout>,
     layout_grid: Res<LayoutGrid>,
 ) {
     for (mut pos, mut area, mut layer, grid_placement) in placed.p1().iter_mut() {
-        let placement = layout_grid
-            .grid
-            .place(grid_placement.clone(), *layout_config);
+        let placement = layout_grid.grid.place(grid_placement.clone(), *layout);
         *pos = placement.section.position;
         *area = placement.section.area;
         *layer = placement.layer;
     }
     if layout_grid.is_changed() {
         for (mut pos, mut area, mut layer, grid_placement) in placed.p0().iter_mut() {
-            let placement = layout_grid
-                .grid
-                .place(grid_placement.clone(), *layout_config);
+            let placement = layout_grid.grid.place(grid_placement.clone(), *layout);
             *pos = placement.section.position;
             *area = placement.section.area;
             *layer = placement.layer;

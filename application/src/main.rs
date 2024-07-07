@@ -243,7 +243,7 @@ const BIO_TEXT: &str =
       California, Chicago, Florida, Colorado, Philadelphia and Washington DC.";
 fn main() {
     let mut foliage = Foliage::new();
-    foliage.set_window_size((360, 800));
+    foliage.set_desktop_size((360, 800));
     foliage.set_base_url("");
     foliage.load_icon(
         IconHandles::Home.value(),
