@@ -610,6 +610,7 @@ impl Render for Text {
                     .get_mut(&packet.entity)
                     .unwrap()
                     .bind_group = new_bind_group;
+                renderer.resource_handle.groups.get_mut(&packet.entity).unwrap().should_record = true;
             }
             for info in changed {
                 renderer
