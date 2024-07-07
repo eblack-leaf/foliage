@@ -544,12 +544,20 @@ impl Render for Text {
                         .unwrap()
                         .texture_atlas
                         .add_entry(glyph.key, entry);
-                    tracing::trace!("adding texture-atlas entry | {:?} {:?} {:?}", glyph.parent, offset, renderer
-                        .resource_handle
-                        .groups
-                        .get_mut(&packet.entity)
-                        .unwrap()
-                        .texture_atlas.entries.len());
+                    tracing::trace!(
+                        "adding texture-atlas entry on entity: {:?} | {:?} @ {:?} total: {:?}",
+                        packet.entity,
+                        glyph.parent,
+                        offset,
+                        renderer
+                            .resource_handle
+                            .groups
+                            .get_mut(&packet.entity)
+                            .unwrap()
+                            .texture_atlas
+                            .entries
+                            .len()
+                    );
                     queued_tex_reads.insert((glyph.key, *offset));
                 } else {
                     let tex_coords = renderer

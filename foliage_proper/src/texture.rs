@@ -83,6 +83,7 @@ impl<
         ];
         let (texture, view) =
             ginkgo.create_texture(format, texture_extent, 1, bytemuck::cast_slice(&data));
+        let actual_capacity = possible_locations.len() as u32;
         Self {
             texture,
             view,
@@ -90,7 +91,7 @@ impl<
             possible_locations,
             block_size: block,
             texture_extent,
-            capacity,
+            capacity: actual_capacity,
             format,
             references: Default::default(),
             entries: Default::default(),
