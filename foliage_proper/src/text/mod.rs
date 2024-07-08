@@ -544,20 +544,6 @@ impl Render for Text {
                         .unwrap()
                         .texture_atlas
                         .add_entry(glyph.key, entry);
-                    tracing::trace!(
-                        "adding texture-atlas entry on entity: {:?} | {:?} @ {:?} total: {:?}",
-                        packet.entity,
-                        glyph.parent,
-                        offset,
-                        renderer
-                            .resource_handle
-                            .groups
-                            .get_mut(&packet.entity)
-                            .unwrap()
-                            .texture_atlas
-                            .entries
-                            .len()
-                    );
                     queued_tex_reads.insert((glyph.key, *offset));
                 } else {
                     let tex_coords = renderer
@@ -583,7 +569,6 @@ impl Render for Text {
                     .texture_atlas
                     .add_reference(glyph.key, *offset);
             }
-            tracing::trace!("resolving texture-atlas for:{:?}", packet.entity);
             let (changed, grown) = renderer
                 .resource_handle
                 .groups

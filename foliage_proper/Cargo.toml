@@ -35,4 +35,5 @@ features = [
     "console",
     "Navigator",
     "Clipboard",
+    "ClipboardItem",
 ]
