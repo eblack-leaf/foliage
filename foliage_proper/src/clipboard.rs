@@ -6,6 +6,11 @@ use bevy_ecs::system::{Command, Commands, Query};
 #[cfg(not(target_family = "wasm"))]
 use copypasta::ClipboardProvider;
 use futures_channel::oneshot;
+use wasm_bindgen::{JsCast, JsValue};
+use web_sys::js_sys::Object;
+use web_sys::wasm_bindgen::prelude::wasm_bindgen;
+use web_sys::BlobPropertyBag;
+use web_sys::ClipboardItem;
 
 #[derive(Clone)]
 pub struct ClipboardWrite {
@@ -113,6 +118,12 @@ impl Clipboard {
     #[cfg(target_family = "wasm")]
     pub(crate) fn new() -> Self {
         let handle = web_sys::window().expect("window").navigator().clipboard();
+        if handle.is_some() {
+            let document = web_sys::window().unwrap().document().unwrap();
+            let node = document.create_element("div").unwrap();
+            node.set_inner_html("<div id='copy-trigger'></div>");
+            document.body().unwrap().append_child(&node).unwrap();
+        }
         Self {
             handle: if handle.is_some() { Some(()) } else { None },
         }
@@ -135,11 +146,66 @@ impl Clipboard {
         }
         #[cfg(target_family = "wasm")]
         {
-            if let Some(c) = web_sys::window().expect("window").navigator().clipboard() {
-                let promise = c.write_text(data.as_str());
+            if web_sys::window()
+                .expect("window")
+                .navigator()
+                .clipboard()
+                .is_some()
+            {
+                // current working method
+                let promise = web_sys::window()
+                    .expect("window")
+                    .navigator()
+                    .clipboard()
+                    .unwrap()
+                    .write_text(data.as_str());
                 wasm_bindgen_futures::spawn_local(async move {
                     let _message = wasm_bindgen_futures::JsFuture::from(promise).await.ok();
                 });
+
+                // TODO rework below
+                // let node = web_sys::window()
+                //     .unwrap()
+                //     .document()
+                //     .unwrap()
+                //     .get_element_by_id("copy-trigger")
+                //     .unwrap()
+                //     .dyn_into::<web_sys::HtmlElement>()
+                //     .unwrap();
+                // let closure = wasm_bindgen::prelude::Closure::once(move || {
+                //     tracing::trace!("writing clipboard {:?}", data);
+                //     let js_string = JsValue::from_str(data.as_str());
+                //     let js_array = web_sys::js_sys::Array::from_iter(std::iter::once(js_string));
+                //     tracing::trace!("js-array {:?}", js_array);
+                //     let js_blob = web_sys::Blob::new_with_str_sequence_and_options(
+                //         &js_array,
+                //         &BlobPropertyBag::new().type_("text/plain"),
+                //     )
+                //     .unwrap();
+                //     let inner_promise = wasm_bindgen_futures::js_sys::Promise::resolve(&js_blob);
+                //     let js_obj = Object::new();
+                //     web_sys::js_sys::Reflect::set(&js_obj, &"text/plain".into(), &inner_promise)
+                //         .unwrap();
+                //     let item = ClipboardItemExt::new(&js_obj, &Object::new());
+                //     let item_array = web_sys::js_sys::Array::from(item.as_ref());
+                //
+                //     wasm_bindgen_futures::spawn_local(async move {
+                //         let promise = web_sys::window()
+                //             .expect("window")
+                //             .navigator()
+                //             .clipboard()
+                //             .unwrap()
+                //             .write(&item_array);
+                //         let _message = wasm_bindgen_futures::JsFuture::from(promise).await.ok();
+                //         tracing::trace!("return message {:?}", _message);
+                //     });
+                // });
+                // node.add_event_listener_with_callback("click", closure.as_ref().unchecked_ref())
+                //     .unwrap();
+                // node.click();
+                // node.remove_event_listener_with_callback("click", closure.as_ref().unchecked_ref())
+                //     .unwrap();
+                // closure.forget();
             }
         }
         #[cfg(not(target_family = "wasm"))]
@@ -147,4 +213,13 @@ impl Clipboard {
             h.set_contents(data).expect("clipboard writing");
         }
     }
+}
+#[cfg(target_family = "wasm")]
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_name = ClipboardItem, extends = ClipboardItem)]
+    type ClipboardItemExt;
+
+    #[wasm_bindgen(constructor, js_class = ClipboardItem)]
+    fn new(data: &JsValue, options: &Object) -> ClipboardItemExt;
 }

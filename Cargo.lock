@@ -947,6 +947,7 @@ dependencies = [
  "tracing-subscriber",
  "tracing-subscriber-wasm",
  "uuid",
+ "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
  "wgpu",
