@@ -244,6 +244,7 @@ const BIO_TEXT: &str =
 fn main() {
     let mut foliage = Foliage::new();
     foliage.set_desktop_size((360, 800));
+    foliage.enable_tracing(tracing_subscriber::filter::Targets::new().with_target("foliage", tracing::Level::TRACE));
     foliage.set_base_url("");
     foliage.load_icon(
         IconHandles::Home.value(),

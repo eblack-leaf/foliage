@@ -111,6 +111,8 @@ name = "application"
 version = "0.1.0"
 dependencies = [
  "foliage",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

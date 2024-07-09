@@ -1,4 +1,3 @@
-use crate::signal::TriggerTarget;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Entity, World};
@@ -9,8 +8,8 @@ use futures_channel::oneshot;
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::js_sys::Object;
 use web_sys::wasm_bindgen::prelude::wasm_bindgen;
-use web_sys::BlobPropertyBag;
-use web_sys::ClipboardItem;
+
+use crate::signal::TriggerTarget;
 
 #[derive(Clone)]
 pub struct ClipboardWrite {
@@ -153,15 +152,15 @@ impl Clipboard {
                 .is_some()
             {
                 // current working method
-                let promise = web_sys::window()
-                    .expect("window")
-                    .navigator()
-                    .clipboard()
-                    .unwrap()
-                    .write_text(data.as_str());
-                wasm_bindgen_futures::spawn_local(async move {
-                    let _message = wasm_bindgen_futures::JsFuture::from(promise).await.ok();
-                });
+                // let promise = web_sys::window()
+                //     .expect("window")
+                //     .navigator()
+                //     .clipboard()
+                //     .unwrap()
+                //     .write_text(data.as_str());
+                // wasm_bindgen_futures::spawn_local(async move {
+                //     let _message = wasm_bindgen_futures::JsFuture::from(promise).await.ok();
+                // });
 
                 // TODO rework below
                 // let node = web_sys::window()
@@ -217,7 +216,7 @@ impl Clipboard {
 #[cfg(target_family = "wasm")]
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(js_name = ClipboardItem, extends = ClipboardItem)]
+    #[wasm_bindgen(js_name = ClipboardItem, extends = web_sys::ClipboardItem)]
     type ClipboardItemExt;
 
     #[wasm_bindgen(constructor, js_class = ClipboardItem)]
