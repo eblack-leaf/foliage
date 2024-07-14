@@ -56,6 +56,7 @@ pub mod text;
 pub mod texture;
 pub mod view;
 pub mod willow;
+mod r_frontend;
 
 pub struct Foliage {
     willow: Willow,
