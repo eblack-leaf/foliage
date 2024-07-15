@@ -15,11 +15,12 @@ use winit::window::WindowId;
 
 use willow::Willow;
 
-use crate::action::Actionable;
+use crate::action::{Actionable, ElmHandle};
 use crate::ash::{Ash, Render};
 use crate::asset::{Asset, AssetKey, AssetLoader};
 use crate::coordinate::area::Area;
 use crate::coordinate::{Coordinates, DeviceContext};
+use crate::element::IdTable;
 use crate::elm::Elm;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::{Ginkgo, ScaleFactor};
@@ -88,7 +89,13 @@ impl Foliage {
         };
         this.attach_leaves::<CoreLeaves>();
         this.elm.ecs.world.insert_resource(AssetLoader::default());
+        this.elm.ecs.world.insert_resource(IdTable::default());
         this
+    }
+    pub fn run_action<A: Actionable>(&mut self, a: A) {
+        a.apply(ElmHandle {
+            world_handle: Some(&mut self.elm.ecs.world),
+        });
     }
     pub fn enable_action<A: Actionable>(&mut self) {
         self.elm.enable_action::<A>();

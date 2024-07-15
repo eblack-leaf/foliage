@@ -1,4 +1,4 @@
-use crate::element::{IdTable, TargetHandle};
+use crate::element::{Element, IdTable, TargetHandle};
 use crate::grid::Layout;
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Bundle, Changed, Commands, Entity, Query, World};
@@ -9,16 +9,24 @@ pub struct ElmHandle<'a> {
 }
 pub struct ElementHandle<'a> {
     pub(crate) world_handle: Option<&'a mut World>,
+    pub(crate) handle: TargetHandle,
     pub(crate) entity: Entity,
 }
 impl<'a> ElementHandle<'a> {
     pub fn with_attr<A: Bundle>(mut self, a: A) -> Self {
-        todo!()
+        self.world_handle
+            .as_mut()
+            .unwrap()
+            .entity_mut(self.entity)
+            .insert(a);
+        self
     }
     pub fn with_filtered_attr<A: Bundle>(mut self, layout: Layout, a: A) -> Self {
         todo!()
     }
     pub fn dependent_of<RTH: Into<TargetHandle>>(mut self, rth: RTH) -> Self {
+        // lookup root
+        // give to that dependents
         self
     }
 }
@@ -31,7 +39,12 @@ impl<'a> ElmHandle<'a> {
         th: TH,
         e_fn: EFN,
     ) {
-        let entity = self.world_handle.as_mut().unwrap().spawn_empty().id();
+        let entity = self
+            .world_handle
+            .as_mut()
+            .unwrap()
+            .spawn(Element::default())
+            .id();
         let target = th.into();
         self.world_handle
             .as_mut()
@@ -53,15 +66,17 @@ impl<'a> ElmHandle<'a> {
         th: TH,
         e_fn: EFN,
     ) {
-        let entity = self.lookup_target_entity(th);
+        let th = th.into();
+        let entity = self.lookup_target_entity(th.clone());
         let mut element_handle = ElementHandle {
             world_handle: self.world_handle.take(),
             entity,
+            handle: th,
         };
         element_handle = e_fn(element_handle);
         self.world_handle = element_handle.world_handle.take();
     }
-    pub fn change_element_context<TH: Into<TargetHandle>, RTH: Into<TargetHandle>>(
+    pub fn change_element_root<TH: Into<TargetHandle>, RTH: Into<TargetHandle>>(
         &mut self,
         th: TH,
         new_root: RTH,

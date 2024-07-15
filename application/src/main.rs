@@ -15,5 +15,6 @@ fn main() {
     );
     foliage.set_base_url("");
     foliage.enable_action::<Stuff>();
+    foliage.run_action(Stuff {});
     foliage.run();
 }

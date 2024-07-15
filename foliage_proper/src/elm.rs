@@ -202,7 +202,6 @@ impl Elm {
             .world
             .insert_resource(LayoutGrid::new(Grid::new(4, 4)));
         self.ecs.world.insert_resource(Layout::SQUARE);
-        self.ecs.world.insert_resource(IdTable::default());
         self.ecs.world.insert_resource(TouchAdapter::default());
         self.ecs.world.insert_resource(MouseAdapter::default());
         self.ecs.world.insert_resource(KeyboardAdapter::default());
