@@ -8,8 +8,7 @@ use futures_channel::oneshot;
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::js_sys::Object;
 use web_sys::wasm_bindgen::prelude::wasm_bindgen;
-
-use crate::signal::TriggerTarget;
+use crate::element::{IdTable, TargetHandle};
 
 #[derive(Clone)]
 pub struct ClipboardWrite {
@@ -33,11 +32,11 @@ impl Command for ClipboardWrite {
 pub type ClipboardReadFn<B> = fn(String) -> B;
 #[derive(Clone)]
 pub struct ClipboardRead<B: Bundle> {
-    target: TriggerTarget,
+    target: TargetHandle,
     on_read: Box<ClipboardReadFn<B>>,
 }
 impl<B: Bundle> ClipboardRead<B> {
-    pub fn new(target: TriggerTarget, on_read: ClipboardReadFn<B>) -> Self {
+    pub fn new(target: TargetHandle, on_read: ClipboardReadFn<B>) -> Self {
         Self {
             target,
             on_read: Box::new(on_read),
@@ -69,8 +68,9 @@ impl<B: Bundle> Command for ClipboardRead<B> {
                 .get_non_send_resource_mut::<Clipboard>()
                 .unwrap()
                 .read();
+            let entity = world.get_resource::<IdTable>().unwrap().lookup_target(self.target);
             world
-                .entity_mut(self.target.value())
+                .entity_mut(entity)
                 .insert((self.on_read)(message));
         }
         #[cfg(target_family = "wasm")]
@@ -152,15 +152,15 @@ impl Clipboard {
                 .is_some()
             {
                 // current working method
-                // let promise = web_sys::window()
-                //     .expect("window")
-                //     .navigator()
-                //     .clipboard()
-                //     .unwrap()
-                //     .write_text(data.as_str());
-                // wasm_bindgen_futures::spawn_local(async move {
-                //     let _message = wasm_bindgen_futures::JsFuture::from(promise).await.ok();
-                // });
+                let promise = web_sys::window()
+                    .expect("window")
+                    .navigator()
+                    .clipboard()
+                    .unwrap()
+                    .write_text(data.as_str());
+                wasm_bindgen_futures::spawn_local(async move {
+                    let _message = wasm_bindgen_futures::JsFuture::from(promise).await.ok();
+                });
 
                 // TODO rework below
                 // let node = web_sys::window()

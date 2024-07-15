@@ -1,18 +1,9 @@
 use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 
-use bevy_ecs::bundle::Bundle;
-use bevy_ecs::entity::Entity;
-use bevy_ecs::event::{event_update_system, Event, Events};
-use bevy_ecs::prelude::{
-    apply_deferred, Component, IntoSystemConfigs, IntoSystemSetConfigs, Schedule, SystemSet,
-};
-use bevy_ecs::schedule::ExecutorKind;
-use bevy_ecs::system::{Command, Resource};
-use bevy_ecs::world::World;
-
+use crate::action::Actionable;
 use crate::ash::Render;
-use crate::asset::{await_assets, on_retrieve};
+use crate::asset::on_retrieve;
 use crate::clipboard::{read_retrieve, Clipboard};
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
@@ -21,21 +12,23 @@ use crate::derive::on_derive;
 use crate::differential::{
     added_invalidate, differential, RenderAddQueue, RenderLink, RenderPacket, RenderRemoveQueue,
 };
+use crate::element::IdTable;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::ScaleFactor;
-use crate::grid::{place_on_grid, viewport_changes_layout, Grid, Layout, LayoutGrid};
+use crate::grid::{Grid, Layout, LayoutGrid};
 use crate::interaction::{
     FocusedEntity, InteractiveEntity, KeyboardAdapter, MouseAdapter, TouchAdapter,
 };
-use crate::signal::engage_action;
-use crate::signal::{
-    clean, clear_signal, filter_signal, filtered_signaled_spawn, signaled_clean, signaled_spawn,
-};
-use crate::view::{
-    adjust_view_grid_on_change, attempt_to_confirm, cleanup_view, on_target_grid_placement_change,
-    on_view_grid_change, resignal_on_layout_change, signal_confirmation, signal_stage,
-};
 use crate::willow::Willow;
+use bevy_ecs::bundle::Bundle;
+use bevy_ecs::entity::Entity;
+use bevy_ecs::event::{event_update_system, Event, Events};
+use bevy_ecs::prelude::{
+    apply_deferred, Component, IntoSystemConfigs, IntoSystemSetConfigs, Schedule, SystemSet,
+};
+use bevy_ecs::schedule::ExecutorKind;
+use bevy_ecs::system::Resource;
+use bevy_ecs::world::World;
 
 #[derive(Default)]
 pub struct Scheduler {
@@ -126,6 +119,14 @@ impl<D, B> Default for DeriveLimiter<D, B> {
     }
 }
 impl Elm {
+    pub fn enable_action<A: Actionable>(&mut self) {
+        if !self.ecs.world.contains_resource::<ActionLimiter<A>>() {
+            // signaled-action setup?
+            self.ecs
+                .world
+                .insert_resource(ActionLimiter::<A>::default());
+        }
+    }
     pub fn enable_event<E: Event + Send + Sync + 'static>(&mut self) {
         if !self.ecs.world.contains_resource::<EventLimiter<E>>() {
             self.ecs.world.insert_resource(Events::<E>::default());
@@ -177,39 +178,6 @@ impl Elm {
     pub(crate) fn initialized(&self) -> bool {
         self.initialized
     }
-    pub(crate) fn checked_add_signal_fns<A: Bundle + Clone + 'static + Send + Sync>(&mut self) {
-        if !self.ecs.world.contains_resource::<SignalLimiter<A>>() {
-            self.scheduler
-                .main
-                .add_systems(signaled_spawn::<A>.in_set(ScheduleMarkers::Spawn));
-            self.ecs
-                .world
-                .insert_resource(SignalLimiter::<A>::default());
-        }
-    }
-    pub(crate) fn checked_add_filtered_signal_fns<A: Bundle + Clone + 'static + Send + Sync>(
-        &mut self,
-    ) {
-        if !self.ecs.world.contains_resource::<SignalLimiter<A>>() {
-            self.scheduler
-                .main
-                .add_systems(filtered_signaled_spawn::<A>.in_set(ScheduleMarkers::SpawnFiltered));
-            self.ecs
-                .world
-                .insert_resource(SignalLimiter::<A>::default());
-        }
-    }
-    pub(crate) fn checked_add_action_fns<A: Command + Clone + 'static + Send + Sync>(&mut self) {
-        if !self.ecs.world.contains_resource::<ActionLimiter<A>>() {
-            self.scheduler.main.add_systems((
-                engage_action::<A>.in_set(ScheduleMarkers::Action),
-                engage_action::<A>.in_set(ScheduleMarkers::StageActions),
-            ));
-            self.ecs
-                .world
-                .insert_resource(ActionLimiter::<A>::default());
-        }
-    }
     pub(crate) fn initialize(&mut self, leaf_fns: Vec<Box<fn(&mut Elm)>>) {
         for leaf_fn in leaf_fns {
             (leaf_fn)(self);
@@ -217,7 +185,6 @@ impl Elm {
         self.scheduler.exec_startup(&mut self.ecs);
         self.initialized = true;
     }
-
     pub(crate) fn configure(
         &mut self,
         window_area: Area<NumericalContext>,
@@ -232,6 +199,7 @@ impl Elm {
             .world
             .insert_resource(LayoutGrid::new(Grid::new(4, 4)));
         self.ecs.world.insert_resource(Layout::SQUARE);
+        self.ecs.world.insert_resource(IdTable::default());
         self.ecs.world.insert_resource(TouchAdapter::default());
         self.ecs.world.insert_resource(MouseAdapter::default());
         self.ecs.world.insert_resource(KeyboardAdapter::default());
@@ -259,30 +227,9 @@ impl Elm {
             )
                 .chain(),
         );
-        self.scheduler.main.add_systems((
-            (viewport_changes_layout, await_assets).in_set(ScheduleMarkers::External),
-            signal_confirmation.in_set(ScheduleMarkers::SignalConfirmation),
-            clear_signal
-                .in_set(ScheduleMarkers::SignalStage)
-                .before(signal_stage)
-                .before(resignal_on_layout_change),
-            (signal_stage, resignal_on_layout_change)
-                .in_set(ScheduleMarkers::SignalStage)
-                .before(filter_signal),
-            filter_signal.in_set(ScheduleMarkers::SignalStage),
-            (cleanup_view, signaled_clean, apply_deferred, clean)
-                .chain()
-                .in_set(ScheduleMarkers::Clean),
-            place_on_grid.in_set(ScheduleMarkers::GridSemantics),
-            adjust_view_grid_on_change
-                .in_set(ScheduleMarkers::GridSemantics)
-                .after(place_on_grid),
-            (on_view_grid_change, on_target_grid_placement_change)
-                .in_set(ScheduleMarkers::GridSemantics)
-                .after(adjust_view_grid_on_change),
-            attempt_to_confirm.in_set(ScheduleMarkers::SignalConfirmationStart),
-            clear_signal.after(ScheduleMarkers::Differential),
-        ));
+        self.scheduler
+            .main
+            .add_systems((crate::differential::remove.in_set(ScheduleMarkers::Differential),));
         self.scheduler.main.add_systems((
             apply_deferred
                 .after(ScheduleMarkers::Events)

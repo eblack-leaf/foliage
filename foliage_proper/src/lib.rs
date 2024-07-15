@@ -4,43 +4,41 @@ use bevy_ecs::prelude::Resource;
 use bevy_ecs::system::Command;
 use futures_channel::oneshot;
 use tracing_subscriber::filter::Targets;
+use tracing_subscriber::Layer;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::Layer;
 pub use wgpu;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::WindowId;
 
-use reference::{ViewConfigBuilder, ViewReference};
-use signal::{ActionHandle, TriggeredAction};
 use willow::Willow;
 
+use crate::action::Actionable;
 use crate::ash::{Ash, Render};
 use crate::asset::{Asset, AssetKey, AssetLoader};
-use crate::coordinate::area::Area;
 use crate::coordinate::{Coordinates, DeviceContext};
+use crate::coordinate::area::Area;
 use crate::elm::Elm;
-use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::{Ginkgo, ScaleFactor};
-use crate::grid::{Grid, GridPlacement};
+use crate::ginkgo::viewport::ViewportHandle;
 use crate::icon::{Icon, IconId, IconRequest};
 use crate::image::Image;
 use crate::interaction::{ClickInteractionListener, KeyboardAdapter, MouseAdapter, TouchAdapter};
 use crate::panel::Panel;
-use crate::signal::Signal;
 use crate::style::Style;
 use crate::text::{Text, TextValue};
-use crate::view::{ViewComponents, ViewHandle};
 
+pub mod action;
 pub mod ash;
 pub mod asset;
 pub mod clipboard;
 pub mod color;
 pub mod coordinate;
 pub mod derive;
-mod differential;
+pub mod differential;
+pub mod element;
 pub mod elm;
 pub mod ginkgo;
 pub mod grid;
@@ -49,14 +47,10 @@ pub mod image;
 pub mod instances;
 pub mod interaction;
 pub mod panel;
-pub mod reference;
-pub mod signal;
 pub mod style;
 pub mod text;
 pub mod texture;
-pub mod view;
 pub mod willow;
-mod r_frontend;
 
 pub struct Foliage {
     willow: Willow,
@@ -96,6 +90,9 @@ impl Foliage {
         this.elm.ecs.world.insert_resource(AssetLoader::default());
         this
     }
+    pub fn enable_action<A: Actionable>(&mut self) {
+        self.elm.enable_action::<A>();
+    }
     pub fn load_icon<ID: Into<IconId>, B: AsRef<[u8]>>(&mut self, id: ID, bytes: B) {
         self.spawn(IconRequest::new(id, bytes.as_ref().to_vec()));
     }
@@ -126,39 +123,6 @@ impl Foliage {
     }
     pub fn spawn<B: Bundle + 'static + Send + Sync>(&mut self, b: B) {
         self.elm.ecs.world.spawn(b);
-    }
-    pub fn create_view(&mut self, grid_placement: GridPlacement, grid: Grid) -> ViewConfigBuilder {
-        let handle = self
-            .elm
-            .ecs
-            .world
-            .spawn(ViewComponents::new(grid_placement, grid))
-            .id();
-        ViewConfigBuilder {
-            root: handle,
-            reference: Some(&mut self.elm),
-            targets: Default::default(),
-            stages: Default::default(),
-        }
-    }
-    pub fn view(&mut self, vh: ViewHandle) -> ViewReference {
-        ViewReference {
-            root: vh.0,
-            reference: &mut self.elm,
-        }
-    }
-    pub fn create_action<A: Command + Clone + Send + Sync + 'static>(
-        &mut self,
-        a: A,
-    ) -> ActionHandle {
-        self.elm.checked_add_action_fns::<A>();
-        let handle = self
-            .elm
-            .ecs
-            .world
-            .spawn((TriggeredAction(a), Signal::default()))
-            .id();
-        ActionHandle(handle)
     }
     pub fn insert_resource<R: Resource>(&mut self, r: R) {
         self.elm.ecs.world.insert_resource(r);

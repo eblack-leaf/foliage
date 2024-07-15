@@ -1,13 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use bevy_ecs::entity::Entity;
-use bevy_ecs::event::{Event, EventReader};
-use bevy_ecs::prelude::{Component, IntoSystemConfigs};
-use bevy_ecs::system::{Query, ResMut, Resource};
-use winit::dpi::PhysicalPosition;
-use winit::event::{ElementState, MouseButton, Touch, TouchPhase};
-use winit::keyboard::{Key, ModifiersState};
-
+use crate::action::Signal;
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
@@ -15,8 +8,15 @@ use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
 use crate::elm::{Elm, ScheduleMarkers};
 use crate::ginkgo::ScaleFactor;
-use crate::signal::{ActionHandle, Signal};
 use crate::Leaf;
+use bevy_ecs::entity::Entity;
+use bevy_ecs::event::{Event, EventReader};
+use bevy_ecs::prelude::{Component, IntoSystemConfigs};
+use bevy_ecs::system::{Query, Res, ResMut, Resource};
+use winit::dpi::PhysicalPosition;
+use winit::event::{ElementState, MouseButton, Touch, TouchPhase};
+use winit::keyboard::{Key, ModifiersState};
+use crate::element::{ActionHandle, IdTable};
 
 #[derive(Resource, Default)]
 pub(crate) struct TouchAdapter {
@@ -194,13 +194,15 @@ impl OnClick {
 pub(crate) fn on_click(
     on_clicks: Query<(&OnClick, &ClickInteractionListener)>,
     mut actions: Query<&mut Signal>,
+    id_table: Res<IdTable>,
 ) {
     for (on_click, listener) in on_clicks.iter() {
         if listener.active {
             for handle in on_click.0.iter() {
+                let entity = id_table.lookup_action(handle.clone());
                 *actions
-                    .get_mut(handle.value())
-                    .expect("no-corresponding-action") = Signal::spawn();
+                    .get_mut(entity)
+                    .expect("no-corresponding-action") = Signal::active();
             }
         }
     }

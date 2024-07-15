@@ -23,6 +23,7 @@ impl<D: Resource + Send + Sync + 'static + Clone, B: Bundle + Send + Sync + 'sta
         self.listening = true;
     }
 }
+// TODO change to Changed<B> => read Resource + if ResourceChanged => all B
 pub(crate) fn on_derive<
     D: Resource + Send + Sync + 'static + Clone,
     B: Bundle + Send + Sync + 'static + Clone,

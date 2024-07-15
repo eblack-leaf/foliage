@@ -223,7 +223,7 @@ pub struct GridException {
     vertical: GridRange,
     horizontal: GridRange,
 }
-pub(crate) fn place_on_grid(
+pub(crate) fn place_from_root_grid(
     mut placed: ParamSet<(
         Query<(
             &mut Position<LogicalContext>,

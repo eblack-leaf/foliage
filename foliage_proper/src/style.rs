@@ -1,11 +1,11 @@
 use crate::color::Color;
 use crate::elm::{Elm, ScheduleMarkers};
 use crate::interaction::ClickInteractionListener;
-use crate::signal::TriggerTarget;
 use crate::Leaf;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs};
 use bevy_ecs::query::{Changed, Or};
-use bevy_ecs::system::{Commands, Query};
+use bevy_ecs::system::{Commands, Query, Res};
+use crate::element::{IdTable, TargetHandle};
 
 pub(crate) struct Style;
 impl Leaf for Style {
@@ -19,7 +19,7 @@ impl Leaf for Style {
 pub struct InteractiveColor {
     pub base: Color,
     pub alternate_color: Color,
-    pub linked: Vec<TriggerTarget>,
+    pub linked: Vec<TargetHandle>,
 }
 impl InteractiveColor {
     pub fn new<B: Into<Color>, A: Into<Color>>(b: B, a: A) -> Self {
@@ -29,7 +29,7 @@ impl InteractiveColor {
             linked: vec![],
         }
     }
-    pub fn with_linked(mut self, linked: Vec<TriggerTarget>) -> Self {
+    pub fn with_linked(mut self, linked: Vec<TargetHandle>) -> Self {
         self.linked = linked;
         self
     }
@@ -44,16 +44,19 @@ pub(crate) fn alternate_color_on_engage(
         )>,
     >,
     mut cmd: Commands,
+    id_table: Res<IdTable>
 ) {
     for (mut color, alt, listener) in alts.iter_mut() {
         if listener.engaged_start && !listener.engaged_end {
             for linked in alt.linked.iter() {
-                cmd.entity(linked.value()).insert(alt.base);
+                let entity = id_table.lookup_target(linked.clone());
+                cmd.entity(entity).insert(alt.base);
             }
             *color = alt.alternate_color;
         } else if listener.engaged_end {
             for linked in alt.linked.iter() {
-                cmd.entity(linked.value()).insert(alt.alternate_color);
+                let entity = id_table.lookup_target(linked.clone());
+                cmd.entity(entity).insert(alt.alternate_color);
             }
             *color = alt.base;
         }

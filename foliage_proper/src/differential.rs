@@ -4,8 +4,8 @@ use std::marker::PhantomData;
 
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::prelude::{Component, Entity, With};
-use bevy_ecs::query::{Added, Changed};
-use bevy_ecs::system::{Query, ResMut, Resource};
+use bevy_ecs::query::Changed;
+use bevy_ecs::system::{Commands, Query, ResMut, Resource};
 
 use crate::ash::Render;
 
@@ -82,13 +82,13 @@ impl<D: Component + PartialEq + Clone> From<(Entity, D)> for RenderPacket<D> {
 }
 pub(crate) fn added_invalidate<D: Component + PartialEq + Clone + Send + Sync + 'static>(
     mut added: Query<
-        (Entity, &RenderLink, &D, &mut DifferentialCache<D>),
+        (Entity, &RenderLink, &D, &mut DifferentialCache<D>, &Remove),
         (Changed<D>, With<DifferentialCache<D>>),
     >,
     mut render_queue: ResMut<RenderAddQueue<D>>,
 ) {
-    for (entity, link, d, mut local_cache) in added.iter_mut() {
-        if local_cache.added {
+    for (entity, link, d, mut local_cache, remove) in added.iter_mut() {
+        if local_cache.added && remove.should_keep() {
             render_queue
                 .cache
                 .get_mut(link)
@@ -104,28 +104,67 @@ pub(crate) fn added_invalidate<D: Component + PartialEq + Clone + Send + Sync + 
     }
 }
 pub(crate) fn differential<D: Component + PartialEq + Clone + Send + Sync + 'static>(
-    components: Query<(Entity, &RenderLink, &D), (Changed<D>, With<DifferentialCache<D>>)>,
+    components: Query<(Entity, &RenderLink, &D, &Remove), (Changed<D>, With<DifferentialCache<D>>)>,
     mut render_queue: ResMut<RenderAddQueue<D>>,
 ) {
-    for (entity, link, d) in components.iter() {
-        let different = if render_queue.cache.get(link).unwrap().get(&entity).is_none() {
-            true
-        } else if render_queue.cache.get(link).unwrap().get(&entity).unwrap() != d {
-            true
-        } else {
-            false
-        };
-        render_queue
-            .cache
-            .get_mut(link)
-            .unwrap()
-            .insert(entity, d.clone());
-        if different {
+    for (entity, link, d, remove) in components.iter() {
+        if remove.should_keep() {
+            let different = if render_queue.cache.get(link).unwrap().get(&entity).is_none() {
+                true
+            } else if render_queue.cache.get(link).unwrap().get(&entity).unwrap() != d {
+                true
+            } else {
+                false
+            };
             render_queue
-                .queue
+                .cache
                 .get_mut(link)
-                .expect("render-queue")
+                .unwrap()
                 .insert(entity, d.clone());
+            if different {
+                render_queue
+                    .queue
+                    .get_mut(link)
+                    .expect("render-queue")
+                    .insert(entity, d.clone());
+            }
+        }
+    }
+}
+#[derive(Component, Copy, Clone)]
+pub struct Remove {
+    should_remove: bool,
+}
+impl Remove {
+    pub fn should_keep(&self) -> bool {
+        !self.should_remove
+    }
+    pub fn should_remove(&self) -> bool {
+        self.should_remove
+    }
+    pub fn remove() -> Self {
+        Self {
+            should_remove: true,
+        }
+    }
+    pub fn keep() -> Self {
+        Self {
+            should_remove: false,
+        }
+    }
+}
+// TODO include root + dependent clean up here or let read if remove-true
+pub(crate) fn remove(
+    removals: Query<(Entity, &Remove, Option<&RenderLink>), Changed<Remove>>,
+    mut cmd: Commands,
+    mut remove_queue: ResMut<RenderRemoveQueue>,
+) {
+    for (entity, remove, opt_link) in removals.iter() {
+        if remove.should_remove() {
+            if let Some(link) = opt_link {
+                remove_queue.queue.get_mut(&link).unwrap().insert(entity);
+            }
+            cmd.entity(entity).despawn();
         }
     }
 }
