@@ -6,6 +6,7 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
+use crate::element::{ActionHandle, IdTable};
 use crate::elm::{Elm, ScheduleMarkers};
 use crate::ginkgo::ScaleFactor;
 use crate::Leaf;
@@ -16,7 +17,6 @@ use bevy_ecs::system::{Query, Res, ResMut, Resource};
 use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, MouseButton, Touch, TouchPhase};
 use winit::keyboard::{Key, ModifiersState};
-use crate::element::{ActionHandle, IdTable};
 
 #[derive(Resource, Default)]
 pub(crate) struct TouchAdapter {
@@ -200,9 +200,7 @@ pub(crate) fn on_click(
         if listener.active {
             for handle in on_click.0.iter() {
                 let entity = id_table.lookup_action(handle.clone());
-                *actions
-                    .get_mut(entity)
-                    .expect("no-corresponding-action") = Signal::active();
+                *actions.get_mut(entity).expect("no-corresponding-action") = Signal::active();
             }
         }
     }

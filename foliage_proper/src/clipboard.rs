@@ -1,3 +1,4 @@
+use crate::element::{IdTable, TargetHandle};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Entity, World};
@@ -8,7 +9,6 @@ use futures_channel::oneshot;
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::js_sys::Object;
 use web_sys::wasm_bindgen::prelude::wasm_bindgen;
-use crate::element::{IdTable, TargetHandle};
 
 #[derive(Clone)]
 pub struct ClipboardWrite {
@@ -62,16 +62,17 @@ pub(crate) fn read_retrieve<B: Bundle + Send + Sync + 'static>(
 }
 impl<B: Bundle> Command for ClipboardRead<B> {
     fn apply(self, world: &mut World) {
-        let entity = world.get_resource::<IdTable>().unwrap().lookup_target(self.target);
+        let entity = world
+            .get_resource::<IdTable>()
+            .unwrap()
+            .lookup_target(self.target);
         #[cfg(not(target_family = "wasm"))]
         {
             let message = world
                 .get_non_send_resource_mut::<Clipboard>()
                 .unwrap()
                 .read();
-            world
-                .entity_mut(entity)
-                .insert((self.on_read)(message));
+            world.entity_mut(entity).insert((self.on_read)(message));
         }
         #[cfg(target_family = "wasm")]
         {
@@ -87,12 +88,10 @@ impl<B: Bundle> Command for ClipboardRead<B> {
                     }
                 }
             });
-            world
-                .entity_mut(entity)
-                .insert(ClipboardReadRetrieve {
-                    message_recv: recv,
-                    on_read: self.on_read,
-                });
+            world.entity_mut(entity).insert(ClipboardReadRetrieve {
+                message_recv: recv,
+                on_read: self.on_read,
+            });
         }
     }
 }

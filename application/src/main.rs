@@ -1,10 +1,10 @@
-use foliage::action::{Actionable, ElmConnection};
+use foliage::action::{Actionable, ElmHandle};
 use foliage::Foliage;
 #[derive(Clone)]
 struct Stuff {}
 impl Actionable for Stuff {
-    fn apply(self, conn: ElmConnection) {
-        todo!()
+    fn apply(self, mut handle: ElmHandle) {
+        handle.add_element("first", |e| e.with_attr(()));
     }
 }
 fn main() {

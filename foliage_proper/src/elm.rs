@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 
-use crate::action::Actionable;
+use crate::action::{clear_signal, signal_action, Actionable};
 use crate::ash::Render;
 use crate::asset::on_retrieve;
 use crate::clipboard::{read_retrieve, Clipboard};
@@ -122,6 +122,9 @@ impl Elm {
     pub fn enable_action<A: Actionable>(&mut self) {
         if !self.ecs.world.contains_resource::<ActionLimiter<A>>() {
             // signaled-action setup?
+            self.scheduler
+                .main
+                .add_systems(signal_action::<A>.in_set(ScheduleMarkers::Action));
             self.ecs
                 .world
                 .insert_resource(ActionLimiter::<A>::default());
@@ -227,9 +230,10 @@ impl Elm {
             )
                 .chain(),
         );
-        self.scheduler
-            .main
-            .add_systems((crate::differential::remove.in_set(ScheduleMarkers::Differential),));
+        self.scheduler.main.add_systems((
+            crate::differential::remove.in_set(ScheduleMarkers::Differential),
+            clear_signal.after(ScheduleMarkers::Differential),
+        ));
         self.scheduler.main.add_systems((
             apply_deferred
                 .after(ScheduleMarkers::Events)
@@ -301,7 +305,7 @@ impl Elm {
             .unwrap()
             .resize(willow.actual_area().to_logical(scale_value).to_numerical());
     }
-    pub(crate) fn enable_clipboard_retrieve<B: Bundle + Send + Sync + 'static>(&mut self) {
+    pub fn enable_clipboard_retrieve<B: Bundle + Send + Sync + 'static>(&mut self) {
         if !self
             .ecs
             .world
@@ -315,7 +319,7 @@ impl Elm {
                 .insert_resource(ClipboardRetrieveLimiter::<B>::default());
         }
     }
-    pub(crate) fn enable_retrieve<B: Bundle + Send + Sync + 'static>(&mut self) {
+    pub fn enable_retrieve<B: Bundle + Send + Sync + 'static>(&mut self) {
         if !self.ecs.world.contains_resource::<RetrieveLimiter<B>>() {
             self.scheduler
                 .main
@@ -325,7 +329,7 @@ impl Elm {
                 .insert_resource(RetrieveLimiter::<B>::default());
         }
     }
-    pub(crate) fn enable_derive<
+    pub fn enable_derive<
         D: Resource + Send + Sync + 'static + Clone,
         B: Bundle + Send + Sync + 'static + Clone,
     >(

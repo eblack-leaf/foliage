@@ -1,11 +1,11 @@
 use crate::color::Color;
+use crate::element::{IdTable, TargetHandle};
 use crate::elm::{Elm, ScheduleMarkers};
 use crate::interaction::ClickInteractionListener;
 use crate::Leaf;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs};
 use bevy_ecs::query::{Changed, Or};
 use bevy_ecs::system::{Commands, Query, Res};
-use crate::element::{IdTable, TargetHandle};
 
 pub(crate) struct Style;
 impl Leaf for Style {
@@ -44,7 +44,7 @@ pub(crate) fn alternate_color_on_engage(
         )>,
     >,
     mut cmd: Commands,
-    id_table: Res<IdTable>
+    id_table: Res<IdTable>,
 ) {
     for (mut color, alt, listener) in alts.iter_mut() {
         if listener.engaged_start && !listener.engaged_end {

@@ -1,14 +1,29 @@
+use crate::coordinate::area::Area;
+use crate::coordinate::layer::Layer;
+use crate::coordinate::position::Position;
+use crate::coordinate::LogicalContext;
+use crate::grid::{Grid, GridPlacement, Layout, LayoutGrid};
+use bevy_ecs::change_detection::Res;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::Resource;
+use bevy_ecs::prelude::{Changed, Component, DetectChanges, ParamSet, Query, Resource};
+use bevy_ecs::query::{Or, With};
 use std::collections::{HashMap, HashSet};
-
-pub struct Root(pub TargetHandle);
+use bevy_ecs::bundle::Bundle;
+use crate::coordinate::placement::Placement;
+#[derive(Bundle)]
+pub struct Element {
+    root: Root,
+    dependents: Dependents,
+    placement: Placement<LogicalContext>,
+}
+#[derive(Default, Component)]
+pub struct Root(pub Option<TargetHandle>);
 impl Root {
     pub fn new<TH: Into<TargetHandle>>(th: TH) -> Self {
-        Self(th.into())
+        Self(Some(th.into()))
     }
 }
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Component)]
 pub struct Dependents(pub HashSet<TargetHandle>);
 impl Dependents {
     pub fn new<THS: AsRef<[TargetHandle]>>(ths: THS) -> Self {
@@ -18,6 +33,48 @@ impl Dependents {
             set.insert(th);
         }
         Self(set)
+    }
+}
+pub(crate) fn recursive_placement(
+    mut elements: ParamSet<(
+        Query<
+            (),
+            (
+                Or<(
+                    Changed<Grid>,
+                    Changed<GridPlacement>,
+                    Changed<Root>,
+                    Changed<Dependents>,
+                )>,
+                With<GridPlacement>,
+                With<Root>,
+                With<Dependents>,
+            ),
+        >,
+        Query<(
+            Entity,
+            &GridPlacement,
+            Option<&Grid>,
+            &Root,
+            &Dependents,
+            &Position<LogicalContext>,
+            &Area<LogicalContext>,
+            &Layer,
+        )>,
+        Query<(
+            Option<&mut Grid>,
+            &mut Position<LogicalContext>,
+            &mut Area<LogicalContext>,
+            &mut Layer,
+        )>,
+    )>,
+    id_table: Res<IdTable>,
+    layout: Res<Layout>,
+    layout_grid: Res<LayoutGrid>,
+) {
+    if layout.is_changed() || layout_grid.is_changed() || !elements.p0().is_empty() {
+        // loop p1 to gather changed
+        // commit changes to p2
     }
 }
 #[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
@@ -40,10 +97,16 @@ pub struct IdTable {
     pub(crate) actions: HashMap<ActionHandle, Entity>,
 }
 impl IdTable {
+    pub fn add_target<TH: Into<TargetHandle>>(&mut self, th: TH, entity: Entity) {
+        self.targets.insert(th.into(), entity);
+    }
+    pub fn add_action<AH: Into<ActionHandle>>(&mut self, ah: AH, entity: Entity) {
+        self.actions.insert(ah.into(), entity);
+    }
     pub fn lookup_target<TH: Into<TargetHandle>>(&self, th: TH) -> Entity {
-        todo!()
+        *self.targets.get(&th.into()).unwrap()
     }
     pub fn lookup_action<AH: Into<ActionHandle>>(&self, ah: AH) -> Entity {
-        todo!()
+        *self.actions.get(&ah.into()).unwrap()
     }
 }

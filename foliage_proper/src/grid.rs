@@ -13,7 +13,7 @@ use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, Coordinates, LogicalContext};
 use crate::ginkgo::viewport::ViewportHandle;
 
-#[derive(Clone)]
+#[derive(Clone, Component)]
 pub struct Grid {
     pub(crate) gap: Gap,
     placement: Placement<LogicalContext>,
@@ -223,42 +223,6 @@ pub struct GridException {
     vertical: GridRange,
     horizontal: GridRange,
 }
-pub(crate) fn place_from_root_grid(
-    mut placed: ParamSet<(
-        Query<(
-            &mut Position<LogicalContext>,
-            &mut Area<LogicalContext>,
-            &mut Layer,
-            &GridPlacement,
-        )>,
-        Query<
-            (
-                &mut Position<LogicalContext>,
-                &mut Area<LogicalContext>,
-                &mut Layer,
-                &GridPlacement,
-            ),
-            Changed<GridPlacement>,
-        >,
-    )>,
-    layout: Res<Layout>,
-    layout_grid: Res<LayoutGrid>,
-) {
-    for (mut pos, mut area, mut layer, grid_placement) in placed.p1().iter_mut() {
-        let placement = layout_grid.grid.place(grid_placement.clone(), *layout);
-        *pos = placement.section.position;
-        *area = placement.section.area;
-        *layer = placement.layer;
-    }
-    if layout_grid.is_changed() {
-        for (mut pos, mut area, mut layer, grid_placement) in placed.p0().iter_mut() {
-            let placement = layout_grid.grid.place(grid_placement.clone(), *layout);
-            *pos = placement.section.position;
-            *area = placement.section.area;
-            *layer = placement.layer;
-        }
-    }
-}
 #[derive(Copy, Clone, Default)]
 pub struct Padding {
     x: CoordinateUnit,
@@ -310,7 +274,7 @@ pub(crate) fn viewport_changes_layout(
 }
 #[derive(Resource)]
 pub struct LayoutGrid {
-    grid: Grid,
+    pub(crate) grid: Grid,
 }
 impl LayoutGrid {
     pub(crate) fn new(grid: Grid) -> Self {
