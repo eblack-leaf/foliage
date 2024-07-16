@@ -22,6 +22,10 @@ impl<'a> ElementHandle<'a> {
         self
     }
     pub fn with_filtered_attr<A: Bundle>(mut self, layout: Layout, a: A) -> Self {
+        // each filtered uses target (like anim) to give attr if layout-filter.accepts
+        // signal all on-layout change + let filters resolve
+        // so give comp to handle that here
+        // would need enable in main so maybe not
         todo!()
     }
     pub fn dependent_of<RTH: Into<TargetHandle>>(mut self, rth: RTH) -> Self {
@@ -56,6 +60,7 @@ impl<'a> ElmHandle<'a> {
     }
     pub fn remove_element<TH: Into<TargetHandle>>(&mut self, th: TH) {
         // queue remove of all dependents
+        // update id-table as necessary
         // remove from roots dependents
     }
     pub fn update_element<

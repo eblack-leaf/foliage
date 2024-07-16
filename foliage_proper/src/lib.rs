@@ -20,7 +20,7 @@ use crate::ash::{Ash, Render};
 use crate::asset::{Asset, AssetKey, AssetLoader};
 use crate::coordinate::area::Area;
 use crate::coordinate::{Coordinates, DeviceContext};
-use crate::element::IdTable;
+use crate::element::{ActionHandle, IdTable};
 use crate::elm::Elm;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::{Ginkgo, ScaleFactor};
@@ -99,6 +99,9 @@ impl Foliage {
     }
     pub fn enable_signaled_action<A: Actionable>(&mut self) {
         self.elm.enable_action::<A>();
+    }
+    pub fn create_signaled_action<A: Actionable, AH: Into<ActionHandle>>(&mut self, ah: AH, a: A) {
+        todo!()
     }
     pub fn load_icon<ID: Into<IconId>, B: AsRef<[u8]>>(&mut self, id: ID, bytes: B) {
         self.spawn(IconRequest::new(id, bytes.as_ref().to_vec()));
