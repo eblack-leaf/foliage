@@ -1,5 +1,5 @@
 use crate::element::{ActionHandle, Element, IdTable, TargetHandle};
-use crate::grid::Layout;
+use crate::grid::{Grid, GridPlacement, Layout};
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Bundle, Changed, Commands, Entity, Query, World};
 use bevy_ecs::system::Command;
@@ -35,12 +35,22 @@ impl<'a> ElementHandle<'a> {
     }
 }
 impl<'a> ElmHandle<'a> {
+    // convenience for making top level
+    pub fn add_container<TH: Into<TargetHandle>>(
+        &mut self,
+        th: TH,
+        grid_placement: GridPlacement,
+        grid: Grid,
+    ) -> ElementHandle<'a> {
+        todo!()
+    }
     pub fn add_element<
         TH: Into<TargetHandle>,
         EFN: FnOnce(ElementHandle<'a>) -> ElementHandle<'a>,
     >(
         &mut self,
         th: TH,
+        grid_placement: GridPlacement,
         e_fn: EFN,
     ) {
         let entity = self
@@ -56,6 +66,11 @@ impl<'a> ElmHandle<'a> {
             .get_resource_mut::<IdTable>()
             .unwrap()
             .add_target(target.clone(), entity);
+        self.world_handle
+            .as_mut()
+            .unwrap()
+            .entity_mut(entity)
+            .insert(grid_placement);
         self.update_element(target, e_fn);
     }
     pub fn remove_element<TH: Into<TargetHandle>>(&mut self, th: TH) {
