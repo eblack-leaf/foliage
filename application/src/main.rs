@@ -7,8 +7,9 @@ use foliage::Foliage;
 #[derive(Clone)]
 struct OtherStuff {}
 impl Actionable for OtherStuff {
-    fn apply(self, handle: ElmHandle) {
+    fn apply(self, mut handle: ElmHandle) {
         println!("other");
+        handle.remove_element("first");
     }
 }
 #[derive(Clone)]

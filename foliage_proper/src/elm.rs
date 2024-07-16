@@ -213,24 +213,24 @@ impl Elm {
                 ScheduleMarkers::Events,
                 ScheduleMarkers::External,
                 ScheduleMarkers::Interaction,
-                ScheduleMarkers::SignalConfirmation,
+                ScheduleMarkers::Unused1,
                 ScheduleMarkers::Action,
-                ScheduleMarkers::SignalStage,
-                ScheduleMarkers::StageActions,
+                ScheduleMarkers::Unused2,
+                ScheduleMarkers::Unused3,
                 ScheduleMarkers::Spawn,
-                ScheduleMarkers::SpawnFiltered,
+                ScheduleMarkers::Unused4,
                 ScheduleMarkers::Clean,
                 ScheduleMarkers::GridSemantics,
                 ScheduleMarkers::Preparation,
                 ScheduleMarkers::Config,
-                ScheduleMarkers::SignalConfirmationStart,
+                ScheduleMarkers::Unused5,
                 ScheduleMarkers::FinalizeCoordinate,
                 ScheduleMarkers::Differential,
             )
                 .chain(),
         );
         self.scheduler.main.add_systems((
-            crate::differential::remove.in_set(ScheduleMarkers::Differential),
+            crate::differential::remove.in_set(ScheduleMarkers::Clean),
             clear_signal.after(ScheduleMarkers::Differential),
         ));
         self.scheduler.main.add_systems((
@@ -242,24 +242,24 @@ impl Elm {
                 .before(ScheduleMarkers::Interaction),
             apply_deferred
                 .after(ScheduleMarkers::Interaction)
-                .before(ScheduleMarkers::SignalConfirmation),
+                .before(ScheduleMarkers::Unused1),
             apply_deferred
-                .after(ScheduleMarkers::SignalConfirmation)
+                .after(ScheduleMarkers::Unused1)
                 .before(ScheduleMarkers::Action),
             apply_deferred
                 .after(ScheduleMarkers::Action)
-                .before(ScheduleMarkers::SignalStage),
+                .before(ScheduleMarkers::Unused2),
             apply_deferred
-                .after(ScheduleMarkers::SignalStage)
-                .before(ScheduleMarkers::StageActions),
+                .after(ScheduleMarkers::Unused2)
+                .before(ScheduleMarkers::Unused3),
             apply_deferred
-                .after(ScheduleMarkers::StageActions)
+                .after(ScheduleMarkers::Unused3)
                 .before(ScheduleMarkers::Spawn),
             apply_deferred
                 .after(ScheduleMarkers::Spawn)
-                .before(ScheduleMarkers::SpawnFiltered),
+                .before(ScheduleMarkers::Unused4),
             apply_deferred
-                .after(ScheduleMarkers::SpawnFiltered)
+                .after(ScheduleMarkers::Unused4)
                 .before(ScheduleMarkers::Clean),
             apply_deferred
                 .after(ScheduleMarkers::Clean)
@@ -272,9 +272,9 @@ impl Elm {
                 .before(ScheduleMarkers::Config),
             apply_deferred
                 .after(ScheduleMarkers::Config)
-                .before(ScheduleMarkers::SignalConfirmationStart),
+                .before(ScheduleMarkers::Unused5),
             apply_deferred
-                .after(ScheduleMarkers::SignalConfirmationStart)
+                .after(ScheduleMarkers::Unused5)
                 .before(ScheduleMarkers::FinalizeCoordinate),
             apply_deferred
                 .after(ScheduleMarkers::FinalizeCoordinate)
@@ -389,16 +389,16 @@ pub enum ScheduleMarkers {
     Differential,
     Config,
     Spawn,
-    SpawnFiltered,
+    Unused4,
     Action,
-    SignalStage,
+    Unused2,
     External,
     GridSemantics,
-    SignalConfirmation,
-    SignalConfirmationStart,
+    Unused1,
+    Unused5,
     Clean,
     Interaction,
     Events,
-    StageActions,
+    Unused3,
     Preparation,
 }

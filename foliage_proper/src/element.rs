@@ -153,10 +153,10 @@ impl IdTable {
     pub fn add_action<AH: Into<ActionHandle>>(&mut self, ah: AH, entity: Entity) {
         self.actions.insert(ah.into(), entity);
     }
-    pub fn lookup_target<TH: Into<TargetHandle>>(&self, th: TH) -> Entity {
-        *self.targets.get(&th.into()).unwrap()
+    pub fn lookup_target<TH: Into<TargetHandle>>(&self, th: TH) -> Option<Entity> {
+        self.targets.get(&th.into()).copied()
     }
-    pub fn lookup_action<AH: Into<ActionHandle>>(&self, ah: AH) -> Entity {
-        *self.actions.get(&ah.into()).unwrap()
+    pub fn lookup_action<AH: Into<ActionHandle>>(&self, ah: AH) -> Option<Entity> {
+        self.actions.get(&ah.into()).copied()
     }
 }

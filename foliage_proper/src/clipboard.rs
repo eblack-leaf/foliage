@@ -65,7 +65,8 @@ impl<B: Bundle> Command for ClipboardRead<B> {
         let entity = world
             .get_resource::<IdTable>()
             .unwrap()
-            .lookup_target(self.target);
+            .lookup_target(self.target)
+            .unwrap();
         #[cfg(not(target_family = "wasm"))]
         {
             let message = world
