@@ -1,4 +1,4 @@
-use crate::element::{Element, IdTable, TargetHandle};
+use crate::element::{ActionHandle, Element, IdTable, TargetHandle};
 use crate::grid::Layout;
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Bundle, Changed, Commands, Entity, Query, World};
@@ -84,6 +84,13 @@ impl<'a> ElmHandle<'a> {
         // get current-root (if any)
         // + remove from that dependents
         // add to new dependents (of new root)
+    }
+    pub fn run_action<A: Actionable>(&mut self, a: A) {
+        let action = Action { data: a };
+        action.apply(self.world_handle.as_mut().unwrap());
+    }
+    pub fn create_signaled_action<A: Actionable, AH: Into<ActionHandle>>(&mut self, ah: AH, a: A) {
+        todo!()
     }
     fn lookup_target_entity<TH: Into<TargetHandle>>(&mut self, th: TH) -> Entity {
         self.world_handle

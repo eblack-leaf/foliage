@@ -97,7 +97,7 @@ impl Foliage {
             world_handle: Some(&mut self.elm.ecs.world),
         });
     }
-    pub fn enable_action<A: Actionable>(&mut self) {
+    pub fn enable_signaled_action<A: Actionable>(&mut self) {
         self.elm.enable_action::<A>();
     }
     pub fn load_icon<ID: Into<IconId>, B: AsRef<[u8]>>(&mut self, id: ID, bytes: B) {

@@ -3,6 +3,7 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::placement::Placement;
 use crate::coordinate::position::Position;
 use crate::coordinate::LogicalContext;
+use crate::differential::Remove;
 use crate::grid::{Grid, GridPlacement, Layout, LayoutGrid};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::change_detection::Res;
@@ -10,11 +11,13 @@ use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Changed, Component, DetectChanges, ParamSet, Query, Resource};
 use bevy_ecs::query::{Or, With};
 use std::collections::{HashMap, HashSet};
+
 #[derive(Bundle, Default)]
 pub struct Element {
     root: Root,
     dependents: Dependents,
     placement: Placement<LogicalContext>,
+    remove: Remove,
 }
 #[derive(Default, Component)]
 pub struct Root(pub Option<TargetHandle>);
@@ -73,9 +76,56 @@ pub(crate) fn recursive_placement(
     layout_grid: Res<LayoutGrid>,
 ) {
     if layout.is_changed() || layout_grid.is_changed() || !elements.p0().is_empty() {
-        // loop p1 to gather changed
-        // commit changes to p2
+        let roots = elements
+            .p1()
+            .iter()
+            .map(
+                |(entity, grid_placement, opt_grid, root, deps, pos, area, layer)| {
+                    if root.0.is_none() {
+                        return Some(entity);
+                    }
+                    None
+                },
+            )
+            .collect::<Vec<Option<Entity>>>();
+        for r in roots {
+            if let Some(r) = r {
+                let root_placement = Placement::default();
+                let chain = recursive_placement_inner(&elements.p1(), root_placement, r, &id_table);
+                for (entity, placement, new_grid_placement) in chain {
+                    if new_grid_placement.is_some() {
+                        if let Some(mut grid) = elements.p2().get_mut(entity).unwrap().0 {
+                            *grid = grid.clone().placed_at(new_grid_placement.unwrap());
+                        }
+                    }
+                    *elements.p2().get_mut(entity).unwrap().1 = placement.section.position;
+                    *elements.p2().get_mut(entity).unwrap().2 = placement.section.area;
+                    *elements.p2().get_mut(entity).unwrap().3 = placement.layer;
+                }
+            }
+        }
     }
+}
+fn recursive_placement_inner(
+    query: &Query<(
+        Entity,
+        &GridPlacement,
+        Option<&Grid>,
+        &Root,
+        &Dependents,
+        &Position<LogicalContext>,
+        &Area<LogicalContext>,
+        &Layer,
+    )>,
+    root_placement: Placement<LogicalContext>,
+    current_entity: Entity,
+    id_table: &IdTable,
+) -> Vec<(
+    Entity,
+    Placement<LogicalContext>,
+    Option<Placement<LogicalContext>>,
+)> {
+    todo!()
 }
 #[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct TargetHandle(pub String);

@@ -131,7 +131,7 @@ pub(crate) fn differential<D: Component + PartialEq + Clone + Send + Sync + 'sta
         }
     }
 }
-#[derive(Component, Copy, Clone)]
+#[derive(Component, Copy, Clone, Default)]
 pub struct Remove {
     should_remove: bool,
 }
