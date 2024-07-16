@@ -679,8 +679,10 @@ impl Render for Text {
                     recorder
                         .0
                         .draw(0..VERTICES.len() as u32, 0..group.instances.num_instances());
+                    renderer.directive_manager.fill(*entity, recorder.finish());
+                } else {
+                    renderer.directive_manager.remove(*entity);
                 }
-                renderer.directive_manager.fill(*entity, recorder.finish());
                 group.should_record = false;
             }
         }

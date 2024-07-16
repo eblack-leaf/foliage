@@ -90,8 +90,16 @@ pub(crate) fn recursive_placement(
             .collect::<Vec<Option<Entity>>>();
         for r in roots {
             if let Some(r) = r {
-                let root_placement = Placement::default();
-                let chain = recursive_placement_inner(&elements.p1(), root_placement, r, &id_table);
+                let root_placement = layout_grid
+                    .grid
+                    .place(elements.p1().get(r).unwrap().1.clone(), *layout);
+                let chain = recursive_placement_inner(
+                    &elements.p1(),
+                    root_placement,
+                    r,
+                    &id_table,
+                    *layout,
+                );
                 for (entity, placement, new_grid_placement) in chain {
                     if new_grid_placement.is_some() {
                         if let Some(mut grid) = elements.p2().get_mut(entity).unwrap().0 {
@@ -117,15 +125,40 @@ fn recursive_placement_inner(
         &Area<LogicalContext>,
         &Layer,
     )>,
-    root_placement: Placement<LogicalContext>,
+    current_placement: Placement<LogicalContext>,
     current_entity: Entity,
     id_table: &IdTable,
+    layout: Layout,
 ) -> Vec<(
     Entity,
     Placement<LogicalContext>,
     Option<Placement<LogicalContext>>,
 )> {
-    todo!()
+    let mut placed = vec![];
+    if query.get(current_entity).unwrap().4 .0.is_empty() {
+        return placed;
+    }
+    let grid = query
+        .get(current_entity)
+        .unwrap()
+        .2
+        .unwrap()
+        .clone()
+        .placed_at(current_placement);
+    placed.push((current_entity, current_placement, Some(current_placement)));
+    for dep in query.get(current_entity).unwrap().4 .0.iter() {
+        let dep_entity = id_table.lookup_target(dep.clone()).unwrap();
+        let dep_grid_placement = query.get(dep_entity).unwrap().1.clone();
+        let dep_placement = grid.place(dep_grid_placement, layout);
+        if query.get(dep_entity).unwrap().4 .0.is_empty() {
+            placed.push((dep_entity, dep_placement, None));
+        } else {
+            let recursion =
+                recursive_placement_inner(query, dep_placement, dep_entity, id_table, layout);
+            placed.extend(recursion);
+        }
+    }
+    placed
 }
 #[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct TargetHandle(pub String);

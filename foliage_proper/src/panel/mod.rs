@@ -380,8 +380,10 @@ impl Render for Panel {
                 0..VERTICES.len() as u32,
                 0..renderer.resource_handle.instances.num_instances(),
             );
+            let directive = recorder.finish();
+            renderer.directive_manager.fill(0, directive);
+        } else {
+            renderer.directive_manager.remove(0);
         }
-        let directive = recorder.finish();
-        renderer.directive_manager.fill(0, directive);
     }
 }

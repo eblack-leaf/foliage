@@ -557,8 +557,10 @@ impl Render for Image {
                     recorder
                         .0
                         .draw(0..VERTICES.len() as u32, 0..group.instances.num_instances());
+                    renderer.directive_manager.fill(*slot_id, recorder.finish());
+                } else {
+                    renderer.directive_manager.remove(*slot_id);
                 }
-                renderer.directive_manager.fill(*slot_id, recorder.finish());
                 group.should_record = false;
             }
         }
