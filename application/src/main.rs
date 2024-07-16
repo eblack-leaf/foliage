@@ -16,14 +16,20 @@ struct Stuff {}
 impl Actionable for Stuff {
     fn apply(self, mut handle: ElmHandle) {
         println!("stuff");
-        handle.add_element("first", GridPlacement::new(1.span(4), 1.span(4)), |e| {
-            e.with_attr(Panel::new(Rounding::default(), Color::WHITE))
-        });
+        handle.add_element(
+            "first",
+            GridPlacement::new(1.span(4), 1.span(4)),
+            None,
+            |e| e.with_attr(Panel::new(Rounding::default(), Color::WHITE)),
+        );
         handle.run_action(OtherStuff {});
         println!("almost-finished-stuff");
-        handle.add_element("second", GridPlacement::new(5.span(4), 1.span(4)), |e| {
-            e.with_attr(())
-        })
+        handle.add_element(
+            "second",
+            GridPlacement::new(5.span(4), 1.span(4)),
+            None,
+            |e| e.with_attr(()),
+        );
     }
 }
 fn main() {

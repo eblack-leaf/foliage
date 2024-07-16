@@ -36,13 +36,13 @@ impl<'a> ElementHandle<'a> {
 }
 impl<'a> ElmHandle<'a> {
     pub fn add_element<
-        RTH: Into<TargetHandle>,
         TH: Into<TargetHandle>,
         EFN: FnOnce(ElementHandle<'a>) -> ElementHandle<'a>,
     >(
         &mut self,
         th: TH,
         grid_placement: GridPlacement,
+        grid: Option<Grid>,
         e_fn: EFN,
     ) {
         let entity = self
@@ -63,6 +63,13 @@ impl<'a> ElmHandle<'a> {
             .unwrap()
             .entity_mut(entity)
             .insert(grid_placement);
+        if let Some(g) = grid {
+            self.world_handle
+                .as_mut()
+                .unwrap()
+                .entity_mut(entity)
+                .insert(g);
+        }
         self.update_element(target, e_fn);
     }
     pub fn remove_element<TH: Into<TargetHandle>>(&mut self, th: TH) {
