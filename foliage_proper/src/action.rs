@@ -35,16 +35,8 @@ impl<'a> ElementHandle<'a> {
     }
 }
 impl<'a> ElmHandle<'a> {
-    // convenience for making top level
-    pub fn add_container<TH: Into<TargetHandle>>(
-        &mut self,
-        th: TH,
-        grid_placement: GridPlacement,
-        grid: Grid,
-    ) -> ElementHandle<'a> {
-        todo!()
-    }
     pub fn add_element<
+        RTH: Into<TargetHandle>,
         TH: Into<TargetHandle>,
         EFN: FnOnce(ElementHandle<'a>) -> ElementHandle<'a>,
     >(
