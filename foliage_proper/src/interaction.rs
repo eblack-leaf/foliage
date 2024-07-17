@@ -182,13 +182,13 @@ impl ClickInteractionShape {
 #[derive(Component, Clone)]
 pub struct OnClick(pub(crate) HashSet<ActionHandle>);
 impl OnClick {
-    pub fn new(action_handle: ActionHandle) -> Self {
+    pub fn new<AH: Into<ActionHandle>>(action_handle: AH) -> Self {
         let mut this = Self(HashSet::new());
-        this.0.insert(action_handle);
+        this.0.insert(action_handle.into());
         this
     }
-    pub fn with(mut self, action_handle: ActionHandle) -> Self {
-        self.0.insert(action_handle);
+    pub fn with<AH: Into<ActionHandle>>(mut self, action_handle: AH) -> Self {
+        self.0.insert(action_handle.into());
         self
     }
 }
