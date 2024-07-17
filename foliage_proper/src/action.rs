@@ -134,6 +134,23 @@ impl<'a> ElementHandle<'a> {
     }
 }
 impl<'a> ElmHandle<'a> {
+    pub fn update_attr_for<C: Component, CFN: FnOnce(&mut C), TH: Into<TargetHandle>>(
+        &mut self,
+        th: TH,
+        c_fn: CFN,
+    ) {
+        let handle = th.into();
+        let entity = self
+            .lookup_target_entity(handle)
+            .expect("non-existent target handle");
+        let mut comp = self
+            .world_handle
+            .as_mut()
+            .unwrap()
+            .get_mut::<C>(entity)
+            .unwrap();
+        c_fn(comp.as_mut());
+    }
     pub fn add_element<
         TH: Into<TargetHandle>,
         EFN: FnOnce(ElementHandle<'a>) -> ElementHandle<'a>,

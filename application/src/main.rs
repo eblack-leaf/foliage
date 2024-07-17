@@ -12,6 +12,8 @@ impl Actionable for DeleteTest {
     fn apply(self, mut handle: ElmHandle) {
         handle.remove_element("first-sub-sub");
         handle.update_element("icon-change-test", |e| e.with_attr(IconId(1)));
+        handle.update_attr_for("icon-change-test", |id: &mut IconId| id.0 = 2);
+        // handle.remove_element("second");
     }
 }
 #[derive(Clone)]
@@ -30,7 +32,7 @@ impl Actionable for OtherStuff {
         );
         handle.add_element(
             "first-sub-sub",
-            GridPlacement::new(1.span(1), 1.span(1)).offset_layer(-2),
+            GridPlacement::new(1.span(1), 1.span(1)).offset_layer(-1),
             Option::from(Grid::new(1, 1)),
             |e| {
                 e.with_attr(Panel::new(Rounding::default(), Grey::BASE))
@@ -39,7 +41,7 @@ impl Actionable for OtherStuff {
         );
         handle.add_element(
             "first-sub-sub-sub",
-            GridPlacement::new(1.span(1), 1.span(1)).offset_layer(-3),
+            GridPlacement::new(1.span(1), 1.span(1)).offset_layer(-1),
             Option::from(Grid::new(1, 1)),
             |e| {
                 e.with_attr(Panel::new(Rounding::default(), Grey::DARK))
@@ -49,7 +51,7 @@ impl Actionable for OtherStuff {
         handle.create_signaled_action("click-test", DeleteTest {});
         handle.add_element(
             "first-sub-sub-sub-sub",
-            GridPlacement::new(1.span(1), 1.span(1)).offset_layer(-4),
+            GridPlacement::new(1.span(1), 1.span(1)).offset_layer(-1),
             Option::from(Grid::new(1, 1)),
             |e| {
                 e.with_attr(Panel::new(Rounding::default(), Color::BLACK))
@@ -76,14 +78,14 @@ impl Actionable for Stuff {
         println!("stuff");
         handle.add_element(
             "first",
-            GridPlacement::new(1.span(4), 1.span(4)).offset_layer(10),
+            GridPlacement::new(1.span(4), 1.span(4)).offset_layer(5),
             Some(Grid::new(1, 1)),
             |e| e.with_attr(Panel::new(Rounding::default(), Color::WHITE)),
         );
         handle.add_element(
             "second",
             GridPlacement::new(5.span(4), 1.span(4)).offset_layer(3),
-            Some(Grid::new(4, 1)),
+            Some(Grid::new(4, 4)),
             |e| e.with_attr(Panel::new(Rounding::default(), Grey::BASE)),
         );
         handle.run_action(OtherStuff {});
@@ -96,6 +98,7 @@ fn main() {
     foliage.set_desktop_size((800, 360));
     foliage.load_icon(0, include_bytes!("assets/icons/at-sign.icon"));
     foliage.load_icon(1, include_bytes!("assets/icons/grid.icon"));
+    foliage.load_icon(2, include_bytes!("assets/icons/chevrons-left.icon"));
     foliage.enable_tracing(
         tracing_subscriber::filter::Targets::new().with_target("foliage", tracing::Level::TRACE),
     );
