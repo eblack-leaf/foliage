@@ -12,8 +12,8 @@ use bevy_ecs::system::Resource;
 use bevy_ecs::world::World;
 
 use crate::action::{
-    check_filter_scheduling, clear_signal, filter_attr_changed, filter_attr_layout_change,
-    remove_filter_schedule_check, signal_action, Actionable,
+    clear_signal, filter_attr_changed, filter_attr_layout_change,
+    signal_action, Actionable,
 };
 use crate::ash::Render;
 use crate::asset::on_retrieve;
@@ -157,7 +157,6 @@ impl Elm {
                 (
                     filter_attr_changed::<A>,
                     filter_attr_layout_change::<A>,
-                    remove_filter_schedule_check::<A>,
                 )
                     .in_set(ScheduleMarkers::Spawn),
             );
@@ -255,7 +254,7 @@ impl Elm {
         self.scheduler.main.add_systems((
             viewport_changes_layout.in_set(ScheduleMarkers::External),
             recursive_placement.in_set(ScheduleMarkers::GridSemantics),
-            (crate::differential::remove, check_filter_scheduling).in_set(ScheduleMarkers::Clean),
+            crate::differential::remove.in_set(ScheduleMarkers::Clean),
             clear_signal.after(ScheduleMarkers::Differential),
         ));
         self.scheduler.main.add_systems((

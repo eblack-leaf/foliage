@@ -7,6 +7,7 @@ use bevy_ecs::system::{Command, Res};
 
 use crate::differential::{Remove, RenderLink};
 use crate::element::{ActionHandle, Dependents, Element, IdTable, Root, TargetHandle};
+use crate::elm::{ActionLimiter, FilterAttrLimiter};
 use crate::grid::{Grid, GridPlacement, Layout, LayoutFilter};
 
 pub struct ElmHandle<'a> {
@@ -74,37 +75,6 @@ pub(crate) fn filter_attr_changed<A: Bundle + Send + Sync + 'static + Clone>(
         // if removing + <A as HasRenderLink>::has_link() => send render-queue remove
     }
 }
-#[derive(Component)]
-pub(crate) struct FilterScheduleCheck {
-    id: TypeId,
-    counter: i32,
-}
-impl FilterScheduleCheck {
-    pub(crate) fn new<A: 'static>() -> Self {
-        Self {
-            id: TypeId::of::<A>(),
-            counter: 0,
-        }
-    }
-}
-pub(crate) fn remove_filter_schedule_check<A: Bundle + Send + Sync + 'static + Clone>(
-    checks: Query<(Entity, &FilterScheduleCheck)>,
-    mut cmd: Commands,
-) {
-    for (entity, check) in checks.iter() {
-        if check.id == TypeId::of::<A>() {
-            cmd.entity(entity).remove::<FilterScheduleCheck>();
-        }
-    }
-}
-pub(crate) fn check_filter_scheduling(mut checks: Query<&mut FilterScheduleCheck>) {
-    for mut check in checks.iter_mut() {
-        check.counter += 1;
-        if check.counter == 2 {
-            panic!("please add 'foliage.enable_filtering::<A>()' to schedule filtering")
-        }
-    }
-}
 impl<'a> ElementHandle<'a> {
     pub fn with_attr<A: Bundle>(mut self, a: A) -> Self {
         self.world_handle
@@ -118,11 +88,14 @@ impl<'a> ElementHandle<'a> {
         mut self,
         filtered_attribute: FilteredAttribute<A>,
     ) -> Self {
+        if !self.world_handle.as_ref().unwrap().contains_resource::<FilterAttrLimiter<A>>() {
+            panic!("enable filtering for this attribute type")
+        }
         self.world_handle
             .as_mut()
             .unwrap()
             .entity_mut(self.entity)
-            .insert((filtered_attribute, FilterScheduleCheck::new::<A>()));
+            .insert(filtered_attribute);
         self
     }
     pub fn dependent_of<RTH: Into<TargetHandle>>(mut self, rth: RTH) -> Self {
@@ -322,6 +295,9 @@ impl<'a> ElmHandle<'a> {
         action.apply(self.world_handle.as_mut().unwrap());
     }
     pub fn create_signaled_action<A: Actionable, AH: Into<ActionHandle>>(&mut self, ah: AH, a: A) {
+        if !self.world_handle.as_ref().unwrap().contains_resource::<ActionLimiter<A>>() {
+            panic!("please enable_signaled_action for this action type")
+        }
         let signaler = self
             .world_handle
             .as_mut()
