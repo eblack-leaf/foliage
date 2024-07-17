@@ -1,17 +1,5 @@
 use std::collections::HashMap;
 
-use bevy_ecs::bundle::Bundle;
-use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Component, IntoSystemConfigs};
-use bevy_ecs::query::{Changed, Or};
-use bevy_ecs::system::Query;
-use bytemuck::{Pod, Zeroable};
-use wgpu::{
-    include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor,
-    Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, PipelineLayoutDescriptor,
-    RenderPipeline, RenderPipelineDescriptor, ShaderStages, Texture, TextureAspect, TextureFormat,
-    TextureSampleType, TextureView, TextureViewDimension, VertexState, VertexStepMode,
-};
 use crate::action::HasRenderLink;
 use crate::ash::{Render, RenderDirectiveRecorder, RenderPhase, Renderer};
 use crate::coordinate::area::Area;
@@ -25,6 +13,18 @@ use crate::ginkgo::Ginkgo;
 use crate::instances::Instances;
 use crate::texture::TextureCoordinates;
 use crate::Leaf;
+use bevy_ecs::bundle::Bundle;
+use bevy_ecs::entity::Entity;
+use bevy_ecs::prelude::{Component, IntoSystemConfigs};
+use bevy_ecs::query::{Changed, Or};
+use bevy_ecs::system::Query;
+use bytemuck::{Pod, Zeroable};
+use wgpu::{
+    include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor,
+    Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, PipelineLayoutDescriptor,
+    RenderPipeline, RenderPipelineDescriptor, ShaderStages, Texture, TextureAspect, TextureFormat,
+    TextureSampleType, TextureView, TextureViewDimension, VertexState, VertexStepMode,
+};
 
 #[derive(Copy, Clone, Component, PartialEq)]
 pub struct AspectRatio(pub f32);

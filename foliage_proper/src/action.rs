@@ -18,9 +18,9 @@ pub struct ElementHandle<'a> {
 }
 pub struct FilteredAttributeConfig<A: Bundle + Send + Sync + 'static + Clone> {
     pub filter: LayoutFilter,
-    pub a: A
+    pub a: A,
 }
-impl<A> FilteredAttributeConfig<A> {
+impl<A: Bundle + Send + Sync + 'static + Clone> FilteredAttributeConfig<A> {
     pub fn new(layout: Layout, a: A) -> Self {
         Self {
             filter: layout.into(),
@@ -32,11 +32,9 @@ impl<A> FilteredAttributeConfig<A> {
 pub struct FilteredAttribute<A: Bundle + Send + Sync + 'static + Clone> {
     filtered: Vec<FilteredAttributeConfig<A>>,
 }
-impl<A> FilteredAttribute<A> {
+impl<A: Bundle + Send + Sync + 'static + Clone> FilteredAttribute<A> {
     pub fn new() -> Self {
-        Self {
-            filtered: vec![],
-        }
+        Self { filtered: vec![] }
     }
     pub fn with(mut self, layout: Layout, a: A) -> Self {
         self.filtered.push(FilteredAttributeConfig::new(layout, a));
@@ -61,7 +59,10 @@ pub(crate) fn filter_attr_layout_change<A: Bundle + Send + Sync + 'static + Clon
     }
 }
 pub(crate) fn filter_attr_changed<A: Bundle + Send + Sync + 'static + Clone>(
-    filtered: Query<(Entity, &FilteredAttribute<A>, Option<&RenderLink>), Changed<FilteredAttribute<A>>>,
+    filtered: Query<
+        (Entity, &FilteredAttribute<A>, Option<&RenderLink>),
+        Changed<FilteredAttribute<A>>,
+    >,
     layout: Res<Layout>,
     mut cmd: Commands,
 ) {
@@ -79,11 +80,18 @@ impl<'a> ElementHandle<'a> {
             .insert(a);
         self
     }
-    pub fn with_filtered_attr<A: Bundle>(mut self, filtered_attribute: FilteredAttribute<A>) -> Self {
+    pub fn with_filtered_attr<A: Bundle + Send + Sync + 'static + Clone>(
+        mut self,
+        filtered_attribute: FilteredAttribute<A>,
+    ) -> Self {
         // could spawn one-shot component to check if scheduler has function, if still there after delete round,
         // panic and say reason cause nothing scheduled to remove it (counter on component + if reaches 2 rounds => panic)
         // system in enable_filtering => removes component before 2nd round
-        self.world_handle.as_mut().unwrap().entity_mut(self.entity).insert(filtered_attribute);
+        self.world_handle
+            .as_mut()
+            .unwrap()
+            .entity_mut(self.entity)
+            .insert(filtered_attribute);
         self
     }
     pub fn dependent_of<RTH: Into<TargetHandle>>(mut self, rth: RTH) -> Self {

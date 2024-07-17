@@ -9,26 +9,26 @@ use bytemuck::{Pod, Zeroable};
 use fontdue::layout::CoordinateSystem;
 use serde::{Deserialize, Serialize};
 use wgpu::{
-    BindGroup, BindGroupDescriptor, BindGroupLayoutDescriptor, include_wgsl,
+    include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayoutDescriptor,
     PipelineLayoutDescriptor, RenderPipelineDescriptor, ShaderStages, TextureFormat,
     TextureSampleType, TextureViewDimension, VertexState, VertexStepMode,
 };
 use wgpu::{BindGroupLayout, RenderPipeline};
 
 use crate::action::HasRenderLink;
-use crate::ash::{Render, RenderDirectiveRecorder, Renderer, RenderPhase};
+use crate::ash::{Render, RenderDirectiveRecorder, RenderPhase, Renderer};
 use crate::color::Color;
-use crate::coordinate::{Coordinates, DeviceContext, LogicalContext};
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::{GpuSection, Section};
+use crate::coordinate::{Coordinates, DeviceContext, LogicalContext};
 use crate::differential::{Differential, RenderLink};
 use crate::elm::{Elm, RenderQueueHandle, ScheduleMarkers};
 use crate::ginkgo::{Ginkgo, ScaleFactor, VectorUniform};
 use crate::instances::Instances;
-use crate::Leaf;
 use crate::texture::{AtlasEntry, TextureAtlas, TextureCoordinates};
+use crate::Leaf;
 
 impl Leaf for Text {
     fn attach(elm: &mut Elm) {

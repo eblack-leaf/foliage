@@ -1,16 +1,5 @@
 use std::collections::HashMap;
 
-use bevy_ecs::bundle::Bundle;
-use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Component, IntoSystemConfigs};
-use bevy_ecs::query::{Changed, With};
-use bevy_ecs::system::Query;
-use bytemuck::{Pod, Zeroable};
-use wgpu::{
-    include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor,
-    PipelineLayoutDescriptor, RenderPipeline, RenderPipelineDescriptor, ShaderStages,
-    TextureFormat, TextureSampleType, TextureViewDimension, VertexState, VertexStepMode,
-};
 use crate::action::HasRenderLink;
 use crate::ash::{Render, RenderDirectiveRecorder, RenderPhase, Renderer};
 use crate::color::Color;
@@ -25,6 +14,17 @@ use crate::ginkgo::Ginkgo;
 use crate::instances::Instances;
 use crate::texture::Mips;
 use crate::Leaf;
+use bevy_ecs::bundle::Bundle;
+use bevy_ecs::entity::Entity;
+use bevy_ecs::prelude::{Component, IntoSystemConfigs};
+use bevy_ecs::query::{Changed, With};
+use bevy_ecs::system::Query;
+use bytemuck::{Pod, Zeroable};
+use wgpu::{
+    include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor,
+    PipelineLayoutDescriptor, RenderPipeline, RenderPipelineDescriptor, ShaderStages,
+    TextureFormat, TextureSampleType, TextureViewDimension, VertexState, VertexStepMode,
+};
 
 mod proc_gen;
 

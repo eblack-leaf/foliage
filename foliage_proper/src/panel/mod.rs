@@ -10,6 +10,7 @@ use wgpu::{
     VertexStepMode,
 };
 
+use crate::action::HasRenderLink;
 use crate::ash::{RenderDirectiveRecorder, RenderPhase, Renderer};
 use crate::color::Color;
 use crate::coordinate::area::Area;
@@ -22,7 +23,6 @@ use crate::elm::{RenderQueueHandle, ScheduleMarkers};
 use crate::ginkgo::{Ginkgo, ScaleFactor};
 use crate::instances::Instances;
 use crate::{Elm, Leaf, Render};
-use crate::action::HasRenderLink;
 
 impl Leaf for Panel {
     fn attach(elm: &mut Elm) {
