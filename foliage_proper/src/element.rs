@@ -15,23 +15,23 @@ use crate::differential::Remove;
 use crate::grid::{Grid, GridPlacement, Layout, LayoutGrid};
 
 #[derive(Bundle, Default)]
-pub struct Element {
+pub(crate) struct Element {
     root: Root,
     dependents: Dependents,
     placement: Placement<LogicalContext>,
     remove: Remove,
 }
 #[derive(Default, Component)]
-pub struct Root(pub Option<TargetHandle>);
+pub(crate) struct Root(pub(crate) Option<TargetHandle>);
 impl Root {
-    pub fn new<TH: Into<TargetHandle>>(th: TH) -> Self {
+    pub(crate) fn new<TH: Into<TargetHandle>>(th: TH) -> Self {
         Self(Some(th.into()))
     }
 }
 #[derive(Clone, PartialEq, Component, Default)]
-pub struct Dependents(pub HashSet<TargetHandle>);
+pub(crate) struct Dependents(pub(crate) HashSet<TargetHandle>);
 impl Dependents {
-    pub fn new<THS: AsRef<[TargetHandle]>>(ths: THS) -> Self {
+    pub(crate) fn new<THS: AsRef<[TargetHandle]>>(ths: THS) -> Self {
         let mut set = HashSet::new();
         for d in ths.as_ref() {
             let th = d.clone().into();
@@ -178,7 +178,7 @@ impl<S: AsRef<str>> From<S> for ActionHandle {
     }
 }
 #[derive(Resource, Default)]
-pub struct IdTable {
+pub(crate) struct IdTable {
     pub(crate) targets: HashMap<TargetHandle, Entity>,
     pub(crate) actions: HashMap<ActionHandle, Entity>,
 }

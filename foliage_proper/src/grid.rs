@@ -52,30 +52,31 @@ impl Grid {
         let mut placement = Placement::default();
         let horizontal_range = grid_placement.horizontal(config);
         let vertical_range = grid_placement.vertical(config);
-        placement.section.position = self.placement.section.position
-            + Position::logical((
-                self.column_size * horizontal_range.begin()
-                    + grid_placement.padding.x
-                    + self.gap.x * grid_placement.gap_ignore,
-                self.row_size * vertical_range.begin()
-                    + grid_placement.padding.y
-                    + self.gap.y * grid_placement.gap_ignore,
-            ));
-        placement.section.area = Area::logical((
-            self.column_size * horizontal_range.span()
-                - grid_placement.padding.x * 2f32
-                - self.gap.x * 2f32 * grid_placement.gap_ignore,
-            self.row_size * vertical_range.span()
-                - grid_placement.padding.y * 2f32
-                - self.gap.y * 2f32 * grid_placement.gap_ignore,
-        ));
-        placement.layer = self.placement.layer + grid_placement.layer_offset;
-        if let Some(fixed) = grid_placement.fixed_area {
-            let diff = placement.section.center()
-                - Section::new(placement.section.position, fixed).center();
-            placement.section.area = fixed.into();
-            placement.section.position += diff;
+        let mut x = self.column_size * horizontal_range.begin()
+            + grid_placement.padding.x
+            + self.gap.x * grid_placement.gap_ignore;
+        let mut y = self.row_size * vertical_range.begin()
+            + grid_placement.padding.y
+            + self.gap.y * grid_placement.gap_ignore;
+        let mut w = self.column_size * horizontal_range.span()
+            - grid_placement.padding.x * 2f32
+            - self.gap.x * 2f32 * grid_placement.gap_ignore;
+        if let Some(f) = grid_placement.horizontal.fixed_span {
+            let diff = w - f;
+            w = f as CoordinateUnit;
+            x += diff / 2f32;
         }
+        let mut h = self.row_size * vertical_range.span()
+            - grid_placement.padding.y * 2f32
+            - self.gap.y * 2f32 * grid_placement.gap_ignore;
+        if let Some(f) = grid_placement.vertical.fixed_span {
+            let diff = h - f;
+            h = f as CoordinateUnit;
+            y += diff / 2f32;
+        }
+        placement.section.position = self.placement.section.position + Position::logical((x, y));
+        placement.section.area = Area::logical((w, h));
+        placement.layer = self.placement.layer + grid_placement.layer_offset;
         placement
     }
 }
@@ -92,7 +93,6 @@ pub struct GridPlacement {
     padding: Padding,
     gap_ignore: f32,
     exceptions: Vec<GridException>,
-    fixed_area: Option<Coordinates>,
 }
 pub struct LayoutConfig {
     layouts: Vec<Layout>,
@@ -161,12 +161,7 @@ impl GridPlacement {
             padding: Padding::default(),
             gap_ignore: 1.0,
             exceptions: vec![],
-            fixed_area: None,
         }
-    }
-    pub fn fixed_area<C: Into<Coordinates>>(mut self, c: C) -> Self {
-        self.fixed_area.replace(c.into());
-        self
     }
     pub fn offset_layer<L: Into<Layer>>(mut self, l: L) -> Self {
         self.layer_offset = l.into();
@@ -189,13 +184,19 @@ impl GridCoordinate for i32 {
 pub struct GridRange {
     start: GridIndex,
     span: GridIndex,
+    fixed_span: Option<CoordinateUnit>,
 }
 impl GridRange {
     pub fn new<IA: Into<GridIndex>, IB: Into<GridIndex>>(start: IA, span: IB) -> Self {
         Self {
             start: start.into(),
             span: span.into(),
+            fixed_span: None,
         }
+    }
+    pub fn fixed_span(mut self, w: i32) -> Self {
+        self.fixed_span.replace(w as CoordinateUnit);
+        self
     }
     pub(crate) fn begin(&self) -> CoordinateUnit {
         (self.start.base - 1) as CoordinateUnit
