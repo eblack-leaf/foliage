@@ -1,12 +1,12 @@
 use std::collections::HashSet;
 
 use bevy_ecs::component::Component;
-use bevy_ecs::prelude::{Bundle, Changed, Commands, Entity, Query, World};
-use bevy_ecs::system::Command;
+use bevy_ecs::prelude::{Bundle, Changed, Commands, DetectChanges, Entity, Query, World};
+use bevy_ecs::system::{Command, Res};
 
-use crate::differential::Remove;
+use crate::differential::{Remove, RenderLink};
 use crate::element::{ActionHandle, Dependents, Element, IdTable, Root, TargetHandle};
-use crate::grid::{Grid, GridPlacement, Layout};
+use crate::grid::{Grid, GridPlacement, Layout, LayoutFilter};
 
 pub struct ElmHandle<'a> {
     pub(crate) world_handle: Option<&'a mut World>,
@@ -15,6 +15,60 @@ pub struct ElementHandle<'a> {
     pub(crate) world_handle: Option<&'a mut World>,
     pub(crate) handle: TargetHandle,
     pub(crate) entity: Entity,
+}
+pub struct FilteredAttributeConfig<A: Bundle + Send + Sync + 'static + Clone> {
+    pub filter: LayoutFilter,
+    pub a: A
+}
+impl<A> FilteredAttributeConfig<A> {
+    pub fn new(layout: Layout, a: A) -> Self {
+        Self {
+            filter: layout.into(),
+            a,
+        }
+    }
+}
+#[derive(Component)]
+pub struct FilteredAttribute<A: Bundle + Send + Sync + 'static + Clone> {
+    filtered: Vec<FilteredAttributeConfig<A>>,
+}
+impl<A> FilteredAttribute<A> {
+    pub fn new() -> Self {
+        Self {
+            filtered: vec![],
+        }
+    }
+    pub fn with(mut self, layout: Layout, a: A) -> Self {
+        self.filtered.push(FilteredAttributeConfig::new(layout, a));
+        self
+    }
+}
+pub trait HasRenderLink {
+    fn has_link() -> bool {
+        false
+    }
+}
+pub(crate) fn filter_attr_layout_change<A: Bundle + Send + Sync + 'static + Clone>(
+    filtered: Query<(Entity, &FilteredAttribute<A>, Option<&RenderLink>)>,
+    layout: Res<Layout>,
+    mut cmd: Commands,
+) {
+    if layout.is_changed() {
+        for (entity, filter_attr, opt_link) in filtered.iter() {
+            // if we have match then give else remove<A>
+            // if removing + <A as HasRenderLink>::has_link() => send render-queue remove
+        }
+    }
+}
+pub(crate) fn filter_attr_changed<A: Bundle + Send + Sync + 'static + Clone>(
+    filtered: Query<(Entity, &FilteredAttribute<A>, Option<&RenderLink>), Changed<FilteredAttribute<A>>>,
+    layout: Res<Layout>,
+    mut cmd: Commands,
+) {
+    for (entity, filtered_attr, opt_link) in filtered.iter() {
+        // if we have match then give else remove<A>
+        // if removing + <A as HasRenderLink>::has_link() => send render-queue remove
+    }
 }
 impl<'a> ElementHandle<'a> {
     pub fn with_attr<A: Bundle>(mut self, a: A) -> Self {
@@ -25,12 +79,12 @@ impl<'a> ElementHandle<'a> {
             .insert(a);
         self
     }
-    pub fn with_filtered_attr<A: Bundle>(mut self, layout: Layout, a: A) -> Self {
-        // each filtered uses target (like anim) to give attr if layout-filter.accepts
-        // signal all on-layout change + let filters resolve
-        // so give comp to handle that here
-        // would need enable in main so maybe not
-        todo!()
+    pub fn with_filtered_attr<A: Bundle>(mut self, filtered_attribute: FilteredAttribute<A>) -> Self {
+        // could spawn one-shot component to check if scheduler has function, if still there after delete round,
+        // panic and say reason cause nothing scheduled to remove it (counter on component + if reaches 2 rounds => panic)
+        // system in enable_filtering => removes component before 2nd round
+        self.world_handle.as_mut().unwrap().entity_mut(self.entity).insert(filtered_attribute);
+        self
     }
     pub fn dependent_of<RTH: Into<TargetHandle>>(mut self, rth: RTH) -> Self {
         // lookup root

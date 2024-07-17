@@ -11,7 +11,7 @@ use wgpu::{
     PipelineLayoutDescriptor, RenderPipeline, RenderPipelineDescriptor, ShaderStages,
     TextureFormat, TextureSampleType, TextureViewDimension, VertexState, VertexStepMode,
 };
-
+use crate::action::HasRenderLink;
 use crate::ash::{Render, RenderDirectiveRecorder, RenderPhase, Renderer};
 use crate::color::Color;
 use crate::coordinate::area::Area;
@@ -38,9 +38,14 @@ impl Leaf for Icon {
         elm.scheduler
             .main
             .add_systems(icon_scale.in_set(ScheduleMarkers::Config));
+        elm.enable_filtering::<Icon>();
     }
 }
-
+impl HasRenderLink for Icon {
+    fn has_link() -> bool {
+        true
+    }
+}
 fn icon_scale(
     mut icons: Query<
         (&mut Position<LogicalContext>, &mut Area<LogicalContext>),

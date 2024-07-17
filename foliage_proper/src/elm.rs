@@ -11,7 +11,9 @@ use bevy_ecs::schedule::ExecutorKind;
 use bevy_ecs::system::Resource;
 use bevy_ecs::world::World;
 
-use crate::action::{clear_signal, signal_action, Actionable};
+use crate::action::{
+    clear_signal, filter_attr_changed, filter_attr_layout_change, signal_action, Actionable,
+};
 use crate::ash::Render;
 use crate::asset::on_retrieve;
 use crate::clipboard::{read_retrieve, Clipboard};
@@ -64,9 +66,9 @@ pub struct Elm {
 }
 
 #[derive(Resource)]
-pub(crate) struct DifferentialScheduleLimiter<D>(PhantomData<D>);
+pub(crate) struct DifferentialLimiter<D>(PhantomData<D>);
 
-impl<D> Default for DifferentialScheduleLimiter<D> {
+impl<D> Default for DifferentialLimiter<D> {
     fn default() -> Self {
         Self(PhantomData)
     }
@@ -119,6 +121,14 @@ impl<D, B> Default for DeriveLimiter<D, B> {
         Self(PhantomData, PhantomData)
     }
 }
+#[derive(Resource)]
+pub(crate) struct FilterAttrLimiter<D>(PhantomData<D>);
+
+impl<D> Default for FilterAttrLimiter<D> {
+    fn default() -> Self {
+        Self(PhantomData)
+    }
+}
 impl Elm {
     pub fn enable_action<A: Actionable>(&mut self) {
         if !self.ecs.world.contains_resource::<ActionLimiter<A>>() {
@@ -140,19 +150,26 @@ impl Elm {
             self.ecs.world.insert_resource(EventLimiter::<E>::default());
         }
     }
+    pub fn enable_filtering<A: Bundle + Send + Sync + 'static + Clone>(&mut self) {
+        if !self.ecs.world.contains_resource::<FilterAttrLimiter<A>>() {
+            self.scheduler.main.add_systems(
+                (filter_attr_changed::<A>, filter_attr_layout_change::<A>)
+                    .in_set(ScheduleMarkers::Unused3),
+            );
+            self.ecs
+                .world
+                .insert_resource(FilterAttrLimiter::<A>::default());
+        }
+    }
     pub fn enable_differential<R: Render, D: Component + PartialEq + Clone>(&mut self) {
-        if !self
-            .ecs
-            .world
-            .contains_resource::<DifferentialScheduleLimiter<D>>()
-        {
+        if !self.ecs.world.contains_resource::<DifferentialLimiter<D>>() {
             self.scheduler.main.add_systems((
                 differential::<D>.in_set(ScheduleMarkers::Differential),
                 added_invalidate::<D>.in_set(ScheduleMarkers::Differential),
             ));
             self.ecs
                 .world
-                .insert_resource(DifferentialScheduleLimiter::<D>::default())
+                .insert_resource(DifferentialLimiter::<D>::default())
         }
         if !self.ecs.world.contains_resource::<RenderAddQueue<D>>() {
             self.ecs

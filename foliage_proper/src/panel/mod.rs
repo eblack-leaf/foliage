@@ -22,6 +22,7 @@ use crate::elm::{RenderQueueHandle, ScheduleMarkers};
 use crate::ginkgo::{Ginkgo, ScaleFactor};
 use crate::instances::Instances;
 use crate::{Elm, Leaf, Render};
+use crate::action::HasRenderLink;
 
 impl Leaf for Panel {
     fn attach(elm: &mut Elm) {
@@ -35,9 +36,14 @@ impl Leaf for Panel {
         elm.scheduler
             .main
             .add_systems(percent_rounded_to_corner.in_set(ScheduleMarkers::Config));
+        elm.enable_filtering::<Panel>();
     }
 }
-
+impl HasRenderLink for Panel {
+    fn has_link() -> bool {
+        true
+    }
+}
 #[derive(Bundle, Clone)]
 pub struct Panel {
     render_link: RenderLink,

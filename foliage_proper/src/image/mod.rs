@@ -12,7 +12,7 @@ use wgpu::{
     RenderPipeline, RenderPipelineDescriptor, ShaderStages, Texture, TextureAspect, TextureFormat,
     TextureSampleType, TextureView, TextureViewDimension, VertexState, VertexStepMode,
 };
-
+use crate::action::HasRenderLink;
 use crate::ash::{Render, RenderDirectiveRecorder, RenderPhase, Renderer};
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
@@ -192,6 +192,12 @@ impl Leaf for Image {
             .main
             .add_systems(constrain.in_set(ScheduleMarkers::Config));
         elm.enable_retrieve::<Image>();
+        elm.enable_filtering::<Image>();
+    }
+}
+impl HasRenderLink for Image {
+    fn has_link() -> bool {
+        true
     }
 }
 #[repr(C)]
