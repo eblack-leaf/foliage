@@ -136,6 +136,7 @@ fn recursive_placement_inner(
 )> {
     let mut placed = vec![];
     if query.get(current_entity).unwrap().4 .0.is_empty() {
+        placed.push((current_entity, current_placement, None));
         return placed;
     }
     let grid = query

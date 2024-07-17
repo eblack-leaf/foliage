@@ -1,5 +1,5 @@
 use foliage::action::{Actionable, ElmHandle};
-use foliage::color::Color;
+use foliage::color::{Color, Grey, Monochromatic};
 use foliage::grid::{GridCoordinate, GridPlacement};
 use foliage::panel::{Panel, Rounding};
 use foliage::Foliage;
@@ -29,7 +29,7 @@ impl Actionable for Stuff {
             "second",
             GridPlacement::new(5.span(4), 1.span(4)),
             None,
-            |e| e.with_attr(()),
+            |e| e.with_attr(Panel::new(Rounding::default(), Grey::BASE)),
         );
     }
 }

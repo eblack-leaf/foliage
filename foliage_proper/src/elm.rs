@@ -12,10 +12,10 @@ use crate::derive::on_derive;
 use crate::differential::{
     added_invalidate, differential, RenderAddQueue, RenderLink, RenderPacket, RenderRemoveQueue,
 };
-use crate::element::IdTable;
+use crate::element::{IdTable, recursive_placement};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::ScaleFactor;
-use crate::grid::{Grid, Layout, LayoutGrid};
+use crate::grid::{Grid, Layout, LayoutGrid, viewport_changes_layout};
 use crate::interaction::{
     FocusedEntity, InteractiveEntity, KeyboardAdapter, MouseAdapter, TouchAdapter,
 };
@@ -230,6 +230,8 @@ impl Elm {
                 .chain(),
         );
         self.scheduler.main.add_systems((
+            viewport_changes_layout.in_set(ScheduleMarkers::External),
+            recursive_placement.in_set(ScheduleMarkers::GridSemantics),
             crate::differential::remove.in_set(ScheduleMarkers::Clean),
             clear_signal.after(ScheduleMarkers::Differential),
         ));

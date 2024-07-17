@@ -102,6 +102,7 @@ impl<'a> ElmHandle<'a> {
         // queue remove of all dependents
         let handle = th.into();
         let start = self.lookup_target_entity(handle.clone()).unwrap();
+        self.world_handle.as_mut().unwrap().get_resource_mut::<IdTable>().unwrap().targets.remove(&handle);
         self.world_handle
             .as_mut()
             .unwrap()
