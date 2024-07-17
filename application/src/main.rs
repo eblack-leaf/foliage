@@ -1,14 +1,17 @@
 use foliage::action::{Actionable, ElmHandle};
 use foliage::color::{Color, Grey, Monochromatic};
 use foliage::grid::{Grid, GridCoordinate, GridPlacement};
+use foliage::icon::{Icon, IconId};
 use foliage::interaction::{ClickInteractionListener, OnClick};
 use foliage::panel::{Panel, Rounding};
 use foliage::Foliage;
+
 #[derive(Clone)]
 struct DeleteTest {}
 impl Actionable for DeleteTest {
     fn apply(self, mut handle: ElmHandle) {
         handle.remove_element("first-sub-sub");
+        handle.update_element("icon-change-test", |e| e.with_attr(IconId(1)));
     }
 }
 #[derive(Clone)]
@@ -55,6 +58,15 @@ impl Actionable for OtherStuff {
                     .with_attr(ClickInteractionListener::new())
             },
         );
+        handle.add_element(
+            "icon-change-test",
+            GridPlacement::new(1.span(1), 1.span(1)).offset_layer(-1),
+            None,
+            |e| {
+                e.with_attr(Icon::new(0, Color::BLACK))
+                    .dependent_of("second")
+            },
+        )
     }
 }
 #[derive(Clone)]
@@ -68,20 +80,22 @@ impl Actionable for Stuff {
             Some(Grid::new(1, 1)),
             |e| e.with_attr(Panel::new(Rounding::default(), Color::WHITE)),
         );
-        handle.run_action(OtherStuff {});
-        println!("almost-finished-stuff");
         handle.add_element(
             "second",
-            GridPlacement::new(5.span(4), 1.span(4)),
-            None,
+            GridPlacement::new(5.span(4), 1.span(4)).offset_layer(3),
+            Some(Grid::new(4, 1)),
             |e| e.with_attr(Panel::new(Rounding::default(), Grey::BASE)),
         );
+        handle.run_action(OtherStuff {});
+        println!("almost-finished-stuff");
         // handle.remove_element("second");
     }
 }
 fn main() {
     let mut foliage = Foliage::new();
     foliage.set_desktop_size((800, 360));
+    foliage.load_icon(0, include_bytes!("assets/icons/at-sign.icon"));
+    foliage.load_icon(1, include_bytes!("assets/icons/grid.icon"));
     foliage.enable_tracing(
         tracing_subscriber::filter::Targets::new().with_target("foliage", tracing::Level::TRACE),
     );

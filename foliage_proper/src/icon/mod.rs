@@ -8,7 +8,7 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::{GpuSection, Section};
 use crate::coordinate::{Coordinates, LogicalContext};
-use crate::differential::{Differential, RenderLink};
+use crate::differential::{Differential, Remove, RenderLink, RenderPacket};
 use crate::elm::{Elm, RenderQueueHandle, ScheduleMarkers};
 use crate::ginkgo::Ginkgo;
 use crate::instances::Instances;
@@ -66,12 +66,14 @@ pub struct IconData(pub IconId, pub Vec<u8>);
 pub struct IconRequest {
     data: Differential<IconData>,
     link: RenderLink,
+    remove: Remove,
 }
 impl IconRequest {
     pub fn new<I: Into<IconId>>(id: I, data: Vec<u8>) -> Self {
         Self {
             data: Differential::new(IconData(id.into(), data)),
             link: RenderLink::new::<Icon>(),
+            remove: Default::default(),
         }
     }
 }
@@ -95,6 +97,31 @@ impl Icon {
             gpu_section: Differential::new(GpuSection::default()),
             id: Differential::new(id.into()),
             color: Differential::new(color),
+        }
+    }
+
+    fn write_mips(renderer: &mut Renderer<Icon>, ginkgo: &Ginkgo, entity: Entity) {
+        let packet: RenderPacket<GpuSection>;
+
+        let scale_factor = ginkgo.configuration().scale_factor.value();
+        if scale_factor == 3f32 {
+            renderer
+                .resource_handle
+                .group_mut_from_entity(entity)
+                .instances
+                .checked_write(entity, Mips(0f32));
+        } else if scale_factor == 2f32 {
+            renderer
+                .resource_handle
+                .group_mut_from_entity(entity)
+                .instances
+                .checked_write(entity, Mips(1f32));
+        } else {
+            renderer
+                .resource_handle
+                .group_mut_from_entity(entity)
+                .instances
+                .checked_write(entity, Mips(2f32));
         }
     }
 }
@@ -291,6 +318,44 @@ impl Render for Icon {
                 .add(packet.entity);
             if let Some(o) = old {
                 if o != packet.value {
+                    // send current cpu values over to new instance
+                    let gpu_sec = renderer
+                        .resource_handle
+                        .groups
+                        .get(&o)
+                        .unwrap()
+                        .instances
+                        .get_attr::<GpuSection>(packet.entity);
+                    renderer
+                        .resource_handle
+                        .group_mut_from_entity(packet.entity)
+                        .instances
+                        .checked_write(packet.entity, gpu_sec);
+                    Self::write_mips(renderer, ginkgo, packet.entity);
+                    let layer = renderer
+                        .resource_handle
+                        .groups
+                        .get(&o)
+                        .unwrap()
+                        .instances
+                        .get_attr::<Layer>(packet.entity);
+                    renderer
+                        .resource_handle
+                        .group_mut_from_entity(packet.entity)
+                        .instances
+                        .checked_write(packet.entity, layer);
+                    let color = renderer
+                        .resource_handle
+                        .groups
+                        .get(&o)
+                        .unwrap()
+                        .instances
+                        .get_attr::<Color>(packet.entity);
+                    renderer
+                        .resource_handle
+                        .group_mut_from_entity(packet.entity)
+                        .instances
+                        .checked_write(packet.entity, color);
                     renderer
                         .resource_handle
                         .groups
@@ -308,26 +373,7 @@ impl Render for Icon {
                 .group_mut_from_entity(packet.entity)
                 .instances
                 .checked_write(packet.entity, packet.value);
-            let scale_factor = ginkgo.configuration().scale_factor.value();
-            if scale_factor == 3f32 {
-                renderer
-                    .resource_handle
-                    .group_mut_from_entity(packet.entity)
-                    .instances
-                    .checked_write(packet.entity, Mips(0f32));
-            } else if scale_factor == 2f32 {
-                renderer
-                    .resource_handle
-                    .group_mut_from_entity(packet.entity)
-                    .instances
-                    .checked_write(packet.entity, Mips(1f32));
-            } else {
-                renderer
-                    .resource_handle
-                    .group_mut_from_entity(packet.entity)
-                    .instances
-                    .checked_write(packet.entity, Mips(2f32));
-            }
+            Self::write_mips(renderer, ginkgo, packet.entity);
         }
         for packet in queue_handle.read_adds::<Self, Layer>() {
             renderer

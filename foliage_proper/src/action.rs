@@ -88,7 +88,12 @@ impl<'a> ElementHandle<'a> {
         mut self,
         filtered_attribute: FilteredAttribute<A>,
     ) -> Self {
-        if !self.world_handle.as_ref().unwrap().contains_resource::<FilterAttrLimiter<A>>() {
+        if !self
+            .world_handle
+            .as_ref()
+            .unwrap()
+            .contains_resource::<FilterAttrLimiter<A>>()
+        {
             panic!("enable filtering for this attribute type")
         }
         self.world_handle
@@ -295,7 +300,12 @@ impl<'a> ElmHandle<'a> {
         action.apply(self.world_handle.as_mut().unwrap());
     }
     pub fn create_signaled_action<A: Actionable, AH: Into<ActionHandle>>(&mut self, ah: AH, a: A) {
-        if !self.world_handle.as_ref().unwrap().contains_resource::<ActionLimiter<A>>() {
+        if !self
+            .world_handle
+            .as_ref()
+            .unwrap()
+            .contains_resource::<ActionLimiter<A>>()
+        {
             panic!("please enable_signaled_action for this action type")
         }
         let signaler = self

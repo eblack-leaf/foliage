@@ -21,6 +21,16 @@ pub struct Instances<Key: Hash + Eq + Copy + Clone> {
 }
 
 impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
+    pub fn get_attr<A: Pod + Zeroable + Default>(&self, key: Key) -> A {
+        let index = self.map.get(&key).unwrap().clone();
+        self.world
+            .get_non_send_resource::<Attribute<A>>()
+            .unwrap()
+            .cpu
+            .get(index)
+            .expect("unmapped key")
+            .clone()
+    }
     pub fn num_instances(&self) -> u32 {
         self.order.len() as u32
     }
