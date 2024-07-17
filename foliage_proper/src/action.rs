@@ -98,7 +98,7 @@ pub(crate) fn remove_filter_schedule_check<A: Bundle + Send + Sync + 'static + C
     }
 }
 pub(crate) fn check_filter_scheduling(mut checks: Query<&mut FilterScheduleCheck>) {
-    for check in checks.iter_mut() {
+    for mut check in checks.iter_mut() {
         check.counter += 1;
         if check.counter == 2 {
             panic!("please add 'foliage.enable_filtering::<A>()' to schedule filtering")
