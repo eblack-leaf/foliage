@@ -101,7 +101,7 @@ impl<'a> ElmHandle<'a> {
     pub fn remove_element<TH: Into<TargetHandle>>(&mut self, th: TH) {
         // queue remove of all dependents
         let handle = th.into();
-        let start = self.lookup_target_entity(handle.clone()).unwrap();
+        let start = self.lookup_target_entity(handle.clone()).expect("attempting to remove non-existent element");
         self.world_handle.as_mut().unwrap().get_resource_mut::<IdTable>().unwrap().targets.remove(&handle);
         self.world_handle
             .as_mut()

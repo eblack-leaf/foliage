@@ -9,7 +9,7 @@ struct OtherStuff {}
 impl Actionable for OtherStuff {
     fn apply(self, mut handle: ElmHandle) {
         println!("other");
-        handle.remove_element("first");
+
     }
 }
 #[derive(Clone)]
@@ -31,6 +31,7 @@ impl Actionable for Stuff {
             None,
             |e| e.with_attr(Panel::new(Rounding::default(), Grey::BASE)),
         );
+        handle.remove_element("second");
     }
 }
 fn main() {
