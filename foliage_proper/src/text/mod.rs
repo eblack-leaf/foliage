@@ -1,3 +1,5 @@
+use std::collections::{HashMap, HashSet};
+
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs, Resource};
@@ -6,8 +8,6 @@ use bevy_ecs::system::{Query, Res};
 use bytemuck::{Pod, Zeroable};
 use fontdue::layout::CoordinateSystem;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
-use std::ops::Sub;
 use wgpu::{
     include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayoutDescriptor,
     PipelineLayoutDescriptor, RenderPipelineDescriptor, ShaderStages, TextureFormat,
@@ -28,6 +28,7 @@ use crate::ginkgo::{Ginkgo, ScaleFactor, VectorUniform};
 use crate::instances::Instances;
 use crate::texture::{AtlasEntry, TextureAtlas, TextureCoordinates};
 use crate::Leaf;
+
 impl Leaf for Text {
     fn attach(elm: &mut Elm) {
         elm.enable_differential::<Self, GpuSection>();

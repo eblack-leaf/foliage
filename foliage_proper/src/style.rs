@@ -1,11 +1,12 @@
+use bevy_ecs::prelude::{Component, IntoSystemConfigs};
+use bevy_ecs::query::{Changed, Or};
+use bevy_ecs::system::{Commands, Query, Res};
+
 use crate::color::Color;
 use crate::element::{IdTable, TargetHandle};
 use crate::elm::{Elm, ScheduleMarkers};
 use crate::interaction::ClickInteractionListener;
 use crate::Leaf;
-use bevy_ecs::prelude::{Component, IntoSystemConfigs};
-use bevy_ecs::query::{Changed, Or};
-use bevy_ecs::system::{Commands, Query, Res};
 
 pub(crate) struct Style;
 impl Leaf for Style {

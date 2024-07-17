@@ -1,4 +1,3 @@
-use crate::element::{IdTable, TargetHandle};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Entity, World};
@@ -9,6 +8,8 @@ use futures_channel::oneshot;
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::js_sys::Object;
 use web_sys::wasm_bindgen::prelude::wasm_bindgen;
+
+use crate::element::{IdTable, TargetHandle};
 
 #[derive(Clone)]
 pub struct ClipboardWrite {

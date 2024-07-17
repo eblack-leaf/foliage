@@ -1,11 +1,13 @@
+use std::collections::{HashMap, HashSet};
+use std::hash::Hash;
+
+use bevy_ecs::prelude::Component;
+use bytemuck::{Pod, Zeroable};
+use wgpu::{Texture, TextureFormat, TextureView};
+
 use crate::coordinate::section::Section;
 use crate::coordinate::{Coordinates, NumericalContext};
 use crate::ginkgo::Ginkgo;
-use bevy_ecs::prelude::Component;
-use bytemuck::{Pod, Zeroable};
-use std::collections::{HashMap, HashSet};
-use std::hash::Hash;
-use wgpu::{Texture, TextureFormat, TextureView};
 
 #[repr(C)]
 #[derive(Copy, Clone, Default, Debug, Component, PartialEq, Pod, Zeroable)]

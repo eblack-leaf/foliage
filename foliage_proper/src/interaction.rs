@@ -1,5 +1,13 @@
 use std::collections::{HashMap, HashSet};
 
+use bevy_ecs::entity::Entity;
+use bevy_ecs::event::{Event, EventReader};
+use bevy_ecs::prelude::{Component, IntoSystemConfigs};
+use bevy_ecs::system::{Query, Res, ResMut, Resource};
+use winit::dpi::PhysicalPosition;
+use winit::event::{ElementState, MouseButton, Touch, TouchPhase};
+use winit::keyboard::{Key, ModifiersState};
+
 use crate::action::Signal;
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
@@ -10,13 +18,6 @@ use crate::element::{ActionHandle, IdTable};
 use crate::elm::{Elm, ScheduleMarkers};
 use crate::ginkgo::ScaleFactor;
 use crate::Leaf;
-use bevy_ecs::entity::Entity;
-use bevy_ecs::event::{Event, EventReader};
-use bevy_ecs::prelude::{Component, IntoSystemConfigs};
-use bevy_ecs::system::{Query, Res, ResMut, Resource};
-use winit::dpi::PhysicalPosition;
-use winit::event::{ElementState, MouseButton, Touch, TouchPhase};
-use winit::keyboard::{Key, ModifiersState};
 
 #[derive(Resource, Default)]
 pub(crate) struct TouchAdapter {

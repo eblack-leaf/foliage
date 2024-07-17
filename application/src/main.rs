@@ -9,7 +9,6 @@ struct OtherStuff {}
 impl Actionable for OtherStuff {
     fn apply(self, mut handle: ElmHandle) {
         println!("other");
-
     }
 }
 #[derive(Clone)]

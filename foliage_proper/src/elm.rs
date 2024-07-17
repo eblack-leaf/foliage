@@ -1,6 +1,16 @@
 use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 
+use bevy_ecs::bundle::Bundle;
+use bevy_ecs::entity::Entity;
+use bevy_ecs::event::{event_update_system, Event, Events};
+use bevy_ecs::prelude::{
+    apply_deferred, Component, IntoSystemConfigs, IntoSystemSetConfigs, Schedule, SystemSet,
+};
+use bevy_ecs::schedule::ExecutorKind;
+use bevy_ecs::system::Resource;
+use bevy_ecs::world::World;
+
 use crate::action::{clear_signal, signal_action, Actionable};
 use crate::ash::Render;
 use crate::asset::on_retrieve;
@@ -12,23 +22,14 @@ use crate::derive::on_derive;
 use crate::differential::{
     added_invalidate, differential, RenderAddQueue, RenderLink, RenderPacket, RenderRemoveQueue,
 };
-use crate::element::{IdTable, recursive_placement};
+use crate::element::recursive_placement;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::ScaleFactor;
-use crate::grid::{Grid, Layout, LayoutGrid, viewport_changes_layout};
+use crate::grid::{viewport_changes_layout, Grid, Layout, LayoutGrid};
 use crate::interaction::{
     FocusedEntity, InteractiveEntity, KeyboardAdapter, MouseAdapter, TouchAdapter,
 };
 use crate::willow::Willow;
-use bevy_ecs::bundle::Bundle;
-use bevy_ecs::entity::Entity;
-use bevy_ecs::event::{event_update_system, Event, Events};
-use bevy_ecs::prelude::{
-    apply_deferred, Component, IntoSystemConfigs, IntoSystemSetConfigs, Schedule, SystemSet,
-};
-use bevy_ecs::schedule::ExecutorKind;
-use bevy_ecs::system::Resource;
-use bevy_ecs::world::World;
 
 #[derive(Default)]
 pub struct Scheduler {

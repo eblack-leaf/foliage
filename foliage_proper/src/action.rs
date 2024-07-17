@@ -1,10 +1,12 @@
-use crate::differential::Remove;
-use crate::element::{ActionHandle, Dependents, Element, IdTable, Root, TargetHandle};
-use crate::grid::{Grid, GridPlacement, Layout};
+use std::collections::HashSet;
+
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Bundle, Changed, Commands, Entity, Query, World};
 use bevy_ecs::system::Command;
-use std::collections::HashSet;
+
+use crate::differential::Remove;
+use crate::element::{ActionHandle, Dependents, Element, IdTable, Root, TargetHandle};
+use crate::grid::{Grid, GridPlacement, Layout};
 
 pub struct ElmHandle<'a> {
     pub(crate) world_handle: Option<&'a mut World>,
@@ -101,8 +103,16 @@ impl<'a> ElmHandle<'a> {
     pub fn remove_element<TH: Into<TargetHandle>>(&mut self, th: TH) {
         // queue remove of all dependents
         let handle = th.into();
-        let start = self.lookup_target_entity(handle.clone()).expect("attempting to remove non-existent element");
-        self.world_handle.as_mut().unwrap().get_resource_mut::<IdTable>().unwrap().targets.remove(&handle);
+        let start = self
+            .lookup_target_entity(handle.clone())
+            .expect("attempting to remove non-existent element");
+        self.world_handle
+            .as_mut()
+            .unwrap()
+            .get_resource_mut::<IdTable>()
+            .unwrap()
+            .targets
+            .remove(&handle);
         self.world_handle
             .as_mut()
             .unwrap()

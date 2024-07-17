@@ -1,3 +1,11 @@
+use std::collections::{HashMap, HashSet};
+
+use bevy_ecs::bundle::Bundle;
+use bevy_ecs::change_detection::Res;
+use bevy_ecs::entity::Entity;
+use bevy_ecs::prelude::{Changed, Component, DetectChanges, ParamSet, Query, Resource};
+use bevy_ecs::query::{Or, With};
+
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::placement::Placement;
@@ -5,12 +13,6 @@ use crate::coordinate::position::Position;
 use crate::coordinate::LogicalContext;
 use crate::differential::Remove;
 use crate::grid::{Grid, GridPlacement, Layout, LayoutGrid};
-use bevy_ecs::bundle::Bundle;
-use bevy_ecs::change_detection::Res;
-use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Changed, Component, DetectChanges, ParamSet, Query, Resource};
-use bevy_ecs::query::{Or, With};
-use std::collections::{HashMap, HashSet};
 
 #[derive(Bundle, Default)]
 pub struct Element {

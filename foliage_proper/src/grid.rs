@@ -1,9 +1,10 @@
+use std::collections::HashSet;
+
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::DetectChanges;
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{ParamSet, Query, Res, ResMut, Resource};
 use bitflags::bitflags;
-use std::collections::HashSet;
 
 use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;

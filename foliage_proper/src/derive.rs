@@ -1,6 +1,7 @@
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Bundle, Component};
 use bevy_ecs::system::{Commands, Query, ResMut, Resource};
+
 pub type DeriveFn<D, B> = fn(&mut D) -> B;
 #[derive(Component, Clone)]
 pub struct DerivedValue<
