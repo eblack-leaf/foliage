@@ -8,7 +8,7 @@ use foliage::Foliage;
 struct DeleteTest {}
 impl Actionable for DeleteTest {
     fn apply(self, mut handle: ElmHandle) {
-        handle.remove_element("first");
+        handle.remove_element("first-sub-sub");
     }
 }
 #[derive(Clone)]
