@@ -1,278 +1,199 @@
-use std::collections::HashSet;
-
-use bevy_ecs::component::Component;
-use bevy_ecs::prelude::DetectChanges;
-use bevy_ecs::query::Changed;
-use bevy_ecs::system::{ParamSet, Query, Res, ResMut, Resource};
-use bitflags::bitflags;
-
-use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::placement::Placement;
-use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, Coordinates, LogicalContext};
 use crate::ginkgo::viewport::ViewportHandle;
+use bevy_ecs::prelude::{Component, ResMut, Resource};
+use bitflags::bitflags;
+use std::collections::HashMap;
 
-#[derive(Clone, Component)]
+#[derive(Copy, Clone, Component)]
 pub struct Grid {
-    pub(crate) gap: Gap,
-    placement: Placement<LogicalContext>,
+    cols: i32,
+    rows: i32,
     column_size: CoordinateUnit,
     row_size: CoordinateUnit,
-    pub(crate) grid_template: GridTemplate,
+    placement: Placement<LogicalContext>,
+    gap: Coordinates,
 }
 
 impl Grid {
     pub fn new(cols: i32, rows: i32) -> Self {
         Self {
-            gap: Gap { x: 8.0, y: 8.0 },
-            placement: Placement::default(),
+            cols,
+            rows,
             column_size: 0.0,
             row_size: 0.0,
-            grid_template: GridTemplate::new(cols, rows),
+            placement: Default::default(),
+            gap: (8, 8).into(),
         }
     }
-    pub fn placed_at(mut self, placement: Placement<LogicalContext>) -> Self {
-        self.placement = placement;
-        self.column_size =
-            placement.section.area.width() / self.grid_template.cols as CoordinateUnit;
-        self.row_size = placement.section.area.height() / self.grid_template.rows as CoordinateUnit;
+    pub fn config(&mut self, c: i32, r: i32, size: Option<Placement<LogicalContext>>) {
+        self.cols = c;
+        self.rows = r;
+        let placement = if let Some(s) = size {
+            s
+        } else {
+            self.placement
+        };
+        self.size_to(placement);
+    }
+    pub fn with_gap<C: Into<Coordinates>>(mut self, c: C) -> Self {
+        self.gap = c.into();
         self
     }
-    pub fn with_gap(mut self, gap: Gap) -> Self {
-        self.gap = gap;
+    pub fn size_to(&mut self, placement: Placement<LogicalContext>) {
+        self.placement = placement;
+        self.column_size = placement.section.width() / self.cols as CoordinateUnit;
+        self.row_size = placement.section.height() / self.rows as CoordinateUnit;
+    }
+    pub fn sized(mut self, placement: Placement<LogicalContext>) -> Self {
+        self.size_to(placement);
         self
     }
     pub fn place(
         &self,
-        grid_placement: GridPlacement,
-        config: Layout,
+        grid_placement: &GridPlacement,
+        layout: Layout,
     ) -> Placement<LogicalContext> {
-        let mut placement = Placement::default();
-        let horizontal_range = grid_placement.horizontal(config);
-        let vertical_range = grid_placement.vertical(config);
-        let mut x = self.column_size * horizontal_range.begin()
-            + grid_placement.padding.x
-            + self.gap.x * grid_placement.gap_ignore;
-        let mut y = self.row_size * vertical_range.begin()
-            + grid_placement.padding.y
-            + self.gap.y * grid_placement.gap_ignore;
-        let mut w = self.column_size * horizontal_range.span()
-            - grid_placement.padding.x * 2f32
-            - self.gap.x * 2f32 * grid_placement.gap_ignore;
-        if let Some(f) = grid_placement.horizontal.fixed_span {
-            let diff = w - f;
-            w = f as CoordinateUnit;
-            x += diff / 2f32;
-        }
-        let mut h = self.row_size * vertical_range.span()
-            - grid_placement.padding.y * 2f32
-            - self.gap.y * 2f32 * grid_placement.gap_ignore;
-        if let Some(f) = grid_placement.vertical.fixed_span {
-            let diff = h - f;
-            h = f as CoordinateUnit;
-            y += diff / 2f32;
-        }
-        placement.section.position = self.placement.section.position + Position::logical((x, y));
-        placement.section.area = Area::logical((w, h));
-        placement.layer = self.placement.layer + grid_placement.layer_offset;
-        placement
+        let horizontal = grid_placement.horizontal(layout);
+        let vertical = grid_placement.vertical(layout);
+        let mut x = if let Some(px) = horizontal.start.px {
+            self.placement.section.x() + px
+        } else {
+            horizontal.start.col.unwrap() as CoordinateUnit * self.column_size - self.column_size
+                + self.gap.horizontal()
+                + grid_placement.padding.horizontal()
+        };
+        let mut y = if let Some(px) = vertical.start.px {
+            self.placement.section.y() + px
+        } else {
+            vertical.start.row.unwrap() as CoordinateUnit * self.row_size - self.row_size
+                + self.gap.vertical()
+                + grid_placement.padding.vertical()
+        };
+        let mut w = if let Some(px) = horizontal.end.px {
+            px
+        } else {
+            horizontal.end.col.unwrap() as CoordinateUnit * self.column_size
+                - self.gap.horizontal()
+                - grid_placement.padding.horizontal()
+                - x
+        };
+        let mut h = if let Some(px) = vertical.end.px {
+            px
+        } else {
+            vertical.end.row.unwrap() as CoordinateUnit * self.row_size
+                - self.gap.vertical()
+                - grid_placement.padding.vertical()
+                - y
+        };
+        let placed = Placement::new(
+            (
+                (
+                    self.placement.section.x() + x,
+                    self.placement.section.y() + y,
+                ),
+                (w, h),
+            ),
+            self.placement.layer + grid_placement.layer_offset,
+        );
+        println!("placing {:?}", placed);
+        placed
     }
 }
-#[derive(Clone, Copy)]
-pub struct Gap {
-    x: CoordinateUnit,
-    y: CoordinateUnit,
-}
-#[derive(Component, Clone)]
+#[derive(Clone, Component)]
 pub struct GridPlacement {
     horizontal: GridRange,
+    horizontal_exceptions: HashMap<Layout, GridRange>,
     vertical: GridRange,
+    vertical_exceptions: HashMap<Layout, GridRange>,
     layer_offset: Layer,
-    padding: Padding,
-    gap_ignore: f32,
-    exceptions: Vec<GridException>,
-}
-pub struct LayoutConfig {
-    layouts: Vec<Layout>,
-}
-impl From<Layout> for LayoutConfig {
-    fn from(value: Layout) -> Self {
-        LayoutConfig {
-            layouts: vec![value],
-        }
-    }
-}
-impl<L: AsRef<[Layout]>> From<L> for LayoutConfig {
-    fn from(value: L) -> Self {
-        LayoutConfig {
-            layouts: value.as_ref().to_vec(),
-        }
-    }
+    padding: Coordinates,
 }
 impl GridPlacement {
-    pub fn horizontal(&self, config: Layout) -> GridRange {
-        let mut range = self.horizontal;
-        for except in self.exceptions.iter() {
-            let filter = LayoutFilter::from(except.config);
-            if filter.accepts(config) {
-                range = except.horizontal;
-            }
-        }
-        range
-    }
-    pub fn vertical(&self, config: Layout) -> GridRange {
-        let mut range = self.vertical;
-        for except in self.exceptions.iter() {
-            let filter = LayoutFilter::from(except.config);
-            if filter.accepts(config) {
-                range = except.vertical;
-            }
-        }
-        range
-    }
-    pub fn except<L: Into<LayoutConfig>>(
-        mut self,
-        config: L,
-        horizontal: GridRange,
-        vertical: GridRange,
-    ) -> Self {
-        let config = config.into();
-        for c in config.layouts {
-            self.exceptions.push(GridException {
-                config: c,
-                horizontal,
-                vertical,
-            });
-        }
-
-        self
-    }
-    pub fn ignore_gap(mut self) -> Self {
-        self.gap_ignore = 0.0;
-        self
-    }
-    pub fn new(h: GridRange, v: GridRange) -> Self {
+    pub fn new(horizontal: GridRange, vertical: GridRange) -> Self {
         Self {
-            horizontal: h,
-            vertical: v,
+            horizontal,
+            horizontal_exceptions: Default::default(),
+            vertical,
+            vertical_exceptions: Default::default(),
             layer_offset: Default::default(),
-            padding: Padding::default(),
-            gap_ignore: 1.0,
-            exceptions: vec![],
+            padding: Default::default(),
         }
+    }
+    pub fn padded<C: Into<Coordinates>>(mut self, c: C) -> Self {
+        self.padding = c.into();
+        self
     }
     pub fn offset_layer<L: Into<Layer>>(mut self, l: L) -> Self {
         self.layer_offset = l.into();
         self
     }
-    pub fn padded(mut self, padding: Padding) -> Self {
-        self.padding = padding;
-        self
-    }
-}
-pub trait GridCoordinate {
-    fn span<I: Into<GridIndex>>(self, i: I) -> GridRange;
-}
-impl GridCoordinate for i32 {
-    fn span<I: Into<GridIndex>>(self, i: I) -> GridRange {
-        GridRange::new(self, i)
-    }
-}
-#[derive(Clone, Copy)]
-pub struct GridRange {
-    start: GridIndex,
-    span: GridIndex,
-    fixed_span: Option<CoordinateUnit>,
-}
-impl GridRange {
-    pub fn new<IA: Into<GridIndex>, IB: Into<GridIndex>>(start: IA, span: IB) -> Self {
-        Self {
-            start: start.into(),
-            span: span.into(),
-            fixed_span: None,
+    pub fn horizontal(&self, layout: Layout) -> GridRange {
+        let mut accepted = self.horizontal;
+        for (l, except) in self.horizontal_exceptions.iter() {
+            if LayoutFilter::from(*l).accepts(layout) {
+                accepted = *except;
+            }
         }
+        accepted
     }
-    pub fn fixed_span(mut self, w: i32) -> Self {
-        self.fixed_span.replace(w as CoordinateUnit);
+    pub fn vertical(&self, layout: Layout) -> GridRange {
+        let mut accepted = self.vertical;
+        for (l, except) in self.vertical_exceptions.iter() {
+            if LayoutFilter::from(*l).accepts(layout) {
+                accepted = *except;
+            }
+        }
+        accepted
+    }
+    pub fn except(mut self, layout: Layout, horizontal: GridRange, vertical: GridRange) -> Self {
+        self.horizontal_exceptions.insert(layout, horizontal);
+        self.vertical_exceptions.insert(layout, vertical);
         self
     }
-    pub(crate) fn begin(&self) -> CoordinateUnit {
-        (self.start.base - 1) as CoordinateUnit
-    }
-    pub(crate) fn span(&self) -> CoordinateUnit {
-        self.span.base as CoordinateUnit
-    }
 }
-#[derive(Clone, Copy)]
-pub struct GridIndex {
-    base: i32,
+#[derive(Resource, Copy, Clone, Eq, Hash, PartialEq, Ord, PartialOrd, Debug)]
+pub struct Layout(u16);
+// set of layouts this will signal at
+#[derive(Component, Copy, Clone)]
+pub struct LayoutFilter {
+    pub(crate) config: Layout,
 }
-impl From<i32> for GridIndex {
-    fn from(value: i32) -> Self {
+impl From<Layout> for LayoutFilter {
+    fn from(value: Layout) -> Self {
         Self::new(value)
     }
 }
-impl GridIndex {
-    pub fn new(base: i32) -> Self {
-        Self { base }
+impl LayoutFilter {
+    pub fn new(config: Layout) -> Self {
+        Self { config }
+    }
+    pub fn accepts(&self, current: Layout) -> bool {
+        self.config.contains(current)
     }
 }
-#[derive(Clone, Copy)]
-pub struct GridException {
-    config: Layout,
-    vertical: GridRange,
-    horizontal: GridRange,
-}
-#[derive(Copy, Clone, Default)]
-pub struct Padding {
-    x: CoordinateUnit,
-    y: CoordinateUnit,
-}
-impl Padding {
-    pub fn new(x: CoordinateUnit, y: CoordinateUnit) -> Self {
-        Self { x, y }
-    }
-    pub fn x(x: CoordinateUnit) -> Self {
-        Self { x, y: 0.0 }
-    }
-    pub fn y(y: CoordinateUnit) -> Self {
-        Self { x: 0.0, y }
+bitflags! {
+    impl Layout: u16 {
+        const SQUARE = 1;
+        const SQUARE_EXT = 1 << 1;
+        const SQUARE_MAX = 1 << 2;
+        const PORTRAIT_MOBILE = 1 << 3;
+        const PORTRAIT_EXT = 1 << 4;
+        const LANDSCAPE_MOBILE = 1 << 5;
+        const LANDSCAPE_EXT = 1 << 6;
+        const TALL_DESKTOP = 1 << 7;
+        const WIDE_DESKTOP = 1 << 8;
     }
 }
-#[derive(Copy, Clone)]
-pub struct GridTemplate {
-    cols: i32,
-    rows: i32,
-}
-impl GridTemplate {
-    pub fn new(cols: i32, rows: i32) -> Self {
-        Self { cols, rows }
-    }
-}
-pub(crate) fn viewport_changes_layout(
-    mut viewport_handle: ResMut<ViewportHandle>,
-    mut layout_grid: ResMut<LayoutGrid>,
-    mut layout: ResMut<Layout>,
-) {
-    if viewport_handle.updated() {
-        let (l, t) = LayoutGrid::configuration(viewport_handle.section().area.coordinates);
-        if &l != layout.as_ref() {
-            tracing::trace!("grid-layout:{:?}", l);
-            *layout = l;
-        }
-        let placement = Placement::new(
-            Section::new(
-                viewport_handle.section().position.coordinates,
-                viewport_handle.section().area.coordinates,
-            ),
-            0,
-        );
-        layout_grid.grid = Grid::new(t.cols, t.rows)
-            .placed_at(placement)
-            .with_gap(layout_grid.grid.gap);
-    }
+#[cfg(test)]
+#[test]
+fn bitflags_test() {
+    let config = Layout::LANDSCAPE_MOBILE | Layout::LANDSCAPE_EXT;
+    let filter = LayoutFilter::from(config);
+    let accept = filter.accepts(Layout::LANDSCAPE_MOBILE);
+    assert_eq!(accept, true);
 }
 #[derive(Resource)]
 pub struct LayoutGrid {
@@ -286,7 +207,7 @@ impl LayoutGrid {
     pub(crate) const LARGE_HORIZONTAL_THRESHOLD: f32 = 900.0;
     pub(crate) const SMALL_VERTICAL_THRESHOLD: f32 = 440.0;
     pub(crate) const LARGE_VERTICAL_THRESHOLD: f32 = 800.0;
-    pub(crate) fn configuration(coordinates: Coordinates) -> (Layout, GridTemplate) {
+    pub(crate) fn configuration(coordinates: Coordinates) -> (Layout, (i32, i32)) {
         let mut columns = 4;
         if coordinates.horizontal() > Self::SMALL_HORIZONTAL_THRESHOLD {
             columns = 8
@@ -320,50 +241,97 @@ impl LayoutGrid {
         } else {
             Layout::SQUARE
         };
-        (orientation, GridTemplate::new(columns, rows))
+        (orientation, (columns, rows))
     }
 }
-#[derive(Resource, Copy, Clone, Eq, Hash, PartialEq, Ord, PartialOrd, Debug)]
-pub struct Layout(u16);
-// set of layouts this will signal at
-#[derive(Component, Copy, Clone)]
-pub struct LayoutFilter {
-    pub(crate) config: Layout,
+pub trait GridCoordinate {
+    fn px(self) -> GridIndex;
+    fn col(self) -> GridIndex;
+    fn row(self) -> GridIndex;
 }
+impl GridCoordinate for i32 {
+    fn px(self) -> GridIndex {
+        GridIndex::px(self as CoordinateUnit)
+    }
 
-impl From<Layout> for LayoutFilter {
-    fn from(value: Layout) -> Self {
-        Self::new(value)
+    fn col(self) -> GridIndex {
+        GridIndex::col(self)
+    }
+
+    fn row(self) -> GridIndex {
+        GridIndex::row(self)
     }
 }
-
-impl LayoutFilter {
-    pub fn new(config: Layout) -> Self {
-        Self { config }
+#[derive(Copy, Clone)]
+pub struct GridIndex {
+    px: Option<CoordinateUnit>,
+    col: Option<i32>,
+    row: Option<i32>,
+}
+impl GridIndex {
+    pub fn px(px: CoordinateUnit) -> Self {
+        Self {
+            px: Some(px),
+            col: None,
+            row: None,
+        }
     }
-    pub fn accepts(&self, current: Layout) -> bool {
-        self.config.contains(current)
+    pub fn col(c: i32) -> Self {
+        Self {
+            px: None,
+            col: Some(c),
+            row: None,
+        }
+    }
+    pub fn row(r: i32) -> Self {
+        Self {
+            px: None,
+            col: None,
+            row: Some(r),
+        }
+    }
+    pub fn to<GI: Into<GridIndex>>(self, gi: GI) -> GridRange {
+        // TODO sanitize row/col differences
+        GridRange::new(self, gi.into())
     }
 }
-
-bitflags! {
-    impl Layout: u16 {
-        const SQUARE = 1;
-        const SQUARE_EXT = 1 << 1;
-        const SQUARE_MAX = 1 << 2;
-        const PORTRAIT_MOBILE = 1 << 3;
-        const PORTRAIT_EXT = 1 << 4;
-        const LANDSCAPE_MOBILE = 1 << 5;
-        const LANDSCAPE_EXT = 1 << 6;
-        const TALL_DESKTOP = 1 << 7;
-        const WIDE_DESKTOP = 1 << 8;
+#[derive(Copy, Clone)]
+pub struct GridRange {
+    start: GridIndex,
+    end: GridIndex,
+}
+impl GridRange {
+    pub fn new(start: GridIndex, end: GridIndex) -> Self {
+        Self { start, end }
     }
 }
 #[cfg(test)]
 #[test]
-fn bitflags_test() {
-    let config = Layout::LANDSCAPE_MOBILE | Layout::LANDSCAPE_EXT;
-    let filter = LayoutFilter::from(config);
-    let accept = filter.accepts(Layout::LANDSCAPE_MOBILE);
-    assert_eq!(accept, true);
+fn api_test() {
+    let mut grid = Grid::new(3, 4);
+    grid.size_to(Placement::default());
+    let grid_placement = GridPlacement::new(20.px().to(3.col()), 20.px().to(3.row()));
+    let layout = Layout::LANDSCAPE_MOBILE;
+    let placement = grid.place(&grid_placement, layout);
+}
+pub(crate) fn viewport_changes_layout(
+    mut viewport_handle: ResMut<ViewportHandle>,
+    mut layout_grid: ResMut<LayoutGrid>,
+    mut layout: ResMut<Layout>,
+) {
+    if viewport_handle.updated() {
+        let (l, (c, r)) = LayoutGrid::configuration(viewport_handle.section().area.coordinates);
+        if &l != layout.as_ref() {
+            tracing::trace!("grid-layout:{:?}", l);
+            *layout = l;
+        }
+        let placement = Placement::new(
+            (
+                viewport_handle.section().position.coordinates,
+                viewport_handle.section().area.coordinates,
+            ),
+            0,
+        );
+        layout_grid.grid.config(c, r, Some(placement));
+    }
 }

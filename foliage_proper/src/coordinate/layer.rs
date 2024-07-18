@@ -1,4 +1,4 @@
-use std::ops::Add;
+use std::ops::{Add, Sub};
 
 use bevy_ecs::prelude::Component;
 use bytemuck::{Pod, Zeroable};
@@ -11,6 +11,13 @@ impl Add for Layer {
 
     fn add(self, rhs: Self) -> Self::Output {
         Self::new(self.0 + rhs.0)
+    }
+}
+impl Sub for Layer {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self::new(self.0 - rhs.0)
     }
 }
 impl Layer {

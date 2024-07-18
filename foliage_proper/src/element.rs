@@ -94,7 +94,7 @@ pub(crate) fn recursive_placement(
             if let Some(r) = r {
                 let root_placement = layout_grid
                     .grid
-                    .place(elements.p1().get(r).unwrap().1.clone(), *layout);
+                    .place(elements.p1().get(r).unwrap().1, *layout);
                 let chain = recursive_placement_inner(
                     &elements.p1(),
                     root_placement,
@@ -105,7 +105,7 @@ pub(crate) fn recursive_placement(
                 for (entity, placement, new_grid_placement) in chain {
                     if new_grid_placement.is_some() {
                         if let Some(mut grid) = elements.p2().get_mut(entity).unwrap().0 {
-                            *grid = grid.clone().placed_at(new_grid_placement.unwrap());
+                            grid.size_to(new_grid_placement.unwrap());
                         }
                     }
                     *elements.p2().get_mut(entity).unwrap().1 = placement.section.position;
@@ -147,11 +147,11 @@ fn recursive_placement_inner(
         .2
         .unwrap()
         .clone()
-        .placed_at(current_placement);
+        .sized(current_placement);
     placed.push((current_entity, current_placement, Some(current_placement)));
     for dep in query.get(current_entity).unwrap().4 .0.iter() {
         let dep_entity = id_table.lookup_target(dep.clone()).unwrap();
-        let dep_grid_placement = query.get(dep_entity).unwrap().1.clone();
+        let dep_grid_placement = query.get(dep_entity).unwrap().1;
         let dep_placement = grid.place(dep_grid_placement, layout);
         if query.get(dep_entity).unwrap().4 .0.is_empty() {
             placed.push((dep_entity, dep_placement, None));

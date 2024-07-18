@@ -23,7 +23,7 @@ impl Actionable for OtherStuff {
         println!("other");
         handle.add_element(
             "first-sub",
-            GridPlacement::new(1.span(1), 1.span(1)).offset_layer(-1),
+            GridPlacement::new(1.col().to(1.col()), 1.row().to(1.row())).offset_layer(-1),
             Option::from(Grid::new(1, 1)),
             |e| {
                 e.with_attr(Panel::new(Rounding::default(), Grey::LIGHT))
@@ -32,7 +32,7 @@ impl Actionable for OtherStuff {
         );
         handle.add_element(
             "first-sub-sub",
-            GridPlacement::new(1.span(1), 1.span(1)).offset_layer(-1),
+            GridPlacement::new(1.col().to(1.col()), 1.row().to(1.row())).offset_layer(-1),
             Option::from(Grid::new(1, 1)),
             |e| {
                 e.with_attr(Panel::new(Rounding::default(), Grey::BASE))
@@ -41,7 +41,7 @@ impl Actionable for OtherStuff {
         );
         handle.add_element(
             "first-sub-sub-sub",
-            GridPlacement::new(1.span(1), 1.span(1)).offset_layer(-1),
+            GridPlacement::new(1.col().to(1.col()), 1.row().to(1.row())).offset_layer(-1),
             Option::from(Grid::new(1, 1)),
             |e| {
                 e.with_attr(Panel::new(Rounding::default(), Grey::DARK))
@@ -51,7 +51,7 @@ impl Actionable for OtherStuff {
         handle.create_signaled_action("click-test", DeleteTest {});
         handle.add_element(
             "first-sub-sub-sub-sub",
-            GridPlacement::new(1.span(1), 1.span(1)).offset_layer(-1),
+            GridPlacement::new(1.col().to(1.col()), 1.row().to(1.row())).offset_layer(-1),
             Option::from(Grid::new(1, 1)),
             |e| {
                 e.with_attr(Panel::new(Rounding::default(), Color::BLACK))
@@ -62,7 +62,7 @@ impl Actionable for OtherStuff {
         );
         handle.add_element(
             "icon-change-test",
-            GridPlacement::new(1.span(1), 1.span(1)).offset_layer(-1),
+            GridPlacement::new(1.col().to(1.col()), 1.row().to(1.row())).offset_layer(-1),
             None,
             |e| {
                 e.with_attr(Icon::new(0, Color::BLACK))
@@ -78,13 +78,13 @@ impl Actionable for Stuff {
         println!("stuff");
         handle.add_element(
             "first",
-            GridPlacement::new(1.span(4), 1.span(4)).offset_layer(5),
+            GridPlacement::new(1.col().to(4.col()), 1.row().to(4.row())).offset_layer(5),
             Some(Grid::new(1, 1)),
             |e| e.with_attr(Panel::new(Rounding::default(), Color::WHITE)),
         );
         handle.add_element(
             "second",
-            GridPlacement::new(5.span(4), 1.span(4)).offset_layer(3),
+            GridPlacement::new(5.col().to(8.col()), 1.row().to(4.row())).offset_layer(3),
             Some(Grid::new(4, 4)),
             |e| e.with_attr(Panel::new(Rounding::default(), Grey::BASE)),
         );
