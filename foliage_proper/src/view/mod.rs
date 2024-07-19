@@ -68,10 +68,10 @@ pub struct ViewHandle<'a> {
     root_handle: Option<TargetHandle>,
     entity: Entity,
 }
-impl ViewHandle {
+impl<'a> ViewHandle<'a> {
     // view-api
 }
-pub trait Viewable {
+pub trait Viewable where Self: Send + Sync + 'static {
     fn build(self, view_handle: ViewHandle);
 }
 
