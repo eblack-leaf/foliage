@@ -938,6 +938,7 @@ dependencies = [
  "cfg-if",
  "console_error_panic_hook",
  "copypasta",
+ "foliage_macros",
  "fontdue",
  "futures-channel",
  "image",

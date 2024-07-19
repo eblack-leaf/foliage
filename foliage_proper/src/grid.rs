@@ -98,7 +98,6 @@ impl Grid {
             ),
             self.placement.layer + grid_placement.layer_offset,
         );
-        println!("placing {:?}", placed);
         placed
     }
 }

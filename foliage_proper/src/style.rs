@@ -2,7 +2,7 @@ use bevy_ecs::prelude::{Component, IntoSystemConfigs};
 use bevy_ecs::query::{Changed, Or};
 use bevy_ecs::system::{Commands, Query, Res};
 
-use crate::color::Color;
+use crate::color::{Color, Grey, Monochromatic};
 use crate::element::{IdTable, TargetHandle};
 use crate::elm::{Elm, ScheduleMarkers};
 use crate::interaction::ClickInteractionListener;
@@ -61,5 +61,25 @@ pub(crate) fn alternate_color_on_engage(
             }
             *color = alt.base;
         }
+    }
+}
+#[derive(Copy, Clone, Component)]
+pub struct Coloring {
+    pub foreground: Color,
+    pub background: Color,
+    pub accent: Color,
+}
+impl Coloring {
+    pub fn new<A: Into<Color>, B: Into<Color>, C: Into<Color>>(fg: A, bg: B, a: C) -> Self {
+        Self {
+            foreground: fg.into(),
+            background: bg.into(),
+            accent: a.into(),
+        }
+    }
+}
+impl Default for Coloring {
+    fn default() -> Self {
+        Coloring::new(Grey::LIGHT, Grey::DARK, Grey::BASE)
     }
 }
