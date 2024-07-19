@@ -325,7 +325,12 @@ impl<'a> ElmHandle<'a> {
         grid: Grid,
     ) {
         let target_handle = this.into();
-        let entity = self.world_handle.as_mut().unwrap().spawn(Element::default()).id();
+        let entity = self
+            .world_handle
+            .as_mut()
+            .unwrap()
+            .spawn(Element::default())
+            .id();
         let rh = if let Some(r) = root {
             let rth = r.into();
             let root = self.lookup_target_entity(rth.clone()).unwrap();

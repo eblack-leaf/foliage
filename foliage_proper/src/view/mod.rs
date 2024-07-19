@@ -34,7 +34,7 @@ impl<V: Viewable> View<V> {
         grid_placement: GridPlacement,
         target_handle: TargetHandle,
         root: Option<TargetHandle>,
-        entity: Entity
+        entity: Entity,
     ) -> Self {
         Self {
             view: v,
@@ -48,13 +48,13 @@ impl<V: Viewable> View<V> {
 }
 impl<V: Viewable> Command for View<V> {
     fn apply(self, world: &mut World) {
-        let entity = world.spawn(Element::default()).id();
         let handle = ViewHandle {
             world_handle: Some(world),
             view_grid: self.grid,
             grid_placement: self.grid_placement,
             target_handle: self.target_handle,
-            entity,
+            root_handle: self.root_handle,
+            entity: self.entity,
         };
         self.view.build(handle);
     }
@@ -65,6 +65,7 @@ pub struct ViewHandle<'a> {
     view_grid: Grid,
     grid_placement: GridPlacement,
     target_handle: TargetHandle,
+    root_handle: Option<TargetHandle>,
     entity: Entity,
 }
 impl ViewHandle {
