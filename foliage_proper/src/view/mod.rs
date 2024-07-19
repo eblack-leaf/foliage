@@ -1,11 +1,11 @@
 mod button;
 
+use crate::element::{Element, TargetHandle};
+use crate::grid::{Grid, GridPlacement};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, World};
-use std::collections::HashMap;
 use bevy_ecs::system::Command;
-use crate::element::TargetHandle;
-use crate::grid::{Grid, GridPlacement};
+use std::collections::HashMap;
 
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Copy, Clone)]
 pub struct ViewBinding(pub i32);
@@ -21,22 +21,45 @@ impl Bindings {
 }
 pub struct View<V: Viewable> {
     view: V,
-    view_grid: Grid,
+    grid: Grid,
     grid_placement: GridPlacement,
     target_handle: TargetHandle,
 }
+impl<V: Viewable> View<V> {
+    pub(crate) fn new(
+        v: V,
+        grid: Grid,
+        grid_placement: GridPlacement,
+        target_handle: TargetHandle,
+    ) -> Self {
+        Self {
+            view: v,
+            grid,
+            grid_placement,
+            target_handle,
+        }
+    }
+}
 impl<V: Viewable> Command for View<V> {
     fn apply(self, world: &mut World) {
+        let entity = world.spawn(Element::default()).id();
         let handle = ViewHandle {
-            world_handle: Some(world)
+            world_handle: Some(world),
+            view_grid: self.grid,
+            grid_placement: self.grid_placement,
+            target_handle: self.target_handle,
+            entity,
         };
-        // create root w/ element + grid
-
+        self.view.build(handle);
     }
 }
 pub struct ViewHandle<'a> {
     // world connection
-    world_handle: Option<&'a mut World>
+    world_handle: Option<&'a mut World>,
+    view_grid: Grid,
+    grid_placement: GridPlacement,
+    target_handle: TargetHandle,
+    entity: Entity,
 }
 impl ViewHandle {
     // view-api
