@@ -59,14 +59,20 @@ impl Grid {
         let horizontal = grid_placement.horizontal(layout);
         let vertical = grid_placement.vertical(layout);
         let x = if let Some(px) = horizontal.start.px {
-            self.placement.section.x() + px
+            px
+        } else if let Some(p) = horizontal.start.percent {
+            let percent = self.placement.section.width() * p / 100f32;
+            percent
         } else {
             horizontal.start.col.unwrap() as CoordinateUnit * self.column_size - self.column_size
                 + self.gap.horizontal()
                 + grid_placement.padding.horizontal()
         };
         let y = if let Some(px) = vertical.start.px {
-            self.placement.section.y() + px
+            px
+        } else if let Some(p) = vertical.start.percent {
+            let percent = self.placement.section.height() * p / 100f32;
+            percent
         } else {
             vertical.start.row.unwrap() as CoordinateUnit * self.row_size - self.row_size
                 + self.gap.vertical()
@@ -74,6 +80,9 @@ impl Grid {
         };
         let w = if let Some(px) = horizontal.end.px {
             px
+        } else if let Some(p) = horizontal.end.percent {
+            let percent = self.placement.section.width() * p / 100f32;
+            percent - x
         } else {
             horizontal.end.col.unwrap() as CoordinateUnit * self.column_size
                 - self.gap.horizontal()
@@ -82,6 +91,9 @@ impl Grid {
         };
         let h = if let Some(px) = vertical.end.px {
             px
+        } else if let Some(p) = vertical.end.percent {
+            let percent = self.placement.section.height() * p / 100f32;
+            percent - y
         } else {
             vertical.end.row.unwrap() as CoordinateUnit * self.row_size
                 - self.gap.vertical()
@@ -247,6 +259,7 @@ pub trait GridCoordinate {
     fn px(self) -> GridIndex;
     fn col(self) -> GridIndex;
     fn row(self) -> GridIndex;
+    fn percent(self) -> GridIndex;
 }
 impl GridCoordinate for i32 {
     fn px(self) -> GridIndex {
@@ -260,12 +273,17 @@ impl GridCoordinate for i32 {
     fn row(self) -> GridIndex {
         GridIndex::row(self)
     }
+
+    fn percent(self) -> GridIndex {
+        GridIndex::percent(self as f32)
+    }
 }
 #[derive(Copy, Clone)]
 pub struct GridIndex {
     px: Option<CoordinateUnit>,
     col: Option<i32>,
     row: Option<i32>,
+    percent: Option<f32>,
 }
 impl GridIndex {
     pub fn px(px: CoordinateUnit) -> Self {
@@ -273,6 +291,7 @@ impl GridIndex {
             px: Some(px),
             col: None,
             row: None,
+            percent: None,
         }
     }
     pub fn col(c: i32) -> Self {
@@ -280,6 +299,7 @@ impl GridIndex {
             px: None,
             col: Some(c),
             row: None,
+            percent: None,
         }
     }
     pub fn row(r: i32) -> Self {
@@ -287,6 +307,15 @@ impl GridIndex {
             px: None,
             col: None,
             row: Some(r),
+            percent: None,
+        }
+    }
+    pub fn percent(p: f32) -> Self {
+        Self {
+            px: None,
+            col: None,
+            row: None,
+            percent: Some(p.clamp(0.0, 100.0)),
         }
     }
     pub fn to<GI: Into<GridIndex>>(self, gi: GI) -> GridRange {

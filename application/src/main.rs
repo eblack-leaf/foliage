@@ -23,7 +23,8 @@ impl Actionable for OtherStuff {
         println!("other");
         handle.add_element(
             "first-sub",
-            GridPlacement::new(1.col().to(1.col()), 1.row().to(1.row())).offset_layer(-1),
+            GridPlacement::new(20.percent().to(100.percent()), 1.row().to(1.row()))
+                .offset_layer(-1),
             Option::from(Grid::new(1, 1)),
             |e| {
                 e.with_attr(Panel::new(Rounding::default(), Grey::LIGHT))
