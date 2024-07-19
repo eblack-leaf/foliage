@@ -15,13 +15,13 @@ use winit::window::WindowId;
 
 use willow::Willow;
 
-use crate::action::{Actionable, ElmHandle};
+use crate::action::{Actionable, ElmHandle, Signaler};
 use crate::ash::{Ash, Render};
 use crate::asset::{Asset, AssetKey, AssetLoader};
 use crate::coordinate::area::Area;
 use crate::coordinate::{Coordinates, DeviceContext};
 use crate::element::{ActionHandle, IdTable};
-use crate::elm::Elm;
+use crate::elm::{ActionLimiter, Elm};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::{Ginkgo, ScaleFactor};
 use crate::icon::{Icon, IconId, IconRequest};
@@ -98,10 +98,19 @@ impl Foliage {
         });
     }
     pub fn enable_signaled_action<A: Actionable>(&mut self) {
-        self.elm.enable_action::<A>();
+        self.elm.enable_signaled_action::<A>();
     }
     pub fn create_signaled_action<A: Actionable, AH: Into<ActionHandle>>(&mut self, ah: AH, a: A) {
-        todo!()
+        if !self.elm.ecs.world.contains_resource::<ActionLimiter<A>>() {
+            panic!("please enable_signaled_action for this action type")
+        }
+        let signaler = self.elm.ecs.world.spawn(Signaler::new(a)).id();
+        self.elm
+            .ecs
+            .world
+            .get_resource_mut::<IdTable>()
+            .unwrap()
+            .add_action(ah, signaler);
     }
     pub fn load_icon<ID: Into<IconId>, B: AsRef<[u8]>>(&mut self, id: ID, bytes: B) {
         self.spawn(IconRequest::new(id, bytes.as_ref().to_vec()));

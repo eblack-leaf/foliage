@@ -78,7 +78,7 @@ impl Actionable for Stuff {
         println!("stuff");
         handle.add_element(
             "first",
-            GridPlacement::new(1.col().to(4.col()), 1.row().to(4.row())).offset_layer(5),
+            GridPlacement::new(1.col().to(4.col()), 1.row().to(4.row())).offset_layer(4),
             Some(Grid::new(1, 1)),
             |e| e.with_attr(Panel::new(Rounding::default(), Color::WHITE)),
         );

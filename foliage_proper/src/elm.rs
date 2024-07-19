@@ -130,7 +130,7 @@ impl<D> Default for FilterAttrLimiter<D> {
     }
 }
 impl Elm {
-    pub fn enable_action<A: Actionable>(&mut self) {
+    pub fn enable_signaled_action<A: Actionable>(&mut self) {
         if !self.ecs.world.contains_resource::<ActionLimiter<A>>() {
             // signaled-action setup?
             self.scheduler

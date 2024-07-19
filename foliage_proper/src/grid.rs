@@ -58,21 +58,21 @@ impl Grid {
     ) -> Placement<LogicalContext> {
         let horizontal = grid_placement.horizontal(layout);
         let vertical = grid_placement.vertical(layout);
-        let mut x = if let Some(px) = horizontal.start.px {
+        let x = if let Some(px) = horizontal.start.px {
             self.placement.section.x() + px
         } else {
             horizontal.start.col.unwrap() as CoordinateUnit * self.column_size - self.column_size
                 + self.gap.horizontal()
                 + grid_placement.padding.horizontal()
         };
-        let mut y = if let Some(px) = vertical.start.px {
+        let y = if let Some(px) = vertical.start.px {
             self.placement.section.y() + px
         } else {
             vertical.start.row.unwrap() as CoordinateUnit * self.row_size - self.row_size
                 + self.gap.vertical()
                 + grid_placement.padding.vertical()
         };
-        let mut w = if let Some(px) = horizontal.end.px {
+        let w = if let Some(px) = horizontal.end.px {
             px
         } else {
             horizontal.end.col.unwrap() as CoordinateUnit * self.column_size
@@ -80,7 +80,7 @@ impl Grid {
                 - grid_placement.padding.horizontal()
                 - x
         };
-        let mut h = if let Some(px) = vertical.end.px {
+        let h = if let Some(px) = vertical.end.px {
             px
         } else {
             vertical.end.row.unwrap() as CoordinateUnit * self.row_size
