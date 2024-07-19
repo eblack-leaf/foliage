@@ -24,6 +24,8 @@ pub struct View<V: Viewable> {
     grid: Grid,
     grid_placement: GridPlacement,
     target_handle: TargetHandle,
+    root_handle: Option<TargetHandle>,
+    entity: Entity,
 }
 impl<V: Viewable> View<V> {
     pub(crate) fn new(
@@ -31,12 +33,16 @@ impl<V: Viewable> View<V> {
         grid: Grid,
         grid_placement: GridPlacement,
         target_handle: TargetHandle,
+        root: Option<TargetHandle>,
+        entity: Entity
     ) -> Self {
         Self {
             view: v,
             grid,
             grid_placement,
             target_handle,
+            root_handle: root,
+            entity,
         }
     }
 }
