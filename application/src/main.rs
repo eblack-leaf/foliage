@@ -11,7 +11,7 @@ struct DeleteTest {}
 impl Actionable for DeleteTest {
     fn apply(self, mut handle: ElmHandle) {
         handle.remove_element("first-sub-sub");
-        handle.update_element("icon-change-test", |e| e.with_attr(IconId(1)));
+        handle.update_element("icon-change-test", |e| e.give_attr(IconId(1)));
         handle.update_attr_for("icon-change-test", |id: &mut IconId| id.0 = 2);
         // handle.remove_element("second");
     }
@@ -27,7 +27,7 @@ impl Actionable for OtherStuff {
                 .offset_layer(-1),
             Option::from(Grid::new(1, 1)),
             |e| {
-                e.with_attr(Panel::new(Rounding::default(), Grey::LIGHT))
+                e.give_attr(Panel::new(Rounding::default(), Grey::LIGHT))
                     .dependent_of("first")
             },
         );
@@ -36,7 +36,7 @@ impl Actionable for OtherStuff {
             GridPlacement::new(1.col().to(1.col()), 1.row().to(1.row())).offset_layer(-1),
             Option::from(Grid::new(1, 1)),
             |e| {
-                e.with_attr(Panel::new(Rounding::default(), Grey::BASE))
+                e.give_attr(Panel::new(Rounding::default(), Grey::BASE))
                     .dependent_of("first-sub")
             },
         );
@@ -45,7 +45,7 @@ impl Actionable for OtherStuff {
             GridPlacement::new(1.col().to(1.col()), 1.row().to(1.row())).offset_layer(-1),
             Option::from(Grid::new(1, 1)),
             |e| {
-                e.with_attr(Panel::new(Rounding::default(), Grey::DARK))
+                e.give_attr(Panel::new(Rounding::default(), Grey::DARK))
                     .dependent_of("first-sub-sub")
             },
         );
@@ -55,10 +55,10 @@ impl Actionable for OtherStuff {
             GridPlacement::new(1.col().to(1.col()), 1.row().to(1.row())).offset_layer(-1),
             Option::from(Grid::new(1, 1)),
             |e| {
-                e.with_attr(Panel::new(Rounding::default(), Color::BLACK))
+                e.give_attr(Panel::new(Rounding::default(), Color::BLACK))
                     .dependent_of("first-sub-sub-sub")
-                    .with_attr(OnClick::new("click-test"))
-                    .with_attr(ClickInteractionListener::new())
+                    .give_attr(OnClick::new("click-test"))
+                    .give_attr(ClickInteractionListener::new())
             },
         );
         handle.add_element(
@@ -66,7 +66,7 @@ impl Actionable for OtherStuff {
             GridPlacement::new(1.col().to(1.col()), 1.row().to(1.row())).offset_layer(-1),
             None,
             |e| {
-                e.with_attr(Icon::new(0, Color::BLACK))
+                e.give_attr(Icon::new(0, Color::BLACK))
                     .dependent_of("second")
             },
         )
@@ -81,13 +81,13 @@ impl Actionable for Stuff {
             "first",
             GridPlacement::new(1.col().to(4.col()), 1.row().to(4.row())).offset_layer(4),
             Some(Grid::new(1, 1)),
-            |e| e.with_attr(Panel::new(Rounding::default(), Color::WHITE)),
+            |e| e.give_attr(Panel::new(Rounding::default(), Color::WHITE)),
         );
         handle.add_element(
             "second",
             GridPlacement::new(5.col().to(8.col()), 1.row().to(4.row())).offset_layer(3),
             Some(Grid::new(4, 4)),
-            |e| e.with_attr(Panel::new(Rounding::default(), Grey::BASE)),
+            |e| e.give_attr(Panel::new(Rounding::default(), Grey::BASE)),
         );
         handle.run_action(OtherStuff {});
         println!("almost-finished-stuff");

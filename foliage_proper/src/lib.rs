@@ -51,7 +51,6 @@ pub mod panel;
 pub mod style;
 pub mod text;
 pub mod texture;
-pub mod view;
 pub mod willow;
 
 pub struct Foliage {
