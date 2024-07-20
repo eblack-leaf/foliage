@@ -8,6 +8,7 @@ use crate::differential::{Remove, RenderLink};
 use crate::element::{ActionHandle, Dependents, Element, IdTable, Root, TargetHandle};
 use crate::elm::{ActionLimiter, FilterAttrLimiter};
 use crate::grid::{Grid, GridPlacement, Layout, LayoutFilter};
+use crate::view::{View, Viewable};
 
 pub struct ElmHandle<'a> {
     pub(crate) world_handle: Option<&'a mut World>,
@@ -314,6 +315,15 @@ impl<'a> ElmHandle<'a> {
     pub fn run_action<A: Actionable>(&mut self, a: A) {
         let action = Action { data: a };
         action.apply(self.world_handle.as_mut().unwrap());
+    }
+    pub fn create_view<V: Viewable, TH: Into<TargetHandle>>(
+        &mut self,
+        th: TH,
+        grid_placement: GridPlacement,
+        v: V,
+    ) {
+        let view = View::<V>::new(v, grid_placement, th.into());
+        view.apply(self.world_handle.as_mut().unwrap());
     }
     pub fn create_signaled_action<A: Actionable, AH: Into<ActionHandle>>(&mut self, ah: AH, a: A) {
         if !self
