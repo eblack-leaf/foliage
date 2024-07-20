@@ -171,6 +171,9 @@ impl<S: AsRef<str>> From<S> for TargetHandle {
     }
 }
 impl TargetHandle {
+    pub fn new<S: AsRef<str>>(s: S) -> Self {
+        Self(s.as_ref().to_string())
+    }
     pub const DELIMITER: &'static str = ":";
     pub fn extend<S: AsRef<str>>(&self, e: S) -> Self {
         Self::new(self.0.clone() + Self::DELIMITER + e.as_ref())

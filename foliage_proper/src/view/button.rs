@@ -4,7 +4,7 @@ use crate::view::{View, Viewable};
 
 pub struct Button {}
 impl Viewable for Button {
-    fn build(view: &mut View<Self>) {
-        view.config_grid(Grid::new(3, 1));
+    fn build(self, view: &mut View) {
+        // view.config_grid(Grid::new(3, 1));
     }
 }

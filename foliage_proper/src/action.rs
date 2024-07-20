@@ -76,7 +76,7 @@ pub(crate) fn filter_attr_changed<A: Bundle + Send + Sync + 'static + Clone>(
     }
 }
 impl<'a> ElementHandle<'a> {
-    pub fn give_attr<A: Bundle>(&mut self, a: A) -> Self {
+    pub fn give_attr<A: Bundle>(&mut self, a: A) {
         self.world_handle
             .as_mut()
             .unwrap()
@@ -320,8 +320,8 @@ impl<'a> ElmHandle<'a> {
                 e.dependent_of(rth.unwrap().into());
             }
         });
-        let mut view = View::<V>::new(v, handle, self.world_handle.take());
-        view.apply(&mut view);
+        let mut view = View::new(handle, self.world_handle.take());
+        v.build(&mut view);
         self.world_handle.replace(view.world_handle.take().unwrap());
     }
     pub fn create_signaled_action<A: Actionable, AH: Into<ActionHandle>>(&mut self, ah: AH, a: A) {

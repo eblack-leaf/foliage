@@ -1,3 +1,4 @@
+use std::marker::PhantomData;
 use crate::action::ElementHandle;
 use crate::element::TargetHandle;
 use crate::grid::{Grid, GridPlacement};
@@ -8,16 +9,15 @@ mod button;
 
 pub trait Viewable
 where
-    Self: Send + Sync + 'static,
+    Self: Sized + Send + Sync + 'static,
 {
-    fn build(view: &mut View<Self>);
+    fn build(self, view: &mut View);
 }
-pub struct View<'a, V: Viewable> {
-    pub v: V,
+pub struct View<'a> {
     pub target_handle: TargetHandle,
     pub(crate) world_handle: Option<&'a mut World>,
 }
-impl<'a, V: Viewable> View<'a, V> {
+impl<'a> View<'a> {
     pub fn bind<TH: Into<TargetHandle>, BFN: FnOnce(&'a mut ElementHandle)>(
         &mut self,
         th: TH,
@@ -31,12 +31,10 @@ impl<'a, V: Viewable> View<'a, V> {
     }
     // TODO forward elm-handle functions
     pub(crate) fn new(
-        v: V,
         target_handle: TargetHandle,
         world_handle: Option<&'a mut World>,
     ) -> Self {
         Self {
-            v,
             target_handle,
             world_handle,
         }
