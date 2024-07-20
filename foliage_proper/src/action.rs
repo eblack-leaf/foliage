@@ -76,18 +76,17 @@ pub(crate) fn filter_attr_changed<A: Bundle + Send + Sync + 'static + Clone>(
     }
 }
 impl<'a> ElementHandle<'a> {
-    pub fn give_attr<A: Bundle>(mut self, a: A) -> Self {
+    pub fn give_attr<A: Bundle>(&mut self, a: A) -> Self {
         self.world_handle
             .as_mut()
             .unwrap()
             .entity_mut(self.entity)
             .insert(a);
-        self
     }
     pub fn give_filtered_attr<A: Bundle + Send + Sync + 'static + Clone>(
-        mut self,
+        &mut self,
         filtered_attribute: FilteredAttribute<A>,
-    ) -> Self {
+    ) {
         if !self
             .world_handle
             .as_ref()
@@ -101,9 +100,8 @@ impl<'a> ElementHandle<'a> {
             .unwrap()
             .entity_mut(self.entity)
             .insert(filtered_attribute);
-        self
     }
-    pub fn dependent_of<RTH: Into<TargetHandle>>(mut self, rth: RTH) -> Self {
+    pub fn dependent_of<RTH: Into<TargetHandle>>(&mut self, rth: RTH) {
         // lookup root
         let rth = rth.into();
         let root = self.lookup_target_entity(rth.clone()).unwrap();
@@ -122,7 +120,6 @@ impl<'a> ElementHandle<'a> {
             .unwrap()
             .0
             .replace(rth);
-        self
     }
     fn lookup_target_entity<TH: Into<TargetHandle>>(&self, th: TH) -> Option<Entity> {
         self.world_handle
@@ -151,10 +148,7 @@ impl<'a> ElmHandle<'a> {
             .unwrap();
         c_fn(comp.as_mut());
     }
-    pub fn add_element<
-        TH: Into<TargetHandle>,
-        EFN: FnOnce(ElementHandle<'a>) -> ElementHandle<'a>,
-    >(
+    pub fn add_element<TH: Into<TargetHandle>, EFN: FnOnce(&mut ElementHandle<'a>)>(
         &mut self,
         th: TH,
         grid_placement: GridPlacement,
@@ -257,10 +251,7 @@ impl<'a> ElmHandle<'a> {
         }
         removed_set
     }
-    pub fn update_element<
-        TH: Into<TargetHandle>,
-        EFN: FnOnce(ElementHandle<'a>) -> ElementHandle<'a>,
-    >(
+    pub fn update_element<TH: Into<TargetHandle>, EFN: FnOnce(&mut ElementHandle<'a>)>(
         &mut self,
         th: TH,
         e_fn: EFN,
@@ -272,7 +263,7 @@ impl<'a> ElmHandle<'a> {
             entity,
             handle: th,
         };
-        element_handle = e_fn(element_handle);
+        e_fn(&mut element_handle);
         self.world_handle = element_handle.world_handle.take();
     }
     pub fn change_element_root<TH: Into<TargetHandle>, RTH: Into<TargetHandle>>(
@@ -318,12 +309,20 @@ impl<'a> ElmHandle<'a> {
     }
     pub fn create_view<V: Viewable, TH: Into<TargetHandle>>(
         &mut self,
+        rth: Option<TH>,
         th: TH,
         grid_placement: GridPlacement,
         v: V,
     ) {
-        let view = View::<V>::new(v, grid_placement, th.into());
-        view.apply(self.world_handle.as_mut().unwrap());
+        let handle = th.into();
+        self.add_element(handle.clone(), grid_placement.clone(), None, |e| {
+            if rth.is_some() {
+                e.dependent_of(rth.unwrap().into());
+            }
+        });
+        let mut view = View::<V>::new(v, handle, self.world_handle.take());
+        view.apply(&mut view);
+        self.world_handle.replace(view.world_handle.take().unwrap());
     }
     pub fn create_signaled_action<A: Actionable, AH: Into<ActionHandle>>(&mut self, ah: AH, a: A) {
         if !self
