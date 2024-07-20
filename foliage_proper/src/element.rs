@@ -170,6 +170,12 @@ impl<S: AsRef<str>> From<S> for TargetHandle {
         Self(value.as_ref().to_string())
     }
 }
+impl TargetHandle {
+    pub const DELIMITER: &'static str = ":";
+    pub fn extend<S: AsRef<str>>(&self, e: S) -> Self {
+        Self::new(self.0.clone() + Self::DELIMITER + e.as_ref())
+    }
+}
 #[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct ActionHandle(pub String);
 impl<S: AsRef<str>> From<S> for ActionHandle {
