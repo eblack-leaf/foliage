@@ -130,6 +130,35 @@ impl<
         self.entries.insert(key.clone(), entry);
         self.references.insert(key, HashSet::new());
     }
+    pub fn write_entry(
+        &mut self,
+        ginkgo: &Ginkgo,
+        key: Key,
+        entry: AtlasEntry<TexelData>,
+    ) -> Vec<AtlasChangeInfo<Referrer>> {
+        let mut changed = Vec::new();
+        let location = *self.possible_locations.iter().last().unwrap();
+        self.possible_locations.remove(&location);
+        let position = Coordinates::from((location.0, location.1))
+            * (self.block_size + (Self::PADDING, Self::PADDING).into());
+        ginkgo.write_texture(&self.texture, position, entry.extent, entry.data);
+        let tex_coords = TextureCoordinates::from_section(
+            Section::new(position, entry.extent),
+            self.texture_extent,
+        );
+        let partition_info = PartitionInfo {
+            tex_coords,
+            location,
+        };
+        self.partitions.insert(key.clone(), partition_info);
+        for referrer in self.references.get(&key).unwrap().iter() {
+            changed.push(AtlasChangeInfo {
+                key: referrer.clone(),
+                tex_coords,
+            });
+        }
+        changed
+    }
     pub fn remove_entry(&mut self, key: Key) {
         self.entries.remove(&key);
         let partition = self.partitions.remove(&key);
@@ -147,7 +176,7 @@ impl<
             self.remove_entry(key);
         }
     }
-    pub fn resolve(&mut self, ginkgo: &Ginkgo) -> (Vec<AtlasChangeInfo<Referrer>>, bool) {
+    pub fn resolve(&mut self, ginkgo: &Ginkgo) -> (HashSet<Key>, bool) {
         let mut added = Vec::new();
         for entry in self.entries.iter() {
             if self.partitions.get(entry.0).is_none() {
@@ -158,6 +187,7 @@ impl<
             }
         }
         let mut grown = false;
+        let mut changed = HashSet::new();
         if added.len() > self.possible_locations.len() {
             grown = true;
             let difference = added.len() - self.possible_locations.len();
@@ -179,10 +209,9 @@ impl<
             self.texture = texture;
             self.view = view;
             for key in self.partitions.keys() {
-                added.push((key.clone(), self.entries.get(&key).unwrap().clone()));
+                changed.insert(key.clone());
             }
         }
-        let mut changed = Vec::new();
         for add in added {
             let location = *self.possible_locations.iter().last().unwrap();
             self.possible_locations.remove(&location);
@@ -198,12 +227,6 @@ impl<
                 location,
             };
             self.partitions.insert(add.0.clone(), partition_info);
-            for referrer in self.references.get(&add.0).unwrap().iter() {
-                changed.push(AtlasChangeInfo {
-                    key: referrer.clone(),
-                    tex_coords,
-                });
-            }
         }
         (changed, grown)
     }

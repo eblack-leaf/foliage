@@ -584,6 +584,30 @@ impl Render for Text {
                 .unwrap()
                 .texture_atlas
                 .resolve(ginkgo);
+            for key in changed {
+                let (metrics, rasterization) = renderer
+                    .resource_handle
+                    .font
+                    .0
+                    .rasterize_indexed(key.glyph_index, packet.value.font_size);
+                let entry = AtlasEntry::new(rasterization, (metrics.width, metrics.height));
+                let updated = renderer
+                    .resource_handle
+                    .groups
+                    .get_mut(&packet.entity)
+                    .unwrap()
+                    .texture_atlas
+                    .write_entry(ginkgo, key, entry);
+                for change in updated.iter() {
+                    renderer
+                        .resource_handle
+                        .groups
+                        .get_mut(&packet.entity)
+                        .unwrap()
+                        .instances
+                        .checked_write(change.key, change.tex_coords);
+                }
+            }
             if grown {
                 // remake bind group
                 let new_bind_group = ginkgo.create_bind_group(&BindGroupDescriptor {
@@ -625,15 +649,6 @@ impl Render for Text {
                     .unwrap()
                     .should_record = true;
                 should_record = true;
-            }
-            for info in changed {
-                renderer
-                    .resource_handle
-                    .groups
-                    .get_mut(&packet.entity)
-                    .unwrap()
-                    .instances
-                    .checked_write(info.key, info.tex_coords);
             }
             for (key, referrer) in queued_tex_reads {
                 let tex_coords = renderer
