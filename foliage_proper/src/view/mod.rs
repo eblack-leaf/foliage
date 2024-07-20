@@ -1,9 +1,9 @@
-use std::marker::PhantomData;
 use crate::action::ElementHandle;
 use crate::element::TargetHandle;
 use crate::grid::{Grid, GridPlacement};
 use bevy_ecs::system::Command;
 use bevy_ecs::world::World;
+use std::marker::PhantomData;
 
 mod button;
 
@@ -30,10 +30,7 @@ impl<'a> View<'a> {
         todo!()
     }
     // TODO forward elm-handle functions
-    pub(crate) fn new(
-        target_handle: TargetHandle,
-        world_handle: Option<&'a mut World>,
-    ) -> Self {
+    pub(crate) fn new(target_handle: TargetHandle, world_handle: Option<&'a mut World>) -> Self {
         Self {
             target_handle,
             world_handle,

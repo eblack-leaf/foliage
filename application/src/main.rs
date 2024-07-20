@@ -28,7 +28,7 @@ impl Actionable for OtherStuff {
             Option::from(Grid::new(1, 1)),
             |e| {
                 e.give_attr(Panel::new(Rounding::default(), Grey::LIGHT));
-                    e.dependent_of("first");
+                e.dependent_of("first");
             },
         );
         handle.add_element(
@@ -37,7 +37,7 @@ impl Actionable for OtherStuff {
             Option::from(Grid::new(1, 1)),
             |e| {
                 e.give_attr(Panel::new(Rounding::default(), Grey::BASE));
-                    e.dependent_of("first-sub");
+                e.dependent_of("first-sub");
             },
         );
         handle.add_element(
@@ -46,7 +46,7 @@ impl Actionable for OtherStuff {
             Option::from(Grid::new(1, 1)),
             |e| {
                 e.give_attr(Panel::new(Rounding::default(), Grey::DARK));
-                    e.dependent_of("first-sub-sub");
+                e.dependent_of("first-sub-sub");
             },
         );
         handle.create_signaled_action("click-test", DeleteTest {});
@@ -56,9 +56,9 @@ impl Actionable for OtherStuff {
             Option::from(Grid::new(1, 1)),
             |e| {
                 e.give_attr(Panel::new(Rounding::default(), Color::BLACK));
-                    e.dependent_of("first-sub-sub-sub");
-                    e.give_attr(OnClick::new("click-test"));
-                  e  .give_attr(ClickInteractionListener::new())
+                e.dependent_of("first-sub-sub-sub");
+                e.give_attr(OnClick::new("click-test"));
+                e.give_attr(ClickInteractionListener::new())
             },
         );
         handle.add_element(
@@ -67,7 +67,7 @@ impl Actionable for OtherStuff {
             None,
             |e| {
                 e.give_attr(Icon::new(0, Color::BLACK));
-                    e.dependent_of("second");
+                e.dependent_of("second");
             },
         )
     }
@@ -81,13 +81,13 @@ impl Actionable for Stuff {
             "first",
             GridPlacement::new(1.col().to(4.col()), 1.row().to(4.row())).offset_layer(4),
             Some(Grid::new(1, 1)),
-            |e| e.give_attr(Panel::new(Rounding::default(), Color::WHITE))
+            |e| e.give_attr(Panel::new(Rounding::default(), Color::WHITE)),
         );
         handle.add_element(
             "second",
             GridPlacement::new(5.col().to(8.col()), 1.row().to(4.row())).offset_layer(3),
             Some(Grid::new(4, 4)),
-            |e| e.give_attr(Panel::new(Rounding::default(), Grey::BASE))
+            |e| e.give_attr(Panel::new(Rounding::default(), Grey::BASE)),
         );
         handle.run_action(OtherStuff {});
         println!("almost-finished-stuff");
