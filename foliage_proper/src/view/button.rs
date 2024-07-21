@@ -35,7 +35,7 @@ impl Viewable for Button {
     fn build(self, view: &mut View) {
         view.config_grid(Grid::new(3, 1));
         view.bind(
-            "panel",
+            view.target_handle.extend("panel"),
             GridPlacement::new(0.percent().to(100.percent()), 0.percent().to(100.percent())),
             None,
             |b| {
