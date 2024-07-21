@@ -83,6 +83,16 @@ impl Text {
 }
 #[derive(Copy, Clone, Component)]
 pub struct FontSize(pub(crate) f32);
+impl From<u32> for FontSize {
+    fn from(value: u32) -> Self {
+        Self(value as f32)
+    }
+}
+impl From<i32> for FontSize {
+    fn from(value: i32) -> Self {
+        Self(value as f32)
+    }
+}
 impl FontSize {
     pub fn new(v: u32) -> Self {
         Self(v as f32)
@@ -156,6 +166,11 @@ impl GlyphColors {
 }
 #[derive(Clone, Component)]
 pub struct TextValue(pub String);
+impl<S: AsRef<str>> From<S> for TextValue {
+    fn from(value: S) -> Self {
+        Self::new(value)
+    }
+}
 impl TextValue {
     pub fn new<S: AsRef<str>>(s: S) -> Self {
         Self(s.as_ref().to_string())
@@ -264,8 +279,15 @@ pub(crate) fn distill(
         )
         .to_logical(scale_factor.value());
         let diff = old.center() - adjusted.center();
+        // TODO changing pos + area here gets smaller each time
+        // need to keep pos + area as guidelines for where to adjust from
         pos.coordinates = (old.position + diff).coordinates;
         area.coordinates = adjusted.area.coordinates;
+        println!(
+            "old:{:?} adjusted:{:?}",
+            old,
+            (old.position + diff).coordinates
+        );
         for (offset, glyph) in old_glyphs {
             if !glyphs.glyphs.contains_key(&offset) {
                 glyphs.removed.insert(offset);

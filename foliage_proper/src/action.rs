@@ -1,8 +1,8 @@
-use std::collections::HashSet;
-
+use bevy_ecs::change_detection::Mut;
 use bevy_ecs::component::Component;
-use bevy_ecs::prelude::{Bundle, Changed, Commands, DetectChanges, Entity, Query, World};
+use bevy_ecs::prelude::{Bundle, Changed, Commands, DetectChanges, Entity, Query, Resource, World};
 use bevy_ecs::system::{Command, Res};
+use std::collections::HashSet;
 
 use crate::differential::{Remove, RenderLink};
 use crate::element::{ActionHandle, Dependents, Element, IdTable, Root, TargetHandle};
@@ -13,6 +13,7 @@ use crate::view::{View, Viewable};
 pub struct ElmHandle<'a> {
     pub(crate) world_handle: Option<&'a mut World>,
 }
+
 pub struct ElementHandle<'a> {
     pub(crate) world_handle: Option<&'a mut World>,
     pub(crate) handle: TargetHandle,
@@ -83,6 +84,23 @@ impl<'a> ElementHandle<'a> {
             .entity_mut(self.entity)
             .insert(a);
     }
+    pub fn get_attr_mut<TH: Into<TargetHandle>, A: Component, AFN: FnOnce(&mut A)>(
+        &mut self,
+        th: TH,
+        a_fn: AFN,
+    ) {
+        let handle = th.into();
+        let entity = self
+            .lookup_target_entity(handle)
+            .expect("non-existent target handle");
+        let mut comp = self
+            .world_handle
+            .as_mut()
+            .unwrap()
+            .get_mut::<A>(entity)
+            .unwrap();
+        a_fn(comp.as_mut());
+    }
     pub fn give_filtered_attr<A: Bundle + Send + Sync + 'static + Clone>(
         &mut self,
         filtered_attribute: FilteredAttribute<A>,
@@ -131,6 +149,23 @@ impl<'a> ElementHandle<'a> {
     }
 }
 impl<'a> ElmHandle<'a> {
+    pub fn get_resource_mut<R: Resource>(&mut self) -> Mut<'_, R> {
+        self.world_handle
+            .as_mut()
+            .unwrap()
+            .get_resource_mut::<R>()
+            .unwrap()
+    }
+    pub fn get_resource<R: Resource>(&self) -> &R {
+        self.world_handle
+            .as_ref()
+            .unwrap()
+            .get_resource::<R>()
+            .unwrap()
+    }
+    pub fn add_resource<R: Resource>(&mut self, r: R) {
+        self.world_handle.as_mut().unwrap().insert_resource(r);
+    }
     pub fn update_attr_for<C: Component, CFN: FnOnce(&mut C), TH: Into<TargetHandle>>(
         &mut self,
         th: TH,

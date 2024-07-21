@@ -50,6 +50,9 @@ pub(crate) fn recursive_placement(
                     Changed<GridPlacement>,
                     Changed<Root>,
                     Changed<Dependents>,
+                    // Changed<Position<LogicalContext>>,
+                    // Changed<Area<LogicalContext>>,
+                    // Changed<Layer>,
                 )>,
                 With<GridPlacement>,
                 With<Root>,
@@ -77,7 +80,11 @@ pub(crate) fn recursive_placement(
     layout: Res<Layout>,
     layout_grid: Res<LayoutGrid>,
 ) {
-    if layout.is_changed() || layout_grid.is_changed() || !elements.p0().is_empty() {
+    let x = layout.is_changed();
+    let y = layout_grid.is_changed();
+    let z = !elements.p0().is_empty();
+    if x || y || z {
+        println!("x:{} y:{} z:{}", x, y, z);
         let roots = elements
             .p1()
             .iter()

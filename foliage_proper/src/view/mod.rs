@@ -4,7 +4,7 @@ use crate::action::{ElementHandle, ElmHandle};
 use crate::element::TargetHandle;
 use crate::grid::{Grid, GridPlacement};
 
-mod button;
+pub mod button;
 
 pub trait Viewable
 where
@@ -17,17 +17,18 @@ pub struct View<'a> {
     pub elm_handle: ElmHandle<'a>,
 }
 impl<'a> View<'a> {
-    pub fn bind<TH: Into<TargetHandle>, BFN: FnOnce(&'a mut ElementHandle)>(
+    pub fn bind<TH: Into<TargetHandle>, BFN: FnOnce(&mut ElementHandle<'a>)>(
         &mut self,
         th: TH,
         grid_placement: GridPlacement,
         grid: Option<Grid>,
         b_fn: BFN,
     ) {
-        // this => self.target_handle.extend(th.into())
-        // then elm-handle.add_element() + .dependent_of(self.target_handle)
-        // then run w/ b_fn
-        todo!()
+        let handle = self.target_handle.extend(th.into().0);
+        self.elm_handle
+            .add_element(handle.clone(), grid_placement, grid, b_fn);
+        self.elm_handle
+            .update_element(handle, |e| e.dependent_of(self.target_handle.clone()));
     }
     pub fn config_grid(&mut self, grid: Grid) {
         self.elm_handle

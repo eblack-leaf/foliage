@@ -1,97 +1,47 @@
 use foliage::action::{Actionable, ElmHandle};
+use foliage::bevy_ecs;
+use foliage::bevy_ecs::system::Resource;
 use foliage::color::{Color, Grey, Monochromatic};
-use foliage::grid::{Grid, GridCoordinate, GridPlacement};
-use foliage::icon::{Icon, IconId};
-use foliage::interaction::{ClickInteractionListener, OnClick};
-use foliage::panel::{Panel, Rounding};
+use foliage::element::TargetHandle;
+use foliage::grid::{GridCoordinate, GridPlacement};
+use foliage::interaction::OnClick;
+use foliage::panel::Rounding;
+use foliage::style::Coloring;
+use foliage::text::TextValue;
+use foliage::view::button::Button;
 use foliage::Foliage;
-
 #[derive(Clone)]
-struct DeleteTest {}
-impl Actionable for DeleteTest {
+struct ButtonTest {}
+#[derive(Resource)]
+struct Counter(i32);
+impl Actionable for ButtonTest {
     fn apply(self, mut handle: ElmHandle) {
-        handle.remove_element("first-sub-sub");
-        handle.update_element("icon-change-test", |e| e.give_attr(IconId(1)));
-        handle.update_attr_for("icon-change-test", |id: &mut IconId| id.0 = 2);
-        // handle.remove_element("second");
-    }
-}
-#[derive(Clone)]
-struct OtherStuff {}
-impl Actionable for OtherStuff {
-    fn apply(self, mut handle: ElmHandle) {
-        println!("other");
-        handle.add_element(
-            "first-sub",
-            GridPlacement::new(20.percent().to(100.percent()), 1.row().to(1.row()))
-                .offset_layer(-1),
-            Option::from(Grid::new(1, 1)),
-            |e| {
-                e.give_attr(Panel::new(Rounding::default(), Grey::LIGHT));
-                e.dependent_of("first");
+        println!("hello-world");
+        handle.get_resource_mut::<Counter>().0 += 1;
+        let i = handle.get_resource::<Counter>().0;
+        handle.update_attr_for(
+            TargetHandle::from("button-test").extend("text"),
+            |t: &mut TextValue| {
+                println!("text-val: {}", t.0);
+                t.0 = format!("click-{}", i);
             },
         );
-        handle.add_element(
-            "first-sub-sub",
-            GridPlacement::new(1.col().to(1.col()), 1.row().to(1.row())).offset_layer(-1),
-            Option::from(Grid::new(1, 1)),
-            |e| {
-                e.give_attr(Panel::new(Rounding::default(), Grey::BASE));
-                e.dependent_of("first-sub");
-            },
-        );
-        handle.add_element(
-            "first-sub-sub-sub",
-            GridPlacement::new(1.col().to(1.col()), 1.row().to(1.row())).offset_layer(-1),
-            Option::from(Grid::new(1, 1)),
-            |e| {
-                e.give_attr(Panel::new(Rounding::default(), Grey::DARK));
-                e.dependent_of("first-sub-sub");
-            },
-        );
-        handle.create_signaled_action("click-test", DeleteTest {});
-        handle.add_element(
-            "first-sub-sub-sub-sub",
-            GridPlacement::new(1.col().to(1.col()), 1.row().to(1.row())).offset_layer(-1),
-            Option::from(Grid::new(1, 1)),
-            |e| {
-                e.give_attr(Panel::new(Rounding::default(), Color::BLACK));
-                e.dependent_of("first-sub-sub-sub");
-                e.give_attr(OnClick::new("click-test"));
-                e.give_attr(ClickInteractionListener::new())
-            },
-        );
-        handle.add_element(
-            "icon-change-test",
-            GridPlacement::new(1.col().to(1.col()), 1.row().to(1.row())).offset_layer(-1),
-            None,
-            |e| {
-                e.give_attr(Icon::new(0, Color::BLACK));
-                e.dependent_of("second");
-            },
-        )
     }
 }
 #[derive(Clone)]
 struct Stuff {}
 impl Actionable for Stuff {
     fn apply(self, mut handle: ElmHandle) {
-        println!("stuff");
-        handle.add_element(
-            "first",
-            GridPlacement::new(1.col().to(4.col()), 1.row().to(4.row())).offset_layer(4),
-            Some(Grid::new(1, 1)),
-            |e| e.give_attr(Panel::new(Rounding::default(), Color::WHITE)),
-        );
-        handle.add_element(
-            "second",
-            GridPlacement::new(5.col().to(8.col()), 1.row().to(4.row())).offset_layer(3),
-            Some(Grid::new(4, 4)),
-            |e| e.give_attr(Panel::new(Rounding::default(), Grey::BASE)),
-        );
-        handle.run_action(OtherStuff {});
-        println!("almost-finished-stuff");
-        // handle.remove_element("second");
+        handle.add_resource(Counter(0));
+        handle.create_signaled_action("other-stuff", ButtonTest {});
+        handle.add_view(
+            None,
+            "button-test",
+            GridPlacement::new(1.col().to(4.col()), 1.row().to(1.row())).offset_layer(5),
+            Button::new(0, "click", 24, OnClick::new("other-stuff"))
+                .rounded(Rounding::all(0.1))
+                .colored(Coloring::new(Grey::LIGHT, Grey::DARK, Grey::LIGHT)),
+        )
     }
 }
 fn main() {
@@ -104,7 +54,7 @@ fn main() {
         tracing_subscriber::filter::Targets::new().with_target("foliage", tracing::Level::TRACE),
     );
     foliage.set_base_url("");
-    foliage.enable_signaled_action::<DeleteTest>();
+    foliage.enable_signaled_action::<ButtonTest>();
     foliage.run_action(Stuff {});
     foliage.run();
 }
