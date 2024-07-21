@@ -307,7 +307,7 @@ impl<'a> ElmHandle<'a> {
         let action = Action { data: a };
         action.apply(self.world_handle.as_mut().unwrap());
     }
-    pub fn create_view<V: Viewable, TH: Into<TargetHandle>>(
+    pub fn add_view<V: Viewable, TH: Into<TargetHandle>>(
         &mut self,
         rth: Option<TH>,
         th: TH,
@@ -320,9 +320,15 @@ impl<'a> ElmHandle<'a> {
                 e.dependent_of(rth.unwrap().into());
             }
         });
-        let mut view = View::new(handle, self.world_handle.take());
+        let mut view = View::new(
+            handle,
+            ElmHandle {
+                world_handle: self.world_handle.take(),
+            },
+        );
         v.build(&mut view);
-        self.world_handle.replace(view.world_handle.take().unwrap());
+        self.world_handle
+            .replace(view.elm_handle.world_handle.take().unwrap());
     }
     pub fn create_signaled_action<A: Actionable, AH: Into<ActionHandle>>(&mut self, ah: AH, a: A) {
         if !self
@@ -346,7 +352,7 @@ impl<'a> ElmHandle<'a> {
             .unwrap()
             .add_action(ah, signaler);
     }
-    fn lookup_target_entity<TH: Into<TargetHandle>>(&self, th: TH) -> Option<Entity> {
+    pub(crate) fn lookup_target_entity<TH: Into<TargetHandle>>(&self, th: TH) -> Option<Entity> {
         self.world_handle
             .as_ref()
             .unwrap()

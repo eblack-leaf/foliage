@@ -1,9 +1,8 @@
-use crate::action::ElementHandle;
+use bevy_ecs::system::Command;
+
+use crate::action::{ElementHandle, ElmHandle};
 use crate::element::TargetHandle;
 use crate::grid::{Grid, GridPlacement};
-use bevy_ecs::system::Command;
-use bevy_ecs::world::World;
-use std::marker::PhantomData;
 
 mod button;
 
@@ -15,7 +14,7 @@ where
 }
 pub struct View<'a> {
     pub target_handle: TargetHandle,
-    pub(crate) world_handle: Option<&'a mut World>,
+    pub elm_handle: ElmHandle<'a>,
 }
 impl<'a> View<'a> {
     pub fn bind<TH: Into<TargetHandle>, BFN: FnOnce(&'a mut ElementHandle)>(
@@ -27,13 +26,18 @@ impl<'a> View<'a> {
     ) {
         // this => self.target_handle.extend(th.into())
         // then elm-handle.add_element() + .dependent_of(self.target_handle)
+        // then run w/ b_fn
         todo!()
     }
+    pub fn config_grid(&mut self, grid: Grid) {
+        self.elm_handle
+            .update_element(self.target_handle.clone(), |e| e.give_attr(grid));
+    }
     // TODO forward elm-handle functions
-    pub(crate) fn new(target_handle: TargetHandle, world_handle: Option<&'a mut World>) -> Self {
+    pub(crate) fn new(target_handle: TargetHandle, elm_handle: ElmHandle<'a>) -> Self {
         Self {
             target_handle,
-            world_handle,
+            elm_handle,
         }
     }
 }
