@@ -141,7 +141,8 @@ fn coordinate_resolve(
         gpu.pos = pos
             .to_device(scale_factor.value())
             .add(
-                primitive_offset.copied()
+                primitive_offset
+                    .copied()
                     .unwrap_or_default()
                     .section
                     .position
@@ -152,7 +153,8 @@ fn coordinate_resolve(
         gpu.area = area
             .to_device(scale_factor.value())
             .add(
-                primitive_offset.copied()
+                primitive_offset
+                    .copied()
                     .unwrap_or_default()
                     .section
                     .area

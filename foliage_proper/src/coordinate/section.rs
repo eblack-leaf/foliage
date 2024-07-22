@@ -1,6 +1,7 @@
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
 use bytemuck::{Pod, Zeroable};
+use std::ops::{Add, AddAssign};
 
 use crate::coordinate::area::{Area, GpuArea};
 use crate::coordinate::position::{GpuPosition, Position};
@@ -134,5 +135,18 @@ impl<Context: CoordinateContext, C: Into<Coordinates>, D: Into<Coordinates>> Fro
 {
     fn from(value: (C, D)) -> Self {
         Self::new(value.0, value.1)
+    }
+}
+impl<Context: CoordinateContext> Add for Section<Context> {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self::new(self.position + rhs.position, self.area + rhs.area)
+    }
+}
+impl<Context: CoordinateContext> AddAssign for Section<Context> {
+    fn add_assign(&mut self, rhs: Self) {
+        self.position += rhs.position;
+        self.area += rhs.area;
     }
 }

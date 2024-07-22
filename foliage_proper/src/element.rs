@@ -71,6 +71,7 @@ pub(crate) fn recursive_placement(
             &mut Position<LogicalContext>,
             &mut Area<LogicalContext>,
             &mut Layer,
+            &mut GridPlacement,
         )>,
     )>,
     id_table: Res<IdTable>,
@@ -115,6 +116,12 @@ pub(crate) fn recursive_placement(
                     *elements.p2().get_mut(entity).unwrap().1 = placement.section.position;
                     *elements.p2().get_mut(entity).unwrap().2 = placement.section.area;
                     *elements.p2().get_mut(entity).unwrap().3 = placement.layer;
+                    elements
+                        .p2()
+                        .get_mut(entity)
+                        .unwrap()
+                        .4
+                        .update_queued_offset();
                 }
             }
         }

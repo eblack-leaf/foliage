@@ -100,7 +100,7 @@ impl Grid {
                 - grid_placement.padding.vertical()
                 - y
         };
-        let placed = Placement::new(
+        let mut placed = Placement::new(
             (
                 (
                     self.placement.section.x() + x,
@@ -110,8 +110,12 @@ impl Grid {
             ),
             self.placement.layer + grid_placement.layer_offset,
         );
-        // anim-adjust-queue-check + set-offset
-        // offset changes
+        let offset = if let Some(queued) = grid_placement.queued_offset {
+            grid_placement.offset + queued
+        } else {
+            grid_placement.offset
+        };
+        placed.section += offset;
         placed
     }
 }
@@ -123,9 +127,8 @@ pub struct GridPlacement {
     vertical_exceptions: HashMap<Layout, GridRange>,
     layer_offset: Layer,
     padding: Coordinates,
-    // anim-adjusted-queue? when resolve + last_pos.is_some() => give offset of current (w/out adjust) with last_pos
-    // anim-adjusted-queue for last_area as well
-    // TODO so give new placement w/ last_pos/area queued => resolve w/out => give offset
+    queued_offset: Option<Section<LogicalContext>>,
+    offset: Section<LogicalContext>,
 }
 impl GridPlacement {
     pub fn new(horizontal: GridRange, vertical: GridRange) -> Self {
@@ -136,6 +139,8 @@ impl GridPlacement {
             vertical_exceptions: Default::default(),
             layer_offset: Default::default(),
             padding: Default::default(),
+            queued_offset: None,
+            offset: Default::default(),
         }
     }
     pub fn padded<C: Into<Coordinates>>(mut self, c: C) -> Self {
@@ -168,6 +173,11 @@ impl GridPlacement {
         self.horizontal_exceptions.insert(layout, horizontal);
         self.vertical_exceptions.insert(layout, vertical);
         self
+    }
+    pub(crate) fn update_queued_offset(&mut self) {
+        if let Some(queued) = self.queued_offset.take() {
+            self.offset += queued;
+        }
     }
 }
 #[derive(Resource, Copy, Clone, Eq, Hash, PartialEq, Ord, PartialOrd, Debug)]

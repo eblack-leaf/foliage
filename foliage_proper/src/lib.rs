@@ -16,6 +16,7 @@ use winit::window::WindowId;
 use willow::Willow;
 
 use crate::action::{Actionable, ElmHandle, Signaler};
+use crate::anim::Animate;
 use crate::ash::{Ash, Render};
 use crate::asset::{Asset, AssetKey, AssetLoader};
 use crate::coordinate::area::Area;
@@ -101,6 +102,9 @@ impl Foliage {
     }
     pub fn enable_signaled_action<A: Actionable>(&mut self) {
         self.elm.enable_signaled_action::<A>();
+    }
+    pub fn enable_animation<A: Animate>(&mut self) {
+        self.elm.enable_animation::<A>();
     }
     pub fn create_signaled_action<A: Actionable, AH: Into<ActionHandle>>(&mut self, ah: AH, a: A) {
         if !self.elm.ecs.world.contains_resource::<ActionLimiter<A>>() {

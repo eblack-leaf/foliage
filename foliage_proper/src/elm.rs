@@ -14,6 +14,7 @@ use bevy_ecs::world::World;
 use crate::action::{
     clear_signal, filter_attr_changed, filter_attr_layout_change, signal_action, Actionable,
 };
+use crate::anim::Animate;
 use crate::ash::Render;
 use crate::asset::on_retrieve;
 use crate::clipboard::{read_retrieve, Clipboard};
@@ -129,6 +130,14 @@ impl<D> Default for FilterAttrLimiter<D> {
         Self(PhantomData)
     }
 }
+#[derive(Resource)]
+pub(crate) struct AnimationLimiter<D>(PhantomData<D>);
+
+impl<D> Default for AnimationLimiter<D> {
+    fn default() -> Self {
+        Self(PhantomData)
+    }
+}
 impl Elm {
     pub fn enable_signaled_action<A: Actionable>(&mut self) {
         if !self.ecs.world.contains_resource::<ActionLimiter<A>>() {
@@ -159,6 +168,16 @@ impl Elm {
             self.ecs
                 .world
                 .insert_resource(FilterAttrLimiter::<A>::default());
+        }
+    }
+    pub fn enable_animation<A: Animate>(&mut self) {
+        if !self.ecs.world.contains_resource::<AnimationLimiter<A>>() {
+            // self.scheduler
+            //     .main
+            //     .add_systems(().in_set(ScheduleMarkers::Animation));
+            self.ecs
+                .world
+                .insert_resource(AnimationLimiter::<A>::default());
         }
     }
     pub fn enable_differential<R: Render, D: Component + PartialEq + Clone>(&mut self) {
@@ -239,6 +258,7 @@ impl Elm {
                 ScheduleMarkers::Unused4,
                 ScheduleMarkers::Clean,
                 ScheduleMarkers::GridSemantics,
+                ScheduleMarkers::Animation,
                 ScheduleMarkers::Preparation,
                 ScheduleMarkers::Config,
                 ScheduleMarkers::Unused5,
@@ -286,6 +306,9 @@ impl Elm {
                 .before(ScheduleMarkers::GridSemantics),
             apply_deferred
                 .after(ScheduleMarkers::GridSemantics)
+                .before(ScheduleMarkers::Animation),
+            apply_deferred
+                .after(ScheduleMarkers::Animation)
                 .before(ScheduleMarkers::Preparation),
             apply_deferred
                 .after(ScheduleMarkers::Preparation)
@@ -421,4 +444,5 @@ pub enum ScheduleMarkers {
     Events,
     Unused3,
     Preparation,
+    Animation,
 }
