@@ -57,7 +57,7 @@ impl Grid {
         &self,
         grid_placement: &GridPlacement,
         layout: Layout,
-    ) -> Placement<LogicalContext> {
+    ) -> (Placement<LogicalContext>, Option<Section<LogicalContext>>) {
         let horizontal = grid_placement.horizontal(layout);
         let vertical = grid_placement.vertical(layout);
         let x = if let Some(px) = horizontal.start.px {
@@ -113,12 +113,19 @@ impl Grid {
             self.placement.layer + grid_placement.layer_offset,
         );
         let offset = if let Some(queued) = grid_placement.queued_offset {
-            queued - placed.section
+            grid_placement.offset + queued - placed.section
         } else {
             grid_placement.offset
         };
         placed.section += offset;
-        placed
+        (
+            placed,
+            if offset == Section::default() {
+                None
+            } else {
+                Some(offset)
+            },
+        )
     }
 }
 #[derive(Clone, Component)]
@@ -176,9 +183,10 @@ impl GridPlacement {
         self.vertical_exceptions.insert(layout, vertical);
         self
     }
-    pub(crate) fn update_queued_offset(&mut self) {
-        if let Some(queued) = self.queued_offset.take() {
-            self.offset += queued;
+    pub(crate) fn update_queued_offset(&mut self, o: Option<Section<LogicalContext>>) {
+        self.queued_offset.take();
+        if let Some(o) = o {
+            self.offset = o;
         }
     }
 }

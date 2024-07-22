@@ -10,6 +10,7 @@ use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::placement::Placement;
 use crate::coordinate::position::Position;
+use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
 use crate::differential::Remove;
 use crate::grid::{Grid, GridPlacement, Layout, LayoutGrid};
@@ -97,17 +98,18 @@ pub(crate) fn recursive_placement(
             .collect::<Vec<Option<Entity>>>();
         for r in roots {
             if let Some(r) = r {
-                let root_placement = layout_grid
+                let (root_placement, root_offset) = layout_grid
                     .grid
                     .place(elements.p1().get(r).unwrap().1, *layout);
                 let chain = recursive_placement_inner(
                     &elements.p1(),
                     root_placement,
                     r,
+                    root_offset,
                     &id_table,
                     *layout,
                 );
-                for (entity, placement, new_grid_placement) in chain {
+                for (entity, placement, new_grid_placement, offset) in chain {
                     if new_grid_placement.is_some() {
                         if let Some(mut grid) = elements.p2().get_mut(entity).unwrap().0 {
                             grid.size_to(new_grid_placement.unwrap());
@@ -121,7 +123,7 @@ pub(crate) fn recursive_placement(
                         .get_mut(entity)
                         .unwrap()
                         .4
-                        .update_queued_offset();
+                        .update_queued_offset(offset);
                 }
             }
         }
@@ -140,16 +142,18 @@ fn recursive_placement_inner(
     )>,
     current_placement: Placement<LogicalContext>,
     current_entity: Entity,
+    current_offset: Option<Section<LogicalContext>>,
     id_table: &IdTable,
     layout: Layout,
 ) -> Vec<(
     Entity,
     Placement<LogicalContext>,
     Option<Placement<LogicalContext>>,
+    Option<Section<LogicalContext>>,
 )> {
     let mut placed = vec![];
     if query.get(current_entity).unwrap().4 .0.is_empty() {
-        placed.push((current_entity, current_placement, None));
+        placed.push((current_entity, current_placement, None, current_offset));
         return placed;
     }
     let grid = query
@@ -159,16 +163,27 @@ fn recursive_placement_inner(
         .unwrap()
         .clone()
         .sized(current_placement);
-    placed.push((current_entity, current_placement, Some(current_placement)));
+    placed.push((
+        current_entity,
+        current_placement,
+        Some(current_placement),
+        current_offset,
+    ));
     for dep in query.get(current_entity).unwrap().4 .0.iter() {
         let dep_entity = id_table.lookup_target(dep.clone()).unwrap();
         let dep_grid_placement = query.get(dep_entity).unwrap().1;
-        let dep_placement = grid.place(dep_grid_placement, layout);
+        let (dep_placement, dep_offset) = grid.place(dep_grid_placement, layout);
         if query.get(dep_entity).unwrap().4 .0.is_empty() {
-            placed.push((dep_entity, dep_placement, None));
+            placed.push((dep_entity, dep_placement, None, dep_offset));
         } else {
-            let recursion =
-                recursive_placement_inner(query, dep_placement, dep_entity, id_table, layout);
+            let recursion = recursive_placement_inner(
+                query,
+                dep_placement,
+                dep_entity,
+                dep_offset,
+                id_table,
+                layout,
+            );
             placed.extend(recursion);
         }
     }
