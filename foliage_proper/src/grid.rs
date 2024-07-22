@@ -1,11 +1,13 @@
+use std::collections::HashMap;
+
+use bevy_ecs::prelude::{Component, ResMut, Resource};
+use bitflags::bitflags;
+
 use crate::coordinate::layer::Layer;
 use crate::coordinate::placement::Placement;
 use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, Coordinates, LogicalContext};
 use crate::ginkgo::viewport::ViewportHandle;
-use bevy_ecs::prelude::{Component, ResMut, Resource};
-use bitflags::bitflags;
-use std::collections::HashMap;
 
 #[derive(Copy, Clone, Component)]
 pub struct Grid {
@@ -111,7 +113,7 @@ impl Grid {
             self.placement.layer + grid_placement.layer_offset,
         );
         let offset = if let Some(queued) = grid_placement.queued_offset {
-            grid_placement.offset + queued
+            queued - placed.section
         } else {
             grid_placement.offset
         };
