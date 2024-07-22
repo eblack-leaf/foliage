@@ -32,6 +32,7 @@ use crate::style::Style;
 use crate::text::{Text, TextValue};
 
 pub mod action;
+pub mod anim;
 pub mod ash;
 pub mod asset;
 pub mod clipboard;

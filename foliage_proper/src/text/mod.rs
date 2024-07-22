@@ -22,7 +22,7 @@ use crate::coordinate::area::Area;
 use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::{GpuSection, Section};
-use crate::coordinate::{Coordinates, DeviceContext, LogicalContext};
+use crate::coordinate::{Coordinates, DeviceContext, LogicalContext, PrimitiveOffset};
 use crate::differential::{Differential, RenderLink};
 use crate::elm::{Elm, RenderQueueHandle, ScheduleMarkers};
 use crate::ginkgo::{Ginkgo, ScaleFactor, VectorUniform};
@@ -61,6 +61,7 @@ pub struct Text {
     color: Color,
     metrics: Differential<GlyphMetrics>,
     font_size: FontSize,
+    primitive_offset: PrimitiveOffset,
 }
 impl Text {
     pub fn new<S: AsRef<str>, C: Into<Color>>(tv: S, font_size: FontSize, color: C) -> Self {
@@ -78,6 +79,7 @@ impl Text {
             color,
             metrics: Differential::new(GlyphMetrics::default()),
             font_size,
+            primitive_offset: PrimitiveOffset::default(),
         }
     }
 }
@@ -203,10 +205,11 @@ pub(crate) fn distill(
             &mut Glyphs,
             &GlyphColors,
             &Color,
-            &mut Area<LogicalContext>,
-            &mut Position<LogicalContext>,
+            &Area<LogicalContext>,
+            &Position<LogicalContext>,
             &mut GlyphMetrics,
             &FontSize,
+            &mut PrimitiveOffset,
         ),
         Or<(
             Changed<TextValue>,
@@ -218,8 +221,17 @@ pub(crate) fn distill(
     font: Res<MonospacedFont>,
     scale_factor: Res<ScaleFactor>,
 ) {
-    for (value, mut glyphs, colors, base, mut area, mut pos, mut metrics, font_size) in
-        texts.iter_mut()
+    for (
+        value,
+        mut glyphs,
+        colors,
+        base,
+        mut area,
+        mut pos,
+        mut metrics,
+        font_size,
+        mut primitive_offset,
+    ) in texts.iter_mut()
     {
         let mut placer = fontdue::layout::Layout::new(CoordinateSystem::PositiveYDown);
         let scaled_area = area.to_device(scale_factor.value());
@@ -233,7 +245,7 @@ pub(crate) fn distill(
             let character_metrics = font.0.metrics('a', projected);
             let horizontal_metrics = font.0.horizontal_line_metrics(projected).unwrap();
             Coordinates::new(
-                (character_metrics.advance_width).ceil(),
+                character_metrics.advance_width.ceil(),
                 (horizontal_metrics.ascent - horizontal_metrics.descent).ceil(),
             )
         };
@@ -269,7 +281,7 @@ pub(crate) fn distill(
             );
         }
         let num_lines = (new_extent.vertical() / character_dims.vertical()).ceil();
-        let old = Section::logical(*pos, *area);
+        let normal = Section::logical(*pos, *area);
         let adjusted = Section::device(
             pos.to_device(scale_factor.value()),
             (
@@ -278,16 +290,9 @@ pub(crate) fn distill(
             ),
         )
         .to_logical(scale_factor.value());
-        let diff = old.center() - adjusted.center();
-        // TODO changing pos + area here gets smaller each time
-        // need to keep pos + area as guidelines for where to adjust from
-        pos.coordinates = (old.position + diff).coordinates;
-        area.coordinates = adjusted.area.coordinates;
-        println!(
-            "old:{:?} adjusted:{:?}",
-            old,
-            (old.position + diff).coordinates
-        );
+        primitive_offset.section.position.coordinates =
+            (normal.center() - adjusted.center()).coordinates;
+        primitive_offset.section.area.coordinates = area.coordinates - adjusted.area.coordinates;
         for (offset, glyph) in old_glyphs {
             if !glyphs.glyphs.contains_key(&offset) {
                 glyphs.removed.insert(offset);

@@ -1,14 +1,14 @@
-use std::ops::{Add, Div, Mul, Sub};
-
+use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{IntoSystemConfigs, Or};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Query, Res};
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
+use std::ops::{Add, AddAssign, Div, Mul, Sub};
 
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
-use crate::coordinate::section::GpuSection;
+use crate::coordinate::section::{GpuSection, Section};
 use crate::elm::{Elm, ScheduleMarkers};
 use crate::ginkgo::ScaleFactor;
 use crate::Leaf;
@@ -117,23 +117,49 @@ impl Leaf for Coordinates {
             .add_systems(coordinate_resolve.in_set(ScheduleMarkers::FinalizeCoordinate));
     }
 }
+#[derive(Component, Default, Clone, Copy)]
+pub(crate) struct PrimitiveOffset {
+    pub(crate) section: Section<LogicalContext>,
+}
 fn coordinate_resolve(
     mut placed_pos: Query<
         (
             &mut GpuSection,
             &Position<LogicalContext>,
             &Area<LogicalContext>,
+            Option<&PrimitiveOffset>,
         ),
         Or<(
             Changed<Position<LogicalContext>>,
             Changed<Area<LogicalContext>>,
+            Changed<PrimitiveOffset>,
         )>,
     >,
     scale_factor: Res<ScaleFactor>,
 ) {
-    for (mut gpu, pos, area) in placed_pos.iter_mut() {
-        gpu.pos = pos.to_device(scale_factor.value()).rounded().to_gpu();
-        gpu.area = area.to_device(scale_factor.value()).rounded().to_gpu();
+    for (mut gpu, pos, area, primitive_offset) in placed_pos.iter_mut() {
+        gpu.pos = pos
+            .to_device(scale_factor.value())
+            .add(
+                primitive_offset.copied()
+                    .unwrap_or_default()
+                    .section
+                    .position
+                    .to_device(scale_factor.value()),
+            )
+            .rounded()
+            .to_gpu();
+        gpu.area = area
+            .to_device(scale_factor.value())
+            .add(
+                primitive_offset.copied()
+                    .unwrap_or_default()
+                    .section
+                    .area
+                    .to_device(scale_factor.value()),
+            )
+            .rounded()
+            .to_gpu();
     }
 }
 
@@ -184,5 +210,11 @@ impl Mul for Coordinates {
             self.vertical() * rhs.vertical(),
         )
             .into()
+    }
+}
+impl AddAssign for Coordinates {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0[0] += rhs.horizontal();
+        self.0[1] += rhs.vertical();
     }
 }

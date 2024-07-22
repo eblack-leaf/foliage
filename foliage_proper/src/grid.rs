@@ -110,6 +110,8 @@ impl Grid {
             ),
             self.placement.layer + grid_placement.layer_offset,
         );
+        // anim-adjust-queue-check + set-offset
+        // offset changes
         placed
     }
 }
@@ -121,6 +123,9 @@ pub struct GridPlacement {
     vertical_exceptions: HashMap<Layout, GridRange>,
     layer_offset: Layer,
     padding: Coordinates,
+    // anim-adjusted-queue? when resolve + last_pos.is_some() => give offset of current (w/out adjust) with last_pos
+    // anim-adjusted-queue for last_area as well
+    // TODO so give new placement w/ last_pos/area queued => resolve w/out => give offset
 }
 impl GridPlacement {
     pub fn new(horizontal: GridRange, vertical: GridRange) -> Self {

@@ -1,5 +1,5 @@
 use std::marker::PhantomData;
-use std::ops::{Div, Sub};
+use std::ops::{Add, Div, Sub};
 
 use bevy_ecs::prelude::Component;
 use bytemuck::{Pod, Zeroable};
@@ -121,5 +121,13 @@ impl<Context: CoordinateContext> Div for Area<Context> {
 
     fn div(self, rhs: Self) -> Self::Output {
         (self.coordinates / rhs.coordinates).into()
+    }
+}
+
+impl<Context: CoordinateContext> Add for Area<Context> {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        (self.coordinates + rhs.coordinates).into()
     }
 }
