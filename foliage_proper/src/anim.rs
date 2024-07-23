@@ -9,8 +9,6 @@ use crate::action::Signal;
 use crate::element::{ActionHandle, IdTable};
 use crate::time::{Time, TimeDelta};
 
-// when make => get current section of entity + set in new.queued_offset
-// read ending-offset from new.offset (default == 0/0/0/0)
 #[derive(Component)]
 pub(crate) struct Animation<A: Animate> {
     started: bool,
@@ -18,15 +16,37 @@ pub(crate) struct Animation<A: Animate> {
     interpolations: Interpolations,
     easement: Easement,
     sequence_entity: Entity,
+    animation_time: AnimationTime,
+}
+pub(crate) struct AnimationTime {
+    accumulated_time: TimeDelta, // use these two to get linear % => use Bézier curve 0-1 to get actual %
+    total_time: TimeDelta,
+    delay: TimeDelta,
+}
+impl AnimationTime {
+    pub(crate) fn normalized_delta(&mut self, fd: TimeDelta) -> f32 {
+        todo!()
+    }
+}
+impl From<SequenceTimeRange> for AnimationTime {
+    fn from(value: SequenceTimeRange) -> Self {
+        todo!()
+    }
 }
 impl<A: Animate> Animation<A> {
-    pub(crate) fn new<EASE: Into<Easement>>(end: A, ease: EASE, se: Entity) -> Self {
+    pub(crate) fn new<EASE: Into<Easement>>(
+        end: A,
+        ease: EASE,
+        se: Entity,
+        animation_time: AnimationTime,
+    ) -> Self {
         Self {
             started: false,
             end,
             interpolations: Interpolations::default(),
             easement: ease.into(),
             sequence_entity: se,
+            animation_time,
         }
     }
 }
@@ -52,13 +72,40 @@ impl Interpolation {
     }
 }
 pub struct Easement {
-    // bezier curve
-    accumulated_time: TimeDelta, // use these two to get linear % => use Bézier curve 0-1 to get actual %
-    total_time: TimeDelta,
+    behavior: EasementBehavior,
+    // bezier curve else x = y (linear)
+}
+pub enum EasementBehavior {
+    Linear,
+    Bezier(/* control points? */),
+}
+#[derive(Copy, Clone)]
+pub struct SequenceTimeRange {
+    start: TimeDelta,
+    end: TimeDelta,
+}
+#[derive(Copy, Clone)]
+pub struct SequenceTime {
+    val: TimeDelta,
+}
+impl SequenceTime {
+    pub fn to(self, end: Self) -> SequenceTimeRange {
+        SequenceTimeRange {
+            start: self.val,
+            end: end.val,
+        }
+    }
+}
+pub trait SequenceTiming {
+    fn sec(self) -> SequenceTime;
+    fn millis(self) -> SequenceTime;
 }
 impl Easement {
-    pub fn delta(&mut self, fd: TimeDelta) -> f32 {
+    pub fn percent_changed(&mut self, d: f32) -> f32 {
         // clamp to 0/100% or 0-1
+        todo!()
+    }
+    pub(crate) fn new(behavior: EasementBehavior) -> Self {
         todo!()
     }
 }
@@ -69,11 +116,12 @@ where
     fn interpolations(start: &Self, end: &Self) -> Interpolations;
     fn apply(&mut self, interpolations: &mut Interpolations);
 }
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct Sequence {
-    animations_to_finish: i32,
-    on_end: OnEnd,
+    pub(crate) animations_to_finish: i32,
+    pub(crate) on_end: OnEnd,
 }
+#[derive(Default)]
 pub struct OnEnd {
     actions: HashSet<ActionHandle>,
 }
@@ -85,12 +133,14 @@ pub(crate) fn animate<A: Animate>(
     mut cmd: Commands,
 ) {
     for (anim_entity, mut animation, mut a) in anims.iter_mut() {
+        // TODO delay time calc + skip if not ready
         if !animation.started {
             animation.interpolations = A::interpolations(&a, &animation.end);
             animation.started = true;
         }
         let frame_diff = time.frame_diff();
-        let percent = animation.easement.delta(frame_diff);
+        let delta = animation.animation_time.normalized_delta(frame_diff);
+        let percent = animation.easement.percent_changed(delta);
         for i in animation.interpolations.scalars.iter_mut() {
             let d = i.start + i.diff * percent;
             i.current_value.replace(d);

@@ -136,7 +136,7 @@ pub struct GridPlacement {
     vertical_exceptions: HashMap<Layout, GridRange>,
     layer_offset: Layer,
     padding: Coordinates,
-    queued_offset: Option<Section<LogicalContext>>,
+    pub(crate) queued_offset: Option<Section<LogicalContext>>,
     offset: Section<LogicalContext>,
 }
 impl GridPlacement {

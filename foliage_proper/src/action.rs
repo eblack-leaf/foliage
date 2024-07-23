@@ -1,9 +1,16 @@
+use std::any::TypeId;
+use std::collections::HashSet;
+
 use bevy_ecs::change_detection::Mut;
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Bundle, Changed, Commands, DetectChanges, Entity, Query, Resource, World};
 use bevy_ecs::system::{Command, Res};
-use std::collections::HashSet;
 
+use crate::anim::{Animate, Animation, AnimationTime, OnEnd, Sequence, SequenceTimeRange};
+use crate::coordinate::area::Area;
+use crate::coordinate::position::Position;
+use crate::coordinate::section::Section;
+use crate::coordinate::LogicalContext;
 use crate::differential::{Remove, RenderLink};
 use crate::element::{ActionHandle, Dependents, Element, IdTable, Root, TargetHandle};
 use crate::elm::{ActionLimiter, FilterAttrLimiter};
@@ -138,6 +145,77 @@ impl<'a> ElementHandle<'a> {
             .unwrap()
             .0
             .replace(rth);
+    }
+    fn lookup_target_entity<TH: Into<TargetHandle>>(&self, th: TH) -> Option<Entity> {
+        self.world_handle
+            .as_ref()
+            .unwrap()
+            .get_resource::<IdTable>()
+            .unwrap()
+            .lookup_target(th.into())
+    }
+}
+pub struct SequenceHandle<'a> {
+    world_handle: Option<&'a mut World>,
+    sequence: Sequence,
+    sequence_entity: Entity,
+}
+impl<'a> SequenceHandle<'a> {
+    pub fn animate_attr<A: Animate, TH: Into<TargetHandle>>(
+        &mut self,
+        th: TH,
+        a: A,
+        st: SequenceTimeRange,
+    ) {
+        if TypeId::of::<A>() == TypeId::of::<GridPlacement>() {
+            panic!("please use SequenceHandle::animate_grid_placement for correct behavior");
+        }
+        self.sequence.animations_to_finish += 1;
+        let anim = Animation::new(a, (), self.sequence_entity, AnimationTime::from(st));
+        let entity = self.lookup_target_entity(th).unwrap();
+        self.world_handle
+            .as_mut()
+            .unwrap()
+            .entity_mut(entity)
+            .insert(anim);
+    }
+    pub fn animate_grid_placement<TH: Into<TargetHandle>>(
+        &mut self,
+        th: TH,
+        gp: GridPlacement,
+        st: SequenceTimeRange,
+    ) {
+        self.sequence.animations_to_finish += 1;
+        let entity = self.lookup_target_entity(th).unwrap();
+        let current_pos = *self
+            .world_handle
+            .as_ref()
+            .unwrap()
+            .get::<Position<LogicalContext>>(entity)
+            .unwrap();
+        let current_area = *self
+            .world_handle
+            .as_ref()
+            .unwrap()
+            .get::<Area<LogicalContext>>(entity)
+            .unwrap();
+        let current = Section::new(current_pos, current_area);
+        let mut altered = gp.clone();
+        altered.queued_offset.replace(current);
+        self.world_handle
+            .as_mut()
+            .unwrap()
+            .entity_mut(entity)
+            .insert(altered);
+        let anim = Animation::new(gp, (), self.sequence_entity, AnimationTime::from(st));
+        self.world_handle
+            .as_mut()
+            .unwrap()
+            .entity_mut(entity)
+            .insert(anim);
+    }
+    pub fn on_end(&mut self, on_end: OnEnd) {
+        self.sequence.on_end = on_end;
     }
     fn lookup_target_entity<TH: Into<TargetHandle>>(&self, th: TH) -> Option<Entity> {
         self.world_handle
@@ -341,6 +419,22 @@ impl<'a> ElmHandle<'a> {
     pub fn run_action<A: Actionable>(&mut self, a: A) {
         let action = Action { data: a };
         action.apply(self.world_handle.as_mut().unwrap());
+    }
+    pub fn run_sequence<SFN: FnOnce(&mut SequenceHandle<'a>)>(&mut self, seq_fn: SFN) {
+        let se = self.world_handle.as_mut().unwrap().spawn_empty().id();
+        let mut seq_handle = SequenceHandle {
+            world_handle: self.world_handle.take(),
+            sequence: Sequence::default(),
+            sequence_entity: se,
+        };
+        seq_fn(&mut seq_handle);
+        self.world_handle
+            .replace(seq_handle.world_handle.take().unwrap());
+        self.world_handle
+            .as_mut()
+            .unwrap()
+            .entity_mut(se)
+            .insert(seq_handle.sequence);
     }
     pub fn add_view<V: Viewable, TH: Into<TargetHandle>>(
         &mut self,
