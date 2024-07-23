@@ -126,6 +126,12 @@ impl Clipboard {
             let document = web_sys::window().unwrap().document().unwrap();
             let node = document.create_element("button").unwrap();
             node.set_id("copy-trigger");
+            node.set_attribute(
+                "style",
+                "'position: absolute;left: -1px;top: -1px;opacity: 0;\
+            padding: 0;min-width: 0; min-height: 0;width: 0; height: 0;border: 0'",
+            )
+            .expect("attr");
             let data = "testing-testing-456";
             let closure = wasm_bindgen::prelude::Closure::once(move || {
                 tracing::trace!("writing clipboard {:?}", data);
