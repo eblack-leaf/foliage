@@ -124,8 +124,38 @@ impl Clipboard {
         let handle = web_sys::window().expect("window").navigator().clipboard();
         if handle.is_some() {
             let document = web_sys::window().unwrap().document().unwrap();
-            let node = document.create_element("div").unwrap();
-            node.set_inner_html("<button id='copy-trigger'></button>");
+            let node = document.create_element("button").unwrap();
+            node.set_id("copy-trigger");
+            let data = "testing-testing-456";
+            let closure = wasm_bindgen::prelude::Closure::once(move || {
+                tracing::trace!("writing clipboard {:?}", data);
+                let js_string = JsValue::from_str(data);
+                let js_array = web_sys::js_sys::Array::from_iter(std::iter::once(js_string));
+                tracing::trace!("js-array {:?}", js_array);
+                let js_blob = web_sys::Blob::new_with_str_sequence_and_options(
+                    &js_array,
+                    &web_sys::BlobPropertyBag::new().type_("text/plain"),
+                )
+                .unwrap();
+                // let inner_promise = wasm_bindgen_futures::js_sys::Promise::resolve(&js_blob);
+                let js_obj = Object::new();
+                web_sys::js_sys::Reflect::set(&js_obj, &"text/plain".into(), &js_blob).unwrap();
+                let item = ClipboardItemExt::new(&js_obj, &Object::new());
+                let item_array = web_sys::js_sys::Array::of1(item.as_ref());
+                wasm_bindgen_futures::spawn_local(async move {
+                    let promise = web_sys::window()
+                        .expect("window")
+                        .navigator()
+                        .clipboard()
+                        .unwrap()
+                        .write(&item_array);
+                    let _message = wasm_bindgen_futures::JsFuture::from(promise).await.ok();
+                    tracing::trace!("return message {:?}", _message);
+                });
+            });
+            node.add_event_listener_with_callback("click", closure.as_ref().unchecked_ref())
+                .unwrap();
+            closure.forget();
             document.body().unwrap().append_child(&node).unwrap();
         }
         Self {
@@ -176,38 +206,9 @@ impl Clipboard {
                     .unwrap()
                     .dyn_into::<web_sys::HtmlElement>()
                     .unwrap();
-                let closure = wasm_bindgen::prelude::Closure::once(move || {
-                    tracing::trace!("writing clipboard {:?}", data);
-                    let js_string = JsValue::from_str(data.as_str());
-                    let js_array = web_sys::js_sys::Array::from_iter(std::iter::once(js_string));
-                    tracing::trace!("js-array {:?}", js_array);
-                    let js_blob = web_sys::Blob::new_with_str_sequence_and_options(
-                        &js_array,
-                        &web_sys::BlobPropertyBag::new().type_("text/plain"),
-                    )
-                    .unwrap();
-                    // let inner_promise = wasm_bindgen_futures::js_sys::Promise::resolve(&js_blob);
-                    let js_obj = Object::new();
-                    web_sys::js_sys::Reflect::set(&js_obj, &"text/plain".into(), &js_blob).unwrap();
-                    let item = ClipboardItemExt::new(&js_obj, &Object::new());
-                    let item_array = web_sys::js_sys::Array::of1(item.as_ref());
-                    wasm_bindgen_futures::spawn_local(async move {
-                        let promise = web_sys::window()
-                            .expect("window")
-                            .navigator()
-                            .clipboard()
-                            .unwrap()
-                            .write(&item_array);
-                        let _message = wasm_bindgen_futures::JsFuture::from(promise).await.ok();
-                        tracing::trace!("return message {:?}", _message);
-                    });
-                });
-                node.add_event_listener_with_callback("click", closure.as_ref().unchecked_ref())
-                    .unwrap();
                 node.click();
                 // node.remove_event_listener_with_callback("click", closure.as_ref().unchecked_ref())
                 //     .unwrap();
-                closure.forget();
             }
         }
         #[cfg(not(target_family = "wasm"))]
