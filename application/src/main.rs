@@ -28,6 +28,12 @@ impl Actionable for ButtonTest {
                 t.0 = format!("click-{}", i);
             },
         );
+        let i = if i >= 4 {
+            let diff = i - 4;
+            diff
+        } else {
+            i
+        };
         handle.run_sequence(|seq| {
             seq.animate_grid_placement(
                 "button-test",
