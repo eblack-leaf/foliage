@@ -186,13 +186,11 @@ impl Clipboard {
                         &web_sys::BlobPropertyBag::new().type_("text/plain"),
                     )
                     .unwrap();
-                    let inner_promise = wasm_bindgen_futures::js_sys::Promise::resolve(&js_blob);
+                    // let inner_promise = wasm_bindgen_futures::js_sys::Promise::resolve(&js_blob);
                     let js_obj = Object::new();
-                    web_sys::js_sys::Reflect::set(&js_obj, &"text/plain".into(), &inner_promise)
-                        .unwrap();
+                    web_sys::js_sys::Reflect::set(&js_obj, &"text/plain".into(), &js_blob).unwrap();
                     let item = ClipboardItemExt::new(&js_obj, &Object::new());
                     let item_array = web_sys::js_sys::Array::of1(item.as_ref());
-
                     wasm_bindgen_futures::spawn_local(async move {
                         let promise = web_sys::window()
                             .expect("window")
