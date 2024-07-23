@@ -39,7 +39,7 @@ impl Actionable for ButtonTest {
                 "button-test",
                 GridPlacement::new((1 + i).col().to((2 + i).col()), 1.row().to(1.row()))
                     .offset_layer(5),
-                0.sec().to(1.sec()),
+                0.sec().to(500.millis()),
                 EasementBehavior::Linear,
             );
         });
@@ -55,7 +55,7 @@ impl Actionable for Stuff {
             None,
             "button-test",
             GridPlacement::new(1.col().to(2.col()), 1.row().to(1.row())).offset_layer(5),
-            Button::new(0, "click", 14, OnClick::new("other-stuff"))
+            Button::new(0, "click", 20, OnClick::new("other-stuff"))
                 .rounded(Rounding::all(0.1))
                 .colored(Coloring::new(Grey::LIGHT, Grey::DARK, Grey::LIGHT)),
         )
