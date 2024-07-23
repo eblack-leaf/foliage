@@ -207,8 +207,8 @@ impl Clipboard {
                 node.add_event_listener_with_callback("click", closure.as_ref().unchecked_ref())
                     .unwrap();
                 node.click();
-                node.remove_event_listener_with_callback("click", closure.as_ref().unchecked_ref())
-                    .unwrap();
+                // node.remove_event_listener_with_callback("click", closure.as_ref().unchecked_ref())
+                //     .unwrap();
                 closure.forget();
             }
         }
