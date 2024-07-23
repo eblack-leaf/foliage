@@ -370,30 +370,6 @@ impl Foliage {
                 {
                     self.elm.ecs.world.send_event(event);
                 }
-                use web_sys::{console, js_sys, Blob, BlobPropertyBag};
-                thread_local! {
-                    static CLIPBOARD: web_sys::Clipboard = web_sys::window().unwrap().navigator().clipboard().unwrap();
-                    static DATA: Array = {
-                        let blob = Blob::new_with_blob_sequence_and_options(
-                            &Array::of1(&"test clipboard".into()),
-                            BlobPropertyBag::new().type_("text/plain"),
-                        )
-                        .unwrap();
-                        let record = Object::new();
-                        Reflect::set(&record, &"text/plain".into(), &blob).unwrap();
-                        let item = ClipboardItemExt::new(&record);
-
-                        Array::of1(&item)
-                    };
-                }
-
-                let promise = CLIPBOARD.with(|clipboard| DATA.with(|data| clipboard.write(data)));
-
-                wasm_bindgen_futures::spawn_local(async move {
-                    if let Err(error) = JsFuture::from(promise).await {
-                        console::error_2(&"writing to clipboard failed: ".into(), &error);
-                    }
-                });
             }
             WindowEvent::PinchGesture { .. } => {}
             WindowEvent::PanGesture { .. } => {}
@@ -428,6 +404,30 @@ impl Foliage {
                 {
                     self.elm.ecs.world.send_event(event);
                 }
+                use web_sys::{console, js_sys, Blob, BlobPropertyBag};
+                thread_local! {
+                    static CLIPBOARD: web_sys::Clipboard = web_sys::window().unwrap().navigator().clipboard().unwrap();
+                    static DATA: Array = {
+                        let blob = Blob::new_with_blob_sequence_and_options(
+                            &Array::of1(&"test clipboard".into()),
+                            BlobPropertyBag::new().type_("text/plain"),
+                        )
+                        .unwrap();
+                        let record = Object::new();
+                        Reflect::set(&record, &"text/plain".into(), &blob).unwrap();
+                        let item = ClipboardItemExt::new(&record);
+
+                        Array::of1(&item)
+                    };
+                }
+
+                let promise = CLIPBOARD.with(|clipboard| DATA.with(|data| clipboard.write(data)));
+
+                wasm_bindgen_futures::spawn_local(async move {
+                    if let Err(error) = JsFuture::from(promise).await {
+                        console::error_2(&"writing to clipboard failed: ".into(), &error);
+                    }
+                });
             }
             WindowEvent::ScaleFactorChanged {
                 scale_factor: _scale_factor,
