@@ -2,6 +2,7 @@ use foliage::action::{Actionable, ElmHandle};
 use foliage::anim::{EasementBehavior, SequenceTiming};
 use foliage::bevy_ecs;
 use foliage::bevy_ecs::system::Resource;
+use foliage::clipboard::ClipboardWrite;
 use foliage::color::{Grey, Monochromatic};
 use foliage::element::TargetHandle;
 use foliage::grid::{GridCoordinate, GridPlacement};
@@ -46,6 +47,7 @@ impl Actionable for ButtonTest {
                 EasementBehavior::Linear,
             );
         });
+        handle.run_action(ClipboardWrite::new("testing-testing-123"));
     }
 }
 #[derive(Clone)]
@@ -61,7 +63,7 @@ impl Actionable for Stuff {
             Button::new(0, "click", 20, OnClick::new("other-stuff"))
                 .rounded(Rounding::all(0.1))
                 .colored(Coloring::new(Grey::LIGHT, Grey::DARK, Grey::LIGHT)),
-        )
+        );
     }
 }
 fn main() {
@@ -73,7 +75,7 @@ fn main() {
     foliage.enable_tracing(
         tracing_subscriber::filter::Targets::new().with_target("foliage", tracing::Level::TRACE),
     );
-    foliage.set_base_url("");
+    foliage.set_base_url("foliage");
     foliage.enable_signaled_action::<ButtonTest>();
     foliage.run_action(Stuff {});
     foliage.run();
