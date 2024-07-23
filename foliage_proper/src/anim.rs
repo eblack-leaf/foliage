@@ -36,7 +36,8 @@ impl AnimationTime {
     pub(crate) fn time_delta(&mut self, fd: TimeDelta) -> f32 {
         self.accumulated_time += fd;
         let delta = self.accumulated_time.as_millis() as f32 / self.total_time.as_millis() as f32;
-        delta
+        println!("delta:{}", delta);
+        delta.clamp(0.0, 1.0)
     }
 }
 impl From<SequenceTimeRange> for AnimationTime {
@@ -200,7 +201,7 @@ pub(crate) fn animate<A: Animate>(
             i.current_value.replace(d);
         }
         a.apply(&mut animation.interpolations);
-        if percent == 1f32 {
+        if percent >= 1f32 {
             let sequence_entity = animation.sequence_entity;
             sequences
                 .get_mut(sequence_entity)
