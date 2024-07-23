@@ -7,6 +7,10 @@ use tracing_subscriber::filter::Targets;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::Layer;
+use wasm_bindgen::prelude::wasm_bindgen;
+use wasm_bindgen::JsValue;
+use wasm_bindgen_futures::JsFuture;
+use web_sys::js_sys::{Array, Object, Reflect};
 pub use wgpu;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
@@ -19,6 +23,7 @@ use crate::action::{Actionable, ElmHandle, Signaler};
 use crate::anim::{Animate, EnabledAnimations};
 use crate::ash::{Ash, Render};
 use crate::asset::{Asset, AssetKey, AssetLoader};
+use crate::clipboard::Clipboard;
 use crate::coordinate::area::Area;
 use crate::coordinate::{Coordinates, DeviceContext};
 use crate::element::{ActionHandle, IdTable};
@@ -75,7 +80,13 @@ pub struct Foliage {
     recv: Option<oneshot::Receiver<Ginkgo>>,
     base_url: String,
 }
+#[wasm_bindgen]
+extern "C" {
+    type ClipboardItemExt;
 
+    #[wasm_bindgen(constructor, js_class = ClipboardItem)]
+    fn new(data: &JsValue) -> ClipboardItemExt;
+}
 impl Foliage {
     pub fn new() -> Self {
         let mut this = Self {
@@ -359,6 +370,30 @@ impl Foliage {
                 {
                     self.elm.ecs.world.send_event(event);
                 }
+                use web_sys::{console, js_sys, Blob, BlobPropertyBag};
+                thread_local! {
+                    static CLIPBOARD: web_sys::Clipboard = web_sys::window().unwrap().navigator().clipboard().unwrap();
+                    static DATA: Array = {
+                        let blob = Blob::new_with_blob_sequence_and_options(
+                            &Array::of1(&"test clipboard".into()),
+                            BlobPropertyBag::new().type_("text/plain"),
+                        )
+                        .unwrap();
+                        let record = Object::new();
+                        Reflect::set(&record, &"text/plain".into(), &blob).unwrap();
+                        let item = ClipboardItemExt::new(&record);
+
+                        Array::of1(&item)
+                    };
+                }
+
+                let promise = CLIPBOARD.with(|clipboard| DATA.with(|data| clipboard.write(data)));
+
+                wasm_bindgen_futures::spawn_local(async move {
+                    if let Err(error) = JsFuture::from(promise).await {
+                        console::error_2(&"writing to clipboard failed: ".into(), &error);
+                    }
+                });
             }
             WindowEvent::PinchGesture { .. } => {}
             WindowEvent::PanGesture { .. } => {}
