@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use bevy_ecs::prelude::{Component, ResMut, Resource};
 use bitflags::bitflags;
 
+use crate::anim::{Animate, Interpolations};
 use crate::coordinate::layer::Layer;
 use crate::coordinate::placement::Placement;
 use crate::coordinate::section::Section;
@@ -386,5 +387,29 @@ pub(crate) fn viewport_changes_layout(
             0,
         );
         layout_grid.grid.config(c, r, Some(placement));
+    }
+}
+impl Animate for GridPlacement {
+    fn interpolations(start: &Self, end: &Self) -> Interpolations {
+        Interpolations::new()
+            .with(start.offset.x(), end.offset.x())
+            .with(start.offset.y(), end.offset.y())
+            .with(start.offset.width(), end.offset.width())
+            .with(start.offset.height(), end.offset.height())
+    }
+
+    fn apply(&mut self, interpolations: &mut Interpolations) {
+        if let Some(x) = interpolations.read(0) {
+            self.offset.set_x(x);
+        }
+        if let Some(y) = interpolations.read(1) {
+            self.offset.set_y(y);
+        }
+        if let Some(w) = interpolations.read(2) {
+            self.offset.set_width(w);
+        }
+        if let Some(h) = interpolations.read(3) {
+            self.offset.set_height(h);
+        }
     }
 }

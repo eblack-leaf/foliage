@@ -1,7 +1,8 @@
 use foliage::action::{Actionable, ElmHandle};
+use foliage::anim::{EasementBehavior, SequenceTiming};
 use foliage::bevy_ecs;
 use foliage::bevy_ecs::system::Resource;
-use foliage::color::{Color, Grey, Monochromatic};
+use foliage::color::{Grey, Monochromatic};
 use foliage::element::TargetHandle;
 use foliage::grid::{GridCoordinate, GridPlacement};
 use foliage::interaction::OnClick;
@@ -10,6 +11,7 @@ use foliage::style::Coloring;
 use foliage::text::TextValue;
 use foliage::view::button::Button;
 use foliage::Foliage;
+
 #[derive(Clone)]
 struct ButtonTest {}
 #[derive(Resource)]
@@ -26,6 +28,15 @@ impl Actionable for ButtonTest {
                 t.0 = format!("click-{}", i);
             },
         );
+        handle.run_sequence(|seq| {
+            seq.animate_grid_placement(
+                "button-test",
+                GridPlacement::new((1 + i).col().to((2 + i).col()), 1.row().to(1.row()))
+                    .offset_layer(5),
+                0.sec().to(1.sec()),
+                EasementBehavior::Linear,
+            );
+        });
     }
 }
 #[derive(Clone)]
@@ -37,8 +48,8 @@ impl Actionable for Stuff {
         handle.add_view(
             None,
             "button-test",
-            GridPlacement::new(1.col().to(4.col()), 1.row().to(1.row())).offset_layer(5),
-            Button::new(0, "click", 24, OnClick::new("other-stuff"))
+            GridPlacement::new(1.col().to(2.col()), 1.row().to(1.row())).offset_layer(5),
+            Button::new(0, "click", 14, OnClick::new("other-stuff"))
                 .rounded(Rounding::all(0.1))
                 .colored(Coloring::new(Grey::LIGHT, Grey::DARK, Grey::LIGHT)),
         )

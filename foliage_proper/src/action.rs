@@ -4,14 +4,16 @@ use std::collections::HashSet;
 use bevy_ecs::change_detection::Mut;
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Bundle, Changed, Commands, DetectChanges, Entity, Query, Resource, World};
-use bevy_ecs::system::{Command, Res};
+use bevy_ecs::system::{Command, Res, ResMut};
 
-use crate::anim::{Animate, Animation, AnimationTime, OnEnd, Sequence, SequenceTimeRange};
+use crate::anim::{
+    Animate, Animation, AnimationTime, EasementBehavior, OnEnd, Sequence, SequenceTimeRange,
+};
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
-use crate::differential::{Remove, RenderLink};
+use crate::differential::{Remove, RenderLink, RenderRemoveQueue};
 use crate::element::{ActionHandle, Dependents, Element, IdTable, Root, TargetHandle};
 use crate::elm::{ActionLimiter, FilterAttrLimiter};
 use crate::grid::{Grid, GridPlacement, Layout, LayoutFilter};
@@ -60,6 +62,7 @@ pub(crate) fn filter_attr_layout_change<A: Bundle + Send + Sync + 'static + Clon
     filtered: Query<(Entity, &FilteredAttribute<A>, Option<&RenderLink>)>,
     layout: Res<Layout>,
     mut cmd: Commands,
+    mut render_remove_queue: ResMut<RenderRemoveQueue>,
 ) {
     if layout.is_changed() {
         for (entity, filter_attr, opt_link) in filtered.iter() {
@@ -76,6 +79,7 @@ pub(crate) fn filter_attr_changed<A: Bundle + Send + Sync + 'static + Clone>(
     >,
     layout: Res<Layout>,
     mut cmd: Commands,
+    mut render_remove_queue: ResMut<RenderRemoveQueue>,
 ) {
     for (entity, filtered_attr, opt_link) in filtered.iter() {
         todo!()
@@ -166,12 +170,18 @@ impl<'a> SequenceHandle<'a> {
         th: TH,
         a: A,
         st: SequenceTimeRange,
+        easement_behavior: EasementBehavior,
     ) {
         if TypeId::of::<A>() == TypeId::of::<GridPlacement>() {
             panic!("please use SequenceHandle::animate_grid_placement for correct behavior");
         }
         self.sequence.animations_to_finish += 1;
-        let anim = Animation::new(a, (), self.sequence_entity, AnimationTime::from(st));
+        let anim = Animation::new(
+            a,
+            easement_behavior,
+            self.sequence_entity,
+            AnimationTime::from(st),
+        );
         let entity = self.lookup_target_entity(th).unwrap();
         self.world_handle
             .as_mut()
@@ -184,6 +194,7 @@ impl<'a> SequenceHandle<'a> {
         th: TH,
         gp: GridPlacement,
         st: SequenceTimeRange,
+        easement_behavior: EasementBehavior,
     ) {
         self.sequence.animations_to_finish += 1;
         let entity = self.lookup_target_entity(th).unwrap();
@@ -207,7 +218,12 @@ impl<'a> SequenceHandle<'a> {
             .unwrap()
             .entity_mut(entity)
             .insert(altered);
-        let anim = Animation::new(gp, (), self.sequence_entity, AnimationTime::from(st));
+        let anim = Animation::new(
+            gp,
+            easement_behavior,
+            self.sequence_entity,
+            AnimationTime::from(st),
+        );
         self.world_handle
             .as_mut()
             .unwrap()

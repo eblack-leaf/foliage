@@ -1,10 +1,11 @@
+use std::ops::{Add, AddAssign, Div, Mul, Sub};
+
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{IntoSystemConfigs, Or};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Query, Res};
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
-use std::ops::{Add, AddAssign, Div, Mul, Sub};
 
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
@@ -62,6 +63,12 @@ impl Coordinates {
             self.horizontal() / c.horizontal(),
             self.vertical() / c.vertical(),
         )
+    }
+    pub fn set_horizontal(&mut self, h: f32) {
+        self.0[0] = h;
+    }
+    pub fn set_vertical(&mut self, v: f32) {
+        self.0[1] = v;
     }
 }
 

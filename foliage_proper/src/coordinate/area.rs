@@ -50,8 +50,14 @@ impl<Context: CoordinateContext> Area<Context> {
     pub fn width(&self) -> CoordinateUnit {
         self.coordinates.0[0]
     }
+    pub fn set_width(&mut self, w: CoordinateUnit) {
+        self.coordinates.set_horizontal(w);
+    }
     pub fn height(&self) -> CoordinateUnit {
         self.coordinates.0[1]
+    }
+    pub fn set_height(&mut self, h: CoordinateUnit) {
+        self.coordinates.set_vertical(h);
     }
     pub fn normalized<C: Into<Coordinates>>(self, c: C) -> Self {
         let c = c.into();

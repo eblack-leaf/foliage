@@ -1,5 +1,4 @@
 use std::collections::HashSet;
-use std::slice::IterMut;
 
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Commands, Entity};
@@ -7,8 +6,18 @@ use bevy_ecs::system::{Query, Res, ResMut};
 
 use crate::action::Signal;
 use crate::element::{ActionHandle, IdTable};
+use crate::elm::Elm;
+use crate::grid::GridPlacement;
 use crate::time::{Time, TimeDelta};
+use crate::Leaf;
 
+pub(crate) struct EnabledAnimations;
+impl Leaf for EnabledAnimations {
+    fn attach(elm: &mut Elm) {
+        elm.enable_animation::<GridPlacement>();
+        // elm.enable_animation::<Color>();
+    }
+}
 #[derive(Component)]
 pub(crate) struct Animation<A: Animate> {
     started: bool,
@@ -24,13 +33,19 @@ pub(crate) struct AnimationTime {
     delay: TimeDelta,
 }
 impl AnimationTime {
-    pub(crate) fn normalized_delta(&mut self, fd: TimeDelta) -> f32 {
-        todo!()
+    pub(crate) fn time_delta(&mut self, fd: TimeDelta) -> f32 {
+        self.accumulated_time += fd;
+        let delta = self.accumulated_time.as_millis() as f32 / self.total_time.as_millis() as f32;
+        delta
     }
 }
 impl From<SequenceTimeRange> for AnimationTime {
     fn from(value: SequenceTimeRange) -> Self {
-        todo!()
+        AnimationTime {
+            accumulated_time: Default::default(),
+            total_time: value.end - value.start,
+            delay: value.start,
+        }
     }
 }
 impl<A: Animate> Animation<A> {
@@ -55,8 +70,15 @@ pub struct Interpolations {
     scalars: Vec<Interpolation>,
 }
 impl Interpolations {
-    pub fn read(&mut self) -> IterMut<'_, Interpolation> {
-        self.scalars.iter_mut()
+    pub fn new() -> Self {
+        Self { scalars: vec![] }
+    }
+    pub fn with(mut self, s: f32, e: f32) -> Self {
+        self.scalars.push(Interpolation::new(s, e));
+        self
+    }
+    pub fn read(&mut self, i: usize) -> Option<f32> {
+        self.scalars.get_mut(i).unwrap().current_value()
     }
 }
 #[derive(Copy, Clone)]
@@ -67,6 +89,14 @@ pub struct Interpolation {
     current_value: Option<f32>,
 }
 impl Interpolation {
+    pub fn new(s: f32, e: f32) -> Self {
+        Self {
+            start: s,
+            end: e,
+            diff: e - s,
+            current_value: None,
+        }
+    }
     pub fn current_value(&mut self) -> Option<f32> {
         self.current_value.take()
     }
@@ -74,6 +104,11 @@ impl Interpolation {
 pub struct Easement {
     behavior: EasementBehavior,
     // bezier curve else x = y (linear)
+}
+impl From<EasementBehavior> for Easement {
+    fn from(value: EasementBehavior) -> Self {
+        Easement::new(value)
+    }
 }
 pub enum EasementBehavior {
     Linear,
@@ -100,13 +135,32 @@ pub trait SequenceTiming {
     fn sec(self) -> SequenceTime;
     fn millis(self) -> SequenceTime;
 }
+impl SequenceTiming for u32 {
+    fn sec(self) -> SequenceTime {
+        SequenceTime {
+            val: TimeDelta::from_secs(self as u64),
+        }
+    }
+
+    fn millis(self) -> SequenceTime {
+        SequenceTime {
+            val: TimeDelta::from_millis(self as u64),
+        }
+    }
+}
 impl Easement {
     pub fn percent_changed(&mut self, d: f32) -> f32 {
-        // clamp to 0/100% or 0-1
-        todo!()
+        match self.behavior {
+            EasementBehavior::Linear => {
+                d
+            }
+            EasementBehavior::Bezier(/* curve */) => {
+                todo!()
+            }
+        }
     }
     pub(crate) fn new(behavior: EasementBehavior) -> Self {
-        todo!()
+        Self { behavior }
     }
 }
 pub trait Animate
@@ -139,7 +193,7 @@ pub(crate) fn animate<A: Animate>(
             animation.started = true;
         }
         let frame_diff = time.frame_diff();
-        let delta = animation.animation_time.normalized_delta(frame_diff);
+        let delta = animation.animation_time.time_delta(frame_diff);
         let percent = animation.easement.percent_changed(delta);
         for i in animation.interpolations.scalars.iter_mut() {
             let d = i.start + i.diff * percent;

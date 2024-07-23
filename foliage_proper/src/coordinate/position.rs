@@ -56,8 +56,14 @@ impl<Context: CoordinateContext> Position<Context> {
     pub fn x(&self) -> CoordinateUnit {
         self.coordinates.0[0]
     }
+    pub fn set_x(&mut self, x: CoordinateUnit) {
+        self.coordinates.set_horizontal(x);
+    }
     pub fn y(&self) -> CoordinateUnit {
         self.coordinates.0[1]
+    }
+    pub fn set_y(&mut self, y: CoordinateUnit) {
+        self.coordinates.set_vertical(y);
     }
     pub fn distance(self, o: Self) -> CoordinateUnit {
         ((self.x() - o.x()).powi(2) + (self.y() - o.y()).powi(2)).sqrt()

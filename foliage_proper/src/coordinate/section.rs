@@ -75,14 +75,32 @@ impl<Context: CoordinateContext> Section<Context> {
     pub fn x(&self) -> CoordinateUnit {
         self.position.x()
     }
+    pub fn set_x(&mut self, x: CoordinateUnit) {
+        self.position.set_x(x);
+    }
     pub fn y(&self) -> CoordinateUnit {
         self.position.y()
+    }
+    pub fn set_y(&mut self, y: CoordinateUnit) {
+        self.position.set_y(y);
     }
     pub fn width(&self) -> CoordinateUnit {
         self.area.width()
     }
+    pub fn set_width(&mut self, w: CoordinateUnit) {
+        self.area.set_width(w);
+    }
     pub fn height(&self) -> CoordinateUnit {
         self.area.height()
+    }
+    pub fn set_height(&mut self, h: CoordinateUnit) {
+        self.area.set_height(h);
+    }
+    pub fn set_position<P: Into<Position<Context>>>(&mut self, p: P) {
+        self.position = p.into();
+    }
+    pub fn set_area<A: Into<Area<Context>>>(&mut self, a: A) {
+        self.area = a.into();
     }
     pub fn right(&self) -> CoordinateUnit {
         self.x() + self.width()

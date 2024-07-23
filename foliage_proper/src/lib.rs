@@ -16,7 +16,7 @@ use winit::window::WindowId;
 use willow::Willow;
 
 use crate::action::{Actionable, ElmHandle, Signaler};
-use crate::anim::Animate;
+use crate::anim::{Animate, EnabledAnimations};
 use crate::ash::{Ash, Render};
 use crate::asset::{Asset, AssetKey, AssetLoader};
 use crate::coordinate::area::Area;
@@ -511,5 +511,6 @@ impl Leaves for CoreLeaves {
         foliage.attach_leaf::<Style>();
         foliage.enable_clipboard_retrieve::<TextValue>();
         foliage.attach_leaf::<Time>();
+        foliage.attach_leaf::<EnabledAnimations>();
     }
 }
