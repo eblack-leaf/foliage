@@ -37,8 +37,11 @@ impl Actionable for ButtonTest {
         handle.run_sequence(|seq| {
             seq.animate_grid_placement(
                 "button-test",
-                GridPlacement::new((1 + i).col().to((2 + i).col()), 1.row().to(1.row()))
-                    .offset_layer(5),
+                GridPlacement::new(
+                    (1 + i).col().to((2 + i).col()),
+                    (1 + i / 2).row().to((1 + i / 2).row()),
+                )
+                .offset_layer(5),
                 1.sec().to(1500.millis()),
                 EasementBehavior::Linear,
             );
