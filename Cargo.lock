@@ -938,7 +938,6 @@ dependencies = [
  "cfg-if",
  "console_error_panic_hook",
  "copypasta",
- "foliage_macros",
  "fontdue",
  "futures-channel",
  "image",
@@ -953,6 +952,7 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+ "web-time 1.1.0",
  "wgpu",
  "winit",
 ]

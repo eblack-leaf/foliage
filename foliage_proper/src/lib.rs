@@ -31,6 +31,7 @@ use crate::interaction::{ClickInteractionListener, KeyboardAdapter, MouseAdapter
 use crate::panel::Panel;
 use crate::style::Style;
 use crate::text::{Text, TextValue};
+use crate::time::Time;
 
 pub mod action;
 pub mod anim;
@@ -53,6 +54,7 @@ pub mod panel;
 pub mod style;
 pub mod text;
 pub mod texture;
+pub mod time;
 pub mod view;
 pub mod willow;
 
@@ -508,5 +510,6 @@ impl Leaves for CoreLeaves {
         foliage.add_renderer::<Text>();
         foliage.attach_leaf::<Style>();
         foliage.enable_clipboard_retrieve::<TextValue>();
+        foliage.attach_leaf::<Time>();
     }
 }

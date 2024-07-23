@@ -14,7 +14,7 @@ use bevy_ecs::world::World;
 use crate::action::{
     clear_signal, filter_attr_changed, filter_attr_layout_change, signal_action, Actionable,
 };
-use crate::anim::Animate;
+use crate::anim::{animate, Animate};
 use crate::ash::Render;
 use crate::asset::on_retrieve;
 use crate::clipboard::{read_retrieve, Clipboard};
@@ -172,9 +172,9 @@ impl Elm {
     }
     pub fn enable_animation<A: Animate>(&mut self) {
         if !self.ecs.world.contains_resource::<AnimationLimiter<A>>() {
-            // self.scheduler
-            //     .main
-            //     .add_systems(().in_set(ScheduleMarkers::Animation));
+            self.scheduler
+                .main
+                .add_systems(animate::<A>.in_set(ScheduleMarkers::Animation));
             self.ecs
                 .world
                 .insert_resource(AnimationLimiter::<A>::default());
@@ -250,7 +250,7 @@ impl Elm {
                 ScheduleMarkers::Events,
                 ScheduleMarkers::External,
                 ScheduleMarkers::Interaction,
-                ScheduleMarkers::Unused1,
+                ScheduleMarkers::Animation,
                 ScheduleMarkers::Action,
                 ScheduleMarkers::Unused2,
                 ScheduleMarkers::Unused3,
@@ -258,7 +258,7 @@ impl Elm {
                 ScheduleMarkers::Unused4,
                 ScheduleMarkers::Clean,
                 ScheduleMarkers::GridSemantics,
-                ScheduleMarkers::Animation,
+                ScheduleMarkers::Unused6,
                 ScheduleMarkers::Preparation,
                 ScheduleMarkers::Config,
                 ScheduleMarkers::Unused5,
@@ -282,9 +282,9 @@ impl Elm {
                 .before(ScheduleMarkers::Interaction),
             apply_deferred
                 .after(ScheduleMarkers::Interaction)
-                .before(ScheduleMarkers::Unused1),
+                .before(ScheduleMarkers::Animation),
             apply_deferred
-                .after(ScheduleMarkers::Unused1)
+                .after(ScheduleMarkers::Animation)
                 .before(ScheduleMarkers::Action),
             apply_deferred
                 .after(ScheduleMarkers::Action)
@@ -306,9 +306,9 @@ impl Elm {
                 .before(ScheduleMarkers::GridSemantics),
             apply_deferred
                 .after(ScheduleMarkers::GridSemantics)
-                .before(ScheduleMarkers::Animation),
+                .before(ScheduleMarkers::Unused6),
             apply_deferred
-                .after(ScheduleMarkers::Animation)
+                .after(ScheduleMarkers::Unused6)
                 .before(ScheduleMarkers::Preparation),
             apply_deferred
                 .after(ScheduleMarkers::Preparation)
@@ -437,12 +437,12 @@ pub enum ScheduleMarkers {
     Unused2,
     External,
     GridSemantics,
-    Unused1,
+    Animation,
     Unused5,
     Clean,
     Interaction,
     Events,
     Unused3,
     Preparation,
-    Animation,
+    Unused6,
 }
