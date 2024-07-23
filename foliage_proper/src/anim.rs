@@ -187,44 +187,52 @@ pub(crate) fn animate<A: Animate>(
     id_table: Res<IdTable>,
     mut cmd: Commands,
 ) {
+    let frame_diff = time.frame_diff();
     for (anim_entity, mut animation, mut a) in anims.iter_mut() {
-        // TODO delay time calc + skip if not ready
-        if !animation.started {
-            animation.interpolations = A::interpolations(&a, &animation.end);
-            animation.started = true;
-        }
-        let frame_diff = time.frame_diff();
-        let delta = animation.animation_time.time_delta(frame_diff);
-        let percent = animation.easement.percent_changed(delta);
-        for i in animation.interpolations.scalars.iter_mut() {
-            let d = i.start + i.diff * percent;
-            i.current_value.replace(d);
-        }
-        a.apply(&mut animation.interpolations);
-        if percent >= 1f32 {
-            let sequence_entity = animation.sequence_entity;
-            sequences
-                .get_mut(sequence_entity)
-                .unwrap()
-                .animations_to_finish -= 1;
-            if sequences
-                .get_mut(sequence_entity)
-                .unwrap()
-                .animations_to_finish
-                <= 0
-            {
-                for handle in sequences
+        if !animation.animation_time.delay.is_zero() {
+            animation.animation_time.delay = animation
+                .animation_time
+                .delay
+                .checked_sub(frame_diff)
+                .unwrap_or_default();
+        } else {
+            if !animation.started {
+                animation.interpolations = A::interpolations(&a, &animation.end);
+                animation.started = true;
+            }
+
+            let delta = animation.animation_time.time_delta(frame_diff);
+            let percent = animation.easement.percent_changed(delta);
+            for i in animation.interpolations.scalars.iter_mut() {
+                let d = i.start + i.diff * percent;
+                i.current_value.replace(d);
+            }
+            a.apply(&mut animation.interpolations);
+            if percent >= 1f32 {
+                let sequence_entity = animation.sequence_entity;
+                sequences
                     .get_mut(sequence_entity)
                     .unwrap()
-                    .on_end
-                    .actions
-                    .iter()
+                    .animations_to_finish -= 1;
+                if sequences
+                    .get_mut(sequence_entity)
+                    .unwrap()
+                    .animations_to_finish
+                    <= 0
                 {
-                    let e = id_table.lookup_action(handle.clone()).unwrap();
-                    cmd.entity(e).insert(Signal::active());
+                    for handle in sequences
+                        .get_mut(sequence_entity)
+                        .unwrap()
+                        .on_end
+                        .actions
+                        .iter()
+                    {
+                        let e = id_table.lookup_action(handle.clone()).unwrap();
+                        cmd.entity(e).insert(Signal::active());
+                    }
+                    cmd.entity(anim_entity).remove::<Animation<A>>();
+                    cmd.entity(sequence_entity).despawn();
                 }
-                cmd.entity(anim_entity).remove::<Animation<A>>();
-                cmd.entity(sequence_entity).despawn();
             }
         }
     }

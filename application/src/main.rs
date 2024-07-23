@@ -39,7 +39,7 @@ impl Actionable for ButtonTest {
                 "button-test",
                 GridPlacement::new((1 + i).col().to((2 + i).col()), 1.row().to(1.row()))
                     .offset_layer(5),
-                0.sec().to(500.millis()),
+                1.sec().to(1500.millis()),
                 EasementBehavior::Linear,
             );
         });
