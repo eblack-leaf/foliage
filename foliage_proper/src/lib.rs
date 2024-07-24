@@ -356,6 +356,7 @@ impl Foliage {
                 {
                     self.elm.ecs.world.send_event(event);
                 }
+                clipboard_test("not test clipboard".to_string());
             }
             WindowEvent::PinchGesture { .. } => {}
             WindowEvent::PanGesture { .. } => {}
@@ -390,7 +391,7 @@ impl Foliage {
                 {
                     self.elm.ecs.world.send_event(event);
                 }
-                clipboard_test();
+                clipboard_test("not test clipboard".to_string());
             }
             WindowEvent::ScaleFactorChanged {
                 scale_factor: _scale_factor,
