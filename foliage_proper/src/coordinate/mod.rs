@@ -70,6 +70,12 @@ impl Coordinates {
     pub fn set_vertical(&mut self, v: f32) {
         self.0[1] = v;
     }
+    pub fn clamped(&self, min: CoordinateUnit, max: CoordinateUnit) -> Self {
+        Self::new(
+            self.horizontal().clamp(min, max),
+            self.vertical().clamp(min, max),
+        )
+    }
 }
 
 impl Default for Coordinates {

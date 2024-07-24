@@ -1,5 +1,5 @@
 use foliage::action::{Actionable, ElmHandle};
-use foliage::anim::{EasementBehavior, SequenceTiming};
+use foliage::anim::{Ease, SequenceTiming};
 use foliage::bevy_ecs;
 use foliage::bevy_ecs::system::Resource;
 use foliage::color::{Grey, Monochromatic};
@@ -42,8 +42,8 @@ impl Actionable for ButtonTest {
                     (1 + i / 2).row().to((1 + i / 2).row()),
                 )
                 .offset_layer(5),
-                1.sec().to(1500.millis()),
-                EasementBehavior::Linear,
+                0.sec().to(500.millis()),
+                Ease::DECELERATE,
             );
         });
     }

@@ -6,9 +6,7 @@ use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Bundle, Changed, Commands, DetectChanges, Entity, Query, Resource, World};
 use bevy_ecs::system::{Command, Res, ResMut};
 
-use crate::anim::{
-    Animate, Animation, AnimationTime, EasementBehavior, OnEnd, Sequence, SequenceTimeRange,
-};
+use crate::anim::{Animate, Animation, AnimationTime, Ease, OnEnd, Sequence, SequenceTimeRange};
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
@@ -170,7 +168,7 @@ impl<'a> SequenceHandle<'a> {
         th: TH,
         a: A,
         st: SequenceTimeRange,
-        easement_behavior: EasementBehavior,
+        easement_behavior: Ease,
     ) {
         if TypeId::of::<A>() == TypeId::of::<GridPlacement>() {
             panic!("please use SequenceHandle::animate_grid_placement for correct behavior");
@@ -194,7 +192,7 @@ impl<'a> SequenceHandle<'a> {
         th: TH,
         gp: GridPlacement,
         st: SequenceTimeRange,
-        easement_behavior: EasementBehavior,
+        easement_behavior: Ease,
     ) {
         self.sequence.animations_to_finish += 1;
         let entity = self.lookup_target_entity(th).unwrap();
