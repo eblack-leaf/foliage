@@ -554,7 +554,7 @@ pub(crate) fn signal_action<A: Actionable>(
     }
 }
 
-pub(crate) fn clear_signal(mut signals: Query<(&mut Signal), Changed<Signal>>) {
+pub(crate) fn clear_signal(mut signals: Query<&mut Signal, Changed<Signal>>) {
     for mut signal in signals.iter_mut() {
         signal.0 = false;
     }
