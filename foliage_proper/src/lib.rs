@@ -8,6 +8,11 @@ use tracing_subscriber::filter::Targets;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::Layer;
+use wasm_bindgen::prelude::wasm_bindgen;
+use wasm_bindgen::JsValue;
+use wasm_bindgen_futures::JsFuture;
+use web_sys::js_sys::{Array, Object, Reflect};
+use web_sys::{Blob, BlobPropertyBag};
 pub use wgpu;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
@@ -357,6 +362,46 @@ impl Foliage {
                 {
                     self.elm.ecs.world.send_event(event);
                 }
+                let mut writes = vec![];
+                for (entity, cw) in self
+                    .elm
+                    .ecs
+                    .world
+                    .query::<(Entity, &ClipboardWrite)>()
+                    .iter(&self.elm.ecs.world)
+                {
+                    writes.push((entity, cw.message.clone()));
+                }
+                for (entity, m) in writes {
+                    thread_local! {
+                        static CLIPBOARD: web_sys::Clipboard = web_sys::window().unwrap().navigator().clipboard().unwrap();
+                        static DATA: Array = {
+                            let blob = Blob::new_with_blob_sequence_and_options(
+                                &Array::of1(&"test clipboard".into()),
+                                BlobPropertyBag::new().type_("text/plain"),
+                            )
+                            .unwrap();
+                            let record = Object::new();
+                            Reflect::set(&record, &"text/plain".into(), &blob).unwrap();
+                            let item = ClipboardItemExt::new(&record);
+
+                            Array::of1(&item)
+                        };
+                    }
+
+                    let promise =
+                        CLIPBOARD.with(|clipboard| DATA.with(|data| clipboard.write(data)));
+
+                    wasm_bindgen_futures::spawn_local(async move {
+                        if let Err(error) = JsFuture::from(promise).await {
+                            web_sys::console::error_2(
+                                &"writing to clipboard failed: ".into(),
+                                &error,
+                            );
+                        }
+                    });
+                    self.elm.ecs.world.despawn(entity);
+                }
             }
             WindowEvent::PinchGesture { .. } => {}
             WindowEvent::PanGesture { .. } => {}
@@ -402,7 +447,33 @@ impl Foliage {
                     writes.push((entity, cw.message.clone()));
                 }
                 for (entity, m) in writes {
-                    Clipboard::new().write(m);
+                    thread_local! {
+                        static CLIPBOARD: web_sys::Clipboard = web_sys::window().unwrap().navigator().clipboard().unwrap();
+                        static DATA: Array = {
+                            let blob = Blob::new_with_blob_sequence_and_options(
+                                &Array::of1(&"test clipboard".into()),
+                                BlobPropertyBag::new().type_("text/plain"),
+                            )
+                            .unwrap();
+                            let record = Object::new();
+                            Reflect::set(&record, &"text/plain".into(), &blob).unwrap();
+                            let item = ClipboardItemExt::new(&record);
+
+                            Array::of1(&item)
+                        };
+                    }
+
+                    let promise =
+                        CLIPBOARD.with(|clipboard| DATA.with(|data| clipboard.write(data)));
+
+                    wasm_bindgen_futures::spawn_local(async move {
+                        if let Err(error) = JsFuture::from(promise).await {
+                            web_sys::console::error_2(
+                                &"writing to clipboard failed: ".into(),
+                                &error,
+                            );
+                        }
+                    });
                     self.elm.ecs.world.despawn(entity);
                 }
             }
@@ -428,7 +499,13 @@ impl Foliage {
         }
     }
 }
+#[wasm_bindgen]
+extern "C" {
+    type ClipboardItemExt;
 
+    #[wasm_bindgen(constructor, js_class = ClipboardItem)]
+    fn new(data: &JsValue) -> ClipboardItemExt;
+}
 impl ApplicationHandler for Foliage {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         #[cfg(not(target_family = "wasm"))]
