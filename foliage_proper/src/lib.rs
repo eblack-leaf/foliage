@@ -391,6 +391,20 @@ impl Foliage {
                 {
                     self.elm.ecs.world.send_event(event);
                 }
+                let mut writes = vec![];
+                for (entity, cw) in self
+                    .elm
+                    .ecs
+                    .world
+                    .query::<(Entity, &ClipboardWrite)>()
+                    .iter(&self.elm.ecs.world)
+                {
+                    writes.push((entity, cw.message.clone()));
+                }
+                for (entity, m) in writes {
+                    Clipboard::new().write(m);
+                    self.elm.ecs.world.despawn(entity);
+                }
             }
             WindowEvent::ScaleFactorChanged {
                 scale_factor: _scale_factor,
@@ -454,20 +468,6 @@ impl ApplicationHandler for Foliage {
             return;
         }
         self.process_event(event, event_loop);
-        let mut writes = vec![];
-        for (entity, cw) in self
-            .elm
-            .ecs
-            .world
-            .query::<(Entity, &ClipboardWrite)>()
-            .iter(&self.elm.ecs.world)
-        {
-            writes.push((entity, cw.message.clone()));
-        }
-        for (entity, m) in writes {
-            Clipboard::new().write(m);
-            self.elm.ecs.world.despawn(entity);
-        }
     }
     fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
         #[cfg(target_family = "wasm")]
