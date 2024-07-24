@@ -26,20 +26,18 @@ impl Actionable for ButtonTest {
                 t.0 = format!("click-{}", i);
             },
         );
-        let i = if i >= 4 {
-            let diff = i - 4;
-            diff
-        } else {
-            i
-        };
+        let on_off = i % 3;
         handle.run_sequence(|seq| {
+            let placement = if on_off == 0 {
+                GridPlacement::new(2.col().to(4.col()), 2.row().to(2.row()))
+            } else if on_off == 1 {
+                GridPlacement::new(1.col().to(2.col()), 1.row().to(50.px()))
+            } else {
+                GridPlacement::new(3.col().to(5.col()), 1.row().to(1.row()))
+            };
             seq.animate_grid_placement(
                 "button-test",
-                GridPlacement::new(
-                    (1 + i).col().to((2 + i).col()),
-                    (1 + i / 2).row().to((1 + i / 2).row()),
-                )
-                .offset_layer(5),
+                placement.offset_layer(5),
                 0.sec().to(500.millis()),
                 Ease::DECELERATE,
             );
@@ -55,7 +53,7 @@ impl Actionable for Stuff {
         handle.add_view(
             None,
             "button-test",
-            GridPlacement::new(1.col().to(2.col()), 1.row().to(1.row())).offset_layer(5),
+            GridPlacement::new(1.col().to(2.col()), 1.row().to(50.px())).offset_layer(5),
             Button::new(0, "click", 20, OnClick::new("other-stuff"))
                 .rounded(Rounding::all(0.1))
                 .colored(Coloring::new(Grey::LIGHT, Grey::DARK, Grey::LIGHT)),
