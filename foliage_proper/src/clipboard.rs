@@ -122,49 +122,7 @@ impl Clipboard {
     #[cfg(target_family = "wasm")]
     pub(crate) fn new() -> Self {
         let handle = web_sys::window().expect("window").navigator().clipboard();
-        if handle.is_some() {
-            let document = web_sys::window().unwrap().document().unwrap();
-            let node = document.create_element("button").unwrap();
-            node.set_id("copy-trigger");
-            node.set_attribute(
-                "style",
-                "'position: absolute;left: -1px;top: -1px;opacity: 0;\
-            padding: 0;min-width: 0; min-height: 0;width: 0; height: 0;border: 0'",
-            )
-            .expect("attr");
-            let data = "testing-testing-456";
-            let closure = wasm_bindgen::prelude::Closure::once(move || {
-                tracing::trace!("writing clipboard {:?}", data);
-                let js_string = JsValue::from_str(data);
-                let js_array = web_sys::js_sys::Array::from_iter(std::iter::once(js_string));
-                tracing::trace!("js-array {:?}", js_array);
-                let js_blob = web_sys::Blob::new_with_str_sequence_and_options(
-                    &js_array,
-                    &web_sys::BlobPropertyBag::new().type_("text/plain"),
-                )
-                .unwrap();
-                let inner_promise = wasm_bindgen_futures::js_sys::Promise::resolve(&js_blob);
-                let js_obj = Object::new();
-                web_sys::js_sys::Reflect::set(&js_obj, &"text/plain".into(), &inner_promise)
-                    .unwrap();
-                let item = ClipboardItemExt::new(&js_obj, &Object::new());
-                let item_array = web_sys::js_sys::Array::of1(item.as_ref());
-                wasm_bindgen_futures::spawn_local(async move {
-                    let promise = web_sys::window()
-                        .expect("window")
-                        .navigator()
-                        .clipboard()
-                        .unwrap()
-                        .write(&item_array);
-                    let _message = wasm_bindgen_futures::JsFuture::from(promise).await.ok();
-                    tracing::trace!("return message {:?}", _message);
-                });
-            });
-            node.add_event_listener_with_callback("click", closure.as_ref().unchecked_ref())
-                .unwrap();
-            closure.forget();
-            document.body().unwrap().append_child(&node).unwrap();
-        }
+        if handle.is_some() {}
         Self {
             handle: if handle.is_some() { Some(()) } else { None },
         }
@@ -187,30 +145,70 @@ impl Clipboard {
         }
         #[cfg(target_family = "wasm")]
         {
+            let promise = web_sys::window()
+                .expect("window")
+                .navigator()
+                .clipboard()
+                .unwrap()
+                .write_text(data.as_str());
+            wasm_bindgen_futures::spawn_local(async move {
+                let _message = wasm_bindgen_futures::JsFuture::from(promise).await.ok();
+            });
             {
                 // current working method
-                // let promise = web_sys::window()
-                //     .expect("window")
-                //     .navigator()
-                //     .clipboard()
-                //     .unwrap()
-                //     .write_text(data.as_str());
-                // wasm_bindgen_futures::spawn_local(async move {
-                //     let _message = wasm_bindgen_futures::JsFuture::from(promise).await.ok();
-                // });
 
-                // TODO rework below
-                let node = web_sys::window()
-                    .unwrap()
-                    .document()
-                    .unwrap()
-                    .get_element_by_id("copy-trigger")
-                    .unwrap()
-                    .dyn_into::<web_sys::HtmlElement>()
-                    .unwrap();
-                node.click();
-                // node.remove_event_listener_with_callback("click", closure.as_ref().unchecked_ref())
+                // let document = web_sys::window().unwrap().document().unwrap();
+                // let node = document.create_element("button").unwrap();
+                // node.set_id("copy-trigger");
+                // node.set_attribute(
+                //     "style",
+                //     "'position: absolute;left: -1px;top: -1px;opacity: 0;\
+                //         padding: 0;min-width: 0; min-height: 0;width: 0; height: 0;border: 0'",
+                // )
+                //     .expect("attr");
+                // let data = "testing-testing-456";
+                // let closure = wasm_bindgen::prelude::Closure::once(move || {
+                //     tracing::trace!("writing clipboard {:?}", data);
+                //     let js_string = JsValue::from_str(data);
+                //     let js_array = web_sys::js_sys::Array::from_iter(std::iter::once(js_string));
+                //     tracing::trace!("js-array {:?}", js_array);
+                //     let js_blob = web_sys::Blob::new_with_str_sequence_and_options(
+                //         &js_array,
+                //         &web_sys::BlobPropertyBag::new().type_("text/plain"),
+                //     )
+                //         .unwrap();
+                //     let inner_promise = wasm_bindgen_futures::js_sys::Promise::resolve(&js_blob);
+                //     let js_obj = Object::new();
+                //     web_sys::js_sys::Reflect::set(&js_obj, &"text/plain".into(), &inner_promise)
+                //         .unwrap();
+                //     let item = ClipboardItemExt::new(&js_obj, &Object::new());
+                //     let item_array = web_sys::js_sys::Array::of1(item.as_ref());
+                //     wasm_bindgen_futures::spawn_local(async move {
+                //         let promise = web_sys::window()
+                //             .expect("window")
+                //             .navigator()
+                //             .clipboard()
+                //             .unwrap()
+                //             .write(&item_array);
+                //         let _message = wasm_bindgen_futures::JsFuture::from(promise).await.ok();
+                //         tracing::trace!("return message {:?}", _message);
+                //     });
+                // });
+                // node.add_event_listener_with_callback("click", closure.as_ref().unchecked_ref())
                 //     .unwrap();
+                // closure.forget();
+                // document.body().unwrap().append_child(&node).unwrap();
+                // let node = web_sys::window()
+                //     .unwrap()
+                //     .document()
+                //     .unwrap()
+                //     .get_element_by_id("copy-trigger")
+                //     .unwrap()
+                //     .dyn_into::<web_sys::HtmlElement>()
+                //     .unwrap();
+                // node.click();
+                // // node.remove_event_listener_with_callback("click", closure.as_ref().unchecked_ref())
+                // //     .unwrap();
             }
         }
         #[cfg(not(target_family = "wasm"))]
