@@ -2,7 +2,6 @@ use foliage::action::{Actionable, ElmHandle};
 use foliage::anim::{EasementBehavior, SequenceTiming};
 use foliage::bevy_ecs;
 use foliage::bevy_ecs::system::Resource;
-use foliage::clipboard::ClipboardHandle;
 use foliage::color::{Grey, Monochromatic};
 use foliage::element::TargetHandle;
 use foliage::grid::{GridCoordinate, GridPlacement};
@@ -47,9 +46,6 @@ impl Actionable for ButtonTest {
                 EasementBehavior::Linear,
             );
         });
-        handle
-            .get_resource_mut::<ClipboardHandle>()
-            .write("howdy-there");
     }
 }
 #[derive(Clone)]

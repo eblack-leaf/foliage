@@ -452,9 +452,6 @@ impl<'a> ElmHandle<'a> {
             .entity_mut(se)
             .insert(seq_handle.sequence);
     }
-    pub fn spawn<B: Bundle>(&mut self, b: B) {
-        self.world_handle.as_mut().unwrap().spawn(b);
-    }
     pub fn add_view<V: Viewable, TH: Into<TargetHandle>>(
         &mut self,
         rth: Option<TH>,
