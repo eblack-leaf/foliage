@@ -19,6 +19,7 @@ use crate::action::{Actionable, ElmHandle, Signaler};
 use crate::anim::{Animate, EnabledAnimations};
 use crate::ash::{Ash, Render};
 use crate::asset::{Asset, AssetKey, AssetLoader};
+use crate::clipboard::{clipboard_write, ClipboardHandle};
 use crate::coordinate::area::Area;
 use crate::coordinate::{Coordinates, DeviceContext};
 use crate::element::{ActionHandle, IdTable};
@@ -355,6 +356,16 @@ impl Foliage {
                 {
                     self.elm.ecs.world.send_event(event);
                 }
+                if let Some(m) = self
+                    .elm
+                    .ecs
+                    .world
+                    .get_resource_mut::<ClipboardHandle>()
+                    .unwrap()
+                    .write_message()
+                {
+                    clipboard_write(m);
+                }
             }
             WindowEvent::PinchGesture { .. } => {}
             WindowEvent::PanGesture { .. } => {}
@@ -388,6 +399,16 @@ impl Foliage {
                     .parse(t, viewport_position, scale_factor)
                 {
                     self.elm.ecs.world.send_event(event);
+                }
+                if let Some(m) = self
+                    .elm
+                    .ecs
+                    .world
+                    .get_resource_mut::<ClipboardHandle>()
+                    .unwrap()
+                    .write_message()
+                {
+                    clipboard_write(m);
                 }
             }
             WindowEvent::ScaleFactorChanged {
