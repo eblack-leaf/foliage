@@ -20,7 +20,7 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::{GpuSection, Section};
 use crate::coordinate::{Coordinates, LogicalContext};
-use crate::differential::{Differential, Remove, RenderLink, RenderPacket};
+use crate::differential::{Differential, Remove, RenderLink};
 use crate::elm::{Elm, RenderQueueHandle, ScheduleMarkers};
 use crate::ginkgo::Ginkgo;
 use crate::instances::Instances;
@@ -57,7 +57,7 @@ fn icon_scale(
         let old = *area;
         let new = Area::logical(Icon::SCALE);
         let diff = (old - new).max((0, 0)) / Area::logical((2, 2));
-        *pos = *pos + Position::logical(diff.coordinates);
+        *pos += Position::logical(diff.coordinates);
         *area = new;
     }
 }
@@ -102,8 +102,6 @@ impl Icon {
     }
 
     fn write_mips(renderer: &mut Renderer<Icon>, ginkgo: &Ginkgo, entity: Entity) {
-        let packet: RenderPacket<GpuSection>;
-
         let scale_factor = ginkgo.configuration().scale_factor.value();
         if scale_factor == 3f32 {
             renderer

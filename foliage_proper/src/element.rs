@@ -35,7 +35,7 @@ impl Dependents {
     pub(crate) fn new<THS: AsRef<[TargetHandle]>>(ths: THS) -> Self {
         let mut set = HashSet::new();
         for d in ths.as_ref() {
-            let th = d.clone().into();
+            let th = d.clone();
             set.insert(th);
         }
         Self(set)
@@ -86,14 +86,12 @@ pub(crate) fn recursive_placement(
         let roots = elements
             .p1()
             .iter()
-            .map(
-                |(entity, grid_placement, opt_grid, root, deps, pos, area, layer)| {
-                    if root.0.is_none() {
-                        return Some(entity);
-                    }
-                    None
-                },
-            )
+            .map(|(entity, _, _, root, _, _, _, _)| {
+                if root.0.is_none() {
+                    return Some(entity);
+                }
+                None
+            })
             .collect::<Vec<Option<Entity>>>();
         for r in roots {
             if let Some(r) = r {
@@ -155,13 +153,7 @@ fn recursive_placement_inner(
         placed.push((current_entity, current_placement, None, current_offset));
         return placed;
     }
-    let grid = query
-        .get(current_entity)
-        .unwrap()
-        .2
-        .unwrap()
-        .clone()
-        .sized(current_placement);
+    let grid = (*query.get(current_entity).unwrap().2.unwrap()).sized(current_placement);
     placed.push((
         current_entity,
         current_placement,

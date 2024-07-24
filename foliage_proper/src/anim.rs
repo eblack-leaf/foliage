@@ -186,15 +186,15 @@ impl Easement {
             Ease::Bezier(points) => {
                 let base = Coordinates::from((0, 0));
                 let end = Coordinates::from((1, 1));
-                let px = (1f32 - d).powi(3) * base.horizontal()
-                    + 3f32 * (1f32 - d).powi(2) * d * points.a.horizontal()
-                    + 3f32 * (1f32 - d) * d.powi(2) * points.b.horizontal()
-                    + d.powi(3) * end.horizontal();
-                let py = (1f32 - d).powi(3) * base.vertical()
+                // let px = (1f32 - d).powi(3) * base.horizontal()
+                //     + 3f32 * (1f32 - d).powi(2) * d * points.a.horizontal()
+                //     + 3f32 * (1f32 - d) * d.powi(2) * points.b.horizontal()
+                //     + d.powi(3) * end.horizontal();
+
+                (1f32 - d).powi(3) * base.vertical()
                     + 3f32 * (1f32 - d).powi(2) * d * points.a.vertical()
                     + 3f32 * (1f32 - d) * d.powi(2) * points.b.vertical()
-                    + d.powi(3) * end.vertical();
-                py
+                    + d.powi(3) * end.vertical()
             }
         }
     }

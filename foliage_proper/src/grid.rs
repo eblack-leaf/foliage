@@ -64,8 +64,7 @@ impl Grid {
         let x = if let Some(px) = horizontal.start.px {
             px
         } else if let Some(p) = horizontal.start.percent {
-            let percent = self.placement.section.width() * p / 100f32;
-            percent
+            self.placement.section.width() * p / 100f32
         } else {
             horizontal.start.col.unwrap() as CoordinateUnit * self.column_size - self.column_size
                 + self.gap.horizontal()
@@ -74,8 +73,7 @@ impl Grid {
         let y = if let Some(px) = vertical.start.px {
             px
         } else if let Some(p) = vertical.start.percent {
-            let percent = self.placement.section.height() * p / 100f32;
-            percent
+            self.placement.section.height() * p / 100f32
         } else {
             vertical.start.row.unwrap() as CoordinateUnit * self.row_size - self.row_size
                 + self.gap.vertical()
@@ -234,7 +232,7 @@ fn bitflags_test() {
     let config = Layout::LANDSCAPE_MOBILE | Layout::LANDSCAPE_EXT;
     let filter = LayoutFilter::from(config);
     let accept = filter.accepts(Layout::LANDSCAPE_MOBILE);
-    assert_eq!(accept, true);
+    assert!(accept);
 }
 #[derive(Resource)]
 pub struct LayoutGrid {

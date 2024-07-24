@@ -23,10 +23,7 @@ pub struct GpuSection {
 }
 impl GpuSection {
     pub fn new(p: GpuPosition, a: GpuArea) -> Self {
-        Self {
-            pos: p.into(),
-            area: a.into(),
-        }
+        Self { pos: p, area: a }
     }
 }
 impl Section<NumericalContext> {

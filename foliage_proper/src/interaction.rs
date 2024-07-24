@@ -38,21 +38,19 @@ impl TouchAdapter {
                 self.primary.replace(touch.id);
                 return Some(ClickInteraction::new(ClickPhase::Start, position));
             }
-        } else {
-            if self.primary.unwrap() == touch.id {
-                match touch.phase {
-                    TouchPhase::Started => {}
-                    TouchPhase::Moved => {
-                        return Some(ClickInteraction::new(ClickPhase::Moved, position));
-                    }
-                    TouchPhase::Ended => {
-                        self.primary.take();
-                        return Some(ClickInteraction::new(ClickPhase::End, position));
-                    }
-                    TouchPhase::Cancelled => {
-                        self.primary.take();
-                        return Some(ClickInteraction::new(ClickPhase::Cancel, position));
-                    }
+        } else if self.primary.unwrap() == touch.id {
+            match touch.phase {
+                TouchPhase::Started => {}
+                TouchPhase::Moved => {
+                    return Some(ClickInteraction::new(ClickPhase::Moved, position));
+                }
+                TouchPhase::Ended => {
+                    self.primary.take();
+                    return Some(ClickInteraction::new(ClickPhase::End, position));
+                }
+                TouchPhase::Cancelled => {
+                    self.primary.take();
+                    return Some(ClickInteraction::new(ClickPhase::Cancel, position));
                 }
             }
         }
@@ -73,17 +71,13 @@ impl MouseAdapter {
         if mouse_button != MouseButton::Left {
             return None;
         }
-        if self.started {
-            if !state.is_pressed() {
-                self.started = false;
-                return Some(ClickInteraction::new(ClickPhase::End, self.cursor));
-            }
+        if self.started && !state.is_pressed() {
+            self.started = false;
+            return Some(ClickInteraction::new(ClickPhase::End, self.cursor));
         }
-        if !self.started {
-            if state.is_pressed() {
-                self.started = true;
-                return Some(ClickInteraction::new(ClickPhase::Start, self.cursor));
-            }
+        if !self.started && state.is_pressed() {
+            self.started = true;
+            return Some(ClickInteraction::new(ClickPhase::Start, self.cursor));
         }
         None
     }
@@ -222,18 +216,14 @@ pub(crate) fn listen_for_interactions(
         match event.click_phase {
             ClickPhase::Start => {
                 if grabbed.0.is_none() {
-                    let mut grab_info = None;
+                    let mut grab_info: Option<(Entity, Layer)> = None;
                     for (entity, listener, pos, area, layer) in listeners.iter_mut() {
                         if listener
                             .shape
                             .contains(event.position, Section::new(*pos, *area))
                         {
-                            if grab_info.is_none() {
+                            if grab_info.is_none() || *layer < grab_info.unwrap().1 {
                                 grab_info.replace((entity, *layer));
-                            } else {
-                                if *layer < grab_info.unwrap().1 {
-                                    grab_info.replace((entity, *layer));
-                                }
                             }
                         }
                     }
@@ -249,11 +239,9 @@ pub(crate) fn listen_for_interactions(
                         listeners.get_mut(grab.0).unwrap().1.focused = true;
                         listeners.get_mut(grab.0).unwrap().1.engaged = true;
                         listeners.get_mut(grab.0).unwrap().1.engaged_start = true;
-                    } else {
-                        if let Some(entity) = focused.0.take() {
-                            if let Ok(mut l) = listeners.get_mut(entity) {
-                                l.1.focused = false;
-                            }
+                    } else if let Some(entity) = focused.0.take() {
+                        if let Ok(mut l) = listeners.get_mut(entity) {
+                            l.1.focused = false;
                         }
                     }
                 }

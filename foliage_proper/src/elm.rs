@@ -62,7 +62,7 @@ pub struct Elm {
     pub ecs: Ecs,
     pub scheduler: Scheduler,
     initialized: bool,
-    leaf_fns: Vec<Box<fn(&mut Elm)>>,
+    leaf_fns: Vec<fn(&mut Elm)>,
 }
 
 #[derive(Resource)]
@@ -216,7 +216,7 @@ impl Elm {
     pub(crate) fn initialized(&self) -> bool {
         self.initialized
     }
-    pub(crate) fn initialize(&mut self, leaf_fns: Vec<Box<fn(&mut Elm)>>) {
+    pub(crate) fn initialize(&mut self, leaf_fns: Vec<fn(&mut Elm)>) {
         for leaf_fn in leaf_fns {
             (leaf_fn)(self);
         }

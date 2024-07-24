@@ -13,30 +13,30 @@ pub struct Instances<Key: Hash + Eq + Copy + Clone> {
     capacity: u32,
     map: HashMap<Key, usize>,
     order: Vec<Key>,
-    removal_fns: Vec<Box<fn(&mut World, usize)>>,
-    grow_fns: Vec<Box<fn(&mut World, u32, &Ginkgo)>>,
-    cpu_to_gpu: Vec<Box<fn(&mut World, &Ginkgo)>>,
+    removal_fns: Vec<fn(&mut World, usize)>,
+    grow_fns: Vec<fn(&mut World, u32, &Ginkgo)>,
+    cpu_to_gpu: Vec<fn(&mut World, &Ginkgo)>,
     update_needed: bool,
     removal_queue: HashSet<Key>,
 }
 
 impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
     pub fn get_attr<A: Pod + Zeroable + Default>(&self, key: Key) -> A {
-        let index = self.map.get(&key).unwrap().clone();
-        self.world
+        let index = *self.map.get(&key).unwrap();
+        *self
+            .world
             .get_non_send_resource::<Attribute<A>>()
             .unwrap()
             .cpu
             .get(index)
             .expect("unmapped key")
-            .clone()
     }
     pub fn num_instances(&self) -> u32 {
         self.order.len() as u32
     }
     pub fn checked_write<A: Pod + Zeroable + Default + Debug>(&mut self, key: Key, a: A) {
         if !self.has_key(&key) {
-            self.add(key.clone());
+            self.add(key);
         }
         self.queue_write(key, a);
     }
@@ -63,21 +63,21 @@ impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
     pub fn with_attribute<A: Pod + Zeroable + Default + Debug>(mut self, ginkgo: &Ginkgo) -> Self {
         self.world
             .insert_non_send_resource(Attribute::<A>::new(ginkgo, self.capacity));
-        self.removal_fns.push(Box::new(|w, i| {
+        self.removal_fns.push(|w, i| {
             w.get_non_send_resource_mut::<Attribute<A>>()
                 .expect("attribute")
                 .remove(i);
-        }));
-        self.grow_fns.push(Box::new(|w, c, g| {
+        });
+        self.grow_fns.push(|w, c, g| {
             w.get_non_send_resource_mut::<Attribute<A>>()
                 .expect("attribute")
                 .grow(g, c);
-        }));
-        self.cpu_to_gpu.push(Box::new(|w, g| {
+        });
+        self.cpu_to_gpu.push(|w, g| {
             w.get_non_send_resource_mut::<Attribute<A>>()
                 .expect("attribute")
                 .write_cpu_to_gpu(g);
-        }));
+        });
         self
     }
     pub fn clear(&mut self) -> Vec<Key> {
@@ -88,7 +88,7 @@ impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
             self.queue_remove(e);
         }
         self.process_removals();
-        return removed;
+        removed
     }
     pub fn queue_remove(&mut self, key: Key) {
         if self.has_key(&key) {

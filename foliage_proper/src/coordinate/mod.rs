@@ -44,7 +44,7 @@ impl CoordinateContext for NumericalContext {}
 pub type CoordinateUnit = f32;
 
 #[repr(C)]
-#[derive(Copy, Clone, PartialOrd, PartialEq, Pod, Zeroable, Debug)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Pod, Zeroable, Debug, Default)]
 pub struct Coordinates(pub [CoordinateUnit; 2]);
 
 impl Coordinates {
@@ -78,11 +78,6 @@ impl Coordinates {
     }
 }
 
-impl Default for Coordinates {
-    fn default() -> Self {
-        Self([CoordinateUnit::default(); 2])
-    }
-}
 macro_rules! permutation_coordinate_impl {
     ($a:ty, $b:ty) => {
         impl From<($a, $b)> for Coordinates {

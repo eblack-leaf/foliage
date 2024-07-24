@@ -43,10 +43,8 @@ pub(crate) fn await_assets(mut asset_loader: ResMut<AssetLoader>) {
     if !asset_loader.awaiting.is_empty() {
         let mut finished = Vec::<(AssetKey, Asset)>::new();
         for (key, fetch) in asset_loader.awaiting.iter_mut() {
-            if let Some(f) = fetch.recv.try_recv().ok() {
-                if let Some(f) = f {
-                    finished.push((key.clone(), f));
-                }
+            if let Ok(Some(f)) = fetch.recv.try_recv() {
+                finished.push((*key, f));
             }
         }
         for (key, asset) in finished {

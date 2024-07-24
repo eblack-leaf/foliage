@@ -60,7 +60,8 @@ impl Viewport {
         let right_left = 2f32 / (section.right() - section.x());
         let top_bottom = 2f32 / (section.y() - section.bottom());
         let nf = 1f32 / (near_far.far.0 - near_far.near.0);
-        let matrix = [
+
+        [
             [right_left, 0f32, 0f32, 0f32],
             [0f32, top_bottom, 0f32, 0f32],
             [0f32, 0f32, nf, 0f32],
@@ -70,8 +71,7 @@ impl Viewport {
                 nf * near_far.near.0,
                 1f32,
             ],
-        ];
-        matrix
+        ]
     }
 }
 

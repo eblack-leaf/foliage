@@ -1,7 +1,6 @@
 pub use bevy_ecs;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::prelude::Resource;
-use bevy_ecs::system::Command;
 use futures_channel::oneshot;
 use tracing_subscriber::filter::Targets;
 use tracing_subscriber::layer::SubscriberExt;
@@ -64,8 +63,8 @@ pub struct Foliage {
     ginkgo: Ginkgo,
     elm: Elm,
     android_connection: AndroidConnection,
-    leaf_fns: Vec<Box<fn(&mut Elm)>>,
-    leaves_fns: Vec<Box<fn(&mut Foliage)>>,
+    leaf_fns: Vec<fn(&mut Elm)>,
+    leaves_fns: Vec<fn(&mut Foliage)>,
     booted: bool,
     #[allow(unused)]
     queue: Vec<WindowEvent>,
@@ -75,6 +74,12 @@ pub struct Foliage {
     recv: Option<oneshot::Receiver<Ginkgo>>,
     base_url: String,
 }
+impl Default for Foliage {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Foliage {
     pub fn new() -> Self {
         let mut this = Self {
@@ -135,14 +140,14 @@ impl Foliage {
         self.android_connection = ac;
     }
     pub fn attach_leaf<L: Leaf>(&mut self) {
-        self.leaf_fns.push(Box::new(|e| {
+        self.leaf_fns.push(|e| {
             L::attach(e);
-        }));
+        });
     }
     pub fn attach_leaves<L: Leaves>(&mut self) {
-        self.leaves_fns.push(Box::new(|f| {
+        self.leaves_fns.push(|f| {
             L::attach(f);
-        }));
+        });
     }
     pub fn add_renderer<R: Render>(&mut self) {
         self.ash.add_renderer::<R>();
@@ -156,7 +161,6 @@ impl Foliage {
     pub fn run(mut self) {
         let event_loop = EventLoop::new().unwrap();
         event_loop.set_control_flow(ControlFlow::Wait);
-        let proxy = event_loop.create_proxy();
         cfg_if::cfg_if! {
             if #[cfg(target_arch = "wasm32")] {
                 console_error_panic_hook::set_once();
@@ -239,15 +243,11 @@ impl Foliage {
             .get_resource_mut::<AssetLoader>()
             .expect("asset-loader")
             .assets
-            .insert(key.clone(), Asset::new(bytes));
+            .insert(key, Asset::new(bytes));
         key
     }
     fn leaves_attach(&mut self) {
-        for leaves_fn in self
-            .leaves_fns
-            .drain(..)
-            .collect::<Vec<Box<fn(&mut Foliage)>>>()
-        {
+        for leaves_fn in self.leaves_fns.drain(..).collect::<Vec<fn(&mut Foliage)>>() {
             (leaves_fn)(self);
         }
     }
@@ -310,13 +310,12 @@ impl Foliage {
                 device_id: _device_id,
                 position,
             } => {
-                let scale_factor = self
+                let scale_factor = *self
                     .elm
                     .ecs
                     .world
                     .get_resource::<ScaleFactor>()
-                    .expect("scale")
-                    .clone();
+                    .expect("scale");
                 let viewport_position = self
                     .elm
                     .ecs
@@ -363,13 +362,12 @@ impl Foliage {
             WindowEvent::TouchpadPressure { .. } => {}
             WindowEvent::AxisMotion { .. } => {}
             WindowEvent::Touch(t) => {
-                let scale_factor = self
+                let scale_factor = *self
                     .elm
                     .ecs
                     .world
                     .get_resource::<ScaleFactor>()
-                    .expect("scale-factor")
-                    .clone();
+                    .expect("scale-factor");
                 let viewport_position = self
                     .elm
                     .ecs

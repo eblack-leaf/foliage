@@ -42,6 +42,12 @@ impl<A: Bundle + Send + Sync + 'static + Clone> FilteredAttributeConfig<A> {
 pub struct FilteredAttribute<A: Bundle + Send + Sync + 'static + Clone> {
     filtered: Vec<FilteredAttributeConfig<A>>,
 }
+impl<A: Bundle + Send + Sync + 'static + Clone> Default for FilteredAttribute<A> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<A: Bundle + Send + Sync + 'static + Clone> FilteredAttribute<A> {
     pub fn new() -> Self {
         Self { filtered: vec![] }
@@ -59,8 +65,8 @@ pub trait HasRenderLink {
 pub(crate) fn filter_attr_layout_change<A: Bundle + Send + Sync + 'static + Clone>(
     filtered: Query<(Entity, &FilteredAttribute<A>, Option<&RenderLink>)>,
     layout: Res<Layout>,
-    mut cmd: Commands,
-    mut render_remove_queue: ResMut<RenderRemoveQueue>,
+    cmd: Commands,
+    render_remove_queue: ResMut<RenderRemoveQueue>,
 ) {
     if layout.is_changed() {
         for (entity, filter_attr, opt_link) in filtered.iter() {
@@ -76,8 +82,8 @@ pub(crate) fn filter_attr_changed<A: Bundle + Send + Sync + 'static + Clone>(
         Changed<FilteredAttribute<A>>,
     >,
     layout: Res<Layout>,
-    mut cmd: Commands,
-    mut render_remove_queue: ResMut<RenderRemoveQueue>,
+    cmd: Commands,
+    render_remove_queue: ResMut<RenderRemoveQueue>,
 ) {
     for (entity, filtered_attr, opt_link) in filtered.iter() {
         todo!()
@@ -326,7 +332,7 @@ impl<'a> ElmHandle<'a> {
             .as_mut()
             .unwrap()
             .entity_mut(start)
-            .insert(Remove::remove());
+            .insert(Remove::queue_remove());
         if let Some(root) = self
             .world_handle
             .as_ref()
@@ -351,7 +357,7 @@ impl<'a> ElmHandle<'a> {
                 .as_mut()
                 .unwrap()
                 .entity_mut(e)
-                .insert(Remove::remove());
+                .insert(Remove::queue_remove());
             self.world_handle
                 .as_mut()
                 .unwrap()
@@ -459,8 +465,8 @@ impl<'a> ElmHandle<'a> {
     ) {
         let handle = th.into();
         self.add_element(handle.clone(), grid_placement.clone(), None, |e| {
-            if rth.is_some() {
-                e.dependent_of(rth.unwrap().into());
+            if let Some(r) = rth {
+                e.dependent_of(r);
             }
         });
         let mut view = View::new(
@@ -541,7 +547,7 @@ pub struct SignaledAction<A: Actionable> {
 }
 
 pub(crate) fn signal_action<A: Actionable>(
-    mut signals: Query<(&Signal, &SignaledAction<A>)>,
+    signals: Query<(&Signal, &SignaledAction<A>)>,
     mut cmd: Commands,
 ) {
     for (signal, signaled_action) in signals.iter() {

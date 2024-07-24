@@ -139,7 +139,7 @@ fn constrain(
 ) {
     for (fill, mut view, mut pos, mut area) in images.iter_mut() {
         let old = Section::new(*pos, *area);
-        match view.as_ref().clone() {
+        match *view.as_ref() {
             ImageView::Aspect(a) => {
                 // keep the biggest aspect ratio can fit inside bounds
                 let new_area = a.constrain(old.area.coordinates);

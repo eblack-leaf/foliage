@@ -135,8 +135,8 @@ impl Ash {
                     .unwrap()
                     .directive_manager
                     .directives
-                    .iter()
-                    .map(|(_, d)| &d.0)
+                    .values()
+                    .map(|d| &d.0)
                     .collect::<Vec<&RenderBundle>>()
             }));
     }

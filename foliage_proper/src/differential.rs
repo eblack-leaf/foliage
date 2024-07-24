@@ -111,10 +111,8 @@ pub(crate) fn differential<D: Component + PartialEq + Clone + Send + Sync + 'sta
         if remove.should_keep() {
             let different = if render_queue.cache.get(link).unwrap().get(&entity).is_none() {
                 true
-            } else if render_queue.cache.get(link).unwrap().get(&entity).unwrap() != d {
-                true
             } else {
-                false
+                render_queue.cache.get(link).unwrap().get(&entity).unwrap() != d
             };
             render_queue
                 .cache
@@ -142,7 +140,7 @@ impl Remove {
     pub fn should_remove(&self) -> bool {
         self.should_remove
     }
-    pub fn remove() -> Self {
+    pub fn queue_remove() -> Self {
         Self {
             should_remove: true,
         }
@@ -162,7 +160,7 @@ pub(crate) fn remove(
     for (entity, remove, opt_link) in removals.iter() {
         if remove.should_remove() {
             if let Some(link) = opt_link {
-                remove_queue.queue.get_mut(&link).unwrap().insert(entity);
+                remove_queue.queue.get_mut(link).unwrap().insert(entity);
             }
             cmd.entity(entity).despawn();
         }

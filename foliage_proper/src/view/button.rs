@@ -56,7 +56,7 @@ impl Viewable for Button {
         view.config_grid(Grid::new(3, 1));
         let linked = vec![
             view.target_handle.extend("icon"),
-            view.target_handle.extend("text").into(),
+            view.target_handle.extend("text"),
         ];
         view.bind(
             "panel",

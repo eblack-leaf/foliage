@@ -80,15 +80,15 @@ pub struct Rounding(pub(crate) [f32; 4]);
 
 impl Rounding {
     pub fn all(v: f32) -> Self {
-        let v = v.max(0.0).min(1.0);
+        let v = v.clamp(0.0, 1.0);
         Self([v; 4])
     }
     pub fn top(v: f32) -> Self {
-        let v = v.max(0.0).min(1.0);
+        let v = v.clamp(0.0, 1.0);
         Self([v, v, 0.0, 0.0])
     }
     pub fn bottom(v: f32) -> Self {
-        let v = v.max(0.0).min(1.0);
+        let v = v.clamp(0.0, 1.0);
         Self([0.0, 0.0, v, v])
     }
     // ...
@@ -312,8 +312,8 @@ impl Render for Panel {
                 .instances
                 .checked_write(packet.entity, packet.value);
         }
-        let should_record = renderer.resource_handle.instances.resolve_changes(ginkgo);
-        should_record
+
+        renderer.resource_handle.instances.resolve_changes(ginkgo)
     }
 
     fn record(renderer: &mut Renderer<Self>, ginkgo: &Ginkgo) {

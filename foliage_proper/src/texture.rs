@@ -124,7 +124,7 @@ impl<
     }
 
     pub fn has_key(&self, key: Key) -> bool {
-        self.partitions.get(&key).is_some()
+        self.partitions.contains_key(&key)
     }
     pub fn add_entry(&mut self, key: Key, entry: AtlasEntry<TexelData>) {
         self.entries.insert(key.clone(), entry);
@@ -179,7 +179,7 @@ impl<
     pub fn resolve(&mut self, ginkgo: &Ginkgo) -> (HashSet<Key>, bool) {
         let mut added = Vec::new();
         for entry in self.entries.iter() {
-            if self.partitions.get(entry.0).is_none() {
+            if !self.partitions.contains_key(entry.0) {
                 added.push((
                     entry.0.clone(),
                     AtlasEntry::new(entry.1.data.clone(), entry.1.extent),
