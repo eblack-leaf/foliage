@@ -58,7 +58,7 @@ impl Actionable for Stuff {
                 0,
                 "click",
                 20,
-                Coloring::new(Grey::plus_three(), Grey::minus_two(), Grey::BASE),
+                Coloring::new(Grey::minus_two(), Grey::BASE, Grey::BASE),
                 OnClick::new("other-stuff"),
             )
             .rounded(Rounding::all(0.1)),
