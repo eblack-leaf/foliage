@@ -7,8 +7,6 @@ use tracing_subscriber::filter::Targets;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::Layer;
-use wasm_bindgen::prelude::wasm_bindgen;
-use wasm_bindgen::JsValue;
 pub use wgpu;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
@@ -412,13 +410,6 @@ impl Foliage {
             }
         }
     }
-}
-#[wasm_bindgen]
-extern "C" {
-    type ClipboardItemExt;
-
-    #[wasm_bindgen(constructor, js_class = ClipboardItem)]
-    fn new(data: &JsValue) -> ClipboardItemExt;
 }
 impl ApplicationHandler for Foliage {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {

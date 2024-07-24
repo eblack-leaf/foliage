@@ -5,6 +5,7 @@ use crate::panel::{Panel, Rounding};
 use crate::style::{Coloring, InteractiveColor};
 use crate::text::{FontSize, Text, TextValue};
 use crate::view::{View, Viewable};
+
 #[derive(Copy, Clone)]
 pub(crate) enum ButtonShape {
     Circle,
