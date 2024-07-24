@@ -19,7 +19,6 @@ use crate::action::{Actionable, ElmHandle, Signaler};
 use crate::anim::{Animate, EnabledAnimations};
 use crate::ash::{Ash, Render};
 use crate::asset::{Asset, AssetKey, AssetLoader};
-use crate::clipboard::clipboard_test;
 use crate::coordinate::area::Area;
 use crate::coordinate::{Coordinates, DeviceContext};
 use crate::element::{ActionHandle, IdTable};
@@ -38,6 +37,7 @@ pub mod action;
 pub mod anim;
 pub mod ash;
 pub mod asset;
+pub mod clipboard;
 pub mod color;
 pub mod coordinate;
 pub mod derive;
@@ -57,7 +57,6 @@ pub mod texture;
 pub mod time;
 pub mod view;
 pub mod willow;
-pub mod clipboard;
 
 pub struct Foliage {
     willow: Willow,
@@ -356,7 +355,6 @@ impl Foliage {
                 {
                     self.elm.ecs.world.send_event(event);
                 }
-                clipboard_test("not test clipboard".to_string());
             }
             WindowEvent::PinchGesture { .. } => {}
             WindowEvent::PanGesture { .. } => {}
@@ -391,7 +389,6 @@ impl Foliage {
                 {
                     self.elm.ecs.world.send_event(event);
                 }
-                clipboard_test("not test clipboard".to_string());
             }
             WindowEvent::ScaleFactorChanged {
                 scale_factor: _scale_factor,

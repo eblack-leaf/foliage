@@ -1,12 +1,16 @@
 use wasm_bindgen::prelude::wasm_bindgen;
 
-pub(crate) fn clipboard_test(message: String) {
-    #[cfg(target_family = "wasm")] {
+pub fn clipboard_write(message: String) {
+    #[cfg(not(target_family = "wasm"))]
+    {
+        // copypasta
+    }
+    #[cfg(target_family = "wasm")]
+    {
         use js_sys::{wasm_bindgen, Array, Object, Reflect};
         use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
         use wasm_bindgen_futures::JsFuture;
         use web_sys::{console, js_sys, Blob, BlobPropertyBag, Clipboard};
-
 
         thread_local! {
             static CLIPBOARD: Clipboard = web_sys::window().unwrap().navigator().clipboard().unwrap();
@@ -16,7 +20,7 @@ pub(crate) fn clipboard_test(message: String) {
                 &Array::of1(&message.into()),
                 BlobPropertyBag::new().type_("text/plain"),
             )
-                .unwrap();
+            .unwrap();
             let record = Object::new();
             Reflect::set(&record, &"text/plain".into(), &blob).unwrap();
             let item = ClipboardItemExt::new(&record);
@@ -30,7 +34,6 @@ pub(crate) fn clipboard_test(message: String) {
                 console::error_2(&"writing to clipboard failed: ".into(), &error);
             }
         });
-
     }
 }
 

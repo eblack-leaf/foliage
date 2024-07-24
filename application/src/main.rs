@@ -2,6 +2,7 @@ use foliage::action::{Actionable, ElmHandle};
 use foliage::anim::{EasementBehavior, SequenceTiming};
 use foliage::bevy_ecs;
 use foliage::bevy_ecs::system::Resource;
+use foliage::clipboard::clipboard_write;
 use foliage::color::{Grey, Monochromatic};
 use foliage::element::TargetHandle;
 use foliage::grid::{GridCoordinate, GridPlacement};
@@ -46,6 +47,7 @@ impl Actionable for ButtonTest {
                 EasementBehavior::Linear,
             );
         });
+        clipboard_write("howdy-there".to_string());
     }
 }
 #[derive(Clone)]

@@ -13,9 +13,10 @@
         }
     </style>
     
-<script type="module" nonce="kV4PP+R4g5DwkN1VcMftGw==">
-import init, * as bindings from '/foliage/application-d29d0c294d0b734.js';
-const wasm = await init('/foliage/application-d29d0c294d0b734_bg.wasm');
+<script nonce="dKVjWXqm3SEmW4QjY268yA==" type="module">
+    import init, * as bindings from '/foliage/application-251a5c0efe37c38e.js';
+
+    const wasm = await init('/foliage/application-251a5c0efe37c38e_bg.wasm');
 
 
 window.wasmBindings = bindings;
@@ -28,8 +29,8 @@ dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
     <script src="//cdn.jsdelivr.net/npm/eruda"></script>
     <script>eruda.init();</script>
 
-<link rel="modulepreload" href="/foliage/application-d29d0c294d0b734.js" crossorigin=anonymous integrity="sha384-DUYf8XjCw3Pb6d7xXCA1mrR6WiMSowuKZ05a+yuwAKpbfGNfNXHiEeMNP5A2SkcB">
-<link rel="preload" href="/foliage/application-d29d0c294d0b734_bg.wasm" crossorigin=anonymous integrity="sha384-FIeQZJFw/rtRrnzOpSpUeRCZQ96a7HyhWdt/VmblacokjYMTJwpVOXKkmcEuAfvD" as="fetch" type="application/wasm"></head>
+<link crossorigin=anonymous href="/foliage/application-251a5c0efe37c38e.js" integrity="sha384-DUYf8XjCw3Pb6d7xXCA1mrR6WiMSowuKZ05a+yuwAKpbfGNfNXHiEeMNP5A2SkcB" rel="modulepreload">
+<link as="fetch" crossorigin=anonymous href="/foliage/application-251a5c0efe37c38e_bg.wasm" integrity="sha384-ZNCRvxF+0bGVKBJur2OX8uixM/OIVCgOOHlfTs84Ro3qPz+zaKeJmmLywScji6ez" rel="preload" type="application/wasm"></head>
 <body>
 <!--<div id="loading" style="background: transparent; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);" >-->
 <!--    <h1 style="color: white; background: transparent; font-family: Monospaced,monospace">generating aesthetics...</h1>-->
