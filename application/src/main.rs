@@ -18,13 +18,11 @@ struct ButtonTest {}
 struct Counter(i32);
 impl Actionable for ButtonTest {
     fn apply(self, mut handle: ElmHandle) {
-        println!("hello-world");
         handle.get_resource_mut::<Counter>().0 += 1;
         let i = handle.get_resource::<Counter>().0;
         handle.update_attr_for(
             TargetHandle::from("button-test").extend("text"),
             |t: &mut TextValue| {
-                println!("text-val: {}", t.0);
                 t.0 = format!("click-{}", i);
             },
         );

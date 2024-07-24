@@ -83,7 +83,6 @@ pub(crate) fn recursive_placement(
     let y = layout_grid.is_changed();
     let z = !elements.p0().is_empty();
     if x || y || z {
-        println!("x:{} y:{} z:{}", x, y, z);
         let roots = elements
             .p1()
             .iter()
