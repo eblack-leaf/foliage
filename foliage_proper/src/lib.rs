@@ -7,7 +7,6 @@ use tracing_subscriber::filter::Targets;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::Layer;
-use wasm_bindgen::prelude::wasm_bindgen;
 pub use wgpu;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
@@ -20,7 +19,6 @@ use crate::action::{Actionable, ElmHandle, Signaler};
 use crate::anim::{Animate, EnabledAnimations};
 use crate::ash::{Ash, Render};
 use crate::asset::{Asset, AssetKey, AssetLoader};
-use crate::clipboard::{clipboard_write, ClipboardHandle};
 use crate::coordinate::area::Area;
 use crate::coordinate::{Coordinates, DeviceContext};
 use crate::element::{ActionHandle, IdTable};
@@ -76,13 +74,6 @@ pub struct Foliage {
     #[allow(unused)]
     recv: Option<oneshot::Receiver<Ginkgo>>,
     base_url: String,
-}
-#[wasm_bindgen]
-extern "C" {
-    type ClipboardItemExt;
-
-    #[wasm_bindgen(constructor, js_class = ClipboardItem)]
-    fn new(data: &wasm_bindgen::JsValue) -> ClipboardItemExt;
 }
 impl Foliage {
     pub fn new() -> Self {
@@ -364,43 +355,6 @@ impl Foliage {
                 {
                     self.elm.ecs.world.send_event(event);
                 }
-
-                if let Some(m) = self
-                    .elm
-                    .ecs
-                    .world
-                    .get_resource_mut::<ClipboardHandle>()
-                    .unwrap()
-                    .write_message()
-                {
-                    thread_local! {
-                        static CLIPBOARD: web_sys::Clipboard = web_sys::window().unwrap().navigator().clipboard().unwrap();
-                    }
-                    use js_sys::{wasm_bindgen, Array, Object, Reflect};
-                    use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
-                    use wasm_bindgen_futures::JsFuture;
-                    use web_sys::{console, js_sys, Blob, BlobPropertyBag};
-
-                    let data: Array = {
-                        let blob = Blob::new_with_blob_sequence_and_options(
-                            &Array::of1(&m.into()),
-                            BlobPropertyBag::new().type_("text/plain"),
-                        )
-                        .unwrap();
-                        let record = Object::new();
-                        Reflect::set(&record, &"text/plain".into(), &blob).unwrap();
-                        let item = ClipboardItemExt::new(&record);
-
-                        Array::of1(&item)
-                    };
-                    let promise = CLIPBOARD.with(|clipboard| clipboard.write(&data.into()));
-
-                    wasm_bindgen_futures::spawn_local(async move {
-                        if let Err(error) = JsFuture::from(promise).await {
-                            console::error_2(&"writing to clipboard failed: ".into(), &error);
-                        }
-                    });
-                }
             }
             WindowEvent::PinchGesture { .. } => {}
             WindowEvent::PanGesture { .. } => {}
@@ -434,19 +388,6 @@ impl Foliage {
                     .parse(t, viewport_position, scale_factor)
                 {
                     self.elm.ecs.world.send_event(event);
-                }
-                thread_local! {
-                    pub(crate) static CLIPBOARD: web_sys::Clipboard = web_sys::window().unwrap().navigator().clipboard().unwrap();
-                }
-                if let Some(m) = self
-                    .elm
-                    .ecs
-                    .world
-                    .get_resource_mut::<ClipboardHandle>()
-                    .unwrap()
-                    .write_message()
-                {
-                    clipboard_write(m);
                 }
             }
             WindowEvent::ScaleFactorChanged {

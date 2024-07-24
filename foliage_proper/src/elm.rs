@@ -17,7 +17,6 @@ use crate::action::{
 use crate::anim::{animate, Animate};
 use crate::ash::Render;
 use crate::asset::on_retrieve;
-use crate::clipboard::ClipboardHandle;
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::NumericalContext;
@@ -243,7 +242,6 @@ impl Elm {
         self.ecs.world.insert_resource(KeyboardAdapter::default());
         self.ecs.world.insert_resource(InteractiveEntity::default());
         self.ecs.world.insert_resource(FocusedEntity::default());
-        self.ecs.world.insert_resource(ClipboardHandle::new());
         self.scheduler.main.configure_sets(
             (
                 ScheduleMarkers::Events,
