@@ -150,11 +150,6 @@ impl Clipboard {
         }
         #[cfg(target_family = "wasm")]
         {
-            if web_sys::window()
-                .expect("window")
-                .navigator()
-                .clipboard()
-                .is_some()
             {
                 // current working method
                 // let promise = web_sys::window()
