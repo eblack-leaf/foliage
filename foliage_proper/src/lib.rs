@@ -1,5 +1,6 @@
 pub use bevy_ecs;
 use bevy_ecs::bundle::Bundle;
+use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::Resource;
 use bevy_ecs::system::Command;
 use futures_channel::oneshot;
@@ -19,6 +20,7 @@ use crate::action::{Actionable, ElmHandle, Signaler};
 use crate::anim::{Animate, EnabledAnimations};
 use crate::ash::{Ash, Render};
 use crate::asset::{Asset, AssetKey, AssetLoader};
+use crate::clipboard::{Clipboard, ClipboardWrite};
 use crate::coordinate::area::Area;
 use crate::coordinate::{Coordinates, DeviceContext};
 use crate::element::{ActionHandle, IdTable};
@@ -452,6 +454,25 @@ impl ApplicationHandler for Foliage {
             return;
         }
         self.process_event(event, event_loop);
+        let mut writes = vec![];
+        for (entity, cw) in self
+            .elm
+            .ecs
+            .world
+            .query::<(Entity, &ClipboardWrite)>()
+            .iter(&self.elm.ecs.world)
+        {
+            writes.push((entity, cw.message.clone()));
+        }
+        for (entity, m) in writes {
+            self.elm
+                .ecs
+                .world
+                .get_non_send_resource_mut::<Clipboard>()
+                .unwrap()
+                .write(m);
+            self.elm.ecs.world.despawn(entity);
+        }
     }
     fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
         #[cfg(target_family = "wasm")]

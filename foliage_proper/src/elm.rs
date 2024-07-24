@@ -17,7 +17,7 @@ use crate::action::{
 use crate::anim::{animate, Animate};
 use crate::ash::Render;
 use crate::asset::on_retrieve;
-use crate::clipboard::{Clipboard, ClipboardWrite};
+use crate::clipboard::Clipboard;
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::NumericalContext;
@@ -141,7 +141,6 @@ impl<D> Default for AnimationLimiter<D> {
 impl Elm {
     pub fn enable_signaled_action<A: Actionable>(&mut self) {
         if !self.ecs.world.contains_resource::<ActionLimiter<A>>() {
-            // signaled-action setup?
             self.scheduler
                 .main
                 .add_systems(signal_action::<A>.in_set(ScheduleMarkers::Action));
@@ -326,23 +325,6 @@ impl Elm {
     }
     pub(crate) fn process(&mut self) {
         self.scheduler.exec_main(&mut self.ecs);
-        let mut writes = vec![];
-        for (entity, cw) in self
-            .ecs
-            .world
-            .query::<(Entity, &ClipboardWrite)>()
-            .iter(&self.ecs.world)
-        {
-            writes.push((entity, cw.message.clone()));
-        }
-        for (entity, cw) in writes {
-            self.ecs
-                .world
-                .get_non_send_resource_mut::<Clipboard>()
-                .unwrap()
-                .write(cw);
-            self.ecs.world.despawn(entity);
-        }
     }
     pub(crate) fn viewport_handle_changes(&mut self) -> Option<Position<NumericalContext>> {
         self.ecs
@@ -390,11 +372,9 @@ impl Elm {
         }
     }
 }
-
 pub struct RenderQueueHandle<'a> {
     elm: &'a mut Elm,
 }
-
 impl<'a> RenderQueueHandle<'a> {
     pub(crate) fn new(elm: &'a mut Elm) -> Self {
         Self { elm }
