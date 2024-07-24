@@ -82,7 +82,9 @@ impl Grid {
                 + grid_placement.padding.vertical()
         };
         let w = if let Some(px) = horizontal.end.px {
-            px
+            px - x
+        } else if let Some(fs) = horizontal.end.fixed {
+            fs
         } else if let Some(p) = horizontal.end.percent {
             let percent = self.placement.section.width() * p / 100f32;
             percent - x
@@ -93,7 +95,9 @@ impl Grid {
                 - x
         };
         let h = if let Some(px) = vertical.end.px {
-            px
+            px - y
+        } else if let Some(fs) = vertical.end.fixed {
+            fs
         } else if let Some(p) = vertical.end.percent {
             let percent = self.placement.section.height() * p / 100f32;
             percent - y
@@ -310,6 +314,7 @@ pub struct GridIndex {
     col: Option<i32>,
     row: Option<i32>,
     percent: Option<f32>,
+    fixed: Option<f32>,
 }
 impl GridIndex {
     pub fn px(px: CoordinateUnit) -> Self {
@@ -318,6 +323,7 @@ impl GridIndex {
             col: None,
             row: None,
             percent: None,
+            fixed: None,
         }
     }
     pub fn col(c: i32) -> Self {
@@ -326,6 +332,7 @@ impl GridIndex {
             col: Some(c),
             row: None,
             percent: None,
+            fixed: None,
         }
     }
     pub fn row(r: i32) -> Self {
@@ -334,6 +341,7 @@ impl GridIndex {
             col: None,
             row: Some(r),
             percent: None,
+            fixed: None,
         }
     }
     pub fn percent(p: f32) -> Self {
@@ -342,7 +350,20 @@ impl GridIndex {
             col: None,
             row: None,
             percent: Some(p.clamp(0.0, 100.0)),
+            fixed: None,
         }
+    }
+    pub(crate) fn fixed(s: i32) -> Self {
+        Self {
+            px: None,
+            col: None,
+            row: None,
+            percent: None,
+            fixed: Some(s as f32),
+        }
+    }
+    pub fn span(self, s: i32) -> GridRange {
+        GridRange::new(self, GridIndex::fixed(s))
     }
     pub fn to<GI: Into<GridIndex>>(self, gi: GI) -> GridRange {
         // TODO sanitize row/col differences

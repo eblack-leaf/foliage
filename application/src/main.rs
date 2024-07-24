@@ -31,7 +31,7 @@ impl Actionable for ButtonTest {
             let placement = if on_off == 0 {
                 GridPlacement::new(2.col().to(4.col()), 2.row().to(2.row()))
             } else if on_off == 1 {
-                GridPlacement::new(1.col().to(2.col()), 1.row().to(50.px()))
+                GridPlacement::new(1.col().to(2.col()), 1.row().span(50))
             } else {
                 GridPlacement::new(3.col().to(5.col()), 1.row().to(1.row()))
             };
@@ -53,10 +53,15 @@ impl Actionable for Stuff {
         handle.add_view(
             None,
             "button-test",
-            GridPlacement::new(1.col().to(2.col()), 1.row().to(50.px())).offset_layer(5),
-            Button::new(0, "click", 20, OnClick::new("other-stuff"))
-                .rounded(Rounding::all(0.1))
-                .colored(Coloring::new(Grey::LIGHT, Grey::DARK, Grey::LIGHT)),
+            GridPlacement::new(1.col().to(2.col()), 1.row().span(50)).offset_layer(5),
+            Button::new(
+                0,
+                "click",
+                20,
+                Coloring::new(Grey::plus_three(), Grey::minus_two(), Grey::BASE),
+                OnClick::new("other-stuff"),
+            )
+            .rounded(Rounding::all(0.1)),
         );
     }
 }

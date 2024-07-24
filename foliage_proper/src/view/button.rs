@@ -21,15 +21,16 @@ pub struct Button {
     font_size: FontSize,
 }
 impl Button {
-    pub fn new<ID: Into<IconId>, T: Into<TextValue>, FS: Into<FontSize>>(
+    pub fn new<ID: Into<IconId>, T: Into<TextValue>, FS: Into<FontSize>, C: Into<Coloring>>(
         id: ID,
         t: T,
         fs: FS,
+        c: C,
         on_click: OnClick,
     ) -> Self {
         Self {
             circle_square: ButtonShape::Square,
-            coloring: Default::default(),
+            coloring: c.into(),
             rounding: Default::default(),
             icon_id: id.into(),
             on_click,
@@ -43,10 +44,6 @@ impl Button {
     }
     pub fn square(mut self) -> Self {
         self.circle_square = ButtonShape::Square;
-        self
-    }
-    pub fn colored<C: Into<Coloring>>(mut self, c: C) -> Self {
-        self.coloring = c.into();
         self
     }
     pub fn rounded<R: Into<Rounding>>(mut self, rounding: R) -> Self {

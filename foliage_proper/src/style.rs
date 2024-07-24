@@ -2,7 +2,7 @@ use bevy_ecs::prelude::{Component, IntoSystemConfigs};
 use bevy_ecs::query::{Changed, Or};
 use bevy_ecs::system::{Commands, Query, Res};
 
-use crate::color::{Color, Grey, Monochromatic};
+use crate::color::Color;
 use crate::element::{IdTable, TargetHandle};
 use crate::elm::{Elm, ScheduleMarkers};
 use crate::interaction::ClickInteractionListener;
@@ -76,10 +76,5 @@ impl Coloring {
             background: bg.into(),
             accent: a.into(),
         }
-    }
-}
-impl Default for Coloring {
-    fn default() -> Self {
-        Coloring::new(Grey::LIGHT, Grey::DARK, Grey::BASE)
     }
 }

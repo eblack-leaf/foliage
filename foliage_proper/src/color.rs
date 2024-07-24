@@ -1,3 +1,5 @@
+use std::ops::Mul;
+
 use bevy_ecs::prelude::Component;
 use serde::{Deserialize, Serialize};
 
@@ -24,12 +26,27 @@ impl Default for Color {
 }
 
 impl Color {
-    pub const WHITE: Color = Color::rgb(0.90, 0.90, 0.90);
-    pub const BLACK: Color = Color::rgb(0.10, 0.10, 0.10);
-    pub const fn rgba(r: f32, g: f32, b: f32, a: f32) -> Self {
+    pub const WHITE: Color = Color::rgb_unchecked(0.90, 0.90, 0.90);
+    pub const BLACK: Color = Color::rgb_unchecked(0.10, 0.10, 0.10);
+    pub fn rgba(r: f32, g: f32, b: f32, a: f32) -> Self {
+        Self {
+            rgba: [
+                r.clamp(0.0, 1.0),
+                g.clamp(0.0, 1.0),
+                b.clamp(0.0, 1.0),
+                a.clamp(0.0, 1.0),
+            ],
+        }
+    }
+    pub const fn rgba_unchecked(r: f32, g: f32, b: f32, a: f32) -> Self {
         Self { rgba: [r, g, b, a] }
     }
-    pub const fn rgb(r: f32, g: f32, b: f32) -> Self {
+    pub fn rgb(r: f32, g: f32, b: f32) -> Self {
+        Self {
+            rgba: [r.clamp(0.0, 1.0), g.clamp(0.0, 1.0), b.clamp(0.0, 1.0), 1.0],
+        }
+    }
+    pub const fn rgb_unchecked(r: f32, g: f32, b: f32) -> Self {
         Self {
             rgba: [r, g, b, 1.0],
         }
@@ -66,15 +83,37 @@ impl From<Color> for wgpu::Color {
     }
 }
 
+impl Mul<f32> for Color {
+    type Output = Self;
+
+    fn mul(self, rhs: f32) -> Self::Output {
+        Self::rgb(self.red() * rhs, self.green() * rhs, self.blue() * rhs).with_alpha(self.alpha())
+    }
+}
+
 pub trait Monochromatic {
-    const DARK: Color;
+    fn minus_one() -> Color {
+        Self::BASE * 0.75
+    }
+    fn minus_two() -> Color {
+        Self::BASE * 0.5
+    }
+    fn minus_three() -> Color {
+        Self::BASE * 0.25
+    }
     const BASE: Color;
-    const LIGHT: Color;
+    fn plus_one() -> Color {
+        Self::BASE * 1.15
+    }
+    fn plus_two() -> Color {
+        Self::BASE * 1.35
+    }
+    fn plus_three() -> Color {
+        Self::BASE * 1.5
+    }
 }
 
 pub struct Grey;
 impl Monochromatic for Grey {
-    const DARK: Color = Color::rgb(0.15, 0.15, 0.15);
-    const BASE: Color = Color::rgb(0.5, 0.5, 0.5);
-    const LIGHT: Color = Color::rgb(0.75, 0.75, 0.75);
+    const BASE: Color = Color::rgb_unchecked(0.5, 0.5, 0.5);
 }
