@@ -101,6 +101,9 @@ pub trait Monochromatic {
     fn minus_three() -> Color {
         Self::BASE * 0.25
     }
+    fn base() -> Color {
+        Self::BASE
+    }
     const BASE: Color;
     fn plus_one() -> Color {
         Self::BASE * 1.25
