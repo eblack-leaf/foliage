@@ -3,7 +3,9 @@ use bevy_ecs::component::Component;
 use copypasta::ClipboardProvider;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
-use web_sys::js_sys::Object;
+use wasm_bindgen_futures::JsFuture;
+use web_sys::js_sys::{Array, Object, Reflect};
+use web_sys::{Blob, BlobPropertyBag};
 
 #[derive(Clone, Component)]
 pub struct ClipboardWrite {
@@ -70,30 +72,28 @@ impl Clipboard {
             //     let _message = wasm_bindgen_futures::JsFuture::from(promise).await.ok();
             // });
 
-            tracing::trace!("writing clipboard {:?}", data);
-            let js_string = JsValue::from_str(data.as_str());
-            let js_array = web_sys::js_sys::Array::from_iter(std::iter::once(js_string));
-            tracing::trace!("js-array {:?}", js_array);
-            let js_blob = web_sys::Blob::new_with_str_sequence_and_options(
-                &js_array,
-                &web_sys::BlobPropertyBag::new().type_("text/plain"),
-            )
-            .unwrap();
-            let inner_promise = wasm_bindgen_futures::js_sys::Promise::resolve(&js_blob);
-            let js_obj = Object::new();
-            web_sys::js_sys::Reflect::set(&js_obj, &"text/plain".into(), &inner_promise).unwrap();
-            let item = ClipboardItemExt::new(&js_obj, &Object::new());
-            let item_array = web_sys::js_sys::Array::of1(item.as_ref());
+            thread_local! {
+                static CLIPBOARD: web_sys::Clipboard = web_sys::window().unwrap().navigator().clipboard().unwrap();
+                static DATA: Array = {
+                    let blob = Blob::new_with_blob_sequence_and_options(
+                        &Array::of1(&"test clipboard".into()),
+                        BlobPropertyBag::new().type_("text/plain"),
+                    )
+                    .unwrap();
+                    let record = Object::new();
+                    Reflect::set(&record, &"text/plain".into(), &blob).unwrap();
+                    let item = ClipboardItemExt::new(&record);
+
+                    Array::of1(&item)
+                };
+            }
+
+            let promise = CLIPBOARD.with(|clipboard| DATA.with(|data| clipboard.write(data)));
 
             wasm_bindgen_futures::spawn_local(async move {
-                let promise = web_sys::window()
-                    .expect("window")
-                    .navigator()
-                    .clipboard()
-                    .unwrap()
-                    .write(&item_array);
-                let _message = wasm_bindgen_futures::JsFuture::from(promise).await.ok();
-                tracing::trace!("return message {:?}", _message);
+                if let Err(error) = JsFuture::from(promise).await {
+                    web_sys::console::error_2(&"writing to clipboard failed: ".into(), &error);
+                }
             });
         }
         #[cfg(not(target_family = "wasm"))]
@@ -102,12 +102,10 @@ impl Clipboard {
         }
     }
 }
-#[cfg(target_family = "wasm")]
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(js_name = ClipboardItem, extends = web_sys::ClipboardItem)]
     type ClipboardItemExt;
 
     #[wasm_bindgen(constructor, js_class = ClipboardItem)]
-    fn new(data: &JsValue, options: &Object) -> ClipboardItemExt;
+    fn new(data: &JsValue) -> ClipboardItemExt;
 }
