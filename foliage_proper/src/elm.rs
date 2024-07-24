@@ -17,7 +17,7 @@ use crate::action::{
 use crate::anim::{animate, Animate};
 use crate::ash::Render;
 use crate::asset::on_retrieve;
-use crate::clipboard::{read_retrieve, Clipboard};
+use crate::clipboard::{Clipboard, ClipboardWrite};
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::NumericalContext;
@@ -326,6 +326,23 @@ impl Elm {
     }
     pub(crate) fn process(&mut self) {
         self.scheduler.exec_main(&mut self.ecs);
+        let mut writes = vec![];
+        for (entity, cw) in self
+            .ecs
+            .world
+            .query::<(Entity, &ClipboardWrite)>()
+            .iter(&self.ecs.world)
+        {
+            writes.push((entity, cw.message.clone()));
+        }
+        for (entity, cw) in writes {
+            self.ecs
+                .world
+                .get_non_send_resource_mut::<Clipboard>()
+                .unwrap()
+                .write(cw);
+            self.ecs.world.despawn(entity);
+        }
     }
     pub(crate) fn viewport_handle_changes(&mut self) -> Option<Position<NumericalContext>> {
         self.ecs
@@ -346,20 +363,6 @@ impl Elm {
             .get_resource_mut::<ViewportHandle>()
             .unwrap()
             .resize(willow.actual_area().to_logical(scale_value).to_numerical());
-    }
-    pub fn enable_clipboard_retrieve<B: Bundle + Send + Sync + 'static>(&mut self) {
-        if !self
-            .ecs
-            .world
-            .contains_resource::<ClipboardRetrieveLimiter<B>>()
-        {
-            self.scheduler
-                .main
-                .add_systems(read_retrieve::<B>.in_set(ScheduleMarkers::External));
-            self.ecs
-                .world
-                .insert_resource(ClipboardRetrieveLimiter::<B>::default());
-        }
     }
     pub fn enable_retrieve<B: Bundle + Send + Sync + 'static>(&mut self) {
         if !self.ecs.world.contains_resource::<RetrieveLimiter<B>>() {

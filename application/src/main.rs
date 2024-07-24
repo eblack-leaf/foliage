@@ -47,7 +47,7 @@ impl Actionable for ButtonTest {
                 EasementBehavior::Linear,
             );
         });
-        handle.run_action(ClipboardWrite::new("testing-testing-123"));
+        handle.spawn(ClipboardWrite::new("testing-testing-123"));
     }
 }
 #[derive(Clone)]

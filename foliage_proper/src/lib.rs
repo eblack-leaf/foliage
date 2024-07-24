@@ -30,7 +30,7 @@ use crate::image::Image;
 use crate::interaction::{ClickInteractionListener, KeyboardAdapter, MouseAdapter, TouchAdapter};
 use crate::panel::Panel;
 use crate::style::Style;
-use crate::text::{Text, TextValue};
+use crate::text::Text;
 use crate::time::Time;
 
 pub mod action;
@@ -196,16 +196,13 @@ impl Foliage {
                 .init();
         }
     }
-    pub fn enable_clipboard_retrieve<B: Bundle + Send + Sync + 'static>(&mut self) {
-        self.elm.enable_clipboard_retrieve::<B>();
-    }
     pub fn enable_retrieve<B: Bundle + Send + Sync + 'static>(&mut self) {
         self.elm.enable_retrieve::<B>();
     }
     #[cfg(target_family = "wasm")]
     pub fn load_remote_asset(&mut self, path: &str) -> AssetKey {
         let key = AssetLoader::generate_key();
-        let (fetch, sender) = crate::asset::AssetFetch::new(key);
+        let (fetch, sender) = asset::AssetFetch::new(key);
         self.elm
             .ecs
             .world
@@ -508,7 +505,6 @@ impl Leaves for CoreLeaves {
         foliage.attach_leaf::<Text>();
         foliage.add_renderer::<Text>();
         foliage.attach_leaf::<Style>();
-        foliage.enable_clipboard_retrieve::<TextValue>();
         foliage.attach_leaf::<Time>();
         foliage.attach_leaf::<EnabledAnimations>();
     }
