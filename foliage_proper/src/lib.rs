@@ -465,12 +465,7 @@ impl ApplicationHandler for Foliage {
             writes.push((entity, cw.message.clone()));
         }
         for (entity, m) in writes {
-            self.elm
-                .ecs
-                .world
-                .get_non_send_resource_mut::<Clipboard>()
-                .unwrap()
-                .write(m);
+            Clipboard::new().write(m);
             self.elm.ecs.world.despawn(entity);
         }
     }
