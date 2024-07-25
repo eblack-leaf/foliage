@@ -239,7 +239,6 @@ pub(crate) fn animate<A: Animate>(
                 animation.interpolations = A::interpolations(&a, &animation.end);
                 animation.started = true;
             }
-
             let delta = animation.animation_time.time_delta(frame_diff);
             let percent = animation.easement.percent_changed(delta);
             for i in animation.interpolations.scalars.iter_mut() {
@@ -253,6 +252,7 @@ pub(crate) fn animate<A: Animate>(
                     .get_mut(sequence_entity)
                     .unwrap()
                     .animations_to_finish -= 1;
+                cmd.entity(anim_entity).remove::<Animation<A>>();
                 if sequences
                     .get_mut(sequence_entity)
                     .unwrap()
@@ -269,7 +269,6 @@ pub(crate) fn animate<A: Animate>(
                         let e = id_table.lookup_action(handle.clone()).unwrap();
                         cmd.entity(e).insert(Signal::active());
                     }
-                    cmd.entity(anim_entity).remove::<Animation<A>>();
                     cmd.entity(sequence_entity).despawn();
                 }
             }
