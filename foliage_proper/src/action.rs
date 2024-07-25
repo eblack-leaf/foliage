@@ -6,13 +6,13 @@ use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Bundle, Changed, Commands, DetectChanges, Entity, Query, Resource, World};
 use bevy_ecs::system::{Command, Res, ResMut};
 
-use crate::anim::{Animate, Animation, AnimationTime, Ease, OnEnd, Sequence, SequenceTimeRange};
+use crate::anim::{Animate, Animation, AnimationTime, Ease, Sequence, SequenceTimeRange};
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
 use crate::differential::{Remove, RenderLink, RenderRemoveQueue};
-use crate::element::{ActionHandle, Dependents, Element, IdTable, Root, TargetHandle};
+use crate::element::{ActionHandle, Dependents, Element, IdTable, OnEnd, Root, TargetHandle};
 use crate::elm::{ActionLimiter, FilterAttrLimiter};
 use crate::grid::{Grid, GridPlacement, Layout, LayoutFilter};
 use crate::view::{View, Viewable};
@@ -399,42 +399,54 @@ impl<'a> ElmHandle<'a> {
         e_fn(&mut element_handle);
         self.world_handle = element_handle.world_handle.take();
     }
-    pub fn change_element_root<TH: Into<TargetHandle>, RTH: Into<TargetHandle>>(
+    pub fn change_element_root<TH: Into<TargetHandle>>(
         &mut self,
         th: TH,
-        new_root: RTH,
+        new_root: Option<TargetHandle>,
     ) {
-        let rth = new_root.into();
         let th = th.into();
-        let new_root_entity = self.lookup_target_entity(rth).unwrap();
         let this = self.lookup_target_entity(th.clone()).unwrap();
-        if let Some(old) = self
-            .world_handle
-            .as_ref()
-            .unwrap()
-            .get::<Root>(this)
-            .unwrap()
-            .0
-            .as_ref()
-        {
-            let old_entity = self.lookup_target_entity(old.clone());
-            if let Some(oe) = old_entity {
-                self.world_handle
-                    .as_mut()
-                    .unwrap()
-                    .get_mut::<Dependents>(oe)
-                    .unwrap()
-                    .0
-                    .remove(&th);
+        if let Some(rth) = new_root {
+            let new_root_entity = self.lookup_target_entity(rth.clone()).unwrap();
+            if let Some(old) = self
+                .world_handle
+                .as_ref()
+                .unwrap()
+                .get::<Root>(this)
+                .unwrap()
+                .0
+                .as_ref()
+            {
+                let old_entity = self.lookup_target_entity(old.clone());
+                if let Some(oe) = old_entity {
+                    self.world_handle
+                        .as_mut()
+                        .unwrap()
+                        .get_mut::<Dependents>(oe)
+                        .unwrap()
+                        .0
+                        .remove(&th);
+                }
             }
+            self.world_handle
+                .as_mut()
+                .unwrap()
+                .get_mut::<Dependents>(new_root_entity)
+                .unwrap()
+                .0
+                .insert(th.clone());
+            self.world_handle
+                .as_mut()
+                .unwrap()
+                .entity_mut(this)
+                .insert(Root::new(rth));
+        } else {
+            self.world_handle
+                .as_mut()
+                .unwrap()
+                .entity_mut(this)
+                .insert(Root::default());
         }
-        self.world_handle
-            .as_mut()
-            .unwrap()
-            .get_mut::<Dependents>(new_root_entity)
-            .unwrap()
-            .0
-            .insert(th.clone());
     }
     pub fn run_action<A: Actionable>(&mut self, a: A) {
         let action = Action { data: a };
@@ -478,6 +490,9 @@ impl<'a> ElmHandle<'a> {
         v.build(&mut view);
         self.world_handle
             .replace(view.elm_handle.world_handle.take().unwrap());
+    }
+    pub fn spawn<B: Bundle>(&mut self, b: B) {
+        self.world_handle.as_mut().unwrap().spawn(b);
     }
     pub fn create_signaled_action<A: Actionable, AH: Into<ActionHandle>>(&mut self, ah: AH, a: A) {
         if !self

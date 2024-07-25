@@ -222,3 +222,23 @@ impl IdTable {
         self.actions.get(&ah.into()).copied()
     }
 }
+
+#[derive(Default)]
+pub struct OnEnd {
+    pub actions: HashSet<ActionHandle>,
+}
+impl OnEnd {
+    pub fn new<AH: Into<ActionHandle>>(ah: AH) -> Self {
+        Self {
+            actions: {
+                let mut a = HashSet::new();
+                a.insert(ah.into());
+                a
+            },
+        }
+    }
+    pub fn with<AH: Into<ActionHandle>>(mut self, ah: AH) -> Self {
+        self.actions.insert(ah.into());
+        self
+    }
+}

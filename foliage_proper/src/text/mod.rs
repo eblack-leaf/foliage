@@ -262,8 +262,12 @@ pub(crate) fn distill(
         glyphs.removed.clear();
         let mut new_extent = Coordinates::default();
         for glyph in placer.glyphs().iter() {
-            // TODO filter?
             let section = Section::new((glyph.x, glyph.y), (glyph.width, glyph.height));
+            if section.bottom() > (scaled_area.height() + character_dims.vertical())
+                || section.right() > (scaled_area.width() + character_dims.horizontal())
+            {
+                continue;
+            }
             if section.right() > new_extent.horizontal() {
                 new_extent.0[0] = section.right();
             }

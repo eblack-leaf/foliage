@@ -1,5 +1,10 @@
+use bevy_ecs::component::Component;
+use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{IntoSystemConfigs, ResMut, Resource};
+use bevy_ecs::system::{Commands, Query, Res};
 
+use crate::action::Signal;
+use crate::element::{IdTable, OnEnd};
 use crate::elm::{Elm, ScheduleMarkers};
 use crate::Leaf;
 
@@ -52,12 +57,44 @@ pub(crate) fn start(mut time: ResMut<Time>) {
 pub(crate) fn update_time(mut time: ResMut<Time>) {
     time.update();
 }
+#[derive(Component)]
+pub struct Timer {
+    time_left: TimeDelta,
+    on_end: OnEnd,
+}
+impl Timer {
+    pub fn new(time_left: TimeDelta, on_end: OnEnd) -> Self {
+        Self { time_left, on_end }
+    }
+}
+pub(crate) fn timers(
+    time: Res<Time>,
+    mut timers: Query<(Entity, &mut Timer)>,
+    id_table: Res<IdTable>,
+    mut cmd: Commands,
+) {
+    for (entity, mut timer) in timers.iter_mut() {
+        timer.time_left = timer
+            .time_left
+            .checked_sub(time.frame_diff())
+            .unwrap_or_default();
+        if timer.time_left.is_zero() {
+            cmd.entity(entity).despawn();
+            for handle in timer.on_end.actions.iter() {
+                let e = id_table.lookup_action(handle.clone()).unwrap();
+                cmd.entity(e).insert(Signal::active());
+            }
+        }
+    }
+}
 impl Leaf for Time {
     fn attach(elm: &mut Elm) {
         elm.ecs.world.insert_resource(Time::new());
         elm.scheduler.startup.add_systems(start);
-        elm.scheduler
-            .main
-            .add_systems(update_time.in_set(ScheduleMarkers::External));
+        elm.scheduler.main.add_systems(
+            (update_time, timers)
+                .chain()
+                .in_set(ScheduleMarkers::External),
+        );
     }
 }

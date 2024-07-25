@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Commands, Entity};
 use bevy_ecs::system::{Query, Res, ResMut};
@@ -7,7 +5,7 @@ use bevy_ecs::system::{Query, Res, ResMut};
 use crate::action::Signal;
 use crate::color::Color;
 use crate::coordinate::Coordinates;
-use crate::element::{ActionHandle, IdTable};
+use crate::element::{IdTable, OnEnd};
 use crate::elm::Elm;
 use crate::grid::GridPlacement;
 use crate::time::{Time, TimeDelta};
@@ -214,10 +212,6 @@ where
 pub struct Sequence {
     pub(crate) animations_to_finish: i32,
     pub(crate) on_end: OnEnd,
-}
-#[derive(Default)]
-pub struct OnEnd {
-    actions: HashSet<ActionHandle>,
 }
 pub(crate) fn animate<A: Animate>(
     mut anims: Query<(Entity, &mut Animation<A>, &mut A)>,
