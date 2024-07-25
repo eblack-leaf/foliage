@@ -181,17 +181,13 @@ impl<'a> SequenceHandle<'a> {
         }
         self.sequence.animations_to_finish += 1;
         let anim = Animation::new(
+            th.into(),
             a,
             easement_behavior,
             self.sequence_entity,
             AnimationTime::from(st),
         );
-        let entity = self.lookup_target_entity(th).unwrap();
-        self.world_handle
-            .as_mut()
-            .unwrap()
-            .entity_mut(entity)
-            .insert(anim);
+        self.world_handle.as_mut().unwrap().spawn(anim);
     }
     pub fn animate_grid_placement<TH: Into<TargetHandle>>(
         &mut self,
@@ -201,7 +197,8 @@ impl<'a> SequenceHandle<'a> {
         easement_behavior: Ease,
     ) {
         self.sequence.animations_to_finish += 1;
-        let entity = self.lookup_target_entity(th).unwrap();
+        let handle = th.into();
+        let entity = self.lookup_target_entity(handle.clone()).unwrap();
         let current_pos = *self
             .world_handle
             .as_ref()
@@ -223,16 +220,13 @@ impl<'a> SequenceHandle<'a> {
             .entity_mut(entity)
             .insert(altered);
         let anim = Animation::new(
+            handle,
             gp,
             easement_behavior,
             self.sequence_entity,
             AnimationTime::from(st),
         );
-        self.world_handle
-            .as_mut()
-            .unwrap()
-            .entity_mut(entity)
-            .insert(anim);
+        self.world_handle.as_mut().unwrap().spawn(anim);
     }
     pub fn on_end(&mut self, on_end: OnEnd) {
         self.sequence.on_end = on_end;
@@ -406,28 +400,28 @@ impl<'a> ElmHandle<'a> {
     ) {
         let th = th.into();
         let this = self.lookup_target_entity(th.clone()).unwrap();
+        if let Some(old) = self
+            .world_handle
+            .as_ref()
+            .unwrap()
+            .get::<Root>(this)
+            .unwrap()
+            .0
+            .as_ref()
+        {
+            let old_entity = self.lookup_target_entity(old.clone());
+            if let Some(oe) = old_entity {
+                self.world_handle
+                    .as_mut()
+                    .unwrap()
+                    .get_mut::<Dependents>(oe)
+                    .unwrap()
+                    .0
+                    .remove(&th);
+            }
+        }
         if let Some(rth) = new_root {
             let new_root_entity = self.lookup_target_entity(rth.clone()).unwrap();
-            if let Some(old) = self
-                .world_handle
-                .as_ref()
-                .unwrap()
-                .get::<Root>(this)
-                .unwrap()
-                .0
-                .as_ref()
-            {
-                let old_entity = self.lookup_target_entity(old.clone());
-                if let Some(oe) = old_entity {
-                    self.world_handle
-                        .as_mut()
-                        .unwrap()
-                        .get_mut::<Dependents>(oe)
-                        .unwrap()
-                        .0
-                        .remove(&th);
-                }
-            }
             self.world_handle
                 .as_mut()
                 .unwrap()
