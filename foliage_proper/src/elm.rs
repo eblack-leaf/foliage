@@ -24,7 +24,7 @@ use crate::derive::on_derive;
 use crate::differential::{
     added_invalidate, differential, RenderAddQueue, RenderLink, RenderPacket, RenderRemoveQueue,
 };
-use crate::element::recursive_placement;
+use crate::element::{opacity, recursive_placement};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::ScaleFactor;
 use crate::grid::{viewport_changes_layout, Grid, Layout, LayoutGrid};
@@ -257,6 +257,7 @@ impl Elm {
                 ScheduleMarkers::GridSemantics,
                 ScheduleMarkers::Unused6,
                 ScheduleMarkers::Preparation,
+                ScheduleMarkers::Resolve,
                 ScheduleMarkers::Config,
                 ScheduleMarkers::Unused5,
                 ScheduleMarkers::FinalizeCoordinate,
@@ -268,6 +269,7 @@ impl Elm {
             viewport_changes_layout.in_set(ScheduleMarkers::External),
             recursive_placement.in_set(ScheduleMarkers::GridSemantics),
             crate::differential::remove.in_set(ScheduleMarkers::Clean),
+            opacity.in_set(ScheduleMarkers::Resolve),
             clear_signal.after(ScheduleMarkers::Differential),
         ));
         self.scheduler.main.add_systems((
@@ -309,6 +311,9 @@ impl Elm {
                 .before(ScheduleMarkers::Preparation),
             apply_deferred
                 .after(ScheduleMarkers::Preparation)
+                .before(ScheduleMarkers::Resolve),
+            apply_deferred
+                .after(ScheduleMarkers::Resolve)
                 .before(ScheduleMarkers::Config),
             apply_deferred
                 .after(ScheduleMarkers::Config)
@@ -426,4 +431,5 @@ pub enum ScheduleMarkers {
     Unused3,
     Preparation,
     Unused6,
+    Resolve,
 }

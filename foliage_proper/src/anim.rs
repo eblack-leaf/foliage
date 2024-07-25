@@ -6,7 +6,7 @@ use bevy_ecs::system::{Query, Res, ResMut};
 use crate::action::Signal;
 use crate::color::Color;
 use crate::coordinate::Coordinates;
-use crate::element::{IdTable, OnEnd, TargetHandle};
+use crate::element::{IdTable, OnEnd, Opacity, TargetHandle};
 use crate::elm::Elm;
 use crate::grid::GridPlacement;
 use crate::time::{Time, TimeDelta};
@@ -17,6 +17,7 @@ impl Leaf for EnabledAnimations {
     fn attach(elm: &mut Elm) {
         elm.enable_animation::<GridPlacement>();
         elm.enable_animation::<Color>();
+        elm.enable_animation::<Opacity>();
     }
 }
 #[derive(Component)]
