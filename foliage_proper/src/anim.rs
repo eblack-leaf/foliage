@@ -5,6 +5,7 @@ use bevy_ecs::prelude::{Commands, Entity};
 use bevy_ecs::system::{Query, Res, ResMut};
 
 use crate::action::Signal;
+use crate::color::Color;
 use crate::coordinate::Coordinates;
 use crate::element::{ActionHandle, IdTable};
 use crate::elm::Elm;
@@ -16,7 +17,7 @@ pub(crate) struct EnabledAnimations;
 impl Leaf for EnabledAnimations {
     fn attach(elm: &mut Elm) {
         elm.enable_animation::<GridPlacement>();
-        // elm.enable_animation::<Color>();
+        elm.enable_animation::<Color>();
     }
 }
 #[derive(Component)]

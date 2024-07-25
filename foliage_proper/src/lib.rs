@@ -55,6 +55,7 @@ pub mod text;
 pub mod texture;
 pub mod time;
 pub mod view;
+pub mod web_ext;
 pub mod willow;
 
 pub struct Foliage {

@@ -3,6 +3,8 @@ use std::ops::Mul;
 use bevy_ecs::prelude::Component;
 use serde::{Deserialize, Serialize};
 
+use crate::anim::{Animate, Interpolations};
+
 #[repr(C)]
 #[derive(
     bytemuck::Pod,
@@ -55,20 +57,29 @@ impl Color {
         self.rgba[3] = alpha;
         self
     }
+    pub fn set_red(&mut self, r: f32) {
+        self.rgba[0] = r.clamp(0.0, 1.0);
+    }
     pub fn red(&self) -> f32 {
         self.rgba[0]
+    }
+    pub fn set_green(&mut self, g: f32) {
+        self.rgba[1] = g.clamp(0.0, 1.0);
     }
     pub fn green(&self) -> f32 {
         self.rgba[1]
     }
+    pub fn set_blue(&mut self, b: f32) {
+        self.rgba[2] = b.clamp(0.0, 1.0);
+    }
     pub fn blue(&self) -> f32 {
         self.rgba[2]
     }
+    pub fn set_alpha(&mut self, a: f32) {
+        self.rgba[3] = a.clamp(0.0, 1.0);
+    }
     pub fn alpha(&self) -> f32 {
         self.rgba[3]
-    }
-    pub fn alpha_mut(&mut self) -> &mut f32 {
-        &mut self.rgba[3]
     }
 }
 
@@ -83,6 +94,30 @@ impl From<Color> for wgpu::Color {
     }
 }
 
+impl Animate for Color {
+    fn interpolations(start: &Self, end: &Self) -> Interpolations {
+        Interpolations::new()
+            .with(start.red(), end.red())
+            .with(start.green(), end.green())
+            .with(start.blue(), end.blue())
+            .with(start.alpha(), end.alpha())
+    }
+
+    fn apply(&mut self, interpolations: &mut Interpolations) {
+        if let Some(r) = interpolations.read(0) {
+            self.set_red(r);
+        }
+        if let Some(g) = interpolations.read(1) {
+            self.set_green(g);
+        }
+        if let Some(b) = interpolations.read(2) {
+            self.set_blue(b);
+        }
+        if let Some(a) = interpolations.read(3) {
+            self.set_alpha(a);
+        }
+    }
+}
 impl Mul<f32> for Color {
     type Output = Self;
 
