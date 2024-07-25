@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::hash::Hash;
@@ -6,6 +7,7 @@ use bevy_ecs::world::World;
 use bytemuck::{Pod, Zeroable};
 use wgpu::{BufferDescriptor, BufferUsages};
 
+use crate::coordinate::layer::Layer;
 use crate::ginkgo::Ginkgo;
 
 pub struct Instances<Key: Hash + Eq + Copy + Clone> {
@@ -16,13 +18,21 @@ pub struct Instances<Key: Hash + Eq + Copy + Clone> {
     removal_fns: Vec<fn(&mut World, usize)>,
     grow_fns: Vec<fn(&mut World, u32, &Ginkgo)>,
     cpu_to_gpu: Vec<fn(&mut World, &Ginkgo)>,
+    swap_fns: Vec<fn(&mut World, &Swaps)>,
     update_needed: bool,
     removal_queue: HashSet<Key>,
+    changed: bool,
 }
-
+pub(crate) struct Swaps {
+    swaps: Vec<Swap>,
+}
+pub(crate) struct Swap {
+    current: usize,
+    to: usize,
+}
 impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
-    pub fn get_attr<A: Pod + Zeroable + Default>(&self, key: Key) -> A {
-        let index = *self.map.get(&key).unwrap();
+    pub fn get_attr<A: Pod + Zeroable + Default>(&self, key: &Key) -> A {
+        let index = *self.map.get(key).unwrap();
         *self
             .world
             .get_non_send_resource::<Attribute<A>>()
@@ -39,6 +49,7 @@ impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
             self.add(key);
         }
         self.queue_write(key, a);
+        self.changed = true;
     }
     pub fn buffer<A: Pod + Zeroable + Default>(&self) -> &wgpu::Buffer {
         &self
@@ -56,8 +67,10 @@ impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
             removal_fns: vec![],
             grow_fns: vec![],
             cpu_to_gpu: vec![],
+            swap_fns: vec![],
             update_needed: false,
             removal_queue: HashSet::new(),
+            changed: false,
         }
     }
     pub fn with_attribute<A: Pod + Zeroable + Default + Debug>(mut self, ginkgo: &Ginkgo) -> Self {
@@ -78,6 +91,11 @@ impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
                 .expect("attribute")
                 .write_cpu_to_gpu(g);
         });
+        self.swap_fns.push(|w, s| {
+            w.get_non_send_resource_mut::<Attribute<A>>()
+                .expect("attribute")
+                .process_swaps(s);
+        });
         self
     }
     pub fn clear(&mut self) -> Vec<Key> {
@@ -88,17 +106,19 @@ impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
             self.queue_remove(e);
         }
         self.process_removals();
+        self.changed = true;
         removed
     }
     pub fn queue_remove(&mut self, key: Key) {
         if self.has_key(&key) {
             self.removal_queue.insert(key);
+            self.changed = true;
         }
     }
     pub(crate) fn remove(&mut self, index: usize) {
         self.order.remove(index);
         for r_fn in self.removal_fns.iter() {
-            (r_fn)(&mut self.world, index);
+            r_fn(&mut self.world, index);
             self.update_needed = true;
         }
     }
@@ -108,6 +128,7 @@ impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
             self.order.push(key);
             self.map.insert(key, index);
             self.update_needed = true;
+            self.changed = true;
         }
     }
     pub fn has_key(&self, k: &Key) -> bool {
@@ -127,27 +148,60 @@ impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
     }
     pub fn resolve_changes(&mut self, ginkgo: &Ginkgo) -> bool {
         let mut grown = false;
-        self.process_removals();
-        let ordering = self
-            .order
-            .iter()
-            .enumerate()
-            .map(|(i, k)| (i, *k))
-            .collect::<Vec<(usize, Key)>>();
-        for (i, k) in ordering {
-            self.map.insert(k, i);
-        }
-        let order_len = self.order.len() as u32;
-        if order_len > self.capacity {
-            for g_fn in self.grow_fns.iter() {
-                (g_fn)(&mut self.world, order_len, ginkgo);
+        if self.changed {
+            self.process_removals();
+            let mut ordering = self
+                .order
+                .iter()
+                .enumerate()
+                .map(|(i, k)| (i, *k))
+                .collect::<Vec<(usize, Key)>>();
+            let mut swaps = Swaps { swaps: vec![] };
+            if self
+                .world
+                .get_non_send_resource_mut::<Attribute<Layer>>()
+                .is_some()
+            {
+                let mut layered = vec![];
+                for (current, key) in ordering.iter() {
+                    let l = self.get_attr::<Layer>(key);
+                    layered.push((*current, key.clone(), l));
+                }
+                layered.sort_by(|lhs, rhs| -> Ordering { lhs.2.partial_cmp(&rhs.2).unwrap() });
+                ordering.clear();
+                for (end, (current, key, _)) in layered.iter().enumerate() {
+                    if *current != end {
+                        swaps.swaps.push(Swap {
+                            current: *current,
+                            to: end,
+                        });
+                    }
+                    ordering.push((end, key.clone()));
+                }
             }
-            self.capacity = order_len;
-            grown = true;
+            self.order.clear();
+            for (i, k) in ordering {
+                self.order.insert(i, k);
+                self.map.insert(k, i);
+            }
+            let order_len = self.order.len() as u32;
+            if order_len > self.capacity {
+                for g_fn in self.grow_fns.iter() {
+                    g_fn(&mut self.world, order_len, ginkgo);
+                }
+                self.capacity = order_len;
+                grown = true;
+            }
+            if !swaps.swaps.is_empty() {
+                for s_fn in self.swap_fns.iter() {
+                    s_fn(&mut self.world, &swaps);
+                }
+            }
+            self.write_cpu_to_gpu(ginkgo);
+            self.changed = false;
         }
         let update_needed = self.update_needed;
         self.update_needed = false;
-        self.write_cpu_to_gpu(ginkgo);
         grown || update_needed
     }
     fn queue_write<A: Pod + Zeroable + Default + Debug>(&mut self, key: Key, a: A) {
@@ -157,9 +211,9 @@ impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
             .expect("attribute-setup")
             .queue_write(index, a);
     }
-    pub fn write_cpu_to_gpu(&mut self, ginkgo: &Ginkgo) {
+    fn write_cpu_to_gpu(&mut self, ginkgo: &Ginkgo) {
         for w_fn in self.cpu_to_gpu.iter() {
-            (w_fn)(&mut self.world, ginkgo);
+            w_fn(&mut self.world, ginkgo);
         }
     }
 }
@@ -168,6 +222,7 @@ struct Attribute<A: Pod + Zeroable + Default> {
     cpu: Vec<A>,
     gpu: wgpu::Buffer,
     write_needed: bool,
+    swap_map: HashMap<usize, A>,
 }
 
 impl<A: Pod + Zeroable + Default + Debug> Attribute<A> {
@@ -182,7 +237,20 @@ impl<A: Pod + Zeroable + Default + Debug> Attribute<A> {
                 mapped_at_creation: false,
             }),
             write_needed: false,
+            swap_map: HashMap::new(),
         }
+    }
+    fn process_swaps(&mut self, swaps: &Swaps) {
+        for s in swaps.swaps.iter() {
+            self.swap_map.insert(
+                s.to,
+                *self.cpu.get(s.current).expect("invalid-current-index"),
+            );
+        }
+        for (end, a) in self.swap_map.drain() {
+            *self.cpu.get_mut(end).unwrap() = a;
+        }
+        self.write_needed = true;
     }
     fn remove(&mut self, index: usize) {
         // *self.cpu.get_mut(index).expect("index") = A::default();
