@@ -12,7 +12,7 @@ use crate::coordinate::placement::Placement;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
-use crate::differential::Remove;
+use crate::differential::{Remove, Visibility};
 use crate::grid::{Grid, GridPlacement, Layout, LayoutGrid};
 
 #[derive(Bundle, Default)]
@@ -21,6 +21,7 @@ pub(crate) struct Element {
     dependents: Dependents,
     placement: Placement<LogicalContext>,
     remove: Remove,
+    visibility: Visibility,
 }
 #[derive(Default, Component)]
 pub(crate) struct Root(pub(crate) Option<TargetHandle>);

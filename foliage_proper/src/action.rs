@@ -11,7 +11,7 @@ use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
-use crate::differential::{Remove, RenderLink, RenderRemoveQueue};
+use crate::differential::{Remove, RenderLink, RenderRemoveQueue, Visibility};
 use crate::element::{ActionHandle, Dependents, Element, IdTable, OnEnd, Root, TargetHandle};
 use crate::elm::{ActionLimiter, FilterAttrLimiter};
 use crate::grid::{Grid, GridPlacement, Layout, LayoutFilter};
@@ -104,6 +104,9 @@ impl<'a> ElementHandle<'a> {
         th: TH,
         a_fn: AFN,
     ) {
+        if TypeId::of::<A>() == TypeId::of::<Visibility>() {
+            panic!("manually updating visibility does not affect dependents");
+        }
         let handle = th.into();
         let entity = self
             .lookup_target_entity(handle)
@@ -138,6 +141,17 @@ impl<'a> ElementHandle<'a> {
         // lookup root
         let rth = rth.into();
         let root = self.lookup_target_entity(rth.clone()).unwrap();
+        let root_vis = *self
+            .world_handle
+            .as_ref()
+            .unwrap()
+            .get::<Visibility>(root)
+            .unwrap();
+        self.world_handle
+            .as_mut()
+            .unwrap()
+            .entity_mut(self.entity)
+            .insert(root_vis);
         // give to that dependents
         self.world_handle
             .as_mut()
@@ -263,6 +277,9 @@ impl<'a> ElmHandle<'a> {
         th: TH,
         c_fn: CFN,
     ) {
+        if TypeId::of::<C>() == TypeId::of::<Visibility>() {
+            panic!("manually updating visibility does not affect dependents");
+        }
         let handle = th.into();
         let entity = self
             .lookup_target_entity(handle)
@@ -422,6 +439,8 @@ impl<'a> ElmHandle<'a> {
         }
         if let Some(rth) = new_root {
             let new_root_entity = self.lookup_target_entity(rth.clone()).unwrap();
+            let new_root_visibility = self.get_visibility(rth.clone());
+            self.update_visibility(th.clone(), new_root_visibility.visible());
             self.world_handle
                 .as_mut()
                 .unwrap()
@@ -441,6 +460,42 @@ impl<'a> ElmHandle<'a> {
                 .entity_mut(this)
                 .insert(Root::default());
         }
+    }
+    pub fn get_visibility<TH: Into<TargetHandle>>(&self, th: TH) -> Visibility {
+        *self
+            .world_handle
+            .as_ref()
+            .unwrap()
+            .get::<Visibility>(self.lookup_target_entity(th).unwrap())
+            .unwrap()
+    }
+    pub fn update_visibility<TH: Into<TargetHandle>>(&mut self, th: TH, visibility: bool) {
+        let handle = th.into();
+        let entity = self.lookup_target_entity(handle.clone()).unwrap();
+        let updated = self.recursive_visibility(entity);
+        for entity in updated {
+            self.world_handle
+                .as_mut()
+                .unwrap()
+                .entity_mut(entity)
+                .insert(Visibility::new(visibility));
+        }
+    }
+    fn recursive_visibility(&self, current: Entity) -> HashSet<Entity> {
+        let mut set = HashSet::new();
+        set.insert(current);
+        if let Some(deps) = self
+            .world_handle
+            .as_ref()
+            .unwrap()
+            .get::<Dependents>(current)
+        {
+            for d in deps.0.iter() {
+                let e = self.lookup_target_entity(d.clone()).unwrap();
+                set.extend(self.recursive_visibility(e));
+            }
+        }
+        set
     }
     pub fn run_action<A: Actionable>(&mut self, a: A) {
         let action = Action { data: a };

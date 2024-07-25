@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::prelude::{Component, Entity, With};
-use bevy_ecs::query::Changed;
+use bevy_ecs::query::{Changed, Or};
 use bevy_ecs::system::{Commands, Query, ResMut, Resource};
 
 use crate::ash::Render;
@@ -103,12 +103,37 @@ pub(crate) fn added_invalidate<D: Component + PartialEq + Clone + Send + Sync + 
         }
     }
 }
-pub(crate) fn differential<D: Component + PartialEq + Clone + Send + Sync + 'static>(
-    components: Query<(Entity, &RenderLink, &D, &Remove), (Changed<D>, With<DifferentialCache<D>>)>,
+pub(crate) fn visibility_changed<D: Component + PartialEq + Clone + Send + Sync + 'static>(
+    components: Query<
+        (Entity, &RenderLink, &D, &Remove, &Visibility),
+        (Changed<Visibility>, With<DifferentialCache<D>>),
+    >,
     mut render_queue: ResMut<RenderAddQueue<D>>,
 ) {
-    for (entity, link, d, remove) in components.iter() {
-        if remove.should_keep() {
+    for (entity, link, d, remove, visibility) in components.iter() {
+        if remove.should_keep() && visibility.visible() {
+            render_queue
+                .cache
+                .get_mut(link)
+                .unwrap()
+                .insert(entity, d.clone());
+            render_queue
+                .queue
+                .get_mut(link)
+                .expect("render-queue")
+                .insert(entity, d.clone());
+        }
+    }
+}
+pub(crate) fn differential<D: Component + PartialEq + Clone + Send + Sync + 'static>(
+    components: Query<
+        (Entity, &RenderLink, &D, &Remove, &Visibility),
+        (Changed<D>, With<DifferentialCache<D>>),
+    >,
+    mut render_queue: ResMut<RenderAddQueue<D>>,
+) {
+    for (entity, link, d, remove, visibility) in components.iter() {
+        if remove.should_keep() && visibility.visible() {
             let different = if render_queue.cache.get(link).unwrap().get(&entity).is_none() {
                 true
             } else {
@@ -151,18 +176,39 @@ impl Remove {
         }
     }
 }
-// TODO include root + dependent clean up here or let read if remove-true
 pub(crate) fn remove(
-    removals: Query<(Entity, &Remove, Option<&RenderLink>), Changed<Remove>>,
+    removals: Query<
+        (Entity, &Remove, Option<&RenderLink>, &Visibility),
+        Or<(Changed<Remove>, Changed<Visibility>)>,
+    >,
     mut cmd: Commands,
     mut remove_queue: ResMut<RenderRemoveQueue>,
 ) {
-    for (entity, remove, opt_link) in removals.iter() {
-        if remove.should_remove() {
+    for (entity, remove, opt_link, visibility) in removals.iter() {
+        if remove.should_remove() || !visibility.visible() {
             if let Some(link) = opt_link {
                 remove_queue.queue.get_mut(link).unwrap().insert(entity);
             }
-            cmd.entity(entity).despawn();
+            if remove.should_remove() {
+                cmd.entity(entity).despawn();
+            }
         }
+    }
+}
+#[derive(Component, Copy, Clone)]
+pub struct Visibility {
+    visible: bool,
+}
+impl Visibility {
+    pub(crate) fn new(v: bool) -> Self {
+        Self { visible: v }
+    }
+    pub fn visible(&self) -> bool {
+        self.visible
+    }
+}
+impl Default for Visibility {
+    fn default() -> Self {
+        Self::new(true)
     }
 }

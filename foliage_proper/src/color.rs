@@ -128,26 +128,26 @@ impl Mul<f32> for Color {
 
 pub trait Monochromatic {
     fn minus_one() -> Color {
-        Self::BASE * 0.4
+        Self::BASE * 0.7
     }
     fn minus_two() -> Color {
-        Self::BASE * 0.3
+        Self::BASE * 0.5
     }
     fn minus_three() -> Color {
-        Self::BASE * 0.2
+        Self::BASE * 0.3
     }
     fn base() -> Color {
         Self::BASE
     }
     const BASE: Color;
     fn plus_one() -> Color {
-        Self::BASE * 1.2
+        Self::BASE * 1.1
     }
     fn plus_two() -> Color {
-        Self::BASE * 1.3
+        Self::BASE * 1.2
     }
     fn plus_three() -> Color {
-        Self::BASE * 1.4
+        Self::BASE * 1.3
     }
 }
 
