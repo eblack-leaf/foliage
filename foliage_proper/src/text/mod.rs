@@ -263,11 +263,6 @@ pub(crate) fn distill(
         let mut new_extent = Coordinates::default();
         for glyph in placer.glyphs().iter() {
             let section = Section::new((glyph.x, glyph.y), (glyph.width, glyph.height));
-            if section.bottom() > (scaled_area.height() + character_dims.vertical())
-                || section.right() > (scaled_area.width() + character_dims.horizontal())
-            {
-                continue;
-            }
             if section.right() > new_extent.horizontal() {
                 new_extent.0[0] = section.right();
             }
@@ -443,6 +438,9 @@ impl Render for Text {
     ) -> bool {
         let mut should_record = false;
         for packet in queue_handle.read_removes::<Self>() {
+            if !renderer.resource_handle.groups.contains_key(&packet) {
+                continue;
+            }
             renderer
                 .resource_handle
                 .groups
