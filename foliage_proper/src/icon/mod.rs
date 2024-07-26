@@ -298,6 +298,13 @@ impl Render for Icon {
             );
         }
         for entity in queue_handle.read_removes::<Self>() {
+            if !renderer
+                .resource_handle
+                .entity_to_icon
+                .contains_key(&entity)
+            {
+                continue;
+            }
             renderer
                 .resource_handle
                 .group_mut_from_entity(entity)
