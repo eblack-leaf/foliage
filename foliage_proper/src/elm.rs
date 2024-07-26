@@ -22,7 +22,8 @@ use crate::coordinate::position::Position;
 use crate::coordinate::NumericalContext;
 use crate::derive::on_derive;
 use crate::differential::{
-    added_invalidate, differential, RenderAddQueue, RenderLink, RenderPacket, RenderRemoveQueue,
+    added_invalidate, differential, visibility_changed, RenderAddQueue, RenderLink, RenderPacket,
+    RenderRemoveQueue,
 };
 use crate::element::{opacity, recursive_placement};
 use crate::ginkgo::viewport::ViewportHandle;
@@ -183,6 +184,7 @@ impl Elm {
             self.scheduler.main.add_systems((
                 differential::<D>.in_set(ScheduleMarkers::Differential),
                 added_invalidate::<D>.in_set(ScheduleMarkers::Differential),
+                visibility_changed::<D>.in_set(ScheduleMarkers::Differential),
             ));
             self.ecs
                 .world

@@ -82,13 +82,20 @@ impl<D: Component + PartialEq + Clone> From<(Entity, D)> for RenderPacket<D> {
 }
 pub(crate) fn added_invalidate<D: Component + PartialEq + Clone + Send + Sync + 'static>(
     mut added: Query<
-        (Entity, &RenderLink, &D, &mut DifferentialCache<D>, &Remove),
+        (
+            Entity,
+            &RenderLink,
+            &D,
+            &mut DifferentialCache<D>,
+            &Remove,
+            &Visibility,
+        ),
         (Changed<D>, With<DifferentialCache<D>>),
     >,
     mut render_queue: ResMut<RenderAddQueue<D>>,
 ) {
-    for (entity, link, d, mut local_cache, remove) in added.iter_mut() {
-        if local_cache.added && remove.should_keep() {
+    for (entity, link, d, mut local_cache, remove, visibility) in added.iter_mut() {
+        if local_cache.added && remove.should_keep() && visibility.visible() {
             render_queue
                 .cache
                 .get_mut(link)
@@ -186,7 +193,9 @@ pub(crate) fn remove(
 ) {
     for (entity, remove, opt_link, visibility) in removals.iter() {
         if remove.should_remove() || !visibility.visible() {
+            tracing::trace!("attempting to remove link for:{:?}", entity);
             if let Some(link) = opt_link {
+                tracing::trace!("removing link for:{:?}", entity);
                 remove_queue.queue.get_mut(link).unwrap().insert(entity);
             }
             if remove.should_remove() {

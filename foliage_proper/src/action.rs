@@ -474,6 +474,7 @@ impl<'a> ElmHandle<'a> {
         let entity = self.lookup_target_entity(handle.clone()).unwrap();
         let updated = self.recursive_visibility(entity);
         for entity in updated {
+            tracing::trace!("updating visibility for:{:?} to {}", entity, visibility);
             self.world_handle
                 .as_mut()
                 .unwrap()

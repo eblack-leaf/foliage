@@ -20,7 +20,7 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::{GpuSection, Section};
 use crate::coordinate::{Coordinates, LogicalContext};
-use crate::differential::{Differential, Remove, RenderLink};
+use crate::differential::{Differential, Remove, RenderLink, Visibility};
 use crate::elm::{Elm, RenderQueueHandle, ScheduleMarkers};
 use crate::ginkgo::Ginkgo;
 use crate::instances::Instances;
@@ -55,9 +55,14 @@ fn icon_scale(
 ) {
     for (mut pos, mut area) in icons.iter_mut() {
         let old = *area;
-        let new = Area::logical(Icon::SCALE);
-        let diff = (old - new).max((0, 0)) / Area::logical((2, 2));
-        *pos += Position::logical(diff.coordinates);
+        let new = if old.width() == 0.0 || old.height() == 0.0 {
+            Area::logical((0, 0))
+        } else {
+            let new = Area::logical(Icon::SCALE);
+            let diff = (old - new).max((0, 0)) / Area::logical((2, 2));
+            *pos += Position::logical(diff.coordinates);
+            new
+        };
         *area = new;
     }
 }
@@ -68,6 +73,7 @@ pub struct IconRequest {
     data: Differential<IconData>,
     link: RenderLink,
     remove: Remove,
+    visibility: Visibility,
 }
 impl IconRequest {
     pub fn new<I: Into<IconId>>(id: I, data: Vec<u8>) -> Self {
@@ -75,6 +81,7 @@ impl IconRequest {
             data: Differential::new(IconData(id.into(), data)),
             link: RenderLink::new::<Icon>(),
             remove: Default::default(),
+            visibility: Default::default(),
         }
     }
 }
@@ -274,6 +281,11 @@ impl Render for Icon {
         ginkgo: &Ginkgo,
     ) -> bool {
         for packet in queue_handle.read_adds::<Self, IconData>() {
+            tracing::trace!(
+                "creating icon-group for {} requested by:{:?}",
+                packet.value.0 .0,
+                packet.entity
+            );
             let (_, view) = ginkgo.create_texture(
                 TextureFormat::R8Unorm,
                 Self::TEXTURE_SCALE,
@@ -303,8 +315,10 @@ impl Render for Icon {
                 .entity_to_icon
                 .contains_key(&entity)
             {
+                tracing::trace!("skipping remove of: {:?}", entity);
                 continue;
             }
+            tracing::trace!("removing icon at:{:?}", entity);
             renderer
                 .resource_handle
                 .group_mut_from_entity(entity)
@@ -313,6 +327,7 @@ impl Render for Icon {
             renderer.resource_handle.entity_to_icon.remove(&entity);
         }
         for packet in queue_handle.read_adds::<Self, IconId>() {
+            tracing::trace!("icon-id packet for: {:?}", packet.entity);
             let old = renderer
                 .resource_handle
                 .entity_to_icon
@@ -324,6 +339,7 @@ impl Render for Icon {
                 .add(packet.entity);
             if let Some(o) = old {
                 if o != packet.value {
+                    tracing::trace!("resending data for icon-id: {:?}", o.0);
                     // send current cpu values over to new instance
                     let gpu_sec = renderer
                         .resource_handle
@@ -374,6 +390,12 @@ impl Render for Icon {
         }
         // TODO update cpu len of each attribute?
         for packet in queue_handle.read_adds::<Self, GpuSection>() {
+            let id = renderer
+                .resource_handle
+                .entity_to_icon
+                .get(&packet.entity)
+                .unwrap();
+            tracing::trace!("writing gpu for: {:?} at icon-id: {}", packet.entity, id.0);
             renderer
                 .resource_handle
                 .group_mut_from_entity(packet.entity)
