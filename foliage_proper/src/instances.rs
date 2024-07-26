@@ -168,6 +168,7 @@ impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
                     layered.push((*current, key.clone(), l));
                 }
                 layered.sort_by(|lhs, rhs| -> Ordering { lhs.2.partial_cmp(&rhs.2).unwrap() });
+                layered.reverse();
                 ordering.clear();
                 for (end, (current, key, _)) in layered.iter().enumerate() {
                     if *current != end {

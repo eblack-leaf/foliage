@@ -61,7 +61,7 @@ impl Grid {
     ) -> (Placement<LogicalContext>, Option<Section<LogicalContext>>) {
         let horizontal = grid_placement.horizontal(layout);
         let vertical = grid_placement.vertical(layout);
-        let x = if let Some(px) = horizontal.start.px {
+        let mut x = if let Some(px) = horizontal.start.px {
             px
         } else if let Some(p) = horizontal.start.percent {
             self.placement.section.width() * p / 100f32
@@ -70,7 +70,7 @@ impl Grid {
                 + self.gap.horizontal()
                 + grid_placement.padding.horizontal()
         };
-        let y = if let Some(px) = vertical.start.px {
+        let mut y = if let Some(px) = vertical.start.px {
             px
         } else if let Some(p) = vertical.start.percent {
             self.placement.section.height() * p / 100f32
@@ -79,7 +79,7 @@ impl Grid {
                 + self.gap.vertical()
                 + grid_placement.padding.vertical()
         };
-        let w = if let Some(px) = horizontal.end.px {
+        let mut w = if let Some(px) = horizontal.end.px {
             px - x
         } else if let Some(fs) = horizontal.end.fixed {
             fs
@@ -92,7 +92,7 @@ impl Grid {
                 - grid_placement.padding.horizontal()
                 - x
         };
-        let h = if let Some(px) = vertical.end.px {
+        let mut h = if let Some(px) = vertical.end.px {
             px - y
         } else if let Some(fs) = vertical.end.fixed {
             fs
@@ -105,6 +105,16 @@ impl Grid {
                 - grid_placement.padding.vertical()
                 - y
         };
+        if let Some(f) = horizontal.fixed {
+            let diff = (w - f) / 2f32;
+            x += diff;
+            w = f;
+        }
+        if let Some(f) = vertical.fixed {
+            let diff = (h - f) / 2f32;
+            y += diff;
+            h = f;
+        }
         let mut placed = Placement::new(
             (
                 (
@@ -372,10 +382,19 @@ impl GridIndex {
 pub struct GridRange {
     start: GridIndex,
     end: GridIndex,
+    fixed: Option<CoordinateUnit>,
 }
 impl GridRange {
+    pub fn fixed(mut self, f: i32) -> Self {
+        self.fixed.replace(f as CoordinateUnit);
+        self
+    }
     pub fn new(start: GridIndex, end: GridIndex) -> Self {
-        Self { start, end }
+        Self {
+            start,
+            end,
+            fixed: None,
+        }
     }
 }
 #[cfg(test)]

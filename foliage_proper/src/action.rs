@@ -519,10 +519,10 @@ impl<'a> ElmHandle<'a> {
     }
     pub fn add_view<V: Viewable, TH: Into<TargetHandle>>(
         &mut self,
-        rth: Option<TH>,
         th: TH,
         grid_placement: GridPlacement,
         v: V,
+        rth: Option<TH>,
     ) {
         let handle = th.into();
         self.add_element(handle.clone(), grid_placement.clone(), None, |e| {

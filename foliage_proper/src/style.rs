@@ -67,14 +67,12 @@ pub(crate) fn alternate_color_on_engage(
 pub struct Coloring {
     pub foreground: Color,
     pub background: Color,
-    pub accent: Color,
 }
 impl Coloring {
-    pub fn new<A: Into<Color>, B: Into<Color>, C: Into<Color>>(fg: A, bg: B, a: C) -> Self {
+    pub fn new<A: Into<Color>, B: Into<Color>>(fg: A, bg: B) -> Self {
         Self {
             foreground: fg.into(),
             background: bg.into(),
-            accent: a.into(),
         }
     }
 }
