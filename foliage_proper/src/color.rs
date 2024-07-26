@@ -155,3 +155,7 @@ pub struct Grey;
 impl Monochromatic for Grey {
     const BASE: Color = Color::rgb_unchecked(0.5, 0.5, 0.5);
 }
+pub struct Orange;
+impl Monochromatic for Orange {
+    const BASE: Color = Color::rgb_unchecked(0.9, 0.24, 0.0);
+}

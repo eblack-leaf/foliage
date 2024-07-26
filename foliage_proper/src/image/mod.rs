@@ -20,7 +20,7 @@ use crate::coordinate::layer::Layer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::{GpuSection, Section};
 use crate::coordinate::{Coordinates, LogicalContext, NumericalContext};
-use crate::differential::{Differential, RenderLink};
+use crate::differential::{Differential, Remove, RenderLink, Visibility};
 use crate::elm::{Elm, RenderQueueHandle, ScheduleMarkers};
 use crate::ginkgo::Ginkgo;
 use crate::instances::Instances;
@@ -83,6 +83,8 @@ impl Image {
         ImageSlot {
             link: RenderLink::new::<Image>(),
             extent: Differential::new(ImageSlotDescriptor(id.into(), c.into())),
+            remove: Default::default(),
+            visibility: Default::default(),
         }
     }
     pub fn new<I: Into<ImageSlotId>>(id: I, data: Vec<u8>) -> Self {
@@ -181,6 +183,8 @@ pub struct ImageSlotDescriptor(pub ImageSlotId, pub Coordinates);
 pub struct ImageSlot {
     link: RenderLink,
     extent: Differential<ImageSlotDescriptor>,
+    remove: Remove,
+    visibility: Visibility,
 }
 impl Leaf for Image {
     fn attach(elm: &mut Elm) {
@@ -249,7 +253,7 @@ pub(crate) struct ImageGroup {
 }
 impl Render for Image {
     type DirectiveGroupKey = ImageSlotId;
-    const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(1);
+    const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(0);
     type Resources = ImageResources;
 
     fn create_resources(ginkgo: &Ginkgo) -> Self::Resources {

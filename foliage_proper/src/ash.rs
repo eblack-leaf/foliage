@@ -17,9 +17,10 @@ use crate::Elm;
 #[derive(Default)]
 pub(crate) struct Ash {
     pub(crate) renderers: RendererStructure,
-    pub(crate) creation: Vec<Box<fn(&mut RendererStructure, &Ginkgo)>>,
-    pub(crate) render_fns: Vec<Box<fn(&mut RendererStructure, &Ginkgo, &mut RenderQueueHandle)>>,
-    pub(crate) renderer_instructions: Vec<Box<fn(&RendererStructure) -> Vec<&RenderBundle>>>,
+    pub(crate) creation: Vec<fn(&mut RendererStructure, &Ginkgo)>,
+    pub(crate) render_fns: Vec<fn(&mut RendererStructure, &Ginkgo, &mut RenderQueueHandle)>,
+    pub(crate) renderer_instructions:
+        Vec<(fn(&RendererStructure) -> Vec<&RenderBundle>, RenderPhase)>,
     pub(crate) drawn: bool,
 }
 
@@ -110,16 +111,18 @@ impl PartialOrd for RenderPhase {
 impl Ash {
     pub(crate) fn initialize(&mut self, ginkgo: &Ginkgo) {
         for c_fn in self.creation.iter() {
-            (c_fn)(&mut self.renderers, ginkgo);
+            c_fn(&mut self.renderers, ginkgo);
         }
+        self.renderer_instructions
+            .sort_by(|lhs, rhs| -> Ordering { lhs.1.partial_cmp(&rhs.1).unwrap() });
         self.drawn = true;
     }
     pub(crate) fn add_renderer<R: Render>(&mut self) {
-        self.creation.push(Box::new(|r, g| {
+        self.creation.push(|r, g| {
             let renderer = Renderer::<R>::new(g);
             r.renderers.insert_non_send_resource(renderer);
-        }));
-        self.render_fns.push(Box::new(|r, g, rqh| {
+        });
+        self.render_fns.push(|r, g, rqh| {
             let renderer = &mut *r
                 .renderers
                 .get_non_send_resource_mut::<Renderer<R>>()
@@ -127,9 +130,9 @@ impl Ash {
             if R::prepare(renderer, rqh, g) {
                 R::record(renderer, g);
             }
-        }));
-        self.renderer_instructions
-            .push(Box::new(|r| -> Vec<&RenderBundle> {
+        });
+        self.renderer_instructions.push((
+            |r| -> Vec<&RenderBundle> {
                 r.renderers
                     .get_non_send_resource::<Renderer<R>>()
                     .unwrap()
@@ -138,12 +141,14 @@ impl Ash {
                     .values()
                     .map(|d| &d.0)
                     .collect::<Vec<&RenderBundle>>()
-            }));
+            },
+            R::RENDER_PHASE,
+        ));
     }
     pub(crate) fn render(&mut self, ginkgo: &Ginkgo, elm: &mut Elm) {
         let mut handle = RenderQueueHandle::new(elm);
         for r_fn in self.render_fns.iter() {
-            (r_fn)(&mut self.renderers, ginkgo, &mut handle);
+            r_fn(&mut self.renderers, ginkgo, &mut handle);
         }
         let surface_texture = ginkgo.surface_texture();
         let view = surface_texture
@@ -163,8 +168,8 @@ impl Ash {
             timestamp_writes: None,
             occlusion_query_set: None,
         });
-        for r_fn in self.renderer_instructions.iter() {
-            let instructions = (r_fn)(&self.renderers);
+        for (r_fn, _) in self.renderer_instructions.iter() {
+            let instructions = r_fn(&self.renderers);
             rpass.execute_bundles(instructions);
         }
         drop(rpass);

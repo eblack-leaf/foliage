@@ -77,7 +77,7 @@ impl Viewable for Button {
             },
         );
         let icon_horizontal = if self.text_value.is_some() {
-            1.col().to(1.col())
+            10.percent().span(24)
         } else {
             1.col().to(3.col())
         };
@@ -90,7 +90,7 @@ impl Viewable for Button {
             },
         );
         let text_horizontal = if self.text_value.is_some() {
-            2.col().to(3.col())
+            25.percent().to(85.percent())
         } else {
             0.percent().to(0.percent())
         };

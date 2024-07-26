@@ -172,7 +172,7 @@ pub struct PanelResources {
 
 impl Render for Panel {
     type DirectiveGroupKey = i32;
-    const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(0);
+    const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(1);
     type Resources = PanelResources;
     fn create_resources(ginkgo: &Ginkgo) -> Self::Resources {
         let shader = ginkgo.create_shader(include_wgsl!("panel.wgsl"));
