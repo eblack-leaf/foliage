@@ -16,7 +16,7 @@ use crate::action::{
 };
 use crate::anim::{animate, Animate};
 use crate::ash::Render;
-use crate::asset::on_retrieve;
+use crate::asset::{await_assets, on_retrieve};
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::NumericalContext;
@@ -266,7 +266,7 @@ impl Elm {
                 .chain(),
         );
         self.scheduler.main.add_systems((
-            viewport_changes_layout.in_set(ScheduleMarkers::External),
+            (viewport_changes_layout, await_assets).in_set(ScheduleMarkers::External),
             recursive_placement.in_set(ScheduleMarkers::GridSemantics),
             crate::differential::remove.in_set(ScheduleMarkers::Clean),
             opacity.in_set(ScheduleMarkers::Resolve),
