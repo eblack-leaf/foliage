@@ -252,7 +252,7 @@ impl LayoutGrid {
     pub(crate) fn new(grid: Grid) -> Self {
         Self { grid }
     }
-    pub(crate) const SMALL_HORIZONTAL_THRESHOLD: f32 = 440.0;
+    pub(crate) const SMALL_HORIZONTAL_THRESHOLD: f32 = 640.0;
     pub(crate) const LARGE_HORIZONTAL_THRESHOLD: f32 = 900.0;
     pub(crate) const SMALL_VERTICAL_THRESHOLD: f32 = 440.0;
     pub(crate) const LARGE_VERTICAL_THRESHOLD: f32 = 800.0;

@@ -467,6 +467,7 @@ impl Render for Image {
                 .insert(packet.entity, packet.value.0);
         }
         for packet in queue_handle.read_adds::<Self, GpuSection>() {
+            tracing::trace!("image-gpu-section: {:?}", packet.value);
             let id = *renderer
                 .resource_handle
                 .entity_to_image
