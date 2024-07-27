@@ -61,6 +61,7 @@ impl Viewable for Button {
         view.bind(
             "panel",
             GridPlacement::new(0.percent().to(100.percent()), 0.percent().to(100.percent())),
+            -1,
             None,
             |b| {
                 b.give_attr(Panel::new(self.rounding, self.coloring.background));
@@ -83,7 +84,8 @@ impl Viewable for Button {
         };
         view.bind(
             "icon",
-            GridPlacement::new(icon_horizontal, 1.row().to(1.row())).offset_layer(-1),
+            GridPlacement::new(icon_horizontal, 1.row().to(1.row())),
+            -1,
             None,
             |b| {
                 b.give_attr(Icon::new(self.icon_id, self.coloring.foreground));
@@ -96,7 +98,8 @@ impl Viewable for Button {
         };
         view.bind(
             "text",
-            GridPlacement::new(text_horizontal, 1.row().to(1.row())).offset_layer(-1),
+            GridPlacement::new(text_horizontal, 1.row().to(1.row())),
+            -1,
             None,
             |b| {
                 if let Some(t) = self.text_value {

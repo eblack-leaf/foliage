@@ -10,7 +10,7 @@ use winit::keyboard::{Key, ModifiersState};
 
 use crate::action::Signal;
 use crate::coordinate::area::Area;
-use crate::coordinate::layer::Layer;
+use crate::coordinate::elevation::RenderLayer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
@@ -206,7 +206,7 @@ pub(crate) fn listen_for_interactions(
         &mut ClickInteractionListener,
         &Position<LogicalContext>,
         &Area<LogicalContext>,
-        &Layer,
+        &RenderLayer,
     )>,
     mut events: EventReader<ClickInteraction>,
     mut grabbed: ResMut<InteractiveEntity>,
@@ -216,7 +216,7 @@ pub(crate) fn listen_for_interactions(
         match event.click_phase {
             ClickPhase::Start => {
                 if grabbed.0.is_none() {
-                    let mut grab_info: Option<(Entity, Layer)> = None;
+                    let mut grab_info: Option<(Entity, RenderLayer)> = None;
                     for (entity, listener, pos, area, layer) in listeners.iter_mut() {
                         if listener
                             .shape

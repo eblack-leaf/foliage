@@ -19,7 +19,7 @@ use crate::action::HasRenderLink;
 use crate::ash::{Render, RenderDirectiveRecorder, RenderPhase, Renderer};
 use crate::color::Color;
 use crate::coordinate::area::Area;
-use crate::coordinate::layer::Layer;
+use crate::coordinate::elevation::RenderLayer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::{GpuSection, Section};
 use crate::coordinate::{Coordinates, DeviceContext, LogicalContext, PrimitiveOffset};
@@ -33,7 +33,7 @@ use crate::Leaf;
 impl Leaf for Text {
     fn attach(elm: &mut Elm) {
         elm.enable_differential::<Self, GpuSection>();
-        elm.enable_differential::<Self, Layer>();
+        elm.enable_differential::<Self, RenderLayer>();
         elm.enable_differential::<Self, Glyphs>();
         elm.enable_differential::<Self, GlyphMetrics>();
         elm.ecs.world.insert_resource(MonospacedFont::new(40));
@@ -54,7 +54,7 @@ pub struct Text {
     link: RenderLink,
     value: TextValue,
     section: Section<LogicalContext>,
-    layer: Differential<Layer>,
+    layer: Differential<RenderLayer>,
     gpu_section: Differential<GpuSection>,
     glyphs: Differential<Glyphs>,
     glyph_colors: GlyphColors,
@@ -70,7 +70,7 @@ impl Text {
             link: RenderLink::new::<Self>(),
             value: TextValue(tv.as_ref().to_string()),
             section: Default::default(),
-            layer: Differential::new(Layer::default()),
+            layer: Differential::new(RenderLayer::default()),
             gpu_section: Differential::new(GpuSection::default()),
             glyphs: Differential::new(Glyphs::default()),
             glyph_colors: GlyphColors {
@@ -510,7 +510,7 @@ impl Render for Text {
                 .pos_and_layer
                 .write(ginkgo.context());
         }
-        for packet in queue_handle.read_adds::<Self, Layer>() {
+        for packet in queue_handle.read_adds::<Self, RenderLayer>() {
             renderer
                 .resource_handle
                 .groups

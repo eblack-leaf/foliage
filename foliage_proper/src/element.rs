@@ -9,7 +9,7 @@ use bevy_ecs::query::{Or, With};
 use crate::anim::{Animate, Interpolations};
 use crate::color::Color;
 use crate::coordinate::area::Area;
-use crate::coordinate::layer::Layer;
+use crate::coordinate::elevation::{Elevation, RenderLayer};
 use crate::coordinate::placement::Placement;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
@@ -55,8 +55,10 @@ pub(crate) fn recursive_placement(
                     Changed<GridPlacement>,
                     Changed<Root>,
                     Changed<Dependents>,
+                    Changed<RenderLayer>,
                 )>,
                 With<GridPlacement>,
+                With<RenderLayer>,
                 With<Root>,
                 With<Dependents>,
             ),
@@ -69,13 +71,14 @@ pub(crate) fn recursive_placement(
             &Dependents,
             &Position<LogicalContext>,
             &Area<LogicalContext>,
-            &Layer,
+            &Elevation,
+            &RenderLayer,
         )>,
         Query<(
             Option<&mut Grid>,
             &mut Position<LogicalContext>,
             &mut Area<LogicalContext>,
-            &mut Layer,
+            &mut RenderLayer,
             &mut GridPlacement,
         )>,
     )>,
@@ -90,7 +93,7 @@ pub(crate) fn recursive_placement(
         let roots = elements
             .p1()
             .iter()
-            .map(|(entity, _, _, root, _, _, _, _)| {
+            .map(|(entity, _, _, root, _, _, _, _, _)| {
                 if root.0.is_none() {
                     return Some(entity);
                 }
@@ -99,9 +102,11 @@ pub(crate) fn recursive_placement(
             .collect::<Vec<Option<Entity>>>();
         for r in roots {
             if let Some(r) = r {
-                let (root_placement, root_offset) = layout_grid
-                    .grid
-                    .place(elements.p1().get(r).unwrap().1, *layout);
+                let elevation = *elements.p1().get(r).unwrap().7;
+                let (root_placement, root_offset) =
+                    layout_grid
+                        .grid
+                        .place(elements.p1().get(r).unwrap().1, elevation, *layout);
                 let chain = recursive_placement_inner(
                     &elements.p1(),
                     root_placement,
@@ -118,7 +123,7 @@ pub(crate) fn recursive_placement(
                     }
                     *elements.p2().get_mut(entity).unwrap().1 = placement.section.position;
                     *elements.p2().get_mut(entity).unwrap().2 = placement.section.area;
-                    *elements.p2().get_mut(entity).unwrap().3 = placement.layer;
+                    *elements.p2().get_mut(entity).unwrap().3 = placement.render_layer;
                     elements
                         .p2()
                         .get_mut(entity)
@@ -139,7 +144,8 @@ fn recursive_placement_inner(
         &Dependents,
         &Position<LogicalContext>,
         &Area<LogicalContext>,
-        &Layer,
+        &Elevation,
+        &RenderLayer,
     )>,
     current_placement: Placement<LogicalContext>,
     current_entity: Entity,
@@ -167,7 +173,11 @@ fn recursive_placement_inner(
     for dep in query.get(current_entity).unwrap().4 .0.iter() {
         let dep_entity = id_table.lookup_target(dep.clone()).unwrap();
         let dep_grid_placement = query.get(dep_entity).unwrap().1;
-        let (dep_placement, dep_offset) = grid.place(dep_grid_placement, layout);
+        let (dep_placement, dep_offset) = grid.place(
+            dep_grid_placement,
+            *query.get(dep_entity).unwrap().7,
+            layout,
+        );
         if query.get(dep_entity).unwrap().4 .0.is_empty() {
             placed.push((dep_entity, dep_placement, None, dep_offset));
         } else {

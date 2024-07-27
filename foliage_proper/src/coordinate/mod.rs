@@ -15,7 +15,7 @@ use crate::ginkgo::ScaleFactor;
 use crate::Leaf;
 
 pub mod area;
-pub mod layer;
+pub mod elevation;
 pub mod placement;
 pub mod position;
 pub mod section;

@@ -8,6 +8,7 @@ use bevy_ecs::system::{Command, Res, ResMut};
 
 use crate::anim::{Animate, Animation, AnimationTime, Ease, Sequence, SequenceTimeRange};
 use crate::coordinate::area::Area;
+use crate::coordinate::elevation::{Elevation, RenderLayer};
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
@@ -292,10 +293,15 @@ impl<'a> ElmHandle<'a> {
             .unwrap();
         c_fn(comp.as_mut());
     }
-    pub fn add_element<TH: Into<TargetHandle>, EFN: FnOnce(&mut ElementHandle<'a>)>(
+    pub fn add_element<
+        TH: Into<TargetHandle>,
+        EFN: FnOnce(&mut ElementHandle<'a>),
+        E: Into<Elevation>,
+    >(
         &mut self,
         th: TH,
         grid_placement: GridPlacement,
+        elevation: E,
         grid: Option<Grid>,
         e_fn: EFN,
     ) {
@@ -304,6 +310,8 @@ impl<'a> ElmHandle<'a> {
             .as_mut()
             .unwrap()
             .spawn(Element::default())
+            .insert(elevation.into())
+            .insert(grid_placement)
             .id();
         let target = th.into();
         self.world_handle
@@ -312,11 +320,6 @@ impl<'a> ElmHandle<'a> {
             .get_resource_mut::<IdTable>()
             .unwrap()
             .add_target(target.clone(), entity);
-        self.world_handle
-            .as_mut()
-            .unwrap()
-            .entity_mut(entity)
-            .insert(grid_placement);
         if let Some(g) = grid {
             self.world_handle
                 .as_mut()
@@ -324,7 +327,7 @@ impl<'a> ElmHandle<'a> {
                 .entity_mut(entity)
                 .insert(g);
         }
-        self.update_element(target, e_fn);
+        self.update_element(target.clone(), e_fn);
     }
     pub fn remove_element<TH: Into<TargetHandle>>(&mut self, th: TH) {
         // queue remove of all dependents
@@ -518,19 +521,26 @@ impl<'a> ElmHandle<'a> {
             .entity_mut(se)
             .insert(seq_handle.sequence);
     }
-    pub fn add_view<V: Viewable, TH: Into<TargetHandle>>(
+    pub fn add_view<V: Viewable, TH: Into<TargetHandle>, E: Into<Elevation>>(
         &mut self,
         th: TH,
         grid_placement: GridPlacement,
+        elevation: E,
         v: V,
         rth: Option<TH>,
     ) {
         let handle = th.into();
-        self.add_element(handle.clone(), grid_placement.clone(), None, |e| {
-            if let Some(r) = rth {
-                e.dependent_of(r);
-            }
-        });
+        self.add_element(
+            handle.clone(),
+            grid_placement.clone(),
+            elevation,
+            None,
+            |e| {
+                if let Some(r) = rth {
+                    e.dependent_of(r);
+                }
+            },
+        );
         let mut view = View::new(
             handle,
             ElmHandle {

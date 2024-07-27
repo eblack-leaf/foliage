@@ -4,7 +4,7 @@ use bevy_ecs::prelude::{Component, ResMut, Resource};
 use bitflags::bitflags;
 
 use crate::anim::{Animate, Interpolations};
-use crate::coordinate::layer::Layer;
+use crate::coordinate::elevation::{Elevation, RenderLayer};
 use crate::coordinate::placement::Placement;
 use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, Coordinates, LogicalContext};
@@ -57,6 +57,7 @@ impl Grid {
     pub fn place(
         &self,
         grid_placement: &GridPlacement,
+        elevation: Elevation,
         layout: Layout,
     ) -> (Placement<LogicalContext>, Option<Section<LogicalContext>>) {
         let horizontal = grid_placement.horizontal(layout);
@@ -123,10 +124,10 @@ impl Grid {
                 ),
                 (w, h),
             ),
-            self.placement.layer + grid_placement.layer_offset,
+            self.placement.render_layer.0 + elevation.0,
         );
         let offset = if let Some(queued) = grid_placement.queued_offset {
-            grid_placement.offset + queued - placed.section
+            queued - placed.section
         } else {
             grid_placement.offset
         };
@@ -147,7 +148,6 @@ pub struct GridPlacement {
     horizontal_exceptions: HashMap<Layout, GridRange>,
     vertical: GridRange,
     vertical_exceptions: HashMap<Layout, GridRange>,
-    layer_offset: Layer,
     padding: Coordinates,
     pub(crate) queued_offset: Option<Section<LogicalContext>>,
     offset: Section<LogicalContext>,
@@ -159,7 +159,6 @@ impl GridPlacement {
             horizontal_exceptions: Default::default(),
             vertical,
             vertical_exceptions: Default::default(),
-            layer_offset: Default::default(),
             padding: Default::default(),
             queued_offset: None,
             offset: Default::default(),
@@ -167,10 +166,6 @@ impl GridPlacement {
     }
     pub fn padded<C: Into<Coordinates>>(mut self, c: C) -> Self {
         self.padding = c.into();
-        self
-    }
-    pub fn offset_layer<L: Into<Layer>>(mut self, l: L) -> Self {
-        self.layer_offset = l.into();
         self
     }
     pub fn horizontal(&self, layout: Layout) -> GridRange {
@@ -404,7 +399,7 @@ fn api_test() {
     grid.size_to(Placement::default());
     let grid_placement = GridPlacement::new(20.px().to(3.col()), 20.px().to(3.row()));
     let layout = Layout::LANDSCAPE_MOBILE;
-    let placement = grid.place(&grid_placement, layout);
+    let placement = grid.place(&grid_placement, RenderLayer::default(), layout);
 }
 pub(crate) fn viewport_changes_layout(
     mut viewport_handle: ResMut<ViewportHandle>,

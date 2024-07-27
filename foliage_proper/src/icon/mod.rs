@@ -16,7 +16,7 @@ use crate::action::HasRenderLink;
 use crate::ash::{Render, RenderDirectiveRecorder, RenderPhase, Renderer};
 use crate::color::Color;
 use crate::coordinate::area::Area;
-use crate::coordinate::layer::Layer;
+use crate::coordinate::elevation::RenderLayer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::{GpuSection, Section};
 use crate::coordinate::{Coordinates, LogicalContext};
@@ -33,7 +33,7 @@ impl Leaf for Icon {
     fn attach(elm: &mut Elm) {
         elm.enable_differential::<Self, IconId>();
         elm.enable_differential::<Self, GpuSection>();
-        elm.enable_differential::<Self, Layer>();
+        elm.enable_differential::<Self, RenderLayer>();
         elm.enable_differential::<Self, Color>();
         elm.enable_differential::<Self, IconData>();
         elm.scheduler
@@ -89,7 +89,7 @@ impl IconRequest {
 pub struct Icon {
     link: RenderLink,
     section: Section<LogicalContext>,
-    layer: Differential<Layer>,
+    layer: Differential<RenderLayer>,
     gpu_section: Differential<GpuSection>,
     id: Differential<IconId>,
     color: Differential<Color>,
@@ -101,7 +101,7 @@ impl Icon {
         Self {
             link: RenderLink::new::<Icon>(),
             section: Section::new(Position::default(), Area::new(Icon::SCALE)),
-            layer: Differential::new(Layer::default()),
+            layer: Differential::new(RenderLayer::default()),
             gpu_section: Differential::new(GpuSection::default()),
             id: Differential::new(id.into()),
             color: Differential::new(color),
@@ -241,7 +241,7 @@ impl Render for Icon {
                         VertexStepMode::Instance,
                         &wgpu::vertex_attr_array![1 => Float32x4],
                     ),
-                    Ginkgo::vertex_buffer_layout::<Layer>(
+                    Ginkgo::vertex_buffer_layout::<RenderLayer>(
                         VertexStepMode::Instance,
                         &wgpu::vertex_attr_array![2 => Float32],
                     ),
@@ -302,7 +302,7 @@ impl Render for Icon {
                     }),
                     instances: Instances::new(1)
                         .with_attribute::<GpuSection>(ginkgo)
-                        .with_attribute::<Layer>(ginkgo)
+                        .with_attribute::<RenderLayer>(ginkgo)
                         .with_attribute::<Color>(ginkgo)
                         .with_attribute::<Mips>(ginkgo),
                     should_record: false,
@@ -356,7 +356,7 @@ impl Render for Icon {
                         .get(&o)
                         .unwrap()
                         .instances
-                        .get_attr::<Layer>(&packet.entity);
+                        .get_attr::<RenderLayer>(&packet.entity);
                     renderer
                         .resource_handle
                         .group_mut_from_entity(packet.entity)
@@ -398,7 +398,7 @@ impl Render for Icon {
                 .checked_write(packet.entity, packet.value);
             Self::write_mips(renderer, ginkgo, packet.entity);
         }
-        for packet in queue_handle.read_adds::<Self, Layer>() {
+        for packet in queue_handle.read_adds::<Self, RenderLayer>() {
             renderer
                 .resource_handle
                 .group_mut_from_entity(packet.entity)
@@ -440,7 +440,7 @@ impl Render for Icon {
                         .set_vertex_buffer(1, group.instances.buffer::<GpuSection>().slice(..));
                     recorder
                         .0
-                        .set_vertex_buffer(2, group.instances.buffer::<Layer>().slice(..));
+                        .set_vertex_buffer(2, group.instances.buffer::<RenderLayer>().slice(..));
                     recorder
                         .0
                         .set_vertex_buffer(3, group.instances.buffer::<Color>().slice(..));

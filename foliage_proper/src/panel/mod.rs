@@ -14,7 +14,7 @@ use crate::action::HasRenderLink;
 use crate::ash::{RenderDirectiveRecorder, RenderPhase, Renderer};
 use crate::color::Color;
 use crate::coordinate::area::Area;
-use crate::coordinate::layer::Layer;
+use crate::coordinate::elevation::RenderLayer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::{GpuSection, Section};
 use crate::coordinate::{Coordinates, LogicalContext};
@@ -27,7 +27,7 @@ use crate::{Elm, Leaf, Render};
 impl Leaf for Panel {
     fn attach(elm: &mut Elm) {
         elm.enable_differential::<Panel, GpuSection>();
-        elm.enable_differential::<Panel, Layer>();
+        elm.enable_differential::<Panel, RenderLayer>();
         elm.enable_differential::<Panel, Color>();
         elm.enable_differential::<Panel, CornerI>();
         elm.enable_differential::<Panel, CornerII>();
@@ -49,7 +49,7 @@ pub struct Panel {
     render_link: RenderLink,
     pos: Position<LogicalContext>,
     area: Area<LogicalContext>,
-    layer: Differential<Layer>,
+    layer: Differential<RenderLayer>,
     gpu_section: Differential<GpuSection>,
     color: Differential<Color>,
     panel_corner_rounding: Rounding,
@@ -64,7 +64,7 @@ impl Panel {
             render_link: RenderLink::new::<Self>(),
             pos: Position::default(),
             area: Area::default(),
-            layer: Differential::new(Layer::default()),
+            layer: Differential::new(RenderLayer::default()),
             gpu_section: Differential::new(GpuSection::default()),
             color: Differential::new(color),
             panel_corner_rounding,
@@ -209,7 +209,7 @@ impl Render for Panel {
                         VertexStepMode::Instance,
                         &wgpu::vertex_attr_array![1 => Float32x4],
                     ),
-                    Ginkgo::vertex_buffer_layout::<Layer>(
+                    Ginkgo::vertex_buffer_layout::<RenderLayer>(
                         VertexStepMode::Instance,
                         &wgpu::vertex_attr_array![2 => Float32],
                     ),
@@ -247,7 +247,7 @@ impl Render for Panel {
         });
         let instances = Instances::<Entity>::new(4)
             .with_attribute::<GpuSection>(ginkgo)
-            .with_attribute::<Layer>(ginkgo)
+            .with_attribute::<RenderLayer>(ginkgo)
             .with_attribute::<Color>(ginkgo)
             .with_attribute::<CornerI>(ginkgo)
             .with_attribute::<CornerII>(ginkgo)
@@ -276,7 +276,7 @@ impl Render for Panel {
                 .instances
                 .checked_write(packet.entity, packet.value);
         }
-        for packet in queue_handle.read_adds::<Self, Layer>() {
+        for packet in queue_handle.read_adds::<Self, RenderLayer>() {
             renderer
                 .resource_handle
                 .instances
@@ -339,7 +339,7 @@ impl Render for Panel {
                 renderer
                     .resource_handle
                     .instances
-                    .buffer::<Layer>()
+                    .buffer::<RenderLayer>()
                     .slice(..),
             );
             recorder.0.set_vertex_buffer(

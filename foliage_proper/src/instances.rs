@@ -7,7 +7,7 @@ use bevy_ecs::world::World;
 use bytemuck::{Pod, Zeroable};
 use wgpu::{BufferDescriptor, BufferUsages};
 
-use crate::coordinate::layer::Layer;
+use crate::coordinate::elevation::RenderLayer;
 use crate::ginkgo::Ginkgo;
 
 pub struct Instances<Key: Hash + Eq + Copy + Clone> {
@@ -159,12 +159,12 @@ impl<Key: Hash + Eq + Copy + Clone> Instances<Key> {
             let mut swaps = Swaps { swaps: vec![] };
             if self
                 .world
-                .get_non_send_resource_mut::<Attribute<Layer>>()
+                .get_non_send_resource_mut::<Attribute<RenderLayer>>()
                 .is_some()
             {
                 let mut layered = vec![];
                 for (current, key) in ordering.iter() {
-                    let l = self.get_attr::<Layer>(key);
+                    let l = self.get_attr::<RenderLayer>(key);
                     layered.push((*current, key.clone(), l));
                 }
                 layered.sort_by(|lhs, rhs| -> Ordering { lhs.2.partial_cmp(&rhs.2).unwrap() });

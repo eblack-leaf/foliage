@@ -16,7 +16,7 @@ use wgpu::{
 use crate::action::HasRenderLink;
 use crate::ash::{Render, RenderDirectiveRecorder, RenderPhase, Renderer};
 use crate::coordinate::area::Area;
-use crate::coordinate::layer::Layer;
+use crate::coordinate::elevation::RenderLayer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::{GpuSection, Section};
 use crate::coordinate::{Coordinates, LogicalContext, NumericalContext};
@@ -73,7 +73,7 @@ pub struct Image {
     view: Differential<ImageView>,
     gpu_section: Differential<GpuSection>,
     section: Section<LogicalContext>,
-    layer: Differential<Layer>,
+    layer: Differential<RenderLayer>,
 }
 type ImageBitsRepr = f32;
 impl Image {
@@ -103,7 +103,7 @@ impl Image {
             view: Differential::new(ImageView::Stretch),
             gpu_section: Differential::new(GpuSection::default()),
             section: Section::default(),
-            layer: Differential::new(Layer::default()),
+            layer: Differential::new(RenderLayer::default()),
         }
     }
     pub fn with_aspect_ratio<A: Into<AspectRatio>>(mut self, a: A) -> Self {
@@ -191,7 +191,7 @@ pub struct ImageSlot {
 impl Leaf for Image {
     fn attach(elm: &mut Elm) {
         elm.enable_differential::<Self, GpuSection>();
-        elm.enable_differential::<Self, Layer>();
+        elm.enable_differential::<Self, RenderLayer>();
         elm.enable_differential::<Self, ImageFill>();
         elm.enable_differential::<Self, ImageSlotDescriptor>();
         elm.enable_differential::<Self, ImageView>();
@@ -310,7 +310,7 @@ impl Render for Image {
                         VertexStepMode::Instance,
                         &wgpu::vertex_attr_array![2 => Float32x4],
                     ),
-                    Ginkgo::vertex_buffer_layout::<Layer>(
+                    Ginkgo::vertex_buffer_layout::<RenderLayer>(
                         VertexStepMode::Instance,
                         &wgpu::vertex_attr_array![3 => Float32],
                     ),
@@ -379,7 +379,7 @@ impl Render for Image {
                     }),
                     instances: Instances::new(1)
                         .with_attribute::<GpuSection>(ginkgo)
-                        .with_attribute::<Layer>(ginkgo)
+                        .with_attribute::<RenderLayer>(ginkgo)
                         .with_attribute::<TextureCoordinates>(ginkgo),
                     slot_extent: packet.value.1,
                     image_extent: Default::default(),
@@ -520,7 +520,7 @@ impl Render for Image {
                 .instances
                 .checked_write(packet.entity, new);
         }
-        for packet in queue_handle.read_adds::<Self, Layer>() {
+        for packet in queue_handle.read_adds::<Self, RenderLayer>() {
             let id = *renderer
                 .resource_handle
                 .entity_to_image
@@ -562,7 +562,7 @@ impl Render for Image {
                         .set_vertex_buffer(1, group.instances.buffer::<GpuSection>().slice(..));
                     recorder
                         .0
-                        .set_vertex_buffer(2, group.instances.buffer::<Layer>().slice(..));
+                        .set_vertex_buffer(2, group.instances.buffer::<RenderLayer>().slice(..));
                     recorder.0.set_vertex_buffer(
                         3,
                         group.instances.buffer::<TextureCoordinates>().slice(..),
