@@ -315,10 +315,8 @@ impl Render for Icon {
                 .entity_to_icon
                 .contains_key(&entity)
             {
-                tracing::trace!("skipping remove of: {:?}", entity);
                 continue;
             }
-            tracing::trace!("removing icon at:{:?}", entity);
             renderer
                 .resource_handle
                 .group_mut_from_entity(entity)
@@ -327,7 +325,6 @@ impl Render for Icon {
             renderer.resource_handle.entity_to_icon.remove(&entity);
         }
         for packet in queue_handle.read_adds::<Self, IconId>() {
-            tracing::trace!("icon-id packet for: {:?}", packet.entity);
             let old = renderer
                 .resource_handle
                 .entity_to_icon
@@ -339,7 +336,6 @@ impl Render for Icon {
                 .add(packet.entity);
             if let Some(o) = old {
                 if o != packet.value {
-                    tracing::trace!("resending data for icon-id: {:?}", o.0);
                     // send current cpu values over to new instance
                     let gpu_sec = renderer
                         .resource_handle
@@ -395,7 +391,6 @@ impl Render for Icon {
                 .entity_to_icon
                 .get(&packet.entity)
                 .unwrap();
-            tracing::trace!("writing gpu for: {:?} at icon-id: {}", packet.entity, id.0);
             renderer
                 .resource_handle
                 .group_mut_from_entity(packet.entity)

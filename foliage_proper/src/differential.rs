@@ -193,9 +193,7 @@ pub(crate) fn remove(
 ) {
     for (entity, remove, opt_link, visibility) in removals.iter() {
         if remove.should_remove() || !visibility.visible() {
-            tracing::trace!("attempting to remove link for:{:?}", entity);
             if let Some(link) = opt_link {
-                tracing::trace!("removing link for:{:?}", entity);
                 remove_queue.queue.get_mut(link).unwrap().insert(entity);
             }
             if remove.should_remove() {

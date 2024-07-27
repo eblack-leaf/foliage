@@ -268,7 +268,6 @@ impl Render for Panel {
         ginkgo: &Ginkgo,
     ) -> bool {
         for entity in queue_handle.read_removes::<Self>() {
-            tracing::trace!("queueing remove for:{:?}", entity);
             renderer.resource_handle.instances.queue_remove(entity);
         }
         for packet in queue_handle.read_adds::<Self, GpuSection>() {
