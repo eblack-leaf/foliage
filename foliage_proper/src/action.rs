@@ -7,11 +7,7 @@ use bevy_ecs::prelude::{Bundle, Changed, Commands, DetectChanges, Entity, Query,
 use bevy_ecs::system::{Command, Res, ResMut};
 
 use crate::anim::{Animate, Animation, AnimationTime, Ease, Sequence, SequenceTimeRange};
-use crate::coordinate::area::Area;
 use crate::coordinate::elevation::Elevation;
-use crate::coordinate::position::Position;
-use crate::coordinate::section::Section;
-use crate::coordinate::LogicalContext;
 use crate::differential::{Remove, RenderLink, RenderRemoveQueue, Visibility};
 use crate::element::{ActionHandle, Dependents, Element, IdTable, OnEnd, Root, TargetHandle};
 use crate::elm::{ActionLimiter, FilterAttrLimiter};
@@ -192,52 +188,10 @@ impl<'a> SequenceHandle<'a> {
         st: SequenceTimeRange,
         easement_behavior: Ease,
     ) {
-        if TypeId::of::<A>() == TypeId::of::<GridPlacement>() {
-            panic!("please use SequenceHandle::animate_grid_placement for correct behavior");
-        }
         self.sequence.animations_to_finish += 1;
         let anim = Animation::new(
             th.into(),
             a,
-            easement_behavior,
-            self.sequence_entity,
-            AnimationTime::from(st),
-        );
-        self.world_handle.as_mut().unwrap().spawn(anim);
-    }
-    pub fn animate_grid_placement<TH: Into<TargetHandle>>(
-        &mut self,
-        th: TH,
-        gp: GridPlacement,
-        st: SequenceTimeRange,
-        easement_behavior: Ease,
-    ) {
-        self.sequence.animations_to_finish += 1;
-        let handle = th.into();
-        let entity = self.lookup_target_entity(handle.clone()).unwrap();
-        let current_pos = *self
-            .world_handle
-            .as_ref()
-            .unwrap()
-            .get::<Position<LogicalContext>>(entity)
-            .unwrap();
-        let current_area = *self
-            .world_handle
-            .as_ref()
-            .unwrap()
-            .get::<Area<LogicalContext>>(entity)
-            .unwrap();
-        let current = Section::new(current_pos, current_area);
-        let mut altered = gp.clone();
-        altered.queued_offset.replace(current);
-        self.world_handle
-            .as_mut()
-            .unwrap()
-            .entity_mut(entity)
-            .insert(altered);
-        let anim = Animation::new(
-            handle,
-            gp,
             easement_behavior,
             self.sequence_entity,
             AnimationTime::from(st),

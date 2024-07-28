@@ -5,7 +5,10 @@ use bevy_ecs::system::{Query, Res, ResMut};
 
 use crate::action::Signal;
 use crate::color::Color;
-use crate::coordinate::Coordinates;
+use crate::coordinate::area::Area;
+use crate::coordinate::position::Position;
+use crate::coordinate::section::Section;
+use crate::coordinate::{Coordinates, LogicalContext};
 use crate::element::{IdTable, OnEnd, Opacity, TargetHandle};
 use crate::elm::Elm;
 use crate::grid::GridPlacement;
@@ -29,6 +32,7 @@ pub(crate) struct Animation<A: Animate> {
     sequence_entity: Entity,
     animation_time: AnimationTime,
     animation_target: TargetHandle,
+    grid_placement_started: bool,
 }
 pub(crate) struct AnimationTime {
     accumulated_time: TimeDelta, // use these two to get linear % => use Bézier curve 0-1 to get actual %
@@ -67,6 +71,7 @@ impl<A: Animate> Animation<A> {
             sequence_entity: se,
             animation_time,
             animation_target: target,
+            grid_placement_started: false,
         }
     }
 }
@@ -212,6 +217,119 @@ where
 pub struct Sequence {
     pub(crate) animations_to_finish: i32,
     pub(crate) on_end: OnEnd,
+}
+fn start_grid_placement_anim(
+    target: Entity,
+    mut query: &mut Query<(
+        &mut GridPlacement,
+        &Position<LogicalContext>,
+        &Area<LogicalContext>,
+    )>,
+    new_grid_placement: GridPlacement,
+) {
+    let current_pos = *query.get(target).unwrap().1;
+    let current_area = *query.get(target).unwrap().2;
+    let current = Section::new(current_pos, current_area);
+    let mut altered = new_grid_placement.clone();
+    altered.queued_offset.replace(current);
+    *query.get_mut(target).unwrap().0 = altered;
+}
+
+pub(crate) fn animate_grid_placement(
+    mut anims: Query<(Entity, &mut Animation<GridPlacement>)>,
+    mut anim_targets: Query<(
+        &mut GridPlacement,
+        &Position<LogicalContext>,
+        &Area<LogicalContext>,
+    )>,
+    time: ResMut<Time>,
+    mut sequences: Query<&mut Sequence>,
+    id_table: Res<IdTable>,
+    mut cmd: Commands,
+) {
+    let frame_diff = time.frame_diff();
+    for (anim_entity, mut animation) in anims.iter_mut() {
+        if !animation.animation_time.delay.is_zero() {
+            animation.animation_time.delay = animation
+                .animation_time
+                .delay
+                .checked_sub(frame_diff)
+                .unwrap_or_default();
+        } else {
+            if !animation.started {
+                let mut orphaned = false;
+                if let Some(target) = id_table.lookup_target(animation.animation_target.clone()) {
+                    if !animation.grid_placement_started {
+                        start_grid_placement_anim(
+                            id_table
+                                .lookup_target(animation.animation_target.clone())
+                                .unwrap(),
+                            &mut anim_targets,
+                            animation.end.clone(),
+                        );
+                        animation.grid_placement_started = true;
+                        continue;
+                    }
+                    if let Ok(a) = anim_targets.get(target) {
+                        animation.interpolations =
+                            GridPlacement::interpolations(&a.0, &animation.end);
+                        animation.started = true;
+                    } else {
+                        orphaned = true;
+                    }
+                } else {
+                    orphaned = true;
+                }
+                if orphaned {
+                    despawn_and_update_sequence(
+                        &mut sequences,
+                        &id_table,
+                        &mut cmd,
+                        anim_entity,
+                        &mut animation,
+                    );
+                    continue;
+                }
+            }
+            let delta = animation.animation_time.time_delta(frame_diff);
+            let percent = animation.easement.percent_changed(delta);
+            for i in animation.interpolations.scalars.iter_mut() {
+                let d = i.start + i.diff * percent;
+                i.current_value.replace(d);
+            }
+            let mut orphaned = false;
+            if let Some(target) = id_table.lookup_target(animation.animation_target.clone()) {
+                if let Ok((mut a, _, _)) = anim_targets.get_mut(target) {
+                    a.apply(&mut animation.interpolations);
+                } else {
+                    orphaned = true;
+                }
+            } else {
+                orphaned = true;
+            }
+            if orphaned {
+                despawn_and_update_sequence(
+                    &mut sequences,
+                    &id_table,
+                    &mut cmd,
+                    anim_entity,
+                    &mut animation,
+                );
+                cmd.entity(anim_entity).despawn();
+                continue;
+            }
+            if percent >= 1f32 {
+                despawn_and_update_sequence(
+                    &mut sequences,
+                    &id_table,
+                    &mut cmd,
+                    anim_entity,
+                    &mut animation,
+                );
+                cmd.entity(anim_entity).despawn();
+            }
+        }
+    }
 }
 pub(crate) fn animate<A: Animate>(
     mut anims: Query<(Entity, &mut Animation<A>)>,

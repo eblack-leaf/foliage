@@ -1,3 +1,4 @@
+use std::any::TypeId;
 use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 
@@ -14,7 +15,7 @@ use bevy_ecs::world::World;
 use crate::action::{
     clear_signal, filter_attr_changed, filter_attr_layout_change, signal_action, Actionable,
 };
-use crate::anim::{animate, Animate};
+use crate::anim::{animate, animate_grid_placement, Animate};
 use crate::ash::Render;
 use crate::asset::{await_assets, on_retrieve};
 use crate::coordinate::area::Area;
@@ -28,7 +29,7 @@ use crate::differential::{
 use crate::element::{opacity, recursive_placement};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::ScaleFactor;
-use crate::grid::{viewport_changes_layout, Grid, Layout, LayoutGrid};
+use crate::grid::{viewport_changes_layout, Grid, GridPlacement, Layout, LayoutGrid};
 use crate::interaction::{
     FocusedEntity, InteractiveEntity, KeyboardAdapter, MouseAdapter, TouchAdapter,
 };
@@ -171,9 +172,15 @@ impl Elm {
     }
     pub fn enable_animation<A: Animate>(&mut self) {
         if !self.ecs.world.contains_resource::<AnimationLimiter<A>>() {
-            self.scheduler
-                .main
-                .add_systems(animate::<A>.in_set(ScheduleMarkers::Animation));
+            if TypeId::of::<A>() == TypeId::of::<GridPlacement>() {
+                self.scheduler
+                    .main
+                    .add_systems(animate_grid_placement.in_set(ScheduleMarkers::Animation));
+            } else {
+                self.scheduler
+                    .main
+                    .add_systems(animate::<A>.in_set(ScheduleMarkers::Animation));
+            }
             self.ecs
                 .world
                 .insert_resource(AnimationLimiter::<A>::default());
