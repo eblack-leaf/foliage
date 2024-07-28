@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::{Event, EventReader};
 use bevy_ecs::prelude::{Component, IntoSystemConfigs};
+use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Query, Res, ResMut, Resource};
 use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, MouseButton, Touch, TouchPhase};
@@ -136,13 +137,14 @@ impl Click {
 }
 #[derive(Default, Copy, Clone, Component)]
 pub struct ClickInteractionListener {
-    pub click: Click,
-    pub focused: bool,
-    pub engaged_start: bool,
-    pub engaged: bool,
-    pub engaged_end: bool,
-    pub active: bool,
-    pub shape: ClickInteractionShape,
+    click: Click,
+    focused: bool,
+    engaged_start: bool,
+    engaged: bool,
+    engaged_end: bool,
+    active: bool,
+    shape: ClickInteractionShape,
+    disabled: bool,
 }
 impl ClickInteractionListener {
     pub fn new() -> Self {
@@ -151,6 +153,33 @@ impl ClickInteractionListener {
     pub fn as_circle(mut self) -> Self {
         self.shape = ClickInteractionShape::Circle;
         self
+    }
+    pub fn click(&self) -> Click {
+        self.click
+    }
+    pub fn active(&self) -> bool {
+        self.active
+    }
+    pub fn disabled(&self) -> bool {
+        self.disabled
+    }
+    pub fn disable(&mut self) {
+        self.disabled = true;
+    }
+    pub fn enable(&mut self) {
+        self.disabled = false;
+    }
+    pub fn engaged(&self) -> bool {
+        self.engaged
+    }
+    pub fn engaged_start(&self) -> bool {
+        self.engaged_start
+    }
+    pub fn engaged_end(&self) -> bool {
+        self.engaged_end
+    }
+    pub fn set_shape(&mut self, shape: ClickInteractionShape) {
+        self.shape = shape;
     }
 }
 #[derive(Resource, Default)]
@@ -200,6 +229,27 @@ pub(crate) fn on_click(
         }
     }
 }
+pub(crate) fn disabled_listeners(
+    mut listeners: Query<
+        (Entity, &mut ClickInteractionListener),
+        Changed<ClickInteractionListener>,
+    >,
+    mut grabbed: ResMut<InteractiveEntity>,
+    mut focused: ResMut<FocusedEntity>,
+) {
+    for (entity, mut listener) in listeners.iter_mut() {
+        if listener.disabled {
+            if let Some(g) = grabbed.0 {
+                if g == entity {
+                    grabbed.0.take();
+                    focused.0.take();
+                    listener.engaged = false;
+                    listener.engaged_end = false;
+                }
+            }
+        }
+    }
+}
 pub(crate) fn listen_for_interactions(
     mut listeners: Query<(
         Entity,
@@ -221,6 +271,7 @@ pub(crate) fn listen_for_interactions(
                         if listener
                             .shape
                             .contains(event.position, Section::new(*pos, *area))
+                            && !listener.disabled
                         {
                             if grab_info.is_none() || *layer < grab_info.unwrap().1 {
                                 grab_info.replace((entity, *layer));
@@ -262,7 +313,20 @@ pub(crate) fn listen_for_interactions(
                         .shape
                         .contains(event.position, section)
                     {
-                        listeners.get_mut(g).unwrap().1.active = true;
+                        // TODO check higher elevated interaction-listeners
+                        let mut found = false;
+                        let current_layer = *listeners.get(g).unwrap().4;
+                        for (_, listener, pos, area, layer) in listeners.iter() {
+                            if current_layer <= *layer {
+                                let sec = Section::new(*pos, *area);
+                                if listener.shape.contains(event.position, sec) {
+                                    found = true;
+                                }
+                            }
+                        }
+                        if !found {
+                            listeners.get_mut(g).unwrap().1.active = true;
+                        }
                     }
                     listeners
                         .get_mut(g)
@@ -272,6 +336,7 @@ pub(crate) fn listen_for_interactions(
                         .end
                         .replace(event.position);
                     listeners.get_mut(g).unwrap().1.engaged_end = true;
+                    listeners.get_mut(g).unwrap().1.engaged = false;
                 }
             }
             ClickPhase::Cancel => {
