@@ -48,13 +48,13 @@ pub(crate) fn alternate_color_on_engage(
     id_table: Res<IdTable>,
 ) {
     for (mut color, alt, listener) in alts.iter_mut() {
-        if listener.engaged_start && !listener.engaged_end {
+        if listener.engaged_start() && !listener.engaged_end() {
             for linked in alt.linked.iter() {
                 let entity = id_table.lookup_target(linked.clone()).unwrap();
                 cmd.entity(entity).insert(alt.base);
             }
             *color = alt.alternate_color;
-        } else if listener.engaged_end {
+        } else if listener.engaged_end() {
             for linked in alt.linked.iter() {
                 let entity = id_table.lookup_target(linked.clone()).unwrap();
                 cmd.entity(entity).insert(alt.alternate_color);

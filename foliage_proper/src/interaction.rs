@@ -313,11 +313,10 @@ pub(crate) fn listen_for_interactions(
                         .shape
                         .contains(event.position, section)
                     {
-                        // TODO check higher elevated interaction-listeners
                         let mut found = false;
                         let current_layer = *listeners.get(g).unwrap().4;
-                        for (_, listener, pos, area, layer) in listeners.iter() {
-                            if current_layer <= *layer {
+                        for (entity, listener, pos, area, layer) in listeners.iter() {
+                            if current_layer >= *layer && entity != g && !listener.disabled {
                                 let sec = Section::new(*pos, *area);
                                 if listener.shape.contains(event.position, sec) {
                                     found = true;
@@ -326,6 +325,8 @@ pub(crate) fn listen_for_interactions(
                         }
                         if !found {
                             listeners.get_mut(g).unwrap().1.active = true;
+                        } else {
+                            tracing::trace!("higher-elevated interactive-element found");
                         }
                     }
                     listeners
@@ -383,7 +384,7 @@ impl KeyboardAdapter {
 impl Leaf for ClickInteractionListener {
     fn attach(elm: &mut Elm) {
         elm.scheduler.main.add_systems((
-            (listen_for_interactions, on_click)
+            (disabled_listeners, listen_for_interactions, on_click)
                 .chain()
                 .in_set(ScheduleMarkers::Interaction),
             reset_click_listener_flags.after(ScheduleMarkers::Config),
