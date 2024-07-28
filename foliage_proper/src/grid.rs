@@ -409,7 +409,6 @@ pub(crate) fn viewport_changes_layout(
     if viewport_handle.updated() {
         let (l, (c, r)) = LayoutGrid::configuration(viewport_handle.section().area.coordinates);
         if &l != layout.as_ref() {
-            tracing::trace!("grid-layout:{:?}", l);
             *layout = l;
         }
         let placement = Placement::new(

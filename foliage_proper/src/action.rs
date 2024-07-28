@@ -8,7 +8,7 @@ use bevy_ecs::system::{Command, Res, ResMut};
 
 use crate::anim::{Animate, Animation, AnimationTime, Ease, Sequence, SequenceTimeRange};
 use crate::coordinate::area::Area;
-use crate::coordinate::elevation::{Elevation, RenderLayer};
+use crate::coordinate::elevation::Elevation;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
@@ -477,7 +477,6 @@ impl<'a> ElmHandle<'a> {
         let entity = self.lookup_target_entity(handle.clone()).unwrap();
         let updated = self.recursive_visibility(entity);
         for entity in updated {
-            tracing::trace!("updating visibility for:{:?} to {}", entity, visibility);
             self.world_handle
                 .as_mut()
                 .unwrap()

@@ -131,7 +131,7 @@ impl Icon {
         }
     }
 }
-#[derive(Hash, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Component)]
+#[derive(Hash, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Component, Debug)]
 pub struct IconId(pub i32);
 impl From<i32> for IconId {
     fn from(value: i32) -> Self {
@@ -281,11 +281,6 @@ impl Render for Icon {
         ginkgo: &Ginkgo,
     ) -> bool {
         for packet in queue_handle.read_adds::<Self, IconData>() {
-            tracing::trace!(
-                "creating icon-group for {} requested by:{:?}",
-                packet.value.0 .0,
-                packet.entity
-            );
             let (_, view) = ginkgo.create_texture(
                 TextureFormat::R8Unorm,
                 Self::TEXTURE_SCALE,
