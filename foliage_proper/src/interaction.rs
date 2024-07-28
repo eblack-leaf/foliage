@@ -160,7 +160,7 @@ impl ClickInteractionListener {
     pub fn active(&self) -> bool {
         self.active
     }
-    pub fn disabled(&self) -> bool {
+    pub fn is_disabled(&self) -> bool {
         self.disabled
     }
     pub fn disable(&mut self) {
@@ -180,6 +180,10 @@ impl ClickInteractionListener {
     }
     pub fn set_shape(&mut self, shape: ClickInteractionShape) {
         self.shape = shape;
+    }
+    pub fn disabled(mut self) -> Self {
+        self.disabled = true;
+        self
     }
 }
 #[derive(Resource, Default)]

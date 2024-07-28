@@ -118,12 +118,16 @@ impl Foliage {
             panic!("please enable_signaled_action for this action type")
         }
         let signaler = self.elm.ecs.world.spawn(Signaler::new(a)).id();
-        self.elm
+        if let Some(o) = self
+            .elm
             .ecs
             .world
             .get_resource_mut::<IdTable>()
             .unwrap()
-            .add_action(ah, signaler);
+            .add_action(ah, signaler)
+        {
+            self.elm.ecs.world.despawn(o);
+        }
     }
     pub fn load_icon<ID: Into<IconId>, B: AsRef<[u8]>>(&mut self, id: ID, bytes: B) {
         self.spawn(IconRequest::new(id, bytes.as_ref().to_vec()));

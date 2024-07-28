@@ -16,6 +16,7 @@ use crate::differential::{Remove, RenderLink, RenderRemoveQueue, Visibility};
 use crate::element::{ActionHandle, Dependents, Element, IdTable, OnEnd, Root, TargetHandle};
 use crate::elm::{ActionLimiter, FilterAttrLimiter};
 use crate::grid::{Grid, GridPlacement, Layout, LayoutFilter};
+use crate::interaction::ClickInteractionListener;
 use crate::view::{View, Viewable};
 
 pub struct ElmHandle<'a> {
@@ -484,6 +485,24 @@ impl<'a> ElmHandle<'a> {
                 .insert(Visibility::new(visibility));
         }
     }
+    pub fn disable_interactions_for<TH: Into<TargetHandle>>(&mut self, th: TH) {
+        let entity = self.lookup_target_entity(th).unwrap();
+        self.world_handle
+            .as_mut()
+            .unwrap()
+            .get_mut::<ClickInteractionListener>(entity)
+            .unwrap()
+            .disable();
+    }
+    pub fn enable_interactions_for<TH: Into<TargetHandle>>(&mut self, th: TH) {
+        let entity = self.lookup_target_entity(th).unwrap();
+        self.world_handle
+            .as_mut()
+            .unwrap()
+            .get_mut::<ClickInteractionListener>(entity)
+            .unwrap()
+            .enable();
+    }
     fn recursive_visibility(&self, current: Entity) -> HashSet<Entity> {
         let mut set = HashSet::new();
         set.insert(current);
@@ -568,12 +587,16 @@ impl<'a> ElmHandle<'a> {
             .unwrap()
             .spawn(Signaler::new(a))
             .id();
-        self.world_handle
+        if let Some(o) = self
+            .world_handle
             .as_mut()
             .unwrap()
             .get_resource_mut::<IdTable>()
             .unwrap()
-            .add_action(ah, signaler);
+            .add_action(ah, signaler)
+        {
+            self.world_handle.as_mut().unwrap().despawn(o);
+        }
     }
     pub(crate) fn lookup_target_entity<TH: Into<TargetHandle>>(&self, th: TH) -> Option<Entity> {
         self.world_handle

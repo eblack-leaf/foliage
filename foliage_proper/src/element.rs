@@ -223,11 +223,11 @@ pub(crate) struct IdTable {
     pub(crate) actions: HashMap<ActionHandle, Entity>,
 }
 impl IdTable {
-    pub fn add_target<TH: Into<TargetHandle>>(&mut self, th: TH, entity: Entity) {
-        self.targets.insert(th.into(), entity);
+    pub fn add_target<TH: Into<TargetHandle>>(&mut self, th: TH, entity: Entity) -> Option<Entity> {
+        self.targets.insert(th.into(), entity)
     }
-    pub fn add_action<AH: Into<ActionHandle>>(&mut self, ah: AH, entity: Entity) {
-        self.actions.insert(ah.into(), entity);
+    pub fn add_action<AH: Into<ActionHandle>>(&mut self, ah: AH, entity: Entity) -> Option<Entity> {
+        self.actions.insert(ah.into(), entity)
     }
     pub fn lookup_target<TH: Into<TargetHandle>>(&self, th: TH) -> Option<Entity> {
         self.targets.get(&th.into()).copied()
