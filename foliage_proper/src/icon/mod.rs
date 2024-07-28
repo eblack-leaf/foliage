@@ -13,7 +13,9 @@ use wgpu::{
 };
 
 use crate::action::HasRenderLink;
-use crate::ash::{Render, RenderDirectiveRecorder, RenderPhase, Renderer};
+use crate::ash::{
+    AlphaDrawPointer, AlphaRange, Instructions, Render, RenderDirectiveRecorder, Renderer,
+};
 use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::elevation::RenderLayer;
@@ -185,7 +187,6 @@ pub(crate) const VERTICES: [Vertex; 6] = [
 ];
 impl Render for Icon {
     type DirectiveGroupKey = IconId;
-    const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(2);
     type Resources = IconResources;
 
     fn create_resources(ginkgo: &Ginkgo) -> Self::Resources {
@@ -411,7 +412,7 @@ impl Render for Icon {
         for (i, g) in renderer.resource_handle.groups.iter_mut() {
             let (sr, opt_nodes) = g.instances.resolve_changes(ginkgo);
             if let Some(nodes) = opt_nodes {
-                renderer.set_alpha_nodes(i.0, nodes);
+                renderer.alpha_draws.set_alpha_nodes(i.0, nodes);
             }
             if sr {
                 should_record = true;
@@ -421,7 +422,11 @@ impl Render for Icon {
         should_record
     }
 
-    fn record_opaque(renderer: &mut Renderer<Self>, ginkgo: &Ginkgo) {
+    fn record_opaque(
+        renderer: &mut Renderer<Self>,
+        instructions: &mut Instructions<Self>,
+        ginkgo: &Ginkgo,
+    ) {
         for (icon_id, group) in renderer.resource_handle.groups.iter_mut() {
             if group.should_record {
                 let mut recorder = RenderDirectiveRecorder::new(ginkgo);
@@ -449,12 +454,22 @@ impl Render for Icon {
                     recorder
                         .0
                         .draw(0..VERTICES.len() as u32, 0..group.instances.num_opaque());
-                    renderer.directive_manager.fill(*icon_id, recorder.finish());
+                    instructions
+                        .directive_manager
+                        .fill(*icon_id, recorder.finish());
                 } else {
-                    renderer.directive_manager.remove(*icon_id);
+                    instructions.directive_manager.remove(*icon_id);
                 }
                 group.should_record = false;
             }
         }
+    }
+    fn draw_alpha_range(
+        renderer: &mut Renderer<Self>,
+        ginkgo: &Ginkgo,
+        alpha_draw_pointer: AlphaDrawPointer,
+        alpha_range: AlphaRange,
+    ) {
+        todo!()
     }
 }

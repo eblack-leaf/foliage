@@ -11,7 +11,7 @@ use wgpu::{
 };
 
 use crate::action::HasRenderLink;
-use crate::ash::{RenderDirectiveRecorder, RenderPhase, Renderer};
+use crate::ash::{AlphaDrawPointer, AlphaRange, Instructions, RenderDirectiveRecorder, Renderer};
 use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::elevation::RenderLayer;
@@ -314,12 +314,16 @@ impl Render for Panel {
 
         let (sr, opt_nodes) = renderer.resource_handle.instances.resolve_changes(ginkgo);
         if let Some(nodes) = opt_nodes {
-            renderer.set_alpha_nodes(0, nodes);
+            renderer.alpha_draws.set_alpha_nodes(0, nodes);
         }
         sr
     }
 
-    fn record_opaque(renderer: &mut Renderer<Self>, ginkgo: &Ginkgo) {
+    fn record_opaque(
+        renderer: &mut Renderer<Self>,
+        instructions: &mut Instructions<Self>,
+        ginkgo: &Ginkgo,
+    ) {
         let mut recorder = RenderDirectiveRecorder::new(ginkgo);
         if renderer.resource_handle.instances.num_opaque() > 0 {
             recorder.0.set_pipeline(&renderer.resource_handle.pipeline);
@@ -390,9 +394,18 @@ impl Render for Panel {
                 0..renderer.resource_handle.instances.num_opaque(),
             );
             let directive = recorder.finish();
-            renderer.directive_manager.fill(0, directive);
+            instructions.directive_manager.fill(0, directive);
         } else {
-            renderer.directive_manager.remove(0);
+            instructions.directive_manager.remove(0);
         }
+    }
+
+    fn draw_alpha_range(
+        renderer: &mut Renderer<Self>,
+        ginkgo: &Ginkgo,
+        alpha_draw_pointer: AlphaDrawPointer,
+        alpha_range: AlphaRange,
+    ) {
+        todo!()
     }
 }

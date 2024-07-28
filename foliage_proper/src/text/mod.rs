@@ -16,7 +16,9 @@ use wgpu::{
 use wgpu::{BindGroupLayout, RenderPipeline};
 
 use crate::action::HasRenderLink;
-use crate::ash::{Render, RenderDirectiveRecorder, RenderPhase, Renderer};
+use crate::ash::{
+    AlphaDrawPointer, AlphaRange, Instructions, Render, RenderDirectiveRecorder, Renderer,
+};
 use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::elevation::RenderLayer;
@@ -454,7 +456,7 @@ impl Render for Text {
                 .unwrap()
                 .instances
                 .clear();
-            renderer.directive_manager.remove(packet);
+            // renderer.directive_manager.remove(packet);
         }
         for packet in queue_handle.read_adds::<Self, GlyphMetrics>() {
             let atlas = TextureAtlas::new(
@@ -698,7 +700,9 @@ impl Render for Text {
         for (e, group) in renderer.resource_handle.groups.iter_mut() {
             let (opaque_write, opt_nodes) = group.instances.resolve_changes(ginkgo);
             if let Some(nodes) = opt_nodes {
-                renderer.set_alpha_nodes(e.index() as i32, nodes);
+                renderer
+                    .alpha_draws
+                    .set_alpha_nodes(e.index() as i32, nodes);
             }
             if opaque_write {
                 group.should_record = true;
@@ -708,7 +712,11 @@ impl Render for Text {
         should_record
     }
 
-    fn record_opaque(renderer: &mut Renderer<Self>, ginkgo: &Ginkgo) {
+    fn record_opaque(
+        renderer: &mut Renderer<Self>,
+        instructions: &mut Instructions<Self>,
+        ginkgo: &Ginkgo,
+    ) {
         for (entity, group) in renderer.resource_handle.groups.iter_mut() {
             if group.should_record {
                 let mut recorder = RenderDirectiveRecorder::new(ginkgo);
@@ -734,12 +742,23 @@ impl Render for Text {
                     recorder
                         .0
                         .draw(0..VERTICES.len() as u32, 0..group.instances.num_opaque());
-                    renderer.directive_manager.fill(*entity, recorder.finish());
+                    instructions
+                        .directive_manager
+                        .fill(*entity, recorder.finish());
                 } else {
-                    renderer.directive_manager.remove(*entity);
+                    instructions.directive_manager.remove(*entity);
                 }
                 group.should_record = false;
             }
         }
+    }
+
+    fn draw_alpha_range(
+        renderer: &mut Renderer<Self>,
+        ginkgo: &Ginkgo,
+        alpha_draw_pointer: AlphaDrawPointer,
+        alpha_range: AlphaRange,
+    ) {
+        todo!()
     }
 }
