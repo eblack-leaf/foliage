@@ -285,7 +285,7 @@ pub(crate) fn distill(
             pos.to_device(scale_factor.value()),
             (
                 new_extent.horizontal(),
-                character_dims.vertical() * num_lines * 1.1,
+                character_dims.vertical() * num_lines,
             ),
         )
         .to_logical(scale_factor.value());

@@ -1,7 +1,7 @@
 use crate::action::{Actionable, ElmHandle};
 
 #[derive(Clone)]
-struct HrefLink {
+pub struct HrefLink {
     href: String,
 }
 impl Actionable for HrefLink {
@@ -10,7 +10,12 @@ impl Actionable for HrefLink {
     }
 }
 impl HrefLink {
-    fn navigate(&self) {
+    pub fn new<S: AsRef<str>>(s: S) -> Self {
+        Self {
+            href: s.as_ref().to_string(),
+        }
+    }
+    pub fn navigate(&self) {
         #[cfg(target_family = "wasm")]
         {
             if let Some(window) = web_sys::window() {
