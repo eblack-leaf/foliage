@@ -535,8 +535,12 @@ impl Render for Image {
                 .checked_write(packet.entity, packet.value);
         }
         let mut should_record = false;
-        for (_, group) in renderer.resource_handle.groups.iter_mut() {
-            if group.instances.resolve_changes(ginkgo) {
+        for (slot_id, group) in renderer.resource_handle.groups.iter_mut() {
+            let (sr, opt_nodes) = group.instances.resolve_changes(ginkgo);
+            if let Some(nodes) = opt_nodes {
+                renderer.set_alpha_nodes(slot_id.0, nodes);
+            }
+            if sr {
                 should_record = true;
                 group.should_record = true;
             }
@@ -544,11 +548,11 @@ impl Render for Image {
         should_record
     }
 
-    fn record(renderer: &mut Renderer<Self>, ginkgo: &Ginkgo) {
+    fn record_opaque(renderer: &mut Renderer<Self>, ginkgo: &Ginkgo) {
         for (slot_id, group) in renderer.resource_handle.groups.iter_mut() {
             if group.should_record {
                 let mut recorder = RenderDirectiveRecorder::new(ginkgo);
-                if group.instances.num_instances() > 0 {
+                if group.instances.num_opaque() > 0 {
                     recorder.0.set_pipeline(&renderer.resource_handle.pipeline);
                     recorder
                         .0
@@ -569,7 +573,7 @@ impl Render for Image {
                     );
                     recorder
                         .0
-                        .draw(0..VERTICES.len() as u32, 0..group.instances.num_instances());
+                        .draw(0..VERTICES.len() as u32, 0..group.instances.num_opaque());
                     renderer.directive_manager.fill(*slot_id, recorder.finish());
                 } else {
                     renderer.directive_manager.remove(*slot_id);

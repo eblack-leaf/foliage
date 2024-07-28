@@ -172,7 +172,6 @@ pub struct PanelResources {
 
 impl Render for Panel {
     type DirectiveGroupKey = i32;
-    const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(1);
     type Resources = PanelResources;
     fn create_resources(ginkgo: &Ginkgo) -> Self::Resources {
         let shader = ginkgo.create_shader(include_wgsl!("panel.wgsl"));
@@ -313,12 +312,16 @@ impl Render for Panel {
                 .checked_write(packet.entity, packet.value);
         }
 
-        renderer.resource_handle.instances.resolve_changes(ginkgo)
+        let (sr, opt_nodes) = renderer.resource_handle.instances.resolve_changes(ginkgo);
+        if let Some(nodes) = opt_nodes {
+            renderer.set_alpha_nodes(0, nodes);
+        }
+        sr
     }
 
-    fn record(renderer: &mut Renderer<Self>, ginkgo: &Ginkgo) {
+    fn record_opaque(renderer: &mut Renderer<Self>, ginkgo: &Ginkgo) {
         let mut recorder = RenderDirectiveRecorder::new(ginkgo);
-        if renderer.resource_handle.instances.num_instances() > 0 {
+        if renderer.resource_handle.instances.num_opaque() > 0 {
             recorder.0.set_pipeline(&renderer.resource_handle.pipeline);
             recorder
                 .0
@@ -384,7 +387,7 @@ impl Render for Panel {
             );
             recorder.0.draw(
                 0..VERTICES.len() as u32,
-                0..renderer.resource_handle.instances.num_instances(),
+                0..renderer.resource_handle.instances.num_opaque(),
             );
             let directive = recorder.finish();
             renderer.directive_manager.fill(0, directive);

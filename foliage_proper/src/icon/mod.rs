@@ -408,8 +408,12 @@ impl Render for Icon {
                 .checked_write(packet.entity, packet.value);
         }
         let mut should_record = false;
-        for (_i, g) in renderer.resource_handle.groups.iter_mut() {
-            if g.instances.resolve_changes(ginkgo) {
+        for (i, g) in renderer.resource_handle.groups.iter_mut() {
+            let (sr, opt_nodes) = g.instances.resolve_changes(ginkgo);
+            if let Some(nodes) = opt_nodes {
+                renderer.set_alpha_nodes(i.0, nodes);
+            }
+            if sr {
                 should_record = true;
                 g.should_record = true;
             }
@@ -417,11 +421,11 @@ impl Render for Icon {
         should_record
     }
 
-    fn record(renderer: &mut Renderer<Self>, ginkgo: &Ginkgo) {
+    fn record_opaque(renderer: &mut Renderer<Self>, ginkgo: &Ginkgo) {
         for (icon_id, group) in renderer.resource_handle.groups.iter_mut() {
             if group.should_record {
                 let mut recorder = RenderDirectiveRecorder::new(ginkgo);
-                if group.instances.num_instances() > 0 {
+                if group.instances.num_opaque() > 0 {
                     recorder.0.set_pipeline(&renderer.resource_handle.pipeline);
                     recorder
                         .0
@@ -444,7 +448,7 @@ impl Render for Icon {
                         .set_vertex_buffer(4, group.instances.buffer::<Mips>().slice(..));
                     recorder
                         .0
-                        .draw(0..VERTICES.len() as u32, 0..group.instances.num_instances());
+                        .draw(0..VERTICES.len() as u32, 0..group.instances.num_opaque());
                     renderer.directive_manager.fill(*icon_id, recorder.finish());
                 } else {
                     renderer.directive_manager.remove(*icon_id);

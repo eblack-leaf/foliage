@@ -1,4 +1,3 @@
-use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::hash::Hash;
 
@@ -9,6 +8,7 @@ use wgpu::{
 };
 
 use crate::color::Color;
+use crate::coordinate::elevation::RenderLayer;
 use crate::elm::RenderQueueHandle;
 use crate::ginkgo::depth::Depth;
 use crate::ginkgo::Ginkgo;
@@ -18,21 +18,78 @@ use crate::Elm;
 pub(crate) struct Ash {
     pub(crate) renderers: RendererStructure,
     pub(crate) creation: Vec<fn(&mut RendererStructure, &Ginkgo)>,
-    pub(crate) render_fns: Vec<fn(&mut RendererStructure, &Ginkgo, &mut RenderQueueHandle)>,
-    pub(crate) renderer_instructions:
-        Vec<(fn(&RendererStructure) -> Vec<&RenderBundle>, RenderPhase)>,
+    pub(crate) render_fns: Vec<
+        fn(
+            &mut RendererStructure,
+            &Ginkgo,
+            &mut RenderQueueHandle,
+        ) -> Option<HashMap<AlphaDrawPointer, AlphaNodes>>,
+    >,
+    pub(crate) renderer_instructions: Vec<(fn(&RendererStructure) -> Vec<&RenderBundle>)>,
     pub(crate) drawn: bool,
+    pub(crate) alpha_draw_calls: AlphaDrawCalls,
+    pub(crate) alpha_draw_fns:
+        Vec<fn(&mut RendererStructure, &Ginkgo, AlphaDrawPointer, AlphaRange)>,
 }
-
+#[derive(Copy, Clone, Hash, Ord, PartialOrd, PartialEq, Eq)]
+pub(crate) struct AlphaDrawPointer(pub(crate) i32);
+pub(crate) struct AlphaDraws<R: Render> {
+    pub(crate) mapping: HashMap<AlphaDrawPointer, R::DirectiveGroupKey>,
+    pub(crate) nodes: HashMap<AlphaDrawPointer, AlphaNodes>,
+    changed: bool,
+}
+impl<R: Render> AlphaDraws<R> {
+    pub(crate) fn pointer(&self, key: R::DirectiveGroupKey) -> AlphaDrawPointer {
+        *self.mapping.get(&key).unwrap()
+    }
+    pub(crate) fn new() -> Self {
+        Self {
+            mapping: Default::default(),
+            nodes: Default::default(),
+            changed: false,
+        }
+    }
+}
+#[derive(Default)]
+pub(crate) struct AlphaDrawCalls {
+    pub(crate) calls: Vec<(usize, AlphaDrawPointer, AlphaRange)>,
+    pub(crate) unsorted: HashMap<usize, HashMap<AlphaDrawPointer, AlphaNodes>>,
+    pub(crate) changed: bool,
+}
+impl AlphaDrawCalls {
+    pub(crate) fn order(&mut self) {
+        if self.changed {
+            // order
+            // clear self.calls
+            // sort by render-layer + split into ranges of draws + .push((usize, range))
+            self.changed = false;
+        }
+    }
+}
+#[derive(Clone)]
+pub struct AlphaNodes(pub(crate) HashMap<usize, RenderLayer>);
+impl AlphaNodes {
+    pub fn set_global_layer(mut self, layer: RenderLayer) -> Self {
+        for (_, mut l) in self.0.iter_mut() {
+            *l = layer;
+        }
+        self
+    }
+}
+#[derive(Copy, Clone)]
+pub(crate) struct AlphaRange {
+    pub(crate) start: usize,
+    pub(crate) end: usize,
+}
 #[derive(Default)]
 pub(crate) struct RendererStructure {
     pub(crate) renderers: World,
 }
 
 pub struct Renderer<R: Render> {
-    pub(crate) phase: RenderPhase,
     pub directive_manager: RenderDirectiveManager<R>,
     pub resource_handle: R::Resources,
+    pub(crate) alpha_draws: AlphaDraws<R>,
 }
 
 pub struct RenderDirectiveManager<R: Render> {
@@ -56,65 +113,31 @@ impl<R: Render> RenderDirectiveManager<R> {
 impl<R: Render> Renderer<R> {
     pub(crate) fn new(ginkgo: &Ginkgo) -> Self {
         Self {
-            phase: R::RENDER_PHASE,
             directive_manager: RenderDirectiveManager::new(),
             resource_handle: R::create_resources(ginkgo),
+            alpha_draws: AlphaDraws::<R>::new(),
         }
     }
-}
-
-#[derive(Copy, Clone)]
-pub enum RenderPhase {
-    Opaque,
-    Alpha(i32),
-}
-
-impl RenderPhase {
-    pub const fn value(&self) -> i32 {
-        match self {
-            RenderPhase::Opaque => 0,
-            RenderPhase::Alpha(priority) => *priority,
-        }
+    pub fn associate_alpha_pointer(&mut self, ap: i32, key: R::DirectiveGroupKey) {
+        self.alpha_draws.mapping.insert(AlphaDrawPointer(ap), key);
+    }
+    pub fn disassociate_alpha_pointer(&mut self, ap: i32) {
+        self.alpha_draws.mapping.remove(&AlphaDrawPointer(ap));
+    }
+    pub fn get_key(&self, ap: i32) -> R::DirectiveGroupKey {
+        self.alpha_draws.mapping.get(&AlphaDrawPointer(ap)).unwrap()
+    }
+    pub fn set_alpha_nodes(&mut self, ap: i32, nodes: AlphaNodes) {
+        self.alpha_draws.changed = true;
+        let ptr = AlphaDrawPointer(ap);
+        self.alpha_draws.nodes.insert(ptr, nodes);
     }
 }
-
-impl PartialEq<Self> for RenderPhase {
-    fn eq(&self, other: &Self) -> bool {
-        match self {
-            RenderPhase::Opaque => match other {
-                RenderPhase::Opaque => true,
-                RenderPhase::Alpha(_) => false,
-            },
-            RenderPhase::Alpha(priority_one) => match other {
-                RenderPhase::Opaque => false,
-                RenderPhase::Alpha(priority_two) => priority_one == priority_two,
-            },
-        }
-    }
-}
-
-impl PartialOrd for RenderPhase {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        match self {
-            RenderPhase::Opaque => match other {
-                RenderPhase::Opaque => Some(Ordering::Equal),
-                RenderPhase::Alpha(_) => Some(Ordering::Less),
-            },
-            RenderPhase::Alpha(priority_one) => match other {
-                RenderPhase::Opaque => Some(Ordering::Greater),
-                RenderPhase::Alpha(priority_two) => Some(priority_one.cmp(priority_two)),
-            },
-        }
-    }
-}
-
 impl Ash {
     pub(crate) fn initialize(&mut self, ginkgo: &Ginkgo) {
         for c_fn in self.creation.iter() {
             c_fn(&mut self.renderers, ginkgo);
         }
-        self.renderer_instructions
-            .sort_by(|lhs, rhs| -> Ordering { lhs.1.partial_cmp(&rhs.1).unwrap() });
         self.drawn = true;
     }
     pub(crate) fn add_renderer<R: Render>(&mut self) {
@@ -122,33 +145,49 @@ impl Ash {
             let renderer = Renderer::<R>::new(g);
             r.renderers.insert_non_send_resource(renderer);
         });
-        self.render_fns.push(|r, g, rqh| {
+        self.render_fns.push(
+            |r, g, rqh| -> Option<HashMap<AlphaDrawPointer, AlphaNodes>> {
+                let renderer = &mut *r
+                    .renderers
+                    .get_non_send_resource_mut::<Renderer<R>>()
+                    .unwrap();
+                if R::prepare(renderer, rqh, g) {
+                    R::record_opaque(renderer, g);
+                }
+                let nodes = if renderer.alpha_draws.changed {
+                    Some(renderer.alpha_draws.nodes.clone())
+                } else {
+                    None
+                };
+                renderer.alpha_draws.changed = false;
+                nodes
+            },
+        );
+        self.renderer_instructions.push((|r| -> Vec<&RenderBundle> {
+            r.renderers
+                .get_non_send_resource::<Renderer<R>>()
+                .unwrap()
+                .directive_manager
+                .directives
+                .values()
+                .map(|d| &d.0)
+                .collect::<Vec<&RenderBundle>>()
+        },));
+        self.alpha_draw_fns.push(|r, g, ap, ar| {
             let renderer = &mut *r
                 .renderers
                 .get_non_send_resource_mut::<Renderer<R>>()
                 .unwrap();
-            if R::prepare(renderer, rqh, g) {
-                R::record(renderer, g);
-            }
-        });
-        self.renderer_instructions.push((
-            |r| -> Vec<&RenderBundle> {
-                r.renderers
-                    .get_non_send_resource::<Renderer<R>>()
-                    .unwrap()
-                    .directive_manager
-                    .directives
-                    .values()
-                    .map(|d| &d.0)
-                    .collect::<Vec<&RenderBundle>>()
-            },
-            R::RENDER_PHASE,
-        ));
+            R::draw_alpha_range(renderer, g, ap, ar);
+        })
     }
     pub(crate) fn render(&mut self, ginkgo: &Ginkgo, elm: &mut Elm) {
         let mut handle = RenderQueueHandle::new(elm);
-        for r_fn in self.render_fns.iter() {
-            r_fn(&mut self.renderers, ginkgo, &mut handle);
+        for (i, r_fn) in self.render_fns.iter().enumerate() {
+            if let Some(nodes) = r_fn(&mut self.renderers, ginkgo, &mut handle) {
+                self.alpha_draw_calls.unsorted.insert(i, nodes);
+                self.alpha_draw_calls.changed = true;
+            }
         }
         let surface_texture = ginkgo.surface_texture();
         let view = surface_texture
@@ -168,9 +207,18 @@ impl Ash {
             timestamp_writes: None,
             occlusion_query_set: None,
         });
-        for (r_fn, _) in self.renderer_instructions.iter() {
+        for r_fn in self.renderer_instructions.iter() {
             let instructions = r_fn(&self.renderers);
             rpass.execute_bundles(instructions);
+        }
+        self.alpha_draw_calls.order();
+        for (renderer_index, directive_ptr, range) in self.alpha_draw_calls.calls.iter() {
+            self.alpha_draw_fns.get(renderer_index).unwrap()(
+                &mut self.renderers,
+                ginkgo,
+                *directive_ptr,
+                *range,
+            );
         }
         drop(rpass);
         ginkgo
@@ -216,7 +264,6 @@ where
     Self: Sized + 'static,
 {
     type DirectiveGroupKey: Hash + Eq + Copy + Clone;
-    const RENDER_PHASE: RenderPhase;
     type Resources;
     fn create_resources(ginkgo: &Ginkgo) -> Self::Resources;
     fn prepare(
@@ -224,5 +271,11 @@ where
         queue_handle: &mut RenderQueueHandle,
         ginkgo: &Ginkgo,
     ) -> bool;
-    fn record(renderer: &mut Renderer<Self>, ginkgo: &Ginkgo);
+    fn record_opaque(renderer: &mut Renderer<Self>, ginkgo: &Ginkgo);
+    fn draw_alpha_range(
+        renderer: &mut Renderer<Self>,
+        ginkgo: &Ginkgo,
+        alpha_draw_pointer: AlphaDrawPointer,
+        alpha_range: AlphaRange,
+    );
 }

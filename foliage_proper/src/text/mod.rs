@@ -340,7 +340,6 @@ pub(crate) const VERTICES: [Vertex; 6] = [
 ];
 impl Render for Text {
     type DirectiveGroupKey = Entity;
-    const RENDER_PHASE: RenderPhase = RenderPhase::Alpha(3);
     type Resources = TextResources;
 
     fn create_resources(ginkgo: &Ginkgo) -> Self::Resources {
@@ -696,8 +695,12 @@ impl Render for Text {
                     .checked_write(referrer, tex_coords);
             }
         }
-        for (_, group) in renderer.resource_handle.groups.iter_mut() {
-            if group.instances.resolve_changes(ginkgo) {
+        for (e, group) in renderer.resource_handle.groups.iter_mut() {
+            let (opaque_write, opt_nodes) = group.instances.resolve_changes(ginkgo);
+            if let Some(nodes) = opt_nodes {
+                renderer.set_alpha_nodes(e.index() as i32, nodes);
+            }
+            if opaque_write {
                 group.should_record = true;
                 should_record = true;
             }
@@ -705,11 +708,11 @@ impl Render for Text {
         should_record
     }
 
-    fn record(renderer: &mut Renderer<Self>, ginkgo: &Ginkgo) {
+    fn record_opaque(renderer: &mut Renderer<Self>, ginkgo: &Ginkgo) {
         for (entity, group) in renderer.resource_handle.groups.iter_mut() {
             if group.should_record {
                 let mut recorder = RenderDirectiveRecorder::new(ginkgo);
-                if group.instances.num_instances() > 0 {
+                if group.instances.num_opaque() > 0 {
                     recorder.0.set_pipeline(&renderer.resource_handle.pipeline);
                     recorder
                         .0
@@ -730,7 +733,7 @@ impl Render for Text {
                     );
                     recorder
                         .0
-                        .draw(0..VERTICES.len() as u32, 0..group.instances.num_instances());
+                        .draw(0..VERTICES.len() as u32, 0..group.instances.num_opaque());
                     renderer.directive_manager.fill(*entity, recorder.finish());
                 } else {
                     renderer.directive_manager.remove(*entity);

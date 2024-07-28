@@ -7,6 +7,8 @@ use bevy_ecs::world::World;
 use bytemuck::{Pod, Zeroable};
 use wgpu::{BufferDescriptor, BufferUsages};
 
+use crate::ash::AlphaNodes;
+use crate::color::Color;
 use crate::coordinate::elevation::RenderLayer;
 use crate::ginkgo::Ginkgo;
 
@@ -22,6 +24,7 @@ pub struct Instances<Key: Hash + Eq + Copy + Clone> {
     update_needed: bool,
     removal_queue: HashSet<Key>,
     changed: bool,
+    num_alpha: usize,
 }
 pub(crate) struct Swaps {
     swaps: Vec<Swap>,
@@ -42,8 +45,11 @@ impl<Key: Hash + Eq + Copy + Clone + Debug> Instances<Key> {
             .get(index)
             .expect(message.as_str())
     }
-    pub fn num_instances(&self) -> u32 {
-        self.order.len() as u32
+    pub fn num_opaque(&self) -> u32 {
+        self.order
+            .len()
+            .checked_sub(self.num_alpha)
+            .unwrap_or_default() as u32
     }
     pub fn checked_write<A: Pod + Zeroable + Default + Debug>(&mut self, key: Key, a: A) {
         if !self.has_key(&key) {
@@ -72,6 +78,7 @@ impl<Key: Hash + Eq + Copy + Clone + Debug> Instances<Key> {
             update_needed: false,
             removal_queue: HashSet::new(),
             changed: false,
+            num_alpha: 0,
         }
     }
     pub fn with_attribute<A: Pod + Zeroable + Default + Debug>(mut self, ginkgo: &Ginkgo) -> Self {
@@ -147,8 +154,9 @@ impl<Key: Hash + Eq + Copy + Clone + Debug> Instances<Key> {
             self.remove(o);
         }
     }
-    pub fn resolve_changes(&mut self, ginkgo: &Ginkgo) -> bool {
+    pub fn resolve_changes(&mut self, ginkgo: &Ginkgo) -> (bool, Option<AlphaNodes>) {
         let mut grown = false;
+        let mut nodes = None;
         if self.changed {
             self.process_removals();
             let mut ordering = self
@@ -160,19 +168,44 @@ impl<Key: Hash + Eq + Copy + Clone + Debug> Instances<Key> {
             let mut swaps = Swaps { swaps: vec![] };
             if self
                 .world
-                .get_non_send_resource_mut::<Attribute<RenderLayer>>()
+                .get_non_send_resource_mut::<Attribute<Color>>()
                 .is_some()
             {
-                let mut layered = vec![];
+                nodes.replace(AlphaNodes(HashMap::new()));
+                let mut alpha_sorted = vec![];
                 for (current, key) in ordering.iter() {
                     self.map.insert(key.clone(), *current);
-                    let l = self.get_attr::<RenderLayer>(key);
-                    layered.push((*current, key.clone(), l));
+                    let layer = if self
+                        .world
+                        .get_non_send_resource_mut::<Attribute<RenderLayer>>()
+                        .is_some()
+                    {
+                        self.get_attr::<RenderLayer>(key)
+                    } else {
+                        RenderLayer::default()
+                    };
+                    let alpha = self.get_attr::<Color>(key).alpha();
+                    alpha_sorted.push((*current, key.clone(), layer, alpha));
                 }
-                layered.sort_by(|lhs, rhs| -> Ordering { lhs.2.partial_cmp(&rhs.2).unwrap() });
-                layered.reverse();
+                alpha_sorted.sort_by(|lhs, rhs| -> Ordering {
+                    return if lhs.3 < 1.0 && rhs.3 == 1.0 {
+                        Ordering::Greater
+                    } else if lhs.3 == 1.0 && rhs.3 < 1.0 {
+                        Ordering::Less
+                    } else if lhs.3 < 1.0 && rhs.3 < 1.0 {
+                        if lhs.2 < rhs.2 {
+                            Ordering::Greater
+                        } else if lhs.2 > rhs.2 {
+                            Ordering::Less
+                        } else {
+                            Ordering::Equal
+                        }
+                    } else {
+                        Ordering::Equal
+                    };
+                });
                 ordering.clear();
-                for (end, (current, key, _)) in layered.iter().enumerate() {
+                for (end, (current, key, layer, alpha)) in alpha_sorted.iter().enumerate() {
                     if *current != end {
                         swaps.swaps.push(Swap {
                             current: *current,
@@ -180,7 +213,11 @@ impl<Key: Hash + Eq + Copy + Clone + Debug> Instances<Key> {
                         });
                     }
                     ordering.push((end, key.clone()));
+                    if *alpha < 1.0 {
+                        nodes.as_mut().unwrap().0.insert(end, *layer);
+                    }
                 }
+                self.num_alpha = nodes.as_ref().unwrap().0.len();
             }
             self.order.clear();
             for (i, k) in ordering {
@@ -205,7 +242,7 @@ impl<Key: Hash + Eq + Copy + Clone + Debug> Instances<Key> {
         }
         let update_needed = self.update_needed;
         self.update_needed = false;
-        grown || update_needed
+        (grown || update_needed, nodes)
     }
     fn queue_write<A: Pod + Zeroable + Default + Debug>(&mut self, key: Key, a: A) {
         let index = *self.map.get(&key).expect("key");
