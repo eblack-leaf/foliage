@@ -12,7 +12,7 @@ use wgpu::{
 };
 
 use crate::action::HasRenderLink;
-use crate::ash::{AlphaRange, Instructions, RenderDirectiveRecorder, Renderer};
+use crate::ash::{DrawRange, Renderer};
 use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::elevation::RenderLayer;
@@ -266,7 +266,7 @@ impl Render for Panel {
         renderer: &mut Renderer<Self>,
         queue_handle: &mut RenderQueueHandle,
         ginkgo: &Ginkgo,
-    ) -> bool {
+    ) {
         for entity in queue_handle.read_removes::<Self>() {
             renderer.resource_handle.instances.queue_remove(entity);
         }
@@ -284,15 +284,10 @@ impl Render for Panel {
                 .checked_write(packet.entity, packet.value);
         }
         for packet in queue_handle.read_adds::<Self, Color>() {
-            renderer.resource_handle.instances.checked_write(
-                packet.entity,
-                Color::rgba(
-                    packet.value.red(),
-                    packet.value.green(),
-                    packet.value.blue(),
-                    packet.value.alpha() * 0.99,
-                ),
-            );
+            renderer
+                .resource_handle
+                .instances
+                .checked_write(packet.entity, packet.value);
         }
         for packet in queue_handle.read_adds::<Self, CornerI>() {
             renderer
@@ -318,98 +313,17 @@ impl Render for Panel {
                 .instances
                 .checked_write(packet.entity, packet.value);
         }
-        let (sr, opt_nodes) = renderer.resource_handle.instances.resolve_changes(ginkgo);
-        if let Some(nodes) = opt_nodes {
-            renderer.alpha_draws.set_alpha_nodes(0, nodes);
-        }
-        sr
-    }
-
-    fn record_opaque(
-        renderer: &mut Renderer<Self>,
-        instructions: &mut Instructions<Self>,
-        ginkgo: &Ginkgo,
-    ) {
-        let mut recorder = RenderDirectiveRecorder::new(ginkgo);
-        if renderer.resource_handle.instances.num_opaque() > 0 {
-            recorder.0.set_pipeline(&renderer.resource_handle.pipeline);
-            recorder
-                .0
-                .set_bind_group(0, &renderer.resource_handle.bind_group, &[]);
-            recorder
-                .0
-                .set_vertex_buffer(0, renderer.resource_handle.vertex_buffer.slice(..));
-            recorder.0.set_vertex_buffer(
-                1,
-                renderer
-                    .resource_handle
-                    .instances
-                    .buffer::<GpuSection>()
-                    .slice(..),
-            );
-            recorder.0.set_vertex_buffer(
-                2,
-                renderer
-                    .resource_handle
-                    .instances
-                    .buffer::<RenderLayer>()
-                    .slice(..),
-            );
-            recorder.0.set_vertex_buffer(
-                3,
-                renderer
-                    .resource_handle
-                    .instances
-                    .buffer::<Color>()
-                    .slice(..),
-            );
-            recorder.0.set_vertex_buffer(
-                4,
-                renderer
-                    .resource_handle
-                    .instances
-                    .buffer::<CornerI>()
-                    .slice(..),
-            );
-            recorder.0.set_vertex_buffer(
-                5,
-                renderer
-                    .resource_handle
-                    .instances
-                    .buffer::<CornerII>()
-                    .slice(..),
-            );
-            recorder.0.set_vertex_buffer(
-                6,
-                renderer
-                    .resource_handle
-                    .instances
-                    .buffer::<CornerIII>()
-                    .slice(..),
-            );
-            recorder.0.set_vertex_buffer(
-                7,
-                renderer
-                    .resource_handle
-                    .instances
-                    .buffer::<CornerIV>()
-                    .slice(..),
-            );
-            recorder.0.draw(
-                0..VERTICES.len() as u32,
-                0..renderer.resource_handle.instances.num_opaque(),
-            );
-            let directive = recorder.finish();
-            instructions.directive_manager.fill(0, directive);
-        } else {
-            instructions.directive_manager.remove(0);
+        if renderer.resource_handle.instances.resolve_changes(ginkgo) {
+            renderer
+                .node_manager
+                .set_nodes(0, renderer.resource_handle.instances.render_nodes());
         }
     }
 
-    fn draw_alpha_range<'a>(
+    fn draw<'a>(
         renderer: &'a Renderer<Self>,
         group_key: Self::DirectiveGroupKey,
-        alpha_range: AlphaRange,
+        alpha_range: DrawRange,
         render_pass: &mut RenderPass<'a>,
     ) {
         render_pass.set_pipeline(&renderer.resource_handle.pipeline);

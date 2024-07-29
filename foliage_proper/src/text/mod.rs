@@ -16,7 +16,7 @@ use wgpu::{
 use wgpu::{BindGroupLayout, RenderPipeline};
 
 use crate::action::HasRenderLink;
-use crate::ash::{AlphaRange, Instructions, Render, RenderDirectiveRecorder, Renderer};
+use crate::ash::{DrawRange, Render, RenderNodes, Renderer};
 use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::elevation::RenderLayer;
@@ -434,8 +434,7 @@ impl Render for Text {
         renderer: &mut Renderer<Self>,
         queue_handle: &mut RenderQueueHandle,
         ginkgo: &Ginkgo,
-    ) -> bool {
-        let mut should_record = false;
+    ) {
         for packet in queue_handle.read_removes::<Self>() {
             if !renderer.resource_handle.groups.contains_key(&packet) {
                 continue;
@@ -446,7 +445,6 @@ impl Render for Text {
                 .get_mut(&packet)
                 .unwrap()
                 .should_record = true;
-            should_record = true;
             renderer
                 .resource_handle
                 .groups
@@ -686,7 +684,6 @@ impl Render for Text {
                     .get_mut(&packet.entity)
                     .unwrap()
                     .should_record = true;
-                should_record = true;
             }
             for (key, referrer) in queued_tex_reads {
                 let tex_coords = renderer
@@ -706,68 +703,20 @@ impl Render for Text {
             }
         }
         for (e, group) in renderer.resource_handle.groups.iter_mut() {
-            let (opaque_write, opt_nodes) = group.instances.resolve_changes(ginkgo);
-            if let Some(nodes) = opt_nodes {
-                tracing::trace!("num-alpha:{:?}", nodes.0.len());
-                renderer.alpha_draws.set_alpha_nodes(
-                    e.index() as i32,
-                    nodes.set_global_layer(group.pos_and_layer.uniform.data[2].into()),
-                );
-            }
-            if opaque_write {
-                tracing::trace!("recording text for:{:?}", e);
-                group.should_record = true;
-                should_record = true;
-            }
-        }
-        should_record
-    }
-
-    fn record_opaque(
-        renderer: &mut Renderer<Self>,
-        instructions: &mut Instructions<Self>,
-        ginkgo: &Ginkgo,
-    ) {
-        for (entity, group) in renderer.resource_handle.groups.iter_mut() {
-            if group.should_record {
-                let mut recorder = RenderDirectiveRecorder::new(ginkgo);
-                if group.instances.num_opaque() > 0 {
-                    recorder.0.set_pipeline(&renderer.resource_handle.pipeline);
-                    recorder
-                        .0
-                        .set_bind_group(1, &renderer.resource_handle.bind_group, &[]);
-                    recorder.0.set_bind_group(0, &group.bind_group, &[]);
-                    recorder
-                        .0
-                        .set_vertex_buffer(0, renderer.resource_handle.vertex_buffer.slice(..));
-                    recorder
-                        .0
-                        .set_vertex_buffer(1, group.instances.buffer::<GpuSection>().slice(..));
-                    recorder
-                        .0
-                        .set_vertex_buffer(2, group.instances.buffer::<Color>().slice(..));
-                    recorder.0.set_vertex_buffer(
-                        3,
-                        group.instances.buffer::<TextureCoordinates>().slice(..),
-                    );
-                    recorder
-                        .0
-                        .draw(0..VERTICES.len() as u32, 0..group.instances.num_opaque());
-                    instructions
-                        .directive_manager
-                        .fill(*entity, recorder.finish());
-                } else {
-                    instructions.directive_manager.remove(*entity);
-                }
-                group.should_record = false;
+            if group.instances.resolve_changes(ginkgo) {
+                let mut nodes = RenderNodes::new();
+                nodes
+                    .0
+                    .insert(0, group.pos_and_layer.uniform.data[2].into());
+                renderer.node_manager.set_nodes(e.index() as i32, nodes);
             }
         }
     }
 
-    fn draw_alpha_range<'a>(
+    fn draw<'a>(
         renderer: &'a Renderer<Self>,
         group_key: Self::DirectiveGroupKey,
-        alpha_range: AlphaRange,
+        alpha_range: DrawRange,
         render_pass: &mut RenderPass<'a>,
     ) {
         let group = renderer.resource_handle.groups.get(&group_key).unwrap();
@@ -778,6 +727,6 @@ impl Render for Text {
         render_pass.set_vertex_buffer(1, group.instances.buffer::<GpuSection>().slice(..));
         render_pass.set_vertex_buffer(2, group.instances.buffer::<Color>().slice(..));
         render_pass.set_vertex_buffer(3, group.instances.buffer::<TextureCoordinates>().slice(..));
-        render_pass.draw(0..VERTICES.len() as u32, alpha_range.start..alpha_range.end);
+        render_pass.draw(0..VERTICES.len() as u32, 0..group.instances.num_instances());
     }
 }
