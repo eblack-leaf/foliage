@@ -293,7 +293,11 @@ pub(crate) fn distill(
             (normal.center() - adjusted.center()).coordinates;
         primitive_offset.section.area.coordinates = area.coordinates - adjusted.area.coordinates;
         for (offset, glyph) in old_glyphs {
-            if !glyphs.glyphs.contains_key(&offset) {
+            if let Some(new) = glyphs.glyphs.get(&offset) {
+                if glyph.key.glyph_index != new.key.glyph_index {
+                    glyphs.removed.insert(offset);
+                }
+            } else {
                 glyphs.removed.insert(offset);
             }
         }
@@ -439,6 +443,7 @@ impl Render for Text {
             if !renderer.resource_handle.groups.contains_key(&packet) {
                 continue;
             }
+            tracing::trace!("removing text group: {:?}", packet);
             renderer
                 .resource_handle
                 .groups
@@ -456,6 +461,7 @@ impl Render for Text {
             renderer.disassociate_alpha_pointer(packet.index() as i32);
         }
         for packet in queue_handle.read_adds::<Self, GlyphMetrics>() {
+            tracing::trace!("glyph-metrics changed => remaking group");
             renderer.associate_alpha_pointer(packet.entity.index() as i32, packet.entity);
             let atlas = TextureAtlas::new(
                 ginkgo,
@@ -527,6 +533,7 @@ impl Render for Text {
         }
         for packet in queue_handle.read_adds::<Self, Glyphs>() {
             for offset in packet.value.removed.iter() {
+                tracing::trace!("removing offset: {:?}", offset);
                 renderer
                     .resource_handle
                     .groups
@@ -567,6 +574,7 @@ impl Render for Text {
                     .texture_atlas
                     .has_key(glyph.key)
                 {
+                    // tracing::trace!("writing new key: {:?} @ {:?}", glyph.parent, offset);
                     let (metrics, rasterization) = renderer
                         .resource_handle
                         .font
@@ -589,6 +597,7 @@ impl Render for Text {
                         .unwrap()
                         .texture_atlas
                         .tex_coordinates(glyph.key);
+                    // tracing::trace!("reading existing key: {:?} @ {:?} w/ {:?}", glyph.parent, offset, tex_coords);
                     renderer
                         .resource_handle
                         .groups
@@ -613,6 +622,7 @@ impl Render for Text {
                 .texture_atlas
                 .resolve(ginkgo);
             for key in changed {
+                // tracing::trace!("changed -> rewriting entry for key:{:?}", key.glyph_index);
                 let (metrics, rasterization) = renderer
                     .resource_handle
                     .font
@@ -627,6 +637,7 @@ impl Render for Text {
                     .texture_atlas
                     .write_entry(ginkgo, key, entry);
                 for change in updated.iter() {
+                    // tracing::trace!("updating tex-coords for : {:?}", change.tex_coords);
                     renderer
                         .resource_handle
                         .groups
@@ -638,6 +649,7 @@ impl Render for Text {
             }
             if grown {
                 // remake bind group
+                tracing::trace!("growing text-buffer + rebinding group");
                 let new_bind_group = ginkgo.create_bind_group(&BindGroupDescriptor {
                     label: Some("text-group-bind-group"),
                     layout: &renderer.resource_handle.group_layout,
@@ -678,6 +690,7 @@ impl Render for Text {
                     .should_record = true;
             }
             for (key, referrer) in queued_tex_reads {
+                // tracing::trace!("writing queued-tex-read for:{:?} {:?}", key.glyph_index, referrer);
                 let tex_coords = renderer
                     .resource_handle
                     .groups
