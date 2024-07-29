@@ -10,15 +10,13 @@ use fontdue::layout::CoordinateSystem;
 use serde::{Deserialize, Serialize};
 use wgpu::{
     include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayoutDescriptor,
-    PipelineLayoutDescriptor, RenderPipelineDescriptor, ShaderStages, TextureFormat,
+    PipelineLayoutDescriptor, RenderPass, RenderPipelineDescriptor, ShaderStages, TextureFormat,
     TextureSampleType, TextureViewDimension, VertexState, VertexStepMode,
 };
 use wgpu::{BindGroupLayout, RenderPipeline};
 
 use crate::action::HasRenderLink;
-use crate::ash::{
-    AlphaDrawPointer, AlphaRange, Instructions, Render, RenderDirectiveRecorder, Renderer,
-};
+use crate::ash::{AlphaRange, Instructions, Render, RenderDirectiveRecorder, Renderer};
 use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::elevation::RenderLayer;
@@ -700,9 +698,10 @@ impl Render for Text {
         for (e, group) in renderer.resource_handle.groups.iter_mut() {
             let (opaque_write, opt_nodes) = group.instances.resolve_changes(ginkgo);
             if let Some(nodes) = opt_nodes {
-                renderer
-                    .alpha_draws
-                    .set_alpha_nodes(e.index() as i32, nodes);
+                renderer.alpha_draws.set_alpha_nodes(
+                    e.index() as i32,
+                    nodes.set_global_layer(group.pos_and_layer.uniform.data[2].into()),
+                );
             }
             if opaque_write {
                 group.should_record = true;
@@ -753,12 +752,20 @@ impl Render for Text {
         }
     }
 
-    fn draw_alpha_range(
-        renderer: &mut Renderer<Self>,
-        ginkgo: &Ginkgo,
-        alpha_draw_pointer: AlphaDrawPointer,
+    fn draw_alpha_range<'a>(
+        renderer: &'a Renderer<Self>,
+        group_key: Self::DirectiveGroupKey,
         alpha_range: AlphaRange,
+        render_pass: &mut RenderPass<'a>,
     ) {
-        todo!()
+        let group = renderer.resource_handle.groups.get(&group_key).unwrap();
+        render_pass.set_pipeline(&renderer.resource_handle.pipeline);
+        render_pass.set_bind_group(0, &group.bind_group, &[]);
+        render_pass.set_bind_group(1, &renderer.resource_handle.bind_group, &[]);
+        render_pass.set_vertex_buffer(0, renderer.resource_handle.vertex_buffer.slice(..));
+        render_pass.set_vertex_buffer(1, group.instances.buffer::<GpuSection>().slice(..));
+        render_pass.set_vertex_buffer(2, group.instances.buffer::<Color>().slice(..));
+        render_pass.set_vertex_buffer(3, group.instances.buffer::<TextureCoordinates>().slice(..));
+        render_pass.draw(0..VERTICES.len() as u32, alpha_range.start..alpha_range.end);
     }
 }

@@ -13,20 +13,22 @@ struct Vertex{
     @location(2) section: vec4<f32>,
     @location(3) layer: f32,
     @location(4) tx_coords: vec4<f32>,
+    @location(5) color: vec4<f32>,
 };
 struct Fragment {
     @builtin(position) position: vec4<f32>,
     @location(0) tx_coords: vec2<f32>,
+    @location(1) color: vec4f,
 
 };
 @vertex
 fn vertex_entry(vertex: Vertex) -> Fragment {
     let position = vec4<f32>(vertex.section.xy + vertex.vertex_pos * vertex.section.zw, vertex.layer, 1.0);
     let tx_coords = vec2<f32>(vertex.tx_coords[vertex.tx_index.x], vertex.tx_coords[vertex.tx_index.y]);
-    return Fragment(viewport * position, tx_coords);
+    return Fragment(viewport * position, tx_coords, vertex.color);
 }
 @fragment
 fn fragment_entry(frag: Fragment) -> @location(0) vec4<f32> {
-    let color = textureSample(image_texture, image_sampler, frag.tx_coords);
+    let color = textureSample(image_texture, image_sampler, frag.tx_coords) * frag.color;
     return color;
 }

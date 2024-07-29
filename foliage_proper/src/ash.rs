@@ -4,7 +4,7 @@ use std::hash::Hash;
 use bevy_ecs::world::World;
 use wgpu::{
     CommandEncoderDescriptor, RenderBundle, RenderBundleDepthStencil, RenderBundleDescriptor,
-    RenderBundleEncoderDescriptor, RenderPassDescriptor, TextureViewDescriptor,
+    RenderBundleEncoderDescriptor, RenderPass, RenderPassDescriptor, TextureViewDescriptor,
 };
 
 use crate::color::Color;
@@ -45,7 +45,7 @@ pub(crate) struct Ash {
     pub(crate) drawn: bool,
     pub(crate) alpha_draw_calls: AlphaDrawCalls,
     pub(crate) alpha_draw_fns:
-        Vec<fn(&mut RendererStructure, &Ginkgo, AlphaDrawPointer, AlphaRange)>,
+        Vec<for<'a> fn(&'a RendererStructure, AlphaDrawPointer, AlphaRange, &mut RenderPass<'a>)>,
 }
 #[derive(Copy, Clone, Hash, Ord, PartialOrd, PartialEq, Eq)]
 pub(crate) struct AlphaDrawPointer(pub(crate) i32);
@@ -96,8 +96,8 @@ impl AlphaNodes {
 }
 #[derive(Copy, Clone)]
 pub(crate) struct AlphaRange {
-    pub(crate) start: usize,
-    pub(crate) end: usize,
+    pub(crate) start: u32,
+    pub(crate) end: u32,
 }
 #[derive(Default)]
 pub(crate) struct RendererStructure {
@@ -140,7 +140,7 @@ impl<R: Render> Renderer<R> {
     pub fn disassociate_alpha_pointer(&mut self, ap: i32) {
         self.alpha_draws.mapping.remove(&AlphaDrawPointer(ap));
     }
-    pub fn get_key(&self, ap: i32) -> R::DirectiveGroupKey {
+    pub(crate) fn get_key(&self, ap: i32) -> R::DirectiveGroupKey {
         *self.alpha_draws.mapping.get(&AlphaDrawPointer(ap)).unwrap()
     }
 }
@@ -189,13 +189,11 @@ impl Ash {
                 .map(|d| &d.0)
                 .collect::<Vec<&RenderBundle>>()
         });
-        self.alpha_draw_fns.push(|r, g, ap, ar| {
-            let renderer = &mut *r
-                .renderers
-                .get_non_send_resource_mut::<Renderer<R>>()
-                .unwrap();
-            R::draw_alpha_range(renderer, g, ap, ar);
-        })
+        self.alpha_draw_fns.push(|r, ap, ar, rpass| {
+            let renderer = r.renderers.get_non_send_resource::<Renderer<R>>().unwrap();
+            let key = renderer.get_key(ap.0);
+            R::draw_alpha_range(renderer, key, ar, rpass);
+        });
     }
     pub(crate) fn render(&mut self, ginkgo: &Ginkgo, elm: &mut Elm) {
         let mut handle = RenderQueueHandle::new(elm);
@@ -235,10 +233,10 @@ impl Ash {
         self.alpha_draw_calls.order();
         for (renderer_index, directive_ptr, range) in self.alpha_draw_calls.calls.iter() {
             self.alpha_draw_fns.get(*renderer_index).unwrap()(
-                &mut self.renderers,
-                ginkgo,
+                &self.renderers,
                 *directive_ptr,
                 *range,
+                &mut rpass,
             );
         }
         drop(rpass);
@@ -296,10 +294,10 @@ where
         instructions: &mut Instructions<Self>,
         ginkgo: &Ginkgo,
     );
-    fn draw_alpha_range(
-        renderer: &mut Renderer<Self>,
-        ginkgo: &Ginkgo,
-        alpha_draw_pointer: AlphaDrawPointer,
+    fn draw_alpha_range<'a>(
+        renderer: &'a Renderer<Self>,
+        group_key: Self::DirectiveGroupKey,
         alpha_range: AlphaRange,
+        render_pass: &mut RenderPass<'a>,
     );
 }

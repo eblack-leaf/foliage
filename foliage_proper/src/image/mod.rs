@@ -8,15 +8,14 @@ use bevy_ecs::system::Query;
 use bytemuck::{Pod, Zeroable};
 use wgpu::{
     include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor,
-    Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, PipelineLayoutDescriptor,
+    Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, PipelineLayoutDescriptor, RenderPass,
     RenderPipeline, RenderPipelineDescriptor, ShaderStages, Texture, TextureAspect, TextureFormat,
     TextureSampleType, TextureView, TextureViewDimension, VertexState, VertexStepMode,
 };
 
 use crate::action::HasRenderLink;
-use crate::ash::{
-    AlphaDrawPointer, AlphaRange, Instructions, Render, RenderDirectiveRecorder, Renderer,
-};
+use crate::ash::{AlphaRange, Instructions, Render, RenderDirectiveRecorder, Renderer};
+use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::elevation::RenderLayer;
 use crate::coordinate::position::Position;
@@ -73,6 +72,7 @@ pub struct Image {
     link: RenderLink,
     fill: Differential<ImageFill>,
     view: Differential<ImageView>,
+    color: Differential<Color>,
     gpu_section: Differential<GpuSection>,
     section: Section<LogicalContext>,
     layer: Differential<RenderLayer>,
@@ -103,6 +103,7 @@ impl Image {
             link: RenderLink::new::<Image>(),
             fill: Differential::new(ImageFill(id.into(), image_bytes, dimensions)),
             view: Differential::new(ImageView::Stretch),
+            color: Differential::new(Color::WHITE),
             gpu_section: Differential::new(GpuSection::default()),
             section: Section::default(),
             layer: Differential::new(RenderLayer::default()),
@@ -197,6 +198,7 @@ impl Leaf for Image {
         elm.enable_differential::<Self, ImageFill>();
         elm.enable_differential::<Self, ImageSlotDescriptor>();
         elm.enable_differential::<Self, ImageView>();
+        elm.enable_differential::<Self, Color>();
         elm.scheduler
             .main
             .add_systems(constrain.in_set(ScheduleMarkers::Config));
@@ -319,6 +321,10 @@ impl Render for Image {
                         VertexStepMode::Instance,
                         &wgpu::vertex_attr_array![4 => Float32x4],
                     ),
+                    Ginkgo::vertex_buffer_layout::<Color>(
+                        VertexStepMode::Instance,
+                        &wgpu::vertex_attr_array![5 => Float32x4],
+                    ),
                 ],
             },
             primitive: Ginkgo::triangle_list_primitive(),
@@ -381,7 +387,8 @@ impl Render for Image {
                     instances: Instances::new(1)
                         .with_attribute::<GpuSection>(ginkgo)
                         .with_attribute::<RenderLayer>(ginkgo)
-                        .with_attribute::<TextureCoordinates>(ginkgo),
+                        .with_attribute::<TextureCoordinates>(ginkgo)
+                        .with_attribute::<Color>(ginkgo),
                     slot_extent: packet.value.1,
                     image_extent: Default::default(),
                     texture_coordinates: Default::default(),
@@ -535,6 +542,20 @@ impl Render for Image {
                 .instances
                 .checked_write(packet.entity, packet.value);
         }
+        for packet in queue_handle.read_adds::<Self, Color>() {
+            let id = *renderer
+                .resource_handle
+                .entity_to_image
+                .get(&packet.entity)
+                .unwrap();
+            renderer
+                .resource_handle
+                .groups
+                .get_mut(&id)
+                .unwrap()
+                .instances
+                .checked_write(packet.entity, packet.value);
+        }
         let mut should_record = false;
         for (slot_id, group) in renderer.resource_handle.groups.iter_mut() {
             let (sr, opt_nodes) = group.instances.resolve_changes(ginkgo);
@@ -578,6 +599,9 @@ impl Render for Image {
                     );
                     recorder
                         .0
+                        .set_vertex_buffer(4, group.instances.buffer::<Color>().slice(..));
+                    recorder
+                        .0
                         .draw(0..VERTICES.len() as u32, 0..group.instances.num_opaque());
                     instructions
                         .directive_manager
@@ -590,12 +614,21 @@ impl Render for Image {
         }
     }
 
-    fn draw_alpha_range(
-        renderer: &mut Renderer<Self>,
-        ginkgo: &Ginkgo,
-        alpha_draw_pointer: AlphaDrawPointer,
+    fn draw_alpha_range<'a>(
+        renderer: &'a Renderer<Self>,
+        group_key: Self::DirectiveGroupKey,
         alpha_range: AlphaRange,
+        render_pass: &mut RenderPass<'a>,
     ) {
-        todo!()
+        let group = renderer.resource_handle.groups.get(&group_key).unwrap();
+        render_pass.set_pipeline(&renderer.resource_handle.pipeline);
+        render_pass.set_bind_group(0, &group.bind_group, &[]);
+        render_pass.set_bind_group(1, &renderer.resource_handle.bind_group, &[]);
+        render_pass.set_vertex_buffer(0, renderer.resource_handle.vertex_buffer.slice(..));
+        render_pass.set_vertex_buffer(1, group.instances.buffer::<GpuSection>().slice(..));
+        render_pass.set_vertex_buffer(2, group.instances.buffer::<RenderLayer>().slice(..));
+        render_pass.set_vertex_buffer(3, group.instances.buffer::<TextureCoordinates>().slice(..));
+        render_pass.set_vertex_buffer(4, group.instances.buffer::<Color>().slice(..));
+        render_pass.draw(0..VERTICES.len() as u32, alpha_range.start..alpha_range.end);
     }
 }
