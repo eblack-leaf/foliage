@@ -280,6 +280,7 @@ impl Render for Icon {
         ginkgo: &Ginkgo,
     ) -> bool {
         for packet in queue_handle.read_adds::<Self, IconData>() {
+            renderer.associate_alpha_pointer(packet.value.0 .0, packet.value.0);
             let (_, view) = ginkgo.create_texture(
                 TextureFormat::R8Unorm,
                 Self::TEXTURE_SCALE,
@@ -404,7 +405,15 @@ impl Render for Icon {
                 .resource_handle
                 .group_mut_from_entity(packet.entity)
                 .instances
-                .checked_write(packet.entity, packet.value);
+                .checked_write(
+                    packet.entity,
+                    Color::rgba(
+                        packet.value.red(),
+                        packet.value.green(),
+                        packet.value.blue(),
+                        packet.value.alpha() * 0.99,
+                    ),
+                );
         }
         let mut should_record = false;
         for (i, g) in renderer.resource_handle.groups.iter_mut() {

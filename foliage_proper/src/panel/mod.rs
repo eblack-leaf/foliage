@@ -277,16 +277,22 @@ impl Render for Panel {
                 .checked_write(packet.entity, packet.value);
         }
         for packet in queue_handle.read_adds::<Self, RenderLayer>() {
+            renderer.associate_alpha_pointer(0, 0);
             renderer
                 .resource_handle
                 .instances
                 .checked_write(packet.entity, packet.value);
         }
         for packet in queue_handle.read_adds::<Self, Color>() {
-            renderer
-                .resource_handle
-                .instances
-                .checked_write(packet.entity, packet.value);
+            renderer.resource_handle.instances.checked_write(
+                packet.entity,
+                Color::rgba(
+                    packet.value.red(),
+                    packet.value.green(),
+                    packet.value.blue(),
+                    packet.value.alpha() * 0.99,
+                ),
+            );
         }
         for packet in queue_handle.read_adds::<Self, CornerI>() {
             renderer
@@ -312,7 +318,6 @@ impl Render for Panel {
                 .instances
                 .checked_write(packet.entity, packet.value);
         }
-
         let (sr, opt_nodes) = renderer.resource_handle.instances.resolve_changes(ginkgo);
         if let Some(nodes) = opt_nodes {
             renderer.alpha_draws.set_alpha_nodes(0, nodes);

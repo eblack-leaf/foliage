@@ -455,8 +455,10 @@ impl Render for Text {
                 .instances
                 .clear();
             // renderer.directive_manager.remove(packet);
+            renderer.disassociate_alpha_pointer(packet.index() as i32);
         }
         for packet in queue_handle.read_adds::<Self, GlyphMetrics>() {
+            renderer.associate_alpha_pointer(packet.entity.index() as i32, packet.entity);
             let atlas = TextureAtlas::new(
                 ginkgo,
                 packet.value.block,
@@ -558,7 +560,15 @@ impl Render for Text {
                     .get_mut(&packet.entity)
                     .unwrap()
                     .instances
-                    .checked_write(*offset, glyph.color);
+                    .checked_write(
+                        *offset,
+                        Color::rgba(
+                            glyph.color.red(),
+                            glyph.color.green(),
+                            glyph.color.blue(),
+                            glyph.color.alpha() * 0.99,
+                        ),
+                    );
                 if !renderer
                     .resource_handle
                     .groups
@@ -698,12 +708,14 @@ impl Render for Text {
         for (e, group) in renderer.resource_handle.groups.iter_mut() {
             let (opaque_write, opt_nodes) = group.instances.resolve_changes(ginkgo);
             if let Some(nodes) = opt_nodes {
+                tracing::trace!("num-alpha:{:?}", nodes.0.len());
                 renderer.alpha_draws.set_alpha_nodes(
                     e.index() as i32,
                     nodes.set_global_layer(group.pos_and_layer.uniform.data[2].into()),
                 );
             }
             if opaque_write {
+                tracing::trace!("recording text for:{:?}", e);
                 group.should_record = true;
                 should_record = true;
             }

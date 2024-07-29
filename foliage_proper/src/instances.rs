@@ -188,9 +188,9 @@ impl<Key: Hash + Eq + Copy + Clone + Debug> Instances<Key> {
                     alpha_sorted.push((*current, key.clone(), layer, alpha));
                 }
                 alpha_sorted.sort_by(|lhs, rhs| -> Ordering {
-                    return if lhs.3 < 1.0 && rhs.3 == 1.0 {
+                    return if lhs.3 < 1.0 && rhs.3 >= 1.0 {
                         Ordering::Greater
-                    } else if lhs.3 == 1.0 && rhs.3 < 1.0 {
+                    } else if lhs.3 >= 1.0 && rhs.3 < 1.0 {
                         Ordering::Less
                     } else if lhs.3 < 1.0 && rhs.3 < 1.0 {
                         if lhs.2 < rhs.2 {
@@ -218,6 +218,7 @@ impl<Key: Hash + Eq + Copy + Clone + Debug> Instances<Key> {
                     }
                 }
                 self.num_alpha = nodes.as_ref().unwrap().0.len();
+                self.update_needed = true;
             }
             self.order.clear();
             for (i, k) in ordering {

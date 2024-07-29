@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::hash::Hash;
 
@@ -78,13 +79,44 @@ impl AlphaDrawCalls {
     pub(crate) fn order(&mut self) {
         if self.changed {
             // order
-            // clear self.calls
-            // sort by render-layer + split into ranges of draws + .push((usize, range))
+            let mut all = vec![];
+            for (renderer_index, an) in self.unsorted.iter() {
+                for (ptr, nodes) in an.iter() {
+                    for (instance_index, layer) in nodes.0.iter() {
+                        all.push((*renderer_index, *ptr, *instance_index, *layer));
+                    }
+                }
+            }
+            // TODO add order by layer then group-ptr
+            all.sort_by(|lhs, rhs| {
+                if lhs.3 > rhs.3 {
+                    Ordering::Less
+                } else if lhs.3 < rhs.3 {
+                    Ordering::Greater
+                } else {
+                    if lhs.0 < rhs.0 {
+                        Ordering::Less
+                    } else if lhs.0 > rhs.0 {
+                        Ordering::Greater
+                    } else {
+                        Ordering::Equal
+                    }
+                }
+            });
+            self.calls.clear();
+            for (renderer_index, ptr, instance_index, _) in all {
+                // TODO optimize => if contiguous renderer-index => keep range going else => end + add call
+                self.calls.push((
+                    renderer_index,
+                    ptr,
+                    AlphaRange::new(instance_index as u32, instance_index as u32 + 1),
+                ));
+            }
             self.changed = false;
         }
     }
 }
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct AlphaNodes(pub(crate) HashMap<usize, RenderLayer>);
 impl AlphaNodes {
     pub fn set_global_layer(mut self, layer: RenderLayer) -> Self {
@@ -98,6 +130,11 @@ impl AlphaNodes {
 pub(crate) struct AlphaRange {
     pub(crate) start: u32,
     pub(crate) end: u32,
+}
+impl AlphaRange {
+    pub(crate) fn new(start: u32, end: u32) -> Self {
+        Self { start, end }
+    }
 }
 #[derive(Default)]
 pub(crate) struct RendererStructure {
