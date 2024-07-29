@@ -47,12 +47,12 @@ impl<R: Render> RenderNodeManager<R> {
 pub(crate) struct Ash {
     pub(crate) renderers: RendererStructure,
     pub(crate) creation: Vec<fn(&mut RendererStructure, &Ginkgo)>,
-    pub(crate) render_fns: Vec<
+    pub(crate) prepare_fns: Vec<
         fn(&mut RendererStructure, &Ginkgo, &mut RenderQueueHandle) -> Option<RenderNodeChanges>,
     >,
     pub(crate) drawn: bool,
     pub(crate) draw_calls: DrawCalls,
-    pub(crate) alpha_draw_fns: Vec<
+    pub(crate) draw_fns: Vec<
         for<'a> fn(&'a RendererStructure, DirectiveGroupPointer, DrawRange, &mut RenderPass<'a>),
     >,
 }
@@ -169,7 +169,7 @@ impl Ash {
             let renderer = Renderer::<R>::new(g);
             r.renderers.insert_non_send_resource(renderer);
         });
-        self.render_fns
+        self.prepare_fns
             .push(|r, g, rqh| -> Option<RenderNodeChanges> {
                 let renderer = &mut *r
                     .renderers
@@ -178,7 +178,7 @@ impl Ash {
                 R::prepare(renderer, rqh, g);
                 renderer.node_manager.changes()
             });
-        self.alpha_draw_fns.push(|r, ap, ar, rpass| {
+        self.draw_fns.push(|r, ap, ar, rpass| {
             let renderer = r.renderers.get_non_send_resource::<Renderer<R>>().unwrap();
             let key = renderer.get_key(ap.0);
             R::draw(renderer, key, ar, rpass);
@@ -186,8 +186,8 @@ impl Ash {
     }
     pub(crate) fn render(&mut self, ginkgo: &Ginkgo, elm: &mut Elm) {
         let mut handle = RenderQueueHandle::new(elm);
-        for (i, r_fn) in self.render_fns.iter().enumerate() {
-            if let Some(changes) = r_fn(&mut self.renderers, ginkgo, &mut handle) {
+        for (i, p_fn) in self.prepare_fns.iter().enumerate() {
+            if let Some(changes) = p_fn(&mut self.renderers, ginkgo, &mut handle) {
                 self.draw_calls.unsorted.insert(i, changes.nodes);
                 self.draw_calls.changed = true;
             }
@@ -212,7 +212,7 @@ impl Ash {
         });
         self.draw_calls.order();
         for (renderer_index, directive_ptr, range) in self.draw_calls.calls.iter() {
-            self.alpha_draw_fns.get(*renderer_index).unwrap()(
+            self.draw_fns.get(*renderer_index).unwrap()(
                 &self.renderers,
                 *directive_ptr,
                 *range,
