@@ -405,15 +405,7 @@ impl Render for Icon {
                 .resource_handle
                 .group_mut_from_entity(packet.entity)
                 .instances
-                .checked_write(
-                    packet.entity,
-                    Color::rgba(
-                        packet.value.red(),
-                        packet.value.green(),
-                        packet.value.blue(),
-                        packet.value.alpha() * 0.99,
-                    ),
-                );
+                .checked_write(packet.entity, packet.value);
         }
         for (i, g) in renderer.resource_handle.groups.iter_mut() {
             if g.instances.resolve_changes(ginkgo) {

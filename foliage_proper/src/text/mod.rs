@@ -558,15 +558,7 @@ impl Render for Text {
                     .get_mut(&packet.entity)
                     .unwrap()
                     .instances
-                    .checked_write(
-                        *offset,
-                        Color::rgba(
-                            glyph.color.red(),
-                            glyph.color.green(),
-                            glyph.color.blue(),
-                            glyph.color.alpha() * 0.99,
-                        ),
-                    );
+                    .checked_write(*offset, glyph.color);
                 if !renderer
                     .resource_handle
                     .groups
