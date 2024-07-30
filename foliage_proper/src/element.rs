@@ -194,7 +194,7 @@ fn recursive_placement_inner(
     }
     placed
 }
-#[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Debug)]
 pub struct TargetHandle(pub String);
 impl<S: AsRef<str>> From<S> for TargetHandle {
     fn from(value: S) -> Self {

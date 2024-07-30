@@ -294,7 +294,11 @@ pub(crate) fn animate_grid_placement(
             let delta = animation.animation_time.time_delta(frame_diff);
             let percent = animation.easement.percent_changed(delta);
             for i in animation.interpolations.scalars.iter_mut() {
-                let d = i.start + i.diff * percent;
+                let d = if percent >= 1.0 {
+                    i.end
+                } else {
+                    i.start + i.diff * percent
+                };
                 i.current_value.replace(d);
             }
             let mut orphaned = false;
@@ -374,7 +378,11 @@ pub(crate) fn animate<A: Animate>(
             let delta = animation.animation_time.time_delta(frame_diff);
             let percent = animation.easement.percent_changed(delta);
             for i in animation.interpolations.scalars.iter_mut() {
-                let d = i.start + i.diff * percent;
+                let d = if percent >= 1.0 {
+                    i.end
+                } else {
+                    i.start + i.diff * percent
+                };
                 i.current_value.replace(d);
             }
             let mut orphaned = false;

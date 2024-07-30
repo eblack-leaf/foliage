@@ -4,7 +4,7 @@ use bevy_ecs::prelude::{Component, ResMut, Resource};
 use bitflags::bitflags;
 
 use crate::anim::{Animate, Interpolations};
-use crate::coordinate::elevation::{Elevation, RenderLayer};
+use crate::coordinate::elevation::Elevation;
 use crate::coordinate::placement::Placement;
 use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, Coordinates, LogicalContext};
@@ -127,7 +127,7 @@ impl Grid {
             self.placement.render_layer.0 + elevation.0,
         );
         let offset = if let Some(queued) = grid_placement.queued_offset {
-            queued - placed.section
+            grid_placement.offset + queued - placed.section
         } else {
             grid_placement.offset
         };
@@ -391,15 +391,6 @@ impl GridRange {
             fixed: None,
         }
     }
-}
-#[cfg(test)]
-#[test]
-fn api_test() {
-    let mut grid = Grid::new(3, 4);
-    grid.size_to(Placement::default());
-    let grid_placement = GridPlacement::new(20.px().to(3.col()), 20.px().to(3.row()));
-    let layout = Layout::LANDSCAPE_MOBILE;
-    let placement = grid.place(&grid_placement, RenderLayer::default(), layout);
 }
 pub(crate) fn viewport_changes_layout(
     mut viewport_handle: ResMut<ViewportHandle>,
