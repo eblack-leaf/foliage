@@ -34,10 +34,18 @@ pub fn image_memory_handle(
 ) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as ItemEnum);
     let name = &input.ident;
+    let found_crate = crate_name("foliage").expect("foliage is present in `Cargo.toml`");
+    let foliage = match found_crate {
+        FoundCrate::Itself => quote::quote!(crate),
+        FoundCrate::Name(name) => {
+            let ident = syn::Ident::new(&name, proc_macro2::Span::call_site());
+            quote::quote!( #ident )
+        }
+    };
     let gen = quote::quote!(
         #[derive(Hash, Eq, PartialEq, Debug, Copy, Clone)]
         #input
-        impl From<#name> for crate::image::ImageSlotId {
+        impl From<#name> for #foliage::image::ImageSlotId {
             fn from(value: #name) -> Self {
                 Self(value as i32)
             }
