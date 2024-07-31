@@ -12,6 +12,7 @@ use crate::coordinate::{Coordinates, LogicalContext};
 use crate::element::{IdTable, OnEnd, Opacity, TargetHandle};
 use crate::elm::Elm;
 use crate::grid::GridPlacement;
+use crate::panel::Rounding;
 use crate::time::{Time, TimeDelta};
 use crate::Leaf;
 
@@ -21,6 +22,7 @@ impl Leaf for EnabledAnimations {
         elm.enable_animation::<GridPlacement>();
         elm.enable_animation::<Color>();
         elm.enable_animation::<Opacity>();
+        elm.enable_animation::<Rounding>();
     }
 }
 #[derive(Component)]

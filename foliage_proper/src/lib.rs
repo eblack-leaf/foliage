@@ -55,6 +55,7 @@ pub mod text;
 pub mod texture;
 pub mod time;
 pub mod view;
+mod virtual_keyboard;
 pub mod web_ext;
 pub mod willow;
 

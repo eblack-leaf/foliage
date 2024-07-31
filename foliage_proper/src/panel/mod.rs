@@ -12,6 +12,7 @@ use wgpu::{
 };
 
 use crate::action::HasRenderLink;
+use crate::anim::{Animate, Interpolations};
 use crate::ash::{DrawRange, Renderer};
 use crate::color::Color;
 use crate::coordinate::area::Area;
@@ -93,6 +94,31 @@ impl Rounding {
         Self([0.0, 0.0, v, v])
     }
     // ...
+}
+
+impl Animate for Rounding {
+    fn interpolations(start: &Self, end: &Self) -> Interpolations {
+        Interpolations::new()
+            .with(start.0[0], end.0[0])
+            .with(start.0[1], end.0[1])
+            .with(start.0[2], end.0[2])
+            .with(start.0[3], end.0[3])
+    }
+
+    fn apply(&mut self, interpolations: &mut Interpolations) {
+        if let Some(a) = interpolations.read(0) {
+            self.0[0] = a;
+        }
+        if let Some(a) = interpolations.read(1) {
+            self.0[1] = a;
+        }
+        if let Some(a) = interpolations.read(2) {
+            self.0[2] = a;
+        }
+        if let Some(a) = interpolations.read(3) {
+            self.0[3] = a;
+        }
+    }
 }
 fn percent_rounded_to_corner(
     mut query: Query<
