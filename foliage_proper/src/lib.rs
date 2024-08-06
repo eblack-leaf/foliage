@@ -49,6 +49,7 @@ pub mod icon;
 pub mod image;
 pub mod instances;
 pub mod interaction;
+mod line;
 pub mod panel;
 pub mod style;
 pub mod text;
