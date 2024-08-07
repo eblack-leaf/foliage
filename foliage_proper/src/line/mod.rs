@@ -1,5 +1,6 @@
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
+use bevy_ecs::prelude::Component;
 use wgpu::RenderPass;
 
 use crate::ash::{DrawRange, Render, Renderer};
@@ -10,6 +11,7 @@ use crate::Root;
 
 #[derive(Bundle)]
 pub struct Line {}
+#[derive(Component, Copy, Clone)]
 pub(crate) struct LinePoints {
     pub(crate) start: Coordinates,
     pub(crate) end: Coordinates,
