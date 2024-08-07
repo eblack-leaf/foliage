@@ -227,7 +227,7 @@ pub(crate) fn on_click(
     for (on_click, listener) in on_clicks.iter() {
         if listener.active {
             for handle in on_click.0.iter() {
-                let entity = id_table.lookup_action(handle.clone()).unwrap();
+                let entity = id_table.lookup_twig(handle.clone()).unwrap();
                 *actions.get_mut(entity).expect("no-corresponding-action") = Signal::active();
             }
         }

@@ -81,7 +81,7 @@ pub(crate) fn timers(
         if timer.time_left.is_zero() {
             cmd.entity(entity).despawn();
             for handle in timer.on_end.actions.iter() {
-                let e = id_table.lookup_action(handle.clone()).unwrap();
+                let e = id_table.lookup_twig(handle.clone()).unwrap();
                 cmd.entity(e).insert(Signal::active());
             }
         }

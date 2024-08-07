@@ -260,11 +260,11 @@ pub(crate) fn animate_grid_placement(
         } else {
             if !animation.started {
                 let mut orphaned = false;
-                if let Some(target) = id_table.lookup_target(animation.animation_target.clone()) {
+                if let Some(target) = id_table.lookup_leaf(animation.animation_target.clone()) {
                     if !animation.grid_placement_started {
                         start_grid_placement_anim(
                             id_table
-                                .lookup_target(animation.animation_target.clone())
+                                .lookup_leaf(animation.animation_target.clone())
                                 .unwrap(),
                             &mut anim_targets,
                             animation.end.clone(),
@@ -304,7 +304,7 @@ pub(crate) fn animate_grid_placement(
                 i.current_value.replace(d);
             }
             let mut orphaned = false;
-            if let Some(target) = id_table.lookup_target(animation.animation_target.clone()) {
+            if let Some(target) = id_table.lookup_leaf(animation.animation_target.clone()) {
                 if let Ok((mut a, _, _)) = anim_targets.get_mut(target) {
                     a.apply(&mut animation.interpolations);
                 } else {
@@ -356,7 +356,7 @@ pub(crate) fn animate<A: Animate>(
         } else {
             if !animation.started {
                 let mut orphaned = false;
-                if let Some(target) = id_table.lookup_target(animation.animation_target.clone()) {
+                if let Some(target) = id_table.lookup_leaf(animation.animation_target.clone()) {
                     if let Ok(a) = anim_targets.get(target) {
                         animation.interpolations = A::interpolations(&a, &animation.end);
                         animation.started = true;
@@ -388,7 +388,7 @@ pub(crate) fn animate<A: Animate>(
                 i.current_value.replace(d);
             }
             let mut orphaned = false;
-            if let Some(target) = id_table.lookup_target(animation.animation_target.clone()) {
+            if let Some(target) = id_table.lookup_leaf(animation.animation_target.clone()) {
                 if let Ok(mut a) = anim_targets.get_mut(target) {
                     a.apply(&mut animation.interpolations);
                 } else {
@@ -447,7 +447,7 @@ fn despawn_and_update_sequence<A: Animate>(
             .actions
             .iter()
         {
-            let e = id_table.lookup_action(handle.clone()).unwrap();
+            let e = id_table.lookup_twig(handle.clone()).unwrap();
             cmd.entity(e).insert(Signal::active());
         }
         cmd.entity(sequence_entity).despawn();

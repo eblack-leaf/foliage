@@ -19,7 +19,7 @@ use crate::grid::{Grid, GridPlacement, Layout, LayoutGrid};
 
 #[derive(Bundle, Default)]
 pub(crate) struct Element {
-    root: Root,
+    stem: Stem,
     dependents: Dependents,
     placement: Placement<LogicalContext>,
     remove: Remove,
@@ -27,8 +27,8 @@ pub(crate) struct Element {
     opacity: Opacity,
 }
 #[derive(Default, Component)]
-pub(crate) struct Root(pub(crate) Option<LeafHandle>);
-impl Root {
+pub(crate) struct Stem(pub(crate) Option<LeafHandle>);
+impl Stem {
     pub(crate) fn new<TH: Into<LeafHandle>>(th: TH) -> Self {
         Self(Some(th.into()))
     }
@@ -53,13 +53,13 @@ pub(crate) fn recursive_placement(
                 Or<(
                     Changed<Grid>,
                     Changed<GridPlacement>,
-                    Changed<Root>,
+                    Changed<Stem>,
                     Changed<Dependents>,
                     Changed<RenderLayer>,
                 )>,
                 With<GridPlacement>,
                 With<RenderLayer>,
-                With<Root>,
+                With<Stem>,
                 With<Dependents>,
             ),
         >,
@@ -67,7 +67,7 @@ pub(crate) fn recursive_placement(
             Entity,
             &GridPlacement,
             Option<&Grid>,
-            &Root,
+            &Stem,
             &Dependents,
             &Position<LogicalContext>,
             &Area<LogicalContext>,
@@ -90,7 +90,7 @@ pub(crate) fn recursive_placement(
     let y = layout_grid.is_changed();
     let z = !elements.p0().is_empty();
     if x || y || z {
-        let roots = elements
+        let stems = elements
             .p1()
             .iter()
             .map(|(entity, _, _, root, _, _, _, _, _)| {
@@ -100,18 +100,18 @@ pub(crate) fn recursive_placement(
                 None
             })
             .collect::<Vec<Option<Entity>>>();
-        for r in roots {
-            if let Some(r) = r {
+        for s in stems {
+            if let Some(r) = s {
                 let elevation = *elements.p1().get(r).unwrap().7;
-                let (root_placement, root_offset) =
+                let (stem_placement, stem_offset) =
                     layout_grid
                         .grid
                         .place(elements.p1().get(r).unwrap().1, elevation, *layout);
                 let chain = recursive_placement_inner(
                     &elements.p1(),
-                    root_placement,
+                    stem_placement,
                     r,
-                    root_offset,
+                    stem_offset,
                     &id_table,
                     *layout,
                 );
@@ -140,7 +140,7 @@ fn recursive_placement_inner(
         Entity,
         &GridPlacement,
         Option<&Grid>,
-        &Root,
+        &Stem,
         &Dependents,
         &Position<LogicalContext>,
         &Area<LogicalContext>,
@@ -171,7 +171,7 @@ fn recursive_placement_inner(
         current_offset,
     ));
     for dep in query.get(current_entity).unwrap().4 .0.iter() {
-        let dep_entity = id_table.lookup_target(dep.clone()).unwrap();
+        let dep_entity = id_table.lookup_leaf(dep.clone()).unwrap();
         let dep_grid_placement = query.get(dep_entity).unwrap().1;
         let (dep_placement, dep_offset) = grid.place(
             dep_grid_placement,
@@ -219,21 +219,21 @@ impl<S: AsRef<str>> From<S> for TwigHandle {
 }
 #[derive(Resource, Default)]
 pub(crate) struct IdTable {
-    pub(crate) targets: HashMap<LeafHandle, Entity>,
-    pub(crate) actions: HashMap<TwigHandle, Entity>,
+    pub(crate) leafs: HashMap<LeafHandle, Entity>,
+    pub(crate) twigs: HashMap<TwigHandle, Entity>,
 }
 impl IdTable {
     pub fn add_target<TH: Into<LeafHandle>>(&mut self, th: TH, entity: Entity) -> Option<Entity> {
-        self.targets.insert(th.into(), entity)
+        self.leafs.insert(th.into(), entity)
     }
     pub fn add_twig<AH: Into<TwigHandle>>(&mut self, ah: AH, entity: Entity) -> Option<Entity> {
-        self.actions.insert(ah.into(), entity)
+        self.twigs.insert(ah.into(), entity)
     }
-    pub fn lookup_target<TH: Into<LeafHandle>>(&self, th: TH) -> Option<Entity> {
-        self.targets.get(&th.into()).copied()
+    pub fn lookup_leaf<TH: Into<LeafHandle>>(&self, th: TH) -> Option<Entity> {
+        self.leafs.get(&th.into()).copied()
     }
-    pub fn lookup_action<AH: Into<TwigHandle>>(&self, ah: AH) -> Option<Entity> {
-        self.actions.get(&ah.into()).copied()
+    pub fn lookup_twig<AH: Into<TwigHandle>>(&self, ah: AH) -> Option<Entity> {
+        self.twigs.get(&ah.into()).copied()
     }
 }
 
@@ -289,7 +289,7 @@ pub(crate) fn opacity(
         Query<(&Opacity, &Dependents)>,
         Query<&mut Color>,
     )>,
-    roots: Query<&Root>,
+    roots: Query<&Stem>,
     id_table: Res<IdTable>,
 ) {
     let mut to_check = vec![];
@@ -299,7 +299,7 @@ pub(crate) fn opacity(
     for entity in to_check {
         let inherited = if let Ok(r) = roots.get(entity) {
             if let Some(rh) = r.0.as_ref() {
-                let e = id_table.lookup_target(rh.clone()).unwrap();
+                let e = id_table.lookup_leaf(rh.clone()).unwrap();
                 let inherited = *opaque.p1().get(e).unwrap().0;
                 Some(inherited.value)
             } else {
@@ -327,7 +327,7 @@ fn recursive_opacity(
         let blended = opacity.value * inherited_opacity.unwrap_or(1.0);
         changed.push((current, blended));
         for dep in deps.0.iter() {
-            let e = id_table.lookup_target(dep.clone()).unwrap();
+            let e = id_table.lookup_leaf(dep.clone()).unwrap();
             changed.extend(recursive_opacity(query, e, id_table, Some(blended)));
         }
     }

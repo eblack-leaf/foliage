@@ -9,7 +9,7 @@ use bevy_ecs::system::{Command, Res, ResMut};
 use crate::anim::{Animate, Animation, AnimationTime, Ease, Sequence, SequenceTimeRange};
 use crate::coordinate::elevation::Elevation;
 use crate::differential::{Remove, RenderLink, RenderRemoveQueue, Visibility};
-use crate::element::{Dependents, Element, IdTable, LeafHandle, OnEnd, Root, TwigHandle};
+use crate::element::{Dependents, Element, IdTable, LeafHandle, OnEnd, Stem, TwigHandle};
 use crate::elm::{FilterAttrLimiter, TwigLimiter};
 use crate::grid::{Grid, GridPlacement, Layout, LayoutFilter};
 use crate::interaction::ClickInteractionListener;
@@ -161,7 +161,7 @@ impl<'a> LeafElement<'a> {
         self.world_handle
             .as_mut()
             .unwrap()
-            .get_mut::<Root>(self.entity)
+            .get_mut::<Stem>(self.entity)
             .unwrap()
             .0
             .replace(rth);
@@ -172,7 +172,7 @@ impl<'a> LeafElement<'a> {
             .unwrap()
             .get_resource::<IdTable>()
             .unwrap()
-            .lookup_target(th.into())
+            .lookup_leaf(th.into())
     }
 }
 pub struct SequenceHandle<'a> {
@@ -207,7 +207,7 @@ impl<'a> SequenceHandle<'a> {
             .unwrap()
             .get_resource::<IdTable>()
             .unwrap()
-            .lookup_target(th.into())
+            .lookup_leaf(th.into())
     }
 }
 impl<'a> Branch<'a> {
@@ -291,7 +291,7 @@ impl<'a> Branch<'a> {
             .unwrap()
             .get_resource_mut::<IdTable>()
             .unwrap()
-            .targets
+            .leafs
             .remove(&handle);
         self.world_handle
             .as_mut()
@@ -302,7 +302,7 @@ impl<'a> Branch<'a> {
             .world_handle
             .as_ref()
             .unwrap()
-            .get::<Root>(start)
+            .get::<Stem>(start)
             .unwrap()
             .0
             .clone()
@@ -328,7 +328,7 @@ impl<'a> Branch<'a> {
                 .unwrap()
                 .get_resource_mut::<IdTable>()
                 .unwrap()
-                .targets
+                .leafs
                 .remove(&t);
         }
     }
@@ -371,7 +371,7 @@ impl<'a> Branch<'a> {
             .world_handle
             .as_ref()
             .unwrap()
-            .get::<Root>(this)
+            .get::<Stem>(this)
             .unwrap()
             .0
             .as_ref()
@@ -402,13 +402,13 @@ impl<'a> Branch<'a> {
                 .as_mut()
                 .unwrap()
                 .entity_mut(this)
-                .insert(Root::new(rth));
+                .insert(Stem::new(rth));
         } else {
             self.world_handle
                 .as_mut()
                 .unwrap()
                 .entity_mut(this)
-                .insert(Root::default());
+                .insert(Stem::default());
         }
     }
     pub fn get_visibility<TH: Into<LeafHandle>>(&self, th: TH) -> Visibility {
@@ -550,7 +550,7 @@ impl<'a> Branch<'a> {
             .unwrap()
             .get_resource::<IdTable>()
             .unwrap()
-            .lookup_target(th.into())
+            .lookup_leaf(th.into())
     }
 }
 pub trait Twig
