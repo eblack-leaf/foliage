@@ -11,9 +11,9 @@ use wgpu::{
     VertexState, VertexStepMode,
 };
 
-use crate::action::HasRenderLink;
 use crate::anim::{Animate, Interpolations};
 use crate::ash::{DrawRange, Renderer};
+use crate::branch::HasRenderLink;
 use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::elevation::RenderLayer;
@@ -24,10 +24,10 @@ use crate::differential::{Differential, RenderLink};
 use crate::elm::{RenderQueueHandle, ScheduleMarkers};
 use crate::ginkgo::{Ginkgo, ScaleFactor};
 use crate::instances::Instances;
-use crate::{Elm, Leaf, Render};
+use crate::{Elm, Render, Root};
 
-impl Leaf for Panel {
-    fn attach(elm: &mut Elm) {
+impl Root for Panel {
+    fn define(elm: &mut Elm) {
         elm.enable_differential::<Panel, GpuSection>();
         elm.enable_differential::<Panel, RenderLayer>();
         elm.enable_differential::<Panel, Color>();

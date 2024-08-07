@@ -12,7 +12,7 @@ use crate::coordinate::position::Position;
 use crate::coordinate::section::{GpuSection, Section};
 use crate::elm::{Elm, ScheduleMarkers};
 use crate::ginkgo::ScaleFactor;
-use crate::Leaf;
+use crate::Root;
 
 pub mod area;
 pub mod elevation;
@@ -118,8 +118,8 @@ permutation_coordinate_impl!(u32, usize);
 permutation_coordinate_impl!(f64, usize);
 
 // TODO fn to distill Position / Area => GpuPosition / GpuArea w/ ScaleFactor
-impl Leaf for Coordinates {
-    fn attach(elm: &mut Elm) {
+impl Root for Coordinates {
+    fn define(elm: &mut Elm) {
         elm.scheduler
             .main
             .add_systems(coordinate_resolve.in_set(ScheduleMarkers::FinalizeCoordinate));

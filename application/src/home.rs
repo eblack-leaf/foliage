@@ -1,7 +1,7 @@
-use foliage::action::{Actionable, ElmHandle};
+use foliage::branch::{Branch, Twig};
 
 #[derive(Clone)]
 pub(crate) struct Home {}
-impl Actionable for Home {
-    fn apply(self, mut handle: ElmHandle) {}
+impl Twig for Home {
+    fn grow(self, mut handle: Branch) {}
 }

@@ -27,16 +27,16 @@ pub(crate) struct Element {
     opacity: Opacity,
 }
 #[derive(Default, Component)]
-pub(crate) struct Root(pub(crate) Option<TargetHandle>);
+pub(crate) struct Root(pub(crate) Option<LeafHandle>);
 impl Root {
-    pub(crate) fn new<TH: Into<TargetHandle>>(th: TH) -> Self {
+    pub(crate) fn new<TH: Into<LeafHandle>>(th: TH) -> Self {
         Self(Some(th.into()))
     }
 }
 #[derive(Clone, PartialEq, Component, Default)]
-pub(crate) struct Dependents(pub(crate) HashSet<TargetHandle>);
+pub(crate) struct Dependents(pub(crate) HashSet<LeafHandle>);
 impl Dependents {
-    pub(crate) fn new<THS: AsRef<[TargetHandle]>>(ths: THS) -> Self {
+    pub(crate) fn new<THS: AsRef<[LeafHandle]>>(ths: THS) -> Self {
         let mut set = HashSet::new();
         for d in ths.as_ref() {
             let th = d.clone();
@@ -195,13 +195,13 @@ fn recursive_placement_inner(
     placed
 }
 #[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Debug)]
-pub struct TargetHandle(pub String);
-impl<S: AsRef<str>> From<S> for TargetHandle {
+pub struct LeafHandle(pub String);
+impl<S: AsRef<str>> From<S> for LeafHandle {
     fn from(value: S) -> Self {
         Self(value.as_ref().to_string())
     }
 }
-impl TargetHandle {
+impl LeafHandle {
     pub fn new<S: AsRef<str>>(s: S) -> Self {
         Self(s.as_ref().to_string())
     }
@@ -211,38 +211,38 @@ impl TargetHandle {
     }
 }
 #[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-pub struct ActionHandle(pub String);
-impl<S: AsRef<str>> From<S> for ActionHandle {
+pub struct TwigHandle(pub String);
+impl<S: AsRef<str>> From<S> for TwigHandle {
     fn from(value: S) -> Self {
         Self(value.as_ref().to_string())
     }
 }
 #[derive(Resource, Default)]
 pub(crate) struct IdTable {
-    pub(crate) targets: HashMap<TargetHandle, Entity>,
-    pub(crate) actions: HashMap<ActionHandle, Entity>,
+    pub(crate) targets: HashMap<LeafHandle, Entity>,
+    pub(crate) actions: HashMap<TwigHandle, Entity>,
 }
 impl IdTable {
-    pub fn add_target<TH: Into<TargetHandle>>(&mut self, th: TH, entity: Entity) -> Option<Entity> {
+    pub fn add_target<TH: Into<LeafHandle>>(&mut self, th: TH, entity: Entity) -> Option<Entity> {
         self.targets.insert(th.into(), entity)
     }
-    pub fn add_action<AH: Into<ActionHandle>>(&mut self, ah: AH, entity: Entity) -> Option<Entity> {
+    pub fn add_twig<AH: Into<TwigHandle>>(&mut self, ah: AH, entity: Entity) -> Option<Entity> {
         self.actions.insert(ah.into(), entity)
     }
-    pub fn lookup_target<TH: Into<TargetHandle>>(&self, th: TH) -> Option<Entity> {
+    pub fn lookup_target<TH: Into<LeafHandle>>(&self, th: TH) -> Option<Entity> {
         self.targets.get(&th.into()).copied()
     }
-    pub fn lookup_action<AH: Into<ActionHandle>>(&self, ah: AH) -> Option<Entity> {
+    pub fn lookup_action<AH: Into<TwigHandle>>(&self, ah: AH) -> Option<Entity> {
         self.actions.get(&ah.into()).copied()
     }
 }
 
 #[derive(Default)]
 pub struct OnEnd {
-    pub actions: HashSet<ActionHandle>,
+    pub actions: HashSet<TwigHandle>,
 }
 impl OnEnd {
-    pub fn new<AH: Into<ActionHandle>>(ah: AH) -> Self {
+    pub fn new<AH: Into<TwigHandle>>(ah: AH) -> Self {
         Self {
             actions: {
                 let mut a = HashSet::new();
@@ -251,7 +251,7 @@ impl OnEnd {
             },
         }
     }
-    pub fn with<AH: Into<ActionHandle>>(mut self, ah: AH) -> Self {
+    pub fn with<AH: Into<TwigHandle>>(mut self, ah: AH) -> Self {
         self.actions.insert(ah.into());
         self
     }

@@ -13,8 +13,8 @@ use wgpu::{
     TextureSampleType, TextureView, TextureViewDimension, VertexState, VertexStepMode,
 };
 
-use crate::action::HasRenderLink;
 use crate::ash::{DrawRange, Render, Renderer};
+use crate::branch::HasRenderLink;
 use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::elevation::RenderLayer;
@@ -26,7 +26,7 @@ use crate::elm::{Elm, RenderQueueHandle, ScheduleMarkers};
 use crate::ginkgo::Ginkgo;
 use crate::instances::Instances;
 use crate::texture::TextureCoordinates;
-use crate::Leaf;
+use crate::Root;
 
 #[derive(Copy, Clone, Component, PartialEq)]
 pub struct AspectRatio(pub f32);
@@ -191,8 +191,8 @@ pub struct ImageSlot {
     remove: Remove,
     visibility: Visibility,
 }
-impl Leaf for Image {
-    fn attach(elm: &mut Elm) {
+impl Root for Image {
+    fn define(elm: &mut Elm) {
         elm.enable_differential::<Self, GpuSection>();
         elm.enable_differential::<Self, RenderLayer>();
         elm.enable_differential::<Self, ImageFill>();

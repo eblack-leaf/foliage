@@ -9,19 +9,19 @@ use bevy_ecs::system::{Command, Res, ResMut};
 use crate::anim::{Animate, Animation, AnimationTime, Ease, Sequence, SequenceTimeRange};
 use crate::coordinate::elevation::Elevation;
 use crate::differential::{Remove, RenderLink, RenderRemoveQueue, Visibility};
-use crate::element::{ActionHandle, Dependents, Element, IdTable, OnEnd, Root, TargetHandle};
-use crate::elm::{ActionLimiter, FilterAttrLimiter};
+use crate::element::{Dependents, Element, IdTable, LeafHandle, OnEnd, Root, TwigHandle};
+use crate::elm::{FilterAttrLimiter, TwigLimiter};
 use crate::grid::{Grid, GridPlacement, Layout, LayoutFilter};
 use crate::interaction::ClickInteractionListener;
 use crate::view::{View, Viewable};
 
-pub struct ElmHandle<'a> {
+pub struct Branch<'a> {
     pub(crate) world_handle: Option<&'a mut World>,
 }
 
-pub struct ElementHandle<'a> {
+pub struct LeafElement<'a> {
     pub(crate) world_handle: Option<&'a mut World>,
-    pub(crate) handle: TargetHandle,
+    pub(crate) handle: LeafHandle,
     pub(crate) entity: Entity,
 }
 pub struct FilteredAttributeConfig<A: Bundle + Send + Sync + 'static + Clone> {
@@ -89,7 +89,7 @@ pub(crate) fn filter_attr_changed<A: Bundle + Send + Sync + 'static + Clone>(
         // if removing + <A as HasRenderLink>::has_link() => send render-queue remove
     }
 }
-impl<'a> ElementHandle<'a> {
+impl<'a> LeafElement<'a> {
     pub fn give_attr<A: Bundle>(&mut self, a: A) {
         self.world_handle
             .as_mut()
@@ -97,7 +97,7 @@ impl<'a> ElementHandle<'a> {
             .entity_mut(self.entity)
             .insert(a);
     }
-    pub fn get_attr_mut<TH: Into<TargetHandle>, A: Component, AFN: FnOnce(&mut A)>(
+    pub fn get_attr_mut<TH: Into<LeafHandle>, A: Component, AFN: FnOnce(&mut A)>(
         &mut self,
         th: TH,
         a_fn: AFN,
@@ -135,7 +135,7 @@ impl<'a> ElementHandle<'a> {
             .entity_mut(self.entity)
             .insert(filtered_attribute);
     }
-    pub fn dependent_of<RTH: Into<TargetHandle>>(&mut self, rth: RTH) {
+    pub fn stem_from<RTH: Into<LeafHandle>>(&mut self, rth: RTH) {
         // lookup root
         let rth = rth.into();
         let root = self.lookup_target_entity(rth.clone()).unwrap();
@@ -166,7 +166,7 @@ impl<'a> ElementHandle<'a> {
             .0
             .replace(rth);
     }
-    fn lookup_target_entity<TH: Into<TargetHandle>>(&self, th: TH) -> Option<Entity> {
+    fn lookup_target_entity<TH: Into<LeafHandle>>(&self, th: TH) -> Option<Entity> {
         self.world_handle
             .as_ref()
             .unwrap()
@@ -181,7 +181,7 @@ pub struct SequenceHandle<'a> {
     sequence_entity: Entity,
 }
 impl<'a> SequenceHandle<'a> {
-    pub fn animate_attr<A: Animate, TH: Into<TargetHandle>>(
+    pub fn animate<A: Animate, TH: Into<LeafHandle>>(
         &mut self,
         th: TH,
         a: A,
@@ -201,7 +201,7 @@ impl<'a> SequenceHandle<'a> {
     pub fn on_end(&mut self, on_end: OnEnd) {
         self.sequence.on_end = on_end;
     }
-    fn lookup_target_entity<TH: Into<TargetHandle>>(&self, th: TH) -> Option<Entity> {
+    fn lookup_target_entity<TH: Into<LeafHandle>>(&self, th: TH) -> Option<Entity> {
         self.world_handle
             .as_ref()
             .unwrap()
@@ -210,7 +210,7 @@ impl<'a> SequenceHandle<'a> {
             .lookup_target(th.into())
     }
 }
-impl<'a> ElmHandle<'a> {
+impl<'a> Branch<'a> {
     pub fn get_resource_mut<R: Resource>(&mut self) -> Mut<'_, R> {
         self.world_handle
             .as_mut()
@@ -228,7 +228,7 @@ impl<'a> ElmHandle<'a> {
     pub fn add_resource<R: Resource>(&mut self, r: R) {
         self.world_handle.as_mut().unwrap().insert_resource(r);
     }
-    pub fn update_attr_for<C: Component, CFN: FnOnce(&mut C), TH: Into<TargetHandle>>(
+    pub fn update_attr_for<C: Component, CFN: FnOnce(&mut C), TH: Into<LeafHandle>>(
         &mut self,
         th: TH,
         c_fn: CFN,
@@ -248,11 +248,7 @@ impl<'a> ElmHandle<'a> {
             .unwrap();
         c_fn(comp.as_mut());
     }
-    pub fn add_element<
-        TH: Into<TargetHandle>,
-        EFN: FnOnce(&mut ElementHandle<'a>),
-        E: Into<Elevation>,
-    >(
+    pub fn add_leaf<TH: Into<LeafHandle>, EFN: FnOnce(&mut LeafElement<'a>), E: Into<Elevation>>(
         &mut self,
         th: TH,
         grid_placement: GridPlacement,
@@ -282,9 +278,9 @@ impl<'a> ElmHandle<'a> {
                 .entity_mut(entity)
                 .insert(g);
         }
-        self.update_element(target.clone(), e_fn);
+        self.update_leaf(target.clone(), e_fn);
     }
-    pub fn remove_element<TH: Into<TargetHandle>>(&mut self, th: TH) {
+    pub fn remove_leaf<TH: Into<LeafHandle>>(&mut self, th: TH) {
         // queue remove of all dependents
         let handle = th.into();
         let start = self
@@ -320,7 +316,7 @@ impl<'a> ElmHandle<'a> {
                 .0
                 .remove(&handle);
         }
-        let dependents = self.recursive_remove_element(start);
+        let dependents = self.recursive_remove_leaf(start);
         for (t, e) in dependents {
             self.world_handle
                 .as_mut()
@@ -336,7 +332,7 @@ impl<'a> ElmHandle<'a> {
                 .remove(&t);
         }
     }
-    fn recursive_remove_element(&self, current: Entity) -> HashSet<(TargetHandle, Entity)> {
+    fn recursive_remove_leaf(&self, current: Entity) -> HashSet<(LeafHandle, Entity)> {
         let mut removed_set = HashSet::new();
         if let Some(deps) = self
             .world_handle
@@ -348,19 +344,19 @@ impl<'a> ElmHandle<'a> {
             for d in dependents.iter() {
                 let e = self.lookup_target_entity(d.clone()).unwrap();
                 removed_set.insert((d.clone(), e));
-                removed_set.extend(self.recursive_remove_element(e));
+                removed_set.extend(self.recursive_remove_leaf(e));
             }
         }
         removed_set
     }
-    pub fn update_element<TH: Into<TargetHandle>, EFN: FnOnce(&mut ElementHandle<'a>)>(
+    pub fn update_leaf<TH: Into<LeafHandle>, EFN: FnOnce(&mut LeafElement<'a>)>(
         &mut self,
         th: TH,
         e_fn: EFN,
     ) {
         let th = th.into();
         let entity = self.lookup_target_entity(th.clone()).unwrap();
-        let mut element_handle = ElementHandle {
+        let mut element_handle = LeafElement {
             world_handle: self.world_handle.take(),
             entity,
             handle: th,
@@ -368,11 +364,7 @@ impl<'a> ElmHandle<'a> {
         e_fn(&mut element_handle);
         self.world_handle = element_handle.world_handle.take();
     }
-    pub fn change_element_root<TH: Into<TargetHandle>>(
-        &mut self,
-        th: TH,
-        new_root: Option<TargetHandle>,
-    ) {
+    pub fn change_leaf_stem<TH: Into<LeafHandle>>(&mut self, th: TH, new_root: Option<LeafHandle>) {
         let th = th.into();
         let this = self.lookup_target_entity(th.clone()).unwrap();
         if let Some(old) = self
@@ -419,7 +411,7 @@ impl<'a> ElmHandle<'a> {
                 .insert(Root::default());
         }
     }
-    pub fn get_visibility<TH: Into<TargetHandle>>(&self, th: TH) -> Visibility {
+    pub fn get_visibility<TH: Into<LeafHandle>>(&self, th: TH) -> Visibility {
         *self
             .world_handle
             .as_ref()
@@ -427,7 +419,7 @@ impl<'a> ElmHandle<'a> {
             .get::<Visibility>(self.lookup_target_entity(th).unwrap())
             .unwrap()
     }
-    pub fn update_visibility<TH: Into<TargetHandle>>(&mut self, th: TH, visibility: bool) {
+    pub fn update_visibility<TH: Into<LeafHandle>>(&mut self, th: TH, visibility: bool) {
         let handle = th.into();
         let entity = self.lookup_target_entity(handle.clone()).unwrap();
         let updated = self.recursive_visibility(entity);
@@ -439,7 +431,7 @@ impl<'a> ElmHandle<'a> {
                 .insert(Visibility::new(visibility));
         }
     }
-    pub fn disable_interactions_for<TH: Into<TargetHandle>>(&mut self, th: TH) {
+    pub fn disable_interactions_for<TH: Into<LeafHandle>>(&mut self, th: TH) {
         let entity = self.lookup_target_entity(th).unwrap();
         self.world_handle
             .as_mut()
@@ -448,7 +440,7 @@ impl<'a> ElmHandle<'a> {
             .unwrap()
             .disable();
     }
-    pub fn enable_interactions_for<TH: Into<TargetHandle>>(&mut self, th: TH) {
+    pub fn enable_interactions_for<TH: Into<LeafHandle>>(&mut self, th: TH) {
         let entity = self.lookup_target_entity(th).unwrap();
         self.world_handle
             .as_mut()
@@ -473,9 +465,9 @@ impl<'a> ElmHandle<'a> {
         }
         set
     }
-    pub fn run_action<A: Actionable>(&mut self, a: A) {
-        let action = Action { data: a };
-        action.apply(self.world_handle.as_mut().unwrap());
+    pub fn grow_twig<A: Twig>(&mut self, a: A) {
+        let cmd = TwigCommand { data: a };
+        cmd.apply(self.world_handle.as_mut().unwrap());
     }
     pub fn run_sequence<SFN: FnOnce(&mut SequenceHandle<'a>)>(&mut self, seq_fn: SFN) {
         let se = self.world_handle.as_mut().unwrap().spawn_empty().id();
@@ -493,7 +485,7 @@ impl<'a> ElmHandle<'a> {
             .entity_mut(se)
             .insert(seq_handle.sequence);
     }
-    pub fn add_view<V: Viewable, TH: Into<TargetHandle>, E: Into<Elevation>>(
+    pub fn add_view<V: Viewable, TH: Into<LeafHandle>, E: Into<Elevation>>(
         &mut self,
         th: TH,
         grid_placement: GridPlacement,
@@ -502,20 +494,20 @@ impl<'a> ElmHandle<'a> {
         rth: Option<TH>,
     ) {
         let handle = th.into();
-        self.add_element(
+        self.add_leaf(
             handle.clone(),
             grid_placement.clone(),
             elevation,
             None,
             |e| {
                 if let Some(r) = rth {
-                    e.dependent_of(r);
+                    e.stem_from(r);
                 }
             },
         );
         let mut view = View::new(
             handle,
-            ElmHandle {
+            Branch {
                 world_handle: self.world_handle.take(),
             },
         );
@@ -526,12 +518,12 @@ impl<'a> ElmHandle<'a> {
     pub fn spawn<B: Bundle>(&mut self, b: B) {
         self.world_handle.as_mut().unwrap().spawn(b);
     }
-    pub fn create_signaled_action<A: Actionable, AH: Into<ActionHandle>>(&mut self, ah: AH, a: A) {
+    pub fn create_signaled_twig<A: Twig, AH: Into<TwigHandle>>(&mut self, ah: AH, a: A) {
         if !self
             .world_handle
             .as_ref()
             .unwrap()
-            .contains_resource::<ActionLimiter<A>>()
+            .contains_resource::<TwigLimiter<A>>()
         {
             panic!("please enable_signaled_action for this action type")
         }
@@ -547,12 +539,12 @@ impl<'a> ElmHandle<'a> {
             .unwrap()
             .get_resource_mut::<IdTable>()
             .unwrap()
-            .add_action(ah, signaler)
+            .add_twig(ah, signaler)
         {
             self.world_handle.as_mut().unwrap().despawn(o);
         }
     }
-    pub(crate) fn lookup_target_entity<TH: Into<TargetHandle>>(&self, th: TH) -> Option<Entity> {
+    pub(crate) fn lookup_target_entity<TH: Into<LeafHandle>>(&self, th: TH) -> Option<Entity> {
         self.world_handle
             .as_ref()
             .unwrap()
@@ -561,24 +553,24 @@ impl<'a> ElmHandle<'a> {
             .lookup_target(th.into())
     }
 }
-pub trait Actionable
+pub trait Twig
 where
     Self: Clone + Send + Sync + 'static,
 {
-    fn apply(self, handle: ElmHandle);
+    fn grow(self, branch: Branch);
 }
 
 #[derive(Clone)]
-pub struct Action<A: Actionable> {
+pub struct TwigCommand<A: Twig> {
     data: A,
 }
 
-impl<A: Actionable> Command for Action<A> {
+impl<A: Twig> Command for TwigCommand<A> {
     fn apply(self, world: &mut World) {
-        let connection = ElmHandle {
+        let branch = Branch {
             world_handle: Some(world),
         };
-        self.data.apply(connection);
+        self.data.grow(branch);
     }
 }
 
@@ -593,18 +585,18 @@ impl Signal {
     }
 }
 #[derive(Component)]
-pub struct SignaledAction<A: Actionable> {
-    a: Action<A>,
+pub(crate) struct SignaledTwigCommand<A: Twig> {
+    a: TwigCommand<A>,
 }
 
-pub(crate) fn signal_action<A: Actionable>(
-    signals: Query<(&Signal, &SignaledAction<A>)>,
+pub(crate) fn signal_twig<A: Twig>(
+    signals: Query<(&Signal, &SignaledTwigCommand<A>)>,
     mut cmd: Commands,
 ) {
-    for (signal, signaled_action) in signals.iter() {
+    for (signal, signaled_twig) in signals.iter() {
         if signal.0 {
-            let action = signaled_action.a.clone();
-            cmd.add(action);
+            let twig = signaled_twig.a.clone();
+            cmd.add(twig);
         }
     }
 }
@@ -615,15 +607,15 @@ pub(crate) fn clear_signal(mut signals: Query<&mut Signal, Changed<Signal>>) {
     }
 }
 #[derive(Bundle)]
-pub struct Signaler<A: Actionable> {
-    action: SignaledAction<A>,
+pub(crate) struct Signaler<A: Twig> {
+    twig: SignaledTwigCommand<A>,
     signal: Signal,
 }
-impl<A: Actionable> Signaler<A> {
+impl<A: Twig> Signaler<A> {
     pub fn new(a: A) -> Self {
         Self {
-            action: SignaledAction {
-                a: Action { data: a },
+            twig: SignaledTwigCommand {
+                a: TwigCommand { data: a },
             },
             signal: Signal(false),
         }

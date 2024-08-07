@@ -12,8 +12,8 @@ use wgpu::{
     TextureFormat, TextureSampleType, TextureViewDimension, VertexState, VertexStepMode,
 };
 
-use crate::action::HasRenderLink;
 use crate::ash::{DrawRange, Render, Renderer};
+use crate::branch::HasRenderLink;
 use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::elevation::RenderLayer;
@@ -25,12 +25,12 @@ use crate::elm::{Elm, RenderQueueHandle, ScheduleMarkers};
 use crate::ginkgo::Ginkgo;
 use crate::instances::Instances;
 use crate::texture::Mips;
-use crate::Leaf;
+use crate::Root;
 
 mod proc_gen;
 
-impl Leaf for Icon {
-    fn attach(elm: &mut Elm) {
+impl Root for Icon {
+    fn define(elm: &mut Elm) {
         elm.enable_differential::<Self, IconId>();
         elm.enable_differential::<Self, GpuSection>();
         elm.enable_differential::<Self, RenderLayer>();

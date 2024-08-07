@@ -9,16 +9,16 @@ use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, MouseButton, Touch, TouchPhase};
 use winit::keyboard::{Key, ModifiersState};
 
-use crate::action::Signal;
+use crate::branch::Signal;
 use crate::coordinate::area::Area;
 use crate::coordinate::elevation::RenderLayer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
-use crate::element::{ActionHandle, IdTable};
+use crate::element::{IdTable, TwigHandle};
 use crate::elm::{Elm, ScheduleMarkers};
 use crate::ginkgo::ScaleFactor;
-use crate::Leaf;
+use crate::Root;
 
 #[derive(Resource, Default)]
 pub(crate) struct TouchAdapter {
@@ -207,14 +207,14 @@ impl ClickInteractionShape {
     }
 }
 #[derive(Component, Clone)]
-pub struct OnClick(pub(crate) HashSet<ActionHandle>);
+pub struct OnClick(pub(crate) HashSet<TwigHandle>);
 impl OnClick {
-    pub fn new<AH: Into<ActionHandle>>(action_handle: AH) -> Self {
+    pub fn new<AH: Into<TwigHandle>>(action_handle: AH) -> Self {
         let mut this = Self(HashSet::new());
         this.0.insert(action_handle.into());
         this
     }
-    pub fn with<AH: Into<ActionHandle>>(mut self, action_handle: AH) -> Self {
+    pub fn with<AH: Into<TwigHandle>>(mut self, action_handle: AH) -> Self {
         self.0.insert(action_handle.into());
         self
     }
@@ -385,8 +385,8 @@ impl KeyboardAdapter {
         None
     }
 }
-impl Leaf for ClickInteractionListener {
-    fn attach(elm: &mut Elm) {
+impl Root for ClickInteractionListener {
+    fn define(elm: &mut Elm) {
         elm.scheduler.main.add_systems((
             (disabled_listeners, listen_for_interactions, on_click)
                 .chain()

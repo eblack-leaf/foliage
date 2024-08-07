@@ -3,22 +3,22 @@ use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Commands, Entity};
 use bevy_ecs::system::{Query, Res, ResMut};
 
-use crate::action::Signal;
+use crate::branch::Signal;
 use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::{Coordinates, LogicalContext};
-use crate::element::{IdTable, OnEnd, Opacity, TargetHandle};
+use crate::element::{IdTable, LeafHandle, OnEnd, Opacity};
 use crate::elm::Elm;
 use crate::grid::GridPlacement;
 use crate::panel::Rounding;
 use crate::time::{Time, TimeDelta};
-use crate::Leaf;
+use crate::Root;
 
 pub(crate) struct EnabledAnimations;
-impl Leaf for EnabledAnimations {
-    fn attach(elm: &mut Elm) {
+impl Root for EnabledAnimations {
+    fn define(elm: &mut Elm) {
         elm.enable_animation::<GridPlacement>();
         elm.enable_animation::<Color>();
         elm.enable_animation::<Opacity>();
@@ -33,7 +33,7 @@ pub(crate) struct Animation<A: Animate> {
     easement: Easement,
     sequence_entity: Entity,
     animation_time: AnimationTime,
-    animation_target: TargetHandle,
+    animation_target: LeafHandle,
     grid_placement_started: bool,
 }
 pub(crate) struct AnimationTime {
@@ -59,7 +59,7 @@ impl From<SequenceTimeRange> for AnimationTime {
 }
 impl<A: Animate> Animation<A> {
     pub(crate) fn new<EASE: Into<Easement>>(
-        target: TargetHandle,
+        target: LeafHandle,
         end: A,
         ease: EASE,
         se: Entity,

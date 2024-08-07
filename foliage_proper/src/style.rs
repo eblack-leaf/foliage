@@ -3,14 +3,14 @@ use bevy_ecs::query::{Changed, Or};
 use bevy_ecs::system::{Commands, Query, Res};
 
 use crate::color::Color;
-use crate::element::{IdTable, TargetHandle};
+use crate::element::{IdTable, LeafHandle};
 use crate::elm::{Elm, ScheduleMarkers};
 use crate::interaction::ClickInteractionListener;
-use crate::Leaf;
+use crate::Root;
 
 pub(crate) struct Style;
-impl Leaf for Style {
-    fn attach(elm: &mut Elm) {
+impl Root for Style {
+    fn define(elm: &mut Elm) {
         elm.scheduler
             .main
             .add_systems(alternate_color_on_engage.in_set(ScheduleMarkers::Preparation));
@@ -20,7 +20,7 @@ impl Leaf for Style {
 pub struct InteractiveColor {
     pub base: Color,
     pub alternate_color: Color,
-    pub linked: Vec<TargetHandle>,
+    pub linked: Vec<LeafHandle>,
 }
 impl InteractiveColor {
     pub fn new<B: Into<Color>, A: Into<Color>>(b: B, a: A) -> Self {
@@ -30,7 +30,7 @@ impl InteractiveColor {
             linked: vec![],
         }
     }
-    pub fn with_linked(mut self, linked: Vec<TargetHandle>) -> Self {
+    pub fn with_linked(mut self, linked: Vec<LeafHandle>) -> Self {
         self.linked = linked;
         self
     }

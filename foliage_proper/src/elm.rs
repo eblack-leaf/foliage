@@ -12,12 +12,12 @@ use bevy_ecs::schedule::ExecutorKind;
 use bevy_ecs::system::Resource;
 use bevy_ecs::world::World;
 
-use crate::action::{
-    clear_signal, filter_attr_changed, filter_attr_layout_change, signal_action, Actionable,
-};
 use crate::anim::{animate, animate_grid_placement, Animate};
 use crate::ash::Render;
 use crate::asset::{await_assets, on_retrieve};
+use crate::branch::{
+    clear_signal, filter_attr_changed, filter_attr_layout_change, signal_twig, Twig,
+};
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::NumericalContext;
@@ -84,9 +84,9 @@ impl<D> Default for SignalLimiter<D> {
     }
 }
 #[derive(Resource)]
-pub(crate) struct ActionLimiter<D>(PhantomData<D>);
+pub(crate) struct TwigLimiter<D>(PhantomData<D>);
 
-impl<D> Default for ActionLimiter<D> {
+impl<D> Default for TwigLimiter<D> {
     fn default() -> Self {
         Self(PhantomData)
     }
@@ -140,14 +140,12 @@ impl<D> Default for AnimationLimiter<D> {
     }
 }
 impl Elm {
-    pub fn enable_signaled_action<A: Actionable>(&mut self) {
-        if !self.ecs.world.contains_resource::<ActionLimiter<A>>() {
+    pub fn enable_signaled_leaf<A: Twig>(&mut self) {
+        if !self.ecs.world.contains_resource::<TwigLimiter<A>>() {
             self.scheduler
                 .main
-                .add_systems(signal_action::<A>.in_set(ScheduleMarkers::Action));
-            self.ecs
-                .world
-                .insert_resource(ActionLimiter::<A>::default());
+                .add_systems(signal_twig::<A>.in_set(ScheduleMarkers::Action));
+            self.ecs.world.insert_resource(TwigLimiter::<A>::default());
         }
     }
     pub fn enable_event<E: Event + Send + Sync + 'static>(&mut self) {

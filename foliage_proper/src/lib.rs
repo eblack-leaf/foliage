@@ -14,14 +14,14 @@ use winit::window::WindowId;
 
 use willow::Willow;
 
-use crate::action::{Actionable, ElmHandle, Signaler};
 use crate::anim::{Animate, EnabledAnimations};
 use crate::ash::{Ash, Render};
 use crate::asset::{Asset, AssetKey, AssetLoader};
+use crate::branch::{Branch, Signaler, Twig};
 use crate::coordinate::area::Area;
 use crate::coordinate::{Coordinates, DeviceContext};
-use crate::element::{ActionHandle, IdTable};
-use crate::elm::{ActionLimiter, Elm};
+use crate::element::{IdTable, TwigHandle};
+use crate::elm::{Elm, TwigLimiter};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::{Ginkgo, ScaleFactor};
 use crate::icon::{Icon, IconId, IconRequest};
@@ -32,10 +32,10 @@ use crate::style::Style;
 use crate::text::Text;
 use crate::time::Time;
 
-pub mod action;
 pub mod anim;
 pub mod ash;
 pub mod asset;
+pub mod branch;
 pub mod clipboard;
 pub mod color;
 pub mod coordinate;
@@ -66,8 +66,8 @@ pub struct Foliage {
     ginkgo: Ginkgo,
     elm: Elm,
     android_connection: AndroidConnection,
-    leaf_fns: Vec<fn(&mut Elm)>,
-    leaves_fns: Vec<fn(&mut Foliage)>,
+    root_fns: Vec<fn(&mut Elm)>,
+    roots_fns: Vec<fn(&mut Foliage)>,
     booted: bool,
     #[allow(unused)]
     queue: Vec<WindowEvent>,
@@ -79,44 +79,44 @@ pub struct Foliage {
 }
 impl Default for Foliage {
     fn default() -> Self {
-        Self::new()
+        Self::seed()
     }
 }
 
 impl Foliage {
-    pub fn new() -> Self {
+    pub fn seed() -> Self {
         let mut this = Self {
             willow: Willow::default(),
             ash: Ash::default(),
             ginkgo: Ginkgo::default(),
             elm: Elm::default(),
             android_connection: AndroidConnection::default(),
-            leaf_fns: vec![],
-            leaves_fns: vec![],
+            root_fns: vec![],
+            roots_fns: vec![],
             booted: false,
             queue: vec![],
             sender: None,
             recv: None,
             base_url: "".to_string(),
         };
-        this.attach_leaves::<CoreLeaves>();
+        this.define_roots::<Trunk>();
         this.elm.ecs.world.insert_resource(AssetLoader::default());
         this.elm.ecs.world.insert_resource(IdTable::default());
         this
     }
-    pub fn run_action<A: Actionable>(&mut self, a: A) {
-        a.apply(ElmHandle {
+    pub fn grow_twig<A: Twig>(&mut self, a: A) {
+        a.grow(Branch {
             world_handle: Some(&mut self.elm.ecs.world),
         });
     }
-    pub fn enable_signaled_action<A: Actionable>(&mut self) {
-        self.elm.enable_signaled_action::<A>();
+    pub fn enable_signaled_twig<A: Twig>(&mut self) {
+        self.elm.enable_signaled_leaf::<A>();
     }
     pub fn enable_animation<A: Animate>(&mut self) {
         self.elm.enable_animation::<A>();
     }
-    pub fn create_signaled_action<A: Actionable, AH: Into<ActionHandle>>(&mut self, ah: AH, a: A) {
-        if !self.elm.ecs.world.contains_resource::<ActionLimiter<A>>() {
+    pub fn create_signaled_twig<A: Twig, AH: Into<TwigHandle>>(&mut self, ah: AH, a: A) {
+        if !self.elm.ecs.world.contains_resource::<TwigLimiter<A>>() {
             panic!("please enable_signaled_action for this action type")
         }
         let signaler = self.elm.ecs.world.spawn(Signaler::new(a)).id();
@@ -126,7 +126,7 @@ impl Foliage {
             .world
             .get_resource_mut::<IdTable>()
             .unwrap()
-            .add_action(ah, signaler)
+            .add_twig(ah, signaler)
         {
             self.elm.ecs.world.despawn(o);
         }
@@ -146,14 +146,14 @@ impl Foliage {
     pub fn set_android_connection(&mut self, ac: AndroidConnection) {
         self.android_connection = ac;
     }
-    pub fn attach_leaf<L: Leaf>(&mut self) {
-        self.leaf_fns.push(|e| {
-            L::attach(e);
+    pub fn define_root<L: Root>(&mut self) {
+        self.root_fns.push(|e| {
+            L::define(e);
         });
     }
-    pub fn attach_leaves<L: Leaves>(&mut self) {
-        self.leaves_fns.push(|f| {
-            L::attach(f);
+    pub fn define_roots<L: Roots>(&mut self) {
+        self.roots_fns.push(|f| {
+            L::define(f);
         });
     }
     pub fn add_renderer<R: Render>(&mut self) {
@@ -165,7 +165,7 @@ impl Foliage {
     pub fn insert_resource<R: Resource>(&mut self, r: R) {
         self.elm.ecs.world.insert_resource(r);
     }
-    pub fn run(mut self) {
+    pub fn plant(mut self) {
         let event_loop = EventLoop::new().unwrap();
         event_loop.set_control_flow(ControlFlow::Wait);
         cfg_if::cfg_if! {
@@ -253,9 +253,9 @@ impl Foliage {
             .insert(key, Asset::new(bytes));
         key
     }
-    fn leaves_attach(&mut self) {
-        for leaves_fn in self.leaves_fns.drain(..).collect::<Vec<fn(&mut Foliage)>>() {
-            (leaves_fn)(self);
+    fn grow_roots(&mut self) {
+        for root_fn in self.roots_fns.drain(..).collect::<Vec<fn(&mut Foliage)>>() {
+            (root_fn)(self);
         }
     }
     fn finish_boot(&mut self) {
@@ -265,8 +265,8 @@ impl Foliage {
             self.willow.actual_area().to_numerical(),
             self.ginkgo.configuration().scale_factor,
         );
-        self.leaves_attach();
-        self.elm.initialize(self.leaf_fns.drain(..).collect());
+        self.grow_roots();
+        self.elm.initialize(self.root_fns.drain(..).collect());
         self.ash.initialize(&self.ginkgo);
         self.booted = true;
     }
@@ -489,27 +489,27 @@ pub struct AndroidConnection(pub AndroidApp);
 #[cfg(target_os = "android")]
 pub type AndroidApp = winit::platform::android::activity::AndroidApp;
 
-pub trait Leaf {
-    fn attach(elm: &mut Elm);
+pub trait Root {
+    fn define(elm: &mut Elm);
 }
-pub trait Leaves {
-    fn attach(foliage: &mut Foliage);
+pub trait Roots {
+    fn define(foliage: &mut Foliage);
 }
-pub struct CoreLeaves;
-impl Leaves for CoreLeaves {
-    fn attach(foliage: &mut Foliage) {
-        foliage.attach_leaf::<Panel>();
+pub struct Trunk;
+impl Roots for Trunk {
+    fn define(foliage: &mut Foliage) {
+        foliage.define_root::<Panel>();
         foliage.add_renderer::<Panel>();
-        foliage.attach_leaf::<Coordinates>();
-        foliage.attach_leaf::<Icon>();
+        foliage.define_root::<Coordinates>();
+        foliage.define_root::<Icon>();
         foliage.add_renderer::<Icon>();
-        foliage.attach_leaf::<Image>();
+        foliage.define_root::<Image>();
         foliage.add_renderer::<Image>();
-        foliage.attach_leaf::<ClickInteractionListener>();
-        foliage.attach_leaf::<Text>();
+        foliage.define_root::<ClickInteractionListener>();
+        foliage.define_root::<Text>();
         foliage.add_renderer::<Text>();
-        foliage.attach_leaf::<Style>();
-        foliage.attach_leaf::<Time>();
-        foliage.attach_leaf::<EnabledAnimations>();
+        foliage.define_root::<Style>();
+        foliage.define_root::<Time>();
+        foliage.define_root::<EnabledAnimations>();
     }
 }

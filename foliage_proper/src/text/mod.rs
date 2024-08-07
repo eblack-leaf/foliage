@@ -15,8 +15,8 @@ use wgpu::{
 };
 use wgpu::{BindGroupLayout, RenderPipeline};
 
-use crate::action::HasRenderLink;
 use crate::ash::{DrawRange, Render, RenderNodes, Renderer};
+use crate::branch::HasRenderLink;
 use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::elevation::RenderLayer;
@@ -28,10 +28,10 @@ use crate::elm::{Elm, RenderQueueHandle, ScheduleMarkers};
 use crate::ginkgo::{Ginkgo, ScaleFactor, VectorUniform};
 use crate::instances::Instances;
 use crate::texture::{AtlasEntry, TextureAtlas, TextureCoordinates};
-use crate::Leaf;
+use crate::Root;
 
-impl Leaf for Text {
-    fn attach(elm: &mut Elm) {
+impl Root for Text {
+    fn define(elm: &mut Elm) {
         elm.enable_differential::<Self, GpuSection>();
         elm.enable_differential::<Self, RenderLayer>();
         elm.enable_differential::<Self, Glyphs>();

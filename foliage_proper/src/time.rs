@@ -3,10 +3,10 @@ use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{IntoSystemConfigs, ResMut, Resource};
 use bevy_ecs::system::{Commands, Query, Res};
 
-use crate::action::Signal;
+use crate::branch::Signal;
 use crate::element::{IdTable, OnEnd};
 use crate::elm::{Elm, ScheduleMarkers};
-use crate::Leaf;
+use crate::Root;
 
 pub type Moment = web_time::Instant;
 pub type TimeDelta = web_time::Duration;
@@ -87,8 +87,8 @@ pub(crate) fn timers(
         }
     }
 }
-impl Leaf for Time {
-    fn attach(elm: &mut Elm) {
+impl Root for Time {
+    fn define(elm: &mut Elm) {
         elm.ecs.world.insert_resource(Time::new());
         elm.scheduler.startup.add_systems(start);
         elm.scheduler.main.add_systems(
