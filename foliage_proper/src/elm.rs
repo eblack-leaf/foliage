@@ -16,7 +16,7 @@ use crate::anim::{animate, animate_grid_placement, Animate};
 use crate::ash::Render;
 use crate::asset::{await_assets, on_retrieve};
 use crate::branch::{
-    clear_signal, filter_attr_changed, filter_attr_layout_change, signal_twig, Twig,
+    clear_signal, filter_attr_changed, filter_attr_layout_change, signal_branch, Branch,
 };
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
@@ -84,9 +84,9 @@ impl<D> Default for SignalLimiter<D> {
     }
 }
 #[derive(Resource)]
-pub(crate) struct TwigLimiter<D>(PhantomData<D>);
+pub(crate) struct BranchLimiter<D>(PhantomData<D>);
 
-impl<D> Default for TwigLimiter<D> {
+impl<D> Default for BranchLimiter<D> {
     fn default() -> Self {
         Self(PhantomData)
     }
@@ -140,12 +140,14 @@ impl<D> Default for AnimationLimiter<D> {
     }
 }
 impl Elm {
-    pub fn enable_signaled_leaf<A: Twig>(&mut self) {
-        if !self.ecs.world.contains_resource::<TwigLimiter<A>>() {
+    pub fn enable_signaled_branch<A: Branch>(&mut self) {
+        if !self.ecs.world.contains_resource::<BranchLimiter<A>>() {
             self.scheduler
                 .main
-                .add_systems(signal_twig::<A>.in_set(ScheduleMarkers::Action));
-            self.ecs.world.insert_resource(TwigLimiter::<A>::default());
+                .add_systems(signal_branch::<A>.in_set(ScheduleMarkers::Action));
+            self.ecs
+                .world
+                .insert_resource(BranchLimiter::<A>::default());
         }
     }
     pub fn enable_event<E: Event + Send + Sync + 'static>(&mut self) {

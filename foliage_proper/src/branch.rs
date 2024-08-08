@@ -9,13 +9,13 @@ use bevy_ecs::system::{Command, Res, ResMut};
 use crate::anim::{Animate, Animation, AnimationTime, Ease, Sequence, SequenceTimeRange};
 use crate::coordinate::elevation::Elevation;
 use crate::differential::{Remove, RenderLink, RenderRemoveQueue, Visibility};
-use crate::element::{Dependents, Element, IdTable, LeafHandle, OnEnd, Stem, TwigHandle};
-use crate::elm::{FilterAttrLimiter, TwigLimiter};
+use crate::element::{BranchHandle, Dependents, Element, IdTable, LeafHandle, OnEnd, Stem};
+use crate::elm::{BranchLimiter, FilterAttrLimiter};
 use crate::grid::{Grid, GridPlacement, Layout, LayoutFilter};
 use crate::interaction::ClickInteractionListener;
 use crate::view::{View, Viewable};
 
-pub struct Branch<'a> {
+pub struct Tree<'a> {
     pub(crate) world_handle: Option<&'a mut World>,
 }
 
@@ -210,7 +210,7 @@ impl<'a> SequenceHandle<'a> {
             .lookup_leaf(th.into())
     }
 }
-impl<'a> Branch<'a> {
+impl<'a> Tree<'a> {
     pub fn get_resource_mut<R: Resource>(&mut self) -> Mut<'_, R> {
         self.world_handle
             .as_mut()
@@ -465,8 +465,8 @@ impl<'a> Branch<'a> {
         }
         set
     }
-    pub fn grow_twig<A: Twig>(&mut self, a: A) {
-        let cmd = TwigCommand { data: a };
+    pub fn grow_branch<A: Branch>(&mut self, a: A) {
+        let cmd = BranchCommand { data: a };
         cmd.apply(self.world_handle.as_mut().unwrap());
     }
     pub fn run_sequence<SFN: FnOnce(&mut SequenceHandle<'a>)>(&mut self, seq_fn: SFN) {
@@ -507,7 +507,7 @@ impl<'a> Branch<'a> {
         );
         let mut view = View::new(
             handle,
-            Branch {
+            Tree {
                 world_handle: self.world_handle.take(),
             },
         );
@@ -518,12 +518,12 @@ impl<'a> Branch<'a> {
     pub fn spawn<B: Bundle>(&mut self, b: B) {
         self.world_handle.as_mut().unwrap().spawn(b);
     }
-    pub fn create_signaled_twig<A: Twig, AH: Into<TwigHandle>>(&mut self, ah: AH, a: A) {
+    pub fn create_signaled_branch<A: Branch, AH: Into<BranchHandle>>(&mut self, ah: AH, a: A) {
         if !self
             .world_handle
             .as_ref()
             .unwrap()
-            .contains_resource::<TwigLimiter<A>>()
+            .contains_resource::<BranchLimiter<A>>()
         {
             panic!("please enable_signaled_action for this action type")
         }
@@ -539,7 +539,7 @@ impl<'a> Branch<'a> {
             .unwrap()
             .get_resource_mut::<IdTable>()
             .unwrap()
-            .add_twig(ah, signaler)
+            .add_branch(ah, signaler)
         {
             self.world_handle.as_mut().unwrap().despawn(o);
         }
@@ -553,21 +553,21 @@ impl<'a> Branch<'a> {
             .lookup_leaf(th.into())
     }
 }
-pub trait Twig
+pub trait Branch
 where
     Self: Clone + Send + Sync + 'static,
 {
-    fn grow(self, branch: Branch);
+    fn grow(self, branch: Tree);
 }
 
 #[derive(Clone)]
-pub struct TwigCommand<A: Twig> {
+pub struct BranchCommand<A: Branch> {
     data: A,
 }
 
-impl<A: Twig> Command for TwigCommand<A> {
+impl<A: Branch> Command for BranchCommand<A> {
     fn apply(self, world: &mut World) {
-        let branch = Branch {
+        let branch = Tree {
             world_handle: Some(world),
         };
         self.data.grow(branch);
@@ -585,12 +585,12 @@ impl Signal {
     }
 }
 #[derive(Component)]
-pub(crate) struct SignaledTwigCommand<A: Twig> {
-    a: TwigCommand<A>,
+pub(crate) struct SignaledBranchCommand<A: Branch> {
+    a: BranchCommand<A>,
 }
 
-pub(crate) fn signal_twig<A: Twig>(
-    signals: Query<(&Signal, &SignaledTwigCommand<A>)>,
+pub(crate) fn signal_branch<A: Branch>(
+    signals: Query<(&Signal, &SignaledBranchCommand<A>)>,
     mut cmd: Commands,
 ) {
     for (signal, signaled_twig) in signals.iter() {
@@ -607,15 +607,15 @@ pub(crate) fn clear_signal(mut signals: Query<&mut Signal, Changed<Signal>>) {
     }
 }
 #[derive(Bundle)]
-pub(crate) struct Signaler<A: Twig> {
-    twig: SignaledTwigCommand<A>,
+pub(crate) struct Signaler<A: Branch> {
+    twig: SignaledBranchCommand<A>,
     signal: Signal,
 }
-impl<A: Twig> Signaler<A> {
+impl<A: Branch> Signaler<A> {
     pub fn new(a: A) -> Self {
         Self {
-            twig: SignaledTwigCommand {
-                a: TwigCommand { data: a },
+            twig: SignaledBranchCommand {
+                a: BranchCommand { data: a },
             },
             signal: Signal(false),
         }

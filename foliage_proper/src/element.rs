@@ -211,8 +211,8 @@ impl LeafHandle {
     }
 }
 #[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-pub struct TwigHandle(pub String);
-impl<S: AsRef<str>> From<S> for TwigHandle {
+pub struct BranchHandle(pub String);
+impl<S: AsRef<str>> From<S> for BranchHandle {
     fn from(value: S) -> Self {
         Self(value.as_ref().to_string())
     }
@@ -220,29 +220,29 @@ impl<S: AsRef<str>> From<S> for TwigHandle {
 #[derive(Resource, Default)]
 pub(crate) struct IdTable {
     pub(crate) leafs: HashMap<LeafHandle, Entity>,
-    pub(crate) twigs: HashMap<TwigHandle, Entity>,
+    pub(crate) twigs: HashMap<BranchHandle, Entity>,
 }
 impl IdTable {
     pub fn add_target<TH: Into<LeafHandle>>(&mut self, th: TH, entity: Entity) -> Option<Entity> {
         self.leafs.insert(th.into(), entity)
     }
-    pub fn add_twig<AH: Into<TwigHandle>>(&mut self, ah: AH, entity: Entity) -> Option<Entity> {
+    pub fn add_branch<AH: Into<BranchHandle>>(&mut self, ah: AH, entity: Entity) -> Option<Entity> {
         self.twigs.insert(ah.into(), entity)
     }
     pub fn lookup_leaf<TH: Into<LeafHandle>>(&self, th: TH) -> Option<Entity> {
         self.leafs.get(&th.into()).copied()
     }
-    pub fn lookup_twig<AH: Into<TwigHandle>>(&self, ah: AH) -> Option<Entity> {
+    pub fn lookup_twig<AH: Into<BranchHandle>>(&self, ah: AH) -> Option<Entity> {
         self.twigs.get(&ah.into()).copied()
     }
 }
 
 #[derive(Default)]
 pub struct OnEnd {
-    pub actions: HashSet<TwigHandle>,
+    pub actions: HashSet<BranchHandle>,
 }
 impl OnEnd {
-    pub fn new<AH: Into<TwigHandle>>(ah: AH) -> Self {
+    pub fn new<AH: Into<BranchHandle>>(ah: AH) -> Self {
         Self {
             actions: {
                 let mut a = HashSet::new();
@@ -251,7 +251,7 @@ impl OnEnd {
             },
         }
     }
-    pub fn with<AH: Into<TwigHandle>>(mut self, ah: AH) -> Self {
+    pub fn with<AH: Into<BranchHandle>>(mut self, ah: AH) -> Self {
         self.actions.insert(ah.into());
         self
     }

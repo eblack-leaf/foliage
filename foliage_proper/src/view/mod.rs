@@ -1,4 +1,4 @@
-use crate::branch::{Branch, LeafElement};
+use crate::branch::{LeafElement, Tree};
 use crate::coordinate::elevation::Elevation;
 use crate::element::LeafHandle;
 use crate::grid::{Grid, GridPlacement};
@@ -13,7 +13,7 @@ where
 }
 pub struct View<'a> {
     pub target_handle: LeafHandle,
-    pub elm_handle: Branch<'a>,
+    pub elm_handle: Tree<'a>,
 }
 impl<'a> View<'a> {
     pub fn bind<TH: Into<LeafHandle>, BFN: FnOnce(&mut LeafElement<'a>), E: Into<Elevation>>(
@@ -35,7 +35,7 @@ impl<'a> View<'a> {
             .update_leaf(self.target_handle.clone(), |e| e.give_attr(grid));
     }
     // TODO forward elm-handle functions
-    pub(crate) fn new(target_handle: LeafHandle, elm_handle: Branch<'a>) -> Self {
+    pub(crate) fn new(target_handle: LeafHandle, elm_handle: Tree<'a>) -> Self {
         Self {
             target_handle,
             elm_handle,

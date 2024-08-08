@@ -17,11 +17,11 @@ use willow::Willow;
 use crate::anim::{Animate, EnabledAnimations};
 use crate::ash::{Ash, Render};
 use crate::asset::{Asset, AssetKey, AssetLoader};
-use crate::branch::{Branch, Signaler, Twig};
+use crate::branch::{Branch, Signaler, Tree};
 use crate::coordinate::area::Area;
 use crate::coordinate::{Coordinates, DeviceContext};
-use crate::element::{IdTable, TwigHandle};
-use crate::elm::{Elm, TwigLimiter};
+use crate::element::{BranchHandle, IdTable};
+use crate::elm::{BranchLimiter, Elm};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::{Ginkgo, ScaleFactor};
 use crate::icon::{Icon, IconId, IconRequest};
@@ -104,20 +104,20 @@ impl Foliage {
         this.elm.ecs.world.insert_resource(IdTable::default());
         this
     }
-    pub fn grow_twig<A: Twig>(&mut self, a: A) {
-        a.grow(Branch {
+    pub fn grow_branch<A: Branch>(&mut self, a: A) {
+        a.grow(Tree {
             world_handle: Some(&mut self.elm.ecs.world),
         });
     }
-    pub fn enable_signaled_twig<A: Twig>(&mut self) {
-        self.elm.enable_signaled_leaf::<A>();
+    pub fn enable_signaled_branch<A: Branch>(&mut self) {
+        self.elm.enable_signaled_branch::<A>();
     }
     pub fn enable_animation<A: Animate>(&mut self) {
         self.elm.enable_animation::<A>();
     }
-    pub fn create_signaled_twig<A: Twig, AH: Into<TwigHandle>>(&mut self, ah: AH, a: A) {
-        if !self.elm.ecs.world.contains_resource::<TwigLimiter<A>>() {
-            panic!("please enable_signaled_action for this action type")
+    pub fn create_signaled_branch<A: Branch, AH: Into<BranchHandle>>(&mut self, ah: AH, a: A) {
+        if !self.elm.ecs.world.contains_resource::<BranchLimiter<A>>() {
+            panic!("please enable_signaled_branch for this branch type")
         }
         let signaler = self.elm.ecs.world.spawn(Signaler::new(a)).id();
         if let Some(o) = self
@@ -126,7 +126,7 @@ impl Foliage {
             .world
             .get_resource_mut::<IdTable>()
             .unwrap()
-            .add_twig(ah, signaler)
+            .add_branch(ah, signaler)
         {
             self.elm.ecs.world.despawn(o);
         }

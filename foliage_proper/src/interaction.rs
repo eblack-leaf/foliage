@@ -15,7 +15,7 @@ use crate::coordinate::elevation::RenderLayer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
-use crate::element::{IdTable, TwigHandle};
+use crate::element::{BranchHandle, IdTable};
 use crate::elm::{Elm, ScheduleMarkers};
 use crate::ginkgo::ScaleFactor;
 use crate::Root;
@@ -207,14 +207,14 @@ impl ClickInteractionShape {
     }
 }
 #[derive(Component, Clone)]
-pub struct OnClick(pub(crate) HashSet<TwigHandle>);
+pub struct OnClick(pub(crate) HashSet<BranchHandle>);
 impl OnClick {
-    pub fn new<AH: Into<TwigHandle>>(action_handle: AH) -> Self {
+    pub fn new<AH: Into<BranchHandle>>(action_handle: AH) -> Self {
         let mut this = Self(HashSet::new());
         this.0.insert(action_handle.into());
         this
     }
-    pub fn with<AH: Into<TwigHandle>>(mut self, action_handle: AH) -> Self {
+    pub fn with<AH: Into<BranchHandle>>(mut self, action_handle: AH) -> Self {
         self.0.insert(action_handle.into());
         self
     }

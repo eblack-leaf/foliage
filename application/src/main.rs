@@ -16,6 +16,6 @@ fn main() {
     // foliage.spawn(Image::memory(ImageHandles::Leaf, (1920, 1920)));
     // let leaf = load_asset!(foliage, "assets/leaf.png");
     // foliage.insert_resource(ImageKeys { leaf });
-    foliage.grow_twig(Home {});
+    foliage.grow_branch(Home {});
     foliage.plant();
 }

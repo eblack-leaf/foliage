@@ -1,14 +1,14 @@
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
 
-use crate::branch::{Branch, Twig};
+use crate::branch::{Branch, Tree};
 
 #[derive(Clone)]
 pub struct HrefLink {
     href: String,
 }
-impl Twig for HrefLink {
-    fn grow(self, _handle: Branch) {
+impl Branch for HrefLink {
+    fn grow(self, _handle: Tree) {
         self.navigate();
     }
 }
