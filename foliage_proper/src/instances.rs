@@ -33,16 +33,15 @@ pub(crate) struct Swap {
     to: usize,
 }
 impl<Key: Hash + Eq + Copy + Clone + Debug> Instances<Key> {
-    pub fn get_attr<A: Pod + Zeroable + Default>(&self, key: &Key) -> A {
+    pub fn get_attr<A: Pod + Zeroable + Default>(&self, key: &Key) -> Option<A> {
         let index = *self.map.get(key).unwrap();
         let message = format!("unmapped key for:{}", index);
-        *self
-            .world
+        self.world
             .get_non_send_resource::<Attribute<A>>()
             .unwrap()
             .cpu
             .get(index)
-            .expect(message.as_str())
+            .copied()
     }
     pub fn num_instances(&self) -> u32 {
         self.order.len() as u32
@@ -178,7 +177,7 @@ impl<Key: Hash + Eq + Copy + Clone + Debug> Instances<Key> {
                 let mut layer_sorted = vec![];
                 for (current, key) in ordering.iter() {
                     self.map.insert(key.clone(), *current);
-                    let layer = self.get_attr::<RenderLayer>(key);
+                    let layer = self.get_attr::<RenderLayer>(key).unwrap();
                     layer_sorted.push((*current, key.clone(), layer));
                 }
                 layer_sorted.sort_by(|lhs, rhs| -> Ordering { lhs.2.partial_cmp(&rhs.2).unwrap() });

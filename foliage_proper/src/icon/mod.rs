@@ -338,7 +338,8 @@ impl Render for Icon {
                         .get(&o)
                         .unwrap()
                         .instances
-                        .get_attr::<GpuSection>(&packet.entity);
+                        .get_attr::<GpuSection>(&packet.entity)
+                        .unwrap();
                     renderer
                         .resource_handle
                         .group_mut_from_entity(packet.entity)
@@ -351,7 +352,8 @@ impl Render for Icon {
                         .get(&o)
                         .unwrap()
                         .instances
-                        .get_attr::<RenderLayer>(&packet.entity);
+                        .get_attr::<RenderLayer>(&packet.entity)
+                        .unwrap();
                     renderer
                         .resource_handle
                         .group_mut_from_entity(packet.entity)
@@ -363,7 +365,8 @@ impl Render for Icon {
                         .get(&o)
                         .unwrap()
                         .instances
-                        .get_attr::<Color>(&packet.entity);
+                        .get_attr::<Color>(&packet.entity)
+                        .unwrap();
                     renderer
                         .resource_handle
                         .group_mut_from_entity(packet.entity)
