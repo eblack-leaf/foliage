@@ -178,10 +178,14 @@ impl Render for Line {
                     ),
                 ],
             },
-            primitive: Default::default(),
-            depth_stencil: None,
-            multisample: Default::default(),
-            fragment: None,
+            primitive: Ginkgo::triangle_list_primitive(),
+            depth_stencil: ginkgo.depth_stencil_state(),
+            multisample: ginkgo.msaa_state(),
+            fragment: Ginkgo::fragment_state(
+                &shader,
+                "fragment_entry",
+                &ginkgo.alpha_color_target_state(),
+            ),
             multiview: None,
         });
         LineRenderResources {
