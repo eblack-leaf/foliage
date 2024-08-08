@@ -19,81 +19,35 @@ use crate::instances::Instances;
 use crate::Root;
 
 #[derive(Bundle)]
-pub struct Line {
+pub struct Shape {
     render_link: RenderLink,
-    main_line_points: LinePoints,
-    line_vertex_offsets: Differential<LineVertexOffsets>,
-    weight: Weight,
-    percent_drawn: PercentDrawn,
-    line_descriptor: Differential<LineDescriptor>,
+    line_descriptor: Differential<ShapeDescriptor>,
     color: Differential<Color>,
-    joined_lines: JoinedLines,
-    layer: RenderLayer,
-    percent_drawn_and_layer: Differential<PercentAndLayer>, // distill from both + diff
+    layer: Differential<RenderLayer>,
 }
 #[repr(C)]
-#[derive(Component, Pod, Zeroable, Copy, Clone, Debug, Default)]
-pub(crate) struct LinePoints {
+#[derive(Component, Pod, Zeroable, Copy, Clone, Debug, Default, PartialEq)]
+pub(crate) struct EdgePoints {
     pub(crate) start: Coordinates,
     pub(crate) end: Coordinates,
 }
-// Offsets along edge line to where vertex is
-#[repr(C)]
-#[derive(Component, Pod, Zeroable, Copy, Clone, Debug, Default)]
-pub(crate) struct LineVertexOffsets {
-    pub(crate) top_left_offset: f32,
-    pub(crate) top_right_offset: f32,
-    pub(crate) bot_left_offset: f32,
-    pub(crate) bot_right_offset: f32,
-}
-#[repr(C)]
-#[derive(Component, Pod, Zeroable, Copy, Clone, Debug, Default)]
-pub struct Weight(pub(crate) f32);
-impl Weight {
-    pub fn new(w: u32) -> Self {
-        Self(w as f32)
-    }
-}
-#[repr(C)]
-#[derive(Pod, Zeroable, Copy, Clone, Default, Debug)]
-pub struct LinePercent(pub(crate) f32);
 // Main and start/end without adjustments
 #[repr(C)]
-#[derive(Component, Pod, Zeroable, Copy, Clone, Debug, Default)]
-pub(crate) struct LineDescriptor {
-    pub(crate) start: LinePoints,
-    pub(crate) end: LinePoints,
-    pub(crate) top_edge: LinePoints,
-    pub(crate) bot_edge: LinePoints,
+#[derive(Component, Pod, Zeroable, Copy, Clone, Debug, Default, PartialEq)]
+pub(crate) struct ShapeDescriptor {
+    pub(crate) start: EdgePoints,
+    pub(crate) end: EdgePoints,
+    pub(crate) top_edge: EdgePoints,
+    pub(crate) bot_edge: EdgePoints,
 }
-#[derive(Component)]
-pub(crate) struct JoinedLines {
-    pub(crate) joined: Vec<LineJoin>,
-}
-#[derive(Copy, Clone)]
-pub enum LineJoinMethod {
-    Start,
-    Percent(LinePercent),
-    End,
-}
-#[derive(Copy, Clone)]
-pub(crate) struct LineJoinAngle {
-    angle: f32,
-}
-#[derive(Copy, Clone)]
-pub(crate) struct LineJoin {
-    pub(crate) joined: Entity,
-    pub(crate) method: LineJoinMethod,
-    pub(crate) angle_to_joined: LineJoinAngle,
-}
-pub struct LineRenderResources {
+pub struct ShapeRenderResources {
     pipeline: RenderPipeline,
     vertex_buffer: wgpu::Buffer,
     bind_group_layout: BindGroupLayout,
     bind_group: BindGroup,
     instances: Instances<Entity>,
 }
-impl Root for Line {
+impl Root for Shape {
     fn define(elm: &mut Elm) {
         todo!()
     }
@@ -118,23 +72,12 @@ pub(crate) const VERTICES: [Vertex; 6] = [
     Vertex::new(Coordinates::new(0f32, 1f32)),
     Vertex::new(Coordinates::new(1f32, 1f32)),
 ];
-#[derive(Component, Copy, Clone, Debug, Default)]
-pub(crate) struct PercentDrawn {
-    pub(crate) start: LinePercent,
-    pub(crate) end: LinePercent,
-}
-#[repr(C)]
-#[derive(Component, Pod, Zeroable, Copy, Clone, Debug, Default)]
-pub(crate) struct PercentAndLayer {
-    pub(crate) percent_drawn: PercentDrawn,
-    pub(crate) weight: Weight,
-}
-impl Render for Line {
+impl Render for Shape {
     type DirectiveGroupKey = i32;
-    type Resources = LineRenderResources;
+    type Resources = ShapeRenderResources;
 
     fn create_resources(ginkgo: &Ginkgo) -> Self::Resources {
-        let shader = ginkgo.create_shader(include_wgsl!("line.wgsl"));
+        let shader = ginkgo.create_shader(include_wgsl!("shape.wgsl"));
         let vertex_buffer = ginkgo.create_vertex_buffer(VERTICES);
         let bind_group_layout = ginkgo.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: Some("line-bind-group-layout"),
@@ -164,7 +107,7 @@ impl Render for Line {
                         VertexStepMode::Vertex,
                         &wgpu::vertex_attr_array![0 => Float32x2],
                     ),
-                    Ginkgo::vertex_buffer_layout::<LineDescriptor>(
+                    Ginkgo::vertex_buffer_layout::<ShapeDescriptor>(
                         VertexStepMode::Instance,
                         &wgpu::vertex_attr_array![
                             1 => Float32x4,
@@ -173,17 +116,13 @@ impl Render for Line {
                             4 => Float32x4,
                         ],
                     ),
-                    Ginkgo::vertex_buffer_layout::<PercentAndLayer>(
+                    Ginkgo::vertex_buffer_layout::<RenderLayer>(
                         VertexStepMode::Instance,
-                        &wgpu::vertex_attr_array![5 => Float32x3],
+                        &wgpu::vertex_attr_array![5 => Float32],
                     ),
                     Ginkgo::vertex_buffer_layout::<Color>(
                         VertexStepMode::Instance,
                         &wgpu::vertex_attr_array![6 => Float32x4],
-                    ),
-                    Ginkgo::vertex_buffer_layout::<LineVertexOffsets>(
-                        VertexStepMode::Instance,
-                        &wgpu::vertex_attr_array![7 => Float32x4],
                     ),
                 ],
             },
@@ -197,17 +136,15 @@ impl Render for Line {
             ),
             multiview: None,
         });
-        LineRenderResources {
+        ShapeRenderResources {
             pipeline,
             vertex_buffer,
             bind_group_layout,
             bind_group,
             instances: Instances::new(1)
-                .with_attribute::<LineDescriptor>(ginkgo)
-                .with_attribute::<PercentAndLayer>(ginkgo)
+                .with_attribute::<ShapeDescriptor>(ginkgo)
                 .with_attribute::<RenderLayer>(ginkgo)
-                .with_attribute::<Color>(ginkgo)
-                .with_attribute::<LineVertexOffsets>(ginkgo),
+                .with_attribute::<Color>(ginkgo),
         }
     }
 

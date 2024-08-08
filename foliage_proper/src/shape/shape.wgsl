@@ -4,22 +4,20 @@ var<uniform> viewport: mat4x4<f32>;
 struct Vertex {
     @builtin(vertex_index) index: u32,
     @location(0) vertex_pos: vec2<f32>,
-    @location(1) start: vec4f,
-    @location(2) end: vec4f,
-    @location(3) top_edge: vec4f,
-    @location(4) bot_edge: vec4f,
-    @location(5) percent_and_layer: vec3f,
+    @location(1) left: vec4f,
+    @location(2) top: vec4f,
+    @location(3) right: vec4f,
+    @location(4) bot: vec4f,
+    @location(5) layer: f32,
     @location(6) color: vec4f,
-    @location(7) vertex_offsets: vec4f,
 };
 struct Fragment {
     @builtin(position) position: vec4<f32>,
     @location(0) color: vec4f,
-    @location(1) start: vec4f,
-    @location(2) end: vec4f,
-    @location(3) top_edge: vec4f,
-    @location(4) bot_edge: vec4f,
-    @location(5) percent: vec2f,
+    @location(1) left: vec4f,
+    @location(2) top: vec4f,
+    @location(3) right: vec4f,
+    @location(4) bot: vec4f,
 };
 @vertex
 fn vertex_entry(vertex: Vertex) -> Fragment {
