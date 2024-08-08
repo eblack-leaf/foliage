@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::Component;
@@ -14,13 +12,24 @@ use crate::ash::{DrawRange, Render, Renderer};
 use crate::color::Color;
 use crate::coordinate::elevation::RenderLayer;
 use crate::coordinate::Coordinates;
+use crate::differential::{Differential, RenderLink};
 use crate::elm::{Elm, RenderQueueHandle};
 use crate::ginkgo::Ginkgo;
 use crate::instances::Instances;
 use crate::Root;
 
 #[derive(Bundle)]
-pub struct Line {}
+pub struct Line {
+    render_link: RenderLink,
+    main_line_points: LinePoints,
+    line_vertex_offsets: Differential<LineVertexOffsets>,
+    weight: Weight,
+    percent_drawn: PercentDrawn,
+    line_descriptor: Differential<LineDescriptor>,
+    color: Differential<Color>,
+    joined_lines: JoinedLines,
+    percent_drawn_and_layer: Differential<PercentAndLayer>, // distill from both + diff
+}
 #[repr(C)]
 #[derive(Component, Pod, Zeroable, Copy, Clone, Debug, Default)]
 pub(crate) struct LinePoints {
@@ -36,7 +45,8 @@ pub(crate) struct LineVertexOffsets {
     pub(crate) bot_left_offset: f32,
     pub(crate) bot_right_offset: f32,
 }
-#[derive(Component, Copy, Clone)]
+#[repr(C)]
+#[derive(Component, Pod, Zeroable, Copy, Clone, Debug, Default)]
 pub struct Weight(pub(crate) f32);
 impl Weight {
     pub fn new(w: u32) -> Self {
@@ -46,14 +56,14 @@ impl Weight {
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default, Debug)]
 pub struct LinePercent(pub(crate) f32);
-// Edges and start/end without adjustments
+// Main and start/end without adjustments
 #[repr(C)]
 #[derive(Component, Pod, Zeroable, Copy, Clone, Debug, Default)]
 pub(crate) struct LineDescriptor {
-    pub(crate) right: LinePoints,
-    pub(crate) left: LinePoints,
     pub(crate) start: LinePoints,
     pub(crate) end: LinePoints,
+    pub(crate) top_edge: LinePoints,
+    pub(crate) bot_edge: LinePoints,
 }
 #[derive(Component)]
 pub(crate) struct JoinedLines {
@@ -81,7 +91,6 @@ pub struct LineRenderResources {
     bind_group_layout: BindGroupLayout,
     bind_group: BindGroup,
     instances: Instances<Entity>,
-    render_layer_and_percent_map: HashMap<Entity, RenderLayerAndPercentDrawn>,
 }
 impl Root for Line {
     fn define(elm: &mut Elm) {
@@ -108,17 +117,16 @@ pub(crate) const VERTICES: [Vertex; 6] = [
     Vertex::new(Coordinates::new(0f32, 1f32)),
     Vertex::new(Coordinates::new(1f32, 1f32)),
 ];
-#[derive(Component, Copy, Clone)]
+#[derive(Component, Copy, Clone, Debug, Default)]
 pub(crate) struct PercentDrawn {
     pub(crate) start: LinePercent,
     pub(crate) end: LinePercent,
 }
 #[repr(C)]
-#[derive(Pod, Zeroable, Copy, Clone, Default, Debug)]
-pub(crate) struct RenderLayerAndPercentDrawn {
-    pub(crate) layer: RenderLayer,
-    pub(crate) start: LinePercent,
-    pub(crate) end: LinePercent,
+#[derive(Component, Pod, Zeroable, Copy, Clone, Debug, Default)]
+pub(crate) struct PercentAndLayer {
+    pub(crate) percent_drawn: PercentDrawn,
+    pub(crate) weight: Weight,
 }
 impl Render for Line {
     type DirectiveGroupKey = i32;
@@ -164,7 +172,7 @@ impl Render for Line {
                             4 => Float32x4,
                         ],
                     ),
-                    Ginkgo::vertex_buffer_layout::<RenderLayerAndPercentDrawn>(
+                    Ginkgo::vertex_buffer_layout::<PercentAndLayer>(
                         VertexStepMode::Instance,
                         &wgpu::vertex_attr_array![5 => Float32x3],
                     ),
@@ -195,10 +203,10 @@ impl Render for Line {
             bind_group,
             instances: Instances::new(1)
                 .with_attribute::<LineDescriptor>(ginkgo)
-                .with_attribute::<RenderLayerAndPercentDrawn>(ginkgo)
+                .with_attribute::<PercentAndLayer>(ginkgo)
+                .with_attribute::<RenderLayer>(ginkgo)
                 .with_attribute::<Color>(ginkgo)
                 .with_attribute::<LineVertexOffsets>(ginkgo),
-            render_layer_and_percent_map: Default::default(),
         }
     }
 
