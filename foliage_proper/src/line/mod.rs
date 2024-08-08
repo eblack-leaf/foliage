@@ -28,6 +28,7 @@ pub struct Line {
     line_descriptor: Differential<LineDescriptor>,
     color: Differential<Color>,
     joined_lines: JoinedLines,
+    layer: RenderLayer,
     percent_drawn_and_layer: Differential<PercentAndLayer>, // distill from both + diff
 }
 #[repr(C)]
