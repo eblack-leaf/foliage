@@ -1,7 +1,7 @@
 use crate::branch::{LeafElement, Tree};
 use crate::coordinate::elevation::Elevation;
-use crate::element::LeafHandle;
 use crate::grid::{Grid, GridPlacement};
+use crate::leaf::LeafHandle;
 
 pub mod button;
 

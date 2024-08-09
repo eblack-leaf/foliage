@@ -220,20 +220,20 @@ impl<S: AsRef<str>> From<S> for BranchHandle {
 #[derive(Resource, Default)]
 pub(crate) struct IdTable {
     pub(crate) leafs: HashMap<LeafHandle, Entity>,
-    pub(crate) twigs: HashMap<BranchHandle, Entity>,
+    pub(crate) branches: HashMap<BranchHandle, Entity>,
 }
 impl IdTable {
     pub fn add_target<TH: Into<LeafHandle>>(&mut self, th: TH, entity: Entity) -> Option<Entity> {
         self.leafs.insert(th.into(), entity)
     }
     pub fn add_branch<AH: Into<BranchHandle>>(&mut self, ah: AH, entity: Entity) -> Option<Entity> {
-        self.twigs.insert(ah.into(), entity)
+        self.branches.insert(ah.into(), entity)
     }
     pub fn lookup_leaf<TH: Into<LeafHandle>>(&self, th: TH) -> Option<Entity> {
         self.leafs.get(&th.into()).copied()
     }
-    pub fn lookup_twig<AH: Into<BranchHandle>>(&self, ah: AH) -> Option<Entity> {
-        self.twigs.get(&ah.into()).copied()
+    pub fn lookup_branch<AH: Into<BranchHandle>>(&self, ah: AH) -> Option<Entity> {
+        self.branches.get(&ah.into()).copied()
     }
 }
 

@@ -15,9 +15,9 @@ use crate::coordinate::elevation::RenderLayer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
-use crate::element::{BranchHandle, IdTable};
 use crate::elm::{Elm, ScheduleMarkers};
 use crate::ginkgo::ScaleFactor;
+use crate::leaf::{BranchHandle, IdTable};
 use crate::Root;
 
 #[derive(Resource, Default)]
@@ -227,7 +227,7 @@ pub(crate) fn on_click(
     for (on_click, listener) in on_clicks.iter() {
         if listener.active {
             for handle in on_click.0.iter() {
-                let entity = id_table.lookup_twig(handle.clone()).unwrap();
+                let entity = id_table.lookup_branch(handle.clone()).unwrap();
                 *actions.get_mut(entity).expect("no-corresponding-action") = Signal::active();
             }
         }

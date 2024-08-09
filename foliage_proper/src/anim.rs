@@ -9,9 +9,9 @@ use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::{Coordinates, LogicalContext};
-use crate::element::{IdTable, LeafHandle, OnEnd, Opacity};
 use crate::elm::Elm;
 use crate::grid::GridPlacement;
+use crate::leaf::{IdTable, LeafHandle, OnEnd, Opacity};
 use crate::panel::Rounding;
 use crate::time::{Time, TimeDelta};
 use crate::Root;
@@ -447,7 +447,7 @@ fn despawn_and_update_sequence<A: Animate>(
             .actions
             .iter()
         {
-            let e = id_table.lookup_twig(handle.clone()).unwrap();
+            let e = id_table.lookup_branch(handle.clone()).unwrap();
             cmd.entity(e).insert(Signal::active());
         }
         cmd.entity(sequence_entity).despawn();

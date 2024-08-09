@@ -3,9 +3,9 @@ use bevy_ecs::query::{Changed, Or};
 use bevy_ecs::system::{Commands, Query, Res};
 
 use crate::color::Color;
-use crate::element::{IdTable, LeafHandle};
 use crate::elm::{Elm, ScheduleMarkers};
 use crate::interaction::ClickInteractionListener;
+use crate::leaf::{IdTable, LeafHandle};
 use crate::Root;
 
 pub(crate) struct Style;

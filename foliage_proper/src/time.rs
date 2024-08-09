@@ -4,8 +4,8 @@ use bevy_ecs::prelude::{IntoSystemConfigs, ResMut, Resource};
 use bevy_ecs::system::{Commands, Query, Res};
 
 use crate::branch::Signal;
-use crate::element::{IdTable, OnEnd};
 use crate::elm::{Elm, ScheduleMarkers};
+use crate::leaf::{IdTable, OnEnd};
 use crate::Root;
 
 pub type Moment = web_time::Instant;
@@ -81,7 +81,7 @@ pub(crate) fn timers(
         if timer.time_left.is_zero() {
             cmd.entity(entity).despawn();
             for handle in timer.on_end.actions.iter() {
-                let e = id_table.lookup_twig(handle.clone()).unwrap();
+                let e = id_table.lookup_branch(handle.clone()).unwrap();
                 cmd.entity(e).insert(Signal::active());
             }
         }

@@ -9,10 +9,10 @@ use bevy_ecs::system::{Command, Res, ResMut};
 use crate::anim::{Animate, Animation, AnimationTime, Ease, Sequence, SequenceTimeRange};
 use crate::coordinate::elevation::Elevation;
 use crate::differential::{Remove, RenderLink, RenderRemoveQueue, Visibility};
-use crate::element::{BranchHandle, Dependents, IdTable, Leaf, LeafHandle, OnEnd, Stem};
 use crate::elm::{BranchLimiter, FilterAttrLimiter};
 use crate::grid::{Grid, GridPlacement, Layout, LayoutFilter};
 use crate::interaction::ClickInteractionListener;
+use crate::leaf::{BranchHandle, Dependents, IdTable, Leaf, LeafHandle, OnEnd, Stem};
 use crate::view::{View, Viewable};
 
 pub struct Tree<'a> {

@@ -26,13 +26,13 @@ use crate::differential::{
     added_invalidate, differential, visibility_changed, RenderAddQueue, RenderLink, RenderPacket,
     RenderRemoveQueue,
 };
-use crate::element::{opacity, recursive_placement};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::ScaleFactor;
 use crate::grid::{viewport_changes_layout, Grid, GridPlacement, Layout, LayoutGrid};
 use crate::interaction::{
     FocusedEntity, InteractiveEntity, KeyboardAdapter, MouseAdapter, TouchAdapter,
 };
+use crate::leaf::{opacity, recursive_placement};
 use crate::willow::Willow;
 
 #[derive(Default)]
