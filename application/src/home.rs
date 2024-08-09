@@ -16,7 +16,7 @@ impl Branch for Home {
             |e| {
                 e.give_attr(Shape::new(
                     ShapeDescriptor::new(
-                        EdgePoints::new(Coordinates::new(10.0, 10.0), Coordinates::new(10.0, 11.0)),
+                        EdgePoints::new(Coordinates::new(10.0, 10.0), Coordinates::new(10.0, 10.0)),
                         EdgePoints::new(
                             Coordinates::new(10.0, 10.0),
                             Coordinates::new(720.0, 340.0),
@@ -26,7 +26,7 @@ impl Branch for Home {
                             Coordinates::new(550.0, 550.0),
                         ),
                         EdgePoints::new(
-                            Coordinates::new(10.0, 11.0),
+                            Coordinates::new(10.0, 10.0),
                             Coordinates::new(550.0, 550.0),
                         ),
                     ),

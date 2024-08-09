@@ -31,7 +31,6 @@ fn vertex_entry(vertex: Vertex) -> Fragment {
     } else if (vertex.index == 3) {
         v = vertex.right.xy;
     }
-    // viewport * point_derived + send info
     return Fragment(
         viewport * vec4f(v, vertex.layer, 1.0),
         vertex.color,
