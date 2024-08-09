@@ -21,24 +21,48 @@ use crate::Root;
 #[derive(Bundle)]
 pub struct Shape {
     render_link: RenderLink,
-    line_descriptor: Differential<ShapeDescriptor>,
+    descriptor: Differential<ShapeDescriptor>,
     color: Differential<Color>,
     layer: Differential<RenderLayer>,
 }
-#[repr(C)]
-#[derive(Component, Pod, Zeroable, Copy, Clone, Debug, Default, PartialEq)]
-pub(crate) struct EdgePoints {
-    pub(crate) start: Coordinates,
-    pub(crate) end: Coordinates,
+impl Shape {
+    pub fn new(desc: ShapeDescriptor, color: Color) -> Self {
+        Self {
+            render_link: RenderLink::new::<Self>(),
+            descriptor: Differential::new(desc),
+            color: Differential::new(color),
+            layer: Differential::new(RenderLayer::default()),
+        }
+    }
 }
-// Main and start/end without adjustments
 #[repr(C)]
 #[derive(Component, Pod, Zeroable, Copy, Clone, Debug, Default, PartialEq)]
-pub(crate) struct ShapeDescriptor {
-    pub(crate) start: EdgePoints,
-    pub(crate) end: EdgePoints,
-    pub(crate) top_edge: EdgePoints,
-    pub(crate) bot_edge: EdgePoints,
+pub struct EdgePoints {
+    pub start: Coordinates,
+    pub end: Coordinates,
+}
+impl EdgePoints {
+    pub fn new(start: Coordinates, end: Coordinates) -> Self {
+        Self { start, end }
+    }
+}
+#[repr(C)]
+#[derive(Component, Pod, Zeroable, Copy, Clone, Debug, Default, PartialEq)]
+pub struct ShapeDescriptor {
+    pub left: EdgePoints,
+    pub top: EdgePoints,
+    pub right: EdgePoints,
+    pub bot: EdgePoints,
+}
+impl ShapeDescriptor {
+    pub fn new(left: EdgePoints, top: EdgePoints, right: EdgePoints, bot: EdgePoints) -> Self {
+        Self {
+            left,
+            top,
+            right,
+            bot,
+        }
+    }
 }
 pub struct ShapeRenderResources {
     pipeline: RenderPipeline,
@@ -49,7 +73,9 @@ pub struct ShapeRenderResources {
 }
 impl Root for Shape {
     fn define(elm: &mut Elm) {
-        todo!()
+        elm.enable_differential::<Self, ShapeDescriptor>();
+        elm.enable_differential::<Self, Color>();
+        elm.enable_differential::<Self, RenderLayer>();
     }
 }
 #[repr(C)]
@@ -153,7 +179,33 @@ impl Render for Shape {
         queue_handle: &mut RenderQueueHandle,
         ginkgo: &Ginkgo,
     ) {
-        todo!()
+        for entity in queue_handle.read_removes::<Self>() {
+            renderer.resource_handle.instances.queue_remove(entity);
+        }
+        for packet in queue_handle.read_adds::<Self, ShapeDescriptor>() {
+            renderer.associate_alpha_pointer(0, 0);
+            renderer
+                .resource_handle
+                .instances
+                .checked_write(packet.entity, packet.value);
+        }
+        for packet in queue_handle.read_adds::<Self, RenderLayer>() {
+            renderer
+                .resource_handle
+                .instances
+                .checked_write(packet.entity, packet.value);
+        }
+        for packet in queue_handle.read_adds::<Self, Color>() {
+            renderer
+                .resource_handle
+                .instances
+                .checked_write(packet.entity, packet.value);
+        }
+        if renderer.resource_handle.instances.resolve_changes(ginkgo) {
+            renderer
+                .node_manager
+                .set_nodes(0, renderer.resource_handle.instances.render_nodes());
+        }
     }
 
     fn draw<'a>(
@@ -162,6 +214,33 @@ impl Render for Shape {
         draw_range: DrawRange,
         render_pass: &mut RenderPass<'a>,
     ) {
-        todo!()
+        render_pass.set_pipeline(&renderer.resource_handle.pipeline);
+        render_pass.set_bind_group(0, &renderer.resource_handle.bind_group, &[]);
+        render_pass.set_vertex_buffer(0, renderer.resource_handle.vertex_buffer.slice(..));
+        render_pass.set_vertex_buffer(
+            1,
+            renderer
+                .resource_handle
+                .instances
+                .buffer::<ShapeDescriptor>()
+                .slice(..),
+        );
+        render_pass.set_vertex_buffer(
+            2,
+            renderer
+                .resource_handle
+                .instances
+                .buffer::<RenderLayer>()
+                .slice(..),
+        );
+        render_pass.set_vertex_buffer(
+            3,
+            renderer
+                .resource_handle
+                .instances
+                .buffer::<Color>()
+                .slice(..),
+        );
+        render_pass.draw(0..VERTICES.len() as u32, draw_range.start..draw_range.end);
     }
 }

@@ -18,7 +18,7 @@ use crate::differential::{Remove, Visibility};
 use crate::grid::{Grid, GridPlacement, Layout, LayoutGrid};
 
 #[derive(Bundle, Default)]
-pub(crate) struct Element {
+pub(crate) struct Leaf {
     stem: Stem,
     dependents: Dependents,
     placement: Placement<LogicalContext>,

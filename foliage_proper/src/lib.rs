@@ -28,6 +28,7 @@ use crate::icon::{Icon, IconId, IconRequest};
 use crate::image::Image;
 use crate::interaction::{ClickInteractionListener, KeyboardAdapter, MouseAdapter, TouchAdapter};
 use crate::panel::Panel;
+use crate::shape::Shape;
 use crate::style::Style;
 use crate::text::Text;
 use crate::time::Time;
@@ -511,5 +512,7 @@ impl Roots for Trunk {
         foliage.define_root::<Style>();
         foliage.define_root::<Time>();
         foliage.define_root::<EnabledAnimations>();
+        foliage.define_root::<Shape>();
+        foliage.add_renderer::<Shape>();
     }
 }
