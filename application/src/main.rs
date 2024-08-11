@@ -7,7 +7,7 @@ mod icon;
 mod image;
 
 fn main() {
-    let mut foliage = Foliage::seed();
+    let mut foliage = Foliage::trunk();
     foliage.set_desktop_size((800, 600));
     foliage.enable_tracing(
         tracing_subscriber::filter::Targets::new().with_target("foliage", tracing::Level::TRACE),
@@ -17,5 +17,5 @@ fn main() {
     // let leaf = load_asset!(foliage, "assets/leaf.png");
     // foliage.insert_resource(ImageKeys { leaf });
     foliage.grow_branch(Home {});
-    foliage.plant();
+    foliage.photosynthesize();
 }

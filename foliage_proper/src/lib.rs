@@ -80,12 +80,12 @@ pub struct Foliage {
 }
 impl Default for Foliage {
     fn default() -> Self {
-        Self::seed()
+        Self::trunk()
     }
 }
 
 impl Foliage {
-    pub fn seed() -> Self {
+    pub fn trunk() -> Self {
         let mut this = Self {
             willow: Willow::default(),
             ash: Ash::default(),
@@ -166,7 +166,7 @@ impl Foliage {
     pub fn insert_resource<R: Resource>(&mut self, r: R) {
         self.elm.ecs.world.insert_resource(r);
     }
-    pub fn plant(mut self) {
+    pub fn photosynthesize(mut self) {
         let event_loop = EventLoop::new().unwrap();
         event_loop.set_control_flow(ControlFlow::Wait);
         cfg_if::cfg_if! {
