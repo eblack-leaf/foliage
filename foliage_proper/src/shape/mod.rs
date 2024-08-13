@@ -1,13 +1,3 @@
-use bevy_ecs::bundle::Bundle;
-use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::Component;
-use bytemuck::{Pod, Zeroable};
-use wgpu::{
-    include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor,
-    PipelineLayoutDescriptor, RenderPass, RenderPipeline, RenderPipelineDescriptor, ShaderStages,
-    VertexState, VertexStepMode,
-};
-
 use crate::ash::{DrawRange, Render, Renderer};
 use crate::color::Color;
 use crate::coordinate::elevation::RenderLayer;
@@ -17,6 +7,22 @@ use crate::elm::{Elm, RenderQueueHandle};
 use crate::ginkgo::Ginkgo;
 use crate::instances::Instances;
 use crate::Root;
+use bevy_ecs::bundle::Bundle;
+use bevy_ecs::entity::Entity;
+use bevy_ecs::prelude::Component;
+use bytemuck::{Pod, Zeroable};
+use line::LineDescriptor;
+use quad::QuadDescriptor;
+use triangle::TriangleDescriptor;
+use wgpu::{
+    include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor,
+    PipelineLayoutDescriptor, RenderPass, RenderPipeline, RenderPipelineDescriptor, ShaderStages,
+    VertexState, VertexStepMode,
+};
+
+pub mod line;
+mod quad;
+mod triangle;
 
 #[derive(Bundle)]
 pub struct Shape {
@@ -25,13 +31,10 @@ pub struct Shape {
     color: Differential<Color>,
     layer: Differential<RenderLayer>,
 }
-pub struct LineDescriptor {}
-pub struct TriangleDescriptor {}
-pub struct RectDescriptor {}
 pub enum ShapeForm {
     Line(LineDescriptor),
     Triangle(TriangleDescriptor),
-    Rect(RectDescriptor),
+    Quad(QuadDescriptor),
 }
 impl Shape {
     pub fn new(desc: ShapeDescriptor, color: Color) -> Self {

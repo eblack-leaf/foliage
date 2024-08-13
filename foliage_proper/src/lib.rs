@@ -51,6 +51,7 @@ pub mod instances;
 pub mod interaction;
 pub mod leaf;
 pub mod panel;
+mod path;
 pub mod shape;
 pub mod style;
 pub mod text;

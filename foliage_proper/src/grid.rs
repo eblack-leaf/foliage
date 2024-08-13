@@ -6,6 +6,7 @@ use bitflags::bitflags;
 use crate::anim::{Animate, Interpolations};
 use crate::coordinate::elevation::Elevation;
 use crate::coordinate::placement::Placement;
+use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, Coordinates, LogicalContext};
 use crate::ginkgo::viewport::ViewportHandle;
@@ -54,6 +55,25 @@ impl Grid {
         self.size_to(placement);
         self
     }
+    pub fn unaligned_point(&self, grid_point: GridLocation) -> Option<Position<LogicalContext>> {
+        if grid_point.point.is_some() {
+            let mut p = Position::default();
+            p.set_x(
+                grid_point
+                    .start
+                    .px
+                    .unwrap_or(grid_point.start.percent? * self.placement.section.width()),
+            );
+            p.set_y(
+                grid_point
+                    .end
+                    .px
+                    .unwrap_or(grid_point.end.percent? * self.placement.section.height()),
+            );
+            return Some(p);
+        }
+        None
+    }
     pub fn place(
         &self,
         grid_placement: &GridPlacement,
@@ -62,60 +82,110 @@ impl Grid {
     ) -> (Placement<LogicalContext>, Option<Section<LogicalContext>>) {
         let horizontal = grid_placement.horizontal(layout);
         let vertical = grid_placement.vertical(layout);
-        let mut x = if let Some(px) = horizontal.start.px {
-            px
-        } else if let Some(p) = horizontal.start.percent {
-            self.placement.section.width() * p / 100f32
+        let (x, y, w, h) = if horizontal.point.is_some() && vertical.is_area {
+            let w = vertical
+                .start
+                .px
+                .unwrap_or(vertical.start.percent.unwrap() * self.placement.section.width());
+            let h = vertical
+                .end
+                .px
+                .unwrap_or(vertical.end.percent.unwrap() * self.placement.section.height());
+            let (w_diff, h_diff) = match horizontal.point.unwrap() {
+                PointAlignment::Center => (-w / 2f32, -h / 2f32),
+                PointAlignment::TopLeft => (0.0, 0.0),
+                PointAlignment::TopRight => (-w, 0.0),
+                PointAlignment::BotLeft => (0.0, -h),
+                PointAlignment::BotRight => (-w, -h),
+                PointAlignment::CenterRight => (-w, -h / 2f32),
+                PointAlignment::CenterLeft => (0.0, -h / 2f32),
+            };
+            let point =
+                (
+                    horizontal.start.px.unwrap_or(
+                        horizontal.start.percent.unwrap() * self.placement.section.width(),
+                    ) + w_diff,
+                    horizontal.end.px.unwrap_or(
+                        horizontal.end.percent.unwrap() * self.placement.section.height(),
+                    ) + h_diff,
+                );
+            (point.0, point.1, w, h)
         } else {
-            horizontal.start.col.unwrap() as CoordinateUnit * self.column_size - self.column_size
-                + self.gap.horizontal()
-                + grid_placement.padding.horizontal()
+            let mut x = if let Some(px) = horizontal.start.px {
+                px
+            } else if let Some(p) = horizontal.start.percent {
+                self.placement.section.width() * p / 100f32
+            } else {
+                horizontal.start.col.unwrap() as CoordinateUnit * self.column_size
+                    - self.column_size
+                    + self.gap.horizontal()
+                    + grid_placement.padding.horizontal()
+            };
+            let mut y = if let Some(px) = vertical.start.px {
+                px
+            } else if let Some(p) = vertical.start.percent {
+                self.placement.section.height() * p / 100f32
+            } else {
+                vertical.start.row.unwrap() as CoordinateUnit * self.row_size - self.row_size
+                    + self.gap.vertical()
+                    + grid_placement.padding.vertical()
+            };
+            let mut w = if let Some(px) = horizontal.end.px {
+                px - x
+            } else if let Some(fs) = horizontal.end.fixed {
+                if let Some(p) = fs.percent {
+                    p * self.placement.section.width()
+                } else {
+                    fs.px.expect("fixed can only be percent/px based")
+                }
+            } else if let Some(p) = horizontal.end.percent {
+                let percent = self.placement.section.width() * p / 100f32;
+                percent - x
+            } else {
+                horizontal.end.col.unwrap() as CoordinateUnit * self.column_size
+                    - self.gap.horizontal()
+                    - grid_placement.padding.horizontal()
+                    - x
+            };
+            let mut h = if let Some(px) = vertical.end.px {
+                px - y
+            } else if let Some(fs) = vertical.end.fixed {
+                if let Some(p) = fs.percent {
+                    p * self.placement.section.height()
+                } else {
+                    fs.px.expect("fixed can only be percent/px based")
+                }
+            } else if let Some(p) = vertical.end.percent {
+                let percent = self.placement.section.height() * p / 100f32;
+                percent - y
+            } else {
+                vertical.end.row.unwrap() as CoordinateUnit * self.row_size
+                    - self.gap.vertical()
+                    - grid_placement.padding.vertical()
+                    - y
+            };
+            if let Some(f) = horizontal.fixed {
+                let f = if let Some(p) = f.percent {
+                    p * self.placement.section.width()
+                } else {
+                    f.px.expect("fixed can only be percent/px based")
+                };
+                let diff = (w - f) / 2f32;
+                x += diff;
+                w = f;
+            }
+            if let Some(f) = vertical.fixed {
+                let f = if let Some(p) = f.percent {
+                    p * self.placement.section.height()
+                } else {
+                    f.px.expect("fixed can only be percent/px based")
+                };
+                let diff = (h - f) / 2f32;
+                y += diff;
+                h = f;
+            }
+            (x, y, w, h)
         };
-        let mut y = if let Some(px) = vertical.start.px {
-            px
-        } else if let Some(p) = vertical.start.percent {
-            self.placement.section.height() * p / 100f32
-        } else {
-            vertical.start.row.unwrap() as CoordinateUnit * self.row_size - self.row_size
-                + self.gap.vertical()
-                + grid_placement.padding.vertical()
-        };
-        let mut w = if let Some(px) = horizontal.end.px {
-            px - x
-        } else if let Some(fs) = horizontal.end.fixed {
-            fs
-        } else if let Some(p) = horizontal.end.percent {
-            let percent = self.placement.section.width() * p / 100f32;
-            percent - x
-        } else {
-            horizontal.end.col.unwrap() as CoordinateUnit * self.column_size
-                - self.gap.horizontal()
-                - grid_placement.padding.horizontal()
-                - x
-        };
-        let mut h = if let Some(px) = vertical.end.px {
-            px - y
-        } else if let Some(fs) = vertical.end.fixed {
-            fs
-        } else if let Some(p) = vertical.end.percent {
-            let percent = self.placement.section.height() * p / 100f32;
-            percent - y
-        } else {
-            vertical.end.row.unwrap() as CoordinateUnit * self.row_size
-                - self.gap.vertical()
-                - grid_placement.padding.vertical()
-                - y
-        };
-        if let Some(f) = horizontal.fixed {
-            let diff = (w - f) / 2f32;
-            x += diff;
-            w = f;
-        }
-        if let Some(f) = vertical.fixed {
-            let diff = (h - f) / 2f32;
-            y += diff;
-            h = f;
-        }
         let mut placed = Placement::new(
             (
                 (
@@ -144,20 +214,23 @@ impl Grid {
 }
 #[derive(Clone, Component)]
 pub struct GridPlacement {
-    horizontal: GridRange,
-    horizontal_exceptions: HashMap<Layout, GridRange>,
-    vertical: GridRange,
-    vertical_exceptions: HashMap<Layout, GridRange>,
+    horizontal: GridLocation,
+    horizontal_exceptions: HashMap<Layout, GridLocation>,
+    vertical: GridLocation,
+    vertical_exceptions: HashMap<Layout, GridLocation>,
     padding: Coordinates,
     pub(crate) queued_offset: Option<Section<LogicalContext>>,
     offset: Section<LogicalContext>,
 }
 impl GridPlacement {
-    pub fn new(horizontal: GridRange, vertical: GridRange) -> Self {
+    pub fn new<GL: Into<GridLocation>, GLI: Into<GridLocation>>(
+        horizontal: GL,
+        vertical: GLI,
+    ) -> Self {
         Self {
-            horizontal,
+            horizontal: horizontal.into(),
             horizontal_exceptions: Default::default(),
-            vertical,
+            vertical: vertical.into(),
             vertical_exceptions: Default::default(),
             padding: Default::default(),
             queued_offset: None,
@@ -168,7 +241,7 @@ impl GridPlacement {
         self.padding = c.into();
         self
     }
-    pub fn horizontal(&self, layout: Layout) -> GridRange {
+    pub fn horizontal(&self, layout: Layout) -> GridLocation {
         let mut accepted = self.horizontal;
         for (l, except) in self.horizontal_exceptions.iter() {
             if LayoutFilter::from(*l).accepts(layout) {
@@ -177,7 +250,7 @@ impl GridPlacement {
         }
         accepted
     }
-    pub fn vertical(&self, layout: Layout) -> GridRange {
+    pub fn vertical(&self, layout: Layout) -> GridLocation {
         let mut accepted = self.vertical;
         for (l, except) in self.vertical_exceptions.iter() {
             if LayoutFilter::from(*l).accepts(layout) {
@@ -186,9 +259,14 @@ impl GridPlacement {
         }
         accepted
     }
-    pub fn except(mut self, layout: Layout, horizontal: GridRange, vertical: GridRange) -> Self {
-        self.horizontal_exceptions.insert(layout, horizontal);
-        self.vertical_exceptions.insert(layout, vertical);
+    pub fn except<GL: Into<GridLocation>, GLI: Into<GridLocation>>(
+        mut self,
+        layout: Layout,
+        horizontal: GL,
+        vertical: GLI,
+    ) -> Self {
+        self.horizontal_exceptions.insert(layout, horizontal.into());
+        self.vertical_exceptions.insert(layout, vertical.into());
         self
     }
     pub(crate) fn update_queued_offset(&mut self, o: Option<Section<LogicalContext>>) {
@@ -311,13 +389,26 @@ impl GridCoordinate for i32 {
         GridIndex::percent(self as f32)
     }
 }
+pub trait GridPoint {
+    fn center(self) -> GridLocation;
+    fn area(self) -> GridLocation;
+}
+impl GridPoint for (GridIndex, GridIndex) {
+    fn center(self) -> GridLocation {
+        GridLocation::point(self.0, self.1, PointAlignment::Center)
+    }
+    // ...
+    fn area(self) -> GridLocation {
+        GridLocation::area(self.0, self.1)
+    }
+}
 #[derive(Copy, Clone)]
 pub struct GridIndex {
     px: Option<CoordinateUnit>,
     col: Option<i32>,
     row: Option<i32>,
     percent: Option<f32>,
-    fixed: Option<f32>,
+    fixed: Option<FixedIndex>,
 }
 impl GridIndex {
     pub fn px(px: CoordinateUnit) -> Self {
@@ -356,32 +447,92 @@ impl GridIndex {
             fixed: None,
         }
     }
-    pub(crate) fn fixed(s: i32) -> Self {
+    pub(crate) fn fixed(f: FixedIndex) -> Self {
         Self {
             px: None,
             col: None,
             row: None,
             percent: None,
-            fixed: Some(s as f32),
+            fixed: Some(f),
         }
     }
-    pub fn span(self, s: i32) -> GridRange {
-        GridRange::new(self, GridIndex::fixed(s))
+    pub fn span<FI: Into<FixedIndex>>(self, f: FI) -> GridLocation {
+        GridLocation::new(self, GridIndex::fixed(f.into()))
     }
-    pub fn to<GI: Into<GridIndex>>(self, gi: GI) -> GridRange {
+    pub fn to<GI: Into<GridIndex>>(self, gi: GI) -> GridLocation {
         // TODO sanitize row/col differences
-        GridRange::new(self, gi.into())
+        GridLocation::new(self, gi.into())
     }
 }
 #[derive(Copy, Clone)]
-pub struct GridRange {
+pub struct GridLocation {
     start: GridIndex,
     end: GridIndex,
-    fixed: Option<CoordinateUnit>,
+    fixed: Option<FixedIndex>,
+    point: Option<PointAlignment>,
+    is_area: bool,
 }
-impl GridRange {
-    pub fn fixed(mut self, f: i32) -> Self {
-        self.fixed.replace(f as CoordinateUnit);
+#[derive(Copy, Clone)]
+pub struct FixedIndex {
+    px: Option<f32>,
+    percent: Option<f32>,
+}
+impl FixedIndex {
+    pub fn new(px: Option<f32>, percent: Option<f32>) -> Self {
+        Self { px, percent }
+    }
+}
+impl From<GridIndex> for FixedIndex {
+    fn from(value: GridIndex) -> Self {
+        let px = value.px;
+        let percent = value.percent;
+        Self::new(px, percent)
+    }
+}
+impl From<FixedIndex> for GridIndex {
+    fn from(value: FixedIndex) -> Self {
+        if let Some(p) = value.px {
+            Self::px(p)
+        } else {
+            Self::percent(value.percent.unwrap())
+        }
+    }
+}
+#[derive(Copy, Clone)]
+pub enum PointAlignment {
+    Center,
+    TopLeft,
+    TopRight,
+    BotLeft,
+    BotRight,
+    CenterRight,
+    CenterLeft,
+}
+impl GridLocation {
+    pub fn point<FI: Into<GridIndex>, FII: Into<GridIndex>>(
+        a: FI,
+        b: FII,
+        point_alignment: PointAlignment,
+    ) -> Self {
+        Self {
+            start: a.into(),
+            end: b.into(),
+            fixed: None,
+            point: Some(point_alignment),
+            is_area: false,
+        }
+    }
+    pub fn area<FI: Into<GridIndex>, FII: Into<GridIndex>>(w: FI, h: FII) -> Self {
+        Self {
+            start: w.into(),
+            end: h.into(),
+            fixed: None,
+            point: None,
+            is_area: true,
+        }
+    }
+    pub fn fixed<FI: Into<FixedIndex>>(mut self, f: FI) -> Self {
+        self.fixed.replace(f.into());
         self
     }
     pub fn new(start: GridIndex, end: GridIndex) -> Self {
@@ -389,6 +540,8 @@ impl GridRange {
             start,
             end,
             fixed: None,
+            point: None,
+            is_area: false,
         }
     }
 }
