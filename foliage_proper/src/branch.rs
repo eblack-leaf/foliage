@@ -593,10 +593,10 @@ pub(crate) fn signal_branch<A: Branch>(
     signals: Query<(&Signal, &SignaledBranchCommand<A>)>,
     mut cmd: Commands,
 ) {
-    for (signal, signaled_twig) in signals.iter() {
+    for (signal, signaled_branch) in signals.iter() {
         if signal.0 {
-            let twig = signaled_twig.a.clone();
-            cmd.add(twig);
+            let branch = signaled_branch.a.clone();
+            cmd.add(branch);
         }
     }
 }
@@ -608,13 +608,13 @@ pub(crate) fn clear_signal(mut signals: Query<&mut Signal, Changed<Signal>>) {
 }
 #[derive(Bundle)]
 pub(crate) struct Signaler<A: Branch> {
-    twig: SignaledBranchCommand<A>,
+    branch: SignaledBranchCommand<A>,
     signal: Signal,
 }
 impl<A: Branch> Signaler<A> {
     pub fn new(a: A) -> Self {
         Self {
-            twig: SignaledBranchCommand {
+            branch: SignaledBranchCommand {
                 a: BranchCommand { data: a },
             },
             signal: Signal(false),

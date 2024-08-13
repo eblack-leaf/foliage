@@ -62,13 +62,15 @@ impl Grid {
                 grid_point
                     .start
                     .px
-                    .unwrap_or(grid_point.start.percent? * self.placement.section.width()),
+                    .unwrap_or(grid_point.start.percent? * self.placement.section.width())
+                    + grid_point.start.adjust.unwrap_or_default(),
             );
             p.set_y(
                 grid_point
                     .end
                     .px
-                    .unwrap_or(grid_point.end.percent? * self.placement.section.height()),
+                    .unwrap_or(grid_point.end.percent? * self.placement.section.height())
+                    + grid_point.end.adjust.unwrap_or_default(),
             );
             return Some(p);
         }
@@ -82,110 +84,113 @@ impl Grid {
     ) -> (Placement<LogicalContext>, Option<Section<LogicalContext>>) {
         let horizontal = grid_placement.horizontal(layout);
         let vertical = grid_placement.vertical(layout);
-        let (x, y, w, h) = if horizontal.point.is_some() && vertical.is_area {
-            let w = vertical
-                .start
-                .px
-                .unwrap_or(vertical.start.percent.unwrap() * self.placement.section.width());
-            let h = vertical
-                .end
-                .px
-                .unwrap_or(vertical.end.percent.unwrap() * self.placement.section.height());
-            let (w_diff, h_diff) = match horizontal.point.unwrap() {
-                PointAlignment::Center => (-w / 2f32, -h / 2f32),
-                PointAlignment::TopLeft => (0.0, 0.0),
-                PointAlignment::TopRight => (-w, 0.0),
-                PointAlignment::BotLeft => (0.0, -h),
-                PointAlignment::BotRight => (-w, -h),
-                PointAlignment::CenterRight => (-w, -h / 2f32),
-                PointAlignment::CenterLeft => (0.0, -h / 2f32),
-            };
-            let point =
-                (
+        let (x, y, w, h) =
+            if horizontal.point.is_some() && vertical.is_area {
+                let w =
+                    vertical.start.px.unwrap_or(
+                        vertical.start.percent.unwrap() * self.placement.section.width(),
+                    ) + vertical.start.adjust.unwrap_or_default();
+                let h = vertical
+                    .end
+                    .px
+                    .unwrap_or(vertical.end.percent.unwrap() * self.placement.section.height())
+                    + vertical.end.adjust.unwrap_or_default();
+                let (w_diff, h_diff) = match horizontal.point.unwrap() {
+                    PointAlignment::Center => (-w / 2f32, -h / 2f32),
+                    PointAlignment::TopLeft => (0.0, 0.0),
+                    PointAlignment::TopRight => (-w, 0.0),
+                    PointAlignment::BotLeft => (0.0, -h),
+                    PointAlignment::BotRight => (-w, -h),
+                    PointAlignment::CenterRight => (-w, -h / 2f32),
+                    PointAlignment::CenterLeft => (0.0, -h / 2f32),
+                };
+                let point = (
                     horizontal.start.px.unwrap_or(
                         horizontal.start.percent.unwrap() * self.placement.section.width(),
-                    ) + w_diff,
+                    ) + horizontal.start.adjust.unwrap_or_default()
+                        + w_diff,
                     horizontal.end.px.unwrap_or(
                         horizontal.end.percent.unwrap() * self.placement.section.height(),
-                    ) + h_diff,
+                    ) + horizontal.end.adjust.unwrap_or_default()
+                        + h_diff,
                 );
-            (point.0, point.1, w, h)
-        } else {
-            let mut x = if let Some(px) = horizontal.start.px {
-                px
-            } else if let Some(p) = horizontal.start.percent {
-                self.placement.section.width() * p / 100f32
+                (point.0, point.1, w, h)
             } else {
-                horizontal.start.col.unwrap() as CoordinateUnit * self.column_size
-                    - self.column_size
-                    + self.gap.horizontal()
-                    + grid_placement.padding.horizontal()
-            };
-            let mut y = if let Some(px) = vertical.start.px {
-                px
-            } else if let Some(p) = vertical.start.percent {
-                self.placement.section.height() * p / 100f32
-            } else {
-                vertical.start.row.unwrap() as CoordinateUnit * self.row_size - self.row_size
-                    + self.gap.vertical()
-                    + grid_placement.padding.vertical()
-            };
-            let mut w = if let Some(px) = horizontal.end.px {
-                px - x
-            } else if let Some(fs) = horizontal.end.fixed {
-                if let Some(p) = fs.percent {
-                    p * self.placement.section.width()
+                let mut x = if let Some(px) = horizontal.start.px {
+                    px
+                } else if let Some(p) = horizontal.start.percent {
+                    self.placement.section.width() * p / 100f32
                 } else {
-                    fs.px.expect("fixed can only be percent/px based")
+                    horizontal.start.col.unwrap() as CoordinateUnit * self.column_size
+                        - self.column_size
+                        + self.gap.horizontal()
+                        + grid_placement.padding.horizontal()
+                } + horizontal.start.adjust.unwrap_or_default();
+                let mut y = if let Some(px) = vertical.start.px {
+                    px
+                } else if let Some(p) = vertical.start.percent {
+                    self.placement.section.height() * p / 100f32
+                } else {
+                    vertical.start.row.unwrap() as CoordinateUnit * self.row_size - self.row_size
+                        + self.gap.vertical()
+                        + grid_placement.padding.vertical()
+                } + vertical.start.adjust.unwrap_or_default();
+                let mut w = if let Some(px) = horizontal.end.px {
+                    px - x
+                } else if let Some(fs) = horizontal.end.fixed {
+                    if let Some(p) = fs.percent {
+                        p * self.placement.section.width()
+                    } else {
+                        fs.px.expect("fixed can only be percent/px based")
+                    }
+                } else if let Some(p) = horizontal.end.percent {
+                    let percent = self.placement.section.width() * p / 100f32;
+                    percent - x
+                } else {
+                    horizontal.end.col.unwrap() as CoordinateUnit * self.column_size
+                        - self.gap.horizontal()
+                        - grid_placement.padding.horizontal()
+                        - x
+                } + horizontal.end.adjust.unwrap_or_default();
+                let mut h = if let Some(px) = vertical.end.px {
+                    px - y
+                } else if let Some(fs) = vertical.end.fixed {
+                    if let Some(p) = fs.percent {
+                        p * self.placement.section.height()
+                    } else {
+                        fs.px.expect("fixed can only be percent/px based")
+                    }
+                } else if let Some(p) = vertical.end.percent {
+                    let percent = self.placement.section.height() * p / 100f32;
+                    percent - y
+                } else {
+                    vertical.end.row.unwrap() as CoordinateUnit * self.row_size
+                        - self.gap.vertical()
+                        - grid_placement.padding.vertical()
+                        - y
+                } + vertical.end.adjust.unwrap_or_default();
+                if let Some(f) = horizontal.fixed {
+                    let f = if let Some(p) = f.percent {
+                        p * self.placement.section.width()
+                    } else {
+                        f.px.expect("fixed can only be percent/px based")
+                    };
+                    let diff = (w - f) / 2f32;
+                    x += diff;
+                    w = f;
                 }
-            } else if let Some(p) = horizontal.end.percent {
-                let percent = self.placement.section.width() * p / 100f32;
-                percent - x
-            } else {
-                horizontal.end.col.unwrap() as CoordinateUnit * self.column_size
-                    - self.gap.horizontal()
-                    - grid_placement.padding.horizontal()
-                    - x
-            };
-            let mut h = if let Some(px) = vertical.end.px {
-                px - y
-            } else if let Some(fs) = vertical.end.fixed {
-                if let Some(p) = fs.percent {
-                    p * self.placement.section.height()
-                } else {
-                    fs.px.expect("fixed can only be percent/px based")
+                if let Some(f) = vertical.fixed {
+                    let f = if let Some(p) = f.percent {
+                        p * self.placement.section.height()
+                    } else {
+                        f.px.expect("fixed can only be percent/px based")
+                    };
+                    let diff = (h - f) / 2f32;
+                    y += diff;
+                    h = f;
                 }
-            } else if let Some(p) = vertical.end.percent {
-                let percent = self.placement.section.height() * p / 100f32;
-                percent - y
-            } else {
-                vertical.end.row.unwrap() as CoordinateUnit * self.row_size
-                    - self.gap.vertical()
-                    - grid_placement.padding.vertical()
-                    - y
+                (x, y, w, h)
             };
-            if let Some(f) = horizontal.fixed {
-                let f = if let Some(p) = f.percent {
-                    p * self.placement.section.width()
-                } else {
-                    f.px.expect("fixed can only be percent/px based")
-                };
-                let diff = (w - f) / 2f32;
-                x += diff;
-                w = f;
-            }
-            if let Some(f) = vertical.fixed {
-                let f = if let Some(p) = f.percent {
-                    p * self.placement.section.height()
-                } else {
-                    f.px.expect("fixed can only be percent/px based")
-                };
-                let diff = (h - f) / 2f32;
-                y += diff;
-                h = f;
-            }
-            (x, y, w, h)
-        };
         let mut placed = Placement::new(
             (
                 (
@@ -409,6 +414,7 @@ pub struct GridIndex {
     row: Option<i32>,
     percent: Option<f32>,
     fixed: Option<FixedIndex>,
+    adjust: Option<CoordinateUnit>,
 }
 impl GridIndex {
     pub fn px(px: CoordinateUnit) -> Self {
@@ -418,6 +424,7 @@ impl GridIndex {
             row: None,
             percent: None,
             fixed: None,
+            adjust: None,
         }
     }
     pub fn col(c: i32) -> Self {
@@ -427,6 +434,7 @@ impl GridIndex {
             row: None,
             percent: None,
             fixed: None,
+            adjust: None,
         }
     }
     pub fn row(r: i32) -> Self {
@@ -436,6 +444,7 @@ impl GridIndex {
             row: Some(r),
             percent: None,
             fixed: None,
+            adjust: None,
         }
     }
     pub fn percent(p: f32) -> Self {
@@ -445,6 +454,7 @@ impl GridIndex {
             row: None,
             percent: Some(p.clamp(0.0, 100.0)),
             fixed: None,
+            adjust: None,
         }
     }
     pub(crate) fn fixed(f: FixedIndex) -> Self {
@@ -454,7 +464,12 @@ impl GridIndex {
             row: None,
             percent: None,
             fixed: Some(f),
+            adjust: None,
         }
+    }
+    pub fn adjust(mut self, amt: i32) -> Self {
+        self.adjust.replace(amt as CoordinateUnit);
+        self
     }
     pub fn span<FI: Into<FixedIndex>>(self, f: FI) -> GridLocation {
         GridLocation::new(self, GridIndex::fixed(f.into()))
