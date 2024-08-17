@@ -12,14 +12,14 @@ use crate::differential::{Remove, RenderLink, RenderRemoveQueue, Visibility};
 use crate::elm::{BranchLimiter, FilterAttrLimiter};
 use crate::grid::{Grid, GridPlacement, Layout, LayoutFilter};
 use crate::interaction::ClickInteractionListener;
-use crate::leaf::{BranchHandle, Dependents, IdTable, Leaf, LeafHandle, OnEnd, Stem};
+use crate::leaf::{BranchHandle, Dependents, IdTable, LeafBundle, LeafHandle, OnEnd, Stem};
 use crate::view::{View, Viewable};
 
 pub struct Tree<'a> {
     pub(crate) world_handle: Option<&'a mut World>,
 }
 
-pub struct LeafElement<'a> {
+pub struct Leaf<'a> {
     pub(crate) world_handle: Option<&'a mut World>,
     pub(crate) handle: LeafHandle,
     pub(crate) entity: Entity,
@@ -89,7 +89,7 @@ pub(crate) fn filter_attr_changed<A: Bundle + Send + Sync + 'static + Clone>(
         // if removing + <A as HasRenderLink>::has_link() => send render-queue remove
     }
 }
-impl<'a> LeafElement<'a> {
+impl<'a> Leaf<'a> {
     pub fn give_attr<A: Bundle>(&mut self, a: A) {
         self.world_handle
             .as_mut()
@@ -248,7 +248,7 @@ impl<'a> Tree<'a> {
             .unwrap();
         c_fn(comp.as_mut());
     }
-    pub fn add_leaf<TH: Into<LeafHandle>, EFN: FnOnce(&mut LeafElement<'a>), E: Into<Elevation>>(
+    pub fn add_leaf<TH: Into<LeafHandle>, EFN: FnOnce(&mut Leaf<'a>), E: Into<Elevation>>(
         &mut self,
         th: TH,
         grid_placement: GridPlacement,
@@ -260,7 +260,7 @@ impl<'a> Tree<'a> {
             .world_handle
             .as_mut()
             .unwrap()
-            .spawn(Leaf::default())
+            .spawn(LeafBundle::default())
             .insert(elevation.into())
             .insert(grid_placement)
             .id();
@@ -349,14 +349,14 @@ impl<'a> Tree<'a> {
         }
         removed_set
     }
-    pub fn update_leaf<TH: Into<LeafHandle>, EFN: FnOnce(&mut LeafElement<'a>)>(
+    pub fn update_leaf<TH: Into<LeafHandle>, EFN: FnOnce(&mut Leaf<'a>)>(
         &mut self,
         th: TH,
         e_fn: EFN,
     ) {
         let th = th.into();
         let entity = self.lookup_target_entity(th.clone()).unwrap();
-        let mut element_handle = LeafElement {
+        let mut element_handle = Leaf {
             world_handle: self.world_handle.take(),
             entity,
             handle: th,

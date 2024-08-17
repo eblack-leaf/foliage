@@ -278,7 +278,7 @@ impl Ginkgo {
     }
     pub(crate) fn surface_texture(&self) -> wgpu::SurfaceTexture {
         let context = self.context();
-        return if let Ok(frame) = context.surface.get_current_texture() {
+        if let Ok(frame) = context.surface.get_current_texture() {
             frame
         } else {
             context
@@ -288,7 +288,7 @@ impl Ginkgo {
                 .surface
                 .get_current_texture()
                 .expect("swapchain-configure")
-        };
+        }
     }
     pub(crate) fn viewport(&self) -> &Viewport {
         self.viewport.as_ref().unwrap()

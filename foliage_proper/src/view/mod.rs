@@ -1,4 +1,4 @@
-use crate::branch::{LeafElement, Tree};
+use crate::branch::{Leaf, Tree};
 use crate::coordinate::elevation::Elevation;
 use crate::grid::{Grid, GridPlacement};
 use crate::leaf::LeafHandle;
@@ -16,7 +16,7 @@ pub struct View<'a> {
     pub elm_handle: Tree<'a>,
 }
 impl<'a> View<'a> {
-    pub fn bind<TH: Into<LeafHandle>, BFN: FnOnce(&mut LeafElement<'a>), E: Into<Elevation>>(
+    pub fn bind<TH: Into<LeafHandle>, BFN: FnOnce(&mut Leaf<'a>), E: Into<Elevation>>(
         &mut self,
         th: TH,
         grid_placement: GridPlacement,
