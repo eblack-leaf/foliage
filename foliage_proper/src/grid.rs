@@ -20,7 +20,11 @@ pub struct Grid {
     placement: Placement<LogicalContext>,
     gap: Coordinates,
 }
-
+impl Default for Grid {
+    fn default() -> Self {
+        Grid::new(1, 1)
+    }
+}
 impl Grid {
     pub fn new(cols: i32, rows: i32) -> Self {
         Self {
@@ -63,14 +67,22 @@ impl Grid {
                     .start
                     .px
                     .unwrap_or(grid_point.start.percent? * self.placement.section.width())
-                    + grid_point.start.adjust.unwrap_or_default(),
+                    + grid_point
+                        .start
+                        .adjust
+                        .unwrap_or_default()
+                        .resolve(self.placement.section.width()),
             );
             p.set_y(
                 grid_point
                     .end
                     .px
                     .unwrap_or(grid_point.end.percent? * self.placement.section.height())
-                    + grid_point.end.adjust.unwrap_or_default(),
+                    + grid_point
+                        .end
+                        .adjust
+                        .unwrap_or_default()
+                        .resolve(self.placement.section.height()),
             );
             return Some(p);
         }
@@ -89,12 +101,20 @@ impl Grid {
                 let w =
                     vertical.start.px.unwrap_or(
                         vertical.start.percent.unwrap() * self.placement.section.width(),
-                    ) + vertical.start.adjust.unwrap_or_default();
+                    ) + vertical
+                        .start
+                        .adjust
+                        .unwrap_or_default()
+                        .resolve(self.placement.section.width());
                 let h = vertical
                     .end
                     .px
                     .unwrap_or(vertical.end.percent.unwrap() * self.placement.section.height())
-                    + vertical.end.adjust.unwrap_or_default();
+                    + vertical
+                        .end
+                        .adjust
+                        .unwrap_or_default()
+                        .resolve(self.placement.section.height());
                 let (w_diff, h_diff) = match horizontal.point.unwrap() {
                     PointAlignment::Center => (-w / 2f32, -h / 2f32),
                     PointAlignment::TopLeft => (0.0, 0.0),
@@ -107,11 +127,19 @@ impl Grid {
                 let point = (
                     horizontal.start.px.unwrap_or(
                         horizontal.start.percent.unwrap() * self.placement.section.width(),
-                    ) + horizontal.start.adjust.unwrap_or_default()
+                    ) + horizontal
+                        .start
+                        .adjust
+                        .unwrap_or_default()
+                        .resolve(self.placement.section.width())
                         + w_diff,
                     horizontal.end.px.unwrap_or(
                         horizontal.end.percent.unwrap() * self.placement.section.height(),
-                    ) + horizontal.end.adjust.unwrap_or_default()
+                    ) + horizontal
+                        .end
+                        .adjust
+                        .unwrap_or_default()
+                        .resolve(self.placement.section.height())
                         + h_diff,
                 );
                 (point.0, point.1, w, h)
@@ -125,7 +153,11 @@ impl Grid {
                         - self.column_size
                         + self.gap.horizontal()
                         + grid_placement.padding.horizontal()
-                } + horizontal.start.adjust.unwrap_or_default();
+                } + horizontal
+                    .start
+                    .adjust
+                    .unwrap_or_default()
+                    .resolve(self.placement.section.width());
                 let mut y = if let Some(px) = vertical.start.px {
                     px
                 } else if let Some(p) = vertical.start.percent {
@@ -134,7 +166,11 @@ impl Grid {
                     vertical.start.row.unwrap() as CoordinateUnit * self.row_size - self.row_size
                         + self.gap.vertical()
                         + grid_placement.padding.vertical()
-                } + vertical.start.adjust.unwrap_or_default();
+                } + vertical
+                    .start
+                    .adjust
+                    .unwrap_or_default()
+                    .resolve(self.placement.section.height());
                 let mut w = if let Some(px) = horizontal.end.px {
                     px - x
                 } else if let Some(fs) = horizontal.end.fixed {
@@ -151,7 +187,11 @@ impl Grid {
                         - self.gap.horizontal()
                         - grid_placement.padding.horizontal()
                         - x
-                } + horizontal.end.adjust.unwrap_or_default();
+                } + horizontal
+                    .end
+                    .adjust
+                    .unwrap_or_default()
+                    .resolve(self.placement.section.width());
                 let mut h = if let Some(px) = vertical.end.px {
                     px - y
                 } else if let Some(fs) = vertical.end.fixed {
@@ -168,7 +208,11 @@ impl Grid {
                         - self.gap.vertical()
                         - grid_placement.padding.vertical()
                         - y
-                } + vertical.end.adjust.unwrap_or_default();
+                } + vertical
+                    .end
+                    .adjust
+                    .unwrap_or_default()
+                    .resolve(self.placement.section.height());
                 if let Some(f) = horizontal.fixed {
                     let f = if let Some(p) = f.percent {
                         p * self.placement.section.width()
@@ -414,7 +458,7 @@ pub struct GridIndex {
     row: Option<i32>,
     percent: Option<f32>,
     fixed: Option<FixedIndex>,
-    adjust: Option<CoordinateUnit>,
+    adjust: Option<FixedIndex>,
 }
 impl GridIndex {
     pub fn px(px: CoordinateUnit) -> Self {
@@ -467,8 +511,8 @@ impl GridIndex {
             adjust: None,
         }
     }
-    pub fn adjust(mut self, amt: i32) -> Self {
-        self.adjust.replace(amt as CoordinateUnit);
+    pub fn adjust(mut self, amt: FixedIndex) -> Self {
+        self.adjust.replace(amt);
         self
     }
     pub fn span<FI: Into<FixedIndex>>(self, f: FI) -> GridLocation {
@@ -487,12 +531,15 @@ pub struct GridLocation {
     point: Option<PointAlignment>,
     is_area: bool,
 }
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub struct FixedIndex {
     px: Option<f32>,
     percent: Option<f32>,
 }
 impl FixedIndex {
+    pub fn resolve(&self, dim: CoordinateUnit) -> CoordinateUnit {
+        self.px.unwrap_or(self.percent.unwrap_or_default() * dim)
+    }
     pub fn new(px: Option<f32>, percent: Option<f32>) -> Self {
         Self { px, percent }
     }
