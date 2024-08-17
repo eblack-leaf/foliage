@@ -5,17 +5,17 @@ use crate::leaf::LeafHandle;
 
 pub mod button;
 
-pub trait Viewable
+pub trait Twig
 where
     Self: Sized + Send + Sync + 'static,
 {
-    fn build(self, view: &mut View);
+    fn grow(self, twig_handle: &mut TwigHandle);
 }
-pub struct View<'a> {
+pub struct TwigHandle<'a> {
     pub target_handle: LeafHandle,
     pub elm_handle: Tree<'a>,
 }
-impl<'a> View<'a> {
+impl<'a> TwigHandle<'a> {
     pub fn bind<TH: Into<LeafHandle>, BFN: FnOnce(&mut Leaf<'a>), E: Into<Elevation>>(
         &mut self,
         th: TH,

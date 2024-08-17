@@ -4,7 +4,7 @@ use crate::interaction::{ClickInteractionListener, OnClick};
 use crate::panel::{Panel, Rounding};
 use crate::style::{Coloring, InteractiveColor};
 use crate::text::{FontSize, Text, TextValue};
-use crate::view::{View, Viewable};
+use crate::twig::{Twig, TwigHandle};
 
 #[derive(Copy, Clone)]
 pub(crate) enum ButtonShape {
@@ -51,14 +51,14 @@ impl Button {
         self
     }
 }
-impl Viewable for Button {
-    fn build(self, view: &mut View) {
-        view.config_grid(Grid::new(3, 1));
+impl Twig for Button {
+    fn grow(self, twig_handle: &mut TwigHandle) {
+        twig_handle.config_grid(Grid::new(3, 1));
         let linked = vec![
-            view.target_handle.extend("icon"),
-            view.target_handle.extend("text"),
+            twig_handle.target_handle.extend("icon"),
+            twig_handle.target_handle.extend("text"),
         ];
-        view.bind(
+        twig_handle.bind(
             "panel",
             GridPlacement::new(0.percent().to(100.percent()), 0.percent().to(100.percent())),
             -1,
@@ -82,7 +82,7 @@ impl Viewable for Button {
         } else {
             1.col().to(3.col())
         };
-        view.bind(
+        twig_handle.bind(
             "icon",
             GridPlacement::new(icon_horizontal, 1.row().to(1.row())),
             -1,
@@ -96,7 +96,7 @@ impl Viewable for Button {
         } else {
             0.percent().to(0.percent())
         };
-        view.bind(
+        twig_handle.bind(
             "text",
             GridPlacement::new(text_horizontal, 1.row().to(1.row())),
             -1,

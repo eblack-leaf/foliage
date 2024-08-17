@@ -13,7 +13,7 @@ use crate::elm::{BranchLimiter, FilterAttrLimiter};
 use crate::grid::{Grid, GridPlacement, Layout, LayoutFilter};
 use crate::interaction::ClickInteractionListener;
 use crate::leaf::{BranchHandle, Dependents, IdTable, LeafBundle, LeafHandle, OnEnd, Stem};
-use crate::view::{View, Viewable};
+use crate::twig::{Twig, TwigHandle};
 
 pub struct Tree<'a> {
     pub(crate) world_handle: Option<&'a mut World>,
@@ -485,7 +485,7 @@ impl<'a> Tree<'a> {
             .entity_mut(se)
             .insert(seq_handle.sequence);
     }
-    pub fn add_view<V: Viewable, TH: Into<LeafHandle>, E: Into<Elevation>>(
+    pub fn add_twig<V: Twig, TH: Into<LeafHandle>, E: Into<Elevation>>(
         &mut self,
         th: TH,
         grid_placement: GridPlacement,
@@ -505,13 +505,13 @@ impl<'a> Tree<'a> {
                 }
             },
         );
-        let mut view = View::new(
+        let mut view = TwigHandle::new(
             handle,
             Tree {
                 world_handle: self.world_handle.take(),
             },
         );
-        v.build(&mut view);
+        v.grow(&mut view);
         self.world_handle
             .replace(view.elm_handle.world_handle.take().unwrap());
     }
