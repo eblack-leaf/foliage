@@ -364,6 +364,7 @@ impl Ginkgo {
                     label: Some("device/queue"),
                     required_features: features,
                     required_limits: limits.using_resolution(adapter.limits()),
+                    memory_hints: Default::default(),
                 },
                 None,
             )

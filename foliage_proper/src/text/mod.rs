@@ -423,6 +423,7 @@ impl Render for Text {
                 &ginkgo.alpha_color_target_state(),
             ),
             multiview: None,
+            cache: None,
         });
         TextResources {
             pipeline,

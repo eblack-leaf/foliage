@@ -336,6 +336,7 @@ impl Render for Image {
                 &ginkgo.alpha_color_target_state(),
             ),
             multiview: None,
+            cache: None,
         });
         ImageResources {
             pipeline,

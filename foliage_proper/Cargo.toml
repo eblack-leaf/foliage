@@ -8,15 +8,15 @@ edition = "2021"
 [dependencies]
 bytemuck = { version = "1.15.0" , features = ["derive"]}
 winit = { version = "0.30.2" , features = ["android-game-activity"]}
-wgpu = { version = "0.20.0", features = ["metal", "webgl", "wgsl"]}
-bevy_ecs = "0.13.2"
+wgpu = { version = "22.1.0", features = ["metal", "webgl", "wgsl"]}
+bevy_ecs = "0.14.1"
 serde = { version = "1.0.199", features = ["derive"] }
 cfg-if = "1.0.0"
 rmp-serde = "1.3.0"
 image = "0.25.1"
 bitflags = "2.5.0"
 futures-channel = "0.3.30"
-uuid = "1.8.0"
+uuid = { version = "1.8.0" , features = ["v4"]}
 reqwest = "0.12.5"
 fontdue = "0.9.2"
 tracing-subscriber = "0.3.18"

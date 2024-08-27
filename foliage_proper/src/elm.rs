@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::event::{event_update_system, Event, Events};
+use bevy_ecs::event::{event_update_system, Event, EventRegistry, Events};
 use bevy_ecs::prelude::{
     apply_deferred, Component, IntoSystemConfigs, IntoSystemSetConfigs, Schedule, SystemSet,
 };
@@ -153,9 +153,7 @@ impl Elm {
     pub fn enable_event<E: Event + Send + Sync + 'static>(&mut self) {
         if !self.ecs.world.contains_resource::<EventLimiter<E>>() {
             self.ecs.world.insert_resource(Events::<E>::default());
-            self.scheduler
-                .main
-                .add_systems((event_update_system::<E>.in_set(ScheduleMarkers::Events),));
+            EventRegistry::register_event::<E>(&mut self.ecs.world);
             self.ecs.world.insert_resource(EventLimiter::<E>::default());
         }
     }
@@ -276,6 +274,7 @@ impl Elm {
         );
         self.scheduler.main.add_systems((
             (viewport_changes_layout, await_assets).in_set(ScheduleMarkers::External),
+            event_update_system.in_set(ScheduleMarkers::Events),
             recursive_placement.in_set(ScheduleMarkers::GridSemantics),
             crate::differential::remove.in_set(ScheduleMarkers::Clean),
             opacity.in_set(ScheduleMarkers::Resolve),

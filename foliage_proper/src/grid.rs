@@ -511,8 +511,8 @@ impl GridIndex {
             adjust: None,
         }
     }
-    pub fn adjust(mut self, amt: FixedIndex) -> Self {
-        self.adjust.replace(amt);
+    pub fn adjust<FI: Into<FixedIndex>>(mut self, amt: FI) -> Self {
+        self.adjust.replace(amt.into());
         self
     }
     pub fn span<FI: Into<FixedIndex>>(self, f: FI) -> GridLocation {

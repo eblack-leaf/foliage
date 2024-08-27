@@ -270,6 +270,7 @@ impl Render for Panel {
                 &ginkgo.alpha_color_target_state(),
             ),
             multiview: None,
+            cache: None,
         });
         let instances = Instances::<Entity>::new(4)
             .with_attribute::<GpuSection>(ginkgo)

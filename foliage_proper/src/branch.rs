@@ -1,11 +1,6 @@
 use std::any::TypeId;
 use std::collections::HashSet;
 
-use bevy_ecs::change_detection::Mut;
-use bevy_ecs::component::Component;
-use bevy_ecs::prelude::{Bundle, Changed, Commands, DetectChanges, Entity, Query, Resource, World};
-use bevy_ecs::system::{Command, Res, ResMut};
-
 use crate::anim::{Animate, Animation, AnimationTime, Ease, Sequence, SequenceTimeRange};
 use crate::coordinate::elevation::Elevation;
 use crate::differential::{Remove, RenderLink, RenderRemoveQueue, Visibility};
@@ -14,6 +9,11 @@ use crate::grid::{Grid, GridPlacement, Layout, LayoutFilter};
 use crate::interaction::ClickInteractionListener;
 use crate::leaf::{BranchHandle, Dependents, IdTable, LeafBundle, LeafHandle, OnEnd, Stem};
 use crate::twig::{Twig, TwigHandle};
+use bevy_ecs::change_detection::Mut;
+use bevy_ecs::component::Component;
+use bevy_ecs::prelude::{Bundle, Changed, Commands, DetectChanges, Entity, Query, Resource, World};
+use bevy_ecs::system::{Res, ResMut};
+use bevy_ecs::world::Command;
 
 pub struct Tree<'a> {
     pub(crate) world_handle: Option<&'a mut World>,

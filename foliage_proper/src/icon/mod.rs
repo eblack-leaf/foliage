@@ -263,6 +263,7 @@ impl Render for Icon {
                 &ginkgo.alpha_color_target_state(),
             ),
             multiview: None,
+            cache: None,
         });
         IconResources {
             pipeline,

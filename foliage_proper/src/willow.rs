@@ -53,7 +53,7 @@ impl Willow {
         let attributes = WindowAttributes::default()
             .with_title(self.title.clone().unwrap_or_default())
             .with_resizable(self.resizable.unwrap_or(true))
-            .with_min_inner_size(self.min_size.unwrap_or(Area::device((320, 320))));
+            .with_min_inner_size(self.min_size.unwrap_or(Area::device((290, 290))));
         #[cfg(all(
             not(target_family = "wasm"),
             not(target_os = "android"),

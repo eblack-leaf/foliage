@@ -172,6 +172,7 @@ impl Render for Shape {
                 &ginkgo.alpha_color_target_state(),
             ),
             multiview: None,
+            cache: None,
         });
         ShapeRenderResources {
             pipeline,
