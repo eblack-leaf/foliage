@@ -557,7 +557,7 @@ pub trait Branch
 where
     Self: Clone + Send + Sync + 'static,
 {
-    fn grow(self, branch: Tree);
+    fn grow(self, tree: Tree);
 }
 
 #[derive(Clone)]

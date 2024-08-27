@@ -163,7 +163,13 @@ fn recursive_placement_inner(
         placed.push((current_entity, current_placement, None, current_offset));
         return placed;
     }
-    let grid = (*query.get(current_entity).unwrap().2.unwrap_or_default()).sized(current_placement);
+    let grid = query
+        .get(current_entity)
+        .unwrap()
+        .2
+        .copied()
+        .unwrap_or_default()
+        .sized(current_placement);
     placed.push((
         current_entity,
         current_placement,
