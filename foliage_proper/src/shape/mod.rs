@@ -31,11 +31,6 @@ pub struct Shape {
     color: Differential<Color>,
     layer: Differential<RenderLayer>,
 }
-pub enum ShapeForm {
-    Line(LineDescriptor),
-    Triangle(TriangleDescriptor),
-    Quad(QuadDescriptor),
-}
 impl Shape {
     pub fn new(desc: ShapeDescriptor, color: Color) -> Self {
         Self {
