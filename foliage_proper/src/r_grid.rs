@@ -23,12 +23,14 @@ impl From<GridUnit> for GridToken {
     }
 }
 pub fn screen() -> GridContext {
-    todo!()
+    GridContext::Screen
 }
 pub fn context<LH: Into<LeafHandle>>(lh: LH) -> GridContext {
-    todo!()
+    GridContext::Named(lh.into())
 }
-
+pub fn path<LH: Into<LeafHandle>>(path: LH) -> GridContext {
+    GridContext::Path(path.into())
+}
 impl Add<GridUnit> for GridToken {
     type Output = GridToken;
 
@@ -43,19 +45,40 @@ impl Add<GridToken> for GridToken {
         todo!()
     }
 }
+pub trait GridContextDesc {
+    fn x(&self) -> GridToken;
+    fn y(&self) -> GridToken;
+    fn height(&self) -> GridToken;
+    fn width(&self) -> GridToken;
+    fn right(&self) -> GridToken;
+}
+impl<LH: Into<LeafHandle>> GridContextDesc for LH {
+    fn x(&self) -> GridToken {
+        context(self.into()).x()
+    }
+    fn y(&self) -> GridToken {
+        todo!()
+    }
+    fn height(&self) -> GridToken {
+        todo!()
+    }
+    fn width(&self) -> GridToken {
+        todo!()
+    }
+    fn right(&self) -> GridToken {
+        todo!()
+    }
+}
 #[cfg(test)]
 #[test]
 fn behavior() {
     // depends on "header" + "button" respectively
     let location = GridLocation::new()
         .bottom(screen().x() - 16.px())
-        .top(context("header").y() + 10.percent().of(context("header")))
+        .top("header".y() + 10.percent().of("header"))
         .width(50.percent().of(screen()))
-        .left(context("button").right() + 10.px())
-        .right_at(
-            Layout::LANDSCAPE_MOBILE,
-            screen().x() + context("footer").width(),
-        );
+        .left("button".right() + 10.px())
+        .right_at(Layout::LANDSCAPE_MOBILE, screen().x() + "footer".width());
 }
 pub trait GridUnitDesc {
     fn px(self) -> GridUnit;
@@ -65,7 +88,6 @@ impl GridUnitDesc for i32 {
     fn px(self) -> GridUnit {
         GridUnit::Px(self as CoordinateUnit)
     }
-
     fn percent(self) -> GridUnit {
         GridUnit::Percent(self as f32 / 100.0)
     }
@@ -77,7 +99,7 @@ pub enum GridUnit {
     Row(i32),
 }
 impl GridUnit {
-    pub fn of(self, context: GridContext) -> GridToken {
+    pub fn of<GC: Into<GridContext>>(self, context: GC) -> GridToken {
         todo!()
     }
 }
@@ -120,6 +142,8 @@ impl Grid {}
 pub enum GridContext {
     Screen,
     Named(LeafHandle),
+    Path(LeafHandle),
+    None,
 }
 impl GridContext {
     pub fn x(&self) -> GridToken {
@@ -138,7 +162,31 @@ impl GridContext {
         todo!()
     }
 }
+impl<LH: Into<LeafHandle>> From<LH> for GridContext {
+    fn from(lh: LH) -> GridContext {
+        context(lh)
+    }
+}
 pub struct GridToken {
     // desc of location on grid
-    // context defaults to "Parent"
+    // context
+}
+pub struct GridTokenPartition {
+    pub op: GridTokenOp,
+    pub context: GridContext,
+    pub value: GridTokenValue,
+}
+pub enum GridTokenValue {
+    Unit(GridUnit),
+    Desc(RelativeDesc),
+}
+pub struct RelativeDesc {
+    // right + x token part
+    // path-point?
+}
+pub enum GridTokenOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
 }
