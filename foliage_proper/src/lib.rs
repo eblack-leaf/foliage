@@ -52,6 +52,7 @@ pub mod interaction;
 pub mod leaf;
 pub mod panel;
 mod path;
+mod r_grid;
 pub mod shape;
 pub mod style;
 pub mod text;
