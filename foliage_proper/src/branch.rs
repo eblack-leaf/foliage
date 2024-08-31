@@ -546,12 +546,10 @@ where
 {
     fn grow(self, tree: Tree);
 }
-
 #[derive(Clone)]
 pub struct BranchCommand<A: Branch> {
     data: A,
 }
-
 impl<A: Branch> Command for BranchCommand<A> {
     fn apply(self, world: &mut World) {
         let branch = Tree {
@@ -560,7 +558,6 @@ impl<A: Branch> Command for BranchCommand<A> {
         self.data.grow(branch);
     }
 }
-
 #[derive(Component)]
 pub struct Signal(pub bool);
 impl Signal {
@@ -575,7 +572,6 @@ impl Signal {
 pub(crate) struct SignaledBranchCommand<A: Branch> {
     a: BranchCommand<A>,
 }
-
 pub(crate) fn signal_branch<A: Branch>(
     signals: Query<(&Signal, &SignaledBranchCommand<A>)>,
     mut cmd: Commands,
@@ -587,7 +583,6 @@ pub(crate) fn signal_branch<A: Branch>(
         }
     }
 }
-
 pub(crate) fn clear_signal(mut signals: Query<&mut Signal, Changed<Signal>>) {
     for mut signal in signals.iter_mut() {
         signal.0 = false;
