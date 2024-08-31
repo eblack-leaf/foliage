@@ -1,44 +1,35 @@
-use crate::branch::{Leaf, Tree};
-use crate::coordinate::elevation::Elevation;
-use crate::grid::{Grid, GridPlacement};
-use crate::leaf::LeafHandle;
+use crate::branch::{LeafPtr, Tree};
+use crate::leaf::{Leaf, LeafHandle};
+use crate::r_grid::Grid;
 
 pub mod button;
 
-pub trait Twig
+pub trait TwigStructure
 where
     Self: Sized + Send + Sync + 'static,
 {
-    fn grow(self, twig_handle: &mut TwigHandle);
+    fn grow(self, twig_ptr: &mut TwigPtr);
 }
-pub struct TwigHandle<'a> {
+pub struct TwigPtr<'a> {
     pub target_handle: LeafHandle,
-    pub elm_handle: Tree<'a>,
+    pub tree: Tree<'a>,
 }
-impl<'a> TwigHandle<'a> {
-    pub fn bind<TH: Into<LeafHandle>, BFN: FnOnce(&mut Leaf<'a>), E: Into<Elevation>>(
-        &mut self,
-        th: TH,
-        grid_placement: GridPlacement,
-        elevation: E,
-        grid: Option<Grid>,
-        b_fn: BFN,
-    ) {
-        let handle = self.target_handle.extend(th.into().0);
-        self.elm_handle
-            .add_leaf(handle.clone(), grid_placement, elevation, grid, b_fn);
-        self.elm_handle
+impl<'a> TwigPtr<'a> {
+    pub fn bind<LFN: for<'b> FnOnce(&mut LeafPtr<'b>)>(&mut self, leaf: Leaf<LFN>) {
+        let handle = leaf.handle.clone();
+        self.tree.add_leaf(leaf);
+        self.tree
             .update_leaf(handle, |e| e.stem_from(self.target_handle.clone()));
     }
     pub fn config_grid(&mut self, grid: Grid) {
-        self.elm_handle
+        self.tree
             .update_leaf(self.target_handle.clone(), |e| e.give_attr(grid));
     }
     // TODO forward elm-handle functions
     pub(crate) fn new(target_handle: LeafHandle, elm_handle: Tree<'a>) -> Self {
         Self {
             target_handle,
-            elm_handle,
+            tree: elm_handle,
         }
     }
 }

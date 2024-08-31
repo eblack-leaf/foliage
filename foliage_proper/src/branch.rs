@@ -2,13 +2,12 @@ use std::any::TypeId;
 use std::collections::HashSet;
 
 use crate::anim::{Animate, Animation, AnimationTime, Ease, Sequence, SequenceTimeRange};
-use crate::coordinate::elevation::Elevation;
 use crate::differential::{Remove, RenderLink, RenderRemoveQueue, Visibility};
 use crate::elm::{BranchLimiter, FilterAttrLimiter};
-use crate::grid::{Grid, GridPlacement, Layout, LayoutFilter};
 use crate::interaction::ClickInteractionListener;
-use crate::leaf::{BranchHandle, Dependents, IdTable, LeafBundle, LeafHandle, OnEnd, Stem};
-use crate::twig::{Twig, TwigHandle};
+use crate::layout::{Layout, LayoutFilter};
+use crate::leaf::{BranchHandle, Dependents, IdTable, Leaf, LeafBundle, LeafHandle, OnEnd, Stem};
+use crate::twig::{TwigPtr, TwigStructure};
 use bevy_ecs::change_detection::Mut;
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Bundle, Changed, Commands, DetectChanges, Entity, Query, Resource, World};
@@ -19,7 +18,7 @@ pub struct Tree<'a> {
     pub(crate) world_handle: Option<&'a mut World>,
 }
 
-pub struct Leaf<'a> {
+pub struct LeafPtr<'a> {
     pub(crate) world_handle: Option<&'a mut World>,
     pub(crate) handle: LeafHandle,
     pub(crate) entity: Entity,
@@ -89,7 +88,7 @@ pub(crate) fn filter_attr_changed<A: Bundle + Send + Sync + 'static + Clone>(
         // if removing + <A as HasRenderLink>::has_link() => send render-queue remove
     }
 }
-impl<'a> Leaf<'a> {
+impl<'a> LeafPtr<'a> {
     pub fn give_attr<A: Bundle>(&mut self, a: A) {
         self.world_handle
             .as_mut()
@@ -248,41 +247,26 @@ impl<'a> Tree<'a> {
             .unwrap();
         c_fn(comp.as_mut());
     }
-    pub fn add_leaf<TH: Into<LeafHandle>, EFN: FnOnce(&mut Leaf<'a>), E: Into<Elevation>>(
-        &mut self,
-        th: TH,
-        grid_placement: GridPlacement,
-        elevation: E,
-        grid: Option<Grid>,
-        e_fn: EFN,
-    ) {
+    pub fn add_leaf<EFN: for<'b> FnOnce(&mut LeafPtr<'b>)>(&mut self, leaf: Leaf<EFN>) {
         let entity = self
             .world_handle
             .as_mut()
             .unwrap()
             .spawn(LeafBundle::default())
-            .insert(elevation.into())
-            .insert(grid_placement)
+            .insert(leaf.elevation)
+            .insert(leaf.location)
             .id();
-        let target = th.into();
         self.world_handle
             .as_mut()
             .unwrap()
             .get_resource_mut::<IdTable>()
             .unwrap()
-            .add_target(target.clone(), entity);
-        if let Some(g) = grid {
-            self.world_handle
-                .as_mut()
-                .unwrap()
-                .entity_mut(entity)
-                .insert(g);
-        }
-        self.update_leaf(target.clone(), e_fn);
+            .add_target(leaf.handle.clone(), entity);
+        self.update_leaf(leaf.handle.clone(), leaf.l_fn);
     }
-    pub fn remove_leaf<TH: Into<LeafHandle>>(&mut self, th: TH) {
+    pub fn remove_leaf<LH: Into<LeafHandle>>(&mut self, lh: LH) {
         // queue remove of all dependents
-        let handle = th.into();
+        let handle = lh.into();
         let start = self
             .lookup_target_entity(handle.clone())
             .expect("attempting to remove non-existent element");
@@ -349,19 +333,19 @@ impl<'a> Tree<'a> {
         }
         removed_set
     }
-    pub fn update_leaf<TH: Into<LeafHandle>, EFN: FnOnce(&mut Leaf<'a>)>(
+    pub fn update_leaf<LH: Into<LeafHandle>, LFN: for<'b> FnOnce(&mut LeafPtr<'b>)>(
         &mut self,
-        th: TH,
-        e_fn: EFN,
+        lh: LH,
+        l_fn: LFN,
     ) {
-        let th = th.into();
+        let th = lh.into();
         let entity = self.lookup_target_entity(th.clone()).unwrap();
-        let mut element_handle = Leaf {
+        let mut element_handle = LeafPtr {
             world_handle: self.world_handle.take(),
             entity,
             handle: th,
         };
-        e_fn(&mut element_handle);
+        l_fn(&mut element_handle);
         self.world_handle = element_handle.world_handle.take();
     }
     pub fn change_leaf_stem<TH: Into<LeafHandle>>(&mut self, th: TH, new_root: Option<LeafHandle>) {
@@ -485,35 +469,21 @@ impl<'a> Tree<'a> {
             .entity_mut(se)
             .insert(seq_handle.sequence);
     }
-    pub fn add_twig<V: Twig, TH: Into<LeafHandle>, E: Into<Elevation>>(
+    pub fn add_twig<T: TwigStructure, LFN: for<'b> FnOnce(&mut LeafPtr<'b>)>(
         &mut self,
-        th: TH,
-        grid_placement: GridPlacement,
-        elevation: E,
-        v: V,
-        rth: Option<TH>,
+        twig: Twig<T, LFN>,
     ) {
-        let handle = th.into();
-        self.add_leaf(
-            handle.clone(),
-            grid_placement.clone(),
-            elevation,
-            None,
-            |e| {
-                if let Some(r) = rth {
-                    e.stem_from(r);
-                }
-            },
-        );
-        let mut view = TwigHandle::new(
+        let handle = twig.leaf.handle.clone();
+        self.add_leaf(twig.leaf);
+        let mut twig_ptr = TwigPtr::new(
             handle,
             Tree {
                 world_handle: self.world_handle.take(),
             },
         );
-        v.grow(&mut view);
+        twig.t.grow(&mut twig_ptr);
         self.world_handle
-            .replace(view.elm_handle.world_handle.take().unwrap());
+            .replace(twig_ptr.tree.world_handle.take().unwrap());
     }
     pub fn spawn<B: Bundle>(&mut self, b: B) {
         self.world_handle.as_mut().unwrap().spawn(b);
@@ -552,6 +522,23 @@ impl<'a> Tree<'a> {
             .unwrap()
             .lookup_leaf(th.into())
     }
+}
+pub struct Twig<T: TwigStructure, LFN: for<'a> FnOnce(&mut LeafPtr<'a>)> {
+    t: T,
+    leaf: Leaf<LFN>,
+}
+impl<T: TwigStructure, LFN: for<'a> FnOnce(&mut LeafPtr<'a>)> Twig<T, LFN> {
+    pub fn new(t: T, l_fn: LFN) -> Self {
+        Self {
+            t,
+            leaf: Leaf::new(l_fn),
+        }
+    }
+    pub fn named<LH: Into<LeafHandle>>(mut self, lh: LH) -> Self {
+        self.leaf = self.leaf.named(lh);
+        self
+    }
+    // ...
 }
 pub trait Branch
 where

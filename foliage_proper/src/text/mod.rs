@@ -166,7 +166,7 @@ impl GlyphColors {
         }
     }
 }
-#[derive(Clone, Component)]
+#[derive(Clone, Component, Default)]
 pub struct TextValue(pub String);
 impl<S: AsRef<str>> From<S> for TextValue {
     fn from(value: S) -> Self {

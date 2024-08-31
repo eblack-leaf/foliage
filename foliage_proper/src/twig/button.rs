@@ -1,10 +1,11 @@
-use crate::grid::{Grid, GridCoordinate, GridPlacement};
 use crate::icon::{Icon, IconId};
 use crate::interaction::{ClickInteractionListener, OnClick};
+use crate::leaf::Leaf;
 use crate::panel::{Panel, Rounding};
+use crate::r_grid::{Grid, GridLocation};
 use crate::style::{Coloring, InteractiveColor};
 use crate::text::{FontSize, Text, TextValue};
-use crate::twig::{Twig, TwigHandle};
+use crate::twig::{TwigPtr, TwigStructure};
 
 #[derive(Copy, Clone)]
 pub(crate) enum ButtonShape {
@@ -51,21 +52,17 @@ impl Button {
         self
     }
 }
-impl Twig for Button {
-    fn grow(self, twig_handle: &mut TwigHandle) {
-        twig_handle.config_grid(Grid::new(3, 1));
+impl TwigStructure for Button {
+    fn grow(self, twig_handle: &mut TwigPtr) {
+        twig_handle.config_grid(Grid::template(3, 1));
         let linked = vec![
             twig_handle.target_handle.extend("icon"),
             twig_handle.target_handle.extend("text"),
         ];
         twig_handle.bind(
-            "panel",
-            GridPlacement::new(0.percent().to(100.percent()), 0.percent().to(100.percent())),
-            -1,
-            None,
-            |b| {
-                b.give_attr(Panel::new(self.rounding, self.coloring.background));
-                b.give_attr(
+            Leaf::new(|l| {
+                l.give_attr(Panel::new(self.rounding, self.coloring.background));
+                l.give_attr(
                     InteractiveColor::new(self.coloring.background, self.coloring.foreground)
                         .with_linked(linked),
                 );
@@ -73,43 +70,30 @@ impl Twig for Button {
                     ButtonShape::Circle => ClickInteractionListener::new().as_circle(),
                     ButtonShape::Square => ClickInteractionListener::new(),
                 };
-                b.give_attr(interaction_listener);
-                b.give_attr(self.on_click);
-            },
+                l.give_attr(interaction_listener);
+                l.give_attr(self.on_click);
+            })
+            .named("panel")
+            .located(GridLocation::new())
+            .elevation(-1),
         );
-        let icon_horizontal = if self.text_value.is_some() {
-            10.percent().span(24.px())
-        } else {
-            1.col().to(3.col())
-        };
         twig_handle.bind(
-            "icon",
-            GridPlacement::new(icon_horizontal, 1.row().to(1.row())),
-            -1,
-            None,
-            |b| {
-                b.give_attr(Icon::new(self.icon_id, self.coloring.foreground));
-            },
+            Leaf::new(|l| l.give_attr(Icon::new(self.icon_id, self.coloring.foreground)))
+                .named("icon")
+                .located(GridLocation::new())
+                .elevation(-1),
         );
-        let text_horizontal = if self.text_value.is_some() {
-            25.percent().to(85.percent())
-        } else {
-            0.percent().to(0.percent())
-        };
         twig_handle.bind(
-            "text",
-            GridPlacement::new(text_horizontal, 1.row().to(1.row())),
-            -1,
-            None,
-            |b| {
-                if let Some(t) = self.text_value {
-                    b.give_attr(Text::new(
-                        t.0,
-                        self.font_size.unwrap(),
-                        self.coloring.foreground,
-                    ));
-                }
-            },
+            Leaf::new(|l| {
+                l.give_attr(Text::new(
+                    self.text_value.unwrap_or_default().0,
+                    self.font_size.unwrap(),
+                    self.coloring.foreground,
+                ))
+            })
+            .named("text")
+            .located(GridLocation::new())
+            .elevation(-1),
         )
     }
 }

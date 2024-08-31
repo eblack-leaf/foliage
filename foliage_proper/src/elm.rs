@@ -1,4 +1,3 @@
-use std::any::TypeId;
 use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 
@@ -12,7 +11,7 @@ use bevy_ecs::schedule::ExecutorKind;
 use bevy_ecs::system::Resource;
 use bevy_ecs::world::World;
 
-use crate::anim::{animate, animate_grid_placement, Animate};
+use crate::anim::{animate, Animate};
 use crate::ash::Render;
 use crate::asset::{await_assets, on_retrieve};
 use crate::branch::{
@@ -28,11 +27,12 @@ use crate::differential::{
 };
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::ScaleFactor;
-use crate::grid::{viewport_changes_layout, Grid, GridPlacement, Layout, LayoutGrid};
 use crate::interaction::{
     FocusedEntity, InteractiveEntity, KeyboardAdapter, MouseAdapter, TouchAdapter,
 };
-use crate::leaf::{opacity, recursive_placement};
+use crate::layout::{viewport_changes_layout, Layout, LayoutGrid};
+use crate::leaf::opacity;
+use crate::r_grid::{animate_grid_location, recursive_placement, Grid};
 use crate::willow::Willow;
 
 #[derive(Default)]
@@ -170,15 +170,9 @@ impl Elm {
     }
     pub fn enable_animation<A: Animate>(&mut self) {
         if !self.ecs.world.contains_resource::<AnimationLimiter<A>>() {
-            if TypeId::of::<A>() == TypeId::of::<GridPlacement>() {
-                self.scheduler
-                    .main
-                    .add_systems(animate_grid_placement.in_set(ScheduleMarkers::Animation));
-            } else {
-                self.scheduler
-                    .main
-                    .add_systems(animate::<A>.in_set(ScheduleMarkers::Animation));
-            }
+            self.scheduler
+                .main
+                .add_systems(animate::<A>.in_set(ScheduleMarkers::Animation));
             self.ecs
                 .world
                 .insert_resource(AnimationLimiter::<A>::default());
@@ -242,7 +236,7 @@ impl Elm {
         self.ecs.world.insert_resource(RenderRemoveQueue::default());
         self.ecs
             .world
-            .insert_resource(LayoutGrid::new(Grid::new(4, 4)));
+            .insert_resource(LayoutGrid::new(Grid::template(4, 4)));
         self.ecs.world.insert_resource(Layout::SQUARE);
         self.ecs.world.insert_resource(TouchAdapter::default());
         self.ecs.world.insert_resource(MouseAdapter::default());
@@ -275,6 +269,7 @@ impl Elm {
         self.scheduler.main.add_systems((
             (viewport_changes_layout, await_assets).in_set(ScheduleMarkers::External),
             event_update_system.in_set(ScheduleMarkers::Events),
+            animate_grid_location.in_set(ScheduleMarkers::Animation),
             recursive_placement.in_set(ScheduleMarkers::GridSemantics),
             crate::differential::remove.in_set(ScheduleMarkers::Clean),
             opacity.in_set(ScheduleMarkers::Resolve),
