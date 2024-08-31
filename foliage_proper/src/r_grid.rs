@@ -1,6 +1,8 @@
 use crate::coordinate::CoordinateUnit;
-use crate::grid::Layout;
+use crate::layout::Layout;
 use crate::leaf::LeafHandle;
+use bevy_ecs::bundle::Bundle;
+use bevy_ecs::prelude::Component;
 use std::ops::{Add, Sub};
 
 impl Sub<GridUnit> for GridToken {
@@ -46,26 +48,26 @@ impl Add<GridToken> for GridToken {
     }
 }
 pub trait GridContextDesc {
-    fn x(&self) -> GridToken;
-    fn y(&self) -> GridToken;
-    fn height(&self) -> GridToken;
-    fn width(&self) -> GridToken;
-    fn right(&self) -> GridToken;
+    fn x(self) -> GridToken;
+    fn y(self) -> GridToken;
+    fn height(self) -> GridToken;
+    fn width(self) -> GridToken;
+    fn right(self) -> GridToken;
 }
 impl<LH: Into<LeafHandle>> GridContextDesc for LH {
-    fn x(&self) -> GridToken {
-        context(self.into()).x()
+    fn x(self) -> GridToken {
+        context(self).x()
     }
-    fn y(&self) -> GridToken {
+    fn y(self) -> GridToken {
         todo!()
     }
-    fn height(&self) -> GridToken {
+    fn height(self) -> GridToken {
         todo!()
     }
-    fn width(&self) -> GridToken {
+    fn width(self) -> GridToken {
         todo!()
     }
-    fn right(&self) -> GridToken {
+    fn right(self) -> GridToken {
         todo!()
     }
 }
@@ -80,6 +82,7 @@ fn behavior() {
         .left("button".right() + 10.px())
         .right_at(Layout::LANDSCAPE_MOBILE, screen().x() + "footer".width());
 }
+pub(crate) fn place_on_grid() {}
 pub trait GridUnitDesc {
     fn px(self) -> GridUnit;
     fn percent(self) -> GridUnit;
@@ -110,6 +113,9 @@ impl GridUnit {
         todo!()
     }
 }
+pub(crate) fn animate_grid_location() {}
+pub(crate) fn recursive_placement() {}
+#[derive(Bundle, Clone)]
 pub struct GridLocation {
     // configuration of tokens
     // bot | top | left | right
@@ -142,10 +148,18 @@ impl GridLocation {
     // horizontal
     // vertical
 }
+#[derive(Component)]
 pub struct Grid {
     // actual grid mechanisms
 }
-impl Grid {}
+impl Grid {
+    pub fn new() -> Grid {
+        Self {}
+    }
+    pub fn template(c: u32, r: u32) -> Grid {
+        Self {}
+    }
+}
 pub enum GridContext {
     Screen,
     Named(LeafHandle),

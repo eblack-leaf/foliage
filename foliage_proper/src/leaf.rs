@@ -3,20 +3,43 @@ use std::collections::{HashMap, HashSet};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::change_detection::Res;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Changed, Component, DetectChanges, ParamSet, Query, Resource};
-use bevy_ecs::query::{Or, With};
+use bevy_ecs::prelude::{Changed, Component, ParamSet, Query, Resource};
+use bevy_ecs::query::Or;
 
 use crate::anim::{Animate, Interpolations};
+use crate::branch::LeafPtr;
 use crate::color::Color;
-use crate::coordinate::area::Area;
-use crate::coordinate::elevation::{Elevation, RenderLayer};
+use crate::coordinate::elevation::Elevation;
 use crate::coordinate::placement::Placement;
-use crate::coordinate::position::Position;
-use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
 use crate::differential::{Remove, Visibility};
-use crate::grid::{Grid, GridPlacement, Layout, LayoutGrid};
+use crate::r_grid::GridLocation;
 
+pub struct Leaf<LFN: for<'a> FnOnce(&mut LeafPtr<'a>)> {
+    pub handle: LeafHandle,
+    pub location: GridLocation,
+    pub elevation: Elevation,
+    pub l_fn: LFN,
+}
+impl<LFN: for<'a> FnOnce(&mut LeafPtr<'a>)> Leaf<LFN> {
+    pub fn new(l_fn: LFN) -> Self {
+        Self {
+            handle: LeafHandle::default(),
+            location: GridLocation {},
+            elevation: Default::default(),
+            l_fn,
+        }
+    }
+    pub fn named<LH: Into<LeafHandle>>(mut self, lh: LH) -> Self {
+        self
+    }
+    pub fn located<GL: Into<GridLocation>>(mut self, gl: GL) -> Self {
+        self
+    }
+    pub fn elevation<E: Into<Elevation>>(mut self, e: E) -> Self {
+        self
+    }
+}
 #[derive(Bundle, Default)]
 pub(crate) struct LeafBundle {
     stem: Stem,
@@ -45,162 +68,7 @@ impl Dependents {
         Self(set)
     }
 }
-pub(crate) fn recursive_placement(
-    mut elements: ParamSet<(
-        Query<
-            (),
-            (
-                Or<(
-                    Changed<Grid>,
-                    Changed<GridPlacement>,
-                    Changed<Stem>,
-                    Changed<Dependents>,
-                    Changed<RenderLayer>,
-                )>,
-                With<GridPlacement>,
-                With<RenderLayer>,
-                With<Stem>,
-                With<Dependents>,
-            ),
-        >,
-        Query<(
-            Entity,
-            &GridPlacement,
-            Option<&Grid>,
-            &Stem,
-            &Dependents,
-            &Position<LogicalContext>,
-            &Area<LogicalContext>,
-            &Elevation,
-            &RenderLayer,
-        )>,
-        Query<(
-            Option<&mut Grid>,
-            &mut Position<LogicalContext>,
-            &mut Area<LogicalContext>,
-            &mut RenderLayer,
-            &mut GridPlacement,
-        )>,
-    )>,
-    id_table: Res<IdTable>,
-    layout: Res<Layout>,
-    layout_grid: Res<LayoutGrid>,
-) {
-    let x = layout.is_changed();
-    let y = layout_grid.is_changed();
-    let z = !elements.p0().is_empty();
-    if x || y || z {
-        let stems = elements
-            .p1()
-            .iter()
-            .map(|(entity, _, _, root, _, _, _, _, _)| {
-                if root.0.is_none() {
-                    return Some(entity);
-                }
-                None
-            })
-            .collect::<Vec<Option<Entity>>>();
-        for s in stems {
-            if let Some(r) = s {
-                let elevation = *elements.p1().get(r).unwrap().7;
-                let (stem_placement, stem_offset) =
-                    layout_grid
-                        .grid
-                        .place(elements.p1().get(r).unwrap().1, elevation, *layout);
-                let chain = recursive_placement_inner(
-                    &elements.p1(),
-                    stem_placement,
-                    r,
-                    stem_offset,
-                    &id_table,
-                    *layout,
-                );
-                for (entity, placement, new_grid_placement, offset) in chain {
-                    if new_grid_placement.is_some() {
-                        if let Some(mut grid) = elements.p2().get_mut(entity).unwrap().0 {
-                            grid.size_to(new_grid_placement.unwrap());
-                        }
-                    }
-                    *elements.p2().get_mut(entity).unwrap().1 = placement.section.position;
-                    *elements.p2().get_mut(entity).unwrap().2 = placement.section.area;
-                    *elements.p2().get_mut(entity).unwrap().3 = placement.render_layer;
-                    elements
-                        .p2()
-                        .get_mut(entity)
-                        .unwrap()
-                        .4
-                        .update_queued_offset(offset);
-                }
-            }
-        }
-    }
-}
-fn recursive_placement_inner(
-    query: &Query<(
-        Entity,
-        &GridPlacement,
-        Option<&Grid>,
-        &Stem,
-        &Dependents,
-        &Position<LogicalContext>,
-        &Area<LogicalContext>,
-        &Elevation,
-        &RenderLayer,
-    )>,
-    current_placement: Placement<LogicalContext>,
-    current_entity: Entity,
-    current_offset: Option<Section<LogicalContext>>,
-    id_table: &IdTable,
-    layout: Layout,
-) -> Vec<(
-    Entity,
-    Placement<LogicalContext>,
-    Option<Placement<LogicalContext>>,
-    Option<Section<LogicalContext>>,
-)> {
-    let mut placed = vec![];
-    if query.get(current_entity).unwrap().4 .0.is_empty() {
-        placed.push((current_entity, current_placement, None, current_offset));
-        return placed;
-    }
-    let grid = query
-        .get(current_entity)
-        .unwrap()
-        .2
-        .copied()
-        .unwrap_or_default()
-        .sized(current_placement);
-    placed.push((
-        current_entity,
-        current_placement,
-        Some(current_placement),
-        current_offset,
-    ));
-    for dep in query.get(current_entity).unwrap().4 .0.iter() {
-        let dep_entity = id_table.lookup_leaf(dep.clone()).unwrap();
-        let dep_grid_placement = query.get(dep_entity).unwrap().1;
-        let (dep_placement, dep_offset) = grid.place(
-            dep_grid_placement,
-            *query.get(dep_entity).unwrap().7,
-            layout,
-        );
-        if query.get(dep_entity).unwrap().4 .0.is_empty() {
-            placed.push((dep_entity, dep_placement, None, dep_offset));
-        } else {
-            let recursion = recursive_placement_inner(
-                query,
-                dep_placement,
-                dep_entity,
-                dep_offset,
-                id_table,
-                layout,
-            );
-            placed.extend(recursion);
-        }
-    }
-    placed
-}
-#[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Debug)]
+#[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Debug, Default)]
 pub struct LeafHandle(pub String);
 impl<S: AsRef<str>> From<S> for LeafHandle {
     fn from(value: S) -> Self {
