@@ -1,9 +1,11 @@
-use crate::coordinate::CoordinateUnit;
+use std::collections::HashMap;
+use crate::coordinate::{CoordinateUnit, LogicalContext};
 use crate::layout::Layout;
 use crate::leaf::LeafHandle;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::prelude::Component;
 use std::ops::{Add, Sub};
+use crate::coordinate::placement::Placement;
 
 impl Sub<GridUnit> for GridToken {
     type Output = GridToken;
@@ -95,6 +97,7 @@ impl GridUnitDesc for i32 {
         GridUnit::Percent(self as f32 / 100.0)
     }
 }
+#[derive(Clone)]
 pub enum GridUnit {
     Px(CoordinateUnit),
     Percent(f32),
@@ -115,15 +118,36 @@ impl GridUnit {
 }
 pub(crate) fn animate_grid_location() {}
 pub(crate) fn recursive_placement() {}
-#[derive(Bundle, Clone)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub enum GridTokenDesc {
+    X,
+    Y,
+    Center,
+    Top,
+    Right,
+    Bottom,
+    Left,
+    Horizontal,
+    Vertical,
+    Width,
+    Height
+}
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub struct GridTokenDescException {
+    layout: Layout,
+    desc: GridTokenDesc,
+}
+#[derive(Component, Clone)]
 pub struct GridLocation {
-    // configuration of tokens
-    // bot | top | left | right
-    // ...
+    token_descriptions: HashMap<GridTokenDesc, GridToken>,
+    exceptions: HashMap<GridTokenDescException, GridToken>,
 }
 impl GridLocation {
     pub fn new() -> GridLocation {
-        Self {}
+        Self {
+            token_descriptions: HashMap::new(),
+            exceptions: Default::default(),
+        }
     }
     pub fn bottom<GT: Into<GridToken>>(mut self, gt: GT) -> Self {
         // save token to bottom-slot
@@ -148,18 +172,31 @@ impl GridLocation {
     // horizontal
     // vertical
 }
+#[derive(Clone, Copy)]
+pub struct GridTemplate {
+    columns: u32,
+    rows: u32,
+}
+impl GridTemplate {
+    pub fn new(columns: u32, rows: u32) -> GridTemplate {
+        Self { columns, rows }
+    }
+}
 #[derive(Component)]
 pub struct Grid {
     // actual grid mechanisms
+    template: Option<GridTemplate>,
+    placement: Placement<LogicalContext>,
 }
 impl Grid {
     pub fn new() -> Grid {
-        Self {}
+        Self { template: None }
     }
     pub fn template(c: u32, r: u32) -> Grid {
-        Self {}
+        Self { template: Some(GridTemplate::new(c, r)) }
     }
 }
+#[derive(Clone)]
 pub enum GridContext {
     Screen,
     Named(LeafHandle),
@@ -188,23 +225,29 @@ impl<LH: Into<LeafHandle>> From<LH> for GridContext {
         context(lh)
     }
 }
+#[derive(Clone)]
 pub struct GridToken {
     // desc of location on grid
     // context
+    partitions: Vec<GridTokenPartition>
 }
+#[derive(Clone)]
 pub struct GridTokenPartition {
     pub op: GridTokenOp,
     pub context: GridContext,
     pub value: GridTokenValue,
 }
+#[derive(Clone)]
 pub enum GridTokenValue {
     Unit(GridUnit),
     Desc(RelativeDesc),
 }
+#[derive(Clone)]
 pub struct RelativeDesc {
     // right + x token part
     // path-point?
 }
+#[derive(Clone)]
 pub enum GridTokenOp {
     Add,
     Sub,
