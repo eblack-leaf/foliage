@@ -1,11 +1,10 @@
-use std::collections::HashMap;
-use crate::coordinate::{CoordinateUnit, LogicalContext};
+use crate::coordinate::placement::Placement;
+use crate::coordinate::{CoordinateUnit, Coordinates, LogicalContext};
 use crate::layout::Layout;
 use crate::leaf::LeafHandle;
-use bevy_ecs::bundle::Bundle;
 use bevy_ecs::prelude::Component;
+use std::collections::HashMap;
 use std::ops::{Add, Sub};
-use crate::coordinate::placement::Placement;
 
 impl Sub<GridUnit> for GridToken {
     type Output = GridToken;
@@ -15,25 +14,34 @@ impl Sub<GridUnit> for GridToken {
         self - token
     }
 }
-impl Sub<GridToken> for GridToken {
+impl Add<GridToken> for GridUnit {
+    type Output = GridToken;
+    fn add(self, rhs: GridToken) -> Self::Output {
+        let token: GridToken = self.into();
+        token + rhs
+    }
+}
+impl Sub<GridToken> for GridUnit {
     type Output = GridToken;
     fn sub(self, rhs: GridToken) -> Self::Output {
-        todo!()
+        let token: GridToken = self.into();
+        token - rhs
+    }
+}
+impl Sub<GridToken> for GridToken {
+    type Output = GridToken;
+    fn sub(mut self, mut rhs: GridToken) -> Self::Output {
+        if let Some(first) = rhs.partitions.get_mut(0) {
+            first.op = GridTokenOp::Sub;
+        }
+        self.partitions.extend(rhs.partitions);
+        self
     }
 }
 impl From<GridUnit> for GridToken {
     fn from(value: GridUnit) -> Self {
-        todo!()
+        GridToken::new(GridContext::This, GridTokenValue::Unit(value))
     }
-}
-pub fn screen() -> GridContext {
-    GridContext::Screen
-}
-pub fn context<LH: Into<LeafHandle>>(lh: LH) -> GridContext {
-    GridContext::Named(lh.into())
-}
-pub fn path<LH: Into<LeafHandle>>(path: LH) -> GridContext {
-    GridContext::Path(path.into())
 }
 impl Add<GridUnit> for GridToken {
     type Output = GridToken;
@@ -45,9 +53,19 @@ impl Add<GridUnit> for GridToken {
 }
 impl Add<GridToken> for GridToken {
     type Output = GridToken;
-    fn add(self, rhs: GridToken) -> Self::Output {
-        todo!()
+    fn add(mut self, rhs: GridToken) -> Self::Output {
+        self.partitions.extend(rhs.partitions);
+        self
     }
+}
+pub fn screen() -> GridContext {
+    GridContext::Screen
+}
+pub fn context<LH: Into<LeafHandle>>(lh: LH) -> GridContext {
+    GridContext::Named(lh.into())
+}
+pub fn path<LH: Into<LeafHandle>>(path: LH) -> GridContext {
+    GridContext::Path(path.into())
 }
 pub trait GridContextDesc {
     fn x(self) -> GridToken;
@@ -61,33 +79,33 @@ impl<LH: Into<LeafHandle>> GridContextDesc for LH {
         context(self).x()
     }
     fn y(self) -> GridToken {
-        todo!()
+        context(self).y()
     }
     fn height(self) -> GridToken {
-        todo!()
+        context(self).height()
     }
     fn width(self) -> GridToken {
-        todo!()
+        context(self).width()
     }
     fn right(self) -> GridToken {
-        todo!()
+        context(self).right()
     }
 }
 #[cfg(test)]
 #[test]
 fn behavior() {
-    // depends on "header" + "button" respectively
     let location = GridLocation::new()
-        .bottom(screen().x() - 16.px())
+        .bottom(10.px() + screen().x() - 16.px())
         .top("header".y() + 10.percent().of("header"))
         .width(50.percent().of(screen()))
         .left("button".right() + 10.px())
         .right_at(Layout::LANDSCAPE_MOBILE, screen().x() + "footer".width());
 }
-pub(crate) fn place_on_grid() {}
 pub trait GridUnitDesc {
     fn px(self) -> GridUnit;
     fn percent(self) -> GridUnit;
+    fn column(self) -> GridUnit;
+    fn row(self) -> GridUnit;
 }
 impl GridUnitDesc for i32 {
     fn px(self) -> GridUnit {
@@ -95,6 +113,12 @@ impl GridUnitDesc for i32 {
     }
     fn percent(self) -> GridUnit {
         GridUnit::Percent(self as f32 / 100.0)
+    }
+    fn column(self) -> GridUnit {
+        GridUnit::Column(self)
+    }
+    fn row(self) -> GridUnit {
+        GridUnit::Row(self)
     }
 }
 #[derive(Clone)]
@@ -106,7 +130,7 @@ pub enum GridUnit {
 }
 impl GridUnit {
     pub fn of<GC: Into<GridContext>>(self, context: GC) -> GridToken {
-        todo!()
+        GridToken::new(context.into(), GridTokenValue::Unit(self))
     }
     pub fn between<PH: Into<PointHandle>, PHH: Into<PointHandle>>(
         self,
@@ -122,20 +146,30 @@ pub(crate) fn recursive_placement() {}
 pub enum GridTokenDesc {
     X,
     Y,
-    Center,
+    CenterX,
+    CenterY,
     Top,
     Right,
     Bottom,
     Left,
-    Horizontal,
-    Vertical,
+    HorizontalBegin,
+    HorizontalEnd,
+    VerticalBegin,
+    VerticalEnd,
     Width,
-    Height
+    Height,
+    LineBegin,
+    LineEnd,
 }
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct GridTokenDescException {
     layout: Layout,
     desc: GridTokenDesc,
+}
+impl GridTokenDescException {
+    pub fn new(layout: Layout, desc: GridTokenDesc) -> Self {
+        Self { layout, desc }
+    }
 }
 #[derive(Component, Clone)]
 pub struct GridLocation {
@@ -150,20 +184,30 @@ impl GridLocation {
         }
     }
     pub fn bottom<GT: Into<GridToken>>(mut self, gt: GT) -> Self {
-        // save token to bottom-slot
+        self.token_descriptions
+            .insert(GridTokenDesc::Bottom, gt.into());
         self
     }
     pub fn top<GT: Into<GridToken>>(mut self, gt: GT) -> Self {
+        self.token_descriptions
+            .insert(GridTokenDesc::Top, gt.into());
         self
     }
-    pub fn width<GT: Into<GridToken>>(self, gt: GT) -> Self {
+    pub fn width<GT: Into<GridToken>>(mut self, gt: GT) -> Self {
+        self.token_descriptions
+            .insert(GridTokenDesc::Width, gt.into());
         self
     }
-    pub fn left<GT: Into<GridToken>>(self, gt: GT) -> Self {
+    pub fn left<GT: Into<GridToken>>(mut self, gt: GT) -> Self {
+        self.token_descriptions
+            .insert(GridTokenDesc::Left, gt.into());
         self
     }
-    pub fn right_at<GT: Into<GridToken>>(self, layout: Layout, gt: GT) -> Self {
-        // exception @ layout overrides normal context
+    pub fn right_at<GT: Into<GridToken>>(mut self, layout: Layout, gt: GT) -> Self {
+        self.exceptions.insert(
+            GridTokenDescException::new(layout, GridTokenDesc::Right),
+            gt.into(),
+        );
         self
     }
     // top-left
@@ -176,24 +220,73 @@ impl GridLocation {
 pub struct GridTemplate {
     columns: u32,
     rows: u32,
+    gap: Coordinates,
 }
 impl GridTemplate {
     pub fn new(columns: u32, rows: u32) -> GridTemplate {
-        Self { columns, rows }
+        Self {
+            columns,
+            rows,
+            gap: Coordinates::new(8.0, 8.0),
+        }
+    }
+    pub fn columns(&self) -> f32 {
+        self.columns as f32
+    }
+    pub fn rows(&self) -> f32 {
+        self.rows as f32
+    }
+    pub fn gap<C: Into<Coordinates>>(mut self, g: C) -> Self {
+        self.gap = g.into();
+        self
     }
 }
 #[derive(Component)]
 pub struct Grid {
-    // actual grid mechanisms
     template: Option<GridTemplate>,
     placement: Placement<LogicalContext>,
 }
 impl Grid {
     pub fn new() -> Grid {
-        Self { template: None }
+        Self {
+            template: None,
+            placement: Default::default(),
+        }
     }
     pub fn template(c: u32, r: u32) -> Grid {
-        Self { template: Some(GridTemplate::new(c, r)) }
+        Self {
+            template: Some(GridTemplate::new(c, r)),
+            placement: Default::default(),
+        }
+    }
+    pub fn with_gap<C: Into<Coordinates>>(mut self, g: C) -> Self {
+        if let Some(t) = self.template.as_mut() {
+            t.gap = g.into();
+        }
+        self
+    }
+    pub fn column_size(&self) -> CoordinateUnit {
+        if let Some(template) = &self.template {
+            self.placement.section.width() / template.columns()
+                - template.gap.horizontal() * (template.columns() + 1.0)
+        } else {
+            0.0
+        }
+    }
+    pub fn size_to(&mut self, placement: Placement<LogicalContext>) {
+        self.placement = placement;
+    }
+    pub fn sized(mut self, placement: Placement<LogicalContext>) -> Self {
+        self.placement = placement;
+        self
+    }
+    pub fn row_size(&self) -> CoordinateUnit {
+        if let Some(template) = &self.template {
+            self.placement.section.height() / template.rows()
+                - template.gap.vertical() * (template.rows() + 1.0)
+        } else {
+            0.0
+        }
     }
 }
 #[derive(Clone)]
@@ -201,23 +294,23 @@ pub enum GridContext {
     Screen,
     Named(LeafHandle),
     Path(LeafHandle),
-    None,
+    This,
 }
 impl GridContext {
-    pub fn x(&self) -> GridToken {
-        todo!()
+    pub fn x(self) -> GridToken {
+        GridToken::new(self, GridTokenValue::Desc(GridTokenDesc::X))
     }
-    pub fn y(&self) -> GridToken {
-        todo!()
+    pub fn y(self) -> GridToken {
+        GridToken::new(self, GridTokenValue::Desc(GridTokenDesc::Y))
     }
-    pub fn height(&self) -> GridToken {
-        todo!()
+    pub fn height(self) -> GridToken {
+        GridToken::new(self, GridTokenValue::Desc(GridTokenDesc::Height))
     }
-    pub fn width(&self) -> GridToken {
-        todo!()
+    pub fn width(self) -> GridToken {
+        GridToken::new(self, GridTokenValue::Desc(GridTokenDesc::Width))
     }
-    pub fn right(&self) -> GridToken {
-        todo!()
+    pub fn right(self) -> GridToken {
+        GridToken::new(self, GridTokenValue::Desc(GridTokenDesc::Right))
     }
 }
 impl<LH: Into<LeafHandle>> From<LH> for GridContext {
@@ -227,9 +320,14 @@ impl<LH: Into<LeafHandle>> From<LH> for GridContext {
 }
 #[derive(Clone)]
 pub struct GridToken {
-    // desc of location on grid
-    // context
-    partitions: Vec<GridTokenPartition>
+    partitions: Vec<GridTokenPartition>,
+}
+impl GridToken {
+    pub fn new(context: GridContext, value: GridTokenValue) -> GridToken {
+        Self {
+            partitions: vec![GridTokenPartition::new(GridTokenOp::Add, context, value)],
+        }
+    }
 }
 #[derive(Clone)]
 pub struct GridTokenPartition {
@@ -237,15 +335,15 @@ pub struct GridTokenPartition {
     pub context: GridContext,
     pub value: GridTokenValue,
 }
+impl GridTokenPartition {
+    pub fn new(op: GridTokenOp, context: GridContext, value: GridTokenValue) -> Self {
+        Self { op, context, value }
+    }
+}
 #[derive(Clone)]
 pub enum GridTokenValue {
     Unit(GridUnit),
-    Desc(RelativeDesc),
-}
-#[derive(Clone)]
-pub struct RelativeDesc {
-    // right + x token part
-    // path-point?
+    Desc(GridTokenDesc),
 }
 #[derive(Clone)]
 pub enum GridTokenOp {
@@ -254,20 +352,22 @@ pub enum GridTokenOp {
     Mul,
     Div,
 }
-
 impl Sub for GridUnit {
     type Output = GridToken;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        todo!()
+        let token: GridToken = self.into();
+        let rhs: GridToken = rhs.into();
+        token - rhs
     }
 }
-
 impl Add for GridUnit {
     type Output = GridToken;
 
     fn add(self, rhs: Self) -> Self::Output {
-        todo!()
+        let token: GridToken = self.into();
+        let rhs: GridToken = rhs.into();
+        token + rhs
     }
 }
 impl From<GridToken> for GridPointToken {
