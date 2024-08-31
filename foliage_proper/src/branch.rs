@@ -534,6 +534,11 @@ impl<T: TwigStructure, LFN: for<'a> FnOnce(&mut LeafPtr<'a>)> Twig<T, LFN> {
             leaf: Leaf::new(l_fn),
         }
     }
+    pub fn named<LH: Into<LeafHandle>>(mut self, lh: LH) -> Self {
+        self.leaf = self.leaf.named(lh);
+        self
+    }
+    // ...
 }
 pub trait Branch
 where

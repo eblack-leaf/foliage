@@ -213,7 +213,7 @@ pub enum GridTokenOp {
 }
 
 impl Sub for GridUnit {
-    type Output = GridUnit;
+    type Output = GridToken;
 
     fn sub(self, rhs: Self) -> Self::Output {
         todo!()
@@ -221,13 +221,17 @@ impl Sub for GridUnit {
 }
 
 impl Add for GridUnit {
-    type Output = GridUnit;
+    type Output = GridToken;
 
     fn add(self, rhs: Self) -> Self::Output {
         todo!()
     }
 }
-
+impl From<GridToken> for GridPointToken {
+    fn from(value: GridToken) -> Self {
+        todo!()
+    }
+}
 #[cfg(test)]
 #[test]
 fn path_behavior() {
@@ -282,16 +286,22 @@ impl GridPath {
     }
 }
 pub struct GridPoint {
-    pub x: GridToken,
-    pub y: GridToken,
+    pub x: GridPointToken,
+    pub y: GridPointToken,
 }
 impl GridPoint {
-    pub fn new<GT: Into<GridToken>, GTT: Into<GridToken>>(gt: GT, gtt: GTT) -> Self {
+    pub fn new<GT: Into<GridPointToken>, GTT: Into<GridPointToken>>(gt: GT, gtt: GTT) -> Self {
         todo!()
     }
 }
-impl<GT: Into<GridToken>, GTT: Into<GridToken>> From<(GT, GTT)> for GridPoint {
+impl<GT: Into<GridPointToken>, GTT: Into<GridPointToken>> From<(GT, GTT)> for GridPoint {
     fn from(value: (GT, GTT)) -> Self {
         todo!()
     }
 }
+impl From<GridUnit> for GridPointToken {
+    fn from(value: GridUnit) -> Self {
+        todo!()
+    }
+}
+pub struct GridPointToken {}
