@@ -20,7 +20,7 @@ pub struct Leaf<LFN: for<'a> FnOnce(&mut LeafPtr<'a>)> {
 impl<LFN: for<'a> FnOnce(&mut LeafPtr<'a>)> Leaf<LFN> {
     pub fn new(l_fn: LFN) -> Self {
         Self {
-            handle: LeafHandle::Repr(String::default()),
+            handle: LeafHandle(String::default()),
             location: GridLocation::new(),
             elevation: Default::default(),
             l_fn,
@@ -65,25 +65,19 @@ impl Dependents {
     }
 }
 #[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Debug)]
-pub enum LeafHandle {
-    Repr(String),
-    Raw(Entity),
-}
+pub struct LeafHandle(String);
 impl<S: AsRef<str>> From<S> for LeafHandle {
     fn from(value: S) -> Self {
-        Self::Repr(value.as_ref().to_string())
+        Self(value.as_ref().to_string())
     }
 }
 impl LeafHandle {
     pub fn new<S: AsRef<str>>(s: S) -> Self {
-        Self::Repr(s.as_ref().to_string())
+        Self(s.as_ref().to_string())
     }
     pub const DELIMITER: &'static str = ":";
     pub fn extend<S: AsRef<str>>(&self, e: S) -> Self {
-        match &self {
-            LeafHandle::Repr(r) => Self::Repr(r.clone() + Self::DELIMITER + e.as_ref()),
-            LeafHandle::Raw(_) => self.clone(),
-        }
+        Self(self.0.clone() + Self::DELIMITER + e.as_ref())
     }
 }
 #[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
@@ -107,10 +101,7 @@ impl IdTable {
     }
     pub fn lookup_leaf<TH: Into<LeafHandle>>(&self, th: TH) -> Option<Entity> {
         let handle = th.into();
-        match handle.clone() {
-            LeafHandle::Repr(_r) => self.leafs.get(&handle).copied(),
-            LeafHandle::Raw(e) => Some(e),
-        }
+        self.leafs.get(&handle).copied()
     }
     pub fn lookup_branch<AH: Into<BranchHandle>>(&self, ah: AH) -> Option<Entity> {
         self.branches.get(&ah.into()).copied()
