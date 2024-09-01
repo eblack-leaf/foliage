@@ -4,7 +4,7 @@ use crate::r_grid::Grid;
 
 pub mod button;
 
-pub trait TwigStructure
+pub trait TwigDef
 where
     Self: Sized + Send + Sync + 'static,
 {
@@ -23,7 +23,7 @@ impl<'a> TwigPtr<'a> {
     }
     pub fn config_grid(&mut self, grid: Grid) {
         self.tree
-            .update_leaf(self.target_handle.clone(), |e| e.give_attr(grid));
+            .update_leaf(self.target_handle.clone(), |e| e.give(grid));
     }
     // TODO forward elm-handle functions
     pub(crate) fn new(target_handle: LeafHandle, elm_handle: Tree<'a>) -> Self {

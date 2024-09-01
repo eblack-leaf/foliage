@@ -82,12 +82,12 @@ pub struct Foliage {
 }
 impl Default for Foliage {
     fn default() -> Self {
-        Self::trunk()
+        Self::new()
     }
 }
 
 impl Foliage {
-    pub fn trunk() -> Self {
+    pub fn new() -> Self {
         let mut this = Self {
             willow: Willow::default(),
             ash: Ash::default(),

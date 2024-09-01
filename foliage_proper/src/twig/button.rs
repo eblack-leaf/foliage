@@ -5,7 +5,7 @@ use crate::panel::{Panel, Rounding};
 use crate::r_grid::{Grid, GridLocation};
 use crate::style::{Coloring, InteractiveColor};
 use crate::text::{FontSize, Text, TextValue};
-use crate::twig::{TwigPtr, TwigStructure};
+use crate::twig::{TwigDef, TwigPtr};
 
 #[derive(Copy, Clone)]
 pub(crate) enum ButtonShape {
@@ -52,17 +52,17 @@ impl Button {
         self
     }
 }
-impl TwigStructure for Button {
-    fn grow(self, twig_handle: &mut TwigPtr) {
-        twig_handle.config_grid(Grid::template(3, 1));
+impl TwigDef for Button {
+    fn grow(self, twig_ptr: &mut TwigPtr) {
+        twig_ptr.config_grid(Grid::template(3, 1));
         let linked = vec![
-            twig_handle.target_handle.extend("icon"),
-            twig_handle.target_handle.extend("text"),
+            twig_ptr.target_handle.extend("icon"),
+            twig_ptr.target_handle.extend("text"),
         ];
-        twig_handle.bind(
+        twig_ptr.bind(
             Leaf::new(|l| {
-                l.give_attr(Panel::new(self.rounding, self.coloring.background));
-                l.give_attr(
+                l.give(Panel::new(self.rounding, self.coloring.background));
+                l.give(
                     InteractiveColor::new(self.coloring.background, self.coloring.foreground)
                         .with_linked(linked),
                 );
@@ -70,22 +70,22 @@ impl TwigStructure for Button {
                     ButtonShape::Circle => ClickInteractionListener::new().as_circle(),
                     ButtonShape::Square => ClickInteractionListener::new(),
                 };
-                l.give_attr(interaction_listener);
-                l.give_attr(self.on_click);
+                l.give(interaction_listener);
+                l.give(self.on_click);
             })
             .named("panel")
             .located(GridLocation::new())
             .elevation(-1),
         );
-        twig_handle.bind(
-            Leaf::new(|l| l.give_attr(Icon::new(self.icon_id, self.coloring.foreground)))
+        twig_ptr.bind(
+            Leaf::new(|l| l.give(Icon::new(self.icon_id, self.coloring.foreground)))
                 .named("icon")
                 .located(GridLocation::new())
                 .elevation(-1),
         );
-        twig_handle.bind(
+        twig_ptr.bind(
             Leaf::new(|l| {
-                l.give_attr(Text::new(
+                l.give(Text::new(
                     self.text_value.unwrap_or_default().0,
                     self.font_size.unwrap(),
                     self.coloring.foreground,

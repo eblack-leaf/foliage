@@ -69,9 +69,9 @@ let location = GridLocation::new()
     .width(50.percent().of(screen()))
     .left("button".right() + 10.px());
 ```
-Each statement is attached to a designator for what part of the `Placement`
+Each statement is attached to a designator for what part of the `Placement` 
 (a collection of `Position`, `Area`, and `RenderLayer`) is defined.
-Statements can use other `Leaf`s to base their placement on, or use a
+Statements can use other `Leaf`s to base their placement on, or use a 
 templated `Grid` attached to a `Leaf` to get `column`s and `row`s.
 
 ```rust
@@ -91,7 +91,7 @@ Layout::TALL_DESKTOP => Grid::template(8, 12)
 ...
 ```
 
-A `Twig` can be added to create compound-elements.
+A `Twig` can be added to create compound-elements. 
 ```rust
 Twig::new(Button::new(...), |l| { 
     l.give(...); // extend base button if needed
@@ -118,7 +118,7 @@ twig_ptr.bind(Leaf::new(|l| { ... }).elevation(-1));
 // ...
 ```
 
-An `Elevation` of `-1` is used to place the bound `Leaf` up one `RenderLayer` from the
+An `Elevation` of `-1` is used to place the bound `Leaf` up one `RenderLayer` from the 
 `Twig` entity. Each bound `Leaf` is automatically made to `stem_from` the `Twig` entity.
 
 Examples of `Leaf` components that are included by the library are
@@ -172,97 +172,3 @@ foliage.photosynthesize();
 ```
 
 
-
-## Demos
-
-### Grid 
-
-![grid](docs/grid.gif)
-
-```rust
-handle.run_sequence(|seq| {
-    seq.animate_attr(
-        "shape",
-        GridPlacement::new(
-            2.col().to(2.col()),
-            1.row().to(1.row())
-        ),
-        0.millis().to(500.millis()),
-        Ease::DECELERATE,
-    );
-    seq.animate_attr(
-        "shape",
-        GridPlacement::new(
-            2.col().to(2.col()),
-            2.row().to(2.row())
-        ),
-        750.millis().to(1250.millis()),
-        Ease::ACCELERATE,
-    );
-    seq.animate_attr(
-        "shape",
-        GridPlacement::new(
-            2.col().to(4.col()),
-            2.row().to(2.row())
-        ),
-        1500.millis().to(2000.millis()),
-        Ease::ACCELERATE,
-    );
-    seq.animate_attr(
-        "shape",
-        GridPlacement::new(
-            2.col().to(4.col()),
-            2.row().to(4.row())
-        ),
-        2250.millis().to(2750.millis()),
-        Ease::ACCELERATE,
-    );
-    seq.animate_attr(
-        "shape",
-        GridPlacement::new(
-            1.col().to(1.col()),
-            1.row().to(1.row())
-        ),
-        3000.millis().to(3500.millis()),
-        Ease::ACCELERATE,
-    );
-});
-```
-### Shaping
-
-![shape](docs/shaping.gif)
-
-```rust
-handle.run_sequence(|seq| {
-    seq.animate_attr(
-        "shape",
-        Rounding::all(1.0),
-        0.millis().to(500.millis()),
-        Ease::DECELERATE,
-    );
-    seq.animate_attr(
-        "shape",
-        Rounding::bottom(0.5),
-        750.millis().to(1250.millis()),
-        Ease::ACCELERATE,
-    );
-    seq.animate_attr(
-        "shape",
-        Rounding::top(0.5),
-        1500.millis().to(2000.millis()),
-        Ease::ACCELERATE,
-    );
-    seq.animate_attr(
-        "shape",
-        Rounding::all(0.5),
-        2250.millis().to(2750.millis()),
-        Ease::ACCELERATE,
-    );
-    seq.animate_attr(
-        "shape",
-        Rounding::all(0.0),
-        3000.millis().to(3500.millis()),
-        Ease::ACCELERATE,
-    );
-});
-```

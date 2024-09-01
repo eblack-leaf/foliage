@@ -7,7 +7,7 @@ use crate::elm::{BranchLimiter, FilterAttrLimiter};
 use crate::interaction::ClickInteractionListener;
 use crate::layout::{Layout, LayoutFilter};
 use crate::leaf::{BranchHandle, Dependents, IdTable, Leaf, LeafBundle, LeafHandle, OnEnd, Stem};
-use crate::twig::{TwigPtr, TwigStructure};
+use crate::twig::{TwigDef, TwigPtr};
 use bevy_ecs::change_detection::Mut;
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Bundle, Changed, Commands, DetectChanges, Entity, Query, Resource, World};
@@ -89,14 +89,14 @@ pub(crate) fn filter_attr_changed<A: Bundle + Send + Sync + 'static + Clone>(
     }
 }
 impl<'a> LeafPtr<'a> {
-    pub fn give_attr<A: Bundle>(&mut self, a: A) {
+    pub fn give<A: Bundle>(&mut self, a: A) {
         self.world_handle
             .as_mut()
             .unwrap()
             .entity_mut(self.entity)
             .insert(a);
     }
-    pub fn get_attr_mut<TH: Into<LeafHandle>, A: Component, AFN: FnOnce(&mut A)>(
+    pub fn get_mut<TH: Into<LeafHandle>, A: Component, AFN: FnOnce(&mut A)>(
         &mut self,
         th: TH,
         a_fn: AFN,
@@ -116,7 +116,7 @@ impl<'a> LeafPtr<'a> {
             .unwrap();
         a_fn(comp.as_mut());
     }
-    pub fn give_filtered_attr<A: Bundle + Send + Sync + 'static + Clone>(
+    pub fn give_filtered<A: Bundle + Send + Sync + 'static + Clone>(
         &mut self,
         filtered_attribute: FilteredAttribute<A>,
     ) {
@@ -469,7 +469,7 @@ impl<'a> Tree<'a> {
             .entity_mut(se)
             .insert(seq_handle.sequence);
     }
-    pub fn add_twig<T: TwigStructure, LFN: for<'b> FnOnce(&mut LeafPtr<'b>)>(
+    pub fn add_twig<T: TwigDef, LFN: for<'b> FnOnce(&mut LeafPtr<'b>)>(
         &mut self,
         twig: Twig<T, LFN>,
     ) {
@@ -523,11 +523,11 @@ impl<'a> Tree<'a> {
             .lookup_leaf(th.into())
     }
 }
-pub struct Twig<T: TwigStructure, LFN: for<'a> FnOnce(&mut LeafPtr<'a>)> {
+pub struct Twig<T: TwigDef, LFN: for<'a> FnOnce(&mut LeafPtr<'a>)> {
     t: T,
     leaf: Leaf<LFN>,
 }
-impl<T: TwigStructure, LFN: for<'a> FnOnce(&mut LeafPtr<'a>)> Twig<T, LFN> {
+impl<T: TwigDef, LFN: for<'a> FnOnce(&mut LeafPtr<'a>)> Twig<T, LFN> {
     pub fn new(t: T, l_fn: LFN) -> Self {
         Self {
             t,
