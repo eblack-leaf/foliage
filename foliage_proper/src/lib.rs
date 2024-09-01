@@ -50,6 +50,7 @@ pub mod instances;
 pub mod interaction;
 pub mod layout;
 pub mod leaf;
+pub mod opacity;
 pub mod panel;
 pub mod r_grid;
 pub mod shape;

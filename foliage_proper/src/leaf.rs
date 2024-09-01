@@ -1,19 +1,15 @@
 use std::collections::{HashMap, HashSet};
 
-use bevy_ecs::bundle::Bundle;
-use bevy_ecs::change_detection::Res;
-use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Changed, Component, ParamSet, Query, Resource};
-use bevy_ecs::query::Or;
-
-use crate::anim::{Animate, Interpolations};
 use crate::branch::LeafPtr;
-use crate::color::Color;
 use crate::coordinate::elevation::Elevation;
 use crate::coordinate::placement::Placement;
 use crate::coordinate::LogicalContext;
 use crate::differential::{Remove, Visibility};
+use crate::opacity::Opacity;
 use crate::r_grid::GridLocation;
+use bevy_ecs::bundle::Bundle;
+use bevy_ecs::entity::Entity;
+use bevy_ecs::prelude::{Component, Resource};
 
 pub struct Leaf<LFN: for<'a> FnOnce(&mut LeafPtr<'a>)> {
     pub handle: LeafHandle,
@@ -24,8 +20,8 @@ pub struct Leaf<LFN: for<'a> FnOnce(&mut LeafPtr<'a>)> {
 impl<LFN: for<'a> FnOnce(&mut LeafPtr<'a>)> Leaf<LFN> {
     pub fn new(l_fn: LFN) -> Self {
         Self {
-            handle: LeafHandle::default(),
-            location: GridLocation {},
+            handle: LeafHandle::Repr(String::default()),
+            location: GridLocation::new(),
             elevation: Default::default(),
             l_fn,
         }
@@ -68,24 +64,30 @@ impl Dependents {
         Self(set)
     }
 }
-#[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Debug, Default)]
-pub struct LeafHandle(pub String);
+#[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Debug)]
+pub enum LeafHandle {
+    Repr(String),
+    Raw(Entity),
+}
 impl<S: AsRef<str>> From<S> for LeafHandle {
     fn from(value: S) -> Self {
-        Self(value.as_ref().to_string())
+        Self::Repr(value.as_ref().to_string())
     }
 }
 impl LeafHandle {
     pub fn new<S: AsRef<str>>(s: S) -> Self {
-        Self(s.as_ref().to_string())
+        Self::Repr(s.as_ref().to_string())
     }
     pub const DELIMITER: &'static str = ":";
     pub fn extend<S: AsRef<str>>(&self, e: S) -> Self {
-        Self::new(self.0.clone() + Self::DELIMITER + e.as_ref())
+        match &self {
+            LeafHandle::Repr(r) => Self::Repr(r.clone() + Self::DELIMITER + e.as_ref()),
+            LeafHandle::Raw(_) => self.clone(),
+        }
     }
 }
 #[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-pub struct BranchHandle(pub String);
+pub struct BranchHandle(String);
 impl<S: AsRef<str>> From<S> for BranchHandle {
     fn from(value: S) -> Self {
         Self(value.as_ref().to_string())
@@ -104,7 +106,11 @@ impl IdTable {
         self.branches.insert(ah.into(), entity)
     }
     pub fn lookup_leaf<TH: Into<LeafHandle>>(&self, th: TH) -> Option<Entity> {
-        self.leafs.get(&th.into()).copied()
+        let handle = th.into();
+        match handle.clone() {
+            LeafHandle::Repr(_r) => self.leafs.get(&handle).copied(),
+            LeafHandle::Raw(e) => Some(e),
+        }
     }
     pub fn lookup_branch<AH: Into<BranchHandle>>(&self, ah: AH) -> Option<Entity> {
         self.branches.get(&ah.into()).copied()
@@ -129,81 +135,4 @@ impl OnEnd {
         self.actions.insert(ah.into());
         self
     }
-}
-impl Animate for Opacity {
-    fn interpolations(start: &Self, end: &Self) -> Interpolations {
-        Interpolations::new().with(start.value, end.value)
-    }
-
-    fn apply(&mut self, interpolations: &mut Interpolations) {
-        if let Some(o) = interpolations.read(0) {
-            self.value = o;
-        }
-    }
-}
-#[derive(Copy, Clone, Component)]
-pub struct Opacity {
-    value: f32,
-}
-impl Default for Opacity {
-    fn default() -> Self {
-        Self::new(1.0)
-    }
-}
-impl Opacity {
-    pub fn new(o: f32) -> Self {
-        Self {
-            value: o.clamp(0.0, 1.0),
-        }
-    }
-}
-pub(crate) fn opacity(
-    mut opaque: ParamSet<(
-        Query<Entity, Or<(Changed<Color>, Changed<Opacity>, Changed<Dependents>)>>,
-        Query<(&Opacity, &Dependents)>,
-        Query<&mut Color>,
-    )>,
-    roots: Query<&Stem>,
-    id_table: Res<IdTable>,
-) {
-    let mut to_check = vec![];
-    for entity in opaque.p0().iter() {
-        to_check.push(entity);
-    }
-    for entity in to_check {
-        let inherited = if let Ok(r) = roots.get(entity) {
-            if let Some(rh) = r.0.as_ref() {
-                let e = id_table.lookup_leaf(rh.clone()).unwrap();
-                let inherited = *opaque.p1().get(e).unwrap().0;
-                Some(inherited.value)
-            } else {
-                None
-            }
-        } else {
-            None
-        };
-        let changed = recursive_opacity(&opaque.p1(), entity, &id_table, inherited);
-        for (entity, o) in changed {
-            if let Ok(mut color) = opaque.p2().get_mut(entity) {
-                color.set_alpha(o);
-            }
-        }
-    }
-}
-fn recursive_opacity(
-    query: &Query<(&Opacity, &Dependents)>,
-    current: Entity,
-    id_table: &IdTable,
-    inherited_opacity: Option<f32>,
-) -> Vec<(Entity, f32)> {
-    let mut changed = vec![];
-    if let Ok((opacity, deps)) = query.get(current) {
-        let blended = opacity.value * inherited_opacity.unwrap_or(1.0);
-        changed.push((current, blended));
-        for dep in deps.0.iter() {
-            let e = id_table.lookup_leaf(dep.clone()).unwrap();
-            changed.extend(recursive_opacity(query, e, id_table, Some(blended)));
-        }
-    }
-    changed
 }

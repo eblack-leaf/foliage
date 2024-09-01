@@ -31,7 +31,7 @@ use crate::interaction::{
     FocusedEntity, InteractiveEntity, KeyboardAdapter, MouseAdapter, TouchAdapter,
 };
 use crate::layout::{viewport_changes_layout, Layout, LayoutGrid};
-use crate::leaf::opacity;
+use crate::opacity::opacity;
 use crate::r_grid::{animate_grid_location, recursive_placement, Grid};
 use crate::willow::Willow;
 
