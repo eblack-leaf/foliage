@@ -154,7 +154,7 @@ pub(crate) fn resolve_grid_locations(
     referential_context.sort_by(|a, b| {
         // roots (is_screen) first => by referential-dependency
     });
-    let mut resolved = HashMap::new(); // <Context, (Placement, Opt<Grid>)>?
+    let mut resolved = HashMap::new(); // <Context, (Placement, Points, Opt<Grid>)>?
                                        // placements.insert(screen, viewport-handle:section, Grid-None);
     for (handle, location, grid) in referential_context.iter() {
         let (placement, points) = Grid::resolve(location, &resolved);
