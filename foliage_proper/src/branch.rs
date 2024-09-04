@@ -2,12 +2,14 @@ use std::any::TypeId;
 use std::collections::HashSet;
 
 use crate::anim::{Animate, Animation, AnimationTime, Ease, Sequence, SequenceTimeRange};
+use crate::coordinate::elevation::Elevation;
 use crate::differential::{Remove, RenderLink, RenderRemoveQueue, Visibility};
 use crate::elm::{BranchLimiter, FilterAttrLimiter};
 use crate::interaction::ClickInteractionListener;
 use crate::layout::{Layout, LayoutFilter};
 use crate::leaf::{BranchHandle, Dependents, IdTable, Leaf, LeafBundle, LeafHandle, OnEnd, Stem};
-use crate::twig::{TwigDef, TwigPtr};
+use crate::r_grid::GridLocation;
+use crate::twig::{TwigDef, TwigStem};
 use bevy_ecs::change_detection::Mut;
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Bundle, Changed, Commands, DetectChanges, Entity, Query, Resource, World};
@@ -475,15 +477,15 @@ impl<'a> Tree<'a> {
     ) {
         let handle = twig.leaf.handle.clone();
         self.add_leaf(twig.leaf);
-        let mut twig_ptr = TwigPtr::new(
+        let mut twig_stem = TwigStem::new(
             handle,
             Tree {
                 world_handle: self.world_handle.take(),
             },
         );
-        twig.t.grow(&mut twig_ptr);
+        twig.t.grow(&mut twig_stem);
         self.world_handle
-            .replace(twig_ptr.tree.world_handle.take().unwrap());
+            .replace(twig_stem.tree.world_handle.take().unwrap());
     }
     pub fn spawn<B: Bundle>(&mut self, b: B) {
         self.world_handle.as_mut().unwrap().spawn(b);
@@ -538,7 +540,14 @@ impl<T: TwigDef, LFN: for<'a> FnOnce(&mut LeafPtr<'a>)> Twig<T, LFN> {
         self.leaf = self.leaf.named(lh);
         self
     }
-    // ...
+    pub fn located<GL: Into<GridLocation>>(mut self, gl: GL) -> Self {
+        self.leaf.location = gl.into();
+        self
+    }
+    pub fn elevation<E: Into<Elevation>>(mut self, e: E) -> Self {
+        self.leaf.elevation = e.into();
+        self
+    }
 }
 pub trait Branch
 where

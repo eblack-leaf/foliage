@@ -8,13 +8,13 @@ pub trait TwigDef
 where
     Self: Sized + Send + Sync + 'static,
 {
-    fn grow(self, twig_ptr: &mut TwigPtr);
+    fn grow(self, twig_stem: &mut TwigStem);
 }
-pub struct TwigPtr<'a> {
+pub struct TwigStem<'a> {
     pub target_handle: LeafHandle,
     pub tree: Tree<'a>,
 }
-impl<'a> TwigPtr<'a> {
+impl<'a> TwigStem<'a> {
     pub fn bind<LFN: for<'b> FnOnce(&mut LeafPtr<'b>)>(&mut self, leaf: Leaf<LFN>) {
         let handle = leaf.handle.clone();
         self.tree.add_leaf(leaf);

@@ -35,20 +35,21 @@ pub(crate) struct Swap {
 }
 impl<Key: Hash + Eq + Copy + Clone + Debug> Instances<Key> {
     pub fn get_attr<A: Pod + Zeroable + Default>(&self, key: &Key) -> Option<A> {
-        let index = *self.map.get(key).unwrap();
+        let index = *self.map.get(key)?;
         let message = format!("unmapped key for:{}", index);
         self.world
-            .get_non_send_resource::<Attribute<A>>()
-            .unwrap()
+            .get_non_send_resource::<Attribute<A>>()?
             .cpu
             .get(index)
             .copied()
     }
     pub fn set_clipping_context(&mut self, key: Key, clipping_context: ClippingContextPointer) {
         self.clipping_contexts.insert(key, clipping_context);
+        self.changed = true;
     }
     pub fn remove_clipping_context(&mut self, key: Key) {
         self.clipping_contexts.remove(&key);
+        self.changed = true;
     }
     pub fn num_instances(&self) -> u32 {
         self.order.len() as u32

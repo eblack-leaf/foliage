@@ -28,12 +28,15 @@ impl<LFN: for<'a> FnOnce(&mut LeafPtr<'a>)> Leaf<LFN> {
         }
     }
     pub fn named<LH: Into<LeafHandle>>(mut self, lh: LH) -> Self {
+        self.handle = lh.into();
         self
     }
     pub fn located<GL: Into<GridLocation>>(mut self, gl: GL) -> Self {
+        self.location = gl.into();
         self
     }
     pub fn elevation<E: Into<Elevation>>(mut self, e: E) -> Self {
+        self.elevation = e.into();
         self
     }
 }
