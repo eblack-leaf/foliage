@@ -132,13 +132,6 @@ impl GridUnit {
     pub fn of<GC: Into<GridContext>>(self, context: GC) -> GridToken {
         GridToken::new(context.into(), GridTokenValue::Unit(self))
     }
-    pub fn between<PH: Into<PointHandle>, PHH: Into<PointHandle>>(
-        self,
-        ph: PH,
-        phh: PHH,
-    ) -> GridPoint {
-        todo!()
-    }
 }
 pub(crate) fn animate_grid_location() {}
 pub(crate) fn recursive_placement() {}
@@ -241,7 +234,12 @@ impl GridTemplate {
         self
     }
 }
-#[derive(Component)]
+impl Default for GridTemplate {
+    fn default() -> Self {
+        Self::new(1, 1)
+    }
+}
+#[derive(Component, Default)]
 pub struct Grid {
     template: Option<GridTemplate>,
     placement: Placement<LogicalContext>,
@@ -370,81 +368,3 @@ impl Add for GridUnit {
         token + rhs
     }
 }
-impl From<GridToken> for GridPointToken {
-    fn from(value: GridToken) -> Self {
-        todo!()
-    }
-}
-#[cfg(test)]
-#[test]
-fn path_behavior() {
-    // try to make useful for data-points => viewbox + normalize + give data array?
-    // + line-graph => connect-points w/ lines + line-joins (circle) at intersections
-    let path = GridPath::new()
-        .add("a", (50.percent(), 100.percent() - 16.px()))
-        .add("b", (50.percent(), 0.percent() + 16.px()))
-        .add("c", 50.percent().between("a", "b"))
-        .add("d", 35.degrees().from("b").at_x(100.percent() - 16.px()))
-        .add("e", 35.degrees().inverse().from("b").distance(16.px()));
-}
-pub trait GridPathDesc {
-    fn degrees(self) -> GridPathAngle;
-}
-impl GridPathDesc for i32 {
-    fn degrees(self) -> GridPathAngle {
-        todo!()
-    }
-}
-pub struct GridPathAngle {}
-impl GridPathAngle {
-    pub fn from<PH: Into<PointHandle>>(self, ph: PH) -> GridPathAngleFrom {
-        todo!()
-    }
-    pub fn inverse(self) -> Self {
-        todo!()
-    }
-}
-pub struct GridPathAngleFrom {}
-impl GridPathAngleFrom {
-    pub fn at_x<GT: Into<GridToken>>(self, gt: GT) -> GridPoint {
-        todo!()
-    }
-    pub fn distance(self, gu: GridUnit) -> GridPoint {
-        todo!()
-    }
-}
-pub struct PointHandle(pub(crate) String);
-impl<S: AsRef<str>> From<S> for PointHandle {
-    fn from(value: S) -> Self {
-        todo!()
-    }
-}
-pub struct GridPath {}
-impl GridPath {
-    pub fn new() -> GridPath {
-        Self {}
-    }
-    pub fn add<PH: Into<PointHandle>, GP: Into<GridPoint>>(mut self, ph: PH, gp: GP) -> Self {
-        self
-    }
-}
-pub struct GridPoint {
-    pub x: GridPointToken,
-    pub y: GridPointToken,
-}
-impl GridPoint {
-    pub fn new<GT: Into<GridPointToken>, GTT: Into<GridPointToken>>(gt: GT, gtt: GTT) -> Self {
-        todo!()
-    }
-}
-impl<GT: Into<GridPointToken>, GTT: Into<GridPointToken>> From<(GT, GTT)> for GridPoint {
-    fn from(value: (GT, GTT)) -> Self {
-        todo!()
-    }
-}
-impl From<GridUnit> for GridPointToken {
-    fn from(value: GridUnit) -> Self {
-        todo!()
-    }
-}
-pub struct GridPointToken {}

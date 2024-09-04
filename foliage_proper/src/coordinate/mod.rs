@@ -17,6 +17,7 @@ use crate::Root;
 pub mod area;
 pub mod elevation;
 pub mod placement;
+pub mod points;
 pub mod position;
 pub mod section;
 
