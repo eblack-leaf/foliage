@@ -64,9 +64,6 @@ pub fn screen() -> GridContext {
 pub fn context<LH: Into<LeafHandle>>(lh: LH) -> GridContext {
     GridContext::Named(lh.into())
 }
-pub fn path<LH: Into<LeafHandle>>(path: LH) -> GridContext {
-    GridContext::Path(path.into())
-}
 pub trait GridContextDesc {
     fn x(self) -> GridToken;
     fn y(self) -> GridToken;
