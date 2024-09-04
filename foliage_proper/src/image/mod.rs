@@ -199,7 +199,6 @@ impl Root for Image {
         elm.enable_differential::<Self, ImageSlotDescriptor>();
         elm.enable_differential::<Self, ImageView>();
         elm.enable_differential::<Self, Color>();
-        elm.enable_differential::<Self, ClippingContext>();
         elm.scheduler
             .main
             .add_systems(constrain.in_set(ScheduleMarkers::Config));
@@ -492,6 +491,20 @@ impl Render for Image {
                 .unwrap()
                 .instances
                 .checked_write(packet.entity, packet.value);
+        }
+        for packet in queue_handle.read_adds::<Self, ClippingContext>() {
+            let id = *renderer
+                .resource_handle
+                .entity_to_image
+                .get(&packet.entity)
+                .unwrap();
+            renderer
+                .resource_handle
+                .groups
+                .get_mut(&id)
+                .unwrap()
+                .instances
+                .set_clipping_context(packet.entity, packet.value);
         }
         for packet in queue_handle.read_adds::<Self, ImageView>() {
             let id = *renderer

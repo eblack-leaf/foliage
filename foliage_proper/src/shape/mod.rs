@@ -80,7 +80,6 @@ impl Root for Shape {
         elm.enable_differential::<Self, ShapeDescriptor>();
         elm.enable_differential::<Self, Color>();
         elm.enable_differential::<Self, RenderLayer>();
-        elm.enable_differential::<Self, ClippingContext>();
     }
 }
 #[repr(C)]
@@ -194,6 +193,12 @@ impl Render for Shape {
                 .resource_handle
                 .instances
                 .checked_write(packet.entity, packet.value);
+        }
+        for packet in queue_handle.read_adds::<Self, ClippingContext>() {
+            renderer
+                .resource_handle
+                .instances
+                .set_clipping_context(packet.entity, packet.value);
         }
         for packet in queue_handle.read_adds::<Self, RenderLayer>() {
             renderer

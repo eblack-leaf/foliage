@@ -124,7 +124,7 @@ impl ClippingContext {
         }
     }
 }
-#[derive(Bundle)]
+#[derive(Bundle, Default)]
 pub struct ClippingContextBundle {
     clipping_context: ClippingContext,
     clipping_context_ptr: ClippingContextPtr,

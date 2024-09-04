@@ -35,7 +35,6 @@ impl Root for Panel {
         elm.enable_differential::<Panel, CornerII>();
         elm.enable_differential::<Panel, CornerIII>();
         elm.enable_differential::<Panel, CornerIV>();
-        elm.enable_differential::<Self, ClippingContext>();
         elm.scheduler
             .main
             .add_systems(percent_rounded_to_corner.in_set(ScheduleMarkers::Config));
@@ -310,6 +309,12 @@ impl Render for Panel {
                 .resource_handle
                 .instances
                 .checked_write(packet.entity, packet.value);
+        }
+        for packet in queue_handle.read_adds::<Self, ClippingContext>() {
+            renderer
+                .resource_handle
+                .instances
+                .set_clipping_context(packet.entity, packet.value);
         }
         for packet in queue_handle.read_adds::<Self, Color>() {
             renderer

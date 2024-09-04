@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use crate::ash::ClippingContextBundle;
 use crate::branch::LeafPtr;
 use crate::coordinate::elevation::Elevation;
 use crate::coordinate::placement::Placement;
@@ -44,6 +45,7 @@ pub(crate) struct LeafBundle {
     remove: Remove,
     visibility: Visibility,
     opacity: Opacity,
+    clipping_context: ClippingContextBundle,
 }
 #[derive(Default, Component)]
 pub(crate) struct Stem(pub(crate) Option<LeafHandle>);
