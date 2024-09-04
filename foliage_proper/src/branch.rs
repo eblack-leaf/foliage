@@ -255,6 +255,7 @@ impl<'a> Tree<'a> {
             .as_mut()
             .unwrap()
             .spawn(LeafBundle::default())
+            .insert(leaf.name.clone())
             .insert(leaf.elevation)
             .insert(leaf.location)
             .id();
@@ -263,8 +264,8 @@ impl<'a> Tree<'a> {
             .unwrap()
             .get_resource_mut::<IdTable>()
             .unwrap()
-            .add_target(leaf.handle.clone(), entity);
-        self.update_leaf(leaf.handle.clone(), leaf.l_fn);
+            .add_target(leaf.name.clone(), entity);
+        self.update_leaf(leaf.name.clone(), leaf.l_fn);
     }
     pub fn remove_leaf<LH: Into<LeafHandle>>(&mut self, lh: LH) {
         // queue remove of all dependents
@@ -475,7 +476,7 @@ impl<'a> Tree<'a> {
         &mut self,
         twig: Twig<T, LFN>,
     ) {
-        let handle = twig.leaf.handle.clone();
+        let handle = twig.leaf.name.clone();
         self.add_leaf(twig.leaf);
         let mut twig_stem = TwigStem::new(
             handle,

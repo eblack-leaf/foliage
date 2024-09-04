@@ -16,7 +16,7 @@ pub struct TwigStem<'a> {
 }
 impl<'a> TwigStem<'a> {
     pub fn bind<LFN: for<'b> FnOnce(&mut LeafPtr<'b>)>(&mut self, leaf: Leaf<LFN>) {
-        let handle = leaf.handle.clone();
+        let handle = leaf.name.clone();
         self.tree.add_leaf(leaf);
         self.tree
             .update_leaf(handle, |e| e.stem_from(self.target_handle.clone()));

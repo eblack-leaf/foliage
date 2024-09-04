@@ -1,9 +1,12 @@
 use crate::coordinate::placement::Placement;
 use crate::coordinate::{CoordinateUnit, Coordinates, LogicalContext};
 use crate::layout::Layout;
-use crate::leaf::LeafHandle;
-use bevy_ecs::prelude::Component;
-use std::collections::HashMap;
+use crate::leaf::{IdTable, LeafHandle};
+use bevy_ecs::entity::Entity;
+use bevy_ecs::prelude::{Component, Query};
+use bevy_ecs::query::{Changed, Or};
+use bevy_ecs::system::Res;
+use std::collections::{HashMap, HashSet};
 use std::ops::{Add, Sub};
 
 impl Sub<GridUnit> for GridToken {
@@ -131,7 +134,37 @@ impl GridUnit {
     }
 }
 pub(crate) fn animate_grid_location() {}
-pub(crate) fn recursive_placement() {}
+
+pub(crate) fn resolve_grid_locations(
+    check: Query<Entity, Or<(Changed<GridLocation>, Changed<Grid>)>>,
+    read: Query<(&LeafHandle, &GridLocation, Option<&Grid>)>,
+    id_table: Res<IdTable>,
+) {
+    if check.is_empty() {
+        return;
+    }
+    let mut referential_context = vec![];
+    for (handle, location, grid) in read.iter() {
+        let refs = location.references();
+        let is_screen = if refs.is_screen() { // is-screen => 4.col().of(screen()) ... only reference to screen
+             // is root to start with
+        };
+        referential_context.push((handle.clone(), refs, grid.clone(), is_screen));
+    }
+    referential_context.sort_by(|a, b| {
+        // roots (is_screen) first => by referential-dependency
+    });
+    let mut resolved = HashMap::new();
+    // placements.insert(screen, viewport-handle:section, Grid-None);
+    for (handle, location, grid) in referential_context.iter() {
+        let (placement, points) = Grid::resolve(location, &resolved);
+    }
+}
+pub(crate) fn placement_recursion() {}
+#[derive(Clone, Component)]
+pub(crate) struct GridReferentialContext {
+    references: HashSet<LeafHandle>,
+}
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum GridTokenDesc {
     X,

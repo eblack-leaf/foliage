@@ -13,7 +13,7 @@ use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, Resource};
 
 pub struct Leaf<LFN: for<'a> FnOnce(&mut LeafPtr<'a>)> {
-    pub handle: LeafHandle,
+    pub name: LeafHandle,
     pub location: GridLocation,
     pub elevation: Elevation,
     pub l_fn: LFN,
@@ -21,14 +21,14 @@ pub struct Leaf<LFN: for<'a> FnOnce(&mut LeafPtr<'a>)> {
 impl<LFN: for<'a> FnOnce(&mut LeafPtr<'a>)> Leaf<LFN> {
     pub fn new(l_fn: LFN) -> Self {
         Self {
-            handle: LeafHandle(String::default()),
+            name: LeafHandle(String::default()),
             location: GridLocation::new(),
             elevation: Default::default(),
             l_fn,
         }
     }
     pub fn named<LH: Into<LeafHandle>>(mut self, lh: LH) -> Self {
-        self.handle = lh.into();
+        self.name = lh.into();
         self
     }
     pub fn located<GL: Into<GridLocation>>(mut self, gl: GL) -> Self {
@@ -49,6 +49,7 @@ pub(crate) struct LeafBundle {
     visibility: Visibility,
     opacity: Opacity,
     clipping_context: ClippingContextBundle,
+    leaf_handle: LeafHandle,
 }
 #[derive(Default, Component)]
 pub(crate) struct Stem(pub(crate) Option<LeafHandle>);
@@ -69,8 +70,13 @@ impl Dependents {
         Self(set)
     }
 }
-#[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Debug)]
+#[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Debug, Component)]
 pub struct LeafHandle(String);
+impl Default for LeafHandle {
+    fn default() -> Self {
+        LeafHandle(String::default())
+    }
+}
 impl<S: AsRef<str>> From<S> for LeafHandle {
     fn from(value: S) -> Self {
         Self(value.as_ref().to_string())
