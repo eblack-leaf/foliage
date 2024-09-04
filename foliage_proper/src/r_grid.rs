@@ -154,16 +154,16 @@ pub(crate) fn resolve_grid_locations(
     referential_context.sort_by(|a, b| {
         // roots (is_screen) first => by referential-dependency
     });
-    let mut resolved = HashMap::new();
-    // placements.insert(screen, viewport-handle:section, Grid-None);
+    let mut resolved = HashMap::new(); // <Context, (Placement, Opt<Grid>)>?
+                                       // placements.insert(screen, viewport-handle:section, Grid-None);
     for (handle, location, grid) in referential_context.iter() {
         let (placement, points) = Grid::resolve(location, &resolved);
     }
 }
 pub(crate) fn placement_recursion() {}
-#[derive(Clone, Component)]
+#[derive(Clone)]
 pub(crate) struct GridReferentialContext {
-    references: HashSet<LeafHandle>,
+    references: HashSet<GridContext>,
 }
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum GridTokenDesc {
@@ -321,7 +321,6 @@ impl Grid {
 pub enum GridContext {
     Screen,
     Named(LeafHandle),
-    Path(LeafHandle),
     This,
 }
 impl GridContext {
