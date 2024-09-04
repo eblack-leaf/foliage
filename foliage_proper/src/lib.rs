@@ -15,7 +15,7 @@ use winit::window::WindowId;
 use willow::Willow;
 
 use crate::anim::{Animate, EnabledAnimations};
-use crate::ash::{Ash, ClippingContext, Render};
+use crate::ash::{Ash, ClippingContextPointer, Render};
 use crate::asset::{Asset, AssetKey, AssetLoader};
 use crate::branch::{Branch, Signaler, Tree};
 use crate::coordinate::area::Area;
@@ -161,7 +161,7 @@ impl Foliage {
     }
     pub fn add_renderer<R: Render>(&mut self) {
         self.ash.add_renderer::<R>();
-        self.elm.enable_differential::<R, ClippingContext>();
+        self.elm.enable_differential::<R, ClippingContextPointer>();
     }
     pub fn spawn<B: Bundle + 'static + Send + Sync>(&mut self, b: B) {
         self.elm.ecs.world.spawn(b);

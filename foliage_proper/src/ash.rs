@@ -86,53 +86,50 @@ pub(crate) struct DrawCalls {
     pub(crate) changed: bool,
 }
 #[derive(Debug, Clone, Component, PartialEq, Default)]
-pub enum ClippingContextPtr {
+pub enum ClippingContext {
     #[default]
     Screen,
     Handle(LeafHandle),
 }
+impl ClippingContext {
+    pub fn new<LH: Into<LeafHandle>>(lh: LH) -> Self {
+        ClippingContext::Handle(lh.into())
+    }
+}
 pub(crate) fn evaluate_clipping_context_ptr(
-    mut query: Query<(&ClippingContextPtr, &mut ClippingContext), Changed<ClippingContextPtr>>,
+    mut query: Query<(&ClippingContext, &mut ClippingContextPointer), Changed<ClippingContext>>,
     id_table: Res<IdTable>,
 ) {
-    for (ptr, mut context) in query.iter_mut() {
-        match ptr {
-            ClippingContextPtr::Screen => {
-                *context = ClippingContext::Screen;
+    for (context, mut context_ptr) in query.iter_mut() {
+        match context {
+            ClippingContext::Screen => {
+                *context_ptr = ClippingContextPointer::Screen;
             }
-            ClippingContextPtr::Handle(h) => {
+            ClippingContext::Handle(h) => {
                 if let Some(entity) = id_table.lookup_leaf(h.clone()) {
-                    *context = ClippingContext::Entity(entity);
+                    *context_ptr = ClippingContextPointer::Entity(entity);
                 } else {
-                    *context = ClippingContext::Screen;
+                    *context_ptr = ClippingContextPointer::Screen;
                 }
             }
         }
     }
 }
 #[derive(Debug, Clone, Component, PartialEq, Default, PartialOrd)]
-pub enum ClippingContext {
+pub(crate) enum ClippingContextPointer {
     #[default]
     Screen,
     Entity(Entity),
 }
-impl ClippingContext {
-    pub fn new<LH: Into<LeafHandle>>(lh: LH) -> ClippingContextBundle {
-        ClippingContextBundle {
-            clipping_context: ClippingContext::Screen,
-            clipping_context_ptr: ClippingContextPtr::Handle(lh.into()),
-        }
-    }
-}
 #[derive(Bundle, Default)]
-pub struct ClippingContextBundle {
-    clipping_context: ClippingContext,
-    clipping_context_ptr: ClippingContextPtr,
+pub(crate) struct ClippingContextBundle {
+    clipping_context: ClippingContextPointer,
+    clipping_context_ptr: ClippingContext,
 }
 #[derive(Debug, Clone, Copy, Default)]
 pub(crate) struct ClippingSection(pub(crate) Section<DeviceContext>);
-#[derive(Component, Copy, Clone)]
-pub(crate) struct EnableClipping {}
+#[derive(Component, Copy, Clone, Default)]
+pub struct EnableClipping {}
 pub(crate) fn pull_clipping_section(
     query: Query<
         (Entity, &Position<LogicalContext>, &Area<LogicalContext>),
@@ -167,11 +164,11 @@ pub(crate) struct ClippingSectionQueue {
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct RenderNode {
     layer: RenderLayer,
-    clipping_context: ClippingContext,
+    clipping_context: ClippingContextPointer,
 }
 
 impl RenderNode {
-    pub(crate) fn new(layer: RenderLayer, clip: ClippingContext) -> Self {
+    pub(crate) fn new(layer: RenderLayer, clip: ClippingContextPointer) -> Self {
         Self {
             layer,
             clipping_context: clip,
@@ -301,8 +298,8 @@ impl Ash {
             for (renderer_index, ptr, instance_index, node) in all {
                 // TODO optimize => if contiguous renderer-index + clip-context + ptr + instance-index => keep range going else => end + add call
                 let clip_section = match node.clipping_context {
-                    ClippingContext::Screen => screen_size,
-                    ClippingContext::Entity(e) => {
+                    ClippingContextPointer::Screen => screen_size,
+                    ClippingContextPointer::Entity(e) => {
                         self.clipping_sections
                             .get(&e)
                             .cloned()

@@ -13,7 +13,7 @@ use wgpu::{
     TextureSampleType, TextureView, TextureViewDimension, VertexState, VertexStepMode,
 };
 
-use crate::ash::{ClippingContext, DrawRange, Render, Renderer};
+use crate::ash::{ClippingContextPointer, DrawRange, Render, Renderer};
 use crate::branch::HasRenderLink;
 use crate::color::Color;
 use crate::coordinate::area::Area;
@@ -492,7 +492,7 @@ impl Render for Image {
                 .instances
                 .checked_write(packet.entity, packet.value);
         }
-        for packet in queue_handle.read_adds::<Self, ClippingContext>() {
+        for packet in queue_handle.read_adds::<Self, ClippingContextPointer>() {
             let id = *renderer
                 .resource_handle
                 .entity_to_image
