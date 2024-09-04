@@ -4,8 +4,19 @@ use bevy_ecs::prelude::Component;
 use bytemuck::{Pod, Zeroable};
 
 #[repr(C)]
-#[derive(Copy, Clone, Default, PartialEq, PartialOrd, Pod, Zeroable, Component, Debug)]
+#[derive(Copy, Clone, Default, PartialEq, Pod, Zeroable, Component, Debug)]
 pub(crate) struct RenderLayer(pub f32);
+impl PartialOrd for RenderLayer {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        if self.0 < other.0 {
+            Some(std::cmp::Ordering::Greater)
+        } else if self.0 > other.0 {
+            Some(std::cmp::Ordering::Less)
+        } else {
+            Some(std::cmp::Ordering::Equal)
+        }
+    }
+}
 #[repr(C)]
 #[derive(Copy, Clone, Default, PartialEq, PartialOrd, Pod, Zeroable, Component, Debug)]
 pub struct Elevation(pub f32);

@@ -1,7 +1,8 @@
-use crate::ash::{DrawRange, Render, Renderer};
+use crate::ash::{ClippingContext, DrawRange, Render, Renderer};
 use crate::color::Color;
 use crate::coordinate::elevation::RenderLayer;
-use crate::coordinate::Coordinates;
+use crate::coordinate::section::Section;
+use crate::coordinate::{Coordinates, DeviceContext};
 use crate::differential::{Differential, RenderLink};
 use crate::elm::{Elm, RenderQueueHandle};
 use crate::ginkgo::Ginkgo;
@@ -11,9 +12,6 @@ use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::Component;
 use bytemuck::{Pod, Zeroable};
-use line::LineDescriptor;
-use quad::QuadDescriptor;
-use triangle::TriangleDescriptor;
 use wgpu::{
     include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor,
     PipelineLayoutDescriptor, RenderPass, RenderPipeline, RenderPipelineDescriptor, ShaderStages,
@@ -82,6 +80,7 @@ impl Root for Shape {
         elm.enable_differential::<Self, ShapeDescriptor>();
         elm.enable_differential::<Self, Color>();
         elm.enable_differential::<Self, RenderLayer>();
+        elm.enable_differential::<Self, ClippingContext>();
     }
 }
 #[repr(C)]
@@ -190,7 +189,7 @@ impl Render for Shape {
             renderer.resource_handle.instances.queue_remove(entity);
         }
         for packet in queue_handle.read_adds::<Self, ShapeDescriptor>() {
-            renderer.associate_alpha_pointer(0, 0);
+            renderer.associate_directive_group(0, 0);
             renderer
                 .resource_handle
                 .instances
@@ -219,8 +218,15 @@ impl Render for Shape {
         renderer: &'a Renderer<Self>,
         group_key: Self::DirectiveGroupKey,
         draw_range: DrawRange,
+        clipping_section: Section<DeviceContext>,
         render_pass: &mut RenderPass<'a>,
     ) {
+        render_pass.set_scissor_rect(
+            clipping_section.x() as u32,
+            clipping_section.y() as u32,
+            clipping_section.width() as u32,
+            clipping_section.height() as u32,
+        );
         render_pass.set_pipeline(&renderer.resource_handle.pipeline);
         render_pass.set_bind_group(0, &renderer.resource_handle.bind_group, &[]);
         render_pass.set_vertex_buffer(0, renderer.resource_handle.vertex_buffer.slice(..));

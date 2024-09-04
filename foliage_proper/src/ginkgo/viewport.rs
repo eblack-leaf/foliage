@@ -3,7 +3,7 @@ use bevy_ecs::prelude::Resource;
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
-use crate::coordinate::{CoordinateUnit, NumericalContext};
+use crate::coordinate::{CoordinateUnit, DeviceContext, NumericalContext};
 use crate::ginkgo::{GraphicContext, Uniform};
 use crate::willow::NearFarDescriptor;
 
@@ -18,6 +18,9 @@ pub struct Viewport {
 }
 
 impl Viewport {
+    pub fn size(&self) -> Area<DeviceContext> {
+        self.area.as_device()
+    }
     pub(crate) fn set_position(
         &mut self,
         position: Position<NumericalContext>,

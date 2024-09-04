@@ -1,14 +1,23 @@
-use std::cmp::Ordering;
-use std::collections::HashMap;
-use std::hash::Hash;
-
+use bevy_ecs::bundle::Bundle;
+use bevy_ecs::component::Component;
+use bevy_ecs::prelude::{Entity, Query, RemovedComponents};
+use bevy_ecs::query::{Added, Changed, Or, With};
+use bevy_ecs::system::{Res, ResMut, Resource};
 use bevy_ecs::world::World;
+use std::cmp::{Ordering, PartialOrd};
+use std::collections::{HashMap, HashSet};
+use std::hash::Hash;
 use wgpu::{CommandEncoderDescriptor, RenderPass, RenderPassDescriptor, TextureViewDescriptor};
 
 use crate::color::Color;
+use crate::coordinate::area::Area;
 use crate::coordinate::elevation::RenderLayer;
+use crate::coordinate::position::Position;
+use crate::coordinate::section::Section;
+use crate::coordinate::{DeviceContext, LogicalContext};
 use crate::elm::RenderQueueHandle;
-use crate::ginkgo::Ginkgo;
+use crate::ginkgo::{Ginkgo, ScaleFactor};
+use crate::leaf::{IdTable, LeafHandle};
 use crate::Elm;
 
 #[derive(Default)]
@@ -53,60 +62,125 @@ pub(crate) struct Ash {
     pub(crate) drawn: bool,
     pub(crate) draw_calls: DrawCalls,
     pub(crate) draw_fns: Vec<
-        for<'a> fn(&'a RendererStructure, DirectiveGroupPointer, DrawRange, &mut RenderPass<'a>),
+        for<'a> fn(
+            &'a RendererStructure,
+            DirectiveGroupPointer,
+            DrawRange,
+            Section<DeviceContext>,
+            &mut RenderPass<'a>,
+        ),
     >,
+    pub(crate) clipping_sections: HashMap<Entity, ClippingSection>,
 }
 #[derive(Copy, Clone, Hash, Ord, PartialOrd, PartialEq, Eq)]
 pub(crate) struct DirectiveGroupPointer(pub(crate) i32);
 #[derive(Default)]
 pub(crate) struct DrawCalls {
-    pub(crate) calls: Vec<(usize, DirectiveGroupPointer, DrawRange)>,
+    pub(crate) calls: Vec<(
+        usize,
+        DirectiveGroupPointer,
+        DrawRange,
+        Section<DeviceContext>,
+    )>,
     pub(crate) unsorted: HashMap<usize, HashMap<DirectiveGroupPointer, RenderNodes>>,
     pub(crate) changed: bool,
 }
-impl DrawCalls {
-    pub(crate) fn order(&mut self) {
-        if self.changed {
-            // order
-            let mut all = vec![];
-            for (renderer_index, an) in self.unsorted.iter() {
-                for (ptr, nodes) in an.iter() {
-                    for (instance_index, layer) in nodes.0.iter() {
-                        all.push((*renderer_index, *ptr, *instance_index, *layer));
-                    }
-                }
+#[derive(Debug, Clone, Component, PartialEq, Default)]
+pub enum ClippingContextPtr {
+    #[default]
+    Screen,
+    Handle(LeafHandle),
+}
+pub(crate) fn evaluate_clipping_context_ptr(
+    mut query: Query<(&ClippingContextPtr, &mut ClippingContext), Changed<ClippingContextPtr>>,
+    id_table: Res<IdTable>,
+) {
+    for (ptr, mut context) in query.iter_mut() {
+        match ptr {
+            ClippingContextPtr::Screen => {
+                *context = ClippingContext::Screen;
             }
-            // TODO add order by layer then group-ptr
-            all.sort_by(|lhs, rhs| {
-                if lhs.3 > rhs.3 {
-                    Ordering::Less
-                } else if lhs.3 < rhs.3 {
-                    Ordering::Greater
+            ClippingContextPtr::Handle(h) => {
+                if let Some(entity) = id_table.lookup_leaf(h.clone()) {
+                    *context = ClippingContext::Entity(entity);
                 } else {
-                    if lhs.0 < rhs.0 {
-                        Ordering::Less
-                    } else if lhs.0 > rhs.0 {
-                        Ordering::Greater
-                    } else {
-                        Ordering::Equal
-                    }
+                    *context = ClippingContext::Screen;
                 }
-            });
-            self.calls.clear();
-            for (renderer_index, ptr, instance_index, _) in all {
-                // TODO optimize => if contiguous renderer-index => keep range going else => end + add call
-                self.calls.push((
-                    renderer_index,
-                    ptr,
-                    DrawRange::new(instance_index as u32, instance_index as u32 + 1),
-                ));
             }
-            self.changed = false;
         }
     }
 }
+#[derive(Debug, Clone, Component, PartialEq, Default, PartialOrd)]
+pub enum ClippingContext {
+    #[default]
+    Screen,
+    Entity(Entity),
+}
+impl ClippingContext {
+    pub fn new<LH: Into<LeafHandle>>(lh: LH) -> ClippingContextBundle {
+        ClippingContextBundle {
+            clipping_context: ClippingContext::Screen,
+            clipping_context_ptr: ClippingContextPtr::Handle(lh.into()),
+        }
+    }
+}
+#[derive(Bundle)]
+pub struct ClippingContextBundle {
+    clipping_context: ClippingContext,
+    clipping_context_ptr: ClippingContextPtr,
+}
+#[derive(Debug, Clone, Copy, Default)]
+pub(crate) struct ClippingSection(pub(crate) Section<DeviceContext>);
+#[derive(Component, Copy, Clone)]
+pub(crate) struct EnableClipping {}
+pub(crate) fn pull_clipping_section(
+    query: Query<
+        (Entity, &Position<LogicalContext>, &Area<LogicalContext>),
+        (
+            Or<(
+                Added<EnableClipping>,
+                Changed<Position<LogicalContext>>,
+                Changed<Area<LogicalContext>>,
+            )>,
+            With<EnableClipping>,
+        ),
+    >,
+    mut queue: ResMut<ClippingSectionQueue>,
+    scale_factor: Res<ScaleFactor>,
+    mut removed: RemovedComponents<EnableClipping>,
+) {
+    for (entity, pos, area) in query.iter() {
+        queue.update.insert(
+            entity,
+            ClippingSection(Section::logical(*pos, *area).to_device(scale_factor.value())),
+        );
+    }
+    for entity in removed.read() {
+        queue.remove.insert(entity);
+    }
+}
+#[derive(Resource, Default)]
+pub(crate) struct ClippingSectionQueue {
+    update: HashMap<Entity, ClippingSection>,
+    remove: HashSet<Entity>,
+}
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
+pub struct RenderNode {
+    layer: RenderLayer,
+    clipping_context: ClippingContext,
+}
+
+impl RenderNode {
+    pub(crate) fn new(layer: RenderLayer, clip: ClippingContext) -> Self {
+        Self {
+            layer,
+            clipping_context: clip,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
-pub struct RenderNodes(pub HashMap<usize, RenderLayer>);
+pub struct RenderNodes(pub HashMap<usize, RenderNode>);
 impl RenderNodes {
     pub fn new() -> Self {
         Self {
@@ -141,12 +215,12 @@ impl<R: Render> Renderer<R> {
             node_manager: RenderNodeManager::<R>::new(),
         }
     }
-    pub fn associate_alpha_pointer(&mut self, ap: i32, key: R::DirectiveGroupKey) {
+    pub fn associate_directive_group(&mut self, ap: i32, key: R::DirectiveGroupKey) {
         self.node_manager
             .mapping
             .insert(DirectiveGroupPointer(ap), key);
     }
-    pub fn disassociate_alpha_pointer(&mut self, ap: i32) {
+    pub fn disassociate_directive_group(&mut self, ap: i32) {
         self.node_manager.mapping.remove(&DirectiveGroupPointer(ap));
     }
     pub(crate) fn get_key(&self, ap: i32) -> R::DirectiveGroupKey {
@@ -178,13 +252,95 @@ impl Ash {
                 R::prepare(renderer, rqh, g);
                 renderer.node_manager.changes()
             });
-        self.draw_fns.push(|r, ap, ar, rpass| {
+        self.draw_fns.push(|r, ap, ar, cs, rpass| {
             let renderer = r.renderers.get_non_send_resource::<Renderer<R>>().unwrap();
             let key = renderer.get_key(ap.0);
-            R::draw(renderer, key, ar, rpass);
+            R::draw(renderer, key, ar, cs, rpass);
         });
     }
+    pub(crate) fn order_draw_calls(&mut self, screen_size: Section<DeviceContext>) {
+        if self.draw_calls.changed {
+            // order
+            let mut all = vec![];
+            for (renderer_index, an) in self.draw_calls.unsorted.iter() {
+                for (ptr, nodes) in an.iter() {
+                    for (instance_index, node) in nodes.0.iter() {
+                        all.push((*renderer_index, *ptr, *instance_index, node.clone()));
+                    }
+                }
+            }
+            // TODO add order by layer then group-ptr
+            all.sort_by(|lhs, rhs| {
+                if lhs.3 < rhs.3 {
+                    Ordering::Less
+                } else if lhs.3 > rhs.3 {
+                    Ordering::Greater
+                } else {
+                    if lhs.0 < rhs.0 {
+                        Ordering::Less
+                    } else if lhs.0 > rhs.0 {
+                        Ordering::Greater
+                    } else {
+                        if lhs.1 < rhs.1 {
+                            Ordering::Less
+                        } else if lhs.1 > rhs.1 {
+                            Ordering::Greater
+                        } else {
+                            if lhs.2 < rhs.2 {
+                                Ordering::Less
+                            } else if lhs.2 > rhs.2 {
+                                Ordering::Greater
+                            } else {
+                                Ordering::Equal
+                            }
+                        }
+                    }
+                }
+            });
+            self.draw_calls.calls.clear();
+            for (renderer_index, ptr, instance_index, node) in all {
+                // TODO optimize => if contiguous renderer-index + clip-context + ptr + instance-index => keep range going else => end + add call
+                let clip_section = match node.clipping_context {
+                    ClippingContext::Screen => screen_size,
+                    ClippingContext::Entity(e) => {
+                        self.clipping_sections
+                            .get(&e)
+                            .cloned()
+                            .unwrap_or(ClippingSection(screen_size))
+                            .0
+                    }
+                };
+                self.draw_calls.calls.push((
+                    renderer_index,
+                    ptr,
+                    DrawRange::new(instance_index as u32, instance_index as u32 + 1),
+                    clip_section,
+                ));
+            }
+            self.draw_calls.changed = false;
+        }
+    }
     pub(crate) fn render(&mut self, ginkgo: &Ginkgo, elm: &mut Elm) {
+        for (e, c) in elm
+            .ecs
+            .world
+            .get_resource_mut::<ClippingSectionQueue>()
+            .unwrap()
+            .update
+            .drain()
+        {
+            self.clipping_sections.insert(e, c);
+        }
+        for e in elm
+            .ecs
+            .world
+            .get_resource_mut::<ClippingSectionQueue>()
+            .unwrap()
+            .remove
+            .drain()
+        {
+            self.clipping_sections.remove(&e);
+        }
         let mut handle = RenderQueueHandle::new(elm);
         for (i, p_fn) in self.prepare_fns.iter().enumerate() {
             if let Some(changes) = p_fn(&mut self.renderers, ginkgo, &mut handle) {
@@ -210,12 +366,13 @@ impl Ash {
             timestamp_writes: None,
             occlusion_query_set: None,
         });
-        self.draw_calls.order();
-        for (renderer_index, directive_ptr, range) in self.draw_calls.calls.iter() {
+        self.order_draw_calls(Section::new((0, 0), ginkgo.viewport().size()));
+        for (renderer_index, directive_ptr, range, clip_section) in self.draw_calls.calls.iter() {
             self.draw_fns.get(*renderer_index).unwrap()(
                 &self.renderers,
                 *directive_ptr,
                 *range,
+                *clip_section,
                 &mut rpass,
             );
         }
@@ -244,6 +401,7 @@ where
         renderer: &'a Renderer<Self>,
         group_key: Self::DirectiveGroupKey,
         draw_range: DrawRange,
+        clipping_section: Section<DeviceContext>,
         render_pass: &mut RenderPass<'a>,
     );
 }

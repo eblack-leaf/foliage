@@ -7,7 +7,7 @@ use bevy_ecs::world::World;
 use bytemuck::{Pod, Zeroable};
 use wgpu::{BufferDescriptor, BufferUsages};
 
-use crate::ash::RenderNodes;
+use crate::ash::{ClippingContext, RenderNode, RenderNodes};
 use crate::coordinate::elevation::RenderLayer;
 use crate::ginkgo::Ginkgo;
 
@@ -23,7 +23,8 @@ pub struct Instances<Key: Hash + Eq + Copy + Clone> {
     update_needed: bool,
     removal_queue: HashSet<Key>,
     changed: bool,
-    layering: HashMap<usize, RenderLayer>,
+    nodes: HashMap<usize, RenderNode>,
+    clipping_contexts: HashMap<Key, ClippingContext>,
 }
 pub(crate) struct Swaps {
     swaps: Vec<Swap>,
@@ -42,6 +43,12 @@ impl<Key: Hash + Eq + Copy + Clone + Debug> Instances<Key> {
             .cpu
             .get(index)
             .copied()
+    }
+    pub fn set_clipping_context(&mut self, key: Key, clipping_context: ClippingContext) {
+        self.clipping_contexts.insert(key, clipping_context);
+    }
+    pub fn remove_clipping_context(&mut self, key: Key) {
+        self.clipping_contexts.remove(&key);
     }
     pub fn num_instances(&self) -> u32 {
         self.order.len() as u32
@@ -73,7 +80,8 @@ impl<Key: Hash + Eq + Copy + Clone + Debug> Instances<Key> {
             update_needed: false,
             removal_queue: HashSet::new(),
             changed: false,
-            layering: Default::default(),
+            nodes: Default::default(),
+            clipping_contexts: HashMap::new(),
         }
     }
     pub fn with_attribute<A: Pod + Zeroable + Default + Debug>(mut self, ginkgo: &Ginkgo) -> Self {
@@ -115,12 +123,13 @@ impl<Key: Hash + Eq + Copy + Clone + Debug> Instances<Key> {
     pub fn queue_remove(&mut self, key: Key) {
         if self.has_key(&key) {
             self.removal_queue.insert(key);
+            self.clipping_contexts.remove(&key);
             self.changed = true;
         }
     }
     pub(crate) fn remove(&mut self, index: usize) {
         self.order.remove(index);
-        self.layering.remove(&index);
+        self.nodes.remove(&index);
         for r_fn in self.removal_fns.iter() {
             r_fn(&mut self.world, index);
             self.update_needed = true;
@@ -137,8 +146,8 @@ impl<Key: Hash + Eq + Copy + Clone + Debug> Instances<Key> {
     }
     pub fn render_nodes(&self) -> RenderNodes {
         let mut nodes = RenderNodes::new();
-        for (i, layer) in self.layering.iter() {
-            nodes.0.insert(*i, *layer);
+        for (i, node) in self.nodes.iter() {
+            nodes.0.insert(*i, node.clone());
         }
         nodes
     }
@@ -178,12 +187,12 @@ impl<Key: Hash + Eq + Copy + Clone + Debug> Instances<Key> {
                 for (current, key) in ordering.iter() {
                     self.map.insert(key.clone(), *current);
                     let layer = self.get_attr::<RenderLayer>(key).unwrap();
-                    layer_sorted.push((*current, key.clone(), layer));
+                    let clip = self.clipping_contexts.get(key).cloned().unwrap_or_default();
+                    layer_sorted.push((*current, key.clone(), RenderNode::new(layer, clip)));
                 }
                 layer_sorted.sort_by(|lhs, rhs| -> Ordering { lhs.2.partial_cmp(&rhs.2).unwrap() });
-                layer_sorted.reverse();
                 ordering.clear();
-                for (end, (current, key, layer)) in layer_sorted.iter().enumerate() {
+                for (end, (current, key, node)) in layer_sorted.iter().enumerate() {
                     if *current != end {
                         swaps.swaps.push(Swap {
                             current: *current,
@@ -191,7 +200,7 @@ impl<Key: Hash + Eq + Copy + Clone + Debug> Instances<Key> {
                         });
                     }
                     ordering.push((end, key.clone()));
-                    self.layering.insert(end, *layer);
+                    self.nodes.insert(end, node.clone());
                 }
             }
             self.order.clear();

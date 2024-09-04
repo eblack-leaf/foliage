@@ -15,7 +15,9 @@ use wgpu::{
 };
 use wgpu::{BindGroupLayout, RenderPipeline};
 
-use crate::ash::{DrawRange, Render, RenderNodes, Renderer};
+use crate::ash::{
+    ClippingContext, ClippingSection, DrawRange, Render, RenderNode, RenderNodes, Renderer,
+};
 use crate::branch::HasRenderLink;
 use crate::color::Color;
 use crate::coordinate::area::Area;
@@ -36,6 +38,7 @@ impl Root for Text {
         elm.enable_differential::<Self, RenderLayer>();
         elm.enable_differential::<Self, Glyphs>();
         elm.enable_differential::<Self, GlyphMetrics>();
+        elm.enable_differential::<Self, ClippingContext>();
         elm.ecs.world.insert_resource(MonospacedFont::new(40));
         elm.scheduler.main.add_systems((
             (distill, color_changes).in_set(ScheduleMarkers::Config),
@@ -314,6 +317,8 @@ pub(crate) struct TextGroup {
     instances: Instances<GlyphOffset>,
     pos_and_layer: VectorUniform<f32>,
     should_record: bool,
+    clip_section: ClippingSection,
+    clip_context: ClippingContext,
 }
 pub struct TextResources {
     pipeline: RenderPipeline,
@@ -458,10 +463,10 @@ impl Render for Text {
                 .instances
                 .clear();
             // renderer.directive_manager.remove(packet);
-            renderer.disassociate_alpha_pointer(packet.index() as i32);
+            renderer.disassociate_directive_group(packet.index() as i32);
         }
         for packet in queue_handle.read_adds::<Self, GlyphMetrics>() {
-            renderer.associate_alpha_pointer(packet.entity.index() as i32, packet.entity);
+            renderer.associate_directive_group(packet.entity.index() as i32, packet.entity);
             let atlas = TextureAtlas::new(
                 ginkgo,
                 packet.value.block,
@@ -488,10 +493,27 @@ impl Render for Text {
                         .with_attribute::<TextureCoordinates>(ginkgo),
                     pos_and_layer: uniform,
                     should_record: false,
+                    clip_section: Default::default(),
+                    clip_context: ClippingContext::Screen,
                 },
             );
         }
+        for packet in queue_handle.read_adds::<Self, ClippingContext>() {
+            renderer
+                .resource_handle
+                .groups
+                .get_mut(&packet.entity)
+                .unwrap()
+                .clip_context = packet.value;
+        }
         for packet in queue_handle.read_adds::<Self, GpuSection>() {
+            renderer
+                .resource_handle
+                .groups
+                .get_mut(&packet.entity)
+                .unwrap()
+                .clip_section =
+                ClippingSection(Section::device(packet.value.pos.0, packet.value.area.0));
             renderer
                 .resource_handle
                 .groups
@@ -701,9 +723,13 @@ impl Render for Text {
         for (e, group) in renderer.resource_handle.groups.iter_mut() {
             if group.instances.resolve_changes(ginkgo) {
                 let mut nodes = RenderNodes::new();
-                nodes
-                    .0
-                    .insert(0, group.pos_and_layer.uniform.data[2].into());
+                nodes.0.insert(
+                    0,
+                    RenderNode::new(
+                        group.pos_and_layer.uniform.data[2].into(),
+                        group.clip_context.clone(),
+                    ),
+                );
                 renderer.node_manager.set_nodes(e.index() as i32, nodes);
             }
         }
@@ -712,10 +738,22 @@ impl Render for Text {
     fn draw<'a>(
         renderer: &'a Renderer<Self>,
         group_key: Self::DirectiveGroupKey,
-        alpha_range: DrawRange,
+        _draw_range: DrawRange,
+        clipping_section: Section<DeviceContext>,
         render_pass: &mut RenderPass<'a>,
     ) {
         let group = renderer.resource_handle.groups.get(&group_key).unwrap();
+        let intersection = group
+            .clip_section
+            .0
+            .intersection(clipping_section)
+            .unwrap_or_default();
+        render_pass.set_scissor_rect(
+            intersection.x() as u32,
+            intersection.y() as u32,
+            intersection.area.width() as u32,
+            intersection.area.height() as u32,
+        );
         render_pass.set_pipeline(&renderer.resource_handle.pipeline);
         render_pass.set_bind_group(0, &group.bind_group, &[]);
         render_pass.set_bind_group(1, &renderer.resource_handle.bind_group, &[]);

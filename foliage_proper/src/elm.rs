@@ -12,7 +12,9 @@ use bevy_ecs::system::Resource;
 use bevy_ecs::world::World;
 
 use crate::anim::{animate, Animate};
-use crate::ash::Render;
+use crate::ash::{
+    evaluate_clipping_context_ptr, pull_clipping_section, ClippingSectionQueue, Render,
+};
 use crate::asset::{await_assets, on_retrieve};
 use crate::branch::{
     clear_signal, filter_attr_changed, filter_attr_layout_change, signal_branch, Branch,
@@ -243,6 +245,9 @@ impl Elm {
         self.ecs.world.insert_resource(KeyboardAdapter::default());
         self.ecs.world.insert_resource(InteractiveEntity::default());
         self.ecs.world.insert_resource(FocusedEntity::default());
+        self.ecs
+            .world
+            .insert_resource(ClippingSectionQueue::default());
         self.scheduler.main.configure_sets(
             (
                 ScheduleMarkers::Events,
@@ -271,6 +276,8 @@ impl Elm {
             event_update_system.in_set(ScheduleMarkers::Events),
             animate_grid_location.in_set(ScheduleMarkers::Animation),
             recursive_placement.in_set(ScheduleMarkers::GridSemantics),
+            (evaluate_clipping_context_ptr, pull_clipping_section)
+                .in_set(ScheduleMarkers::FinalizeCoordinate),
             crate::differential::remove.in_set(ScheduleMarkers::Clean),
             opacity.in_set(ScheduleMarkers::Resolve),
             clear_signal.after(ScheduleMarkers::Differential),

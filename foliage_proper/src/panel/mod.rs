@@ -12,14 +12,14 @@ use wgpu::{
 };
 
 use crate::anim::{Animate, Interpolations};
-use crate::ash::{DrawRange, Renderer};
+use crate::ash::{ClippingContext, DrawRange, Renderer};
 use crate::branch::HasRenderLink;
 use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::elevation::RenderLayer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::{GpuSection, Section};
-use crate::coordinate::{Coordinates, LogicalContext};
+use crate::coordinate::{Coordinates, DeviceContext, LogicalContext};
 use crate::differential::{Differential, RenderLink};
 use crate::elm::{RenderQueueHandle, ScheduleMarkers};
 use crate::ginkgo::{Ginkgo, ScaleFactor};
@@ -35,6 +35,7 @@ impl Root for Panel {
         elm.enable_differential::<Panel, CornerII>();
         elm.enable_differential::<Panel, CornerIII>();
         elm.enable_differential::<Panel, CornerIV>();
+        elm.enable_differential::<Self, ClippingContext>();
         elm.scheduler
             .main
             .add_systems(percent_rounded_to_corner.in_set(ScheduleMarkers::Config));
@@ -304,7 +305,7 @@ impl Render for Panel {
                 .checked_write(packet.entity, packet.value);
         }
         for packet in queue_handle.read_adds::<Self, RenderLayer>() {
-            renderer.associate_alpha_pointer(0, 0);
+            renderer.associate_directive_group(0, 0);
             renderer
                 .resource_handle
                 .instances
@@ -351,8 +352,15 @@ impl Render for Panel {
         renderer: &'a Renderer<Self>,
         group_key: Self::DirectiveGroupKey,
         alpha_range: DrawRange,
+        clipping_section: Section<DeviceContext>,
         render_pass: &mut RenderPass<'a>,
     ) {
+        render_pass.set_scissor_rect(
+            clipping_section.x() as u32,
+            clipping_section.y() as u32,
+            clipping_section.width() as u32,
+            clipping_section.height() as u32,
+        );
         render_pass.set_pipeline(&renderer.resource_handle.pipeline);
         render_pass.set_bind_group(0, &renderer.resource_handle.bind_group, &[]);
         render_pass.set_vertex_buffer(0, renderer.resource_handle.vertex_buffer.slice(..));

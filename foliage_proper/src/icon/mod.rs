@@ -19,7 +19,7 @@ use crate::coordinate::area::Area;
 use crate::coordinate::elevation::RenderLayer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::{GpuSection, Section};
-use crate::coordinate::{Coordinates, LogicalContext};
+use crate::coordinate::{Coordinates, DeviceContext, LogicalContext};
 use crate::differential::{Differential, Remove, RenderLink, Visibility};
 use crate::elm::{Elm, RenderQueueHandle, ScheduleMarkers};
 use crate::ginkgo::Ginkgo;
@@ -281,7 +281,7 @@ impl Render for Icon {
         ginkgo: &Ginkgo,
     ) {
         for packet in queue_handle.read_adds::<Self, IconData>() {
-            renderer.associate_alpha_pointer(packet.value.0 .0, packet.value.0);
+            renderer.associate_directive_group(packet.value.0 .0, packet.value.0);
             let (_, view) = ginkgo.create_texture(
                 TextureFormat::R8Unorm,
                 Self::TEXTURE_SCALE,
@@ -423,9 +423,16 @@ impl Render for Icon {
         renderer: &'a Renderer<Self>,
         group_key: Self::DirectiveGroupKey,
         alpha_range: DrawRange,
+        clipping_section: Section<DeviceContext>,
         render_pass: &mut RenderPass<'a>,
     ) {
         let group = renderer.resource_handle.groups.get(&group_key).unwrap();
+        render_pass.set_scissor_rect(
+            clipping_section.x() as u32,
+            clipping_section.y() as u32,
+            clipping_section.width() as u32,
+            clipping_section.height() as u32,
+        );
         render_pass.set_pipeline(&renderer.resource_handle.pipeline);
         render_pass.set_bind_group(0, &group.bind_group, &[]);
         render_pass.set_bind_group(1, &renderer.resource_handle.bind_group, &[]);
