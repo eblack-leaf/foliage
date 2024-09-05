@@ -23,7 +23,7 @@ use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
-use crate::coordinate::{CoordinateUnit, Coordinates, NumericalContext};
+use crate::coordinate::{CoordinateUnit, Coordinates, DeviceContext};
 use crate::willow::Willow;
 
 pub mod binding;
@@ -293,7 +293,7 @@ impl Ginkgo {
     pub(crate) fn viewport(&self) -> &Viewport {
         self.viewport.as_ref().unwrap()
     }
-    pub(crate) fn position_viewport(&mut self, position: Position<NumericalContext>) {
+    pub(crate) fn position_viewport(&mut self, position: Position<DeviceContext>) {
         self.viewport
             .as_mut()
             .unwrap()

@@ -21,7 +21,7 @@ use crate::branch::{
 };
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
-use crate::coordinate::NumericalContext;
+use crate::coordinate::{DeviceContext, LogicalContext};
 use crate::derive::on_derive;
 use crate::differential::{
     added_invalidate, differential, visibility_changed, RenderAddQueue, RenderLink, RenderPacket,
@@ -228,17 +228,17 @@ impl Elm {
     }
     pub(crate) fn configure(
         &mut self,
-        window_area: Area<NumericalContext>,
+        window_area: Area<DeviceContext>,
         scale_factor: ScaleFactor,
     ) {
-        self.ecs
-            .world
-            .insert_resource(ViewportHandle::new(window_area));
+        self.ecs.world.insert_resource(ViewportHandle::new(
+            window_area.to_logical(scale_factor.value()),
+        ));
         self.ecs.world.insert_resource(scale_factor);
         self.ecs.world.insert_resource(RenderRemoveQueue::default());
         self.ecs
             .world
-            .insert_resource(LayoutGrid::new(Grid::template(4, 4)));
+            .insert_resource(LayoutGrid::new(Grid::new(4, 4)));
         self.ecs.world.insert_resource(Layout::SQUARE);
         self.ecs.world.insert_resource(TouchAdapter::default());
         self.ecs.world.insert_resource(MouseAdapter::default());
@@ -339,11 +339,10 @@ impl Elm {
     pub(crate) fn process(&mut self) {
         self.scheduler.exec_main(&mut self.ecs);
     }
-    pub(crate) fn viewport_handle_changes(&mut self) -> Option<Position<NumericalContext>> {
+    pub(crate) fn viewport_handle_changes(&mut self) -> Option<Position<LogicalContext>> {
         self.ecs
             .world
-            .get_resource_mut::<ViewportHandle>()
-            .unwrap()
+            .get_resource_mut::<ViewportHandle>()?
             .changes()
     }
     pub(crate) fn adjust_viewport_handle(&mut self, willow: &Willow) {
@@ -357,7 +356,7 @@ impl Elm {
             .world
             .get_resource_mut::<ViewportHandle>()
             .unwrap()
-            .resize(willow.actual_area().to_logical(scale_value).to_numerical());
+            .resize(willow.actual_area().to_logical(scale_value));
     }
     pub fn enable_retrieve<B: Bundle + Send + Sync + 'static>(&mut self) {
         if !self.ecs.world.contains_resource::<RetrieveLimiter<B>>() {

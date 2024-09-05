@@ -1,7 +1,11 @@
+use crate::coordinate::placement::Placement;
 use crate::coordinate::Coordinates;
+use crate::ginkgo::viewport::ViewportHandle;
 use crate::r_grid::Grid;
+use bevy_ecs::change_detection::Res;
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::Resource;
+use bevy_ecs::system::ResMut;
 use bitflags::bitflags;
 
 #[derive(Resource, Copy, Clone, Eq, Hash, PartialEq, Ord, PartialOrd, Debug)]
@@ -57,7 +61,7 @@ impl LayoutGrid {
     pub(crate) const LARGE_HORIZONTAL_THRESHOLD: f32 = 900.0;
     pub(crate) const SMALL_VERTICAL_THRESHOLD: f32 = 440.0;
     pub(crate) const LARGE_VERTICAL_THRESHOLD: f32 = 800.0;
-    pub(crate) fn configuration(coordinates: Coordinates) -> (Layout, (i32, i32)) {
+    pub(crate) fn configuration(coordinates: Coordinates) -> (Layout, (u32, u32)) {
         let mut columns = 4;
         if coordinates.horizontal() > Self::SMALL_HORIZONTAL_THRESHOLD {
             columns = 8
@@ -94,4 +98,17 @@ impl LayoutGrid {
         (orientation, (columns, rows))
     }
 }
-pub(crate) fn viewport_changes_layout() {}
+pub(crate) fn viewport_changes_layout(
+    mut layout_grid: ResMut<LayoutGrid>,
+    mut viewport_handle: ResMut<ViewportHandle>,
+    mut layout: ResMut<Layout>,
+) {
+    if viewport_handle.updated() {
+        let (l, (c, r)) = LayoutGrid::configuration(viewport_handle.section().area.coordinates);
+        if &l != layout.as_ref() {
+            tracing::trace!("grid-layout:{:?}", l);
+            *layout = l;
+        }
+        layout_grid.grid = Grid::new(c, r);
+    }
+}

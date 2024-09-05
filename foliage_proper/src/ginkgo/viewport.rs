@@ -3,7 +3,7 @@ use bevy_ecs::prelude::Resource;
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
-use crate::coordinate::{CoordinateUnit, DeviceContext, NumericalContext};
+use crate::coordinate::{CoordinateUnit, DeviceContext, LogicalContext, NumericalContext};
 use crate::ginkgo::{GraphicContext, Uniform};
 use crate::willow::NearFarDescriptor;
 
@@ -23,7 +23,7 @@ impl Viewport {
     }
     pub(crate) fn set_position(
         &mut self,
-        position: Position<NumericalContext>,
+        position: Position<DeviceContext>,
         context: &GraphicContext,
     ) {
         self.translation = position.to_numerical();
@@ -80,14 +80,14 @@ impl Viewport {
 
 #[derive(Default, Resource)]
 pub struct ViewportHandle {
-    translation: Position<NumericalContext>,
-    area: Area<NumericalContext>,
+    translation: Position<LogicalContext>,
+    area: Area<LogicalContext>,
     changes: bool,
     updated: bool,
 }
 
 impl ViewportHandle {
-    pub(crate) fn new(area: Area<NumericalContext>) -> Self {
+    pub(crate) fn new(area: Area<LogicalContext>) -> Self {
         Self {
             translation: Position::default(),
             area,
@@ -95,18 +95,18 @@ impl ViewportHandle {
             updated: false,
         }
     }
-    pub fn translate(&mut self, position: Position<NumericalContext>) {
+    pub fn translate(&mut self, position: Position<LogicalContext>) {
         self.translation += position;
         self.changes = true;
     }
-    pub(crate) fn changes(&mut self) -> Option<Position<NumericalContext>> {
+    pub(crate) fn changes(&mut self) -> Option<Position<LogicalContext>> {
         if self.changes {
             self.changes = false;
             return Some(self.translation);
         }
         None
     }
-    pub(crate) fn resize(&mut self, area: Area<NumericalContext>) {
+    pub(crate) fn resize(&mut self, area: Area<LogicalContext>) {
         self.updated = true;
         self.area = area;
     }
@@ -118,7 +118,7 @@ impl ViewportHandle {
         }
         val
     }
-    pub fn section(&self) -> Section<NumericalContext> {
+    pub fn section(&self) -> Section<LogicalContext> {
         Section::new(self.translation.coordinates, self.area.coordinates)
     }
 }

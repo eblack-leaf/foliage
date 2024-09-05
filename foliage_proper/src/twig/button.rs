@@ -54,7 +54,7 @@ impl Button {
 }
 impl TwigDef for Button {
     fn grow(self, twig_stem: &mut TwigStem) {
-        twig_stem.config_grid(Grid::template(3, 1));
+        twig_stem.config_grid(Grid::new(3, 1));
         let linked = vec![
             twig_stem.target_handle.extend("icon"),
             twig_stem.target_handle.extend("text"),

@@ -266,7 +266,7 @@ impl Foliage {
         self.ginkgo.configure_view(&self.willow);
         self.ginkgo.create_viewport(&self.willow);
         self.elm.configure(
-            self.willow.actual_area().to_numerical(),
+            self.willow.actual_area(),
             self.ginkgo.configuration().scale_factor,
         );
         self.grow_roots();
@@ -334,8 +334,7 @@ impl Foliage {
                     .get_resource::<ViewportHandle>()
                     .expect("vh")
                     .section()
-                    .position
-                    .as_logical();
+                    .position;
                 if let Some(event) = self
                     .elm
                     .ecs
@@ -386,8 +385,7 @@ impl Foliage {
                     .get_resource::<ViewportHandle>()
                     .expect("vh")
                     .section()
-                    .position
-                    .as_logical();
+                    .position;
                 if let Some(event) = self
                     .elm
                     .ecs
@@ -412,7 +410,8 @@ impl Foliage {
             WindowEvent::RedrawRequested => {
                 if !self.ash.drawn {
                     if let Some(vc) = self.elm.viewport_handle_changes() {
-                        self.ginkgo.position_viewport(vc);
+                        let pos = vc.to_device(self.ginkgo.configuration().scale_factor.value());
+                        self.ginkgo.position_viewport(pos);
                     }
                     self.ash.render(&self.ginkgo, &mut self.elm);
                     self.ash.drawn = true;

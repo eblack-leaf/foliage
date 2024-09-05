@@ -4,10 +4,11 @@ use crate::ash::ClippingContextBundle;
 use crate::branch::LeafPtr;
 use crate::coordinate::elevation::Elevation;
 use crate::coordinate::placement::Placement;
+use crate::coordinate::points::Points;
 use crate::coordinate::LogicalContext;
 use crate::differential::{Remove, Visibility};
 use crate::opacity::Opacity;
-use crate::r_grid::GridLocation;
+use crate::r_grid::{Grid, GridLocation};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, Resource};
@@ -50,6 +51,8 @@ pub(crate) struct LeafBundle {
     opacity: Opacity,
     clipping_context: ClippingContextBundle,
     leaf_handle: LeafHandle,
+    grid: Grid,
+    points: Points<LogicalContext>,
 }
 #[derive(Default, Component)]
 pub(crate) struct Stem(pub(crate) Option<LeafHandle>);

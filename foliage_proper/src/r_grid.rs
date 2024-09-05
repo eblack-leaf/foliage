@@ -1,11 +1,15 @@
-use crate::coordinate::placement::Placement;
+use crate::coordinate::area::Area;
+use crate::coordinate::points::Points;
+use crate::coordinate::position::Position;
+use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, Coordinates, LogicalContext};
-use crate::layout::Layout;
+use crate::ginkgo::viewport::ViewportHandle;
+use crate::layout::{Layout, LayoutGrid};
 use crate::leaf::{IdTable, LeafHandle};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, Query};
 use bevy_ecs::query::{Changed, Or};
-use bevy_ecs::system::Res;
+use bevy_ecs::system::{Commands, Res};
 use std::collections::{HashMap, HashSet};
 use std::ops::{Add, Sub};
 
@@ -137,30 +141,54 @@ pub(crate) fn animate_grid_location() {}
 
 pub(crate) fn resolve_grid_locations(
     check: Query<Entity, Or<(Changed<GridLocation>, Changed<Grid>)>>,
-    read: Query<(&LeafHandle, &GridLocation, Option<&Grid>)>,
+    read: Query<(&LeafHandle, &GridLocation, &Grid)>,
+    mut update: Query<(&mut Position<LogicalContext>, &mut Area<LogicalContext>)>,
     id_table: Res<IdTable>,
+    viewport_handle: Res<ViewportHandle>,
+    layout_grid: Res<LayoutGrid>,
+    mut cmd: Commands,
 ) {
     if check.is_empty() {
         return;
     }
     let mut referential_context = vec![];
-    for (handle, location, grid) in read.iter() {
-        let refs = location.references();
-        let is_screen = if refs.is_screen() { // is-screen => 4.col().of(screen()) ... only reference to screen
-             // is root to start with
-        };
-        referential_context.push((handle.clone(), refs, grid.clone(), is_screen));
+    for (handle, location, _) in read.iter() {
+        referential_context.push((handle.clone(), location.references()));
     }
     referential_context.sort_by(|a, b| {
         // roots (is_screen) first => by referential-dependency
+        todo!()
     });
-    let mut resolved = HashMap::new(); // <Context, (Placement, Points, Opt<Grid>)>?
-                                       // placements.insert(screen, viewport-handle:section, Grid-None);
-    for (handle, location, grid) in referential_context.iter() {
-        let (placement, points) = Grid::resolve(location, &resolved);
+    let mut resolved = HashMap::new();
+    resolved.insert(
+        GridContext::Screen,
+        (viewport_handle.section(), None, layout_grid.grid),
+    );
+    for (handle, _) in referential_context {
+        let (_, location, grid) = read
+            .get(id_table.lookup_leaf(handle.clone()).unwrap())
+            .unwrap();
+        let (section, points) = location.resolve(&resolved);
+        resolved.insert(GridContext::Named(handle), (section, points, *grid));
+    }
+    for (handle, (section, new_points, _)) in resolved {
+        match handle {
+            GridContext::Screen => {}
+            GridContext::Named(name) => {
+                let e = id_table.lookup_leaf(name).unwrap();
+                if let Ok((mut pos, mut area)) = update.get_mut(e) {
+                    *pos = section.position;
+                    *area = section.area;
+                    if let Some(p) = new_points {
+                        cmd.entity(e).insert(p);
+                    }
+                }
+            }
+            GridContext::This => {}
+        }
     }
 }
-pub(crate) fn placement_recursion() {}
+
 #[derive(Clone)]
 pub(crate) struct GridReferentialContext {
     references: HashSet<GridContext>,
@@ -200,11 +228,27 @@ pub struct GridLocation {
     exceptions: HashMap<GridTokenDescException, GridToken>,
 }
 impl GridLocation {
+    fn resolve(
+        &self,
+        resolved: &HashMap<
+            GridContext,
+            (
+                Section<LogicalContext>,
+                Option<Points<LogicalContext>>,
+                Grid,
+            ),
+        >,
+    ) -> (Section<LogicalContext>, Option<Points<LogicalContext>>) {
+        todo!()
+    }
     pub fn new() -> GridLocation {
         Self {
             token_descriptions: HashMap::new(),
             exceptions: Default::default(),
         }
+    }
+    pub fn references(&self) -> GridReferentialContext {
+        todo!()
     }
     pub fn bottom<GT: Into<GridToken>>(mut self, gt: GT) -> Self {
         self.token_descriptions
@@ -239,14 +283,14 @@ impl GridLocation {
     // horizontal
     // vertical
 }
-#[derive(Clone, Copy)]
-pub struct GridTemplate {
+#[derive(Clone, Copy, Component)]
+pub struct Grid {
     columns: u32,
     rows: u32,
     gap: Coordinates,
 }
-impl GridTemplate {
-    pub fn new(columns: u32, rows: u32) -> GridTemplate {
+impl Grid {
+    pub fn new(columns: u32, rows: u32) -> Grid {
         Self {
             columns,
             rows,
@@ -264,60 +308,13 @@ impl GridTemplate {
         self
     }
 }
-impl Default for GridTemplate {
+impl Default for Grid {
     fn default() -> Self {
         Self::new(1, 1)
     }
 }
-#[derive(Component, Default)]
-pub struct Grid {
-    template: Option<GridTemplate>,
-    placement: Placement<LogicalContext>,
-}
-impl Grid {
-    pub fn new() -> Grid {
-        Self {
-            template: None,
-            placement: Default::default(),
-        }
-    }
-    pub fn template(c: u32, r: u32) -> Grid {
-        Self {
-            template: Some(GridTemplate::new(c, r)),
-            placement: Default::default(),
-        }
-    }
-    pub fn with_gap<C: Into<Coordinates>>(mut self, g: C) -> Self {
-        if let Some(t) = self.template.as_mut() {
-            t.gap = g.into();
-        }
-        self
-    }
-    pub fn column_size(&self) -> CoordinateUnit {
-        if let Some(template) = &self.template {
-            self.placement.section.width() / template.columns()
-                - template.gap.horizontal() * (template.columns() + 1.0)
-        } else {
-            0.0
-        }
-    }
-    pub fn size_to(&mut self, placement: Placement<LogicalContext>) {
-        self.placement = placement;
-    }
-    pub fn sized(mut self, placement: Placement<LogicalContext>) -> Self {
-        self.placement = placement;
-        self
-    }
-    pub fn row_size(&self) -> CoordinateUnit {
-        if let Some(template) = &self.template {
-            self.placement.section.height() / template.rows()
-                - template.gap.vertical() * (template.rows() + 1.0)
-        } else {
-            0.0
-        }
-    }
-}
-#[derive(Clone)]
+
+#[derive(Clone, Hash, Eq, PartialEq)]
 pub enum GridContext {
     Screen,
     Named(LeafHandle),

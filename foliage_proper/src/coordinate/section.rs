@@ -146,6 +146,14 @@ impl<Context: CoordinateContext> Section<Context> {
         Self::new(self.position.rounded(), self.area.rounded())
     }
 }
+impl Section<NumericalContext> {
+    pub fn as_logical(self) -> Section<LogicalContext> {
+        Section::new(self.position.as_logical(), self.area.as_logical())
+    }
+    pub fn as_device(self) -> Section<DeviceContext> {
+        Section::new(self.position.as_device(), self.area.as_device())
+    }
+}
 impl<Context: CoordinateContext, C: Into<Coordinates>, D: Into<Coordinates>> From<(C, D)>
     for Section<Context>
 {
