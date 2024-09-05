@@ -224,30 +224,33 @@ pub enum GridAspect {
     PointD,
 }
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
-pub struct GridTokenException {
+pub struct GridLocationException {
     layout: Layout,
-    desc: GridAspect,
-    paired: GridAspect,
+    is_horizontal: bool,
 }
-impl GridTokenException {
-    pub fn new(layout: Layout, desc: GridAspect, paired: GridAspect) -> Self {
+impl GridLocationException {
+    pub fn new(layout: Layout, is_horizontal: bool) -> Self {
         Self {
             layout,
-            desc,
-            paired,
+            is_horizontal,
         }
     }
 }
 #[derive(Clone)]
-pub struct GridTokenEntry {
-    independent: Option<(GridAspect, GridToken)>,
-    dependent: Option<(GridAspect, GridToken)>,
+pub struct GridLocationDesignator {
+    aspect: GridAspect,
+    token: GridToken,
+}
+#[derive(Clone)]
+pub struct GridLocationEntry {
+    independent: GridLocationDesignator,
+    dependent: GridLocationDesignator,
 }
 #[derive(Component, Clone)]
 pub struct GridLocation {
-    horizontal: GridTokenEntry,
-    vertical: GridTokenEntry,
-    exceptions: HashMap<GridTokenException, GridTokenEntry>,
+    horizontal: Option<GridLocationEntry>,
+    vertical: Option<GridLocationEntry>,
+    exceptions: HashMap<GridLocationException, GridLocationEntry>,
     animation_hook: Option<Section<LogicalContext>>,
     ref_context: GridReferentialContext,
 }
@@ -265,25 +268,12 @@ impl GridLocation {
         resolved: &ResolvedGridReferences,
         layout: Layout,
     ) -> (Section<LogicalContext>, Option<Points<LogicalContext>>) {
-        let mut to_resolve = HashMap::new();
-        let mut exceptions = HashSet::new();
-        let mut resolved_tokens = HashMap::new();
-        for (desc, token) in self.token_descriptions.iter() {
-            to_resolve.insert(*desc, token.clone());
-        }
-        for (config, token) in self.exceptions.iter() {
-            if config.layout.contains(layout) {
-                to_resolve.insert(config.desc, token.clone());
-                exceptions.insert((config.desc, config.paired));
-            }
-        }
-
-        // sanitize resolved-tokens for order or apply to get section and/or points
         (Section::default(), None)
     }
     pub fn new() -> GridLocation {
         Self {
-            token_descriptions: HashMap::new(),
+            horizontal: None,
+            vertical: None,
             exceptions: Default::default(),
             animation_hook: None,
             ref_context: GridReferentialContext::default(),
@@ -325,7 +315,7 @@ impl GridLocation {
         let token = gt.into();
         self.ref_context.references.extend(token.references());
         self.exceptions.insert(
-            GridTokenException::new(layout, GridAspect::Right, paired),
+            GridLocationException::new(layout, GridAspect::Right, paired),
             token,
         );
         self
