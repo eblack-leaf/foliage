@@ -104,7 +104,11 @@ fn behavior() {
         .top("header".y() + 10.percent().of("header"))
         .width(50.percent().of(screen()))
         .left("button".right() + 10.px())
-        .right_at(Layout::LANDSCAPE_MOBILE, screen().x() + "footer".width());
+        .right_at(
+            Layout::LANDSCAPE_MOBILE,
+            screen().x() + "footer".width(),
+            GridTokenDesc::Width,
+        );
 }
 pub trait GridUnitDesc {
     fn px(self) -> GridUnit;
@@ -206,55 +210,38 @@ pub(crate) struct GridReferentialContext {
 }
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum GridTokenDesc {
-    X,
-    Y,
-    CenterX,
-    CenterY,
+    CenterX, // Dependent => Right | Width | Left
+    CenterY, // Dependent => Top | Height | Bottom
     Top,
-    Right,
-    Bottom,
+    Right,  // Dependent => Width | Left | CenterX
+    Bottom, // Dependent => Height | Top | CenterY
     Left,
-    HorizontalBegin,
-    HorizontalEnd,
-    VerticalBegin,
-    VerticalEnd,
     Width,
     Height,
-    LineBegin,
-    LineEnd,
+    PointA,
+    PointB,
+    PointC,
+    PointD,
 }
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
-pub struct GridTokenConfiguration {
+pub struct GridTokenException {
     layout: Layout,
     desc: GridTokenDesc,
+    paired: GridTokenDesc,
 }
-impl GridTokenConfiguration {
-    pub fn new(layout: Layout, desc: GridTokenDesc) -> Self {
-        Self { layout, desc }
-    }
-}
-pub struct GridTokenEntry {
-    layout: Layout,
-    token: GridToken,
-}
-impl GridTokenEntry {
-    pub fn new(layout: Layout, token: GridToken) -> Self {
-        Self { layout, token }
-    }
-}
-impl<GT: Into<GridToken>> From<GT> for GridTokenEntry {
-    fn from(value: GT) -> Self {
-        Self::new(Layout::all(), value.into())
-    }
-}
-impl<GT: Into<GridToken>> From<(Layout, GT)> for GridTokenEntry {
-    fn from(value: (Layout, GT)) -> Self {
-        Self::new(value.0, value.1.into())
+impl GridTokenException {
+    pub fn new(layout: Layout, desc: GridTokenDesc, paired: GridTokenDesc) -> Self {
+        Self {
+            layout,
+            desc,
+            paired,
+        }
     }
 }
 #[derive(Component, Clone)]
 pub struct GridLocation {
-    token_descriptions: HashMap<GridTokenConfiguration, GridToken>,
+    token_descriptions: HashMap<GridTokenDesc, GridToken>,
+    exceptions: HashMap<GridTokenException, GridToken>,
     animation_hook: Option<Section<LogicalContext>>,
     ref_context: GridReferentialContext,
 }
@@ -272,18 +259,26 @@ impl GridLocation {
         resolved: &ResolvedGridReferences,
         layout: Layout,
     ) -> (Section<LogicalContext>, Option<Points<LogicalContext>>) {
+        let mut to_resolve = HashMap::new();
+        let mut exceptions = HashSet::new();
         let mut resolved_tokens = HashMap::new();
-        for (config, token) in self.token_descriptions.iter() {
-            if layout.contains(config.layout) {
-                resolved_tokens.insert(config.desc, token.resolve(&resolved));
+        for (desc, token) in self.token_descriptions.iter() {
+            to_resolve.insert(*desc, token.clone());
+        }
+        for (config, token) in self.exceptions.iter() {
+            if config.layout.contains(layout) {
+                to_resolve.insert(config.desc, token.clone());
+                exceptions.insert((config.desc, config.paired));
             }
         }
+
         // sanitize resolved-tokens for order or apply to get section and/or points
         (Section::default(), None)
     }
     pub fn new() -> GridLocation {
         Self {
             token_descriptions: HashMap::new(),
+            exceptions: Default::default(),
             animation_hook: None,
             ref_context: GridReferentialContext::default(),
         }
@@ -291,47 +286,40 @@ impl GridLocation {
     pub fn references(&self) -> GridReferentialContext {
         self.ref_context.clone()
     }
-    pub fn bottom<GTE: Into<GridTokenEntry>>(mut self, gte: GTE) -> Self {
-        let entry = gte.into();
-        self.ref_context.references.extend(entry.token.references());
-        self.token_descriptions.insert(
-            GridTokenConfiguration::new(entry.layout, GridTokenDesc::Bottom),
-            entry.token,
-        );
+    pub fn bottom<GTE: Into<GridToken>>(mut self, gte: GTE) -> Self {
+        let token = gte.into();
+        self.ref_context.references.extend(token.references());
+        self.token_descriptions.insert(GridTokenDesc::Bottom, token);
         self
     }
-    pub fn top<GT: Into<GridTokenEntry>>(mut self, gt: GT) -> Self {
-        let entry = gt.into();
-        self.ref_context.references.extend(entry.token.references());
-        self.token_descriptions.insert(
-            GridTokenConfiguration::new(entry.layout, GridTokenDesc::Top),
-            entry.token,
-        );
-        self
-    }
-    pub fn width<GT: Into<GridTokenEntry>>(mut self, gt: GT) -> Self {
-        let entry = gt.into();
-        self.ref_context.references.extend(entry.token.references());
-        self.token_descriptions.insert(
-            GridTokenConfiguration::new(entry.layout, GridTokenDesc::Width),
-            entry.token,
-        );
-        self
-    }
-    pub fn left<GT: Into<GridTokenEntry>>(mut self, gt: GT) -> Self {
-        let entry = gt.into();
-        self.ref_context.references.extend(entry.token.references());
-        self.token_descriptions.insert(
-            GridTokenConfiguration::new(entry.layout, GridTokenDesc::Left),
-            entry.token,
-        );
-        self
-    }
-    pub fn right_at<GT: Into<GridToken>>(mut self, layout: Layout, gt: GT) -> Self {
+    pub fn top<GT: Into<GridToken>>(mut self, gt: GT) -> Self {
         let token = gt.into();
         self.ref_context.references.extend(token.references());
-        self.token_descriptions.insert(
-            GridTokenConfiguration::new(layout, GridTokenDesc::Right),
+        self.token_descriptions.insert(GridTokenDesc::Top, token);
+        self
+    }
+    pub fn width<GT: Into<GridToken>>(mut self, gt: GT) -> Self {
+        let entry = gt.into();
+        self.ref_context.references.extend(entry.references());
+        self.token_descriptions.insert(GridTokenDesc::Width, entry);
+        self
+    }
+    pub fn left<GT: Into<GridToken>>(mut self, gt: GT) -> Self {
+        let entry = gt.into();
+        self.ref_context.references.extend(entry.references());
+        self.token_descriptions.insert(GridTokenDesc::Left, entry);
+        self
+    }
+    pub fn right_at<GT: Into<GridToken>>(
+        mut self,
+        layout: Layout,
+        gt: GT,
+        paired: GridTokenDesc,
+    ) -> Self {
+        let token = gt.into();
+        self.ref_context.references.extend(token.references());
+        self.exceptions.insert(
+            GridTokenException::new(layout, GridTokenDesc::Right, paired),
             token,
         );
         self
@@ -380,11 +368,17 @@ pub enum GridContext {
     This,
 }
 impl GridContext {
-    pub fn x(self) -> GridToken {
-        GridToken::new(self, GridTokenValue::Desc(GridTokenDesc::X))
-    }
     pub fn y(self) -> GridToken {
-        GridToken::new(self, GridTokenValue::Desc(GridTokenDesc::Y))
+        GridToken::new(self, GridTokenValue::Desc(GridTokenDesc::Top))
+    }
+    pub fn x(self) -> GridToken {
+        GridToken::new(self, GridTokenValue::Desc(GridTokenDesc::Left))
+    }
+    pub fn top(self) -> GridToken {
+        GridToken::new(self, GridTokenValue::Desc(GridTokenDesc::Top))
+    }
+    pub fn left(self) -> GridToken {
+        GridToken::new(self, GridTokenValue::Desc(GridTokenDesc::Left))
     }
     pub fn height(self) -> GridToken {
         GridToken::new(self, GridTokenValue::Desc(GridTokenDesc::Height))
