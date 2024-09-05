@@ -146,6 +146,7 @@ pub(crate) fn resolve_grid_locations(
     id_table: Res<IdTable>,
     viewport_handle: Res<ViewportHandle>,
     layout_grid: Res<LayoutGrid>,
+    layout: Res<Layout>,
     mut cmd: Commands,
 ) {
     if check.is_empty() {
@@ -153,6 +154,8 @@ pub(crate) fn resolve_grid_locations(
     }
     let mut referential_context = vec![];
     for (handle, location, _) in read.iter() {
+        // pre-calc references + store as component => on-change for GridLocation => GridReferentialContext
+        // read here + sort
         referential_context.push((handle.clone(), location.references()));
     }
     referential_context.sort_by(|a, b| {
@@ -168,7 +171,7 @@ pub(crate) fn resolve_grid_locations(
         let (_, location, grid) = read
             .get(id_table.lookup_leaf(handle.clone()).unwrap())
             .unwrap();
-        let (section, points) = location.resolve(&resolved);
+        let (section, points) = location.resolve(&resolved, *layout);
         resolved.insert(GridContext::Named(handle), (section, points, *grid));
     }
     for (handle, (section, new_points, _)) in resolved {
@@ -189,7 +192,7 @@ pub(crate) fn resolve_grid_locations(
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Component)]
 pub(crate) struct GridReferentialContext {
     references: HashSet<GridContext>,
 }
@@ -226,6 +229,7 @@ impl GridTokenDescException {
 pub struct GridLocation {
     token_descriptions: HashMap<GridTokenDesc, GridToken>,
     exceptions: HashMap<GridTokenDescException, GridToken>,
+    animation_hook: Option<Section<LogicalContext>>,
 }
 impl GridLocation {
     fn resolve(
@@ -238,6 +242,7 @@ impl GridLocation {
                 Grid,
             ),
         >,
+        layout: Layout,
     ) -> (Section<LogicalContext>, Option<Points<LogicalContext>>) {
         todo!()
     }
@@ -245,6 +250,7 @@ impl GridLocation {
         Self {
             token_descriptions: HashMap::new(),
             exceptions: Default::default(),
+            animation_hook: None,
         }
     }
     pub fn references(&self) -> GridReferentialContext {

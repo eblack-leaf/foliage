@@ -4,7 +4,6 @@ use crate::ash::ClippingContextBundle;
 use crate::branch::LeafPtr;
 use crate::coordinate::elevation::Elevation;
 use crate::coordinate::placement::Placement;
-use crate::coordinate::points::Points;
 use crate::coordinate::LogicalContext;
 use crate::differential::{Remove, Visibility};
 use crate::opacity::Opacity;
@@ -52,7 +51,6 @@ pub(crate) struct LeafBundle {
     clipping_context: ClippingContextBundle,
     leaf_handle: LeafHandle,
     grid: Grid,
-    points: Points<LogicalContext>,
 }
 #[derive(Default, Component)]
 pub(crate) struct Stem(pub(crate) Option<LeafHandle>);
