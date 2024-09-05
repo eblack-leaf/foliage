@@ -10,6 +10,7 @@ use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, Query};
 use bevy_ecs::query::{Changed, Or};
 use bevy_ecs::system::{Commands, Res};
+use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::ops::{Add, Sub};
 
@@ -138,7 +139,6 @@ impl GridUnit {
     }
 }
 pub(crate) fn animate_grid_location() {}
-
 pub(crate) fn resolve_grid_locations(
     check: Query<Entity, Or<(Changed<GridLocation>, Changed<Grid>)>>,
     read: Query<(&LeafHandle, &GridLocation, &Grid)>,
@@ -154,13 +154,21 @@ pub(crate) fn resolve_grid_locations(
     }
     let mut referential_context = vec![];
     for (handle, location, _) in read.iter() {
-        // pre-calc references + store as component => on-change for GridLocation => GridReferentialContext
-        // read here + sort
         referential_context.push((handle.clone(), location.references()));
     }
     referential_context.sort_by(|a, b| {
-        // roots (is_screen) first => by referential-dependency
-        todo!()
+        let b_depends_a = b.1.references.contains(&GridContext::Named(a.0.clone()));
+        let a_depends_b = a.1.references.contains(&GridContext::Named(b.0.clone()));
+        if a_depends_b && b_depends_a {
+            panic!("circular grid reference")
+        }
+        if a_depends_b {
+            Ordering::Greater
+        } else if b_depends_a {
+            Ordering::Less
+        } else {
+            Ordering::Equal
+        }
     });
     let mut resolved = HashMap::new();
     resolved.insert(
@@ -192,7 +200,7 @@ pub(crate) fn resolve_grid_locations(
     }
 }
 
-#[derive(Clone, Component)]
+#[derive(Clone, Default)]
 pub(crate) struct GridReferentialContext {
     references: HashSet<GridContext>,
 }
@@ -230,6 +238,7 @@ pub struct GridLocation {
     token_descriptions: HashMap<GridTokenDesc, GridToken>,
     exceptions: HashMap<GridTokenDescException, GridToken>,
     animation_hook: Option<Section<LogicalContext>>,
+    ref_context: GridReferentialContext,
 }
 impl GridLocation {
     fn resolve(
@@ -251,35 +260,42 @@ impl GridLocation {
             token_descriptions: HashMap::new(),
             exceptions: Default::default(),
             animation_hook: None,
+            ref_context: GridReferentialContext::default(),
         }
     }
     pub fn references(&self) -> GridReferentialContext {
-        todo!()
+        self.ref_context.clone()
     }
     pub fn bottom<GT: Into<GridToken>>(mut self, gt: GT) -> Self {
-        self.token_descriptions
-            .insert(GridTokenDesc::Bottom, gt.into());
+        let token = gt.into();
+        self.ref_context.references.extend(token.references());
+        self.token_descriptions.insert(GridTokenDesc::Bottom, token);
         self
     }
     pub fn top<GT: Into<GridToken>>(mut self, gt: GT) -> Self {
-        self.token_descriptions
-            .insert(GridTokenDesc::Top, gt.into());
+        let token = gt.into();
+        self.ref_context.references.extend(token.references());
+        self.token_descriptions.insert(GridTokenDesc::Top, token);
         self
     }
     pub fn width<GT: Into<GridToken>>(mut self, gt: GT) -> Self {
-        self.token_descriptions
-            .insert(GridTokenDesc::Width, gt.into());
+        let token = gt.into();
+        self.ref_context.references.extend(token.references());
+        self.token_descriptions.insert(GridTokenDesc::Width, token);
         self
     }
     pub fn left<GT: Into<GridToken>>(mut self, gt: GT) -> Self {
-        self.token_descriptions
-            .insert(GridTokenDesc::Left, gt.into());
+        let token = gt.into();
+        self.ref_context.references.extend(token.references());
+        self.token_descriptions.insert(GridTokenDesc::Left, token);
         self
     }
     pub fn right_at<GT: Into<GridToken>>(mut self, layout: Layout, gt: GT) -> Self {
+        let token = gt.into();
+        self.ref_context.references.extend(token.references());
         self.exceptions.insert(
             GridTokenDescException::new(layout, GridTokenDesc::Right),
-            gt.into(),
+            token,
         );
         self
     }
@@ -352,11 +368,19 @@ impl<LH: Into<LeafHandle>> From<LH> for GridContext {
 pub struct GridToken {
     partitions: Vec<GridTokenPartition>,
 }
+
 impl GridToken {
     pub fn new(context: GridContext, value: GridTokenValue) -> GridToken {
         Self {
             partitions: vec![GridTokenPartition::new(GridTokenOp::Add, context, value)],
         }
+    }
+    pub(crate) fn references(&self) -> HashSet<GridContext> {
+        let mut set = HashSet::new();
+        for partition in &self.partitions {
+            set.insert(partition.context.clone());
+        }
+        set
     }
 }
 #[derive(Clone)]
