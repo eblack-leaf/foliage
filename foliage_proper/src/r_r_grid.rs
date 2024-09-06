@@ -43,11 +43,24 @@ pub struct LocationAspectToken {
     context: GridContext,
     value: LocationAspectTokenValue,
 }
+pub struct SpecifiedDescriptorValue {
+    tokens: Vec<LocationAspectToken>,
+}
 #[derive(Default)]
-pub enum LocationAspectDescriptor {
+pub enum LocationAspectDescriptorValue {
     #[default]
-    Existing(GridAspect),
-    Specified(Vec<LocationAspectToken>),
+    Existing,
+    Specified(SpecifiedDescriptorValue),
+}
+#[derive(Default)]
+pub struct LocationAspectDescriptor {
+    aspect: GridAspect,
+    value: LocationAspectDescriptorValue,
+}
+impl LocationAspectDescriptor {
+    pub fn new(aspect: GridAspect, value: LocationAspectDescriptorValue) -> Self {
+        Self { aspect, value }
+    }
 }
 #[derive(Default)]
 pub struct LocationAspect {
@@ -61,16 +74,23 @@ impl LocationAspect {
             other_or_y: Default::default(),
         }
     }
-    pub fn top<LAD: Into<LocationAspectDescriptor>>(mut self, t: LAD) -> Self {
-        self.independent_or_x = t.into();
+    pub fn top<LAD: Into<SpecifiedDescriptorValue>>(mut self, t: LAD) -> Self {
+        self.independent_or_x = LocationAspectDescriptor::new(
+            GridAspect::Top,
+            LocationAspectDescriptorValue::Specified(t.into()),
+        );
         self
     }
     pub fn using_top(mut self) -> Self {
-        self.independent_or_x = LocationAspectDescriptor::Existing(GridAspect::Top);
+        self.independent_or_x =
+            LocationAspectDescriptor::new(GridAspect::Top, LocationAspectDescriptorValue::Existing);
         self
     }
-    pub fn bottom<LAD: Into<LocationAspectDescriptor>>(mut self, t: LAD) -> Self {
-        self.other_or_y = t.into();
+    pub fn bottom<LAD: Into<SpecifiedDescriptorValue>>(mut self, t: LAD) -> Self {
+        self.other_or_y = LocationAspectDescriptor::new(
+            GridAspect::Bottom,
+            LocationAspectDescriptorValue::Specified(t.into()),
+        );
         self
     }
     // ...
@@ -106,7 +126,7 @@ impl GridLocation {
             exceptions: Default::default(),
         }
     }
-    pub fn top<LAD: Into<LocationAspectDescriptor>>(mut self, d: LAD) -> Self {
+    pub fn top<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
         if self
             .configurations
             .contains_key(&AspectConfiguration::Vertical)
@@ -119,7 +139,7 @@ impl GridLocation {
         }
         self
     }
-    pub fn bottom<LAD: Into<LocationAspectDescriptor>>(mut self, d: LAD) -> Self {
+    pub fn bottom<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
         if self
             .configurations
             .contains_key(&AspectConfiguration::Vertical)
@@ -140,8 +160,10 @@ impl GridLocation {
         ac: AspectConfiguration,
         la: LA,
     ) -> Self {
+        let aspect = la.into();
+        // TODO can infer AspectConfiguration from layout-aspect?
         self.exceptions
-            .insert(GridLocationException::new(layout, ac), la.into());
+            .insert(GridLocationException::new(layout, ac), aspect);
         self
     }
 }
@@ -152,10 +174,14 @@ pub enum GridAspect {
     Left,
     Width,
     Height,
-    PointA,
-    PointB,
-    PointC,
-    PointD,
+    PointAX,
+    PointAY,
+    PointBX,
+    PointBY,
+    PointCX,
+    PointCY,
+    PointDX,
+    PointDY,
     CenterX, // Dependent => Right | Width | Left
     CenterY, // Dependent => Top | Height | Bottom
     Right,   // Dependent => Width | Left | CenterX
