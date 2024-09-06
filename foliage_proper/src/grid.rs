@@ -152,16 +152,18 @@ impl GridLocationException {
         Self { layout, config }
     }
 }
-#[derive(Clone)]
+#[derive(Clone, Component)]
 pub struct GridLocation {
     configurations: HashMap<AspectConfiguration, LocationAspect>,
     exceptions: HashMap<GridLocationException, LocationAspect>,
+    animation_hook: Section<LogicalContext>, // add to end result
 }
 impl GridLocation {
     pub fn new() -> Self {
         Self {
             configurations: Default::default(),
             exceptions: Default::default(),
+            animation_hook: Default::default(),
         }
     }
     pub fn deps(&self) -> ReferentialDependencies {

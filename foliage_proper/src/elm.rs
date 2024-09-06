@@ -29,7 +29,7 @@ use crate::differential::{
 };
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::ScaleFactor;
-use crate::grid::{animate_grid_location, resolve_grid_locations, Grid};
+use crate::grid::{distill_location_deps, resolve_grid_locations, Grid};
 use crate::interaction::{
     FocusedEntity, InteractiveEntity, KeyboardAdapter, MouseAdapter, TouchAdapter,
 };
@@ -146,7 +146,7 @@ impl Elm {
         if !self.ecs.world.contains_resource::<BranchLimiter<A>>() {
             self.scheduler
                 .main
-                .add_systems(signal_branch::<A>.in_set(ScheduleMarkers::Action));
+                .add_systems(signal_branch::<A>.in_set(ScheduleMarkers::SignalBranch));
             self.ecs
                 .world
                 .insert_resource(BranchLimiter::<A>::default());
@@ -254,7 +254,7 @@ impl Elm {
                 ScheduleMarkers::External,
                 ScheduleMarkers::Interaction,
                 ScheduleMarkers::Animation,
-                ScheduleMarkers::Action,
+                ScheduleMarkers::SignalBranch,
                 ScheduleMarkers::Unused2,
                 ScheduleMarkers::Unused3,
                 ScheduleMarkers::Spawn,
@@ -274,8 +274,9 @@ impl Elm {
         self.scheduler.main.add_systems((
             (viewport_changes_layout, await_assets).in_set(ScheduleMarkers::External),
             event_update_system.in_set(ScheduleMarkers::Events),
-            animate_grid_location.in_set(ScheduleMarkers::Animation),
-            resolve_grid_locations.in_set(ScheduleMarkers::GridSemantics),
+            (distill_location_deps, resolve_grid_locations)
+                .chain()
+                .in_set(ScheduleMarkers::GridSemantics),
             (evaluate_clipping_context_ptr, pull_clipping_section)
                 .in_set(ScheduleMarkers::FinalizeCoordinate),
             crate::differential::remove.in_set(ScheduleMarkers::Clean),
@@ -294,9 +295,9 @@ impl Elm {
                 .before(ScheduleMarkers::Animation),
             apply_deferred
                 .after(ScheduleMarkers::Animation)
-                .before(ScheduleMarkers::Action),
+                .before(ScheduleMarkers::SignalBranch),
             apply_deferred
-                .after(ScheduleMarkers::Action)
+                .after(ScheduleMarkers::SignalBranch)
                 .before(ScheduleMarkers::Unused2),
             apply_deferred
                 .after(ScheduleMarkers::Unused2)
@@ -428,7 +429,7 @@ pub enum ScheduleMarkers {
     Config,
     Spawn,
     Unused4,
-    Action,
+    SignalBranch,
     Unused2,
     External,
     GridSemantics,

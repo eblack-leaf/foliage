@@ -1,7 +1,7 @@
 use std::any::TypeId;
 use std::collections::HashSet;
 
-use crate::anim::{Animate, Animation, AnimationTime, Ease, Sequence, SequenceTimeRange};
+use crate::anim::{Animate, AnimationRunner, AnimationTime, Ease, Sequence, SequenceTimeRange};
 use crate::coordinate::elevation::Elevation;
 use crate::differential::{Remove, RenderLink, RenderRemoveQueue, Visibility};
 use crate::elm::{BranchLimiter, FilterAttrLimiter};
@@ -181,21 +181,52 @@ pub struct SequenceHandle<'a> {
     sequence: Sequence,
     sequence_entity: Entity,
 }
-impl<'a> SequenceHandle<'a> {
-    pub fn animate<A: Animate, TH: Into<LeafHandle>>(
-        &mut self,
-        th: TH,
-        a: A,
-        st: SequenceTimeRange,
-        easement_behavior: Ease,
-    ) {
-        self.sequence.animations_to_finish += 1;
-        let anim = Animation::new(
-            th.into(),
+pub struct Animation<A: Animate> {
+    leaf_handle: LeafHandle,
+    a: A,
+    sequence_time_range: SequenceTimeRange,
+    ease: Ease,
+}
+impl<A: Animate> Animation<A> {
+    pub fn new(a: A) -> Self {
+        Self {
+            leaf_handle: Default::default(),
             a,
-            easement_behavior,
+            sequence_time_range: SequenceTimeRange::default(),
+            ease: Ease::DECELERATE,
+        }
+    }
+    pub fn targeting<LH: Into<LeafHandle>>(mut self, lh: LH) -> Self {
+        self.leaf_handle = lh.into();
+        self
+    }
+    pub fn time<ST: Into<SequenceTimeRange>>(mut self, st: ST) -> Self {
+        self.sequence_time_range = st.into();
+        self
+    }
+    pub fn eased(mut self, ease: Ease) -> Self {
+        self.ease = ease;
+        self
+    }
+}
+impl<'a> SequenceHandle<'a> {
+    pub fn animate_location<TH: Into<LeafHandle>>(&mut self, animation: Animation<GridLocation>) {
+        // convert to .animate(...) for GridLocationOffset
+        // stores current pos/area as (begin/end)
+        // which needs to read pos/area when starts (system) before anim starts to set anim.(begin/end) appropriately
+        // give to target GridLocationOffset => sets location.offset before resolve after distill
+    }
+    pub fn animate<A: Animate, TH: Into<LeafHandle>>(&mut self, animation: Animation<A>) {
+        if TypeId::of::<A>() == TypeId::of::<GridLocation>() {
+            panic!("use .animate_location() to animate grid-locations for proper behavior")
+        }
+        self.sequence.animations_to_finish += 1;
+        let anim = AnimationRunner::new(
+            animation.leaf_handle,
+            animation.a,
+            animation.ease,
             self.sequence_entity,
-            AnimationTime::from(st),
+            AnimationTime::from(animation.sequence_time_range),
         );
         self.world_handle.as_mut().unwrap().spawn(anim);
     }

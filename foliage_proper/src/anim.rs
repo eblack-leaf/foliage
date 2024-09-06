@@ -22,7 +22,7 @@ impl Root for EnabledAnimations {
     }
 }
 #[derive(Component)]
-pub(crate) struct Animation<A: Animate> {
+pub(crate) struct AnimationRunner<A: Animate> {
     started: bool,
     end: A,
     interpolations: Interpolations,
@@ -53,7 +53,7 @@ impl From<SequenceTimeRange> for AnimationTime {
         }
     }
 }
-impl<A: Animate> Animation<A> {
+impl<A: Animate> AnimationRunner<A> {
     pub(crate) fn new<EASE: Into<Easement>>(
         target: LeafHandle,
         end: A,
@@ -86,7 +86,7 @@ impl Interpolations {
         self
     }
     pub fn read(&mut self, i: usize) -> Option<f32> {
-        self.scalars.get_mut(i).unwrap().current_value()
+        self.scalars.get_mut(i)?.current_value()
     }
 }
 #[derive(Copy, Clone)]
@@ -109,7 +109,7 @@ impl Interpolation {
         self.current_value.take()
     }
 }
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub struct SequenceTimeRange {
     start: TimeDelta,
     end: TimeDelta,
@@ -217,7 +217,7 @@ pub struct Sequence {
     pub(crate) on_end: OnEnd,
 }
 pub(crate) fn animate<A: Animate>(
-    mut anims: Query<(Entity, &mut Animation<A>)>,
+    mut anims: Query<(Entity, &mut AnimationRunner<A>)>,
     mut anim_targets: Query<&mut A>,
     time: ResMut<Time>,
     mut sequences: Query<&mut Sequence>,
@@ -306,7 +306,7 @@ fn despawn_and_update_sequence<A: Animate>(
     id_table: &Res<IdTable>,
     cmd: &mut Commands,
     anim_entity: Entity,
-    animation: &mut Mut<Animation<A>>,
+    animation: &mut Mut<AnimationRunner<A>>,
 ) {
     let sequence_entity = animation.sequence_entity;
     sequences
