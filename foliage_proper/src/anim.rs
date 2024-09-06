@@ -1,12 +1,18 @@
 use bevy_ecs::change_detection::Mut;
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Commands, Entity};
-use bevy_ecs::system::{Query, Res, ResMut};
+use bevy_ecs::system::{ParamSet, Query, Res, ResMut};
+use std::any::TypeId;
 
 use crate::branch::Signal;
 use crate::color::Color;
-use crate::coordinate::Coordinates;
+use crate::coordinate::area::Area;
+use crate::coordinate::points::Points;
+use crate::coordinate::position::Position;
+use crate::coordinate::section::Section;
+use crate::coordinate::{Coordinates, LogicalContext};
 use crate::elm::Elm;
+use crate::grid::{GridLocation, GridLocationAnimationHook, PointDrivenAnimationHook};
 use crate::leaf::{IdTable, LeafHandle, OnEnd};
 use crate::opacity::Opacity;
 use crate::panel::Rounding;
@@ -19,18 +25,18 @@ impl Root for EnabledAnimations {
         elm.enable_animation::<Color>();
         elm.enable_animation::<Opacity>();
         elm.enable_animation::<Rounding>();
+        elm.enable_animation::<GridLocation>();
     }
 }
 #[derive(Component)]
 pub(crate) struct AnimationRunner<A: Animate> {
     started: bool,
-    end: A,
+    end: Option<A>,
     interpolations: Interpolations,
     easement: Easement,
     sequence_entity: Entity,
     animation_time: AnimationTime,
     animation_target: LeafHandle,
-    grid_placement_started: bool,
 }
 pub(crate) struct AnimationTime {
     accumulated_time: TimeDelta, // use these two to get linear % => use Bézier curve 0-1 to get actual %
@@ -63,13 +69,12 @@ impl<A: Animate> AnimationRunner<A> {
     ) -> Self {
         Self {
             started: false,
-            end,
+            end: Some(end),
             interpolations: Interpolations::default(),
             easement: ease.into(),
             sequence_entity: se,
             animation_time,
             animation_target: target,
-            grid_placement_started: false,
         }
     }
 }
@@ -218,7 +223,15 @@ pub struct Sequence {
 }
 pub(crate) fn animate<A: Animate>(
     mut anims: Query<(Entity, &mut AnimationRunner<A>)>,
-    mut anim_targets: Query<&mut A>,
+    mut anim_targets: ParamSet<(
+        Query<&mut A>,
+        Query<(
+            &Position<LogicalContext>,
+            &Area<LogicalContext>,
+            &Points<LogicalContext>,
+        )>,
+        Query<(&mut GridLocation)>,
+    )>,
     time: ResMut<Time>,
     mut sequences: Query<&mut Sequence>,
     id_table: Res<IdTable>,
@@ -235,12 +248,91 @@ pub(crate) fn animate<A: Animate>(
         } else {
             if !animation.started {
                 let mut orphaned = false;
-                if let Some(target) = id_table.lookup_leaf(animation.animation_target.clone()) {
-                    if let Ok(a) = anim_targets.get(target) {
-                        animation.interpolations = A::interpolations(&a, &animation.end);
-                        animation.started = true;
+                if let Some(target_entity) =
+                    id_table.lookup_leaf(animation.animation_target.clone())
+                {
+                    if TypeId::of::<A>() == TypeId::of::<GridLocation>() {
+                        let mut pos = Position::default();
+                        let mut area = Area::default();
+                        let mut points = Points::default();
+                        if let Ok((p, a, pts)) = anim_targets.p1().get(target_entity) {
+                            pos = *p;
+                            area = *a;
+                            points = pts.clone();
+                        } else {
+                            orphaned = true;
+                        };
+                        if !orphaned {
+                            if let Ok(mut a) = anim_targets.p0().get_mut(target_entity) {
+                                *a = animation.end.take().unwrap();
+                            } else {
+                                orphaned = true;
+                            }
+                        }
+                        if !orphaned {
+                            if let Ok(location) = anim_targets.p2().get_mut(target_entity) {
+                                let section = Section::new(pos, area);
+                                let mut ending = GridLocation::new(); // but w/ correct last
+                                match &mut location.animation_hook {
+                                    GridLocationAnimationHook::SectionDriven(hook) => {
+                                        hook.hook = section;
+                                        hook.last = section;
+                                        hook.create_diff = true;
+                                        hook.hook_changed = true;
+                                        match &mut ending.animation_hook {
+                                            GridLocationAnimationHook::SectionDriven(hook) => {
+                                                hook.last = section;
+                                            }
+                                            GridLocationAnimationHook::PointDriven(_) => {}
+                                        }
+                                    }
+                                    GridLocationAnimationHook::PointDriven(hook) => {
+                                        if points.is_empty() {
+                                            panic!("animating to a point-driven location from a section driven")
+                                        }
+                                        ending.animation_hook =
+                                            GridLocationAnimationHook::PointDriven(
+                                                PointDrivenAnimationHook::default(),
+                                            );
+                                        for (i, point) in points.data.iter().enumerate() {
+                                            match i {
+                                                0 => {
+                                                    let section =
+                                                        Section::new(point, Area::default());
+                                                    hook.point_a.hook = section;
+                                                    hook.point_a.last = section;
+                                                    hook.point_a.create_diff = true;
+                                                    hook.point_a.hook_changed = true;
+                                                    match &mut ending.animation_hook {
+                                                        GridLocationAnimationHook::SectionDriven(_) => {}
+                                                        GridLocationAnimationHook::PointDriven(hook) => {
+                                                            hook.point_a.last = section;
+                                                        }
+                                                    }
+                                                }
+                                                1 => {}
+                                                2 => {}
+                                                3 => {}
+                                                _ => {}
+                                            }
+                                        }
+                                    }
+                                }
+                                animation.interpolations =
+                                    GridLocation::interpolations(&location, &ending);
+                                animation.started = true;
+                            } else {
+                                orphaned = true;
+                            }
+                        }
                     } else {
-                        orphaned = true;
+                        if let Ok(a) = anim_targets.p0().get(target_entity) {
+                            animation.interpolations =
+                                A::interpolations(&a, animation.end.as_ref().unwrap());
+                            animation.started = true;
+                        } else {
+                            orphaned = true;
+                        }
                     }
                 } else {
                     orphaned = true;

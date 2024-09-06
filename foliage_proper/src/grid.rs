@@ -1,3 +1,4 @@
+use crate::anim::{Animate, Interpolations};
 use crate::coordinate::area::Area;
 use crate::coordinate::points::Points;
 use crate::coordinate::position::Position;
@@ -9,7 +10,7 @@ use crate::leaf::{IdTable, LeafHandle};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::Component;
 use bevy_ecs::query::{Changed, Or};
-use bevy_ecs::system::{Commands, Query, Res, ResMut};
+use bevy_ecs::system::{Query, Res, ResMut};
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 
@@ -34,7 +35,7 @@ pub fn screen() -> GridContext {
     GridContext::Screen
 }
 #[derive(Clone, Copy)]
-pub enum LocationAspectTokenOp {
+pub(crate) enum LocationAspectTokenOp {
     Add,
     Minus,
     // ...
@@ -52,7 +53,7 @@ pub enum LocationAspectTokenValue {
     Absolute(CoordinateUnit),
 }
 #[derive(Clone)]
-pub struct LocationAspectToken {
+pub(crate) struct LocationAspectToken {
     op: LocationAspectTokenOp,
     context: GridContext,
     value: LocationAspectTokenValue,
@@ -62,7 +63,7 @@ pub struct SpecifiedDescriptorValue {
     tokens: Vec<LocationAspectToken>,
 }
 impl SpecifiedDescriptorValue {
-    pub fn dependencies(&self) -> ReferentialDependencies {
+    pub(crate) fn dependencies(&self) -> ReferentialDependencies {
         let mut set = HashSet::new();
         for token in &self.tokens {
             set.insert(token.context.clone());
@@ -71,18 +72,18 @@ impl SpecifiedDescriptorValue {
     }
 }
 #[derive(Default, Clone)]
-pub enum LocationAspectDescriptorValue {
+pub(crate) enum LocationAspectDescriptorValue {
     #[default]
     Existing,
     Specified(SpecifiedDescriptorValue),
 }
 #[derive(Default, Clone)]
-pub struct LocationAspectDescriptor {
+pub(crate) struct LocationAspectDescriptor {
     aspect: GridAspect,
     value: LocationAspectDescriptorValue,
 }
 impl LocationAspectDescriptor {
-    pub fn new(aspect: GridAspect, value: LocationAspectDescriptorValue) -> Self {
+    pub(crate) fn new(aspect: GridAspect, value: LocationAspectDescriptorValue) -> Self {
         Self { aspect, value }
     }
 }
@@ -134,7 +135,7 @@ impl LocationAspect {
     // ...
 }
 #[derive(Hash, PartialEq, Eq, Clone, Copy)]
-pub enum AspectConfiguration {
+pub(crate) enum AspectConfiguration {
     Horizontal,
     Vertical,
     PointA,
@@ -143,7 +144,7 @@ pub enum AspectConfiguration {
     PointD,
 }
 #[derive(Clone)]
-pub struct GridLocationException {
+pub(crate) struct GridLocationException {
     layout: Layout,
     config: AspectConfiguration,
 }
@@ -152,11 +153,73 @@ impl GridLocationException {
         Self { layout, config }
     }
 }
+#[derive(Clone, Default)]
+pub(crate) struct AnimationHookContext {
+    pub(crate) hook: Section<LogicalContext>,
+    pub(crate) last: Section<LogicalContext>,
+    diff: Section<LogicalContext>,
+    offset: Section<LogicalContext>,
+    pub(crate) create_diff: bool,
+    pub(crate) hook_changed: bool,
+}
+#[derive(Clone, Default)]
+pub(crate) struct PointDrivenAnimationHook {
+    pub(crate) point_a: AnimationHookContext,
+    pub(crate) point_b: AnimationHookContext,
+    pub(crate) point_c: AnimationHookContext,
+    pub(crate) point_d: AnimationHookContext,
+}
+#[derive(Clone, Default)]
+pub(crate) enum GridLocationAnimationHook {
+    #[default]
+    SectionDriven(AnimationHookContext),
+    PointDriven(PointDrivenAnimationHook),
+}
 #[derive(Clone, Component)]
 pub struct GridLocation {
     configurations: HashMap<AspectConfiguration, LocationAspect>,
     exceptions: HashMap<GridLocationException, LocationAspect>,
-    animation_hook: Section<LogicalContext>, // add to end result
+    pub(crate) animation_hook: GridLocationAnimationHook,
+}
+impl Animate for GridLocation {
+    fn interpolations(start: &Self, end: &Self) -> Interpolations {
+        let mut interpolations = Interpolations::default();
+        match &start.animation_hook {
+            GridLocationAnimationHook::SectionDriven(sh) => match &end.animation_hook {
+                GridLocationAnimationHook::SectionDriven(eh) => {
+                    interpolations = interpolations.with(sh.hook.x(), eh.hook.x());
+                    interpolations = interpolations.with(sh.hook.y(), eh.hook.y());
+                    interpolations = interpolations.with(sh.hook.width(), eh.hook.width());
+                    interpolations = interpolations.with(sh.hook.height(), eh.hook.height());
+                }
+                GridLocationAnimationHook::PointDriven(_) => {
+                    panic!("cannot interpolate")
+                }
+            },
+            GridLocationAnimationHook::PointDriven(sh) => {
+                match &end.animation_hook {
+                    GridLocationAnimationHook::SectionDriven(_) => {
+                        panic!("cannot interpolate")
+                    }
+                    GridLocationAnimationHook::PointDriven(eh) => {
+                        // set all 4 points @ 4 each => 16 interpolations
+                    }
+                }
+            }
+        }
+        interpolations
+    }
+
+    fn apply(&mut self, interpolations: &mut Interpolations) {
+        match &mut self.animation_hook {
+            GridLocationAnimationHook::SectionDriven(hook) => {
+                // read 4 x|y|w|h
+            }
+            GridLocationAnimationHook::PointDriven(hook) => {
+                // read all pts if can (16)
+            }
+        }
+    }
 }
 impl GridLocation {
     pub fn new() -> Self {
@@ -166,7 +229,7 @@ impl GridLocation {
             animation_hook: Default::default(),
         }
     }
-    pub fn deps(&self) -> ReferentialDependencies {
+    pub(crate) fn deps(&self) -> ReferentialDependencies {
         let mut set = HashSet::new();
         for (_config, aspect) in self.configurations.iter() {
             if let Some(LocationAspectDescriptorValue::Specified(s)) =
@@ -180,7 +243,7 @@ impl GridLocation {
         }
         ReferentialDependencies::new(set)
     }
-    pub fn resolve(
+    pub(crate) fn resolve(
         &self,
         context: &HashMap<GridContext, ReferentialData>,
         layout: Layout,
@@ -211,6 +274,7 @@ impl GridLocation {
         }
         self
     }
+    // TODO when fn for points => set hook to point-driven
     pub fn except_at<LA: Into<LocationAspect>>(mut self, layout: Layout, la: LA) -> Self {
         let aspect = la.into();
         let ac = aspect.config();
@@ -270,7 +334,7 @@ impl Default for Grid {
     }
 }
 #[derive(Clone, Default, Component)]
-pub struct ReferentialDependencies {
+pub(crate) struct ReferentialDependencies {
     deps: HashSet<GridContext>,
 }
 impl ReferentialDependencies {
@@ -278,7 +342,7 @@ impl ReferentialDependencies {
         Self { deps }
     }
 }
-pub struct ReferentialOrderDeterminant<'a> {
+pub(crate) struct ReferentialOrderDeterminant<'a> {
     deps: &'a ReferentialDependencies,
     lh: &'a LeafHandle,
     location: &'a GridLocation,
@@ -297,8 +361,11 @@ pub(crate) fn resolve_grid_locations(
         (&LeafHandle, &GridLocation, &ReferentialDependencies, &Grid),
         Or<(Changed<GridLocation>, Changed<Grid>)>,
     >,
-    mut update: Query<(&mut Position<LogicalContext>, &mut Area<LogicalContext>)>,
-    mut cmd: Commands,
+    mut update: Query<(
+        &mut Position<LogicalContext>,
+        &mut Area<LogicalContext>,
+        &mut Points<LogicalContext>,
+    )>,
     id_table: Res<IdTable>,
     viewport_handle: ResMut<ViewportHandle>,
     layout_grid: Res<LayoutGrid>,
@@ -312,21 +379,24 @@ pub(crate) fn resolve_grid_locations(
         ref_context.queue_leaf(handle, location, deps, *grid);
     }
     ref_context.resolve(*layout);
-    for (handle, resolved) in ref_context.updates() {
+    let updates = ref_context.updates();
+    drop(ref_context);
+    for (handle, resolved) in updates {
         let e = id_table.lookup_leaf(handle).unwrap();
         *update.get_mut(e).unwrap().0 = resolved.section.position;
         *update.get_mut(e).unwrap().1 = resolved.section.area;
         if let Some(p) = resolved.points {
-            cmd.entity(e).insert(p);
+            *update.get_mut(e).unwrap().2 = p;
         }
+        // if hook updates => second in param-set to update (using read)
     }
 }
-pub struct ReferentialContext<'a> {
+pub(crate) struct ReferentialContext<'a> {
     context: HashMap<GridContext, ReferentialData>,
     order: Vec<ReferentialOrderDeterminant<'a>>,
 }
 impl ReferentialContext {
-    pub fn new(screen_section: Section<LogicalContext>, layout_grid: Grid) -> Self {
+    pub(crate) fn new(screen_section: Section<LogicalContext>, layout_grid: Grid) -> Self {
         Self {
             context: {
                 let mut context = HashMap::new();
@@ -339,7 +409,7 @@ impl ReferentialContext {
             order: vec![],
         }
     }
-    pub fn queue_leaf(
+    pub(crate) fn queue_leaf(
         &mut self,
         lh: &LeafHandle,
         location: &GridLocation,
@@ -353,7 +423,7 @@ impl ReferentialContext {
             grid,
         });
     }
-    pub fn resolve(&mut self, layout: Layout) {
+    pub(crate) fn resolve(&mut self, layout: Layout) {
         self.order.sort_by(|a, b| {
             let b_depends_a = b.deps.deps.contains(&GridContext::Named(a.lh.clone()));
             let a_depends_b = a.deps.deps.contains(&GridContext::Named(b.lh.clone()));
@@ -384,7 +454,7 @@ impl ReferentialContext {
             }
         }
     }
-    pub fn updates(&mut self) -> Vec<(LeafHandle, ResolvedLocation)> {
+    pub(crate) fn updates(&mut self) -> Vec<(LeafHandle, ResolvedLocation)> {
         let mut updates = vec![];
         for (k, v) in self.context.drain() {
             match k {
@@ -402,31 +472,33 @@ impl ReferentialContext {
         updates
     }
 }
-pub struct ResolvedLocation {
-    pub section: Section<LogicalContext>,
-    pub points: Option<Points<LogicalContext>>,
+pub(crate) struct ResolvedLocation {
+    pub(crate) section: Section<LogicalContext>,
+    pub(crate) points: Option<Points<LogicalContext>>,
+    pub(crate) hook_update: Option<GridLocationAnimationHook>,
 }
 
 impl ResolvedLocation {
-    pub fn new(section: Section<LogicalContext>) -> Self {
+    pub(crate) fn new(section: Section<LogicalContext>) -> Self {
         Self {
             section,
             points: None,
+            hook_update: None,
         }
     }
-    pub fn with_points(mut self, points: Points<LogicalContext>) -> Self {
+    pub(crate) fn with_points(mut self, points: Points<LogicalContext>) -> Self {
         self.points = Some(points);
         self
     }
 }
 
-pub struct ReferentialData {
-    pub resolved: ResolvedLocation,
-    pub grid: Grid,
+pub(crate) struct ReferentialData {
+    pub(crate) resolved: ResolvedLocation,
+    pub(crate) grid: Grid,
 }
 
 impl ReferentialData {
-    pub fn new(resolved: ResolvedLocation, grid: Grid) -> Self {
+    pub(crate) fn new(resolved: ResolvedLocation, grid: Grid) -> Self {
         Self { resolved, grid }
     }
 }
