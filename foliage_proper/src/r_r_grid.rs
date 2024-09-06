@@ -1,15 +1,20 @@
-use crate::coordinate::{CoordinateUnit, Coordinates};
+use crate::coordinate::points::Points;
+use crate::coordinate::section::Section;
+use crate::coordinate::{CoordinateUnit, Coordinates, LogicalContext};
 use crate::layout::Layout;
 use crate::leaf::LeafHandle;
 use bevy_ecs::prelude::Component;
-use std::collections::HashMap;
+use bevy_ecs::query::Changed;
+use bevy_ecs::system::Query;
+use std::cmp::Ordering;
+use std::collections::{HashMap, HashSet};
 
 #[cfg(test)]
 #[test]
 fn behavior() {
     let location = GridLocation::new();
 }
-
+#[derive(Clone, Hash, PartialEq, Eq, Debug, PartialOrd)]
 pub enum GridContext {
     Screen,
     Named(LeafHandle),
@@ -19,40 +24,55 @@ impl GridContext {
     pub fn top(self) -> LocationAspectTokenValue {
         LocationAspectTokenValue::ContextAspect(GridAspect::Top)
     }
+    // ...
 }
 pub fn screen() -> GridContext {
     GridContext::Screen
 }
+#[derive(Clone, Copy)]
 pub enum LocationAspectTokenOp {
     Add,
     Minus,
     // ...
 }
+#[derive(Clone, Copy)]
 pub enum RelativeUnit {
     Column(u32),
     Row(u32),
     Percent(f32),
 }
+#[derive(Clone, Copy)]
 pub enum LocationAspectTokenValue {
     ContextAspect(GridAspect),
     Relative(RelativeUnit),
     Absolute(CoordinateUnit),
 }
+#[derive(Clone)]
 pub struct LocationAspectToken {
     op: LocationAspectTokenOp,
     context: GridContext,
     value: LocationAspectTokenValue,
 }
+#[derive(Clone)]
 pub struct SpecifiedDescriptorValue {
     tokens: Vec<LocationAspectToken>,
 }
-#[derive(Default)]
+impl SpecifiedDescriptorValue {
+    pub fn dependencies(&self) -> ReferentialDependencies {
+        let mut set = HashSet::new();
+        for token in &self.tokens {
+            set.insert(token.context.clone());
+        }
+        ReferentialDependencies::new(set)
+    }
+}
+#[derive(Default, Clone)]
 pub enum LocationAspectDescriptorValue {
     #[default]
     Existing,
     Specified(SpecifiedDescriptorValue),
 }
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct LocationAspectDescriptor {
     aspect: GridAspect,
     value: LocationAspectDescriptorValue,
@@ -62,7 +82,7 @@ impl LocationAspectDescriptor {
         Self { aspect, value }
     }
 }
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct LocationAspect {
     independent_or_x: LocationAspectDescriptor,
     other_or_y: LocationAspectDescriptor,
@@ -74,6 +94,20 @@ impl LocationAspect {
             other_or_y: Default::default(),
         }
     }
+    pub(crate) fn config(&self) -> AspectConfiguration {
+        match self.independent_or_x.aspect {
+            GridAspect::Top | GridAspect::Height | GridAspect::Bottom | GridAspect::CenterY => {
+                AspectConfiguration::Vertical
+            }
+            GridAspect::Left | GridAspect::Width | GridAspect::Right | GridAspect::CenterX => {
+                AspectConfiguration::Horizontal
+            }
+            GridAspect::PointAX | GridAspect::PointAY => AspectConfiguration::PointA,
+            GridAspect::PointBX | GridAspect::PointBY => AspectConfiguration::PointB,
+            GridAspect::PointCX | GridAspect::PointCY => AspectConfiguration::PointC,
+            GridAspect::PointDX | GridAspect::PointDY => AspectConfiguration::PointD,
+        }
+    }
     pub fn top<LAD: Into<SpecifiedDescriptorValue>>(mut self, t: LAD) -> Self {
         self.independent_or_x = LocationAspectDescriptor::new(
             GridAspect::Top,
@@ -81,7 +115,7 @@ impl LocationAspect {
         );
         self
     }
-    pub fn using_top(mut self) -> Self {
+    pub fn existing_top(mut self) -> Self {
         self.independent_or_x =
             LocationAspectDescriptor::new(GridAspect::Top, LocationAspectDescriptorValue::Existing);
         self
@@ -104,17 +138,17 @@ pub enum AspectConfiguration {
     PointC,
     PointD,
 }
+#[derive(Clone)]
 pub struct GridLocationException {
     layout: Layout,
     config: AspectConfiguration,
 }
-
 impl GridLocationException {
     fn new(layout: Layout, config: AspectConfiguration) -> GridLocationException {
         Self { layout, config }
     }
 }
-
+#[derive(Clone)]
 pub struct GridLocation {
     configurations: HashMap<AspectConfiguration, LocationAspect>,
     exceptions: HashMap<GridLocationException, LocationAspect>,
@@ -126,13 +160,28 @@ impl GridLocation {
             exceptions: Default::default(),
         }
     }
+    pub fn deps(&self) -> ReferentialDependencies {
+        let mut set = HashSet::new();
+        for (_config, aspect) in self.configurations.iter() {
+            if let Some(LocationAspectDescriptorValue::Specified(s)) =
+                &aspect.independent_or_x.value
+            {
+                set.extend(s.dependencies().deps);
+            }
+            if let Some(LocationAspectDescriptorValue::Specified(s)) = &aspect.other_or_y.value {
+                set.extend(s.dependencies().deps);
+            }
+        }
+        ReferentialDependencies::new(set)
+    }
+    pub fn resolve(&self, context: &HashMap<GridContext, ReferentialData>) -> ResolvedLocation {
+        todo!()
+    }
     pub fn top<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
-        if self
-            .configurations
-            .contains_key(&AspectConfiguration::Vertical)
-        {
+        if let Some(mut aspect) = self.configurations.get_mut(&AspectConfiguration::Vertical) {
             // sanitize that other is compatible
-            // add
+            aspect.independent_or_x.aspect = GridAspect::Top;
+            aspect.independent_or_x.value = LocationAspectDescriptorValue::Specified(d.into());
         } else {
             self.configurations
                 .insert(AspectConfiguration::Vertical, LocationAspect::new().top(d));
@@ -140,12 +189,10 @@ impl GridLocation {
         self
     }
     pub fn bottom<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
-        if self
-            .configurations
-            .contains_key(&AspectConfiguration::Vertical)
-        {
+        if let Some(mut aspect) = self.configurations.get_mut(&AspectConfiguration::Vertical) {
             // sanitize that other is compatible
-            // add
+            aspect.other_or_y.aspect = GridAspect::Bottom;
+            aspect.other_or_y.value = LocationAspectDescriptorValue::Specified(d.into());
         } else {
             self.configurations.insert(
                 AspectConfiguration::Vertical,
@@ -154,14 +201,9 @@ impl GridLocation {
         }
         self
     }
-    pub fn except_at<LA: Into<LocationAspect>>(
-        mut self,
-        layout: Layout,
-        ac: AspectConfiguration,
-        la: LA,
-    ) -> Self {
+    pub fn except_at<LA: Into<LocationAspect>>(mut self, layout: Layout, la: LA) -> Self {
         let aspect = la.into();
-        // TODO can infer AspectConfiguration from layout-aspect?
+        let ac = aspect.config();
         self.exceptions
             .insert(GridLocationException::new(layout, ac), aspect);
         self
@@ -215,5 +257,119 @@ impl Grid {
 impl Default for Grid {
     fn default() -> Self {
         Self::new(1, 1)
+    }
+}
+#[derive(Clone, Default, Component)]
+pub struct ReferentialDependencies {
+    deps: HashSet<GridContext>,
+}
+impl ReferentialDependencies {
+    fn new(deps: HashSet<GridContext>) -> ReferentialDependencies {
+        Self { deps }
+    }
+}
+pub struct ReferentialOrderDeterminant<'a> {
+    deps: &'a ReferentialDependencies,
+    lh: &'a LeafHandle,
+    location: &'a GridLocation,
+    grid: Grid,
+}
+pub(crate) fn distill_location_deps(
+    mut query: Query<(&GridLocation, &mut ReferentialDependencies), Changed<GridLocation>>,
+) {
+    for (location, mut dep) in query.iter_mut() {
+        // distill
+    }
+}
+pub struct ReferentialContext<'a> {
+    context: HashMap<GridContext, ReferentialData>,
+    order: Vec<ReferentialOrderDeterminant<'a>>,
+}
+impl ReferentialContext {
+    pub fn new(screen_section: Section<LogicalContext>, layout_grid: Grid) -> Self {
+        Self {
+            context: {
+                let mut context = HashMap::new();
+                context.insert(
+                    GridContext::Screen,
+                    ReferentialData::new(ResolvedLocation::new(screen_section), layout_grid),
+                );
+                context
+            },
+            order: vec![],
+        }
+    }
+    pub fn add_context(
+        &mut self,
+        lh: &LeafHandle,
+        location: &GridLocation,
+        deps: &ReferentialDependencies,
+        grid: Option<Grid>,
+    ) {
+        self.order.push(ReferentialOrderDeterminant {
+            lh,
+            location,
+            deps,
+            grid: grid.unwrap_or_default(),
+        });
+    }
+    pub fn resolve(&mut self) {
+        self.order.sort_by(|a, b| {
+            let b_depends_a = b.deps.deps.contains(&GridContext::Named(a.lh.clone()));
+            let a_depends_b = a.deps.deps.contains(&GridContext::Named(b.lh.clone()));
+            if a_depends_b && b_depends_a {
+                panic!("circular grid reference")
+            }
+            if a_depends_b {
+                Ordering::Greater
+            } else if b_depends_a {
+                Ordering::Less
+            } else {
+                Ordering::Equal
+            }
+        });
+        let order = self
+            .order
+            .drain(..)
+            .collect::<Vec<ReferentialOrderDeterminant>>();
+        for determinant in order {
+            let resolved = determinant.location.resolve(&self.context);
+            self.context.insert(
+                GridContext::Named(determinant.lh.clone()),
+                ReferentialData::new(resolved, determinant.grid),
+            );
+        }
+    }
+    pub fn updates(&mut self) -> Vec<(GridContext, ResolvedLocation)> {
+        // iter self.context => pull out updates
+        todo!()
+    }
+}
+pub struct ResolvedLocation {
+    pub section: Section<LogicalContext>,
+    pub points: Option<Points<LogicalContext>>,
+}
+
+impl ResolvedLocation {
+    pub fn new(section: Section<LogicalContext>) -> Self {
+        Self {
+            section,
+            points: None,
+        }
+    }
+    pub fn with_points(mut self, points: Points<LogicalContext>) -> Self {
+        self.points = Some(points);
+        self
+    }
+}
+
+pub struct ReferentialData {
+    pub resolved: ResolvedLocation,
+    pub grid: Grid,
+}
+
+impl ReferentialData {
+    pub fn new(resolved: ResolvedLocation, grid: Grid) -> Self {
+        Self { resolved, grid }
     }
 }
