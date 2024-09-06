@@ -93,6 +93,9 @@ impl Interpolations {
     pub fn read(&mut self, i: usize) -> Option<f32> {
         self.scalars.get_mut(i)?.current_value()
     }
+    pub fn read_percent(&mut self, i: usize) -> Option<f32> {
+        self.scalars.get_mut(i)?.percent()
+    }
 }
 #[derive(Copy, Clone)]
 pub struct Interpolation {
@@ -112,6 +115,9 @@ impl Interpolation {
     }
     pub fn current_value(&mut self) -> Option<f32> {
         self.current_value.take()
+    }
+    pub fn percent(&self) -> Option<f32> {
+        self.current_value.and_then(|v| Option::from(v / self.diff))
     }
 }
 #[derive(Copy, Clone, Default)]
@@ -270,45 +276,26 @@ pub(crate) fn animate<A: Animate>(
                             }
                         }
                         if !orphaned {
-                            if let Ok(location) = anim_targets.p2().get_mut(target_entity) {
+                            if let Ok(mut location) = anim_targets.p2().get_mut(target_entity) {
                                 let section = Section::new(pos, area);
-                                let mut ending = GridLocation::new(); // but w/ correct last
                                 match &mut location.animation_hook {
                                     GridLocationAnimationHook::SectionDriven(hook) => {
-                                        hook.hook = section;
                                         hook.last = section;
                                         hook.create_diff = true;
                                         hook.hook_changed = true;
-                                        match &mut ending.animation_hook {
-                                            GridLocationAnimationHook::SectionDriven(hook) => {
-                                                hook.last = section;
-                                            }
-                                            GridLocationAnimationHook::PointDriven(_) => {}
-                                        }
                                     }
                                     GridLocationAnimationHook::PointDriven(hook) => {
                                         if points.is_empty() {
                                             panic!("animating to a point-driven location from a section driven")
                                         }
-                                        ending.animation_hook =
-                                            GridLocationAnimationHook::PointDriven(
-                                                PointDrivenAnimationHook::default(),
-                                            );
                                         for (i, point) in points.data.iter().enumerate() {
                                             match i {
                                                 0 => {
                                                     let section =
-                                                        Section::new(point, Area::default());
-                                                    hook.point_a.hook = section;
+                                                        Section::new(*point, Area::default());
                                                     hook.point_a.last = section;
                                                     hook.point_a.create_diff = true;
                                                     hook.point_a.hook_changed = true;
-                                                    match &mut ending.animation_hook {
-                                                        GridLocationAnimationHook::SectionDriven(_) => {}
-                                                        GridLocationAnimationHook::PointDriven(hook) => {
-                                                            hook.point_a.last = section;
-                                                        }
-                                                    }
                                                 }
                                                 1 => {}
                                                 2 => {}
@@ -319,7 +306,7 @@ pub(crate) fn animate<A: Animate>(
                                     }
                                 }
                                 animation.interpolations =
-                                    GridLocation::interpolations(&location, &ending);
+                                    GridLocation::interpolations(&location, &GridLocation::new());
                                 animation.started = true;
                             } else {
                                 orphaned = true;
@@ -360,7 +347,7 @@ pub(crate) fn animate<A: Animate>(
             }
             let mut orphaned = false;
             if let Some(target) = id_table.lookup_leaf(animation.animation_target.clone()) {
-                if let Ok(mut a) = anim_targets.get_mut(target) {
+                if let Ok(mut a) = anim_targets.p0().get_mut(target) {
                     a.apply(&mut animation.interpolations);
                 } else {
                     orphaned = true;

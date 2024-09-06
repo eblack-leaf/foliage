@@ -143,7 +143,7 @@ pub(crate) enum AspectConfiguration {
     PointC,
     PointD,
 }
-#[derive(Clone)]
+#[derive(Clone, Hash, Eq, PartialEq)]
 pub(crate) struct GridLocationException {
     layout: Layout,
     config: AspectConfiguration,
@@ -155,7 +155,7 @@ impl GridLocationException {
 }
 #[derive(Clone, Default)]
 pub(crate) struct AnimationHookContext {
-    pub(crate) hook: Section<LogicalContext>,
+    pub(crate) hook_percent: f32,
     pub(crate) last: Section<LogicalContext>,
     diff: Section<LogicalContext>,
     offset: Section<LogicalContext>,
@@ -169,11 +169,15 @@ pub(crate) struct PointDrivenAnimationHook {
     pub(crate) point_c: AnimationHookContext,
     pub(crate) point_d: AnimationHookContext,
 }
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub(crate) enum GridLocationAnimationHook {
-    #[default]
     SectionDriven(AnimationHookContext),
     PointDriven(PointDrivenAnimationHook),
+}
+impl Default for GridLocationAnimationHook {
+    fn default() -> Self {
+        Self::SectionDriven(AnimationHookContext::default())
+    }
 }
 #[derive(Clone, Component)]
 pub struct GridLocation {
@@ -182,41 +186,24 @@ pub struct GridLocation {
     pub(crate) animation_hook: GridLocationAnimationHook,
 }
 impl Animate for GridLocation {
-    fn interpolations(start: &Self, end: &Self) -> Interpolations {
-        let mut interpolations = Interpolations::default();
+    fn interpolations(start: &Self, _end: &Self) -> Interpolations {
         match &start.animation_hook {
-            GridLocationAnimationHook::SectionDriven(sh) => match &end.animation_hook {
-                GridLocationAnimationHook::SectionDriven(eh) => {
-                    interpolations = interpolations.with(sh.hook.x(), eh.hook.x());
-                    interpolations = interpolations.with(sh.hook.y(), eh.hook.y());
-                    interpolations = interpolations.with(sh.hook.width(), eh.hook.width());
-                    interpolations = interpolations.with(sh.hook.height(), eh.hook.height());
-                }
-                GridLocationAnimationHook::PointDriven(_) => {
-                    panic!("cannot interpolate")
-                }
-            },
-            GridLocationAnimationHook::PointDriven(sh) => {
-                match &end.animation_hook {
-                    GridLocationAnimationHook::SectionDriven(_) => {
-                        panic!("cannot interpolate")
-                    }
-                    GridLocationAnimationHook::PointDriven(eh) => {
-                        // set all 4 points @ 4 each => 16 interpolations
-                    }
-                }
-            }
+            GridLocationAnimationHook::SectionDriven(_) => Interpolations::new().with(1.0, 0.0),
+            GridLocationAnimationHook::PointDriven(_) => Interpolations::new()
+                .with(1.0, 0.0)
+                .with(1.0, 0.0)
+                .with(1.0, 0.0)
+                .with(1.0, 0.0),
         }
-        interpolations
     }
 
     fn apply(&mut self, interpolations: &mut Interpolations) {
         match &mut self.animation_hook {
             GridLocationAnimationHook::SectionDriven(hook) => {
-                // read 4 x|y|w|h
+                // hook changed
             }
             GridLocationAnimationHook::PointDriven(hook) => {
-                // read all pts if can (16)
+                //
             }
         }
     }
@@ -232,12 +219,10 @@ impl GridLocation {
     pub(crate) fn deps(&self) -> ReferentialDependencies {
         let mut set = HashSet::new();
         for (_config, aspect) in self.configurations.iter() {
-            if let Some(LocationAspectDescriptorValue::Specified(s)) =
-                &aspect.independent_or_x.value
-            {
+            if let LocationAspectDescriptorValue::Specified(s) = &aspect.independent_or_x.value {
                 set.extend(s.dependencies().deps);
             }
-            if let Some(LocationAspectDescriptorValue::Specified(s)) = &aspect.other_or_y.value {
+            if let LocationAspectDescriptorValue::Specified(s) = &aspect.other_or_y.value {
                 set.extend(s.dependencies().deps);
             }
         }
@@ -395,7 +380,7 @@ pub(crate) struct ReferentialContext<'a> {
     context: HashMap<GridContext, ReferentialData>,
     order: Vec<ReferentialOrderDeterminant<'a>>,
 }
-impl ReferentialContext {
+impl<'a> ReferentialContext<'a> {
     pub(crate) fn new(screen_section: Section<LogicalContext>, layout_grid: Grid) -> Self {
         Self {
             context: {
@@ -411,9 +396,9 @@ impl ReferentialContext {
     }
     pub(crate) fn queue_leaf(
         &mut self,
-        lh: &LeafHandle,
-        location: &GridLocation,
-        deps: &ReferentialDependencies,
+        lh: &'a LeafHandle,
+        location: &'a GridLocation,
+        deps: &'a ReferentialDependencies,
         grid: Grid,
     ) {
         self.order.push(ReferentialOrderDeterminant {

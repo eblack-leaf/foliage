@@ -210,16 +210,7 @@ impl<A: Animate> Animation<A> {
     }
 }
 impl<'a> SequenceHandle<'a> {
-    pub fn animate_location<TH: Into<LeafHandle>>(&mut self, animation: Animation<GridLocation>) {
-        // convert to .animate(...) for GridLocationOffset
-        // stores current pos/area as (begin/end)
-        // which needs to read pos/area when starts (system) before anim starts to set anim.(begin/end) appropriately
-        // give to target GridLocationOffset => sets location.offset before resolve after distill
-    }
     pub fn animate<A: Animate, TH: Into<LeafHandle>>(&mut self, animation: Animation<A>) {
-        if TypeId::of::<A>() == TypeId::of::<GridLocation>() {
-            panic!("use .animate_location() to animate grid-locations for proper behavior")
-        }
         self.sequence.animations_to_finish += 1;
         let anim = AnimationRunner::new(
             animation.leaf_handle,
