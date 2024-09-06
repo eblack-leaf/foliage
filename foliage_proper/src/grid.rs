@@ -1,11 +1,15 @@
+use crate::coordinate::area::Area;
 use crate::coordinate::points::Points;
+use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, Coordinates, LogicalContext};
-use crate::layout::Layout;
-use crate::leaf::LeafHandle;
+use crate::ginkgo::viewport::ViewportHandle;
+use crate::layout::{Layout, LayoutGrid};
+use crate::leaf::{IdTable, LeafHandle};
+use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::Component;
-use bevy_ecs::query::Changed;
-use bevy_ecs::system::Query;
+use bevy_ecs::query::{Changed, Or};
+use bevy_ecs::system::{Commands, Query, Res, ResMut};
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 
@@ -174,7 +178,11 @@ impl GridLocation {
         }
         ReferentialDependencies::new(set)
     }
-    pub fn resolve(&self, context: &HashMap<GridContext, ReferentialData>) -> ResolvedLocation {
+    pub fn resolve(
+        &self,
+        context: &HashMap<GridContext, ReferentialData>,
+        layout: Layout,
+    ) -> Option<ResolvedLocation> {
         todo!()
     }
     pub fn top<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
@@ -278,7 +286,37 @@ pub(crate) fn distill_location_deps(
     mut query: Query<(&GridLocation, &mut ReferentialDependencies), Changed<GridLocation>>,
 ) {
     for (location, mut dep) in query.iter_mut() {
-        // distill
+        *dep = location.deps();
+    }
+}
+pub(crate) fn resolve_grid_locations(
+    check: Query<Entity, Or<(Changed<GridLocation>, Changed<Grid>)>>,
+    read: Query<
+        (&LeafHandle, &GridLocation, &ReferentialDependencies, &Grid),
+        Or<(Changed<GridLocation>, Changed<Grid>)>,
+    >,
+    mut update: Query<(&mut Position<LogicalContext>, &mut Area<LogicalContext>)>,
+    mut cmd: Commands,
+    id_table: Res<IdTable>,
+    viewport_handle: ResMut<ViewportHandle>,
+    layout_grid: Res<LayoutGrid>,
+    layout: Res<Layout>,
+) {
+    if check.is_empty() {
+        return;
+    }
+    let mut ref_context = ReferentialContext::new(viewport_handle.section(), layout_grid.grid);
+    for (handle, location, deps, grid) in read.iter() {
+        ref_context.queue_leaf(handle, location, deps, *grid);
+    }
+    ref_context.resolve(*layout);
+    for (handle, resolved) in ref_context.updates() {
+        let e = id_table.lookup_leaf(handle).unwrap();
+        *update.get_mut(e).unwrap().0 = resolved.section.position;
+        *update.get_mut(e).unwrap().1 = resolved.section.area;
+        if let Some(p) = resolved.points {
+            cmd.entity(e).insert(p);
+        }
     }
 }
 pub struct ReferentialContext<'a> {
@@ -304,16 +342,16 @@ impl ReferentialContext {
         lh: &LeafHandle,
         location: &GridLocation,
         deps: &ReferentialDependencies,
-        grid: Option<Grid>,
+        grid: Grid,
     ) {
         self.order.push(ReferentialOrderDeterminant {
             lh,
             location,
             deps,
-            grid: grid.unwrap_or_default(),
+            grid,
         });
     }
-    pub fn resolve(&mut self) {
+    pub fn resolve(&mut self, layout: Layout) {
         self.order.sort_by(|a, b| {
             let b_depends_a = b.deps.deps.contains(&GridContext::Named(a.lh.clone()));
             let a_depends_b = a.deps.deps.contains(&GridContext::Named(b.lh.clone()));
@@ -333,16 +371,33 @@ impl ReferentialContext {
             .drain(..)
             .collect::<Vec<ReferentialOrderDeterminant>>();
         for determinant in order {
-            let resolved = determinant.location.resolve(&self.context);
-            self.context.insert(
-                GridContext::Named(determinant.lh.clone()),
-                ReferentialData::new(resolved, determinant.grid),
-            );
+            let resolved = determinant.location.resolve(&self.context, layout);
+            if let Some(resolved) = resolved {
+                self.context.insert(
+                    GridContext::Named(determinant.lh.clone()),
+                    ReferentialData::new(resolved, determinant.grid),
+                );
+            } else {
+                panic!("invalid grid-location")
+            }
         }
     }
-    pub fn updates(&mut self) -> Vec<(GridContext, ResolvedLocation)> {
-        // iter self.context => pull out updates
-        todo!()
+    pub fn updates(&mut self) -> Vec<(LeafHandle, ResolvedLocation)> {
+        let mut updates = vec![];
+        for (k, v) in self.context.drain() {
+            match k {
+                GridContext::Screen => {
+                    continue;
+                }
+                GridContext::Named(lh) => {
+                    updates.push((lh, v.resolved));
+                }
+                GridContext::Absolute => {
+                    continue;
+                }
+            }
+        }
+        updates
     }
 }
 pub struct ResolvedLocation {

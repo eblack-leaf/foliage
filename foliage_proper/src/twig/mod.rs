@@ -1,6 +1,6 @@
 use crate::branch::{LeafPtr, Tree};
+use crate::grid::Grid;
 use crate::leaf::{Leaf, LeafHandle};
-use crate::r_grid::Grid;
 
 pub mod button;
 

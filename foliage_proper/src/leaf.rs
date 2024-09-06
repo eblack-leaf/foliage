@@ -6,12 +6,12 @@ use crate::coordinate::elevation::Elevation;
 use crate::coordinate::placement::Placement;
 use crate::coordinate::LogicalContext;
 use crate::differential::{Remove, Visibility};
+use crate::grid::{Grid, GridLocation};
 use crate::opacity::Opacity;
-use crate::r_grid::{Grid, GridLocation};
+use crate::r_r_grid::ReferentialDependencies;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, Resource};
-use crate::r_r_grid::ReferentialDependencies;
 
 pub struct Leaf<LFN: for<'a> FnOnce(&mut LeafPtr<'a>)> {
     pub name: LeafHandle,

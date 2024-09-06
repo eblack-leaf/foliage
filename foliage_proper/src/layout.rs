@@ -1,7 +1,7 @@
 use crate::coordinate::placement::Placement;
 use crate::coordinate::Coordinates;
 use crate::ginkgo::viewport::ViewportHandle;
-use crate::r_grid::Grid;
+use crate::grid::Grid;
 use bevy_ecs::change_detection::Res;
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::Resource;
