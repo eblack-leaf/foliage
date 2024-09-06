@@ -11,6 +11,7 @@ use crate::r_grid::{Grid, GridLocation};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, Resource};
+use crate::r_r_grid::ReferentialDependencies;
 
 pub struct Leaf<LFN: for<'a> FnOnce(&mut LeafPtr<'a>)> {
     pub name: LeafHandle,
@@ -51,6 +52,7 @@ pub(crate) struct LeafBundle {
     clipping_context: ClippingContextBundle,
     leaf_handle: LeafHandle,
     grid: Grid,
+    referential_dependencies: ReferentialDependencies,
 }
 #[derive(Default, Component)]
 pub(crate) struct Stem(pub(crate) Option<LeafHandle>);

@@ -299,7 +299,7 @@ impl ReferentialContext {
             order: vec![],
         }
     }
-    pub fn add_context(
+    pub fn queue_leaf(
         &mut self,
         lh: &LeafHandle,
         location: &GridLocation,
