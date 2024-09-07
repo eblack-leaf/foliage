@@ -10,7 +10,7 @@ use crate::leaf::{IdTable, LeafHandle};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::Component;
 use bevy_ecs::query::{Changed, Or};
-use bevy_ecs::system::{Query, Res, ResMut};
+use bevy_ecs::system::{ParamSet, Query, Res, ResMut};
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 
@@ -201,9 +201,28 @@ impl Animate for GridLocation {
         match &mut self.animation_hook {
             GridLocationAnimationHook::SectionDriven(hook) => {
                 // hook changed
+                if let Some(p) = interpolations.read(0) {
+                    hook.hook_percent = p;
+                    hook.hook_changed = true;
+                }
             }
             GridLocationAnimationHook::PointDriven(hook) => {
-                //
+                if let Some(p) = interpolations.read(0) {
+                    hook.point_a.hook_percent = p;
+                    hook.point_a.hook_changed = true;
+                }
+                if let Some(p) = interpolations.read(1) {
+                    hook.point_b.hook_percent = p;
+                    hook.point_b.hook_changed = true;
+                }
+                if let Some(p) = interpolations.read(2) {
+                    hook.point_c.hook_percent = p;
+                    hook.point_c.hook_changed = true;
+                }
+                if let Some(p) = interpolations.read(3) {
+                    hook.point_d.hook_percent = p;
+                    hook.point_d.hook_changed = true;
+                }
             }
         }
     }
@@ -342,14 +361,17 @@ pub(crate) fn distill_location_deps(
 }
 pub(crate) fn resolve_grid_locations(
     check: Query<Entity, Or<(Changed<GridLocation>, Changed<Grid>)>>,
-    read: Query<
-        (&LeafHandle, &GridLocation, &ReferentialDependencies, &Grid),
-        Or<(Changed<GridLocation>, Changed<Grid>)>,
-    >,
-    mut update: Query<(
-        &mut Position<LogicalContext>,
-        &mut Area<LogicalContext>,
-        &mut Points<LogicalContext>,
+    mut read_and_update: ParamSet<(
+        Query<
+            (&LeafHandle, &GridLocation, &ReferentialDependencies, &Grid),
+            Or<(Changed<GridLocation>, Changed<Grid>)>,
+        >,
+        Query<(
+            &mut Position<LogicalContext>,
+            &mut Area<LogicalContext>,
+            &mut Points<LogicalContext>,
+            &mut GridLocation,
+        )>,
     )>,
     id_table: Res<IdTable>,
     viewport_handle: ResMut<ViewportHandle>,
@@ -360,20 +382,24 @@ pub(crate) fn resolve_grid_locations(
         return;
     }
     let mut ref_context = ReferentialContext::new(viewport_handle.section(), layout_grid.grid);
-    for (handle, location, deps, grid) in read.iter() {
+    let binding = read_and_update.p0();
+    for (handle, location, deps, grid) in binding.iter() {
         ref_context.queue_leaf(handle, location, deps, *grid);
     }
     ref_context.resolve(*layout);
     let updates = ref_context.updates();
     drop(ref_context);
+    drop(binding);
     for (handle, resolved) in updates {
         let e = id_table.lookup_leaf(handle).unwrap();
-        *update.get_mut(e).unwrap().0 = resolved.section.position;
-        *update.get_mut(e).unwrap().1 = resolved.section.area;
+        *read_and_update.p1().get_mut(e).unwrap().0 = resolved.section.position;
+        *read_and_update.p1().get_mut(e).unwrap().1 = resolved.section.area;
         if let Some(p) = resolved.points {
-            *update.get_mut(e).unwrap().2 = p;
+            *read_and_update.p1().get_mut(e).unwrap().2 = p;
         }
-        // if hook updates => second in param-set to update (using read)
+        if let Some(hook) = resolved.hook_update {
+            read_and_update.p1().get_mut(e).unwrap().3.animation_hook = hook;
+        }
     }
 }
 pub(crate) struct ReferentialContext<'a> {
