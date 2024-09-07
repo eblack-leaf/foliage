@@ -327,10 +327,10 @@ impl LocationAspect {
         desc: LAD,
     ) {
         if self.count == 0 {
-            self.count[0] = LocationAspectDescriptor::new(aspect, desc.into());
+            self.aspects[0] = LocationAspectDescriptor::new(aspect, desc.into());
             self.count += 1;
         } else if self.count == 1 {
-            self.count[1] = LocationAspectDescriptor::new(aspect, desc.into());
+            self.aspects[1] = LocationAspectDescriptor::new(aspect, desc.into());
             self.count += 1;
         } else {
             panic!("too many dimensions");
@@ -346,7 +346,7 @@ impl LocationAspect {
         }
     }
     pub(crate) fn config(&self) -> AspectConfiguration {
-        match self[0].aspect {
+        match self.aspects[0].aspect {
             GridAspect::Top | GridAspect::Height | GridAspect::Bottom | GridAspect::CenterY => {
                 AspectConfiguration::Vertical
             }
@@ -785,7 +785,12 @@ impl GridLocation {
         }
         self
     }
-    // TODO when fn for points => set hook to point-driven
+    fn point_driven_check(&mut self) {
+        if let GridLocationAnimationHook::SectionDriven(_) = self.animation_hook {
+            self.animation_hook =
+                GridLocationAnimationHook::PointDriven(PointDrivenAnimationHook::default());
+        }
+    }
     pub fn point_ax<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
         if let Some(mut aspect) = self.configurations.get_mut(&AspectConfiguration::PointA) {
             // sanitize that other is compatible
@@ -794,10 +799,7 @@ impl GridLocation {
                 LocationAspectDescriptorValue::Specified(d.into()),
             );
         } else {
-            if GridLocationAnimationHook::SectionDriven(_) = self.animation_hook {
-                self.animation_hook =
-                    GridLocationAnimationHook::PointDriven(PointDrivenAnimationHook::default());
-            }
+            self.point_driven_check();
             self.configurations.insert(
                 AspectConfiguration::PointA,
                 LocationAspect::new().point_ax(d),
@@ -813,10 +815,7 @@ impl GridLocation {
                 LocationAspectDescriptorValue::Specified(d.into()),
             );
         } else {
-            if GridLocationAnimationHook::SectionDriven(_) = self.animation_hook {
-                self.animation_hook =
-                    GridLocationAnimationHook::PointDriven(PointDrivenAnimationHook::default());
-            }
+            self.point_driven_check();
             self.configurations.insert(
                 AspectConfiguration::PointA,
                 LocationAspect::new().point_ay(d),
@@ -832,10 +831,7 @@ impl GridLocation {
                 LocationAspectDescriptorValue::Specified(d.into()),
             );
         } else {
-            if GridLocationAnimationHook::SectionDriven(_) = self.animation_hook {
-                self.animation_hook =
-                    GridLocationAnimationHook::PointDriven(PointDrivenAnimationHook::default());
-            }
+            self.point_driven_check();
             self.configurations.insert(
                 AspectConfiguration::PointB,
                 LocationAspect::new().point_bx(d),
@@ -851,10 +847,7 @@ impl GridLocation {
                 LocationAspectDescriptorValue::Specified(d.into()),
             );
         } else {
-            if GridLocationAnimationHook::SectionDriven(_) = self.animation_hook {
-                self.animation_hook =
-                    GridLocationAnimationHook::PointDriven(PointDrivenAnimationHook::default());
-            }
+            self.point_driven_check();
             self.configurations.insert(
                 AspectConfiguration::PointB,
                 LocationAspect::new().point_by(d),
@@ -870,10 +863,7 @@ impl GridLocation {
                 LocationAspectDescriptorValue::Specified(d.into()),
             );
         } else {
-            if GridLocationAnimationHook::SectionDriven(_) = self.animation_hook {
-                self.animation_hook =
-                    GridLocationAnimationHook::PointDriven(PointDrivenAnimationHook::default());
-            }
+            self.point_driven_check();
             self.configurations.insert(
                 AspectConfiguration::PointC,
                 LocationAspect::new().point_cx(d),
@@ -889,10 +879,7 @@ impl GridLocation {
                 LocationAspectDescriptorValue::Specified(d.into()),
             );
         } else {
-            if GridLocationAnimationHook::SectionDriven(_) = self.animation_hook {
-                self.animation_hook =
-                    GridLocationAnimationHook::PointDriven(PointDrivenAnimationHook::default());
-            }
+            self.point_driven_check();
             self.configurations.insert(
                 AspectConfiguration::PointC,
                 LocationAspect::new().point_cy(d),
@@ -908,10 +895,7 @@ impl GridLocation {
                 LocationAspectDescriptorValue::Specified(d.into()),
             );
         } else {
-            if GridLocationAnimationHook::SectionDriven(_) = self.animation_hook {
-                self.animation_hook =
-                    GridLocationAnimationHook::PointDriven(PointDrivenAnimationHook::default());
-            }
+            self.point_driven_check();
             self.configurations.insert(
                 AspectConfiguration::PointD,
                 LocationAspect::new().point_dx(d),
@@ -927,10 +911,7 @@ impl GridLocation {
                 LocationAspectDescriptorValue::Specified(d.into()),
             );
         } else {
-            if GridLocationAnimationHook::SectionDriven(_) = self.animation_hook {
-                self.animation_hook =
-                    GridLocationAnimationHook::PointDriven(PointDrivenAnimationHook::default());
-            }
+            self.point_driven_check();
             self.configurations.insert(
                 AspectConfiguration::PointD,
                 LocationAspect::new().point_dy(d),
