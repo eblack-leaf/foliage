@@ -758,35 +758,63 @@ impl GridLocation {
                 }
                 AspectConfiguration::Vertical => {
                     if pair_config == (GridAspect::Top, GridAspect::Bottom) {
+                        resolution.section.position.set_y(data.0);
+                        resolution.section.area.set_height(data.1 - data.0);
                     } else if pair_config == (GridAspect::Top, GridAspect::CenterY) {
+                        resolution.section.position.set_y(data.0);
+                        resolution.section.area.set_height((data.1 - data.0) * 2.0);
                     } else if pair_config == (GridAspect::Top, GridAspect::Height) {
+                        resolution.section.position.set_y(data.0);
+                        resolution.section.area.set_height(data.1);
                     } else if pair_config == (GridAspect::Height, GridAspect::CenterY) {
+                        resolution.section.position.set_y(data.0 - data.1 / 2.0);
+                        resolution.section.area.set_height(data.1);
                     } else if pair_config == (GridAspect::Height, GridAspect::Bottom) {
+                        resolution.section.position.set_y(data.0 - data.1);
+                        resolution.section.area.set_height(data.1);
                     } else if pair_config == (GridAspect::CenterY, GridAspect::Bottom) {
+                        let diff = data.1 - data.0;
+                        resolution.section.position.set_y(data.0 - diff);
+                        resolution.section.area.set_height(diff * 2.0);
                     }
                 }
-                AspectConfiguration::PointA => {
-                    if pair_config == (GridAspect::PointAX, GridAspect::PointAY) {
-                    } else {
-                        panic!("invalid-configuration aspect")
+                AspectConfiguration::PointA
+                | AspectConfiguration::PointB
+                | AspectConfiguration::PointC
+                | AspectConfiguration::PointD => {
+                    if resolution.points.is_none() {
+                        resolution.points.replace(Points::default());
                     }
-                }
-                AspectConfiguration::PointB => {
-                    if pair_config == (GridAspect::PointBX, GridAspect::PointBY) {
-                    } else {
-                        panic!("invalid-configuration aspect")
-                    }
-                }
-                AspectConfiguration::PointC => {
-                    if pair_config == (GridAspect::PointCX, GridAspect::PointCY) {
-                    } else {
-                        panic!("invalid-configuration aspect")
-                    }
-                }
-                AspectConfiguration::PointD => {
-                    if pair_config == (GridAspect::PointDX, GridAspect::PointDY) {
-                    } else {
-                        panic!("invalid-configuration aspect")
+                    match aspect_config {
+                        AspectConfiguration::PointA => {
+                            if pair_config == (GridAspect::PointAX, GridAspect::PointAY) {
+                                resolution.points.as_mut()?.data[0] = data.into();
+                            } else {
+                                panic!("invalid-configuration aspect")
+                            }
+                        }
+                        AspectConfiguration::PointB => {
+                            if pair_config == (GridAspect::PointBX, GridAspect::PointBY) {
+                                resolution.points.as_mut()?.data[1] = data.into();
+                            } else {
+                                panic!("invalid-configuration aspect")
+                            }
+                        }
+                        AspectConfiguration::PointC => {
+                            if pair_config == (GridAspect::PointCX, GridAspect::PointCY) {
+                                resolution.points.as_mut()?.data[2] = data.into();
+                            } else {
+                                panic!("invalid-configuration aspect")
+                            }
+                        }
+                        AspectConfiguration::PointD => {
+                            if pair_config == (GridAspect::PointDX, GridAspect::PointDY) {
+                                resolution.points.as_mut()?.data[3] = data.into();
+                            } else {
+                                panic!("invalid-configuration aspect")
+                            }
+                        }
+                        _ => {}
                     }
                 }
             }
