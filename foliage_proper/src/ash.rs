@@ -115,7 +115,7 @@ pub(crate) fn evaluate_clipping_context_ptr(
         }
     }
 }
-#[derive(Debug, Clone, Component, PartialEq, Default, PartialOrd)]
+#[derive(Debug, Copy, Clone, Component, PartialEq, Default, PartialOrd)]
 pub(crate) enum ClippingContextPointer {
     #[default]
     Screen,
@@ -164,14 +164,14 @@ pub(crate) struct ClippingSectionQueue {
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct RenderNode {
     layer: RenderLayer,
-    clipping_context: ClippingContextPointer,
+    clipping_context_ptr: ClippingContextPointer,
 }
 
 impl RenderNode {
     pub(crate) fn new(layer: RenderLayer, clip: ClippingContextPointer) -> Self {
         Self {
             layer,
-            clipping_context: clip,
+            clipping_context_ptr: clip,
         }
     }
 }
@@ -295,9 +295,27 @@ impl Ash {
                 }
             });
             self.draw_calls.calls.clear();
-            for (renderer_index, ptr, instance_index, node) in all {
-                // TODO optimize => if contiguous renderer-index + clip-context + ptr + instance-index => keep range going else => end + add call
-                let clip_section = match node.clipping_context {
+            let mut index = 0;
+            let mut contiguous = 1u32;
+            for (renderer_index, ptr, instance_index, node) in all.iter() {
+                let this = (
+                    *renderer_index,
+                    *ptr,
+                    *instance_index,
+                    node.clipping_context_ptr,
+                );
+                let next = if let Some(n) = all.get(index + 1) {
+                    Some((n.0, n.1, n.2, n.3.clipping_context_ptr))
+                } else {
+                    None
+                };
+                if let Some(n) = next {
+                    if (this.0, this.1, this.2 + 1, this.3) == (n.0, n.1, n.2, n.3) {
+                        contiguous += 1;
+                        continue;
+                    }
+                }
+                let clip_section = match node.clipping_context_ptr {
                     ClippingContextPointer::Screen => screen_size,
                     ClippingContextPointer::Entity(e) => {
                         self.clipping_sections
@@ -308,9 +326,9 @@ impl Ash {
                     }
                 };
                 self.draw_calls.calls.push((
-                    renderer_index,
-                    ptr,
-                    DrawRange::new(instance_index as u32, instance_index as u32 + 1),
+                    this.0,
+                    this.1,
+                    DrawRange::new(this.2 as u32, this.2 as u32 + contiguous),
                     clip_section,
                 ));
             }

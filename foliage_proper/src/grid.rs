@@ -286,11 +286,11 @@ impl SpecifiedDescriptorValue {
             let value = match t.value {
                 LocationAspectTokenValue::ContextAspect(ca) => {
                     // get ca of t.context from ref_context
-                    0.0
+                    todo!()
                 }
                 LocationAspectTokenValue::Relative(r) => {
                     // use t.context from ref_context => col/row or % of
-                    0.0
+                    todo!()
                 }
                 LocationAspectTokenValue::Absolute(a) => a,
             };
