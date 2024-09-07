@@ -844,7 +844,8 @@ impl GridLocation {
                 }
                 if p.point_a.hook_changed {
                     if p.point_a.create_diff {
-                        let diff = resolution.section - p.point_a.last;
+                        let diff = p.point_a.last
+                            - Section::new(resolution.points.as_ref()?.data[0], Area::default());
                         let offset = diff * p.point_a.hook_percent;
                         resolution.points.as_mut()?.data[0] +=
                             Position::new(offset.position.coordinates);
@@ -857,7 +858,8 @@ impl GridLocation {
                 }
                 if p.point_b.hook_changed {
                     if p.point_b.create_diff {
-                        let diff = resolution.section - p.point_b.last;
+                        let diff = p.point_b.last
+                            - Section::new(resolution.points.as_ref()?.data[1], Area::default());
                         let offset = diff * p.point_b.hook_percent;
                         resolution.points.as_mut()?.data[0] +=
                             Position::new(offset.position.coordinates);
@@ -870,7 +872,8 @@ impl GridLocation {
                 }
                 if p.point_c.hook_changed {
                     if p.point_c.create_diff {
-                        let diff = resolution.section - p.point_c.last;
+                        let diff = p.point_c.last
+                            - Section::new(resolution.points.as_ref()?.data[2], Area::default());
                         let offset = diff * p.point_c.hook_percent;
                         resolution.points.as_mut()?.data[0] +=
                             Position::new(offset.position.coordinates);
@@ -883,7 +886,8 @@ impl GridLocation {
                 }
                 if p.point_d.hook_changed {
                     if p.point_d.create_diff {
-                        let diff = resolution.section - p.point_d.last;
+                        let diff = p.point_d.last
+                            - Section::new(resolution.points.as_ref()?.data[3], Area::default());
                         let offset = diff * p.point_d.hook_percent;
                         resolution.points.as_mut()?.data[0] +=
                             Position::new(offset.position.coordinates);
@@ -895,6 +899,9 @@ impl GridLocation {
                     }
                 }
             }
+        }
+        if let Some(pts) = resolution.points.as_mut() {
+            resolution.section = pts.bbox();
         }
         Some(resolution)
     }
@@ -1242,8 +1249,8 @@ pub(crate) fn distill_location_deps(
     }
 }
 pub(crate) fn resolve_grid_locations(
-    check: Query<Entity, Or<(Changed<GridLocation>, Changed<Grid>)>>,
-    mut read_and_update: ParamSet<(
+    mut check_read_and_update: ParamSet<(
+        Query<Entity, Or<(Changed<GridLocation>, Changed<Grid>)>>,
         Query<
             (&LeafHandle, &GridLocation, &ReferentialDependencies, &Grid),
             Or<(Changed<GridLocation>, Changed<Grid>)>,
@@ -1260,11 +1267,11 @@ pub(crate) fn resolve_grid_locations(
     layout_grid: Res<LayoutGrid>,
     layout: Res<Layout>,
 ) {
-    if check.is_empty() {
+    if check_read_and_update.p0().is_empty() {
         return;
     }
     let mut ref_context = ReferentialContext::new(viewport_handle.section(), layout_grid.grid);
-    let read = read_and_update.p0();
+    let read = check_read_and_update.p1();
     for (handle, location, deps, grid) in read.iter() {
         ref_context.queue_leaf(handle, location, deps, *grid);
     }
@@ -1274,13 +1281,19 @@ pub(crate) fn resolve_grid_locations(
     drop(read);
     for (handle, resolved) in updates {
         let e = id_table.lookup_leaf(handle).unwrap();
-        *read_and_update.p1().get_mut(e).unwrap().0 = resolved.section.position;
-        *read_and_update.p1().get_mut(e).unwrap().1 = resolved.section.area;
+        *check_read_and_update.p2().get_mut(e).unwrap().0 = resolved.section.position;
+        *check_read_and_update.p2().get_mut(e).unwrap().1 = resolved.section.area;
         if let Some(p) = resolved.points {
-            *read_and_update.p1().get_mut(e).unwrap().2 = p;
+            *check_read_and_update.p2().get_mut(e).unwrap().2 = p;
         }
         if let Some(hook) = resolved.hook_update {
-            match &mut read_and_update.p1().get_mut(e).unwrap().3.animation_hook {
+            match &mut check_read_and_update
+                .p2()
+                .get_mut(e)
+                .unwrap()
+                .3
+                .animation_hook
+            {
                 GridLocationAnimationHook::SectionDriven(s) => {
                     s.diff = hook[0].unwrap();
                 }
