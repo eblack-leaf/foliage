@@ -289,8 +289,7 @@ pub(crate) fn animate<A: Animate>(
                                             panic!("animating to a point-driven location from a section driven")
                                         }
                                         for (i, point) in points.data.iter().enumerate() {
-                                            let section =
-                                                Section::new(*point, Area::default());
+                                            let section = Section::new(*point, Area::default());
                                             match i {
                                                 0 => {
                                                     hook.point_a.last = section;
