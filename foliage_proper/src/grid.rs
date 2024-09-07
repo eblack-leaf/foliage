@@ -11,7 +11,7 @@ use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::Component;
 use bevy_ecs::query::{Changed, Or};
 use bevy_ecs::system::{ParamSet, Query, Res, ResMut};
-use std::cmp::Ordering;
+use std::cmp::{Ordering, PartialOrd};
 use std::collections::{HashMap, HashSet};
 use std::ops::{Add, Sub};
 
@@ -350,37 +350,7 @@ pub struct LocationAspect {
 }
 
 impl LocationAspect {
-    pub(crate) fn resolve_dependent(
-        &self,
-        aspect: GridAspect,
-        ref_context: &HashMap<GridContext, ReferentialData>,
-        solved: &GridLocationResolution,
-    ) -> CoordinateUnit {
-        match aspect {
-            GridAspect::CenterX => {
-                let value = self.resolve_independent(aspect, ref_context);
-                // interpret data accordingly w/ solved
-                value
-            }
-            GridAspect::CenterY => {
-                let value = self.resolve_independent(aspect, ref_context);
-                // interpret data accordingly
-                value
-            }
-            GridAspect::Right => {
-                let value = self.resolve_independent(aspect, ref_context);
-                // interpret data accordingly
-                value
-            }
-            GridAspect::Bottom => {
-                let value = self.resolve_independent(aspect, ref_context);
-                // interpret data accordingly
-                value
-            }
-            _ => self.resolve_independent(aspect, ref_context),
-        }
-    }
-    pub(crate) fn resolve_independent(
+    pub(crate) fn resolve_grid_aspect(
         &self,
         aspect: GridAspect,
         ref_context: &HashMap<GridContext, ReferentialData>,
@@ -710,9 +680,25 @@ impl Animate for GridLocation {
         }
     }
 }
-#[derive(Default)]
-pub(crate) struct GridLocationResolution {
-    solved: [(GridAspect, CoordinateUnit); 2],
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default, PartialOrd)]
+pub enum GridAspect {
+    #[default]
+    Top,
+    Height,
+    CenterY, // Dependent => Top | Height | Bottom
+    Bottom,  // Dependent => Height | Top | CenterY
+    Left,
+    Width,
+    CenterX, // Dependent => Right | Width | Left
+    Right,   // Dependent => Width | Left | CenterX
+    PointAX,
+    PointAY,
+    PointBX,
+    PointBY,
+    PointCX,
+    PointCY,
+    PointDX,
+    PointDY,
 }
 impl GridLocation {
     pub(crate) fn resolve(
@@ -721,80 +707,93 @@ impl GridLocation {
         layout: Layout,
     ) -> Option<ResolvedLocation> {
         let mut resolution = ResolvedLocation::new();
-        let mut horizontal_resolution = GridLocationResolution::default();
-        if self
-            .configurations
-            .contains_key(&AspectConfiguration::PointA)
-        {
-            // point driven algo
-        } else {
-            let mut horizontal = None;
-            for exception in self.exceptions.iter() {
-                if exception.0.layout.contains(layout) {
-                    horizontal.replace(exception.1);
+        for (aspect_config, location_aspect) in self.configurations.iter() {
+            let mut to_use = None;
+            let base = location_aspect;
+            for except in self.exceptions.iter() {
+                if except.0.layout.contains(layout) {
+                    to_use = Some(except.1);
                 }
             }
-            let base = self.configurations.get(&AspectConfiguration::Horizontal)?;
-            let horizontal = horizontal.unwrap_or(base);
-            let first_index = match horizontal.aspects[0].aspect {
-                GridAspect::Right | GridAspect::CenterX => 1,
-                _ => 0,
+            let to_use = to_use.unwrap_or(base);
+            let a = match &to_use.aspects[0].value {
+                LocationAspectDescriptorValue::Existing => {
+                    base.resolve_grid_aspect(to_use.aspects[0].aspect, context)
+                }
+                LocationAspectDescriptorValue::Specified(spec) => spec.resolve(context),
             };
-            match &horizontal.aspects[first_index].value {
+            let b = match &to_use.aspects[1].value {
                 LocationAspectDescriptorValue::Existing => {
-                    match horizontal.aspects[first_index].aspect {
-                        GridAspect::Left => {
-                            let value = base.resolve_independent(GridAspect::Left, context);
-                            horizontal_resolution.solved[0] = (GridAspect::Left, value);
-                        }
-                        GridAspect::Width => {
-                            let value = base.resolve_independent(GridAspect::Width, context);
-                            horizontal_resolution.solved[0] = (GridAspect::Width, value);
-                        }
-                        _ => {}
+                    base.resolve_grid_aspect(to_use.aspects[1].aspect, context)
+                }
+                LocationAspectDescriptorValue::Specified(spec) => spec.resolve(context),
+            };
+            let (pair_config, data) = if to_use.aspects[0].aspect < to_use.aspects[1].aspect {
+                ((to_use.aspects[0].aspect, to_use.aspects[1].aspect), (a, b))
+            } else {
+                ((to_use.aspects[1].aspect, to_use.aspects[0].aspect), (b, a))
+            };
+            match aspect_config {
+                AspectConfiguration::Horizontal => {
+                    if pair_config == (GridAspect::Left, GridAspect::Right) {
+                        resolution.section.position.set_x(data.0);
+                        resolution.section.area.set_width(data.1 - data.0);
+                    } else if pair_config == (GridAspect::Left, GridAspect::CenterX) {
+                        resolution.section.position.set_x(data.0);
+                        resolution.section.area.set_width((data.1 - data.0) * 2.0);
+                    } else if pair_config == (GridAspect::Left, GridAspect::Width) {
+                        resolution.section.position.set_x(data.0);
+                        resolution.section.area.set_width(data.1);
+                    } else if pair_config == (GridAspect::Width, GridAspect::CenterX) {
+                        resolution.section.position.set_x(data.0 - data.1 / 2.0);
+                        resolution.section.area.set_width(data.0);
+                    } else if pair_config == (GridAspect::Width, GridAspect::Right) {
+                        resolution.section.position.set_x(data.1 - data.0);
+                        resolution.section.area.set_width(data.0);
+                    } else if pair_config == (GridAspect::CenterX, GridAspect::Right) {
+                        let diff = data.1 - data.0;
+                        resolution.section.position.set_x(data.0 - diff);
+                        resolution.section.area.set_width(diff * 2.0);
                     }
                 }
-                LocationAspectDescriptorValue::Specified(spec) => {
-                    let value = spec.resolve(context);
-                    match horizontal.aspects[first_index].aspect {
-                        GridAspect::Left => {
-                            horizontal_resolution.solved[0] = (GridAspect::Left, value);
-                        }
-                        GridAspect::Width => {
-                            horizontal_resolution.solved[0] = (GridAspect::Width, value);
-                        }
-                        _ => {}
+                AspectConfiguration::Vertical => {
+                    if pair_config == (GridAspect::Top, GridAspect::Bottom) {
+                    } else if pair_config == (GridAspect::Top, GridAspect::CenterY) {
+                    } else if pair_config == (GridAspect::Top, GridAspect::Height) {
+                    } else if pair_config == (GridAspect::Height, GridAspect::CenterY) {
+                    } else if pair_config == (GridAspect::Height, GridAspect::Bottom) {
+                    } else if pair_config == (GridAspect::CenterY, GridAspect::Bottom) {
                     }
                 }
-            }
-            let other_index = if first_index == 0 { 1 } else { 0 };
-            match &horizontal.aspects[other_index].value {
-                LocationAspectDescriptorValue::Existing => {
-                    match horizontal.aspects[other_index].aspect {
-                        GridAspect::Right | GridAspect::CenterX => {
-                            let value = base.resolve_dependent(
-                                horizontal.aspects[other_index].aspect,
-                                context,
-                                &horizontal_resolution,
-                            );
-                            horizontal_resolution.solved[0] =
-                                (horizontal.aspects[other_index].aspect, value);
-                        }
-                        _ => {
-                            let value = base.resolve_independent(
-                                horizontal.aspects[other_index].aspect,
-                                context,
-                            );
-                            horizontal_resolution.solved[0] =
-                                (horizontal.aspects[other_index].aspect, value);
-                        }
+                AspectConfiguration::PointA => {
+                    if pair_config == (GridAspect::PointAX, GridAspect::PointAY) {
+                    } else {
+                        panic!("invalid-configuration aspect")
                     }
                 }
-                LocationAspectDescriptorValue::Specified(spec) => {
-                    spec.resolve_dependent(context, &horizontal_resolution);
+                AspectConfiguration::PointB => {
+                    if pair_config == (GridAspect::PointBX, GridAspect::PointBY) {
+                    } else {
+                        panic!("invalid-configuration aspect")
+                    }
+                }
+                AspectConfiguration::PointC => {
+                    if pair_config == (GridAspect::PointCX, GridAspect::PointCY) {
+                    } else {
+                        panic!("invalid-configuration aspect")
+                    }
+                }
+                AspectConfiguration::PointD => {
+                    if pair_config == (GridAspect::PointDX, GridAspect::PointDY) {
+                    } else {
+                        panic!("invalid-configuration aspect")
+                    }
                 }
             }
         }
+        // apply hook.offset + if changes create-diff
+        // if points => calc-bbox
+        // if hook-updates => send hook.clone()
         Some(resolution)
     }
     pub fn new() -> Self {
@@ -1087,26 +1086,6 @@ impl GridLocation {
             .insert(GridLocationException::new(layout, ac), aspect);
         self
     }
-}
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
-pub enum GridAspect {
-    #[default]
-    Top,
-    Left,
-    Width,
-    Height,
-    PointAX,
-    PointAY,
-    PointBX,
-    PointBY,
-    PointCX,
-    PointCY,
-    PointDX,
-    PointDY,
-    CenterX, // Dependent => Right | Width | Left
-    CenterY, // Dependent => Top | Height | Bottom
-    Right,   // Dependent => Width | Left | CenterX
-    Bottom,  // Dependent => Height | Top | CenterY
 }
 #[derive(Clone, Copy, Component)]
 pub struct Grid {
