@@ -629,6 +629,13 @@ impl Animate for GridLocation {
     }
 }
 impl GridLocation {
+    pub(crate) fn resolve(
+        &self,
+        context: &HashMap<GridContext, ReferentialData>,
+        layout: Layout,
+    ) -> Option<ResolvedLocation> {
+        todo!()
+    }
     pub fn new() -> Self {
         Self {
             configurations: Default::default(),
@@ -647,13 +654,6 @@ impl GridLocation {
             }
         }
         ReferentialDependencies::new(set)
-    }
-    pub(crate) fn resolve(
-        &self,
-        context: &HashMap<GridContext, ReferentialData>,
-        layout: Layout,
-    ) -> Option<ResolvedLocation> {
-        todo!()
     }
     pub fn top<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
         if let Some(mut aspect) = self.configurations.get_mut(&AspectConfiguration::Vertical) {
