@@ -1,5 +1,5 @@
 use std::marker::PhantomData;
-use std::ops::{Add, AddAssign, Div, Sub};
+use std::ops::{Add, AddAssign, Div, Mul, Sub};
 
 use bevy_ecs::prelude::Component;
 use bytemuck::{Pod, Zeroable};
@@ -138,5 +138,11 @@ impl<Context: CoordinateContext> Div<f32> for Position<Context> {
 
     fn div(self, rhs: f32) -> Self::Output {
         (self.coordinates / rhs).into()
+    }
+}
+impl<Context: CoordinateContext> Mul<f32> for Position<Context> {
+    type Output = Self;
+    fn mul(self, rhs: f32) -> Self::Output {
+        Self::new((self.x() * rhs, self.y() * rhs))
     }
 }

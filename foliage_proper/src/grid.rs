@@ -13,7 +13,7 @@ use bevy_ecs::query::{Changed, Or};
 use bevy_ecs::system::{ParamSet, Query, Res, ResMut};
 use std::cmp::{Ordering, PartialOrd};
 use std::collections::{HashMap, HashSet};
-use std::ops::{Add, Sub};
+use std::ops::{Add, Mul, Sub};
 
 pub trait TokenUnit {
     fn px(self) -> LocationAspectToken;
@@ -612,7 +612,6 @@ pub(crate) struct AnimationHookContext {
     pub(crate) hook_percent: f32,
     pub(crate) last: Section<LogicalContext>,
     diff: Section<LogicalContext>,
-    offset: Section<LogicalContext>,
     pub(crate) create_diff: bool,
     pub(crate) hook_changed: bool,
 }
@@ -700,6 +699,7 @@ pub enum GridAspect {
     PointDX,
     PointDY,
 }
+
 impl GridLocation {
     pub(crate) fn resolve(
         &self,
@@ -819,9 +819,83 @@ impl GridLocation {
                 }
             }
         }
-        // apply hook.offset + if changes create-diff
-        // if points => calc-bbox
-        // if hook-updates => send hook.clone()
+        match &self.animation_hook {
+            GridLocationAnimationHook::SectionDriven(s) => {
+                if s.hook_changed {
+                    if s.create_diff {
+                        let diff = s.last - resolution.section;
+                        let offset = diff * s.hook_percent;
+                        resolution.section += offset;
+                        resolution
+                            .hook_update
+                            .replace([Some(diff), None, None, None]);
+                    } else {
+                        resolution.section += s.diff * s.hook_percent;
+                    }
+                }
+            }
+            GridLocationAnimationHook::PointDriven(p) => {
+                if p.point_a.create_diff
+                    || p.point_b.create_diff
+                    || p.point_c.create_diff
+                    || p.point_d.create_diff
+                {
+                    resolution.hook_update.replace([None, None, None, None]);
+                }
+                if p.point_a.hook_changed {
+                    if p.point_a.create_diff {
+                        let diff = resolution.section - p.point_a.last;
+                        let offset = diff * p.point_a.hook_percent;
+                        resolution.points.as_mut()?.data[0] +=
+                            Position::new(offset.position.coordinates);
+                        resolution.hook_update?.get_mut(0)?.replace(offset);
+                    } else {
+                        let offset = p.point_a.diff * p.point_a.hook_percent;
+                        resolution.points.as_mut()?.data[0] +=
+                            Position::new(offset.position.coordinates);
+                    }
+                }
+                if p.point_b.hook_changed {
+                    if p.point_b.create_diff {
+                        let diff = resolution.section - p.point_b.last;
+                        let offset = diff * p.point_b.hook_percent;
+                        resolution.points.as_mut()?.data[0] +=
+                            Position::new(offset.position.coordinates);
+                        resolution.hook_update?.get_mut(0)?.replace(offset);
+                    } else {
+                        let offset = p.point_b.diff * p.point_b.hook_percent;
+                        resolution.points.as_mut()?.data[0] +=
+                            Position::new(offset.position.coordinates);
+                    }
+                }
+                if p.point_c.hook_changed {
+                    if p.point_c.create_diff {
+                        let diff = resolution.section - p.point_c.last;
+                        let offset = diff * p.point_c.hook_percent;
+                        resolution.points.as_mut()?.data[0] +=
+                            Position::new(offset.position.coordinates);
+                        resolution.hook_update?.get_mut(0)?.replace(offset);
+                    } else {
+                        let offset = p.point_c.diff * p.point_c.hook_percent;
+                        resolution.points.as_mut()?.data[0] +=
+                            Position::new(offset.position.coordinates);
+                    }
+                }
+                if p.point_d.hook_changed {
+                    if p.point_d.create_diff {
+                        let diff = resolution.section - p.point_d.last;
+                        let offset = diff * p.point_d.hook_percent;
+                        resolution.points.as_mut()?.data[0] +=
+                            Position::new(offset.position.coordinates);
+                        resolution.hook_update?.get_mut(0)?.replace(offset);
+                    } else {
+                        let offset = p.point_d.diff * p.point_d.hook_percent;
+                        resolution.points.as_mut()?.data[0] +=
+                            Position::new(offset.position.coordinates);
+                    }
+                }
+            }
+        }
         Some(resolution)
     }
     pub fn new() -> Self {
@@ -1206,7 +1280,25 @@ pub(crate) fn resolve_grid_locations(
             *read_and_update.p1().get_mut(e).unwrap().2 = p;
         }
         if let Some(hook) = resolved.hook_update {
-            read_and_update.p1().get_mut(e).unwrap().3.animation_hook = hook;
+            match &mut read_and_update.p1().get_mut(e).unwrap().3.animation_hook {
+                GridLocationAnimationHook::SectionDriven(s) => {
+                    s.diff = hook[0].unwrap();
+                }
+                GridLocationAnimationHook::PointDriven(p) => {
+                    if let Some(h) = hook[0] {
+                        p.point_a.diff = h;
+                    }
+                    if let Some(h) = hook[1] {
+                        p.point_b.diff = h;
+                    }
+                    if let Some(h) = hook[2] {
+                        p.point_c.diff = h;
+                    }
+                    if let Some(h) = hook[3] {
+                        p.point_d.diff = h;
+                    }
+                }
+            }
         }
     }
 }
@@ -1297,7 +1389,7 @@ impl<'a> ReferentialContext<'a> {
 pub(crate) struct ResolvedLocation {
     pub(crate) section: Section<LogicalContext>,
     pub(crate) points: Option<Points<LogicalContext>>,
-    pub(crate) hook_update: Option<GridLocationAnimationHook>,
+    pub(crate) hook_update: Option<[Option<Section<LogicalContext>>; 4]>,
 }
 
 impl ResolvedLocation {

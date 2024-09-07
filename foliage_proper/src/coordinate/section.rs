@@ -1,4 +1,4 @@
-use std::ops::{Add, AddAssign, Sub};
+use std::ops::{Add, AddAssign, Mul, Sub};
 
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
@@ -179,5 +179,13 @@ impl<Context: CoordinateContext> Sub for Section<Context> {
 
     fn sub(self, rhs: Self) -> Self::Output {
         Self::new(self.position - rhs.position, self.area - rhs.area)
+    }
+}
+
+impl<Context: CoordinateContext> Mul<f32> for Section<Context> {
+    type Output = Self;
+
+    fn mul(self, rhs: f32) -> Self::Output {
+        Self::new(self.position * rhs, self.area * rhs)
     }
 }
