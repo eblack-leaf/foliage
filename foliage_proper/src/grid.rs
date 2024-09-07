@@ -277,6 +277,34 @@ pub struct SpecifiedDescriptorValue {
 }
 
 impl SpecifiedDescriptorValue {
+    pub(crate) fn resolve(
+        &self,
+        ref_context: &HashMap<GridContext, ReferentialData>,
+    ) -> CoordinateUnit {
+        let mut accumulator = 0.0;
+        for t in self.tokens.iter() {
+            let value = match t.value {
+                LocationAspectTokenValue::ContextAspect(ca) => {
+                    // get ca of t.context from ref_context
+                    0.0
+                }
+                LocationAspectTokenValue::Relative(r) => {
+                    // use t.context from ref_context => col/row or % of
+                    0.0
+                }
+                LocationAspectTokenValue::Absolute(a) => a,
+            };
+            match t.op {
+                LocationAspectTokenOp::Add => {
+                    accumulator += value;
+                }
+                LocationAspectTokenOp::Minus => {
+                    accumulator -= value;
+                }
+            }
+        }
+        accumulator
+    }
     pub(crate) fn minus(mut self, mut other: LocationAspectToken) -> Self {
         other.op = LocationAspectTokenOp::Minus;
         self.tokens.push(other);
@@ -320,7 +348,61 @@ pub struct LocationAspect {
     aspects: [LocationAspectDescriptor; 2],
     count: u32,
 }
+
 impl LocationAspect {
+    pub(crate) fn resolve_dependent(
+        &self,
+        aspect: GridAspect,
+        ref_context: &HashMap<GridContext, ReferentialData>,
+        solved: &GridLocationResolution,
+    ) -> CoordinateUnit {
+        match aspect {
+            GridAspect::CenterX => {
+                let value = self.resolve_independent(aspect, ref_context);
+                // interpret data accordingly w/ solved
+                value
+            }
+            GridAspect::CenterY => {
+                let value = self.resolve_independent(aspect, ref_context);
+                // interpret data accordingly
+                value
+            }
+            GridAspect::Right => {
+                let value = self.resolve_independent(aspect, ref_context);
+                // interpret data accordingly
+                value
+            }
+            GridAspect::Bottom => {
+                let value = self.resolve_independent(aspect, ref_context);
+                // interpret data accordingly
+                value
+            }
+            _ => self.resolve_independent(aspect, ref_context),
+        }
+    }
+    pub(crate) fn resolve_independent(
+        &self,
+        aspect: GridAspect,
+        ref_context: &HashMap<GridContext, ReferentialData>,
+    ) -> CoordinateUnit {
+        if self.aspects.get(0).unwrap().aspect == aspect {
+            if let LocationAspectDescriptorValue::Specified(spec) =
+                &self.aspects.get(0).unwrap().value
+            {
+                spec.resolve(ref_context)
+            } else {
+                panic!("no existing")
+            }
+        } else {
+            if let LocationAspectDescriptorValue::Specified(spec) =
+                &self.aspects.get(1).unwrap().value
+            {
+                spec.resolve(ref_context)
+            } else {
+                panic!("no existing")
+            }
+        }
+    }
     pub(crate) fn set<LAD: Into<LocationAspectDescriptorValue>>(
         &mut self,
         aspect: GridAspect,
@@ -628,13 +710,92 @@ impl Animate for GridLocation {
         }
     }
 }
+#[derive(Default)]
+pub(crate) struct GridLocationResolution {
+    solved: [(GridAspect, CoordinateUnit); 2],
+}
 impl GridLocation {
     pub(crate) fn resolve(
         &self,
         context: &HashMap<GridContext, ReferentialData>,
         layout: Layout,
     ) -> Option<ResolvedLocation> {
-        todo!()
+        let mut resolution = ResolvedLocation::new();
+        let mut horizontal_resolution = GridLocationResolution::default();
+        if self
+            .configurations
+            .contains_key(&AspectConfiguration::PointA)
+        {
+            // point driven algo
+        } else {
+            let mut horizontal = None;
+            for exception in self.exceptions.iter() {
+                if exception.0.layout.contains(layout) {
+                    horizontal.replace(exception.1);
+                }
+            }
+            let base = self.configurations.get(&AspectConfiguration::Horizontal)?;
+            let horizontal = horizontal.unwrap_or(base);
+            let first_index = match horizontal.aspects[0].aspect {
+                GridAspect::Right | GridAspect::CenterX => 1,
+                _ => 0,
+            };
+            match &horizontal.aspects[first_index].value {
+                LocationAspectDescriptorValue::Existing => {
+                    match horizontal.aspects[first_index].aspect {
+                        GridAspect::Left => {
+                            let value = base.resolve_independent(GridAspect::Left, context);
+                            horizontal_resolution.solved[0] = (GridAspect::Left, value);
+                        }
+                        GridAspect::Width => {
+                            let value = base.resolve_independent(GridAspect::Width, context);
+                            horizontal_resolution.solved[0] = (GridAspect::Width, value);
+                        }
+                        _ => {}
+                    }
+                }
+                LocationAspectDescriptorValue::Specified(spec) => {
+                    let value = spec.resolve(context);
+                    match horizontal.aspects[first_index].aspect {
+                        GridAspect::Left => {
+                            horizontal_resolution.solved[0] = (GridAspect::Left, value);
+                        }
+                        GridAspect::Width => {
+                            horizontal_resolution.solved[0] = (GridAspect::Width, value);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            let other_index = if first_index == 0 { 1 } else { 0 };
+            match &horizontal.aspects[other_index].value {
+                LocationAspectDescriptorValue::Existing => {
+                    match horizontal.aspects[other_index].aspect {
+                        GridAspect::Right | GridAspect::CenterX => {
+                            let value = base.resolve_dependent(
+                                horizontal.aspects[other_index].aspect,
+                                context,
+                                &horizontal_resolution,
+                            );
+                            horizontal_resolution.solved[0] =
+                                (horizontal.aspects[other_index].aspect, value);
+                        }
+                        _ => {
+                            let value = base.resolve_independent(
+                                horizontal.aspects[other_index].aspect,
+                                context,
+                            );
+                            horizontal_resolution.solved[0] =
+                                (horizontal.aspects[other_index].aspect, value);
+                        }
+                    }
+                }
+                LocationAspectDescriptorValue::Specified(spec) => {
+                    spec.resolve_dependent(context, &horizontal_resolution);
+                }
+            }
+        }
+        Some(resolution)
     }
     pub fn new() -> Self {
         Self {
@@ -1022,14 +1183,14 @@ pub(crate) fn resolve_grid_locations(
         return;
     }
     let mut ref_context = ReferentialContext::new(viewport_handle.section(), layout_grid.grid);
-    let binding = read_and_update.p0();
-    for (handle, location, deps, grid) in binding.iter() {
+    let read = read_and_update.p0();
+    for (handle, location, deps, grid) in read.iter() {
         ref_context.queue_leaf(handle, location, deps, *grid);
     }
     ref_context.resolve(*layout);
     let updates = ref_context.updates();
     drop(ref_context);
-    drop(binding);
+    drop(read);
     for (handle, resolved) in updates {
         let e = id_table.lookup_leaf(handle).unwrap();
         *read_and_update.p1().get_mut(e).unwrap().0 = resolved.section.position;
@@ -1053,7 +1214,10 @@ impl<'a> ReferentialContext<'a> {
                 let mut context = HashMap::new();
                 context.insert(
                     GridContext::Screen,
-                    ReferentialData::new(ResolvedLocation::new(screen_section), layout_grid),
+                    ReferentialData::new(
+                        ResolvedLocation::new().section(screen_section),
+                        layout_grid,
+                    ),
                 );
                 context
             },
@@ -1130,12 +1294,16 @@ pub(crate) struct ResolvedLocation {
 }
 
 impl ResolvedLocation {
-    pub(crate) fn new(section: Section<LogicalContext>) -> Self {
+    pub(crate) fn new() -> Self {
         Self {
-            section,
+            section: Section::default(),
             points: None,
             hook_update: None,
         }
+    }
+    pub(crate) fn section(mut self, section: Section<LogicalContext>) -> Self {
+        self.section = section;
+        self
     }
 }
 

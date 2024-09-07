@@ -12,7 +12,7 @@ use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::{Coordinates, LogicalContext};
 use crate::elm::Elm;
-use crate::grid::{GridLocation, GridLocationAnimationHook, PointDrivenAnimationHook};
+use crate::grid::{GridLocation, GridLocationAnimationHook};
 use crate::leaf::{IdTable, LeafHandle, OnEnd};
 use crate::opacity::Opacity;
 use crate::panel::Rounding;
@@ -285,9 +285,6 @@ pub(crate) fn animate<A: Animate>(
                                         hook.hook_changed = true;
                                     }
                                     GridLocationAnimationHook::PointDriven(hook) => {
-                                        if points.is_empty() {
-                                            panic!("animating to a point-driven location from a section driven")
-                                        }
                                         for (i, point) in points.data.iter().enumerate() {
                                             let section = Section::new(*point, Area::default());
                                             match i {
