@@ -200,7 +200,6 @@ impl Animate for GridLocation {
     fn apply(&mut self, interpolations: &mut Interpolations) {
         match &mut self.animation_hook {
             GridLocationAnimationHook::SectionDriven(hook) => {
-                // hook changed
                 if let Some(p) = interpolations.read(0) {
                     hook.hook_percent = p;
                     hook.hook_changed = true;
