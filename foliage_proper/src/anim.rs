@@ -289,17 +289,29 @@ pub(crate) fn animate<A: Animate>(
                                             panic!("animating to a point-driven location from a section driven")
                                         }
                                         for (i, point) in points.data.iter().enumerate() {
+                                            let section =
+                                                Section::new(*point, Area::default());
                                             match i {
                                                 0 => {
-                                                    let section =
-                                                        Section::new(*point, Area::default());
                                                     hook.point_a.last = section;
                                                     hook.point_a.create_diff = true;
                                                     hook.point_a.hook_changed = true;
                                                 }
-                                                1 => {}
-                                                2 => {}
-                                                3 => {}
+                                                1 => {
+                                                    hook.point_b.last = section;
+                                                    hook.point_b.create_diff = true;
+                                                    hook.point_b.hook_changed = true;
+                                                }
+                                                2 => {
+                                                    hook.point_c.last = section;
+                                                    hook.point_c.create_diff = true;
+                                                    hook.point_c.hook_changed = true;
+                                                }
+                                                3 => {
+                                                    hook.point_d.last = section;
+                                                    hook.point_d.create_diff = true;
+                                                    hook.point_d.hook_changed = true;
+                                                }
                                                 _ => {}
                                             }
                                         }
