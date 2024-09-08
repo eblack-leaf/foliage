@@ -117,7 +117,7 @@ impl<Context: CoordinateContext> Section<Context> {
         let right = self.right().min(o.right());
         let bottom = self.bottom().min(o.bottom());
         let section = Section::new((left, top), (right - left, bottom - top));
-        if section.width() * section.height() == 0.0 {
+        if right < left || bottom < top {
             return None;
         }
         Some(section)
