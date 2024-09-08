@@ -9,6 +9,8 @@ pub struct Points<Context: CoordinateContext> {
 }
 impl<Context: CoordinateContext> Points<Context> {
     pub fn bbox(&self) -> Section<LogicalContext> {
-        todo!()
+        let bbox = Section::default();
+
+        bbox
     }
 }

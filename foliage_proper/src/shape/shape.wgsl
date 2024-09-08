@@ -5,19 +5,15 @@ struct Vertex {
     @builtin(vertex_index) index: u32,
     @location(0) vertex_pos: vec2<f32>,
     @location(1) left: vec4f,
-    @location(2) top: vec4f,
-    @location(3) right: vec4f,
-    @location(4) bot: vec4f,
-    @location(5) layer: f32,
-    @location(6) color: vec4f,
+    @location(2) right: vec4f,
+    @location(3) layer: f32,
+    @location(4) color: vec4f,
 };
 struct Fragment {
     @builtin(position) position: vec4<f32>,
     @location(0) color: vec4f,
     @location(1) left: vec4f,
-    @location(2) top: vec4f,
-    @location(3) right: vec4f,
-    @location(4) bot: vec4f,
+    @location(2) right: vec4f,
 };
 @vertex
 fn vertex_entry(vertex: Vertex) -> Fragment {
@@ -35,9 +31,7 @@ fn vertex_entry(vertex: Vertex) -> Fragment {
         viewport * vec4f(v, vertex.layer, 1.0),
         vertex.color,
         vertex.left,
-        vertex.top,
         vertex.right,
-        vertex.bot,
     );
 }
 fn distance_to_edge(edge: vec4f, pt: vec2f) -> f32 {
@@ -48,11 +42,13 @@ fn distance_to_edge(edge: vec4f, pt: vec2f) -> f32 {
 }
 @fragment
 fn fragment_entry(frag: Fragment) -> @location(0) vec4<f32> {
-    let edge_precision = 2.0;
+    let edge_precision = 1.0;
+    let top = vec4f(frag.left.zw, frag.right.zw);
+    let bot = vec4f(frag.left.xy, frag.right.xy);
     let left_inclusion = distance_to_edge(frag.left, frag.position.xy);
-    let top_inclusion = distance_to_edge(frag.top, frag.position.xy);
+    let top_inclusion = distance_to_edge(top, frag.position.xy);
     let right_inclusion = distance_to_edge(frag.right, frag.position.xy);
-    let bot_inclusion = distance_to_edge(frag.bot, frag.position.xy);
+    let bot_inclusion = distance_to_edge(bot, frag.position.xy);
     let inclusion = min(min(min(left_inclusion, top_inclusion), right_inclusion), bot_inclusion);
     let coverage = smoothstep(0.0, edge_precision, inclusion);
     return vec4f(frag.color.rgb, frag.color.a * coverage);

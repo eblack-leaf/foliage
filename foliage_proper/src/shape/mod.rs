@@ -54,18 +54,11 @@ impl EdgePoints {
 #[derive(Component, Pod, Zeroable, Copy, Clone, Debug, Default, PartialEq)]
 pub struct ShapeDescriptor {
     pub left: EdgePoints,
-    pub top: EdgePoints,
     pub right: EdgePoints,
-    pub bot: EdgePoints,
 }
 impl ShapeDescriptor {
-    pub fn new(left: EdgePoints, top: EdgePoints, right: EdgePoints, bot: EdgePoints) -> Self {
-        Self {
-            left,
-            top,
-            right,
-            bot,
-        }
+    pub fn new(left: EdgePoints, right: EdgePoints) -> Self {
+        Self { left, right }
     }
 }
 pub struct ShapeRenderResources {
@@ -142,17 +135,15 @@ impl Render for Shape {
                         &wgpu::vertex_attr_array![
                             1 => Float32x4,
                             2 => Float32x4,
-                            3 => Float32x4,
-                            4 => Float32x4,
                         ],
                     ),
                     Ginkgo::vertex_buffer_layout::<RenderLayer>(
                         VertexStepMode::Instance,
-                        &wgpu::vertex_attr_array![5 => Float32],
+                        &wgpu::vertex_attr_array![3 => Float32],
                     ),
                     Ginkgo::vertex_buffer_layout::<Color>(
                         VertexStepMode::Instance,
-                        &wgpu::vertex_attr_array![6 => Float32x4],
+                        &wgpu::vertex_attr_array![4 => Float32x4],
                     ),
                 ],
             },

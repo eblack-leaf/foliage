@@ -28,6 +28,7 @@ use crate::image::Image;
 use crate::interaction::{ClickInteractionListener, KeyboardAdapter, MouseAdapter, TouchAdapter};
 use crate::leaf::{BranchHandle, IdTable};
 use crate::panel::Panel;
+use crate::shape::line::Line;
 use crate::shape::Shape;
 use crate::style::Style;
 use crate::text::Text;
@@ -516,5 +517,6 @@ impl Roots for Trunk {
         foliage.define_root::<EnabledAnimations>();
         foliage.define_root::<Shape>();
         foliage.add_renderer::<Shape>();
+        foliage.define_root::<Line>();
     }
 }
