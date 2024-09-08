@@ -281,12 +281,22 @@ impl<'a> Tree<'a> {
             .insert(leaf.elevation)
             .insert(leaf.location)
             .id();
-        self.world_handle
+        if let Some(old) = self
+            .world_handle
             .as_mut()
             .unwrap()
             .get_resource_mut::<IdTable>()
             .unwrap()
-            .add_target(leaf.name.clone(), entity);
+            .add_target(leaf.name.clone(), entity)
+        {
+            // TODO warn deleting entity
+            *self
+                .world_handle
+                .as_mut()
+                .unwrap()
+                .get_mut::<Remove>(old)
+                .unwrap() = Remove::queue_remove();
+        }
         self.update_leaf(leaf.name.clone(), leaf.l_fn);
     }
     pub fn remove_leaf<LH: Into<LeafHandle>>(&mut self, lh: LH) {

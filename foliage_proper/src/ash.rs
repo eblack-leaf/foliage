@@ -396,7 +396,7 @@ impl Ash {
                 &self.renderers,
                 *directive_ptr,
                 *range,
-                clip_section,
+                clip_section.intersection(screen_size).unwrap_or_default(),
                 &mut rpass,
             );
         }

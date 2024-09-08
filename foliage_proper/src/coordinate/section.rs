@@ -112,10 +112,18 @@ impl<Context: CoordinateContext> Section<Context> {
         ))
     }
     pub fn intersection(&self, o: Self) -> Option<Section<Context>> {
-        todo!()
+        let left = self.x().max(o.x());
+        let top = self.y().max(o.y());
+        let right = self.right().min(o.right());
+        let bottom = self.bottom().min(o.bottom());
+        let section = Section::new((left, top), (right - left, bottom - top));
+        if section.width() * section.height() == 0.0 {
+            return None;
+        }
+        Some(section)
     }
     pub fn contacts(&self, o: Self) -> bool {
-        todo!()
+        self.intersection(o).is_some()
     }
     pub fn contains(&self, p: Position<Context>) -> bool {
         p.x() <= self.right() && p.x() >= self.x() && p.y() <= self.bottom() && p.y() >= self.y()
