@@ -5,7 +5,7 @@ use bytemuck::{Pod, Zeroable};
 
 #[repr(C)]
 #[derive(Copy, Clone, Default, PartialEq, Pod, Zeroable, Component, Debug)]
-pub(crate) struct RenderLayer(pub f32);
+pub(crate) struct RenderLayer(pub(crate) f32);
 impl PartialOrd for RenderLayer {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         if self.0 < other.0 {

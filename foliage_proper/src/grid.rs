@@ -311,7 +311,6 @@ impl SpecifiedDescriptorValue {
     ) -> CoordinateUnit {
         let mut accumulator = 0.0;
         for t in self.tokens.iter() {
-            println!("resolving: {:?}", t.context);
             let value = match t.value {
                 LocationAspectTokenValue::ContextAspect(ca) => {
                     let data = ref_context.get(&t.context).unwrap();
@@ -389,7 +388,7 @@ impl SpecifiedDescriptorValue {
                         }
                         RelativeUnit::Percent(p, use_width) => {
                             data.resolved.section.width() * p * f32::from(use_width)
-                                + data.resolved.section.height() * f32::from(!use_width)
+                                + data.resolved.section.height() * p * f32::from(!use_width)
                         }
                     }
                 }
@@ -1378,7 +1377,6 @@ pub(crate) fn resolve_grid_locations(
     drop(ref_context);
     drop(read);
     for (handle, resolved) in updates {
-        println!("handle: {:?} sec: {:?}", handle, resolved.section);
         let e = id_table.lookup_leaf(handle).unwrap();
         *check_read_and_update.p2().get_mut(e).unwrap().0 = resolved.section.position;
         *check_read_and_update.p2().get_mut(e).unwrap().1 = resolved.section.area;

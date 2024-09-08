@@ -297,6 +297,7 @@ impl Ash {
             self.draw_calls.calls.clear();
             let mut index = 0;
             let mut contiguous = 1u32;
+            let mut range_start = None;
             for (renderer_index, ptr, instance_index, node) in all.iter() {
                 let this = (
                     *renderer_index,
@@ -309,16 +310,21 @@ impl Ash {
                 } else {
                     None
                 };
+                index += 1;
                 if let Some(n) = next {
                     if (this.0, this.1, this.2 + 1, this.3) == (n.0, n.1, n.2, n.3) {
                         contiguous += 1;
+                        if range_start.is_none() {
+                            range_start.replace(this.2);
+                        }
                         continue;
                     }
                 }
+                let start = range_start.unwrap_or(this.2);
                 self.draw_calls.calls.push((
                     this.0,
                     this.1,
-                    DrawRange::new(this.2 as u32, this.2 as u32 + contiguous),
+                    DrawRange::new(start as u32, start as u32 + contiguous),
                     node.clipping_context_ptr,
                 ));
             }
