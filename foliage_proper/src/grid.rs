@@ -318,7 +318,7 @@ impl SpecifiedDescriptorValue {
                     GridAspect::Height => data.resolved.section.height(),
                     GridAspect::CenterY => data.resolved.section.center().y(),
                     GridAspect::Bottom => data.resolved.section.bottom(),
-                    GridAspect::Left => data.resolved.section.left(),
+                    GridAspect::Left => data.resolved.section.x(),
                     GridAspect::Width => data.resolved.section.width(),
                     GridAspect::CenterX => data.resolved.section.center().x(),
                     GridAspect::Right => data.resolved.section.right(),
@@ -373,18 +373,18 @@ impl SpecifiedDescriptorValue {
                 },
                 LocationAspectTokenValue::Relative(rel) => match rel {
                     RelativeUnit::Column(c, use_end) => {
-                        (c as f32 - 1.0 * !use_end)
+                        (c as f32 - 1.0 * f32::from(!use_end))
                             * (data.resolved.section.width() / data.grid.columns as f32)
                             + c as f32 * data.grid.gap.horizontal()
                     }
                     RelativeUnit::Row(r, use_end) => {
-                        (r as f32 - 1.0 * !use_end)
+                        (r as f32 - 1.0 * f32::from(!use_end))
                             * (data.resolved.section.height() / data.grid.rows as f32)
                             + r as f32 * data.grid.gap.vertical()
                     }
                     RelativeUnit::Percent(p, use_width) => {
-                        data.resolved.section.width() * p * use_width
-                            + data.resolved.section.height() * !use_width
+                        data.resolved.section.width() * p * f32::from(use_width)
+                            + data.resolved.section.height() * f32::from(!use_width)
                     }
                 },
                 LocationAspectTokenValue::Absolute(a) => a,
