@@ -845,7 +845,7 @@ impl GridLocation {
                         resolution.section.position.set_x(data.0);
                         resolution.section.area.set_width(data.1);
                     } else if pair_config == (GridAspect::Width, GridAspect::CenterX) {
-                        resolution.section.position.set_x(data.0 - data.1 / 2.0);
+                        resolution.section.position.set_x(data.1 - data.0 / 2.0);
                         resolution.section.area.set_width(data.0);
                     } else if pair_config == (GridAspect::Width, GridAspect::Right) {
                         resolution.section.position.set_x(data.1 - data.0);
@@ -867,8 +867,8 @@ impl GridLocation {
                         resolution.section.position.set_y(data.0);
                         resolution.section.area.set_height(data.1);
                     } else if pair_config == (GridAspect::Height, GridAspect::CenterY) {
-                        resolution.section.position.set_y(data.0 - data.1 / 2.0);
-                        resolution.section.area.set_height(data.1);
+                        resolution.section.position.set_y(data.1 - data.0 / 2.0);
+                        resolution.section.area.set_height(data.0);
                     } else if pair_config == (GridAspect::Height, GridAspect::Bottom) {
                         resolution.section.position.set_y(data.0 - data.1);
                         resolution.section.area.set_height(data.1);
@@ -1377,6 +1377,7 @@ pub(crate) fn resolve_grid_locations(
     drop(ref_context);
     drop(read);
     for (handle, resolved) in updates {
+        println!("updating: {:?} to {:?}", handle, resolved.section);
         let e = id_table.lookup_leaf(handle).unwrap();
         *check_read_and_update.p2().get_mut(e).unwrap().0 = resolved.section.position;
         *check_read_and_update.p2().get_mut(e).unwrap().1 = resolved.section.area;
