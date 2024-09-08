@@ -8,7 +8,7 @@ use crate::ginkgo::viewport::ViewportHandle;
 use crate::layout::{Layout, LayoutGrid};
 use crate::leaf::{IdTable, LeafHandle};
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::Component;
+use bevy_ecs::prelude::{Component, DetectChanges};
 use bevy_ecs::query::{Changed, Or};
 use bevy_ecs::system::{ParamSet, Query, Res, ResMut};
 use std::cmp::{Ordering, PartialOrd};
@@ -285,7 +285,7 @@ pub enum LocationAspectTokenValue {
     Absolute(CoordinateUnit),
 }
 #[derive(Clone)]
-pub(crate) struct LocationAspectToken {
+pub struct LocationAspectToken {
     op: LocationAspectTokenOp,
     context: GridContext,
     value: LocationAspectTokenValue,
@@ -311,82 +311,88 @@ impl SpecifiedDescriptorValue {
     ) -> CoordinateUnit {
         let mut accumulator = 0.0;
         for t in self.tokens.iter() {
-            let data = ref_context.get(&t.context).unwrap();
+            println!("resolving: {:?}", t.context);
             let value = match t.value {
-                LocationAspectTokenValue::ContextAspect(ca) => match ca {
-                    GridAspect::Top => data.resolved.section.y(),
-                    GridAspect::Height => data.resolved.section.height(),
-                    GridAspect::CenterY => data.resolved.section.center().y(),
-                    GridAspect::Bottom => data.resolved.section.bottom(),
-                    GridAspect::Left => data.resolved.section.x(),
-                    GridAspect::Width => data.resolved.section.width(),
-                    GridAspect::CenterX => data.resolved.section.center().x(),
-                    GridAspect::Right => data.resolved.section.right(),
-                    GridAspect::PointAX => data
-                        .resolved
-                        .points
-                        .as_ref()
-                        .and_then(|p| Some(p.data[0].x()))
-                        .unwrap_or_default(),
-                    GridAspect::PointAY => data
-                        .resolved
-                        .points
-                        .as_ref()
-                        .and_then(|p| Some(p.data[0].y()))
-                        .unwrap_or_default(),
-                    GridAspect::PointBX => data
-                        .resolved
-                        .points
-                        .as_ref()
-                        .and_then(|p| Some(p.data[1].x()))
-                        .unwrap_or_default(),
-                    GridAspect::PointBY => data
-                        .resolved
-                        .points
-                        .as_ref()
-                        .and_then(|p| Some(p.data[1].y()))
-                        .unwrap_or_default(),
-                    GridAspect::PointCX => data
-                        .resolved
-                        .points
-                        .as_ref()
-                        .and_then(|p| Some(p.data[2].x()))
-                        .unwrap_or_default(),
-                    GridAspect::PointCY => data
-                        .resolved
-                        .points
-                        .as_ref()
-                        .and_then(|p| Some(p.data[2].y()))
-                        .unwrap_or_default(),
-                    GridAspect::PointDX => data
-                        .resolved
-                        .points
-                        .as_ref()
-                        .and_then(|p| Some(p.data[3].x()))
-                        .unwrap_or_default(),
-                    GridAspect::PointDY => data
-                        .resolved
-                        .points
-                        .as_ref()
-                        .and_then(|p| Some(p.data[3].y()))
-                        .unwrap_or_default(),
-                },
-                LocationAspectTokenValue::Relative(rel) => match rel {
-                    RelativeUnit::Column(c, use_end) => {
-                        (c as f32 - 1.0 * f32::from(!use_end))
-                            * (data.resolved.section.width() / data.grid.columns as f32)
-                            + c as f32 * data.grid.gap.horizontal()
+                LocationAspectTokenValue::ContextAspect(ca) => {
+                    let data = ref_context.get(&t.context).unwrap();
+                    match ca {
+                        GridAspect::Top => data.resolved.section.y(),
+                        GridAspect::Height => data.resolved.section.height(),
+                        GridAspect::CenterY => data.resolved.section.center().y(),
+                        GridAspect::Bottom => data.resolved.section.bottom(),
+                        GridAspect::Left => data.resolved.section.x(),
+                        GridAspect::Width => data.resolved.section.width(),
+                        GridAspect::CenterX => data.resolved.section.center().x(),
+                        GridAspect::Right => data.resolved.section.right(),
+                        GridAspect::PointAX => data
+                            .resolved
+                            .points
+                            .as_ref()
+                            .and_then(|p| Some(p.data[0].x()))
+                            .unwrap_or_default(),
+                        GridAspect::PointAY => data
+                            .resolved
+                            .points
+                            .as_ref()
+                            .and_then(|p| Some(p.data[0].y()))
+                            .unwrap_or_default(),
+                        GridAspect::PointBX => data
+                            .resolved
+                            .points
+                            .as_ref()
+                            .and_then(|p| Some(p.data[1].x()))
+                            .unwrap_or_default(),
+                        GridAspect::PointBY => data
+                            .resolved
+                            .points
+                            .as_ref()
+                            .and_then(|p| Some(p.data[1].y()))
+                            .unwrap_or_default(),
+                        GridAspect::PointCX => data
+                            .resolved
+                            .points
+                            .as_ref()
+                            .and_then(|p| Some(p.data[2].x()))
+                            .unwrap_or_default(),
+                        GridAspect::PointCY => data
+                            .resolved
+                            .points
+                            .as_ref()
+                            .and_then(|p| Some(p.data[2].y()))
+                            .unwrap_or_default(),
+                        GridAspect::PointDX => data
+                            .resolved
+                            .points
+                            .as_ref()
+                            .and_then(|p| Some(p.data[3].x()))
+                            .unwrap_or_default(),
+                        GridAspect::PointDY => data
+                            .resolved
+                            .points
+                            .as_ref()
+                            .and_then(|p| Some(p.data[3].y()))
+                            .unwrap_or_default(),
                     }
-                    RelativeUnit::Row(r, use_end) => {
-                        (r as f32 - 1.0 * f32::from(!use_end))
-                            * (data.resolved.section.height() / data.grid.rows as f32)
-                            + r as f32 * data.grid.gap.vertical()
+                }
+                LocationAspectTokenValue::Relative(rel) => {
+                    let data = ref_context.get(&t.context).unwrap();
+                    match rel {
+                        RelativeUnit::Column(c, use_end) => {
+                            (c as f32 - 1.0 * f32::from(!use_end))
+                                * (data.resolved.section.width() / data.grid.columns as f32)
+                                + c as f32 * data.grid.gap.horizontal()
+                        }
+                        RelativeUnit::Row(r, use_end) => {
+                            (r as f32 - 1.0 * f32::from(!use_end))
+                                * (data.resolved.section.height() / data.grid.rows as f32)
+                                + r as f32 * data.grid.gap.vertical()
+                        }
+                        RelativeUnit::Percent(p, use_width) => {
+                            data.resolved.section.width() * p * f32::from(use_width)
+                                + data.resolved.section.height() * f32::from(!use_width)
+                        }
                     }
-                    RelativeUnit::Percent(p, use_width) => {
-                        data.resolved.section.width() * p * f32::from(use_width)
-                            + data.resolved.section.height() * f32::from(!use_width)
-                    }
-                },
+                }
                 LocationAspectTokenValue::Absolute(a) => a,
             };
             match t.op {
@@ -1346,10 +1352,7 @@ pub(crate) fn distill_location_deps(
 pub(crate) fn resolve_grid_locations(
     mut check_read_and_update: ParamSet<(
         Query<Entity, Or<(Changed<GridLocation>, Changed<Grid>)>>,
-        Query<
-            (&LeafHandle, &GridLocation, &ReferentialDependencies, &Grid),
-            Or<(Changed<GridLocation>, Changed<Grid>)>,
-        >,
+        Query<(&LeafHandle, &GridLocation, &ReferentialDependencies, &Grid)>,
         Query<(
             &mut Position<LogicalContext>,
             &mut Area<LogicalContext>,
@@ -1362,7 +1365,7 @@ pub(crate) fn resolve_grid_locations(
     layout_grid: Res<LayoutGrid>,
     layout: Res<Layout>,
 ) {
-    if check_read_and_update.p0().is_empty() {
+    if check_read_and_update.p0().is_empty() && !layout_grid.is_changed() {
         return;
     }
     let mut ref_context = ReferentialContext::new(viewport_handle.section(), layout_grid.grid);
@@ -1375,6 +1378,7 @@ pub(crate) fn resolve_grid_locations(
     drop(ref_context);
     drop(read);
     for (handle, resolved) in updates {
+        println!("handle: {:?} sec: {:?}", handle, resolved.section);
         let e = id_table.lookup_leaf(handle).unwrap();
         *check_read_and_update.p2().get_mut(e).unwrap().0 = resolved.section.position;
         *check_read_and_update.p2().get_mut(e).unwrap().1 = resolved.section.area;
