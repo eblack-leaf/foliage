@@ -366,6 +366,7 @@ impl<'a> Tree<'a> {
                 removed_set.extend(self.recursive_remove_leaf(e));
             }
         }
+        // TODO include grid-referential-deps + queue to remove
         removed_set
     }
     pub fn update_leaf<LH: Into<LeafHandle>, LFN: for<'b> FnOnce(&mut LeafPtr<'b>)>(

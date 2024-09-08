@@ -18,8 +18,8 @@ pub struct Viewport {
 }
 
 impl Viewport {
-    pub fn size(&self) -> Area<DeviceContext> {
-        self.area.as_device()
+    pub fn section(&self) -> Section<DeviceContext> {
+        Section::new(self.translation.coordinates, self.area.coordinates)
     }
     pub(crate) fn set_position(
         &mut self,

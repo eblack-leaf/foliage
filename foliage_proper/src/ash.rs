@@ -381,7 +381,7 @@ impl Ash {
         for (renderer_index, directive_ptr, range, clipping_context_ptr) in
             self.draw_calls.calls.iter()
         {
-            let screen_size = Section::new((0, 0), ginkgo.viewport().size());
+            let screen_size = ginkgo.viewport().section();
             let clip_section = match clipping_context_ptr {
                 ClippingContextPointer::Screen => screen_size,
                 ClippingContextPointer::Entity(e) => {
