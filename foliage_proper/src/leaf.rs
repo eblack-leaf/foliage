@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::ash::ClippingContextBundle;
 use crate::branch::LeafPtr;
-use crate::coordinate::elevation::Elevation;
+use crate::coordinate::elevation::{Elevation, RenderLayer};
 use crate::coordinate::placement::Placement;
 use crate::coordinate::points::Points;
 use crate::coordinate::LogicalContext;
@@ -12,6 +12,8 @@ use crate::opacity::Opacity;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, Resource};
+use bevy_ecs::query::{Changed, Or};
+use bevy_ecs::system::{Query, Res};
 
 pub struct Leaf<LFN: for<'a> FnOnce(&mut LeafPtr<'a>)> {
     pub name: LeafHandle,
@@ -140,5 +142,45 @@ impl OnEnd {
     pub fn with<AH: Into<BranchHandle>>(mut self, ah: AH) -> Self {
         self.actions.insert(ah.into());
         self
+    }
+}
+
+pub(crate) fn dependent_elevation(
+    check: Query<Entity, Or<(Changed<Elevation>, Changed<Stem>, Changed<Dependents>)>>,
+    read: Query<(Entity, &Elevation, &Stem, &Dependents)>,
+    mut update: Query<&mut RenderLayer>,
+    id_table: Res<IdTable>,
+) {
+    if check.is_empty() {
+        return;
+    }
+    let mut updates = HashMap::new();
+    for (e, elevation, stem, dependents) in read.iter() {
+        if stem.0.is_none() {
+            let layer = RenderLayer::new(elevation.0);
+            updates.insert(e, layer);
+            for dep in dependents.0.iter() {
+                let d = id_table.lookup_leaf(dep.clone()).unwrap();
+                recursive_elevation(d, layer, &mut updates, &read, &id_table);
+            }
+        }
+    }
+    for (e, l) in updates {
+        *update.get_mut(e).unwrap() = l;
+    }
+}
+fn recursive_elevation(
+    current: Entity,
+    current_layer: RenderLayer,
+    updates: &mut HashMap<Entity, RenderLayer>,
+    query: &Query<(Entity, &Elevation, &Stem, &Dependents)>,
+    id_table: &IdTable,
+) {
+    let data = query.get(current).unwrap();
+    let layer = RenderLayer::new(current_layer.0 + data.1 .0);
+    updates.insert(current, layer);
+    for dep in data.3 .0.iter() {
+        let e = id_table.lookup_leaf(dep.clone()).unwrap();
+        recursive_elevation(e, layer, updates, query, id_table);
     }
 }

@@ -34,6 +34,7 @@ use crate::interaction::{
     FocusedEntity, InteractiveEntity, KeyboardAdapter, MouseAdapter, TouchAdapter,
 };
 use crate::layout::{viewport_changes_layout, Layout, LayoutGrid};
+use crate::leaf::dependent_elevation;
 use crate::opacity::opacity;
 use crate::willow::Willow;
 
@@ -274,6 +275,7 @@ impl Elm {
         self.scheduler.main.add_systems((
             (viewport_changes_layout, await_assets).in_set(ScheduleMarkers::External),
             event_update_system.in_set(ScheduleMarkers::Events),
+            dependent_elevation.in_set(ScheduleMarkers::GridSemantics),
             (distill_location_deps, resolve_grid_locations)
                 .chain()
                 .in_set(ScheduleMarkers::GridSemantics),
