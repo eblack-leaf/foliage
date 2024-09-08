@@ -17,9 +17,12 @@ use std::ops::{Add, Mul, Sub};
 
 pub trait TokenUnit {
     fn px(self) -> LocationAspectToken;
-    fn percent_of<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken;
-    fn column_of<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken;
-    fn row_of<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken;
+    fn percent_width<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken;
+    fn percent_height<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken;
+    fn column_begin<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken;
+    fn column_end<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken;
+    fn row_begin<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken;
+    fn row_end<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken;
 }
 impl TokenUnit for i32 {
     fn px(self) -> LocationAspectToken {
@@ -29,27 +32,52 @@ impl TokenUnit for i32 {
             LocationAspectTokenValue::Absolute(self as CoordinateUnit),
         )
     }
-    fn percent_of<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken {
+    fn percent_width<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken {
         LocationAspectToken::new(
             LocationAspectTokenOp::Add,
             gc.into(),
             LocationAspectTokenValue::Relative(RelativeUnit::Percent(
                 self as CoordinateUnit / 100.0,
+                true,
             )),
         )
     }
-    fn column_of<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken {
+    fn percent_height<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken {
         LocationAspectToken::new(
             LocationAspectTokenOp::Add,
             gc.into(),
-            LocationAspectTokenValue::Relative(RelativeUnit::Column(self as u32)),
+            LocationAspectTokenValue::Relative(RelativeUnit::Percent(
+                self as CoordinateUnit / 100.0,
+                false,
+            )),
         )
     }
-    fn row_of<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken {
+    fn column_begin<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken {
         LocationAspectToken::new(
             LocationAspectTokenOp::Add,
             gc.into(),
-            LocationAspectTokenValue::Relative(RelativeUnit::Column(self as u32)),
+            LocationAspectTokenValue::Relative(RelativeUnit::Column(self as u32, false)),
+        )
+    }
+    fn column_end<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken {
+        LocationAspectToken::new(
+            LocationAspectTokenOp::Add,
+            gc.into(),
+            LocationAspectTokenValue::Relative(RelativeUnit::Column(self as u32, true)),
+        )
+    }
+    fn row_begin<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken {
+        LocationAspectToken::new(
+            LocationAspectTokenOp::Add,
+            gc.into(),
+            LocationAspectTokenValue::Relative(RelativeUnit::Row(self as u32, false)),
+        )
+    }
+    fn row_end<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken {
+        LocationAspectToken::new(
+            LocationAspectTokenOp::Add,
+            gc.into(),
+            LocationAspectTokenValue::Relative(RelativeUnit::Row(self as u32, true)),
         )
     }
 }
@@ -93,8 +121,8 @@ impl Sub<LocationAspectToken> for SpecifiedDescriptorValue {
 #[test]
 fn behavior() {
     let location = GridLocation::new()
-        .top(16.px() - screen().top() - 10.px() - 3.column_of(screen()))
-        .bottom("header".top() + 16.px() + 10.px() - 3.column_of("header"));
+        .top(16.px() - screen().top() - 10.px() - 3.column_begin(screen()))
+        .bottom("header".top() + 16.px() + 10.px() - 3.row_begin("header"));
     let location = GridLocation::new().top(16.px() - 10.px() - 10.px() - "footer".top());
 }
 #[derive(Clone, Hash, PartialEq, Eq, Debug, PartialOrd)]
@@ -246,9 +274,9 @@ pub(crate) enum LocationAspectTokenOp {
 }
 #[derive(Clone, Copy)]
 pub enum RelativeUnit {
-    Column(u32),
-    Row(u32),
-    Percent(f32),
+    Column(u32, bool),
+    Row(u32, bool),
+    Percent(f32, bool),
 }
 #[derive(Clone, Copy)]
 pub enum LocationAspectTokenValue {
@@ -283,15 +311,82 @@ impl SpecifiedDescriptorValue {
     ) -> CoordinateUnit {
         let mut accumulator = 0.0;
         for t in self.tokens.iter() {
+            let data = ref_context.get(&t.context).unwrap();
             let value = match t.value {
-                LocationAspectTokenValue::ContextAspect(ca) => {
-                    // get ca of t.context from ref_context
-                    todo!()
-                }
-                LocationAspectTokenValue::Relative(r) => {
-                    // use t.context from ref_context => col/row or % of
-                    todo!()
-                }
+                LocationAspectTokenValue::ContextAspect(ca) => match ca {
+                    GridAspect::Top => data.resolved.section.y(),
+                    GridAspect::Height => data.resolved.section.height(),
+                    GridAspect::CenterY => data.resolved.section.center().y(),
+                    GridAspect::Bottom => data.resolved.section.bottom(),
+                    GridAspect::Left => data.resolved.section.left(),
+                    GridAspect::Width => data.resolved.section.width(),
+                    GridAspect::CenterX => data.resolved.section.center().x(),
+                    GridAspect::Right => data.resolved.section.right(),
+                    GridAspect::PointAX => data
+                        .resolved
+                        .points
+                        .as_ref()
+                        .and_then(|p| Some(p.data[0].x()))
+                        .unwrap_or_default(),
+                    GridAspect::PointAY => data
+                        .resolved
+                        .points
+                        .as_ref()
+                        .and_then(|p| Some(p.data[0].y()))
+                        .unwrap_or_default(),
+                    GridAspect::PointBX => data
+                        .resolved
+                        .points
+                        .as_ref()
+                        .and_then(|p| Some(p.data[1].x()))
+                        .unwrap_or_default(),
+                    GridAspect::PointBY => data
+                        .resolved
+                        .points
+                        .as_ref()
+                        .and_then(|p| Some(p.data[1].y()))
+                        .unwrap_or_default(),
+                    GridAspect::PointCX => data
+                        .resolved
+                        .points
+                        .as_ref()
+                        .and_then(|p| Some(p.data[2].x()))
+                        .unwrap_or_default(),
+                    GridAspect::PointCY => data
+                        .resolved
+                        .points
+                        .as_ref()
+                        .and_then(|p| Some(p.data[2].y()))
+                        .unwrap_or_default(),
+                    GridAspect::PointDX => data
+                        .resolved
+                        .points
+                        .as_ref()
+                        .and_then(|p| Some(p.data[3].x()))
+                        .unwrap_or_default(),
+                    GridAspect::PointDY => data
+                        .resolved
+                        .points
+                        .as_ref()
+                        .and_then(|p| Some(p.data[3].y()))
+                        .unwrap_or_default(),
+                },
+                LocationAspectTokenValue::Relative(rel) => match rel {
+                    RelativeUnit::Column(c, use_end) => {
+                        (c as f32 - 1.0 * !use_end)
+                            * (data.resolved.section.width() / data.grid.columns as f32)
+                            + c as f32 * data.grid.gap.horizontal()
+                    }
+                    RelativeUnit::Row(r, use_end) => {
+                        (r as f32 - 1.0 * !use_end)
+                            * (data.resolved.section.height() / data.grid.rows as f32)
+                            + r as f32 * data.grid.gap.vertical()
+                    }
+                    RelativeUnit::Percent(p, use_width) => {
+                        data.resolved.section.width() * p * use_width
+                            + data.resolved.section.height() * !use_width
+                    }
+                },
                 LocationAspectTokenValue::Absolute(a) => a,
             };
             match t.op {
