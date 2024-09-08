@@ -409,6 +409,11 @@ impl Render for Icon {
                 .resource_handle
                 .group_mut_from_entity(packet.entity)
                 .instances
+                .set_layer(packet.entity, packet.value);
+            renderer
+                .resource_handle
+                .group_mut_from_entity(packet.entity)
+                .instances
                 .checked_write(packet.entity, packet.value);
         }
         for packet in queue_handle.read_adds::<Self, Color>() {

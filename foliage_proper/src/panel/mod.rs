@@ -308,6 +308,10 @@ impl Render for Panel {
             renderer
                 .resource_handle
                 .instances
+                .set_layer(packet.entity, packet.value);
+            renderer
+                .resource_handle
+                .instances
                 .checked_write(packet.entity, packet.value);
         }
         for packet in queue_handle.read_adds::<Self, ClippingContextPointer>() {

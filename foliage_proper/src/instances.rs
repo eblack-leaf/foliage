@@ -25,6 +25,7 @@ pub struct Instances<Key: Hash + Eq + Copy + Clone> {
     changed: bool,
     nodes: HashMap<usize, RenderNode>,
     clipping_contexts: HashMap<Key, ClippingContextPointer>,
+    layers: HashMap<Key, RenderLayer>,
 }
 pub(crate) struct Swaps {
     swaps: Vec<Swap>,
@@ -49,6 +50,10 @@ impl<Key: Hash + Eq + Copy + Clone + Debug> Instances<Key> {
     }
     pub fn remove_clipping_context(&mut self, key: Key) {
         self.clipping_contexts.remove(&key);
+        self.changed = true;
+    }
+    pub fn set_layer<L: Into<RenderLayer>>(&mut self, key: Key, l: L) {
+        self.layers.insert(key, l.into());
         self.changed = true;
     }
     pub fn num_instances(&self) -> u32 {
@@ -83,6 +88,7 @@ impl<Key: Hash + Eq + Copy + Clone + Debug> Instances<Key> {
             changed: false,
             nodes: Default::default(),
             clipping_contexts: HashMap::new(),
+            layers: HashMap::new(),
         }
     }
     pub fn with_attribute<A: Pod + Zeroable + Default + Debug>(mut self, ginkgo: &Ginkgo) -> Self {
@@ -179,30 +185,24 @@ impl<Key: Hash + Eq + Copy + Clone + Debug> Instances<Key> {
                 .map(|(i, k)| (i, *k))
                 .collect::<Vec<(usize, Key)>>();
             let mut swaps = Swaps { swaps: vec![] };
-            if self
-                .world
-                .get_non_send_resource_mut::<Attribute<RenderLayer>>()
-                .is_some()
-            {
-                let mut layer_sorted = vec![];
-                for (current, key) in ordering.iter() {
-                    self.map.insert(key.clone(), *current);
-                    let layer = self.get_attr::<RenderLayer>(key).unwrap();
-                    let clip = self.clipping_contexts.get(key).cloned().unwrap_or_default();
-                    layer_sorted.push((*current, key.clone(), RenderNode::new(layer, clip)));
+            let mut layer_sorted = vec![];
+            for (current, key) in ordering.iter() {
+                self.map.insert(key.clone(), *current);
+                let layer = self.layers.get(key).copied().unwrap_or_default();
+                let clip = self.clipping_contexts.get(key).cloned().unwrap_or_default();
+                layer_sorted.push((*current, key.clone(), RenderNode::new(layer, clip)));
+            }
+            layer_sorted.sort_by(|lhs, rhs| -> Ordering { lhs.2.partial_cmp(&rhs.2).unwrap() });
+            ordering.clear();
+            for (end, (current, key, node)) in layer_sorted.iter().enumerate() {
+                if *current != end {
+                    swaps.swaps.push(Swap {
+                        current: *current,
+                        to: end,
+                    });
                 }
-                layer_sorted.sort_by(|lhs, rhs| -> Ordering { lhs.2.partial_cmp(&rhs.2).unwrap() });
-                ordering.clear();
-                for (end, (current, key, node)) in layer_sorted.iter().enumerate() {
-                    if *current != end {
-                        swaps.swaps.push(Swap {
-                            current: *current,
-                            to: end,
-                        });
-                    }
-                    ordering.push((end, key.clone()));
-                    self.nodes.insert(end, node.clone());
-                }
+                ordering.push((end, key.clone()));
+                self.nodes.insert(end, node.clone());
             }
             self.order.clear();
             for (i, k) in ordering {

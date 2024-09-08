@@ -556,6 +556,13 @@ impl Render for Image {
                 .get_mut(&id)
                 .unwrap()
                 .instances
+                .set_layer(packet.entity, packet.value);
+            renderer
+                .resource_handle
+                .groups
+                .get_mut(&id)
+                .unwrap()
+                .instances
                 .checked_write(packet.entity, packet.value);
         }
         for packet in queue_handle.read_adds::<Self, Color>() {
