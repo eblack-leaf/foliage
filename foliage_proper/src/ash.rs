@@ -80,7 +80,7 @@ pub(crate) struct DrawCalls {
         usize,
         DirectiveGroupPointer,
         DrawRange,
-        Section<DeviceContext>,
+        ClippingContextPointer,
     )>,
     pub(crate) unsorted: HashMap<usize, HashMap<DirectiveGroupPointer, RenderNodes>>,
     pub(crate) changed: bool,
@@ -255,7 +255,7 @@ impl Ash {
             R::draw(renderer, key, ar, cs, rpass);
         });
     }
-    pub(crate) fn order_draw_calls(&mut self, screen_size: Section<DeviceContext>) {
+    pub(crate) fn order_draw_calls(&mut self) {
         if self.draw_calls.changed {
             // order
             let mut all = vec![];
@@ -315,21 +315,11 @@ impl Ash {
                         continue;
                     }
                 }
-                let clip_section = match node.clipping_context_ptr {
-                    ClippingContextPointer::Screen => screen_size,
-                    ClippingContextPointer::Entity(e) => {
-                        self.clipping_sections
-                            .get(&e)
-                            .cloned()
-                            .unwrap_or(ClippingSection(screen_size))
-                            .0
-                    }
-                };
                 self.draw_calls.calls.push((
                     this.0,
                     this.1,
                     DrawRange::new(this.2 as u32, this.2 as u32 + contiguous),
-                    clip_section,
+                    node.clipping_context_ptr,
                 ));
             }
             self.draw_calls.changed = false;
@@ -381,13 +371,26 @@ impl Ash {
             timestamp_writes: None,
             occlusion_query_set: None,
         });
-        self.order_draw_calls(Section::new((0, 0), ginkgo.viewport().size()));
-        for (renderer_index, directive_ptr, range, clip_section) in self.draw_calls.calls.iter() {
+        self.order_draw_calls();
+        for (renderer_index, directive_ptr, range, clipping_context_ptr) in
+            self.draw_calls.calls.iter()
+        {
+            let screen_size = Section::new((0, 0), ginkgo.viewport().size());
+            let clip_section = match clipping_context_ptr {
+                ClippingContextPointer::Screen => screen_size,
+                ClippingContextPointer::Entity(e) => {
+                    self.clipping_sections
+                        .get(&e)
+                        .cloned()
+                        .unwrap_or(ClippingSection(screen_size))
+                        .0
+                }
+            };
             self.draw_fns.get(*renderer_index).unwrap()(
                 &self.renderers,
                 *directive_ptr,
                 *range,
-                *clip_section,
+                clip_section,
                 &mut rpass,
             );
         }
