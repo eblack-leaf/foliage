@@ -5,7 +5,7 @@ use crate::anim::{Animate, AnimationRunner, AnimationTime, Ease, Sequence, Seque
 use crate::coordinate::elevation::Elevation;
 use crate::differential::{Remove, RenderLink, RenderRemoveQueue, Visibility};
 use crate::elm::{BranchLimiter, FilterAttrLimiter};
-use crate::grid::GridLocation;
+use crate::grid::{GridContext, GridLocation, ReferentialDependencies};
 use crate::interaction::ClickInteractionListener;
 use crate::layout::{Layout, LayoutFilter};
 use crate::leaf::{BranchHandle, Dependents, IdTable, Leaf, LeafBundle, LeafHandle, OnEnd, Stem};
@@ -289,13 +289,13 @@ impl<'a> Tree<'a> {
             .unwrap()
             .add_target(leaf.name.clone(), entity)
         {
-            panic!() // TODO or warn deleting entity
-                     // *self
-                     //     .world_handle
-                     //     .as_mut()
-                     //     .unwrap()
-                     //     .get_mut::<Remove>(old)
-                     //     .unwrap() = Remove::queue_remove();
+            panic!("overwriting leaf-handle") // TODO or warn deleting entity
+                                              // *self
+                                              //     .world_handle
+                                              //     .as_mut()
+                                              //     .unwrap()
+                                              //     .get_mut::<Remove>(old)
+                                              //     .unwrap() = Remove::queue_remove();
         }
         self.update_leaf(leaf.name.clone(), leaf.l_fn);
     }
@@ -335,7 +335,16 @@ impl<'a> Tree<'a> {
                 .0
                 .remove(&handle);
         }
-        let dependents = self.recursive_remove_leaf(start);
+        let mut query =
+            self.world_handle
+                .as_mut()
+                .unwrap()
+                .query::<(Entity, &LeafHandle, &ReferentialDependencies)>();
+        let mut referential = Vec::new();
+        for (e, lh, ref_deps) in query.iter(self.world_handle.as_ref().unwrap()) {
+            referential.push((e, lh, ref_deps));
+        }
+        let dependents = self.recursive_remove_leaf(handle, start, &referential);
         for (t, e) in dependents {
             self.world_handle
                 .as_mut()
@@ -351,7 +360,12 @@ impl<'a> Tree<'a> {
                 .remove(&t);
         }
     }
-    fn recursive_remove_leaf(&self, current: Entity) -> HashSet<(LeafHandle, Entity)> {
+    fn recursive_remove_leaf(
+        &self,
+        leaf_handle: LeafHandle,
+        current: Entity,
+        referential: &Vec<(Entity, &LeafHandle, &ReferentialDependencies)>,
+    ) -> HashSet<(LeafHandle, Entity)> {
         let mut removed_set = HashSet::new();
         if let Some(deps) = self
             .world_handle
@@ -359,14 +373,22 @@ impl<'a> Tree<'a> {
             .unwrap()
             .get::<Dependents>(current)
         {
-            let dependents = deps.0.clone();
-            for d in dependents.iter() {
+            for d in deps.0.iter() {
                 let e = self.lookup_target_entity(d.clone()).unwrap();
                 removed_set.insert((d.clone(), e));
-                removed_set.extend(self.recursive_remove_leaf(e));
+                removed_set.extend(self.recursive_remove_leaf(d.clone(), e, referential));
             }
         }
-        // TODO include grid-referential-deps + queue to remove
+
+        for (e, lh, ref_deps) in referential.iter() {
+            if ref_deps
+                .deps
+                .contains(&GridContext::Named(leaf_handle.clone()))
+            {
+                removed_set.insert(((*lh).clone(), *e));
+                removed_set.extend(self.recursive_remove_leaf((*lh).clone(), *e, referential));
+            }
+        }
         removed_set
     }
     pub fn update_leaf<LH: Into<LeafHandle>, LFN: for<'b> FnOnce(&mut LeafPtr<'b>)>(

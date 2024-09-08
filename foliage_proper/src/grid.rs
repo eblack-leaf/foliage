@@ -1328,7 +1328,7 @@ impl Default for Grid {
 }
 #[derive(Clone, Default, Component)]
 pub(crate) struct ReferentialDependencies {
-    deps: HashSet<GridContext>,
+    pub(crate) deps: HashSet<GridContext>,
 }
 impl ReferentialDependencies {
     fn new(deps: HashSet<GridContext>) -> ReferentialDependencies {
