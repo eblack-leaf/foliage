@@ -11,7 +11,7 @@ impl Branch for Home {
     fn grow(self, mut tree: Tree) {
         tree.add_leaf(
             Leaf::new(|l| {
-                l.give(Line::new(LineWeight::new(10), Color::WHITE));
+                l.give(Line::new(LineWeight::new(60), Color::WHITE));
             })
                 .named("line-test")
                 .located(
@@ -25,7 +25,7 @@ impl Branch for Home {
         );
         tree.add_leaf(
             Leaf::new(|l| {
-                l.give(Line::new(LineWeight::new(10), Color::WHITE));
+                l.give(Line::new(LineWeight::new(60), Color::WHITE));
             })
                 .named("line-test-2")
                 .located(
@@ -46,14 +46,14 @@ impl Branch for Home {
                     GridLocation::new()
                         .center_x(100.px())
                         .center_y(100.px())
-                        .width(8.px())
-                        .height(8.px()),
+                        .width(58.px())
+                        .height(58.px()),
                 )
                 .elevation(4),
         );
         tree.add_leaf(
             Leaf::new(|l| {
-                l.give(Line::new(LineWeight::new(10), Color::WHITE));
+                l.give(Line::new(LineWeight::new(60), Color::WHITE));
             })
                 .named("line-test-4")
                 .located(
@@ -74,8 +74,8 @@ impl Branch for Home {
                     GridLocation::new()
                         .center_x(500.px())
                         .center_y(50.px())
-                        .width(8.px())
-                        .height(8.px()),
+                        .width(58.px())
+                        .height(58.px()),
                 )
                 .elevation(4),
         );
