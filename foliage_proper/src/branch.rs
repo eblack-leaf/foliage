@@ -281,7 +281,7 @@ impl<'a> Tree<'a> {
             .insert(leaf.elevation)
             .insert(leaf.location)
             .id();
-        if let Some(old) = self
+        if let Some(_old) = self
             .world_handle
             .as_mut()
             .unwrap()
@@ -289,13 +289,13 @@ impl<'a> Tree<'a> {
             .unwrap()
             .add_target(leaf.name.clone(), entity)
         {
-            // TODO warn deleting entity
-            *self
-                .world_handle
-                .as_mut()
-                .unwrap()
-                .get_mut::<Remove>(old)
-                .unwrap() = Remove::queue_remove();
+            panic!() // TODO or warn deleting entity
+                     // *self
+                     //     .world_handle
+                     //     .as_mut()
+                     //     .unwrap()
+                     //     .get_mut::<Remove>(old)
+                     //     .unwrap() = Remove::queue_remove();
         }
         self.update_leaf(leaf.name.clone(), leaf.l_fn);
     }
