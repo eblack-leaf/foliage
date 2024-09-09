@@ -210,7 +210,7 @@ impl<A: Animate> Animation<A> {
     }
 }
 impl<'a> SequenceHandle<'a> {
-    pub fn animate<A: Animate, TH: Into<LeafHandle>>(&mut self, animation: Animation<A>) {
+    pub fn animate<A: Animate>(&mut self, animation: Animation<A>) {
         self.sequence.animations_to_finish += 1;
         let anim = AnimationRunner::new(
             animation.leaf_handle,
