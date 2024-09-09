@@ -21,6 +21,8 @@ pub struct Time {
     total: TimeDelta,
     last: Moment,
     frame_diff: TimeDelta,
+    fps_time: TimeDelta,
+    fps_count: i32,
 }
 impl Time {
     pub(crate) const TIME_SKIP_RESISTANCE_FACTOR: u64 = 33;
@@ -29,6 +31,8 @@ impl Time {
             total: Default::default(),
             last: Moment::now(),
             frame_diff: Default::default(),
+            fps_time: Default::default(),
+            fps_count: 0,
         }
     }
     pub(crate) fn start(&mut self) {
@@ -39,6 +43,13 @@ impl Time {
         self.frame_diff =
             (now - self.last).min(TimeDelta::from_millis(Self::TIME_SKIP_RESISTANCE_FACTOR));
         self.total += self.frame_diff;
+        self.fps_time += self.frame_diff;
+        self.fps_count += 1;
+        if self.fps_time >= TimeDelta::from_secs(1) {
+            // println!("fps: {} @ {:?}", self.fps_count, self.fps_time);
+            self.fps_count = 0;
+            self.fps_time = TimeDelta::default();
+        }
         self.last = now;
     }
     pub fn mark(&self) -> TimeMarker {

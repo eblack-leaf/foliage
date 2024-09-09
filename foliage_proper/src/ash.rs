@@ -313,17 +313,14 @@ impl Ash {
                 index += 1;
                 if let Some(n) = next {
                     if (this.0, this.1, this.2 + 1, this.3) == (n.0, n.1, n.2, n.3) {
-                        // println!("this: {:?}  next: {:?}", this, next);
                         contiguous += 1;
                         if range_start.is_none() {
-                            println!("start-range: {}", this.2);
                             range_start.replace(this.2);
                         }
                         continue;
                     }
                 }
                 let start = range_start.take().unwrap_or(this.2);
-                println!("this: {:?} start: {} contiguous: {}", this, start, contiguous);
                 self.draw_calls.calls.push((
                     this.0,
                     this.1,

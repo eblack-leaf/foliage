@@ -13,7 +13,7 @@ pub(crate) struct Home {}
 impl Branch for Home {
     fn grow(self, mut tree: Tree) {
         let mut last = None;
-        for x in (0..1600).step_by(10) {
+        for x in (0..1600).step_by(1) {
             let y = ((x as f32 / 225.0).sin() * 160.0) as i32 + 220;
             if last.is_none() {
                 last = Some((x, y));
@@ -31,7 +31,7 @@ impl Branch for Home {
                             .point_bx(x.px())
                             .point_by(y.px()),
                     )
-                    .elevation(15),
+                    .elevation(6),
             );
             tree.add_leaf(
                 Leaf::new(|l| {
@@ -45,12 +45,12 @@ impl Branch for Home {
                             .width(12.px())
                             .height(12.px()),
                     )
-                    .elevation(6),
+                    .elevation(5),
             );
             last.replace((x, y));
         }
         last = None;
-        for x in (0..1600).step_by(10) {
+        for x in (0..1600).step_by(1) {
             let y = ((x as f32 / 225.0).cos() * 160.0) as i32 + 420;
             if last.is_none() {
                 last = Some((x, y));
@@ -68,7 +68,7 @@ impl Branch for Home {
                             .point_bx(x.px())
                             .point_by(y.px()),
                     )
-                    .elevation(3),
+                    .elevation(4),
             );
             tree.add_leaf(
                 Leaf::new(|l| {
@@ -82,12 +82,12 @@ impl Branch for Home {
                             .width(12.px())
                             .height(12.px()),
                     )
-                    .elevation(2),
+                    .elevation(3),
             );
             last.replace((x, y));
         }
         last = None;
-        for x in (0..1600).step_by(10) {
+        for x in (0..1600).step_by(1) {
             let y = ((x as f32 / 225.0).tan() * 20.0) as i32 + 620;
             if last.is_none() {
                 last = Some((x, y));
@@ -105,7 +105,7 @@ impl Branch for Home {
                             .point_bx(x.px())
                             .point_by(y.px()),
                     )
-                    .elevation(15),
+                    .elevation(2),
             );
             tree.add_leaf(
                 Leaf::new(|l| {
@@ -119,7 +119,7 @@ impl Branch for Home {
                             .width(12.px())
                             .height(12.px()),
                     )
-                    .elevation(4),
+                    .elevation(1),
             );
             last.replace((x, y));
         }
