@@ -3,6 +3,7 @@ use foliage::branch::{Animation, Branch, Tree};
 use foliage::color::Color;
 use foliage::grid::{GridLocation, TokenUnit};
 use foliage::leaf::Leaf;
+use foliage::opacity::Opacity;
 use foliage::panel::{Panel, Rounding};
 use foliage::shape::line::{Line, LineWeight};
 
@@ -17,10 +18,10 @@ impl Branch for Home {
             .named("line-test")
             .located(
                 GridLocation::new()
-                    .point_ax(90.px())
-                    .point_ay(145.px())
+                    .point_ax(100.px())
+                    .point_ay(100.px())
                     .point_bx(100.px())
-                    .point_by(100.px()),
+                    .point_by(200.px()),
             )
             .elevation(5),
         );
@@ -28,13 +29,16 @@ impl Branch for Home {
             seq.animate(
                 Animation::new(
                     GridLocation::new()
-                        .point_ax(180.px())
-                        .point_ay(290.px())
+                        .point_ax(100.px())
+                        .point_ay(300.px())
                         .point_bx(100.px())
-                        .point_by(100.px()),
+                        .point_by(500.px()),
                 )
                 .targeting("line-test")
-                .time(500.millis().to(3500.millis())),
+                .time(500.millis().to(1500.millis())),
+            );
+            seq.animate(
+                Animation::new(Opacity::new(0.0)).targeting("line-test-3").time(500.millis().to(1500.millis())),
             );
         });
         tree.add_leaf(

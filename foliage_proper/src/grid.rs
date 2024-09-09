@@ -961,12 +961,12 @@ impl GridLocation {
                         let diff = p.point_b.last
                             - Section::new(resolution.points.as_ref()?.data[1], Area::default());
                         let offset = diff * p.point_b.hook_percent;
-                        resolution.points.as_mut()?.data[0] +=
+                        resolution.points.as_mut()?.data[1] +=
                             Position::new(offset.position.coordinates);
-                        resolution.hook_update?.get_mut(0)?.replace(offset);
+                        resolution.hook_update?.get_mut(1)?.replace(offset);
                     } else {
                         let offset = p.point_b.diff * p.point_b.hook_percent;
-                        resolution.points.as_mut()?.data[0] +=
+                        resolution.points.as_mut()?.data[1] +=
                             Position::new(offset.position.coordinates);
                     }
                 }
@@ -975,12 +975,12 @@ impl GridLocation {
                         let diff = p.point_c.last
                             - Section::new(resolution.points.as_ref()?.data[2], Area::default());
                         let offset = diff * p.point_c.hook_percent;
-                        resolution.points.as_mut()?.data[0] +=
+                        resolution.points.as_mut()?.data[2] +=
                             Position::new(offset.position.coordinates);
-                        resolution.hook_update?.get_mut(0)?.replace(offset);
+                        resolution.hook_update?.get_mut(2)?.replace(offset);
                     } else {
                         let offset = p.point_c.diff * p.point_c.hook_percent;
-                        resolution.points.as_mut()?.data[0] +=
+                        resolution.points.as_mut()?.data[2] +=
                             Position::new(offset.position.coordinates);
                     }
                 }
@@ -989,12 +989,12 @@ impl GridLocation {
                         let diff = p.point_d.last
                             - Section::new(resolution.points.as_ref()?.data[3], Area::default());
                         let offset = diff * p.point_d.hook_percent;
-                        resolution.points.as_mut()?.data[0] +=
+                        resolution.points.as_mut()?.data[3] +=
                             Position::new(offset.position.coordinates);
-                        resolution.hook_update?.get_mut(0)?.replace(offset);
+                        resolution.hook_update?.get_mut(3)?.replace(offset);
                     } else {
                         let offset = p.point_d.diff * p.point_d.hook_percent;
-                        resolution.points.as_mut()?.data[0] +=
+                        resolution.points.as_mut()?.data[3] +=
                             Position::new(offset.position.coordinates);
                     }
                 }
