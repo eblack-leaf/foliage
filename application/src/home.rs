@@ -1,6 +1,7 @@
+use foliage::color::Monochromatic;
 use foliage::anim::SequenceTiming;
 use foliage::branch::{Animation, Branch, Tree};
-use foliage::color::Color;
+use foliage::color::{Color, Grey};
 use foliage::grid::{GridLocation, TokenUnit};
 use foliage::leaf::Leaf;
 use foliage::opacity::Opacity;
@@ -13,7 +14,7 @@ impl Branch for Home {
     fn grow(self, mut tree: Tree) {
         tree.add_leaf(
             Leaf::new(|l| {
-                l.give(Line::new(LineWeight::new(80), Color::WHITE));
+                l.give(Line::new(LineWeight::new(80), Grey::minus_two()));
             })
             .named("line-test")
             .located(
@@ -25,25 +26,25 @@ impl Branch for Home {
             )
             .elevation(5),
         );
-        tree.run_sequence(|seq| {
-            seq.animate(
-                Animation::new(
-                    GridLocation::new()
-                        .point_ax(100.px())
-                        .point_ay(300.px())
-                        .point_bx(100.px())
-                        .point_by(500.px()),
-                )
-                .targeting("line-test")
-                .time(500.millis().to(1500.millis())),
-            );
-            seq.animate(
-                Animation::new(Opacity::new(0.0)).targeting("line-test-3").time(500.millis().to(1500.millis())),
-            );
-        });
+        // tree.run_sequence(|seq| {
+        //     seq.animate(
+        //         Animation::new(
+        //             GridLocation::new()
+        //                 .point_ax(100.px())
+        //                 .point_ay(300.px())
+        //                 .point_bx(100.px())
+        //                 .point_by(500.px()),
+        //         )
+        //         .targeting("line-test")
+        //         .time(500.millis().to(1500.millis())),
+        //     );
+        //     seq.animate(
+        //         Animation::new(Opacity::new(0.0)).targeting("line-test-3").time(500.millis().to(1500.millis())),
+        //     );
+        // });
         tree.add_leaf(
             Leaf::new(|l| {
-                l.give(Line::new(LineWeight::new(80), Color::WHITE));
+                l.give(Line::new(LineWeight::new(80), Grey::base()));
             })
             .named("line-test-2")
             .located(
@@ -71,7 +72,7 @@ impl Branch for Home {
         );
         tree.add_leaf(
             Leaf::new(|l| {
-                l.give(Line::new(LineWeight::new(80), Color::WHITE));
+                l.give(Line::new(LineWeight::new(80), Grey::plus_two()));
             })
             .named("line-test-4")
             .located(
