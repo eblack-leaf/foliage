@@ -72,7 +72,7 @@ pub(crate) struct Ash {
     >,
     pub(crate) clipping_sections: HashMap<Entity, ClippingSection>,
 }
-#[derive(Copy, Clone, Hash, Ord, PartialOrd, PartialEq, Eq)]
+#[derive(Copy, Clone, Hash, Ord, PartialOrd, PartialEq, Eq, Debug)]
 pub(crate) struct DirectiveGroupPointer(pub(crate) i32);
 #[derive(Default)]
 pub(crate) struct DrawCalls {
@@ -313,20 +313,24 @@ impl Ash {
                 index += 1;
                 if let Some(n) = next {
                     if (this.0, this.1, this.2 + 1, this.3) == (n.0, n.1, n.2, n.3) {
+                        // println!("this: {:?}  next: {:?}", this, next);
                         contiguous += 1;
                         if range_start.is_none() {
+                            println!("start-range: {}", this.2);
                             range_start.replace(this.2);
                         }
                         continue;
                     }
                 }
-                let start = range_start.unwrap_or(this.2);
+                let start = range_start.take().unwrap_or(this.2);
+                println!("this: {:?} start: {} contiguous: {}", this, start, contiguous);
                 self.draw_calls.calls.push((
                     this.0,
                     this.1,
                     DrawRange::new(start as u32, start as u32 + contiguous),
                     node.clipping_context_ptr,
                 ));
+                contiguous = 1;
             }
             self.draw_calls.changed = false;
         }
@@ -392,7 +396,7 @@ impl Ash {
                         .0
                 }
             };
-            self.draw_fns.get(*renderer_index).unwrap()(
+            self.draw_fns.get(*renderer_index).as_ref().unwrap()(
                 &self.renderers,
                 *directive_ptr,
                 *range,

@@ -360,7 +360,7 @@ impl Render for Panel {
     fn draw<'a>(
         renderer: &'a Renderer<Self>,
         group_key: Self::DirectiveGroupKey,
-        alpha_range: DrawRange,
+        draw_range: DrawRange,
         clipping_section: Section<DeviceContext>,
         render_pass: &mut RenderPass<'a>,
     ) {
@@ -429,6 +429,6 @@ impl Render for Panel {
                 .buffer::<CornerIV>()
                 .slice(..),
         );
-        render_pass.draw(0..VERTICES.len() as u32, alpha_range.start..alpha_range.end);
+        render_pass.draw(0..VERTICES.len() as u32, draw_range.start..draw_range.end);
     }
 }
