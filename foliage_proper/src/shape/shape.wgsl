@@ -38,7 +38,8 @@ fn distance_to_edge(edge: vec4f, pt: vec2f) -> f32 {
     let line_dir = edge.zw - edge.xy;
     let perpendicular = vec2f(line_dir.y, -line_dir.x);
     let dir_to_pt = edge.xy - pt;
-    return abs(dot(normalize(perpendicular), dir_to_pt));
+    let bias = f32(line_dir.x == 0 || line_dir.y == 0);// TODO % from pi/2
+    return abs(dot(normalize(perpendicular), dir_to_pt)) + bias;
 }
 @fragment
 fn fragment_entry(frag: Fragment) -> @location(0) vec4<f32> {

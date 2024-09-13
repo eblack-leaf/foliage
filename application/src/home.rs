@@ -1,125 +1,90 @@
 use foliage::branch::{Branch, Tree};
 use foliage::color::Grey;
-use foliage::color::{Blue, Monochromatic, Orange};
-use foliage::grid::{GridLocation, TokenUnit};
+use foliage::color::Monochromatic;
+use foliage::grid::{screen, ContextUnit, GridLocation, TokenUnit};
 use foliage::leaf::Leaf;
-use foliage::panel::{Panel, Rounding};
-use foliage::shape::line::{Line, LineWeight};
+use foliage::text::{FontSize, Text};
 
 #[derive(Clone)]
 pub(crate) struct Home {}
 impl Branch for Home {
     fn grow(self, mut tree: Tree) {
-        let mut last = None;
-        for x in (0..1600).step_by(50) {
-            let y = ((x as f32 / 225.0).sin() * 160.0) as i32 + 220;
-            if last.is_none() {
-                last = Some((x, y));
-                continue;
-            }
-            tree.add_leaf(
-                Leaf::new(|l| {
-                    l.give(Line::new(LineWeight::new(4), Blue::base()));
-                })
-                .named(format!("line-{}", x))
-                .located(
-                    GridLocation::new()
-                        .point_ax(last.unwrap().0.px())
-                        .point_ay(last.unwrap().1.px())
-                        .point_bx(x.px())
-                        .point_by(y.px()),
-                )
-                .elevation(6),
-            );
-            tree.add_leaf(
-                Leaf::new(|l| {
-                    l.give(Panel::new(Rounding::all(1.0), Blue::base()));
-                })
-                .named(format!("panel-{}", x))
-                .located(
-                    GridLocation::new()
-                        .center_x(x.px())
-                        .center_y(y.px())
-                        .width(3.px())
-                        .height(3.px()),
-                )
-                .elevation(5),
-            );
-            last.replace((x, y));
-        }
-        last = None;
-        for x in (0..1600).step_by(50) {
-            let y = ((x as f32 / 225.0).cos() * 160.0) as i32 + 420;
-            if last.is_none() {
-                last = Some((x, y));
-                continue;
-            }
-            tree.add_leaf(
-                Leaf::new(|l| {
-                    l.give(Line::new(LineWeight::new(4), Orange::base()));
-                })
-                .named(format!("line-cos-{}", x))
-                .located(
-                    GridLocation::new()
-                        .point_ax(last.unwrap().0.px())
-                        .point_ay(last.unwrap().1.px())
-                        .point_bx(x.px())
-                        .point_by(y.px()),
-                )
-                .elevation(4),
-            );
-            tree.add_leaf(
-                Leaf::new(|l| {
-                    l.give(Panel::new(Rounding::all(1.0), Orange::base()));
-                })
-                .named(format!("panel-cos-{}", x))
-                .located(
-                    GridLocation::new()
-                        .center_x(x.px())
-                        .center_y(y.px())
-                        .width(3.px())
-                        .height(3.px()),
-                )
-                .elevation(3),
-            );
-            last.replace((x, y));
-        }
-        last = None;
-        for x in (0..1600).step_by(10) {
-            let y = ((x as f32 / 225.0).tan() * 20.0) as i32 + 620;
-            if last.is_none() {
-                last = Some((x, y));
-                continue;
-            }
-            tree.add_leaf(
-                Leaf::new(|l| {
-                    l.give(Line::new(LineWeight::new(4), Grey::base()));
-                })
-                .named(format!("line-tan-{}", x))
-                .located(
-                    GridLocation::new()
-                        .point_ax(last.unwrap().0.px())
-                        .point_ay(last.unwrap().1.px())
-                        .point_bx(x.px())
-                        .point_by(y.px()),
-                )
-                .elevation(2),
-            );
-            tree.add_leaf(
-                Leaf::new(|l| {
-                    l.give(Panel::new(Rounding::all(1.0), Grey::base()));
-                })
-                .named(format!("panel-tan-{}", x))
-                .located(
-                    GridLocation::new()
-                        .center_x(x.px())
-                        .center_y(y.px())
-                        .width(3.px())
-                        .height(3.px()),
-                )
-                .elevation(1),
-            );
-            last.replace((x, y));
-        }
+        tree.add_leaf(
+            Leaf::new(|l| {}).named("screen-0").elevation(0).located(
+                GridLocation::new()
+                    .width(screen().width())
+                    .height(screen().height())
+                    .left(screen().left())
+                    .top(screen().top()),
+            ),
+        );
+        // tree.add_leaf(
+        //     Leaf::new(|l| {
+        //         l.give(Line::new(LineWeight::new(12), Orange::plus_two()));
+        //         l.stem_from("screen-0");
+        //     })
+        //     .named("stem-line")
+        //     .located(
+        //         GridLocation::new()
+        //             .point_ax(50.percent_width("screen-0"))
+        //             .point_ay("screen-0".bottom() - 16.px())
+        //             .point_bx(50.percent_width("screen-0"))
+        //             .point_by("screen-0".top() + 16.px())
+        //             .except_at(
+        //                 Layout::LANDSCAPE_MOBILE | Layout::LANDSCAPE_EXT,
+        //                 LocationConfiguration::new()
+        //                     .point_ax("screen-0".left() + 16.px())
+        //                     .point_ay(50.percent_height("screen-0"))
+        //                     .point_bx("screen-0".right() - 16.px())
+        //                     .point_by(50.percent_height("screen-0")),
+        //             ),
+        //     )
+        //     .elevation(2),
+        // );
+        // tree.add_leaf(
+        //     Leaf::new(|l| {
+        //         l.give(Line::new(LineWeight::new(12), Orange::plus_two()));
+        //         l.stem_from("screen-0");
+        //     })
+        //     .named("branch-a")
+        //     .located(
+        //         GridLocation::new()
+        //             .point_ax(50.percent_width("screen-0"))
+        //             .point_ay("screen-0".bottom() - 25.percent_height("screen-0"))
+        //             .point_bx(50.percent_width("screen-0") + 120.px())
+        //             .point_by("screen-0".bottom() - 25.percent_height("screen-0") - 120.px()),
+        //     )
+        //     .elevation(2),
+        // );
+        // tree.add_leaf(
+        //     Leaf::new(|l| {
+        //         l.give(Line::new(LineWeight::new(12), Orange::plus_two()));
+        //         l.stem_from("screen-0");
+        //     })
+        //     .named("branch-b")
+        //     .located(
+        //         GridLocation::new()
+        //             .point_ax(50.percent_width("screen-0"))
+        //             .point_ay("screen-0".top() + 25.percent_height("screen-0"))
+        //             .point_bx(50.percent_width("screen-0") - 80.px())
+        //             .point_by("screen-0".top() + 25.percent_height("screen-0") - 80.px()),
+        //     )
+        //     .elevation(2),
+        // );
+        tree.add_leaf(
+            Leaf::new(|l| {
+                l.give(Text::new("FOLIAGE", FontSize::new(120), Grey::plus_three()));
+                l.stem_from("screen-0");
+            })
+            .named("foliage")
+            .located(
+                GridLocation::new()
+                    .center_x("screen-0".center_x())
+                    .center_y("screen-0".center_y())
+                    .width(75.percent_width("screen-0"))
+                    .height(240.px()),
+            )
+            .elevation(0),
+        );
     }
 }

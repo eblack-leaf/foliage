@@ -39,7 +39,7 @@ fn vertex_entry(vertex: Vertex) -> Fragment {
 }
 @fragment
 fn fragment_entry(frag: Fragment) -> @location(0) vec4<f32> {
-    let interval = 0.5;
+    let interval = 1.0;
     let in_corner_i: bool = frag.position.x >= frag.corner_i.x && frag.position.y <= frag.corner_i.y
         && frag.corner_i.z != 0.0;
     let in_corner_ii: bool = frag.position.x <= frag.corner_ii.x && frag.position.y <= frag.corner_ii.y
@@ -56,10 +56,10 @@ fn fragment_entry(frag: Fragment) -> @location(0) vec4<f32> {
     let start_ii = frag.corner_ii.z - interval;
     let start_iii = frag.corner_iii.z - interval;
     let start_iv = frag.corner_iv.z - interval;
-    let end_i = frag.corner_i.z + interval;
-    let end_ii = frag.corner_ii.z + interval;
-    let end_iii = frag.corner_iii.z + interval;
-    let end_iv = frag.corner_iv.z + interval;
+    let end_i = frag.corner_i.z;
+    let end_ii = frag.corner_ii.z;
+    let end_iii = frag.corner_iii.z;
+    let end_iv = frag.corner_iv.z;
     let corner_i_adjust = smoothstep(start_i, end_i, actual_i) * f32(in_corner_i);
     let corner_ii_adjust = smoothstep(start_ii, end_ii, actual_ii) * f32(in_corner_ii);
     let corner_iii_adjust = smoothstep(start_iii, end_iii, actual_iii) * f32(in_corner_iii);
