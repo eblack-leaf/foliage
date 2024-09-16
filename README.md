@@ -105,11 +105,11 @@ pub trait TwigDef
 where
     Self: Sized + Send + Sync + 'static,
 {
-    fn grow(self, twig_ptr: &mut TwigPtr);
+    fn grow(self, twig_stem: &mut TwigStem);
 }
 ```
 
-A `TwigPtr` is a handle to the `Tree` and the root-entity of the `Twig`.
+A `TwigStem` is a handle to the `Tree` and the root-entity of the `Twig`.
 Here you can `bind` `Leaf`s to the `Twig` and configure logic.
 
 ```rust
