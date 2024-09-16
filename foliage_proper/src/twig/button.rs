@@ -1,4 +1,4 @@
-use crate::grid::{Grid, GridLocation};
+use crate::grid::{ContextUnit, Grid, GridLocation, TokenUnit};
 use crate::icon::{Icon, IconId};
 use crate::interaction::{ClickInteractionListener, OnClick};
 use crate::leaf::Leaf;
@@ -77,22 +77,43 @@ impl TwigDef for Button {
             .located(GridLocation::new())
             .elevation(-1),
         );
+
+        let value = self.text_value.unwrap_or_default().0;
+        let icon_location = if value.is_empty() {
+            GridLocation::new()
+                .center_x(twig_stem.target_handle.clone().center_x())
+                .center_y(twig_stem.target_handle.clone().center_y())
+                .width(twig_stem.target_handle.clone().width() - 16.px())
+                .height(twig_stem.target_handle.clone().height() - 16.px())
+        } else {
+            GridLocation::new()
+                .left(twig_stem.target_handle.clone().left() + 16.px())
+                .width(15.percent_width(twig_stem.target_handle.clone()))
+                .height(15.percent_width(twig_stem.target_handle.clone()))
+                .center_y(twig_stem.target_handle.clone().center_y())
+        };
         twig_stem.bind(
             Leaf::new(|l| l.give(Icon::new(self.icon_id, self.coloring.foreground)))
                 .named("icon")
-                .located(GridLocation::new())
+                .located(icon_location)
                 .elevation(-1),
         );
         twig_stem.bind(
             Leaf::new(|l| {
                 l.give(Text::new(
-                    self.text_value.unwrap_or_default().0,
+                    value,
                     self.font_size.unwrap(),
                     self.coloring.foreground,
                 ))
             })
             .named("text")
-            .located(GridLocation::new())
+            .located(
+                GridLocation::new()
+                    .left(twig_stem.target_handle.extend("icon").right() + 16.px())
+                    .right(twig_stem.target_handle.clone().right() - 16.px())
+                    .center_y(twig_stem.target_handle.clone().center_y())
+                    .height(90.percent_height(twig_stem.target_handle.clone())),
+            )
             .elevation(-1),
         )
     }

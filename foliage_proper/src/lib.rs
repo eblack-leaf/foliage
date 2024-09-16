@@ -1,6 +1,6 @@
 pub use bevy_ecs;
 use bevy_ecs::bundle::Bundle;
-use bevy_ecs::prelude::Resource;
+use bevy_ecs::prelude::{Entity, Resource};
 use futures_channel::oneshot;
 use tracing_subscriber::filter::Targets;
 use tracing_subscriber::layer::SubscriberExt;
@@ -164,8 +164,8 @@ impl Foliage {
         self.ash.add_renderer::<R>();
         self.elm.enable_differential::<R, ClippingContextPointer>();
     }
-    pub fn spawn<B: Bundle + 'static + Send + Sync>(&mut self, b: B) {
-        self.elm.ecs.world.spawn(b);
+    pub fn spawn<B: Bundle + 'static + Send + Sync>(&mut self, b: B) -> Entity {
+        self.elm.ecs.world.spawn(b).id()
     }
     pub fn insert_resource<R: Resource>(&mut self, r: R) {
         self.elm.ecs.world.insert_resource(r);

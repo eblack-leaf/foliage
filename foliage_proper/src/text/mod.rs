@@ -291,9 +291,9 @@ pub(crate) fn distill(
             ),
         )
         .to_logical(scale_factor.value());
-        primitive_offset.section.position.coordinates =
-            (normal.center() - adjusted.center()).coordinates;
-        primitive_offset.section.area.coordinates = area.coordinates - adjusted.area.coordinates;
+        // primitive_offset.section.position.coordinates =
+        //     (normal.center() - adjusted.center()).coordinates;
+        // primitive_offset.section.area.coordinates = area.coordinates - adjusted.area.coordinates;
         for (offset, glyph) in old_glyphs {
             if let Some(new) = glyphs.glyphs.get(&offset) {
                 if glyph.key.glyph_index != new.key.glyph_index {
