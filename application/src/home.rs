@@ -1,9 +1,10 @@
 use foliage::branch::{Branch, Tree};
-use foliage::color::Grey;
 use foliage::color::Monochromatic;
-use foliage::grid::{screen, ContextUnit, GridLocation, TokenUnit};
+use foliage::color::Orange;
+use foliage::grid::{screen, ContextUnit, GridLocation, LocationConfiguration, TokenUnit};
+use foliage::layout::Layout;
 use foliage::leaf::Leaf;
-use foliage::text::{FontSize, Text};
+use foliage::shape::line::{Line, LineWeight};
 
 #[derive(Clone)]
 pub(crate) struct Home {}
@@ -18,73 +19,73 @@ impl Branch for Home {
                     .top(screen().top()),
             ),
         );
-        // tree.add_leaf(
-        //     Leaf::new(|l| {
-        //         l.give(Line::new(LineWeight::new(12), Orange::plus_two()));
-        //         l.stem_from("screen-0");
-        //     })
-        //     .named("stem-line")
-        //     .located(
-        //         GridLocation::new()
-        //             .point_ax(50.percent_width("screen-0"))
-        //             .point_ay("screen-0".bottom() - 16.px())
-        //             .point_bx(50.percent_width("screen-0"))
-        //             .point_by("screen-0".top() + 16.px())
-        //             .except_at(
-        //                 Layout::LANDSCAPE_MOBILE | Layout::LANDSCAPE_EXT,
-        //                 LocationConfiguration::new()
-        //                     .point_ax("screen-0".left() + 16.px())
-        //                     .point_ay(50.percent_height("screen-0"))
-        //                     .point_bx("screen-0".right() - 16.px())
-        //                     .point_by(50.percent_height("screen-0")),
-        //             ),
-        //     )
-        //     .elevation(2),
-        // );
-        // tree.add_leaf(
-        //     Leaf::new(|l| {
-        //         l.give(Line::new(LineWeight::new(12), Orange::plus_two()));
-        //         l.stem_from("screen-0");
-        //     })
-        //     .named("branch-a")
-        //     .located(
-        //         GridLocation::new()
-        //             .point_ax(50.percent_width("screen-0"))
-        //             .point_ay("screen-0".bottom() - 25.percent_height("screen-0"))
-        //             .point_bx(50.percent_width("screen-0") + 120.px())
-        //             .point_by("screen-0".bottom() - 25.percent_height("screen-0") - 120.px()),
-        //     )
-        //     .elevation(2),
-        // );
-        // tree.add_leaf(
-        //     Leaf::new(|l| {
-        //         l.give(Line::new(LineWeight::new(12), Orange::plus_two()));
-        //         l.stem_from("screen-0");
-        //     })
-        //     .named("branch-b")
-        //     .located(
-        //         GridLocation::new()
-        //             .point_ax(50.percent_width("screen-0"))
-        //             .point_ay("screen-0".top() + 25.percent_height("screen-0"))
-        //             .point_bx(50.percent_width("screen-0") - 80.px())
-        //             .point_by("screen-0".top() + 25.percent_height("screen-0") - 80.px()),
-        //     )
-        //     .elevation(2),
-        // );
         tree.add_leaf(
             Leaf::new(|l| {
-                l.give(Text::new("FOLIAGE", FontSize::new(120), Grey::plus_three()));
+                l.give(Line::new(LineWeight::new(12), Orange::plus_two()));
                 l.stem_from("screen-0");
             })
-            .named("foliage")
+            .named("stem-line")
             .located(
                 GridLocation::new()
-                    .center_x("screen-0".center_x())
-                    .center_y("screen-0".center_y())
-                    .width(75.percent_width("screen-0"))
-                    .height(240.px()),
+                    .point_ax(50.percent_width("screen-0"))
+                    .point_ay("screen-0".bottom() - 16.px())
+                    .point_bx(50.percent_width("screen-0"))
+                    .point_by("screen-0".top() + 16.px())
+                    .except_at(
+                        Layout::LANDSCAPE_MOBILE | Layout::LANDSCAPE_EXT,
+                        LocationConfiguration::new()
+                            .point_ax("screen-0".left() + 16.px())
+                            .point_ay(50.percent_height("screen-0"))
+                            .point_bx("screen-0".right() - 16.px())
+                            .point_by(50.percent_height("screen-0")),
+                    ),
             )
-            .elevation(0),
+            .elevation(2),
         );
+        tree.add_leaf(
+            Leaf::new(|l| {
+                l.give(Line::new(LineWeight::new(12), Orange::plus_two()));
+                l.stem_from("screen-0");
+            })
+            .named("branch-a")
+            .located(
+                GridLocation::new()
+                    .point_ax(50.percent_width("screen-0"))
+                    .point_ay("screen-0".bottom() - 25.percent_height("screen-0"))
+                    .point_bx(50.percent_width("screen-0") + 120.px())
+                    .point_by("screen-0".bottom() - 25.percent_height("screen-0") - 120.px()),
+            )
+            .elevation(2),
+        );
+        tree.add_leaf(
+            Leaf::new(|l| {
+                l.give(Line::new(LineWeight::new(12), Orange::plus_two()));
+                l.stem_from("screen-0");
+            })
+            .named("branch-b")
+            .located(
+                GridLocation::new()
+                    .point_ax(50.percent_width("screen-0"))
+                    .point_ay("screen-0".top() + 25.percent_height("screen-0"))
+                    .point_bx(50.percent_width("screen-0") - 80.px())
+                    .point_by("screen-0".top() + 25.percent_height("screen-0") - 80.px()),
+            )
+            .elevation(2),
+        );
+        // tree.add_leaf(
+        //     Leaf::new(|l| {
+        //         l.give(Text::new("FOLIAGE", FontSize::new(120), Grey::plus_three()));
+        //         l.stem_from("screen-0");
+        //     })
+        //     .named("foliage")
+        //     .located(
+        //         GridLocation::new()
+        //             .center_x("screen-0".center_x())
+        //             .center_y("screen-0".center_y())
+        //             .width(75.percent_width("screen-0"))
+        //             .height(240.px()),
+        //     )
+        //     .elevation(0),
+        // );
     }
 }
