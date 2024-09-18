@@ -1,6 +1,5 @@
 use foliage::branch::{Branch, Tree};
-use foliage::color::Monochromatic;
-use foliage::color::Orange;
+use foliage::color::{Grey, Monochromatic};
 use foliage::grid::{screen, ContextUnit, GridLocation, LocationConfiguration, TokenUnit};
 use foliage::layout::Layout;
 use foliage::leaf::Leaf;
@@ -21,7 +20,7 @@ impl Branch for Home {
         );
         tree.add_leaf(
             Leaf::new(|l| {
-                l.give(Line::new(LineWeight::new(12), Orange::plus_two()));
+                l.give(Line::new(LineWeight::new(8), Grey::plus_two()));
                 l.stem_from("screen-0");
             })
             .named("stem-line")
@@ -44,7 +43,7 @@ impl Branch for Home {
         );
         tree.add_leaf(
             Leaf::new(|l| {
-                l.give(Line::new(LineWeight::new(12), Orange::plus_two()));
+                l.give(Line::new(LineWeight::new(12), Grey::plus_two()));
                 l.stem_from("screen-0");
             })
             .named("branch-a")
@@ -59,7 +58,7 @@ impl Branch for Home {
         );
         tree.add_leaf(
             Leaf::new(|l| {
-                l.give(Line::new(LineWeight::new(12), Orange::plus_two()));
+                l.give(Line::new(LineWeight::new(12), Grey::plus_two()));
                 l.stem_from("screen-0");
             })
             .named("branch-b")
@@ -72,20 +71,16 @@ impl Branch for Home {
             )
             .elevation(2),
         );
-        // tree.add_leaf(
-        //     Leaf::new(|l| {
-        //         l.give(Text::new("FOLIAGE", FontSize::new(120), Grey::plus_three()));
-        //         l.stem_from("screen-0");
-        //     })
-        //     .named("foliage")
-        //     .located(
-        //         GridLocation::new()
-        //             .center_x("screen-0".center_x())
-        //             .center_y("screen-0".center_y())
-        //             .width(75.percent_width("screen-0"))
-        //             .height(240.px()),
-        //     )
-        //     .elevation(0),
-        // );
+        // tree.add_twig(Twig::new(
+        //     Button::new(
+        //         IconHandles::Concepts,
+        //         Coloring::new(Orange::minus_two(), Grey::plus_two()),
+        //         OnClick::new("concepts"),
+        //     ),
+        //     |l| {},
+        // )
+        //     .named("concepts-button")
+        //     .located(GridLocation::new())
+        //     .elevation(10));
     }
 }

@@ -5,6 +5,7 @@ use crate::home::Home;
 mod home;
 mod icon;
 mod image;
+mod leaf_model;
 
 fn main() {
     let mut foliage = Foliage::new();
