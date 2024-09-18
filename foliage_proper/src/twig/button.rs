@@ -1,17 +1,18 @@
-use crate::grid::{ContextUnit, Grid, GridLocation, TokenUnit};
+use crate::branch::{Branch, Tree};
+use crate::grid::{ContextUnit, GridLocation, TokenUnit};
 use crate::icon::{Icon, IconId};
 use crate::interaction::{ClickInteractionListener, OnClick};
-use crate::leaf::Leaf;
+use crate::leaf::{Leaf, LeafHandle};
 use crate::panel::{Panel, Rounding};
 use crate::style::{Coloring, InteractiveColor};
 use crate::text::{FontSize, Text, TextValue};
-use crate::twig::{TwigDef, TwigStem};
 
 #[derive(Copy, Clone)]
 pub(crate) enum ButtonShape {
     Circle,
     Square,
 }
+#[derive(Clone)]
 pub struct Button {
     circle_square: ButtonShape,
     coloring: Coloring,
@@ -20,9 +21,15 @@ pub struct Button {
     on_click: OnClick,
     text_value: Option<TextValue>,
     font_size: Option<FontSize>,
+    target_handle: LeafHandle,
 }
 impl Button {
-    pub fn new<ID: Into<IconId>, C: Into<Coloring>>(id: ID, c: C, on_click: OnClick) -> Self {
+    pub fn new<LH: Into<LeafHandle>, ID: Into<IconId>, C: Into<Coloring>>(
+        handle: LH,
+        id: ID,
+        c: C,
+        on_click: OnClick,
+    ) -> Self {
         Self {
             circle_square: ButtonShape::Square,
             coloring: c.into(),
@@ -31,6 +38,7 @@ impl Button {
             on_click,
             text_value: None,
             font_size: None,
+            target_handle: handle.into(),
         }
     }
     pub fn with_text<T: Into<TextValue>, FS: Into<FontSize>>(mut self, t: T, fs: FS) -> Self {
@@ -52,14 +60,13 @@ impl Button {
         self
     }
 }
-impl TwigDef for Button {
-    fn grow(self, twig_stem: &mut TwigStem) {
-        twig_stem.config_grid(Grid::new(3, 1));
+impl Branch for Button {
+    fn grow(self, mut tree: Tree) {
         let linked = vec![
-            twig_stem.target_handle.extend("icon"),
-            twig_stem.target_handle.extend("text"),
+            self.target_handle.extend("icon"),
+            self.target_handle.extend("text"),
         ];
-        twig_stem.bind(
+        tree.add_leaf(
             Leaf::new(|l| {
                 l.give(Panel::new(self.rounding, self.coloring.background));
                 l.give(
@@ -81,38 +88,42 @@ impl TwigDef for Button {
         let value = self.text_value.unwrap_or_default().0;
         let icon_location = if value.is_empty() {
             GridLocation::new()
-                .center_x(twig_stem.target_handle.clone().center_x())
-                .center_y(twig_stem.target_handle.clone().center_y())
-                .width(twig_stem.target_handle.clone().width() - 16.px())
-                .height(twig_stem.target_handle.clone().height() - 16.px())
+                .center_x(self.target_handle.clone().center_x())
+                .center_y(self.target_handle.clone().center_y())
+                .width(self.target_handle.clone().width() - 16.px())
+                .height(self.target_handle.clone().height() - 16.px())
         } else {
             GridLocation::new()
-                .left(twig_stem.target_handle.clone().left() + 16.px())
-                .width(15.percent_width(twig_stem.target_handle.clone()))
-                .height(15.percent_width(twig_stem.target_handle.clone()))
-                .center_y(twig_stem.target_handle.clone().center_y())
+                .left(self.target_handle.clone().left() + 16.px())
+                .width(15.percent_width(self.target_handle.clone()))
+                .height(15.percent_width(self.target_handle.clone()))
+                .center_y(self.target_handle.clone().center_y())
         };
-        twig_stem.bind(
-            Leaf::new(|l| l.give(Icon::new(self.icon_id, self.coloring.foreground)))
-                .named("icon")
-                .located(icon_location)
-                .elevation(-1),
+        tree.add_leaf(
+            Leaf::new(|l| {
+                l.give(Icon::new(self.icon_id, self.coloring.foreground));
+                l.stem_from(self.target_handle.clone())
+            })
+            .named("icon")
+            .located(icon_location)
+            .elevation(-1),
         );
-        twig_stem.bind(
+        tree.add_leaf(
             Leaf::new(|l| {
                 l.give(Text::new(
                     value,
                     self.font_size.unwrap(),
                     self.coloring.foreground,
-                ))
+                ));
+                l.stem_from("")
             })
             .named("text")
             .located(
                 GridLocation::new()
-                    .left(twig_stem.target_handle.extend("icon").right() + 16.px())
-                    .right(twig_stem.target_handle.clone().right() - 16.px())
-                    .center_y(twig_stem.target_handle.clone().center_y())
-                    .height(90.percent_height(twig_stem.target_handle.clone())),
+                    .left(self.target_handle.extend("icon").right() + 16.px())
+                    .right(self.target_handle.clone().right() - 16.px())
+                    .center_y(self.target_handle.clone().center_y())
+                    .height(90.percent_height(self.target_handle.clone())),
             )
             .elevation(-1),
         )
