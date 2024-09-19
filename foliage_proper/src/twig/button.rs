@@ -80,7 +80,7 @@ impl Branch for Button {
                 l.give(interaction_listener);
                 l.give(self.on_click);
             })
-            .named("panel")
+            .named(self.target_handle.clone())
             .located(GridLocation::new())
             .elevation(-1),
         );
@@ -102,7 +102,7 @@ impl Branch for Button {
         tree.add_leaf(
             Leaf::new(|l| {
                 l.give(Icon::new(self.icon_id, self.coloring.foreground));
-                l.stem_from(self.target_handle.clone())
+                l.stem_from(self.target_handle.clone());
             })
             .named("icon")
             .located(icon_location)
@@ -115,7 +115,7 @@ impl Branch for Button {
                     self.font_size.unwrap(),
                     self.coloring.foreground,
                 ));
-                l.stem_from("")
+                l.stem_from(self.target_handle.clone());
             })
             .named("text")
             .located(
