@@ -14,6 +14,7 @@ use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Bundle, Changed, Commands, DetectChanges, Entity, Query, Resource, World};
 use bevy_ecs::system::{Res, ResMut};
 use bevy_ecs::world::Command;
+use crate::twig::Twig;
 
 pub struct Tree<'a> {
     pub(crate) world_handle: Option<&'a mut World>,
@@ -513,6 +514,9 @@ impl<'a> Tree<'a> {
     pub fn grow_branch<A: Branch>(&mut self, a: A) {
         let cmd = BranchCommand { data: a };
         cmd.apply(self.world_handle.as_mut().unwrap());
+    }
+    pub fn grow_twig<T: Clone>(&mut self, twig: Twig<T>) where Twig<T>: Branch {
+        self.grow_branch(twig);
     }
     pub fn run_sequence<SFN: FnOnce(&mut SequenceHandle<'a>)>(&mut self, seq_fn: SFN) {
         let se = self.world_handle.as_mut().unwrap().spawn_empty().id();

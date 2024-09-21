@@ -1,11 +1,12 @@
 use crate::branch::{Branch, Tree};
-use crate::grid::{ContextUnit, GridLocation, TokenUnit};
+use crate::grid::{stem, ContextUnit, GridLocation, TokenUnit};
 use crate::icon::{Icon, IconId};
 use crate::interaction::{ClickInteractionListener, OnClick};
 use crate::leaf::{Leaf, LeafHandle};
 use crate::panel::{Panel, Rounding};
 use crate::style::{Coloring, InteractiveColor};
 use crate::text::{FontSize, Text, TextValue};
+use crate::twig::Twig;
 
 #[derive(Copy, Clone)]
 pub(crate) enum ButtonShape {
@@ -60,49 +61,48 @@ impl Button {
         self
     }
 }
-impl Branch for Button {
+impl Branch for Twig<Button> {
     fn grow(self, mut tree: Tree) {
         let linked = vec![
-            self.target_handle.extend("icon"),
-            self.target_handle.extend("text"),
+            self.handle.extend("icon"),
+            self.handle.extend("text"),
         ];
         tree.add_leaf(
             Leaf::new(|l| {
-                l.give(Panel::new(self.rounding, self.coloring.background));
+                l.give(Panel::new(self.t.rounding, self.t.coloring.background));
                 l.give(
-                    InteractiveColor::new(self.coloring.background, self.coloring.foreground)
+                    InteractiveColor::new(self.t.coloring.background, self.t.coloring.foreground)
                         .with_linked(linked),
                 );
-                let interaction_listener = match self.circle_square {
+                let interaction_listener = match self.t.circle_square {
                     ButtonShape::Circle => ClickInteractionListener::new().as_circle(),
                     ButtonShape::Square => ClickInteractionListener::new(),
                 };
                 l.give(interaction_listener);
-                l.give(self.on_click);
+                l.give(self.t.on_click);
             })
-            .named(self.target_handle.clone())
-            .located(GridLocation::new())
+            .named(self.handle.clone())
+            .located(self.location)
             .elevation(-1),
         );
-
-        let value = self.text_value.unwrap_or_default().0;
+        let value = self.t.text_value.unwrap_or_default().0;
         let icon_location = if value.is_empty() {
             GridLocation::new()
-                .center_x(self.target_handle.clone().center_x())
-                .center_y(self.target_handle.clone().center_y())
-                .width(self.target_handle.clone().width() - 16.px())
-                .height(self.target_handle.clone().height() - 16.px())
+                .center_x(stem().center_x())
+                .center_y(stem().center_y())
+                .width(stem().width() - 16.px())
+                .height(stem().height() - 16.px())
         } else {
             GridLocation::new()
-                .left(self.target_handle.clone().left() + 16.px())
-                .width(15.percent().width().from(self.target_handle.clone()))
-                .height(15.percent().height().from(self.target_handle.clone()))
-                .center_y(self.target_handle.clone().center_y())
+                .left(stem().left() + 16.px())
+                .width(15.percent().width().from(stem()))
+                .height(15.percent().height().from(stem()))
+                .center_y(stem().center_y())
         };
         tree.add_leaf(
             Leaf::new(|l| {
-                l.give(Icon::new(self.icon_id, self.coloring.foreground));
-                l.stem_from(self.target_handle.clone());
+                l.give(Icon::new(self.t.icon_id, self.t.coloring.foreground));
+                l.stem_from(self.handle.clone());
             })
             .named("icon")
             .located(icon_location)
@@ -112,18 +112,18 @@ impl Branch for Button {
             Leaf::new(|l| {
                 l.give(Text::new(
                     value,
-                    self.font_size.unwrap(),
-                    self.coloring.foreground,
+                    self.t.font_size.unwrap(),
+                    self.t.coloring.foreground,
                 ));
-                l.stem_from(self.target_handle.clone());
+                l.stem_from(self.handle.clone());
             })
             .named("text")
             .located(
                 GridLocation::new()
-                    .left(self.target_handle.extend("icon").right() + 16.px())
-                    .right(self.target_handle.clone().right() - 16.px())
-                    .center_y(self.target_handle.clone().center_y())
-                    .height(90.percent().height().from(self.target_handle.clone())),
+                    .left(self.handle.extend("icon").right() + 16.px())
+                    .right(stem().right() - 16.px())
+                    .center_y(stem().center_y())
+                    .height(90.percent().height().from(stem())),
             )
             .elevation(-1),
         )
