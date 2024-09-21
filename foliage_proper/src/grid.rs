@@ -6,7 +6,7 @@ use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, Coordinates, LogicalContext};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::layout::{Layout, LayoutGrid};
-use crate::leaf::{IdTable, LeafHandle};
+use crate::leaf::{IdTable, LeafHandle, Stem};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, DetectChanges};
 use bevy_ecs::query::{Changed, Or};
@@ -17,12 +17,87 @@ use std::ops::{Add, Mul, Sub};
 
 pub trait TokenUnit {
     fn px(self) -> LocationAspectToken;
-    fn percent_width<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken;
-    fn percent_height<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken;
-    fn column_begin<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken;
-    fn column_end<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken;
-    fn row_begin<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken;
-    fn row_end<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken;
+    fn percent(self) -> PercentDescriptor;
+    fn column(self) -> ColumnDescriptor;
+    fn row(self) -> RowDescriptor;
+}
+pub struct RowDescriptor {
+    value: i32,
+    is_end: bool,
+}
+impl RowDescriptor {
+    pub fn begin(mut self) -> Self {
+        self.is_end = false;
+        self
+    }
+    pub fn end(mut self) -> Self {
+        self.is_end = true;
+        self
+    }
+    pub fn of<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken {
+        LocationAspectToken::new(
+            LocationAspectTokenOp::Add,
+            gc.into(),
+            LocationAspectTokenValue::Relative(RelativeUnit::Row(self.value, self.is_end)),
+        )
+    }
+}
+pub struct ColumnDescriptor {
+    value: i32,
+    is_end: bool,
+}
+impl ColumnDescriptor {
+    pub fn begin(mut self) -> Self {
+        self.is_end = false;
+        self
+    }
+    pub fn end(mut self) -> Self {
+        self.is_end = true;
+        self
+    }
+    pub fn of<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken {
+        LocationAspectToken::new(
+            LocationAspectTokenOp::Add,
+            gc.into(),
+            LocationAspectTokenValue::Relative(RelativeUnit::Column(self.value, self.is_end)),
+        )
+    }
+}
+pub struct PercentDescriptor {
+    value: CoordinateUnit,
+    use_width: bool,
+}
+impl PercentDescriptor {
+    pub fn from<GC: Into<GridContext>>(mut self, gc: GC) -> LocationAspectToken {
+        LocationAspectToken::new(
+            LocationAspectTokenOp::Add,
+            gc.into(),
+            LocationAspectTokenValue::Relative(RelativeUnit::Percent(
+                self.value,
+                self.use_width,
+                true,
+            )),
+        )
+    }
+    pub fn width(mut self) -> Self {
+        self.use_width = true;
+        self
+    }
+    pub fn height(mut self) -> Self {
+        self.use_width = false;
+        self
+    }
+    pub fn of<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken {
+        LocationAspectToken::new(
+            LocationAspectTokenOp::Add,
+            gc.into(),
+            LocationAspectTokenValue::Relative(RelativeUnit::Percent(
+                self.value,
+                self.use_width,
+                false,
+            )),
+        )
+    }
 }
 impl TokenUnit for i32 {
     fn px(self) -> LocationAspectToken {
@@ -32,53 +107,23 @@ impl TokenUnit for i32 {
             LocationAspectTokenValue::Absolute(self as CoordinateUnit),
         )
     }
-    fn percent_width<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken {
-        LocationAspectToken::new(
-            LocationAspectTokenOp::Add,
-            gc.into(),
-            LocationAspectTokenValue::Relative(RelativeUnit::Percent(
-                self as CoordinateUnit / 100.0,
-                true,
-            )),
-        )
+    fn percent(self) -> PercentDescriptor {
+        PercentDescriptor {
+            value: self as CoordinateUnit / 100.0,
+            use_width: false,
+        }
     }
-    fn percent_height<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken {
-        LocationAspectToken::new(
-            LocationAspectTokenOp::Add,
-            gc.into(),
-            LocationAspectTokenValue::Relative(RelativeUnit::Percent(
-                self as CoordinateUnit / 100.0,
-                false,
-            )),
-        )
+    fn column(self) -> ColumnDescriptor {
+        ColumnDescriptor {
+            value: self,
+            is_end: false,
+        }
     }
-    fn column_begin<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken {
-        LocationAspectToken::new(
-            LocationAspectTokenOp::Add,
-            gc.into(),
-            LocationAspectTokenValue::Relative(RelativeUnit::Column(self as u32, false)),
-        )
-    }
-    fn column_end<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken {
-        LocationAspectToken::new(
-            LocationAspectTokenOp::Add,
-            gc.into(),
-            LocationAspectTokenValue::Relative(RelativeUnit::Column(self as u32, true)),
-        )
-    }
-    fn row_begin<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken {
-        LocationAspectToken::new(
-            LocationAspectTokenOp::Add,
-            gc.into(),
-            LocationAspectTokenValue::Relative(RelativeUnit::Row(self as u32, false)),
-        )
-    }
-    fn row_end<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken {
-        LocationAspectToken::new(
-            LocationAspectTokenOp::Add,
-            gc.into(),
-            LocationAspectTokenValue::Relative(RelativeUnit::Row(self as u32, true)),
-        )
+    fn row(self) -> RowDescriptor {
+        RowDescriptor {
+            value: self,
+            is_end: false,
+        }
     }
 }
 impl From<LocationAspectToken> for SpecifiedDescriptorValue {
@@ -116,18 +161,10 @@ impl Sub<LocationAspectToken> for SpecifiedDescriptorValue {
         self.minus(rhs)
     }
 }
-
-#[cfg(test)]
-#[test]
-fn behavior() {
-    let location = GridLocation::new()
-        .top(16.px() - screen().top() - 10.px() - 3.column_begin(screen()))
-        .bottom("header".top() + 16.px() + 10.px() - 3.row_begin("header"));
-    let location = GridLocation::new().top(16.px() - 10.px() - 10.px() - "footer".top());
-}
 #[derive(Clone, Hash, PartialEq, Eq, Debug, PartialOrd)]
 pub enum GridContext {
     Screen,
+    Stem,
     Named(LeafHandle),
     Absolute,
 }
@@ -271,6 +308,9 @@ impl<LH: Into<LeafHandle>> ContextUnit for LH {
 pub fn screen() -> GridContext {
     GridContext::Screen
 }
+pub fn stem() -> GridContext {
+    GridContext::Stem
+}
 #[derive(Clone, Copy)]
 pub(crate) enum LocationAspectTokenOp {
     Add,
@@ -279,9 +319,9 @@ pub(crate) enum LocationAspectTokenOp {
 }
 #[derive(Clone, Copy)]
 pub enum RelativeUnit {
-    Column(u32, bool),
-    Row(u32, bool),
-    Percent(f32, bool),
+    Column(i32, bool),
+    Row(i32, bool),
+    Percent(f32, bool, bool),
 }
 #[derive(Clone, Copy)]
 pub enum LocationAspectTokenValue {
@@ -382,17 +422,21 @@ impl SpecifiedDescriptorValue {
                     let data = ref_context.get(&t.context).unwrap();
                     match rel {
                         RelativeUnit::Column(c, use_end) => {
-                            (c as f32 - 1.0 * f32::from(!use_end))
-                                * (data.resolved.section.width() / data.grid.columns as f32)
+                            data.resolved.section.x()
+                                + (c as f32 - 1.0 * f32::from(!use_end))
+                                    * (data.resolved.section.width() / data.grid.columns as f32)
                                 + c as f32 * data.grid.gap.horizontal()
                         }
                         RelativeUnit::Row(r, use_end) => {
-                            (r as f32 - 1.0 * f32::from(!use_end))
-                                * (data.resolved.section.height() / data.grid.rows as f32)
+                            data.resolved.section.y()
+                                + (r as f32 - 1.0 * f32::from(!use_end))
+                                    * (data.resolved.section.height() / data.grid.rows as f32)
                                 + r as f32 * data.grid.gap.vertical()
                         }
-                        RelativeUnit::Percent(p, use_width) => {
-                            data.resolved.section.width() * p * f32::from(use_width)
+                        RelativeUnit::Percent(p, use_width, include_start) => {
+                            data.resolved.section.x() * f32::from(include_start && use_width)
+                                + data.resolved.section.width() * p * f32::from(use_width)
+                                + data.resolved.section.y() * f32::from(include_start && !use_width)
                                 + data.resolved.section.height() * p * f32::from(!use_width)
                         }
                     }
@@ -424,9 +468,10 @@ impl SpecifiedDescriptorValue {
             tokens: vec![first],
         }
     }
-    pub(crate) fn dependencies(&self) -> ReferentialDependencies {
+    pub(crate) fn dependencies(&self, stems: &Query<&Stem>) -> ReferentialDependencies {
         let mut set = HashSet::new();
         for token in &self.tokens {
+            // if == Root => pull from Stem.unwrap_or(screen())
             set.insert(token.context.clone());
         }
         ReferentialDependencies::new(set)
@@ -1017,14 +1062,14 @@ impl GridLocation {
             animation_hook: Default::default(),
         }
     }
-    pub(crate) fn deps(&self) -> ReferentialDependencies {
+    pub(crate) fn deps(&self, stems: &Query<&Stem>) -> ReferentialDependencies {
         let mut set = HashSet::new();
         for (_config, aspect) in self.configurations.iter() {
             if let LocationAspectDescriptorValue::Specified(s) = &aspect.aspects[0].value {
-                set.extend(s.dependencies().deps);
+                set.extend(s.dependencies(stems).deps);
             }
             if let LocationAspectDescriptorValue::Specified(s) = &aspect.aspects[1].value {
-                set.extend(s.dependencies().deps);
+                set.extend(s.dependencies(stems).deps);
             }
         }
         ReferentialDependencies::new(set)
@@ -1797,9 +1842,10 @@ pub(crate) struct ReferentialOrderDeterminant<'a> {
 }
 pub(crate) fn distill_location_deps(
     mut query: Query<(&GridLocation, &mut ReferentialDependencies), Changed<GridLocation>>,
+    stems: Query<&Stem>,
 ) {
     for (location, mut dep) in query.iter_mut() {
-        *dep = location.deps();
+        *dep = location.deps(&stems);
     }
 }
 pub(crate) fn resolve_grid_locations(
@@ -1937,6 +1983,9 @@ impl<'a> ReferentialContext<'a> {
         for (k, v) in self.context.drain() {
             match k {
                 GridContext::Screen => {
+                    continue;
+                }
+                GridContext::Stem => {
                     continue;
                 }
                 GridContext::Named(lh) => {

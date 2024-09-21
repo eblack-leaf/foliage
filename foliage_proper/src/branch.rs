@@ -13,6 +13,7 @@ use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Bundle, Changed, Commands, DetectChanges, Entity, Query, Resource, World};
 use bevy_ecs::system::{Res, ResMut};
 use bevy_ecs::world::Command;
+use crate::time::TimeDelta;
 
 pub struct Tree<'a> {
     pub(crate) world_handle: Option<&'a mut World>,
@@ -198,8 +199,12 @@ impl<A: Animate> Animation<A> {
         self.leaf_handle = lh.into();
         self
     }
-    pub fn time<ST: Into<SequenceTimeRange>>(mut self, st: ST) -> Self {
-        self.sequence_time_range = st.into();
+    pub fn start(mut self, s: u64) -> Self {
+        self.sequence_time_range.start = TimeDelta::from_millis(s);
+        self
+    }
+    pub fn end(mut self, e: u64) -> Self {
+        self.sequence_time_range.end = TimeDelta::from_millis(e);
         self
     }
     pub fn eased(mut self, ease: Ease) -> Self {

@@ -26,17 +26,17 @@ impl Branch for Home {
             .named("stem-line")
             .located(
                 GridLocation::new()
-                    .point_ax(50.percent_width("screen-0"))
+                    .point_ax(50.percent().width().from("screen-0"))
                     .point_ay("screen-0".bottom() - 16.px())
-                    .point_bx(50.percent_width("screen-0"))
+                    .point_bx(50.percent().width().from("screen-0"))
                     .point_by("screen-0".top() + 16.px())
                     .except_at(
                         Layout::LANDSCAPE_MOBILE | Layout::LANDSCAPE_EXT,
                         LocationConfiguration::new()
                             .point_ax("screen-0".left() + 16.px())
-                            .point_ay(50.percent_height("screen-0"))
+                            .point_ay(50.percent().height().from("screen-0"))
                             .point_bx("screen-0".right() - 16.px())
-                            .point_by(50.percent_height("screen-0")),
+                            .point_by(50.percent().height().from("screen-0")),
                     ),
             )
             .elevation(2),
@@ -49,10 +49,10 @@ impl Branch for Home {
             .named("branch-a")
             .located(
                 GridLocation::new()
-                    .point_ax(50.percent_width("screen-0"))
-                    .point_ay("screen-0".bottom() - 25.percent_height("screen-0"))
-                    .point_bx(50.percent_width("screen-0") + 120.px())
-                    .point_by("screen-0".bottom() - 25.percent_height("screen-0") - 120.px()),
+                    .point_ax(50.percent().width().from("screen-0"))
+                    .point_ay("screen-0".bottom() - 25.percent().height().from("screen-0"))
+                    .point_bx(50.percent().width().from("screen-0") + 120.px())
+                    .point_by("screen-0".bottom() - 25.percent().height().from("screen-0") - 120.px()),
             )
             .elevation(2),
         );
@@ -64,23 +64,12 @@ impl Branch for Home {
             .named("branch-b")
             .located(
                 GridLocation::new()
-                    .point_ax(50.percent_width("screen-0"))
-                    .point_ay("screen-0".top() + 25.percent_height("screen-0"))
-                    .point_bx(50.percent_width("screen-0") - 80.px())
-                    .point_by("screen-0".top() + 25.percent_height("screen-0") - 80.px()),
+                    .point_ax(50.percent().width().from("screen-0"))
+                    .point_ay("screen-0".top() + 25.percent().height().from("screen-0"))
+                    .point_bx(50.percent().width().from("screen-0") - 80.px())
+                    .point_by("screen-0".top() + 25.percent().height().from("screen-0") - 80.px()),
             )
             .elevation(2),
         );
-        // tree.add_twig(Twig::new(
-        //     Button::new(
-        //         IconHandles::Concepts,
-        //         Coloring::new(Orange::minus_two(), Grey::plus_two()),
-        //         OnClick::new("concepts"),
-        //     ),
-        //     |l| {},
-        // )
-        //     .named("concepts-button")
-        //     .located(GridLocation::new())
-        //     .elevation(10));
     }
 }

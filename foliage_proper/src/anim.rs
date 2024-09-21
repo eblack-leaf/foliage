@@ -122,8 +122,8 @@ impl Interpolation {
 }
 #[derive(Copy, Clone, Default)]
 pub struct SequenceTimeRange {
-    start: TimeDelta,
-    end: TimeDelta,
+    pub start: TimeDelta,
+    pub end: TimeDelta,
 }
 #[derive(Copy, Clone)]
 pub struct SequenceTime {

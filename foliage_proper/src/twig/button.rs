@@ -95,8 +95,8 @@ impl Branch for Button {
         } else {
             GridLocation::new()
                 .left(self.target_handle.clone().left() + 16.px())
-                .width(15.percent_width(self.target_handle.clone()))
-                .height(15.percent_width(self.target_handle.clone()))
+                .width(15.percent().width().from(self.target_handle.clone()))
+                .height(15.percent().height().from(self.target_handle.clone()))
                 .center_y(self.target_handle.clone().center_y())
         };
         tree.add_leaf(
@@ -123,7 +123,7 @@ impl Branch for Button {
                     .left(self.target_handle.extend("icon").right() + 16.px())
                     .right(self.target_handle.clone().right() - 16.px())
                     .center_y(self.target_handle.clone().center_y())
-                    .height(90.percent_height(self.target_handle.clone())),
+                    .height(90.percent().height().from(self.target_handle.clone())),
             )
             .elevation(-1),
         )
