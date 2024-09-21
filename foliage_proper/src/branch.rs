@@ -8,12 +8,12 @@ use crate::grid::{GridContext, ReferentialDependencies};
 use crate::interaction::ClickInteractionListener;
 use crate::layout::{Layout, LayoutFilter};
 use crate::leaf::{BranchHandle, Dependents, IdTable, Leaf, LeafBundle, LeafHandle, OnEnd, Stem};
+use crate::time::TimeDelta;
 use bevy_ecs::change_detection::Mut;
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Bundle, Changed, Commands, DetectChanges, Entity, Query, Resource, World};
 use bevy_ecs::system::{Res, ResMut};
 use bevy_ecs::world::Command;
-use crate::time::TimeDelta;
 
 pub struct Tree<'a> {
     pub(crate) world_handle: Option<&'a mut World>,
