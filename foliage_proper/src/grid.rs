@@ -6,13 +6,14 @@ use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, Coordinates, LogicalContext};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::layout::{Layout, LayoutGrid};
-use crate::leaf::{IdTable, LeafHandle, Stem};
+use crate::leaf::{Dependents, IdTable, LeafHandle, Stem};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, DetectChanges};
 use bevy_ecs::query::{Changed, Or};
 use bevy_ecs::system::{ParamSet, Query, Res, ResMut};
-use std::cmp::{Ordering, PartialOrd};
-use std::collections::{HashMap, HashSet};
+use ordermap::OrderSet;
+use std::cmp::PartialOrd;
+use std::collections::HashMap;
 use std::ops::{Add, Mul, Sub};
 
 pub trait TokenUnit {
@@ -165,13 +166,7 @@ impl Sub<LocationAspectToken> for SpecifiedDescriptorValue {
 pub enum GridContext {
     Screen,
     Stem,
-    Named(LeafHandle),
     Absolute,
-}
-impl<LH: Into<LeafHandle>> From<LH> for GridContext {
-    fn from(value: LH) -> Self {
-        GridContext::Named(value.into())
-    }
 }
 impl GridContext {
     fn context_token(self, aspect: GridAspect) -> LocationAspectToken {
@@ -230,81 +225,6 @@ impl GridContext {
         self.context_token(GridAspect::PointDY)
     }
 }
-pub trait ContextUnit {
-    fn top(self) -> LocationAspectToken;
-    fn bottom(self) -> LocationAspectToken;
-    fn left(self) -> LocationAspectToken;
-    fn right(self) -> LocationAspectToken;
-    fn width(self) -> LocationAspectToken;
-    fn height(self) -> LocationAspectToken;
-    fn center_x(self) -> LocationAspectToken;
-    fn center_y(self) -> LocationAspectToken;
-    fn point_ax(self) -> LocationAspectToken;
-    fn point_ay(self) -> LocationAspectToken;
-    fn point_bx(self) -> LocationAspectToken;
-    fn point_by(self) -> LocationAspectToken;
-    fn point_cx(self) -> LocationAspectToken;
-    fn point_cy(self) -> LocationAspectToken;
-    fn point_dx(self) -> LocationAspectToken;
-    fn point_dy(self) -> LocationAspectToken;
-}
-fn named_token<LH: Into<LeafHandle>>(lh: LH, aspect: GridAspect) -> LocationAspectToken {
-    LocationAspectToken::new(
-        LocationAspectTokenOp::Add,
-        GridContext::Named(lh.into()),
-        LocationAspectTokenValue::ContextAspect(aspect),
-    )
-}
-impl<LH: Into<LeafHandle>> ContextUnit for LH {
-    fn top(self) -> LocationAspectToken {
-        named_token(self, GridAspect::Top)
-    }
-    fn bottom(self) -> LocationAspectToken {
-        named_token(self, GridAspect::Bottom)
-    }
-    fn left(self) -> LocationAspectToken {
-        named_token(self, GridAspect::Left)
-    }
-    fn right(self) -> LocationAspectToken {
-        named_token(self, GridAspect::Right)
-    }
-    fn width(self) -> LocationAspectToken {
-        named_token(self, GridAspect::Width)
-    }
-    fn height(self) -> LocationAspectToken {
-        named_token(self, GridAspect::Height)
-    }
-    fn center_x(self) -> LocationAspectToken {
-        named_token(self, GridAspect::CenterX)
-    }
-    fn center_y(self) -> LocationAspectToken {
-        named_token(self, GridAspect::CenterY)
-    }
-    fn point_ax(self) -> LocationAspectToken {
-        named_token(self, GridAspect::PointAX)
-    }
-    fn point_ay(self) -> LocationAspectToken {
-        named_token(self, GridAspect::PointAY)
-    }
-    fn point_bx(self) -> LocationAspectToken {
-        named_token(self, GridAspect::PointBX)
-    }
-    fn point_by(self) -> LocationAspectToken {
-        named_token(self, GridAspect::PointBY)
-    }
-    fn point_cx(self) -> LocationAspectToken {
-        named_token(self, GridAspect::PointCX)
-    }
-    fn point_cy(self) -> LocationAspectToken {
-        named_token(self, GridAspect::PointCY)
-    }
-    fn point_dx(self) -> LocationAspectToken {
-        named_token(self, GridAspect::PointDX)
-    }
-    fn point_dy(self) -> LocationAspectToken {
-        named_token(self, GridAspect::PointDY)
-    }
-}
 pub fn screen() -> GridContext {
     GridContext::Screen
 }
@@ -352,25 +272,16 @@ pub struct SpecifiedDescriptorValue {
 impl SpecifiedDescriptorValue {
     pub(crate) fn resolve(
         &self,
-        stem: &Stem,
-        ref_context: &HashMap<GridContext, ReferentialData>,
+        stem: Option<&ReferentialData>,
+        screen: &ReferentialData,
     ) -> CoordinateUnit {
         let mut accumulator = 0.0;
         for t in self.tokens.iter() {
             let value = match t.value {
                 LocationAspectTokenValue::ContextAspect(ca) => {
-                    println!("resolving context: {:?}  {:?}", &t.context, ref_context);
                     let data = match &t.context {
-                        GridContext::Stem => {
-                            if stem.0.is_some() {
-                                let stem_handle = stem.0.clone().unwrap();
-                                println!("stem-handle: {:?}", stem_handle);
-                                ref_context.get(&GridContext::Named(stem_handle)).unwrap()
-                            } else {
-                                ref_context.get(&GridContext::Screen).unwrap()
-                            }
-                        }
-                        _ => ref_context.get(&t.context).unwrap(),
+                        GridContext::Stem => stem.unwrap_or(screen),
+                        _ => screen,
                     };
                     match ca {
                         GridAspect::Top => data.resolved.section.y(),
@@ -433,16 +344,8 @@ impl SpecifiedDescriptorValue {
                 }
                 LocationAspectTokenValue::Relative(rel) => {
                     let data = match &t.context {
-                        GridContext::Stem => {
-                            if stem.0.is_some() {
-                                ref_context
-                                    .get(&GridContext::Named(stem.0.clone().unwrap()))
-                                    .unwrap()
-                            } else {
-                                ref_context.get(&GridContext::Screen).unwrap()
-                            }
-                        }
-                        _ => ref_context.get(&t.context).unwrap(),
+                        GridContext::Stem => stem.unwrap_or(screen),
+                        _ => screen,
                     };
                     match rel {
                         RelativeUnit::Column(c, use_end) => {
@@ -492,32 +395,6 @@ impl SpecifiedDescriptorValue {
             tokens: vec![first],
         }
     }
-    pub(crate) fn dependencies(
-        &self,
-        this: Entity,
-        stems: &Query<&Stem>,
-    ) -> ReferentialDependencies {
-        let mut set = HashSet::new();
-        for token in &self.tokens {
-            // if == Root => pull from Stem.unwrap_or(screen())
-            let context = match &token.context {
-                GridContext::Stem => {
-                    if let Ok(s) = stems.get(this) {
-                        if let Some(s) = &s.0 {
-                            GridContext::Named(s.clone())
-                        } else {
-                            GridContext::Screen
-                        }
-                    } else {
-                        GridContext::Screen
-                    }
-                }
-                _ => token.context.clone(),
-            };
-            set.insert(context);
-        }
-        ReferentialDependencies::new(set)
-    }
 }
 #[derive(Default, Clone)]
 pub(crate) enum LocationAspectDescriptorValue {
@@ -544,15 +421,15 @@ pub(crate) struct LocationAspect {
 impl LocationAspect {
     pub(crate) fn resolve_grid_aspect(
         &self,
-        stem: &Stem,
+        stem: Option<&ReferentialData>,
+        screen: &ReferentialData,
         aspect: GridAspect,
-        ref_context: &HashMap<GridContext, ReferentialData>,
     ) -> CoordinateUnit {
         if self.aspects.get(0).unwrap().aspect == aspect {
             if let LocationAspectDescriptorValue::Specified(spec) =
                 &self.aspects.get(0).unwrap().value
             {
-                spec.resolve(stem, ref_context)
+                spec.resolve(stem, screen)
             } else {
                 panic!("no existing")
             }
@@ -560,7 +437,7 @@ impl LocationAspect {
             if let LocationAspectDescriptorValue::Specified(spec) =
                 &self.aspects.get(1).unwrap().value
             {
-                spec.resolve(stem, ref_context)
+                spec.resolve(stem, screen)
             } else {
                 panic!("no existing")
             }
@@ -896,8 +773,8 @@ pub enum GridAspect {
 impl GridLocation {
     pub(crate) fn resolve(
         &self,
-        stem: &Stem,
-        context: &HashMap<GridContext, ReferentialData>,
+        stem: Option<&ReferentialData>,
+        screen: &ReferentialData,
         layout: Layout,
     ) -> Option<ResolvedLocation> {
         let mut resolution = ResolvedLocation::new();
@@ -912,15 +789,15 @@ impl GridLocation {
             let to_use = to_use.unwrap_or(base);
             let a = match &to_use.aspects[0].value {
                 LocationAspectDescriptorValue::Existing => {
-                    base.resolve_grid_aspect(stem, to_use.aspects[0].aspect, context)
+                    base.resolve_grid_aspect(stem, screen, to_use.aspects[0].aspect)
                 }
-                LocationAspectDescriptorValue::Specified(spec) => spec.resolve(stem, context),
+                LocationAspectDescriptorValue::Specified(spec) => spec.resolve(stem, screen),
             };
             let b = match &to_use.aspects[1].value {
                 LocationAspectDescriptorValue::Existing => {
-                    base.resolve_grid_aspect(stem, to_use.aspects[1].aspect, context)
+                    base.resolve_grid_aspect(stem, screen, to_use.aspects[1].aspect)
                 }
-                LocationAspectDescriptorValue::Specified(spec) => spec.resolve(stem, context),
+                LocationAspectDescriptorValue::Specified(spec) => spec.resolve(stem, screen),
             };
             let (pair_config, data) = if to_use.aspects[0].aspect < to_use.aspects[1].aspect {
                 ((to_use.aspects[0].aspect, to_use.aspects[1].aspect), (a, b))
@@ -1105,18 +982,6 @@ impl GridLocation {
             exceptions: Default::default(),
             animation_hook: Default::default(),
         }
-    }
-    pub(crate) fn deps(&self, this: Entity, stems: &Query<&Stem>) -> ReferentialDependencies {
-        let mut set = HashSet::new();
-        for (_config, aspect) in self.configurations.iter() {
-            if let LocationAspectDescriptorValue::Specified(s) = &aspect.aspects[0].value {
-                set.extend(s.dependencies(this, stems).deps);
-            }
-            if let LocationAspectDescriptorValue::Specified(s) = &aspect.aspects[1].value {
-                set.extend(s.dependencies(this, stems).deps);
-            }
-        }
-        ReferentialDependencies::new(set)
     }
     pub fn top<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
         if let Some(mut aspect) = self.configurations.get_mut(&AspectConfiguration::Vertical) {
@@ -1869,45 +1734,13 @@ impl Default for Grid {
         Self::new(1, 1)
     }
 }
-#[derive(Clone, Default, Component, Debug)]
-pub(crate) struct ReferentialDependencies {
-    pub(crate) deps: HashSet<GridContext>,
-}
-impl ReferentialDependencies {
-    fn new(deps: HashSet<GridContext>) -> ReferentialDependencies {
-        Self { deps }
-    }
-}
-pub(crate) struct ReferentialOrderDeterminant<'a> {
-    stem: &'a Stem,
-    deps: &'a ReferentialDependencies,
-    lh: &'a LeafHandle,
-    location: &'a GridLocation,
-    grid: Grid,
-}
-pub(crate) fn distill_location_deps(
-    mut query: Query<
-        (Entity, &GridLocation, &mut ReferentialDependencies),
-        Or<(Changed<GridLocation>, Changed<Stem>)>,
-    >,
-    stems: Query<&Stem>,
-) {
-    for (entity, location, mut dep) in query.iter_mut() {
-        *dep = location.deps(entity, &stems);
-        println!("deps: {:?}", dep);
-    }
-    if !query.is_empty() {}
+pub(crate) struct ReferentialOrderDeterminant {
+    chain: OrderSet<Entity>,
 }
 pub(crate) fn resolve_grid_locations(
     mut check_read_and_update: ParamSet<(
-        Query<Entity, Or<(Changed<GridLocation>, Changed<Grid>)>>,
-        Query<(
-            &Stem,
-            &LeafHandle,
-            &GridLocation,
-            &ReferentialDependencies,
-            &Grid,
-        )>,
+        Query<Entity, Or<(Changed<GridLocation>, Changed<Grid>, Changed<Stem>)>>,
+        Query<(&Stem, &Dependents, &LeafHandle, &GridLocation, &Grid)>,
         Query<(
             &mut Position<LogicalContext>,
             &mut Area<LogicalContext>,
@@ -1923,12 +1756,15 @@ pub(crate) fn resolve_grid_locations(
     if check_read_and_update.p0().is_empty() && !layout_grid.is_changed() {
         return;
     }
+    let mut check = vec![];
+    for e in check_read_and_update.p0().iter() {
+        check.push(e);
+    }
     let mut ref_context = ReferentialContext::new(viewport_handle.section(), layout_grid.grid);
     let read = check_read_and_update.p1();
-    for (stem, handle, location, deps, grid) in read.iter() {
-        ref_context.queue_leaf(stem, handle, location, deps, *grid);
+    for e in check {
+        ref_context.queue_leaf(e, &read, &id_table, *layout);
     }
-    ref_context.resolve(*layout);
     let updates = ref_context.updates();
     drop(ref_context);
     drop(read);
@@ -1968,106 +1804,53 @@ pub(crate) fn resolve_grid_locations(
         }
     }
 }
-pub(crate) struct ReferentialContext<'a> {
-    context: HashMap<GridContext, ReferentialData>,
-    order_queue: Vec<ReferentialOrderDeterminant<'a>>,
+pub(crate) struct ReferentialContext {
+    solved: HashMap<LeafHandle, ReferentialData>,
+    screen: ReferentialData,
+    order_chains: Vec<ReferentialOrderDeterminant>,
 }
-impl<'a> ReferentialContext<'a> {
+impl ReferentialContext {
     pub(crate) fn new(screen_section: Section<LogicalContext>, layout_grid: Grid) -> Self {
         Self {
-            context: {
-                let mut context = HashMap::new();
-                context.insert(
-                    GridContext::Screen,
-                    ReferentialData::new(
-                        ResolvedLocation::new().section(screen_section),
-                        layout_grid,
-                    ),
-                );
-                context
-            },
-            order_queue: vec![],
+            solved: HashMap::default(),
+            order_chains: vec![],
+            screen: ReferentialData::new(
+                ResolvedLocation::new().section(screen_section),
+                layout_grid,
+            ),
         }
     }
     pub(crate) fn queue_leaf(
         &mut self,
-        stem: &'a Stem,
-        lh: &'a LeafHandle,
-        location: &'a GridLocation,
-        deps: &'a ReferentialDependencies,
-        grid: Grid,
+        entity: Entity,
+        read: &Query<(&Stem, &Dependents, &LeafHandle, &GridLocation, &Grid)>,
+        id_table: &IdTable,
+        layout: Layout,
     ) {
-        println!("queueing leaf: {:?}", lh);
-        self.order_queue.push(ReferentialOrderDeterminant {
-            stem,
-            lh,
-            location,
-            deps,
-            grid,
-        });
+        for d in self.order_chains.iter() {
+            if d.chain.contains(&entity) {
+                return;
+            }
+        }
+        let chain = self.recursive_chain(entity, read, id_table, layout);
+        self.order_chains
+            .push(ReferentialOrderDeterminant { chain });
     }
-    pub(crate) fn resolve(&mut self, layout: Layout) {
-        self.order_queue.sort_by(|a, b| {
-            println!("comparing: {:?} - {:?}", a.lh, b.lh);
-            let b_depends_a = b.deps.deps.contains(&GridContext::Named(a.lh.clone()));
-            let a_depends_b = a.deps.deps.contains(&GridContext::Named(b.lh.clone()));
-            println!("a-dep-b: {}, b-dep-a: {}", a_depends_b, b_depends_a);
-            if a_depends_b && b_depends_a {
-                panic!("circular grid reference")
-            }
-            if a_depends_b {
-                println!("greater");
-                Ordering::Greater
-            } else if b_depends_a {
-                println!("less");
-                Ordering::Less
-            } else {
-                Ordering::Equal
-            }
-        });
-        let order = self
-            .order_queue
-            .drain(..)
-            .collect::<Vec<ReferentialOrderDeterminant>>();
-        for determinant in order.iter() {
-            println!("determinant: {:?}, {:?}", determinant.lh, determinant.deps);
-        }
-        for determinant in order {
-            let resolved = determinant
-                .location
-                .resolve(&determinant.stem, &self.context, layout);
-            if let Some(resolved) = resolved {
-                self.context.insert(
-                    GridContext::Named(determinant.lh.clone()),
-                    ReferentialData::new(resolved, determinant.grid),
-                );
-            } else {
-                panic!("invalid grid-location")
-            }
-        }
+    fn recursive_chain(
+        &mut self,
+        entity: Entity,
+        read: &Query<(&Stem, &Dependents, &LeafHandle, &GridLocation, &Grid)>,
+        id_table: &IdTable,
+        layout: Layout,
+    ) -> OrderSet<Entity> {
+        // evaluate @ layout (resolve) => save to self.solved => add to order-set => recurse
+        todo!()
     }
     pub(crate) fn updates(&mut self) -> Vec<(LeafHandle, ResolvedLocation)> {
-        let mut updates = vec![];
-        for (k, v) in self.context.drain() {
-            match k {
-                GridContext::Screen => {
-                    continue;
-                }
-                GridContext::Stem => {
-                    continue;
-                }
-                GridContext::Named(lh) => {
-                    updates.push((lh, v.resolved));
-                }
-                GridContext::Absolute => {
-                    continue;
-                }
-            }
-        }
-        updates
+        self.solved.drain().map(|(k, v)| (k, v.resolved)).collect()
     }
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct ResolvedLocation {
     pub(crate) section: Section<LogicalContext>,
     pub(crate) points: Option<Points<LogicalContext>>,
