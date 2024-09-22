@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use crate::anim::{Animate, AnimationRunner, AnimationTime, Ease, Sequence, SequenceTimeRange};
 use crate::differential::{Remove, RenderLink, RenderRemoveQueue, Visibility};
 use crate::elm::{BranchLimiter, FilterAttrLimiter};
-use crate::grid::{GridContext, ReferentialDependencies};
+use crate::grid::GridContext;
 use crate::interaction::ClickInteractionListener;
 use crate::layout::{Layout, LayoutFilter};
 use crate::leaf::{BranchHandle, Dependents, IdTable, Leaf, LeafBundle, LeafHandle, OnEnd, Stem};
@@ -340,16 +340,7 @@ impl<'a> Tree<'a> {
                 .0
                 .remove(&handle);
         }
-        let mut query =
-            self.world_handle
-                .as_mut()
-                .unwrap()
-                .query::<(Entity, &LeafHandle, &ReferentialDependencies)>();
-        let mut referential = Vec::new();
-        for (e, lh, ref_deps) in query.iter(self.world_handle.as_ref().unwrap()) {
-            referential.push((e, lh, ref_deps));
-        }
-        let dependents = self.recursive_remove_leaf(handle, start, &referential);
+        let dependents = self.recursive_remove_leaf(handle, start);
         for (t, e) in dependents {
             self.world_handle
                 .as_mut()
@@ -369,7 +360,6 @@ impl<'a> Tree<'a> {
         &self,
         leaf_handle: LeafHandle,
         current: Entity,
-        referential: &Vec<(Entity, &LeafHandle, &ReferentialDependencies)>,
     ) -> HashSet<(LeafHandle, Entity)> {
         let mut removed_set = HashSet::new();
         if let Some(deps) = self
@@ -381,17 +371,7 @@ impl<'a> Tree<'a> {
             for d in deps.0.iter() {
                 let e = self.lookup_target_entity(d.clone()).unwrap();
                 removed_set.insert((d.clone(), e));
-                removed_set.extend(self.recursive_remove_leaf(d.clone(), e, referential));
-            }
-        }
-
-        for (e, lh, ref_deps) in referential.iter() {
-            if ref_deps
-                .deps
-                .contains(&GridContext::Named(leaf_handle.clone()))
-            {
-                removed_set.insert(((*lh).clone(), *e));
-                removed_set.extend(self.recursive_remove_leaf((*lh).clone(), *e, referential));
+                removed_set.extend(self.recursive_remove_leaf(d.clone(), e));
             }
         }
         removed_set

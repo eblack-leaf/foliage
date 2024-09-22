@@ -29,7 +29,7 @@ use crate::differential::{
 };
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::ScaleFactor;
-use crate::grid::{distill_location_deps, resolve_grid_locations, Grid};
+use crate::grid::{ resolve_grid_locations, Grid};
 use crate::interaction::{
     FocusedEntity, InteractiveEntity, KeyboardAdapter, MouseAdapter, TouchAdapter,
 };
@@ -276,8 +276,7 @@ impl Elm {
             (viewport_changes_layout, await_assets).in_set(ScheduleMarkers::External),
             event_update_system.in_set(ScheduleMarkers::Events),
             dependent_elevation.in_set(ScheduleMarkers::GridSemantics),
-            (distill_location_deps, resolve_grid_locations)
-                .chain()
+            resolve_grid_locations
                 .in_set(ScheduleMarkers::GridSemantics),
             (evaluate_clipping_context_ptr, pull_clipping_section)
                 .in_set(ScheduleMarkers::FinalizeCoordinate),

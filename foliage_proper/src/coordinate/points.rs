@@ -3,7 +3,7 @@ use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateContext, LogicalContext};
 use bevy_ecs::prelude::Component;
 
-#[derive(Debug, Clone, Default, Component)]
+#[derive(Debug, Clone, Default, Component, Copy)]
 pub struct Points<Context: CoordinateContext> {
     pub data: [Position<Context>; 4],
 }

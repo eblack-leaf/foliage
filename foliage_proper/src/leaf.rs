@@ -7,7 +7,7 @@ use crate::coordinate::placement::Placement;
 use crate::coordinate::points::Points;
 use crate::coordinate::LogicalContext;
 use crate::differential::{Remove, Visibility};
-use crate::grid::{Grid, GridLocation, ReferentialDependencies};
+use crate::grid::{Grid, GridLocation};
 use crate::opacity::Opacity;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
@@ -54,7 +54,6 @@ pub(crate) struct LeafBundle {
     clipping_context: ClippingContextBundle,
     leaf_handle: LeafHandle,
     grid: Grid,
-    referential_dependencies: ReferentialDependencies,
     points: Points<LogicalContext>,
 }
 #[derive(Default, Component, Debug)]

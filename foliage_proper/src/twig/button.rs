@@ -1,5 +1,5 @@
 use crate::branch::{Branch, Tree};
-use crate::grid::{stem, ContextUnit, GridLocation, TokenUnit};
+use crate::grid::{stem, GridLocation, TokenUnit};
 use crate::icon::{Icon, IconId};
 use crate::interaction::{ClickInteractionListener, OnClick};
 use crate::leaf::Leaf;
@@ -84,12 +84,12 @@ impl Branch for Twig<Button> {
                 .center_x(stem().center_x())
                 .center_y(stem().center_y())
                 .width(stem().width() - 16.px())
-                .height(stem().height() - 16.px())
+                .height(stem().width() - 16.px())
         } else {
             GridLocation::new()
                 .left(stem().left() + 16.px())
-                .width(15.percent().width().from(stem()))
-                .height(15.percent().height().from(stem()))
+                .width(80.percent().height().of(stem()))
+                .height(80.percent().height().of(stem()))
                 .center_y(stem().center_y())
         };
         tree.add_leaf(
@@ -115,7 +115,7 @@ impl Branch for Twig<Button> {
             .named(self.handle.extend("text"))
             .located(
                 GridLocation::new()
-                    .left(self.handle.extend("icon").right() + 16.px())
+                    .left(32.px() + 80.percent().height().from(stem()))
                     .right(stem().right() - 16.px())
                     .center_y(stem().center_y())
                     .height(90.percent().height().from(stem())),

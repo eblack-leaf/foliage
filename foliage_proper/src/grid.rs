@@ -272,8 +272,8 @@ pub struct SpecifiedDescriptorValue {
 impl SpecifiedDescriptorValue {
     pub(crate) fn resolve(
         &self,
-        stem: Option<&ReferentialData>,
-        screen: &ReferentialData,
+        stem: Option<ReferentialData>,
+        screen: ReferentialData,
     ) -> CoordinateUnit {
         let mut accumulator = 0.0;
         for t in self.tokens.iter() {
@@ -421,8 +421,8 @@ pub(crate) struct LocationAspect {
 impl LocationAspect {
     pub(crate) fn resolve_grid_aspect(
         &self,
-        stem: Option<&ReferentialData>,
-        screen: &ReferentialData,
+        stem: Option<ReferentialData>,
+        screen: ReferentialData,
         aspect: GridAspect,
     ) -> CoordinateUnit {
         if self.aspects.get(0).unwrap().aspect == aspect {
@@ -773,8 +773,8 @@ pub enum GridAspect {
 impl GridLocation {
     pub(crate) fn resolve(
         &self,
-        stem: Option<&ReferentialData>,
-        screen: &ReferentialData,
+        stem: Option<ReferentialData>,
+        screen: ReferentialData,
         layout: Layout,
     ) -> Option<ResolvedLocation> {
         let mut resolution = ResolvedLocation::new();
@@ -1740,7 +1740,17 @@ pub(crate) struct ReferentialOrderDeterminant {
 pub(crate) fn resolve_grid_locations(
     mut check_read_and_update: ParamSet<(
         Query<Entity, Or<(Changed<GridLocation>, Changed<Grid>, Changed<Stem>)>>,
-        Query<(&Stem, &Dependents, &LeafHandle, &GridLocation, &Grid)>,
+        Query<(
+            Entity,
+            &Stem,
+            &Dependents,
+            &LeafHandle,
+            &GridLocation,
+            &Grid,
+            &Position<LogicalContext>,
+            &Area<LogicalContext>,
+            &Points<LogicalContext>,
+        )>,
         Query<(
             &mut Position<LogicalContext>,
             &mut Area<LogicalContext>,
@@ -1762,8 +1772,13 @@ pub(crate) fn resolve_grid_locations(
     }
     let mut ref_context = ReferentialContext::new(viewport_handle.section(), layout_grid.grid);
     let read = check_read_and_update.p1();
+    if layout_grid.is_changed() {
+        for (e, _, _, _, _, _, _, _, _) in read.iter() {
+            check.push(e);
+        }
+    }
     for e in check {
-        ref_context.queue_leaf(e, &read, &id_table, *layout);
+        ref_context.resolve_leaf(e, &read, &id_table, *layout);
     }
     let updates = ref_context.updates();
     drop(ref_context);
@@ -1820,10 +1835,20 @@ impl ReferentialContext {
             ),
         }
     }
-    pub(crate) fn queue_leaf(
+    pub(crate) fn resolve_leaf(
         &mut self,
         entity: Entity,
-        read: &Query<(&Stem, &Dependents, &LeafHandle, &GridLocation, &Grid)>,
+        read: &Query<(
+            Entity,
+            &Stem,
+            &Dependents,
+            &LeafHandle,
+            &GridLocation,
+            &Grid,
+            &Position<LogicalContext>,
+            &Area<LogicalContext>,
+            &Points<LogicalContext>,
+        )>,
         id_table: &IdTable,
         layout: Layout,
     ) {
@@ -1839,18 +1864,51 @@ impl ReferentialContext {
     fn recursive_chain(
         &mut self,
         entity: Entity,
-        read: &Query<(&Stem, &Dependents, &LeafHandle, &GridLocation, &Grid)>,
+        read: &Query<(
+            Entity,
+            &Stem,
+            &Dependents,
+            &LeafHandle,
+            &GridLocation,
+            &Grid,
+            &Position<LogicalContext>,
+            &Area<LogicalContext>,
+            &Points<LogicalContext>,
+        )>,
         id_table: &IdTable,
         layout: Layout,
     ) -> OrderSet<Entity> {
-        // evaluate @ layout (resolve) => save to self.solved => add to order-set => recurse
-        todo!()
+        let mut set = OrderSet::new();
+        set.insert(entity);
+        let current = read.get(entity).unwrap();
+        let stem = {
+            current.1 .0.clone().and_then(|s| {
+                if let Some(solve) = self.solved.get(&s) {
+                    Some(*solve)
+                } else {
+                    let stem = read.get(id_table.lookup_leaf(s).unwrap()).unwrap();
+                    let mut resolved = ResolvedLocation::new().section(Section::new(*stem.6, *stem.7));
+                    resolved.points.replace(stem.8.clone());
+                    Some(ReferentialData::new(resolved, *stem.5))
+                }
+            })
+        };
+        if let Some(res) = current.4.resolve(stem, self.screen, layout) {
+            self.solved
+                .insert(current.3.clone(), ReferentialData::new(res, *current.5));
+        }
+        for dep in current.2 .0.iter() {
+            let e = id_table.lookup_leaf(dep.clone()).unwrap();
+            let dep_set = self.recursive_chain(e, read, id_table, layout);
+            set.extend(dep_set);
+        }
+        set
     }
     pub(crate) fn updates(&mut self) -> Vec<(LeafHandle, ResolvedLocation)> {
         self.solved.drain().map(|(k, v)| (k, v.resolved)).collect()
     }
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub(crate) struct ResolvedLocation {
     pub(crate) section: Section<LogicalContext>,
     pub(crate) points: Option<Points<LogicalContext>>,
@@ -1870,7 +1928,7 @@ impl ResolvedLocation {
         self
     }
 }
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub(crate) struct ReferentialData {
     pub(crate) resolved: ResolvedLocation,
     pub(crate) grid: Grid,
