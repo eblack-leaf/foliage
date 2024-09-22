@@ -22,15 +22,9 @@ pub struct Button {
     on_click: OnClick,
     text_value: Option<TextValue>,
     font_size: Option<FontSize>,
-    target_handle: LeafHandle,
 }
 impl Button {
-    pub fn new<LH: Into<LeafHandle>, ID: Into<IconId>, C: Into<Coloring>>(
-        handle: LH,
-        id: ID,
-        c: C,
-        on_click: OnClick,
-    ) -> Self {
+    pub fn new<ID: Into<IconId>, C: Into<Coloring>>(id: ID, c: C, on_click: OnClick) -> Self {
         Self {
             circle_square: ButtonShape::Square,
             coloring: c.into(),
@@ -39,7 +33,6 @@ impl Button {
             on_click,
             text_value: None,
             font_size: None,
-            target_handle: handle.into(),
         }
     }
     pub fn with_text<T: Into<TextValue>, FS: Into<FontSize>>(mut self, t: T, fs: FS) -> Self {
@@ -63,10 +56,7 @@ impl Button {
 }
 impl Branch for Twig<Button> {
     fn grow(self, mut tree: Tree) {
-        let linked = vec![
-            self.handle.extend("icon"),
-            self.handle.extend("text"),
-        ];
+        let linked = vec![self.handle.extend("icon"), self.handle.extend("text")];
         tree.add_leaf(
             Leaf::new(|l| {
                 l.give(Panel::new(self.t.rounding, self.t.coloring.background));
@@ -80,6 +70,9 @@ impl Branch for Twig<Button> {
                 };
                 l.give(interaction_listener);
                 l.give(self.t.on_click);
+                if let Some(stem) = self.stem {
+                    l.stem_from(stem);
+                }
             })
             .named(self.handle.clone())
             .located(self.location)

@@ -9,12 +9,12 @@ use crate::interaction::ClickInteractionListener;
 use crate::layout::{Layout, LayoutFilter};
 use crate::leaf::{BranchHandle, Dependents, IdTable, Leaf, LeafBundle, LeafHandle, OnEnd, Stem};
 use crate::time::TimeDelta;
+use crate::twig::Twig;
 use bevy_ecs::change_detection::Mut;
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Bundle, Changed, Commands, DetectChanges, Entity, Query, Resource, World};
 use bevy_ecs::system::{Res, ResMut};
 use bevy_ecs::world::Command;
-use crate::twig::Twig;
 
 pub struct Tree<'a> {
     pub(crate) world_handle: Option<&'a mut World>,
@@ -515,7 +515,10 @@ impl<'a> Tree<'a> {
         let cmd = BranchCommand { data: a };
         cmd.apply(self.world_handle.as_mut().unwrap());
     }
-    pub fn grow_twig<T: Clone>(&mut self, twig: Twig<T>) where Twig<T>: Branch {
+    pub fn grow_twig<T: Clone>(&mut self, twig: Twig<T>)
+    where
+        Twig<T>: Branch,
+    {
         self.grow_branch(twig);
     }
     pub fn run_sequence<SFN: FnOnce(&mut SequenceHandle<'a>)>(&mut self, seq_fn: SFN) {

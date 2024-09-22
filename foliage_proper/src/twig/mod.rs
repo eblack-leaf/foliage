@@ -9,6 +9,7 @@ pub struct Twig<T: Clone> {
     elevation: Elevation,
     location: GridLocation,
     t: T,
+    stem: Option<LeafHandle>,
 }
 impl<T: Clone> Twig<T> {
     pub fn new(t: T) -> Self {
@@ -29,6 +30,10 @@ impl<T: Clone> Twig<T> {
     }
     pub fn located<GL: Into<GridLocation>>(mut self, gl: GL) -> Self {
         self.location = gl.into();
+        self
+    }
+    pub fn stem_from<LH: Into<LeafHandle>>(mut self, lh: LH) -> Self {
+        self.stem = Some(lh.into());
         self
     }
 }
