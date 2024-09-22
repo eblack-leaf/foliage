@@ -52,9 +52,7 @@ impl Branch for Home {
                     .point_ax(50.percent().width().from(stem()))
                     .point_ay(stem().bottom() - 25.percent().height().from(stem()))
                     .point_bx(50.percent().width().from(stem()) + 120.px())
-                    .point_by(
-                        stem().bottom() - 25.percent().height().from(stem()) - 120.px(),
-                    ),
+                    .point_by(stem().bottom() - 25.percent().height().from(stem()) - 120.px()),
             )
             .elevation(2),
         );

@@ -76,20 +76,20 @@ impl Branch for Twig<Button> {
             })
             .named(self.handle.clone())
             .located(self.location)
-            .elevation(-1),
+            .elevation(self.elevation),
         );
         let value = self.t.text_value.unwrap_or_default().0;
         let icon_location = if value.is_empty() {
             GridLocation::new()
                 .center_x(stem().center_x())
                 .center_y(stem().center_y())
-                .width(stem().width() - 16.px())
-                .height(stem().width() - 16.px())
+                .width(24.px())
+                .height(24.px())
         } else {
             GridLocation::new()
                 .left(stem().left() + 16.px())
-                .width(80.percent().height().of(stem()))
-                .height(80.percent().height().of(stem()))
+                .width(24.px())
+                .height(24.px())
                 .center_y(stem().center_y())
         };
         tree.add_leaf(
@@ -115,10 +115,10 @@ impl Branch for Twig<Button> {
             .named(self.handle.extend("text"))
             .located(
                 GridLocation::new()
-                    .left(32.px() + 80.percent().height().from(stem()))
+                    .left(stem().left() + 48.px())
                     .right(stem().right() - 16.px())
                     .center_y(stem().center_y())
-                    .height(90.percent().height().from(stem())),
+                    .height(90.percent().height().of(stem())),
             )
             .elevation(-1),
         )
