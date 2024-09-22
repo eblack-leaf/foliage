@@ -370,7 +370,7 @@ impl SpecifiedDescriptorValue {
                                 ref_context.get(&GridContext::Screen).unwrap()
                             }
                         }
-                        _ => ref_context.get(&t.context).unwrap()
+                        _ => ref_context.get(&t.context).unwrap(),
                     };
                     match ca {
                         GridAspect::Top => data.resolved.section.y(),
@@ -435,12 +435,14 @@ impl SpecifiedDescriptorValue {
                     let data = match &t.context {
                         GridContext::Stem => {
                             if stem.0.is_some() {
-                                ref_context.get(&GridContext::Named(stem.0.clone().unwrap())).unwrap()
+                                ref_context
+                                    .get(&GridContext::Named(stem.0.clone().unwrap()))
+                                    .unwrap()
                             } else {
                                 ref_context.get(&GridContext::Screen).unwrap()
                             }
                         }
-                        _ => ref_context.get(&t.context).unwrap()
+                        _ => ref_context.get(&t.context).unwrap(),
                     };
                     match rel {
                         RelativeUnit::Column(c, use_end) => {
@@ -490,7 +492,11 @@ impl SpecifiedDescriptorValue {
             tokens: vec![first],
         }
     }
-    pub(crate) fn dependencies(&self, this: Entity, stems: &Query<&Stem>) -> ReferentialDependencies {
+    pub(crate) fn dependencies(
+        &self,
+        this: Entity,
+        stems: &Query<&Stem>,
+    ) -> ReferentialDependencies {
         let mut set = HashSet::new();
         for token in &self.tokens {
             // if == Root => pull from Stem.unwrap_or(screen())
@@ -506,7 +512,7 @@ impl SpecifiedDescriptorValue {
                         GridContext::Screen
                     }
                 }
-                _ => token.context.clone()
+                _ => token.context.clone(),
             };
             set.insert(context);
         }
@@ -1880,18 +1886,28 @@ pub(crate) struct ReferentialOrderDeterminant<'a> {
     grid: Grid,
 }
 pub(crate) fn distill_location_deps(
-    mut query: Query<(Entity, &GridLocation, &mut ReferentialDependencies), Or<(Changed<GridLocation>, Changed<Stem>)>>,
+    mut query: Query<
+        (Entity, &GridLocation, &mut ReferentialDependencies),
+        Or<(Changed<GridLocation>, Changed<Stem>)>,
+    >,
     stems: Query<&Stem>,
 ) {
     for (entity, location, mut dep) in query.iter_mut() {
         *dep = location.deps(entity, &stems);
         println!("deps: {:?}", dep);
     }
+    if !query.is_empty() {}
 }
 pub(crate) fn resolve_grid_locations(
     mut check_read_and_update: ParamSet<(
         Query<Entity, Or<(Changed<GridLocation>, Changed<Grid>)>>,
-        Query<(&Stem, &LeafHandle, &GridLocation, &ReferentialDependencies, &Grid)>,
+        Query<(
+            &Stem,
+            &LeafHandle,
+            &GridLocation,
+            &ReferentialDependencies,
+            &Grid,
+        )>,
         Query<(
             &mut Position<LogicalContext>,
             &mut Area<LogicalContext>,
@@ -1991,10 +2007,6 @@ impl<'a> ReferentialContext<'a> {
         });
     }
     pub(crate) fn resolve(&mut self, layout: Layout) {
-        let mut needs_ordering = true;
-        while needs_ordering {
-            for
-        }
         self.order_queue.sort_by(|a, b| {
             println!("comparing: {:?} - {:?}", a.lh, b.lh);
             let b_depends_a = b.deps.deps.contains(&GridContext::Named(a.lh.clone()));
@@ -2021,7 +2033,9 @@ impl<'a> ReferentialContext<'a> {
             println!("determinant: {:?}, {:?}", determinant.lh, determinant.deps);
         }
         for determinant in order {
-            let resolved = determinant.location.resolve(&determinant.stem, &self.context, layout);
+            let resolved = determinant
+                .location
+                .resolve(&determinant.stem, &self.context, layout);
             if let Some(resolved) = resolved {
                 self.context.insert(
                     GridContext::Named(determinant.lh.clone()),
