@@ -18,6 +18,7 @@ impl<T: Clone> Twig<T> {
             elevation: Default::default(),
             location: GridLocation::new(),
             t,
+            stem: None,
         }
     }
     pub fn named<LH: Into<LeafHandle>>(mut self, lh: LH) -> Self {

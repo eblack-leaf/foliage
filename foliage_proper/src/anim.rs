@@ -175,6 +175,7 @@ impl From<Ease> for Easement {
         Easement::new(value)
     }
 }
+#[derive(Clone)]
 pub enum Ease {
     Linear,
     Bezier(ControlPoints),
@@ -217,7 +218,7 @@ impl Easement {
 }
 pub trait Animate
 where
-    Self: Sized + Send + Sync + 'static + Component,
+    Self: Sized + Send + Sync + 'static + Component + Clone,
 {
     fn interpolations(start: &Self, end: &Self) -> Interpolations;
     fn apply(&mut self, interpolations: &mut Interpolations);

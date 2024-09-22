@@ -181,6 +181,7 @@ pub struct SequenceHandle<'a> {
     sequence: Sequence,
     sequence_entity: Entity,
 }
+#[derive(Clone)]
 pub struct Animation<A: Animate> {
     leaf_handle: LeafHandle,
     a: A,
@@ -293,13 +294,13 @@ impl<'a> Tree<'a> {
             .unwrap()
             .add_target(leaf.name.clone(), entity)
         {
-            panic!("overwriting leaf-handle") // TODO or warn deleting entity
-                                              // *self
-                                              //     .world_handle
-                                              //     .as_mut()
-                                              //     .unwrap()
-                                              //     .get_mut::<Remove>(old)
-                                              //     .unwrap() = Remove::queue_remove();
+            panic!("overwriting leaf-handle {:?}", leaf.name) // TODO or warn deleting entity
+                                                              // *self
+                                                              //     .world_handle
+                                                              //     .as_mut()
+                                                              //     .unwrap()
+                                                              //     .get_mut::<Remove>(old)
+                                                              //     .unwrap() = Remove::queue_remove();
         }
         self.update_leaf(leaf.name.clone(), leaf.l_fn);
     }

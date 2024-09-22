@@ -57,7 +57,7 @@ pub(crate) struct LeafBundle {
     referential_dependencies: ReferentialDependencies,
     points: Points<LogicalContext>,
 }
-#[derive(Default, Component)]
+#[derive(Default, Component, Debug)]
 pub(crate) struct Stem(pub(crate) Option<LeafHandle>);
 impl Stem {
     pub(crate) fn new<TH: Into<LeafHandle>>(th: TH) -> Self {

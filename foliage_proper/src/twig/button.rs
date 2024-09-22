@@ -2,7 +2,7 @@ use crate::branch::{Branch, Tree};
 use crate::grid::{stem, ContextUnit, GridLocation, TokenUnit};
 use crate::icon::{Icon, IconId};
 use crate::interaction::{ClickInteractionListener, OnClick};
-use crate::leaf::{Leaf, LeafHandle};
+use crate::leaf::Leaf;
 use crate::panel::{Panel, Rounding};
 use crate::style::{Coloring, InteractiveColor};
 use crate::text::{FontSize, Text, TextValue};
@@ -97,20 +97,22 @@ impl Branch for Twig<Button> {
                 l.give(Icon::new(self.t.icon_id, self.t.coloring.foreground));
                 l.stem_from(self.handle.clone());
             })
-            .named("icon")
+            .named(self.handle.extend("icon"))
             .located(icon_location)
             .elevation(-1),
         );
         tree.add_leaf(
             Leaf::new(|l| {
-                l.give(Text::new(
-                    value,
-                    self.t.font_size.unwrap(),
-                    self.t.coloring.foreground,
-                ));
+                if self.t.font_size.is_some() {
+                    l.give(Text::new(
+                        value,
+                        self.t.font_size.unwrap(),
+                        self.t.coloring.foreground,
+                    ));
+                }
                 l.stem_from(self.handle.clone());
             })
-            .named("text")
+            .named(self.handle.extend("text"))
             .located(
                 GridLocation::new()
                     .left(self.handle.extend("icon").right() + 16.px())
