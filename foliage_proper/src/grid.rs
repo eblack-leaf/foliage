@@ -1793,7 +1793,6 @@ pub(crate) fn resolve_grid_locations(
     drop(ref_context);
     drop(read);
     for (handle, resolved) in updates {
-        // println!("{:?} resolved-section: {:?}", handle, resolved.section);
         let e = id_table.lookup_leaf(handle).unwrap();
         *check_read_and_update.p2().get_mut(e).unwrap().0 = resolved.section.position;
         *check_read_and_update.p2().get_mut(e).unwrap().1 = resolved.section.area;
