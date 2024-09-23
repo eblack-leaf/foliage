@@ -24,7 +24,7 @@ use crate::coordinate::area::Area;
 use crate::coordinate::elevation::RenderLayer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::{GpuSection, Section};
-use crate::coordinate::{Coordinates, DeviceContext, LogicalContext, PrimitiveOffset};
+use crate::coordinate::{Coordinates, DeviceContext, LogicalContext};
 use crate::differential::{Differential, RenderLink};
 use crate::elm::{Elm, RenderQueueHandle, ScheduleMarkers};
 use crate::ginkgo::{Ginkgo, ScaleFactor, VectorUniform};
@@ -63,7 +63,6 @@ pub struct Text {
     color: Color,
     metrics: Differential<GlyphMetrics>,
     font_size: FontSize,
-    primitive_offset: PrimitiveOffset,
 }
 impl Text {
     pub fn new<S: AsRef<str>, C: Into<Color>>(tv: S, font_size: FontSize, color: C) -> Self {
@@ -81,7 +80,6 @@ impl Text {
             color,
             metrics: Differential::new(GlyphMetrics::default()),
             font_size,
-            primitive_offset: PrimitiveOffset::default(),
         }
     }
 }
@@ -211,7 +209,6 @@ pub(crate) fn distill(
             &Position<LogicalContext>,
             &mut GlyphMetrics,
             &FontSize,
-            &mut PrimitiveOffset,
         ),
         Or<(
             Changed<TextValue>,
@@ -223,23 +220,14 @@ pub(crate) fn distill(
     font: Res<MonospacedFont>,
     scale_factor: Res<ScaleFactor>,
 ) {
-    for (
-        value,
-        mut glyphs,
-        colors,
-        base,
-        area,
-        pos,
-        mut metrics,
-        font_size,
-        mut primitive_offset,
-    ) in texts.iter_mut()
-    {
+    for (value, mut glyphs, colors, base, area, pos, mut metrics, font_size) in texts.iter_mut() {
         let mut placer = fontdue::layout::Layout::new(CoordinateSystem::PositiveYDown);
         let scaled_area = area.to_device(scale_factor.value());
         placer.reset(&fontdue::layout::LayoutSettings {
             max_width: Some(scaled_area.width()),
             max_height: Some(scaled_area.height()),
+            horizontal_align: fontdue::layout::HorizontalAlign::Center,
+            vertical_align: fontdue::layout::VerticalAlign::Middle,
             ..fontdue::layout::LayoutSettings::default()
         });
         let projected = font_size.value() * scale_factor.value();
@@ -262,15 +250,8 @@ pub(crate) fn distill(
         }
         let old_glyphs = glyphs.glyphs.drain().collect::<Vec<(GlyphOffset, Glyph)>>();
         glyphs.removed.clear();
-        let mut new_extent = Coordinates::default();
         for glyph in placer.glyphs().iter() {
             let section = Section::new((glyph.x, glyph.y), (glyph.width, glyph.height));
-            if section.right() > new_extent.horizontal() {
-                new_extent.0[0] = section.right();
-            }
-            if section.bottom() > new_extent.vertical() {
-                new_extent.0[1] = section.bottom();
-            }
             glyphs.glyphs.insert(
                 glyph.byte_offset,
                 Glyph {
@@ -281,19 +262,6 @@ pub(crate) fn distill(
                 },
             );
         }
-        let num_lines = (new_extent.vertical() / character_dims.vertical()).ceil();
-        let normal = Section::logical(*pos, *area);
-        let adjusted = Section::device(
-            pos.to_device(scale_factor.value()),
-            (
-                new_extent.horizontal(),
-                character_dims.vertical() * num_lines,
-            ),
-        )
-        .to_logical(scale_factor.value());
-        // primitive_offset.section.position.coordinates =
-        //     (normal.center() - adjusted.center()).coordinates;
-        // primitive_offset.section.area.coordinates = area.coordinates - adjusted.area.coordinates;
         for (offset, glyph) in old_glyphs {
             if let Some(new) = glyphs.glyphs.get(&offset) {
                 if glyph.key.glyph_index != new.key.glyph_index {

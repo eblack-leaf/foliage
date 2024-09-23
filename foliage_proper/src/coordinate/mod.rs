@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
-use crate::coordinate::section::{GpuSection, Section};
+use crate::coordinate::section::GpuSection;
 use crate::elm::{Elm, ScheduleMarkers};
 use crate::ginkgo::ScaleFactor;
 use crate::Root;
@@ -126,51 +126,23 @@ impl Root for Coordinates {
             .add_systems(coordinate_resolve.in_set(ScheduleMarkers::FinalizeCoordinate));
     }
 }
-#[derive(Component, Default, Clone, Copy)]
-pub(crate) struct PrimitiveOffset {
-    pub(crate) section: Section<LogicalContext>,
-}
 fn coordinate_resolve(
     mut placed_pos: Query<
         (
             &mut GpuSection,
             &Position<LogicalContext>,
             &Area<LogicalContext>,
-            Option<&PrimitiveOffset>,
         ),
         Or<(
             Changed<Position<LogicalContext>>,
             Changed<Area<LogicalContext>>,
-            Changed<PrimitiveOffset>,
         )>,
     >,
     scale_factor: Res<ScaleFactor>,
 ) {
-    for (mut gpu, pos, area, primitive_offset) in placed_pos.iter_mut() {
-        gpu.pos = pos
-            .to_device(scale_factor.value())
-            .add(
-                primitive_offset
-                    .copied()
-                    .unwrap_or_default()
-                    .section
-                    .position
-                    .to_device(scale_factor.value()),
-            )
-            .rounded()
-            .to_gpu();
-        gpu.area = area
-            .to_device(scale_factor.value())
-            .add(
-                primitive_offset
-                    .copied()
-                    .unwrap_or_default()
-                    .section
-                    .area
-                    .to_device(scale_factor.value()),
-            )
-            .rounded()
-            .to_gpu();
+    for (mut gpu, pos, area) in placed_pos.iter_mut() {
+        gpu.pos = pos.to_device(scale_factor.value()).rounded().to_gpu();
+        gpu.area = area.to_device(scale_factor.value()).rounded().to_gpu();
     }
 }
 
