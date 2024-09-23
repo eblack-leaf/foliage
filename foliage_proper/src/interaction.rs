@@ -277,9 +277,7 @@ pub(crate) fn listen_for_interactions(
                             .contains(event.position, Section::new(*pos, *area))
                             && !listener.disabled
                         {
-                            println!("checking {:?} @ {:?}", entity, layer);
                             if grab_info.is_none() || *layer > grab_info.unwrap().1 {
-                                println!("replacing {:?} @ {:?}", entity, layer);
                                 grab_info.replace((entity, *layer));
                             }
                         }
@@ -290,7 +288,6 @@ pub(crate) fn listen_for_interactions(
                                 l.1.focused = false;
                             }
                         }
-                        println!("grabbing: {:?} @ {:?}", grab.0, grab.1);
                         grabbed.0.replace(grab.0);
                         listeners.get_mut(grab.0).expect("starting").1.click =
                             Click::new(event.position);

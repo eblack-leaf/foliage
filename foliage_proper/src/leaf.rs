@@ -13,7 +13,7 @@ use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, Resource};
 use bevy_ecs::query::{Changed, Or};
-use bevy_ecs::system::{Query, Res};
+use bevy_ecs::system::{ParamSet, Query, Res};
 
 pub struct Leaf<LFN: for<'a> FnOnce(&mut LeafPtr<'a>)> {
     pub name: LeafHandle,
@@ -145,12 +145,22 @@ impl OnEnd {
 }
 
 pub(crate) fn dependent_elevation(
-    check: Query<Entity, Or<(Changed<Elevation>, Changed<Stem>, Changed<Dependents>)>>,
+    mut check_and_update: ParamSet<(
+        Query<
+            Entity,
+            Or<(
+                Changed<Elevation>,
+                Changed<Stem>,
+                Changed<Dependents>,
+                Changed<RenderLayer>,
+            )>,
+        >,
+        Query<&mut RenderLayer>,
+    )>,
     read: Query<(Entity, &Elevation, &Stem, &Dependents)>,
-    mut update: Query<&mut RenderLayer>,
     id_table: Res<IdTable>,
 ) {
-    if check.is_empty() {
+    if check_and_update.p0().is_empty() {
         return;
     }
     let mut updates = HashMap::new();
@@ -165,7 +175,7 @@ pub(crate) fn dependent_elevation(
         }
     }
     for (e, l) in updates {
-        *update.get_mut(e).unwrap() = l;
+        *check_and_update.p1().get_mut(e).unwrap() = l;
     }
 }
 fn recursive_elevation(
