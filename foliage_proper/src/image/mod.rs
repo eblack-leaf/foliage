@@ -74,7 +74,6 @@ pub struct Image {
     view: Differential<ImageView>,
     color: Differential<Color>,
     gpu_section: Differential<GpuSection>,
-    section: Section<LogicalContext>,
     layer: Differential<RenderLayer>,
 }
 type ImageBitsRepr = f32;
@@ -91,6 +90,7 @@ impl Image {
     }
     pub fn new<I: Into<ImageSlotId>>(id: I, data: Vec<u8>) -> Self {
         // Note: Change when Self::PRECISION == 4 to .to_rgba32f()
+
         let image = image::load_from_memory(data.as_slice())
             .unwrap()
             .to_rgba32f();
@@ -99,13 +99,13 @@ impl Image {
             .pixels()
             .flat_map(|p| p.0.to_vec())
             .collect::<Vec<ImageBitsRepr>>();
+        let id = id.into();
         Self {
             link: RenderLink::new::<Image>(),
-            fill: Differential::new(ImageFill(id.into(), image_bytes, dimensions)),
+            fill: Differential::new(ImageFill(id, image_bytes, dimensions)),
             view: Differential::new(ImageView::Stretch),
             color: Differential::new(Color::WHITE),
             gpu_section: Differential::new(GpuSection::default()),
-            section: Section::default(),
             layer: Differential::new(RenderLayer::default()),
         }
     }
@@ -232,7 +232,7 @@ pub(crate) const VERTICES: [Vertex; 6] = [
     Vertex::new(Coordinates::new(0f32, 1f32), [0, 3]),
     Vertex::new(Coordinates::new(1f32, 1f32), [2, 3]),
 ];
-#[derive(Copy, Clone, Component, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Copy, Clone, Component, Hash, Eq, PartialEq, Ord, PartialOrd, Debug)]
 pub struct ImageSlotId(pub i32);
 impl From<i32> for ImageSlotId {
     fn from(value: i32) -> Self {
