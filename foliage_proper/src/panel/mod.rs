@@ -13,7 +13,6 @@ use wgpu::{
 
 use crate::anim::{Animate, Interpolations};
 use crate::ash::{ClippingContextPointer, DrawRange, Renderer};
-use crate::branch::HasRenderLink;
 use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::elevation::RenderLayer;
@@ -24,6 +23,7 @@ use crate::differential::{Differential, RenderLink};
 use crate::elm::{RenderQueueHandle, ScheduleMarkers};
 use crate::ginkgo::{Ginkgo, ScaleFactor};
 use crate::instances::Instances;
+use crate::leaf::HasRenderLink;
 use crate::{Elm, Render, Root};
 
 impl Root for Panel {

@@ -13,7 +13,6 @@ use wgpu::{
 };
 
 use crate::ash::{ClippingContextPointer, DrawRange, Render, Renderer};
-use crate::branch::HasRenderLink;
 use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::elevation::RenderLayer;
@@ -24,6 +23,7 @@ use crate::differential::{Differential, RenderLink};
 use crate::elm::{Elm, RenderQueueHandle, ScheduleMarkers};
 use crate::ginkgo::Ginkgo;
 use crate::instances::Instances;
+use crate::leaf::HasRenderLink;
 use crate::leaf::{Remove, Visibility};
 use crate::texture::Mips;
 use crate::Root;

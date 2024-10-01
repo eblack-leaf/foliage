@@ -17,7 +17,6 @@ use crate::coordinate::section::Section;
 use crate::coordinate::{DeviceContext, LogicalContext};
 use crate::elm::RenderQueueHandle;
 use crate::ginkgo::{Ginkgo, ScaleFactor};
-use crate::leaf::{IdTable, LeafHandle};
 use crate::Elm;
 
 #[derive(Default)]

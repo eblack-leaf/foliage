@@ -18,7 +18,6 @@ use wgpu::{BindGroupLayout, RenderPipeline};
 use crate::ash::{
     ClippingContextPointer, ClippingSection, DrawRange, Render, RenderNode, RenderNodes, Renderer,
 };
-use crate::branch::HasRenderLink;
 use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::elevation::RenderLayer;
@@ -29,6 +28,7 @@ use crate::differential::{Differential, RenderLink};
 use crate::elm::{Elm, RenderQueueHandle, ScheduleMarkers};
 use crate::ginkgo::{Ginkgo, ScaleFactor, VectorUniform};
 use crate::instances::Instances;
+use crate::leaf::HasRenderLink;
 use crate::texture::{AtlasEntry, TextureAtlas, TextureCoordinates};
 use crate::Root;
 
