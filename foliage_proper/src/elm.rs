@@ -28,8 +28,7 @@ use crate::interaction::{
 };
 use crate::layout::{viewport_changes_layout, Layout, LayoutGrid};
 use crate::leaf::{
-    apply_triggered, change_stem, clear_trigger_signal, dependent_elevation, filter_attr_changed,
-    filter_attr_layout_change, interaction_enable, recursive_removal, recursive_visibility,
+    apply_triggered, change_stem, clear_trigger_signal, dependent_elevation, interaction_enable, recursive_removal, recursive_visibility,
     update_stem_deps,
 };
 use crate::opacity::opacity;
@@ -155,17 +154,6 @@ impl Elm {
             self.ecs
                 .world
                 .insert_resource(SignalLimiter::<B>::default());
-        }
-    }
-    pub fn enable_filtering<A: Bundle + Send + Sync + 'static + Clone>(&mut self) {
-        if !self.ecs.world.contains_resource::<FilterAttrLimiter<A>>() {
-            self.scheduler.main.add_systems(
-                (filter_attr_changed::<A>, filter_attr_layout_change::<A>)
-                    .in_set(ScheduleMarkers::Spawn),
-            );
-            self.ecs
-                .world
-                .insert_resource(FilterAttrLimiter::<A>::default());
         }
     }
     pub fn enable_animation<A: Animate>(&mut self) {

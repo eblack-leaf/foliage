@@ -8,12 +8,11 @@ use crate::coordinate::LogicalContext;
 use crate::differential::{Remove, RenderLink, RenderRemoveQueue, Visibility};
 use crate::grid::Grid;
 use crate::interaction::ClickInteractionListener;
-use crate::layout::{Layout, LayoutFilter};
 use crate::opacity::Opacity;
 use bevy_ecs::bundle::Bundle;
-use bevy_ecs::change_detection::{Res, ResMut};
+use bevy_ecs::change_detection::ResMut;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Component, DetectChanges};
+use bevy_ecs::prelude::Component;
 use bevy_ecs::query::{Changed, Or};
 use bevy_ecs::system::{Commands, ParamSet, Query};
 
@@ -317,65 +316,5 @@ fn recursive_visibility_inner(
 pub trait HasRenderLink {
     fn has_link() -> bool {
         false
-    }
-}
-pub struct FilteredAttributeConfig<A: Bundle + Send + Sync + 'static + Clone> {
-    pub filter: LayoutFilter,
-    pub a: A,
-}
-impl<A: Bundle + Send + Sync + 'static + Clone> FilteredAttributeConfig<A> {
-    pub fn new(layout: Layout, a: A) -> Self {
-        Self {
-            filter: layout.into(),
-            a,
-        }
-    }
-}
-#[derive(Component)]
-pub struct FilteredAttribute<A: Bundle + Send + Sync + 'static + Clone> {
-    filtered: Vec<FilteredAttributeConfig<A>>,
-}
-impl<A: Bundle + Send + Sync + 'static + Clone> Default for FilteredAttribute<A> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<A: Bundle + Send + Sync + 'static + Clone> FilteredAttribute<A> {
-    pub fn new() -> Self {
-        Self { filtered: vec![] }
-    }
-    pub fn with(mut self, layout: Layout, a: A) -> Self {
-        self.filtered.push(FilteredAttributeConfig::new(layout, a));
-        self
-    }
-}
-pub(crate) fn filter_attr_layout_change<A: Bundle + Send + Sync + 'static + Clone>(
-    filtered: Query<(Entity, &FilteredAttribute<A>, Option<&RenderLink>)>,
-    layout: Res<Layout>,
-    cmd: Commands,
-    render_remove_queue: ResMut<RenderRemoveQueue>,
-) {
-    if layout.is_changed() {
-        for (entity, filter_attr, opt_link) in filtered.iter() {
-            todo!()
-            // if we have match then give else remove<A>
-            // if removing + <A as HasRenderLink>::has_link() => send render-queue remove
-        }
-    }
-}
-pub(crate) fn filter_attr_changed<A: Bundle + Send + Sync + 'static + Clone>(
-    filtered: Query<
-        (Entity, &FilteredAttribute<A>, Option<&RenderLink>),
-        Changed<FilteredAttribute<A>>,
-    >,
-    layout: Res<Layout>,
-    cmd: Commands,
-    render_remove_queue: ResMut<RenderRemoveQueue>,
-) {
-    for (entity, filtered_attr, opt_link) in filtered.iter() {
-        todo!()
-        // if we have match then give else remove<A>
-        // if removing + <A as HasRenderLink>::has_link() => send render-queue remove
     }
 }
