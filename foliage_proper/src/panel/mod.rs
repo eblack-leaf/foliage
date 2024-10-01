@@ -12,7 +12,7 @@ use wgpu::{
 };
 
 use crate::anim::{Animate, Interpolations};
-use crate::ash::{ClippingContextPointer, DrawRange, Renderer};
+use crate::ash::{ClippingContext, DrawRange, Renderer};
 use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::elevation::RenderLayer;
@@ -314,7 +314,7 @@ impl Render for Panel {
                 .instances
                 .checked_write(packet.entity, packet.value);
         }
-        for packet in queue_handle.read_adds::<Self, ClippingContextPointer>() {
+        for packet in queue_handle.read_adds::<Self, ClippingContext>() {
             renderer
                 .resource_handle
                 .instances

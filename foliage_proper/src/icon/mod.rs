@@ -12,7 +12,7 @@ use wgpu::{
     TextureFormat, TextureSampleType, TextureViewDimension, VertexState, VertexStepMode,
 };
 
-use crate::ash::{ClippingContextPointer, DrawRange, Render, Renderer};
+use crate::ash::{ClippingContext, DrawRange, Render, Renderer};
 use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::elevation::RenderLayer;
@@ -398,7 +398,7 @@ impl Render for Icon {
                 .checked_write(packet.entity, packet.value);
             Self::write_mips(renderer, ginkgo, packet.entity);
         }
-        for packet in queue_handle.read_adds::<Self, ClippingContextPointer>() {
+        for packet in queue_handle.read_adds::<Self, ClippingContext>() {
             renderer
                 .resource_handle
                 .group_mut_from_entity(packet.entity)

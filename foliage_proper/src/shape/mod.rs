@@ -1,4 +1,4 @@
-use crate::ash::{ClippingContextPointer, DrawRange, Render, Renderer};
+use crate::ash::{ClippingContext, DrawRange, Render, Renderer};
 use crate::color::Color;
 use crate::coordinate::elevation::RenderLayer;
 use crate::coordinate::section::Section;
@@ -185,7 +185,7 @@ impl Render for Shape {
                 .instances
                 .checked_write(packet.entity, packet.value);
         }
-        for packet in queue_handle.read_adds::<Self, ClippingContextPointer>() {
+        for packet in queue_handle.read_adds::<Self, ClippingContext>() {
             renderer
                 .resource_handle
                 .instances

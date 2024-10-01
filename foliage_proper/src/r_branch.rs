@@ -10,7 +10,7 @@ pub trait CommandsExtension {
     ) -> Entity;
 }
 impl<'w, 's> CommandsExtension for Commands<'w, 's> {
-    fn spawn_sequence<'a, 'w, 's, SFN: FnOnce(&mut SequenceHandle<'a, 'w, 's>)>(
+    fn spawn_sequence<'a, SFN: FnOnce(&mut SequenceHandle<'a, 'w, 's>)>(
         &'a mut self,
         sfn: SFN,
     ) -> Entity {

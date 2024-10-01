@@ -1,4 +1,3 @@
-use crate::branch::Tree;
 use crate::grid::{stem, GridLocation, TokenUnit};
 use crate::icon::{Icon, IconId};
 use crate::interaction::{ClickInteractionListener, OnClick};

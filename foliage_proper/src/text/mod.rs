@@ -16,7 +16,7 @@ use wgpu::{
 use wgpu::{BindGroupLayout, RenderPipeline};
 
 use crate::ash::{
-    ClippingContextPointer, ClippingSection, DrawRange, Render, RenderNode, RenderNodes, Renderer,
+    ClippingContext, ClippingSection, DrawRange, Render, RenderNode, RenderNodes, Renderer,
 };
 use crate::color::Color;
 use crate::coordinate::area::Area;
@@ -285,7 +285,7 @@ pub(crate) struct TextGroup {
     pos_and_layer: VectorUniform<f32>,
     should_record: bool,
     clip_section: ClippingSection,
-    clip_context: ClippingContextPointer,
+    clip_context: ClippingContext,
 }
 pub struct TextResources {
     pipeline: RenderPipeline,
@@ -461,11 +461,11 @@ impl Render for Text {
                     pos_and_layer: uniform,
                     should_record: false,
                     clip_section: Default::default(),
-                    clip_context: ClippingContextPointer::Screen,
+                    clip_context: ClippingContext::Screen,
                 },
             );
         }
-        for packet in queue_handle.read_adds::<Self, ClippingContextPointer>() {
+        for packet in queue_handle.read_adds::<Self, ClippingContext>() {
             renderer
                 .resource_handle
                 .groups

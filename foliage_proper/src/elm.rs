@@ -12,9 +12,7 @@ use bevy_ecs::system::Resource;
 use bevy_ecs::world::World;
 
 use crate::anim::{animate, Animate};
-use crate::ash::{
-    evaluate_clipping_context_ptr, pull_clipping_section, ClippingSectionQueue, Render,
-};
+use crate::ash::{pull_clipping_section, ClippingSectionQueue, Render};
 use crate::asset::{await_assets, on_retrieve};
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
@@ -285,8 +283,7 @@ impl Elm {
             dependent_elevation.in_set(ScheduleMarkers::GridSemantics),
             resolve_grid_locations.in_set(ScheduleMarkers::GridSemantics),
             opacity.in_set(ScheduleMarkers::Resolve),
-            (evaluate_clipping_context_ptr, pull_clipping_section)
-                .in_set(ScheduleMarkers::FinalizeCoordinate),
+            pull_clipping_section.in_set(ScheduleMarkers::FinalizeCoordinate),
             clear_trigger_signal.after(ScheduleMarkers::Differential),
         ));
         self.scheduler.main.add_systems((

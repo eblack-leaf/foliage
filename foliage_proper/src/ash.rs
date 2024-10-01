@@ -75,55 +75,15 @@ pub(crate) struct Ash {
 pub(crate) struct DirectiveGroupPointer(pub(crate) i32);
 #[derive(Default)]
 pub(crate) struct DrawCalls {
-    pub(crate) calls: Vec<(
-        usize,
-        DirectiveGroupPointer,
-        DrawRange,
-        ClippingContextPointer,
-    )>,
+    pub(crate) calls: Vec<(usize, DirectiveGroupPointer, DrawRange, ClippingContext)>,
     pub(crate) unsorted: HashMap<usize, HashMap<DirectiveGroupPointer, RenderNodes>>,
     pub(crate) changed: bool,
 }
-#[derive(Debug, Clone, Component, PartialEq, Default)]
-pub enum ClippingContext {
-    #[default]
-    Screen,
-    Handle(LeafHandle),
-}
-impl ClippingContext {
-    pub fn new<LH: Into<LeafHandle>>(lh: LH) -> Self {
-        ClippingContext::Handle(lh.into())
-    }
-}
-pub(crate) fn evaluate_clipping_context_ptr(
-    mut query: Query<(&ClippingContext, &mut ClippingContextPointer), Changed<ClippingContext>>,
-    id_table: Res<IdTable>,
-) {
-    for (context, mut context_ptr) in query.iter_mut() {
-        match context {
-            ClippingContext::Screen => {
-                *context_ptr = ClippingContextPointer::Screen;
-            }
-            ClippingContext::Handle(h) => {
-                if let Some(entity) = id_table.lookup_leaf(h.clone()) {
-                    *context_ptr = ClippingContextPointer::Entity(entity);
-                } else {
-                    *context_ptr = ClippingContextPointer::Screen;
-                }
-            }
-        }
-    }
-}
 #[derive(Debug, Copy, Clone, Component, PartialEq, Default, PartialOrd)]
-pub(crate) enum ClippingContextPointer {
+pub(crate) enum ClippingContext {
     #[default]
     Screen,
     Entity(Entity),
-}
-#[derive(Bundle, Default)]
-pub(crate) struct ClippingContextBundle {
-    clipping_context: ClippingContextPointer,
-    clipping_context_ptr: ClippingContext,
 }
 #[derive(Debug, Clone, Copy, Default)]
 pub(crate) struct ClippingSection(pub(crate) Section<DeviceContext>);
@@ -163,14 +123,14 @@ pub(crate) struct ClippingSectionQueue {
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct RenderNode {
     layer: RenderLayer,
-    clipping_context_ptr: ClippingContextPointer,
+    clipping_context: ClippingContext,
 }
 
 impl RenderNode {
-    pub(crate) fn new(layer: RenderLayer, clip: ClippingContextPointer) -> Self {
+    pub(crate) fn new(layer: RenderLayer, clip: ClippingContext) -> Self {
         Self {
             layer,
-            clipping_context_ptr: clip,
+            clipping_context: clip,
         }
     }
 }
@@ -302,10 +262,10 @@ impl Ash {
                     *renderer_index,
                     *ptr,
                     *instance_index,
-                    node.clipping_context_ptr,
+                    node.clipping_context,
                 );
                 let next = if let Some(n) = all.get(index + 1) {
-                    Some((n.0, n.1, n.2, n.3.clipping_context_ptr))
+                    Some((n.0, n.1, n.2, n.3.clipping_context))
                 } else {
                     None
                 };
@@ -324,7 +284,7 @@ impl Ash {
                     this.0,
                     this.1,
                     DrawRange::new(start as u32, start as u32 + contiguous),
-                    node.clipping_context_ptr,
+                    node.clipping_context,
                 ));
                 contiguous = 1;
             }
@@ -383,8 +343,8 @@ impl Ash {
         {
             let screen_size = ginkgo.viewport().section();
             let clip_section = match clipping_context_ptr {
-                ClippingContextPointer::Screen => screen_size,
-                ClippingContextPointer::Entity(e) => {
+                ClippingContext::Screen => screen_size,
+                ClippingContext::Entity(e) => {
                     self.clipping_sections
                         .get(&e)
                         .cloned()

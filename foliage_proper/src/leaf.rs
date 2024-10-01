@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::ash::ClippingContextBundle;
+use crate::ash::ClippingContext;
 use crate::coordinate::elevation::{Elevation, RenderLayer};
 use crate::coordinate::placement::Placement;
 use crate::coordinate::points::Points;
@@ -26,7 +26,7 @@ pub struct Leaf {
     remove: Remove,
     visibility: Visibility,
     opacity: Opacity,
-    clipping_context: ClippingContextBundle,
+    clipping_context: ClippingContext,
     grid: Grid,
     points: Points<LogicalContext>,
 }
@@ -71,6 +71,7 @@ pub struct ChangeStem(pub Option<Entity>);
 pub(crate) fn change_stem(
     mut query: Query<(Entity, &ChangeStem, &mut Stem)>,
     mut dependents: Query<&mut Dependents>,
+    mut visibility: Query<&mut Visibility>,
     mut cmd: Commands,
 ) {
     for (entity, change, mut stem) in query.iter_mut() {
@@ -81,6 +82,13 @@ pub(crate) fn change_stem(
         }
         stem.0 = change.0;
         cmd.entity(entity).remove::<ChangeStem>();
+        if let Some(s) = stem.0 {
+            if let Ok(stem_vis) = visibility.get(s).copied() {
+                if let Ok(mut v) = visibility.get_mut(entity) {
+                    v.visible = stem_vis.visible;
+                }
+            }
+        }
     }
 }
 pub(crate) fn update_stem_deps(

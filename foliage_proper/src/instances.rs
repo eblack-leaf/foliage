@@ -7,7 +7,7 @@ use bevy_ecs::world::World;
 use bytemuck::{Pod, Zeroable};
 use wgpu::{BufferDescriptor, BufferUsages};
 
-use crate::ash::{ClippingContextPointer, RenderNode, RenderNodes};
+use crate::ash::{ClippingContext, RenderNode, RenderNodes};
 use crate::coordinate::elevation::RenderLayer;
 use crate::ginkgo::Ginkgo;
 
@@ -24,7 +24,7 @@ pub struct Instances<Key: Hash + Eq + Copy + Clone> {
     removal_queue: HashSet<Key>,
     changed: bool,
     nodes: HashMap<usize, RenderNode>,
-    clipping_contexts: HashMap<Key, ClippingContextPointer>,
+    clipping_contexts: HashMap<Key, ClippingContext>,
     layers: HashMap<Key, RenderLayer>,
 }
 pub(crate) struct Swaps {
@@ -44,7 +44,7 @@ impl<Key: Hash + Eq + Copy + Clone + Debug> Instances<Key> {
             .get(index)
             .copied()
     }
-    pub fn set_clipping_context(&mut self, key: Key, clipping_context: ClippingContextPointer) {
+    pub fn set_clipping_context(&mut self, key: Key, clipping_context: ClippingContext) {
         self.clipping_contexts.insert(key, clipping_context);
         self.changed = true;
     }
