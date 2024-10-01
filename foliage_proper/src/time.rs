@@ -1,12 +1,10 @@
+use crate::elm::{Elm, ScheduleMarkers};
+use crate::leaf::{Trigger, TriggerSignal};
+use crate::Root;
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{IntoSystemConfigs, ResMut, Resource};
 use bevy_ecs::system::{Commands, Query, Res};
-
-use crate::branch::Signal;
-use crate::elm::{Elm, ScheduleMarkers};
-use crate::leaf::{IdTable, OnEnd};
-use crate::Root;
 
 pub type Moment = web_time::Instant;
 pub type TimeDelta = web_time::Duration;
@@ -68,6 +66,7 @@ pub(crate) fn start(mut time: ResMut<Time>) {
 pub(crate) fn update_time(mut time: ResMut<Time>) {
     time.update();
 }
+pub type OnEnd = Trigger;
 #[derive(Component)]
 pub struct Timer {
     time_left: TimeDelta,
@@ -78,12 +77,7 @@ impl Timer {
         Self { time_left, on_end }
     }
 }
-pub(crate) fn timers(
-    time: Res<Time>,
-    mut timers: Query<(Entity, &mut Timer)>,
-    id_table: Res<IdTable>,
-    mut cmd: Commands,
-) {
+pub(crate) fn timers(time: Res<Time>, mut timers: Query<(Entity, &mut Timer)>, mut cmd: Commands) {
     for (entity, mut timer) in timers.iter_mut() {
         timer.time_left = timer
             .time_left
@@ -91,10 +85,7 @@ pub(crate) fn timers(
             .unwrap_or_default();
         if timer.time_left.is_zero() {
             cmd.entity(entity).despawn();
-            for handle in timer.on_end.actions.iter() {
-                let e = id_table.lookup_branch(handle.clone()).unwrap();
-                cmd.entity(e).insert(Signal::active());
-            }
+            cmd.entity(timer.on_end.0).insert(TriggerSignal(true));
         }
     }
 }

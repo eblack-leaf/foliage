@@ -1,15 +1,16 @@
+use bevy_ecs::event::{Event, EventReader};
+#[cfg(target_arch = "wasm32")]
 use wasm_bindgen::closure::Closure;
+#[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
 
-use crate::branch::{Branch, Tree};
-
-#[derive(Clone)]
+#[derive(Clone, Event)]
 pub struct HrefLink {
     href: String,
 }
-impl Branch for HrefLink {
-    fn grow(self, _handle: Tree) {
-        self.navigate();
+pub(crate) fn navigate(mut href_links: EventReader<HrefLink>) {
+    for href_link in href_links.read() {
+        href_link.navigate();
     }
 }
 impl HrefLink {

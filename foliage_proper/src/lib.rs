@@ -1,6 +1,6 @@
 pub use bevy_ecs;
 use bevy_ecs::bundle::Bundle;
-use bevy_ecs::prelude::{Entity, Resource};
+use bevy_ecs::prelude::{Entity, Event, Resource};
 use futures_channel::oneshot;
 use tracing_subscriber::filter::Targets;
 use tracing_subscriber::layer::SubscriberExt;
@@ -17,16 +17,15 @@ use willow::Willow;
 use crate::anim::{Animate, EnabledAnimations};
 use crate::ash::{Ash, ClippingContextPointer, Render};
 use crate::asset::{Asset, AssetKey, AssetLoader};
-use crate::branch::{Branch, Signaler, Tree};
+use crate::branch::{Branch, Signaler};
 use crate::coordinate::area::Area;
 use crate::coordinate::{Coordinates, DeviceContext};
-use crate::elm::{BranchLimiter, Elm};
+use crate::elm::Elm;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::{Ginkgo, ScaleFactor};
 use crate::icon::{Icon, IconId, IconRequest};
 use crate::image::Image;
 use crate::interaction::{ClickInteractionListener, KeyboardAdapter, MouseAdapter, TouchAdapter};
-use crate::leaf::{BranchHandle, IdTable};
 use crate::panel::Panel;
 use crate::shape::line::Line;
 use crate::shape::Shape;
@@ -41,7 +40,6 @@ pub mod branch;
 pub mod clipboard;
 pub mod color;
 pub mod coordinate;
-pub mod derive;
 pub mod differential;
 pub mod elm;
 pub mod ginkgo;
@@ -54,6 +52,7 @@ pub mod layout;
 pub mod leaf;
 pub mod opacity;
 pub mod panel;
+mod r_branch;
 pub mod shape;
 pub mod style;
 pub mod text;
@@ -105,35 +104,10 @@ impl Foliage {
         };
         this.define_roots::<Trunk>();
         this.elm.ecs.world.insert_resource(AssetLoader::default());
-        this.elm.ecs.world.insert_resource(IdTable::default());
         this
-    }
-    pub fn grow_branch<A: Branch>(&mut self, a: A) {
-        a.grow(Tree {
-            world_handle: Some(&mut self.elm.ecs.world),
-        });
-    }
-    pub fn enable_signaled_branch<A: Branch>(&mut self) {
-        self.elm.enable_signaled_branch::<A>();
     }
     pub fn enable_animation<A: Animate>(&mut self) {
         self.elm.enable_animation::<A>();
-    }
-    pub fn create_signaled_branch<A: Branch, AH: Into<BranchHandle>>(&mut self, ah: AH, a: A) {
-        if !self.elm.ecs.world.contains_resource::<BranchLimiter<A>>() {
-            panic!("please enable_signaled_branch for this branch type")
-        }
-        let signaler = self.elm.ecs.world.spawn(Signaler::new(a)).id();
-        if let Some(o) = self
-            .elm
-            .ecs
-            .world
-            .get_resource_mut::<IdTable>()
-            .unwrap()
-            .add_branch(ah, signaler)
-        {
-            self.elm.ecs.world.despawn(o);
-        }
     }
     pub fn load_icon<ID: Into<IconId>, B: AsRef<[u8]>>(&mut self, id: ID, bytes: B) {
         self.spawn(IconRequest::new(id, bytes.as_ref().to_vec()));
@@ -166,6 +140,15 @@ impl Foliage {
     }
     pub fn spawn<B: Bundle + 'static + Send + Sync>(&mut self, b: B) -> Entity {
         self.elm.ecs.world.spawn(b).id()
+    }
+    pub fn enable_triggered<B: Bundle + Clone + 'static + Send + Sync>(&mut self) {
+        self.elm.enable_triggered::<B>();
+    }
+    pub fn enable_event<E: Event>(&mut self) {
+        self.elm.enable_event::<E>();
+    }
+    pub fn send_event<E: Event>(&mut self, e: E) {
+        self.elm.ecs.world.send_event(e);
     }
     pub fn insert_resource<R: Resource>(&mut self, r: R) {
         self.elm.ecs.world.insert_resource(r);

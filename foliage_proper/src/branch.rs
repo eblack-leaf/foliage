@@ -2,18 +2,16 @@ use std::any::TypeId;
 use std::collections::HashSet;
 
 use crate::anim::{Animate, AnimationRunner, AnimationTime, Ease, Sequence, SequenceTimeRange};
-use crate::differential::{Remove, RenderLink, RenderRemoveQueue, Visibility};
 use crate::elm::{BranchLimiter, FilterAttrLimiter};
-use crate::grid::GridContext;
 use crate::interaction::ClickInteractionListener;
-use crate::layout::{Layout, LayoutFilter};
-use crate::leaf::{BranchHandle, Dependents, IdTable, Leaf, LeafBundle, LeafHandle, OnEnd, Stem};
+use crate::leaf::{
+    BranchHandle, Dependents, IdTable, Leaf, LeafHandle, OnEnd, Remove, Stem, Visibility,
+};
 use crate::time::TimeDelta;
 use crate::twig::Twig;
 use bevy_ecs::change_detection::Mut;
 use bevy_ecs::component::Component;
-use bevy_ecs::prelude::{Bundle, Changed, Commands, DetectChanges, Entity, Query, Resource, World};
-use bevy_ecs::system::{Res, ResMut};
+use bevy_ecs::prelude::{Bundle, Entity, Resource, World};
 use bevy_ecs::world::Command;
 
 pub struct Tree<'a> {
@@ -25,71 +23,7 @@ pub struct LeafPtr<'a> {
     pub(crate) handle: LeafHandle,
     pub(crate) entity: Entity,
 }
-pub struct FilteredAttributeConfig<A: Bundle + Send + Sync + 'static + Clone> {
-    pub filter: LayoutFilter,
-    pub a: A,
-}
-impl<A: Bundle + Send + Sync + 'static + Clone> FilteredAttributeConfig<A> {
-    pub fn new(layout: Layout, a: A) -> Self {
-        Self {
-            filter: layout.into(),
-            a,
-        }
-    }
-}
-#[derive(Component)]
-pub struct FilteredAttribute<A: Bundle + Send + Sync + 'static + Clone> {
-    filtered: Vec<FilteredAttributeConfig<A>>,
-}
-impl<A: Bundle + Send + Sync + 'static + Clone> Default for FilteredAttribute<A> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
-impl<A: Bundle + Send + Sync + 'static + Clone> FilteredAttribute<A> {
-    pub fn new() -> Self {
-        Self { filtered: vec![] }
-    }
-    pub fn with(mut self, layout: Layout, a: A) -> Self {
-        self.filtered.push(FilteredAttributeConfig::new(layout, a));
-        self
-    }
-}
-pub trait HasRenderLink {
-    fn has_link() -> bool {
-        false
-    }
-}
-pub(crate) fn filter_attr_layout_change<A: Bundle + Send + Sync + 'static + Clone>(
-    filtered: Query<(Entity, &FilteredAttribute<A>, Option<&RenderLink>)>,
-    layout: Res<Layout>,
-    cmd: Commands,
-    render_remove_queue: ResMut<RenderRemoveQueue>,
-) {
-    if layout.is_changed() {
-        for (entity, filter_attr, opt_link) in filtered.iter() {
-            todo!()
-            // if we have match then give else remove<A>
-            // if removing + <A as HasRenderLink>::has_link() => send render-queue remove
-        }
-    }
-}
-pub(crate) fn filter_attr_changed<A: Bundle + Send + Sync + 'static + Clone>(
-    filtered: Query<
-        (Entity, &FilteredAttribute<A>, Option<&RenderLink>),
-        Changed<FilteredAttribute<A>>,
-    >,
-    layout: Res<Layout>,
-    cmd: Commands,
-    render_remove_queue: ResMut<RenderRemoveQueue>,
-) {
-    for (entity, filtered_attr, opt_link) in filtered.iter() {
-        todo!()
-        // if we have match then give else remove<A>
-        // if removing + <A as HasRenderLink>::has_link() => send render-queue remove
-    }
-}
 impl<'a> LeafPtr<'a> {
     pub fn give<A: Bundle>(&mut self, a: A) {
         self.world_handle
@@ -229,14 +163,6 @@ impl<'a> SequenceHandle<'a> {
     pub fn on_end(&mut self, on_end: OnEnd) {
         self.sequence.on_end = on_end;
     }
-    fn lookup_target_entity<TH: Into<LeafHandle>>(&self, th: TH) -> Option<Entity> {
-        self.world_handle
-            .as_ref()
-            .unwrap()
-            .get_resource::<IdTable>()
-            .unwrap()
-            .lookup_leaf(th.into())
-    }
 }
 impl<'a> Tree<'a> {
     pub fn get_resource_mut<R: Resource>(&mut self) -> Mut<'_, R> {
@@ -281,7 +207,7 @@ impl<'a> Tree<'a> {
             .world_handle
             .as_mut()
             .unwrap()
-            .spawn(LeafBundle::default())
+            .spawn(Leaf::default())
             .insert(leaf.name.clone())
             .insert(leaf.elevation)
             .insert(leaf.location)
@@ -554,68 +480,5 @@ impl<'a> Tree<'a> {
             .get_resource::<IdTable>()
             .unwrap()
             .lookup_leaf(th.into())
-    }
-}
-pub trait Branch
-where
-    Self: Clone + Send + Sync + 'static,
-{
-    fn grow(self, tree: Tree);
-}
-#[derive(Clone)]
-pub struct BranchCommand<A: Branch> {
-    data: A,
-}
-impl<A: Branch> Command for BranchCommand<A> {
-    fn apply(self, world: &mut World) {
-        let branch = Tree {
-            world_handle: Some(world),
-        };
-        self.data.grow(branch);
-    }
-}
-#[derive(Component)]
-pub struct Signal(pub bool);
-impl Signal {
-    pub fn active() -> Self {
-        Self(true)
-    }
-    pub fn inactive() -> Self {
-        Self(false)
-    }
-}
-#[derive(Component)]
-pub(crate) struct SignaledBranchCommand<A: Branch> {
-    a: BranchCommand<A>,
-}
-pub(crate) fn signal_branch<A: Branch>(
-    signals: Query<(&Signal, &SignaledBranchCommand<A>)>,
-    mut cmd: Commands,
-) {
-    for (signal, signaled_branch) in signals.iter() {
-        if signal.0 {
-            let branch = signaled_branch.a.clone();
-            cmd.add(branch);
-        }
-    }
-}
-pub(crate) fn clear_signal(mut signals: Query<&mut Signal, Changed<Signal>>) {
-    for mut signal in signals.iter_mut() {
-        signal.0 = false;
-    }
-}
-#[derive(Bundle)]
-pub(crate) struct Signaler<A: Branch> {
-    branch: SignaledBranchCommand<A>,
-    signal: Signal,
-}
-impl<A: Branch> Signaler<A> {
-    pub fn new(a: A) -> Self {
-        Self {
-            branch: SignaledBranchCommand {
-                a: BranchCommand { data: a },
-            },
-            signal: Signal(false),
-        }
     }
 }

@@ -17,7 +17,7 @@ use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
 use crate::elm::{Elm, ScheduleMarkers};
 use crate::ginkgo::ScaleFactor;
-use crate::leaf::{BranchHandle, IdTable};
+use crate::leaf::{Trigger, TriggerSignal};
 use crate::Root;
 
 #[derive(Resource, Default)]
@@ -206,30 +206,17 @@ impl ClickInteractionShape {
         }
     }
 }
-#[derive(Component, Clone)]
-pub struct OnClick(pub(crate) HashSet<BranchHandle>);
-impl OnClick {
-    pub fn new<AH: Into<BranchHandle>>(action_handle: AH) -> Self {
-        let mut this = Self(HashSet::new());
-        this.0.insert(action_handle.into());
-        this
-    }
-    pub fn with<AH: Into<BranchHandle>>(mut self, action_handle: AH) -> Self {
-        self.0.insert(action_handle.into());
-        self
-    }
-}
+pub type OnClick = Trigger;
 pub(crate) fn on_click(
     on_clicks: Query<(&OnClick, &ClickInteractionListener)>,
-    mut actions: Query<&mut Signal>,
-    id_table: Res<IdTable>,
+    mut actions: Query<&mut TriggerSignal>,
 ) {
     for (on_click, listener) in on_clicks.iter() {
         if listener.active {
-            for handle in on_click.0.iter() {
-                let entity = id_table.lookup_branch(handle.clone()).unwrap();
-                *actions.get_mut(entity).expect("no-corresponding-action") = Signal::active();
-            }
+            actions
+                .get_mut(on_click.0)
+                .expect("no-corresponding-action")
+                .0 = true;
         }
     }
 }

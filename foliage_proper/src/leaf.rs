@@ -1,146 +1,124 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::ash::ClippingContextBundle;
-use crate::branch::LeafPtr;
 use crate::coordinate::elevation::{Elevation, RenderLayer};
 use crate::coordinate::placement::Placement;
 use crate::coordinate::points::Points;
 use crate::coordinate::LogicalContext;
-use crate::differential::{Remove, Visibility};
-use crate::grid::{Grid, GridLocation};
+use crate::differential::{Remove, RenderLink, RenderRemoveQueue, Visibility};
+use crate::grid::Grid;
+use crate::interaction::ClickInteractionListener;
+use crate::layout::{Layout, LayoutFilter};
 use crate::opacity::Opacity;
 use bevy_ecs::bundle::Bundle;
+use bevy_ecs::change_detection::{Res, ResMut};
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Component, Resource};
+use bevy_ecs::prelude::{Component, DetectChanges};
 use bevy_ecs::query::{Changed, Or};
-use bevy_ecs::system::{ParamSet, Query, Res};
+use bevy_ecs::system::{Commands, ParamSet, Query};
 
-pub struct Leaf<LFN: for<'a> FnOnce(&mut LeafPtr<'a>)> {
-    pub name: LeafHandle,
-    pub location: GridLocation,
-    pub elevation: Elevation,
-    pub l_fn: LFN,
+#[derive(Bundle, Default)]
+pub struct Leaf {
+    stem: Stem,
+    dependents: Dependents,
+    placement: Placement<LogicalContext>,
+    elevation: Elevation,
+    remove: Remove,
+    visibility: Visibility,
+    opacity: Opacity,
+    clipping_context: ClippingContextBundle,
+    grid: Grid,
+    points: Points<LogicalContext>,
 }
-impl<LFN: for<'a> FnOnce(&mut LeafPtr<'a>)> Leaf<LFN> {
-    pub fn new(l_fn: LFN) -> Self {
-        Self {
-            name: LeafHandle(String::default()),
-            location: GridLocation::new(),
-            elevation: Default::default(),
-            l_fn,
-        }
+impl Leaf {
+    pub fn new() -> Self {
+        Self::default()
     }
-    pub fn named<LH: Into<LeafHandle>>(mut self, lh: LH) -> Self {
-        self.name = lh.into();
-        self
-    }
-    pub fn located<GL: Into<GridLocation>>(mut self, gl: GL) -> Self {
-        self.location = gl.into();
+    pub fn stem_from(mut self, e: Entity) -> Self {
+        self.stem.0 = Some(e);
         self
     }
     pub fn elevation<E: Into<Elevation>>(mut self, e: E) -> Self {
         self.elevation = e.into();
         self
     }
-}
-#[derive(Bundle, Default)]
-pub(crate) struct LeafBundle {
-    stem: Stem,
-    dependents: Dependents,
-    placement: Placement<LogicalContext>,
-    remove: Remove,
-    visibility: Visibility,
-    opacity: Opacity,
-    clipping_context: ClippingContextBundle,
-    leaf_handle: LeafHandle,
-    grid: Grid,
-    points: Points<LogicalContext>,
-}
-#[derive(Default, Component, Debug)]
-pub(crate) struct Stem(pub(crate) Option<LeafHandle>);
-impl Stem {
-    pub(crate) fn new<TH: Into<LeafHandle>>(th: TH) -> Self {
-        Self(Some(th.into()))
+    pub fn visible(mut self, vis: bool) -> Self {
+        self.visibility.visible = vis;
+        self
+    }
+    pub fn opacity(mut self, opacity: Opacity) -> Self {
+        self.opacity = opacity;
+        self
     }
 }
-#[derive(Clone, PartialEq, Component, Default)]
-pub(crate) struct Dependents(pub(crate) HashSet<LeafHandle>);
-impl Dependents {
-    pub(crate) fn new<THS: AsRef<[LeafHandle]>>(ths: THS) -> Self {
-        let mut set = HashSet::new();
-        for d in ths.as_ref() {
-            let th = d.clone();
-            set.insert(th);
+#[derive(Component)]
+pub struct InteractionsEnabled(pub bool);
+pub(crate) fn interaction_enable(
+    mut query: Query<(Entity, &InteractionsEnabled, &mut ClickInteractionListener)>,
+    mut cmd: Commands,
+) {
+    for (entity, enabled, mut listener) in query.iter_mut() {
+        if enabled.0 {
+            listener.enable();
+        } else {
+            listener.disable();
         }
-        Self(set)
+        cmd.entity(entity).remove::<InteractionsEnabled>();
     }
 }
-#[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Debug, Component)]
-pub struct LeafHandle(String);
-impl Default for LeafHandle {
-    fn default() -> Self {
-        LeafHandle(String::default())
+#[derive(Component, Copy, Clone)]
+pub struct ChangeStem(pub Option<Entity>);
+pub(crate) fn change_stem(
+    mut query: Query<(Entity, &ChangeStem, &mut Stem)>,
+    mut dependents: Query<&mut Dependents>,
+    mut cmd: Commands,
+) {
+    for (entity, change, mut stem) in query.iter_mut() {
+        if let Some(old) = stem.0.take() {
+            if let Ok(deps) = dependents.get_mut(old) {
+                deps.0.remove(&entity);
+            }
+        }
+        stem.0 = change.0;
+        cmd.entity(entity).remove::<ChangeStem>();
     }
 }
-impl<S: AsRef<str>> From<S> for LeafHandle {
-    fn from(value: S) -> Self {
-        Self(value.as_ref().to_string())
-    }
-}
-impl LeafHandle {
-    pub fn new<S: AsRef<str>>(s: S) -> Self {
-        Self(s.as_ref().to_string())
-    }
-    pub const DELIMITER: &'static str = ":";
-    pub fn extend<S: AsRef<str>>(&self, e: S) -> Self {
-        Self(self.0.clone() + Self::DELIMITER + e.as_ref())
-    }
-}
-#[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-pub struct BranchHandle(String);
-impl<S: AsRef<str>> From<S> for BranchHandle {
-    fn from(value: S) -> Self {
-        Self(value.as_ref().to_string())
-    }
-}
-#[derive(Resource, Default)]
-pub(crate) struct IdTable {
-    pub(crate) leafs: HashMap<LeafHandle, Entity>,
-    pub(crate) branches: HashMap<BranchHandle, Entity>,
-}
-impl IdTable {
-    pub fn add_target<TH: Into<LeafHandle>>(&mut self, th: TH, entity: Entity) -> Option<Entity> {
-        self.leafs.insert(th.into(), entity)
-    }
-    pub fn add_branch<AH: Into<BranchHandle>>(&mut self, ah: AH, entity: Entity) -> Option<Entity> {
-        self.branches.insert(ah.into(), entity)
-    }
-    pub fn lookup_leaf<TH: Into<LeafHandle>>(&self, th: TH) -> Option<Entity> {
-        let handle = th.into();
-        self.leafs.get(&handle).copied()
-    }
-    pub fn lookup_branch<AH: Into<BranchHandle>>(&self, ah: AH) -> Option<Entity> {
-        self.branches.get(&ah.into()).copied()
+pub(crate) fn update_stem_deps(
+    mut query: Query<(Entity, &mut Stem), Changed<Stem>>,
+    mut dependents: Query<&mut Dependents>,
+) {
+    for (entity, mut stem) in query.iter_mut() {
+        if let Some(stem_entity) = stem.0 {
+            if let Ok(deps) = dependents.get_mut(stem_entity) {
+                deps.0.insert(entity);
+            }
+        }
     }
 }
 
-#[derive(Default)]
-pub struct OnEnd {
-    pub actions: HashSet<BranchHandle>,
-}
-impl OnEnd {
-    pub fn new<AH: Into<BranchHandle>>(ah: AH) -> Self {
-        Self {
-            actions: {
-                let mut a = HashSet::new();
-                a.insert(ah.into());
-                a
-            },
+#[derive(Default, Component, Debug)]
+pub(crate) struct Stem(pub(crate) Option<Entity>);
+#[derive(Clone, PartialEq, Component, Default)]
+pub(crate) struct Dependents(pub(crate) HashSet<Entity>);
+#[derive(Copy, Clone, Component)]
+pub struct Trigger(pub Entity);
+#[derive(Component)]
+pub struct TriggeredBundle<B: Bundle + Clone + Send + Sync + 'static>(pub B);
+#[derive(Component)]
+pub(crate) struct TriggerSignal(pub(crate) bool);
+pub(crate) fn apply_triggered<B: Bundle + Clone + Send + Sync + 'static>(
+    signaled: Query<(&TriggeredBundle<B>, &TriggerSignal)>,
+    mut cmd: Commands,
+) {
+    for (te, ts) in signaled.iter() {
+        if ts.0 {
+            cmd.spawn(te.0.clone());
         }
     }
-    pub fn with<AH: Into<BranchHandle>>(mut self, ah: AH) -> Self {
-        self.actions.insert(ah.into());
-        self
+}
+pub(crate) fn clear_trigger_signal(mut signals: Query<&mut TriggerSignal, Changed<TriggerSignal>>) {
+    for mut trigger in signals.iter_mut() {
+        trigger.0 = false;
     }
 }
 
@@ -158,7 +136,6 @@ pub(crate) fn dependent_elevation(
         Query<&mut RenderLayer>,
     )>,
     read: Query<(Entity, &Elevation, &Stem, &Dependents)>,
-    id_table: Res<IdTable>,
 ) {
     if check_and_update.p0().is_empty() {
         return;
@@ -169,8 +146,7 @@ pub(crate) fn dependent_elevation(
             let layer = RenderLayer::new(elevation.0);
             updates.insert(e, layer);
             for dep in dependents.0.iter() {
-                let d = id_table.lookup_leaf(dep.clone()).unwrap();
-                recursive_elevation(d, layer, &mut updates, &read, &id_table);
+                recursive_elevation(*dep, layer, &mut updates, &read);
             }
         }
     }
@@ -183,13 +159,215 @@ fn recursive_elevation(
     current_layer: RenderLayer,
     updates: &mut HashMap<Entity, RenderLayer>,
     query: &Query<(Entity, &Elevation, &Stem, &Dependents)>,
-    id_table: &IdTable,
 ) {
     let data = query.get(current).unwrap();
     let layer = RenderLayer::new(current_layer.0 + data.1 .0);
     updates.insert(current, layer);
     for dep in data.3 .0.iter() {
-        let e = id_table.lookup_leaf(dep.clone()).unwrap();
-        recursive_elevation(e, layer, updates, query, id_table);
+        recursive_elevation(*dep, layer, updates, query);
+    }
+}
+
+#[derive(Component, Copy, Clone, Default)]
+pub struct Remove {
+    should_remove: bool,
+}
+
+impl Remove {
+    pub fn should_keep(&self) -> bool {
+        !self.should_remove
+    }
+    pub fn should_remove(&self) -> bool {
+        self.should_remove
+    }
+    pub fn queue_remove() -> Self {
+        Self {
+            should_remove: true,
+        }
+    }
+    pub fn keep() -> Self {
+        Self {
+            should_remove: false,
+        }
+    }
+}
+
+pub(crate) fn recursive_removal(
+    mut query: ParamSet<(
+        Query<(Entity, &Remove), Changed<Remove>>,
+        Query<&mut Remove>,
+    )>,
+    dependents: Query<&Dependents>,
+) {
+    if query.p0().is_empty() {
+        return;
+    }
+    let mut set = HashSet::new();
+    for (entity, remove) in query.p0().iter() {
+        if remove.should_remove {
+            let d = recursive_removal_inner(entity, &dependents);
+            set.extend(d);
+        }
+    }
+    for e in set.drain() {
+        if let Ok(mut remove) = query.p1().get_mut(e) {
+            remove.should_remove = true;
+        }
+    }
+}
+
+fn recursive_removal_inner(entity: Entity, query: &Query<&Dependents>) -> HashSet<Entity> {
+    let mut set = HashSet::new();
+    if let Ok(deps) = query.get(entity) {
+        for d in deps.0.iter() {
+            set.insert(*d);
+            set.extend(recursive_removal_inner(*d, query));
+        }
+    }
+    set
+}
+
+pub(crate) fn remove(
+    removals: Query<
+        (Entity, &Remove, Option<&RenderLink>, &Visibility),
+        Or<(Changed<Remove>, Changed<Visibility>)>,
+    >,
+    mut cmd: Commands,
+    mut remove_queue: ResMut<RenderRemoveQueue>,
+) {
+    for (entity, remove, opt_link, visibility) in removals.iter() {
+        if remove.should_remove() || !visibility.visible() {
+            if let Some(link) = opt_link {
+                remove_queue.queue.get_mut(link).unwrap().insert(entity);
+            }
+            if remove.should_remove() {
+                cmd.entity(entity).despawn();
+            }
+        }
+    }
+}
+
+#[derive(Component, Copy, Clone)]
+pub struct Visibility {
+    visible: bool,
+}
+
+impl Visibility {
+    pub(crate) fn new(v: bool) -> Self {
+        Self { visible: v }
+    }
+    pub fn visible(&self) -> bool {
+        self.visible
+    }
+}
+
+impl Default for Visibility {
+    fn default() -> Self {
+        Self::new(true)
+    }
+}
+
+pub(crate) fn recursive_visibility(
+    mut query: ParamSet<(
+        Query<(Entity, &Visibility), Changed<Visibility>>,
+        Query<&mut Visibility>,
+    )>,
+    dependents: Query<&Dependents>,
+) {
+    if query.p0().is_empty() {
+        return;
+    }
+    let mut set = HashSet::new();
+    for (entity, visibility) in query.p0().iter() {
+        set.insert((entity, *visibility));
+    }
+    for (e, v) in set.drain() {
+        let d = recursive_visibility_inner(e, *v, &dependents);
+        set.extend(d);
+    }
+    for (e, v) in set.drain() {
+        if let Ok(mut visibility) = query.p1().get_mut(e) {
+            visibility.visible = v.visible;
+        }
+    }
+}
+
+fn recursive_visibility_inner(
+    entity: Entity,
+    v: Visibility,
+    query: &Query<&Dependents>,
+) -> HashSet<(Entity, Visibility)> {
+    let mut set = HashSet::new();
+    if let Ok(deps) = query.get(entity) {
+        for d in deps.0.iter() {
+            set.insert((*d, v));
+            set.extend(recursive_visibility_inner(*d, v, &query));
+        }
+    }
+    set
+}
+pub trait HasRenderLink {
+    fn has_link() -> bool {
+        false
+    }
+}
+pub struct FilteredAttributeConfig<A: Bundle + Send + Sync + 'static + Clone> {
+    pub filter: LayoutFilter,
+    pub a: A,
+}
+impl<A: Bundle + Send + Sync + 'static + Clone> FilteredAttributeConfig<A> {
+    pub fn new(layout: Layout, a: A) -> Self {
+        Self {
+            filter: layout.into(),
+            a,
+        }
+    }
+}
+#[derive(Component)]
+pub struct FilteredAttribute<A: Bundle + Send + Sync + 'static + Clone> {
+    filtered: Vec<FilteredAttributeConfig<A>>,
+}
+impl<A: Bundle + Send + Sync + 'static + Clone> Default for FilteredAttribute<A> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<A: Bundle + Send + Sync + 'static + Clone> FilteredAttribute<A> {
+    pub fn new() -> Self {
+        Self { filtered: vec![] }
+    }
+    pub fn with(mut self, layout: Layout, a: A) -> Self {
+        self.filtered.push(FilteredAttributeConfig::new(layout, a));
+        self
+    }
+}
+pub(crate) fn filter_attr_layout_change<A: Bundle + Send + Sync + 'static + Clone>(
+    filtered: Query<(Entity, &FilteredAttribute<A>, Option<&RenderLink>)>,
+    layout: Res<Layout>,
+    cmd: Commands,
+    render_remove_queue: ResMut<RenderRemoveQueue>,
+) {
+    if layout.is_changed() {
+        for (entity, filter_attr, opt_link) in filtered.iter() {
+            todo!()
+            // if we have match then give else remove<A>
+            // if removing + <A as HasRenderLink>::has_link() => send render-queue remove
+        }
+    }
+}
+pub(crate) fn filter_attr_changed<A: Bundle + Send + Sync + 'static + Clone>(
+    filtered: Query<
+        (Entity, &FilteredAttribute<A>, Option<&RenderLink>),
+        Changed<FilteredAttribute<A>>,
+    >,
+    layout: Res<Layout>,
+    cmd: Commands,
+    render_remove_queue: ResMut<RenderRemoveQueue>,
+) {
+    for (entity, filtered_attr, opt_link) in filtered.iter() {
+        todo!()
+        // if we have match then give else remove<A>
+        // if removing + <A as HasRenderLink>::has_link() => send render-queue remove
     }
 }

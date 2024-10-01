@@ -6,7 +6,7 @@ use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, Coordinates, LogicalContext};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::layout::{Layout, LayoutGrid};
-use crate::leaf::{Dependents, IdTable, LeafHandle, Stem};
+use crate::leaf::{Dependents, Stem};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, DetectChanges};
 use bevy_ecs::query::{Changed, Or};
@@ -1753,7 +1753,6 @@ pub(crate) fn resolve_grid_locations(
             Entity,
             &Stem,
             &Dependents,
-            &LeafHandle,
             &GridLocation,
             &Grid,
             &Position<LogicalContext>,
@@ -1767,7 +1766,6 @@ pub(crate) fn resolve_grid_locations(
             &mut GridLocation,
         )>,
     )>,
-    id_table: Res<IdTable>,
     viewport_handle: ResMut<ViewportHandle>,
     layout_grid: Res<LayoutGrid>,
     layout: Res<Layout>,
@@ -1782,18 +1780,17 @@ pub(crate) fn resolve_grid_locations(
     let mut ref_context = ReferentialContext::new(viewport_handle.section(), layout_grid.grid);
     let read = check_read_and_update.p1();
     if layout_grid.is_changed() {
-        for (e, _, _, _, _, _, _, _, _) in read.iter() {
+        for (e, _, _, _, _, _, _, _) in read.iter() {
             check.push(e);
         }
     }
     for e in check {
-        ref_context.resolve_leaf(e, &read, &id_table, *layout);
+        ref_context.resolve_leaf(e, &read, *layout);
     }
     let updates = ref_context.updates();
     drop(ref_context);
     drop(read);
-    for (handle, resolved) in updates {
-        let e = id_table.lookup_leaf(handle).unwrap();
+    for (e, resolved) in updates {
         *check_read_and_update.p2().get_mut(e).unwrap().0 = resolved.section.position;
         *check_read_and_update.p2().get_mut(e).unwrap().1 = resolved.section.area;
         if let Some(p) = resolved.points {
@@ -1829,7 +1826,7 @@ pub(crate) fn resolve_grid_locations(
     }
 }
 pub(crate) struct ReferentialContext {
-    solved: HashMap<LeafHandle, ReferentialData>,
+    solved: HashMap<Entity, ReferentialData>,
     screen: ReferentialData,
     order_chains: Vec<ReferentialOrderDeterminant>,
 }
@@ -1851,14 +1848,12 @@ impl ReferentialContext {
             Entity,
             &Stem,
             &Dependents,
-            &LeafHandle,
             &GridLocation,
             &Grid,
             &Position<LogicalContext>,
             &Area<LogicalContext>,
             &Points<LogicalContext>,
         )>,
-        id_table: &IdTable,
         layout: Layout,
     ) {
         for d in self.order_chains.iter() {
@@ -1866,7 +1861,7 @@ impl ReferentialContext {
                 return;
             }
         }
-        let chain = self.recursive_chain(entity, read, id_table, layout);
+        let chain = self.recursive_chain(entity, read, layout);
         self.order_chains
             .push(ReferentialOrderDeterminant { chain });
     }
@@ -1877,14 +1872,12 @@ impl ReferentialContext {
             Entity,
             &Stem,
             &Dependents,
-            &LeafHandle,
             &GridLocation,
             &Grid,
             &Position<LogicalContext>,
             &Area<LogicalContext>,
             &Points<LogicalContext>,
         )>,
-        id_table: &IdTable,
         layout: Layout,
     ) -> OrderSet<Entity> {
         let mut set = OrderSet::new();
@@ -1895,26 +1888,25 @@ impl ReferentialContext {
                 if let Some(solve) = self.solved.get(&s) {
                     Some(*solve)
                 } else {
-                    let stem = read.get(id_table.lookup_leaf(s).unwrap()).unwrap();
+                    let stem = read.get(s).unwrap();
                     let mut resolved =
-                        ResolvedLocation::new().section(Section::new(*stem.6, *stem.7));
-                    resolved.points.replace(stem.8.clone());
-                    Some(ReferentialData::new(resolved, *stem.5))
+                        ResolvedLocation::new().section(Section::new(*stem.5, *stem.6));
+                    resolved.points.replace(stem.7.clone());
+                    Some(ReferentialData::new(resolved, *stem.4))
                 }
             })
         };
-        if let Some(res) = current.4.resolve(stem, self.screen, layout) {
+        if let Some(res) = current.3.resolve(stem, self.screen, layout) {
             self.solved
-                .insert(current.3.clone(), ReferentialData::new(res, *current.5));
+                .insert(current.0, ReferentialData::new(res, *current.4));
         }
         for dep in current.2 .0.iter() {
-            let e = id_table.lookup_leaf(dep.clone()).unwrap();
-            let dep_set = self.recursive_chain(e, read, id_table, layout);
+            let dep_set = self.recursive_chain(*dep, read, layout);
             set.extend(dep_set);
         }
         set
     }
-    pub(crate) fn updates(&mut self) -> Vec<(LeafHandle, ResolvedLocation)> {
+    pub(crate) fn updates(&mut self) -> Vec<(Entity, ResolvedLocation)> {
         self.solved.drain().map(|(k, v)| (k, v.resolved)).collect()
     }
 }

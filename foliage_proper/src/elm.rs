@@ -16,16 +16,11 @@ use crate::ash::{
     evaluate_clipping_context_ptr, pull_clipping_section, ClippingSectionQueue, Render,
 };
 use crate::asset::{await_assets, on_retrieve};
-use crate::branch::{
-    clear_signal, filter_attr_changed, filter_attr_layout_change, signal_branch, Branch,
-};
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::{DeviceContext, LogicalContext};
-use crate::derive::on_derive;
 use crate::differential::{
-    added_invalidate, differential, visibility_changed, RenderAddQueue, RenderLink, RenderPacket,
-    RenderRemoveQueue,
+    differential, visibility_changed, RenderAddQueue, RenderLink, RenderPacket, RenderRemoveQueue,
 };
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::ScaleFactor;
@@ -34,7 +29,11 @@ use crate::interaction::{
     FocusedEntity, InteractiveEntity, KeyboardAdapter, MouseAdapter, TouchAdapter,
 };
 use crate::layout::{viewport_changes_layout, Layout, LayoutGrid};
-use crate::leaf::dependent_elevation;
+use crate::leaf::{
+    apply_triggered, change_stem, clear_trigger_signal, dependent_elevation, filter_attr_changed,
+    filter_attr_layout_change, interaction_enable, recursive_removal, recursive_visibility,
+    update_stem_deps,
+};
 use crate::opacity::opacity;
 use crate::willow::Willow;
 
@@ -67,7 +66,7 @@ pub struct Elm {
     pub ecs: Ecs,
     pub scheduler: Scheduler,
     initialized: bool,
-    leaf_fns: Vec<fn(&mut Elm)>,
+    root_fns: Vec<fn(&mut Elm)>,
 }
 
 #[derive(Resource)]
@@ -143,21 +142,21 @@ impl<D> Default for AnimationLimiter<D> {
     }
 }
 impl Elm {
-    pub fn enable_signaled_branch<A: Branch>(&mut self) {
-        if !self.ecs.world.contains_resource::<BranchLimiter<A>>() {
-            self.scheduler
-                .main
-                .add_systems(signal_branch::<A>.in_set(ScheduleMarkers::SignalBranch));
-            self.ecs
-                .world
-                .insert_resource(BranchLimiter::<A>::default());
-        }
-    }
     pub fn enable_event<E: Event + Send + Sync + 'static>(&mut self) {
         if !self.ecs.world.contains_resource::<EventLimiter<E>>() {
             self.ecs.world.insert_resource(Events::<E>::default());
             EventRegistry::register_event::<E>(&mut self.ecs.world);
             self.ecs.world.insert_resource(EventLimiter::<E>::default());
+        }
+    }
+    pub fn enable_triggered<B: Bundle + Clone + Send + Sync + 'static>(&mut self) {
+        if !self.ecs.world.contains_resource::<SignalLimiter<B>>() {
+            self.scheduler
+                .main
+                .add_systems(apply_triggered::<B>.in_set(ScheduleMarkers::ApplyTriggerSignal));
+            self.ecs
+                .world
+                .insert_resource(SignalLimiter::<B>::default());
         }
     }
     pub fn enable_filtering<A: Bundle + Send + Sync + 'static + Clone>(&mut self) {
@@ -185,7 +184,6 @@ impl Elm {
         if !self.ecs.world.contains_resource::<DifferentialLimiter<D>>() {
             self.scheduler.main.add_systems((
                 differential::<D>.in_set(ScheduleMarkers::Differential),
-                added_invalidate::<D>.in_set(ScheduleMarkers::Differential),
                 visibility_changed::<D>.in_set(ScheduleMarkers::Differential),
             ));
             self.ecs
@@ -255,7 +253,7 @@ impl Elm {
                 ScheduleMarkers::External,
                 ScheduleMarkers::Interaction,
                 ScheduleMarkers::Animation,
-                ScheduleMarkers::SignalBranch,
+                ScheduleMarkers::ApplyTriggerSignal,
                 ScheduleMarkers::Unused2,
                 ScheduleMarkers::Unused3,
                 ScheduleMarkers::Spawn,
@@ -275,13 +273,21 @@ impl Elm {
         self.scheduler.main.add_systems((
             (viewport_changes_layout, await_assets).in_set(ScheduleMarkers::External),
             event_update_system.in_set(ScheduleMarkers::Events),
+            (change_stem, update_stem_deps)
+                .chain()
+                .in_set(ScheduleMarkers::Clean)
+                .before(recursive_removal)
+                .before(recursive_visibility),
+            (recursive_removal, recursive_visibility)
+                .in_set(ScheduleMarkers::Clean)
+                .before(crate::leaf::remove),
+            (crate::leaf::remove, interaction_enable).in_set(ScheduleMarkers::Clean),
             dependent_elevation.in_set(ScheduleMarkers::GridSemantics),
             resolve_grid_locations.in_set(ScheduleMarkers::GridSemantics),
+            opacity.in_set(ScheduleMarkers::Resolve),
             (evaluate_clipping_context_ptr, pull_clipping_section)
                 .in_set(ScheduleMarkers::FinalizeCoordinate),
-            crate::differential::remove.in_set(ScheduleMarkers::Clean),
-            opacity.in_set(ScheduleMarkers::Resolve),
-            clear_signal.after(ScheduleMarkers::Differential),
+            clear_trigger_signal.after(ScheduleMarkers::Differential),
         ));
         self.scheduler.main.add_systems((
             apply_deferred
@@ -295,9 +301,9 @@ impl Elm {
                 .before(ScheduleMarkers::Animation),
             apply_deferred
                 .after(ScheduleMarkers::Animation)
-                .before(ScheduleMarkers::SignalBranch),
+                .before(ScheduleMarkers::ApplyTriggerSignal),
             apply_deferred
-                .after(ScheduleMarkers::SignalBranch)
+                .after(ScheduleMarkers::ApplyTriggerSignal)
                 .before(ScheduleMarkers::Unused2),
             apply_deferred
                 .after(ScheduleMarkers::Unused2)
@@ -369,21 +375,6 @@ impl Elm {
                 .insert_resource(RetrieveLimiter::<B>::default());
         }
     }
-    pub fn enable_derive<
-        D: Resource + Send + Sync + 'static + Clone,
-        B: Bundle + Send + Sync + 'static + Clone,
-    >(
-        &mut self,
-    ) {
-        if !self.ecs.world.contains_resource::<DeriveLimiter<D, B>>() {
-            self.scheduler
-                .main
-                .add_systems(on_derive::<D, B>.in_set(ScheduleMarkers::Preparation));
-            self.ecs
-                .world
-                .insert_resource(DeriveLimiter::<D, B>::default());
-        }
-    }
 }
 pub struct RenderQueueHandle<'a> {
     elm: &'a mut Elm,
@@ -429,7 +420,7 @@ pub enum ScheduleMarkers {
     Config,
     Spawn,
     Unused4,
-    SignalBranch,
+    ApplyTriggerSignal,
     Unused2,
     External,
     GridSemantics,
