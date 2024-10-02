@@ -123,14 +123,14 @@ impl Foliage {
     pub fn set_android_connection(&mut self, ac: AndroidConnection) {
         self.android_connection = ac;
     }
-    pub fn define_root<L: Root>(&mut self) {
+    pub fn attach_root<L: Root>(&mut self) {
         self.root_fns.push(|e| {
-            L::define(e);
+            L::attach(e);
         });
     }
     pub fn define_roots<L: Roots>(&mut self) {
         self.roots_fns.push(|f| {
-            L::define(f);
+            L::attach(f);
         });
     }
     pub fn add_renderer<R: Render>(&mut self) {
@@ -462,30 +462,30 @@ pub struct AndroidConnection(pub AndroidApp);
 pub type AndroidApp = winit::platform::android::activity::AndroidApp;
 
 pub trait Root {
-    fn define(elm: &mut Elm);
+    fn attach(elm: &mut Elm);
 }
 pub trait Roots {
-    fn define(foliage: &mut Foliage);
+    fn attach(foliage: &mut Foliage);
 }
 pub struct Trunk;
 impl Roots for Trunk {
-    fn define(foliage: &mut Foliage) {
-        foliage.define_root::<Panel>();
+    fn attach(foliage: &mut Foliage) {
+        foliage.attach_root::<Panel>();
         foliage.add_renderer::<Panel>();
-        foliage.define_root::<Coordinates>();
-        foliage.define_root::<Icon>();
+        foliage.attach_root::<Coordinates>();
+        foliage.attach_root::<Icon>();
         foliage.add_renderer::<Icon>();
-        foliage.define_root::<Image>();
+        foliage.attach_root::<Image>();
         foliage.add_renderer::<Image>();
-        foliage.define_root::<ClickInteractionListener>();
-        foliage.define_root::<Text>();
+        foliage.attach_root::<ClickInteractionListener>();
+        foliage.attach_root::<Text>();
         foliage.add_renderer::<Text>();
-        foliage.define_root::<Style>();
-        foliage.define_root::<Time>();
-        foliage.define_root::<EnabledAnimations>();
-        foliage.define_root::<Shape>();
+        foliage.attach_root::<Style>();
+        foliage.attach_root::<Time>();
+        foliage.attach_root::<EnabledAnimations>();
+        foliage.attach_root::<Shape>();
         foliage.add_renderer::<Shape>();
-        foliage.define_root::<Line>();
+        foliage.attach_root::<Line>();
         foliage.enable_event::<HrefLink>();
     }
 }

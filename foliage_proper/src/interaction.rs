@@ -371,7 +371,7 @@ impl KeyboardAdapter {
     }
 }
 impl Root for ClickInteractionListener {
-    fn define(elm: &mut Elm) {
+    fn attach(elm: &mut Elm) {
         elm.scheduler.main.add_systems((
             (disabled_listeners, listen_for_interactions, on_click)
                 .chain()

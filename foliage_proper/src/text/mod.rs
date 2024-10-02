@@ -33,7 +33,7 @@ use crate::texture::{AtlasEntry, TextureAtlas, TextureCoordinates};
 use crate::Root;
 
 impl Root for Text {
-    fn define(elm: &mut Elm) {
+    fn attach(elm: &mut Elm) {
         elm.enable_differential::<Self, GpuSection>();
         elm.enable_differential::<Self, RenderLayer>();
         elm.enable_differential::<Self, Glyphs>();

@@ -69,7 +69,7 @@ pub struct ShapeRenderResources {
     instances: Instances<Entity>,
 }
 impl Root for Shape {
-    fn define(elm: &mut Elm) {
+    fn attach(elm: &mut Elm) {
         elm.enable_differential::<Self, ShapeDescriptor>();
         elm.enable_differential::<Self, Color>();
         elm.enable_differential::<Self, RenderLayer>();

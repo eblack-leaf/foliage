@@ -27,7 +27,7 @@ use crate::leaf::HasRenderLink;
 use crate::{Elm, Render, Root};
 
 impl Root for Panel {
-    fn define(elm: &mut Elm) {
+    fn attach(elm: &mut Elm) {
         elm.enable_differential::<Panel, GpuSection>();
         elm.enable_differential::<Panel, RenderLayer>();
         elm.enable_differential::<Panel, Color>();

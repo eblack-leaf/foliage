@@ -11,7 +11,7 @@ use crate::Root;
 
 pub(crate) struct Style;
 impl Root for Style {
-    fn define(elm: &mut Elm) {
+    fn attach(elm: &mut Elm) {
         elm.scheduler.main.add_systems(
             alternate_color_on_engage
                 .in_set(InternalStage::Prepare)

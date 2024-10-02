@@ -193,7 +193,7 @@ pub struct ImageSlot {
     visibility: Visibility,
 }
 impl Root for Image {
-    fn define(elm: &mut Elm) {
+    fn attach(elm: &mut Elm) {
         elm.enable_differential::<Self, GpuSection>();
         elm.enable_differential::<Self, RenderLayer>();
         elm.enable_differential::<Self, ImageFill>();

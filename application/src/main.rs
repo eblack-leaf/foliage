@@ -1,6 +1,5 @@
 use crate::icon::IconHandles;
-use crate::leaf_model::LeafModel;
-use foliage::grid::GridLocation;
+use crate::leaf_model::{EventTest, LeafModel};
 use foliage::tree::EcsExtension;
 use foliage::twig::Twig;
 use foliage::Foliage;
@@ -20,10 +19,9 @@ fn main() {
         IconHandles::Concepts,
         include_bytes!("assets/icons/chevrons-left.icon"),
     );
-    foliage.ecs().branch(
-        Twig::new(LeafModel { buttons: vec![] })
-            .elevation(4)
-            .located(GridLocation::new()),
-    );
+    foliage.enable_event::<EventTest>();
+    let model = foliage.ecs().branch(Twig::new(LeafModel {}));
+    foliage.insert_resource(model);
+    foliage.attach_root::<LeafModel>();
     foliage.photosynthesize();
 }

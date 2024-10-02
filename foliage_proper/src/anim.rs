@@ -20,7 +20,7 @@ use crate::Root;
 
 pub(crate) struct EnabledAnimations;
 impl Root for EnabledAnimations {
-    fn define(elm: &mut Elm) {
+    fn attach(elm: &mut Elm) {
         elm.enable_animation::<Color>();
         elm.enable_animation::<Opacity>();
         elm.enable_animation::<Rounding>();

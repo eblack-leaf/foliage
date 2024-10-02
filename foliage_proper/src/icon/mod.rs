@@ -31,7 +31,7 @@ use crate::Root;
 mod proc_gen;
 
 impl Root for Icon {
-    fn define(elm: &mut Elm) {
+    fn attach(elm: &mut Elm) {
         elm.enable_differential::<Self, IconId>();
         elm.enable_differential::<Self, GpuSection>();
         elm.enable_differential::<Self, RenderLayer>();

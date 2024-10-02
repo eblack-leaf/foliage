@@ -22,7 +22,7 @@ impl From<i32> for LineWeight {
     }
 }
 impl Root for Line {
-    fn define(elm: &mut Elm) {
+    fn attach(elm: &mut Elm) {
         elm.scheduler
             .main
             .add_systems(distill_descriptor.in_set(InternalStage::Prepare));

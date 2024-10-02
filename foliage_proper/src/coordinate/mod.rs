@@ -120,7 +120,7 @@ permutation_coordinate_impl!(f64, usize);
 
 // TODO fn to distill Position / Area => GpuPosition / GpuArea w/ ScaleFactor
 impl Root for Coordinates {
-    fn define(elm: &mut Elm) {
+    fn attach(elm: &mut Elm) {
         elm.scheduler
             .main
             .add_systems(coordinate_resolve.in_set(InternalStage::FinalizeCoordinate));
