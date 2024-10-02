@@ -4,6 +4,7 @@ use crate::coordinate::position::Position;
 use crate::coordinate::{CoordinateUnit, LogicalContext};
 use crate::elm::{Elm, InternalStage};
 use crate::ginkgo::ScaleFactor;
+use crate::panel::{Panel, Rounding};
 use crate::shape::{EdgePoints, Shape, ShapeDescriptor};
 use crate::Root;
 use bevy_ecs::bundle::Bundle;
@@ -26,6 +27,17 @@ impl Root for Line {
         elm.scheduler
             .main
             .add_systems(distill_descriptor.in_set(InternalStage::Prepare));
+    }
+}
+#[derive(Bundle)]
+pub struct LineJoin {
+    panel: Panel,
+}
+impl LineJoin {
+    pub fn new<C: Into<Color>>(c: C) -> Self {
+        Self {
+            panel: Panel::new(Rounding::all(1.0), c.into()),
+        }
     }
 }
 #[derive(Component)]

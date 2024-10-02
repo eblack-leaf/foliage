@@ -22,7 +22,8 @@ use crate::differential::{
 };
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::ScaleFactor;
-use crate::grid::{resolve_grid_locations, Grid};
+use crate::grid::resolve::resolve_grid_locations;
+use crate::grid::Grid;
 use crate::interaction::{
     FocusedEntity, InteractiveEntity, KeyboardAdapter, MouseAdapter, TouchAdapter,
 };

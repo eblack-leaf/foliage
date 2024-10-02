@@ -1,9 +1,10 @@
 use crate::icon::IconHandles;
-use crate::leaf_model::{EventTest, LeafModel};
 use foliage::tree::EcsExtension;
 use foliage::twig::Twig;
 use foliage::Foliage;
+use home::{EventTest, Home};
 
+mod home;
 mod icon;
 mod image;
 mod leaf_model;
@@ -19,9 +20,13 @@ fn main() {
         IconHandles::Concepts,
         include_bytes!("assets/icons/chevrons-left.icon"),
     );
+    foliage.load_icon(
+        IconHandles::Usage,
+        include_bytes!("assets/icons/chevrons-right.icon"),
+    );
     foliage.enable_event::<EventTest>();
-    let model = foliage.ecs().branch(Twig::new(LeafModel {}));
+    let model = foliage.ecs().branch(Twig::new(Home {}));
     foliage.insert_resource(model);
-    foliage.attach_root::<LeafModel>();
+    foliage.attach_root::<Home>();
     foliage.photosynthesize();
 }

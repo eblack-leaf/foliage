@@ -1,80 +1,136 @@
-use crate::icon::IconHandles;
-use foliage::bevy_ecs::event::{Event, EventReader};
-use foliage::bevy_ecs::prelude::IntoSystemConfigs;
-use foliage::bevy_ecs::system::{Res, Resource};
+use foliage::anim::Animation;
+use foliage::bevy_ecs::entity::Entity;
 use foliage::color::{Grey, Monochromatic};
-use foliage::elm::{Elm, ExternalStage};
-use foliage::grid::{GridLocation, TokenUnit};
-use foliage::interaction::OnClick;
-use foliage::leaf::{TriggerEventSignal, TriggeredEvent};
-use foliage::style::Coloring;
-use foliage::text::{FontSize, TextValue};
+use foliage::coordinate::Coordinates;
+use foliage::grid::aspect::stem;
+use foliage::grid::location::GridLocation;
+use foliage::grid::unit::TokenUnit;
+use foliage::leaf::Leaf;
+use foliage::opacity::Opacity;
+use foliage::shape::line::{Line, LineJoin};
 use foliage::tree::{EcsExtension, Tree};
-use foliage::twig::button::Button;
 use foliage::twig::{Branch, Twig};
-use foliage::{bevy_ecs, bevy_ecs::schedule::IntoSystemSetConfigs, schedule_stage, Root};
-#[schedule_stage]
-pub(crate) enum ModelStage {
-    First,
-    Second,
-}
-impl Root for LeafModel {
-    fn attach(elm: &mut Elm) {
-        elm.scheduler.main.configure_sets(
-            (ModelStage::First, ModelStage::Second)
-                .chain()
-                .in_set(ExternalStage::Action),
-        );
-        elm.scheduler
-            .main
-            .add_systems(event_test.in_set(ModelStage::First));
-    }
-}
 
-pub(crate) struct LeafModel {}
-#[derive(Resource)]
-pub(crate) struct LeafModelHandle {
-    pub(crate) buttons: Vec<Button>,
+pub(crate) struct LeafModel {
+    pub(crate) lines: Vec<Entity>,
+    pub(crate) joins: Vec<Entity>,
 }
-#[derive(Event, Clone)]
-pub(crate) struct EventTest {}
-pub(crate) fn event_test(
-    mut reader: EventReader<EventTest>,
-    mut tree: Tree,
-    model: Res<LeafModelHandle>,
-) {
-    for _event in reader.read() {
-        tree.entity(model.buttons.get(0).unwrap().text)
-            .insert(TextValue::new("Hello, world!"));
+pub(crate) struct LeafModelArgs {}
+impl LeafModel {
+    pub(crate) fn args() -> LeafModelArgs {
+        LeafModelArgs {}
     }
 }
-impl Branch for LeafModel {
-    type Handle = LeafModelHandle;
+impl Branch for LeafModelArgs {
+    type Handle = LeafModel;
     fn grow(twig: Twig<Self>, tree: &mut Tree) -> Self::Handle {
-        let triggered = tree
-            .spawn(TriggerEventSignal::default())
-            .insert(TriggeredEvent::new(EventTest {}))
+        let this = tree
+            .spawn(Leaf::new().elevation(10).stem_from(twig.stem))
+            .insert(twig.elevation)
+            .insert(twig.location)
             .id();
-        let button = tree.branch(
-            Twig::new(
-                Button::args(
-                    IconHandles::Concepts,
-                    Coloring::new(Grey::base(), Grey::minus_one()),
-                    OnClick::new(triggered),
-                )
-                .with_text("hello", FontSize::new(14)),
-            )
-            .elevation(4)
-            .located(
-                GridLocation::new()
-                    .width(250.px())
-                    .height(50.px())
-                    .left(10.px())
-                    .top(10.px()),
-            ),
-        );
-        LeafModelHandle {
-            buttons: vec![button],
+        let mut joins = Vec::new();
+        let mut lines = Vec::new();
+        for point in MODEL_POINTS {
+            joins.push(
+                tree.spawn(Leaf::new().elevation(-1).stem_from(Some(this)))
+                    .insert(LineJoin::new(Grey::base()))
+                    .insert(Opacity::new(0.0))
+                    .insert(
+                        GridLocation::new()
+                            .center_x(point.horizontal().percent().width().from(stem()))
+                            .center_y(point.vertical().percent().height().from(stem()))
+                            .width(MODEL_LINE_WEIGHT.px())
+                            .height(MODEL_LINE_WEIGHT.px()),
+                    )
+                    .id(),
+            );
         }
+        let mut endings = Vec::new();
+        for line in LINE_INDICES {
+            let a = MODEL_POINTS[line.0];
+            let b = MODEL_POINTS[line.1];
+            let end_location = GridLocation::new()
+                .point_ax(a.horizontal().percent().width().from(stem()))
+                .point_ay(a.vertical().percent().height().from(stem()))
+                .point_bx(b.horizontal().percent().width().from(stem()))
+                .point_by(b.vertical().percent().height().from(stem()));
+            endings.push(end_location);
+            lines.push(
+                tree.spawn(
+                    Leaf::new()
+                        .elevation(-1)
+                        .stem_from(Some(this))
+                        .opacity(Opacity::new(0.0)),
+                )
+                .insert(Line::new(MODEL_LINE_WEIGHT, Grey::base()))
+                .insert(
+                    GridLocation::new()
+                        .point_ax(a.horizontal().percent().width().from(stem()))
+                        .point_ay(a.vertical().percent().height().from(stem()))
+                        .point_bx(a.horizontal().percent().width().from(stem()))
+                        .point_by(a.vertical().percent().height().from(stem())),
+                )
+                .id(),
+            );
+        }
+        tree.start_sequence(|seq| {
+            let delta = 0;
+            let mut now = 0;
+            for (i, ending) in endings.drain(..).enumerate() {
+                let anim = Animation::new(ending)
+                    .start(now)
+                    .end(now + delta)
+                    .targeting(*lines.get(i).unwrap());
+                seq.animate(anim);
+                now += delta;
+            }
+        });
+        LeafModel { lines, joins }
     }
 }
+pub(crate) const MODEL_LINE_WEIGHT: i32 = 10;
+pub(crate) const MODEL_POINTS: [Coordinates; 20] = [
+    Coordinates::new(0.0, 0.0),
+    Coordinates::new(0.0, 0.0),
+    Coordinates::new(0.0, 0.0),
+    Coordinates::new(0.0, 0.0),
+    Coordinates::new(0.0, 0.0),
+    Coordinates::new(0.0, 0.0),
+    Coordinates::new(0.0, 0.0),
+    Coordinates::new(0.0, 0.0),
+    Coordinates::new(0.0, 0.0),
+    Coordinates::new(0.0, 0.0),
+    Coordinates::new(0.0, 0.0),
+    Coordinates::new(0.0, 0.0),
+    Coordinates::new(0.0, 0.0),
+    Coordinates::new(0.0, 0.0),
+    Coordinates::new(0.0, 0.0),
+    Coordinates::new(0.0, 0.0),
+    Coordinates::new(0.0, 0.0),
+    Coordinates::new(0.0, 0.0),
+    Coordinates::new(0.0, 0.0),
+    Coordinates::new(0.0, 0.0),
+];
+pub(crate) const LINE_INDICES: [(usize, usize); 20] = [
+    (0, 1),
+    (0, 1),
+    (0, 1),
+    (0, 1),
+    (0, 1),
+    (0, 1),
+    (0, 1),
+    (0, 1),
+    (0, 1),
+    (0, 1),
+    (0, 1),
+    (0, 1),
+    (0, 1),
+    (0, 1),
+    (0, 1),
+    (0, 1),
+    (0, 1),
+    (0, 1),
+    (0, 1),
+    (0, 1),
+];

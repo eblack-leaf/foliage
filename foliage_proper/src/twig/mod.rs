@@ -1,14 +1,14 @@
 use crate::coordinate::elevation::Elevation;
-use crate::grid::GridLocation;
+use crate::grid::location::GridLocation;
 use crate::tree::Tree;
 use bevy_ecs::entity::Entity;
 
 pub mod button;
 pub struct Twig<T> {
-    elevation: Elevation,
-    location: GridLocation,
-    t: T,
-    stem: Option<Entity>,
+    pub elevation: Elevation,
+    pub location: GridLocation,
+    pub t: T,
+    pub stem: Option<Entity>,
 }
 impl<T> Twig<T> {
     pub fn new(t: T) -> Self {
