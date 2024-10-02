@@ -1,4 +1,5 @@
 use crate::anim::{Animate, Animation, AnimationRunner, AnimationTime, Sequence};
+use crate::leaf::Leaf;
 use crate::time::OnEnd;
 use crate::twig::{Branch, Twig};
 use bevy_ecs::entity::Entity;
@@ -12,6 +13,7 @@ pub trait EcsExtension {
         sfn: SFN,
     ) -> Entity;
     fn grow_branch<B: Branch>(&mut self, twig: Twig<B>) -> B::Handle;
+    fn add_leaf(&mut self, l: Leaf) -> Entity;
 }
 impl<'w, 's> EcsExtension for Tree<'w, 's> {
     fn start_sequence<SFN: FnOnce(&mut SequenceHandle<'_, 'w, 's>)>(&mut self, sfn: SFN) -> Entity {
@@ -31,6 +33,10 @@ impl<'w, 's> EcsExtension for Tree<'w, 's> {
     fn grow_branch<B: Branch>(&mut self, twig: Twig<B>) -> B::Handle {
         B::grow(twig, self)
     }
+
+    fn add_leaf(&mut self, l: Leaf) -> Entity {
+        self.spawn(l).id()
+    }
 }
 impl EcsExtension for World {
     fn start_sequence<SFN: for<'w, 's> FnOnce(&mut SequenceHandle<'_, 'w, 's>)>(
@@ -48,6 +54,13 @@ impl EcsExtension for World {
         let h = cmds.grow_branch(twig);
         self.flush();
         h
+    }
+
+    fn add_leaf(&mut self, l: Leaf) -> Entity {
+        let mut cmds = self.commands();
+        let e = cmds.add_leaf(l);
+        self.flush();
+        e
     }
 }
 pub struct SequenceHandle<'a, 'w, 's> {

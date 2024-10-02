@@ -5,7 +5,7 @@ use crate::leaf::Leaf;
 use crate::panel::{Panel, Rounding};
 use crate::style::{Coloring, InteractiveColor};
 use crate::text::{FontSize, Text, TextValue};
-use crate::tree::Tree;
+use crate::tree::{EcsExtension, Tree};
 use crate::twig::{Branch, Twig};
 use bevy_ecs::entity::Entity;
 
@@ -64,16 +64,15 @@ impl Branch for Button {
     type Handle = ButtonHandle;
 
     fn grow(twig: Twig<Self>, tree: &mut Tree) -> Self::Handle {
-        let panel = tree.spawn_empty().id();
-        let icon = tree.spawn_empty().id();
-        let text = tree.spawn_empty().id();
+        let panel = tree.add_leaf(Leaf::new().stem_from(twig.stem).elevation(twig.elevation));
+        let icon = tree.add_leaf(Leaf::new().elevation(-1).stem_from(Some(panel)));
+        let text = tree.add_leaf(Leaf::new().stem_from(Some(panel)).elevation(-1));
         let linked = vec![icon, text];
         let interaction_listener = match twig.t.circle_square {
             ButtonShape::Circle => ClickInteractionListener::new().as_circle(),
             ButtonShape::Square => ClickInteractionListener::new(),
         };
         tree.entity(panel)
-            .insert(Leaf::new().stem_from(twig.stem).elevation(twig.elevation))
             .insert(Panel::new(twig.t.rounding, twig.t.coloring.background))
             .insert(twig.location)
             .insert(
@@ -98,17 +97,14 @@ impl Branch for Button {
         };
         tree.entity(icon)
             .insert(Icon::new(twig.t.icon_id, twig.t.coloring.foreground))
-            .insert(Leaf::new().elevation(-1).stem_from(Some(panel)))
             .insert(icon_location);
-        tree.entity(text)
-            .insert(Leaf::new().stem_from(Some(panel)).elevation(-1))
-            .insert(
-                GridLocation::new()
-                    .left(stem().left() + 48.px())
-                    .right(stem().right() - 16.px())
-                    .center_y(stem().center_y())
-                    .height(90.percent().height().of(stem())),
-            );
+        tree.entity(text).insert(
+            GridLocation::new()
+                .left(stem().left() + 48.px())
+                .right(stem().right() - 16.px())
+                .center_y(stem().center_y())
+                .height(90.percent().height().of(stem())),
+        );
         if twig.t.font_size.is_some() {
             tree.entity(text).insert(Text::new(
                 value,
