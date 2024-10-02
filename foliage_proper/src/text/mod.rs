@@ -38,7 +38,7 @@ impl Root for Text {
         elm.enable_differential::<Self, RenderLayer>();
         elm.enable_differential::<Self, Glyphs>();
         elm.enable_differential::<Self, GlyphMetrics>();
-        elm.ecs.world.insert_resource(MonospacedFont::new(40));
+        elm.ecs.insert_resource(MonospacedFont::new(40));
         elm.scheduler.main.add_systems((
             (distill, color_changes).in_set(InternalStage::Resolve),
             clear_removed.in_set(InternalStage::Finish),

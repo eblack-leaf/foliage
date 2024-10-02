@@ -1,7 +1,6 @@
 pub use bevy_ecs;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::prelude::{Entity, Event, Resource};
-use bevy_ecs::world::World;
 use futures_channel::oneshot;
 use tracing_subscriber::filter::Targets;
 use tracing_subscriber::layer::SubscriberExt;
@@ -20,7 +19,7 @@ use crate::ash::{Ash, ClippingContext, Render};
 use crate::asset::{Asset, AssetKey, AssetLoader};
 use crate::coordinate::area::Area;
 use crate::coordinate::{Coordinates, DeviceContext};
-use crate::elm::Elm;
+use crate::elm::{Ecs, Elm};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::{Ginkgo, ScaleFactor};
 use crate::icon::{Icon, IconId, IconRequest};
@@ -103,7 +102,7 @@ impl Foliage {
             base_url: "".to_string(),
         };
         this.define_roots::<Trunk>();
-        this.elm.ecs.world.insert_resource(AssetLoader::default());
+        this.elm.ecs.insert_resource(AssetLoader::default());
         this
     }
     pub fn enable_animation<A: Animate>(&mut self) {
@@ -139,19 +138,19 @@ impl Foliage {
         self.elm.enable_differential::<R, ClippingContext>();
     }
     pub fn spawn<B: Bundle + 'static + Send + Sync>(&mut self, b: B) -> Entity {
-        self.elm.ecs.world.spawn(b).id()
+        self.elm.ecs.spawn(b).id()
     }
     pub fn enable_event<E: Event + Clone + Send + Sync + 'static>(&mut self) {
         self.elm.enable_event::<E>();
     }
     pub fn send_event<E: Event>(&mut self, e: E) {
-        self.elm.ecs.world.send_event(e);
+        self.elm.ecs.send_event(e);
     }
     pub fn insert_resource<R: Resource>(&mut self, r: R) {
-        self.elm.ecs.world.insert_resource(r);
+        self.elm.ecs.insert_resource(r);
     }
-    pub fn ecs(&mut self) -> &mut World {
-        &mut self.elm.ecs.world
+    pub fn ecs(&mut self) -> &mut Ecs {
+        &mut self.elm.ecs
     }
     pub fn photosynthesize(mut self) {
         let event_loop = EventLoop::new().unwrap();
@@ -234,7 +233,6 @@ impl Foliage {
         let key = AssetLoader::generate_key();
         self.elm
             .ecs
-            .world
             .get_resource_mut::<AssetLoader>()
             .expect("asset-loader")
             .assets
@@ -284,18 +282,16 @@ impl Foliage {
                 if let Some(event) = self
                     .elm
                     .ecs
-                    .world
                     .get_resource_mut::<KeyboardAdapter>()
                     .expect("keys")
                     .parse(event.logical_key, event.state)
                 {
-                    self.elm.ecs.world.send_event(event);
+                    self.elm.ecs.send_event(event);
                 }
             }
             WindowEvent::ModifiersChanged(new_mods) => {
                 self.elm
                     .ecs
-                    .world
                     .get_resource_mut::<KeyboardAdapter>()
                     .expect("keyboard-adapter")
                     .mods = new_mods.state();
@@ -305,16 +301,10 @@ impl Foliage {
                 device_id: _device_id,
                 position,
             } => {
-                let scale_factor = *self
-                    .elm
-                    .ecs
-                    .world
-                    .get_resource::<ScaleFactor>()
-                    .expect("scale");
+                let scale_factor = *self.elm.ecs.get_resource::<ScaleFactor>().expect("scale");
                 let viewport_position = self
                     .elm
                     .ecs
-                    .world
                     .get_resource::<ViewportHandle>()
                     .expect("vh")
                     .section()
@@ -322,12 +312,11 @@ impl Foliage {
                 if let Some(event) = self
                     .elm
                     .ecs
-                    .world
                     .get_resource_mut::<MouseAdapter>()
                     .expect("mouse-adapter")
                     .set_cursor(position, viewport_position, scale_factor)
                 {
-                    self.elm.ecs.world.send_event(event);
+                    self.elm.ecs.send_event(event);
                 }
             }
             WindowEvent::CursorEntered { .. } => {}
@@ -341,12 +330,11 @@ impl Foliage {
                 if let Some(event) = self
                     .elm
                     .ecs
-                    .world
                     .get_resource_mut::<MouseAdapter>()
                     .expect("mouse-adapter")
                     .parse(button, state)
                 {
-                    self.elm.ecs.world.send_event(event);
+                    self.elm.ecs.send_event(event);
                 }
             }
             WindowEvent::PinchGesture { .. } => {}
@@ -359,13 +347,11 @@ impl Foliage {
                 let scale_factor = *self
                     .elm
                     .ecs
-                    .world
                     .get_resource::<ScaleFactor>()
                     .expect("scale-factor");
                 let viewport_position = self
                     .elm
                     .ecs
-                    .world
                     .get_resource::<ViewportHandle>()
                     .expect("vh")
                     .section()
@@ -373,12 +359,11 @@ impl Foliage {
                 if let Some(event) = self
                     .elm
                     .ecs
-                    .world
                     .get_resource_mut::<TouchAdapter>()
                     .expect("touch-adapter")
                     .parse(t, viewport_position, scale_factor)
                 {
-                    self.elm.ecs.world.send_event(event);
+                    self.elm.ecs.send_event(event);
                 }
             }
             WindowEvent::ScaleFactorChanged {

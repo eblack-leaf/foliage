@@ -293,7 +293,6 @@ impl Ash {
     pub(crate) fn render(&mut self, ginkgo: &Ginkgo, elm: &mut Elm) {
         for (e, c) in elm
             .ecs
-            .world
             .get_resource_mut::<ClippingSectionQueue>()
             .unwrap()
             .update
@@ -303,7 +302,6 @@ impl Ash {
         }
         for e in elm
             .ecs
-            .world
             .get_resource_mut::<ClippingSectionQueue>()
             .unwrap()
             .remove

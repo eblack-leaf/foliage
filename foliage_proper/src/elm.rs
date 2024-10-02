@@ -45,19 +45,16 @@ impl Scheduler {
     pub(crate) fn exec_main(&mut self, ecs: &mut Ecs) {
         self.main
             .set_executor_kind(ExecutorKind::MultiThreaded)
-            .run(&mut ecs.world);
+            .run(ecs);
     }
     pub(crate) fn exec_startup(&mut self, ecs: &mut Ecs) {
         self.startup
             .set_executor_kind(ExecutorKind::MultiThreaded)
-            .run(&mut ecs.world);
+            .run(ecs);
     }
 }
 
-#[derive(Default)]
-pub struct Ecs {
-    pub world: World,
-}
+pub type Ecs = World;
 
 #[derive(Default)]
 pub struct Elm {
@@ -141,55 +138,47 @@ impl<D> Default for AnimationLimiter<D> {
 }
 impl Elm {
     pub fn enable_event<E: Event + Clone + Send + Sync + 'static>(&mut self) {
-        if !self.ecs.world.contains_resource::<EventLimiter<E>>() {
-            self.ecs.world.insert_resource(Events::<E>::default());
-            EventRegistry::register_event::<E>(&mut self.ecs.world);
+        if !self.ecs.contains_resource::<EventLimiter<E>>() {
+            self.ecs.insert_resource(Events::<E>::default());
+            EventRegistry::register_event::<E>(&mut self.ecs);
             self.scheduler
                 .main
                 .add_systems(apply_triggered::<E>.in_set(InternalStage::Apply));
-            self.ecs.world.insert_resource(EventLimiter::<E>::default());
+            self.ecs.insert_resource(EventLimiter::<E>::default());
         }
     }
     pub fn enable_animation<A: Animate>(&mut self) {
-        if !self.ecs.world.contains_resource::<AnimationLimiter<A>>() {
+        if !self.ecs.contains_resource::<AnimationLimiter<A>>() {
             self.scheduler
                 .main
                 .add_systems(animate::<A>.in_set(InternalStage::Animation));
-            self.ecs
-                .world
-                .insert_resource(AnimationLimiter::<A>::default());
+            self.ecs.insert_resource(AnimationLimiter::<A>::default());
         }
     }
     pub fn enable_differential<R: Render, D: Component + PartialEq + Clone>(&mut self) {
-        if !self.ecs.world.contains_resource::<DifferentialLimiter<D>>() {
+        if !self.ecs.contains_resource::<DifferentialLimiter<D>>() {
             self.scheduler.main.add_systems((
                 differential::<D>.in_set(InternalStage::Differential),
                 visibility_changed::<D>.in_set(InternalStage::Differential),
             ));
             self.ecs
-                .world
                 .insert_resource(DifferentialLimiter::<D>::default())
         }
-        if !self.ecs.world.contains_resource::<RenderAddQueue<D>>() {
-            self.ecs
-                .world
-                .insert_resource(RenderAddQueue::<D>::default());
+        if !self.ecs.contains_resource::<RenderAddQueue<D>>() {
+            self.ecs.insert_resource(RenderAddQueue::<D>::default());
         }
         let link = RenderLink::new::<R>();
         self.ecs
-            .world
             .get_resource_mut::<RenderAddQueue<D>>()
             .unwrap()
             .queue
             .insert(link, HashMap::new());
         self.ecs
-            .world
             .get_resource_mut::<RenderAddQueue<D>>()
             .unwrap()
             .cache
             .insert(link, HashMap::new());
         self.ecs
-            .world
             .get_resource_mut::<RenderRemoveQueue>()
             .unwrap()
             .queue
@@ -210,23 +199,19 @@ impl Elm {
         window_area: Area<DeviceContext>,
         scale_factor: ScaleFactor,
     ) {
-        self.ecs.world.insert_resource(ViewportHandle::new(
+        self.ecs.insert_resource(ViewportHandle::new(
             window_area.to_logical(scale_factor.value()),
         ));
-        self.ecs.world.insert_resource(scale_factor);
-        self.ecs.world.insert_resource(RenderRemoveQueue::default());
-        self.ecs
-            .world
-            .insert_resource(LayoutGrid::new(Grid::new(4, 4)));
-        self.ecs.world.insert_resource(Layout::SQUARE);
-        self.ecs.world.insert_resource(TouchAdapter::default());
-        self.ecs.world.insert_resource(MouseAdapter::default());
-        self.ecs.world.insert_resource(KeyboardAdapter::default());
-        self.ecs.world.insert_resource(InteractiveEntity::default());
-        self.ecs.world.insert_resource(FocusedEntity::default());
-        self.ecs
-            .world
-            .insert_resource(ClippingSectionQueue::default());
+        self.ecs.insert_resource(scale_factor);
+        self.ecs.insert_resource(RenderRemoveQueue::default());
+        self.ecs.insert_resource(LayoutGrid::new(Grid::new(4, 4)));
+        self.ecs.insert_resource(Layout::SQUARE);
+        self.ecs.insert_resource(TouchAdapter::default());
+        self.ecs.insert_resource(MouseAdapter::default());
+        self.ecs.insert_resource(KeyboardAdapter::default());
+        self.ecs.insert_resource(InteractiveEntity::default());
+        self.ecs.insert_resource(FocusedEntity::default());
+        self.ecs.insert_resource(ClippingSectionQueue::default());
         self.scheduler.main.configure_sets(
             (
                 InternalStage::External,
@@ -301,32 +286,21 @@ impl Elm {
         self.scheduler.exec_main(&mut self.ecs);
     }
     pub(crate) fn viewport_handle_changes(&mut self) -> Option<Position<LogicalContext>> {
-        self.ecs
-            .world
-            .get_resource_mut::<ViewportHandle>()?
-            .changes()
+        self.ecs.get_resource_mut::<ViewportHandle>()?.changes()
     }
     pub(crate) fn adjust_viewport_handle(&mut self, willow: &Willow) {
-        let scale_value = self
-            .ecs
-            .world
-            .get_resource::<ScaleFactor>()
-            .unwrap()
-            .value();
+        let scale_value = self.ecs.get_resource::<ScaleFactor>().unwrap().value();
         self.ecs
-            .world
             .get_resource_mut::<ViewportHandle>()
             .unwrap()
             .resize(willow.actual_area().to_logical(scale_value));
     }
     pub fn enable_retrieve<B: Bundle + Send + Sync + 'static>(&mut self) {
-        if !self.ecs.world.contains_resource::<RetrieveLimiter<B>>() {
+        if !self.ecs.contains_resource::<RetrieveLimiter<B>>() {
             self.scheduler
                 .main
                 .add_systems(on_retrieve::<B>.in_set(InternalStage::Clean));
-            self.ecs
-                .world
-                .insert_resource(RetrieveLimiter::<B>::default());
+            self.ecs.insert_resource(RetrieveLimiter::<B>::default());
         }
     }
 }
@@ -340,7 +314,6 @@ impl<'a> RenderQueueHandle<'a> {
     pub fn read_removes<R: Render>(&mut self) -> HashSet<Entity> {
         self.elm
             .ecs
-            .world
             .get_resource_mut::<RenderRemoveQueue>()
             .unwrap()
             .queue
@@ -355,7 +328,6 @@ impl<'a> RenderQueueHandle<'a> {
         let mut queue = self
             .elm
             .ecs
-            .world
             .get_resource_mut::<RenderAddQueue<D>>()
             .expect("render-queue");
         queue

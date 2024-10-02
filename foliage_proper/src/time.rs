@@ -91,7 +91,7 @@ pub(crate) fn timers(time: Res<Time>, mut timers: Query<(Entity, &mut Timer)>, m
 }
 impl Root for Time {
     fn define(elm: &mut Elm) {
-        elm.ecs.world.insert_resource(Time::new());
+        elm.ecs.insert_resource(Time::new());
         elm.scheduler.startup.add_systems(start);
         elm.scheduler.main.add_systems(
             (update_time, timers)

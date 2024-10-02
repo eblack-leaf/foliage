@@ -1,7 +1,7 @@
 use crate::icon::IconHandles;
-use foliage::bevy_ecs;
 use foliage::bevy_ecs::event::Event;
 use foliage::color::{Grey, Monochromatic};
+use foliage::elm::Elm;
 use foliage::grid::{GridLocation, TokenUnit};
 use foliage::interaction::OnClick;
 use foliage::leaf::{TriggerEventSignal, TriggeredEvent};
@@ -9,7 +9,10 @@ use foliage::style::Coloring;
 use foliage::tree::{EcsExtension, Tree};
 use foliage::twig::button::Button;
 use foliage::twig::{Branch, Twig};
-
+use foliage::{bevy_ecs, Root};
+impl Root for LeafModel {
+    fn define(elm: &mut Elm) {}
+}
 pub(crate) struct LeafModel {
     pub(crate) buttons: Vec<Button>,
 }
