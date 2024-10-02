@@ -20,14 +20,14 @@ pub(crate) enum ModelStage {
 }
 impl Root for LeafModel {
     fn attach(elm: &mut Elm) {
-        elm.scheduler
-            .main
-            .add_systems(event_test.in_set(ExternalStage::Action));
         elm.scheduler.main.configure_sets(
             (ModelStage::First, ModelStage::Second)
                 .chain()
                 .in_set(ExternalStage::Action),
         );
+        elm.scheduler
+            .main
+            .add_systems(event_test.in_set(ModelStage::First));
     }
 }
 
