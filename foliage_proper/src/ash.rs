@@ -1,4 +1,3 @@
-use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Entity, Query, RemovedComponents};
 use bevy_ecs::query::{Added, Changed, Or, With};
