@@ -15,7 +15,7 @@ pub(crate) enum ButtonShape {
     Square,
 }
 #[derive(Clone)]
-pub struct Button {
+pub struct ButtonArgs {
     circle_square: ButtonShape,
     coloring: Coloring,
     rounding: Rounding,
@@ -24,18 +24,7 @@ pub struct Button {
     text_value: Option<TextValue>,
     font_size: Option<FontSize>,
 }
-impl Button {
-    pub fn new<ID: Into<IconId>, C: Into<Coloring>>(id: ID, c: C, on_click: OnClick) -> Self {
-        Self {
-            circle_square: ButtonShape::Square,
-            coloring: c.into(),
-            rounding: Default::default(),
-            icon_id: id.into(),
-            on_click,
-            text_value: None,
-            font_size: None,
-        }
-    }
+impl ButtonArgs {
     pub fn with_text<T: Into<TextValue>, FS: Into<FontSize>>(mut self, t: T, fs: FS) -> Self {
         self.text_value.replace(t.into());
         self.font_size.replace(fs.into());
@@ -55,18 +44,36 @@ impl Button {
         self
     }
 }
-pub struct ButtonHandle {
+pub struct Button {
     pub panel: Entity,
     pub icon: Entity,
     pub text: Entity,
 }
-impl Branch for Button {
-    type Handle = ButtonHandle;
+impl Button {
+    pub fn args<ID: Into<IconId>, C: Into<Coloring>>(
+        id: ID,
+        c: C,
+        on_click: OnClick,
+    ) -> ButtonArgs {
+        ButtonArgs {
+            circle_square: ButtonShape::Square,
+            coloring: c.into(),
+            rounding: Default::default(),
+            icon_id: id.into(),
+            on_click,
+            text_value: None,
+            font_size: None,
+        }
+    }
+}
+impl Branch for ButtonArgs {
+    type Handle = Button;
 
     fn grow(twig: Twig<Self>, tree: &mut Tree) -> Self::Handle {
         let panel = tree.spawn_empty().id();
         let icon = tree.spawn_empty().id();
         let text = tree.spawn_empty().id();
+        println!("p: {:?} i: {:?} t: {:?}", panel, icon, text);
         let linked = vec![icon, text];
         let interaction_listener = match twig.t.circle_square {
             ButtonShape::Circle => ClickInteractionListener::new().as_circle(),
@@ -100,13 +107,15 @@ impl Branch for Button {
             .insert(Leaf::new().stem_from(Some(panel)).elevation(-1))
             .insert(Icon::new(twig.t.icon_id, twig.t.coloring.foreground))
             .insert(icon_location);
-        tree.entity(text).insert(
-            GridLocation::new()
-                .left(stem().left() + 48.px())
-                .right(stem().right() - 16.px())
-                .center_y(stem().center_y())
-                .height(90.percent().height().of(stem())),
-        );
+        tree.entity(text)
+            .insert(Leaf::new().stem_from(Some(panel)).elevation(-1))
+            .insert(
+                GridLocation::new()
+                    .left(stem().left() + 48.px())
+                    .right(stem().right() - 16.px())
+                    .center_y(stem().center_y())
+                    .height(90.percent().height().of(stem())),
+            );
         if twig.t.font_size.is_some() {
             tree.entity(text).insert(Text::new(
                 value,
@@ -114,6 +123,6 @@ impl Branch for Button {
                 twig.t.coloring.foreground,
             ));
         }
-        ButtonHandle { panel, icon, text }
+        Button { panel, icon, text }
     }
 }

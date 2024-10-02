@@ -1,3 +1,8 @@
+use crate::icon::IconHandles;
+use crate::leaf_model::LeafModel;
+use foliage::grid::GridLocation;
+use foliage::tree::EcsExtension;
+use foliage::twig::Twig;
 use foliage::Foliage;
 
 mod icon;
@@ -11,5 +16,14 @@ fn main() {
         tracing_subscriber::filter::Targets::new().with_target("foliage", tracing::Level::TRACE),
     );
     foliage.set_base_url("foliage");
+    foliage.load_icon(
+        IconHandles::Concepts,
+        include_bytes!("assets/icons/chevrons-left.icon"),
+    );
+    foliage.ecs().branch(
+        Twig::new(LeafModel { buttons: vec![] })
+            .elevation(4)
+            .located(GridLocation::new()),
+    );
     foliage.photosynthesize();
 }

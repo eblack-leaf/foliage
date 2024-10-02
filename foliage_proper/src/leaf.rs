@@ -122,10 +122,20 @@ pub(crate) struct Stem(pub(crate) Option<Entity>);
 pub(crate) struct Dependents(pub(crate) HashSet<Entity>);
 #[derive(Copy, Clone, Component)]
 pub struct Trigger(pub Entity);
+impl Trigger {
+    pub fn new(entity: Entity) -> Self {
+        Self(entity)
+    }
+}
 #[derive(Component)]
 pub struct TriggeredEvent<E: Event + Clone + Send + Sync + 'static>(pub E);
-#[derive(Component)]
-pub(crate) struct TriggerEventSignal(pub(crate) bool);
+impl<E: Event + Clone + Send + Sync + 'static> TriggeredEvent<E> {
+    pub fn new(event: E) -> Self {
+        Self(event)
+    }
+}
+#[derive(Component, Default)]
+pub struct TriggerEventSignal(pub(crate) bool);
 pub(crate) fn apply_triggered<E: Event + Clone + Send + Sync + 'static>(
     signaled: Query<(&TriggeredEvent<E>, &TriggerEventSignal)>,
     mut writer: EventWriter<E>,

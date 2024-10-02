@@ -1,6 +1,7 @@
 pub use bevy_ecs;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::prelude::{Entity, Event, Resource};
+use bevy_ecs::world::World;
 use futures_channel::oneshot;
 use tracing_subscriber::filter::Targets;
 use tracing_subscriber::layer::SubscriberExt;
@@ -148,6 +149,9 @@ impl Foliage {
     }
     pub fn insert_resource<R: Resource>(&mut self, r: R) {
         self.elm.ecs.world.insert_resource(r);
+    }
+    pub fn ecs(&mut self) -> &mut World {
+        &mut self.elm.ecs.world
     }
     pub fn photosynthesize(mut self) {
         let event_loop = EventLoop::new().unwrap();
