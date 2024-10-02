@@ -2,7 +2,6 @@ use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs};
 use bevy_ecs::query::{Changed, Or};
 use bevy_ecs::system::{ParamSet, Query};
-use std::collections::HashSet;
 
 use crate::color::Color;
 use crate::elm::{Elm, InternalStage};
@@ -52,16 +51,16 @@ pub(crate) fn alternate_color_on_engage(
         Query<&mut Color>,
     )>,
 ) {
-    let mut set = HashSet::new();
+    let mut set = Vec::new();
     for (mut color, alt, listener) in alts.p0().iter_mut() {
         if listener.engaged_start() && !listener.engaged_end() {
             for linked in alt.linked.iter() {
-                set.insert((*linked, alt.base));
+                set.push((*linked, alt.base));
             }
             *color = alt.alternate_color;
         } else if listener.engaged_end() {
             for linked in alt.linked.iter() {
-                set.insert((*linked, alt.alternate_color));
+                set.push((*linked, alt.alternate_color));
             }
             *color = alt.base;
         }
