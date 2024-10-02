@@ -88,7 +88,6 @@ impl IconRequest {
 #[derive(Bundle, Clone)]
 pub struct Icon {
     link: RenderLink,
-    section: Section<LogicalContext>,
     layer: Differential<RenderLayer>,
     gpu_section: Differential<GpuSection>,
     id: Differential<IconId>,
@@ -100,7 +99,6 @@ impl Icon {
     pub fn new<I: Into<IconId>>(id: I, color: Color) -> Self {
         Self {
             link: RenderLink::new::<Icon>(),
-            section: Section::new(Position::default(), Area::new(Icon::SCALE)),
             layer: Differential::new(RenderLayer::default()),
             gpu_section: Differential::new(GpuSection::default()),
             id: Differential::new(id.into()),

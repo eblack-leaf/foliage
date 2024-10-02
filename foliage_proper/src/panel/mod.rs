@@ -48,8 +48,6 @@ impl HasRenderLink for Panel {
 #[derive(Bundle, Clone)]
 pub struct Panel {
     render_link: RenderLink,
-    pos: Position<LogicalContext>,
-    area: Area<LogicalContext>,
     layer: Differential<RenderLayer>,
     gpu_section: Differential<GpuSection>,
     color: Differential<Color>,
@@ -63,8 +61,6 @@ impl Panel {
     pub fn new(panel_corner_rounding: Rounding, color: Color) -> Self {
         Self {
             render_link: RenderLink::new::<Self>(),
-            pos: Position::default(),
-            area: Area::default(),
             layer: Differential::new(RenderLayer::default()),
             gpu_section: Differential::new(GpuSection::default()),
             color: Differential::new(color),

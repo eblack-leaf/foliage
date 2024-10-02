@@ -54,7 +54,6 @@ impl HasRenderLink for Text {
 pub struct Text {
     link: RenderLink,
     value: TextValue,
-    section: Section<LogicalContext>,
     layer: Differential<RenderLayer>,
     gpu_section: Differential<GpuSection>,
     glyphs: Differential<Glyphs>,
@@ -69,7 +68,6 @@ impl Text {
         Self {
             link: RenderLink::new::<Self>(),
             value: TextValue(tv.as_ref().to_string()),
-            section: Default::default(),
             layer: Differential::new(RenderLayer::default()),
             gpu_section: Differential::new(GpuSection::default()),
             glyphs: Differential::new(Glyphs::default()),

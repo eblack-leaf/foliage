@@ -3,15 +3,17 @@ use crate::time::OnEnd;
 use crate::twig::{Branch, Twig};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::system::Commands;
+use bevy_ecs::world::World;
+
 pub type Tree<'w, 's> = Commands<'w, 's>;
-pub trait CommandsExtension {
+pub trait EcsExtension {
     fn start_sequence<SFN: for<'w, 's> FnOnce(&mut SequenceHandle<'_, 'w, 's>)>(
         &mut self,
         sfn: SFN,
     ) -> Entity;
     fn grow_branch<B: Branch>(&mut self, twig: Twig<B>) -> B::Handle;
 }
-impl<'w, 's> CommandsExtension for Tree<'w, 's> {
+impl<'w, 's> EcsExtension for Tree<'w, 's> {
     fn start_sequence<SFN: FnOnce(&mut SequenceHandle<'_, 'w, 's>)>(&mut self, sfn: SFN) -> Entity {
         let sequence_entity = self.spawn_empty().id();
         let mut sequence = Sequence::default();
@@ -28,6 +30,24 @@ impl<'w, 's> CommandsExtension for Tree<'w, 's> {
     }
     fn grow_branch<B: Branch>(&mut self, twig: Twig<B>) -> B::Handle {
         B::grow(twig, self)
+    }
+}
+impl EcsExtension for World {
+    fn start_sequence<SFN: for<'w, 's> FnOnce(&mut SequenceHandle<'_, 'w, 's>)>(
+        &mut self,
+        sfn: SFN,
+    ) -> Entity {
+        let mut cmds = self.commands();
+        let e = cmds.start_sequence(sfn);
+        self.flush();
+        e
+    }
+
+    fn grow_branch<B: Branch>(&mut self, twig: Twig<B>) -> B::Handle {
+        let mut cmds = self.commands();
+        let h = cmds.grow_branch(twig);
+        self.flush();
+        h
     }
 }
 pub struct SequenceHandle<'a, 'w, 's> {

@@ -50,6 +50,18 @@ impl Leaf {
         self.opacity = opacity;
         self
     }
+    pub fn grid(mut self, grid: Grid) -> Self {
+        self.grid = grid;
+        self
+    }
+    pub fn clipping_context(mut self, cc: ClippingContext) -> Self {
+        self.clipping_context = cc;
+        self
+    }
+    pub fn at(mut self, p: Placement<LogicalContext>) -> Self {
+        self.placement = p;
+        self
+    }
 }
 #[derive(Component)]
 pub struct InteractionsEnabled(pub bool);

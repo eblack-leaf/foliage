@@ -56,7 +56,7 @@ impl Scheduler {
 
 #[derive(Default)]
 pub struct Ecs {
-    pub(crate) world: World,
+    pub world: World,
 }
 
 #[derive(Default)]
