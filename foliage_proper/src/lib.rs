@@ -139,9 +139,6 @@ impl Foliage {
     pub fn spawn<B: Bundle + 'static + Send + Sync>(&mut self, b: B) -> Entity {
         self.elm.ecs.world.spawn(b).id()
     }
-    pub fn enable_triggered<B: Bundle + Clone + 'static + Send + Sync>(&mut self) {
-        self.elm.enable_triggered::<B>();
-    }
     pub fn enable_event<E: Event>(&mut self) {
         self.elm.enable_event::<E>();
     }

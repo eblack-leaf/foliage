@@ -32,6 +32,7 @@ use crate::leaf::{
     recursive_removal, recursive_visibility, update_stem_deps,
 };
 use crate::opacity::opacity;
+use crate::web_ext::navigate;
 use crate::willow::Willow;
 
 #[derive(Default)]
@@ -250,8 +251,8 @@ impl Elm {
                 .chain(),
         );
         self.scheduler.main.add_systems((
-            (viewport_changes_layout, await_assets).in_set(ScheduleMarkers::External),
             event_update_system.in_set(ScheduleMarkers::Events),
+            (viewport_changes_layout, await_assets, navigate).in_set(ScheduleMarkers::External),
             (change_stem, update_stem_deps)
                 .chain()
                 .in_set(ScheduleMarkers::Clean)
