@@ -28,8 +28,8 @@ use crate::interaction::{
 };
 use crate::layout::{viewport_changes_layout, Layout, LayoutGrid};
 use crate::leaf::{
-    apply_triggered, change_stem, clear_trigger_signal, dependent_elevation, interaction_enable, recursive_removal, recursive_visibility,
-    update_stem_deps,
+    apply_triggered, change_stem, clear_trigger_signal, dependent_elevation, interaction_enable,
+    recursive_removal, recursive_visibility, update_stem_deps,
 };
 use crate::opacity::opacity;
 use crate::willow::Willow;

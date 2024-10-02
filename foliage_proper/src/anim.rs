@@ -255,7 +255,7 @@ where
     fn interpolations(start: &Self, end: &Self) -> Interpolations;
     fn apply(&mut self, interpolations: &mut Interpolations);
 }
-#[derive(Component, Default)]
+#[derive(Component, Default, Copy, Clone)]
 pub struct Sequence {
     pub(crate) animations_to_finish: i32,
     pub(crate) on_end: Option<OnEnd>,

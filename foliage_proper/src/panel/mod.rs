@@ -38,7 +38,6 @@ impl Root for Panel {
         elm.scheduler
             .main
             .add_systems(percent_rounded_to_corner.in_set(ScheduleMarkers::Config));
-        elm.enable_filtering::<Panel>();
     }
 }
 impl HasRenderLink for Panel {

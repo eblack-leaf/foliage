@@ -204,7 +204,6 @@ impl Root for Image {
             .main
             .add_systems(constrain.in_set(ScheduleMarkers::Config));
         elm.enable_retrieve::<Image>();
-        elm.enable_filtering::<Image>();
     }
 }
 impl HasRenderLink for Image {

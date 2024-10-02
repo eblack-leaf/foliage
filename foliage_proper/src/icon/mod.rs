@@ -40,7 +40,6 @@ impl Root for Icon {
         elm.scheduler
             .main
             .add_systems(icon_scale.in_set(ScheduleMarkers::Config));
-        elm.enable_filtering::<Icon>();
     }
 }
 impl HasRenderLink for Icon {

@@ -5,7 +5,7 @@ use crate::coordinate::elevation::{Elevation, RenderLayer};
 use crate::coordinate::placement::Placement;
 use crate::coordinate::points::Points;
 use crate::coordinate::LogicalContext;
-use crate::differential::{Remove, RenderLink, RenderRemoveQueue, Visibility};
+use crate::differential::{RenderLink, RenderRemoveQueue};
 use crate::grid::Grid;
 use crate::interaction::ClickInteractionListener;
 use crate::opacity::Opacity;
@@ -33,8 +33,8 @@ impl Leaf {
     pub fn new() -> Self {
         Self::default()
     }
-    pub fn stem_from(mut self, e: Entity) -> Self {
-        self.stem.0 = Some(e);
+    pub fn stem_from(mut self, e: Option<Entity>) -> Self {
+        self.stem.0 = e;
         self
     }
     pub fn elevation<E: Into<Elevation>>(mut self, e: E) -> Self {
@@ -75,7 +75,7 @@ pub(crate) fn change_stem(
 ) {
     for (entity, change, mut stem) in query.iter_mut() {
         if let Some(old) = stem.0.take() {
-            if let Ok(deps) = dependents.get_mut(old) {
+            if let Ok(mut deps) = dependents.get_mut(old) {
                 deps.0.remove(&entity);
             }
         }
@@ -96,7 +96,7 @@ pub(crate) fn update_stem_deps(
 ) {
     for (entity, mut stem) in query.iter_mut() {
         if let Some(stem_entity) = stem.0 {
-            if let Ok(deps) = dependents.get_mut(stem_entity) {
+            if let Ok(mut deps) = dependents.get_mut(stem_entity) {
                 deps.0.insert(entity);
             }
         }
@@ -254,7 +254,7 @@ pub(crate) fn remove(
     }
 }
 
-#[derive(Component, Copy, Clone)]
+#[derive(Component, Copy, Clone, Ord, PartialOrd, PartialEq, Eq, Hash)]
 pub struct Visibility {
     visible: bool,
 }
@@ -284,15 +284,16 @@ pub(crate) fn recursive_visibility(
     if query.p0().is_empty() {
         return;
     }
-    let mut set = HashSet::new();
+    let mut to_check = HashSet::new();
     for (entity, visibility) in query.p0().iter() {
-        set.insert((entity, *visibility));
+        to_check.insert((entity, *visibility));
     }
-    for (e, v) in set.drain() {
-        let d = recursive_visibility_inner(e, *v, &dependents);
-        set.extend(d);
+    let mut updated = HashSet::new();
+    for (e, v) in to_check.drain() {
+        let d = recursive_visibility_inner(e, v, &dependents);
+        updated.extend(d);
     }
-    for (e, v) in set.drain() {
+    for (e, v) in updated.drain() {
         if let Ok(mut visibility) = query.p1().get_mut(e) {
             visibility.visible = v.visible;
         }

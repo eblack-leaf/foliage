@@ -43,7 +43,6 @@ impl Root for Text {
             (distill, color_changes).in_set(ScheduleMarkers::Config),
             clear_removed.after(ScheduleMarkers::Differential),
         ));
-        elm.enable_filtering::<Text>();
     }
 }
 impl HasRenderLink for Text {

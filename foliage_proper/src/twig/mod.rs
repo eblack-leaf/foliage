@@ -1,28 +1,23 @@
 use crate::coordinate::elevation::Elevation;
 use crate::grid::GridLocation;
+use crate::tree::Tree;
+use bevy_ecs::entity::Entity;
 
 pub mod button;
-#[derive(Clone)]
-pub struct Twig<T: Clone> {
-    handle: LeafHandle,
+pub struct Twig<T> {
     elevation: Elevation,
     location: GridLocation,
     t: T,
-    stem: Option<LeafHandle>,
+    stem: Option<Entity>,
 }
-impl<T: Clone> Twig<T> {
+impl<T> Twig<T> {
     pub fn new(t: T) -> Self {
         Self {
-            handle: Default::default(),
             elevation: Default::default(),
             location: GridLocation::new(),
             t,
             stem: None,
         }
-    }
-    pub fn named<LH: Into<LeafHandle>>(mut self, lh: LH) -> Self {
-        self.handle = lh.into();
-        self
     }
     pub fn elevation<E: Into<Elevation>>(mut self, e: E) -> Self {
         self.elevation = e.into();
@@ -32,8 +27,16 @@ impl<T: Clone> Twig<T> {
         self.location = gl.into();
         self
     }
-    pub fn stem_from<LH: Into<LeafHandle>>(mut self, lh: LH) -> Self {
-        self.stem = Some(lh.into());
+    pub fn stem_from(mut self, lh: Entity) -> Self {
+        self.stem = Some(lh);
         self
     }
+}
+
+pub trait Branch
+where
+    Self: Sized,
+{
+    type Handle;
+    fn grow(twig: Twig<Self>, tree: &mut Tree) -> Self::Handle;
 }
