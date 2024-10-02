@@ -2,7 +2,7 @@ use crate::color::Color;
 use crate::coordinate::points::Points;
 use crate::coordinate::position::Position;
 use crate::coordinate::{CoordinateUnit, LogicalContext};
-use crate::elm::{Elm, ScheduleMarkers};
+use crate::elm::{Elm, InternalStage};
 use crate::ginkgo::ScaleFactor;
 use crate::shape::{EdgePoints, Shape, ShapeDescriptor};
 use crate::Root;
@@ -25,7 +25,7 @@ impl Root for Line {
     fn define(elm: &mut Elm) {
         elm.scheduler
             .main
-            .add_systems(distill_descriptor.in_set(ScheduleMarkers::Resolve));
+            .add_systems(distill_descriptor.in_set(InternalStage::Prepare));
     }
 }
 #[derive(Component)]

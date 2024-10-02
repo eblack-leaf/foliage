@@ -20,7 +20,7 @@ use crate::coordinate::position::Position;
 use crate::coordinate::section::{GpuSection, Section};
 use crate::coordinate::{Coordinates, DeviceContext, LogicalContext};
 use crate::differential::{Differential, RenderLink};
-use crate::elm::{RenderQueueHandle, ScheduleMarkers};
+use crate::elm::{InternalStage, RenderQueueHandle};
 use crate::ginkgo::{Ginkgo, ScaleFactor};
 use crate::instances::Instances;
 use crate::leaf::HasRenderLink;
@@ -37,7 +37,7 @@ impl Root for Panel {
         elm.enable_differential::<Panel, CornerIV>();
         elm.scheduler
             .main
-            .add_systems(percent_rounded_to_corner.in_set(ScheduleMarkers::Config));
+            .add_systems(percent_rounded_to_corner.in_set(InternalStage::Resolve));
     }
 }
 impl HasRenderLink for Panel {

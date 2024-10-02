@@ -1,4 +1,4 @@
-use crate::elm::{Elm, ScheduleMarkers};
+use crate::elm::{Elm, InternalStage};
 use crate::leaf::{Trigger, TriggerEventSignal};
 use crate::Root;
 use bevy_ecs::component::Component;
@@ -96,7 +96,7 @@ impl Root for Time {
         elm.scheduler.main.add_systems(
             (update_time, timers)
                 .chain()
-                .in_set(ScheduleMarkers::External),
+                .in_set(InternalStage::External),
         );
     }
 }

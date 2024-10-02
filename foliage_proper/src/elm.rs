@@ -146,7 +146,7 @@ impl Elm {
             EventRegistry::register_event::<E>(&mut self.ecs.world);
             self.scheduler
                 .main
-                .add_systems(apply_triggered::<E>.in_set(ScheduleMarkers::ApplyTriggerSignal));
+                .add_systems(apply_triggered::<E>.in_set(InternalStage::Apply));
             self.ecs.world.insert_resource(EventLimiter::<E>::default());
         }
     }
@@ -154,7 +154,7 @@ impl Elm {
         if !self.ecs.world.contains_resource::<AnimationLimiter<A>>() {
             self.scheduler
                 .main
-                .add_systems(animate::<A>.in_set(ScheduleMarkers::Animation));
+                .add_systems(animate::<A>.in_set(InternalStage::Animation));
             self.ecs
                 .world
                 .insert_resource(AnimationLimiter::<A>::default());
@@ -163,8 +163,8 @@ impl Elm {
     pub fn enable_differential<R: Render, D: Component + PartialEq + Clone>(&mut self) {
         if !self.ecs.world.contains_resource::<DifferentialLimiter<D>>() {
             self.scheduler.main.add_systems((
-                differential::<D>.in_set(ScheduleMarkers::Differential),
-                visibility_changed::<D>.in_set(ScheduleMarkers::Differential),
+                differential::<D>.in_set(InternalStage::Differential),
+                visibility_changed::<D>.in_set(InternalStage::Differential),
             ));
             self.ecs
                 .world
@@ -229,97 +229,72 @@ impl Elm {
             .insert_resource(ClippingSectionQueue::default());
         self.scheduler.main.configure_sets(
             (
-                ScheduleMarkers::Events,
-                ScheduleMarkers::External,
-                ScheduleMarkers::Interaction,
-                ScheduleMarkers::Animation,
-                ScheduleMarkers::ApplyTriggerSignal,
-                ScheduleMarkers::Unused2,
-                ScheduleMarkers::Unused3,
-                ScheduleMarkers::Spawn,
-                ScheduleMarkers::Unused4,
-                ScheduleMarkers::Clean,
-                ScheduleMarkers::GridSemantics,
-                ScheduleMarkers::Unused6,
-                ScheduleMarkers::Preparation,
-                ScheduleMarkers::Resolve,
-                ScheduleMarkers::Config,
-                ScheduleMarkers::Unused5,
-                ScheduleMarkers::FinalizeCoordinate,
-                ScheduleMarkers::Differential,
+                InternalStage::External,
+                InternalStage::Animation,
+                InternalStage::Apply,
+                ExternalStage::Action,
+                InternalStage::Clean,
+                InternalStage::Location,
+                ExternalStage::Configure,
+                InternalStage::Prepare,
+                InternalStage::Resolve,
+                InternalStage::FinalizeCoordinate,
+                InternalStage::Differential,
+                InternalStage::Finish,
             )
                 .chain(),
         );
         self.scheduler.main.add_systems((
-            event_update_system.in_set(ScheduleMarkers::Events),
-            (viewport_changes_layout, await_assets, navigate).in_set(ScheduleMarkers::External),
+            event_update_system.in_set(InternalStage::External),
+            (viewport_changes_layout, await_assets, navigate).in_set(InternalStage::External),
             (change_stem, update_stem_deps)
                 .chain()
-                .in_set(ScheduleMarkers::Clean)
+                .in_set(InternalStage::Clean)
                 .before(recursive_removal)
                 .before(recursive_visibility),
             (recursive_removal, recursive_visibility)
-                .in_set(ScheduleMarkers::Clean)
+                .in_set(InternalStage::Clean)
                 .before(crate::leaf::remove),
-            (crate::leaf::remove, interaction_enable).in_set(ScheduleMarkers::Clean),
-            dependent_elevation.in_set(ScheduleMarkers::GridSemantics),
-            resolve_grid_locations.in_set(ScheduleMarkers::GridSemantics),
-            opacity.in_set(ScheduleMarkers::Resolve),
-            pull_clipping_section.in_set(ScheduleMarkers::FinalizeCoordinate),
-            clear_trigger_signal.after(ScheduleMarkers::Differential),
+            (crate::leaf::remove, interaction_enable).in_set(InternalStage::Clean),
+            (resolve_grid_locations, dependent_elevation).in_set(InternalStage::Location),
+            opacity.in_set(InternalStage::Prepare),
+            pull_clipping_section.in_set(InternalStage::FinalizeCoordinate),
+            clear_trigger_signal.in_set(InternalStage::Finish),
         ));
         self.scheduler.main.add_systems((
             apply_deferred
-                .after(ScheduleMarkers::Events)
-                .before(ScheduleMarkers::External),
+                .after(InternalStage::External)
+                .before(InternalStage::Animation),
             apply_deferred
-                .after(ScheduleMarkers::External)
-                .before(ScheduleMarkers::Interaction),
+                .after(InternalStage::Animation)
+                .before(InternalStage::Apply),
             apply_deferred
-                .after(ScheduleMarkers::Interaction)
-                .before(ScheduleMarkers::Animation),
+                .after(InternalStage::Apply)
+                .before(ExternalStage::Action),
             apply_deferred
-                .after(ScheduleMarkers::Animation)
-                .before(ScheduleMarkers::ApplyTriggerSignal),
+                .after(ExternalStage::Action)
+                .before(InternalStage::Clean),
             apply_deferred
-                .after(ScheduleMarkers::ApplyTriggerSignal)
-                .before(ScheduleMarkers::Unused2),
+                .after(InternalStage::Clean)
+                .before(InternalStage::Location),
             apply_deferred
-                .after(ScheduleMarkers::Unused2)
-                .before(ScheduleMarkers::Unused3),
+                .after(InternalStage::Location)
+                .before(ExternalStage::Configure),
             apply_deferred
-                .after(ScheduleMarkers::Unused3)
-                .before(ScheduleMarkers::Spawn),
+                .after(ExternalStage::Configure)
+                .before(InternalStage::Prepare),
             apply_deferred
-                .after(ScheduleMarkers::Spawn)
-                .before(ScheduleMarkers::Unused4),
+                .after(InternalStage::Prepare)
+                .before(InternalStage::Resolve),
             apply_deferred
-                .after(ScheduleMarkers::Unused4)
-                .before(ScheduleMarkers::Clean),
+                .after(InternalStage::Resolve)
+                .before(InternalStage::FinalizeCoordinate),
             apply_deferred
-                .after(ScheduleMarkers::Clean)
-                .before(ScheduleMarkers::GridSemantics),
+                .after(InternalStage::FinalizeCoordinate)
+                .before(InternalStage::Differential),
             apply_deferred
-                .after(ScheduleMarkers::GridSemantics)
-                .before(ScheduleMarkers::Unused6),
-            apply_deferred
-                .after(ScheduleMarkers::Unused6)
-                .before(ScheduleMarkers::Preparation),
-            apply_deferred
-                .after(ScheduleMarkers::Preparation)
-                .before(ScheduleMarkers::Resolve),
-            apply_deferred
-                .after(ScheduleMarkers::Resolve)
-                .before(ScheduleMarkers::Config),
-            apply_deferred
-                .after(ScheduleMarkers::Config)
-                .before(ScheduleMarkers::Unused5),
-            apply_deferred
-                .after(ScheduleMarkers::Unused5)
-                .before(ScheduleMarkers::FinalizeCoordinate),
-            apply_deferred
-                .after(ScheduleMarkers::FinalizeCoordinate)
-                .before(ScheduleMarkers::Differential),
+                .after(InternalStage::Differential)
+                .before(InternalStage::Finish),
         ));
     }
     pub(crate) fn process(&mut self) {
@@ -348,7 +323,7 @@ impl Elm {
         if !self.ecs.world.contains_resource::<RetrieveLimiter<B>>() {
             self.scheduler
                 .main
-                .add_systems(on_retrieve::<B>.in_set(ScheduleMarkers::Spawn));
+                .add_systems(on_retrieve::<B>.in_set(InternalStage::Clean));
             self.ecs
                 .world
                 .insert_resource(RetrieveLimiter::<B>::default());
@@ -393,23 +368,22 @@ impl<'a> RenderQueueHandle<'a> {
     }
 }
 #[derive(SystemSet, Hash, Eq, PartialEq, Debug, Copy, Clone)]
-pub enum ScheduleMarkers {
+pub enum InternalStage {
+    External,
+    Apply,
+    // Action
+    Clean,
+    Location,
+    // Configure
+    Prepare,
+    Resolve,
     FinalizeCoordinate,
     Differential,
-    Config,
-    Spawn,
-    Unused4,
-    ApplyTriggerSignal,
-    Unused2,
-    External,
-    GridSemantics,
+    Finish,
     Animation,
-    Unused5,
-    Clean,
-    Interaction,
-    Events,
-    Unused3,
-    Preparation,
-    Unused6,
-    Resolve,
+}
+#[derive(SystemSet, Hash, Eq, PartialEq, Debug, Copy, Clone)]
+pub enum ExternalStage {
+    Action,
+    Configure,
 }

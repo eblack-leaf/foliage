@@ -21,7 +21,7 @@ use crate::coordinate::position::Position;
 use crate::coordinate::section::{GpuSection, Section};
 use crate::coordinate::{Coordinates, DeviceContext, LogicalContext, NumericalContext};
 use crate::differential::{Differential, RenderLink};
-use crate::elm::{Elm, RenderQueueHandle, ScheduleMarkers};
+use crate::elm::{Elm, InternalStage, RenderQueueHandle};
 use crate::ginkgo::Ginkgo;
 use crate::instances::Instances;
 use crate::leaf::HasRenderLink;
@@ -202,7 +202,7 @@ impl Root for Image {
         elm.enable_differential::<Self, Color>();
         elm.scheduler
             .main
-            .add_systems(constrain.in_set(ScheduleMarkers::Config));
+            .add_systems(constrain.in_set(InternalStage::Resolve));
         elm.enable_retrieve::<Image>();
     }
 }

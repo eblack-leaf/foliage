@@ -5,7 +5,7 @@ use crate::coordinate::elevation::RenderLayer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
-use crate::elm::{Elm, ScheduleMarkers};
+use crate::elm::{Elm, InternalStage};
 use crate::ginkgo::ScaleFactor;
 use crate::leaf::{Trigger, TriggerEventSignal};
 use crate::Root;
@@ -375,8 +375,8 @@ impl Root for ClickInteractionListener {
         elm.scheduler.main.add_systems((
             (disabled_listeners, listen_for_interactions, on_click)
                 .chain()
-                .in_set(ScheduleMarkers::Interaction),
-            reset_click_listener_flags.after(ScheduleMarkers::Config),
+                .in_set(InternalStage::External),
+            reset_click_listener_flags.after(InternalStage::Resolve),
         ));
         elm.enable_event::<ClickInteraction>();
         elm.enable_event::<InputSequence>();

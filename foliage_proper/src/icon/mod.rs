@@ -20,7 +20,7 @@ use crate::coordinate::position::Position;
 use crate::coordinate::section::{GpuSection, Section};
 use crate::coordinate::{Coordinates, DeviceContext, LogicalContext};
 use crate::differential::{Differential, RenderLink};
-use crate::elm::{Elm, RenderQueueHandle, ScheduleMarkers};
+use crate::elm::{Elm, InternalStage, RenderQueueHandle};
 use crate::ginkgo::Ginkgo;
 use crate::instances::Instances;
 use crate::leaf::HasRenderLink;
@@ -39,7 +39,7 @@ impl Root for Icon {
         elm.enable_differential::<Self, IconData>();
         elm.scheduler
             .main
-            .add_systems(icon_scale.in_set(ScheduleMarkers::Config));
+            .add_systems(icon_scale.in_set(InternalStage::Resolve));
     }
 }
 impl HasRenderLink for Icon {

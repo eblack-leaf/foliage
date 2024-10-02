@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::GpuSection;
-use crate::elm::{Elm, ScheduleMarkers};
+use crate::elm::{Elm, InternalStage};
 use crate::ginkgo::ScaleFactor;
 use crate::Root;
 
@@ -123,7 +123,7 @@ impl Root for Coordinates {
     fn define(elm: &mut Elm) {
         elm.scheduler
             .main
-            .add_systems(coordinate_resolve.in_set(ScheduleMarkers::FinalizeCoordinate));
+            .add_systems(coordinate_resolve.in_set(InternalStage::FinalizeCoordinate));
     }
 }
 fn coordinate_resolve(

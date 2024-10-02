@@ -25,7 +25,7 @@ use crate::coordinate::position::Position;
 use crate::coordinate::section::{GpuSection, Section};
 use crate::coordinate::{Coordinates, DeviceContext, LogicalContext};
 use crate::differential::{Differential, RenderLink};
-use crate::elm::{Elm, RenderQueueHandle, ScheduleMarkers};
+use crate::elm::{Elm, InternalStage, RenderQueueHandle};
 use crate::ginkgo::{Ginkgo, ScaleFactor, VectorUniform};
 use crate::instances::Instances;
 use crate::leaf::HasRenderLink;
@@ -40,8 +40,8 @@ impl Root for Text {
         elm.enable_differential::<Self, GlyphMetrics>();
         elm.ecs.world.insert_resource(MonospacedFont::new(40));
         elm.scheduler.main.add_systems((
-            (distill, color_changes).in_set(ScheduleMarkers::Config),
-            clear_removed.after(ScheduleMarkers::Differential),
+            (distill, color_changes).in_set(InternalStage::Resolve),
+            clear_removed.in_set(InternalStage::Finish),
         ));
     }
 }

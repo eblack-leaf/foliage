@@ -31,6 +31,7 @@ use crate::shape::Shape;
 use crate::style::Style;
 use crate::text::Text;
 use crate::time::Time;
+use crate::web_ext::HrefLink;
 
 pub mod anim;
 pub mod ash;
@@ -139,7 +140,7 @@ impl Foliage {
     pub fn spawn<B: Bundle + 'static + Send + Sync>(&mut self, b: B) -> Entity {
         self.elm.ecs.world.spawn(b).id()
     }
-    pub fn enable_event<E: Event>(&mut self) {
+    pub fn enable_event<E: Event + Clone + Send + Sync + 'static>(&mut self) {
         self.elm.enable_event::<E>();
     }
     pub fn send_event<E: Event>(&mut self, e: E) {
@@ -496,5 +497,6 @@ impl Roots for Trunk {
         foliage.define_root::<Shape>();
         foliage.add_renderer::<Shape>();
         foliage.define_root::<Line>();
+        foliage.enable_event::<HrefLink>();
     }
 }

@@ -1,19 +1,23 @@
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs};
 use bevy_ecs::query::{Changed, Or};
-use bevy_ecs::system::{Commands, Query};
+use bevy_ecs::system::{ParamSet, Query};
+use std::collections::HashSet;
 
 use crate::color::Color;
-use crate::elm::{Elm, ScheduleMarkers};
+use crate::elm::{Elm, InternalStage};
 use crate::interaction::ClickInteractionListener;
+use crate::opacity::opacity;
 use crate::Root;
 
 pub(crate) struct Style;
 impl Root for Style {
     fn define(elm: &mut Elm) {
-        elm.scheduler
-            .main
-            .add_systems(alternate_color_on_engage.in_set(ScheduleMarkers::Preparation));
+        elm.scheduler.main.add_systems(
+            alternate_color_on_engage
+                .in_set(InternalStage::Prepare)
+                .before(opacity),
+        );
     }
 }
 #[derive(Component, Clone)]
@@ -36,27 +40,35 @@ impl InteractiveColor {
     }
 }
 pub(crate) fn alternate_color_on_engage(
-    mut alts: Query<
-        (&mut Color, &InteractiveColor, &ClickInteractionListener),
-        Or<(
-            Changed<ClickInteractionListener>,
-            Changed<Color>,
-            Changed<InteractiveColor>,
-        )>,
-    >,
-    mut cmd: Commands,
+    mut alts: ParamSet<(
+        Query<
+            (&mut Color, &InteractiveColor, &ClickInteractionListener),
+            Or<(
+                Changed<ClickInteractionListener>,
+                Changed<Color>,
+                Changed<InteractiveColor>,
+            )>,
+        >,
+        Query<&mut Color>,
+    )>,
 ) {
-    for (mut color, alt, listener) in alts.iter_mut() {
+    let mut set = HashSet::new();
+    for (mut color, alt, listener) in alts.p0().iter_mut() {
         if listener.engaged_start() && !listener.engaged_end() {
             for linked in alt.linked.iter() {
-                cmd.entity(*linked).insert(alt.base);
+                set.insert((*linked, alt.base));
             }
             *color = alt.alternate_color;
         } else if listener.engaged_end() {
             for linked in alt.linked.iter() {
-                cmd.entity(*linked).insert(alt.alternate_color);
+                set.insert((*linked, alt.alternate_color));
             }
             *color = alt.base;
+        }
+    }
+    for (e, c) in set {
+        if let Ok(mut color) = alts.p1().get_mut(e) {
+            *color = c;
         }
     }
 }
