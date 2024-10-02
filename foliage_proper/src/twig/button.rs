@@ -5,7 +5,7 @@ use crate::leaf::Leaf;
 use crate::panel::{Panel, Rounding};
 use crate::style::{Coloring, InteractiveColor};
 use crate::text::{FontSize, Text, TextValue};
-use crate::tree::{EcsExtension, Tree};
+use crate::tree::Tree;
 use crate::twig::{Branch, Twig};
 use bevy_ecs::entity::Entity;
 
@@ -64,15 +64,16 @@ impl Branch for Button {
     type Handle = ButtonHandle;
 
     fn grow(twig: Twig<Self>, tree: &mut Tree) -> Self::Handle {
-        let panel = tree.add_leaf(Leaf::new().stem_from(twig.stem).elevation(twig.elevation));
-        let icon = tree.add_leaf(Leaf::new().elevation(-1).stem_from(Some(panel)));
-        let text = tree.add_leaf(Leaf::new().stem_from(Some(panel)).elevation(-1));
+        let panel = tree.spawn_empty().id();
+        let icon = tree.spawn_empty().id();
+        let text = tree.spawn_empty().id();
         let linked = vec![icon, text];
         let interaction_listener = match twig.t.circle_square {
             ButtonShape::Circle => ClickInteractionListener::new().as_circle(),
             ButtonShape::Square => ClickInteractionListener::new(),
         };
         tree.entity(panel)
+            .insert(Leaf::new().stem_from(twig.stem).elevation(twig.elevation))
             .insert(Panel::new(twig.t.rounding, twig.t.coloring.background))
             .insert(twig.location)
             .insert(
@@ -96,6 +97,7 @@ impl Branch for Button {
                 .center_y(stem().center_y())
         };
         tree.entity(icon)
+            .insert(Leaf::new().stem_from(Some(panel)).elevation(-1))
             .insert(Icon::new(twig.t.icon_id, twig.t.coloring.foreground))
             .insert(icon_location);
         tree.entity(text).insert(
