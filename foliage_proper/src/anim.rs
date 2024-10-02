@@ -12,7 +12,7 @@ use crate::coordinate::section::Section;
 use crate::coordinate::{Coordinates, LogicalContext};
 use crate::elm::Elm;
 use crate::grid::{GridLocation, GridLocationAnimationHook};
-use crate::leaf::TriggerSignal;
+use crate::leaf::TriggerEventSignal;
 use crate::opacity::Opacity;
 use crate::panel::Rounding;
 use crate::time::{OnEnd, Time, TimeDelta};
@@ -417,7 +417,7 @@ fn despawn_and_update_sequence<A: Animate>(
     {
         if let Ok(a) = sequences.get_mut(sequence_entity) {
             if let Some(e) = a.on_end {
-                cmd.entity(e.0).insert(TriggerSignal(true));
+                cmd.entity(e.0).insert(TriggerEventSignal(true));
             }
         }
         cmd.entity(sequence_entity).despawn();

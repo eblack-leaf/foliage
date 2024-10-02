@@ -12,6 +12,7 @@ use crate::opacity::Opacity;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::change_detection::ResMut;
 use bevy_ecs::entity::Entity;
+use bevy_ecs::event::{Event, EventWriter};
 use bevy_ecs::prelude::Component;
 use bevy_ecs::query::{Changed, Or};
 use bevy_ecs::system::{Commands, ParamSet, Query};
@@ -110,20 +111,22 @@ pub(crate) struct Dependents(pub(crate) HashSet<Entity>);
 #[derive(Copy, Clone, Component)]
 pub struct Trigger(pub Entity);
 #[derive(Component)]
-pub struct TriggeredBundle<B: Bundle + Clone + Send + Sync + 'static>(pub B);
+pub struct TriggeredEvent<E: Event + Clone + Send + Sync + 'static>(pub E);
 #[derive(Component)]
-pub(crate) struct TriggerSignal(pub(crate) bool);
-pub(crate) fn apply_triggered<B: Bundle + Clone + Send + Sync + 'static>(
-    signaled: Query<(&TriggeredBundle<B>, &TriggerSignal)>,
-    mut cmd: Commands,
+pub(crate) struct TriggerEventSignal(pub(crate) bool);
+pub(crate) fn apply_triggered<E: Event + Clone + Send + Sync + 'static>(
+    signaled: Query<(&TriggeredEvent<E>, &TriggerEventSignal)>,
+    mut writer: EventWriter<E>,
 ) {
     for (te, ts) in signaled.iter() {
         if ts.0 {
-            cmd.spawn(te.0.clone());
+            writer.send(te.0.clone());
         }
     }
 }
-pub(crate) fn clear_trigger_signal(mut signals: Query<&mut TriggerSignal, Changed<TriggerSignal>>) {
+pub(crate) fn clear_trigger_signal(
+    mut signals: Query<&mut TriggerEventSignal, Changed<TriggerEventSignal>>,
+) {
     for mut trigger in signals.iter_mut() {
         trigger.0 = false;
     }

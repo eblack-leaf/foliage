@@ -1,5 +1,5 @@
 use crate::elm::{Elm, ScheduleMarkers};
-use crate::leaf::{Trigger, TriggerSignal};
+use crate::leaf::{Trigger, TriggerEventSignal};
 use crate::Root;
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
@@ -85,7 +85,7 @@ pub(crate) fn timers(time: Res<Time>, mut timers: Query<(Entity, &mut Timer)>, m
             .unwrap_or_default();
         if timer.time_left.is_zero() {
             cmd.entity(entity).despawn();
-            cmd.entity(timer.on_end.0).insert(TriggerSignal(true));
+            cmd.entity(timer.on_end.0).insert(TriggerEventSignal(true));
         }
     }
 }

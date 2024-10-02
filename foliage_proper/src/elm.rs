@@ -139,21 +139,14 @@ impl<D> Default for AnimationLimiter<D> {
     }
 }
 impl Elm {
-    pub fn enable_event<E: Event + Send + Sync + 'static>(&mut self) {
+    pub fn enable_event<E: Event + Clone + Send + Sync + 'static>(&mut self) {
         if !self.ecs.world.contains_resource::<EventLimiter<E>>() {
             self.ecs.world.insert_resource(Events::<E>::default());
             EventRegistry::register_event::<E>(&mut self.ecs.world);
-            self.ecs.world.insert_resource(EventLimiter::<E>::default());
-        }
-    }
-    pub fn enable_triggered<B: Bundle + Clone + Send + Sync + 'static>(&mut self) {
-        if !self.ecs.world.contains_resource::<SignalLimiter<B>>() {
             self.scheduler
                 .main
-                .add_systems(apply_triggered::<B>.in_set(ScheduleMarkers::ApplyTriggerSignal));
-            self.ecs
-                .world
-                .insert_resource(SignalLimiter::<B>::default());
+                .add_systems(apply_triggered::<E>.in_set(ScheduleMarkers::ApplyTriggerSignal));
+            self.ecs.world.insert_resource(EventLimiter::<E>::default());
         }
     }
     pub fn enable_animation<A: Animate>(&mut self) {

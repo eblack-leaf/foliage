@@ -7,7 +7,7 @@ use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
 use crate::elm::{Elm, ScheduleMarkers};
 use crate::ginkgo::ScaleFactor;
-use crate::leaf::{Trigger, TriggerSignal};
+use crate::leaf::{Trigger, TriggerEventSignal};
 use crate::Root;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::{Event, EventReader};
@@ -207,7 +207,7 @@ impl ClickInteractionShape {
 pub type OnClick = Trigger;
 pub(crate) fn on_click(
     on_clicks: Query<(&OnClick, &ClickInteractionListener)>,
-    mut actions: Query<&mut TriggerSignal>,
+    mut actions: Query<&mut TriggerEventSignal>,
 ) {
     for (on_click, listener) in on_clicks.iter() {
         if listener.active {
