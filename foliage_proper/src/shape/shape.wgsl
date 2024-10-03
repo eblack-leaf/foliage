@@ -43,7 +43,7 @@ fn distance_to_edge(edge: vec4f, pt: vec2f) -> f32 {
 }
 @fragment
 fn fragment_entry(frag: Fragment) -> @location(0) vec4<f32> {
-    let edge_precision = 1.00;
+    let edge_precision = 1.0;
     let top = vec4f(frag.left.zw, frag.right.zw);
     let bot = vec4f(frag.left.xy, frag.right.xy);
     let left_inclusion = distance_to_edge(frag.left, frag.position.xy);

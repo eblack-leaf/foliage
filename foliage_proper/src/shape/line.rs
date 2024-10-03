@@ -72,7 +72,7 @@ pub(crate) fn distill_descriptor(
         let angle = normal_slope.atan();
         let half_weight = line_weight.0 / 2.0;
         let factor = f32::from(x_diff.abs() > 0.0 && y_diff.abs() > 0.0);
-        let angle_bias = 0.25 * factor;
+        let angle_bias = 0.5 * factor;
         println!(
             "angle-bias: {} with {} for {}-{}",
             angle_bias, factor, x_diff, y_diff
@@ -89,24 +89,12 @@ pub(crate) fn distill_descriptor(
             Position::logical((line.1.horizontal() - x_adjust, line.1.vertical() + y_adjust));
         *shape = ShapeDescriptor::new(
             EdgePoints::new(
-                left_bottom
-                    .to_device(scale_factor.value())
-                    .rounded()
-                    .coordinates,
-                left_top
-                    .to_device(scale_factor.value())
-                    .rounded()
-                    .coordinates,
+                left_bottom.to_device(scale_factor.value()).coordinates,
+                left_top.to_device(scale_factor.value()).coordinates,
             ),
             EdgePoints::new(
-                right_bottom
-                    .to_device(scale_factor.value())
-                    .rounded()
-                    .coordinates,
-                right_top
-                    .to_device(scale_factor.value())
-                    .rounded()
-                    .coordinates,
+                right_bottom.to_device(scale_factor.value()).coordinates,
+                right_top.to_device(scale_factor.value()).coordinates,
             ),
         );
     }

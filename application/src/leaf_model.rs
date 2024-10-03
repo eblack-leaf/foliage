@@ -83,7 +83,7 @@ impl Branch for LeafModelArgs {
             );
         }
         tree.start_sequence(|seq| {
-            let mut delta = 400;
+            let mut delta = 3000;
             let mut now = 1000;
             for (i, ending) in endings.drain(..).enumerate() {
                 let anim = Animation::new(ending)
@@ -97,7 +97,7 @@ impl Branch for LeafModelArgs {
         LeafModel { lines, joins }
     }
 }
-pub(crate) const MODEL_LINE_WEIGHT: i32 = 30;
+pub(crate) const MODEL_LINE_WEIGHT: i32 = 3;
 pub(crate) const MODEL_POINTS: [Coordinates; 6] = [
     Coordinates::new(50.0, 10.0),
     Coordinates::new(50.0, 90.0),
