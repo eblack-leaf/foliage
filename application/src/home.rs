@@ -11,7 +11,7 @@ use foliage::grid::aspect::screen;
 use foliage::grid::location::GridLocation;
 use foliage::grid::unit::TokenUnit;
 use foliage::interaction::OnClick;
-use foliage::leaf::{TriggerEventSignal, TriggeredEvent};
+use foliage::leaf::{TriggerEventSignal, TriggeredEvent, Visibility};
 use foliage::style::Coloring;
 use foliage::text::FontSize;
 use foliage::tree::{EcsExtension, Tree};
@@ -84,6 +84,7 @@ impl Branch for Home {
                     .top(10.px()),
             ),
         );
+        tree.entity(concepts_button.panel).insert(Visibility::new(false));
         let usage_button = tree.branch(Twig::new(
             Button::args(
                 IconHandles::Usage,

@@ -285,7 +285,7 @@ pub struct Visibility {
 }
 
 impl Visibility {
-    pub(crate) fn new(v: bool) -> Self {
+    pub fn new(v: bool) -> Self {
         Self { visible: v }
     }
     pub fn visible(&self) -> bool {

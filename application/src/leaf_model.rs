@@ -34,7 +34,7 @@ impl Branch for LeafModelArgs {
             joins.push(
                 tree.spawn(Leaf::new().elevation(-1).stem_from(Some(this)))
                     .insert(LineJoin::new(Grey::base()))
-                    .insert(Opacity::new(1.0))
+                    .insert(Opacity::new(0.0))
                     .insert(
                         GridLocation::new()
                             .center_x(point.horizontal().percent().width().from(stem()))
@@ -49,7 +49,7 @@ impl Branch for LeafModelArgs {
             for join in joins.iter() {
                 let anim = Animation::new(Opacity::new(1.0))
                     .start(0)
-                    .end(350)
+                    .end(500)
                     .targeting(*join);
                 seq.animate(anim);
             }
@@ -84,7 +84,7 @@ impl Branch for LeafModelArgs {
         }
         tree.start_sequence(|seq| {
             let mut delta = 400;
-            let mut now = 650;
+            let mut now = 1000;
             for (i, ending) in endings.drain(..).enumerate() {
                 let anim = Animation::new(ending)
                     .start(now)
@@ -98,47 +98,47 @@ impl Branch for LeafModelArgs {
     }
 }
 pub(crate) const MODEL_LINE_WEIGHT: i32 = 4;
-pub(crate) const MODEL_POINTS: [Coordinates; 20] = [
+pub(crate) const MODEL_POINTS: [Coordinates; 6] = [
     Coordinates::new(50.0, 10.0),
     Coordinates::new(50.0, 90.0),
     Coordinates::new(50.0, 55.0),
     Coordinates::new(85.0, 55.0),
     Coordinates::new(65.0, 55.0),
     Coordinates::new(75.0, 40.0),
-    Coordinates::new(0.0, 0.0),
-    Coordinates::new(0.0, 0.0),
-    Coordinates::new(0.0, 0.0),
-    Coordinates::new(0.0, 0.0),
-    Coordinates::new(0.0, 0.0),
-    Coordinates::new(0.0, 0.0),
-    Coordinates::new(0.0, 0.0),
-    Coordinates::new(0.0, 0.0),
-    Coordinates::new(0.0, 0.0),
-    Coordinates::new(0.0, 0.0),
-    Coordinates::new(0.0, 0.0),
-    Coordinates::new(0.0, 0.0),
-    Coordinates::new(0.0, 0.0),
-    Coordinates::new(0.0, 0.0),
+    // Coordinates::new(0.0, 0.0),
+    // Coordinates::new(0.0, 0.0),
+    // Coordinates::new(0.0, 0.0),
+    // Coordinates::new(0.0, 0.0),
+    // Coordinates::new(0.0, 0.0),
+    // Coordinates::new(0.0, 0.0),
+    // Coordinates::new(0.0, 0.0),
+    // Coordinates::new(0.0, 0.0),
+    // Coordinates::new(0.0, 0.0),
+    // Coordinates::new(0.0, 0.0),
+    // Coordinates::new(0.0, 0.0),
+    // Coordinates::new(0.0, 0.0),
+    // Coordinates::new(0.0, 0.0),
+    // Coordinates::new(0.0, 0.0),
 ];
-pub(crate) const LINE_INDICES: [(usize, usize); 20] = [
+pub(crate) const LINE_INDICES: [(usize, usize); 3] = [
     (0, 1),
     (2, 3),
     (4, 5),
-    (0, 1),
-    (0, 1),
-    (0, 1),
-    (0, 1),
-    (0, 1),
-    (0, 1),
-    (0, 1),
-    (0, 1),
-    (0, 1),
-    (0, 1),
-    (0, 1),
-    (0, 1),
-    (0, 1),
-    (0, 1),
-    (0, 1),
-    (0, 1),
-    (0, 1),
+    // (0, 1),
+    // (0, 1),
+    // (0, 1),
+    // (0, 1),
+    // (0, 1),
+    // (0, 1),
+    // (0, 1),
+    // (0, 1),
+    // (0, 1),
+    // (0, 1),
+    // (0, 1),
+    // (0, 1),
+    // (0, 1),
+    // (0, 1),
+    // (0, 1),
+    // (0, 1),
+    // (0, 1),
 ];

@@ -8,6 +8,7 @@ use crate::panel::{Panel, Rounding};
 use crate::shape::{EdgePoints, Shape, ShapeDescriptor};
 use crate::Root;
 use bevy_ecs::bundle::Bundle;
+use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs};
 use bevy_ecs::query::{Changed, Or};
 use bevy_ecs::system::{Query, Res};
@@ -52,20 +53,24 @@ impl LineWeight {
 }
 pub(crate) fn distill_descriptor(
     mut lines: Query<
-        (&Points<LogicalContext>, &LineWeight, &mut ShapeDescriptor),
+        (Entity, &Points<LogicalContext>, &LineWeight, &mut ShapeDescriptor),
         Or<(Changed<LineWeight>, Changed<Points<LogicalContext>>)>,
     >,
     scale_factor: Res<ScaleFactor>,
 ) {
-    for (points, line_weight, mut shape) in lines.iter_mut() {
+    for (entity, points, line_weight, mut shape) in lines.iter_mut() {
         let line = (points.data[0].coordinates, points.data[1].coordinates);
-        let slope =
-            (line.1.vertical() - line.0.vertical()) / (line.1.horizontal() - line.0.horizontal());
+        let x_diff = line.1.horizontal() - line.0.horizontal();
+        let y_diff = line.1.vertical() - line.0.vertical();
+        let slope = y_diff / x_diff;
         let normal_slope = 1.0 / slope;
         let angle = normal_slope.atan();
         let half_weight = line_weight.0 / 2.0;
-        let x_adjust = angle.cos() * half_weight;
-        let y_adjust = angle.sin() * half_weight;
+        let factor = f32::from(x_diff.abs() > 0.0 && y_diff.abs() > 0.0);
+        let angle_bias = 0.125 * factor;
+        println!("angle-bias: {} with {} for {}-{}", angle_bias, factor, x_diff, y_diff);
+        let x_adjust = angle.cos() * (half_weight + angle_bias);
+        let y_adjust = angle.sin() * (half_weight + angle_bias);
         let left_top =
             Position::logical((line.0.horizontal() + x_adjust, line.0.vertical() - y_adjust));
         let left_bottom =
