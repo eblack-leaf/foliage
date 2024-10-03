@@ -17,9 +17,12 @@ pub struct Line {
     shape: Shape,
     line_weight: LineWeight,
 }
+impl Line {
+    pub const MINIMUM_WEIGHT_THRESHOLD: f32 = 4.0;
+}
 impl From<i32> for LineWeight {
     fn from(line_weight: i32) -> Self {
-        Self(line_weight as f32)
+        Self((line_weight as f32).max(Line::MINIMUM_WEIGHT_THRESHOLD))
     }
 }
 impl Root for Line {

@@ -11,7 +11,7 @@ mod leaf_model;
 
 fn main() {
     let mut foliage = Foliage::new();
-    foliage.set_desktop_size((800, 600));
+    foliage.set_desktop_size((360, 800));
     foliage.enable_tracing(
         tracing_subscriber::filter::Targets::new().with_target("foliage", tracing::Level::TRACE),
     );
