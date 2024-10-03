@@ -19,7 +19,7 @@ pub struct Line {
     line_weight: LineWeight,
 }
 impl Line {
-    pub const MINIMUM_WEIGHT_THRESHOLD: f32 = 3.0;
+    pub const MINIMUM_WEIGHT_THRESHOLD: f32 = 1.0;
 }
 impl From<i32> for LineWeight {
     fn from(line_weight: i32) -> Self {
