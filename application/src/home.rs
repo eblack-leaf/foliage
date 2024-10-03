@@ -7,6 +7,7 @@ use foliage::bevy_ecs::event::{Event, EventReader};
 use foliage::bevy_ecs::prelude::{IntoSystemConfigs, IntoSystemSetConfigs, Resource};
 use foliage::color::{Grey, Monochromatic};
 use foliage::elm::{Elm, ExternalStage};
+use foliage::grid::aspect::screen;
 use foliage::grid::location::GridLocation;
 use foliage::grid::unit::TokenUnit;
 use foliage::interaction::OnClick;
@@ -92,7 +93,15 @@ impl Branch for Home {
             .with_text("USAGE", FontSize::new(14)),
         ));
         let name = tree.spawn_empty().id();
-        let leaf_model = tree.branch(Twig::new(LeafModel::args()));
+        let leaf_model = tree.branch(
+            Twig::new(LeafModel::args()).elevation(10).located(
+                GridLocation::new()
+                    .left(screen().left())
+                    .top(screen().top())
+                    .right(screen().right())
+                    .bottom(screen().bottom()),
+            ),
+        );
         HomeHandle {
             concepts_button,
             usage_button,

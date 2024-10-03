@@ -25,8 +25,7 @@ impl Branch for LeafModelArgs {
     type Handle = LeafModel;
     fn grow(twig: Twig<Self>, tree: &mut Tree) -> Self::Handle {
         let this = tree
-            .spawn(Leaf::new().elevation(10).stem_from(twig.stem))
-            .insert(twig.elevation)
+            .spawn(Leaf::new().elevation(twig.elevation).stem_from(twig.stem))
             .insert(twig.location)
             .id();
         let mut joins = Vec::new();
@@ -35,7 +34,7 @@ impl Branch for LeafModelArgs {
             joins.push(
                 tree.spawn(Leaf::new().elevation(-1).stem_from(Some(this)))
                     .insert(LineJoin::new(Grey::base()))
-                    .insert(Opacity::new(0.0))
+                    .insert(Opacity::new(1.0))
                     .insert(
                         GridLocation::new()
                             .center_x(point.horizontal().percent().width().from(stem()))
@@ -70,7 +69,7 @@ impl Branch for LeafModelArgs {
                     Leaf::new()
                         .elevation(-1)
                         .stem_from(Some(this))
-                        .opacity(Opacity::new(0.0)),
+                        .opacity(Opacity::new(1.0)),
                 )
                 .insert(Line::new(MODEL_LINE_WEIGHT, Grey::base()))
                 .insert(
@@ -84,7 +83,7 @@ impl Branch for LeafModelArgs {
             );
         }
         tree.start_sequence(|seq| {
-            let mut delta = 150;
+            let mut delta = 400;
             let mut now = 650;
             for (i, ending) in endings.drain(..).enumerate() {
                 let anim = Animation::new(ending)
@@ -98,7 +97,7 @@ impl Branch for LeafModelArgs {
         LeafModel { lines, joins }
     }
 }
-pub(crate) const MODEL_LINE_WEIGHT: i32 = 10;
+pub(crate) const MODEL_LINE_WEIGHT: i32 = 5;
 pub(crate) const MODEL_POINTS: [Coordinates; 20] = [
     Coordinates::new(50.0, 10.0),
     Coordinates::new(50.0, 90.0),
