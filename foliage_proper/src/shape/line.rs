@@ -19,7 +19,7 @@ pub struct Line {
     line_weight: LineWeight,
 }
 impl Line {
-    pub const MINIMUM_WEIGHT_THRESHOLD: f32 = 4.0;
+    pub const MINIMUM_WEIGHT_THRESHOLD: f32 = 3.0;
 }
 impl From<i32> for LineWeight {
     fn from(line_weight: i32) -> Self {
@@ -53,7 +53,12 @@ impl LineWeight {
 }
 pub(crate) fn distill_descriptor(
     mut lines: Query<
-        (Entity, &Points<LogicalContext>, &LineWeight, &mut ShapeDescriptor),
+        (
+            Entity,
+            &Points<LogicalContext>,
+            &LineWeight,
+            &mut ShapeDescriptor,
+        ),
         Or<(Changed<LineWeight>, Changed<Points<LogicalContext>>)>,
     >,
     scale_factor: Res<ScaleFactor>,
@@ -67,8 +72,11 @@ pub(crate) fn distill_descriptor(
         let angle = normal_slope.atan();
         let half_weight = line_weight.0 / 2.0;
         let factor = f32::from(x_diff.abs() > 0.0 && y_diff.abs() > 0.0);
-        let angle_bias = 0.125 * factor;
-        println!("angle-bias: {} with {} for {}-{}", angle_bias, factor, x_diff, y_diff);
+        let angle_bias = 0.25 * factor;
+        println!(
+            "angle-bias: {} with {} for {}-{}",
+            angle_bias, factor, x_diff, y_diff
+        );
         let x_adjust = angle.cos() * (half_weight + angle_bias);
         let y_adjust = angle.sin() * (half_weight + angle_bias);
         let left_top =

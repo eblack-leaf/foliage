@@ -33,7 +33,7 @@ impl Branch for LeafModelArgs {
         for point in MODEL_POINTS {
             joins.push(
                 tree.spawn(Leaf::new().elevation(-1).stem_from(Some(this)))
-                    .insert(LineJoin::new(Grey::base()))
+                    .insert(LineJoin::new(Grey::plus_three()))
                     .insert(Opacity::new(0.0))
                     .insert(
                         GridLocation::new()
@@ -71,7 +71,7 @@ impl Branch for LeafModelArgs {
                         .stem_from(Some(this))
                         .opacity(Opacity::new(1.0)),
                 )
-                .insert(Line::new(MODEL_LINE_WEIGHT, Grey::base()))
+                .insert(Line::new(MODEL_LINE_WEIGHT, Grey::plus_three()))
                 .insert(
                     GridLocation::new()
                         .point_ax(a.horizontal().percent().width().from(stem()))
@@ -97,7 +97,7 @@ impl Branch for LeafModelArgs {
         LeafModel { lines, joins }
     }
 }
-pub(crate) const MODEL_LINE_WEIGHT: i32 = 4;
+pub(crate) const MODEL_LINE_WEIGHT: i32 = 30;
 pub(crate) const MODEL_POINTS: [Coordinates; 6] = [
     Coordinates::new(50.0, 10.0),
     Coordinates::new(50.0, 90.0),
