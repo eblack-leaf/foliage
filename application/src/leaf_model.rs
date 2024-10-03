@@ -46,6 +46,15 @@ impl Branch for LeafModelArgs {
                     .id(),
             );
         }
+        tree.start_sequence(|seq| {
+            for join in joins.iter() {
+                let anim = Animation::new(Opacity::new(1.0))
+                    .start(0)
+                    .end(350)
+                    .targeting(*join);
+                seq.animate(anim);
+            }
+        });
         let mut endings = Vec::new();
         for line in LINE_INDICES {
             let a = MODEL_POINTS[line.0];
@@ -75,15 +84,15 @@ impl Branch for LeafModelArgs {
             );
         }
         tree.start_sequence(|seq| {
-            let delta = 0;
-            let mut now = 0;
+            let mut delta = 150;
+            let mut now = 650;
             for (i, ending) in endings.drain(..).enumerate() {
                 let anim = Animation::new(ending)
                     .start(now)
                     .end(now + delta)
                     .targeting(*lines.get(i).unwrap());
                 seq.animate(anim);
-                now += delta;
+                now += delta / 2;
             }
         });
         LeafModel { lines, joins }
@@ -91,12 +100,12 @@ impl Branch for LeafModelArgs {
 }
 pub(crate) const MODEL_LINE_WEIGHT: i32 = 10;
 pub(crate) const MODEL_POINTS: [Coordinates; 20] = [
-    Coordinates::new(0.0, 0.0),
-    Coordinates::new(0.0, 0.0),
-    Coordinates::new(0.0, 0.0),
-    Coordinates::new(0.0, 0.0),
-    Coordinates::new(0.0, 0.0),
-    Coordinates::new(0.0, 0.0),
+    Coordinates::new(50.0, 10.0),
+    Coordinates::new(50.0, 90.0),
+    Coordinates::new(50.0, 55.0),
+    Coordinates::new(85.0, 55.0),
+    Coordinates::new(65.0, 55.0),
+    Coordinates::new(75.0, 40.0),
     Coordinates::new(0.0, 0.0),
     Coordinates::new(0.0, 0.0),
     Coordinates::new(0.0, 0.0),
@@ -114,8 +123,8 @@ pub(crate) const MODEL_POINTS: [Coordinates; 20] = [
 ];
 pub(crate) const LINE_INDICES: [(usize, usize); 20] = [
     (0, 1),
-    (0, 1),
-    (0, 1),
+    (2, 3),
+    (4, 5),
     (0, 1),
     (0, 1),
     (0, 1),
