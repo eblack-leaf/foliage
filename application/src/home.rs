@@ -11,10 +11,10 @@ use foliage::grid::aspect::screen;
 use foliage::grid::location::GridLocation;
 use foliage::grid::unit::TokenUnit;
 use foliage::interaction::OnClick;
-use foliage::leaf::{TriggerEventSignal, TriggeredEvent, Visibility};
+use foliage::leaf::{Leaf, TriggerEventSignal, TriggeredEvent, Visibility};
 use foliage::panel::Rounding;
 use foliage::style::Coloring;
-use foliage::text::FontSize;
+use foliage::text::{FontSize, Text};
 use foliage::tree::{EcsExtension, Tree};
 use foliage::twig::button::Button;
 use foliage::twig::{Branch, Twig};
@@ -97,6 +97,16 @@ impl Branch for Home {
             .with_text("USAGE", FontSize::new(14)),
         ));
         let name = tree.spawn_empty().id();
+        tree.entity(name)
+            .insert(Leaf::new().elevation(1))
+            .insert(Text::new("FOLIAGE", FontSize::new(60), Grey::plus_three()))
+            .insert(
+                GridLocation::new()
+                    .center_x(screen().center_x())
+                    .center_y(25.percent().height().from(screen()))
+                    .width(75.percent().width().of(screen()))
+                    .height(64.px()),
+            );
         let leaf_model = tree.branch(
             Twig::new(LeafModel::args()).elevation(10).located(
                 GridLocation::new()

@@ -47,7 +47,7 @@ impl Branch for LeafModelArgs {
         }
         tree.start_sequence(|seq| {
             for join in joins.iter() {
-                let anim = Animation::new(Opacity::new(1.0))
+                let anim = Animation::new(Opacity::new(0.0))
                     .start(0)
                     .end(500)
                     .targeting(*join);
@@ -83,7 +83,7 @@ impl Branch for LeafModelArgs {
             );
         }
         tree.start_sequence(|seq| {
-            let mut delta = 2000;
+            let mut delta = 3000;
             let mut now = 1000;
             for (i, ending) in endings.drain(..).enumerate() {
                 let anim = Animation::new(ending)
@@ -98,15 +98,15 @@ impl Branch for LeafModelArgs {
     }
 }
 pub(crate) const MODEL_LINE_WEIGHT: i32 = 2;
-pub(crate) const MODEL_POINTS: [Coordinates; 6] = [
+pub(crate) const MODEL_POINTS: [Coordinates; 8] = [
     Coordinates::new(50.0, 10.0),
-    Coordinates::new(50.0, 90.0),
+    Coordinates::new(50.0, 20.0),
     Coordinates::new(50.0, 55.0),
     Coordinates::new(85.0, 55.0),
     Coordinates::new(65.0, 55.0),
     Coordinates::new(75.0, 40.0),
-    // Coordinates::new(0.0, 0.0),
-    // Coordinates::new(0.0, 0.0),
+    Coordinates::new(50.0, 30.0),
+    Coordinates::new(50.0, 90.0),
     // Coordinates::new(0.0, 0.0),
     // Coordinates::new(0.0, 0.0),
     // Coordinates::new(0.0, 0.0),
@@ -120,11 +120,11 @@ pub(crate) const MODEL_POINTS: [Coordinates; 6] = [
     // Coordinates::new(0.0, 0.0),
     // Coordinates::new(0.0, 0.0),
 ];
-pub(crate) const LINE_INDICES: [(usize, usize); 3] = [
+pub(crate) const LINE_INDICES: [(usize, usize); 4] = [
     (0, 1),
     (2, 3),
     (4, 5),
-    // (0, 1),
+    (6, 7),
     // (0, 1),
     // (0, 1),
     // (0, 1),
