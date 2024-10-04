@@ -203,7 +203,6 @@ impl Foliage {
         let (fetch, sender) = asset::AssetFetch::new(key);
         self.elm
             .ecs
-            .world
             .get_resource_mut::<AssetLoader>()
             .expect("asset-loader")
             .queue_fetch(fetch);
