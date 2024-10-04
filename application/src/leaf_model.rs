@@ -83,7 +83,7 @@ impl Branch for LeafModelArgs {
             );
         }
         tree.start_sequence(|seq| {
-            let mut delta = 3000;
+            let mut delta = 2000;
             let mut now = 1000;
             for (i, ending) in endings.drain(..).enumerate() {
                 let anim = Animation::new(ending)
@@ -91,13 +91,13 @@ impl Branch for LeafModelArgs {
                     .end(now + delta)
                     .targeting(*lines.get(i).unwrap());
                 seq.animate(anim);
-                now += delta / 2;
+                now += delta / 4;
             }
         });
         LeafModel { lines, joins }
     }
 }
-pub(crate) const MODEL_LINE_WEIGHT: i32 = 60;
+pub(crate) const MODEL_LINE_WEIGHT: i32 = 1;
 pub(crate) const MODEL_POINTS: [Coordinates; 6] = [
     Coordinates::new(50.0, 10.0),
     Coordinates::new(50.0, 90.0),

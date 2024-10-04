@@ -53,6 +53,9 @@ impl<Context: CoordinateContext> Position<Context> {
     pub fn rounded(self) -> Self {
         Self::new((self.x().round(), self.y().round()))
     }
+    pub fn floored(self) -> Self {
+        Self::new((self.x().floor(), self.y().floor()))
+    }
     pub fn x(&self) -> CoordinateUnit {
         self.coordinates.0[0]
     }

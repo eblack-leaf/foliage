@@ -153,6 +153,9 @@ impl<Context: CoordinateContext> Section<Context> {
     pub fn rounded(self) -> Self {
         Self::new(self.position.rounded(), self.area.rounded())
     }
+    pub fn floored(self) -> Self {
+        Self::new(self.position.floored(), self.area.floored())
+    }
 }
 impl Section<NumericalContext> {
     pub fn as_logical(self) -> Section<LogicalContext> {
