@@ -83,7 +83,7 @@ impl Branch for LeafModelArgs {
             );
         }
         tree.start_sequence(|seq| {
-            let mut delta = 3000;
+            let mut delta = 2000;
             let mut now = 1000;
             for (i, ending) in endings.drain(..).enumerate() {
                 let anim = Animation::new(ending)
