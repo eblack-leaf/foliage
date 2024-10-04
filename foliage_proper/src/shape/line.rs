@@ -73,10 +73,10 @@ pub(crate) fn distill_descriptor(
         let half_weight = line_weight.0 / 2.0;
         let factor = f32::from(x_diff.abs() > 0.0 && y_diff.abs() > 0.0);
         let angle_bias = 0.5 * factor;
-        println!(
-            "angle-bias: {} with {} for {}-{}",
-            angle_bias, factor, x_diff, y_diff
-        );
+        // println!(
+        //     "angle-bias: {} with {} for {}-{}",
+        //     angle_bias, factor, x_diff, y_diff
+        // );
         let x_adjust = angle.cos() * (half_weight + angle_bias);
         let y_adjust = angle.sin() * (half_weight + angle_bias);
         let left_top =
