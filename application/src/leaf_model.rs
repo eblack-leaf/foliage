@@ -97,8 +97,8 @@ impl Branch for LeafModelArgs {
         LeafModel { lines, joins }
     }
 }
-pub(crate) const MODEL_LINE_WEIGHT: i32 = 30;
-pub(crate) const MODEL_POINTS: [Coordinates; 8] = [
+pub(crate) const MODEL_LINE_WEIGHT: i32 = 3;
+pub(crate) const MODEL_POINTS: [Coordinates; 10] = [
     Coordinates::new(50.0, 10.0),
     Coordinates::new(50.0, 20.0),
     Coordinates::new(50.0, 55.0),
@@ -107,8 +107,8 @@ pub(crate) const MODEL_POINTS: [Coordinates; 8] = [
     Coordinates::new(75.0, 40.0),
     Coordinates::new(50.0, 30.0),
     Coordinates::new(50.0, 90.0),
-    // Coordinates::new(0.0, 0.0),
-    // Coordinates::new(0.0, 0.0),
+    Coordinates::new(35.0, 75.0),
+    Coordinates::new(0.0, 0.0),
     // Coordinates::new(0.0, 0.0),
     // Coordinates::new(0.0, 0.0),
     // Coordinates::new(0.0, 0.0),
@@ -120,12 +120,12 @@ pub(crate) const MODEL_POINTS: [Coordinates; 8] = [
     // Coordinates::new(0.0, 0.0),
     // Coordinates::new(0.0, 0.0),
 ];
-pub(crate) const LINE_INDICES: [(usize, usize); 4] = [
+pub(crate) const LINE_INDICES: [(usize, usize); 5] = [
     (0, 1),
     (2, 3),
     (4, 5),
     (6, 7),
-    // (0, 1),
+    (7, 8),
     // (0, 1),
     // (0, 1),
     // (0, 1),

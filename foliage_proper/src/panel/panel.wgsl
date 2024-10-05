@@ -23,7 +23,7 @@ struct Fragment {
 @vertex
 fn vertex_entry(vertex: Vertex) -> Fragment {
     let position = vec4<f32>(
-        (vertex.section.xy - vec2f(0, 0)) + vertex.vertex_pos * (vertex.section.zw + vec2f(0, 0)),
+        vertex.section.xy + vertex.vertex_pos * vertex.section.zw,
         vertex.layer,
         1.0
     );
