@@ -23,7 +23,7 @@ struct Fragment {
 @vertex
 fn vertex_entry(vertex: Vertex) -> Fragment {
     let position = vec4<f32>(
-        vertex.section.xy + vertex.vertex_pos * vertex.section.zw,
+        (vertex.section.xy - vec2f(1, 1)) + vertex.vertex_pos * (vertex.section.zw + vec2f(1, 1)),
         vertex.layer,
         1.0
     );
@@ -39,7 +39,7 @@ fn vertex_entry(vertex: Vertex) -> Fragment {
 }
 @fragment
 fn fragment_entry(frag: Fragment) -> @location(0) vec4<f32> {
-    let interval = 0.5;
+    let interval = 0.35;
     let in_corner_i: bool = frag.position.x >= frag.corner_i.x && frag.position.y <= frag.corner_i.y
         && frag.corner_i.z != 0.0;
     let in_corner_ii: bool = frag.position.x <= frag.corner_ii.x && frag.position.y <= frag.corner_ii.y

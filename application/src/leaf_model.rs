@@ -47,7 +47,7 @@ impl Branch for LeafModelArgs {
         }
         tree.start_sequence(|seq| {
             for join in joins.iter() {
-                let anim = Animation::new(Opacity::new(0.0))
+                let anim = Animation::new(Opacity::new(1.0))
                     .start(0)
                     .end(500)
                     .targeting(*join);
@@ -97,7 +97,7 @@ impl Branch for LeafModelArgs {
         LeafModel { lines, joins }
     }
 }
-pub(crate) const MODEL_LINE_WEIGHT: i32 = 2;
+pub(crate) const MODEL_LINE_WEIGHT: i32 = 30;
 pub(crate) const MODEL_POINTS: [Coordinates; 8] = [
     Coordinates::new(50.0, 10.0),
     Coordinates::new(50.0, 20.0),

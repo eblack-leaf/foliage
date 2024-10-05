@@ -141,8 +141,8 @@ fn coordinate_resolve(
     scale_factor: Res<ScaleFactor>,
 ) {
     for (mut gpu, pos, area) in placed_pos.iter_mut() {
-        gpu.pos = pos.to_device(scale_factor.value()).rounded().to_gpu();
-        gpu.area = area.to_device(scale_factor.value()).rounded().to_gpu();
+        gpu.pos = pos.to_device(scale_factor.value()).to_gpu();
+        gpu.area = area.to_device(scale_factor.value()).to_gpu();
     }
 }
 
