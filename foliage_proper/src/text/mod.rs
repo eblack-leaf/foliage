@@ -484,14 +484,14 @@ impl Render for Text {
                 .get_mut(&packet.entity)
                 .unwrap()
                 .pos_and_layer
-                .set(0, packet.value.pos.0.horizontal());
+                .set(0, packet.value.pos.0.horizontal().round());
             renderer
                 .resource_handle
                 .groups
                 .get_mut(&packet.entity)
                 .unwrap()
                 .pos_and_layer
-                .set(1, packet.value.pos.0.vertical());
+                .set(1, packet.value.pos.0.vertical().round());
             renderer
                 .resource_handle
                 .groups

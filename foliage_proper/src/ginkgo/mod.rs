@@ -441,7 +441,7 @@ impl ScaleFactor {
         self.0
     }
     pub fn new(f: f32) -> Self {
-        Self(f.round())
+        Self(f)
     }
 }
 

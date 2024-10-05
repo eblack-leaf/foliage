@@ -77,6 +77,9 @@ impl Coordinates {
             self.vertical().clamp(min, max),
         )
     }
+    pub fn rounded(self) -> Self {
+        Self([self.0[0].round(), self.0[1].round()])
+    }
 }
 
 macro_rules! permutation_coordinate_impl {

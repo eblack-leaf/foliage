@@ -392,7 +392,7 @@ impl Render for Icon {
                 .resource_handle
                 .group_mut_from_entity(packet.entity)
                 .instances
-                .checked_write(packet.entity, packet.value);
+                .checked_write(packet.entity, packet.value.rounded());
             Self::write_mips(renderer, ginkgo, packet.entity);
         }
         for packet in queue_handle.read_adds::<Self, ClippingContext>() {
