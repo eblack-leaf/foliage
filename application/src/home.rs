@@ -87,7 +87,7 @@ impl Branch for Home {
             ),
         );
         tree.entity(concepts_button.panel)
-            .insert(Visibility::new(false));
+            .insert(Visibility::new(true));
         let usage_button = tree.branch(Twig::new(
             Button::args(
                 IconHandles::Usage,
