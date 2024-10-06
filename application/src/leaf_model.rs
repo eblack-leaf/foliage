@@ -7,6 +7,7 @@ use foliage::grid::location::GridLocation;
 use foliage::grid::unit::TokenUnit;
 use foliage::leaf::Leaf;
 use foliage::opacity::Opacity;
+use foliage::panel::OutlineWeight;
 use foliage::shape::line::{Line, LineJoin};
 use foliage::tree::{EcsExtension, Tree};
 use foliage::twig::{Branch, Twig};
@@ -33,8 +34,8 @@ impl Branch for LeafModelArgs {
         for point in MODEL_POINTS {
             joins.push(
                 tree.spawn(Leaf::new().elevation(-1).stem_from(Some(this)))
-                    .insert(LineJoin::new(Grey::plus_three()).outline(2))
-                    .insert(Opacity::new(0.0))
+                    .insert(LineJoin::new(Grey::plus_three()).outline(1))
+                    .insert(Opacity::new(1.0))
                     .insert(
                         GridLocation::new()
                             .center_x(point.horizontal().percent().width().from(stem()))
@@ -47,9 +48,9 @@ impl Branch for LeafModelArgs {
         }
         tree.start_sequence(|seq| {
             for join in joins.iter() {
-                let anim = Animation::new(Opacity::new(1.0))
-                    .start(0)
-                    .end(500)
+                let anim = Animation::new(OutlineWeight::new(MODEL_LINE_WEIGHT as u32))
+                    .start(1000)
+                    .end(6000)
                     .targeting(*join);
                 seq.animate(anim);
             }
@@ -84,7 +85,7 @@ impl Branch for LeafModelArgs {
         }
         tree.start_sequence(|seq| {
             let mut delta = 2000;
-            let mut now = 1000;
+            let mut now = 7000;
             for (i, ending) in endings.drain(..).enumerate() {
                 let anim = Animation::new(ending)
                     .start(now)
@@ -97,7 +98,7 @@ impl Branch for LeafModelArgs {
         LeafModel { lines, joins }
     }
 }
-pub(crate) const MODEL_LINE_WEIGHT: i32 = 30;
+pub(crate) const MODEL_LINE_WEIGHT: i32 = 40;
 pub(crate) const MODEL_POINTS: [Coordinates; 10] = [
     Coordinates::new(50.0, 10.0),
     Coordinates::new(50.0, 20.0),

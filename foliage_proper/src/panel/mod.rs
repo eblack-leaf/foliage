@@ -37,6 +37,7 @@ impl Root for Panel {
         elm.enable_differential::<Panel, CornerIII>();
         elm.enable_differential::<Panel, CornerIV>();
         elm.enable_differential::<Panel, OutlineWeight>();
+        elm.enable_animation::<OutlineWeight>();
         elm.scheduler
             .main
             .add_systems(percent_rounded_to_corner.in_set(InternalStage::Resolve));
@@ -76,12 +77,28 @@ impl Panel {
         }
     }
     pub fn outline(mut self, amt: u32) -> Self {
-        self.outline_weight.component.0 = amt;
+        self.outline_weight.component.0 = amt as f32;
         self
     }
 }
 #[derive(Component, Copy, Clone, Default, PartialEq)]
-pub struct OutlineWeight(pub u32);
+pub struct OutlineWeight(pub f32);
+impl OutlineWeight {
+    pub fn new(o: u32) -> Self {
+        Self(o as f32)
+    }
+}
+impl Animate for OutlineWeight {
+    fn interpolations(start: &Self, end: &Self) -> Interpolations {
+        Interpolations::new().with(start.0, end.0)
+    }
+
+    fn apply(&mut self, interpolations: &mut Interpolations) {
+        if let Some(r) = interpolations.read(0) {
+            self.0 = r;
+        }
+    }
+}
 #[derive(Component, Copy, Clone, Default)]
 pub struct Rounding(pub(crate) [f32; 4]);
 
@@ -348,14 +365,14 @@ impl Render for Panel {
                 .layer_and_weights
                 .get_mut(&packet.entity)
             {
-                existing.weight = packet.value.0 as f32;
+                existing.weight = packet.value.0;
                 renderer
                     .resource_handle
                     .instances
                     .checked_write(packet.entity, *existing);
             } else {
                 let mut lw = LayerAndWeight::default();
-                lw.weight = packet.value.0 as f32;
+                lw.weight = packet.value.0;
                 renderer
                     .resource_handle
                     .layer_and_weights
