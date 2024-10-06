@@ -7,7 +7,6 @@ use foliage::grid::location::GridLocation;
 use foliage::grid::unit::TokenUnit;
 use foliage::leaf::Leaf;
 use foliage::opacity::Opacity;
-use foliage::panel::OutlineWeight;
 use foliage::shape::line::{Line, LineJoin};
 use foliage::tree::{EcsExtension, Tree};
 use foliage::twig::{Branch, Twig};
@@ -34,7 +33,7 @@ impl Branch for LeafModelArgs {
         for point in MODEL_POINTS {
             joins.push(
                 tree.spawn(Leaf::new().elevation(-1).stem_from(Some(this)))
-                    .insert(LineJoin::new(Grey::plus_three()).outline(2))
+                    .insert(LineJoin::new(Grey::plus_three()).outline(4))
                     .insert(Opacity::new(1.0))
                     .insert(
                         GridLocation::new()
@@ -98,7 +97,7 @@ impl Branch for LeafModelArgs {
         LeafModel { lines, joins }
     }
 }
-pub(crate) const MODEL_LINE_WEIGHT: i32 = 40;
+pub(crate) const MODEL_LINE_WEIGHT: i32 = 33;
 pub(crate) const MODEL_POINTS: [Coordinates; 10] = [
     Coordinates::new(50.0, 10.0),
     Coordinates::new(50.0, 20.0),

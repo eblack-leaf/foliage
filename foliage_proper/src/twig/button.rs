@@ -81,7 +81,6 @@ impl Branch for ButtonArgs {
         let panel = tree.spawn_empty().id();
         let icon = tree.spawn_empty().id();
         let text = tree.spawn_empty().id();
-        println!("p: {:?} i: {:?} t: {:?}", panel, icon, text);
         let linked = vec![icon, text];
         let interaction_listener = match twig.t.circle_square {
             ButtonShape::Circle => ClickInteractionListener::new().as_circle(),
