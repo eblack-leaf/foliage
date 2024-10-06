@@ -4,6 +4,7 @@ use bevy_ecs::prelude::{Component, IntoSystemConfigs, Query};
 use bevy_ecs::query::{Changed, Or};
 use bevy_ecs::system::Res;
 use bytemuck::{Pod, Zeroable};
+use std::collections::HashMap;
 use wgpu::util::RenderEncoder;
 use wgpu::{
     include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor,
@@ -35,6 +36,7 @@ impl Root for Panel {
         elm.enable_differential::<Panel, CornerII>();
         elm.enable_differential::<Panel, CornerIII>();
         elm.enable_differential::<Panel, CornerIV>();
+        elm.enable_differential::<Panel, OutlineWeight>();
         elm.scheduler
             .main
             .add_systems(percent_rounded_to_corner.in_set(InternalStage::Resolve));
@@ -56,6 +58,7 @@ pub struct Panel {
     corner_ii: Differential<CornerII>,
     corner_iii: Differential<CornerIII>,
     corner_iv: Differential<CornerIV>,
+    outline_weight: Differential<OutlineWeight>,
 }
 impl Panel {
     pub fn new(panel_corner_rounding: Rounding, color: Color) -> Self {
@@ -69,9 +72,16 @@ impl Panel {
             corner_ii: Differential::new(CornerII::default()),
             corner_iii: Differential::new(CornerIII::default()),
             corner_iv: Differential::new(CornerIV::default()),
+            outline_weight: Differential::new(OutlineWeight::default()),
         }
     }
+    pub fn outline(mut self, amt: u32) -> Self {
+        self.outline_weight.component.0 = amt;
+        self
+    }
 }
+#[derive(Component, Copy, Clone, Default, PartialEq)]
+pub struct OutlineWeight(pub u32);
 #[derive(Component, Copy, Clone, Default)]
 pub struct Rounding(pub(crate) [f32; 4]);
 
@@ -190,8 +200,14 @@ pub struct PanelResources {
     bind_group_layout: BindGroupLayout,
     bind_group: BindGroup,
     instances: Instances<Entity>,
+    layer_and_weights: HashMap<Entity, LayerAndWeight>,
 }
-
+#[repr(C)]
+#[derive(Pod, Zeroable, Copy, Clone, Debug, Default)]
+pub(crate) struct LayerAndWeight {
+    layer: RenderLayer,
+    weight: f32,
+}
 impl Render for Panel {
     type DirectiveGroupKey = i32;
     type Resources = PanelResources;
@@ -230,9 +246,9 @@ impl Render for Panel {
                         VertexStepMode::Instance,
                         &wgpu::vertex_attr_array![1 => Float32x4],
                     ),
-                    Ginkgo::vertex_buffer_layout::<RenderLayer>(
+                    Ginkgo::vertex_buffer_layout::<LayerAndWeight>(
                         VertexStepMode::Instance,
-                        &wgpu::vertex_attr_array![2 => Float32],
+                        &wgpu::vertex_attr_array![2 => Float32x2],
                     ),
                     Ginkgo::vertex_buffer_layout::<Color>(
                         VertexStepMode::Instance,
@@ -269,18 +285,20 @@ impl Render for Panel {
         });
         let instances = Instances::<Entity>::new(4)
             .with_attribute::<GpuSection>(ginkgo)
-            .with_attribute::<RenderLayer>(ginkgo)
+            .with_attribute::<LayerAndWeight>(ginkgo)
             .with_attribute::<Color>(ginkgo)
             .with_attribute::<CornerI>(ginkgo)
             .with_attribute::<CornerII>(ginkgo)
             .with_attribute::<CornerIII>(ginkgo)
             .with_attribute::<CornerIV>(ginkgo);
+        let layer_and_weights = HashMap::new();
         Self::Resources {
             pipeline,
             vertex_buffer,
             bind_group_layout,
             bind_group,
             instances,
+            layer_and_weights,
         }
     }
 
@@ -291,6 +309,7 @@ impl Render for Panel {
     ) {
         for entity in queue_handle.read_removes::<Self>() {
             renderer.resource_handle.instances.queue_remove(entity);
+            renderer.resource_handle.layer_and_weights.remove(&entity);
         }
         for packet in queue_handle.read_adds::<Self, GpuSection>() {
             renderer
@@ -304,10 +323,44 @@ impl Render for Panel {
                 .resource_handle
                 .instances
                 .set_layer(packet.entity, packet.value);
-            renderer
+            if let Some(existing) = renderer
                 .resource_handle
-                .instances
-                .checked_write(packet.entity, packet.value);
+                .layer_and_weights
+                .get_mut(&packet.entity)
+            {
+                existing.layer = packet.value;
+                renderer
+                    .resource_handle
+                    .instances
+                    .checked_write(packet.entity, *existing);
+            } else {
+                let mut lw = LayerAndWeight::default();
+                lw.layer = packet.value;
+                renderer
+                    .resource_handle
+                    .layer_and_weights
+                    .insert(packet.entity, lw);
+            }
+        }
+        for packet in queue_handle.read_adds::<Self, OutlineWeight>() {
+            if let Some(existing) = renderer
+                .resource_handle
+                .layer_and_weights
+                .get_mut(&packet.entity)
+            {
+                existing.weight = packet.value.0 as f32;
+                renderer
+                    .resource_handle
+                    .instances
+                    .checked_write(packet.entity, *existing);
+            } else {
+                let mut lw = LayerAndWeight::default();
+                lw.weight = packet.value.0 as f32;
+                renderer
+                    .resource_handle
+                    .layer_and_weights
+                    .insert(packet.entity, lw);
+            }
         }
         for packet in queue_handle.read_adds::<Self, ClippingContext>() {
             renderer
@@ -381,7 +434,7 @@ impl Render for Panel {
             renderer
                 .resource_handle
                 .instances
-                .buffer::<RenderLayer>()
+                .buffer::<LayerAndWeight>()
                 .slice(..),
         );
         render_pass.set_vertex_buffer(

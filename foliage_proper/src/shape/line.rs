@@ -43,6 +43,10 @@ impl LineJoin {
             panel: Panel::new(Rounding::all(1.0), c.into()),
         }
     }
+    pub fn outline(mut self, o: u32) -> Self {
+        self.panel = self.panel.outline(o);
+        self
+    }
 }
 #[derive(Component)]
 pub struct LineWeight(pub CoordinateUnit);

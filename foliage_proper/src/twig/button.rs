@@ -25,6 +25,7 @@ pub struct ButtonArgs {
     on_click: OnClick,
     text_value: Option<TextValue>,
     font_size: Option<FontSize>,
+    outline: u32,
 }
 impl ButtonArgs {
     pub fn with_text<T: Into<TextValue>, FS: Into<FontSize>>(mut self, t: T, fs: FS) -> Self {
@@ -43,6 +44,10 @@ impl ButtonArgs {
     }
     pub fn rounded<R: Into<Rounding>>(mut self, rounding: R) -> Self {
         self.rounding = rounding.into();
+        self
+    }
+    pub fn outline(mut self, outline: u32) -> Self {
+        self.outline = outline;
         self
     }
 }
@@ -65,6 +70,7 @@ impl Button {
             on_click,
             text_value: None,
             font_size: None,
+            outline: 0,
         }
     }
 }
@@ -83,7 +89,7 @@ impl Branch for ButtonArgs {
         };
         tree.entity(panel)
             .insert(Leaf::new().stem_from(twig.stem).elevation(twig.elevation))
-            .insert(Panel::new(twig.t.rounding, twig.t.coloring.background))
+            .insert(Panel::new(twig.t.rounding, twig.t.coloring.background).outline(twig.t.outline))
             .insert(twig.location)
             .insert(
                 InteractiveColor::new(twig.t.coloring.background, twig.t.coloring.foreground)

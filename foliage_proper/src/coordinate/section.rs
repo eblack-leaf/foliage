@@ -26,7 +26,10 @@ impl GpuSection {
         Self { pos: p, area: a }
     }
     pub fn rounded(self) -> Self {
-        Self::new(GpuPosition(self.pos.0.rounded()), GpuArea(self.area.0.rounded()))
+        Self::new(
+            GpuPosition(self.pos.0.rounded()),
+            GpuArea(self.area.0.rounded()),
+        )
     }
 }
 impl Section<NumericalContext> {
