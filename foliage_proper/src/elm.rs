@@ -222,6 +222,7 @@ impl Elm {
                 InternalStage::Clean,
                 InternalStage::Location,
                 ExternalStage::Configure,
+                InternalStage::SecondClean,
                 InternalStage::Prepare,
                 InternalStage::Resolve,
                 InternalStage::FinalizeCoordinate,
@@ -242,8 +243,17 @@ impl Elm {
                 .in_set(InternalStage::Clean)
                 .before(crate::leaf::remove),
             (crate::leaf::remove, interaction_enable).in_set(InternalStage::Clean),
-            (resolve_grid_locations, dependent_elevation).in_set(InternalStage::Location),
-            opacity.in_set(InternalStage::Prepare),
+            (resolve_grid_locations, dependent_elevation, opacity).in_set(InternalStage::Location),
+            (change_stem, update_stem_deps)
+                .chain()
+                .in_set(InternalStage::SecondClean)
+                .before(recursive_removal)
+                .before(recursive_visibility),
+            (recursive_removal, recursive_visibility)
+                .in_set(InternalStage::SecondClean)
+                .before(crate::leaf::remove),
+            (crate::leaf::remove, interaction_enable).in_set(InternalStage::SecondClean),
+            (opacity, dependent_elevation).in_set(InternalStage::Prepare),
             pull_clipping_section.in_set(InternalStage::FinalizeCoordinate),
             clear_trigger_signal.in_set(InternalStage::Finish),
         ));
@@ -268,6 +278,9 @@ impl Elm {
                 .before(ExternalStage::Configure),
             apply_deferred
                 .after(ExternalStage::Configure)
+                .before(InternalStage::SecondClean),
+            apply_deferred
+                .after(InternalStage::SecondClean)
                 .before(InternalStage::Prepare),
             apply_deferred
                 .after(InternalStage::Prepare)
@@ -298,9 +311,10 @@ impl Elm {
     }
     pub fn enable_retrieve<B: Bundle + Send + Sync + 'static>(&mut self) {
         if !self.ecs.contains_resource::<RetrieveLimiter<B>>() {
-            self.scheduler
-                .main
-                .add_systems(on_retrieve::<B>.in_set(InternalStage::Clean));
+            self.scheduler.main.add_systems((
+                on_retrieve::<B>.in_set(InternalStage::Clean),
+                on_retrieve::<B>.in_set(InternalStage::SecondClean),
+            ));
             self.ecs.insert_resource(RetrieveLimiter::<B>::default());
         }
     }
@@ -348,6 +362,7 @@ pub enum InternalStage {
     Clean,
     Location,
     // Configure
+    SecondClean,
     Prepare,
     Resolve,
     FinalizeCoordinate,
