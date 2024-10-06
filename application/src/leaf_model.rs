@@ -34,7 +34,7 @@ impl Branch for LeafModelArgs {
         for point in MODEL_POINTS {
             joins.push(
                 tree.spawn(Leaf::new().elevation(-1).stem_from(Some(this)))
-                    .insert(LineJoin::new(Grey::plus_three()).outline(1))
+                    .insert(LineJoin::new(Grey::plus_three()).outline(2))
                     .insert(Opacity::new(1.0))
                     .insert(
                         GridLocation::new()
@@ -48,11 +48,11 @@ impl Branch for LeafModelArgs {
         }
         tree.start_sequence(|seq| {
             for join in joins.iter() {
-                let anim = Animation::new(OutlineWeight::new(MODEL_LINE_WEIGHT as u32))
-                    .start(1000)
-                    .end(6000)
-                    .targeting(*join);
-                seq.animate(anim);
+                // let anim = Animation::new(OutlineWeight::new(MODEL_LINE_WEIGHT as u32))
+                //     .start(000)
+                //     .end(1000)
+                //     .targeting(*join);
+                // seq.animate(anim);
             }
         });
         let mut endings = Vec::new();
@@ -85,7 +85,7 @@ impl Branch for LeafModelArgs {
         }
         tree.start_sequence(|seq| {
             let mut delta = 2000;
-            let mut now = 7000;
+            let mut now = 1000;
             for (i, ending) in endings.drain(..).enumerate() {
                 let anim = Animation::new(ending)
                     .start(now)
