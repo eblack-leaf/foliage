@@ -75,7 +75,8 @@ impl Branch for Home {
                     OnClick::new(triggered),
                 )
                 .rounded(Rounding::all(0.2))
-                .with_text("CONCEPTS", FontSize::new(14)),
+                .with_text("CONCEPTS", FontSize::new(14))
+                .outline(1),
             )
             .elevation(4)
             .located(
