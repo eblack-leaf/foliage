@@ -389,7 +389,9 @@ pub(crate) fn animate<A: Animate>(
                     tree.entity(animation.animation_target)
                         .insert(ResolveGridLocation {});
                 }
-                if TypeId::of::<A>() == TypeId::of::<Opacity>() {
+                if TypeId::of::<A>() == TypeId::of::<Opacity>()
+                    || TypeId::of::<A>() == TypeId::of::<Color>()
+                {
                     tree.entity(animation.animation_target)
                         .insert(ResolveOpacity {});
                 }
