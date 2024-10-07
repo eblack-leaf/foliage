@@ -1,10 +1,11 @@
 use crate::anim::{Animate, Animation, AnimationRunner, AnimationTime, Sequence};
+use crate::color::Color;
 use crate::coordinate::elevation::Elevation;
 use crate::grid::location::GridLocation;
 use crate::grid::resolve::ResolveGridLocation;
 use crate::grid::Grid;
 use crate::leaf::{
-    ChangeStem, Leaf, ResolveElevation, ResolveStem, ResolveVisibility, Stem, Visibility,
+    ChangeStem, Leaf, Remove, ResolveElevation, ResolveStem, ResolveVisibility, Stem, Visibility,
 };
 use crate::opacity::{Opacity, ResolveOpacity};
 use crate::time::OnEnd;
@@ -22,6 +23,7 @@ pub trait EcsExtension {
     fn branch<B: Branch>(&mut self, twig: Twig<B>) -> B::Handle;
     fn add_leaf<LFN: for<'a> FnOnce(LeafHandle<'a>)>(&mut self, lfn: LFN) -> Entity;
     fn update_leaf<LFN: for<'a> FnOnce(LeafHandle<'a>)>(&mut self, leaf: Entity, lfn: LFN);
+    fn queue_remove(&mut self, leaf: Entity);
 }
 pub struct LeafHandle<'a> {
     pub(crate) repr: EntityCommands<'a>,
@@ -42,6 +44,10 @@ impl<'a> LeafHandle<'a> {
         self.repr.insert(e.into()).insert(ResolveElevation {});
         self
     }
+    pub fn color<C: Into<Color>>(mut self, c: C) -> Self {
+        self.repr.insert(c.into()).insert(ResolveOpacity {});
+        self
+    }
     pub fn stem_from(mut self, s: Option<Entity>) -> Self {
         if !self.from_add_leaf {
             panic!("please use change-stem to update existing Stem");
@@ -51,7 +57,8 @@ impl<'a> LeafHandle<'a> {
             .insert(ResolveStem {})
             .insert(ResolveVisibility {})
             .insert(ResolveGridLocation {})
-            .insert(ResolveElevation {});
+            .insert(ResolveElevation {})
+            .insert(ResolveOpacity {});
         self
     }
     pub fn grid(mut self, grid: Grid) -> Self {
@@ -103,6 +110,9 @@ impl<'w, 's> EcsExtension for Tree<'w, 's> {
         };
         lfn(leaf_handle);
     }
+    fn queue_remove(&mut self, leaf: Entity) {
+        self.entity(leaf).insert(Remove::queue_remove());
+    }
 }
 impl EcsExtension for World {
     fn start_sequence<SFN: for<'w, 's> FnOnce(&mut SequenceHandle<'_, 'w, 's>)>(
@@ -126,6 +136,10 @@ impl EcsExtension for World {
     fn update_leaf<LFN: for<'a> FnOnce(LeafHandle<'a>)>(&mut self, leaf: Entity, lfn: LFN) {
         let mut cmds = self.commands();
         cmds.update_leaf(leaf, lfn);
+    }
+    fn queue_remove(&mut self, leaf: Entity) {
+        let mut cmds = self.commands();
+        cmds.queue_remove(leaf);
     }
 }
 pub struct SequenceHandle<'a, 'w, 's> {

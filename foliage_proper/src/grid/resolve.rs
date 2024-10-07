@@ -24,7 +24,7 @@ pub(crate) struct ReferentialOrderDeterminant {
 pub struct ResolveGridLocation {}
 pub(crate) fn resolve_grid_locations(
     mut check_read_and_update: ParamSet<(
-        Query<Entity, With<ResolveGridLocation>>,
+        Query<Entity, (With<ResolveGridLocation>, With<GridLocation>)>,
         Query<(
             Entity,
             &Stem,

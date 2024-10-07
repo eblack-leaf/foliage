@@ -22,14 +22,19 @@ use bevy_ecs::system::{Commands, ParamSet, Query};
 #[derive(Bundle, Default)]
 pub(crate) struct Leaf {
     stem: Stem,
+    rs: ResolveStem,
     dependents: Dependents,
     placement: Placement<LogicalContext>,
     elevation: Elevation,
+    re: ResolveElevation,
     remove: Remove,
     visibility: Visibility,
+    rv: ResolveVisibility,
     opacity: Opacity,
+    ro: ResolveOpacity,
     clipping_context: ClippingContext,
     grid: Grid,
+    rg: ResolveGridLocation,
     points: Points<LogicalContext>,
 }
 impl Leaf {

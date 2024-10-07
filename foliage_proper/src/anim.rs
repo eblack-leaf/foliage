@@ -6,6 +6,7 @@ use std::any::TypeId;
 
 use crate::color::Color;
 use crate::coordinate::area::Area;
+use crate::coordinate::elevation::Elevation;
 use crate::coordinate::points::Points;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
@@ -13,10 +14,12 @@ use crate::coordinate::{Coordinates, LogicalContext};
 use crate::elm::Elm;
 use crate::grid::animation::GridLocationAnimationHook;
 use crate::grid::location::GridLocation;
-use crate::leaf::TriggerEventSignal;
-use crate::opacity::Opacity;
+use crate::grid::resolve::ResolveGridLocation;
+use crate::leaf::{ResolveElevation, TriggerEventSignal};
+use crate::opacity::{Opacity, ResolveOpacity};
 use crate::panel::Rounding;
 use crate::time::{OnEnd, Time, TimeDelta};
+use crate::tree::Tree;
 use crate::Root;
 
 pub(crate) struct EnabledAnimations;
@@ -274,7 +277,7 @@ pub(crate) fn animate<A: Animate>(
     )>,
     time: ResMut<Time>,
     mut sequences: Query<&mut Sequence>,
-    mut cmd: Commands,
+    mut tree: Tree,
 ) {
     let frame_diff = time.frame_diff();
     for (anim_entity, mut animation) in anims.iter_mut() {
@@ -363,7 +366,7 @@ pub(crate) fn animate<A: Animate>(
                 if orphaned {
                     despawn_and_update_sequence(
                         &mut sequences,
-                        &mut cmd,
+                        &mut tree,
                         anim_entity,
                         &mut animation,
                     );
@@ -382,18 +385,30 @@ pub(crate) fn animate<A: Animate>(
             }
             let mut orphaned = false;
             if let Ok(mut a) = anim_targets.p0().get_mut(animation.animation_target) {
+                if TypeId::of::<A>() == TypeId::of::<GridLocation>() {
+                    tree.entity(animation.animation_target)
+                        .insert(ResolveGridLocation {});
+                }
+                if TypeId::of::<A>() == TypeId::of::<Opacity>() {
+                    tree.entity(animation.animation_target)
+                        .insert(ResolveOpacity {});
+                }
+                if TypeId::of::<A>() == TypeId::of::<Elevation>() {
+                    tree.entity(animation.animation_target)
+                        .insert(ResolveElevation {});
+                }
                 a.apply(&mut animation.interpolations);
             } else {
                 orphaned = true;
             }
             if orphaned {
-                despawn_and_update_sequence(&mut sequences, &mut cmd, anim_entity, &mut animation);
-                cmd.entity(anim_entity).despawn();
+                despawn_and_update_sequence(&mut sequences, &mut tree, anim_entity, &mut animation);
+                tree.entity(anim_entity).despawn();
                 continue;
             }
             if percent >= 1f32 {
-                despawn_and_update_sequence(&mut sequences, &mut cmd, anim_entity, &mut animation);
-                cmd.entity(anim_entity).despawn();
+                despawn_and_update_sequence(&mut sequences, &mut tree, anim_entity, &mut animation);
+                tree.entity(anim_entity).despawn();
             }
         }
     }

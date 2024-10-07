@@ -6,6 +6,8 @@ use bevy_ecs::system::{ParamSet, Query};
 use crate::color::Color;
 use crate::elm::{Elm, InternalStage};
 use crate::interaction::ClickInteractionListener;
+use crate::opacity::ResolveOpacity;
+use crate::tree::Tree;
 use crate::Root;
 
 pub(crate) struct Style;
@@ -39,7 +41,12 @@ impl InteractiveColor {
 pub(crate) fn alternate_color_on_engage(
     mut alts: ParamSet<(
         Query<
-            (&mut Color, &InteractiveColor, &ClickInteractionListener),
+            (
+                Entity,
+                &mut Color,
+                &InteractiveColor,
+                &ClickInteractionListener,
+            ),
             Or<(
                 Changed<ClickInteractionListener>,
                 Changed<Color>,
@@ -48,24 +55,28 @@ pub(crate) fn alternate_color_on_engage(
         >,
         Query<&mut Color>,
     )>,
+    mut tree: Tree,
 ) {
     let mut set = Vec::new();
-    for (mut color, alt, listener) in alts.p0().iter_mut() {
+    for (entity, mut color, alt, listener) in alts.p0().iter_mut() {
         if listener.engaged_start() && !listener.engaged_end() {
             for linked in alt.linked.iter() {
                 set.push((*linked, alt.base));
             }
             *color = alt.alternate_color;
+            tree.entity(entity).insert(ResolveOpacity {});
         } else if listener.engaged_end() {
             for linked in alt.linked.iter() {
                 set.push((*linked, alt.alternate_color));
             }
             *color = alt.base;
+            tree.entity(entity).insert(ResolveOpacity {});
         }
     }
     for (e, c) in set {
         if let Ok(mut color) = alts.p1().get_mut(e) {
             *color = c;
+            tree.entity(e).insert(ResolveOpacity {});
         }
     }
 }

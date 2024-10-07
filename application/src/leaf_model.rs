@@ -12,7 +12,6 @@ use foliage::elm::{Elm, ExternalStage};
 use foliage::grid::aspect::stem;
 use foliage::grid::location::GridLocation;
 use foliage::grid::unit::TokenUnit;
-use foliage::leaf::Leaf;
 use foliage::shape::line::Line;
 use foliage::tree::{EcsExtension, Tree};
 use foliage::twig::{Branch, Twig};
