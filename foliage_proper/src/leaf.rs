@@ -6,19 +6,21 @@ use crate::coordinate::placement::Placement;
 use crate::coordinate::points::Points;
 use crate::coordinate::LogicalContext;
 use crate::differential::{RenderLink, RenderRemoveQueue};
+use crate::grid::resolve::ResolveGridLocation;
 use crate::grid::Grid;
 use crate::interaction::ClickInteractionListener;
-use crate::opacity::Opacity;
+use crate::opacity::{Opacity, ResolveOpacity};
+use crate::tree::Tree;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::change_detection::ResMut;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::{Event, EventWriter};
 use bevy_ecs::prelude::Component;
-use bevy_ecs::query::{Changed, Or};
+use bevy_ecs::query::{Changed, Or, With};
 use bevy_ecs::system::{Commands, ParamSet, Query};
 
 #[derive(Bundle, Default)]
-pub struct Leaf {
+pub(crate) struct Leaf {
     stem: Stem,
     dependents: Dependents,
     placement: Placement<LogicalContext>,
@@ -31,34 +33,34 @@ pub struct Leaf {
     points: Points<LogicalContext>,
 }
 impl Leaf {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self::default()
     }
-    pub fn stem_from(mut self, e: Option<Entity>) -> Self {
+    pub(crate) fn stem_from(mut self, e: Option<Entity>) -> Self {
         self.stem.0 = e;
         self
     }
-    pub fn elevation<E: Into<Elevation>>(mut self, e: E) -> Self {
+    pub(crate) fn elevation<E: Into<Elevation>>(mut self, e: E) -> Self {
         self.elevation = e.into();
         self
     }
-    pub fn visible(mut self, vis: bool) -> Self {
+    pub(crate) fn visible(mut self, vis: bool) -> Self {
         self.visibility.visible = vis;
         self
     }
-    pub fn opacity(mut self, opacity: Opacity) -> Self {
+    pub(crate) fn opacity(mut self, opacity: Opacity) -> Self {
         self.opacity = opacity;
         self
     }
-    pub fn grid(mut self, grid: Grid) -> Self {
+    pub(crate) fn grid(mut self, grid: Grid) -> Self {
         self.grid = grid;
         self
     }
-    pub fn clipping_context(mut self, cc: ClippingContext) -> Self {
+    pub(crate) fn clipping_context(mut self, cc: ClippingContext) -> Self {
         self.clipping_context = cc;
         self
     }
-    pub fn at(mut self, p: Placement<LogicalContext>) -> Self {
+    pub(crate) fn at(mut self, p: Placement<LogicalContext>) -> Self {
         self.placement = p;
         self
     }
@@ -67,7 +69,7 @@ impl Leaf {
 pub struct InteractionsEnabled(pub bool);
 pub(crate) fn interaction_enable(
     mut query: Query<(Entity, &InteractionsEnabled, &mut ClickInteractionListener)>,
-    mut cmd: Commands,
+    mut tree: Tree,
 ) {
     for (entity, enabled, mut listener) in query.iter_mut() {
         if enabled.0 {
@@ -75,7 +77,7 @@ pub(crate) fn interaction_enable(
         } else {
             listener.disable();
         }
-        cmd.entity(entity).remove::<InteractionsEnabled>();
+        tree.entity(entity).remove::<InteractionsEnabled>();
     }
 }
 #[derive(Component, Copy, Clone)]
@@ -84,7 +86,7 @@ pub(crate) fn change_stem(
     mut query: Query<(Entity, &ChangeStem, &mut Stem)>,
     mut dependents: Query<&mut Dependents>,
     mut visibility: Query<&mut Visibility>,
-    mut cmd: Commands,
+    mut tree: Tree,
 ) {
     for (entity, change, mut stem) in query.iter_mut() {
         if let Some(old) = stem.0.take() {
@@ -93,7 +95,11 @@ pub(crate) fn change_stem(
             }
         }
         stem.0 = change.0;
-        cmd.entity(entity).remove::<ChangeStem>();
+        tree.entity(entity).remove::<ChangeStem>();
+        tree.entity(entity)
+            .insert(ResolveGridLocation {})
+            .insert(ResolveElevation {})
+            .insert(ResolveOpacity {});
         if let Some(s) = stem.0 {
             if let Ok(stem_vis) = visibility.get(s).copied() {
                 if let Ok(mut v) = visibility.get_mut(entity) {
@@ -103,16 +109,23 @@ pub(crate) fn change_stem(
         }
     }
 }
+#[derive(Component, Copy, Clone, Default)]
+pub struct ResolveStem {}
 pub(crate) fn update_stem_deps(
-    mut query: Query<(Entity, &mut Stem), Changed<Stem>>,
+    mut query: Query<(Entity, &mut Stem), With<ResolveStem>>,
     mut dependents: Query<&mut Dependents>,
+    mut tree: Tree,
 ) {
     for (entity, mut stem) in query.iter_mut() {
         if let Some(stem_entity) = stem.0 {
             if let Ok(mut deps) = dependents.get_mut(stem_entity) {
                 deps.0.insert(entity);
+                tree.entity(stem_entity)
+                    .insert(ResolveOpacity {})
+                    .insert(ResolveElevation {});
             }
         }
+        tree.entity(entity).remove::<ResolveStem>();
     }
 }
 
@@ -153,24 +166,21 @@ pub(crate) fn clear_trigger_signal(
         trigger.0 = false;
     }
 }
-
+#[derive(Component, Copy, Clone, Default)]
+pub struct ResolveElevation {}
 pub(crate) fn dependent_elevation(
     mut check_and_update: ParamSet<(
-        Query<
-            Entity,
-            Or<(
-                Changed<Elevation>,
-                Changed<Stem>,
-                Changed<Dependents>,
-                Changed<RenderLayer>,
-            )>,
-        >,
+        Query<Entity, With<ResolveElevation>>,
         Query<&mut RenderLayer>,
     )>,
     read: Query<(Entity, &Elevation, &Stem, &Dependents)>,
+    mut tree: Tree,
 ) {
     if check_and_update.p0().is_empty() {
         return;
+    }
+    for entity in check_and_update.p0().iter() {
+        tree.entity(entity).remove::<ResolveElevation>();
     }
     let mut updates = HashMap::new();
     for (e, elevation, stem, dependents) in read.iter() {
@@ -298,13 +308,15 @@ impl Default for Visibility {
         Self::new(true)
     }
 }
-
+#[derive(Component, Default, Copy, Clone)]
+pub struct ResolveVisibility {}
 pub(crate) fn recursive_visibility(
     mut query: ParamSet<(
-        Query<(Entity, &Visibility), Changed<Visibility>>,
+        Query<(Entity, &Visibility), With<ResolveVisibility>>,
         Query<&mut Visibility>,
     )>,
     dependents: Query<&Dependents>,
+    mut tree: Tree,
 ) {
     if query.p0().is_empty() {
         return;
@@ -312,6 +324,7 @@ pub(crate) fn recursive_visibility(
     let mut to_check = HashSet::new();
     for (entity, visibility) in query.p0().iter() {
         to_check.insert((entity, *visibility));
+        tree.entity(entity).remove::<ResolveVisibility>();
     }
     let mut updated = HashSet::new();
     for (e, v) in to_check.drain() {

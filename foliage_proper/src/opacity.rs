@@ -1,9 +1,11 @@
 use crate::anim::{Animate, Interpolations};
 use crate::color::Color;
 use crate::leaf::{Dependents, Stem};
+use crate::tree::Tree;
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Changed, Or, ParamSet, Query};
+use bevy_ecs::prelude::{ParamSet, Query};
+use bevy_ecs::query::With;
 
 impl Animate for Opacity {
     fn interpolations(start: &Self, end: &Self) -> Interpolations {
@@ -35,18 +37,21 @@ impl Opacity {
         }
     }
 }
-
+#[derive(Copy, Clone, Component, Default)]
+pub struct ResolveOpacity {}
 pub(crate) fn opacity(
     mut opaque: ParamSet<(
-        Query<Entity, Or<(Changed<Color>, Changed<Opacity>, Changed<Dependents>)>>,
+        Query<Entity, With<ResolveOpacity>>,
         Query<(&Opacity, &Dependents)>,
         Query<&mut Color>,
     )>,
     roots: Query<&Stem>,
+    mut tree: Tree,
 ) {
     let mut to_check = vec![];
     for entity in opaque.p0().iter() {
         to_check.push(entity);
+        tree.entity(entity).remove::<ResolveOpacity>();
     }
     for entity in to_check {
         let inherited = if let Ok(r) = roots.get(entity) {

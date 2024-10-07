@@ -1,8 +1,16 @@
 use crate::anim::{Animate, Animation, AnimationRunner, AnimationTime, Sequence};
+use crate::coordinate::elevation::Elevation;
+use crate::grid::location::GridLocation;
+use crate::grid::resolve::ResolveGridLocation;
+use crate::grid::Grid;
+use crate::leaf::{
+    ChangeStem, Leaf, ResolveElevation, ResolveStem, ResolveVisibility, Stem, Visibility,
+};
+use crate::opacity::{Opacity, ResolveOpacity};
 use crate::time::OnEnd;
 use crate::twig::{Branch, Twig};
 use bevy_ecs::entity::Entity;
-use bevy_ecs::system::Commands;
+use bevy_ecs::system::{Commands, EntityCommands};
 use bevy_ecs::world::World;
 
 pub type Tree<'w, 's> = Commands<'w, 's>;
@@ -12,6 +20,57 @@ pub trait EcsExtension {
         sfn: SFN,
     ) -> Entity;
     fn branch<B: Branch>(&mut self, twig: Twig<B>) -> B::Handle;
+    fn add_leaf<LFN: for<'a> FnOnce(LeafHandle<'a>)>(&mut self, lfn: LFN) -> Entity;
+    fn update_leaf<LFN: for<'a> FnOnce(LeafHandle<'a>)>(&mut self, leaf: Entity, lfn: LFN);
+}
+pub struct LeafHandle<'a> {
+    pub(crate) repr: EntityCommands<'a>,
+    pub(crate) from_add_leaf: bool,
+}
+impl<'a> LeafHandle<'a> {
+    pub fn visibility(mut self, vis: bool) -> Self {
+        self.repr
+            .insert(Visibility::new(vis))
+            .insert(ResolveVisibility {});
+        self
+    }
+    pub fn located(mut self, loc: GridLocation) -> Self {
+        self.repr.insert(loc).insert(ResolveGridLocation {});
+        self
+    }
+    pub fn elevated<E: Into<Elevation>>(mut self, e: E) -> Self {
+        self.repr.insert(e.into()).insert(ResolveElevation {});
+        self
+    }
+    pub fn stem_from(mut self, s: Option<Entity>) -> Self {
+        if !self.from_add_leaf {
+            panic!("please use change-stem to update existing Stem");
+        }
+        self.repr
+            .insert(Stem(s))
+            .insert(ResolveStem {})
+            .insert(ResolveVisibility {})
+            .insert(ResolveGridLocation {})
+            .insert(ResolveElevation {});
+        self
+    }
+    pub fn grid(mut self, grid: Grid) -> Self {
+        self.repr.insert(grid).insert(ResolveGridLocation {});
+        self
+    }
+    pub fn opacity(mut self, opacity: f32) -> Self {
+        self.repr
+            .insert(Opacity::new(opacity))
+            .insert(ResolveOpacity {});
+        self
+    }
+    pub fn change_stem(mut self, stem: Option<Entity>) -> Self {
+        if self.from_add_leaf {
+            panic!("please use stem-from to declare Stem");
+        }
+        self.repr.insert(ChangeStem(stem)).insert(ResolveStem {});
+        self
+    }
 }
 impl<'w, 's> EcsExtension for Tree<'w, 's> {
     fn start_sequence<SFN: FnOnce(&mut SequenceHandle<'_, 'w, 's>)>(&mut self, sfn: SFN) -> Entity {
@@ -31,6 +90,19 @@ impl<'w, 's> EcsExtension for Tree<'w, 's> {
     fn branch<B: Branch>(&mut self, twig: Twig<B>) -> B::Handle {
         B::grow(twig, self)
     }
+    fn add_leaf<LFN: for<'a> FnOnce(LeafHandle<'a>)>(&mut self, lfn: LFN) -> Entity {
+        let id = self.spawn_empty().id();
+        self.entity(id).insert(Leaf::new());
+        self.update_leaf(id, lfn);
+        id
+    }
+    fn update_leaf<LFN: for<'a> FnOnce(LeafHandle<'a>)>(&mut self, leaf: Entity, lfn: LFN) {
+        let leaf_handle = LeafHandle {
+            repr: self.entity(leaf),
+            from_add_leaf: true,
+        };
+        lfn(leaf_handle);
+    }
 }
 impl EcsExtension for World {
     fn start_sequence<SFN: for<'w, 's> FnOnce(&mut SequenceHandle<'_, 'w, 's>)>(
@@ -39,15 +111,21 @@ impl EcsExtension for World {
     ) -> Entity {
         let mut cmds = self.commands();
         let e = cmds.start_sequence(sfn);
-        self.flush();
         e
     }
-
     fn branch<B: Branch>(&mut self, twig: Twig<B>) -> B::Handle {
         let mut cmds = self.commands();
         let h = cmds.branch(twig);
-        self.flush();
         h
+    }
+    fn add_leaf<LFN: for<'a> FnOnce(LeafHandle<'a>)>(&mut self, lfn: LFN) -> Entity {
+        let mut cmds = self.commands();
+        let e = cmds.add_leaf(lfn);
+        e
+    }
+    fn update_leaf<LFN: for<'a> FnOnce(LeafHandle<'a>)>(&mut self, leaf: Entity, lfn: LFN) {
+        let mut cmds = self.commands();
+        cmds.update_leaf(leaf, lfn);
     }
 }
 pub struct SequenceHandle<'a, 'w, 's> {

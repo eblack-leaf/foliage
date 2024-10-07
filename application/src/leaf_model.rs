@@ -1,19 +1,19 @@
 use foliage::anim::Animation;
 use foliage::bevy_ecs::entity::Entity;
 use foliage::bevy_ecs::prelude::{Component, IntoSystemSetConfigs};
-use foliage::bevy_ecs::query::{Changed, Or};
+use foliage::bevy_ecs::query::{Added, Changed, Or};
+use foliage::bevy_ecs::schedule::IntoSystemConfigs;
 use foliage::bevy_ecs::system::Query;
 use foliage::color::{Grey, Monochromatic};
 use foliage::coordinate::area::Area;
 use foliage::coordinate::position::Position;
-use foliage::coordinate::{Coordinates, LogicalContext};
+use foliage::coordinate::LogicalContext;
 use foliage::elm::{Elm, ExternalStage};
 use foliage::grid::aspect::stem;
 use foliage::grid::location::GridLocation;
 use foliage::grid::unit::TokenUnit;
 use foliage::leaf::Leaf;
-use foliage::opacity::Opacity;
-use foliage::shape::line::{Line, LineJoin};
+use foliage::shape::line::Line;
 use foliage::tree::{EcsExtension, Tree};
 use foliage::twig::{Branch, Twig};
 use foliage::{bevy_ecs, schedule_stage, Root};
@@ -32,9 +32,11 @@ impl Root for LeafModel {
         elm.scheduler
             .main
             .configure_sets(LeafModelStage::First.in_set(ExternalStage::Configure));
-        elm.scheduler
-            .main
-            .add_systems(configure_leaf_part.in_set(LeafModelStage::First));
+        elm.scheduler.main.add_systems(
+            (configure_leaf_part, configure_leaf_part_colors)
+                .chain()
+                .in_set(LeafModelStage::First),
+        );
     }
 }
 pub(crate) fn configure_leaf_part(
@@ -47,15 +49,15 @@ pub(crate) fn configure_leaf_part(
         Or<(
             Changed<Position<LogicalContext>>,
             Changed<Area<LogicalContext>>,
+            Added<LeafPartComponent>,
         )>,
     >,
     mut tree: Tree,
 ) {
     for (part, pos, area) in parts.iter_mut() {
-        // divide section into whole 8x8
-        // if no/less sub-entities => spawn how many need
-        // if more sub-entities => remove excess
-        //
+        // divide section into whole 11x11
+        // if no/less sub-entities => spawn how many need + draw-sequence + box-fade-in
+        // if more sub-entities => remove excess => queue_remove
     }
 }
 pub(crate) fn configure_leaf_part_colors(
@@ -75,10 +77,16 @@ impl LeafModel {
     }
 }
 #[derive(Component)]
-pub(crate) struct LeafPartComponent {}
+pub(crate) struct LeafPartComponent {
+    pub(crate) lines: Vec<Entity>,
+    pub(crate) boxes: Vec<Entity>,
+}
 impl LeafPartComponent {
     pub(crate) fn new() -> Self {
-        Self {}
+        Self {
+            lines: vec![],
+            boxes: vec![],
+        }
     }
 }
 pub(crate) struct LeafPartModel {}
@@ -86,8 +94,8 @@ impl Branch for LeafPartModel {
     type Handle = Entity;
     fn grow(twig: Twig<Self>, tree: &mut Tree) -> Self::Handle {
         let root = tree.spawn_empty().id();
-        // start stem line sequence
-        // on-end => spawn leaf-parts with correct values
+        // start part-stem-line sequence
+        // spawn leaf-part-components on root with correct values
         root
     }
 }

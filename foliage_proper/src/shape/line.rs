@@ -30,7 +30,7 @@ impl Root for Line {
     fn attach(elm: &mut Elm) {
         elm.scheduler
             .main
-            .add_systems(distill_descriptor.in_set(InternalStage::Prepare));
+            .add_systems(distill_descriptor.in_set(InternalStage::Resolve));
     }
 }
 #[derive(Bundle)]

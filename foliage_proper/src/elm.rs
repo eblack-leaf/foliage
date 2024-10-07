@@ -220,10 +220,10 @@ impl Elm {
                 InternalStage::Apply,
                 ExternalStage::Action,
                 InternalStage::Clean,
-                InternalStage::Location,
+                InternalStage::DeclarativeLocationPass,
                 ExternalStage::Configure,
                 InternalStage::SecondClean,
-                InternalStage::Prepare,
+                InternalStage::ReactiveLocationPass,
                 InternalStage::Resolve,
                 InternalStage::FinalizeCoordinate,
                 InternalStage::Differential,
@@ -234,26 +234,24 @@ impl Elm {
         self.scheduler.main.add_systems((
             event_update_system.in_set(InternalStage::External),
             (viewport_changes_layout, await_assets, navigate).in_set(InternalStage::External),
-            (change_stem, update_stem_deps)
+            (
+                (change_stem, update_stem_deps).chain(),
+                (recursive_removal, recursive_visibility),
+                (crate::leaf::remove, interaction_enable),
+            )
                 .chain()
-                .in_set(InternalStage::Clean)
-                .before(recursive_removal)
-                .before(recursive_visibility),
-            (recursive_removal, recursive_visibility)
-                .in_set(InternalStage::Clean)
-                .before(crate::leaf::remove),
-            (crate::leaf::remove, interaction_enable).in_set(InternalStage::Clean),
-            (resolve_grid_locations, dependent_elevation, opacity).in_set(InternalStage::Location),
-            (change_stem, update_stem_deps)
+                .in_set(InternalStage::Clean),
+            (resolve_grid_locations, dependent_elevation, opacity)
+                .in_set(InternalStage::DeclarativeLocationPass),
+            (
+                (change_stem, update_stem_deps).chain(),
+                (recursive_removal, recursive_visibility),
+                (crate::leaf::remove, interaction_enable),
+            )
                 .chain()
-                .in_set(InternalStage::SecondClean)
-                .before(recursive_removal)
-                .before(recursive_visibility),
-            (recursive_removal, recursive_visibility)
-                .in_set(InternalStage::SecondClean)
-                .before(crate::leaf::remove),
-            (crate::leaf::remove, interaction_enable).in_set(InternalStage::SecondClean),
-            (opacity, dependent_elevation).in_set(InternalStage::Prepare),
+                .in_set(InternalStage::SecondClean),
+            (opacity, dependent_elevation, resolve_grid_locations)
+                .in_set(InternalStage::ReactiveLocationPass),
             pull_clipping_section.in_set(InternalStage::FinalizeCoordinate),
             clear_trigger_signal.in_set(InternalStage::Finish),
         ));
@@ -272,18 +270,18 @@ impl Elm {
                 .before(InternalStage::Clean),
             apply_deferred
                 .after(InternalStage::Clean)
-                .before(InternalStage::Location),
+                .before(InternalStage::DeclarativeLocationPass),
             apply_deferred
-                .after(InternalStage::Location)
+                .after(InternalStage::DeclarativeLocationPass)
                 .before(ExternalStage::Configure),
             apply_deferred
                 .after(ExternalStage::Configure)
                 .before(InternalStage::SecondClean),
             apply_deferred
                 .after(InternalStage::SecondClean)
-                .before(InternalStage::Prepare),
+                .before(InternalStage::ReactiveLocationPass),
             apply_deferred
-                .after(InternalStage::Prepare)
+                .after(InternalStage::ReactiveLocationPass)
                 .before(InternalStage::Resolve),
             apply_deferred
                 .after(InternalStage::Resolve)
@@ -360,10 +358,10 @@ pub enum InternalStage {
     Apply,
     // Action
     Clean,
-    Location,
+    DeclarativeLocationPass,
     // Configure
     SecondClean,
-    Prepare,
+    ReactiveLocationPass,
     Resolve,
     FinalizeCoordinate,
     Differential,

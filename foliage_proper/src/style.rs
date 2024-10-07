@@ -6,17 +6,15 @@ use bevy_ecs::system::{ParamSet, Query};
 use crate::color::Color;
 use crate::elm::{Elm, InternalStage};
 use crate::interaction::ClickInteractionListener;
-use crate::opacity::opacity;
 use crate::Root;
 
 pub(crate) struct Style;
 impl Root for Style {
     fn attach(elm: &mut Elm) {
-        elm.scheduler.main.add_systems(
-            alternate_color_on_engage
-                .in_set(InternalStage::Prepare)
-                .before(opacity),
-        );
+        elm.scheduler.main.add_systems((
+            alternate_color_on_engage.in_set(InternalStage::Clean),
+            alternate_color_on_engage.in_set(InternalStage::SecondClean),
+        ));
     }
 }
 #[derive(Component, Clone)]

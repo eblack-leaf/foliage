@@ -9,28 +9,22 @@ use crate::grid::location::GridLocation;
 use crate::grid::Grid;
 use crate::layout::{Layout, LayoutGrid};
 use crate::leaf::{Dependents, Stem};
+use crate::tree::Tree;
 use bevy_ecs::change_detection::{DetectChanges, Res, ResMut};
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Changed, Or, ParamSet, Query};
+use bevy_ecs::prelude::{Component, ParamSet, Query};
+use bevy_ecs::query::With;
 use ordermap::OrderSet;
 use std::collections::HashMap;
 
 pub(crate) struct ReferentialOrderDeterminant {
     chain: OrderSet<Entity>,
 }
-
+#[derive(Default, Component, Copy, Clone)]
+pub struct ResolveGridLocation {}
 pub(crate) fn resolve_grid_locations(
     mut check_read_and_update: ParamSet<(
-        Query<
-            Entity,
-            Or<(
-                Changed<GridLocation>,
-                Changed<Grid>,
-                Changed<Stem>,
-                Changed<Position<LogicalContext>>,
-                Changed<Area<LogicalContext>>,
-            )>,
-        >,
+        Query<Entity, With<ResolveGridLocation>>,
         Query<(
             Entity,
             &Stem,
@@ -51,6 +45,7 @@ pub(crate) fn resolve_grid_locations(
     viewport_handle: ResMut<ViewportHandle>,
     layout_grid: Res<LayoutGrid>,
     layout: Res<Layout>,
+    mut tree: Tree,
 ) {
     if check_read_and_update.p0().is_empty() && !layout_grid.is_changed() {
         return;
@@ -58,6 +53,7 @@ pub(crate) fn resolve_grid_locations(
     let mut check = vec![];
     for e in check_read_and_update.p0().iter() {
         check.push(e);
+        tree.entity(e).remove::<ResolveGridLocation>();
     }
     let mut ref_context = ReferentialContext::new(viewport_handle.section(), layout_grid.grid);
     let read = check_read_and_update.p1();
@@ -67,6 +63,7 @@ pub(crate) fn resolve_grid_locations(
         }
     }
     for e in check {
+        println!("resolving: {:?}", e);
         ref_context.resolve_leaf(e, &read, *layout);
     }
     let updates = ref_context.updates();
