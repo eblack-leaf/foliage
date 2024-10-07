@@ -10,9 +10,11 @@ use crate::leaf::{
 use crate::opacity::{Opacity, ResolveOpacity};
 use crate::time::OnEnd;
 use crate::twig::{Branch, Twig};
+use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::system::{Commands, EntityCommands};
 use bevy_ecs::world::World;
+use std::any::TypeId;
 
 pub type Tree<'w, 's> = Commands<'w, 's>;
 pub trait EcsExtension {
@@ -30,25 +32,21 @@ pub struct LeafHandle<'a> {
     pub(crate) from_add_leaf: bool,
 }
 impl<'a> LeafHandle<'a> {
-    pub fn visibility(mut self, vis: bool) -> Self {
+    pub fn visibility(&mut self, vis: bool) {
         self.repr
             .insert(Visibility::new(vis))
             .insert(ResolveVisibility {});
-        self
     }
-    pub fn located(mut self, loc: GridLocation) -> Self {
+    pub fn located(&mut self, loc: GridLocation) {
         self.repr.insert(loc).insert(ResolveGridLocation {});
-        self
     }
-    pub fn elevated<E: Into<Elevation>>(mut self, e: E) -> Self {
+    pub fn elevated<E: Into<Elevation>>(&mut self, e: E) {
         self.repr.insert(e.into()).insert(ResolveElevation {});
-        self
     }
-    pub fn color<C: Into<Color>>(mut self, c: C) -> Self {
+    pub fn color<C: Into<Color>>(&mut self, c: C) {
         self.repr.insert(c.into()).insert(ResolveOpacity {});
-        self
     }
-    pub fn stem_from(mut self, s: Option<Entity>) -> Self {
+    pub fn stem_from(&mut self, s: Option<Entity>) {
         if !self.from_add_leaf {
             panic!("please use change-stem to update existing Stem");
         }
@@ -59,24 +57,44 @@ impl<'a> LeafHandle<'a> {
             .insert(ResolveGridLocation {})
             .insert(ResolveElevation {})
             .insert(ResolveOpacity {});
-        self
     }
-    pub fn grid(mut self, grid: Grid) -> Self {
+    pub fn grid(&mut self, grid: Grid) {
         self.repr.insert(grid).insert(ResolveGridLocation {});
-        self
     }
-    pub fn opacity(mut self, opacity: f32) -> Self {
+    pub fn opacity(&mut self, opacity: f32) {
         self.repr
             .insert(Opacity::new(opacity))
             .insert(ResolveOpacity {});
-        self
     }
-    pub fn change_stem(mut self, stem: Option<Entity>) -> Self {
+    pub fn change_stem(&mut self, stem: Option<Entity>) {
         if self.from_add_leaf {
             panic!("please use stem-from to declare Stem");
         }
         self.repr.insert(ChangeStem(stem)).insert(ResolveStem {});
-        self
+    }
+    pub fn give<A: Bundle>(&mut self, a: A) {
+        if TypeId::of::<A>() == TypeId::of::<Color>() {
+            panic!("please use LeafHandle::color to update Color");
+        }
+        if TypeId::of::<A>() == TypeId::of::<Opacity>() {
+            panic!("please use LeafHandle::opacity to update Opacity");
+        }
+        if TypeId::of::<A>() == TypeId::of::<Stem>() {
+            panic!("please use LeafHandle::stem_from / LeafHandle::change_stem to update Stem");
+        }
+        if TypeId::of::<A>() == TypeId::of::<GridLocation>() {
+            panic!("please use LeafHandle::located to update GridLocation");
+        }
+        if TypeId::of::<A>() == TypeId::of::<Visibility>() {
+            panic!("please use LeafHandle::visibility to update Visibility");
+        }
+        if TypeId::of::<A>() == TypeId::of::<Elevation>() {
+            panic!("please use LeafHandle::elevated to update Elevation");
+        }
+        if TypeId::of::<A>() == TypeId::of::<Grid>() {
+            panic!("please use LeafHandle::grid to update Grid");
+        }
+        self.repr.insert(a);
     }
 }
 impl<'w, 's> EcsExtension for Tree<'w, 's> {
