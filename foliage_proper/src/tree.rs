@@ -99,14 +99,18 @@ impl<'w, 's> EcsExtension for Tree<'w, 's> {
     }
     fn add_leaf<LFN: for<'a> FnOnce(LeafHandle<'a>)>(&mut self, lfn: LFN) -> Entity {
         let id = self.spawn_empty().id();
-        self.entity(id).insert(Leaf::new());
-        self.update_leaf(id, lfn);
+        self.entity(id).insert(Leaf::default());
+        let leaf_handle = LeafHandle {
+            repr: self.entity(id),
+            from_add_leaf: true,
+        };
+        lfn(leaf_handle);
         id
     }
     fn update_leaf<LFN: for<'a> FnOnce(LeafHandle<'a>)>(&mut self, leaf: Entity, lfn: LFN) {
         let leaf_handle = LeafHandle {
             repr: self.entity(leaf),
-            from_add_leaf: true,
+            from_add_leaf: false,
         };
         lfn(leaf_handle);
     }

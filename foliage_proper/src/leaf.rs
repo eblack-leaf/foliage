@@ -37,39 +37,6 @@ pub(crate) struct Leaf {
     rg: ResolveGridLocation,
     points: Points<LogicalContext>,
 }
-impl Leaf {
-    pub(crate) fn new() -> Self {
-        Self::default()
-    }
-    pub(crate) fn stem_from(mut self, e: Option<Entity>) -> Self {
-        self.stem.0 = e;
-        self
-    }
-    pub(crate) fn elevation<E: Into<Elevation>>(mut self, e: E) -> Self {
-        self.elevation = e.into();
-        self
-    }
-    pub(crate) fn visible(mut self, vis: bool) -> Self {
-        self.visibility.visible = vis;
-        self
-    }
-    pub(crate) fn opacity(mut self, opacity: Opacity) -> Self {
-        self.opacity = opacity;
-        self
-    }
-    pub(crate) fn grid(mut self, grid: Grid) -> Self {
-        self.grid = grid;
-        self
-    }
-    pub(crate) fn clipping_context(mut self, cc: ClippingContext) -> Self {
-        self.clipping_context = cc;
-        self
-    }
-    pub(crate) fn at(mut self, p: Placement<LogicalContext>) -> Self {
-        self.placement = p;
-        self
-    }
-}
 #[derive(Component)]
 pub struct InteractionsEnabled(pub bool);
 pub(crate) fn interaction_enable(
