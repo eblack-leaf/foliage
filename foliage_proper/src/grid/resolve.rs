@@ -63,7 +63,6 @@ pub(crate) fn resolve_grid_locations(
         }
     }
     for e in check {
-        println!("resolving: {:?}", e);
         ref_context.resolve_leaf(e, &read, *layout);
     }
     let updates = ref_context.updates();

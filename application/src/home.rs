@@ -79,7 +79,7 @@ impl Branch for Home {
                 .outline(1),
             )
             .elevation(4)
-            .located(
+            .location(
                 GridLocation::new()
                     .width(250.px())
                     .height(50.px())
@@ -87,8 +87,9 @@ impl Branch for Home {
                     .top(10.px()),
             ),
         );
-        tree.entity(concepts_button.panel)
-            .insert(Visibility::new(true));
+        tree.update_leaf(concepts_button.panel, |l| {
+            l.visibility(false);
+        });
         let usage_button = tree.branch(Twig::new(
             Button::args(
                 IconHandles::Usage,
@@ -98,18 +99,19 @@ impl Branch for Home {
             .with_text("USAGE", FontSize::new(14)),
         ));
         let name = tree.spawn_empty().id();
-        tree.entity(name)
-            .insert(Leaf::new().elevation(1))
-            .insert(Text::new("FOLIAGE", FontSize::new(60), Grey::plus_three()))
-            .insert(
+        let name = tree.add_leaf(|l| {
+            l.elevation(1);
+            l.location(
                 GridLocation::new()
                     .center_x(screen().center_x())
                     .center_y(25.percent().height().from(screen()))
                     .width(75.percent().width().of(screen()))
                     .height(64.px()),
             );
+            l.give(Text::new("FOLIAGE", FontSize::new(60), Grey::plus_three()));
+        });
         let leaf_model = tree.branch(
-            Twig::new(LeafModel::args()).elevation(10).located(
+            Twig::new(LeafModel::args()).elevation(10).location(
                 GridLocation::new()
                     .left(screen().left())
                     .top(screen().top())

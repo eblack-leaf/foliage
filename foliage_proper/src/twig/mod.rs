@@ -23,7 +23,7 @@ impl<T> Twig<T> {
         self.elevation = e.into();
         self
     }
-    pub fn located<GL: Into<GridLocation>>(mut self, gl: GL) -> Self {
+    pub fn location<GL: Into<GridLocation>>(mut self, gl: GL) -> Self {
         self.location = gl.into();
         self
     }

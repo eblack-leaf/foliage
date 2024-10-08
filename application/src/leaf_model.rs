@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use foliage::anim::Animation;
 use foliage::bevy_ecs::entity::Entity;
 use foliage::bevy_ecs::prelude::{Component, IntoSystemSetConfigs};
@@ -16,6 +17,7 @@ use foliage::shape::line::Line;
 use foliage::tree::{EcsExtension, Tree};
 use foliage::twig::{Branch, Twig};
 use foliage::{bevy_ecs, schedule_stage, Root};
+use foliage::coordinate::section::Section;
 
 pub(crate) struct LeafModel {
     pub(crate) this: Entity,
@@ -55,6 +57,27 @@ pub(crate) fn configure_leaf_part(
 ) {
     for (part, pos, area) in parts.iter_mut() {
         // divide section into whole 11x11
+        let section = Section::new(*pos, (*area - (8, 8).into()).max((0, 0).into()));
+        let num_regions = (section.area / (11, 11).into()).floored().coordinates;
+        for x in num_regions.horizontal() as i32 {
+            let x_identifier = LineIdentifier::X(x);
+            if !part.lines_present.contains(&x_identifier) {
+                // spawn
+            }
+            for y in num_regions.vertical() as i32 {
+                let y_identifier = LineIdentifier::Y(y);
+                if !part.lines_present.contains(&y_identifier) {
+                    // spawn
+                }
+                let box_identifier = BoxIdentifier {
+                    x,
+                    y,
+                };
+                if !part.boxes_present.contains(&box_identifier) {
+                    // spawn
+                }
+            }
+        }
         // if no/less sub-entities => spawn how many need + draw-sequence + box-fade-in
         // if more sub-entities => remove excess => queue_remove
     }
@@ -79,12 +102,26 @@ impl LeafModel {
 pub(crate) struct LeafPartComponent {
     pub(crate) lines: Vec<Entity>,
     pub(crate) boxes: Vec<Entity>,
+    pub(crate) lines_present: HashSet<LineIdentifier>,
+    pub(crate) boxes_present: HashSet<BoxIdentifier>
+}
+#[derive(Hash, Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Debug)]
+pub(crate) struct BoxIdentifier {
+    pub(crate) x: i32,
+    pub(crate) y: i32,
+}
+#[derive(Hash, Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Debug)]
+pub(crate) enum LineIdentifier {
+    X(i32),
+    Y(i32)
 }
 impl LeafPartComponent {
     pub(crate) fn new() -> Self {
         Self {
             lines: vec![],
             boxes: vec![],
+            lines_present: Default::default(),
+            boxes_present: Default::default(),
         }
     }
 }
@@ -101,15 +138,16 @@ impl Branch for LeafPartModel {
 impl Branch for LeafModelArgs {
     type Handle = LeafModel;
     fn grow(twig: Twig<Self>, tree: &mut Tree) -> Self::Handle {
-        let this = tree
-            .spawn(Leaf::new().elevation(twig.elevation).stem_from(twig.stem))
-            .insert(twig.location)
-            .id();
+        let this = tree.add_leaf(|l| {
+            l.elevation(twig.elevation);
+            l.stem_from(twig.stem);
+            l.location(twig.location);
+        });
         let one = tree.branch(
             Twig::new(LeafPartModel {})
                 .elevation(-1)
                 .stem_from(this)
-                .located(
+                .location(
                     GridLocation::new()
                         .left(50.percent().width().from(stem()))
                         .top(5.percent().height().from(stem()))
@@ -121,7 +159,7 @@ impl Branch for LeafModelArgs {
             Twig::new(LeafPartModel {})
                 .elevation(-1)
                 .stem_from(this)
-                .located(
+                .location(
                     GridLocation::new()
                         .left(5.percent().width().from(stem()))
                         .top(35.percent().height().from(stem()))
@@ -133,7 +171,7 @@ impl Branch for LeafModelArgs {
             Twig::new(LeafPartModel {})
                 .elevation(-1)
                 .stem_from(this)
-                .located(
+                .location(
                     GridLocation::new()
                         .left(50.percent().width().from(stem()))
                         .top(75.percent().height().from(stem()))
@@ -141,17 +179,18 @@ impl Branch for LeafModelArgs {
                         .bottom(95.percent().height().from(stem())),
                 ),
         );
-        let stem_line = tree
-            .spawn(Leaf::new().elevation(-1).stem_from(Some(this)))
-            .insert(Line::new(STEM_LINE_WEIGHT, Grey::plus_three()))
-            .insert(
+        let stem_line = tree.add_leaf(|l| {
+            l.elevation(-1);
+            l.stem_from(Some(this));
+            l.location(
                 GridLocation::new()
                     .point_ax(stem().center_x())
                     .point_ay(5.percent().from(stem()))
                     .point_bx(stem().center_x())
                     .point_by(5.percent().from(stem())),
-            )
-            .id();
+            );
+            l.give(Line::new(STEM_LINE_WEIGHT, Grey::plus_three()));
+        });
         tree.start_sequence(|seq| {
             seq.animate(
                 Animation::new(
