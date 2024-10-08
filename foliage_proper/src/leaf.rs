@@ -6,7 +6,6 @@ use crate::coordinate::placement::Placement;
 use crate::coordinate::points::Points;
 use crate::coordinate::LogicalContext;
 use crate::differential::{RenderLink, RenderRemoveQueue};
-use crate::grid::location::GridLocation;
 use crate::grid::resolve::ResolveGridLocation;
 use crate::grid::Grid;
 use crate::interaction::ClickInteractionListener;
@@ -36,7 +35,6 @@ pub(crate) struct Leaf {
     clipping_context: ClippingContext,
     grid: Grid,
     rg: ResolveGridLocation,
-    grid_location: GridLocation,
     points: Points<LogicalContext>,
 }
 #[derive(Component)]

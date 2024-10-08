@@ -181,6 +181,9 @@ impl ReferentialContext {
                 .insert(current.0, ReferentialData::new(res, *current.4));
         }
         for dep in current.2 .0.iter() {
+            if read.get(*dep).is_err() {
+                continue;
+            }
             let dep_set = self.recursive_chain(*dep, read, layout);
             set.extend(dep_set);
         }
