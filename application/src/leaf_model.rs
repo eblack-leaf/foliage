@@ -41,7 +41,7 @@ impl Root for LeafModel {
         );
     }
 }
-pub(crate) const REGION_AREA: Coordinates = Coordinates::new(40.0, 40.0);
+pub(crate) const REGION_AREA: Coordinates = Coordinates::new(30.0, 30.0);
 pub(crate) fn configure_leaf_part(
     mut parts: Query<
         (
@@ -147,8 +147,8 @@ pub(crate) fn configure_leaf_part(
                                             + (REGION_AREA.horizontal() / 2f32) as i32)
                                             .px(),
                                 )
-                                .width(34.px())
-                                .height(34.px()),
+                                .width(24.px())
+                                .height(24.px()),
                         );
                     },
                 );
