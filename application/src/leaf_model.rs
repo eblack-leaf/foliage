@@ -57,14 +57,14 @@ pub(crate) fn configure_leaf_part(
 ) {
     for (part, pos, area) in parts.iter_mut() {
         // divide section into whole 11x11
-        let section = Section::new(*pos, (*area - (8, 8).into()).max((0, 0).into()));
+        let section = Section::new(*pos, (*area - (8, 8).into()).max((0, 0)));
         let num_regions = (section.area / (11, 11).into()).floored().coordinates;
-        for x in num_regions.horizontal() as i32 {
+        for x in 0..num_regions.horizontal() as i32 {
             let x_identifier = LineIdentifier::X(x);
             if !part.lines_present.contains(&x_identifier) {
                 // spawn
             }
-            for y in num_regions.vertical() as i32 {
+            for y in 0..num_regions.vertical() as i32 {
                 let y_identifier = LineIdentifier::Y(y);
                 if !part.lines_present.contains(&y_identifier) {
                     // spawn
