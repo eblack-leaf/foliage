@@ -1,13 +1,13 @@
-use std::collections::{HashMap, HashSet};
 use foliage::anim::Animation;
 use foliage::bevy_ecs::entity::Entity;
 use foliage::bevy_ecs::prelude::{Component, IntoSystemSetConfigs};
 use foliage::bevy_ecs::query::{Added, Changed, Or};
 use foliage::bevy_ecs::schedule::IntoSystemConfigs;
 use foliage::bevy_ecs::system::Query;
-use foliage::color::{Grey, Monochromatic};
+use foliage::color::{Grey, Monochromatic, Orange};
 use foliage::coordinate::area::Area;
 use foliage::coordinate::position::Position;
+use foliage::coordinate::section::Section;
 use foliage::coordinate::LogicalContext;
 use foliage::elm::{Elm, ExternalStage};
 use foliage::grid::aspect::stem;
@@ -17,7 +17,8 @@ use foliage::shape::line::Line;
 use foliage::tree::{EcsExtension, Tree};
 use foliage::twig::{Branch, Twig};
 use foliage::{bevy_ecs, schedule_stage, Root};
-use foliage::coordinate::section::Section;
+use std::collections::{HashMap, HashSet};
+use foliage::panel::{Panel, Rounding};
 
 pub(crate) struct LeafModel {
     pub(crate) this: Entity,
@@ -71,14 +72,18 @@ pub(crate) fn configure_leaf_part(
                 });
                 part.lines_present.insert(x_identifier, e);
             }
-            tree.update_leaf(part.lines_present.get(&x_identifier).copied().unwrap(), |l| {
-                l.location(GridLocation::new()
-                    .point_ax(stem().left() + (x * 11).px())
-                    .point_ay(stem().top() + 0.px())
-                    .point_bx(stem().left() + (x * 11).px())
-                    .point_by(stem().top() + (11 * num_regions.vertical() as i32).px())
-                );
-            });
+            tree.update_leaf(
+                part.lines_present.get(&x_identifier).copied().unwrap(),
+                |l| {
+                    l.location(
+                        GridLocation::new()
+                            .point_ax(stem().left() + (x * 11).px())
+                            .point_ay(stem().top() + 0.px())
+                            .point_bx(stem().left() + (x * 11).px())
+                            .point_by(stem().top() + (11 * num_regions.vertical() as i32).px()),
+                    );
+                },
+            );
             for y in 0..num_regions.vertical() as i32 {
                 let y_identifier = LineIdentifier::Y(y);
                 if !part.lines_present.contains_key(&y_identifier) {
@@ -93,21 +98,39 @@ pub(crate) fn configure_leaf_part(
                 tree.update_leaf(
                     part.lines_present.get(&y_identifier).copied().unwrap(),
                     |l| {
-                        l.location(GridLocation::new()
-                            .point_ax(stem().left() + 0.px())
-                            .point_ay(stem().top() + (y * 11).px())
-                            .point_bx(stem().left() + (11 * num_regions.horizontal() as i32).px())
-                            .point_by(stem().top() + (y * 11).px())
+                        l.location(
+                            GridLocation::new()
+                                .point_ax(stem().left() + 0.px())
+                                .point_ay(stem().top() + (y * 11).px())
+                                .point_bx(
+                                    stem().left() + (11 * num_regions.horizontal() as i32).px(),
+                                )
+                                .point_by(stem().top() + (y * 11).px()),
+                        );
+                    },
+                );
+                let box_identifier = BoxIdentifier { x, y };
+                if !part.boxes_present.contains_key(&box_identifier) {
+                    // spawn
+                    let e = tree.add_leaf(|l| {
+                       l.stem_from(Some(entity));
+                        l.elevation(-1);
+                        l.give(Panel::new(Rounding::all(0.0), Orange::minus_one()));
+                    });
+                    part.boxes_present.insert(box_identifier, e);
+                }
+                tree.update_leaf(
+                    part.boxes_present.get(&box_identifier).copied().unwrap(),
+                    |l| {
+                        l.location(
+                            GridLocation::new()
+                                .center_x(stem().left() + (11 * x + 6).px())
+                                .center_y(stem().top() + (11 * y + 6).px())
+                                .width(7.px())
+                                .height(7.px())
                         );
                     }
                 );
-                let box_identifier = BoxIdentifier {
-                    x,
-                    y,
-                };
-                if !part.boxes_present.contains_key(&box_identifier) {
-                    // spawn
-                }
             }
         }
         // if no/less sub-entities => spawn how many need + draw-sequence + box-fade-in
@@ -133,7 +156,7 @@ impl LeafModel {
 #[derive(Component)]
 pub(crate) struct LeafPartComponent {
     pub(crate) lines_present: HashMap<LineIdentifier, Entity>,
-    pub(crate) boxes_present: HashMap<BoxIdentifier, Entity>
+    pub(crate) boxes_present: HashMap<BoxIdentifier, Entity>,
 }
 #[derive(Hash, Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Debug)]
 pub(crate) struct BoxIdentifier {
@@ -143,7 +166,7 @@ pub(crate) struct BoxIdentifier {
 #[derive(Hash, Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Debug)]
 pub(crate) enum LineIdentifier {
     X(i32),
-    Y(i32)
+    Y(i32),
 }
 impl LeafPartComponent {
     pub(crate) fn new() -> Self {
