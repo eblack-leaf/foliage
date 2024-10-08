@@ -3,6 +3,7 @@ use foliage::tree::EcsExtension;
 use foliage::twig::Twig;
 use foliage::Foliage;
 use home::{EventTest, Home};
+use crate::leaf_model::LeafModel;
 
 mod home;
 mod icon;
@@ -28,5 +29,6 @@ fn main() {
     let model = foliage.ecs().branch(Twig::new(Home {}));
     foliage.insert_resource(model);
     foliage.attach_root::<Home>();
+    foliage.attach_root::<LeafModel>();
     foliage.photosynthesize();
 }

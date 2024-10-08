@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use foliage::anim::Animation;
 use foliage::bevy_ecs::entity::Entity;
 use foliage::bevy_ecs::prelude::{Component, IntoSystemSetConfigs};
@@ -43,6 +43,7 @@ impl Root for LeafModel {
 pub(crate) fn configure_leaf_part(
     mut parts: Query<
         (
+            Entity,
             &mut LeafPartComponent,
             &Position<LogicalContext>,
             &Area<LogicalContext>,
@@ -55,25 +56,56 @@ pub(crate) fn configure_leaf_part(
     >,
     mut tree: Tree,
 ) {
-    for (part, pos, area) in parts.iter_mut() {
+    for (entity, mut part, pos, area) in parts.iter_mut() {
         // divide section into whole 11x11
         let section = Section::new(*pos, (*area - (8, 8).into()).max((0, 0)));
         let num_regions = (section.area / (11, 11).into()).floored().coordinates;
         for x in 0..num_regions.horizontal() as i32 {
             let x_identifier = LineIdentifier::X(x);
-            if !part.lines_present.contains(&x_identifier) {
+            if !part.lines_present.contains_key(&x_identifier) {
                 // spawn
+                let e = tree.add_leaf(|l| {
+                    l.stem_from(Some(entity));
+                    l.elevation(-1);
+                    l.give(Line::new(BRANCH_GRID_WEIGHT, Grey::plus_three()));
+                });
+                part.lines_present.insert(x_identifier, e);
             }
+            tree.update_leaf(part.lines_present.get(&x_identifier).copied().unwrap(), |l| {
+                l.location(GridLocation::new()
+                    .point_ax(stem().left() + (x * 11).px())
+                    .point_ay(stem().top() + 0.px())
+                    .point_bx(stem().left() + (x * 11).px())
+                    .point_by(stem().top() + (11 * num_regions.vertical() as i32).px())
+                );
+            });
             for y in 0..num_regions.vertical() as i32 {
                 let y_identifier = LineIdentifier::Y(y);
-                if !part.lines_present.contains(&y_identifier) {
+                if !part.lines_present.contains_key(&y_identifier) {
                     // spawn
+                    let e = tree.add_leaf(|l| {
+                        l.stem_from(Some(entity));
+                        l.elevation(-1);
+                        l.give(Line::new(BRANCH_GRID_WEIGHT, Grey::plus_three()));
+                    });
+                    part.lines_present.insert(y_identifier, e);
                 }
+                tree.update_leaf(
+                    part.lines_present.get(&y_identifier).copied().unwrap(),
+                    |l| {
+                        l.location(GridLocation::new()
+                            .point_ax(stem().left() + 0.px())
+                            .point_ay(stem().top() + (y * 11).px())
+                            .point_bx(stem().left() + (11 * num_regions.horizontal() as i32).px())
+                            .point_by(stem().top() + (y * 11).px())
+                        );
+                    }
+                );
                 let box_identifier = BoxIdentifier {
                     x,
                     y,
                 };
-                if !part.boxes_present.contains(&box_identifier) {
+                if !part.boxes_present.contains_key(&box_identifier) {
                     // spawn
                 }
             }
@@ -100,10 +132,8 @@ impl LeafModel {
 }
 #[derive(Component)]
 pub(crate) struct LeafPartComponent {
-    pub(crate) lines: Vec<Entity>,
-    pub(crate) boxes: Vec<Entity>,
-    pub(crate) lines_present: HashSet<LineIdentifier>,
-    pub(crate) boxes_present: HashSet<BoxIdentifier>
+    pub(crate) lines_present: HashMap<LineIdentifier, Entity>,
+    pub(crate) boxes_present: HashMap<BoxIdentifier, Entity>
 }
 #[derive(Hash, Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Debug)]
 pub(crate) struct BoxIdentifier {
@@ -118,8 +148,6 @@ pub(crate) enum LineIdentifier {
 impl LeafPartComponent {
     pub(crate) fn new() -> Self {
         Self {
-            lines: vec![],
-            boxes: vec![],
             lines_present: Default::default(),
             boxes_present: Default::default(),
         }
@@ -129,7 +157,12 @@ pub(crate) struct LeafPartModel {}
 impl Branch for LeafPartModel {
     type Handle = Entity;
     fn grow(twig: Twig<Self>, tree: &mut Tree) -> Self::Handle {
-        let root = tree.spawn_empty().id();
+        let root = tree.add_leaf(|leaf| {
+            leaf.elevation(-1);
+            leaf.stem_from(twig.stem);
+            leaf.location(twig.location);
+            leaf.give(LeafPartComponent::new());
+        });
         // start part-stem-line sequence
         // spawn leaf-part-components on root with correct values
         root
