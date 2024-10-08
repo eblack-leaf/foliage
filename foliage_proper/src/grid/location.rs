@@ -10,7 +10,7 @@ use crate::layout::Layout;
 use bevy_ecs::component::Component;
 use std::collections::HashMap;
 
-#[derive(Clone, Component)]
+#[derive(Clone, Component, Default)]
 pub struct GridLocation {
     configurations: HashMap<AspectConfiguration, LocationAspect>,
     exceptions: HashMap<GridLocationException, LocationAspect>,
@@ -220,6 +220,9 @@ impl GridLocation {
         }
         if let Some(pts) = resolution.points.as_mut() {
             resolution.section = pts.bbox();
+        }
+        if self.configurations.is_empty() {
+            return None;
         }
         Some(resolution)
     }
