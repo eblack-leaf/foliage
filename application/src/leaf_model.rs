@@ -8,17 +8,17 @@ use foliage::color::{Grey, Monochromatic, Orange};
 use foliage::coordinate::area::Area;
 use foliage::coordinate::position::Position;
 use foliage::coordinate::section::Section;
-use foliage::coordinate::LogicalContext;
+use foliage::coordinate::{Coordinates, LogicalContext};
 use foliage::elm::{Elm, ExternalStage};
 use foliage::grid::aspect::stem;
 use foliage::grid::location::GridLocation;
 use foliage::grid::unit::TokenUnit;
+use foliage::panel::{Panel, Rounding};
 use foliage::shape::line::Line;
 use foliage::tree::{EcsExtension, Tree};
 use foliage::twig::{Branch, Twig};
 use foliage::{bevy_ecs, schedule_stage, Root};
-use std::collections::{HashMap, HashSet};
-use foliage::panel::{Panel, Rounding};
+use std::collections::HashMap;
 
 pub(crate) struct LeafModel {
     pub(crate) this: Entity,
@@ -41,6 +41,7 @@ impl Root for LeafModel {
         );
     }
 }
+pub(crate) const REGION_AREA: Coordinates = Coordinates::new(40.0, 40.0);
 pub(crate) fn configure_leaf_part(
     mut parts: Query<
         (
@@ -60,7 +61,7 @@ pub(crate) fn configure_leaf_part(
     for (entity, mut part, pos, area) in parts.iter_mut() {
         // divide section into whole 11x11
         let section = Section::new(*pos, (*area - (8, 8).into()).max((0, 0)));
-        let num_regions = (section.area / (11, 11).into()).floored().coordinates;
+        let num_regions = (section.area / REGION_AREA.into()).floored().coordinates;
         for x in 0..num_regions.horizontal() as i32 {
             let x_identifier = LineIdentifier::X(x);
             if !part.lines_present.contains_key(&x_identifier) {
@@ -77,10 +78,15 @@ pub(crate) fn configure_leaf_part(
                 |l| {
                     l.location(
                         GridLocation::new()
-                            .point_ax(stem().left() + (x * 11).px())
+                            .point_ax(stem().left() + (x * REGION_AREA.horizontal() as i32).px())
                             .point_ay(stem().top() + 0.px())
-                            .point_bx(stem().left() + (x * 11).px())
-                            .point_by(stem().top() + (11 * num_regions.vertical() as i32).px()),
+                            .point_bx(stem().left() + (x * REGION_AREA.horizontal() as i32).px())
+                            .point_by(
+                                stem().top()
+                                    + (REGION_AREA.horizontal() as i32
+                                        * num_regions.vertical() as i32)
+                                        .px(),
+                            ),
                     );
                 },
             );
@@ -101,11 +107,16 @@ pub(crate) fn configure_leaf_part(
                         l.location(
                             GridLocation::new()
                                 .point_ax(stem().left() + 0.px())
-                                .point_ay(stem().top() + (y * 11).px())
+                                .point_ay(stem().top() + (y * REGION_AREA.horizontal() as i32).px())
                                 .point_bx(
-                                    stem().left() + (11 * num_regions.horizontal() as i32).px(),
+                                    stem().left()
+                                        + (REGION_AREA.horizontal() as i32
+                                            * num_regions.horizontal() as i32)
+                                            .px(),
                                 )
-                                .point_by(stem().top() + (y * 11).px()),
+                                .point_by(
+                                    stem().top() + (y * REGION_AREA.horizontal() as i32).px(),
+                                ),
                         );
                     },
                 );
@@ -113,7 +124,7 @@ pub(crate) fn configure_leaf_part(
                 if !part.boxes_present.contains_key(&box_identifier) {
                     // spawn
                     let e = tree.add_leaf(|l| {
-                       l.stem_from(Some(entity));
+                        l.stem_from(Some(entity));
                         l.elevation(-1);
                         l.give(Panel::new(Rounding::all(0.0), Orange::minus_one()));
                     });
@@ -124,12 +135,22 @@ pub(crate) fn configure_leaf_part(
                     |l| {
                         l.location(
                             GridLocation::new()
-                                .center_x(stem().left() + (11 * x + 6).px())
-                                .center_y(stem().top() + (11 * y + 6).px())
-                                .width(7.px())
-                                .height(7.px())
+                                .center_x(
+                                    stem().left()
+                                        + (REGION_AREA.horizontal() as i32 * x
+                                            + (REGION_AREA.horizontal() / 2f32) as i32)
+                                            .px(),
+                                )
+                                .center_y(
+                                    stem().top()
+                                        + (REGION_AREA.horizontal() as i32 * y
+                                            + (REGION_AREA.horizontal() / 2f32) as i32)
+                                            .px(),
+                                )
+                                .width(34.px())
+                                .height(34.px()),
                         );
-                    }
+                    },
                 );
             }
         }
