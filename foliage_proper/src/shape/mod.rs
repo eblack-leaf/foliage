@@ -26,16 +26,20 @@ mod triangle;
 pub struct Shape {
     render_link: RenderLink,
     descriptor: Differential<ShapeDescriptor>,
+    desc: ShapeDescriptor,
     color: Differential<Color>,
+    c: Color,
     layer: Differential<RenderLayer>,
 }
 impl Shape {
     pub fn new(desc: ShapeDescriptor, color: Color) -> Self {
         Self {
             render_link: RenderLink::new::<Self>(),
-            descriptor: Differential::new(desc),
-            color: Differential::new(color),
-            layer: Differential::new(RenderLayer::default()),
+            descriptor: Differential::new(),
+            desc,
+            color: Differential::new(),
+            c: color,
+            layer: Differential::new(),
         }
     }
 }

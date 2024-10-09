@@ -1,6 +1,7 @@
 use crate::coordinate::elevation::Elevation;
 use crate::grid::location::GridLocation;
 use crate::tree::Tree;
+use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 
 pub mod button;

@@ -199,8 +199,8 @@ impl LeafPartComponent {
 }
 pub(crate) struct LeafPartModel {}
 impl Branch for LeafPartModel {
-    type Handle = Entity;
-    fn grow(twig: Twig<Self>, tree: &mut Tree) -> Self::Handle {
+    type Structure = Entity;
+    fn grow(twig: Twig<Self>, tree: &mut Tree) -> Self::Structure {
         let root = tree.add_leaf(|leaf| {
             leaf.elevation(-1);
             leaf.stem_from(twig.stem);
@@ -213,8 +213,8 @@ impl Branch for LeafPartModel {
     }
 }
 impl Branch for LeafModelArgs {
-    type Handle = LeafModel;
-    fn grow(twig: Twig<Self>, tree: &mut Tree) -> Self::Handle {
+    type Structure = LeafModel;
+    fn grow(twig: Twig<Self>, tree: &mut Tree) -> Self::Structure {
         let this = tree.add_leaf(|l| {
             l.elevation(twig.elevation);
             l.stem_from(twig.stem);

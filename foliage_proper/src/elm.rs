@@ -220,10 +220,10 @@ impl Elm {
                 InternalStage::Apply,
                 ExternalStage::Action,
                 InternalStage::Clean,
-                InternalStage::DeclarativeLocationPass,
+                InternalStage::DeclarativePass,
                 ExternalStage::Configure,
                 InternalStage::SecondClean,
-                InternalStage::ReactiveLocationPass,
+                InternalStage::ReactivePass,
                 InternalStage::Resolve,
                 InternalStage::FinalizeCoordinate,
                 InternalStage::Differential,
@@ -242,16 +242,8 @@ impl Elm {
                 .chain()
                 .in_set(InternalStage::Clean),
             (resolve_grid_locations, dependent_elevation, opacity)
-                .in_set(InternalStage::DeclarativeLocationPass),
-            (
-                (change_stem, update_stem_deps).chain(),
-                (recursive_removal, recursive_visibility),
-                (crate::leaf::remove, interaction_enable),
-            )
-                .chain()
-                .in_set(InternalStage::SecondClean),
-            (opacity, dependent_elevation, resolve_grid_locations)
-                .in_set(InternalStage::ReactiveLocationPass),
+                .in_set(InternalStage::DeclarativePass),
+            crate::leaf::remove.in_set(InternalStage::SecondClean),
             pull_clipping_section.in_set(InternalStage::FinalizeCoordinate),
             clear_trigger_signal.in_set(InternalStage::Finish),
         ));
@@ -270,18 +262,18 @@ impl Elm {
                 .before(InternalStage::Clean),
             apply_deferred
                 .after(InternalStage::Clean)
-                .before(InternalStage::DeclarativeLocationPass),
+                .before(InternalStage::DeclarativePass),
             apply_deferred
-                .after(InternalStage::DeclarativeLocationPass)
+                .after(InternalStage::DeclarativePass)
                 .before(ExternalStage::Configure),
             apply_deferred
                 .after(ExternalStage::Configure)
                 .before(InternalStage::SecondClean),
             apply_deferred
                 .after(InternalStage::SecondClean)
-                .before(InternalStage::ReactiveLocationPass),
+                .before(InternalStage::ReactivePass),
             apply_deferred
-                .after(InternalStage::ReactiveLocationPass)
+                .after(InternalStage::ReactivePass)
                 .before(InternalStage::Resolve),
             apply_deferred
                 .after(InternalStage::Resolve)
@@ -358,10 +350,10 @@ pub enum InternalStage {
     Apply,
     // Action
     Clean,
-    DeclarativeLocationPass,
+    DeclarativePass,
     // Configure
     SecondClean,
-    ReactiveLocationPass,
+    ReactivePass,
     Resolve,
     FinalizeCoordinate,
     Differential,

@@ -2,7 +2,6 @@ use std::any::TypeId;
 use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 
-use bevy_ecs::bundle::Bundle;
 use bevy_ecs::prelude::{Component, Entity, With};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Query, ResMut, Resource};
@@ -38,28 +37,13 @@ pub struct RenderRemoveQueue {
     pub queue: HashMap<RenderLink, HashSet<Entity>>,
 }
 
-#[derive(Bundle, Clone)]
-pub struct Differential<D: Component + PartialEq + Clone> {
-    pub component: D,
-    pub cache: DifferentialCache<D>,
-}
-
-impl<D: Component + PartialEq + Clone> Differential<D> {
-    pub fn new(d: D) -> Self {
-        Self {
-            component: d,
-            cache: DifferentialCache::new(),
-        }
-    }
-}
-
 #[derive(Component, Clone)]
-pub struct DifferentialCache<D: Component + PartialEq + Clone> {
+pub struct Differential<D: Component + PartialEq + Clone> {
     added: bool,
     _phantom: PhantomData<D>,
 }
 
-impl<D: Component + PartialEq + Clone> DifferentialCache<D> {
+impl<D: Component + PartialEq + Clone> Differential<D> {
     pub(crate) fn new() -> Self {
         Self {
             added: true,
@@ -84,7 +68,7 @@ impl<D: Component + PartialEq + Clone> From<(Entity, D)> for RenderPacket<D> {
 pub(crate) fn visibility_changed<D: Component + PartialEq + Clone + Send + Sync + 'static>(
     components: Query<
         (Entity, &RenderLink, &D, &Remove, &Visibility),
-        (Changed<Visibility>, With<DifferentialCache<D>>),
+        (Changed<Visibility>, With<Differential<D>>),
     >,
     mut render_queue: ResMut<RenderAddQueue<D>>,
 ) {
@@ -109,7 +93,7 @@ pub(crate) fn differential<D: Component + PartialEq + Clone + Send + Sync + 'sta
             Entity,
             &RenderLink,
             &D,
-            &mut DifferentialCache<D>,
+            &mut Differential<D>,
             &Remove,
             &Visibility,
         ),

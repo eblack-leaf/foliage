@@ -1,3 +1,8 @@
+use crate::coordinate::area::Area;
+use crate::coordinate::position::Position;
+use crate::coordinate::section::Section;
+use crate::coordinate::LogicalContext;
+use crate::elm::{Elm, InternalStage};
 use crate::grid::aspect::stem;
 use crate::grid::location::GridLocation;
 use crate::grid::unit::TokenUnit;
@@ -8,7 +13,11 @@ use crate::style::{Coloring, InteractiveColor};
 use crate::text::{FontSize, Text, TextValue};
 use crate::tree::{EcsExtension, Tree};
 use crate::twig::{Branch, Twig};
+use crate::Root;
 use bevy_ecs::entity::Entity;
+use bevy_ecs::prelude::IntoSystemConfigs;
+use bevy_ecs::query::{Changed, Or};
+use bevy_ecs::system::{ParamSet, Query};
 
 #[derive(Copy, Clone)]
 pub(crate) enum ButtonShape {
@@ -71,6 +80,40 @@ impl Button {
             font_size: None,
             outline: 0,
         }
+    }
+    pub fn configure(
+        mut buttons: ParamSet<(
+            Query<
+                (&Button, &Position<LogicalContext>, &Area<LogicalContext>),
+                Or<(
+                    Changed<Position<LogicalContext>>,
+                    Changed<Area<LogicalContext>>,
+                )>,
+            >,
+            Query<(&mut Position<LogicalContext>, &mut Area<LogicalContext>)>,
+        )>,
+    ) {
+        let mut scheduled = vec![];
+        for (button, position, area) in buttons.p0().iter() {
+            let section = Section::new(*position, *area);
+            let panel = (button.panel, Section::default());
+            let icon = (button.icon, Section::default());
+            let text = (button.text, Section::default());
+            scheduled.extend([panel, icon, text]);
+        }
+        for (e, s) in scheduled {
+            if let Ok((mut pos, mut area)) = buttons.p1().get_mut(e) {
+                *pos = s.position;
+                *area = s.area;
+            }
+        }
+    }
+}
+impl Root for Button {
+    fn attach(elm: &mut Elm) {
+        elm.scheduler
+            .main
+            .add_systems(Button::configure.in_set(InternalStage::ReactivePass));
     }
 }
 impl Branch for ButtonArgs {

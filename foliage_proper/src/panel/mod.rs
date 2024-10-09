@@ -53,31 +53,45 @@ pub struct Panel {
     render_link: RenderLink,
     layer: Differential<RenderLayer>,
     gpu_section: Differential<GpuSection>,
+    gs: GpuSection,
     color: Differential<Color>,
+    c: Color,
     panel_corner_rounding: Rounding,
     corner_i: Differential<CornerI>,
+    ci: CornerI,
     corner_ii: Differential<CornerII>,
+    cii: CornerII,
     corner_iii: Differential<CornerIII>,
+    ciii: CornerIII,
     corner_iv: Differential<CornerIV>,
+    civ: CornerIV,
     outline_weight: Differential<OutlineWeight>,
+    ow: OutlineWeight,
 }
 impl Panel {
     pub fn new(panel_corner_rounding: Rounding, color: Color) -> Self {
         Self {
             render_link: RenderLink::new::<Self>(),
-            layer: Differential::new(RenderLayer::default()),
-            gpu_section: Differential::new(GpuSection::default()),
-            color: Differential::new(color),
+            layer: Differential::new(),
+            gpu_section: Differential::new(),
+            gs: Default::default(),
+            color: Differential::new(),
+            c: color,
             panel_corner_rounding,
-            corner_i: Differential::new(CornerI::default()),
-            corner_ii: Differential::new(CornerII::default()),
-            corner_iii: Differential::new(CornerIII::default()),
-            corner_iv: Differential::new(CornerIV::default()),
-            outline_weight: Differential::new(OutlineWeight::default()),
+            corner_i: Differential::new(),
+            ci: Default::default(),
+            corner_ii: Differential::new(),
+            cii: Default::default(),
+            corner_iii: Differential::new(),
+            ciii: Default::default(),
+            corner_iv: Differential::new(),
+            civ: Default::default(),
+            outline_weight: Differential::new(),
+            ow: Default::default(),
         }
     }
     pub fn outline(mut self, amt: u32) -> Self {
-        self.outline_weight.component.0 = amt as f32;
+        self.ow.0 = amt as f32;
         self
     }
 }

@@ -72,9 +72,13 @@ impl From<f32> for AspectRatio {
 pub struct Image {
     link: RenderLink,
     fill: Differential<ImageFill>,
+    f: ImageFill,
     view: Differential<ImageView>,
+    iv: ImageView,
     color: Differential<Color>,
+    c: Color,
     gpu_section: Differential<GpuSection>,
+    gs: GpuSection,
     layer: Differential<RenderLayer>,
 }
 type ImageBitsRepr = f32;
@@ -84,7 +88,8 @@ impl Image {
     pub fn memory<I: Into<ImageSlotId>, C: Into<Coordinates>>(id: I, c: C) -> ImageSlot {
         ImageSlot {
             link: RenderLink::new::<Image>(),
-            extent: Differential::new(ImageSlotDescriptor(id.into(), c.into())),
+            extent: Differential::new(),
+            isd: ImageSlotDescriptor(id.into(), c.into()),
             remove: Default::default(),
             visibility: Default::default(),
         }
@@ -103,24 +108,27 @@ impl Image {
         let id = id.into();
         Self {
             link: RenderLink::new::<Image>(),
-            fill: Differential::new(ImageFill(id, image_bytes, dimensions)),
-            view: Differential::new(ImageView::Stretch),
-            color: Differential::new(Color::WHITE),
-            gpu_section: Differential::new(GpuSection::default()),
-            layer: Differential::new(RenderLayer::default()),
+            fill: Differential::new(),
+            f: ImageFill(id, image_bytes, dimensions),
+            view: Differential::new(),
+            iv: ImageView::Stretch,
+            color: Differential::new(),
+            c: Color::WHITE,
+            gpu_section: Differential::new(),
+            gs: Default::default(),
+            layer: Differential::new(),
         }
     }
     pub fn with_aspect_ratio<A: Into<AspectRatio>>(mut self, a: A) -> Self {
-        self.view.component = ImageView::Aspect(a.into());
+        self.iv = ImageView::Aspect(a.into());
         self
     }
     pub fn inherit_aspect_ratio(mut self) -> Self {
-        self.view.component =
-            ImageView::Aspect(AspectRatio::from_coordinates(self.fill.component.2));
+        self.iv = ImageView::Aspect(AspectRatio::from_coordinates(self.f.2));
         self
     }
     pub fn crop(mut self) -> Self {
-        self.view.component = ImageView::Crop(Section::default());
+        self.iv = ImageView::Crop(Section::default());
         self
     }
 }
@@ -189,6 +197,7 @@ pub struct ImageSlotDescriptor(pub ImageSlotId, pub Coordinates);
 pub struct ImageSlot {
     link: RenderLink,
     extent: Differential<ImageSlotDescriptor>,
+    isd: ImageSlotDescriptor,
     remove: Remove,
     visibility: Visibility,
 }

@@ -136,6 +136,9 @@ impl ReferentialContext {
         )>,
         layout: Layout,
     ) {
+        if read.get(entity).is_err() {
+            return;
+        }
         for d in self.order_chains.iter() {
             if d.chain.contains(&entity) {
                 return;

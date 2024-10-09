@@ -11,7 +11,7 @@ use foliage::grid::aspect::screen;
 use foliage::grid::location::GridLocation;
 use foliage::grid::unit::TokenUnit;
 use foliage::interaction::OnClick;
-use foliage::leaf::{TriggerEventSignal, TriggeredEvent, Visibility};
+use foliage::leaf::{TriggerEventSignal, TriggeredEvent};
 use foliage::panel::Rounding;
 use foliage::style::Coloring;
 use foliage::text::{FontSize, Text};
@@ -61,8 +61,8 @@ pub(crate) fn event_test(
 }
 
 impl Branch for Home {
-    type Handle = HomeHandle;
-    fn grow(twig: Twig<Self>, tree: &mut Tree) -> Self::Handle {
+    type Structure = HomeHandle;
+    fn grow(twig: Twig<Self>, tree: &mut Tree) -> Self::Structure {
         let triggered = tree
             .spawn(TriggerEventSignal::default())
             .insert(TriggeredEvent::new(EventTest {}))

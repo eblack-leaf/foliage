@@ -56,10 +56,13 @@ pub struct Text {
     value: TextValue,
     layer: Differential<RenderLayer>,
     gpu_section: Differential<GpuSection>,
+    gs: GpuSection,
     glyphs: Differential<Glyphs>,
+    g: Glyphs,
     glyph_colors: GlyphColors,
     color: Color,
     metrics: Differential<GlyphMetrics>,
+    gm: GlyphMetrics,
     font_size: FontSize,
 }
 impl Text {
@@ -68,14 +71,17 @@ impl Text {
         Self {
             link: RenderLink::new::<Self>(),
             value: TextValue(tv.as_ref().to_string()),
-            layer: Differential::new(RenderLayer::default()),
-            gpu_section: Differential::new(GpuSection::default()),
-            glyphs: Differential::new(Glyphs::default()),
+            layer: Differential::new(),
+            gpu_section: Differential::new(),
+            gs: Default::default(),
+            glyphs: Differential::new(),
+            g: Default::default(),
             glyph_colors: GlyphColors {
                 position_to_color: Default::default(),
             },
             color,
-            metrics: Differential::new(GlyphMetrics::default()),
+            metrics: Differential::new(),
+            gm: Default::default(),
             font_size,
         }
     }

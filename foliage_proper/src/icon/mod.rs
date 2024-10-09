@@ -42,11 +42,6 @@ impl Root for Icon {
             .add_systems(icon_scale.in_set(InternalStage::Resolve));
     }
 }
-impl HasRenderLink for Icon {
-    fn has_link() -> bool {
-        true
-    }
-}
 fn icon_scale(
     mut icons: Query<
         (&mut Position<LogicalContext>, &mut Area<LogicalContext>),
@@ -71,6 +66,7 @@ pub struct IconData(pub IconId, pub Vec<u8>);
 #[derive(Bundle)]
 pub struct IconRequest {
     data: Differential<IconData>,
+    d: IconData,
     link: RenderLink,
     remove: Remove,
     visibility: Visibility,
@@ -78,7 +74,8 @@ pub struct IconRequest {
 impl IconRequest {
     pub fn new<I: Into<IconId>>(id: I, data: Vec<u8>) -> Self {
         Self {
-            data: Differential::new(IconData(id.into(), data)),
+            data: Differential::new(),
+            d: IconData(id.into(), data),
             link: RenderLink::new::<Icon>(),
             remove: Default::default(),
             visibility: Default::default(),
@@ -90,8 +87,11 @@ pub struct Icon {
     link: RenderLink,
     layer: Differential<RenderLayer>,
     gpu_section: Differential<GpuSection>,
+    gs: GpuSection,
     id: Differential<IconId>,
+    i: IconId,
     color: Differential<Color>,
+    c: Color,
 }
 impl Icon {
     pub const SCALE: Coordinates = Coordinates::new(24f32, 24f32);
@@ -99,10 +99,13 @@ impl Icon {
     pub fn new<I: Into<IconId>>(id: I, color: Color) -> Self {
         Self {
             link: RenderLink::new::<Icon>(),
-            layer: Differential::new(RenderLayer::default()),
-            gpu_section: Differential::new(GpuSection::default()),
-            id: Differential::new(id.into()),
-            color: Differential::new(color),
+            layer: Differential::new(),
+            gpu_section: Differential::new(),
+            gs: Default::default(),
+            id: Differential::new(),
+            i: id.into(),
+            color: Differential::new(),
+            c: color,
         }
     }
 
