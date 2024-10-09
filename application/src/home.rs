@@ -61,8 +61,8 @@ pub(crate) fn event_test(
 }
 
 impl Branch for Home {
-    type Structure = HomeHandle;
-    fn grow(twig: Twig<Self>, tree: &mut Tree) -> Self::Structure {
+    type Handle = HomeHandle;
+    fn grow(twig: Twig<Self>, tree: &mut Tree) -> Self::Handle {
         let triggered = tree
             .spawn(TriggerEventSignal::default())
             .insert(TriggeredEvent::new(EventTest {}))
