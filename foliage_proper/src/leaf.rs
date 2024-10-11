@@ -114,11 +114,10 @@ pub(crate) fn resolve_elevation(
                     .unwrap_or_default()
                     .0,
         );
-        layers.get_mut(trigger.entity()).ok().and_then(|layer| {
+        if let Ok(layer) = layers.get_mut(trigger.entity()) {
             *layer = resolved;
-            None
-        });
-        tree.trigger_targets(ResolveElevation {}, d.0.iter().copied().collect());
+        };
+        tree.trigger_targets(ResolveElevation {}, d.0.iter().copied().collect::<Vec<Entity>>());
     }
 }
 #[derive(Event, Copy, Clone, Default)]
@@ -136,7 +135,7 @@ pub(crate) fn triggered_remove(
 ) {
     tree.entity(trigger.entity()).despawn();
     if let Ok(deps) = dependents.get(trigger.entity()) {
-        tree.trigger_targets(Remove::new(), deps.0.iter().map(|e| *e).collect());
+        tree.trigger_targets(Remove::new(), deps.0.iter().map(|e| *e).collect::<Vec<Entity>>());
     }
 }
 pub(crate) fn render_link_on_remove(
@@ -185,10 +184,10 @@ pub(crate) fn resolve_visibility(
     if let Ok((mut visibility, deps)) = query.get_mut(entity) {
         visibility.visible = value;
         if !value {
-            if let Some(link) = links.get(trigger.entity()) {
+            if let Ok(link) = links.get(trigger.entity()) {
                 remove_queue.queue.get_mut(link).unwrap().insert(entity);
             }
         }
-        tree.trigger_targets(*trigger.event(), deps.0.iter().map(|e| *e).collect());
+        tree.trigger_targets(*trigger.event(), deps.0.iter().map(|e| *e).collect::<Vec<Entity>>());
     }
 }

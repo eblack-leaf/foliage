@@ -3,6 +3,7 @@ use crate::color::Color;
 use crate::leaf::{Dependents, Stem};
 use crate::tree::Tree;
 use bevy_ecs::component::Component;
+use bevy_ecs::entity::Entity;
 use bevy_ecs::event::Event;
 use bevy_ecs::prelude::{Query, Trigger};
 
@@ -64,7 +65,7 @@ pub(crate) fn triggered_opacity(
             let blended = opacity.value * inherited;
             color.set_alpha(blended);
             if let Ok(deps) = dependents.get(trigger.entity()) {
-                tree.trigger_targets(ResolveOpacity {}, deps.0.iter().copied().collect());
+                tree.trigger_targets(ResolveOpacity {}, deps.0.iter().copied().collect::<Vec<Entity>>());
             }
         }
     }

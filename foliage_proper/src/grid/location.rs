@@ -30,7 +30,7 @@ impl GridLocation {
             let base = location_aspect;
             for except in self.exceptions.iter() {
                 if except.0.layout.contains(layout) && aspect_config == &except.0.config {
-                    to_use = Some(*except.1);
+                    to_use = Some(&except.1);
                 }
             }
             let to_use = to_use.unwrap_or(base);
@@ -861,7 +861,7 @@ impl LocationConfiguration {
     }
 }
 
-#[derive(Clone, Hash, Eq, PartialEq)]
+#[derive(Copy, Clone, Hash, Eq, PartialEq)]
 pub(crate) struct GridLocationException {
     layout: Layout,
     config: AspectConfiguration,

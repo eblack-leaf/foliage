@@ -121,7 +121,7 @@ pub(crate) fn viewport_changes_layout(
         let mut roots = vec![];
         for (e, stem) in locations.iter() {
             if stem.0.is_none() {
-                roots.push(*e);
+                roots.push(e);
             }
         }
         tree.trigger_targets(ResolveGridLocation{}, roots);

@@ -90,12 +90,11 @@ pub(crate) struct ClippingSection(pub(crate) Section<DeviceContext>);
 pub struct EnableClipping {}
 pub(crate) fn pull_clipping_section(
     query: Query<
-        (Entity, &Position<LogicalContext>, &Area<LogicalContext>),
+        (Entity, &Section<LogicalContext>),
         (
             Or<(
                 Added<EnableClipping>,
-                Changed<Position<LogicalContext>>,
-                Changed<Area<LogicalContext>>,
+                Changed<Section<LogicalContext>>,
             )>,
             With<EnableClipping>,
         ),
@@ -104,10 +103,10 @@ pub(crate) fn pull_clipping_section(
     scale_factor: Res<ScaleFactor>,
     mut removed: RemovedComponents<EnableClipping>,
 ) {
-    for (entity, pos, area) in query.iter() {
+    for (entity, section) in query.iter() {
         queue.update.insert(
             entity,
-            ClippingSection(Section::logical(*pos, *area).to_device(scale_factor.value())),
+            ClippingSection(section.to_device(scale_factor.value())),
         );
     }
     for entity in removed.read() {

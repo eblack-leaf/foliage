@@ -7,7 +7,6 @@ use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
 use crate::elm::{Elm, InternalStage};
 use crate::ginkgo::ScaleFactor;
-use crate::leaf::Trigger;
 use crate::tree::Tree;
 use crate::Root;
 use bevy_ecs::entity::Entity;
@@ -242,8 +241,7 @@ pub(crate) fn listen_for_interactions(
     mut listeners: Query<(
         Entity,
         &mut ClickInteractionListener,
-        &Position<LogicalContext>,
-        &Area<LogicalContext>,
+        &Section<LogicalContext>,
         &RenderLayer,
     )>,
     mut events: EventReader<ClickInteraction>,
@@ -255,10 +253,10 @@ pub(crate) fn listen_for_interactions(
             ClickPhase::Start => {
                 if grabbed.0.is_none() {
                     let mut grab_info: Option<(Entity, RenderLayer)> = None;
-                    for (entity, listener, pos, area, layer) in listeners.iter_mut() {
+                    for (entity, listener, section, layer) in listeners.iter_mut() {
                         if listener
                             .shape
-                            .contains(event.position, Section::new(*pos, *area))
+                            .contains(event.position, *section)
                             && !listener.disabled
                         {
                             if grab_info.is_none() || *layer > grab_info.unwrap().1 {
@@ -292,8 +290,7 @@ pub(crate) fn listen_for_interactions(
             }
             ClickPhase::End => {
                 if let Some(g) = grabbed.0.take() {
-                    let section =
-                        Section::new(*listeners.get(g).unwrap().2, *listeners.get(g).unwrap().3);
+                    let section = *listeners.get(g).unwrap().2;
                     if listeners
                         .get(g)
                         .unwrap()
@@ -302,11 +299,10 @@ pub(crate) fn listen_for_interactions(
                         .contains(event.position, section)
                     {
                         let mut found = false;
-                        let current_layer = *listeners.get(g).unwrap().4;
-                        for (entity, listener, pos, area, layer) in listeners.iter() {
+                        let current_layer = *listeners.get(g).unwrap().3;
+                        for (entity, listener, section, layer) in listeners.iter() {
                             if current_layer <= *layer && entity != g && !listener.disabled {
-                                let sec = Section::new(*pos, *area);
-                                if listener.shape.contains(event.position, sec) {
+                                if listener.shape.contains(event.position, *section) {
                                     found = true;
                                 }
                             }

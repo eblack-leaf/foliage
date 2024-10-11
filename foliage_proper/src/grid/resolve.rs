@@ -9,6 +9,7 @@ use crate::layout::{Layout, LayoutGrid};
 use crate::leaf::{Dependents, Stem};
 use crate::tree::Tree;
 use bevy_ecs::change_detection::Res;
+use bevy_ecs::entity::Entity;
 use bevy_ecs::event::Event;
 use bevy_ecs::prelude::{Query, Trigger};
 
@@ -90,7 +91,7 @@ pub(crate) fn triggered_resolve_grid_locations(
         }
     }
     if let Ok(deps) = dependents.get(trigger.entity()) {
-        tree.trigger_targets(ResolveGridLocation {}, deps.0.iter().copied().collect());
+        tree.trigger_targets(ResolveGridLocation {}, deps.0.iter().copied().collect::<Vec<Entity>>());
     }
 }
 #[derive(Copy, Clone, Default)]

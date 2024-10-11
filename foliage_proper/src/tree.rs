@@ -24,14 +24,14 @@ pub trait EcsExtension {
         sfn: SFN,
     ) -> Entity;
     fn branch<B: Branch>(&mut self, twig: Twig<B>) -> B::Handle;
-    fn add_leaf(&mut self) -> Entity;
-    fn location(&mut self, leaf: Entity, location: GridLocation);
-    fn flush_location(&mut self, tt: impl TriggerTargets);
-    fn opacity(&mut self, leaf: Entity, opacity: Opacity);
-    fn grid(&mut self, leaf: Entity, grid: Grid);
-    fn color(&mut self, leaf: Entity, color: Color);
-    fn elevation(&mut self, leaf: Entity, elevation: Elevation);
-    fn stem(&mut self, leaf: Entity, stem: Option<Entity>);
+    // fn add_leaf(&mut self) -> Entity;
+    // fn location(&mut self, leaf: Entity, location: GridLocation);
+    // fn flush_location(&mut self, tt: impl TriggerTargets);
+    // fn opacity(&mut self, leaf: Entity, opacity: Opacity);
+    // fn grid(&mut self, leaf: Entity, grid: Grid);
+    // fn color(&mut self, leaf: Entity, color: Color);
+    // fn elevation(&mut self, leaf: Entity, elevation: Elevation);
+    // fn stem(&mut self, leaf: Entity, stem: Option<Entity>);
     fn remove(&mut self, entity: Entity);
 }
 impl<'w, 's> EcsExtension for Tree<'w, 's> {

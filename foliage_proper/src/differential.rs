@@ -67,13 +67,13 @@ impl<D: Component + PartialEq + Clone> From<(Entity, D)> for RenderPacket<D> {
 }
 pub(crate) fn visibility_changed<D: Component + PartialEq + Clone + Send + Sync + 'static>(
     components: Query<
-        (Entity, &RenderLink, &D, &Remove, &Visibility),
+        (Entity, &RenderLink, &D, &Visibility),
         (Changed<Visibility>, With<Differential<D>>),
     >,
     mut render_queue: ResMut<RenderAddQueue<D>>,
 ) {
-    for (entity, link, d, remove, visibility) in components.iter() {
-        if remove.should_keep() && visibility.visible() {
+    for (entity, link, d, visibility) in components.iter() {
+        if visibility.visible() {
             render_queue
                 .cache
                 .get_mut(link)
@@ -94,15 +94,14 @@ pub(crate) fn differential<D: Component + PartialEq + Clone + Send + Sync + 'sta
             &RenderLink,
             &D,
             &mut Differential<D>,
-            &Remove,
             &Visibility,
         ),
         Changed<D>,
     >,
     mut render_queue: ResMut<RenderAddQueue<D>>,
 ) {
-    for (entity, link, d, mut local_cache, remove, visibility) in components.iter_mut() {
-        if remove.should_keep() && visibility.visible() {
+    for (entity, link, d, mut local_cache, visibility) in components.iter_mut() {
+        if visibility.visible() {
             let different = if render_queue.cache.get(link).unwrap().get(&entity).is_none()
                 || local_cache.added
             {
