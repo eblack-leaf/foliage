@@ -14,7 +14,7 @@ pub(crate) struct LocationAspect {
 impl LocationAspect {
     pub(crate) fn resolve_grid_aspect(
         &self,
-        stem: Option<ReferentialData>,
+        stem: ReferentialData,
         screen: ReferentialData,
         aspect: GridAspect,
     ) -> CoordinateUnit {
@@ -325,8 +325,9 @@ pub fn stem() -> GridContext {
     GridContext::Stem
 }
 
-#[derive(Hash, PartialEq, Eq, Clone, Copy)]
+#[derive(Hash, PartialEq, Eq, Clone, Copy, Default)]
 pub(crate) enum AspectConfiguration {
+    #[default]
     Horizontal,
     Vertical,
     PointA,
@@ -334,7 +335,18 @@ pub(crate) enum AspectConfiguration {
     PointC,
     PointD,
 }
-
+impl AspectConfiguration {
+    pub(crate) fn value(self) -> usize {
+        match self {
+            AspectConfiguration::Horizontal => 0,
+            AspectConfiguration::Vertical => 1,
+            AspectConfiguration::PointA => 0,
+            AspectConfiguration::PointB => 1,
+            AspectConfiguration::PointC => 2,
+            AspectConfiguration::PointD => 3,
+        }
+    }
+}
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default, PartialOrd)]
 pub enum GridAspect {
     #[default]

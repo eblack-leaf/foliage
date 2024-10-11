@@ -4,6 +4,7 @@ use crate::grid::aspect::GridContext;
 use crate::grid::resolve::ReferentialData;
 use crate::grid::unit::RelativeUnit;
 use std::ops::{Add, Sub};
+use smallvec::SmallVec;
 
 impl From<LocationAspectToken> for SpecifiedDescriptorValue {
     fn from(value: LocationAspectToken) -> Self {
@@ -76,76 +77,64 @@ impl LocationAspectToken {
 
 #[derive(Clone)]
 pub struct SpecifiedDescriptorValue {
-    tokens: Vec<LocationAspectToken>,
+    tokens: SmallVec<[LocationAspectToken; 3]>,
 }
 
 impl SpecifiedDescriptorValue {
-    pub(crate) fn resolve(
-        &self,
-        stem: Option<ReferentialData>,
-        screen: ReferentialData,
-    ) -> CoordinateUnit {
+    pub(crate) fn resolve(&self, stem: ReferentialData, screen: ReferentialData) -> CoordinateUnit {
         let mut accumulator = 0.0;
         for t in self.tokens.iter() {
             let value = match t.value {
                 LocationAspectTokenValue::ContextAspect(ca) => {
                     let data = match &t.context {
-                        GridContext::Stem => stem.unwrap_or(screen),
+                        GridContext::Stem => stem,
                         _ => screen,
                     };
                     match ca {
-                        GridAspect::Top => data.resolved.section.y(),
-                        GridAspect::Height => data.resolved.section.height(),
-                        GridAspect::CenterY => data.resolved.section.center().y(),
-                        GridAspect::Bottom => data.resolved.section.bottom(),
-                        GridAspect::Left => data.resolved.section.x(),
-                        GridAspect::Width => data.resolved.section.width(),
-                        GridAspect::CenterX => data.resolved.section.center().x(),
-                        GridAspect::Right => data.resolved.section.right(),
+                        GridAspect::Top => data.section.y(),
+                        GridAspect::Height => data.section.height(),
+                        GridAspect::CenterY => data.section.center().y(),
+                        GridAspect::Bottom => data.section.bottom(),
+                        GridAspect::Left => data.section.x(),
+                        GridAspect::Width => data.section.width(),
+                        GridAspect::CenterX => data.section.center().x(),
+                        GridAspect::Right => data.section.right(),
                         GridAspect::PointAX => data
-                            .resolved
                             .points
                             .as_ref()
                             .and_then(|p| Some(p.data[0].x()))
                             .unwrap_or_default(),
                         GridAspect::PointAY => data
-                            .resolved
                             .points
                             .as_ref()
                             .and_then(|p| Some(p.data[0].y()))
                             .unwrap_or_default(),
                         GridAspect::PointBX => data
-                            .resolved
                             .points
                             .as_ref()
                             .and_then(|p| Some(p.data[1].x()))
                             .unwrap_or_default(),
                         GridAspect::PointBY => data
-                            .resolved
                             .points
                             .as_ref()
                             .and_then(|p| Some(p.data[1].y()))
                             .unwrap_or_default(),
                         GridAspect::PointCX => data
-                            .resolved
                             .points
                             .as_ref()
                             .and_then(|p| Some(p.data[2].x()))
                             .unwrap_or_default(),
                         GridAspect::PointCY => data
-                            .resolved
                             .points
                             .as_ref()
                             .and_then(|p| Some(p.data[2].y()))
                             .unwrap_or_default(),
                         GridAspect::PointDX => data
-                            .resolved
                             .points
                             .as_ref()
                             .and_then(|p| Some(p.data[3].x()))
                             .unwrap_or_default(),
                         GridAspect::PointDY => data
-                            .resolved
                             .points
                             .as_ref()
                             .and_then(|p| Some(p.data[3].y()))
@@ -154,27 +143,27 @@ impl SpecifiedDescriptorValue {
                 }
                 LocationAspectTokenValue::Relative(rel) => {
                     let data = match &t.context {
-                        GridContext::Stem => stem.unwrap_or(screen),
+                        GridContext::Stem => stem,
                         _ => screen,
                     };
                     match rel {
                         RelativeUnit::Column(c, use_end) => {
-                            data.resolved.section.x()
+                            data.section.x()
                                 + (c as f32 - 1.0 * f32::from(!use_end))
-                                    * (data.resolved.section.width() / data.grid.columns as f32)
+                                    * (data.section.width() / data.grid.columns as f32)
                                 + c as f32 * data.grid.gap.horizontal()
                         }
                         RelativeUnit::Row(r, use_end) => {
-                            data.resolved.section.y()
+                            data.section.y()
                                 + (r as f32 - 1.0 * f32::from(!use_end))
-                                    * (data.resolved.section.height() / data.grid.rows as f32)
+                                    * (data.section.height() / data.grid.rows as f32)
                                 + r as f32 * data.grid.gap.vertical()
                         }
                         RelativeUnit::Percent(p, use_width, include_start) => {
-                            data.resolved.section.x() * f32::from(include_start && use_width)
-                                + data.resolved.section.width() * p * f32::from(use_width)
-                                + data.resolved.section.y() * f32::from(include_start && !use_width)
-                                + data.resolved.section.height() * p * f32::from(!use_width)
+                            data.section.x() * f32::from(include_start && use_width)
+                                + data.section.width() * p * f32::from(use_width)
+                                + data.section.y() * f32::from(include_start && !use_width)
+                                + data.section.height() * p * f32::from(!use_width)
                         }
                     }
                 }
@@ -201,8 +190,10 @@ impl SpecifiedDescriptorValue {
         self
     }
     pub(crate) fn new(first: LocationAspectToken) -> SpecifiedDescriptorValue {
+        let mut vec = SmallVec::new();
+        vec.push(first);
         Self {
-            tokens: vec![first],
+            tokens: vec,
         }
     }
 }

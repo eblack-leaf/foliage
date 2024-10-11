@@ -9,10 +9,9 @@ use crate::grid::token::{LocationAspectDescriptorValue, SpecifiedDescriptorValue
 use crate::layout::Layout;
 use bevy_ecs::component::Component;
 use std::collections::HashMap;
-
 #[derive(Clone, Component, Default)]
 pub struct GridLocation {
-    configurations: HashMap<AspectConfiguration, LocationAspect>,
+    configurations: [(AspectConfiguration, LocationAspect); 4],
     exceptions: HashMap<GridLocationException, LocationAspect>,
     pub(crate) animation_hook: GridLocationAnimationHook,
 }
@@ -20,7 +19,7 @@ pub struct GridLocation {
 impl GridLocation {
     pub(crate) fn resolve(
         &self,
-        stem: Option<ReferentialData>,
+        stem: ReferentialData,
         screen: ReferentialData,
         layout: Layout,
     ) -> Option<ResolvedLocation> {
@@ -234,59 +233,53 @@ impl GridLocation {
         }
     }
     pub fn top<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
-        if let Some(mut aspect) = self.configurations.get_mut(&AspectConfiguration::Vertical) {
+        if let Some(mut aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::Vertical.value())
+        {
             // sanitize that other is compatible
-            aspect.set(
+            aspect.1.set(
                 GridAspect::Top,
                 LocationAspectDescriptorValue::Specified(d.into()),
             );
-        } else {
-            self.configurations
-                .insert(AspectConfiguration::Vertical, LocationAspect::new().top(d));
         }
         self
     }
     pub fn bottom<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
-        if let Some(mut aspect) = self.configurations.get_mut(&AspectConfiguration::Vertical) {
+        if let Some(mut aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::Vertical.value())
+        {
             // sanitize that other is compatible
-            aspect.set(
+            aspect.1.set(
                 GridAspect::Bottom,
                 LocationAspectDescriptorValue::Specified(d.into()),
-            );
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::Vertical,
-                LocationAspect::new().bottom(d),
             );
         }
         self
     }
     pub fn height<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
-        if let Some(mut aspect) = self.configurations.get_mut(&AspectConfiguration::Vertical) {
+        if let Some(mut aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::Vertical.value())
+        {
             // sanitize that other is compatible
-            aspect.set(
+            aspect.1.set(
                 GridAspect::Height,
                 LocationAspectDescriptorValue::Specified(d.into()),
-            );
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::Vertical,
-                LocationAspect::new().height(d),
             );
         }
         self
     }
     pub fn center_y<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
-        if let Some(mut aspect) = self.configurations.get_mut(&AspectConfiguration::Vertical) {
+        if let Some(mut aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::Vertical.value())
+        {
             // sanitize that other is compatible
-            aspect.set(
+            aspect.1.set(
                 GridAspect::CenterY,
                 LocationAspectDescriptorValue::Specified(d.into()),
-            );
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::Vertical,
-                LocationAspect::new().center_y(d),
             );
         }
         self
@@ -294,17 +287,12 @@ impl GridLocation {
     pub fn left<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
         if let Some(mut aspect) = self
             .configurations
-            .get_mut(&AspectConfiguration::Horizontal)
+            .get_mut(AspectConfiguration::Horizontal.value())
         {
             // sanitize that other is compatible
-            aspect.set(
+            aspect.1.set(
                 GridAspect::Left,
                 LocationAspectDescriptorValue::Specified(d.into()),
-            );
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::Horizontal,
-                LocationAspect::new().left(d),
             );
         }
         self
@@ -312,17 +300,12 @@ impl GridLocation {
     pub fn right<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
         if let Some(mut aspect) = self
             .configurations
-            .get_mut(&AspectConfiguration::Horizontal)
+            .get_mut(AspectConfiguration::Horizontal.value())
         {
             // sanitize that other is compatible
-            aspect.set(
+            aspect.1.set(
                 GridAspect::Right,
                 LocationAspectDescriptorValue::Specified(d.into()),
-            );
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::Horizontal,
-                LocationAspect::new().right(d),
             );
         }
         self
@@ -330,17 +313,12 @@ impl GridLocation {
     pub fn width<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
         if let Some(mut aspect) = self
             .configurations
-            .get_mut(&AspectConfiguration::Horizontal)
+            .get_mut(AspectConfiguration::Horizontal.value())
         {
             // sanitize that other is compatible
-            aspect.set(
+            aspect.1.set(
                 GridAspect::Width,
                 LocationAspectDescriptorValue::Specified(d.into()),
-            );
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::Horizontal,
-                LocationAspect::new().width(d),
             );
         }
         self
@@ -348,17 +326,12 @@ impl GridLocation {
     pub fn center_x<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
         if let Some(mut aspect) = self
             .configurations
-            .get_mut(&AspectConfiguration::Horizontal)
+            .get_mut(AspectConfiguration::Horizontal.value())
         {
             // sanitize that other is compatible
-            aspect.set(
+            aspect.1.set(
                 GridAspect::CenterX,
                 LocationAspectDescriptorValue::Specified(d.into()),
-            );
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::Horizontal,
-                LocationAspect::new().center_x(d),
             );
         }
         self
@@ -370,131 +343,115 @@ impl GridLocation {
         }
     }
     pub fn point_ax<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
-        if let Some(mut aspect) = self.configurations.get_mut(&AspectConfiguration::PointA) {
+        self.point_driven_check();
+        if let Some(mut aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::PointA.value())
+        {
             // sanitize that other is compatible
-            aspect.set(
+            aspect.1.set(
                 GridAspect::PointAX,
                 LocationAspectDescriptorValue::Specified(d.into()),
-            );
-        } else {
-            self.point_driven_check();
-            self.configurations.insert(
-                AspectConfiguration::PointA,
-                LocationAspect::new().point_ax(d),
             );
         }
         self
     }
     pub fn point_ay<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
-        if let Some(mut aspect) = self.configurations.get_mut(&AspectConfiguration::PointA) {
+        self.point_driven_check();
+        if let Some(mut aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::PointA.value())
+        {
             // sanitize that other is compatible
-            aspect.set(
+            aspect.1.set(
                 GridAspect::PointAY,
                 LocationAspectDescriptorValue::Specified(d.into()),
-            );
-        } else {
-            self.point_driven_check();
-            self.configurations.insert(
-                AspectConfiguration::PointA,
-                LocationAspect::new().point_ay(d),
             );
         }
         self
     }
     pub fn point_bx<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
-        if let Some(mut aspect) = self.configurations.get_mut(&AspectConfiguration::PointB) {
+        self.point_driven_check();
+        if let Some(mut aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::PointB.value())
+        {
             // sanitize that other is compatible
-            aspect.set(
+            aspect.1.set(
                 GridAspect::PointBX,
                 LocationAspectDescriptorValue::Specified(d.into()),
-            );
-        } else {
-            self.point_driven_check();
-            self.configurations.insert(
-                AspectConfiguration::PointB,
-                LocationAspect::new().point_bx(d),
             );
         }
         self
     }
     pub fn point_by<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
-        if let Some(mut aspect) = self.configurations.get_mut(&AspectConfiguration::PointB) {
+        self.point_driven_check();
+        if let Some(mut aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::PointB.value())
+        {
             // sanitize that other is compatible
-            aspect.set(
+            aspect.1.set(
                 GridAspect::PointBY,
                 LocationAspectDescriptorValue::Specified(d.into()),
-            );
-        } else {
-            self.point_driven_check();
-            self.configurations.insert(
-                AspectConfiguration::PointB,
-                LocationAspect::new().point_by(d),
             );
         }
         self
     }
     pub fn point_cx<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
-        if let Some(mut aspect) = self.configurations.get_mut(&AspectConfiguration::PointC) {
+        self.point_driven_check();
+        if let Some(mut aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::PointC.value())
+        {
             // sanitize that other is compatible
-            aspect.set(
+            aspect.1.set(
                 GridAspect::PointCX,
                 LocationAspectDescriptorValue::Specified(d.into()),
-            );
-        } else {
-            self.point_driven_check();
-            self.configurations.insert(
-                AspectConfiguration::PointC,
-                LocationAspect::new().point_cx(d),
             );
         }
         self
     }
     pub fn point_cy<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
-        if let Some(mut aspect) = self.configurations.get_mut(&AspectConfiguration::PointC) {
+        self.point_driven_check();
+        if let Some(mut aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::PointC.value())
+        {
             // sanitize that other is compatible
-            aspect.set(
+            aspect.1.set(
                 GridAspect::PointCY,
                 LocationAspectDescriptorValue::Specified(d.into()),
-            );
-        } else {
-            self.point_driven_check();
-            self.configurations.insert(
-                AspectConfiguration::PointC,
-                LocationAspect::new().point_cy(d),
             );
         }
         self
     }
     pub fn point_dx<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
-        if let Some(mut aspect) = self.configurations.get_mut(&AspectConfiguration::PointD) {
+        if let Some(mut aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::PointD.value())
+        {
             // sanitize that other is compatible
-            aspect.set(
+            aspect.1.set(
                 GridAspect::PointDX,
                 LocationAspectDescriptorValue::Specified(d.into()),
             );
-        } else {
-            self.point_driven_check();
-            self.configurations.insert(
-                AspectConfiguration::PointD,
-                LocationAspect::new().point_dx(d),
-            );
         }
+        self.point_driven_check();
         self
     }
     pub fn point_dy<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
-        if let Some(mut aspect) = self.configurations.get_mut(&AspectConfiguration::PointD) {
+        if let Some(mut aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::PointD.value())
+        {
             // sanitize that other is compatible
-            aspect.set(
+            aspect.1.set(
                 GridAspect::PointDY,
                 LocationAspectDescriptorValue::Specified(d.into()),
             );
-        } else {
-            self.point_driven_check();
-            self.configurations.insert(
-                AspectConfiguration::PointD,
-                LocationAspect::new().point_dy(d),
-            );
         }
+        self.point_driven_check();
         self
     }
     pub fn except_at<LA: Into<LocationConfiguration>>(mut self, layout: Layout, la: LA) -> Self {
@@ -508,131 +465,120 @@ impl GridLocation {
 }
 
 pub struct LocationConfiguration {
-    configurations: HashMap<AspectConfiguration, LocationAspect>,
+    configurations: [(AspectConfiguration, LocationAspect); 4],
 }
 
 impl LocationConfiguration {
     pub fn new() -> Self {
         Self {
-            configurations: HashMap::new(),
+            configurations: Default::default(),
         }
     }
     pub fn top<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
-        if let Some(mut aspect) = self.configurations.get_mut(&AspectConfiguration::Vertical) {
+        if let Some(mut aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::Vertical.value())
+        {
             // sanitize that other is compatible
-            aspect.set(
+            aspect.1.set(
                 GridAspect::Top,
                 LocationAspectDescriptorValue::Specified(d.into()),
             );
-        } else {
-            self.configurations
-                .insert(AspectConfiguration::Vertical, LocationAspect::new().top(d));
         }
         self
     }
     pub fn existing_top(mut self) -> Self {
-        if let Some(aspect) = self.configurations.get_mut(&AspectConfiguration::Vertical) {
-            aspect.set(GridAspect::Top, LocationAspectDescriptorValue::Existing);
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::Vertical,
-                LocationAspect::new().existing_top(),
-            );
+        if let Some(aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::Vertical.value())
+        {
+            aspect
+                .1
+                .set(GridAspect::Top, LocationAspectDescriptorValue::Existing);
         }
         self
     }
     pub fn bottom<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
-        if let Some(mut aspect) = self.configurations.get_mut(&AspectConfiguration::Vertical) {
+        if let Some(mut aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::Vertical.value())
+        {
             // sanitize that other is compatible
-            aspect.set(
+            aspect.1.set(
                 GridAspect::Bottom,
                 LocationAspectDescriptorValue::Specified(d.into()),
-            );
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::Vertical,
-                LocationAspect::new().bottom(d),
             );
         }
         self
     }
     pub fn existing_bottom(mut self) -> Self {
-        if let Some(aspect) = self.configurations.get_mut(&AspectConfiguration::Vertical) {
-            aspect.set(GridAspect::Bottom, LocationAspectDescriptorValue::Existing);
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::Vertical,
-                LocationAspect::new().existing_bottom(),
-            );
+        if let Some(aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::Vertical.value())
+        {
+            aspect
+                .1
+                .set(GridAspect::Bottom, LocationAspectDescriptorValue::Existing);
         }
         self
     }
     pub fn height<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
-        if let Some(mut aspect) = self.configurations.get_mut(&AspectConfiguration::Vertical) {
+        if let Some(mut aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::Vertical.value())
+        {
             // sanitize that other is compatible
-            aspect.set(
+            aspect.1.set(
                 GridAspect::Height,
                 LocationAspectDescriptorValue::Specified(d.into()),
-            );
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::Vertical,
-                LocationAspect::new().height(d),
             );
         }
         self
     }
     pub fn existing_height(mut self) -> Self {
-        if let Some(aspect) = self.configurations.get_mut(&AspectConfiguration::Vertical) {
-            aspect.set(GridAspect::Height, LocationAspectDescriptorValue::Existing);
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::Vertical,
-                LocationAspect::new().existing_height(),
-            );
+        if let Some(aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::Vertical.value())
+        {
+            aspect
+                .1
+                .set(GridAspect::Height, LocationAspectDescriptorValue::Existing);
         }
         self
     }
     pub fn center_y<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
-        if let Some(mut aspect) = self.configurations.get_mut(&AspectConfiguration::Vertical) {
+        if let Some(mut aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::Vertical.value())
+        {
             // sanitize that other is compatible
-            aspect.set(
+            aspect.1.set(
                 GridAspect::CenterY,
                 LocationAspectDescriptorValue::Specified(d.into()),
-            );
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::Vertical,
-                LocationAspect::new().center_y(d),
             );
         }
         self
     }
     pub fn existing_center_y(mut self) -> Self {
-        if let Some(aspect) = self.configurations.get_mut(&AspectConfiguration::Vertical) {
-            aspect.set(GridAspect::CenterY, LocationAspectDescriptorValue::Existing);
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::Vertical,
-                LocationAspect::new().existing_center_y(),
-            );
+        if let Some(aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::Vertical.value())
+        {
+            aspect
+                .1
+                .set(GridAspect::CenterY, LocationAspectDescriptorValue::Existing);
         }
         self
     }
     pub fn left<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
         if let Some(mut aspect) = self
             .configurations
-            .get_mut(&AspectConfiguration::Horizontal)
+            .get_mut(AspectConfiguration::Horizontal.value())
         {
             // sanitize that other is compatible
-            aspect.set(
+            aspect.1.set(
                 GridAspect::Left,
                 LocationAspectDescriptorValue::Specified(d.into()),
-            );
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::Horizontal,
-                LocationAspect::new().left(d),
             );
         }
         self
@@ -640,31 +586,23 @@ impl LocationConfiguration {
     pub fn existing_left(mut self) -> Self {
         if let Some(aspect) = self
             .configurations
-            .get_mut(&AspectConfiguration::Horizontal)
+            .get_mut(AspectConfiguration::Horizontal.value())
         {
-            aspect.set(GridAspect::Left, LocationAspectDescriptorValue::Existing);
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::Horizontal,
-                LocationAspect::new().existing_left(),
-            );
+            aspect
+                .1
+                .set(GridAspect::Left, LocationAspectDescriptorValue::Existing);
         }
         self
     }
     pub fn right<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
         if let Some(mut aspect) = self
             .configurations
-            .get_mut(&AspectConfiguration::Horizontal)
+            .get_mut(AspectConfiguration::Horizontal.value())
         {
             // sanitize that other is compatible
-            aspect.set(
+            aspect.1.set(
                 GridAspect::Right,
                 LocationAspectDescriptorValue::Specified(d.into()),
-            );
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::Horizontal,
-                LocationAspect::new().right(d),
             );
         }
         self
@@ -672,31 +610,23 @@ impl LocationConfiguration {
     pub fn existing_right(mut self) -> Self {
         if let Some(aspect) = self
             .configurations
-            .get_mut(&AspectConfiguration::Horizontal)
+            .get_mut(AspectConfiguration::Horizontal.value())
         {
-            aspect.set(GridAspect::Right, LocationAspectDescriptorValue::Existing);
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::Horizontal,
-                LocationAspect::new().existing_right(),
-            );
+            aspect
+                .1
+                .set(GridAspect::Right, LocationAspectDescriptorValue::Existing);
         }
         self
     }
     pub fn width<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
         if let Some(mut aspect) = self
             .configurations
-            .get_mut(&AspectConfiguration::Horizontal)
+            .get_mut(AspectConfiguration::Horizontal.value())
         {
             // sanitize that other is compatible
-            aspect.set(
+            aspect.1.set(
                 GridAspect::Width,
                 LocationAspectDescriptorValue::Specified(d.into()),
-            );
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::Horizontal,
-                LocationAspect::new().width(d),
             );
         }
         self
@@ -704,31 +634,23 @@ impl LocationConfiguration {
     pub fn existing_width(mut self) -> Self {
         if let Some(aspect) = self
             .configurations
-            .get_mut(&AspectConfiguration::Horizontal)
+            .get_mut(AspectConfiguration::Horizontal.value())
         {
-            aspect.set(GridAspect::Width, LocationAspectDescriptorValue::Existing);
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::Horizontal,
-                LocationAspect::new().existing_width(),
-            );
+            aspect
+                .1
+                .set(GridAspect::Width, LocationAspectDescriptorValue::Existing);
         }
         self
     }
     pub fn center_x<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
         if let Some(mut aspect) = self
             .configurations
-            .get_mut(&AspectConfiguration::Horizontal)
+            .get_mut(AspectConfiguration::Horizontal.value())
         {
             // sanitize that other is compatible
-            aspect.set(
+            aspect.1.set(
                 GridAspect::CenterX,
                 LocationAspectDescriptorValue::Specified(d.into()),
-            );
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::Horizontal,
-                LocationAspect::new().center_x(d),
             );
         }
         self
@@ -736,222 +658,203 @@ impl LocationConfiguration {
     pub fn existing_center_x(mut self) -> Self {
         if let Some(aspect) = self
             .configurations
-            .get_mut(&AspectConfiguration::Horizontal)
+            .get_mut(AspectConfiguration::Horizontal.value())
         {
-            aspect.set(GridAspect::CenterX, LocationAspectDescriptorValue::Existing);
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::Horizontal,
-                LocationAspect::new().existing_center_x(),
-            );
+            aspect
+                .1
+                .set(GridAspect::CenterX, LocationAspectDescriptorValue::Existing);
         }
         self
     }
     pub fn point_ax<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
-        if let Some(mut aspect) = self.configurations.get_mut(&AspectConfiguration::PointA) {
+        if let Some(mut aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::PointA.value())
+        {
             // sanitize that other is compatible
-            aspect.set(
+            aspect.1.set(
                 GridAspect::PointAX,
                 LocationAspectDescriptorValue::Specified(d.into()),
-            );
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::PointA,
-                LocationAspect::new().point_ax(d),
             );
         }
         self
     }
     pub fn existing_point_ax(mut self) -> Self {
-        if let Some(aspect) = self.configurations.get_mut(&AspectConfiguration::PointA) {
-            aspect.set(GridAspect::PointAX, LocationAspectDescriptorValue::Existing);
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::PointA,
-                LocationAspect::new().existing_point_ax(),
-            );
+        if let Some(aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::PointA.value())
+        {
+            aspect
+                .1
+                .set(GridAspect::PointAX, LocationAspectDescriptorValue::Existing);
         }
         self
     }
     pub fn point_ay<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
-        if let Some(mut aspect) = self.configurations.get_mut(&AspectConfiguration::PointA) {
+        if let Some(mut aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::PointA.value())
+        {
             // sanitize that other is compatible
-            aspect.set(
+            aspect.1.set(
                 GridAspect::PointAY,
                 LocationAspectDescriptorValue::Specified(d.into()),
-            );
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::PointA,
-                LocationAspect::new().point_ay(d),
             );
         }
         self
     }
     pub fn existing_point_ay(mut self) -> Self {
-        if let Some(aspect) = self.configurations.get_mut(&AspectConfiguration::PointA) {
-            aspect.set(GridAspect::PointAY, LocationAspectDescriptorValue::Existing);
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::PointA,
-                LocationAspect::new().existing_point_ay(),
-            );
+        if let Some(aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::PointA.value())
+        {
+            aspect
+                .1
+                .set(GridAspect::PointAY, LocationAspectDescriptorValue::Existing);
         }
         self
     }
     pub fn point_bx<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
-        if let Some(mut aspect) = self.configurations.get_mut(&AspectConfiguration::PointB) {
+        if let Some(mut aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::PointB.value())
+        {
             // sanitize that other is compatible
-            aspect.set(
+            aspect.1.set(
                 GridAspect::PointBX,
                 LocationAspectDescriptorValue::Specified(d.into()),
-            );
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::PointB,
-                LocationAspect::new().point_bx(d),
             );
         }
         self
     }
     pub fn existing_point_bx(mut self) -> Self {
-        if let Some(aspect) = self.configurations.get_mut(&AspectConfiguration::PointB) {
-            aspect.set(GridAspect::PointBX, LocationAspectDescriptorValue::Existing);
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::PointB,
-                LocationAspect::new().existing_point_bx(),
-            );
+        if let Some(aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::PointB.value())
+        {
+            aspect
+                .1
+                .set(GridAspect::PointBX, LocationAspectDescriptorValue::Existing);
         }
         self
     }
     pub fn point_by<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
-        if let Some(mut aspect) = self.configurations.get_mut(&AspectConfiguration::PointB) {
+        if let Some(mut aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::PointB.value())
+        {
             // sanitize that other is compatible
-            aspect.set(
+            aspect.1.set(
                 GridAspect::PointBY,
                 LocationAspectDescriptorValue::Specified(d.into()),
-            );
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::PointB,
-                LocationAspect::new().point_by(d),
             );
         }
         self
     }
     pub fn existing_point_by(mut self) -> Self {
-        if let Some(aspect) = self.configurations.get_mut(&AspectConfiguration::PointB) {
-            aspect.set(GridAspect::PointBY, LocationAspectDescriptorValue::Existing);
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::PointB,
-                LocationAspect::new().existing_point_by(),
-            );
+        if let Some(aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::PointB.value())
+        {
+            aspect
+                .1
+                .set(GridAspect::PointBY, LocationAspectDescriptorValue::Existing);
         }
         self
     }
     pub fn point_cx<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
-        if let Some(mut aspect) = self.configurations.get_mut(&AspectConfiguration::PointC) {
+        if let Some(mut aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::PointC.value())
+        {
             // sanitize that other is compatible
-            aspect.set(
+            aspect.1.set(
                 GridAspect::PointCX,
                 LocationAspectDescriptorValue::Specified(d.into()),
-            );
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::PointC,
-                LocationAspect::new().point_cx(d),
             );
         }
         self
     }
     pub fn existing_point_cx(mut self) -> Self {
-        if let Some(aspect) = self.configurations.get_mut(&AspectConfiguration::PointC) {
-            aspect.set(GridAspect::PointCX, LocationAspectDescriptorValue::Existing);
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::PointC,
-                LocationAspect::new().existing_point_cx(),
-            );
+        if let Some(aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::PointC.value())
+        {
+            aspect
+                .1
+                .set(GridAspect::PointCX, LocationAspectDescriptorValue::Existing);
         }
         self
     }
     pub fn point_cy<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
-        if let Some(mut aspect) = self.configurations.get_mut(&AspectConfiguration::PointC) {
+        if let Some(mut aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::PointC.value())
+        {
             // sanitize that other is compatible
-            aspect.set(
+            aspect.1.set(
                 GridAspect::PointCY,
                 LocationAspectDescriptorValue::Specified(d.into()),
-            );
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::PointC,
-                LocationAspect::new().point_cy(d),
             );
         }
         self
     }
     pub fn existing_point_cy(mut self) -> Self {
-        if let Some(aspect) = self.configurations.get_mut(&AspectConfiguration::PointC) {
-            aspect.set(GridAspect::PointCY, LocationAspectDescriptorValue::Existing);
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::PointC,
-                LocationAspect::new().existing_point_cy(),
-            );
+        if let Some(aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::PointC.value())
+        {
+            aspect
+                .1
+                .set(GridAspect::PointCY, LocationAspectDescriptorValue::Existing);
         }
         self
     }
     pub fn point_dx<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
-        if let Some(mut aspect) = self.configurations.get_mut(&AspectConfiguration::PointD) {
+        if let Some(mut aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::PointD.value())
+        {
             // sanitize that other is compatible
-            aspect.set(
+            aspect.1.set(
                 GridAspect::PointDX,
                 LocationAspectDescriptorValue::Specified(d.into()),
-            );
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::PointD,
-                LocationAspect::new().point_dx(d),
             );
         }
         self
     }
     pub fn existing_point_dx(mut self) -> Self {
-        if let Some(aspect) = self.configurations.get_mut(&AspectConfiguration::PointD) {
-            aspect.set(GridAspect::PointDX, LocationAspectDescriptorValue::Existing);
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::PointD,
-                LocationAspect::new().existing_point_dx(),
-            );
+        if let Some(aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::PointD.value())
+        {
+            aspect
+                .1
+                .set(GridAspect::PointDX, LocationAspectDescriptorValue::Existing);
         }
         self
     }
     pub fn point_dy<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
-        if let Some(mut aspect) = self.configurations.get_mut(&AspectConfiguration::PointD) {
+        if let Some(mut aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::PointD.value())
+        {
             // sanitize that other is compatible
-            aspect.set(
+            aspect.1.set(
                 GridAspect::PointDY,
                 LocationAspectDescriptorValue::Specified(d.into()),
-            );
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::PointD,
-                LocationAspect::new().point_dy(d),
             );
         }
         self
     }
     pub fn existing_point_dy(mut self) -> Self {
-        if let Some(aspect) = self.configurations.get_mut(&AspectConfiguration::PointD) {
-            aspect.set(GridAspect::PointDY, LocationAspectDescriptorValue::Existing);
-        } else {
-            self.configurations.insert(
-                AspectConfiguration::PointD,
-                LocationAspect::new().existing_point_dy(),
-            );
+        if let Some(aspect) = self
+            .configurations
+            .get_mut(AspectConfiguration::PointD.value())
+        {
+            aspect
+                .1
+                .set(GridAspect::PointDY, LocationAspectDescriptorValue::Existing);
         }
         self
     }

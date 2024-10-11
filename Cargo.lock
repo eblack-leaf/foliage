@@ -932,6 +932,7 @@ dependencies = [
  "reqwest",
  "rmp-serde",
  "serde",
+ "smallvec",
  "tracing",
  "tracing-subscriber",
  "tracing-subscriber-wasm",
