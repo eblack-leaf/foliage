@@ -15,6 +15,7 @@ use bevy_ecs::entity::Entity;
 use bevy_ecs::system::{Commands, EntityCommands};
 use bevy_ecs::world::World;
 use std::any::TypeId;
+use bevy_ecs::observer::TriggerTargets;
 
 pub type Tree<'w, 's> = Commands<'w, 's>;
 pub trait EcsExtension {
@@ -23,63 +24,15 @@ pub trait EcsExtension {
         sfn: SFN,
     ) -> Entity;
     fn branch<B: Branch>(&mut self, twig: Twig<B>) -> B::Handle;
-    fn add_leaf<LFN: for<'a> FnOnce(&mut LeafHandle<'a>)>(&mut self, lfn: LFN) -> Entity;
-    fn update_leaf<LFN: for<'a> FnOnce(&mut LeafHandle<'a>)>(&mut self, leaf: Entity, lfn: LFN);
-    fn queue_remove(&mut self, leaf: Entity);
-}
-pub struct LeafHandle<'a> {
-    pub(crate) repr: EntityCommands<'a>,
-    pub(crate) from_add_leaf: bool,
-}
-impl<'a> LeafHandle<'a> {
-    pub fn visibility(&mut self, vis: bool) {
-        self.repr
-            .insert(Visibility::new(vis))
-            .insert(ResolveVisibility {});
-    }
-    pub fn location(&mut self, loc: GridLocation) {
-        self.repr.insert(loc).insert(ResolveGridLocation {});
-    }
-    pub fn elevation<E: Into<Elevation>>(&mut self, e: E) {
-        self.repr.insert(e.into()).insert(ResolveElevation {});
-    }
-    pub fn color<C: Into<Color>>(&mut self, c: C) {
-        self.repr.insert(c.into()).insert(ResolveOpacity {});
-    }
-    pub fn stem_from(&mut self, s: Option<Entity>) {
-        self.repr
-            .insert(Stem(s))
-            .insert(ResolveStem {})
-            .insert(ResolveVisibility {})
-            .insert(ResolveGridLocation {})
-            .insert(ResolveElevation {})
-            .insert(ResolveOpacity {});
-    }
-    pub fn grid(&mut self, grid: Grid) {
-        self.repr.insert(grid).insert(ResolveGridLocation {});
-    }
-    pub fn opacity(&mut self, opacity: f32) {
-        self.repr
-            .insert(Opacity::new(opacity))
-            .insert(ResolveOpacity {});
-    }
-    pub fn change_stem(&mut self, stem: Option<Entity>) {
-        if self.from_add_leaf {
-            panic!("please use stem-from to declare Stem");
-        }
-        self.repr.insert(UpdateStem(stem)).insert(ResolveStem {});
-    }
-    pub fn give<A: Bundle>(&mut self, a: A) {
-        debug_assert_ne!(TypeId::of::<A>(), TypeId::of::<Color>());
-        debug_assert_ne!(TypeId::of::<A>(), TypeId::of::<Opacity>());
-        debug_assert_ne!(TypeId::of::<A>(), TypeId::of::<Stem>());
-        debug_assert_ne!(TypeId::of::<A>(), TypeId::of::<GridLocation>());
-        debug_assert_ne!(TypeId::of::<A>(), TypeId::of::<UpdateStem>());
-        debug_assert_ne!(TypeId::of::<A>(), TypeId::of::<Visibility>());
-        debug_assert_ne!(TypeId::of::<A>(), TypeId::of::<Elevation>());
-        debug_assert_ne!(TypeId::of::<A>(), TypeId::of::<Grid>());
-        self.repr.insert(a);
-    }
+    fn add_leaf(&mut self) -> Entity;
+    fn location(&mut self, leaf: Entity, location: GridLocation);
+    fn flush_location(&mut self, tt: impl TriggerTargets);
+    fn opacity(&mut self, leaf: Entity, opacity: Opacity);
+    fn grid(&mut self, leaf: Entity, grid: Grid);
+    fn color(&mut self, leaf: Entity, color: Color);
+    fn elevation(&mut self, leaf: Entity, elevation: Elevation);
+    fn stem(&mut self, leaf: Entity, stem: Option<Entity>);
+    fn remove(&mut self, entity: Entity);
 }
 impl<'w, 's> EcsExtension for Tree<'w, 's> {
     fn start_sequence<SFN: FnOnce(&mut SequenceHandle<'_, 'w, 's>)>(&mut self, sfn: SFN) -> Entity {
@@ -99,25 +52,8 @@ impl<'w, 's> EcsExtension for Tree<'w, 's> {
     fn branch<B: Branch>(&mut self, twig: Twig<B>) -> B::Handle {
         B::grow(twig, self)
     }
-    fn add_leaf<LFN: for<'a> FnOnce(&mut LeafHandle<'a>)>(&mut self, lfn: LFN) -> Entity {
-        let id = self.spawn_empty().id();
-        self.entity(id).insert(Leaf::default());
-        let mut leaf_handle = LeafHandle {
-            repr: self.entity(id),
-            from_add_leaf: true,
-        };
-        lfn(&mut leaf_handle);
-        id
-    }
-    fn update_leaf<LFN: for<'a> FnOnce(&mut LeafHandle<'a>)>(&mut self, leaf: Entity, lfn: LFN) {
-        let mut leaf_handle = LeafHandle {
-            repr: self.entity(leaf),
-            from_add_leaf: false,
-        };
-        lfn(&mut leaf_handle);
-    }
-    fn queue_remove(&mut self, leaf: Entity) {
-        self.entity(leaf).insert(Remove::remove());
+    fn remove(&mut self, leaf: Entity) {
+        self.trigger_targets(Remove{}, leaf);
     }
 }
 impl EcsExtension for World {
@@ -134,18 +70,8 @@ impl EcsExtension for World {
         let h = cmds.branch(twig);
         h
     }
-    fn add_leaf<LFN: for<'a> FnOnce(&mut LeafHandle<'a>)>(&mut self, lfn: LFN) -> Entity {
-        let mut cmds = self.commands();
-        let e = cmds.add_leaf(lfn);
-        e
-    }
-    fn update_leaf<LFN: for<'a> FnOnce(&mut LeafHandle<'a>)>(&mut self, leaf: Entity, lfn: LFN) {
-        let mut cmds = self.commands();
-        cmds.update_leaf(leaf, lfn);
-    }
-    fn queue_remove(&mut self, leaf: Entity) {
-        let mut cmds = self.commands();
-        cmds.queue_remove(leaf);
+    fn remove(&mut self, leaf: Entity) {
+        self.trigger_targets(Remove{}, leaf);
     }
 }
 pub struct SequenceHandle<'a, 'w, 's> {

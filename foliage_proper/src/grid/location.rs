@@ -8,11 +8,12 @@ use crate::grid::resolve::{ReferentialData, ResolvedLocation};
 use crate::grid::token::{LocationAspectDescriptorValue, SpecifiedDescriptorValue};
 use crate::layout::Layout;
 use bevy_ecs::component::Component;
-use std::collections::HashMap;
+use smallvec::SmallVec;
+
 #[derive(Clone, Component, Default)]
 pub struct GridLocation {
     configurations: [(AspectConfiguration, LocationAspect); 4],
-    exceptions: HashMap<GridLocationException, LocationAspect>,
+    exceptions: SmallVec<[(GridLocationException, LocationAspect); 1]>,
     pub(crate) animation_hook: GridLocationAnimationHook,
 }
 
@@ -29,7 +30,7 @@ impl GridLocation {
             let base = location_aspect;
             for except in self.exceptions.iter() {
                 if except.0.layout.contains(layout) && aspect_config == &except.0.config {
-                    to_use = Some(except.1);
+                    to_use = Some(*except.1);
                 }
             }
             let to_use = to_use.unwrap_or(base);
@@ -458,7 +459,7 @@ impl GridLocation {
         let config = la.into();
         for c in config.configurations {
             self.exceptions
-                .insert(GridLocationException::new(layout, c.0), c.1);
+                .push((GridLocationException::new(layout, c.0), c.1));
         }
         self
     }

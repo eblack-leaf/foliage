@@ -4,9 +4,15 @@ use crate::ginkgo::viewport::ViewportHandle;
 use crate::grid::Grid;
 use bevy_ecs::change_detection::Res;
 use bevy_ecs::component::Component;
+use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::Resource;
-use bevy_ecs::system::ResMut;
+use bevy_ecs::query::With;
+use bevy_ecs::system::{Query, ResMut};
 use bitflags::bitflags;
+use crate::grid::location::GridLocation;
+use crate::grid::resolve::ResolveGridLocation;
+use crate::leaf::Stem;
+use crate::tree::Tree;
 
 #[derive(Resource, Copy, Clone, Eq, Hash, PartialEq, Ord, PartialOrd, Debug)]
 pub struct Layout(u16);
@@ -102,6 +108,8 @@ pub(crate) fn viewport_changes_layout(
     mut layout_grid: ResMut<LayoutGrid>,
     mut viewport_handle: ResMut<ViewportHandle>,
     mut layout: ResMut<Layout>,
+    mut tree: Tree,
+    locations: Query<(Entity, &Stem), With<GridLocation>>,
 ) {
     if viewport_handle.updated() {
         let (l, (c, r)) = LayoutGrid::configuration(viewport_handle.section().area.coordinates);
@@ -110,5 +118,12 @@ pub(crate) fn viewport_changes_layout(
             *layout = l;
         }
         layout_grid.grid = Grid::new(c, r);
+        let mut roots = vec![];
+        for (e, stem) in locations.iter() {
+            if stem.0.is_none() {
+                roots.push(*e);
+            }
+        }
+        tree.trigger_targets(ResolveGridLocation{}, roots);
     }
 }
