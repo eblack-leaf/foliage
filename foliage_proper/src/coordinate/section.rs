@@ -1,6 +1,5 @@
 use std::ops::{Add, AddAssign, Mul, Sub};
 
-use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
 use bytemuck::{Pod, Zeroable};
 
@@ -10,7 +9,7 @@ use crate::coordinate::{
     CoordinateContext, CoordinateUnit, Coordinates, DeviceContext, LogicalContext, NumericalContext,
 };
 
-#[derive(Copy, Clone, Default, Bundle, PartialEq, Debug)]
+#[derive(Copy, Clone, Default, Component, PartialEq, Debug)]
 pub struct Section<Context: CoordinateContext> {
     pub position: Position<Context>,
     pub area: Area<Context>,

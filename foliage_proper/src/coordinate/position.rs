@@ -1,7 +1,6 @@
 use std::marker::PhantomData;
 use std::ops::{Add, AddAssign, Div, Mul, Sub};
 
-use bevy_ecs::prelude::Component;
 use bytemuck::{Pod, Zeroable};
 use winit::dpi::{LogicalPosition, PhysicalPosition};
 
@@ -9,14 +8,14 @@ use crate::coordinate::{
     CoordinateContext, CoordinateUnit, Coordinates, DeviceContext, LogicalContext, NumericalContext,
 };
 
-#[derive(Copy, Clone, Default, Component, PartialEq, Debug)]
+#[derive(Copy, Clone, Default, PartialEq, Debug)]
 pub struct Position<Context: CoordinateContext> {
     pub coordinates: Coordinates,
     _phantom: PhantomData<Context>,
 }
 
 #[repr(C)]
-#[derive(Pod, Zeroable, Copy, Clone, Default, Component, PartialEq, Debug)]
+#[derive(Pod, Zeroable, Copy, Clone, Default, PartialEq, Debug)]
 pub struct GpuPosition(pub Coordinates);
 
 impl Position<NumericalContext> {

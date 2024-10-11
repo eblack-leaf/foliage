@@ -5,7 +5,7 @@ use crate::grid::location::GridLocation;
 use crate::grid::resolve::ResolveGridLocation;
 use crate::grid::Grid;
 use crate::leaf::{
-    ChangeStem, Leaf, Remove, ResolveElevation, ResolveStem, ResolveVisibility, Stem, Visibility,
+    Leaf, Remove, ResolveElevation, ResolveVisibility, Stem, UpdateStem, Visibility,
 };
 use crate::opacity::{Opacity, ResolveOpacity};
 use crate::time::OnEnd;
@@ -67,14 +67,14 @@ impl<'a> LeafHandle<'a> {
         if self.from_add_leaf {
             panic!("please use stem-from to declare Stem");
         }
-        self.repr.insert(ChangeStem(stem)).insert(ResolveStem {});
+        self.repr.insert(UpdateStem(stem)).insert(ResolveStem {});
     }
     pub fn give<A: Bundle>(&mut self, a: A) {
         debug_assert_ne!(TypeId::of::<A>(), TypeId::of::<Color>());
         debug_assert_ne!(TypeId::of::<A>(), TypeId::of::<Opacity>());
         debug_assert_ne!(TypeId::of::<A>(), TypeId::of::<Stem>());
         debug_assert_ne!(TypeId::of::<A>(), TypeId::of::<GridLocation>());
-        debug_assert_ne!(TypeId::of::<A>(), TypeId::of::<ChangeStem>());
+        debug_assert_ne!(TypeId::of::<A>(), TypeId::of::<UpdateStem>());
         debug_assert_ne!(TypeId::of::<A>(), TypeId::of::<Visibility>());
         debug_assert_ne!(TypeId::of::<A>(), TypeId::of::<Elevation>());
         debug_assert_ne!(TypeId::of::<A>(), TypeId::of::<Grid>());
@@ -117,7 +117,7 @@ impl<'w, 's> EcsExtension for Tree<'w, 's> {
         lfn(&mut leaf_handle);
     }
     fn queue_remove(&mut self, leaf: Entity) {
-        self.entity(leaf).insert(Remove::queue_remove());
+        self.entity(leaf).insert(Remove::remove());
     }
 }
 impl EcsExtension for World {

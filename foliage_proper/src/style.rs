@@ -1,11 +1,11 @@
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Component, IntoSystemConfigs};
+use bevy_ecs::prelude::{Component, IntoSystemConfigs, Trigger};
 use bevy_ecs::query::{Changed, Or};
 use bevy_ecs::system::{ParamSet, Query};
 
 use crate::color::Color;
 use crate::elm::{Elm, InternalStage};
-use crate::interaction::ClickInteractionListener;
+use crate::interaction::{ClickInteractionListener, OnClick};
 use crate::opacity::ResolveOpacity;
 use crate::tree::Tree;
 use crate::Root;
@@ -37,6 +37,9 @@ impl InteractiveColor {
         self.linked = linked;
         self
     }
+}
+pub(crate) fn alternate_triggered(trigger: Trigger<OnClick>) {
+    todo!()
 }
 pub(crate) fn alternate_color_on_engage(
     mut alts: ParamSet<(

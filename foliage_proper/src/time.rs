@@ -1,8 +1,8 @@
 use crate::elm::{Elm, InternalStage};
-use crate::leaf::{Trigger, TriggerEventSignal};
 use crate::Root;
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
+use bevy_ecs::event::Event;
 use bevy_ecs::prelude::{IntoSystemConfigs, ResMut, Resource};
 use bevy_ecs::system::{Commands, Query, Res};
 
@@ -66,15 +66,15 @@ pub(crate) fn start(mut time: ResMut<Time>) {
 pub(crate) fn update_time(mut time: ResMut<Time>) {
     time.update();
 }
-pub type OnEnd = Trigger;
+#[derive(Event, Copy, Clone, Default)]
+pub struct OnEnd {}
 #[derive(Component)]
 pub struct Timer {
     time_left: TimeDelta,
-    on_end: OnEnd,
 }
 impl Timer {
-    pub fn new(time_left: TimeDelta, on_end: OnEnd) -> Self {
-        Self { time_left, on_end }
+    pub fn new(time_left: TimeDelta) -> Self {
+        Self { time_left }
     }
 }
 pub(crate) fn timers(time: Res<Time>, mut timers: Query<(Entity, &mut Timer)>, mut cmd: Commands) {
@@ -84,8 +84,8 @@ pub(crate) fn timers(time: Res<Time>, mut timers: Query<(Entity, &mut Timer)>, m
             .checked_sub(time.frame_diff())
             .unwrap_or_default();
         if timer.time_left.is_zero() {
+            cmd.trigger_targets(OnEnd {}, entity);
             cmd.entity(entity).despawn();
-            cmd.entity(timer.on_end.0).insert(TriggerEventSignal(true));
         }
     }
 }

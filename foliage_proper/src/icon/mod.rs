@@ -23,7 +23,6 @@ use crate::differential::{Differential, RenderLink};
 use crate::elm::{Elm, InternalStage, RenderQueueHandle};
 use crate::ginkgo::Ginkgo;
 use crate::instances::Instances;
-use crate::leaf::HasRenderLink;
 use crate::leaf::{Remove, Visibility};
 use crate::texture::Mips;
 use crate::Root;
@@ -44,21 +43,21 @@ impl Root for Icon {
 }
 fn icon_scale(
     mut icons: Query<
-        (&mut Position<LogicalContext>, &mut Area<LogicalContext>),
-        (Changed<Area<LogicalContext>>, With<IconId>),
+        &mut Section<LogicalContext>,
+        (Changed<Section<LogicalContext>>, With<IconId>),
     >,
 ) {
-    for (mut pos, mut area) in icons.iter_mut() {
-        let old = *area;
+    for (mut section) in icons.iter_mut() {
+        let old = section.area;
         let new = if old.width() == 0.0 || old.height() == 0.0 {
             Area::logical((0, 0))
         } else {
             let new = Area::logical(Icon::SCALE);
             let diff = (old - new).max((0, 0)) / Area::logical((2, 2));
-            *pos += Position::logical(diff.coordinates);
+            section.position += Position::logical(diff.coordinates);
             new
         };
-        *area = new;
+        section.area = new;
     }
 }
 #[derive(Component, Clone, PartialEq)]

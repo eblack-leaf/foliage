@@ -15,7 +15,6 @@ use wgpu::{
 use crate::anim::{Animate, Interpolations};
 use crate::ash::{ClippingContext, DrawRange, Renderer};
 use crate::color::Color;
-use crate::coordinate::area::Area;
 use crate::coordinate::elevation::RenderLayer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::{GpuSection, Section};
@@ -24,7 +23,6 @@ use crate::differential::{Differential, RenderLink};
 use crate::elm::{InternalStage, RenderQueueHandle};
 use crate::ginkgo::{Ginkgo, ScaleFactor};
 use crate::instances::Instances;
-use crate::leaf::HasRenderLink;
 use crate::{Elm, Render, Root};
 
 impl Root for Panel {
@@ -41,11 +39,6 @@ impl Root for Panel {
         elm.scheduler
             .main
             .add_systems(percent_rounded_to_corner.in_set(InternalStage::Resolve));
-    }
-}
-impl HasRenderLink for Panel {
-    fn has_link() -> bool {
-        true
     }
 }
 #[derive(Bundle, Clone)]
@@ -164,19 +157,14 @@ fn percent_rounded_to_corner(
             &mut CornerIII,
             &mut CornerIV,
             &mut Rounding,
-            &Position<LogicalContext>,
-            &Area<LogicalContext>,
+            &Section<LogicalContext>,
         ),
-        Or<(
-            Changed<Rounding>,
-            Changed<Position<LogicalContext>>,
-            Changed<Area<LogicalContext>>,
-        )>,
+        Or<(Changed<Rounding>, Changed<Section<LogicalContext>>)>,
     >,
     scale_factor: Res<ScaleFactor>,
 ) {
-    for (mut i, mut ii, mut iii, mut iv, percents, pos, area) in query.iter_mut() {
-        let section = Section::new(*pos, *area).to_device(scale_factor.value());
+    for (mut i, mut ii, mut iii, mut iv, percents, section) in query.iter_mut() {
+        let section = section.to_device(scale_factor.value());
         let half_smallest = section.height().min(section.width()) / 2f32;
         let delta = half_smallest * percents.0[0];
         let position = Position::numerical((section.right() - delta, section.y() + delta));

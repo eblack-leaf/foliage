@@ -3,9 +3,8 @@ use crate::color::Color;
 use crate::leaf::{Dependents, Stem};
 use crate::tree::Tree;
 use bevy_ecs::component::Component;
-use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{ParamSet, Query};
-use bevy_ecs::query::With;
+use bevy_ecs::event::Event;
+use bevy_ecs::prelude::{Query, Trigger};
 
 impl Animate for Opacity {
     fn interpolations(start: &Self, end: &Self) -> Interpolations {
@@ -37,54 +36,36 @@ impl Opacity {
         }
     }
 }
-#[derive(Copy, Clone, Component, Default)]
+#[derive(Copy, Clone, Event, Default)]
 pub struct ResolveOpacity {}
-pub(crate) fn opacity(
-    mut opaque: ParamSet<(
-        Query<Entity, With<ResolveOpacity>>,
-        Query<(&Opacity, &Dependents)>,
-        Query<&mut Color>,
-    )>,
-    roots: Query<&Stem>,
+pub(crate) fn triggered_opacity(
+    trigger: Trigger<ResolveOpacity>,
+    stems: Query<&Stem>,
+    opaque: Query<&Opacity>,
+    dependents: Query<&Dependents>,
+    mut colors: Query<&mut Color>,
     mut tree: Tree,
 ) {
-    let mut to_check = vec![];
-    for entity in opaque.p0().iter() {
-        to_check.push(entity);
-        tree.entity(entity).remove::<ResolveOpacity>();
-    }
-    for entity in to_check {
-        let inherited = if let Ok(r) = roots.get(entity) {
-            if let Some(rh) = r.0.as_ref() {
-                let inherited = *opaque.p1().get(*rh).unwrap().0;
-                Some(inherited.value)
+    let inherited = if let Ok(s) = stems.get(trigger.entity()) {
+        if let Some(s) = s.0 {
+            if let Ok(opacity) = opaque.get(s) {
+                opacity.value
             } else {
-                None
+                1.0
             }
         } else {
-            None
-        };
-        let changed = recursive_opacity(&opaque.p1(), entity, inherited);
-        for (entity, o) in changed {
-            if let Ok(mut color) = opaque.p2().get_mut(entity) {
-                color.set_alpha(o);
+            1.0
+        }
+    } else {
+        1.0
+    };
+    if let Ok(opacity) = opaque.get(trigger.entity()) {
+        if let Ok(mut color) = colors.get_mut(trigger.entity()) {
+            let blended = opacity.value * inherited;
+            color.set_alpha(blended);
+            if let Ok(deps) = dependents.get(trigger.entity()) {
+                tree.trigger_targets(ResolveOpacity {}, deps.0.iter().copied().collect());
             }
         }
     }
-}
-
-fn recursive_opacity(
-    query: &Query<(&Opacity, &Dependents)>,
-    current: Entity,
-    inherited_opacity: Option<f32>,
-) -> Vec<(Entity, f32)> {
-    let mut changed = vec![];
-    if let Ok((opacity, deps)) = query.get(current) {
-        let blended = opacity.value * inherited_opacity.unwrap_or(1.0);
-        changed.push((current, blended));
-        for dep in deps.0.iter() {
-            changed.extend(recursive_opacity(query, *dep, Some(blended)));
-        }
-    }
-    changed
 }

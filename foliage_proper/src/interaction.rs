@@ -7,7 +7,8 @@ use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
 use crate::elm::{Elm, InternalStage};
 use crate::ginkgo::ScaleFactor;
-use crate::leaf::{Trigger, TriggerEventSignal};
+use crate::leaf::Trigger;
+use crate::tree::Tree;
 use crate::Root;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::{Event, EventReader};
@@ -204,17 +205,15 @@ impl ClickInteractionShape {
         }
     }
 }
-pub type OnClick = Trigger;
+#[derive(Event, Copy, Clone, Default)]
+pub struct OnClick {}
 pub(crate) fn on_click(
-    on_clicks: Query<(&OnClick, &ClickInteractionListener)>,
-    mut actions: Query<&mut TriggerEventSignal>,
+    on_clicks: Query<(Entity, &ClickInteractionListener), Changed<ClickInteractionListener>>,
+    mut tree: Tree,
 ) {
-    for (on_click, listener) in on_clicks.iter() {
+    for (e, listener) in on_clicks.iter() {
         if listener.active {
-            actions
-                .get_mut(on_click.0)
-                .expect("no-corresponding-action")
-                .0 = true;
+            tree.trigger_targets(OnClick {}, e);
         }
     }
 }

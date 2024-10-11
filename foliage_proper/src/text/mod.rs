@@ -19,16 +19,13 @@ use crate::ash::{
     ClippingContext, ClippingSection, DrawRange, Render, RenderNode, RenderNodes, Renderer,
 };
 use crate::color::Color;
-use crate::coordinate::area::Area;
 use crate::coordinate::elevation::RenderLayer;
-use crate::coordinate::position::Position;
 use crate::coordinate::section::{GpuSection, Section};
 use crate::coordinate::{Coordinates, DeviceContext, LogicalContext};
 use crate::differential::{Differential, RenderLink};
 use crate::elm::{Elm, InternalStage, RenderQueueHandle};
 use crate::ginkgo::{Ginkgo, ScaleFactor, VectorUniform};
 use crate::instances::Instances;
-use crate::leaf::HasRenderLink;
 use crate::texture::{AtlasEntry, TextureAtlas, TextureCoordinates};
 use crate::Root;
 
@@ -43,11 +40,6 @@ impl Root for Text {
             (distill, color_changes).in_set(InternalStage::Resolve),
             clear_removed.in_set(InternalStage::Finish),
         ));
-    }
-}
-impl HasRenderLink for Text {
-    fn has_link() -> bool {
-        true
     }
 }
 #[derive(Bundle, Clone)]
@@ -208,24 +200,22 @@ pub(crate) fn distill(
             &mut Glyphs,
             &GlyphColors,
             &Color,
-            &Area<LogicalContext>,
-            &Position<LogicalContext>,
+            &Section<LogicalContext>,
             &mut GlyphMetrics,
             &FontSize,
         ),
         Or<(
             Changed<TextValue>,
-            Changed<Position<LogicalContext>>,
-            Changed<Area<LogicalContext>>,
+            Changed<Section<LogicalContext>>,
             Changed<FontSize>,
         )>,
     >,
     font: Res<MonospacedFont>,
     scale_factor: Res<ScaleFactor>,
 ) {
-    for (value, mut glyphs, colors, base, area, pos, mut metrics, font_size) in texts.iter_mut() {
+    for (value, mut glyphs, colors, base, section, mut metrics, font_size) in texts.iter_mut() {
         let mut placer = fontdue::layout::Layout::new(CoordinateSystem::PositiveYDown);
-        let scaled_area = area.to_device(scale_factor.value());
+        let scaled_area = section.area.to_device(scale_factor.value());
         placer.reset(&fontdue::layout::LayoutSettings {
             max_width: Some(scaled_area.width()),
             max_height: Some(scaled_area.height()),

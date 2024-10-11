@@ -15,16 +15,13 @@ use wgpu::{
 
 use crate::ash::{ClippingContext, DrawRange, Render, Renderer};
 use crate::color::Color;
-use crate::coordinate::area::Area;
 use crate::coordinate::elevation::RenderLayer;
-use crate::coordinate::position::Position;
 use crate::coordinate::section::{GpuSection, Section};
 use crate::coordinate::{Coordinates, DeviceContext, LogicalContext, NumericalContext};
 use crate::differential::{Differential, RenderLink};
 use crate::elm::{Elm, InternalStage, RenderQueueHandle};
 use crate::ginkgo::Ginkgo;
 use crate::instances::Instances;
-use crate::leaf::HasRenderLink;
 use crate::leaf::{Remove, Visibility};
 use crate::texture::TextureCoordinates;
 use crate::Root;
@@ -140,29 +137,20 @@ pub enum ImageView {
 }
 fn constrain(
     mut images: Query<
-        (
-            &ImageFill,
-            &mut ImageView,
-            &mut Position<LogicalContext>,
-            &mut Area<LogicalContext>,
-        ),
-        Or<(
-            Changed<ImageView>,
-            Changed<Area<LogicalContext>>,
-            Changed<Position<LogicalContext>>,
-        )>,
+        (&ImageFill, &mut ImageView, &mut Section<LogicalContext>),
+        Or<(Changed<ImageView>, Changed<Section<LogicalContext>>)>,
     >,
 ) {
-    for (fill, mut view, mut pos, mut area) in images.iter_mut() {
-        let old = Section::new(*pos, *area);
+    for (fill, mut view, mut section) in images.iter_mut() {
+        let old = *section;
         match *view.as_ref() {
             ImageView::Aspect(a) => {
                 // keep the biggest aspect ratio can fit inside bounds
                 let new_area = a.constrain(old.area.coordinates);
                 let diff = (old.area.coordinates - new_area) / 2f32;
                 let new = Section::logical(old.position.coordinates + diff, new_area);
-                area.coordinates = new.area.coordinates;
-                pos.coordinates = new.position.coordinates;
+                section.area.coordinates = new.area.coordinates;
+                section.position.coordinates = new.position.coordinates;
             }
             ImageView::Crop(_) => {
                 let aspect = AspectRatio::from_coordinates(fill.2);
@@ -213,11 +201,6 @@ impl Root for Image {
             .main
             .add_systems(constrain.in_set(InternalStage::Resolve));
         elm.enable_retrieve::<Image>();
-    }
-}
-impl HasRenderLink for Image {
-    fn has_link() -> bool {
-        true
     }
 }
 #[repr(C)]

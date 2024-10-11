@@ -12,7 +12,8 @@ use crate::leaf::{Dependents, Stem};
 use crate::tree::Tree;
 use bevy_ecs::change_detection::{DetectChanges, Res, ResMut};
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Component, ParamSet, Query};
+use bevy_ecs::event::Event;
+use bevy_ecs::prelude::{ParamSet, Query, Trigger};
 use bevy_ecs::query::With;
 use ordermap::OrderSet;
 use std::collections::HashMap;
@@ -20,8 +21,26 @@ use std::collections::HashMap;
 pub(crate) struct ReferentialOrderDeterminant {
     chain: OrderSet<Entity>,
 }
-#[derive(Default, Component, Copy, Clone)]
+#[derive(Default, Event, Copy, Clone)]
 pub struct ResolveGridLocation {}
+pub(crate) fn triggered_resolve_grid_locations(
+    trigger: Trigger<ResolveGridLocation>,
+    mut locations: Query<&mut GridLocation>,
+    dependents: Query<&Dependents>,
+    grids: Query<&Grid>,
+    stems: Query<&Stem>,
+    layout: Res<Layout>,
+    layout_grid: Res<LayoutGrid>,
+    viewport: Res<ViewportHandle>,
+    mut sections: Query<&mut Section<LogicalContext>>,
+    mut points: Query<&mut Points<LogicalContext>>,
+    mut tree: Tree,
+) {
+    // get stem / screen
+    // location of trigger.ent -> resolve(stem, screen, layout)
+    // apply to section / points / hook_update
+    // trigger-target ResolveGridLocation{} => deps.0.iter().copied().collect()
+}
 pub(crate) fn resolve_grid_locations(
     mut check_read_and_update: ParamSet<(
         Query<Entity, (With<ResolveGridLocation>, With<GridLocation>)>,

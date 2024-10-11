@@ -8,14 +8,13 @@ use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::elevation::Elevation;
 use crate::coordinate::points::Points;
-use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::{Coordinates, LogicalContext};
 use crate::elm::Elm;
 use crate::grid::animation::GridLocationAnimationHook;
 use crate::grid::location::GridLocation;
 use crate::grid::resolve::ResolveGridLocation;
-use crate::leaf::{ResolveElevation, TriggerEventSignal};
+use crate::leaf::ResolveElevation;
 use crate::opacity::{Opacity, ResolveOpacity};
 use crate::panel::Rounding;
 use crate::time::{OnEnd, Time, TimeDelta};
@@ -268,11 +267,7 @@ pub(crate) fn animate<A: Animate>(
     mut anims: Query<(Entity, &mut AnimationRunner<A>)>,
     mut anim_targets: ParamSet<(
         Query<&mut A>,
-        Query<(
-            &Position<LogicalContext>,
-            &Area<LogicalContext>,
-            &Points<LogicalContext>,
-        )>,
+        Query<(&Section<LogicalContext>, &Points<LogicalContext>)>,
         Query<(&mut GridLocation)>,
     )>,
     time: ResMut<Time>,
@@ -292,12 +287,10 @@ pub(crate) fn animate<A: Animate>(
                 let mut orphaned = false;
                 let target_entity = animation.animation_target;
                 if TypeId::of::<A>() == TypeId::of::<GridLocation>() {
-                    let mut pos = Position::default();
-                    let mut area = Area::default();
+                    let mut section = Section::default();
                     let mut points = Points::default();
-                    if let Ok((p, a, pts)) = anim_targets.p1().get(target_entity) {
-                        pos = *p;
-                        area = *a;
+                    if let Ok((s, pts)) = anim_targets.p1().get(target_entity) {
+                        section = *s;
                         points = pts.clone();
                     } else {
                         orphaned = true;
@@ -311,7 +304,6 @@ pub(crate) fn animate<A: Animate>(
                     }
                     if !orphaned {
                         if let Ok(mut location) = anim_targets.p2().get_mut(target_entity) {
-                            let section = Section::new(pos, area);
                             match &mut location.animation_hook {
                                 GridLocationAnimationHook::SectionDriven(hook) => {
                                     hook.last = section;
@@ -385,21 +377,18 @@ pub(crate) fn animate<A: Animate>(
             }
             let mut orphaned = false;
             if let Ok(mut a) = anim_targets.p0().get_mut(animation.animation_target) {
+                a.apply(&mut animation.interpolations);
                 if TypeId::of::<A>() == TypeId::of::<GridLocation>() {
-                    tree.entity(animation.animation_target)
-                        .insert(ResolveGridLocation {});
+                    tree.trigger_targets(ResolveGridLocation {}, animation.animation_target);
                 }
                 if TypeId::of::<A>() == TypeId::of::<Opacity>()
                     || TypeId::of::<A>() == TypeId::of::<Color>()
                 {
-                    tree.entity(animation.animation_target)
-                        .insert(ResolveOpacity {});
+                    tree.trigger_targets(ResolveOpacity {}, animation.animation_target);
                 }
                 if TypeId::of::<A>() == TypeId::of::<Elevation>() {
-                    tree.entity(animation.animation_target)
-                        .insert(ResolveElevation {});
+                    tree.trigger_targets(ResolveElevation {}, animation.animation_target);
                 }
-                a.apply(&mut animation.interpolations);
             } else {
                 orphaned = true;
             }
@@ -433,11 +422,7 @@ fn despawn_and_update_sequence<A: Animate>(
         .animations_to_finish
         <= 0
     {
-        if let Ok(a) = sequences.get_mut(sequence_entity) {
-            if let Some(e) = a.on_end {
-                cmd.entity(e.0).insert(TriggerEventSignal(true));
-            }
-        }
+        cmd.trigger_targets(OnEnd {}, sequence_entity);
         cmd.entity(sequence_entity).despawn();
     }
     cmd.entity(anim_entity).despawn();

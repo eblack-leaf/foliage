@@ -7,9 +7,7 @@ use bevy_ecs::system::{Query, Res};
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
 
-use crate::coordinate::area::Area;
-use crate::coordinate::position::Position;
-use crate::coordinate::section::GpuSection;
+use crate::coordinate::section::{GpuSection, Section};
 use crate::elm::{Elm, InternalStage};
 use crate::ginkgo::ScaleFactor;
 use crate::Root;
@@ -131,21 +129,14 @@ impl Root for Coordinates {
 }
 fn coordinate_resolve(
     mut placed_pos: Query<
-        (
-            &mut GpuSection,
-            &Position<LogicalContext>,
-            &Area<LogicalContext>,
-        ),
-        Or<(
-            Changed<Position<LogicalContext>>,
-            Changed<Area<LogicalContext>>,
-        )>,
+        (&mut GpuSection, &Section<LogicalContext>),
+        Or<(Changed<Section<LogicalContext>>,)>,
     >,
     scale_factor: Res<ScaleFactor>,
 ) {
-    for (mut gpu, pos, area) in placed_pos.iter_mut() {
-        gpu.pos = pos.to_device(scale_factor.value()).to_gpu();
-        gpu.area = area.to_device(scale_factor.value()).to_gpu();
+    for (mut gpu, section) in placed_pos.iter_mut() {
+        gpu.pos = section.position.to_device(scale_factor.value()).to_gpu();
+        gpu.area = section.area.to_device(scale_factor.value()).to_gpu();
     }
 }
 
