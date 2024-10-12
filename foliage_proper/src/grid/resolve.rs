@@ -9,12 +9,36 @@ use crate::layout::{Layout, LayoutGrid};
 use crate::leaf::{Dependents, Stem};
 use crate::tree::Tree;
 use bevy_ecs::change_detection::Res;
+use bevy_ecs::component::StorageType::SparseSet;
+use bevy_ecs::component::{ComponentHooks, ComponentId, StorageType};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::Event;
-use bevy_ecs::prelude::{Query, Trigger};
+use bevy_ecs::prelude::{Component, Query, Trigger};
+use bevy_ecs::world::DeferredWorld;
 
 #[derive(Default, Event, Copy, Clone)]
 pub struct ResolveGridLocation {}
+pub struct ResolveGridLocation2 {}
+impl Component for ResolveGridLocation2 {
+    const STORAGE_TYPE: StorageType = SparseSet;
+    fn register_component_hooks(_hooks: &mut ComponentHooks) {
+        _hooks.on_insert(hook_resolve_grid_location);
+    }
+}
+pub(crate) fn hook_resolve_grid_location(
+    mut world: DeferredWorld,
+    entity: Entity,
+    _c: ComponentId,
+) {
+    let deps = world.get::<Dependents>(entity).unwrap().0.clone();
+
+    for dep in deps.iter() {
+        world
+            .commands()
+            .entity(*dep)
+            .insert(ResolveGridLocation2 {});
+    }
+}
 pub(crate) fn triggered_resolve_grid_locations(
     trigger: Trigger<ResolveGridLocation>,
     mut locations: Query<&mut GridLocation>,
@@ -28,6 +52,9 @@ pub(crate) fn triggered_resolve_grid_locations(
     mut points: Query<&mut Points<LogicalContext>>,
     mut tree: Tree,
 ) {
+    if locations.get(trigger.entity()).is_err() {
+        return;
+    }
     let screen = ReferentialData {
         section: viewport.section(),
         points: None,
@@ -96,7 +123,11 @@ pub(crate) fn triggered_resolve_grid_locations(
         }
         tree.trigger_targets(
             ResolveGridLocation {},
-            deps.0.iter().copied().collect::<Vec<Entity>>(),
+            deps.0
+                .iter()
+                .copied()
+                .filter(|e| locations.get(*e).is_ok())
+                .collect::<Vec<Entity>>(),
         );
     }
 }

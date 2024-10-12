@@ -182,6 +182,7 @@ impl Default for Visibility {
 pub struct ResolveVisibility(pub bool);
 pub(crate) fn resolve_visibility(
     trigger: Trigger<ResolveVisibility>,
+    // TODO read stem visibility to determine or use self
     mut query: Query<(&mut Visibility, &Dependents)>,
     links: Query<&RenderLink>,
     mut remove_queue: ResMut<RenderRemoveQueue>,

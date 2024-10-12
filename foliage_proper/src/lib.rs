@@ -22,9 +22,15 @@ use crate::coordinate::{Coordinates, DeviceContext};
 use crate::elm::{Ecs, Elm};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::{Ginkgo, ScaleFactor};
+use crate::grid::resolve::triggered_resolve_grid_locations;
 use crate::icon::{Icon, IconId, IconRequest};
 use crate::image::Image;
 use crate::interaction::{ClickInteractionListener, KeyboardAdapter, MouseAdapter, TouchAdapter};
+use crate::leaf::{
+    render_link_on_remove, resolve_elevation, resolve_visibility, stem_remove,
+    trigger_interactions_enable, triggered_remove, update_stem_trigger,
+};
+use crate::opacity::triggered_opacity;
 use crate::panel::Panel;
 use crate::shape::line::Line;
 use crate::shape::Shape;
@@ -103,6 +109,15 @@ impl Foliage {
         };
         this.define_roots::<Trunk>();
         this.elm.ecs.insert_resource(AssetLoader::default());
+        this.elm.ecs.observe(trigger_interactions_enable);
+        this.elm.ecs.observe(triggered_opacity);
+        this.elm.ecs.observe(triggered_remove);
+        this.elm.ecs.observe(triggered_resolve_grid_locations);
+        this.elm.ecs.observe(stem_remove);
+        this.elm.ecs.observe(render_link_on_remove);
+        this.elm.ecs.observe(resolve_visibility);
+        this.elm.ecs.observe(resolve_elevation);
+        this.elm.ecs.observe(update_stem_trigger);
         this
     }
     pub fn enable_animation<A: Animate>(&mut self) {
