@@ -39,7 +39,7 @@ impl Root for LeafModel {
         );
     }
 }
-pub(crate) const REGION_AREA: Coordinates = Coordinates::new(10.0, 10.0);
+pub(crate) const REGION_AREA: Coordinates = Coordinates::new(40.0, 40.0);
 pub(crate) fn configure_leaf_part(
     mut parts: Query<
         (Entity, &mut LeafPartComponent, &Section<LogicalContext>),
@@ -58,7 +58,7 @@ pub(crate) fn configure_leaf_part(
                 // spawn
                 let e = tree.add_leaf();
                 tree.stem(e, Some(entity));
-                tree.elevation(e, -1);
+                tree.elevation(e, 1);
                 tree.entity(e)
                     .insert(Line::new(BRANCH_GRID_WEIGHT, Grey::plus_three()));
                 part.lines_present.insert(x_identifier, e);
@@ -81,7 +81,7 @@ pub(crate) fn configure_leaf_part(
                     // spawn
                     let e = tree.add_leaf();
                     tree.stem(e, Some(entity));
-                    tree.elevation(e, -1);
+                    tree.elevation(e, 1);
                     tree.entity(e)
                         .insert(Line::new(BRANCH_GRID_WEIGHT, Grey::plus_three()));
                     part.lines_present.insert(y_identifier, e);
@@ -104,7 +104,7 @@ pub(crate) fn configure_leaf_part(
                     // spawn
                     let e = tree.add_leaf();
                     tree.stem(e, Some(entity));
-                    tree.elevation(e, -1);
+                    tree.elevation(e, 1);
                     tree.entity(e)
                         .insert(Panel::new(Rounding::all(0.0), Orange::minus_one()));
                     part.boxes_present.insert(box_identifier, e);

@@ -55,7 +55,6 @@ pub(crate) fn update_stem_trigger(
     if let Ok(mut current) = stems.get_mut(trigger.entity()) {
         let old = current.0.take();
         current.0 = trigger.event().0;
-        tracing::trace!("updating stem: {:?}", trigger.event().0);
         if let Some(c) = current.0 {
             if let Ok(mut deps) = dependents.get_mut(c) {
                 deps.0.insert(trigger.entity());
