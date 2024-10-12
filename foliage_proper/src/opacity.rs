@@ -65,7 +65,10 @@ pub(crate) fn triggered_opacity(
             let blended = opacity.value * inherited;
             color.set_alpha(blended);
             if let Ok(deps) = dependents.get(trigger.entity()) {
-                tree.trigger_targets(ResolveOpacity {}, deps.0.iter().copied().collect::<Vec<Entity>>());
+                tree.trigger_targets(
+                    ResolveOpacity {},
+                    deps.0.iter().copied().collect::<Vec<Entity>>(),
+                );
             }
         }
     }

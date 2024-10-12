@@ -7,7 +7,7 @@ use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Query, ResMut, Resource};
 
 use crate::ash::Render;
-use crate::leaf::{Remove, Visibility};
+use crate::leaf::Visibility;
 
 #[derive(Component, Clone, Eq, PartialEq, Hash, Copy)]
 pub struct RenderLink(TypeId);
@@ -88,16 +88,7 @@ pub(crate) fn visibility_changed<D: Component + PartialEq + Clone + Send + Sync 
     }
 }
 pub(crate) fn differential<D: Component + PartialEq + Clone + Send + Sync + 'static>(
-    mut components: Query<
-        (
-            Entity,
-            &RenderLink,
-            &D,
-            &mut Differential<D>,
-            &Visibility,
-        ),
-        Changed<D>,
-    >,
+    mut components: Query<(Entity, &RenderLink, &D, &mut Differential<D>, &Visibility), Changed<D>>,
     mut render_queue: ResMut<RenderAddQueue<D>>,
 ) {
     for (entity, link, d, mut local_cache, visibility) in components.iter_mut() {

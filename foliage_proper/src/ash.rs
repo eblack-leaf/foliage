@@ -9,9 +9,7 @@ use std::hash::Hash;
 use wgpu::{CommandEncoderDescriptor, RenderPass, RenderPassDescriptor, TextureViewDescriptor};
 
 use crate::color::Color;
-use crate::coordinate::area::Area;
 use crate::coordinate::elevation::RenderLayer;
-use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::{DeviceContext, LogicalContext};
 use crate::elm::RenderQueueHandle;
@@ -92,10 +90,7 @@ pub(crate) fn pull_clipping_section(
     query: Query<
         (Entity, &Section<LogicalContext>),
         (
-            Or<(
-                Added<EnableClipping>,
-                Changed<Section<LogicalContext>>,
-            )>,
+            Or<(Added<EnableClipping>, Changed<Section<LogicalContext>>)>,
             With<EnableClipping>,
         ),
     >,

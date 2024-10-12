@@ -3,8 +3,8 @@ use crate::grid::aspect::GridAspect;
 use crate::grid::aspect::GridContext;
 use crate::grid::resolve::ReferentialData;
 use crate::grid::unit::RelativeUnit;
-use std::ops::{Add, Sub};
 use smallvec::SmallVec;
+use std::ops::{Add, Sub};
 
 impl From<LocationAspectToken> for SpecifiedDescriptorValue {
     fn from(value: LocationAspectToken) -> Self {
@@ -192,9 +192,7 @@ impl SpecifiedDescriptorValue {
     pub(crate) fn new(first: LocationAspectToken) -> SpecifiedDescriptorValue {
         let mut vec = SmallVec::new();
         vec.push(first);
-        Self {
-            tokens: vec,
-        }
+        Self { tokens: vec }
     }
 }
 

@@ -5,8 +5,6 @@ use foliage::bevy_ecs::query::{Added, Changed, Or};
 use foliage::bevy_ecs::schedule::IntoSystemConfigs;
 use foliage::bevy_ecs::system::Query;
 use foliage::color::{Grey, Monochromatic, Orange};
-use foliage::coordinate::area::Area;
-use foliage::coordinate::position::Position;
 use foliage::coordinate::section::Section;
 use foliage::coordinate::{Coordinates, LogicalContext};
 use foliage::elm::{Elm, ExternalStage};
@@ -44,115 +42,95 @@ impl Root for LeafModel {
 pub(crate) const REGION_AREA: Coordinates = Coordinates::new(10.0, 10.0);
 pub(crate) fn configure_leaf_part(
     mut parts: Query<
-        (
-            Entity,
-            &mut LeafPartComponent,
-            &Position<LogicalContext>,
-            &Area<LogicalContext>,
-        ),
-        Or<(
-            Changed<Position<LogicalContext>>,
-            Changed<Area<LogicalContext>>,
-            Added<LeafPartComponent>,
-        )>,
+        (Entity, &mut LeafPartComponent, &Section<LogicalContext>),
+        Or<(Changed<Section<LogicalContext>>, Added<LeafPartComponent>)>,
     >,
     mut tree: Tree,
 ) {
-    for (entity, mut part, pos, area) in parts.iter_mut() {
+    for (entity, mut part, section) in parts.iter_mut() {
         // divide section into whole 11x11
-        let section = Section::new(*pos, (*area - (8, 8).into()).max((0, 0)));
+        let section = Section::new(section.position, (section.area - (8, 8).into()).max((0, 0)));
         let num_regions = (section.area / REGION_AREA.into()).floored().coordinates;
+        let mut changed = true;
         for x in 0..num_regions.horizontal() as i32 {
             let x_identifier = LineIdentifier::X(x);
             if !part.lines_present.contains_key(&x_identifier) {
                 // spawn
-                let e = tree.add_leaf(|l| {
-                    l.stem_from(Some(entity));
-                    l.elevation(-1);
-                    l.give(Line::new(BRANCH_GRID_WEIGHT, Grey::plus_three()));
-                });
+                let e = tree.add_leaf();
+                tree.stem(e, Some(entity));
+                tree.elevation(e, -1);
+                tree.entity(e)
+                    .insert(Line::new(BRANCH_GRID_WEIGHT, Grey::plus_three()));
                 part.lines_present.insert(x_identifier, e);
             }
-            tree.update_leaf(
+            tree.location(
                 part.lines_present.get(&x_identifier).copied().unwrap(),
-                |l| {
-                    l.location(
-                        GridLocation::new()
-                            .point_ax(stem().left() + (x * REGION_AREA.horizontal() as i32).px())
-                            .point_ay(stem().top() + 0.px())
-                            .point_bx(stem().left() + (x * REGION_AREA.horizontal() as i32).px())
-                            .point_by(
-                                stem().top()
-                                    + (REGION_AREA.horizontal() as i32
-                                        * num_regions.vertical() as i32)
-                                        .px(),
-                            ),
-                    );
-                },
+                GridLocation::new()
+                    .point_ax(stem().left() + (x * REGION_AREA.horizontal() as i32).px())
+                    .point_ay(stem().top() + 0.px())
+                    .point_bx(stem().left() + (x * REGION_AREA.horizontal() as i32).px())
+                    .point_by(
+                        stem().top()
+                            + (REGION_AREA.horizontal() as i32 * num_regions.vertical() as i32)
+                                .px(),
+                    ),
             );
             for y in 0..num_regions.vertical() as i32 {
                 let y_identifier = LineIdentifier::Y(y);
                 if !part.lines_present.contains_key(&y_identifier) {
                     // spawn
-                    let e = tree.add_leaf(|l| {
-                        l.stem_from(Some(entity));
-                        l.elevation(-1);
-                        l.give(Line::new(BRANCH_GRID_WEIGHT, Grey::plus_three()));
-                    });
+                    let e = tree.add_leaf();
+                    tree.stem(e, Some(entity));
+                    tree.elevation(e, -1);
+                    tree.entity(e)
+                        .insert(Line::new(BRANCH_GRID_WEIGHT, Grey::plus_three()));
                     part.lines_present.insert(y_identifier, e);
                 }
-                tree.update_leaf(
+                tree.location(
                     part.lines_present.get(&y_identifier).copied().unwrap(),
-                    |l| {
-                        l.location(
-                            GridLocation::new()
-                                .point_ax(stem().left() + 0.px())
-                                .point_ay(stem().top() + (y * REGION_AREA.horizontal() as i32).px())
-                                .point_bx(
-                                    stem().left()
-                                        + (REGION_AREA.horizontal() as i32
-                                            * num_regions.horizontal() as i32)
-                                            .px(),
-                                )
-                                .point_by(
-                                    stem().top() + (y * REGION_AREA.horizontal() as i32).px(),
-                                ),
-                        );
-                    },
+                    GridLocation::new()
+                        .point_ax(stem().left() + 0.px())
+                        .point_ay(stem().top() + (y * REGION_AREA.horizontal() as i32).px())
+                        .point_bx(
+                            stem().left()
+                                + (REGION_AREA.horizontal() as i32
+                                    * num_regions.horizontal() as i32)
+                                    .px(),
+                        )
+                        .point_by(stem().top() + (y * REGION_AREA.horizontal() as i32).px()),
                 );
                 let box_identifier = BoxIdentifier { x, y };
                 if !part.boxes_present.contains_key(&box_identifier) {
                     // spawn
-                    let e = tree.add_leaf(|l| {
-                        l.stem_from(Some(entity));
-                        l.elevation(-1);
-                        l.give(Panel::new(Rounding::all(0.0), Orange::minus_one()));
-                    });
+                    let e = tree.add_leaf();
+                    tree.stem(e, Some(entity));
+                    tree.elevation(e, -1);
+                    tree.entity(e)
+                        .insert(Panel::new(Rounding::all(0.0), Orange::minus_one()));
                     part.boxes_present.insert(box_identifier, e);
                 }
-                tree.update_leaf(
+                tree.location(
                     part.boxes_present.get(&box_identifier).copied().unwrap(),
-                    |l| {
-                        l.location(
-                            GridLocation::new()
-                                .center_x(
-                                    stem().left()
-                                        + (REGION_AREA.horizontal() as i32 * x
-                                            + (REGION_AREA.horizontal() / 2f32) as i32)
-                                            .px(),
-                                )
-                                .center_y(
-                                    stem().top()
-                                        + (REGION_AREA.horizontal() as i32 * y
-                                            + (REGION_AREA.horizontal() / 2f32) as i32)
-                                            .px(),
-                                )
-                                .width(24.px())
-                                .height(24.px()),
-                        );
-                    },
+                    GridLocation::new()
+                        .center_x(
+                            stem().left()
+                                + (REGION_AREA.horizontal() as i32 * x
+                                    + (REGION_AREA.horizontal() / 2f32) as i32)
+                                    .px(),
+                        )
+                        .center_y(
+                            stem().top()
+                                + (REGION_AREA.horizontal() as i32 * y
+                                    + (REGION_AREA.horizontal() / 2f32) as i32)
+                                    .px(),
+                        )
+                        .width(24.px())
+                        .height(24.px()),
                 );
             }
+        }
+        if changed {
+            tree.flush(entity);
         }
         // if no/less sub-entities => spawn how many need + draw-sequence + box-fade-in
         // if more sub-entities => remove excess => queue_remove
@@ -201,12 +179,12 @@ pub(crate) struct LeafPartModel {}
 impl Branch for LeafPartModel {
     type Handle = Entity;
     fn grow(twig: Twig<Self>, tree: &mut Tree) -> Self::Handle {
-        let root = tree.add_leaf(|leaf| {
-            leaf.elevation(-1);
-            leaf.stem_from(twig.stem);
-            leaf.location(twig.location);
-            leaf.give(LeafPartComponent::new());
-        });
+        let root = tree.add_leaf();
+        tree.stem(root, twig.stem);
+        tree.location(root, twig.location);
+        tree.elevation(root, -1);
+        tree.entity(root).insert(LeafPartComponent::new());
+        tree.flush(root);
         // start part-stem-line sequence
         // spawn leaf-part-components on root with correct values
         root
@@ -215,11 +193,10 @@ impl Branch for LeafPartModel {
 impl Branch for LeafModelArgs {
     type Handle = LeafModel;
     fn grow(twig: Twig<Self>, tree: &mut Tree) -> Self::Handle {
-        let this = tree.add_leaf(|l| {
-            l.elevation(twig.elevation);
-            l.stem_from(twig.stem);
-            l.location(twig.location);
-        });
+        let this = tree.add_leaf();
+        tree.stem(this, twig.stem);
+        tree.location(this, twig.location);
+        tree.elevation(this, twig.elevation);
         let one = tree.branch(
             Twig::new(LeafPartModel {})
                 .elevation(-1)
@@ -256,18 +233,19 @@ impl Branch for LeafModelArgs {
                         .bottom(95.percent().height().from(stem())),
                 ),
         );
-        let stem_line = tree.add_leaf(|l| {
-            l.elevation(-1);
-            l.stem_from(Some(this));
-            l.location(
-                GridLocation::new()
-                    .point_ax(stem().center_x())
-                    .point_ay(5.percent().from(stem()))
-                    .point_bx(stem().center_x())
-                    .point_by(5.percent().from(stem())),
-            );
-            l.give(Line::new(STEM_LINE_WEIGHT, Grey::plus_three()));
-        });
+        let stem_line = tree.add_leaf();
+        tree.stem(stem_line, Some(this));
+        tree.elevation(stem_line, -1);
+        tree.location(
+            stem_line,
+            GridLocation::new()
+                .point_ax(stem().center_x())
+                .point_ay(5.percent().from(stem()))
+                .point_bx(stem().center_x())
+                .point_by(5.percent().from(stem())),
+        );
+        tree.entity(stem_line)
+            .insert(Line::new(STEM_LINE_WEIGHT, Grey::plus_three()));
         tree.start_sequence(|seq| {
             seq.animate(
                 Animation::new(
@@ -282,6 +260,7 @@ impl Branch for LeafModelArgs {
                 .end(1000),
             );
         });
+        tree.flush(this);
         LeafModel {
             this,
             parts: [one, two, three],

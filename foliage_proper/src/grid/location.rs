@@ -28,6 +28,9 @@ impl GridLocation {
         for (aspect_config, location_aspect) in self.configurations.iter() {
             let mut to_use = None;
             let base = location_aspect;
+            if base.count == 0 {
+                continue;
+            }
             for except in self.exceptions.iter() {
                 if except.0.layout.contains(layout) && aspect_config == &except.0.config {
                     to_use = Some(&except.1);

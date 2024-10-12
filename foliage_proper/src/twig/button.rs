@@ -2,11 +2,11 @@ use crate::grid::aspect::stem;
 use crate::grid::location::GridLocation;
 use crate::grid::unit::TokenUnit;
 use crate::icon::{Icon, IconId};
-use crate::interaction::{ClickInteractionListener, OnClick};
+use crate::interaction::ClickInteractionListener;
 use crate::panel::{Panel, Rounding};
 use crate::style::{Coloring, InteractiveColor};
 use crate::text::{FontSize, Text, TextValue};
-use crate::tree::Tree;
+use crate::tree::{EcsExtension, Tree};
 use crate::twig::{Branch, Twig};
 use bevy_ecs::entity::Entity;
 
@@ -21,7 +21,6 @@ pub struct ButtonArgs {
     coloring: Coloring,
     rounding: Rounding,
     icon_id: IconId,
-    on_click: OnClick,
     text_value: Option<TextValue>,
     font_size: Option<FontSize>,
     outline: u32,
@@ -56,17 +55,12 @@ pub struct Button {
     pub text: Entity,
 }
 impl Button {
-    pub fn args<ID: Into<IconId>, C: Into<Coloring>>(
-        id: ID,
-        c: C,
-        on_click: OnClick,
-    ) -> ButtonArgs {
+    pub fn args<ID: Into<IconId>, C: Into<Coloring>>(id: ID, c: C) -> ButtonArgs {
         ButtonArgs {
             circle_square: ButtonShape::Square,
             coloring: c.into(),
             rounding: Default::default(),
             icon_id: id.into(),
-            on_click,
             text_value: None,
             font_size: None,
             outline: 0,
@@ -85,18 +79,16 @@ impl Branch for ButtonArgs {
             ButtonShape::Circle => ClickInteractionListener::new().as_circle(),
             ButtonShape::Square => ClickInteractionListener::new(),
         };
-        tree.update_leaf(panel, |l| {
-            l.stem_from(twig.stem);
-            l.location(twig.location);
-            l.elevation(twig.elevation);
-            l.give(Panel::new(twig.t.rounding, twig.t.coloring.background).outline(twig.t.outline));
-            l.give(
+        tree.stem(panel, twig.stem);
+        tree.location(panel, twig.location);
+        tree.elevation(panel, twig.elevation);
+        tree.entity(panel)
+            .insert(Panel::new(twig.t.rounding, twig.t.coloring.background).outline(twig.t.outline))
+            .insert(
                 InteractiveColor::new(twig.t.coloring.background, twig.t.coloring.foreground)
                     .with_linked(linked),
-            );
-            l.give(interaction_listener);
-            l.give(twig.t.on_click);
-        });
+            )
+            .insert(interaction_listener);
         let value = twig.t.text_value.unwrap_or_default().0;
         let icon_location = if value.is_empty() {
             GridLocation::new()
@@ -111,30 +103,29 @@ impl Branch for ButtonArgs {
                 .height(24.px())
                 .center_y(stem().center_y())
         };
-        tree.update_leaf(icon, |l| {
-            l.stem_from(Some(panel));
-            l.location(icon_location);
-            l.elevation(-1);
-            l.give(Icon::new(twig.t.icon_id, twig.t.coloring.foreground));
-        });
-        tree.update_leaf(text, |l| {
-            l.stem_from(Some(panel));
-            l.elevation(-1);
-            l.location(
-                GridLocation::new()
-                    .left(stem().left() + 48.px())
-                    .right(stem().right() - 16.px())
-                    .center_y(stem().center_y())
-                    .height(90.percent().height().of(stem())),
-            );
-            if twig.t.font_size.is_some() {
-                l.give(Text::new(
-                    value,
-                    twig.t.font_size.unwrap(),
-                    twig.t.coloring.foreground,
-                ));
-            }
-        });
+        tree.stem(icon, Some(panel));
+        tree.location(icon, icon_location);
+        tree.elevation(icon, -1);
+        tree.entity(icon)
+            .insert(Icon::new(twig.t.icon_id, twig.t.coloring.foreground));
+        tree.stem(text, Some(panel));
+        tree.location(
+            text,
+            GridLocation::new()
+                .left(stem().left() + 48.px())
+                .right(stem().right() - 16.px())
+                .center_y(stem().center_y())
+                .height(90.percent().height().of(stem())),
+        );
+        tree.elevation(text, -1);
+        if twig.t.font_size.is_some() {
+            tree.entity(text).insert(Text::new(
+                value,
+                twig.t.font_size.unwrap(),
+                twig.t.coloring.foreground,
+            ));
+        }
+        tree.flush(panel);
         Button { panel, icon, text }
     }
 }

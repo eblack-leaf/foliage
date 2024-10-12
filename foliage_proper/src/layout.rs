@@ -1,7 +1,11 @@
 use crate::coordinate::placement::Placement;
 use crate::coordinate::Coordinates;
 use crate::ginkgo::viewport::ViewportHandle;
+use crate::grid::location::GridLocation;
+use crate::grid::resolve::ResolveGridLocation;
 use crate::grid::Grid;
+use crate::leaf::Stem;
+use crate::tree::Tree;
 use bevy_ecs::change_detection::Res;
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
@@ -9,10 +13,6 @@ use bevy_ecs::prelude::Resource;
 use bevy_ecs::query::With;
 use bevy_ecs::system::{Query, ResMut};
 use bitflags::bitflags;
-use crate::grid::location::GridLocation;
-use crate::grid::resolve::ResolveGridLocation;
-use crate::leaf::Stem;
-use crate::tree::Tree;
 
 #[derive(Resource, Copy, Clone, Eq, Hash, PartialEq, Ord, PartialOrd, Debug)]
 pub struct Layout(u16);
@@ -124,6 +124,6 @@ pub(crate) fn viewport_changes_layout(
                 roots.push(e);
             }
         }
-        tree.trigger_targets(ResolveGridLocation{}, roots);
+        tree.trigger_targets(ResolveGridLocation {}, roots);
     }
 }

@@ -254,11 +254,7 @@ pub(crate) fn listen_for_interactions(
                 if grabbed.0.is_none() {
                     let mut grab_info: Option<(Entity, RenderLayer)> = None;
                     for (entity, listener, section, layer) in listeners.iter_mut() {
-                        if listener
-                            .shape
-                            .contains(event.position, *section)
-                            && !listener.disabled
-                        {
+                        if listener.shape.contains(event.position, *section) && !listener.disabled {
                             if grab_info.is_none() || *layer > grab_info.unwrap().1 {
                                 grab_info.replace((entity, *layer));
                             }

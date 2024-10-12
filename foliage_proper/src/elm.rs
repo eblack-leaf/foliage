@@ -22,15 +22,17 @@ use crate::differential::{
 };
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::ScaleFactor;
-use crate::grid::resolve::{triggered_resolve_grid_locations};
+use crate::grid::resolve::triggered_resolve_grid_locations;
 use crate::grid::Grid;
 use crate::interaction::{
     FocusedEntity, InteractiveEntity, KeyboardAdapter, MouseAdapter, TouchAdapter,
 };
 use crate::layout::{viewport_changes_layout, Layout, LayoutGrid};
-use crate::leaf::{render_link_on_remove, resolve_elevation, resolve_visibility, stem_on_insert, stem_remove, trigger_interactions_enable, triggered_remove, update_stem_trigger};
+use crate::leaf::{
+    render_link_on_remove, resolve_elevation, resolve_visibility, stem_remove,
+    trigger_interactions_enable, triggered_remove, update_stem_trigger,
+};
 use crate::opacity::triggered_opacity;
-use crate::style::alternate_triggered;
 use crate::web_ext::navigate;
 use crate::willow::Willow;
 
@@ -231,16 +233,15 @@ impl Elm {
             (viewport_changes_layout, await_assets, navigate).in_set(InternalStage::External),
             pull_clipping_section.in_set(InternalStage::FinalizeCoordinate),
         ));
-        self.ecs.observe(trigger_interactions_enable)
-            .observe(triggered_opacity)
-            .observe(triggered_remove)
-            .observe(triggered_resolve_grid_locations)
-            .observe(stem_on_insert)
-            .observe(stem_remove)
-            .observe(render_link_on_remove)
-            .observe(resolve_visibility)
-            .observe(resolve_elevation)
-            .observe(update_stem_trigger);
+        self.ecs.observe(trigger_interactions_enable);
+        self.ecs.observe(triggered_opacity);
+        self.ecs.observe(triggered_remove);
+        self.ecs.observe(triggered_resolve_grid_locations);
+        self.ecs.observe(stem_remove);
+        self.ecs.observe(render_link_on_remove);
+        self.ecs.observe(resolve_visibility);
+        self.ecs.observe(resolve_elevation);
+        self.ecs.observe(update_stem_trigger);
         self.scheduler.main.add_systems((
             apply_deferred
                 .after(InternalStage::External)

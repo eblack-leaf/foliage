@@ -14,10 +14,10 @@ use bevy_ecs::bundle::Bundle;
 use bevy_ecs::change_detection::ResMut;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::Event;
-use bevy_ecs::prelude::{Component, OnInsert, OnRemove, Trigger};
+use bevy_ecs::prelude::{Component, OnRemove, Trigger};
 use bevy_ecs::system::Query;
 
-#[derive(Bundle, Default)]
+#[derive(Bundle, Default, Clone)]
 pub(crate) struct Leaf {
     stem: Stem,
     dependents: Dependents,
@@ -50,24 +50,27 @@ pub(crate) fn update_stem_trigger(
     trigger: Trigger<UpdateStem>,
     mut stems: Query<&mut Stem>,
     mut dependents: Query<&mut Dependents>,
+    mut tree: Tree,
 ) {
     if let Ok(mut current) = stems.get_mut(trigger.entity()) {
         let old = current.0.take();
         current.0 = trigger.event().0;
+        tracing::trace!("updating stem: {:?}", trigger.event().0);
+        if let Some(c) = current.0 {
+            if let Ok(mut deps) = dependents.get_mut(c) {
+                deps.0.insert(trigger.entity());
+            }
+        }
         if let Some(o) = old {
             if let Ok(mut deps) = dependents.get_mut(o) {
                 deps.0.remove(&trigger.entity());
             }
         }
-    }
-}
-pub(crate) fn stem_on_insert(
-    trigger: Trigger<OnInsert, Stem>,
-    stems: Query<&Stem>,
-    mut dependents: Query<&mut Dependents>,
-) {
-    if let Ok(s) = stems.get(trigger.entity()) {
-        if let Some(s) = s.0 {
+    } else {
+        tracing::trace!("adding stem: {:?}", trigger.event().0);
+        tree.entity(trigger.entity())
+            .insert(Stem(trigger.event().0));
+        if let Some(s) = trigger.event().0 {
             if let Ok(mut deps) = dependents.get_mut(s) {
                 deps.0.insert(trigger.entity());
             }
@@ -87,7 +90,7 @@ pub(crate) fn stem_remove(
         }
     }
 }
-#[derive(Default, Component, Debug)]
+#[derive(Default, Component, Debug, Clone)]
 pub(crate) struct Stem(pub(crate) Option<Entity>);
 #[derive(Clone, PartialEq, Component, Default)]
 pub(crate) struct Dependents(pub(crate) HashSet<Entity>);
@@ -114,10 +117,13 @@ pub(crate) fn resolve_elevation(
                     .unwrap_or_default()
                     .0,
         );
-        if let Ok(layer) = layers.get_mut(trigger.entity()) {
+        if let Ok(mut layer) = layers.get_mut(trigger.entity()) {
             *layer = resolved;
         };
-        tree.trigger_targets(ResolveElevation {}, d.0.iter().copied().collect::<Vec<Entity>>());
+        tree.trigger_targets(
+            ResolveElevation {},
+            d.0.iter().copied().collect::<Vec<Entity>>(),
+        );
     }
 }
 #[derive(Event, Copy, Clone, Default)]
@@ -135,7 +141,10 @@ pub(crate) fn triggered_remove(
 ) {
     tree.entity(trigger.entity()).despawn();
     if let Ok(deps) = dependents.get(trigger.entity()) {
-        tree.trigger_targets(Remove::new(), deps.0.iter().map(|e| *e).collect::<Vec<Entity>>());
+        tree.trigger_targets(
+            Remove::new(),
+            deps.0.iter().map(|e| *e).collect::<Vec<Entity>>(),
+        );
     }
 }
 pub(crate) fn render_link_on_remove(
@@ -188,6 +197,9 @@ pub(crate) fn resolve_visibility(
                 remove_queue.queue.get_mut(link).unwrap().insert(entity);
             }
         }
-        tree.trigger_targets(*trigger.event(), deps.0.iter().map(|e| *e).collect::<Vec<Entity>>());
+        tree.trigger_targets(
+            *trigger.event(),
+            deps.0.iter().map(|e| *e).collect::<Vec<Entity>>(),
+        );
     }
 }

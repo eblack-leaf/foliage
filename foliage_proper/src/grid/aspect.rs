@@ -8,7 +8,7 @@ use crate::grid::token::{
 #[derive(Default, Clone)]
 pub(crate) struct LocationAspect {
     pub(crate) aspects: [LocationAspectDescriptor; 2],
-    count: u32,
+    pub(crate) count: u32,
 }
 
 impl LocationAspect {
