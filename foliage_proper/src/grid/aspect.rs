@@ -325,7 +325,7 @@ pub fn stem() -> GridContext {
     GridContext::Stem
 }
 
-#[derive(Hash, PartialEq, Eq, Clone, Copy, Default)]
+#[derive(Hash, PartialEq, Eq, Clone, Copy, Default, Debug)]
 pub(crate) enum AspectConfiguration {
     #[default]
     Horizontal,

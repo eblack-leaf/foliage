@@ -53,7 +53,6 @@ pub(crate) fn triggered_resolve_grid_locations(
     };
     let mut resolved = None;
     if let Ok(location) = locations.get(trigger.entity()) {
-        tracing::trace!("resolving with {:?} | {:?}", stem, screen);
         if let Some(r) = location.resolve(stem, screen, *layout) {
             resolved.replace(r);
         }
@@ -61,7 +60,6 @@ pub(crate) fn triggered_resolve_grid_locations(
     if let Some(resolved) = resolved {
         if let Ok(mut section) = sections.get_mut(trigger.entity()) {
             *section = resolved.section;
-            tracing::trace!("resolved grid-location: {:?}", resolved.section);
         }
         if let Some(pts) = resolved.points {
             if let Ok(mut points) = points.get_mut(trigger.entity()) {

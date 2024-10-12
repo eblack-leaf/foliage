@@ -9,6 +9,7 @@ use crate::grid::token::{LocationAspectDescriptorValue, SpecifiedDescriptorValue
 use crate::layout::Layout;
 use bevy_ecs::component::Component;
 use smallvec::SmallVec;
+use crate::image::ImageView::Aspect;
 
 #[derive(Clone, Component, Default)]
 pub struct GridLocation {
@@ -241,7 +242,7 @@ impl GridLocation {
             .configurations
             .get_mut(AspectConfiguration::Vertical.value())
         {
-            // sanitize that other is compatible
+            aspect.0 = AspectConfiguration::Vertical;
             aspect.1.set(
                 GridAspect::Top,
                 LocationAspectDescriptorValue::Specified(d.into()),
@@ -255,6 +256,7 @@ impl GridLocation {
             .get_mut(AspectConfiguration::Vertical.value())
         {
             // sanitize that other is compatible
+            aspect.0 = AspectConfiguration::Vertical;
             aspect.1.set(
                 GridAspect::Bottom,
                 LocationAspectDescriptorValue::Specified(d.into()),
@@ -268,6 +270,7 @@ impl GridLocation {
             .get_mut(AspectConfiguration::Vertical.value())
         {
             // sanitize that other is compatible
+            aspect.0 = AspectConfiguration::Vertical;
             aspect.1.set(
                 GridAspect::Height,
                 LocationAspectDescriptorValue::Specified(d.into()),
@@ -281,6 +284,7 @@ impl GridLocation {
             .get_mut(AspectConfiguration::Vertical.value())
         {
             // sanitize that other is compatible
+            aspect.0 = AspectConfiguration::Vertical;
             aspect.1.set(
                 GridAspect::CenterY,
                 LocationAspectDescriptorValue::Specified(d.into()),
@@ -294,6 +298,7 @@ impl GridLocation {
             .get_mut(AspectConfiguration::Horizontal.value())
         {
             // sanitize that other is compatible
+            aspect.0 = AspectConfiguration::Horizontal;
             aspect.1.set(
                 GridAspect::Left,
                 LocationAspectDescriptorValue::Specified(d.into()),
@@ -307,6 +312,7 @@ impl GridLocation {
             .get_mut(AspectConfiguration::Horizontal.value())
         {
             // sanitize that other is compatible
+            aspect.0 = AspectConfiguration::Horizontal;
             aspect.1.set(
                 GridAspect::Right,
                 LocationAspectDescriptorValue::Specified(d.into()),
@@ -320,6 +326,7 @@ impl GridLocation {
             .get_mut(AspectConfiguration::Horizontal.value())
         {
             // sanitize that other is compatible
+            aspect.0 = AspectConfiguration::Horizontal;
             aspect.1.set(
                 GridAspect::Width,
                 LocationAspectDescriptorValue::Specified(d.into()),
@@ -333,6 +340,7 @@ impl GridLocation {
             .get_mut(AspectConfiguration::Horizontal.value())
         {
             // sanitize that other is compatible
+            aspect.0 = AspectConfiguration::Horizontal;
             aspect.1.set(
                 GridAspect::CenterX,
                 LocationAspectDescriptorValue::Specified(d.into()),
@@ -353,6 +361,7 @@ impl GridLocation {
             .get_mut(AspectConfiguration::PointA.value())
         {
             // sanitize that other is compatible
+            aspect.0 = AspectConfiguration::PointA;
             aspect.1.set(
                 GridAspect::PointAX,
                 LocationAspectDescriptorValue::Specified(d.into()),
@@ -367,6 +376,7 @@ impl GridLocation {
             .get_mut(AspectConfiguration::PointA.value())
         {
             // sanitize that other is compatible
+            aspect.0 = AspectConfiguration::PointA;
             aspect.1.set(
                 GridAspect::PointAY,
                 LocationAspectDescriptorValue::Specified(d.into()),
@@ -381,6 +391,7 @@ impl GridLocation {
             .get_mut(AspectConfiguration::PointB.value())
         {
             // sanitize that other is compatible
+            aspect.0 = AspectConfiguration::PointB;
             aspect.1.set(
                 GridAspect::PointBX,
                 LocationAspectDescriptorValue::Specified(d.into()),
@@ -395,6 +406,7 @@ impl GridLocation {
             .get_mut(AspectConfiguration::PointB.value())
         {
             // sanitize that other is compatible
+            aspect.0 = AspectConfiguration::PointB;
             aspect.1.set(
                 GridAspect::PointBY,
                 LocationAspectDescriptorValue::Specified(d.into()),
@@ -409,6 +421,7 @@ impl GridLocation {
             .get_mut(AspectConfiguration::PointC.value())
         {
             // sanitize that other is compatible
+            aspect.0 = AspectConfiguration::PointC;
             aspect.1.set(
                 GridAspect::PointCX,
                 LocationAspectDescriptorValue::Specified(d.into()),
@@ -423,6 +436,7 @@ impl GridLocation {
             .get_mut(AspectConfiguration::PointC.value())
         {
             // sanitize that other is compatible
+            aspect.0 = AspectConfiguration::PointC;
             aspect.1.set(
                 GridAspect::PointCY,
                 LocationAspectDescriptorValue::Specified(d.into()),
@@ -436,6 +450,7 @@ impl GridLocation {
             .get_mut(AspectConfiguration::PointD.value())
         {
             // sanitize that other is compatible
+            aspect.0 = AspectConfiguration::PointD;
             aspect.1.set(
                 GridAspect::PointDX,
                 LocationAspectDescriptorValue::Specified(d.into()),
@@ -450,6 +465,7 @@ impl GridLocation {
             .get_mut(AspectConfiguration::PointD.value())
         {
             // sanitize that other is compatible
+            aspect.0 = AspectConfiguration::PointD;
             aspect.1.set(
                 GridAspect::PointDY,
                 LocationAspectDescriptorValue::Specified(d.into()),
@@ -484,6 +500,7 @@ impl LocationConfiguration {
             .get_mut(AspectConfiguration::Vertical.value())
         {
             // sanitize that other is compatible
+            aspect.0 = AspectConfiguration::Vertical;
             aspect.1.set(
                 GridAspect::Top,
                 LocationAspectDescriptorValue::Specified(d.into()),
@@ -496,6 +513,7 @@ impl LocationConfiguration {
             .configurations
             .get_mut(AspectConfiguration::Vertical.value())
         {
+            aspect.0 = AspectConfiguration::Vertical;
             aspect
                 .1
                 .set(GridAspect::Top, LocationAspectDescriptorValue::Existing);
@@ -508,6 +526,7 @@ impl LocationConfiguration {
             .get_mut(AspectConfiguration::Vertical.value())
         {
             // sanitize that other is compatible
+            aspect.0 = AspectConfiguration::Vertical;
             aspect.1.set(
                 GridAspect::Bottom,
                 LocationAspectDescriptorValue::Specified(d.into()),
@@ -520,6 +539,7 @@ impl LocationConfiguration {
             .configurations
             .get_mut(AspectConfiguration::Vertical.value())
         {
+            aspect.0 = AspectConfiguration::Vertical;
             aspect
                 .1
                 .set(GridAspect::Bottom, LocationAspectDescriptorValue::Existing);
@@ -532,6 +552,7 @@ impl LocationConfiguration {
             .get_mut(AspectConfiguration::Vertical.value())
         {
             // sanitize that other is compatible
+            aspect.0 = AspectConfiguration::Vertical;
             aspect.1.set(
                 GridAspect::Height,
                 LocationAspectDescriptorValue::Specified(d.into()),
@@ -544,6 +565,7 @@ impl LocationConfiguration {
             .configurations
             .get_mut(AspectConfiguration::Vertical.value())
         {
+            aspect.0 = AspectConfiguration::Vertical;
             aspect
                 .1
                 .set(GridAspect::Height, LocationAspectDescriptorValue::Existing);
@@ -556,6 +578,7 @@ impl LocationConfiguration {
             .get_mut(AspectConfiguration::Vertical.value())
         {
             // sanitize that other is compatible
+            aspect.0 = AspectConfiguration::Vertical;
             aspect.1.set(
                 GridAspect::CenterY,
                 LocationAspectDescriptorValue::Specified(d.into()),
@@ -568,6 +591,7 @@ impl LocationConfiguration {
             .configurations
             .get_mut(AspectConfiguration::Vertical.value())
         {
+            aspect.0 = AspectConfiguration::Vertical;
             aspect
                 .1
                 .set(GridAspect::CenterY, LocationAspectDescriptorValue::Existing);
@@ -580,6 +604,7 @@ impl LocationConfiguration {
             .get_mut(AspectConfiguration::Horizontal.value())
         {
             // sanitize that other is compatible
+            aspect.0 = AspectConfiguration::Horizontal;
             aspect.1.set(
                 GridAspect::Left,
                 LocationAspectDescriptorValue::Specified(d.into()),
@@ -592,6 +617,7 @@ impl LocationConfiguration {
             .configurations
             .get_mut(AspectConfiguration::Horizontal.value())
         {
+            aspect.0 = AspectConfiguration::Horizontal;
             aspect
                 .1
                 .set(GridAspect::Left, LocationAspectDescriptorValue::Existing);
@@ -603,6 +629,7 @@ impl LocationConfiguration {
             .configurations
             .get_mut(AspectConfiguration::Horizontal.value())
         {
+            aspect.0 = AspectConfiguration::Horizontal;
             // sanitize that other is compatible
             aspect.1.set(
                 GridAspect::Right,
@@ -616,6 +643,7 @@ impl LocationConfiguration {
             .configurations
             .get_mut(AspectConfiguration::Horizontal.value())
         {
+            aspect.0 = AspectConfiguration::Horizontal;
             aspect
                 .1
                 .set(GridAspect::Right, LocationAspectDescriptorValue::Existing);
@@ -627,6 +655,7 @@ impl LocationConfiguration {
             .configurations
             .get_mut(AspectConfiguration::Horizontal.value())
         {
+            aspect.0 = AspectConfiguration::Horizontal;
             // sanitize that other is compatible
             aspect.1.set(
                 GridAspect::Width,
@@ -640,6 +669,7 @@ impl LocationConfiguration {
             .configurations
             .get_mut(AspectConfiguration::Horizontal.value())
         {
+            aspect.0 = AspectConfiguration::Horizontal;
             aspect
                 .1
                 .set(GridAspect::Width, LocationAspectDescriptorValue::Existing);
@@ -651,6 +681,7 @@ impl LocationConfiguration {
             .configurations
             .get_mut(AspectConfiguration::Horizontal.value())
         {
+            aspect.0 = AspectConfiguration::Horizontal;
             // sanitize that other is compatible
             aspect.1.set(
                 GridAspect::CenterX,
@@ -664,6 +695,7 @@ impl LocationConfiguration {
             .configurations
             .get_mut(AspectConfiguration::Horizontal.value())
         {
+            aspect.0 = AspectConfiguration::Horizontal;
             aspect
                 .1
                 .set(GridAspect::CenterX, LocationAspectDescriptorValue::Existing);
@@ -675,6 +707,7 @@ impl LocationConfiguration {
             .configurations
             .get_mut(AspectConfiguration::PointA.value())
         {
+            aspect.0 = AspectConfiguration::PointA;
             // sanitize that other is compatible
             aspect.1.set(
                 GridAspect::PointAX,
@@ -688,6 +721,7 @@ impl LocationConfiguration {
             .configurations
             .get_mut(AspectConfiguration::PointA.value())
         {
+            aspect.0 = AspectConfiguration::PointA;
             aspect
                 .1
                 .set(GridAspect::PointAX, LocationAspectDescriptorValue::Existing);
@@ -700,6 +734,7 @@ impl LocationConfiguration {
             .get_mut(AspectConfiguration::PointA.value())
         {
             // sanitize that other is compatible
+            aspect.0 = AspectConfiguration::PointA;
             aspect.1.set(
                 GridAspect::PointAY,
                 LocationAspectDescriptorValue::Specified(d.into()),
@@ -712,6 +747,7 @@ impl LocationConfiguration {
             .configurations
             .get_mut(AspectConfiguration::PointA.value())
         {
+            aspect.0 = AspectConfiguration::PointA;
             aspect
                 .1
                 .set(GridAspect::PointAY, LocationAspectDescriptorValue::Existing);
@@ -723,6 +759,7 @@ impl LocationConfiguration {
             .configurations
             .get_mut(AspectConfiguration::PointB.value())
         {
+            aspect.0 = AspectConfiguration::PointB;
             // sanitize that other is compatible
             aspect.1.set(
                 GridAspect::PointBX,
@@ -736,6 +773,7 @@ impl LocationConfiguration {
             .configurations
             .get_mut(AspectConfiguration::PointB.value())
         {
+            aspect.0 = AspectConfiguration::PointB;
             aspect
                 .1
                 .set(GridAspect::PointBX, LocationAspectDescriptorValue::Existing);
@@ -747,6 +785,7 @@ impl LocationConfiguration {
             .configurations
             .get_mut(AspectConfiguration::PointB.value())
         {
+            aspect.0 = AspectConfiguration::PointB;
             // sanitize that other is compatible
             aspect.1.set(
                 GridAspect::PointBY,
@@ -760,6 +799,7 @@ impl LocationConfiguration {
             .configurations
             .get_mut(AspectConfiguration::PointB.value())
         {
+            aspect.0 = AspectConfiguration::PointB;
             aspect
                 .1
                 .set(GridAspect::PointBY, LocationAspectDescriptorValue::Existing);
@@ -771,6 +811,7 @@ impl LocationConfiguration {
             .configurations
             .get_mut(AspectConfiguration::PointC.value())
         {
+            aspect.0 = AspectConfiguration::PointC;
             // sanitize that other is compatible
             aspect.1.set(
                 GridAspect::PointCX,
@@ -784,6 +825,7 @@ impl LocationConfiguration {
             .configurations
             .get_mut(AspectConfiguration::PointC.value())
         {
+            aspect.0 = AspectConfiguration::PointC;
             aspect
                 .1
                 .set(GridAspect::PointCX, LocationAspectDescriptorValue::Existing);
@@ -795,6 +837,7 @@ impl LocationConfiguration {
             .configurations
             .get_mut(AspectConfiguration::PointC.value())
         {
+            aspect.0 = AspectConfiguration::PointC;
             // sanitize that other is compatible
             aspect.1.set(
                 GridAspect::PointCY,
@@ -808,6 +851,7 @@ impl LocationConfiguration {
             .configurations
             .get_mut(AspectConfiguration::PointC.value())
         {
+            aspect.0 = AspectConfiguration::PointC;
             aspect
                 .1
                 .set(GridAspect::PointCY, LocationAspectDescriptorValue::Existing);
@@ -819,6 +863,7 @@ impl LocationConfiguration {
             .configurations
             .get_mut(AspectConfiguration::PointD.value())
         {
+            aspect.0 = AspectConfiguration::PointD;
             // sanitize that other is compatible
             aspect.1.set(
                 GridAspect::PointDX,
@@ -832,6 +877,7 @@ impl LocationConfiguration {
             .configurations
             .get_mut(AspectConfiguration::PointD.value())
         {
+            aspect.0 = AspectConfiguration::PointD;
             aspect
                 .1
                 .set(GridAspect::PointDX, LocationAspectDescriptorValue::Existing);
@@ -843,6 +889,7 @@ impl LocationConfiguration {
             .configurations
             .get_mut(AspectConfiguration::PointD.value())
         {
+            aspect.0 = AspectConfiguration::PointD;
             // sanitize that other is compatible
             aspect.1.set(
                 GridAspect::PointDY,
@@ -856,6 +903,7 @@ impl LocationConfiguration {
             .configurations
             .get_mut(AspectConfiguration::PointD.value())
         {
+            aspect.0 = AspectConfiguration::PointD;
             aspect
                 .1
                 .set(GridAspect::PointDY, LocationAspectDescriptorValue::Existing);

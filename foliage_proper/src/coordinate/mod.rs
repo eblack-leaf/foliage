@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use std::ops::{Add, AddAssign, Div, Mul, Sub};
 
 use bevy_ecs::component::Component;
@@ -45,7 +46,11 @@ pub type CoordinateUnit = f32;
 #[repr(C)]
 #[derive(Copy, Clone, PartialOrd, PartialEq, Pod, Zeroable, Debug, Default)]
 pub struct Coordinates(pub [CoordinateUnit; 2]);
-
+impl Display for Coordinates {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}:{}", self.horizontal(), self.vertical()))
+    }
+}
 impl Coordinates {
     pub const fn new(a: CoordinateUnit, b: CoordinateUnit) -> Self {
         Self([a, b])

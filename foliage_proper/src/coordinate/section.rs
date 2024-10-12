@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::ops::{Add, AddAssign, Mul, Sub};
 
 use bevy_ecs::component::Component;
@@ -13,6 +14,11 @@ use crate::coordinate::{
 pub struct Section<Context: CoordinateContext> {
     pub position: Position<Context>,
     pub area: Area<Context>,
+}
+impl<Context: CoordinateContext> Display for Section<Context> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}:{}", self.position, self.area))
+    }
 }
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default, Component, PartialEq, Debug)]
