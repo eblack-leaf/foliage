@@ -143,7 +143,7 @@ pub(crate) fn render_link_on_remove(
         .insert(trigger.entity());
 }
 
-#[derive(Copy, Clone, Ord, PartialOrd, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Ord, PartialOrd, PartialEq, Eq, Hash, Component)]
 pub struct Visibility {
     visible: bool,
 }

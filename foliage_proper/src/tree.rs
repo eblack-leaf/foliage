@@ -20,8 +20,7 @@ pub trait EcsExtension {
     fn branch<B: Branch>(&mut self, twig: Twig<B>) -> B::Handle;
     fn add_leaf(&mut self) -> Entity;
     fn leaves(&mut self, n: usize) -> Vec<Entity>;
-    fn location(&mut self, leaf: Entity, location: GridLocation);
-    fn flush_location(&mut self, tt: impl TriggerTargets);
+    // fn flush_location(&mut self, tt: impl TriggerTargets);
     fn opacity<O: Into<Opacity>>(&mut self, leaf: Entity, opacity: O);
     fn flush_opacity(&mut self, leaves: impl TriggerTargets);
     fn grid(&mut self, leaf: Entity, grid: Grid);
@@ -29,14 +28,14 @@ pub trait EcsExtension {
     fn elevation<E: Into<Elevation>>(&mut self, leaf: Entity, elevation: E);
     fn flush_elevation(&mut self, leaves: impl TriggerTargets);
     fn stem(&mut self, leaf: Entity, stem: Option<Entity>);
-    fn visibility(&mut self, leaf: Entity, visibility: bool);
+    // fn visibility(&mut self, leaf: Entity, visibility: bool);
     fn remove(&mut self, entity: Entity);
     fn flush<F>(&mut self, leaves: F)
     where
         F: TriggerTargets + Clone,
     {
         self.flush_elevation(leaves.clone());
-        self.flush_location(leaves.clone());
+        // self.flush_location(leaves.clone());
         self.flush_opacity(leaves);
     }
 }
@@ -66,12 +65,12 @@ impl<'w, 's> EcsExtension for Tree<'w, 's> {
             .entities()
             .collect()
     }
-    fn location(&mut self, leaf: Entity, location: GridLocation) {
-        self.entity(leaf).insert(location);
-    }
-    fn flush_location(&mut self, tt: impl TriggerTargets) {
-        self.trigger_targets(ResolveGridLocation {}, tt);
-    }
+    // fn location(&mut self, leaf: Entity, location: GridLocation) {
+    //     self.entity(leaf).insert(location);
+    // }
+    // fn flush_location(&mut self, tt: impl TriggerTargets) {
+    //     self.trigger_targets(ResolveGridLocation {}, tt);
+    // }
     fn opacity<O: Into<Opacity>>(&mut self, leaf: Entity, opacity: O) {
         self.entity(leaf).insert(opacity.into());
     }
@@ -93,10 +92,10 @@ impl<'w, 's> EcsExtension for Tree<'w, 's> {
     fn stem(&mut self, leaf: Entity, stem: Option<Entity>) {
         self.entity(leaf).insert(Stem(stem));
     }
-    fn visibility(&mut self, leaf: Entity, visibility: bool) {
-        self.entity(leaf).insert(Visibility::new(visibility));
-        self.trigger_targets(ResolveVisibility(visibility), leaf);
-    }
+    // fn visibility(&mut self, leaf: Entity, visibility: bool) {
+    //     self.entity(leaf).insert(Visibility::new(visibility));
+    //     self.trigger_targets(ResolveVisibility(visibility), leaf);
+    // }
     fn remove(&mut self, leaf: Entity) {
         self.trigger_targets(Remove {}, leaf);
     }
@@ -123,12 +122,12 @@ impl EcsExtension for World {
         self.spawn_batch(vec![Leaf::default(); n]).collect()
     }
 
-    fn location(&mut self, leaf: Entity, location: GridLocation) {
-        self.entity_mut(leaf).insert(location);
-    }
-    fn flush_location(&mut self, tt: impl TriggerTargets) {
-        self.trigger_targets(ResolveGridLocation {}, tt);
-    }
+    // fn location(&mut self, leaf: Entity, location: GridLocation) {
+    //     self.entity_mut(leaf).insert(location);
+    // }
+    // fn flush_location(&mut self, tt: impl TriggerTargets) {
+    //     self.trigger_targets(ResolveGridLocation {}, tt);
+    // }
     fn opacity<O: Into<Opacity>>(&mut self, leaf: Entity, opacity: O) {
         self.entity_mut(leaf).insert(opacity.into());
     }
@@ -150,10 +149,10 @@ impl EcsExtension for World {
     fn stem(&mut self, leaf: Entity, stem: Option<Entity>) {
         self.entity_mut(leaf).insert(Stem(stem));
     }
-    fn visibility(&mut self, leaf: Entity, visibility: bool) {
-        self.entity_mut(leaf).insert(Visibility::new(visibility));
-        self.trigger_targets(ResolveVisibility(visibility), leaf);
-    }
+    // fn visibility(&mut self, leaf: Entity, visibility: bool) {
+    //     self.entity_mut(leaf).insert(Visibility::new(visibility));
+    //     self.trigger_targets(ResolveVisibility(visibility), leaf);
+    // }
 
     fn remove(&mut self, leaf: Entity) {
         self.trigger_targets(Remove {}, leaf);

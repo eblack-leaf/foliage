@@ -134,6 +134,6 @@ pub(crate) fn viewport_changes_layout(
                 roots.push(e);
             }
         }
-        tree.trigger_targets(EvaluateLocation {}, roots);
+        tree.trigger_targets(EvaluateLocation::full(), roots);
     }
 }

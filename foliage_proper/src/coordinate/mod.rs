@@ -22,7 +22,7 @@ pub mod section;
 
 pub trait CoordinateContext
 where
-    Self: Send + Sync + 'static + Copy + Clone,
+    Self: Send + Sync + 'static + Copy + Clone + Default,
 {
 }
 

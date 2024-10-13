@@ -244,7 +244,7 @@ impl PointException {
         }
     }
 }
-#[derive(Bundle)]
+#[derive(Component)]
 pub(crate) struct ResponsivePointsAnimPackage {
     pub(crate) responsive_points: ResponsivePoints,
     pub(crate) responsive_point_exception: ResponsivePointsException,

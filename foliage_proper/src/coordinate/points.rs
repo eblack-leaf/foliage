@@ -9,6 +9,13 @@ pub struct Points<Context: CoordinateContext> {
     pub data: [Position<Context>; 4],
 }
 impl<Context: CoordinateContext> Points<Context> {
+    pub fn new() -> Self {
+        Self {
+            data: [Position::<Context>::default(); 4],
+        }
+    }
+}
+impl<Context: CoordinateContext> Points<Context> {
     pub fn bbox(&self) -> Section<LogicalContext> {
         let bbox = Section::default();
 
@@ -19,7 +26,7 @@ impl<Context: CoordinateContext> Add for Points<Context> {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        let mut new = Points::default();
+        let mut new = Points::new();
         for i in 0..4 {
             new.data[i] = self.data[i] + rhs.data[i];
         }
