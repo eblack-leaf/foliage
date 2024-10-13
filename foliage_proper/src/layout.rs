@@ -1,8 +1,10 @@
 use crate::coordinate::placement::Placement;
 use crate::coordinate::Coordinates;
 use crate::ginkgo::viewport::ViewportHandle;
-use crate::grid::responsive_points::ResponsivePoints;
-use crate::grid::responsive_section::{ConfigureFromLayout, EvaluateLocation, ResponsiveSection};
+use crate::grid::responsive::configure::ConfigureFromLayout;
+use crate::grid::responsive::evaluate::EvaluateLocation;
+use crate::grid::responsive::ResponsivePoints;
+use crate::grid::responsive::ResponsiveSection;
 use crate::grid::Grid;
 use crate::leaf::Stem;
 use crate::tree::Tree;

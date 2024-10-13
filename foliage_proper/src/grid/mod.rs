@@ -5,8 +5,7 @@ use std::cmp::PartialOrd;
 use std::ops::{Add, Mul, Sub};
 use unit::TokenUnit;
 pub mod aspect;
-pub mod responsive_points;
-pub mod responsive_section;
+pub mod responsive;
 pub mod token;
 pub mod unit;
 

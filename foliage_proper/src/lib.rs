@@ -22,7 +22,6 @@ use crate::coordinate::{Coordinates, DeviceContext};
 use crate::elm::{Ecs, Elm};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::{Ginkgo, ScaleFactor};
-use crate::grid::responsive_section::evaluate_location;
 use crate::icon::{Icon, IconId, IconRequest};
 use crate::image::Image;
 use crate::interaction::{ClickInteractionListener, KeyboardAdapter, MouseAdapter, TouchAdapter};
@@ -39,6 +38,7 @@ use crate::text::Text;
 use crate::time::Time;
 use crate::tree::Tree;
 use crate::web_ext::HrefLink;
+use grid::responsive::evaluate::evaluate_location;
 
 pub mod anim;
 pub mod ash;

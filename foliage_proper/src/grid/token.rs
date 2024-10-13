@@ -1,7 +1,7 @@
 use crate::coordinate::CoordinateUnit;
 use crate::grid::aspect::GridAspect;
 use crate::grid::aspect::GridContext;
-use crate::grid::responsive_section::ReferentialData;
+use crate::grid::responsive::evaluate::ReferentialData;
 use crate::grid::unit::RelativeUnit;
 use smallvec::SmallVec;
 use std::ops::{Add, Sub};

@@ -8,11 +8,11 @@ use crate::color::Color;
 use crate::coordinate::elevation::Elevation;
 use crate::coordinate::Coordinates;
 use crate::elm::Elm;
-use crate::grid::responsive_points::{ResponsivePointsAnimPackage, ResponsivePointsAnimationHook};
-use crate::grid::responsive_section::{
-    EvaluateLocation, ResponsiveAnimationCalc, ResponsiveAnimationHook,
-    ResponsiveLocationAnimPackage,
+use crate::grid::responsive::anim::{
+    ResponsiveAnimationCalc, ResponsiveAnimationHook, ResponsiveLocationAnimPackage,
+    ResponsivePointsAnimPackage, ResponsivePointsAnimationHook,
 };
+use crate::grid::responsive::evaluate::EvaluateLocation;
 use crate::leaf::ResolveElevation;
 use crate::opacity::{Opacity, ResolveOpacity};
 use crate::panel::Rounding;

@@ -1,13 +1,363 @@
-use crate::anim::{Animate, Interpolations};
-use crate::coordinate::points::Points;
-use crate::coordinate::LogicalContext;
-use crate::grid::aspect::{ConfigurationDescriptor, GridAspect, PointAspectConfiguration};
-use crate::grid::responsive_section::{ConfigureFromLayout, ReferentialData};
+use crate::anim::Animate;
+use crate::grid::aspect::{
+    Configuration, ConfigurationDescriptor, GridAspect, PointAspectConfiguration,
+};
 use crate::grid::token::{AspectValue, AspectValueWrapper};
 use crate::layout::Layout;
+use anim::{ResponsiveAnimationHook, ResponsivePointsAnimationHook};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
+use bevy_ecs::event::Event;
+use configure::ConfigureFromLayout;
+use resolve::{ResolvedConfiguration, ResolvedPoints};
 use smallvec::SmallVec;
+
+pub(crate) mod anim;
+pub mod configure;
+pub mod evaluate;
+pub(crate) mod resolve;
+
+#[derive(Bundle, Default)]
+pub struct ResponsiveLocation {
+    pub(crate) resolved_configuration: ResolvedConfiguration,
+    pub(crate) base: ResponsiveSection,
+    pub(crate) exceptions: ResponsiveConfigurationException,
+    pub(crate) layout_check: ConfigureFromLayout,
+    pub(crate) diff: ResponsiveAnimationHook,
+}
+impl ResponsiveLocation {
+    pub fn new() -> Self {
+        ResponsiveLocation {
+            resolved_configuration: ResolvedConfiguration::default(),
+            base: Default::default(),
+            exceptions: Default::default(),
+            layout_check: Default::default(),
+            diff: Default::default(),
+        }
+    }
+    pub fn points() -> ResponsivePointBundle {
+        ResponsivePointBundle::default()
+    }
+}
+impl ResponsiveLocation {
+    pub fn top<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
+        if let Some(mut aspect) = self
+            .base
+            .configurations
+            .get_mut(Configuration::Vertical.value())
+        {
+            aspect.0 = Configuration::Vertical;
+            aspect
+                .1
+                .set(GridAspect::Top, AspectValueWrapper::Specified(d.into()));
+        }
+        self
+    }
+    pub fn bottom<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
+        if let Some(mut aspect) = self
+            .base
+            .configurations
+            .get_mut(Configuration::Vertical.value())
+        {
+            // sanitize that other is compatible
+            aspect.0 = Configuration::Vertical;
+            aspect
+                .1
+                .set(GridAspect::Bottom, AspectValueWrapper::Specified(d.into()));
+        }
+        self
+    }
+    pub fn height<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
+        if let Some(mut aspect) = self
+            .base
+            .configurations
+            .get_mut(Configuration::Vertical.value())
+        {
+            // sanitize that other is compatible
+            aspect.0 = Configuration::Vertical;
+            aspect
+                .1
+                .set(GridAspect::Height, AspectValueWrapper::Specified(d.into()));
+        }
+        self
+    }
+    pub fn center_y<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
+        if let Some(mut aspect) = self
+            .base
+            .configurations
+            .get_mut(Configuration::Vertical.value())
+        {
+            // sanitize that other is compatible
+            aspect.0 = Configuration::Vertical;
+            aspect
+                .1
+                .set(GridAspect::CenterY, AspectValueWrapper::Specified(d.into()));
+        }
+        self
+    }
+    pub fn left<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
+        if let Some(mut aspect) = self
+            .base
+            .configurations
+            .get_mut(Configuration::Horizontal.value())
+        {
+            // sanitize that other is compatible
+            aspect.0 = Configuration::Horizontal;
+            aspect
+                .1
+                .set(GridAspect::Left, AspectValueWrapper::Specified(d.into()));
+        }
+        self
+    }
+    pub fn right<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
+        if let Some(mut aspect) = self
+            .base
+            .configurations
+            .get_mut(Configuration::Horizontal.value())
+        {
+            // sanitize that other is compatible
+            aspect.0 = Configuration::Horizontal;
+            aspect
+                .1
+                .set(GridAspect::Right, AspectValueWrapper::Specified(d.into()));
+        }
+        self
+    }
+    pub fn width<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
+        if let Some(mut aspect) = self
+            .base
+            .configurations
+            .get_mut(Configuration::Horizontal.value())
+        {
+            // sanitize that other is compatible
+            aspect.0 = Configuration::Horizontal;
+            aspect
+                .1
+                .set(GridAspect::Width, AspectValueWrapper::Specified(d.into()));
+        }
+        self
+    }
+    pub fn center_x<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
+        if let Some(mut aspect) = self
+            .base
+            .configurations
+            .get_mut(Configuration::Horizontal.value())
+        {
+            // sanitize that other is compatible
+            aspect.0 = Configuration::Horizontal;
+            aspect
+                .1
+                .set(GridAspect::CenterX, AspectValueWrapper::Specified(d.into()));
+        }
+        self
+    }
+    pub fn except_at<LA: Into<ResponsiveSection>>(mut self, layout: Layout, la: LA) -> Self {
+        let config = la.into();
+        for c in config.configurations {
+            self.exceptions
+                .exceptions
+                .push((SectionException::new(layout, c.0), c.1));
+        }
+        self
+    }
+}
+#[derive(Component, Default, Clone)]
+pub struct ResponsiveConfigurationException {
+    pub exceptions: SmallVec<[(SectionException, ConfigurationDescriptor); 2]>,
+}
+#[derive(Clone, Component, Default)]
+pub struct ResponsiveSection {
+    configurations: [(Configuration, ConfigurationDescriptor); 2],
+}
+impl ResponsiveSection {
+    pub fn new() -> Self {
+        Self {
+            configurations: Default::default(),
+        }
+    }
+    pub fn top<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
+        if let Some(mut aspect) = self.configurations.get_mut(Configuration::Vertical.value()) {
+            // sanitize that other is compatible
+            aspect.0 = Configuration::Vertical;
+            aspect
+                .1
+                .set(GridAspect::Top, AspectValueWrapper::Specified(d.into()));
+        }
+        self
+    }
+    pub fn existing_top(mut self) -> Self {
+        if let Some(aspect) = self.configurations.get_mut(Configuration::Vertical.value()) {
+            aspect.0 = Configuration::Vertical;
+            aspect.1.set(GridAspect::Top, AspectValueWrapper::Existing);
+        }
+        self
+    }
+    pub fn bottom<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
+        if let Some(mut aspect) = self.configurations.get_mut(Configuration::Vertical.value()) {
+            // sanitize that other is compatible
+            aspect.0 = Configuration::Vertical;
+            aspect
+                .1
+                .set(GridAspect::Bottom, AspectValueWrapper::Specified(d.into()));
+        }
+        self
+    }
+    pub fn existing_bottom(mut self) -> Self {
+        if let Some(aspect) = self.configurations.get_mut(Configuration::Vertical.value()) {
+            aspect.0 = Configuration::Vertical;
+            aspect
+                .1
+                .set(GridAspect::Bottom, AspectValueWrapper::Existing);
+        }
+        self
+    }
+    pub fn height<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
+        if let Some(mut aspect) = self.configurations.get_mut(Configuration::Vertical.value()) {
+            // sanitize that other is compatible
+            aspect.0 = Configuration::Vertical;
+            aspect
+                .1
+                .set(GridAspect::Height, AspectValueWrapper::Specified(d.into()));
+        }
+        self
+    }
+    pub fn existing_height(mut self) -> Self {
+        if let Some(aspect) = self.configurations.get_mut(Configuration::Vertical.value()) {
+            aspect.0 = Configuration::Vertical;
+            aspect
+                .1
+                .set(GridAspect::Height, AspectValueWrapper::Existing);
+        }
+        self
+    }
+    pub fn center_y<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
+        if let Some(mut aspect) = self.configurations.get_mut(Configuration::Vertical.value()) {
+            // sanitize that other is compatible
+            aspect.0 = Configuration::Vertical;
+            aspect
+                .1
+                .set(GridAspect::CenterY, AspectValueWrapper::Specified(d.into()));
+        }
+        self
+    }
+    pub fn existing_center_y(mut self) -> Self {
+        if let Some(aspect) = self.configurations.get_mut(Configuration::Vertical.value()) {
+            aspect.0 = Configuration::Vertical;
+            aspect
+                .1
+                .set(GridAspect::CenterY, AspectValueWrapper::Existing);
+        }
+        self
+    }
+    pub fn left<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
+        if let Some(mut aspect) = self
+            .configurations
+            .get_mut(Configuration::Horizontal.value())
+        {
+            // sanitize that other is compatible
+            aspect.0 = Configuration::Horizontal;
+            aspect
+                .1
+                .set(GridAspect::Left, AspectValueWrapper::Specified(d.into()));
+        }
+        self
+    }
+    pub fn existing_left(mut self) -> Self {
+        if let Some(aspect) = self
+            .configurations
+            .get_mut(Configuration::Horizontal.value())
+        {
+            aspect.0 = Configuration::Horizontal;
+            aspect.1.set(GridAspect::Left, AspectValueWrapper::Existing);
+        }
+        self
+    }
+    pub fn right<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
+        if let Some(mut aspect) = self
+            .configurations
+            .get_mut(Configuration::Horizontal.value())
+        {
+            aspect.0 = Configuration::Horizontal;
+            // sanitize that other is compatible
+            aspect
+                .1
+                .set(GridAspect::Right, AspectValueWrapper::Specified(d.into()));
+        }
+        self
+    }
+    pub fn existing_right(mut self) -> Self {
+        if let Some(aspect) = self
+            .configurations
+            .get_mut(Configuration::Horizontal.value())
+        {
+            aspect.0 = Configuration::Horizontal;
+            aspect
+                .1
+                .set(GridAspect::Right, AspectValueWrapper::Existing);
+        }
+        self
+    }
+    pub fn width<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
+        if let Some(mut aspect) = self
+            .configurations
+            .get_mut(Configuration::Horizontal.value())
+        {
+            aspect.0 = Configuration::Horizontal;
+            // sanitize that other is compatible
+            aspect
+                .1
+                .set(GridAspect::Width, AspectValueWrapper::Specified(d.into()));
+        }
+        self
+    }
+    pub fn existing_width(mut self) -> Self {
+        if let Some(aspect) = self
+            .configurations
+            .get_mut(Configuration::Horizontal.value())
+        {
+            aspect.0 = Configuration::Horizontal;
+            aspect
+                .1
+                .set(GridAspect::Width, AspectValueWrapper::Existing);
+        }
+        self
+    }
+    pub fn center_x<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
+        if let Some(mut aspect) = self
+            .configurations
+            .get_mut(Configuration::Horizontal.value())
+        {
+            aspect.0 = Configuration::Horizontal;
+            // sanitize that other is compatible
+            aspect
+                .1
+                .set(GridAspect::CenterX, AspectValueWrapper::Specified(d.into()));
+        }
+        self
+    }
+    pub fn existing_center_x(mut self) -> Self {
+        if let Some(aspect) = self
+            .configurations
+            .get_mut(Configuration::Horizontal.value())
+        {
+            aspect.0 = Configuration::Horizontal;
+            aspect
+                .1
+                .set(GridAspect::CenterX, AspectValueWrapper::Existing);
+        }
+        self
+    }
+}
+#[derive(Copy, Clone, Hash, Eq, PartialEq)]
+pub(crate) struct SectionException {
+    layout: Layout,
+    config: Configuration,
+}
+impl SectionException {
+    fn new(layout: Layout, config: Configuration) -> SectionException {
+        Self { layout, config }
+    }
+}
 
 impl ResponsivePoints {
     pub fn point_ax<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
@@ -212,19 +562,23 @@ impl ResponsivePoints {
         self
     }
 }
+
 #[derive(Component, Clone, Default)]
 pub struct ResponsivePoints {
     pub(crate) configurations: [(PointAspectConfiguration, ConfigurationDescriptor); 4],
 }
+
 #[derive(Default, Component, Clone)]
 pub(crate) struct PointExceptions {
     pub(crate) exceptions: SmallVec<[(PointException, ConfigurationDescriptor); 2]>,
 }
+
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
 pub struct PointException {
     pub(crate) layout: Layout,
     pub(crate) pac: PointAspectConfiguration,
 }
+
 impl PointException {
     pub(crate) fn new(
         layout: Layout,
@@ -236,86 +590,7 @@ impl PointException {
         }
     }
 }
-#[derive(Component)]
-pub struct ResponsivePointsAnimPackage {
-    pub(crate) base_points: ResponsivePoints,
-    pub(crate) exceptions: PointExceptions,
-}
-#[derive(Component, Copy, Clone, Default)]
-pub(crate) struct ResponsivePointsAnimationHook {
-    pub(crate) points: Points<LogicalContext>,
-    pub(crate) percent: f32,
-}
-impl ResponsivePointsAnimationHook {
-    pub(crate) fn value(&self) -> Points<LogicalContext> {
-        self.points * self.percent
-    }
-}
-impl Animate for ResponsivePointsAnimationHook {
-    fn interpolations(start: &Self, end: &Self) -> Interpolations {
-        todo!()
-    }
 
-    fn apply(&mut self, interpolations: &mut Interpolations) {
-        if let Some(s) = interpolations.read(0) {
-            self.percent = s;
-        }
-    }
-}
-#[derive(Component, Clone, Default)]
-pub(crate) struct ResolvedPoints {
-    pub(crate) configurations: [(PointAspectConfiguration, ConfigurationDescriptor); 4],
-}
-impl ResolvedPoints {
-    pub(crate) fn evaluate(
-        &self,
-        stem: ReferentialData,
-        screen: ReferentialData,
-    ) -> Option<Points<LogicalContext>> {
-        let mut resolution = Points::default();
-        for (a, b) in self.configurations.iter() {
-            if b.count == 0 {
-                continue;
-            }
-            let pair_config = (b.aspects[0].aspect, b.aspects[1].aspect);
-            let data = (
-                b.aspects[0].value.resolve(stem, screen),
-                b.aspects[1].value.resolve(stem, screen),
-            );
-            match a {
-                PointAspectConfiguration::PointA => {
-                    if pair_config == (GridAspect::PointAX, GridAspect::PointAY) {
-                        resolution.data[0] = data.into();
-                    } else {
-                        panic!("invalid-configuration aspect")
-                    }
-                }
-                PointAspectConfiguration::PointB => {
-                    if pair_config == (GridAspect::PointBX, GridAspect::PointBY) {
-                        resolution.data[1] = data.into();
-                    } else {
-                        panic!("invalid-configuration aspect")
-                    }
-                }
-                PointAspectConfiguration::PointC => {
-                    if pair_config == (GridAspect::PointCX, GridAspect::PointCY) {
-                        resolution.data[2] = data.into();
-                    } else {
-                        panic!("invalid-configuration aspect")
-                    }
-                }
-                PointAspectConfiguration::PointD => {
-                    if pair_config == (GridAspect::PointDX, GridAspect::PointDY) {
-                        resolution.data[3] = data.into();
-                    } else {
-                        panic!("invalid-configuration aspect")
-                    }
-                }
-            }
-        }
-        Some(resolution)
-    }
-}
 #[derive(Bundle, Default)]
 pub struct ResponsivePointBundle {
     pub(crate) points: ResolvedPoints,
@@ -324,6 +599,7 @@ pub struct ResponsivePointBundle {
     layout_check: ConfigureFromLayout,
     diff: ResponsivePointsAnimationHook,
 }
+
 impl ResponsivePointBundle {
     pub fn point_ax<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
         if let Some(mut aspect) = self
