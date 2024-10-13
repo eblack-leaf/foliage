@@ -1,17 +1,17 @@
 use bevy_ecs::change_detection::Mut;
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{Commands, Entity};
-use bevy_ecs::system::{ParamSet, Query, ResMut};
+use bevy_ecs::system::{Query, ResMut};
 use std::any::TypeId;
 
 use crate::color::Color;
-use crate::coordinate::area::Area;
 use crate::coordinate::elevation::Elevation;
-use crate::coordinate::points::Points;
-use crate::coordinate::section::Section;
-use crate::coordinate::{Coordinates, LogicalContext};
+use crate::coordinate::Coordinates;
 use crate::elm::Elm;
-use crate::grid::animation::GridLocationAnimationHook;
+use crate::grid::responsive_points::PointsDiff;
+use crate::grid::responsive_section::{
+    EvaluateLocation, ResponsiveSectionAnimPackage, ResponsiveSectionAnimationCalc, SectionDiff,
+};
 use crate::leaf::ResolveElevation;
 use crate::opacity::{Opacity, ResolveOpacity};
 use crate::panel::Rounding;
@@ -25,7 +25,8 @@ impl Root for EnabledAnimations {
         elm.enable_animation::<Color>();
         elm.enable_animation::<Opacity>();
         elm.enable_animation::<Rounding>();
-        // elm.enable_animation::<GridLocation>();
+        elm.enable_animation::<SectionDiff>();
+        elm.enable_animation::<PointsDiff>();
     }
 }
 #[derive(Clone)]
@@ -263,11 +264,8 @@ pub struct Sequence {
 }
 pub(crate) fn animate<A: Animate>(
     mut anims: Query<(Entity, &mut AnimationRunner<A>)>,
-    mut anim_targets: ParamSet<(
-        Query<&mut A>,
-        Query<(&Section<LogicalContext>, &Points<LogicalContext>)>,
-        Query<(&mut GridLocation)>,
-    )>,
+    package: Query<&ResponsiveSectionAnimPackage>,
+    mut anim_targets: Query<&mut A>,
     time: ResMut<Time>,
     mut sequences: Query<&mut Sequence>,
     mut tree: Tree,
@@ -284,68 +282,20 @@ pub(crate) fn animate<A: Animate>(
             if !animation.started {
                 let mut orphaned = false;
                 let target_entity = animation.animation_target;
-                if TypeId::of::<A>() == TypeId::of::<GridLocation>() {
-                    let mut section = Section::default();
-                    let mut points = Points::default();
-                    if let Ok((s, pts)) = anim_targets.p1().get(target_entity) {
-                        section = *s;
-                        points = pts.clone();
-                    } else {
-                        orphaned = true;
-                    };
-                    if !orphaned {
-                        if let Ok(mut a) = anim_targets.p0().get_mut(target_entity) {
-                            *a = animation.end.take().unwrap();
-                        } else {
-                            orphaned = true;
-                        }
+                if TypeId::of::<A>() == TypeId::of::<SectionDiff>() {
+                    if let Ok(pkg) = package.get(anim_entity) {
+                        tree.entity(animation.animation_target)
+                            .insert(pkg.res.clone())
+                            .insert(pkg.exc.clone());
                     }
-                    if !orphaned {
-                        if let Ok(mut location) = anim_targets.p2().get_mut(target_entity) {
-                            match &mut location.animation_hook {
-                                GridLocationAnimationHook::SectionDriven(hook) => {
-                                    hook.last = section;
-                                    hook.create_diff = true;
-                                    hook.hook_changed = true;
-                                }
-                                GridLocationAnimationHook::PointDriven(hook) => {
-                                    for (i, point) in points.data.iter().enumerate() {
-                                        let section = Section::new(*point, Area::default());
-                                        match i {
-                                            0 => {
-                                                hook.point_a.last = section;
-                                                hook.point_a.create_diff = true;
-                                                hook.point_a.hook_changed = true;
-                                            }
-                                            1 => {
-                                                hook.point_b.last = section;
-                                                hook.point_b.create_diff = true;
-                                                hook.point_b.hook_changed = true;
-                                            }
-                                            2 => {
-                                                hook.point_c.last = section;
-                                                hook.point_c.create_diff = true;
-                                                hook.point_c.hook_changed = true;
-                                            }
-                                            3 => {
-                                                hook.point_d.last = section;
-                                                hook.point_d.create_diff = true;
-                                                hook.point_d.hook_changed = true;
-                                            }
-                                            _ => {}
-                                        }
-                                    }
-                                }
-                            }
-                            animation.interpolations =
-                                GridLocation::interpolations(&location, &GridLocation::new());
-                            animation.started = true;
-                        } else {
-                            orphaned = true;
-                        }
-                    }
+                    tree.trigger_targets(
+                        ResponsiveSectionAnimationCalc {},
+                        animation.animation_target,
+                    );
+                    animation.interpolations = Interpolations::new().with(1.0, 0.0);
+                    animation.started = true;
                 } else {
-                    if let Ok(a) = anim_targets.p0().get(target_entity) {
+                    if let Ok(a) = anim_targets.get(target_entity) {
                         animation.interpolations =
                             A::interpolations(&a, animation.end.as_ref().unwrap());
                         animation.started = true;
@@ -374,10 +324,10 @@ pub(crate) fn animate<A: Animate>(
                 i.current_value.replace(d);
             }
             let mut orphaned = false;
-            if let Ok(mut a) = anim_targets.p0().get_mut(animation.animation_target) {
+            if let Ok(mut a) = anim_targets.get_mut(animation.animation_target) {
                 a.apply(&mut animation.interpolations);
-                if TypeId::of::<A>() == TypeId::of::<GridLocation>() {
-                    tree.trigger_targets(ResolveGridLocation {}, animation.animation_target);
+                if TypeId::of::<A>() == TypeId::of::<SectionDiff>() {
+                    tree.trigger_targets(EvaluateLocation {}, animation.animation_target);
                 }
                 if TypeId::of::<A>() == TypeId::of::<Opacity>()
                     || TypeId::of::<A>() == TypeId::of::<Color>()

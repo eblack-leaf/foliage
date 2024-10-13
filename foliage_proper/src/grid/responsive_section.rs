@@ -1,9 +1,12 @@
+use crate::anim::{Animate, Interpolations};
 use crate::coordinate::points::Points;
 use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::grid::aspect::{GridAspect, LocationAspect, SectionAspectConfiguration};
-use crate::grid::responsive_points::{PointsDiff, ResolvedPoints, ResponsivePoints};
+use crate::grid::responsive_points::{
+    PointsDiff, ResolvedPoints, ResponsivePoints, ResponsivePointsException,
+};
 use crate::grid::token::{LocationAspectDescriptorValue, SpecifiedDescriptorValue};
 use crate::grid::Grid;
 use crate::layout::{Layout, LayoutGrid};
@@ -19,7 +22,7 @@ use bevy_ecs::system::{Query, Res};
 use bevy_ecs::world::DeferredWorld;
 use smallvec::SmallVec;
 
-#[derive(Bundle)]
+#[derive(Bundle, Default)]
 pub struct ResponsiveSectionBundle {
     pub(crate) resolved_configuration: ResolvedConfiguration,
     pub(crate) exceptions: ResponsiveSectionException,
@@ -314,14 +317,14 @@ pub(crate) fn evaluate_location(
                 deps.0
                     .iter()
                     .copied()
-                    .filter(|d| responsive.contains(*d))
+                    .filter(|d| responsive.contains(*d) || responsive_points.contains(*d))
                     .collect::<Vec<Entity>>(),
             )
         }
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub struct ConfigureFromLayoutAndException {}
 
 impl ConfigureFromLayoutAndException {
@@ -336,7 +339,7 @@ impl ConfigureFromLayoutAndException {
                         match aspect.aspects[0].value {
                             LocationAspectDescriptorValue::Existing => {
                                 let config = a.config.value();
-                                aspect.aspects[config].value =
+                                aspect.aspects[0].value =
                                     if base.configurations[config].1.aspects[0].aspect
                                         == aspect.aspects[0].aspect
                                     {
@@ -354,7 +357,7 @@ impl ConfigureFromLayoutAndException {
                         match aspect.aspects[1].value {
                             LocationAspectDescriptorValue::Existing => {
                                 let config = a.config.value();
-                                aspect.aspects[config].value =
+                                aspect.aspects[1].value =
                                     if base.configurations[config].1.aspects[0].aspect
                                         == aspect.aspects[1].aspect
                                     {
@@ -378,7 +381,41 @@ impl ConfigureFromLayoutAndException {
             }
         }
         if let Some(base) = world.entity(entity).get::<ResponsivePoints>().cloned() {
-            todo!()
+            let mut to_use = base.configurations.clone();
+            if let Some(exceptions) = world.entity(entity).get::<ResponsivePointsException>() {
+                for (a, b) in exceptions.exceptions.iter() {
+                    if a.layout.contains(layout) {
+                        let config = a.pac.value();
+                        let mut aspect = b.clone();
+                        if aspect.count == 0 {
+                            continue;
+                        }
+                        for i in 0..2 {
+                            match aspect.aspects[i].value {
+                                LocationAspectDescriptorValue::Existing => {
+                                    aspect.aspects[i].value =
+                                        if base.configurations[config].1.aspects[0].aspect
+                                            == aspect.aspects[i].aspect
+                                        {
+                                            base.configurations[config].1.aspects[0].value.clone()
+                                        } else {
+                                            debug_assert_eq!(
+                                                base.configurations[config].1.aspects[1].aspect,
+                                                aspect.aspects[i].aspect
+                                            );
+                                            base.configurations[config].1.aspects[1].value.clone()
+                                        }
+                                }
+                                LocationAspectDescriptorValue::Specified(_) => {}
+                            }
+                        }
+                        to_use[config].1 = aspect;
+                    }
+                }
+            }
+            if let Some(resolved) = world.get_mut::<ResolvedPoints>(entity) {
+                resolved.configurations = to_use;
+            }
         }
     }
 }
@@ -403,8 +440,38 @@ pub struct SectionLast {
 #[derive(Component, Default, Copy, Clone)]
 pub struct SectionDiff {
     pub section: Section<LogicalContext>,
+    pub percent: f32,
 }
+#[derive(Event)]
+pub(crate) struct ResponsiveSectionAnimationCalc {}
+pub(crate) fn anim_calc(trigger: Trigger<ResponsiveSectionAnimationCalc>) {
+    // read last from actual
+    // manually evaluate new (just section) [given previously]
+    // update diff with new - last
+}
+#[derive(Component, Clone, Default)]
+pub struct ResponsiveSectionAnimPackage {
+    pub res: ResponsiveSection,
+    pub exc: ResponsiveSectionException,
+}
+impl Animate for ResponsiveSectionAnimPackage {
+    fn interpolations(start: &Self, end: &Self) -> Interpolations {
+        todo!()
+    }
 
+    fn apply(&mut self, interpolations: &mut Interpolations) {
+        todo!()
+    }
+}
+impl Animate for SectionDiff {
+    fn interpolations(start: &Self, end: &Self) -> Interpolations {
+        todo!()
+    }
+
+    fn apply(&mut self, interpolations: &mut Interpolations) {
+        todo!()
+    }
+}
 #[derive(Clone, Component, Default)]
 pub struct ResponsiveSection {
     configurations: [(SectionAspectConfiguration, LocationAspect); 2],

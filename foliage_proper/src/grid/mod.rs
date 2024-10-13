@@ -4,7 +4,6 @@ use bevy_ecs::prelude::{Component, DetectChanges};
 use std::cmp::PartialOrd;
 use std::ops::{Add, Mul, Sub};
 use unit::TokenUnit;
-pub(crate) mod animation;
 pub mod aspect;
 pub mod responsive_points;
 pub mod responsive_section;

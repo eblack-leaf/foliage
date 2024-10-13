@@ -6,7 +6,7 @@ use smallvec::SmallVec;
 
 #[derive(Default, Clone)]
 pub(crate) struct LocationAspect {
-    pub(crate) aspects: SmallVec<[LocationAspectDescriptor; 2]>,
+    pub(crate) aspects: [LocationAspectDescriptor; 2],
     pub(crate) count: u32,
 }
 
@@ -27,19 +27,15 @@ impl LocationAspect {
             }
             self.aspects[slot] = LocationAspectDescriptor::new(aspect, desc.into());
             self.count += 1;
-        } else if self.count == 2 {
-            todo!()
-        } else if self.count == 3 {
-            todo!()
         } else {
             panic!("too many dimensions");
         }
     }
     pub fn new() -> LocationAspect {
-        let mut aspects = SmallVec::new();
-        aspects.push(LocationAspect::new());
-        aspects.push(LocationAspect::new());
-        LocationAspect { aspects, count: 0 }
+        LocationAspect {
+            aspects: Default::default(),
+            count: 0,
+        }
     }
     pub(crate) fn top<LAD: Into<SpecifiedDescriptorValue>>(mut self, t: LAD) -> Self {
         self.set(

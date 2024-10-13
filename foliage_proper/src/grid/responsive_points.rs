@@ -1,18 +1,15 @@
+use crate::anim::{Animate, Interpolations};
 use crate::coordinate::points::Points;
 use crate::coordinate::LogicalContext;
 use crate::grid::aspect::{GridAspect, LocationAspect, PointAspectConfiguration};
-use crate::grid::responsive_section::ReferentialData;
+use crate::grid::responsive_section::{ConfigureFromLayoutAndException, ReferentialData};
 use crate::grid::token::{LocationAspectDescriptorValue, SpecifiedDescriptorValue};
 use crate::layout::Layout;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
 use smallvec::SmallVec;
 
-pub struct PointConfiguration {
-    configurations: SmallVec<[(PointAspectConfiguration, LocationAspect); 2]>,
-}
-
-impl PointConfiguration {
+impl ResponsivePoints {
     pub fn point_ax<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
         if let Some(mut aspect) = self
             .configurations
@@ -225,20 +222,40 @@ impl PointConfiguration {
 }
 #[derive(Component, Clone, Default)]
 pub struct ResponsivePoints {
-    configurations: SmallVec<[(PointAspectConfiguration, LocationAspect); 2]>,
+    pub(crate) configurations: [(PointAspectConfiguration, LocationAspect); 4],
 }
-#[derive(Default)]
+#[derive(Default, Component)]
 pub struct ResponsivePointsException {
-    exceptions: SmallVec<[(PointAspectConfiguration, LocationAspect); 2]>,
+    pub exceptions: SmallVec<[(PointException, LocationAspect); 2]>,
 }
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
 pub struct PointException {
-    layout: Layout,
-    pac: PointAspectConfiguration,
+    pub(crate) layout: Layout,
+    pub(crate) pac: PointAspectConfiguration,
+}
+impl PointException {
+    pub(crate) fn new(
+        layout: Layout,
+        point_aspect_configuration: PointAspectConfiguration,
+    ) -> Self {
+        Self {
+            layout,
+            pac: point_aspect_configuration,
+        }
+    }
 }
 #[derive(Component, Copy, Clone, Default)]
 pub(crate) struct PointsDiff {
     pub(crate) points: Points<LogicalContext>,
+}
+impl Animate for PointsDiff {
+    fn interpolations(start: &Self, end: &Self) -> Interpolations {
+        todo!()
+    }
+
+    fn apply(&mut self, interpolations: &mut Interpolations) {
+        todo!()
+    }
 }
 #[derive(Component, Copy, Clone, Default)]
 pub(crate) struct PointsLast {
@@ -246,7 +263,7 @@ pub(crate) struct PointsLast {
 }
 #[derive(Component, Clone, Default)]
 pub struct ResolvedPoints {
-    configurations: SmallVec<[(PointAspectConfiguration, LocationAspect); 2]>,
+    pub(crate) configurations: [(PointAspectConfiguration, LocationAspect); 4],
 }
 impl ResolvedPoints {
     pub(crate) fn evaluate(
@@ -300,9 +317,10 @@ impl ResolvedPoints {
 }
 #[derive(Bundle, Default)]
 pub struct ResponsivePointsBundle {
-    pub points: ResponsivePoints,
+    pub points: ResolvedPoints,
     pub responsive_points_exception: ResponsivePointsException,
-    pub base_points: ResolvedPoints,
+    pub base_points: ResponsivePoints,
+    layout_check: ConfigureFromLayoutAndException,
 }
 #[derive(Bundle, Default)]
 pub struct ResponsivePointsAnimationHelpers {
@@ -432,7 +450,13 @@ impl ResponsivePointsBundle {
 
         self
     }
-    pub fn except_at<RP: Into<PointConfiguration>>(mut self, layout: Layout, rp: RP) -> Self {
-        todo!()
+    pub fn except_at<RP: Into<ResponsivePoints>>(mut self, layout: Layout, rp: RP) -> Self {
+        let config = rp.into();
+        for (c, l) in config.configurations {
+            self.responsive_points_exception
+                .exceptions
+                .push((PointException::new(layout, c), l));
+        }
+        self
     }
 }

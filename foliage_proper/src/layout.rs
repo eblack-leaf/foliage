@@ -14,6 +14,11 @@ use bitflags::bitflags;
 
 #[derive(Resource, Copy, Clone, Eq, Hash, PartialEq, Ord, PartialOrd, Debug)]
 pub struct Layout(u16);
+impl Default for Layout {
+    fn default() -> Self {
+        Layout::SQUARE
+    }
+}
 // set of layouts this will signal at
 #[derive(Component, Copy, Clone)]
 pub struct LayoutFilter {

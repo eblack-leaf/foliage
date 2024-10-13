@@ -22,6 +22,7 @@ use crate::coordinate::{Coordinates, DeviceContext};
 use crate::elm::{Ecs, Elm};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::{Ginkgo, ScaleFactor};
+use crate::grid::responsive_section::evaluate_location;
 use crate::icon::{Icon, IconId, IconRequest};
 use crate::image::Image;
 use crate::interaction::{ClickInteractionListener, KeyboardAdapter, MouseAdapter, TouchAdapter};
@@ -111,6 +112,7 @@ impl Foliage {
         this.elm.ecs.observe(trigger_interactions_enable);
         this.elm.ecs.observe(triggered_opacity);
         this.elm.ecs.observe(triggered_remove);
+        this.elm.ecs.observe(evaluate_location);
         // this.elm.ecs.observe(triggered_resolve_grid_locations);
         // this.elm.ecs.observe(stem_remove);
         this.elm.ecs.observe(render_link_on_remove);
