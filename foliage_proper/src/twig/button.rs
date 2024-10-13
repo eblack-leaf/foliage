@@ -1,5 +1,4 @@
 use crate::grid::aspect::stem;
-use crate::grid::location::GridLocation;
 use crate::grid::unit::TokenUnit;
 use crate::icon::{Icon, IconId};
 use crate::interaction::ClickInteractionListener;

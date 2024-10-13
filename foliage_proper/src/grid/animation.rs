@@ -1,7 +1,6 @@
 use crate::anim::{Animate, Interpolations};
 use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
-use crate::grid::location::GridLocation;
 
 #[derive(Clone, Default)]
 pub(crate) struct AnimationHookContext {

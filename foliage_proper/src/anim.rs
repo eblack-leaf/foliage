@@ -12,8 +12,6 @@ use crate::coordinate::section::Section;
 use crate::coordinate::{Coordinates, LogicalContext};
 use crate::elm::Elm;
 use crate::grid::animation::GridLocationAnimationHook;
-use crate::grid::location::GridLocation;
-use crate::grid::resolve::ResolveGridLocation;
 use crate::leaf::ResolveElevation;
 use crate::opacity::{Opacity, ResolveOpacity};
 use crate::panel::Rounding;
@@ -27,7 +25,7 @@ impl Root for EnabledAnimations {
         elm.enable_animation::<Color>();
         elm.enable_animation::<Opacity>();
         elm.enable_animation::<Rounding>();
-        elm.enable_animation::<GridLocation>();
+        // elm.enable_animation::<GridLocation>();
     }
 }
 #[derive(Clone)]

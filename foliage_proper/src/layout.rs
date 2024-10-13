@@ -1,8 +1,6 @@
 use crate::coordinate::placement::Placement;
 use crate::coordinate::Coordinates;
 use crate::ginkgo::viewport::ViewportHandle;
-use crate::grid::location::GridLocation;
-use crate::grid::resolve::ResolveGridLocation;
 use crate::grid::Grid;
 use crate::leaf::Stem;
 use crate::tree::Tree;

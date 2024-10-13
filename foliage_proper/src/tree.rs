@@ -1,12 +1,8 @@
 use crate::anim::{Animate, Animation, AnimationRunner, AnimationTime, Sequence};
 use crate::color::Color;
 use crate::coordinate::elevation::Elevation;
-use crate::grid::location::GridLocation;
-use crate::grid::resolve::ResolveGridLocation;
 use crate::grid::Grid;
-use crate::leaf::{
-    Leaf, Remove, ResolveElevation, ResolveVisibility, Stem, UpdateStem, Visibility,
-};
+use crate::leaf::{Leaf, Remove, ResolveElevation, ResolveVisibility, Stem, Visibility};
 use crate::opacity::{Opacity, ResolveOpacity};
 use crate::time::OnEnd;
 use crate::twig::{Branch, Twig};
