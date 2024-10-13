@@ -224,7 +224,7 @@ impl ResponsivePoints {
 pub struct ResponsivePoints {
     pub(crate) configurations: [(PointAspectConfiguration, LocationAspect); 4],
 }
-#[derive(Default, Component)]
+#[derive(Default, Component, Clone)]
 pub struct ResponsivePointsException {
     pub exceptions: SmallVec<[(PointException, LocationAspect); 2]>,
 }
@@ -244,9 +244,20 @@ impl PointException {
         }
     }
 }
+#[derive(Bundle)]
+pub(crate) struct ResponsivePointsAnimPackage {
+    pub(crate) responsive_points: ResponsivePoints,
+    pub(crate) responsive_point_exception: ResponsivePointsException,
+}
 #[derive(Component, Copy, Clone, Default)]
 pub(crate) struct PointsDiff {
     pub(crate) points: Points<LogicalContext>,
+    pub(crate) percent: f32,
+}
+impl PointsDiff {
+    pub(crate) fn value(&self) -> Points<LogicalContext> {
+        self.points * self.percent
+    }
 }
 impl Animate for PointsDiff {
     fn interpolations(start: &Self, end: &Self) -> Interpolations {
@@ -254,7 +265,9 @@ impl Animate for PointsDiff {
     }
 
     fn apply(&mut self, interpolations: &mut Interpolations) {
-        todo!()
+        if let Some(s) = interpolations.read(0) {
+            self.percent = s;
+        }
     }
 }
 #[derive(Component, Copy, Clone, Default)]

@@ -8,7 +8,7 @@ use crate::color::Color;
 use crate::coordinate::elevation::Elevation;
 use crate::coordinate::Coordinates;
 use crate::elm::Elm;
-use crate::grid::responsive_points::PointsDiff;
+use crate::grid::responsive_points::{PointsDiff, ResponsivePointsAnimPackage};
 use crate::grid::responsive_section::{
     EvaluateLocation, ResponsiveSectionAnimPackage, ResponsiveSectionAnimationCalc, SectionDiff,
 };
@@ -265,6 +265,7 @@ pub struct Sequence {
 pub(crate) fn animate<A: Animate>(
     mut anims: Query<(Entity, &mut AnimationRunner<A>)>,
     package: Query<&ResponsiveSectionAnimPackage>,
+    pt_package: Query<&ResponsivePointsAnimPackage>,
     mut anim_targets: Query<&mut A>,
     time: ResMut<Time>,
     mut sequences: Query<&mut Sequence>,
@@ -282,11 +283,22 @@ pub(crate) fn animate<A: Animate>(
             if !animation.started {
                 let mut orphaned = false;
                 let target_entity = animation.animation_target;
-                if TypeId::of::<A>() == TypeId::of::<SectionDiff>() {
-                    if let Ok(pkg) = package.get(anim_entity) {
-                        tree.entity(animation.animation_target)
-                            .insert(pkg.res.clone())
-                            .insert(pkg.exc.clone());
+                let is_section_diff = TypeId::of::<A>() == TypeId::of::<SectionDiff>();
+                let is_point_diff = TypeId::of::<A>() == TypeId::of::<PointsDiff>();
+                if is_section_diff || is_point_diff {
+                    if is_section_diff {
+                        if let Ok(pkg) = package.get(anim_entity) {
+                            tree.entity(animation.animation_target)
+                                .insert(pkg.res.clone())
+                                .insert(pkg.exc.clone());
+                        }
+                    }
+                    if is_point_diff {
+                        if let Ok(pkg) = pt_package.get(anim_entity) {
+                            tree.entity(animation.animation_target)
+                                .insert(pkg.responsive_points.clone())
+                                .insert(pkg.responsive_point_exception.clone());
+                        }
                     }
                     tree.trigger_targets(
                         ResponsiveSectionAnimationCalc {},
@@ -326,8 +338,10 @@ pub(crate) fn animate<A: Animate>(
             let mut orphaned = false;
             if let Ok(mut a) = anim_targets.get_mut(animation.animation_target) {
                 a.apply(&mut animation.interpolations);
-                if TypeId::of::<A>() == TypeId::of::<SectionDiff>() {
-                    tree.trigger_targets(EvaluateLocation {}, animation.animation_target);
+                if TypeId::of::<A>() == TypeId::of::<SectionDiff>()
+                    || TypeId::of::<A>() == TypeId::of::<PointsDiff>()
+                {
+                    tree.trigger_targets(EvaluateLocation::full(), animation.animation_target);
                 }
                 if TypeId::of::<A>() == TypeId::of::<Opacity>()
                     || TypeId::of::<A>() == TypeId::of::<Color>()

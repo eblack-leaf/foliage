@@ -254,7 +254,17 @@ impl ResolvedConfiguration {
 }
 
 #[derive(Copy, Clone, Event)]
-pub struct EvaluateLocation {}
+pub struct EvaluateLocation {
+    skip_deps: bool,
+}
+impl EvaluateLocation {
+    pub fn no_deps() -> Self {
+        Self { skip_deps: true }
+    }
+    pub fn full() -> Self {
+        Self { skip_deps: false }
+    }
+}
 
 pub(crate) fn evaluate_location(
     trigger: Trigger<EvaluateLocation>,
@@ -293,7 +303,7 @@ pub(crate) fn evaluate_location(
                     .get(trigger.entity())
                     .copied()
                     .unwrap_or_default()
-                    .section;
+                    .value();
             }
         }
         if let Ok(res) = responsive_points.get(trigger.entity()) {
@@ -303,17 +313,20 @@ pub(crate) fn evaluate_location(
                         .get(trigger.entity())
                         .copied()
                         .unwrap_or_default()
-                        .points;
+                        .value();
                 *point_eval.get_mut(trigger.entity()).unwrap() = solved;
                 *eval.get_mut(trigger.entity()).unwrap() = solved.bbox();
             }
+        }
+        if trigger.event().skip_deps {
+            return;
         }
         if let Ok(mut deps) = dependents.get(trigger.entity()) {
             if deps.0.is_empty() {
                 return;
             }
             tree.trigger_targets(
-                EvaluateLocation {},
+                EvaluateLocation::full(),
                 deps.0
                     .iter()
                     .copied()
@@ -442,12 +455,48 @@ pub struct SectionDiff {
     pub section: Section<LogicalContext>,
     pub percent: f32,
 }
+impl SectionDiff {
+    pub(crate) fn value(&self) -> Section<LogicalContext> {
+        self.section * self.percent
+    }
+}
 #[derive(Event)]
 pub(crate) struct ResponsiveSectionAnimationCalc {}
-pub(crate) fn anim_calc(trigger: Trigger<ResponsiveSectionAnimationCalc>) {
-    // read last from actual
-    // manually evaluate new (just section) [given previously]
-    // update diff with new - last
+pub(crate) fn anim_calc(
+    trigger: Trigger<ResponsiveSectionAnimationCalc>,
+    actual: Query<&Section<LogicalContext>>,
+    pts: Query<&Points<LogicalContext>>,
+    mut tree: Tree,
+) {
+    let last = actual.get(trigger.entity()).copied().unwrap();
+    let last_pts = pts.get(trigger.entity()).copied().unwrap();
+    tree.entity(trigger.entity())
+        .insert(ConfigureFromLayoutAndException {});
+    tree.trigger_targets(EvaluateLocation::no_deps(), trigger.entity());
+    tree.trigger_targets(CalcDiff { last, last_pts }, trigger.entity());
+}
+#[derive(Event, Copy, Clone)]
+pub(crate) struct CalcDiff {
+    last: Section<LogicalContext>,
+    last_pts: Points<LogicalContext>,
+}
+pub(crate) fn calc_diff(
+    trigger: Trigger<CalcDiff>,
+    mut diffs: Query<&mut SectionDiff>,
+    mut pt_diffs: Query<&mut PointsDiff>,
+    calculated: Query<&Section<LogicalContext>>,
+    calc_pts: Query<&Points<LogicalContext>>,
+) {
+    if let Ok(mut diff) = diffs.get_mut(trigger.entity()) {
+        let last = trigger.event().last;
+        let new = calculated.get(trigger.entity()).copied().unwrap();
+        diff.section = new - last;
+    }
+    if let Ok(mut diff) = pt_diffs.get_mut(trigger.entity()) {
+        let last = trigger.event().last_pts;
+        let new = calc_pts.get(trigger.entity()).copied().unwrap();
+        diff.points = new - last;
+    }
 }
 #[derive(Component, Clone, Default)]
 pub struct ResponsiveSectionAnimPackage {
@@ -469,7 +518,9 @@ impl Animate for SectionDiff {
     }
 
     fn apply(&mut self, interpolations: &mut Interpolations) {
-        todo!()
+        if let Some(s) = interpolations.read(0) {
+            self.percent = s;
+        }
     }
 }
 #[derive(Clone, Component, Default)]

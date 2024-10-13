@@ -1,13 +1,17 @@
 use crate::coordinate::placement::Placement;
 use crate::coordinate::Coordinates;
 use crate::ginkgo::viewport::ViewportHandle;
+use crate::grid::responsive_points::ResponsivePoints;
+use crate::grid::responsive_section::{
+    ConfigureFromLayoutAndException, EvaluateLocation, ResponsiveSection,
+};
 use crate::grid::Grid;
 use crate::leaf::Stem;
 use crate::tree::Tree;
 use bevy_ecs::change_detection::Res;
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::Resource;
+use bevy_ecs::prelude::{Or, Resource};
 use bevy_ecs::query::With;
 use bevy_ecs::system::{Query, ResMut};
 use bitflags::bitflags;
@@ -112,13 +116,16 @@ pub(crate) fn viewport_changes_layout(
     mut viewport_handle: ResMut<ViewportHandle>,
     mut layout: ResMut<Layout>,
     mut tree: Tree,
-    locations: Query<(Entity, &Stem), With<GridLocation>>,
+    locations: Query<(Entity, &Stem), Or<(With<ResponsiveSection>, With<ResponsivePoints>)>>,
 ) {
     if viewport_handle.updated() {
         let (l, (c, r)) = LayoutGrid::configuration(viewport_handle.section().area.coordinates);
         if &l != layout.as_ref() {
             tracing::trace!("grid-layout:{:?}", l);
             *layout = l;
+            for (e, _) in locations.iter() {
+                tree.entity(e).insert(ConfigureFromLayoutAndException {});
+            }
         }
         layout_grid.grid = Grid::new(c, r);
         let mut roots = vec![];
@@ -127,6 +134,6 @@ pub(crate) fn viewport_changes_layout(
                 roots.push(e);
             }
         }
-        tree.trigger_targets(ResolveGridLocation {}, roots);
+        tree.trigger_targets(EvaluateLocation {}, roots);
     }
 }
