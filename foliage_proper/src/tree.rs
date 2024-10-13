@@ -2,14 +2,14 @@ use crate::anim::{Animate, Animation, AnimationRunner, AnimationTime, Sequence};
 use crate::color::Color;
 use crate::coordinate::elevation::Elevation;
 use crate::grid::Grid;
-use crate::leaf::{Leaf, Remove, ResolveElevation, ResolveVisibility, Stem, Visibility};
+use crate::leaf::{Leaf, Remove, ResolveElevation, Stem};
 use crate::opacity::{Opacity, ResolveOpacity};
 use crate::time::OnEnd;
-use crate::twig::{Branch, Twig};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::observer::TriggerTargets;
 use bevy_ecs::system::Commands;
 use bevy_ecs::world::World;
+use crate::Branch;
 
 pub type Tree<'w, 's> = Commands<'w, 's>;
 pub trait EcsExtension {
@@ -17,7 +17,7 @@ pub trait EcsExtension {
         &mut self,
         sfn: SFN,
     ) -> Entity;
-    fn branch<B: Branch>(&mut self, twig: Twig<B>) -> B::Handle;
+    fn branch<B: Branch>(&mut self, twig: B) -> B::Handle;
     fn add_leaf(&mut self) -> Entity;
     fn leaves(&mut self, n: usize) -> Vec<Entity>;
     // fn flush_location(&mut self, tt: impl TriggerTargets);
@@ -54,7 +54,7 @@ impl<'w, 's> EcsExtension for Tree<'w, 's> {
         self.entity(sequence_entity).insert(sequence);
         sequence_entity
     }
-    fn branch<B: Branch>(&mut self, twig: Twig<B>) -> B::Handle {
+    fn branch<B: Branch>(&mut self, twig: B) -> B::Handle {
         B::grow(twig, self)
     }
     fn add_leaf(&mut self) -> Entity {
@@ -109,7 +109,7 @@ impl EcsExtension for World {
         let e = cmds.start_sequence(sfn);
         e
     }
-    fn branch<B: Branch>(&mut self, twig: Twig<B>) -> B::Handle {
+    fn branch<B: Branch>(&mut self, twig: B) -> B::Handle {
         let mut cmds = self.commands();
         let h = cmds.branch(twig);
         h

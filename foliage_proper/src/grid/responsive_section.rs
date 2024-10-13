@@ -21,6 +21,7 @@ use bevy_ecs::observer::Trigger;
 use bevy_ecs::system::{Query, Res};
 use bevy_ecs::world::DeferredWorld;
 use smallvec::SmallVec;
+use crate::twig::Configure;
 
 #[derive(Bundle, Default)]
 pub struct ResponsiveSectionBundle {
@@ -304,6 +305,7 @@ pub(crate) fn evaluate_location(
                     .copied()
                     .unwrap_or_default()
                     .value();
+                tree.trigger_targets(Configure{}, trigger.entity());
             }
         }
         if let Ok(res) = responsive_points.get(trigger.entity()) {
@@ -316,6 +318,7 @@ pub(crate) fn evaluate_location(
                         .value();
                 *point_eval.get_mut(trigger.entity()).unwrap() = solved;
                 *eval.get_mut(trigger.entity()).unwrap() = solved.bbox();
+                tree.trigger_targets(Configure{}, trigger.entity());
             }
         }
         if trigger.event().skip_deps {
@@ -389,7 +392,7 @@ impl ConfigureFromLayoutAndException {
                     }
                 }
             }
-            if let Some(resolved) = world.get_mut::<ResolvedConfiguration>(entity) {
+            if let Some(mut resolved) = world.get_mut::<ResolvedConfiguration>(entity) {
                 resolved.configurations = to_use;
             }
         }
@@ -426,7 +429,7 @@ impl ConfigureFromLayoutAndException {
                     }
                 }
             }
-            if let Some(resolved) = world.get_mut::<ResolvedPoints>(entity) {
+            if let Some(mut resolved) = world.get_mut::<ResolvedPoints>(entity) {
                 resolved.configurations = to_use;
             }
         }

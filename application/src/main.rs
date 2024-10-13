@@ -1,7 +1,6 @@
 use crate::icon::IconHandles;
 use crate::leaf_model::LeafModel;
 use foliage::tree::EcsExtension;
-use foliage::twig::Twig;
 use foliage::Foliage;
 use home::{EventTest, Home};
 
@@ -26,7 +25,7 @@ fn main() {
         include_bytes!("assets/icons/chevrons-right.icon"),
     );
     foliage.enable_event::<EventTest>();
-    let model = foliage.ecs().branch(Twig::new(Home {}));
+    let model = foliage.ecs().branch(Home {});
     foliage.insert_resource(model);
     foliage.attach_root::<Home>();
     foliage.attach_root::<LeafModel>();

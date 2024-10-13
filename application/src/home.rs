@@ -1,21 +1,19 @@
 use crate::icon::IconHandles;
 use crate::leaf_model::LeafModel;
-use foliage::bevy_ecs;
+use foliage::{bevy_ecs, Branch};
 use foliage::bevy_ecs::entity::Entity;
 use foliage::bevy_ecs::event::Event;
 use foliage::bevy_ecs::prelude::{IntoSystemSetConfigs, Resource, Trigger};
 use foliage::color::{Grey, Monochromatic};
 use foliage::elm::{Elm, ExternalStage};
 use foliage::grid::aspect::screen;
-use foliage::grid::location::GridLocation;
 use foliage::grid::unit::TokenUnit;
 use foliage::interaction::OnClick;
 use foliage::panel::Rounding;
 use foliage::style::Coloring;
 use foliage::text::{FontSize, Text};
 use foliage::tree::{EcsExtension, Tree};
-use foliage::twig::button::Button;
-use foliage::twig::{Branch, Twig};
+use foliage::twig::button::ButtonBindings;
 use foliage::{schedule_stage, Root};
 
 #[schedule_stage]
@@ -38,8 +36,8 @@ pub(crate) struct Home {}
 
 #[derive(Resource)]
 pub(crate) struct HomeHandle {
-    pub(crate) concepts_button: Button,
-    pub(crate) usage_button: Button,
+    pub(crate) concepts_button: ButtonBindings,
+    pub(crate) usage_button: ButtonBindings,
     pub(crate) name: Entity,
     pub(crate) leaf_model: LeafModel,
 }
@@ -52,10 +50,10 @@ pub(crate) fn observant(trigger: Trigger<OnClick>) {
 }
 impl Branch for Home {
     type Handle = HomeHandle;
-    fn grow(twig: Twig<Self>, tree: &mut Tree) -> Self::Handle {
+    fn grow(self, tree: &mut Tree) -> Self::Handle {
         let concepts_button = tree.branch(
             Twig::new(
-                Button::args(
+                ButtonBindings::args(
                     IconHandles::Concepts,
                     Coloring::new(Grey::base(), Grey::minus_one()),
                 )
@@ -75,7 +73,7 @@ impl Branch for Home {
         tree.entity(concepts_button.panel).observe(observant);
         tree.visibility(concepts_button.panel, false);
         let usage_button = tree.branch(Twig::new(
-            Button::args(
+            ButtonBindings::args(
                 IconHandles::Usage,
                 Coloring::new(Grey::base(), Grey::minus_one()),
             )

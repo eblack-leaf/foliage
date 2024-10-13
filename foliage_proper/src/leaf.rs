@@ -4,6 +4,7 @@ use crate::ash::ClippingContext;
 use crate::coordinate::elevation::{Elevation, RenderLayer};
 use crate::coordinate::placement::Placement;
 use crate::coordinate::points::Points;
+use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
 use crate::differential::{RenderLink, RenderRemoveQueue};
 use crate::grid::Grid;
@@ -21,7 +22,7 @@ use bevy_ecs::system::Query;
 use bevy_ecs::world::DeferredWorld;
 
 #[derive(Bundle, Default, Clone)]
-pub(crate) struct Leaf {
+pub struct Leaf {
     stem: Stem,
     dependents: Dependents,
     placement: Placement<LogicalContext>,
@@ -33,6 +34,41 @@ pub(crate) struct Leaf {
     grid: Grid,
     points: Points<LogicalContext>,
 }
+
+impl Leaf {
+    pub fn new() -> Self {
+        Self::default()
+    }
+    pub fn stem(mut self, s: Entity) -> Self {
+        self.stem.0.replace(s);
+        self
+    }
+    pub fn elevation<E: Into<Elevation>>(mut self, e: E) -> Self {
+        self.elevation = e.into();
+        self
+    }
+    pub fn opacity<O: Into<Opacity>>(mut self, o: O) -> Self {
+        self.opacity = o.into();
+        self
+    }
+    pub fn visibility<V: Into<Visibility>>(mut self, v: V) -> Self {
+        self.visibility = v.into();
+        self
+    }
+    pub fn grid(mut self, grid: Grid) -> Self {
+        self.grid = grid;
+        self
+    }
+    pub fn section<S: Into<Section<LogicalContext>>>(mut self, s: S) -> Self {
+        self.placement.section = s.into();
+        self
+    }
+    pub fn points<P: Into<Points<LogicalContext>>>(mut self, points: P) -> Self {
+        self.points = points.into();
+        self
+    }
+}
+
 #[derive(Event, Copy, Clone)]
 pub struct InteractionsEnabled(pub bool);
 pub(crate) fn trigger_interactions_enable(

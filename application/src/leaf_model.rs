@@ -9,13 +9,11 @@ use foliage::coordinate::section::Section;
 use foliage::coordinate::{Coordinates, LogicalContext};
 use foliage::elm::{Elm, ExternalStage};
 use foliage::grid::aspect::stem;
-use foliage::grid::location::GridLocation;
 use foliage::grid::unit::TokenUnit;
 use foliage::panel::{Panel, Rounding};
 use foliage::shape::line::Line;
 use foliage::tree::{EcsExtension, Tree};
-use foliage::twig::{Branch, Twig};
-use foliage::{bevy_ecs, schedule_stage, Root};
+use foliage::{bevy_ecs, schedule_stage, Branch, Root};
 use std::collections::HashMap;
 
 pub(crate) struct LeafModel {
@@ -175,7 +173,7 @@ impl LeafPartComponent {
 pub(crate) struct LeafPartModel {}
 impl Branch for LeafPartModel {
     type Handle = Entity;
-    fn grow(twig: Twig<Self>, tree: &mut Tree) -> Self::Handle {
+    fn grow(self, tree: &mut Tree) -> Self::Handle {
         let root = tree.add_leaf();
         tree.stem(root, twig.stem);
         tree.location(root, twig.location);
@@ -189,7 +187,7 @@ impl Branch for LeafPartModel {
 }
 impl Branch for LeafModelArgs {
     type Handle = LeafModel;
-    fn grow(twig: Twig<Self>, tree: &mut Tree) -> Self::Handle {
+    fn grow(self, tree: &mut Tree) -> Self::Handle {
         let this = tree.add_leaf();
         tree.stem(this, twig.stem);
         tree.location(this, twig.location);

@@ -37,6 +37,7 @@ use crate::shape::Shape;
 use crate::style::Style;
 use crate::text::Text;
 use crate::time::Time;
+use crate::tree::Tree;
 use crate::web_ext::HrefLink;
 
 pub mod anim;
@@ -113,12 +114,9 @@ impl Foliage {
         this.elm.ecs.observe(triggered_opacity);
         this.elm.ecs.observe(triggered_remove);
         this.elm.ecs.observe(evaluate_location);
-        // this.elm.ecs.observe(triggered_resolve_grid_locations);
-        // this.elm.ecs.observe(stem_remove);
         this.elm.ecs.observe(render_link_on_remove);
         this.elm.ecs.observe(resolve_visibility);
         this.elm.ecs.observe(resolve_elevation);
-        // this.elm.ecs.observe(update_stem_trigger);
         this
     }
     pub fn enable_animation<A: Animate>(&mut self) {
@@ -503,4 +501,12 @@ impl Roots for Trunk {
         foliage.attach_root::<Line>();
         foliage.enable_event::<HrefLink>();
     }
+}
+
+pub trait Branch
+where
+    Self: Sized,
+{
+    type Handle;
+    fn grow(self, tree: &mut Tree) -> Self::Handle;
 }
