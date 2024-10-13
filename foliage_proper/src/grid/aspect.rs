@@ -1,41 +1,16 @@
-use crate::coordinate::CoordinateUnit;
-use crate::grid::resolve::ReferentialData;
 use crate::grid::token::{
     LocationAspectDescriptor, LocationAspectDescriptorValue, LocationAspectToken,
     LocationAspectTokenOp, LocationAspectTokenValue, SpecifiedDescriptorValue,
 };
+use smallvec::SmallVec;
 
 #[derive(Default, Clone)]
 pub(crate) struct LocationAspect {
-    pub(crate) aspects: [LocationAspectDescriptor; 2],
+    pub(crate) aspects: SmallVec<[LocationAspectDescriptor; 2]>,
     pub(crate) count: u32,
 }
 
 impl LocationAspect {
-    pub(crate) fn resolve_grid_aspect(
-        &self,
-        stem: ReferentialData,
-        screen: ReferentialData,
-        aspect: GridAspect,
-    ) -> CoordinateUnit {
-        if self.aspects.get(0).unwrap().aspect == aspect {
-            if let LocationAspectDescriptorValue::Specified(spec) =
-                &self.aspects.get(0).unwrap().value
-            {
-                spec.resolve(stem, screen)
-            } else {
-                panic!("no existing")
-            }
-        } else {
-            if let LocationAspectDescriptorValue::Specified(spec) =
-                &self.aspects.get(1).unwrap().value
-            {
-                spec.resolve(stem, screen)
-            } else {
-                panic!("no existing")
-            }
-        }
-    }
     pub(crate) fn set<LAD: Into<LocationAspectDescriptorValue>>(
         &mut self,
         aspect: GridAspect,
@@ -45,34 +20,26 @@ impl LocationAspect {
             self.aspects[0] = LocationAspectDescriptor::new(aspect, desc.into());
             self.count += 1;
         } else if self.count == 1 {
-            self.aspects[1] = LocationAspectDescriptor::new(aspect, desc.into());
+            let mut slot = 1;
+            if aspect < self.aspects[0].aspect {
+                self.aspects[1] = self.aspects[0].clone();
+                slot = 0;
+            }
+            self.aspects[slot] = LocationAspectDescriptor::new(aspect, desc.into());
             self.count += 1;
+        } else if self.count == 2 {
+            todo!()
+        } else if self.count == 3 {
+            todo!()
         } else {
             panic!("too many dimensions");
         }
     }
     pub fn new() -> LocationAspect {
-        LocationAspect {
-            aspects: [
-                LocationAspectDescriptor::default(),
-                LocationAspectDescriptor::default(),
-            ],
-            count: 0,
-        }
-    }
-    pub(crate) fn config(&self) -> AspectConfiguration {
-        match self.aspects[0].aspect {
-            GridAspect::Top | GridAspect::Height | GridAspect::Bottom | GridAspect::CenterY => {
-                AspectConfiguration::Vertical
-            }
-            GridAspect::Left | GridAspect::Width | GridAspect::Right | GridAspect::CenterX => {
-                AspectConfiguration::Horizontal
-            }
-            GridAspect::PointAX | GridAspect::PointAY => AspectConfiguration::PointA,
-            GridAspect::PointBX | GridAspect::PointBY => AspectConfiguration::PointB,
-            GridAspect::PointCX | GridAspect::PointCY => AspectConfiguration::PointC,
-            GridAspect::PointDX | GridAspect::PointDY => AspectConfiguration::PointD,
-        }
+        let mut aspects = SmallVec::new();
+        aspects.push(LocationAspect::new());
+        aspects.push(LocationAspect::new());
+        LocationAspect { aspects, count: 0 }
     }
     pub(crate) fn top<LAD: Into<SpecifiedDescriptorValue>>(mut self, t: LAD) -> Self {
         self.set(
@@ -326,24 +293,34 @@ pub fn stem() -> GridContext {
 }
 
 #[derive(Hash, PartialEq, Eq, Clone, Copy, Default, Debug)]
-pub(crate) enum AspectConfiguration {
+pub(crate) enum SectionAspectConfiguration {
     #[default]
     Horizontal,
     Vertical,
+}
+#[derive(Hash, PartialEq, Eq, Clone, Copy, Default, Debug)]
+pub(crate) enum PointAspectConfiguration {
+    #[default]
     PointA,
     PointB,
     PointC,
     PointD,
 }
-impl AspectConfiguration {
+impl PointAspectConfiguration {
     pub(crate) fn value(self) -> usize {
         match self {
-            AspectConfiguration::Horizontal => 0,
-            AspectConfiguration::Vertical => 1,
-            AspectConfiguration::PointA => 0,
-            AspectConfiguration::PointB => 1,
-            AspectConfiguration::PointC => 2,
-            AspectConfiguration::PointD => 3,
+            PointAspectConfiguration::PointA => 0,
+            PointAspectConfiguration::PointB => 1,
+            PointAspectConfiguration::PointC => 2,
+            PointAspectConfiguration::PointD => 3,
+        }
+    }
+}
+impl SectionAspectConfiguration {
+    pub(crate) fn value(self) -> usize {
+        match self {
+            SectionAspectConfiguration::Horizontal => 0,
+            SectionAspectConfiguration::Vertical => 1,
         }
     }
 }

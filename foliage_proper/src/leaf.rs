@@ -12,10 +12,13 @@ use crate::opacity::Opacity;
 use crate::tree::Tree;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::change_detection::ResMut;
+use bevy_ecs::component::StorageType::Table;
+use bevy_ecs::component::{ComponentHooks, ComponentId, StorageType};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::Event;
 use bevy_ecs::prelude::{Component, OnRemove, Trigger};
 use bevy_ecs::system::Query;
+use bevy_ecs::world::DeferredWorld;
 
 #[derive(Bundle, Default, Clone)]
 pub(crate) struct Leaf {
@@ -44,53 +47,34 @@ pub(crate) fn trigger_interactions_enable(
         }
     }
 }
-#[derive(Event, Copy, Clone)]
-pub struct UpdateStem(pub Option<Entity>);
-pub(crate) fn update_stem_trigger(
-    trigger: Trigger<UpdateStem>,
-    mut stems: Query<&mut Stem>,
-    mut dependents: Query<&mut Dependents>,
-    mut tree: Tree,
-) {
-    if let Ok(mut current) = stems.get_mut(trigger.entity()) {
-        let old = current.0.take();
-        current.0 = trigger.event().0;
-        if let Some(c) = current.0 {
-            if let Ok(mut deps) = dependents.get_mut(c) {
-                deps.0.insert(trigger.entity());
-            }
-        }
-        if let Some(o) = old {
-            if let Ok(mut deps) = dependents.get_mut(o) {
-                deps.0.remove(&trigger.entity());
-            }
-        }
-    } else {
-        tracing::trace!("adding stem: {:?}", trigger.event().0);
-        tree.entity(trigger.entity())
-            .insert(Stem(trigger.event().0));
-        if let Some(s) = trigger.event().0 {
-            if let Ok(mut deps) = dependents.get_mut(s) {
-                deps.0.insert(trigger.entity());
-            }
-        }
-    }
-}
-pub(crate) fn stem_remove(
-    trigger: Trigger<OnRemove, Stem>,
-    stems: Query<&Stem>,
-    mut dependents: Query<&mut Dependents>,
-) {
-    if let Ok(s) = stems.get(trigger.entity()) {
-        if let Some(s) = s.0 {
-            if let Ok(mut deps) = dependents.get_mut(s) {
-                deps.0.remove(&trigger.entity());
-            }
-        }
-    }
-}
-#[derive(Default, Component, Debug, Clone)]
+#[derive(Default, Debug, Clone, Copy)]
 pub(crate) struct Stem(pub(crate) Option<Entity>);
+impl Stem {
+    pub(crate) fn on_insert(mut world: DeferredWorld, entity: Entity, _c: ComponentId) {
+        let stem = world.get::<Stem>(entity).copied().unwrap();
+        if let Some(s) = stem.0 {
+            if let Some(mut deps) = world.get_mut::<Dependents>(s) {
+                deps.0.insert(entity);
+            }
+        }
+    }
+    pub(crate) fn on_replace(mut world: DeferredWorld, entity: Entity, _c: ComponentId) {
+        let stem = world.get::<Stem>(entity).copied().unwrap();
+        if let Some(s) = stem.0 {
+            if let Some(mut deps) = world.get_mut::<Dependents>(s) {
+                deps.0.remove(&entity);
+            }
+        }
+    }
+}
+impl Component for Stem {
+    const STORAGE_TYPE: StorageType = Table;
+
+    fn register_component_hooks(_hooks: &mut ComponentHooks) {
+        _hooks.on_insert(Stem::on_insert);
+        _hooks.on_remove(Stem::on_replace);
+    }
+}
 #[derive(Clone, PartialEq, Component, Default)]
 pub(crate) struct Dependents(pub(crate) HashSet<Entity>);
 #[derive(Event, Copy, Clone, Default)]
@@ -159,11 +143,10 @@ pub(crate) fn render_link_on_remove(
         .insert(trigger.entity());
 }
 
-#[derive(Component, Copy, Clone, Ord, PartialOrd, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Ord, PartialOrd, PartialEq, Eq, Hash)]
 pub struct Visibility {
     visible: bool,
 }
-
 impl Visibility {
     pub fn new(v: bool) -> Self {
         Self { visible: v }
@@ -179,27 +162,37 @@ impl Default for Visibility {
     }
 }
 #[derive(Event, Default, Copy, Clone)]
-pub struct ResolveVisibility(pub bool);
+pub struct ResolveVisibility();
 pub(crate) fn resolve_visibility(
     trigger: Trigger<ResolveVisibility>,
-    // TODO read stem visibility to determine or use self
-    mut query: Query<(&mut Visibility, &Dependents)>,
+    stems: Query<&Stem>,
+    mut query: Query<&mut Visibility>,
+    dependents: Query<&Dependents>,
     links: Query<&RenderLink>,
     mut remove_queue: ResMut<RenderRemoveQueue>,
     mut tree: Tree,
 ) {
     let entity = trigger.entity();
-    let value = trigger.event().0;
-    if let Ok((mut visibility, deps)) = query.get_mut(entity) {
-        visibility.visible = value;
-        if !value {
+    let stem = stems.get(entity).copied().unwrap_or_default();
+    let value = if let Some(s) = stem.0 {
+        query.get(s).copied().unwrap()
+    } else {
+        Visibility::default()
+    };
+    if let Ok(mut visibility) = query.get_mut(entity) {
+        visibility.visible = value.visible;
+        if !value.visible {
             if let Ok(link) = links.get(trigger.entity()) {
                 remove_queue.queue.get_mut(link).unwrap().insert(entity);
             }
         }
-        tree.trigger_targets(
-            *trigger.event(),
-            deps.0.iter().map(|e| *e).collect::<Vec<Entity>>(),
-        );
+        if let Ok(deps) = dependents.get(trigger.entity()) {
+            if !deps.0.is_empty() {
+                tree.trigger_targets(
+                    ResolveVisibility {},
+                    deps.0.iter().map(|e| *e).collect::<Vec<Entity>>(),
+                );
+            }
+        };
     }
 }

@@ -6,8 +6,8 @@ use std::ops::{Add, Mul, Sub};
 use unit::TokenUnit;
 pub(crate) mod animation;
 pub mod aspect;
-pub mod location;
-pub(crate) mod resolve;
+pub mod responsive_points;
+pub mod responsive_section;
 pub mod token;
 pub mod unit;
 

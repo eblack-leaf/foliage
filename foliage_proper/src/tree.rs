@@ -4,7 +4,9 @@ use crate::coordinate::elevation::Elevation;
 use crate::grid::location::GridLocation;
 use crate::grid::resolve::ResolveGridLocation;
 use crate::grid::Grid;
-use crate::leaf::{Leaf, Remove, ResolveElevation, ResolveVisibility, UpdateStem, Visibility};
+use crate::leaf::{
+    Leaf, Remove, ResolveElevation, ResolveVisibility, Stem, UpdateStem, Visibility,
+};
 use crate::opacity::{Opacity, ResolveOpacity};
 use crate::time::OnEnd;
 use crate::twig::{Branch, Twig};
@@ -93,7 +95,7 @@ impl<'w, 's> EcsExtension for Tree<'w, 's> {
         self.trigger_targets(ResolveElevation {}, leaves);
     }
     fn stem(&mut self, leaf: Entity, stem: Option<Entity>) {
-        self.trigger_targets(UpdateStem(stem), leaf);
+        self.entity(leaf).insert(Stem(stem));
     }
     fn visibility(&mut self, leaf: Entity, visibility: bool) {
         self.entity(leaf).insert(Visibility::new(visibility));
@@ -150,7 +152,7 @@ impl EcsExtension for World {
         self.trigger_targets(ResolveElevation {}, leaves);
     }
     fn stem(&mut self, leaf: Entity, stem: Option<Entity>) {
-        self.trigger_targets(UpdateStem(stem), leaf);
+        self.entity_mut(leaf).insert(Stem(stem));
     }
     fn visibility(&mut self, leaf: Entity, visibility: bool) {
         self.entity_mut(leaf).insert(Visibility::new(visibility));

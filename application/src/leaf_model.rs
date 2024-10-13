@@ -136,10 +136,7 @@ pub(crate) fn configure_leaf_part(
         // if more sub-entities => remove excess => queue_remove
     }
 }
-pub(crate) fn configure_leaf_part_colors(
-    mut parts: Query<(&mut LeafPartComponent)>,
-    mut tree: Tree,
-) {
+pub(crate) fn configure_leaf_part_colors(mut parts: Query<&mut LeafPartComponent>, mut tree: Tree) {
     // update color sequences based on currently-sequenced
     // or random-ish selection of new sequences
 }

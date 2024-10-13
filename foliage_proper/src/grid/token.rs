@@ -1,7 +1,7 @@
 use crate::coordinate::CoordinateUnit;
 use crate::grid::aspect::GridAspect;
 use crate::grid::aspect::GridContext;
-use crate::grid::resolve::ReferentialData;
+use crate::grid::responsive_section::ReferentialData;
 use crate::grid::unit::RelativeUnit;
 use smallvec::SmallVec;
 use std::ops::{Add, Sub};
@@ -77,7 +77,7 @@ impl LocationAspectToken {
 
 #[derive(Clone)]
 pub struct SpecifiedDescriptorValue {
-    tokens: SmallVec<[LocationAspectToken; 3]>,
+    tokens: SmallVec<[LocationAspectToken; 2]>,
 }
 
 impl SpecifiedDescriptorValue {
@@ -99,46 +99,14 @@ impl SpecifiedDescriptorValue {
                         GridAspect::Width => data.section.width(),
                         GridAspect::CenterX => data.section.center().x(),
                         GridAspect::Right => data.section.right(),
-                        GridAspect::PointAX => data
-                            .points
-                            .as_ref()
-                            .and_then(|p| Some(p.data[0].x()))
-                            .unwrap_or_default(),
-                        GridAspect::PointAY => data
-                            .points
-                            .as_ref()
-                            .and_then(|p| Some(p.data[0].y()))
-                            .unwrap_or_default(),
-                        GridAspect::PointBX => data
-                            .points
-                            .as_ref()
-                            .and_then(|p| Some(p.data[1].x()))
-                            .unwrap_or_default(),
-                        GridAspect::PointBY => data
-                            .points
-                            .as_ref()
-                            .and_then(|p| Some(p.data[1].y()))
-                            .unwrap_or_default(),
-                        GridAspect::PointCX => data
-                            .points
-                            .as_ref()
-                            .and_then(|p| Some(p.data[2].x()))
-                            .unwrap_or_default(),
-                        GridAspect::PointCY => data
-                            .points
-                            .as_ref()
-                            .and_then(|p| Some(p.data[2].y()))
-                            .unwrap_or_default(),
-                        GridAspect::PointDX => data
-                            .points
-                            .as_ref()
-                            .and_then(|p| Some(p.data[3].x()))
-                            .unwrap_or_default(),
-                        GridAspect::PointDY => data
-                            .points
-                            .as_ref()
-                            .and_then(|p| Some(p.data[3].y()))
-                            .unwrap_or_default(),
+                        GridAspect::PointAX => data.points.data[0].x(),
+                        GridAspect::PointAY => data.points.data[0].y(),
+                        GridAspect::PointBX => data.points.data[1].x(),
+                        GridAspect::PointBY => data.points.data[1].y(),
+                        GridAspect::PointCX => data.points.data[2].x(),
+                        GridAspect::PointCY => data.points.data[2].y(),
+                        GridAspect::PointDX => data.points.data[3].x(),
+                        GridAspect::PointDY => data.points.data[3].y(),
                     }
                 }
                 LocationAspectTokenValue::Relative(rel) => {
@@ -201,6 +169,14 @@ pub(crate) enum LocationAspectDescriptorValue {
     #[default]
     Existing,
     Specified(SpecifiedDescriptorValue),
+}
+impl LocationAspectDescriptorValue {
+    pub(crate) fn resolve(&self, stem: ReferentialData, screen: ReferentialData) -> CoordinateUnit {
+        match self {
+            LocationAspectDescriptorValue::Existing => 0.0,
+            LocationAspectDescriptorValue::Specified(spec) => spec.resolve(stem, screen),
+        }
+    }
 }
 
 #[derive(Default, Clone)]
