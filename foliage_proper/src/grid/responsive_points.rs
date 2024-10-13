@@ -1,26 +1,25 @@
 use crate::anim::{Animate, Interpolations};
 use crate::coordinate::points::Points;
 use crate::coordinate::LogicalContext;
-use crate::grid::aspect::{GridAspect, LocationAspect, PointAspectConfiguration};
-use crate::grid::responsive_section::{ConfigureFromLayoutAndException, ReferentialData};
-use crate::grid::token::{LocationAspectDescriptorValue, SpecifiedDescriptorValue};
+use crate::grid::aspect::{ConfigurationDescriptor, GridAspect, PointAspectConfiguration};
+use crate::grid::responsive_section::{ConfigureFromLayout, ReferentialData};
+use crate::grid::token::{AspectValue, AspectValueWrapper};
 use crate::layout::Layout;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
 use smallvec::SmallVec;
 
 impl ResponsivePoints {
-    pub fn point_ax<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
+    pub fn point_ax<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
         if let Some(mut aspect) = self
             .configurations
             .get_mut(PointAspectConfiguration::PointA.value())
         {
             aspect.0 = PointAspectConfiguration::PointA;
             // sanitize that other is compatible
-            aspect.1.set(
-                GridAspect::PointAX,
-                LocationAspectDescriptorValue::Specified(d.into()),
-            );
+            aspect
+                .1
+                .set(GridAspect::PointAX, AspectValueWrapper::Specified(d.into()));
         }
         self
     }
@@ -32,21 +31,20 @@ impl ResponsivePoints {
             aspect.0 = PointAspectConfiguration::PointA;
             aspect
                 .1
-                .set(GridAspect::PointAX, LocationAspectDescriptorValue::Existing);
+                .set(GridAspect::PointAX, AspectValueWrapper::Existing);
         }
         self
     }
-    pub fn point_ay<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
+    pub fn point_ay<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
         if let Some(mut aspect) = self
             .configurations
             .get_mut(PointAspectConfiguration::PointA.value())
         {
             // sanitize that other is compatible
             aspect.0 = PointAspectConfiguration::PointA;
-            aspect.1.set(
-                GridAspect::PointAY,
-                LocationAspectDescriptorValue::Specified(d.into()),
-            );
+            aspect
+                .1
+                .set(GridAspect::PointAY, AspectValueWrapper::Specified(d.into()));
         }
         self
     }
@@ -58,21 +56,20 @@ impl ResponsivePoints {
             aspect.0 = PointAspectConfiguration::PointA;
             aspect
                 .1
-                .set(GridAspect::PointAY, LocationAspectDescriptorValue::Existing);
+                .set(GridAspect::PointAY, AspectValueWrapper::Existing);
         }
         self
     }
-    pub fn point_bx<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
+    pub fn point_bx<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
         if let Some(mut aspect) = self
             .configurations
             .get_mut(PointAspectConfiguration::PointB.value())
         {
             aspect.0 = PointAspectConfiguration::PointB;
             // sanitize that other is compatible
-            aspect.1.set(
-                GridAspect::PointBX,
-                LocationAspectDescriptorValue::Specified(d.into()),
-            );
+            aspect
+                .1
+                .set(GridAspect::PointBX, AspectValueWrapper::Specified(d.into()));
         }
         self
     }
@@ -84,21 +81,20 @@ impl ResponsivePoints {
             aspect.0 = PointAspectConfiguration::PointB;
             aspect
                 .1
-                .set(GridAspect::PointBX, LocationAspectDescriptorValue::Existing);
+                .set(GridAspect::PointBX, AspectValueWrapper::Existing);
         }
         self
     }
-    pub fn point_by<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
+    pub fn point_by<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
         if let Some(mut aspect) = self
             .configurations
             .get_mut(PointAspectConfiguration::PointB.value())
         {
             aspect.0 = PointAspectConfiguration::PointB;
             // sanitize that other is compatible
-            aspect.1.set(
-                GridAspect::PointBY,
-                LocationAspectDescriptorValue::Specified(d.into()),
-            );
+            aspect
+                .1
+                .set(GridAspect::PointBY, AspectValueWrapper::Specified(d.into()));
         }
         self
     }
@@ -110,11 +106,11 @@ impl ResponsivePoints {
             aspect.0 = PointAspectConfiguration::PointB;
             aspect
                 .1
-                .set(GridAspect::PointBY, LocationAspectDescriptorValue::Existing);
+                .set(GridAspect::PointBY, AspectValueWrapper::Existing);
         }
         self
     }
-    pub fn point_cx<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
+    pub fn point_cx<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
         // TODO < 3 check + reserve?
         if let Some(mut aspect) = self
             .configurations
@@ -122,10 +118,9 @@ impl ResponsivePoints {
         {
             aspect.0 = PointAspectConfiguration::PointC;
             // sanitize that other is compatible
-            aspect.1.set(
-                GridAspect::PointCX,
-                LocationAspectDescriptorValue::Specified(d.into()),
-            );
+            aspect
+                .1
+                .set(GridAspect::PointCX, AspectValueWrapper::Specified(d.into()));
         }
         self
     }
@@ -137,21 +132,20 @@ impl ResponsivePoints {
             aspect.0 = PointAspectConfiguration::PointC;
             aspect
                 .1
-                .set(GridAspect::PointCX, LocationAspectDescriptorValue::Existing);
+                .set(GridAspect::PointCX, AspectValueWrapper::Existing);
         }
         self
     }
-    pub fn point_cy<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
+    pub fn point_cy<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
         if let Some(mut aspect) = self
             .configurations
             .get_mut(PointAspectConfiguration::PointC.value())
         {
             aspect.0 = PointAspectConfiguration::PointC;
             // sanitize that other is compatible
-            aspect.1.set(
-                GridAspect::PointCY,
-                LocationAspectDescriptorValue::Specified(d.into()),
-            );
+            aspect
+                .1
+                .set(GridAspect::PointCY, AspectValueWrapper::Specified(d.into()));
         }
         self
     }
@@ -163,21 +157,20 @@ impl ResponsivePoints {
             aspect.0 = PointAspectConfiguration::PointC;
             aspect
                 .1
-                .set(GridAspect::PointCY, LocationAspectDescriptorValue::Existing);
+                .set(GridAspect::PointCY, AspectValueWrapper::Existing);
         }
         self
     }
-    pub fn point_dx<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
+    pub fn point_dx<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
         if let Some(mut aspect) = self
             .configurations
             .get_mut(PointAspectConfiguration::PointD.value())
         {
             aspect.0 = PointAspectConfiguration::PointD;
             // sanitize that other is compatible
-            aspect.1.set(
-                GridAspect::PointDX,
-                LocationAspectDescriptorValue::Specified(d.into()),
-            );
+            aspect
+                .1
+                .set(GridAspect::PointDX, AspectValueWrapper::Specified(d.into()));
         }
         self
     }
@@ -189,21 +182,20 @@ impl ResponsivePoints {
             aspect.0 = PointAspectConfiguration::PointD;
             aspect
                 .1
-                .set(GridAspect::PointDX, LocationAspectDescriptorValue::Existing);
+                .set(GridAspect::PointDX, AspectValueWrapper::Existing);
         }
         self
     }
-    pub fn point_dy<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
+    pub fn point_dy<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
         if let Some(mut aspect) = self
             .configurations
             .get_mut(PointAspectConfiguration::PointD.value())
         {
             aspect.0 = PointAspectConfiguration::PointD;
             // sanitize that other is compatible
-            aspect.1.set(
-                GridAspect::PointDY,
-                LocationAspectDescriptorValue::Specified(d.into()),
-            );
+            aspect
+                .1
+                .set(GridAspect::PointDY, AspectValueWrapper::Specified(d.into()));
         }
         self
     }
@@ -215,18 +207,18 @@ impl ResponsivePoints {
             aspect.0 = PointAspectConfiguration::PointD;
             aspect
                 .1
-                .set(GridAspect::PointDY, LocationAspectDescriptorValue::Existing);
+                .set(GridAspect::PointDY, AspectValueWrapper::Existing);
         }
         self
     }
 }
 #[derive(Component, Clone, Default)]
 pub struct ResponsivePoints {
-    pub(crate) configurations: [(PointAspectConfiguration, LocationAspect); 4],
+    pub(crate) configurations: [(PointAspectConfiguration, ConfigurationDescriptor); 4],
 }
 #[derive(Default, Component, Clone)]
-pub struct ResponsivePointsException {
-    pub exceptions: SmallVec<[(PointException, LocationAspect); 2]>,
+pub(crate) struct PointExceptions {
+    pub(crate) exceptions: SmallVec<[(PointException, ConfigurationDescriptor); 2]>,
 }
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
 pub struct PointException {
@@ -245,21 +237,21 @@ impl PointException {
     }
 }
 #[derive(Component)]
-pub(crate) struct ResponsivePointsAnimPackage {
-    pub(crate) responsive_points: ResponsivePoints,
-    pub(crate) responsive_point_exception: ResponsivePointsException,
+pub struct ResponsivePointsAnimPackage {
+    pub(crate) base_points: ResponsivePoints,
+    pub(crate) exceptions: PointExceptions,
 }
 #[derive(Component, Copy, Clone, Default)]
-pub(crate) struct PointsDiff {
+pub(crate) struct ResponsivePointsAnimationHook {
     pub(crate) points: Points<LogicalContext>,
     pub(crate) percent: f32,
 }
-impl PointsDiff {
+impl ResponsivePointsAnimationHook {
     pub(crate) fn value(&self) -> Points<LogicalContext> {
         self.points * self.percent
     }
 }
-impl Animate for PointsDiff {
+impl Animate for ResponsivePointsAnimationHook {
     fn interpolations(start: &Self, end: &Self) -> Interpolations {
         todo!()
     }
@@ -270,13 +262,9 @@ impl Animate for PointsDiff {
         }
     }
 }
-#[derive(Component, Copy, Clone, Default)]
-pub(crate) struct PointsLast {
-    pub(crate) points: Points<LogicalContext>,
-}
 #[derive(Component, Clone, Default)]
-pub struct ResolvedPoints {
-    pub(crate) configurations: [(PointAspectConfiguration, LocationAspect); 4],
+pub(crate) struct ResolvedPoints {
+    pub(crate) configurations: [(PointAspectConfiguration, ConfigurationDescriptor); 4],
 }
 impl ResolvedPoints {
     pub(crate) fn evaluate(
@@ -329,19 +317,15 @@ impl ResolvedPoints {
     }
 }
 #[derive(Bundle, Default)]
-pub struct ResponsivePointsBundle {
-    pub points: ResolvedPoints,
-    pub responsive_points_exception: ResponsivePointsException,
-    pub base_points: ResponsivePoints,
-    layout_check: ConfigureFromLayoutAndException,
+pub struct ResponsivePointBundle {
+    pub(crate) points: ResolvedPoints,
+    pub(crate) exceptions: PointExceptions,
+    pub(crate) base_points: ResponsivePoints,
+    layout_check: ConfigureFromLayout,
+    diff: ResponsivePointsAnimationHook,
 }
-#[derive(Bundle, Default)]
-pub struct ResponsivePointsAnimationHelpers {
-    last: PointsLast,
-    diff: PointsDiff,
-}
-impl ResponsivePointsBundle {
-    pub fn point_ax<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
+impl ResponsivePointBundle {
+    pub fn point_ax<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
         if let Some(mut aspect) = self
             .base_points
             .configurations
@@ -349,14 +333,13 @@ impl ResponsivePointsBundle {
         {
             // sanitize that other is compatible
             aspect.0 = PointAspectConfiguration::PointA;
-            aspect.1.set(
-                GridAspect::PointAX,
-                LocationAspectDescriptorValue::Specified(d.into()),
-            );
+            aspect
+                .1
+                .set(GridAspect::PointAX, AspectValueWrapper::Specified(d.into()));
         }
         self
     }
-    pub fn point_ay<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
+    pub fn point_ay<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
         if let Some(mut aspect) = self
             .base_points
             .configurations
@@ -364,14 +347,13 @@ impl ResponsivePointsBundle {
         {
             // sanitize that other is compatible
             aspect.0 = PointAspectConfiguration::PointA;
-            aspect.1.set(
-                GridAspect::PointAY,
-                LocationAspectDescriptorValue::Specified(d.into()),
-            );
+            aspect
+                .1
+                .set(GridAspect::PointAY, AspectValueWrapper::Specified(d.into()));
         }
         self
     }
-    pub fn point_bx<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
+    pub fn point_bx<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
         if let Some(mut aspect) = self
             .base_points
             .configurations
@@ -379,14 +361,13 @@ impl ResponsivePointsBundle {
         {
             // sanitize that other is compatible
             aspect.0 = PointAspectConfiguration::PointB;
-            aspect.1.set(
-                GridAspect::PointBX,
-                LocationAspectDescriptorValue::Specified(d.into()),
-            );
+            aspect
+                .1
+                .set(GridAspect::PointBX, AspectValueWrapper::Specified(d.into()));
         }
         self
     }
-    pub fn point_by<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
+    pub fn point_by<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
         if let Some(mut aspect) = self
             .base_points
             .configurations
@@ -394,14 +375,13 @@ impl ResponsivePointsBundle {
         {
             // sanitize that other is compatible
             aspect.0 = PointAspectConfiguration::PointB;
-            aspect.1.set(
-                GridAspect::PointBY,
-                LocationAspectDescriptorValue::Specified(d.into()),
-            );
+            aspect
+                .1
+                .set(GridAspect::PointBY, AspectValueWrapper::Specified(d.into()));
         }
         self
     }
-    pub fn point_cx<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
+    pub fn point_cx<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
         if let Some(mut aspect) = self
             .base_points
             .configurations
@@ -409,14 +389,13 @@ impl ResponsivePointsBundle {
         {
             // sanitize that other is compatible
             aspect.0 = PointAspectConfiguration::PointC;
-            aspect.1.set(
-                GridAspect::PointCX,
-                LocationAspectDescriptorValue::Specified(d.into()),
-            );
+            aspect
+                .1
+                .set(GridAspect::PointCX, AspectValueWrapper::Specified(d.into()));
         }
         self
     }
-    pub fn point_cy<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
+    pub fn point_cy<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
         if let Some(mut aspect) = self
             .base_points
             .configurations
@@ -424,14 +403,13 @@ impl ResponsivePointsBundle {
         {
             // sanitize that other is compatible
             aspect.0 = PointAspectConfiguration::PointC;
-            aspect.1.set(
-                GridAspect::PointCY,
-                LocationAspectDescriptorValue::Specified(d.into()),
-            );
+            aspect
+                .1
+                .set(GridAspect::PointCY, AspectValueWrapper::Specified(d.into()));
         }
         self
     }
-    pub fn point_dx<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
+    pub fn point_dx<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
         if let Some(mut aspect) = self
             .base_points
             .configurations
@@ -439,15 +417,14 @@ impl ResponsivePointsBundle {
         {
             // sanitize that other is compatible
             aspect.0 = PointAspectConfiguration::PointD;
-            aspect.1.set(
-                GridAspect::PointDX,
-                LocationAspectDescriptorValue::Specified(d.into()),
-            );
+            aspect
+                .1
+                .set(GridAspect::PointDX, AspectValueWrapper::Specified(d.into()));
         }
 
         self
     }
-    pub fn point_dy<LAD: Into<SpecifiedDescriptorValue>>(mut self, d: LAD) -> Self {
+    pub fn point_dy<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
         if let Some(mut aspect) = self
             .base_points
             .configurations
@@ -455,10 +432,9 @@ impl ResponsivePointsBundle {
         {
             // sanitize that other is compatible
             aspect.0 = PointAspectConfiguration::PointD;
-            aspect.1.set(
-                GridAspect::PointDY,
-                LocationAspectDescriptorValue::Specified(d.into()),
-            );
+            aspect
+                .1
+                .set(GridAspect::PointDY, AspectValueWrapper::Specified(d.into()));
         }
 
         self
@@ -466,7 +442,7 @@ impl ResponsivePointsBundle {
     pub fn except_at<RP: Into<ResponsivePoints>>(mut self, layout: Layout, rp: RP) -> Self {
         let config = rp.into();
         for (c, l) in config.configurations {
-            self.responsive_points_exception
+            self.exceptions
                 .exceptions
                 .push((PointException::new(layout, c), l));
         }

@@ -2,9 +2,7 @@ use crate::coordinate::placement::Placement;
 use crate::coordinate::Coordinates;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::grid::responsive_points::ResponsivePoints;
-use crate::grid::responsive_section::{
-    ConfigureFromLayoutAndException, EvaluateLocation, ResponsiveSection,
-};
+use crate::grid::responsive_section::{ConfigureFromLayout, EvaluateLocation, ResponsiveSection};
 use crate::grid::Grid;
 use crate::leaf::Stem;
 use crate::tree::Tree;
@@ -124,7 +122,7 @@ pub(crate) fn viewport_changes_layout(
             tracing::trace!("grid-layout:{:?}", l);
             *layout = l;
             for (e, _) in locations.iter() {
-                tree.entity(e).insert(ConfigureFromLayoutAndException {});
+                tree.entity(e).insert(ConfigureFromLayout {});
             }
         }
         layout_grid.grid = Grid::new(c, r);

@@ -6,86 +6,82 @@ use crate::grid::unit::RelativeUnit;
 use smallvec::SmallVec;
 use std::ops::{Add, Sub};
 
-impl From<LocationAspectToken> for SpecifiedDescriptorValue {
-    fn from(value: LocationAspectToken) -> Self {
-        SpecifiedDescriptorValue::new(value)
+impl From<AspectToken> for AspectValue {
+    fn from(value: AspectToken) -> Self {
+        AspectValue::new(value)
     }
 }
 
-impl Add for LocationAspectToken {
-    type Output = SpecifiedDescriptorValue;
+impl Add for AspectToken {
+    type Output = AspectValue;
 
     fn add(self, rhs: Self) -> Self::Output {
-        SpecifiedDescriptorValue::new(self).plus(rhs)
+        AspectValue::new(self).plus(rhs)
     }
 }
 
-impl Add<LocationAspectToken> for SpecifiedDescriptorValue {
-    type Output = SpecifiedDescriptorValue;
+impl Add<AspectToken> for AspectValue {
+    type Output = AspectValue;
 
-    fn add(self, rhs: LocationAspectToken) -> Self::Output {
+    fn add(self, rhs: AspectToken) -> Self::Output {
         self.plus(rhs)
     }
 }
 
-impl Sub for LocationAspectToken {
-    type Output = SpecifiedDescriptorValue;
+impl Sub for AspectToken {
+    type Output = AspectValue;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        SpecifiedDescriptorValue::new(self).minus(rhs)
+        AspectValue::new(self).minus(rhs)
     }
 }
 
-impl Sub<LocationAspectToken> for SpecifiedDescriptorValue {
-    type Output = SpecifiedDescriptorValue;
+impl Sub<AspectToken> for AspectValue {
+    type Output = AspectValue;
 
-    fn sub(self, rhs: LocationAspectToken) -> Self::Output {
+    fn sub(self, rhs: AspectToken) -> Self::Output {
         self.minus(rhs)
     }
 }
 
 #[derive(Clone, Copy)]
-pub(crate) enum LocationAspectTokenOp {
+pub(crate) enum TokenOp {
     Add,
     Minus,
     // ...
 }
 
 #[derive(Clone, Copy)]
-pub enum LocationAspectTokenValue {
+pub enum AspectTokenUnit {
     ContextAspect(GridAspect),
     Relative(RelativeUnit),
     Absolute(CoordinateUnit),
 }
 
 #[derive(Clone)]
-pub struct LocationAspectToken {
-    op: LocationAspectTokenOp,
+pub struct AspectToken {
+    op: TokenOp,
     context: GridContext,
-    value: LocationAspectTokenValue,
+    value: AspectTokenUnit,
 }
 
-impl LocationAspectToken {
-    pub(crate) fn new(
-        op: LocationAspectTokenOp,
-        context: GridContext,
-        value: LocationAspectTokenValue,
-    ) -> Self {
+impl AspectToken {
+    pub(crate) fn new(op: TokenOp, context: GridContext, value: AspectTokenUnit) -> Self {
         Self { op, context, value }
     }
 }
 
 #[derive(Clone)]
-pub struct SpecifiedDescriptorValue {
-    tokens: SmallVec<[LocationAspectToken; 2]>,
+pub struct AspectValue {
+    tokens: SmallVec<[AspectToken; 2]>,
 }
 
-impl SpecifiedDescriptorValue {
+impl AspectValue {
     pub(crate) fn resolve(&self, stem: ReferentialData, screen: ReferentialData) -> CoordinateUnit {
         let mut accumulator = 0.0;
         for t in self.tokens.iter() {
             let value = match t.value {
-                LocationAspectTokenValue::ContextAspect(ca) => {
+                AspectTokenUnit::ContextAspect(ca) => {
                     let data = match &t.context {
                         GridContext::Stem => stem,
                         _ => screen,
@@ -109,7 +105,7 @@ impl SpecifiedDescriptorValue {
                         GridAspect::PointDY => data.points.data[3].y(),
                     }
                 }
-                LocationAspectTokenValue::Relative(rel) => {
+                AspectTokenUnit::Relative(rel) => {
                     let data = match &t.context {
                         GridContext::Stem => stem,
                         _ => screen,
@@ -135,29 +131,29 @@ impl SpecifiedDescriptorValue {
                         }
                     }
                 }
-                LocationAspectTokenValue::Absolute(a) => a,
+                AspectTokenUnit::Absolute(a) => a,
             };
             match t.op {
-                LocationAspectTokenOp::Add => {
+                TokenOp::Add => {
                     accumulator += value;
                 }
-                LocationAspectTokenOp::Minus => {
+                TokenOp::Minus => {
                     accumulator -= value;
                 }
             }
         }
         accumulator
     }
-    pub(crate) fn minus(mut self, mut other: LocationAspectToken) -> Self {
-        other.op = LocationAspectTokenOp::Minus;
+    pub(crate) fn minus(mut self, mut other: AspectToken) -> Self {
+        other.op = TokenOp::Minus;
         self.tokens.push(other);
         self
     }
-    pub(crate) fn plus(mut self, other: LocationAspectToken) -> Self {
+    pub(crate) fn plus(mut self, other: AspectToken) -> Self {
         self.tokens.push(other);
         self
     }
-    pub(crate) fn new(first: LocationAspectToken) -> SpecifiedDescriptorValue {
+    pub(crate) fn new(first: AspectToken) -> AspectValue {
         let mut vec = SmallVec::new();
         vec.push(first);
         Self { tokens: vec }
@@ -165,28 +161,28 @@ impl SpecifiedDescriptorValue {
 }
 
 #[derive(Default, Clone)]
-pub(crate) enum LocationAspectDescriptorValue {
+pub(crate) enum AspectValueWrapper {
     #[default]
     Existing,
-    Specified(SpecifiedDescriptorValue),
+    Specified(AspectValue),
 }
-impl LocationAspectDescriptorValue {
+impl AspectValueWrapper {
     pub(crate) fn resolve(&self, stem: ReferentialData, screen: ReferentialData) -> CoordinateUnit {
         match self {
-            LocationAspectDescriptorValue::Existing => 0.0,
-            LocationAspectDescriptorValue::Specified(spec) => spec.resolve(stem, screen),
+            AspectValueWrapper::Existing => 0.0,
+            AspectValueWrapper::Specified(spec) => spec.resolve(stem, screen),
         }
     }
 }
 
 #[derive(Default, Clone)]
-pub(crate) struct LocationAspectDescriptor {
+pub(crate) struct AspectDescriptor {
     pub(crate) aspect: GridAspect,
-    pub(crate) value: LocationAspectDescriptorValue,
+    pub(crate) value: AspectValueWrapper,
 }
 
-impl LocationAspectDescriptor {
-    pub(crate) fn new(aspect: GridAspect, value: LocationAspectDescriptorValue) -> Self {
+impl AspectDescriptor {
+    pub(crate) fn new(aspect: GridAspect, value: AspectValueWrapper) -> Self {
         Self { aspect, value }
     }
 }

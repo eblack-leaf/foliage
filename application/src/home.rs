@@ -1,19 +1,22 @@
 use crate::icon::IconHandles;
 use crate::leaf_model::LeafModel;
-use foliage::{bevy_ecs, Branch};
 use foliage::bevy_ecs::entity::Entity;
 use foliage::bevy_ecs::event::Event;
 use foliage::bevy_ecs::prelude::{IntoSystemSetConfigs, Resource, Trigger};
 use foliage::color::{Grey, Monochromatic};
 use foliage::elm::{Elm, ExternalStage};
 use foliage::grid::aspect::screen;
+use foliage::grid::responsive_section::{EvaluateLocation, ResponsiveLocation};
 use foliage::grid::unit::TokenUnit;
 use foliage::interaction::OnClick;
+use foliage::leaf::{Leaf, ResolveElevation, ResolveVisibility};
+use foliage::opacity::ResolveOpacity;
 use foliage::panel::Rounding;
 use foliage::style::Coloring;
 use foliage::text::{FontSize, Text};
 use foliage::tree::{EcsExtension, Tree};
-use foliage::twig::button::ButtonBindings;
+use foliage::twig::button::Button;
+use foliage::{bevy_ecs, Branch};
 use foliage::{schedule_stage, Root};
 
 #[schedule_stage]
@@ -36,8 +39,8 @@ pub(crate) struct Home {}
 
 #[derive(Resource)]
 pub(crate) struct HomeHandle {
-    pub(crate) concepts_button: ButtonBindings,
-    pub(crate) usage_button: ButtonBindings,
+    pub(crate) concepts_button: Entity,
+    pub(crate) usage_button: Entity,
     pub(crate) name: Entity,
     pub(crate) leaf_model: LeafModel,
 }
@@ -51,9 +54,10 @@ pub(crate) fn observant(trigger: Trigger<OnClick>) {
 impl Branch for Home {
     type Handle = HomeHandle;
     fn grow(self, tree: &mut Tree) -> Self::Handle {
-        let concepts_button = tree.branch(
-            Twig::new(
-                ButtonBindings::args(
+        let concepts_button = tree
+            .spawn(Leaf::new().elevation(4))
+            .insert(
+                Button::new(
                     IconHandles::Concepts,
                     Coloring::new(Grey::base(), Grey::minus_one()),
                 )
@@ -61,46 +65,43 @@ impl Branch for Home {
                 .with_text("CONCEPTS", FontSize::new(14))
                 .outline(1),
             )
-            .elevation(4)
-            .location(
-                GridLocation::new()
-                    .width(250.px())
-                    .height(50.px())
+            .insert(
+                ResponsiveLocation::default()
+                    .top(10.px())
                     .left(10.px())
-                    .top(10.px()),
-            ),
-        );
-        tree.entity(concepts_button.panel).observe(observant);
-        tree.visibility(concepts_button.panel, false);
-        let usage_button = tree.branch(Twig::new(
-            ButtonBindings::args(
-                IconHandles::Usage,
-                Coloring::new(Grey::base(), Grey::minus_one()),
+                    .width(250.px())
+                    .height(250.px()),
             )
-            .with_text("USAGE", FontSize::new(14)),
-        ));
-        let name = tree.add_leaf();
-        tree.elevation(name, 1);
-        tree.location(
-            name,
-            GridLocation::new()
-                .center_x(screen().center_x())
-                .center_y(25.percent().height().from(screen()))
-                .width(75.percent().width().of(screen()))
-                .height(64.px()),
-        );
-        tree.entity(name)
-            .insert(Text::new("FOLIAGE", FontSize::new(60), Grey::plus_three()));
-        tree.flush(name);
-        let leaf_model = tree.branch(
-            Twig::new(LeafModel::args()).elevation(10).location(
-                GridLocation::new()
-                    .left(screen().left())
-                    .top(screen().top())
-                    .right(screen().right())
-                    .bottom(screen().bottom()),
-            ),
-        );
+            .observe(observant)
+            .insert(EvaluateLocation::full())
+            .insert(ResolveElevation::default())
+            .insert(ResolveOpacity::default())
+            .insert(ResolveVisibility::default())
+            .insert()
+            .id();
+        tree.visibility(concepts_button, false);
+        let usage_button = tree
+            .spawn(Leaf::new().elevation(4))
+            .insert(
+                Button::new(
+                    IconHandles::Usage,
+                    Coloring::new(Grey::base(), Grey::minus_one()),
+                )
+                .with_text("USAGE", FontSize::new(14)),
+            )
+            .id();
+        let name = tree
+            .spawn(Leaf::new().elevation(1))
+            .insert(Text::new("FOLIAGE", FontSize::new(60), Grey::plus_three()))
+            .insert(
+                ResponsiveLocation::default()
+                    .center_x(screen().center_x())
+                    .center_y(25.percent().height().from(screen()))
+                    .width(75.percent().width().of(screen()))
+                    .height(64.px()),
+            )
+            .id();
+        let leaf_model = tree.branch(LeafModel::args());
         HomeHandle {
             concepts_button,
             usage_button,

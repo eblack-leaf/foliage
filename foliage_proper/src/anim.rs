@@ -8,9 +8,10 @@ use crate::color::Color;
 use crate::coordinate::elevation::Elevation;
 use crate::coordinate::Coordinates;
 use crate::elm::Elm;
-use crate::grid::responsive_points::{PointsDiff, ResponsivePointsAnimPackage};
+use crate::grid::responsive_points::{ResponsivePointsAnimPackage, ResponsivePointsAnimationHook};
 use crate::grid::responsive_section::{
-    EvaluateLocation, ResponsiveSectionAnimPackage, ResponsiveSectionAnimationCalc, SectionDiff,
+    EvaluateLocation, ResponsiveAnimationCalc, ResponsiveAnimationHook,
+    ResponsiveLocationAnimPackage,
 };
 use crate::leaf::ResolveElevation;
 use crate::opacity::{Opacity, ResolveOpacity};
@@ -25,8 +26,8 @@ impl Root for EnabledAnimations {
         elm.enable_animation::<Color>();
         elm.enable_animation::<Opacity>();
         elm.enable_animation::<Rounding>();
-        elm.enable_animation::<SectionDiff>();
-        elm.enable_animation::<PointsDiff>();
+        elm.enable_animation::<ResponsiveAnimationHook>();
+        elm.enable_animation::<ResponsivePointsAnimationHook>();
     }
 }
 #[derive(Clone)]
@@ -264,7 +265,7 @@ pub struct Sequence {
 }
 pub(crate) fn animate<A: Animate>(
     mut anims: Query<(Entity, &mut AnimationRunner<A>)>,
-    package: Query<&ResponsiveSectionAnimPackage>,
+    package: Query<&ResponsiveLocationAnimPackage>,
     pt_package: Query<&ResponsivePointsAnimPackage>,
     mut anim_targets: Query<&mut A>,
     time: ResMut<Time>,
@@ -283,27 +284,25 @@ pub(crate) fn animate<A: Animate>(
             if !animation.started {
                 let mut orphaned = false;
                 let target_entity = animation.animation_target;
-                let is_section_diff = TypeId::of::<A>() == TypeId::of::<SectionDiff>();
-                let is_point_diff = TypeId::of::<A>() == TypeId::of::<PointsDiff>();
+                let is_section_diff = TypeId::of::<A>() == TypeId::of::<ResponsiveAnimationHook>();
+                let is_point_diff =
+                    TypeId::of::<A>() == TypeId::of::<ResponsivePointsAnimationHook>();
                 if is_section_diff || is_point_diff {
                     if is_section_diff {
                         if let Ok(pkg) = package.get(anim_entity) {
                             tree.entity(animation.animation_target)
-                                .insert(pkg.res.clone())
-                                .insert(pkg.exc.clone());
+                                .insert(pkg.base.clone())
+                                .insert(pkg.exceptions.clone());
                         }
                     }
                     if is_point_diff {
                         if let Ok(pkg) = pt_package.get(anim_entity) {
                             tree.entity(animation.animation_target)
-                                .insert(pkg.responsive_points.clone())
-                                .insert(pkg.responsive_point_exception.clone());
+                                .insert(pkg.base_points.clone())
+                                .insert(pkg.exceptions.clone());
                         }
                     }
-                    tree.trigger_targets(
-                        ResponsiveSectionAnimationCalc {},
-                        animation.animation_target,
-                    );
+                    tree.trigger_targets(ResponsiveAnimationCalc {}, animation.animation_target);
                     animation.interpolations = Interpolations::new().with(1.0, 0.0);
                     animation.started = true;
                 } else {
@@ -338,8 +337,8 @@ pub(crate) fn animate<A: Animate>(
             let mut orphaned = false;
             if let Ok(mut a) = anim_targets.get_mut(animation.animation_target) {
                 a.apply(&mut animation.interpolations);
-                if TypeId::of::<A>() == TypeId::of::<SectionDiff>()
-                    || TypeId::of::<A>() == TypeId::of::<PointsDiff>()
+                if TypeId::of::<A>() == TypeId::of::<ResponsiveAnimationHook>()
+                    || TypeId::of::<A>() == TypeId::of::<ResponsivePointsAnimationHook>()
                 {
                     tree.trigger_targets(EvaluateLocation::full(), animation.animation_target);
                 }

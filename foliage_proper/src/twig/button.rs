@@ -6,7 +6,6 @@ use crate::leaf::Leaf;
 use crate::panel::{Panel, Rounding};
 use crate::style::{Coloring, InteractiveColor};
 use crate::text::{FontSize, Text, TextValue};
-use crate::tree::EcsExtension;
 use crate::twig::Configure;
 use bevy_ecs::component::StorageType::SparseSet;
 use bevy_ecs::component::{ComponentHooks, ComponentId, StorageType};
@@ -81,7 +80,8 @@ impl Button {
             ))
             .insert(interaction_listener)
             .observe(configure);
-        let icon = world.commands()
+        let icon = world
+            .commands()
             .spawn(Leaf::default().stem(entity).elevation(-1))
             .insert(Icon::new(args.icon_id, args.coloring.foreground))
             .id();
@@ -93,10 +93,10 @@ impl Button {
                 args.coloring.foreground,
             ));
         }
-        world.commands().entity(entity).insert(ButtonBindings {
-            icon,
-            text
-        });
+        world
+            .commands()
+            .entity(entity)
+            .insert(ButtonBindings { icon, text });
     }
 }
 impl Component for Button {

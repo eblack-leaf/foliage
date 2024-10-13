@@ -1,9 +1,9 @@
 use crate::coordinate::CoordinateUnit;
 use crate::grid::aspect::GridContext;
-use crate::grid::token::{LocationAspectToken, LocationAspectTokenOp, LocationAspectTokenValue};
+use crate::grid::token::{AspectToken, AspectTokenUnit, TokenOp};
 
 pub trait TokenUnit {
-    fn px(self) -> LocationAspectToken;
+    fn px(self) -> AspectToken;
     fn percent(self) -> PercentDescriptor;
     fn column(self) -> ColumnDescriptor;
     fn row(self) -> RowDescriptor;
@@ -11,11 +11,11 @@ pub trait TokenUnit {
 macro_rules! impl_token_unit_for {
     ($impl_type:ty) => {
         impl TokenUnit for $impl_type {
-            fn px(self) -> LocationAspectToken {
-                LocationAspectToken::new(
-                    LocationAspectTokenOp::Add,
+            fn px(self) -> AspectToken {
+                AspectToken::new(
+                    TokenOp::Add,
                     GridContext::Absolute,
-                    LocationAspectTokenValue::Absolute(self as CoordinateUnit),
+                    AspectTokenUnit::Absolute(self as CoordinateUnit),
                 )
             }
             fn percent(self) -> PercentDescriptor {
@@ -55,11 +55,11 @@ impl RowDescriptor {
         self.is_end = true;
         self
     }
-    pub fn of<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken {
-        LocationAspectToken::new(
-            LocationAspectTokenOp::Add,
+    pub fn of<GC: Into<GridContext>>(self, gc: GC) -> AspectToken {
+        AspectToken::new(
+            TokenOp::Add,
             gc.into(),
-            LocationAspectTokenValue::Relative(RelativeUnit::Row(self.value, self.is_end)),
+            AspectTokenUnit::Relative(RelativeUnit::Row(self.value, self.is_end)),
         )
     }
 }
@@ -78,11 +78,11 @@ impl ColumnDescriptor {
         self.is_end = true;
         self
     }
-    pub fn of<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken {
-        LocationAspectToken::new(
-            LocationAspectTokenOp::Add,
+    pub fn of<GC: Into<GridContext>>(self, gc: GC) -> AspectToken {
+        AspectToken::new(
+            TokenOp::Add,
             gc.into(),
-            LocationAspectTokenValue::Relative(RelativeUnit::Column(self.value, self.is_end)),
+            AspectTokenUnit::Relative(RelativeUnit::Column(self.value, self.is_end)),
         )
     }
 }
@@ -93,15 +93,11 @@ pub struct PercentDescriptor {
 }
 
 impl PercentDescriptor {
-    pub fn from<GC: Into<GridContext>>(mut self, gc: GC) -> LocationAspectToken {
-        LocationAspectToken::new(
-            LocationAspectTokenOp::Add,
+    pub fn from<GC: Into<GridContext>>(mut self, gc: GC) -> AspectToken {
+        AspectToken::new(
+            TokenOp::Add,
             gc.into(),
-            LocationAspectTokenValue::Relative(RelativeUnit::Percent(
-                self.value,
-                self.use_width,
-                true,
-            )),
+            AspectTokenUnit::Relative(RelativeUnit::Percent(self.value, self.use_width, true)),
         )
     }
     pub fn width(mut self) -> Self {
@@ -112,15 +108,11 @@ impl PercentDescriptor {
         self.use_width = false;
         self
     }
-    pub fn of<GC: Into<GridContext>>(self, gc: GC) -> LocationAspectToken {
-        LocationAspectToken::new(
-            LocationAspectTokenOp::Add,
+    pub fn of<GC: Into<GridContext>>(self, gc: GC) -> AspectToken {
+        AspectToken::new(
+            TokenOp::Add,
             gc.into(),
-            LocationAspectTokenValue::Relative(RelativeUnit::Percent(
-                self.value,
-                self.use_width,
-                false,
-            )),
+            AspectTokenUnit::Relative(RelativeUnit::Percent(self.value, self.use_width, false)),
         )
     }
 }
