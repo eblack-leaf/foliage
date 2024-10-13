@@ -67,7 +67,7 @@ impl Branch for Home {
                 .outline(1),
             )
             .insert(
-                ResponsiveLocation::default()
+                ResponsiveLocation::new()
                     .top(10.px())
                     .left(10.px())
                     .width(250.px())
@@ -78,7 +78,6 @@ impl Branch for Home {
             .insert(ResolveElevation::default())
             .insert(ResolveOpacity::default())
             .insert(ResolveVisibility::default())
-            .insert()
             .id();
         tree.visibility(concepts_button, false);
         let usage_button = tree

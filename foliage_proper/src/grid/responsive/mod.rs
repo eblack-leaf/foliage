@@ -17,7 +17,7 @@ pub mod configure;
 pub mod evaluate;
 pub(crate) mod resolve;
 
-#[derive(Bundle, Default)]
+#[derive(Bundle)]
 pub struct ResponsiveLocation {
     pub(crate) resolved_configuration: ResolvedConfiguration,
     pub(crate) base: ResponsiveSection,
