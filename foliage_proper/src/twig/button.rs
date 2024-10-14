@@ -2,7 +2,7 @@ use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
 use crate::icon::{Icon, IconId};
 use crate::interaction::ClickInteractionListener;
-use crate::leaf::Leaf;
+use crate::leaf::{Evaluate, Leaf};
 use crate::panel::{Panel, Rounding};
 use crate::style::{Coloring, InteractiveColor};
 use crate::text::{FontSize, Text, TextValue};
@@ -70,6 +70,17 @@ impl Button {
             ButtonShape::Circle => ClickInteractionListener::new().as_circle(),
             ButtonShape::Square => ClickInteractionListener::new(),
         };
+        let icon = world
+            .commands()
+            .spawn(Leaf::default().stem(Some(entity)).elevation(-1))
+            .insert(Icon::new(args.icon_id, args.coloring.foreground))
+            .insert(Evaluate::full())
+            .id();
+        let text = world
+            .commands()
+            .spawn(Leaf::new().stem(Some(entity)).elevation(-1))
+            .insert(Evaluate::full())
+            .id();
         world
             .commands()
             .entity(entity)
@@ -77,18 +88,12 @@ impl Button {
             .insert(InteractiveColor::new(
                 args.coloring.background,
                 args.coloring.foreground,
-            ))
+            ).with_linked(vec![icon, text]))
             .insert(interaction_listener)
+            .insert(Evaluate::full())
             .observe(configure);
-        let icon = world
-            .commands()
-            .spawn(Leaf::default().stem(Some(entity)).elevation(-1))
-            .insert(Icon::new(args.icon_id, args.coloring.foreground))
-            .id();
-        let text = world
-            .commands()
-            .spawn(Leaf::new().stem(Some(entity)).elevation(-1))
-            .id();
+        let based = !args.font_size.is_some();
+        tracing::trace!("based {}", based);
         if args.font_size.is_some() {
             world.commands().entity(text).insert(Text::new(
                 args.text_value.unwrap_or_default().0,
@@ -99,7 +104,7 @@ impl Button {
         world
             .commands()
             .entity(entity)
-            .insert(ButtonBindings { icon, text });
+            .insert(ButtonBindings { icon, text, icon_based: based });
     }
 }
 impl Component for Button {
@@ -118,6 +123,7 @@ impl Component for Button {
 pub struct ButtonBindings {
     pub icon: Entity,
     pub text: Entity,
+    icon_based: bool,
 }
 pub(crate) fn configure(
     trigger: Trigger<Configure>,
@@ -126,8 +132,22 @@ pub(crate) fn configure(
 ) {
     if let Ok(binding) = bindings.get(trigger.entity()) {
         let main = sections.get(trigger.entity()).copied().unwrap();
-        *sections.get_mut(binding.icon).unwrap() = Section::default();
-        *sections.get_mut(binding.text).unwrap() = Section::default();
+        let mut icon_section = Section::default();
+        icon_section.set_x(main.right() - main.width() / 2.0 - 12.0);
+        icon_section.set_y(main.bottom() - main.height() / 2.0 - 12.0);
+        if !binding.icon_based {
+            icon_section.set_x(main.x() + 16.0);
+        }
+        icon_section.set_width(24.0);
+        icon_section.set_height(24.0);
+        let mut text_section = Section::default();
+        text_section.set_x(main.x() + 48.0);
+        text_section.set_y(main.bottom() - main.height() / 2.0 - 0.5 * 0.9 * main.height());
+        text_section.set_width(main.right() - 16.0 - main.x() - 48.0);
+        text_section.set_height(0.9 * main.height());
+        tracing::trace!("icon: {}, text: {}", icon_section, text_section);
+        *sections.get_mut(binding.icon).unwrap() = icon_section;
+        *sections.get_mut(binding.text).unwrap() = text_section;
     }
 }
 

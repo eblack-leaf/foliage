@@ -59,23 +59,23 @@ impl Branch for Home {
             .insert(
                 Button::new(
                     IconHandles::Concepts,
-                    Coloring::new(Grey::base(), Grey::minus_one()),
+                    Coloring::new(Grey::plus_three(), Grey::minus_two()),
                 )
                 .rounded(Rounding::all(0.2))
                 .with_text("CONCEPTS", FontSize::new(14))
-                .outline(1),
+                .outline(0),
             )
             .insert(
                 ResponsiveLocation::new()
                     .top(10.percent().height().from(stem()))
                     .left(10.px())
-                    .width(250.px())
-                    .height(250.px()),
+                    .width(25.percent().width().from(stem()))
+                    .height(50.px()),
             )
             .observe(observant)
             .insert(Evaluate::full())
             .id();
-        tree.visibility(concepts_button, false);
+        tree.visibility(concepts_button, true);
         let usage_button = tree
             .spawn(Leaf::new().elevation(4))
             .insert(
