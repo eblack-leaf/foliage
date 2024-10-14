@@ -40,7 +40,7 @@ impl Root for LeafModel {
         );
     }
 }
-pub(crate) const REGION_AREA: Coordinates = Coordinates::new(10.0, 10.0);
+pub(crate) const REGION_AREA: Coordinates = Coordinates::new(50.0, 50.0);
 pub(crate) fn configure_leaf_part(
     mut parts: Query<
         (Entity, &mut LeafPartComponent, &Section<LogicalContext>),
@@ -254,7 +254,7 @@ impl Branch for LeafModelArgs {
                 .end(1000),
             );
         });
-        tree.visibility(this, false);
+        // tree.visibility(this, false);
         LeafModel {
             this,
             parts: [one, two, three],
