@@ -1,11 +1,10 @@
 use crate::anim::{Animate, Interpolations};
 use crate::color::Color;
 use crate::leaf::{Dependents, Stem};
-use crate::tree::Tree;
-use bevy_ecs::component::Component;
+use bevy_ecs::component::StorageType::SparseSet;
+use bevy_ecs::component::{Component, ComponentHooks, StorageType};
 use bevy_ecs::entity::Entity;
-use bevy_ecs::event::Event;
-use bevy_ecs::prelude::{Query, Trigger};
+use bevy_ecs::world::DeferredWorld;
 
 impl Animate for Opacity {
     fn interpolations(start: &Self, end: &Self) -> Interpolations {
@@ -37,39 +36,39 @@ impl Opacity {
         }
     }
 }
-#[derive(Copy, Clone, Event, Default)]
-pub struct ResolveOpacity {}
-pub(crate) fn triggered_opacity(
-    trigger: Trigger<ResolveOpacity>,
-    stems: Query<&Stem>,
-    opaque: Query<&Opacity>,
-    dependents: Query<&Dependents>,
-    mut colors: Query<&mut Color>,
-    mut tree: Tree,
-) {
-    let inherited = if let Ok(s) = stems.get(trigger.entity()) {
-        if let Some(s) = s.0 {
-            if let Ok(opacity) = opaque.get(s) {
-                opacity.value
+#[derive(Copy, Clone, Default)]
+pub struct EvaluateOpacity {}
+impl Component for EvaluateOpacity {
+    const STORAGE_TYPE: StorageType = SparseSet;
+    fn register_component_hooks(_hooks: &mut ComponentHooks) {
+        _hooks.on_insert(|mut world: DeferredWorld, entity: Entity, _| {
+            let inherited = if let Some(stem) = world.get::<Stem>(entity) {
+                if let Some(s) = stem.0 {
+                    if let Some(opacity) = world.get::<Opacity>(s) {
+                        opacity.value
+                    } else {
+                        1.0
+                    }
+                } else {
+                    1.0
+                }
             } else {
                 1.0
+            };
+            if let Some(current) = world.get::<Opacity>(entity).copied() {
+                if let Some(color) = world.get::<Color>(entity).copied() {
+                    let blended = current.value * inherited;
+                    world
+                        .commands()
+                        .entity(entity)
+                        .insert(color.with_alpha(blended));
+                }
             }
-        } else {
-            1.0
-        }
-    } else {
-        1.0
-    };
-    if let Ok(opacity) = opaque.get(trigger.entity()) {
-        if let Ok(mut color) = colors.get_mut(trigger.entity()) {
-            let blended = opacity.value * inherited;
-            color.set_alpha(blended);
-            if let Ok(deps) = dependents.get(trigger.entity()) {
-                tree.trigger_targets(
-                    ResolveOpacity {},
-                    deps.0.iter().copied().collect::<Vec<Entity>>(),
-                );
+            if let Some(ds) = world.get::<Dependents>(entity).cloned() {
+                for d in ds.0 {
+                    world.commands().entity(d).insert(EvaluateOpacity {});
+                }
             }
-        }
+        });
     }
 }

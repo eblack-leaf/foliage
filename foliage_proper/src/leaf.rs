@@ -13,7 +13,7 @@ use crate::opacity::Opacity;
 use crate::tree::Tree;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::change_detection::ResMut;
-use bevy_ecs::component::StorageType::Table;
+use bevy_ecs::component::StorageType::{SparseSet, Table};
 use bevy_ecs::component::{ComponentHooks, ComponentId, StorageType};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::Event;
@@ -113,36 +113,36 @@ impl Component for Stem {
 }
 #[derive(Clone, PartialEq, Component, Default)]
 pub(crate) struct Dependents(pub(crate) HashSet<Entity>);
-#[derive(Event, Copy, Clone, Default)]
-pub struct ResolveElevation {}
-pub(crate) fn resolve_elevation(
-    trigger: Trigger<ResolveElevation>,
-    mut layers: Query<&mut RenderLayer>,
-    elevations: Query<&Elevation>,
-    dependents: Query<(&Stem, &Dependents)>,
-    mut tree: Tree,
-) {
-    if let Ok((s, d)) = dependents.get(trigger.entity()) {
-        let current = if let Some(se) = s.0 {
-            layers.get(se).copied().unwrap_or_default()
-        } else {
-            RenderLayer::default()
-        };
-        let resolved = RenderLayer::new(
-            current.0
-                + elevations
-                    .get(trigger.entity())
-                    .copied()
-                    .unwrap_or_default()
-                    .0,
-        );
-        if let Ok(mut layer) = layers.get_mut(trigger.entity()) {
-            *layer = resolved;
-        };
-        tree.trigger_targets(
-            ResolveElevation {},
-            d.0.iter().copied().collect::<Vec<Entity>>(),
-        );
+#[derive(Copy, Clone, Default)]
+pub struct EvaluateElevation {}
+impl Component for EvaluateElevation {
+    const STORAGE_TYPE: StorageType = SparseSet;
+    fn register_component_hooks(_hooks: &mut ComponentHooks) {
+        _hooks.on_insert(|mut world: DeferredWorld, entity: Entity, _| {
+            let current = if let Some(stem) = world.get::<Stem>(entity) {
+                if let Some(s) = stem.0 {
+                    world.get::<RenderLayer>(s).copied().unwrap_or_default()
+                } else {
+                    RenderLayer::default()
+                }
+            } else {
+                RenderLayer::default()
+            };
+            let resolved = RenderLayer::new(
+                current.0
+                    + world
+                        .get::<Elevation>(entity)
+                        .copied()
+                        .unwrap_or_default()
+                        .0,
+            );
+            world.commands().entity(entity).insert(resolved);
+            if let Some(ds) = world.get::<Dependents>(entity).cloned() {
+                for d in ds.0 {
+                    world.commands().entity(d).insert(EvaluateElevation {});
+                }
+            }
+        });
     }
 }
 #[derive(Event, Copy, Clone, Default)]
@@ -197,38 +197,69 @@ impl Default for Visibility {
         Self::new(true)
     }
 }
-#[derive(Event, Default, Copy, Clone)]
-pub struct ResolveVisibility();
-pub(crate) fn resolve_visibility(
-    trigger: Trigger<ResolveVisibility>,
-    stems: Query<&Stem>,
-    mut query: Query<&mut Visibility>,
-    dependents: Query<&Dependents>,
-    links: Query<&RenderLink>,
-    mut remove_queue: ResMut<RenderRemoveQueue>,
-    mut tree: Tree,
-) {
-    let entity = trigger.entity();
-    let stem = stems.get(entity).copied().unwrap_or_default();
-    let value = if let Some(s) = stem.0 {
-        query.get(s).copied().unwrap()
-    } else {
-        Visibility::default()
-    };
-    if let Ok(mut visibility) = query.get_mut(entity) {
-        visibility.visible = value.visible;
-        if !value.visible {
-            if let Ok(link) = links.get(trigger.entity()) {
-                remove_queue.queue.get_mut(link).unwrap().insert(entity);
-            }
-        }
-        if let Ok(deps) = dependents.get(trigger.entity()) {
-            if !deps.0.is_empty() {
-                tree.trigger_targets(
-                    ResolveVisibility {},
-                    deps.0.iter().map(|e| *e).collect::<Vec<Entity>>(),
-                );
-            }
-        };
+#[derive(Default, Copy, Clone)]
+pub struct EvaluateVisibility {}
+impl Component for EvaluateVisibility {
+    const STORAGE_TYPE: StorageType = Table;
+    fn register_component_hooks(hooks: &mut ComponentHooks) {
+        hooks.on_insert(
+            |mut world: DeferredWorld, entity: Entity, _c: ComponentId| {
+                let stem = world.get::<Stem>(entity).copied().unwrap_or_default();
+                let value = if let Some(s) = stem.0 {
+                    world.get::<Visibility>(s).copied().unwrap_or_default()
+                } else {
+                    Visibility::default()
+                };
+                world.commands().entity(entity).insert(value);
+                if !value.visible {
+                    if let Some(link) = world.get::<RenderLink>(entity).copied() {
+                        world
+                            .resource_mut::<RenderRemoveQueue>()
+                            .queue
+                            .get_mut(&link)
+                            .unwrap()
+                            .insert(entity);
+                    }
+                }
+                if let Some(ds) = world.get::<Dependents>(entity).cloned() {
+                    for d in ds.0 {
+                        world.commands().entity(d).insert(EvaluateVisibility {});
+                    }
+                }
+            },
+        );
     }
 }
+// pub(crate) fn evaluate_visibility(
+//     trigger: Trigger<EvaluateVisibility>,
+//     stems: Query<&Stem>,
+//     mut query: Query<&mut Visibility>,
+//     dependents: Query<&Dependents>,
+//     links: Query<&RenderLink>,
+//     mut remove_queue: ResMut<RenderRemoveQueue>,
+//     mut tree: Tree,
+// ) {
+//     let entity = trigger.entity();
+//     let stem = stems.get(entity).copied().unwrap_or_default();
+//     let value = if let Some(s) = stem.0 {
+//         query.get(s).copied().unwrap()
+//     } else {
+//         Visibility::default()
+//     };
+//     if let Ok(mut visibility) = query.get_mut(entity) {
+//         visibility.visible = value.visible;
+//         if !value.visible {
+//             if let Ok(link) = links.get(trigger.entity()) {
+//                 remove_queue.queue.get_mut(link).unwrap().insert(entity);
+//             }
+//         }
+//         if let Ok(deps) = dependents.get(trigger.entity()) {
+//             if !deps.0.is_empty() {
+//                 tree.trigger_targets(
+//                     EvaluateVisibility {},
+//                     deps.0.iter().map(|e| *e).collect::<Vec<Entity>>(),
+//                 );
+//             }
+//         };
+//     }
+// }

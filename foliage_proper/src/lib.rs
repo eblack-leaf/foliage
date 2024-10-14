@@ -26,10 +26,9 @@ use crate::icon::{Icon, IconId, IconRequest};
 use crate::image::Image;
 use crate::interaction::{ClickInteractionListener, KeyboardAdapter, MouseAdapter, TouchAdapter};
 use crate::leaf::{
-    render_link_on_remove, resolve_elevation, resolve_visibility, trigger_interactions_enable,
+    render_link_on_remove, trigger_interactions_enable,
     triggered_remove,
 };
-use crate::opacity::triggered_opacity;
 use crate::panel::Panel;
 use crate::shape::line::Line;
 use crate::shape::Shape;
@@ -37,7 +36,6 @@ use crate::style::Style;
 use crate::text::Text;
 use crate::time::Time;
 use crate::web_ext::HrefLink;
-use grid::responsive::evaluate::evaluate_location;
 
 pub mod anim;
 pub mod ash;
@@ -110,12 +108,8 @@ impl Foliage {
         this.define_roots::<Trunk>();
         this.elm.ecs.insert_resource(AssetLoader::default());
         this.elm.ecs.observe(trigger_interactions_enable);
-        this.elm.ecs.observe(triggered_opacity);
         this.elm.ecs.observe(triggered_remove);
-        this.elm.ecs.observe(evaluate_location);
         this.elm.ecs.observe(render_link_on_remove);
-        this.elm.ecs.observe(resolve_visibility);
-        this.elm.ecs.observe(resolve_elevation);
         this
     }
     pub fn enable_animation<A: Animate + Component>(&mut self) {
@@ -501,4 +495,3 @@ impl Roots for Trunk {
         foliage.enable_event::<HrefLink>();
     }
 }
-

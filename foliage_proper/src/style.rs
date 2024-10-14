@@ -6,7 +6,7 @@ use bevy_ecs::system::{ParamSet, Query};
 use crate::color::Color;
 use crate::elm::{Elm, InternalStage};
 use crate::interaction::{ClickInteractionListener, OnClick};
-use crate::opacity::ResolveOpacity;
+use crate::opacity::EvaluateOpacity;
 use crate::tree::Tree;
 use crate::Root;
 
@@ -67,19 +67,19 @@ pub(crate) fn alternate_color_on_engage(
                 set.push((*linked, alt.base));
             }
             *color = alt.alternate_color;
-            tree.entity(entity).insert(ResolveOpacity {});
+            tree.entity(entity).insert(EvaluateOpacity {});
         } else if listener.engaged_end() {
             for linked in alt.linked.iter() {
                 set.push((*linked, alt.alternate_color));
             }
             *color = alt.base;
-            tree.entity(entity).insert(ResolveOpacity {});
+            tree.entity(entity).insert(EvaluateOpacity {});
         }
     }
     for (e, c) in set {
         if let Ok(mut color) = alts.p1().get_mut(e) {
             *color = c;
-            tree.entity(e).insert(ResolveOpacity {});
+            tree.entity(e).insert(EvaluateOpacity {});
         }
     }
 }

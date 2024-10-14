@@ -4,7 +4,10 @@ use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
 use crate::grid::responsive::configure::ConfigureFromLayout;
 use crate::grid::responsive::evaluate::EvaluateLocation;
-use crate::grid::responsive::{PointExceptions, ResponsiveConfigurationException, ResponsiveLocation, ResponsivePointBundle, ResponsivePoints, ResponsiveSection};
+use crate::grid::responsive::{
+    PointExceptions, ResponsiveConfigurationException, ResponsiveLocation, ResponsivePointBundle,
+    ResponsivePoints, ResponsiveSection,
+};
 use crate::tree::Tree;
 use bevy_ecs::component::Component;
 use bevy_ecs::event::Event;
@@ -41,7 +44,7 @@ pub(crate) fn anim_calc(
     let last = actual.get(trigger.entity()).copied().unwrap();
     let last_pts = pts.get(trigger.entity()).copied().unwrap();
     tree.entity(trigger.entity()).insert(ConfigureFromLayout {});
-    tree.trigger_targets(EvaluateLocation::no_deps(), trigger.entity());
+    tree.entity(trigger.entity()).insert(EvaluateLocation::no_deps());
     tree.trigger_targets(CalcDiff { last, last_pts }, trigger.entity());
 }
 

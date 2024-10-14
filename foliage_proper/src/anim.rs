@@ -13,8 +13,8 @@ use crate::grid::responsive::anim::{
     ResponsivePointsAnimPackage, ResponsivePointsAnimationHook,
 };
 use crate::grid::responsive::evaluate::EvaluateLocation;
-use crate::leaf::ResolveElevation;
-use crate::opacity::{Opacity, ResolveOpacity};
+use crate::leaf::EvaluateElevation;
+use crate::opacity::{EvaluateOpacity, Opacity};
 use crate::panel::Rounding;
 use crate::time::{OnEnd, Time, TimeDelta};
 use crate::tree::Tree;
@@ -340,15 +340,15 @@ pub(crate) fn animate<A: Animate + Component>(
                 if TypeId::of::<A>() == TypeId::of::<ResponsiveAnimationHook>()
                     || TypeId::of::<A>() == TypeId::of::<ResponsivePointsAnimationHook>()
                 {
-                    tree.trigger_targets(EvaluateLocation::full(), animation.animation_target);
+                    tree.entity(animation.animation_target).insert(EvaluateLocation::full());
                 }
                 if TypeId::of::<A>() == TypeId::of::<Opacity>()
                     || TypeId::of::<A>() == TypeId::of::<Color>()
                 {
-                    tree.trigger_targets(ResolveOpacity {}, animation.animation_target);
+                    tree.entity(animation.animation_target).insert(EvaluateOpacity{});
                 }
                 if TypeId::of::<A>() == TypeId::of::<Elevation>() {
-                    tree.trigger_targets(ResolveElevation {}, animation.animation_target);
+                    tree.entity(animation.animation_target).insert(EvaluateElevation{});
                 }
             } else {
                 orphaned = true;

@@ -1,8 +1,8 @@
 use crate::icon::IconHandles;
 use crate::leaf_model::LeafModel;
 use foliage::tree::EcsExtension;
-use foliage::Foliage;
 use foliage::twig::Twig;
+use foliage::Foliage;
 use home::{EventTest, Home};
 
 mod home;

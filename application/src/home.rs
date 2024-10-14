@@ -1,5 +1,6 @@
 use crate::icon::IconHandles;
 use crate::leaf_model::LeafModel;
+use foliage::bevy_ecs;
 use foliage::bevy_ecs::entity::Entity;
 use foliage::bevy_ecs::event::Event;
 use foliage::bevy_ecs::prelude::{IntoSystemSetConfigs, Resource, Trigger};
@@ -10,16 +11,15 @@ use foliage::grid::responsive::evaluate::EvaluateLocation;
 use foliage::grid::responsive::ResponsiveLocation;
 use foliage::grid::unit::TokenUnit;
 use foliage::interaction::OnClick;
-use foliage::leaf::{Leaf, ResolveElevation, ResolveVisibility};
-use foliage::opacity::ResolveOpacity;
+use foliage::leaf::{EvaluateElevation, EvaluateVisibility, Leaf};
+use foliage::opacity::EvaluateOpacity;
 use foliage::panel::Rounding;
 use foliage::style::Coloring;
 use foliage::text::{FontSize, Text};
 use foliage::tree::{EcsExtension, Tree};
 use foliage::twig::button::Button;
-use foliage::bevy_ecs;
-use foliage::{schedule_stage, Root};
 use foliage::twig::{Branch, Twig};
+use foliage::{schedule_stage, Root};
 
 #[schedule_stage]
 pub(crate) enum ModelStage {
@@ -76,9 +76,9 @@ impl Branch for Home {
             )
             .observe(observant)
             .insert(EvaluateLocation::full())
-            .insert(ResolveElevation::default())
-            .insert(ResolveOpacity::default())
-            .insert(ResolveVisibility::default())
+            .insert(EvaluateElevation::default())
+            .insert(EvaluateOpacity::default())
+            .insert(EvaluateVisibility::default())
             .id();
         tree.visibility(concepts_button, false);
         let usage_button = tree
@@ -102,7 +102,7 @@ impl Branch for Home {
                     .height(64.px()),
             )
             .id();
-        let leaf_model = tree.branch(Twig::new(LeafModel::args()));
+        let leaf_model = tree.branch(Twig::new(LeafModel::args()).elevation(10));
         HomeHandle {
             concepts_button,
             usage_button,

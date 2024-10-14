@@ -1,13 +1,16 @@
-use std::any::TypeId;
 use crate::anim::{Animate, Animation, AnimationRunner, AnimationTime, Sequence};
-use crate::leaf::{Remove, ResolveVisibility, Visibility};
+use crate::grid::responsive::anim::{
+    ResponsiveAnimationHook, ResponsiveLocationAnimPackage, ResponsivePointsAnimPackage,
+    ResponsivePointsAnimationHook,
+};
+use crate::grid::responsive::{ResponsiveLocation, ResponsivePointBundle};
+use crate::leaf::{EvaluateVisibility, Remove, Visibility};
 use crate::time::OnEnd;
 use crate::twig::{Branch, Twig};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::system::Commands;
 use bevy_ecs::world::World;
-use crate::grid::responsive::{ResponsiveLocation, ResponsivePointBundle, ResponsivePoints};
-use crate::grid::responsive::anim::{ResponsiveAnimationHook, ResponsiveLocationAnimPackage, ResponsivePointsAnimPackage, ResponsivePointsAnimationHook};
+use std::any::TypeId;
 
 pub type Tree<'w, 's> = Commands<'w, 's>;
 pub trait EcsExtension {
@@ -38,8 +41,7 @@ impl<'w, 's> EcsExtension for Tree<'w, 's> {
         B::grow(twig, self)
     }
     fn visibility(&mut self, leaf: Entity, visibility: bool) {
-        self.entity(leaf).insert(Visibility::new(visibility));
-        self.trigger_targets(ResolveVisibility(), leaf);
+        self.entity(leaf).insert(Visibility::new(visibility)).insert(EvaluateVisibility{});
     }
     fn remove(&mut self, leaf: Entity) {
         self.trigger_targets(Remove {}, leaf);
@@ -60,8 +62,7 @@ impl EcsExtension for World {
         h
     }
     fn visibility(&mut self, leaf: Entity, visibility: bool) {
-        self.entity_mut(leaf).insert(Visibility::new(visibility));
-        self.trigger_targets(ResolveVisibility(), leaf);
+        self.entity_mut(leaf).insert(Visibility::new(visibility)).insert(EvaluateVisibility{});
     }
 
     fn remove(&mut self, leaf: Entity) {
@@ -93,10 +94,12 @@ impl<'a, 'w, 's> SequenceHandle<'a, 'w, 's> {
         converted.sequence_time_range = animation.sequence_time_range;
         converted.ease = animation.ease;
         let anim = self.animate(converted);
-        self.tree.entity(anim).insert(ResponsiveLocationAnimPackage {
-            base: animation.a.base,
-            exceptions: animation.a.exceptions,
-        });
+        self.tree
+            .entity(anim)
+            .insert(ResponsiveLocationAnimPackage {
+                base: animation.a.base,
+                exceptions: animation.a.exceptions,
+            });
     }
     pub fn animate_points(&mut self, animation: Animation<ResponsivePointBundle>) {
         let mut converted = Animation::new(ResponsivePointsAnimationHook::default());
