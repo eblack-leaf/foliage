@@ -4,9 +4,7 @@ use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
 use crate::grid::responsive::configure::ConfigureFromLayout;
 use crate::grid::responsive::evaluate::EvaluateLocation;
-use crate::grid::responsive::{
-    PointExceptions, ResponsiveConfigurationException, ResponsivePoints, ResponsiveSection,
-};
+use crate::grid::responsive::{PointExceptions, ResponsiveConfigurationException, ResponsiveLocation, ResponsivePointBundle, ResponsivePoints, ResponsiveSection};
 use crate::tree::Tree;
 use bevy_ecs::component::Component;
 use bevy_ecs::event::Event;
@@ -111,5 +109,24 @@ impl Animate for ResponsivePointsAnimationHook {
         if let Some(s) = interpolations.read(0) {
             self.percent = s;
         }
+    }
+}
+
+impl Animate for ResponsivePointBundle {
+    fn interpolations(start: &Self, end: &Self) -> Interpolations {
+        todo!()
+    }
+    fn apply(&mut self, interpolations: &mut Interpolations) {
+        todo!()
+    }
+}
+
+impl Animate for ResponsiveLocation {
+    fn interpolations(start: &Self, end: &Self) -> Interpolations {
+        todo!()
+    }
+
+    fn apply(&mut self, interpolations: &mut Interpolations) {
+        todo!()
     }
 }

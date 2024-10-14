@@ -253,7 +253,7 @@ impl Easement {
 }
 pub trait Animate
 where
-    Self: Sized + Send + Sync + 'static + Component + Clone,
+    Self: Sized + Send + Sync + 'static + Clone,
 {
     fn interpolations(start: &Self, end: &Self) -> Interpolations;
     fn apply(&mut self, interpolations: &mut Interpolations);
@@ -263,7 +263,7 @@ pub struct Sequence {
     pub(crate) animations_to_finish: i32,
     pub(crate) on_end: Option<OnEnd>,
 }
-pub(crate) fn animate<A: Animate>(
+pub(crate) fn animate<A: Animate + Component>(
     mut anims: Query<(Entity, &mut AnimationRunner<A>)>,
     package: Query<&ResponsiveLocationAnimPackage>,
     pt_package: Query<&ResponsivePointsAnimPackage>,

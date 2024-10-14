@@ -139,7 +139,7 @@ impl Elm {
             self.ecs.insert_resource(EventLimiter::<E>::default());
         }
     }
-    pub fn enable_animation<A: Animate>(&mut self) {
+    pub fn enable_animation<A: Animate + Component>(&mut self) {
         if !self.ecs.contains_resource::<AnimationLimiter<A>>() {
             self.scheduler
                 .main

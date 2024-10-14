@@ -17,8 +17,9 @@ use foliage::style::Coloring;
 use foliage::text::{FontSize, Text};
 use foliage::tree::{EcsExtension, Tree};
 use foliage::twig::button::Button;
-use foliage::{bevy_ecs, Branch};
+use foliage::bevy_ecs;
 use foliage::{schedule_stage, Root};
+use foliage::twig::{Branch, Twig};
 
 #[schedule_stage]
 pub(crate) enum ModelStage {
@@ -54,7 +55,7 @@ pub(crate) fn observant(trigger: Trigger<OnClick>) {
 }
 impl Branch for Home {
     type Handle = HomeHandle;
-    fn grow(self, tree: &mut Tree) -> Self::Handle {
+    fn grow(twig: Twig<Self>, tree: &mut Tree) -> Self::Handle {
         let concepts_button = tree
             .spawn(Leaf::new().elevation(4))
             .insert(
@@ -94,14 +95,14 @@ impl Branch for Home {
             .spawn(Leaf::new().elevation(1))
             .insert(Text::new("FOLIAGE", FontSize::new(60), Grey::plus_three()))
             .insert(
-                ResponsiveLocation::default()
+                ResponsiveLocation::new()
                     .center_x(screen().center_x())
                     .center_y(25.percent().height().from(screen()))
                     .width(75.percent().width().of(screen()))
                     .height(64.px()),
             )
             .id();
-        let leaf_model = tree.branch(LeafModel::args());
+        let leaf_model = tree.branch(Twig::new(LeafModel::args()));
         HomeHandle {
             concepts_button,
             usage_button,

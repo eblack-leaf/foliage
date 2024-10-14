@@ -39,8 +39,8 @@ impl Leaf {
     pub fn new() -> Self {
         Self::default()
     }
-    pub fn stem(mut self, s: Entity) -> Self {
-        self.stem.0.replace(s);
+    pub fn stem(mut self, s: Option<Entity>) -> Self {
+        self.stem.0 = s;
         self
     }
     pub fn elevation<E: Into<Elevation>>(mut self, e: E) -> Self {

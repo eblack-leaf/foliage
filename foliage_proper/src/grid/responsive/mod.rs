@@ -17,7 +17,7 @@ pub mod configure;
 pub mod evaluate;
 pub(crate) mod resolve;
 
-#[derive(Bundle)]
+#[derive(Bundle, Clone)]
 pub struct ResponsiveLocation {
     pub(crate) resolved_configuration: ResolvedConfiguration,
     pub(crate) base: ResponsiveSection,
@@ -591,7 +591,7 @@ impl PointException {
     }
 }
 
-#[derive(Bundle, Default)]
+#[derive(Bundle, Default, Clone)]
 pub struct ResponsivePointBundle {
     pub(crate) points: ResolvedPoints,
     pub(crate) exceptions: PointExceptions,
@@ -599,7 +599,6 @@ pub struct ResponsivePointBundle {
     layout_check: ConfigureFromLayout,
     diff: ResponsivePointsAnimationHook,
 }
-
 impl ResponsivePointBundle {
     pub fn point_ax<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
         if let Some(mut aspect) = self

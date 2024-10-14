@@ -82,7 +82,7 @@ impl Button {
             .observe(configure);
         let icon = world
             .commands()
-            .spawn(Leaf::default().stem(entity).elevation(-1))
+            .spawn(Leaf::default().stem(Some(entity)).elevation(-1))
             .insert(Icon::new(args.icon_id, args.coloring.foreground))
             .id();
         let text = world.commands().spawn(Leaf::new()).id();

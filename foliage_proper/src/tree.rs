@@ -1,10 +1,13 @@
+use std::any::TypeId;
 use crate::anim::{Animate, Animation, AnimationRunner, AnimationTime, Sequence};
 use crate::leaf::{Remove, ResolveVisibility, Visibility};
 use crate::time::OnEnd;
-use crate::Branch;
+use crate::twig::{Branch, Twig};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::system::Commands;
 use bevy_ecs::world::World;
+use crate::grid::responsive::{ResponsiveLocation, ResponsivePointBundle, ResponsivePoints};
+use crate::grid::responsive::anim::{ResponsiveAnimationHook, ResponsiveLocationAnimPackage, ResponsivePointsAnimPackage, ResponsivePointsAnimationHook};
 
 pub type Tree<'w, 's> = Commands<'w, 's>;
 pub trait EcsExtension {
@@ -12,7 +15,7 @@ pub trait EcsExtension {
         &mut self,
         sfn: SFN,
     ) -> Entity;
-    fn branch<B: Branch>(&mut self, twig: B) -> B::Handle;
+    fn branch<B: Branch>(&mut self, twig: Twig<B>) -> B::Handle;
     fn visibility(&mut self, leaf: Entity, visibility: bool);
     fn remove(&mut self, entity: Entity);
 }
@@ -31,7 +34,7 @@ impl<'w, 's> EcsExtension for Tree<'w, 's> {
         self.entity(sequence_entity).insert(sequence);
         sequence_entity
     }
-    fn branch<B: Branch>(&mut self, twig: B) -> B::Handle {
+    fn branch<B: Branch>(&mut self, twig: Twig<B>) -> B::Handle {
         B::grow(twig, self)
     }
     fn visibility(&mut self, leaf: Entity, visibility: bool) {
@@ -51,7 +54,7 @@ impl EcsExtension for World {
         let e = cmds.start_sequence(sfn);
         e
     }
-    fn branch<B: Branch>(&mut self, twig: B) -> B::Handle {
+    fn branch<B: Branch>(&mut self, twig: Twig<B>) -> B::Handle {
         let mut cmds = self.commands();
         let h = cmds.branch(twig);
         h
@@ -71,7 +74,9 @@ pub struct SequenceHandle<'a, 'w, 's> {
     sequence_entity: Entity,
 }
 impl<'a, 'w, 's> SequenceHandle<'a, 'w, 's> {
-    pub fn animate<A: Animate>(&mut self, animation: Animation<A>) {
+    pub fn animate<A: Animate>(&mut self, animation: Animation<A>) -> Entity {
+        debug_assert_ne!(TypeId::of::<ResponsiveLocation>(), TypeId::of::<A>());
+        debug_assert_ne!(TypeId::of::<ResponsivePointBundle>(), TypeId::of::<A>());
         self.sequence.animations_to_finish += 1;
         let anim = AnimationRunner::new(
             animation.anim_target.unwrap(),
@@ -80,7 +85,29 @@ impl<'a, 'w, 's> SequenceHandle<'a, 'w, 's> {
             self.sequence_entity,
             AnimationTime::from(animation.sequence_time_range),
         );
-        self.tree.spawn(anim);
+        self.tree.spawn(anim).id()
+    }
+    pub fn animate_location(&mut self, animation: Animation<ResponsiveLocation>) {
+        let mut converted = Animation::new(ResponsiveAnimationHook::default());
+        converted.anim_target = animation.anim_target;
+        converted.sequence_time_range = animation.sequence_time_range;
+        converted.ease = animation.ease;
+        let anim = self.animate(converted);
+        self.tree.entity(anim).insert(ResponsiveLocationAnimPackage {
+            base: animation.a.base,
+            exceptions: animation.a.exceptions,
+        });
+    }
+    pub fn animate_points(&mut self, animation: Animation<ResponsivePointBundle>) {
+        let mut converted = Animation::new(ResponsivePointsAnimationHook::default());
+        converted.anim_target = animation.anim_target;
+        converted.sequence_time_range = animation.sequence_time_range;
+        converted.ease = animation.ease;
+        let anim = self.animate(converted);
+        self.tree.entity(anim).insert(ResponsivePointsAnimPackage {
+            base_points: animation.a.base_points,
+            exceptions: animation.a.exceptions,
+        });
     }
     pub fn on_end(&mut self, on_end: OnEnd) {
         self.sequence.on_end.replace(on_end);

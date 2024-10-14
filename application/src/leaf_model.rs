@@ -13,8 +13,11 @@ use foliage::grid::unit::TokenUnit;
 use foliage::panel::{Panel, Rounding};
 use foliage::shape::line::Line;
 use foliage::tree::{EcsExtension, Tree};
-use foliage::{bevy_ecs, schedule_stage, Branch, Root};
+use foliage::{bevy_ecs, schedule_stage, Root};
 use std::collections::HashMap;
+use foliage::grid::responsive::ResponsiveLocation;
+use foliage::leaf::Leaf;
+use foliage::twig::{Branch, Twig};
 
 pub(crate) struct LeafModel {
     pub(crate) this: Entity,
@@ -54,81 +57,68 @@ pub(crate) fn configure_leaf_part(
             let x_identifier = LineIdentifier::X(x);
             if !part.lines_present.contains_key(&x_identifier) {
                 // spawn
-                let e = tree.add_leaf();
-                tree.stem(e, Some(entity));
-                tree.elevation(e, 1);
-                tree.entity(e)
-                    .insert(Line::new(BRANCH_GRID_WEIGHT, Grey::plus_three()));
+                let e = tree.spawn(Leaf::new().elevation(1).stem(Some(entity)))
+                    .insert(Line::new(BRANCH_GRID_WEIGHT, Grey::plus_three())).id();
                 part.lines_present.insert(x_identifier, e);
             }
-            tree.location(
-                part.lines_present.get(&x_identifier).copied().unwrap(),
-                GridLocation::new()
+            tree.entity(part.lines_present.get(&x_identifier).copied().unwrap()).insert(
+                ResponsiveLocation::points()
                     .point_ax(stem().left() + (x * REGION_AREA.horizontal() as i32).px())
                     .point_ay(stem().top() + 0.px())
                     .point_bx(stem().left() + (x * REGION_AREA.horizontal() as i32).px())
                     .point_by(
                         stem().top()
                             + (REGION_AREA.horizontal() as i32 * num_regions.vertical() as i32)
-                                .px(),
-                    ),
+                            .px(),
+                    )
             );
             for y in 0..num_regions.vertical() as i32 {
                 let y_identifier = LineIdentifier::Y(y);
                 if !part.lines_present.contains_key(&y_identifier) {
-                    // spawn
-                    let e = tree.add_leaf();
-                    tree.stem(e, Some(entity));
-                    tree.elevation(e, 1);
-                    tree.entity(e)
-                        .insert(Line::new(BRANCH_GRID_WEIGHT, Grey::plus_three()));
+                    let e = tree.spawn(Leaf::new().elevation(1).stem(Some(entity)))
+                        .insert(Line::new(BRANCH_GRID_WEIGHT, Grey::plus_three())).id();
                     part.lines_present.insert(y_identifier, e);
                 }
-                tree.location(
-                    part.lines_present.get(&y_identifier).copied().unwrap(),
-                    GridLocation::new()
-                        .point_ax(stem().left() + 0.px())
+                tree.entity(
+                    part.lines_present.get(&y_identifier).copied().unwrap()
+                ).insert(
+                    ResponsiveLocation::points().point_ax(stem().left() + 0.px())
                         .point_ay(stem().top() + (y * REGION_AREA.horizontal() as i32).px())
                         .point_bx(
                             stem().left()
                                 + (REGION_AREA.horizontal() as i32
-                                    * num_regions.horizontal() as i32)
-                                    .px(),
+                                * num_regions.horizontal() as i32)
+                                .px(),
                         )
-                        .point_by(stem().top() + (y * REGION_AREA.horizontal() as i32).px()),
+                        .point_by(stem().top() + (y * REGION_AREA.horizontal() as i32).px())
                 );
                 let box_identifier = BoxIdentifier { x, y };
                 if !part.boxes_present.contains_key(&box_identifier) {
                     // spawn
-                    let e = tree.add_leaf();
-                    tree.stem(e, Some(entity));
-                    tree.elevation(e, 1);
-                    tree.entity(e)
-                        .insert(Panel::new(Rounding::all(0.0), Orange::minus_one()));
+                    let e = tree.spawn(Leaf::new().elevation(1).stem(Some(entity)))
+                        .insert(Panel::new(Rounding::all(0.0), Orange::minus_one())).id();
                     part.boxes_present.insert(box_identifier, e);
                 }
-                tree.location(
+                tree.entity(
                     part.boxes_present.get(&box_identifier).copied().unwrap(),
-                    GridLocation::new()
+                ).insert(
+                    ResponsiveLocation::new()
                         .center_x(
                             stem().left()
                                 + (REGION_AREA.horizontal() as i32 * x
-                                    + (REGION_AREA.horizontal() / 2f32) as i32)
-                                    .px(),
+                                + (REGION_AREA.horizontal() / 2f32) as i32)
+                                .px(),
                         )
                         .center_y(
                             stem().top()
                                 + (REGION_AREA.horizontal() as i32 * y
-                                    + (REGION_AREA.horizontal() / 2f32) as i32)
-                                    .px(),
+                                + (REGION_AREA.horizontal() / 2f32) as i32)
+                                .px(),
                         )
                         .width(24.px())
-                        .height(24.px()),
+                        .height(24.px())
                 );
             }
-        }
-        if changed {
-            tree.flush(entity);
         }
         // if no/less sub-entities => spawn how many need + draw-sequence + box-fade-in
         // if more sub-entities => remove excess => queue_remove
@@ -173,13 +163,9 @@ impl LeafPartComponent {
 pub(crate) struct LeafPartModel {}
 impl Branch for LeafPartModel {
     type Handle = Entity;
-    fn grow(self, tree: &mut Tree) -> Self::Handle {
-        let root = tree.add_leaf();
-        tree.stem(root, twig.stem);
-        tree.location(root, twig.location);
-        tree.elevation(root, -1);
+    fn grow(twig: Twig<Self>, tree: &mut Tree) -> Self::Handle {
+        let root = tree.spawn(Leaf::new().elevation(-1).stem(twig.stem)).id();
         tree.entity(root).insert(LeafPartComponent::new());
-        tree.flush(root);
         // start part-stem-line sequence
         // spawn leaf-part-components on root with correct values
         root
@@ -187,17 +173,15 @@ impl Branch for LeafPartModel {
 }
 impl Branch for LeafModelArgs {
     type Handle = LeafModel;
-    fn grow(self, tree: &mut Tree) -> Self::Handle {
-        let this = tree.add_leaf();
-        tree.stem(this, twig.stem);
-        tree.location(this, twig.location);
-        tree.elevation(this, twig.elevation);
+    fn grow(twig: Twig<Self>, tree: &mut Tree) -> Self::Handle {
+        let this = tree.spawn(Leaf::new().elevation(twig.elevation).stem(twig.stem))
+            .insert(twig.res).id();
         let one = tree.branch(
             Twig::new(LeafPartModel {})
                 .elevation(-1)
                 .stem_from(this)
-                .location(
-                    GridLocation::new()
+                .responsive(
+                    ResponsiveLocation::new()
                         .left(50.percent().width().from(stem()))
                         .top(5.percent().height().from(stem()))
                         .right(95.percent().width().from(stem()))
@@ -208,8 +192,8 @@ impl Branch for LeafModelArgs {
             Twig::new(LeafPartModel {})
                 .elevation(-1)
                 .stem_from(this)
-                .location(
-                    GridLocation::new()
+                .responsive(
+                    ResponsiveLocation::new()
                         .left(5.percent().width().from(stem()))
                         .top(35.percent().height().from(stem()))
                         .right(50.percent().width().from(stem()))
@@ -220,31 +204,28 @@ impl Branch for LeafModelArgs {
             Twig::new(LeafPartModel {})
                 .elevation(-1)
                 .stem_from(this)
-                .location(
-                    GridLocation::new()
+                .responsive(
+                    ResponsiveLocation::new()
                         .left(50.percent().width().from(stem()))
                         .top(75.percent().height().from(stem()))
                         .right(90.percent().width().from(stem()))
                         .bottom(95.percent().height().from(stem())),
                 ),
         );
-        let stem_line = tree.add_leaf();
-        tree.stem(stem_line, Some(this));
-        tree.elevation(stem_line, -1);
-        tree.location(
-            stem_line,
-            GridLocation::new()
-                .point_ax(stem().center_x())
-                .point_ay(5.percent().from(stem()))
-                .point_bx(stem().center_x())
-                .point_by(5.percent().from(stem())),
-        );
+        let stem_line = tree.spawn(Leaf::new().elevation(-1).stem(Some(this)))
+            .insert(
+                ResponsiveLocation::points()
+                    .point_ax(stem().center_x())
+                    .point_ay(5.percent().from(stem()))
+                    .point_bx(stem().center_x())
+                    .point_by(5.percent().from(stem()))
+            ).id();
         tree.entity(stem_line)
             .insert(Line::new(STEM_LINE_WEIGHT, Grey::plus_three()));
         tree.start_sequence(|seq| {
-            seq.animate(
+            seq.animate_points(
                 Animation::new(
-                    GridLocation::new()
+                    ResponsiveLocation::points()
                         .point_ax(stem().center_x())
                         .point_ay(5.percent().from(stem()))
                         .point_bx(stem().center_x())
@@ -255,7 +236,6 @@ impl Branch for LeafModelArgs {
                 .end(1000),
             );
         });
-        tree.flush(this);
         LeafModel {
             this,
             parts: [one, two, three],

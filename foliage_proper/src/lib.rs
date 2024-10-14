@@ -1,6 +1,6 @@
 pub use bevy_ecs;
 use bevy_ecs::bundle::Bundle;
-use bevy_ecs::prelude::{Entity, Event, Resource};
+use bevy_ecs::prelude::{Component, Entity, Event, Resource};
 use futures_channel::oneshot;
 use tracing_subscriber::filter::Targets;
 use tracing_subscriber::layer::SubscriberExt;
@@ -36,7 +36,6 @@ use crate::shape::Shape;
 use crate::style::Style;
 use crate::text::Text;
 use crate::time::Time;
-use crate::tree::Tree;
 use crate::web_ext::HrefLink;
 use grid::responsive::evaluate::evaluate_location;
 
@@ -119,7 +118,7 @@ impl Foliage {
         this.elm.ecs.observe(resolve_elevation);
         this
     }
-    pub fn enable_animation<A: Animate>(&mut self) {
+    pub fn enable_animation<A: Animate + Component>(&mut self) {
         self.elm.enable_animation::<A>();
     }
     pub fn load_icon<ID: Into<IconId>, B: AsRef<[u8]>>(&mut self, id: ID, bytes: B) {
@@ -503,10 +502,3 @@ impl Roots for Trunk {
     }
 }
 
-pub trait Branch
-where
-    Self: Sized,
-{
-    type Handle;
-    fn grow(self, tree: &mut Tree) -> Self::Handle;
-}
