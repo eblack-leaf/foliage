@@ -205,7 +205,6 @@ impl Component for EvaluateVisibility {
     fn register_component_hooks(hooks: &mut ComponentHooks) {
         hooks.on_insert(
             |mut world: DeferredWorld, entity: Entity, _c: ComponentId| {
-                tracing::trace!("evaluating: {:?}", entity);
                 let stem = world.get::<Stem>(entity).copied().unwrap_or_default();
                 let inherited = if let Some(s) = stem.0 {
                     world.get::<Visibility>(s).copied().unwrap_or_default()
