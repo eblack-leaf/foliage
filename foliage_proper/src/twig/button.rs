@@ -85,15 +85,14 @@ impl Button {
             .commands()
             .entity(entity)
             .insert(Panel::new(args.rounding, args.coloring.background).outline(args.outline))
-            .insert(InteractiveColor::new(
-                args.coloring.background,
-                args.coloring.foreground,
-            ).with_linked(vec![icon, text]))
+            .insert(
+                InteractiveColor::new(args.coloring.background, args.coloring.foreground)
+                    .with_linked(vec![icon, text]),
+            )
             .insert(interaction_listener)
             .insert(Evaluate::full())
             .observe(configure);
         let based = !args.font_size.is_some();
-        tracing::trace!("based {}", based);
         if args.font_size.is_some() {
             world.commands().entity(text).insert(Text::new(
                 args.text_value.unwrap_or_default().0,
@@ -101,10 +100,11 @@ impl Button {
                 args.coloring.foreground,
             ));
         }
-        world
-            .commands()
-            .entity(entity)
-            .insert(ButtonBindings { icon, text, icon_based: based });
+        world.commands().entity(entity).insert(ButtonBindings {
+            icon,
+            text,
+            icon_based: based,
+        });
     }
 }
 impl Component for Button {
@@ -145,7 +145,6 @@ pub(crate) fn configure(
         text_section.set_y(main.bottom() - main.height() / 2.0 - 0.5 * 0.9 * main.height());
         text_section.set_width(main.right() - 16.0 - main.x() - 48.0);
         text_section.set_height(0.9 * main.height());
-        tracing::trace!("icon: {}, text: {}", icon_section, text_section);
         *sections.get_mut(binding.icon).unwrap() = icon_section;
         *sections.get_mut(binding.text).unwrap() = text_section;
     }

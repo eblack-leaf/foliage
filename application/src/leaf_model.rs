@@ -11,7 +11,7 @@ use foliage::elm::{Elm, ExternalStage};
 use foliage::grid::aspect::stem;
 use foliage::grid::responsive::ResponsiveLocation;
 use foliage::grid::unit::TokenUnit;
-use foliage::leaf::{Evaluate, Leaf};
+use foliage::leaf::{Evaluate, EvaluateVisibility, Leaf};
 use foliage::panel::{Panel, Rounding};
 use foliage::shape::line::Line;
 use foliage::tree::{EcsExtension, Tree};
@@ -60,6 +60,7 @@ pub(crate) fn configure_leaf_part(
                 let e = tree
                     .spawn(Leaf::new().elevation(1).stem(Some(entity)))
                     .insert(Line::new(BRANCH_GRID_WEIGHT, Grey::plus_three()))
+                    .insert(EvaluateVisibility {})
                     .id();
                 part.lines_present.insert(x_identifier, e);
             }
@@ -81,6 +82,7 @@ pub(crate) fn configure_leaf_part(
                     let e = tree
                         .spawn(Leaf::new().elevation(1).stem(Some(entity)))
                         .insert(Line::new(BRANCH_GRID_WEIGHT, Grey::plus_three()))
+                        .insert(EvaluateVisibility {})
                         .id();
                     part.lines_present.insert(y_identifier, e);
                 }
@@ -103,6 +105,7 @@ pub(crate) fn configure_leaf_part(
                     let e = tree
                         .spawn(Leaf::new().elevation(1).stem(Some(entity)))
                         .insert(Panel::new(Rounding::all(0.0), Orange::minus_one()))
+                        .insert(EvaluateVisibility {})
                         .id();
                     part.boxes_present.insert(box_identifier, e);
                 }
@@ -234,10 +237,9 @@ impl Branch for LeafModelArgs {
                     .point_bx(stem().center_x())
                     .point_by(5.percent().from(stem())),
             )
+            .insert(Line::new(STEM_LINE_WEIGHT, Grey::plus_three()))
             .insert(Evaluate::full())
             .id();
-        tree.entity(stem_line)
-            .insert(Line::new(STEM_LINE_WEIGHT, Grey::plus_three()));
         tree.start_sequence(|seq| {
             seq.animate_points(
                 Animation::new(
@@ -252,6 +254,7 @@ impl Branch for LeafModelArgs {
                 .end(1000),
             );
         });
+        tree.visibility(this, false);
         LeafModel {
             this,
             parts: [one, two, three],

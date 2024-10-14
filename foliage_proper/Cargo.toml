@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 bytemuck = { version = "1.15.0" , features = ["derive"]}
-winit = { version = "0.30.2" , features = ["android-game-activity"]}
+winit = { version = "0.30.5" , features = ["android-game-activity"]}
 wgpu = { version = "22.1.0", features = ["metal", "webgl", "wgsl"]}
 bevy_ecs = "0.14.2"
 serde = { version = "1.0.199", features = ["derive"] }
@@ -25,7 +25,6 @@ tracing = "0.1.40"
 wasm-bindgen = "0.2.92"
 web-time = "1.1.0"
 console = "0.15.8"
-ordermap = "0.5.3"
 [dependencies.web-sys]
 package = "web-sys"
 version = "0.3.69"

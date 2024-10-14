@@ -64,11 +64,8 @@ impl Component for EvaluateLocation {
                     }
                 }
                 if let Some(r) = resolved {
-                    world
-                        .commands()
-                        .entity(entity)
-                        .insert(r);
-                    world.trigger_targets(Configure{}, entity);
+                    world.commands().entity(entity).insert(r);
+                    world.trigger_targets(Configure {}, entity);
                 }
                 let mut resolved = None;
                 if let Some(res) = world.get::<ResolvedPoints>(entity) {
@@ -82,12 +79,8 @@ impl Component for EvaluateLocation {
                     }
                 }
                 if let Some(r) = resolved {
-                    world
-                        .commands()
-                        .entity(entity)
-                        .insert(r)
-                        .insert(r.bbox());
-                    world.trigger_targets(Configure{}, entity);
+                    world.commands().entity(entity).insert(r).insert(r.bbox());
+                    world.trigger_targets(Configure {}, entity);
                 }
             }
             if world.get::<EvaluateLocation>(entity).unwrap().skip_deps {
