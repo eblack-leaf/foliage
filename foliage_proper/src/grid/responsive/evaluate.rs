@@ -10,7 +10,7 @@ use crate::layout::LayoutGrid;
 use crate::leaf::{Dependents, Stem};
 use crate::twig::Configure;
 use bevy_ecs::component::StorageType::SparseSet;
-use bevy_ecs::component::{ComponentHooks, StorageType};
+use bevy_ecs::component::{ComponentHooks, ComponentId, StorageType};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::Component;
 use bevy_ecs::world::DeferredWorld;
@@ -26,75 +26,78 @@ pub(crate) struct ReferentialData {
 pub struct EvaluateLocation {
     pub(crate) skip_deps: bool,
 }
+impl EvaluateLocation {
+    pub(crate) fn on_insert(mut world: DeferredWorld, entity: Entity, _: ComponentId) {
+        let screen = ReferentialData {
+            section: world.get_resource::<ViewportHandle>().unwrap().section(),
+            grid: world.get_resource::<LayoutGrid>().unwrap().grid,
+            points: Default::default(),
+        };
+        if let Some(stem) = world.get::<Stem>(entity).copied() {
+            let stem = if let Some(s) = stem.0 {
+                ReferentialData {
+                    section: world
+                        .get::<Section<LogicalContext>>(s)
+                        .copied()
+                        .unwrap_or_default(),
+                    grid: world.get::<Grid>(s).copied().unwrap_or_default(),
+                    points: world
+                        .get::<Points<LogicalContext>>(s)
+                        .copied()
+                        .unwrap_or_default(),
+                }
+            } else {
+                screen
+            };
+            let mut resolved = None;
+            if let Some(res) = world.get::<ResolvedConfiguration>(entity) {
+                if let Some(r) = res.evaluate(stem, screen) {
+                    resolved = Some(
+                        r + world
+                            .get::<ResponsiveAnimationHook>(entity)
+                            .copied()
+                            .unwrap_or_default()
+                            .value(),
+                    );
+                }
+            }
+            if let Some(r) = resolved {
+                world.commands().entity(entity).insert(r);
+                world.trigger_targets(Configure {}, entity);
+            }
+            let mut resolved = None;
+            if let Some(res) = world.get::<ResolvedPoints>(entity) {
+                if let Some(r) = res.evaluate(stem, screen) {
+                    let diff = world
+                        .get::<ResponsivePointsAnimationHook>(entity)
+                        .copied()
+                        .unwrap_or_default()
+                        .value();
+                    resolved.replace(r + diff);
+                }
+            }
+            if let Some(r) = resolved {
+                world.commands().entity(entity).insert(r).insert(r.bbox());
+                world.trigger_targets(Configure {}, entity);
+            }
+        }
+        if world.get::<EvaluateLocation>(entity).unwrap().skip_deps {
+            return;
+        }
+        if let Some(deps) = world.get::<Dependents>(entity).cloned() {
+            for dep in deps.0 {
+                world
+                    .commands()
+                    .entity(dep)
+                    .insert(EvaluateLocation::recursive());
+            }
+        }
+    }
+}
 impl Component for EvaluateLocation {
     const STORAGE_TYPE: StorageType = SparseSet;
     fn register_component_hooks(_hooks: &mut ComponentHooks) {
-        _hooks.on_insert(|mut world: DeferredWorld, entity: Entity, _| {
-            let screen = ReferentialData {
-                section: world.get_resource::<ViewportHandle>().unwrap().section(),
-                grid: world.get_resource::<LayoutGrid>().unwrap().grid,
-                points: Default::default(),
-            };
-            if let Some(stem) = world.get::<Stem>(entity).copied() {
-                let stem = if let Some(s) = stem.0 {
-                    ReferentialData {
-                        section: world
-                            .get::<Section<LogicalContext>>(s)
-                            .copied()
-                            .unwrap_or_default(),
-                        grid: world.get::<Grid>(s).copied().unwrap_or_default(),
-                        points: world
-                            .get::<Points<LogicalContext>>(s)
-                            .copied()
-                            .unwrap_or_default(),
-                    }
-                } else {
-                    screen
-                };
-                let mut resolved = None;
-                if let Some(res) = world.get::<ResolvedConfiguration>(entity) {
-                    if let Some(r) = res.evaluate(stem, screen) {
-                        resolved = Some(
-                            r + world
-                                .get::<ResponsiveAnimationHook>(entity)
-                                .copied()
-                                .unwrap_or_default()
-                                .value(),
-                        );
-                    }
-                }
-                if let Some(r) = resolved {
-                    world.commands().entity(entity).insert(r);
-                    world.trigger_targets(Configure {}, entity);
-                }
-                let mut resolved = None;
-                if let Some(res) = world.get::<ResolvedPoints>(entity) {
-                    if let Some(r) = res.evaluate(stem, screen) {
-                        let diff = world
-                            .get::<ResponsivePointsAnimationHook>(entity)
-                            .copied()
-                            .unwrap_or_default()
-                            .value();
-                        resolved.replace(r + diff);
-                    }
-                }
-                if let Some(r) = resolved {
-                    world.commands().entity(entity).insert(r).insert(r.bbox());
-                    world.trigger_targets(Configure {}, entity);
-                }
-            }
-            if world.get::<EvaluateLocation>(entity).unwrap().skip_deps {
-                return;
-            }
-            if let Some(deps) = world.get::<Dependents>(entity).cloned() {
-                for dep in deps.0 {
-                    world
-                        .commands()
-                        .entity(dep)
-                        .insert(EvaluateLocation::recursive());
-                }
-            }
-        });
+        _hooks.on_insert(EvaluateLocation::on_insert);
     }
 }
 impl EvaluateLocation {

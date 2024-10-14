@@ -116,34 +116,37 @@ impl Component for Stem {
 pub(crate) struct Dependents(pub(crate) HashSet<Entity>);
 #[derive(Copy, Clone, Default)]
 pub struct EvaluateElevation {}
+impl EvaluateElevation {
+    pub(crate) fn on_insert(mut world: DeferredWorld, entity: Entity, _c: ComponentId) {
+        let current = if let Some(stem) = world.get::<Stem>(entity) {
+            if let Some(s) = stem.0 {
+                world.get::<RenderLayer>(s).copied().unwrap_or_default()
+            } else {
+                RenderLayer::default()
+            }
+        } else {
+            RenderLayer::default()
+        };
+        let resolved = RenderLayer::new(
+            current.0
+                + world
+                    .get::<Elevation>(entity)
+                    .copied()
+                    .unwrap_or_default()
+                    .0,
+        );
+        world.commands().entity(entity).insert(resolved);
+        if let Some(ds) = world.get::<Dependents>(entity).cloned() {
+            for d in ds.0 {
+                world.commands().entity(d).insert(EvaluateElevation {});
+            }
+        }
+    }
+}
 impl Component for EvaluateElevation {
     const STORAGE_TYPE: StorageType = SparseSet;
     fn register_component_hooks(_hooks: &mut ComponentHooks) {
-        _hooks.on_insert(|mut world: DeferredWorld, entity: Entity, _| {
-            let current = if let Some(stem) = world.get::<Stem>(entity) {
-                if let Some(s) = stem.0 {
-                    world.get::<RenderLayer>(s).copied().unwrap_or_default()
-                } else {
-                    RenderLayer::default()
-                }
-            } else {
-                RenderLayer::default()
-            };
-            let resolved = RenderLayer::new(
-                current.0
-                    + world
-                        .get::<Elevation>(entity)
-                        .copied()
-                        .unwrap_or_default()
-                        .0,
-            );
-            world.commands().entity(entity).insert(resolved);
-            if let Some(ds) = world.get::<Dependents>(entity).cloned() {
-                for d in ds.0 {
-                    world.commands().entity(d).insert(EvaluateElevation {});
-                }
-            }
-        });
+        _hooks.on_insert(EvaluateElevation::on_insert);
     }
 }
 #[derive(Event, Copy, Clone, Default)]
@@ -200,37 +203,38 @@ impl Default for Visibility {
 }
 #[derive(Default, Copy, Clone)]
 pub struct EvaluateVisibility {}
+impl EvaluateVisibility {
+    pub(crate) fn on_insert(mut world: DeferredWorld, entity: Entity, _: ComponentId) {
+        let stem = world.get::<Stem>(entity).copied().unwrap_or_default();
+        let inherited = if let Some(s) = stem.0 {
+            world.get::<Visibility>(s).copied().unwrap_or_default()
+        } else {
+            Visibility::default()
+        };
+        let current = world.get::<Visibility>(entity).copied().unwrap();
+        let resolved = if current.visible { inherited } else { current };
+        world.commands().entity(entity).insert(resolved);
+        if !resolved.visible {
+            if let Some(link) = world.get::<RenderLink>(entity).copied() {
+                world
+                    .resource_mut::<RenderRemoveQueue>()
+                    .queue
+                    .get_mut(&link)
+                    .unwrap()
+                    .insert(entity);
+            }
+        }
+        if let Some(ds) = world.get::<Dependents>(entity).cloned() {
+            for d in ds.0 {
+                world.commands().entity(d).insert(EvaluateVisibility {});
+            }
+        }
+    }
+}
 impl Component for EvaluateVisibility {
     const STORAGE_TYPE: StorageType = Table;
     fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_insert(
-            |mut world: DeferredWorld, entity: Entity, _c: ComponentId| {
-                let stem = world.get::<Stem>(entity).copied().unwrap_or_default();
-                let inherited = if let Some(s) = stem.0 {
-                    world.get::<Visibility>(s).copied().unwrap_or_default()
-                } else {
-                    Visibility::default()
-                };
-                let current = world.get::<Visibility>(entity).copied().unwrap();
-                let resolved = if current.visible { inherited } else { current };
-                world.commands().entity(entity).insert(resolved);
-                if !resolved.visible {
-                    if let Some(link) = world.get::<RenderLink>(entity).copied() {
-                        world
-                            .resource_mut::<RenderRemoveQueue>()
-                            .queue
-                            .get_mut(&link)
-                            .unwrap()
-                            .insert(entity);
-                    }
-                }
-                if let Some(ds) = world.get::<Dependents>(entity).cloned() {
-                    for d in ds.0 {
-                        world.commands().entity(d).insert(EvaluateVisibility {});
-                    }
-                }
-            },
-        );
+        hooks.on_insert(EvaluateVisibility::on_insert);
     }
 }
 #[derive(Copy, Clone)]
@@ -244,22 +248,21 @@ impl EvaluateCore {
     pub fn no_deps() -> Self {
         Self { full: false }
     }
+    pub(crate) fn on_insert(mut world: DeferredWorld, entity: Entity, _: ComponentId) {
+        let config = world.get::<EvaluateCore>(entity).copied().unwrap();
+        world
+            .commands()
+            .entity(entity)
+            .insert(EvaluateLocation {
+                skip_deps: !config.full,
+            })
+            .insert(EvaluateElevation::default())
+            .insert(EvaluateOpacity::default());
+    }
 }
 impl Component for EvaluateCore {
     const STORAGE_TYPE: StorageType = SparseSet;
     fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_insert(
-            |mut world: DeferredWorld, entity: Entity, _c: ComponentId| {
-                let config = world.get::<EvaluateCore>(entity).copied().unwrap();
-                world
-                    .commands()
-                    .entity(entity)
-                    .insert(EvaluateLocation {
-                        skip_deps: !config.full,
-                    })
-                    .insert(EvaluateElevation::default())
-                    .insert(EvaluateOpacity::default());
-            },
-        );
+        hooks.on_insert(EvaluateCore::on_insert);
     }
 }

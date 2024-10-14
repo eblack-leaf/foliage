@@ -40,7 +40,7 @@ impl Root for LeafModel {
         );
     }
 }
-pub(crate) const REGION_AREA: Coordinates = Coordinates::new(50.0, 50.0);
+pub(crate) const REGION_AREA: Coordinates = Coordinates::new(5.0, 5.0);
 pub(crate) fn configure_leaf_part(
     mut parts: Query<
         (Entity, &mut LeafPartComponent, &Section<LogicalContext>),

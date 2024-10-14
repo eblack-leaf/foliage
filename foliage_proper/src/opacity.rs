@@ -2,7 +2,7 @@ use crate::anim::{Animate, Interpolations};
 use crate::color::Color;
 use crate::leaf::{Dependents, Stem};
 use bevy_ecs::component::StorageType::SparseSet;
-use bevy_ecs::component::{Component, ComponentHooks, StorageType};
+use bevy_ecs::component::{Component, ComponentHooks, ComponentId, StorageType};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::world::DeferredWorld;
 
@@ -38,37 +38,40 @@ impl Opacity {
 }
 #[derive(Copy, Clone, Default)]
 pub struct EvaluateOpacity {}
-impl Component for EvaluateOpacity {
-    const STORAGE_TYPE: StorageType = SparseSet;
-    fn register_component_hooks(_hooks: &mut ComponentHooks) {
-        _hooks.on_insert(|mut world: DeferredWorld, entity: Entity, _| {
-            let inherited = if let Some(stem) = world.get::<Stem>(entity) {
-                if let Some(s) = stem.0 {
-                    if let Some(opacity) = world.get::<Opacity>(s) {
-                        opacity.value
-                    } else {
-                        1.0
-                    }
+impl EvaluateOpacity {
+    pub(crate) fn on_insert(mut world: DeferredWorld, entity: Entity, _c: ComponentId) {
+        let inherited = if let Some(stem) = world.get::<Stem>(entity) {
+            if let Some(s) = stem.0 {
+                if let Some(opacity) = world.get::<Opacity>(s) {
+                    opacity.value
                 } else {
                     1.0
                 }
             } else {
                 1.0
-            };
-            if let Some(current) = world.get::<Opacity>(entity).copied() {
-                if let Some(color) = world.get::<Color>(entity).copied() {
-                    let blended = current.value * inherited;
-                    world
-                        .commands()
-                        .entity(entity)
-                        .insert(color.with_alpha(blended));
-                }
             }
-            if let Some(ds) = world.get::<Dependents>(entity).cloned() {
-                for d in ds.0 {
-                    world.commands().entity(d).insert(EvaluateOpacity {});
-                }
+        } else {
+            1.0
+        };
+        if let Some(current) = world.get::<Opacity>(entity).copied() {
+            if let Some(color) = world.get::<Color>(entity).copied() {
+                let blended = current.value * inherited;
+                world
+                    .commands()
+                    .entity(entity)
+                    .insert(color.with_alpha(blended));
             }
-        });
+        }
+        if let Some(ds) = world.get::<Dependents>(entity).cloned() {
+            for d in ds.0 {
+                world.commands().entity(d).insert(EvaluateOpacity {});
+            }
+        }
+    }
+}
+impl Component for EvaluateOpacity {
+    const STORAGE_TYPE: StorageType = SparseSet;
+    fn register_component_hooks(_hooks: &mut ComponentHooks) {
+        _hooks.on_insert(EvaluateOpacity::on_insert);
     }
 }
