@@ -7,8 +7,9 @@ use crate::grid::responsive::{ResponsiveLocation, ResponsivePointBundle};
 use crate::leaf::{EvaluateVisibility, Remove, Visibility};
 use crate::time::OnEnd;
 use crate::twig::{Branch, Twig};
+use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::system::Commands;
+use bevy_ecs::system::{Commands, IntoObserverSystem};
 use bevy_ecs::world::World;
 use std::any::TypeId;
 
@@ -92,7 +93,7 @@ impl<'a, 'w, 's> SequenceHandle<'a, 'w, 's> {
         );
         self.tree.spawn(anim).id()
     }
-    pub fn animate_location(&mut self, animation: Animation<ResponsiveLocation>) {
+    pub fn animate_location(&mut self, animation: Animation<ResponsiveLocation>) -> Entity {
         let mut converted = Animation::new(ResponsiveAnimationHook::default());
         converted.anim_target = animation.anim_target;
         converted.sequence_time_range = animation.sequence_time_range;
@@ -104,8 +105,9 @@ impl<'a, 'w, 's> SequenceHandle<'a, 'w, 's> {
                 base: animation.a.base,
                 exceptions: animation.a.exceptions,
             });
+        anim
     }
-    pub fn animate_points(&mut self, animation: Animation<ResponsivePointBundle>) {
+    pub fn animate_points(&mut self, animation: Animation<ResponsivePointBundle>) -> Entity {
         let mut converted = Animation::new(ResponsivePointsAnimationHook::default());
         converted.anim_target = animation.anim_target;
         converted.sequence_time_range = animation.sequence_time_range;
@@ -115,8 +117,9 @@ impl<'a, 'w, 's> SequenceHandle<'a, 'w, 's> {
             base_points: animation.a.base_points,
             exceptions: animation.a.exceptions,
         });
+        anim
     }
-    pub fn on_end(&mut self, on_end: OnEnd) {
-        self.sequence.on_end.replace(on_end);
+    pub fn on_end<O: IntoObserverSystem<OnEnd, B, M>, B: Bundle, M>(&mut self, o: O) {
+        self.tree.entity(self.sequence_entity).observe(o);
     }
 }
