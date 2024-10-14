@@ -41,7 +41,9 @@ impl<'w, 's> EcsExtension for Tree<'w, 's> {
         B::grow(twig, self)
     }
     fn visibility(&mut self, leaf: Entity, visibility: bool) {
-        self.entity(leaf).insert(Visibility::new(visibility)).insert(EvaluateVisibility{});
+        self.entity(leaf)
+            .insert(Visibility::new(visibility))
+            .insert(EvaluateVisibility {});
     }
     fn remove(&mut self, leaf: Entity) {
         self.trigger_targets(Remove {}, leaf);
@@ -62,7 +64,9 @@ impl EcsExtension for World {
         h
     }
     fn visibility(&mut self, leaf: Entity, visibility: bool) {
-        self.entity_mut(leaf).insert(Visibility::new(visibility)).insert(EvaluateVisibility{});
+        self.entity_mut(leaf)
+            .insert(Visibility::new(visibility))
+            .insert(EvaluateVisibility {});
     }
 
     fn remove(&mut self, leaf: Entity) {

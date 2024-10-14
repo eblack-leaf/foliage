@@ -340,15 +340,18 @@ pub(crate) fn animate<A: Animate + Component>(
                 if TypeId::of::<A>() == TypeId::of::<ResponsiveAnimationHook>()
                     || TypeId::of::<A>() == TypeId::of::<ResponsivePointsAnimationHook>()
                 {
-                    tree.entity(animation.animation_target).insert(EvaluateLocation::full());
+                    tree.entity(animation.animation_target)
+                        .insert(EvaluateLocation::full());
                 }
                 if TypeId::of::<A>() == TypeId::of::<Opacity>()
                     || TypeId::of::<A>() == TypeId::of::<Color>()
                 {
-                    tree.entity(animation.animation_target).insert(EvaluateOpacity{});
+                    tree.entity(animation.animation_target)
+                        .insert(EvaluateOpacity {});
                 }
                 if TypeId::of::<A>() == TypeId::of::<Elevation>() {
-                    tree.entity(animation.animation_target).insert(EvaluateElevation{});
+                    tree.entity(animation.animation_target)
+                        .insert(EvaluateElevation {});
                 }
             } else {
                 orphaned = true;

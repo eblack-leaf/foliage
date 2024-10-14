@@ -2,6 +2,7 @@ use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateContext, CoordinateUnit, LogicalContext};
 use bevy_ecs::prelude::Component;
+use std::fmt::Display;
 use std::ops::{Add, Mul, Sub};
 
 #[derive(Debug, Clone, Default, Component, Copy)]
@@ -13,6 +14,14 @@ impl<Context: CoordinateContext> Points<Context> {
         Self {
             data: [Position::<Context>::default(); 4],
         }
+    }
+}
+impl<Context: CoordinateContext> Display for Points<Context> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!(
+            "{}:{}:{}:{}",
+            self.data[0], self.data[1], self.data[2], self.data[3]
+        ))
     }
 }
 impl<Context: CoordinateContext> Points<Context> {

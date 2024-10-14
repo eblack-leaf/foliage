@@ -11,7 +11,7 @@ use foliage::grid::responsive::evaluate::EvaluateLocation;
 use foliage::grid::responsive::ResponsiveLocation;
 use foliage::grid::unit::TokenUnit;
 use foliage::interaction::OnClick;
-use foliage::leaf::{EvaluateElevation, EvaluateVisibility, Leaf};
+use foliage::leaf::{Evaluate, EvaluateElevation, EvaluateVisibility, Leaf};
 use foliage::opacity::EvaluateOpacity;
 use foliage::panel::Rounding;
 use foliage::style::Coloring;
@@ -75,10 +75,7 @@ impl Branch for Home {
                     .height(250.px()),
             )
             .observe(observant)
-            .insert(EvaluateLocation::full())
-            .insert(EvaluateElevation::default())
-            .insert(EvaluateOpacity::default())
-            .insert(EvaluateVisibility::default())
+            .insert(Evaluate::full())
             .id();
         tree.visibility(concepts_button, false);
         let usage_button = tree
@@ -90,6 +87,7 @@ impl Branch for Home {
                 )
                 .with_text("USAGE", FontSize::new(14)),
             )
+            .insert(Evaluate::full())
             .id();
         let name = tree
             .spawn(Leaf::new().elevation(1))
@@ -101,6 +99,7 @@ impl Branch for Home {
                     .width(75.percent().width().of(screen()))
                     .height(64.px()),
             )
+            .insert(Evaluate::full())
             .id();
         let leaf_model = tree.branch(Twig::new(LeafModel::args()).elevation(10));
         HomeHandle {

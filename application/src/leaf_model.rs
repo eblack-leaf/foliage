@@ -11,7 +11,7 @@ use foliage::elm::{Elm, ExternalStage};
 use foliage::grid::aspect::stem;
 use foliage::grid::responsive::ResponsiveLocation;
 use foliage::grid::unit::TokenUnit;
-use foliage::leaf::Leaf;
+use foliage::leaf::{Evaluate, Leaf};
 use foliage::panel::{Panel, Rounding};
 use foliage::shape::line::Line;
 use foliage::tree::{EcsExtension, Tree};
@@ -126,7 +126,7 @@ pub(crate) fn configure_leaf_part(
                     );
             }
         }
-
+        tree.entity(entity).insert(Evaluate::full());
         // if no/less sub-entities => spawn how many need + draw-sequence + box-fade-in
         // if more sub-entities => remove excess => queue_remove
     }
@@ -172,7 +172,9 @@ impl Branch for LeafPartModel {
     type Handle = Entity;
     fn grow(twig: Twig<Self>, tree: &mut Tree) -> Self::Handle {
         let root = tree.spawn(Leaf::new().elevation(-1).stem(twig.stem)).id();
-        tree.entity(root).insert(LeafPartComponent::new());
+        tree.entity(root)
+            .insert(LeafPartComponent::new())
+            .insert(Evaluate::full());
         // start part-stem-line sequence
         // spawn leaf-part-components on root with correct values
         root
@@ -184,6 +186,7 @@ impl Branch for LeafModelArgs {
         let this = tree
             .spawn(Leaf::new().elevation(twig.elevation).stem(twig.stem))
             .insert(twig.res)
+            .insert(Evaluate::full())
             .id();
         let one = tree.branch(
             Twig::new(LeafPartModel {})
@@ -230,6 +233,7 @@ impl Branch for LeafModelArgs {
                     .point_bx(stem().center_x())
                     .point_by(5.percent().from(stem())),
             )
+            .insert(Evaluate::full())
             .id();
         tree.entity(stem_line)
             .insert(Line::new(STEM_LINE_WEIGHT, Grey::plus_three()));

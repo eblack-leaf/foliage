@@ -7,9 +7,10 @@ use crate::coordinate::points::Points;
 use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
 use crate::differential::{RenderLink, RenderRemoveQueue};
+use crate::grid::responsive::evaluate::EvaluateLocation;
 use crate::grid::Grid;
 use crate::interaction::ClickInteractionListener;
-use crate::opacity::Opacity;
+use crate::opacity::{EvaluateOpacity, Opacity};
 use crate::tree::Tree;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::change_detection::ResMut;
@@ -230,36 +231,33 @@ impl Component for EvaluateVisibility {
         );
     }
 }
-// pub(crate) fn evaluate_visibility(
-//     trigger: Trigger<EvaluateVisibility>,
-//     stems: Query<&Stem>,
-//     mut query: Query<&mut Visibility>,
-//     dependents: Query<&Dependents>,
-//     links: Query<&RenderLink>,
-//     mut remove_queue: ResMut<RenderRemoveQueue>,
-//     mut tree: Tree,
-// ) {
-//     let entity = trigger.entity();
-//     let stem = stems.get(entity).copied().unwrap_or_default();
-//     let value = if let Some(s) = stem.0 {
-//         query.get(s).copied().unwrap()
-//     } else {
-//         Visibility::default()
-//     };
-//     if let Ok(mut visibility) = query.get_mut(entity) {
-//         visibility.visible = value.visible;
-//         if !value.visible {
-//             if let Ok(link) = links.get(trigger.entity()) {
-//                 remove_queue.queue.get_mut(link).unwrap().insert(entity);
-//             }
-//         }
-//         if let Ok(deps) = dependents.get(trigger.entity()) {
-//             if !deps.0.is_empty() {
-//                 tree.trigger_targets(
-//                     EvaluateVisibility {},
-//                     deps.0.iter().map(|e| *e).collect::<Vec<Entity>>(),
-//                 );
-//             }
-//         };
-//     }
-// }
+#[derive(Copy, Clone)]
+pub struct Evaluate {
+    full: bool,
+}
+impl Evaluate {
+    pub fn full() -> Self {
+        Self { full: true }
+    }
+    pub fn no_deps() -> Self {
+        Self { full: false }
+    }
+}
+impl Component for Evaluate {
+    const STORAGE_TYPE: StorageType = SparseSet;
+    fn register_component_hooks(hooks: &mut ComponentHooks) {
+        hooks.on_insert(
+            |mut world: DeferredWorld, entity: Entity, _c: ComponentId| {
+                let config = world.get::<Evaluate>(entity).copied().unwrap();
+                world
+                    .commands()
+                    .entity(entity)
+                    .insert(EvaluateLocation {
+                        skip_deps: !config.full,
+                    })
+                    .insert(EvaluateElevation::default())
+                    .insert(EvaluateOpacity::default());
+            },
+        );
+    }
+}

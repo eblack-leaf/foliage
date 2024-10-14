@@ -25,10 +25,7 @@ use crate::ginkgo::{Ginkgo, ScaleFactor};
 use crate::icon::{Icon, IconId, IconRequest};
 use crate::image::Image;
 use crate::interaction::{ClickInteractionListener, KeyboardAdapter, MouseAdapter, TouchAdapter};
-use crate::leaf::{
-    render_link_on_remove, trigger_interactions_enable,
-    triggered_remove,
-};
+use crate::leaf::{render_link_on_remove, trigger_interactions_enable, triggered_remove};
 use crate::panel::Panel;
 use crate::shape::line::Line;
 use crate::shape::Shape;

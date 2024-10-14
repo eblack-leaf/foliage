@@ -44,7 +44,8 @@ pub(crate) fn anim_calc(
     let last = actual.get(trigger.entity()).copied().unwrap();
     let last_pts = pts.get(trigger.entity()).copied().unwrap();
     tree.entity(trigger.entity()).insert(ConfigureFromLayout {});
-    tree.entity(trigger.entity()).insert(EvaluateLocation::no_deps());
+    tree.entity(trigger.entity())
+        .insert(EvaluateLocation::no_deps());
     tree.trigger_targets(CalcDiff { last, last_pts }, trigger.entity());
 }
 

@@ -24,7 +24,7 @@ pub(crate) struct ReferentialData {
 
 #[derive(Copy, Clone)]
 pub struct EvaluateLocation {
-    skip_deps: bool,
+    pub(crate) skip_deps: bool,
 }
 impl Component for EvaluateLocation {
     const STORAGE_TYPE: StorageType = SparseSet;
@@ -61,6 +61,7 @@ impl Component for EvaluateLocation {
                                 .unwrap_or_default()
                                 .value(),
                         );
+                        tracing::trace!("resolved: {}", resolved.unwrap());
                     }
                 }
                 if let Some(r) = resolved {
@@ -80,6 +81,7 @@ impl Component for EvaluateLocation {
                                 .unwrap_or_default()
                                 .value(),
                         );
+                        tracing::trace!("resolved-pts: {}", resolved.unwrap());
                     }
                 }
                 if let Some(r) = resolved {
