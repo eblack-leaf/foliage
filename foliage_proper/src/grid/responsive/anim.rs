@@ -65,12 +65,14 @@ pub(crate) fn calc_diff(
     if let Ok(mut diff) = diffs.get_mut(trigger.entity()) {
         let last = trigger.event().last;
         let new = calculated.get(trigger.entity()).copied().unwrap();
-        diff.section = new - last;
+        let delta = last - new;
+        diff.section = delta;
     }
     if let Ok(mut diff) = pt_diffs.get_mut(trigger.entity()) {
         let last = trigger.event().last_pts;
         let new = calc_pts.get(trigger.entity()).copied().unwrap();
-        diff.points = new - last;
+        let delta = last - new;
+        diff.points = delta;
     }
 }
 

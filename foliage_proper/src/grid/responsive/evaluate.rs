@@ -61,7 +61,6 @@ impl Component for EvaluateLocation {
                                 .unwrap_or_default()
                                 .value(),
                         );
-                        tracing::trace!("resolved: {}", resolved.unwrap());
                     }
                 }
                 if let Some(r) = resolved {
@@ -74,14 +73,12 @@ impl Component for EvaluateLocation {
                 let mut resolved = None;
                 if let Some(res) = world.get::<ResolvedPoints>(entity) {
                     if let Some(r) = res.evaluate(stem, screen) {
-                        resolved.replace(
-                            r + world
-                                .get::<ResponsivePointsAnimationHook>(entity)
-                                .copied()
-                                .unwrap_or_default()
-                                .value(),
-                        );
-                        tracing::trace!("resolved-pts: {}", resolved.unwrap());
+                        let diff = world
+                            .get::<ResponsivePointsAnimationHook>(entity)
+                            .copied()
+                            .unwrap_or_default()
+                            .value();
+                        resolved.replace(r + diff);
                     }
                 }
                 if let Some(r) = resolved {

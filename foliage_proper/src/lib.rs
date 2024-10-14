@@ -22,6 +22,7 @@ use crate::coordinate::{Coordinates, DeviceContext};
 use crate::elm::{Ecs, Elm};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::{Ginkgo, ScaleFactor};
+use crate::grid::responsive::anim::{anim_calc, calc_diff};
 use crate::icon::{Icon, IconId, IconRequest};
 use crate::image::Image;
 use crate::interaction::{ClickInteractionListener, KeyboardAdapter, MouseAdapter, TouchAdapter};
@@ -107,6 +108,8 @@ impl Foliage {
         this.elm.ecs.observe(trigger_interactions_enable);
         this.elm.ecs.observe(triggered_remove);
         this.elm.ecs.observe(render_link_on_remove);
+        this.elm.ecs.observe(anim_calc);
+        this.elm.ecs.observe(calc_diff);
         this
     }
     pub fn enable_animation<A: Animate + Component>(&mut self) {

@@ -206,13 +206,15 @@ impl Component for EvaluateVisibility {
         hooks.on_insert(
             |mut world: DeferredWorld, entity: Entity, _c: ComponentId| {
                 let stem = world.get::<Stem>(entity).copied().unwrap_or_default();
-                let value = if let Some(s) = stem.0 {
+                let inherited = if let Some(s) = stem.0 {
                     world.get::<Visibility>(s).copied().unwrap_or_default()
                 } else {
                     Visibility::default()
                 };
-                world.commands().entity(entity).insert(value);
-                if !value.visible {
+                let current = world.get::<Visibility>(entity).copied().unwrap();
+                let resolved = if current.visible { inherited } else { current };
+                world.commands().entity(entity).insert(resolved);
+                if !resolved.visible {
                     if let Some(link) = world.get::<RenderLink>(entity).copied() {
                         world
                             .resource_mut::<RenderRemoveQueue>()

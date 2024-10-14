@@ -85,7 +85,10 @@ impl Button {
             .spawn(Leaf::default().stem(Some(entity)).elevation(-1))
             .insert(Icon::new(args.icon_id, args.coloring.foreground))
             .id();
-        let text = world.commands().spawn(Leaf::new()).id();
+        let text = world
+            .commands()
+            .spawn(Leaf::new().stem(Some(entity)).elevation(-1))
+            .id();
         if args.font_size.is_some() {
             world.commands().entity(text).insert(Text::new(
                 args.text_value.unwrap_or_default().0,

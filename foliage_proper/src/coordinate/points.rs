@@ -5,7 +5,7 @@ use bevy_ecs::prelude::Component;
 use std::fmt::Display;
 use std::ops::{Add, Mul, Sub};
 
-#[derive(Debug, Clone, Default, Component, Copy)]
+#[derive(Debug, Clone, Default, Component, Copy, PartialEq)]
 pub struct Points<Context: CoordinateContext> {
     pub data: [Position<Context>; 4],
 }
@@ -58,7 +58,7 @@ impl<Context: CoordinateContext> Mul<CoordinateUnit> for Points<Context> {
     fn mul(self, rhs: CoordinateUnit) -> Self::Output {
         let mut new = Points::default();
         for i in 0..4 {
-            new.data[i] = new.data[i] * rhs;
+            new.data[i] = self.data[i] * rhs;
         }
         new
     }

@@ -6,13 +6,11 @@ use foliage::bevy_ecs::event::Event;
 use foliage::bevy_ecs::prelude::{IntoSystemSetConfigs, Resource, Trigger};
 use foliage::color::{Grey, Monochromatic};
 use foliage::elm::{Elm, ExternalStage};
-use foliage::grid::aspect::screen;
-use foliage::grid::responsive::evaluate::EvaluateLocation;
+use foliage::grid::aspect::{screen, stem};
 use foliage::grid::responsive::ResponsiveLocation;
 use foliage::grid::unit::TokenUnit;
 use foliage::interaction::OnClick;
-use foliage::leaf::{Evaluate, EvaluateElevation, EvaluateVisibility, Leaf};
-use foliage::opacity::EvaluateOpacity;
+use foliage::leaf::{Evaluate, Leaf};
 use foliage::panel::Rounding;
 use foliage::style::Coloring;
 use foliage::text::{FontSize, Text};
@@ -69,7 +67,7 @@ impl Branch for Home {
             )
             .insert(
                 ResponsiveLocation::new()
-                    .top(10.px())
+                    .top(10.percent().height().from(stem()))
                     .left(10.px())
                     .width(250.px())
                     .height(250.px()),
@@ -101,7 +99,15 @@ impl Branch for Home {
             )
             .insert(Evaluate::full())
             .id();
-        let leaf_model = tree.branch(Twig::new(LeafModel::args()).elevation(10));
+        let leaf_model = tree.branch(
+            Twig::new(LeafModel::args()).elevation(10).responsive(
+                ResponsiveLocation::new()
+                    .left(screen().left())
+                    .top(screen().top())
+                    .right(screen().right())
+                    .bottom(screen().bottom()),
+            ),
+        );
         HomeHandle {
             concepts_button,
             usage_button,

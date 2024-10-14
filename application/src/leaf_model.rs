@@ -40,7 +40,7 @@ impl Root for LeafModel {
         );
     }
 }
-pub(crate) const REGION_AREA: Coordinates = Coordinates::new(20.0, 20.0);
+pub(crate) const REGION_AREA: Coordinates = Coordinates::new(40.0, 40.0);
 pub(crate) fn configure_leaf_part(
     mut parts: Query<
         (Entity, &mut LeafPartComponent, &Section<LogicalContext>),
@@ -173,6 +173,7 @@ impl Branch for LeafPartModel {
     fn grow(twig: Twig<Self>, tree: &mut Tree) -> Self::Handle {
         let root = tree.spawn(Leaf::new().elevation(-1).stem(twig.stem)).id();
         tree.entity(root)
+            .insert(twig.res)
             .insert(LeafPartComponent::new())
             .insert(Evaluate::full());
         // start part-stem-line sequence
@@ -241,9 +242,9 @@ impl Branch for LeafModelArgs {
             seq.animate_points(
                 Animation::new(
                     ResponsiveLocation::points()
-                        .point_ax(stem().center_x())
+                        .point_ax(stem().center_x() + 0.px())
                         .point_ay(5.percent().from(stem()))
-                        .point_bx(stem().center_x())
+                        .point_bx(stem().center_x() + 0.px())
                         .point_by(95.percent().from(stem())),
                 )
                 .targeting(stem_line)
