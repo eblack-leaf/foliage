@@ -91,7 +91,7 @@ impl Component for EvaluateLocation {
                     world
                         .commands()
                         .entity(dep)
-                        .insert(EvaluateLocation::full());
+                        .insert(EvaluateLocation::recursive());
                 }
             }
         });
@@ -101,7 +101,7 @@ impl EvaluateLocation {
     pub fn no_deps() -> Self {
         Self { skip_deps: true }
     }
-    pub fn full() -> Self {
+    pub fn recursive() -> Self {
         Self { skip_deps: false }
     }
 }

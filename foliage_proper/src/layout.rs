@@ -135,7 +135,7 @@ pub(crate) fn viewport_changes_layout(
             }
         }
         for root in roots {
-            tree.entity(root).insert(EvaluateLocation::full());
+            tree.entity(root).insert(EvaluateLocation::recursive());
         }
     }
 }

@@ -2,7 +2,7 @@ use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
 use crate::icon::{Icon, IconId};
 use crate::interaction::ClickInteractionListener;
-use crate::leaf::{Evaluate, Leaf};
+use crate::leaf::{EvaluateCore, Leaf};
 use crate::panel::{Panel, Rounding};
 use crate::style::{Coloring, InteractiveColor};
 use crate::text::{FontSize, Text, TextValue};
@@ -74,12 +74,12 @@ impl Button {
             .commands()
             .spawn(Leaf::default().stem(Some(entity)).elevation(-1))
             .insert(Icon::new(args.icon_id, args.coloring.foreground))
-            .insert(Evaluate::full())
+            .insert(EvaluateCore::recursive())
             .id();
         let text = world
             .commands()
             .spawn(Leaf::new().stem(Some(entity)).elevation(-1))
-            .insert(Evaluate::full())
+            .insert(EvaluateCore::recursive())
             .id();
         world
             .commands()
@@ -90,7 +90,7 @@ impl Button {
                     .with_linked(vec![icon, text]),
             )
             .insert(interaction_listener)
-            .insert(Evaluate::full())
+            .insert(EvaluateCore::recursive())
             .observe(configure);
         let based = !args.font_size.is_some();
         if args.font_size.is_some() {

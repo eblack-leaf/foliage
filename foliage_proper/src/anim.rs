@@ -341,7 +341,7 @@ pub(crate) fn animate<A: Animate + Component>(
                     || TypeId::of::<A>() == TypeId::of::<ResponsivePointsAnimationHook>()
                 {
                     tree.entity(animation.animation_target)
-                        .insert(EvaluateLocation::full());
+                        .insert(EvaluateLocation::recursive());
                 }
                 if TypeId::of::<A>() == TypeId::of::<Opacity>()
                     || TypeId::of::<A>() == TypeId::of::<Color>()

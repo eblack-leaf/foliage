@@ -10,7 +10,7 @@ use foliage::grid::aspect::{screen, stem};
 use foliage::grid::responsive::ResponsiveLocation;
 use foliage::grid::unit::TokenUnit;
 use foliage::interaction::OnClick;
-use foliage::leaf::{Evaluate, Leaf};
+use foliage::leaf::{EvaluateCore, Leaf};
 use foliage::panel::Rounding;
 use foliage::style::Coloring;
 use foliage::text::{FontSize, Text};
@@ -73,7 +73,7 @@ impl Branch for Home {
                     .height(50.px()),
             )
             .observe(observant)
-            .insert(Evaluate::full())
+            .insert(EvaluateCore::recursive())
             .id();
         tree.visibility(concepts_button, true);
         let usage_button = tree
@@ -85,7 +85,7 @@ impl Branch for Home {
                 )
                 .with_text("USAGE", FontSize::new(14)),
             )
-            .insert(Evaluate::full())
+            .insert(EvaluateCore::recursive())
             .id();
         let name = tree
             .spawn(Leaf::new().elevation(1))
@@ -97,7 +97,7 @@ impl Branch for Home {
                     .width(75.percent().width().of(screen()))
                     .height(64.px()),
             )
-            .insert(Evaluate::full())
+            .insert(EvaluateCore::recursive())
             .id();
         let leaf_model = tree.branch(
             Twig::new(LeafModel::args()).elevation(10).responsive(

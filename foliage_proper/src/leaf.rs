@@ -235,23 +235,23 @@ impl Component for EvaluateVisibility {
     }
 }
 #[derive(Copy, Clone)]
-pub struct Evaluate {
+pub struct EvaluateCore {
     full: bool,
 }
-impl Evaluate {
-    pub fn full() -> Self {
+impl EvaluateCore {
+    pub fn recursive() -> Self {
         Self { full: true }
     }
     pub fn no_deps() -> Self {
         Self { full: false }
     }
 }
-impl Component for Evaluate {
+impl Component for EvaluateCore {
     const STORAGE_TYPE: StorageType = SparseSet;
     fn register_component_hooks(hooks: &mut ComponentHooks) {
         hooks.on_insert(
             |mut world: DeferredWorld, entity: Entity, _c: ComponentId| {
-                let config = world.get::<Evaluate>(entity).copied().unwrap();
+                let config = world.get::<EvaluateCore>(entity).copied().unwrap();
                 world
                     .commands()
                     .entity(entity)
