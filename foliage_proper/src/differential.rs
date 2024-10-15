@@ -7,6 +7,7 @@ use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Query, ResMut, Resource};
 
 use crate::ash::Render;
+use crate::image::ImageFill;
 use crate::leaf::Visibility;
 
 #[derive(Component, Clone, Eq, PartialEq, Hash, Copy)]
@@ -107,6 +108,9 @@ pub(crate) fn differential<D: Component + PartialEq + Clone + Send + Sync + 'sta
                 .unwrap()
                 .insert(entity, d.clone());
             if different {
+                if TypeId::of::<D>() == TypeId::of::<ImageFill>() {
+                    tracing::trace!("e: {:?} image-fill", entity);
+                }
                 render_queue
                     .queue
                     .get_mut(link)

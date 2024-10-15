@@ -348,6 +348,7 @@ impl Render for Image {
         for entity in queue_handle.read_removes::<Self>() {
             let id = renderer.resource_handle.entity_to_image.remove(&entity);
             if let Some(id) = id {
+                tracing::trace!("queue-remove: {:?} {:?}", entity, id);
                 renderer
                     .resource_handle
                     .groups
@@ -448,6 +449,7 @@ impl Render for Image {
                 .unwrap()
                 .instances
                 .clear();
+            tracing::trace!("old-keys: {:?}", old_keys);
             for old in old_keys {
                 renderer.resource_handle.entity_to_image.remove(&old);
             }

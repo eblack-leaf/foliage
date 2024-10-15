@@ -60,6 +60,13 @@ impl EvaluateOpacity {
         if let Some(current) = world.get::<Opacity>(entity).copied() {
             if let Some(color) = world.get::<Color>(entity).copied() {
                 let blended = current.value * inherited;
+                tracing::trace!(
+                    "blended = {} * {} = {} @ {:?}",
+                    current.value,
+                    inherited,
+                    blended,
+                    entity
+                );
                 world
                     .commands()
                     .entity(entity)

@@ -81,6 +81,7 @@ impl Button {
             .spawn(Leaf::new().stem(Some(entity)).elevation(-1))
             .insert(EvaluateCore::recursive())
             .id();
+        tracing::trace!("icon: {:?} text: {:?}", icon, text);
         world
             .commands()
             .entity(entity)

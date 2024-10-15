@@ -285,7 +285,7 @@ impl Elm {
         if !self.ecs.contains_resource::<RetrieveLimiter<B>>() {
             self.scheduler.main.add_systems((
                 on_retrieve::<B>.in_set(InternalStage::Clean),
-                on_retrieve::<B>.in_set(InternalStage::SecondClean),
+                // on_retrieve::<B>.in_set(InternalStage::SecondClean),
             ));
             self.ecs.insert_resource(RetrieveLimiter::<B>::default());
         }

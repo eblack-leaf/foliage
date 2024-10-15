@@ -175,6 +175,7 @@ pub(crate) fn render_link_on_remove(
     mut links: Query<&RenderLink>,
     mut remove_queue: ResMut<RenderRemoveQueue>,
 ) {
+    tracing::trace!("removing link on {:?}", trigger.entity());
     let links = links.get(trigger.entity()).unwrap();
     remove_queue
         .queue

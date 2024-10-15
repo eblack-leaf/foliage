@@ -129,6 +129,7 @@ impl<Key: Hash + Eq + Copy + Clone + Debug> Instances<Key> {
     }
     pub fn queue_remove(&mut self, key: Key) {
         if self.has_key(&key) {
+            tracing::trace!("queue-remove for {:?}", key);
             self.removal_queue.insert(key);
             self.clipping_contexts.remove(&key);
             self.changed = true;
