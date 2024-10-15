@@ -1,3 +1,4 @@
+#![allow(dead_code, unused)]
 pub use bevy_ecs;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::prelude::{Component, Entity, Event, Resource};

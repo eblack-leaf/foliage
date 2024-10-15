@@ -80,7 +80,8 @@ pub(crate) struct AnimationTime {
 }
 impl AnimationTime {
     pub(crate) fn time_delta(&mut self, fd: TimeDelta) -> f32 {
-        self.accumulated_time += fd;
+        self.accumulated_time +=
+            fd - TimeDelta::from_millis(3 * (fd.as_millis() as f64 / 4.0) as u64);
         let delta = self.accumulated_time.as_millis() as f32 / self.total_time.as_millis() as f32;
         delta.clamp(0.0, 1.0)
     }

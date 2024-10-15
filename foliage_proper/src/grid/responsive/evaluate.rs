@@ -52,13 +52,15 @@ impl EvaluateLocation {
             let mut resolved = None;
             if let Some(res) = world.get::<ResolvedConfiguration>(entity) {
                 if let Some(r) = res.evaluate(stem, screen) {
-                    resolved = Some(
-                        r + world
-                            .get::<ResponsiveAnimationHook>(entity)
-                            .copied()
-                            .unwrap_or_default()
-                            .value(),
-                    );
+                    let diff = world
+                        .get::<ResponsiveAnimationHook>(entity)
+                        .copied()
+                        .unwrap_or_default()
+                        .value();
+                    resolved = Some(r + diff);
+                    if diff != Section::default() {
+                        // tracing::trace!("stem: {} w/ diff: {} = resolved: {}", stem.section, diff, resolved.unwrap());
+                    }
                 }
             }
             if let Some(r) = resolved {

@@ -66,6 +66,13 @@ pub(crate) fn calc_diff(
         let last = trigger.event().last;
         let new = calculated.get(trigger.entity()).copied().unwrap();
         let delta = last - new;
+        tracing::trace!(
+            "last: {} - new: {} = d: {} @ {:?}",
+            last,
+            new,
+            delta,
+            trigger.entity()
+        );
         diff.section = delta;
     }
     if let Ok(mut diff) = pt_diffs.get_mut(trigger.entity()) {

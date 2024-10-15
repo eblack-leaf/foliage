@@ -60,7 +60,7 @@ pub(crate) fn configure_leaf_part(
                 let e = tree
                     .spawn(Leaf::new().elevation(1).stem(Some(entity)))
                     .insert(Line::new(BRANCH_GRID_WEIGHT, Grey::plus_three()))
-                    .insert(EvaluateVisibility {})
+                    .insert(EvaluateVisibility::recursive())
                     .id();
                 part.lines_present.insert(x_identifier, e);
             }
@@ -82,7 +82,7 @@ pub(crate) fn configure_leaf_part(
                     let e = tree
                         .spawn(Leaf::new().elevation(1).stem(Some(entity)))
                         .insert(Line::new(BRANCH_GRID_WEIGHT, Grey::plus_three()))
-                        .insert(EvaluateVisibility {})
+                        .insert(EvaluateVisibility::recursive())
                         .id();
                     part.lines_present.insert(y_identifier, e);
                 }
@@ -105,7 +105,7 @@ pub(crate) fn configure_leaf_part(
                     let e = tree
                         .spawn(Leaf::new().elevation(1).stem(Some(entity)))
                         .insert(Panel::new(Rounding::all(0.0), Orange::minus_one()))
-                        .insert(EvaluateVisibility {})
+                        .insert(EvaluateVisibility::recursive())
                         .id();
                     part.boxes_present.insert(box_identifier, e);
                 }

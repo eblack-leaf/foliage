@@ -17,7 +17,7 @@ pub struct Section<Context: CoordinateContext> {
 }
 impl<Context: CoordinateContext> Display for Section<Context> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{}:{}", self.position, self.area))
+        f.write_fmt(format_args!("{}|{}", self.position, self.area))
     }
 }
 #[repr(C)]
