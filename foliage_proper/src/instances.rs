@@ -170,6 +170,7 @@ impl<Key: Hash + Eq + Copy + Clone + Debug> Instances<Key> {
         orders.sort();
         orders.reverse();
         for o in orders {
+            tracing::trace!("removing: {:?}", o);
             self.remove(o);
         }
     }

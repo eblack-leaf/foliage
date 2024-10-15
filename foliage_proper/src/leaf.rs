@@ -202,9 +202,25 @@ impl Default for Visibility {
     }
 }
 #[derive(Default, Copy, Clone)]
-pub struct EvaluateVisibility {}
+pub struct EvaluateVisibility {
+    first: bool,
+    recursive: bool,
+}
 impl EvaluateVisibility {
+    pub fn recursive() -> Self {
+        Self {
+            first: true,
+            recursive: true,
+        }
+    }
+    pub fn no_deps() -> Self {
+        Self {
+            first: true,
+            recursive: false,
+        }
+    }
     pub(crate) fn on_insert(mut world: DeferredWorld, entity: Entity, _: ComponentId) {
+        let value = world.get::<EvaluateVisibility>(entity).copied().unwrap();
         let stem = world.get::<Stem>(entity).copied().unwrap_or_default();
         let inherited = if let Some(s) = stem.0 {
             world.get::<Visibility>(s).copied().unwrap_or_default()
@@ -212,7 +228,13 @@ impl EvaluateVisibility {
             Visibility::default()
         };
         let current = world.get::<Visibility>(entity).copied().unwrap();
-        let resolved = if current.visible { inherited } else { current };
+        let resolved = if value.first { current } else { inherited };
+        tracing::trace!(
+            "c: {} i: {} r: {}",
+            current.visible,
+            inherited.visible,
+            resolved.visible
+        );
         world.commands().entity(entity).insert(resolved);
         if !resolved.visible {
             if let Some(link) = world.get::<RenderLink>(entity).copied() {
@@ -224,9 +246,15 @@ impl EvaluateVisibility {
                     .insert(entity);
             }
         }
+        if !value.recursive {
+            return;
+        }
         if let Some(ds) = world.get::<Dependents>(entity).cloned() {
             for d in ds.0 {
-                world.commands().entity(d).insert(EvaluateVisibility {});
+                world.commands().entity(d).insert(EvaluateVisibility {
+                    first: false,
+                    recursive: true,
+                });
             }
         }
     }

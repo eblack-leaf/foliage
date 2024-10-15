@@ -22,7 +22,11 @@ impl Animate for Opacity {
 pub struct Opacity {
     value: f32,
 }
-
+impl From<f32> for Opacity {
+    fn from(value: f32) -> Self {
+        Opacity { value }
+    }
+}
 impl Default for Opacity {
     fn default() -> Self {
         Self::new(1.0)
