@@ -10,9 +10,11 @@ use crate::grid::responsive::{
 };
 use crate::tree::Tree;
 use bevy_ecs::component::Component;
+use bevy_ecs::entity::Entity;
 use bevy_ecs::event::Event;
 use bevy_ecs::observer::Trigger;
 use bevy_ecs::prelude::Query;
+use bevy_ecs::query::With;
 
 #[derive(Component, Clone, Default)]
 pub(crate) struct ResponsiveLocationAnimPackage {
@@ -35,51 +37,20 @@ impl ResponsiveAnimationHook {
 #[derive(Event)]
 pub(crate) struct ResponsiveAnimationCalc {}
 
-pub(crate) fn anim_calc(
-    trigger: Trigger<ResponsiveAnimationCalc>,
-    actual: Query<&Section<LogicalContext>>,
-    pts: Query<&Points<LogicalContext>>,
-    mut tree: Tree,
-) {
-    let last = actual.get(trigger.entity()).copied().unwrap();
-    let last_pts = pts.get(trigger.entity()).copied().unwrap();
+pub(crate) fn anim_calc(trigger: Trigger<ResponsiveAnimationCalc>, mut tree: Tree) {
     tree.entity(trigger.entity()).insert(ConfigureFromLayout {});
-    tree.entity(trigger.entity())
-        .insert(EvaluateLocation::no_deps());
-    tree.trigger_targets(CalcDiff { last, last_pts }, trigger.entity());
+    tree.entity(trigger.entity()).insert(CalcDiff {});
 }
 
-#[derive(Event, Copy, Clone)]
-pub(crate) struct CalcDiff {
-    last: Section<LogicalContext>,
-    last_pts: Points<LogicalContext>,
-}
+#[derive(Component, Copy, Clone)]
+pub(crate) struct CalcDiff {}
 
-pub(crate) fn calc_diff(
-    trigger: Trigger<CalcDiff>,
-    mut diffs: Query<&mut ResponsiveAnimationHook>,
-    mut pt_diffs: Query<&mut ResponsivePointsAnimationHook>,
-    calculated: Query<&Section<LogicalContext>>,
-    calc_pts: Query<&Points<LogicalContext>>,
-) {
-    if let Ok(mut diff) = diffs.get_mut(trigger.entity()) {
-        let last = trigger.event().last;
-        let new = calculated.get(trigger.entity()).copied().unwrap();
-        let delta = last - new;
-        tracing::trace!(
-            "last: {} - new: {} = d: {} @ {:?}",
-            last,
-            new,
-            delta,
-            trigger.entity()
-        );
-        diff.section = delta;
+pub(crate) fn calc_diff(diff_requested: Query<Entity, With<CalcDiff>>, mut tree: Tree) {
+    for e in diff_requested.iter() {
+        tree.entity(e).insert(EvaluateLocation::recursive());
     }
-    if let Ok(mut diff) = pt_diffs.get_mut(trigger.entity()) {
-        let last = trigger.event().last_pts;
-        let new = calc_pts.get(trigger.entity()).copied().unwrap();
-        let delta = last - new;
-        diff.points = delta;
+    for e in diff_requested.iter() {
+        tree.entity(e).remove::<CalcDiff>();
     }
 }
 

@@ -2,7 +2,9 @@ use crate::coordinate::points::Points;
 use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
 use crate::ginkgo::viewport::ViewportHandle;
-use crate::grid::responsive::anim::{ResponsiveAnimationHook, ResponsivePointsAnimationHook};
+use crate::grid::responsive::anim::{
+    CalcDiff, ResponsiveAnimationHook, ResponsivePointsAnimationHook,
+};
 use crate::grid::responsive::resolve::ResolvedConfiguration;
 use crate::grid::responsive::resolve::ResolvedPoints;
 use crate::grid::Grid;
@@ -52,15 +54,29 @@ impl EvaluateLocation {
             let mut resolved = None;
             if let Some(res) = world.get::<ResolvedConfiguration>(entity) {
                 if let Some(r) = res.evaluate(stem, screen) {
-                    let diff = world
+                    let old_diff = world
                         .get::<ResponsiveAnimationHook>(entity)
                         .copied()
-                        .unwrap_or_default()
-                        .value();
-                    resolved = Some(r + diff);
-                    if diff != Section::default() {
-                        // tracing::trace!("stem: {} w/ diff: {} = resolved: {}", stem.section, diff, resolved.unwrap());
-                    }
+                        .unwrap_or_default();
+                    let d = if world.get::<CalcDiff>(entity).is_some() {
+                        let last = world
+                            .get::<Section<LogicalContext>>(entity)
+                            .copied()
+                            .unwrap();
+                        let diff_value = last - r;
+                        let value = diff_value * old_diff.percent;
+                        world
+                            .commands()
+                            .entity(entity)
+                            .insert(ResponsiveAnimationHook {
+                                section: diff_value,
+                                percent: old_diff.percent,
+                            });
+                        value
+                    } else {
+                        old_diff.value()
+                    };
+                    resolved = Some(r + d);
                 }
             }
             if let Some(r) = resolved {
@@ -70,12 +86,29 @@ impl EvaluateLocation {
             let mut resolved = None;
             if let Some(res) = world.get::<ResolvedPoints>(entity) {
                 if let Some(r) = res.evaluate(stem, screen) {
-                    let diff = world
+                    let old_diff = world
                         .get::<ResponsivePointsAnimationHook>(entity)
                         .copied()
-                        .unwrap_or_default()
-                        .value();
-                    resolved.replace(r + diff);
+                        .unwrap_or_default();
+                    let d = if world.get::<CalcDiff>(entity).is_some() {
+                        let last = world
+                            .get::<Points<LogicalContext>>(entity)
+                            .copied()
+                            .unwrap_or_default();
+                        let diff_value = last - r;
+                        let value = diff_value * old_diff.percent;
+                        world
+                            .commands()
+                            .entity(entity)
+                            .insert(ResponsivePointsAnimationHook {
+                                points: diff_value,
+                                percent: old_diff.percent,
+                            });
+                        value
+                    } else {
+                        old_diff.value()
+                    };
+                    resolved.replace(r + d);
                 }
             }
             if let Some(r) = resolved {

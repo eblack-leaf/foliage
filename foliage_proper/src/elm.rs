@@ -22,6 +22,7 @@ use crate::differential::{
 };
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::ScaleFactor;
+use crate::grid::responsive::anim::calc_diff;
 use crate::grid::Grid;
 use crate::interaction::{
     FocusedEntity, InteractiveEntity, KeyboardAdapter, MouseAdapter, TouchAdapter,
@@ -225,6 +226,7 @@ impl Elm {
         self.scheduler.main.add_systems((
             event_update_system.in_set(InternalStage::External),
             (viewport_changes_layout, await_assets, navigate).in_set(InternalStage::External),
+            calc_diff.in_set(InternalStage::Apply),
             pull_clipping_section.in_set(InternalStage::FinalizeCoordinate),
         ));
         self.scheduler.main.add_systems((

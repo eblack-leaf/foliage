@@ -80,8 +80,7 @@ pub(crate) struct AnimationTime {
 }
 impl AnimationTime {
     pub(crate) fn time_delta(&mut self, fd: TimeDelta) -> f32 {
-        self.accumulated_time +=
-            fd - TimeDelta::from_millis(3 * (fd.as_millis() as f64 / 4.0) as u64);
+        self.accumulated_time += fd;
         let delta = self.accumulated_time.as_millis() as f32 / self.total_time.as_millis() as f32;
         delta.clamp(0.0, 1.0)
     }
@@ -282,7 +281,9 @@ pub(crate) fn animate<A: Animate + Component>(
                 .checked_sub(frame_diff)
                 .unwrap_or_default();
         } else {
+            let mut just_started = false;
             if !animation.started {
+                just_started = true;
                 let mut orphaned = false;
                 let target_entity = animation.animation_target;
                 let is_section_diff = TypeId::of::<A>() == TypeId::of::<ResponsiveAnimationHook>();
@@ -340,6 +341,7 @@ pub(crate) fn animate<A: Animate + Component>(
                 a.apply(&mut animation.interpolations);
                 if TypeId::of::<A>() == TypeId::of::<ResponsiveAnimationHook>()
                     || TypeId::of::<A>() == TypeId::of::<ResponsivePointsAnimationHook>()
+                        && !just_started
                 {
                     tree.entity(animation.animation_target)
                         .insert(EvaluateLocation::recursive());
