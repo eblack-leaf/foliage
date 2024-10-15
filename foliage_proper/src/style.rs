@@ -67,19 +67,19 @@ pub(crate) fn alternate_color_on_engage(
                 set.push((*linked, alt.base));
             }
             *color = alt.alternate_color;
-            tree.entity(entity).insert(EvaluateOpacity {});
+            tree.entity(entity).insert(EvaluateOpacity::recursive());
         } else if listener.engaged_end() {
             for linked in alt.linked.iter() {
                 set.push((*linked, alt.alternate_color));
             }
             *color = alt.base;
-            tree.entity(entity).insert(EvaluateOpacity {});
+            tree.entity(entity).insert(EvaluateOpacity::recursive());
         }
     }
     for (e, c) in set {
         if let Ok(mut color) = alts.p1().get_mut(e) {
             *color = c;
-            tree.entity(e).insert(EvaluateOpacity {});
+            tree.entity(e).insert(EvaluateOpacity::recursive());
         }
     }
 }

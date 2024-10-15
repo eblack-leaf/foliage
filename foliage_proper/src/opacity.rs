@@ -41,8 +41,18 @@ impl Opacity {
     }
 }
 #[derive(Copy, Clone, Default)]
-pub struct EvaluateOpacity {}
+pub struct EvaluateOpacity {
+    recursive: bool,
+}
 impl EvaluateOpacity {
+    pub fn recursive() -> Self {
+        Self {
+            recursive: true,
+        }
+    }
+    pub fn no_deps() -> Self {
+        Self { recursive: false }
+    }
     pub(crate) fn on_insert(mut world: DeferredWorld, entity: Entity, _c: ComponentId) {
         let inherited = if let Some(stem) = world.get::<Stem>(entity) {
             if let Some(s) = stem.0 {
@@ -60,22 +70,25 @@ impl EvaluateOpacity {
         if let Some(current) = world.get::<Opacity>(entity).copied() {
             if let Some(color) = world.get::<Color>(entity).copied() {
                 let blended = current.value * inherited;
-                tracing::trace!(
-                    "blended = {} * {} = {} @ {:?}",
-                    current.value,
-                    inherited,
-                    blended,
-                    entity
-                );
+                // tracing::trace!(
+                //     "blended = {} * {} = {} @ {:?}",
+                //     current.value,
+                //     inherited,
+                //     blended,
+                //     entity
+                // );
                 world
                     .commands()
                     .entity(entity)
                     .insert(color.with_alpha(blended));
             }
         }
+        if !world.get::<EvaluateOpacity>(entity).copied().unwrap().recursive {
+            return;
+        }
         if let Some(ds) = world.get::<Dependents>(entity).cloned() {
             for d in ds.0 {
-                world.commands().entity(d).insert(EvaluateOpacity {});
+                world.commands().entity(d).insert(EvaluateOpacity::recursive());
             }
         }
     }

@@ -350,7 +350,7 @@ pub(crate) fn animate<A: Animate + Component>(
                     || TypeId::of::<A>() == TypeId::of::<Color>()
                 {
                     tree.entity(animation.animation_target)
-                        .insert(EvaluateOpacity {});
+                        .insert(EvaluateOpacity::recursive());
                 }
                 if TypeId::of::<A>() == TypeId::of::<Elevation>() {
                     tree.entity(animation.animation_target)
