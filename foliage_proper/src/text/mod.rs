@@ -125,7 +125,7 @@ impl MonospacedFont {
                     ..fontdue::FontSettings::default()
                 },
             )
-            .expect("font"),
+                .expect("font"),
         )
     }
 }
@@ -415,6 +415,9 @@ impl Render for Text {
                 .get_mut(&packet)
                 .unwrap()
                 .should_record = true;
+            if packet.index() == 58 {
+                tracing::trace!("clearing {:?}", packet);
+            }
             renderer
                 .resource_handle
                 .groups
@@ -467,6 +470,9 @@ impl Render for Text {
                 .clip_context = packet.value;
         }
         for packet in queue_handle.read_adds::<Self, GpuSection>() {
+            if packet.entity.index() == 58 {
+                tracing::trace!("gpu-section: {} {}", packet.value.pos.0, packet.value.area.0);
+            }
             renderer
                 .resource_handle
                 .groups

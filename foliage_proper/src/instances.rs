@@ -121,6 +121,7 @@ impl<Key: Hash + Eq + Copy + Clone + Debug> Instances<Key> {
         let cloned = self.order.clone();
         for e in cloned {
             removed.push(e);
+            tracing::trace!("clear-queue-remove for {:?}", e);
             self.queue_remove(e);
         }
         self.process_removals();
@@ -136,6 +137,7 @@ impl<Key: Hash + Eq + Copy + Clone + Debug> Instances<Key> {
         }
     }
     pub(crate) fn remove(&mut self, index: usize) {
+        tracing::trace!("removing @ index: {} w/ {:?}", index, self.order);
         self.order.remove(index);
         self.nodes.remove(&index);
         for r_fn in self.removal_fns.iter() {
@@ -145,6 +147,7 @@ impl<Key: Hash + Eq + Copy + Clone + Debug> Instances<Key> {
     }
     pub fn add(&mut self, key: Key) {
         if !self.has_key(&key) {
+            tracing::trace!("adding key: {:?}", key);
             let index = self.order.len();
             self.order.push(key);
             self.map.insert(key, index);
@@ -164,14 +167,18 @@ impl<Key: Hash + Eq + Copy + Clone + Debug> Instances<Key> {
     }
     pub(crate) fn process_removals(&mut self) {
         let removed = self.removal_queue.drain().collect::<Vec<Key>>();
+
         let mut orders = removed
             .iter()
-            .map(|r| self.map.remove(r).unwrap())
+            .map(|r| {
+                let v = self.map.remove(r).unwrap();
+                tracing::trace!("removing: {:?} | {:?}", r, v);
+                v
+            })
             .collect::<Vec<usize>>();
         orders.sort();
         orders.reverse();
         for o in orders {
-            tracing::trace!("removing: {:?}", o);
             self.remove(o);
         }
     }
@@ -281,6 +288,7 @@ impl<A: Pod + Zeroable + Default + Debug> Attribute<A> {
     }
     fn remove(&mut self, index: usize) {
         // *self.cpu.get_mut(index).expect("index") = A::default();
+        tracing::trace!("rem from {:?} @ index {}", self.cpu, index);
         self.cpu.remove(index);
         self.write_needed = true;
     }

@@ -46,9 +46,7 @@ pub struct EvaluateOpacity {
 }
 impl EvaluateOpacity {
     pub fn recursive() -> Self {
-        Self {
-            recursive: true,
-        }
+        Self { recursive: true }
     }
     pub fn no_deps() -> Self {
         Self { recursive: false }
@@ -70,25 +68,35 @@ impl EvaluateOpacity {
         if let Some(current) = world.get::<Opacity>(entity).copied() {
             if let Some(color) = world.get::<Color>(entity).copied() {
                 let blended = current.value * inherited;
-                // tracing::trace!(
-                //     "blended = {} * {} = {} @ {:?}",
-                //     current.value,
-                //     inherited,
-                //     blended,
-                //     entity
-                // );
+                if entity.index() == 58 {
+                    tracing::trace!(
+                        "blended = {} * {} = {} @ {:?}",
+                        current.value,
+                        inherited,
+                        blended,
+                        entity
+                    );
+                }
                 world
                     .commands()
                     .entity(entity)
                     .insert(color.with_alpha(blended));
             }
         }
-        if !world.get::<EvaluateOpacity>(entity).copied().unwrap().recursive {
+        if !world
+            .get::<EvaluateOpacity>(entity)
+            .copied()
+            .unwrap()
+            .recursive
+        {
             return;
         }
         if let Some(ds) = world.get::<Dependents>(entity).cloned() {
             for d in ds.0 {
-                world.commands().entity(d).insert(EvaluateOpacity::recursive());
+                world
+                    .commands()
+                    .entity(d)
+                    .insert(EvaluateOpacity::recursive());
             }
         }
     }

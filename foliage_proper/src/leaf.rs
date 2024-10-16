@@ -114,9 +114,17 @@ impl Component for Stem {
 }
 #[derive(Clone, PartialEq, Component, Default)]
 pub(crate) struct Dependents(pub(crate) HashSet<Entity>);
-#[derive(Copy, Clone, Default)]
-pub struct EvaluateElevation {}
+#[derive(Copy, Clone)]
+pub struct EvaluateElevation {
+    recursive: bool,
+}
 impl EvaluateElevation {
+    pub fn recursive() -> Self {
+        Self { recursive: true }
+    }
+    pub fn no_deps() -> Self {
+        Self { recursive: false }
+    }
     pub(crate) fn on_insert(mut world: DeferredWorld, entity: Entity, _c: ComponentId) {
         let current = if let Some(stem) = world.get::<Stem>(entity) {
             if let Some(s) = stem.0 {
@@ -130,15 +138,18 @@ impl EvaluateElevation {
         let resolved = RenderLayer::new(
             current.0
                 + world
-                    .get::<Elevation>(entity)
-                    .copied()
-                    .unwrap_or_default()
-                    .0,
+                .get::<Elevation>(entity)
+                .copied()
+                .unwrap_or_default()
+                .0,
         );
+        if entity.index() == 58 {
+            tracing::trace!("elevation hit @ {}", resolved.0);
+        }
         world.commands().entity(entity).insert(resolved);
         if let Some(ds) = world.get::<Dependents>(entity).cloned() {
             for d in ds.0 {
-                world.commands().entity(d).insert(EvaluateElevation {});
+                world.commands().entity(d).insert(EvaluateElevation::recursive());
             }
         }
     }
@@ -202,7 +213,7 @@ impl Default for Visibility {
         Self::new(true)
     }
 }
-#[derive(Default, Copy, Clone)]
+#[derive(Copy, Clone)]
 pub struct EvaluateVisibility {
     first: bool,
     recursive: bool,
@@ -230,15 +241,19 @@ impl EvaluateVisibility {
         };
         let current = world.get::<Visibility>(entity).copied().unwrap();
         let resolved = if value.first { current } else { inherited };
-        tracing::trace!(
-            "c: {} i: {} r: {}",
-            current.visible,
-            inherited.visible,
-            resolved.visible
-        );
+        if entity.index() == 58 {
+            tracing::trace!(
+                "c: {} i: {} r: {} for {:?}",
+                current.visible,
+                inherited.visible,
+                resolved.visible,
+                entity
+            );
+        }
         world.commands().entity(entity).insert(resolved);
         if !resolved.visible {
             if let Some(link) = world.get::<RenderLink>(entity).copied() {
+                tracing::trace!("removing link from visibility: {:?}", entity);
                 world
                     .resource_mut::<RenderRemoveQueue>()
                     .queue
@@ -285,8 +300,8 @@ impl EvaluateCore {
             .insert(EvaluateLocation {
                 skip_deps: !config.full,
             })
-            .insert(EvaluateElevation::default())
-            .insert(EvaluateOpacity::default());
+            .insert(EvaluateElevation::recursive())
+            .insert(EvaluateOpacity::recursive());
     }
 }
 impl Component for EvaluateCore {

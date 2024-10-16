@@ -348,7 +348,7 @@ impl Render for Image {
         for entity in queue_handle.read_removes::<Self>() {
             let id = renderer.resource_handle.entity_to_image.remove(&entity);
             if let Some(id) = id {
-                tracing::trace!("queue-remove: {:?} {:?}", entity, id);
+                tracing::trace!("manually-read-remove: {:?} {:?}", entity, id);
                 renderer
                     .resource_handle
                     .groups
@@ -359,7 +359,7 @@ impl Render for Image {
             }
         }
         for packet in queue_handle.read_adds::<Self, ImageSlotDescriptor>() {
-            renderer.associate_directive_group(packet.value.0 .0, packet.value.0);
+            renderer.associate_directive_group(packet.value.0.0, packet.value.0);
             let (tex, view) = ginkgo.create_texture(
                 Self::FORMAT,
                 packet.value.1,
@@ -394,6 +394,7 @@ impl Render for Image {
             );
         }
         for packet in queue_handle.read_adds::<Self, ImageFill>() {
+            tracing::trace!("image-fill for {:?}", packet.entity);
             ginkgo.context().queue.write_texture(
                 ImageCopyTexture {
                     texture: &renderer

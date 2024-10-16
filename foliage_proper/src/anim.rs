@@ -341,7 +341,7 @@ pub(crate) fn animate<A: Animate + Component>(
                 a.apply(&mut animation.interpolations);
                 if TypeId::of::<A>() == TypeId::of::<ResponsiveAnimationHook>()
                     || TypeId::of::<A>() == TypeId::of::<ResponsivePointsAnimationHook>()
-                        && !just_started
+                    && !just_started
                 {
                     tree.entity(animation.animation_target)
                         .insert(EvaluateLocation::recursive());
@@ -354,7 +354,7 @@ pub(crate) fn animate<A: Animate + Component>(
                 }
                 if TypeId::of::<A>() == TypeId::of::<Elevation>() {
                     tree.entity(animation.animation_target)
-                        .insert(EvaluateElevation {});
+                        .insert(EvaluateElevation::recursive());
                 }
             } else {
                 orphaned = true;
