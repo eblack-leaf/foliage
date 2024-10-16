@@ -443,17 +443,17 @@ impl Render for Image {
                 .get_mut(&packet.value.0)
                 .unwrap()
                 .texture_coordinates = texture_coordinates;
-            let old_keys = renderer
-                .resource_handle
-                .groups
-                .get_mut(&packet.value.0)
-                .unwrap()
-                .instances
-                .clear();
-            tracing::trace!("old-keys: {:?}", old_keys);
-            for old in old_keys {
-                renderer.resource_handle.entity_to_image.remove(&old);
-            }
+            // let old_keys = renderer
+            //     .resource_handle
+            //     .groups
+            //     .get_mut(&packet.value.0)
+            //     .unwrap()
+            //     .instances
+            //     .clear();
+            // tracing::trace!("old-keys: {:?}", old_keys);
+            // for old in old_keys {
+            //     renderer.resource_handle.entity_to_image.remove(&old);
+            // }
             renderer
                 .resource_handle
                 .groups

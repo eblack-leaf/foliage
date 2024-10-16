@@ -1,16 +1,16 @@
+use crate::ash::{ClippingContext, RenderNode, RenderNodes};
+use crate::bevy_ecs::prelude::Entity;
+use crate::coordinate::elevation::RenderLayer;
+use crate::ginkgo::Ginkgo;
+use crate::texture::TextureCoordinates;
+use bevy_ecs::world::World;
+use bytemuck::{Pod, Zeroable};
+use std::any::TypeId;
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::hash::Hash;
-
-use bevy_ecs::world::World;
-use bytemuck::{Pod, Zeroable};
 use wgpu::{BufferDescriptor, BufferUsages};
-
-use crate::ash::{ClippingContext, RenderNode, RenderNodes};
-use crate::coordinate::elevation::RenderLayer;
-use crate::ginkgo::Ginkgo;
-
 pub struct Instances<Key: Hash + Eq + Copy + Clone> {
     world: World,
     capacity: u32,
@@ -34,7 +34,7 @@ pub(crate) struct Swap {
     current: usize,
     to: usize,
 }
-impl<Key: Hash + Eq + Copy + Clone + Debug> Instances<Key> {
+impl<Key: Hash + Eq + Copy + Clone + Debug + 'static> Instances<Key> {
     pub fn get_attr<A: Pod + Zeroable + Default>(&self, key: &Key) -> Option<A> {
         let index = *self.map.get(key)?;
         let message = format!("unmapped key for:{}", index);
@@ -124,7 +124,7 @@ impl<Key: Hash + Eq + Copy + Clone + Debug> Instances<Key> {
             tracing::trace!("clear-queue-remove for {:?}", e);
             self.queue_remove(e);
         }
-        self.process_removals();
+        // self.process_removals();
         self.changed = true;
         removed
     }
@@ -240,6 +240,9 @@ impl<Key: Hash + Eq + Copy + Clone + Debug> Instances<Key> {
     }
     fn queue_write<A: Pod + Zeroable + Default + Debug>(&mut self, key: Key, a: A) {
         let index = *self.map.get(&key).expect("key");
+        if TypeId::of::<A>() == TypeId::of::<TextureCoordinates>() && TypeId::of::<Key>() == TypeId::of::<Entity>() {
+            tracing::trace!("queue-write for {:?}", key);
+        }
         self.world
             .get_non_send_resource_mut::<Attribute<A>>()
             .expect("attribute-setup")
