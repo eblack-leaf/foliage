@@ -201,9 +201,6 @@ impl Foliage {
                 .init();
         }
     }
-    pub fn enable_retrieve<B: Bundle + Send + Sync + 'static>(&mut self) {
-        self.elm.enable_retrieve::<B>();
-    }
     #[cfg(target_family = "wasm")]
     pub fn load_remote_asset(&mut self, path: &str) -> AssetKey {
         let key = AssetLoader::generate_key();

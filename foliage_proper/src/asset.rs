@@ -6,36 +6,36 @@ use bevy_ecs::prelude::Component;
 use bevy_ecs::system::{Commands, Query, Res, ResMut, Resource};
 use futures_channel::oneshot::{Receiver, Sender};
 use uuid::Uuid;
+use crate::tree::Tree;
 
 #[derive(Resource, Default)]
 pub struct AssetLoader {
     pub(crate) assets: HashMap<AssetKey, Asset>,
     awaiting: HashMap<AssetKey, AssetFetch>,
 }
-pub type AssetFn<B> = fn(Vec<u8>) -> B;
+pub type AssetFn = fn(&mut Tree, Entity, Vec<u8>);
 #[derive(Component, Clone)]
-pub struct OnRetrieve<B> {
+pub struct OnRetrieve {
     key: AssetKey,
-    bundle_using: Box<AssetFn<B>>,
+    bundle_using: Box<AssetFn>,
 }
-impl<B: Bundle + 'static + Send + Sync> OnRetrieve<B> {
-    pub fn new(key: AssetKey, func: AssetFn<B>) -> Self {
+impl OnRetrieve {
+    pub fn new(key: AssetKey, func: AssetFn) -> Self {
         Self {
             key,
             bundle_using: Box::new(func),
         }
     }
 }
-pub(crate) fn on_retrieve<B: Bundle + Send + Sync + 'static>(
-    retrievers: Query<(Entity, &OnRetrieve<B>)>,
+pub(crate) fn on_retrieve(
+    retrievers: Query<(Entity, &OnRetrieve)>,
     mut cmd: Commands,
     asset_loader: Res<AssetLoader>,
 ) {
     for (entity, on_retrieve) in retrievers.iter() {
         if let Some(asset) = asset_loader.retrieve(on_retrieve.key) {
-            cmd.entity(entity).remove::<OnRetrieve<B>>();
-            cmd.entity(entity)
-                .insert((on_retrieve.bundle_using)(asset.data));
+            cmd.entity(entity).remove::<OnRetrieve>();
+            (on_retrieve.bundle_using)(&mut cmd, entity, asset.data);
         }
     }
 }

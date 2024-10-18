@@ -76,9 +76,6 @@ impl EvaluateLocation {
                     } else {
                         old_diff.value()
                     };
-                    if entity.index() == 56 || entity.index() == 57{
-                        tracing::trace!("r: {} + d: {} = res: {} for {:?}", r, d, r + d, entity);
-                    }
                     resolved = Some(r + d);
                 }
             }

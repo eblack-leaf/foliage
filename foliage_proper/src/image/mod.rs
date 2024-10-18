@@ -198,7 +198,6 @@ impl Root for Image {
         elm.scheduler
             .main
             .add_systems(constrain.in_set(InternalStage::Resolve));
-        elm.enable_retrieve::<Image>();
     }
 }
 #[repr(C)]
@@ -547,6 +546,7 @@ impl Render for Image {
                 .unwrap()
                 .instances
                 .set_layer(packet.entity, packet.value);
+            tracing::trace!("image: render-layer: {}", packet.value);
             renderer
                 .resource_handle
                 .groups

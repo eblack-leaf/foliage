@@ -227,6 +227,7 @@ impl Elm {
             event_update_system.in_set(InternalStage::External),
             (viewport_changes_layout, await_assets, navigate).in_set(InternalStage::External),
             calc_diff.in_set(InternalStage::Apply),
+            on_retrieve.in_set(InternalStage::Clean),
             pull_clipping_section.in_set(InternalStage::FinalizeCoordinate),
         ));
         self.scheduler.main.add_systems((
@@ -280,15 +281,6 @@ impl Elm {
             .get_resource_mut::<ViewportHandle>()
             .unwrap()
             .resize(willow.actual_area().to_logical(scale_value));
-    }
-    pub fn enable_retrieve<B: Bundle + Send + Sync + 'static>(&mut self) {
-        if !self.ecs.contains_resource::<RetrieveLimiter<B>>() {
-            self.scheduler.main.add_systems((
-                on_retrieve::<B>.in_set(InternalStage::Clean),
-                // on_retrieve::<B>.in_set(InternalStage::SecondClean),
-            ));
-            self.ecs.insert_resource(RetrieveLimiter::<B>::default());
-        }
     }
 }
 pub struct RenderQueueHandle<'a> {
