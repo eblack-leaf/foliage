@@ -187,9 +187,6 @@ pub(crate) fn color_changes(
     >,
 ) {
     for (entity, mut glyphs, colors, base) in texts.iter_mut() {
-        if entity.index() == 58 || entity.index() == 60 {
-            tracing::trace!("color: {:?}", base);
-        }
         for (offset, glyph) in glyphs.glyphs.iter_mut() {
             glyph.color = colors.obtain(*base, *offset);
         }
@@ -470,9 +467,6 @@ impl Render for Text {
                 .clip_context = packet.value;
         }
         for packet in queue_handle.read_adds::<Self, GpuSection>() {
-            if packet.entity.index() == 59 || packet.entity.index() == 60 {
-                tracing::trace!("gpu-section: {} {}", packet.value.pos.0, packet.value.area.0);
-            }
             renderer
                 .resource_handle
                 .groups
@@ -715,8 +709,8 @@ impl Render for Text {
             .intersection(clipping_section)
             .unwrap_or_default();
         render_pass.set_scissor_rect(
-            intersection.x() as u32,
-            intersection.y() as u32,
+            intersection.left() as u32,
+            intersection.top() as u32,
             intersection.area.width() as u32,
             intersection.area.height() as u32,
         );

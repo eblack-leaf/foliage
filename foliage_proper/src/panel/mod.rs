@@ -167,13 +167,13 @@ fn percent_rounded_to_corner(
         let section = section.to_device(scale_factor.value());
         let half_smallest = section.height().min(section.width()) / 2f32;
         let delta = half_smallest * percents.0[0];
-        let position = Position::numerical((section.right() - delta, section.y() + delta));
+        let position = Position::numerical((section.right() - delta, section.top() + delta));
         *i = CornerI([position.x(), position.y(), delta]);
         let delta = half_smallest * percents.0[1];
-        let position = Position::numerical((section.x() + delta, section.y() + delta));
+        let position = Position::numerical((section.left() + delta, section.top() + delta));
         *ii = CornerII([position.x(), position.y(), delta]);
         let delta = half_smallest * percents.0[2];
-        let position = Position::numerical((section.x() + delta, section.bottom() - delta));
+        let position = Position::numerical((section.left() + delta, section.bottom() - delta));
         *iii = CornerIII([position.x(), position.y(), delta]);
         let delta = half_smallest * percents.0[3];
         let position = Position::numerical((section.right() - delta, section.bottom() - delta));
@@ -432,8 +432,8 @@ impl Render for Panel {
         render_pass: &mut RenderPass<'a>,
     ) {
         render_pass.set_scissor_rect(
-            clipping_section.x() as u32,
-            clipping_section.y() as u32,
+            clipping_section.left() as u32,
+            clipping_section.top() as u32,
             clipping_section.width() as u32,
             clipping_section.height() as u32,
         );

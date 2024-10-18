@@ -80,13 +80,13 @@ impl<Context: CoordinateContext> Section<Context> {
             area: a.into(),
         }
     }
-    pub fn x(&self) -> CoordinateUnit {
+    pub fn left(&self) -> CoordinateUnit {
         self.position.x()
     }
     pub fn set_x(&mut self, x: CoordinateUnit) {
         self.position.set_x(x);
     }
-    pub fn y(&self) -> CoordinateUnit {
+    pub fn top(&self) -> CoordinateUnit {
         self.position.y()
     }
     pub fn set_y(&mut self, y: CoordinateUnit) {
@@ -111,20 +111,20 @@ impl<Context: CoordinateContext> Section<Context> {
         self.area = a.into();
     }
     pub fn right(&self) -> CoordinateUnit {
-        self.x() + self.width()
+        self.left() + self.width()
     }
     pub fn bottom(&self) -> CoordinateUnit {
-        self.y() + self.height()
+        self.top() + self.height()
     }
     pub fn center(&self) -> Position<Context> {
         Position::new((
-            self.x() + self.width() / 2f32,
-            self.y() + self.height() / 2f32,
+            self.left() + self.width() / 2f32,
+            self.top() + self.height() / 2f32,
         ))
     }
     pub fn intersection(&self, o: Self) -> Option<Section<Context>> {
-        let left = self.x().max(o.x());
-        let top = self.y().max(o.y());
+        let left = self.left().max(o.left());
+        let top = self.top().max(o.top());
         let right = self.right().min(o.right());
         let bottom = self.bottom().min(o.bottom());
         let section = Section::new((left, top), (right - left, bottom - top));
@@ -137,7 +137,7 @@ impl<Context: CoordinateContext> Section<Context> {
         self.intersection(o).is_some()
     }
     pub fn contains(&self, p: Position<Context>) -> bool {
-        p.x() <= self.right() && p.x() >= self.x() && p.y() <= self.bottom() && p.y() >= self.y()
+        p.x() <= self.right() && p.x() >= self.left() && p.y() <= self.bottom() && p.y() >= self.top()
     }
     pub fn normalized<C: Into<Coordinates>>(&self, c: C) -> Self {
         let c = c.into();

@@ -60,8 +60,8 @@ impl Viewport {
         section: Section<NumericalContext>,
         near_far: NearFarDescriptor,
     ) -> ViewportRepresentation {
-        let right_left = 2f32 / (section.right() - section.x());
-        let top_bottom = 2f32 / (section.y() - section.bottom());
+        let right_left = 2f32 / (section.right() - section.left());
+        let top_bottom = 2f32 / (section.top() - section.bottom());
         let nf = 1f32 / (near_far.far.0 - near_far.near.0);
 
         [
@@ -69,8 +69,8 @@ impl Viewport {
             [0f32, top_bottom, 0f32, 0f32],
             [0f32, 0f32, nf, 0f32],
             [
-                right_left * -section.x() - 1f32,
-                top_bottom * -section.y() + 1f32,
+                right_left * -section.left() - 1f32,
+                top_bottom * -section.top() + 1f32,
                 nf * near_far.near.0,
                 1f32,
             ],

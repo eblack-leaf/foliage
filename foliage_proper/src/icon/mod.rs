@@ -440,8 +440,8 @@ impl Render for Icon {
     ) {
         let group = renderer.resource_handle.groups.get(&group_key).unwrap();
         render_pass.set_scissor_rect(
-            clipping_section.x() as u32,
-            clipping_section.y() as u32,
+            clipping_section.left() as u32,
+            clipping_section.top() as u32,
             clipping_section.width() as u32,
             clipping_section.height() as u32,
         );

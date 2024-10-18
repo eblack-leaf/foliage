@@ -137,14 +137,14 @@ pub(crate) fn configure(
         icon_section.set_x(main.right() - main.width() / 2.0 - 12.0);
         icon_section.set_y(main.bottom() - main.height() / 2.0 - 12.0);
         if !binding.icon_based {
-            icon_section.set_x(main.x() + 16.0);
+            icon_section.set_x(main.left() + 16.0);
         }
         icon_section.set_width(24.0);
         icon_section.set_height(24.0);
         let mut text_section = Section::default();
-        text_section.set_x(main.x() + 48.0);
+        text_section.set_x(main.left() + 48.0);
         text_section.set_y(main.bottom() - main.height() / 2.0 - 0.5 * 0.9 * main.height());
-        text_section.set_width(main.right() - 16.0 - main.x() - 48.0);
+        text_section.set_width(main.right() - 16.0 - main.left() - 48.0);
         text_section.set_height(0.9 * main.height());
         *sections.get_mut(binding.icon).unwrap() = icon_section;
         *sections.get_mut(binding.text).unwrap() = text_section;

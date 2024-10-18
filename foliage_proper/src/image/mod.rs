@@ -159,8 +159,8 @@ fn constrain(
                     Section::logical(fill_section.position + center_diff, fill_section.area);
                 let tex_coords_adjustments = Section::numerical(
                     (
-                        (old.x() - adjusted_fill_section.x()) / adjusted_fill_section.width(),
-                        (old.y() - adjusted_fill_section.y()) / adjusted_fill_section.height(),
+                        (old.left() - adjusted_fill_section.left()) / adjusted_fill_section.width(),
+                        (old.top() - adjusted_fill_section.top()) / adjusted_fill_section.height(),
                     ),
                     (
                         (adjusted_fill_section.right() - old.right())
@@ -514,9 +514,9 @@ impl Render for Image {
                 ImageView::Crop(adjustments) => TextureCoordinates::new(
                     (
                         tex_coords.top_left.horizontal()
-                            + tex_coords.bottom_right.horizontal() * adjustments.x(),
+                            + tex_coords.bottom_right.horizontal() * adjustments.left(),
                         tex_coords.top_left.vertical()
-                            + tex_coords.bottom_right.vertical() * adjustments.y(),
+                            + tex_coords.bottom_right.vertical() * adjustments.top(),
                     ),
                     (
                         tex_coords.bottom_right.horizontal()
@@ -587,8 +587,8 @@ impl Render for Image {
     ) {
         let group = renderer.resource_handle.groups.get(&group_key).unwrap();
         render_pass.set_scissor_rect(
-            clipping_section.x() as u32,
-            clipping_section.y() as u32,
+            clipping_section.left() as u32,
+            clipping_section.top() as u32,
             clipping_section.width() as u32,
             clipping_section.height() as u32,
         );

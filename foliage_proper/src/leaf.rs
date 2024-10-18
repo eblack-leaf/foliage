@@ -144,6 +144,9 @@ impl EvaluateElevation {
                 .unwrap_or_default()
                 .0,
         );
+        if entity.index() == 56 || entity.index() == 57 {
+            tracing::trace!("elevation: {} for {:?}", resolved, entity);
+        }
         world.commands().entity(entity).insert(resolved);
         if let Some(ds) = world.get::<Dependents>(entity).cloned() {
             for d in ds.0 {
@@ -238,7 +241,7 @@ impl EvaluateVisibility {
         };
         let current = world.get::<Visibility>(entity).copied().unwrap();
         let resolved = if value.first { current } else { inherited };
-        if entity.index() == 59 || entity.index() == 60 {
+        if entity.index() == 56 || entity.index() == 57 {
             tracing::trace!("visibility: {}", resolved.visible);
         }
         world.commands().entity(entity).insert(resolved);

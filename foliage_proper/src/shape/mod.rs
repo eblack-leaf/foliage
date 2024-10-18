@@ -226,8 +226,8 @@ impl Render for Shape {
         render_pass: &mut RenderPass<'a>,
     ) {
         render_pass.set_scissor_rect(
-            clipping_section.x() as u32,
-            clipping_section.y() as u32,
+            clipping_section.left() as u32,
+            clipping_section.top() as u32,
             clipping_section.width() as u32,
             clipping_section.height() as u32,
         );

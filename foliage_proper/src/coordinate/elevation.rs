@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::ops::{Add, Sub};
 
 use bevy_ecs::prelude::Component;
@@ -6,6 +7,11 @@ use bytemuck::{Pod, Zeroable};
 #[repr(C)]
 #[derive(Copy, Clone, Default, PartialEq, Pod, Zeroable, Component, Debug)]
 pub(crate) struct RenderLayer(pub(crate) f32);
+impl Display for RenderLayer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}", self.0))
+    }
+}
 impl PartialOrd for RenderLayer {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         if self.0 < other.0 {

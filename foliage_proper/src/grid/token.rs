@@ -87,11 +87,11 @@ impl AspectValue {
                         _ => screen,
                     };
                     match ca {
-                        GridAspect::Top => data.section.y(),
+                        GridAspect::Top => data.section.top(),
                         GridAspect::Height => data.section.height(),
                         GridAspect::CenterY => data.section.center().y(),
                         GridAspect::Bottom => data.section.bottom(),
-                        GridAspect::Left => data.section.x(),
+                        GridAspect::Left => data.section.left(),
                         GridAspect::Width => data.section.width(),
                         GridAspect::CenterX => data.section.center().x(),
                         GridAspect::Right => data.section.right(),
@@ -112,21 +112,21 @@ impl AspectValue {
                     };
                     match rel {
                         RelativeUnit::Column(c, use_end) => {
-                            data.section.x()
+                            data.section.left()
                                 + (c as f32 - 1.0 * f32::from(!use_end))
                                     * (data.section.width() / data.grid.columns as f32)
                                 + c as f32 * data.grid.gap.horizontal()
                         }
                         RelativeUnit::Row(r, use_end) => {
-                            data.section.y()
+                            data.section.top()
                                 + (r as f32 - 1.0 * f32::from(!use_end))
                                     * (data.section.height() / data.grid.rows as f32)
                                 + r as f32 * data.grid.gap.vertical()
                         }
                         RelativeUnit::Percent(p, use_width, include_start) => {
-                            data.section.x() * f32::from(include_start && use_width)
+                            data.section.left() * f32::from(include_start && use_width)
                                 + data.section.width() * p * f32::from(use_width)
-                                + data.section.y() * f32::from(include_start && !use_width)
+                                + data.section.top() * f32::from(include_start && !use_width)
                                 + data.section.height() * p * f32::from(!use_width)
                         }
                     }
