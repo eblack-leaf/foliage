@@ -144,9 +144,6 @@ impl EvaluateElevation {
                 .unwrap_or_default()
                 .0,
         );
-        if entity.index() == 46 {
-            tracing::trace!("elevation: {} for {:?}", resolved, entity);
-        }
         world.commands().entity(entity).insert(resolved);
         if let Some(ds) = world.get::<Dependents>(entity).cloned() {
             for d in ds.0 {

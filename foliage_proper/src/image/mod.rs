@@ -546,7 +546,6 @@ impl Render for Image {
                 .unwrap()
                 .instances
                 .set_layer(packet.entity, packet.value);
-            tracing::trace!("image: render-layer: {}", packet.value);
             renderer
                 .resource_handle
                 .groups
