@@ -108,9 +108,6 @@ pub(crate) fn differential<D: Component + PartialEq + Clone + Send + Sync + 'sta
                 .unwrap()
                 .insert(entity, d.clone());
             if different {
-                if TypeId::of::<D>() == TypeId::of::<ImageFill>() {
-                    tracing::trace!("e: {:?} image-fill", entity);
-                }
                 render_queue
                     .queue
                     .get_mut(link)

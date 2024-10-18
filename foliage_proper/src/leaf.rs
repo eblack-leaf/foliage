@@ -4,7 +4,7 @@ use crate::ash::ClippingContext;
 use crate::coordinate::elevation::{Elevation, RenderLayer};
 use crate::coordinate::placement::Placement;
 use crate::coordinate::points::Points;
-use crate::coordinate::section::Section;
+use crate::coordinate::section::{GpuSection, Section};
 use crate::coordinate::LogicalContext;
 use crate::differential::{RenderLink, RenderRemoveQueue};
 use crate::grid::responsive::evaluate::EvaluateLocation;
@@ -33,6 +33,7 @@ pub struct Leaf {
     opacity: Opacity,
     clipping_context: ClippingContext,
     grid: Grid,
+    gs: GpuSection,
     points: Points<LogicalContext>,
 }
 
@@ -143,9 +144,6 @@ impl EvaluateElevation {
                 .unwrap_or_default()
                 .0,
         );
-        if entity.index() == 58 {
-            tracing::trace!("elevation hit @ {}", resolved.0);
-        }
         world.commands().entity(entity).insert(resolved);
         if let Some(ds) = world.get::<Dependents>(entity).cloned() {
             for d in ds.0 {
@@ -186,7 +184,6 @@ pub(crate) fn render_link_on_remove(
     mut links: Query<&RenderLink>,
     mut remove_queue: ResMut<RenderRemoveQueue>,
 ) {
-    tracing::trace!("removing link on {:?}", trigger.entity());
     let links = links.get(trigger.entity()).unwrap();
     remove_queue
         .queue
@@ -241,19 +238,12 @@ impl EvaluateVisibility {
         };
         let current = world.get::<Visibility>(entity).copied().unwrap();
         let resolved = if value.first { current } else { inherited };
-        if entity.index() == 58 {
-            tracing::trace!(
-                "c: {} i: {} r: {} for {:?}",
-                current.visible,
-                inherited.visible,
-                resolved.visible,
-                entity
-            );
+        if entity.index() == 59 || entity.index() == 60 {
+            tracing::trace!("visibility: {}", resolved.visible);
         }
         world.commands().entity(entity).insert(resolved);
         if !resolved.visible {
             if let Some(link) = world.get::<RenderLink>(entity).copied() {
-                tracing::trace!("removing link from visibility: {:?}", entity);
                 world
                     .resource_mut::<RenderRemoveQueue>()
                     .queue

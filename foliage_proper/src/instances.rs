@@ -116,12 +116,11 @@ impl<Key: Hash + Eq + Copy + Clone + Debug + 'static> Instances<Key> {
         });
         self
     }
-    pub fn clear(&mut self) -> Vec<Key> {
+    pub fn clear(&mut self, clearer: Option<Key>) -> Vec<Key> {
         let mut removed = vec![];
         let cloned = self.order.clone();
         for e in cloned {
             removed.push(e);
-            tracing::trace!("clear-queue-remove for {:?}", e);
             self.queue_remove(e);
         }
         // self.process_removals();
@@ -130,14 +129,12 @@ impl<Key: Hash + Eq + Copy + Clone + Debug + 'static> Instances<Key> {
     }
     pub fn queue_remove(&mut self, key: Key) {
         if self.has_key(&key) {
-            tracing::trace!("queue-remove for {:?}", key);
             self.removal_queue.insert(key);
             self.clipping_contexts.remove(&key);
             self.changed = true;
         }
     }
     pub(crate) fn remove(&mut self, index: usize) {
-        tracing::trace!("removing @ index: {} w/ {:?}", index, self.order);
         self.order.remove(index);
         self.nodes.remove(&index);
         for r_fn in self.removal_fns.iter() {
@@ -147,7 +144,6 @@ impl<Key: Hash + Eq + Copy + Clone + Debug + 'static> Instances<Key> {
     }
     pub fn add(&mut self, key: Key) {
         if !self.has_key(&key) {
-            tracing::trace!("adding key: {:?}", key);
             let index = self.order.len();
             self.order.push(key);
             self.map.insert(key, index);
@@ -172,7 +168,6 @@ impl<Key: Hash + Eq + Copy + Clone + Debug + 'static> Instances<Key> {
             .iter()
             .map(|r| {
                 let v = self.map.remove(r).unwrap();
-                tracing::trace!("removing: {:?} | {:?}", r, v);
                 v
             })
             .collect::<Vec<usize>>();
@@ -240,9 +235,6 @@ impl<Key: Hash + Eq + Copy + Clone + Debug + 'static> Instances<Key> {
     }
     fn queue_write<A: Pod + Zeroable + Default + Debug>(&mut self, key: Key, a: A) {
         let index = *self.map.get(&key).expect("key");
-        if TypeId::of::<A>() == TypeId::of::<TextureCoordinates>() && TypeId::of::<Key>() == TypeId::of::<Entity>() {
-            tracing::trace!("queue-write for {:?}", key);
-        }
         self.world
             .get_non_send_resource_mut::<Attribute<A>>()
             .expect("attribute-setup")
@@ -290,8 +282,6 @@ impl<A: Pod + Zeroable + Default + Debug> Attribute<A> {
         self.write_needed = true;
     }
     fn remove(&mut self, index: usize) {
-        // *self.cpu.get_mut(index).expect("index") = A::default();
-        tracing::trace!("rem from {:?} @ index {}", self.cpu, index);
         self.cpu.remove(index);
         self.write_needed = true;
     }

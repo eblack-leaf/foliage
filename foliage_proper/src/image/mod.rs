@@ -75,7 +75,6 @@ pub struct Image {
     color: Differential<Color>,
     c: Color,
     gpu_section: Differential<GpuSection>,
-    gs: GpuSection,
     layer: Differential<RenderLayer>,
 }
 type ImageBitsRepr = f32;
@@ -112,7 +111,6 @@ impl Image {
             color: Differential::new(),
             c: Color::WHITE,
             gpu_section: Differential::new(),
-            gs: Default::default(),
             layer: Differential::new(),
         }
     }
@@ -348,7 +346,6 @@ impl Render for Image {
         for entity in queue_handle.read_removes::<Self>() {
             let id = renderer.resource_handle.entity_to_image.remove(&entity);
             if let Some(id) = id {
-                tracing::trace!("manually-read-remove: {:?} {:?}", entity, id);
                 renderer
                     .resource_handle
                     .groups
@@ -394,7 +391,6 @@ impl Render for Image {
             );
         }
         for packet in queue_handle.read_adds::<Self, ImageFill>() {
-            tracing::trace!("image-fill for {:?}", packet.entity);
             ginkgo.context().queue.write_texture(
                 ImageCopyTexture {
                     texture: &renderer
@@ -443,17 +439,16 @@ impl Render for Image {
                 .get_mut(&packet.value.0)
                 .unwrap()
                 .texture_coordinates = texture_coordinates;
-            // let old_keys = renderer
-            //     .resource_handle
-            //     .groups
-            //     .get_mut(&packet.value.0)
-            //     .unwrap()
-            //     .instances
-            //     .clear();
-            // tracing::trace!("old-keys: {:?}", old_keys);
-            // for old in old_keys {
-            //     renderer.resource_handle.entity_to_image.remove(&old);
-            // }
+            let old_keys = renderer
+                .resource_handle
+                .groups
+                .get_mut(&packet.value.0)
+                .unwrap()
+                .instances
+                .clear(Some(packet.entity));
+            for old in old_keys {
+                renderer.resource_handle.entity_to_image.remove(&old);
+            }
             renderer
                 .resource_handle
                 .groups

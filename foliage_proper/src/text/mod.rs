@@ -182,11 +182,14 @@ impl TextValue {
 }
 pub(crate) fn color_changes(
     mut texts: Query<
-        (&mut Glyphs, &GlyphColors, &Color),
+        (Entity, &mut Glyphs, &GlyphColors, &Color),
         Or<(Changed<GlyphColors>, Changed<Color>)>,
     >,
 ) {
-    for (mut glyphs, colors, base) in texts.iter_mut() {
+    for (entity, mut glyphs, colors, base) in texts.iter_mut() {
+        if entity.index() == 58 || entity.index() == 60 {
+            tracing::trace!("color: {:?}", base);
+        }
         for (offset, glyph) in glyphs.glyphs.iter_mut() {
             glyph.color = colors.obtain(*base, *offset);
         }
@@ -415,16 +418,13 @@ impl Render for Text {
                 .get_mut(&packet)
                 .unwrap()
                 .should_record = true;
-            if packet.index() == 58 {
-                tracing::trace!("clearing {:?}", packet);
-            }
             renderer
                 .resource_handle
                 .groups
                 .get_mut(&packet)
                 .unwrap()
                 .instances
-                .clear();
+                .clear(None);
             // renderer.directive_manager.remove(packet);
             renderer.disassociate_directive_group(packet.index() as i32);
         }
@@ -470,7 +470,7 @@ impl Render for Text {
                 .clip_context = packet.value;
         }
         for packet in queue_handle.read_adds::<Self, GpuSection>() {
-            if packet.entity.index() == 58 {
+            if packet.entity.index() == 59 || packet.entity.index() == 60 {
                 tracing::trace!("gpu-section: {} {}", packet.value.pos.0, packet.value.area.0);
             }
             renderer
