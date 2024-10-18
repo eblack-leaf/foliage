@@ -123,7 +123,7 @@ impl<Key: Hash + Eq + Copy + Clone + Debug + 'static> Instances<Key> {
             removed.push(e);
             self.queue_remove(e);
         }
-        // self.process_removals();
+        self.process_removals();
         self.changed = true;
         removed
     }
