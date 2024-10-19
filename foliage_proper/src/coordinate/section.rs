@@ -137,7 +137,10 @@ impl<Context: CoordinateContext> Section<Context> {
         self.intersection(o).is_some()
     }
     pub fn contains(&self, p: Position<Context>) -> bool {
-        p.x() <= self.right() && p.x() >= self.left() && p.y() <= self.bottom() && p.y() >= self.top()
+        p.x() <= self.right()
+            && p.x() >= self.left()
+            && p.y() <= self.bottom()
+            && p.y() >= self.top()
     }
     pub fn normalized<C: Into<Coordinates>>(&self, c: C) -> Self {
         let c = c.into();

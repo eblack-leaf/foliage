@@ -355,7 +355,7 @@ impl Render for Image {
             }
         }
         for packet in queue_handle.read_adds::<Self, ImageSlotDescriptor>() {
-            renderer.associate_directive_group(packet.value.0.0, packet.value.0);
+            renderer.associate_directive_group(packet.value.0 .0, packet.value.0);
             let (tex, view) = ginkgo.create_texture(
                 Self::FORMAT,
                 packet.value.1,

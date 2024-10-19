@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
+use crate::tree::Tree;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::Component;
 use bevy_ecs::system::{Commands, Query, Res, ResMut, Resource};
 use futures_channel::oneshot::{Receiver, Sender};
 use uuid::Uuid;
-use crate::tree::Tree;
 
 #[derive(Resource, Default)]
 pub struct AssetLoader {

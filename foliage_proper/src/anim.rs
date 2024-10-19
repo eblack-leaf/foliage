@@ -341,7 +341,7 @@ pub(crate) fn animate<A: Animate + Component>(
                 a.apply(&mut animation.interpolations);
                 if TypeId::of::<A>() == TypeId::of::<ResponsiveAnimationHook>()
                     || TypeId::of::<A>() == TypeId::of::<ResponsivePointsAnimationHook>()
-                    && !just_started
+                        && !just_started
                 {
                     tree.entity(animation.animation_target)
                         .insert(EvaluateLocation::recursive());

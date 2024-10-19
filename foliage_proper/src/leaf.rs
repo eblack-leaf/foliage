@@ -139,15 +139,18 @@ impl EvaluateElevation {
         let resolved = RenderLayer::new(
             current.0
                 + world
-                .get::<Elevation>(entity)
-                .copied()
-                .unwrap_or_default()
-                .0,
+                    .get::<Elevation>(entity)
+                    .copied()
+                    .unwrap_or_default()
+                    .0,
         );
         world.commands().entity(entity).insert(resolved);
         if let Some(ds) = world.get::<Dependents>(entity).cloned() {
             for d in ds.0 {
-                world.commands().entity(d).insert(EvaluateElevation::recursive());
+                world
+                    .commands()
+                    .entity(d)
+                    .insert(EvaluateElevation::recursive());
             }
         }
     }
