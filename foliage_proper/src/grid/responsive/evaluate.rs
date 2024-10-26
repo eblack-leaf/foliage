@@ -54,6 +54,10 @@ impl EvaluateLocation {
             let mut resolved = None;
             if let Some(res) = world.get::<ResolvedConfiguration>(entity) {
                 if let Some(r) = res.evaluate(stem, screen) {
+                    // min/max ?
+                    // if res.aspect_ratio.is_some() => r = post_process(r, res.aspect_ratio)
+                    // else if auto-height && tv && fs => r = fit_to_text_height(r, tv, fs, font, placer)
+                    // r.pos += stem.view
                     let old_diff = world
                         .get::<ResponsiveAnimationHook>(entity)
                         .copied()
