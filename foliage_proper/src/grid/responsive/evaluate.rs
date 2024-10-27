@@ -1,8 +1,8 @@
-use crate::coordinate::area::Area;
+use crate::ash::ClippingContext;
 use crate::coordinate::points::Points;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
-use crate::coordinate::LogicalContext;
+use crate::coordinate::{Coordinates, LogicalContext};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::grid::aspect::GridAspect;
 use crate::grid::responsive::anim::{
@@ -15,6 +15,7 @@ use crate::layout::LayoutGrid;
 use crate::leaf::{Dependents, Stem};
 use crate::text::{FontSize, GlyphPlacer, MonospacedFont, TextAlignment, TextValue};
 use crate::twig::Configure;
+use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::StorageType::SparseSet;
 use bevy_ecs::component::{ComponentHooks, ComponentId, StorageType};
 use bevy_ecs::entity::Entity;
@@ -26,18 +27,44 @@ pub(crate) struct ReferentialData {
     pub(crate) section: Section<LogicalContext>,
     pub(crate) grid: Grid,
     pub(crate) points: Points<LogicalContext>,
-    pub(crate) view: View,
+    pub(crate) view: ScrollView,
 }
+#[derive(Bundle, Copy, Clone)]
+pub struct ScrollContext {
+    clipping_context: ClippingContext,
+    extent_checker: ExtentChecker,
+}
+impl ScrollContext {
+    pub fn new(root: Entity) -> Self {
+        Self {
+            clipping_context: ClippingContext::Entity(root),
+            extent_checker: ExtentChecker(root),
+        }
+    }
+}
+#[derive(Copy, Clone, Component)]
+pub(crate) struct ExtentChecker(pub(crate) Entity);
 #[derive(Copy, Clone, Default, Debug, Component)]
-pub struct View {
-    pub(crate) position: Position<LogicalContext>,
-    pub(crate) extent: Area<LogicalContext>,
+pub struct ScrollView {
+    pub position: Position<LogicalContext>,
+    pub horizontal_extent: Coordinates,
+    pub vertical_extent: Coordinates,
 }
+
+impl ScrollView {
+    pub fn new(pos: Position<LogicalContext>, he: Coordinates, ve: Coordinates) -> Self {
+        Self {
+            position: pos,
+            horizontal_extent: he,
+            vertical_extent: ve,
+        }
+    }
+}
+
 #[derive(Copy, Clone)]
 pub struct EvaluateLocation {
     pub(crate) skip_deps: bool,
 }
-
 impl EvaluateLocation {
     pub(crate) fn on_insert(mut world: DeferredWorld, entity: Entity, _: ComponentId) {
         let screen = ReferentialData {
@@ -58,7 +85,7 @@ impl EvaluateLocation {
                         .get::<Points<LogicalContext>>(s)
                         .copied()
                         .unwrap_or_default(),
-                    view: world.get::<View>(s).copied().unwrap_or_default(),
+                    view: world.get::<ScrollView>(s).copied().unwrap_or_default(),
                 }
             } else {
                 screen
@@ -143,6 +170,25 @@ impl EvaluateLocation {
             }
             if let Some(r) = resolved {
                 world.commands().entity(entity).insert(r);
+                if let Some(ec) = world.get::<ExtentChecker>(entity).copied() {
+                    if let Some(context) = world.get::<ScrollView>(ec.0).copied() {
+                        let mut new_horizontal = context.horizontal_extent;
+                        let mut new_vertical = context.vertical_extent;
+                        if r.right() - stem.section.left() > context.horizontal_extent.vertical() {
+                            new_horizontal.set_vertical(r.right() - stem.section.left());
+                        }
+                        if r.left() - stem.section.left() < context.horizontal_extent.horizontal() {
+                            new_horizontal.set_horizontal(r.left() - stem.section.left());
+                        }
+                        if r.top() - stem.section.top() < context.vertical_extent.horizontal() {
+                            new_vertical.set_horizontal(r.top() - stem.section.top());
+                        }
+                        if r.bottom() - stem.section.top() > context.vertical_extent.vertical() {
+                            new_vertical.set_vertical(r.bottom() - stem.section.top());
+                        }
+                        world.commands().entity(ec.0).insert(ScrollView::new(context.position, new_horizontal, new_vertical));
+                    }
+                }
                 world.trigger_targets(Configure {}, entity);
             }
             let mut resolved = None;

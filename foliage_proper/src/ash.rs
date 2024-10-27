@@ -1,8 +1,9 @@
-use bevy_ecs::component::Component;
+use bevy_ecs::component::StorageType::Table;
+use bevy_ecs::component::{Component, ComponentHooks, ComponentId, StorageType};
 use bevy_ecs::prelude::{Entity, Query, RemovedComponents};
 use bevy_ecs::query::{Added, Changed, Or, With};
 use bevy_ecs::system::{Res, ResMut, Resource};
-use bevy_ecs::world::World;
+use bevy_ecs::world::{DeferredWorld, World};
 use std::cmp::{Ordering, PartialOrd};
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
@@ -14,6 +15,7 @@ use crate::coordinate::section::Section;
 use crate::coordinate::{DeviceContext, LogicalContext};
 use crate::elm::RenderQueueHandle;
 use crate::ginkgo::{Ginkgo, ScaleFactor};
+use crate::leaf::Dependents;
 use crate::Elm;
 
 #[derive(Default)]
@@ -76,11 +78,27 @@ pub(crate) struct DrawCalls {
     pub(crate) unsorted: HashMap<usize, HashMap<DirectiveGroupPointer, RenderNodes>>,
     pub(crate) changed: bool,
 }
-#[derive(Debug, Copy, Clone, Component, PartialEq, Default, PartialOrd)]
+#[derive(Debug, Copy, Clone, PartialEq, Default, PartialOrd)]
 pub(crate) enum ClippingContext {
     #[default]
     Screen,
     Entity(Entity),
+}
+impl ClippingContext {
+    fn on_insert(mut world: DeferredWorld, entity: Entity, _c: ComponentId) {
+        let context = *world.get::<ClippingContext>(entity).unwrap();
+        if let Some(deps) = world.get::<Dependents>(entity).cloned() {
+            for d in deps.0.iter() {
+                world.commands().entity(*d).insert(context);
+            }
+        }
+    }
+}
+impl Component for ClippingContext {
+    const STORAGE_TYPE: StorageType = Table;
+    fn register_component_hooks(_hooks: &mut ComponentHooks) {
+        _hooks.on_insert(Self::on_insert);
+    }
 }
 #[derive(Debug, Clone, Copy, Default)]
 pub(crate) struct ClippingSection(pub(crate) Section<DeviceContext>);

@@ -361,6 +361,19 @@ impl KeyboardAdapter {
         None
     }
 }
+#[derive(Component, Copy, Clone)]
+pub struct Draggable {
+    pub(crate) original_view: Position<LogicalContext>, // for relative setting from absolute drag
+}
+pub(crate) fn draggable(
+    // events for Interaction / MouseWheel (separate)
+) {
+    // if interaction ++ engaged-start => set original-view of draggable
+    // if interaction ++ engaged => scroll-view.pos = original-view + diff from current - begin
+    // if mouse-wheel => scroll-view.pos += delta (maxed by extent)
+    // if scroll-view.pos.x + delta.x + actual-area.w > scroll-view.h_extent[1] => scroll-view.pos.x = scroll-view.h_extent[1] - actual-area.w
+    // 4 ways for negative scrolling caps (defaults to 0 however) e.g. scroll-view.pos.x + delta.x < h_extent[0] => scroll-view.pos.x = h_extent[0]
+}
 impl Root for ClickInteractionListener {
     fn attach(elm: &mut Elm) {
         elm.scheduler.main.add_systems((

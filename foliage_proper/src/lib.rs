@@ -9,7 +9,7 @@ use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::Layer;
 pub use wgpu;
 use winit::application::ApplicationHandler;
-use winit::event::WindowEvent;
+use winit::event::{MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::WindowId;
 
@@ -19,7 +19,8 @@ use crate::anim::{Animate, EnabledAnimations};
 use crate::ash::{Ash, ClippingContext, Render};
 use crate::asset::{Asset, AssetKey, AssetLoader};
 use crate::coordinate::area::Area;
-use crate::coordinate::{Coordinates, DeviceContext};
+use crate::coordinate::position::Position;
+use crate::coordinate::{CoordinateUnit, Coordinates, DeviceContext};
 use crate::elm::{Ecs, Elm};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::{Ginkgo, ScaleFactor};
@@ -324,7 +325,18 @@ impl Foliage {
             }
             WindowEvent::CursorEntered { .. } => {}
             WindowEvent::CursorLeft { .. } => {}
-            WindowEvent::MouseWheel { .. } => {}
+            WindowEvent::MouseWheel { device_id: _, delta, phase } => {
+                const LINE_TO_PX: CoordinateUnit = 10.0;
+                let px = match delta {
+                    MouseScrollDelta::LineDelta(x, y) => {
+                        Position::logical((x * LINE_TO_PX, y * LINE_TO_PX))
+                    }
+                    MouseScrollDelta::PixelDelta(px) => {
+                        Position::device((px.x, px.y)).to_logical(1.0)
+                    }
+                };
+                // Send event with (px) to be read by draggable
+            }
             WindowEvent::MouseInput {
                 device_id: _device_id,
                 state,

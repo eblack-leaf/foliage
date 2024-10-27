@@ -7,7 +7,7 @@ use crate::coordinate::points::Points;
 use crate::coordinate::section::{GpuSection, Section};
 use crate::coordinate::LogicalContext;
 use crate::differential::{RenderLink, RenderRemoveQueue};
-use crate::grid::responsive::evaluate::{EvaluateLocation, View};
+use crate::grid::responsive::evaluate::{EvaluateLocation, ScrollView};
 use crate::grid::Grid;
 use crate::interaction::ClickInteractionListener;
 use crate::opacity::{EvaluateOpacity, Opacity};
@@ -35,7 +35,7 @@ pub struct Leaf {
     grid: Grid,
     gs: GpuSection,
     points: Points<LogicalContext>,
-    view: View,
+    view: ScrollView,
 }
 
 impl Leaf {
