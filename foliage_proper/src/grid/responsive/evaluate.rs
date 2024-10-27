@@ -76,6 +76,7 @@ impl EvaluateLocation {
                                 section: diff_value,
                                 percent: old_diff.percent,
                             });
+                        world.commands().entity(entity).remove::<CalcDiff>();
                         value
                     } else {
                         old_diff.value()
@@ -109,6 +110,7 @@ impl EvaluateLocation {
                                 points: diff_value,
                                 percent: old_diff.percent,
                             });
+                        world.commands().entity(entity).remove::<CalcDiff>();
                         value
                     } else {
                         old_diff.value()

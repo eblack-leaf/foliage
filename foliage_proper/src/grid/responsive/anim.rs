@@ -49,9 +49,6 @@ pub(crate) fn calc_diff(diff_requested: Query<Entity, With<CalcDiff>>, mut tree:
     for e in diff_requested.iter() {
         tree.entity(e).insert(EvaluateLocation::recursive());
     }
-    for e in diff_requested.iter() {
-        tree.entity(e).remove::<CalcDiff>();
-    }
 }
 
 impl Animate for ResponsiveAnimationHook {
