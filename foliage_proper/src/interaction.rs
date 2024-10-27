@@ -380,6 +380,7 @@ impl Root for ClickInteractionListener {
             (disabled_listeners, listen_for_interactions, on_click)
                 .chain()
                 .in_set(InternalStage::External),
+            draggable.in_set(InternalStage::Apply),
             reset_click_listener_flags.after(InternalStage::Resolve),
         ));
         elm.enable_event::<ClickInteraction>();
