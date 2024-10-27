@@ -56,6 +56,8 @@ pub struct Text {
     metrics: Differential<GlyphMetrics>,
     gm: GlyphMetrics,
     font_size: FontSize,
+    text_alignment: TextAlignment,
+    placer: GlyphPlacer,
 }
 impl Text {
     pub fn new<S: AsRef<str>, C: Into<Color>>(tv: S, font_size: FontSize, color: C) -> Self {
@@ -75,7 +77,22 @@ impl Text {
             metrics: Differential::new(),
             gm: Default::default(),
             font_size,
+            text_alignment: TextAlignment::default(),
+            placer: Default::default(),
         }
+    }
+    pub fn align_horizontal(mut self, ha: HorizontalAlignment) -> Self {
+        self.text_alignment.horizontal = ha;
+        self
+    }
+    pub fn align_vertical(mut self, va: VerticalAlignment) -> Self {
+        self.text_alignment.vertical = va;
+        self
+    }
+    pub fn centered(mut self) -> Self {
+        self.text_alignment.horizontal = HorizontalAlignment::Center;
+        self.text_alignment.vertical = VerticalAlignment::Middle;
+        self
     }
 }
 #[derive(Copy, Clone, Component)]
@@ -192,7 +209,59 @@ pub(crate) fn color_changes(
         }
     }
 }
-
+#[derive(Component)]
+pub(crate) struct GlyphPlacer {
+    pub(crate) layout: fontdue::layout::Layout,
+}
+impl Clone for GlyphPlacer {
+    fn clone(&self) -> Self {
+        Self::default()
+    }
+}
+impl Default for GlyphPlacer {
+    fn default() -> Self {
+        Self {
+            layout: fontdue::layout::Layout::new(CoordinateSystem::PositiveYDown),
+        }
+    }
+}
+#[derive(Copy, Clone, Default)]
+pub enum HorizontalAlignment {
+    #[default]
+    Left,
+    Center,
+    Right,
+}
+impl From<HorizontalAlignment> for fontdue::layout::HorizontalAlign {
+    fn from(value: HorizontalAlignment) -> Self {
+        match value {
+            HorizontalAlignment::Left => fontdue::layout::HorizontalAlign::Left,
+            HorizontalAlignment::Center => fontdue::layout::HorizontalAlign::Center,
+            HorizontalAlignment::Right => fontdue::layout::HorizontalAlign::Right,
+        }
+    }
+}
+#[derive(Copy, Clone, Default)]
+pub enum VerticalAlignment {
+    #[default]
+    Top,
+    Middle,
+    Bottom,
+}
+impl From<VerticalAlignment> for fontdue::layout::VerticalAlign {
+    fn from(value: VerticalAlignment) -> Self {
+        match value {
+            VerticalAlignment::Top => fontdue::layout::VerticalAlign::Top,
+            VerticalAlignment::Middle => fontdue::layout::VerticalAlign::Middle,
+            VerticalAlignment::Bottom => fontdue::layout::VerticalAlign::Bottom,
+        }
+    }
+}
+#[derive(Component, Copy, Clone, Default)]
+pub struct TextAlignment {
+    pub(crate) horizontal: HorizontalAlignment,
+    pub(crate) vertical: VerticalAlignment,
+}
 pub(crate) fn distill(
     mut texts: Query<
         (
@@ -203,6 +272,8 @@ pub(crate) fn distill(
             &Section<LogicalContext>,
             &mut GlyphMetrics,
             &FontSize,
+            &mut GlyphPlacer,
+            &TextAlignment,
         ),
         Or<(
             Changed<TextValue>,
@@ -213,14 +284,16 @@ pub(crate) fn distill(
     font: Res<MonospacedFont>,
     scale_factor: Res<ScaleFactor>,
 ) {
-    for (value, mut glyphs, colors, base, section, mut metrics, font_size) in texts.iter_mut() {
-        let mut placer = fontdue::layout::Layout::new(CoordinateSystem::PositiveYDown);
+    for (value, mut glyphs, colors, base, section, mut metrics, font_size, mut placer, alignment) in
+        texts.iter_mut()
+    {
+        // let mut placer = fontdue::layout::Layout::new(CoordinateSystem::PositiveYDown);
         let scaled_area = section.area.to_device(scale_factor.value());
-        placer.reset(&fontdue::layout::LayoutSettings {
+        placer.layout.reset(&fontdue::layout::LayoutSettings {
             max_width: Some(scaled_area.width()),
             max_height: Some(scaled_area.height()),
-            horizontal_align: fontdue::layout::HorizontalAlign::Center,
-            vertical_align: fontdue::layout::VerticalAlign::Middle,
+            horizontal_align: alignment.horizontal.into(),
+            vertical_align: alignment.vertical.into(),
             ..fontdue::layout::LayoutSettings::default()
         });
         let projected = font_size.value() * scale_factor.value();
@@ -233,7 +306,7 @@ pub(crate) fn distill(
             )
         };
         glyphs.font_size = projected;
-        placer.append(
+        placer.layout.append(
             &[&font.0],
             &fontdue::layout::TextStyle::new(value.0.as_str(), glyphs.font_size, 0),
         );
@@ -243,7 +316,7 @@ pub(crate) fn distill(
         }
         let old_glyphs = glyphs.glyphs.drain().collect::<Vec<(GlyphOffset, Glyph)>>();
         glyphs.removed.clear();
-        for glyph in placer.glyphs().iter() {
+        for glyph in placer.layout.glyphs().iter() {
             let section = Section::new((glyph.x, glyph.y), (glyph.width, glyph.height));
             glyphs.glyphs.insert(
                 glyph.byte_offset,

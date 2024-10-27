@@ -1,4 +1,5 @@
 use crate::coordinate::points::Points;
+use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
 use crate::grid::aspect::{
@@ -17,17 +18,24 @@ impl ResolvedConfiguration {
         &self,
         stem: ReferentialData,
         screen: ReferentialData,
-    ) -> Option<Section<LogicalContext>> {
+    ) -> Option<(Section<LogicalContext>, bool, bool)> {
         let mut resolution = Section::default();
+        let mut aw = false;
+        let mut ah = false;
         for (aspect_config, aspect_value) in self.configurations.iter() {
             let pair_config = (
                 aspect_value.aspects[0].aspect,
                 aspect_value.aspects[1].aspect,
             );
-            let data = (
-                aspect_value.aspects[0].value.resolve(stem, screen),
-                aspect_value.aspects[1].value.resolve(stem, screen),
-            );
+            let (x, auto_w_found) = aspect_value.aspects[0].value.resolve(stem, screen);
+            let (y, auto_h_found) = aspect_value.aspects[1].value.resolve(stem, screen);
+            if auto_w_found {
+                aw = true;
+            }
+            if auto_h_found {
+                ah = true;
+            }
+            let data = (x, y);
             match aspect_config {
                 Configuration::Horizontal => {
                     if pair_config == (GridAspect::Left, GridAspect::Right) {
@@ -75,7 +83,8 @@ impl ResolvedConfiguration {
                 }
             }
         }
-        Some(resolution)
+        resolution.position += stem.view.position;
+        Some((resolution, aw, ah))
     }
 }
 
@@ -97,34 +106,38 @@ impl ResolvedPoints {
             }
             let pair_config = (b.aspects[0].aspect, b.aspects[1].aspect);
             let data = (
-                b.aspects[0].value.resolve(stem, screen),
-                b.aspects[1].value.resolve(stem, screen),
+                b.aspects[0].value.resolve(stem, screen).0,
+                b.aspects[1].value.resolve(stem, screen).0,
             );
             match a {
                 PointAspectConfiguration::PointA => {
                     if pair_config == (GridAspect::PointAX, GridAspect::PointAY) {
-                        resolution.data[0] = data.into();
+                        resolution.data[0] =
+                            Position::<LogicalContext>::from(data) + stem.view.position;
                     } else {
                         panic!("invalid-configuration aspect")
                     }
                 }
                 PointAspectConfiguration::PointB => {
                     if pair_config == (GridAspect::PointBX, GridAspect::PointBY) {
-                        resolution.data[1] = data.into();
+                        resolution.data[1] =
+                            Position::<LogicalContext>::from(data) + stem.view.position;
                     } else {
                         panic!("invalid-configuration aspect")
                     }
                 }
                 PointAspectConfiguration::PointC => {
                     if pair_config == (GridAspect::PointCX, GridAspect::PointCY) {
-                        resolution.data[2] = data.into();
+                        resolution.data[2] =
+                            Position::<LogicalContext>::from(data) + stem.view.position;
                     } else {
                         panic!("invalid-configuration aspect")
                     }
                 }
                 PointAspectConfiguration::PointD => {
                     if pair_config == (GridAspect::PointDX, GridAspect::PointDY) {
-                        resolution.data[3] = data.into();
+                        resolution.data[3] =
+                            Position::<LogicalContext>::from(data) + stem.view.position;
                     } else {
                         panic!("invalid-configuration aspect")
                     }

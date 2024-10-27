@@ -95,11 +95,14 @@ impl Button {
             .observe(configure);
         let based = !args.font_size.is_some();
         if args.font_size.is_some() {
-            world.commands().entity(text).insert(Text::new(
-                args.text_value.unwrap_or_default().0,
-                args.font_size.unwrap(),
-                args.coloring.foreground,
-            ));
+            world.commands().entity(text).insert(
+                Text::new(
+                    args.text_value.unwrap_or_default().0,
+                    args.font_size.unwrap(),
+                    args.coloring.foreground,
+                )
+                .centered(),
+            );
         }
         world.commands().entity(entity).insert(ButtonBindings {
             icon,

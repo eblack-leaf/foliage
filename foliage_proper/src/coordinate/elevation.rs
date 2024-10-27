@@ -6,7 +6,12 @@ use bytemuck::{Pod, Zeroable};
 
 #[repr(C)]
 #[derive(Copy, Clone, Default, PartialEq, Pod, Zeroable, Component, Debug)]
-pub(crate) struct RenderLayer(pub(crate) f32);
+pub struct RenderLayer(pub(crate) f32);
+impl RenderLayer {
+    pub fn value(&self) -> f32 {
+        self.0
+    }
+}
 impl Display for RenderLayer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!("{}", self.0))
@@ -63,7 +68,7 @@ impl Sub for RenderLayer {
     }
 }
 impl RenderLayer {
-    pub(crate) fn new(l: f32) -> Self {
+    pub fn new(l: f32) -> Self {
         Self(l)
     }
 }

@@ -1,4 +1,6 @@
+use crate::coordinate::area::Area;
 use crate::coordinate::points::Points;
+use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
 use crate::ginkgo::viewport::ViewportHandle;
@@ -10,6 +12,7 @@ use crate::grid::responsive::resolve::ResolvedPoints;
 use crate::grid::Grid;
 use crate::layout::LayoutGrid;
 use crate::leaf::{Dependents, Stem};
+use crate::text::{FontSize, GlyphPlacer, MonospacedFont, TextAlignment, TextValue};
 use crate::twig::Configure;
 use bevy_ecs::component::StorageType::SparseSet;
 use bevy_ecs::component::{ComponentHooks, ComponentId, StorageType};
@@ -22,18 +25,25 @@ pub(crate) struct ReferentialData {
     pub(crate) section: Section<LogicalContext>,
     pub(crate) grid: Grid,
     pub(crate) points: Points<LogicalContext>,
+    pub(crate) view: View,
 }
-
+#[derive(Copy, Clone, Default, Debug, Component)]
+pub struct View {
+    pub(crate) position: Position<LogicalContext>,
+    pub(crate) extent: Area<LogicalContext>,
+}
 #[derive(Copy, Clone)]
 pub struct EvaluateLocation {
     pub(crate) skip_deps: bool,
 }
+
 impl EvaluateLocation {
     pub(crate) fn on_insert(mut world: DeferredWorld, entity: Entity, _: ComponentId) {
         let screen = ReferentialData {
             section: world.get_resource::<ViewportHandle>().unwrap().section(),
             grid: world.get_resource::<LayoutGrid>().unwrap().grid,
             points: Default::default(),
+            view: Default::default(),
         };
         if let Some(stem) = world.get::<Stem>(entity).copied() {
             let stem = if let Some(s) = stem.0 {
@@ -47,17 +57,51 @@ impl EvaluateLocation {
                         .get::<Points<LogicalContext>>(s)
                         .copied()
                         .unwrap_or_default(),
+                    view: world.get::<View>(s).copied().unwrap_or_default(),
                 }
             } else {
                 screen
             };
             let mut resolved = None;
             if let Some(res) = world.get::<ResolvedConfiguration>(entity) {
-                if let Some(r) = res.evaluate(stem, screen) {
+                if let Some((r, aw, ah)) = res.evaluate(stem, screen) {
                     // if res.aspect_ratio.is_some() => r = post_process(r, res.aspect_ratio)
                     // else if auto-height && tv && fs => r = fit_to_text_height(r, tv, fs, font, placer)
                     // min/max ?
-                    // r.pos += stem.view
+                    let r = if ah {
+                        if let Some(tv) = world.get::<TextValue>(entity) {
+                            if let Some(fs) = world.get::<FontSize>(entity) {
+                                if let Some(ta) = world.get::<TextAlignment>(entity) {
+                                    let mut placer = GlyphPlacer::default();
+                                    let font = world.get_resource::<MonospacedFont>().unwrap();
+                                    placer.layout.reset(&fontdue::layout::LayoutSettings {
+                                        max_width: Some(r.width()),
+                                        max_height: None,
+                                        horizontal_align: ta.horizontal.into(),
+                                        vertical_align: ta.vertical.into(),
+                                        ..fontdue::layout::LayoutSettings::default()
+                                    });
+                                    placer.layout.append(
+                                        &[&font.0],
+                                        &fontdue::layout::TextStyle::new(tv.0.as_str(), fs.0, 0),
+                                    );
+                                    let derived_height = placer.layout.height();
+                                    let mut fitted = Section::from(r);
+                                    fitted.area.set_height(derived_height);
+                                    fitted
+                                    // derive logical section bounds based on placer.layout.height()...
+                                } else {
+                                    r
+                                }
+                            } else {
+                                r
+                            }
+                        } else {
+                            r
+                        }
+                    } else {
+                        r
+                    };
                     let old_diff = world
                         .get::<ResponsiveAnimationHook>(entity)
                         .copied()
@@ -91,7 +135,6 @@ impl EvaluateLocation {
             let mut resolved = None;
             if let Some(res) = world.get::<ResolvedPoints>(entity) {
                 if let Some(r) = res.evaluate(stem, screen) {
-                    // r.abcd += stem.view
                     let old_diff = world
                         .get::<ResponsivePointsAnimationHook>(entity)
                         .copied()
