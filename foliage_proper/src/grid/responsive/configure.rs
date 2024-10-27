@@ -40,7 +40,7 @@ impl ConfigureFromLayout {
                                         base.configurations[config].1.aspects[1].value.clone()
                                     };
                             }
-                            AspectValueWrapper::Specified(_) => {}
+                            _ => {}
                         }
                         match aspect.aspects[1].value {
                             AspectValueWrapper::Existing => {
@@ -58,7 +58,7 @@ impl ConfigureFromLayout {
                                         base.configurations[config].1.aspects[1].value.clone()
                                     };
                             }
-                            AspectValueWrapper::Specified(_) => {}
+                            _ => {}
                         }
                         to_use[a.config.value()].1 = aspect;
                     }
@@ -94,7 +94,7 @@ impl ConfigureFromLayout {
                                             base.configurations[config].1.aspects[1].value.clone()
                                         }
                                 }
-                                AspectValueWrapper::Specified(_) => {}
+                                _ => {}
                             }
                         }
                         to_use[config].1 = aspect;

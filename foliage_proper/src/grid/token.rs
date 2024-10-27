@@ -165,12 +165,14 @@ pub(crate) enum AspectValueWrapper {
     #[default]
     Existing,
     Specified(AspectValue),
+    Auto,
 }
 impl AspectValueWrapper {
     pub(crate) fn resolve(&self, stem: ReferentialData, screen: ReferentialData) -> CoordinateUnit {
         match self {
             AspectValueWrapper::Existing => 0.0,
             AspectValueWrapper::Specified(spec) => spec.resolve(stem, screen),
+            AspectValueWrapper::Auto => 0.0,
         }
     }
 }

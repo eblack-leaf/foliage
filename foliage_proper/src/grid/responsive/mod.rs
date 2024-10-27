@@ -3,6 +3,7 @@ use crate::grid::aspect::{
     Configuration, ConfigurationDescriptor, GridAspect, PointAspectConfiguration,
 };
 use crate::grid::token::{AspectValue, AspectValueWrapper};
+use crate::grid::unit::TokenUnit;
 use crate::layout::Layout;
 use anim::{ResponsiveAnimationHook, ResponsivePointsAnimationHook};
 use bevy_ecs::bundle::Bundle;
@@ -67,6 +68,17 @@ impl ResponsiveLocation {
         }
         self
     }
+    pub fn auto_height(mut self) -> Self {
+        if let Some(mut aspect) = self
+            .base
+            .configurations
+            .get_mut(Configuration::Vertical.value())
+        {
+            aspect.0 = Configuration::Vertical;
+            aspect.1.set(GridAspect::Height, AspectValueWrapper::Auto);
+        }
+        self
+    }
     pub fn height<LAD: Into<AspectValue>>(mut self, d: LAD) -> Self {
         if let Some(mut aspect) = self
             .base
@@ -120,6 +132,17 @@ impl ResponsiveLocation {
             aspect
                 .1
                 .set(GridAspect::Right, AspectValueWrapper::Specified(d.into()));
+        }
+        self
+    }
+    pub fn auto_width(mut self) -> Self {
+        if let Some(mut aspect) = self
+            .base
+            .configurations
+            .get_mut(Configuration::Horizontal.value())
+        {
+            aspect.0 = Configuration::Horizontal;
+            aspect.1.set(GridAspect::Width, AspectValueWrapper::Auto);
         }
         self
     }
@@ -221,6 +244,13 @@ impl ResponsiveSection {
         }
         self
     }
+    pub fn auto_height(mut self) -> Self {
+        if let Some(mut aspect) = self.configurations.get_mut(Configuration::Vertical.value()) {
+            aspect.0 = Configuration::Vertical;
+            aspect.1.set(GridAspect::Height, AspectValueWrapper::Auto);
+        }
+        self
+    }
     pub fn existing_height(mut self) -> Self {
         if let Some(aspect) = self.configurations.get_mut(Configuration::Vertical.value()) {
             aspect.0 = Configuration::Vertical;
@@ -307,6 +337,16 @@ impl ResponsiveSection {
             aspect
                 .1
                 .set(GridAspect::Width, AspectValueWrapper::Specified(d.into()));
+        }
+        self
+    }
+    pub fn auto_width(mut self) -> Self {
+        if let Some(mut aspect) = self
+            .configurations
+            .get_mut(Configuration::Horizontal.value())
+        {
+            aspect.0 = Configuration::Horizontal;
+            aspect.1.set(GridAspect::Width, AspectValueWrapper::Auto);
         }
         self
     }
