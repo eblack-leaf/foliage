@@ -3,7 +3,7 @@ use crate::grid::token::{
 };
 
 #[derive(Default, Clone)]
-pub(crate) struct ConfigurationDescriptor {
+pub struct ConfigurationDescriptor {
     pub(crate) aspects: [AspectDescriptor; 2],
     pub(crate) count: u32,
 }
@@ -263,7 +263,7 @@ impl Configuration {
     }
 }
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default, PartialOrd)]
-pub(crate) enum GridAspect {
+pub enum GridAspect {
     #[default]
     Top,
     Height,

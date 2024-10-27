@@ -389,7 +389,7 @@ impl ResponsiveSection {
     }
 }
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
-pub(crate) struct SectionException {
+pub struct SectionException {
     layout: Layout,
     config: Configuration,
 }

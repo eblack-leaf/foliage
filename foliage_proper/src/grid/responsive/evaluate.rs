@@ -69,6 +69,7 @@ impl EvaluateLocation {
                     // else if auto-height && tv && fs => r = fit_to_text_height(r, tv, fs, font, placer)
                     // min/max ?
                     let r = if ah {
+                        // derive logical section bounds based on placer.layout.height()...
                         if let Some(tv) = world.get::<TextValue>(entity) {
                             if let Some(fs) = world.get::<FontSize>(entity) {
                                 if let Some(ta) = world.get::<TextAlignment>(entity) {
@@ -87,9 +88,9 @@ impl EvaluateLocation {
                                     );
                                     let derived_height = placer.layout.height();
                                     let mut fitted = Section::from(r);
+                                    // TODO fix center-y / bottom placement-tokens since did not have height present to calculate correctly
                                     fitted.area.set_height(derived_height);
                                     fitted
-                                    // derive logical section bounds based on placer.layout.height()...
                                 } else {
                                     r
                                 }

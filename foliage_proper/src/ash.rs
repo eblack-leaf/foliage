@@ -58,7 +58,7 @@ pub(crate) struct Ash {
     pub(crate) drawn: bool,
     pub(crate) draw_calls: DrawCalls,
     pub(crate) draw_fns: Vec<
-        for<'a> fn(
+            for<'a> fn(
             &'a RendererStructure,
             DirectiveGroupPointer,
             DrawRange,
@@ -138,9 +138,9 @@ impl RenderNodes {
     }
 }
 #[derive(Copy, Clone)]
-pub(crate) struct DrawRange {
-    pub(crate) start: u32,
-    pub(crate) end: u32,
+pub struct DrawRange {
+    pub start: u32,
+    pub end: u32,
 }
 impl DrawRange {
     pub(crate) fn new(start: u32, end: u32) -> Self {
