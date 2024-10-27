@@ -67,7 +67,6 @@ impl EvaluateLocation {
             if let Some(res) = world.get::<ResolvedConfiguration>(entity) {
                 if let Some((r, aw, ah)) = res.evaluate(stem, screen) {
                     // if res.aspect_ratio.is_some() => r = post_process(r, res.aspect_ratio)
-                    // else if auto-height && tv && fs => r = fit_to_text_height(r, tv, fs, font, placer)
                     // min/max ?
                     let r = if ah.0 {
                         // derive logical section bounds based on placer.layout.height()...
