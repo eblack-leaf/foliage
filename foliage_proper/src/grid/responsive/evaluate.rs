@@ -4,6 +4,7 @@ use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
 use crate::ginkgo::viewport::ViewportHandle;
+use crate::grid::aspect::GridAspect;
 use crate::grid::responsive::anim::{
     CalcDiff, ResponsiveAnimationHook, ResponsivePointsAnimationHook,
 };
@@ -68,7 +69,7 @@ impl EvaluateLocation {
                     // if res.aspect_ratio.is_some() => r = post_process(r, res.aspect_ratio)
                     // else if auto-height && tv && fs => r = fit_to_text_height(r, tv, fs, font, placer)
                     // min/max ?
-                    let r = if ah {
+                    let r = if ah.0 {
                         // derive logical section bounds based on placer.layout.height()...
                         if let Some(tv) = world.get::<TextValue>(entity) {
                             if let Some(fs) = world.get::<FontSize>(entity) {
@@ -88,8 +89,20 @@ impl EvaluateLocation {
                                     );
                                     let derived_height = placer.layout.height();
                                     let mut fitted = Section::from(r);
-                                    // TODO fix center-y / bottom placement-tokens since did not have height present to calculate correctly
-                                    fitted.area.set_height(derived_height);
+                                    if ah.1 == 1 {
+                                        fitted.set_height(derived_height);
+                                    } else {
+                                        match ah.2 {
+                                            GridAspect::CenterY => {
+                                                fitted.set_y(fitted.top() - derived_height / 2.0);
+                                            }
+                                            GridAspect::Bottom => {
+                                                fitted.set_y(fitted.top() - derived_height);
+                                            }
+                                            _ => {}
+                                        }
+                                        fitted.set_height(derived_height);
+                                    }
                                     fitted
                                 } else {
                                     r

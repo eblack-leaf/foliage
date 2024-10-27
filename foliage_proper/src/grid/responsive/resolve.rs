@@ -18,24 +18,18 @@ impl ResolvedConfiguration {
         &self,
         stem: ReferentialData,
         screen: ReferentialData,
-    ) -> Option<(Section<LogicalContext>, bool, bool)> {
-        let mut resolution = Section::default();
-        let mut aw = false;
-        let mut ah = false;
+    ) -> Option<(Section<LogicalContext>, (bool, usize, GridAspect), (bool, usize, GridAspect))> {
+        let mut resolution = Section::<LogicalContext>::default();
+        let mut aw = (false, 0, GridAspect::default());
+        let mut ah = (false, 0, GridAspect::default());
         for (aspect_config, aspect_value) in self.configurations.iter() {
             let pair_config = (
                 aspect_value.aspects[0].aspect,
                 aspect_value.aspects[1].aspect,
             );
-            let (x, auto_w_found) = aspect_value.aspects[0].value.resolve(stem, screen);
-            let (y, auto_h_found) = aspect_value.aspects[1].value.resolve(stem, screen);
-            if auto_w_found {
-                aw = true;
-            }
-            if auto_h_found {
-                ah = true;
-            }
-            let data = (x, y);
+            let (a, auto_a_found) = aspect_value.aspects[0].value.resolve(stem, screen);
+            let (b, auto_b_found) = aspect_value.aspects[1].value.resolve(stem, screen);
+            let data = (a, b);
             match aspect_config {
                 Configuration::Horizontal => {
                     if pair_config == (GridAspect::Left, GridAspect::Right) {
@@ -45,12 +39,25 @@ impl ResolvedConfiguration {
                         resolution.position.set_x(data.0);
                         resolution.area.set_width((data.1 - data.0) * 2.0);
                     } else if pair_config == (GridAspect::Left, GridAspect::Width) {
+                        if auto_b_found {
+                            aw.0 = true;
+                            aw.1 = 1;
+                            aw.2 = GridAspect::Left;
+                        }
                         resolution.position.set_x(data.0);
                         resolution.area.set_width(data.1);
                     } else if pair_config == (GridAspect::Width, GridAspect::CenterX) {
+                        if auto_a_found {
+                            aw.0 = true;
+                            aw.2 = GridAspect::CenterX;
+                        }
                         resolution.position.set_x(data.1 - data.0 / 2.0);
                         resolution.area.set_width(data.0);
                     } else if pair_config == (GridAspect::Width, GridAspect::Right) {
+                        if auto_a_found {
+                            aw.0 = true;
+                            aw.2 = GridAspect::Right;
+                        }
                         resolution.position.set_x(data.1 - data.0);
                         resolution.area.set_width(data.0);
                     } else if pair_config == (GridAspect::CenterX, GridAspect::Right) {
@@ -67,12 +74,25 @@ impl ResolvedConfiguration {
                         resolution.position.set_y(data.0);
                         resolution.area.set_height((data.1 - data.0) * 2.0);
                     } else if pair_config == (GridAspect::Top, GridAspect::Height) {
+                        if auto_b_found {
+                            ah.0 = true;
+                            ah.1 = 1;
+                            ah.2 = GridAspect::Top;
+                        }
                         resolution.position.set_y(data.0);
                         resolution.area.set_height(data.1);
                     } else if pair_config == (GridAspect::Height, GridAspect::CenterY) {
+                        if auto_a_found {
+                            ah.0 = true;
+                            ah.2 = GridAspect::CenterY;
+                        }
                         resolution.position.set_y(data.1 - data.0 / 2.0);
                         resolution.area.set_height(data.0);
                     } else if pair_config == (GridAspect::Height, GridAspect::Bottom) {
+                        if auto_a_found {
+                            ah.0 = true;
+                            ah.2 = GridAspect::Bottom;
+                        }
                         resolution.position.set_y(data.1 - data.0);
                         resolution.area.set_height(data.0);
                     } else if pair_config == (GridAspect::CenterY, GridAspect::Bottom) {
