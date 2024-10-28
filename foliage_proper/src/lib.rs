@@ -325,7 +325,11 @@ impl Foliage {
             }
             WindowEvent::CursorEntered { .. } => {}
             WindowEvent::CursorLeft { .. } => {}
-            WindowEvent::MouseWheel { device_id: _, delta, phase } => {
+            WindowEvent::MouseWheel {
+                device_id: _,
+                delta,
+                phase,
+            } => {
                 const LINE_TO_PX: CoordinateUnit = 10.0;
                 let px = match delta {
                     MouseScrollDelta::LineDelta(x, y) => {

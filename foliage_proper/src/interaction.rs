@@ -365,8 +365,7 @@ impl KeyboardAdapter {
 pub struct Draggable {
     pub(crate) original_view: Position<LogicalContext>, // for relative setting from absolute drag
 }
-pub(crate) fn draggable(
-    // events for Interaction / MouseWheel (separate)
+pub(crate) fn draggable(// events for Interaction / MouseWheel (separate)
 ) {
     // if interaction ++ engaged-start => set original-view of draggable
     // if interaction ++ engaged => scroll-view.pos = original-view + diff from current - begin

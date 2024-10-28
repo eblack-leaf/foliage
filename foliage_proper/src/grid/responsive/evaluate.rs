@@ -47,16 +47,24 @@ pub(crate) struct ExtentChecker(pub(crate) Entity);
 #[derive(Copy, Clone, Default, Debug, Component)]
 pub struct ScrollView {
     pub position: Position<LogicalContext>,
+}
+#[derive(Component, Copy, Clone, Debug, Default)]
+pub struct ScrollExtent {
     pub horizontal_extent: Coordinates,
     pub vertical_extent: Coordinates,
 }
-
+impl ScrollExtent {
+    pub fn new(horizontal_extent: Coordinates, vertical_extent: Coordinates) -> Self {
+        Self {
+            horizontal_extent,
+            vertical_extent,
+        }
+    }
+}
 impl ScrollView {
-    pub fn new(pos: Position<LogicalContext>, he: Coordinates, ve: Coordinates) -> Self {
+    pub fn new(pos: Position<LogicalContext>) -> Self {
         Self {
             position: pos,
-            horizontal_extent: he,
-            vertical_extent: ve,
         }
     }
 }
@@ -172,23 +180,31 @@ impl EvaluateLocation {
                 world.commands().entity(entity).insert(r);
                 if let Some(ec) = world.get::<ExtentChecker>(entity).copied() {
                     if let Some(context) = world.get::<ScrollView>(ec.0).copied() {
-                        let mut new_horizontal = context.horizontal_extent;
-                        let mut new_vertical = context.vertical_extent;
-                        if r.right() - stem.section.left() > context.horizontal_extent.vertical() {
-                            new_horizontal.set_vertical(r.right() - stem.section.left());
+                        let extent = world.get::<ScrollExtent>(ec.0).copied().unwrap_or_default();
+                        let mut new_horizontal = extent.horizontal_extent;
+                        let mut new_vertical = extent.vertical_extent;
+                        if r.right() - stem.section.left() - context.position.x() > extent.horizontal_extent.vertical() {
+                            new_horizontal.set_vertical(r.right() - stem.section.left() - context.position.x());
                         }
-                        if r.left() - stem.section.left() < context.horizontal_extent.horizontal() {
-                            new_horizontal.set_horizontal(r.left() - stem.section.left());
+                        if r.left() - stem.section.left() - context.position.x() < extent.horizontal_extent.horizontal() {
+                            new_horizontal.set_horizontal(r.left() - stem.section.left() - context.position.x());
                         }
-                        if r.top() - stem.section.top() < context.vertical_extent.horizontal() {
-                            new_vertical.set_horizontal(r.top() - stem.section.top());
+                        if r.top() - stem.section.top() - context.position.y() < extent.vertical_extent.horizontal() {
+                            new_vertical.set_horizontal(r.top() - stem.section.top() - context.position.y());
                         }
-                        if r.bottom() - stem.section.top() > context.vertical_extent.vertical() {
-                            new_vertical.set_vertical(r.bottom() - stem.section.top());
+                        if r.bottom() - stem.section.top() - context.position.y() > extent.vertical_extent.vertical() {
+                            new_vertical.set_vertical(r.bottom() - stem.section.top() - context.position.y());
                         }
-                        world.commands().entity(ec.0).insert(ScrollView::new(context.position, new_horizontal, new_vertical));
+                        world
+                            .commands()
+                            .entity(ec.0)
+                            .insert(ScrollExtent::new(new_horizontal, new_vertical));
                     }
                 }
+                world
+                    .commands()
+                    .entity(entity)
+                    .insert(ScrollExtent::default());
                 world.trigger_targets(Configure {}, entity);
             }
             let mut resolved = None;

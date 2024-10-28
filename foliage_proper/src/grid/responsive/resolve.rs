@@ -18,7 +18,11 @@ impl ResolvedConfiguration {
         &self,
         stem: ReferentialData,
         screen: ReferentialData,
-    ) -> Option<(Section<LogicalContext>, (bool, usize, GridAspect), (bool, usize, GridAspect))> {
+    ) -> Option<(
+        Section<LogicalContext>,
+        (bool, usize, GridAspect),
+        (bool, usize, GridAspect),
+    )> {
         let mut resolution = Section::<LogicalContext>::default();
         let mut aw = (false, 0, GridAspect::default());
         let mut ah = (false, 0, GridAspect::default());
@@ -129,35 +133,32 @@ impl ResolvedPoints {
                 b.aspects[0].value.resolve(stem, screen).0,
                 b.aspects[1].value.resolve(stem, screen).0,
             );
+            let value = Position::<LogicalContext>::from(data) + stem.view.position;
             match a {
                 PointAspectConfiguration::PointA => {
                     if pair_config == (GridAspect::PointAX, GridAspect::PointAY) {
-                        resolution.data[0] =
-                            Position::<LogicalContext>::from(data) + stem.view.position;
+                        resolution.data[0] = value;
                     } else {
                         panic!("invalid-configuration aspect")
                     }
                 }
                 PointAspectConfiguration::PointB => {
                     if pair_config == (GridAspect::PointBX, GridAspect::PointBY) {
-                        resolution.data[1] =
-                            Position::<LogicalContext>::from(data) + stem.view.position;
+                        resolution.data[1] = value;
                     } else {
                         panic!("invalid-configuration aspect")
                     }
                 }
                 PointAspectConfiguration::PointC => {
                     if pair_config == (GridAspect::PointCX, GridAspect::PointCY) {
-                        resolution.data[2] =
-                            Position::<LogicalContext>::from(data) + stem.view.position;
+                        resolution.data[2] = value;
                     } else {
                         panic!("invalid-configuration aspect")
                     }
                 }
                 PointAspectConfiguration::PointD => {
                     if pair_config == (GridAspect::PointDX, GridAspect::PointDY) {
-                        resolution.data[3] =
-                            Position::<LogicalContext>::from(data) + stem.view.position;
+                        resolution.data[3] = value;
                     } else {
                         panic!("invalid-configuration aspect")
                     }
