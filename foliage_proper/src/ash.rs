@@ -60,7 +60,7 @@ pub(crate) struct Ash {
     pub(crate) drawn: bool,
     pub(crate) draw_calls: DrawCalls,
     pub(crate) draw_fns: Vec<
-        for<'a> fn(
+            for<'a> fn(
             &'a RendererStructure,
             DirectiveGroupPointer,
             DrawRange,
@@ -79,7 +79,7 @@ pub(crate) struct DrawCalls {
     pub(crate) changed: bool,
 }
 #[derive(Debug, Copy, Clone, PartialEq, Default, PartialOrd)]
-pub(crate) enum ClippingContext {
+pub enum ClippingContext {
     #[default]
     Screen,
     Entity(Entity),
