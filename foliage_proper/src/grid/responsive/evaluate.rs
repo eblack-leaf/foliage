@@ -63,9 +63,7 @@ impl ScrollExtent {
 }
 impl ScrollView {
     pub fn new(pos: Position<LogicalContext>) -> Self {
-        Self {
-            position: pos,
-        }
+        Self { position: pos }
     }
 }
 
@@ -183,17 +181,33 @@ impl EvaluateLocation {
                         let extent = world.get::<ScrollExtent>(ec.0).copied().unwrap_or_default();
                         let mut new_horizontal = extent.horizontal_extent;
                         let mut new_vertical = extent.vertical_extent;
-                        if r.right() - stem.section.left() - context.position.x() > extent.horizontal_extent.vertical() {
-                            new_horizontal.set_vertical(r.right() - stem.section.left() - context.position.x());
+                        if r.right() - stem.section.left() - context.position.x()
+                            > extent.horizontal_extent.vertical()
+                        {
+                            new_horizontal.set_vertical(
+                                r.right() - stem.section.left() - context.position.x(),
+                            );
                         }
-                        if r.left() - stem.section.left() - context.position.x() < extent.horizontal_extent.horizontal() {
-                            new_horizontal.set_horizontal(r.left() - stem.section.left() - context.position.x());
+                        if r.left() - stem.section.left() - context.position.x()
+                            < extent.horizontal_extent.horizontal()
+                        {
+                            new_horizontal.set_horizontal(
+                                r.left() - stem.section.left() - context.position.x(),
+                            );
                         }
-                        if r.top() - stem.section.top() - context.position.y() < extent.vertical_extent.horizontal() {
-                            new_vertical.set_horizontal(r.top() - stem.section.top() - context.position.y());
+                        if r.top() - stem.section.top() - context.position.y()
+                            < extent.vertical_extent.horizontal()
+                        {
+                            new_vertical.set_horizontal(
+                                r.top() - stem.section.top() - context.position.y(),
+                            );
                         }
-                        if r.bottom() - stem.section.top() - context.position.y() > extent.vertical_extent.vertical() {
-                            new_vertical.set_vertical(r.bottom() - stem.section.top() - context.position.y());
+                        if r.bottom() - stem.section.top() - context.position.y()
+                            > extent.vertical_extent.vertical()
+                        {
+                            new_vertical.set_vertical(
+                                r.bottom() - stem.section.top() - context.position.y(),
+                            );
                         }
                         world
                             .commands()

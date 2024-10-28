@@ -28,9 +28,7 @@ impl Branch for Home {
          culpa qui officia deserunt mollit anim id est laborum.";
         let scroll_view = tree
             .spawn(Leaf::new())
-            .insert(ScrollView::new(
-                Position::new((0, 24)),
-            ))
+            .insert(ScrollView::new(Position::new((0, 24))))
             .insert(ResponsiveLocation::new())
             .id();
         let text = tree
