@@ -32,18 +32,36 @@ pub(crate) struct ReferentialData {
 #[derive(Bundle, Copy, Clone)]
 pub struct ScrollContext {
     clipping_context: ClippingContext,
-    extent_checker: ExtentChecker,
+    extent_checker: ScrollExtentCheck,
 }
 impl ScrollContext {
     pub fn new(root: Entity) -> Self {
         Self {
             clipping_context: ClippingContext::Entity(root),
-            extent_checker: ExtentChecker(root),
+            extent_checker: ScrollExtentCheck(root),
         }
     }
 }
-#[derive(Copy, Clone, Component)]
-pub(crate) struct ExtentChecker(pub(crate) Entity);
+#[derive(Copy, Clone)]
+pub(crate) struct ScrollExtentCheck(pub(crate) Entity);
+impl ScrollExtentCheck {
+    fn on_insert(mut world: DeferredWorld, entity: Entity, _: ComponentId) {
+        let this = world.get::<ScrollExtentCheck>(entity).copied().unwrap();
+        let current_total = world.get::<ScrollRefTotal>(this.0).copied().unwrap_or_default();
+        world.commands().entity(this.0).insert(ScrollRefTotal {
+            total: current_total.total + 1,
+        });
+    }
+    fn on_remove(mut world: DeferredWorld, entity: Entity, _: ComponentId) {
+        todo!()
+    }
+}
+impl Component for ScrollExtentCheck {
+    const STORAGE_TYPE: StorageType = SparseSet;
+    fn register_component_hooks(_hooks: &mut ComponentHooks) {
+        _hooks.on_insert(Self::on_insert);
+    }
+}
 #[derive(Copy, Clone, Default, Debug, Component)]
 pub struct ScrollView {
     pub position: Position<LogicalContext>,
@@ -66,10 +84,35 @@ impl ScrollView {
         Self { position: pos }
     }
 }
+#[derive(Component, Copy, Clone, Default)]
+pub(crate) struct ScrollRefs {
+    current_pass: i32,
+}
 
+impl ScrollRefs {
+    fn new(i: i32) -> Self {
+        Self { current_pass: i }
+    }
+}
+
+#[derive(Component, Copy, Clone, Default)]
+pub(crate) struct ScrollRefTotal {
+    total: i32,
+}
+#[derive(Component, Copy, Clone, Debug, Default)]
+pub(crate) struct ScrollableTag {}
+#[derive(Bundle, Default)]
+pub struct Scrollable {
+    tag: ScrollableTag,
+    refs: ScrollRefs,
+    view: ScrollView,
+    extent: ScrollExtent,
+    total: ScrollRefTotal,
+}
 #[derive(Copy, Clone)]
 pub struct EvaluateLocation {
     pub(crate) skip_deps: bool,
+    pub(crate) skip_extent_check: bool,
 }
 impl EvaluateLocation {
     pub(crate) fn on_insert(mut world: DeferredWorld, entity: Entity, _: ComponentId) {
@@ -96,6 +139,7 @@ impl EvaluateLocation {
             } else {
                 screen
             };
+            let evaluation_criterion = world.get::<EvaluateLocation>(entity).unwrap();
             let mut resolved = None;
             if let Some(res) = world.get::<ResolvedConfiguration>(entity) {
                 if let Some((r, aw, ah)) = res.evaluate(stem, screen) {
@@ -176,49 +220,33 @@ impl EvaluateLocation {
             }
             if let Some(r) = resolved {
                 world.commands().entity(entity).insert(r);
-                if let Some(ec) = world.get::<ExtentChecker>(entity).copied() {
-                    if let Some(context) = world.get::<ScrollView>(ec.0).copied() {
-                        let extent = world.get::<ScrollExtent>(ec.0).copied().unwrap_or_default();
-                        let mut new_horizontal = extent.horizontal_extent;
-                        let mut new_vertical = extent.vertical_extent;
-                        if r.right() - stem.section.left() - context.position.x()
-                            > extent.horizontal_extent.vertical()
-                        {
-                            new_horizontal.set_vertical(
-                                r.right() - stem.section.left() - context.position.x(),
-                            );
-                        }
-                        if r.left() - stem.section.left() - context.position.x()
-                            < extent.horizontal_extent.horizontal()
-                        {
-                            new_horizontal.set_horizontal(
-                                r.left() - stem.section.left() - context.position.x(),
-                            );
-                        }
-                        if r.top() - stem.section.top() - context.position.y()
-                            < extent.vertical_extent.horizontal()
-                        {
-                            new_vertical.set_horizontal(
-                                r.top() - stem.section.top() - context.position.y(),
-                            );
-                        }
-                        if r.bottom() - stem.section.top() - context.position.y()
-                            > extent.vertical_extent.vertical()
-                        {
-                            new_vertical.set_vertical(
-                                r.bottom() - stem.section.top() - context.position.y(),
-                            );
-                        }
+                if world.get::<ScrollableTag>(entity).is_some() {
+                    world
+                        .commands()
+                        .entity(entity)
+                        .insert(ScrollRefs { current_pass: 0 });
+                }
+                if !evaluation_criterion.skip_extent_check {
+                    if let Some(ec) = world.get::<ScrollExtentCheck>(entity).copied() {
+                        let current_pass = world
+                            .get::<ScrollRefs>(ec.0)
+                            .copied()
+                            .unwrap_or_default()
+                            .current_pass;
+                        let total = world
+                            .get::<ScrollRefTotal>(entity)
+                            .copied()
+                            .unwrap_or_default()
+                            .total;
                         world
                             .commands()
                             .entity(ec.0)
-                            .insert(ScrollExtent::new(new_horizontal, new_vertical));
+                            .insert(ScrollRefs::new((current_pass + 1).min(total)));
+                        if current_pass + 1 >= total {
+                            world.commands().entity(ec.0).insert(EvaluateExtent::new());
+                        }
                     }
                 }
-                world
-                    .commands()
-                    .entity(entity)
-                    .insert(ScrollExtent::default());
                 world.trigger_targets(Configure {}, entity);
             }
             let mut resolved = None;
@@ -255,7 +283,8 @@ impl EvaluateLocation {
                 world.trigger_targets(Configure {}, entity);
             }
         }
-        if world.get::<EvaluateLocation>(entity).unwrap().skip_deps {
+
+        if evaluation_criterion.skip_deps {
             return;
         }
         if let Some(deps) = world.get::<Dependents>(entity).cloned() {
@@ -268,6 +297,94 @@ impl EvaluateLocation {
         }
     }
 }
+#[derive(Copy, Clone)]
+pub struct EvaluateExtent {
+    is_root: bool,
+}
+impl EvaluateExtent {
+    pub fn new() -> Self {
+        Self { is_root: true }
+    }
+    fn on_insert(mut world: DeferredWorld, entity: Entity, _: ComponentId) {
+        if world.get::<EvaluateExtent>(entity).unwrap().is_root {
+            world
+                .commands()
+                .entity(entity)
+                .insert(ScrollRefs::new(0))
+                .insert(ScrollExtent::default());
+        }
+        if let Some(ec) = world.get::<ScrollExtentCheck>(entity).copied() {
+            let r = world
+                .get::<Section<LogicalContext>>(entity)
+                .copied()
+                .unwrap_or_default();
+            let stem = world
+                .get::<Section<LogicalContext>>(ec.0)
+                .copied()
+                .unwrap_or_default();
+            if let Some(view) = world.get::<ScrollView>(ec.0).copied() {
+                let extent = world.get::<ScrollExtent>(ec.0).copied().unwrap_or_default();
+                let mut new_horizontal = extent.horizontal_extent;
+                let mut new_vertical = extent.vertical_extent;
+                if r.right() - stem.left() - view.position.x() > extent.horizontal_extent.vertical()
+                {
+                    new_horizontal.set_vertical(r.right() - stem.left() - view.position.x());
+                }
+                if r.left() - stem.left() - view.position.x()
+                    < extent.horizontal_extent.horizontal()
+                {
+                    new_horizontal.set_horizontal(r.left() - stem.left() - view.position.x());
+                }
+                if r.top() - stem.top() - view.position.y() < extent.vertical_extent.horizontal() {
+                    new_vertical.set_horizontal(r.top() - stem.top() - view.position.y());
+                }
+                if r.bottom() - stem.top() - view.position.y() > extent.vertical_extent.vertical() {
+                    new_vertical.set_vertical(r.bottom() - stem.top() - view.position.y());
+                }
+                world
+                    .commands()
+                    .entity(ec.0)
+                    .insert(ScrollExtent::new(new_horizontal, new_vertical));
+                let current_pass = world
+                    .get::<ScrollRefs>(ec.0)
+                    .copied()
+                    .unwrap_or_default()
+                    .current_pass;
+                let total = world
+                    .get::<ScrollRefTotal>(entity)
+                    .copied()
+                    .unwrap_or_default()
+                    .total;
+                world
+                    .commands()
+                    .entity(ec.0)
+                    .insert(ScrollRefs::new((current_pass + 1).min(total)));
+                if current_pass + 1 >= total {
+                    // overscroll + evaluate-location if adjust w/ skip_extent_check()
+                    // evaluate bounds with new_horizontal / new_vertical (cmd hasn't run yet)
+                }
+            }
+        }
+        for d in world
+            .get::<Dependents>(entity)
+            .cloned()
+            .unwrap_or_default()
+            .0
+        {
+            world
+                .commands()
+                .entity(d)
+                .insert(EvaluateExtent { is_root: false });
+        }
+    }
+}
+impl Component for EvaluateExtent {
+    const STORAGE_TYPE: StorageType = SparseSet;
+
+    fn register_component_hooks(_hooks: &mut ComponentHooks) {
+        _hooks.on_insert(Self::on_insert);
+    }
+}
 impl Component for EvaluateLocation {
     const STORAGE_TYPE: StorageType = SparseSet;
     fn register_component_hooks(_hooks: &mut ComponentHooks) {
@@ -276,9 +393,21 @@ impl Component for EvaluateLocation {
 }
 impl EvaluateLocation {
     pub fn no_deps() -> Self {
-        Self { skip_deps: true }
+        Self {
+            skip_deps: true,
+            skip_extent_check: false,
+        }
     }
     pub fn recursive() -> Self {
-        Self { skip_deps: false }
+        Self {
+            skip_deps: false,
+            skip_extent_check: false,
+        }
+    }
+    pub(crate) fn skip_extent_check() -> Self {
+        Self {
+            skip_deps: false,
+            skip_extent_check: true,
+        }
     }
 }

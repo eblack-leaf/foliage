@@ -60,7 +60,7 @@ pub(crate) struct Ash {
     pub(crate) drawn: bool,
     pub(crate) draw_calls: DrawCalls,
     pub(crate) draw_fns: Vec<
-            for<'a> fn(
+        for<'a> fn(
             &'a RendererStructure,
             DirectiveGroupPointer,
             DrawRange,
