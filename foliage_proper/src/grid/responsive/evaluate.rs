@@ -122,6 +122,7 @@ impl EvaluateLocation {
             points: Default::default(),
             view: Default::default(),
         };
+        let evaluation_criterion = world.get::<EvaluateLocation>(entity).copied().unwrap();
         if let Some(stem) = world.get::<Stem>(entity).copied() {
             let stem = if let Some(s) = stem.0 {
                 ReferentialData {
@@ -139,7 +140,7 @@ impl EvaluateLocation {
             } else {
                 screen
             };
-            let evaluation_criterion = world.get::<EvaluateLocation>(entity).unwrap();
+
             let mut resolved = None;
             if let Some(res) = world.get::<ResolvedConfiguration>(entity) {
                 if let Some((r, aw, ah)) = res.evaluate(stem, screen) {
@@ -283,7 +284,6 @@ impl EvaluateLocation {
                 world.trigger_targets(Configure {}, entity);
             }
         }
-
         if evaluation_criterion.skip_deps {
             return;
         }

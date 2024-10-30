@@ -141,10 +141,10 @@ impl EvaluateElevation {
         let resolved = RenderLayer::new(
             current.0
                 + world
-                    .get::<Elevation>(entity)
-                    .copied()
-                    .unwrap_or_default()
-                    .0,
+                .get::<Elevation>(entity)
+                .copied()
+                .unwrap_or_default()
+                .0,
         );
         world.commands().entity(entity).insert(resolved);
         if let Some(ds) = world.get::<Dependents>(entity).cloned() {
@@ -291,6 +291,7 @@ impl EvaluateCore {
             .entity(entity)
             .insert(EvaluateLocation {
                 skip_deps: !config.full,
+                skip_extent_check: false,
             })
             .insert(EvaluateElevation::recursive())
             .insert(EvaluateOpacity::recursive());
