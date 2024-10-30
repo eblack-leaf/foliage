@@ -53,7 +53,11 @@ impl ScrollExtentCheck {
         });
     }
     fn on_remove(mut world: DeferredWorld, entity: Entity, _: ComponentId) {
-        todo!()
+        let this = world.get::<ScrollExtentCheck>(entity).copied().unwrap();
+        let current_total = world.get::<ScrollRefTotal>(this.0).copied().unwrap_or_default();
+        world.commands().entity(this.0).insert(ScrollRefTotal {
+            total: (current_total.total - 1).max(0),
+        });
     }
 }
 impl Component for ScrollExtentCheck {
@@ -221,33 +225,6 @@ impl EvaluateLocation {
             }
             if let Some(r) = resolved {
                 world.commands().entity(entity).insert(r);
-                if world.get::<ScrollableTag>(entity).is_some() {
-                    world
-                        .commands()
-                        .entity(entity)
-                        .insert(ScrollRefs { current_pass: 0 });
-                }
-                if !evaluation_criterion.skip_extent_check {
-                    if let Some(ec) = world.get::<ScrollExtentCheck>(entity).copied() {
-                        let current_pass = world
-                            .get::<ScrollRefs>(ec.0)
-                            .copied()
-                            .unwrap_or_default()
-                            .current_pass;
-                        let total = world
-                            .get::<ScrollRefTotal>(entity)
-                            .copied()
-                            .unwrap_or_default()
-                            .total;
-                        world
-                            .commands()
-                            .entity(ec.0)
-                            .insert(ScrollRefs::new((current_pass + 1).min(total)));
-                        if current_pass + 1 >= total {
-                            world.commands().entity(ec.0).insert(EvaluateExtent::new());
-                        }
-                    }
-                }
                 world.trigger_targets(Configure {}, entity);
             }
             let mut resolved = None;
@@ -282,6 +259,33 @@ impl EvaluateLocation {
             if let Some(r) = resolved {
                 world.commands().entity(entity).insert(r).insert(r.bbox());
                 world.trigger_targets(Configure {}, entity);
+            }
+            if world.get::<ScrollableTag>(entity).is_some() {
+                world
+                    .commands()
+                    .entity(entity)
+                    .insert(ScrollRefs { current_pass: 0 });
+            }
+            if !evaluation_criterion.skip_extent_check {
+                if let Some(ec) = world.get::<ScrollExtentCheck>(entity).copied() {
+                    let current_pass = world
+                        .get::<ScrollRefs>(ec.0)
+                        .copied()
+                        .unwrap_or_default()
+                        .current_pass;
+                    let total = world
+                        .get::<ScrollRefTotal>(entity)
+                        .copied()
+                        .unwrap_or_default()
+                        .total;
+                    world
+                        .commands()
+                        .entity(ec.0)
+                        .insert(ScrollRefs::new((current_pass + 1).min(total)));
+                    if current_pass + 1 >= total {
+                        world.commands().entity(ec.0).insert(EvaluateExtent::new());
+                    }
+                }
             }
         }
         if evaluation_criterion.skip_deps {
