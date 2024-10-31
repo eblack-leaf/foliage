@@ -24,6 +24,12 @@ impl Branch for Home {
         quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.\
          Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu \
          fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in \
+         culpa qui officia deserunt mollit anim id est laborum Lorem ipsum dolor sit amet, \
+         consectetur adipiscing elit, sed do \
+        eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, \
+        quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.\
+         Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu \
+         fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in \
          culpa qui officia deserunt mollit anim id est laborum.";
         let scroll_view = tree
             .spawn(Leaf::new().elevation(10))
@@ -46,7 +52,7 @@ impl Branch for Home {
                     .top(stem().top())
                     .auto_height()
                     .left(stem().left())
-                    .width(120.percent().width().of(stem())),
+                    .width(100.percent().width().of(stem())),
             )
             .insert(ScrollContext::new(scroll_view))
             .insert(EvaluateCore::recursive())
