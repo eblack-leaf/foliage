@@ -41,10 +41,10 @@ impl Branch for Home {
             .insert(Text::new(long_text, FontSize::new(24), Color::WHITE))
             .insert(
                 ResponsiveLocation::new()
-                    .top(24.px())
+                    .top(stem().top())
                     .auto_height()
-                    .left(24.px())
-                    .width(70.percent().width().of(screen())),
+                    .left(stem().left())
+                    .width(100.percent().width().of(stem())),
             )
             .insert(ScrollContext::new(scroll_view))
             .insert(EvaluateCore::recursive())
@@ -56,8 +56,8 @@ impl Branch for Home {
                 ResponsiveLocation::new()
                     .top(stem().bottom() + 16.px())
                     .height(50.px())
-                    .left(24.px())
-                    .width(70.percent().width().of(screen())),
+                    .left(stem().left())
+                    .width(70.percent().width().of(stem())),
             )
             .insert(ScrollContext::new(scroll_view))
             .insert(EvaluateCore::recursive())
