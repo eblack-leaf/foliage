@@ -1,5 +1,5 @@
 use std::fmt::{Display, Formatter};
-use std::ops::{Add, AddAssign, Div, Mul, Sub};
+use std::ops::{Add, AddAssign, Div, Mul, Sub, SubAssign};
 
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{IntoSystemConfigs, Or};
@@ -198,5 +198,11 @@ impl AddAssign for Coordinates {
     fn add_assign(&mut self, rhs: Self) {
         self.0[0] += rhs.horizontal();
         self.0[1] += rhs.vertical();
+    }
+}
+impl SubAssign for Coordinates {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.0[0] -= rhs.horizontal();
+        self.0[1] -= rhs.vertical();
     }
 }

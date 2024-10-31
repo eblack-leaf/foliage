@@ -338,20 +338,21 @@ impl EvaluateExtent {
                 let extent = world.get::<ScrollExtent>(ec.0).copied().unwrap_or_default();
                 let mut new_horizontal = extent.horizontal_extent;
                 let mut new_vertical = extent.vertical_extent;
-                if r.right() - stem.left() - view.position.x() > extent.horizontal_extent.vertical()
-                {
-                    new_horizontal.set_vertical(r.right() - stem.left() - view.position.x());
+                let calc = r.right() - stem.left() + view.position.x();
+                if calc > extent.horizontal_extent.vertical() {
+                    new_horizontal.set_vertical(calc);
                 }
-                if r.left() - stem.left() - view.position.x()
-                    < extent.horizontal_extent.horizontal()
-                {
-                    new_horizontal.set_horizontal(r.left() - stem.left() - view.position.x());
+                let calc = r.left() - stem.left() + view.position.x();
+                if calc < extent.horizontal_extent.horizontal() {
+                    new_horizontal.set_horizontal(calc);
                 }
-                if r.top() - stem.top() - view.position.y() < extent.vertical_extent.horizontal() {
-                    new_vertical.set_horizontal(r.top() - stem.top() - view.position.y());
+                let calc = r.top() - stem.top() + view.position.y();
+                if calc < extent.vertical_extent.horizontal() {
+                    new_vertical.set_horizontal(calc);
                 }
-                if r.bottom() - stem.top() - view.position.y() > extent.vertical_extent.vertical() {
-                    new_vertical.set_vertical(r.bottom() - stem.top() - view.position.y());
+                let calc = r.bottom() - stem.top() + view.position.y();
+                if calc > extent.vertical_extent.vertical() {
+                    new_vertical.set_vertical(calc);
                 }
                 world
                     .commands()

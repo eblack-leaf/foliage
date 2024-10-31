@@ -1,6 +1,6 @@
 use std::fmt::Display;
 use std::marker::PhantomData;
-use std::ops::{Add, AddAssign, Div, Mul, Sub};
+use std::ops::{Add, AddAssign, Div, Mul, Sub, SubAssign};
 
 use bytemuck::{Pod, Zeroable};
 use winit::dpi::{LogicalPosition, PhysicalPosition};
@@ -139,7 +139,11 @@ impl<Context: CoordinateContext> Sub for Position<Context> {
         (self.coordinates - rhs.coordinates).into()
     }
 }
-
+impl<Context: CoordinateContext> SubAssign for Position<Context> {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.coordinates -= rhs.coordinates;
+    }
+}
 impl<Context: CoordinateContext> Div<f32> for Position<Context> {
     type Output = Self;
 

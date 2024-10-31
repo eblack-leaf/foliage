@@ -312,11 +312,7 @@ pub(crate) fn listen_for_interactions(
                             tracing::trace!("higher-elevated interactive-element found");
                         }
                     }
-                    listeners
-                        .get_mut(g)
-                        .expect("ending")
-                        .1
-                        .click.current = event.position;
+                    listeners.get_mut(g).expect("ending").1.click.current = event.position;
                     listeners
                         .get_mut(g)
                         .expect("ending")

@@ -107,7 +107,7 @@ impl ResolvedConfiguration {
                 }
             }
         }
-        resolution.position += stem.view.position;
+        resolution.position -= stem.view.position;
         Some((resolution, aw, ah))
     }
 }
@@ -133,7 +133,7 @@ impl ResolvedPoints {
                 b.aspects[0].value.resolve(stem, screen).0,
                 b.aspects[1].value.resolve(stem, screen).0,
             );
-            let value = Position::<LogicalContext>::from(data) + stem.view.position;
+            let value = Position::<LogicalContext>::from(data) - stem.view.position;
             match a {
                 PointAspectConfiguration::PointA => {
                     if pair_config == (GridAspect::PointAX, GridAspect::PointAY) {

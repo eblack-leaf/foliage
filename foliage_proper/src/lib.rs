@@ -113,7 +113,7 @@ impl Foliage {
             recv: None,
             base_url: "".to_string(),
             line_to_px: Self::SCROLL_SENSITIVITY,
-            scrolling_method: Self::NATURAL_SCROLLING,
+            scrolling_method: Self::VIEW_SCROLLING,
         };
         this.define_roots::<Trunk>();
         this.elm.ecs.insert_resource(AssetLoader::default());
@@ -351,9 +351,10 @@ impl Foliage {
                 phase,
             } => {
                 let px = match delta {
-                    MouseScrollDelta::LineDelta(x, y) => {
-                        Position::logical((x * self.line_to_px, y * self.line_to_px * self.scrolling_method))
-                    }
+                    MouseScrollDelta::LineDelta(x, y) => Position::logical((
+                        x * self.line_to_px,
+                        y * self.line_to_px * self.scrolling_method,
+                    )),
                     MouseScrollDelta::PixelDelta(px) => Position::device((px.x, px.y)).to_logical(
                         self.elm
                             .ecs

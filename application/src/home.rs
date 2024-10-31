@@ -1,6 +1,6 @@
 use foliage::bevy_ecs;
 use foliage::bevy_ecs::prelude::Resource;
-use foliage::color::Color;
+use foliage::color::{Color, Grey, Monochromatic};
 use foliage::grid::aspect::{screen, stem};
 use foliage::grid::responsive::evaluate::{ScrollContext, Scrollable};
 use foliage::grid::responsive::ResponsiveLocation;
@@ -26,18 +26,20 @@ impl Branch for Home {
          fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in \
          culpa qui officia deserunt mollit anim id est laborum.";
         let scroll_view = tree
-            .spawn(Leaf::new())
+            .spawn(Leaf::new().elevation(10))
+            .insert(Panel::new(Rounding::all(0.0), Grey::base()))
             .insert(Scrollable::default())
-            .insert(ResponsiveLocation::new()
-                .top(screen().top() + 16.px())
-                .bottom(screen().bottom() - 16.px())
-                .left(screen().left() + 16.px())
-                .width(400.px())
+            .insert(
+                ResponsiveLocation::new()
+                    .top(screen().top() + 16.px())
+                    .bottom(screen().bottom() - 16.px())
+                    .left(screen().left() + 16.px())
+                    .width(400.px()),
             )
             .insert(EvaluateCore::recursive())
             .id();
         let text = tree
-            .spawn(Leaf::new().stem(Some(scroll_view)))
+            .spawn(Leaf::new().stem(Some(scroll_view)).elevation(-1))
             .insert(Text::new(long_text, FontSize::new(24), Color::WHITE))
             .insert(
                 ResponsiveLocation::new()
@@ -50,7 +52,7 @@ impl Branch for Home {
             .insert(EvaluateCore::recursive())
             .id();
         let after_text = tree
-            .spawn(Leaf::new().stem(Some(text)))
+            .spawn(Leaf::new().stem(Some(text)).elevation(0))
             .insert(Panel::new(Rounding::all(0.2), Color::WHITE))
             .insert(
                 ResponsiveLocation::new()
