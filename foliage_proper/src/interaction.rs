@@ -392,18 +392,18 @@ pub(crate) fn draggable(
             if view.position.x() + diff.x() + section.area.width()
                 > extent.horizontal_extent.vertical()
             {
-                to_set.set_x(0.0);
+                to_set.set_x(extent.horizontal_extent.vertical() - (view.position.x() + section.area.width()));
             };
             if view.position.x() + diff.x() < extent.horizontal_extent.horizontal() {
-                to_set.set_x(0.0);
+                to_set.set_x(extent.horizontal_extent.horizontal() - view.position.x());
             }
             if view.position.y() + diff.y() + section.area.height()
                 > extent.vertical_extent.vertical()
             {
-                to_set.set_y(0.0);
+                to_set.set_y(extent.vertical_extent.vertical() - (view.position.y() + section.area.height()));
             }
             if view.position.y() + diff.y() < extent.vertical_extent.horizontal() {
-                to_set.set_y(0.0);
+                to_set.set_y(extent.vertical_extent.horizontal() - view.position.y());
             }
             tracing::trace!("applying scroll-delta: {}", to_set);
             view.position += to_set;
