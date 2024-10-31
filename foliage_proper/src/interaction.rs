@@ -316,6 +316,11 @@ pub(crate) fn listen_for_interactions(
                         .get_mut(g)
                         .expect("ending")
                         .1
+                        .click.current = event.position;
+                    listeners
+                        .get_mut(g)
+                        .expect("ending")
+                        .1
                         .click
                         .end
                         .replace(event.position);

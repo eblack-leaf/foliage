@@ -85,6 +85,8 @@ pub struct Foliage {
     #[allow(unused)]
     recv: Option<oneshot::Receiver<Ginkgo>>,
     base_url: String,
+    line_to_px: CoordinateUnit,
+    scrolling_method: CoordinateUnit,
 }
 impl Default for Foliage {
     fn default() -> Self {
@@ -93,6 +95,9 @@ impl Default for Foliage {
 }
 
 impl Foliage {
+    pub const SCROLL_SENSITIVITY: f32 = 20.0;
+    pub const NATURAL_SCROLLING: f32 = -1.0;
+    pub const VIEW_SCROLLING: f32 = 1.0;
     pub fn new() -> Self {
         let mut this = Self {
             willow: Willow::default(),
@@ -107,6 +112,8 @@ impl Foliage {
             sender: None,
             recv: None,
             base_url: "".to_string(),
+            line_to_px: Self::SCROLL_SENSITIVITY,
+            scrolling_method: Self::NATURAL_SCROLLING,
         };
         this.define_roots::<Trunk>();
         this.elm.ecs.insert_resource(AssetLoader::default());
@@ -130,6 +137,16 @@ impl Foliage {
     }
     pub fn set_window_title<S: AsRef<str>>(&mut self, s: S) {
         self.willow.title.replace(s.as_ref().to_string());
+    }
+    pub fn set_scroll_delta(&mut self, delta: CoordinateUnit) {
+        self.line_to_px = delta;
+    }
+    pub fn set_scroll_method(&mut self, natural: bool) {
+        if natural {
+            self.scrolling_method = Self::NATURAL_SCROLLING;
+        } else {
+            self.scrolling_method = Self::VIEW_SCROLLING;
+        }
     }
     pub fn set_android_connection(&mut self, ac: AndroidConnection) {
         self.android_connection = ac;
@@ -333,10 +350,9 @@ impl Foliage {
                 delta,
                 phase,
             } => {
-                const LINE_TO_PX: CoordinateUnit = 10.0;
                 let px = match delta {
                     MouseScrollDelta::LineDelta(x, y) => {
-                        Position::logical((x * LINE_TO_PX, y * LINE_TO_PX))
+                        Position::logical((x * self.line_to_px, y * self.line_to_px * self.scrolling_method))
                     }
                     MouseScrollDelta::PixelDelta(px) => Position::device((px.x, px.y)).to_logical(
                         self.elm
