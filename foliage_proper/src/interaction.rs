@@ -387,7 +387,7 @@ pub(crate) fn draggable(
             draggable.last = listener.click.start;
         }
         if listener.moved {
-            let diff = listener.click.current - draggable.last;
+            let diff = draggable.last - listener.click.current;
             let mut to_set = diff;
             if view.position.x() + diff.x() + section.area.width()
                 > extent.horizontal_extent.vertical()

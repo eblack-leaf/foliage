@@ -52,7 +52,7 @@ impl Branch for Home {
                     .top(stem().top())
                     .auto_height()
                     .left(stem().left())
-                    .width(100.percent().width().of(stem())),
+                    .width(120.percent().width().of(stem())),
             )
             .insert(ScrollContext::new(scroll_view))
             .insert(EvaluateCore::recursive())
