@@ -1,4 +1,4 @@
-use crate::ash::ClippingContext;
+use crate::ash::{ClippingContext, EnableClipping};
 use crate::coordinate::points::Points;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
@@ -121,6 +121,7 @@ pub struct Scrollable {
     total: ScrollRefTotal,
     listener: ClickInteractionListener,
     draggable: Draggable,
+    enable_clipping: EnableClipping,
 }
 #[derive(Copy, Clone)]
 pub struct EvaluateLocation {

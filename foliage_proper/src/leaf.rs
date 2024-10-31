@@ -6,7 +6,7 @@ use crate::coordinate::placement::Placement;
 use crate::coordinate::points::Points;
 use crate::coordinate::section::{GpuSection, Section};
 use crate::coordinate::LogicalContext;
-use crate::differential::{RenderLink, RenderRemoveQueue};
+use crate::differential::{Differential, RenderLink, RenderRemoveQueue};
 use crate::grid::responsive::evaluate::EvaluateLocation;
 use crate::grid::Grid;
 use crate::interaction::ClickInteractionListener;
@@ -35,6 +35,7 @@ pub struct Leaf {
     grid: Grid,
     gs: GpuSection,
     points: Points<LogicalContext>,
+    clip_diff: Differential<ClippingContext>,
 }
 
 impl Leaf {
@@ -139,10 +140,10 @@ impl EvaluateElevation {
         let resolved = RenderLayer::new(
             current.0
                 + world
-                    .get::<Elevation>(entity)
-                    .copied()
-                    .unwrap_or_default()
-                    .0,
+                .get::<Elevation>(entity)
+                .copied()
+                .unwrap_or_default()
+                .0,
         );
         world.commands().entity(entity).insert(resolved);
         if let Some(ds) = world.get::<Dependents>(entity).cloned() {

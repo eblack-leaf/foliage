@@ -7,7 +7,6 @@ use bevy_ecs::query::Changed;
 use bevy_ecs::system::{Query, ResMut, Resource};
 
 use crate::ash::Render;
-use crate::image::ImageFill;
 use crate::leaf::Visibility;
 
 #[derive(Component, Clone, Eq, PartialEq, Hash, Copy)]
@@ -43,7 +42,11 @@ pub struct Differential<D: Component + PartialEq + Clone> {
     added: bool,
     _phantom: PhantomData<D>,
 }
-
+impl<D: Component + PartialEq + Clone> Default for Differential<D> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl<D: Component + PartialEq + Clone> Differential<D> {
     pub(crate) fn new() -> Self {
         Self {
