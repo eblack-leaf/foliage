@@ -60,7 +60,7 @@ pub(crate) struct Ash {
     pub(crate) drawn: bool,
     pub(crate) draw_calls: DrawCalls,
     pub(crate) draw_fns: Vec<
-            for<'a> fn(
+        for<'a> fn(
             &'a RendererStructure,
             DirectiveGroupPointer,
             DrawRange,
@@ -352,9 +352,7 @@ impl Ash {
         {
             let screen_size = ginkgo.viewport().section();
             let clip_section = match clipping_context_ptr {
-                ClippingContext::Screen => {
-                    screen_size
-                }
+                ClippingContext::Screen => screen_size,
                 ClippingContext::Entity(e) => {
                     let option = self.clipping_sections.get(&e).cloned();
                     option.unwrap_or(ClippingSection(screen_size)).0
