@@ -7,6 +7,7 @@ use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
 use crate::elm::{Elm, InternalStage};
 use crate::ginkgo::ScaleFactor;
+use crate::grid::responsive::evaluate::{EvaluateLocation, ScrollExtent, ScrollView};
 use crate::tree::Tree;
 use crate::Root;
 use bevy_ecs::entity::Entity;
@@ -59,7 +60,7 @@ impl TouchAdapter {
 #[derive(Resource, Default)]
 pub(crate) struct MouseAdapter {
     started: bool,
-    cursor: Position<LogicalContext>,
+    pub(crate) cursor: Position<LogicalContext>,
 }
 impl MouseAdapter {
     pub(crate) fn parse(
@@ -143,6 +144,7 @@ pub struct ClickInteractionListener {
     active: bool,
     shape: ClickInteractionShape,
     disabled: bool,
+    moved: bool,
 }
 impl ClickInteractionListener {
     pub fn new() -> Self {
@@ -282,6 +284,7 @@ pub(crate) fn listen_for_interactions(
             ClickPhase::Moved => {
                 if let Some(g) = grabbed.0 {
                     listeners.get_mut(g).unwrap().1.click.current = event.position;
+                    listeners.get_mut(g).unwrap().1.moved = true;
                 }
             }
             ClickPhase::End => {
@@ -318,6 +321,7 @@ pub(crate) fn listen_for_interactions(
                         .replace(event.position);
                     listeners.get_mut(g).unwrap().1.engaged_end = true;
                     listeners.get_mut(g).unwrap().1.engaged = false;
+                    listeners.get_mut(g).unwrap().1.moved = true;
                 }
             }
             ClickPhase::Cancel => {
@@ -334,6 +338,7 @@ pub(crate) fn reset_click_listener_flags(mut listeners: Query<&mut ClickInteract
         listener.engaged_start = false;
         listener.engaged_end = false;
         listener.active = false;
+        listener.moved = false;
     }
 }
 #[derive(Event, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Debug)]
@@ -361,17 +366,51 @@ impl KeyboardAdapter {
         None
     }
 }
-#[derive(Component, Copy, Clone)]
+#[derive(Component, Copy, Clone, Default)]
 pub struct Draggable {
-    pub(crate) original_view: Position<LogicalContext>, // for relative setting from absolute drag
+    pub(crate) last: Position<LogicalContext>, // for relative setting from absolute drag
 }
-pub(crate) fn draggable(// events for Interaction / MouseWheel (separate)
+pub(crate) fn draggable(
+    mut listeners: Query<(
+        Entity,
+        &ClickInteractionListener,
+        &mut Draggable,
+        &Section<LogicalContext>,
+        &mut ScrollView,
+        &ScrollExtent,
+    )>,
+    mut tree: Tree,
 ) {
-    // if interaction ++ engaged-start => set original-view of draggable
-    // if interaction ++ engaged => scroll-view.pos = original-view + diff from current - begin
-    // if mouse-wheel => scroll-view.pos += delta (maxed by extent)
-    // if scroll-view.pos.x + delta.x + actual-area.w > scroll-view.h_extent[1] => scroll-view.pos.x = scroll-view.h_extent[1] - actual-area.w
-    // 4 ways for negative scrolling caps (defaults to 0 however) e.g. scroll-view.pos.x + delta.x < h_extent[0] => scroll-view.pos.x = h_extent[0]
+    for (entity, listener, mut draggable, section, mut view, extent) in listeners.iter_mut() {
+        if listener.engaged_start {
+            draggable.last = listener.click.start;
+        }
+        if listener.moved {
+            let diff = listener.click.current - draggable.last;
+            let mut to_set = diff;
+            if view.position.x() + diff.x() + section.area.width()
+                > extent.horizontal_extent.vertical()
+            {
+                to_set.set_x(0.0);
+            };
+            if view.position.x() + diff.x() < extent.horizontal_extent.horizontal() {
+                to_set.set_x(0.0);
+            }
+            if view.position.y() + diff.y() + section.area.height()
+                > extent.vertical_extent.vertical()
+            {
+                to_set.set_y(0.0);
+            }
+            if view.position.y() + diff.y() < extent.vertical_extent.horizontal() {
+                to_set.set_y(0.0);
+            }
+            tracing::trace!("applying scroll-delta: {}", to_set);
+            view.position += to_set;
+            tree.entity(entity)
+                .insert(EvaluateLocation::skip_extent_check());
+            draggable.last = listener.click.current;
+        }
+    }
 }
 impl Root for ClickInteractionListener {
     fn attach(elm: &mut Elm) {

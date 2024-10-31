@@ -11,6 +11,7 @@ use crate::grid::responsive::anim::{
 use crate::grid::responsive::resolve::ResolvedConfiguration;
 use crate::grid::responsive::resolve::ResolvedPoints;
 use crate::grid::Grid;
+use crate::interaction::{ClickInteractionListener, Draggable};
 use crate::layout::LayoutGrid;
 use crate::leaf::{Dependents, Stem};
 use crate::text::{FontSize, GlyphPlacer, MonospacedFont, TextAlignment, TextValue};
@@ -46,16 +47,22 @@ impl ScrollContext {
 pub(crate) struct ScrollExtentCheck(pub(crate) Entity);
 impl ScrollExtentCheck {
     fn on_insert(mut world: DeferredWorld, entity: Entity, _: ComponentId) {
-        let this = world.get::<ScrollExtentCheck>(entity).copied().unwrap();
-        let current_total = world.get::<ScrollRefTotal>(this.0).copied().unwrap_or_default();
-        world.commands().entity(this.0).insert(ScrollRefTotal {
+        let ec = world.get::<ScrollExtentCheck>(entity).copied().unwrap();
+        let current_total = world
+            .get::<ScrollRefTotal>(ec.0)
+            .copied()
+            .unwrap_or_default();
+        world.commands().entity(ec.0).insert(ScrollRefTotal {
             total: current_total.total + 1,
         });
     }
     fn on_remove(mut world: DeferredWorld, entity: Entity, _: ComponentId) {
-        let this = world.get::<ScrollExtentCheck>(entity).copied().unwrap();
-        let current_total = world.get::<ScrollRefTotal>(this.0).copied().unwrap_or_default();
-        world.commands().entity(this.0).insert(ScrollRefTotal {
+        let ec = world.get::<ScrollExtentCheck>(entity).copied().unwrap();
+        let current_total = world
+            .get::<ScrollRefTotal>(ec.0)
+            .copied()
+            .unwrap_or_default();
+        world.commands().entity(ec.0).insert(ScrollRefTotal {
             total: (current_total.total - 1).max(0),
         });
     }
@@ -112,6 +119,8 @@ pub struct Scrollable {
     view: ScrollView,
     extent: ScrollExtent,
     total: ScrollRefTotal,
+    listener: ClickInteractionListener,
+    draggable: Draggable,
 }
 #[derive(Copy, Clone)]
 pub struct EvaluateLocation {
@@ -120,13 +129,13 @@ pub struct EvaluateLocation {
 }
 impl EvaluateLocation {
     pub(crate) fn on_insert(mut world: DeferredWorld, entity: Entity, _: ComponentId) {
+        let evaluation_criterion = world.get::<EvaluateLocation>(entity).copied().unwrap();
         let screen = ReferentialData {
             section: world.get_resource::<ViewportHandle>().unwrap().section(),
             grid: world.get_resource::<LayoutGrid>().unwrap().grid,
             points: Default::default(),
             view: Default::default(),
         };
-        let evaluation_criterion = world.get::<EvaluateLocation>(entity).copied().unwrap();
         if let Some(stem) = world.get::<Stem>(entity).copied() {
             let stem = if let Some(s) = stem.0 {
                 ReferentialData {
@@ -260,7 +269,9 @@ impl EvaluateLocation {
                 world.commands().entity(entity).insert(r).insert(r.bbox());
                 world.trigger_targets(Configure {}, entity);
             }
-            if world.get::<ScrollableTag>(entity).is_some() {
+            if world.get::<ScrollableTag>(entity).is_some()
+                && !evaluation_criterion.skip_extent_check
+            {
                 world
                     .commands()
                     .entity(entity)
@@ -293,10 +304,7 @@ impl EvaluateLocation {
         }
         if let Some(deps) = world.get::<Dependents>(entity).cloned() {
             for dep in deps.0 {
-                world
-                    .commands()
-                    .entity(dep)
-                    .insert(EvaluateLocation::recursive());
+                world.commands().entity(dep).insert(evaluation_criterion);
             }
         }
     }
@@ -365,7 +373,47 @@ impl EvaluateExtent {
                     .insert(ScrollRefs::new((current_pass + 1).min(total)));
                 if current_pass + 1 >= total {
                     // overscroll + evaluate-location if adjust w/ skip_extent_check()
-                    // evaluate bounds with new_horizontal / new_vertical (cmd hasn't run yet)
+                    let mut new_view = Option::<Position<LogicalContext>>::None;
+                    if view.position.x() + stem.area.width() > new_horizontal.vertical() {
+                        // right overscroll
+                        new_view.replace(Position::new((
+                            new_horizontal.vertical() - stem.area.width(),
+                            view.position.y(),
+                        )));
+                    }
+                    if view.position.x() < new_horizontal.horizontal() {
+                        // left overscroll
+                        new_view.replace(Position::new((
+                            new_horizontal.horizontal(),
+                            view.position.y(),
+                        )));
+                    }
+                    if view.position.y() + stem.area.height() > new_vertical.vertical() {
+                        // bottom overscroll
+                        let calc_y = new_vertical.vertical() - stem.area.height();
+                        let new = if let Some(n) = new_view {
+                            Position::new((n.x(), calc_y))
+                        } else {
+                            Position::new((view.position.x(), calc_y))
+                        };
+                        new_view.replace(new);
+                    }
+                    if view.position.y() < new_vertical.horizontal() {
+                        // top overscroll
+                        let new = if let Some(n) = new_view {
+                            Position::new((n.x(), new_vertical.horizontal()))
+                        } else {
+                            Position::new((view.position.x(), new_vertical.horizontal()))
+                        };
+                        new_view.replace(new);
+                    }
+                    if let Some(n) = new_view {
+                        world
+                            .commands()
+                            .entity(ec.0)
+                            .insert(ScrollView::new(n))
+                            .insert(EvaluateLocation::skip_extent_check());
+                    }
                 }
             }
         }

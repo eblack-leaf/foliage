@@ -27,7 +27,10 @@ use crate::ginkgo::{Ginkgo, ScaleFactor};
 use crate::grid::responsive::anim::anim_calc;
 use crate::icon::{Icon, IconId, IconRequest};
 use crate::image::Image;
-use crate::interaction::{ClickInteractionListener, KeyboardAdapter, MouseAdapter, TouchAdapter};
+use crate::interaction::{
+    ClickInteraction, ClickInteractionListener, ClickPhase, KeyboardAdapter, MouseAdapter,
+    TouchAdapter,
+};
 use crate::leaf::{render_link_on_remove, trigger_interactions_enable, triggered_remove};
 use crate::panel::Panel;
 use crate::shape::line::Line;
@@ -335,11 +338,31 @@ impl Foliage {
                     MouseScrollDelta::LineDelta(x, y) => {
                         Position::logical((x * LINE_TO_PX, y * LINE_TO_PX))
                     }
-                    MouseScrollDelta::PixelDelta(px) => {
-                        Position::device((px.x, px.y)).to_logical(1.0)
-                    }
+                    MouseScrollDelta::PixelDelta(px) => Position::device((px.x, px.y)).to_logical(
+                        self.elm
+                            .ecs
+                            .get_resource::<ScaleFactor>()
+                            .expect("scale-factor")
+                            .value(),
+                    ),
                 };
-                // Send event with (px) to be read by draggable
+                let cursor = self
+                    .elm
+                    .ecs
+                    .get_resource::<MouseAdapter>()
+                    .expect("mouse-adapter")
+                    .cursor;
+                let vh = self
+                    .elm
+                    .ecs
+                    .get_resource_mut::<ViewportHandle>()
+                    .expect("vh")
+                    .section()
+                    .position;
+                let event = ClickInteraction::new(ClickPhase::Start, vh + cursor);
+                let end_event = ClickInteraction::new(ClickPhase::End, vh + cursor + px);
+                self.elm.ecs.send_event(event);
+                self.elm.ecs.send_event(end_event);
             }
             WindowEvent::MouseInput {
                 device_id: _device_id,
