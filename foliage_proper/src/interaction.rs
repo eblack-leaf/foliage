@@ -410,7 +410,6 @@ pub(crate) fn draggable(
             if view.position.y() + diff.y() < extent.vertical_extent.horizontal() {
                 to_set.set_y(extent.vertical_extent.horizontal() - view.position.y());
             }
-            tracing::trace!("applying scroll-delta: {}", to_set);
             view.position += to_set;
             tree.entity(entity)
                 .insert(EvaluateLocation::skip_extent_check());

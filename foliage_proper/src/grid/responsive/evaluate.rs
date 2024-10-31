@@ -365,14 +365,15 @@ impl EvaluateExtent {
                     .unwrap_or_default()
                     .current_pass;
                 let total = world
-                    .get::<ScrollRefTotal>(entity)
+                    .get::<ScrollRefTotal>(ec.0)
                     .copied()
                     .unwrap_or_default()
                     .total;
+                let ending_ref_count = (current_pass + 1).min(total);
                 world
                     .commands()
                     .entity(ec.0)
-                    .insert(ScrollRefs::new((current_pass + 1).min(total)));
+                    .insert(ScrollRefs::new(ending_ref_count));
                 if current_pass + 1 >= total {
                     // overscroll + evaluate-location if adjust w/ skip_extent_check()
                     let mut new_view = Option::<Position<LogicalContext>>::None;

@@ -1,3 +1,4 @@
+use crate::icon::IconHandles;
 use foliage::bevy_ecs;
 use foliage::bevy_ecs::prelude::Resource;
 use foliage::color::{Color, Grey, Monochromatic};
@@ -7,9 +8,12 @@ use foliage::grid::responsive::ResponsiveLocation;
 use foliage::grid::unit::TokenUnit;
 use foliage::leaf::{EvaluateCore, Leaf};
 use foliage::panel::{Panel, Rounding};
+use foliage::style::Coloring;
 use foliage::text::{FontSize, Text};
 use foliage::tree::Tree;
+use foliage::twig::button::Button;
 use foliage::twig::{Branch, Twig};
+
 #[derive(Resource)]
 pub(crate) struct IdTable {}
 
@@ -33,7 +37,7 @@ impl Branch for Home {
          culpa qui officia deserunt mollit anim id est laborum.";
         let scroll_view = tree
             .spawn(Leaf::new().elevation(10))
-            .insert(Panel::new(Rounding::all(0.0), Grey::base()))
+            .insert(Panel::new(Rounding::all(0.0), Grey::minus_three()))
             .insert(Scrollable::default())
             .insert(
                 ResponsiveLocation::new()
@@ -52,14 +56,20 @@ impl Branch for Home {
                     .top(stem().top())
                     .auto_height()
                     .left(stem().left())
-                    .width(120.percent().width().of(stem())),
+                    .width(100.percent().width().of(stem())),
             )
             .insert(ScrollContext::new(scroll_view))
             .insert(EvaluateCore::recursive())
             .id();
         let after_text = tree
             .spawn(Leaf::new().stem(Some(text)).elevation(0))
-            .insert(Panel::new(Rounding::all(0.2), Color::WHITE))
+            .insert(
+                Button::new(
+                    IconHandles::Concepts,
+                    Coloring::new(Grey::minus_two(), Grey::plus_two()),
+                )
+                .with_text("Concepts", FontSize::new(20)),
+            )
             .insert(
                 ResponsiveLocation::new()
                     .top(stem().bottom() + 16.px())
