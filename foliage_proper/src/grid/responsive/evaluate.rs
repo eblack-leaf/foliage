@@ -131,7 +131,7 @@ impl Scrollable {
             view: Default::default(),
             extent: Default::default(),
             total: Default::default(),
-            listener: ClickInteractionListener::new().pass_through(),
+            listener: ClickInteractionListener::new().pass_through().listen_scroll(),
             draggable: Default::default(),
             enable_clipping: Default::default(),
         }

@@ -9,7 +9,7 @@ use crate::coordinate::{
     CoordinateContext, CoordinateUnit, Coordinates, DeviceContext, LogicalContext, NumericalContext,
 };
 
-#[derive(Copy, Clone, Default, PartialEq, Debug)]
+#[derive(Copy, Clone, Default, PartialEq, PartialOrd, Debug)]
 pub struct Position<Context: CoordinateContext> {
     pub coordinates: Coordinates,
     _phantom: PhantomData<Context>,
@@ -59,6 +59,9 @@ impl<Context: CoordinateContext> Position<Context> {
     }
     pub fn floored(self) -> Self {
         Self::new((self.x().floor(), self.y().floor()))
+    }
+    pub fn abs(self) -> Self {
+        Self::new((self.x().abs(), self.y().abs()))
     }
     pub fn x(&self) -> CoordinateUnit {
         self.coordinates.0[0]

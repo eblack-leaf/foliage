@@ -376,8 +376,8 @@ impl Foliage {
                     .expect("vh")
                     .section()
                     .position;
-                let event = ClickInteraction::new(ClickPhase::Start, vh + cursor);
-                let end_event = ClickInteraction::new(ClickPhase::End, vh + cursor + px);
+                let event = ClickInteraction::new(ClickPhase::Start, vh + cursor, true);
+                let end_event = ClickInteraction::new(ClickPhase::End, vh + cursor + px, true);
                 self.elm.ecs.send_event(event);
                 self.elm.ecs.send_event(end_event);
             }

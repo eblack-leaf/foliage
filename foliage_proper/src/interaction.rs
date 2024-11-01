@@ -4,7 +4,7 @@ use crate::ash::ClippingContext;
 use crate::coordinate::elevation::RenderLayer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
-use crate::coordinate::LogicalContext;
+use crate::coordinate::{CoordinateUnit, Coordinates, LogicalContext};
 use crate::elm::{Elm, InternalStage};
 use crate::ginkgo::ScaleFactor;
 use crate::grid::responsive::evaluate::{EvaluateLocation, ScrollExtent, ScrollView};
@@ -36,21 +36,21 @@ impl TouchAdapter {
         if self.primary.is_none() {
             if touch.phase == TouchPhase::Started {
                 self.primary.replace(touch.id);
-                return Some(ClickInteraction::new(ClickPhase::Start, position));
+                return Some(ClickInteraction::new(ClickPhase::Start, position, false));
             }
         } else if self.primary.unwrap() == touch.id {
             match touch.phase {
                 TouchPhase::Started => {}
                 TouchPhase::Moved => {
-                    return Some(ClickInteraction::new(ClickPhase::Moved, position));
+                    return Some(ClickInteraction::new(ClickPhase::Moved, position, false));
                 }
                 TouchPhase::Ended => {
                     self.primary.take();
-                    return Some(ClickInteraction::new(ClickPhase::End, position));
+                    return Some(ClickInteraction::new(ClickPhase::End, position, false));
                 }
                 TouchPhase::Cancelled => {
                     self.primary.take();
-                    return Some(ClickInteraction::new(ClickPhase::Cancel, position));
+                    return Some(ClickInteraction::new(ClickPhase::Cancel, position, false));
                 }
             }
         }
@@ -73,11 +73,11 @@ impl MouseAdapter {
         }
         if self.started && !state.is_pressed() {
             self.started = false;
-            return Some(ClickInteraction::new(ClickPhase::End, self.cursor));
+            return Some(ClickInteraction::new(ClickPhase::End, self.cursor, false));
         }
         if !self.started && state.is_pressed() {
             self.started = true;
-            return Some(ClickInteraction::new(ClickPhase::Start, self.cursor));
+            return Some(ClickInteraction::new(ClickPhase::Start, self.cursor, false));
         }
         None
     }
@@ -94,6 +94,7 @@ impl MouseAdapter {
             return Some(ClickInteraction::new(
                 ClickPhase::Moved,
                 adjusted_position + viewport_position,
+                false,
             ));
         }
         None
@@ -110,12 +111,14 @@ pub enum ClickPhase {
 pub struct ClickInteraction {
     click_phase: ClickPhase,
     position: Position<LogicalContext>,
+    from_scroll: bool,
 }
 impl ClickInteraction {
-    pub fn new(click_phase: ClickPhase, position: Position<LogicalContext>) -> Self {
+    pub fn new(click_phase: ClickPhase, position: Position<LogicalContext>, from_scroll: bool) -> Self {
         Self {
             click_phase,
             position,
+            from_scroll,
         }
     }
 }
@@ -146,10 +149,24 @@ pub struct ClickInteractionListener {
     disabled: bool,
     moved: bool,
     pass_through: bool,
+    listen_scroll: bool,
 }
 impl ClickInteractionListener {
+    pub(crate) const DRAG_THRESHOLD: CoordinateUnit = 20.0;
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            click: Default::default(),
+            focused: false,
+            engaged_start: false,
+            engaged: false,
+            engaged_end: false,
+            active: false,
+            shape: Default::default(),
+            disabled: false,
+            moved: false,
+            pass_through: false,
+            listen_scroll: false,
+        }
     }
     pub fn as_circle(mut self) -> Self {
         self.shape = ClickInteractionShape::Circle;
@@ -157,6 +174,10 @@ impl ClickInteractionListener {
     }
     pub fn pass_through(mut self) -> Self {
         self.pass_through = true;
+        self
+    }
+    pub fn listen_scroll(mut self) -> Self {
+        self.listen_scroll = true;
         self
     }
     pub fn click(&self) -> Click {
@@ -244,6 +265,10 @@ pub(crate) fn disabled_listeners(
         }
     }
 }
+#[derive(Resource, Default)]
+pub(crate) struct PassThroughInteractions {
+    ps: Vec<Entity>,
+}
 pub(crate) fn listen_for_interactions(
     mut listeners: Query<(
         Entity,
@@ -252,18 +277,22 @@ pub(crate) fn listen_for_interactions(
         &RenderLayer,
         &ClippingContext,
     )>,
+    mut draggable: Query<&mut Draggable>,
     clip_sections: Query<&Section<LogicalContext>>,
     mut events: EventReader<ClickInteraction>,
     mut grabbed: ResMut<InteractiveEntity>,
     mut focused: ResMut<FocusedEntity>,
+    mut pass_through: ResMut<PassThroughInteractions>,
 ) {
     for event in events.read() {
         match event.click_phase {
             ClickPhase::Start => {
+                pass_through.ps.clear();
                 if grabbed.0.is_none() {
-                    let mut grab_info: Option<(Entity, RenderLayer, bool)> = None;
+                    let mut grab_info: Option<(Entity, RenderLayer)> = None;
                     for (entity, listener, section, layer, clip_context) in listeners.iter_mut() {
                         if listener.shape.contains(event.position, *section) && !listener.disabled {
+                            if event.from_scroll && !listener.listen_scroll { continue; }
                             match clip_context {
                                 ClippingContext::Screen => {}
                                 ClippingContext::Entity(e) => {
@@ -274,11 +303,12 @@ pub(crate) fn listen_for_interactions(
                                     }
                                 }
                             }
-                            if grab_info.is_none()
-                                || *layer > grab_info.unwrap().1
-                                || grab_info.unwrap().2
-                            {
-                                grab_info.replace((entity, *layer, listener.pass_through));
+                            if listener.pass_through {
+                                pass_through.ps.push(entity);
+                            } else {
+                                if grab_info.is_none() || *layer > grab_info.unwrap().1 {
+                                    grab_info.replace((entity, *layer));
+                                }
                             }
                         }
                     }
@@ -299,48 +329,42 @@ pub(crate) fn listen_for_interactions(
                             l.1.focused = false;
                         }
                     }
+                    for e in pass_through.ps.iter().copied() {
+                        listeners.get_mut(e).expect("starting").1.click =
+                            Click::new(event.position);
+                        listeners.get_mut(e).unwrap().1.engaged = true;
+                        listeners.get_mut(e).unwrap().1.engaged_start = true;
+                    }
                 }
             }
             ClickPhase::Moved => {
-                if let Some(g) = grabbed.0 {
-                    listeners.get_mut(g).unwrap().1.click.current = event.position;
-                    listeners.get_mut(g).unwrap().1.moved = true;
+                if !pass_through.ps.is_empty() {
+                    if let Some(g) = grabbed.0 {
+                        let delta =
+                            (event.position - listeners.get(g).unwrap().1.click.start).abs();
+                        if delta.x() > ClickInteractionListener::DRAG_THRESHOLD
+                            || delta.y() > ClickInteractionListener::DRAG_THRESHOLD
+                        {
+                            grabbed.0.take();
+                            listeners.get_mut(g).unwrap().1.engaged_end = true;
+                            listeners.get_mut(g).unwrap().1.engaged = false;
+                            move_pass_through(&mut listeners, &mut draggable, &pass_through, event, true);
+                        } else {
+                            move_grabbed(&mut listeners, &grabbed, event);
+                        }
+                    } else {
+                        move_pass_through(&mut listeners, &mut draggable, &pass_through, event, false);
+                    }
+                } else {
+                    move_grabbed(&mut listeners, &grabbed, event);
                 }
             }
             ClickPhase::End => {
                 if let Some(g) = grabbed.0.take() {
-                    let section = *listeners.get(g).unwrap().2;
-                    if listeners
-                        .get(g)
-                        .unwrap()
-                        .1
-                        .shape
-                        .contains(event.position, section)
-                    {
-                        match listeners.get(g).unwrap().4 {
-                            ClippingContext::Screen => {
-                                listeners.get_mut(g).unwrap().1.active = true;
-                            }
-                            ClippingContext::Entity(e) => {
-                                if let Ok(sec) = clip_sections.get(*e) {
-                                    if sec.contains(event.position) {
-                                        listeners.get_mut(g).unwrap().1.active = true;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    listeners.get_mut(g).expect("ending").1.click.current = event.position;
-                    listeners
-                        .get_mut(g)
-                        .expect("ending")
-                        .1
-                        .click
-                        .end
-                        .replace(event.position);
-                    listeners.get_mut(g).unwrap().1.engaged_end = true;
-                    listeners.get_mut(g).unwrap().1.engaged = false;
-                    listeners.get_mut(g).unwrap().1.moved = true;
+                    end_interaction(&mut listeners, &clip_sections, event, g);
+                }
+                for ps in pass_through.ps.drain(..) {
+                    end_interaction(&mut listeners, &clip_sections, event, ps);
                 }
             }
             ClickPhase::Cancel => {
@@ -348,10 +372,103 @@ pub(crate) fn listen_for_interactions(
                     listeners.get_mut(g).unwrap().1.engaged_end = true;
                     listeners.get_mut(g).unwrap().1.engaged = false;
                 }
+                for ps in pass_through.ps.drain(..) {
+                    listeners.get_mut(ps).unwrap().1.engaged_end = true;
+                    listeners.get_mut(ps).unwrap().1.engaged = false;
+                }
             }
         }
     }
 }
+
+fn move_pass_through(
+    listeners: &mut Query<(
+        Entity,
+        &mut ClickInteractionListener,
+        &Section<LogicalContext>,
+        &RenderLayer,
+        &ClippingContext,
+    )>,
+    draggable: &mut Query<&mut Draggable>,
+    pass_through: &ResMut<PassThroughInteractions>,
+    event: &ClickInteraction,
+    is_first: bool,
+) {
+    for p in pass_through.ps.iter() {
+        if is_first {
+            listeners.get_mut(*p).unwrap().1.click.start = event.position;
+            if let Ok(mut drag) = draggable.get_mut(*p) {
+                drag.last = event.position;
+            }
+        }
+        listeners.get_mut(*p).unwrap().1.click.current = event.position;
+        listeners.get_mut(*p).unwrap().1.moved = true;
+    }
+}
+
+fn move_grabbed(
+    listeners: &mut Query<(
+        Entity,
+        &mut ClickInteractionListener,
+        &Section<LogicalContext>,
+        &RenderLayer,
+        &ClippingContext,
+    )>,
+    grabbed: &ResMut<InteractiveEntity>,
+    event: &ClickInteraction,
+) {
+    if let Some(g) = grabbed.0 {
+        listeners.get_mut(g).unwrap().1.click.current = event.position;
+        listeners.get_mut(g).unwrap().1.moved = true;
+    }
+}
+
+fn end_interaction(
+    listeners: &mut Query<(
+        Entity,
+        &mut ClickInteractionListener,
+        &Section<LogicalContext>,
+        &RenderLayer,
+        &ClippingContext,
+    )>,
+    clip_sections: &Query<&Section<LogicalContext>>,
+    event: &ClickInteraction,
+    g: Entity,
+) {
+    let section = *listeners.get(g).unwrap().2;
+    if listeners
+        .get(g)
+        .unwrap()
+        .1
+        .shape
+        .contains(event.position, section)
+    {
+        match listeners.get(g).unwrap().4 {
+            ClippingContext::Screen => {
+                listeners.get_mut(g).unwrap().1.active = true;
+            }
+            ClippingContext::Entity(e) => {
+                if let Ok(sec) = clip_sections.get(*e) {
+                    if sec.contains(event.position) {
+                        listeners.get_mut(g).unwrap().1.active = true;
+                    }
+                }
+            }
+        }
+    }
+    listeners.get_mut(g).expect("ending").1.click.current = event.position;
+    listeners
+        .get_mut(g)
+        .expect("ending")
+        .1
+        .click
+        .end
+        .replace(event.position);
+    listeners.get_mut(g).unwrap().1.engaged_end = true;
+    listeners.get_mut(g).unwrap().1.engaged = false;
+    listeners.get_mut(g).unwrap().1.moved = true;
+}
+
 pub(crate) fn reset_click_listener_flags(mut listeners: Query<&mut ClickInteractionListener>) {
     for mut listener in listeners.iter_mut() {
         listener.engaged_start = false;
@@ -413,7 +530,7 @@ pub(crate) fn draggable(
                 to_set.set_x(
                     (extent.horizontal_extent.vertical()
                         - (view.position.x() + section.area.width()))
-                    .max(0.0),
+                        .max(0.0),
                 );
             };
             if view.position.x() + diff.x() < extent.horizontal_extent.horizontal() {
@@ -424,7 +541,7 @@ pub(crate) fn draggable(
             {
                 let set_y = (extent.vertical_extent.vertical()
                     - (view.position.y() + section.area.height()))
-                .max(0.0);
+                    .max(0.0);
                 tracing::trace!("max-y: {}", set_y);
                 to_set.set_y(set_y);
             }
@@ -456,6 +573,7 @@ impl Root for ClickInteractionListener {
             draggable.in_set(InternalStage::Apply),
             reset_click_listener_flags.after(InternalStage::Resolve),
         ));
+        elm.ecs.insert_resource(PassThroughInteractions::default());
         elm.enable_event::<ClickInteraction>();
         elm.enable_event::<InputSequence>();
     }

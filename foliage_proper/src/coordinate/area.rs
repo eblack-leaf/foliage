@@ -54,6 +54,9 @@ impl<Context: CoordinateContext> Area<Context> {
     pub fn floored(self) -> Self {
         Self::new((self.width().floor(), self.height().floor()))
     }
+    pub fn abs(self) -> Self {
+        Self::new((self.width().abs(), self.height().abs()))
+    }
     pub fn width(&self) -> CoordinateUnit {
         self.coordinates.0[0]
     }

@@ -170,6 +170,9 @@ impl<Context: CoordinateContext> Section<Context> {
     pub fn floored(self) -> Self {
         Self::new(self.position.floored(), self.area.floored())
     }
+    pub fn abs(self) -> Self {
+        Self::new(self.position.abs(), self.area.abs())
+    }
 }
 impl Section<NumericalContext> {
     pub fn as_logical(self) -> Section<LogicalContext> {
