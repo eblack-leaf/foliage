@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use crate::tree::Tree;
-use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
+use bevy_ecs::event::Event;
 use bevy_ecs::prelude::Component;
 use bevy_ecs::system::{Commands, Query, Res, ResMut, Resource};
 use futures_channel::oneshot::{Receiver, Sender};
@@ -15,27 +15,27 @@ pub struct AssetLoader {
 }
 pub type AssetFn = fn(&mut Tree, Entity, Vec<u8>);
 #[derive(Component, Clone)]
-pub struct OnRetrieve {
+pub struct AssetRetrieval {
     key: AssetKey,
-    bundle_using: Box<AssetFn>,
 }
-impl OnRetrieve {
-    pub fn new(key: AssetKey, func: AssetFn) -> Self {
-        Self {
-            key,
-            bundle_using: Box::new(func),
-        }
+impl AssetRetrieval {
+    pub fn new(key: AssetKey) -> Self {
+        Self { key }
     }
 }
+#[derive(Event, Clone)]
+pub struct OnRetrieval {
+    pub data: Vec<u8>,
+}
 pub(crate) fn on_retrieve(
-    retrievers: Query<(Entity, &OnRetrieve)>,
+    retrievers: Query<(Entity, &AssetRetrieval)>,
     mut cmd: Commands,
     asset_loader: Res<AssetLoader>,
 ) {
     for (entity, on_retrieve) in retrievers.iter() {
         if let Some(asset) = asset_loader.retrieve(on_retrieve.key) {
-            cmd.entity(entity).remove::<OnRetrieve>();
-            (on_retrieve.bundle_using)(&mut cmd, entity, asset.data);
+            cmd.entity(entity).remove::<AssetRetrieval>();
+            cmd.trigger_targets(OnRetrieval { data: asset.data }, entity);
         }
     }
 }
