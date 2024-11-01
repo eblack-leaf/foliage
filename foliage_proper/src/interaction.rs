@@ -114,7 +114,11 @@ pub struct ClickInteraction {
     from_scroll: bool,
 }
 impl ClickInteraction {
-    pub fn new(click_phase: ClickPhase, position: Position<LogicalContext>, from_scroll: bool) -> Self {
+    pub fn new(
+        click_phase: ClickPhase,
+        position: Position<LogicalContext>,
+        from_scroll: bool,
+    ) -> Self {
         Self {
             click_phase,
             position,
@@ -292,7 +296,9 @@ pub(crate) fn listen_for_interactions(
                     let mut grab_info: Option<(Entity, RenderLayer)> = None;
                     for (entity, listener, section, layer, clip_context) in listeners.iter_mut() {
                         if listener.shape.contains(event.position, *section) && !listener.disabled {
-                            if event.from_scroll && !listener.listen_scroll { continue; }
+                            if event.from_scroll && !listener.listen_scroll {
+                                continue;
+                            }
                             match clip_context {
                                 ClippingContext::Screen => {}
                                 ClippingContext::Entity(e) => {
@@ -348,12 +354,24 @@ pub(crate) fn listen_for_interactions(
                             grabbed.0.take();
                             listeners.get_mut(g).unwrap().1.engaged_end = true;
                             listeners.get_mut(g).unwrap().1.engaged = false;
-                            move_pass_through(&mut listeners, &mut draggable, &pass_through, event, true);
+                            move_pass_through(
+                                &mut listeners,
+                                &mut draggable,
+                                &pass_through,
+                                event,
+                                true,
+                            );
                         } else {
                             move_grabbed(&mut listeners, &grabbed, event);
                         }
                     } else {
-                        move_pass_through(&mut listeners, &mut draggable, &pass_through, event, false);
+                        move_pass_through(
+                            &mut listeners,
+                            &mut draggable,
+                            &pass_through,
+                            event,
+                            false,
+                        );
                     }
                 } else {
                     move_grabbed(&mut listeners, &grabbed, event);
@@ -530,7 +548,7 @@ pub(crate) fn draggable(
                 to_set.set_x(
                     (extent.horizontal_extent.vertical()
                         - (view.position.x() + section.area.width()))
-                        .max(0.0),
+                    .max(0.0),
                 );
             };
             if view.position.x() + diff.x() < extent.horizontal_extent.horizontal() {
@@ -541,7 +559,7 @@ pub(crate) fn draggable(
             {
                 let set_y = (extent.vertical_extent.vertical()
                     - (view.position.y() + section.area.height()))
-                    .max(0.0);
+                .max(0.0);
                 tracing::trace!("max-y: {}", set_y);
                 to_set.set_y(set_y);
             }
