@@ -1,6 +1,6 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
-use crate::coordinate::area::Area;
+use crate::ash::ClippingContext;
 use crate::coordinate::elevation::RenderLayer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
@@ -14,7 +14,7 @@ use bevy_ecs::entity::Entity;
 use bevy_ecs::event::{Event, EventReader};
 use bevy_ecs::prelude::{Component, IntoSystemConfigs};
 use bevy_ecs::query::Changed;
-use bevy_ecs::system::{Query, Res, ResMut, Resource};
+use bevy_ecs::system::{Query, ResMut, Resource};
 use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, MouseButton, Touch, TouchPhase};
 use winit::keyboard::{Key, ModifiersState};
@@ -145,6 +145,7 @@ pub struct ClickInteractionListener {
     shape: ClickInteractionShape,
     disabled: bool,
     moved: bool,
+    pass_through: bool,
 }
 impl ClickInteractionListener {
     pub fn new() -> Self {
@@ -152,6 +153,10 @@ impl ClickInteractionListener {
     }
     pub fn as_circle(mut self) -> Self {
         self.shape = ClickInteractionShape::Circle;
+        self
+    }
+    pub fn pass_through(mut self) -> Self {
+        self.pass_through = true;
         self
     }
     pub fn click(&self) -> Click {
@@ -245,7 +250,9 @@ pub(crate) fn listen_for_interactions(
         &mut ClickInteractionListener,
         &Section<LogicalContext>,
         &RenderLayer,
+        &ClippingContext,
     )>,
+    clip_sections: Query<&Section<LogicalContext>>,
     mut events: EventReader<ClickInteraction>,
     mut grabbed: ResMut<InteractiveEntity>,
     mut focused: ResMut<FocusedEntity>,
@@ -254,11 +261,24 @@ pub(crate) fn listen_for_interactions(
         match event.click_phase {
             ClickPhase::Start => {
                 if grabbed.0.is_none() {
-                    let mut grab_info: Option<(Entity, RenderLayer)> = None;
-                    for (entity, listener, section, layer) in listeners.iter_mut() {
+                    let mut grab_info: Option<(Entity, RenderLayer, bool)> = None;
+                    for (entity, listener, section, layer, clip_context) in listeners.iter_mut() {
                         if listener.shape.contains(event.position, *section) && !listener.disabled {
-                            if grab_info.is_none() || *layer > grab_info.unwrap().1 {
-                                grab_info.replace((entity, *layer));
+                            match clip_context {
+                                ClippingContext::Screen => {}
+                                ClippingContext::Entity(e) => {
+                                    if let Ok(sec) = clip_sections.get(*e) {
+                                        if !sec.contains(event.position) {
+                                            continue;
+                                        }
+                                    }
+                                }
+                            }
+                            if grab_info.is_none()
+                                || *layer > grab_info.unwrap().1
+                                || grab_info.unwrap().2
+                            {
+                                grab_info.replace((entity, *layer, listener.pass_through));
                             }
                         }
                     }
@@ -297,19 +317,17 @@ pub(crate) fn listen_for_interactions(
                         .shape
                         .contains(event.position, section)
                     {
-                        let mut found = false;
-                        let current_layer = *listeners.get(g).unwrap().3;
-                        for (entity, listener, section, layer) in listeners.iter() {
-                            if current_layer <= *layer && entity != g && !listener.disabled {
-                                if listener.shape.contains(event.position, *section) {
-                                    found = true;
+                        match listeners.get(g).unwrap().4 {
+                            ClippingContext::Screen => {
+                                listeners.get_mut(g).unwrap().1.active = true;
+                            }
+                            ClippingContext::Entity(e) => {
+                                if let Ok(sec) = clip_sections.get(*e) {
+                                    if sec.contains(event.position) {
+                                        listeners.get_mut(g).unwrap().1.active = true;
+                                    }
                                 }
                             }
-                        }
-                        if !found {
-                            listeners.get_mut(g).unwrap().1.active = true;
-                        } else {
-                            tracing::trace!("higher-elevated interactive-element found");
                         }
                     }
                     listeners.get_mut(g).expect("ending").1.click.current = event.position;
@@ -393,8 +411,9 @@ pub(crate) fn draggable(
                 > extent.horizontal_extent.vertical()
             {
                 to_set.set_x(
-                    extent.horizontal_extent.vertical()
-                        - (view.position.x() + section.area.width()),
+                    (extent.horizontal_extent.vertical()
+                        - (view.position.x() + section.area.width()))
+                    .max(0.0),
                 );
             };
             if view.position.x() + diff.x() < extent.horizontal_extent.horizontal() {
@@ -403,13 +422,24 @@ pub(crate) fn draggable(
             if view.position.y() + diff.y() + section.area.height()
                 > extent.vertical_extent.vertical()
             {
-                to_set.set_y(
-                    extent.vertical_extent.vertical() - (view.position.y() + section.area.height()),
-                );
+                let set_y = (extent.vertical_extent.vertical()
+                    - (view.position.y() + section.area.height()))
+                .max(0.0);
+                tracing::trace!("max-y: {}", set_y);
+                to_set.set_y(set_y);
             }
             if view.position.y() + diff.y() < extent.vertical_extent.horizontal() {
-                to_set.set_y(extent.vertical_extent.horizontal() - view.position.y());
+                let set_y = extent.vertical_extent.horizontal() - view.position.y();
+                tracing::trace!("min-y: {}", set_y);
+                to_set.set_y(set_y);
             }
+            tracing::trace!(
+                "view.position: {} w/ extent: {}:{} + to-set: {} ",
+                view.position,
+                extent.horizontal_extent,
+                extent.vertical_extent,
+                to_set
+            );
             view.position += to_set;
             tree.entity(entity)
                 .insert(EvaluateLocation::skip_extent_check());

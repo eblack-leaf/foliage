@@ -112,7 +112,7 @@ pub(crate) struct ScrollRefTotal {
 }
 #[derive(Component, Copy, Clone, Debug, Default)]
 pub(crate) struct ScrollableTag {}
-#[derive(Bundle, Default)]
+#[derive(Bundle)]
 pub struct Scrollable {
     tag: ScrollableTag,
     refs: ScrollRefs,
@@ -122,6 +122,20 @@ pub struct Scrollable {
     listener: ClickInteractionListener,
     draggable: Draggable,
     enable_clipping: EnableClipping,
+}
+impl Scrollable {
+    pub fn new() -> Self {
+        Self {
+            tag: Default::default(),
+            refs: Default::default(),
+            view: Default::default(),
+            extent: Default::default(),
+            total: Default::default(),
+            listener: ClickInteractionListener::new().pass_through(),
+            draggable: Default::default(),
+            enable_clipping: Default::default(),
+        }
+    }
 }
 #[derive(Copy, Clone)]
 pub struct EvaluateLocation {
@@ -380,7 +394,8 @@ impl EvaluateExtent {
                     if view.position.x() + stem.area.width() > new_horizontal.vertical() {
                         // right overscroll
                         new_view.replace(Position::new((
-                            new_horizontal.vertical() - stem.area.width(),
+                            (new_horizontal.vertical() - stem.area.width())
+                                .max(new_horizontal.horizontal()),
                             view.position.y(),
                         )));
                     }
@@ -393,7 +408,8 @@ impl EvaluateExtent {
                     }
                     if view.position.y() + stem.area.height() > new_vertical.vertical() {
                         // bottom overscroll
-                        let calc_y = new_vertical.vertical() - stem.area.height();
+                        let calc_y = (new_vertical.vertical() - stem.area.height())
+                            .max(new_vertical.horizontal());
                         let new = if let Some(n) = new_view {
                             Position::new((n.x(), calc_y))
                         } else {

@@ -107,6 +107,9 @@ impl ResolvedConfiguration {
                 }
             }
         }
+        if stem.view.position != Position::default() {
+            tracing::trace!("view-position: {}", stem.view.position);
+        }
         resolution.position -= stem.view.position;
         Some((resolution, aw, ah))
     }

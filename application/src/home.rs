@@ -38,13 +38,13 @@ impl Branch for Home {
         let scroll_view = tree
             .spawn(Leaf::new().elevation(10))
             .insert(Panel::new(Rounding::all(0.0), Grey::minus_three()))
-            .insert(Scrollable::default())
+            .insert(Scrollable::new())
             .insert(
                 ResponsiveLocation::new()
                     .top(screen().top() + 16.px())
                     .bottom(screen().bottom() - 16.px())
                     .left(screen().left() + 16.px())
-                    .width(400.px()),
+                    .width(80.percent().width().of(stem())),
             )
             .insert(EvaluateCore::recursive())
             .id();
