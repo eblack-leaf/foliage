@@ -64,11 +64,10 @@ impl EvaluateOpacity {
             } else { 1.0 };
             world.commands().entity(entity).insert(Opacity::new(inherited));
             if let Some(color) = world.get::<Color>(entity).copied() {
-                let blended = inherited;
                 world
                     .commands()
                     .entity(entity)
-                    .insert(color.with_alpha(blended));
+                    .insert(color.with_alpha(inherited));
             }
         } else {
             let value = world.get::<Opacity>(entity).copied().unwrap().value;
