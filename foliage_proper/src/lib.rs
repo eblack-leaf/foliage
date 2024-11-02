@@ -95,7 +95,7 @@ impl Default for Foliage {
 }
 
 impl Foliage {
-    pub const SCROLL_SENSITIVITY: f32 = 20.0;
+    pub const SCROLL_SENSITIVITY: f32 = 40.0;
     pub const NATURAL_SCROLLING: f32 = -1.0;
     pub const VIEW_SCROLLING: f32 = 1.0;
     pub fn new() -> Self {
