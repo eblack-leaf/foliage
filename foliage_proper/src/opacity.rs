@@ -54,30 +54,23 @@ impl EvaluateOpacity {
     }
     pub(crate) fn on_insert(mut world: DeferredWorld, entity: Entity, _c: ComponentId) {
         let event = world.get::<EvaluateOpacity>(entity).copied().unwrap();
-        if !event.is_first {
-            let inherited = if let Some(stem) = world.get::<Stem>(entity).copied() {
-                if let Some(s) = stem.0 {
-                    if let Some(o) = world.get::<Opacity>(s).copied() {
-                        o.value
-                    } else { 1.0 }
+        let inherited = if let Some(stem) = world.get::<Stem>(entity).copied() {
+            if let Some(s) = stem.0 {
+                if let Some(o) = world.get::<Opacity>(s).copied() {
+                    o.value
                 } else { 1.0 }
-            } else { 1.0 };
-            world.commands().entity(entity).insert(Opacity::new(inherited));
-            if let Some(color) = world.get::<Color>(entity).copied() {
-                world
-                    .commands()
-                    .entity(entity)
-                    .insert(color.with_alpha(inherited));
-            }
-        } else {
-            let value = world.get::<Opacity>(entity).copied().unwrap().value;
-            if let Some(color) = world.get::<Color>(entity).copied() {
-                world
-                    .commands()
-                    .entity(entity)
-                    .insert(color.with_alpha(value));
-            }
+            } else { 1.0 }
+        } else { 1.0 };
+        let value = world.get::<Opacity>(entity).copied().unwrap().value;
+        let blended = inherited * value;
+        tracing::trace!("blended: {}", blended);
+        if let Some(color) = world.get::<Color>(entity).copied() {
+            world
+                .commands()
+                .entity(entity)
+                .insert(color.with_alpha(blended));
         }
+        world.commands().entity(entity).insert(Opacity::new(blended));
         if !world
             .get::<EvaluateOpacity>(entity)
             .copied()

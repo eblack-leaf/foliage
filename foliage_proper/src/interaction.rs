@@ -4,7 +4,7 @@ use crate::ash::ClippingContext;
 use crate::coordinate::elevation::RenderLayer;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
-use crate::coordinate::{CoordinateUnit, Coordinates, LogicalContext};
+use crate::coordinate::{CoordinateUnit, LogicalContext};
 use crate::elm::{Elm, InternalStage};
 use crate::ginkgo::ScaleFactor;
 use crate::grid::responsive::evaluate::{EvaluateLocation, ScrollExtent, ScrollView};
@@ -548,7 +548,7 @@ pub(crate) fn draggable(
                 to_set.set_x(
                     (extent.horizontal_extent.vertical()
                         - (view.position.x() + section.area.width()))
-                    .max(0.0),
+                        .max(0.0),
                 );
             };
             if view.position.x() + diff.x() < extent.horizontal_extent.horizontal() {
@@ -559,22 +559,13 @@ pub(crate) fn draggable(
             {
                 let set_y = (extent.vertical_extent.vertical()
                     - (view.position.y() + section.area.height()))
-                .max(0.0);
-                tracing::trace!("max-y: {}", set_y);
+                    .max(0.0);
                 to_set.set_y(set_y);
             }
             if view.position.y() + diff.y() < extent.vertical_extent.horizontal() {
                 let set_y = extent.vertical_extent.horizontal() - view.position.y();
-                tracing::trace!("min-y: {}", set_y);
                 to_set.set_y(set_y);
             }
-            tracing::trace!(
-                "view.position: {} w/ extent: {}:{} + to-set: {} ",
-                view.position,
-                extent.horizontal_extent,
-                extent.vertical_extent,
-                to_set
-            );
             view.position += to_set;
             tree.entity(entity)
                 .insert(EvaluateLocation::skip_extent_check());
