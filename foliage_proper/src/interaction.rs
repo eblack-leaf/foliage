@@ -548,7 +548,7 @@ pub(crate) fn draggable(
                 to_set.set_x(
                     (extent.horizontal_extent.vertical()
                         - (view.position.x() + section.area.width()))
-                        .max(0.0),
+                    .max(0.0),
                 );
             };
             if view.position.x() + diff.x() < extent.horizontal_extent.horizontal() {
@@ -559,7 +559,7 @@ pub(crate) fn draggable(
             {
                 let set_y = (extent.vertical_extent.vertical()
                     - (view.position.y() + section.area.height()))
-                    .max(0.0);
+                .max(0.0);
                 to_set.set_y(set_y);
             }
             if view.position.y() + diff.y() < extent.vertical_extent.horizontal() {

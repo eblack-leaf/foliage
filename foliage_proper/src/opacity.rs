@@ -48,10 +48,18 @@ pub struct EvaluateOpacity {
 }
 impl EvaluateOpacity {
     pub fn recursive() -> Self {
-        Self { recursive: true, is_first: true, pre_solved: 0.0 }
+        Self {
+            recursive: true,
+            is_first: true,
+            pre_solved: 0.0,
+        }
     }
     pub fn no_deps() -> Self {
-        Self { recursive: false, is_first: true, pre_solved: 0.0 }
+        Self {
+            recursive: false,
+            is_first: true,
+            pre_solved: 0.0,
+        }
     }
     pub(crate) fn on_insert(mut world: DeferredWorld, entity: Entity, _c: ComponentId) {
         let event = world.get::<EvaluateOpacity>(entity).copied().unwrap();
@@ -59,14 +67,22 @@ impl EvaluateOpacity {
         let pre_solved = if event.is_first {
             let mut found = true;
             let mut p = current;
+            let mut evaluating_entity = entity;
             while found {
-                if let Some(stem) = world.get::<Stem>(entity).copied() {
+                if let Some(stem) = world.get::<Stem>(evaluating_entity).copied() {
                     if let Some(s) = stem.0 {
                         if let Some(stem_opacity) = world.get::<Opacity>(s).copied() {
                             p *= stem_opacity.value;
-                        } else { found = false; }
-                    } else { found = false; }
-                } else { found = false; }
+                            evaluating_entity = s;
+                        } else {
+                            found = false;
+                        }
+                    } else {
+                        found = false;
+                    }
+                } else {
+                    found = false;
+                }
             }
             p
         } else {
@@ -89,14 +105,11 @@ impl EvaluateOpacity {
         }
         if let Some(ds) = world.get::<Dependents>(entity).cloned() {
             for d in ds.0 {
-                world
-                    .commands()
-                    .entity(d)
-                    .insert(EvaluateOpacity {
-                        recursive: true,
-                        is_first: false,
-                        pre_solved: blended
-                    });
+                world.commands().entity(d).insert(EvaluateOpacity {
+                    recursive: true,
+                    is_first: false,
+                    pre_solved: blended,
+                });
             }
         }
     }
