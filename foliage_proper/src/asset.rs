@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::tree::Tree;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::Event;
-use bevy_ecs::prelude::Component;
+use bevy_ecs::prelude::{Component, Trigger};
 use bevy_ecs::system::{Commands, Query, Res, ResMut, Resource};
 use futures_channel::oneshot::{Receiver, Sender};
 use uuid::Uuid;
@@ -23,9 +23,19 @@ impl AssetRetrieval {
         Self { key }
     }
 }
-#[derive(Event, Clone)]
+#[derive(Event, Copy, Clone)]
 pub struct OnRetrieval {
-    pub data: Vec<u8>,
+    pub key: AssetKey,
+}
+pub fn asset_retrieval<'w, AFN: FnMut(&mut Tree, Entity, Vec<u8>) + 'static>(
+    mut afn: AFN,
+) -> impl FnMut(Trigger<OnRetrieval>, Tree, Res<AssetLoader>) {
+    let obs =
+        move |trigger: Trigger<OnRetrieval>, mut tree: Tree, asset_loader: Res<AssetLoader>| {
+            let asset = asset_loader.retrieve(trigger.event().key).unwrap();
+            afn(&mut tree, trigger.entity(), asset.data);
+        };
+    obs
 }
 pub(crate) fn on_retrieve(
     retrievers: Query<(Entity, &AssetRetrieval)>,
@@ -35,7 +45,12 @@ pub(crate) fn on_retrieve(
     for (entity, on_retrieve) in retrievers.iter() {
         if let Some(asset) = asset_loader.retrieve(on_retrieve.key) {
             cmd.entity(entity).remove::<AssetRetrieval>();
-            cmd.trigger_targets(OnRetrieval { data: asset.data }, entity);
+            cmd.trigger_targets(
+                OnRetrieval {
+                    key: on_retrieve.key,
+                },
+                entity,
+            );
         }
     }
 }

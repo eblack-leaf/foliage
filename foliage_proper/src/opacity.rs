@@ -89,6 +89,7 @@ impl EvaluateOpacity {
             event.pre_solved
         };
         let blended = pre_solved * current;
+        // tracing::trace!("pre-solved: {} * current: {} = blended: {}", pre_solved, current, blended);
         if let Some(color) = world.get::<Color>(entity).copied() {
             world
                 .commands()
