@@ -43,35 +43,40 @@ impl Opacity {
 #[derive(Copy, Clone, Default)]
 pub struct EvaluateOpacity {
     recursive: bool,
+    is_first: bool,
 }
 impl EvaluateOpacity {
     pub fn recursive() -> Self {
-        Self { recursive: true }
+        Self { recursive: true, is_first: true }
     }
     pub fn no_deps() -> Self {
-        Self { recursive: false }
+        Self { recursive: false, is_first: true }
     }
     pub(crate) fn on_insert(mut world: DeferredWorld, entity: Entity, _c: ComponentId) {
-        let inherited = if let Some(stem) = world.get::<Stem>(entity) {
-            if let Some(s) = stem.0 {
-                if let Some(opacity) = world.get::<Opacity>(s) {
-                    opacity.value
-                } else {
-                    1.0
-                }
-            } else {
-                1.0
-            }
-        } else {
-            1.0
-        };
-        if let Some(current) = world.get::<Opacity>(entity).copied() {
+        let event = world.get::<EvaluateOpacity>(entity).copied().unwrap();
+        if !event.is_first {
+            let inherited = if let Some(stem) = world.get::<Stem>(entity).copied() {
+                if let Some(s) = stem.0 {
+                    if let Some(o) = world.get::<Opacity>(s).copied() {
+                        o.value
+                    } else { 1.0 }
+                } else { 1.0 }
+            } else { 1.0 };
+            world.commands().entity(entity).insert(Opacity::new(inherited));
             if let Some(color) = world.get::<Color>(entity).copied() {
-                let blended = current.value * inherited;
+                let blended = inherited;
                 world
                     .commands()
                     .entity(entity)
                     .insert(color.with_alpha(blended));
+            }
+        } else {
+            let value = world.get::<Opacity>(entity).copied().unwrap().value;
+            if let Some(color) = world.get::<Color>(entity).copied() {
+                world
+                    .commands()
+                    .entity(entity)
+                    .insert(color.with_alpha(value));
             }
         }
         if !world
@@ -87,7 +92,10 @@ impl EvaluateOpacity {
                 world
                     .commands()
                     .entity(d)
-                    .insert(EvaluateOpacity::recursive());
+                    .insert(EvaluateOpacity {
+                        recursive: true,
+                        is_first: false,
+                    });
             }
         }
     }
