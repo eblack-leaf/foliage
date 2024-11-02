@@ -44,33 +44,41 @@ impl Opacity {
 pub struct EvaluateOpacity {
     recursive: bool,
     is_first: bool,
+    pre_solved: f32,
 }
 impl EvaluateOpacity {
     pub fn recursive() -> Self {
-        Self { recursive: true, is_first: true }
+        Self { recursive: true, is_first: true, pre_solved: 0.0 }
     }
     pub fn no_deps() -> Self {
-        Self { recursive: false, is_first: true }
+        Self { recursive: false, is_first: true, pre_solved: 0.0 }
     }
     pub(crate) fn on_insert(mut world: DeferredWorld, entity: Entity, _c: ComponentId) {
         let event = world.get::<EvaluateOpacity>(entity).copied().unwrap();
-        let inherited = if let Some(stem) = world.get::<Stem>(entity).copied() {
-            if let Some(s) = stem.0 {
-                if let Some(o) = world.get::<Opacity>(s).copied() {
-                    o.value
-                } else { 1.0 }
-            } else { 1.0 }
-        } else { 1.0 };
-        let value = world.get::<Opacity>(entity).copied().unwrap().value;
-        let blended = inherited * value;
-        tracing::trace!("inherited: {} + current: {} = blended: {} for entity: {}", inherited, value, blended, entity.index());
+        let current = world.get::<Opacity>(entity).copied().unwrap().value;
+        let pre_solved = if event.is_first {
+            let mut found = true;
+            let mut p = current;
+            while found {
+                if let Some(stem) = world.get::<Stem>(entity).copied() {
+                    if let Some(s) = stem.0 {
+                        if let Some(stem_opacity) = world.get::<Opacity>(s).copied() {
+                            p *= stem_opacity.value;
+                        } else { found = false; }
+                    } else { found = false; }
+                } else { found = false; }
+            }
+            p
+        } else {
+            event.pre_solved
+        };
+        let blended = pre_solved * current;
         if let Some(color) = world.get::<Color>(entity).copied() {
             world
                 .commands()
                 .entity(entity)
                 .insert(color.with_alpha(blended));
         }
-        world.commands().entity(entity).insert(Opacity::new(blended));
         if !world
             .get::<EvaluateOpacity>(entity)
             .copied()
@@ -87,6 +95,7 @@ impl EvaluateOpacity {
                     .insert(EvaluateOpacity {
                         recursive: true,
                         is_first: false,
+                        pre_solved: blended
                     });
             }
         }
