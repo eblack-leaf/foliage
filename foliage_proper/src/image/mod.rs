@@ -4,7 +4,7 @@ use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs};
 use bevy_ecs::query::{Changed, Or};
-use bevy_ecs::system::Query;
+use bevy_ecs::system::{Query, ResMut};
 use bytemuck::{Pod, Zeroable};
 use wgpu::{
     include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor,
@@ -18,7 +18,7 @@ use crate::color::Color;
 use crate::coordinate::elevation::RenderLayer;
 use crate::coordinate::section::{GpuSection, Section};
 use crate::coordinate::{Coordinates, DeviceContext, LogicalContext, NumericalContext};
-use crate::differential::{Differential, RenderLink};
+use crate::differential::{Differential, RenderAddQueue, RenderLink};
 use crate::elm::{Elm, InternalStage, RenderQueueHandle};
 use crate::ginkgo::Ginkgo;
 use crate::instances::Instances;
@@ -91,16 +91,11 @@ impl Image {
         }
     }
     pub fn new<I: Into<ImageSlotId>>(id: I, data: Vec<u8>) -> Self {
-        // Note: Change when Self::PRECISION == 4 to .to_rgba32f()
-
         let image = image::load_from_memory(data.as_slice())
             .unwrap()
             .to_rgba32f();
         let dimensions = Coordinates::new(image.width() as f32, image.height() as f32);
-        let image_bytes = image
-            .pixels()
-            .flat_map(|p| p.0.to_vec())
-            .collect::<Vec<ImageBitsRepr>>();
+        let image_bytes = image.as_raw().clone();
         let id = id.into();
         Self {
             link: RenderLink::new::<Image>(),
@@ -187,17 +182,32 @@ pub struct ImageSlot {
     remove: Remove,
     visibility: Visibility,
 }
+fn image_fill_differential(
+    mut fills: Query<(Entity, &mut ImageFill), Changed<ImageFill>>,
+    mut render_queue: ResMut<RenderAddQueue<ImageFill>>,
+) {
+    for (entity, mut fill) in fills.iter_mut() {
+        if fill.1.is_empty() { continue; }
+        render_queue.queue.get_mut(&RenderLink::new::<Image>()).unwrap().insert(entity, ImageFill {
+            0: fill.0,
+            1: fill.1.drain(..).collect(),
+            2: fill.2,
+        });
+    }
+}
 impl Root for Image {
     fn attach(elm: &mut Elm) {
         elm.enable_differential::<Self, GpuSection>();
         elm.enable_differential::<Self, RenderLayer>();
-        elm.enable_differential::<Self, ImageFill>();
         elm.enable_differential::<Self, ImageSlotDescriptor>();
         elm.enable_differential::<Self, ImageView>();
         elm.enable_differential::<Self, Color>();
+        let mut queue = RenderAddQueue::<ImageFill>::default();
+        queue.queue.insert(RenderLink::new::<Image>(), HashMap::new());
+        elm.ecs.insert_resource(queue);
         elm.scheduler
             .main
-            .add_systems(constrain.in_set(InternalStage::Resolve));
+            .add_systems((constrain.in_set(InternalStage::Resolve), image_fill_differential.in_set(InternalStage::Differential)));
     }
 }
 #[repr(C)]
@@ -355,7 +365,7 @@ impl Render for Image {
             }
         }
         for packet in queue_handle.read_adds::<Self, ImageSlotDescriptor>() {
-            renderer.associate_directive_group(packet.value.0 .0, packet.value.0);
+            renderer.associate_directive_group(packet.value.0.0, packet.value.0);
             let (tex, view) = ginkgo.create_texture(
                 Self::FORMAT,
                 packet.value.1,
@@ -407,7 +417,7 @@ impl Render for Image {
                     offset: 0,
                     bytes_per_row: Some(
                         packet.value.2.horizontal() as u32
-                            * std::mem::size_of::<f32>() as u32
+                            * size_of::<f32>() as u32
                             * Self::PRECISION as u32,
                     ),
                     rows_per_image: Some(packet.value.2.vertical() as u32),
