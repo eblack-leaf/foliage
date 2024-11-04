@@ -88,7 +88,7 @@ impl Ginkgo {
         let texture_data = image
             .to_rgba8()
             .enumerate_pixels()
-            .map(|p| -> u8 { p.2 .0[3] })
+            .map(|p| -> u8 { p.2.0[3] })
             .collect::<Vec<u8>>();
         texture_data
     }
@@ -146,7 +146,7 @@ impl Ginkgo {
     ) -> Option<FragmentState<'a>> {
         Some(FragmentState {
             module,
-            entry_point,
+            entry_point: Some(entry_point),
             compilation_options: Default::default(),
             targets,
         })

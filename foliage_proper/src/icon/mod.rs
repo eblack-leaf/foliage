@@ -229,7 +229,7 @@ impl Render for Icon {
             layout: Some(&pipeline_layout),
             vertex: VertexState {
                 module: &shader,
-                entry_point: "vertex_entry",
+                entry_point: Option::from("vertex_entry"),
                 compilation_options: Default::default(),
                 buffers: &[
                     Ginkgo::vertex_buffer_layout::<Vertex>(
@@ -281,7 +281,7 @@ impl Render for Icon {
         ginkgo: &Ginkgo,
     ) {
         for packet in queue_handle.read_adds::<Self, IconData>() {
-            renderer.associate_directive_group(packet.value.0 .0, packet.value.0);
+            renderer.associate_directive_group(packet.value.0.0, packet.value.0);
             let (_, view) = ginkgo.create_texture(
                 TextureFormat::R8Unorm,
                 Self::TEXTURE_SCALE,

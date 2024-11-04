@@ -254,7 +254,7 @@ impl Render for Panel {
             layout: Option::from(&pipeline_layout),
             vertex: VertexState {
                 module: &shader,
-                entry_point: "vertex_entry",
+                entry_point: Option::from("vertex_entry"),
                 compilation_options: Default::default(),
                 buffers: &[
                     Ginkgo::vertex_buffer_layout::<Vertex>(
