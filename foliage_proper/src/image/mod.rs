@@ -187,12 +187,21 @@ fn image_fill_differential(
     mut render_queue: ResMut<RenderAddQueue<ImageFill>>,
 ) {
     for (entity, mut fill) in fills.iter_mut() {
-        if fill.1.is_empty() { continue; }
-        render_queue.queue.get_mut(&RenderLink::new::<Image>()).unwrap().insert(entity, ImageFill {
-            0: fill.0,
-            1: fill.1.drain(..).collect(),
-            2: fill.2,
-        });
+        if fill.1.is_empty() {
+            continue;
+        }
+        render_queue
+            .queue
+            .get_mut(&RenderLink::new::<Image>())
+            .unwrap()
+            .insert(
+                entity,
+                ImageFill {
+                    0: fill.0,
+                    1: fill.1.drain(..).collect(),
+                    2: fill.2,
+                },
+            );
     }
 }
 impl Root for Image {
@@ -203,11 +212,14 @@ impl Root for Image {
         elm.enable_differential::<Self, ImageView>();
         elm.enable_differential::<Self, Color>();
         let mut queue = RenderAddQueue::<ImageFill>::default();
-        queue.queue.insert(RenderLink::new::<Image>(), HashMap::new());
+        queue
+            .queue
+            .insert(RenderLink::new::<Image>(), HashMap::new());
         elm.ecs.insert_resource(queue);
-        elm.scheduler
-            .main
-            .add_systems((constrain.in_set(InternalStage::Resolve), image_fill_differential.in_set(InternalStage::Differential)));
+        elm.scheduler.main.add_systems((
+            constrain.in_set(InternalStage::Resolve),
+            image_fill_differential.in_set(InternalStage::Differential),
+        ));
     }
 }
 #[repr(C)]
@@ -365,7 +377,7 @@ impl Render for Image {
             }
         }
         for packet in queue_handle.read_adds::<Self, ImageSlotDescriptor>() {
-            renderer.associate_directive_group(packet.value.0.0, packet.value.0);
+            renderer.associate_directive_group(packet.value.0 .0, packet.value.0);
             let (tex, view) = ginkgo.create_texture(
                 Self::FORMAT,
                 packet.value.1,

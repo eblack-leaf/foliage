@@ -281,7 +281,7 @@ impl Render for Icon {
         ginkgo: &Ginkgo,
     ) {
         for packet in queue_handle.read_adds::<Self, IconData>() {
-            renderer.associate_directive_group(packet.value.0.0, packet.value.0);
+            renderer.associate_directive_group(packet.value.0 .0, packet.value.0);
             let (_, view) = ginkgo.create_texture(
                 TextureFormat::R8Unorm,
                 Self::TEXTURE_SCALE,
