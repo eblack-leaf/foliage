@@ -142,7 +142,7 @@ impl MonospacedFont {
                     ..fontdue::FontSettings::default()
                 },
             )
-            .expect("font"),
+                .expect("font"),
         )
     }
 }
@@ -479,6 +479,7 @@ impl Render for Text {
         ginkgo: &Ginkgo,
     ) {
         for packet in queue_handle.read_removes::<Self>() {
+            println!("removing {:?}", packet);
             if !renderer.resource_handle.groups.contains_key(&packet) {
                 continue;
             }
@@ -496,6 +497,8 @@ impl Render for Text {
                 .instances
                 .clear(None);
             // renderer.directive_manager.remove(packet);
+            renderer.resource_handle.groups.remove(&packet).unwrap();
+            renderer.node_manager.set_nodes(packet.index() as i32, RenderNodes::new());
             renderer.disassociate_directive_group(packet.index() as i32);
         }
         for packet in queue_handle.read_adds::<Self, GlyphMetrics>() {
@@ -763,6 +766,7 @@ impl Render for Text {
                         group.clip_context.clone(),
                     ),
                 );
+                println!("setting nodes {}", e.index());
                 renderer.node_manager.set_nodes(e.index() as i32, nodes);
             }
         }

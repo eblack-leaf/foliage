@@ -1,11 +1,12 @@
 use crate::icon::IconHandles;
 use foliage::bevy_ecs;
-use foliage::bevy_ecs::prelude::Resource;
+use foliage::bevy_ecs::prelude::{Resource, Trigger};
 use foliage::color::{Color, Grey, Monochromatic};
 use foliage::grid::aspect::{screen, stem};
 use foliage::grid::responsive::evaluate::{ScrollContext, Scrollable};
 use foliage::grid::responsive::ResponsiveLocation;
 use foliage::grid::unit::TokenUnit;
+use foliage::interaction::OnClick;
 use foliage::leaf::{EvaluateCore, Leaf};
 use foliage::panel::{Panel, Rounding};
 use foliage::style::Coloring;
@@ -68,7 +69,7 @@ impl Branch for Home {
                     IconHandles::Concepts,
                     Coloring::new(Grey::minus_two(), Grey::plus_two()),
                 )
-                .with_text("Concepts", FontSize::new(20)),
+                    .with_text("Concepts", FontSize::new(20)),
             )
             .insert(
                 ResponsiveLocation::new()
@@ -79,6 +80,9 @@ impl Branch for Home {
             )
             .insert(ScrollContext::new(scroll_view))
             .insert(EvaluateCore::recursive())
+            .observe(move |trigger: Trigger<OnClick>, mut tree: Tree| {
+                tree.entity(text).despawn();
+            })
             .id();
         IdTable {}
     }

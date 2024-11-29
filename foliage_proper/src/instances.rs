@@ -1,11 +1,8 @@
 use crate::ash::{ClippingContext, RenderNode, RenderNodes};
-use crate::bevy_ecs::prelude::Entity;
 use crate::coordinate::elevation::RenderLayer;
 use crate::ginkgo::Ginkgo;
-use crate::texture::TextureCoordinates;
 use bevy_ecs::world::World;
 use bytemuck::{Pod, Zeroable};
-use std::any::TypeId;
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
@@ -163,7 +160,6 @@ impl<Key: Hash + Eq + Copy + Clone + Debug + 'static> Instances<Key> {
     }
     pub(crate) fn process_removals(&mut self) {
         let removed = self.removal_queue.drain().collect::<Vec<Key>>();
-
         let mut orders = removed
             .iter()
             .map(|r| {
