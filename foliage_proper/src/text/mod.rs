@@ -479,7 +479,6 @@ impl Render for Text {
         ginkgo: &Ginkgo,
     ) {
         for packet in queue_handle.read_removes::<Self>() {
-            println!("removing {:?}", packet);
             if !renderer.resource_handle.groups.contains_key(&packet) {
                 continue;
             }
@@ -766,7 +765,6 @@ impl Render for Text {
                         group.clip_context.clone(),
                     ),
                 );
-                println!("setting nodes {}", e.index());
                 renderer.node_manager.set_nodes(e.index() as i32, nodes);
             }
         }
