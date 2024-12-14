@@ -102,7 +102,7 @@ impl Stem {
             }
         }
     }
-    pub(crate) fn on_replace(mut world: DeferredWorld, entity: Entity, _c: ComponentId) {
+    pub(crate) fn on_remove(mut world: DeferredWorld, entity: Entity, _c: ComponentId) {
         let stem = world.get::<Stem>(entity).copied().unwrap();
         if let Some(s) = stem.0 {
             if let Some(mut deps) = world.get_mut::<Dependents>(s) {
@@ -116,7 +116,7 @@ impl Component for Stem {
 
     fn register_component_hooks(_hooks: &mut ComponentHooks) {
         _hooks.on_insert(Stem::on_insert);
-        _hooks.on_remove(Stem::on_replace);
+        _hooks.on_remove(Stem::on_remove);
     }
 }
 #[derive(Clone, PartialEq, Component, Default)]
@@ -180,12 +180,16 @@ pub(crate) fn triggered_remove(
     dependents: Query<&Dependents>,
     mut tree: Tree,
 ) {
+    if tree.get_entity(trigger.entity()).is_none() {
+        return;
+    }
     tree.entity(trigger.entity()).despawn();
     if let Ok(deps) = dependents.get(trigger.entity()) {
-        tree.trigger_targets(
-            Remove::new(),
-            deps.0.iter().map(|e| *e).collect::<Vec<Entity>>(),
-        );
+        let d = deps.0.iter().map(|e| *e).collect::<Vec<Entity>>();
+        if d.is_empty() {
+            return;
+        }
+        tree.trigger_targets(Remove::new(), d);
     }
 }
 pub(crate) fn render_link_on_remove(

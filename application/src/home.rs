@@ -69,7 +69,7 @@ impl Branch for Home {
                     IconHandles::Concepts,
                     Coloring::new(Grey::minus_two(), Grey::plus_two()),
                 )
-                    .with_text("Concepts", FontSize::new(20)),
+                .with_text("Concepts", FontSize::new(20)),
             )
             .insert(
                 ResponsiveLocation::new()

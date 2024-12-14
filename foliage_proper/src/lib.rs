@@ -117,10 +117,10 @@ impl Foliage {
         };
         this.define_roots::<Trunk>();
         this.elm.ecs.insert_resource(AssetLoader::default());
-        this.elm.ecs.observe(trigger_interactions_enable);
-        this.elm.ecs.observe(triggered_remove);
-        this.elm.ecs.observe(render_link_on_remove);
-        this.elm.ecs.observe(anim_calc);
+        this.elm.ecs.add_observer(trigger_interactions_enable);
+        this.elm.ecs.add_observer(triggered_remove);
+        this.elm.ecs.add_observer(render_link_on_remove);
+        this.elm.ecs.add_observer(anim_calc);
         this
     }
     pub fn enable_animation<A: Animate + Component>(&mut self) {

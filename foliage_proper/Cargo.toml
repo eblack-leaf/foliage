@@ -9,7 +9,7 @@ edition = "2021"
 bytemuck = { version = "1.16.3", features = ["derive"] }
 winit = { version = "0.30.5", features = ["android-game-activity"] }
 wgpu = { version = "23.0.0", features = ["metal", "webgl", "wgsl"] }
-bevy_ecs = "0.14.2"
+bevy_ecs = "0.15.0"
 serde = { version = "1.0.214", features = ["derive"] }
 cfg-if = "1.0.0"
 rmp-serde = "1.3.0"
