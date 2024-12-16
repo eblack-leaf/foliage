@@ -1,4 +1,7 @@
-use foliage::{bevy_ecs, nalgebra, vector, EcsExtension, Event, Foliage, Stem, Tree, Trigger};
+use foliage::{
+    bevy_ecs, nalgebra, vector, EcsExtension, Event, Foliage, FontSize, Stem, Text,
+    TextValue, Tree, Trigger,
+};
 
 mod icon;
 mod image;
@@ -9,7 +12,10 @@ pub(crate) struct Home {
 impl Home {
     pub(crate) fn create(trigger: Trigger<Self>, mut tree: Tree) {
         // setup actions
-        tree.leaf(());
+        let id = tree.leaf(());
+        tree.entity(id).insert(Stem::none()); // update dependencies
+        tree.send_to(TextValue::new(format!("hello {}", "world")), id); // task to pull text mut + update to given + cached glyphs and such + set size
+        tree.remove(id);
     }
     pub(crate) fn new() -> Self {
         Self {
@@ -27,8 +33,8 @@ fn main() {
     foliage.send(Home::new()); // just trigger
     foliage.queue(Home::new()); // buffered event
     let leaf = foliage.leaf((
-        // Text::new("hello world!"),
-        // FontSize::new(14),
+        Text::new("hello world!"),
+        FontSize::new(14),
         Stem::some(root),
         // location,
     )); // add single node
@@ -40,7 +46,7 @@ fn main() {
         // ButtonIcon::new(IconHandle::Git),
         Stem::some(leaf),
     ));
-    foliage.evaluate([leaf, button]); // EvaluateCore::recursive() as event
+    foliage.evaluate([leaf, button]); // EvaluateCore::recursive() as event [lazy-evaluation]
     foliage.remove(leaf); // remove all from branch downwards in tree
     foliage.photosynthesize(); // run
 }

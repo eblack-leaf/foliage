@@ -1,9 +1,11 @@
+mod text;
 pub use bevy_ecs;
 use bevy_ecs::observer::TriggerTargets;
 pub use bevy_ecs::prelude::*;
 use bevy_ecs::system::IntoObserverSystem;
 pub use nalgebra;
 pub use nalgebra::*;
+pub use text::{FontSize, Text, TextValue};
 pub struct Foliage {
     pub world: World,
 }
@@ -31,7 +33,11 @@ impl Foliage {
     pub fn leaf<B: Bundle>(&mut self, b: B) -> Entity {
         self.world.leaf(b)
     }
-    pub fn send_to<E: Event>(&mut self, e: E, targets: impl TriggerTargets + Send + Sync + 'static) {
+    pub fn send_to<E: Event>(
+        &mut self,
+        e: E,
+        targets: impl TriggerTargets + Send + Sync + 'static,
+    ) {
         self.world.send_to(e, targets);
     }
     pub fn send<E: Event>(&mut self, e: E) {
@@ -87,17 +93,16 @@ impl<'w, 's> EcsExtension for Tree<'w, 's> {
 }
 impl EcsExtension for World {
     fn leaf<B: Bundle>(&mut self, b: B) -> Entity {
-        let entity = self.spawn((Leaf::new(), b)).id();
-        entity
+        self.commands().leaf(b)
     }
     fn send_to<E: Event>(&mut self, e: E, targets: impl TriggerTargets + Send + Sync + 'static) {
-        self.trigger_targets(e, targets);
+        self.commands().send_to(e, targets);
     }
     fn send<E: Event>(&mut self, e: E) {
-        self.trigger(e);
+        self.commands().send(e);
     }
     fn queue<E: Event>(&mut self, e: E) {
-        self.send_event(e);
+        EcsExtension::queue(&mut self.commands(), e);
     }
     fn evaluate(&mut self, targets: impl TriggerTargets) {
         // self.trigger_targets(Evaluate::recursive(), targets);
