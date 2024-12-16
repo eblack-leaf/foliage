@@ -21,23 +21,25 @@ fn main() {
     foliage.desktop_size(vector![400, 600]); // window-size
     foliage.url("foliage"); // web-root
     foliage.define(Home::create); // task to trigger
-    let root = foliage.leaf(Stem::none()); // Stem => require Branch (Group)
-    foliage.send_to(root, Home::new()); // trigger_targets
+    let root = foliage.leaf(()); // Stem => require Branch (Group)
+    foliage.send_to(Home::new(), root); // trigger_targets
     foliage.send(Home::new()); // just trigger
+    foliage.queue(Home::new()); // buffered event
     let leaf = foliage.leaf((
-        Text::new("hello world!"),
-        FontSize::new(14),
-        Stem::some(root), /* location */
+        // Text::new("hello world!"),
+        // FontSize::new(14),
+        Stem::some(root),
+        // location,
     )); // add single node
     let button = foliage.leaf((
-        Button::new(),
-        ForegroundColor::RED,
-        BackgroundColor::BLUE,
-        ButtonText::new("example"),
-        ButtonIcon::new(IconHandle::Git),
+        // Button::new(),
+        // ForegroundColor::RED,
+        // BackgroundColor::BLUE,
+        // ButtonText::new("example"),
+        // ButtonIcon::new(IconHandle::Git),
         Stem::some(leaf),
     ));
-    foliage.flush([leaf, button]); // EvaluateCore::recursive() as event? or component-hook
-    foliage.remove(branch); // remove all from branch downwards in tree
+    foliage.evaluate([leaf, button]); // EvaluateCore::recursive() as event? or component-hook
+    foliage.remove(leaf); // remove all from branch downwards in tree
     foliage.photosynthesize(); // run
 }
