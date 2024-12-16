@@ -1,5 +1,4 @@
-use bevy_ecs::prelude::{Component, Event, Trigger};
-use bevy_ecs::system::Query;
+use bevy_ecs::prelude::Component;
 
 #[derive(Component, Clone)]
 #[require(FontSize)]
@@ -25,21 +24,5 @@ impl FontSize {
 impl Default for FontSize {
     fn default() -> Self {
         Self { value: 14 }
-    }
-}
-#[derive(Event, Clone)]
-pub struct TextValue {
-    pub value: String,
-}
-impl TextValue {
-    pub fn new<S: AsRef<str>>(value: S) -> Self {
-        Self {
-            value: value.as_ref().to_string(),
-        }
-    }
-    pub fn obs(trigger: Trigger<Self>, mut texts: Query<&mut Text>) {
-        let mut text = texts.get_mut(trigger.entity()).unwrap();
-        text.value = trigger.event().value.clone();
-        // glyph caching + renderer tokens
     }
 }

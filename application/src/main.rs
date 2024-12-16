@@ -1,6 +1,5 @@
 use foliage::{
-    bevy_ecs, nalgebra, vector, EcsExtension, Event, Foliage, FontSize, Stem, Text,
-    TextValue, Tree, Trigger,
+    bevy_ecs, nalgebra, vector, EcsExtension, Event, Foliage, FontSize, Stem, Text, Tree, Trigger,
 };
 
 mod icon;
@@ -13,8 +12,10 @@ impl Home {
     pub(crate) fn create(trigger: Trigger<Self>, mut tree: Tree) {
         // setup actions
         let id = tree.leaf(());
-        tree.entity(id).insert(Stem::none()); // update dependencies
-        tree.send_to(TextValue::new(format!("hello {}", "world")), id); // task to pull text mut + update to given + cached glyphs and such + set size
+        tree.entity(id).insert(Stem::some(trigger.entity())); // hook to update dependencies
+        let new_text = Text::new(format!("hello {}", "world"));
+        tree.entity(id).insert(new_text); // hook to pull text mut + update to given + cached glyphs and such + set size
+        tree.evaluate(id);
         tree.remove(id);
     }
     pub(crate) fn new() -> Self {

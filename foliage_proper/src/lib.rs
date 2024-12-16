@@ -5,7 +5,7 @@ pub use bevy_ecs::prelude::*;
 use bevy_ecs::system::IntoObserverSystem;
 pub use nalgebra;
 pub use nalgebra::*;
-pub use text::{FontSize, Text, TextValue};
+pub use text::{FontSize, Text};
 pub struct Foliage {
     pub world: World,
 }
@@ -109,6 +109,34 @@ impl EcsExtension for World {
     }
     fn remove(&mut self, targets: impl TriggerTargets) {
         // self.trigger_targets(Remove::new(), targets);
+    }
+}
+#[derive(Event)]
+pub struct Evaluate {}
+impl Evaluate {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+#[derive(Event)]
+pub struct Remove {}
+impl Remove {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+#[derive(Event)]
+pub struct Enable {}
+impl Enable {
+    pub fn new() -> Enable {
+        Enable {}
+    }
+}
+#[derive(Event)]
+pub struct Disable {}
+impl Disable {
+    pub fn new() -> Disable {
+        Disable {}
     }
 }
 #[derive(Component)]
