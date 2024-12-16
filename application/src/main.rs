@@ -1,4 +1,4 @@
-use foliage::{bevy_ecs, nalgebra, vector, Event, Foliage, Stem, Tree, Trigger};
+use foliage::{bevy_ecs, nalgebra, vector, EcsExtension, Event, Foliage, Stem, Tree, Trigger};
 
 mod icon;
 mod image;
@@ -9,6 +9,7 @@ pub(crate) struct Home {
 impl Home {
     pub(crate) fn create(trigger: Trigger<Self>, mut tree: Tree) {
         // setup actions
+        tree.leaf(());
     }
     pub(crate) fn new() -> Self {
         Self {
@@ -39,7 +40,7 @@ fn main() {
         // ButtonIcon::new(IconHandle::Git),
         Stem::some(leaf),
     ));
-    foliage.evaluate([leaf, button]); // EvaluateCore::recursive() as event? or component-hook
+    foliage.evaluate([leaf, button]); // EvaluateCore::recursive() as event
     foliage.remove(leaf); // remove all from branch downwards in tree
     foliage.photosynthesize(); // run
 }

@@ -29,23 +29,22 @@ impl Foliage {
         self.world.add_observer(obs);
     }
     pub fn leaf<B: Bundle>(&mut self, b: B) -> Entity {
-        let entity = self.world.spawn((Leaf::new(), b)).id();
-        entity
+        self.world.leaf(b)
     }
-    pub fn send_to<E: Event>(&mut self, e: E, targets: impl TriggerTargets) {
-        self.world.trigger_targets(e, targets);
+    pub fn send_to<E: Event>(&mut self, e: E, targets: impl TriggerTargets + Send + Sync + 'static) {
+        self.world.send_to(e, targets);
     }
     pub fn send<E: Event>(&mut self, e: E) {
-        self.world.trigger(e);
+        self.world.send(e);
     }
     pub fn queue<E: Event>(&mut self, e: E) {
-        self.world.send_event(e);
+        self.world.queue(e);
     }
     pub fn evaluate(&mut self, targets: impl TriggerTargets) {
-        // self.world.trigger_targets(Evaluate::recursive(), targets);
+        self.world.evaluate(targets);
     }
     pub fn remove(&mut self, targets: impl TriggerTargets) {
-        // self.world.trigger_targets(Remove::new(), targets);
+        self.world.remove(targets);
     }
 }
 #[derive(Component)]
@@ -57,6 +56,56 @@ impl Leaf {
     }
 }
 pub type Tree<'w, 's> = Commands<'w, 's>;
+pub trait EcsExtension {
+    fn leaf<B: Bundle>(&mut self, b: B) -> Entity;
+    fn send_to<E: Event>(&mut self, e: E, targets: impl TriggerTargets + Send + Sync + 'static);
+    fn send<E: Event>(&mut self, e: E);
+    fn queue<E: Event>(&mut self, e: E);
+    fn evaluate(&mut self, targets: impl TriggerTargets);
+    fn remove(&mut self, targets: impl TriggerTargets);
+}
+impl<'w, 's> EcsExtension for Tree<'w, 's> {
+    fn leaf<B: Bundle>(&mut self, b: B) -> Entity {
+        let entity = self.spawn((Leaf::new(), b)).id();
+        entity
+    }
+    fn send_to<E: Event>(&mut self, e: E, targets: impl TriggerTargets + Send + Sync + 'static) {
+        self.trigger_targets(e, targets);
+    }
+    fn send<E: Event>(&mut self, e: E) {
+        self.trigger(e);
+    }
+    fn queue<E: Event>(&mut self, e: E) {
+        self.send_event(e);
+    }
+    fn evaluate(&mut self, targets: impl TriggerTargets) {
+        // self.trigger_targets(Evaluate::recursive(), targets);
+    }
+    fn remove(&mut self, targets: impl TriggerTargets) {
+        // self.trigger_targets(Remove::new(), targets);
+    }
+}
+impl EcsExtension for World {
+    fn leaf<B: Bundle>(&mut self, b: B) -> Entity {
+        let entity = self.spawn((Leaf::new(), b)).id();
+        entity
+    }
+    fn send_to<E: Event>(&mut self, e: E, targets: impl TriggerTargets + Send + Sync + 'static) {
+        self.trigger_targets(e, targets);
+    }
+    fn send<E: Event>(&mut self, e: E) {
+        self.trigger(e);
+    }
+    fn queue<E: Event>(&mut self, e: E) {
+        self.send_event(e);
+    }
+    fn evaluate(&mut self, targets: impl TriggerTargets) {
+        // self.trigger_targets(Evaluate::recursive(), targets);
+    }
+    fn remove(&mut self, targets: impl TriggerTargets) {
+        // self.trigger_targets(Remove::new(), targets);
+    }
+}
 #[derive(Component)]
 pub struct Stem {
     pub id: Option<Entity>,
