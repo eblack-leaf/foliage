@@ -1,8 +1,6 @@
-mod design;
 pub use bevy_ecs;
 pub use bevy_ecs::prelude::*;
 use bevy_ecs::system::IntoObserverSystem;
-pub use design::Token;
 pub use nalgebra;
 pub use nalgebra::*;
 pub struct Foliage {
@@ -23,7 +21,10 @@ impl Foliage {
     pub fn url<S: AsRef<str>>(&self, path: S) {
         todo!()
     }
-    pub fn define<E: Event + 'static, B: Bundle, M, D: IntoObserverSystem<E, B, M>>(&mut self, obs: D) {
+    pub fn define<E: Event + 'static, B: Bundle, M, D: IntoObserverSystem<E, B, M>>(
+        &mut self,
+        obs: D,
+    ) {
         self.world.add_observer(obs);
     }
     pub fn branch<B: Event>(&mut self, branch: Branch<B>) -> Entity {
@@ -40,10 +41,7 @@ pub struct Branch<B: Event> {
 }
 impl<B: Event> Branch<B> {
     pub fn new(event: B) -> Branch<B> {
-        Self {
-            stem: None,
-            event,
-        }
+        Self { stem: None, event }
     }
     pub fn stem(mut self, stem: Entity) -> Branch<B> {
         self.stem = Some(stem);
@@ -57,9 +55,7 @@ pub struct Stem {
 }
 impl Stem {
     pub fn new(id: Option<Entity>) -> Self {
-        Self {
-            id,
-        }
+        Self { id }
     }
 }
 #[derive(Component)]

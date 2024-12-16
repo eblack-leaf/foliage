@@ -1,4 +1,4 @@
-use foliage::{bevy_ecs, nalgebra, vector, Branch, Event, Foliage, Token, Tree, Trigger};
+use foliage::{bevy_ecs, nalgebra, vector, Event, Foliage, Stem, Tree, Trigger};
 
 mod icon;
 mod image;
@@ -20,15 +20,24 @@ fn main() {
     let mut foliage = Foliage::new(); // library-handle
     foliage.desktop_size(vector![400, 600]); // window-size
     foliage.url("foliage"); // web-root
-    foliage.tokens(
-        Design::new()
-            .system("on-secondary-container", "ref.orange-100")
-    ); // define design-token values
     foliage.define(Home::create); // task to trigger
-    let branch = foliage.branch(Branch::new(Home::new())); // predefined set of nodes (encapsulated)
-    // Tokens are easy to pull from file as value-based config to signal to renderer
-    let token = Token::new(); // design-token for style (color, size, ...) THEME => actual-value
-    let leaf = foliage.leaf(Leaf::new((Text::new("hello world!"), token)).stem(branch)); // add single node
+    let root = foliage.leaf(Stem::none()); // Stem => require Branch (Group)
+    foliage.send_to(root, Home::new()); // trigger_targets
+    foliage.send(Home::new()); // just trigger
+    let leaf = foliage.leaf((
+        Text::new("hello world!"),
+        FontSize::new(14),
+        Stem::some(root), /* location */
+    )); // add single node
+    let button = foliage.leaf((
+        Button::new(),
+        ForegroundColor::RED,
+        BackgroundColor::BLUE,
+        ButtonText::new("example"),
+        ButtonIcon::new(IconHandle::Git),
+        Stem::some(leaf),
+    ));
+    foliage.flush([leaf, button]); // EvaluateCore::recursive() as event? or component-hook
     foliage.remove(branch); // remove all from branch downwards in tree
     foliage.photosynthesize(); // run
 }
