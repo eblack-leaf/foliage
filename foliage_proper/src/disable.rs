@@ -1,6 +1,6 @@
-use bevy_ecs::component::Component;
+use crate::Event;
 
-#[derive(Component, Copy, Clone)]
+#[derive(Event, Copy, Clone)]
 pub struct Disable {}
 
 impl Disable {

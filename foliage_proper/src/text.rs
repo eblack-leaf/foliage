@@ -1,12 +1,33 @@
-use crate::{Attachment, Foliage, Location, Tree, Update, Write};
+use crate::color::Color;
+use crate::remove::Remove;
+use crate::{
+    Attachment, Foliage, Location, Opacity, RenderQueue, RenderRemoveQueue, RenderToken, Tree,
+    Update, Write,
+};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, Trigger};
 use bevy_ecs::system::Query;
 use bevy_ecs::world::DeferredWorld;
+
 impl Attachment for Text {
     fn attach(foliage: &mut Foliage) {
         foliage.define(Text::update);
+        foliage
+            .world
+            .insert_resource(RenderRemoveQueue::<Text>::new());
+        foliage
+            .world
+            .insert_resource(RenderQueue::<Text, FontSize>::new());
+        foliage.define(RenderQueue::<Text, FontSize>::token_fetch);
+        foliage
+            .world
+            .insert_resource(RenderQueue::<Text, Color>::new());
+        foliage.define(RenderQueue::<Text, Color>::token_fetch);
+        foliage
+            .world
+            .insert_resource(RenderQueue::<Text, Location>::new());
+        foliage.define(RenderQueue::<Text, Location>::token_fetch);
     }
 }
 #[derive(Component, Clone, PartialEq, Default)]
@@ -23,16 +44,43 @@ impl Text {
         }
     }
     fn on_add(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
-        world.commands().entity(this).observe(Self::observe_location);
+        world
+            .commands()
+            .entity(this)
+            .observe(Opacity::token_push::<Text>);
+        world
+            .commands()
+            .entity(this)
+            .observe(Color::token_push::<Text>);
+        world
+            .commands()
+            .entity(this)
+            .observe(Remove::token_queue::<Text>);
+        world
+            .commands()
+            .entity(this)
+            .observe(Location::token_push::<Text>);
+        world
+            .commands()
+            .entity(this)
+            .observe(Self::update_from_location);
     }
-    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
-        world.commands().trigger_targets(Update::<Text>::new(), this);
-    }
-    fn observe_location(trigger: Trigger<Write<Location>>, mut tree: Tree) {
-        // trigger update
+    fn update_from_location(trigger: Trigger<Write<Location>>, mut tree: Tree) {
         tree.trigger_targets(Update::<Text>::new(), trigger.entity());
     }
-    fn update(trigger: Trigger<Update<Text>>, mut tree: Tree, mut cache: Query<&mut UpdateCache>, locations: Query<&Location>) {
+    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+        world
+            .commands()
+            .trigger_targets(Update::<Text>::new(), this);
+    }
+    fn update(
+        trigger: Trigger<Update<Text>>,
+        mut tree: Tree,
+        texts: Query<&Text>,
+        font_sizes: Query<&FontSize>,
+        mut locations: Query<&mut Location>,
+        mut cache: Query<&mut UpdateCache>,
+    ) {
         // if config != current (made from current values) => process + set config
         // glyphs and such
     }
@@ -46,7 +94,13 @@ impl FontSize {
         Self { value }
     }
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
-        world.commands().trigger_targets(Update::<Text>::new(), this);
+        world
+            .commands()
+            .trigger_targets(Update::<Text>::new(), this);
+        let font_size = *world.get::<FontSize>(this).unwrap();
+        world
+            .commands()
+            .trigger_targets(RenderToken::<Text, _>::new(font_size), this);
     }
 }
 impl Default for FontSize {

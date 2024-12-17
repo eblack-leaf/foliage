@@ -1,4 +1,6 @@
-use foliage::{bevy_ecs, nalgebra, vector, EcsExtension, Event, Foliage, FontSize, Stem, Text, Tree, Trigger};
+use foliage::{
+    bevy_ecs, nalgebra, vector, EcsExtension, Event, Foliage, FontSize, Stem, Text, Tree, Trigger,
+};
 
 mod icon;
 mod image;
@@ -16,11 +18,11 @@ impl Home {
         // hook to pull text mut + update to given + cached glyphs and such + set size
         tree.write_to(id, Text::new(format!("hello {}", trigger.event().value)));
         // enable
-        tree.enable([id]);
+        tree.enable(id);
         // disable
-        tree.disable([id]);
+        tree.disable(id);
         // recursive despawn
-        tree.remove([id]);
+        tree.remove(id);
     }
     pub(crate) fn new() -> Self {
         Self {
@@ -52,6 +54,6 @@ fn main() {
         // ButtonIcon::new(IconHandle::Git),
         Stem::some(leaf),
     ));
-    foliage.remove([leaf]); // remove all from branch downwards in tree
+    foliage.remove(root); // remove all from branch downwards in tree
     foliage.photosynthesize(); // run
 }

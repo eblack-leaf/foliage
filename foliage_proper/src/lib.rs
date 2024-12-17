@@ -1,24 +1,29 @@
+mod ash;
+mod attachment;
+mod color;
+mod disable;
+mod elevation;
+mod enable;
+mod leaf;
+mod location;
+mod opacity;
+mod ops;
+mod remove;
 mod text;
 mod tree;
-mod enable;
-mod disable;
-mod remove;
-mod leaf;
-mod ops;
-mod location;
-mod attachment;
-mod elevation;
-
+pub use ash::{RenderQueue, RenderRemoveQueue, RenderToken};
 pub use attachment::Attachment;
 pub use bevy_ecs;
 use bevy_ecs::observer::TriggerTargets;
 pub use bevy_ecs::prelude::*;
 use bevy_ecs::system::IntoObserverSystem;
+pub use color::Color;
 pub use elevation::{Elevation, Layer};
 pub use leaf::{Branch, Leaf, Stem};
 pub use location::Location;
 pub use nalgebra;
 pub use nalgebra::*;
+pub use opacity::Opacity;
 pub use ops::{Update, Write};
 pub use text::{FontSize, Text};
 pub use tree::{EcsExtension, Tree};
@@ -62,16 +67,16 @@ impl Foliage {
     pub fn queue<E: Event>(&mut self, e: E) {
         self.world.queue(e);
     }
-    pub fn remove<Targets: AsRef<[Entity]>>(&mut self, targets: Targets) {
-        self.world.remove(targets);
-    }
     pub fn write_to<B: Bundle>(&mut self, entity: Entity, b: B) {
         self.world.write_to(entity, b);
     }
-    pub fn enable<Targets: AsRef<[Entity]>>(&mut self, targets: Targets) {
+    pub fn remove(&mut self, targets: impl TriggerTargets + Send + Sync + 'static) {
+        self.world.remove(targets);
+    }
+    pub fn enable(&mut self, targets: impl TriggerTargets + Send + Sync + 'static) {
         self.world.enable(targets);
     }
-    pub fn disable<Targets: AsRef<[Entity]>>(&mut self, targets: Targets) {
+    pub fn disable(&mut self, targets: impl TriggerTargets + Send + Sync + 'static) {
         self.world.disable(targets);
     }
 }

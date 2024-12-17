@@ -6,7 +6,9 @@ pub struct Write<W> {
 }
 impl<W> Write<W> {
     pub fn new() -> Write<W> {
-        Write { _phantom: std::marker::PhantomData }
+        Write {
+            _phantom: std::marker::PhantomData,
+        }
     }
 }
 #[derive(Event, Copy, Clone)]
@@ -15,6 +17,8 @@ pub struct Update<U> {
 }
 impl<U> Update<U> {
     pub fn new() -> Update<U> {
-        Update { _phantom: std::marker::PhantomData }
+        Update {
+            _phantom: std::marker::PhantomData,
+        }
     }
 }

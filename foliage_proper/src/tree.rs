@@ -15,10 +15,10 @@ pub trait EcsExtension {
     fn send_to<E: Event>(&mut self, e: E, targets: impl TriggerTargets + Send + Sync + 'static);
     fn send<E: Event>(&mut self, e: E);
     fn queue<E: Event>(&mut self, e: E);
-    fn remove<Targets: AsRef<[Entity]>>(&mut self, targets: Targets);
     fn write_to<B: Bundle>(&mut self, entity: Entity, b: B);
-    fn enable<Targets: AsRef<[Entity]>>(&mut self, targets: Targets);
-    fn disable<Targets: AsRef<[Entity]>>(&mut self, targets: Targets);
+    fn remove(&mut self, targets: impl TriggerTargets + Send + Sync + 'static);
+    fn enable(&mut self, targets: impl TriggerTargets + Send + Sync + 'static);
+    fn disable(&mut self, targets: impl TriggerTargets + Send + Sync + 'static);
 }
 
 impl<'w, 's> EcsExtension for Tree<'w, 's> {
@@ -35,26 +35,17 @@ impl<'w, 's> EcsExtension for Tree<'w, 's> {
     fn queue<E: Event>(&mut self, e: E) {
         self.send_event(e);
     }
-    fn remove<Targets: AsRef<[Entity]>>(&mut self, targets: Targets) {
-        // TODO replace with batch
-        for t in targets.as_ref().iter() {
-            self.write_to(*t, Remove::new());
-        }
-    }
     fn write_to<B: Bundle>(&mut self, entity: Entity, b: B) {
         self.entity(entity).insert(b);
     }
-    fn enable<Targets: AsRef<[Entity]>>(&mut self, targets: Targets) {
-        // TODO replace with batch
-        for t in targets.as_ref().iter() {
-            self.write_to(*t, Enable::new());
-        }
+    fn remove(&mut self, targets: impl TriggerTargets + Send + Sync + 'static) {
+        self.send_to(Remove::new(), targets);
     }
-    fn disable<Targets: AsRef<[Entity]>>(&mut self, targets: Targets) {
-        // TODO replace with batch
-        for t in targets.as_ref().iter() {
-            self.write_to(*t, Disable::new());
-        }
+    fn enable(&mut self, targets: impl TriggerTargets + Send + Sync + 'static) {
+        self.send_to(Enable::new(), targets);
+    }
+    fn disable(&mut self, targets: impl TriggerTargets + Send + Sync + 'static) {
+        self.send_to(Disable::new(), targets);
     }
 }
 
@@ -71,16 +62,16 @@ impl EcsExtension for World {
     fn queue<E: Event>(&mut self, e: E) {
         EcsExtension::queue(&mut self.commands(), e);
     }
-    fn remove<Targets: AsRef<[Entity]>>(&mut self, targets: Targets) {
-        self.commands().remove(targets);
-    }
     fn write_to<B: Bundle>(&mut self, entity: Entity, b: B) {
         self.commands().write_to(entity, b);
     }
-    fn enable<Targets: AsRef<[Entity]>>(&mut self, targets: Targets) {
+    fn remove(&mut self, targets: impl TriggerTargets + Send + Sync + 'static) {
+        self.commands().remove(targets);
+    }
+    fn enable(&mut self, targets: impl TriggerTargets + Send + Sync + 'static) {
         self.commands().enable(targets);
     }
-    fn disable<Targets: AsRef<[Entity]>>(&mut self, targets: Targets) {
+    fn disable(&mut self, targets: impl TriggerTargets + Send + Sync + 'static) {
         self.commands().disable(targets);
     }
 }
