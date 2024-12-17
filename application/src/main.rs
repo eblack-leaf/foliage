@@ -1,6 +1,4 @@
-use foliage::{
-    bevy_ecs, nalgebra, vector, EcsExtension, Event, Foliage, FontSize, Stem, Text, Tree, Trigger,
-};
+use foliage::{bevy_ecs, nalgebra, vector, EcsExtension, Event, Foliage, FontSize, Stem, Text, Tree, Trigger};
 
 mod icon;
 mod image;
@@ -17,8 +15,6 @@ impl Home {
         tree.write_to(id, Stem::some(trigger.entity()));
         // hook to pull text mut + update to given + cached glyphs and such + set size
         tree.write_to(id, Text::new(format!("hello {}", trigger.event().value)));
-        // recursive always
-        tree.evaluate([id]);
         // enable
         tree.enable([id]);
         // disable
@@ -56,7 +52,6 @@ fn main() {
         // ButtonIcon::new(IconHandle::Git),
         Stem::some(leaf),
     ));
-    foliage.evaluate([leaf, button]); // EvaluateCore::recursive() as event [lazy-evaluation]
     foliage.remove([leaf]); // remove all from branch downwards in tree
     foliage.photosynthesize(); // run
 }
