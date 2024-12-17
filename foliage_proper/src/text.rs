@@ -1,37 +1,29 @@
 use crate::color::Color;
 use crate::remove::Remove;
-use crate::{
-    Attachment, Foliage, Location, Opacity, RenderQueue, RenderRemoveQueue, RenderToken, Tree,
-    Update, Write,
-};
+use crate::{Attachment, Foliage, Location, Opacity, Tree, Update, Write};
+use crate::{Layer, RenderTokenCache};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, Trigger};
 use bevy_ecs::system::Query;
 use bevy_ecs::world::DeferredWorld;
-
 impl Attachment for Text {
     fn attach(foliage: &mut Foliage) {
         foliage.define(Text::update);
-        foliage
-            .world
-            .insert_resource(RenderRemoveQueue::<Text>::new());
-        foliage
-            .world
-            .insert_resource(RenderQueue::<Text, FontSize>::new());
-        foliage.define(RenderQueue::<Text, FontSize>::token_fetch);
-        foliage
-            .world
-            .insert_resource(RenderQueue::<Text, Color>::new());
-        foliage.define(RenderQueue::<Text, Color>::token_fetch);
-        foliage
-            .world
-            .insert_resource(RenderQueue::<Text, Location>::new());
-        foliage.define(RenderQueue::<Text, Location>::token_fetch);
+        foliage.remove_queue::<Text>();
+        foliage.differential::<Text, FontSize>();
+        foliage.differential::<Text, Color>();
+        foliage.differential::<Text, Opacity>();
+        foliage.differential::<Text, Location>();
+        foliage.differential::<Text, Layer>();
     }
 }
 #[derive(Component, Clone, PartialEq, Default)]
-#[require(FontSize, UpdateCache)]
+#[require(FontSize)]
+#[require(UpdateCache)]
+#[require(RenderTokenCache<Text, Opacity>)]
+#[require(RenderTokenCache<Text, Color>)]
+#[require(RenderTokenCache<Text, Location>)]
 #[component(on_add = Text::on_add)]
 #[component(on_insert = Text::on_insert)]
 pub struct Text {
@@ -47,31 +39,19 @@ impl Text {
         world
             .commands()
             .entity(this)
-            .observe(Opacity::token_push::<Text>);
-        world
-            .commands()
-            .entity(this)
-            .observe(Color::token_push::<Text>);
-        world
-            .commands()
-            .entity(this)
-            .observe(Remove::token_queue::<Text>);
-        world
-            .commands()
-            .entity(this)
-            .observe(Location::token_push::<Text>);
+            .observe(Remove::token_push::<Text>);
         world
             .commands()
             .entity(this)
             .observe(Self::update_from_location);
     }
-    fn update_from_location(trigger: Trigger<Write<Location>>, mut tree: Tree) {
-        tree.trigger_targets(Update::<Text>::new(), trigger.entity());
-    }
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
         world
             .commands()
             .trigger_targets(Update::<Text>::new(), this);
+    }
+    fn update_from_location(trigger: Trigger<Write<Location>>, mut tree: Tree) {
+        tree.trigger_targets(Update::<Text>::new(), trigger.entity());
     }
     fn update(
         trigger: Trigger<Update<Text>>,
@@ -86,6 +66,8 @@ impl Text {
     }
 }
 #[derive(Component, Clone, Copy, PartialEq)]
+#[require(RenderTokenCache<Text, FontSize>)]
+#[component(on_insert = FontSize::on_insert)]
 pub struct FontSize {
     pub value: u32,
 }
@@ -97,10 +79,6 @@ impl FontSize {
         world
             .commands()
             .trigger_targets(Update::<Text>::new(), this);
-        let font_size = *world.get::<FontSize>(this).unwrap();
-        world
-            .commands()
-            .trigger_targets(RenderToken::<Text, _>::new(font_size), this);
     }
 }
 impl Default for FontSize {

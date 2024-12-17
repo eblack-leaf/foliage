@@ -11,7 +11,8 @@ mod ops;
 mod remove;
 mod text;
 mod tree;
-pub use ash::{RenderQueue, RenderRemoveQueue, RenderToken};
+use crate::ash::cached_differential;
+pub use ash::{RenderQueue, RenderRemoveQueue, RenderToken, RenderTokenCache};
 pub use attachment::Attachment;
 pub use bevy_ecs;
 use bevy_ecs::observer::TriggerTargets;
@@ -29,11 +30,17 @@ pub use text::{FontSize, Text};
 pub use tree::{EcsExtension, Tree};
 pub struct Foliage {
     pub world: World,
+    pub main: Schedule,
+    pub user: Schedule,
+    pub diff: Schedule,
 }
 impl Foliage {
     pub fn new() -> Foliage {
         Foliage {
             world: Default::default(),
+            main: Default::default(),
+            user: Default::default(),
+            diff: Default::default(),
         }
     }
     pub fn photosynthesize(&self) {
@@ -78,5 +85,25 @@ impl Foliage {
     }
     pub fn disable(&mut self, targets: impl TriggerTargets + Send + Sync + 'static) {
         self.world.disable(targets);
+    }
+    pub fn remove_queue<R: Clone + Send + Sync + 'static>(&mut self) {
+        debug_assert_eq!(
+            self.world.get_resource::<RenderRemoveQueue<R>>().is_none(),
+            true
+        );
+        self.world.insert_resource(RenderRemoveQueue::<R>::new());
+    }
+    pub fn differential<
+        R: Clone + Send + Sync + 'static,
+        RT: Clone + Send + Sync + 'static + Component + PartialEq,
+    >(
+        &mut self,
+    ) {
+        debug_assert_eq!(
+            self.world.get_resource::<RenderQueue<R, RT>>().is_none(),
+            true
+        );
+        self.world.insert_resource(RenderQueue::<R, RT>::new());
+        self.diff.add_systems(cached_differential::<R, RT>);
     }
 }

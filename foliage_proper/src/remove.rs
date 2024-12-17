@@ -9,7 +9,7 @@ impl Remove {
     pub fn new() -> Self {
         Self {}
     }
-    pub fn token_queue<R: Clone + Send + Sync + 'static>(
+    pub fn token_push<R: Clone + Send + Sync + 'static>(
         trigger: Trigger<Self>,
         mut queue: ResMut<RenderRemoveQueue<R>>,
     ) {

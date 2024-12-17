@@ -1,8 +1,6 @@
-use crate::{Component, RenderToken, Tree, Write};
-use bevy_ecs::prelude::Trigger;
-use bevy_ecs::system::{Local, Query};
+use crate::Component;
 
-#[derive(Component, Copy, Clone)]
+#[derive(Component, Copy, Clone, PartialEq)]
 pub struct Color {
     pub value: bevy_color::Srgba,
 }
@@ -13,14 +11,4 @@ impl Default for Color {
         }
     }
 }
-impl Color {
-    pub fn token_push<R: Clone + Send + Sync + 'static>(
-        trigger: Trigger<Write<Self>>,
-        mut tree: Tree,
-        colors: Query<&Color>,
-        mut cache: Local<Color>,
-    ) {
-        let color = *colors.get(trigger.entity()).unwrap();
-        tree.trigger_targets(RenderToken::<R, _>::new(color), trigger.entity());
-    }
-}
+impl Color {}
