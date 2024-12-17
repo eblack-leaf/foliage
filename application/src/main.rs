@@ -7,20 +7,29 @@ mod image;
 #[derive(Event)]
 pub(crate) struct Home {
     // args
+    pub(crate) value: String,
 }
 impl Home {
     pub(crate) fn create(trigger: Trigger<Self>, mut tree: Tree) {
         // setup actions
         let id = tree.leaf(());
-        tree.entity(id).insert(Stem::some(trigger.entity())); // hook to update dependencies
-        let new_text = Text::new(format!("hello {}", "world"));
-        tree.entity(id).insert(new_text); // hook to pull text mut + update to given + cached glyphs and such + set size
-        tree.evaluate(id);
-        tree.remove(id);
+        // hook to update dependencies
+        tree.write_to(id, Stem::some(trigger.entity()));
+        // hook to pull text mut + update to given + cached glyphs and such + set size
+        tree.write_to(id, Text::new(format!("hello {}", trigger.event().value)));
+        // recursive always
+        tree.evaluate([id]);
+        // enable
+        tree.enable([id]);
+        // disable
+        tree.disable([id]);
+        // recursive despawn
+        tree.remove([id]);
     }
     pub(crate) fn new() -> Self {
         Self {
             // args to send to create?
+            value: " world!".to_string(),
         }
     }
 }
@@ -48,6 +57,6 @@ fn main() {
         Stem::some(leaf),
     ));
     foliage.evaluate([leaf, button]); // EvaluateCore::recursive() as event [lazy-evaluation]
-    foliage.remove(leaf); // remove all from branch downwards in tree
+    foliage.remove([leaf]); // remove all from branch downwards in tree
     foliage.photosynthesize(); // run
 }

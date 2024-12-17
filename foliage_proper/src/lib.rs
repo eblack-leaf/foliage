@@ -1,10 +1,15 @@
 mod text;
+
 pub use bevy_ecs;
+use bevy_ecs::component::StorageType::Table;
+use bevy_ecs::component::{ComponentHooks, ComponentId, StorageType};
 use bevy_ecs::observer::TriggerTargets;
 pub use bevy_ecs::prelude::*;
 use bevy_ecs::system::IntoObserverSystem;
+use bevy_ecs::world::DeferredWorld;
 pub use nalgebra;
 pub use nalgebra::*;
+use std::collections::HashSet;
 pub use text::{FontSize, Text};
 pub struct Foliage {
     pub world: World,
@@ -46,11 +51,20 @@ impl Foliage {
     pub fn queue<E: Event>(&mut self, e: E) {
         self.world.queue(e);
     }
-    pub fn evaluate(&mut self, targets: impl TriggerTargets) {
+    pub fn evaluate<Targets: AsRef<[Entity]>>(&mut self, targets: Targets) {
         self.world.evaluate(targets);
     }
-    pub fn remove(&mut self, targets: impl TriggerTargets) {
+    pub fn remove<Targets: AsRef<[Entity]>>(&mut self, targets: Targets) {
         self.world.remove(targets);
+    }
+    pub fn write_to<B: Bundle>(&mut self, entity: Entity, b: B) {
+        self.world.write_to(entity, b);
+    }
+    pub fn enable<Targets: AsRef<[Entity]>>(&mut self, targets: Targets) {
+        self.world.enable(targets);
+    }
+    pub fn disable<Targets: AsRef<[Entity]>>(&mut self, targets: Targets) {
+        self.world.disable(targets);
     }
 }
 #[derive(Component)]
@@ -67,8 +81,11 @@ pub trait EcsExtension {
     fn send_to<E: Event>(&mut self, e: E, targets: impl TriggerTargets + Send + Sync + 'static);
     fn send<E: Event>(&mut self, e: E);
     fn queue<E: Event>(&mut self, e: E);
-    fn evaluate(&mut self, targets: impl TriggerTargets);
-    fn remove(&mut self, targets: impl TriggerTargets);
+    fn evaluate<Targets: AsRef<[Entity]>>(&mut self, targets: Targets);
+    fn remove<Targets: AsRef<[Entity]>>(&mut self, targets: Targets);
+    fn write_to<B: Bundle>(&mut self, entity: Entity, b: B);
+    fn enable<Targets: AsRef<[Entity]>>(&mut self, targets: Targets);
+    fn disable<Targets: AsRef<[Entity]>>(&mut self, targets: Targets);
 }
 impl<'w, 's> EcsExtension for Tree<'w, 's> {
     fn leaf<B: Bundle>(&mut self, b: B) -> Entity {
@@ -84,11 +101,32 @@ impl<'w, 's> EcsExtension for Tree<'w, 's> {
     fn queue<E: Event>(&mut self, e: E) {
         self.send_event(e);
     }
-    fn evaluate(&mut self, targets: impl TriggerTargets) {
-        // self.trigger_targets(Evaluate::recursive(), targets);
+    fn evaluate<Targets: AsRef<[Entity]>>(&mut self, targets: Targets) {
+        // TODO replace with batch
+        for t in targets.as_ref().iter() {
+            self.write_to(*t, Evaluate::new());
+        }
     }
-    fn remove(&mut self, targets: impl TriggerTargets) {
-        // self.trigger_targets(Remove::new(), targets);
+    fn remove<Targets: AsRef<[Entity]>>(&mut self, targets: Targets) {
+        // TODO replace with batch
+        for t in targets.as_ref().iter() {
+            self.write_to(*t, Remove::new());
+        }
+    }
+    fn write_to<B: Bundle>(&mut self, entity: Entity, b: B) {
+        self.entity(entity).insert(b);
+    }
+    fn enable<Targets: AsRef<[Entity]>>(&mut self, targets: Targets) {
+        // TODO replace with batch
+        for t in targets.as_ref().iter() {
+            self.write_to(*t, Enable::new());
+        }
+    }
+    fn disable<Targets: AsRef<[Entity]>>(&mut self, targets: Targets) {
+        // TODO replace with batch
+        for t in targets.as_ref().iter() {
+            self.write_to(*t, Disable::new());
+        }
     }
 }
 impl EcsExtension for World {
@@ -104,44 +142,84 @@ impl EcsExtension for World {
     fn queue<E: Event>(&mut self, e: E) {
         EcsExtension::queue(&mut self.commands(), e);
     }
-    fn evaluate(&mut self, targets: impl TriggerTargets) {
-        // self.trigger_targets(Evaluate::recursive(), targets);
+    fn evaluate<Targets: AsRef<[Entity]>>(&mut self, targets: Targets) {
+        self.commands().evaluate(targets);
     }
-    fn remove(&mut self, targets: impl TriggerTargets) {
-        // self.trigger_targets(Remove::new(), targets);
+    fn remove<Targets: AsRef<[Entity]>>(&mut self, targets: Targets) {
+        self.commands().remove(targets);
+    }
+    fn write_to<B: Bundle>(&mut self, entity: Entity, b: B) {
+        self.commands().write_to(entity, b);
+    }
+    fn enable<Targets: AsRef<[Entity]>>(&mut self, targets: Targets) {
+        self.commands().enable(targets);
+    }
+    fn disable<Targets: AsRef<[Entity]>>(&mut self, targets: Targets) {
+        self.commands().disable(targets);
     }
 }
-#[derive(Event)]
+#[derive(Copy, Clone)]
 pub struct Evaluate {}
 impl Evaluate {
     pub fn new() -> Self {
         Self {}
     }
 }
-#[derive(Event)]
+impl Component for Evaluate {
+    const STORAGE_TYPE: StorageType = Table;
+    fn register_component_hooks(_hooks: &mut ComponentHooks) {
+        todo!()
+    }
+}
+#[derive(Copy, Clone)]
 pub struct Remove {}
 impl Remove {
     pub fn new() -> Self {
         Self {}
     }
 }
-#[derive(Event)]
+impl Component for Remove {
+    const STORAGE_TYPE: StorageType = Table;
+    fn register_component_hooks(_hooks: &mut ComponentHooks) {
+        todo!()
+    }
+}
+#[derive(Copy, Clone)]
 pub struct Enable {}
 impl Enable {
     pub fn new() -> Enable {
         Enable {}
     }
 }
-#[derive(Event)]
+impl Component for Enable {
+    const STORAGE_TYPE: StorageType = Table;
+    fn register_component_hooks(_hooks: &mut ComponentHooks) {
+        todo!()
+    }
+}
+#[derive(Copy, Clone)]
 pub struct Disable {}
 impl Disable {
     pub fn new() -> Disable {
         Disable {}
     }
 }
-#[derive(Component)]
+impl Component for Disable {
+    const STORAGE_TYPE: StorageType = Table;
+    fn register_component_hooks(_hooks: &mut ComponentHooks) {
+        todo!()
+    }
+}
+#[derive(Copy, Clone)]
 pub struct Stem {
     pub id: Option<Entity>,
+}
+impl Component for Stem {
+    const STORAGE_TYPE: StorageType = Table;
+    fn register_component_hooks(_hooks: &mut ComponentHooks) {
+        _hooks.on_insert(Self::on_insert);
+        _hooks.on_replace(Self::on_replace);
+    }
 }
 impl Default for Stem {
     fn default() -> Self {
@@ -158,13 +236,31 @@ impl Stem {
     pub fn none() -> Self {
         Self { id: None }
     }
+    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+        let stem = world.get::<Stem>(this).copied().unwrap();
+        if let Some(s) = stem.id {
+            if let Some(mut deps) = world.get_mut::<Branch>(s) {
+                deps.ids.insert(this);
+            }
+        }
+    }
+    fn on_replace(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+        let stem = world.get::<Stem>(this).copied().unwrap();
+        if let Some(s) = stem.id {
+            if let Some(mut deps) = world.get_mut::<Branch>(s) {
+                deps.ids.remove(&this);
+            }
+        }
+    }
 }
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct Branch {
-    pub ids: Vec<Entity>,
+    pub ids: HashSet<Entity>,
 }
 impl Default for Branch {
     fn default() -> Self {
-        Self { ids: vec![] }
+        Self {
+            ids: HashSet::new(),
+        }
     }
 }
