@@ -1,12 +1,17 @@
+mod monospaced;
+mod glyph;
+
 use crate::color::Color;
+use crate::coordinate::section::Section;
+use crate::coordinate::LogicalContext;
 use crate::remove::Remove;
-use crate::{Attachment, Foliage, Location, Opacity, Tree, Update, Write};
-use crate::{Layer, RenderTokenCache};
+use crate::{Attachment, Differential, Foliage, Layer, Opacity, Tree, Update, Write};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, Trigger};
 use bevy_ecs::system::Query;
 use bevy_ecs::world::DeferredWorld;
+
 impl Attachment for Text {
     fn attach(foliage: &mut Foliage) {
         foliage.define(Text::update);
@@ -14,16 +19,16 @@ impl Attachment for Text {
         foliage.differential::<Text, FontSize>();
         foliage.differential::<Text, Color>();
         foliage.differential::<Text, Opacity>();
-        foliage.differential::<Text, Location>();
+        foliage.differential::<Text, Section<LogicalContext>>();
         foliage.differential::<Text, Layer>();
     }
 }
 #[derive(Component, Clone, PartialEq, Default)]
 #[require(FontSize)]
 #[require(UpdateCache)]
-#[require(RenderTokenCache<Text, Opacity>)]
-#[require(RenderTokenCache<Text, Color>)]
-#[require(RenderTokenCache<Text, Location>)]
+#[require(Differential<Text, Opacity>)]
+#[require(Differential<Text, Color>)]
+#[require(Differential<Text, Section<LogicalContext>>)]
 #[component(on_add = Text::on_add)]
 #[component(on_insert = Text::on_insert)]
 pub struct Text {
@@ -50,7 +55,7 @@ impl Text {
             .commands()
             .trigger_targets(Update::<Text>::new(), this);
     }
-    fn update_from_location(trigger: Trigger<Write<Location>>, mut tree: Tree) {
+    fn update_from_location(trigger: Trigger<Write<Section<LogicalContext>>>, mut tree: Tree) {
         tree.trigger_targets(Update::<Text>::new(), trigger.entity());
     }
     fn update(
@@ -58,7 +63,7 @@ impl Text {
         mut tree: Tree,
         texts: Query<&Text>,
         font_sizes: Query<&FontSize>,
-        mut locations: Query<&mut Location>,
+        mut sections: Query<&mut Section<LogicalContext>>,
         mut cache: Query<&mut UpdateCache>,
     ) {
         // if config != current (made from current values) => process + set config
@@ -66,7 +71,7 @@ impl Text {
     }
 }
 #[derive(Component, Clone, Copy, PartialEq)]
-#[require(RenderTokenCache<Text, FontSize>)]
+#[require(Differential<Text, FontSize>)]
 #[component(on_insert = FontSize::on_insert)]
 pub struct FontSize {
     pub value: u32,
@@ -90,5 +95,5 @@ impl Default for FontSize {
 pub(crate) struct UpdateCache {
     pub(crate) font_size: FontSize,
     pub(crate) text: Text,
-    pub(crate) location: Location,
+    pub(crate) section: Section<LogicalContext>,
 }

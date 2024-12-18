@@ -1,5 +1,5 @@
 use foliage::{
-    bevy_ecs, nalgebra, vector, EcsExtension, Event, Foliage, FontSize, Stem, Text, Tree, Trigger,
+    bevy_ecs, EcsExtension, Event, Foliage, FontSize, Stem, Text, Tree, Trigger,
 };
 
 mod icon;
@@ -33,7 +33,7 @@ impl Home {
 }
 fn main() {
     let mut foliage = Foliage::new(); // library-handle
-    foliage.desktop_size(vector![400, 600]); // window-size
+    foliage.desktop_size((400, 600)); // window-size
     foliage.url("foliage"); // web-root
     foliage.define(Home::create); // task to trigger
     let root = foliage.leaf(()); // Stem => require Branch (Group)

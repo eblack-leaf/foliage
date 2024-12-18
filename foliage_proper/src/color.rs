@@ -12,3 +12,13 @@ impl Default for Color {
     }
 }
 impl Color {}
+impl From<Color> for wgpu::Color {
+    fn from(color: Color) -> Self {
+        wgpu::Color {
+            r: color.value.red as f64,
+            g: color.value.green as f64,
+            b: color.value.blue as f64,
+            a: color.value.alpha as f64,
+        }
+    }
+}

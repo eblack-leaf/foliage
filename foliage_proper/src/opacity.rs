@@ -14,3 +14,4 @@ impl Default for Opacity {
         Self::new(1.0)
     }
 }
+
