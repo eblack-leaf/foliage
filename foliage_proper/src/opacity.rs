@@ -96,12 +96,7 @@ impl EvaluateOpacity {
                 .entity(entity)
                 .insert(color.with_alpha(blended));
         }
-        if !world
-            .get::<EvaluateOpacity>(entity)
-            .copied()
-            .unwrap()
-            .recursive
-        {
+        if !event.recursive {
             return;
         }
         if let Some(ds) = world.get::<Dependents>(entity).cloned() {

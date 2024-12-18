@@ -330,7 +330,7 @@ impl Ginkgo {
     }
     pub(crate) async fn acquire_context(&mut self, willow: &Willow) {
         let instance = wgpu::Instance::new(InstanceDescriptor {
-            backends: wgpu::Backends::all(),
+            backends: wgpu::Backends::VULKAN | wgpu::Backends::METAL | wgpu::Backends::DX12 | wgpu::Backends::GL,
             flags: wgpu::InstanceFlags::default(),
             dx12_shader_compiler: wgpu::Dx12Compiler::Fxc,
             gles_minor_version: wgpu::Gles3MinorVersion::Automatic,
