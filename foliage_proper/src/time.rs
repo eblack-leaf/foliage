@@ -1,3 +1,4 @@
+use crate::{Attachment, Foliage};
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::Event;
@@ -87,14 +88,12 @@ pub(crate) fn timers(time: Res<Time>, mut timers: Query<(Entity, &mut Timer)>, m
         }
     }
 }
-// impl Root for Time {
-//     fn attach(elm: &mut Elm) {
-//         elm.ecs.insert_resource(Time::new());
-//         elm.scheduler.startup.add_systems(start);
-//         elm.scheduler.main.add_systems(
-//             (update_time, timers)
-//                 .chain()
-//                 .in_set(InternalStage::External),
-//         );
-//     }
-// }
+impl Attachment for Time {
+    fn attach(foliage: &mut Foliage) {
+        use bevy_ecs::prelude::IntoSystemConfigs;
+        let mut time = Time::new();
+        time.start();
+        foliage.world.insert_resource(time);
+        foliage.main.add_systems((update_time, timers).chain());
+    }
+}

@@ -20,6 +20,7 @@ mod virtual_keyboard;
 mod visibility;
 mod web_ext;
 mod willow;
+mod photosynthesis;
 
 use crate::ash::{cached_differential, Ash};
 use crate::asset::Asset;
@@ -30,6 +31,9 @@ pub use crate::coordinate::{
     CoordinateContext, CoordinateUnit, Coordinates, DeviceContext, LogicalContext,
     NumericalContext,
 };
+use crate::photosynthesis::Photosynthesis;
+use crate::remove::Remove;
+use crate::time::Time;
 use crate::willow::Willow;
 pub use ash::{Differential, RenderQueue, RenderRemoveQueue, RenderToken};
 pub use attachment::Attachment;
@@ -49,6 +53,7 @@ pub use platform::AndroidConnection;
 pub use text::{FontSize, Text};
 pub use tree::{EcsExtension, Tree};
 pub use visibility::{InheritedVisibility, ResolvedVisibility, Visibility};
+
 pub struct Foliage {
     pub world: World,
     pub main: Schedule,
@@ -71,10 +76,12 @@ impl Foliage {
         Ash::attach(&mut foliage);
         Text::attach(&mut foliage);
         Asset::attach(&mut foliage);
+        Time::attach(&mut foliage);
+        Remove::attach(&mut foliage);
         foliage
     }
-    pub fn photosynthesize(&self) {
-        todo!()
+    pub fn photosynthesize(self) {
+        Photosynthesis::new().run(self);
     }
     pub fn desktop_size<V: Into<Area<DeviceContext>>>(&mut self, v: V) {
         self.willow.requested_size.replace(v.into());

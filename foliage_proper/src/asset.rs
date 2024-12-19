@@ -50,7 +50,7 @@ pub(crate) fn on_retrieve(
     asset_loader: Res<AssetLoader>,
 ) {
     for (entity, on_retrieve) in retrievers.iter() {
-        if let Some(asset) = asset_loader.retrieve(on_retrieve.key) {
+        if asset_loader.assets.contains_key(&on_retrieve.key) {
             cmd.entity(entity).remove::<AssetRetrieval>();
             cmd.trigger_targets(
                 OnRetrieval {
