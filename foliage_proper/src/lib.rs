@@ -10,6 +10,7 @@ mod interaction;
 mod leaf;
 mod opacity;
 mod ops;
+mod photosynthesis;
 mod platform;
 mod remove;
 mod text;
@@ -20,9 +21,14 @@ mod virtual_keyboard;
 mod visibility;
 mod web_ext;
 mod willow;
-mod photosynthesis;
 
-use crate::ash::{cached_differential, Ash};
+use self::ash::differential::cached_differential;
+pub use self::ash::queue::RenderQueue;
+pub use self::ash::queue::RenderRemoveQueue;
+pub use self::ash::queue::RenderToken;
+pub use crate::ash::clip::{ClipContext, ClipSection};
+pub use crate::ash::differential::Differential;
+use crate::ash::Ash;
 use crate::asset::Asset;
 pub use crate::coordinate::{
     area::{Area, CReprArea},
@@ -35,7 +41,6 @@ use crate::photosynthesis::Photosynthesis;
 use crate::remove::Remove;
 use crate::time::Time;
 use crate::willow::Willow;
-pub use ash::{Differential, RenderQueue, RenderRemoveQueue, RenderToken};
 pub use attachment::Attachment;
 pub use bevy_ecs;
 use bevy_ecs::event::{event_update_system, EventRegistry};
@@ -53,7 +58,6 @@ pub use platform::AndroidConnection;
 pub use text::{FontSize, Text};
 pub use tree::{EcsExtension, Tree};
 pub use visibility::{InheritedVisibility, ResolvedVisibility, Visibility};
-
 pub struct Foliage {
     pub world: World,
     pub main: Schedule,
@@ -72,6 +76,9 @@ impl Foliage {
             willow: Default::default(),
             base_url: "".to_string(),
         };
+        foliage
+            .diff
+            .configure_sets((DiffMarkers::Prepare, DiffMarkers::Extract).chain());
         foliage.main.add_systems(event_update_system);
         Ash::attach(&mut foliage);
         Text::attach(&mut foliage);
@@ -147,6 +154,12 @@ impl Foliage {
             true
         );
         self.world.insert_resource(RenderQueue::<R, RT>::new());
-        self.diff.add_systems(cached_differential::<R, RT>);
+        self.diff
+            .add_systems(cached_differential::<R, RT>.in_set(DiffMarkers::Extract));
     }
+}
+#[derive(SystemSet, Eq, PartialEq, Ord, PartialOrd, Hash, Clone, Copy, Debug)]
+pub(crate) enum DiffMarkers {
+    Prepare,
+    Extract,
 }

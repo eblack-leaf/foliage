@@ -6,13 +6,14 @@ use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
-use crate::{Attachment, Differential, Foliage, Layer, Tree, Update, Write};
+use crate::ClipSection;
+use crate::{Attachment, Foliage, Layer, Tree, Update, Write};
+use crate::{ClipContext, Differential};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, Trigger};
 use bevy_ecs::system::Query;
 use bevy_ecs::world::DeferredWorld;
-
 impl Attachment for Text {
     fn attach(foliage: &mut Foliage) {
         foliage.define(Text::update);
@@ -22,14 +23,17 @@ impl Attachment for Text {
         foliage.differential::<Text, BlendedOpacity>();
         foliage.differential::<Text, Section<LogicalContext>>();
         foliage.differential::<Text, Layer>();
+        foliage.differential::<Text, ClipContext>();
+        foliage.differential::<Text, ClipSection>();
     }
 }
 #[derive(Component, Clone, PartialEq, Default)]
-#[require(FontSize)]
-#[require(UpdateCache)]
+#[require(Color, FontSize, UpdateCache, ClipContext)]
 #[require(Differential<Text, BlendedOpacity>)]
 #[require(Differential<Text, Color>)]
 #[require(Differential<Text, Section<LogicalContext>>)]
+#[require(Differential<Text, ClipContext>)]
+#[require(Differential<Text, ClipSection>)]
 #[component(on_add = Text::on_add)]
 #[component(on_insert = Text::on_insert)]
 pub struct Text {
