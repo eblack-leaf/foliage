@@ -6,7 +6,7 @@ use bevy_ecs::change_detection::Res;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Added, Or, RemovedComponents, ResMut, With};
 use bevy_ecs::query::Changed;
-use bevy_ecs::system::Query;
+use bevy_ecs::system::{ParamSet, Query};
 use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 
@@ -42,7 +42,7 @@ pub struct Differential<
     _phantom: PhantomData<R>,
 }
 impl<R: Clone + Send + Sync + 'static, RT: Clone + Send + Sync + 'static + PartialEq>
-Differential<R, RT>
+    Differential<R, RT>
 {
     pub fn new(cache: RT) -> Self {
         Self {
@@ -61,7 +61,7 @@ Differential<R, RT>
     }
 }
 impl<R: Clone + Send + Sync + 'static, RT: Clone + Send + Sync + 'static + PartialEq> Default
-for Differential<R, RT>
+    for Differential<R, RT>
 {
     fn default() -> Self {
         Self::blank()
@@ -73,7 +73,10 @@ pub fn cached_differential<
 >(
     values: Query<&RT, Changed<RT>>,
     mut caches: Query<&mut Differential<R, RT>>,
-    visibility: Query<&ResolvedVisibility>,
+    visibility: ParamSet<(
+        Query<&ResolvedVisibility>,
+        Query<Entity, Changed<ResolvedVisibility>>,
+    )>,
     mut queue: ResMut<RenderQueue<R, RT>>,
 ) {
     todo!()
