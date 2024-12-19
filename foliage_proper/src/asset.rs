@@ -12,6 +12,7 @@ use uuid::Uuid;
 impl Attachment for Asset {
     fn attach(foliage: &mut Foliage) {
         foliage.world.insert_resource(AssetLoader::default());
+        foliage.main.add_systems(await_assets);
     }
 }
 #[derive(Resource, Default)]

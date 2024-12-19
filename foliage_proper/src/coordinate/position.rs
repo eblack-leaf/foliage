@@ -21,7 +21,7 @@ impl<Context: CoordinateContext> Display for Position<Context> {
 }
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default, PartialEq, Debug)]
-pub struct GpuPosition(pub Coordinates);
+pub struct CReprPosition(pub Coordinates);
 
 impl Position<NumericalContext> {
     pub fn logical<C: Into<Coordinates>>(c: C) -> Position<LogicalContext> {
@@ -105,8 +105,8 @@ impl Position<DeviceContext> {
     pub fn to_logical(self, factor: f32) -> Position<LogicalContext> {
         Position::logical((self.x() / factor, self.y() / factor))
     }
-    pub fn to_gpu(self) -> GpuPosition {
-        GpuPosition(self.coordinates)
+    pub fn to_gpu(self) -> CReprPosition {
+        CReprPosition(self.coordinates)
     }
 }
 

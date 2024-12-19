@@ -1,7 +1,7 @@
 use crate::coordinate::position::Position;
 use crate::coordinate::LogicalContext;
 use crate::ginkgo::ScaleFactor;
-use crate::interaction::{ClickPhase, Interaction};
+use crate::interaction::{Interaction, InteractionPhase};
 use crate::{Event, Resource};
 use std::collections::HashMap;
 use winit::dpi::PhysicalPosition;
@@ -26,21 +26,21 @@ impl TouchAdapter {
         if self.primary.is_none() {
             if touch.phase == TouchPhase::Started {
                 self.primary.replace(touch.id);
-                return Some(Interaction::new(ClickPhase::Start, position, false));
+                return Some(Interaction::new(InteractionPhase::Start, position, false));
             }
         } else if self.primary.unwrap() == touch.id {
             match touch.phase {
                 TouchPhase::Started => {}
                 TouchPhase::Moved => {
-                    return Some(Interaction::new(ClickPhase::Moved, position, false));
+                    return Some(Interaction::new(InteractionPhase::Moved, position, false));
                 }
                 TouchPhase::Ended => {
                     self.primary.take();
-                    return Some(Interaction::new(ClickPhase::End, position, false));
+                    return Some(Interaction::new(InteractionPhase::End, position, false));
                 }
                 TouchPhase::Cancelled => {
                     self.primary.take();
-                    return Some(Interaction::new(ClickPhase::Cancel, position, false));
+                    return Some(Interaction::new(InteractionPhase::Cancel, position, false));
                 }
             }
         }
@@ -65,11 +65,15 @@ impl MouseAdapter {
         }
         if self.started && !state.is_pressed() {
             self.started = false;
-            return Some(Interaction::new(ClickPhase::End, self.cursor, false));
+            return Some(Interaction::new(InteractionPhase::End, self.cursor, false));
         }
         if !self.started && state.is_pressed() {
             self.started = true;
-            return Some(Interaction::new(ClickPhase::Start, self.cursor, false));
+            return Some(Interaction::new(
+                InteractionPhase::Start,
+                self.cursor,
+                false,
+            ));
         }
         None
     }
@@ -84,7 +88,7 @@ impl MouseAdapter {
         self.cursor = adjusted_position;
         if self.started {
             return Some(Interaction::new(
-                ClickPhase::Moved,
+                InteractionPhase::Moved,
                 adjusted_position + viewport_position,
                 false,
             ));

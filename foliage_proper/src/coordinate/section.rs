@@ -4,8 +4,8 @@ use std::ops::{Add, AddAssign, Mul, Sub};
 use bevy_ecs::component::Component;
 use bytemuck::{Pod, Zeroable};
 
-use crate::coordinate::area::{Area, GpuArea};
-use crate::coordinate::position::{GpuPosition, Position};
+use crate::coordinate::area::{Area, CReprArea};
+use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::{
     CoordinateContext, CoordinateUnit, Coordinates, DeviceContext, LogicalContext, NumericalContext,
 };
@@ -22,18 +22,18 @@ impl<Context: CoordinateContext> Display for Section<Context> {
 }
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default, Component, PartialEq, Debug)]
-pub struct GpuSection {
-    pub pos: GpuPosition,
-    pub area: GpuArea,
+pub struct CReprSection {
+    pub pos: CReprPosition,
+    pub area: CReprArea,
 }
-impl GpuSection {
-    pub fn new(p: GpuPosition, a: GpuArea) -> Self {
+impl CReprSection {
+    pub fn new(p: CReprPosition, a: CReprArea) -> Self {
         Self { pos: p, area: a }
     }
     pub fn rounded(self) -> Self {
         Self::new(
-            GpuPosition(self.pos.0.rounded()),
-            GpuArea(self.area.0.rounded()),
+            CReprPosition(self.pos.0.rounded()),
+            CReprArea(self.area.0.rounded()),
         )
     }
 }
@@ -58,8 +58,8 @@ impl Section<NumericalContext> {
     }
 }
 impl Section<DeviceContext> {
-    pub fn to_gpu(self) -> GpuSection {
-        GpuSection::new(self.position.to_gpu(), self.area.to_gpu())
+    pub fn to_gpu(self) -> CReprSection {
+        CReprSection::new(self.position.to_gpu(), self.area.to_gpu())
     }
     pub fn to_logical(self, scale_factor: f32) -> Section<LogicalContext> {
         Section::new(

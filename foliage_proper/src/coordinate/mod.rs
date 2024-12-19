@@ -8,7 +8,7 @@ use bevy_ecs::system::{Query, Res};
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
 
-use crate::coordinate::section::{GpuSection, Section};
+use crate::coordinate::section::{CReprSection, Section};
 use crate::ginkgo::ScaleFactor;
 
 pub mod area;
@@ -21,7 +21,8 @@ pub mod section;
 pub trait CoordinateContext
 where
     Self: Send + Sync + 'static + Copy + Clone + Default,
-{}
+{
+}
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug, Serialize, Deserialize)]
 pub struct DeviceContext;
@@ -131,7 +132,7 @@ permutation_coordinate_impl!(f64, usize);
 // }
 fn coordinate_resolve(
     mut placed_pos: Query<
-        (&mut GpuSection, &Section<LogicalContext>),
+        (&mut CReprSection, &Section<LogicalContext>),
         Or<(Changed<Section<LogicalContext>>,)>,
     >,
     scale_factor: Res<ScaleFactor>,

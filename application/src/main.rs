@@ -1,6 +1,4 @@
-use foliage::{
-    bevy_ecs, EcsExtension, Event, Foliage, FontSize, Stem, Text, Tree, Trigger,
-};
+use foliage::{bevy_ecs, EcsExtension, Event, Foliage, FontSize, Stem, Text, Tree, Trigger};
 
 mod icon;
 mod image;

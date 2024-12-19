@@ -1,9 +1,10 @@
-mod monospaced;
 mod glyph;
+mod monospaced;
 
 use crate::color::Color;
 use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
+use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::{Attachment, Differential, Foliage, Layer, Opacity, Tree, Update, Write};
 use bevy_ecs::component::ComponentId;
@@ -18,7 +19,7 @@ impl Attachment for Text {
         foliage.remove_queue::<Text>();
         foliage.differential::<Text, FontSize>();
         foliage.differential::<Text, Color>();
-        foliage.differential::<Text, Opacity>();
+        foliage.differential::<Text, BlendedOpacity>();
         foliage.differential::<Text, Section<LogicalContext>>();
         foliage.differential::<Text, Layer>();
     }
@@ -26,7 +27,7 @@ impl Attachment for Text {
 #[derive(Component, Clone, PartialEq, Default)]
 #[require(FontSize)]
 #[require(UpdateCache)]
-#[require(Differential<Text, Opacity>)]
+#[require(Differential<Text, BlendedOpacity>)]
 #[require(Differential<Text, Color>)]
 #[require(Differential<Text, Section<LogicalContext>>)]
 #[component(on_add = Text::on_add)]

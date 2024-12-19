@@ -13,7 +13,9 @@ use std::marker::PhantomData;
 pub struct Ash {}
 impl Attachment for Ash {
     fn attach(foliage: &mut Foliage) {
-        foliage.world.insert_resource(ClippingSectionQueue::default());
+        foliage
+            .world
+            .insert_resource(ClippingSectionQueue::default());
         foliage.diff.add_systems(pull_clipping_section);
     }
 }
@@ -40,7 +42,7 @@ pub struct Differential<
     _phantom: PhantomData<R>,
 }
 impl<R: Clone + Send + Sync + 'static, RT: Clone + Send + Sync + 'static + PartialEq>
-Differential<R, RT>
+    Differential<R, RT>
 {
     pub fn new(cache: RT) -> Self {
         Self {
@@ -59,7 +61,7 @@ Differential<R, RT>
     }
 }
 impl<R: Clone + Send + Sync + 'static, RT: Clone + Send + Sync + 'static + PartialEq> Default
-for Differential<R, RT>
+    for Differential<R, RT>
 {
     fn default() -> Self {
         Self::blank()

@@ -8,7 +8,7 @@ mod adapter;
 pub use adapter::InputSequence;
 
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq)]
-pub enum ClickPhase {
+pub enum InteractionPhase {
     Start,
     Moved,
     End,
@@ -16,13 +16,13 @@ pub enum ClickPhase {
 }
 #[derive(Event, Debug, Copy, Clone)]
 pub struct Interaction {
-    click_phase: ClickPhase,
+    click_phase: InteractionPhase,
     position: Position<LogicalContext>,
     from_scroll: bool,
 }
 impl Interaction {
     pub fn new(
-        click_phase: ClickPhase,
+        click_phase: InteractionPhase,
         position: Position<LogicalContext>,
         from_scroll: bool,
     ) -> Self {
@@ -56,4 +56,3 @@ pub(crate) struct FocusedEntity(pub(crate) Option<Entity>);
 pub(crate) struct PassThroughInteractions {
     ps: Vec<Entity>,
 }
-

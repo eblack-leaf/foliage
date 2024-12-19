@@ -1,30 +1,40 @@
 mod ash;
+mod asset;
 mod attachment;
 mod color;
+mod coordinate;
 mod disable;
 mod enable;
+mod ginkgo;
+mod interaction;
 mod leaf;
 mod opacity;
 mod ops;
+mod platform;
 mod remove;
 mod text;
-mod tree;
 mod texture;
 mod time;
+mod tree;
 mod virtual_keyboard;
+mod visibility;
 mod web_ext;
 mod willow;
-mod ginkgo;
-mod coordinate;
-mod asset;
-mod platform;
-mod interaction;
 
-use crate::ash::cached_differential;
-use crate::coordinate::Coordinates;
+use crate::ash::{cached_differential, Ash};
+use crate::asset::Asset;
+pub use crate::coordinate::{
+    area::{Area, CReprArea},
+    position::{CReprPosition, Position},
+    section::{CReprSection, Section},
+    CoordinateContext, CoordinateUnit, Coordinates, DeviceContext, LogicalContext,
+    NumericalContext,
+};
+use crate::willow::Willow;
 pub use ash::{Differential, RenderQueue, RenderRemoveQueue, RenderToken};
 pub use attachment::Attachment;
 pub use bevy_ecs;
+use bevy_ecs::event::{event_update_system, EventRegistry};
 use bevy_ecs::observer::TriggerTargets;
 pub use bevy_ecs::prelude::*;
 use bevy_ecs::system::IntoObserverSystem;
@@ -38,30 +48,39 @@ pub use platform::AndroidApp;
 pub use platform::AndroidConnection;
 pub use text::{FontSize, Text};
 pub use tree::{EcsExtension, Tree};
-
+pub use visibility::{InheritedVisibility, ResolvedVisibility, Visibility};
 pub struct Foliage {
     pub world: World,
     pub main: Schedule,
     pub user: Schedule,
     pub diff: Schedule,
+    pub(crate) willow: Willow,
+    pub base_url: String,
 }
 impl Foliage {
     pub fn new() -> Foliage {
-        Foliage {
+        let mut foliage = Foliage {
             world: Default::default(),
             main: Default::default(),
             user: Default::default(),
             diff: Default::default(),
-        }
+            willow: Default::default(),
+            base_url: "".to_string(),
+        };
+        foliage.main.add_systems(event_update_system);
+        Ash::attach(&mut foliage);
+        Text::attach(&mut foliage);
+        Asset::attach(&mut foliage);
+        foliage
     }
     pub fn photosynthesize(&self) {
         todo!()
     }
-    pub fn desktop_size<V: Into<Coordinates>>(&self, v: V) {
-        todo!()
+    pub fn desktop_size<V: Into<Area<DeviceContext>>>(&mut self, v: V) {
+        self.willow.requested_size.replace(v.into());
     }
-    pub fn url<S: AsRef<str>>(&self, path: S) {
-        todo!()
+    pub fn url<S: AsRef<str>>(&mut self, path: S) {
+        self.base_url = path.as_ref().to_string();
     }
     pub fn define<E: Event + 'static, B: Bundle, M, D: IntoObserverSystem<E, B, M>>(
         &mut self,
@@ -84,6 +103,12 @@ impl Foliage {
     }
     pub fn queue<E: Event>(&mut self, e: E) {
         self.world.queue(e);
+    }
+    pub fn enable_queued_event<E: Event + Clone + Send + Sync + 'static>(&mut self) {
+        if self.world.get_resource::<Events<E>>().is_none() {
+            self.world.insert_resource(Events::<E>::default());
+            EventRegistry::register_event::<E>(&mut self.world);
+        }
     }
     pub fn write_to<B: Bundle>(&mut self, entity: Entity, b: B) {
         self.world.write_to(entity, b);

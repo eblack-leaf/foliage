@@ -21,7 +21,7 @@ impl<Context: CoordinateContext> Display for Area<Context> {
 }
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default, PartialEq, Debug)]
-pub struct GpuArea(pub Coordinates);
+pub struct CReprArea(pub Coordinates);
 
 impl Area<NumericalContext> {
     pub fn logical<C: Into<Coordinates>>(c: C) -> Area<LogicalContext> {
@@ -96,8 +96,8 @@ impl Area<DeviceContext> {
     pub fn to_logical(self, factor: f32) -> Area<LogicalContext> {
         Area::logical((self.width() / factor, self.height() / factor))
     }
-    pub fn to_gpu(self) -> GpuArea {
-        GpuArea(self.coordinates)
+    pub fn to_gpu(self) -> CReprArea {
+        CReprArea(self.coordinates)
     }
 }
 
