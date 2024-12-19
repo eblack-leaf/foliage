@@ -6,7 +6,7 @@ use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
-use crate::{Attachment, Differential, Foliage, Layer, Opacity, Tree, Update, Write};
+use crate::{Attachment, Differential, Foliage, Layer, Tree, Update, Write};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, Trigger};

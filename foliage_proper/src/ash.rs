@@ -1,7 +1,7 @@
 use crate::coordinate::section::Section;
 use crate::coordinate::{DeviceContext, LogicalContext};
 use crate::ginkgo::ScaleFactor;
-use crate::{Attachment, Component, Foliage, Resource};
+use crate::{Attachment, Component, Foliage, ResolvedVisibility, Resource};
 use bevy_ecs::change_detection::Res;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Added, Or, RemovedComponents, ResMut, With};
@@ -42,7 +42,7 @@ pub struct Differential<
     _phantom: PhantomData<R>,
 }
 impl<R: Clone + Send + Sync + 'static, RT: Clone + Send + Sync + 'static + PartialEq>
-    Differential<R, RT>
+Differential<R, RT>
 {
     pub fn new(cache: RT) -> Self {
         Self {
@@ -61,7 +61,7 @@ impl<R: Clone + Send + Sync + 'static, RT: Clone + Send + Sync + 'static + Parti
     }
 }
 impl<R: Clone + Send + Sync + 'static, RT: Clone + Send + Sync + 'static + PartialEq> Default
-    for Differential<R, RT>
+for Differential<R, RT>
 {
     fn default() -> Self {
         Self::blank()
@@ -73,6 +73,7 @@ pub fn cached_differential<
 >(
     values: Query<&RT, Changed<RT>>,
     mut caches: Query<&mut Differential<R, RT>>,
+    visibility: Query<&ResolvedVisibility>,
     mut queue: ResMut<RenderQueue<R, RT>>,
 ) {
     todo!()
