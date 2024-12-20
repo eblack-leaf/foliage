@@ -5,8 +5,17 @@ use bevy_ecs::event::Event;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs};
 use bevy_ecs::system::Resource;
 mod adapter;
+use crate::{Attachment, Foliage};
 pub use adapter::InputSequence;
+pub(crate) use adapter::{KeyboardAdapter, MouseAdapter, TouchAdapter};
 
+impl Attachment for Interaction {
+    fn attach(foliage: &mut Foliage) {
+        foliage.world.insert_resource(KeyboardAdapter::default());
+        foliage.world.insert_resource(MouseAdapter::default());
+        foliage.world.insert_resource(TouchAdapter::default());
+    }
+}
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq)]
 pub enum InteractionPhase {
     Start,

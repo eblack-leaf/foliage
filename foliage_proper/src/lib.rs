@@ -21,7 +21,6 @@ mod virtual_keyboard;
 mod visibility;
 mod web_ext;
 mod willow;
-
 use self::ash::differential::cached_differential;
 pub use self::ash::queue::RenderQueue;
 pub use self::ash::queue::RenderRemoveQueue;
@@ -29,7 +28,7 @@ pub use self::ash::queue::RenderToken;
 pub use crate::ash::clip::{ClipContext, ClipSection};
 pub use crate::ash::differential::Differential;
 use crate::ash::Ash;
-use crate::asset::Asset;
+use crate::asset::{Asset, AssetKey, AssetLoader};
 pub use crate::coordinate::{
     area::{Area, CReprArea},
     position::{CReprPosition, Position},
@@ -37,7 +36,9 @@ pub use crate::coordinate::{
     CoordinateContext, CoordinateUnit, Coordinates, DeviceContext, LogicalContext,
     NumericalContext,
 };
-use crate::photosynthesis::Photosynthesis;
+use crate::ginkgo::viewport::ViewportHandle;
+use crate::ginkgo::Ginkgo;
+use crate::interaction::Interaction;
 use crate::remove::Remove;
 use crate::time::Time;
 use crate::willow::Willow;
@@ -49,7 +50,9 @@ use bevy_ecs::observer::TriggerTargets;
 pub use bevy_ecs::prelude::*;
 use bevy_ecs::system::IntoObserverSystem;
 pub use color::Color;
+pub use color::Luminance;
 pub use coordinate::elevation::{Elevation, Layer};
+use futures_channel::oneshot;
 pub use leaf::{Branch, Leaf, Stem};
 pub use opacity::Opacity;
 pub use ops::{Update, Write};
@@ -57,17 +60,35 @@ pub use ops::{Update, Write};
 pub use platform::AndroidApp;
 pub use platform::AndroidConnection;
 pub use text::{FontSize, Text};
+use tracing_subscriber::filter::Targets;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::Layer as TSL;
 pub use tree::{EcsExtension, Tree};
 pub use visibility::{InheritedVisibility, ResolvedVisibility, Visibility};
+use winit::event::WindowEvent;
+use winit::event_loop::{ControlFlow, EventLoop};
+
 pub struct Foliage {
     pub world: World,
     pub main: Schedule,
     pub user: Schedule,
     pub diff: Schedule,
     pub(crate) willow: Willow,
+    pub ginkgo: Ginkgo,
+    pub ash: Ash,
     pub base_url: String,
+    pub(crate) android_connection: AndroidConnection,
+    pub(crate) booted: bool,
+    pub(crate) queue: Vec<WindowEvent>,
+    pub(crate) sender: Option<oneshot::Sender<Ginkgo>>,
+    pub(crate) receiver: Option<oneshot::Receiver<Ginkgo>>,
+    pub(crate) user_attachments: Vec<fn(&mut Foliage)>,
 }
 impl Foliage {
+    pub const SCROLL_SENSITIVITY: f32 = 40.0;
+    pub const NATURAL_SCROLLING: f32 = -1.0;
+    pub const VIEW_SCROLLING: f32 = 1.0;
     pub fn new() -> Foliage {
         let mut foliage = Foliage {
             world: Default::default(),
@@ -75,12 +96,21 @@ impl Foliage {
             user: Default::default(),
             diff: Default::default(),
             willow: Default::default(),
+            ginkgo: Default::default(),
+            ash: Default::default(),
             base_url: "".to_string(),
+            android_connection: Default::default(),
+            booted: false,
+            queue: vec![],
+            sender: None,
+            receiver: None,
+            user_attachments: vec![],
         };
         foliage
             .diff
             .configure_sets((DiffMarkers::Prepare, DiffMarkers::Extract).chain());
         foliage.main.add_systems(event_update_system);
+        Interaction::attach(&mut foliage);
         Ash::attach(&mut foliage);
         Text::attach(&mut foliage);
         Asset::attach(&mut foliage);
@@ -88,8 +118,26 @@ impl Foliage {
         Remove::attach(&mut foliage);
         foliage
     }
-    pub fn photosynthesize(self) {
-        Photosynthesis::new().run(self);
+    pub fn attach<A: Attachment>(&mut self) {
+        self.user_attachments.push(A::attach);
+    }
+    pub fn photosynthesize(mut self) {
+        let event_loop = EventLoop::new().unwrap();
+        event_loop.set_control_flow(ControlFlow::Wait);
+        cfg_if::cfg_if! {
+            if #[cfg(target_arch = "wasm32")] {
+                console_error_panic_hook::set_once();
+                let (sender, recv) = oneshot::channel();
+                self.sender.replace(sender);
+                self.recv.replace(recv);
+                use winit::platform::web::EventLoopExtWebSys;
+                let event_loop_function = EventLoop::spawn_app;
+                event_loop_function(event_loop, self);
+            } else {
+                let event_loop_function = EventLoop::run_app;
+                event_loop_function(event_loop, &mut self).expect("event-loop-run-app");
+            }
+        }
     }
     pub fn desktop_size<V: Into<Area<DeviceContext>>>(&mut self, v: V) {
         self.willow.requested_size.replace(v.into());
@@ -157,6 +205,83 @@ impl Foliage {
         self.world.insert_resource(RenderQueue::<R, RT>::new());
         self.diff
             .add_systems(cached_differential::<R, RT>.in_set(DiffMarkers::Extract));
+    }
+    #[cfg(target_family = "wasm")]
+    pub fn load_remote_asset(&mut self, path: &str) -> AssetKey {
+        let key = AssetLoader::generate_key();
+        let (fetch, sender) = asset::AssetFetch::new(key);
+        self.world
+            .get_resource_mut::<AssetLoader>()
+            .expect("asset-loader")
+            .queue_fetch(fetch);
+        let path = format!(
+            "{}/{}/{}",
+            web_sys::window().expect("window").origin(),
+            self.base_url,
+            path
+        );
+        wasm_bindgen_futures::spawn_local(async move {
+            let asset = reqwest::Client::new()
+                .get(path)
+                .header("Accept", "application/octet-stream")
+                .send()
+                .await
+                .expect("asset-request")
+                .bytes()
+                .await
+                .expect("asset-bytes")
+                .to_vec();
+            sender.send(Asset::new(asset)).ok();
+        });
+        key
+    }
+    #[cfg(not(target_family = "wasm"))]
+    pub fn load_native_asset(&mut self, bytes: Vec<u8>) -> AssetKey {
+        let key = AssetLoader::generate_key();
+        self.world
+            .get_resource_mut::<AssetLoader>()
+            .expect("asset-loader")
+            .assets
+            .insert(key, Asset::new(bytes));
+        key
+    }
+    pub fn enable_tracing(&self, targets: Targets) {
+        #[cfg(not(target_family = "wasm"))]
+        tracing_subscriber::registry()
+            .with(
+                tracing_subscriber::fmt::layer()
+                    .compact()
+                    .with_filter(targets),
+            )
+            .init();
+        #[cfg(target_family = "wasm")]
+        {
+            tracing_subscriber::registry()
+                .with(
+                    tracing_subscriber::fmt::layer()
+                        .with_writer(
+                            tracing_subscriber_wasm::MakeConsoleWriter::default()
+                                .map_trace_level_to(tracing::Level::TRACE),
+                        )
+                        .without_time()
+                        .with_filter(targets),
+                )
+                .init();
+        }
+    }
+    pub(crate) fn finish_boot(&mut self) {
+        self.ginkgo.configure_view(&self.willow);
+        self.ginkgo.create_viewport(&self.willow);
+        let scale_factor = self.ginkgo.configuration().scale_factor;
+        self.world.insert_resource(ViewportHandle::new(
+            self.willow.actual_area().to_logical(scale_factor.value()),
+        ));
+        self.world.insert_resource(scale_factor);
+        for a_fn in self.user_attachments.drain(..).collect::<Vec<_>>() {
+            a_fn(self);
+        }
+        self.ash.initialize(&self.ginkgo);
+        self.booted = true;
     }
 }
 #[derive(SystemSet, Eq, PartialEq, Ord, PartialOrd, Hash, Clone, Copy, Debug)]
