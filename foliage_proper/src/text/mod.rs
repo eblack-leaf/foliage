@@ -10,20 +10,25 @@ use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::text::glyph::{Glyph, GlyphColors, GlyphKey, Glyphs, ResolvedColors, ResolvedGlyphs};
 use crate::text::monospaced::MonospacedFont;
-use crate::ClipSection;
 use crate::{Attachment, DeviceContext, Foliage, Layer, Tree, Update, Write};
 use crate::{ClipContext, Differential};
+use crate::{ClipSection, DiffMarkers};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Component, Res, Trigger};
-use bevy_ecs::system::Query;
+use bevy_ecs::prelude::{Component, IntoSystemConfigs, Res, Trigger};
+use bevy_ecs::query::Changed;
+use bevy_ecs::system::{ParamSet, Query};
 use bevy_ecs::world::DeferredWorld;
 
 impl Attachment for Text {
     fn attach(foliage: &mut Foliage) {
         foliage.world.insert_resource(MonospacedFont::new(40));
         foliage.define(Text::update);
-        // foliage.define(Text::color_update);
+        foliage.diff.add_systems(
+            (Text::resolve_glyphs, Text::resolve_colors)
+                .chain()
+                .in_set(DiffMarkers::Prepare),
+        );
         foliage.remove_queue::<Text>();
         foliage.differential::<Text, FontSize>();
         foliage.differential::<Text, Color>();
@@ -69,10 +74,6 @@ impl Text {
             .commands()
             .entity(this)
             .observe(Self::update_from_location);
-        // world
-        //     .commands()
-        //     .entity(this)
-        //     .observe(Self::update_from_color);
     }
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
         world
@@ -82,17 +83,15 @@ impl Text {
     fn update_from_location(trigger: Trigger<Write<Section<LogicalContext>>>, mut tree: Tree) {
         tree.trigger_targets(Update::<Text>::new(), trigger.entity());
     }
-    // fn update_from_color(trigger: Trigger<Write<Color>>, mut tree: Tree) {
-    //     tree.trigger_targets(Update::<GlyphColors>::new(), trigger.entity());
-    // }
-    // fn color_update(
-    //     trigger: Trigger<Update<GlyphColors>>,
-    //     glyph_colors: Query<&GlyphColors>,
-    //     colors:Query<&Color>,
-    //     mut resolved: Query<&mut ResolvedColors>,
-    // ) {
-    //     // TODO set resolved colors from exceptions (glyph-colors) + base (colors)
-    // }
+    fn resolve_colors(
+        glyph_colors: ParamSet<(Query<&GlyphColors>, Query<Entity, Changed<GlyphColors>>)>,
+        colors: ParamSet<(Query<&Color>, Query<Entity, Changed<Color>>)>,
+        glyphs: Query<&Glyphs>,
+        mut resolved: Query<&mut ResolvedColors>,
+    ) {
+        // TODO gather changed entities to set resolved-colors on
+        // TODO set resolved colors from exceptions (glyph-colors) + base (colors)
+    }
     fn update(
         trigger: Trigger<Update<Text>>,
         mut tree: Tree,
@@ -132,6 +131,18 @@ impl Text {
                     0,
                 ),
             );
+            let adjusted_section = current
+                .section
+                .with_height(glyphs.layout.height())
+                .to_logical(scale_factor.value());
+            tree.entity(this).insert(current).insert(adjusted_section);
+        }
+    }
+    fn resolve_glyphs(
+        mut glyph_query: Query<(Entity, &mut Glyphs), Changed<Glyphs>>,
+        mut tree: Tree,
+    ) {
+        for (entity, mut glyphs) in glyph_query.iter_mut() {
             let new = glyphs
                 .layout
                 .glyphs()
@@ -167,15 +178,7 @@ impl Text {
             }
             glyphs.last = glyphs.glyphs.clone();
             glyphs.glyphs = new;
-            let adjusted_section = current
-                .section
-                .with_height(glyphs.layout.height())
-                .to_logical(scale_factor.value());
-            tree.entity(this)
-                .insert(current)
-                .insert(resolved)
-                .insert(adjusted_section);
-            // tree.trigger_targets(Update::<GlyphColors>::new(), this);
+            tree.entity(entity).insert(resolved);
         }
     }
 }

@@ -79,6 +79,8 @@ impl GlyphColors {
     }
 }
 #[derive(Component, Default, PartialEq, Clone)]
+pub(crate) struct GlyphColor(pub(crate) Color);
+#[derive(Component, Default, PartialEq, Clone)]
 pub struct ResolvedColors {
-    pub colors: Vec<Color>,
+    pub colors: Vec<GlyphColor>,
 }
