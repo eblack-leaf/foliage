@@ -1,22 +1,29 @@
 mod glyph;
 mod monospaced;
+mod pipeline;
 
 use crate::color::Color;
 use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
+use crate::ginkgo::ScaleFactor;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
+use crate::text::glyph::{Glyph, GlyphColors, GlyphKey, Glyphs, ResolvedColors, ResolvedGlyphs};
+use crate::text::monospaced::MonospacedFont;
 use crate::ClipSection;
-use crate::{Attachment, Foliage, Layer, Tree, Update, Write};
+use crate::{Attachment, DeviceContext, Foliage, Layer, Tree, Update, Write};
 use crate::{ClipContext, Differential};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Component, Trigger};
+use bevy_ecs::prelude::{Component, Res, Trigger};
 use bevy_ecs::system::Query;
 use bevy_ecs::world::DeferredWorld;
+
 impl Attachment for Text {
     fn attach(foliage: &mut Foliage) {
+        foliage.world.insert_resource(MonospacedFont::new(40));
         foliage.define(Text::update);
+        // foliage.define(Text::color_update);
         foliage.remove_queue::<Text>();
         foliage.differential::<Text, FontSize>();
         foliage.differential::<Text, Color>();
@@ -25,15 +32,23 @@ impl Attachment for Text {
         foliage.differential::<Text, Layer>();
         foliage.differential::<Text, ClipContext>();
         foliage.differential::<Text, ClipSection>();
+        foliage.differential::<Text, ResolvedGlyphs>();
+        foliage.differential::<Text, ResolvedColors>();
     }
 }
 #[derive(Component, Clone, PartialEq, Default)]
 #[require(Color, FontSize, UpdateCache, ClipContext)]
-#[require(Differential<Text, BlendedOpacity>)]
+#[require(HorizontalAlignment, VerticalAlignment, Glyphs)]
+#[require(ResolvedGlyphs, ResolvedColors, GlyphColors)]
+#[require(Differential<Text, FontSize>)]
 #[require(Differential<Text, Color>)]
+#[require(Differential<Text, BlendedOpacity>)]
 #[require(Differential<Text, Section<LogicalContext>>)]
+#[require(Differential<Text, Layer>)]
 #[require(Differential<Text, ClipContext>)]
 #[require(Differential<Text, ClipSection>)]
+#[require(Differential<Text, ResolvedGlyphs>)]
+#[require(Differential<Text, ResolvedColors>)]
 #[component(on_add = Text::on_add)]
 #[component(on_insert = Text::on_insert)]
 pub struct Text {
@@ -54,6 +69,10 @@ impl Text {
             .commands()
             .entity(this)
             .observe(Self::update_from_location);
+        // world
+        //     .commands()
+        //     .entity(this)
+        //     .observe(Self::update_from_color);
     }
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
         world
@@ -63,20 +82,104 @@ impl Text {
     fn update_from_location(trigger: Trigger<Write<Section<LogicalContext>>>, mut tree: Tree) {
         tree.trigger_targets(Update::<Text>::new(), trigger.entity());
     }
+    // fn update_from_color(trigger: Trigger<Write<Color>>, mut tree: Tree) {
+    //     tree.trigger_targets(Update::<GlyphColors>::new(), trigger.entity());
+    // }
+    // fn color_update(
+    //     trigger: Trigger<Update<GlyphColors>>,
+    //     glyph_colors: Query<&GlyphColors>,
+    //     colors:Query<&Color>,
+    //     mut resolved: Query<&mut ResolvedColors>,
+    // ) {
+    //     // TODO set resolved colors from exceptions (glyph-colors) + base (colors)
+    // }
     fn update(
         trigger: Trigger<Update<Text>>,
         mut tree: Tree,
         texts: Query<&Text>,
         font_sizes: Query<&FontSize>,
+        mut glyph_query: Query<&mut Glyphs>,
+        horizontal_alignment: Query<&HorizontalAlignment>,
+        vertical_alignment: Query<&VerticalAlignment>,
         mut sections: Query<&mut Section<LogicalContext>>,
         mut cache: Query<&mut UpdateCache>,
+        font: Res<MonospacedFont>,
+        scale_factor: Res<ScaleFactor>,
     ) {
-        // if config != current (made from current values) => process + set config
-        // glyphs and such
+        let this = trigger.entity();
+        let mut current = UpdateCache::default();
+        current.font_size = FontSize::new(
+            (font_sizes.get(this).unwrap().value as f32 * scale_factor.value()) as u32,
+        );
+        current.text = texts.get(this).unwrap().clone();
+        current.section = sections.get(this).unwrap().to_device(scale_factor.value());
+        current.horizontal_alignment = *horizontal_alignment.get(this).unwrap();
+        current.vertical_alignment = *vertical_alignment.get(this).unwrap();
+        if cache.get(this).unwrap() != &current {
+            let mut glyphs = glyph_query.get_mut(this).unwrap();
+            glyphs.layout.reset(&fontdue::layout::LayoutSettings {
+                horizontal_align: current.horizontal_alignment.into(),
+                vertical_align: current.vertical_alignment.into(),
+                max_width: Some(current.section.width()),
+                max_height: Some(current.section.height()),
+                ..fontdue::layout::LayoutSettings::default()
+            });
+            glyphs.layout.append(
+                &[&font.0],
+                &fontdue::layout::TextStyle::new(
+                    current.text.value.as_str(),
+                    current.font_size.value as f32,
+                    0,
+                ),
+            );
+            let new = glyphs
+                .layout
+                .glyphs()
+                .iter()
+                .enumerate()
+                .map(|(i, g)| Glyph {
+                    key: GlyphKey {
+                        glyph_index: g.key.glyph_index,
+                        px: g.key.px as u32,
+                        font_hash: g.key.font_hash,
+                    },
+                    section: Section::device((g.x, g.y), (g.width, g.height)),
+                    parent: g.parent,
+                    offset: i,
+                })
+                .collect::<Vec<Glyph>>();
+            let mut resolved = ResolvedGlyphs::default();
+            let len_last = glyphs.last.len();
+            for (i, g) in glyphs.last.drain(..).collect::<Vec<_>>().iter().enumerate() {
+                if let Some(n) = new.get(i) {
+                    if g.key != n.key {
+                        resolved.added.push(n.clone());
+                    }
+                } else {
+                    resolved.removed.push(g.clone());
+                }
+            }
+            let len_new = new.len();
+            if len_new > len_last {
+                for i in len_last..len_new {
+                    resolved.added.push(new[i].clone());
+                }
+            }
+            glyphs.last = glyphs.glyphs.clone();
+            glyphs.glyphs = new;
+            let adjusted_section = current
+                .section
+                .with_height(glyphs.layout.height())
+                .to_logical(scale_factor.value());
+            tree.entity(this)
+                .insert(current)
+                .insert(resolved)
+                .insert(adjusted_section);
+            // tree.trigger_targets(Update::<GlyphColors>::new(), this);
+        }
     }
 }
 #[derive(Component, Clone, Copy, PartialEq)]
-#[require(Differential<Text, FontSize>)]
 #[component(on_insert = FontSize::on_insert)]
 pub struct FontSize {
     pub value: u32,
@@ -100,5 +203,51 @@ impl Default for FontSize {
 pub(crate) struct UpdateCache {
     pub(crate) font_size: FontSize,
     pub(crate) text: Text,
-    pub(crate) section: Section<LogicalContext>,
+    pub(crate) section: Section<DeviceContext>,
+    pub(crate) horizontal_alignment: HorizontalAlignment,
+    pub(crate) vertical_alignment: VerticalAlignment,
+}
+#[derive(Component, Copy, Clone, Default, PartialEq)]
+#[component(on_insert = HorizontalAlignment::on_insert)]
+pub enum HorizontalAlignment {
+    #[default]
+    Left,
+    Center,
+    Right,
+}
+impl HorizontalAlignment {
+    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+        world.trigger_targets(Update::<Text>::new(), this);
+    }
+}
+impl From<HorizontalAlignment> for fontdue::layout::HorizontalAlign {
+    fn from(value: HorizontalAlignment) -> Self {
+        match value {
+            HorizontalAlignment::Left => fontdue::layout::HorizontalAlign::Left,
+            HorizontalAlignment::Center => fontdue::layout::HorizontalAlign::Center,
+            HorizontalAlignment::Right => fontdue::layout::HorizontalAlign::Right,
+        }
+    }
+}
+#[derive(Component, Copy, Clone, Default, PartialEq)]
+#[component(on_insert = VerticalAlignment::on_insert)]
+pub enum VerticalAlignment {
+    #[default]
+    Top,
+    Middle,
+    Bottom,
+}
+impl VerticalAlignment {
+    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+        world.trigger_targets(Update::<Text>::new(), this);
+    }
+}
+impl From<VerticalAlignment> for fontdue::layout::VerticalAlign {
+    fn from(value: VerticalAlignment) -> Self {
+        match value {
+            VerticalAlignment::Top => fontdue::layout::VerticalAlign::Top,
+            VerticalAlignment::Middle => fontdue::layout::VerticalAlign::Middle,
+            VerticalAlignment::Bottom => fontdue::layout::VerticalAlign::Bottom,
+        }
+    }
 }

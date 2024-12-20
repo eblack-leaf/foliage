@@ -1,6 +1,7 @@
 use crate::ash::clip::prepare_clip_section;
 use crate::{Attachment, Component, DiffMarkers, Foliage, Resource};
 use bevy_ecs::prelude::IntoSystemConfigs;
+use bevy_ecs::world::World;
 
 pub(crate) mod clip;
 pub(crate) mod differential;
@@ -13,4 +14,9 @@ impl Attachment for Ash {
             .diff
             .add_systems(prepare_clip_section.in_set(DiffMarkers::Prepare));
     }
+}
+pub trait Render {
+    fn extract(frontend: &mut World, backend: &mut World);
+    fn prepare();
+    fn render();
 }

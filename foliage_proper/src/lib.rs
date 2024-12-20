@@ -41,6 +41,7 @@ use crate::photosynthesis::Photosynthesis;
 use crate::remove::Remove;
 use crate::time::Time;
 use crate::willow::Willow;
+pub use ash::Render;
 pub use attachment::Attachment;
 pub use bevy_ecs;
 use bevy_ecs::event::{event_update_system, EventRegistry};

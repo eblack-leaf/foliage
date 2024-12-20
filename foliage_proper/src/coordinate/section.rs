@@ -15,6 +15,7 @@ pub struct Section<Context: CoordinateContext> {
     pub position: Position<Context>,
     pub area: Area<Context>,
 }
+
 impl<Context: CoordinateContext> Display for Section<Context> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!("{}|{}", self.position, self.area))
@@ -101,6 +102,10 @@ impl<Context: CoordinateContext> Section<Context> {
     pub fn height(&self) -> CoordinateUnit {
         self.area.height()
     }
+    pub(crate) fn with_height(mut self, h: f32) -> Self {
+        self.set_height(h);
+        self
+    }
     pub fn set_height(&mut self, h: CoordinateUnit) {
         self.area.set_height(h);
     }
@@ -183,7 +188,7 @@ impl Section<NumericalContext> {
     }
 }
 impl<Context: CoordinateContext, C: Into<Coordinates>, D: Into<Coordinates>> From<(C, D)>
-    for Section<Context>
+for Section<Context>
 {
     fn from(value: (C, D)) -> Self {
         Self::new(value.0, value.1)
