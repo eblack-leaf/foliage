@@ -17,12 +17,9 @@ impl ApplicationHandler for Foliage {
             pollster::block_on(self.ginkgo.acquire_context(&self.willow));
             self.finish_boot();
         } else {
-            #[cfg(target_os = "android")]
-            {
-                self.ginkgo.recreate_surface(&self.willow);
-                self.ginkgo.configure_view(&self.willow);
-                self.ginkgo.resize_viewport(&self.willow);
-            }
+            self.ginkgo.recreate_surface(&self.willow);
+            self.ginkgo.configure_view(&self.willow);
+            self.ginkgo.size_viewport(&self.willow);
         }
         #[cfg(target_family = "wasm")]
         if !self.ginkgo.acquired() {
@@ -36,7 +33,6 @@ impl ApplicationHandler for Foliage {
             });
         }
     }
-
     fn window_event(
         &mut self,
         event_loop: &ActiveEventLoop,
@@ -50,7 +46,6 @@ impl ApplicationHandler for Foliage {
         }
         self.process_event(event, event_loop);
     }
-
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         #[cfg(target_family = "wasm")]
         if !self.booted && self.recv.is_some() {
@@ -71,6 +66,12 @@ impl ApplicationHandler for Foliage {
             self.diff.run(&mut self.world);
             self.willow.window().request_redraw();
             self.ash.drawn = false;
+        }
+    }
+
+    fn suspended(&mut self, event_loop: &ActiveEventLoop) {
+        if self.ginkgo.acquired() {
+            // TODO drop surface if required
         }
     }
 }
