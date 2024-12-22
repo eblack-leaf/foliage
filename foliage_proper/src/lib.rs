@@ -21,10 +21,10 @@ mod virtual_keyboard;
 mod visibility;
 mod web_ext;
 mod willow;
-use self::ash::differential::{cached_differential, RenderQueue, RenderRemoveQueue};
 pub(crate) use self::ash::differential::Differential;
-pub(crate) use crate::ash::clip::ClipSection;
+use self::ash::differential::{cached_differential, RenderQueue, RenderRemoveQueue};
 pub use crate::ash::clip::ClipContext;
+pub(crate) use crate::ash::clip::ClipSection;
 use crate::ash::Ash;
 use crate::asset::{Asset, AssetKey, AssetLoader};
 pub use crate::coordinate::{

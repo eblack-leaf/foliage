@@ -2,10 +2,11 @@ mod glyph;
 mod monospaced;
 mod pipeline;
 
+use crate::ash::{Node, Parameters, Render, Renderer};
 use crate::color::Color;
 use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
-use crate::ginkgo::ScaleFactor;
+use crate::ginkgo::{Ginkgo, ScaleFactor};
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::text::glyph::{Glyph, GlyphColors, GlyphKey, Glyphs, ResolvedColors, ResolvedGlyphs};
@@ -15,10 +16,11 @@ use crate::{ClipContext, Differential};
 use crate::{ClipSection, DiffMarkers};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Component, IntoSystemConfigs, Res, Trigger};
+use bevy_ecs::prelude::{Component, IntoSystemConfigs, Res, Trigger, World};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{ParamSet, Query};
 use bevy_ecs::world::DeferredWorld;
+use wgpu::RenderPass;
 
 impl Attachment for Text {
     fn attach(foliage: &mut Foliage) {
@@ -38,6 +40,26 @@ impl Attachment for Text {
         foliage.differential::<Text, ClipSection>();
         foliage.differential::<Text, ResolvedGlyphs>();
         foliage.differential::<Text, ResolvedColors>();
+    }
+}
+impl Render for Text {
+    type Group = ();
+    type Resources = ();
+
+    fn renderer(ginkgo: &Ginkgo) -> Renderer<Self> {
+        todo!()
+    }
+
+    fn prepare(renderer: &mut Renderer<Self>, world: &mut World, ginkgo: &Ginkgo) -> Vec<Node> {
+        // read-attrs
+        // queue-writes @ instance-id (instance-coordinator generated w/ reuse pool)
+        // sort instance-coordinator
+        // submit-nodes to ash (only changed (order, layer, clip-section) / added)
+        todo!()
+    }
+
+    fn render(renderer: &mut Renderer<Self>, render_pass: &mut RenderPass, ginkgo: &Ginkgo, parameters: Parameters) {
+        todo!()
     }
 }
 #[derive(Component, Clone, PartialEq, Default)]

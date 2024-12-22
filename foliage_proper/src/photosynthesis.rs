@@ -246,7 +246,7 @@ impl Foliage {
                         self.ginkgo.position_viewport(pos);
                     }
                     // TODO extract
-                    // TODO prepare
+                    self.ash.prepare(&mut self.world, &self.ginkgo);
                     self.ash.render(&self.ginkgo);
                     self.ash.drawn = true;
                 }

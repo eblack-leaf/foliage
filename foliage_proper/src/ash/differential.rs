@@ -2,8 +2,8 @@ use crate::{Component, ResolvedVisibility, Resource};
 use bevy_ecs::change_detection::ResMut;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Changed, ParamSet, Query};
-use std::marker::PhantomData;
 use std::collections::{HashMap, HashSet};
+use std::marker::PhantomData;
 
 #[derive(Component, Clone)]
 pub(crate) struct Differential<
@@ -15,7 +15,7 @@ pub(crate) struct Differential<
 }
 
 impl<R: Clone + Send + Sync + 'static, RT: Clone + Send + Sync + 'static + PartialEq>
-Differential<R, RT>
+    Differential<R, RT>
 {
     pub(crate) fn new(cache: RT) -> Self {
         Self {
@@ -35,7 +35,7 @@ Differential<R, RT>
 }
 
 impl<R: Clone + Send + Sync + 'static, RT: Clone + Send + Sync + 'static + PartialEq> Default
-for Differential<R, RT>
+    for Differential<R, RT>
 {
     fn default() -> Self {
         Self::blank()

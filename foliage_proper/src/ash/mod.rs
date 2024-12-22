@@ -1,10 +1,11 @@
 use crate::ash::clip::{prepare_clip_section, ClipSection};
 use crate::ginkgo::Ginkgo;
-use crate::{Attachment, Color, Component, DiffMarkers, Foliage, Layer, Resource};
+use crate::{Attachment, Color, Component, DiffMarkers, Foliage, Layer, Resource, Text};
 use bevy_ecs::prelude::IntoSystemConfigs;
-use std::collections::HashMap;
+use bevy_ecs::world::World;
+use std::collections::{HashMap, HashSet};
 use std::ops::Range;
-use wgpu::{CommandEncoderDescriptor, RenderPassDescriptor, TextureViewDescriptor};
+use wgpu::{CommandEncoderDescriptor, RenderPass, RenderPassDescriptor, TextureViewDescriptor};
 
 pub(crate) mod clip;
 pub(crate) mod differential;
@@ -20,6 +21,7 @@ pub(crate) struct Ash {
     pub(crate) drawn: bool,
     pub(crate) nodes: Vec<Node>,
     pub(crate) contiguous: Vec<ContiguousSpan>,
+    pub(crate) text: Option<Renderer<Text>>,
 }
 impl Default for Ash {
     fn default() -> Self {
@@ -28,10 +30,37 @@ impl Default for Ash {
 }
 impl Ash {
     pub(crate) fn new() -> Self {
-        Self { drawn: false, nodes: vec![], contiguous: vec![] }
+        Self {
+            drawn: false,
+            nodes: vec![],
+            contiguous: vec![],
+            text: None,
+        }
     }
     pub(crate) fn initialize(&mut self, ginkgo: &Ginkgo) {
-        // TODO create renderers
+        self.text.replace(Text::renderer(ginkgo));
+        // TODO other renderers
+    }
+    pub(crate) fn prepare(&mut self, world: &mut World, ginkgo: &Ginkgo) {
+        let mut nodes = vec![];
+        nodes.extend(Render::prepare(self.text.as_mut().unwrap(), world, ginkgo));
+        // TODO extend other renderers
+        if nodes.is_empty() { return; }
+        let mut to_replace = vec![];
+        let mut to_add = vec![];
+        for node in nodes {
+            if let Some(idx) = self.nodes.iter().position(|n| {
+                n.pipeline == node.pipeline
+                    && n.group == node.group
+                    && n.instance_id == node.instance_id
+            }) {
+                to_replace.push((node, idx));
+            } else {
+                to_add.push(node);
+            }
+        }
+        // sort
+        // remake contiguous
     }
     pub(crate) fn render(&mut self, ginkgo: &Ginkgo) {
         let surface_texture = ginkgo.surface_texture();
@@ -52,7 +81,17 @@ impl Ash {
             timestamp_writes: None,
             occlusion_query_set: None,
         });
-        // draw
+        for span in self.contiguous.iter() {
+            match span.pipeline {
+                PipelineId::Text => {
+                    Render::render(self.text.as_mut().unwrap(), &mut rpass, ginkgo, span.parameters());
+                }
+                PipelineId::Icon => {}
+                PipelineId::Shape => {}
+                PipelineId::Panel => {}
+                PipelineId::Image => {}
+            }
+        }
         drop(rpass);
         ginkgo
             .context()
@@ -61,8 +100,15 @@ impl Ash {
         surface_texture.present();
     }
 }
-pub(crate) trait Render {
-    fn render(&mut self, ginkgo: &Ginkgo, call: Call);
+pub(crate) trait Render
+where
+    Self: Sized,
+{
+    type Group;
+    type Resources;
+    fn renderer(ginkgo: &Ginkgo) -> Renderer<Self>;
+    fn prepare(renderer: &mut Renderer<Self>, world: &mut World, ginkgo: &Ginkgo) -> Vec<Node>;
+    fn render(renderer: &mut Renderer<Self>, render_pass: &mut RenderPass, ginkgo: &Ginkgo, parameters: Parameters);
 }
 pub(crate) type Order = i32;
 pub(crate) type InstanceId = i32;
@@ -72,7 +118,7 @@ pub(crate) enum PipelineId {
     Icon,
     Shape,
     Panel,
-    Image
+    Image,
 }
 pub(crate) type GroupId = i32;
 #[derive(Clone)]
@@ -83,8 +129,8 @@ pub(crate) struct ContiguousSpan {
     pub(crate) clip_section: ClipSection,
 }
 impl ContiguousSpan {
-    pub(crate) fn parameters(&self) -> Call {
-        Call {
+    pub(crate) fn parameters(&self) -> Parameters {
+        Parameters {
             group: self.group,
             range: self.range.clone(),
             clip_section: self.clip_section,
@@ -92,7 +138,7 @@ impl ContiguousSpan {
     }
 }
 #[derive(Clone)]
-pub(crate) struct Call {
+pub(crate) struct Parameters {
     pub(crate) group: GroupId,
     pub(crate) range: Range<Order>,
     pub(crate) clip_section: ClipSection,
@@ -104,6 +150,7 @@ pub(crate) struct Node {
     pub(crate) group: GroupId,
     pub(crate) order: Order,
     pub(crate) clip_section: ClipSection,
+    pub(crate) instance_id: InstanceId,
 }
 #[derive(Copy, Clone)]
 pub(crate) struct Instance {
@@ -120,15 +167,27 @@ pub(crate) struct InstanceCoordinator {
     pub(crate) instances: Vec<Instance>,
     pub(crate) cache: Vec<Instance>,
     pub(crate) swaps: Vec<Swap>,
+    pub(crate) node_submit: Vec<Node>,
+    pub(crate) id_gen: InstanceId,
+    pub(crate) gen_pool: HashSet<InstanceId>,
 }
 pub(crate) struct InstanceBuffer<I: bytemuck::Pod + bytemuck::Zeroable> {
     pub(crate) cpu: Vec<I>,
     pub(crate) buffer: wgpu::Buffer,
     pub(crate) writes: HashMap<InstanceId, I>,
-    _phantom: std::marker::PhantomData<I>,
 }
 impl<I: bytemuck::Pod + bytemuck::Zeroable> InstanceBuffer<I> {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(initial_capacity: u32) -> Self {
         todo!()
     }
+}
+pub(crate) struct RenderGroup<R: Render> {
+    pub(crate) coordinator: InstanceCoordinator,
+    pub(crate) group: R::Group,
+}
+pub(crate) struct Renderer<R: Render> {
+    pub(crate) pipeline: wgpu::RenderPipeline,
+    pub(crate) vertex_buffer: wgpu::Buffer,
+    pub(crate) groups: HashMap<GroupId, RenderGroup<R>>,
+    pub(crate) resources: R::Resources,
 }
