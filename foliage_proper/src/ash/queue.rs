@@ -4,8 +4,8 @@ use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 
 #[derive(Clone)]
-pub struct RenderToken<R: Clone + Send + Sync + 'static, RT: Clone + Send + Sync + 'static> {
-    pub token: RT,
+pub(crate) struct RenderToken<R: Clone + Send + Sync + 'static, RT: Clone + Send + Sync + 'static> {
+    pub(crate) token: RT,
     _phantom: PhantomData<R>,
 }
 
@@ -19,12 +19,12 @@ impl<R: Clone + Send + Sync + 'static, RT: Clone + Send + Sync + 'static> Render
 }
 
 #[derive(Resource)]
-pub struct RenderQueue<R: Clone + Send + Sync + 'static, RT: Clone + Send + Sync + 'static> {
-    pub queue: HashMap<Entity, RenderToken<R, RT>>,
+pub(crate) struct RenderQueue<R: Clone + Send + Sync + 'static, RT: Clone + Send + Sync + 'static> {
+    pub(crate) queue: HashMap<Entity, RenderToken<R, RT>>,
 }
 
 impl<R: Clone + Send + Sync + 'static, RT: Clone + Send + Sync + 'static> RenderQueue<R, RT> {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             queue: HashMap::new(),
         }
@@ -32,13 +32,13 @@ impl<R: Clone + Send + Sync + 'static, RT: Clone + Send + Sync + 'static> Render
 }
 
 #[derive(Resource)]
-pub struct RenderRemoveQueue<R: Clone + Send + Sync + 'static> {
-    pub queue: HashSet<Entity>,
+pub(crate) struct RenderRemoveQueue<R: Clone + Send + Sync + 'static> {
+    pub(crate) queue: HashSet<Entity>,
     _phantom: PhantomData<R>,
 }
 
 impl<R: Clone + Send + Sync + 'static> RenderRemoveQueue<R> {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             queue: HashSet::new(),
             _phantom: Default::default(),

@@ -6,18 +6,18 @@ use bevy_ecs::prelude::{Changed, ParamSet, Query};
 use std::marker::PhantomData;
 
 #[derive(Component, Clone)]
-pub struct Differential<
+pub(crate) struct Differential<
     R: Clone + Send + Sync + 'static,
     RT: Clone + Send + Sync + 'static + PartialEq,
 > {
-    pub cache: Option<RT>,
+    pub(crate) cache: Option<RT>,
     _phantom: PhantomData<R>,
 }
 
 impl<R: Clone + Send + Sync + 'static, RT: Clone + Send + Sync + 'static + PartialEq>
-    Differential<R, RT>
+Differential<R, RT>
 {
-    pub fn new(cache: RT) -> Self {
+    pub(crate) fn new(cache: RT) -> Self {
         Self {
             cache: Some(cache),
             _phantom: Default::default(),
@@ -29,20 +29,20 @@ impl<R: Clone + Send + Sync + 'static, RT: Clone + Send + Sync + 'static + Parti
             _phantom: Default::default(),
         }
     }
-    pub fn compare(&mut self, token: RT) -> bool {
+    pub(crate) fn compare(&mut self, token: RT) -> bool {
         todo!()
     }
 }
 
 impl<R: Clone + Send + Sync + 'static, RT: Clone + Send + Sync + 'static + PartialEq> Default
-    for Differential<R, RT>
+for Differential<R, RT>
 {
     fn default() -> Self {
         Self::blank()
     }
 }
 
-pub fn cached_differential<
+pub(crate) fn cached_differential<
     R: Clone + Send + Sync + 'static,
     RT: Clone + Send + Sync + 'static + Component + PartialEq,
 >(

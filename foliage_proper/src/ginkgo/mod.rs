@@ -88,7 +88,7 @@ impl Ginkgo {
         let texture_data = image
             .to_rgba8()
             .enumerate_pixels()
-            .map(|p| -> u8 { p.2 .0[3] })
+            .map(|p| -> u8 { p.2.0[3] })
             .collect::<Vec<u8>>();
         texture_data
     }
@@ -415,19 +415,19 @@ impl Ginkgo {
     }
 }
 
-pub struct GraphicContext {
+pub(crate) struct GraphicContext {
     pub(crate) surface: wgpu::Surface<'static>,
     pub(crate) instance: wgpu::Instance,
     pub(crate) adapter: wgpu::Adapter,
-    pub device: wgpu::Device,
-    pub queue: wgpu::Queue,
-    pub surface_format: TextureFormat,
+    pub(crate) device: wgpu::Device,
+    pub(crate) queue: wgpu::Queue,
+    pub(crate) surface_format: TextureFormat,
 }
 
-pub struct ViewConfiguration {
-    pub msaa: Msaa,
+pub(crate) struct ViewConfiguration {
+    pub(crate) msaa: Msaa,
     pub(crate) depth: Depth,
-    pub scale_factor: ScaleFactor,
+    pub(crate) scale_factor: ScaleFactor,
     pub(crate) config: SurfaceConfiguration,
 }
 #[derive(Copy, Clone, PartialEq, Resource)]
@@ -443,23 +443,23 @@ impl ScaleFactor {
     pub fn value(&self) -> f32 {
         self.0
     }
-    pub fn new(f: f32) -> Self {
+    pub(crate) fn new(f: f32) -> Self {
         Self(f)
     }
 }
 
-pub struct Uniform<Data: Pod + Zeroable> {
-    pub data: Data,
-    pub buffer: wgpu::Buffer,
+pub(crate) struct Uniform<Data: Pod + Zeroable> {
+    pub(crate) data: Data,
+    pub(crate) buffer: wgpu::Buffer,
 }
 
 impl<Data: Pod + Zeroable + PartialEq> Uniform<Data> {
-    pub fn write(&mut self, context: &GraphicContext, data: Data) {
+    pub(crate) fn write(&mut self, context: &GraphicContext, data: Data) {
         context
             .queue
             .write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[data]));
     }
-    pub fn new(context: &GraphicContext, data: Data) -> Self {
+    pub(crate) fn new(context: &GraphicContext, data: Data) -> Self {
         Self {
             data,
             buffer: context
@@ -473,20 +473,20 @@ impl<Data: Pod + Zeroable + PartialEq> Uniform<Data> {
     }
 }
 
-pub struct VectorUniform<Repr: Pod + Zeroable + PartialEq> {
-    pub uniform: Uniform<[Repr; 4]>,
+pub(crate) struct VectorUniform<Repr: Pod + Zeroable + PartialEq> {
+    pub(crate) uniform: Uniform<[Repr; 4]>,
 }
 
 impl<Repr: Pod + Zeroable + PartialEq> VectorUniform<Repr> {
-    pub fn new(context: &GraphicContext, d: [Repr; 4]) -> Self {
+    pub(crate) fn new(context: &GraphicContext, d: [Repr; 4]) -> Self {
         Self {
             uniform: Uniform::new(context, d),
         }
     }
-    pub fn write(&mut self, context: &GraphicContext) {
+    pub(crate) fn write(&mut self, context: &GraphicContext) {
         self.uniform.write(context, self.uniform.data);
     }
-    pub fn set(&mut self, i: usize, r: Repr) {
+    pub(crate) fn set(&mut self, i: usize, r: Repr) {
         self.uniform.data[i] = r;
     }
 }

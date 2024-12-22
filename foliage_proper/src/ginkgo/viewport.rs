@@ -9,7 +9,7 @@ use crate::willow::NearFarDescriptor;
 
 type ViewportRepresentation = [[CoordinateUnit; 4]; 4];
 
-pub struct Viewport {
+pub(crate) struct Viewport {
     translation: Position<NumericalContext>,
     area: Area<NumericalContext>,
     pub(crate) near_far: NearFarDescriptor,
@@ -18,7 +18,7 @@ pub struct Viewport {
 }
 
 impl Viewport {
-    pub fn section(&self) -> Section<DeviceContext> {
+    pub(crate) fn section(&self) -> Section<DeviceContext> {
         Section::new(self.translation.coordinates, self.area.coordinates)
     }
     pub(crate) fn set_position(

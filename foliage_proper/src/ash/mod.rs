@@ -1,4 +1,5 @@
 use crate::ash::clip::prepare_clip_section;
+use crate::ash::node::Node;
 use crate::ginkgo::Ginkgo;
 use crate::{Attachment, Color, Component, DiffMarkers, Foliage, Resource};
 use bevy_ecs::prelude::IntoSystemConfigs;
@@ -7,7 +8,7 @@ use wgpu::{CommandEncoderDescriptor, RenderPassDescriptor, TextureViewDescriptor
 
 pub(crate) mod clip;
 pub(crate) mod differential;
-mod node;
+pub(crate) mod node;
 pub(crate) mod queue;
 
 impl Attachment for Ash {
@@ -17,8 +18,9 @@ impl Attachment for Ash {
             .add_systems(prepare_clip_section.in_set(DiffMarkers::Prepare));
     }
 }
-pub struct Ash {
+pub(crate) struct Ash {
     pub(crate) drawn: bool,
+    pub(crate) nodes: Vec<Node>,
 }
 impl Default for Ash {
     fn default() -> Self {
@@ -26,8 +28,8 @@ impl Default for Ash {
     }
 }
 impl Ash {
-    pub fn new() -> Self {
-        Self { drawn: false }
+    pub(crate) fn new() -> Self {
+        Self { drawn: false, nodes: vec![] }
     }
     pub(crate) fn initialize(&mut self, ginkgo: &Ginkgo) {
         // TODO create renderers
@@ -61,7 +63,7 @@ impl Ash {
     }
 }
 
-pub trait Render {
+pub(crate) trait Render {
     fn extract(frontend: &mut World, backend: &mut World);
     fn prepare();
     fn render();

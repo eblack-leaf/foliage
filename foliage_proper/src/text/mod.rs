@@ -35,7 +35,6 @@ impl Attachment for Text {
         foliage.differential::<Text, BlendedOpacity>();
         foliage.differential::<Text, Section<LogicalContext>>();
         foliage.differential::<Text, Layer>();
-        foliage.differential::<Text, ClipContext>();
         foliage.differential::<Text, ClipSection>();
         foliage.differential::<Text, ResolvedGlyphs>();
         foliage.differential::<Text, ResolvedColors>();
@@ -50,7 +49,6 @@ impl Attachment for Text {
 #[require(Differential<Text, BlendedOpacity>)]
 #[require(Differential<Text, Section<LogicalContext>>)]
 #[require(Differential<Text, Layer>)]
-#[require(Differential<Text, ClipContext>)]
 #[require(Differential<Text, ClipSection>)]
 #[require(Differential<Text, ResolvedGlyphs>)]
 #[require(Differential<Text, ResolvedColors>)]

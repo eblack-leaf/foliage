@@ -7,7 +7,7 @@ use crate::coordinate::area::Area;
 use crate::coordinate::DeviceContext;
 use crate::ginkgo::GraphicContext;
 
-pub struct Msaa {
+pub(crate) struct Msaa {
     pub(crate) max_samples: u32,
     pub(crate) actual: u32,
     pub(crate) view: Option<wgpu::TextureView>,
@@ -21,7 +21,7 @@ impl Msaa {
             wgpu::StoreOp::Discard
         }
     }
-    pub fn samples(&self) -> u32 {
+    pub(crate) fn samples(&self) -> u32 {
         self.actual
     }
     pub(crate) fn new(context: &GraphicContext, requested: u32, area: Area<DeviceContext>) -> Self {

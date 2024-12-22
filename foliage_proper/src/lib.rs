@@ -22,11 +22,10 @@ mod visibility;
 mod web_ext;
 mod willow;
 use self::ash::differential::cached_differential;
-pub use self::ash::queue::RenderQueue;
-pub use self::ash::queue::RenderRemoveQueue;
-pub use self::ash::queue::RenderToken;
-pub use crate::ash::clip::{ClipContext, ClipSection};
-pub use crate::ash::differential::Differential;
+pub(crate) use self::ash::differential::Differential;
+pub(crate) use crate::ash::clip::ClipSection;
+pub use crate::ash::clip::ClipContext;
+use crate::ash::queue::{RenderQueue, RenderRemoveQueue};
 use crate::ash::Ash;
 use crate::asset::{Asset, AssetKey, AssetLoader};
 pub use crate::coordinate::{
@@ -42,7 +41,6 @@ use crate::interaction::Interaction;
 use crate::remove::Remove;
 use crate::time::Time;
 use crate::willow::Willow;
-pub use ash::Render;
 pub use attachment::Attachment;
 pub use bevy_ecs;
 use bevy_ecs::event::{event_update_system, EventRegistry};
@@ -71,13 +69,13 @@ use winit::event_loop::{ControlFlow, EventLoop};
 
 pub struct Foliage {
     pub world: World,
-    pub main: Schedule,
+    pub(crate) main: Schedule,
     pub user: Schedule,
-    pub diff: Schedule,
-    pub(crate) willow: Willow,
-    pub ginkgo: Ginkgo,
-    pub ash: Ash,
+    pub(crate) diff: Schedule,
     pub base_url: String,
+    pub(crate) willow: Willow,
+    pub(crate) ginkgo: Ginkgo,
+    pub(crate) ash: Ash,
     pub(crate) android_connection: AndroidConnection,
     pub(crate) booted: bool,
     pub(crate) queue: Vec<WindowEvent>,
@@ -185,14 +183,14 @@ impl Foliage {
     pub fn disable(&mut self, targets: impl TriggerTargets + Send + Sync + 'static) {
         self.world.disable(targets);
     }
-    pub fn remove_queue<R: Clone + Send + Sync + 'static>(&mut self) {
+    pub(crate) fn remove_queue<R: Clone + Send + Sync + 'static>(&mut self) {
         debug_assert_eq!(
             self.world.get_resource::<RenderRemoveQueue<R>>().is_none(),
             true
         );
         self.world.insert_resource(RenderRemoveQueue::<R>::new());
     }
-    pub fn differential<
+    pub(crate) fn differential<
         R: Clone + Send + Sync + 'static,
         RT: Clone + Send + Sync + 'static + Component + PartialEq,
     >(

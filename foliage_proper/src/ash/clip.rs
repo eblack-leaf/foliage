@@ -20,7 +20,9 @@ impl ClipContext {
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
         let value = world.get::<ClipContext>(this).unwrap();
         match value {
-            ClipContext::Screen => {}
+            ClipContext::Screen => {
+                world.commands().entity(this).insert(ClipSection(None));
+            }
             ClipContext::Entity(e) => {
                 if let Some(mut listeners) = world.get_mut::<ClipListeners>(*e) {
                     listeners.listeners.insert(this);
@@ -36,6 +38,7 @@ impl ClipContext {
                 if let Some(mut listeners) = world.get_mut::<ClipListeners>(*e) {
                     listeners.listeners.remove(&this);
                 }
+                world.commands().entity(this).insert(ClipSection(None));
             }
         }
     }
@@ -54,7 +57,7 @@ pub(crate) fn prepare_clip_section(
                     ClipContext::Screen => {}
                     ClipContext::Entity(_e) => {
                         if let Ok(mut clip_section) = clip_sections.get_mut(*listener) {
-                            clip_section.0 = *section;
+                            clip_section.0.replace(*section);
                         }
                     }
                 }
@@ -63,7 +66,7 @@ pub(crate) fn prepare_clip_section(
     }
 }
 #[derive(Component, Debug, Clone, Copy, Default, PartialEq)]
-pub struct ClipSection(pub(crate) Section<LogicalContext>);
+pub(crate) struct ClipSection(pub(crate) Option<Section<LogicalContext>>);
 #[derive(Component)]
 pub(crate) struct ClipListeners {
     pub(crate) listeners: HashSet<Entity>,
