@@ -59,6 +59,7 @@ impl Ash {
                 to_add.push(node);
             }
         }
+        // process to_replace + to_add
         // sort
         // remake contiguous
     }
