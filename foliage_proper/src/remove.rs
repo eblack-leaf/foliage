@@ -1,4 +1,4 @@
-use crate::ash::queue::RenderRemoveQueue;
+use crate::ash::differential::RenderRemoveQueue;
 use crate::{Attachment, Branch, Foliage, Tree};
 use bevy_ecs::change_detection::ResMut;
 use bevy_ecs::entity::Entity;
