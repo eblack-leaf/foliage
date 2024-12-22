@@ -8,16 +8,16 @@ use std::marker::PhantomData;
 #[derive(Component, Clone)]
 pub(crate) struct Differential<
     R: Clone + Send + Sync + 'static,
-    RT: Clone + Send + Sync + 'static + PartialEq,
+    RP: Clone + Send + Sync + 'static + PartialEq,
 > {
-    pub(crate) cache: Option<RT>,
+    pub(crate) cache: Option<RP>,
     _phantom: PhantomData<R>,
 }
 
-impl<R: Clone + Send + Sync + 'static, RT: Clone + Send + Sync + 'static + PartialEq>
-    Differential<R, RT>
+impl<R: Clone + Send + Sync + 'static, RP: Clone + Send + Sync + 'static + PartialEq>
+Differential<R, RP>
 {
-    pub(crate) fn new(cache: RT) -> Self {
+    pub(crate) fn new(cache: RP) -> Self {
         Self {
             cache: Some(cache),
             _phantom: Default::default(),
@@ -29,13 +29,13 @@ impl<R: Clone + Send + Sync + 'static, RT: Clone + Send + Sync + 'static + Parti
             _phantom: Default::default(),
         }
     }
-    pub(crate) fn compare(&mut self, token: RT) -> bool {
+    pub(crate) fn compare(&mut self, packet: RP) -> bool {
         todo!()
     }
 }
 
-impl<R: Clone + Send + Sync + 'static, RT: Clone + Send + Sync + 'static + PartialEq> Default
-    for Differential<R, RT>
+impl<R: Clone + Send + Sync + 'static, RP: Clone + Send + Sync + 'static + PartialEq> Default
+for Differential<R, RP>
 {
     fn default() -> Self {
         Self::blank()
@@ -44,43 +44,30 @@ impl<R: Clone + Send + Sync + 'static, RT: Clone + Send + Sync + 'static + Parti
 
 pub(crate) fn cached_differential<
     R: Clone + Send + Sync + 'static,
-    RT: Clone + Send + Sync + 'static + Component + PartialEq,
+    RP: Clone + Send + Sync + 'static + Component + PartialEq,
 >(
-    values: Query<&RT, Changed<RT>>,
-    mut caches: Query<&mut Differential<R, RT>>,
+    values: Query<&RP, Changed<RP>>,
+    mut caches: Query<&mut Differential<R, RP>>,
     visibility: ParamSet<(
         Query<&ResolvedVisibility>,
         Query<Entity, Changed<ResolvedVisibility>>,
     )>,
-    mut queue: ResMut<RenderQueue<R, RT>>,
+    mut queue: ResMut<RenderQueue<R, RP>>,
 ) {
     todo!()
 }
 
-#[derive(Clone)]
-pub(crate) struct RenderToken<R: Clone + Send + Sync + 'static, RT: Clone + Send + Sync + 'static> {
-    pub(crate) token: RT,
+#[derive(Resource)]
+pub(crate) struct RenderQueue<R: Clone + Send + Sync + 'static, RP: Clone + Send + Sync + 'static> {
+    pub(crate) queue: HashMap<Entity, RP>,
     _phantom: PhantomData<R>,
 }
 
-impl<R: Clone + Send + Sync + 'static, RT: Clone + Send + Sync + 'static> RenderToken<R, RT> {
-    pub(crate) fn new(token: RT) -> Self {
-        Self {
-            token,
-            _phantom: Default::default(),
-        }
-    }
-}
-
-#[derive(Resource)]
-pub(crate) struct RenderQueue<R: Clone + Send + Sync + 'static, RT: Clone + Send + Sync + 'static> {
-    pub(crate) queue: HashMap<Entity, RenderToken<R, RT>>,
-}
-
-impl<R: Clone + Send + Sync + 'static, RT: Clone + Send + Sync + 'static> RenderQueue<R, RT> {
+impl<R: Clone + Send + Sync + 'static, RP: Clone + Send + Sync + 'static> RenderQueue<R, RP> {
     pub(crate) fn new() -> Self {
         Self {
             queue: HashMap::new(),
+            _phantom: Default::default(),
         }
     }
 }

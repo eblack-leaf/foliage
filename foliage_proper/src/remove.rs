@@ -15,7 +15,7 @@ impl Remove {
     pub fn new() -> Self {
         Self {}
     }
-    pub fn token_push<R: Clone + Send + Sync + 'static>(
+    pub fn push_remove_packet<R: Clone + Send + Sync + 'static>(
         trigger: Trigger<Self>,
         mut queue: ResMut<RenderRemoveQueue<R>>,
     ) {

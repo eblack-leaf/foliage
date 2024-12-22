@@ -2,7 +2,8 @@ mod glyph;
 mod monospaced;
 mod pipeline;
 
-use crate::ash::{Node, Parameters, Render, Renderer};
+use crate::ash::differential::{RenderQueue, RenderRemoveQueue};
+use crate::ash::{GroupId, Node, Parameters, Render, Renderer};
 use crate::color::Color;
 use crate::coordinate::section::Section;
 use crate::coordinate::LogicalContext;
@@ -20,6 +21,7 @@ use bevy_ecs::prelude::{Component, IntoSystemConfigs, Res, Trigger, World};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{ParamSet, Query};
 use bevy_ecs::world::DeferredWorld;
+use std::collections::HashMap;
 use wgpu::RenderPass;
 
 impl Attachment for Text {
@@ -42,9 +44,12 @@ impl Attachment for Text {
         foliage.differential::<Text, ResolvedColors>();
     }
 }
+pub(crate) struct Resources {
+    pub(crate) entity_to_group: HashMap<Entity, GroupId>,
+}
 impl Render for Text {
     type Group = ();
-    type Resources = ();
+    type Resources = Resources;
 
     fn renderer(ginkgo: &Ginkgo) -> Renderer<Self> {
         todo!()
@@ -52,6 +57,16 @@ impl Render for Text {
 
     fn prepare(renderer: &mut Renderer<Self>, world: &mut World, ginkgo: &Ginkgo) -> Vec<Node> {
         // read-attrs
+        for entity in world.get_resource_mut::<RenderRemoveQueue<Self>>().unwrap().queue.drain() {
+            // queue remove
+        }
+        for (entity, packet) in world.get_resource_mut::<RenderQueue<Self, Layer>>().unwrap().queue.drain() {
+            // queue add/update
+        }
+        // TODO other attributes
+        for (id, group) in renderer.groups.iter_mut() {
+            group.coordinator.order();
+        }
         // queue-writes @ instance-id (instance-coordinator generated w/ reuse pool)
         // sort instance-coordinator
         // submit-nodes to ash (only changed (order, layer, clip-section) / added)
@@ -89,7 +104,7 @@ impl Text {
         world
             .commands()
             .entity(this)
-            .observe(Remove::token_push::<Text>);
+            .observe(Remove::push_remove_packet::<Text>);
         world
             .commands()
             .entity(this)
