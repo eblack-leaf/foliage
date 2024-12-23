@@ -43,9 +43,14 @@ impl Ash {
     }
     pub(crate) fn prepare(&mut self, world: &mut World, ginkgo: &Ginkgo) {
         let mut nodes = vec![];
-        nodes.extend(Render::prepare(self.text.as_mut().unwrap(), world, ginkgo));
+        let mut to_remove = vec![];
+        let text_nodes = Render::prepare(self.text.as_mut().unwrap(), world, ginkgo);
+        nodes.extend(text_nodes.updated);
+        to_remove.extend(text_nodes.removed);
         // TODO extend other renderers
-        if nodes.is_empty() { return; }
+        if nodes.is_empty() && to_remove.is_empty() {
+            return;
+        }
         let mut to_replace = vec![];
         let mut to_add = vec![];
         for node in nodes {
@@ -85,7 +90,12 @@ impl Ash {
         for span in self.contiguous.iter() {
             match span.pipeline {
                 PipelineId::Text => {
-                    Render::render(self.text.as_mut().unwrap(), &mut rpass, ginkgo, span.parameters());
+                    Render::render(
+                        self.text.as_mut().unwrap(),
+                        &mut rpass,
+                        ginkgo,
+                        span.parameters(),
+                    );
                 }
                 PipelineId::Icon => {}
                 PipelineId::Shape => {}
@@ -108,8 +118,13 @@ where
     type Group;
     type Resources;
     fn renderer(ginkgo: &Ginkgo) -> Renderer<Self>;
-    fn prepare(renderer: &mut Renderer<Self>, world: &mut World, ginkgo: &Ginkgo) -> Vec<Node>;
-    fn render(renderer: &mut Renderer<Self>, render_pass: &mut RenderPass, ginkgo: &Ginkgo, parameters: Parameters);
+    fn prepare(renderer: &mut Renderer<Self>, world: &mut World, ginkgo: &Ginkgo) -> Nodes;
+    fn render(
+        renderer: &mut Renderer<Self>,
+        render_pass: &mut RenderPass,
+        ginkgo: &Ginkgo,
+        parameters: Parameters,
+    );
 }
 pub(crate) type Order = i32;
 pub(crate) type InstanceId = i32;
@@ -153,6 +168,58 @@ pub(crate) struct Node {
     pub(crate) clip_section: ClipSection,
     pub(crate) instance_id: InstanceId,
 }
+impl Node {
+    pub(crate) fn new(
+        layer: Layer,
+        pipeline_id: PipelineId,
+        group_id: GroupId,
+        order: Order,
+        clip_section: ClipSection,
+        instance_id: InstanceId,
+    ) -> Self {
+        Self {
+            layer,
+            pipeline: pipeline_id,
+            group: group_id,
+            order,
+            clip_section,
+            instance_id,
+        }
+    }
+}
+#[derive(Copy, Clone)]
+pub(crate) struct RemoveNode {
+    pub(crate) pipeline_id: PipelineId,
+    pub(crate) group_id: GroupId,
+    pub(crate) instance_id: InstanceId,
+}
+impl RemoveNode {
+    pub fn new(pipeline_id: PipelineId, group_id: GroupId, instance_id: InstanceId) -> Self {
+        Self {
+            pipeline_id,
+            group_id,
+            instance_id,
+        }
+    }
+}
+pub(crate) struct Nodes {
+    pub(crate) updated: Vec<Node>,
+    pub(crate) removed: Vec<RemoveNode>,
+}
+impl Nodes {
+    pub(crate) fn new() -> Self {
+        Self {
+            updated: vec![],
+            removed: vec![],
+        }
+    }
+    pub(crate) fn update(&mut self, node: Node) {
+        todo!()
+    }
+    pub(crate) fn remove(&mut self, remove_node: RemoveNode) {
+        todo!()
+    }
+}
 #[derive(Copy, Clone)]
 pub(crate) struct Instance {
     pub(crate) layer: Layer,
@@ -172,6 +239,11 @@ pub(crate) struct InstanceCoordinator {
     pub(crate) id_gen: InstanceId,
     pub(crate) gen_pool: HashSet<InstanceId>,
 }
+impl InstanceCoordinator {
+    pub(crate) fn new(capacity: u32) -> Self {
+        todo!()
+    }
+}
 pub(crate) struct InstanceBuffer<I: bytemuck::Pod + bytemuck::Zeroable> {
     pub(crate) cpu: Vec<I>,
     pub(crate) buffer: wgpu::Buffer,
@@ -186,9 +258,18 @@ pub(crate) struct RenderGroup<R: Render> {
     pub(crate) coordinator: InstanceCoordinator,
     pub(crate) group: R::Group,
 }
+impl<R: Render> RenderGroup<R> {
+    pub(crate) fn new(group: R::Group) -> Self {
+        Self {
+            coordinator: InstanceCoordinator::new(1),
+            group,
+        }
+    }
+}
 pub(crate) struct Renderer<R: Render> {
     pub(crate) pipeline: wgpu::RenderPipeline,
     pub(crate) vertex_buffer: wgpu::Buffer,
+    pub(crate) bind_group: wgpu::BindGroup,
     pub(crate) groups: HashMap<GroupId, RenderGroup<R>>,
     pub(crate) resources: R::Resources,
 }

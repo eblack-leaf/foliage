@@ -11,6 +11,23 @@ impl Default for Color {
         }
     }
 }
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct CReprColor {
+    pub value: [f32; 4],
+}
+impl From<Color> for CReprColor {
+    fn from(color: Color) -> Self {
+        Self {
+            value: [color.r(), color.g(), color.b(), color.a()],
+        }
+    }
+}
+impl Default for CReprColor {
+    fn default() -> Self {
+        Color::default().into()
+    }
+}
 impl From<Color> for wgpu::Color {
     fn from(color: Color) -> Self {
         wgpu::Color {
