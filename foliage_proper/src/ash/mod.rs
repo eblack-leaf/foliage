@@ -243,6 +243,20 @@ impl InstanceCoordinator {
     pub(crate) fn new(capacity: u32) -> Self {
         todo!()
     }
+    pub(crate) fn has_instance(&self, id: InstanceId) -> bool {
+        todo!()
+    }
+    pub(crate) fn generate_id(&mut self) -> InstanceId {
+        if self.gen_pool.is_empty() {
+            let val = self.id_gen;
+            self.id_gen += 1;
+            val
+        } else {
+            let val = self.gen_pool.iter().last().copied().unwrap();
+            self.gen_pool.remove(&val);
+            val
+        }
+    }
 }
 pub(crate) struct InstanceBuffer<I: bytemuck::Pod + bytemuck::Zeroable> {
     pub(crate) cpu: Vec<I>,
@@ -250,7 +264,7 @@ pub(crate) struct InstanceBuffer<I: bytemuck::Pod + bytemuck::Zeroable> {
     pub(crate) writes: HashMap<InstanceId, I>,
 }
 impl<I: bytemuck::Pod + bytemuck::Zeroable> InstanceBuffer<I> {
-    pub(crate) fn new(initial_capacity: u32) -> Self {
+    pub(crate) fn new(ginkgo: &Ginkgo, initial_capacity: u32) -> Self {
         todo!()
     }
 }
