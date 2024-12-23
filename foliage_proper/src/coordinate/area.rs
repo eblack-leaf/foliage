@@ -96,7 +96,7 @@ impl Area<DeviceContext> {
     pub fn to_logical(self, factor: f32) -> Area<LogicalContext> {
         Area::logical((self.width() / factor, self.height() / factor))
     }
-    pub fn to_gpu(self) -> CReprArea {
+    pub fn c_repr(self) -> CReprArea {
         CReprArea(self.coordinates)
     }
 }

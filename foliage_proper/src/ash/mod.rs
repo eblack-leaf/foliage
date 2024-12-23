@@ -1,4 +1,5 @@
 use crate::ash::clip::{prepare_clip_section, ClipSection};
+use crate::ash::differential::Elm;
 use crate::ginkgo::Ginkgo;
 use crate::{Attachment, Color, Component, DiffMarkers, Foliage, Layer, Resource, Text};
 use bevy_ecs::prelude::IntoSystemConfigs;
@@ -42,9 +43,10 @@ impl Ash {
         // TODO other renderers
     }
     pub(crate) fn prepare(&mut self, world: &mut World, ginkgo: &Ginkgo) {
+        let mut elm = Elm::new(world);
         let mut nodes = vec![];
         let mut to_remove = vec![];
-        let text_nodes = Render::prepare(self.text.as_mut().unwrap(), world, ginkgo);
+        let text_nodes = Render::prepare(self.text.as_mut().unwrap(), &mut elm, ginkgo);
         nodes.extend(text_nodes.updated);
         to_remove.extend(text_nodes.removed);
         // TODO extend other renderers
@@ -143,7 +145,7 @@ where
     type Group;
     type Resources;
     fn renderer(ginkgo: &Ginkgo) -> Renderer<Self>;
-    fn prepare(renderer: &mut Renderer<Self>, world: &mut World, ginkgo: &Ginkgo) -> Nodes;
+    fn prepare(renderer: &mut Renderer<Self>, elm: &mut Elm, ginkgo: &Ginkgo) -> Nodes;
     fn render(
         renderer: &mut Renderer<Self>,
         render_pass: &mut RenderPass,
@@ -251,6 +253,15 @@ pub(crate) struct Instance {
     pub(crate) clip_section: ClipSection,
     pub(crate) id: InstanceId,
 }
+impl Instance {
+    pub fn new(layer: Layer, clip_section: ClipSection, id: InstanceId) -> Self {
+        Self {
+            layer,
+            clip_section,
+            id,
+        }
+    }
+}
 #[derive(Copy, Clone)]
 pub(crate) struct Swap {
     pub(crate) old: Order,
@@ -268,6 +279,7 @@ impl InstanceCoordinator {
     pub(crate) fn new(capacity: u32) -> Self {
         todo!()
     }
+    pub(crate) fn add(&mut self, instance: Instance) {}
     pub(crate) fn has_instance(&self, id: InstanceId) -> bool {
         todo!()
     }
@@ -282,14 +294,41 @@ impl InstanceCoordinator {
             val
         }
     }
+    pub(crate) fn grown(&mut self) -> Option<u32> {
+        // extend instance buffers to new num-instances + extra 2 for allocation minimization
+        todo!()
+    }
+    pub(crate) fn order(&self, id: InstanceId) -> Order {
+        todo!()
+    }
+    pub(crate) fn remove(&mut self, id: InstanceId) {
+        todo!()
+    }
 }
 pub(crate) struct InstanceBuffer<I: bytemuck::Pod + bytemuck::Zeroable> {
     pub(crate) cpu: Vec<I>,
     pub(crate) buffer: wgpu::Buffer,
-    pub(crate) writes: HashMap<InstanceId, I>,
+    pub(crate) queue: HashMap<InstanceId, I>,
 }
 impl<I: bytemuck::Pod + bytemuck::Zeroable> InstanceBuffer<I> {
     pub(crate) fn new(ginkgo: &Ginkgo, initial_capacity: u32) -> Self {
+        todo!()
+    }
+    pub(crate) fn queue(&mut self, id: InstanceId, i: I) {
+        self.queue.insert(id, i);
+    }
+    pub(crate) fn queued(&mut self) -> Vec<(InstanceId, I)> {
+        self.queue.drain().collect::<Vec<_>>()
+    }
+    pub(crate) fn grow(&mut self, ginkgo: &Ginkgo, capacity: u32) {
+        todo!()
+    }
+    pub(crate) fn write_cpu(&mut self, order: Order, data: I) {
+        // cpu.get_mut(order) = data + write-range extend
+        todo!()
+    }
+    pub(crate) fn write_gpu(&mut self) {
+        // checks write-range && writes
         todo!()
     }
 }

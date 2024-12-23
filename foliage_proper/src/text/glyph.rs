@@ -53,13 +53,13 @@ impl Default for Glyphs {
 }
 #[derive(Component, Clone, PartialEq)]
 pub(crate) struct ResolvedGlyphs {
-    pub(crate) added: Vec<Glyph>,
+    pub(crate) updated: Vec<Glyph>,
     pub(crate) removed: Vec<Glyph>,
 }
 impl ResolvedGlyphs {
     pub(crate) fn new() -> Self {
         Self {
-            added: vec![],
+            updated: vec![],
             removed: vec![],
         }
     }
@@ -79,7 +79,10 @@ impl GlyphColors {
     }
 }
 #[derive(Component, Default, PartialEq, Clone)]
-pub(crate) struct GlyphColor(pub(crate) Color);
+pub(crate) struct GlyphColor {
+    pub(crate) color: Color,
+    pub(crate) offset: GlyphOffset,
+}
 #[derive(Component, Default, PartialEq, Clone)]
 pub struct ResolvedColors {
     pub colors: Vec<GlyphColor>,

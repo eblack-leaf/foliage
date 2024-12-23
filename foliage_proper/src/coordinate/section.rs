@@ -59,8 +59,8 @@ impl Section<NumericalContext> {
     }
 }
 impl Section<DeviceContext> {
-    pub fn to_gpu(self) -> CReprSection {
-        CReprSection::new(self.position.to_gpu(), self.area.to_gpu())
+    pub fn c_repr(self) -> CReprSection {
+        CReprSection::new(self.position.c_repr(), self.area.c_repr())
     }
     pub fn to_logical(self, scale_factor: f32) -> Section<LogicalContext> {
         Section::new(

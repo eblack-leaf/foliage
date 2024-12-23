@@ -170,7 +170,7 @@ impl Text {
             for (i, g) in glyphs.last.drain(..).collect::<Vec<_>>().iter().enumerate() {
                 if let Some(n) = new.get(i) {
                     if g.key != n.key {
-                        resolved.added.push(n.clone());
+                        resolved.updated.push(n.clone());
                     }
                 } else {
                     resolved.removed.push(g.clone());
@@ -179,7 +179,7 @@ impl Text {
             let len_new = new.len();
             if len_new > len_last {
                 for i in len_last..len_new {
-                    resolved.added.push(new[i].clone());
+                    resolved.updated.push(new[i].clone());
                 }
             }
             glyphs.last = glyphs.glyphs.clone();

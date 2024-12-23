@@ -2,6 +2,7 @@ use crate::{Component, ResolvedVisibility, Resource};
 use bevy_ecs::change_detection::ResMut;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Changed, ParamSet, Query};
+use bevy_ecs::world::World;
 use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 
@@ -84,5 +85,32 @@ impl<R: Clone + Send + Sync + 'static> RenderRemoveQueue<R> {
             queue: HashSet::new(),
             _phantom: Default::default(),
         }
+    }
+}
+pub(crate) struct Elm<'a> {
+    pub(crate) world: &'a mut World,
+}
+impl<'a> Elm<'a> {
+    pub(crate) fn new(world: &'a mut World) -> Self {
+        Self { world }
+    }
+    pub(crate) fn removes<R: Clone + Send + Sync + 'static>(&mut self) -> Vec<Entity> {
+        self.world
+            .get_resource_mut::<RenderRemoveQueue<R>>()
+            .unwrap()
+            .queue
+            .drain()
+            .collect()
+    }
+
+    pub(crate) fn attribute<R: Clone + Send + Sync + 'static, RP: Clone + Send + Sync + 'static>(
+        &mut self,
+    ) -> Vec<(Entity, RP)> {
+        self.world
+            .get_resource_mut::<RenderQueue<R, RP>>()
+            .unwrap()
+            .queue
+            .drain()
+            .collect()
     }
 }

@@ -1,16 +1,17 @@
 use crate::ash::clip::ClipSection;
-use crate::ash::differential::{RenderQueue, RenderRemoveQueue};
+use crate::ash::differential::Elm;
 use crate::ash::{
-    GroupId, InstanceBuffer, InstanceId, Node, Nodes, Parameters, PipelineId, RemoveNode, Render,
-    RenderGroup, Renderer,
+    GroupId, Instance, InstanceBuffer, InstanceId, Node, Nodes, Parameters, PipelineId, RemoveNode,
+    Render, RenderGroup, Renderer,
 };
 use crate::ginkgo::{Ginkgo, VectorUniform};
-use crate::text::glyph::{GlyphKey, GlyphOffset};
+use crate::opacity::BlendedOpacity;
+use crate::text::glyph::{GlyphKey, GlyphOffset, ResolvedColors, ResolvedGlyphs};
 use crate::text::monospaced::MonospacedFont;
+use crate::text::UniqueCharacters;
 use crate::texture::{TextureAtlas, TextureCoordinates, Vertex, VERTICES};
-use crate::{CReprColor, CReprSection, Layer, Text};
+use crate::{CReprColor, CReprSection, FontSize, Layer, LogicalContext, Section, Text};
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::World;
 use std::collections::HashMap;
 use wgpu::{
     include_wgsl, BindGroupDescriptor, BindGroupLayoutDescriptor, PipelineLayoutDescriptor,
@@ -33,7 +34,9 @@ pub(crate) struct Group {
     pub(crate) uniform: VectorUniform<f32>,
     pub(crate) sections: InstanceBuffer<CReprSection>,
     pub(crate) colors: InstanceBuffer<CReprColor>,
-    pub(crate) coordinates: InstanceBuffer<TextureCoordinates>,
+    pub(crate) tex_coords: InstanceBuffer<TextureCoordinates>,
+    pub(crate) write_uniform: bool,
+    pub(crate) unique_characters: UniqueCharacters,
 }
 
 impl Group {
@@ -63,7 +66,9 @@ impl Group {
             uniform,
             sections: InstanceBuffer::new(ginkgo, initial_capacity),
             colors: InstanceBuffer::new(ginkgo, initial_capacity),
-            coordinates: InstanceBuffer::new(ginkgo, initial_capacity),
+            tex_coords: InstanceBuffer::new(ginkgo, initial_capacity),
+            write_uniform: false,
+            unique_characters: Default::default(),
         }
     }
 }
@@ -71,7 +76,6 @@ const ONE_NODE_PER_GROUP_OPTIMIZATION: InstanceId = 0;
 impl Render for Text {
     type Group = Group;
     type Resources = Resources;
-
     fn renderer(ginkgo: &Ginkgo) -> Renderer<Self> {
         let shader = ginkgo.create_shader(include_wgsl!("text.wgsl"));
         let vertex_buffer = ginkgo.create_vertex_buffer(VERTICES);
@@ -163,16 +167,10 @@ impl Render for Text {
             },
         }
     }
-
-    fn prepare(renderer: &mut Renderer<Self>, world: &mut World, ginkgo: &Ginkgo) -> Nodes {
+    fn prepare(renderer: &mut Renderer<Self>, elm: &mut Elm, ginkgo: &Ginkgo) -> Nodes {
         let mut nodes = Nodes::new();
         // read-attrs
-        for entity in world
-            .get_resource_mut::<RenderRemoveQueue<Self>>()
-            .unwrap()
-            .queue
-            .drain()
-        {
+        for entity in elm.removes::<Text>() {
             // remove group
             if let Some(id) = renderer.resources.entity_to_group.get(&entity) {
                 renderer.groups.remove(id);
@@ -183,12 +181,7 @@ impl Render for Text {
                 ONE_NODE_PER_GROUP_OPTIMIZATION,
             ));
         }
-        for (entity, packet) in world
-            .get_resource_mut::<RenderQueue<Self, Layer>>()
-            .unwrap()
-            .queue
-            .drain()
-        {
+        for (entity, packet) in elm.attribute::<Text, Layer>() {
             // queue add/update
             if renderer.resources.entity_to_group.contains_key(&entity) {
                 let group = &mut renderer
@@ -198,6 +191,7 @@ impl Render for Text {
                     .group;
                 group.layer = packet;
                 group.uniform.set(2, packet.value());
+                group.write_uniform = true;
                 group.update_node = true;
             } else {
                 // adding new group
@@ -207,10 +201,100 @@ impl Render for Text {
                     .insert(entity.index() as GroupId, RenderGroup::new(group));
             }
         }
-        // TODO other attributes
-        // queue-writes @ instance-id (instance-coordinator generated w/ reuse pool)
-        // sort instance-coordinator
+        for (entity, packet) in elm.attribute::<Text, ClipSection>() {
+            let id = renderer.resources.entity_to_group.get(&entity).unwrap();
+            let group = &mut renderer.groups.get_mut(id).unwrap().group;
+            group.clip_section = packet;
+            group.update_node = true;
+        }
+        for (entity, packet) in elm.attribute::<Text, Section<LogicalContext>>() {
+            let id = renderer.resources.entity_to_group.get(&entity).unwrap();
+            let group = &mut renderer.groups.get_mut(id).unwrap().group;
+            group.uniform.set(0, packet.left());
+            group.uniform.set(1, packet.top());
+            group.write_uniform = true;
+        }
+        for (entity, packet) in elm.attribute::<Text, BlendedOpacity>() {
+            let id = renderer.resources.entity_to_group.get(&entity).unwrap();
+            let group = &mut renderer.groups.get_mut(id).unwrap().group;
+            group.uniform.set(3, packet.value);
+            group.write_uniform = true;
+        }
+        for (entity, packet) in elm.attribute::<Text, UniqueCharacters>() {
+            let id = renderer.resources.entity_to_group.get(&entity).unwrap();
+            let group = &mut renderer.groups.get_mut(id).unwrap().group;
+            group.unique_characters = packet;
+        }
+        for (entity, packet) in elm.attribute::<Text, FontSize>() {
+            let id = renderer.resources.entity_to_group.get(&entity).unwrap();
+            let group = &mut renderer.groups.get_mut(id).unwrap().group;
+            // TODO block has changed so must remake atlas w/ stored unique-characters as capacity
+        }
+        for (entity, glyphs) in elm.attribute::<Text, ResolvedGlyphs>() {
+            let id = renderer.resources.entity_to_group.get(&entity).unwrap();
+            let group = renderer.groups.get_mut(id).unwrap();
+            for glyph in glyphs.removed {
+                group.coordinator.remove(glyph.offset as InstanceId);
+                // TODO remove from instance-buffers?
+                // TODO remove reference from atlas
+            }
+            for glyph in glyphs.updated {
+                if !group.coordinator.has_instance(glyph.offset as InstanceId) {
+                    group.coordinator.add(Instance::new(
+                        Layer::new(0.0),
+                        group.group.clip_section,
+                        glyph.offset as InstanceId,
+                    ));
+                }
+                // TODO add-entry / reference [depending on existence] to atlas (rasterization)
+                // TODO then queue tex-coords from atlas (deferred because need grow atlas after all)
+                group
+                    .group
+                    .sections
+                    .queue(glyph.offset as InstanceId, glyph.section.c_repr());
+            }
+        }
+        // TODO grow texture-atlas if needed (writes in process)
+        // TODO handle queued tex-coords read (atlas) + queue (instance-buffer)
+        for (entity, packet) in elm.attribute::<Self, ResolvedColors>() {
+            let id = renderer.resources.entity_to_group.get(&entity).unwrap();
+            let group = renderer.groups.get_mut(id).unwrap();
+            for glyph_color in packet.colors {
+                group
+                    .group
+                    .colors
+                    .queue(glyph_color.offset as InstanceId, glyph_color.color.into());
+            }
+        }
         for (id, render_group) in renderer.groups.iter_mut() {
+            if render_group.group.write_uniform {
+                render_group.group.uniform.write(ginkgo.context());
+                render_group.group.write_uniform = false;
+            }
+            if let Some(capacity) = render_group.coordinator.grown() {
+                render_group.group.sections.grow(ginkgo, capacity);
+                render_group.group.colors.grow(ginkgo, capacity);
+                render_group.group.tex_coords.grow(ginkgo, capacity);
+            }
+            // MISSING sort instances to get order [not needed for text]
+            // MISSING handle swaps because of sorting [need to queue-write of attrs of swapped]
+            for (id, data) in render_group.group.sections.queued() {
+                let order = render_group.coordinator.order(id);
+                render_group.group.sections.write_cpu(order, data);
+            }
+            for (id, data) in render_group.group.colors.queued() {
+                let order = render_group.coordinator.order(id);
+                render_group.group.colors.write_cpu(order, data);
+            }
+            for (id, data) in render_group.group.tex_coords.queued() {
+                let order = render_group.coordinator.order(id);
+                render_group.group.tex_coords.write_cpu(order, data);
+            }
+            // flush each instance buffer to gpu
+            render_group.group.sections.write_gpu();
+            render_group.group.colors.write_gpu();
+            render_group.group.tex_coords.write_gpu();
+            // submit node
             if render_group.group.update_node {
                 let node = Node::new(
                     render_group.group.layer,

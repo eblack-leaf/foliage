@@ -105,7 +105,7 @@ impl Position<DeviceContext> {
     pub fn to_logical(self, factor: f32) -> Position<LogicalContext> {
         Position::logical((self.x() / factor, self.y() / factor))
     }
-    pub fn to_gpu(self) -> CReprPosition {
+    pub fn c_repr(self) -> CReprPosition {
         CReprPosition(self.coordinates)
     }
 }
