@@ -51,6 +51,25 @@ impl Ash {
         if nodes.is_empty() && to_remove.is_empty() {
             return;
         }
+        let mut idxs = to_remove
+            .iter()
+            .filter_map(|rn| {
+                if let Some(idx) = self.nodes.iter().position(|n| {
+                    n.pipeline == rn.pipeline_id
+                        && n.group == rn.group_id
+                        && n.instance_id == rn.instance_id
+                }) {
+                    Some(idx)
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        idxs.sort();
+        idxs.reverse();
+        for idx in idxs {
+            self.nodes.remove(idx);
+        }
         let mut to_replace = vec![];
         let mut to_add = vec![];
         for node in nodes {
@@ -65,6 +84,12 @@ impl Ash {
             }
         }
         // process to_replace + to_add
+        for (node, idx) in to_replace {
+            *self.nodes.get_mut(idx).unwrap() = node;
+        }
+        for node in to_add {
+            self.nodes.push(node);
+        }
         // sort
         // remake contiguous
     }

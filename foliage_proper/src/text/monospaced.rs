@@ -12,7 +12,7 @@ impl MonospacedFont {
                     ..fontdue::FontSettings::default()
                 },
             )
-                .expect("font"),
+            .expect("font"),
         )
     }
 }
