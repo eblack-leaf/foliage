@@ -33,7 +33,6 @@ impl Attachment for Text {
         );
         foliage.remove_queue::<Text>();
         foliage.differential::<Text, FontSize>();
-        foliage.differential::<Text, Color>();
         foliage.differential::<Text, BlendedOpacity>();
         foliage.differential::<Text, Section<LogicalContext>>();
         foliage.differential::<Text, Layer>();
@@ -49,7 +48,6 @@ impl Attachment for Text {
 #[require(ResolvedGlyphs, ResolvedColors, GlyphColors)]
 #[require(UniqueCharacters, Differential<Text, UniqueCharacters>)]
 #[require(Differential<Text, FontSize>)]
-#[require(Differential<Text, Color>)]
 #[require(Differential<Text, BlendedOpacity>)]
 #[require(Differential<Text, Section<LogicalContext>>)]
 #[require(Differential<Text, Layer>)]
