@@ -210,8 +210,11 @@ impl Render for Text {
         for (entity, packet) in elm.attribute::<Text, Section<LogicalContext>>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
             let group = &mut renderer.groups.get_mut(id).unwrap().group;
-            group.uniform.set(0, packet.left());
-            group.uniform.set(1, packet.top());
+            let position = packet
+                .position
+                .to_device(ginkgo.configuration().scale_factor.value());
+            group.uniform.set(0, position.left());
+            group.uniform.set(1, position.top());
             group.write_uniform = true;
         }
         for (entity, packet) in elm.attribute::<Text, BlendedOpacity>() {
@@ -223,7 +226,7 @@ impl Render for Text {
         for (entity, packet) in elm.attribute::<Text, UniqueCharacters>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
             let group = &mut renderer.groups.get_mut(id).unwrap().group;
-            group.unique_characters = packet;
+            group.unique_characters = packet; // prevents under-grow
         }
         for (entity, packet) in elm.attribute::<Text, FontSize>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();

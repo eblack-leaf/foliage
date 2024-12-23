@@ -82,13 +82,13 @@ impl<Context: CoordinateContext> Section<Context> {
         }
     }
     pub fn left(&self) -> CoordinateUnit {
-        self.position.x()
+        self.position.left()
     }
     pub fn set_x(&mut self, x: CoordinateUnit) {
         self.position.set_x(x);
     }
     pub fn top(&self) -> CoordinateUnit {
-        self.position.y()
+        self.position.top()
     }
     pub fn set_y(&mut self, y: CoordinateUnit) {
         self.position.set_y(y);
@@ -142,10 +142,10 @@ impl<Context: CoordinateContext> Section<Context> {
         self.intersection(o).is_some()
     }
     pub fn contains(&self, p: Position<Context>) -> bool {
-        p.x() <= self.right()
-            && p.x() >= self.left()
-            && p.y() <= self.bottom()
-            && p.y() >= self.top()
+        p.left() <= self.right()
+            && p.left() >= self.left()
+            && p.top() <= self.bottom()
+            && p.top() >= self.top()
     }
     pub fn normalized<C: Into<Coordinates>>(&self, c: C) -> Self {
         let c = c.into();
