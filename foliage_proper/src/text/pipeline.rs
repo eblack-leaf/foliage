@@ -26,8 +26,8 @@ pub(crate) struct Resources {
 }
 
 pub(crate) struct Group {
-    pub(crate) texture_atlas: TextureAtlas<GlyphKey, GlyphOffset, u8>,
-    pub(crate) bind_group: wgpu::BindGroup,
+    pub(crate) texture_atlas: Option<TextureAtlas<GlyphKey, GlyphOffset, u8>>,
+    pub(crate) bind_group: Option<wgpu::BindGroup>,
     pub(crate) update_node: bool,
     pub(crate) layer: Layer,
     pub(crate) clip_section: ClipSection,
@@ -38,34 +38,16 @@ pub(crate) struct Group {
     pub(crate) write_uniform: bool,
     pub(crate) unique_characters: UniqueCharacters,
     pub(crate) font_size: FontSize,
+    pub(crate) queued_tex_reads: Vec<(GlyphKey, InstanceId)>,
 }
 
 impl Group {
-    pub(crate) fn new(
-        ginkgo: &Ginkgo,
-        layer: Layer,
-        layout: &wgpu::BindGroupLayout,
-        font: &MonospacedFont,
-    ) -> Self {
+    pub(crate) fn new(ginkgo: &Ginkgo, layer: Layer) -> Self {
         let initial_capacity = 15;
-        let texture_atlas = TextureAtlas::new(
-            ginkgo,
-            font.character_block(FontSize::default()),
-            initial_capacity,
-            wgpu::TextureFormat::R8Unorm,
-        );
         let uniform = VectorUniform::new(ginkgo.context(), [0.0, 0.0, layer.value(), 1.0]);
-        let bind_group = ginkgo.create_bind_group(&BindGroupDescriptor {
-            label: Some("text-group"),
-            layout,
-            entries: &[
-                Ginkgo::texture_bind_group_entry(texture_atlas.view(), 0),
-                Ginkgo::uniform_bind_group_entry(&uniform.uniform, 1),
-            ],
-        });
         Self {
-            texture_atlas,
-            bind_group,
+            texture_atlas: None,
+            bind_group: None,
             update_node: false,
             layer,
             clip_section: Default::default(),
@@ -76,6 +58,7 @@ impl Group {
             write_uniform: false,
             unique_characters: Default::default(),
             font_size: Default::default(),
+            queued_tex_reads: vec![],
         }
     }
 }
@@ -202,12 +185,7 @@ impl Render for Text {
                 group.update_node = true;
             } else {
                 // adding new group
-                let group = Group::new(
-                    ginkgo,
-                    packet,
-                    &renderer.resources.group_layout,
-                    &renderer.resources.font,
-                );
+                let group = Group::new(ginkgo, packet);
                 renderer
                     .groups
                     .insert(entity.index() as GroupId, RenderGroup::new(group));
@@ -244,21 +222,40 @@ impl Render for Text {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
             let group = &mut renderer.groups.get_mut(id).unwrap().group;
             group.font_size = packet;
-            // TODO block has changed so must remake atlas w/ stored unique-characters as capacity
-            group.texture_atlas = TextureAtlas::new(
+            group.texture_atlas.replace(TextureAtlas::new(
                 ginkgo,
                 renderer.resources.font.character_block(packet),
                 group.unique_characters.0,
                 wgpu::TextureFormat::R8Unorm,
-            );
+            ));
+            let bind_group = ginkgo.create_bind_group(&BindGroupDescriptor {
+                label: Some("text-group"),
+                layout: &renderer.resources.group_layout,
+                entries: &[
+                    Ginkgo::texture_bind_group_entry(
+                        group.texture_atlas.as_ref().unwrap().view(),
+                        0,
+                    ),
+                    Ginkgo::uniform_bind_group_entry(&group.uniform.uniform, 1),
+                ],
+            });
+            group.bind_group.replace(bind_group);
         }
         for (entity, glyphs) in elm.attribute::<Text, ResolvedGlyphs>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
             let group = renderer.groups.get_mut(id).unwrap();
             for glyph in glyphs.removed {
                 group.coordinator.remove(glyph.offset as InstanceId);
-                // TODO remove from instance-buffers?
-                // TODO remove reference from atlas
+                group.group.sections.remove(glyph.offset as InstanceId);
+                group.group.colors.remove(glyph.offset as InstanceId);
+                group.group.tex_coords.remove(glyph.offset as InstanceId);
+                group
+                    .group
+                    .texture_atlas
+                    .as_mut()
+                    .unwrap()
+                    .remove_reference(glyph.key, glyph.offset);
+                // MISSING skipping 0 reference entry removal for optimization
             }
             for glyph in glyphs.updated {
                 if !group.coordinator.has_instance(glyph.offset as InstanceId) {
@@ -268,29 +265,100 @@ impl Render for Text {
                         glyph.offset as InstanceId,
                     ));
                 }
-                // TODO add-entry / reference [depending on existence] to atlas (rasterization)
-                // TODO then queue tex-coords from atlas (deferred because need grow atlas after all)
+                if !group
+                    .group
+                    .texture_atlas
+                    .as_ref()
+                    .unwrap()
+                    .has_key(glyph.key)
+                {
+                    let (metrics, rasterization) = renderer.resources.font.0.rasterize_indexed(
+                        glyph.key.glyph_index,
+                        group.group.font_size.value as f32,
+                    );
+                    let entry = AtlasEntry::new(rasterization, (metrics.width, metrics.height));
+                    group
+                        .group
+                        .texture_atlas
+                        .as_mut()
+                        .unwrap()
+                        .add_entry(glyph.key, entry);
+                    group
+                        .group
+                        .queued_tex_reads
+                        .push((glyph.key, glyph.offset as InstanceId));
+                } else {
+                    let tex_coords = group
+                        .group
+                        .texture_atlas
+                        .as_ref()
+                        .unwrap()
+                        .tex_coordinates(glyph.key);
+                    group
+                        .group
+                        .tex_coords
+                        .queue(glyph.offset as InstanceId, tex_coords);
+                }
+                group
+                    .group
+                    .texture_atlas
+                    .as_mut()
+                    .unwrap()
+                    .add_reference(glyph.key, glyph.offset);
                 group
                     .group
                     .sections
                     .queue(glyph.offset as InstanceId, glyph.section.c_repr());
             }
         }
-        // TODO grow texture-atlas if needed (writes in process)
         for (id, group) in renderer.groups.iter_mut() {
-            let (changed, grown) = group.group.texture_atlas.resolve(ginkgo);
+            let (changed, grown) = group.group.texture_atlas.as_mut().unwrap().resolve(ginkgo);
             for key in changed {
                 let (metrics, rasterization) = renderer
                     .resources
                     .font
                     .0
                     .rasterize_indexed(key.glyph_index, group.group.font_size.value as f32);
-                let entry = AtlasEntry::new();
-                for updated in group.group.texture_atlas.write_entry(ginkgo, key, entry) {}
+                let entry = AtlasEntry::new(rasterization, (metrics.width, metrics.height));
+                for updated in group
+                    .group
+                    .texture_atlas
+                    .as_mut()
+                    .unwrap()
+                    .write_entry(ginkgo, key, entry)
+                {
+                    group
+                        .group
+                        .tex_coords
+                        .queue(updated.key as InstanceId, updated.tex_coords);
+                }
+            }
+            if grown {
+                let bind_group = ginkgo.create_bind_group(&BindGroupDescriptor {
+                    label: Some("text-group"),
+                    layout: &renderer.resources.group_layout,
+                    entries: &[
+                        Ginkgo::texture_bind_group_entry(
+                            group.group.texture_atlas.as_ref().unwrap().view(),
+                            0,
+                        ),
+                        Ginkgo::uniform_bind_group_entry(&group.group.uniform.uniform, 1),
+                    ],
+                });
+                group.group.bind_group.replace(bind_group);
             }
         }
-        // TODO if just grow + no block-size change => need to queue-write for replaced entries
-        // TODO handle queued tex-coords read (atlas) + queue (instance-buffer)
+        for (id, group) in renderer.groups.iter_mut() {
+            for (key, id) in group.group.queued_tex_reads.drain(..).collect::<Vec<_>>() {
+                let tex_coords = group
+                    .group
+                    .texture_atlas
+                    .as_ref()
+                    .unwrap()
+                    .tex_coordinates(key);
+                group.group.tex_coords.queue(id, tex_coords);
+            }
+        }
         for (entity, packet) in elm.attribute::<Self, ResolvedColors>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
             let group = renderer.groups.get_mut(id).unwrap();

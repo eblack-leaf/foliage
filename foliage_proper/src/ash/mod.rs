@@ -331,6 +331,10 @@ impl<I: bytemuck::Pod + bytemuck::Zeroable> InstanceBuffer<I> {
         // checks write-range && writes
         todo!()
     }
+    pub(crate) fn remove(&mut self, id: InstanceId) {
+        // remove from cpu?
+        todo!()
+    }
 }
 pub(crate) struct RenderGroup<R: Render> {
     pub(crate) coordinator: InstanceCoordinator,
