@@ -9,7 +9,7 @@ use crate::opacity::BlendedOpacity;
 use crate::text::glyph::{GlyphKey, GlyphOffset, ResolvedColors, ResolvedGlyphs};
 use crate::text::monospaced::MonospacedFont;
 use crate::text::UniqueCharacters;
-use crate::texture::{TextureAtlas, TextureCoordinates, Vertex, VERTICES};
+use crate::texture::{AtlasEntry, TextureAtlas, TextureCoordinates, Vertex, VERTICES};
 use crate::{CReprColor, CReprSection, FontSize, Layer, LogicalContext, Section, Text};
 use bevy_ecs::entity::Entity;
 use std::collections::HashMap;
@@ -37,14 +37,20 @@ pub(crate) struct Group {
     pub(crate) tex_coords: InstanceBuffer<TextureCoordinates>,
     pub(crate) write_uniform: bool,
     pub(crate) unique_characters: UniqueCharacters,
+    pub(crate) font_size: FontSize,
 }
 
 impl Group {
-    pub(crate) fn new(ginkgo: &Ginkgo, layer: Layer, layout: &wgpu::BindGroupLayout) -> Self {
+    pub(crate) fn new(
+        ginkgo: &Ginkgo,
+        layer: Layer,
+        layout: &wgpu::BindGroupLayout,
+        font: &MonospacedFont,
+    ) -> Self {
         let initial_capacity = 15;
         let texture_atlas = TextureAtlas::new(
             ginkgo,
-            (9, 19),
+            font.character_block(FontSize::default()),
             initial_capacity,
             wgpu::TextureFormat::R8Unorm,
         );
@@ -69,6 +75,7 @@ impl Group {
             tex_coords: InstanceBuffer::new(ginkgo, initial_capacity),
             write_uniform: false,
             unique_characters: Default::default(),
+            font_size: Default::default(),
         }
     }
 }
@@ -195,7 +202,12 @@ impl Render for Text {
                 group.update_node = true;
             } else {
                 // adding new group
-                let group = Group::new(ginkgo, packet, &renderer.resources.group_layout);
+                let group = Group::new(
+                    ginkgo,
+                    packet,
+                    &renderer.resources.group_layout,
+                    &renderer.resources.font,
+                );
                 renderer
                     .groups
                     .insert(entity.index() as GroupId, RenderGroup::new(group));
@@ -231,7 +243,14 @@ impl Render for Text {
         for (entity, packet) in elm.attribute::<Text, FontSize>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
             let group = &mut renderer.groups.get_mut(id).unwrap().group;
+            group.font_size = packet;
             // TODO block has changed so must remake atlas w/ stored unique-characters as capacity
+            group.texture_atlas = TextureAtlas::new(
+                ginkgo,
+                renderer.resources.font.character_block(packet),
+                group.unique_characters.0,
+                wgpu::TextureFormat::R8Unorm,
+            );
         }
         for (entity, glyphs) in elm.attribute::<Text, ResolvedGlyphs>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
@@ -258,6 +277,19 @@ impl Render for Text {
             }
         }
         // TODO grow texture-atlas if needed (writes in process)
+        for (id, group) in renderer.groups.iter_mut() {
+            let (changed, grown) = group.group.texture_atlas.resolve(ginkgo);
+            for key in changed {
+                let (metrics, rasterization) = renderer
+                    .resources
+                    .font
+                    .0
+                    .rasterize_indexed(key.glyph_index, group.group.font_size.value as f32);
+                let entry = AtlasEntry::new();
+                for updated in group.group.texture_atlas.write_entry(ginkgo, key, entry) {}
+            }
+        }
+        // TODO if just grow + no block-size change => need to queue-write for replaced entries
         // TODO handle queued tex-coords read (atlas) + queue (instance-buffer)
         for (entity, packet) in elm.attribute::<Self, ResolvedColors>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();

@@ -1,4 +1,4 @@
-use crate::Resource;
+use crate::{Coordinates, FontSize, Resource};
 
 #[derive(Resource)]
 pub(crate) struct MonospacedFont(pub(crate) fontdue::Font);
@@ -15,14 +15,9 @@ impl MonospacedFont {
             .expect("font"),
         )
     }
-}
-#[test]
-fn metrics() {
-    use crate::FontSize;
-    let mut font = MonospacedFont::new(FontSize::default().value);
-    let metrics = font.0.metrics('a', FontSize::default().value as f32);
-    let line_metrics = font
-        .0
-        .horizontal_line_metrics(FontSize::default().value as f32);
-    println!("{:?}\n{:?}", metrics, line_metrics);
+    pub(crate) fn character_block(&self, font_size: FontSize) -> Coordinates {
+        let metrics = self.0.metrics('a', font_size.value as f32);
+        let line_metrics = self.0.horizontal_line_metrics(font_size.value as f32);
+        Coordinates::new(metrics.advance_width, line_metrics.unwrap().new_line_size)
+    }
 }
