@@ -216,7 +216,7 @@ impl Render for Text {
         for (entity, packet) in elm.attribute::<Text, UniqueCharacters>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
             let group = &mut renderer.groups.get_mut(id).unwrap().group;
-            group.unique_characters = packet; // prevents under-grow
+            group.unique_characters = packet; // prevents under-growth
         }
         for (entity, packet) in elm.attribute::<Text, FontSize>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
@@ -245,17 +245,20 @@ impl Render for Text {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
             let group = renderer.groups.get_mut(id).unwrap();
             for glyph in glyphs.removed {
-                group.coordinator.remove(glyph.offset as InstanceId);
-                group.group.sections.remove(glyph.offset as InstanceId);
-                group.group.colors.remove(glyph.offset as InstanceId);
-                group.group.tex_coords.remove(glyph.offset as InstanceId);
-                group
-                    .group
-                    .texture_atlas
-                    .as_mut()
-                    .unwrap()
-                    .remove_reference(glyph.key, glyph.offset);
-                // MISSING skipping 0 reference entry removal for optimization
+                if group.coordinator.has_instance(glyph.offset as InstanceId) {
+                    let order = group.coordinator.order(glyph.offset as InstanceId);
+                    group.coordinator.remove(order);
+                    group.group.sections.remove(order);
+                    group.group.colors.remove(order);
+                    group.group.tex_coords.remove(order);
+                    group
+                        .group
+                        .texture_atlas
+                        .as_mut()
+                        .unwrap()
+                        .remove_reference(glyph.key, glyph.offset);
+                    // MISSING skipping 0 reference entry removal for optimization
+                }
             }
             for glyph in glyphs.updated {
                 if !group.coordinator.has_instance(glyph.offset as InstanceId) {
@@ -394,9 +397,9 @@ impl Render for Text {
                 render_group.group.tex_coords.write_cpu(order, data);
             }
             // flush each instance buffer to gpu
-            render_group.group.sections.write_gpu();
-            render_group.group.colors.write_gpu();
-            render_group.group.tex_coords.write_gpu();
+            render_group.group.sections.write_gpu(ginkgo);
+            render_group.group.colors.write_gpu(ginkgo);
+            render_group.group.tex_coords.write_gpu(ginkgo);
             // submit node
             if render_group.group.update_node {
                 let node = Node::new(

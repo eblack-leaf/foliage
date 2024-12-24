@@ -1,7 +1,10 @@
 use crate::ash::clip::{prepare_clip_section, ClipSection};
 use crate::ash::differential::Elm;
-use crate::ginkgo::Ginkgo;
-use crate::{Attachment, Color, Component, DiffMarkers, Foliage, Layer, Resource, Text};
+use crate::ginkgo::{Ginkgo, ScaleFactor};
+use crate::{
+    Attachment, Color, Component, DeviceContext, DiffMarkers, Foliage, Layer, Resource, Section,
+    Text,
+};
 use bevy_ecs::prelude::IntoSystemConfigs;
 use bevy_ecs::world::World;
 use std::collections::{HashMap, HashSet};
@@ -92,8 +95,8 @@ impl Ash {
         for node in to_add {
             self.nodes.push(node);
         }
-        // sort
-        // remake contiguous
+        // TODO sort
+        // TODO remake contiguous
     }
     pub(crate) fn render(&mut self, ginkgo: &Ginkgo) {
         let surface_texture = ginkgo.surface_texture();
@@ -115,14 +118,13 @@ impl Ash {
             occlusion_query_set: None,
         });
         for span in self.contiguous.iter() {
+            let parameters = span.parameters(
+                ginkgo.viewport().section(),
+                ginkgo.configuration().scale_factor,
+            );
             match span.pipeline {
                 PipelineId::Text => {
-                    Render::render(
-                        self.text.as_mut().unwrap(),
-                        &mut rpass,
-                        ginkgo,
-                        span.parameters(),
-                    );
+                    Render::render(self.text.as_mut().unwrap(), &mut rpass, ginkgo, parameters);
                 }
                 PipelineId::Icon => {}
                 PipelineId::Shape => {}
@@ -172,11 +174,22 @@ pub(crate) struct ContiguousSpan {
     pub(crate) clip_section: ClipSection,
 }
 impl ContiguousSpan {
-    pub(crate) fn parameters(&self) -> Parameters {
+    pub(crate) fn parameters(
+        &self,
+        view_section: Section<DeviceContext>,
+        scale_factor: ScaleFactor,
+    ) -> Parameters {
+        let clip_section = if let Some(present) = self.clip_section.0 {
+            present
+                .to_device(scale_factor.value())
+                .intersection(view_section)
+        } else {
+            None
+        };
         Parameters {
             group: self.group,
             range: self.range.clone(),
-            clip_section: self.clip_section,
+            clip_section,
         }
     }
 }
@@ -184,7 +197,7 @@ impl ContiguousSpan {
 pub(crate) struct Parameters {
     pub(crate) group: GroupId,
     pub(crate) range: Range<Order>,
-    pub(crate) clip_section: ClipSection,
+    pub(crate) clip_section: Option<Section<DeviceContext>>,
 }
 #[derive(Copy, Clone)]
 pub(crate) struct Node {
@@ -241,10 +254,10 @@ impl Nodes {
         }
     }
     pub(crate) fn update(&mut self, node: Node) {
-        todo!()
+        self.updated.push(node);
     }
     pub(crate) fn remove(&mut self, remove_node: RemoveNode) {
-        todo!()
+        self.removed.push(remove_node);
     }
 }
 #[derive(Copy, Clone)]
@@ -274,14 +287,28 @@ pub(crate) struct InstanceCoordinator {
     pub(crate) node_submit: Vec<Node>,
     pub(crate) id_gen: InstanceId,
     pub(crate) gen_pool: HashSet<InstanceId>,
+    pub(crate) capacity: u32,
 }
 impl InstanceCoordinator {
     pub(crate) fn new(capacity: u32) -> Self {
-        todo!()
+        Self {
+            instances: vec![],
+            cache: vec![],
+            swaps: vec![],
+            node_submit: vec![],
+            id_gen: 0,
+            gen_pool: Default::default(),
+            capacity,
+        }
     }
-    pub(crate) fn add(&mut self, instance: Instance) {}
+    pub(crate) fn add(&mut self, instance: Instance) {
+        self.instances.push(instance);
+    }
     pub(crate) fn has_instance(&self, id: InstanceId) -> bool {
-        todo!()
+        self.instances.iter().find(|i| i.id == id).is_some()
+    }
+    pub(crate) fn count(&self) -> u32 {
+        self.instances.len() as u32
     }
     pub(crate) fn generate_id(&mut self) -> InstanceId {
         if self.gen_pool.is_empty() {
@@ -296,23 +323,49 @@ impl InstanceCoordinator {
     }
     pub(crate) fn grown(&mut self) -> Option<u32> {
         // extend instance buffers to new num-instances + extra 2 for allocation minimization
+        if self.instances.len() > self.capacity as usize {
+            let new = self.instances.len() as u32 + 2;
+            self.capacity = new;
+            return Some(new);
+        }
+        None
+    }
+    pub(crate) fn sort(&mut self) -> Vec<Swap> {
         todo!()
     }
     pub(crate) fn order(&self, id: InstanceId) -> Order {
-        todo!()
+        self.instances.iter().position(|i| i.id == id).unwrap() as Order
     }
-    pub(crate) fn remove(&mut self, id: InstanceId) {
-        todo!()
+    pub(crate) fn remove(&mut self, order: Order) {
+        self.instances.remove(order as usize);
     }
 }
-pub(crate) struct InstanceBuffer<I: bytemuck::Pod + bytemuck::Zeroable> {
+pub(crate) struct InstanceBuffer<I: bytemuck::Pod + bytemuck::Zeroable + Default> {
     pub(crate) cpu: Vec<I>,
     pub(crate) buffer: wgpu::Buffer,
     pub(crate) queue: HashMap<InstanceId, I>,
+    pub(crate) write_range: Option<Range<usize>>,
+    pub(crate) capacity: u32,
 }
-impl<I: bytemuck::Pod + bytemuck::Zeroable> InstanceBuffer<I> {
+impl<I: bytemuck::Pod + bytemuck::Zeroable + Default> InstanceBuffer<I> {
     pub(crate) fn new(ginkgo: &Ginkgo, initial_capacity: u32) -> Self {
-        todo!()
+        let cpu = vec![I::default(); initial_capacity as usize];
+        let buffer = ginkgo
+            .context()
+            .device
+            .create_buffer(&wgpu::BufferDescriptor {
+                label: Some("instance-buffer"),
+                size: Ginkgo::memory_size::<I>(initial_capacity),
+                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                mapped_at_creation: false,
+            });
+        Self {
+            cpu,
+            buffer,
+            queue: HashMap::new(),
+            write_range: None,
+            capacity: initial_capacity,
+        }
     }
     pub(crate) fn queue(&mut self, id: InstanceId, i: I) {
         self.queue.insert(id, i);
@@ -321,19 +374,42 @@ impl<I: bytemuck::Pod + bytemuck::Zeroable> InstanceBuffer<I> {
         self.queue.drain().collect::<Vec<_>>()
     }
     pub(crate) fn grow(&mut self, ginkgo: &Ginkgo, capacity: u32) {
-        todo!()
+        let mut cpu = self.cpu.drain(..).collect::<Vec<_>>();
+        *self = Self::new(ginkgo, capacity);
+        for (i, c) in cpu.drain(..).enumerate() {
+            *self.cpu.get_mut(i).unwrap() = c;
+        }
+        self.write_range.replace(0..self.cpu.len());
+    }
+    pub(crate) fn swap(&mut self, swap: Swap) {
+        let current = self.cpu.get(swap.old as usize).unwrap().clone();
+        self.queue(swap.new, current);
     }
     pub(crate) fn write_cpu(&mut self, order: Order, data: I) {
-        // cpu.get_mut(order) = data + write-range extend
-        todo!()
+        *self.cpu.get_mut(order as usize).unwrap() = data;
+        if let Some(mut range) = self.write_range.as_mut() {
+            if range.start > order as usize {
+                range.start = order as usize;
+            }
+            if range.end < order as usize + 1 {
+                range.end = order as usize + 1;
+            }
+        } else {
+            self.write_range.replace(order as usize..order as usize + 1);
+        }
     }
-    pub(crate) fn write_gpu(&mut self) {
-        // checks write-range && writes
-        todo!()
+    pub(crate) fn write_gpu(&mut self, ginkgo: &Ginkgo) {
+        if let Some(range) = self.write_range.take() {
+            let slice = &self.cpu[range.clone()];
+            ginkgo.context().queue.write_buffer(
+                &self.buffer,
+                Ginkgo::memory_size::<I>(range.start as u32),
+                bytemuck::cast_slice(slice),
+            );
+        }
     }
-    pub(crate) fn remove(&mut self, id: InstanceId) {
-        // remove from cpu?
-        todo!()
+    pub(crate) fn remove(&mut self, order: Order) {
+        self.cpu.remove(order as usize);
     }
 }
 pub(crate) struct RenderGroup<R: Render> {
