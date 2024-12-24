@@ -283,26 +283,27 @@ pub(crate) struct Swap {
 pub(crate) struct InstanceCoordinator {
     pub(crate) instances: Vec<Instance>,
     pub(crate) cache: Vec<Instance>,
-    pub(crate) swaps: Vec<Swap>,
     pub(crate) node_submit: Vec<Node>,
     pub(crate) id_gen: InstanceId,
     pub(crate) gen_pool: HashSet<InstanceId>,
     pub(crate) capacity: u32,
+    pub(crate) needs_sort: bool,
 }
 impl InstanceCoordinator {
     pub(crate) fn new(capacity: u32) -> Self {
         Self {
             instances: vec![],
             cache: vec![],
-            swaps: vec![],
             node_submit: vec![],
             id_gen: 0,
             gen_pool: Default::default(),
             capacity,
+            needs_sort: false,
         }
     }
     pub(crate) fn add(&mut self, instance: Instance) {
         self.instances.push(instance);
+        self.needs_sort = true;
     }
     pub(crate) fn has_instance(&self, id: InstanceId) -> bool {
         self.instances.iter().find(|i| i.id == id).is_some()
@@ -322,22 +323,52 @@ impl InstanceCoordinator {
         }
     }
     pub(crate) fn grown(&mut self) -> Option<u32> {
-        // extend instance buffers to new num-instances + extra 2 for allocation minimization
+        const REPEAT_ALLOCATION_AVOIDANCE: u32 = 2;
         if self.instances.len() > self.capacity as usize {
-            let new = self.instances.len() as u32 + 2;
+            let new = self.instances.len() as u32 + REPEAT_ALLOCATION_AVOIDANCE;
             self.capacity = new;
             return Some(new);
         }
         None
     }
     pub(crate) fn sort(&mut self) -> Vec<Swap> {
-        todo!()
+        let mut swaps = vec![];
+        if !self.needs_sort {
+            return swaps;
+        }
+        self.needs_sort = false;
+        self.instances.sort_by(|a, b| {
+            if a.layer > b.layer {
+                std::cmp::Ordering::Greater
+            } else if a.layer < b.layer {
+                std::cmp::Ordering::Less
+            } else {
+                if a.clip_section != b.clip_section {
+                    std::cmp::Ordering::Less
+                } else {
+                    std::cmp::Ordering::Equal
+                }
+            }
+        });
+        for (new, instance) in self.instances.iter().enumerate() {
+            if let Some(old) = self.cache.iter().position(|c| c.id == instance.id) {
+                if new != old {
+                    swaps.push(Swap {
+                        old: old as Order,
+                        new: new as Order,
+                    })
+                }
+            }
+        }
+        self.cache = self.instances.clone();
+        swaps
     }
     pub(crate) fn order(&self, id: InstanceId) -> Order {
         self.instances.iter().position(|i| i.id == id).unwrap() as Order
     }
     pub(crate) fn remove(&mut self, order: Order) {
         self.instances.remove(order as usize);
+        self.needs_sort = true;
     }
 }
 pub(crate) struct InstanceBuffer<I: bytemuck::Pod + bytemuck::Zeroable + Default> {

@@ -174,11 +174,9 @@ impl Render for Text {
         for (entity, packet) in elm.attribute::<Text, Layer>() {
             // queue add/update
             if renderer.resources.entity_to_group.contains_key(&entity) {
-                let group = &mut renderer
-                    .groups
-                    .get_mut(renderer.resources.entity_to_group.get(&entity).unwrap())
-                    .unwrap()
-                    .group;
+                let id = renderer.resources.entity_to_group.get(&entity).unwrap();
+                // OMITTED for optimization renderer.groups.get_mut(id).unwrap().coordinator.needs_sort = true;
+                let group = &mut renderer.groups.get_mut(id).unwrap().group;
                 group.layer = packet;
                 group.uniform.set(2, packet.value());
                 group.write_uniform = true;
@@ -193,6 +191,7 @@ impl Render for Text {
         }
         for (entity, packet) in elm.attribute::<Text, ClipSection>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
+            // OMITTED for optimization renderer.groups.get_mut(id).unwrap().coordinator.needs_sort = true;
             let group = &mut renderer.groups.get_mut(id).unwrap().group;
             group.clip_section = packet;
             group.update_node = true;
