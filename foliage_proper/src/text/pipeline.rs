@@ -419,9 +419,24 @@ impl Render for Text {
     fn render(
         renderer: &mut Renderer<Self>,
         render_pass: &mut RenderPass,
-        ginkgo: &Ginkgo,
         parameters: Parameters,
     ) {
-        todo!()
+        if let Some(clip) = parameters.clip_section {
+            render_pass.set_scissor_rect(
+                clip.left() as u32,
+                clip.top() as u32,
+                clip.width() as u32,
+                clip.height() as u32,
+            );
+        }
+        let group = renderer.groups.get(&parameters.group).unwrap();
+        render_pass.set_pipeline(&renderer.pipeline);
+        render_pass.set_bind_group(0, &group.group.bind_group, &[]);
+        render_pass.set_bind_group(1, &renderer.bind_group, &[]);
+        render_pass.set_vertex_buffer(0, renderer.vertex_buffer.slice(..));
+        render_pass.set_vertex_buffer(1, group.group.sections.buffer.slice(..));
+        render_pass.set_vertex_buffer(2, group.group.colors.buffer.slice(..));
+        render_pass.set_vertex_buffer(3, group.group.tex_coords.buffer.slice(..));
+        render_pass.draw(0..VERTICES.len() as u32, 0..group.coordinator.count());
     }
 }

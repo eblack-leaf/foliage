@@ -7,6 +7,7 @@ use crate::{
 };
 use bevy_ecs::prelude::IntoSystemConfigs;
 use bevy_ecs::world::World;
+use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::ops::Range;
 use wgpu::{CommandEncoderDescriptor, RenderPass, RenderPassDescriptor, TextureViewDescriptor};
@@ -88,15 +89,71 @@ impl Ash {
                 to_add.push(node);
             }
         }
-        // process to_replace + to_add
         for (node, idx) in to_replace {
             *self.nodes.get_mut(idx).unwrap() = node;
         }
         for node in to_add {
             self.nodes.push(node);
         }
-        // TODO sort
-        // TODO remake contiguous
+        self.nodes.sort_by(|lhs, rhs| {
+            if lhs.layer < rhs.layer {
+                Ordering::Less
+            } else if lhs.layer > rhs.layer {
+                Ordering::Greater
+            } else {
+                if lhs.pipeline != rhs.pipeline {
+                    Ordering::Less
+                } else {
+                    if lhs.group != rhs.group {
+                        Ordering::Less
+                    } else {
+                        if lhs.clip_section != rhs.clip_section {
+                            Ordering::Less
+                        } else {
+                            if lhs.order < rhs.order {
+                                Ordering::Less
+                            } else if lhs.order > rhs.order {
+                                Ordering::Greater
+                            } else {
+                                Ordering::Equal
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        self.contiguous.clear();
+        let mut index = 0;
+        let mut contiguous = 1;
+        let mut range_start = None;
+        for node in self.nodes.iter() {
+            let next = if let Some(n) = self.nodes.get(index + 1) {
+                Some(n.clone())
+            } else {
+                None
+            };
+            index += 1;
+            if let Some(next) = next {
+                if node.pipeline == next.pipeline
+                    && node.group == next.group
+                    && node.order + 1 == next.order
+                    && node.clip_section == next.clip_section
+                {
+                    contiguous += 1;
+                    if range_start.is_none() {
+                        range_start = Some(node.order);
+                    }
+                    continue;
+                }
+            }
+            let start = range_start.take().unwrap_or(node.order);
+            self.contiguous.push(ContiguousSpan {
+                pipeline: node.pipeline,
+                group: node.group,
+                range: start..start + contiguous,
+                clip_section: node.clip_section,
+            });
+        }
     }
     pub(crate) fn render(&mut self, ginkgo: &Ginkgo) {
         let surface_texture = ginkgo.surface_texture();
@@ -124,7 +181,7 @@ impl Ash {
             );
             match span.pipeline {
                 PipelineId::Text => {
-                    Render::render(self.text.as_mut().unwrap(), &mut rpass, ginkgo, parameters);
+                    Render::render(self.text.as_mut().unwrap(), &mut rpass, parameters);
                 }
                 PipelineId::Icon => {}
                 PipelineId::Shape => {}
@@ -151,7 +208,6 @@ where
     fn render(
         renderer: &mut Renderer<Self>,
         render_pass: &mut RenderPass,
-        ginkgo: &Ginkgo,
         parameters: Parameters,
     );
 }
@@ -339,14 +395,14 @@ impl InstanceCoordinator {
         self.needs_sort = false;
         self.instances.sort_by(|a, b| {
             if a.layer > b.layer {
-                std::cmp::Ordering::Greater
+                Ordering::Greater
             } else if a.layer < b.layer {
-                std::cmp::Ordering::Less
+                Ordering::Less
             } else {
                 if a.clip_section != b.clip_section {
-                    std::cmp::Ordering::Less
+                    Ordering::Less
                 } else {
-                    std::cmp::Ordering::Equal
+                    Ordering::Equal
                 }
             }
         });
