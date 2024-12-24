@@ -79,14 +79,14 @@ impl Text {
         world
             .commands()
             .entity(this)
-            .observe(Self::update_from_location);
+            .observe(Self::update_from_section);
     }
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
         world
             .commands()
             .trigger_targets(Update::<Text>::new(), this);
     }
-    fn update_from_location(trigger: Trigger<Write<Section<LogicalContext>>>, mut tree: Tree) {
+    fn update_from_section(trigger: Trigger<Write<Section<LogicalContext>>>, mut tree: Tree) {
         tree.trigger_targets(Update::<Text>::new(), trigger.entity());
     }
     fn resolve_colors(
@@ -141,6 +141,7 @@ impl Text {
                 .section
                 .with_height(glyphs.layout.height())
                 .to_logical(scale_factor.value());
+            current.section = adjusted_section.to_device(scale_factor.value());
             tree.entity(this)
                 .insert(UniqueCharacters::count(&current.text))
                 .insert(current)
