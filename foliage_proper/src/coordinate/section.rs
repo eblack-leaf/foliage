@@ -1,7 +1,10 @@
+use std::any::TypeId;
 use std::fmt::Display;
 use std::ops::{Add, AddAssign, Mul, Sub};
 
-use bevy_ecs::component::Component;
+use bevy_ecs::component::{Component, ComponentId};
+use bevy_ecs::entity::Entity;
+use bevy_ecs::world::DeferredWorld;
 use bytemuck::{Pod, Zeroable};
 
 use crate::coordinate::area::{Area, CReprArea};
@@ -9,13 +12,14 @@ use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::{
     CoordinateContext, CoordinateUnit, Coordinates, DeviceContext, LogicalContext, NumericalContext,
 };
+use crate::Write;
 
 #[derive(Copy, Clone, Default, Component, PartialEq, Debug)]
+#[component(on_insert = Section::<LogicalContext>::on_insert)]
 pub struct Section<Context: CoordinateContext> {
     pub position: Position<Context>,
     pub area: Area<Context>,
 }
-
 impl<Context: CoordinateContext> Display for Section<Context> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!("{}|{}", self.position, self.area))
@@ -177,6 +181,11 @@ impl<Context: CoordinateContext> Section<Context> {
     }
     pub fn abs(self) -> Self {
         Self::new(self.position.abs(), self.area.abs())
+    }
+    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+        if TypeId::of::<Self>() == TypeId::of::<Section<LogicalContext>>() {
+            world.trigger_targets(Write::<Self>::new(), this);
+        }
     }
 }
 impl Section<NumericalContext> {

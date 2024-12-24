@@ -9,7 +9,7 @@ use bevy_ecs::world::DeferredWorld;
 #[derive(Copy, Clone, Ord, PartialOrd, PartialEq, Eq, Hash, Component)]
 #[component(on_add = Visibility::on_add)]
 #[component(on_insert = Visibility::on_insert)]
-#[require(InheritedVisibility, ResolvedVisibility)]
+#[require(InheritedVisibility, ResolvedVisibility, CachedVisibility)]
 pub struct Visibility {
     visible: bool,
 }
@@ -35,15 +35,24 @@ impl Visibility {
         let resolved = ResolvedVisibility {
             visible: inherited.visible && current.visible,
         };
-        world.commands().entity(this).insert(resolved);
-        world
-            .commands()
-            .trigger_targets(Write::<Visibility>::new(), this);
-        let deps = world.get::<Branch>(this).unwrap().ids.clone();
-        for d in deps {
-            world.commands().entity(d).insert(InheritedVisibility {
-                visible: resolved.visible,
-            });
+        let cached = world.get::<CachedVisibility>(this).unwrap();
+        if cached.visible != resolved.visible {
+            world
+                .commands()
+                .entity(this)
+                .insert(resolved)
+                .insert(CachedVisibility {
+                    visible: resolved.visible,
+                });
+            world
+                .commands()
+                .trigger_targets(Write::<Visibility>::new(), this);
+            let deps = world.get::<Branch>(this).unwrap().ids.clone();
+            for d in deps {
+                world.commands().entity(d).insert(InheritedVisibility {
+                    visible: resolved.visible,
+                });
+            }
         }
     }
     pub(crate) fn push_remove_packet<R: Clone + Send + Sync + 'static>(
@@ -57,7 +66,15 @@ impl Visibility {
         }
     }
 }
-
+#[derive(Component, Copy, Clone)]
+pub(crate) struct CachedVisibility {
+    pub(crate) visible: bool,
+}
+impl Default for CachedVisibility {
+    fn default() -> Self {
+        Self { visible: true }
+    }
+}
 impl Default for Visibility {
     fn default() -> Self {
         Self::new(true)
@@ -76,6 +93,11 @@ impl Default for InheritedVisibility {
 #[derive(Copy, Clone, Ord, PartialOrd, PartialEq, Eq, Hash, Component)]
 pub struct ResolvedVisibility {
     visible: bool,
+}
+impl ResolvedVisibility {
+    pub fn visible(&self) -> bool {
+        self.visible
+    }
 }
 impl Default for ResolvedVisibility {
     fn default() -> Self {

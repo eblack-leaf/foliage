@@ -16,7 +16,7 @@ pub(crate) struct Differential<
 }
 
 impl<R: Clone + Send + Sync + 'static, RP: Clone + Send + Sync + 'static + PartialEq>
-Differential<R, RP>
+    Differential<R, RP>
 {
     pub(crate) fn new(cache: RP) -> Self {
         Self {
@@ -30,13 +30,22 @@ Differential<R, RP>
             _phantom: Default::default(),
         }
     }
-    pub(crate) fn compare(&mut self, packet: RP) -> bool {
-        todo!()
+    pub(crate) fn different(&mut self, packet: RP) -> bool {
+        let mut different = false;
+        if let Some(cached) = self.cache.as_ref() {
+            if cached != &packet {
+                different = true;
+            }
+        } else {
+            different = true;
+        }
+        self.cache.replace(packet);
+        different
     }
 }
 
 impl<R: Clone + Send + Sync + 'static, RP: Clone + Send + Sync + 'static + PartialEq> Default
-for Differential<R, RP>
+    for Differential<R, RP>
 {
     fn default() -> Self {
         Self::blank()
@@ -46,17 +55,32 @@ pub(crate) fn cached_differential<
     R: Clone + Send + Sync + 'static,
     RP: Clone + Send + Sync + 'static + Component + PartialEq,
 >(
-    values: Query<&RP, Changed<RP>>,
+    values: Query<(Entity, &RP), Changed<RP>>,
     mut caches: Query<&mut Differential<R, RP>>,
-    visibility: ParamSet<(
+    mut visibility: ParamSet<(
         Query<&ResolvedVisibility>,
         Query<Entity, Changed<ResolvedVisibility>>,
     )>,
     mut queue: ResMut<RenderQueue<R, RP>>,
 ) {
     // if visibility changed && is-visible => send cached value && continue
+    let changed = visibility.p1().iter().collect::<Vec<_>>();
+    for c in changed {
+        if visibility.p0().get(c).unwrap().visible() {
+            let v = values.get(c).unwrap().1.clone();
+            caches.get_mut(c).unwrap().cache.replace(v.clone());
+            queue.queue.insert(c, v);
+        }
+    }
     // if is-visible && != cached => send new + set cache
-    todo!()
+    for (e, v) in values.iter() {
+        if visibility.p0().get(e).unwrap().visible() {
+            let mut cache = caches.get_mut(e).unwrap();
+            if cache.different(v.clone()) {
+                queue.queue.insert(e, v.clone());
+            }
+        }
+    }
 }
 
 #[derive(Resource)]
