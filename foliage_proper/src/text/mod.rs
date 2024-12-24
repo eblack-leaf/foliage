@@ -20,6 +20,7 @@ use bevy_ecs::prelude::{Component, IntoSystemConfigs, Res, Trigger};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{ParamSet, Query};
 use bevy_ecs::world::DeferredWorld;
+use std::collections::HashSet;
 impl Attachment for Text {
     fn attach(foliage: &mut Foliage) {
         foliage
@@ -194,7 +195,11 @@ impl Text {
 pub(crate) struct UniqueCharacters(pub(crate) u32);
 impl UniqueCharacters {
     pub(crate) fn count(text: &Text) -> Self {
-        todo!()
+        let mut set = HashSet::new();
+        for ch in text.value.chars() {
+            set.insert(ch);
+        }
+        Self(set.len() as u32)
     }
 }
 #[derive(Component, Clone, Copy, PartialEq)]

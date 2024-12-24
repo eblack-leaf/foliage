@@ -36,8 +36,8 @@ fn main() {
     foliage.define(Home::create); // task to trigger
     let root = foliage.leaf(()); // Stem => require Branch (Group)
     foliage.send_to(Home::new(), root); // trigger_targets
-    foliage.send(Home::new()); // just trigger
-    foliage.queue(Home::new()); // buffered event
+    // foliage.send(Home::new()); // just trigger
+    // foliage.queue(Home::new()); // buffered event
     let leaf = foliage.leaf((
         Text::new("hello world!"),
         FontSize::new(14),
