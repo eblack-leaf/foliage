@@ -1,6 +1,9 @@
-use crate::{Branch, Component, Stem};
+use crate::ash::differential::RenderRemoveQueue;
+use crate::{Branch, Component, Stem, Write};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
+use bevy_ecs::prelude::{Query, Trigger};
+use bevy_ecs::system::ResMut;
 use bevy_ecs::world::DeferredWorld;
 
 #[derive(Copy, Clone, Ord, PartialOrd, PartialEq, Eq, Hash, Component)]
@@ -33,11 +36,24 @@ impl Visibility {
             visible: inherited.visible && current.visible,
         };
         world.commands().entity(this).insert(resolved);
+        world
+            .commands()
+            .trigger_targets(Write::<Visibility>::new(), this);
         let deps = world.get::<Branch>(this).unwrap().ids.clone();
         for d in deps {
             world.commands().entity(d).insert(InheritedVisibility {
                 visible: resolved.visible,
             });
+        }
+    }
+    pub(crate) fn push_remove_packet<R: Clone + Send + Sync + 'static>(
+        trigger: Trigger<Write<Visibility>>,
+        visibilities: Query<&ResolvedVisibility>,
+        mut queue: ResMut<RenderRemoveQueue<R>>,
+    ) {
+        let value = visibilities.get(trigger.entity()).unwrap();
+        if !value.visible {
+            queue.queue.insert(trigger.entity());
         }
     }
 }

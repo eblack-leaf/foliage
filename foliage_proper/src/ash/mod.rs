@@ -205,11 +205,7 @@ where
     type Resources;
     fn renderer(ginkgo: &Ginkgo) -> Renderer<Self>;
     fn prepare(renderer: &mut Renderer<Self>, elm: &mut Elm, ginkgo: &Ginkgo) -> Nodes;
-    fn render(
-        renderer: &mut Renderer<Self>,
-        render_pass: &mut RenderPass,
-        parameters: Parameters,
-    );
+    fn render(renderer: &mut Renderer<Self>, render_pass: &mut RenderPass, parameters: Parameters);
 }
 pub(crate) type Order = i32;
 pub(crate) type InstanceId = i32;

@@ -416,11 +416,7 @@ impl Render for Text {
         nodes
     }
 
-    fn render(
-        renderer: &mut Renderer<Self>,
-        render_pass: &mut RenderPass,
-        parameters: Parameters,
-    ) {
+    fn render(renderer: &mut Renderer<Self>, render_pass: &mut RenderPass, parameters: Parameters) {
         if let Some(clip) = parameters.clip_section {
             render_pass.set_scissor_rect(
                 clip.left() as u32,

@@ -11,7 +11,7 @@ use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::text::glyph::{Glyph, GlyphColors, GlyphKey, Glyphs, ResolvedColors, ResolvedGlyphs};
 use crate::text::monospaced::MonospacedFont;
-use crate::{Attachment, DeviceContext, Foliage, Layer, Tree, Update, Write};
+use crate::{Attachment, DeviceContext, Foliage, Layer, Tree, Update, Visibility, Write};
 use crate::{ClipContext, Differential};
 use crate::{ClipSection, DiffMarkers};
 use bevy_ecs::component::ComponentId;
@@ -71,6 +71,10 @@ impl Text {
             .commands()
             .entity(this)
             .observe(Remove::push_remove_packet::<Text>);
+        world
+            .commands()
+            .entity(this)
+            .observe(Visibility::push_remove_packet::<Text>);
         world
             .commands()
             .entity(this)
