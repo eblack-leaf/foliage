@@ -23,7 +23,7 @@ impl GlyphKey {
         }
     }
 }
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub(crate) struct Glyph {
     pub(crate) key: GlyphKey,
     pub(crate) section: Section<DeviceContext>,

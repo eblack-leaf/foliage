@@ -187,7 +187,10 @@ impl Render for Text {
                 renderer
                     .groups
                     .insert(entity.index() as GroupId, RenderGroup::new(group));
-                renderer.resources.entity_to_group.insert(entity, entity.index() as GroupId);
+                renderer
+                    .resources
+                    .entity_to_group
+                    .insert(entity, entity.index() as GroupId);
             }
         }
         for (entity, packet) in elm.attribute::<Text, ClipSection>() {
@@ -372,7 +375,7 @@ impl Render for Text {
                     .queue(glyph_color.offset as InstanceId, glyph_color.color.into());
             }
         }
-        for (id, render_group) in renderer.groups.iter_mut() {
+        for (group_id, render_group) in renderer.groups.iter_mut() {
             if render_group.group.write_uniform {
                 render_group.group.uniform.write(ginkgo.context());
                 render_group.group.write_uniform = false;
@@ -405,7 +408,7 @@ impl Render for Text {
                 let node = Node::new(
                     render_group.group.layer,
                     PipelineId::Text,
-                    *id,
+                    *group_id,
                     0,
                     render_group.group.clip_section,
                     ONE_NODE_PER_GROUP_OPTIMIZATION,

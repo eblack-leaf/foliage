@@ -2,10 +2,10 @@ use crate::{Component, ResolvedVisibility, Resource};
 use bevy_ecs::change_detection::ResMut;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Changed, ParamSet, Query};
+use bevy_ecs::query::With;
 use bevy_ecs::world::World;
 use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
-use bevy_ecs::query::With;
 
 #[derive(Component, Clone)]
 pub(crate) struct Differential<

@@ -1,4 +1,6 @@
-use foliage::{bevy_ecs, EcsExtension, Event, Foliage, FontSize, Section, Stem, Text, Tree, Trigger};
+use foliage::{
+    bevy_ecs, Color, EcsExtension, Event, Foliage, FontSize, Section, Stem, Text, Tree, Trigger,
+};
 
 mod icon;
 mod image;
@@ -10,17 +12,17 @@ pub(crate) struct Home {
 impl Home {
     pub(crate) fn create(trigger: Trigger<Self>, mut tree: Tree) {
         // setup actions
-        let id = tree.leaf(());
+        let id = tree.leaf(Section::logical((10, 100), (300, 50)));
         // hook to update dependencies
-        tree.write_to(id, Stem::some(trigger.entity()));
+        tree.write_to(id, (Stem::some(trigger.entity()), Color::gray(150)));
         // hook to pull text mut + update to given + cached glyphs and such + set size
-        tree.write_to(id, Text::new(format!("hello {}", trigger.event().value)));
+        tree.write_to(id, Text::new(format!("hellur {}", trigger.event().value)));
         // enable
-        tree.enable(id);
+        // tree.enable(id);
         // disable
-        tree.disable(id);
+        // tree.disable(id);
         // recursive despawn
-        tree.remove(id);
+        // tree.remove(id);
     }
     pub(crate) fn new() -> Self {
         Self {
@@ -42,7 +44,7 @@ fn main() {
         Text::new("hello world!"),
         FontSize::new(14),
         Stem::some(root),
-        Section::logical((10, 10), (300, 50))
+        Section::logical((10, 10), (300, 50)),
     )); // add single node
     let button = foliage.leaf((
         // Button::new(),
