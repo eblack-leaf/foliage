@@ -187,6 +187,7 @@ impl Render for Text {
                 renderer
                     .groups
                     .insert(entity.index() as GroupId, RenderGroup::new(group));
+                renderer.resources.entity_to_group.insert(entity, entity.index() as GroupId);
             }
         }
         for (entity, packet) in elm.attribute::<Text, ClipSection>() {

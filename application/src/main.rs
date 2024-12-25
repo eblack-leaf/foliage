@@ -1,4 +1,4 @@
-use foliage::{bevy_ecs, EcsExtension, Event, Foliage, FontSize, Stem, Text, Tree, Trigger};
+use foliage::{bevy_ecs, EcsExtension, Event, Foliage, FontSize, Section, Stem, Text, Tree, Trigger};
 
 mod icon;
 mod image;
@@ -42,7 +42,7 @@ fn main() {
         Text::new("hello world!"),
         FontSize::new(14),
         Stem::some(root),
-        // location,
+        Section::logical((10, 10), (300, 50))
     )); // add single node
     let button = foliage.leaf((
         // Button::new(),
@@ -52,6 +52,6 @@ fn main() {
         // ButtonIcon::new(IconHandle::Git),
         Stem::some(leaf),
     ));
-    foliage.remove(root); // remove all from branch downwards in tree
+    // foliage.remove(root); // remove all from branch downwards in tree
     foliage.photosynthesize(); // run
 }

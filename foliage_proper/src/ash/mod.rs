@@ -169,7 +169,7 @@ impl Ash {
                 });
         let mut rpass = encoder.begin_render_pass(&RenderPassDescriptor {
             label: Some("render-pass"),
-            color_attachments: &ginkgo.color_attachment(&view, Color::gray(50)),
+            color_attachments: &ginkgo.color_attachment(&view, Color::gray(950)),
             depth_stencil_attachment: ginkgo.depth_stencil_attachment(),
             timestamp_writes: None,
             occlusion_query_set: None,
@@ -457,6 +457,7 @@ impl<I: bytemuck::Pod + bytemuck::Zeroable + Default> InstanceBuffer<I> {
         self.queue.drain().collect::<Vec<_>>()
     }
     pub(crate) fn grow(&mut self, ginkgo: &Ginkgo, capacity: u32) {
+        if capacity < self.capacity { return; }
         let mut cpu = self.cpu.drain(..).collect::<Vec<_>>();
         *self = Self::new(ginkgo, capacity);
         for (i, c) in cpu.drain(..).enumerate() {

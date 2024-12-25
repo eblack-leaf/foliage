@@ -5,6 +5,7 @@ use bevy_ecs::prelude::{Changed, ParamSet, Query};
 use bevy_ecs::world::World;
 use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
+use bevy_ecs::query::With;
 
 #[derive(Component, Clone)]
 pub(crate) struct Differential<
@@ -55,11 +56,11 @@ pub(crate) fn cached_differential<
     R: Clone + Send + Sync + 'static,
     RP: Clone + Send + Sync + 'static + Component + PartialEq,
 >(
-    values: Query<(Entity, &RP), Changed<RP>>,
+    values: Query<(Entity, &RP), (Changed<RP>, With<Differential<R, RP>>)>,
     mut caches: Query<&mut Differential<R, RP>>,
     mut visibility: ParamSet<(
         Query<&ResolvedVisibility>,
-        Query<Entity, Changed<ResolvedVisibility>>,
+        Query<Entity, (Changed<ResolvedVisibility>, With<Differential<R, RP>>)>,
     )>,
     mut queue: ResMut<RenderQueue<R, RP>>,
 ) {

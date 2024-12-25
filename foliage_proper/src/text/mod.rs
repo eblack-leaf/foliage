@@ -9,7 +9,9 @@ use crate::coordinate::LogicalContext;
 use crate::ginkgo::ScaleFactor;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
-use crate::text::glyph::{Glyph, GlyphColors, GlyphKey, Glyphs, ResolvedColors, ResolvedGlyphs};
+use crate::text::glyph::{
+    Glyph, GlyphColor, GlyphColors, GlyphKey, Glyphs, ResolvedColors, ResolvedGlyphs,
+};
 use crate::text::monospaced::MonospacedFont;
 use crate::{Attachment, DeviceContext, Foliage, Layer, Tree, Update, Visibility, Write};
 use crate::{ClipContext, Differential};
@@ -90,13 +92,31 @@ impl Text {
         tree.trigger_targets(Update::<Text>::new(), trigger.entity());
     }
     fn resolve_colors(
-        glyph_colors: ParamSet<(Query<&GlyphColors>, Query<Entity, Changed<GlyphColors>>)>,
-        colors: ParamSet<(Query<&Color>, Query<Entity, Changed<Color>>)>,
+        mut glyph_colors: ParamSet<(Query<&GlyphColors>, Query<Entity, Changed<GlyphColors>>)>,
+        mut colors: ParamSet<(Query<&Color>, Query<Entity, Changed<Color>>)>,
         glyphs: Query<&Glyphs>,
         mut resolved: Query<&mut ResolvedColors>,
     ) {
-        // TODO gather changed entities to set resolved-colors on
-        // TODO set resolved colors from exceptions (glyph-colors) + base (colors)
+        let mut changed = glyph_colors.p1().iter().collect::<Vec<_>>();
+        changed.extend(colors.p1().iter().collect::<Vec<_>>());
+        for e in changed {
+            let mut res = ResolvedColors::default();
+            let color = *colors.p0().get(e).unwrap();
+            let exceptions = glyph_colors.p0().get(e).unwrap().exceptions.clone();
+            let glyph = glyphs.get(e).unwrap();
+            for g in glyph.glyphs.iter() {
+                let c = if let Some(gc) = exceptions.get(&g.offset) {
+                    *gc
+                } else {
+                    color
+                };
+                res.colors.push(GlyphColor {
+                    color: c,
+                    offset: g.offset,
+                });
+            }
+            *resolved.get_mut(e).unwrap() = res;
+        }
     }
     fn update(
         trigger: Trigger<Update<Text>>,
