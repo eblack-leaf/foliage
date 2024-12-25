@@ -203,8 +203,8 @@ impl Render for Text {
             let position = packet
                 .position
                 .to_device(ginkgo.configuration().scale_factor.value());
-            group.uniform.set(0, position.left());
-            group.uniform.set(1, position.top());
+            group.uniform.set(0, position.left().round());
+            group.uniform.set(1, position.top().round());
             group.write_uniform = true;
         }
         for (entity, packet) in elm.attribute::<Text, BlendedOpacity>() {

@@ -18,6 +18,6 @@ impl MonospacedFont {
     pub(crate) fn character_block(&self, font_size: FontSize) -> Coordinates {
         let metrics = self.0.metrics('a', font_size.value as f32);
         let line_metrics = self.0.horizontal_line_metrics(font_size.value as f32);
-        Coordinates::new(metrics.advance_width, line_metrics.unwrap().new_line_size)
+        Coordinates::new(metrics.advance_width.ceil(), line_metrics.unwrap().new_line_size.ceil())
     }
 }
