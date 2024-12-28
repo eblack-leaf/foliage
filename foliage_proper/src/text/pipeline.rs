@@ -8,9 +8,12 @@ use crate::ginkgo::{Ginkgo, VectorUniform};
 use crate::opacity::BlendedOpacity;
 use crate::text::glyph::{GlyphKey, GlyphOffset, ResolvedColors, ResolvedGlyphs};
 use crate::text::monospaced::MonospacedFont;
-use crate::text::UniqueCharacters;
+use crate::text::{TextBounds, UniqueCharacters};
 use crate::texture::{AtlasEntry, TextureAtlas, TextureCoordinates, Vertex, VERTICES};
-use crate::{CReprColor, CReprSection, FontSize, Layer, LogicalContext, Section, Text};
+use crate::{
+    CReprColor, CReprSection, DeviceContext, FontSize, LogicalContext, ResolvedElevation, Section,
+    Text,
+};
 use bevy_ecs::entity::Entity;
 use std::collections::HashMap;
 use wgpu::{
@@ -29,7 +32,7 @@ pub(crate) struct Group {
     pub(crate) texture_atlas: Option<TextureAtlas<GlyphKey, GlyphOffset, u8>>,
     pub(crate) bind_group: Option<wgpu::BindGroup>,
     pub(crate) update_node: bool,
-    pub(crate) layer: Layer,
+    pub(crate) elevation: ResolvedElevation,
     pub(crate) clip_section: ClipSection,
     pub(crate) uniform: VectorUniform<f32>,
     pub(crate) sections: InstanceBuffer<CReprSection>,
@@ -39,17 +42,18 @@ pub(crate) struct Group {
     pub(crate) unique_characters: UniqueCharacters,
     pub(crate) font_size: FontSize,
     pub(crate) queued_tex_reads: Vec<(GlyphKey, InstanceId)>,
+    pub(crate) bounds: Section<DeviceContext>,
 }
 
 impl Group {
-    pub(crate) fn new(ginkgo: &Ginkgo, layer: Layer) -> Self {
+    pub(crate) fn new(ginkgo: &Ginkgo, elevation: ResolvedElevation) -> Self {
         let initial_capacity = 15;
-        let uniform = VectorUniform::new(ginkgo.context(), [0.0, 0.0, layer.value(), 1.0]);
+        let uniform = VectorUniform::new(ginkgo.context(), [0.0, 0.0, elevation.value(), 1.0]);
         Self {
             texture_atlas: None,
             bind_group: None,
             update_node: false,
-            layer,
+            elevation,
             clip_section: Default::default(),
             uniform,
             sections: InstanceBuffer::new(ginkgo, initial_capacity),
@@ -59,6 +63,7 @@ impl Group {
             unique_characters: Default::default(),
             font_size: Default::default(),
             queued_tex_reads: vec![],
+            bounds: Default::default(),
         }
     }
 }
@@ -171,13 +176,13 @@ impl Render for Text {
                 ONE_NODE_PER_GROUP_OPTIMIZATION,
             ));
         }
-        for (entity, packet) in elm.attribute::<Text, Layer>() {
+        for (entity, packet) in elm.attribute::<Text, ResolvedElevation>() {
             // queue add/update
             if renderer.resources.entity_to_group.contains_key(&entity) {
                 let id = renderer.resources.entity_to_group.get(&entity).unwrap();
                 // OMITTED for optimization renderer.groups.get_mut(id).unwrap().coordinator.needs_sort = true;
                 let group = &mut renderer.groups.get_mut(id).unwrap().group;
-                group.layer = packet;
+                group.elevation = packet;
                 group.uniform.set(2, packet.value());
                 group.write_uniform = true;
                 group.update_node = true;
@@ -199,6 +204,11 @@ impl Render for Text {
             let group = &mut renderer.groups.get_mut(id).unwrap().group;
             group.clip_section = packet;
             group.update_node = true;
+        }
+        for (entity, packet) in elm.attribute::<Text, TextBounds>() {
+            let id = renderer.resources.entity_to_group.get(&entity).unwrap();
+            let group = &mut renderer.groups.get_mut(id).unwrap().group;
+            group.bounds = packet.bounds;
         }
         for (entity, packet) in elm.attribute::<Text, Section<LogicalContext>>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
@@ -266,7 +276,7 @@ impl Render for Text {
             for glyph in glyphs.updated {
                 if !group.coordinator.has_instance(glyph.offset as InstanceId) {
                     group.coordinator.add(Instance::new(
-                        Layer::new(0.0),
+                        ResolvedElevation::new(0.0),
                         group.group.clip_section,
                         glyph.offset as InstanceId,
                     ));
@@ -406,7 +416,7 @@ impl Render for Text {
             // submit node
             if render_group.group.update_node {
                 let node = Node::new(
-                    render_group.group.layer,
+                    render_group.group.elevation,
                     PipelineId::Text,
                     *group_id,
                     0,
@@ -421,15 +431,20 @@ impl Render for Text {
     }
 
     fn render(renderer: &mut Renderer<Self>, render_pass: &mut RenderPass, parameters: Parameters) {
-        if let Some(clip) = parameters.clip_section {
-            render_pass.set_scissor_rect(
-                clip.left() as u32,
-                clip.top() as u32,
-                clip.width() as u32,
-                clip.height() as u32,
-            );
-        }
         let group = renderer.groups.get(&parameters.group).unwrap();
+        let mut clip = group.group.bounds;
+        if let Some(cs) = parameters.clip_section {
+            clip = clip.intersection(cs).unwrap();
+        }
+        // TODO need check here?
+        // if !clip.left() <= 0 && !clip.right() <= 0 && !clip.top() <= 0 && !clip.bottom() <= 0 {
+        render_pass.set_scissor_rect(
+            clip.left() as u32,
+            clip.top() as u32,
+            clip.width() as u32,
+            clip.height() as u32,
+        );
+        // }
         render_pass.set_pipeline(&renderer.pipeline);
         render_pass.set_bind_group(0, &group.group.bind_group, &[]);
         render_pass.set_bind_group(1, &renderer.bind_group, &[]);

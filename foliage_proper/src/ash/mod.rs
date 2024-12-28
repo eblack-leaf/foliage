@@ -2,8 +2,8 @@ use crate::ash::clip::{prepare_clip_section, ClipSection};
 use crate::ash::differential::Elm;
 use crate::ginkgo::{Ginkgo, ScaleFactor};
 use crate::{
-    Attachment, Color, Component, DeviceContext, DiffMarkers, Foliage, Layer, Resource, Section,
-    Text,
+    Attachment, Color, Component, DeviceContext, DiffMarkers, Foliage, ResolvedElevation, Resource,
+    Section, Text,
 };
 use bevy_ecs::prelude::IntoSystemConfigs;
 use bevy_ecs::world::World;
@@ -96,9 +96,9 @@ impl Ash {
             self.nodes.push(node);
         }
         self.nodes.sort_by(|lhs, rhs| {
-            if lhs.layer < rhs.layer {
+            if lhs.elevation < rhs.elevation {
                 Ordering::Less
-            } else if lhs.layer > rhs.layer {
+            } else if lhs.elevation > rhs.elevation {
                 Ordering::Greater
             } else {
                 if lhs.pipeline != rhs.pipeline {
@@ -253,7 +253,7 @@ pub(crate) struct Parameters {
 }
 #[derive(Copy, Clone)]
 pub(crate) struct Node {
-    pub(crate) layer: Layer,
+    pub(crate) elevation: ResolvedElevation,
     pub(crate) pipeline: PipelineId,
     pub(crate) group: GroupId,
     pub(crate) order: Order,
@@ -262,7 +262,7 @@ pub(crate) struct Node {
 }
 impl Node {
     pub(crate) fn new(
-        layer: Layer,
+        elevation: ResolvedElevation,
         pipeline_id: PipelineId,
         group_id: GroupId,
         order: Order,
@@ -270,7 +270,7 @@ impl Node {
         instance_id: InstanceId,
     ) -> Self {
         Self {
-            layer,
+            elevation,
             pipeline: pipeline_id,
             group: group_id,
             order,
@@ -314,14 +314,14 @@ impl Nodes {
 }
 #[derive(Copy, Clone)]
 pub(crate) struct Instance {
-    pub(crate) layer: Layer,
+    pub(crate) elevation: ResolvedElevation,
     pub(crate) clip_section: ClipSection,
     pub(crate) id: InstanceId,
 }
 impl Instance {
-    pub fn new(layer: Layer, clip_section: ClipSection, id: InstanceId) -> Self {
+    pub fn new(elevation: ResolvedElevation, clip_section: ClipSection, id: InstanceId) -> Self {
         Self {
-            layer,
+            elevation,
             clip_section,
             id,
         }
@@ -390,9 +390,9 @@ impl InstanceCoordinator {
         }
         self.needs_sort = false;
         self.instances.sort_by(|a, b| {
-            if a.layer > b.layer {
+            if a.elevation > b.elevation {
                 Ordering::Greater
-            } else if a.layer < b.layer {
+            } else if a.elevation < b.elevation {
                 Ordering::Less
             } else {
                 if a.clip_section != b.clip_section {

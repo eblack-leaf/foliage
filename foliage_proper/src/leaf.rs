@@ -1,6 +1,5 @@
 use crate::Component;
 use crate::Elevation;
-use crate::Layer;
 use crate::LogicalContext;
 use crate::Opacity;
 use crate::Section;
@@ -12,7 +11,7 @@ use std::collections::HashSet;
 #[derive(Component)]
 #[require(Stem, Branch)]
 #[require(Opacity, Visibility)]
-#[require(Section<LogicalContext>, Elevation, Layer)]
+#[require(Section<LogicalContext>, Elevation)]
 pub struct Leaf {}
 
 impl Leaf {

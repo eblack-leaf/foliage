@@ -13,7 +13,9 @@ use crate::text::glyph::{
     Glyph, GlyphColor, GlyphColors, GlyphKey, Glyphs, ResolvedColors, ResolvedGlyphs,
 };
 use crate::text::monospaced::MonospacedFont;
-use crate::{Attachment, DeviceContext, Foliage, Layer, Tree, Update, Visibility, Write};
+use crate::{
+    Attachment, DeviceContext, Foliage, ResolvedElevation, Tree, Update, Visibility, Write,
+};
 use crate::{ClipContext, Differential};
 use crate::{ClipSection, DiffMarkers};
 use bevy_ecs::component::ComponentId;
@@ -38,11 +40,12 @@ impl Attachment for Text {
         foliage.differential::<Text, FontSize>();
         foliage.differential::<Text, BlendedOpacity>();
         foliage.differential::<Text, Section<LogicalContext>>();
-        foliage.differential::<Text, Layer>();
+        foliage.differential::<Text, ResolvedElevation>();
         foliage.differential::<Text, ClipSection>();
         foliage.differential::<Text, ResolvedGlyphs>();
         foliage.differential::<Text, ResolvedColors>();
         foliage.differential::<Text, UniqueCharacters>();
+        foliage.differential::<Text, TextBounds>();
     }
 }
 #[derive(Component, Clone, PartialEq, Default)]
@@ -50,10 +53,11 @@ impl Attachment for Text {
 #[require(HorizontalAlignment, VerticalAlignment, Glyphs)]
 #[require(ResolvedGlyphs, ResolvedColors, GlyphColors)]
 #[require(UniqueCharacters, Differential<Text, UniqueCharacters>)]
+#[require(TextBounds, Differential<Text, TextBounds>)]
 #[require(Differential<Text, FontSize>)]
 #[require(Differential<Text, BlendedOpacity>)]
 #[require(Differential<Text, Section<LogicalContext>>)]
-#[require(Differential<Text, Layer>)]
+#[require(Differential<Text, ResolvedElevation>)]
 #[require(Differential<Text, ClipSection>)]
 #[require(Differential<Text, ResolvedGlyphs>)]
 #[require(Differential<Text, ResolvedColors>)]
@@ -146,7 +150,7 @@ impl Text {
                 horizontal_align: current.horizontal_alignment.into(),
                 vertical_align: current.vertical_alignment.into(),
                 max_width: Some(current.section.width()),
-                max_height: Some(current.section.height()),
+                // max_height: Some(current.section.height()),
                 ..fontdue::layout::LayoutSettings::default()
             });
             glyphs.layout.append(
@@ -157,15 +161,21 @@ impl Text {
                     0,
                 ),
             );
-            let adjusted_section = current
-                .section
-                .with_height(glyphs.layout.height())
-                .to_logical(scale_factor.value());
-            current.section = adjusted_section.to_device(scale_factor.value());
+
             tree.entity(this)
                 .insert(UniqueCharacters::count(&current.text))
-                .insert(current)
-                .insert(adjusted_section);
+                .insert(current.clone());
+            // TODO replace with option component
+            let auto_height = true;
+            if auto_height {
+                let adjusted_section = current
+                    .section
+                    .with_height(glyphs.layout.height())
+                    .to_logical(scale_factor.value());
+                current.section = adjusted_section.to_device(scale_factor.value());
+                tree.entity(this).insert(adjusted_section);
+            }
+            tree.entity(this).insert(TextBounds::new(current.section));
         }
     }
     fn resolve_glyphs(
@@ -210,6 +220,15 @@ impl Text {
             glyphs.glyphs = new;
             tree.entity(entity).insert(resolved);
         }
+    }
+}
+#[derive(Component, Copy, Clone, Default, PartialEq)]
+pub(crate) struct TextBounds {
+    pub(crate) bounds: Section<DeviceContext>,
+}
+impl TextBounds {
+    pub(crate) fn new(bounds: Section<DeviceContext>) -> Self {
+        Self { bounds }
     }
 }
 #[derive(Copy, Clone, Component, Default, PartialEq)]

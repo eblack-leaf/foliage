@@ -4,7 +4,7 @@ use winit::event_loop::ActiveEventLoop;
 use winit::window::{Window, WindowAttributes};
 
 use crate::coordinate::area::Area;
-use crate::coordinate::elevation::Layer;
+use crate::coordinate::elevation::ResolvedElevation;
 use crate::coordinate::position::Position;
 use crate::coordinate::{DeviceContext, NumericalContext};
 
@@ -25,12 +25,12 @@ pub(crate) struct Willow {
 
 #[derive(Copy, Clone)]
 pub struct NearFarDescriptor {
-    pub(crate) near: Layer,
-    pub(crate) far: Layer,
+    pub(crate) near: ResolvedElevation,
+    pub(crate) far: ResolvedElevation,
 }
 
 impl NearFarDescriptor {
-    pub fn new<L: Into<Layer>>(near: L, far: L) -> Self {
+    pub fn new<L: Into<ResolvedElevation>>(near: L, far: L) -> Self {
         Self {
             near: near.into(),
             far: far.into(),
@@ -41,8 +41,8 @@ impl NearFarDescriptor {
 impl Default for NearFarDescriptor {
     fn default() -> Self {
         Self {
-            near: Layer::new(0f32),
-            far: Layer::new(100f32),
+            near: ResolvedElevation::new(0f32),
+            far: ResolvedElevation::new(100f32),
         }
     }
 }

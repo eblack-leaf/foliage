@@ -6,18 +6,18 @@ use bytemuck::{Pod, Zeroable};
 
 #[repr(C)]
 #[derive(Copy, Clone, Default, PartialEq, Pod, Zeroable, Component, Debug)]
-pub struct Layer(pub(crate) f32);
-impl Layer {
+pub struct ResolvedElevation(pub(crate) f32);
+impl ResolvedElevation {
     pub fn value(&self) -> f32 {
         self.0
     }
 }
-impl Display for Layer {
+impl Display for ResolvedElevation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!("{}", self.0))
     }
 }
-impl PartialOrd for Layer {
+impl PartialOrd for ResolvedElevation {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         if self.0 < other.0 {
             Some(std::cmp::Ordering::Greater)
@@ -30,6 +30,7 @@ impl PartialOrd for Layer {
 }
 #[repr(C)]
 #[derive(Copy, Clone, Default, PartialEq, PartialOrd, Pod, Zeroable, Component, Debug)]
+#[require(ResolvedElevation)]
 pub struct Elevation(pub f32);
 impl Elevation {
     pub fn new(e: i32) -> Self {
@@ -53,39 +54,39 @@ elevation_conversion_implementation!(isize);
 elevation_conversion_implementation!(f64);
 elevation_conversion_implementation!(i64);
 elevation_conversion_implementation!(u64);
-impl Add for Layer {
+impl Add for ResolvedElevation {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
         Self::new(self.0 + rhs.0)
     }
 }
-impl Sub for Layer {
+impl Sub for ResolvedElevation {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
         Self::new(self.0 - rhs.0)
     }
 }
-impl Layer {
+impl ResolvedElevation {
     pub fn new(l: f32) -> Self {
         Self(l)
     }
 }
-macro_rules! layer_conversion_implementation {
+macro_rules! elevation_conversion_implementation {
     ($i:ty) => {
-        impl From<$i> for Layer {
+        impl From<$i> for ResolvedElevation {
             fn from(value: $i) -> Self {
                 Self::new(value as f32)
             }
         }
     };
 }
-layer_conversion_implementation!(f32);
-layer_conversion_implementation!(i32);
-layer_conversion_implementation!(u32);
-layer_conversion_implementation!(usize);
-layer_conversion_implementation!(isize);
-layer_conversion_implementation!(f64);
-layer_conversion_implementation!(i64);
-layer_conversion_implementation!(u64);
+elevation_conversion_implementation!(f32);
+elevation_conversion_implementation!(i32);
+elevation_conversion_implementation!(u32);
+elevation_conversion_implementation!(usize);
+elevation_conversion_implementation!(isize);
+elevation_conversion_implementation!(f64);
+elevation_conversion_implementation!(i64);
+elevation_conversion_implementation!(u64);
