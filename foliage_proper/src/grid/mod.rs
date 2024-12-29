@@ -17,4 +17,7 @@ fn behavior() {
     let location = Location::new()
         .sm(3.to(10).max(300.px()).justify(Left), 6.to(9))
         .md(4.to(9).max(400.px()).justify(Left), 6.to(9));
+    let location = Location::new().sm(1.to(1), 2.to(auto()));
+    let location = Location::new().sm(1.to(1), stack().to(auto()));// stack uses stem().bottom() as this.top()
+    let location = Location::new().sm(1.to(1), stack().to(25)); // way to hook back into known row
 }
