@@ -259,7 +259,7 @@ impl FontSize {
 }
 impl Default for FontSize {
     fn default() -> Self {
-        Self { value: 14 }
+        Self { value: 16 }
     }
 }
 #[derive(Component, Clone, PartialEq, Default)]

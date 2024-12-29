@@ -12,7 +12,7 @@ impl MonospacedFont {
                     ..fontdue::FontSettings::default()
                 },
             )
-            .expect("font"),
+                .expect("font"),
         )
     }
     pub(crate) fn character_block(&self, font_size: FontSize) -> Coordinates {
@@ -23,4 +23,9 @@ impl MonospacedFont {
             line_metrics.unwrap().new_line_size.ceil(),
         )
     }
+}
+#[test]
+fn block() {
+    let mut font = MonospacedFont::new(20);
+    println!("block: {}", font.character_block(FontSize::default()));
 }
