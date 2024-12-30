@@ -208,6 +208,7 @@ impl Render for Text {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
             let group = &mut renderer.groups.get_mut(id).unwrap().group;
             group.bounds = packet.bounds;
+            group.update_node = true;
         }
         for (entity, packet) in elm.attribute::<Text, Section<LogicalContext>>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
@@ -414,12 +415,22 @@ impl Render for Text {
             render_group.group.tex_coords.write_gpu(ginkgo);
             // submit node
             if render_group.group.update_node {
+                let bounds = render_group
+                    .group
+                    .bounds
+                    .to_logical(ginkgo.configuration().scale_factor.value());
+                let resolved = render_group
+                    .group
+                    .clip_section
+                    .0
+                    .and_then(|cs| cs.intersection(bounds))
+                    .unwrap_or(bounds);
                 let node = Node::new(
                     render_group.group.elevation,
                     PipelineId::Text,
                     *group_id,
                     0,
-                    render_group.group.clip_section,
+                    ClipSection(Some(resolved)),
                     ONE_NODE_PER_GROUP_OPTIMIZATION,
                 );
                 nodes.update(node);
@@ -431,19 +442,14 @@ impl Render for Text {
 
     fn render(renderer: &mut Renderer<Self>, render_pass: &mut RenderPass, parameters: Parameters) {
         let group = renderer.groups.get(&parameters.group).unwrap();
-        let mut clip = group.group.bounds;
-        if let Some(cs) = parameters.clip_section {
-            clip = clip.intersection(cs).unwrap();
+        if let Some(clip) = parameters.clip_section {
+            render_pass.set_scissor_rect(
+                clip.left() as u32,
+                clip.top() as u32,
+                clip.width() as u32,
+                clip.height() as u32,
+            );
         }
-        // TODO need check here?
-        // if !clip.left() <= 0 && !clip.right() <= 0 && !clip.top() <= 0 && !clip.bottom() <= 0 {
-        render_pass.set_scissor_rect(
-            clip.left() as u32,
-            clip.top() as u32,
-            clip.width() as u32,
-            clip.height() as u32,
-        );
-        // }
         render_pass.set_pipeline(&renderer.pipeline);
         render_pass.set_bind_group(0, &group.group.bind_group, &[]);
         render_pass.set_bind_group(1, &renderer.bind_group, &[]);

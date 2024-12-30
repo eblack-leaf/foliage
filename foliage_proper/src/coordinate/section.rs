@@ -12,7 +12,7 @@ use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::{
     CoordinateContext, CoordinateUnit, Coordinates, DeviceContext, LogicalContext, NumericalContext,
 };
-use crate::Write;
+use crate::{Branch, Location, Update, Write};
 
 #[derive(Copy, Clone, Default, Component, PartialEq, Debug)]
 #[component(on_insert = Section::<LogicalContext>::on_insert)]
@@ -183,9 +183,18 @@ impl<Context: CoordinateContext> Section<Context> {
         Self::new(self.position.abs(), self.area.abs())
     }
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
-        if TypeId::of::<Self>() == TypeId::of::<Section<LogicalContext>>() {
-            world.trigger_targets(Write::<Self>::new(), this);
+        if TypeId::of::<Self>() != TypeId::of::<Section<LogicalContext>>() {
+            return;
         }
+        world.trigger_targets(Write::<Self>::new(), this);
+        let deps = world.get::<Branch>(this).unwrap().ids.clone();
+        if deps.is_empty() {
+            return;
+        }
+        world.commands().trigger_targets(
+            Update::<Location>::new(),
+            deps.iter().copied().collect::<Vec<_>>(),
+        );
     }
 }
 impl Section<NumericalContext> {

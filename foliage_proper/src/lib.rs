@@ -38,7 +38,6 @@ pub use crate::coordinate::{
 };
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::Ginkgo;
-use crate::grid::Grid;
 use crate::interaction::Interaction;
 use crate::remove::Remove;
 use crate::time::Time;
@@ -53,7 +52,7 @@ pub use color::Luminance;
 pub use color::{CReprColor, Color};
 pub use coordinate::elevation::{Elevation, ResolvedElevation};
 use futures_channel::oneshot;
-pub use grid::Layout;
+pub use grid::{Grid, GridUnit, Layout, Location, LocationAxisDescriptor, LocationAxisType};
 pub use leaf::{Branch, Leaf, Stem};
 pub use opacity::Opacity;
 pub use ops::{Update, Write};
@@ -69,7 +68,6 @@ pub use tree::{EcsExtension, Tree};
 pub use visibility::{InheritedVisibility, ResolvedVisibility, Visibility};
 use winit::event::WindowEvent;
 use winit::event_loop::{ControlFlow, EventLoop};
-
 pub struct Foliage {
     pub world: World,
     pub(crate) main: Schedule,

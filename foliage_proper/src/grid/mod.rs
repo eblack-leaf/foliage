@@ -6,7 +6,7 @@ use crate::grid::location::Justify::{Center, Left};
 pub use crate::grid::location::{
     auto, stack, Justify, LocationAxisDescriptor, LocationAxisType, Padding,
 };
-use crate::{Attachment, CoordinateUnit, Coordinates, Foliage};
+use crate::{Attachment, Component, CoordinateUnit, Coordinates, Foliage};
 pub use aspect_ratio::AspectRatio;
 pub use layout::Layout;
 pub use location::Location;
@@ -78,6 +78,7 @@ impl GridExt for i32 {
         GridUnit::Aligned(AlignedUnit::Rows(self))
     }
 }
+#[derive(Component)]
 pub struct Grid {
     pub sm: GridConfiguration,
     pub md: Option<GridConfiguration>,

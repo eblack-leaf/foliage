@@ -1,6 +1,12 @@
 use crate::grid::{GridUnit, ScalarUnit};
-use crate::Coordinates;
-
+use crate::{Component, Coordinates, Grid, Layout, LogicalContext, Section, Stem, Tree, Update};
+use bevy_ecs::component::ComponentId;
+use bevy_ecs::entity::Entity;
+use bevy_ecs::prelude::{Res, Trigger};
+use bevy_ecs::system::Query;
+use bevy_ecs::world::DeferredWorld;
+#[derive(Component)]
+#[component(on_insert = Location::on_insert)]
 pub struct Location {
     pub sm: Option<LocationConfiguration>,
     pub md: Option<LocationConfiguration>,
@@ -47,6 +53,33 @@ impl Location {
     ) -> Self {
         self.xl.replace((had.into(), vad.into()).into());
         self
+    }
+    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+        world.trigger_targets(Update::<Location>::new(), this);
+    }
+    pub(crate) fn update_location(
+        trigger: Trigger<Update<Location>>,
+        mut tree: Tree,
+        layout: Res<Layout>,
+        locations: Query<&Location>,
+        sections: Query<&Section<LogicalContext>>,
+        grids: Query<&Grid>,
+        stems: Query<&Stem>,
+        stacks: Query<&Stack>,
+    ) {
+        // if trigger.entity() has location
+        // resolve location w/ stems + stacks + sections + grids
+        // if resolved => insert resolved-section + if invisible => visible
+        // else if visible => invisible
+    }
+}
+#[derive(Component, Copy, Clone)]
+pub struct Stack {
+    pub id: Option<Entity>,
+}
+impl Default for Stack {
+    fn default() -> Self {
+        Self { id: None }
     }
 }
 pub struct LocationConfiguration {
