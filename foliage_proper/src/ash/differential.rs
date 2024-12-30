@@ -17,7 +17,7 @@ pub(crate) struct Differential<
 }
 
 impl<R: Clone + Send + Sync + 'static, RP: Clone + Send + Sync + 'static + PartialEq>
-    Differential<R, RP>
+Differential<R, RP>
 {
     pub(crate) fn new(cache: RP) -> Self {
         Self {
@@ -46,7 +46,7 @@ impl<R: Clone + Send + Sync + 'static, RP: Clone + Send + Sync + 'static + Parti
 }
 
 impl<R: Clone + Send + Sync + 'static, RP: Clone + Send + Sync + 'static + PartialEq> Default
-    for Differential<R, RP>
+for Differential<R, RP>
 {
     fn default() -> Self {
         Self::blank()
@@ -56,7 +56,10 @@ pub(crate) fn cached_differential<
     R: Clone + Send + Sync + 'static,
     RP: Clone + Send + Sync + 'static + Component + PartialEq,
 >(
-    values: Query<(Entity, &RP), (Changed<RP>, With<Differential<R, RP>>)>,
+    mut values: ParamSet<(
+        Query<(Entity, &RP), (Changed<RP>, With<Differential<R, RP>>)>,
+        Query<&RP>,
+    )>,
     mut caches: Query<&mut Differential<R, RP>>,
     mut visibility: ParamSet<(
         Query<&ResolvedVisibility>,
@@ -68,13 +71,13 @@ pub(crate) fn cached_differential<
     let changed = visibility.p1().iter().collect::<Vec<_>>();
     for c in changed {
         if visibility.p0().get(c).unwrap().visible() {
-            let v = values.get(c).unwrap().1.clone();
+            let v = values.p1().get(c).unwrap().clone();
             caches.get_mut(c).unwrap().cache.replace(v.clone());
             queue.queue.insert(c, v);
         }
     }
     // if is-visible && != cached => send new + set cache
-    for (e, v) in values.iter() {
+    for (e, v) in values.p0().iter() {
         if visibility.p0().get(e).unwrap().visible() {
             let mut cache = caches.get_mut(e).unwrap();
             if cache.different(v.clone()) {

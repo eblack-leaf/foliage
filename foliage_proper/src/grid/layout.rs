@@ -26,7 +26,7 @@ pub(crate) fn viewport_changed(
     if vh.updated() {
         let new = Layout::new(vh.section());
         if new != *layout {
-            // Write<Layout> ?
+            // Write<Layout> => responsive font-size configure + user stuff
             *layout = new;
         }
         let mut targets = vec![];
