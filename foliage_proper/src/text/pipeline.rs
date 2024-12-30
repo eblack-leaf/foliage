@@ -8,11 +8,10 @@ use crate::ginkgo::{Ginkgo, VectorUniform};
 use crate::opacity::BlendedOpacity;
 use crate::text::glyph::{GlyphKey, GlyphOffset, ResolvedColors, ResolvedGlyphs};
 use crate::text::monospaced::MonospacedFont;
-use crate::text::{TextBounds, UniqueCharacters};
+use crate::text::{ResolvedFontSize, TextBounds, UniqueCharacters};
 use crate::texture::{AtlasEntry, TextureAtlas, TextureCoordinates, Vertex, VERTICES};
 use crate::{
-    CReprColor, CReprSection, DeviceContext, FontSize, LogicalContext, ResolvedElevation, Section,
-    Text,
+    CReprColor, CReprSection, DeviceContext, LogicalContext, ResolvedElevation, Section, Text,
 };
 use bevy_ecs::entity::Entity;
 use std::collections::HashMap;
@@ -40,7 +39,7 @@ pub(crate) struct Group {
     pub(crate) tex_coords: InstanceBuffer<TextureCoordinates>,
     pub(crate) write_uniform: bool,
     pub(crate) unique_characters: UniqueCharacters,
-    pub(crate) font_size: FontSize,
+    pub(crate) font_size: ResolvedFontSize,
     pub(crate) queued_tex_reads: Vec<(GlyphKey, InstanceId)>,
     pub(crate) bounds: Section<DeviceContext>,
 }
@@ -231,13 +230,13 @@ impl Render for Text {
             let group = &mut renderer.groups.get_mut(id).unwrap().group;
             group.unique_characters = packet; // prevents under-growth
         }
-        for (entity, packet) in elm.attribute::<Text, FontSize>() {
+        for (entity, packet) in elm.attribute::<Text, ResolvedFontSize>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
             let group = &mut renderer.groups.get_mut(id).unwrap().group;
             group.font_size = packet;
             group.texture_atlas.replace(TextureAtlas::new(
                 ginkgo,
-                renderer.resources.font.character_block(packet),
+                renderer.resources.font.character_block(packet.value),
                 group.unique_characters.0,
                 wgpu::TextureFormat::R8Unorm,
             ));

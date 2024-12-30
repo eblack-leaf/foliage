@@ -14,7 +14,7 @@ use crate::text::glyph::{
 };
 use crate::text::monospaced::MonospacedFont;
 use crate::{
-    Attachment, DeviceContext, Foliage, ResolvedElevation, Tree, Update, Visibility, Write,
+    Attachment, DeviceContext, Foliage, Layout, ResolvedElevation, Tree, Update, Visibility, Write,
 };
 use crate::{ClipContext, Differential};
 use crate::{ClipSection, DiffMarkers};
@@ -37,7 +37,7 @@ impl Attachment for Text {
                 .in_set(DiffMarkers::Prepare),
         );
         foliage.remove_queue::<Text>();
-        foliage.differential::<Text, FontSize>();
+        foliage.differential::<Text, ResolvedFontSize>();
         foliage.differential::<Text, BlendedOpacity>();
         foliage.differential::<Text, Section<LogicalContext>>();
         foliage.differential::<Text, ResolvedElevation>();
@@ -54,7 +54,7 @@ impl Attachment for Text {
 #[require(ResolvedGlyphs, ResolvedColors, GlyphColors)]
 #[require(UniqueCharacters, Differential<Text, UniqueCharacters>)]
 #[require(TextBounds, Differential<Text, TextBounds>)]
-#[require(Differential<Text, FontSize>)]
+#[require(Differential<Text, ResolvedFontSize>)]
 #[require(Differential<Text, BlendedOpacity>)]
 #[require(Differential<Text, Section<LogicalContext>>)]
 #[require(Differential<Text, ResolvedElevation>)]
@@ -126,7 +126,7 @@ impl Text {
         trigger: Trigger<Update<Text>>,
         mut tree: Tree,
         texts: Query<&Text>,
-        font_sizes: Query<&FontSize>,
+        font_sizes: Query<&ResolvedFontSize>,
         mut glyph_query: Query<&mut Glyphs>,
         horizontal_alignment: Query<&HorizontalAlignment>,
         vertical_alignment: Query<&VerticalAlignment>,
@@ -137,7 +137,7 @@ impl Text {
     ) {
         let this = trigger.entity();
         let mut current = UpdateCache::default();
-        current.font_size = FontSize::new(
+        current.font_size = ResolvedFontSize::new(
             (font_sizes.get(this).unwrap().value as f32 * scale_factor.value()) as u32,
         );
         current.text = texts.get(this).unwrap().clone();
@@ -243,11 +243,11 @@ impl UniqueCharacters {
     }
 }
 #[derive(Component, Clone, Copy, PartialEq)]
-#[component(on_insert = FontSize::on_insert)]
-pub struct FontSize {
+#[component(on_insert = ResolvedFontSize::on_insert)]
+pub struct ResolvedFontSize {
     pub value: u32,
 }
-impl FontSize {
+impl ResolvedFontSize {
     pub fn new(value: u32) -> Self {
         Self { value }
     }
@@ -257,14 +257,95 @@ impl FontSize {
             .trigger_targets(Update::<Text>::new(), this);
     }
 }
+impl Default for ResolvedFontSize {
+    fn default() -> Self {
+        Self {
+            value: FontSize::DEFAULT_SIZE,
+        }
+    }
+}
+#[derive(Component, Clone, Copy, PartialEq)]
+#[component(on_insert = FontSize::on_insert)]
+pub struct FontSize {
+    pub sm: u32,
+    pub md: Option<u32>,
+    pub lg: Option<u32>,
+    pub xl: Option<u32>,
+}
+impl FontSize {
+    pub const DEFAULT_SIZE: u32 = 16;
+    pub fn new(value: u32) -> Self {
+        Self {
+            sm: value,
+            md: None,
+            lg: None,
+            xl: None,
+        }
+    }
+    pub fn resolve(&self, layout: Layout) -> ResolvedFontSize {
+        match layout {
+            Layout::Sm => ResolvedFontSize::new(self.sm),
+            Layout::Md => {
+                if let Some(md) = self.md {
+                    ResolvedFontSize::new(md)
+                } else {
+                    ResolvedFontSize::new(self.sm)
+                }
+            }
+            Layout::Lg => {
+                if let Some(lg) = self.lg {
+                    ResolvedFontSize::new(lg)
+                } else if let Some(md) = self.md {
+                    ResolvedFontSize::new(md)
+                } else {
+                    ResolvedFontSize::new(self.sm)
+                }
+            }
+            Layout::Xl => {
+                if let Some(xl) = self.xl {
+                    ResolvedFontSize::new(xl)
+                } else if let Some(lg) = self.lg {
+                    ResolvedFontSize::new(lg)
+                } else if let Some(md) = self.md {
+                    ResolvedFontSize::new(md)
+                } else {
+                    ResolvedFontSize::new(self.sm)
+                }
+            }
+        }
+    }
+    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+        let layout = *world.get_resource::<Layout>().unwrap();
+        let comp = world.get::<FontSize>(this).unwrap();
+        let resolved = comp.resolve(layout);
+        world.commands().entity(this).insert(resolved);
+    }
+    pub fn md(mut self, value: u32) -> Self {
+        self.md.replace(value);
+        self
+    }
+    pub fn lg(mut self, value: u32) -> Self {
+        self.lg.replace(value);
+        self
+    }
+    pub fn xl(mut self, value: u32) -> Self {
+        self.xl.replace(value);
+        self
+    }
+}
 impl Default for FontSize {
     fn default() -> Self {
-        Self { value: 16 }
+        Self {
+            sm: FontSize::DEFAULT_SIZE,
+            md: None,
+            lg: None,
+            xl: None,
+        }
     }
 }
 #[derive(Component, Clone, PartialEq, Default)]
 pub(crate) struct UpdateCache {
-    pub(crate) font_size: FontSize,
+    pub(crate) font_size: ResolvedFontSize,
     pub(crate) text: Text,
     pub(crate) section: Section<DeviceContext>,
     pub(crate) horizontal_alignment: HorizontalAlignment,
