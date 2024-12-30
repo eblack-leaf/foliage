@@ -1,9 +1,9 @@
 mod aspect_ratio;
 mod layout;
 mod location;
-
+mod view;
 use crate::grid::location::Justify::{Center, Left};
-use crate::grid::location::{
+pub use crate::grid::location::{
     auto, stack, Justify, LocationAxisDescriptor, LocationAxisType, Padding,
 };
 use crate::{CoordinateUnit, Coordinates};
