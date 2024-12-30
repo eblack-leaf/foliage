@@ -1,4 +1,4 @@
-use crate::grid::{AlignedUnit, GridUnit, ScalarUnit};
+use crate::grid::{GridUnit, ScalarUnit};
 use crate::Coordinates;
 
 pub struct Location {
@@ -64,6 +64,13 @@ impl From<(LocationAxisDescriptor, LocationAxisDescriptor)> for LocationConfigur
 pub struct Padding {
     pub coordinates: Coordinates,
 }
+impl Default for Padding {
+    fn default() -> Self {
+        Self {
+            coordinates: (8, 8).into(),
+        }
+    }
+}
 impl From<i32> for Padding {
     fn from(value: i32) -> Self {
         Self {
@@ -79,8 +86,8 @@ impl From<(i32, i32)> for Padding {
     }
 }
 pub struct LocationAxisDescriptor {
-    pub a: LocationAxisUnit,
-    pub b: LocationAxisUnit,
+    pub a: GridUnit,
+    pub b: GridUnit,
     pub ty: LocationAxisType,
     pub padding: Padding,
     pub justify: Justify,
@@ -101,24 +108,20 @@ impl LocationAxisDescriptor {
     }
 }
 pub fn stack() -> GridUnit {
-    todo!()
+    GridUnit::Stack
 }
 pub fn auto() -> GridUnit {
-    todo!()
+    GridUnit::Auto
 }
+#[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug, Hash)]
 pub enum Justify {
     Left,
     Right,
+    #[default]
     Center,
 }
 pub enum LocationAxisType {
     Point,
     Span,
     To,
-}
-pub enum LocationAxisUnit {
-    Scalar(ScalarUnit),
-    Aligned(AlignedUnit),
-    Stack,
-    Auto,
 }

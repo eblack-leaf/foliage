@@ -3,7 +3,9 @@ mod layout;
 mod location;
 
 use crate::grid::location::Justify::{Center, Left};
-use crate::grid::location::{auto, stack, LocationAxisDescriptor};
+use crate::grid::location::{
+    auto, stack, Justify, LocationAxisDescriptor, LocationAxisType, Padding,
+};
 use crate::{CoordinateUnit, Coordinates};
 pub use aspect_ratio::AspectRatio;
 pub use layout::Layout;
@@ -56,19 +58,19 @@ pub trait GridExt {
 }
 impl GridExt for i32 {
     fn px(self) -> GridUnit {
-        todo!()
+        GridUnit::Scalar(ScalarUnit::Px(self as CoordinateUnit))
     }
 
     fn pct(self) -> GridUnit {
-        todo!()
+        GridUnit::Scalar(ScalarUnit::Pct(self as CoordinateUnit / 100.0))
     }
 
     fn col(self) -> GridUnit {
-        todo!()
+        GridUnit::Aligned(AlignedUnit::Columns(self))
     }
 
     fn row(self) -> GridUnit {
-        todo!()
+        GridUnit::Aligned(AlignedUnit::Rows(self))
     }
 }
 pub struct Grid {
@@ -135,10 +137,8 @@ pub enum ScalarUnit {
 impl From<GridUnit> for ScalarUnit {
     fn from(grid: GridUnit) -> Self {
         match grid {
-            GridUnit::Aligned(_) => {
-                panic!("aligned cannot be scalar")
-            }
             GridUnit::Scalar(s) => s,
+            _ => panic!("not scalar"),
         }
     }
 }
@@ -155,22 +155,52 @@ impl From<i32> for Gap {
 pub enum GridUnit {
     Aligned(AlignedUnit),
     Scalar(ScalarUnit),
+    Stack,
+    Auto,
 }
 impl GridUnit {
     pub fn gap<G: Into<Gap>>(self, g: G) -> GridAxisDescriptor {
-        todo!()
+        GridAxisDescriptor {
+            unit: match self {
+                GridUnit::Aligned(a) => GridAxisUnit::Explicit(a),
+                GridUnit::Scalar(s) => GridAxisUnit::Infinite(s),
+                _ => panic!("not grid axis unit"),
+            },
+            gap: g.into(),
+        }
     }
     pub fn y<Y: Into<GridUnit>>(self, y: Y) -> LocationAxisDescriptor {
-        todo!()
+        LocationAxisDescriptor {
+            a: self,
+            b: y.into(),
+            ty: LocationAxisType::Point,
+            padding: Padding::default(),
+            justify: Justify::default(),
+            max: None,
+        }
     }
     pub fn to<T: Into<GridUnit>>(self, t: T) -> LocationAxisDescriptor {
-        todo!()
+        LocationAxisDescriptor {
+            a: self,
+            b: t.into(),
+            ty: LocationAxisType::To,
+            padding: Default::default(),
+            justify: Default::default(),
+            max: None,
+        }
     }
     pub fn span<S: Into<GridUnit>>(self, s: S) -> LocationAxisDescriptor {
-        todo!()
+        LocationAxisDescriptor {
+            a: self,
+            b: s.into(),
+            ty: LocationAxisType::Span,
+            padding: Default::default(),
+            justify: Default::default(),
+            max: None,
+        }
     }
 }
 pub enum AlignedUnit {
-    Columns(u32),
-    Rows(u32),
+    Columns(i32),
+    Rows(i32),
 }
