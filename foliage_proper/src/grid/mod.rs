@@ -6,11 +6,16 @@ use crate::grid::location::Justify::{Center, Left};
 pub use crate::grid::location::{
     auto, stack, Justify, LocationAxisDescriptor, LocationAxisType, Padding,
 };
-use crate::{CoordinateUnit, Coordinates};
+use crate::{Attachment, CoordinateUnit, Coordinates, Foliage};
 pub use aspect_ratio::AspectRatio;
 pub use layout::Layout;
 pub use location::Location;
 
+impl Attachment for Grid {
+    fn attach(foliage: &mut Foliage) {
+        foliage.world.insert_resource(Layout::Sm);
+    }
+}
 #[test]
 fn behavior() {
     use crate::FontSize;

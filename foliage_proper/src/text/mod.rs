@@ -49,7 +49,7 @@ impl Attachment for Text {
     }
 }
 #[derive(Component, Clone, PartialEq, Default)]
-#[require(Color, FontSize, UpdateCache, ClipContext)]
+#[require(Color, FontSize, ResolvedFontSize, UpdateCache, ClipContext)]
 #[require(HorizontalAlignment, VerticalAlignment, Glyphs)]
 #[require(ResolvedGlyphs, ResolvedColors, GlyphColors)]
 #[require(UniqueCharacters, Differential<Text, UniqueCharacters>)]

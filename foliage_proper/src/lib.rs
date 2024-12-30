@@ -38,6 +38,7 @@ pub use crate::coordinate::{
 };
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::Ginkgo;
+use crate::grid::Grid;
 use crate::interaction::Interaction;
 use crate::remove::Remove;
 use crate::time::Time;
@@ -68,6 +69,7 @@ pub use tree::{EcsExtension, Tree};
 pub use visibility::{InheritedVisibility, ResolvedVisibility, Visibility};
 use winit::event::WindowEvent;
 use winit::event_loop::{ControlFlow, EventLoop};
+
 pub struct Foliage {
     pub world: World,
     pub(crate) main: Schedule,
@@ -115,6 +117,7 @@ impl Foliage {
         Asset::attach(&mut foliage);
         Time::attach(&mut foliage);
         Remove::attach(&mut foliage);
+        Grid::attach(&mut foliage);
         foliage
     }
     pub fn attach<A: Attachment>(&mut self) {
