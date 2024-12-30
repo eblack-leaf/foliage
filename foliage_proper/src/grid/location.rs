@@ -94,8 +94,32 @@ impl Default for StackDeps {
     }
 }
 #[derive(Component, Copy, Clone)]
+#[component(on_insert = Stack::on_insert)]
+#[component(on_replace = Stack::on_replace)]
 pub struct Stack {
     pub id: Option<Entity>,
+}
+impl Stack {
+    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+        let stack = world.get::<Stack>(this).unwrap();
+        if let Some(id) = stack.id {
+            if let Some(mut deps) = world.get_mut::<StackDeps>(id) {
+                deps.ids.insert(this);
+            } else {
+                let mut stack_deps = StackDeps::default();
+                stack_deps.ids.insert(this);
+                world.commands().entity(id).insert(stack_deps);
+            }
+        }
+    }
+    fn on_replace(mut world: DeferredWorld, id: Entity, _c: ComponentId) {
+        let stack = world.get::<Stack>(id).unwrap();
+        if let Some(id) = stack.id {
+            if let Some(mut deps) = world.get_mut::<StackDeps>(id) {
+                deps.ids.remove(&id);
+            }
+        }
+    }
 }
 impl Default for Stack {
     fn default() -> Self {
