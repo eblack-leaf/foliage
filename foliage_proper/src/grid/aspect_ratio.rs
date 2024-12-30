@@ -1,3 +1,6 @@
+use bevy_ecs::prelude::Component;
+
+#[derive(Component, Copy, Clone)]
 pub struct AspectRatio {
     pub sm: Option<f32>,
     pub md: Option<f32>,

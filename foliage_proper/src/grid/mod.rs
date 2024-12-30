@@ -10,7 +10,9 @@ use crate::{Attachment, Component, CoordinateUnit, Coordinates, Foliage};
 pub use aspect_ratio::AspectRatio;
 pub use layout::Layout;
 pub use location::Location;
-
+pub use location::Stack;
+pub use location::StackDeps;
+pub use view::View;
 impl Attachment for Grid {
     fn attach(foliage: &mut Foliage) {
         foliage.world.insert_resource(Layout::Sm);

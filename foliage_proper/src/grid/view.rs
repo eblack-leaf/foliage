@@ -1,6 +1,6 @@
 use crate::Component;
 use bevy_ecs::entity::Entity;
-
+#[derive(Component)]
 pub struct View {}
 impl View {
     pub fn new() -> View {

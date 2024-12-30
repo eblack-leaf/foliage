@@ -53,6 +53,7 @@ pub use color::{CReprColor, Color};
 pub use coordinate::elevation::{Elevation, ResolvedElevation};
 use futures_channel::oneshot;
 pub use grid::{Grid, GridUnit, Layout, Location, LocationAxisDescriptor, LocationAxisType};
+pub use grid::{Stack, StackDeps};
 pub use leaf::{Branch, Leaf, Stem};
 pub use opacity::Opacity;
 pub use ops::{Update, Write};

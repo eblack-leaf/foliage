@@ -1,10 +1,14 @@
-use crate::grid::{GridUnit, ScalarUnit};
-use crate::{Component, Coordinates, Grid, Layout, LogicalContext, Section, Stem, Tree, Update};
+use crate::grid::{AspectRatio, GridUnit, ScalarUnit, View};
+use crate::{
+    Component, Coordinates, Grid, Layout, LogicalContext, ResolvedVisibility, Section, Stem, Tree,
+    Update, Visibility, Write,
+};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Res, Trigger};
 use bevy_ecs::system::Query;
 use bevy_ecs::world::DeferredWorld;
+use std::collections::HashSet;
 #[derive(Component)]
 #[component(on_insert = Location::on_insert)]
 pub struct Location {
@@ -57,6 +61,9 @@ impl Location {
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
         world.trigger_targets(Update::<Location>::new(), this);
     }
+    pub(crate) fn update_from_visibility(trigger: Trigger<Write<Visibility>>, mut tree: Tree) {
+        tree.trigger_targets(Update::<Location>::new(), trigger.entity());
+    }
     pub(crate) fn update_location(
         trigger: Trigger<Update<Location>>,
         mut tree: Tree,
@@ -66,11 +73,24 @@ impl Location {
         grids: Query<&Grid>,
         stems: Query<&Stem>,
         stacks: Query<&Stack>,
+        visibilities: Query<&ResolvedVisibility>,
+        aspect_ratios: Query<&AspectRatio>,
+        views: Query<&View>,
     ) {
-        // if trigger.entity() has location
+        // if trigger.entity() has location && visible
         // resolve location w/ stems + stacks + sections + grids
-        // if resolved => insert resolved-section + if invisible => visible
-        // else if visible => invisible
+        // if resolved => insert resolved-section
+    }
+}
+#[derive(Clone, Component)]
+pub struct StackDeps {
+    pub ids: HashSet<Entity>,
+}
+impl Default for StackDeps {
+    fn default() -> Self {
+        Self {
+            ids: HashSet::new(),
+        }
     }
 }
 #[derive(Component, Copy, Clone)]

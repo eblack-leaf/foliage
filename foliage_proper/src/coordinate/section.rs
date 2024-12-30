@@ -12,7 +12,7 @@ use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::{
     CoordinateContext, CoordinateUnit, Coordinates, DeviceContext, LogicalContext, NumericalContext,
 };
-use crate::{Branch, Location, Update, Write};
+use crate::{Branch, Location, StackDeps, Update, Write};
 
 #[derive(Copy, Clone, Default, Component, PartialEq, Debug)]
 #[component(on_insert = Section::<LogicalContext>::on_insert)]
@@ -187,7 +187,10 @@ impl<Context: CoordinateContext> Section<Context> {
             return;
         }
         world.trigger_targets(Write::<Self>::new(), this);
-        let deps = world.get::<Branch>(this).unwrap().ids.clone();
+        let mut deps = world.get::<Branch>(this).unwrap().ids.clone();
+        if let Some(d) = world.get::<StackDeps>(this) {
+            deps.extend(d.ids.clone());
+        }
         if deps.is_empty() {
             return;
         }
