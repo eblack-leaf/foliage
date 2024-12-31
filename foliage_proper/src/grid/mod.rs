@@ -2,20 +2,31 @@ mod aspect_ratio;
 mod layout;
 mod location;
 mod view;
+
+use crate::grid::layout::viewport_changed;
 use crate::grid::location::Justify::{Center, Left};
 pub use crate::grid::location::{
     auto, stack, Justify, LocationAxisDescriptor, LocationAxisType, Padding,
 };
-use crate::{Attachment, Component, CoordinateUnit, Coordinates, Foliage};
+use crate::grid::view::extent_check;
+use crate::{Attachment, Component, CoordinateUnit, Coordinates, DiffMarkers, Foliage};
 pub use aspect_ratio::AspectRatio;
+use bevy_ecs::prelude::IntoSystemConfigs;
 pub use layout::Layout;
 pub use location::Location;
 pub use location::Stack;
 pub use location::StackDeps;
 pub use view::View;
+
 impl Attachment for Grid {
     fn attach(foliage: &mut Foliage) {
         foliage.world.insert_resource(Layout::Sm);
+        foliage.main.add_systems(viewport_changed);
+        foliage
+            .diff
+            .add_systems(extent_check.in_set(DiffMarkers::Prepare));
+        foliage.define(Location::update_from_visibility);
+        foliage.define(Location::update_location);
     }
 }
 #[test]
@@ -80,12 +91,18 @@ impl GridExt for i32 {
         GridUnit::Aligned(AlignedUnit::Rows(self))
     }
 }
-#[derive(Component)]
+#[derive(Component, Copy, Clone)]
+#[require(View)]
 pub struct Grid {
     pub sm: GridConfiguration,
     pub md: Option<GridConfiguration>,
     pub lg: Option<GridConfiguration>,
     pub xl: Option<GridConfiguration>,
+}
+impl Default for Grid {
+    fn default() -> Self {
+        Self::new(1.col(), 1.row())
+    }
 }
 impl Grid {
     pub fn new<HA: Into<GridAxisDescriptor>, VA: Into<GridAxisDescriptor>>(ha: HA, va: VA) -> Self {
@@ -121,6 +138,7 @@ impl Grid {
         self
     }
 }
+#[derive(Copy, Clone)]
 pub struct GridConfiguration {
     pub columns: GridAxisDescriptor,
     pub rows: GridAxisDescriptor,
@@ -130,14 +148,32 @@ impl From<(GridAxisDescriptor, GridAxisDescriptor)> for GridConfiguration {
         Self { columns, rows }
     }
 }
+#[derive(Copy, Clone)]
 pub struct GridAxisDescriptor {
     pub unit: GridAxisUnit,
     pub gap: Gap,
 }
+impl From<GridUnit> for GridAxisDescriptor {
+    fn from(unit: GridUnit) -> Self {
+        match unit {
+            GridUnit::Aligned(a) => GridAxisDescriptor {
+                unit: GridAxisUnit::Explicit(a),
+                gap: Gap::default(),
+            },
+            GridUnit::Scalar(s) => GridAxisDescriptor {
+                unit: GridAxisUnit::Infinite(s),
+                gap: Gap::default(),
+            },
+            _ => panic!("only aligned and scalar allowed"),
+        }
+    }
+}
+#[derive(Copy, Clone)]
 pub enum GridAxisUnit {
     Infinite(ScalarUnit),
     Explicit(AlignedUnit),
 }
+#[derive(Copy, Clone)]
 pub enum ScalarUnit {
     Px(CoordinateUnit),
     Pct(f32),
@@ -150,8 +186,16 @@ impl From<GridUnit> for ScalarUnit {
         }
     }
 }
+#[derive(Copy, Clone)]
 pub struct Gap {
     pub coordinates: Coordinates,
+}
+impl Default for Gap {
+    fn default() -> Self {
+        Self {
+            coordinates: Coordinates::from((8, 8)),
+        }
+    }
 }
 impl From<i32> for Gap {
     fn from(x: i32) -> Self {
@@ -208,6 +252,7 @@ impl GridUnit {
         }
     }
 }
+#[derive(Copy, Clone)]
 pub enum AlignedUnit {
     Columns(i32),
     Rows(i32),

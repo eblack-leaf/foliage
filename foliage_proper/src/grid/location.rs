@@ -1,3 +1,4 @@
+use crate::ginkgo::viewport::ViewportHandle;
 use crate::grid::{AspectRatio, GridUnit, ScalarUnit, View};
 use crate::{
     Component, Coordinates, Grid, Layout, LogicalContext, ResolvedVisibility, Section, Stem, Tree,
@@ -9,6 +10,7 @@ use bevy_ecs::prelude::{Res, Trigger};
 use bevy_ecs::system::Query;
 use bevy_ecs::world::DeferredWorld;
 use std::collections::HashSet;
+
 #[derive(Component)]
 #[component(on_insert = Location::on_insert)]
 pub struct Location {
@@ -58,6 +60,17 @@ impl Location {
         self.xl.replace((had.into(), vad.into()).into());
         self
     }
+    pub fn resolve(
+        &self,
+        layout: Layout,
+        stem: Section<LogicalContext>,
+        stack: Option<Section<LogicalContext>>,
+        grid: Grid,
+        aspect: Option<AspectRatio>,
+        view: View,
+    ) -> Option<Section<LogicalContext>> {
+        todo!()
+    }
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
         world.trigger_targets(Update::<Location>::new(), this);
     }
@@ -76,10 +89,46 @@ impl Location {
         visibilities: Query<&ResolvedVisibility>,
         aspect_ratios: Query<&AspectRatio>,
         views: Query<&View>,
+        viewport: Res<ViewportHandle>,
     ) {
-        // if trigger.entity() has location && visible
-        // resolve location w/ stems + stacks + sections + grids
-        // if resolved => insert resolved-section
+        let this = trigger.entity();
+        if let Ok(location) = locations.get(this) {
+            if let Ok(vis) = visibilities.get(this) {
+                if vis.visible() {
+                    let stem = stems.get(this).unwrap();
+                    let stem_section = stem
+                        .id
+                        .and_then(|id| Some(*sections.get(id).unwrap()))
+                        .unwrap_or(viewport.section());
+                    let stack = if let Ok(stack) = stacks.get(this) {
+                        if let Some(s) = stack.id {
+                            if let Ok(sec) = sections.get(s) {
+                                Some(*sec)
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    };
+                    let grid = grids.get(this).copied().unwrap_or_default();
+                    let aspect = aspect_ratios.get(this).copied().ok();
+                    let view = stem
+                        .id
+                        .and_then(|id| Some(*views.get(id).unwrap()))
+                        .unwrap_or_default();
+                    if let Some(resolved) =
+                        location.resolve(*layout, stem_section, stack, grid, aspect, view)
+                    {
+                        tree.entity(this).insert(resolved);
+                    } else {
+                        tree.entity(this).insert(Visibility::new(false));
+                    }
+                }
+            }
+        }
     }
 }
 #[derive(Clone, Component)]

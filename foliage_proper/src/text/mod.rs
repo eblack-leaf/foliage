@@ -31,10 +31,11 @@ impl Attachment for Text {
             .world
             .insert_resource(MonospacedFont::new(Text::OPT_SCALE));
         foliage.define(Text::update);
+        foliage.define(Text::responsive_font_size);
         foliage.diff.add_systems(
             (Text::resolve_glyphs, Text::resolve_colors)
                 .chain()
-                .in_set(DiffMarkers::Prepare),
+                .in_set(DiffMarkers::Finalize),
         );
         foliage.remove_queue::<Text>();
         foliage.differential::<Text, ResolvedFontSize>();
@@ -86,6 +87,15 @@ impl Text {
             .commands()
             .entity(this)
             .observe(Self::update_from_section);
+    }
+    fn responsive_font_size(
+        trigger: Trigger<Write<Layout>>,
+        mut font_sizes: Query<(&FontSize, &mut ResolvedFontSize)>,
+        layout: Res<Layout>,
+    ) {
+        for (font_size, mut resolved_font_size) in font_sizes.iter_mut() {
+            resolved_font_size.value = font_size.resolve(*layout).value;
+        }
     }
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
         world

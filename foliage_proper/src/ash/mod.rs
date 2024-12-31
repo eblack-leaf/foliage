@@ -19,7 +19,7 @@ impl Attachment for Ash {
     fn attach(foliage: &mut Foliage) {
         foliage
             .diff
-            .add_systems(prepare_clip_section.in_set(DiffMarkers::Prepare));
+            .add_systems(prepare_clip_section.in_set(DiffMarkers::Finalize));
     }
 }
 pub(crate) struct Ash {

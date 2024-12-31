@@ -53,7 +53,7 @@ pub use color::{CReprColor, Color};
 pub use coordinate::elevation::{Elevation, ResolvedElevation};
 use futures_channel::oneshot;
 pub use grid::{Grid, GridUnit, Layout, Location, LocationAxisDescriptor, LocationAxisType};
-pub use grid::{Stack, StackDeps};
+pub use grid::{GridExt, Stack, StackDeps};
 pub use leaf::{Branch, Leaf, Stem};
 pub use opacity::Opacity;
 pub use ops::{Update, Write};
@@ -106,9 +106,22 @@ impl Foliage {
             receiver: None,
             user_attachments: vec![],
         };
-        foliage
-            .diff
-            .configure_sets((DiffMarkers::Prepare, DiffMarkers::Extract).chain());
+        foliage.diff.configure_sets(
+            (
+                DiffMarkers::Prepare,
+                DiffMarkers::Finalize,
+                DiffMarkers::Extract,
+            )
+                .chain(),
+        );
+        foliage.diff.add_systems((
+            apply_deferred
+                .after(DiffMarkers::Prepare)
+                .before(DiffMarkers::Finalize),
+            apply_deferred
+                .after(DiffMarkers::Finalize)
+                .before(DiffMarkers::Extract),
+        ));
         foliage.main.add_systems(event_update_system);
         Interaction::attach(&mut foliage);
         Ash::attach(&mut foliage);
@@ -288,5 +301,6 @@ impl Foliage {
 #[derive(SystemSet, Eq, PartialEq, Ord, PartialOrd, Hash, Clone, Copy, Debug)]
 pub(crate) enum DiffMarkers {
     Prepare,
+    Finalize,
     Extract,
 }

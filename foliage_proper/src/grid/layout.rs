@@ -1,6 +1,6 @@
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::grid::Location;
-use crate::{LogicalContext, Section, Stem, Tree, Update};
+use crate::{LogicalContext, Section, Stem, Tree, Update, Write};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::query::With;
 use bevy_ecs::system::{Query, ResMut, Resource};
@@ -27,6 +27,7 @@ pub(crate) fn viewport_changed(
         let new = Layout::new(vh.section());
         if new != *layout {
             // Write<Layout> => responsive font-size configure + user stuff
+            tree.trigger(Write::<Layout>::new());
             *layout = new;
         }
         let mut targets = vec![];
