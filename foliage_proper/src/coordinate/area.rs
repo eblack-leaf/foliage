@@ -6,7 +6,7 @@ use bytemuck::{Pod, Zeroable};
 use winit::dpi::{LogicalSize, PhysicalSize, Size};
 
 use crate::coordinate::{
-    CoordinateContext, CoordinateUnit, Coordinates, DeviceContext, LogicalContext, NumericalContext,
+    CoordinateContext, CoordinateUnit, Coordinates, Logical, Numerical, Physical,
 };
 
 #[derive(Copy, Clone, Default, PartialEq, Debug)]
@@ -23,21 +23,21 @@ impl<Context: CoordinateContext> Display for Area<Context> {
 #[derive(Pod, Zeroable, Copy, Clone, Default, PartialEq, Debug)]
 pub struct CReprArea(pub Coordinates);
 
-impl Area<NumericalContext> {
-    pub fn logical<C: Into<Coordinates>>(c: C) -> Area<LogicalContext> {
+impl Area<Numerical> {
+    pub fn logical<C: Into<Coordinates>>(c: C) -> Area<Logical> {
         Area::new(c)
     }
-    pub fn device<C: Into<Coordinates>>(c: C) -> Area<DeviceContext> {
+    pub fn physical<C: Into<Coordinates>>(c: C) -> Area<Physical> {
         Area::new(c)
     }
-    pub fn numerical<C: Into<Coordinates>>(c: C) -> Area<NumericalContext> {
+    pub fn numerical<C: Into<Coordinates>>(c: C) -> Area<Numerical> {
         Area::new(c)
     }
-    pub fn as_logical(self) -> Area<LogicalContext> {
+    pub fn as_logical(self) -> Area<Logical> {
         Self::logical(self.coordinates)
     }
-    pub fn as_device(self) -> Area<DeviceContext> {
-        Self::device(self.coordinates)
+    pub fn as_physical(self) -> Area<Physical> {
+        Self::physical(self.coordinates)
     }
 }
 
@@ -81,19 +81,19 @@ impl<Context: CoordinateContext> Area<Context> {
         let o = o.into();
         Self::new((self.width().max(o.width()), self.height().max(o.height())))
     }
-    pub fn to_numerical(self) -> Area<NumericalContext> {
+    pub fn to_numerical(self) -> Area<Numerical> {
         Area::numerical((self.width(), self.height()))
     }
 }
 
-impl Area<LogicalContext> {
-    pub fn to_device(self, factor: f32) -> Area<DeviceContext> {
-        Area::device((self.width() * factor, self.height() * factor))
+impl Area<Logical> {
+    pub fn to_physical(self, factor: f32) -> Area<Physical> {
+        Area::physical((self.width() * factor, self.height() * factor))
     }
 }
 
-impl Area<DeviceContext> {
-    pub fn to_logical(self, factor: f32) -> Area<LogicalContext> {
+impl Area<Physical> {
+    pub fn to_logical(self, factor: f32) -> Area<Logical> {
         Area::logical((self.width() / factor, self.height() / factor))
     }
     pub fn c_repr(self) -> CReprArea {
@@ -101,19 +101,19 @@ impl Area<DeviceContext> {
     }
 }
 
-impl From<Area<LogicalContext>> for Size {
-    fn from(value: Area<LogicalContext>) -> Self {
+impl From<Area<Logical>> for Size {
+    fn from(value: Area<Logical>) -> Self {
         Self::new(LogicalSize::new(value.width(), value.height()))
     }
 }
 
-impl From<Area<DeviceContext>> for Size {
-    fn from(value: Area<DeviceContext>) -> Self {
+impl From<Area<Physical>> for Size {
+    fn from(value: Area<Physical>) -> Self {
         Self::new(PhysicalSize::new(value.width(), value.height()))
     }
 }
 
-impl From<PhysicalSize<u32>> for Area<DeviceContext> {
+impl From<PhysicalSize<u32>> for Area<Physical> {
     fn from(value: PhysicalSize<u32>) -> Self {
         Self::new((value.width, value.height))
     }

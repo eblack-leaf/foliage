@@ -1,7 +1,7 @@
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::grid::{AspectRatio, GridUnit, ScalarUnit, View};
 use crate::{
-    Component, Coordinates, Grid, Layout, LogicalContext, ResolvedVisibility, Section, Stem, Tree,
+    Component, Coordinates, Grid, Layout, Logical, ResolvedVisibility, Section, Stem, Tree,
     Update, Visibility, Write,
 };
 use bevy_ecs::component::ComponentId;
@@ -73,12 +73,12 @@ impl Location {
     pub fn resolve(
         &self,
         layout: Layout,
-        stem: Section<LogicalContext>,
-        stack: Option<Section<LogicalContext>>,
+        stem: Section<Logical>,
+        stack: Option<Section<Logical>>,
         grid: Grid,
         aspect: Option<AspectRatio>,
         view: View,
-    ) -> Option<Section<LogicalContext>> {
+    ) -> Option<Section<Logical>> {
         todo!()
     }
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
@@ -92,7 +92,7 @@ impl Location {
         mut tree: Tree,
         layout: Res<Layout>,
         locations: Query<&Location>,
-        sections: Query<&Section<LogicalContext>>,
+        sections: Query<&Section<Logical>>,
         grids: Query<&Grid>,
         stems: Query<&Stem>,
         stacks: Query<&Stack>,

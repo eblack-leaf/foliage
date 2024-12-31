@@ -33,8 +33,8 @@ pub use crate::coordinate::{
     area::{Area, CReprArea},
     position::{CReprPosition, Position},
     section::{CReprSection, Section},
-    CoordinateContext, CoordinateUnit, Coordinates, DeviceContext, LogicalContext,
-    NumericalContext,
+    CoordinateContext, CoordinateUnit, Coordinates, Logical, Numerical,
+    Physical,
 };
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::Ginkgo;
@@ -153,7 +153,7 @@ impl Foliage {
             }
         }
     }
-    pub fn desktop_size<V: Into<Area<DeviceContext>>>(&mut self, v: V) {
+    pub fn desktop_size<V: Into<Area<Physical>>>(&mut self, v: V) {
         self.willow.requested_size.replace(v.into());
     }
     pub fn url<S: AsRef<str>>(&mut self, path: S) {

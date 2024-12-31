@@ -1,5 +1,5 @@
 use crate::coordinate::section::Section;
-use crate::coordinate::DeviceContext;
+use crate::coordinate::Physical;
 use crate::{Color, Component, Update};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
@@ -26,7 +26,7 @@ impl GlyphKey {
 #[derive(PartialEq, Clone, Debug)]
 pub(crate) struct Glyph {
     pub(crate) key: GlyphKey,
-    pub(crate) section: Section<DeviceContext>,
+    pub(crate) section: Section<Physical>,
     pub(crate) parent: char,
     pub(crate) offset: GlyphOffset,
 }

@@ -4,7 +4,7 @@ use wgpu::{
 };
 
 use crate::coordinate::area::Area;
-use crate::coordinate::DeviceContext;
+use crate::coordinate::Physical;
 use crate::ginkgo::GraphicContext;
 
 pub(crate) struct Msaa {
@@ -24,7 +24,7 @@ impl Msaa {
     pub(crate) fn samples(&self) -> u32 {
         self.actual
     }
-    pub(crate) fn new(context: &GraphicContext, requested: u32, area: Area<DeviceContext>) -> Self {
+    pub(crate) fn new(context: &GraphicContext, requested: u32, area: Area<Physical>) -> Self {
         let flags = context
             .adapter
             .get_texture_format_features(context.surface_format)

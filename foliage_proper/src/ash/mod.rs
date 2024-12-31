@@ -2,7 +2,7 @@ use crate::ash::clip::{prepare_clip_section, ClipSection};
 use crate::ash::differential::Elm;
 use crate::ginkgo::{Ginkgo, ScaleFactor};
 use crate::{
-    Attachment, Color, Component, DeviceContext, DiffMarkers, Foliage, ResolvedElevation, Resource,
+    Attachment, Color, Component, DiffMarkers, Foliage, Physical, ResolvedElevation, Resource,
     Section, Text,
 };
 use bevy_ecs::prelude::IntoSystemConfigs;
@@ -228,12 +228,12 @@ pub(crate) struct ContiguousSpan {
 impl ContiguousSpan {
     pub(crate) fn parameters(
         &self,
-        view_section: Section<DeviceContext>,
+        view_section: Section<Physical>,
         scale_factor: ScaleFactor,
     ) -> Parameters {
         let clip_section = if let Some(present) = self.clip_section.0 {
             present
-                .to_device(scale_factor.value())
+                .to_physical(scale_factor.value())
                 .intersection(view_section)
         } else {
             None
@@ -249,7 +249,7 @@ impl ContiguousSpan {
 pub(crate) struct Parameters {
     pub(crate) group: GroupId,
     pub(crate) range: Range<Order>,
-    pub(crate) clip_section: Option<Section<DeviceContext>>,
+    pub(crate) clip_section: Option<Section<Physical>>,
 }
 #[derive(Copy, Clone)]
 pub(crate) struct Node {

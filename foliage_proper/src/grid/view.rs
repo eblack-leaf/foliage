@@ -1,4 +1,4 @@
-use crate::{ClipContext, Component, LogicalContext, Position, Section, Tree};
+use crate::{ClipContext, Component, Logical, Position, Section, Tree};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::Or;
@@ -9,8 +9,8 @@ use std::collections::HashSet;
 
 #[derive(Component, Copy, Clone)]
 pub struct View {
-    pub offset: Position<LogicalContext>,
-    pub extent: Section<LogicalContext>,
+    pub offset: Position<Logical>,
+    pub extent: Section<Logical>,
 }
 impl View {
     pub fn new() -> View {
@@ -49,7 +49,7 @@ impl ViewContext {
 #[derive(Resource)]
 pub(crate) struct ExtentCheckIds(pub(crate) HashSet<Entity>);
 pub(crate) fn prepare_extent(
-    deps: Query<&ViewContext, Or<(Changed<Section<LogicalContext>>, Changed<ViewContext>)>>,
+    deps: Query<&ViewContext, Or<(Changed<Section<Logical>>, Changed<ViewContext>)>>,
     views: Query<Entity, Changed<View>>,
     mut to_check: ResMut<ExtentCheckIds>,
 ) {
@@ -67,8 +67,8 @@ pub(crate) fn prepare_extent(
     }
 }
 pub(crate) fn extent_check(
-    deps: Query<(&ViewContext, &Section<LogicalContext>)>,
-    mut views: Query<(Entity, &Section<LogicalContext>, &mut View)>,
+    deps: Query<(&ViewContext, &Section<Logical>)>,
+    mut views: Query<(Entity, &Section<Logical>, &mut View)>,
     mut tree: Tree,
     mut to_check: ResMut<ExtentCheckIds>,
 ) {

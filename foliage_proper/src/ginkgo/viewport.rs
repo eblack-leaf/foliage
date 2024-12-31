@@ -3,34 +3,34 @@ use bevy_ecs::prelude::Resource;
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
-use crate::coordinate::{CoordinateUnit, DeviceContext, LogicalContext, NumericalContext};
+use crate::coordinate::{CoordinateUnit, Logical, Numerical, Physical};
 use crate::ginkgo::{GraphicContext, Uniform};
 use crate::willow::NearFarDescriptor;
 
 type ViewportRepresentation = [[CoordinateUnit; 4]; 4];
 
 pub(crate) struct Viewport {
-    translation: Position<NumericalContext>,
-    area: Area<NumericalContext>,
+    translation: Position<Numerical>,
+    area: Area<Numerical>,
     pub(crate) near_far: NearFarDescriptor,
     matrix: ViewportRepresentation,
     pub(crate) uniform: Uniform<ViewportRepresentation>,
 }
 
 impl Viewport {
-    pub(crate) fn section(&self) -> Section<DeviceContext> {
+    pub(crate) fn section(&self) -> Section<Physical> {
         Section::new(self.translation.coordinates, self.area.coordinates)
     }
     pub(crate) fn set_position(
         &mut self,
-        position: Position<DeviceContext>,
+        position: Position<Physical>,
         context: &GraphicContext,
     ) {
         self.translation = position.to_numerical();
         self.matrix = self.remake();
         self.uniform.write(context, self.matrix);
     }
-    pub(crate) fn set_size(&mut self, area: Area<NumericalContext>, context: &GraphicContext) {
+    pub(crate) fn set_size(&mut self, area: Area<Numerical>, context: &GraphicContext) {
         self.area = area;
         self.matrix = self.remake();
         self.uniform.write(context, self.matrix);
@@ -44,7 +44,7 @@ impl Viewport {
     }
     pub(crate) fn new(
         context: &GraphicContext,
-        section: Section<NumericalContext>,
+        section: Section<Numerical>,
         near_far: NearFarDescriptor,
     ) -> Self {
         let matrix = Self::generate(section, near_far);
@@ -57,7 +57,7 @@ impl Viewport {
         }
     }
     fn generate(
-        section: Section<NumericalContext>,
+        section: Section<Numerical>,
         near_far: NearFarDescriptor,
     ) -> ViewportRepresentation {
         let right_left = 2f32 / (section.right() - section.left());
@@ -80,14 +80,14 @@ impl Viewport {
 
 #[derive(Default, Resource)]
 pub struct ViewportHandle {
-    translation: Position<LogicalContext>,
-    area: Area<LogicalContext>,
+    translation: Position<Logical>,
+    area: Area<Logical>,
     changes: bool,
     updated: bool,
 }
 
 impl ViewportHandle {
-    pub(crate) fn new(area: Area<LogicalContext>) -> Self {
+    pub(crate) fn new(area: Area<Logical>) -> Self {
         Self {
             translation: Position::default(),
             area,
@@ -95,18 +95,18 @@ impl ViewportHandle {
             updated: false,
         }
     }
-    pub fn translate(&mut self, position: Position<LogicalContext>) {
+    pub fn translate(&mut self, position: Position<Logical>) {
         self.translation += position;
         self.changes = true;
     }
-    pub(crate) fn changes(&mut self) -> Option<Position<LogicalContext>> {
+    pub(crate) fn changes(&mut self) -> Option<Position<Logical>> {
         if self.changes {
             self.changes = false;
             return Some(self.translation);
         }
         None
     }
-    pub(crate) fn resize(&mut self, area: Area<LogicalContext>) {
+    pub(crate) fn resize(&mut self, area: Area<Logical>) {
         self.updated = true;
         self.area = area;
     }
@@ -118,7 +118,7 @@ impl ViewportHandle {
         }
         val
     }
-    pub fn section(&self) -> Section<LogicalContext> {
+    pub fn section(&self) -> Section<Logical> {
         Section::new(self.translation.coordinates, self.area.coordinates)
     }
 }

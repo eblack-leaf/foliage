@@ -23,7 +23,7 @@ use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
-use crate::coordinate::{CoordinateUnit, Coordinates, DeviceContext};
+use crate::coordinate::{CoordinateUnit, Coordinates, Physical};
 use crate::willow::Willow;
 
 pub mod binding;
@@ -88,7 +88,7 @@ impl Ginkgo {
         let texture_data = image
             .to_rgba8()
             .enumerate_pixels()
-            .map(|p| -> u8 { p.2 .0[3] })
+            .map(|p| -> u8 { p.2.0[3] })
             .collect::<Vec<u8>>();
         texture_data
     }
@@ -293,7 +293,7 @@ impl Ginkgo {
     pub(crate) fn viewport(&self) -> &Viewport {
         self.viewport.as_ref().unwrap()
     }
-    pub(crate) fn position_viewport(&mut self, position: Position<DeviceContext>) {
+    pub(crate) fn position_viewport(&mut self, position: Position<Physical>) {
         self.viewport
             .as_mut()
             .unwrap()
@@ -384,7 +384,7 @@ impl Ginkgo {
     }
     pub(crate) fn configure_view(&mut self, willow: &Willow) {
         let scale_factor = ScaleFactor::new(willow.window().scale_factor() as f32);
-        let area = willow.actual_area().max(Area::device((1, 1)));
+        let area = willow.actual_area().max(Area::physical((1, 1)));
         let msaa = Msaa::new(self.context(), 1, area);
         let depth = Depth::new(self.context(), &msaa, area);
         let config = SurfaceConfiguration {

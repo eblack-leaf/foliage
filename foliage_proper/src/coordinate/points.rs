@@ -1,6 +1,6 @@
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
-use crate::coordinate::{CoordinateContext, CoordinateUnit, LogicalContext};
+use crate::coordinate::{CoordinateContext, CoordinateUnit, Logical};
 use bevy_ecs::prelude::Component;
 use std::fmt::Display;
 use std::ops::{Add, Mul, Sub};
@@ -25,7 +25,7 @@ impl<Context: CoordinateContext> Display for Points<Context> {
     }
 }
 impl<Context: CoordinateContext> Points<Context> {
-    pub fn bbox(&self) -> Section<LogicalContext> {
+    pub fn bbox(&self) -> Section<Logical> {
         let bbox = Section::default();
 
         bbox

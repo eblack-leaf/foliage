@@ -1,5 +1,5 @@
 use crate::coordinate::position::Position;
-use crate::coordinate::LogicalContext;
+use crate::coordinate::Logical;
 use crate::ginkgo::ScaleFactor;
 use crate::interaction::{Interaction, InteractionPhase};
 use crate::{Event, Resource};
@@ -17,10 +17,10 @@ impl TouchAdapter {
     pub(crate) fn parse(
         &mut self,
         touch: Touch,
-        viewport_position: Position<LogicalContext>,
+        viewport_position: Position<Logical>,
         scale_factor: ScaleFactor,
     ) -> Option<Interaction> {
-        let position = Position::device((touch.location.x, touch.location.y))
+        let position = Position::physical((touch.location.x, touch.location.y))
             .to_logical(scale_factor.value())
             + viewport_position;
         if self.primary.is_none() {
@@ -51,7 +51,7 @@ impl TouchAdapter {
 #[derive(Resource, Default)]
 pub(crate) struct MouseAdapter {
     started: bool,
-    pub(crate) cursor: Position<LogicalContext>,
+    pub(crate) cursor: Position<Logical>,
 }
 
 impl MouseAdapter {
@@ -80,11 +80,11 @@ impl MouseAdapter {
     pub(crate) fn set_cursor(
         &mut self,
         position: PhysicalPosition<f64>,
-        viewport_position: Position<LogicalContext>,
+        viewport_position: Position<Logical>,
         scale_factor: ScaleFactor,
     ) -> Option<Interaction> {
         let adjusted_position =
-            Position::device((position.x, position.y)).to_logical(scale_factor.value());
+            Position::physical((position.x, position.y)).to_logical(scale_factor.value());
         self.cursor = adjusted_position;
         if self.started {
             return Some(Interaction::new(

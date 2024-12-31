@@ -154,7 +154,7 @@ impl Foliage {
                         x * Self::SCROLL_SENSITIVITY,
                         y * Self::SCROLL_SENSITIVITY * Self::VIEW_SCROLLING,
                     )),
-                    MouseScrollDelta::PixelDelta(px) => Position::device((px.x, px.y)).to_logical(
+                    MouseScrollDelta::PixelDelta(px) => Position::physical((px.x, px.y)).to_logical(
                         self.world
                             .get_resource::<ScaleFactor>()
                             .expect("scale-factor")

@@ -11,7 +11,7 @@ use crate::text::monospaced::MonospacedFont;
 use crate::text::{ResolvedFontSize, TextBounds, UniqueCharacters};
 use crate::texture::{AtlasEntry, TextureAtlas, TextureCoordinates, Vertex, VERTICES};
 use crate::{
-    CReprColor, CReprSection, DeviceContext, LogicalContext, ResolvedElevation, Section, Text,
+    CReprColor, CReprSection, Logical, Physical, ResolvedElevation, Section, Text,
 };
 use bevy_ecs::entity::Entity;
 use std::collections::HashMap;
@@ -41,7 +41,7 @@ pub(crate) struct Group {
     pub(crate) unique_characters: UniqueCharacters,
     pub(crate) font_size: ResolvedFontSize,
     pub(crate) queued_tex_reads: Vec<(GlyphKey, InstanceId)>,
-    pub(crate) bounds: Section<DeviceContext>,
+    pub(crate) bounds: Section<Physical>,
 }
 
 impl Group {
@@ -210,7 +210,7 @@ impl Render for Text {
             group.bounds = packet.bounds;
             group.update_node = true;
         }
-        for (entity, packet) in elm.attribute::<Text, Section<LogicalContext>>() {
+        for (entity, packet) in elm.attribute::<Text, Section<Logical>>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
             let group = &mut renderer.groups.get_mut(id).unwrap().group;
             let position = packet

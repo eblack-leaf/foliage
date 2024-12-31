@@ -2,14 +2,9 @@ use std::fmt::{Display, Formatter};
 use std::ops::{Add, AddAssign, Div, Mul, Sub, SubAssign};
 
 use bevy_ecs::component::Component;
-use bevy_ecs::prelude::{IntoSystemConfigs, Or};
-use bevy_ecs::query::Changed;
-use bevy_ecs::system::{Query, Res};
+use bevy_ecs::prelude::IntoSystemConfigs;
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
-
-use crate::coordinate::section::{CReprSection, Section};
-use crate::ginkgo::ScaleFactor;
 
 pub mod area;
 pub mod elevation;
@@ -21,23 +16,22 @@ pub mod section;
 pub trait CoordinateContext
 where
     Self: Send + Sync + 'static + Copy + Clone + Default,
-{
-}
+{}
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug, Serialize, Deserialize)]
-pub struct DeviceContext;
+pub struct Physical;
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug, Serialize, Deserialize)]
-pub struct LogicalContext;
+pub struct Logical;
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug, Serialize, Deserialize)]
-pub struct NumericalContext;
+pub struct Numerical;
 
-impl CoordinateContext for DeviceContext {}
+impl CoordinateContext for Physical {}
 
-impl CoordinateContext for LogicalContext {}
+impl CoordinateContext for Logical {}
 
-impl CoordinateContext for NumericalContext {}
+impl CoordinateContext for Numerical {}
 
 pub type CoordinateUnit = f32;
 
@@ -121,19 +115,6 @@ permutation_coordinate_impl!(f32, usize);
 permutation_coordinate_impl!(i32, usize);
 permutation_coordinate_impl!(u32, usize);
 permutation_coordinate_impl!(f64, usize);
-fn coordinate_resolve(
-    mut placed_pos: Query<
-        (&mut CReprSection, &Section<LogicalContext>),
-        Or<(Changed<Section<LogicalContext>>,)>,
-    >,
-    scale_factor: Res<ScaleFactor>,
-) {
-    for (mut gpu, section) in placed_pos.iter_mut() {
-        gpu.pos = section.position.to_device(scale_factor.value()).c_repr();
-        gpu.area = section.area.to_device(scale_factor.value()).c_repr();
-    }
-}
-
 impl Sub for Coordinates {
     type Output = Coordinates;
 

@@ -6,7 +6,7 @@ use bytemuck::{Pod, Zeroable};
 use wgpu::{Texture, TextureFormat, TextureView};
 
 use crate::coordinate::section::Section;
-use crate::coordinate::{Coordinates, NumericalContext};
+use crate::coordinate::{Coordinates, Numerical};
 use crate::ginkgo::Ginkgo;
 
 #[repr(C)]
@@ -22,7 +22,7 @@ impl TextureCoordinates {
             bottom_right: br.into(),
         }
     }
-    pub(crate) fn from_section<S: Into<Section<NumericalContext>>, C: Into<Coordinates>>(
+    pub(crate) fn from_section<S: Into<Section<Numerical>>, C: Into<Coordinates>>(
         part: S,
         whole: C,
     ) -> Self {
@@ -65,10 +65,10 @@ pub(crate) struct AtlasChangeInfo<Referrer: Clone> {
     pub(crate) tex_coords: TextureCoordinates,
 }
 impl<
-        Key: Hash + Clone + Eq,
-        Referrer: Hash + Eq + Clone,
-        TexelData: Default + Sized + Clone + Pod + Zeroable,
-    > TextureAtlas<Key, Referrer, TexelData>
+    Key: Hash + Clone + Eq,
+    Referrer: Hash + Eq + Clone,
+    TexelData: Default + Sized + Clone + Pod + Zeroable,
+> TextureAtlas<Key, Referrer, TexelData>
 {
     pub(crate) const PADDING: f32 = 1.0;
     pub(crate) fn new<C: Into<Coordinates>>(

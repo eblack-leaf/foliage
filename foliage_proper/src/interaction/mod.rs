@@ -1,5 +1,5 @@
 use crate::coordinate::position::Position;
-use crate::coordinate::LogicalContext;
+use crate::coordinate::Logical;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::Event;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs};
@@ -26,13 +26,13 @@ pub enum InteractionPhase {
 #[derive(Event, Debug, Copy, Clone)]
 pub struct Interaction {
     click_phase: InteractionPhase,
-    position: Position<LogicalContext>,
+    position: Position<Logical>,
     from_scroll: bool,
 }
 impl Interaction {
     pub fn new(
         click_phase: InteractionPhase,
-        position: Position<LogicalContext>,
+        position: Position<Logical>,
         from_scroll: bool,
     ) -> Self {
         Self {
@@ -44,12 +44,12 @@ impl Interaction {
 }
 #[derive(Default, Copy, Clone, Debug)]
 pub struct Click {
-    pub start: Position<LogicalContext>,
-    pub current: Position<LogicalContext>,
-    pub end: Option<Position<LogicalContext>>,
+    pub start: Position<Logical>,
+    pub current: Position<Logical>,
+    pub end: Option<Position<Logical>>,
 }
 impl Click {
-    pub fn new(start: Position<LogicalContext>) -> Self {
+    pub fn new(start: Position<Logical>) -> Self {
         Self {
             start,
             current: start,

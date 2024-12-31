@@ -10,12 +10,12 @@ use bytemuck::{Pod, Zeroable};
 use crate::coordinate::area::{Area, CReprArea};
 use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::{
-    CoordinateContext, CoordinateUnit, Coordinates, DeviceContext, LogicalContext, NumericalContext,
+    CoordinateContext, CoordinateUnit, Coordinates, Logical, Numerical, Physical,
 };
 use crate::{Branch, Location, StackDeps, Update, Write};
 
 #[derive(Copy, Clone, Default, Component, PartialEq, Debug)]
-#[component(on_insert = Section::<LogicalContext>::on_insert)]
+#[component(on_insert = Section::<Logical>::on_insert)]
 pub struct Section<Context: CoordinateContext> {
     pub position: Position<Context>,
     pub area: Area<Context>,
@@ -42,40 +42,40 @@ impl CReprSection {
         )
     }
 }
-impl Section<NumericalContext> {
-    pub fn device<P: Into<Position<DeviceContext>>, A: Into<Area<DeviceContext>>>(
+impl Section<Numerical> {
+    pub fn physical<P: Into<Position<Physical>>, A: Into<Area<Physical>>>(
         p: P,
         a: A,
-    ) -> Section<DeviceContext> {
+    ) -> Section<Physical> {
         Section::new(p, a)
     }
-    pub fn logical<P: Into<Position<LogicalContext>>, A: Into<Area<LogicalContext>>>(
+    pub fn logical<P: Into<Position<Logical>>, A: Into<Area<Logical>>>(
         p: P,
         a: A,
-    ) -> Section<LogicalContext> {
+    ) -> Section<Logical> {
         Section::new(p, a)
     }
-    pub fn numerical<P: Into<Position<NumericalContext>>, A: Into<Area<NumericalContext>>>(
+    pub fn numerical<P: Into<Position<Numerical>>, A: Into<Area<Numerical>>>(
         p: P,
         a: A,
-    ) -> Section<NumericalContext> {
+    ) -> Section<Numerical> {
         Section::new(p, a)
     }
 }
-impl Section<DeviceContext> {
+impl Section<Physical> {
     pub fn c_repr(self) -> CReprSection {
         CReprSection::new(self.position.c_repr(), self.area.c_repr())
     }
-    pub fn to_logical(self, scale_factor: f32) -> Section<LogicalContext> {
+    pub fn to_logical(self, scale_factor: f32) -> Section<Logical> {
         Section::new(
             self.position.to_logical(scale_factor),
             self.area.to_logical(scale_factor),
         )
     }
 }
-impl Section<LogicalContext> {
-    pub fn to_device(self, factor: f32) -> Section<DeviceContext> {
-        Section::new(self.position.to_device(factor), self.area.to_device(factor))
+impl Section<Logical> {
+    pub fn to_physical(self, factor: f32) -> Section<Physical> {
+        Section::new(self.position.to_device(factor), self.area.to_physical(factor))
     }
 }
 impl<Context: CoordinateContext> Section<Context> {
@@ -170,7 +170,7 @@ impl<Context: CoordinateContext> Section<Context> {
             self.area.max(o.area).coordinates,
         )
     }
-    pub fn to_numerical(self) -> Section<NumericalContext> {
+    pub fn to_numerical(self) -> Section<Numerical> {
         Section::new(self.position.to_numerical(), self.area.to_numerical())
     }
     pub fn rounded(self) -> Self {
@@ -183,7 +183,7 @@ impl<Context: CoordinateContext> Section<Context> {
         Self::new(self.position.abs(), self.area.abs())
     }
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
-        if TypeId::of::<Self>() != TypeId::of::<Section<LogicalContext>>() {
+        if TypeId::of::<Self>() != TypeId::of::<Section<Logical>>() {
             return;
         }
         world.trigger_targets(Write::<Self>::new(), this);
@@ -200,16 +200,16 @@ impl<Context: CoordinateContext> Section<Context> {
         );
     }
 }
-impl Section<NumericalContext> {
-    pub fn as_logical(self) -> Section<LogicalContext> {
+impl Section<Numerical> {
+    pub fn as_logical(self) -> Section<Logical> {
         Section::new(self.position.as_logical(), self.area.as_logical())
     }
-    pub fn as_device(self) -> Section<DeviceContext> {
-        Section::new(self.position.as_device(), self.area.as_device())
+    pub fn as_physical(self) -> Section<Physical> {
+        Section::new(self.position.as_physical(), self.area.as_physical())
     }
 }
 impl<Context: CoordinateContext, C: Into<Coordinates>, D: Into<Coordinates>> From<(C, D)>
-    for Section<Context>
+for Section<Context>
 {
     fn from(value: (C, D)) -> Self {
         Self::new(value.0, value.1)

@@ -6,7 +6,7 @@ use winit::window::{Window, WindowAttributes};
 use crate::coordinate::area::Area;
 use crate::coordinate::elevation::ResolvedElevation;
 use crate::coordinate::position::Position;
-use crate::coordinate::{DeviceContext, NumericalContext};
+use crate::coordinate::{Numerical, Physical};
 
 #[derive(Clone, Default)]
 pub(crate) struct WindowHandle(pub(crate) Option<Arc<Window>>);
@@ -14,12 +14,12 @@ pub(crate) struct WindowHandle(pub(crate) Option<Arc<Window>>);
 #[derive(Default, Clone)]
 pub(crate) struct Willow {
     pub(crate) handle: WindowHandle,
-    pub(crate) min_size: Option<Area<DeviceContext>>,
-    pub(crate) requested_size: Option<Area<DeviceContext>>,
+    pub(crate) min_size: Option<Area<Physical>>,
+    pub(crate) requested_size: Option<Area<Physical>>,
     pub(crate) title: Option<String>,
-    pub(crate) max_size: Option<Area<DeviceContext>>,
+    pub(crate) max_size: Option<Area<Physical>>,
     pub(crate) resizable: Option<bool>,
-    pub(crate) starting_position: Option<Position<NumericalContext>>,
+    pub(crate) starting_position: Option<Position<Numerical>>,
     pub(crate) near_far: Option<NearFarDescriptor>,
 }
 
@@ -53,7 +53,7 @@ impl Willow {
         let attributes = WindowAttributes::default()
             .with_title(self.title.clone().unwrap_or_default())
             .with_resizable(self.resizable.unwrap_or(true))
-            .with_min_inner_size(self.min_size.unwrap_or(Area::device((290, 290))));
+            .with_min_inner_size(self.min_size.unwrap_or(Area::physical((290, 290))));
         #[cfg(all(
             not(target_family = "wasm"),
             not(target_os = "android"),
@@ -75,16 +75,16 @@ impl Willow {
         }
         self.handle = WindowHandle(Some(Arc::new(window)));
     }
-    pub(crate) fn actual_area(&self) -> Area<DeviceContext> {
+    pub(crate) fn actual_area(&self) -> Area<Physical> {
         self.handle.0.clone().unwrap().inner_size().into()
     }
     pub(crate) fn window(&self) -> Arc<Window> {
         self.handle.0.clone().unwrap()
     }
-    pub(crate) fn requested_area(&self) -> Area<DeviceContext> {
+    pub(crate) fn requested_area(&self) -> Area<Physical> {
         self.requested_size
             .unwrap_or_default()
-            .min(self.max_size.unwrap_or(Area::device((1920, 1080))))
-            .max(self.min_size.unwrap_or(Area::device((1, 1))))
+            .min(self.max_size.unwrap_or(Area::physical((1920, 1080))))
+            .max(self.min_size.unwrap_or(Area::physical((1, 1))))
     }
 }

@@ -1,4 +1,4 @@
-use crate::{Component, LogicalContext, Section};
+use crate::{Component, Logical, Section};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::query::Changed;
@@ -44,7 +44,7 @@ impl ClipContext {
     }
 }
 pub(crate) fn prepare_clip_section(
-    sections: Query<(Entity, &Section<LogicalContext>), Changed<Section<LogicalContext>>>,
+    sections: Query<(Entity, &Section<Logical>), Changed<Section<Logical>>>,
     mut clip_sections: Query<&mut ClipSection>,
     clip_contexts: Query<&ClipContext>,
     clip_listeners: Query<&ClipListeners>,
@@ -66,7 +66,7 @@ pub(crate) fn prepare_clip_section(
     }
 }
 #[derive(Component, Debug, Clone, Copy, Default, PartialEq)]
-pub(crate) struct ClipSection(pub(crate) Option<Section<LogicalContext>>);
+pub(crate) struct ClipSection(pub(crate) Option<Section<Logical>>);
 #[derive(Component)]
 pub(crate) struct ClipListeners {
     pub(crate) listeners: HashSet<Entity>,

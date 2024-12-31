@@ -1,6 +1,6 @@
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::grid::Location;
-use crate::{CoordinateUnit, LogicalContext, Section, Stem, Tree, Update, Write};
+use crate::{CoordinateUnit, Logical, Section, Stem, Tree, Update, Write};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::query::With;
 use bevy_ecs::system::{Query, ResMut, Resource};
@@ -18,7 +18,7 @@ impl Layout {
     pub const MD: CoordinateUnit = 800.0;
     pub const LG: CoordinateUnit = 1000.0;
     pub const XL: CoordinateUnit = 1200.0;
-    pub fn new(section: Section<LogicalContext>) -> Self {
+    pub fn new(section: Section<Logical>) -> Self {
         if section.width() >= Self::XL {
             Self::Xl
         } else if section.width() >= Self::LG {

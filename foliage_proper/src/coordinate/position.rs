@@ -6,7 +6,7 @@ use bytemuck::{Pod, Zeroable};
 use winit::dpi::{LogicalPosition, PhysicalPosition};
 
 use crate::coordinate::{
-    CoordinateContext, CoordinateUnit, Coordinates, DeviceContext, LogicalContext, NumericalContext,
+    CoordinateContext, CoordinateUnit, Coordinates, Logical, Numerical, Physical,
 };
 
 #[derive(Copy, Clone, Default, PartialEq, PartialOrd, Debug)]
@@ -23,21 +23,21 @@ impl<Context: CoordinateContext> Display for Position<Context> {
 #[derive(Pod, Zeroable, Copy, Clone, Default, PartialEq, Debug)]
 pub struct CReprPosition(pub Coordinates);
 
-impl Position<NumericalContext> {
-    pub fn logical<C: Into<Coordinates>>(c: C) -> Position<LogicalContext> {
+impl Position<Numerical> {
+    pub fn logical<C: Into<Coordinates>>(c: C) -> Position<Logical> {
         Position::new(c)
     }
-    pub fn device<C: Into<Coordinates>>(c: C) -> Position<DeviceContext> {
+    pub fn physical<C: Into<Coordinates>>(c: C) -> Position<Physical> {
         Position::new(c)
     }
-    pub fn numerical<C: Into<Coordinates>>(c: C) -> Position<NumericalContext> {
+    pub fn numerical<C: Into<Coordinates>>(c: C) -> Position<Numerical> {
         Position::new(c)
     }
-    pub fn as_logical(self) -> Position<LogicalContext> {
+    pub fn as_logical(self) -> Position<Logical> {
         Position::logical(self.coordinates)
     }
-    pub fn as_device(self) -> Position<DeviceContext> {
-        Position::device(self.coordinates)
+    pub fn as_physical(self) -> Position<Physical> {
+        Position::physical(self.coordinates)
     }
 }
 
@@ -78,7 +78,7 @@ impl<Context: CoordinateContext> Position<Context> {
     pub fn distance(self, o: Self) -> CoordinateUnit {
         ((self.left() - o.left()).powi(2) + (self.top() - o.top()).powi(2)).sqrt()
     }
-    pub fn to_numerical(self) -> Position<NumericalContext> {
+    pub fn to_numerical(self) -> Position<Numerical> {
         Position::numerical((self.left(), self.top()))
     }
     pub fn normalized<C: Into<Coordinates>>(self, c: C) -> Self {
@@ -95,14 +95,14 @@ impl<Context: CoordinateContext> Position<Context> {
     }
 }
 
-impl Position<LogicalContext> {
-    pub fn to_device(self, factor: f32) -> Position<DeviceContext> {
-        Position::device((self.left() * factor, self.top() * factor))
+impl Position<Logical> {
+    pub fn to_device(self, factor: f32) -> Position<Physical> {
+        Position::physical((self.left() * factor, self.top() * factor))
     }
 }
 
-impl Position<DeviceContext> {
-    pub fn to_logical(self, factor: f32) -> Position<LogicalContext> {
+impl Position<Physical> {
+    pub fn to_logical(self, factor: f32) -> Position<Logical> {
         Position::logical((self.left() / factor, self.top() / factor))
     }
     pub fn c_repr(self) -> CReprPosition {
@@ -110,13 +110,13 @@ impl Position<DeviceContext> {
     }
 }
 
-impl From<LogicalPosition<f32>> for Position<LogicalContext> {
+impl From<LogicalPosition<f32>> for Position<Logical> {
     fn from(value: LogicalPosition<f32>) -> Self {
         Self::new((value.x, value.y))
     }
 }
 
-impl From<PhysicalPosition<f32>> for Position<DeviceContext> {
+impl From<PhysicalPosition<f32>> for Position<Physical> {
     fn from(value: PhysicalPosition<f32>) -> Self {
         Self::new((value.x, value.y))
     }

@@ -5,7 +5,7 @@ mod pipeline;
 use crate::ash::Render;
 use crate::color::Color;
 use crate::coordinate::section::Section;
-use crate::coordinate::LogicalContext;
+use crate::coordinate::Logical;
 use crate::ginkgo::ScaleFactor;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
@@ -14,7 +14,7 @@ use crate::text::glyph::{
 };
 use crate::text::monospaced::MonospacedFont;
 use crate::{
-    Attachment, DeviceContext, Foliage, Layout, ResolvedElevation, Tree, Update, Visibility, Write,
+    Attachment, Foliage, Layout, Physical, ResolvedElevation, Tree, Update, Visibility, Write,
 };
 use crate::{ClipContext, Differential};
 use crate::{ClipSection, DiffMarkers};
@@ -40,7 +40,7 @@ impl Attachment for Text {
         foliage.remove_queue::<Text>();
         foliage.differential::<Text, ResolvedFontSize>();
         foliage.differential::<Text, BlendedOpacity>();
-        foliage.differential::<Text, Section<LogicalContext>>();
+        foliage.differential::<Text, Section<Logical>>();
         foliage.differential::<Text, ResolvedElevation>();
         foliage.differential::<Text, ClipSection>();
         foliage.differential::<Text, ResolvedGlyphs>();
@@ -57,7 +57,7 @@ impl Attachment for Text {
 #[require(TextBounds, Differential<Text, TextBounds>)]
 #[require(Differential<Text, ResolvedFontSize>)]
 #[require(Differential<Text, BlendedOpacity>)]
-#[require(Differential<Text, Section<LogicalContext>>)]
+#[require(Differential<Text, Section<Logical>>)]
 #[require(Differential<Text, ResolvedElevation>)]
 #[require(Differential<Text, ClipSection>)]
 #[require(Differential<Text, ResolvedGlyphs>)]
@@ -102,7 +102,7 @@ impl Text {
             .commands()
             .trigger_targets(Update::<Text>::new(), this);
     }
-    fn update_from_section(trigger: Trigger<Write<Section<LogicalContext>>>, mut tree: Tree) {
+    fn update_from_section(trigger: Trigger<Write<Section<Logical>>>, mut tree: Tree) {
         tree.trigger_targets(Update::<Text>::new(), trigger.entity());
     }
     fn resolve_colors(
@@ -140,7 +140,7 @@ impl Text {
         mut glyph_query: Query<&mut Glyphs>,
         horizontal_alignment: Query<&HorizontalAlignment>,
         vertical_alignment: Query<&VerticalAlignment>,
-        mut sections: Query<&mut Section<LogicalContext>>,
+        mut sections: Query<&mut Section<Logical>>,
         mut cache: Query<&mut UpdateCache>,
         font: Res<MonospacedFont>,
         scale_factor: Res<ScaleFactor>,
@@ -151,7 +151,7 @@ impl Text {
             (font_sizes.get(this).unwrap().value as f32 * scale_factor.value()) as u32,
         );
         current.text = texts.get(this).unwrap().clone();
-        current.section = sections.get(this).unwrap().to_device(scale_factor.value());
+        current.section = sections.get(this).unwrap().to_physical(scale_factor.value());
         current.horizontal_alignment = *horizontal_alignment.get(this).unwrap();
         current.vertical_alignment = *vertical_alignment.get(this).unwrap();
         if cache.get(this).unwrap() != &current {
@@ -182,7 +182,7 @@ impl Text {
                     .section
                     .with_height(glyphs.layout.height())
                     .to_logical(scale_factor.value());
-                current.section = adjusted_section.to_device(scale_factor.value());
+                current.section = adjusted_section.to_physical(scale_factor.value());
                 tree.entity(this).insert(adjusted_section);
             }
             tree.entity(this).insert(TextBounds::new(current.section));
@@ -204,7 +204,7 @@ impl Text {
                         px: g.key.px as u32,
                         font_hash: g.key.font_hash,
                     },
-                    section: Section::device((g.x, g.y), (g.width, g.height)),
+                    section: Section::physical((g.x, g.y), (g.width, g.height)),
                     parent: g.parent,
                     offset: i,
                 })
@@ -234,10 +234,10 @@ impl Text {
 }
 #[derive(Component, Copy, Clone, Default, PartialEq)]
 pub(crate) struct TextBounds {
-    pub(crate) bounds: Section<DeviceContext>,
+    pub(crate) bounds: Section<Physical>,
 }
 impl TextBounds {
-    pub(crate) fn new(bounds: Section<DeviceContext>) -> Self {
+    pub(crate) fn new(bounds: Section<Physical>) -> Self {
         Self { bounds }
     }
 }
@@ -377,7 +377,7 @@ impl Default for FontSize {
 pub(crate) struct UpdateCache {
     pub(crate) font_size: ResolvedFontSize,
     pub(crate) text: Text,
-    pub(crate) section: Section<DeviceContext>,
+    pub(crate) section: Section<Physical>,
     pub(crate) horizontal_alignment: HorizontalAlignment,
     pub(crate) vertical_alignment: VerticalAlignment,
 }
