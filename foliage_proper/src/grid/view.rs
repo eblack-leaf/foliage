@@ -1,4 +1,4 @@
-use crate::{Area, ClipContext, Component, LogicalContext, Position, Section};
+use crate::{ClipContext, Component, LogicalContext, Position, Section, Tree};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::Or;
@@ -10,7 +10,7 @@ use std::collections::HashSet;
 #[derive(Component, Copy, Clone)]
 pub struct View {
     pub offset: Position<LogicalContext>,
-    pub extent: Area<LogicalContext>,
+    pub extent: Section<LogicalContext>,
 }
 impl View {
     pub fn new() -> View {
@@ -47,34 +47,76 @@ impl ViewContext {
     }
 }
 pub(crate) fn extent_check(
-    mut changed: ParamSet<(
+    mut deps: ParamSet<(
         Query<&ViewContext, Or<(Changed<Section<LogicalContext>>, Changed<ViewContext>)>>,
         Query<(&ViewContext, &Section<LogicalContext>)>,
     )>,
-    mut views: ParamSet<(Query<Entity, Changed<View>>, Query<&mut View>)>,
+    changed_views: Query<Entity, Changed<View>>,
+    mut views: Query<(Entity, &Section<LogicalContext>, &mut View)>,
+    mut tree: Tree,
 ) {
     let mut to_check = HashSet::new();
-    for context in changed.p0().iter() {
+    for context in deps.p0().iter() {
         if let Some(id) = context.id {
             to_check.insert(id);
         }
     }
-    for changed in views.p0().iter() {
+    for changed in changed_views.iter() {
         to_check.insert(changed);
     }
     if to_check.is_empty() {
         return;
     }
     for id in to_check.iter() {
-        views.p1().get_mut(*id).unwrap().extent = Area::default();
+        views.get_mut(*id).unwrap().2.extent = Section::default();
     }
-    for (context, section) in changed.p1().iter() {
+    for (context, section) in deps.p1().iter() {
         if let Some(id) = context.id {
             if to_check.contains(&id) {
-                let mut view = views.p1().get_mut(id).unwrap();
-                // TODO extend extent using section
+                let mut relative = *section;
+                let mut view = views.get_mut(id).unwrap().2;
+                relative.position -= view.offset;
+                if relative.left() < view.extent.left() {
+                    view.extent.set_left(relative.left());
+                }
+                if relative.right() > view.extent.width() {
+                    view.extent.set_width(relative.right());
+                }
+                if relative.top() < view.extent.top() {
+                    view.extent.set_top(relative.top());
+                }
+                if relative.bottom() > view.extent.height() {
+                    view.extent.set_height(relative.bottom());
+                }
             }
         }
     }
-    // TODO overscroll push-back + trigger section::on_insert on view if so (give current section?)
+    for (e, section, mut view) in views.iter_mut() {
+        let mut changed = false;
+        if view.offset.left() + section.width() > view.extent.width() {
+            let value = view.extent.width() - section.width();
+            view.offset.set_left(value);
+            changed = true;
+        }
+        if view.offset.top() + section.height() > view.extent.height() {
+            let value = view.extent.height() - section.height();
+            view.offset.set_top(value);
+            changed = true;
+        }
+        if view.offset.left() < view.extent.left() {
+            let value = view.extent.left();
+            view.offset.set_left(value);
+            changed = true;
+        }
+        if view.offset.top() < view.extent.top() {
+            let value = view.extent.top();
+            view.offset.set_top(value);
+            changed = true;
+        }
+        if changed {
+            // NOTE: this is to trigger recursive locations w/ new view.offset
+            // it is the same section it had before
+            tree.entity(e).insert(*section);
+        }
+    }
 }

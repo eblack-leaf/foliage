@@ -88,14 +88,14 @@ impl<Context: CoordinateContext> Section<Context> {
     pub fn left(&self) -> CoordinateUnit {
         self.position.left()
     }
-    pub fn set_x(&mut self, x: CoordinateUnit) {
-        self.position.set_x(x);
+    pub fn set_left(&mut self, x: CoordinateUnit) {
+        self.position.set_left(x);
     }
     pub fn top(&self) -> CoordinateUnit {
         self.position.top()
     }
-    pub fn set_y(&mut self, y: CoordinateUnit) {
-        self.position.set_y(y);
+    pub fn set_top(&mut self, y: CoordinateUnit) {
+        self.position.set_top(y);
     }
     pub fn width(&self) -> CoordinateUnit {
         self.area.width()
@@ -209,7 +209,7 @@ impl Section<NumericalContext> {
     }
 }
 impl<Context: CoordinateContext, C: Into<Coordinates>, D: Into<Coordinates>> From<(C, D)>
-    for Section<Context>
+for Section<Context>
 {
     fn from(value: (C, D)) -> Self {
         Self::new(value.0, value.1)

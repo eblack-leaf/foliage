@@ -66,13 +66,13 @@ impl<Context: CoordinateContext> Position<Context> {
     pub fn left(&self) -> CoordinateUnit {
         self.coordinates.0[0]
     }
-    pub fn set_x(&mut self, x: CoordinateUnit) {
+    pub fn set_left(&mut self, x: CoordinateUnit) {
         self.coordinates.set_horizontal(x);
     }
     pub fn top(&self) -> CoordinateUnit {
         self.coordinates.0[1]
     }
-    pub fn set_y(&mut self, y: CoordinateUnit) {
+    pub fn set_top(&mut self, y: CoordinateUnit) {
         self.coordinates.set_vertical(y);
     }
     pub fn distance(self, o: Self) -> CoordinateUnit {
