@@ -14,9 +14,9 @@ pub enum Layout {
     Xl,
 }
 impl Layout {
-    pub const SM: CoordinateUnit = 600.0;
-    pub const MD: CoordinateUnit = 800.0;
-    pub const LG: CoordinateUnit = 1000.0;
+    pub const SM: CoordinateUnit = 420.0;
+    pub const MD: CoordinateUnit = 600.0;
+    pub const LG: CoordinateUnit = 840.0;
     pub const XL: CoordinateUnit = 1200.0;
     pub fn new(section: Section<Logical>) -> Self {
         if section.width() >= Self::XL {
