@@ -21,8 +21,7 @@ pub mod section;
 pub trait CoordinateContext
 where
     Self: Send + Sync + 'static + Copy + Clone + Default,
-{
-}
+{}
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug, Serialize, Deserialize)]
 pub struct DeviceContext;
@@ -121,15 +120,6 @@ permutation_coordinate_impl!(f32, usize);
 permutation_coordinate_impl!(i32, usize);
 permutation_coordinate_impl!(u32, usize);
 permutation_coordinate_impl!(f64, usize);
-
-// TODO fn to distill Position / Area => GpuPosition / GpuArea w/ ScaleFactor
-// impl Root for Coordinates {
-//     fn attach(elm: &mut Elm) {
-//         elm.scheduler
-//             .main
-//             .add_systems(coordinate_resolve.in_set(InternalStage::FinalizeCoordinate));
-//     }
-// }
 fn coordinate_resolve(
     mut placed_pos: Query<
         (&mut CReprSection, &Section<LogicalContext>),
