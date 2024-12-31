@@ -14,6 +14,7 @@ use std::collections::HashSet;
 #[derive(Component)]
 #[component(on_insert = Location::on_insert)]
 pub struct Location {
+    pub xs: Option<LocationConfiguration>,
     pub sm: Option<LocationConfiguration>,
     pub md: Option<LocationConfiguration>,
     pub lg: Option<LocationConfiguration>,
@@ -22,11 +23,20 @@ pub struct Location {
 impl Location {
     pub fn new() -> Self {
         Self {
+            xs: None,
             sm: None,
             md: None,
             lg: None,
             xl: None,
         }
+    }
+    pub fn xs<HAD: Into<LocationAxisDescriptor>, VAD: Into<LocationAxisDescriptor>>(
+        mut self,
+        had: HAD,
+        vad: VAD,
+    ) -> Self {
+        self.xs.replace((had.into(), vad.into()).into());
+        self
     }
     pub fn sm<HAD: Into<LocationAxisDescriptor>, VAD: Into<LocationAxisDescriptor>>(
         mut self,

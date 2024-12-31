@@ -8,7 +8,7 @@ use crate::grid::location::Justify::{Center, Left};
 pub use crate::grid::location::{
     auto, stack, Justify, LocationAxisDescriptor, LocationAxisType, Padding,
 };
-use crate::grid::view::extent_check;
+use crate::grid::view::{extent_check, prepare_extent};
 use crate::{Attachment, Component, CoordinateUnit, Coordinates, DiffMarkers, Foliage};
 pub use aspect_ratio::AspectRatio;
 use bevy_ecs::prelude::IntoSystemConfigs;
@@ -20,11 +20,13 @@ pub use view::View;
 
 impl Attachment for Grid {
     fn attach(foliage: &mut Foliage) {
-        foliage.world.insert_resource(Layout::Sm);
+        foliage.world.insert_resource(Layout::Xs);
         foliage.main.add_systems(viewport_changed);
-        foliage
-            .diff
-            .add_systems(extent_check.in_set(DiffMarkers::Prepare));
+        foliage.diff.add_systems(
+            (prepare_extent, extent_check)
+                .chain()
+                .in_set(DiffMarkers::Prepare),
+        );
         foliage.define(Location::update_from_visibility);
         foliage.define(Location::update_location);
     }
@@ -35,35 +37,40 @@ fn behavior() {
     let grid = Grid::new(12.col().gap(4), 8.px().gap(4))
         .md(12.col().gap(4), 8.px().gap(4))
         .lg(12.col().gap(8), 16.px().gap(8))
-        .xl(12.col().gap(12), 24.px().gap(12)); // canon
-    let root = Location::new().sm(0.pct().to(100.pct()), 0.pct().to(100.pct()));
+        .xl(12.col().gap(12), 24.px().gap(12)) // canon
+        .max(12.col().gap(12), 24.px().gap(12)); // canon
+    let root = Location::new().xs(0.pct().to(100.pct()), 0.pct().to(100.pct()));
     // let view = View::context(root); // scrolling
-    let location = Location::new().sm(50.px().y(100.px()), 50.px().y(150.px())); // points
-    let location = Location::new().sm(1.col().to(12.col()), 1.row().to(19.row()));
+    let location = Location::new().xs(50.px().y(100.px()), 50.px().y(150.px())); // points
+    let location = Location::new().xs(1.col().to(12.col()), 1.row().to(19.row()));
     let location = Location::new()
-        .sm(
+        .xs(
             2.col().to(11.col()).max(400.px()).justify(Center).pad(4),
             4.row().to(10.row()).pad((4, 8)), // debug-assert max only on width
         )
-        .md(
+        .sm(
+            3.col().to(10.col()).max(500.px()).justify(Center),
+            4.row().to(10.row()),
+        )
+        .xl(
             3.col().to(10.col()).max(500.px()).justify(Center),
             4.row().to(10.row()),
         );
     let aspect_ratio = AspectRatio::new().sm(16.0 / 9.0);
-    let font_size = FontSize::default().md(20).lg(24).xl(32);
+    let font_size = FontSize::default().sm(20).md(24).lg(32);
     let location = Location::new()
-        .sm(
+        .xs(
             3.col().to(10.col()).max(300.px()).justify(Left),
             6.row().to(9.row()),
         )
-        .md(
+        .sm(
             4.col().to(9.col()).max(400.px()).justify(Left),
             6.row().to(9.row()),
         );
-    let location = Location::new().sm(1.col().to(1.col()), 2.row().to(auto()));
-    let location = Location::new().sm(1.col().to(1.col()), stack().to(auto())); // stack uses stem().bottom() as this.top()
-    let location = Location::new().sm(1.col().to(1.col()), stack().to(25.row())); // explicit back to grid (acceptable content-range) or keep stacking
-    let location = Location::new().sm(1.col().to(1.col()), stack().span(5.row()));
+    let location = Location::new().xs(1.col().to(1.col()), 2.row().to(auto()));
+    let location = Location::new().xs(1.col().to(1.col()), stack().to(auto())); // stack uses stem().bottom() as this.top()
+    let location = Location::new().xs(1.col().to(1.col()), stack().to(25.row())); // explicit back to grid (acceptable content-range) or keep stacking
+    let location = Location::new().xs(1.col().to(1.col()), stack().span(5.row()));
     // span cause unknown end (to)
     // span(5.row()) => 5 row lengths from current px() in stack (not necessarily aligned)
     // but spacing relative is guaranteed 5 rows for content

@@ -3,7 +3,7 @@ use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::Or;
 use bevy_ecs::query::Changed;
-use bevy_ecs::system::{ParamSet, Query};
+use bevy_ecs::system::{Query, ResMut, Resource};
 use bevy_ecs::world::DeferredWorld;
 use std::collections::HashSet;
 
@@ -46,33 +46,41 @@ impl ViewContext {
         world.commands().entity(this).insert(clip_context);
     }
 }
-pub(crate) fn extent_check(
-    mut deps: ParamSet<(
-        Query<&ViewContext, Or<(Changed<Section<LogicalContext>>, Changed<ViewContext>)>>,
-        Query<(&ViewContext, &Section<LogicalContext>)>,
-    )>,
-    changed_views: Query<Entity, Changed<View>>,
-    mut views: Query<(Entity, &Section<LogicalContext>, &mut View)>,
-    mut tree: Tree,
+#[derive(Resource)]
+pub(crate) struct ExtentCheckIds(pub(crate) HashSet<Entity>);
+pub(crate) fn prepare_extent(
+    deps: Query<&ViewContext, Or<(Changed<Section<LogicalContext>>, Changed<ViewContext>)>>,
+    views: Query<Entity, Changed<View>>,
+    mut to_check: ResMut<ExtentCheckIds>,
 ) {
-    let mut to_check = HashSet::new();
-    for context in deps.p0().iter() {
-        if let Some(id) = context.id {
-            to_check.insert(id);
-        }
-    }
-    for changed in changed_views.iter() {
-        to_check.insert(changed);
-    }
-    if to_check.is_empty() {
+    if deps.is_empty() && views.is_empty() {
         return;
     }
-    for id in to_check.iter() {
+    to_check.0.clear();
+    for context in deps.iter() {
+        if let Some(id) = context.id {
+            to_check.0.insert(id);
+        }
+    }
+    for changed in views.iter() {
+        to_check.0.insert(changed);
+    }
+}
+pub(crate) fn extent_check(
+    deps: Query<(&ViewContext, &Section<LogicalContext>)>,
+    mut views: Query<(Entity, &Section<LogicalContext>, &mut View)>,
+    mut tree: Tree,
+    mut to_check: ResMut<ExtentCheckIds>,
+) {
+    if to_check.0.is_empty() {
+        return;
+    }
+    for id in to_check.0.iter() {
         views.get_mut(*id).unwrap().2.extent = Section::default();
     }
-    for (context, section) in deps.p1().iter() {
+    for (context, section) in deps.iter() {
         if let Some(id) = context.id {
-            if to_check.contains(&id) {
+            if to_check.0.contains(&id) {
                 let mut relative = *section;
                 let mut view = views.get_mut(id).unwrap().2;
                 relative.position -= view.offset;

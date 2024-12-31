@@ -277,7 +277,8 @@ impl Default for ResolvedFontSize {
 #[derive(Component, Clone, Copy, PartialEq)]
 #[component(on_insert = FontSize::on_insert)]
 pub struct FontSize {
-    pub sm: u32,
+    pub xs: u32,
+    pub sm: Option<u32>,
     pub md: Option<u32>,
     pub lg: Option<u32>,
     pub xl: Option<u32>,
@@ -286,7 +287,8 @@ impl FontSize {
     pub const DEFAULT_SIZE: u32 = 16;
     pub fn new(value: u32) -> Self {
         Self {
-            sm: value,
+            xs: value,
+            sm: None,
             md: None,
             lg: None,
             xl: None,
@@ -294,12 +296,21 @@ impl FontSize {
     }
     pub fn resolve(&self, layout: Layout) -> ResolvedFontSize {
         match layout {
-            Layout::Sm => ResolvedFontSize::new(self.sm),
+            Layout::Xs => ResolvedFontSize::new(self.xs),
+            Layout::Sm => {
+                if let Some(sm) = self.sm {
+                    ResolvedFontSize::new(sm)
+                } else {
+                    ResolvedFontSize::new(self.xs)
+                }
+            }
             Layout::Md => {
                 if let Some(md) = self.md {
                     ResolvedFontSize::new(md)
+                } else if let Some(sm) = self.sm {
+                    ResolvedFontSize::new(sm)
                 } else {
-                    ResolvedFontSize::new(self.sm)
+                    ResolvedFontSize::new(self.xs)
                 }
             }
             Layout::Lg => {
@@ -307,8 +318,10 @@ impl FontSize {
                     ResolvedFontSize::new(lg)
                 } else if let Some(md) = self.md {
                     ResolvedFontSize::new(md)
+                } else if let Some(sm) = self.sm {
+                    ResolvedFontSize::new(sm)
                 } else {
-                    ResolvedFontSize::new(self.sm)
+                    ResolvedFontSize::new(self.xs)
                 }
             }
             Layout::Xl => {
@@ -318,8 +331,10 @@ impl FontSize {
                     ResolvedFontSize::new(lg)
                 } else if let Some(md) = self.md {
                     ResolvedFontSize::new(md)
+                } else if let Some(sm) = self.sm {
+                    ResolvedFontSize::new(sm)
                 } else {
-                    ResolvedFontSize::new(self.sm)
+                    ResolvedFontSize::new(self.xs)
                 }
             }
         }
@@ -329,6 +344,10 @@ impl FontSize {
         let comp = world.get::<FontSize>(this).unwrap();
         let resolved = comp.resolve(layout);
         world.commands().entity(this).insert(resolved);
+    }
+    pub fn sm(mut self, value: u32) -> Self {
+        self.sm.replace(value);
+        self
     }
     pub fn md(mut self, value: u32) -> Self {
         self.md.replace(value);
@@ -346,7 +365,8 @@ impl FontSize {
 impl Default for FontSize {
     fn default() -> Self {
         Self {
-            sm: FontSize::DEFAULT_SIZE,
+            xs: FontSize::DEFAULT_SIZE,
+            sm: None,
             md: None,
             lg: None,
             xl: None,

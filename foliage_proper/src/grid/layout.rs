@@ -1,20 +1,35 @@
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::grid::Location;
-use crate::{LogicalContext, Section, Stem, Tree, Update, Write};
+use crate::{CoordinateUnit, LogicalContext, Section, Stem, Tree, Update, Write};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::query::With;
 use bevy_ecs::system::{Query, ResMut, Resource};
 
 #[derive(Resource, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum Layout {
+    Xs,
     Sm,
     Md,
     Lg,
     Xl,
 }
 impl Layout {
+    pub const SM: CoordinateUnit = 600.0;
+    pub const MD: CoordinateUnit = 800.0;
+    pub const LG: CoordinateUnit = 1000.0;
+    pub const XL: CoordinateUnit = 1200.0;
     pub fn new(section: Section<LogicalContext>) -> Self {
-        todo!()
+        if section.width() >= Self::XL {
+            Self::Xl
+        } else if section.width() >= Self::LG {
+            Self::Lg
+        } else if section.width() >= Self::MD {
+            Self::Md
+        } else if section.width() >= Self::SM {
+            Self::Sm
+        } else {
+            Self::Xs
+        }
     }
 }
 pub(crate) fn viewport_changed(
@@ -27,6 +42,7 @@ pub(crate) fn viewport_changed(
         let new = Layout::new(vh.section());
         if new != *layout {
             // Write<Layout> => responsive font-size configure + user stuff
+            println!("layout changed: {:?}", new);
             tree.trigger(Write::<Layout>::new());
             *layout = new;
         }
