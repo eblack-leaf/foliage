@@ -10,7 +10,7 @@ use crate::ginkgo::ScaleFactor;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::text::glyph::{
-    Glyph, GlyphColor, GlyphColors, GlyphKey, Glyphs, ResolvedColors, ResolvedGlyphs,
+    Glyph, GlyphColor, GlyphKey, Glyphs, ResolvedColors, ResolvedGlyphs,
 };
 use crate::text::monospaced::MonospacedFont;
 use crate::{
@@ -25,6 +25,7 @@ use bevy_ecs::prelude::{Component, IntoSystemConfigs, Res, Trigger};
 use bevy_ecs::query::Changed;
 use bevy_ecs::system::{ParamSet, Query};
 use bevy_ecs::world::DeferredWorld;
+pub use glyph::GlyphColors;
 use std::collections::HashSet;
 impl Attachment for Text {
     fn attach(foliage: &mut Foliage) {

@@ -7,6 +7,7 @@ use bevy_ecs::world::DeferredWorld;
 use fontdue::layout::CoordinateSystem::PositiveYDown;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::ops::Range;
 
 #[derive(Serialize, Deserialize, Copy, Clone, Hash, Eq, PartialEq, Debug)]
 pub(crate) struct GlyphKey {
@@ -76,6 +77,15 @@ pub struct GlyphColors {
 impl GlyphColors {
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
         world.trigger_targets(Update::<Self>::new(), this);
+    }
+    pub fn new() -> Self {
+        Self::default()
+    }
+    pub fn add(mut self, offsets: Range<GlyphOffset>, color: Color) -> Self {
+        for o in offsets {
+            self.exceptions.insert(o, color);
+        }
+        self
     }
 }
 #[derive(Component, Default, PartialEq, Clone)]
