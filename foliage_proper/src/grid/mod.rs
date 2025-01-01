@@ -205,9 +205,9 @@ impl Grid {
                 GridAxisUnit::Infinite(inf) => {
                     (num - 1.0 * CoordinateUnit::from(!inclusive))
                         * match inf {
-                            ScalarUnit::Px(px) => px,
-                            ScalarUnit::Pct(pct) => stem.width() * pct,
-                        }
+                        ScalarUnit::Px(px) => px,
+                        ScalarUnit::Pct(pct) => stem.width() * pct,
+                    }
                         + num * grid_config.columns.gap.amount
                 }
                 GridAxisUnit::Explicit(exp) => {
@@ -240,9 +240,9 @@ impl Grid {
                 GridAxisUnit::Infinite(inf) => {
                     (num - 1.0 * CoordinateUnit::from(!inclusive))
                         * match inf {
-                            ScalarUnit::Px(px) => px,
-                            ScalarUnit::Pct(pct) => stem.height() * pct,
-                        }
+                        ScalarUnit::Px(px) => px,
+                        ScalarUnit::Pct(pct) => stem.height() * pct,
+                    }
                         + num * grid_config.rows.gap.amount
                 }
                 GridAxisUnit::Explicit(exp) => {
@@ -291,7 +291,7 @@ pub enum GridAxisUnit {
     Infinite(ScalarUnit),
     Explicit(AlignedUnit),
 }
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum ScalarUnit {
     Px(CoordinateUnit),
     Pct(f32),
@@ -334,7 +334,7 @@ impl From<i32> for Gap {
         }
     }
 }
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum GridUnit {
     Aligned(AlignedUnit),
     Scalar(ScalarUnit),
@@ -383,7 +383,7 @@ impl GridUnit {
         }
     }
 }
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum AlignedUnit {
     Columns(i32),
     Rows(i32),

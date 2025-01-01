@@ -12,6 +12,7 @@ use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Res, Trigger};
 use bevy_ecs::system::Query;
 use bevy_ecs::world::DeferredWorld;
+use std::cmp::PartialEq;
 use std::collections::HashSet;
 
 #[derive(Component)]
@@ -28,6 +29,7 @@ pub enum ResolvedLocation {
     Points(Points<Logical>),
     Section(Section<Logical>),
 }
+
 impl Location {
     pub fn new() -> Self {
         Self {
@@ -138,7 +140,11 @@ impl Location {
                 GridUnit::Aligned(a) => grid.column(layout, stem, a, false),
                 GridUnit::Scalar(s) => s.horizontal(stem),
                 GridUnit::Stack => {
-                    panic!("Stack not supported in horizontal")
+                    if let Some(stack) = stack {
+                        stack.right()
+                    } else {
+                        return None;
+                    }
                 }
                 GridUnit::Auto => {
                     panic!("Auto not supported in horizontal-begin.");
@@ -148,10 +154,10 @@ impl Location {
                 GridUnit::Aligned(a) => grid.column(layout, stem, a, true),
                 GridUnit::Scalar(s) => s.horizontal(stem),
                 GridUnit::Stack => {
-                    panic!("Stack not supported in horizontal")
+                    panic!("Stack not supported in horizontal-end")
                 }
                 GridUnit::Auto => {
-                    current.width() + config.horizontal.padding.coordinates.b() // dependent width from the height?
+                    0.0 // Zeroed on purpose
                 }
             } - config.horizontal.padding.coordinates.b();
             match config.horizontal.ty {
@@ -186,8 +192,7 @@ impl Location {
                     panic!("Stack not supported in vertical-end");
                 }
                 GridUnit::Auto => {
-                    current.height() + config.vertical.padding.coordinates.b() + ay
-                    // TODO make more meaningful than just 0-valued
+                    0.0 // Zeroed on purpose
                 }
             } - config.vertical.padding.coordinates.b();
             match config.vertical.ty {
@@ -200,6 +205,12 @@ impl Location {
                 LocationAxisType::To => {
                     by -= ay; // convert to y / h context
                 }
+            }
+            if config.horizontal.b == GridUnit::Auto {
+                bx = current.width();
+            }
+            if config.vertical.b == GridUnit::Auto {
+                by = current.height();
             }
             if let Some(mut pts) = resolved_points {
                 for pt in pts.data.iter_mut() {
