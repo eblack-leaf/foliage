@@ -41,8 +41,6 @@ pub(crate) fn viewport_changed(
     if vh.window_forced_resize() {
         let new = Layout::new(vh.section());
         if new != *layout {
-            // Write<Layout> => responsive font-size configure + user stuff
-            println!("layout changed: {:?}", new);
             tree.trigger(Write::<Layout>::new());
             *layout = new;
         }
@@ -55,7 +53,6 @@ pub(crate) fn viewport_changed(
         if targets.is_empty() {
             return;
         }
-        println!("trigger targets: {:?}", targets);
         tree.trigger_targets(Update::<Location>::new(), targets);
     }
 }

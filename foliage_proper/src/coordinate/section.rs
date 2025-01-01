@@ -190,11 +190,6 @@ impl<Context: CoordinateContext> Section<Context> {
             return;
         }
         world.trigger_targets(Write::<Self>::new(), this);
-        println!(
-            "writing section {} for {:?}",
-            world.get::<Section<Logical>>(this).unwrap(),
-            this
-        );
         let mut deps = world.get::<Branch>(this).unwrap().ids.clone();
         for d in deps.clone().iter() {
             if let Some(stack) = world.get::<Stack>(*d) {

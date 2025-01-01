@@ -214,7 +214,6 @@ impl Grid {
                     let without_gap =
                         stem.width() - grid_config.columns.gap.amount * (exp.value() + 1.0);
                     let column_size = without_gap / exp.value();
-                    // println!("wg: {}, cs: {}", without_gap, column_size);
                     num * grid_config.columns.gap.amount + num * column_size
                         - column_size * CoordinateUnit::from(!inclusive)
                 }

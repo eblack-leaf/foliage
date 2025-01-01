@@ -302,7 +302,6 @@ impl Location {
                             tree.entity(this).insert(pts);
                         }
                         ResolvedLocation::Section(section) => {
-                            println!("resolved location {} for {:?}", section, this);
                             tree.entity(this).insert(section);
                         }
                     }

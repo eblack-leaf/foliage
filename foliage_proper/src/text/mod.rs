@@ -164,10 +164,6 @@ impl Text {
         current.horizontal_alignment = *horizontal_alignment.get(this).unwrap();
         current.vertical_alignment = *vertical_alignment.get(this).unwrap();
         if cache.get(this).unwrap() != &current {
-            println!(
-                "updating text w/ section {} for {:?}\ncache: {:?}\ncurrent: {:?}",
-                current.section, this, cache.get(this).unwrap(), current
-            );
             let mut glyphs = glyph_query.get_mut(this).unwrap();
             glyphs.layout.reset(&fontdue::layout::LayoutSettings {
                 horizontal_align: current.horizontal_alignment.into(),
@@ -195,8 +191,9 @@ impl Text {
                 let scaled = adjusted_section.to_physical(scale_factor.value());
                 if current.section != scaled {
                     current.section = scaled;
-                    tree.entity(this).insert(current.clone()).insert(adjusted_section);
-                    println!("adjusting to {} for {:?}", adjusted_section, this);
+                    tree.entity(this)
+                        .insert(current.clone())
+                        .insert(adjusted_section);
                 } else {
                     tree.entity(this).insert(current.clone());
                 }
@@ -213,7 +210,6 @@ impl Text {
     ) {
         let value = vis.get(trigger.entity()).unwrap();
         if !value.visible() {
-            println!("clearing glyphs from visibility for {:?}", trigger.entity());
             glyphs.get_mut(trigger.entity()).unwrap().glyphs.clear();
         }
     }
@@ -244,12 +240,15 @@ impl Text {
                     offset: i,
                 })
                 .collect::<Vec<Glyph>>();
-            if new == glyphs.glyphs {
-                println!("same glyphs for {:?} ------------------------------------------", entity);
-            }
             let mut resolved = ResolvedGlyphs::default();
             let len_last = glyphs.glyphs.len();
-            for (i, g) in glyphs.glyphs.drain(..).collect::<Vec<_>>().iter().enumerate() {
+            for (i, g) in glyphs
+                .glyphs
+                .drain(..)
+                .collect::<Vec<_>>()
+                .iter()
+                .enumerate()
+            {
                 if let Some(n) = new.get(i) {
                     if g.key != n.key || g.section != n.section {
                         resolved.updated.push(n.clone());
@@ -264,12 +263,6 @@ impl Text {
                     resolved.updated.push(new[i].clone());
                 }
             }
-            println!(
-                "resolving glyphs for {:?} updated: {:?} removed: {:?}",
-                entity,
-                resolved.updated.len(),
-                resolved.removed.len(),
-            );
             glyphs.glyphs = new;
             tree.entity(entity).insert(resolved);
         }

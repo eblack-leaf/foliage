@@ -1,11 +1,9 @@
-use crate::text::ResolvedGlyphs;
 use crate::{Component, ResolvedVisibility, Resource};
 use bevy_ecs::change_detection::ResMut;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Changed, ParamSet, Query};
 use bevy_ecs::query::With;
 use bevy_ecs::world::World;
-use std::any::{Any, TypeId};
 use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 
@@ -75,9 +73,6 @@ pub(crate) fn cached_differential<
         if visibility.p0().get(c).unwrap().visible() {
             let v = values.p1().get(c).unwrap().clone();
             caches.get_mut(c).unwrap().cache.replace(v.clone());
-            if TypeId::of::<ResolvedGlyphs>() == v.type_id() {
-                println!("visibility diff for glyphs");
-            }
             queue.queue.insert(c, v);
         }
     }
@@ -86,9 +81,6 @@ pub(crate) fn cached_differential<
         if visibility.p0().get(e).unwrap().visible() {
             let mut cache = caches.get_mut(e).unwrap();
             if cache.different(v.clone()) {
-                if TypeId::of::<ResolvedGlyphs>() == v.type_id() {
-                    println!("cached diff for glyphs");
-                }
                 queue.queue.insert(e, v.clone());
             }
         }
