@@ -1,8 +1,9 @@
 use crate::ash::clip::ClipSection;
 use crate::ash::differential::Elm;
-use crate::ash::{
-    GroupId, Instance, InstanceBuffer, InstanceId, Node, Nodes, Parameters, PipelineId, RemoveNode,
-    Render, RenderGroup, Renderer,
+use crate::ash::instance::{Instance, InstanceBuffer, InstanceId};
+use crate::ash::node::{Node, Nodes, RemoveNode};
+use crate::ash::render::{
+    GroupId, Parameters, PipelineId, Render, RenderGroup, Renderer,
 };
 use crate::ginkgo::{Ginkgo, VectorUniform};
 use crate::opacity::BlendedOpacity;

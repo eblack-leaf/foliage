@@ -38,7 +38,7 @@ pub(crate) fn viewport_changed(
     mut layout: ResMut<Layout>,
     mut tree: Tree,
 ) {
-    if vh.updated() {
+    if vh.window_forced_resize() {
         let new = Layout::new(vh.section());
         if new != *layout {
             // Write<Layout> => responsive font-size configure + user stuff

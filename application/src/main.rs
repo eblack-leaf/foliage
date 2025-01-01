@@ -1,8 +1,5 @@
 use foliage::Justify::Center;
-use foliage::{
-    AutoHeight, Color, EcsExtension, Event, Foliage, FontSize, GlyphColors, Grid, GridExt,
-    HorizontalAlignment, Location, Stem, Text, VerticalAlignment,
-};
+use foliage::{AutoHeight, Color, EcsExtension, Event, Foliage, FontSize, GlyphColors, Grid, GridExt, HorizontalAlignment, Location, Opacity, Stem, Text, VerticalAlignment};
 
 mod icon;
 mod image;
@@ -20,6 +17,7 @@ fn main() {
         AutoHeight(false),
         HorizontalAlignment::Center,
         VerticalAlignment::Middle,
+        Opacity::new(1.0),
         GlyphColors::new().add(0..5, Color::gray(50)),
         FontSize::new(14).sm(20).md(24).lg(32).xl(48),
         Stem::some(root),
@@ -33,13 +31,5 @@ fn main() {
                 1.row().to(9.row()),
             ),
     )); // add single node
-    let button = foliage.leaf((
-        // Button::new(),
-        // ForegroundColor::RED,
-        // BackgroundColor::BLUE,
-        // ButtonText::new("example"),
-        // ButtonIcon::new(IconHandle::Git),
-        Stem::some(leaf),
-    ));
     foliage.photosynthesize(); // run
 }

@@ -2,7 +2,7 @@ mod glyph;
 mod monospaced;
 mod pipeline;
 
-use crate::ash::Render;
+use crate::ash::render::Render;
 use crate::color::Color;
 use crate::coordinate::section::Section;
 use crate::coordinate::Logical;

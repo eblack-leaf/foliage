@@ -241,7 +241,7 @@ impl Foliage {
                         .world
                         .get_resource_mut::<ViewportHandle>()
                         .unwrap()
-                        .changes()
+                        .user_translations()
                     {
                         let pos = vc.to_device(self.ginkgo.configuration().scale_factor.value());
                         self.ginkgo.position_viewport(pos);

@@ -9,7 +9,12 @@ use bevy_ecs::world::DeferredWorld;
 #[derive(Copy, Clone, Ord, PartialOrd, PartialEq, Eq, Hash, Component)]
 #[component(on_add = Visibility::on_add)]
 #[component(on_insert = Visibility::on_insert)]
-#[require(InheritedVisibility, ResolvedVisibility, CachedVisibility, AutoVisibility)]
+#[require(
+    InheritedVisibility,
+    ResolvedVisibility,
+    CachedVisibility,
+    AutoVisibility
+)]
 pub struct Visibility {
     visible: bool,
 }
@@ -74,9 +79,7 @@ pub(crate) struct AutoVisibility {
 }
 impl AutoVisibility {
     pub(crate) fn new(v: bool) -> Self {
-        Self {
-            visible: v,
-        }
+        Self { visible: v }
     }
 }
 impl Default for AutoVisibility {

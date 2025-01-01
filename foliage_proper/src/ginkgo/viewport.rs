@@ -78,8 +78,8 @@ impl Viewport {
 pub struct ViewportHandle {
     translation: Position<Logical>,
     area: Area<Logical>,
-    changes: bool,
-    updated: bool,
+    user_translated: bool,
+    window_forced_resize: bool,
 }
 
 impl ViewportHandle {
@@ -87,30 +87,30 @@ impl ViewportHandle {
         Self {
             translation: Position::default(),
             area,
-            changes: false,
-            updated: false,
+            user_translated: false,
+            window_forced_resize: false,
         }
     }
     pub fn translate(&mut self, position: Position<Logical>) {
         self.translation += position;
-        self.changes = true;
+        self.user_translated = true;
     }
-    pub(crate) fn changes(&mut self) -> Option<Position<Logical>> {
-        if self.changes {
-            self.changes = false;
+    pub(crate) fn user_translations(&mut self) -> Option<Position<Logical>> {
+        if self.user_translated {
+            self.user_translated = false;
             return Some(self.translation);
         }
         None
     }
     pub(crate) fn resize(&mut self, area: Area<Logical>) {
-        self.updated = true;
+        self.window_forced_resize = true;
         self.area = area;
     }
-    pub(crate) fn updated(&mut self) -> bool {
+    pub(crate) fn window_forced_resize(&mut self) -> bool {
         let mut val = false;
-        if self.updated {
+        if self.window_forced_resize {
             val = true;
-            self.updated = false;
+            self.window_forced_resize = false;
         }
         val
     }
