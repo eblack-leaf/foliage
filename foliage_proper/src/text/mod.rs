@@ -50,7 +50,7 @@ impl Attachment for Text {
         foliage.differential::<Text, TextBounds>();
     }
 }
-#[derive(Component, Clone, PartialEq, Default)]
+#[derive(Component, Clone, PartialEq, Default, Debug)]
 #[require(Color, FontSize, ResolvedFontSize, UpdateCache, ClipContext)]
 #[require(HorizontalAlignment, VerticalAlignment, Glyphs)]
 #[require(ResolvedGlyphs, ResolvedColors, GlyphColors, AutoHeight)]
@@ -164,7 +164,10 @@ impl Text {
         current.horizontal_alignment = *horizontal_alignment.get(this).unwrap();
         current.vertical_alignment = *vertical_alignment.get(this).unwrap();
         if cache.get(this).unwrap() != &current {
-            println!("updating text w/ section {} for {:?}", current.section, this);
+            println!(
+                "updating text w/ section {} for {:?}\ncache: {:?}\ncurrent: {:?}",
+                current.section, this, cache.get(this).unwrap(), current
+            );
             let mut glyphs = glyph_query.get_mut(this).unwrap();
             glyphs.layout.reset(&fontdue::layout::LayoutSettings {
                 horizontal_align: current.horizontal_alignment.into(),
@@ -182,8 +185,7 @@ impl Text {
                 ),
             );
             tree.entity(this)
-                .insert(UniqueCharacters::count(&current.text))
-                .insert(current.clone());
+                .insert(UniqueCharacters::count(&current.text));
             let auto_height = auto_heights.get(this).unwrap();
             if auto_height.0 {
                 let adjusted_section = current
@@ -193,9 +195,13 @@ impl Text {
                 let scaled = adjusted_section.to_physical(scale_factor.value());
                 if current.section != scaled {
                     current.section = scaled;
-                    tree.entity(this).insert(adjusted_section);
+                    tree.entity(this).insert(current.clone()).insert(adjusted_section);
                     println!("adjusting to {} for {:?}", adjusted_section, this);
+                } else {
+                    tree.entity(this).insert(current.clone());
                 }
+            } else {
+                tree.entity(this).insert(current.clone());
             }
             tree.entity(this).insert(TextBounds::new(current.section));
         }
@@ -207,19 +213,21 @@ impl Text {
     ) {
         let value = vis.get(trigger.entity()).unwrap();
         if !value.visible() {
-            println!("clearing last visibility for {:?}", trigger.entity());
-            glyphs.get_mut(trigger.entity()).unwrap().last.clear();
+            println!("clearing glyphs from visibility for {:?}", trigger.entity());
+            glyphs.get_mut(trigger.entity()).unwrap().glyphs.clear();
         }
     }
     fn resolve_glyphs(
-        mut glyph_query: Query<(Entity, &mut Glyphs, &ResolvedVisibility), Changed<Glyphs>>,
+        mut glyph_query: Query<
+            (Entity, &mut Glyphs, &ResolvedVisibility, &Section<Logical>),
+            Changed<Glyphs>,
+        >,
         mut tree: Tree,
     ) {
-        for (entity, mut glyphs, vis) in glyph_query.iter_mut() {
+        for (entity, mut glyphs, vis, section) in glyph_query.iter_mut() {
             if !vis.visible() {
                 continue;
             }
-            println!("resolving glyphs for {:?}", entity);
             let new = glyphs
                 .layout
                 .glyphs()
@@ -236,9 +244,12 @@ impl Text {
                     offset: i,
                 })
                 .collect::<Vec<Glyph>>();
+            if new == glyphs.glyphs {
+                println!("same glyphs for {:?} ------------------------------------------", entity);
+            }
             let mut resolved = ResolvedGlyphs::default();
-            let len_last = glyphs.last.len();
-            for (i, g) in glyphs.last.drain(..).collect::<Vec<_>>().iter().enumerate() {
+            let len_last = glyphs.glyphs.len();
+            for (i, g) in glyphs.glyphs.drain(..).collect::<Vec<_>>().iter().enumerate() {
                 if let Some(n) = new.get(i) {
                     if g.key != n.key || g.section != n.section {
                         resolved.updated.push(n.clone());
@@ -253,7 +264,12 @@ impl Text {
                     resolved.updated.push(new[i].clone());
                 }
             }
-            glyphs.last = glyphs.glyphs.clone();
+            println!(
+                "resolving glyphs for {:?} updated: {:?} removed: {:?}",
+                entity,
+                resolved.updated.len(),
+                resolved.removed.len(),
+            );
             glyphs.glyphs = new;
             tree.entity(entity).insert(resolved);
         }
@@ -281,7 +297,7 @@ impl UniqueCharacters {
         Self(set.len() as u32)
     }
 }
-#[derive(Component, Clone, Copy, PartialEq)]
+#[derive(Component, Clone, Copy, PartialEq, Debug)]
 #[component(on_insert = ResolvedFontSize::on_insert)]
 pub struct ResolvedFontSize {
     pub value: u32,
@@ -402,7 +418,7 @@ impl Default for FontSize {
         }
     }
 }
-#[derive(Component, Clone, PartialEq, Default)]
+#[derive(Component, Clone, PartialEq, Default, Debug)]
 pub(crate) struct UpdateCache {
     pub(crate) font_size: ResolvedFontSize,
     pub(crate) text: Text,
@@ -410,7 +426,7 @@ pub(crate) struct UpdateCache {
     pub(crate) horizontal_alignment: HorizontalAlignment,
     pub(crate) vertical_alignment: VerticalAlignment,
 }
-#[derive(Component, Copy, Clone, Default, PartialEq)]
+#[derive(Component, Copy, Clone, Default, PartialEq, Debug)]
 #[component(on_insert = HorizontalAlignment::on_insert)]
 pub enum HorizontalAlignment {
     #[default]
@@ -432,7 +448,7 @@ impl From<HorizontalAlignment> for fontdue::layout::HorizontalAlign {
         }
     }
 }
-#[derive(Component, Copy, Clone, Default, PartialEq)]
+#[derive(Component, Copy, Clone, Default, PartialEq, Debug)]
 #[component(on_insert = VerticalAlignment::on_insert)]
 pub enum VerticalAlignment {
     #[default]

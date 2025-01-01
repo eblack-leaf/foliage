@@ -12,7 +12,7 @@ use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::{
     CoordinateContext, CoordinateUnit, Coordinates, Logical, Numerical, Physical,
 };
-use crate::{Branch, Location, StackDeps, Update, Write};
+use crate::{Branch, Location, Stack, StackDeps, Update, Write};
 
 #[derive(Copy, Clone, Default, Component, PartialEq, Debug)]
 #[component(on_insert = Section::<Logical>::on_insert)]
@@ -190,8 +190,19 @@ impl<Context: CoordinateContext> Section<Context> {
             return;
         }
         world.trigger_targets(Write::<Self>::new(), this);
-        println!("writing section {} for {:?}", world.get::<Section<Logical>>(this).unwrap(), this);
+        println!(
+            "writing section {} for {:?}",
+            world.get::<Section<Logical>>(this).unwrap(),
+            this
+        );
         let mut deps = world.get::<Branch>(this).unwrap().ids.clone();
+        for d in deps.clone().iter() {
+            if let Some(stack) = world.get::<Stack>(*d) {
+                if stack.id.is_some() {
+                    deps.remove(d);
+                }
+            }
+        }
         if let Some(d) = world.get::<StackDeps>(this) {
             deps.extend(d.ids.clone());
         }
@@ -213,7 +224,7 @@ impl Section<Numerical> {
     }
 }
 impl<Context: CoordinateContext, C: Into<Coordinates>, D: Into<Coordinates>> From<(C, D)>
-for Section<Context>
+    for Section<Context>
 {
     fn from(value: (C, D)) -> Self {
         Self::new(value.0, value.1)

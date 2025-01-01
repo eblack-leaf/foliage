@@ -36,14 +36,12 @@ pub type GlyphOffset = usize;
 pub(crate) struct Glyphs {
     pub(crate) layout: fontdue::layout::Layout,
     pub(crate) glyphs: Vec<Glyph>,
-    pub(crate) last: Vec<Glyph>,
 }
 impl Glyphs {
     pub(crate) fn new() -> Self {
         Self {
             layout: fontdue::layout::Layout::new(PositiveYDown),
             glyphs: vec![],
-            last: vec![],
         }
     }
 }

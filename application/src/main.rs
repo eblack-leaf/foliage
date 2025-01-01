@@ -1,4 +1,7 @@
-use foliage::{auto, stack, AutoHeight, Color, EcsExtension, Event, Foliage, FontSize, Grid, GridExt, Location, Stack, Stem, Text};
+use foliage::{
+    auto, stack, AutoHeight, Color, EcsExtension, Event, Foliage, FontSize, Grid, GridExt,
+    Location, Stack, Stem, Text,
+};
 
 mod icon;
 mod image;

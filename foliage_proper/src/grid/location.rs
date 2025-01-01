@@ -186,7 +186,8 @@ impl Location {
                     panic!("Stack not supported in vertical-end");
                 }
                 GridUnit::Auto => {
-                    current.height() + config.vertical.padding.coordinates.b() + ay // TODO make more meaningful than just 0-valued
+                    current.height() + config.vertical.padding.coordinates.b() + ay
+                    // TODO make more meaningful than just 0-valued
                 }
             } - config.vertical.padding.coordinates.b();
             match config.vertical.ty {
