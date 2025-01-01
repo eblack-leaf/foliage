@@ -289,7 +289,7 @@ impl Location {
                     location.resolve(*layout, stem_section, stack, grid, aspect, view)
                 {
                     if !res_vis.visible() && vis.visible() {
-                        tree.enable(this);
+                        tree.enable(this); // TODO check for !disabled explicitly like visibility here
                         tree.entity(this).insert(AutoVisibility::new(true));
                     }
                     match resolved {
