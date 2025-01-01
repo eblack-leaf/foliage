@@ -9,9 +9,7 @@ use crate::coordinate::Logical;
 use crate::ginkgo::ScaleFactor;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
-use crate::text::glyph::{
-    Glyph, GlyphColor, GlyphKey, Glyphs, ResolvedColors, ResolvedGlyphs,
-};
+use crate::text::glyph::{Glyph, GlyphColor, GlyphKey, Glyphs, ResolvedColors, ResolvedGlyphs};
 use crate::text::monospaced::MonospacedFont;
 use crate::{
     Attachment, Foliage, Layout, Physical, ResolvedElevation, ResolvedVisibility, Tree, Update,

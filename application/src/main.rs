@@ -1,5 +1,8 @@
 use foliage::Justify::Center;
-use foliage::{AutoHeight, Color, EcsExtension, Event, Foliage, FontSize, GlyphColors, Grid, GridExt, HorizontalAlignment, Location, Stem, Text, VerticalAlignment};
+use foliage::{
+    AutoHeight, Color, EcsExtension, Event, Foliage, FontSize, GlyphColors, Grid, GridExt,
+    HorizontalAlignment, Location, Stem, Text, VerticalAlignment,
+};
 
 mod icon;
 mod image;
