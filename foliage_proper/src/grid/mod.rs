@@ -9,9 +9,7 @@ pub use crate::grid::location::{
     auto, stack, Justify, LocationAxisDescriptor, LocationAxisType, Padding,
 };
 use crate::grid::view::{extent_check, prepare_extent};
-use crate::{
-    Attachment, Component, CoordinateUnit, DiffMarkers, Foliage, Logical, Section,
-};
+use crate::{Attachment, Component, CoordinateUnit, DiffMarkers, Foliage, Logical, Section};
 pub use aspect_ratio::AspectRatio;
 use bevy_ecs::prelude::IntoSystemConfigs;
 pub use layout::Layout;
@@ -157,20 +155,39 @@ impl Grid {
         self.xl.replace((ha.into(), va.into()).into());
         self
     }
+    fn at_least_sm(&self) -> GridConfiguration {
+        if let Some(sm) = &self.sm {
+            sm.clone()
+        } else {
+            self.xs.clone()
+        }
+    }
+    fn at_least_md(&self) -> GridConfiguration {
+        if let Some(md) = &self.md {
+            md.clone()
+        } else {
+            self.at_least_sm()
+        }
+    }
+    fn at_least_lg(&self) -> GridConfiguration {
+        if let Some(lg) = &self.lg {
+            lg.clone()
+        } else {
+            self.at_least_md()
+        }
+    }
     pub fn config(&self, layout: Layout) -> GridConfiguration {
         match layout {
             Layout::Xs => self.xs,
-            Layout::Sm => {
-                todo!()
-            }
-            Layout::Md => {
-                todo!()
-            }
-            Layout::Lg => {
-                todo!()
-            }
+            Layout::Sm => self.at_least_sm(),
+            Layout::Md => self.at_least_md(),
+            Layout::Lg => self.at_least_lg(),
             Layout::Xl => {
-                todo!()
+                if let Some(xl) = &self.xl {
+                    xl.clone()
+                } else {
+                    self.at_least_lg()
+                }
             }
         }
     }
@@ -179,21 +196,27 @@ impl Grid {
         layout: Layout,
         stem: Section<Logical>,
         aligned_unit: AlignedUnit,
+        inclusive: bool,
     ) -> CoordinateUnit {
         let num = aligned_unit.value();
         let grid_config = self.config(layout);
         match aligned_unit {
             AlignedUnit::Columns(_) => match grid_config.columns.unit {
                 GridAxisUnit::Infinite(inf) => {
-                    num * match inf {
-                        ScalarUnit::Px(px) => px,
-                        ScalarUnit::Pct(pct) => stem.width() * pct,
-                    } + num * grid_config.columns.gap.amount
+                    (num - 1.0 * CoordinateUnit::from(!inclusive))
+                        * match inf {
+                            ScalarUnit::Px(px) => px,
+                            ScalarUnit::Pct(pct) => stem.width() * pct,
+                        }
+                        + num * grid_config.columns.gap.amount
                 }
                 GridAxisUnit::Explicit(exp) => {
-                    let column_size =
-                        (stem.width() - grid_config.columns.gap.amount * exp.value()) / exp.value();
-                    (num + 1.0) * grid_config.columns.gap.amount + num * column_size
+                    let without_gap =
+                        stem.width() - grid_config.columns.gap.amount * (exp.value() + 1.0);
+                    let column_size = without_gap / exp.value();
+                    println!("wg: {}, cs: {}", without_gap, column_size);
+                    num * grid_config.columns.gap.amount + num * column_size
+                        - column_size * CoordinateUnit::from(!inclusive)
                 }
             },
             AlignedUnit::Rows(_) => {
@@ -206,6 +229,7 @@ impl Grid {
         layout: Layout,
         stem: Section<Logical>,
         aligned_unit: AlignedUnit,
+        inclusive: bool,
     ) -> CoordinateUnit {
         let num = aligned_unit.value();
         let grid_config = self.config(layout);
@@ -215,15 +239,19 @@ impl Grid {
             }
             AlignedUnit::Rows(_) => match grid_config.rows.unit {
                 GridAxisUnit::Infinite(inf) => {
-                    num * match inf {
-                        ScalarUnit::Px(px) => px,
-                        ScalarUnit::Pct(pct) => stem.height() * pct,
-                    }
+                    (num - 1.0 * CoordinateUnit::from(!inclusive))
+                        * match inf {
+                            ScalarUnit::Px(px) => px,
+                            ScalarUnit::Pct(pct) => stem.height() * pct,
+                        }
+                        + num * grid_config.rows.gap.amount
                 }
                 GridAxisUnit::Explicit(exp) => {
-                    let row_size =
-                        (stem.height() - grid_config.rows.gap.amount * exp.value()) / exp.value();
-                    (num + 1.0) * grid_config.rows.gap.amount + num * row_size
+                    let without_gap =
+                        stem.height() - grid_config.rows.gap.amount * (exp.value() + 1.0);
+                    let row_size = without_gap / exp.value();
+                    num * grid_config.rows.gap.amount + num * row_size
+                        - row_size * CoordinateUnit::from(!inclusive)
                 }
             },
         }
@@ -303,7 +331,7 @@ impl Default for Gap {
 impl From<i32> for Gap {
     fn from(x: i32) -> Self {
         Gap {
-            amount: x as CoordinateUnit
+            amount: x as CoordinateUnit,
         }
     }
 }

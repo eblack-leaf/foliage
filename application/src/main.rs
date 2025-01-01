@@ -1,50 +1,22 @@
-use foliage::{
-    bevy_ecs, Color, EcsExtension, Event, Foliage, FontSize, Section, Stem, Text, Tree, Trigger,
-};
+use foliage::{Color, EcsExtension, Event, Foliage, FontSize, Grid, GridExt, Location, Stem, Text};
 
 mod icon;
 mod image;
-#[derive(Event)]
-pub(crate) struct Home {
-    // args
-    pub(crate) value: String,
-}
-impl Home {
-    pub(crate) fn create(trigger: Trigger<Self>, mut tree: Tree) {
-        // setup actions
-        let id = tree.leaf(Section::logical((10, 100), (300, 50)));
-        // hook to update dependencies
-        tree.write_to(id, (Stem::some(trigger.entity()), Color::gray(150)));
-        // hook to pull text mut + update to given + cached glyphs and such + set size
-        tree.write_to(id, Text::new(format!("hellur {}", trigger.event().value)));
-        // enable
-        // tree.enable(id);
-        // disable
-        // tree.disable(id);
-        // recursive despawn
-        // tree.remove(id);
-    }
-    pub(crate) fn new() -> Self {
-        Self {
-            // args to send to create?
-            value: " world!".to_string(),
-        }
-    }
-}
 fn main() {
     let mut foliage = Foliage::new(); // library-handle
     foliage.desktop_size((400, 600)); // window-size
-    foliage.url("foliage"); // web-root
-    foliage.define(Home::create); // task to trigger
-    let root = foliage.leaf(()); // Stem => require Branch (Group)
-    foliage.send_to(Home::new(), root); // trigger_targets
-                                        // foliage.send(Home::new()); // just trigger
-                                        // foliage.queue(Home::new()); // buffered event
+    foliage.url("foliage"); // web-path
+    let root = foliage.leaf((
+        Grid::new(12.col(), 6.row()),
+        Location::new().xs(0.pct().to(100.pct()), 0.pct().to(100.pct())),
+        Stem::none(),
+    ));
     let leaf = foliage.leaf((
         Text::new("hello world!"),
-        FontSize::new(14),
+        FontSize::new(14).sm(20).md(24).lg(32).xl(48),
         Stem::some(root),
-        Section::logical((10, 10), (300, 50)),
+        Color::gray(500),
+        Location::new().xs(2.col().to(9.col()), 1.row().to(1.row())),
     )); // add single node
     let button = foliage.leaf((
         // Button::new(),
@@ -54,6 +26,5 @@ fn main() {
         // ButtonIcon::new(IconHandle::Git),
         Stem::some(leaf),
     ));
-    // foliage.remove(root); // remove all from branch downwards in tree
     foliage.photosynthesize(); // run
 }

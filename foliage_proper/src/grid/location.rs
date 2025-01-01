@@ -132,7 +132,7 @@ impl Location {
         let mut resolved_points = Option::<Points<Logical>>::None;
         if let Some(config) = self.config(layout) {
             let mut ax = match config.horizontal.a {
-                GridUnit::Aligned(a) => grid.column(layout, stem, a),
+                GridUnit::Aligned(a) => grid.column(layout, stem, a, false),
                 GridUnit::Scalar(s) => s.horizontal(stem),
                 GridUnit::Stack => {
                     panic!("Stack not supported in horizontal")
@@ -142,7 +142,7 @@ impl Location {
                 }
             } + config.horizontal.padding.coordinates.a();
             let mut bx = match config.horizontal.b {
-                GridUnit::Aligned(a) => grid.column(layout, stem, a),
+                GridUnit::Aligned(a) => grid.column(layout, stem, a, true),
                 GridUnit::Scalar(s) => s.horizontal(stem),
                 GridUnit::Stack => {
                     panic!("Stack not supported in horizontal")
@@ -163,7 +163,7 @@ impl Location {
                 }
             }
             let ay = match config.vertical.a {
-                GridUnit::Aligned(a) => grid.row(layout, stem, a),
+                GridUnit::Aligned(a) => grid.row(layout, stem, a, false),
                 GridUnit::Scalar(s) => s.vertical(stem),
                 GridUnit::Stack => {
                     if let Some(stack) = stack {
@@ -177,7 +177,7 @@ impl Location {
                 }
             } + config.vertical.padding.coordinates.a();
             let mut by = match config.vertical.b {
-                GridUnit::Aligned(a) => grid.row(layout, stem, a),
+                GridUnit::Aligned(a) => grid.row(layout, stem, a, true),
                 GridUnit::Scalar(s) => s.vertical(stem),
                 GridUnit::Stack => {
                     panic!("Stack not supported in vertical-end");
@@ -274,7 +274,10 @@ impl Location {
                     } else {
                         None
                     };
-                    let grid = grids.get(this).copied().unwrap_or_default();
+                    let grid = stem
+                        .id
+                        .and_then(|id| Some(*grids.get(id).unwrap()))
+                        .unwrap_or_default();
                     let aspect = aspect_ratios.get(this).copied().ok();
                     let view = stem
                         .id
