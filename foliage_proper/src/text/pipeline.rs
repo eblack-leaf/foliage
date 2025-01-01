@@ -416,12 +416,13 @@ impl Render for Text {
                     .group
                     .bounds
                     .to_logical(ginkgo.configuration().scale_factor.value());
-                let resolved = render_group
-                    .group
-                    .clip_section
-                    .0
-                    .and_then(|cs| cs.intersection(bounds))
-                    .unwrap_or(bounds);
+                let resolved = if let Some(cs) = render_group.group.clip_section.0 {
+                    println!("resolving w/ {} and bounds: {}", cs, bounds);
+                    cs.intersection(bounds).unwrap()
+                } else {
+                    println!("resolving w/ bounds only {} for {:?}", bounds, *group_id);
+                    bounds
+                };
                 let node = Node::new(
                     render_group.group.elevation,
                     PipelineId::Text,
@@ -439,7 +440,9 @@ impl Render for Text {
 
     fn render(renderer: &mut Renderer<Self>, render_pass: &mut RenderPass, parameters: Parameters) {
         let group = renderer.groups.get(&parameters.group).unwrap();
+        println!("group: {:?}", parameters.group);
         if let Some(clip) = parameters.clip_section {
+            println!("rendering clip for {} on group {}", clip, parameters.group);
             render_pass.set_scissor_rect(
                 clip.left() as u32,
                 clip.top() as u32,

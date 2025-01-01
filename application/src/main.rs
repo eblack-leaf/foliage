@@ -30,5 +30,14 @@ fn main() {
         Stack::new(a),
         Location::new().xs(1.col().to(4.col()), stack().to(auto())),
     ));
+    let c = foliage.leaf((
+        Text::new("yyyy yyy y yy y yyyy y y y yy yyyy y yy  yyy y yy yyyy yy y y y y yyy y y"),
+        FontSize::new(20),
+        AutoHeight(true),
+        Color::gray(500),
+        Stem::some(root),
+        Stack::new(a),
+        Location::new().xs(5.col().to(9.col()), stack().to(auto())),
+    ));
     foliage.photosynthesize(); // run
 }

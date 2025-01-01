@@ -65,10 +65,10 @@ pub(crate) struct AtlasChangeInfo<Referrer: Clone> {
     pub(crate) tex_coords: TextureCoordinates,
 }
 impl<
-    Key: Hash + Clone + Eq,
-    Referrer: Hash + Eq + Clone,
-    TexelData: Default + Sized + Clone + Pod + Zeroable,
-> TextureAtlas<Key, Referrer, TexelData>
+        Key: Hash + Clone + Eq,
+        Referrer: Hash + Eq + Clone,
+        TexelData: Default + Sized + Clone + Pod + Zeroable,
+    > TextureAtlas<Key, Referrer, TexelData>
 {
     pub(crate) const PADDING: f32 = 1.0;
     pub(crate) fn new<C: Into<Coordinates>>(

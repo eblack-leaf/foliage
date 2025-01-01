@@ -175,9 +175,13 @@ impl Ash {
             occlusion_query_set: None,
         });
         for span in self.contiguous.iter() {
-            let parameters = span.parameters(
-                ginkgo.viewport().section(),
-                ginkgo.configuration().scale_factor,
+            let section = ginkgo.viewport().section();
+            let parameters = span.parameters(section, ginkgo.configuration().scale_factor);
+            rpass.set_scissor_rect(
+                section.left() as u32,
+                section.top() as u32,
+                section.width() as u32,
+                section.height() as u32,
             );
             match span.pipeline {
                 PipelineId::Text => {
