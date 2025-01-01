@@ -65,10 +65,10 @@ pub(crate) struct AtlasChangeInfo<Referrer: Clone> {
     pub(crate) tex_coords: TextureCoordinates,
 }
 impl<
-    Key: Hash + Clone + Eq,
-    Referrer: Hash + Eq + Clone,
-    TexelData: Default + Sized + Clone + Pod + Zeroable,
-> TextureAtlas<Key, Referrer, TexelData>
+        Key: Hash + Clone + Eq,
+        Referrer: Hash + Eq + Clone,
+        TexelData: Default + Sized + Clone + Pod + Zeroable,
+    > TextureAtlas<Key, Referrer, TexelData>
 {
     pub(crate) const PADDING: f32 = 1.0;
     pub(crate) fn new<C: Into<Coordinates>>(
@@ -79,10 +79,8 @@ impl<
     ) -> Self {
         let block = block.into();
         let (possible_locations, texture_extent) = Self::config(capacity, block);
-        let data = vec![
-            TexelData::default();
-            (texture_extent.horizontal() * texture_extent.vertical()) as usize
-        ];
+        let data =
+            vec![TexelData::default(); (texture_extent.a() * texture_extent.vertical()) as usize];
         let (texture, view) =
             ginkgo.create_texture(format, texture_extent, 1, bytemuck::cast_slice(&data));
         let actual_capacity = possible_locations.len() as u32;
@@ -117,7 +115,7 @@ impl<
             possible_locations.clear();
         }
         let texture_extent = Coordinates::new(
-            logical_dim as f32 * (block.horizontal() + Self::PADDING),
+            logical_dim as f32 * (block.a() + Self::PADDING),
             logical_dim as f32 * (block.vertical() + Self::PADDING),
         );
         (possible_locations, texture_extent)
@@ -202,7 +200,7 @@ impl<
                 1,
                 bytemuck::cast_slice(&vec![
                     TexelData::default();
-                    (texture_extent.horizontal() * texture_extent.vertical())
+                    (texture_extent.a() * texture_extent.vertical())
                         as usize
                 ]),
             );

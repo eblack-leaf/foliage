@@ -154,12 +154,13 @@ impl Foliage {
                         x * Self::SCROLL_SENSITIVITY,
                         y * Self::SCROLL_SENSITIVITY * Self::VIEW_SCROLLING,
                     )),
-                    MouseScrollDelta::PixelDelta(px) => Position::physical((px.x, px.y)).to_logical(
-                        self.world
-                            .get_resource::<ScaleFactor>()
-                            .expect("scale-factor")
-                            .value(),
-                    ),
+                    MouseScrollDelta::PixelDelta(px) => Position::physical((px.x, px.y))
+                        .to_logical(
+                            self.world
+                                .get_resource::<ScaleFactor>()
+                                .expect("scale-factor")
+                                .value(),
+                        ),
                 };
                 let cursor = self
                     .world

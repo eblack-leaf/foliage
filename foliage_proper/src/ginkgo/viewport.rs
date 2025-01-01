@@ -21,11 +21,7 @@ impl Viewport {
     pub(crate) fn section(&self) -> Section<Physical> {
         Section::new(self.translation.coordinates, self.area.coordinates)
     }
-    pub(crate) fn set_position(
-        &mut self,
-        position: Position<Physical>,
-        context: &GraphicContext,
-    ) {
+    pub(crate) fn set_position(&mut self, position: Position<Physical>, context: &GraphicContext) {
         self.translation = position.to_numerical();
         self.matrix = self.remake();
         self.uniform.write(context, self.matrix);

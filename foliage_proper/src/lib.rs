@@ -33,8 +33,7 @@ pub use crate::coordinate::{
     area::{Area, CReprArea},
     position::{CReprPosition, Position},
     section::{CReprSection, Section},
-    CoordinateContext, CoordinateUnit, Coordinates, Logical, Numerical,
-    Physical,
+    CoordinateContext, CoordinateUnit, Coordinates, Logical, Numerical, Physical,
 };
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::Ginkgo;

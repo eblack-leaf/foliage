@@ -15,6 +15,34 @@ impl<Context: CoordinateContext> Points<Context> {
             data: [Position::<Context>::default(); 4],
         }
     }
+    pub fn a<P: Into<Position<Context>>>(mut self, a: P) -> Self {
+        self.data[0] = a.into();
+        self
+    }
+    pub fn set_a<P: Into<Position<Context>>>(&mut self, a: P) {
+        self.data[0] = a.into();
+    }
+    pub fn b<P: Into<Position<Context>>>(mut self, b: P) -> Self {
+        self.data[1] = b.into();
+        self
+    }
+    pub fn set_b<P: Into<Position<Context>>>(&mut self, b: P) {
+        self.data[1] = b.into();
+    }
+    pub fn c<P: Into<Position<Context>>>(mut self, c: P) -> Self {
+        self.data[2] = c.into();
+        self
+    }
+    pub fn set_c<P: Into<Position<Context>>>(&mut self, c: P) {
+        self.data[2] = c.into();
+    }
+    pub fn d<P: Into<Position<Context>>>(mut self, d: P) -> Self {
+        self.data[3] = d.into();
+        self
+    }
+    pub fn set_d<P: Into<Position<Context>>>(&mut self, d: P) {
+        self.data[3] = d.into();
+    }
 }
 impl<Context: CoordinateContext> Display for Points<Context> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

@@ -75,7 +75,10 @@ impl Section<Physical> {
 }
 impl Section<Logical> {
     pub fn to_physical(self, factor: f32) -> Section<Physical> {
-        Section::new(self.position.to_device(factor), self.area.to_physical(factor))
+        Section::new(
+            self.position.to_device(factor),
+            self.area.to_physical(factor),
+        )
     }
 }
 impl<Context: CoordinateContext> Section<Context> {
@@ -209,7 +212,7 @@ impl Section<Numerical> {
     }
 }
 impl<Context: CoordinateContext, C: Into<Coordinates>, D: Into<Coordinates>> From<(C, D)>
-for Section<Context>
+    for Section<Context>
 {
     fn from(value: (C, D)) -> Self {
         Self::new(value.0, value.1)

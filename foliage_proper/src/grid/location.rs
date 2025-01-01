@@ -1,8 +1,11 @@
+use crate::coordinate::points::Points;
 use crate::ginkgo::viewport::ViewportHandle;
-use crate::grid::{AspectRatio, GridUnit, ScalarUnit, View};
+use crate::grid::{
+    AlignedUnit, AspectRatio, GridAxisUnit, GridUnit, ScalarUnit, View,
+};
 use crate::{
-    Component, Coordinates, Grid, Layout, Logical, ResolvedVisibility, Section, Stem, Tree,
-    Update, Visibility, Write,
+    Component, Coordinates, Grid, Layout, Logical, ResolvedVisibility, Section, Stem, Tree, Update,
+    Visibility, Write,
 };
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
@@ -19,6 +22,11 @@ pub struct Location {
     pub md: Option<LocationConfiguration>,
     pub lg: Option<LocationConfiguration>,
     pub xl: Option<LocationConfiguration>,
+}
+#[derive(Copy, Clone)]
+pub enum ResolvedLocation {
+    Points(Points<Logical>),
+    Section(Section<Logical>),
 }
 impl Location {
     pub fn new() -> Self {
@@ -70,6 +78,29 @@ impl Location {
         self.xl.replace((had.into(), vad.into()).into());
         self
     }
+    pub fn config(&self, layout: Layout) -> Option<LocationConfiguration> {
+        match layout {
+            Layout::Xs => {
+                if self.xs.is_none() {
+                    None
+                } else {
+                    Some(self.xs.clone().unwrap())
+                }
+            }
+            Layout::Sm => {
+                todo!()
+            }
+            Layout::Md => {
+                todo!()
+            }
+            Layout::Lg => {
+                todo!()
+            }
+            Layout::Xl => {
+                todo!()
+            }
+        }
+    }
     pub fn resolve(
         &self,
         layout: Layout,
@@ -78,8 +109,100 @@ impl Location {
         grid: Grid,
         aspect: Option<AspectRatio>,
         view: View,
-    ) -> Option<Section<Logical>> {
-        todo!()
+    ) -> Option<ResolvedLocation> {
+        let mut resolved = Section::default();
+        let mut resolved_points = Option::<Points<Logical>>::None;
+        let grid_config = grid.config(layout);
+        if let Some(config) = self.config(layout) {
+            let ax = match config.horizontal.a {
+                GridUnit::Aligned(a) => {
+                    let num = a.value();
+                    match a {
+                        AlignedUnit::Columns(_) => match grid_config.columns.unit {
+                            GridAxisUnit::Infinite(inf) => {
+                                num * match inf {
+                                    ScalarUnit::Px(px) => px,
+                                    ScalarUnit::Pct(pct) => stem.width() * pct,
+                                } + num * grid_config.columns.gap.amount
+                            }
+                            GridAxisUnit::Explicit(exp) => {
+                                let column_size = (stem.width()
+                                    - grid_config.columns.gap.amount * exp.value())
+                                    / exp.value();
+                                (num + 1.0) * grid_config.columns.gap.amount + num * column_size
+                            }
+                        },
+                        AlignedUnit::Rows(_) => {
+                            panic!("Rows are not supported in horizontal.");
+                        }
+                    }
+                }
+                GridUnit::Scalar(s) => match s {
+                    ScalarUnit::Px(px) => stem.left() + px,
+                    ScalarUnit::Pct(pct) => stem.width() * pct,
+                },
+                GridUnit::Stack => {
+                    if let Some(stack) = stack {
+                        stack.bottom()
+                    } else {
+                        return None;
+                    }
+                }
+                GridUnit::Auto => {
+                    panic!("Auto-unit is not supported in horizontal.");
+                }
+            };
+            let mut bx = match config.horizontal.b {
+                GridUnit::Aligned(_) => {}
+                GridUnit::Scalar(_) => {}
+                GridUnit::Stack => {}
+                GridUnit::Auto => {}
+            };
+            match config.horizontal.ty {
+                LocationAxisType::Point => {
+                    resolved_points.replace(Points::new().a((ax, bx)));
+                }
+                LocationAxisType::Span => {}
+                LocationAxisType::To => {
+                    bx -= ax;
+                }
+            }
+            let ay = match config.vertical.a {
+                GridUnit::Aligned(_) => {}
+                GridUnit::Scalar(_) => {}
+                GridUnit::Stack => {}
+                GridUnit::Auto => {}
+            };
+            let by = match config.vertical.b {
+                GridUnit::Aligned(_) => {}
+                GridUnit::Scalar(_) => {}
+                GridUnit::Stack => {}
+                GridUnit::Auto => {}
+            };
+            match config.vertical.ty {
+                LocationAxisType::Point => {
+                    resolved_points.as_mut().unwrap().set_b((ay, by));
+                }
+                LocationAxisType::Span => {}
+                LocationAxisType::To => {
+                    by -= ay;
+                }
+            }
+            if let Some(mut pts) = resolved_points {
+                for pt in pts.data.iter_mut() {
+                    *pt += view.offset;
+                }
+                return Some(ResolvedLocation::Points(pts));
+            }
+            resolved = Section::new((ax, ay), (bx, by));
+            if let Some(aspect) = aspect {
+                // TODO constrain
+            }
+            resolved.position += view.offset;
+            Some(ResolvedLocation::Section(resolved))
+        } else {
+            None
+        }
     }
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
         world.trigger_targets(Update::<Location>::new(), this);
@@ -185,6 +308,7 @@ impl Default for Stack {
         Self { id: None }
     }
 }
+#[derive(Copy, Clone)]
 pub struct LocationConfiguration {
     pub horizontal: LocationAxisDescriptor,
     pub vertical: LocationAxisDescriptor,
@@ -197,6 +321,7 @@ impl From<(LocationAxisDescriptor, LocationAxisDescriptor)> for LocationConfigur
         }
     }
 }
+#[derive(Copy, Clone)]
 pub struct Padding {
     pub coordinates: Coordinates,
 }
@@ -221,6 +346,7 @@ impl From<(i32, i32)> for Padding {
         }
     }
 }
+#[derive(Copy, Clone)]
 pub struct LocationAxisDescriptor {
     pub a: GridUnit,
     pub b: GridUnit,
@@ -256,6 +382,7 @@ pub enum Justify {
     #[default]
     Center,
 }
+#[derive(Copy, Clone)]
 pub enum LocationAxisType {
     Point,
     Span,

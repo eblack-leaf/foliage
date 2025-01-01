@@ -144,6 +144,7 @@ impl Text {
         mut cache: Query<&mut UpdateCache>,
         font: Res<MonospacedFont>,
         scale_factor: Res<ScaleFactor>,
+        auto_heights: Query<&AutoHeight>,
     ) {
         let this = trigger.entity();
         let mut current = UpdateCache::default();
@@ -151,7 +152,10 @@ impl Text {
             (font_sizes.get(this).unwrap().value as f32 * scale_factor.value()) as u32,
         );
         current.text = texts.get(this).unwrap().clone();
-        current.section = sections.get(this).unwrap().to_physical(scale_factor.value());
+        current.section = sections
+            .get(this)
+            .unwrap()
+            .to_physical(scale_factor.value());
         current.horizontal_alignment = *horizontal_alignment.get(this).unwrap();
         current.vertical_alignment = *vertical_alignment.get(this).unwrap();
         if cache.get(this).unwrap() != &current {
@@ -175,9 +179,8 @@ impl Text {
             tree.entity(this)
                 .insert(UniqueCharacters::count(&current.text))
                 .insert(current.clone());
-            // TODO replace with option component
-            let auto_height = true;
-            if auto_height {
+            let auto_height = auto_heights.get(this).unwrap();
+            if auto_height.0 {
                 let adjusted_section = current
                     .section
                     .with_height(glyphs.layout.height())
@@ -232,6 +235,8 @@ impl Text {
         }
     }
 }
+#[derive(Component, Copy, Clone, Default)]
+pub struct AutoHeight(pub bool);
 #[derive(Component, Copy, Clone, Default, PartialEq)]
 pub(crate) struct TextBounds {
     pub(crate) bounds: Section<Physical>,

@@ -101,7 +101,8 @@ impl GridExt for i32 {
 #[derive(Component, Copy, Clone)]
 #[require(View)]
 pub struct Grid {
-    pub sm: GridConfiguration,
+    pub xs: GridConfiguration,
+    pub sm: Option<GridConfiguration>,
     pub md: Option<GridConfiguration>,
     pub lg: Option<GridConfiguration>,
     pub xl: Option<GridConfiguration>,
@@ -114,11 +115,20 @@ impl Default for Grid {
 impl Grid {
     pub fn new<HA: Into<GridAxisDescriptor>, VA: Into<GridAxisDescriptor>>(ha: HA, va: VA) -> Self {
         Self {
-            sm: (ha.into(), va.into()).into(),
+            xs: (ha.into(), va.into()).into(),
+            sm: None,
             md: None,
             lg: None,
             xl: None,
         }
+    }
+    pub fn sm<HA: Into<GridAxisDescriptor>, VA: Into<GridAxisDescriptor>>(
+        mut self,
+        ha: HA,
+        va: VA,
+    ) -> Self {
+        self.sm.replace((ha.into(), va.into()).into());
+        self
     }
     pub fn md<HA: Into<GridAxisDescriptor>, VA: Into<GridAxisDescriptor>>(
         mut self,
@@ -143,6 +153,23 @@ impl Grid {
     ) -> Self {
         self.xl.replace((ha.into(), va.into()).into());
         self
+    }
+    pub fn config(&self, layout: Layout) -> GridConfiguration {
+        match layout {
+            Layout::Xs => self.xs,
+            Layout::Sm => {
+                todo!()
+            }
+            Layout::Md => {
+                todo!()
+            }
+            Layout::Lg => {
+                todo!()
+            }
+            Layout::Xl => {
+                todo!()
+            }
+        }
     }
 }
 #[derive(Copy, Clone)]
@@ -195,22 +222,21 @@ impl From<GridUnit> for ScalarUnit {
 }
 #[derive(Copy, Clone)]
 pub struct Gap {
-    pub coordinates: Coordinates,
+    pub amount: CoordinateUnit,
 }
 impl Default for Gap {
     fn default() -> Self {
-        Self {
-            coordinates: Coordinates::from((8, 8)),
-        }
+        Self { amount: 8.0 }
     }
 }
 impl From<i32> for Gap {
     fn from(x: i32) -> Self {
         Gap {
-            coordinates: (x, x).into(),
+            amount: (x, x).into(),
         }
     }
 }
+#[derive(Copy, Clone)]
 pub enum GridUnit {
     Aligned(AlignedUnit),
     Scalar(ScalarUnit),
@@ -263,4 +289,12 @@ impl GridUnit {
 pub enum AlignedUnit {
     Columns(i32),
     Rows(i32),
+}
+impl AlignedUnit {
+    pub fn value(self) -> CoordinateUnit {
+        match self {
+            AlignedUnit::Columns(c) => c as CoordinateUnit,
+            AlignedUnit::Rows(r) => r as CoordinateUnit,
+        }
+    }
 }

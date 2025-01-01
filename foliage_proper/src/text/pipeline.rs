@@ -10,9 +10,7 @@ use crate::text::glyph::{GlyphKey, GlyphOffset, ResolvedColors, ResolvedGlyphs};
 use crate::text::monospaced::MonospacedFont;
 use crate::text::{ResolvedFontSize, TextBounds, UniqueCharacters};
 use crate::texture::{AtlasEntry, TextureAtlas, TextureCoordinates, Vertex, VERTICES};
-use crate::{
-    CReprColor, CReprSection, Logical, Physical, ResolvedElevation, Section, Text,
-};
+use crate::{CReprColor, CReprSection, Logical, Physical, ResolvedElevation, Section, Text};
 use bevy_ecs::entity::Entity;
 use std::collections::HashMap;
 use wgpu::{
