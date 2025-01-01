@@ -1,8 +1,6 @@
 use crate::coordinate::points::Points;
 use crate::ginkgo::viewport::ViewportHandle;
-use crate::grid::{
-    AlignedUnit, AspectRatio, GridAxisUnit, GridUnit, ScalarUnit, View,
-};
+use crate::grid::{AspectRatio, GridUnit, ScalarUnit, View};
 use crate::{
     Component, Coordinates, Grid, Layout, Logical, ResolvedVisibility, Section, Stem, Tree, Update,
     Visibility, Write,
@@ -78,26 +76,46 @@ impl Location {
         self.xl.replace((had.into(), vad.into()).into());
         self
     }
+    fn at_least_xs(&self) -> Option<LocationConfiguration> {
+        if self.xs.is_none() {
+            None
+        } else {
+            Some(self.xs.clone().unwrap())
+        }
+    }
+    fn at_least_sm(&self) -> Option<LocationConfiguration> {
+        if let Some(sm) = &self.sm {
+            Some(sm.clone())
+        } else {
+            self.at_least_xs()
+        }
+    }
+    fn at_least_md(&self) -> Option<LocationConfiguration> {
+        if let Some(md) = &self.md {
+            Some(md.clone())
+        } else {
+            self.at_least_sm()
+        }
+    }
+    fn at_least_lg(&self) -> Option<LocationConfiguration> {
+        if let Some(lg) = &self.lg {
+            Some(lg.clone())
+        } else {
+            self.at_least_md()
+        }
+    }
     pub fn config(&self, layout: Layout) -> Option<LocationConfiguration> {
         match layout {
-            Layout::Xs => {
-                if self.xs.is_none() {
-                    None
-                } else {
-                    Some(self.xs.clone().unwrap())
-                }
-            }
-            Layout::Sm => {
-                todo!()
-            }
-            Layout::Md => {
-                todo!()
-            }
-            Layout::Lg => {
-                todo!()
-            }
+            Layout::Xs => self.at_least_xs(),
+            Layout::Sm => self.at_least_sm(),
+            Layout::Md => self.at_least_md(),
+            Layout::Lg => self.at_least_lg(),
             Layout::Xl => {
-                todo!()
+                if let Some(xl) = &self.xl {
+                    Some(xl.clone())
+                } else {
+                    self.at_least_lg()
+                }
             }
         }
     }
@@ -112,35 +130,41 @@ impl Location {
     ) -> Option<ResolvedLocation> {
         let mut resolved = Section::default();
         let mut resolved_points = Option::<Points<Logical>>::None;
-        let grid_config = grid.config(layout);
         if let Some(config) = self.config(layout) {
-            let ax = match config.horizontal.a {
-                GridUnit::Aligned(a) => {
-                    let num = a.value();
-                    match a {
-                        AlignedUnit::Columns(_) => match grid_config.columns.unit {
-                            GridAxisUnit::Infinite(inf) => {
-                                num * match inf {
-                                    ScalarUnit::Px(px) => px,
-                                    ScalarUnit::Pct(pct) => stem.width() * pct,
-                                } + num * grid_config.columns.gap.amount
-                            }
-                            GridAxisUnit::Explicit(exp) => {
-                                let column_size = (stem.width()
-                                    - grid_config.columns.gap.amount * exp.value())
-                                    / exp.value();
-                                (num + 1.0) * grid_config.columns.gap.amount + num * column_size
-                            }
-                        },
-                        AlignedUnit::Rows(_) => {
-                            panic!("Rows are not supported in horizontal.");
-                        }
-                    }
+            let mut ax = match config.horizontal.a {
+                GridUnit::Aligned(a) => grid.column(layout, stem, a),
+                GridUnit::Scalar(s) => s.horizontal(stem),
+                GridUnit::Stack => {
+                    panic!("Stack not supported in horizontal")
                 }
-                GridUnit::Scalar(s) => match s {
-                    ScalarUnit::Px(px) => stem.left() + px,
-                    ScalarUnit::Pct(pct) => stem.width() * pct,
-                },
+                GridUnit::Auto => {
+                    panic!("Auto not supported in horizontal-begin.");
+                }
+            } + config.horizontal.padding.coordinates.a();
+            let mut bx = match config.horizontal.b {
+                GridUnit::Aligned(a) => grid.column(layout, stem, a),
+                GridUnit::Scalar(s) => s.horizontal(stem),
+                GridUnit::Stack => {
+                    panic!("Stack not supported in horizontal")
+                }
+                GridUnit::Auto => {
+                    0.0 // dependent width from the height?
+                }
+            } - config.horizontal.padding.coordinates.b();
+            match config.horizontal.ty {
+                LocationAxisType::Point => {
+                    resolved_points.replace(Points::new().a((ax, bx)));
+                }
+                LocationAxisType::Span => {
+                    // already in x / w context
+                }
+                LocationAxisType::To => {
+                    bx -= ax; // convert to x / w context
+                }
+            }
+            let ay = match config.vertical.a {
+                GridUnit::Aligned(a) => grid.row(layout, stem, a),
+                GridUnit::Scalar(s) => s.vertical(stem),
                 GridUnit::Stack => {
                     if let Some(stack) = stack {
                         stack.bottom()
@@ -149,43 +173,28 @@ impl Location {
                     }
                 }
                 GridUnit::Auto => {
-                    panic!("Auto-unit is not supported in horizontal.");
+                    panic!("Auto not supported in vertical-begin");
                 }
-            };
-            let mut bx = match config.horizontal.b {
-                GridUnit::Aligned(_) => {}
-                GridUnit::Scalar(_) => {}
-                GridUnit::Stack => {}
-                GridUnit::Auto => {}
-            };
-            match config.horizontal.ty {
-                LocationAxisType::Point => {
-                    resolved_points.replace(Points::new().a((ax, bx)));
+            } + config.vertical.padding.coordinates.a();
+            let mut by = match config.vertical.b {
+                GridUnit::Aligned(a) => grid.row(layout, stem, a),
+                GridUnit::Scalar(s) => s.vertical(stem),
+                GridUnit::Stack => {
+                    panic!("Stack not supported in vertical-end");
                 }
-                LocationAxisType::Span => {}
-                LocationAxisType::To => {
-                    bx -= ax;
+                GridUnit::Auto => {
+                    0.0 // TODO make more meaningful than just 0-valued
                 }
-            }
-            let ay = match config.vertical.a {
-                GridUnit::Aligned(_) => {}
-                GridUnit::Scalar(_) => {}
-                GridUnit::Stack => {}
-                GridUnit::Auto => {}
-            };
-            let by = match config.vertical.b {
-                GridUnit::Aligned(_) => {}
-                GridUnit::Scalar(_) => {}
-                GridUnit::Stack => {}
-                GridUnit::Auto => {}
-            };
+            } - config.vertical.padding.coordinates.b();
             match config.vertical.ty {
                 LocationAxisType::Point => {
                     resolved_points.as_mut().unwrap().set_b((ay, by));
                 }
-                LocationAxisType::Span => {}
+                LocationAxisType::Span => {
+                    // already in y / h context
+                }
                 LocationAxisType::To => {
-                    by -= ay;
+                    by -= ay; // convert to y / h context
                 }
             }
             if let Some(mut pts) = resolved_points {
@@ -194,9 +203,28 @@ impl Location {
                 }
                 return Some(ResolvedLocation::Points(pts));
             }
+            if let Some(mx) = config.horizontal.max {
+                let mx = mx.horizontal(stem);
+                if bx > mx {
+                    let diff = bx - mx;
+                    match config.horizontal.justify {
+                        Justify::Left => {
+                            // do nothing to the ax
+                        }
+                        Justify::Right => {
+                            ax += diff;
+                        }
+                        Justify::Center => {
+                            ax += diff / 2.0;
+                        }
+                    }
+                    bx = mx;
+                }
+            }
             resolved = Section::new((ax, ay), (bx, by));
             if let Some(aspect) = aspect {
-                // TODO constrain
+                // involve auto for which dimension to be dependent
+                todo!("constrain by aspect")
             }
             resolved.position += view.offset;
             Some(ResolvedLocation::Section(resolved))
@@ -255,9 +283,17 @@ impl Location {
                     if let Some(resolved) =
                         location.resolve(*layout, stem_section, stack, grid, aspect, view)
                     {
-                        tree.entity(this).insert(resolved);
+                        match resolved {
+                            ResolvedLocation::Points(pts) => {
+                                tree.entity(this).insert(pts);
+                            }
+                            ResolvedLocation::Section(section) => {
+                                tree.entity(this).insert(section);
+                            }
+                        }
                     } else {
                         tree.entity(this).insert(Visibility::new(false));
+                        // TODO should disable? re-enable semantics unclear
                     }
                 }
             }

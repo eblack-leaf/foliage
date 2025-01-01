@@ -9,7 +9,9 @@ pub use crate::grid::location::{
     auto, stack, Justify, LocationAxisDescriptor, LocationAxisType, Padding,
 };
 use crate::grid::view::{extent_check, prepare_extent};
-use crate::{Attachment, Component, CoordinateUnit, Coordinates, DiffMarkers, Foliage};
+use crate::{
+    Attachment, Component, CoordinateUnit, DiffMarkers, Foliage, Logical, Section,
+};
 pub use aspect_ratio::AspectRatio;
 use bevy_ecs::prelude::IntoSystemConfigs;
 pub use layout::Layout;
@@ -107,6 +109,7 @@ pub struct Grid {
     pub lg: Option<GridConfiguration>,
     pub xl: Option<GridConfiguration>,
 }
+
 impl Default for Grid {
     fn default() -> Self {
         Self::new(1.col(), 1.row())
@@ -171,6 +174,60 @@ impl Grid {
             }
         }
     }
+    pub fn column(
+        &self,
+        layout: Layout,
+        stem: Section<Logical>,
+        aligned_unit: AlignedUnit,
+    ) -> CoordinateUnit {
+        let num = aligned_unit.value();
+        let grid_config = self.config(layout);
+        match aligned_unit {
+            AlignedUnit::Columns(_) => match grid_config.columns.unit {
+                GridAxisUnit::Infinite(inf) => {
+                    num * match inf {
+                        ScalarUnit::Px(px) => px,
+                        ScalarUnit::Pct(pct) => stem.width() * pct,
+                    } + num * grid_config.columns.gap.amount
+                }
+                GridAxisUnit::Explicit(exp) => {
+                    let column_size =
+                        (stem.width() - grid_config.columns.gap.amount * exp.value()) / exp.value();
+                    (num + 1.0) * grid_config.columns.gap.amount + num * column_size
+                }
+            },
+            AlignedUnit::Rows(_) => {
+                panic!("Rows are not supported in horizontal.");
+            }
+        }
+    }
+    pub(crate) fn row(
+        &self,
+        layout: Layout,
+        stem: Section<Logical>,
+        aligned_unit: AlignedUnit,
+    ) -> CoordinateUnit {
+        let num = aligned_unit.value();
+        let grid_config = self.config(layout);
+        match aligned_unit {
+            AlignedUnit::Columns(_) => {
+                panic!("Columns are not supported in vertical.");
+            }
+            AlignedUnit::Rows(_) => match grid_config.rows.unit {
+                GridAxisUnit::Infinite(inf) => {
+                    num * match inf {
+                        ScalarUnit::Px(px) => px,
+                        ScalarUnit::Pct(pct) => stem.height() * pct,
+                    }
+                }
+                GridAxisUnit::Explicit(exp) => {
+                    let row_size =
+                        (stem.height() - grid_config.rows.gap.amount * exp.value()) / exp.value();
+                    (num + 1.0) * grid_config.rows.gap.amount + num * row_size
+                }
+            },
+        }
+    }
 }
 #[derive(Copy, Clone)]
 pub struct GridConfiguration {
@@ -220,6 +277,20 @@ impl From<GridUnit> for ScalarUnit {
         }
     }
 }
+impl ScalarUnit {
+    pub(crate) fn vertical(&self, stem: Section<Logical>) -> CoordinateUnit {
+        match self {
+            ScalarUnit::Px(px) => stem.top() + px,
+            ScalarUnit::Pct(pct) => stem.height() * pct,
+        }
+    }
+    pub fn horizontal(self, stem: Section<Logical>) -> CoordinateUnit {
+        match self {
+            ScalarUnit::Px(px) => stem.left() + px,
+            ScalarUnit::Pct(pct) => stem.width() * pct,
+        }
+    }
+}
 #[derive(Copy, Clone)]
 pub struct Gap {
     pub amount: CoordinateUnit,
@@ -232,7 +303,7 @@ impl Default for Gap {
 impl From<i32> for Gap {
     fn from(x: i32) -> Self {
         Gap {
-            amount: (x, x).into(),
+            amount: x as CoordinateUnit
         }
     }
 }

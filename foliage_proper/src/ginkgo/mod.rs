@@ -52,7 +52,7 @@ impl Ginkgo {
                 mip_level: 0,
                 origin: Origin3d {
                     x: position.a() as u32,
-                    y: position.vertical() as u32,
+                    y: position.b() as u32,
                     z: 0,
                 },
                 aspect: Default::default(),
@@ -64,12 +64,12 @@ impl Ginkgo {
                     (extent.a() * std::mem::size_of::<TexelData>() as CoordinateUnit) as u32,
                 ),
                 rows_per_image: Some(
-                    (extent.vertical() * std::mem::size_of::<TexelData>() as CoordinateUnit) as u32,
+                    (extent.b() * std::mem::size_of::<TexelData>() as CoordinateUnit) as u32,
                 ),
             },
             Extent3d {
                 width: extent.a() as u32,
-                height: extent.vertical() as u32,
+                height: extent.b() as u32,
                 depth_or_array_layers: 1,
             },
         );
@@ -87,7 +87,7 @@ impl Ginkgo {
         let texture_data = image
             .to_rgba8()
             .enumerate_pixels()
-            .map(|p| -> u8 { p.2 .0[3] })
+            .map(|p| -> u8 { p.2.0[3] })
             .collect::<Vec<u8>>();
         texture_data
     }
@@ -119,7 +119,7 @@ impl Ginkgo {
                 label: Some("ginkgo-texture"),
                 size: Extent3d {
                     width: coordinates.a() as u32,
-                    height: coordinates.vertical() as u32,
+                    height: coordinates.b() as u32,
                     depth_or_array_layers: 1,
                 },
                 mip_level_count: mips,

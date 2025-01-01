@@ -79,8 +79,7 @@ impl<
     ) -> Self {
         let block = block.into();
         let (possible_locations, texture_extent) = Self::config(capacity, block);
-        let data =
-            vec![TexelData::default(); (texture_extent.a() * texture_extent.vertical()) as usize];
+        let data = vec![TexelData::default(); (texture_extent.a() * texture_extent.b()) as usize];
         let (texture, view) =
             ginkgo.create_texture(format, texture_extent, 1, bytemuck::cast_slice(&data));
         let actual_capacity = possible_locations.len() as u32;
@@ -116,7 +115,7 @@ impl<
         }
         let texture_extent = Coordinates::new(
             logical_dim as f32 * (block.a() + Self::PADDING),
-            logical_dim as f32 * (block.vertical() + Self::PADDING),
+            logical_dim as f32 * (block.b() + Self::PADDING),
         );
         (possible_locations, texture_extent)
     }
@@ -200,8 +199,7 @@ impl<
                 1,
                 bytemuck::cast_slice(&vec![
                     TexelData::default();
-                    (texture_extent.a() * texture_extent.vertical())
-                        as usize
+                    (texture_extent.a() * texture_extent.b()) as usize
                 ]),
             );
             self.texture = texture;

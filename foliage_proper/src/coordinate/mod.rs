@@ -16,8 +16,7 @@ pub mod section;
 pub trait CoordinateContext
 where
     Self: Send + Sync + 'static + Copy + Clone + Default,
-{
-}
+{}
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug, Serialize, Deserialize)]
 pub struct Physical;
@@ -41,7 +40,7 @@ pub type CoordinateUnit = f32;
 pub struct Coordinates(pub [CoordinateUnit; 2]);
 impl Display for Coordinates {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{} {}", self.a(), self.vertical()))
+        f.write_fmt(format_args!("{} {}", self.a(), self.b()))
     }
 }
 impl Coordinates {
@@ -51,12 +50,12 @@ impl Coordinates {
     pub const fn a(&self) -> CoordinateUnit {
         self.0[0]
     }
-    pub const fn vertical(&self) -> CoordinateUnit {
+    pub const fn b(&self) -> CoordinateUnit {
         self.0[1]
     }
     pub fn normalized<C: Into<Coordinates>>(&self, c: C) -> Self {
         let c = c.into();
-        Self::new(self.a() / c.a(), self.vertical() / c.vertical())
+        Self::new(self.a() / c.a(), self.b() / c.b())
     }
     pub fn set_horizontal(&mut self, h: f32) {
         self.0[0] = h;
@@ -65,7 +64,7 @@ impl Coordinates {
         self.0[1] = v;
     }
     pub fn clamped(&self, min: CoordinateUnit, max: CoordinateUnit) -> Self {
-        Self::new(self.a().clamp(min, max), self.vertical().clamp(min, max))
+        Self::new(self.a().clamp(min, max), self.b().clamp(min, max))
     }
     pub fn rounded(self) -> Self {
         Self([self.0[0].round(), self.0[1].round()])
@@ -114,7 +113,7 @@ impl Sub for Coordinates {
     type Output = Coordinates;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        Coordinates::new(self.a() - rhs.a(), self.vertical() - rhs.vertical())
+        Coordinates::new(self.a() - rhs.a(), self.b() - rhs.b())
     }
 }
 
@@ -122,20 +121,20 @@ impl Div<f32> for Coordinates {
     type Output = Coordinates;
 
     fn div(self, rhs: f32) -> Self::Output {
-        Coordinates::new(self.a() / rhs, self.vertical() / rhs)
+        Coordinates::new(self.a() / rhs, self.b() / rhs)
     }
 }
 impl Div<Coordinates> for Coordinates {
     type Output = Coordinates;
     fn div(self, rhs: Coordinates) -> Self::Output {
-        Coordinates::new(self.a() / rhs.a(), self.vertical() / rhs.vertical())
+        Coordinates::new(self.a() / rhs.a(), self.b() / rhs.b())
     }
 }
 impl Add for Coordinates {
     type Output = Coordinates;
 
     fn add(self, rhs: Self) -> Self::Output {
-        Coordinates::new(self.a() + rhs.a(), self.vertical() + rhs.vertical())
+        Coordinates::new(self.a() + rhs.a(), self.b() + rhs.b())
     }
 }
 
@@ -143,18 +142,18 @@ impl Mul for Coordinates {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        (self.a() * rhs.a(), self.vertical() * rhs.vertical()).into()
+        (self.a() * rhs.a(), self.b() * rhs.b()).into()
     }
 }
 impl AddAssign for Coordinates {
     fn add_assign(&mut self, rhs: Self) {
         self.0[0] += rhs.a();
-        self.0[1] += rhs.vertical();
+        self.0[1] += rhs.b();
     }
 }
 impl SubAssign for Coordinates {
     fn sub_assign(&mut self, rhs: Self) {
         self.0[0] -= rhs.a();
-        self.0[1] -= rhs.vertical();
+        self.0[1] -= rhs.b();
     }
 }
