@@ -247,15 +247,15 @@ impl Location {
         grids: Query<&Grid>,
         stems: Query<&Stem>,
         stacks: Query<&Stack>,
-        visibilities: Query<&ResolvedVisibility>,
+        visibilities: Query<(&ResolvedVisibility, &Visibility)>,
         aspect_ratios: Query<&AspectRatio>,
         views: Query<&View>,
         viewport: Res<ViewportHandle>,
     ) {
         let this = trigger.entity();
         if let Ok(location) = locations.get(this) {
-            if let Ok(vis) = visibilities.get(this) {
-                if !vis.visible() && location.config(*layout).is_none() {
+            if let Ok((res_vis, vis)) = visibilities.get(this) {
+                if !res_vis.visible() && location.config(*layout).is_none() {
                     return;
                 }
                 let stem = stems.get(this).unwrap();
@@ -288,9 +288,9 @@ impl Location {
                 if let Some(resolved) =
                     location.resolve(*layout, stem_section, stack, grid, aspect, view)
                 {
-                    if !vis.visible() {
+                    if !res_vis.visible() && vis.visible() {
                         tree.enable(this);
-                        tree.entity(this).insert(Visibility::new(true));
+                        tree.entity(this).insert(AutoVisibility::new(true));
                     }
                     match resolved {
                         ResolvedLocation::Points(pts) => {
@@ -301,7 +301,7 @@ impl Location {
                         }
                     }
                 } else {
-                    tree.entity(this).insert(Visibility::new(false));
+                    tree.entity(this).insert(AutoVisibility::new(false));
                     tree.disable(this);
                 }
             }
