@@ -9,7 +9,7 @@ use crate::coordinate::Logical;
 use crate::ginkgo::ScaleFactor;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
-use crate::text::glyph::{Glyph, GlyphColor, GlyphKey, Glyphs, ResolvedColors, ResolvedGlyphs};
+use crate::text::glyph::{Glyph, GlyphColor, GlyphKey, Glyphs, ResolvedColors};
 use crate::text::monospaced::MonospacedFont;
 use crate::{
     Attachment, Foliage, Layout, Physical, ResolvedElevation, ResolvedVisibility, Tree, Update,
@@ -24,6 +24,7 @@ use bevy_ecs::query::Changed;
 use bevy_ecs::system::{ParamSet, Query};
 use bevy_ecs::world::DeferredWorld;
 pub use glyph::GlyphColors;
+pub(crate) use glyph::ResolvedGlyphs;
 use std::collections::HashSet;
 impl Attachment for Text {
     fn attach(foliage: &mut Foliage) {
@@ -163,6 +164,7 @@ impl Text {
         current.horizontal_alignment = *horizontal_alignment.get(this).unwrap();
         current.vertical_alignment = *vertical_alignment.get(this).unwrap();
         if cache.get(this).unwrap() != &current {
+            println!("updating text w/ section {} for {:?}", current.section, this);
             let mut glyphs = glyph_query.get_mut(this).unwrap();
             glyphs.layout.reset(&fontdue::layout::LayoutSettings {
                 horizontal_align: current.horizontal_alignment.into(),
@@ -188,8 +190,12 @@ impl Text {
                     .section
                     .with_height(glyphs.layout.height())
                     .to_logical(scale_factor.value());
-                current.section = adjusted_section.to_physical(scale_factor.value());
-                tree.entity(this).insert(adjusted_section);
+                let scaled = adjusted_section.to_physical(scale_factor.value());
+                if current.section != scaled {
+                    current.section = scaled;
+                    tree.entity(this).insert(adjusted_section);
+                    println!("adjusting to {} for {:?}", adjusted_section, this);
+                }
             }
             tree.entity(this).insert(TextBounds::new(current.section));
         }
@@ -201,6 +207,7 @@ impl Text {
     ) {
         let value = vis.get(trigger.entity()).unwrap();
         if !value.visible() {
+            println!("clearing last visibility for {:?}", trigger.entity());
             glyphs.get_mut(trigger.entity()).unwrap().last.clear();
         }
     }
@@ -212,6 +219,7 @@ impl Text {
             if !vis.visible() {
                 continue;
             }
+            println!("resolving glyphs for {:?}", entity);
             let new = glyphs
                 .layout
                 .glyphs()
@@ -232,7 +240,7 @@ impl Text {
             let len_last = glyphs.last.len();
             for (i, g) in glyphs.last.drain(..).collect::<Vec<_>>().iter().enumerate() {
                 if let Some(n) = new.get(i) {
-                    if g.key != n.key {
+                    if g.key != n.key || g.section != n.section {
                         resolved.updated.push(n.clone());
                     }
                 } else {

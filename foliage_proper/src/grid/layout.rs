@@ -55,6 +55,7 @@ pub(crate) fn viewport_changed(
         if targets.is_empty() {
             return;
         }
+        println!("trigger targets: {:?}", targets);
         tree.trigger_targets(Update::<Location>::new(), targets);
     }
 }

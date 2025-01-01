@@ -80,6 +80,7 @@ impl Foliage {
         match event {
             WindowEvent::ActivationTokenDone { .. } => {}
             WindowEvent::Resized(_) => {
+                println!("Resizing screen");
                 self.world
                     .get_resource_mut::<ViewportHandle>()
                     .unwrap()

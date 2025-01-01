@@ -124,6 +124,7 @@ pub(crate) fn extent_check(
         if changed {
             // NOTE: this is to trigger recursive locations w/ new view.offset
             // it is the same section it had before
+            println!("view-inserting section {} for {:?}", *section, e);
             tree.entity(e).insert(*section);
         }
     }

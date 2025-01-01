@@ -190,6 +190,7 @@ impl<Context: CoordinateContext> Section<Context> {
             return;
         }
         world.trigger_targets(Write::<Self>::new(), this);
+        println!("writing section {} for {:?}", world.get::<Section<Logical>>(this).unwrap(), this);
         let mut deps = world.get::<Branch>(this).unwrap().ids.clone();
         if let Some(d) = world.get::<StackDeps>(this) {
             deps.extend(d.ids.clone());
@@ -212,7 +213,7 @@ impl Section<Numerical> {
     }
 }
 impl<Context: CoordinateContext, C: Into<Coordinates>, D: Into<Coordinates>> From<(C, D)>
-    for Section<Context>
+for Section<Context>
 {
     fn from(value: (C, D)) -> Self {
         Self::new(value.0, value.1)

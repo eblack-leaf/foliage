@@ -129,6 +129,7 @@ impl Location {
         grid: Grid,
         aspect: Option<AspectRatio>,
         view: View,
+        current: Section<Logical>,
     ) -> Option<ResolvedLocation> {
         let mut resolved = Section::default();
         let mut resolved_points = Option::<Points<Logical>>::None;
@@ -150,7 +151,7 @@ impl Location {
                     panic!("Stack not supported in horizontal")
                 }
                 GridUnit::Auto => {
-                    0.0 // dependent width from the height?
+                    current.width() + config.horizontal.padding.coordinates.b() // dependent width from the height?
                 }
             } - config.horizontal.padding.coordinates.b();
             match config.horizontal.ty {
@@ -185,7 +186,7 @@ impl Location {
                     panic!("Stack not supported in vertical-end");
                 }
                 GridUnit::Auto => {
-                    0.0 // TODO make more meaningful than just 0-valued
+                    current.height() + config.vertical.padding.coordinates.b() + ay // TODO make more meaningful than just 0-valued
                 }
             } - config.vertical.padding.coordinates.b();
             match config.vertical.ty {
@@ -287,8 +288,9 @@ impl Location {
                     .id
                     .and_then(|id| Some(*views.get(id).unwrap()))
                     .unwrap_or_default();
+                let current = *sections.get(this).unwrap();
                 if let Some(resolved) =
-                    location.resolve(*layout, stem_section, stack, grid, aspect, view)
+                    location.resolve(*layout, stem_section, stack, grid, aspect, view, current)
                 {
                     if !res_vis.visible() && vis.visible() {
                         tree.trigger_targets(AutoEnable::new(), this);
@@ -299,6 +301,7 @@ impl Location {
                             tree.entity(this).insert(pts);
                         }
                         ResolvedLocation::Section(section) => {
+                            println!("resolved location {} for {:?}", section, this);
                             tree.entity(this).insert(section);
                         }
                     }
@@ -328,6 +331,9 @@ pub struct Stack {
     pub id: Option<Entity>,
 }
 impl Stack {
+    pub fn new(entity: Entity) -> Self {
+        Self { id: Some(entity) }
+    }
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
         let stack = world.get::<Stack>(this).unwrap();
         if let Some(id) = stack.id {
