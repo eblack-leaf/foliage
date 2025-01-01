@@ -1,3 +1,4 @@
+use foliage::Justify::Right;
 use foliage::{Color, EcsExtension, Event, Foliage, FontSize, Grid, GridExt, Location, Stem, Text};
 
 mod icon;
@@ -16,7 +17,13 @@ fn main() {
         FontSize::new(14).sm(20).md(24).lg(32).xl(48),
         Stem::some(root),
         Color::gray(500),
-        Location::new().xs(2.col().to(9.col()), 1.row().to(1.row())),
+        Location::new()
+            .sm(2.col().to(9.col()), 1.row().to(1.row()))
+            .md(3.col().to(5.col()), 2.row().span(1.row()))
+            .xl(
+                4.col().to(9.col()).max(100.px()).justify(Right),
+                1.row().to(9.row()),
+            ),
     )); // add single node
     let button = foliage.leaf((
         // Button::new(),

@@ -2,8 +2,8 @@ use crate::coordinate::points::Points;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::grid::{AspectRatio, GridUnit, ScalarUnit, View};
 use crate::{
-    Component, Coordinates, Grid, Layout, Logical, ResolvedVisibility, Section, Stem, Tree, Update,
-    Visibility, Write,
+    Component, Coordinates, EcsExtension, Grid, Layout, Logical, ResolvedVisibility, Section, Stem,
+    Tree, Update, Visibility, Write,
 };
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
@@ -255,49 +255,54 @@ impl Location {
         let this = trigger.entity();
         if let Ok(location) = locations.get(this) {
             if let Ok(vis) = visibilities.get(this) {
-                if vis.visible() {
-                    let stem = stems.get(this).unwrap();
-                    let stem_section = stem
-                        .id
-                        .and_then(|id| Some(*sections.get(id).unwrap()))
-                        .unwrap_or(viewport.section());
-                    let stack = if let Ok(stack) = stacks.get(this) {
-                        if let Some(s) = stack.id {
-                            if let Ok(sec) = sections.get(s) {
-                                Some(*sec)
-                            } else {
-                                None
-                            }
+                if !vis.visible() && location.config(*layout).is_none() {
+                    return;
+                }
+                let stem = stems.get(this).unwrap();
+                let stem_section = stem
+                    .id
+                    .and_then(|id| Some(*sections.get(id).unwrap()))
+                    .unwrap_or(viewport.section());
+                let stack = if let Ok(stack) = stacks.get(this) {
+                    if let Some(s) = stack.id {
+                        if let Ok(sec) = sections.get(s) {
+                            Some(*sec)
                         } else {
                             None
                         }
                     } else {
                         None
-                    };
-                    let grid = stem
-                        .id
-                        .and_then(|id| Some(*grids.get(id).unwrap()))
-                        .unwrap_or_default();
-                    let aspect = aspect_ratios.get(this).copied().ok();
-                    let view = stem
-                        .id
-                        .and_then(|id| Some(*views.get(id).unwrap()))
-                        .unwrap_or_default();
-                    if let Some(resolved) =
-                        location.resolve(*layout, stem_section, stack, grid, aspect, view)
-                    {
-                        match resolved {
-                            ResolvedLocation::Points(pts) => {
-                                tree.entity(this).insert(pts);
-                            }
-                            ResolvedLocation::Section(section) => {
-                                tree.entity(this).insert(section);
-                            }
-                        }
-                    } else {
-                        tree.entity(this).insert(Visibility::new(false));
-                        // TODO should disable? re-enable semantics unclear
                     }
+                } else {
+                    None
+                };
+                let grid = stem
+                    .id
+                    .and_then(|id| Some(*grids.get(id).unwrap()))
+                    .unwrap_or_default();
+                let aspect = aspect_ratios.get(this).copied().ok();
+                let view = stem
+                    .id
+                    .and_then(|id| Some(*views.get(id).unwrap()))
+                    .unwrap_or_default();
+                if let Some(resolved) =
+                    location.resolve(*layout, stem_section, stack, grid, aspect, view)
+                {
+                    if !vis.visible() {
+                        tree.enable(this);
+                        tree.entity(this).insert(Visibility::new(true));
+                    }
+                    match resolved {
+                        ResolvedLocation::Points(pts) => {
+                            tree.entity(this).insert(pts);
+                        }
+                        ResolvedLocation::Section(section) => {
+                            tree.entity(this).insert(section);
+                        }
+                    }
+                } else {
+                    tree.entity(this).insert(Visibility::new(false));
+                    tree.disable(this);
                 }
             }
         }

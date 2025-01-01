@@ -14,7 +14,8 @@ use crate::text::glyph::{
 };
 use crate::text::monospaced::MonospacedFont;
 use crate::{
-    Attachment, Foliage, Layout, Physical, ResolvedElevation, Tree, Update, Visibility, Write,
+    Attachment, Foliage, Layout, Physical, ResolvedElevation, ResolvedVisibility, Tree, Update,
+    Visibility, Write,
 };
 use crate::{ClipContext, Differential};
 use crate::{ClipSection, DiffMarkers};
@@ -87,6 +88,10 @@ impl Text {
             .commands()
             .entity(this)
             .observe(Self::update_from_section);
+        world
+            .commands()
+            .entity(this)
+            .observe(Self::clear_last_on_visibility);
     }
     fn responsive_font_size(
         trigger: Trigger<Write<Layout>>,
@@ -108,17 +113,17 @@ impl Text {
     fn resolve_colors(
         mut glyph_colors: ParamSet<(Query<&GlyphColors>, Query<Entity, Changed<GlyphColors>>)>,
         mut colors: ParamSet<(Query<&Color>, Query<Entity, Changed<Color>>)>,
-        glyphs: Query<&Glyphs>,
+        mut glyphs: ParamSet<(Query<&Glyphs>, Query<Entity, Changed<Glyphs>>)>,
         mut resolved: Query<&mut ResolvedColors>,
     ) {
         let mut changed = glyph_colors.p1().iter().collect::<Vec<_>>();
         changed.extend(colors.p1().iter().collect::<Vec<_>>());
+        changed.extend(glyphs.p1().iter().collect::<Vec<_>>());
         for e in changed {
             let mut res = ResolvedColors::default();
             let color = *colors.p0().get(e).unwrap();
             let exceptions = glyph_colors.p0().get(e).unwrap().exceptions.clone();
-            let glyph = glyphs.get(e).unwrap();
-            for g in glyph.glyphs.iter() {
+            for g in glyphs.p0().get(e).unwrap().glyphs.iter() {
                 let c = if let Some(gc) = exceptions.get(&g.offset) {
                     *gc
                 } else {
@@ -175,7 +180,6 @@ impl Text {
                     0,
                 ),
             );
-
             tree.entity(this)
                 .insert(UniqueCharacters::count(&current.text))
                 .insert(current.clone());
@@ -191,11 +195,24 @@ impl Text {
             tree.entity(this).insert(TextBounds::new(current.section));
         }
     }
+    fn clear_last_on_visibility(
+        trigger: Trigger<Write<Visibility>>,
+        mut glyphs: Query<&mut Glyphs>,
+        vis: Query<&ResolvedVisibility>,
+    ) {
+        let value = vis.get(trigger.entity()).unwrap();
+        if !value.visible() {
+            glyphs.get_mut(trigger.entity()).unwrap().last.clear();
+        }
+    }
     fn resolve_glyphs(
-        mut glyph_query: Query<(Entity, &mut Glyphs), Changed<Glyphs>>,
+        mut glyph_query: Query<(Entity, &mut Glyphs, &ResolvedVisibility), Changed<Glyphs>>,
         mut tree: Tree,
     ) {
-        for (entity, mut glyphs) in glyph_query.iter_mut() {
+        for (entity, mut glyphs, vis) in glyph_query.iter_mut() {
+            if !vis.visible() {
+                continue;
+            }
             let new = glyphs
                 .layout
                 .glyphs()

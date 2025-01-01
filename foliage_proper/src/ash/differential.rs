@@ -67,7 +67,7 @@ pub(crate) fn cached_differential<
     )>,
     mut queue: ResMut<RenderQueue<R, RP>>,
 ) {
-    // if visibility changed && is-visible => send cached value && continue
+    // if visibility changed && is-visible => send current value && continue
     let changed = visibility.p1().iter().collect::<Vec<_>>();
     for c in changed {
         if visibility.p0().get(c).unwrap().visible() {

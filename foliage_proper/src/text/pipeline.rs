@@ -164,8 +164,8 @@ impl Render for Text {
         // read-attrs
         for entity in elm.removes::<Text>() {
             // remove group
-            if let Some(id) = renderer.resources.entity_to_group.get(&entity) {
-                renderer.groups.remove(id);
+            if let Some(id) = renderer.resources.entity_to_group.remove(&entity) {
+                renderer.groups.remove(&id);
             }
             nodes.remove(RemoveNode::new(
                 PipelineId::Text,
