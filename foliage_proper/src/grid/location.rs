@@ -1,6 +1,8 @@
 use crate::coordinate::points::Points;
+use crate::enable::AutoEnable;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::grid::{AspectRatio, GridUnit, ScalarUnit, View};
+use crate::visibility::AutoVisibility;
 use crate::{
     Component, Coordinates, EcsExtension, Grid, Layout, Logical, ResolvedVisibility, Section, Stem,
     Tree, Update, Visibility, Write,
@@ -289,7 +291,7 @@ impl Location {
                     location.resolve(*layout, stem_section, stack, grid, aspect, view)
                 {
                     if !res_vis.visible() && vis.visible() {
-                        tree.enable(this); // TODO check for !disabled explicitly like visibility here
+                        tree.trigger_targets(AutoEnable::new(), this);
                         tree.entity(this).insert(AutoVisibility::new(true));
                     }
                     match resolved {

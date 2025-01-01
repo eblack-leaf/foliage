@@ -9,7 +9,7 @@ use bevy_ecs::world::DeferredWorld;
 #[derive(Copy, Clone, Ord, PartialOrd, PartialEq, Eq, Hash, Component)]
 #[component(on_add = Visibility::on_add)]
 #[component(on_insert = Visibility::on_insert)]
-#[require(InheritedVisibility, ResolvedVisibility, CachedVisibility)]
+#[require(InheritedVisibility, ResolvedVisibility, CachedVisibility, AutoVisibility)]
 pub struct Visibility {
     visible: bool,
 }
@@ -32,8 +32,9 @@ impl Visibility {
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
         let inherited = world.get::<InheritedVisibility>(this).unwrap();
         let current = world.get::<Visibility>(this).unwrap();
+        let auto = world.get::<AutoVisibility>(this).unwrap();
         let resolved = ResolvedVisibility {
-            visible: inherited.visible && current.visible,
+            visible: inherited.visible && current.visible && auto.visible,
         };
         let cached = world.get::<CachedVisibility>(this).unwrap();
         if cached.visible != resolved.visible {
@@ -64,6 +65,23 @@ impl Visibility {
         if !value.visible {
             queue.queue.insert(trigger.entity());
         }
+    }
+}
+#[derive(Component, Copy, Clone)]
+#[component(on_insert = Visibility::on_insert)]
+pub(crate) struct AutoVisibility {
+    pub(crate) visible: bool,
+}
+impl AutoVisibility {
+    pub(crate) fn new(v: bool) -> Self {
+        Self {
+            visible: v,
+        }
+    }
+}
+impl Default for AutoVisibility {
+    fn default() -> Self {
+        Self::new(true)
     }
 }
 #[derive(Component, Copy, Clone)]
