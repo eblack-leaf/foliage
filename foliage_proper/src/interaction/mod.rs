@@ -22,6 +22,7 @@ impl Attachment for Interaction {
         foliage.world.insert_resource(KeyboardAdapter::default());
         foliage.world.insert_resource(MouseAdapter::default());
         foliage.world.insert_resource(TouchAdapter::default());
+        foliage.world.insert_resource(CurrentInteraction::default());
         foliage.enable_queued_event::<Interaction>();
     }
 }

@@ -46,7 +46,7 @@ impl ViewContext {
         world.commands().entity(this).insert(clip_context);
     }
 }
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub(crate) struct ExtentCheckIds(pub(crate) HashSet<Entity>);
 pub(crate) fn prepare_extent(
     deps: Query<&ViewContext, Or<(Changed<Section<Logical>>, Changed<ViewContext>)>>,

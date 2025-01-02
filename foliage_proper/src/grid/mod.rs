@@ -8,7 +8,7 @@ use crate::grid::location::Justify::{Center, Near};
 pub use crate::grid::location::{
     auto, stack, Justify, LocationAxisDescriptor, LocationAxisType, Padding,
 };
-use crate::grid::view::{extent_check, prepare_extent};
+use crate::grid::view::{extent_check, prepare_extent, ExtentCheckIds};
 use crate::{Attachment, Component, CoordinateUnit, DiffMarkers, Foliage, Logical, Section};
 pub use aspect_ratio::AspectRatio;
 use bevy_ecs::prelude::IntoSystemConfigs;
@@ -21,6 +21,7 @@ pub use view::View;
 impl Attachment for Grid {
     fn attach(foliage: &mut Foliage) {
         foliage.world.insert_resource(Layout::Xs);
+        foliage.world.insert_resource(ExtentCheckIds::default());
         foliage.main.add_systems(viewport_changed);
         foliage.diff.add_systems(
             (prepare_extent, extent_check)
