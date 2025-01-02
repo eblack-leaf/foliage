@@ -1,5 +1,5 @@
 use crate::ash::clip::prepare_clip_section;
-use crate::ash::differential::Elm;
+use crate::ash::differential::RenderQueueHandle;
 use crate::ginkgo::Ginkgo;
 use crate::{Attachment, Color, Component, DiffMarkers, Foliage, Resource, Text};
 use bevy_ecs::prelude::IntoSystemConfigs;
@@ -47,10 +47,10 @@ impl Ash {
         // TODO other renderers
     }
     pub(crate) fn prepare(&mut self, world: &mut World, ginkgo: &Ginkgo) {
-        let mut elm = Elm::new(world);
+        let mut queues = RenderQueueHandle::new(world);
         let mut nodes = vec![];
         let mut to_remove = vec![];
-        let text_nodes = Render::prepare(self.text.as_mut().unwrap(), &mut elm, ginkgo);
+        let text_nodes = Render::prepare(self.text.as_mut().unwrap(), &mut queues, ginkgo);
         nodes.extend(text_nodes.updated);
         to_remove.extend(text_nodes.removed);
         // TODO extend other renderers

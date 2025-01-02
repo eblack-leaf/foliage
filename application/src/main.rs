@@ -17,7 +17,7 @@ fn main() {
     ));
     let a = foliage.leaf((
         Text::new("asonetuhsanot aoentuh aes tanoes uaneotusaoent uetuh asnetuh usanoetua"),
-        FontSize::new(20),
+        FontSize::new(20).sm(32),
         AutoHeight(true),
         Stem::some(root),
         View::context(root),

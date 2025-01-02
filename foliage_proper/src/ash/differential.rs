@@ -17,7 +17,7 @@ pub(crate) struct Differential<
 }
 
 impl<R: Clone + Send + Sync + 'static, RP: Clone + Send + Sync + 'static + PartialEq>
-    Differential<R, RP>
+Differential<R, RP>
 {
     pub(crate) fn new(cache: RP) -> Self {
         Self {
@@ -46,7 +46,7 @@ impl<R: Clone + Send + Sync + 'static, RP: Clone + Send + Sync + 'static + Parti
 }
 
 impl<R: Clone + Send + Sync + 'static, RP: Clone + Send + Sync + 'static + PartialEq> Default
-    for Differential<R, RP>
+for Differential<R, RP>
 {
     fn default() -> Self {
         Self::blank()
@@ -116,10 +116,10 @@ impl<R: Clone + Send + Sync + 'static> RenderRemoveQueue<R> {
         }
     }
 }
-pub(crate) struct Elm<'a> {
+pub(crate) struct RenderQueueHandle<'a> {
     pub(crate) world: &'a mut World,
 }
-impl<'a> Elm<'a> {
+impl<'a> RenderQueueHandle<'a> {
     pub(crate) fn new(world: &'a mut World) -> Self {
         Self { world }
     }

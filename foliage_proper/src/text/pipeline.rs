@@ -1,5 +1,5 @@
 use crate::ash::clip::ClipSection;
-use crate::ash::differential::Elm;
+use crate::ash::differential::RenderQueueHandle;
 use crate::ash::instance::{Instance, InstanceBuffer, InstanceId};
 use crate::ash::node::{Node, Nodes, RemoveNode};
 use crate::ash::render::{GroupId, Parameters, PipelineId, Render, RenderGroup, Renderer};
@@ -158,10 +158,10 @@ impl Render for Text {
             },
         }
     }
-    fn prepare(renderer: &mut Renderer<Self>, elm: &mut Elm, ginkgo: &Ginkgo) -> Nodes {
+    fn prepare(renderer: &mut Renderer<Self>, queues: &mut RenderQueueHandle, ginkgo: &Ginkgo) -> Nodes {
         let mut nodes = Nodes::new();
         // read-attrs
-        for entity in elm.removes::<Text>() {
+        for entity in queues.removes::<Text>() {
             // remove group
             if let Some(id) = renderer.resources.entity_to_group.remove(&entity) {
                 renderer.groups.remove(&id);
@@ -172,7 +172,7 @@ impl Render for Text {
                 ONE_NODE_PER_GROUP_OPTIMIZATION,
             ));
         }
-        for (entity, packet) in elm.attribute::<Text, ResolvedElevation>() {
+        for (entity, packet) in queues.attribute::<Text, ResolvedElevation>() {
             // queue add/update
             if renderer.resources.entity_to_group.contains_key(&entity) {
                 let id = renderer.resources.entity_to_group.get(&entity).unwrap();
@@ -194,20 +194,20 @@ impl Render for Text {
                     .insert(entity, entity.index() as GroupId);
             }
         }
-        for (entity, packet) in elm.attribute::<Text, ClipSection>() {
+        for (entity, packet) in queues.attribute::<Text, ClipSection>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
             // OMITTED for optimization renderer.groups.get_mut(id).unwrap().coordinator.needs_sort = true;
             let group = &mut renderer.groups.get_mut(id).unwrap().group;
             group.clip_section = packet;
             group.update_node = true;
         }
-        for (entity, packet) in elm.attribute::<Text, TextBounds>() {
+        for (entity, packet) in queues.attribute::<Text, TextBounds>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
             let group = &mut renderer.groups.get_mut(id).unwrap().group;
             group.bounds = packet.bounds;
             group.update_node = true;
         }
-        for (entity, packet) in elm.attribute::<Text, Section<Logical>>() {
+        for (entity, packet) in queues.attribute::<Text, Section<Logical>>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
             let group = &mut renderer.groups.get_mut(id).unwrap().group;
             let position = packet
@@ -217,18 +217,18 @@ impl Render for Text {
             group.uniform.set(1, position.top().round());
             group.write_uniform = true;
         }
-        for (entity, packet) in elm.attribute::<Text, BlendedOpacity>() {
+        for (entity, packet) in queues.attribute::<Text, BlendedOpacity>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
             let group = &mut renderer.groups.get_mut(id).unwrap().group;
             group.uniform.set(3, packet.value);
             group.write_uniform = true;
         }
-        for (entity, packet) in elm.attribute::<Text, UniqueCharacters>() {
+        for (entity, packet) in queues.attribute::<Text, UniqueCharacters>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
             let group = &mut renderer.groups.get_mut(id).unwrap().group;
             group.unique_characters = packet; // prevents under-growth
         }
-        for (entity, packet) in elm.attribute::<Text, ResolvedFontSize>() {
+        for (entity, packet) in queues.attribute::<Text, ResolvedFontSize>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
             let group = &mut renderer.groups.get_mut(id).unwrap().group;
             group.font_size = packet;
@@ -251,7 +251,7 @@ impl Render for Text {
             });
             group.bind_group.replace(bind_group);
         }
-        for (entity, glyphs) in elm.attribute::<Text, ResolvedGlyphs>() {
+        for (entity, glyphs) in queues.attribute::<Text, ResolvedGlyphs>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
             let group = renderer.groups.get_mut(id).unwrap();
             for glyph in glyphs.removed {
@@ -372,7 +372,7 @@ impl Render for Text {
                 group.group.tex_coords.queue(id, tex_coords);
             }
         }
-        for (entity, packet) in elm.attribute::<Self, ResolvedColors>() {
+        for (entity, packet) in queues.attribute::<Self, ResolvedColors>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
             let group = renderer.groups.get_mut(id).unwrap();
             for glyph_color in packet.colors {
