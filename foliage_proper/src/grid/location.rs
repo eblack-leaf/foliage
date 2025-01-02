@@ -283,7 +283,12 @@ impl Location {
                 // involve auto for which dimension to be dependent
                 todo!("constrain by aspect")
             }
-            resolved.position += view.offset;
+            if config.horizontal.a != GridUnit::Stack {
+                resolved.position += (view.offset.left(), 0).into();
+            }
+            if config.vertical.a != GridUnit::Stack {
+                resolved.position += (0, view.offset.top()).into();
+            }
             Some(ResolvedLocation::Section(resolved))
         } else {
             None
