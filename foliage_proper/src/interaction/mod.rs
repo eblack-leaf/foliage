@@ -203,6 +203,12 @@ pub(crate) fn interactive_elements(
                 }
             }
             if let Some(p) = current.primary {
+                current.pass_through = current
+                    .pass_through
+                    .iter()
+                    .filter(|ps| listeners.get(**ps).unwrap().3 < listeners.get(p).unwrap().3)
+                    .copied()
+                    .collect::<Vec<_>>();
                 listeners.get_mut(p).unwrap().1.click = Click::new(event.position);
                 // TODO tree.trigger_targets(EngagedBegin::default(), p);
             }
@@ -233,9 +239,9 @@ pub(crate) fn interactive_elements(
                 for ps in current.pass_through.iter() {
                     let mut listener = listeners.get_mut(*ps).unwrap();
                     listener.1.click.current = event.position;
-                    let diff = listener.1.last_drag - event.position;
                     if listener.1.scroll {
                         if let Some(mut view) = listener.5 {
+                            let diff = listener.1.last_drag - event.position;
                             view.offset += diff;
                             tree.entity(*ps).insert(*listener.2);
                         }
@@ -263,6 +269,13 @@ pub(crate) fn interactive_elements(
                     .1
                     .is_contained(*listener.2, listener.4.copied(), event.position)
                 {
+                    if event.from_scroll && listener.1.scroll {
+                        if let Some(mut view) = listener.5 {
+                            let diff = listener.1.last_drag - event.position;
+                            view.offset += diff;
+                            tree.entity(ps).insert(*listener.2);
+                        }
+                    }
                     listener.1.click.end.replace(event.position);
                     tree.trigger_targets(OnClick::default(), ps);
                 } else {
