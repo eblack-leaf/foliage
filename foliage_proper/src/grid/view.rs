@@ -83,7 +83,7 @@ pub(crate) fn extent_check(
             if to_check.0.contains(&id) {
                 let mut relative = *section;
                 let mut view = views.get_mut(id).unwrap().2;
-                relative.position -= view.offset;
+                relative.position += view.offset;
                 if relative.left() < view.extent.left() {
                     view.extent.set_left(relative.left());
                 }

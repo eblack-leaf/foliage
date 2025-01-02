@@ -284,10 +284,10 @@ impl Location {
                 todo!("constrain by aspect")
             }
             if config.horizontal.a != GridUnit::Stack {
-                resolved.position += (view.offset.left(), 0).into();
+                resolved.position -= (view.offset.left(), 0).into();
             }
             if config.vertical.a != GridUnit::Stack {
-                resolved.position += (0, view.offset.top()).into();
+                resolved.position -= (0, view.offset.top()).into();
             }
             Some(ResolvedLocation::Section(resolved))
         } else {
