@@ -104,6 +104,7 @@ impl InteractionListener {
         self
     }
     pub fn scroll(mut self, s: bool) -> Self {
+        self.pass_through = s;
         self.scroll = s;
         self
     }
@@ -235,6 +236,7 @@ pub(crate) fn interactive_elements(
                     if listener.1.scroll {
                         if let Some(mut view) = listener.5 {
                             view.offset += diff;
+                            tree.entity(*ps).insert(*listener.2);
                         }
                     }
                     listener.1.last_drag = event.position;

@@ -37,7 +37,6 @@ pub use crate::coordinate::{
 };
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::Ginkgo;
-use crate::interaction::Interaction;
 use crate::remove::Remove;
 use crate::time::Time;
 use crate::willow::Willow;
@@ -52,9 +51,10 @@ pub use color::{CReprColor, Color};
 pub use coordinate::elevation::{Elevation, ResolvedElevation};
 use futures_channel::oneshot;
 pub use grid::{
-    auto, stack, Grid, GridUnit, Layout, Location, LocationAxisDescriptor, LocationAxisType,
+    auto, stack, Grid, GridUnit, Layout, Location, LocationAxisDescriptor, LocationAxisType, View,
 };
 pub use grid::{GridExt, Justify, Stack, StackDeps};
+pub use interaction::{InputSequence, Interaction, InteractionListener, InteractionPhase, InteractionShape, OnClick};
 pub use leaf::{Branch, Leaf, Stem};
 pub use opacity::Opacity;
 pub use ops::{Update, Write};
@@ -124,13 +124,13 @@ impl Foliage {
                 .before(DiffMarkers::Extract),
         ));
         foliage.main.add_systems(event_update_system);
+        Grid::attach(&mut foliage);
         Interaction::attach(&mut foliage);
         Ash::attach(&mut foliage);
         Text::attach(&mut foliage);
         Asset::attach(&mut foliage);
         Time::attach(&mut foliage);
         Remove::attach(&mut foliage);
-        Grid::attach(&mut foliage);
         foliage
     }
     pub fn attach<A: Attachment>(&mut self) {

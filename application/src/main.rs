@@ -1,7 +1,4 @@
-use foliage::{
-    auto, stack, AutoHeight, Color, EcsExtension, Event, Foliage, FontSize, Grid, GridExt,
-    Location, Stack, Stem, Text,
-};
+use foliage::{auto, stack, AutoHeight, Color, EcsExtension, Event, Foliage, FontSize, Grid, GridExt, InteractionListener, Location, Stack, Stem, Text, View};
 
 mod icon;
 mod image;
@@ -12,6 +9,7 @@ fn main() {
     let root = foliage.leaf((
         Grid::new(12.col(), 24.px()),
         Location::new().xs(0.pct().to(100.pct()), 0.pct().to(100.pct())),
+        InteractionListener::new().scroll(true),
         Stem::none(),
     ));
     let a = foliage.leaf((
@@ -19,6 +17,7 @@ fn main() {
         FontSize::new(20),
         AutoHeight(true),
         Stem::some(root),
+        View::context(root),
         Location::new().xs(1.col().to(4.col()), 1.row().to(auto())),
     ));
     let b = foliage.leaf((
@@ -28,6 +27,7 @@ fn main() {
         Color::gray(500),
         Stem::some(root),
         Stack::new(a),
+        View::context(root),
         Location::new().xs(1.col().to(4.col()), stack().to(auto())),
     ));
     let c = foliage.leaf((
@@ -37,6 +37,7 @@ fn main() {
         Color::gray(500),
         Stem::some(root),
         Stack::new(a),
+        View::context(root),
         Location::new().xs(5.col().to(9.col()), stack().to(auto())),
     ));
     foliage.photosynthesize(); // run
