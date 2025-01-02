@@ -54,7 +54,9 @@ pub use grid::{
     auto, stack, Grid, GridUnit, Layout, Location, LocationAxisDescriptor, LocationAxisType, View,
 };
 pub use grid::{GridExt, Justify, Stack, StackDeps};
-pub use interaction::{InputSequence, Interaction, InteractionListener, InteractionPhase, InteractionShape, OnClick};
+pub use interaction::{
+    InputSequence, Interaction, InteractionListener, InteractionPhase, InteractionShape, OnClick,
+};
 pub use leaf::{Branch, Leaf, Stem};
 pub use opacity::Opacity;
 pub use ops::{Update, Write};
