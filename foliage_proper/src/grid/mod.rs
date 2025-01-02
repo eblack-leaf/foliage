@@ -3,7 +3,7 @@ mod layout;
 mod location;
 mod view;
 
-use crate::grid::layout::viewport_changed;
+pub(crate) use crate::grid::layout::viewport_changed;
 use crate::grid::location::Justify::{Center, Near};
 pub use crate::grid::location::{
     auto, stack, Justify, LocationAxisDescriptor, LocationAxisType, Padding,
