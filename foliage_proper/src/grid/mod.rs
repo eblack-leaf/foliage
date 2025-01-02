@@ -4,7 +4,7 @@ mod location;
 mod view;
 
 use crate::grid::layout::viewport_changed;
-use crate::grid::location::Justify::{Center, Left};
+use crate::grid::location::Justify::{Center, Near};
 pub use crate::grid::location::{
     auto, stack, Justify, LocationAxisDescriptor, LocationAxisType, Padding,
 };
@@ -60,11 +60,11 @@ fn behavior() {
     let font_size = FontSize::default().sm(20).md(24).lg(32);
     let location = Location::new()
         .xs(
-            3.col().to(10.col()).max(300.px()).justify(Left),
+            3.col().to(10.col()).max(300.px()).justify(Near),
             6.row().to(9.row()),
         )
         .sm(
-            4.col().to(9.col()).max(400.px()).justify(Left),
+            4.col().to(9.col()).max(400.px()).justify(Near),
             6.row().to(9.row()),
         );
     let location = Location::new().xs(1.col().to(1.col()), 2.row().to(auto()));
@@ -191,6 +191,25 @@ impl Grid {
             }
         }
     }
+    pub fn column_metrics(
+        &self,
+        layout: Layout,
+        stem: Section<Logical>,
+    ) -> (CoordinateUnit, CoordinateUnit) {
+        let columns = self.config(layout).columns;
+        let c = match columns.unit {
+            GridAxisUnit::Infinite(inf) => match inf {
+                ScalarUnit::Px(px) => px,
+                ScalarUnit::Pct(pct) => stem.width() * pct,
+            },
+            GridAxisUnit::Explicit(exp) => {
+                let without_gap = stem.width() - columns.gap.amount * (exp.value() + 1.0);
+                let column_size = without_gap / exp.value();
+                column_size
+            }
+        };
+        (c, columns.gap.amount)
+    }
     pub fn column(
         &self,
         layout: Layout,
@@ -199,31 +218,36 @@ impl Grid {
         inclusive: bool,
     ) -> CoordinateUnit {
         let num = aligned_unit.value();
-        let grid_config = self.config(layout);
+        let (column_size, gap) = self.column_metrics(layout, stem);
         match aligned_unit {
-            AlignedUnit::Columns(_) => match grid_config.columns.unit {
-                GridAxisUnit::Infinite(inf) => {
-                    (num - 1.0 * CoordinateUnit::from(!inclusive))
-                        * match inf {
-                        ScalarUnit::Px(px) => px,
-                        ScalarUnit::Pct(pct) => stem.width() * pct,
-                    }
-                        + num * grid_config.columns.gap.amount
-                }
-                GridAxisUnit::Explicit(exp) => {
-                    let without_gap =
-                        stem.width() - grid_config.columns.gap.amount * (exp.value() + 1.0);
-                    let column_size = without_gap / exp.value();
-                    num * grid_config.columns.gap.amount + num * column_size
-                        - column_size * CoordinateUnit::from(!inclusive)
-                }
-            },
+            AlignedUnit::Columns(_) => {
+                (num - 1.0 * CoordinateUnit::from(!inclusive)) * column_size + num * gap
+            }
             AlignedUnit::Rows(_) => {
                 panic!("Rows are not supported in horizontal.");
             }
         }
     }
-    pub(crate) fn row(
+    pub fn row_metrics(
+        &self,
+        layout: Layout,
+        stem: Section<Logical>,
+    ) -> (CoordinateUnit, CoordinateUnit) {
+        let rows = self.config(layout).rows;
+        let c = match rows.unit {
+            GridAxisUnit::Infinite(inf) => match inf {
+                ScalarUnit::Px(px) => px,
+                ScalarUnit::Pct(pct) => stem.height() * pct,
+            },
+            GridAxisUnit::Explicit(exp) => {
+                let without_gap = stem.height() - rows.gap.amount * (exp.value() + 1.0);
+                let row_size = without_gap / exp.value();
+                row_size
+            }
+        };
+        (c, rows.gap.amount)
+    }
+    pub fn row(
         &self,
         layout: Layout,
         stem: Section<Logical>,
@@ -231,28 +255,14 @@ impl Grid {
         inclusive: bool,
     ) -> CoordinateUnit {
         let num = aligned_unit.value();
-        let grid_config = self.config(layout);
+        let (row_size, gap) = self.row_metrics(layout, stem);
         match aligned_unit {
             AlignedUnit::Columns(_) => {
                 panic!("Columns are not supported in vertical.");
             }
-            AlignedUnit::Rows(_) => match grid_config.rows.unit {
-                GridAxisUnit::Infinite(inf) => {
-                    (num - 1.0 * CoordinateUnit::from(!inclusive))
-                        * match inf {
-                        ScalarUnit::Px(px) => px,
-                        ScalarUnit::Pct(pct) => stem.height() * pct,
-                    }
-                        + num * grid_config.rows.gap.amount
-                }
-                GridAxisUnit::Explicit(exp) => {
-                    let without_gap =
-                        stem.height() - grid_config.rows.gap.amount * (exp.value() + 1.0);
-                    let row_size = without_gap / exp.value();
-                    num * grid_config.rows.gap.amount + num * row_size
-                        - row_size * CoordinateUnit::from(!inclusive)
-                }
-            },
+            AlignedUnit::Rows(_) => {
+                (num - 1.0 * CoordinateUnit::from(!inclusive)) * row_size + num * gap
+            }
         }
     }
 }
@@ -291,7 +301,7 @@ pub enum GridAxisUnit {
     Infinite(ScalarUnit),
     Explicit(AlignedUnit),
 }
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Debug, PartialOrd)]
 pub enum ScalarUnit {
     Px(CoordinateUnit),
     Pct(f32),
@@ -334,7 +344,7 @@ impl From<i32> for Gap {
         }
     }
 }
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub enum GridUnit {
     Aligned(AlignedUnit),
     Scalar(ScalarUnit),
@@ -353,37 +363,50 @@ impl GridUnit {
         }
     }
     pub fn y<Y: Into<GridUnit>>(self, y: Y) -> LocationAxisDescriptor {
+        let y = y.into();
+        debug_assert_ne!(self, GridUnit::Auto);
+        debug_assert_ne!(y, GridUnit::Stack);
+        debug_assert_ne!(y, GridUnit::Auto);
         LocationAxisDescriptor {
             a: self,
-            b: y.into(),
+            b: y,
             ty: LocationAxisType::Point,
             padding: Padding::default(),
             justify: Justify::default(),
             max: None,
+            min: None,
         }
     }
     pub fn to<T: Into<GridUnit>>(self, t: T) -> LocationAxisDescriptor {
+        let t = t.into();
+        debug_assert_ne!(self, GridUnit::Auto);
+        debug_assert_ne!(t, GridUnit::Stack);
         LocationAxisDescriptor {
             a: self,
-            b: t.into(),
+            b: t,
             ty: LocationAxisType::To,
             padding: Default::default(),
             justify: Default::default(),
             max: None,
+            min: None,
         }
     }
     pub fn span<S: Into<GridUnit>>(self, s: S) -> LocationAxisDescriptor {
+        let s = s.into();
+        debug_assert_ne!(self, GridUnit::Auto);
+        debug_assert_ne!(s, GridUnit::Stack);
         LocationAxisDescriptor {
             a: self,
-            b: s.into(),
+            b: s,
             ty: LocationAxisType::Span,
             padding: Default::default(),
             justify: Default::default(),
             max: None,
+            min: None,
         }
     }
 }
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub enum AlignedUnit {
     Columns(i32),
     Rows(i32),

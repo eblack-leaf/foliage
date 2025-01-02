@@ -162,6 +162,12 @@ impl Location {
             } - config.horizontal.padding.coordinates.b();
             match config.horizontal.ty {
                 LocationAxisType::Point => {
+                    if let GridUnit::Aligned(_) = config.horizontal.a {
+                        ax += 0.5 * grid.column_metrics(layout, stem).0;
+                    }
+                    if let GridUnit::Aligned(_) = config.horizontal.b {
+                        bx -= 0.5 * grid.row_metrics(layout, stem).0;
+                    }
                     resolved_points.replace(Points::new().a((ax, bx)));
                 }
                 LocationAxisType::Span => {
@@ -171,7 +177,7 @@ impl Location {
                     bx -= ax; // convert to x / w context
                 }
             }
-            let ay = match config.vertical.a {
+            let mut ay = match config.vertical.a {
                 GridUnit::Aligned(a) => grid.row(layout, stem, a, false),
                 GridUnit::Scalar(s) => s.vertical(stem),
                 GridUnit::Stack => {
@@ -197,6 +203,12 @@ impl Location {
             } - config.vertical.padding.coordinates.b();
             match config.vertical.ty {
                 LocationAxisType::Point => {
+                    if let GridUnit::Aligned(_) = config.vertical.a {
+                        ay += 0.5 * grid.column_metrics(layout, stem).0;
+                    }
+                    if let GridUnit::Aligned(_) = config.vertical.b {
+                        by -= 0.5 * grid.row_metrics(layout, stem).0;
+                    }
                     resolved_points.as_mut().unwrap().set_b((ay, by));
                 }
                 LocationAxisType::Span => {
@@ -206,27 +218,27 @@ impl Location {
                     by -= ay; // convert to y / h context
                 }
             }
-            if config.horizontal.b == GridUnit::Auto {
-                bx = current.width();
-            }
-            if config.vertical.b == GridUnit::Auto {
-                by = current.height();
-            }
             if let Some(mut pts) = resolved_points {
                 for pt in pts.data.iter_mut() {
                     *pt += view.offset;
                 }
                 return Some(ResolvedLocation::Points(pts));
             }
-            if let Some(mx) = config.horizontal.max {
-                let mx = mx.horizontal(stem);
+            if config.horizontal.b == GridUnit::Auto {
+                bx = current.width();
+            }
+            if config.vertical.b == GridUnit::Auto {
+                by = current.height();
+            }
+            if let Some(max_width) = config.horizontal.max {
+                let mx = max_width.horizontal(stem);
                 if bx > mx {
                     let diff = bx - mx;
                     match config.horizontal.justify {
-                        Justify::Left => {
+                        Justify::Near => {
                             // do nothing to the ax
                         }
-                        Justify::Right => {
+                        Justify::Far => {
                             ax += diff;
                         }
                         Justify::Center => {
@@ -234,6 +246,36 @@ impl Location {
                         }
                     }
                     bx = mx;
+                }
+            }
+            if let Some(max_height) = config.vertical.max {
+                let my = max_height.vertical(stem);
+                if by > my {
+                    let diff = by - my;
+                    match config.vertical.justify {
+                        Justify::Near => {
+                            // do nothing to ay
+                        }
+                        Justify::Far => {
+                            ay += diff;
+                        }
+                        Justify::Center => {
+                            ay += diff / 2.0;
+                        }
+                    }
+                    by = my;
+                }
+            }
+            if let Some(min_width) = config.horizontal.min {
+                let mx = min_width.horizontal(stem);
+                if bx < mx {
+                    bx = mx;
+                }
+            }
+            if let Some(min_height) = config.vertical.min {
+                let my = min_height.vertical(stem);
+                if by < my {
+                    by = my;
                 }
             }
             resolved = Section::new((ax, ay), (bx, by));
@@ -417,9 +459,11 @@ pub struct LocationAxisDescriptor {
     pub padding: Padding,
     pub justify: Justify,
     pub max: Option<ScalarUnit>,
+    pub min: Option<ScalarUnit>,
 }
 impl LocationAxisDescriptor {
     pub fn justify(mut self, justify: Justify) -> Self {
+        debug_assert_ne!(self.ty, LocationAxisType::Point);
         self.justify = justify;
         self
     }
@@ -428,7 +472,25 @@ impl LocationAxisDescriptor {
         self
     }
     pub fn max<S: Into<ScalarUnit>>(mut self, max: S) -> Self {
-        self.max.replace(max.into());
+        let max = max.into();
+        debug_assert!(if let Some(mn) = self.min {
+            max >= mn
+        } else {
+            true
+        });
+        debug_assert_ne!(self.ty, LocationAxisType::Point);
+        self.max.replace(max);
+        self
+    }
+    pub fn min<S: Into<ScalarUnit>>(mut self, min: S) -> Self {
+        let min = min.into();
+        debug_assert!(if let Some(mx) = self.max {
+            mx >= min
+        } else {
+            true
+        });
+        debug_assert_ne!(self.ty, LocationAxisType::Point);
+        self.min.replace(min);
         self
     }
 }
@@ -440,12 +502,12 @@ pub fn auto() -> GridUnit {
 }
 #[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug, Hash)]
 pub enum Justify {
-    Left,
-    Right,
+    Near,
+    Far,
     #[default]
     Center,
 }
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum LocationAxisType {
     Point,
     Span,
