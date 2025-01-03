@@ -40,10 +40,7 @@ impl NearFarDescriptor {
 
 impl Default for NearFarDescriptor {
     fn default() -> Self {
-        Self {
-            near: ResolvedElevation::new(0f32),
-            far: ResolvedElevation::new(100f32),
-        }
+        Self::new(0, 100)
     }
 }
 

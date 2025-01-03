@@ -5,6 +5,7 @@ use wgpu::{
 pub(crate) struct BindingBuilder {
     binding: u32,
     stage: Option<ShaderStages>,
+    #[allow(unused)]
     binding_type: Option<BindingType>,
 }
 
@@ -61,6 +62,7 @@ impl BindingBuilder {
     fn shader_stages(&mut self) -> ShaderStages {
         self.stage.expect("need shader-stages")
     }
+    #[allow(unused)]
     pub(crate) fn with_entry_type(mut self, binding_type: BindingType) -> BindGroupLayoutEntry {
         BindGroupLayoutEntry {
             binding: self.binding,

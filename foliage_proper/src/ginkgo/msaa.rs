@@ -8,6 +8,7 @@ use crate::coordinate::Physical;
 use crate::ginkgo::GraphicContext;
 
 pub(crate) struct Msaa {
+    #[allow(unused)]
     pub(crate) max_samples: u32,
     pub(crate) actual: u32,
     pub(crate) view: Option<wgpu::TextureView>,

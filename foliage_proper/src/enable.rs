@@ -4,6 +4,12 @@ use bevy_ecs::system::Query;
 
 #[derive(Event, Copy, Clone)]
 pub struct Enable {}
+impl Default for Enable {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Enable {
     pub fn new() -> Enable {
         Enable {}

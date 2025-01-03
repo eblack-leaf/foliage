@@ -15,15 +15,6 @@ pub(crate) struct GlyphKey {
     pub(crate) px: u32,
     pub(crate) font_hash: usize,
 }
-impl GlyphKey {
-    pub(crate) fn new(raster_config: fontdue::layout::GlyphRasterConfig) -> Self {
-        Self {
-            glyph_index: raster_config.glyph_index,
-            px: raster_config.px as u32,
-            font_hash: raster_config.font_hash,
-        }
-    }
-}
 #[derive(PartialEq, Clone, Debug)]
 pub(crate) struct Glyph {
     pub(crate) key: GlyphKey,
@@ -69,6 +60,7 @@ impl Default for ResolvedGlyphs {
     }
 }
 #[derive(Component, Default)]
+#[component(on_insert = Self::on_insert)]
 pub struct GlyphColors {
     pub exceptions: HashMap<GlyphOffset, Color>,
 }

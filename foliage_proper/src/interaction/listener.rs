@@ -17,6 +17,12 @@ pub struct InteractionListener {
     pub(crate) state: InteractionState,
 }
 
+impl Default for InteractionListener {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl InteractionListener {
     pub const DRAG_THRESHOLD: CoordinateUnit = 40.0;
     pub fn new() -> Self {

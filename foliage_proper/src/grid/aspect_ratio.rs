@@ -12,6 +12,12 @@ pub struct AspectRatio {
     pub lg: Option<f32>,
     pub xl: Option<f32>,
 }
+impl Default for AspectRatio {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AspectRatio {
     pub fn new() -> Self {
         Self {

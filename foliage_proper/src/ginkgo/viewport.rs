@@ -91,6 +91,7 @@ impl ViewportHandle {
             window_forced_resize: false,
         }
     }
+    #[allow(unused)]
     pub fn translate(&mut self, position: Position<Logical>) {
         self.translation += position;
         self.user_translated = true;

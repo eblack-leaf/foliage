@@ -178,7 +178,14 @@ impl Render for Text {
         }
         for (entity, packet) in queues.attribute::<Text, ResolvedElevation>() {
             // queue add/update
-            if renderer.resources.entity_to_group.contains_key(&entity) {
+            if let std::collections::hash_map::Entry::Vacant(e) = renderer.resources.entity_to_group.entry(entity) {
+                // adding new group
+                let group = Group::new(ginkgo, packet);
+                renderer
+                    .groups
+                    .insert(entity.index() as GroupId, RenderGroup::new(group));
+                e.insert(entity.index() as GroupId);
+            } else {
                 let id = renderer.resources.entity_to_group.get(&entity).unwrap();
                 // OMITTED for optimization renderer.groups.get_mut(id).unwrap().coordinator.needs_sort = true;
                 let group = &mut renderer.groups.get_mut(id).unwrap().group;
@@ -186,16 +193,6 @@ impl Render for Text {
                 group.uniform.set(2, packet.value());
                 group.write_uniform = true;
                 group.update_node = true;
-            } else {
-                // adding new group
-                let group = Group::new(ginkgo, packet);
-                renderer
-                    .groups
-                    .insert(entity.index() as GroupId, RenderGroup::new(group));
-                renderer
-                    .resources
-                    .entity_to_group
-                    .insert(entity, entity.index() as GroupId);
             }
         }
         for (entity, packet) in queues.attribute::<Text, ClipSection>() {
@@ -328,7 +325,7 @@ impl Render for Text {
                     .queue(glyph.offset as InstanceId, glyph.section.c_repr());
             }
         }
-        for (id, group) in renderer.groups.iter_mut() {
+        for (_id, group) in renderer.groups.iter_mut() {
             let (changed, grown) = group.group.texture_atlas.as_mut().unwrap().resolve(ginkgo);
             for key in changed {
                 let (metrics, rasterization) = renderer
@@ -365,7 +362,7 @@ impl Render for Text {
                 group.group.bind_group.replace(bind_group);
             }
         }
-        for (id, group) in renderer.groups.iter_mut() {
+        for (_id, group) in renderer.groups.iter_mut() {
             for (key, id) in group.group.queued_tex_reads.drain(..).collect::<Vec<_>>() {
                 let tex_coords = group
                     .group

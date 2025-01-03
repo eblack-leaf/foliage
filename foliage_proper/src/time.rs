@@ -8,8 +8,10 @@ use bevy_ecs::system::{Commands, Query, Res};
 
 pub type Moment = web_time::Instant;
 pub type TimeDelta = web_time::Duration;
+#[allow(unused)]
 pub struct TimeMarker(pub(crate) TimeDelta);
 impl TimeMarker {
+    #[allow(unused)]
     pub fn since_beginning(&self) -> TimeDelta {
         self.0
     }
@@ -50,18 +52,17 @@ impl Time {
         }
         self.last = now;
     }
+    #[allow(unused)]
     pub fn mark(&self) -> TimeMarker {
         TimeMarker(self.total)
     }
+    #[allow(unused)]
     pub fn time_since(&self, mark: TimeMarker) -> TimeDelta {
         self.total - mark.0
     }
     pub fn frame_diff(&self) -> TimeDelta {
         self.frame_diff
     }
-}
-pub(crate) fn start(mut time: ResMut<Time>) {
-    time.start();
 }
 pub(crate) fn update_time(mut time: ResMut<Time>) {
     time.update();

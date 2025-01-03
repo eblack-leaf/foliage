@@ -21,7 +21,7 @@ pub trait EcsExtension {
     fn disable(&mut self, targets: impl TriggerTargets + Send + Sync + 'static);
 }
 
-impl<'w, 's> EcsExtension for Tree<'w, 's> {
+impl EcsExtension for Tree<'_, '_> {
     fn leaf<B: Bundle>(&mut self, b: B) -> Entity {
         let entity = self.spawn((Leaf::new(), b)).id();
         entity

@@ -54,9 +54,9 @@ impl<Context: CoordinateContext> Display for Points<Context> {
 }
 impl<Context: CoordinateContext> Points<Context> {
     pub fn bbox(&self) -> Section<Logical> {
-        let bbox = Section::default();
+        
 
-        bbox
+        Section::default()
     }
 }
 impl<Context: CoordinateContext> Add for Points<Context> {

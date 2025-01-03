@@ -28,7 +28,7 @@ impl Remove {
         }
         tree.entity(trigger.entity()).despawn();
         let deps = branches.get(trigger.entity()).unwrap();
-        let d = deps.ids.iter().map(|e| *e).collect::<Vec<Entity>>();
+        let d = deps.ids.iter().copied().collect::<Vec<Entity>>();
         if d.is_empty() {
             return;
         }

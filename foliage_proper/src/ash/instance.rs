@@ -8,7 +8,9 @@ use std::ops::Range;
 
 #[derive(Copy, Clone)]
 pub(crate) struct Instance {
+    #[allow(unused)]
     pub(crate) elevation: ResolvedElevation,
+    #[allow(unused)]
     pub(crate) clip_section: ClipSection,
     pub(crate) id: InstanceId,
 }
@@ -24,6 +26,7 @@ impl Instance {
 }
 
 #[derive(Copy, Clone)]
+#[allow(unused)]
 pub(crate) struct Swap {
     pub(crate) old: Order,
     pub(crate) new: Order,
@@ -31,8 +34,11 @@ pub(crate) struct Swap {
 
 pub(crate) struct InstanceCoordinator {
     pub(crate) instances: Vec<Instance>,
+    #[allow(unused)]
     pub(crate) cache: Vec<Instance>,
+    #[allow(unused)]
     pub(crate) node_submit: Vec<Node>,
+    #[allow(unused)]
     pub(crate) id_gen: InstanceId,
     pub(crate) gen_pool: HashSet<InstanceId>,
     pub(crate) capacity: u32,
@@ -56,11 +62,12 @@ impl InstanceCoordinator {
         self.needs_sort = true;
     }
     pub(crate) fn has_instance(&self, id: InstanceId) -> bool {
-        self.instances.iter().find(|i| i.id == id).is_some()
+        self.instances.iter().any(|i| i.id == id)
     }
     pub(crate) fn count(&self) -> u32 {
         self.instances.len() as u32
     }
+    #[allow(unused)]
     pub(crate) fn generate_id(&mut self) -> InstanceId {
         if self.gen_pool.is_empty() {
             let val = self.id_gen;
@@ -81,6 +88,7 @@ impl InstanceCoordinator {
         }
         None
     }
+    #[allow(unused)]
     pub(crate) fn sort(&mut self) -> Vec<Swap> {
         let mut swaps = vec![];
         if !self.needs_sort {
@@ -92,12 +100,10 @@ impl InstanceCoordinator {
                 Ordering::Greater
             } else if a.elevation < b.elevation {
                 Ordering::Less
+            } else if a.clip_section != b.clip_section {
+                Ordering::Less
             } else {
-                if a.clip_section != b.clip_section {
-                    Ordering::Less
-                } else {
-                    Ordering::Equal
-                }
+                Ordering::Equal
             }
         });
         for (new, instance) in self.instances.iter().enumerate() {
@@ -171,8 +177,9 @@ impl<I: bytemuck::Pod + bytemuck::Zeroable + Default> InstanceBuffer<I> {
         }
         self.write_range.replace(0..self.cpu.len());
     }
+    #[allow(unused)]
     pub(crate) fn swap(&mut self, swap: Swap) {
-        let current = self.cpu.get(swap.old as usize).unwrap().clone();
+        let current = *self.cpu.get(swap.old as usize).unwrap();
         self.queue(swap.new, current);
     }
     pub(crate) fn write_cpu(&mut self, order: Order, data: I) {

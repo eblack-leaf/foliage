@@ -31,6 +31,12 @@ pub enum ResolvedLocation {
     Section(Section<Logical>),
 }
 
+impl Default for Location {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Location {
     pub fn new() -> Self {
         Self {
@@ -85,26 +91,26 @@ impl Location {
         if self.xs.is_none() {
             None
         } else {
-            Some(self.xs.clone().unwrap())
+            Some(self.xs.unwrap())
         }
     }
     fn at_least_sm(&self) -> Option<LocationConfiguration> {
         if let Some(sm) = &self.sm {
-            Some(sm.clone())
+            Some(*sm)
         } else {
             self.at_least_xs()
         }
     }
     fn at_least_md(&self) -> Option<LocationConfiguration> {
         if let Some(md) = &self.md {
-            Some(md.clone())
+            Some(*md)
         } else {
             self.at_least_sm()
         }
     }
     fn at_least_lg(&self) -> Option<LocationConfiguration> {
         if let Some(lg) = &self.lg {
-            Some(lg.clone())
+            Some(*lg)
         } else {
             self.at_least_md()
         }
@@ -117,7 +123,7 @@ impl Location {
             Layout::Lg => self.at_least_lg(),
             Layout::Xl => {
                 if let Some(xl) = &self.xl {
-                    Some(xl.clone())
+                    Some(*xl)
                 } else {
                     self.at_least_lg()
                 }
@@ -279,7 +285,7 @@ impl Location {
                 }
             }
             let mut resolved = Section::new((ax, ay), (bx, by));
-            if let Some(aspect) = aspect {
+            if let Some(_aspect) = aspect {
                 // involve auto for which dimension to be dependent
                 todo!("constrain by aspect")
             }
@@ -320,8 +326,7 @@ impl Location {
             if let Ok((_, auto_vis)) = visibilities.get(this) {
                 let stem = stems.get(this).unwrap();
                 let stem_section = stem
-                    .id
-                    .and_then(|id| Some(*sections.get(id).unwrap()))
+                    .id.map(|id| *sections.get(id).unwrap())
                     .unwrap_or(viewport.section());
                 let stack = if let Ok(stack) = stacks.get(this) {
                     if let Some(s) = stack.id {
@@ -341,13 +346,11 @@ impl Location {
                     None
                 };
                 let grid = stem
-                    .id
-                    .and_then(|id| Some(*grids.get(id).unwrap()))
+                    .id.map(|id| *grids.get(id).unwrap())
                     .unwrap_or_default();
                 let aspect = aspect_ratios.get(this).copied().ok();
                 let view = stem
-                    .id
-                    .and_then(|id| Some(*views.get(id).unwrap()))
+                    .id.map(|id| *views.get(id).unwrap())
                     .unwrap_or_default();
                 let current = *sections.get(this).unwrap();
                 if let Some(resolved) =
@@ -366,31 +369,24 @@ impl Location {
                             tree.entity(this).insert(section);
                         }
                     }
-                } else {
-                    if auto_vis.visible {
-                        tracing::trace!("auto-disable for {:?}", this);
-                        tree.entity(this).insert(AutoVisibility::new(false));
-                        tree.trigger_targets(AutoDisable::new(), this);
-                    }
+                } else if auto_vis.visible {
+                    tracing::trace!("auto-disable for {:?}", this);
+                    tree.entity(this).insert(AutoVisibility::new(false));
+                    tree.trigger_targets(AutoDisable::new(), this);
                 }
             }
         }
     }
 }
 #[derive(Clone, Component)]
+#[derive(Default)]
 pub struct StackDeps {
     pub ids: HashSet<Entity>,
-}
-impl Default for StackDeps {
-    fn default() -> Self {
-        Self {
-            ids: HashSet::new(),
-        }
-    }
 }
 #[derive(Component, Copy, Clone)]
 #[component(on_insert = Stack::on_insert)]
 #[component(on_replace = Stack::on_replace)]
+#[derive(Default)]
 pub struct Stack {
     pub id: Option<Entity>,
 }
@@ -417,11 +413,6 @@ impl Stack {
                 deps.ids.remove(&id);
             }
         }
-    }
-}
-impl Default for Stack {
-    fn default() -> Self {
-        Self { id: None }
     }
 }
 #[derive(Copy, Clone)]

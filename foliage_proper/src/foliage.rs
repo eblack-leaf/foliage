@@ -36,12 +36,22 @@ pub struct Foliage {
     pub(crate) willow: Willow,
     pub(crate) ginkgo: Ginkgo,
     pub(crate) ash: Ash,
+    #[allow(unused)]
     pub(crate) android_connection: AndroidConnection,
     pub(crate) booted: bool,
+    #[allow(unused)]
     pub(crate) queue: Vec<WindowEvent>,
+    #[allow(unused)]
     pub(crate) sender: Option<oneshot::Sender<Ginkgo>>,
+    #[allow(unused)]
     pub(crate) receiver: Option<oneshot::Receiver<Ginkgo>>,
     pub(crate) user_attachments: Vec<fn(&mut Foliage)>,
+}
+
+impl Default for Foliage {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Foliage {
@@ -163,9 +173,8 @@ impl Foliage {
         self.world.disable(targets);
     }
     pub(crate) fn remove_queue<R: Clone + Send + Sync + 'static>(&mut self) {
-        debug_assert_eq!(
-            self.world.get_resource::<RenderRemoveQueue<R>>().is_none(),
-            true
+        debug_assert!(
+            self.world.get_resource::<RenderRemoveQueue<R>>().is_none()
         );
         self.world.insert_resource(RenderRemoveQueue::<R>::new());
     }
@@ -175,9 +184,8 @@ impl Foliage {
     >(
         &mut self,
     ) {
-        debug_assert_eq!(
-            self.world.get_resource::<RenderQueue<R, RT>>().is_none(),
-            true
+        debug_assert!(
+            self.world.get_resource::<RenderQueue<R, RT>>().is_none()
         );
         self.world.insert_resource(RenderQueue::<R, RT>::new());
         self.diff

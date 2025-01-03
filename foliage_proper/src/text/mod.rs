@@ -95,7 +95,7 @@ impl Text {
             .observe(Self::clear_last_on_visibility);
     }
     fn responsive_font_size(
-        trigger: Trigger<Write<Layout>>,
+        _trigger: Trigger<Write<Layout>>,
         mut font_sizes: Query<(&FontSize, &mut ResolvedFontSize)>,
         layout: Res<Layout>,
     ) {
@@ -146,8 +146,8 @@ impl Text {
         mut glyph_query: Query<&mut Glyphs>,
         horizontal_alignment: Query<&HorizontalAlignment>,
         vertical_alignment: Query<&VerticalAlignment>,
-        mut sections: Query<&mut Section<Logical>>,
-        mut cache: Query<&mut UpdateCache>,
+        sections: Query<&mut Section<Logical>>,
+        cache: Query<&mut UpdateCache>,
         font: Res<MonospacedFont>,
         scale_factor: Res<ScaleFactor>,
         auto_heights: Query<&AutoHeight>,
@@ -216,12 +216,12 @@ impl Text {
     }
     fn resolve_glyphs(
         mut glyph_query: Query<
-            (Entity, &mut Glyphs, &ResolvedVisibility, &Section<Logical>),
+            (Entity, &mut Glyphs, &ResolvedVisibility),
             Changed<Glyphs>,
         >,
         mut tree: Tree,
     ) {
-        for (entity, mut glyphs, vis, section) in glyph_query.iter_mut() {
+        for (entity, mut glyphs, vis) in glyph_query.iter_mut() {
             if !vis.visible() {
                 continue;
             }

@@ -75,6 +75,7 @@ impl Ginkgo {
         );
     }
     #[cfg(not(target_family = "wasm"))]
+    #[allow(unused)]
     pub fn png_to_cov<P: AsRef<std::path::Path>>(png: P, cov: P) {
         let data = Ginkgo::png_to_r8unorm_d2(png);
         let content = rmp_serde::to_vec(data.as_slice()).unwrap();
@@ -324,6 +325,7 @@ impl Ginkgo {
     pub(crate) fn acquired(&self) -> bool {
         self.context.is_some()
     }
+    #[allow(unused)]
     pub(crate) fn configured(&self) -> bool {
         self.configuration.is_some()
     }

@@ -1,5 +1,5 @@
 use foliage::{
-    auto, stack, AutoHeight, Color, EcsExtension, Event, Foliage, FontSize, Grid, GridExt,
+    auto, stack, AutoHeight, Color, Foliage, FontSize, Grid, GridExt,
     InteractionListener, Location, Stack, Stem, Text, View,
 };
 use tracing_subscriber::filter::Targets;
@@ -35,7 +35,7 @@ fn main() {
         View::context(root),
         Location::new().xs(1.col().to(4.col()), stack().to(auto())),
     ));
-    let c = foliage.leaf((
+    let _c = foliage.leaf((
         Text::new("yyyy yyy y yy"),
         FontSize::new(20),
         AutoHeight(true),

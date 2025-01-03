@@ -91,8 +91,7 @@ pub(crate) fn interactive_elements(
     let events = reader.read().copied().collect::<Vec<_>>();
     if events
         .iter()
-        .find(|e| e.click_phase == InteractionPhase::Cancel)
-        .is_some()
+        .any(|e| e.click_phase == InteractionPhase::Cancel)
     {
         current.primary.take();
         current.pass_through.clear();
@@ -123,11 +122,9 @@ pub(crate) fn interactive_elements(
                 if listener.is_contained(*section, clip.copied(), event.position) {
                     if listener.pass_through {
                         current.pass_through.push(entity);
-                    } else {
-                        if elevation >= &grabbed_elevation {
-                            current.primary.replace(entity);
-                            grabbed_elevation = *elevation;
-                        }
+                    } else if elevation >= &grabbed_elevation {
+                        current.primary.replace(entity);
+                        grabbed_elevation = *elevation;
                     }
                 }
             }

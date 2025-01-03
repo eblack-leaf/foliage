@@ -15,6 +15,12 @@ use std::collections::HashSet;
 #[require(Section<Logical>, Elevation)]
 pub struct Leaf {}
 
+impl Default for Leaf {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Leaf {
     pub fn new() -> Leaf {
         Leaf {}
@@ -62,14 +68,8 @@ impl Stem {
 }
 
 #[derive(Component, Clone)]
+#[derive(Default)]
 pub struct Branch {
     pub ids: HashSet<Entity>,
 }
 
-impl Default for Branch {
-    fn default() -> Self {
-        Self {
-            ids: HashSet::new(),
-        }
-    }
-}

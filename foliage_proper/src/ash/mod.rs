@@ -61,15 +61,11 @@ impl Ash {
         let mut idxs = to_remove
             .iter()
             .filter_map(|rn| {
-                if let Some(idx) = self.nodes.iter().position(|n| {
+                self.nodes.iter().position(|n| {
                     n.pipeline == rn.pipeline_id
                         && n.group == rn.group_id
                         && n.instance_id == rn.instance_id
-                }) {
-                    Some(idx)
-                } else {
-                    None
-                }
+                })
             })
             .collect::<Vec<_>>();
         idxs.sort();
@@ -101,26 +97,18 @@ impl Ash {
                 Ordering::Less
             } else if lhs.elevation > rhs.elevation {
                 Ordering::Greater
+            } else if lhs.pipeline != rhs.pipeline {
+                Ordering::Less
+            } else if lhs.group != rhs.group {
+                Ordering::Less
+            } else if lhs.clip_section != rhs.clip_section {
+                Ordering::Less
+            } else if lhs.order < rhs.order {
+                Ordering::Less
+            } else if lhs.order > rhs.order {
+                Ordering::Greater
             } else {
-                if lhs.pipeline != rhs.pipeline {
-                    Ordering::Less
-                } else {
-                    if lhs.group != rhs.group {
-                        Ordering::Less
-                    } else {
-                        if lhs.clip_section != rhs.clip_section {
-                            Ordering::Less
-                        } else {
-                            if lhs.order < rhs.order {
-                                Ordering::Less
-                            } else if lhs.order > rhs.order {
-                                Ordering::Greater
-                            } else {
-                                Ordering::Equal
-                            }
-                        }
-                    }
-                }
+                Ordering::Equal
             }
         });
         self.contiguous.clear();
@@ -128,11 +116,7 @@ impl Ash {
         let mut contiguous = 1;
         let mut range_start = None;
         for node in self.nodes.iter() {
-            let next = if let Some(n) = self.nodes.get(index + 1) {
-                Some(n.clone())
-            } else {
-                None
-            };
+            let next = self.nodes.get(index + 1).copied();
             index += 1;
             if let Some(next) = next {
                 if node.pipeline == next.pipeline
