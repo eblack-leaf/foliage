@@ -3,7 +3,7 @@ use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateContext, CoordinateUnit, Logical};
 use bevy_ecs::prelude::Component;
 use std::fmt::Display;
-use std::ops::{Add, Mul, Sub};
+use std::ops::{Add, AddAssign, Div, Mul, Sub};
 
 #[derive(Debug, Clone, Default, Component, Copy, PartialEq)]
 pub struct Points<Context: CoordinateContext> {
@@ -87,5 +87,17 @@ impl<Context: CoordinateContext> Mul<CoordinateUnit> for Points<Context> {
             new.data[i] = self.data[i] * rhs;
         }
         new
+    }
+}
+impl<Context: CoordinateContext> AddAssign<Points<Context>> for Points<Context> {
+    fn add_assign(&mut self, rhs: Points<Context>) {
+        *self = *self + rhs;
+    }
+}
+impl<Context: CoordinateContext> Div<CoordinateUnit> for Points<Context> {
+    type Output = Self;
+
+    fn div(self, rhs: CoordinateUnit) -> Self::Output {
+        todo!()
     }
 }

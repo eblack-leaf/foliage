@@ -1,9 +1,9 @@
 mod aspect_ratio;
 mod layout;
-mod location;
+pub(crate) mod location;
 mod view;
 
-use crate::foliage::{DiffMarkers, Foliage};
+use crate::foliage::{DiffMarkers, Foliage, MainMarkers};
 pub(crate) use crate::grid::layout::viewport_changed;
 pub use crate::grid::location::{
     auto, stack, Justify, LocationAxisDescriptor, LocationAxisType, Padding,
@@ -22,7 +22,9 @@ impl Attachment for Grid {
     fn attach(foliage: &mut Foliage) {
         foliage.world.insert_resource(Layout::Xs);
         foliage.world.insert_resource(ExtentCheckIds::default());
-        foliage.main.add_systems(viewport_changed);
+        foliage
+            .main
+            .add_systems(viewport_changed.in_set(MainMarkers::External));
         foliage.diff.add_systems(
             (prepare_extent, extent_check)
                 .chain()

@@ -1,12 +1,17 @@
+use crate::anim::runner::AnimationRunner;
+use crate::anim::sequence::{AnimationTime, Sequence};
 use crate::disable::Disable;
 use crate::enable::Enable;
 use crate::leaf::Leaf;
 use crate::remove::Remove;
+use crate::time::OnEnd;
+use crate::{Animate, Animation};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::Event;
 use bevy_ecs::observer::TriggerTargets;
 use bevy_ecs::prelude::{Commands, World};
+use bevy_ecs::system::IntoObserverSystem;
 
 pub type Tree<'w, 's> = Commands<'w, 's>;
 
@@ -19,8 +24,14 @@ pub trait EcsExtension {
     fn remove(&mut self, targets: impl TriggerTargets + Send + Sync + 'static);
     fn enable(&mut self, targets: impl TriggerTargets + Send + Sync + 'static);
     fn disable(&mut self, targets: impl TriggerTargets + Send + Sync + 'static);
+    fn sequence(&mut self) -> Entity;
+    fn animate<A: Animate>(&mut self, seq: Entity, anim: Animation<A>) -> Entity;
+    fn sequence_end<END: IntoObserverSystem<OnEnd, B, M>, B: Bundle, M>(
+        &mut self,
+        seq: Entity,
+        end: END,
+    );
 }
-
 impl EcsExtension for Tree<'_, '_> {
     fn leaf<B: Bundle>(&mut self, b: B) -> Entity {
         let entity = self.spawn((Leaf::new(), b)).id();
@@ -46,6 +57,26 @@ impl EcsExtension for Tree<'_, '_> {
     }
     fn disable(&mut self, targets: impl TriggerTargets + Send + Sync + 'static) {
         self.send_to(Disable::new(), targets);
+    }
+    fn sequence(&mut self) -> Entity {
+        self.spawn(Sequence::default()).id()
+    }
+    fn animate<A: Animate>(&mut self, seq: Entity, anim: Animation<A>) -> Entity {
+        let runner = AnimationRunner::new(
+            anim.anim_target.unwrap(),
+            anim.a,
+            anim.ease,
+            seq,
+            AnimationTime::from(anim.sequence_time_range),
+        );
+        self.spawn(runner).id()
+    }
+    fn sequence_end<END: IntoObserverSystem<OnEnd, B, M>, B: Bundle, M>(
+        &mut self,
+        seq: Entity,
+        end: END,
+    ) {
+        self.entity(seq).observe(end);
     }
 }
 
@@ -73,5 +104,18 @@ impl EcsExtension for World {
     }
     fn disable(&mut self, targets: impl TriggerTargets + Send + Sync + 'static) {
         self.commands().disable(targets);
+    }
+    fn sequence(&mut self) -> Entity {
+        self.commands().sequence()
+    }
+    fn animate<A: Animate>(&mut self, seq: Entity, anim: Animation<A>) -> Entity {
+        self.commands().animate(seq, anim)
+    }
+    fn sequence_end<END: IntoObserverSystem<OnEnd, B, M>, B: Bundle, M>(
+        &mut self,
+        seq: Entity,
+        end: END,
+    ) {
+        self.commands().sequence_end(seq, end);
     }
 }

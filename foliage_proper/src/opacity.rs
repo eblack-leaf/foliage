@@ -1,4 +1,5 @@
-use crate::{Branch, Component, Stem};
+use crate::anim::interpolation::Interpolations;
+use crate::{Animate, Branch, Component, Stem};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::world::DeferredWorld;
@@ -35,6 +36,15 @@ impl Opacity {
                 .entity(*d)
                 .insert(InheritedOpacity::new(blended.value));
         }
+    }
+}
+impl Animate for Opacity {
+    fn interpolations(start: &Self, end: &Self) -> Interpolations {
+        todo!()
+    }
+
+    fn apply(&mut self, interpolations: &mut Interpolations) {
+        todo!()
     }
 }
 impl Default for Opacity {

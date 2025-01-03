@@ -1,8 +1,12 @@
+use crate::anim::interpolation::Interpolations;
+use crate::{Animate, Branch, Stem};
+use bevy_ecs::component::ComponentId;
+use bevy_ecs::entity::Entity;
+use bevy_ecs::prelude::Component;
+use bevy_ecs::world::DeferredWorld;
+use bytemuck::{Pod, Zeroable};
 use std::fmt::Display;
 use std::ops::{Add, Sub};
-
-use bevy_ecs::prelude::Component;
-use bytemuck::{Pod, Zeroable};
 
 #[repr(C)]
 #[derive(Copy, Clone, Default, PartialEq, Pod, Zeroable, Component, Debug)]
@@ -31,10 +35,34 @@ impl PartialOrd for ResolvedElevation {
 #[repr(C)]
 #[derive(Copy, Clone, Default, PartialEq, PartialOrd, Pod, Zeroable, Component, Debug)]
 #[require(ResolvedElevation)]
+#[component(on_insert = Self::on_insert)]
 pub struct Elevation(pub f32);
 impl Elevation {
     pub fn new(e: i32) -> Self {
         Self(e as f32)
+    }
+    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+        if world.get::<Stem>(this).is_none() || world.get::<Branch>(this).is_none() {
+            return;
+        }
+        let current = world.get::<Stem>(this).unwrap().id.and_then(|id| {
+            Some(*world.get::<ResolvedElevation>(id).unwrap())
+        }).unwrap_or_default();
+        let resolved = ResolvedElevation(world.get::<Elevation>(this).unwrap().0 + current.0);
+        world.commands().entity(this).insert(resolved);
+        for dep in world.get::<Branch>(this).unwrap().ids.clone() {
+            if let Some(elev) = world.get::<Elevation>(dep).copied() {
+                world.commands().entity(dep).insert(elev);
+            }
+        }
+    }
+}
+impl Animate for Elevation {
+    fn interpolations(start: &Self, end: &Self) -> Interpolations {
+        todo!()
+    }
+    fn apply(&mut self, interpolations: &mut Interpolations) {
+        todo!()
     }
 }
 macro_rules! elevation_conversion_implementation {

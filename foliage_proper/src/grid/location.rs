@@ -1,3 +1,4 @@
+use crate::anim::interpolation::Interpolations;
 use crate::coordinate::points::Points;
 use crate::disable::AutoDisable;
 use crate::enable::AutoEnable;
@@ -5,8 +6,8 @@ use crate::ginkgo::viewport::ViewportHandle;
 use crate::grid::{AspectRatio, GridUnit, ScalarUnit, View};
 use crate::visibility::AutoVisibility;
 use crate::{
-    Component, Coordinates, Grid, Layout, Logical, ResolvedVisibility, Section, Stem, Tree, Update,
-    Visibility, Write,
+    Animate, Component, CoordinateUnit, Coordinates, Grid, Layout, Logical, ResolvedVisibility,
+    Section, Stem, Tree, Update, Visibility, Write,
 };
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
@@ -16,21 +17,43 @@ use bevy_ecs::world::DeferredWorld;
 use std::cmp::PartialEq;
 use std::collections::HashSet;
 
-#[derive(Component)]
+#[derive(Component, Copy, Clone)]
 #[component(on_insert = Location::on_insert)]
+#[require(ResolvedLocation, Diff, CreateDiff)]
 pub struct Location {
     pub xs: Option<LocationConfiguration>,
     pub sm: Option<LocationConfiguration>,
     pub md: Option<LocationConfiguration>,
     pub lg: Option<LocationConfiguration>,
     pub xl: Option<LocationConfiguration>,
+    pub(crate) animation_percent: CoordinateUnit,
 }
-#[derive(Copy, Clone)]
-pub enum ResolvedLocation {
-    Points(Points<Logical>),
-    Section(Section<Logical>),
-}
+impl Animate for Location {
+    fn interpolations(_start: &Self, _end: &Self) -> Interpolations {
+        Interpolations::new().with(1.0, 0.0)
+    }
 
+    fn apply(&mut self, interpolations: &mut Interpolations) {
+        if let Some(pct) = interpolations.read(0) {
+            self.animation_percent = pct;
+        }
+    }
+}
+#[derive(Component, Copy, Clone)]
+#[derive(Default)]
+pub(crate) struct CreateDiff(pub(crate) bool);
+#[derive(Component, Copy, Clone, Default)]
+pub(crate) struct Diff(pub(crate) ResolvedLocation);
+#[derive(Copy, Clone, Component)]
+pub enum ResolvedLocation {
+    Section(Section<Logical>),
+    Points(Points<Logical>),
+}
+impl Default for ResolvedLocation {
+    fn default() -> Self {
+        Self::Section(Default::default())
+    }
+}
 impl Default for Location {
     fn default() -> Self {
         Self::new()
@@ -45,6 +68,7 @@ impl Location {
             md: None,
             lg: None,
             xl: None,
+            animation_percent: 0.0,
         }
     }
     pub fn xs<HAD: Into<LocationAxisDescriptor>, VAD: Into<LocationAxisDescriptor>>(
@@ -320,6 +344,9 @@ impl Location {
         aspect_ratios: Query<&AspectRatio>,
         views: Query<&View>,
         viewport: Res<ViewportHandle>,
+        create_diffs: Query<&CreateDiff>,
+        last_resolved: Query<&ResolvedLocation>,
+        diffs: Query<&Diff>,
     ) {
         let this = trigger.entity();
         if let Ok(location) = locations.get(this) {
@@ -365,11 +392,59 @@ impl Location {
                         tree.trigger_targets(AutoEnable::new(), this);
                     }
                     match resolved {
-                        ResolvedLocation::Points(pts) => {
-                            tree.entity(this).insert(pts);
-                        }
-                        ResolvedLocation::Section(section) => {
+                        ResolvedLocation::Section(mut section) => {
+                            let diff = if create_diffs.get(this).unwrap().0 {
+                                let last = if let Some(ResolvedLocation::Section(last)) =
+                                    last_resolved.get(this).ok().and_then(|rl| Some(*rl))
+                                {
+                                    last
+                                } else {
+                                    Section::default()
+                                };
+                                let val = last - section;
+                                let diff = Diff(ResolvedLocation::Section(val));
+                                tree.entity(this).insert(CreateDiff(false)).insert(diff);
+                                val
+                            } else {
+                                match diffs.get(this).unwrap().0 {
+                                    ResolvedLocation::Section(s) => s,
+                                    ResolvedLocation::Points(_) => {
+                                        tree.entity(this).insert(Diff(ResolvedLocation::Section(
+                                            Section::default(),
+                                        )));
+                                        Section::default()
+                                    }
+                                }
+                            };
+                            section += diff * location.animation_percent;
+                            tree.entity(this).insert(ResolvedLocation::Section(section));
                             tree.entity(this).insert(section);
+                        }
+                        ResolvedLocation::Points(mut pts) => {
+                            let diff = if create_diffs.get(this).unwrap().0 {
+                                let last = if let Some(ResolvedLocation::Points(last)) =
+                                    last_resolved.get(this).ok().and_then(|rl| Some(*rl))
+                                {
+                                    last
+                                } else {
+                                    Points::default()
+                                };
+                                let val = last - pts;
+                                let diff = Diff(ResolvedLocation::Points(val));
+                                tree.entity(this).insert(CreateDiff(false)).insert(diff);
+                                val
+                            } else {
+                                if let ResolvedLocation::Points(pts) = diffs.get(this).unwrap().0 {
+                                    pts
+                                } else {
+                                    tree.entity(this)
+                                        .insert(Diff(ResolvedLocation::Points(Points::default())));
+                                    Points::default()
+                                }
+                            };
+                            pts += diff * location.animation_percent;
+                            tree.entity(this).insert(ResolvedLocation::Points(pts));
+                            tree.entity(this).insert(pts);
                         }
                     }
                 } else if auto_vis.visible {

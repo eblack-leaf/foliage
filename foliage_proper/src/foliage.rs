@@ -1,3 +1,4 @@
+use crate::anim::animate;
 use crate::ash::differential::{cached_differential, RenderQueue, RenderRemoveQueue};
 use crate::ash::Ash;
 use crate::asset::{Asset, AssetKey, AssetLoader};
@@ -6,11 +7,11 @@ use crate::enable::AutoEnable;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::Ginkgo;
 use crate::remove::Remove;
-use crate::time::Time;
+use crate::time::{OnEnd, Time};
 use crate::willow::Willow;
 use crate::{
-    AndroidConnection, Area, Attachment, Disable, EcsExtension, Enable, Grid, Interaction,
-    Physical, SystemSet, Text,
+    AndroidConnection, Animate, Animation, Area, Attachment, Disable, EcsExtension, Enable, Grid,
+    Interaction, Physical, Resource, SystemSet, Text,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
@@ -20,6 +21,7 @@ use bevy_ecs::observer::TriggerTargets;
 use bevy_ecs::prelude::{apply_deferred, IntoSystemConfigs, IntoSystemSetConfigs, Schedule, World};
 use bevy_ecs::system::IntoObserverSystem;
 use futures_channel::oneshot;
+use std::marker::PhantomData;
 use tracing_subscriber::filter::Targets;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -75,6 +77,14 @@ impl Foliage {
             receiver: None,
             user_attachments: vec![],
         };
+        foliage.main.configure_sets(
+            (
+                MainMarkers::External,
+                MainMarkers::Animation,
+                MainMarkers::Process,
+            )
+                .chain(),
+        );
         foliage.diff.configure_sets(
             (
                 DiffMarkers::Prepare,
@@ -91,7 +101,9 @@ impl Foliage {
                 .after(DiffMarkers::Finalize)
                 .before(DiffMarkers::Extract),
         ));
-        foliage.main.add_systems(event_update_system);
+        foliage
+            .main
+            .add_systems(event_update_system.in_set(MainMarkers::External));
         foliage.define(Disable::interactions);
         foliage.define(AutoDisable::interactions);
         foliage.define(AutoEnable::interactions);
@@ -171,6 +183,28 @@ impl Foliage {
     }
     pub fn disable(&mut self, targets: impl TriggerTargets + Send + Sync + 'static) {
         self.world.disable(targets);
+    }
+    pub fn enable_animation<A: Animate + Component>(&mut self) {
+        debug_assert_eq!(
+            self.world.get_resource::<AnimationLimiter<A>>().is_none(),
+            true
+        );
+        self.main
+            .add_systems(animate::<A>.in_set(MainMarkers::Animation));
+        self.world.insert_resource(AnimationLimiter::<A>::new());
+    }
+    pub fn sequence(&mut self) -> Entity {
+        self.world.sequence()
+    }
+    pub fn animate<A: Animate + Component>(&mut self, seq: Entity, anim: Animation<A>) -> Entity {
+        self.world.animate(seq, anim)
+    }
+    pub fn sequence_end<END: IntoObserverSystem<OnEnd, B, M>, B: Bundle, M>(
+        &mut self,
+        seq: Entity,
+        end: END,
+    ) {
+        self.world.sequence_end(seq, end);
     }
     pub(crate) fn remove_queue<R: Clone + Send + Sync + 'static>(&mut self) {
         debug_assert!(self.world.get_resource::<RenderRemoveQueue<R>>().is_none());
@@ -265,7 +299,23 @@ impl Foliage {
         self.booted = true;
     }
 }
-
+#[derive(Resource)]
+struct AnimationLimiter<A: Animate> {
+    _phantom: PhantomData<A>,
+}
+impl<A: Animate> AnimationLimiter<A> {
+    fn new() -> AnimationLimiter<A> {
+        Self {
+            _phantom: Default::default(),
+        }
+    }
+}
+#[derive(SystemSet, Eq, PartialEq, Ord, PartialOrd, Hash, Clone, Copy, Debug)]
+pub(crate) enum MainMarkers {
+    External,
+    Animation,
+    Process,
+}
 #[derive(SystemSet, Eq, PartialEq, Ord, PartialOrd, Hash, Clone, Copy, Debug)]
 pub(crate) enum DiffMarkers {
     Prepare,

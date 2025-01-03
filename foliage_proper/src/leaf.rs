@@ -1,11 +1,13 @@
-use crate::Component;
 use crate::Elevation;
 use crate::Logical;
 use crate::Opacity;
 use crate::Section;
 use crate::Visibility;
+use crate::{Animation, Component, Location, Tree, Update};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
+use bevy_ecs::prelude::Trigger;
+use bevy_ecs::system::Query;
 use bevy_ecs::world::DeferredWorld;
 use std::collections::HashSet;
 
@@ -13,6 +15,7 @@ use std::collections::HashSet;
 #[require(Stem, Branch)]
 #[require(Opacity, Visibility)]
 #[require(Section<Logical>, Elevation)]
+#[component(on_add = Self::on_add)]
 pub struct Leaf {}
 
 impl Default for Leaf {
@@ -24,6 +27,35 @@ impl Default for Leaf {
 impl Leaf {
     pub fn new() -> Leaf {
         Leaf {}
+    }
+    fn on_add(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+        world
+            .commands()
+            .entity(this)
+            .observe(Self::anim_opacity)
+            .observe(Self::anim_elevation)
+            .observe(Self::anim_location);
+    }
+    fn anim_opacity(
+        trigger: Trigger<Update<Animation<Opacity>>>,
+        opacities: Query<&Opacity>,
+        mut tree: Tree,
+    ) {
+        if let Ok(o) = opacities.get(trigger.entity()) {
+            tree.entity(trigger.entity()).insert(*o);
+        }
+    }
+    fn anim_elevation(
+        trigger: Trigger<Update<Animation<Elevation>>>,
+        mut tree: Tree,
+        elevation: Query<&Elevation>,
+    ) {
+        if let Ok(e) = elevation.get(trigger.entity()) {
+            tree.entity(trigger.entity()).insert(*e);
+        }
+    }
+    fn anim_location(trigger: Trigger<Update<Animation<Location>>>, mut tree: Tree) {
+        tree.trigger_targets(Update::<Location>::new(), trigger.entity());
     }
 }
 

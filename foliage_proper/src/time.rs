@@ -1,4 +1,4 @@
-use crate::foliage::Foliage;
+use crate::foliage::{Foliage, MainMarkers};
 use crate::Attachment;
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
@@ -96,6 +96,8 @@ impl Attachment for Time {
         let mut time = Time::new();
         time.start();
         foliage.world.insert_resource(time);
-        foliage.main.add_systems((update_time, timers).chain());
+        foliage
+            .main
+            .add_systems((update_time, timers).chain().in_set(MainMarkers::External));
     }
 }

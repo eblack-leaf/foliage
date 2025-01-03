@@ -8,8 +8,8 @@ mod adapter;
 pub(crate) mod listener;
 
 use crate::ash::clip::ClipSection;
-use crate::foliage::Foliage;
-use crate::grid::{viewport_changed, View};
+use crate::foliage::{Foliage, MainMarkers};
+use crate::grid::View;
 use crate::{Attachment, ResolvedElevation, Section, Tree};
 pub use adapter::InputSequence;
 pub(crate) use adapter::{KeyboardAdapter, MouseAdapter, TouchAdapter};
@@ -19,7 +19,7 @@ impl Attachment for Interaction {
     fn attach(foliage: &mut Foliage) {
         foliage
             .main
-            .add_systems(interactive_elements.after(viewport_changed));
+            .add_systems(interactive_elements.in_set(MainMarkers::Process));
         foliage.world.insert_resource(KeyboardAdapter::default());
         foliage.world.insert_resource(MouseAdapter::default());
         foliage.world.insert_resource(TouchAdapter::default());

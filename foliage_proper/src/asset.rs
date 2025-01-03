@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
-use crate::foliage::Foliage;
+use crate::foliage::{Foliage, MainMarkers};
 use crate::tree::Tree;
 use crate::Attachment;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::Event;
-use bevy_ecs::prelude::{Component, Trigger};
+use bevy_ecs::prelude::{Component, IntoSystemConfigs, Trigger};
 use bevy_ecs::system::{Commands, Query, Res, ResMut, Resource};
 use futures_channel::oneshot::{Receiver, Sender};
 use uuid::Uuid;
@@ -13,7 +13,9 @@ use uuid::Uuid;
 impl Attachment for Asset {
     fn attach(foliage: &mut Foliage) {
         foliage.world.insert_resource(AssetLoader::default());
-        foliage.main.add_systems(await_assets);
+        foliage
+            .main
+            .add_systems(await_assets.in_set(MainMarkers::External));
     }
 }
 #[derive(Resource, Default)]

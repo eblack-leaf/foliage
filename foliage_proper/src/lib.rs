@@ -1,3 +1,4 @@
+mod anim;
 mod ash;
 mod asset;
 mod attachment;
@@ -23,12 +24,14 @@ mod virtual_keyboard;
 mod visibility;
 mod web_ext;
 mod willow;
+
 pub use crate::coordinate::{
     area::{Area, CReprArea},
     position::{CReprPosition, Position},
     section::{CReprSection, Section},
     CoordinateContext, CoordinateUnit, Coordinates, Logical, Numerical, Physical,
 };
+pub use anim::{Animate, Animation};
 pub use ash::clip::ClipContext;
 pub(crate) use ash::clip::ClipSection;
 pub(crate) use ash::differential::Differential;
@@ -39,6 +42,7 @@ pub use coordinate::elevation::{Elevation, ResolvedElevation};
 pub use disable::Disable;
 pub use enable::Enable;
 pub use foliage::Foliage;
+pub(crate) use grid::location::CreateDiff;
 pub use grid::{
     auto, stack, Grid, GridUnit, Layout, Location, LocationAxisDescriptor, LocationAxisType, View,
 };
