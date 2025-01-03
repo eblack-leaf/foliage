@@ -299,6 +299,7 @@ impl Location {
         world.trigger_targets(Update::<Location>::new(), this);
     }
     pub(crate) fn update_from_visibility(trigger: Trigger<Write<Visibility>>, mut tree: Tree) {
+        tracing::trace!("update_from_visibility for {:?}", trigger.entity());
         tree.trigger_targets(Update::<Location>::new(), trigger.entity());
     }
     pub(crate) fn update_location(
@@ -310,17 +311,15 @@ impl Location {
         grids: Query<&Grid>,
         stems: Query<&Stem>,
         stacks: Query<&Stack>,
-        visibilities: Query<(&ResolvedVisibility, &Visibility)>,
+        stack_deps: Query<&StackDeps>,
+        visibilities: Query<(&ResolvedVisibility, &AutoVisibility)>,
         aspect_ratios: Query<&AspectRatio>,
         views: Query<&View>,
         viewport: Res<ViewportHandle>,
     ) {
         let this = trigger.entity();
         if let Ok(location) = locations.get(this) {
-            if let Ok((res_vis, vis)) = visibilities.get(this) {
-                if !res_vis.visible() && location.config(*layout).is_none() {
-                    return;
-                }
+            if let Ok((_, auto_vis)) = visibilities.get(this) {
                 let stem = stems.get(this).unwrap();
                 let stem_section = stem
                     .id
@@ -329,7 +328,11 @@ impl Location {
                 let stack = if let Ok(stack) = stacks.get(this) {
                     if let Some(s) = stack.id {
                         if let Ok(sec) = sections.get(s) {
-                            Some(*sec)
+                            if visibilities.get(s).unwrap().0.visible() {
+                                Some(*sec)
+                            } else {
+                                None
+                            }
                         } else {
                             None
                         }
@@ -352,9 +355,17 @@ impl Location {
                 if let Some(resolved) =
                     location.resolve(*layout, stem_section, stack, grid, aspect, view, current)
                 {
-                    if !res_vis.visible() && vis.visible() {
+                    if !auto_vis.visible {
+                        tracing::trace!("auto-enabling for {:?}", this);
                         tree.entity(this).insert(AutoVisibility::new(true));
                         tree.trigger_targets(AutoEnable::new(), this);
+                        if let Ok(deps) = stack_deps.get(this) {
+                            for d in deps.ids.iter().copied() {
+                                tracing::trace!("auto-vis: true for stack-dep {:?}", d);
+                                tree.entity(d).insert(AutoVisibility::new(true));
+                                tree.trigger_targets(AutoEnable::new(), d);
+                            }
+                        }
                     }
                     match resolved {
                         ResolvedLocation::Points(pts) => {
@@ -365,8 +376,18 @@ impl Location {
                         }
                     }
                 } else {
-                    tree.entity(this).insert(AutoVisibility::new(false));
-                    tree.trigger_targets(AutoDisable::new(), this);
+                    if auto_vis.visible {
+                        tracing::trace!("auto-disable for {:?}", this);
+                        tree.entity(this).insert(AutoVisibility::new(false));
+                        tree.trigger_targets(AutoDisable::new(), this);
+                        if let Ok(deps) = stack_deps.get(this) {
+                            for d in deps.ids.iter().copied() {
+                                tracing::trace!("auto-vis: false for stack-dep {:?}", d);
+                                tree.entity(d).insert(AutoVisibility::new(false));
+                                tree.trigger_targets(AutoDisable::new(), d);
+                            }
+                        }
+                    }
                 }
             }
         }

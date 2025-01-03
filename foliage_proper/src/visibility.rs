@@ -42,6 +42,15 @@ impl Visibility {
             visible: inherited.visible && current.visible && auto.visible,
         };
         let cached = world.get::<CachedVisibility>(this).unwrap();
+        tracing::trace!(
+            "inherited: {} current: {} auto: {} => resolved: {} = cached: {} for {:?}",
+            inherited.visible,
+            current.visible,
+            auto.visible,
+            resolved.visible,
+            cached.visible,
+            this
+        );
         if cached.visible != resolved.visible {
             world
                 .commands()
@@ -68,6 +77,10 @@ impl Visibility {
     ) {
         let value = visibilities.get(trigger.entity()).unwrap();
         if !value.visible {
+            tracing::trace!(
+                "visibility: false => pushing remove packet for {:?}",
+                trigger.entity()
+            );
             queue.queue.insert(trigger.entity());
         }
     }

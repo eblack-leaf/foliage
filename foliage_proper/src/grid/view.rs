@@ -99,8 +99,10 @@ pub(crate) fn extent_check(
             }
         }
     }
+    to_check.0.clear();
     for (e, section, mut view) in views.iter_mut() {
         let mut changed = false;
+        let cached = view.offset;
         if view.offset.left() + section.width() > view.extent.width() {
             let value = view.extent.width() - section.width();
             view.offset.set_left(value);
@@ -121,9 +123,10 @@ pub(crate) fn extent_check(
             view.offset.set_top(value);
             changed = true;
         }
-        if changed {
+        if changed && cached != view.offset {
             // NOTE: this is to trigger recursive locations w/ new view.offset
             // it is the same section it had before
+            tracing::trace!("view changed {:?}", e);
             tree.entity(e).insert(*section);
         }
     }

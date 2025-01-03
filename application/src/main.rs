@@ -2,11 +2,13 @@ use foliage::{
     auto, stack, AutoHeight, Color, EcsExtension, Event, Foliage, FontSize, Grid, GridExt,
     InteractionListener, Location, Stack, Stem, Text, View,
 };
+use tracing_subscriber::filter::Targets;
 
 mod icon;
 mod image;
 fn main() {
     let mut foliage = Foliage::new(); // library-handle
+    foliage.enable_tracing(Targets::new().with_target("foliage", tracing::Level::TRACE));
     foliage.desktop_size((400, 600)); // window-size
     foliage.url("foliage"); // web-path
     let root = foliage.leaf((

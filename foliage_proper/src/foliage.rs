@@ -8,7 +8,10 @@ use crate::ginkgo::Ginkgo;
 use crate::remove::Remove;
 use crate::time::Time;
 use crate::willow::Willow;
-use crate::{AndroidConnection, Area, Attachment, Disable, EcsExtension, Enable, Grid, Interaction, Physical, SystemSet, Text};
+use crate::{
+    AndroidConnection, Area, Attachment, Disable, EcsExtension, Enable, Grid, Interaction,
+    Physical, SystemSet, Text,
+};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
