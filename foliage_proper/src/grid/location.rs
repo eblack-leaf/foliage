@@ -353,8 +353,8 @@ impl Location {
                     location.resolve(*layout, stem_section, stack, grid, aspect, view, current)
                 {
                     if !res_vis.visible() && vis.visible() {
-                        tree.trigger_targets(AutoEnable::new(), this);
                         tree.entity(this).insert(AutoVisibility::new(true));
+                        tree.trigger_targets(AutoEnable::new(), this);
                     }
                     match resolved {
                         ResolvedLocation::Points(pts) => {

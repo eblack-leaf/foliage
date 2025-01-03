@@ -21,7 +21,7 @@ fn main() {
         AutoHeight(true),
         Stem::some(root),
         View::context(root),
-        Location::new().xs(1.col().to(4.col()), 1.row().to(auto())),
+        Location::new().sm(1.col().to(4.col()), 1.row().to(auto())),
     ));
     let b = foliage.leaf((
         Text::new("xxxx xxx x xx x xxxx x x x xx xxxx x xx  xxx x xx xxxx xx x x x x xxx x x"),
