@@ -87,7 +87,7 @@ impl Ginkgo {
         let texture_data = image
             .to_rgba8()
             .enumerate_pixels()
-            .map(|p| -> u8 { p.2 .0[3] })
+            .map(|p| -> u8 { p.2.0[3] })
             .collect::<Vec<u8>>();
         texture_data
     }
@@ -248,7 +248,7 @@ impl Ginkgo {
         &'a self,
         surface_view: &'a TextureView,
         clear_color: Color,
-    ) -> [Option<RenderPassColorAttachment>; 1] {
+    ) -> [Option<RenderPassColorAttachment<'a>>; 1] {
         let (view, resolve_target) = match self.configuration().msaa.view.as_ref() {
             None => (surface_view, None),
             Some(v) => (v, Some(surface_view)),

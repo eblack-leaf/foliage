@@ -5,7 +5,7 @@ use crate::ginkgo::viewport::ViewportHandle;
 use crate::grid::{AspectRatio, GridUnit, ScalarUnit, View};
 use crate::visibility::AutoVisibility;
 use crate::{
-    Component, Coordinates, EcsExtension, Grid, Layout, Logical, ResolvedVisibility, Section, Stem,
+    Component, Coordinates, Grid, Layout, Logical, ResolvedVisibility, Section, Stem,
     Tree, Update, Visibility, Write,
 };
 use bevy_ecs::component::ComponentId;
@@ -134,7 +134,6 @@ impl Location {
         view: View,
         current: Section<Logical>,
     ) -> Option<ResolvedLocation> {
-        let mut resolved = Section::default();
         let mut resolved_points = Option::<Points<Logical>>::None;
         if let Some(config) = self.config(layout) {
             let mut ax = match config.horizontal.a {
@@ -279,7 +278,7 @@ impl Location {
                     by = my;
                 }
             }
-            resolved = Section::new((ax, ay), (bx, by));
+            let mut resolved = Section::new((ax, ay), (bx, by));
             if let Some(aspect) = aspect {
                 // involve auto for which dimension to be dependent
                 todo!("constrain by aspect")

@@ -4,7 +4,7 @@ use crate::{Component, CoordinateUnit, Logical, Position, Section};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::world::DeferredWorld;
-use bitflags::{bitflags, Flags};
+use bitflags::bitflags;
 
 #[derive(Component, Copy, Clone)]
 #[component(on_replace = Self::on_replace)]

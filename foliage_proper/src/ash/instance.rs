@@ -177,7 +177,7 @@ impl<I: bytemuck::Pod + bytemuck::Zeroable + Default> InstanceBuffer<I> {
     }
     pub(crate) fn write_cpu(&mut self, order: Order, data: I) {
         *self.cpu.get_mut(order as usize).unwrap() = data;
-        if let Some(mut range) = self.write_range.as_mut() {
+        if let Some(range) = self.write_range.as_mut() {
             if range.start > order as usize {
                 range.start = order as usize;
             }

@@ -2,7 +2,7 @@ use crate::coordinate::position::Position;
 use crate::coordinate::Logical;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::{Event, EventReader};
-use bevy_ecs::prelude::{Component, IntoSystemConfigs};
+use bevy_ecs::prelude::IntoSystemConfigs;
 use bevy_ecs::system::{Query, ResMut, Resource};
 mod adapter;
 pub(crate) mod listener;
@@ -116,7 +116,7 @@ pub(crate) fn interactive_elements(
             current.primary.take();
             current.pass_through.clear();
             let mut grabbed_elevation = ResolvedElevation::new(100.0);
-            for (entity, mut listener, section, elevation, clip, _) in listeners.iter_mut() {
+            for (entity, listener, section, elevation, clip, _) in listeners.iter_mut() {
                 if !listener.scroll && event.from_scroll || listener.disabled() {
                     continue;
                 }

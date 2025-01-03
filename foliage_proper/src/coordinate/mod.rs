@@ -1,10 +1,7 @@
-use std::fmt::{Display, Formatter};
-use std::ops::{Add, AddAssign, Div, Mul, Sub, SubAssign};
-
-use bevy_ecs::component::Component;
-use bevy_ecs::prelude::IntoSystemConfigs;
 use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
+use std::ops::{Add, AddAssign, Div, Mul, Sub, SubAssign};
 
 pub mod area;
 pub mod elevation;
@@ -16,8 +13,7 @@ pub mod section;
 pub trait CoordinateContext
 where
     Self: Send + Sync + 'static + Copy + Clone + Default,
-{
-}
+{}
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug, Serialize, Deserialize)]
 pub struct Physical;

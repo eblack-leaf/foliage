@@ -37,7 +37,7 @@ impl ApplicationHandler for Foliage {
     fn window_event(
         &mut self,
         event_loop: &ActiveEventLoop,
-        window_id: WindowId,
+        _window_id: WindowId,
         event: WindowEvent,
     ) {
         #[cfg(target_family = "wasm")]
@@ -70,7 +70,7 @@ impl ApplicationHandler for Foliage {
         }
     }
 
-    fn suspended(&mut self, event_loop: &ActiveEventLoop) {
+    fn suspended(&mut self, _event_loop: &ActiveEventLoop) {
         if self.ginkgo.acquired() {
             // TODO drop surface if required
         }
@@ -148,7 +148,7 @@ impl Foliage {
             WindowEvent::MouseWheel {
                 device_id: _,
                 delta,
-                phase,
+                phase: _phase,
             } => {
                 let px = match delta {
                     MouseScrollDelta::LineDelta(x, y) => Position::logical((
