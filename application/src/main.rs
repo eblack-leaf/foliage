@@ -1,6 +1,6 @@
 use foliage::{
-    auto, stack, AutoHeight, Color, Foliage, FontSize, Grid, GridExt,
-    InteractionListener, Location, Stack, Stem, Text, View,
+    auto, stack, AutoHeight, Color, Foliage, FontSize, Grid, GridExt, InteractionListener,
+    Location, Stack, Stem, Text, View,
 };
 use tracing_subscriber::filter::Targets;
 

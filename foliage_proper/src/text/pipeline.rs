@@ -178,7 +178,9 @@ impl Render for Text {
         }
         for (entity, packet) in queues.attribute::<Text, ResolvedElevation>() {
             // queue add/update
-            if let std::collections::hash_map::Entry::Vacant(e) = renderer.resources.entity_to_group.entry(entity) {
+            if let std::collections::hash_map::Entry::Vacant(e) =
+                renderer.resources.entity_to_group.entry(entity)
+            {
                 // adding new group
                 let group = Group::new(ginkgo, packet);
                 renderer

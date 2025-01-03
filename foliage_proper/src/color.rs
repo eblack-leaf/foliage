@@ -69,9 +69,9 @@ impl From<i32> for Luminance {
         } else if value >= 400 {
             Self::FourHundred
         } else if value >= 300 {
-            Self::OneHundred
+            Self::ThreeHundred
         } else if value >= 200 {
-            Self::OneHundred
+            Self::TwoHundred
         } else if value >= 100 {
             Self::OneHundred
         } else {

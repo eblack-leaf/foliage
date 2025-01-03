@@ -67,9 +67,7 @@ impl Stem {
     }
 }
 
-#[derive(Component, Clone)]
-#[derive(Default)]
+#[derive(Component, Clone, Default)]
 pub struct Branch {
     pub ids: HashSet<Entity>,
 }
-

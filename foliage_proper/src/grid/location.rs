@@ -5,8 +5,8 @@ use crate::ginkgo::viewport::ViewportHandle;
 use crate::grid::{AspectRatio, GridUnit, ScalarUnit, View};
 use crate::visibility::AutoVisibility;
 use crate::{
-    Component, Coordinates, Grid, Layout, Logical, ResolvedVisibility, Section, Stem,
-    Tree, Update, Visibility, Write,
+    Component, Coordinates, Grid, Layout, Logical, ResolvedVisibility, Section, Stem, Tree, Update,
+    Visibility, Write,
 };
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
@@ -326,7 +326,8 @@ impl Location {
             if let Ok((_, auto_vis)) = visibilities.get(this) {
                 let stem = stems.get(this).unwrap();
                 let stem_section = stem
-                    .id.map(|id| *sections.get(id).unwrap())
+                    .id
+                    .map(|id| *sections.get(id).unwrap())
                     .unwrap_or(viewport.section());
                 let stack = if let Ok(stack) = stacks.get(this) {
                     if let Some(s) = stack.id {
@@ -346,11 +347,13 @@ impl Location {
                     None
                 };
                 let grid = stem
-                    .id.map(|id| *grids.get(id).unwrap())
+                    .id
+                    .map(|id| *grids.get(id).unwrap())
                     .unwrap_or_default();
                 let aspect = aspect_ratios.get(this).copied().ok();
                 let view = stem
-                    .id.map(|id| *views.get(id).unwrap())
+                    .id
+                    .map(|id| *views.get(id).unwrap())
                     .unwrap_or_default();
                 let current = *sections.get(this).unwrap();
                 if let Some(resolved) =
@@ -378,8 +381,7 @@ impl Location {
         }
     }
 }
-#[derive(Clone, Component)]
-#[derive(Default)]
+#[derive(Clone, Component, Default)]
 pub struct StackDeps {
     pub ids: HashSet<Entity>,
 }

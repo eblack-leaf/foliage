@@ -153,17 +153,18 @@ impl Text {
         auto_heights: Query<&AutoHeight>,
     ) {
         let this = trigger.entity();
-        let mut current = UpdateCache::default();
-        current.font_size = ResolvedFontSize::new(
-            (font_sizes.get(this).unwrap().value as f32 * scale_factor.value()) as u32,
-        );
-        current.text = texts.get(this).unwrap().clone();
-        current.section = sections
-            .get(this)
-            .unwrap()
-            .to_physical(scale_factor.value());
-        current.horizontal_alignment = *horizontal_alignment.get(this).unwrap();
-        current.vertical_alignment = *vertical_alignment.get(this).unwrap();
+        let mut current = UpdateCache {
+            font_size: ResolvedFontSize::new(
+                (font_sizes.get(this).unwrap().value as f32 * scale_factor.value()) as u32,
+            ),
+            text: texts.get(this).unwrap().clone(),
+            section: sections
+                .get(this)
+                .unwrap()
+                .to_physical(scale_factor.value()),
+            horizontal_alignment: *horizontal_alignment.get(this).unwrap(),
+            vertical_alignment: *vertical_alignment.get(this).unwrap(),
+        };
         if cache.get(this).unwrap() != &current {
             let mut glyphs = glyph_query.get_mut(this).unwrap();
             glyphs.layout.reset(&fontdue::layout::LayoutSettings {
@@ -215,10 +216,7 @@ impl Text {
         }
     }
     fn resolve_glyphs(
-        mut glyph_query: Query<
-            (Entity, &mut Glyphs, &ResolvedVisibility),
-            Changed<Glyphs>,
-        >,
+        mut glyph_query: Query<(Entity, &mut Glyphs, &ResolvedVisibility), Changed<Glyphs>>,
         mut tree: Tree,
     ) {
         for (entity, mut glyphs, vis) in glyph_query.iter_mut() {
@@ -260,8 +258,8 @@ impl Text {
             }
             let len_new = new.len();
             if len_new > len_last {
-                for i in len_last..len_new {
-                    resolved.updated.push(new[i].clone());
+                for glyph in new.iter().take(len_new).skip(len_last) {
+                    resolved.updated.push(glyph.clone());
                 }
             }
             glyphs.glyphs = new;

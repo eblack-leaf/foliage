@@ -173,9 +173,7 @@ impl Foliage {
         self.world.disable(targets);
     }
     pub(crate) fn remove_queue<R: Clone + Send + Sync + 'static>(&mut self) {
-        debug_assert!(
-            self.world.get_resource::<RenderRemoveQueue<R>>().is_none()
-        );
+        debug_assert!(self.world.get_resource::<RenderRemoveQueue<R>>().is_none());
         self.world.insert_resource(RenderRemoveQueue::<R>::new());
     }
     pub(crate) fn differential<
@@ -184,9 +182,7 @@ impl Foliage {
     >(
         &mut self,
     ) {
-        debug_assert!(
-            self.world.get_resource::<RenderQueue<R, RT>>().is_none()
-        );
+        debug_assert!(self.world.get_resource::<RenderQueue<R, RT>>().is_none());
         self.world.insert_resource(RenderQueue::<R, RT>::new());
         self.diff
             .add_systems(cached_differential::<R, RT>.in_set(DiffMarkers::Extract));
