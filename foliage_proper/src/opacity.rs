@@ -40,11 +40,13 @@ impl Opacity {
 }
 impl Animate for Opacity {
     fn interpolations(start: &Self, end: &Self) -> Interpolations {
-        todo!()
+        Interpolations::new().with(start.value, end.value)
     }
 
     fn apply(&mut self, interpolations: &mut Interpolations) {
-        todo!()
+        if let Some(o) = interpolations.read(0) {
+            self.value = o;
+        }
     }
 }
 impl Default for Opacity {

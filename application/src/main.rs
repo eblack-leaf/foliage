@@ -1,6 +1,6 @@
 use foliage::{
-    auto, stack, AutoHeight, Color, Foliage, FontSize, Grid, GridExt, InteractionListener,
-    Location, Stack, Stem, Text, View,
+    auto, stack, Animation, AutoHeight, Color, Foliage, FontSize, Grid, GridExt,
+    InteractionListener, Location, OnEnd, Opacity, Stack, Stem, Text, Trigger, View,
 };
 use tracing_subscriber::filter::Targets;
 
@@ -23,7 +23,7 @@ fn main() {
         AutoHeight(true),
         Stem::some(root),
         View::context(root),
-        Location::new().sm(1.col().to(4.col()), 1.row().to(auto())),
+        Location::new().xs(1.col().to(4.col()), 1.row().to(auto())),
     ));
     let b = foliage.leaf((
         Text::new("xxxx xxx x xx x xxxx x "),
@@ -45,5 +45,16 @@ fn main() {
         View::context(root),
         Location::new().xs(5.col().to(9.col()), stack().to(auto())),
     ));
+    let seq = foliage.sequence();
+    foliage.animate(
+        seq,
+        Animation::new(Opacity::new(0.0))
+            .start(100)
+            .finish(500)
+            .targeting(a),
+    );
+    foliage.sequence_end(seq, |trigger: Trigger<OnEnd>| {
+        println!("finished {:?}", trigger.entity());
+    });
     foliage.photosynthesize(); // run
 }

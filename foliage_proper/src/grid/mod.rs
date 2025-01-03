@@ -32,6 +32,7 @@ impl Attachment for Grid {
         );
         foliage.define(Location::update_from_visibility);
         foliage.define(Location::update_location);
+        foliage.enable_animation::<Location>();
     }
 }
 pub trait GridExt {

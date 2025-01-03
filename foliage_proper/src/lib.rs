@@ -42,7 +42,6 @@ pub use coordinate::elevation::{Elevation, ResolvedElevation};
 pub use disable::Disable;
 pub use enable::Enable;
 pub use foliage::Foliage;
-pub(crate) use grid::location::CreateDiff;
 pub use grid::{
     auto, stack, Grid, GridUnit, Layout, Location, LocationAxisDescriptor, LocationAxisType, View,
 };
@@ -58,5 +57,6 @@ pub use ops::{Update, Write};
 pub use platform::AndroidApp;
 pub use platform::AndroidConnection;
 pub use text::{AutoHeight, FontSize, GlyphColors, HorizontalAlignment, Text, VerticalAlignment};
+pub use time::{Moment, OnEnd, Time, TimeDelta, TimeMarker};
 pub use tree::{EcsExtension, Tree};
 pub use visibility::{InheritedVisibility, ResolvedVisibility, Visibility};

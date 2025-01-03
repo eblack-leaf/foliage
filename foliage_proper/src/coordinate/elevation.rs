@@ -45,9 +45,12 @@ impl Elevation {
         if world.get::<Stem>(this).is_none() || world.get::<Branch>(this).is_none() {
             return;
         }
-        let current = world.get::<Stem>(this).unwrap().id.and_then(|id| {
-            Some(*world.get::<ResolvedElevation>(id).unwrap())
-        }).unwrap_or_default();
+        let current = world
+            .get::<Stem>(this)
+            .unwrap()
+            .id
+            .and_then(|id| Some(*world.get::<ResolvedElevation>(id).unwrap()))
+            .unwrap_or_default();
         let resolved = ResolvedElevation(world.get::<Elevation>(this).unwrap().0 + current.0);
         world.commands().entity(this).insert(resolved);
         for dep in world.get::<Branch>(this).unwrap().ids.clone() {

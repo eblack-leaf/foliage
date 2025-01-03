@@ -10,8 +10,8 @@ use crate::remove::Remove;
 use crate::time::{OnEnd, Time};
 use crate::willow::Willow;
 use crate::{
-    AndroidConnection, Animate, Animation, Area, Attachment, Disable, EcsExtension, Enable, Grid,
-    Interaction, Physical, Resource, SystemSet, Text,
+    AndroidConnection, Animate, Animation, Area, Attachment, Disable, EcsExtension, Elevation,
+    Enable, Grid, Interaction, Opacity, Physical, Resource, SystemSet, Text,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
@@ -108,6 +108,9 @@ impl Foliage {
         foliage.define(AutoDisable::interactions);
         foliage.define(AutoEnable::interactions);
         foliage.define(Enable::interactions);
+        foliage.enable_animation::<Opacity>();
+        foliage.enable_animation::<Elevation>();
+        // foliage.enable_animation::<Color>();
         Grid::attach(&mut foliage);
         Interaction::attach(&mut foliage);
         Ash::attach(&mut foliage);

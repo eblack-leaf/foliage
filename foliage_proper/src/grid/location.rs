@@ -39,8 +39,7 @@ impl Animate for Location {
         }
     }
 }
-#[derive(Component, Copy, Clone)]
-#[derive(Default)]
+#[derive(Component, Copy, Clone, Default)]
 pub(crate) struct CreateDiff(pub(crate) bool);
 #[derive(Component, Copy, Clone, Default)]
 pub(crate) struct Diff(pub(crate) ResolvedLocation);
