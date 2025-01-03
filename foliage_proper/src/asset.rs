@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
+use crate::foliage::Foliage;
 use crate::tree::Tree;
-use crate::{Attachment, Foliage};
+use crate::Attachment;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::Event;
 use bevy_ecs::prelude::{Component, Trigger};

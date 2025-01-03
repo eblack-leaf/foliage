@@ -15,7 +15,11 @@ where
     type Group;
     type Resources;
     fn renderer(ginkgo: &Ginkgo) -> Renderer<Self>;
-    fn prepare(renderer: &mut Renderer<Self>, queues: &mut RenderQueueHandle, ginkgo: &Ginkgo) -> Nodes;
+    fn prepare(
+        renderer: &mut Renderer<Self>,
+        queues: &mut RenderQueueHandle,
+        ginkgo: &Ginkgo,
+    ) -> Nodes;
     fn render(renderer: &mut Renderer<Self>, render_pass: &mut RenderPass, parameters: Parameters);
 }
 pub(crate) type GroupId = i32;

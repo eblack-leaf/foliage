@@ -3,13 +3,14 @@ mod layout;
 mod location;
 mod view;
 
+use crate::foliage::{DiffMarkers, Foliage};
 pub(crate) use crate::grid::layout::viewport_changed;
 use crate::grid::location::Justify::{Center, Near};
 pub use crate::grid::location::{
     auto, stack, Justify, LocationAxisDescriptor, LocationAxisType, Padding,
 };
 use crate::grid::view::{extent_check, prepare_extent, ExtentCheckIds};
-use crate::{Attachment, Component, CoordinateUnit, DiffMarkers, Foliage, Logical, Section};
+use crate::{Attachment, Component, CoordinateUnit, Logical, Section};
 pub use aspect_ratio::AspectRatio;
 use bevy_ecs::prelude::IntoSystemConfigs;
 pub use layout::Layout;

@@ -1,9 +1,10 @@
+use crate::foliage::Foliage;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::ScaleFactor;
 use crate::interaction::{
     Interaction, InteractionPhase, KeyboardAdapter, MouseAdapter, TouchAdapter,
 };
-use crate::{Foliage, Position};
+use crate::Position;
 use winit::application::ApplicationHandler;
 use winit::event::{MouseScrollDelta, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
@@ -27,7 +28,7 @@ impl ApplicationHandler for Foliage {
             let handle = self.willow.clone();
             let sender = self.sender.take().expect("sender");
             wasm_bindgen_futures::spawn_local(async move {
-                let mut ginkgo = Ginkgo::default();
+                let mut ginkgo = crate::ginkgo::Ginkgo::default();
                 ginkgo.acquire_context(&handle).await;
                 sender.send(ginkgo).ok();
             });
@@ -46,10 +47,10 @@ impl ApplicationHandler for Foliage {
         }
         self.process_event(event, event_loop);
     }
-    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
         #[cfg(target_family = "wasm")]
-        if !self.booted && self.recv.is_some() {
-            if let Some(m) = self.recv.as_mut().unwrap().try_recv().ok() {
+        if !self.booted && self.receiver.is_some() {
+            if let Some(m) = self.receiver.as_mut().unwrap().try_recv().ok() {
                 if let Some(g) = m {
                     self.ginkgo = g;
                     self.finish_boot();

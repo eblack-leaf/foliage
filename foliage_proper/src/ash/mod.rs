@@ -1,7 +1,8 @@
 use crate::ash::clip::prepare_clip_section;
 use crate::ash::differential::RenderQueueHandle;
+use crate::foliage::{DiffMarkers, Foliage};
 use crate::ginkgo::Ginkgo;
-use crate::{Attachment, Color, Component, DiffMarkers, Foliage, Resource, Text};
+use crate::{Attachment, Color, Component, Resource, Text};
 use bevy_ecs::prelude::IntoSystemConfigs;
 use bevy_ecs::world::World;
 use node::Node;

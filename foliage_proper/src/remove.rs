@@ -1,5 +1,6 @@
 use crate::ash::differential::RenderRemoveQueue;
-use crate::{Attachment, Branch, Foliage, Tree};
+use crate::foliage::Foliage;
+use crate::{Attachment, Branch, Tree};
 use bevy_ecs::change_detection::ResMut;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Event, Query, Trigger};

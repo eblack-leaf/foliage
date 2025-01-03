@@ -1,4 +1,5 @@
 use crate::coordinate::points::Points;
+use crate::disable::AutoDisable;
 use crate::enable::AutoEnable;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::grid::{AspectRatio, GridUnit, ScalarUnit, View};
@@ -365,7 +366,7 @@ impl Location {
                     }
                 } else {
                     tree.entity(this).insert(AutoVisibility::new(false));
-                    tree.disable(this);
+                    tree.trigger_targets(AutoDisable::new(), this);
                 }
             }
         }

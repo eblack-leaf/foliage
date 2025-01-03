@@ -6,17 +6,18 @@ use crate::ash::render::Render;
 use crate::color::Color;
 use crate::coordinate::section::Section;
 use crate::coordinate::Logical;
+use crate::foliage::{DiffMarkers, Foliage};
 use crate::ginkgo::ScaleFactor;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::text::glyph::{Glyph, GlyphColor, GlyphKey, Glyphs, ResolvedColors};
 use crate::text::monospaced::MonospacedFont;
+use crate::ClipSection;
 use crate::{
-    Attachment, Foliage, Layout, Physical, ResolvedElevation, ResolvedVisibility, Tree, Update,
-    Visibility, Write,
+    Attachment, Layout, Physical, ResolvedElevation, ResolvedVisibility, Tree, Update, Visibility,
+    Write,
 };
 use crate::{ClipContext, Differential};
-use crate::{ClipSection, DiffMarkers};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs, Res, Trigger};
@@ -26,6 +27,7 @@ use bevy_ecs::world::DeferredWorld;
 pub use glyph::GlyphColors;
 pub(crate) use glyph::ResolvedGlyphs;
 use std::collections::HashSet;
+
 impl Attachment for Text {
     fn attach(foliage: &mut Foliage) {
         foliage

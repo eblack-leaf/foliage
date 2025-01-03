@@ -158,7 +158,11 @@ impl Render for Text {
             },
         }
     }
-    fn prepare(renderer: &mut Renderer<Self>, queues: &mut RenderQueueHandle, ginkgo: &Ginkgo) -> Nodes {
+    fn prepare(
+        renderer: &mut Renderer<Self>,
+        queues: &mut RenderQueueHandle,
+        ginkgo: &Ginkgo,
+    ) -> Nodes {
         let mut nodes = Nodes::new();
         // read-attrs
         for entity in queues.removes::<Text>() {

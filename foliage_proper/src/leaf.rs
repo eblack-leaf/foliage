@@ -8,6 +8,7 @@ use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::world::DeferredWorld;
 use std::collections::HashSet;
+
 #[derive(Component)]
 #[require(Stem, Branch)]
 #[require(Opacity, Visibility)]

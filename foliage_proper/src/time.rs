@@ -1,4 +1,5 @@
-use crate::{Attachment, Foliage};
+use crate::foliage::Foliage;
+use crate::Attachment;
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::Event;

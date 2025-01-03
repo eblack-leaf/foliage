@@ -17,7 +17,7 @@ pub(crate) struct Differential<
 }
 
 impl<R: Clone + Send + Sync + 'static, RP: Clone + Send + Sync + 'static + PartialEq>
-Differential<R, RP>
+    Differential<R, RP>
 {
     pub(crate) fn new(cache: RP) -> Self {
         Self {
@@ -46,7 +46,7 @@ Differential<R, RP>
 }
 
 impl<R: Clone + Send + Sync + 'static, RP: Clone + Send + Sync + 'static + PartialEq> Default
-for Differential<R, RP>
+    for Differential<R, RP>
 {
     fn default() -> Self {
         Self::blank()

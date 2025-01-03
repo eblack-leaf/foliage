@@ -1,18 +1,19 @@
 use crate::coordinate::position::Position;
 use crate::coordinate::Logical;
-use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::{Event, EventReader};
 use bevy_ecs::prelude::{Component, IntoSystemConfigs};
 use bevy_ecs::system::{Query, ResMut, Resource};
-use bevy_ecs::world::DeferredWorld;
-
 mod adapter;
+pub(crate) mod listener;
+
 use crate::ash::clip::ClipSection;
+use crate::foliage::Foliage;
 use crate::grid::{viewport_changed, View};
-use crate::{Attachment, CoordinateUnit, Foliage, ResolvedElevation, Section, Tree};
+use crate::{Attachment, ResolvedElevation, Section, Tree};
 pub use adapter::InputSequence;
 pub(crate) use adapter::{KeyboardAdapter, MouseAdapter, TouchAdapter};
+use listener::InteractionListener;
 
 impl Attachment for Interaction {
     fn attach(foliage: &mut Foliage) {
@@ -74,78 +75,6 @@ pub(crate) struct CurrentInteraction {
 }
 #[derive(Event, Copy, Clone, Default)]
 pub struct OnClick {}
-#[derive(Component, Copy, Clone)]
-#[component(on_replace = Self::on_replace)]
-pub struct InteractionListener {
-    pub click: Click,
-    pub disabled: bool,
-    pub scroll: bool,
-    pub pass_through: bool,
-    pub shape: InteractionShape,
-    pub(crate) last_drag: Position<Logical>,
-}
-impl InteractionListener {
-    pub const DRAG_THRESHOLD: CoordinateUnit = 40.0;
-    pub fn new() -> Self {
-        Self {
-            click: Default::default(),
-            disabled: false,
-            scroll: false,
-            pass_through: false,
-            shape: Default::default(),
-            last_drag: Default::default(),
-        }
-    }
-    pub fn disabled(mut self, disabled: bool) -> Self {
-        self.disabled = disabled;
-        self
-    }
-    pub fn circle(mut self) -> Self {
-        self.shape = InteractionShape::Circle;
-        self
-    }
-    pub fn scroll(mut self, s: bool) -> Self {
-        self.pass_through = s;
-        self.scroll = s;
-        self
-    }
-    pub fn is_contained(
-        &self,
-        section: Section<Logical>,
-        clip: Option<ClipSection>,
-        event: Position<Logical>,
-    ) -> bool {
-        let section_contained = match self.shape {
-            InteractionShape::Rectangle => section.contains(event),
-            InteractionShape::Circle => section.center().distance(event) <= section.width() / 2f32,
-        };
-        let clip_contained = if let Some(clip) = clip {
-            if let Some(c) = clip.0 {
-                c.contains(event)
-            } else {
-                true
-            }
-        } else {
-            true
-        };
-        section_contained && clip_contained
-    }
-    fn on_replace(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
-        if let Some(mut current) = world.get_resource_mut::<CurrentInteraction>() {
-            if let Some(p) = current.primary {
-                if p == this {
-                    current.primary.take();
-                }
-            }
-        }
-    }
-}
-#[derive(Copy, Clone, Default)]
-pub enum InteractionShape {
-    #[default]
-    Rectangle,
-    Circle,
-}
 pub(crate) fn interactive_elements(
     mut reader: EventReader<Interaction>,
     mut listeners: Query<(
@@ -188,7 +117,7 @@ pub(crate) fn interactive_elements(
             current.pass_through.clear();
             let mut grabbed_elevation = ResolvedElevation::new(100.0);
             for (entity, mut listener, section, elevation, clip, _) in listeners.iter_mut() {
-                if !listener.scroll && event.from_scroll || listener.disabled {
+                if !listener.scroll && event.from_scroll || listener.disabled() {
                     continue;
                 }
                 if listener.is_contained(*section, clip.copied(), event.position) {
