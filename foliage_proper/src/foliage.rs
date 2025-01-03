@@ -1,15 +1,14 @@
 use crate::ash::differential::{cached_differential, RenderQueue, RenderRemoveQueue};
 use crate::ash::Ash;
 use crate::asset::{Asset, AssetKey, AssetLoader};
+use crate::disable::AutoDisable;
+use crate::enable::AutoEnable;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::Ginkgo;
 use crate::remove::Remove;
 use crate::time::Time;
 use crate::willow::Willow;
-use crate::{
-    AndroidConnection, Area, Attachment, Disable, EcsExtension, Grid, Interaction, Physical,
-    SystemSet, Text,
-};
+use crate::{AndroidConnection, Area, Attachment, Disable, EcsExtension, Enable, Grid, Interaction, Physical, SystemSet, Text};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
@@ -81,6 +80,9 @@ impl Foliage {
         ));
         foliage.main.add_systems(event_update_system);
         foliage.define(Disable::interactions);
+        foliage.define(AutoDisable::interactions);
+        foliage.define(AutoEnable::interactions);
+        foliage.define(Enable::interactions);
         Grid::attach(&mut foliage);
         Interaction::attach(&mut foliage);
         Ash::attach(&mut foliage);

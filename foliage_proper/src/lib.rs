@@ -37,6 +37,7 @@ pub use bevy_ecs::{self, prelude::*};
 pub use color::{CReprColor, Color, Luminance};
 pub use coordinate::elevation::{Elevation, ResolvedElevation};
 pub use disable::Disable;
+pub use enable::Enable;
 pub use foliage::Foliage;
 pub use grid::{
     auto, stack, Grid, GridUnit, Layout, Location, LocationAxisDescriptor, LocationAxisType, View,
