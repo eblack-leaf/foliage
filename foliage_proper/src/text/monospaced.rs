@@ -27,6 +27,6 @@ impl MonospacedFont {
 #[test]
 fn block() {
     use crate::FontSize;
-    let mut font = MonospacedFont::new(20);
+    let font = MonospacedFont::new(20);
     println!("block: {}", font.character_block(FontSize::DEFAULT_SIZE));
 }

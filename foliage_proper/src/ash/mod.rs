@@ -112,12 +112,10 @@ impl Ash {
             }
         });
         self.contiguous.clear();
-        let mut index = 0;
         let mut contiguous = 1;
         let mut range_start = None;
-        for node in self.nodes.iter() {
+        for (index, node) in self.nodes.iter().enumerate() {
             let next = self.nodes.get(index + 1).copied();
-            index += 1;
             if let Some(next) = next {
                 if node.pipeline == next.pipeline
                     && node.group == next.group
