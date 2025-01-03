@@ -1,6 +1,6 @@
 use foliage::{
     auto, stack, Animation, AutoHeight, Color, Foliage, FontSize, Grid, GridExt,
-    InteractionListener, Location, OnEnd, Opacity, Stack, Stem, Text, Trigger, View,
+    InteractionListener, Location, OnEnd, Stack, Stem, Text, Trigger, View,
 };
 use tracing_subscriber::filter::Targets;
 
@@ -48,9 +48,9 @@ fn main() {
     let seq = foliage.sequence();
     foliage.animate(
         seq,
-        Animation::new(Opacity::new(0.0))
-            .start(100)
-            .finish(500)
+        Animation::new(Location::new().xs(5.col().to(8.col()), 1.row().to(auto())))
+            .start(500)
+            .finish(1000)
             .targeting(a),
     );
     foliage.sequence_end(seq, |trigger: Trigger<OnEnd>| {
