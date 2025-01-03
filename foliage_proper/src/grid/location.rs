@@ -311,7 +311,6 @@ impl Location {
         grids: Query<&Grid>,
         stems: Query<&Stem>,
         stacks: Query<&Stack>,
-        stack_deps: Query<&StackDeps>,
         visibilities: Query<(&ResolvedVisibility, &AutoVisibility)>,
         aspect_ratios: Query<&AspectRatio>,
         views: Query<&View>,
@@ -359,13 +358,6 @@ impl Location {
                         tracing::trace!("auto-enabling for {:?}", this);
                         tree.entity(this).insert(AutoVisibility::new(true));
                         tree.trigger_targets(AutoEnable::new(), this);
-                        if let Ok(deps) = stack_deps.get(this) {
-                            for d in deps.ids.iter().copied() {
-                                tracing::trace!("auto-vis: true for stack-dep {:?}", d);
-                                tree.entity(d).insert(AutoVisibility::new(true));
-                                tree.trigger_targets(AutoEnable::new(), d);
-                            }
-                        }
                     }
                     match resolved {
                         ResolvedLocation::Points(pts) => {
@@ -380,13 +372,6 @@ impl Location {
                         tracing::trace!("auto-disable for {:?}", this);
                         tree.entity(this).insert(AutoVisibility::new(false));
                         tree.trigger_targets(AutoDisable::new(), this);
-                        if let Ok(deps) = stack_deps.get(this) {
-                            for d in deps.ids.iter().copied() {
-                                tracing::trace!("auto-vis: false for stack-dep {:?}", d);
-                                tree.entity(d).insert(AutoVisibility::new(false));
-                                tree.trigger_targets(AutoDisable::new(), d);
-                            }
-                        }
                     }
                 }
             }

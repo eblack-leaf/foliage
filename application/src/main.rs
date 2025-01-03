@@ -18,7 +18,7 @@ fn main() {
         Stem::none(),
     ));
     let a = foliage.leaf((
-        Text::new("asonetuhsanot aoentuh aes tanoes uaneotusaoent uetuh asnetuh usanoetua"),
+        Text::new("asonetuhsanot aoentuh"),
         FontSize::new(20).sm(32),
         AutoHeight(true),
         Stem::some(root),
@@ -26,7 +26,7 @@ fn main() {
         Location::new().sm(1.col().to(4.col()), 1.row().to(auto())),
     ));
     let b = foliage.leaf((
-        Text::new("xxxx xxx x xx x xxxx x x x xx xxxx x xx  xxx x xx xxxx xx x x x x xxx x x"),
+        Text::new("xxxx xxx x xx x xxxx x "),
         FontSize::new(20),
         AutoHeight(true),
         Color::gray(500),
@@ -36,12 +36,12 @@ fn main() {
         Location::new().xs(1.col().to(4.col()), stack().to(auto())),
     ));
     let c = foliage.leaf((
-        Text::new("yyyy yyy y yy y yyyy y y y yy yyyy y yy  yyy y yy yyyy yy y y y y yyy y y"),
+        Text::new("yyyy yyy y yy"),
         FontSize::new(20),
         AutoHeight(true),
         Color::gray(500),
         Stem::some(root),
-        Stack::new(a),
+        Stack::new(b),
         View::context(root),
         Location::new().xs(5.col().to(9.col()), stack().to(auto())),
     ));

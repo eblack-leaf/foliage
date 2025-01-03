@@ -1,5 +1,5 @@
 use crate::ash::differential::RenderRemoveQueue;
-use crate::{Branch, Component, Stem, Write};
+use crate::{Branch, Component, StackDeps, Stem, Write};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Query, Trigger};
@@ -62,7 +62,10 @@ impl Visibility {
             world
                 .commands()
                 .trigger_targets(Write::<Visibility>::new(), this);
-            let deps = world.get::<Branch>(this).unwrap().ids.clone();
+            let mut deps = world.get::<Branch>(this).unwrap().ids.clone();
+            if let Some(stack_deps) = world.get::<StackDeps>(this) {
+                deps.extend(stack_deps.ids.clone());
+            }
             for d in deps {
                 world.commands().entity(d).insert(InheritedVisibility {
                     visible: resolved.visible,
