@@ -25,6 +25,9 @@ mod visibility;
 mod web_ext;
 mod willow;
 mod panel;
+mod image;
+mod icon;
+mod shape;
 
 pub use crate::coordinate::{
     area::{Area, CReprArea},
@@ -54,6 +57,7 @@ pub use interaction::{
 pub use leaf::{Branch, Leaf, Stem};
 pub use opacity::Opacity;
 pub use ops::{Update, Write};
+pub use panel::{Outline, Panel, Rounding};
 #[cfg(target_os = "android")]
 pub use platform::AndroidApp;
 pub use platform::AndroidConnection;
