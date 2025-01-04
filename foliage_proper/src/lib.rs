@@ -24,6 +24,7 @@ mod virtual_keyboard;
 mod visibility;
 mod web_ext;
 mod willow;
+mod panel;
 
 pub use crate::coordinate::{
     area::{Area, CReprArea},

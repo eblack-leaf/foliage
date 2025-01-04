@@ -88,7 +88,7 @@ impl Ginkgo {
         let texture_data = image
             .to_rgba8()
             .enumerate_pixels()
-            .map(|p| -> u8 { p.2 .0[3] })
+            .map(|p| -> u8 { p.2.0[3] })
             .collect::<Vec<u8>>();
         texture_data
     }
@@ -491,3 +491,24 @@ impl<Repr: Pod + Zeroable + PartialEq> VectorUniform<Repr> {
         self.uniform.data[i] = r;
     }
 }
+
+#[repr(C)]
+#[derive(Pod, Zeroable, Copy, Clone, Default)]
+pub(crate) struct Vertex {
+    position: Coordinates,
+}
+
+impl Vertex {
+    pub(crate) const fn new(position: Coordinates) -> Self {
+        Self { position }
+    }
+}
+
+pub(crate) const VERTICES: [Vertex; 6] = [
+    Vertex::new(Coordinates::new(1f32, 0f32)),
+    Vertex::new(Coordinates::new(0f32, 0f32)),
+    Vertex::new(Coordinates::new(0f32, 1f32)),
+    Vertex::new(Coordinates::new(1f32, 0f32)),
+    Vertex::new(Coordinates::new(0f32, 1f32)),
+    Vertex::new(Coordinates::new(1f32, 1f32)),
+];
