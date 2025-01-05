@@ -21,47 +21,44 @@ struct Fragment {
 };
 @vertex
 fn vertex_entry(vertex: Vertex) -> Fragment {
-    var offset = vec2<f32>(0.0, 0.0);
     let segment = i32(vertex.vertex_data.z);
     let horizontal_space = vertex.section.z - 2 * vertex.corner_i.x;
     let vertical_space = vertex.section.w - 2 * vertex.corner_i.x;
     let x = vertex.vertex_data.x;
     let y = vertex.vertex_data.y;
     let depth = vertex.corner_i.x;
-    if (segment == 0) {
-        offset = vec2f(x * depth, y * depth);
-    } else if (segment == 1) {
-        offset = vec2f(depth + horizontal_space * x, depth * y);
-    } else if (segment == 2) {
-        offset = vec2f(depth + horizontal_space + depth * x, depth * y);
-    } else if (segment == 3) {
-        offset = vec2f(depth * x, depth + vertical_space * y);
-    } else if (segment == 4) {
-        offset = vec2f(depth + horizontal_space * x, depth + vertical_space * y);
-    } else if (segment == 5) {
-        offset = vec2f(depth + horizontal_space + depth * x, depth + vertical_space * y);
-    } else if (segment == 6) {
-        offset = vec2f(depth * x, depth + vertical_space + depth * y);
-    } else if (segment == 7) {
-        offset = vec2f(depth + horizontal_space * x, depth + vertical_space + depth * y);
-    } else if (segment == 8) {
-        offset = vec2f(depth + horizontal_space + depth * x, depth + vertical_space + depth * y);
-    }
+    let is_a = f32(segment == 0);
+    let is_b = f32(segment == 1);
+    let is_c = f32(segment == 2);
+    let is_d = f32(segment == 3);
+    let is_e = f32(segment == 4);
+    let is_f = f32(segment == 5);
+    let is_g = f32(segment == 6);
+    let is_h = f32(segment == 7);
+    let is_i = f32(segment == 8);
+    let offset = vec2f(x * depth, y * depth) * is_a +
+        vec2f(depth + horizontal_space * x, depth * y) * is_b +
+        vec2f(depth + horizontal_space + depth * x, depth * y) * is_c +
+        vec2f(depth * x, depth + vertical_space * y) * is_d +
+        vec2f(depth + horizontal_space * x, depth + vertical_space * y) * is_e +
+        vec2f(depth + horizontal_space + depth * x, depth + vertical_space * y) * is_f +
+        vec2f(depth * x, depth + vertical_space + depth * y) * is_g +
+        vec2f(depth + horizontal_space * x, depth + vertical_space + depth * y) * is_h +
+        vec2f(depth + horizontal_space + depth * x, depth + vertical_space + depth * y) * is_i;
     let position = vec4<f32>(
         vertex.section.xy + offset,
         vertex.layer_and_weight.r,
         1.0
     );
-    var corner = vertex.corner_i;
-    if (segment == 2) {
-        corner = vertex.corner_ii;
-    } else if (segment == 6) {
-        corner = vertex.corner_iii;
-    } else if (segment == 8) {
-        corner = vertex.corner_iv;
-    }
-    corner.x += vertex.section.x;
-    corner.y += vertex.section.y;
+    let is_corner_i = f32(segment == 0);
+    let is_corner_ii = f32(segment == 2);
+    let is_corner_iii = f32(segment == 6);
+    let is_corner_iv = f32(segment == 8);
+    let corner = vertex.corner_i * is_corner_i +
+        vertex.corner_ii * is_corner_ii +
+        vertex.corner_iii * is_corner_iii +
+        vertex.corner_iv * is_corner_iv +
+        vec4f(vertex.section.xy, 0.0, 0.0);
     return Fragment(
         viewport * position,
         vertex.color,
@@ -73,10 +70,9 @@ fn vertex_entry(vertex: Vertex) -> Fragment {
 }
 fn corner(c: vec4<f32>, interval: f32, dist: f32) -> f32 {
     let a = smoothstep(c.z + interval, c.z - interval, dist);
-    var b = 1.0;
-    if (c.w > 0.0) {
-        b = smoothstep(c.w - interval, c.w + interval, dist);
-    }
+    let b_valid = f32(c.w > 0.0);
+    let b_invalid = f32(c.w <= 0.0);
+    let b = 1.0 * b_invalid + smoothstep(c.w - interval, c.w + interval, dist) * b_valid;
     return min(a, b);
 }
 @fragment
