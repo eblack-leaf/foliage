@@ -278,13 +278,13 @@ impl ScalarUnit {
     pub(crate) fn vertical(&self, stem: Section<Logical>) -> CoordinateUnit {
         match self {
             ScalarUnit::Px(px) => stem.top() + px,
-            ScalarUnit::Pct(pct) => stem.height() * pct,
+            ScalarUnit::Pct(pct) => stem.top() + stem.height() * pct,
         }
     }
     pub fn horizontal(self, stem: Section<Logical>) -> CoordinateUnit {
         match self {
             ScalarUnit::Px(px) => stem.left() + px,
-            ScalarUnit::Pct(pct) => stem.width() * pct,
+            ScalarUnit::Pct(pct) => stem.left() + stem.width() * pct,
         }
     }
 }

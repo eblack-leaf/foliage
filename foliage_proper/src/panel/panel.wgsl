@@ -60,6 +60,8 @@ fn vertex_entry(vertex: Vertex) -> Fragment {
     } else if (segment == 8) {
         corner = vertex.corner_iv;
     }
+    corner.x += vertex.section.x;
+    corner.y += vertex.section.y;
     return Fragment(
         viewport * position,
         vertex.color,
@@ -72,7 +74,7 @@ fn vertex_entry(vertex: Vertex) -> Fragment {
 fn corner(c: vec4<f32>, interval: f32, dist: f32) -> f32 {
     let a = smoothstep(c.z + interval, c.z - interval, dist);
     var b = 1.0;
-    if (c.w != 0.0) {
+    if (c.w > 0.0) {
         b = smoothstep(c.w - interval, c.w + interval, dist);
     }
     return min(a, b);
@@ -80,22 +82,28 @@ fn corner(c: vec4<f32>, interval: f32, dist: f32) -> f32 {
 @fragment
 fn fragment_entry(frag: Fragment) -> @location(0) vec4<f32> {
     let interval = 0.75;
-    let half_weight = 0.5 * frag.weight;
+    let half_weight = max(1.0, 0.5 * frag.weight);
     let dist = distance(frag.position.xy, frag.corner.xy);
-    let a = step(half_weight, abs(frag.position.y - (frag.section.y + half_weight)));
-    let b = step(half_weight, abs(frag.position.x - (frag.section.x + half_weight)));
-    let c = step(half_weight, abs(frag.position.y - (frag.section.y + frag.section.w - half_weight)));
-    let d = step(half_weight, abs(frag.position.y - (frag.section.x + frag.section.z - half_weight)));
-    let e = min(a, min(b, min(c, d)));
+    let a = 1.0 - step(half_weight, abs(frag.position.y - (frag.section.y + half_weight)));
+    let b = 1.0 - step(half_weight, abs(frag.position.x - (frag.section.x + half_weight)));
+    let c = 1.0 - step(half_weight, abs(frag.position.x - (frag.section.x + frag.section.z - half_weight)));
+    let d = 1.0 - step(half_weight, abs(frag.position.y - (frag.section.y + frag.section.w - half_weight)));
+    let e = max(a, max(b, max(c, d)));
     let cor = corner(frag.corner, interval, dist);
     let is_corner = f32(frag.segment == 0 || frag.segment == 2 || frag.segment == 6 || frag.segment == 8);
     let not_corner = f32(is_corner == 0);
-    let use_a = f32(frag.segment == 1 && half_weight >= 0);
-    let use_b = f32(frag.segment == 3 && half_weight >= 0);
-    let use_c = f32(frag.segment == 5 && half_weight >= 0);
-    let use_d = f32(frag.segment == 7 && half_weight >= 0);
-    let use_e = f32(frag.segment == 4 && half_weight >= 0);
-    let no_weight = f32(half_weight < 0);
-    let coverage = cor * is_corner + a * use_a + b * use_b + c * use_c + d * use_d + e * use_e + 1.0 * not_corner * no_weight;
+    let use_a = f32(frag.segment == 1 && frag.weight >= 0);
+    let use_b = f32(frag.segment == 3 && frag.weight >= 0);
+    let use_c = f32(frag.segment == 5 && frag.weight >= 0);
+    let use_d = f32(frag.segment == 7 && frag.weight >= 0);
+    let use_e = f32(frag.segment == 4 && frag.weight >= 0);
+    let no_weight = f32(frag.weight < 0);
+    let coverage = cor * is_corner +
+        a * use_a +
+        b * use_b +
+        c * use_c +
+        d * use_d +
+        e * use_e +
+        1.0 * not_corner * no_weight;
     return vec4<f32>(frag.color.rgb, frag.color.a * coverage);
 }

@@ -67,56 +67,50 @@ impl Panel {
         let this = trigger.entity();
         if let Ok(section) = sections.get(this) {
             if let Ok(rounding) = roundings.get(this) {
-                let min = section.width().min(section.height());
+                let min = section.width().min(section.height()) * 0.5;
                 let depth = match rounding {
                     Rounding::None => 0.0,
-                    Rounding::Xs => 0.2 * min,
-                    Rounding::Sm => 0.4 * min,
-                    Rounding::Md => 0.6 * min,
-                    Rounding::Lg => 0.8 * min,
+                    Rounding::Xs => 0.1 * min,
+                    Rounding::Sm => 0.3 * min,
+                    Rounding::Md => 0.5 * min,
+                    Rounding::Lg => 0.7 * min,
                     Rounding::Xl => 1.0 * min,
                 };
+                println!("min: {}, depth: {}", min, depth);
                 let weight = if let Ok(outline) = outlines.get(this) {
                     if outline.value.is_negative() {
                         None
                     } else {
-                        Some(outline.value)
+                        Some(outline.value as f32 * scale_factor.value())
                     }
                 } else {
                     None
                 };
                 if let Ok(mut panel) = panels.get_mut(this) {
                     let near = if let Some(w) = weight {
-                        depth - w as f32
+                        depth - w.max(2.0)
                     } else {
                         0.0
-                    } * scale_factor.value();
+                    };
                     panel.corner_i = {
-                        let other = Position::logical((0, 0)).to_physical(scale_factor.value());
                         let c = Position::logical((depth, depth)).to_physical(scale_factor.value());
-                        Corner::new(c.coordinates, c.distance(other), near)
+                        Corner::new(c.coordinates, depth, near)
                     };
                     panel.corner_ii = {
-                        let other = Position::logical((section.right(), 0.0))
+                        let c = Position::logical((section.width() - depth, depth))
                             .to_physical(scale_factor.value());
-                        let c = Position::logical((section.right() - depth, depth))
-                            .to_physical(scale_factor.value());
-                        Corner::new(c.coordinates, c.distance(other), near)
+                        Corner::new(c.coordinates, depth, near)
                     };
                     panel.corner_iii = {
-                        let other = Position::logical((0.0, section.bottom()))
+                        let c = Position::logical((depth, section.height() - depth))
                             .to_physical(scale_factor.value());
-                        let c = Position::logical((depth, section.bottom() - depth))
-                            .to_physical(scale_factor.value());
-                        Corner::new(c.coordinates, c.distance(other), near)
+                        Corner::new(c.coordinates, depth, near)
                     };
                     panel.corner_iv = {
-                        let other = Position::logical((section.right(), section.bottom()))
-                            .to_physical(scale_factor.value());
                         let c =
-                            Position::logical((section.right() - depth, section.bottom() - depth))
+                            Position::logical((section.width() - depth, section.height() - depth))
                                 .to_physical(scale_factor.value());
-                        Corner::new(c.coordinates, c.distance(other), near)
+                        Corner::new(c.coordinates, depth, near)
                     };
                 }
             }

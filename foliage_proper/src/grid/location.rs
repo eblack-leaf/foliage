@@ -260,7 +260,10 @@ impl Location {
                 by = current.height();
             }
             if let Some(max_width) = config.horizontal.max {
-                let mx = max_width.horizontal(stem);
+                let mx = match max_width {
+                    ScalarUnit::Px(px) => px,
+                    ScalarUnit::Pct(pct) => pct * stem.width(),
+                };
                 if bx > mx {
                     let diff = bx - mx;
                     match config.horizontal.justify {
@@ -278,7 +281,10 @@ impl Location {
                 }
             }
             if let Some(max_height) = config.vertical.max {
-                let my = max_height.vertical(stem);
+                let my = match max_height {
+                    ScalarUnit::Px(px) => px,
+                    ScalarUnit::Pct(pct) => pct * stem.height(),
+                };
                 if by > my {
                     let diff = by - my;
                     match config.vertical.justify {
@@ -296,13 +302,19 @@ impl Location {
                 }
             }
             if let Some(min_width) = config.horizontal.min {
-                let mx = min_width.horizontal(stem);
+                let mx = match min_width {
+                    ScalarUnit::Px(px) => px,
+                    ScalarUnit::Pct(pct) => pct * stem.width(),
+                };
                 if bx < mx {
                     bx = mx;
                 }
             }
             if let Some(min_height) = config.vertical.min {
-                let my = min_height.vertical(stem);
+                let my = match min_height {
+                    ScalarUnit::Px(px) => px,
+                    ScalarUnit::Pct(pct) => pct * stem.height(),
+                };
                 if by < my {
                     by = my;
                 }

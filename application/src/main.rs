@@ -3,10 +3,8 @@ use foliage::{
     InteractionListener, Location, OnEnd, Outline, Panel, Rounding, Stack, Stem, Text, Trigger,
     View,
 };
-
 mod icon;
 mod image;
-const CONTENT: &str = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
 fn main() {
     let mut foliage = Foliage::new(); // library-handle
     // foliage.enable_tracing(Targets::new().with_target("foliage", tracing::Level::TRACE));
@@ -19,25 +17,28 @@ fn main() {
         Stem::none(),
     ));
     let a = foliage.leaf((
-        Text::new(CONTENT[0..40].to_string()),
+        Text::new("Lorem ipsum dolor sit amet, consectetur adipiscing"),
         FontSize::new(32),
         AutoHeight(true),
         Stem::some(root),
         View::context(root),
         Location::new().xs(1.col().to(7.col()), 1.row().to(auto())),
-        Grid::new(1.col(), 1.row()),
+        Grid::new(1.col().gap(0), 1.row().gap(0)),
     ));
     let back = foliage.leaf((
         Panel::new(),
-        Outline::new(5),
-        Rounding::None,
-        Stem::none(),
+        Outline::new(4),
+        Rounding::Xl,
+        Stem::some(a),
         Elevation::new(1),
         Color::gray(500),
-        Location::new().xs(10.px().to(200.px()), 10.px().to(200.px())),
+        Location::new().xs(
+            0.pct().to(1000.px()).pad(-10),
+            0.pct().to(100.px()).pad(-10),
+        ),
     ));
     let b = foliage.leaf((
-        Text::new(CONTENT.get(40..70).unwrap()),
+        Text::new("Lorem ipsum dolor sit amet, consectetur adipiscing"),
         FontSize::new(20),
         AutoHeight(true),
         Color::gray(200),
@@ -47,7 +48,7 @@ fn main() {
         Location::new().xs(2.col().to(7.col()), stack().to(auto())),
     ));
     let _c = foliage.leaf((
-        Text::new(CONTENT),
+        Text::new("Lorem ipsum dolor sit amet, consectetur adipiscing"),
         FontSize::new(16),
         AutoHeight(true),
         Color::gray(500),
