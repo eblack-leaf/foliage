@@ -20,7 +20,7 @@ use crate::{ClipContext, Differential};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs, Res, Trigger};
-use bevy_ecs::query::Changed;
+use bevy_ecs::query::{Changed, With};
 use bevy_ecs::system::{ParamSet, Query};
 use bevy_ecs::world::DeferredWorld;
 pub use glyph::GlyphColors;
@@ -113,7 +113,7 @@ impl Text {
     }
     fn resolve_colors(
         mut glyph_colors: ParamSet<(Query<&GlyphColors>, Query<Entity, Changed<GlyphColors>>)>,
-        mut colors: ParamSet<(Query<&Color>, Query<Entity, Changed<Color>>)>,
+        mut colors: ParamSet<(Query<&Color>, Query<Entity, (Changed<Color>, With<Text>)>)>,
         mut glyphs: ParamSet<(Query<&Glyphs>, Query<Entity, Changed<Glyphs>>)>,
         mut resolved: Query<&mut ResolvedColors>,
     ) {

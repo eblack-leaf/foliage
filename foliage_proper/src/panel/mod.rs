@@ -3,8 +3,8 @@ use crate::ginkgo::ScaleFactor;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::{
-    Attachment, Color, Component, CoordinateUnit, Coordinates, Differential, Foliage, Logical,
-    Position, ResolvedElevation, Section, Tree, Update, Visibility, Write,
+    Attachment, ClipContext, Color, Component, CoordinateUnit, Coordinates, Differential, Foliage,
+    Logical, Position, ResolvedElevation, Section, Tree, Update, Visibility, Write,
 };
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
@@ -17,7 +17,7 @@ mod pipeline;
 mod vertex;
 
 #[derive(Component, Copy, Clone, Default, PartialEq)]
-#[require(Rounding, Color, Outline)]
+#[require(Rounding, Color, Outline, ClipContext)]
 #[require(Differential<Self, ResolvedElevation>)]
 #[require(Differential<Self, Color>)]
 #[require(Differential<Self, Panel>)]
@@ -25,6 +25,8 @@ mod vertex;
 #[require(Differential<Self, Section<Logical>>)]
 #[require(Differential<Self, BlendedOpacity>)]
 #[require(Differential<Self, ClipSection>)]
+#[component(on_add = Self::on_add)]
+#[component(on_insert = Self::on_insert)]
 pub struct Panel {
     pub(crate) corner_i: Corner,
     pub(crate) corner_ii: Corner,

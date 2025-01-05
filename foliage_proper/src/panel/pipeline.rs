@@ -6,7 +6,7 @@ use crate::ash::render::{Parameters, PipelineId, Render, RenderGroup, Renderer};
 use crate::ginkgo::Ginkgo;
 use crate::opacity::BlendedOpacity;
 use crate::panel::{vertex, Corner};
-use crate::{CReprColor, CReprSection, Color, Outline, Panel, ResolvedElevation};
+use crate::{CReprColor, CReprSection, Color, Logical, Outline, Panel, ResolvedElevation, Section};
 use bevy_ecs::entity::Entity;
 use bytemuck::{Pod, Zeroable};
 use std::collections::HashMap;
@@ -190,6 +190,14 @@ impl Render for Panel {
                 .group
                 .lws
                 .queue(entity.index() as InstanceId, lw);
+        }
+        for (entity, section) in queues.attribute::<Self, Section<Logical>>() {
+            render_group.group.sections.queue(
+                entity.index() as InstanceId,
+                section
+                    .to_physical(ginkgo.configuration().scale_factor.value())
+                    .c_repr(),
+            );
         }
         for (entity, clip_section) in queues.attribute::<Panel, ClipSection>() {
             render_group
