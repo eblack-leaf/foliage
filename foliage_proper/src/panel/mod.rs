@@ -1,10 +1,11 @@
+use crate::anim::interpolation::Interpolations;
 use crate::ash::clip::ClipSection;
 use crate::ginkgo::ScaleFactor;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::{
-    Attachment, ClipContext, Color, Component, CoordinateUnit, Coordinates, Differential, Foliage,
-    Logical, Position, ResolvedElevation, Section, Tree, Update, Visibility, Write,
+    Animate, Attachment, ClipContext, Color, Component, CoordinateUnit, Coordinates, Differential,
+    Foliage, Logical, Position, ResolvedElevation, Section, Tree, Update, Visibility, Write,
 };
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
@@ -129,6 +130,7 @@ impl Attachment for Panel {
         foliage.differential::<Self, Outline>();
         foliage.differential::<Self, ResolvedElevation>();
         foliage.differential::<Self, ClipSection>();
+        foliage.enable_animation::<Outline>();
     }
 }
 #[derive(Component, Copy, Clone, Default)]
@@ -183,5 +185,16 @@ impl Outline {
 impl Default for Outline {
     fn default() -> Self {
         Outline { value: -1 }
+    }
+}
+impl Animate for Outline {
+    fn interpolations(start: &Self, end: &Self) -> Interpolations {
+        Interpolations::new().with(start.value as f32, end.value as f32)
+    }
+
+    fn apply(&mut self, interpolations: &mut Interpolations) {
+        if let Some(o) = interpolations.read(0) {
+            self.value = o as i32;
+        }
     }
 }
