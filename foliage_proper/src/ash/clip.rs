@@ -38,7 +38,6 @@ impl ClipContext {
                 if let Some(mut listeners) = world.get_mut::<ClipListeners>(*e) {
                     listeners.listeners.remove(&this);
                 }
-                world.commands().entity(this).insert(ClipSection(None));
             }
         }
     }

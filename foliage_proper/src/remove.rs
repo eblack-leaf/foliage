@@ -1,8 +1,7 @@
 use crate::ash::differential::RenderRemoveQueue;
 use crate::foliage::Foliage;
-use crate::{Attachment, Branch, Tree};
+use crate::{Attachment, Branch, StackDeps, Tree};
 use bevy_ecs::change_detection::ResMut;
-use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Event, Query, Trigger};
 
 impl Attachment for Remove {
@@ -22,16 +21,20 @@ impl Remove {
     ) {
         queue.queue.insert(trigger.entity());
     }
-    fn observer(trigger: Trigger<Self>, mut tree: Tree, branches: Query<&Branch>) {
+    fn observer(trigger: Trigger<Self>, mut tree: Tree, branches: Query<&Branch>, stack_deps: Query<&StackDeps>) {
         if tree.get_entity(trigger.entity()).is_none() {
             return;
         }
         tree.entity(trigger.entity()).despawn();
-        let deps = branches.get(trigger.entity()).unwrap();
-        let d = deps.ids.iter().copied().collect::<Vec<Entity>>();
-        if d.is_empty() {
+        let mut deps = branches.get(trigger.entity()).unwrap().ids.clone();
+        if let Ok(sd) = stack_deps.get(trigger.entity()) {
+            for e in sd.ids.iter() {
+                deps.insert(*e);
+            }
+        }
+        if deps.is_empty() {
             return;
         }
-        tree.trigger_targets(Remove::new(), d);
+        tree.trigger_targets(Remove::new(), deps.drain().collect::<Vec<_>>());
     }
 }

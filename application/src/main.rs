@@ -1,13 +1,10 @@
-use foliage::{
-    auto, stack, Animation, AutoHeight, Color, Elevation, Foliage, FontSize, Grid, GridExt,
-    InteractionListener, Location, OnEnd, Outline, Panel, Rounding, Stack, Stem, Text, Trigger,
-    View,
-};
+use foliage::{auto, stack, Animation, AutoHeight, Color, EcsExtension, Elevation, Foliage, FontSize, Grid, GridExt, InteractionListener, Location, OnEnd, Outline, Panel, Rounding, Stack, Stem, Text, Tree, Trigger, View};
+use tracing_subscriber::filter::Targets;
 mod icon;
 mod image;
 fn main() {
     let mut foliage = Foliage::new(); // library-handle
-    // foliage.enable_tracing(Targets::new().with_target("foliage", tracing::Level::TRACE));
+    foliage.enable_tracing(Targets::new().with_target("foliage", tracing::Level::TRACE));
     foliage.desktop_size((1024, 750)); // window-size
     foliage.url("foliage"); // web-path
     let root = foliage.leaf((
@@ -28,14 +25,14 @@ fn main() {
     let back = foliage.leaf((
         Panel::new(),
         Outline::new(0),
-        Rounding::Xl,
+        Rounding::None,
         Stem::some(a),
         Elevation::new(4),
-        Color::gray(50),
+        Color::gray(500),
         Location::new().xs(0.pct().to(500.px()).pad(-10), 0.pct().to(500.px()).pad(-10)),
     ));
     let b = foliage.leaf((
-        Text::new("Lorem ipsum dolor sit amet, consectetur adipiscing"),
+        Text::new("bbbbbbbbbb"),
         FontSize::new(20),
         AutoHeight(true),
         Color::gray(200),
@@ -46,7 +43,7 @@ fn main() {
         Location::new().xs(2.col().to(7.col()), stack().to(auto())),
     ));
     let _c = foliage.leaf((
-        Text::new("Lorem ipsum dolor sit amet, consectetur adipiscing"),
+        Text::new("ccccccccc"),
         FontSize::new(16),
         AutoHeight(true),
         Color::gray(50),
@@ -71,7 +68,8 @@ fn main() {
             .finish(1000)
             .targeting(back),
     );
-    foliage.sequence_end(seq, |trigger: Trigger<OnEnd>| {
+    foliage.sequence_end(seq, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
+        tree.remove(b);
         println!("finished {:?}", trigger.entity());
     });
     foliage.photosynthesize(); // run
