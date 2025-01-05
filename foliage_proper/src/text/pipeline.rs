@@ -215,7 +215,7 @@ impl Render for Text {
             let group = &mut renderer.groups.get_mut(id).unwrap().group;
             let position = packet
                 .position
-                .to_device(ginkgo.configuration().scale_factor.value());
+                .to_physical(ginkgo.configuration().scale_factor.value());
             group.uniform.set(0, position.left().round());
             group.uniform.set(1, position.top().round());
             group.write_uniform = true;

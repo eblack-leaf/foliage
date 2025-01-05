@@ -54,7 +54,7 @@ impl ContiguousSpan {
         };
         Parameters {
             group: self.group,
-            range: self.range.clone(),
+            range: self.range.start as u32..self.range.end as u32,
             clip_section,
         }
     }
@@ -62,7 +62,7 @@ impl ContiguousSpan {
 #[derive(Clone)]
 pub(crate) struct Parameters {
     pub(crate) group: GroupId,
-    pub(crate) range: Range<Order>,
+    pub(crate) range: Range<u32>,
     pub(crate) clip_section: Option<Section<Physical>>,
 }
 pub(crate) struct RenderGroup<R: Render> {

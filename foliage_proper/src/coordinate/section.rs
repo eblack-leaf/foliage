@@ -76,7 +76,7 @@ impl Section<Physical> {
 impl Section<Logical> {
     pub fn to_physical(self, factor: f32) -> Section<Physical> {
         Section::new(
-            self.position.to_device(factor),
+            self.position.to_physical(factor),
             self.area.to_physical(factor),
         )
     }

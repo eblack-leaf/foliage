@@ -96,7 +96,7 @@ impl<Context: CoordinateContext> Position<Context> {
 }
 
 impl Position<Logical> {
-    pub fn to_device(self, factor: f32) -> Position<Physical> {
+    pub fn to_physical(self, factor: f32) -> Position<Physical> {
         Position::physical((self.left() * factor, self.top() * factor))
     }
 }

@@ -9,13 +9,17 @@ mod enable;
 mod foliage;
 mod ginkgo;
 mod grid;
+mod icon;
+mod image;
 mod interaction;
 mod leaf;
 mod opacity;
 mod ops;
+mod panel;
 mod photosynthesis;
 mod platform;
 mod remove;
+mod shape;
 mod text;
 mod texture;
 mod time;
@@ -24,10 +28,6 @@ mod virtual_keyboard;
 mod visibility;
 mod web_ext;
 mod willow;
-mod panel;
-mod image;
-mod icon;
-mod shape;
 
 pub use crate::coordinate::{
     area::{Area, CReprArea},

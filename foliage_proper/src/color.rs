@@ -1,4 +1,5 @@
 use crate::Component;
+use bevy_color::Alpha;
 
 #[derive(Component, Copy, Clone, PartialEq)]
 pub struct Color {
@@ -97,6 +98,10 @@ impl Color {
     pub fn a(&self) -> f32 {
         self.value.alpha
     }
+    pub fn with_opacity(mut self, value: f32) -> Self {
+        self.value = self.value.with_alpha(value * self.a());
+        self
+    }
     pub fn set_red(&mut self, red: f32) {
         self.value.red = red;
     }
@@ -108,6 +113,9 @@ impl Color {
     }
     pub fn set_alpha(&mut self, alpha: f32) {
         self.value.alpha = alpha;
+    }
+    pub fn c_repr(&self) -> CReprColor {
+        CReprColor::from(*self)
     }
     pub fn gray<L: Into<Luminance>>(luminance: L) -> Self {
         Self {

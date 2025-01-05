@@ -244,7 +244,7 @@ impl Foliage {
                         .unwrap()
                         .user_translations()
                     {
-                        let pos = vc.to_device(self.ginkgo.configuration().scale_factor.value());
+                        let pos = vc.to_physical(self.ginkgo.configuration().scale_factor.value());
                         self.ginkgo.position_viewport(pos);
                     }
                     // TODO extract

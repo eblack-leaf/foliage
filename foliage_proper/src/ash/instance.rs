@@ -1,5 +1,6 @@
 use crate::ash::clip::ClipSection;
 use crate::ash::node::Node;
+use crate::ash::render::{GroupId, PipelineId};
 use crate::ginkgo::Ginkgo;
 use crate::ResolvedElevation;
 use std::cmp::Ordering;
@@ -37,7 +38,7 @@ pub(crate) struct InstanceCoordinator {
     #[allow(unused)]
     pub(crate) cache: Vec<Instance>,
     #[allow(unused)]
-    pub(crate) node_submit: Vec<Node>,
+    pub(crate) node_submit: HashSet<InstanceId>,
     #[allow(unused)]
     pub(crate) id_gen: InstanceId,
     pub(crate) gen_pool: HashSet<InstanceId>,
@@ -50,7 +51,7 @@ impl InstanceCoordinator {
         Self {
             instances: vec![],
             cache: vec![],
-            node_submit: vec![],
+            node_submit: HashSet::new(),
             id_gen: 0,
             gen_pool: Default::default(),
             capacity,
@@ -59,10 +60,45 @@ impl InstanceCoordinator {
     }
     pub(crate) fn add(&mut self, instance: Instance) {
         self.instances.push(instance);
+        self.node_submit.insert(instance.id);
         self.needs_sort = true;
     }
     pub(crate) fn has_instance(&self, id: InstanceId) -> bool {
         self.instances.iter().any(|i| i.id == id)
+    }
+    pub(crate) fn update_elevation(&mut self, id: InstanceId, elevation: ResolvedElevation) {
+        for mut instance in self.instances.iter_mut() {
+            if instance.id == id {
+                instance.elevation = elevation;
+                self.node_submit.insert(id);
+                self.needs_sort = true;
+            }
+        }
+    }
+    pub(crate) fn update_clip_section(&mut self, id: InstanceId, clip_section: ClipSection) {
+        for mut instance in self.instances.iter_mut() {
+            if instance.id == id {
+                instance.clip_section = clip_section;
+                self.node_submit.insert(id);
+                self.needs_sort = true;
+            }
+        }
+    }
+    pub(crate) fn updated_nodes(&mut self, id: PipelineId, group_id: GroupId) -> Vec<Node> {
+        let mut nodes = vec![];
+        for changed in self.node_submit.drain().collect::<Vec<_>>() {
+            let instance = self.instances.iter().find(|i| i.id == changed).unwrap();
+            let order = self.order(changed);
+            nodes.push(Node::new(
+                instance.elevation,
+                id,
+                group_id,
+                order,
+                instance.clip_section,
+                changed,
+            ));
+        }
+        nodes
     }
     pub(crate) fn count(&self) -> u32 {
         self.instances.len() as u32
@@ -109,6 +145,7 @@ impl InstanceCoordinator {
         for (new, instance) in self.instances.iter().enumerate() {
             if let Some(old) = self.cache.iter().position(|c| c.id == instance.id) {
                 if new != old {
+                    self.node_submit.insert(instance.id);
                     swaps.push(Swap {
                         old: old as Order,
                         new: new as Order,

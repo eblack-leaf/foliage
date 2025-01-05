@@ -44,10 +44,10 @@ fn vertex_entry(vertex: Vertex) -> Fragment {
     );
 }
 fn corner(c: vec4<f32>, interval: f32, dist: f32) -> f32 {
-    let a = smoothstep(frag.corner.z + interval, frag.corner.z - interval, dist);
+    let a = smoothstep(c.z + interval, c.z - interval, dist);
     var b = 1.0;
-    if (frag.corner.w != 0.0) {
-        b = smoothstep(frag.corner.w - interval, frag.corner.w + interval, dist);
+    if (c.w != 0.0) {
+        b = smoothstep(c.w - interval, c.w + interval, dist);
     }
     return min(a, b);
 }
@@ -55,7 +55,7 @@ fn corner(c: vec4<f32>, interval: f32, dist: f32) -> f32 {
 fn fragment_entry(frag: Fragment) -> @location(0) vec4<f32> {
     let interval = 0.75;
     let half_weight = 0.5 * frag.weight;
-    let dist = distance(frag.position.xy, corner.xy);
+    let dist = distance(frag.position.xy, frag.corner.xy);
     var coverage = 0.0;
     if (frag.segment == 0) {
         coverage = corner(frag.corner, interval, dist);
@@ -65,7 +65,7 @@ fn fragment_entry(frag: Fragment) -> @location(0) vec4<f32> {
         } else {
             let center = frag.section.y + half_weight;
             let actual = abs(frag.position.y - frag.section.y);
-            coverage = step(half_weight, from_center);
+            coverage = step(half_weight, actual);
         }
     } else if (frag.segment == 2) {
         coverage = corner(frag.corner, interval, dist);
@@ -96,7 +96,7 @@ fn fragment_entry(frag: Fragment) -> @location(0) vec4<f32> {
         } else {
             let bottom = frag.section.y + frag.section.w;
             let center = bottom - half_weight;
-            let actual = abs(frag.position.y, actual);
+            let actual = abs(frag.position.y - bottom);
             coverage = step(half_weight, actual);
         }
     } else if (frag.segment == 8) {
