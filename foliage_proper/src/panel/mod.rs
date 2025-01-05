@@ -1,4 +1,8 @@
+use bytemuck::{Pod, Zeroable};
 use crate::{Attachment, Color, Component, Foliage, Logical, Opacity, ResolvedElevation, Section};
+
+mod pipeline;
+mod vertex;
 
 #[derive(Component, Copy, Clone, Default)]
 #[require(Rounding, Color, Outline)]
@@ -35,3 +39,4 @@ impl Default for Outline {
         Outline { value: -1 }
     }
 }
+

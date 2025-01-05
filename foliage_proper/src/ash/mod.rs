@@ -2,7 +2,7 @@ use crate::ash::clip::prepare_clip_section;
 use crate::ash::differential::RenderQueueHandle;
 use crate::foliage::{DiffMarkers, Foliage};
 use crate::ginkgo::Ginkgo;
-use crate::{Attachment, Color, Text};
+use crate::{Attachment, Color, Panel, Text};
 use bevy_ecs::prelude::IntoSystemConfigs;
 use bevy_ecs::world::World;
 use node::Node;
@@ -28,6 +28,7 @@ pub(crate) struct Ash {
     pub(crate) nodes: Vec<Node>,
     pub(crate) contiguous: Vec<ContiguousSpan>,
     pub(crate) text: Option<Renderer<Text>>,
+    pub(crate) panel: Option<Renderer<Panel>>,
 }
 impl Default for Ash {
     fn default() -> Self {
@@ -41,10 +42,12 @@ impl Ash {
             nodes: vec![],
             contiguous: vec![],
             text: None,
+            panel: None,
         }
     }
     pub(crate) fn initialize(&mut self, ginkgo: &Ginkgo) {
         self.text.replace(Text::renderer(ginkgo));
+        self.panel.replace(Panel::renderer(ginkgo));
         // TODO other renderers
     }
     pub(crate) fn prepare(&mut self, world: &mut World, ginkgo: &Ginkgo) {
@@ -54,6 +57,9 @@ impl Ash {
         let text_nodes = Render::prepare(self.text.as_mut().unwrap(), &mut queues, ginkgo);
         nodes.extend(text_nodes.updated);
         to_remove.extend(text_nodes.removed);
+        let panel_nodes = Render::prepare(self.panel.as_mut().unwrap(), &mut queues, ginkgo);
+        nodes.extend(panel_nodes.updated);
+        to_remove.extend(panel_nodes.removed);
         // TODO extend other renderers
         if nodes.is_empty() && to_remove.is_empty() {
             return;
@@ -172,7 +178,9 @@ impl Ash {
                 }
                 PipelineId::Icon => {}
                 PipelineId::Shape => {}
-                PipelineId::Panel => {}
+                PipelineId::Panel => {
+                    Render::render(self.panel.as_mut().unwrap(), &mut rpass, parameters);
+                }
                 PipelineId::Image => {}
             }
         }

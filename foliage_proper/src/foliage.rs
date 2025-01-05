@@ -9,10 +9,7 @@ use crate::ginkgo::Ginkgo;
 use crate::remove::Remove;
 use crate::time::{OnEnd, Time};
 use crate::willow::Willow;
-use crate::{
-    AndroidConnection, Animate, Animation, Area, Attachment, Disable, EcsExtension, Elevation,
-    Enable, Grid, Interaction, Opacity, Physical, Resource, SystemSet, Text,
-};
+use crate::{AndroidConnection, Animate, Animation, Area, Attachment, Disable, EcsExtension, Elevation, Enable, Grid, Interaction, Opacity, Panel, Physical, Resource, SystemSet, Text};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
@@ -111,6 +108,7 @@ impl Foliage {
         foliage.enable_animation::<Opacity>();
         foliage.enable_animation::<Elevation>();
         // foliage.enable_animation::<Color>();
+        Panel::attach(&mut foliage);
         Grid::attach(&mut foliage);
         Interaction::attach(&mut foliage);
         Ash::attach(&mut foliage);
