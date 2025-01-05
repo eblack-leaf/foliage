@@ -60,15 +60,15 @@ fn main() {
     foliage.animate(
         seq,
         Animation::new(Location::new().xs(300.px().to(10.col()), 4.row().to(auto())))
-            .start(1000)
-            .finish(100000)
+            .start(100)
+            .finish(1000)
             .targeting(a),
     );
     foliage.animate(
         seq,
         Animation::new(Outline::new(310))
-            .start(1000)
-            .finish(100000)
+            .start(100)
+            .finish(1000)
             .targeting(back),
     );
     foliage.sequence_end(seq, move |trigger: Trigger<OnEnd>, mut tree: Tree| {

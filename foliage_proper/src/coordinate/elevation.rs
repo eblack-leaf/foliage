@@ -62,10 +62,12 @@ impl Elevation {
 }
 impl Animate for Elevation {
     fn interpolations(start: &Self, end: &Self) -> Interpolations {
-        todo!()
+        Interpolations::new().with(start.0, end.0)
     }
     fn apply(&mut self, interpolations: &mut Interpolations) {
-        todo!()
+        if let Some(e) = interpolations.read(0) {
+            self.0 = e;
+        }
     }
 }
 impl Attachment for Elevation {
