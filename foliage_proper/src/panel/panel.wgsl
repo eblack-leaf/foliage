@@ -43,6 +43,14 @@ fn vertex_entry(vertex: Vertex) -> Fragment {
         i32(vertex.vertex_data.z)
     );
 }
+fn corner(c: vec4<f32>, interval: f32, dist: f32) -> f32 {
+    let a = smoothstep(frag.corner.z + interval, frag.corner.z - interval, dist);
+    var b = 1.0;
+    if (frag.corner.w != 0.0) {
+        b = smoothstep(frag.corner.w - interval, frag.corner.w + interval, dist);
+    }
+    return min(a, b);
+}
 @fragment
 fn fragment_entry(frag: Fragment) -> @location(0) vec4<f32> {
     let interval = 0.75;
@@ -50,16 +58,49 @@ fn fragment_entry(frag: Fragment) -> @location(0) vec4<f32> {
     let dist = distance(frag.position.xy, corner.xy);
     var coverage = 0.0;
     if (frag.segment == 0) {
-        let a = smoothstep(frag.corner.z + interval, frag.corner.z - interval, dist);
-        var b = 1.0;
-        if (frag.corner.w != 0.0) {
-            b = smoothstep(frag.corner.w - interval, frag.corner.w + interval, dist);
-        }
-        coverage = min(a, b);
+        coverage = corner(frag.corner, interval, dist);
     } else if (frag.segment == 1) {
-        let center = frag.section.y + half_weight;
-        let dist = abs(frag.position.y - frag.section.y);
-        coverage = step(half_weight, dist);
+        if (half_weight < 0) {
+            coverage = 1.0;
+        } else {
+            let center = frag.section.y + half_weight;
+            let actual = abs(frag.position.y - frag.section.y);
+            coverage = step(half_weight, from_center);
+        }
+    } else if (frag.segment == 2) {
+        coverage = corner(frag.corner, interval, dist);
+    } else if (frag.segment == 3) {
+        if (half_weight < 0) {
+            coverage = 1.0;
+        } else {
+            let center = frag.section.x + half_weight;
+            let actual = abs(frag.position.x - frag.section.x);
+            coverage = step(half_weight, actual);
+        }
+    } else if (frag.segment == 4) {
+        // all segments min
+    } else if (frag.segment == 5) {
+        if (half_weight < 0) {
+            coverage = 1.0;
+        } else {
+            let right = frag.section.x + frag.section.z;
+            let center = right - half_weight;
+            let actual = abs(frag.position.x - right);
+            coverage = step(half_weight, actual);
+        }
+    } else if (frag.segment == 6) {
+        coverage = corner(frag.corner, interval, dist);
+    } else if (frag.segment == 7) {
+        if (half_weight < 0) {
+            coverage = 1.0;
+        } else {
+            let bottom = frag.section.y + frag.section.w;
+            let center = bottom - half_weight;
+            let actual = abs(frag.position.y, actual);
+            coverage = step(half_weight, actual);
+        }
+    } else if (frag.segment == 8) {
+        coverage = corner(frag.corner, interval, dist);
     }
     return vec4<f32>(frag.color.rgb, frag.color.a * coverage);
 }
