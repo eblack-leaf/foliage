@@ -1,4 +1,5 @@
-use crate::Component;
+use crate::anim::interpolation::Interpolations;
+use crate::{Animate, Component};
 use bevy_color::Alpha;
 
 #[derive(Component, Copy, Clone, PartialEq)]
@@ -9,6 +10,30 @@ impl Default for Color {
     fn default() -> Self {
         Self {
             value: bevy_color::Srgba::new(1.0, 1.0, 1.0, 1.0),
+        }
+    }
+}
+impl Animate for Color {
+    fn interpolations(start: &Self, end: &Self) -> Interpolations {
+        Interpolations::new()
+            .with(start.r(), end.r())
+            .with(start.g(), end.g())
+            .with(start.b(), end.b())
+            .with(start.a(), start.a())
+    }
+
+    fn apply(&mut self, interpolations: &mut Interpolations) {
+        if let Some(r) = interpolations.read(0) {
+            self.set_red(r);
+        }
+        if let Some(g) = interpolations.read(1) {
+            self.set_green(g);
+        }
+        if let Some(b) = interpolations.read(2) {
+            self.set_blue(b);
+        }
+        if let Some(a) = interpolations.read(3) {
+            self.set_alpha(a);
         }
     }
 }
@@ -117,9 +142,9 @@ impl Color {
     pub fn c_repr(&self) -> CReprColor {
         CReprColor::from(*self)
     }
-    pub fn gray<L: Into<Luminance>>(luminance: L) -> Self {
+    pub fn gray<L: Into<Luminance>>(l: L) -> Self {
         Self {
-            value: match luminance.into() {
+            value: match l.into() {
                 Luminance::Fifty => bevy_color::palettes::tailwind::GRAY_50,
                 Luminance::OneHundred => bevy_color::palettes::tailwind::GRAY_100,
                 Luminance::TwoHundred => bevy_color::palettes::tailwind::GRAY_200,
@@ -134,9 +159,9 @@ impl Color {
             },
         }
     }
-    pub fn orange<L: Into<Luminance>>(luminance: L) -> Self {
+    pub fn orange<L: Into<Luminance>>(l: L) -> Self {
         Self {
-            value: match luminance.into() {
+            value: match l.into() {
                 Luminance::Fifty => bevy_color::palettes::tailwind::ORANGE_50,
                 Luminance::OneHundred => bevy_color::palettes::tailwind::ORANGE_100,
                 Luminance::TwoHundred => bevy_color::palettes::tailwind::ORANGE_200,
@@ -151,9 +176,9 @@ impl Color {
             },
         }
     }
-    pub fn green<L: Into<Luminance>>(luminance: L) -> Self {
+    pub fn green<L: Into<Luminance>>(l: L) -> Self {
         Self {
-            value: match luminance.into() {
+            value: match l.into() {
                 Luminance::Fifty => bevy_color::palettes::tailwind::GREEN_50,
                 Luminance::OneHundred => bevy_color::palettes::tailwind::GREEN_100,
                 Luminance::TwoHundred => bevy_color::palettes::tailwind::GREEN_200,

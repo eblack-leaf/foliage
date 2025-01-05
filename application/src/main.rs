@@ -31,7 +31,7 @@ fn main() {
         Rounding::Xl,
         Stem::some(a),
         Elevation::new(4),
-        Color::gray(800),
+        Color::gray(50),
         Location::new().xs(0.pct().to(500.px()).pad(-10), 0.pct().to(500.px()).pad(-10)),
     ));
     let b = foliage.leaf((
@@ -49,7 +49,7 @@ fn main() {
         Text::new("Lorem ipsum dolor sit amet, consectetur adipiscing"),
         FontSize::new(16),
         AutoHeight(true),
-        Color::gray(500),
+        Color::gray(50),
         Stem::some(root),
         Stack::new(b),
         Elevation::new(2),

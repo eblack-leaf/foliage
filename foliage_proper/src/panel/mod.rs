@@ -78,7 +78,6 @@ impl Panel {
                     Rounding::Lg => 0.7 * min,
                     Rounding::Xl => 1.0 * min,
                 };
-                println!("min: {}, depth: {}", min, depth);
                 let weight = if let Ok(outline) = outlines.get(this) {
                     if outline.value.is_negative() {
                         None
