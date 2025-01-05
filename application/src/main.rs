@@ -7,7 +7,7 @@ mod icon;
 mod image;
 fn main() {
     let mut foliage = Foliage::new(); // library-handle
-                                      // foliage.enable_tracing(Targets::new().with_target("foliage", tracing::Level::TRACE));
+    // foliage.enable_tracing(Targets::new().with_target("foliage", tracing::Level::TRACE));
     foliage.desktop_size((1024, 750)); // window-size
     foliage.url("foliage"); // web-path
     let root = foliage.leaf((
@@ -30,8 +30,8 @@ fn main() {
         Outline::new(0),
         Rounding::Xl,
         Stem::some(a),
-        Elevation::new(1),
-        Color::gray(500),
+        Elevation::new(4),
+        Color::gray(800),
         Location::new().xs(0.pct().to(500.px()).pad(-10), 0.pct().to(500.px()).pad(-10)),
     ));
     let b = foliage.leaf((
@@ -39,6 +39,7 @@ fn main() {
         FontSize::new(20),
         AutoHeight(true),
         Color::gray(200),
+        Elevation::new(6),
         Stem::some(root),
         Stack::new(a),
         View::context(root),
@@ -51,6 +52,7 @@ fn main() {
         Color::gray(500),
         Stem::some(root),
         Stack::new(b),
+        Elevation::new(2),
         View::context(root),
         Location::new().xs(2.col().to(7.col()), stack().to(auto())),
     ));
