@@ -71,29 +71,25 @@ fn vertex_entry(vertex: Vertex) -> Fragment {
         segment
     );
 }
-fn corner(c: vec4<f32>, interval: f32, dist: f32, p: vec2<f32>) -> f32 {
-    let close_to_edge = abs(p.x - c.x) <= 3.0 || abs(p.y - c.y) <= 3.0;
-    let edge_adjust = 0.1;
-    let far = c.z + edge_adjust * f32(close_to_edge);
-    let near = c.w - edge_adjust * f32(close_to_edge);
-    let a = smoothstep(far + interval, far - interval, dist);
+fn corner(c: vec4<f32>, interval: f32, dist: f32) -> f32 {
+    let a = smoothstep(c.z + interval, c.z - interval, dist);
     var b = 1.0;
-    if (near > 0.0) {
-        b = smoothstep(near - interval, near + interval, dist);
+    if (c.w > 0.0) {
+        b = smoothstep(c.w - interval, c.w + interval, dist);
     }
     return min(a, b);
 }
 @fragment
 fn fragment_entry(frag: Fragment) -> @location(0) vec4<f32> {
     let interval = 0.75;
-    let half_weight = max(1.0, 0.5 * frag.weight);
+    let half_weight = max(0.5, 0.5 * frag.weight);
     let dist = distance(frag.position.xy, frag.corner.xy);
     let a = 1.0 - step(half_weight, abs(frag.position.y - (frag.section.y + half_weight)));
     let b = 1.0 - step(half_weight, abs(frag.position.x - (frag.section.x + half_weight)));
     let c = 1.0 - step(half_weight, abs(frag.position.x - (frag.section.x + frag.section.z - half_weight)));
     let d = 1.0 - step(half_weight, abs(frag.position.y - (frag.section.y + frag.section.w - half_weight)));
     let e = max(a, max(b, max(c, d)));
-    let cor = corner(frag.corner, interval, dist, frag.position.xy);
+    let cor = corner(frag.corner, interval, dist);
     let is_corner = f32(frag.segment == 0 || frag.segment == 2 || frag.segment == 6 || frag.segment == 8);
     let not_corner = f32(is_corner == 0);
     let use_a = f32(frag.segment == 1 && frag.weight >= 0);

@@ -25,11 +25,14 @@ fn main() {
     let back = foliage.leaf((
         Panel::new(),
         Outline::new(0),
-        Rounding::Sm,
+        Rounding::Xl,
         Stem::some(a),
         Elevation::new(4),
         Color::gray(500),
-        Location::new().xs(0.pct().to(100.pct()).pad(-10), 0.pct().to(100.pct()).pad(-10)),
+        Location::new().xs(
+            0.pct().to(500.px()).pad(-10),
+            0.pct().to(500.px()).pad(-10),
+        ),
     ));
     let b = foliage.leaf((
         Text::new("bbbbbbbbbb"),
@@ -56,16 +59,16 @@ fn main() {
     let seq = foliage.sequence();
     foliage.animate(
         seq,
-        Animation::new(Location::new().xs(300.px().to(1000.px()), 4.row().to(auto())))
+        Animation::new(Location::new().xs(300.px().to(10.col()), 4.row().to(auto())))
             .start(1000)
-            .finish(10000)
+            .finish(100000)
             .targeting(a),
     );
     foliage.animate(
         seq,
         Animation::new(Outline::new(310))
             .start(1000)
-            .finish(10000)
+            .finish(100000)
             .targeting(back),
     );
     foliage.sequence_end(seq, move |trigger: Trigger<OnEnd>, mut tree: Tree| {

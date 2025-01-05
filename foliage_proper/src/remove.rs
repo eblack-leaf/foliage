@@ -21,7 +21,12 @@ impl Remove {
     ) {
         queue.queue.insert(trigger.entity());
     }
-    fn observer(trigger: Trigger<Self>, mut tree: Tree, branches: Query<&Branch>, stack_deps: Query<&StackDeps>) {
+    fn observer(
+        trigger: Trigger<Self>,
+        mut tree: Tree,
+        branches: Query<&Branch>,
+        stack_deps: Query<&StackDeps>,
+    ) {
         if tree.get_entity(trigger.entity()).is_none() {
             return;
         }
