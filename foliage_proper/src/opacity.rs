@@ -1,5 +1,5 @@
 use crate::anim::interpolation::Interpolations;
-use crate::{Animate, Branch, Component, Stem};
+use crate::{Animate, Attachment, Branch, Component, Foliage, Stem};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::world::DeferredWorld;
@@ -10,6 +10,11 @@ use bevy_ecs::world::DeferredWorld;
 #[require(InheritedOpacity, BlendedOpacity)]
 pub struct Opacity {
     pub value: f32,
+}
+impl Attachment for Opacity {
+    fn attach(foliage: &mut Foliage) {
+        foliage.enable_animation::<Self>();
+    }
 }
 impl Opacity {
     pub fn new(value: f32) -> Opacity {

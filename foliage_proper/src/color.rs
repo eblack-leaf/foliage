@@ -1,5 +1,5 @@
 use crate::anim::interpolation::Interpolations;
-use crate::{Animate, Component};
+use crate::{Animate, Attachment, Component, Foliage};
 use bevy_color::Alpha;
 
 #[derive(Component, Copy, Clone, PartialEq)]
@@ -47,6 +47,11 @@ impl From<Color> for CReprColor {
         Self {
             value: [color.r(), color.g(), color.b(), color.a()],
         }
+    }
+}
+impl Attachment for Color {
+    fn attach(foliage: &mut Foliage) {
+        foliage.enable_animation::<Self>();
     }
 }
 impl Default for CReprColor {

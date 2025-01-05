@@ -1,5 +1,5 @@
 use crate::anim::interpolation::Interpolations;
-use crate::{Animate, Branch, Stem};
+use crate::{Animate, Attachment, Branch, Foliage, Stem};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::Component;
@@ -66,6 +66,11 @@ impl Animate for Elevation {
     }
     fn apply(&mut self, interpolations: &mut Interpolations) {
         todo!()
+    }
+}
+impl Attachment for Elevation {
+    fn attach(foliage: &mut Foliage) {
+        foliage.enable_animation::<Self>();
     }
 }
 macro_rules! elevation_conversion_implementation {

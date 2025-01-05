@@ -25,11 +25,11 @@ fn main() {
     let back = foliage.leaf((
         Panel::new(),
         Outline::new(0),
-        Rounding::None,
+        Rounding::Sm,
         Stem::some(a),
         Elevation::new(4),
         Color::gray(500),
-        Location::new().xs(0.pct().to(500.px()).pad(-10), 0.pct().to(500.px()).pad(-10)),
+        Location::new().xs(0.pct().to(100.pct()).pad(-10), 0.pct().to(100.pct()).pad(-10)),
     ));
     let b = foliage.leaf((
         Text::new("bbbbbbbbbb"),
@@ -56,20 +56,19 @@ fn main() {
     let seq = foliage.sequence();
     foliage.animate(
         seq,
-        Animation::new(Location::new().xs(3.col().to(10.col()), 4.row().to(auto())))
-            .start(500)
-            .finish(1000)
+        Animation::new(Location::new().xs(300.px().to(1000.px()), 4.row().to(auto())))
+            .start(1000)
+            .finish(10000)
             .targeting(a),
     );
     foliage.animate(
         seq,
         Animation::new(Outline::new(310))
-            .start(500)
-            .finish(1000)
+            .start(1000)
+            .finish(10000)
             .targeting(back),
     );
     foliage.sequence_end(seq, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
-        tree.remove(b);
         println!("finished {:?}", trigger.entity());
     });
     foliage.photosynthesize(); // run

@@ -2,8 +2,6 @@ use crate::anim::animate;
 use crate::ash::differential::{cached_differential, RenderQueue, RenderRemoveQueue};
 use crate::ash::Ash;
 use crate::asset::{Asset, AssetKey, AssetLoader};
-use crate::disable::AutoDisable;
-use crate::enable::AutoEnable;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::Ginkgo;
 use crate::remove::Remove;
@@ -101,13 +99,8 @@ impl Foliage {
         foliage
             .main
             .add_systems(event_update_system.in_set(MainMarkers::External));
-        foliage.define(Disable::interactions);
-        foliage.define(AutoDisable::interactions);
-        foliage.define(AutoEnable::interactions);
-        foliage.define(Enable::interactions);
-        foliage.enable_animation::<Opacity>();
-        foliage.enable_animation::<Elevation>();
-        foliage.enable_animation::<Color>();
+        Disable::attach(&mut foliage);
+        Enable::attach(&mut foliage);
         Panel::attach(&mut foliage);
         Grid::attach(&mut foliage);
         Interaction::attach(&mut foliage);
@@ -116,6 +109,9 @@ impl Foliage {
         Asset::attach(&mut foliage);
         Time::attach(&mut foliage);
         Remove::attach(&mut foliage);
+        Opacity::attach(&mut foliage);
+        Elevation::attach(&mut foliage);
+        Color::attach(&mut foliage);
         foliage
     }
     pub fn attach<A: Attachment>(&mut self) {
