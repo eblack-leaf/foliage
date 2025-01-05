@@ -27,14 +27,14 @@ fn main() {
     ));
     let back = foliage.leaf((
         Panel::new(),
-        Outline::new(4),
+        Outline::new(1),
         Rounding::Xl,
         Stem::some(a),
         Elevation::new(1),
         Color::gray(500),
         Location::new().xs(
-            0.pct().to(1000.px()).pad(-10),
-            0.pct().to(100.px()).pad(-10),
+            0.pct().to(100.pct()).pad(-10),
+            0.pct().to(100.pct()).pad(-10),
         ),
     ));
     let b = foliage.leaf((

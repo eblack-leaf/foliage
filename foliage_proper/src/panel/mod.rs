@@ -67,6 +67,7 @@ impl Panel {
         let this = trigger.entity();
         if let Ok(section) = sections.get(this) {
             if let Ok(rounding) = roundings.get(this) {
+                let section = section.rounded();
                 let min = section.width().min(section.height()) * 0.5;
                 let depth = match rounding {
                     Rounding::None => 0.0,

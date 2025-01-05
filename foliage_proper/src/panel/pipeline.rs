@@ -196,6 +196,7 @@ impl Render for Panel {
                 entity.index() as InstanceId,
                 section
                     .to_physical(ginkgo.configuration().scale_factor.value())
+                    .rounded()
                     .c_repr(),
             );
         }
