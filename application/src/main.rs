@@ -1,5 +1,5 @@
 use foliage::{
-    load_asset, Animation, Color, EcsExtension, Elevation, Foliage, Grid, GridExt, Image,
+    load_asset, Animation, Color, Elevation, Foliage, Grid, GridExt, Image,
     ImageView, InteractionListener, Location, OnEnd, Outline, Panel, Rounding, Stem, Tree, Trigger,
 };
 use tracing_subscriber::filter::Targets;
@@ -21,7 +21,7 @@ fn main() {
     let img = foliage.leaf((
         Image::new(0, key),
         Location::new().xs(1.col().to(4.col()), 1.row().to(6.row())),
-        ImageView::None,
+        ImageView::Stretch,
         Elevation::new(2),
         Stem::some(root),
     ));

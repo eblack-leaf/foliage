@@ -70,9 +70,7 @@ pub(crate) fn animate<A: Animate + Component>(
                 .checked_sub(frame_diff)
                 .unwrap_or_default();
         } else {
-            let mut just_started = false;
             if !animation.started {
-                just_started = true;
                 let target_entity = animation.animation_target;
                 if let Ok(a) = anim_targets.get(target_entity) {
                     animation.interpolations =

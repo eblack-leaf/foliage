@@ -6,28 +6,6 @@ pub(crate) struct SequenceTimeRange {
     pub(crate) start: TimeDelta,
     pub(crate) finish: TimeDelta,
 }
-#[derive(Copy, Clone)]
-pub struct SequenceTime {
-    val: TimeDelta,
-}
-pub trait SequenceTiming {
-    fn sec(self) -> SequenceTime;
-    fn millis(self) -> SequenceTime;
-}
-
-impl SequenceTiming for u32 {
-    fn sec(self) -> SequenceTime {
-        SequenceTime {
-            val: TimeDelta::from_secs(self as u64),
-        }
-    }
-
-    fn millis(self) -> SequenceTime {
-        SequenceTime {
-            val: TimeDelta::from_millis(self as u64),
-        }
-    }
-}
 
 #[derive(Component, Default, Copy, Clone)]
 pub(crate) struct Sequence {

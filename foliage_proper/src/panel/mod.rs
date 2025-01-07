@@ -13,7 +13,6 @@ use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::Trigger;
 use bevy_ecs::system::{Query, Res};
 use bevy_ecs::world::DeferredWorld;
-use bytemuck::{Pod, Zeroable};
 
 mod pipeline;
 mod vertex;

@@ -25,7 +25,6 @@ pub struct AssetLoader {
     pub(crate) assets: HashMap<AssetKey, Asset>,
     awaiting: HashMap<AssetKey, AssetFetch>,
 }
-pub type AssetFn = fn(&mut Tree, Entity, Vec<u8>);
 #[derive(Component, Clone)]
 pub struct AssetRetrieval {
     key: AssetKey,
@@ -119,6 +118,7 @@ pub(crate) struct AssetFetch {
     pub(crate) recv: Receiver<Asset>,
 }
 impl AssetFetch {
+    #[allow(unused)]
     pub(crate) fn new(key: AssetKey) -> (Self, Sender<Asset>) {
         let (sender, recv) = futures_channel::oneshot::channel();
         (Self { key, recv }, sender)

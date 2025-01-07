@@ -10,7 +10,6 @@ use crate::{CReprColor, CReprSection, Color, Logical, Outline, Panel, ResolvedEl
 use bevy_ecs::entity::Entity;
 use bytemuck::{Pod, Zeroable};
 use std::collections::HashMap;
-use wgpu::util::RenderEncoder;
 use wgpu::{
     include_wgsl, BindGroupDescriptor, BindGroupLayoutDescriptor, PipelineLayoutDescriptor,
     RenderPass, RenderPipelineDescriptor, ShaderStages, VertexState, VertexStepMode,
@@ -178,7 +177,7 @@ impl Render for Panel {
                     .coordinator
                     .update_elevation(entity.index() as InstanceId, elevation);
             }
-            let lw = if let Some(mut lw) = renderer.resources.layer_and_weights.get_mut(&entity) {
+            let lw = if let Some(lw) = renderer.resources.layer_and_weights.get_mut(&entity) {
                 lw.elevation = elevation;
                 *lw
             } else {

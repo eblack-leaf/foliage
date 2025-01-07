@@ -67,7 +67,7 @@ impl InstanceCoordinator {
         self.instances.iter().any(|i| i.id == id)
     }
     pub(crate) fn update_elevation(&mut self, id: InstanceId, elevation: ResolvedElevation) {
-        for mut instance in self.instances.iter_mut() {
+        for instance in self.instances.iter_mut() {
             if instance.id == id {
                 instance.elevation = elevation;
                 self.node_submit.insert(id);
@@ -76,7 +76,7 @@ impl InstanceCoordinator {
         }
     }
     pub(crate) fn update_clip_section(&mut self, id: InstanceId, clip_section: ClipSection) {
-        for mut instance in self.instances.iter_mut() {
+        for instance in self.instances.iter_mut() {
             if instance.id == id {
                 instance.clip_section = clip_section;
                 self.node_submit.insert(id);

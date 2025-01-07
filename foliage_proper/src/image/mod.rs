@@ -38,7 +38,7 @@ pub enum ImageView {
     #[default]
     Aspect,
     Crop,
-    None,
+    Stretch,
 }
 impl ImageView {
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
@@ -57,7 +57,7 @@ impl ImageView {
                     .queue
                     .insert(this, CropAdjustment::default());
             }
-            ImageView::None => {
+            ImageView::Stretch => {
                 world.commands().entity(this).insert(AspectRatio::new());
                 world
                     .get_resource_mut::<RenderQueue<Image, CropAdjustment>>()
@@ -71,7 +71,7 @@ impl ImageView {
         }
     }
 }
-#[derive(Component, Copy, Clone, PartialEq, Default)]
+#[derive(Copy, Clone, PartialEq, Default)]
 pub(crate) struct CropAdjustment {
     pub(crate) adjustments: Section<Numerical>,
 }
@@ -139,8 +139,8 @@ impl Image {
                     .data
                     .as_slice(),
             )
-            .unwrap()
-            .into_rgba8();
+                .unwrap()
+                .into_rgba8();
             let extent = Area::from((rgba_image.width(), rgba_image.height()));
             world
                 .commands()
@@ -206,7 +206,7 @@ impl Image {
 pub struct ImageMetrics {
     pub extent: Area<Numerical>,
 }
-#[derive(Component, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub(crate) struct ImageWrite {
     pub(crate) image: Image,
     pub(crate) data: Vec<u8>,

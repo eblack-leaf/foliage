@@ -74,6 +74,7 @@ pub struct Timer {
     time_left: TimeDelta,
 }
 impl Timer {
+    #[allow(unused)]
     pub fn new(time_left: TimeDelta) -> Self {
         Self { time_left }
     }

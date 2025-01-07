@@ -10,7 +10,6 @@ use crate::texture::TextureCoordinates;
 use crate::{texture, Area, CReprSection, Logical, Numerical, ResolvedElevation, Section};
 use bevy_ecs::entity::Entity;
 use std::collections::HashMap;
-use wgpu::util::RenderEncoder;
 use wgpu::{
     include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor,
     Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, PipelineLayoutDescriptor, RenderPass,
@@ -24,6 +23,7 @@ pub(crate) struct Resources {
 }
 pub(crate) struct Group {
     texture: Texture,
+    #[allow(unused)]
     view: TextureView,
     bind_group: BindGroup,
     memory_extent: Area<Numerical>,
@@ -135,7 +135,7 @@ impl Render for Image {
         let mut nodes = Nodes::new();
         for entity in queues.removes::<Image>() {
             if let Some(group_id) = renderer.resources.entity_to_memory.remove(&entity) {
-                let mut group = renderer.groups.get_mut(&group_id).unwrap();
+                let group = renderer.groups.get_mut(&group_id).unwrap();
                 let order = group.coordinator.order(entity.index() as InstanceId);
                 group.coordinator.remove(order);
                 nodes.remove(RemoveNode::new(PipelineId::Image, group_id, order));
@@ -216,7 +216,7 @@ impl Render for Image {
         }
         for (entity, elevation) in queues.attribute::<Image, ResolvedElevation>() {
             if let Some(gid) = renderer.resources.entity_to_memory.get(&entity) {
-                let mut group = renderer.groups.get_mut(&gid).unwrap();
+                let group = renderer.groups.get_mut(&gid).unwrap();
                 let id = entity.index() as InstanceId;
                 if !group.coordinator.has_instance(id) {
                     group
@@ -228,14 +228,14 @@ impl Render for Image {
         }
         for (entity, clip) in queues.attribute::<Image, ClipSection>() {
             if let Some(gid) = renderer.resources.entity_to_memory.get(&entity) {
-                let mut group = renderer.groups.get_mut(&gid).unwrap();
+                let group = renderer.groups.get_mut(&gid).unwrap();
                 let id = entity.index() as InstanceId;
                 group.coordinator.update_clip_section(id, clip);
             }
         }
         for (entity, adjustments) in queues.attribute::<Image, CropAdjustment>() {
             if let Some(gid) = renderer.resources.entity_to_memory.get(&entity) {
-                let mut group = renderer.groups.get_mut(&gid).unwrap();
+                let group = renderer.groups.get_mut(&gid).unwrap();
                 let id = entity.index() as InstanceId;
                 let base = group.group.texture_coordinates;
                 if adjustments.adjustments == Section::default() {
@@ -256,14 +256,14 @@ impl Render for Image {
         }
         for (entity, opacity) in queues.attribute::<Image, BlendedOpacity>() {
             if let Some(gid) = renderer.resources.entity_to_memory.get(&entity) {
-                let mut group = renderer.groups.get_mut(&gid).unwrap();
+                let group = renderer.groups.get_mut(&gid).unwrap();
                 let id = entity.index() as InstanceId;
                 group.group.opaque.queue(id, opacity);
             }
         }
         for (entity, section) in queues.attribute::<Image, Section<Logical>>() {
             if let Some(gid) = renderer.resources.entity_to_memory.get(&entity) {
-                let mut group = renderer.groups.get_mut(&gid).unwrap();
+                let group = renderer.groups.get_mut(&gid).unwrap();
                 let id = entity.index() as InstanceId;
                 group.group.sections.queue(
                     id,
