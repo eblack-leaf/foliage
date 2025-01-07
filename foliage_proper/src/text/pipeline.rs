@@ -78,10 +78,10 @@ impl Render for Text {
                     .uniform_entry(),
                 Ginkgo::bind_group_layout_entry(1)
                     .at_stages(ShaderStages::FRAGMENT)
-                    .sampler_entry(),
+                    .sampler_entry(false),
             ],
         });
-        let sampler = ginkgo.create_sampler();
+        let sampler = ginkgo.create_sampler(false);
         let bind_group = ginkgo.create_bind_group(&BindGroupDescriptor {
             label: Some("text-bind-group"),
             layout: &bind_group_layout,

@@ -4,14 +4,15 @@ use wgpu::util::DeviceExt;
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
     BlendState, Buffer, BufferAddress, BufferUsages, ColorTargetState, CompareFunction,
-    CompositeAlphaMode, DepthStencilState, DeviceDescriptor, Extent3d, Features, FragmentState,
-    ImageCopyTexture, ImageDataLayout, InstanceDescriptor, Limits, LoadOp, MultisampleState,
-    Operations, Origin3d, PipelineLayout, PipelineLayoutDescriptor, PowerPreference, PresentMode,
-    PrimitiveState, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPipeline,
-    RenderPipelineDescriptor, RequestAdapterOptions, Sampler, SamplerDescriptor, ShaderModule,
-    ShaderModuleDescriptor, StoreOp, SurfaceConfiguration, Texture, TextureDescriptor,
-    TextureDimension, TextureFormat, TextureUsages, TextureView, TextureViewDescriptor,
-    VertexAttribute, VertexBufferLayout, VertexStepMode,
+    CompositeAlphaMode, DepthStencilState, DeviceDescriptor, Extent3d, Features, FilterMode,
+    FragmentState, ImageCopyTexture, ImageDataLayout, InstanceDescriptor, Limits, LoadOp,
+    MultisampleState, Operations, Origin3d, PipelineLayout, PipelineLayoutDescriptor,
+    PowerPreference, PresentMode, PrimitiveState, RenderPassColorAttachment,
+    RenderPassDepthStencilAttachment, RenderPipeline, RenderPipelineDescriptor,
+    RequestAdapterOptions, Sampler, SamplerDescriptor, ShaderModule, ShaderModuleDescriptor,
+    StoreOp, SurfaceConfiguration, Texture, TextureDescriptor, TextureDimension, TextureFormat,
+    TextureUsages, TextureView, TextureViewDescriptor, VertexAttribute, VertexBufferLayout,
+    VertexStepMode,
 };
 
 use binding::BindingBuilder;
@@ -102,10 +103,17 @@ impl Ginkgo {
             attributes: attrs,
         }
     }
-    pub fn create_sampler(&self) -> Sampler {
-        self.context()
-            .device
-            .create_sampler(&SamplerDescriptor::default())
+    pub fn create_sampler(&self, filter: bool) -> Sampler {
+        let descriptor = if filter {
+            SamplerDescriptor {
+                mag_filter: FilterMode::Linear,
+                min_filter: FilterMode::Linear,
+                ..SamplerDescriptor::default()
+            }
+        } else {
+            SamplerDescriptor::default()
+        };
+        self.context().device.create_sampler(&descriptor)
     }
     pub fn create_texture(
         &self,

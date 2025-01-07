@@ -46,7 +46,7 @@ impl Render for Image {
                 .at_stages(ShaderStages::FRAGMENT)
                 .texture_entry(
                     TextureViewDimension::D2,
-                    TextureSampleType::Float { filterable: false },
+                    TextureSampleType::Float { filterable: true },
                 )],
         });
         let bind_group_layout = ginkgo.create_bind_group_layout(&BindGroupLayoutDescriptor {
@@ -57,10 +57,10 @@ impl Render for Image {
                     .uniform_entry(),
                 Ginkgo::bind_group_layout_entry(1)
                     .at_stages(ShaderStages::FRAGMENT)
-                    .sampler_entry(),
+                    .sampler_entry(true),
             ],
         });
-        let sampler = ginkgo.create_sampler();
+        let sampler = ginkgo.create_sampler(true);
         let bind_group = ginkgo.create_bind_group(&BindGroupDescriptor {
             label: Some("image-bind-group"),
             layout: &bind_group_layout,

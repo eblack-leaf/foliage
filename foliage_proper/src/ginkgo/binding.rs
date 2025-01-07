@@ -50,11 +50,15 @@ impl BindingBuilder {
             count: None,
         }
     }
-    pub(crate) fn sampler_entry(mut self) -> BindGroupLayoutEntry {
+    pub(crate) fn sampler_entry(mut self, filter: bool) -> BindGroupLayoutEntry {
         BindGroupLayoutEntry {
             binding: self.binding,
             visibility: self.shader_stages(),
-            ty: BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
+            ty: BindingType::Sampler(if filter {
+                wgpu::SamplerBindingType::Filtering
+            } else {
+                wgpu::SamplerBindingType::NonFiltering
+            }),
             count: None,
         }
     }
