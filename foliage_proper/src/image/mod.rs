@@ -124,8 +124,8 @@ impl Image {
                     .data
                     .as_slice(),
             )
-                .unwrap()
-                .into_rgba8();
+            .unwrap()
+            .into_rgba8();
             let extent = Area::from((rgba_image.width(), rgba_image.height()));
             world
                 .commands()
