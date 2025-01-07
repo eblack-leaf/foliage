@@ -9,7 +9,7 @@ use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::{
     Area, Attachment, Component, Coordinates, Foliage, Layout, Logical, Numerical,
-    ResolvedElevation, Section,
+    ResolvedElevation, ResolvedVisibility, Section, Write,
 };
 use crate::{AssetKey, AssetRetrieval, ClipContext};
 use crate::{Differential, Tree, Visibility};
@@ -107,6 +107,20 @@ impl Image {
             extent: Area::from(coords),
         }
     }
+    fn visibility_retrigger(
+        trigger: Trigger<Write<Visibility>>,
+        images: Query<&Image>,
+        mut tree: Tree,
+        vis: Query<&ResolvedVisibility>,
+    ) {
+        if let Ok(img) = images.get(trigger.entity()) {
+            if let Ok(v) = vis.get(trigger.entity()) {
+                if v.visible() {
+                    tree.entity(trigger.entity()).insert(*img);
+                }
+            }
+        }
+    }
     fn retrieve_img(trigger: Trigger<OnRetrieval>, mut tree: Tree, images: Query<&Image>) {
         if let Ok(img) = images.get(trigger.entity()) {
             tree.entity(trigger.entity()).insert(*img);
@@ -117,6 +131,7 @@ impl Image {
             .commands()
             .entity(this)
             .observe(Self::retrieve_img)
+            .observe(Self::visibility_retrigger)
             .observe(Visibility::push_remove_packet::<Self>)
             .observe(Remove::push_remove_packet::<Self>);
     }
@@ -139,8 +154,8 @@ impl Image {
                     .data
                     .as_slice(),
             )
-                .unwrap()
-                .into_rgba8();
+            .unwrap()
+            .into_rgba8();
             let extent = Area::from((rgba_image.width(), rgba_image.height()));
             world
                 .commands()

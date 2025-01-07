@@ -1,6 +1,6 @@
 use foliage::{
-    load_asset, Animation, Color, Elevation, Foliage, Grid, GridExt, Image,
-    ImageView, InteractionListener, Location, OnEnd, Outline, Panel, Rounding, Stem, Tree, Trigger,
+    load_asset, Animation, Color, Elevation, Foliage, Grid, GridExt, Image, ImageView,
+    InteractionListener, Location, OnEnd, Outline, Panel, Rounding, Stem, Tree, Trigger,
 };
 use tracing_subscriber::filter::Targets;
 mod icon;
@@ -20,7 +20,7 @@ fn main() {
     foliage.world.spawn(Image::memory(0, (333, 500)));
     let img = foliage.leaf((
         Image::new(0, key),
-        Location::new().xs(1.col().to(4.col()), 1.row().to(6.row())),
+        Location::new().sm(1.col().to(4.col()), 1.row().to(6.row())),
         ImageView::Stretch,
         Elevation::new(2),
         Stem::some(root),
@@ -41,7 +41,7 @@ fn main() {
         Stem::some(root),
         Elevation::new(4),
         Color::gray(500),
-        Location::new().xs(0.pct().to(500.px()).pad(-10), 0.pct().to(500.px()).pad(-10)),
+        Location::new().sm(0.pct().to(500.px()).pad(-10), 0.pct().to(500.px()).pad(-10)),
     ));
     // let b = foliage.leaf((
     //     Text::new("bbbbbbbbbb"),
@@ -68,7 +68,7 @@ fn main() {
     let seq = foliage.sequence();
     foliage.animate(
         seq,
-        Animation::new(Location::new().xs(300.px().to(10.col()), 4.row().to(12.row())))
+        Animation::new(Location::new().sm(300.px().to(10.col()), 4.row().to(12.row())))
             .start(100)
             .finish(1000)
             .targeting(img),

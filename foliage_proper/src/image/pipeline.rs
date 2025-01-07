@@ -136,9 +136,10 @@ impl Render for Image {
         for entity in queues.removes::<Image>() {
             if let Some(group_id) = renderer.resources.entity_to_memory.remove(&entity) {
                 let group = renderer.groups.get_mut(&group_id).unwrap();
-                let order = group.coordinator.order(entity.index() as InstanceId);
+                let id = entity.index() as InstanceId;
+                let order = group.coordinator.order(id);
                 group.coordinator.remove(order);
-                nodes.remove(RemoveNode::new(PipelineId::Image, group_id, order));
+                nodes.remove(RemoveNode::new(PipelineId::Image, group_id, id));
             }
         }
         for (_, memory) in queues.attribute::<Image, ImageMemory>() {
