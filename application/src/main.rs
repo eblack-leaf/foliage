@@ -1,16 +1,13 @@
-use foliage::{
-    asset_retrieval, load_asset, AssetRetrieval, EcsExtension, Foliage, Grid, GridExt, Image,
-    ImageView, InteractionListener, Location, Stem,
-};
+use foliage::{load_asset, Animation, Color, EcsExtension, Elevation, Foliage, Grid, GridExt, Image, ImageView, InteractionListener, Location, OnEnd, Outline, Panel, Rounding, Stem, Tree, Trigger};
 mod icon;
 mod image;
 fn main() {
     let mut foliage = Foliage::new(); // library-handle
-                                      // foliage.enable_tracing(Targets::new().with_target("foliage", tracing::Level::TRACE));
+    // foliage.enable_tracing(Targets::new().with_target("foliage", tracing::Level::TRACE));
     foliage.desktop_size((1024, 750)); // window-size
     foliage.url("foliage"); // web-path
     let root = foliage.leaf((
-        Grid::new(12.col(), 24.px()),
+        Grid::new(12.col(), 12.row()),
         Location::new().xs(0.pct().to(100.pct()), 0.pct().to(100.pct())),
         InteractionListener::new().scroll(true),
         Stem::none(),
@@ -19,8 +16,9 @@ fn main() {
     foliage.world.spawn(Image::memory(0, (333, 500)));
     let img = foliage.leaf((
         Image::new(0, key),
-        Location::new().xs(10.px().span(333.px()), 10.px().span(500.px())),
+        Location::new().xs(1.col().to(4.col()), 1.row().to(6.row())),
         ImageView::None,
+        Elevation::new(2),
         Stem::some(root),
     ));
     // let a = foliage.leaf((
@@ -32,15 +30,15 @@ fn main() {
     //     Location::new().xs(1.col().to(7.col()), 1.row().to(auto())),
     //     Grid::new(1.col().gap(0), 1.row().gap(0)),
     // ));
-    // let back = foliage.leaf((
-    //     Panel::new(),
-    //     Outline::new(0),
-    //     Rounding::Xl,
-    //     Stem::some(a),
-    //     Elevation::new(4),
-    //     Color::gray(500),
-    //     Location::new().xs(0.pct().to(500.px()).pad(-10), 0.pct().to(500.px()).pad(-10)),
-    // ));
+    let back = foliage.leaf((
+        Panel::new(),
+        Outline::new(0),
+        Rounding::Xl,
+        Stem::some(root),
+        Elevation::new(4),
+        Color::gray(500),
+        Location::new().xs(0.pct().to(500.px()).pad(-10), 0.pct().to(500.px()).pad(-10)),
+    ));
     // let b = foliage.leaf((
     //     Text::new("bbbbbbbbbb"),
     //     FontSize::new(20),
@@ -63,7 +61,7 @@ fn main() {
     //     View::context(root),
     //     Location::new().xs(2.col().to(7.col()), stack().to(auto())),
     // ));
-    // let seq = foliage.sequence();
+    let seq = foliage.sequence();
     // foliage.animate(
     //     seq,
     //     Animation::new(Location::new().xs(300.px().to(10.col()), 4.row().to(auto())))
@@ -71,15 +69,16 @@ fn main() {
     //         .finish(1000)
     //         .targeting(a),
     // );
-    // foliage.animate(
-    //     seq,
-    //     Animation::new(Outline::new(310))
-    //         .start(100)
-    //         .finish(1000)
-    //         .targeting(back),
-    // );
-    // foliage.sequence_end(seq, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
-    //     println!("finished {:?}", trigger.entity());
-    // });
+    foliage.animate(
+        seq,
+        Animation::new(Outline::new(310))
+            .start(100)
+            .finish(2000)
+            .targeting(back),
+    );
+    foliage.sequence_end(seq, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
+        tree.entity(img).insert(ImageView::Aspect);
+        println!("finished {:?}", trigger.entity());
+    });
     foliage.photosynthesize(); // run
 }

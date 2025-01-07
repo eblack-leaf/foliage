@@ -3,10 +3,7 @@ use crate::ash::clip::ClipSection;
 use crate::ginkgo::ScaleFactor;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
-use crate::{
-    Animate, Attachment, ClipContext, Color, Component, CoordinateUnit, Coordinates, Differential,
-    Foliage, Logical, Position, ResolvedElevation, Section, Tree, Update, Visibility, Write,
-};
+use crate::{Animate, Animation, Attachment, ClipContext, Color, Component, CoordinateUnit, Coordinates, Differential, Foliage, Logical, Position, ResolvedElevation, Section, Tree, Update, Visibility, Write};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::Trigger;
@@ -123,6 +120,7 @@ impl Panel {
 impl Attachment for Panel {
     fn attach(foliage: &mut Foliage) {
         foliage.define(Panel::update);
+        foliage.define(Outline::update_anim);
         foliage.remove_queue::<Self>();
         foliage.differential::<Self, Section<Logical>>();
         foliage.differential::<Self, BlendedOpacity>();
@@ -178,6 +176,12 @@ pub struct Outline {
 impl Outline {
     pub fn new(value: i32) -> Outline {
         Outline { value }
+    }
+    fn update_anim(
+        trigger: Trigger<Update<Animation<Self>>>,
+        mut tree: Tree,
+    ) {
+        tree.trigger_targets(Update::<Panel>::new(), trigger.entity());
     }
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
         world.trigger_targets(Update::<Panel>::new(), this);
