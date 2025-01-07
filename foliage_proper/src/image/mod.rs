@@ -2,24 +2,26 @@ mod pipeline;
 
 use crate::ash::clip::ClipSection;
 use crate::ash::differential::RenderQueue;
-use crate::asset::AssetLoader;
+use crate::asset::{AssetLoader, OnRetrieval};
 use crate::foliage::DiffMarkers;
 use crate::grid::AspectRatio;
 use crate::opacity::BlendedOpacity;
-use crate::Differential;
-use crate::{asset_retrieval, AssetKey, AssetRetrieval, ClipContext};
+use crate::remove::Remove;
 use crate::{
     Area, Attachment, Component, Coordinates, Foliage, Layout, Logical, Numerical,
     ResolvedElevation, Section,
 };
+use crate::{AssetKey, AssetRetrieval, ClipContext};
+use crate::{Differential, Tree, Visibility};
 use bevy_ecs::component::ComponentId;
-use bevy_ecs::prelude::{Entity, IntoSystemConfigs, Res};
+use bevy_ecs::prelude::{Entity, IntoSystemConfigs, Res, Trigger};
 use bevy_ecs::query::{Changed, Or};
 use bevy_ecs::system::{Query, ResMut};
 use bevy_ecs::world::DeferredWorld;
 use wgpu::TextureFormat;
 
 #[derive(Component, Copy, Clone, PartialEq)]
+#[component(on_add = Self::on_add)]
 #[component(on_insert = Self::on_insert)]
 #[require(ImageView, ImageMetrics, ClipContext)]
 #[require(Differential<Image, Section<Logical>>)]
@@ -105,6 +107,19 @@ impl Image {
             extent: Area::from(coords),
         }
     }
+    fn retrieve_img(trigger: Trigger<OnRetrieval>, mut tree: Tree, images: Query<&Image>) {
+        if let Ok(img) = images.get(trigger.entity()) {
+            tree.entity(trigger.entity()).insert(*img);
+        }
+    }
+    fn on_add(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+        world
+            .commands()
+            .entity(this)
+            .observe(Self::retrieve_img)
+            .observe(Visibility::push_remove_packet::<Self>)
+            .observe(Remove::push_remove_packet::<Self>);
+    }
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
         let value = *world.get::<Image>(this).unwrap();
         let write = if world
@@ -124,8 +139,8 @@ impl Image {
                     .data
                     .as_slice(),
             )
-            .unwrap()
-            .into_rgba8();
+                .unwrap()
+                .into_rgba8();
             let extent = Area::from((rgba_image.width(), rgba_image.height()));
             world
                 .commands()
@@ -141,10 +156,7 @@ impl Image {
             world
                 .commands()
                 .entity(this)
-                .insert(AssetRetrieval::new(value.key))
-                .observe(asset_retrieval(move |tree, entity, data| {
-                    tree.entity(entity).insert(value);
-                }));
+                .insert(AssetRetrieval::new(value.key));
             ImageWrite {
                 image: value,
                 data: vec![],
