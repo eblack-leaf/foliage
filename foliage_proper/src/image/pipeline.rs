@@ -181,7 +181,7 @@ impl Render for Image {
                     origin: Origin3d::default(),
                     aspect: TextureAspect::All,
                 },
-                bytemuck::cast_slice(&image.image.data),
+                bytemuck::cast_slice(&image.data),
                 ImageDataLayout {
                     offset: 0,
                     bytes_per_row: Some(image.extent.width() as u32 * size_of::<f32>() as u32),
@@ -239,10 +239,12 @@ impl Render for Image {
                 if adjustments.adjustments == Section::default() {
                     group.group.coords.queue(id, base);
                 } else {
-                    let t = base.top_left.a() + base.bottom_right.a() * adjustments.adjustments.left();
-                    let l = base.top_left.b() + base.bottom_right.b() * adjustments.adjustments.top();
-                    let b =
-                        base.bottom_right.a() - base.bottom_right.a() * adjustments.adjustments.width();
+                    let t =
+                        base.top_left.a() + base.bottom_right.a() * adjustments.adjustments.left();
+                    let l =
+                        base.top_left.b() + base.bottom_right.b() * adjustments.adjustments.top();
+                    let b = base.bottom_right.a()
+                        - base.bottom_right.a() * adjustments.adjustments.width();
                     let r = base.bottom_right.b()
                         - base.bottom_right.b() * adjustments.adjustments.height();
                     let adjusted = TextureCoordinates::new((t, l), (b, r));

@@ -1,9 +1,12 @@
-use foliage::{asset_retrieval, load_asset, AssetRetrieval, EcsExtension, Foliage, Grid, GridExt, Image, ImageView, InteractionListener, Location, Stem};
+use foliage::{
+    asset_retrieval, load_asset, AssetRetrieval, EcsExtension, Foliage, Grid, GridExt, Image,
+    ImageView, InteractionListener, Location, Stem,
+};
 mod icon;
 mod image;
 fn main() {
     let mut foliage = Foliage::new(); // library-handle
-    // foliage.enable_tracing(Targets::new().with_target("foliage", tracing::Level::TRACE));
+                                      // foliage.enable_tracing(Targets::new().with_target("foliage", tracing::Level::TRACE));
     foliage.desktop_size((1024, 750)); // window-size
     foliage.url("foliage"); // web-path
     let root = foliage.leaf((
@@ -15,18 +18,11 @@ fn main() {
     let key = load_asset!(foliage, "assets/test.jpg");
     foliage.world.spawn(Image::memory(0, (333, 500)));
     let img = foliage.leaf((
-        AssetRetrieval::new(key),
+        Image::new(0, key),
         Location::new().xs(10.px().span(333.px()), 10.px().span(500.px())),
         ImageView::None,
         Stem::some(root),
     ));
-    foliage
-        .world
-        .commands()
-        .entity(img)
-        .observe(asset_retrieval(|tree, entity, data| {
-            tree.entity(entity).insert(Image::new(0, data));
-        }));
     // let a = foliage.leaf((
     //     Text::new("Lorem ipsum dolor sit amet, consectetur adipiscing"),
     //     FontSize::new(32),

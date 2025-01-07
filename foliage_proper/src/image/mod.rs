@@ -2,11 +2,12 @@ mod pipeline;
 
 use crate::ash::clip::ClipSection;
 use crate::ash::differential::RenderQueue;
+use crate::asset::AssetLoader;
 use crate::foliage::DiffMarkers;
 use crate::grid::AspectRatio;
 use crate::opacity::BlendedOpacity;
-use crate::ClipContext;
 use crate::Differential;
+use crate::{asset_retrieval, AssetKey, AssetRetrieval, ClipContext};
 use crate::{
     Area, Attachment, Component, Coordinates, Foliage, Layout, Logical, Numerical,
     ResolvedElevation, Section,
@@ -17,7 +18,8 @@ use bevy_ecs::query::{Changed, Or};
 use bevy_ecs::system::Query;
 use bevy_ecs::world::DeferredWorld;
 use wgpu::TextureFormat;
-#[derive(Component, Clone, PartialEq)]
+
+#[derive(Component, Copy, Clone, PartialEq)]
 #[component(on_insert = Self::on_insert)]
 #[require(ImageView, CropAdjustment, ImageMetrics, ClipContext)]
 #[require(Differential<Image, Section<Logical>>)]
@@ -27,7 +29,7 @@ use wgpu::TextureFormat;
 #[require(Differential<Image, CropAdjustment>)]
 pub struct Image {
     pub memory_id: MemoryId,
-    pub data: Vec<u8>,
+    pub key: AssetKey,
 }
 #[derive(Component, Copy, Clone, PartialEq, Default)]
 #[component(on_insert = Self::on_insert)]
@@ -44,7 +46,8 @@ impl ImageView {
         match value {
             ImageView::Aspect => {
                 if metrics.extent != Area::default() {
-                    let ratio = AspectRatio::new().xs(metrics.extent.width() / metrics.extent.height());
+                    let ratio =
+                        AspectRatio::new().xs(metrics.extent.width() / metrics.extent.height());
                     println!("auto-ratio: {}", ratio.xs.unwrap());
                     world.commands().entity(this).insert(ratio);
                 }
@@ -91,8 +94,8 @@ impl Attachment for Image {
 }
 impl Image {
     pub const FORMAT: TextureFormat = TextureFormat::Rgba8Unorm;
-    pub fn new(memory_id: MemoryId, data: Vec<u8>) -> Self {
-        Self { memory_id, data }
+    pub fn new(memory_id: MemoryId, key: AssetKey) -> Self {
+        Self { memory_id, key }
     }
     pub fn memory<C: Into<Coordinates>>(id: MemoryId, coords: C) -> ImageMemory {
         ImageMemory {
@@ -101,29 +104,59 @@ impl Image {
         }
     }
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
-        let view = *world.get::<ImageView>(this).unwrap();
-        let rgba_image = image::load_from_memory(world.get::<Image>(this).unwrap().data.as_slice())
+        let value = *world.get::<Image>(this).unwrap();
+        let write = if world
+            .get_resource::<AssetLoader>()
             .unwrap()
-            .into_rgba8();
-        let extent = Area::from((rgba_image.width(), rgba_image.height()));
-        world
-            .commands()
-            .entity(this)
-            .insert(ImageMetrics { extent });
-        let aspect = AspectRatio::new().xs(extent.width() / extent.height());
-        match view {
-            ImageView::Aspect => {
-                println!("aspect: {}", aspect.xs.unwrap());
-                world.commands().entity(this).insert(aspect);
+            .assets
+            .contains_key(&value.key)
+        {
+            // do write
+            let view = *world.get::<ImageView>(this).unwrap();
+            let rgba_image = image::load_from_memory(
+                world
+                    .get_resource::<AssetLoader>()
+                    .unwrap()
+                    .assets
+                    .get(&value.key)
+                    .unwrap()
+                    .data
+                    .as_slice(),
+            )
+                .unwrap()
+                .into_rgba8();
+            let extent = Area::from((rgba_image.width(), rgba_image.height()));
+            world
+                .commands()
+                .entity(this)
+                .insert(ImageMetrics { extent });
+            let aspect = AspectRatio::new().xs(extent.width() / extent.height());
+            match view {
+                ImageView::Aspect => {
+                    println!("aspect: {}", aspect.xs.unwrap());
+                    world.commands().entity(this).insert(aspect);
+                }
+                _ => {}
             }
-            _ => {}
-        }
-        let write = ImageWrite {
-            image: Image::new(
-                world.get::<Image>(this).unwrap().memory_id,
-                rgba_image.to_vec(),
-            ),
-            extent,
+            ImageWrite {
+                image: value,
+                data: rgba_image.to_vec(),
+                extent,
+            }
+        } else {
+            // not ready schedule retrieval
+            world
+                .commands()
+                .entity(this)
+                .insert(AssetRetrieval::new(value.key))
+                .observe(asset_retrieval(move |tree, entity, data| {
+                    tree.entity(entity).insert(value);
+                }));
+            ImageWrite {
+                image: value,
+                data: vec![],
+                extent: Default::default(),
+            }
         };
         world
             .get_resource_mut::<RenderQueue<Image, ImageWrite>>()
@@ -179,6 +212,7 @@ pub struct ImageMetrics {
 #[derive(Component, Clone, PartialEq)]
 pub(crate) struct ImageWrite {
     pub(crate) image: Image,
+    pub(crate) data: Vec<u8>,
     pub(crate) extent: Area<Numerical>,
 }
 #[derive(Component, Copy, Clone, Default)]
