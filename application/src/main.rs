@@ -2,11 +2,12 @@ use foliage::{
     load_asset, Animation, Color, EcsExtension, Elevation, Foliage, Grid, GridExt, Image,
     ImageView, InteractionListener, Location, OnEnd, Outline, Panel, Rounding, Stem, Tree, Trigger,
 };
+use tracing_subscriber::filter::Targets;
 mod icon;
 mod image;
 fn main() {
     let mut foliage = Foliage::new(); // library-handle
-                                      // foliage.enable_tracing(Targets::new().with_target("foliage", tracing::Level::TRACE));
+    foliage.enable_tracing(Targets::new().with_target("foliage", tracing::Level::TRACE));
     foliage.desktop_size((1024, 750)); // window-size
     foliage.url("foliage"); // web-path
     let root = foliage.leaf((
@@ -65,13 +66,13 @@ fn main() {
     //     Location::new().xs(2.col().to(7.col()), stack().to(auto())),
     // ));
     let seq = foliage.sequence();
-    // foliage.animate(
-    //     seq,
-    //     Animation::new(Location::new().xs(300.px().to(10.col()), 4.row().to(auto())))
-    //         .start(100)
-    //         .finish(1000)
-    //         .targeting(a),
-    // );
+    foliage.animate(
+        seq,
+        Animation::new(Location::new().xs(300.px().to(10.col()), 4.row().to(12.row())))
+            .start(100)
+            .finish(1000)
+            .targeting(img),
+    );
     foliage.animate(
         seq,
         Animation::new(Outline::new(310))

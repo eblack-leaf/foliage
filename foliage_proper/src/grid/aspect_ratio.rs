@@ -60,9 +60,6 @@ impl AspectRatio {
         if let Some(c) = self.config(layout) {
             let mut attempted_width = section.width();
             let mut attempted_height = attempted_width * 1.0 / c;
-            println!("c: {}", c);
-            println!("attempted width: {}", attempted_width);
-            println!("attempted height: {}", attempted_height);
             while attempted_height > section.height() {
                 attempted_width -= 1.0;
                 attempted_height = attempted_width * 1.0 / c;
@@ -70,10 +67,6 @@ impl AspectRatio {
             let diff = Position::from((section.width() - attempted_width, 0.0)) * 0.5;
             let constrained =
                 Section::new(section.position + diff, (attempted_width, attempted_height));
-            println!(
-                "section {} diff {} attempted width: {}, attempted-height: {}",
-                section, diff, attempted_width, attempted_height
-            );
             return Some(constrained);
         }
         None

@@ -322,7 +322,6 @@ impl Location {
             let mut resolved = Section::new((ax, ay), (bx, by));
             if let Some(ar) = aspect {
                 if let Some(constrained) = ar.constrain(resolved, layout) {
-                    println!("constrained {}", constrained);
                     resolved = constrained;
                 }
             }

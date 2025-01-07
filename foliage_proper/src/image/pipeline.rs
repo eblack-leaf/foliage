@@ -174,25 +174,27 @@ impl Render for Image {
         }
         for (entity, image) in queues.attribute::<Image, ImageWrite>() {
             let mut group = renderer.groups.get_mut(&image.image.memory_id).unwrap();
-            ginkgo.context().queue.write_texture(
-                ImageCopyTexture {
-                    texture: &group.group.texture,
-                    mip_level: 0,
-                    origin: Origin3d::default(),
-                    aspect: TextureAspect::All,
-                },
-                bytemuck::cast_slice(&image.data),
-                ImageDataLayout {
-                    offset: 0,
-                    bytes_per_row: Some(image.extent.width() as u32 * size_of::<f32>() as u32),
-                    rows_per_image: Some(image.extent.height() as u32),
-                },
-                Extent3d {
-                    width: image.extent.width() as u32,
-                    height: image.extent.height() as u32,
-                    depth_or_array_layers: 1,
-                },
-            );
+            if image.extent != Area::default() {
+                ginkgo.context().queue.write_texture(
+                    ImageCopyTexture {
+                        texture: &group.group.texture,
+                        mip_level: 0,
+                        origin: Origin3d::default(),
+                        aspect: TextureAspect::All,
+                    },
+                    bytemuck::cast_slice(&image.data),
+                    ImageDataLayout {
+                        offset: 0,
+                        bytes_per_row: Some(image.extent.width() as u32 * size_of::<f32>() as u32),
+                        rows_per_image: Some(image.extent.height() as u32),
+                    },
+                    Extent3d {
+                        width: image.extent.width() as u32,
+                        height: image.extent.height() as u32,
+                        depth_or_array_layers: 1,
+                    },
+                );
+            }
             group.group.image_extent = image.extent;
             group.group.texture_coordinates = TextureCoordinates::from_section(
                 Section::new((0, 0), image.extent.coordinates),
