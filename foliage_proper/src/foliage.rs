@@ -9,7 +9,8 @@ use crate::time::{OnEnd, Time};
 use crate::willow::Willow;
 use crate::{
     AndroidConnection, Animate, Animation, Area, Attachment, Color, Disable, EcsExtension,
-    Elevation, Enable, Grid, Interaction, Opacity, Panel, Physical, Resource, SystemSet, Text,
+    Elevation, Enable, Grid, Image, Interaction, Opacity, Panel, Physical, Resource, SystemSet,
+    Text,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
@@ -115,6 +116,7 @@ impl Foliage {
         Opacity::attach(&mut foliage);
         Elevation::attach(&mut foliage);
         Color::attach(&mut foliage);
+        Image::attach(&mut foliage);
         foliage
     }
     pub fn attach<A: Attachment>(&mut self) {

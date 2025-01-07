@@ -4,12 +4,13 @@ use crate::ash::instance::{Instance, InstanceBuffer, InstanceId};
 use crate::ash::node::{Nodes, RemoveNode};
 use crate::ash::render::{GroupId, Parameters, PipelineId, Render, RenderGroup, Renderer};
 use crate::ginkgo::Ginkgo;
-use crate::image::{Image, ImageMemory, ImageWrite};
+use crate::image::{CropAdjustment, Image, ImageMemory, ImageWrite};
 use crate::opacity::BlendedOpacity;
 use crate::texture::TextureCoordinates;
-use crate::{texture, Area, CReprSection, Numerical, Opacity, ResolvedElevation, Section};
+use crate::{texture, Area, CReprSection, Logical, Numerical, ResolvedElevation, Section};
 use bevy_ecs::entity::Entity;
 use std::collections::HashMap;
+use wgpu::util::RenderEncoder;
 use wgpu::{
     include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor,
     Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, PipelineLayoutDescriptor, RenderPass,
@@ -31,7 +32,7 @@ pub(crate) struct Group {
     sections: InstanceBuffer<CReprSection>,
     elevations: InstanceBuffer<ResolvedElevation>,
     coords: InstanceBuffer<TextureCoordinates>,
-    opaque: InstanceBuffer<Opacity>,
+    opaque: InstanceBuffer<BlendedOpacity>,
 }
 impl Render for Image {
     type Group = Group;
@@ -220,15 +221,108 @@ impl Render for Image {
                         .coordinator
                         .add(Instance::new(elevation, ClipSection::default(), id));
                 }
-                // TODO queue-attribute
+                group.group.elevations.queue(id, elevation);
             }
         }
-        // TODO other attributes
-        // TODO resolve-instances (grow / sort / swap / queued / write [cpu + gpu])
+        for (entity, clip) in queues.attribute::<Image, ClipSection>() {
+            if let Some(gid) = renderer.resources.entity_to_memory.get(&entity) {
+                let mut group = renderer.groups.get_mut(&gid).unwrap();
+                let id = entity.index() as InstanceId;
+                group.coordinator.update_clip_section(id, clip);
+            }
+        }
+        for (entity, adjustments) in queues.attribute::<Image, CropAdjustment>() {
+            if let Some(gid) = renderer.resources.entity_to_memory.get(&entity) {
+                let mut group = renderer.groups.get_mut(&gid).unwrap();
+                let id = entity.index() as InstanceId;
+                let base = group.group.texture_coordinates;
+                let t = base.top_left.a() + base.bottom_right.a() * adjustments.adjustments.left();
+                let l = base.top_left.b() + base.bottom_right.b() * adjustments.adjustments.top();
+                let b =
+                    base.bottom_right.a() - base.bottom_right.a() * adjustments.adjustments.width();
+                let r = base.bottom_right.b()
+                    - base.bottom_right.b() * adjustments.adjustments.height();
+                let adjusted = TextureCoordinates::new((t, l), (b, r));
+                group.group.coords.queue(id, adjusted);
+            }
+        }
+        for (entity, opacity) in queues.attribute::<Image, BlendedOpacity>() {
+            if let Some(gid) = renderer.resources.entity_to_memory.get(&entity) {
+                let mut group = renderer.groups.get_mut(&gid).unwrap();
+                let id = entity.index() as InstanceId;
+                group.group.opaque.queue(id, opacity);
+            }
+        }
+        for (entity, section) in queues.attribute::<Image, Section<Logical>>() {
+            if let Some(gid) = renderer.resources.entity_to_memory.get(&entity) {
+                let mut group = renderer.groups.get_mut(&gid).unwrap();
+                let id = entity.index() as InstanceId;
+                group.group.sections.queue(
+                    id,
+                    section
+                        .to_physical(ginkgo.configuration().scale_factor.value())
+                        .c_repr(),
+                );
+            }
+        }
+        for (gid, group) in renderer.groups.iter_mut() {
+            if let Some(n) = group.coordinator.grown() {
+                group.group.sections.grow(ginkgo, n);
+                group.group.elevations.grow(ginkgo, n);
+                group.group.coords.grow(ginkgo, n);
+                group.group.opaque.grow(ginkgo, n);
+            }
+            for swap in group.coordinator.sort() {
+                group.group.sections.swap(swap);
+                group.group.elevations.swap(swap);
+                group.group.coords.swap(swap);
+                group.group.opaque.swap(swap);
+            }
+            for (id, data) in group.group.sections.queued() {
+                let order = group.coordinator.order(id);
+                group.group.sections.write_cpu(order, data);
+            }
+            for (id, data) in group.group.elevations.queued() {
+                let order = group.coordinator.order(id);
+                group.group.elevations.write_cpu(order, data);
+            }
+            for (id, data) in group.group.coords.queued() {
+                let order = group.coordinator.order(id);
+                group.group.coords.write_cpu(order, data);
+            }
+            for (id, data) in group.group.opaque.queued() {
+                let order = group.coordinator.order(id);
+                group.group.opaque.write_cpu(order, data);
+            }
+            group.group.sections.write_gpu(ginkgo);
+            group.group.elevations.write_gpu(ginkgo);
+            group.group.coords.write_gpu(ginkgo);
+            group.group.opaque.write_gpu(ginkgo);
+            for node in group.coordinator.updated_nodes(PipelineId::Image, *gid) {
+                nodes.update(node);
+            }
+        }
         nodes
     }
 
     fn render(renderer: &mut Renderer<Self>, render_pass: &mut RenderPass, parameters: Parameters) {
-        todo!()
+        if let Some(clip) = parameters.clip_section {
+            render_pass.set_scissor_rect(
+                clip.left() as u32,
+                clip.top() as u32,
+                clip.right() as u32,
+                clip.bottom() as u32,
+            );
+        }
+        render_pass.set_pipeline(&renderer.pipeline);
+        let group = renderer.groups.get(&parameters.group).unwrap();
+        render_pass.set_bind_group(0, &group.group.bind_group, &[]);
+        render_pass.set_bind_group(1, &renderer.bind_group, &[]);
+        render_pass.set_vertex_buffer(0, renderer.vertex_buffer.slice(..));
+        render_pass.set_vertex_buffer(1, group.group.sections.buffer.slice(..));
+        render_pass.set_vertex_buffer(2, group.group.elevations.buffer.slice(..));
+        render_pass.set_vertex_buffer(3, group.group.coords.buffer.slice(..));
+        render_pass.set_vertex_buffer(4, group.group.opaque.buffer.slice(..));
+        render_pass.draw(0..texture::VERTICES.len() as u32, parameters.range);
     }
 }

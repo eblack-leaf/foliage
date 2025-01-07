@@ -23,15 +23,16 @@ pub struct Image {
     pub memory_id: MemoryId,
     pub data: Vec<u8>,
 }
-#[derive(Component, Copy, Clone, PartialEq)]
+#[derive(Component, Copy, Clone, PartialEq, Default)]
 pub enum ImageView {
+    #[default]
     Aspect,
     Crop,
 }
 impl ImageView {
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
-        let value = world.get::<ImageView>(this).unwrap();
-        let metrics = world.get::<ImageMetrics>(this).unwrap();
+        let value = *world.get::<ImageView>(this).unwrap();
+        let metrics = *world.get::<ImageMetrics>(this).unwrap();
         match value {
             ImageView::Aspect => {
                 world
@@ -61,6 +62,7 @@ impl Attachment for Image {
         foliage
             .diff
             .add_systems(Image::update.in_set(DiffMarkers::Finalize));
+        foliage.remove_queue::<Image>();
         foliage.differential::<Image, Section<Logical>>();
         foliage.differential::<Image, ClipSection>();
         foliage.differential::<Image, BlendedOpacity>();
@@ -80,9 +82,8 @@ impl Image {
         }
     }
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
-        let image = world.get::<Image>(this).unwrap();
-        let view = world.get::<ImageView>(this).unwrap();
-        let rgba_image = image::load_from_memory(image.data.as_slice())
+        let view = *world.get::<ImageView>(this).unwrap();
+        let rgba_image = image::load_from_memory(world.get::<Image>(this).unwrap().data.as_slice())
             .unwrap()
             .into_rgba8();
         let extent = Area::from((rgba_image.width(), rgba_image.height()));
@@ -98,7 +99,10 @@ impl Image {
             ImageView::Crop => {}
         }
         let write = ImageWrite {
-            image: Image::new(image.memory_id, rgba_image.as_raw().drain(..).collect()),
+            image: Image::new(
+                world.get::<Image>(this).unwrap().memory_id,
+                rgba_image.to_vec(),
+            ),
             extent,
         };
         world
@@ -122,9 +126,13 @@ impl Image {
             )>,
         >,
     ) {
-        for (view, metrics, section, crop) in images.iter_mut() {
+        for (view, metrics, section, mut crop) in images.iter_mut() {
             match view {
-                ImageView::Aspect => {}
+                ImageView::Aspect => {
+                    if crop.adjustments != Section::default() {
+                        crop.adjustments = Section::default();
+                    }
+                }
                 ImageView::Crop => {
                     let fitted = AspectRatio::new()
                         .xs(metrics.extent.width() / metrics.extent.height())

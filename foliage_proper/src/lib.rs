@@ -39,6 +39,7 @@ pub use anim::{Animate, Animation};
 pub use ash::clip::ClipContext;
 pub(crate) use ash::clip::ClipSection;
 pub(crate) use ash::differential::Differential;
+pub use asset::{asset_retrieval, AssetKey, AssetRetrieval};
 pub use attachment::Attachment;
 pub use bevy_ecs::{self, prelude::*};
 pub use color::{CReprColor, Color, Luminance};
@@ -50,6 +51,7 @@ pub use grid::{
     auto, stack, Grid, GridUnit, Layout, Location, LocationAxisDescriptor, LocationAxisType, View,
 };
 pub use grid::{GridExt, Justify, Stack, StackDeps};
+pub use image::{Image, ImageMemory, ImageMetrics, ImageView, MemoryId};
 pub use interaction::{
     listener::InteractionListener, listener::InteractionShape, listener::InteractionState,
     InputSequence, Interaction, InteractionPhase, OnClick,
