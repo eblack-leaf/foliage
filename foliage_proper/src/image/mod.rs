@@ -18,7 +18,7 @@ use wgpu::TextureFormat;
 
 #[derive(Component, Clone, PartialEq)]
 #[component(on_insert = Self::on_insert)]
-#[require(ImageView)]
+#[require(ImageView, CropAdjustment, ImageMetrics)]
 pub struct Image {
     pub memory_id: MemoryId,
     pub data: Vec<u8>,
@@ -34,9 +34,11 @@ impl ImageView {
         let metrics = world.get::<ImageMetrics>(this).unwrap();
         match value {
             ImageView::Aspect => {
-                world.commands().entity(this).insert(
-                    AspectRatio::new().xs(metrics.extent.width() / metrics.extent.height()),
-                );
+                world
+                    .commands()
+                    .entity(this)
+                    .insert(AspectRatio::new().xs(metrics.extent.width() / metrics.extent.height()))
+                    .insert(CropAdjustment::default());
             }
             ImageView::Crop => {
                 world.commands().entity(this).insert(AspectRatio::new());
@@ -57,15 +59,13 @@ impl Attachment for Image {
             .world
             .insert_resource(RenderQueue::<Image, ImageMemory>::new());
         foliage
-            .world
-            .insert_resource(RenderQueue::<Image, CropAdjustment>::new());
-        foliage
             .diff
             .add_systems(Image::update.in_set(DiffMarkers::Finalize));
         foliage.differential::<Image, Section<Logical>>();
         foliage.differential::<Image, ClipSection>();
         foliage.differential::<Image, BlendedOpacity>();
         foliage.differential::<Image, ResolvedElevation>();
+        foliage.differential::<Image, CropAdjustment>();
     }
 }
 impl Image {
@@ -86,6 +86,10 @@ impl Image {
             .unwrap()
             .into_rgba8();
         let extent = Area::from((rgba_image.width(), rgba_image.height()));
+        world
+            .commands()
+            .entity(this)
+            .insert(ImageMetrics { extent });
         let aspect = AspectRatio::new().xs(extent.width() / extent.height());
         match view {
             ImageView::Aspect => {
@@ -93,8 +97,6 @@ impl Image {
             }
             ImageView::Crop => {}
         }
-        let metrics = ImageMetrics { extent };
-        world.commands().entity(this).insert(metrics);
         let write = ImageWrite {
             image: Image::new(image.memory_id, rgba_image.as_raw().drain(..).collect()),
             extent,
@@ -106,17 +108,21 @@ impl Image {
             .insert(this, write);
     }
     fn update(
-        images: Query<
-            (Entity, &ImageView, &ImageMetrics, &Section<Logical>),
+        mut images: Query<
+            (
+                &ImageView,
+                &ImageMetrics,
+                &Section<Logical>,
+                &mut CropAdjustment,
+            ),
             Or<(
                 Changed<ImageView>,
                 Changed<ImageMetrics>,
                 Changed<Section<Logical>>,
             )>,
         >,
-        mut queue: RenderQueue<Image, CropAdjustment>,
     ) {
-        for (entity, view, metrics, section) in images.iter() {
+        for (view, metrics, section, crop) in images.iter_mut() {
             match view {
                 ImageView::Aspect => {}
                 ImageView::Crop => {
@@ -130,7 +136,7 @@ impl Image {
                         let w = (fitted.right() - section.right()) / fitted.width();
                         let h = (fitted.bottom() - section.bottom()) / fitted.height();
                         let adjustments = Section::numerical((x, y), (w, h));
-                        queue.queue.insert(entity, CropAdjustment { adjustments });
+                        *crop = CropAdjustment { adjustments };
                     }
                 }
             }

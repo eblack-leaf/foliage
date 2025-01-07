@@ -224,6 +224,7 @@ impl Render for Image {
             }
         }
         // TODO other attributes
+        // TODO resolve-instances (grow / sort / swap / queued / write [cpu + gpu])
         nodes
     }
 
