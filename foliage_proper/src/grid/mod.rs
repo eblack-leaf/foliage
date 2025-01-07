@@ -164,7 +164,6 @@ impl Grid {
             },
             GridAxisUnit::Explicit(exp) => {
                 let without_gap = stem.width() - columns.gap.amount * (exp.value() + 1.0);
-
                 without_gap / exp.value()
             }
         };
@@ -294,7 +293,7 @@ pub struct Gap {
 }
 impl Default for Gap {
     fn default() -> Self {
-        Self { amount: 8.0 }
+        Self { amount: 0.0 }
     }
 }
 impl From<i32> for Gap {

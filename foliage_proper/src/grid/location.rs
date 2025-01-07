@@ -320,9 +320,11 @@ impl Location {
                 }
             }
             let mut resolved = Section::new((ax, ay), (bx, by));
-            if let Some(_aspect) = aspect {
-                // involve auto for which dimension to be dependent
-                todo!("constrain by aspect")
+            if let Some(ar) = aspect {
+                if let Some(constrained) = ar.constrain(resolved, layout) {
+                    println!("constrained {}", constrained);
+                    resolved = constrained;
+                }
             }
             if config.horizontal.a != GridUnit::Stack {
                 resolved.position -= (view.offset.left(), 0).into();
@@ -523,7 +525,7 @@ pub struct Padding {
 impl Default for Padding {
     fn default() -> Self {
         Self {
-            coordinates: (8, 8).into(),
+            coordinates: (0, 0).into(),
         }
     }
 }

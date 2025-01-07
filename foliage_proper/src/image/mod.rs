@@ -5,43 +5,62 @@ use crate::ash::differential::RenderQueue;
 use crate::foliage::DiffMarkers;
 use crate::grid::AspectRatio;
 use crate::opacity::BlendedOpacity;
+use crate::ClipContext;
+use crate::Differential;
 use crate::{
-    Area, Attachment, Component, Coordinates, Foliage, Logical, Numerical, ResolvedElevation,
-    Section,
+    Area, Attachment, Component, Coordinates, Foliage, Layout, Logical, Numerical,
+    ResolvedElevation, Section,
 };
 use bevy_ecs::component::ComponentId;
-use bevy_ecs::prelude::{Entity, IntoSystemConfigs};
+use bevy_ecs::prelude::{Entity, IntoSystemConfigs, Res};
 use bevy_ecs::query::{Changed, Or};
 use bevy_ecs::system::Query;
 use bevy_ecs::world::DeferredWorld;
 use wgpu::TextureFormat;
-
 #[derive(Component, Clone, PartialEq)]
 #[component(on_insert = Self::on_insert)]
-#[require(ImageView, CropAdjustment, ImageMetrics)]
+#[require(ImageView, CropAdjustment, ImageMetrics, ClipContext)]
+#[require(Differential<Image, Section<Logical>>)]
+#[require(Differential<Image, BlendedOpacity>)]
+#[require(Differential<Image, ResolvedElevation>)]
+#[require(Differential<Image, ClipSection>)]
+#[require(Differential<Image, CropAdjustment>)]
 pub struct Image {
     pub memory_id: MemoryId,
     pub data: Vec<u8>,
 }
 #[derive(Component, Copy, Clone, PartialEq, Default)]
+#[component(on_insert = Self::on_insert)]
 pub enum ImageView {
     #[default]
     Aspect,
     Crop,
+    None,
 }
 impl ImageView {
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
         let value = *world.get::<ImageView>(this).unwrap();
-        let metrics = *world.get::<ImageMetrics>(this).unwrap();
+        let metrics = world.get::<ImageMetrics>(this).copied().unwrap_or_default();
         match value {
             ImageView::Aspect => {
+                if metrics.extent != Area::default() {
+                    let ratio = AspectRatio::new().xs(metrics.extent.width() / metrics.extent.height());
+                    println!("auto-ratio: {}", ratio.xs.unwrap());
+                    world.commands().entity(this).insert(ratio);
+                }
                 world
                     .commands()
                     .entity(this)
-                    .insert(AspectRatio::new().xs(metrics.extent.width() / metrics.extent.height()))
                     .insert(CropAdjustment::default());
             }
             ImageView::Crop => {
+                world.commands().entity(this).insert(AspectRatio::new());
+            }
+            _ => {
+                world
+                    .commands()
+                    .entity(this)
+                    .insert(CropAdjustment::default());
                 world.commands().entity(this).insert(AspectRatio::new());
             }
         }
@@ -94,9 +113,10 @@ impl Image {
         let aspect = AspectRatio::new().xs(extent.width() / extent.height());
         match view {
             ImageView::Aspect => {
+                println!("aspect: {}", aspect.xs.unwrap());
                 world.commands().entity(this).insert(aspect);
             }
-            ImageView::Crop => {}
+            _ => {}
         }
         let write = ImageWrite {
             image: Image::new(
@@ -125,18 +145,14 @@ impl Image {
                 Changed<Section<Logical>>,
             )>,
         >,
+        layout: Res<Layout>,
     ) {
         for (view, metrics, section, mut crop) in images.iter_mut() {
             match view {
-                ImageView::Aspect => {
-                    if crop.adjustments != Section::default() {
-                        crop.adjustments = Section::default();
-                    }
-                }
                 ImageView::Crop => {
                     let fitted = AspectRatio::new()
                         .xs(metrics.extent.width() / metrics.extent.height())
-                        .fit(*section)
+                        .fit(*section, *layout)
                         .unwrap();
                     if fitted != *section {
                         let x = (section.left() - fitted.left()) / fitted.width();
@@ -145,6 +161,11 @@ impl Image {
                         let h = (fitted.bottom() - section.bottom()) / fitted.height();
                         let adjustments = Section::numerical((x, y), (w, h));
                         *crop = CropAdjustment { adjustments };
+                    }
+                }
+                _ => {
+                    if crop.adjustments != Section::default() {
+                        crop.adjustments = Section::default();
                     }
                 }
             }

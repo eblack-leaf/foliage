@@ -1,4 +1,4 @@
-use crate::{CoordinateContext, Location, Section, Update};
+use crate::{CoordinateContext, Layout, Location, Position, Section, Update};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::Component;
@@ -55,13 +55,90 @@ impl AspectRatio {
     pub fn constrain<Context: CoordinateContext>(
         &self,
         section: Section<Context>,
+        layout: Layout,
     ) -> Option<Section<Context>> {
-        todo!()
+        if let Some(c) = self.config(layout) {
+            let mut attempted_width = section.width();
+            let mut attempted_height = attempted_width * 1.0 / c;
+            println!("c: {}", c);
+            println!("attempted width: {}", attempted_width);
+            println!("attempted height: {}", attempted_height);
+            while attempted_height > section.height() {
+                attempted_width -= 1.0;
+                attempted_height = attempted_width * 1.0 / c;
+            }
+            let diff = Position::from((section.width() - attempted_width, 0.0)) * 0.5;
+            let constrained = Section::new(
+                section.position + diff,
+                (attempted_width, attempted_height),
+            );
+            println!("section {} diff {} attempted width: {}, attempted-height: {}", section, diff, attempted_width, attempted_height);
+            return Some(constrained);
+        }
+        None
     }
     pub fn fit<Context: CoordinateContext>(
         &self,
         section: Section<Context>,
+        layout: Layout,
     ) -> Option<Section<Context>> {
-        todo!()
+        if let Some(c) = self.config(layout) {
+            let mut attempted_width = section.width();
+            let mut attempted_height = attempted_width * 1.0 / c;
+            while attempted_height < section.height() {
+                attempted_width += 1.0;
+                attempted_height = attempted_width * 1.0 / c;
+            }
+            let diff = Position::from((section.width() - attempted_width, 0.0)) * 0.5;
+            return Some(Section::new(
+                section.position + diff,
+                (attempted_width, attempted_height),
+            ));
+        }
+        None
+    }
+    fn at_least_xs(&self) -> Option<f32> {
+        if let Some(xs) = &self.xs {
+            Some(*xs)
+        } else {
+            None
+        }
+    }
+    fn at_least_sm(&self) -> Option<f32> {
+        if let Some(sm) = &self.sm {
+            Some(*sm)
+        } else {
+            self.at_least_xs()
+        }
+    }
+    fn at_least_md(&self) -> Option<f32> {
+        if let Some(md) = &self.md {
+            Some(*md)
+        } else {
+            self.at_least_sm()
+        }
+    }
+    fn at_least_lg(&self) -> Option<f32> {
+        if let Some(lg) = &self.lg {
+            Some(*lg)
+        } else {
+            self.at_least_md()
+        }
+    }
+    fn at_least_xl(&self) -> Option<f32> {
+        if let Some(xl) = &self.xl {
+            Some(*xl)
+        } else {
+            self.at_least_lg()
+        }
+    }
+    pub fn config(&self, layout: Layout) -> Option<f32> {
+        match layout {
+            Layout::Xs => self.at_least_xs(),
+            Layout::Sm => self.at_least_sm(),
+            Layout::Md => self.at_least_md(),
+            Layout::Lg => self.at_least_lg(),
+            Layout::Xl => self.at_least_xl(),
+        }
     }
 }

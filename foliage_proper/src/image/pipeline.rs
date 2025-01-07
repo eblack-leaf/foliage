@@ -236,14 +236,18 @@ impl Render for Image {
                 let mut group = renderer.groups.get_mut(&gid).unwrap();
                 let id = entity.index() as InstanceId;
                 let base = group.group.texture_coordinates;
-                let t = base.top_left.a() + base.bottom_right.a() * adjustments.adjustments.left();
-                let l = base.top_left.b() + base.bottom_right.b() * adjustments.adjustments.top();
-                let b =
-                    base.bottom_right.a() - base.bottom_right.a() * adjustments.adjustments.width();
-                let r = base.bottom_right.b()
-                    - base.bottom_right.b() * adjustments.adjustments.height();
-                let adjusted = TextureCoordinates::new((t, l), (b, r));
-                group.group.coords.queue(id, adjusted);
+                if adjustments.adjustments == Section::default() {
+                    group.group.coords.queue(id, base);
+                } else {
+                    let t = base.top_left.a() + base.bottom_right.a() * adjustments.adjustments.left();
+                    let l = base.top_left.b() + base.bottom_right.b() * adjustments.adjustments.top();
+                    let b =
+                        base.bottom_right.a() - base.bottom_right.a() * adjustments.adjustments.width();
+                    let r = base.bottom_right.b()
+                        - base.bottom_right.b() * adjustments.adjustments.height();
+                    let adjusted = TextureCoordinates::new((t, l), (b, r));
+                    group.group.coords.queue(id, adjusted);
+                }
             }
         }
         for (entity, opacity) in queues.attribute::<Image, BlendedOpacity>() {
