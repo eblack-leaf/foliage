@@ -1,4 +1,8 @@
-use foliage::{auto, stack, Animation, AutoHeight, Color, EcsExtension, Elevation, Foliage, FontSize, Grid, GridExt, InteractionListener, Location, OnEnd, Outline, Panel, Rounding, Stack, Stem, Text, Tree, Trigger, View};
+use foliage::{
+    auto, stack, Animation, AutoHeight, Color, EcsExtension, Elevation, Foliage, FontSize, Grid,
+    GridExt, InteractionListener, Location, OnEnd, Outline, Panel, Rounding, Stack, Stem, Text,
+    Tree, Trigger, View,
+};
 use tracing_subscriber::filter::Targets;
 mod icon;
 mod image;
@@ -29,10 +33,7 @@ fn main() {
         Stem::some(a),
         Elevation::new(4),
         Color::gray(500),
-        Location::new().xs(
-            0.pct().to(500.px()).pad(-10),
-            0.pct().to(500.px()).pad(-10),
-        ),
+        Location::new().xs(0.pct().to(500.px()).pad(-10), 0.pct().to(500.px()).pad(-10)),
     ));
     let b = foliage.leaf((
         Text::new("bbbbbbbbbb"),

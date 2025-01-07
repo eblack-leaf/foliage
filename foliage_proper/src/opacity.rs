@@ -74,7 +74,8 @@ impl Default for InheritedOpacity {
         Self::new(1.0)
     }
 }
-#[derive(Component, Copy, Clone, PartialEq)]
+#[repr(C)]
+#[derive(Component, Copy, Clone, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct BlendedOpacity {
     pub value: f32,
 }
