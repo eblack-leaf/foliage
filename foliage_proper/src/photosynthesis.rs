@@ -61,12 +61,13 @@ impl ApplicationHandler for Foliage {
                 }
             }
         }
-        if self.ash.drawn && self.booted {
+        if self.booted {
             self.main.run(&mut self.world);
             self.user.run(&mut self.world);
             self.diff.run(&mut self.world);
             self.willow.window().request_redraw();
             self.ash.drawn = false;
+            self.ran_at_least_once = true;
         }
     }
 
@@ -237,7 +238,7 @@ impl Foliage {
             WindowEvent::ThemeChanged(_) => {}
             WindowEvent::Occluded(_) => {}
             WindowEvent::RedrawRequested => {
-                if !self.ash.drawn {
+                if !self.ash.drawn && self.ran_at_least_once {
                     if let Some(vc) = self
                         .world
                         .get_resource_mut::<ViewportHandle>()
@@ -251,6 +252,7 @@ impl Foliage {
                     self.ash.prepare(&mut self.world, &self.ginkgo);
                     self.ash.render(&self.ginkgo);
                     self.ash.drawn = true;
+                    // self.ran_at_least_once = false;
                 }
             }
         }

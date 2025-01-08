@@ -107,7 +107,7 @@ impl Image {
             extent: Area::from(coords),
         }
     }
-    fn visibility_retrigger(
+    fn visibility_trigger(
         trigger: Trigger<Write<Visibility>>,
         images: Query<&Image>,
         mut tree: Tree,
@@ -131,7 +131,7 @@ impl Image {
             .commands()
             .entity(this)
             .observe(Self::retrieve_img)
-            .observe(Self::visibility_retrigger)
+            .observe(Self::visibility_trigger)
             .observe(Visibility::push_remove_packet::<Self>)
             .observe(Remove::push_remove_packet::<Self>);
     }

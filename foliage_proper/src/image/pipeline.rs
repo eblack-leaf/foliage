@@ -223,6 +223,8 @@ impl Render for Image {
                     group
                         .coordinator
                         .add(Instance::new(elevation, ClipSection::default(), id));
+                } else {
+                    group.coordinator.update_elevation(id, elevation);
                 }
                 group.group.elevations.queue(id, elevation);
             }

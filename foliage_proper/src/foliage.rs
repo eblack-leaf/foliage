@@ -9,8 +9,8 @@ use crate::time::{OnEnd, Time};
 use crate::willow::Willow;
 use crate::{
     AndroidConnection, Animate, Animation, Area, Attachment, Color, Disable, EcsExtension,
-    Elevation, Enable, Grid, Image, Interaction, Opacity, Panel, Physical, Resource, SystemSet,
-    Text,
+    Elevation, Enable, Grid, Icon, Image, Interaction, Opacity, Panel, Physical, Resource,
+    SystemSet, Text,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
@@ -47,6 +47,7 @@ pub struct Foliage {
     #[allow(unused)]
     pub(crate) receiver: Option<oneshot::Receiver<Ginkgo>>,
     pub(crate) user_attachments: Vec<fn(&mut Foliage)>,
+    pub(crate) ran_at_least_once: bool,
 }
 
 impl Default for Foliage {
@@ -75,6 +76,7 @@ impl Foliage {
             sender: None,
             receiver: None,
             user_attachments: vec![],
+            ran_at_least_once: false,
         };
         foliage.main.configure_sets(
             (
@@ -108,6 +110,7 @@ impl Foliage {
         Panel::attach(&mut foliage);
         Grid::attach(&mut foliage);
         Interaction::attach(&mut foliage);
+        Icon::attach(&mut foliage);
         Ash::attach(&mut foliage);
         Text::attach(&mut foliage);
         Asset::attach(&mut foliage);

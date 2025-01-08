@@ -51,6 +51,7 @@ pub use grid::{
     auto, stack, Grid, GridUnit, Layout, Location, LocationAxisDescriptor, LocationAxisType, View,
 };
 pub use grid::{GridExt, Justify, Stack, StackDeps};
+pub use icon::{Icon, IconId, IconMemory};
 pub use image::{Image, ImageMemory, ImageMetrics, ImageView, MemoryId};
 pub use interaction::{
     listener::InteractionListener, listener::InteractionShape, listener::InteractionState,

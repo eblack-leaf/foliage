@@ -1,6 +1,6 @@
 use foliage::{
-    load_asset, Animation, Color, Elevation, Foliage, Grid, GridExt, Image, ImageView,
-    InteractionListener, Location, OnEnd, Outline, Panel, Rounding, Stem, Tree, Trigger,
+    load_asset, Animation, Color, Elevation, Foliage, Grid, GridExt, Icon, Image, ImageView,
+    InteractionListener, Justify, Location, OnEnd, Outline, Panel, Rounding, Stem, Tree, Trigger,
 };
 use tracing_subscriber::filter::Targets;
 mod icon;
@@ -23,6 +23,22 @@ fn main() {
         Location::new().sm(1.col().to(4.col()), 1.row().to(6.row())),
         ImageView::Stretch,
         Elevation::new(2),
+        Stem::some(root),
+    ));
+    foliage
+        .world
+        .spawn(Icon::memory(0, include_bytes!("assets/icons/grid.icon")));
+    let icon = foliage.leaf((
+        Icon::new(0),
+        Color::gray(200),
+        Location::new().xs(
+            1.col()
+                .to(3.col())
+                .min(24.px())
+                .max(24.px())
+                .justify(Justify::Far),
+            4.row().to(9.row()).min(24.px()).max(24.px()),
+        ),
         Stem::some(root),
     ));
     // let a = foliage.leaf((
