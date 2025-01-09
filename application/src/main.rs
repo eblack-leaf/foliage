@@ -1,13 +1,13 @@
 use foliage::{
     Animation, Color, EcsExtension, Elevation, Foliage, FontSize, Grid, GridExt, Icon,
-    InteractionListener, Location, OnEnd, Outline, Panel, Rounding, Stem, Text, Tree, Trigger,
+    InteractionListener, Location, OnEnd, Outline, Panel, Rounding, Stem, Text, Trigger,
     View,
 };
 mod icon;
 mod image;
 fn main() {
     let mut foliage = Foliage::new(); // library-handle
-                                      // foliage.enable_tracing(Targets::new().with_target("foliage", tracing::Level::TRACE));
+    // foliage.enable_tracing(Targets::new().with_target("foliage", tracing::Level::TRACE));
     foliage.desktop_size((1600, 900)); // window-size
     foliage.url("foliage"); // web-path
     let root = foliage.leaf((
@@ -20,6 +20,7 @@ fn main() {
     let amount = 2500;
     let align = 50;
     foliage.leaf(Icon::memory(0, include_bytes!("assets/icons/at-sign.icon")));
+    foliage.leaf(Icon::memory(1, include_bytes!("assets/icons/grid.icon")));
     for i in 0..amount {
         let elev = i % 9;
         let mut color = Color::gray(500);
@@ -51,7 +52,7 @@ fn main() {
             Elevation::new(elev),
         ));
         let ic = foliage.leaf((
-            Icon::new(0),
+            Icon::new(i % 2),
             Location::new().xs(
                 (0 + i).px().to((100 + i).px()),
                 (0 + i).px().to((100 + i).px()),
@@ -74,8 +75,8 @@ fn main() {
         let animation = Animation::new(
             Location::new().sm(loc.0.col().to(loc.0.col()), loc.1.row().to(loc.1.row())),
         )
-        .start(1000)
-        .finish(3000);
+            .start(1000)
+            .finish(3000);
         foliage.animate(seq, animation.clone().targeting(*e));
         foliage.animate(seq, animation.clone().targeting(*o));
         foliage.animate(seq, animation.targeting(*ic));
