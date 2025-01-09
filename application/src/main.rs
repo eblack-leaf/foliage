@@ -1,6 +1,7 @@
 use foliage::{
-    load_asset, Animation, Color, Elevation, Foliage, Grid, GridExt, Icon, Image, ImageView,
-    InteractionListener, Justify, Location, OnEnd, Outline, Panel, Rounding, Stem, Tree, Trigger,
+    auto, load_asset, stack, Animation, AutoHeight, Color, Elevation, Foliage, FontSize, Grid,
+    GridExt, Icon, Image, ImageView, InteractionListener, Justify, Line, Location, OnEnd, Outline,
+    Panel, Rounding, Stack, Stem, Text, Tree, Trigger, View,
 };
 use tracing_subscriber::filter::Targets;
 mod icon;
@@ -41,15 +42,21 @@ fn main() {
         ),
         Stem::some(root),
     ));
-    // let a = foliage.leaf((
-    //     Text::new("Lorem ipsum dolor sit amet, consectetur adipiscing"),
-    //     FontSize::new(32),
-    //     AutoHeight(true),
-    //     Stem::some(root),
-    //     View::context(root),
-    //     Location::new().xs(1.col().to(7.col()), 1.row().to(auto())),
-    //     Grid::new(1.col().gap(0), 1.row().gap(0)),
-    // ));
+    let line = foliage.leaf((
+        Line::new(5),
+        Color::gray(50),
+        Location::new().xs(1.col().y(1.row()), 3.col().y(10.row())),
+        Stem::some(root),
+    ));
+    let a = foliage.leaf((
+        Text::new("Lorem ipsum dolor sit amet, consectetur adipiscing"),
+        FontSize::new(32),
+        AutoHeight(true),
+        Stem::some(root),
+        View::context(root),
+        Location::new().xs(1.col().to(7.col()), 1.row().to(auto())),
+        Grid::new(1.col().gap(0), 1.row().gap(0)),
+    ));
     let back = foliage.leaf((
         Panel::new(),
         Outline::new(0),
@@ -59,28 +66,28 @@ fn main() {
         Color::gray(500),
         Location::new().sm(0.pct().to(500.px()).pad(-10), 0.pct().to(500.px()).pad(-10)),
     ));
-    // let b = foliage.leaf((
-    //     Text::new("bbbbbbbbbb"),
-    //     FontSize::new(20),
-    //     AutoHeight(true),
-    //     Color::gray(200),
-    //     Elevation::new(6),
-    //     Stem::some(root),
-    //     Stack::new(a),
-    //     View::context(root),
-    //     Location::new().xs(2.col().to(7.col()), stack().to(auto())),
-    // ));
-    // let _c = foliage.leaf((
-    //     Text::new("ccccccccc"),
-    //     FontSize::new(16),
-    //     AutoHeight(true),
-    //     Color::gray(50),
-    //     Stem::some(root),
-    //     Stack::new(b),
-    //     Elevation::new(2),
-    //     View::context(root),
-    //     Location::new().xs(2.col().to(7.col()), stack().to(auto())),
-    // ));
+    let b = foliage.leaf((
+        Text::new("bbbbbbbbbb"),
+        FontSize::new(20),
+        AutoHeight(true),
+        Color::gray(200),
+        Elevation::new(6),
+        Stem::some(root),
+        Stack::new(a),
+        View::context(root),
+        Location::new().xs(2.col().to(7.col()), stack().to(auto())),
+    ));
+    let _c = foliage.leaf((
+        Text::new("ccccccccc"),
+        FontSize::new(16),
+        AutoHeight(true),
+        Color::gray(50),
+        Stem::some(root),
+        Stack::new(b),
+        Elevation::new(2),
+        View::context(root),
+        Location::new().xs(2.col().to(7.col()), stack().to(auto())),
+    ));
     let seq = foliage.sequence();
     foliage.animate(
         seq,

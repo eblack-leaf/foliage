@@ -180,8 +180,14 @@ impl Location {
                 }
             } + config.horizontal.padding.coordinates.a();
             let mut bx = match config.horizontal.b {
-                GridUnit::Aligned(a) => grid.column(layout, stem, a, true),
-                GridUnit::Scalar(s) => s.horizontal(stem),
+                GridUnit::Aligned(a) => match config.horizontal.ty {
+                    LocationAxisType::Point => grid.row(layout, stem, a, false),
+                    _ => grid.column(layout, stem, a, true),
+                },
+                GridUnit::Scalar(s) => match config.horizontal.ty {
+                    LocationAxisType::Point => s.vertical(stem),
+                    _ => s.horizontal(stem),
+                },
                 GridUnit::Stack => {
                     panic!("Stack not supported in horizontal-end")
                 }
@@ -195,7 +201,7 @@ impl Location {
                         ax += 0.5 * grid.column_metrics(layout, stem).0;
                     }
                     if let GridUnit::Aligned(_) = config.horizontal.b {
-                        bx -= 0.5 * grid.row_metrics(layout, stem).0;
+                        bx += 0.5 * grid.row_metrics(layout, stem).0;
                     }
                     resolved_points.replace(Points::new().a((ax, bx)));
                 }
@@ -207,8 +213,14 @@ impl Location {
                 }
             }
             let mut ay = match config.vertical.a {
-                GridUnit::Aligned(a) => grid.row(layout, stem, a, false),
-                GridUnit::Scalar(s) => s.vertical(stem),
+                GridUnit::Aligned(a) => match config.vertical.ty {
+                    LocationAxisType::Point => grid.column(layout, stem, a, false),
+                    _ => grid.row(layout, stem, a, false),
+                },
+                GridUnit::Scalar(s) => match config.vertical.ty {
+                    LocationAxisType::Point => s.horizontal(stem),
+                    _ => s.vertical(stem),
+                },
                 GridUnit::Stack => {
                     if let Some(stack) = stack {
                         stack.bottom()

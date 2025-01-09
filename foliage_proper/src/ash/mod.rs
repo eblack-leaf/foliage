@@ -3,6 +3,7 @@ use crate::ash::differential::RenderQueueHandle;
 use crate::foliage::{DiffMarkers, Foliage};
 use crate::ginkgo::Ginkgo;
 use crate::image::Image;
+use crate::shape::Shape;
 use crate::{Attachment, Color, Icon, Panel, Text};
 use bevy_ecs::prelude::IntoSystemConfigs;
 use bevy_ecs::world::World;
@@ -32,6 +33,7 @@ pub(crate) struct Ash {
     pub(crate) panel: Option<Renderer<Panel>>,
     pub(crate) image: Option<Renderer<Image>>,
     pub(crate) icon: Option<Renderer<Icon>>,
+    pub(crate) shape: Option<Renderer<Shape>>,
 }
 impl Default for Ash {
     fn default() -> Self {
@@ -48,6 +50,7 @@ impl Ash {
             panel: None,
             image: None,
             icon: None,
+            shape: None,
         }
     }
     pub(crate) fn initialize(&mut self, ginkgo: &Ginkgo) {
@@ -55,7 +58,7 @@ impl Ash {
         self.panel.replace(Panel::renderer(ginkgo));
         self.image.replace(Image::renderer(ginkgo));
         self.icon.replace(Icon::renderer(ginkgo));
-        // self.shape.replace(Shape::renderer(ginkgo));
+        self.shape.replace(Shape::renderer(ginkgo));
     }
     pub(crate) fn prepare(&mut self, world: &mut World, ginkgo: &Ginkgo) {
         let mut queues = RenderQueueHandle::new(world);
@@ -73,9 +76,9 @@ impl Ash {
         let icon_nodes = Render::prepare(self.icon.as_mut().unwrap(), &mut queues, ginkgo);
         nodes.extend(icon_nodes.updated);
         to_remove.extend(icon_nodes.removed);
-        // let shape_nodes = Render::prepare(self.shape.as_mut().unwrap(), &mut queues, ginkgo);
-        // nodes.extend(shape_nodes.updated);
-        // to_remove.extend(shape_nodes.removed);
+        let shape_nodes = Render::prepare(self.shape.as_mut().unwrap(), &mut queues, ginkgo);
+        nodes.extend(shape_nodes.updated);
+        to_remove.extend(shape_nodes.removed);
         if nodes.is_empty() && to_remove.is_empty() {
             return;
         }
@@ -195,7 +198,7 @@ impl Ash {
                     Render::render(self.icon.as_mut().unwrap(), &mut rpass, parameters);
                 }
                 PipelineId::Shape => {
-                    // Render::render(self.shape.as_mut().unwrap(), &mut rpass, parameters);
+                    Render::render(self.shape.as_mut().unwrap(), &mut rpass, parameters);
                 }
                 PipelineId::Panel => {
                     Render::render(self.panel.as_mut().unwrap(), &mut rpass, parameters);

@@ -9,7 +9,7 @@ use crate::time::{OnEnd, Time};
 use crate::willow::Willow;
 use crate::{
     AndroidConnection, Animate, Animation, Area, Attachment, Color, Disable, EcsExtension,
-    Elevation, Enable, Grid, Icon, Image, Interaction, Opacity, Panel, Physical, Resource,
+    Elevation, Enable, Grid, Icon, Image, Interaction, Opacity, Panel, Physical, Resource, Shape,
     SystemSet, Text,
 };
 use bevy_ecs::bundle::Bundle;
@@ -108,6 +108,7 @@ impl Foliage {
         Disable::attach(&mut foliage);
         Enable::attach(&mut foliage);
         Panel::attach(&mut foliage);
+        Shape::attach(&mut foliage);
         Grid::attach(&mut foliage);
         Interaction::attach(&mut foliage);
         Icon::attach(&mut foliage);

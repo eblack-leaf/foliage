@@ -1,5 +1,5 @@
 mod pipeline;
-
+mod proc_gen;
 use crate::ash::clip::ClipSection;
 use crate::ash::differential::RenderQueue;
 use crate::opacity::BlendedOpacity;

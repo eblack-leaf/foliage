@@ -64,6 +64,7 @@ pub use panel::{Outline, Panel, Rounding};
 #[cfg(target_os = "android")]
 pub use platform::AndroidApp;
 pub use platform::AndroidConnection;
+pub use shape::{Line, Shape};
 pub use text::{AutoHeight, FontSize, GlyphColors, HorizontalAlignment, Text, VerticalAlignment};
 pub use time::{Moment, OnEnd, Time, TimeDelta, TimeMarker};
 pub use tree::{EcsExtension, Tree};
