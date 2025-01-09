@@ -261,7 +261,7 @@ impl Location {
             }
             if let Some(mut pts) = resolved_points {
                 for pt in pts.data.iter_mut() {
-                    *pt += view.offset;
+                    *pt -= view.offset;
                 }
                 return Some(ResolvedLocation::Points(pts));
             }

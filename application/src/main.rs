@@ -1,110 +1,65 @@
-use foliage::{
-    auto, load_asset, stack, Animation, AutoHeight, Color, Elevation, Foliage, FontSize, Grid,
-    GridExt, Icon, Image, ImageView, InteractionListener, Justify, Line, Location, OnEnd, Outline,
-    Panel, Rounding, Stack, Stem, Text, Tree, Trigger, View,
-};
-use tracing_subscriber::filter::Targets;
+use foliage::{Animation, Color, Elevation, Foliage, Grid, GridExt, InteractionListener, Location, OnEnd, Outline, Panel, Rounding, Stem, Text, Tree, Trigger};
 mod icon;
 mod image;
 fn main() {
     let mut foliage = Foliage::new(); // library-handle
-    foliage.enable_tracing(Targets::new().with_target("foliage", tracing::Level::TRACE));
-    foliage.desktop_size((1024, 750)); // window-size
+    // foliage.enable_tracing(Targets::new().with_target("foliage", tracing::Level::TRACE));
+    foliage.desktop_size((1600, 900)); // window-size
     foliage.url("foliage"); // web-path
     let root = foliage.leaf((
-        Grid::new(12.col(), 12.row()),
+        Grid::new(50.col().gap(2), 50.row().gap(2)),
         Location::new().xs(0.pct().to(100.pct()), 0.pct().to(100.pct())),
         InteractionListener::new().scroll(true),
         Stem::none(),
     ));
-    let key = load_asset!(foliage, "assets/test.jpg");
-    foliage.world.spawn(Image::memory(0, (333, 500)));
-    let img = foliage.leaf((
-        Image::new(0, key),
-        Location::new().sm(1.col().to(4.col()), 1.row().to(6.row())),
-        ImageView::Stretch,
-        Elevation::new(2),
-        Stem::some(root),
-    ));
-    foliage
-        .world
-        .spawn(Icon::memory(0, include_bytes!("assets/icons/grid.icon")));
-    let icon = foliage.leaf((
-        Icon::new(0),
-        Color::gray(200),
-        Location::new().xs(
-            1.col()
-                .to(3.col())
-                .min(24.px())
-                .max(24.px())
-                .justify(Justify::Far),
-            4.row().to(9.row()).min(24.px()).max(24.px()),
-        ),
-        Stem::some(root),
-    ));
-    let line = foliage.leaf((
-        Line::new(5),
-        Color::gray(50),
-        Location::new().xs(1.col().y(1.row()), 3.col().y(10.row())),
-        Stem::some(root),
-    ));
-    let a = foliage.leaf((
-        Text::new("Lorem ipsum dolor sit amet, consectetur adipiscing"),
-        FontSize::new(32),
-        AutoHeight(true),
-        Stem::some(root),
-        View::context(root),
-        Location::new().xs(1.col().to(7.col()), 1.row().to(auto())),
-        Grid::new(1.col().gap(0), 1.row().gap(0)),
-    ));
-    let back = foliage.leaf((
-        Panel::new(),
-        Outline::new(0),
-        Rounding::Xl,
-        Stem::some(root),
-        Elevation::new(4),
-        Color::gray(500),
-        Location::new().sm(0.pct().to(500.px()).pad(-10), 0.pct().to(500.px()).pad(-10)),
-    ));
-    let b = foliage.leaf((
-        Text::new("bbbbbbbbbb"),
-        FontSize::new(20),
-        AutoHeight(true),
-        Color::gray(200),
-        Elevation::new(6),
-        Stem::some(root),
-        Stack::new(a),
-        View::context(root),
-        Location::new().xs(2.col().to(7.col()), stack().to(auto())),
-    ));
-    let _c = foliage.leaf((
-        Text::new("ccccccccc"),
-        FontSize::new(16),
-        AutoHeight(true),
-        Color::gray(50),
-        Stem::some(root),
-        Stack::new(b),
-        Elevation::new(2),
-        View::context(root),
-        Location::new().xs(2.col().to(7.col()), stack().to(auto())),
-    ));
+    let mut testers = vec![];
+    let amount = 2500;
+    let align = 50;
+    for i in 0..amount {
+        let elev = i % 99;
+        println!("elev {}", elev);
+        let e = foliage.leaf((
+            Panel::new(),
+            Outline::new(2),
+            Rounding::Md,
+            Stem::some(root),
+            Elevation::new(elev),
+            Color::gray(500),
+            Location::new().xs(
+                (0 + i).px().to((100 + i).px()),
+                (0 + i).px().to((100 + i).px()),
+            ),
+        ));
+        let elev = i % 27;
+        let o = foliage.leaf((
+            Text::new("testing..."),
+            Location::new().xs(
+                (0 + i).px().to((100 + i).px()),
+                (0 + i).px().to((100 + i).px()),
+            ),
+            Stem::some(root),
+            Elevation::new(elev),
+        ));
+        testers.push((o, e));
+    }
     let seq = foliage.sequence();
-    foliage.animate(
-        seq,
-        Animation::new(Location::new().sm(300.px().to(10.col()), 4.row().to(12.row())))
-            .start(100)
-            .finish(1000)
-            .targeting(img),
-    );
-    foliage.animate(
-        seq,
-        Animation::new(Outline::new(310))
-            .start(100)
-            .finish(2000)
-            .targeting(back),
-    );
+    let mut locations = vec![];
+    for x in 0..align {
+        for y in 0..align {
+            locations.push((x + 1, y + 1));
+        }
+    }
+    for (i, (o, e)) in testers.iter().enumerate() {
+        let loc = locations[i];
+        let animation = Animation::new(
+            Location::new().xs(loc.0.col().to(loc.0.col()), loc.1.row().to(loc.1.row())),
+        )
+            .start(1000)
+            .finish(3000);
+        foliage.animate(seq, animation.clone().targeting(*e));
+        foliage.animate(seq, animation.targeting(*o));
+    }
     foliage.sequence_end(seq, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
-        tree.entity(img).insert(ImageView::Aspect);
         println!("finished {:?}", trigger.entity());
     });
     foliage.photosynthesize(); // run
