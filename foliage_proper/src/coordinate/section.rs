@@ -14,7 +14,7 @@ use crate::coordinate::{
 };
 use crate::{Branch, Location, Stack, StackDeps, Update, Write};
 
-#[derive(Copy, Clone, Default, Component, PartialEq, Debug)]
+#[derive(Copy, Clone, Default, Component, Debug, PartialEq, PartialOrd)]
 #[component(on_insert = Section::<Logical>::on_insert)]
 pub struct Section<Context: CoordinateContext> {
     pub position: Position<Context>,

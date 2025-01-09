@@ -1,4 +1,3 @@
-use crate::ash::clip::ClipSection;
 use crate::ash::differential::RenderQueueHandle;
 use crate::ash::instance::{Instance, InstanceBuffer, InstanceId};
 use crate::ash::node::{Node, Nodes, RemoveNode};
@@ -9,7 +8,9 @@ use crate::text::glyph::{GlyphKey, GlyphOffset, ResolvedColors, ResolvedGlyphs};
 use crate::text::monospaced::MonospacedFont;
 use crate::text::{ResolvedFontSize, TextBounds, UniqueCharacters};
 use crate::texture::{AtlasEntry, TextureAtlas, TextureCoordinates, Vertex, VERTICES};
-use crate::{CReprColor, CReprSection, Logical, Physical, ResolvedElevation, Section, Text};
+use crate::{
+    CReprColor, CReprSection, ClipContext, Logical, Physical, ResolvedElevation, Section, Text,
+};
 use bevy_ecs::entity::Entity;
 use std::collections::HashMap;
 use wgpu::{
@@ -29,7 +30,7 @@ pub(crate) struct Group {
     pub(crate) bind_group: Option<wgpu::BindGroup>,
     pub(crate) update_node: bool,
     pub(crate) elevation: ResolvedElevation,
-    pub(crate) clip_section: ClipSection,
+    pub(crate) clip_context: ClipContext,
     pub(crate) uniform: VectorUniform<f32>,
     pub(crate) sections: InstanceBuffer<CReprSection>,
     pub(crate) colors: InstanceBuffer<CReprColor>,
@@ -50,7 +51,7 @@ impl Group {
             bind_group: None,
             update_node: false,
             elevation,
-            clip_section: Default::default(),
+            clip_context: Default::default(),
             uniform,
             sections: InstanceBuffer::new(ginkgo, initial_capacity),
             colors: InstanceBuffer::new(ginkgo, initial_capacity),
@@ -197,18 +198,17 @@ impl Render for Text {
                 group.update_node = true;
             }
         }
-        for (entity, packet) in queues.attribute::<Text, ClipSection>() {
+        for (entity, packet) in queues.attribute::<Text, ClipContext>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
             // OMITTED for optimization renderer.groups.get_mut(id).unwrap().coordinator.needs_sort = true;
             let group = &mut renderer.groups.get_mut(id).unwrap().group;
-            group.clip_section = packet;
+            group.clip_context = packet;
             group.update_node = true;
         }
         for (entity, packet) in queues.attribute::<Text, TextBounds>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
             let group = &mut renderer.groups.get_mut(id).unwrap().group;
             group.bounds = packet.bounds;
-            group.update_node = true;
         }
         for (entity, packet) in queues.attribute::<Text, Section<Logical>>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
@@ -277,7 +277,7 @@ impl Render for Text {
                 if !group.coordinator.has_instance(glyph.offset as InstanceId) {
                     group.coordinator.add(Instance::new(
                         ResolvedElevation::new(0.0),
-                        group.group.clip_section,
+                        group.group.clip_context,
                         glyph.offset as InstanceId,
                     ));
                 }
@@ -415,21 +415,12 @@ impl Render for Text {
             render_group.group.tex_coords.write_gpu(ginkgo);
             // submit node
             if render_group.group.update_node {
-                let bounds = render_group
-                    .group
-                    .bounds
-                    .to_logical(ginkgo.configuration().scale_factor.value());
-                let resolved = if let Some(cs) = render_group.group.clip_section.0 {
-                    cs.intersection(bounds).unwrap()
-                } else {
-                    bounds
-                };
                 let node = Node::new(
                     render_group.group.elevation,
                     PipelineId::Text,
                     *group_id,
                     0,
-                    ClipSection(Some(resolved)),
+                    render_group.group.clip_context,
                     ONE_NODE_PER_GROUP_OPTIMIZATION,
                 );
                 nodes.update(node);
@@ -442,6 +433,7 @@ impl Render for Text {
     fn render(renderer: &mut Renderer<Self>, render_pass: &mut RenderPass, parameters: Parameters) {
         let group = renderer.groups.get(&parameters.group).unwrap();
         if let Some(clip) = parameters.clip_section {
+            let clip = clip.intersection(group.group.bounds).unwrap();
             render_pass.set_scissor_rect(
                 clip.left() as u32,
                 clip.top() as u32,

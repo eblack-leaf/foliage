@@ -1,15 +1,16 @@
-use crate::ash::clip::prepare_clip_section;
+use crate::ash::clip::{prepare_clip_section, ClipQueue, ClipSection};
 use crate::ash::differential::RenderQueueHandle;
 use crate::foliage::{DiffMarkers, Foliage};
 use crate::ginkgo::Ginkgo;
 use crate::image::Image;
 use crate::shape::Shape;
-use crate::{Attachment, Color, Icon, Panel, Text};
+use crate::{Attachment, ClipContext, Color, Icon, Panel, Text};
 use bevy_ecs::prelude::IntoSystemConfigs;
 use bevy_ecs::world::World;
 use node::Node;
 use render::{ContiguousSpan, PipelineId, Render, Renderer};
 use std::cmp::Ordering;
+use std::collections::HashMap;
 use wgpu::{CommandEncoderDescriptor, RenderPassDescriptor, TextureViewDescriptor};
 
 pub(crate) mod clip;
@@ -22,7 +23,8 @@ impl Attachment for Ash {
     fn attach(foliage: &mut Foliage) {
         foliage
             .diff
-            .add_systems(prepare_clip_section.in_set(DiffMarkers::Finalize));
+            .add_systems(prepare_clip_section.in_set(DiffMarkers::Extract));
+        foliage.world.insert_resource(ClipQueue::default());
     }
 }
 pub(crate) struct Ash {
@@ -34,6 +36,7 @@ pub(crate) struct Ash {
     pub(crate) image: Option<Renderer<Image>>,
     pub(crate) icon: Option<Renderer<Icon>>,
     pub(crate) shape: Option<Renderer<Shape>>,
+    pub(crate) clip: HashMap<ClipContext, ClipSection>,
 }
 impl Default for Ash {
     fn default() -> Self {
@@ -51,6 +54,7 @@ impl Ash {
             image: None,
             icon: None,
             shape: None,
+            clip: Default::default(),
         }
     }
     pub(crate) fn initialize(&mut self, ginkgo: &Ginkgo) {
@@ -61,6 +65,9 @@ impl Ash {
         self.shape.replace(Shape::renderer(ginkgo));
     }
     pub(crate) fn prepare(&mut self, world: &mut World, ginkgo: &Ginkgo) {
+        for (e, c) in world.get_resource_mut::<ClipQueue>().unwrap().queue.drain() {
+            self.clip.insert(ClipContext::Entity(e), c);
+        }
         let mut queues = RenderQueueHandle::new(world);
         let mut nodes = vec![];
         let mut to_remove = vec![];
@@ -116,25 +123,27 @@ impl Ash {
         for node in to_add {
             self.nodes.push(node);
         }
-        self.nodes.sort_by(|lhs, rhs| {
-            if lhs.elevation < rhs.elevation {
-                Ordering::Less
-            } else if lhs.elevation > rhs.elevation {
-                Ordering::Greater
-            } else if lhs.pipeline != rhs.pipeline {
-                Ordering::Less
-            } else if lhs.group != rhs.group {
-                Ordering::Less
-            } else if lhs.clip_section != rhs.clip_section {
-                Ordering::Less
-            } else if lhs.order < rhs.order {
-                Ordering::Less
-            } else if lhs.order > rhs.order {
-                Ordering::Greater
-            } else {
-                Ordering::Equal
-            }
-        });
+        self.nodes.sort_by(
+            |lhs, rhs| match lhs.elevation.0.total_cmp(&rhs.elevation.0) {
+                Ordering::Less => Ordering::Greater,
+                Ordering::Equal => match lhs.pipeline.cmp(&rhs.pipeline) {
+                    Ordering::Less => Ordering::Less,
+                    Ordering::Equal => match lhs.group.cmp(&rhs.group) {
+                        Ordering::Less => Ordering::Less,
+                        Ordering::Equal => {
+                            match lhs.clip_context.partial_cmp(&rhs.clip_context).unwrap() {
+                                Ordering::Less => Ordering::Less,
+                                Ordering::Equal => lhs.order.cmp(&rhs.order),
+                                Ordering::Greater => Ordering::Greater,
+                            }
+                        }
+                        Ordering::Greater => Ordering::Greater,
+                    },
+                    Ordering::Greater => Ordering::Greater,
+                },
+                Ordering::Greater => Ordering::Less,
+            },
+        );
         self.contiguous.clear();
         let mut contiguous = 1;
         let mut range_start = None;
@@ -144,7 +153,7 @@ impl Ash {
                 if node.pipeline == next.pipeline
                     && node.group == next.group
                     && node.order + 1 == next.order
-                    && node.clip_section == next.clip_section
+                    && node.clip_context == next.clip_context
                 {
                     contiguous += 1;
                     if range_start.is_none() {
@@ -158,10 +167,11 @@ impl Ash {
                 pipeline: node.pipeline,
                 group: node.group,
                 range: start..start + contiguous,
-                clip_section: node.clip_section,
+                clip_context: node.clip_context,
             });
             contiguous = 1;
         }
+        println!("contiguous: {}", self.contiguous.len());
     }
     pub(crate) fn render(&mut self, ginkgo: &Ginkgo) {
         let surface_texture = ginkgo.surface_texture();
@@ -184,7 +194,12 @@ impl Ash {
         });
         for span in self.contiguous.iter() {
             let section = ginkgo.viewport().section();
-            let parameters = span.parameters(section, ginkgo.configuration().scale_factor);
+            let clip = self
+                .clip
+                .get(&span.clip_context)
+                .copied()
+                .unwrap_or_default();
+            let parameters = span.parameters(section, ginkgo.configuration().scale_factor, clip);
             rpass.set_scissor_rect(
                 section.left() as u32,
                 section.top() as u32,

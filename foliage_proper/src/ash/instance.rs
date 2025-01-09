@@ -1,8 +1,7 @@
-use crate::ash::clip::ClipSection;
 use crate::ash::node::Node;
 use crate::ash::render::{GroupId, PipelineId};
 use crate::ginkgo::Ginkgo;
-use crate::ResolvedElevation;
+use crate::{ClipContext, ResolvedElevation};
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::ops::Range;
@@ -12,15 +11,15 @@ pub(crate) struct Instance {
     #[allow(unused)]
     pub(crate) elevation: ResolvedElevation,
     #[allow(unused)]
-    pub(crate) clip_section: ClipSection,
+    pub(crate) clip_context: ClipContext,
     pub(crate) id: InstanceId,
 }
 
 impl Instance {
-    pub fn new(elevation: ResolvedElevation, clip_section: ClipSection, id: InstanceId) -> Self {
+    pub fn new(elevation: ResolvedElevation, clip_context: ClipContext, id: InstanceId) -> Self {
         Self {
             elevation,
-            clip_section,
+            clip_context,
             id,
         }
     }
@@ -75,10 +74,10 @@ impl InstanceCoordinator {
             }
         }
     }
-    pub(crate) fn update_clip_section(&mut self, id: InstanceId, clip_section: ClipSection) {
+    pub(crate) fn update_clip_context(&mut self, id: InstanceId, clip_context: ClipContext) {
         for instance in self.instances.iter_mut() {
             if instance.id == id {
-                instance.clip_section = clip_section;
+                instance.clip_context = clip_context;
                 self.node_submit.insert(id);
                 self.needs_sort = true;
             }
@@ -94,7 +93,7 @@ impl InstanceCoordinator {
                 id,
                 group_id,
                 order,
-                instance.clip_section,
+                instance.clip_context,
                 changed,
             ));
         }
@@ -131,17 +130,16 @@ impl InstanceCoordinator {
             return swaps;
         }
         self.needs_sort = false;
-        self.instances.sort_by(|a, b| {
-            if a.elevation > b.elevation {
-                Ordering::Greater
-            } else if a.elevation < b.elevation {
-                Ordering::Less
-            } else if a.clip_section != b.clip_section {
-                Ordering::Less
-            } else {
-                Ordering::Equal
-            }
-        });
+        self.instances
+            .sort_by(|a, b| match a.elevation.0.total_cmp(&b.elevation.0) {
+                Ordering::Less => Ordering::Greater,
+                Ordering::Equal => match a.clip_context.partial_cmp(&b.clip_context).unwrap() {
+                    Ordering::Less => Ordering::Less,
+                    Ordering::Equal => Ordering::Equal,
+                    Ordering::Greater => Ordering::Greater,
+                },
+                Ordering::Greater => Ordering::Less,
+            });
         for (new, instance) in self.instances.iter().enumerate() {
             if let Some(old) = self.cache.iter().position(|c| c.id == instance.id) {
                 if new != old {

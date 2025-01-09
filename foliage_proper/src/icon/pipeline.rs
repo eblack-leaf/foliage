@@ -1,4 +1,3 @@
-use crate::ash::clip::ClipSection;
 use crate::ash::differential::RenderQueueHandle;
 use crate::ash::instance::{Instance, InstanceBuffer, InstanceId};
 use crate::ash::node::{Nodes, RemoveNode};
@@ -8,7 +7,8 @@ use crate::icon::Icon;
 use crate::opacity::BlendedOpacity;
 use crate::texture::Mips;
 use crate::{
-    CReprColor, CReprSection, Color, Coordinates, IconMemory, Logical, ResolvedElevation, Section,
+    CReprColor, CReprSection, ClipContext, Color, Coordinates, IconMemory, Logical,
+    ResolvedElevation, Section,
 };
 use bevy_ecs::entity::Entity;
 use bytemuck::{Pod, Zeroable};
@@ -137,7 +137,7 @@ impl Render for Icon {
         let mut nodes = Nodes::new();
         for entity in queues.removes::<Icon>() {
             if let Some(gid) = renderer.resources.entity_to_group.get(&entity) {
-                let mut group = renderer.groups.get_mut(gid).unwrap();
+                let group = renderer.groups.get_mut(gid).unwrap();
                 let id = entity.index() as InstanceId;
                 let order = group.coordinator.order(id);
                 group.coordinator.remove(order);
@@ -177,7 +177,7 @@ impl Render for Icon {
                 if !group.coordinator.has_instance(id) {
                     group.coordinator.add(Instance::new(
                         ResolvedElevation::default(),
-                        ClipSection::default(),
+                        ClipContext::default(),
                         id,
                     ));
                 }
@@ -209,11 +209,11 @@ impl Render for Icon {
             group.coordinator.update_elevation(id, elevation);
             group.group.elevations.queue(id, elevation);
         }
-        for (entity, clip) in queues.attribute::<Icon, ClipSection>() {
+        for (entity, clip) in queues.attribute::<Icon, ClipContext>() {
             let gid = renderer.resources.entity_to_group.get(&entity).unwrap();
             let id = entity.index() as InstanceId;
             let group = renderer.groups.get_mut(gid).unwrap();
-            group.coordinator.update_clip_section(id, clip);
+            group.coordinator.update_clip_context(id, clip);
         }
         for (entity, color) in queues.attribute::<Icon, Color>() {
             let gid = renderer.resources.entity_to_group.get(&entity).unwrap();

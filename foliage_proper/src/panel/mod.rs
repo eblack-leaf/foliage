@@ -1,5 +1,4 @@
 use crate::anim::interpolation::Interpolations;
-use crate::ash::clip::ClipSection;
 use crate::ginkgo::ScaleFactor;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
@@ -25,7 +24,7 @@ mod vertex;
 #[require(Differential<Self, Outline>)]
 #[require(Differential<Self, Section<Logical>>)]
 #[require(Differential<Self, BlendedOpacity>)]
-#[require(Differential<Self, ClipSection>)]
+#[require(Differential<Self, ClipContext>)]
 #[component(on_add = Self::on_add)]
 #[component(on_insert = Self::on_insert)]
 pub struct Panel {
@@ -131,7 +130,7 @@ impl Attachment for Panel {
         foliage.differential::<Self, Color>();
         foliage.differential::<Self, Outline>();
         foliage.differential::<Self, ResolvedElevation>();
-        foliage.differential::<Self, ClipSection>();
+        foliage.differential::<Self, ClipContext>();
         foliage.enable_animation::<Outline>();
     }
 }

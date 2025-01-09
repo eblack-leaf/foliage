@@ -9,7 +9,7 @@ use crate::coordinate::{
     CoordinateContext, CoordinateUnit, Coordinates, Logical, Numerical, Physical,
 };
 
-#[derive(Copy, Clone, Default, PartialEq, Debug)]
+#[derive(Copy, Clone, Default, PartialEq, Debug, PartialOrd)]
 pub struct Area<Context: CoordinateContext> {
     pub coordinates: Coordinates,
     _phantom: PhantomData<Context>,

@@ -1,15 +1,14 @@
-use crate::{Component, Logical, Section};
+use crate::{Component, Logical, Resource, Section};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::query::Changed;
-use bevy_ecs::system::Query;
+use bevy_ecs::system::{Query, ResMut};
 use bevy_ecs::world::DeferredWorld;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
-#[derive(Component, Debug, Copy, Clone, PartialEq, Default, PartialOrd)]
+#[derive(Component, Debug, Copy, Clone, PartialEq, Default, PartialOrd, Eq, Ord, Hash)]
 #[component(on_insert = ClipContext::on_insert)]
 #[component(on_replace = ClipContext::on_replace)]
-#[require(ClipSection)]
 #[require(ClipListeners)]
 pub enum ClipContext {
     #[default]
@@ -20,9 +19,7 @@ impl ClipContext {
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
         let value = world.get::<ClipContext>(this).unwrap();
         match value {
-            ClipContext::Screen => {
-                world.commands().entity(this).insert(ClipSection(None));
-            }
+            ClipContext::Screen => {}
             ClipContext::Entity(e) => {
                 if let Some(mut listeners) = world.get_mut::<ClipListeners>(*e) {
                     listeners.listeners.insert(this);
@@ -42,11 +39,15 @@ impl ClipContext {
         }
     }
 }
+#[derive(Resource, Default)]
+pub(crate) struct ClipQueue {
+    pub(crate) queue: HashMap<Entity, ClipSection>,
+}
 pub(crate) fn prepare_clip_section(
     sections: Query<(Entity, &Section<Logical>), Changed<Section<Logical>>>,
-    mut clip_sections: Query<&mut ClipSection>,
     clip_contexts: Query<&ClipContext>,
     clip_listeners: Query<&ClipListeners>,
+    mut clip_queue: ResMut<ClipQueue>,
 ) {
     for (entity, section) in sections.iter() {
         if let Ok(listeners) = clip_listeners.get(entity) {
@@ -55,9 +56,8 @@ pub(crate) fn prepare_clip_section(
                 match value {
                     ClipContext::Screen => {}
                     ClipContext::Entity(_e) => {
-                        if let Ok(mut clip_section) = clip_sections.get_mut(*listener) {
-                            clip_section.0.replace(*section);
-                        }
+                        clip_queue.queue.insert(entity, ClipSection(Some(*section)));
+                        break;
                     }
                 }
             }

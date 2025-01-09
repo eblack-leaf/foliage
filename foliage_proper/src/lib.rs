@@ -37,7 +37,6 @@ pub use crate::coordinate::{
 };
 pub use anim::{Animate, Animation};
 pub use ash::clip::ClipContext;
-pub(crate) use ash::clip::ClipSection;
 pub(crate) use ash::differential::Differential;
 pub use asset::{asset_retrieval, AssetKey, AssetRetrieval};
 pub use attachment::Attachment;

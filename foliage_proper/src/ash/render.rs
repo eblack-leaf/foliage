@@ -3,7 +3,7 @@ use crate::ash::differential::RenderQueueHandle;
 use crate::ash::instance::{InstanceCoordinator, Order};
 use crate::ash::node::Nodes;
 use crate::ginkgo::{Ginkgo, ScaleFactor};
-use crate::{Physical, Section};
+use crate::{ClipContext, Physical, Section};
 use std::collections::HashMap;
 use std::ops::Range;
 use wgpu::RenderPass;
@@ -36,15 +36,16 @@ pub(crate) struct ContiguousSpan {
     pub(crate) pipeline: PipelineId,
     pub(crate) group: GroupId,
     pub(crate) range: Range<Order>,
-    pub(crate) clip_section: ClipSection,
+    pub(crate) clip_context: ClipContext,
 }
 impl ContiguousSpan {
     pub(crate) fn parameters(
         &self,
         view_section: Section<Physical>,
         scale_factor: ScaleFactor,
+        clip_section: ClipSection,
     ) -> Parameters {
-        let clip_section = if let Some(present) = self.clip_section.0 {
+        let clip_section = if let Some(present) = clip_section.0 {
             present
                 .max(Section::new((0, 0), (0, 0)))
                 .to_physical(scale_factor.value())

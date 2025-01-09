@@ -1,4 +1,3 @@
-use crate::ash::clip::ClipSection;
 use crate::ash::differential::RenderQueueHandle;
 use crate::ash::instance::{Instance, InstanceBuffer, InstanceId};
 use crate::ash::node::{Nodes, RemoveNode};
@@ -7,7 +6,9 @@ use crate::ginkgo::Ginkgo;
 use crate::image::{CropAdjustment, Image, ImageMemory, ImageWrite};
 use crate::opacity::BlendedOpacity;
 use crate::texture::TextureCoordinates;
-use crate::{texture, Area, CReprSection, Logical, Numerical, ResolvedElevation, Section};
+use crate::{
+    texture, Area, CReprSection, ClipContext, Logical, Numerical, ResolvedElevation, Section,
+};
 use bevy_ecs::entity::Entity;
 use std::collections::HashMap;
 use wgpu::{
@@ -178,7 +179,7 @@ impl Render for Image {
                 .insert(memory.memory_id, RenderGroup::new(g));
         }
         for (entity, image) in queues.attribute::<Image, ImageWrite>() {
-            let mut group = renderer.groups.get_mut(&image.image.memory_id).unwrap();
+            let group = renderer.groups.get_mut(&image.image.memory_id).unwrap();
             if image.extent != Area::default() {
                 ginkgo.context().queue.write_texture(
                     ImageCopyTexture {
@@ -226,18 +227,18 @@ impl Render for Image {
                 if !group.coordinator.has_instance(id) {
                     group
                         .coordinator
-                        .add(Instance::new(elevation, ClipSection::default(), id));
+                        .add(Instance::new(elevation, ClipContext::default(), id));
                 } else {
                     group.coordinator.update_elevation(id, elevation);
                 }
                 group.group.elevations.queue(id, elevation);
             }
         }
-        for (entity, clip) in queues.attribute::<Image, ClipSection>() {
+        for (entity, clip) in queues.attribute::<Image, ClipContext>() {
             if let Some(gid) = renderer.resources.entity_to_memory.get(&entity) {
                 let group = renderer.groups.get_mut(&gid).unwrap();
                 let id = entity.index() as InstanceId;
-                group.coordinator.update_clip_section(id, clip);
+                group.coordinator.update_clip_context(id, clip);
             }
         }
         for (entity, adjustments) in queues.attribute::<Image, CropAdjustment>() {

@@ -1,4 +1,3 @@
-use crate::ash::clip::ClipSection;
 use crate::ash::differential::RenderQueueHandle;
 use crate::ash::instance::{Instance, InstanceBuffer, InstanceId};
 use crate::ash::node::{Nodes, RemoveNode};
@@ -6,7 +5,10 @@ use crate::ash::render::{Parameters, PipelineId, Render, RenderGroup, Renderer};
 use crate::ginkgo::Ginkgo;
 use crate::opacity::BlendedOpacity;
 use crate::panel::{vertex, Corner};
-use crate::{CReprColor, CReprSection, Color, Logical, Outline, Panel, ResolvedElevation, Section};
+use crate::{
+    CReprColor, CReprSection, ClipContext, Color, Logical, Outline, Panel, ResolvedElevation,
+    Section,
+};
 use bevy_ecs::entity::Entity;
 use bytemuck::{Pod, Zeroable};
 use std::collections::HashMap;
@@ -176,7 +178,7 @@ impl Render for Panel {
             {
                 render_group.coordinator.add(Instance::new(
                     elevation,
-                    ClipSection::default(),
+                    ClipContext::default(),
                     entity.index() as InstanceId,
                 ));
             } else {
@@ -206,10 +208,10 @@ impl Render for Panel {
                     .c_repr(),
             );
         }
-        for (entity, clip_section) in queues.attribute::<Panel, ClipSection>() {
+        for (entity, clip_section) in queues.attribute::<Panel, ClipContext>() {
             render_group
                 .coordinator
-                .update_clip_section(entity.index() as InstanceId, clip_section);
+                .update_clip_context(entity.index() as InstanceId, clip_section);
         }
         for (entity, outline) in queues.attribute::<Panel, Outline>() {
             renderer
@@ -260,7 +262,6 @@ impl Render for Panel {
                 .queue(entity.index() as InstanceId, panel.corner_iv);
         }
         if let Some(n) = render_group.coordinator.grown() {
-            println!("grown: {}", n);
             render_group.group.sections.grow(ginkgo, n);
             render_group.group.lws.grow(ginkgo, n);
             render_group.group.colors.grow(ginkgo, n);
@@ -314,7 +315,6 @@ impl Render for Panel {
         render_group.group.corner_iii.write_gpu(ginkgo);
         render_group.group.corner_iv.write_gpu(ginkgo);
         for node in render_group.coordinator.updated_nodes(PipelineId::Panel, 0) {
-            println!("node: {:?}", node);
             nodes.update(node);
         }
         nodes

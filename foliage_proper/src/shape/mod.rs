@@ -1,4 +1,3 @@
-use crate::ash::clip::ClipSection;
 use crate::coordinate::points::Points;
 use crate::foliage::DiffMarkers;
 use crate::ginkgo::ScaleFactor;
@@ -32,7 +31,7 @@ impl Attachment for Shape {
         foliage.differential::<Shape, Shape>();
         foliage.differential::<Shape, BlendedOpacity>();
         foliage.differential::<Shape, ResolvedElevation>();
-        foliage.differential::<Shape, ClipSection>();
+        foliage.differential::<Shape, ClipContext>();
         foliage.differential::<Shape, Color>();
     }
 }
@@ -94,7 +93,7 @@ impl EdgePoints {
 #[repr(C)]
 #[derive(Component, Pod, Zeroable, Copy, Clone, Debug, Default, PartialEq)]
 #[require(Differential<Shape, Shape>)]
-#[require(ClipContext, Differential<Shape, ClipSection>)]
+#[require(ClipContext, Differential<Shape, ClipContext>)]
 #[require(Color, Differential<Shape, Color>)]
 #[require(Differential<Shape, ResolvedElevation>)]
 #[require(Differential<Shape, BlendedOpacity>)]

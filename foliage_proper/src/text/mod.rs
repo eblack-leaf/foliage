@@ -11,7 +11,6 @@ use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::text::glyph::{Glyph, GlyphColor, GlyphKey, Glyphs, ResolvedColors};
 use crate::text::monospaced::MonospacedFont;
-use crate::ClipSection;
 use crate::{
     Attachment, Layout, Physical, ResolvedElevation, ResolvedVisibility, Tree, Update, Visibility,
     Write,
@@ -44,7 +43,7 @@ impl Attachment for Text {
         foliage.differential::<Text, BlendedOpacity>();
         foliage.differential::<Text, Section<Logical>>();
         foliage.differential::<Text, ResolvedElevation>();
-        foliage.differential::<Text, ClipSection>();
+        foliage.differential::<Text, ClipContext>();
         foliage.differential::<Text, ResolvedGlyphs>();
         foliage.differential::<Text, ResolvedColors>();
         foliage.differential::<Text, UniqueCharacters>();
@@ -61,7 +60,7 @@ impl Attachment for Text {
 #[require(Differential<Text, BlendedOpacity>)]
 #[require(Differential<Text, Section<Logical>>)]
 #[require(Differential<Text, ResolvedElevation>)]
-#[require(Differential<Text, ClipSection>)]
+#[require(Differential<Text, ClipContext>)]
 #[require(Differential<Text, ResolvedGlyphs>)]
 #[require(Differential<Text, ResolvedColors>)]
 #[component(on_add = Text::on_add)]

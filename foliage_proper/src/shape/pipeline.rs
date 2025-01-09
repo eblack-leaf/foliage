@@ -1,4 +1,3 @@
-use crate::ash::clip::ClipSection;
 use crate::ash::differential::RenderQueueHandle;
 use crate::ash::instance::{Instance, InstanceBuffer, InstanceId};
 use crate::ash::node::{Nodes, RemoveNode};
@@ -6,10 +5,9 @@ use crate::ash::render::{Parameters, PipelineId, Render, RenderGroup, Renderer};
 use crate::ginkgo::Ginkgo;
 use crate::opacity::BlendedOpacity;
 use crate::shape::Shape;
-use crate::{CReprColor, Color, Coordinates, ResolvedElevation};
+use crate::{CReprColor, ClipContext, Color, Coordinates, ResolvedElevation};
 use bytemuck::{Pod, Zeroable};
 use std::collections::HashMap;
-use wgpu::util::RenderEncoder;
 use wgpu::{
     include_wgsl, BindGroupDescriptor, BindGroupLayoutDescriptor, PipelineLayoutDescriptor,
     RenderPass, RenderPipelineDescriptor, ShaderStages, VertexState, VertexStepMode,
@@ -146,7 +144,7 @@ impl Render for Shape {
             if !group.coordinator.has_instance(id) {
                 group.coordinator.add(Instance::new(
                     ResolvedElevation::default(),
-                    ClipSection::default(),
+                    ClipContext::default(),
                     id,
                 ));
             }
@@ -157,9 +155,9 @@ impl Render for Shape {
             group.group.elevations.queue(id, elevation);
             group.coordinator.update_elevation(id, elevation);
         }
-        for (entity, clip) in queues.attribute::<Self, ClipSection>() {
+        for (entity, clip) in queues.attribute::<Self, ClipContext>() {
             let id = entity.index() as InstanceId;
-            group.coordinator.update_clip_section(id, clip);
+            group.coordinator.update_clip_context(id, clip);
         }
         for (entity, color) in queues.attribute::<Self, Color>() {
             let id = entity.index() as InstanceId;
