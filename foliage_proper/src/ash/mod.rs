@@ -160,6 +160,7 @@ impl Ash {
                 range: start..start + contiguous,
                 clip_section: node.clip_section,
             });
+            contiguous = 1;
         }
     }
     pub(crate) fn render(&mut self, ginkgo: &Ginkgo) {

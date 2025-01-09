@@ -13,10 +13,10 @@ fn main() {
         Stem::none(),
     ));
     let mut testers = vec![];
-    let amount = 2500;
+    let amount = 250;
     let align = 50;
     for i in 0..amount {
-        let elev = i % 99;
+        let elev = i % 9;
         println!("elev {}", elev);
         let e = foliage.leaf((
             Panel::new(),
@@ -30,7 +30,7 @@ fn main() {
                 (0 + i).px().to((100 + i).px()),
             ),
         ));
-        let elev = i % 27;
+        let elev = i % 2;
         let o = foliage.leaf((
             Text::new("testing..."),
             Location::new().xs(

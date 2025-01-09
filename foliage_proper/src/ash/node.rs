@@ -3,7 +3,7 @@ use crate::ash::instance::{InstanceId, Order};
 use crate::ash::render::{GroupId, PipelineId};
 use crate::ResolvedElevation;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub(crate) struct Node {
     pub(crate) elevation: ResolvedElevation,
     pub(crate) pipeline: PipelineId,

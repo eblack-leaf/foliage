@@ -132,7 +132,7 @@ impl Render for Shape {
         ginkgo: &Ginkgo,
     ) -> Nodes {
         let mut nodes = Nodes::new();
-        let mut group = renderer.groups.get_mut(&0).unwrap();
+        let group = renderer.groups.get_mut(&0).unwrap();
         for entity in queues.removes::<Self>() {
             let id = entity.index() as InstanceId;
             if group.coordinator.has_instance(id) {

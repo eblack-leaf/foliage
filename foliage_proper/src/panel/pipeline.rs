@@ -260,6 +260,7 @@ impl Render for Panel {
                 .queue(entity.index() as InstanceId, panel.corner_iv);
         }
         if let Some(n) = render_group.coordinator.grown() {
+            println!("grown: {}", n);
             render_group.group.sections.grow(ginkgo, n);
             render_group.group.lws.grow(ginkgo, n);
             render_group.group.colors.grow(ginkgo, n);
@@ -313,6 +314,7 @@ impl Render for Panel {
         render_group.group.corner_iii.write_gpu(ginkgo);
         render_group.group.corner_iv.write_gpu(ginkgo);
         for node in render_group.coordinator.updated_nodes(PipelineId::Panel, 0) {
+            println!("node: {:?}", node);
             nodes.update(node);
         }
         nodes
