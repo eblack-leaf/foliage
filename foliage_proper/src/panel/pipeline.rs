@@ -172,19 +172,15 @@ impl Render for Panel {
             }
         }
         for (entity, elevation) in queues.attribute::<Panel, ResolvedElevation>() {
-            if !render_group
-                .coordinator
-                .has_instance(entity.index() as InstanceId)
-            {
-                render_group.coordinator.add(Instance::new(
-                    elevation,
-                    ClipContext::default(),
-                    entity.index() as InstanceId,
-                ));
-            } else {
+            let id = entity.index() as InstanceId;
+            if !render_group.coordinator.has_instance(id) {
                 render_group
                     .coordinator
-                    .update_elevation(entity.index() as InstanceId, elevation);
+                    .add(Instance::new(elevation, ClipContext::default(), id));
+                println!("adding {}", id);
+            } else {
+                render_group.coordinator.update_elevation(id, elevation);
+                println!("updated {}", id);
             }
             let lw = if let Some(lw) = renderer.resources.layer_and_weights.get_mut(&entity) {
                 lw.elevation = elevation;
@@ -194,10 +190,7 @@ impl Render for Panel {
                 renderer.resources.layer_and_weights.insert(entity, val);
                 val
             };
-            render_group
-                .group
-                .lws
-                .queue(entity.index() as InstanceId, lw);
+            render_group.group.lws.queue(id, lw);
         }
         for (entity, section) in queues.attribute::<Self, Section<Logical>>() {
             render_group.group.sections.queue(
@@ -281,29 +274,43 @@ impl Render for Panel {
         }
         for (id, data) in render_group.group.sections.queued() {
             let order = render_group.coordinator.order(id);
+            println!(
+                "prepare section: {} @ {} out of {} cpu {} {}",
+                id,
+                order,
+                render_group.coordinator.instances.len(),
+                render_group.group.sections.cpu.len(),
+                render_group.group.sections.capacity
+            );
             render_group.group.sections.write_cpu(order, data);
         }
         for (id, data) in render_group.group.lws.queued() {
+            println!("prepare id: {}", id);
             let order = render_group.coordinator.order(id);
             render_group.group.lws.write_cpu(order, data);
         }
         for (id, data) in render_group.group.colors.queued() {
+            println!("prepare id: {}", id);
             let order = render_group.coordinator.order(id);
             render_group.group.colors.write_cpu(order, data);
         }
         for (id, data) in render_group.group.corner_i.queued() {
+            println!("prepare id: {}", id);
             let order = render_group.coordinator.order(id);
             render_group.group.corner_i.write_cpu(order, data);
         }
         for (id, data) in render_group.group.corner_ii.queued() {
+            println!("prepare id: {}", id);
             let order = render_group.coordinator.order(id);
             render_group.group.corner_ii.write_cpu(order, data);
         }
         for (id, data) in render_group.group.corner_iii.queued() {
+            println!("prepare id: {}", id);
             let order = render_group.coordinator.order(id);
             render_group.group.corner_iii.write_cpu(order, data);
         }
         for (id, data) in render_group.group.corner_iv.queued() {
+            println!("prepare id: {}", id);
             let order = render_group.coordinator.order(id);
             render_group.group.corner_iv.write_cpu(order, data);
         }

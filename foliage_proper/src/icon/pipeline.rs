@@ -136,12 +136,12 @@ impl Render for Icon {
     ) -> Nodes {
         let mut nodes = Nodes::new();
         for entity in queues.removes::<Icon>() {
-            if let Some(gid) = renderer.resources.entity_to_group.get(&entity) {
-                let group = renderer.groups.get_mut(gid).unwrap();
+            if let Some(gid) = renderer.resources.entity_to_group.remove(&entity) {
+                let group = renderer.groups.get_mut(&gid).unwrap();
                 let id = entity.index() as InstanceId;
                 let order = group.coordinator.order(id);
                 group.coordinator.remove(order);
-                nodes.remove(RemoveNode::new(PipelineId::Icon, *gid, id));
+                nodes.remove(RemoveNode::new(PipelineId::Icon, gid, id));
             }
         }
         for (_, mem) in queues.attribute::<Icon, IconMemory>() {

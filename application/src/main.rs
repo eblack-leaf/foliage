@@ -1,6 +1,7 @@
 use foliage::{
-    Animation, Color, Elevation, Foliage, FontSize, Grid, GridExt, Icon, InteractionListener,
-    Location, OnEnd, Outline, Panel, Rounding, Stem, Text, Trigger, View,
+    Animation, Color, EcsExtension, Elevation, Foliage, FontSize, Grid, GridExt, Icon,
+    InteractionListener, Location, OnEnd, Outline, Panel, Rounding, Stem, Text, Tree, Trigger,
+    View,
 };
 mod icon;
 mod image;
@@ -71,7 +72,7 @@ fn main() {
     for (i, (o, e, ic)) in testers.iter().enumerate() {
         let loc = locations[i];
         let animation = Animation::new(
-            Location::new().xs(loc.0.col().to(loc.0.col()), loc.1.row().to(loc.1.row())),
+            Location::new().sm(loc.0.col().to(loc.0.col()), loc.1.row().to(loc.1.row())),
         )
         .start(1000)
         .finish(3000);
