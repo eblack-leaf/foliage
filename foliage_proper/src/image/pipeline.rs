@@ -139,6 +139,10 @@ impl Render for Image {
                 let id = entity.index() as InstanceId;
                 let order = group.coordinator.order(id);
                 group.coordinator.remove(order);
+                group.group.sections.remove(order);
+                group.group.elevations.remove(order);
+                group.group.coords.remove(order);
+                group.group.opaque.remove(order);
                 nodes.remove(RemoveNode::new(PipelineId::Image, group_id, id));
             }
         }

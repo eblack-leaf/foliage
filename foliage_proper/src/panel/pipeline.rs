@@ -160,6 +160,13 @@ impl Render for Panel {
                 ));
                 let order = render_group.coordinator.order(r.index() as InstanceId);
                 render_group.coordinator.remove(order);
+                render_group.group.sections.remove(order);
+                render_group.group.lws.remove(order);
+                render_group.group.colors.remove(order);
+                render_group.group.corner_i.remove(order);
+                render_group.group.corner_ii.remove(order);
+                render_group.group.corner_iii.remove(order);
+                render_group.group.corner_iv.remove(order);
             }
         }
         for (entity, elevation) in queues.attribute::<Panel, ResolvedElevation>() {
