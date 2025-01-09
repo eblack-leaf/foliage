@@ -171,7 +171,6 @@ impl Ash {
             });
             contiguous = 1;
         }
-        println!("contiguous: {}", self.contiguous.len());
     }
     pub(crate) fn render(&mut self, ginkgo: &Ginkgo) {
         let surface_texture = ginkgo.surface_texture();
