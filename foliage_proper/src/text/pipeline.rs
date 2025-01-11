@@ -432,15 +432,13 @@ impl Render for Text {
 
     fn render(renderer: &mut Renderer<Self>, render_pass: &mut RenderPass, parameters: Parameters) {
         let group = renderer.groups.get(&parameters.group).unwrap();
-        if let Some(clip) = parameters.clip_section {
-            let clip = clip.intersection(group.group.bounds).unwrap();
-            render_pass.set_scissor_rect(
-                clip.left() as u32,
-                clip.top() as u32,
-                clip.width() as u32,
-                clip.height() as u32,
-            );
-        }
+        let clip = parameters.clip_section.unwrap_or_default().intersection(group.group.bounds).unwrap_or_default();
+        render_pass.set_scissor_rect(
+            clip.left() as u32,
+            clip.top() as u32,
+            clip.width() as u32,
+            clip.height() as u32,
+        );
         render_pass.set_pipeline(&renderer.pipeline);
         render_pass.set_bind_group(0, &group.group.bind_group, &[]);
         render_pass.set_bind_group(1, &renderer.bind_group, &[]);

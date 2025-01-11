@@ -9,7 +9,7 @@ use std::collections::{HashMap, HashSet};
 #[derive(Component, Debug, Copy, Clone, PartialEq, Default, PartialOrd, Eq, Ord, Hash)]
 #[component(on_insert = ClipContext::on_insert)]
 #[component(on_replace = ClipContext::on_replace)]
-#[require(ClipListeners)]
+#[require(ClipListeners, ClipSection)]
 pub enum ClipContext {
     #[default]
     Screen,
@@ -19,7 +19,9 @@ impl ClipContext {
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
         let value = world.get::<ClipContext>(this).unwrap();
         match value {
-            ClipContext::Screen => {}
+            ClipContext::Screen => {
+                world.commands().entity(this).insert(ClipSection(None));
+            }
             ClipContext::Entity(e) => {
                 if let Some(mut listeners) = world.get_mut::<ClipListeners>(*e) {
                     listeners.listeners.insert(this);
@@ -46,6 +48,7 @@ pub(crate) struct ClipQueue {
 pub(crate) fn prepare_clip_section(
     sections: Query<(Entity, &Section<Logical>), Changed<Section<Logical>>>,
     clip_contexts: Query<&ClipContext>,
+    mut clip_sections: Query<&mut ClipSection>,
     clip_listeners: Query<&ClipListeners>,
     mut clip_queue: ResMut<ClipQueue>,
 ) {
@@ -56,6 +59,11 @@ pub(crate) fn prepare_clip_section(
                 match value {
                     ClipContext::Screen => {}
                     ClipContext::Entity(_e) => {
+                        clip_sections
+                            .get_mut(*listener)
+                            .unwrap()
+                            .0
+                            .replace(*section);
                         clip_queue.queue.insert(entity, ClipSection(Some(*section)));
                         break;
                     }

@@ -71,7 +71,7 @@ impl Click {
 #[derive(Resource, Default)]
 pub(crate) struct CurrentInteraction {
     pub(crate) primary: Option<Entity>,
-    pub(crate) pass_through: Vec<Entity>,
+    pub(crate) pass_through: Option<Entity>,
 }
 #[derive(Event, Copy, Clone, Default)]
 pub struct OnClick {}
@@ -94,7 +94,7 @@ pub(crate) fn interactive_elements(
         .any(|e| e.click_phase == InteractionPhase::Cancel)
     {
         current.primary.take();
-        current.pass_through.clear();
+        current.pass_through.take();
     } else {
         let started = events
             .iter()
@@ -113,15 +113,19 @@ pub(crate) fn interactive_elements(
             .collect::<Vec<_>>();
         if let Some(event) = started.last() {
             current.primary.take();
-            current.pass_through.clear();
-            let mut grabbed_elevation = ResolvedElevation::new(100.0);
+            current.pass_through.take();
+            let mut grabbed_elevation = ResolvedElevation::new(101.0);
+            let mut pass_through_elevation = ResolvedElevation::new(101.0);
             for (entity, listener, section, elevation, clip, _) in listeners.iter_mut() {
                 if !listener.scroll && event.from_scroll || listener.disabled() {
                     continue;
                 }
                 if listener.is_contained(*section, clip.copied(), event.position) {
                     if listener.pass_through {
-                        current.pass_through.push(entity);
+                        if elevation >= &pass_through_elevation {
+                            current.pass_through.replace(entity);
+                            pass_through_elevation = *elevation;
+                        }
                     } else if elevation >= &grabbed_elevation {
                         current.primary.replace(entity);
                         grabbed_elevation = *elevation;
@@ -129,17 +133,11 @@ pub(crate) fn interactive_elements(
                 }
             }
             if let Some(p) = current.primary {
-                current.pass_through = current
-                    .pass_through
-                    .iter()
-                    .filter(|ps| listeners.get(**ps).unwrap().3 < listeners.get(p).unwrap().3)
-                    .copied()
-                    .collect::<Vec<_>>();
                 listeners.get_mut(p).unwrap().1.click = Click::new(event.position);
                 // TODO tree.trigger_targets(EngagedBegin::default(), p);
             }
-            for ps in current.pass_through.iter() {
-                let mut listener = listeners.get_mut(*ps).unwrap().1;
+            if let Some(ps) = current.pass_through {
+                let mut listener = listeners.get_mut(ps).unwrap().1;
                 listener.click = Click::new(event.position);
                 listener.last_drag = event.position;
             }
@@ -152,8 +150,8 @@ pub(crate) fn interactive_elements(
                 {
                     // TODO tree.trigger_targets(EngagedEnd::default(), p);
                     current.primary.take();
-                    for ps in current.pass_through.iter() {
-                        let mut listener = listeners.get_mut(*ps).unwrap();
+                    if let Some(ps) = current.pass_through {
+                        let mut listener = listeners.get_mut(ps).unwrap();
                         listener.1.click = Click::new(event.position);
                         listener.1.last_drag = event.position;
                     }
@@ -162,14 +160,14 @@ pub(crate) fn interactive_elements(
             if let Some(p) = current.primary {
                 listeners.get_mut(p).unwrap().1.click.current = event.position;
             } else {
-                for ps in current.pass_through.iter() {
-                    let mut listener = listeners.get_mut(*ps).unwrap();
+                if let Some(ps) = current.pass_through {
+                    let mut listener = listeners.get_mut(ps).unwrap();
                     listener.1.click.current = event.position;
                     if listener.1.scroll {
                         if let Some(mut view) = listener.5 {
                             let diff = listener.1.last_drag - event.position;
                             view.offset += diff;
-                            tree.entity(*ps).insert(*listener.2);
+                            tree.entity(ps).insert(*listener.2);
                         }
                     }
                     listener.1.last_drag = event.position;
@@ -189,7 +187,7 @@ pub(crate) fn interactive_elements(
                     // TODO tree.trigger_targets(EngagedEnd::default(), p);
                 }
             }
-            for ps in current.pass_through.drain(..) {
+            if let Some(ps) = current.pass_through.take() {
                 let mut listener = listeners.get_mut(ps).unwrap();
                 if listener
                     .1
