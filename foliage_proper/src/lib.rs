@@ -3,6 +3,7 @@ mod ash;
 mod asset;
 mod attachment;
 mod color;
+mod composite;
 mod coordinate;
 mod disable;
 mod enable;
@@ -28,7 +29,6 @@ mod virtual_keyboard;
 mod visibility;
 mod web_ext;
 mod willow;
-
 pub use crate::coordinate::{
     area::{Area, CReprArea},
     position::{CReprPosition, Position},
@@ -42,6 +42,7 @@ pub use asset::{asset_retrieval, AssetKey, AssetRetrieval};
 pub use attachment::Attachment;
 pub use bevy_ecs::{self, prelude::*};
 pub use color::{CReprColor, Color, Luminance};
+pub use composite::{button::Button, handle_replace, Composite};
 pub use coordinate::elevation::{Elevation, ResolvedElevation};
 pub use disable::Disable;
 pub use enable::Enable;

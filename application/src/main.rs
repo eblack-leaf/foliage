@@ -1,9 +1,7 @@
-use foliage::{
-    EcsExtension, Foliage, Grid, GridExt, InteractionListener, Location, Stem,
-};
+use foliage::{EcsExtension, Foliage, Grid, GridExt, InteractionListener, Location, Stem};
 fn main() {
     let mut foliage = Foliage::new(); // library-handle
-    // foliage.enable_tracing(Targets::new().with_target("foliage", tracing::Level::TRACE));
+                                      // foliage.enable_tracing(Targets::new().with_target("foliage", tracing::Level::TRACE));
     foliage.desktop_size((1600, 900));
     foliage.url("foliage");
     let root = foliage.leaf((
