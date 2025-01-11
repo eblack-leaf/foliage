@@ -57,8 +57,11 @@ pub(crate) fn prepare_clip_section(
             for listener in listeners.listeners.iter() {
                 let value = clip_contexts.get(*listener).unwrap();
                 match value {
-                    ClipContext::Screen => {}
+                    ClipContext::Screen => {
+                        println!("screen for {:?}", listener);
+                    }
                     ClipContext::Entity(_e) => {
+                        println!("clip-section {} for {:?}", section, listener);
                         clip_sections
                             .get_mut(*listener)
                             .unwrap()

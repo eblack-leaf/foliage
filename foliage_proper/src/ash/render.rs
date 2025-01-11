@@ -46,10 +46,12 @@ impl ContiguousSpan {
         clip_section: ClipSection,
     ) -> Parameters {
         let clip_section = if let Some(present) = clip_section.0 {
-            present
-                .max(Section::new((0, 0), (0, 0)))
-                .to_physical(scale_factor.value())
-                .intersection(view_section)
+            Some(
+                present
+                    .to_physical(scale_factor.value())
+                    .intersection(view_section)
+                    .unwrap_or_default(),
+            )
         } else {
             None
         };

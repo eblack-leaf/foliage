@@ -432,7 +432,11 @@ impl Render for Text {
 
     fn render(renderer: &mut Renderer<Self>, render_pass: &mut RenderPass, parameters: Parameters) {
         let group = renderer.groups.get(&parameters.group).unwrap();
-        let clip = parameters.clip_section.unwrap_or_default().intersection(group.group.bounds).unwrap_or_default();
+        let clip = parameters
+            .clip_section
+            .unwrap_or(group.group.bounds)
+            .intersection(group.group.bounds)
+            .unwrap_or_default();
         render_pass.set_scissor_rect(
             clip.left() as u32,
             clip.top() as u32,

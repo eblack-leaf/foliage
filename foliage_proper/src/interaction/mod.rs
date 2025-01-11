@@ -137,6 +137,7 @@ pub(crate) fn interactive_elements(
                 // TODO tree.trigger_targets(EngagedBegin::default(), p);
             }
             if let Some(ps) = current.pass_through {
+                println!("start pass-through for {:?}", ps);
                 let mut listener = listeners.get_mut(ps).unwrap().1;
                 listener.click = Click::new(event.position);
                 listener.last_drag = event.position;
@@ -153,6 +154,7 @@ pub(crate) fn interactive_elements(
                     if let Some(ps) = current.pass_through {
                         let mut listener = listeners.get_mut(ps).unwrap();
                         listener.1.click = Click::new(event.position);
+                        println!("start-drag {} for {:?}", event.position, ps);
                         listener.1.last_drag = event.position;
                     }
                 }
@@ -167,6 +169,7 @@ pub(crate) fn interactive_elements(
                         if let Some(mut view) = listener.5 {
                             let diff = listener.1.last_drag - event.position;
                             view.offset += diff;
+                            println!("view.offset (on-move): {} for {:?}", view.offset, ps);
                             tree.entity(ps).insert(*listener.2);
                         }
                     }
@@ -187,24 +190,19 @@ pub(crate) fn interactive_elements(
                     // TODO tree.trigger_targets(EngagedEnd::default(), p);
                 }
             }
+            println!("end-event for {:?}", current.pass_through);
             if let Some(ps) = current.pass_through.take() {
                 let mut listener = listeners.get_mut(ps).unwrap();
-                if listener
-                    .1
-                    .is_contained(*listener.2, listener.4.copied(), event.position)
-                {
-                    if event.from_scroll && listener.1.scroll {
-                        if let Some(mut view) = listener.5 {
-                            let diff = listener.1.last_drag - event.position;
-                            view.offset += diff;
-                            tree.entity(ps).insert(*listener.2);
-                        }
+                if event.from_scroll && listener.1.scroll {
+                    if let Some(mut view) = listener.5 {
+                        let diff = listener.1.last_drag - event.position;
+                        view.offset += diff;
+                        println!("view.offset (on-end): {} for {:?}", view.offset, ps);
+                        tree.entity(ps).insert(*listener.2);
                     }
-                    listener.1.click.end.replace(event.position);
-                    tree.trigger_targets(OnClick::default(), ps);
-                } else {
-                    // TODO tree.trigger_targets(EngagedEnd::default(), ps);
                 }
+                listener.1.click.end.replace(event.position);
+                tree.trigger_targets(OnClick::default(), ps);
             }
         }
     }

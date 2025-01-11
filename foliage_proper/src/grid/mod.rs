@@ -3,6 +3,7 @@ mod layout;
 pub(crate) mod location;
 mod view;
 
+use crate::ash::clip::ClipListeners;
 use crate::foliage::{DiffMarkers, Foliage, MainMarkers};
 pub(crate) use crate::grid::layout::viewport_changed;
 pub use crate::grid::location::{
@@ -58,8 +59,8 @@ impl GridExt for i32 {
         GridUnit::Aligned(AlignedUnit::Rows(self))
     }
 }
-#[derive(Component, Copy, Clone)]
-#[require(View)]
+#[derive(Component, Copy, Clone, Debug)]
+#[require(View, ClipListeners)]
 pub struct Grid {
     pub xs: GridConfiguration,
     pub sm: Option<GridConfiguration>,
@@ -178,10 +179,9 @@ impl Grid {
     ) -> CoordinateUnit {
         let num = aligned_unit.value();
         let (column_size, gap) = self.column_metrics(layout, stem);
+        let actual = (num - 1.0 * CoordinateUnit::from(!inclusive));
         match aligned_unit {
-            AlignedUnit::Columns(_) => {
-                (num - 1.0 * CoordinateUnit::from(!inclusive)) * column_size + num * gap
-            }
+            AlignedUnit::Columns(_) => stem.left() + actual * column_size + num * gap,
             AlignedUnit::Rows(_) => {
                 panic!("Rows are not supported in horizontal.");
             }
@@ -220,12 +220,12 @@ impl Grid {
                 panic!("Columns are not supported in vertical.");
             }
             AlignedUnit::Rows(_) => {
-                (num - 1.0 * CoordinateUnit::from(!inclusive)) * row_size + num * gap
+                stem.top() + (num - 1.0 * CoordinateUnit::from(!inclusive)) * row_size + num * gap
             }
         }
     }
 }
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct GridConfiguration {
     pub columns: GridAxisDescriptor,
     pub rows: GridAxisDescriptor,
@@ -235,7 +235,7 @@ impl From<(GridAxisDescriptor, GridAxisDescriptor)> for GridConfiguration {
         Self { columns, rows }
     }
 }
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct GridAxisDescriptor {
     pub unit: GridAxisUnit,
     pub gap: Gap,
@@ -255,7 +255,7 @@ impl From<GridUnit> for GridAxisDescriptor {
         }
     }
 }
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum GridAxisUnit {
     Infinite(ScalarUnit),
     Explicit(AlignedUnit),
@@ -287,7 +287,7 @@ impl ScalarUnit {
         }
     }
 }
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct Gap {
     pub amount: CoordinateUnit,
 }

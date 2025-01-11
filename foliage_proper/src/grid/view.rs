@@ -7,7 +7,7 @@ use bevy_ecs::system::{Query, ResMut, Resource};
 use bevy_ecs::world::DeferredWorld;
 use std::collections::HashSet;
 
-#[derive(Component, Copy, Clone)]
+#[derive(Component, Copy, Clone, Debug)]
 pub struct View {
     pub offset: Position<Logical>,
     pub extent: Section<Logical>,
@@ -76,6 +76,7 @@ pub(crate) fn extent_check(
         return;
     }
     for id in to_check.0.iter() {
+        let section = *views.get(*id).unwrap().1;
         views.get_mut(*id).unwrap().2.extent = Section::default();
     }
     for (context, section) in deps.iter() {
@@ -96,6 +97,7 @@ pub(crate) fn extent_check(
                 if relative.bottom() > view.extent.height() {
                     view.extent.set_height(relative.bottom());
                 }
+                println!("view: {} {}", view.offset, view.extent);
             }
         }
     }
@@ -126,7 +128,7 @@ pub(crate) fn extent_check(
         if changed && cached != view.offset {
             // NOTE: this is to trigger recursive locations w/ new view.offset
             // it is the same section it had before
-            tracing::trace!("view changed {:?}", e);
+            println!("view: {} {}", view.offset, view.extent);
             tree.entity(e).insert(*section);
         }
     }

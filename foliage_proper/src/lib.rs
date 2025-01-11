@@ -1,3 +1,4 @@
+#![allow(unused)]
 mod anim;
 mod ash;
 mod asset;

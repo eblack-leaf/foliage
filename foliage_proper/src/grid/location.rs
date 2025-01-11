@@ -441,6 +441,7 @@ impl Location {
                                 }
                             };
                             section += diff * location.animation_percent;
+                            println!("resolved {} for {:?}", section, this);
                             tree.entity(this).insert(ResolvedLocation::Section(section));
                             tree.entity(this).insert(section);
                         }
