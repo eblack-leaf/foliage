@@ -1,7 +1,7 @@
 mod aspect_ratio;
 mod layout;
 pub(crate) mod location;
-mod view;
+pub(crate) mod view;
 
 use crate::ash::clip::ClipListeners;
 use crate::foliage::{DiffMarkers, Foliage, MainMarkers};
@@ -9,7 +9,7 @@ pub(crate) use crate::grid::layout::viewport_changed;
 pub use crate::grid::location::{
     auto, stack, Justify, LocationAxisDescriptor, LocationAxisType, Padding,
 };
-use crate::grid::view::{extent_check, prepare_extent, ExtentCheckIds};
+use crate::grid::view::extent_check_v2;
 use crate::{Attachment, Component, CoordinateUnit, Logical, Section};
 pub use aspect_ratio::AspectRatio;
 use bevy_ecs::prelude::IntoSystemConfigs;
@@ -22,15 +22,12 @@ pub use view::View;
 impl Attachment for Grid {
     fn attach(foliage: &mut Foliage) {
         foliage.world.insert_resource(Layout::Xs);
-        foliage.world.insert_resource(ExtentCheckIds::default());
         foliage
             .main
             .add_systems(viewport_changed.in_set(MainMarkers::External));
-        foliage.diff.add_systems(
-            (prepare_extent, extent_check)
-                .chain()
-                .in_set(DiffMarkers::Prepare),
-        );
+        foliage
+            .diff
+            .add_systems(extent_check_v2.in_set(DiffMarkers::Prepare));
         foliage.define(Location::update_from_visibility);
         foliage.define(Location::update_location);
         foliage.enable_animation::<Location>();

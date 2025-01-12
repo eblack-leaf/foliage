@@ -9,7 +9,7 @@ pub(crate) mod listener;
 
 use crate::ash::clip::ClipSection;
 use crate::foliage::{Foliage, MainMarkers};
-use crate::grid::View;
+use crate::grid::view::ViewAdjustment;
 use crate::{Attachment, ResolvedElevation, Section, Tree};
 pub use adapter::InputSequence;
 pub(crate) use adapter::{KeyboardAdapter, MouseAdapter, TouchAdapter};
@@ -83,7 +83,6 @@ pub(crate) fn interactive_elements(
         &Section<Logical>,
         &ResolvedElevation,
         Option<&ClipSection>,
-        Option<&mut View>,
     )>,
     mut current: ResMut<CurrentInteraction>,
     mut tree: Tree,
@@ -116,7 +115,7 @@ pub(crate) fn interactive_elements(
             current.pass_through.take();
             let mut grabbed_elevation = ResolvedElevation::new(101.0);
             let mut pass_through_elevation = ResolvedElevation::new(101.0);
-            for (entity, listener, section, elevation, clip, _) in listeners.iter_mut() {
+            for (entity, listener, section, elevation, clip) in listeners.iter_mut() {
                 if !listener.scroll && event.from_scroll || listener.disabled() {
                     continue;
                 }
@@ -166,12 +165,8 @@ pub(crate) fn interactive_elements(
                     let mut listener = listeners.get_mut(ps).unwrap();
                     listener.1.click.current = event.position;
                     if listener.1.scroll {
-                        if let Some(mut view) = listener.5 {
-                            let diff = listener.1.last_drag - event.position;
-                            view.offset += diff;
-                            println!("view.offset (on-move): {} for {:?}", view.offset, ps);
-                            tree.entity(ps).insert(*listener.2);
-                        }
+                        let diff = listener.1.last_drag - event.position;
+                        tree.entity(listener.0).insert(ViewAdjustment(diff));
                     }
                     listener.1.last_drag = event.position;
                 }
@@ -194,12 +189,8 @@ pub(crate) fn interactive_elements(
             if let Some(ps) = current.pass_through.take() {
                 let mut listener = listeners.get_mut(ps).unwrap();
                 if event.from_scroll && listener.1.scroll {
-                    if let Some(mut view) = listener.5 {
-                        let diff = listener.1.last_drag - event.position;
-                        view.offset += diff;
-                        println!("view.offset (on-end): {} for {:?}", view.offset, ps);
-                        tree.entity(ps).insert(*listener.2);
-                    }
+                    let diff = listener.1.last_drag - event.position;
+                    tree.entity(ps).insert(ViewAdjustment(diff));
                 }
                 listener.1.click.end.replace(event.position);
                 tree.trigger_targets(OnClick::default(), ps);
