@@ -7,8 +7,8 @@ use crate::icon::Icon;
 use crate::opacity::BlendedOpacity;
 use crate::texture::Mips;
 use crate::{
-    CReprColor, CReprSection, ClipContext, Color, Coordinates, IconMemory, Logical,
-    ResolvedElevation, Section,
+    CReprColor, CReprSection, Color, Coordinates, IconMemory, Logical, ResolvedElevation, Section,
+    Stem,
 };
 use bevy_ecs::entity::Entity;
 use bytemuck::{Pod, Zeroable};
@@ -177,7 +177,7 @@ impl Render for Icon {
                 if !group.coordinator.has_instance(id) {
                     group.coordinator.add(Instance::new(
                         ResolvedElevation::default(),
-                        ClipContext::default(),
+                        Stem::default(),
                         id,
                     ));
                 }
@@ -209,7 +209,7 @@ impl Render for Icon {
             group.coordinator.update_elevation(id, elevation);
             group.group.elevations.queue(id, elevation);
         }
-        for (entity, clip) in queues.attribute::<Icon, ClipContext>() {
+        for (entity, clip) in queues.attribute::<Icon, Stem>() {
             let gid = renderer.resources.entity_to_group.get(&entity).unwrap();
             let id = entity.index() as InstanceId;
             let group = renderer.groups.get_mut(gid).unwrap();
@@ -275,14 +275,6 @@ impl Render for Icon {
     }
 
     fn render(renderer: &mut Renderer<Self>, render_pass: &mut RenderPass, parameters: Parameters) {
-        if let Some(clip) = parameters.clip_section {
-            render_pass.set_scissor_rect(
-                clip.left() as u32,
-                clip.top() as u32,
-                clip.width() as u32,
-                clip.height() as u32,
-            );
-        }
         let group = renderer.groups.get(&parameters.group).unwrap();
         render_pass.set_pipeline(&renderer.pipeline);
         render_pass.set_bind_group(0, &group.group.bind_group, &[]);

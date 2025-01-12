@@ -1,7 +1,7 @@
 use crate::ash::node::Node;
 use crate::ash::render::{GroupId, PipelineId};
 use crate::ginkgo::Ginkgo;
-use crate::{ClipContext, ResolvedElevation};
+use crate::{ResolvedElevation, Stem};
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::ops::Range;
@@ -11,12 +11,12 @@ pub(crate) struct Instance {
     #[allow(unused)]
     pub(crate) elevation: ResolvedElevation,
     #[allow(unused)]
-    pub(crate) clip_context: ClipContext,
+    pub(crate) clip_context: Stem,
     pub(crate) id: InstanceId,
 }
 
 impl Instance {
-    pub fn new(elevation: ResolvedElevation, clip_context: ClipContext, id: InstanceId) -> Self {
+    pub fn new(elevation: ResolvedElevation, clip_context: Stem, id: InstanceId) -> Self {
         Self {
             elevation,
             clip_context,
@@ -74,7 +74,7 @@ impl InstanceCoordinator {
             }
         }
     }
-    pub(crate) fn update_clip_context(&mut self, id: InstanceId, clip_context: ClipContext) {
+    pub(crate) fn update_clip_context(&mut self, id: InstanceId, clip_context: Stem) {
         for instance in self.instances.iter_mut() {
             if instance.id == id {
                 instance.clip_context = clip_context;

@@ -1,6 +1,7 @@
+#![allow(unused)]
 use foliage::{
     auto, stack, AutoHeight, Color, EcsExtension, Elevation, Foliage, FontSize, Grid, GridExt,
-    InteractionListener, Location, OnClick, Panel, Stack, Stem, Text, Trigger, View,
+    InteractionListener, Location, OnClick, Panel, Stack, Stem, Text, Trigger,
 };
 use tracing_subscriber::filter::Targets;
 fn main() {
@@ -14,13 +15,14 @@ fn main() {
         InteractionListener::new().scroll(true),
         Elevation::new(100),
         Stem::none(),
+        // Visibility::new(false),
     ));
+    // foliage.write_to(root, Visibility::new(false));
     let root_backdrop = foliage.leaf((
         Panel::new(),
         Color::gray(800),
         Elevation::new(-1),
         Location::new().xs(0.pct().to(100.pct()), 1.row().span(2000.px())),
-        View::context(root),
         Stem::some(root),
     ));
     let nested = foliage.leaf((
@@ -28,7 +30,6 @@ fn main() {
         Stem::some(root),
         Elevation::new(-1),
         Location::new().xs(1.col().to(20.col()), 1.row().to(6.row())),
-        View::context(root),
         InteractionListener::new().scroll(true),
     ));
     let element = foliage.leaf((
@@ -37,7 +38,6 @@ fn main() {
         Location::new().xs(0.pct().to(100.pct()), 1.row().span(auto())),
         Grid::default(),
         AutoHeight(true),
-        View::context(nested),
         Elevation::new(-2),
         Stem::some(nested),
     ));
@@ -48,7 +48,6 @@ fn main() {
         Location::new().xs(0.pct().to(100.pct()), stack().span(100.px())),
         Stack::new(element),
         Stem::some(nested),
-        View::context(nested),
         InteractionListener::new(),
     ));
     let supr_nest = foliage.leaf((
@@ -57,7 +56,6 @@ fn main() {
         Location::new().xs(0.pct().to(100.pct()), stack().span(200.px())),
         Elevation::new(-3),
         Stem::some(nested),
-        View::context(nested),
         Stack::new(drag_test),
         Grid::default(),
         InteractionListener::new().scroll(true),
@@ -68,7 +66,6 @@ fn main() {
         Elevation::new(-2),
         Stem::some(supr_nest),
         AutoHeight(true),
-        View::context(supr_nest),
         Location::new().xs(0.pct().to(100.pct()), 10.px().span(auto())),
     ));
     foliage.world.commands().entity(drag_test).observe(|trigger: Trigger<OnClick>| {
@@ -79,9 +76,11 @@ fn main() {
         Color::gray(500),
         Elevation::new(1),
         Location::new().xs(0.pct().to(100.pct()), 0.pct().to(1000.px())),
-        View::context(nested),
         Stem::some(element),
     ));
-    println!("r: {:?} rb: {:?} n: {:?} e: {:?} dt: {:?} sn: {:?} snt: {:?} nb: {:?}", root, root_backdrop, nested, element, drag_test, supr_nest, supr_nest_text, nested_backdrop);
+    println!(
+        "r: {:?} rb: {:?} n: {:?} e: {:?} dt: {:?} sn: {:?} snt: {:?} nb: {:?}",
+        root, root_backdrop, nested, element, drag_test, supr_nest, supr_nest_text, nested_backdrop
+    );
     foliage.photosynthesize(); // run
 }

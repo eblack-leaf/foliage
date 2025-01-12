@@ -1,10 +1,10 @@
-use crate::ash::clip::{prepare_clip_section, ClipQueue, ClipSection};
+use crate::ash::clip::{ClipSection, ResolvedClip};
 use crate::ash::differential::RenderQueueHandle;
-use crate::foliage::{DiffMarkers, Foliage};
+use crate::foliage::Foliage;
 use crate::ginkgo::Ginkgo;
 use crate::image::Image;
 use crate::shape::Shape;
-use crate::{Attachment, ClipContext, Color, Icon, Panel, Text};
+use crate::{Attachment, Color, Icon, Panel, Stem, Text};
 use bevy_ecs::prelude::IntoSystemConfigs;
 use bevy_ecs::world::World;
 use node::Node;
@@ -21,10 +21,9 @@ pub(crate) mod render;
 
 impl Attachment for Ash {
     fn attach(foliage: &mut Foliage) {
-        foliage
-            .diff
-            .add_systems(prepare_clip_section.in_set(DiffMarkers::Extract));
-        foliage.world.insert_resource(ClipQueue::default());
+        foliage.differential::<(), ResolvedClip>();
+        foliage.define(ClipSection::write_section);
+        foliage.define(ClipSection::stem_insert);
     }
 }
 pub(crate) struct Ash {
@@ -36,7 +35,7 @@ pub(crate) struct Ash {
     pub(crate) image: Option<Renderer<Image>>,
     pub(crate) icon: Option<Renderer<Icon>>,
     pub(crate) shape: Option<Renderer<Shape>>,
-    pub(crate) clip: HashMap<ClipContext, ClipSection>,
+    pub(crate) clip: HashMap<Stem, ClipSection>,
 }
 impl Default for Ash {
     fn default() -> Self {
@@ -65,10 +64,10 @@ impl Ash {
         self.shape.replace(Shape::renderer(ginkgo));
     }
     pub(crate) fn prepare(&mut self, world: &mut World, ginkgo: &Ginkgo) {
-        for (e, c) in world.get_resource_mut::<ClipQueue>().unwrap().queue.drain() {
-            self.clip.insert(ClipContext::Entity(e), c);
-        }
         let mut queues = RenderQueueHandle::new(world);
+        for (entity, clip) in queues.attribute::<(), ResolvedClip>() {
+            self.clip.insert(Stem::some(entity), ClipSection(clip.0));
+        }
         let mut nodes = vec![];
         let mut to_remove = vec![];
         let text_nodes = Render::prepare(self.text.as_mut().unwrap(), &mut queues, ginkgo);
@@ -192,19 +191,22 @@ impl Ash {
             occlusion_query_set: None,
         });
         for span in self.contiguous.iter() {
-            let section = ginkgo.viewport().section();
-            let clip = self
-                .clip
-                .get(&span.clip_context)
-                .copied()
-                .unwrap_or_default();
-            let parameters = span.parameters(section, ginkgo.configuration().scale_factor, clip);
+            let mut section = ginkgo.viewport().section();
+            if let Some(clip) = self.clip.get(&span.clip_context) {
+                section = section
+                    .intersection(
+                        clip.0
+                            .to_physical(ginkgo.configuration().scale_factor.value()),
+                    )
+                    .unwrap_or_default();
+            }
             rpass.set_scissor_rect(
                 section.left() as u32,
                 section.top() as u32,
                 section.width() as u32,
                 section.height() as u32,
             );
+            let parameters = span.parameters();
             match span.pipeline {
                 PipelineId::Text => {
                     Render::render(self.text.as_mut().unwrap(), &mut rpass, parameters);

@@ -8,9 +8,7 @@ use crate::text::glyph::{GlyphKey, GlyphOffset, ResolvedColors, ResolvedGlyphs};
 use crate::text::monospaced::MonospacedFont;
 use crate::text::{ResolvedFontSize, TextBounds, UniqueCharacters};
 use crate::texture::{AtlasEntry, TextureAtlas, TextureCoordinates, Vertex, VERTICES};
-use crate::{
-    CReprColor, CReprSection, ClipContext, Logical, Physical, ResolvedElevation, Section, Text,
-};
+use crate::{CReprColor, CReprSection, Logical, Physical, ResolvedElevation, Section, Stem, Text};
 use bevy_ecs::entity::Entity;
 use std::collections::HashMap;
 use wgpu::{
@@ -30,7 +28,7 @@ pub(crate) struct Group {
     pub(crate) bind_group: Option<wgpu::BindGroup>,
     pub(crate) update_node: bool,
     pub(crate) elevation: ResolvedElevation,
-    pub(crate) clip_context: ClipContext,
+    pub(crate) clip_context: Stem,
     pub(crate) uniform: VectorUniform<f32>,
     pub(crate) sections: InstanceBuffer<CReprSection>,
     pub(crate) colors: InstanceBuffer<CReprColor>,
@@ -198,7 +196,7 @@ impl Render for Text {
                 group.update_node = true;
             }
         }
-        for (entity, packet) in queues.attribute::<Text, ClipContext>() {
+        for (entity, packet) in queues.attribute::<Text, Stem>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
             // OMITTED for optimization renderer.groups.get_mut(id).unwrap().coordinator.needs_sort = true;
             let group = &mut renderer.groups.get_mut(id).unwrap().group;
@@ -432,17 +430,6 @@ impl Render for Text {
 
     fn render(renderer: &mut Renderer<Self>, render_pass: &mut RenderPass, parameters: Parameters) {
         let group = renderer.groups.get(&parameters.group).unwrap();
-        let clip = parameters
-            .clip_section
-            .unwrap_or(group.group.bounds)
-            .intersection(group.group.bounds)
-            .unwrap_or_default();
-        render_pass.set_scissor_rect(
-            clip.left() as u32,
-            clip.top() as u32,
-            clip.width() as u32,
-            clip.height() as u32,
-        );
         render_pass.set_pipeline(&renderer.pipeline);
         render_pass.set_bind_group(0, &group.group.bind_group, &[]);
         render_pass.set_bind_group(1, &renderer.bind_group, &[]);

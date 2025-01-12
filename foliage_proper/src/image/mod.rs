@@ -8,9 +8,9 @@ use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::{
     Area, Attachment, Component, Coordinates, Foliage, Layout, Logical, Numerical,
-    ResolvedElevation, ResolvedVisibility, Section, Write,
+    ResolvedElevation, ResolvedVisibility, Section, Stem, Write,
 };
-use crate::{AssetKey, AssetRetrieval, ClipContext};
+use crate::{AssetKey, AssetRetrieval};
 use crate::{Differential, Tree, Visibility};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::prelude::{Entity, IntoSystemConfigs, Res, Trigger};
@@ -22,11 +22,11 @@ use wgpu::TextureFormat;
 #[derive(Component, Copy, Clone, PartialEq)]
 #[component(on_add = Self::on_add)]
 #[component(on_insert = Self::on_insert)]
-#[require(ImageView, ImageMetrics, ClipContext)]
+#[require(ImageView, ImageMetrics)]
 #[require(Differential<Image, Section<Logical>>)]
 #[require(Differential<Image, BlendedOpacity>)]
 #[require(Differential<Image, ResolvedElevation>)]
-#[require(Differential<Image, ClipContext>)]
+#[require(Differential<Image, Stem>)]
 pub struct Image {
     pub memory_id: MemoryId,
     pub key: AssetKey,
@@ -90,7 +90,7 @@ impl Attachment for Image {
             .add_systems(Image::update.in_set(DiffMarkers::Finalize));
         foliage.remove_queue::<Image>();
         foliage.differential::<Image, Section<Logical>>();
-        foliage.differential::<Image, ClipContext>();
+        foliage.differential::<Image, Stem>();
         foliage.differential::<Image, BlendedOpacity>();
         foliage.differential::<Image, ResolvedElevation>();
     }

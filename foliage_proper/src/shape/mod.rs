@@ -3,8 +3,8 @@ use crate::foliage::DiffMarkers;
 use crate::ginkgo::ScaleFactor;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
-use crate::ClipContext;
 use crate::Differential;
+use crate::Stem;
 use crate::{
     Attachment, Color, Component, Coordinates, Foliage, Logical, Position, ResolvedElevation,
     Visibility,
@@ -31,7 +31,7 @@ impl Attachment for Shape {
         foliage.differential::<Shape, Shape>();
         foliage.differential::<Shape, BlendedOpacity>();
         foliage.differential::<Shape, ResolvedElevation>();
-        foliage.differential::<Shape, ClipContext>();
+        foliage.differential::<Shape, Stem>();
         foliage.differential::<Shape, Color>();
     }
 }
@@ -93,7 +93,7 @@ impl EdgePoints {
 #[repr(C)]
 #[derive(Component, Pod, Zeroable, Copy, Clone, Debug, Default, PartialEq)]
 #[require(Differential<Shape, Shape>)]
-#[require(ClipContext, Differential<Shape, ClipContext>)]
+#[require(Differential<Shape, Stem>)]
 #[require(Color, Differential<Shape, Color>)]
 #[require(Differential<Shape, ResolvedElevation>)]
 #[require(Differential<Shape, BlendedOpacity>)]

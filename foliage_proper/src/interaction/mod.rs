@@ -7,7 +7,7 @@ use bevy_ecs::system::{Query, ResMut, Resource};
 mod adapter;
 pub(crate) mod listener;
 
-use crate::ash::clip::ClipSection;
+use crate::ash::clip::ResolvedClip;
 use crate::foliage::{Foliage, MainMarkers};
 use crate::grid::view::ViewAdjustment;
 use crate::{Attachment, ResolvedElevation, Section, Tree};
@@ -82,7 +82,7 @@ pub(crate) fn interactive_elements(
         &mut InteractionListener,
         &Section<Logical>,
         &ResolvedElevation,
-        Option<&ClipSection>,
+        &ResolvedClip,
     )>,
     mut current: ResMut<CurrentInteraction>,
     mut tree: Tree,
@@ -119,7 +119,7 @@ pub(crate) fn interactive_elements(
                 if !listener.scroll && event.from_scroll || listener.disabled() {
                     continue;
                 }
-                if listener.is_contained(*section, clip.copied(), event.position) {
+                if listener.is_contained(*section, *clip, event.position) {
                     if listener.pass_through {
                         if elevation >= &pass_through_elevation {
                             current.pass_through.replace(entity);
@@ -175,7 +175,7 @@ pub(crate) fn interactive_elements(
                 let mut listener = listeners.get_mut(p).unwrap();
                 if listener
                     .1
-                    .is_contained(*listener.2, listener.4.copied(), event.position)
+                    .is_contained(*listener.2, *listener.4, event.position)
                 {
                     listener.1.click.end.replace(event.position);
                     tree.trigger_targets(OnClick::default(), p);

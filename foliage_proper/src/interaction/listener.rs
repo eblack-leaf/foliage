@@ -1,4 +1,4 @@
-use crate::ash::clip::ClipSection;
+use crate::ash::clip::ResolvedClip;
 use crate::interaction::{Click, CurrentInteraction};
 use crate::{Component, CoordinateUnit, Logical, Position, Section};
 use bevy_ecs::component::ComponentId;
@@ -54,22 +54,14 @@ impl InteractionListener {
     pub(crate) fn is_contained(
         &self,
         section: Section<Logical>,
-        clip: Option<ClipSection>,
+        clip: ResolvedClip,
         event: Position<Logical>,
     ) -> bool {
         let section_contained = match self.shape {
             InteractionShape::Rectangle => section.contains(event),
             InteractionShape::Circle => section.center().distance(event) <= section.width() / 2f32,
         };
-        let clip_contained = if let Some(clip) = clip {
-            if let Some(c) = clip.0 {
-                c.contains(event)
-            } else {
-                true
-            }
-        } else {
-            true
-        };
+        let clip_contained = clip.0.contains(event);
         section_contained && clip_contained
     }
     fn on_replace(mut world: DeferredWorld, this: Entity, _c: ComponentId) {

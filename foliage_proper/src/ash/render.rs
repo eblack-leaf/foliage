@@ -3,7 +3,7 @@ use crate::ash::differential::RenderQueueHandle;
 use crate::ash::instance::{InstanceCoordinator, Order};
 use crate::ash::node::Nodes;
 use crate::ginkgo::{Ginkgo, ScaleFactor};
-use crate::{ClipContext, Physical, Section};
+use crate::{Physical, Section, Stem};
 use std::collections::HashMap;
 use std::ops::Range;
 use wgpu::RenderPass;
@@ -36,29 +36,13 @@ pub(crate) struct ContiguousSpan {
     pub(crate) pipeline: PipelineId,
     pub(crate) group: GroupId,
     pub(crate) range: Range<Order>,
-    pub(crate) clip_context: ClipContext,
+    pub(crate) clip_context: Stem,
 }
 impl ContiguousSpan {
-    pub(crate) fn parameters(
-        &self,
-        view_section: Section<Physical>,
-        scale_factor: ScaleFactor,
-        clip_section: ClipSection,
-    ) -> Parameters {
-        let clip_section = if let Some(present) = clip_section.0 {
-            Some(
-                present
-                    .to_physical(scale_factor.value())
-                    .intersection(view_section)
-                    .unwrap_or_default(),
-            )
-        } else {
-            None
-        };
+    pub(crate) fn parameters(&self) -> Parameters {
         Parameters {
             group: self.group,
             range: self.range.start as u32..self.range.end as u32,
-            clip_section,
         }
     }
 }
@@ -66,7 +50,6 @@ impl ContiguousSpan {
 pub(crate) struct Parameters {
     pub(crate) group: GroupId,
     pub(crate) range: Range<u32>,
-    pub(crate) clip_section: Option<Section<Physical>>,
 }
 pub(crate) struct RenderGroup<R: Render> {
     pub(crate) coordinator: InstanceCoordinator,

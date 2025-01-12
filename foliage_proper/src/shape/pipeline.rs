@@ -5,7 +5,7 @@ use crate::ash::render::{Parameters, PipelineId, Render, RenderGroup, Renderer};
 use crate::ginkgo::Ginkgo;
 use crate::opacity::BlendedOpacity;
 use crate::shape::Shape;
-use crate::{CReprColor, ClipContext, Color, Coordinates, ResolvedElevation};
+use crate::{CReprColor, Color, Coordinates, ResolvedElevation, Stem};
 use bytemuck::{Pod, Zeroable};
 use std::collections::HashMap;
 use wgpu::{
@@ -144,7 +144,7 @@ impl Render for Shape {
             if !group.coordinator.has_instance(id) {
                 group.coordinator.add(Instance::new(
                     ResolvedElevation::default(),
-                    ClipContext::default(),
+                    Stem::default(),
                     id,
                 ));
             }
@@ -155,7 +155,7 @@ impl Render for Shape {
             group.group.elevations.queue(id, elevation);
             group.coordinator.update_elevation(id, elevation);
         }
-        for (entity, clip) in queues.attribute::<Self, ClipContext>() {
+        for (entity, clip) in queues.attribute::<Self, Stem>() {
             let id = entity.index() as InstanceId;
             group.coordinator.update_clip_context(id, clip);
         }
@@ -206,14 +206,6 @@ impl Render for Shape {
     }
 
     fn render(renderer: &mut Renderer<Self>, render_pass: &mut RenderPass, parameters: Parameters) {
-        if let Some(clip) = parameters.clip_section {
-            render_pass.set_scissor_rect(
-                clip.left() as u32,
-                clip.top() as u32,
-                clip.width() as u32,
-                clip.height() as u32,
-            );
-        }
         let group = renderer.groups.get(&0).unwrap();
         render_pass.set_pipeline(&renderer.pipeline);
         render_pass.set_bind_group(0, &renderer.bind_group, &[]);

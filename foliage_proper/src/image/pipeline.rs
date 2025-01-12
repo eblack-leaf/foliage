@@ -6,9 +6,7 @@ use crate::ginkgo::Ginkgo;
 use crate::image::{CropAdjustment, Image, ImageMemory, ImageWrite};
 use crate::opacity::BlendedOpacity;
 use crate::texture::TextureCoordinates;
-use crate::{
-    texture, Area, CReprSection, ClipContext, Logical, Numerical, ResolvedElevation, Section,
-};
+use crate::{texture, Area, CReprSection, Logical, Numerical, ResolvedElevation, Section, Stem};
 use bevy_ecs::entity::Entity;
 use std::collections::HashMap;
 use wgpu::{
@@ -227,14 +225,14 @@ impl Render for Image {
                 if !group.coordinator.has_instance(id) {
                     group
                         .coordinator
-                        .add(Instance::new(elevation, ClipContext::default(), id));
+                        .add(Instance::new(elevation, Stem::default(), id));
                 } else {
                     group.coordinator.update_elevation(id, elevation);
                 }
                 group.group.elevations.queue(id, elevation);
             }
         }
-        for (entity, clip) in queues.attribute::<Image, ClipContext>() {
+        for (entity, clip) in queues.attribute::<Image, Stem>() {
             if let Some(gid) = renderer.resources.entity_to_memory.get(&entity) {
                 let group = renderer.groups.get_mut(&gid).unwrap();
                 let id = entity.index() as InstanceId;
@@ -322,14 +320,6 @@ impl Render for Image {
     }
 
     fn render(renderer: &mut Renderer<Self>, render_pass: &mut RenderPass, parameters: Parameters) {
-        if let Some(clip) = parameters.clip_section {
-            render_pass.set_scissor_rect(
-                clip.left() as u32,
-                clip.top() as u32,
-                clip.right() as u32,
-                clip.bottom() as u32,
-            );
-        }
         render_pass.set_pipeline(&renderer.pipeline);
         let group = renderer.groups.get(&parameters.group).unwrap();
         render_pass.set_bind_group(0, &group.group.bind_group, &[]);

@@ -1,6 +1,6 @@
 use crate::ash::instance::{InstanceId, Order};
 use crate::ash::render::{GroupId, PipelineId};
-use crate::{ClipContext, ResolvedElevation};
+use crate::{ResolvedElevation, Stem};
 
 #[derive(Copy, Clone, Debug)]
 pub(crate) struct Node {
@@ -8,7 +8,7 @@ pub(crate) struct Node {
     pub(crate) pipeline: PipelineId,
     pub(crate) group: GroupId,
     pub(crate) order: Order,
-    pub(crate) clip_context: ClipContext,
+    pub(crate) clip_context: Stem,
     pub(crate) instance_id: InstanceId,
 }
 
@@ -18,7 +18,7 @@ impl Node {
         pipeline_id: PipelineId,
         group_id: GroupId,
         order: Order,
-        clip_context: ClipContext,
+        clip_context: Stem,
         instance_id: InstanceId,
     ) -> Self {
         Self {

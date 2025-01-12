@@ -11,11 +11,11 @@ use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::text::glyph::{Glyph, GlyphColor, GlyphKey, Glyphs, ResolvedColors};
 use crate::text::monospaced::MonospacedFont;
+use crate::Differential;
 use crate::{
-    Attachment, Layout, Physical, ResolvedElevation, ResolvedVisibility, Tree, Update, Visibility,
-    Write,
+    Attachment, Layout, Physical, ResolvedElevation, ResolvedVisibility, Stem, Tree, Update,
+    Visibility, Write,
 };
-use crate::{ClipContext, Differential};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, IntoSystemConfigs, Res, Trigger};
@@ -43,7 +43,7 @@ impl Attachment for Text {
         foliage.differential::<Text, BlendedOpacity>();
         foliage.differential::<Text, Section<Logical>>();
         foliage.differential::<Text, ResolvedElevation>();
-        foliage.differential::<Text, ClipContext>();
+        foliage.differential::<Text, Stem>();
         foliage.differential::<Text, ResolvedGlyphs>();
         foliage.differential::<Text, ResolvedColors>();
         foliage.differential::<Text, UniqueCharacters>();
@@ -51,7 +51,7 @@ impl Attachment for Text {
     }
 }
 #[derive(Component, Clone, PartialEq, Default, Debug)]
-#[require(Color, FontSize, ResolvedFontSize, UpdateCache, ClipContext)]
+#[require(Color, FontSize, ResolvedFontSize, UpdateCache)]
 #[require(HorizontalAlignment, VerticalAlignment, Glyphs)]
 #[require(ResolvedGlyphs, ResolvedColors, GlyphColors, AutoHeight)]
 #[require(UniqueCharacters, Differential<Text, UniqueCharacters>)]
@@ -60,7 +60,7 @@ impl Attachment for Text {
 #[require(Differential<Text, BlendedOpacity>)]
 #[require(Differential<Text, Section<Logical>>)]
 #[require(Differential<Text, ResolvedElevation>)]
-#[require(Differential<Text, ClipContext>)]
+#[require(Differential<Text, Stem>)]
 #[require(Differential<Text, ResolvedGlyphs>)]
 #[require(Differential<Text, ResolvedColors>)]
 #[component(on_add = Text::on_add)]

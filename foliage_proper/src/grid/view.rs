@@ -1,12 +1,4 @@
-use crate::{ClipContext, Component, Logical, Position, Section, Tree};
-use bevy_ecs::change_detection::DetectChanges;
-use bevy_ecs::component::ComponentId;
-use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::Ref;
-use bevy_ecs::query::Changed;
-use bevy_ecs::system::Query;
-use bevy_ecs::world::DeferredWorld;
-use std::collections::HashSet;
+use crate::{Component, Logical, Position, Section};
 
 #[derive(Component, Copy, Clone, Debug, Default)]
 pub(crate) struct ViewAdjustment(pub(crate) Position<Logical>);
@@ -23,124 +15,103 @@ impl View {
             extent: Default::default(),
         }
     }
-    pub fn context(entity: Entity) -> ViewContext {
-        ViewContext::new(entity)
-    }
 }
 impl Default for View {
     fn default() -> Self {
         Self::new()
     }
 }
-#[derive(Copy, Clone, Default, Component)]
-#[component(on_insert = ViewContext::on_insert)]
-pub struct ViewContext {
-    pub id: Option<Entity>,
-}
-impl ViewContext {
-    pub fn new(entity: Entity) -> ViewContext {
-        ViewContext { id: Some(entity) }
-    }
-    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
-        let clip_context = if let Some(id) = world.get::<Self>(this).unwrap().id {
-            ClipContext::Entity(id)
-        } else {
-            ClipContext::Screen
-        };
-        world.commands().entity(this).insert(clip_context);
-    }
-}
-pub(crate) fn extent_check_v2(
-    adjustments: Query<(Entity, &ViewAdjustment), Changed<ViewAdjustment>>,
-    mut views: Query<&mut View>,
-    contexts: Query<(Entity, Ref<ViewContext>)>,
-    sections: Query<(Entity, Ref<Section<Logical>>)>,
-    mut tree: Tree,
-) {
-    let mut to_check = HashSet::new();
-    for (entity, adjustment) in adjustments.iter() {
-        to_check.insert(entity);
-    }
-    for (entity, context) in contexts.iter() {
-        if context.is_changed() {
-            if let Some(id) = context.id {
-                to_check.insert(id);
-            }
-        }
-    }
-    for (entity, section) in sections.iter() {
-        if section.is_changed() {
-            if let Ok((_, context)) = contexts.get(entity) {
-                if let Some(id) = context.id {
-                    to_check.insert(id);
-                }
-            }
-        }
-    }
-    if to_check.is_empty() {
-        return;
-    }
-    for entity in to_check.iter() {
-        let section = *sections.get(*entity).unwrap().1;
-        views.get_mut(*entity).unwrap().extent = section; // TODO check semantics
-    }
-    for (entity, context) in contexts.iter() {
-        if let Some(id) = context.id {
-            if to_check.contains(&id) {
-                if let Ok(mut view) = views.get_mut(id) {
-                    if let Ok((_, section)) = sections.get(entity) {
-                        let mut relative = *section;
-                        relative.position += view.offset;
-                        if relative.left() < view.extent.left() {
-                            view.extent.set_left(relative.left());
-                        }
-                        if relative.right() > view.extent.width() {
-                            view.extent.set_width(relative.right());
-                        }
-                        if relative.top() < view.extent.top() {
-                            view.extent.set_top(relative.top());
-                        }
-                        if relative.bottom() > view.extent.height() {
-                            view.extent.set_height(relative.bottom());
-                        }
-                    }
-                }
-            }
-        }
-    }
-    for entity in to_check {
-        let old_offset = views.get(entity).unwrap().offset;
-        let mut view = views.get_mut(entity).unwrap();
-        if let Ok((_, adjustment)) = adjustments.get(entity) {
-            view.offset += adjustment.0;
-        }
-        let section = *sections.get(entity).unwrap().1;
-        let over_right = section.right() + view.offset.left();
-        if over_right > view.extent.width() {
-            let val = view.extent.width() - section.right();
-            view.offset.set_left(val);
-        }
-        let over_left = section.left() + view.offset.left();
-        if over_left < view.extent.left() {
-            let val = view.extent.left() - section.left();
-            view.offset.set_left(val);
-        }
-        let over_bottom = section.bottom() + view.offset.top();
-        if over_bottom > view.extent.height() {
-            let val = view.extent.height() - section.bottom();
-            view.offset.set_top(val);
-        }
-        let over_top = section.top() + view.offset.top();
-        if over_top < view.extent.top() {
-            let val = view.extent.top() - section.top();
-            view.offset.set_top(val);
-        }
-        if old_offset != view.offset {
-            println!("view changed for {} to {} for {:?}", old_offset, view.offset, entity);
-            tree.entity(entity).insert(section);
-        }
-    }
-}
+// pub(crate) fn extent_check_v2(
+//     adjustments: Query<(Entity, &ViewAdjustment), Changed<ViewAdjustment>>,
+//     mut views: Query<&mut View>,
+//     contexts: Query<(Entity, Ref<ViewContext>)>,
+//     sections: Query<(Entity, Ref<Section<Logical>>)>,
+//     mut tree: Tree,
+// ) {
+//     let mut to_check = HashSet::new();
+//     for (entity, adjustment) in adjustments.iter() {
+//         to_check.insert(entity);
+//     }
+//     for (entity, context) in contexts.iter() {
+//         if context.is_changed() {
+//             if let Some(id) = context.id {
+//                 to_check.insert(id);
+//             }
+//         }
+//     }
+//     for (entity, section) in sections.iter() {
+//         if section.is_changed() {
+//             if let Ok((_, context)) = contexts.get(entity) {
+//                 if let Some(id) = context.id {
+//                     to_check.insert(id);
+//                 }
+//             }
+//         }
+//     }
+//     if to_check.is_empty() {
+//         return;
+//     }
+//     for entity in to_check.iter() {
+//         let section = *sections.get(*entity).unwrap().1;
+//         views.get_mut(*entity).unwrap().extent = section; // TODO check semantics
+//     }
+//     for (entity, context) in contexts.iter() {
+//         if let Some(id) = context.id {
+//             if to_check.contains(&id) {
+//                 if let Ok(mut view) = views.get_mut(id) {
+//                     if let Ok((_, section)) = sections.get(entity) {
+//                         let mut relative = *section;
+//                         relative.position += view.offset;
+//                         if relative.left() < view.extent.left() {
+//                             view.extent.set_left(relative.left());
+//                         }
+//                         if relative.right() > view.extent.width() {
+//                             view.extent.set_width(relative.right());
+//                         }
+//                         if relative.top() < view.extent.top() {
+//                             view.extent.set_top(relative.top());
+//                         }
+//                         if relative.bottom() > view.extent.height() {
+//                             view.extent.set_height(relative.bottom());
+//                         }
+//                     }
+//                 }
+//             }
+//         }
+//     }
+//     for entity in to_check {
+//         let old_offset = views.get(entity).unwrap().offset;
+//         let mut view = views.get_mut(entity).unwrap();
+//         if let Ok((_, adjustment)) = adjustments.get(entity) {
+//             view.offset += adjustment.0;
+//         }
+//         let section = *sections.get(entity).unwrap().1;
+//         let over_right = section.right() + view.offset.left();
+//         if over_right > view.extent.width() {
+//             let val = view.extent.width() - section.right();
+//             view.offset.set_left(val);
+//         }
+//         let over_left = section.left() + view.offset.left();
+//         if over_left < view.extent.left() {
+//             let val = view.extent.left() - section.left();
+//             view.offset.set_left(val);
+//         }
+//         let over_bottom = section.bottom() + view.offset.top();
+//         if over_bottom > view.extent.height() {
+//             let val = view.extent.height() - section.bottom();
+//             view.offset.set_top(val);
+//         }
+//         let over_top = section.top() + view.offset.top();
+//         if over_top < view.extent.top() {
+//             let val = view.extent.top() - section.top();
+//             view.offset.set_top(val);
+//         }
+//         if old_offset != view.offset {
+//             println!("view changed for {} to {} for {:?}", old_offset, view.offset, entity);
+//             tree.entity(entity).insert(section);
+//         }
+//     }
+// }
 // #[derive(Resource, Default)]
 // pub(crate) struct ExtentCheckIds(pub(crate) HashSet<Entity>);
 // pub(crate) fn prepare_extent(

@@ -6,8 +6,7 @@ use crate::ginkgo::Ginkgo;
 use crate::opacity::BlendedOpacity;
 use crate::panel::{vertex, Corner};
 use crate::{
-    CReprColor, CReprSection, ClipContext, Color, Logical, Outline, Panel, ResolvedElevation,
-    Section,
+    CReprColor, CReprSection, Color, Logical, Outline, Panel, ResolvedElevation, Section, Stem,
 };
 use bevy_ecs::entity::Entity;
 use bytemuck::{Pod, Zeroable};
@@ -176,7 +175,7 @@ impl Render for Panel {
             if !render_group.coordinator.has_instance(id) {
                 render_group
                     .coordinator
-                    .add(Instance::new(elevation, ClipContext::default(), id));
+                    .add(Instance::new(elevation, Stem::default(), id));
             } else {
                 render_group.coordinator.update_elevation(id, elevation);
             }
@@ -199,7 +198,7 @@ impl Render for Panel {
                     .c_repr(),
             );
         }
-        for (entity, clip_section) in queues.attribute::<Panel, ClipContext>() {
+        for (entity, clip_section) in queues.attribute::<Panel, Stem>() {
             render_group
                 .coordinator
                 .update_clip_context(entity.index() as InstanceId, clip_section);
@@ -312,14 +311,6 @@ impl Render for Panel {
     }
 
     fn render(renderer: &mut Renderer<Self>, render_pass: &mut RenderPass, parameters: Parameters) {
-        if let Some(clip) = parameters.clip_section {
-            render_pass.set_scissor_rect(
-                clip.left() as u32,
-                clip.top() as u32,
-                clip.width() as u32,
-                clip.height() as u32,
-            );
-        }
         render_pass.set_pipeline(&renderer.pipeline);
         render_pass.set_bind_group(0, &renderer.bind_group, &[]);
         render_pass.set_vertex_buffer(0, renderer.vertex_buffer.slice(..));

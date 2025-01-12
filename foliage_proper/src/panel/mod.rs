@@ -3,9 +3,8 @@ use crate::ginkgo::ScaleFactor;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::{
-    Animate, Animation, Attachment, ClipContext, Color, Component, CoordinateUnit, Coordinates,
-    Differential, Foliage, Logical, Position, ResolvedElevation, Section, Tree, Update, Visibility,
-    Write,
+    Animate, Animation, Attachment, Color, Component, CoordinateUnit, Coordinates, Differential,
+    Foliage, Logical, Position, ResolvedElevation, Section, Stem, Tree, Update, Visibility, Write,
 };
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
@@ -17,14 +16,14 @@ mod pipeline;
 mod vertex;
 
 #[derive(Component, Copy, Clone, Default, PartialEq)]
-#[require(Rounding, Color, Outline, ClipContext)]
+#[require(Rounding, Color, Outline)]
 #[require(Differential<Self, ResolvedElevation>)]
 #[require(Differential<Self, Color>)]
 #[require(Differential<Self, Panel>)]
 #[require(Differential<Self, Outline>)]
 #[require(Differential<Self, Section<Logical>>)]
 #[require(Differential<Self, BlendedOpacity>)]
-#[require(Differential<Self, ClipContext>)]
+#[require(Differential<Self, Stem>)]
 #[component(on_add = Self::on_add)]
 #[component(on_insert = Self::on_insert)]
 pub struct Panel {
@@ -130,7 +129,7 @@ impl Attachment for Panel {
         foliage.differential::<Self, Color>();
         foliage.differential::<Self, Outline>();
         foliage.differential::<Self, ResolvedElevation>();
-        foliage.differential::<Self, ClipContext>();
+        foliage.differential::<Self, Stem>();
         foliage.enable_animation::<Outline>();
     }
 }

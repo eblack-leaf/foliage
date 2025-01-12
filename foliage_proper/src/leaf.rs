@@ -1,3 +1,4 @@
+use crate::ash::clip::ClipSection;
 use crate::Elevation;
 use crate::Logical;
 use crate::Opacity;
@@ -13,7 +14,7 @@ use std::collections::HashSet;
 
 #[derive(Component)]
 #[require(Stem, Branch)]
-#[require(Opacity, Visibility)]
+#[require(Opacity, Visibility, ClipSection)]
 #[require(Section<Logical>, Elevation)]
 #[component(on_add = Self::on_add)]
 pub struct Leaf {}
@@ -59,7 +60,7 @@ impl Leaf {
     }
 }
 
-#[derive(Component, Copy, Clone)]
+#[derive(Component, Copy, Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 #[component(on_insert = Stem::on_insert)]
 #[component(on_replace = Stem::on_replace)]
 pub struct Stem {

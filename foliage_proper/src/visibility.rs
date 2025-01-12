@@ -29,6 +29,7 @@ impl Visibility {
         let stem = world.get::<Stem>(this).unwrap();
         if let Some(s) = stem.id {
             let resolved = *world.get::<ResolvedVisibility>(s).unwrap();
+            tracing::trace!("inheriting {}", resolved.visible);
             world.commands().entity(this).insert(InheritedVisibility {
                 visible: resolved.visible,
             });
