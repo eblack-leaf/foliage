@@ -225,6 +225,7 @@ impl Location {
                     if let Some(stack) = stack {
                         stack.bottom()
                     } else {
+                        println!("no-stack");
                         return None;
                     }
                 }
@@ -382,11 +383,16 @@ impl Location {
                     .map(|id| *sections.get(id).unwrap())
                     .unwrap_or(viewport.section());
                 let stack = if let Ok(stack) = stacks.get(this) {
+                    println!("has stack for {:?}", this);
                     if let Some(s) = stack.id {
+                        println!("stack has id: {:?}", s);
                         if let Ok(sec) = sections.get(s) {
+                            println!("s-has section {}", sec);
                             if visibilities.get(s).unwrap().0.visible() {
+                                println!("s-visible");
                                 Some(*sec)
                             } else {
+                                println!("s-none");
                                 None
                             }
                         } else {
@@ -396,6 +402,7 @@ impl Location {
                         None
                     }
                 } else {
+                    println!("no stack comp for {:?}", this);
                     None
                 };
                 let grid = stem
