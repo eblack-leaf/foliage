@@ -136,6 +136,7 @@ pub(crate) fn extent_check_v2(
             view.offset.set_top(val);
         }
         if old_offset != view.offset {
+            println!("view changed for {} to {} for {:?}", old_offset, view.offset, entity);
             tree.entity(entity).insert(section);
         }
     }

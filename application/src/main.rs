@@ -68,7 +68,7 @@ fn main() {
         Elevation::new(-2),
         Stem::some(supr_nest),
         AutoHeight(true),
-        View::context(nested),
+        View::context(supr_nest),
         Location::new().xs(0.pct().to(100.pct()), 10.px().span(auto())),
     ));
     foliage.world.commands().entity(drag_test).observe(|trigger: Trigger<OnClick>| {
