@@ -82,7 +82,6 @@ pub(crate) fn extent_check_v2(
     }
     for entity in to_check.iter() {
         let section = *sections.get(*entity).unwrap().1;
-        println!("setting view to {} for {:?}", section, entity);
         views.get_mut(*entity).unwrap().extent = section; // TODO check semantics
     }
     for (entity, context) in contexts.iter() {
@@ -104,10 +103,6 @@ pub(crate) fn extent_check_v2(
                         if relative.bottom() > view.extent.height() {
                             view.extent.set_height(relative.bottom());
                         }
-                        println!(
-                            "relative {} view.offset {} view.extent {} for {:?}",
-                            relative, view.offset, view.extent, id
-                        );
                     }
                 }
             }
@@ -117,55 +112,30 @@ pub(crate) fn extent_check_v2(
         let old_offset = views.get(entity).unwrap().offset;
         let mut view = views.get_mut(entity).unwrap();
         if let Ok((_, adjustment)) = adjustments.get(entity) {
-            println!(
-                "adjusting view.offset {} by {} for {:?}",
-                view.offset, adjustment.0, entity
-            );
             view.offset += adjustment.0;
         }
         let section = *sections.get(entity).unwrap().1;
-        println!(
-            "section {} for view {:?} with extent {}",
-            section, entity, view.extent
-        );
         let over_right = section.right() + view.offset.left();
         if over_right > view.extent.width() {
             let val = view.extent.width() - section.right();
-            println!(
-                "over right {} for {:?} setting to {}",
-                over_right, entity, val
-            );
             view.offset.set_left(val);
         }
         let over_left = section.left() + view.offset.left();
         if over_left < view.extent.left() {
             let val = view.extent.left() - section.left();
-            println!(
-                "over left {} for {:?} setting to {}",
-                over_left, entity, val
-            );
             view.offset.set_left(val);
         }
         let over_bottom = section.bottom() + view.offset.top();
         if over_bottom > view.extent.height() {
             let val = view.extent.height() - section.bottom();
-            println!(
-                "over bottom {} for {:?} setting to {}",
-                over_bottom, entity, val
-            );
             view.offset.set_top(val);
         }
         let over_top = section.top() + view.offset.top();
         if over_top < view.extent.top() {
             let val = view.extent.top() - section.top();
-            println!("over top {} for {:?} setting to {}", over_top, entity, val);
             view.offset.set_top(val);
         }
         if old_offset != view.offset {
-            println!(
-                "new offset {} from {} for {:?}",
-                view.offset, old_offset, entity
-            );
             tree.entity(entity).insert(section);
         }
     }

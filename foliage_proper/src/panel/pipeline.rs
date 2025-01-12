@@ -316,8 +316,8 @@ impl Render for Panel {
             render_pass.set_scissor_rect(
                 clip.left() as u32,
                 clip.top() as u32,
-                clip.right() as u32,
-                clip.bottom() as u32,
+                clip.width() as u32,
+                clip.height() as u32,
             );
         }
         render_pass.set_pipeline(&renderer.pipeline);

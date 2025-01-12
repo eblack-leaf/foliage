@@ -17,24 +17,24 @@ pub enum ClipContext {
 }
 impl ClipContext {
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
-        let value = world.get::<ClipContext>(this).unwrap();
+        let value = *world.get::<ClipContext>(this).unwrap();
         match value {
             ClipContext::Screen => {
                 world.commands().entity(this).insert(ClipSection(None));
             }
             ClipContext::Entity(e) => {
-                if let Some(mut listeners) = world.get_mut::<ClipListeners>(*e) {
+                if let Some(mut listeners) = world.get_mut::<ClipListeners>(e) {
                     listeners.listeners.insert(this);
                 }
             }
         }
     }
     fn on_replace(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
-        let value = world.get::<ClipContext>(this).unwrap();
+        let value = *world.get::<ClipContext>(this).unwrap();
         match value {
             ClipContext::Screen => {}
             ClipContext::Entity(e) => {
-                if let Some(mut listeners) = world.get_mut::<ClipListeners>(*e) {
+                if let Some(mut listeners) = world.get_mut::<ClipListeners>(e) {
                     listeners.listeners.remove(&this);
                 }
             }
@@ -54,21 +54,19 @@ pub(crate) fn prepare_clip_section(
 ) {
     for (entity, section) in sections.iter() {
         if let Ok(listeners) = clip_listeners.get(entity) {
+            if !listeners.listeners.is_empty() {
+                clip_queue.queue.insert(entity, ClipSection(Some(*section)));
+            }
             for listener in listeners.listeners.iter() {
                 let value = clip_contexts.get(*listener).unwrap();
                 match value {
-                    ClipContext::Screen => {
-                        println!("screen for {:?}", listener);
-                    }
+                    ClipContext::Screen => {}
                     ClipContext::Entity(_e) => {
-                        println!("clip-section {} for {:?}", section, listener);
                         clip_sections
                             .get_mut(*listener)
                             .unwrap()
                             .0
                             .replace(*section);
-                        clip_queue.queue.insert(entity, ClipSection(Some(*section)));
-                        break;
                     }
                 }
             }

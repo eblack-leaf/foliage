@@ -136,7 +136,6 @@ pub(crate) fn interactive_elements(
                 // TODO tree.trigger_targets(EngagedBegin::default(), p);
             }
             if let Some(ps) = current.pass_through {
-                println!("start pass-through for {:?}", ps);
                 let mut listener = listeners.get_mut(ps).unwrap().1;
                 listener.click = Click::new(event.position);
                 listener.last_drag = event.position;
@@ -153,7 +152,6 @@ pub(crate) fn interactive_elements(
                     if let Some(ps) = current.pass_through {
                         let mut listener = listeners.get_mut(ps).unwrap();
                         listener.1.click = Click::new(event.position);
-                        println!("start-drag {} for {:?}", event.position, ps);
                         listener.1.last_drag = event.position;
                     }
                 }
@@ -185,7 +183,6 @@ pub(crate) fn interactive_elements(
                     // TODO tree.trigger_targets(EngagedEnd::default(), p);
                 }
             }
-            println!("end-event for {:?}", current.pass_through);
             if let Some(ps) = current.pass_through.take() {
                 let mut listener = listeners.get_mut(ps).unwrap();
                 if event.from_scroll && listener.1.scroll {

@@ -206,7 +206,7 @@ impl Location {
                     resolved_points.replace(Points::new().a((ax, bx)));
                 }
                 LocationAxisType::Span => {
-                    // already in x / w context
+                    bx -= stem.left(); // convert to x / w context
                 }
                 LocationAxisType::To => {
                     bx -= ax; // convert to x / w context
@@ -253,7 +253,7 @@ impl Location {
                     resolved_points.as_mut().unwrap().set_b((ay, by));
                 }
                 LocationAxisType::Span => {
-                    // already in y / h context
+                    by -= stem.top(); // convert to x / w context
                 }
                 LocationAxisType::To => {
                     by -= ay; // convert to y / h context
@@ -343,6 +343,7 @@ impl Location {
             if config.vertical.a != GridUnit::Stack {
                 resolved.position -= (0, view.offset.top()).into();
             }
+            resolved.area = resolved.area.max((0, 0));
             Some(ResolvedLocation::Section(resolved))
         } else {
             None
@@ -441,7 +442,6 @@ impl Location {
                                 }
                             };
                             section += diff * location.animation_percent;
-                            println!("resolved {} for {:?}", section, this);
                             tree.entity(this).insert(ResolvedLocation::Section(section));
                             tree.entity(this).insert(section);
                         }

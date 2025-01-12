@@ -1,6 +1,6 @@
 use foliage::{
-    auto, AutoHeight, Color, EcsExtension, Elevation, Foliage, FontSize, Grid, GridExt,
-    InteractionListener, Location, Panel, Stem, Text, View,
+    auto, stack, AutoHeight, Color, EcsExtension, Elevation, Foliage, FontSize, Grid, GridExt,
+    InteractionListener, Location, OnClick, Panel, Stack, Stem, Text, Trigger, View,
 };
 use tracing_subscriber::filter::Targets;
 fn main() {
@@ -19,7 +19,7 @@ fn main() {
         Panel::new(),
         Color::gray(800),
         Elevation::new(-1),
-        Location::new().xs(0.pct().to(100.pct()), 1.row().to(2000.px())),
+        Location::new().xs(0.pct().to(100.pct()), 1.row().span(2000.px())),
         View::context(root),
         Stem::some(root),
     ));
@@ -41,11 +41,24 @@ fn main() {
         Elevation::new(-2),
         Stem::some(nested),
     ));
+    let drag_test = foliage.leaf((
+        Panel::new(),
+        Color::gray(250),
+        Elevation::new(-2),
+        Location::new().xs(0.pct().to(100.pct()), stack().span(40.px())),
+        Stack::new(element),
+        Stem::some(nested),
+        View::context(nested),
+        InteractionListener::new(),
+    ));
+    foliage.world.commands().entity(drag_test).observe(|trigger: Trigger<OnClick>| {
+        println!("done-it --------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
+    });
     let nested_backdrop = foliage.leaf((
         Panel::new(),
         Color::gray(500),
         Elevation::new(1),
-        Location::new().xs(0.pct().to(100.pct()), 0.pct().to(100.pct())),
+        Location::new().xs(0.pct().to(100.pct()), 0.pct().to(1000.px())),
         View::context(nested),
         Stem::some(element),
     ));
