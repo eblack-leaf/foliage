@@ -443,7 +443,7 @@ impl Location {
                                 }
                             };
                             section += diff * location.animation_percent;
-                            println!("resolving {} for {:?}", section, this);
+                            println!("resolving {} w/ view {} for {:?}", section, view.offset, this);
                             tree.entity(this).insert(ResolvedLocation::Section(section));
                             tree.entity(this).insert(section);
                         }

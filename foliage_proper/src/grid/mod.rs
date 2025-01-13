@@ -3,11 +3,12 @@ mod layout;
 pub(crate) mod location;
 pub(crate) mod view;
 
-use crate::foliage::{Foliage, MainMarkers};
+use crate::foliage::{DiffMarkers, Foliage, MainMarkers};
 pub(crate) use crate::grid::layout::viewport_changed;
 pub use crate::grid::location::{
     auto, stack, Justify, LocationAxisDescriptor, LocationAxisType, Padding,
 };
+use crate::grid::view::extent_check_v2;
 use crate::{Attachment, Component, CoordinateUnit, Logical, Section};
 pub use aspect_ratio::AspectRatio;
 use bevy_ecs::prelude::IntoSystemConfigs;
@@ -23,9 +24,9 @@ impl Attachment for Grid {
         foliage
             .main
             .add_systems(viewport_changed.in_set(MainMarkers::External));
-        // foliage
-        //     .diff
-        //     .add_systems(extent_check_v2.in_set(DiffMarkers::Prepare));
+        foliage
+            .diff
+            .add_systems(extent_check_v2.in_set(DiffMarkers::Prepare));
         foliage.define(Location::update_from_visibility);
         foliage.define(Location::update_location);
         foliage.enable_animation::<Location>();

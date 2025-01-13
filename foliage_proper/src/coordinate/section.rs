@@ -22,7 +22,7 @@ pub struct Section<Context: CoordinateContext> {
 }
 impl<Context: CoordinateContext> Display for Section<Context> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{}|{}", self.position, self.area))
+        f.write_fmt(format_args!("[{} + {} | {} + {}]", self.left(), self.width(), self.top(), self.height()))
     }
 }
 #[repr(C)]
@@ -219,7 +219,7 @@ impl Section<Numerical> {
     }
 }
 impl<Context: CoordinateContext, C: Into<Coordinates>, D: Into<Coordinates>> From<(C, D)>
-    for Section<Context>
+for Section<Context>
 {
     fn from(value: (C, D)) -> Self {
         Self::new(value.0, value.1)

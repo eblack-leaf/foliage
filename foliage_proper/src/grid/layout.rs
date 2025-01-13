@@ -3,7 +3,7 @@ use crate::grid::Location;
 use crate::{CoordinateUnit, Logical, Section, Stem, Tree, Update, Write};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::query::With;
-use bevy_ecs::system::{Query, ResMut, Resource};
+use bevy_ecs::system::{Local, Query, ResMut, Resource};
 
 #[derive(Resource, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum Layout {
@@ -37,8 +37,9 @@ pub(crate) fn viewport_changed(
     locations: Query<(Entity, &Stem), With<Location>>,
     mut layout: ResMut<Layout>,
     mut tree: Tree,
+    mut first: Local<bool>,
 ) {
-    if vh.window_forced_resize() {
+    if vh.window_forced_resize() || *first {
         let new = Layout::new(vh.section());
         if new != *layout {
             tree.trigger(Write::<Layout>::new());
@@ -54,5 +55,6 @@ pub(crate) fn viewport_changed(
             return;
         }
         tree.trigger_targets(Update::<Location>::new(), targets);
+        *first = false;
     }
 }

@@ -108,6 +108,7 @@ impl Text {
             .trigger_targets(Update::<Text>::new(), this);
     }
     fn update_from_section(trigger: Trigger<Write<Section<Logical>>>, mut tree: Tree) {
+        println!("text-update from section for {:?}", trigger.entity());
         tree.trigger_targets(Update::<Text>::new(), trigger.entity());
     }
     fn resolve_colors(
@@ -192,6 +193,7 @@ impl Text {
                 let scaled = adjusted_section.to_physical(scale_factor.value());
                 if current.section != scaled {
                     current.section = scaled;
+                    println!("adjusting for auto-height {} for {:?}", scaled, this);
                     tree.entity(this)
                         .insert(current.clone())
                         .insert(adjusted_section);

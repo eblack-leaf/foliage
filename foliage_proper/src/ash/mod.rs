@@ -24,6 +24,7 @@ impl Attachment for Ash {
         foliage.differential::<(), ResolvedClip>();
         foliage.define(ClipSection::write_section);
         foliage.define(ClipSection::stem_insert);
+        foliage.define(ClipSection::update_inherited);
     }
 }
 pub(crate) struct Ash {

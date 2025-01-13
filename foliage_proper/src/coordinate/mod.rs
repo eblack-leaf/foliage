@@ -12,8 +12,7 @@ pub mod section;
 pub trait CoordinateContext
 where
     Self: Send + Sync + 'static + Copy + Clone + Default,
-{
-}
+{}
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug, Serialize, Deserialize)]
 pub struct Physical;
@@ -37,7 +36,7 @@ pub type CoordinateUnit = f32;
 pub struct Coordinates(pub [CoordinateUnit; 2]);
 impl Display for Coordinates {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{} {}", self.a(), self.b()))
+        f.write_fmt(format_args!("[{} {}]", self.a(), self.b()))
     }
 }
 impl Coordinates {

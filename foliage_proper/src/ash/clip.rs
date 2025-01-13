@@ -1,4 +1,4 @@
-use crate::{Branch, Component, Logical, Section, Tree, Write};
+use crate::{Branch, Component, Logical, Section, Tree, Update, Write};
 use crate::{Differential, Stem};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
@@ -18,10 +18,15 @@ impl ClipSection {
     ) {
         // trigger on-insert w/ current section
         let value = *sections.get(trigger.entity()).unwrap();
+        println!("section-wrote clipper for {:?}", trigger.entity());
         tree.entity(trigger.entity()).insert(ClipSection(value));
     }
-    pub(crate) fn stem_insert(
-        trigger: Trigger<OnInsert, Stem>,
+    pub(crate) fn stem_insert(trigger: Trigger<OnInsert, Stem>, mut tree: Tree) {
+        println!("stem-insert clipper for {:?}", trigger.entity());
+        tree.trigger_targets(Update::<InheritedClip>::new(), trigger.entity());
+    }
+    pub(crate) fn update_inherited(
+        trigger: Trigger<Update<InheritedClip>>,
         mut tree: Tree,
         stems: Query<&Stem>,
         sections: Query<&Section<Logical>>,
@@ -68,6 +73,7 @@ impl ClipSection {
         world.commands().entity(this).insert(resolved);
         let deps = world.get::<Branch>(this).unwrap().ids.clone();
         for d in deps {
+            println!("sending inherited-clip from {:?} to d: {:?} ", this, d);
             world
                 .commands()
                 .entity(d)
