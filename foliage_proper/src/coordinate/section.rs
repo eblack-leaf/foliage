@@ -22,7 +22,13 @@ pub struct Section<Context: CoordinateContext> {
 }
 impl<Context: CoordinateContext> Display for Section<Context> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("[{} + {} | {} + {}]", self.left(), self.width(), self.top(), self.height()))
+        f.write_fmt(format_args!(
+            "[{} + {} | {} + {}]",
+            self.left(),
+            self.width(),
+            self.top(),
+            self.height()
+        ))
     }
 }
 #[repr(C)]

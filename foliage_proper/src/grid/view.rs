@@ -56,7 +56,9 @@ pub(crate) fn extent_check_v2(
     }
     for entity in to_check.iter() {
         let section = *sections.get(*entity).unwrap().1;
-        views.get_mut(*entity).unwrap().extent = section; // TODO check semantics
+        views.get_mut(*entity).unwrap().extent =
+            Section::new(section.position, (section.right(), section.bottom()));
+        // TODO check semantics
     }
     for (entity, context) in contexts.iter() {
         if let Some(id) = context.id {
@@ -66,15 +68,43 @@ pub(crate) fn extent_check_v2(
                         let mut relative = *section;
                         relative.position += view.offset;
                         if relative.left() < view.extent.left() {
+                            println!(
+                                "pushing left from {} to {} from {:?} on {:?}",
+                                view.extent.left(),
+                                relative.left(),
+                                entity,
+                                id
+                            );
                             view.extent.set_left(relative.left());
                         }
                         if relative.right() > view.extent.width() {
+                            println!(
+                                "pushing right from {} to {} from {:?} on {:?}",
+                                view.extent.width(),
+                                relative.right(),
+                                entity,
+                                id
+                            );
                             view.extent.set_width(relative.right());
                         }
                         if relative.top() < view.extent.top() {
+                            println!(
+                                "pushing top from {} to {} from {:?} on {:?}",
+                                view.extent.top(),
+                                relative.top(),
+                                entity,
+                                id
+                            );
                             view.extent.set_top(relative.top());
                         }
                         if relative.bottom() > view.extent.height() {
+                            println!(
+                                "pushing bottom from {} to {} from {:?} on {:?}",
+                                view.extent.height(),
+                                relative.bottom(),
+                                entity,
+                                id
+                            );
                             view.extent.set_height(relative.bottom());
                         }
                     }
@@ -87,7 +117,10 @@ pub(crate) fn extent_check_v2(
         let mut view = views.get_mut(*entity).unwrap();
         if let Ok((_, adjustment)) = adjustments.get(*entity) {
             view.offset += adjustment.0;
-            println!("adding adjustment {} = {} for {:?}", adjustment.0, view.offset, entity);
+            println!(
+                "adding adjustment {} = {} for {:?}",
+                adjustment.0, view.offset, entity
+            );
             to_trigger.insert(*entity);
         }
     }
@@ -134,9 +167,21 @@ pub(crate) fn extent_check_v2(
             overscroll = ovrscrl(id, overscroll.1);
         }
     }
-    for entity in to_trigger {
-        let section = *sections.get(entity).unwrap().1;
+    let mut in_chain = HashSet::new();
+    for entity in to_trigger.iter() {
+        let mut stem = *contexts.get(*entity).unwrap().1;
+        while stem.id.is_some() {
+            let id = stem.id.unwrap();
+            if to_trigger.contains(&id) {
+                in_chain.insert(*entity);
+                break;
+            }
+            stem = *contexts.get(id).unwrap().1;
+        }
+    }
+    for entity in to_trigger.difference(&in_chain) {
+        let section = *sections.get(*entity).unwrap().1;
         println!("triggering section {} on {:?}", section, entity);
-        tree.entity(entity).insert(section);
+        tree.entity(*entity).insert(section);
     }
 }

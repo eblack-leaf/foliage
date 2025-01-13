@@ -41,13 +41,18 @@ impl ClipSection {
             let next = *sections.get(id).unwrap();
             let base = next.intersection(section).unwrap_or_default();
             if inherited.0.is_none() {
+                inherited.0.replace(base);
+            } else {
                 inherited
                     .0
-                    .replace(base);
-            } else {
-                inherited.0.replace(base.intersection(inherited.0.unwrap()).unwrap_or_default());
+                    .replace(base.intersection(inherited.0.unwrap()).unwrap_or_default());
             }
-            println!("current: {} next: {} inherited: {}", section, next, inherited.0.unwrap());
+            println!(
+                "current: {} next: {} inherited: {}",
+                section,
+                next,
+                inherited.0.unwrap()
+            );
             stem = *stems.get(id).unwrap();
             section = next;
         }
