@@ -40,7 +40,7 @@ fn ovrscrl(
     let over_right = section.right() + view.offset.left();
     if over_right > view.extent.width() {
         let val = view.extent.width() - section.right();
-        over.set_left(view.extent.width() - over_right);
+        over.set_left(view.offset.left() - val);
         view.offset.set_left(val);
     }
     let over_bottom = section.bottom() + view.offset.top();
@@ -52,7 +52,7 @@ fn ovrscrl(
     let over_left = section.left() + view.offset.left();
     if over_left < view.extent.left() {
         let val = view.extent.left() - section.left();
-        over.set_left(view.extent.left() - over_left);
+        over.set_left(view.offset.left() - val);
         view.offset.set_left(val);
     }
     let over_top = section.top() + view.offset.top();

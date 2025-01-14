@@ -215,7 +215,7 @@ impl<I: bytemuck::Pod + bytemuck::Zeroable + Default> InstanceBuffer<I> {
     #[allow(unused)]
     pub(crate) fn swap(&mut self, swap: Swap) {
         let current = *self.cpu.get(swap.old as usize).unwrap();
-        self.queue(swap.new, current);
+        self.write_cpu(swap.new, current);
     }
     pub(crate) fn write_cpu(&mut self, order: Order, data: I) {
         *self.cpu.get_mut(order as usize).unwrap() = data;

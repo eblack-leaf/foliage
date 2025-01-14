@@ -153,7 +153,12 @@ impl Render for Panel {
         let mut nodes = Nodes::new();
         let render_group = renderer.groups.get_mut(&0).unwrap();
         for r in queues.removes::<Panel>() {
-            if renderer.resources.layer_and_weights.remove(&r).is_some() {
+            if render_group
+                .coordinator
+                .has_instance(r.index() as InstanceId)
+            {
+                println!("removing {:?}", r);
+                renderer.resources.layer_and_weights.remove(&r);
                 nodes.remove(RemoveNode::new(
                     PipelineId::Panel,
                     0,
@@ -161,13 +166,6 @@ impl Render for Panel {
                 ));
                 let order = render_group.coordinator.order(r.index() as InstanceId);
                 render_group.coordinator.remove(order);
-                render_group.group.sections.remove(order);
-                render_group.group.lws.remove(order);
-                render_group.group.colors.remove(order);
-                render_group.group.corner_i.remove(order);
-                render_group.group.corner_ii.remove(order);
-                render_group.group.corner_iii.remove(order);
-                render_group.group.corner_iv.remove(order);
             }
         }
         for (entity, elevation) in queues.attribute::<Panel, ResolvedElevation>() {

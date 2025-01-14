@@ -259,9 +259,6 @@ impl Render for Text {
                 if group.coordinator.has_instance(glyph.offset as InstanceId) {
                     let order = group.coordinator.order(glyph.offset as InstanceId);
                     group.coordinator.remove(order);
-                    group.group.sections.remove(order);
-                    group.group.colors.remove(order);
-                    group.group.tex_coords.remove(order);
                     group
                         .group
                         .texture_atlas

@@ -23,70 +23,71 @@ fn main() {
         Panel::new(),
         Color::gray(800),
         Elevation::new(-1),
-        Location::new().xs(0.pct().to(100.pct()), 1.row().span(2000.px())),
+        Location::new().xs(0.pct().to(110.pct()), 1.row().span(2000.px())),
         Stem::some(root),
     ));
-    let nested = foliage.leaf((
+    let n1 = foliage.leaf((
         Grid::new(1.col().gap(0), 1.row().gap(0)),
         Stem::some(root),
         Elevation::new(-1),
         Location::new().xs(1.col().to(2.col()), 7.row().to(12.row())),
         InteractionListener::new().scroll(true),
     ));
-    let element = foliage.leaf((
+    let e1 = foliage.leaf((
         Text::new("abc def ghi jkl mnopqr stuvwx yzABC DEF GHIKJLM NOPQRSTU VWXY abc def ghi jkl mnopqr stuvwx yzABC DEF GHIKJLM NOPQRSTU VWXY abc def ghi jkl mnopqr stuvwx yzABC DEF GHIKJLM NOPQRSTU VWXY"),
         FontSize::new(24),
-        Location::new().xs(0.pct().to(100.pct()), 1.row().span(auto())),
+        Location::new().xs(0.pct().to(120.pct()), 1.row().span(auto())),
         Grid::default(),
         AutoHeight(true),
         Elevation::new(-2),
-        Stem::some(nested),
+        Stem::some(n1),
     ));
-    let drag_test = foliage.leaf((
+    let dt1 = foliage.leaf((
         Panel::new(),
         Color::gray(250),
         Elevation::new(-2),
         Location::new().xs(0.pct().to(100.pct()), stack().span(100.px())),
-        Stack::new(element),
-        Stem::some(nested),
+        Stack::new(e1),
+        Stem::some(n1),
         InteractionListener::new(),
     ));
-    let supr_nest = foliage.leaf((
+    let sn1 = foliage.leaf((
         Panel::new(),
         Color::gray(350),
         Location::new().xs(0.pct().to(100.pct()), stack().span(200.px())),
         Elevation::new(-3),
-        Stem::some(nested),
-        Stack::new(drag_test),
+        Stem::some(n1),
+        Stack::new(dt1),
         Grid::default(),
         InteractionListener::new().scroll(true),
     ));
-    let supr_nest_text = foliage.leaf((
+    let snt1 = foliage.leaf((
         Text::new(" osaeta oeu u uu u u u u u  u u u u  u u  uu  uu u u u  u uu u u  u u u u u  uuuuuuuuu u uuuuu uuuuuuuu uuuuu uuuuuu uuu u u u u u uu u u uuu u uuu u u u uuuuuuuu uuuuuuuuu"),
         FontSize::new(24),
         Elevation::new(-2),
-        Stem::some(supr_nest),
+        Stem::some(sn1),
         AutoHeight(true),
         Location::new().xs(0.pct().to(100.pct()), 10.px().span(auto())),
     ));
-    foliage.world.commands().entity(drag_test).observe(move |trigger: Trigger<OnClick>, mut tree: Tree| {
+    foliage.world.commands().entity(dt1).observe(move |trigger: Trigger<OnClick>, mut tree: Tree| {
         let seq = tree.sequence();
-        tree.animate(seq, Animation::new(Location::new().xs(1.col().to(4.col()), 7.row().to(12.row()))).start(0).finish(10000).targeting(nested));
-        tree.sequence_end(seq, |trigger: Trigger<OnEnd>, mut tree: Tree| {
+        tree.animate(seq, Animation::new(Location::new().xs(1.col().to(4.col()), 7.row().to(12.row()))).start(0).finish(10000).targeting(n1));
+        tree.sequence_end(seq, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
+            tree.remove(n1);
             println!("done");
         });
         println!("done-it --------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
     });
-    let nested_backdrop = foliage.leaf((
+    let nb1 = foliage.leaf((
         Panel::new(),
         Color::gray(500),
         Elevation::new(1),
         Location::new().xs(0.pct().to(100.pct()), 0.pct().to(1000.px())),
-        Stem::some(element),
+        Stem::some(e1),
     ));
     println!(
         "r: {:?} rb: {:?} n: {:?} e: {:?} dt: {:?} sn: {:?} snt: {:?} nb: {:?}",
-        root, root_backdrop, nested, element, drag_test, supr_nest, supr_nest_text, nested_backdrop
+        root, root_backdrop, n1, e1, dt1, sn1, snt1, nb1
     );
 
     let nested = foliage.leaf((
@@ -135,8 +136,9 @@ fn main() {
     foliage.world.commands().entity(drag_test).observe(move |trigger: Trigger<OnClick>, mut tree: Tree| {
         let seq = tree.sequence();
         tree.animate(seq, Animation::new(Location::new().xs(1.col().to(4.col()), 1.row().to(6.row()))).start(0).finish(10000).targeting(nested));
-        tree.sequence_end(seq, |trigger: Trigger<OnEnd>, mut tree: Tree| {
-            println!("done");
+        tree.sequence_end(seq, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
+            tree.remove(nested);
+            println!("did");
         });
         println!("did-it --------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
     });
