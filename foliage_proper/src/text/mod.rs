@@ -47,7 +47,6 @@ impl Attachment for Text {
         foliage.differential::<Text, ResolvedGlyphs>();
         foliage.differential::<Text, ResolvedColors>();
         foliage.differential::<Text, UniqueCharacters>();
-        foliage.differential::<Text, TextBounds>();
     }
 }
 #[derive(Component, Clone, PartialEq, Default, Debug)]
@@ -55,7 +54,6 @@ impl Attachment for Text {
 #[require(HorizontalAlignment, VerticalAlignment, Glyphs)]
 #[require(ResolvedGlyphs, ResolvedColors, GlyphColors, AutoHeight)]
 #[require(UniqueCharacters, Differential<Text, UniqueCharacters>)]
-#[require(TextBounds, Differential<Text, TextBounds>)]
 #[require(Differential<Text, ResolvedFontSize>)]
 #[require(Differential<Text, BlendedOpacity>)]
 #[require(Differential<Text, Section<Logical>>)]
@@ -201,7 +199,6 @@ impl Text {
             } else {
                 tree.entity(this).insert(current.clone());
             }
-            tree.entity(this).insert(TextBounds::new(current.section));
         }
     }
     fn clear_last_on_visibility(
@@ -215,10 +212,18 @@ impl Text {
         }
     }
     fn resolve_glyphs(
-        mut glyph_query: Query<(Entity, &mut Glyphs, &ResolvedVisibility), Changed<Glyphs>>,
+        mut glyph_query: Query<
+            (
+                Entity,
+                &mut Glyphs,
+                &ResolvedVisibility,
+                &mut ResolvedGlyphs,
+            ),
+            Changed<Glyphs>,
+        >,
         mut tree: Tree,
     ) {
-        for (entity, mut glyphs, vis) in glyph_query.iter_mut() {
+        for (entity, mut glyphs, vis, mut resolved) in glyph_query.iter_mut() {
             if !vis.visible() {
                 continue;
             }
@@ -238,7 +243,8 @@ impl Text {
                     offset: i,
                 })
                 .collect::<Vec<Glyph>>();
-            let mut resolved = ResolvedGlyphs::default();
+            resolved.updated.clear();
+            resolved.removed.clear();
             let len_last = glyphs.glyphs.len();
             for (i, g) in glyphs
                 .glyphs
@@ -260,21 +266,11 @@ impl Text {
                 }
             }
             glyphs.glyphs = new;
-            tree.entity(entity).insert(resolved);
         }
     }
 }
 #[derive(Component, Copy, Clone, Default)]
 pub struct AutoHeight(pub bool);
-#[derive(Component, Copy, Clone, Default, PartialEq)]
-pub(crate) struct TextBounds {
-    pub(crate) bounds: Section<Physical>,
-}
-impl TextBounds {
-    pub(crate) fn new(bounds: Section<Physical>) -> Self {
-        Self { bounds }
-    }
-}
 #[derive(Copy, Clone, Component, Default, PartialEq)]
 pub(crate) struct UniqueCharacters(pub(crate) u32);
 impl UniqueCharacters {

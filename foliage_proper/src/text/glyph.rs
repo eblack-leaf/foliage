@@ -7,6 +7,7 @@ use bevy_ecs::world::DeferredWorld;
 use fontdue::layout::CoordinateSystem::PositiveYDown;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fmt::Display;
 use std::ops::Range;
 
 #[derive(Serialize, Deserialize, Copy, Clone, Hash, Eq, PartialEq, Debug)]
@@ -21,6 +22,14 @@ pub(crate) struct Glyph {
     pub(crate) section: Section<Physical>,
     pub(crate) parent: char,
     pub(crate) offset: GlyphOffset,
+}
+impl Display for Glyph {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!(
+            "k: {} s: {} p: {} o: {}",
+            self.key.glyph_index, self.section, self.parent, self.offset
+        ))
+    }
 }
 pub type GlyphOffset = usize;
 #[derive(Component)]

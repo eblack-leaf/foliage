@@ -157,7 +157,6 @@ impl Render for Panel {
                 .coordinator
                 .has_instance(r.index() as InstanceId)
             {
-                println!("removing {:?}", r);
                 renderer.resources.layer_and_weights.remove(&r);
                 nodes.remove(RemoveNode::new(
                     PipelineId::Panel,

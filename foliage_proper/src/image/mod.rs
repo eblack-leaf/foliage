@@ -240,6 +240,7 @@ impl ImageMemory {
             .unwrap()
             .queue
             .insert(this, memory);
+        world.commands().entity(this).despawn();
     }
 }
 pub type MemoryId = i32;

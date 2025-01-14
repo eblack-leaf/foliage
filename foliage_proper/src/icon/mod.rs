@@ -86,5 +86,6 @@ impl IconMemory {
             .unwrap()
             .queue
             .insert(this, value);
+        world.commands().entity(this).despawn();
     }
 }

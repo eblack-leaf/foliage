@@ -1,10 +1,14 @@
 #![allow(unused)]
-use foliage::{auto, stack, Animation, AutoHeight, Color, EcsExtension, Elevation, Foliage, FontSize, Grid, GridExt, InteractionListener, Location, OnClick, OnEnd, Panel, Stack, Stem, Text, Tree, Trigger};
+use foliage::{
+    auto, stack, Animation, AutoHeight, Color, EcsExtension, Elevation, Foliage, FontSize, Grid,
+    GridExt, InteractionListener, Location, OnClick, OnEnd, Panel, Stack, Stem, Text, Tree,
+    Trigger,
+};
 use tracing_subscriber::filter::Targets;
 fn main() {
     let mut foliage = Foliage::new(); // library-handle
     foliage.enable_tracing(Targets::new().with_target("foliage", tracing::Level::TRACE));
-    foliage.desktop_size((1860, 800));
+    foliage.desktop_size((1760, 800));
     foliage.url("foliage");
     let root = foliage.leaf((
         Grid::new(4.col().gap(18), 25.row().gap(8)),

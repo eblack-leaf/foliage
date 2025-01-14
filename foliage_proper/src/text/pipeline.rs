@@ -6,7 +6,7 @@ use crate::ginkgo::{Ginkgo, VectorUniform};
 use crate::opacity::BlendedOpacity;
 use crate::text::glyph::{GlyphKey, GlyphOffset, ResolvedColors, ResolvedGlyphs};
 use crate::text::monospaced::MonospacedFont;
-use crate::text::{ResolvedFontSize, TextBounds, UniqueCharacters};
+use crate::text::{ResolvedFontSize, UniqueCharacters};
 use crate::texture::{AtlasEntry, TextureAtlas, TextureCoordinates, Vertex, VERTICES};
 use crate::{CReprColor, CReprSection, Logical, Physical, ResolvedElevation, Section, Stem, Text};
 use bevy_ecs::entity::Entity;
@@ -37,7 +37,6 @@ pub(crate) struct Group {
     pub(crate) unique_characters: UniqueCharacters,
     pub(crate) font_size: ResolvedFontSize,
     pub(crate) queued_tex_reads: Vec<(GlyphKey, InstanceId)>,
-    pub(crate) bounds: Section<Physical>,
 }
 
 impl Group {
@@ -58,7 +57,6 @@ impl Group {
             unique_characters: Default::default(),
             font_size: Default::default(),
             queued_tex_reads: vec![],
-            bounds: Default::default(),
         }
     }
 }
@@ -202,11 +200,6 @@ impl Render for Text {
             let group = &mut renderer.groups.get_mut(id).unwrap().group;
             group.clip_context = packet;
             group.update_node = true;
-        }
-        for (entity, packet) in queues.attribute::<Text, TextBounds>() {
-            let id = renderer.resources.entity_to_group.get(&entity).unwrap();
-            let group = &mut renderer.groups.get_mut(id).unwrap().group;
-            group.bounds = packet.bounds;
         }
         for (entity, packet) in queues.attribute::<Text, Section<Logical>>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
