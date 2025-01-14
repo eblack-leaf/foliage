@@ -30,17 +30,14 @@ pub struct NearFarDescriptor {
 }
 
 impl NearFarDescriptor {
-    pub fn new<L: Into<ResolvedElevation>>(near: L, far: L) -> Self {
-        Self {
-            near: near.into(),
-            far: far.into(),
-        }
+    pub fn new(near: ResolvedElevation, far: ResolvedElevation) -> Self {
+        Self { near, far }
     }
 }
 
 impl Default for NearFarDescriptor {
     fn default() -> Self {
-        Self::new(0, 100)
+        Self::new(ResolvedElevation(0f32), ResolvedElevation(100f32))
     }
 }
 

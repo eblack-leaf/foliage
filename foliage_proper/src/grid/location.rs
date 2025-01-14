@@ -205,7 +205,7 @@ impl Location {
             } - config.horizontal.padding.coordinates.b()
                 * f32::from(config.horizontal.ty != LocationAxisType::Point)
                 + config.horizontal.padding.coordinates.b()
-                * f32::from(config.horizontal.ty == LocationAxisType::Point);
+                    * f32::from(config.horizontal.ty == LocationAxisType::Point);
             match config.horizontal.ty {
                 LocationAxisType::Point => {
                     if let GridUnit::Aligned(_) = config.horizontal.a {
@@ -267,7 +267,7 @@ impl Location {
             } - config.vertical.padding.coordinates.b()
                 * f32::from(config.vertical.ty != LocationAxisType::Point)
                 + config.vertical.padding.coordinates.b()
-                * f32::from(config.vertical.ty == LocationAxisType::Point);
+                    * f32::from(config.vertical.ty == LocationAxisType::Point);
             match config.vertical.ty {
                 LocationAxisType::Point => {
                     if let GridUnit::Aligned(_) = config.vertical.a {
@@ -375,8 +375,15 @@ impl Location {
             }
             let mut resolved = Section::new((ax, ay), (bx, by));
             if let Some(ar) = aspect {
-                if let Some(constrained) = ar.constrain(resolved, layout) {
-                    resolved = constrained;
+                if config.horizontal.b == GridUnit::Auto {
+                    resolved.set_width(resolved.height() * ar.config(layout).unwrap_or(1f32));
+                } else if config.vertical.b == GridUnit::Auto {
+                    resolved
+                        .set_height(resolved.width() * 1f32 / ar.config(layout).unwrap_or(1f32));
+                } else {
+                    if let Some(constrained) = ar.constrain(resolved, layout) {
+                        resolved = constrained;
+                    }
                 }
             }
             if config.horizontal.a != GridUnit::Stack {

@@ -200,14 +200,16 @@ impl Render for Image {
                 Section::new((0, 0), image.extent.coordinates),
                 group.group.memory_extent.coordinates,
             );
-            if renderer
+            if let Some((e, g)) = renderer
                 .resources
                 .entity_to_memory
                 .iter()
                 .find(|(e, g)| **g == image.image.memory_id && **e != entity)
-                .is_some()
             {
-                panic!("overwriting existing image group with active entity")
+                panic!(
+                    "overwriting existing image group {} with active entity {:?} from {:?}",
+                    g, e, entity
+                )
             }
             renderer
                 .resources

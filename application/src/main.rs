@@ -14,7 +14,7 @@ fn main() {
         Grid::new(4.col().gap(18), 25.row().gap(8)),
         Location::new().xs(0.pct().to(100.pct()), 0.pct().to(100.pct())),
         InteractionListener::new().scroll(true),
-        Elevation::new(100),
+        Elevation::abs(0),
         Stem::none(),
         // Visibility::new(false),
     ));
@@ -22,15 +22,15 @@ fn main() {
     let root_backdrop = foliage.leaf((
         Panel::new(),
         Color::gray(800),
-        Elevation::new(-1),
+        Elevation::up(1),
         Location::new().xs(0.pct().to(110.pct()), 1.row().span(2000.px())),
         Stem::some(root),
     ));
     let n1 = foliage.leaf((
         Grid::new(3.col().gap(0), 1.row().gap(0)),
         Stem::some(root),
-        Elevation::new(-1),
-        Location::new().xs(1.col().to(2.col()), 7.row().to(12.row())),
+        Elevation::up(1),
+        Location::new().xs(1.col().to(2.col()), 1.row().to(12.row()).pad(0)),
         InteractionListener::new().scroll(true),
     ));
     let e1 = foliage.leaf((
@@ -39,13 +39,13 @@ fn main() {
         Location::new().xs(0.pct().to(120.pct()), 1.row().span(auto())),
         Grid::default(),
         AutoHeight(true),
-        Elevation::new(-2),
+        Elevation::up(2),
         Stem::some(n1),
     ));
     let dt1 = foliage.leaf((
         Panel::new(),
         Color::gray(250),
-        Elevation::new(-2),
+        Elevation::up(2),
         Location::new().xs(0.pct().to(100.pct()), stack().span(100.px())),
         Stack::new(e1),
         Stem::some(n1),
@@ -55,7 +55,7 @@ fn main() {
         Panel::new(),
         Color::gray(350),
         Location::new().xs(0.pct().to(100.pct()), stack().span(200.px())),
-        Elevation::new(-3),
+        Elevation::up(3),
         Stem::some(n1),
         Stack::new(dt1),
         Grid::default(),
@@ -64,7 +64,7 @@ fn main() {
     let snt1 = foliage.leaf((
         Text::new(" osaeta oeu u uu u u u u u  u u u u  u u  uu  uu u u u  u uu u u  u u u u u  uuuuuuuuu u uuuuu uuuuuuuu uuuuu uuuuuu uuu u u u u u uu u u uuu u uuu u u u uuuuuuuu uuuuuuuuu"),
         FontSize::new(24),
-        Elevation::new(-2),
+        Elevation::up(2),
         Stem::some(sn1),
         AutoHeight(true),
         Location::new().xs(0.pct().to(100.pct()), 10.px().span(auto())),
@@ -73,10 +73,10 @@ fn main() {
     foliage.world.spawn(Image::memory(0, (333, 500)));
     let img1 = foliage.leaf((
         Image::new(0, key),
-        Location::new().xs(0.pct().to(100.pct()), stack().span(500.px())),
+        Location::new().xs(0.pct().to(100.pct()).max(333.px()), stack().span(auto())),
         Stack::new(sn1),
         Stem::some(n1),
-        Elevation::new(-2),
+        Elevation::up(2),
         ImageView::Aspect,
     ));
     let line = foliage.leaf((
@@ -87,7 +87,7 @@ fn main() {
         ),
         Stack::new(img1),
         Stem::some(n1),
-        Elevation::new(-2),
+        Elevation::up(2),
     ));
     foliage
         .world
@@ -98,11 +98,12 @@ fn main() {
             0.pct().to(100.pct()).max(24.px()).min(24.px()),
             stack().span(24.px()).pad((8, 0)),
         ),
-        Elevation::new(-2),
+        Elevation::up(2),
         Stem::some(n1),
         Stack::new(line),
     ));
     foliage.world.commands().entity(dt1).observe(move |trigger: Trigger<OnClick>, mut tree: Tree| {
+        tree.disable(trigger.entity());
         let seq = tree.sequence();
         tree.animate(seq, Animation::new(Location::new().xs(1.col().to(4.col()), 7.row().to(12.row()))).start(0).finish(10000).targeting(n1));
         // tree.animate(seq, Animation::new(Opacity::new(0.0)).start(0).finish(11000).targeting(n1));
@@ -111,7 +112,7 @@ fn main() {
             let nested = tree.leaf((
                 Grid::new(1.col().gap(0), 1.row().gap(0)),
                 Stem::some(root),
-                Elevation::new(-1),
+                Elevation::up(1),
                 Location::new().xs(1.col().to(2.col()), 1.row().to(6.row())),
                 InteractionListener::new().scroll(true),
             ));
@@ -121,13 +122,13 @@ fn main() {
                 Location::new().xs(0.pct().to(100.pct()), 1.row().span(auto())),
                 Grid::default(),
                 AutoHeight(true),
-                Elevation::new(-2),
+                Elevation::up(2),
                 Stem::some(nested),
             ));
             let drag_test = tree.leaf((
                 Panel::new(),
                 Color::gray(250),
-                Elevation::new(-2),
+                Elevation::up(2),
                 Location::new().xs(0.pct().to(100.pct()), stack().span(100.px())),
                 Stack::new(element),
                 Stem::some(nested),
@@ -137,7 +138,7 @@ fn main() {
                 Panel::new(),
                 Color::gray(350),
                 Location::new().xs(0.pct().to(100.pct()), stack().span(200.px())),
-                Elevation::new(-3),
+                Elevation::up(3),
                 Stem::some(nested),
                 Stack::new(drag_test),
                 Grid::default(),
@@ -146,7 +147,7 @@ fn main() {
             let supr_nest_text = tree.leaf((
                 Text::new(" osaeta oeu u uu u u u u u  u u u u  u u  uu  uu u u u  u uu u u  u u u u u  uuuuuuuuu u uuuuu uuuuuuuu uuuuu uuuuuu uuu u u u u u uu u u uuu u uuu u u u uuuuuuuu uuuuuuuuu"),
                 FontSize::new(24),
-                Elevation::new(-2),
+                Elevation::up(2),
                 Stem::some(supr_nest),
                 AutoHeight(true),
                 Location::new().xs(0.pct().to(100.pct()), 10.px().span(auto())),
@@ -154,11 +155,11 @@ fn main() {
             tree.spawn(Image::memory(1, (333, 500)));
             let img2 = tree.leaf((
                 Image::new(1, key),
-                Location::new().xs(0.pct().to(100.pct()), stack().span(300.px())),
+                Location::new().xs(0.pct().to(100.pct()).max(500.px()), stack().span(auto())),
                 Stack::new(supr_nest),
                 Stem::some(nested),
-                ImageView::Aspect,
-                Elevation::new(-2),
+                ImageView::Crop,
+                Elevation::up(2),
             ));
             let line = tree.leaf((
                 Line::new(2),
@@ -168,7 +169,7 @@ fn main() {
                 ),
                 Stack::new(img2),
                 Stem::some(nested),
-                Elevation::new(-2),
+                Elevation::up(2),
             ));
             let icon = tree.leaf((
                 Icon::new(0),
@@ -176,11 +177,12 @@ fn main() {
                     0.pct().to(100.pct()).max(24.px()).min(24.px()),
                     stack().span(24.px()).pad((8, 0)),
                 ),
-                Elevation::new(-2),
+                Elevation::up(2),
                 Stem::some(nested),
                 Stack::new(line),
             ));
             tree.entity(drag_test).observe(move |trigger: Trigger<OnClick>, mut tree: Tree| {
+                tree.disable(trigger.entity());
                 let s = tree.sequence();
                 tree.animate(s, Animation::new(Location::new().xs(1.col().to(4.col()), 1.row().to(6.row()))).start(0).finish(10000).targeting(nested));
                 tree.sequence_end(s, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
@@ -192,7 +194,7 @@ fn main() {
             let nested_backdrop = tree.leaf((
                 Panel::new(),
                 Color::gray(500),
-                Elevation::new(1),
+                Elevation::down(1),
                 Location::new().xs(0.pct().to(100.pct()), 0.pct().to(1000.px())),
                 Stem::some(element),
             ));
@@ -207,7 +209,7 @@ fn main() {
     let nb1 = foliage.leaf((
         Panel::new(),
         Color::gray(500),
-        Elevation::new(1),
+        Elevation::down(1),
         Location::new().xs(0.pct().to(100.pct()), 0.pct().to(1000.px())),
         Stem::some(e1),
     ));

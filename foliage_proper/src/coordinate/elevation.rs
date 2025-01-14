@@ -32,14 +32,31 @@ impl PartialOrd for ResolvedElevation {
         }
     }
 }
-#[repr(C)]
-#[derive(Copy, Clone, Default, PartialEq, PartialOrd, Pod, Zeroable, Component, Debug)]
+#[derive(Copy, Clone, Default, PartialEq, PartialOrd, Component, Debug)]
 #[require(ResolvedElevation)]
 #[component(on_insert = Self::on_insert)]
-pub struct Elevation(pub f32);
+pub struct Elevation {
+    pub amount: f32,
+    pub(crate) absolute: bool,
+}
 impl Elevation {
-    pub fn new(e: i32) -> Self {
-        Self(e as f32)
+    pub fn abs(e: i32) -> Self {
+        Self {
+            amount: 100f32 - e as f32,
+            absolute: true,
+        }
+    }
+    pub fn up(u: i32) -> Self {
+        Self {
+            amount: u as f32 * -1f32,
+            absolute: false,
+        }
+    }
+    pub fn down(d: i32) -> Self {
+        Self {
+            amount: d as f32,
+            absolute: false,
+        }
     }
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
         if world.get::<Stem>(this).is_none() || world.get::<Branch>(this).is_none() {
@@ -51,7 +68,12 @@ impl Elevation {
             .id
             .and_then(|id| Some(*world.get::<ResolvedElevation>(id).unwrap()))
             .unwrap_or_default();
-        let resolved = ResolvedElevation(world.get::<Elevation>(this).unwrap().0 + current.0);
+        let elev = world.get::<Elevation>(this).unwrap();
+        let resolved = if elev.absolute {
+            ResolvedElevation(elev.amount)
+        } else {
+            ResolvedElevation(elev.amount + current.value())
+        };
         world.commands().entity(this).insert(resolved);
         for dep in world.get::<Branch>(this).unwrap().ids.clone() {
             if let Some(elev) = world.get::<Elevation>(dep).copied() {
@@ -62,11 +84,11 @@ impl Elevation {
 }
 impl Animate for Elevation {
     fn interpolations(start: &Self, end: &Self) -> Interpolations {
-        Interpolations::new().with(start.0, end.0)
+        Interpolations::new().with(start.amount, end.amount)
     }
     fn apply(&mut self, interpolations: &mut Interpolations) {
         if let Some(e) = interpolations.read(0) {
-            self.0 = e;
+            self.amount = e;
         }
     }
 }
@@ -75,23 +97,6 @@ impl Attachment for Elevation {
         foliage.enable_animation::<Self>();
     }
 }
-macro_rules! elevation_conversion_implementation {
-    ($i:ty) => {
-        impl From<$i> for Elevation {
-            fn from(value: $i) -> Self {
-                Self::new(value as i32)
-            }
-        }
-    };
-}
-elevation_conversion_implementation!(f32);
-elevation_conversion_implementation!(i32);
-elevation_conversion_implementation!(u32);
-elevation_conversion_implementation!(usize);
-elevation_conversion_implementation!(isize);
-elevation_conversion_implementation!(f64);
-elevation_conversion_implementation!(i64);
-elevation_conversion_implementation!(u64);
 impl Add for ResolvedElevation {
     type Output = Self;
 
@@ -111,20 +116,3 @@ impl ResolvedElevation {
         Self(l)
     }
 }
-macro_rules! elevation_conversion_implementation {
-    ($i:ty) => {
-        impl From<$i> for ResolvedElevation {
-            fn from(value: $i) -> Self {
-                Self::new(value as f32)
-            }
-        }
-    };
-}
-elevation_conversion_implementation!(f32);
-elevation_conversion_implementation!(i32);
-elevation_conversion_implementation!(u32);
-elevation_conversion_implementation!(usize);
-elevation_conversion_implementation!(isize);
-elevation_conversion_implementation!(f64);
-elevation_conversion_implementation!(i64);
-elevation_conversion_implementation!(u64);
