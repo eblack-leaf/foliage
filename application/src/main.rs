@@ -1,5 +1,9 @@
 #![allow(unused)]
-use foliage::{auto, stack, Animation, AutoHeight, Color, EcsExtension, Elevation, Foliage, FontSize, Grid, GridExt, InteractionListener, Location, OnClick, OnEnd, Panel, Stack, Stem, Text, Tree, Trigger};
+use foliage::{
+    auto, stack, Animation, AutoHeight, Color, EcsExtension, Elevation, Foliage, FontSize, Grid,
+    GridExt, InteractionListener, Location, OnClick, OnEnd, Panel, Stack, Stem, Text, Tree,
+    Trigger,
+};
 use tracing_subscriber::filter::Targets;
 fn main() {
     let mut foliage = Foliage::new(); // library-handle
@@ -84,7 +88,6 @@ fn main() {
         "r: {:?} rb: {:?} n: {:?} e: {:?} dt: {:?} sn: {:?} snt: {:?} nb: {:?}",
         root, root_backdrop, nested, element, drag_test, supr_nest, supr_nest_text, nested_backdrop
     );
-
 
     let nested = foliage.leaf((
         Grid::new(1.col().gap(0), 1.row().gap(0)),

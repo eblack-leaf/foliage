@@ -24,6 +24,48 @@ impl Default for View {
         Self::new()
     }
 }
+fn ovrscrl(
+    entity: Entity,
+    ovr: Position<Logical>,
+    views: &mut Query<&mut View>,
+    contexts: &Query<(Entity, Ref<Stem>)>,
+    sections: &Query<(Entity, Ref<Section<Logical>>)>,
+    to_trigger: &mut HashSet<Entity>,
+) -> (Option<Entity>, Position<Logical>) {
+    let old_offset = views.get(entity).unwrap().offset;
+    let mut view = views.get_mut(entity).unwrap();
+    view.offset += ovr;
+    let section = *sections.get(entity).unwrap().1;
+    let mut over = Position::default();
+    let over_right = section.right() + view.offset.left();
+    if over_right > view.extent.width() {
+        let val = view.extent.width() - section.right();
+        over.set_left(view.extent.width() - over_right);
+        view.offset.set_left(val);
+    }
+    let over_bottom = section.bottom() + view.offset.top();
+    if over_bottom > view.extent.height() {
+        let val = view.extent.height() - section.bottom();
+        over.set_top(view.offset.top() - val);
+        view.offset.set_top(val);
+    }
+    let over_left = section.left() + view.offset.left();
+    if over_left < view.extent.left() {
+        let val = view.extent.left() - section.left();
+        over.set_left(view.extent.left() - over_left);
+        view.offset.set_left(val);
+    }
+    let over_top = section.top() + view.offset.top();
+    if over_top < view.extent.top() {
+        let val = view.extent.top() - section.top();
+        over.set_top(view.offset.top() - val);
+        view.offset.set_top(val);
+    }
+    if old_offset != view.offset {
+        to_trigger.insert(entity);
+    }
+    (contexts.get(entity).unwrap().1.id, over)
+}
 pub(crate) fn extent_check_v2(
     adjustments: Query<(Entity, &ViewAdjustment), Changed<ViewAdjustment>>,
     mut views: Query<&mut View>,
@@ -68,43 +110,15 @@ pub(crate) fn extent_check_v2(
                         let mut relative = *section;
                         relative.position += view.offset;
                         if relative.left() < view.extent.left() {
-                            println!(
-                                "pushing left from {} to {} from {:?} on {:?}",
-                                view.extent.left(),
-                                relative.left(),
-                                entity,
-                                id
-                            );
                             view.extent.set_left(relative.left());
                         }
                         if relative.right() > view.extent.width() {
-                            println!(
-                                "pushing right from {} to {} from {:?} on {:?}",
-                                view.extent.width(),
-                                relative.right(),
-                                entity,
-                                id
-                            );
                             view.extent.set_width(relative.right());
                         }
                         if relative.top() < view.extent.top() {
-                            println!(
-                                "pushing top from {} to {} from {:?} on {:?}",
-                                view.extent.top(),
-                                relative.top(),
-                                entity,
-                                id
-                            );
                             view.extent.set_top(relative.top());
                         }
                         if relative.bottom() > view.extent.height() {
-                            println!(
-                                "pushing bottom from {} to {} from {:?} on {:?}",
-                                view.extent.height(),
-                                relative.bottom(),
-                                entity,
-                                id
-                            );
                             view.extent.set_height(relative.bottom());
                         }
                     }
@@ -114,57 +128,42 @@ pub(crate) fn extent_check_v2(
     }
     let mut to_trigger = HashSet::new();
     for entity in to_check.iter() {
+        let _ovr = ovrscrl(
+            *entity,
+            Position::default(),
+            &mut views,
+            &contexts,
+            &sections,
+            &mut to_trigger,
+        );
+    }
+    for entity in to_check.iter() {
         let mut view = views.get_mut(*entity).unwrap();
         if let Ok((_, adjustment)) = adjustments.get(*entity) {
             view.offset += adjustment.0;
-            println!(
-                "adding adjustment {} = {} for {:?}",
-                adjustment.0, view.offset, entity
-            );
             to_trigger.insert(*entity);
         }
     }
-    let mut ovrscrl = |entity, ovr| {
-        let old_offset = views.get(entity).unwrap().offset;
-        let mut view = views.get_mut(entity).unwrap();
-        view.offset += ovr;
-        let section = *sections.get(entity).unwrap().1;
-        let mut over = Position::default();
-        let over_right = section.right() + view.offset.left();
-        if over_right > view.extent.width() {
-            let val = view.extent.width() - section.right();
-            over.set_left(view.extent.width() - over_right);
-            view.offset.set_left(val);
-        }
-        let over_left = section.left() + view.offset.left();
-        if over_left < view.extent.left() {
-            let val = view.extent.left() - section.left();
-            over.set_left(view.extent.left() - over_left);
-            view.offset.set_left(val);
-        }
-        let over_bottom = section.bottom() + view.offset.top();
-        if over_bottom > view.extent.height() {
-            let val = view.extent.height() - section.bottom();
-            over.set_top(view.offset.top() - val);
-            view.offset.set_top(val);
-        }
-        let over_top = section.top() + view.offset.top();
-        if over_top < view.extent.top() {
-            let val = view.extent.top() - section.top();
-            over.set_top(view.offset.top() - val);
-            view.offset.set_top(val);
-        }
-        if old_offset != view.offset {
-            to_trigger.insert(entity);
-        }
-        (contexts.get(entity).unwrap().1.id, over)
-    };
+
     for entity in to_check {
-        let mut overscroll = ovrscrl(entity, Position::default());
+        let mut overscroll = ovrscrl(
+            entity,
+            Position::default(),
+            &mut views,
+            &contexts,
+            &sections,
+            &mut to_trigger,
+        );
         while overscroll.0.is_some() && overscroll.1 != Position::default() {
             let id = overscroll.0.unwrap();
-            println!("ovr: {} targeting {:?}", overscroll.1, id);
-            overscroll = ovrscrl(id, overscroll.1);
+            overscroll = ovrscrl(
+                id,
+                overscroll.1,
+                &mut views,
+                &contexts,
+                &sections,
+                &mut to_trigger,
+            );
         }
     }
     let mut in_chain = HashSet::new();
@@ -181,7 +180,6 @@ pub(crate) fn extent_check_v2(
     }
     for entity in to_trigger.difference(&in_chain) {
         let section = *sections.get(*entity).unwrap().1;
-        println!("triggering section {} on {:?}", section, entity);
         tree.entity(*entity).insert(section);
     }
 }

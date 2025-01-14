@@ -225,7 +225,6 @@ impl Location {
                     if let Some(stack) = stack {
                         stack.bottom()
                     } else {
-                        println!("no-stack");
                         return None;
                     }
                 }
@@ -443,10 +442,6 @@ impl Location {
                                 }
                             };
                             section += diff * location.animation_percent;
-                            println!(
-                                "resolving {} w/ view {} for {:?}",
-                                section, view.offset, this
-                            );
                             tree.entity(this).insert(ResolvedLocation::Section(section));
                             tree.entity(this).insert(section);
                         }
