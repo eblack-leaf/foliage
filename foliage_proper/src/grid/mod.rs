@@ -320,7 +320,6 @@ impl GridUnit {
     pub fn y<Y: Into<GridUnit>>(self, y: Y) -> LocationAxisDescriptor {
         let y = y.into();
         debug_assert_ne!(self, GridUnit::Auto);
-        debug_assert_ne!(y, GridUnit::Stack);
         debug_assert_ne!(y, GridUnit::Auto);
         LocationAxisDescriptor {
             a: self,

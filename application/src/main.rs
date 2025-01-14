@@ -1,8 +1,8 @@
 #![allow(unused)]
 use foliage::{
-    auto, stack, Animation, AutoHeight, Color, EcsExtension, Elevation, Foliage, FontSize, Grid,
-    GridExt, InteractionListener, Location, OnClick, OnEnd, Panel, Stack, Stem, Text, Tree,
-    Trigger,
+    auto, load_asset, stack, Animation, AutoHeight, Color, EcsExtension, Elevation, Foliage,
+    FontSize, Grid, GridExt, Icon, Image, ImageView, InteractionListener, Line, Location, OnClick,
+    OnEnd, Panel, Stack, Stem, Text, Tree, Trigger,
 };
 use tracing_subscriber::filter::Targets;
 fn main() {
@@ -27,7 +27,7 @@ fn main() {
         Stem::some(root),
     ));
     let n1 = foliage.leaf((
-        Grid::new(1.col().gap(0), 1.row().gap(0)),
+        Grid::new(3.col().gap(0), 1.row().gap(0)),
         Stem::some(root),
         Elevation::new(-1),
         Location::new().xs(1.col().to(2.col()), 7.row().to(12.row())),
@@ -68,6 +68,39 @@ fn main() {
         Stem::some(sn1),
         AutoHeight(true),
         Location::new().xs(0.pct().to(100.pct()), 10.px().span(auto())),
+    ));
+    let key = load_asset!(foliage, "assets/test.jpg");
+    foliage.world.spawn(Image::memory(0, (333, 500)));
+    let img1 = foliage.leaf((
+        Image::new(0, key),
+        Location::new().xs(0.pct().to(100.pct()), stack().span(500.px())),
+        Stack::new(sn1),
+        Stem::some(n1),
+        Elevation::new(-2),
+        ImageView::Aspect,
+    ));
+    let line = foliage.leaf((
+        Line::new(2),
+        Location::new().xs(
+            1.col().y(stack()).pad((0, 8)),
+            3.col().y(stack()).pad((0, 8)),
+        ),
+        Stack::new(img1),
+        Stem::some(n1),
+        Elevation::new(-2),
+    ));
+    foliage
+        .world
+        .spawn(Icon::memory(0, include_bytes!("assets/icons/at-sign.icon")));
+    let icon = foliage.leaf((
+        Icon::new(0),
+        Location::new().xs(
+            0.pct().to(100.pct()).max(24.px()).min(24.px()),
+            stack().span(24.px()).pad((8, 0)),
+        ),
+        Elevation::new(-2),
+        Stem::some(n1),
+        Stack::new(line),
     ));
     foliage.world.commands().entity(dt1).observe(move |trigger: Trigger<OnClick>, mut tree: Tree| {
         let seq = tree.sequence();
@@ -117,6 +150,35 @@ fn main() {
                 Stem::some(supr_nest),
                 AutoHeight(true),
                 Location::new().xs(0.pct().to(100.pct()), 10.px().span(auto())),
+            ));
+            tree.spawn(Image::memory(1, (333, 500)));
+            let img2 = tree.leaf((
+                Image::new(1, key),
+                Location::new().xs(0.pct().to(100.pct()), stack().span(300.px())),
+                Stack::new(supr_nest),
+                Stem::some(nested),
+                ImageView::Aspect,
+                Elevation::new(-2),
+            ));
+            let line = tree.leaf((
+                Line::new(2),
+                Location::new().xs(
+                    1.col().y(stack()).pad((0, 8)),
+                    3.col().y(stack()).pad((0, 8)),
+                ),
+                Stack::new(img2),
+                Stem::some(nested),
+                Elevation::new(-2),
+            ));
+            let icon = tree.leaf((
+                Icon::new(0),
+                Location::new().xs(
+                    0.pct().to(100.pct()).max(24.px()).min(24.px()),
+                    stack().span(24.px()).pad((8, 0)),
+                ),
+                Elevation::new(-2),
+                Stem::some(nested),
+                Stack::new(line),
             ));
             tree.entity(drag_test).observe(move |trigger: Trigger<OnClick>, mut tree: Tree| {
                 let s = tree.sequence();

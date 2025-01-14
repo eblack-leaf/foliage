@@ -54,7 +54,19 @@ impl<Context: CoordinateContext> Display for Points<Context> {
 }
 impl<Context: CoordinateContext> Points<Context> {
     pub fn bbox(&self) -> Section<Logical> {
-        Section::default()
+        let l = self.data[0].left().min(self.data[1].left());
+        // .min(self.data[2].left())
+        // .min(self.data[3].left());
+        let r = self.data[0].left().max(self.data[1].left());
+        // .max(self.data[2].left())
+        // .max(self.data[3].left());
+        let t = self.data[0].top().min(self.data[1].top());
+        // .min(self.data[2].top())
+        // .min(self.data[3].top());
+        let b = self.data[0].top().max(self.data[1].top());
+        // .max(self.data[2].top())
+        // .max(self.data[3].top());
+        Section::new((l, t), (r - l, b - t))
     }
 }
 impl<Context: CoordinateContext> Add for Points<Context> {

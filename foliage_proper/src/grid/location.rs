@@ -6,8 +6,8 @@ use crate::ginkgo::viewport::ViewportHandle;
 use crate::grid::{AspectRatio, GridUnit, ScalarUnit, View};
 use crate::visibility::AutoVisibility;
 use crate::{
-    Animate, Component, CoordinateUnit, Coordinates, Grid, Layout, Logical, ResolvedVisibility,
-    Section, Stem, Tree, Update, Visibility, Write,
+    Animate, Component, CoordinateUnit, Coordinates, Grid, Layout, Line, Logical,
+    ResolvedVisibility, Section, Stem, Tree, Update, Visibility, Write,
 };
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
@@ -189,12 +189,23 @@ impl Location {
                     _ => s.horizontal(stem),
                 },
                 GridUnit::Stack => {
-                    panic!("Stack not supported in horizontal-end")
+                    if config.horizontal.ty == LocationAxisType::Point {
+                        if let Some(stack) = stack {
+                            stack.bottom()
+                        } else {
+                            return None;
+                        }
+                    } else {
+                        panic!("Stack not supported in horizontal-end");
+                    }
                 }
                 GridUnit::Auto => {
                     0.0 // Zeroed on purpose
                 }
-            } - config.horizontal.padding.coordinates.b();
+            } - config.horizontal.padding.coordinates.b()
+                * f32::from(config.horizontal.ty != LocationAxisType::Point)
+                + config.horizontal.padding.coordinates.b()
+                * f32::from(config.horizontal.ty == LocationAxisType::Point);
             match config.horizontal.ty {
                 LocationAxisType::Point => {
                     if let GridUnit::Aligned(_) = config.horizontal.a {
@@ -223,7 +234,11 @@ impl Location {
                 },
                 GridUnit::Stack => {
                     if let Some(stack) = stack {
-                        stack.bottom()
+                        if config.vertical.ty == LocationAxisType::Point {
+                            stack.right()
+                        } else {
+                            stack.bottom()
+                        }
                     } else {
                         return None;
                     }
@@ -236,12 +251,23 @@ impl Location {
                 GridUnit::Aligned(a) => grid.row(layout, stem, a, true),
                 GridUnit::Scalar(s) => s.vertical(stem),
                 GridUnit::Stack => {
-                    panic!("Stack not supported in vertical-end");
+                    if config.vertical.ty == LocationAxisType::Point {
+                        if let Some(stack) = stack {
+                            stack.bottom()
+                        } else {
+                            return None;
+                        }
+                    } else {
+                        panic!("Stack not supported in vertical-end");
+                    }
                 }
                 GridUnit::Auto => {
                     0.0 // Zeroed on purpose
                 }
-            } - config.vertical.padding.coordinates.b();
+            } - config.vertical.padding.coordinates.b()
+                * f32::from(config.vertical.ty != LocationAxisType::Point)
+                + config.vertical.padding.coordinates.b()
+                * f32::from(config.vertical.ty == LocationAxisType::Point);
             match config.vertical.ty {
                 LocationAxisType::Point => {
                     if let GridUnit::Aligned(_) = config.vertical.a {
@@ -260,8 +286,24 @@ impl Location {
                 }
             }
             if let Some(mut pts) = resolved_points {
-                for pt in pts.data.iter_mut() {
-                    *pt -= view.offset;
+                for (i, pt) in pts.data.iter_mut().enumerate() {
+                    if i == 0 {
+                        if config.horizontal.a != GridUnit::Stack {
+                            *pt -= (view.offset.left(), 0).into();
+                        }
+                        if config.horizontal.b != GridUnit::Stack {
+                            *pt -= (0, view.offset.top()).into();
+                        }
+                    } else if i == 1 {
+                        if config.vertical.a != GridUnit::Stack {
+                            *pt -= (view.offset.left(), 0).into();
+                        }
+                        if config.vertical.b != GridUnit::Stack {
+                            *pt -= (0, view.offset.top()).into();
+                        }
+                    } else {
+                        // TODO unsupported pt-c & pt-d
+                    }
                 }
                 return Some(ResolvedLocation::Points(pts));
             }
@@ -368,6 +410,7 @@ impl Location {
         visibilities: Query<(&ResolvedVisibility, &AutoVisibility)>,
         aspect_ratios: Query<&AspectRatio>,
         views: Query<&View>,
+        lines: Query<&Line>,
         viewport: Res<ViewportHandle>,
         create_diffs: Query<&CreateDiff>,
         last_resolved: Query<&ResolvedLocation>,
@@ -469,8 +512,21 @@ impl Location {
                                 }
                             };
                             pts += diff * location.animation_percent;
+                            let mut bbox = pts.bbox();
+                            if let Ok(line) = lines.get(this) {
+                                let w = bbox.width().max(
+                                    line.weight as CoordinateUnit
+                                        + 2f32 * grid.config(*layout).columns.gap.amount,
+                                );
+                                let h = bbox.height().max(
+                                    line.weight as CoordinateUnit
+                                        + 2f32 * grid.config(*layout).rows.gap.amount,
+                                );
+                                bbox.set_width(w);
+                                bbox.set_height(h);
+                            }
                             tree.entity(this).insert(ResolvedLocation::Points(pts));
-                            tree.entity(this).insert(pts);
+                            tree.entity(this).insert(pts).insert(bbox);
                         }
                     }
                 } else if auto_vis.visible {
