@@ -8,7 +8,7 @@ use tracing_subscriber::filter::Targets;
 fn main() {
     let mut foliage = Foliage::new(); // library-handle
     foliage.enable_tracing(Targets::new().with_target("foliage", tracing::Level::TRACE));
-    foliage.desktop_size((360, 800));
+    foliage.desktop_size((1860, 800));
     foliage.url("foliage");
     let root = foliage.leaf((
         Grid::new(4.col().gap(18), 25.row().gap(8)),
@@ -34,7 +34,7 @@ fn main() {
         InteractionListener::new().scroll(true),
     ));
     let element = foliage.leaf((
-        Text::new("etuhas u tehase tusae unsaentu e uthet usaentuhsaonet usanoet uhsanoteuhsan oteuheute sanetuhs anoethus etuhte sanutehsantoehsunaot untesunaotehu"),
+        Text::new("abc def ghi jkl mnopqr stuvwx yzABC DEF GHIKJLM NOPQRSTU VWXY abc def ghi jkl mnopqr stuvwx yzABC DEF GHIKJLM NOPQRSTU VWXY abc def ghi jkl mnopqr stuvwx yzABC DEF GHIKJLM NOPQRSTU VWXY"),
         FontSize::new(24),
         Location::new().xs(0.pct().to(100.pct()), 1.row().span(auto())),
         Grid::default(),
@@ -71,7 +71,7 @@ fn main() {
     ));
     foliage.world.commands().entity(drag_test).observe(move |trigger: Trigger<OnClick>, mut tree: Tree| {
         let seq = tree.sequence();
-        tree.animate(seq, Animation::new(Location::new().xs(1.col().to(4.col()), 7.row().to(12.row()))).start(0).finish(1).targeting(nested));
+        tree.animate(seq, Animation::new(Location::new().xs(1.col().to(4.col()), 7.row().to(12.row()))).start(0).finish(10000).targeting(nested));
         tree.sequence_end(seq, |trigger: Trigger<OnEnd>, mut tree: Tree| {
             println!("done");
         });
@@ -97,7 +97,7 @@ fn main() {
         InteractionListener::new().scroll(true),
     ));
     let element = foliage.leaf((
-        Text::new("etuhas u tehase tusae unsaentu e uthet usaentuhsaonet usanoet uhsanoteuhsan oteuheute sanetuhs anoethus etuhte sanutehsantoehsunaot untesunaotehu"),
+        Text::new("abc def ghi jkl mnopqr stuvwx yzABC DEF GHIKJLM NOPQRSTU VWXY abc def ghi jkl mnopqr stuvwx yzABC DEF GHIKJLM NOPQRSTU VWXY abc def ghi jkl mnopqr stuvwx yzABC DEF GHIKJLM NOPQRSTU VWXY"),
         FontSize::new(24),
         Location::new().xs(0.pct().to(100.pct()), 1.row().span(auto())),
         Grid::default(),
@@ -134,7 +134,7 @@ fn main() {
     ));
     foliage.world.commands().entity(drag_test).observe(move |trigger: Trigger<OnClick>, mut tree: Tree| {
         let seq = tree.sequence();
-        tree.animate(seq, Animation::new(Location::new().xs(1.col().to(4.col()), 1.row().to(6.row()))).start(0).finish(1).targeting(nested));
+        tree.animate(seq, Animation::new(Location::new().xs(1.col().to(4.col()), 1.row().to(6.row()))).start(0).finish(10000).targeting(nested));
         tree.sequence_end(seq, |trigger: Trigger<OnEnd>, mut tree: Tree| {
             println!("done");
         });

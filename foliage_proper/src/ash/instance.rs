@@ -25,7 +25,7 @@ impl Instance {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 #[allow(unused)]
 pub(crate) struct Swap {
     pub(crate) old: Order,

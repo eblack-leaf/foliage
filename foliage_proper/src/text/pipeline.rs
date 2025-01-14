@@ -393,8 +393,11 @@ impl Render for Text {
                 render_group.group.colors.grow(ginkgo, capacity);
                 render_group.group.tex_coords.grow(ginkgo, capacity);
             }
-            // MISSING sort instances to get order [not needed for text]
-            // MISSING handle swaps because of sorting [need to queue-write of attrs of swapped]
+            for swap in render_group.coordinator.sort() {
+                render_group.group.sections.swap(swap);
+                render_group.group.colors.swap(swap);
+                render_group.group.tex_coords.swap(swap);
+            }
             for (id, data) in render_group.group.sections.queued() {
                 let order = render_group.coordinator.order(id);
                 render_group.group.sections.write_cpu(order, data);

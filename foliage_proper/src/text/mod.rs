@@ -248,9 +248,7 @@ impl Text {
                 .enumerate()
             {
                 if let Some(n) = new.get(i) {
-                    if g.key != n.key || g.section != n.section {
-                        resolved.updated.push(n.clone());
-                    }
+                    resolved.updated.push(n.clone());
                 } else {
                     resolved.removed.push(g.clone());
                 }
