@@ -1,9 +1,5 @@
 #![allow(unused)]
-use foliage::{
-    auto, stack, Animation, AutoHeight, Color, EcsExtension, Elevation, Foliage, FontSize, Grid,
-    GridExt, InteractionListener, Location, OnClick, OnEnd, Panel, Stack, Stem, Text, Tree,
-    Trigger,
-};
+use foliage::{auto, stack, Animation, AutoHeight, Color, EcsExtension, Elevation, Foliage, FontSize, Grid, GridExt, InteractionListener, Location, OnClick, OnEnd, Panel, Stack, Stem, Text, Tree, Trigger};
 use tracing_subscriber::filter::Targets;
 fn main() {
     let mut foliage = Foliage::new(); // library-handle
@@ -72,6 +68,7 @@ fn main() {
     foliage.world.commands().entity(dt1).observe(move |trigger: Trigger<OnClick>, mut tree: Tree| {
         let seq = tree.sequence();
         tree.animate(seq, Animation::new(Location::new().xs(1.col().to(4.col()), 7.row().to(12.row()))).start(0).finish(10000).targeting(n1));
+        // tree.animate(seq, Animation::new(Opacity::new(0.0)).start(0).finish(11000).targeting(n1));
         tree.sequence_end(seq, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
             tree.remove(n1);
             let nested = tree.leaf((
@@ -118,9 +115,9 @@ fn main() {
                 Location::new().xs(0.pct().to(100.pct()), 10.px().span(auto())),
             ));
             tree.entity(drag_test).observe(move |trigger: Trigger<OnClick>, mut tree: Tree| {
-                let seq = tree.sequence();
-                tree.animate(seq, Animation::new(Location::new().xs(1.col().to(4.col()), 1.row().to(6.row()))).start(0).finish(10000).targeting(nested));
-                tree.sequence_end(seq, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
+                let s = tree.sequence();
+                tree.animate(s, Animation::new(Location::new().xs(1.col().to(4.col()), 1.row().to(6.row()))).start(0).finish(10000).targeting(nested));
+                tree.sequence_end(s, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
                     tree.remove(nested);
                     println!("did");
                 });

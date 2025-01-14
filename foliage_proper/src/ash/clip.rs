@@ -21,6 +21,7 @@ impl ClipSection {
         tree.entity(trigger.entity()).insert(ClipSection(value));
     }
     pub(crate) fn stem_insert(trigger: Trigger<OnInsert, Stem>, mut tree: Tree) {
+        println!("stem-insert for {:?}", trigger.entity());
         tree.trigger_targets(Update::<InheritedClip>::new(), trigger.entity());
     }
     pub(crate) fn update_inherited(
@@ -45,6 +46,7 @@ impl ClipSection {
                     .0
                     .replace(base.intersection(inherited.0.unwrap()).unwrap_or_default());
             }
+            println!("inherited: {} on {:?}", inherited.0.unwrap(), this);
             stem = *stems.get(id).unwrap();
             section = next;
         }
@@ -59,6 +61,7 @@ impl ClipSection {
         } else {
             ResolvedClip(current)
         };
+        println!("inherited {} current {} resolved {} for {:?}", inherited.0.unwrap_or(Section::new((-1, -1), (-1, -1))), current, resolved.0, this);
         world.commands().entity(this).insert(resolved);
         let deps = world.get::<Branch>(this).unwrap().ids.clone();
         for d in deps {

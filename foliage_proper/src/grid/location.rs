@@ -441,7 +441,9 @@ impl Location {
                                     }
                                 }
                             };
-                            section += diff * location.animation_percent;
+                            let anim_diff = diff * location.animation_percent;
+                            section += anim_diff;
+                            println!("resolving: {} for {:?} w/ view {} diff {} stem {}", section, this, view.offset, anim_diff, stem_section);
                             tree.entity(this).insert(ResolvedLocation::Section(section));
                             tree.entity(this).insert(section);
                         }
