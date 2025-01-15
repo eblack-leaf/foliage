@@ -1,7 +1,8 @@
 use crate::ash::clip::{ClipSection, ResolvedClip};
 use crate::ash::differential::RenderQueueHandle;
 use crate::foliage::Foliage;
-use crate::ginkgo::Ginkgo;
+use crate::ginkgo::viewport::ViewportHandle;
+use crate::ginkgo::{Ginkgo, ScaleFactor};
 use crate::image::Image;
 use crate::shape::Shape;
 use crate::{Attachment, Color, Icon, Panel, Stem, Text};
@@ -25,6 +26,8 @@ impl Attachment for Ash {
         foliage.define(ClipSection::write_section);
         foliage.define(ClipSection::stem_insert);
         foliage.define(ClipSection::update_inherited);
+        foliage.world.insert_resource(ViewportHandle::default());
+        foliage.world.insert_resource(ScaleFactor::default());
     }
 }
 pub(crate) struct Ash {

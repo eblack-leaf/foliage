@@ -6,11 +6,11 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bytemuck = { version = "1.16.3", features = ["derive"] }
-winit = { version = "0.30.5", features = ["android-game-activity"] }
-wgpu = { version = "23.0.0", features = ["metal", "webgl", "wgsl"] }
-bevy_ecs = "0.15.0"
-bevy_color = "0.15.1"
+bytemuck = { version = "1.21.0", features = ["derive"] }
+winit = { version = "0.30.8", features = ["android-game-activity"] }
+wgpu = { version = "23.0.1", features = ["metal", "webgl", "wgsl"] }
+bevy_ecs = "0.15.1"
+bevy_color = "0.15.2"
 serde = { version = "1.0.214", features = ["derive"] }
 cfg-if = "1.0.0"
 rmp-serde = "1.3.0"
@@ -27,7 +27,7 @@ wasm-bindgen = "0.2.95"
 web-time = "1.1.0"
 [dependencies.web-sys]
 package = "web-sys"
-version = "0.3.72"
+version = "0.3.77"
 features = [
     "Blob",
     "BlobPropertyBag",
@@ -46,7 +46,7 @@ copypasta = "0.10.1"
 open = "5.3.0"
 [target.'cfg(target_family = "wasm")'.dependencies]
 tracing-subscriber-wasm = "0.1.0"
-wasm-bindgen-futures = "0.4.42"
+wasm-bindgen-futures = "0.4.50"
 console_error_panic_hook = "0.1.7"
 console = "0.15.8"
 flate2 = "1.0.34"
