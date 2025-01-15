@@ -16,6 +16,7 @@ pub use layout::Layout;
 pub use location::Location;
 pub use location::Stack;
 pub use location::StackDeps;
+use std::ops::Neg;
 pub use view::View;
 
 impl Attachment for Grid {
@@ -269,6 +270,15 @@ impl From<GridUnit> for ScalarUnit {
         }
     }
 }
+impl Neg for ScalarUnit {
+    type Output = ScalarUnit;
+    fn neg(self) -> ScalarUnit {
+        match self {
+            ScalarUnit::Px(p) => ScalarUnit::Px(-p),
+            ScalarUnit::Pct(p) => ScalarUnit::Pct(-p),
+        }
+    }
+}
 impl ScalarUnit {
     pub(crate) fn vertical(&self, stem: Section<Logical>) -> CoordinateUnit {
         match self {
@@ -360,6 +370,17 @@ impl GridUnit {
         }
     }
 }
+impl Neg for GridUnit {
+    type Output = Self;
+    fn neg(self) -> Self::Output {
+        match self {
+            GridUnit::Aligned(a) => GridUnit::Aligned(-a),
+            GridUnit::Scalar(s) => GridUnit::Scalar(-s),
+            GridUnit::Stack => GridUnit::Stack,
+            GridUnit::Auto => GridUnit::Auto,
+        }
+    }
+}
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum AlignedUnit {
     Columns(i32),
@@ -370,6 +391,15 @@ impl AlignedUnit {
         match self {
             AlignedUnit::Columns(c) => c as CoordinateUnit,
             AlignedUnit::Rows(r) => r as CoordinateUnit,
+        }
+    }
+}
+impl Neg for AlignedUnit {
+    type Output = Self;
+    fn neg(self) -> Self::Output {
+        match self {
+            AlignedUnit::Columns(c) => AlignedUnit::Columns(-c),
+            AlignedUnit::Rows(r) => AlignedUnit::Rows(-r),
         }
     }
 }

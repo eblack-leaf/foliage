@@ -74,7 +74,7 @@ impl Panel {
                     Rounding::Sm => 0.3 * min,
                     Rounding::Md => 0.5 * min,
                     Rounding::Lg => 0.7 * min,
-                    Rounding::Xl => 1.0 * min,
+                    Rounding::Full => 1.0 * min,
                 };
                 let weight = if let Ok(outline) = outlines.get(this) {
                     if outline.value.is_negative() {
@@ -142,7 +142,7 @@ pub enum Rounding {
     Sm,
     Md,
     Lg,
-    Xl,
+    Full,
 }
 impl Rounding {
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
