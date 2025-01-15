@@ -47,6 +47,7 @@ impl Attachment for Text {
         foliage.differential::<Text, ResolvedGlyphs>();
         foliage.differential::<Text, ResolvedColors>();
         foliage.differential::<Text, UniqueCharacters>();
+        foliage.differential::<Text, TextBounds>();
     }
 }
 #[derive(Component, Clone, PartialEq, Default, Debug)]
@@ -61,6 +62,7 @@ impl Attachment for Text {
 #[require(Differential<Text, Stem>)]
 #[require(Differential<Text, ResolvedGlyphs>)]
 #[require(Differential<Text, ResolvedColors>)]
+#[require(TextBounds, Differential<Text, TextBounds>)]
 #[component(on_add = Text::on_add)]
 #[component(on_insert = Text::on_insert)]
 pub struct Text {
@@ -199,6 +201,7 @@ impl Text {
             } else {
                 tree.entity(this).insert(current.clone());
             }
+            tree.entity(this).insert(TextBounds(current.section));
         }
     }
     fn clear_last_on_visibility(
@@ -269,6 +272,8 @@ impl Text {
         }
     }
 }
+#[derive(Component, Copy, Clone, PartialEq, Debug, Default)]
+pub(crate) struct TextBounds(pub(crate) Section<Physical>);
 #[derive(Component, Copy, Clone, Default)]
 pub struct AutoHeight(pub bool);
 #[derive(Copy, Clone, Component, Default, PartialEq)]

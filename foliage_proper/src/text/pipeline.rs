@@ -6,9 +6,9 @@ use crate::ginkgo::{Ginkgo, VectorUniform};
 use crate::opacity::BlendedOpacity;
 use crate::text::glyph::{GlyphKey, GlyphOffset, ResolvedColors, ResolvedGlyphs};
 use crate::text::monospaced::MonospacedFont;
-use crate::text::{ResolvedFontSize, UniqueCharacters};
+use crate::text::{ResolvedFontSize, TextBounds, UniqueCharacters};
 use crate::texture::{AtlasEntry, TextureAtlas, TextureCoordinates, Vertex, VERTICES};
-use crate::{CReprColor, CReprSection, Logical, Physical, ResolvedElevation, Section, Stem, Text};
+use crate::{CReprColor, CReprSection, Logical, ResolvedElevation, Section, Stem, Text};
 use bevy_ecs::entity::Entity;
 use std::collections::HashMap;
 use wgpu::{
@@ -37,6 +37,7 @@ pub(crate) struct Group {
     pub(crate) unique_characters: UniqueCharacters,
     pub(crate) font_size: ResolvedFontSize,
     pub(crate) queued_tex_reads: Vec<(GlyphKey, InstanceId)>,
+    pub(crate) bounds: TextBounds,
 }
 
 impl Group {
@@ -57,6 +58,7 @@ impl Group {
             unique_characters: Default::default(),
             font_size: Default::default(),
             queued_tex_reads: vec![],
+            bounds: TextBounds::default(),
         }
     }
 }
@@ -210,6 +212,11 @@ impl Render for Text {
             group.uniform.set(0, position.left().round());
             group.uniform.set(1, position.top().round());
             group.write_uniform = true;
+        }
+        for (entity, bounds) in queues.attribute::<Text, TextBounds>() {
+            let id = renderer.resources.entity_to_group.get(&entity).unwrap();
+            let group = &mut renderer.groups.get_mut(id).unwrap().group;
+            group.bounds = bounds;
         }
         for (entity, packet) in queues.attribute::<Text, BlendedOpacity>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
@@ -423,6 +430,16 @@ impl Render for Text {
 
     fn render(renderer: &mut Renderer<Self>, render_pass: &mut RenderPass, parameters: Parameters) {
         let group = renderer.groups.get(&parameters.group).unwrap();
+        let clip = parameters
+            .clip
+            .intersection(group.group.bounds.0)
+            .unwrap_or_default();
+        render_pass.set_scissor_rect(
+            clip.left() as u32,
+            clip.top() as u32,
+            clip.width() as u32,
+            clip.height() as u32,
+        );
         render_pass.set_pipeline(&renderer.pipeline);
         render_pass.set_bind_group(0, &group.group.bind_group, &[]);
         render_pass.set_bind_group(1, &renderer.bind_group, &[]);

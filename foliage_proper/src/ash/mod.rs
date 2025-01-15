@@ -210,7 +210,7 @@ impl Ash {
                 section.width() as u32,
                 section.height() as u32,
             );
-            let parameters = span.parameters();
+            let parameters = span.parameters(section);
             match span.pipeline {
                 PipelineId::Text => {
                     Render::render(self.text.as_mut().unwrap(), &mut rpass, parameters);

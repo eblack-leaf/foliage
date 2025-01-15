@@ -1,8 +1,7 @@
-use crate::ash::clip::ClipSection;
 use crate::ash::differential::RenderQueueHandle;
 use crate::ash::instance::{InstanceCoordinator, Order};
 use crate::ash::node::Nodes;
-use crate::ginkgo::{Ginkgo, ScaleFactor};
+use crate::ginkgo::Ginkgo;
 use crate::{Physical, Section, Stem};
 use std::collections::HashMap;
 use std::ops::Range;
@@ -39,10 +38,11 @@ pub(crate) struct ContiguousSpan {
     pub(crate) clip_context: Stem,
 }
 impl ContiguousSpan {
-    pub(crate) fn parameters(&self) -> Parameters {
+    pub(crate) fn parameters(&self, clip: Section<Physical>) -> Parameters {
         Parameters {
             group: self.group,
             range: self.range.start as u32..self.range.end as u32,
+            clip,
         }
     }
 }
@@ -50,6 +50,7 @@ impl ContiguousSpan {
 pub(crate) struct Parameters {
     pub(crate) group: GroupId,
     pub(crate) range: Range<u32>,
+    pub(crate) clip: Section<Physical>,
 }
 pub(crate) struct RenderGroup<R: Render> {
     pub(crate) coordinator: InstanceCoordinator,

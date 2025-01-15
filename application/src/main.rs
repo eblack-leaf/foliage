@@ -1,8 +1,8 @@
 #![allow(unused)]
 use foliage::{
-    Animation, Color, EcsExtension, Elevation, Foliage, FontSize, GlyphColors, Grid, GridExt, Icon,
-    InteractionListener, Line, Location, Logical, Opacity, Panel, Query, Rounding, Section, Stem,
-    Text, Tree, Trigger, Write,
+    stack, Animation, Color, EcsExtension, Elevation, Foliage, FontSize, GlyphColors, Grid,
+    GridExt, Icon, InteractionListener, Line, Location, Logical, Opacity, Panel, Query, Rounding,
+    Section, Stack, Stem, Text, Tree, Trigger, Write,
 };
 use tracing_subscriber::filter::Targets;
 fn main() {
@@ -81,6 +81,54 @@ fn main() {
             tree.write_to(side_desc, Text::new(format!("h: {:.01}", h)));
         },
     );
+    let pad_top = foliage.leaf((
+        Line::new(2),
+        Location::new().xs(4.col().y(6.row()), 4.col().y(6.row())),
+        Stem::some(name_container),
+        Elevation::up(1),
+        Color::gray(700),
+    ));
+    let pad_connector = foliage.leaf((
+        Line::new(2),
+        Location::new().xs(5.col().y(6.row()), 5.col().y(6.row())),
+        Stem::some(name_container),
+        Elevation::up(1),
+        Color::gray(700),
+    ));
+    let pad_bot = foliage.leaf((
+        Line::new(2),
+        Location::new().xs(5.col().y(8.row()), 5.col().y(8.row())),
+        Stem::some(name_container),
+        Elevation::up(1),
+        Color::gray(700),
+    ));
+    let pad_desc = foliage.leaf((
+        Text::new("pad: 0.0"),
+        FontSize::new(14),
+        Location::new().xs(6.col().to(9.col()), 7.row().to(8.row())),
+        Stem::some(name_container),
+        Elevation::up(1),
+        Color::gray(700),
+        Opacity::new(0.0),
+    ));
+    foliage.world.commands().entity(pad_connector).observe(
+        move |trigger: Trigger<Write<Section<Logical>>>,
+              mut tree: Tree,
+              sections: Query<&Section<Logical>>| {
+            let h = sections.get(trigger.entity()).unwrap().height();
+            tree.write_to(pad_desc, Text::new(format!("pad: {:.01}", h)));
+        },
+    );
+    let desc = foliage.leaf((
+        Text::new("cross-platform ui"),
+        FontSize::new(24),
+        Location::new().xs(3.col().to(12.col()), 9.row().to(12.row())),
+        Elevation::up(1),
+        GlyphColors::new().add(15..17, Color::green(600)),
+        Stem::some(name_container),
+        Opacity::new(0.0),
+        Color::gray(400),
+    ));
     let github = foliage.leaf((
         Panel::new(),
         Rounding::Full,
@@ -95,12 +143,37 @@ fn main() {
     let github_icon = foliage.leaf((
         Icon::new(0),
         Location::new().xs(
-            1.col().span(40.px()).max(24.px()).min(24.px()),
-            1.row().span(40.px()).max(24.px()).min(24.px()),
+            1.col().span(row_size.px()).max(24.px()).min(24.px()),
+            1.row().span(row_size.px()).max(24.px()).min(24.px()),
         ),
         Elevation::up(2),
         Stem::some(root),
         Color::gray(400),
+    ));
+    let github_line = foliage.leaf((
+        Line::new(2),
+        Location::new().xs(
+            stack().y(1.row()).pad((16, 0)),
+            stack().y(1.row()).pad((16, 0)),
+        ),
+        Stem::some(root),
+        Stack::new(github),
+        Elevation::up(1),
+        Color::gray(700),
+    ));
+    let github_desc = foliage.leaf((
+        Text::new("on-click: github"),
+        FontSize::new(14),
+        Location::new().xs(
+            stack().to(10.col()).pad((16, 0)),
+            1.row().to(2.row()).pad((8, 0)),
+        ),
+        Elevation::up(1),
+        GlyphColors::new().add(10..16, Color::green(300)),
+        Stem::some(root),
+        Stack::new(github_line),
+        Opacity::new(0.0),
+        Color::gray(700),
     ));
     let seq = foliage.sequence();
     let anim = Animation::new(Opacity::new(1.0))
@@ -118,6 +191,21 @@ fn main() {
         .finish(1350)
         .targeting(side_desc);
     foliage.animate(seq, anim);
+    let anim = Animation::new(Opacity::new(1.0))
+        .start(1500)
+        .finish(1750)
+        .targeting(pad_desc);
+    foliage.animate(seq, anim);
+    let anim = Animation::new(Opacity::new(1.0))
+        .start(1750)
+        .finish(2750)
+        .targeting(desc);
+    foliage.animate(seq, anim);
+    let anim = Animation::new(Opacity::new(1.0))
+        .start(2500)
+        .finish(3000)
+        .targeting(github_desc);
+    foliage.animate(seq, anim);
     let anim = Animation::new(Location::new().xs((-1).col().y(2.row()), 7.col().y(2.row())))
         .start(1000)
         .finish(3000)
@@ -127,6 +215,32 @@ fn main() {
         .start(1250)
         .finish(3500)
         .targeting(side_line);
+    foliage.animate(seq, anim);
+    let anim = Animation::new(Location::new().xs(4.col().y(6.row()), 6.col().y(6.row())))
+        .start(1500)
+        .finish(3000)
+        .targeting(pad_top);
+    foliage.animate(seq, anim);
+    let anim = Animation::new(Location::new().xs(5.col().y(6.row()), 5.col().y(8.row())))
+        .start(1750)
+        .finish(3000)
+        .targeting(pad_connector);
+    foliage.animate(seq, anim);
+    let anim = Animation::new(Location::new().xs(
+        5.col().y(8.row()).pad((-12, 0)),
+        5.col().y(8.row()).pad((12, 0)),
+    ))
+    .start(2000)
+    .finish(2500)
+    .targeting(pad_bot);
+    foliage.animate(seq, anim);
+    let anim = Animation::new(Location::new().xs(
+        stack().y(1.row()).pad((16, 0)),
+        stack().y(1.row()).pad((64, 0)),
+    ))
+    .start(1750)
+    .finish(2500)
+    .targeting(github_line);
     foliage.animate(seq, anim);
     foliage.photosynthesize(); // run
 }
