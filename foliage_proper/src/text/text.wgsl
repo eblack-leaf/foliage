@@ -9,7 +9,7 @@ var text_sampler: sampler;
 var text_texture: texture_2d<f32>;
 @group(0)
 @binding(1)
-var<uniform> pos_and_layer: vec4<f32>;
+var<uniform> per_group_data: vec4<f32>;
 struct Vertex {
     @location(0) vertex_pos: vec2f,
     @location(1) tx_index: vec2<u32>,
@@ -25,11 +25,11 @@ struct Fragment {
 @vertex
 fn vertex_entry(vertex: Vertex) -> Fragment {
     let tex_coord = vec2f(vertex.tex_coords[vertex.tx_index.x], vertex.tex_coords[vertex.tx_index.y]);
-    let position = vec4f(pos_and_layer.xy + vertex.vertex_pos * vertex.section.zw
-                         + vertex.section.xy, pos_and_layer.z, 1.0);
+    let position = vec4f(per_group_data.xy + vertex.vertex_pos * vertex.section.zw
+                         + vertex.section.xy, per_group_data.z, 1.0);
     return Fragment(
         viewport * position,
-        vertex.color,
+        vertex.color * vec4f(1.0, 1.0, 1.0, per_group_data.w),
         tex_coord
     );
 }

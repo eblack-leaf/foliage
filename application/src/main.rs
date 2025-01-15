@@ -1,31 +1,221 @@
-use crate::icon::IconHandles;
-use foliage::bevy_ecs::system::Resource;
-use foliage::grid::unit::TokenUnit;
-use foliage::tree::EcsExtension;
-use foliage::twig::{Branch, Twig};
-use foliage::Foliage;
-use home::Home;
-
-mod home;
-mod icon;
-mod image;
-
+#![allow(unused)]
+use foliage::{
+    auto, load_asset, stack, Animation, AutoHeight, Color, EcsExtension, Elevation, Foliage,
+    FontSize, Grid, GridExt, Icon, Image, ImageView, InteractionListener, Line, Location, OnClick,
+    OnEnd, Panel, Stack, Stem, Text, Tree, Trigger,
+};
+use tracing_subscriber::filter::Targets;
 fn main() {
-    let mut foliage = Foliage::new();
-    foliage.set_desktop_size((800, 600));
-    foliage.enable_tracing(
-        tracing_subscriber::filter::Targets::new().with_target("foliage", tracing::Level::TRACE),
+    let mut foliage = Foliage::new(); // library-handle
+    foliage.enable_tracing(Targets::new().with_target("foliage", tracing::Level::TRACE));
+    foliage.desktop_size((1760, 800));
+    foliage.url("foliage");
+    let root = foliage.leaf((
+        Grid::new(4.col().gap(18), 25.row().gap(8)),
+        Location::new().xs(0.pct().to(100.pct()), 0.pct().to(100.pct())),
+        InteractionListener::new().scroll(true),
+        Elevation::abs(0),
+        Stem::none(),
+        // Visibility::new(false),
+    ));
+    // foliage.write_to(root, Visibility::new(false));
+    let root_backdrop = foliage.leaf((
+        Panel::new(),
+        Color::gray(800),
+        Elevation::up(1),
+        Location::new().xs(0.pct().to(110.pct()), 1.row().span(2000.px())),
+        Stem::some(root),
+    ));
+    let n1 = foliage.leaf((
+        Grid::new(3.col().gap(0), 1.row().gap(0)),
+        Stem::some(root),
+        Elevation::up(1),
+        Location::new().xs(1.col().to(2.col()), 1.row().to(12.row()).pad(0)),
+        InteractionListener::new().scroll(true),
+    ));
+    let e1 = foliage.leaf((
+        Text::new("abc def ghi jkl mnopqr stuvwx yzABC DEF GHIKJLM NOPQRSTU VWXY abc def ghi jkl mnopqr stuvwx yzABC DEF GHIKJLM NOPQRSTU VWXY abc def ghi jkl mnopqr stuvwx yzABC DEF GHIKJLM NOPQRSTU VWXY"),
+        FontSize::new(24),
+        Location::new().xs(0.pct().to(120.pct()), 1.row().span(auto())),
+        Grid::default(),
+        AutoHeight(true),
+        Elevation::up(2),
+        Stem::some(n1),
+    ));
+    let dt1 = foliage.leaf((
+        Panel::new(),
+        Color::gray(250),
+        Elevation::up(2),
+        Location::new().xs(0.pct().to(100.pct()), stack().span(100.px())),
+        Stack::new(e1),
+        Stem::some(n1),
+        InteractionListener::new(),
+    ));
+    let sn1 = foliage.leaf((
+        Panel::new(),
+        Color::gray(350),
+        Location::new().xs(0.pct().to(100.pct()), stack().span(200.px())),
+        Elevation::up(3),
+        Stem::some(n1),
+        Stack::new(dt1),
+        Grid::default(),
+        InteractionListener::new().scroll(true),
+    ));
+    let snt1 = foliage.leaf((
+        Text::new(" osaeta oeu u uu u u u u u  u u u u  u u  uu  uu u u u  u uu u u  u u u u u  uuuuuuuuu u uuuuu uuuuuuuu uuuuu uuuuuu uuu u u u u u uu u u uuu u uuu u u u uuuuuuuu uuuuuuuuu"),
+        FontSize::new(24),
+        Elevation::up(2),
+        Stem::some(sn1),
+        AutoHeight(true),
+        Location::new().xs(0.pct().to(100.pct()), 10.px().span(auto())),
+    ));
+    let key = load_asset!(foliage, "assets/test.jpg");
+    foliage.world.spawn(Image::memory(0, (333, 500)));
+    let img1 = foliage.leaf((
+        Image::new(0, key),
+        Location::new().xs(0.pct().to(100.pct()).max(333.px()), stack().span(auto())),
+        Stack::new(sn1),
+        Stem::some(n1),
+        Elevation::up(2),
+        ImageView::Aspect,
+    ));
+    let line = foliage.leaf((
+        Line::new(2),
+        Location::new().xs(
+            1.col().y(stack()).pad((0, 8)),
+            3.col().y(stack()).pad((0, 8)),
+        ),
+        Stack::new(img1),
+        Stem::some(n1),
+        Elevation::up(2),
+    ));
+    foliage
+        .world
+        .spawn(Icon::memory(0, include_bytes!("assets/icons/at-sign.icon")));
+    let icon = foliage.leaf((
+        Icon::new(0),
+        Location::new().xs(
+            0.pct().to(100.pct()).max(24.px()).min(24.px()),
+            stack().span(24.px()).pad((8, 0)),
+        ),
+        Elevation::up(2),
+        Stem::some(n1),
+        Stack::new(line),
+    ));
+    foliage.world.commands().entity(dt1).observe(move |trigger: Trigger<OnClick>, mut tree: Tree| {
+        tree.disable(trigger.entity());
+        let seq = tree.sequence();
+        tree.animate(seq, Animation::new(Location::new().xs(1.col().to(4.col()), 7.row().to(12.row()))).start(0).finish(10000).targeting(n1));
+        // tree.animate(seq, Animation::new(Opacity::new(0.0)).start(0).finish(11000).targeting(n1));
+        tree.sequence_end(seq, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
+            tree.remove(n1);
+            let nested = tree.leaf((
+                Grid::new(1.col().gap(0), 1.row().gap(0)),
+                Stem::some(root),
+                Elevation::up(1),
+                Location::new().xs(1.col().to(2.col()), 1.row().to(6.row())),
+                InteractionListener::new().scroll(true),
+            ));
+            let element = tree.leaf((
+                Text::new("abc def ghi jkl mnopqr stuvwx yzABC DEF GHIKJLM NOPQRSTU VWXY abc def ghi jkl mnopqr stuvwx yzABC DEF GHIKJLM NOPQRSTU VWXY abc def ghi jkl mnopqr stuvwx yzABC DEF GHIKJLM NOPQRSTU VWXY"),
+                FontSize::new(24),
+                Location::new().xs(0.pct().to(100.pct()), 1.row().span(auto())),
+                Grid::default(),
+                AutoHeight(true),
+                Elevation::up(2),
+                Stem::some(nested),
+            ));
+            let drag_test = tree.leaf((
+                Panel::new(),
+                Color::gray(250),
+                Elevation::up(2),
+                Location::new().xs(0.pct().to(100.pct()), stack().span(100.px())),
+                Stack::new(element),
+                Stem::some(nested),
+                InteractionListener::new(),
+            ));
+            let supr_nest = tree.leaf((
+                Panel::new(),
+                Color::gray(350),
+                Location::new().xs(0.pct().to(100.pct()), stack().span(200.px())),
+                Elevation::up(3),
+                Stem::some(nested),
+                Stack::new(drag_test),
+                Grid::default(),
+                InteractionListener::new().scroll(true),
+            ));
+            let supr_nest_text = tree.leaf((
+                Text::new(" osaeta oeu u uu u u u u u  u u u u  u u  uu  uu u u u  u uu u u  u u u u u  uuuuuuuuu u uuuuu uuuuuuuu uuuuu uuuuuu uuu u u u u u uu u u uuu u uuu u u u uuuuuuuu uuuuuuuuu"),
+                FontSize::new(24),
+                Elevation::up(2),
+                Stem::some(supr_nest),
+                AutoHeight(true),
+                Location::new().xs(0.pct().to(100.pct()), 10.px().span(auto())),
+            ));
+            tree.spawn(Image::memory(1, (333, 500)));
+            let img2 = tree.leaf((
+                Image::new(1, key),
+                Location::new().xs(0.pct().to(100.pct()).max(500.px()), stack().span(auto())),
+                Stack::new(supr_nest),
+                Stem::some(nested),
+                ImageView::Crop,
+                Elevation::up(2),
+            ));
+            let line = tree.leaf((
+                Line::new(2),
+                Location::new().xs(
+                    1.col().y(stack()).pad((0, 8)),
+                    3.col().y(stack()).pad((0, 8)),
+                ),
+                Stack::new(img2),
+                Stem::some(nested),
+                Elevation::up(2),
+            ));
+            let icon = tree.leaf((
+                Icon::new(0),
+                Location::new().xs(
+                    0.pct().to(100.pct()).max(24.px()).min(24.px()),
+                    stack().span(24.px()).pad((8, 0)),
+                ),
+                Elevation::up(2),
+                Stem::some(nested),
+                Stack::new(line),
+            ));
+            tree.entity(drag_test).observe(move |trigger: Trigger<OnClick>, mut tree: Tree| {
+                tree.disable(trigger.entity());
+                let s = tree.sequence();
+                tree.animate(s, Animation::new(Location::new().xs(1.col().to(4.col()), 1.row().to(6.row()))).start(0).finish(10000).targeting(nested));
+                tree.sequence_end(s, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
+                    tree.remove(nested);
+                    println!("did");
+                });
+                println!("did-it --------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
+            });
+            let nested_backdrop = tree.leaf((
+                Panel::new(),
+                Color::gray(500),
+                Elevation::down(1),
+                Location::new().xs(0.pct().to(100.pct()), 0.pct().to(1000.px())),
+                Stem::some(element),
+            ));
+            println!(
+                "r: {:?} rb: {:?} n: {:?} e: {:?} dt: {:?} sn: {:?} snt: {:?} nb: {:?}",
+                root, root_backdrop, nested, element, drag_test, supr_nest, supr_nest_text, nested_backdrop
+            );
+            println!("done");
+        });
+        println!("done-it --------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
+    });
+    let nb1 = foliage.leaf((
+        Panel::new(),
+        Color::gray(500),
+        Elevation::down(1),
+        Location::new().xs(0.pct().to(100.pct()), 0.pct().to(1000.px())),
+        Stem::some(e1),
+    ));
+    println!(
+        "r: {:?} rb: {:?} n: {:?} e: {:?} dt: {:?} sn: {:?} snt: {:?} nb: {:?}",
+        root, root_backdrop, n1, e1, dt1, sn1, snt1, nb1
     );
-    foliage.set_base_url("foliage");
-    foliage.load_icon(
-        IconHandles::Concepts,
-        include_bytes!("assets/icons/chevrons-left.icon"),
-    );
-    foliage.load_icon(
-        IconHandles::Usage,
-        include_bytes!("assets/icons/chevrons-right.icon"),
-    );
-    let id_table = foliage.ecs().branch(Twig::new(Home {}));
-    foliage.insert_resource(id_table);
-    foliage.photosynthesize();
+    foliage.photosynthesize(); // run
 }

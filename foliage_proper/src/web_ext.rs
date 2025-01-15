@@ -1,18 +1,14 @@
-use bevy_ecs::event::{Event, EventReader};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::closure::Closure;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
 
-#[derive(Clone, Event)]
+#[derive(Clone)]
+#[allow(unused)]
 pub struct HrefLink {
     href: String,
 }
-pub(crate) fn navigate(mut href_links: EventReader<HrefLink>) {
-    for href_link in href_links.read() {
-        href_link.navigate();
-    }
-}
+#[allow(unused)]
 impl HrefLink {
     pub fn new<S: AsRef<str>>(s: S) -> Self {
         Self {
@@ -91,6 +87,7 @@ impl Extensions {
         }
     }
     #[cfg(not(target_family = "wasm"))]
+    #[allow(unused)]
     pub fn native_video(src: &str) {
         #[cfg(not(target_family = "wasm"))]
         {

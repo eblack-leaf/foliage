@@ -6,23 +6,23 @@ use bytemuck::{Pod, Zeroable};
 use wgpu::{Texture, TextureFormat, TextureView};
 
 use crate::coordinate::section::Section;
-use crate::coordinate::{Coordinates, NumericalContext};
+use crate::coordinate::{Coordinates, Numerical};
 use crate::ginkgo::Ginkgo;
 
 #[repr(C)]
 #[derive(Copy, Clone, Default, Debug, Component, PartialEq, Pod, Zeroable)]
-pub struct TextureCoordinates {
-    pub top_left: Coordinates,
-    pub bottom_right: Coordinates,
+pub(crate) struct TextureCoordinates {
+    pub(crate) top_left: Coordinates,
+    pub(crate) bottom_right: Coordinates,
 }
 impl TextureCoordinates {
-    pub fn new<TL: Into<Coordinates>, BR: Into<Coordinates>>(tl: TL, br: BR) -> Self {
+    pub(crate) fn new<TL: Into<Coordinates>, BR: Into<Coordinates>>(tl: TL, br: BR) -> Self {
         Self {
             top_left: tl.into(),
             bottom_right: br.into(),
         }
     }
-    pub fn from_section<S: Into<Section<NumericalContext>>, C: Into<Coordinates>>(
+    pub(crate) fn from_section<S: Into<Section<Numerical>>, C: Into<Coordinates>>(
         part: S,
         whole: C,
     ) -> Self {
@@ -36,14 +36,14 @@ impl TextureCoordinates {
 }
 #[repr(C)]
 #[derive(Pod, Zeroable, Component, Copy, Clone, PartialEq, Default, Debug)]
-pub struct Mips(pub f32);
+pub(crate) struct Mips(pub(crate) f32);
 #[derive(Hash, Eq, PartialEq, Copy, Clone)]
-pub struct AtlasLocation(pub u32, pub u32);
-pub struct PartitionInfo {
+pub(crate) struct AtlasLocation(pub(crate) u32, pub(crate) u32);
+pub(crate) struct PartitionInfo {
     tex_coords: TextureCoordinates,
     location: AtlasLocation,
 }
-pub struct TextureAtlas<
+pub(crate) struct TextureAtlas<
     Key: Hash + Clone,
     Referrer: Hash + Clone,
     TexelData: Default + Sized + Clone + Pod + Zeroable,
@@ -60,9 +60,9 @@ pub struct TextureAtlas<
     pub(crate) entries: HashMap<Key, AtlasEntry<TexelData>>,
 }
 #[derive(Clone)]
-pub struct AtlasChangeInfo<Referrer: Clone> {
-    pub key: Referrer,
-    pub tex_coords: TextureCoordinates,
+pub(crate) struct AtlasChangeInfo<Referrer: Clone> {
+    pub(crate) key: Referrer,
+    pub(crate) tex_coords: TextureCoordinates,
 }
 impl<
         Key: Hash + Clone + Eq,
@@ -70,8 +70,8 @@ impl<
         TexelData: Default + Sized + Clone + Pod + Zeroable,
     > TextureAtlas<Key, Referrer, TexelData>
 {
-    pub const PADDING: f32 = 1.0;
-    pub fn new<C: Into<Coordinates>>(
+    pub(crate) const PADDING: f32 = 1.0;
+    pub(crate) fn new<C: Into<Coordinates>>(
         ginkgo: &Ginkgo,
         block: C,
         capacity: u32,
@@ -79,10 +79,7 @@ impl<
     ) -> Self {
         let block = block.into();
         let (possible_locations, texture_extent) = Self::config(capacity, block);
-        let data = vec![
-            TexelData::default();
-            (texture_extent.horizontal() * texture_extent.vertical()) as usize
-        ];
+        let data = vec![TexelData::default(); (texture_extent.a() * texture_extent.b()) as usize];
         let (texture, view) =
             ginkgo.create_texture(format, texture_extent, 1, bytemuck::cast_slice(&data));
         let actual_capacity = possible_locations.len() as u32;
@@ -99,7 +96,7 @@ impl<
             entries: Default::default(),
         }
     }
-    pub fn view(&self) -> &TextureView {
+    pub(crate) fn view(&self) -> &TextureView {
         &self.view
     }
     fn config(capacity: u32, block: Coordinates) -> (HashSet<AtlasLocation>, Coordinates) {
@@ -117,20 +114,20 @@ impl<
             possible_locations.clear();
         }
         let texture_extent = Coordinates::new(
-            logical_dim as f32 * (block.horizontal() + Self::PADDING),
-            logical_dim as f32 * (block.vertical() + Self::PADDING),
+            logical_dim as f32 * (block.a() + Self::PADDING),
+            logical_dim as f32 * (block.b() + Self::PADDING),
         );
         (possible_locations, texture_extent)
     }
 
-    pub fn has_key(&self, key: Key) -> bool {
+    pub(crate) fn has_key(&self, key: Key) -> bool {
         self.partitions.contains_key(&key)
     }
-    pub fn add_entry(&mut self, key: Key, entry: AtlasEntry<TexelData>) {
+    pub(crate) fn add_entry(&mut self, key: Key, entry: AtlasEntry<TexelData>) {
         self.entries.insert(key.clone(), entry);
         self.references.insert(key, HashSet::new());
     }
-    pub fn write_entry(
+    pub(crate) fn write_entry(
         &mut self,
         ginkgo: &Ginkgo,
         key: Key,
@@ -159,7 +156,7 @@ impl<
         }
         changed
     }
-    pub fn remove_entry(&mut self, key: Key) {
+    pub(crate) fn remove_entry(&mut self, key: Key) {
         self.entries.remove(&key);
         let partition = self.partitions.remove(&key);
         if let Some(part) = partition {
@@ -167,16 +164,16 @@ impl<
         }
         self.references.remove(&key);
     }
-    pub fn add_reference(&mut self, key: Key, referrer: Referrer) {
+    pub(crate) fn add_reference(&mut self, key: Key, referrer: Referrer) {
         self.references.get_mut(&key).unwrap().insert(referrer);
     }
-    pub fn remove_reference(&mut self, key: Key, referrer: Referrer) {
+    pub(crate) fn remove_reference(&mut self, key: Key, referrer: Referrer) {
         self.references.get_mut(&key).unwrap().remove(&referrer);
         if self.references.get(&key).unwrap().is_empty() {
             self.remove_entry(key);
         }
     }
-    pub fn resolve(&mut self, ginkgo: &Ginkgo) -> (HashSet<Key>, bool) {
+    pub(crate) fn resolve(&mut self, ginkgo: &Ginkgo) -> (HashSet<Key>, bool) {
         let mut added = Vec::new();
         for entry in self.entries.iter() {
             if !self.partitions.contains_key(entry.0) {
@@ -202,8 +199,7 @@ impl<
                 1,
                 bytemuck::cast_slice(&vec![
                     TexelData::default();
-                    (texture_extent.horizontal() * texture_extent.vertical())
-                        as usize
+                    (texture_extent.a() * texture_extent.b()) as usize
                 ]),
             );
             self.texture = texture;
@@ -230,22 +226,41 @@ impl<
         }
         (changed, grown)
     }
-    pub fn tex_coordinates(&self, key: Key) -> TextureCoordinates {
+    pub(crate) fn tex_coordinates(&self, key: Key) -> TextureCoordinates {
         self.partitions.get(&key).unwrap().tex_coords
     }
 }
 
 #[derive(Clone, Debug)]
-pub struct AtlasEntry<TexelData: Default + Sized + Clone + Pod + Zeroable> {
+pub(crate) struct AtlasEntry<TexelData: Default + Sized + Clone + Pod + Zeroable> {
     data: Vec<TexelData>,
     extent: Coordinates,
 }
 
 impl<TexelData: Default + Sized + Clone + Pod + Zeroable> AtlasEntry<TexelData> {
-    pub fn new<C: Into<Coordinates>>(data: Vec<TexelData>, extent: C) -> Self {
+    pub(crate) fn new<C: Into<Coordinates>>(data: Vec<TexelData>, extent: C) -> Self {
         Self {
             data,
             extent: extent.into(),
         }
     }
 }
+#[repr(C)]
+#[derive(Pod, Zeroable, Copy, Clone, Default)]
+pub(crate) struct Vertex {
+    position: Coordinates,
+    tx_index: [u32; 2],
+}
+impl Vertex {
+    pub(crate) const fn new(position: Coordinates, tx_index: [u32; 2]) -> Self {
+        Self { position, tx_index }
+    }
+}
+pub(crate) const VERTICES: [Vertex; 6] = [
+    Vertex::new(Coordinates::new(1f32, 0f32), [2, 1]),
+    Vertex::new(Coordinates::new(0f32, 0f32), [0, 1]),
+    Vertex::new(Coordinates::new(0f32, 1f32), [0, 3]),
+    Vertex::new(Coordinates::new(1f32, 0f32), [2, 1]),
+    Vertex::new(Coordinates::new(0f32, 1f32), [0, 3]),
+    Vertex::new(Coordinates::new(1f32, 1f32), [2, 3]),
+];

@@ -1,19 +1,30 @@
 use std::collections::HashMap;
 
+use crate::foliage::{Foliage, MainMarkers};
 use crate::tree::Tree;
+use crate::Attachment;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::Event;
-use bevy_ecs::prelude::{Component, Trigger};
+use bevy_ecs::prelude::{Component, IntoSystemConfigs, Trigger};
 use bevy_ecs::system::{Commands, Query, Res, ResMut, Resource};
 use futures_channel::oneshot::{Receiver, Sender};
 use uuid::Uuid;
 
+impl Attachment for Asset {
+    fn attach(foliage: &mut Foliage) {
+        foliage.world.insert_resource(AssetLoader::default());
+        foliage.main.add_systems(
+            (await_assets, on_retrieve)
+                .chain()
+                .in_set(MainMarkers::External),
+        );
+    }
+}
 #[derive(Resource, Default)]
 pub struct AssetLoader {
     pub(crate) assets: HashMap<AssetKey, Asset>,
     awaiting: HashMap<AssetKey, AssetFetch>,
 }
-pub type AssetFn = fn(&mut Tree, Entity, Vec<u8>);
 #[derive(Component, Clone)]
 pub struct AssetRetrieval {
     key: AssetKey,
@@ -33,6 +44,7 @@ pub fn asset_retrieval<'w, AFN: FnMut(&mut Tree, Entity, Vec<u8>) + 'static>(
     let obs =
         move |trigger: Trigger<OnRetrieval>, mut tree: Tree, asset_loader: Res<AssetLoader>| {
             let asset = asset_loader.retrieve(trigger.event().key).unwrap();
+            // tracing::trace!("asset: {:?}", asset.data);
             afn(&mut tree, trigger.entity(), asset.data);
         };
     obs
@@ -43,8 +55,9 @@ pub(crate) fn on_retrieve(
     asset_loader: Res<AssetLoader>,
 ) {
     for (entity, on_retrieve) in retrievers.iter() {
-        if let Some(asset) = asset_loader.retrieve(on_retrieve.key) {
+        if asset_loader.assets.contains_key(&on_retrieve.key) {
             cmd.entity(entity).remove::<AssetRetrieval>();
+            tracing::trace!("retrieving asset {} for {:?}", on_retrieve.key, entity);
             cmd.trigger_targets(
                 OnRetrieval {
                     key: on_retrieve.key,
@@ -105,6 +118,7 @@ pub(crate) struct AssetFetch {
     pub(crate) recv: Receiver<Asset>,
 }
 impl AssetFetch {
+    #[allow(unused)]
     pub(crate) fn new(key: AssetKey) -> (Self, Sender<Asset>) {
         let (sender, recv) = futures_channel::oneshot::channel();
         (Self { key, recv }, sender)

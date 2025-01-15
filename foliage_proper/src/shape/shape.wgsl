@@ -8,6 +8,7 @@ struct Vertex {
     @location(2) right: vec4f,
     @location(3) layer: f32,
     @location(4) color: vec4f,
+    @location(5) opacity: f32,
 };
 struct Fragment {
     @builtin(position) position: vec4<f32>,
@@ -29,7 +30,7 @@ fn vertex_entry(vertex: Vertex) -> Fragment {
     }
     return Fragment(
         viewport * vec4f(v, vertex.layer, 1.0),
-        vertex.color,
+        vertex.color * vec4f(1.0, 1.0, 1.0, vertex.opacity),
         vertex.left,
         vertex.right,
     );

@@ -1,11 +1,48 @@
-use crate::anim::{Animate, Interpolations};
-use crate::color::Color;
-use crate::leaf::{Dependents, Stem};
-use bevy_ecs::component::StorageType::SparseSet;
-use bevy_ecs::component::{Component, ComponentHooks, ComponentId, StorageType};
+use crate::anim::interpolation::Interpolations;
+use crate::{Animate, Attachment, Branch, Component, Foliage, Stem};
+use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::world::DeferredWorld;
 
+#[derive(Component, Copy, Clone, PartialEq)]
+#[component(on_add = Opacity::on_add)]
+#[component(on_insert = Opacity::on_insert)]
+#[require(InheritedOpacity, BlendedOpacity)]
+pub struct Opacity {
+    pub value: f32,
+}
+impl Attachment for Opacity {
+    fn attach(foliage: &mut Foliage) {
+        foliage.enable_animation::<Self>();
+    }
+}
+impl Opacity {
+    pub fn new(value: f32) -> Opacity {
+        Opacity { value }
+    }
+    fn on_add(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+        let stem = world.get::<Stem>(this).unwrap();
+        if let Some(entity) = stem.id {
+            let resolved = *world.get::<BlendedOpacity>(entity).unwrap();
+            world.commands().entity(this).insert(InheritedOpacity {
+                value: resolved.value,
+            });
+        }
+    }
+    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+        let inherited = world.get::<InheritedOpacity>(this).unwrap();
+        let current = world.get::<Opacity>(this).unwrap();
+        let blended = BlendedOpacity::new(inherited.value * current.value);
+        world.commands().entity(this).insert(blended);
+        let deps = world.get::<Branch>(this).unwrap().ids.clone();
+        for d in deps.iter() {
+            world
+                .commands()
+                .entity(*d)
+                .insert(InheritedOpacity::new(blended.value));
+        }
+    }
+}
 impl Animate for Opacity {
     fn interpolations(start: &Self, end: &Self) -> Interpolations {
         Interpolations::new().with(start.value, end.value)
@@ -17,102 +54,38 @@ impl Animate for Opacity {
         }
     }
 }
-
-#[derive(Copy, Clone, Component)]
-pub struct Opacity {
-    value: f32,
-}
-impl From<f32> for Opacity {
-    fn from(value: f32) -> Self {
-        Opacity { value }
-    }
-}
 impl Default for Opacity {
     fn default() -> Self {
         Self::new(1.0)
     }
 }
-
-impl Opacity {
-    pub fn new(o: f32) -> Self {
-        Self {
-            value: o.clamp(0.0, 1.0),
-        }
+#[derive(Component, Copy, Clone, PartialEq)]
+#[component(on_insert = Opacity::on_insert)]
+pub struct InheritedOpacity {
+    pub value: f32,
+}
+impl InheritedOpacity {
+    pub fn new(value: f32) -> Self {
+        Self { value }
     }
 }
-#[derive(Copy, Clone, Default)]
-pub struct EvaluateOpacity {
-    recursive: bool,
-    is_first: bool,
-    pre_solved: f32,
-}
-impl EvaluateOpacity {
-    pub fn recursive() -> Self {
-        Self {
-            recursive: true,
-            is_first: true,
-            pre_solved: 0.0,
-        }
-    }
-    pub fn no_deps() -> Self {
-        Self {
-            recursive: false,
-            is_first: true,
-            pre_solved: 0.0,
-        }
-    }
-    pub(crate) fn on_insert(mut world: DeferredWorld, entity: Entity, _c: ComponentId) {
-        let event = world.get::<EvaluateOpacity>(entity).copied().unwrap();
-        let current = world.get::<Opacity>(entity).copied().unwrap().value;
-        let pre_solved = if event.is_first {
-            let mut found = true;
-            let mut p = current;
-            let mut evaluating_entity = entity;
-            while found {
-                if let Some(stem) = world.get::<Stem>(evaluating_entity).copied() {
-                    if let Some(s) = stem.0 {
-                        if let Some(stem_opacity) = world.get::<Opacity>(s).copied() {
-                            p *= stem_opacity.value;
-                            evaluating_entity = s;
-                        } else {
-                            found = false;
-                        }
-                    } else {
-                        found = false;
-                    }
-                } else {
-                    found = false;
-                }
-            }
-            p
-        } else {
-            event.pre_solved
-        };
-        let blended = pre_solved * current;
-        // tracing::trace!("pre-solved: {} * current: {} = blended: {}", pre_solved, current, blended);
-        if let Some(color) = world.get::<Color>(entity).copied() {
-            world
-                .commands()
-                .entity(entity)
-                .insert(color.with_alpha(blended));
-        }
-        if !event.recursive {
-            return;
-        }
-        if let Some(ds) = world.get::<Dependents>(entity).cloned() {
-            for d in ds.0 {
-                world.commands().entity(d).insert(EvaluateOpacity {
-                    recursive: true,
-                    is_first: false,
-                    pre_solved: blended,
-                });
-            }
-        }
+impl Default for InheritedOpacity {
+    fn default() -> Self {
+        Self::new(1.0)
     }
 }
-impl Component for EvaluateOpacity {
-    const STORAGE_TYPE: StorageType = SparseSet;
-    fn register_component_hooks(_hooks: &mut ComponentHooks) {
-        _hooks.on_insert(EvaluateOpacity::on_insert);
+#[repr(C)]
+#[derive(Component, Copy, Clone, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct BlendedOpacity {
+    pub value: f32,
+}
+impl BlendedOpacity {
+    pub fn new(value: f32) -> Self {
+        Self { value }
+    }
+}
+impl Default for BlendedOpacity {
+    fn default() -> Self {
+        Self::new(1.0)
     }
 }

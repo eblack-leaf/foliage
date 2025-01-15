@@ -6,7 +6,7 @@ use bytemuck::{Pod, Zeroable};
 use winit::dpi::{LogicalPosition, PhysicalPosition};
 
 use crate::coordinate::{
-    CoordinateContext, CoordinateUnit, Coordinates, DeviceContext, LogicalContext, NumericalContext,
+    CoordinateContext, CoordinateUnit, Coordinates, Logical, Numerical, Physical,
 };
 
 #[derive(Copy, Clone, Default, PartialEq, PartialOrd, Debug)]
@@ -21,29 +21,29 @@ impl<Context: CoordinateContext> Display for Position<Context> {
 }
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default, PartialEq, Debug)]
-pub struct GpuPosition(pub Coordinates);
+pub struct CReprPosition(pub Coordinates);
 
-impl Position<NumericalContext> {
-    pub fn logical<C: Into<Coordinates>>(c: C) -> Position<LogicalContext> {
+impl Position<Numerical> {
+    pub fn logical<C: Into<Coordinates>>(c: C) -> Position<Logical> {
         Position::new(c)
     }
-    pub fn device<C: Into<Coordinates>>(c: C) -> Position<DeviceContext> {
+    pub fn physical<C: Into<Coordinates>>(c: C) -> Position<Physical> {
         Position::new(c)
     }
-    pub fn numerical<C: Into<Coordinates>>(c: C) -> Position<NumericalContext> {
+    pub fn numerical<C: Into<Coordinates>>(c: C) -> Position<Numerical> {
         Position::new(c)
     }
-    pub fn as_logical(self) -> Position<LogicalContext> {
+    pub fn as_logical(self) -> Position<Logical> {
         Position::logical(self.coordinates)
     }
-    pub fn as_device(self) -> Position<DeviceContext> {
-        Position::device(self.coordinates)
+    pub fn as_physical(self) -> Position<Physical> {
+        Position::physical(self.coordinates)
     }
 }
 
 impl<Context: CoordinateContext> AddAssign for Position<Context> {
     fn add_assign(&mut self, rhs: Self) {
-        self.coordinates = (self.x() + rhs.x(), self.y() + rhs.y()).into();
+        self.coordinates = (self.left() + rhs.left(), self.top() + rhs.top()).into();
     }
 }
 
@@ -55,31 +55,31 @@ impl<Context: CoordinateContext> Position<Context> {
         }
     }
     pub fn rounded(self) -> Self {
-        Self::new((self.x().round(), self.y().round()))
+        Self::new((self.left().round(), self.top().round()))
     }
     pub fn floored(self) -> Self {
-        Self::new((self.x().floor(), self.y().floor()))
+        Self::new((self.left().floor(), self.top().floor()))
     }
     pub fn abs(self) -> Self {
-        Self::new((self.x().abs(), self.y().abs()))
+        Self::new((self.left().abs(), self.top().abs()))
     }
-    pub fn x(&self) -> CoordinateUnit {
+    pub fn left(&self) -> CoordinateUnit {
         self.coordinates.0[0]
     }
-    pub fn set_x(&mut self, x: CoordinateUnit) {
+    pub fn set_left(&mut self, x: CoordinateUnit) {
         self.coordinates.set_horizontal(x);
     }
-    pub fn y(&self) -> CoordinateUnit {
+    pub fn top(&self) -> CoordinateUnit {
         self.coordinates.0[1]
     }
-    pub fn set_y(&mut self, y: CoordinateUnit) {
+    pub fn set_top(&mut self, y: CoordinateUnit) {
         self.coordinates.set_vertical(y);
     }
     pub fn distance(self, o: Self) -> CoordinateUnit {
-        ((self.x() - o.x()).powi(2) + (self.y() - o.y()).powi(2)).sqrt()
+        ((self.left() - o.left()).powi(2) + (self.top() - o.top()).powi(2)).sqrt()
     }
-    pub fn to_numerical(self) -> Position<NumericalContext> {
-        Position::numerical((self.x(), self.y()))
+    pub fn to_numerical(self) -> Position<Numerical> {
+        Position::numerical((self.left(), self.top()))
     }
     pub fn normalized<C: Into<Coordinates>>(self, c: C) -> Self {
         let c = c.into();
@@ -87,36 +87,36 @@ impl<Context: CoordinateContext> Position<Context> {
     }
     pub fn min<O: Into<Self>>(self, o: O) -> Self {
         let o = o.into();
-        Self::new((self.x().min(o.x()), self.y().min(o.y())))
+        Self::new((self.left().min(o.left()), self.top().min(o.top())))
     }
     pub fn max<O: Into<Self>>(self, o: O) -> Self {
         let o = o.into();
-        Self::new((self.x().max(o.x()), self.y().max(o.y())))
+        Self::new((self.left().max(o.left()), self.top().max(o.top())))
     }
 }
 
-impl Position<LogicalContext> {
-    pub fn to_device(self, factor: f32) -> Position<DeviceContext> {
-        Position::device((self.x() * factor, self.y() * factor))
+impl Position<Logical> {
+    pub fn to_physical(self, factor: f32) -> Position<Physical> {
+        Position::physical((self.left() * factor, self.top() * factor))
     }
 }
 
-impl Position<DeviceContext> {
-    pub fn to_logical(self, factor: f32) -> Position<LogicalContext> {
-        Position::logical((self.x() / factor, self.y() / factor))
+impl Position<Physical> {
+    pub fn to_logical(self, factor: f32) -> Position<Logical> {
+        Position::logical((self.left() / factor, self.top() / factor))
     }
-    pub fn to_gpu(self) -> GpuPosition {
-        GpuPosition(self.coordinates)
+    pub fn c_repr(self) -> CReprPosition {
+        CReprPosition(self.coordinates)
     }
 }
 
-impl From<LogicalPosition<f32>> for Position<LogicalContext> {
+impl From<LogicalPosition<f32>> for Position<Logical> {
     fn from(value: LogicalPosition<f32>) -> Self {
         Self::new((value.x, value.y))
     }
 }
 
-impl From<PhysicalPosition<f32>> for Position<DeviceContext> {
+impl From<PhysicalPosition<f32>> for Position<Physical> {
     fn from(value: PhysicalPosition<f32>) -> Self {
         Self::new((value.x, value.y))
     }
@@ -157,6 +157,6 @@ impl<Context: CoordinateContext> Div<f32> for Position<Context> {
 impl<Context: CoordinateContext> Mul<f32> for Position<Context> {
     type Output = Self;
     fn mul(self, rhs: f32) -> Self::Output {
-        Self::new((self.x() * rhs, self.y() * rhs))
+        Self::new((self.left() * rhs, self.top() * rhs))
     }
 }

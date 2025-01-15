@@ -1,15 +1,17 @@
-use crate::elm::{Elm, InternalStage};
-use crate::Root;
+use crate::foliage::{Foliage, MainMarkers};
+use crate::Attachment;
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::Event;
-use bevy_ecs::prelude::{IntoSystemConfigs, ResMut, Resource};
+use bevy_ecs::prelude::{ResMut, Resource};
 use bevy_ecs::system::{Commands, Query, Res};
 
 pub type Moment = web_time::Instant;
 pub type TimeDelta = web_time::Duration;
+#[allow(unused)]
 pub struct TimeMarker(pub(crate) TimeDelta);
 impl TimeMarker {
+    #[allow(unused)]
     pub fn since_beginning(&self) -> TimeDelta {
         self.0
     }
@@ -50,18 +52,17 @@ impl Time {
         }
         self.last = now;
     }
+    #[allow(unused)]
     pub fn mark(&self) -> TimeMarker {
         TimeMarker(self.total)
     }
+    #[allow(unused)]
     pub fn time_since(&self, mark: TimeMarker) -> TimeDelta {
         self.total - mark.0
     }
     pub fn frame_diff(&self) -> TimeDelta {
         self.frame_diff
     }
-}
-pub(crate) fn start(mut time: ResMut<Time>) {
-    time.start();
 }
 pub(crate) fn update_time(mut time: ResMut<Time>) {
     time.update();
@@ -73,6 +74,7 @@ pub struct Timer {
     time_left: TimeDelta,
 }
 impl Timer {
+    #[allow(unused)]
     pub fn new(time_left: TimeDelta) -> Self {
         Self { time_left }
     }
@@ -89,14 +91,14 @@ pub(crate) fn timers(time: Res<Time>, mut timers: Query<(Entity, &mut Timer)>, m
         }
     }
 }
-impl Root for Time {
-    fn attach(elm: &mut Elm) {
-        elm.ecs.insert_resource(Time::new());
-        elm.scheduler.startup.add_systems(start);
-        elm.scheduler.main.add_systems(
-            (update_time, timers)
-                .chain()
-                .in_set(InternalStage::External),
-        );
+impl Attachment for Time {
+    fn attach(foliage: &mut Foliage) {
+        use bevy_ecs::prelude::IntoSystemConfigs;
+        let mut time = Time::new();
+        time.start();
+        foliage.world.insert_resource(time);
+        foliage
+            .main
+            .add_systems((update_time, timers).chain().in_set(MainMarkers::External));
     }
 }

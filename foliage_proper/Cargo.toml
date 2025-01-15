@@ -10,6 +10,7 @@ bytemuck = { version = "1.16.3", features = ["derive"] }
 winit = { version = "0.30.5", features = ["android-game-activity"] }
 wgpu = { version = "23.0.0", features = ["metal", "webgl", "wgsl"] }
 bevy_ecs = "0.15.0"
+bevy_color = "0.15.1"
 serde = { version = "1.0.214", features = ["derive"] }
 cfg-if = "1.0.0"
 rmp-serde = "1.3.0"
@@ -24,8 +25,6 @@ tracing-subscriber = "0.3.18"
 tracing = "0.1.40"
 wasm-bindgen = "0.2.95"
 web-time = "1.1.0"
-console = "0.15.8"
-flate2 = "1.0.34"
 [dependencies.web-sys]
 package = "web-sys"
 version = "0.3.72"
@@ -49,3 +48,5 @@ open = "5.3.0"
 tracing-subscriber-wasm = "0.1.0"
 wasm-bindgen-futures = "0.4.42"
 console_error_panic_hook = "0.1.7"
+console = "0.15.8"
+flate2 = "1.0.34"

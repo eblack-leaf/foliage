@@ -1,45 +1,81 @@
-use crate::ash::{ClippingContext, DrawRange, Render, Renderer};
-use crate::color::Color;
-use crate::coordinate::elevation::RenderLayer;
-use crate::coordinate::section::Section;
-use crate::coordinate::{Coordinates, DeviceContext};
-use crate::differential::{Differential, RenderLink};
-use crate::elm::{Elm, RenderQueueHandle};
-use crate::ginkgo::Ginkgo;
-use crate::instances::Instances;
-use crate::Root;
-use bevy_ecs::bundle::Bundle;
-use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::Component;
-use bytemuck::{Pod, Zeroable};
-use wgpu::{
-    include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor,
-    PipelineLayoutDescriptor, RenderPass, RenderPipeline, RenderPipelineDescriptor, ShaderStages,
-    VertexState, VertexStepMode,
+use crate::coordinate::points::Points;
+use crate::foliage::DiffMarkers;
+use crate::ginkgo::ScaleFactor;
+use crate::opacity::BlendedOpacity;
+use crate::remove::Remove;
+use crate::Differential;
+use crate::Stem;
+use crate::{
+    Attachment, Color, Component, Coordinates, Foliage, Logical, Position, ResolvedElevation,
+    Visibility,
 };
+use bevy_ecs::change_detection::Res;
+use bevy_ecs::component::ComponentId;
+use bevy_ecs::entity::Entity;
+use bevy_ecs::prelude::{Changed, IntoSystemConfigs, Or, Query};
+use bevy_ecs::world::DeferredWorld;
+use bytemuck::{Pod, Zeroable};
 
-pub mod line;
-mod quad;
-mod triangle;
-
-#[derive(Bundle)]
-pub struct Shape {
-    render_link: RenderLink,
-    descriptor: Differential<ShapeDescriptor>,
-    desc: ShapeDescriptor,
-    color: Differential<Color>,
-    c: Color,
-    layer: Differential<RenderLayer>,
+mod pipeline;
+#[derive(Component, Copy, Clone)]
+#[require(Shape)]
+pub struct Line {
+    pub weight: i32,
 }
-impl Shape {
-    pub fn new(desc: ShapeDescriptor, color: Color) -> Self {
-        Self {
-            render_link: RenderLink::new::<Self>(),
-            descriptor: Differential::new(),
-            desc,
-            color: Differential::new(),
-            c: color,
-            layer: Differential::new(),
+impl Attachment for Shape {
+    fn attach(foliage: &mut Foliage) {
+        foliage
+            .diff
+            .add_systems(Line::distill_descriptor.in_set(DiffMarkers::Finalize));
+        foliage.remove_queue::<Shape>();
+        foliage.differential::<Shape, Shape>();
+        foliage.differential::<Shape, BlendedOpacity>();
+        foliage.differential::<Shape, ResolvedElevation>();
+        foliage.differential::<Shape, Stem>();
+        foliage.differential::<Shape, Color>();
+    }
+}
+impl Line {
+    pub fn new(w: i32) -> Self {
+        Self { weight: w.max(1) }
+    }
+    pub(crate) fn distill_descriptor(
+        mut lines: Query<
+            (&Points<Logical>, &Line, &mut Shape),
+            Or<(Changed<Line>, Changed<Points<Logical>>)>,
+        >,
+        scale_factor: Res<ScaleFactor>,
+    ) {
+        for (points, line, mut shape) in lines.iter_mut() {
+            let pts = (points.data[0].coordinates, points.data[1].coordinates);
+            let x_diff = pts.1.a() - pts.0.a();
+            let y_diff = pts.1.b() - pts.0.b();
+            let slope = y_diff / x_diff;
+            let normal_slope = 1.0 / slope;
+            let angle = normal_slope.atan();
+            let half_weight = line.weight as f32 / 2.0;
+            let factor = f32::from(x_diff.abs() > 0.0 && y_diff.abs() > 0.0);
+            let angle_bias = 0.5 * factor;
+            // println!(
+            //     "angle-bias: {} with {} for {}-{}",
+            //     angle_bias, factor, x_diff, y_diff
+            // );
+            let x_adjust = angle.cos() * (half_weight + angle_bias);
+            let y_adjust = angle.sin() * (half_weight + angle_bias);
+            let left_top = Position::logical((pts.0.a() + x_adjust, pts.0.b() - y_adjust));
+            let left_bottom = Position::logical((pts.0.a() - x_adjust, pts.0.b() + y_adjust));
+            let right_top = Position::logical((pts.1.a() + x_adjust, pts.1.b() - y_adjust));
+            let right_bottom = Position::logical((pts.1.a() - x_adjust, pts.1.b() + y_adjust));
+            *shape = Shape::new(
+                EdgePoints::new(
+                    left_bottom.to_physical(scale_factor.value()).coordinates,
+                    left_top.to_physical(scale_factor.value()).coordinates,
+                ),
+                EdgePoints::new(
+                    right_bottom.to_physical(scale_factor.value()).coordinates,
+                    right_top.to_physical(scale_factor.value()).coordinates,
+                ),
+            );
         }
     }
 }
@@ -56,208 +92,26 @@ impl EdgePoints {
 }
 #[repr(C)]
 #[derive(Component, Pod, Zeroable, Copy, Clone, Debug, Default, PartialEq)]
-pub struct ShapeDescriptor {
+#[require(Differential<Shape, Shape>)]
+#[require(Differential<Shape, Stem>)]
+#[require(Color, Differential<Shape, Color>)]
+#[require(Differential<Shape, ResolvedElevation>)]
+#[require(Differential<Shape, BlendedOpacity>)]
+#[require(Points<Logical>)]
+#[component(on_add = Self::on_add)]
+pub struct Shape {
     pub left: EdgePoints,
     pub right: EdgePoints,
 }
-impl ShapeDescriptor {
+impl Shape {
     pub fn new(left: EdgePoints, right: EdgePoints) -> Self {
         Self { left, right }
     }
-}
-pub struct ShapeRenderResources {
-    pipeline: RenderPipeline,
-    vertex_buffer: wgpu::Buffer,
-    bind_group_layout: BindGroupLayout,
-    bind_group: BindGroup,
-    instances: Instances<Entity>,
-}
-impl Root for Shape {
-    fn attach(elm: &mut Elm) {
-        elm.enable_differential::<Self, ShapeDescriptor>();
-        elm.enable_differential::<Self, Color>();
-        elm.enable_differential::<Self, RenderLayer>();
-    }
-}
-#[repr(C)]
-#[derive(Pod, Zeroable, Copy, Clone, Default)]
-pub struct Vertex {
-    position: Coordinates,
-}
-
-impl Vertex {
-    pub(crate) const fn new(position: Coordinates) -> Self {
-        Self { position }
-    }
-}
-
-pub(crate) const VERTICES: [Vertex; 6] = [
-    Vertex::new(Coordinates::new(1f32, 0f32)),
-    Vertex::new(Coordinates::new(0f32, 0f32)),
-    Vertex::new(Coordinates::new(0f32, 1f32)),
-    Vertex::new(Coordinates::new(1f32, 0f32)),
-    Vertex::new(Coordinates::new(0f32, 1f32)),
-    Vertex::new(Coordinates::new(1f32, 1f32)),
-];
-impl Render for Shape {
-    type DirectiveGroupKey = i32;
-    type Resources = ShapeRenderResources;
-
-    fn create_resources(ginkgo: &Ginkgo) -> Self::Resources {
-        let shader = ginkgo.create_shader(include_wgsl!("shape.wgsl"));
-        let vertex_buffer = ginkgo.create_vertex_buffer(VERTICES);
-        let bind_group_layout = ginkgo.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some("line-bind-group-layout"),
-            entries: &[Ginkgo::bind_group_layout_entry(0)
-                .at_stages(ShaderStages::VERTEX)
-                .uniform_entry()],
-        });
-        let bind_group = ginkgo.create_bind_group(&BindGroupDescriptor {
-            label: Some("line-bind-group"),
-            layout: &bind_group_layout,
-            entries: &[ginkgo.viewport_bind_group_entry(0)],
-        });
-        let pipeline_layout = ginkgo.create_pipeline_layout(&PipelineLayoutDescriptor {
-            label: Some("line-render-pipeline"),
-            bind_group_layouts: &[&bind_group_layout],
-            push_constant_ranges: &[],
-        });
-        let pipeline = ginkgo.create_pipeline(&RenderPipelineDescriptor {
-            label: Some("line-renderer-pipeline"),
-            layout: Some(&pipeline_layout),
-            vertex: VertexState {
-                module: &shader,
-                entry_point: Option::from("vertex_entry"),
-                compilation_options: Default::default(),
-                buffers: &[
-                    Ginkgo::vertex_buffer_layout::<Vertex>(
-                        VertexStepMode::Vertex,
-                        &wgpu::vertex_attr_array![0 => Float32x2],
-                    ),
-                    Ginkgo::vertex_buffer_layout::<ShapeDescriptor>(
-                        VertexStepMode::Instance,
-                        &wgpu::vertex_attr_array![
-                            1 => Float32x4,
-                            2 => Float32x4,
-                        ],
-                    ),
-                    Ginkgo::vertex_buffer_layout::<RenderLayer>(
-                        VertexStepMode::Instance,
-                        &wgpu::vertex_attr_array![3 => Float32],
-                    ),
-                    Ginkgo::vertex_buffer_layout::<Color>(
-                        VertexStepMode::Instance,
-                        &wgpu::vertex_attr_array![4 => Float32x4],
-                    ),
-                ],
-            },
-            primitive: Ginkgo::triangle_list_primitive(),
-            depth_stencil: ginkgo.depth_stencil_state(),
-            multisample: ginkgo.msaa_state(),
-            fragment: Ginkgo::fragment_state(
-                &shader,
-                "fragment_entry",
-                &ginkgo.alpha_color_target_state(),
-            ),
-            multiview: None,
-            cache: None,
-        });
-        ShapeRenderResources {
-            pipeline,
-            vertex_buffer,
-            bind_group_layout,
-            bind_group,
-            instances: Instances::new(1)
-                .with_attribute::<ShapeDescriptor>(ginkgo)
-                .with_attribute::<RenderLayer>(ginkgo)
-                .with_attribute::<Color>(ginkgo),
-        }
-    }
-
-    fn prepare(
-        renderer: &mut Renderer<Self>,
-        queue_handle: &mut RenderQueueHandle,
-        ginkgo: &Ginkgo,
-    ) {
-        for entity in queue_handle.read_removes::<Self>() {
-            renderer.resource_handle.instances.queue_remove(entity);
-        }
-        for packet in queue_handle.read_adds::<Self, ShapeDescriptor>() {
-            renderer.associate_directive_group(0, 0);
-            renderer
-                .resource_handle
-                .instances
-                .checked_write(packet.entity, packet.value);
-        }
-        for packet in queue_handle.read_adds::<Self, ClippingContext>() {
-            renderer
-                .resource_handle
-                .instances
-                .set_clipping_context(packet.entity, packet.value);
-        }
-        for packet in queue_handle.read_adds::<Self, RenderLayer>() {
-            renderer
-                .resource_handle
-                .instances
-                .set_layer(packet.entity, packet.value);
-            renderer
-                .resource_handle
-                .instances
-                .checked_write(packet.entity, packet.value);
-        }
-        for packet in queue_handle.read_adds::<Self, Color>() {
-            renderer
-                .resource_handle
-                .instances
-                .checked_write(packet.entity, packet.value);
-        }
-        if renderer.resource_handle.instances.resolve_changes(ginkgo) {
-            renderer
-                .node_manager
-                .set_nodes(0, renderer.resource_handle.instances.render_nodes());
-        }
-    }
-
-    fn draw<'a>(
-        renderer: &'a Renderer<Self>,
-        group_key: Self::DirectiveGroupKey,
-        draw_range: DrawRange,
-        clipping_section: Section<DeviceContext>,
-        render_pass: &mut RenderPass<'a>,
-    ) {
-        render_pass.set_scissor_rect(
-            clipping_section.left() as u32,
-            clipping_section.top() as u32,
-            clipping_section.width() as u32,
-            clipping_section.height() as u32,
-        );
-        render_pass.set_pipeline(&renderer.resource_handle.pipeline);
-        render_pass.set_bind_group(0, &renderer.resource_handle.bind_group, &[]);
-        render_pass.set_vertex_buffer(0, renderer.resource_handle.vertex_buffer.slice(..));
-        render_pass.set_vertex_buffer(
-            1,
-            renderer
-                .resource_handle
-                .instances
-                .buffer::<ShapeDescriptor>()
-                .slice(..),
-        );
-        render_pass.set_vertex_buffer(
-            2,
-            renderer
-                .resource_handle
-                .instances
-                .buffer::<RenderLayer>()
-                .slice(..),
-        );
-        render_pass.set_vertex_buffer(
-            3,
-            renderer
-                .resource_handle
-                .instances
-                .buffer::<Color>()
-                .slice(..),
-        );
-        render_pass.draw(0..VERTICES.len() as u32, draw_range.start..draw_range.end);
+    fn on_add(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+        world
+            .commands()
+            .entity(this)
+            .observe(Remove::push_remove_packet::<Self>)
+            .observe(Visibility::push_remove_packet::<Self>);
     }
 }

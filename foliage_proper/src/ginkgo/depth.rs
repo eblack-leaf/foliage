@@ -4,7 +4,7 @@ use wgpu::{
 };
 
 use crate::coordinate::area::Area;
-use crate::coordinate::DeviceContext;
+use crate::coordinate::Physical;
 use crate::ginkgo::msaa::Msaa;
 use crate::ginkgo::GraphicContext;
 
@@ -13,7 +13,7 @@ pub(crate) struct Depth {
 }
 
 impl Depth {
-    pub(crate) fn new(context: &GraphicContext, msaa: &Msaa, area: Area<DeviceContext>) -> Self {
+    pub(crate) fn new(context: &GraphicContext, msaa: &Msaa, area: Area<Physical>) -> Self {
         Self {
             view: context
                 .device

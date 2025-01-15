@@ -1,236 +1,428 @@
-use std::collections::{HashMap, HashSet};
+mod glyph;
+mod monospaced;
+mod pipeline;
 
-use bevy_ecs::bundle::Bundle;
-use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Component, IntoSystemConfigs, Resource};
-use bevy_ecs::query::{Changed, Or};
-use bevy_ecs::system::{Query, Res};
-use bytemuck::{Pod, Zeroable};
-use fontdue::layout::CoordinateSystem;
-use serde::{Deserialize, Serialize};
-use wgpu::{
-    include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayoutDescriptor,
-    PipelineLayoutDescriptor, RenderPass, RenderPipelineDescriptor, ShaderStages, TextureFormat,
-    TextureSampleType, TextureViewDimension, VertexState, VertexStepMode,
-};
-use wgpu::{BindGroupLayout, RenderPipeline};
-
-use crate::ash::{
-    ClippingContext, ClippingSection, DrawRange, Render, RenderNode, RenderNodes, Renderer,
-};
 use crate::color::Color;
-use crate::coordinate::elevation::RenderLayer;
-use crate::coordinate::section::{GpuSection, Section};
-use crate::coordinate::{Coordinates, DeviceContext, LogicalContext};
-use crate::differential::{Differential, RenderLink};
-use crate::elm::{Elm, InternalStage, RenderQueueHandle};
-use crate::ginkgo::{Ginkgo, ScaleFactor, VectorUniform};
-use crate::instances::Instances;
-use crate::texture::{AtlasEntry, TextureAtlas, TextureCoordinates};
-use crate::Root;
+use crate::coordinate::section::Section;
+use crate::coordinate::Logical;
+use crate::foliage::{DiffMarkers, Foliage};
+use crate::ginkgo::ScaleFactor;
+use crate::opacity::BlendedOpacity;
+use crate::remove::Remove;
+use crate::text::glyph::{Glyph, GlyphColor, GlyphKey, Glyphs, ResolvedColors};
+use crate::text::monospaced::MonospacedFont;
+use crate::Differential;
+use crate::{
+    Attachment, Layout, Physical, ResolvedElevation, ResolvedVisibility, Stem, Tree, Update,
+    Visibility, Write,
+};
+use bevy_ecs::component::ComponentId;
+use bevy_ecs::entity::Entity;
+use bevy_ecs::prelude::{Component, IntoSystemConfigs, Res, Trigger};
+use bevy_ecs::query::{Changed, With};
+use bevy_ecs::system::{ParamSet, Query};
+use bevy_ecs::world::DeferredWorld;
+pub use glyph::GlyphColors;
+pub(crate) use glyph::ResolvedGlyphs;
+use std::collections::HashSet;
 
-impl Root for Text {
-    fn attach(elm: &mut Elm) {
-        elm.enable_differential::<Self, GpuSection>();
-        elm.enable_differential::<Self, RenderLayer>();
-        elm.enable_differential::<Self, Glyphs>();
-        elm.enable_differential::<Self, GlyphMetrics>();
-        elm.ecs.insert_resource(MonospacedFont::new(40));
-        elm.scheduler.main.add_systems((
-            (distill, color_changes).in_set(InternalStage::Resolve),
-            clear_removed.in_set(InternalStage::Finish),
-        ));
+impl Attachment for Text {
+    fn attach(foliage: &mut Foliage) {
+        foliage
+            .world
+            .insert_resource(MonospacedFont::new(Text::OPT_SCALE));
+        foliage.define(Text::update);
+        foliage.define(Text::responsive_font_size);
+        foliage.diff.add_systems(
+            (Text::resolve_glyphs, Text::resolve_colors)
+                .chain()
+                .in_set(DiffMarkers::Finalize),
+        );
+        foliage.remove_queue::<Text>();
+        foliage.differential::<Text, ResolvedFontSize>();
+        foliage.differential::<Text, BlendedOpacity>();
+        foliage.differential::<Text, Section<Logical>>();
+        foliage.differential::<Text, ResolvedElevation>();
+        foliage.differential::<Text, Stem>();
+        foliage.differential::<Text, ResolvedGlyphs>();
+        foliage.differential::<Text, ResolvedColors>();
+        foliage.differential::<Text, UniqueCharacters>();
     }
 }
-#[derive(Bundle, Clone)]
+#[derive(Component, Clone, PartialEq, Default, Debug)]
+#[require(Color, FontSize, ResolvedFontSize, UpdateCache)]
+#[require(HorizontalAlignment, VerticalAlignment, Glyphs)]
+#[require(ResolvedGlyphs, ResolvedColors, GlyphColors, AutoHeight)]
+#[require(UniqueCharacters, Differential<Text, UniqueCharacters>)]
+#[require(Differential<Text, ResolvedFontSize>)]
+#[require(Differential<Text, BlendedOpacity>)]
+#[require(Differential<Text, Section<Logical>>)]
+#[require(Differential<Text, ResolvedElevation>)]
+#[require(Differential<Text, Stem>)]
+#[require(Differential<Text, ResolvedGlyphs>)]
+#[require(Differential<Text, ResolvedColors>)]
+#[component(on_add = Text::on_add)]
+#[component(on_insert = Text::on_insert)]
 pub struct Text {
-    link: RenderLink,
-    value: TextValue,
-    layer: Differential<RenderLayer>,
-    gpu_section: Differential<GpuSection>,
-    gs: GpuSection,
-    glyphs: Differential<Glyphs>,
-    g: Glyphs,
-    glyph_colors: GlyphColors,
-    color: Color,
-    metrics: Differential<GlyphMetrics>,
-    gm: GlyphMetrics,
-    font_size: FontSize,
-    text_alignment: TextAlignment,
-    placer: GlyphPlacer,
+    pub value: String,
 }
 impl Text {
-    pub fn new<S: AsRef<str>, C: Into<Color>>(tv: S, font_size: FontSize, color: C) -> Self {
-        let color = color.into();
+    pub(crate) const OPT_SCALE: u32 = 20;
+    pub fn new<S: AsRef<str>>(value: S) -> Self {
         Self {
-            link: RenderLink::new::<Self>(),
-            value: TextValue(tv.as_ref().to_string()),
-            layer: Differential::new(),
-            gpu_section: Differential::new(),
-            gs: Default::default(),
-            glyphs: Differential::new(),
-            g: Default::default(),
-            glyph_colors: GlyphColors {
-                position_to_color: Default::default(),
-            },
-            color,
-            metrics: Differential::new(),
-            gm: Default::default(),
-            font_size,
-            text_alignment: TextAlignment::default(),
-            placer: Default::default(),
+            value: value.as_ref().to_string(),
         }
     }
-    pub fn align_horizontal(mut self, ha: HorizontalAlignment) -> Self {
-        self.text_alignment.horizontal = ha;
-        self
+    fn on_add(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+        world
+            .commands()
+            .entity(this)
+            .observe(Remove::push_remove_packet::<Text>);
+        world
+            .commands()
+            .entity(this)
+            .observe(Visibility::push_remove_packet::<Text>);
+        world
+            .commands()
+            .entity(this)
+            .observe(Self::update_from_section);
+        world
+            .commands()
+            .entity(this)
+            .observe(Self::clear_last_on_visibility);
     }
-    pub fn align_vertical(mut self, va: VerticalAlignment) -> Self {
-        self.text_alignment.vertical = va;
-        self
+    fn responsive_font_size(
+        _trigger: Trigger<Write<Layout>>,
+        mut font_sizes: Query<(&FontSize, &mut ResolvedFontSize)>,
+        layout: Res<Layout>,
+    ) {
+        for (font_size, mut resolved_font_size) in font_sizes.iter_mut() {
+            resolved_font_size.value = font_size.resolve(*layout).value;
+        }
     }
-    pub fn centered(mut self) -> Self {
-        self.text_alignment.horizontal = HorizontalAlignment::Center;
-        self.text_alignment.vertical = VerticalAlignment::Middle;
-        self
+    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+        world
+            .commands()
+            .trigger_targets(Update::<Text>::new(), this);
     }
-}
-#[derive(Copy, Clone, Component)]
-pub struct FontSize(pub(crate) f32);
-impl From<u32> for FontSize {
-    fn from(value: u32) -> Self {
-        Self(value as f32)
+    fn update_from_section(trigger: Trigger<Write<Section<Logical>>>, mut tree: Tree) {
+        tree.trigger_targets(Update::<Text>::new(), trigger.entity());
     }
-}
-impl From<i32> for FontSize {
-    fn from(value: i32) -> Self {
-        Self(value as f32)
+    fn resolve_colors(
+        mut glyph_colors: ParamSet<(Query<&GlyphColors>, Query<Entity, Changed<GlyphColors>>)>,
+        mut colors: ParamSet<(Query<&Color>, Query<Entity, (Changed<Color>, With<Text>)>)>,
+        mut glyphs: ParamSet<(Query<&Glyphs>, Query<Entity, Changed<Glyphs>>)>,
+        mut resolved: Query<&mut ResolvedColors>,
+    ) {
+        let mut changed = glyph_colors.p1().iter().collect::<Vec<_>>();
+        changed.extend(colors.p1().iter().collect::<Vec<_>>());
+        changed.extend(glyphs.p1().iter().collect::<Vec<_>>());
+        for e in changed {
+            let mut res = ResolvedColors::default();
+            let color = *colors.p0().get(e).unwrap();
+            let exceptions = glyph_colors.p0().get(e).unwrap().exceptions.clone();
+            for g in glyphs.p0().get(e).unwrap().glyphs.iter() {
+                let c = if let Some(gc) = exceptions.get(&g.offset) {
+                    *gc
+                } else {
+                    color
+                };
+                res.colors.push(GlyphColor {
+                    color: c,
+                    offset: g.offset,
+                });
+            }
+            *resolved.get_mut(e).unwrap() = res;
+        }
     }
-}
-impl FontSize {
-    pub fn new(v: u32) -> Self {
-        Self(v as f32)
+    fn update(
+        trigger: Trigger<Update<Text>>,
+        mut tree: Tree,
+        texts: Query<&Text>,
+        font_sizes: Query<&ResolvedFontSize>,
+        mut glyph_query: Query<&mut Glyphs>,
+        horizontal_alignment: Query<&HorizontalAlignment>,
+        vertical_alignment: Query<&VerticalAlignment>,
+        sections: Query<&mut Section<Logical>>,
+        cache: Query<&mut UpdateCache>,
+        font: Res<MonospacedFont>,
+        scale_factor: Res<ScaleFactor>,
+        auto_heights: Query<&AutoHeight>,
+    ) {
+        let this = trigger.entity();
+        let mut current = UpdateCache {
+            font_size: ResolvedFontSize::new(
+                (font_sizes.get(this).unwrap().value as f32 * scale_factor.value()) as u32,
+            ),
+            text: texts.get(this).unwrap().clone(),
+            section: sections
+                .get(this)
+                .unwrap()
+                .to_physical(scale_factor.value()),
+            horizontal_alignment: *horizontal_alignment.get(this).unwrap(),
+            vertical_alignment: *vertical_alignment.get(this).unwrap(),
+        };
+        if cache.get(this).unwrap() != &current {
+            let mut glyphs = glyph_query.get_mut(this).unwrap();
+            glyphs.layout.reset(&fontdue::layout::LayoutSettings {
+                horizontal_align: current.horizontal_alignment.into(),
+                vertical_align: current.vertical_alignment.into(),
+                max_width: Some(current.section.width()),
+                // max_height: Some(current.section.height()),
+                ..fontdue::layout::LayoutSettings::default()
+            });
+            glyphs.layout.append(
+                &[&font.0],
+                &fontdue::layout::TextStyle::new(
+                    current.text.value.as_str(),
+                    current.font_size.value as f32,
+                    0,
+                ),
+            );
+            tree.entity(this)
+                .insert(UniqueCharacters::count(&current.text));
+            let auto_height = auto_heights.get(this).unwrap();
+            if auto_height.0 {
+                let adjusted_section = current
+                    .section
+                    .with_height(glyphs.layout.height())
+                    .to_logical(scale_factor.value());
+                let scaled = adjusted_section.to_physical(scale_factor.value());
+                if current.section != scaled {
+                    current.section = scaled;
+                    tree.entity(this)
+                        .insert(current.clone())
+                        .insert(adjusted_section);
+                } else {
+                    tree.entity(this).insert(current.clone());
+                }
+            } else {
+                tree.entity(this).insert(current.clone());
+            }
+        }
     }
-    pub fn value(&self) -> f32 {
-        self.0
+    fn clear_last_on_visibility(
+        trigger: Trigger<Write<Visibility>>,
+        mut glyphs: Query<&mut Glyphs>,
+        vis: Query<&ResolvedVisibility>,
+    ) {
+        let value = vis.get(trigger.entity()).unwrap();
+        if !value.visible() {
+            glyphs.get_mut(trigger.entity()).unwrap().glyphs.clear();
+        }
     }
-}
-#[derive(Serialize, Deserialize, Copy, Clone, Hash, Eq, PartialEq, Debug)]
-pub(crate) struct GlyphKey {
-    pub(crate) glyph_index: u16,
-    pub(crate) px: u32,
-    pub(crate) font_hash: usize,
-}
-impl GlyphKey {
-    pub(crate) fn new(raster_config: fontdue::layout::GlyphRasterConfig) -> Self {
-        Self {
-            glyph_index: raster_config.glyph_index,
-            px: raster_config.px as u32,
-            font_hash: raster_config.font_hash,
+    fn resolve_glyphs(
+        mut glyph_query: Query<
+            (
+                Entity,
+                &mut Glyphs,
+                &ResolvedVisibility,
+                &mut ResolvedGlyphs,
+            ),
+            Changed<Glyphs>,
+        >,
+        mut tree: Tree,
+    ) {
+        for (entity, mut glyphs, vis, mut resolved) in glyph_query.iter_mut() {
+            if !vis.visible() {
+                continue;
+            }
+            let new = glyphs
+                .layout
+                .glyphs()
+                .iter()
+                .enumerate()
+                .map(|(i, g)| Glyph {
+                    key: GlyphKey {
+                        glyph_index: g.key.glyph_index,
+                        px: g.key.px as u32,
+                        font_hash: g.key.font_hash,
+                    },
+                    section: Section::physical((g.x, g.y), (g.width, g.height)),
+                    parent: g.parent,
+                    offset: i,
+                })
+                .collect::<Vec<Glyph>>();
+            resolved.updated.clear();
+            resolved.removed.clear();
+            let len_last = glyphs.glyphs.len();
+            for (i, g) in glyphs
+                .glyphs
+                .drain(..)
+                .collect::<Vec<_>>()
+                .iter()
+                .enumerate()
+            {
+                if let Some(n) = new.get(i) {
+                    resolved.updated.push(n.clone());
+                } else {
+                    resolved.removed.push(g.clone());
+                }
+            }
+            let len_new = new.len();
+            if len_new > len_last {
+                for glyph in new.iter().take(len_new).skip(len_last) {
+                    resolved.updated.push(glyph.clone());
+                }
+            }
+            glyphs.glyphs = new;
         }
     }
 }
-#[derive(Resource)]
-pub struct MonospacedFont(pub(crate) fontdue::Font);
-impl MonospacedFont {
-    pub(crate) fn new(opt_scale: u32) -> Self {
-        Self(
-            fontdue::Font::from_bytes(
-                include_bytes!("JetBrainsMono-Medium.ttf").as_slice(),
-                fontdue::FontSettings {
-                    scale: opt_scale as f32,
-                    ..fontdue::FontSettings::default()
-                },
-            )
-            .expect("font"),
-        )
-    }
-}
-#[derive(PartialEq, Clone)]
-pub(crate) struct Glyph {
-    pub(crate) key: GlyphKey,
-    pub(crate) section: Section<DeviceContext>,
-    pub(crate) parent: char,
-    pub(crate) color: Color,
-}
-pub type GlyphOffset = usize;
-#[derive(Component, Copy, Clone, PartialEq, Default)]
-pub(crate) struct GlyphMetrics {
-    unique_characters: u32,
-    block: Coordinates,
-}
-#[derive(PartialEq, Clone, Component, Default)]
-pub(crate) struct Glyphs {
-    glyphs: HashMap<GlyphOffset, Glyph>,
-    removed: HashSet<GlyphOffset>,
-    font_size: f32,
-}
-#[derive(PartialEq, Clone, Component)]
-pub struct GlyphColors {
-    position_to_color: HashMap<GlyphOffset, Color>,
-}
-impl GlyphColors {
-    pub fn obtain(&self, base: Color, offset: GlyphOffset) -> Color {
-        if let Some(alternate) = self.position_to_color.get(&offset) {
-            *alternate
-        } else {
-            base
+#[derive(Component, Copy, Clone, Default)]
+pub struct AutoHeight(pub bool);
+#[derive(Copy, Clone, Component, Default, PartialEq)]
+pub(crate) struct UniqueCharacters(pub(crate) u32);
+impl UniqueCharacters {
+    pub(crate) fn count(text: &Text) -> Self {
+        let mut set = HashSet::new();
+        for ch in text.value.chars() {
+            set.insert(ch);
         }
+        Self(set.len() as u32)
     }
 }
-#[derive(Clone, Component, Default)]
-pub struct TextValue(pub String);
-impl<S: AsRef<str>> From<S> for TextValue {
-    fn from(value: S) -> Self {
-        Self::new(value)
+#[derive(Component, Clone, Copy, PartialEq, Debug)]
+#[component(on_insert = ResolvedFontSize::on_insert)]
+pub struct ResolvedFontSize {
+    pub value: u32,
+}
+impl ResolvedFontSize {
+    pub fn new(value: u32) -> Self {
+        Self { value }
+    }
+    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+        world
+            .commands()
+            .trigger_targets(Update::<Text>::new(), this);
     }
 }
-impl TextValue {
-    pub fn new<S: AsRef<str>>(s: S) -> Self {
-        Self(s.as_ref().to_string())
-    }
-    pub fn num_unique_characters(&self) -> u32 {
-        let mut uc = HashSet::new();
-        for c in self.0.chars() {
-            uc.insert(c);
-        }
-        uc.len() as u32
-    }
-}
-pub(crate) fn color_changes(
-    mut texts: Query<
-        (Entity, &mut Glyphs, &GlyphColors, &Color),
-        Or<(Changed<GlyphColors>, Changed<Color>)>,
-    >,
-) {
-    for (entity, mut glyphs, colors, base) in texts.iter_mut() {
-        for (offset, glyph) in glyphs.glyphs.iter_mut() {
-            glyph.color = colors.obtain(*base, *offset);
-        }
-    }
-}
-#[derive(Component)]
-pub(crate) struct GlyphPlacer {
-    pub(crate) layout: fontdue::layout::Layout,
-}
-impl Clone for GlyphPlacer {
-    fn clone(&self) -> Self {
-        Self::default()
-    }
-}
-impl Default for GlyphPlacer {
+impl Default for ResolvedFontSize {
     fn default() -> Self {
         Self {
-            layout: fontdue::layout::Layout::new(CoordinateSystem::PositiveYDown),
+            value: FontSize::DEFAULT_SIZE,
         }
     }
 }
-#[derive(Copy, Clone, Default)]
+#[derive(Component, Clone, Copy, PartialEq)]
+#[component(on_insert = FontSize::on_insert)]
+pub struct FontSize {
+    pub xs: u32,
+    pub sm: Option<u32>,
+    pub md: Option<u32>,
+    pub lg: Option<u32>,
+    pub xl: Option<u32>,
+}
+impl FontSize {
+    pub const DEFAULT_SIZE: u32 = 16;
+    pub fn new(value: u32) -> Self {
+        Self {
+            xs: value,
+            sm: None,
+            md: None,
+            lg: None,
+            xl: None,
+        }
+    }
+    pub fn resolve(&self, layout: Layout) -> ResolvedFontSize {
+        match layout {
+            Layout::Xs => ResolvedFontSize::new(self.xs),
+            Layout::Sm => {
+                if let Some(sm) = self.sm {
+                    ResolvedFontSize::new(sm)
+                } else {
+                    ResolvedFontSize::new(self.xs)
+                }
+            }
+            Layout::Md => {
+                if let Some(md) = self.md {
+                    ResolvedFontSize::new(md)
+                } else if let Some(sm) = self.sm {
+                    ResolvedFontSize::new(sm)
+                } else {
+                    ResolvedFontSize::new(self.xs)
+                }
+            }
+            Layout::Lg => {
+                if let Some(lg) = self.lg {
+                    ResolvedFontSize::new(lg)
+                } else if let Some(md) = self.md {
+                    ResolvedFontSize::new(md)
+                } else if let Some(sm) = self.sm {
+                    ResolvedFontSize::new(sm)
+                } else {
+                    ResolvedFontSize::new(self.xs)
+                }
+            }
+            Layout::Xl => {
+                if let Some(xl) = self.xl {
+                    ResolvedFontSize::new(xl)
+                } else if let Some(lg) = self.lg {
+                    ResolvedFontSize::new(lg)
+                } else if let Some(md) = self.md {
+                    ResolvedFontSize::new(md)
+                } else if let Some(sm) = self.sm {
+                    ResolvedFontSize::new(sm)
+                } else {
+                    ResolvedFontSize::new(self.xs)
+                }
+            }
+        }
+    }
+    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+        let layout = *world.get_resource::<Layout>().unwrap();
+        let comp = world.get::<FontSize>(this).unwrap();
+        let resolved = comp.resolve(layout);
+        world.commands().entity(this).insert(resolved);
+    }
+    pub fn sm(mut self, value: u32) -> Self {
+        self.sm.replace(value);
+        self
+    }
+    pub fn md(mut self, value: u32) -> Self {
+        self.md.replace(value);
+        self
+    }
+    pub fn lg(mut self, value: u32) -> Self {
+        self.lg.replace(value);
+        self
+    }
+    pub fn xl(mut self, value: u32) -> Self {
+        self.xl.replace(value);
+        self
+    }
+}
+impl Default for FontSize {
+    fn default() -> Self {
+        Self {
+            xs: FontSize::DEFAULT_SIZE,
+            sm: None,
+            md: None,
+            lg: None,
+            xl: None,
+        }
+    }
+}
+#[derive(Component, Clone, PartialEq, Default, Debug)]
+pub(crate) struct UpdateCache {
+    pub(crate) font_size: ResolvedFontSize,
+    pub(crate) text: Text,
+    pub(crate) section: Section<Physical>,
+    pub(crate) horizontal_alignment: HorizontalAlignment,
+    pub(crate) vertical_alignment: VerticalAlignment,
+}
+#[derive(Component, Copy, Clone, Default, PartialEq, Debug)]
+#[component(on_insert = HorizontalAlignment::on_insert)]
 pub enum HorizontalAlignment {
     #[default]
     Left,
     Center,
     Right,
+}
+impl HorizontalAlignment {
+    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+        world.trigger_targets(Update::<Text>::new(), this);
+    }
 }
 impl From<HorizontalAlignment> for fontdue::layout::HorizontalAlign {
     fn from(value: HorizontalAlignment) -> Self {
@@ -241,12 +433,18 @@ impl From<HorizontalAlignment> for fontdue::layout::HorizontalAlign {
         }
     }
 }
-#[derive(Copy, Clone, Default)]
+#[derive(Component, Copy, Clone, Default, PartialEq, Debug)]
+#[component(on_insert = VerticalAlignment::on_insert)]
 pub enum VerticalAlignment {
     #[default]
     Top,
     Middle,
     Bottom,
+}
+impl VerticalAlignment {
+    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+        world.trigger_targets(Update::<Text>::new(), this);
+    }
 }
 impl From<VerticalAlignment> for fontdue::layout::VerticalAlign {
     fn from(value: VerticalAlignment) -> Self {
@@ -255,549 +453,5 @@ impl From<VerticalAlignment> for fontdue::layout::VerticalAlign {
             VerticalAlignment::Middle => fontdue::layout::VerticalAlign::Middle,
             VerticalAlignment::Bottom => fontdue::layout::VerticalAlign::Bottom,
         }
-    }
-}
-#[derive(Component, Copy, Clone, Default)]
-pub struct TextAlignment {
-    pub(crate) horizontal: HorizontalAlignment,
-    pub(crate) vertical: VerticalAlignment,
-}
-pub(crate) fn distill(
-    mut texts: Query<
-        (
-            &TextValue,
-            &mut Glyphs,
-            &GlyphColors,
-            &Color,
-            &Section<LogicalContext>,
-            &mut GlyphMetrics,
-            &FontSize,
-            &mut GlyphPlacer,
-            &TextAlignment,
-        ),
-        Or<(
-            Changed<TextValue>,
-            Changed<Section<LogicalContext>>,
-            Changed<FontSize>,
-        )>,
-    >,
-    font: Res<MonospacedFont>,
-    scale_factor: Res<ScaleFactor>,
-) {
-    for (value, mut glyphs, colors, base, section, mut metrics, font_size, mut placer, alignment) in
-        texts.iter_mut()
-    {
-        // let mut placer = fontdue::layout::Layout::new(CoordinateSystem::PositiveYDown);
-        let scaled_area = section.area.to_device(scale_factor.value());
-        placer.layout.reset(&fontdue::layout::LayoutSettings {
-            max_width: Some(scaled_area.width()),
-            max_height: Some(scaled_area.height()),
-            horizontal_align: alignment.horizontal.into(),
-            vertical_align: alignment.vertical.into(),
-            ..fontdue::layout::LayoutSettings::default()
-        });
-        let projected = font_size.value() * scale_factor.value();
-        let character_dims = {
-            let character_metrics = font.0.metrics('a', projected);
-            let horizontal_metrics = font.0.horizontal_line_metrics(projected).unwrap();
-            Coordinates::new(
-                character_metrics.advance_width.ceil(),
-                (horizontal_metrics.ascent - horizontal_metrics.descent).ceil(),
-            )
-        };
-        glyphs.font_size = projected;
-        placer.layout.append(
-            &[&font.0],
-            &fontdue::layout::TextStyle::new(value.0.as_str(), glyphs.font_size, 0),
-        );
-        if metrics.block != character_dims {
-            metrics.block = character_dims;
-            metrics.unique_characters = value.num_unique_characters();
-        }
-        let old_glyphs = glyphs.glyphs.drain().collect::<Vec<(GlyphOffset, Glyph)>>();
-        glyphs.removed.clear();
-        for glyph in placer.layout.glyphs().iter() {
-            let section = Section::new((glyph.x, glyph.y), (glyph.width, glyph.height));
-            glyphs.glyphs.insert(
-                glyph.byte_offset,
-                Glyph {
-                    key: GlyphKey::new(glyph.key),
-                    section,
-                    parent: glyph.parent,
-                    color: colors.obtain(*base, glyph.byte_offset),
-                },
-            );
-        }
-        for (offset, glyph) in old_glyphs {
-            if let Some(new) = glyphs.glyphs.get(&offset) {
-                if glyph.key.glyph_index != new.key.glyph_index {
-                    glyphs.removed.insert(offset);
-                }
-            } else {
-                glyphs.removed.insert(offset);
-            }
-        }
-    }
-}
-pub(crate) fn clear_removed(mut texts: Query<&mut Glyphs>) {
-    for mut glyphs in texts.iter_mut() {
-        glyphs.removed.clear();
-    }
-}
-pub(crate) struct TextGroup {
-    texture_atlas: TextureAtlas<GlyphKey, GlyphOffset, u8>,
-    bind_group: BindGroup,
-    instances: Instances<GlyphOffset>,
-    pos_and_layer: VectorUniform<f32>,
-    should_record: bool,
-    clip_section: ClippingSection,
-    clip_context: ClippingContext,
-}
-pub struct TextResources {
-    pipeline: RenderPipeline,
-    vertex_buffer: wgpu::Buffer,
-    bind_group: BindGroup,
-    group_layout: BindGroupLayout,
-    groups: HashMap<Entity, TextGroup>,
-    font: MonospacedFont,
-}
-#[repr(C)]
-#[derive(Pod, Zeroable, Copy, Clone, Default)]
-pub struct Vertex {
-    position: Coordinates,
-    tx_index: [u32; 2],
-}
-impl Vertex {
-    pub(crate) const fn new(position: Coordinates, tx_index: [u32; 2]) -> Self {
-        Self { position, tx_index }
-    }
-}
-pub(crate) const VERTICES: [Vertex; 6] = [
-    Vertex::new(Coordinates::new(1f32, 0f32), [2, 1]),
-    Vertex::new(Coordinates::new(0f32, 0f32), [0, 1]),
-    Vertex::new(Coordinates::new(0f32, 1f32), [0, 3]),
-    Vertex::new(Coordinates::new(1f32, 0f32), [2, 1]),
-    Vertex::new(Coordinates::new(0f32, 1f32), [0, 3]),
-    Vertex::new(Coordinates::new(1f32, 1f32), [2, 3]),
-];
-impl Render for Text {
-    type DirectiveGroupKey = Entity;
-    type Resources = TextResources;
-
-    fn create_resources(ginkgo: &Ginkgo) -> Self::Resources {
-        let shader = ginkgo.create_shader(include_wgsl!("text.wgsl"));
-        let vertex_buffer = ginkgo.create_vertex_buffer(VERTICES);
-        let bind_group_layout = ginkgo.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some("text-bind-group-layout"),
-            entries: &[
-                Ginkgo::bind_group_layout_entry(0)
-                    .at_stages(ShaderStages::VERTEX)
-                    .uniform_entry(),
-                Ginkgo::bind_group_layout_entry(1)
-                    .at_stages(ShaderStages::FRAGMENT)
-                    .sampler_entry(),
-            ],
-        });
-        let sampler = ginkgo.create_sampler();
-        let bind_group = ginkgo.create_bind_group(&BindGroupDescriptor {
-            label: Some("text-bind-group"),
-            layout: &bind_group_layout,
-            entries: &[
-                ginkgo.viewport_bind_group_entry(0),
-                Ginkgo::sampler_bind_group_entry(&sampler, 1),
-            ],
-        });
-        let group_layout = ginkgo.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some("text-group-bind-group-layout"),
-            entries: &[
-                Ginkgo::bind_group_layout_entry(0)
-                    .at_stages(ShaderStages::FRAGMENT)
-                    .texture_entry(
-                        TextureViewDimension::D2,
-                        TextureSampleType::Float { filterable: false },
-                    ),
-                Ginkgo::bind_group_layout_entry(1)
-                    .at_stages(ShaderStages::VERTEX)
-                    .uniform_entry(),
-            ],
-        });
-        let pipeline_layout = ginkgo.create_pipeline_layout(&PipelineLayoutDescriptor {
-            label: Some("text-pipeline-layout"),
-            bind_group_layouts: &[&group_layout, &bind_group_layout],
-            push_constant_ranges: &[],
-        });
-        let pipeline = ginkgo.create_pipeline(&RenderPipelineDescriptor {
-            label: Some("text-render-pipeline"),
-            layout: Some(&pipeline_layout),
-            vertex: VertexState {
-                module: &shader,
-                entry_point: Option::from("vertex_entry"),
-                compilation_options: Default::default(),
-                buffers: &[
-                    Ginkgo::vertex_buffer_layout::<Vertex>(
-                        VertexStepMode::Vertex,
-                        &wgpu::vertex_attr_array![0 => Float32x2, 1 => Uint32x2],
-                    ),
-                    Ginkgo::vertex_buffer_layout::<GpuSection>(
-                        VertexStepMode::Instance,
-                        &wgpu::vertex_attr_array![2 => Float32x4],
-                    ),
-                    Ginkgo::vertex_buffer_layout::<Color>(
-                        VertexStepMode::Instance,
-                        &wgpu::vertex_attr_array![3 => Float32x4],
-                    ),
-                    Ginkgo::vertex_buffer_layout::<TextureCoordinates>(
-                        VertexStepMode::Instance,
-                        &wgpu::vertex_attr_array![4 => Float32x4],
-                    ),
-                ],
-            },
-            primitive: Ginkgo::triangle_list_primitive(),
-            depth_stencil: ginkgo.depth_stencil_state(),
-            multisample: ginkgo.msaa_state(),
-            fragment: Ginkgo::fragment_state(
-                &shader,
-                "fragment_entry",
-                &ginkgo.alpha_color_target_state(),
-            ),
-            multiview: None,
-            cache: None,
-        });
-        TextResources {
-            pipeline,
-            vertex_buffer,
-            bind_group,
-            group_layout,
-            groups: Default::default(),
-            font: MonospacedFont::new(40),
-        }
-    }
-
-    fn prepare(
-        renderer: &mut Renderer<Self>,
-        queue_handle: &mut RenderQueueHandle,
-        ginkgo: &Ginkgo,
-    ) {
-        for packet in queue_handle.read_removes::<Self>() {
-            if !renderer.resource_handle.groups.contains_key(&packet) {
-                continue;
-            }
-            renderer
-                .resource_handle
-                .groups
-                .get_mut(&packet)
-                .unwrap()
-                .should_record = true;
-            renderer
-                .resource_handle
-                .groups
-                .get_mut(&packet)
-                .unwrap()
-                .instances
-                .clear(None);
-            // renderer.directive_manager.remove(packet);
-            renderer.resource_handle.groups.remove(&packet).unwrap();
-            renderer
-                .node_manager
-                .set_nodes(packet.index() as i32, RenderNodes::new());
-            renderer.disassociate_directive_group(packet.index() as i32);
-        }
-        for packet in queue_handle.read_adds::<Self, GlyphMetrics>() {
-            renderer.associate_directive_group(packet.entity.index() as i32, packet.entity);
-            let atlas = TextureAtlas::new(
-                ginkgo,
-                packet.value.block,
-                packet.value.unique_characters,
-                TextureFormat::R8Unorm,
-            );
-            let uniform = VectorUniform::new(ginkgo.context(), [0.0, 0.0, 0.0, 0.0]);
-            let bind_group = ginkgo.create_bind_group(&BindGroupDescriptor {
-                label: Some("text-group-bind-group"),
-                layout: &renderer.resource_handle.group_layout,
-                entries: &[
-                    Ginkgo::texture_bind_group_entry(atlas.view(), 0),
-                    Ginkgo::uniform_bind_group_entry(&uniform.uniform, 1),
-                ],
-            });
-            renderer.resource_handle.groups.insert(
-                packet.entity,
-                TextGroup {
-                    texture_atlas: atlas,
-                    bind_group,
-                    instances: Instances::new(packet.value.unique_characters)
-                        .with_attribute::<GpuSection>(ginkgo)
-                        .with_attribute::<Color>(ginkgo)
-                        .with_attribute::<TextureCoordinates>(ginkgo),
-                    pos_and_layer: uniform,
-                    should_record: false,
-                    clip_section: Default::default(),
-                    clip_context: ClippingContext::Screen,
-                },
-            );
-        }
-        for packet in queue_handle.read_adds::<Self, ClippingContext>() {
-            renderer
-                .resource_handle
-                .groups
-                .get_mut(&packet.entity)
-                .unwrap()
-                .clip_context = packet.value;
-        }
-        for packet in queue_handle.read_adds::<Self, GpuSection>() {
-            renderer
-                .resource_handle
-                .groups
-                .get_mut(&packet.entity)
-                .unwrap()
-                .clip_section =
-                ClippingSection(Section::device(packet.value.pos.0, packet.value.area.0));
-            renderer
-                .resource_handle
-                .groups
-                .get_mut(&packet.entity)
-                .unwrap()
-                .pos_and_layer
-                .set(0, packet.value.pos.0.horizontal().round());
-            renderer
-                .resource_handle
-                .groups
-                .get_mut(&packet.entity)
-                .unwrap()
-                .pos_and_layer
-                .set(1, packet.value.pos.0.vertical().round());
-            renderer
-                .resource_handle
-                .groups
-                .get_mut(&packet.entity)
-                .unwrap()
-                .pos_and_layer
-                .write(ginkgo.context());
-        }
-        for packet in queue_handle.read_adds::<Self, RenderLayer>() {
-            renderer
-                .resource_handle
-                .groups
-                .get_mut(&packet.entity)
-                .unwrap()
-                .pos_and_layer
-                .set(2, packet.value.0);
-            renderer
-                .resource_handle
-                .groups
-                .get_mut(&packet.entity)
-                .unwrap()
-                .pos_and_layer
-                .write(ginkgo.context());
-        }
-        for packet in queue_handle.read_adds::<Self, Glyphs>() {
-            for offset in packet.value.removed.iter() {
-                renderer
-                    .resource_handle
-                    .groups
-                    .get_mut(&packet.entity)
-                    .unwrap()
-                    .instances
-                    .queue_remove(*offset);
-                // TODO remove reference to glyph.key
-            }
-            let mut queued_tex_reads = HashSet::new();
-            for (offset, glyph) in packet.value.glyphs.iter() {
-                renderer
-                    .resource_handle
-                    .groups
-                    .get_mut(&packet.entity)
-                    .unwrap()
-                    .instances
-                    .add(*offset);
-                renderer
-                    .resource_handle
-                    .groups
-                    .get_mut(&packet.entity)
-                    .unwrap()
-                    .instances
-                    .checked_write(*offset, glyph.section.to_gpu());
-                renderer
-                    .resource_handle
-                    .groups
-                    .get_mut(&packet.entity)
-                    .unwrap()
-                    .instances
-                    .checked_write(*offset, glyph.color);
-                if !renderer
-                    .resource_handle
-                    .groups
-                    .get_mut(&packet.entity)
-                    .unwrap()
-                    .texture_atlas
-                    .has_key(glyph.key)
-                {
-                    let (metrics, rasterization) = renderer
-                        .resource_handle
-                        .font
-                        .0
-                        .rasterize_indexed(glyph.key.glyph_index, packet.value.font_size);
-                    let entry = AtlasEntry::new(rasterization, (metrics.width, metrics.height));
-                    renderer
-                        .resource_handle
-                        .groups
-                        .get_mut(&packet.entity)
-                        .unwrap()
-                        .texture_atlas
-                        .add_entry(glyph.key, entry);
-                    queued_tex_reads.insert((glyph.key, *offset));
-                } else {
-                    let tex_coords = renderer
-                        .resource_handle
-                        .groups
-                        .get_mut(&packet.entity)
-                        .unwrap()
-                        .texture_atlas
-                        .tex_coordinates(glyph.key);
-                    renderer
-                        .resource_handle
-                        .groups
-                        .get_mut(&packet.entity)
-                        .unwrap()
-                        .instances
-                        .checked_write(*offset, tex_coords);
-                }
-                renderer
-                    .resource_handle
-                    .groups
-                    .get_mut(&packet.entity)
-                    .unwrap()
-                    .texture_atlas
-                    .add_reference(glyph.key, *offset);
-            }
-            let (changed, grown) = renderer
-                .resource_handle
-                .groups
-                .get_mut(&packet.entity)
-                .unwrap()
-                .texture_atlas
-                .resolve(ginkgo);
-            for key in changed {
-                let (metrics, rasterization) = renderer
-                    .resource_handle
-                    .font
-                    .0
-                    .rasterize_indexed(key.glyph_index, packet.value.font_size);
-                let entry = AtlasEntry::new(rasterization, (metrics.width, metrics.height));
-                let updated = renderer
-                    .resource_handle
-                    .groups
-                    .get_mut(&packet.entity)
-                    .unwrap()
-                    .texture_atlas
-                    .write_entry(ginkgo, key, entry);
-                for change in updated.iter() {
-                    renderer
-                        .resource_handle
-                        .groups
-                        .get_mut(&packet.entity)
-                        .unwrap()
-                        .instances
-                        .checked_write(change.key, change.tex_coords);
-                }
-            }
-            if grown {
-                let new_bind_group = ginkgo.create_bind_group(&BindGroupDescriptor {
-                    label: Some("text-group-bind-group"),
-                    layout: &renderer.resource_handle.group_layout,
-                    entries: &[
-                        Ginkgo::texture_bind_group_entry(
-                            renderer
-                                .resource_handle
-                                .groups
-                                .get(&packet.entity)
-                                .unwrap()
-                                .texture_atlas
-                                .view(),
-                            0,
-                        ),
-                        Ginkgo::uniform_bind_group_entry(
-                            &renderer
-                                .resource_handle
-                                .groups
-                                .get(&packet.entity)
-                                .unwrap()
-                                .pos_and_layer
-                                .uniform,
-                            1,
-                        ),
-                    ],
-                });
-                renderer
-                    .resource_handle
-                    .groups
-                    .get_mut(&packet.entity)
-                    .unwrap()
-                    .bind_group = new_bind_group;
-                renderer
-                    .resource_handle
-                    .groups
-                    .get_mut(&packet.entity)
-                    .unwrap()
-                    .should_record = true;
-            }
-            for (key, referrer) in queued_tex_reads {
-                let tex_coords = renderer
-                    .resource_handle
-                    .groups
-                    .get_mut(&packet.entity)
-                    .unwrap()
-                    .texture_atlas
-                    .tex_coordinates(key);
-                renderer
-                    .resource_handle
-                    .groups
-                    .get_mut(&packet.entity)
-                    .unwrap()
-                    .instances
-                    .checked_write(referrer, tex_coords);
-            }
-        }
-        for (e, group) in renderer.resource_handle.groups.iter_mut() {
-            if group.instances.resolve_changes(ginkgo) {
-                let mut nodes = RenderNodes::new();
-                nodes.0.insert(
-                    0,
-                    RenderNode::new(
-                        group.pos_and_layer.uniform.data[2].into(),
-                        group.clip_context.clone(),
-                    ),
-                );
-                renderer.node_manager.set_nodes(e.index() as i32, nodes);
-            }
-        }
-    }
-
-    fn draw<'a>(
-        renderer: &'a Renderer<Self>,
-        group_key: Self::DirectiveGroupKey,
-        _draw_range: DrawRange,
-        clipping_section: Section<DeviceContext>,
-        render_pass: &mut RenderPass<'a>,
-    ) {
-        let group = renderer.resource_handle.groups.get(&group_key).unwrap();
-        let intersection = group
-            .clip_section
-            .0
-            .intersection(clipping_section)
-            .unwrap_or_default();
-        render_pass.set_scissor_rect(
-            intersection.left() as u32,
-            intersection.top() as u32,
-            intersection.area.width() as u32,
-            intersection.area.height() as u32,
-        );
-        render_pass.set_pipeline(&renderer.resource_handle.pipeline);
-        render_pass.set_bind_group(0, &group.bind_group, &[]);
-        render_pass.set_bind_group(1, &renderer.resource_handle.bind_group, &[]);
-        render_pass.set_vertex_buffer(0, renderer.resource_handle.vertex_buffer.slice(..));
-        render_pass.set_vertex_buffer(1, group.instances.buffer::<GpuSection>().slice(..));
-        render_pass.set_vertex_buffer(2, group.instances.buffer::<Color>().slice(..));
-        render_pass.set_vertex_buffer(3, group.instances.buffer::<TextureCoordinates>().slice(..));
-        render_pass.draw(0..VERTICES.len() as u32, 0..group.instances.num_instances());
     }
 }

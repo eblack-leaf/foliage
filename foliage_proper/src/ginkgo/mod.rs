@@ -4,14 +4,15 @@ use wgpu::util::DeviceExt;
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
     BlendState, Buffer, BufferAddress, BufferUsages, ColorTargetState, CompareFunction,
-    CompositeAlphaMode, DepthStencilState, DeviceDescriptor, Extent3d, Features, FragmentState,
-    ImageCopyTexture, ImageDataLayout, InstanceDescriptor, Limits, LoadOp, MultisampleState,
-    Operations, Origin3d, PipelineLayout, PipelineLayoutDescriptor, PowerPreference, PresentMode,
-    PrimitiveState, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPipeline,
-    RenderPipelineDescriptor, RequestAdapterOptions, Sampler, SamplerDescriptor, ShaderModule,
-    ShaderModuleDescriptor, StoreOp, SurfaceConfiguration, Texture, TextureDescriptor,
-    TextureDimension, TextureFormat, TextureUsages, TextureView, TextureViewDescriptor,
-    VertexAttribute, VertexBufferLayout, VertexStepMode,
+    CompositeAlphaMode, DepthStencilState, DeviceDescriptor, Extent3d, Features, FilterMode,
+    FragmentState, ImageCopyTexture, ImageDataLayout, InstanceDescriptor, Limits, LoadOp,
+    MultisampleState, Operations, Origin3d, PipelineLayout, PipelineLayoutDescriptor,
+    PowerPreference, PresentMode, PrimitiveState, RenderPassColorAttachment,
+    RenderPassDepthStencilAttachment, RenderPipeline, RenderPipelineDescriptor,
+    RequestAdapterOptions, Sampler, SamplerDescriptor, ShaderModule, ShaderModuleDescriptor,
+    StoreOp, SurfaceConfiguration, Texture, TextureDescriptor, TextureDimension, TextureFormat,
+    TextureUsages, TextureView, TextureViewDescriptor, VertexAttribute, VertexBufferLayout,
+    VertexStepMode,
 };
 
 use binding::BindingBuilder;
@@ -23,7 +24,7 @@ use crate::color::Color;
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
 use crate::coordinate::section::Section;
-use crate::coordinate::{CoordinateUnit, Coordinates, DeviceContext};
+use crate::coordinate::{CoordinateUnit, Coordinates, Physical};
 use crate::willow::Willow;
 
 pub mod binding;
@@ -51,8 +52,8 @@ impl Ginkgo {
                 texture,
                 mip_level: 0,
                 origin: Origin3d {
-                    x: position.horizontal() as u32,
-                    y: position.vertical() as u32,
+                    x: position.a() as u32,
+                    y: position.b() as u32,
                     z: 0,
                 },
                 aspect: Default::default(),
@@ -61,21 +62,21 @@ impl Ginkgo {
             ImageDataLayout {
                 offset: 0,
                 bytes_per_row: Some(
-                    (extent.horizontal() * std::mem::size_of::<TexelData>() as CoordinateUnit)
-                        as u32,
+                    (extent.a() * std::mem::size_of::<TexelData>() as CoordinateUnit) as u32,
                 ),
                 rows_per_image: Some(
-                    (extent.vertical() * std::mem::size_of::<TexelData>() as CoordinateUnit) as u32,
+                    (extent.b() * std::mem::size_of::<TexelData>() as CoordinateUnit) as u32,
                 ),
             },
             Extent3d {
-                width: extent.horizontal() as u32,
-                height: extent.vertical() as u32,
+                width: extent.a() as u32,
+                height: extent.b() as u32,
                 depth_or_array_layers: 1,
             },
         );
     }
     #[cfg(not(target_family = "wasm"))]
+    #[allow(unused)]
     pub fn png_to_cov<P: AsRef<std::path::Path>>(png: P, cov: P) {
         let data = Ginkgo::png_to_r8unorm_d2(png);
         let content = rmp_serde::to_vec(data.as_slice()).unwrap();
@@ -102,10 +103,17 @@ impl Ginkgo {
             attributes: attrs,
         }
     }
-    pub fn create_sampler(&self) -> Sampler {
-        self.context()
-            .device
-            .create_sampler(&SamplerDescriptor::default())
+    pub fn create_sampler(&self, filter: bool) -> Sampler {
+        let descriptor = if filter {
+            SamplerDescriptor {
+                mag_filter: FilterMode::Linear,
+                min_filter: FilterMode::Linear,
+                ..SamplerDescriptor::default()
+            }
+        } else {
+            SamplerDescriptor::default()
+        };
+        self.context().device.create_sampler(&descriptor)
     }
     pub fn create_texture(
         &self,
@@ -119,8 +127,8 @@ impl Ginkgo {
             &TextureDescriptor {
                 label: Some("ginkgo-texture"),
                 size: Extent3d {
-                    width: coordinates.horizontal() as u32,
-                    height: coordinates.vertical() as u32,
+                    width: coordinates.a() as u32,
+                    height: coordinates.b() as u32,
                     depth_or_array_layers: 1,
                 },
                 mip_level_count: mips,
@@ -249,7 +257,7 @@ impl Ginkgo {
         &'a self,
         surface_view: &'a TextureView,
         clear_color: Color,
-    ) -> [Option<RenderPassColorAttachment>; 1] {
+    ) -> [Option<RenderPassColorAttachment<'a>>; 1] {
         let (view, resolve_target) = match self.configuration().msaa.view.as_ref() {
             None => (surface_view, None),
             Some(v) => (v, Some(surface_view)),
@@ -293,7 +301,7 @@ impl Ginkgo {
     pub(crate) fn viewport(&self) -> &Viewport {
         self.viewport.as_ref().unwrap()
     }
-    pub(crate) fn position_viewport(&mut self, position: Position<DeviceContext>) {
+    pub(crate) fn position_viewport(&mut self, position: Position<Physical>) {
         self.viewport
             .as_mut()
             .unwrap()
@@ -325,12 +333,16 @@ impl Ginkgo {
     pub(crate) fn acquired(&self) -> bool {
         self.context.is_some()
     }
+    #[allow(unused)]
     pub(crate) fn configured(&self) -> bool {
         self.configuration.is_some()
     }
     pub(crate) async fn acquire_context(&mut self, willow: &Willow) {
         let instance = wgpu::Instance::new(InstanceDescriptor {
-            backends: wgpu::Backends::VULKAN | wgpu::Backends::METAL | wgpu::Backends::DX12 | wgpu::Backends::GL,
+            backends: wgpu::Backends::VULKAN
+                | wgpu::Backends::METAL
+                | wgpu::Backends::DX12
+                | wgpu::Backends::GL,
             flags: wgpu::InstanceFlags::default(),
             dx12_shader_compiler: wgpu::Dx12Compiler::Fxc,
             gles_minor_version: wgpu::Gles3MinorVersion::Automatic,
@@ -381,7 +393,7 @@ impl Ginkgo {
     }
     pub(crate) fn configure_view(&mut self, willow: &Willow) {
         let scale_factor = ScaleFactor::new(willow.window().scale_factor() as f32);
-        let area = willow.actual_area().max(Area::device((1, 1)));
+        let area = willow.actual_area().max(Area::physical((1, 1)));
         let msaa = Msaa::new(self.context(), 1, area);
         let depth = Depth::new(self.context(), &msaa, area);
         let config = SurfaceConfiguration {
@@ -412,19 +424,19 @@ impl Ginkgo {
     }
 }
 
-pub struct GraphicContext {
+pub(crate) struct GraphicContext {
     pub(crate) surface: wgpu::Surface<'static>,
     pub(crate) instance: wgpu::Instance,
     pub(crate) adapter: wgpu::Adapter,
-    pub device: wgpu::Device,
-    pub queue: wgpu::Queue,
-    pub surface_format: TextureFormat,
+    pub(crate) device: wgpu::Device,
+    pub(crate) queue: wgpu::Queue,
+    pub(crate) surface_format: TextureFormat,
 }
 
-pub struct ViewConfiguration {
-    pub msaa: Msaa,
+pub(crate) struct ViewConfiguration {
+    pub(crate) msaa: Msaa,
     pub(crate) depth: Depth,
-    pub scale_factor: ScaleFactor,
+    pub(crate) scale_factor: ScaleFactor,
     pub(crate) config: SurfaceConfiguration,
 }
 #[derive(Copy, Clone, PartialEq, Resource)]
@@ -440,23 +452,23 @@ impl ScaleFactor {
     pub fn value(&self) -> f32 {
         self.0
     }
-    pub fn new(f: f32) -> Self {
+    pub(crate) fn new(f: f32) -> Self {
         Self(f)
     }
 }
 
-pub struct Uniform<Data: Pod + Zeroable> {
-    pub data: Data,
-    pub buffer: wgpu::Buffer,
+pub(crate) struct Uniform<Data: Pod + Zeroable> {
+    pub(crate) data: Data,
+    pub(crate) buffer: wgpu::Buffer,
 }
 
 impl<Data: Pod + Zeroable + PartialEq> Uniform<Data> {
-    pub fn write(&mut self, context: &GraphicContext, data: Data) {
+    pub(crate) fn write(&mut self, context: &GraphicContext, data: Data) {
         context
             .queue
             .write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[data]));
     }
-    pub fn new(context: &GraphicContext, data: Data) -> Self {
+    pub(crate) fn new(context: &GraphicContext, data: Data) -> Self {
         Self {
             data,
             buffer: context
@@ -470,20 +482,20 @@ impl<Data: Pod + Zeroable + PartialEq> Uniform<Data> {
     }
 }
 
-pub struct VectorUniform<Repr: Pod + Zeroable + PartialEq> {
-    pub uniform: Uniform<[Repr; 4]>,
+pub(crate) struct VectorUniform<Repr: Pod + Zeroable + PartialEq> {
+    pub(crate) uniform: Uniform<[Repr; 4]>,
 }
 
 impl<Repr: Pod + Zeroable + PartialEq> VectorUniform<Repr> {
-    pub fn new(context: &GraphicContext, d: [Repr; 4]) -> Self {
+    pub(crate) fn new(context: &GraphicContext, d: [Repr; 4]) -> Self {
         Self {
             uniform: Uniform::new(context, d),
         }
     }
-    pub fn write(&mut self, context: &GraphicContext) {
+    pub(crate) fn write(&mut self, context: &GraphicContext) {
         self.uniform.write(context, self.uniform.data);
     }
-    pub fn set(&mut self, i: usize, r: Repr) {
+    pub(crate) fn set(&mut self, i: usize, r: Repr) {
         self.uniform.data[i] = r;
     }
 }

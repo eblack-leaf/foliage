@@ -1,106 +1,25 @@
-use std::ops::Mul;
+use crate::anim::interpolation::Interpolations;
+use crate::{Animate, Attachment, Component, Foliage};
+use bevy_color::Alpha;
 
-use bevy_ecs::prelude::Component;
-use serde::{Deserialize, Serialize};
-
-use crate::anim::{Animate, Interpolations};
-
-#[repr(C)]
-#[derive(
-    bytemuck::Pod,
-    bytemuck::Zeroable,
-    Copy,
-    Clone,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    Debug,
-    Component,
-)]
+#[derive(Component, Copy, Clone, PartialEq)]
 pub struct Color {
-    rgba: [f32; 4],
+    pub value: bevy_color::Srgba,
 }
-
 impl Default for Color {
     fn default() -> Self {
-        Self::BLACK
-    }
-}
-
-impl Color {
-    pub const WHITE: Color = Color::rgb_unchecked(0.90, 0.90, 0.90);
-    pub const BLACK: Color = Color::rgb_unchecked(0.10, 0.10, 0.10);
-    pub fn rgba(r: f32, g: f32, b: f32, a: f32) -> Self {
         Self {
-            rgba: [
-                r.clamp(0.0, 1.0),
-                g.clamp(0.0, 1.0),
-                b.clamp(0.0, 1.0),
-                a.clamp(0.0, 1.0),
-            ],
-        }
-    }
-    pub const fn rgba_unchecked(r: f32, g: f32, b: f32, a: f32) -> Self {
-        Self { rgba: [r, g, b, a] }
-    }
-    pub fn rgb(r: f32, g: f32, b: f32) -> Self {
-        Self {
-            rgba: [r.clamp(0.0, 1.0), g.clamp(0.0, 1.0), b.clamp(0.0, 1.0), 1.0],
-        }
-    }
-    pub const fn rgb_unchecked(r: f32, g: f32, b: f32) -> Self {
-        Self {
-            rgba: [r, g, b, 1.0],
-        }
-    }
-    pub fn with_alpha(mut self, alpha: f32) -> Self {
-        self.rgba[3] = alpha;
-        self
-    }
-    pub fn set_red(&mut self, r: f32) {
-        self.rgba[0] = r.clamp(0.0, 1.0);
-    }
-    pub fn red(&self) -> f32 {
-        self.rgba[0]
-    }
-    pub fn set_green(&mut self, g: f32) {
-        self.rgba[1] = g.clamp(0.0, 1.0);
-    }
-    pub fn green(&self) -> f32 {
-        self.rgba[1]
-    }
-    pub fn set_blue(&mut self, b: f32) {
-        self.rgba[2] = b.clamp(0.0, 1.0);
-    }
-    pub fn blue(&self) -> f32 {
-        self.rgba[2]
-    }
-    pub fn set_alpha(&mut self, a: f32) {
-        self.rgba[3] = a.clamp(0.0, 1.0);
-    }
-    pub fn alpha(&self) -> f32 {
-        self.rgba[3]
-    }
-}
-
-impl From<Color> for wgpu::Color {
-    fn from(color: Color) -> Self {
-        Self {
-            r: color.red() as f64,
-            g: color.green() as f64,
-            b: color.blue() as f64,
-            a: color.alpha() as f64,
+            value: bevy_color::Srgba::new(1.0, 1.0, 1.0, 1.0),
         }
     }
 }
-
 impl Animate for Color {
     fn interpolations(start: &Self, end: &Self) -> Interpolations {
         Interpolations::new()
-            .with(start.red(), end.red())
-            .with(start.green(), end.green())
-            .with(start.blue(), end.blue())
-            .with(start.alpha(), end.alpha())
+            .with(start.r(), end.r())
+            .with(start.g(), end.g())
+            .with(start.b(), end.b())
+            .with(start.a(), start.a())
     }
 
     fn apply(&mut self, interpolations: &mut Interpolations) {
@@ -118,48 +37,165 @@ impl Animate for Color {
         }
     }
 }
-impl Mul<f32> for Color {
-    type Output = Self;
-
-    fn mul(self, rhs: f32) -> Self::Output {
-        Self::rgb(self.red() * rhs, self.green() * rhs, self.blue() * rhs).with_alpha(self.alpha())
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct CReprColor {
+    pub value: [f32; 4],
+}
+impl From<Color> for CReprColor {
+    fn from(color: Color) -> Self {
+        Self {
+            value: [color.r(), color.g(), color.b(), color.a()],
+        }
     }
 }
-
-pub trait Monochromatic {
-    fn minus_one() -> Color {
-        Self::BASE * 0.7
-    }
-    fn minus_two() -> Color {
-        Self::BASE * 0.5
-    }
-    fn minus_three() -> Color {
-        Self::BASE * 0.3
-    }
-    fn base() -> Color {
-        Self::BASE
-    }
-    const BASE: Color;
-    fn plus_one() -> Color {
-        Self::BASE * 1.1
-    }
-    fn plus_two() -> Color {
-        Self::BASE * 1.2
-    }
-    fn plus_three() -> Color {
-        Self::BASE * 1.3
+impl Attachment for Color {
+    fn attach(foliage: &mut Foliage) {
+        foliage.enable_animation::<Self>();
     }
 }
-
-pub struct Grey;
-impl Monochromatic for Grey {
-    const BASE: Color = Color::rgb_unchecked(0.5, 0.5, 0.5);
+impl Default for CReprColor {
+    fn default() -> Self {
+        Color::default().into()
+    }
 }
-pub struct Orange;
-impl Monochromatic for Orange {
-    const BASE: Color = Color::rgb_unchecked(0.9, 0.24, 0.0);
+impl From<Color> for wgpu::Color {
+    fn from(color: Color) -> Self {
+        wgpu::Color {
+            r: color.value.red as f64,
+            g: color.value.green as f64,
+            b: color.value.blue as f64,
+            a: color.value.alpha as f64,
+        }
+    }
 }
-pub struct Blue;
-impl Monochromatic for Blue {
-    const BASE: Color = Color::rgb_unchecked(0.27, 0.439, 0.098);
+#[derive(Copy, Clone, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
+pub enum Luminance {
+    Fifty,
+    OneHundred,
+    TwoHundred,
+    ThreeHundred,
+    FourHundred,
+    FiveHundred,
+    SixHundred,
+    SevenHundred,
+    EightHundred,
+    NineHundred,
+    NineHundredFifty,
+}
+impl From<i32> for Luminance {
+    fn from(value: i32) -> Self {
+        if value >= 950 {
+            Self::NineHundredFifty
+        } else if value >= 900 {
+            Self::NineHundred
+        } else if value >= 800 {
+            Self::EightHundred
+        } else if value >= 700 {
+            Self::SevenHundred
+        } else if value >= 600 {
+            Self::SixHundred
+        } else if value >= 500 {
+            Self::FiveHundred
+        } else if value >= 400 {
+            Self::FourHundred
+        } else if value >= 300 {
+            Self::ThreeHundred
+        } else if value >= 200 {
+            Self::TwoHundred
+        } else if value >= 100 {
+            Self::OneHundred
+        } else {
+            Self::Fifty
+        }
+    }
+}
+impl Color {
+    pub fn new(red: f32, green: f32, blue: f32, alpha: f32) -> Self {
+        Self {
+            value: bevy_color::Srgba::new(red, green, blue, alpha),
+        }
+    }
+    pub fn r(&self) -> f32 {
+        self.value.red
+    }
+    pub fn g(&self) -> f32 {
+        self.value.green
+    }
+    pub fn b(&self) -> f32 {
+        self.value.blue
+    }
+    pub fn a(&self) -> f32 {
+        self.value.alpha
+    }
+    pub fn with_opacity(mut self, value: f32) -> Self {
+        self.value = self.value.with_alpha(value * self.a());
+        self
+    }
+    pub fn set_red(&mut self, red: f32) {
+        self.value.red = red;
+    }
+    pub fn set_green(&mut self, green: f32) {
+        self.value.green = green;
+    }
+    pub fn set_blue(&mut self, blue: f32) {
+        self.value.blue = blue;
+    }
+    pub fn set_alpha(&mut self, alpha: f32) {
+        self.value.alpha = alpha;
+    }
+    pub fn c_repr(&self) -> CReprColor {
+        CReprColor::from(*self)
+    }
+    pub fn gray<L: Into<Luminance>>(l: L) -> Self {
+        Self {
+            value: match l.into() {
+                Luminance::Fifty => bevy_color::palettes::tailwind::GRAY_50,
+                Luminance::OneHundred => bevy_color::palettes::tailwind::GRAY_100,
+                Luminance::TwoHundred => bevy_color::palettes::tailwind::GRAY_200,
+                Luminance::ThreeHundred => bevy_color::palettes::tailwind::GRAY_300,
+                Luminance::FourHundred => bevy_color::palettes::tailwind::GRAY_400,
+                Luminance::FiveHundred => bevy_color::palettes::tailwind::GRAY_500,
+                Luminance::SixHundred => bevy_color::palettes::tailwind::GRAY_600,
+                Luminance::SevenHundred => bevy_color::palettes::tailwind::GRAY_700,
+                Luminance::EightHundred => bevy_color::palettes::tailwind::GRAY_800,
+                Luminance::NineHundred => bevy_color::palettes::tailwind::GRAY_900,
+                Luminance::NineHundredFifty => bevy_color::palettes::tailwind::GRAY_950,
+            },
+        }
+    }
+    pub fn orange<L: Into<Luminance>>(l: L) -> Self {
+        Self {
+            value: match l.into() {
+                Luminance::Fifty => bevy_color::palettes::tailwind::ORANGE_50,
+                Luminance::OneHundred => bevy_color::palettes::tailwind::ORANGE_100,
+                Luminance::TwoHundred => bevy_color::palettes::tailwind::ORANGE_200,
+                Luminance::ThreeHundred => bevy_color::palettes::tailwind::ORANGE_300,
+                Luminance::FourHundred => bevy_color::palettes::tailwind::ORANGE_400,
+                Luminance::FiveHundred => bevy_color::palettes::tailwind::ORANGE_500,
+                Luminance::SixHundred => bevy_color::palettes::tailwind::ORANGE_600,
+                Luminance::SevenHundred => bevy_color::palettes::tailwind::ORANGE_700,
+                Luminance::EightHundred => bevy_color::palettes::tailwind::ORANGE_800,
+                Luminance::NineHundred => bevy_color::palettes::tailwind::ORANGE_900,
+                Luminance::NineHundredFifty => bevy_color::palettes::tailwind::ORANGE_950,
+            },
+        }
+    }
+    pub fn green<L: Into<Luminance>>(l: L) -> Self {
+        Self {
+            value: match l.into() {
+                Luminance::Fifty => bevy_color::palettes::tailwind::GREEN_50,
+                Luminance::OneHundred => bevy_color::palettes::tailwind::GREEN_100,
+                Luminance::TwoHundred => bevy_color::palettes::tailwind::GREEN_200,
+                Luminance::ThreeHundred => bevy_color::palettes::tailwind::GREEN_300,
+                Luminance::FourHundred => bevy_color::palettes::tailwind::GREEN_400,
+                Luminance::FiveHundred => bevy_color::palettes::tailwind::GREEN_500,
+                Luminance::SixHundred => bevy_color::palettes::tailwind::GREEN_600,
+                Luminance::SevenHundred => bevy_color::palettes::tailwind::GREEN_700,
+                Luminance::EightHundred => bevy_color::palettes::tailwind::GREEN_800,
+                Luminance::NineHundred => bevy_color::palettes::tailwind::GREEN_900,
+                Luminance::NineHundredFifty => bevy_color::palettes::tailwind::GREEN_950,
+            },
+        }
+    }
 }

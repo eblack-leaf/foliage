@@ -6,15 +6,14 @@ public_url = "/foliage"
 filehash = true
 
 [serve]
-address = "127.0.0.1"
+addresses = ["127.0.0.1"]
 port = 8080
 open = false
 no_autoreload = true
 
 [clean]
-dist = "dist"
 cargo = false
 
 [tools]
-wasm_bindgen = "0.2.92"
+wasm_bindgen = "0.2.95"
 wasm_opt = "version_110"

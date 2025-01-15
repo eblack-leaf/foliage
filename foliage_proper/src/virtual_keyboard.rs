@@ -20,13 +20,14 @@ pub enum VirtualKeyboardType {
 }
 
 impl VirtualKeyboardAdapter {
+    #[allow(unused)]
     pub(crate) fn new(android_app: AndroidConnection) -> Self {
         Self::create_hook();
         Self {
             interface: android_app,
         }
     }
-
+    #[allow(unused)]
     fn create_hook() {
         #[cfg(target_family = "wasm")]
         {
@@ -84,6 +85,7 @@ impl VirtualKeyboardAdapter {
             web_sys::console::info_1(&JsValue::from_str("opening vkey"));
         }
     }
+    #[allow(unused)]
     pub fn close(&self) {
         #[cfg(target_arch = "wasm32")]
         {

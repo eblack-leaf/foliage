@@ -2,14 +2,15 @@ use wgpu::{
     BindGroupLayoutEntry, BindingType, ShaderStages, TextureSampleType, TextureViewDimension,
 };
 
-pub struct BindingBuilder {
+pub(crate) struct BindingBuilder {
     binding: u32,
     stage: Option<ShaderStages>,
+    #[allow(unused)]
     binding_type: Option<BindingType>,
 }
 
 impl BindingBuilder {
-    pub fn new(binding: u32) -> Self {
+    pub(crate) fn new(binding: u32) -> Self {
         Self {
             binding,
             stage: None,
@@ -17,11 +18,11 @@ impl BindingBuilder {
         }
     }
 
-    pub fn at_stages(mut self, stage: ShaderStages) -> Self {
+    pub(crate) fn at_stages(mut self, stage: ShaderStages) -> Self {
         self.stage.replace(stage);
         self
     }
-    pub fn texture_entry(
+    pub(crate) fn texture_entry(
         mut self,
         dim: TextureViewDimension,
         sample_type: TextureSampleType,
@@ -37,7 +38,7 @@ impl BindingBuilder {
             count: None,
         }
     }
-    pub fn uniform_entry(mut self) -> BindGroupLayoutEntry {
+    pub(crate) fn uniform_entry(mut self) -> BindGroupLayoutEntry {
         BindGroupLayoutEntry {
             binding: self.binding,
             visibility: self.shader_stages(),
@@ -49,11 +50,15 @@ impl BindingBuilder {
             count: None,
         }
     }
-    pub fn sampler_entry(mut self) -> BindGroupLayoutEntry {
+    pub(crate) fn sampler_entry(mut self, filter: bool) -> BindGroupLayoutEntry {
         BindGroupLayoutEntry {
             binding: self.binding,
             visibility: self.shader_stages(),
-            ty: BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
+            ty: BindingType::Sampler(if filter {
+                wgpu::SamplerBindingType::Filtering
+            } else {
+                wgpu::SamplerBindingType::NonFiltering
+            }),
             count: None,
         }
     }
@@ -61,7 +66,8 @@ impl BindingBuilder {
     fn shader_stages(&mut self) -> ShaderStages {
         self.stage.expect("need shader-stages")
     }
-    pub fn with_entry_type(mut self, binding_type: BindingType) -> BindGroupLayoutEntry {
+    #[allow(unused)]
+    pub(crate) fn with_entry_type(mut self, binding_type: BindingType) -> BindGroupLayoutEntry {
         BindGroupLayoutEntry {
             binding: self.binding,
             visibility: self.shader_stages(),

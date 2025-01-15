@@ -13,6 +13,7 @@ struct Vertex {
     @location(2) layer: f32,
     @location(3) color: vec4<f32>,
     @location(4) mips: f32,
+    @location(5) opacity: f32,
 };
 struct Fragment {
     @builtin(position) position: vec4<f32>,
@@ -24,7 +25,7 @@ struct Fragment {
 fn vertex_entry(vertex: Vertex) -> Fragment {
     let position = vec4<f32>(vertex.section.xy + vertex.section.zw * vertex.vertex_pos, vertex.layer, 1.0);
     return Fragment(
-        viewport * position, vertex.color, vertex.vertex_pos, vertex.mips
+        viewport * position, vertex.color * vec4f(1.0, 1.0, 1.0, vertex.opacity), vertex.vertex_pos, vertex.mips
     );
 }
 @fragment

@@ -1,76 +1,90 @@
+use std::any::TypeId;
 use std::fmt::Display;
 use std::ops::{Add, AddAssign, Mul, Sub};
 
-use bevy_ecs::component::Component;
+use bevy_ecs::component::{Component, ComponentId};
+use bevy_ecs::entity::Entity;
+use bevy_ecs::world::DeferredWorld;
 use bytemuck::{Pod, Zeroable};
 
-use crate::coordinate::area::{Area, GpuArea};
-use crate::coordinate::position::{GpuPosition, Position};
+use crate::coordinate::area::{Area, CReprArea};
+use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::{
-    CoordinateContext, CoordinateUnit, Coordinates, DeviceContext, LogicalContext, NumericalContext,
+    CoordinateContext, CoordinateUnit, Coordinates, Logical, Numerical, Physical,
 };
+use crate::{Branch, Location, Stack, StackDeps, Update, Write};
 
-#[derive(Copy, Clone, Default, Component, PartialEq, Debug)]
+#[derive(Copy, Clone, Default, Component, Debug, PartialEq, PartialOrd)]
+#[component(on_insert = Section::<Logical>::on_insert)]
 pub struct Section<Context: CoordinateContext> {
     pub position: Position<Context>,
     pub area: Area<Context>,
 }
 impl<Context: CoordinateContext> Display for Section<Context> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{}|{}", self.position, self.area))
+        f.write_fmt(format_args!(
+            "[{} + {} | {} + {}]",
+            self.left(),
+            self.width(),
+            self.top(),
+            self.height()
+        ))
     }
 }
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default, Component, PartialEq, Debug)]
-pub struct GpuSection {
-    pub pos: GpuPosition,
-    pub area: GpuArea,
+pub struct CReprSection {
+    pub pos: CReprPosition,
+    pub area: CReprArea,
 }
-impl GpuSection {
-    pub fn new(p: GpuPosition, a: GpuArea) -> Self {
+impl CReprSection {
+    pub fn new(p: CReprPosition, a: CReprArea) -> Self {
         Self { pos: p, area: a }
     }
     pub fn rounded(self) -> Self {
         Self::new(
-            GpuPosition(self.pos.0.rounded()),
-            GpuArea(self.area.0.rounded()),
+            CReprPosition(self.pos.0.rounded()),
+            CReprArea(self.area.0.rounded()),
         )
     }
 }
-impl Section<NumericalContext> {
-    pub fn device<P: Into<Position<DeviceContext>>, A: Into<Area<DeviceContext>>>(
+impl Section<Numerical> {
+    pub fn physical<P: Into<Position<Physical>>, A: Into<Area<Physical>>>(
         p: P,
         a: A,
-    ) -> Section<DeviceContext> {
+    ) -> Section<Physical> {
         Section::new(p, a)
     }
-    pub fn logical<P: Into<Position<LogicalContext>>, A: Into<Area<LogicalContext>>>(
+    pub fn logical<P: Into<Position<Logical>>, A: Into<Area<Logical>>>(
         p: P,
         a: A,
-    ) -> Section<LogicalContext> {
+    ) -> Section<Logical> {
         Section::new(p, a)
     }
-    pub fn numerical<P: Into<Position<NumericalContext>>, A: Into<Area<NumericalContext>>>(
+    pub fn numerical<P: Into<Position<Numerical>>, A: Into<Area<Numerical>>>(
         p: P,
         a: A,
-    ) -> Section<NumericalContext> {
+    ) -> Section<Numerical> {
         Section::new(p, a)
     }
 }
-impl Section<DeviceContext> {
-    pub fn to_gpu(self) -> GpuSection {
-        GpuSection::new(self.position.to_gpu(), self.area.to_gpu())
+impl Section<Physical> {
+    pub fn c_repr(self) -> CReprSection {
+        CReprSection::new(self.position.c_repr(), self.area.c_repr())
     }
-    pub fn to_logical(self, scale_factor: f32) -> Section<LogicalContext> {
+    pub fn to_logical(self, scale_factor: f32) -> Section<Logical> {
         Section::new(
             self.position.to_logical(scale_factor),
             self.area.to_logical(scale_factor),
         )
     }
 }
-impl Section<LogicalContext> {
-    pub fn to_device(self, factor: f32) -> Section<DeviceContext> {
-        Section::new(self.position.to_device(factor), self.area.to_device(factor))
+impl Section<Logical> {
+    pub fn to_physical(self, factor: f32) -> Section<Physical> {
+        Section::new(
+            self.position.to_physical(factor),
+            self.area.to_physical(factor),
+        )
     }
 }
 impl<Context: CoordinateContext> Section<Context> {
@@ -81,16 +95,16 @@ impl<Context: CoordinateContext> Section<Context> {
         }
     }
     pub fn left(&self) -> CoordinateUnit {
-        self.position.x()
+        self.position.left()
     }
-    pub fn set_x(&mut self, x: CoordinateUnit) {
-        self.position.set_x(x);
+    pub fn set_left(&mut self, x: CoordinateUnit) {
+        self.position.set_left(x);
     }
     pub fn top(&self) -> CoordinateUnit {
-        self.position.y()
+        self.position.top()
     }
-    pub fn set_y(&mut self, y: CoordinateUnit) {
-        self.position.set_y(y);
+    pub fn set_top(&mut self, y: CoordinateUnit) {
+        self.position.set_top(y);
     }
     pub fn width(&self) -> CoordinateUnit {
         self.area.width()
@@ -100,6 +114,10 @@ impl<Context: CoordinateContext> Section<Context> {
     }
     pub fn height(&self) -> CoordinateUnit {
         self.area.height()
+    }
+    pub(crate) fn with_height(mut self, h: f32) -> Self {
+        self.set_height(h);
+        self
     }
     pub fn set_height(&mut self, h: CoordinateUnit) {
         self.area.set_height(h);
@@ -137,10 +155,10 @@ impl<Context: CoordinateContext> Section<Context> {
         self.intersection(o).is_some()
     }
     pub fn contains(&self, p: Position<Context>) -> bool {
-        p.x() <= self.right()
-            && p.x() >= self.left()
-            && p.y() <= self.bottom()
-            && p.y() >= self.top()
+        p.left() <= self.right()
+            && p.left() >= self.left()
+            && p.top() <= self.bottom()
+            && p.top() >= self.top()
     }
     pub fn normalized<C: Into<Coordinates>>(&self, c: C) -> Self {
         let c = c.into();
@@ -161,7 +179,7 @@ impl<Context: CoordinateContext> Section<Context> {
             self.area.max(o.area).coordinates,
         )
     }
-    pub fn to_numerical(self) -> Section<NumericalContext> {
+    pub fn to_numerical(self) -> Section<Numerical> {
         Section::new(self.position.to_numerical(), self.area.to_numerical())
     }
     pub fn rounded(self) -> Self {
@@ -173,13 +191,37 @@ impl<Context: CoordinateContext> Section<Context> {
     pub fn abs(self) -> Self {
         Self::new(self.position.abs(), self.area.abs())
     }
+    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+        if TypeId::of::<Self>() != TypeId::of::<Section<Logical>>() {
+            return;
+        }
+        world.trigger_targets(Write::<Self>::new(), this);
+        let mut deps = world.get::<Branch>(this).unwrap().ids.clone();
+        for d in deps.clone().iter() {
+            if let Some(stack) = world.get::<Stack>(*d) {
+                if stack.id.is_some() {
+                    deps.remove(d);
+                }
+            }
+        }
+        if let Some(d) = world.get::<StackDeps>(this) {
+            deps.extend(d.ids.clone());
+        }
+        if deps.is_empty() {
+            return;
+        }
+        world.commands().trigger_targets(
+            Update::<Location>::new(),
+            deps.iter().copied().collect::<Vec<_>>(),
+        );
+    }
 }
-impl Section<NumericalContext> {
-    pub fn as_logical(self) -> Section<LogicalContext> {
+impl Section<Numerical> {
+    pub fn as_logical(self) -> Section<Logical> {
         Section::new(self.position.as_logical(), self.area.as_logical())
     }
-    pub fn as_device(self) -> Section<DeviceContext> {
-        Section::new(self.position.as_device(), self.area.as_device())
+    pub fn as_physical(self) -> Section<Physical> {
+        Section::new(self.position.as_physical(), self.area.as_physical())
     }
 }
 impl<Context: CoordinateContext, C: Into<Coordinates>, D: Into<Coordinates>> From<(C, D)>

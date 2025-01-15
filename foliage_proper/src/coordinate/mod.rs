@@ -1,21 +1,10 @@
+use bytemuck::{Pod, Zeroable};
+use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::ops::{Add, AddAssign, Div, Mul, Sub, SubAssign};
 
-use bevy_ecs::component::Component;
-use bevy_ecs::prelude::{IntoSystemConfigs, Or};
-use bevy_ecs::query::Changed;
-use bevy_ecs::system::{Query, Res};
-use bytemuck::{Pod, Zeroable};
-use serde::{Deserialize, Serialize};
-
-use crate::coordinate::section::{GpuSection, Section};
-use crate::elm::{Elm, InternalStage};
-use crate::ginkgo::ScaleFactor;
-use crate::Root;
-
 pub mod area;
 pub mod elevation;
-pub mod placement;
 pub mod points;
 pub mod position;
 pub mod section;
@@ -27,19 +16,19 @@ where
 }
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug, Serialize, Deserialize)]
-pub struct DeviceContext;
+pub struct Physical;
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug, Serialize, Deserialize)]
-pub struct LogicalContext;
+pub struct Logical;
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug, Serialize, Deserialize)]
-pub struct NumericalContext;
+pub struct Numerical;
 
-impl CoordinateContext for DeviceContext {}
+impl CoordinateContext for Physical {}
 
-impl CoordinateContext for LogicalContext {}
+impl CoordinateContext for Logical {}
 
-impl CoordinateContext for NumericalContext {}
+impl CoordinateContext for Numerical {}
 
 pub type CoordinateUnit = f32;
 
@@ -48,25 +37,22 @@ pub type CoordinateUnit = f32;
 pub struct Coordinates(pub [CoordinateUnit; 2]);
 impl Display for Coordinates {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{} {}", self.horizontal(), self.vertical()))
+        f.write_fmt(format_args!("[{} {}]", self.a(), self.b()))
     }
 }
 impl Coordinates {
     pub const fn new(a: CoordinateUnit, b: CoordinateUnit) -> Self {
         Self([a, b])
     }
-    pub const fn horizontal(&self) -> CoordinateUnit {
+    pub const fn a(&self) -> CoordinateUnit {
         self.0[0]
     }
-    pub const fn vertical(&self) -> CoordinateUnit {
+    pub const fn b(&self) -> CoordinateUnit {
         self.0[1]
     }
     pub fn normalized<C: Into<Coordinates>>(&self, c: C) -> Self {
         let c = c.into();
-        Self::new(
-            self.horizontal() / c.horizontal(),
-            self.vertical() / c.vertical(),
-        )
+        Self::new(self.a() / c.a(), self.b() / c.b())
     }
     pub fn set_horizontal(&mut self, h: f32) {
         self.0[0] = h;
@@ -75,10 +61,7 @@ impl Coordinates {
         self.0[1] = v;
     }
     pub fn clamped(&self, min: CoordinateUnit, max: CoordinateUnit) -> Self {
-        Self::new(
-            self.horizontal().clamp(min, max),
-            self.vertical().clamp(min, max),
-        )
+        Self::new(self.a().clamp(min, max), self.b().clamp(min, max))
     }
     pub fn rounded(self) -> Self {
         Self([self.0[0].round(), self.0[1].round()])
@@ -123,36 +106,11 @@ permutation_coordinate_impl!(f32, usize);
 permutation_coordinate_impl!(i32, usize);
 permutation_coordinate_impl!(u32, usize);
 permutation_coordinate_impl!(f64, usize);
-
-// TODO fn to distill Position / Area => GpuPosition / GpuArea w/ ScaleFactor
-impl Root for Coordinates {
-    fn attach(elm: &mut Elm) {
-        elm.scheduler
-            .main
-            .add_systems(coordinate_resolve.in_set(InternalStage::FinalizeCoordinate));
-    }
-}
-fn coordinate_resolve(
-    mut placed_pos: Query<
-        (&mut GpuSection, &Section<LogicalContext>),
-        Or<(Changed<Section<LogicalContext>>,)>,
-    >,
-    scale_factor: Res<ScaleFactor>,
-) {
-    for (mut gpu, section) in placed_pos.iter_mut() {
-        gpu.pos = section.position.to_device(scale_factor.value()).to_gpu();
-        gpu.area = section.area.to_device(scale_factor.value()).to_gpu();
-    }
-}
-
 impl Sub for Coordinates {
     type Output = Coordinates;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        Coordinates::new(
-            self.horizontal() - rhs.horizontal(),
-            self.vertical() - rhs.vertical(),
-        )
+        Coordinates::new(self.a() - rhs.a(), self.b() - rhs.b())
     }
 }
 
@@ -160,26 +118,20 @@ impl Div<f32> for Coordinates {
     type Output = Coordinates;
 
     fn div(self, rhs: f32) -> Self::Output {
-        Coordinates::new(self.horizontal() / rhs, self.vertical() / rhs)
+        Coordinates::new(self.a() / rhs, self.b() / rhs)
     }
 }
 impl Div<Coordinates> for Coordinates {
     type Output = Coordinates;
     fn div(self, rhs: Coordinates) -> Self::Output {
-        Coordinates::new(
-            self.horizontal() / rhs.horizontal(),
-            self.vertical() / rhs.vertical(),
-        )
+        Coordinates::new(self.a() / rhs.a(), self.b() / rhs.b())
     }
 }
 impl Add for Coordinates {
     type Output = Coordinates;
 
     fn add(self, rhs: Self) -> Self::Output {
-        Coordinates::new(
-            self.horizontal() + rhs.horizontal(),
-            self.vertical() + rhs.vertical(),
-        )
+        Coordinates::new(self.a() + rhs.a(), self.b() + rhs.b())
     }
 }
 
@@ -187,22 +139,18 @@ impl Mul for Coordinates {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        (
-            self.horizontal() * rhs.horizontal(),
-            self.vertical() * rhs.vertical(),
-        )
-            .into()
+        (self.a() * rhs.a(), self.b() * rhs.b()).into()
     }
 }
 impl AddAssign for Coordinates {
     fn add_assign(&mut self, rhs: Self) {
-        self.0[0] += rhs.horizontal();
-        self.0[1] += rhs.vertical();
+        self.0[0] += rhs.a();
+        self.0[1] += rhs.b();
     }
 }
 impl SubAssign for Coordinates {
     fn sub_assign(&mut self, rhs: Self) {
-        self.0[0] -= rhs.horizontal();
-        self.0[1] -= rhs.vertical();
+        self.0[0] -= rhs.a();
+        self.0[1] -= rhs.b();
     }
 }
