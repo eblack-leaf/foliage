@@ -1,8 +1,8 @@
 [package]
 name = "foliage"
-version = "0.4.0"
+version = "0.7.0"
 edition = "2021"
 
 [dependencies]
-foliage_proper = { path = "../foliage_proper"}
-foliage_macros = { path = "../foliage_macros"}
+foliage_proper = { path = "../foliage_proper" }
+foliage_macros = { path = "../foliage_macros" }

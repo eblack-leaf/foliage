@@ -989,7 +989,7 @@ checksum = "a0d2fde1f7b3d48b8395d5f2de76c18a528bd6a9cdde438df747bfcba3e05d6f"
 
 [[package]]
 name = "foliage"
-version = "0.4.0"
+version = "0.7.0"
 dependencies = [
  "foliage_macros",
  "foliage_proper",
@@ -1007,7 +1007,7 @@ dependencies = [
 
 [[package]]
 name = "foliage_proper"
-version = "0.4.0"
+version = "0.7.0"
 dependencies = [
  "bevy_color",
  "bevy_ecs",
