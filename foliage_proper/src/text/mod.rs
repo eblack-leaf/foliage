@@ -170,7 +170,7 @@ impl Text {
                 horizontal_align: current.horizontal_alignment.into(),
                 vertical_align: current.vertical_alignment.into(),
                 max_width: Some(current.section.width()),
-                // max_height: Some(current.section.height()),
+                max_height: Some(current.section.height()),
                 ..fontdue::layout::LayoutSettings::default()
             });
             glyphs.layout.append(

@@ -1,5 +1,10 @@
 #![allow(unused)]
-use foliage::{stack, Animation, Color, EcsExtension, Elevation, Foliage, FontSize, GlyphColors, Grid, GridExt, Icon, InteractionListener, Line, Location, Logical, Opacity, Outline, Panel, Query, Rounding, Section, Stack, Stem, Text, Tree, Trigger, Write};
+use foliage::{
+    stack, Animation, Color, EcsExtension, Elevation, Foliage, FontSize, GlyphColors, Grid,
+    GridExt, HorizontalAlignment, Icon, InteractionListener, Line, Location, Logical, Opacity,
+    Outline, Panel, Query, Rounding, Section, Stack, Stem, Text, Tree, Trigger, VerticalAlignment,
+    Write,
+};
 use tracing_subscriber::filter::Targets;
 fn main() {
     let mut foliage = Foliage::new();
@@ -77,23 +82,9 @@ fn main() {
             tree.write_to(side_desc, Text::new(format!("h: {:.01}", h)));
         },
     );
-    let pad_top = foliage.leaf((
-        Line::new(2),
-        Location::new().xs(4.col().y(6.row()), 4.col().y(6.row())),
-        Stem::some(name_container),
-        Elevation::up(1),
-        Color::gray(700),
-    ));
     let pad_connector = foliage.leaf((
         Line::new(2),
         Location::new().xs(5.col().y(6.row()), 5.col().y(6.row())),
-        Stem::some(name_container),
-        Elevation::up(1),
-        Color::gray(700),
-    ));
-    let pad_bot = foliage.leaf((
-        Line::new(2),
-        Location::new().xs(5.col().y(8.row()), 5.col().y(8.row())),
         Stem::some(name_container),
         Elevation::up(1),
         Color::gray(700),
@@ -116,14 +107,17 @@ fn main() {
         },
     );
     let desc = foliage.leaf((
-        Text::new("cross-platform ui"),
+        Text::new("native+web ui"),
         FontSize::new(24),
         Location::new().xs(3.col().to(12.col()), 9.row().to(12.row())),
         Elevation::up(1),
-        GlyphColors::new().add(15..17, Color::green(600)),
+        GlyphColors::new()
+            .add(0..6, Color::orange(500))
+            .add(7..10, Color::green(500))
+            .add(11..13, Color::blue(500)),
         Stem::some(name_container),
         Opacity::new(0.0),
-        Color::gray(400),
+        Color::gray(500),
     ));
     let github = foliage.leaf((
         Panel::new(),
@@ -171,86 +165,148 @@ fn main() {
         Opacity::new(0.0),
         Color::gray(700),
     ));
-    let grid_container = foliage.leaf((
-        Grid::new(12.col().gap(4), 14.row().gap(4)),
-        Location::new().xs(4.col().to(12.col()), 11.row().to(16.row())),
+    let options_container = foliage.leaf((
+        Grid::new(5.col().gap(4), 3.row().gap(8)),
+        Location::new().xs(1.col().to(12.col()), 10.row().to(16.row())),
         Stem::some(root),
         Elevation::up(1),
     ));
-    let grid_desc = foliage.leaf((
-        Text::new("grid: 3.col() 3.row()"),
-        FontSize::new(14),
-        Location::new().xs(1.col().to(12.col()), 1.row().to(2.row())),
-        Elevation::up(1),
-        GlyphColors::new().add(8..11, Color::green(600)).add(16..19, Color::green(600)),
-        Stem::some(grid_container),
-        Opacity::new(1.0),
-        Color::gray(700),
-    ));
-    let first_line = foliage.leaf((
-        Line::new(2),
-        Location::new().xs(5.col().y(3.row()), 5.col().y(12.row())),
-        Stem::some(grid_container),
-        Elevation::up(1),
-        Color::gray(700),
-    ));
-    let first = foliage.leaf((
+    let option_one = foliage.leaf((
         Panel::new(),
-        Rounding::Sm,
-        Location::new().xs(2.col().to(4.col()), 3.row().to(5.row())),
+        Rounding::Full,
+        Location::new().xs(
+            3.col().to(3.col()).max(40.px()).min(40.px()),
+            1.row().to(1.row()).max(40.px()).min(40.px()),
+        ),
         Elevation::up(1),
-        Stem::some(grid_container),
-        // Opacity::new(0.0),
-        Color::gray(800),
-    ));
-    let second_line = foliage.leaf((
-        Line::new(2),
-        Location::new().xs(3.col().y(6.row()), 6.col().y(6.row())),
-        Stem::some(grid_container),
-        Elevation::up(1),
-        Color::gray(700),
-    ));
-    let second = foliage.leaf((
-        Panel::new(),
-        Rounding::Sm,
+        Stem::some(options_container),
         Outline::new(2),
-        Location::new().xs(2.col().to(8.col()), 7.row().to(9.row())),
-        Elevation::up(1),
-        Stem::some(grid_container),
-        // Opacity::new(0.0),
-        Color::orange(800),
+        Color::orange(600),
+        Opacity::new(0.0),
     ));
-    let second_desc = foliage.leaf((
-        Text::new("IMPL"),
-        FontSize::new(24),
-        Location::new().xs(4.col().to(7.col()), 7.row().to(9.row()).pad((10, 0))),
+    foliage.world.spawn(Icon::memory(
+        1,
+        include_bytes!("assets/icons/terminal.icon"),
+    ));
+    let option_one_icon = foliage.leaf((
+        Icon::new(1),
+        Location::new().xs(
+            3.col().to(3.col()).max(24.px()).min(24.px()),
+            1.row().to(1.row()).max(24.px()).min(24.px()),
+        ),
         Elevation::up(2),
-        Stem::some(grid_container),
-        Opacity::new(1.0),
-        Color::gray(400),
+        Stem::some(options_container),
+        Color::orange(600),
+        Opacity::new(0.0),
     ));
-    let third_line = foliage.leaf((
+    let option_one_line = foliage.leaf((
         Line::new(2),
-        Location::new().xs(1.col().y(10.row()), 10.col().y(10.row())),
-        Stem::some(grid_container),
+        Location::new().xs(1.col().y(1.row()), 1.col().y(1.row())),
+        Stem::some(options_container),
         Elevation::up(1),
-        Color::gray(700),
+        Color::orange(700),
     ));
-    let third = foliage.leaf((
+    let option_one_desc = foliage.leaf((
+        Text::new("usage"),
+        HorizontalAlignment::Center,
+        VerticalAlignment::Middle,
+        FontSize::new(16),
+        Location::new().xs(4.col().to(5.col()), 1.row().to(1.row())),
+        Elevation::up(1),
+        Stem::some(options_container),
+        Opacity::new(0.0),
+        Color::orange(400),
+    ));
+    let option_two = foliage.leaf((
         Panel::new(),
-        Rounding::Sm,
-        Location::new().xs(6.col().to(11.col()), 11.row().to(13.row())),
+        Rounding::Full,
+        Location::new().xs(
+            3.col().to(3.col()).max(40.px()).min(40.px()),
+            2.row().to(2.row()).max(40.px()).min(40.px()),
+        ),
         Elevation::up(1),
-        Stem::some(grid_container),
-        // Opacity::new(0.0),
-        Color::gray(800),
+        Stem::some(options_container),
+        Outline::new(2),
+        Color::green(600),
+        Opacity::new(0.0),
     ));
-    let fourth_line = foliage.leaf((
+    foliage
+        .world
+        .spawn(Icon::memory(2, include_bytes!("assets/icons/layers.icon")));
+    let option_two_icon = foliage.leaf((
+        Icon::new(2),
+        Location::new().xs(
+            3.col().to(3.col()).max(24.px()).min(24.px()),
+            2.row().to(2.row()).max(24.px()).min(24.px()),
+        ),
+        Elevation::up(2),
+        Stem::some(options_container),
+        Color::green(600),
+        Opacity::new(0.0),
+    ));
+    let option_two_line = foliage.leaf((
         Line::new(2),
-        Location::new().xs(9.col().y(9.row()), 9.col().y(14.row())),
-        Stem::some(grid_container),
+        Location::new().xs(5.col().y(2.row()), 5.col().y(2.row())),
+        Stem::some(options_container),
         Elevation::up(1),
-        Color::gray(700),
+        Color::green(700),
+    ));
+    let option_two_desc = foliage.leaf((
+        Text::new("impl"),
+        HorizontalAlignment::Center,
+        VerticalAlignment::Middle,
+        FontSize::new(16),
+        Location::new().xs(1.col().to(2.col()), 2.row().to(2.row())),
+        Elevation::up(1),
+        Stem::some(options_container),
+        Color::green(400),
+        Opacity::new(0.0),
+    ));
+    let option_three = foliage.leaf((
+        Panel::new(),
+        Rounding::Full,
+        Location::new().xs(
+            3.col().to(3.col()).max(40.px()).min(40.px()),
+            3.row().to(3.row()).max(40.px()).min(40.px()),
+        ),
+        Elevation::up(1),
+        Stem::some(options_container),
+        Outline::new(2),
+        Color::blue(600),
+        Opacity::new(0.0),
+    ));
+    foliage.world.spawn(Icon::memory(
+        3,
+        include_bytes!("assets/icons/book-open.icon"),
+    ));
+    let option_three_icon = foliage.leaf((
+        Icon::new(3),
+        Location::new().xs(
+            3.col().to(3.col()).max(24.px()).min(24.px()),
+            3.row().to(3.row()).max(24.px()).min(24.px()),
+        ),
+        Elevation::up(2),
+        Stem::some(options_container),
+        Color::blue(600),
+        Opacity::new(0.0),
+    ));
+    let option_three_line = foliage.leaf((
+        Line::new(2),
+        Location::new().xs(1.col().y(3.row()), 1.col().y(3.row())),
+        Stem::some(options_container),
+        Elevation::up(1),
+        Color::blue(700),
+    ));
+    let option_three_desc = foliage.leaf((
+        Text::new("docs"),
+        HorizontalAlignment::Center,
+        VerticalAlignment::Middle,
+        FontSize::new(16),
+        Location::new().xs(4.col().to(5.col()), 3.row().to(3.row())),
+        Elevation::up(1),
+        Stem::some(options_container),
+        Color::blue(400),
+        Opacity::new(0.0),
     ));
     let seq = foliage.sequence();
     let anim = Animation::new(Opacity::new(1.0))
@@ -284,9 +340,49 @@ fn main() {
         .targeting(github_desc);
     foliage.animate(seq, anim);
     let anim = Animation::new(Opacity::new(1.0))
+        .start(3000)
+        .finish(3500)
+        .targeting(option_one);
+    foliage.animate(seq, anim);
+    let anim = Animation::new(Opacity::new(1.0))
+        .start(3250)
+        .finish(3750)
+        .targeting(option_one_icon);
+    foliage.animate(seq, anim);
+    let anim = Animation::new(Opacity::new(1.0))
         .start(3500)
         .finish(4000)
-        .targeting(grid_desc);
+        .targeting(option_one_desc);
+    foliage.animate(seq, anim);
+    let anim = Animation::new(Opacity::new(1.0))
+        .start(4000)
+        .finish(4500)
+        .targeting(option_two);
+    foliage.animate(seq, anim);
+    let anim = Animation::new(Opacity::new(1.0))
+        .start(4250)
+        .finish(4750)
+        .targeting(option_two_icon);
+    foliage.animate(seq, anim);
+    let anim = Animation::new(Opacity::new(1.0))
+        .start(4500)
+        .finish(5000)
+        .targeting(option_two_desc);
+    foliage.animate(seq, anim);
+    let anim = Animation::new(Opacity::new(1.0))
+        .start(5250)
+        .finish(5750)
+        .targeting(option_three);
+    foliage.animate(seq, anim);
+    let anim = Animation::new(Opacity::new(1.0))
+        .start(5500)
+        .finish(6000)
+        .targeting(option_three_icon);
+    foliage.animate(seq, anim);
+    let anim = Animation::new(Opacity::new(1.0))
+        .start(5750)
+        .finish(6250)
+        .targeting(option_three_desc);
     foliage.animate(seq, anim);
     let anim = Animation::new(Location::new().xs((-1).col().y(2.row()), 7.col().y(2.row())))
         .start(1000)
@@ -298,31 +394,33 @@ fn main() {
         .finish(3500)
         .targeting(side_line);
     foliage.animate(seq, anim);
-    let anim = Animation::new(Location::new().xs(4.col().y(6.row()), 6.col().y(6.row())))
-        .start(1500)
-        .finish(3000)
-        .targeting(pad_top);
-    foliage.animate(seq, anim);
     let anim = Animation::new(Location::new().xs(5.col().y(6.row()), 5.col().y(8.row())))
         .start(1750)
         .finish(3000)
         .targeting(pad_connector);
     foliage.animate(seq, anim);
     let anim = Animation::new(Location::new().xs(
-        5.col().y(8.row()).pad((-12, 0)),
-        9.col().y(8.row()),
-    ))
-        .start(2000)
-        .finish(2500)
-        .targeting(pad_bot);
-    foliage.animate(seq, anim);
-    let anim = Animation::new(Location::new().xs(
         stack().y(1.row()).pad((16, 0)),
         stack().y(1.row()).pad((64, 0)),
     ))
-        .start(1750)
-        .finish(2500)
-        .targeting(github_line);
+    .start(1750)
+    .finish(2500)
+    .targeting(github_line);
+    foliage.animate(seq, anim);
+    let anim = Animation::new(Location::new().xs(1.col().y(1.row()), 2.col().y(1.row())))
+        .start(2500)
+        .finish(3000)
+        .targeting(option_one_line);
+    foliage.animate(seq, anim);
+    let anim = Animation::new(Location::new().xs(4.col().y(2.row()), 5.col().y(2.row())))
+        .start(3500)
+        .finish(4000)
+        .targeting(option_two_line);
+    foliage.animate(seq, anim);
+    let anim = Animation::new(Location::new().xs(1.col().y(3.row()), 2.col().y(3.row())))
+        .start(4750)
+        .finish(5250)
+        .targeting(option_three_line);
     foliage.animate(seq, anim);
     foliage.photosynthesize(); // run
 }
