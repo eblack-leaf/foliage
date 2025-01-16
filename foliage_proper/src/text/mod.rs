@@ -160,7 +160,8 @@ impl Text {
             section: sections
                 .get(this)
                 .unwrap()
-                .to_physical(scale_factor.value()),
+                .to_physical(scale_factor.value())
+                .rounded(),
             horizontal_alignment: *horizontal_alignment.get(this).unwrap(),
             vertical_alignment: *vertical_alignment.get(this).unwrap(),
         };
@@ -188,8 +189,9 @@ impl Text {
                 let adjusted_section = current
                     .section
                     .with_height(glyphs.layout.height())
-                    .to_logical(scale_factor.value());
-                let scaled = adjusted_section.to_physical(scale_factor.value());
+                    .to_logical(scale_factor.value())
+                    .rounded();
+                let scaled = adjusted_section.to_physical(scale_factor.value()).rounded();
                 if current.section != scaled {
                     current.section = scaled;
                     tree.entity(this)

@@ -1,5 +1,5 @@
 #![allow(unused)]
-use foliage::Justify::{Far, Near};
+use foliage::Justify::Far;
 use foliage::{
     stack, Animation, Color, EcsExtension, Elevation, Foliage, FontSize, GlyphColors, Grid,
     GridExt, HorizontalAlignment, Icon, InteractionListener, Line, Location, Logical, Opacity,
@@ -22,10 +22,7 @@ fn main() {
     ));
     let name_container = foliage.leaf((
         Grid::new(12.col().gap(4), 12.row().gap(4)),
-        Location::new().xs(
-            1.col().to(12.col()).max(600.px()).justify(Near),
-            4.row().to(8.row()),
-        ),
+        Location::new().xs(1.col().to(12.col()).max(600.px()), 4.row().to(8.row())),
         Stem::some(root),
         Elevation::up(1),
     ));
@@ -129,7 +126,7 @@ fn main() {
         Location::new().xs(1.col().span(40.px()), 1.row().span(40.px())),
         Elevation::up(1),
         Stem::some(root),
-        Color::gray(900),
+        Color::gray(800),
     ));
     foliage
         .world
@@ -327,7 +324,7 @@ fn main() {
         Panel::new(),
         Rounding::Xs,
         Location::new().xs(0.pct().to(100.pct()), 0.pct().to(0.pct())),
-        Color::gray(800),
+        Color::gray(900),
         Elevation::up(0),
         Stem::some(options_container),
     ));
@@ -426,9 +423,9 @@ fn main() {
         stack().y(1.row()).pad((16, 0)),
         stack().y(1.row()).pad((64, 0)),
     ))
-        .start(1750)
-        .finish(2500)
-        .targeting(github_line);
+    .start(1750)
+    .finish(2500)
+    .targeting(github_line);
     foliage.animate(seq, anim);
     let anim = Animation::new(Location::new().xs(0.pct().to(100.pct()), 0.pct().to(100.pct())))
         .start(2500)
