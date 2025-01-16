@@ -66,7 +66,7 @@ impl Panel {
         let this = trigger.entity();
         if let Ok(section) = sections.get(this) {
             if let Ok(rounding) = roundings.get(this) {
-                let section = section.rounded();
+                let section = section.to_physical(scale_factor.value()).rounded();
                 let min = section.width().min(section.height()) * 0.5;
                 let depth = match rounding {
                     Rounding::None => 0.0,
@@ -88,7 +88,7 @@ impl Panel {
                 if let Ok(mut panel) = panels.get_mut(this) {
                     let edge_adjust = 0.15;
                     let near = if let Some(w) = weight {
-                        depth - w.max(1.0)
+                        depth - (w).max(1.0)
                     } else {
                         0.0
                     } - edge_adjust;

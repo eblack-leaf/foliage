@@ -193,10 +193,11 @@ impl Render for Icon {
             group
                 .group
                 .sections
-                .queue(id, section.to_physical(sf.value()).rounded().c_repr());
-            if sf.value() >= 3.0 {
+                .queue(id, section.to_physical(sf.value()).c_repr());
+            let rounded = sf.value().round();
+            if rounded >= 3.0 {
                 group.group.mips.queue(id, Mips(0.0));
-            } else if sf.value() >= 2.0 {
+            } else if rounded >= 2.0 {
                 group.group.mips.queue(id, Mips(1.0));
             } else {
                 group.group.mips.queue(id, Mips(2.0));

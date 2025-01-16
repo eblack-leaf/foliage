@@ -154,13 +154,13 @@ impl Text {
         let this = trigger.entity();
         let mut current = UpdateCache {
             font_size: ResolvedFontSize::new(
-                (font_sizes.get(this).unwrap().value as f32 * scale_factor.value().round()) as u32,
+                (font_sizes.get(this).unwrap().value as f32 * scale_factor.value()) as u32,
             ),
             text: texts.get(this).unwrap().clone(),
             section: sections
                 .get(this)
                 .unwrap()
-                .to_physical(scale_factor.value().round()),
+                .to_physical(scale_factor.value()).rounded(),
             horizontal_alignment: *horizontal_alignment.get(this).unwrap(),
             vertical_alignment: *vertical_alignment.get(this).unwrap(),
         };
@@ -189,7 +189,7 @@ impl Text {
                     .section
                     .with_height(glyphs.layout.height())
                     .to_logical(scale_factor.value().round());
-                let scaled = adjusted_section.to_physical(scale_factor.value().round());
+                let scaled = adjusted_section.to_physical(scale_factor.value()).rounded();
                 if current.section != scaled {
                     current.section = scaled;
                     tree.entity(this)
