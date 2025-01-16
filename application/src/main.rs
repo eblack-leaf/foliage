@@ -1,14 +1,15 @@
 #![allow(unused)]
+use foliage::Justify::{Far, Near};
 use foliage::{
     stack, Animation, Color, EcsExtension, Elevation, Foliage, FontSize, GlyphColors, Grid,
     GridExt, HorizontalAlignment, Icon, InteractionListener, Line, Location, Logical, Opacity,
     Outline, Panel, Query, Rounding, Section, Stack, Stem, Text, Tree, Trigger, VerticalAlignment,
     Write,
 };
-use tracing_subscriber::filter::Targets;
+
 fn main() {
     let mut foliage = Foliage::new();
-    foliage.enable_tracing(Targets::new().with_target("foliage", tracing::Level::TRACE));
+    // foliage.enable_tracing(Targets::new().with_target("foliage", tracing::Level::TRACE));
     foliage.desktop_size((360, 800));
     foliage.url("foliage");
     let row_size = 40;
@@ -21,7 +22,10 @@ fn main() {
     ));
     let name_container = foliage.leaf((
         Grid::new(12.col().gap(4), 12.row().gap(4)),
-        Location::new().xs(1.col().to(12.col()), 4.row().to(8.row())),
+        Location::new().xs(
+            1.col().to(12.col()).max(600.px()).justify(Near),
+            4.row().to(8.row()),
+        ),
         Stem::some(root),
         Elevation::up(1),
     ));
@@ -112,9 +116,9 @@ fn main() {
         Location::new().xs(3.col().to(12.col()), 9.row().to(12.row())),
         Elevation::up(1),
         GlyphColors::new()
-            .add(0..6, Color::orange(500))
-            .add(7..10, Color::green(500))
-            .add(11..13, Color::blue(500)),
+            .add(0..6, Color::orange(700))
+            .add(7..10, Color::green(700))
+            .add(11..13, Color::blue(700)),
         Stem::some(name_container),
         Opacity::new(0.0),
         Color::gray(500),
@@ -163,11 +167,19 @@ fn main() {
         Stem::some(root),
         Stack::new(github_line),
         Opacity::new(0.0),
-        Color::gray(700),
+        Color::gray(500),
     ));
     let options_container = foliage.leaf((
         Grid::new(5.col().gap(4), 3.row().gap(8)),
-        Location::new().xs(1.col().to(12.col()), 10.row().to(16.row())),
+        Location::new().xs(
+            1.col().to(12.col()).max(600.px()),
+            10.row()
+                .to(100.pct())
+                .pad((0, 8))
+                .min(175.px())
+                .max(200.px())
+                .justify(Far),
+        ),
         Stem::some(root),
         Elevation::up(1),
     ));
@@ -204,18 +216,19 @@ fn main() {
         Location::new().xs(1.col().y(1.row()), 1.col().y(1.row())),
         Stem::some(options_container),
         Elevation::up(1),
-        Color::orange(700),
+        Color::orange(600),
     ));
     let option_one_desc = foliage.leaf((
-        Text::new("usage"),
+        Text::new("on-click: usage"),
         HorizontalAlignment::Center,
         VerticalAlignment::Middle,
         FontSize::new(16),
+        GlyphColors::new().add(10..15, Color::orange(600)),
         Location::new().xs(4.col().to(5.col()), 1.row().to(1.row())),
         Elevation::up(1),
         Stem::some(options_container),
         Opacity::new(0.0),
-        Color::orange(400),
+        Color::gray(400),
     ));
     let option_two = foliage.leaf((
         Panel::new(),
@@ -252,14 +265,15 @@ fn main() {
         Color::green(700),
     ));
     let option_two_desc = foliage.leaf((
-        Text::new("impl"),
+        Text::new("on-click: impl"),
         HorizontalAlignment::Center,
         VerticalAlignment::Middle,
         FontSize::new(16),
+        GlyphColors::new().add(10..14, Color::green(600)),
         Location::new().xs(1.col().to(2.col()), 2.row().to(2.row())),
         Elevation::up(1),
         Stem::some(options_container),
-        Color::green(400),
+        Color::gray(400),
         Opacity::new(0.0),
     ));
     let option_three = foliage.leaf((
@@ -298,15 +312,24 @@ fn main() {
         Color::blue(700),
     ));
     let option_three_desc = foliage.leaf((
-        Text::new("docs"),
+        Text::new("on-click: docs"),
         HorizontalAlignment::Center,
         VerticalAlignment::Middle,
         FontSize::new(16),
+        GlyphColors::new().add(10..14, Color::blue(600)),
         Location::new().xs(4.col().to(5.col()), 3.row().to(3.row())),
         Elevation::up(1),
         Stem::some(options_container),
-        Color::blue(400),
+        Color::gray(400),
         Opacity::new(0.0),
+    ));
+    let options_backdrop = foliage.leaf((
+        Panel::new(),
+        Rounding::Xs,
+        Location::new().xs(0.pct().to(100.pct()), 0.pct().to(0.pct())),
+        Color::gray(800),
+        Elevation::up(0),
+        Stem::some(options_container),
     ));
     let seq = foliage.sequence();
     let anim = Animation::new(Opacity::new(1.0))
@@ -403,9 +426,14 @@ fn main() {
         stack().y(1.row()).pad((16, 0)),
         stack().y(1.row()).pad((64, 0)),
     ))
-    .start(1750)
-    .finish(2500)
-    .targeting(github_line);
+        .start(1750)
+        .finish(2500)
+        .targeting(github_line);
+    foliage.animate(seq, anim);
+    let anim = Animation::new(Location::new().xs(0.pct().to(100.pct()), 0.pct().to(100.pct())))
+        .start(2500)
+        .finish(3500)
+        .targeting(options_backdrop);
     foliage.animate(seq, anim);
     let anim = Animation::new(Location::new().xs(1.col().y(1.row()), 2.col().y(1.row())))
         .start(2500)
