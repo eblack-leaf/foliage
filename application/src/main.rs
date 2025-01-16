@@ -29,7 +29,8 @@ fn main() {
     let name = foliage.leaf((
         Text::new("foliage.rs"),
         FontSize::new(44),
-        Location::new().xs(2.col().to(11.col()), 3.row().to(6.row())),
+        HorizontalAlignment::Center,
+        Location::new().xs(2.col().to(11.col()), 1.row().to(3.row())),
         Elevation::up(1),
         GlyphColors::new().add(7..10, Color::green(400)),
         Stem::some(name_container),
@@ -38,7 +39,7 @@ fn main() {
     let top_desc = foliage.leaf((
         Text::new("w: 0.0"),
         FontSize::new(14),
-        Location::new().xs(2.col().to(5.col()), 1.row().to(2.row())),
+        Location::new().xs(5.col().to(8.col()), 4.row().to(4.row())),
         Stem::some(name_container),
         Elevation::up(1),
         Color::gray(700),
@@ -46,7 +47,7 @@ fn main() {
     ));
     let top_line = foliage.leaf((
         Line::new(2),
-        Location::new().xs((-1).col().y(2.row()), (-1).col().y(2.row())),
+        Location::new().xs(4.col().y(5.row()), 4.col().y(5.row())),
         Stem::some(name_container),
         Elevation::up(1),
         Color::gray(700),
@@ -62,7 +63,7 @@ fn main() {
     let side_desc = foliage.leaf((
         Text::new("h: 0.0"),
         FontSize::new(14),
-        Location::new().xs(6.col().to(9.col()), 1.row().to(2.row())),
+        Location::new().xs(9.col().to(11.col()), 4.row().to(4.row())),
         Stem::some(name_container),
         Elevation::up(1),
         Color::gray(700),
@@ -70,10 +71,11 @@ fn main() {
     ));
     let side_line = foliage.leaf((
         Line::new(2),
-        Location::new().xs(1.col().y(-2.row()), 1.col().y(-2.row())),
+        Location::new().xs(12.col().y(-2.row()), 12.col().y(-2.row())),
         Stem::some(name_container),
         Elevation::up(1),
         Color::gray(700),
+        Opacity::new(0.0),
     ));
     foliage.world.commands().entity(side_line).observe(
         move |trigger: Trigger<Write<Section<Logical>>>,
@@ -85,7 +87,7 @@ fn main() {
     );
     let pad_connector = foliage.leaf((
         Line::new(2),
-        Location::new().xs(5.col().y(6.row()), 5.col().y(6.row())),
+        Location::new().xs(7.col().y(6.row()), 7.col().y(6.row())),
         Stem::some(name_container),
         Elevation::up(1),
         Color::gray(700),
@@ -93,7 +95,7 @@ fn main() {
     let pad_desc = foliage.leaf((
         Text::new("pad: 0.0"),
         FontSize::new(14),
-        Location::new().xs(6.col().to(9.col()), 7.row().to(8.row())),
+        Location::new().xs(8.col().to(11.col()), 7.row().to(8.row())),
         Stem::some(name_container),
         Elevation::up(1),
         Color::gray(700),
@@ -110,7 +112,8 @@ fn main() {
     let desc = foliage.leaf((
         Text::new("native + web ui"),
         FontSize::new(24),
-        Location::new().xs(3.col().to(12.col()), 9.row().to(12.row())),
+        HorizontalAlignment::Center,
+        Location::new().xs(1.col().to(12.col()), 9.row().to(12.row())),
         Elevation::up(1),
         GlyphColors::new()
             // .add(0..6, Color::green(700))
@@ -407,17 +410,17 @@ fn main() {
         .finish(6250)
         .targeting(option_three_desc);
     foliage.animate(seq, anim);
-    let anim = Animation::new(Location::new().xs((-1).col().y(2.row()), 7.col().y(2.row())))
+    let anim = Animation::new(Location::new().xs(4.col().y(5.row()), 9.col().y(5.row())))
         .start(1000)
         .finish(3000)
         .targeting(top_line);
     foliage.animate(seq, anim);
-    let anim = Animation::new(Location::new().xs(1.col().y(-2.row()), 1.col().y(5.row())))
+    let anim = Animation::new(Location::new().xs(12.col().y(-2.row()), 12.col().y(5.row())))
         .start(1250)
         .finish(3500)
         .targeting(side_line);
     foliage.animate(seq, anim);
-    let anim = Animation::new(Location::new().xs(5.col().y(6.row()), 5.col().y(8.row())))
+    let anim = Animation::new(Location::new().xs(7.col().y(6.row()), 7.col().y(8.row())))
         .start(1750)
         .finish(3000)
         .targeting(pad_connector);
