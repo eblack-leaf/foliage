@@ -198,4 +198,21 @@ impl Color {
             },
         }
     }
+    pub fn blue<L: Into<Luminance>>(l: L) -> Self {
+        Self {
+            value: match l.into() {
+                Luminance::Fifty => bevy_color::palettes::tailwind::BLUE_50,
+                Luminance::OneHundred => bevy_color::palettes::tailwind::BLUE_100,
+                Luminance::TwoHundred => bevy_color::palettes::tailwind::BLUE_200,
+                Luminance::ThreeHundred => bevy_color::palettes::tailwind::BLUE_300,
+                Luminance::FourHundred => bevy_color::palettes::tailwind::BLUE_400,
+                Luminance::FiveHundred => bevy_color::palettes::tailwind::BLUE_500,
+                Luminance::SixHundred => bevy_color::palettes::tailwind::BLUE_600,
+                Luminance::SevenHundred => bevy_color::palettes::tailwind::BLUE_700,
+                Luminance::EightHundred => bevy_color::palettes::tailwind::BLUE_800,
+                Luminance::NineHundred => bevy_color::palettes::tailwind::BLUE_900,
+                Luminance::NineHundredFifty => bevy_color::palettes::tailwind::BLUE_950,
+            },
+        }
+    }
 }
