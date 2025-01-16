@@ -450,7 +450,7 @@ impl Default for ScaleFactor {
 
 impl ScaleFactor {
     pub fn value(&self) -> f32 {
-        self.0
+        self.0.round()
     }
     pub(crate) fn new(f: f32) -> Self {
         Self(f)

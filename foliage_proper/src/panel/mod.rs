@@ -88,29 +88,26 @@ impl Panel {
                 if let Ok(mut panel) = panels.get_mut(this) {
                     let edge_adjust = 0.15;
                     let near = if let Some(w) = weight {
-                        depth - (w).max(1.0)
+                        depth - w.max(1.0)
                     } else {
                         0.0
                     } - edge_adjust;
                     let adjusted_depth = depth + edge_adjust;
                     panel.corner_i = {
-                        let c = Position::logical((depth, depth)).to_physical(scale_factor.value());
+                        let c = Position::physical((depth, depth));
                         Corner::new(c.coordinates, adjusted_depth, near)
                     };
                     panel.corner_ii = {
-                        let c = Position::logical((section.width() - depth, depth))
-                            .to_physical(scale_factor.value());
+                        let c = Position::physical((section.width() - depth, depth));
                         Corner::new(c.coordinates, adjusted_depth, near)
                     };
                     panel.corner_iii = {
-                        let c = Position::logical((depth, section.height() - depth))
-                            .to_physical(scale_factor.value());
+                        let c = Position::physical((depth, section.height() - depth));
                         Corner::new(c.coordinates, adjusted_depth, near)
                     };
                     panel.corner_iv = {
                         let c =
-                            Position::logical((section.width() - depth, section.height() - depth))
-                                .to_physical(scale_factor.value());
+                            Position::physical((section.width() - depth, section.height() - depth));
                         Corner::new(c.coordinates, adjusted_depth, near)
                     };
                 }
