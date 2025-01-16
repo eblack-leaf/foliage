@@ -189,7 +189,7 @@ impl Ash {
                 });
         let mut rpass = encoder.begin_render_pass(&RenderPassDescriptor {
             label: Some("render-pass"),
-            color_attachments: &ginkgo.color_attachment(&view, Color::gray(950)),
+            color_attachments: &ginkgo.color_attachment(&view, Color::gray(900)),
             depth_stencil_attachment: ginkgo.depth_stencil_attachment(),
             timestamp_writes: None,
             occlusion_query_set: None,

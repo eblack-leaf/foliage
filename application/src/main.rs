@@ -1,5 +1,4 @@
 #![allow(unused)]
-use foliage::Justify::Far;
 use foliage::{
     stack, Animation, Color, EcsExtension, Elevation, Foliage, FontSize, GlyphColors, Grid,
     GridExt, HorizontalAlignment, Icon, InteractionListener, Line, Location, Logical, Opacity,
@@ -69,25 +68,17 @@ fn main() {
         Color::gray(700),
         Opacity::new(0.0),
     ));
-    let side_line = foliage.leaf((
-        Line::new(2),
-        Location::new().xs(12.col().y(-2.row()), 12.col().y(-2.row())),
-        Stem::some(name_container),
-        Elevation::up(1),
-        Color::gray(700),
-        Opacity::new(0.0),
-    ));
-    foliage.world.commands().entity(side_line).observe(
+    foliage.world.commands().entity(top_line).observe(
         move |trigger: Trigger<Write<Section<Logical>>>,
               mut tree: Tree,
               sections: Query<&Section<Logical>>| {
-            let h = sections.get(trigger.entity()).unwrap().height();
+            let h = sections.get(trigger.entity()).unwrap().width() * 0.5;
             tree.write_to(side_desc, Text::new(format!("h: {:.01}", h)));
         },
     );
     let pad_connector = foliage.leaf((
         Line::new(2),
-        Location::new().xs(7.col().y(6.row()), 7.col().y(6.row())),
+        Location::new().xs(7.col().y(5.row()), 7.col().y(5.row())),
         Stem::some(name_container),
         Elevation::up(1),
         Color::gray(700),
@@ -116,8 +107,7 @@ fn main() {
         Location::new().xs(1.col().to(12.col()), 9.row().to(12.row())),
         Elevation::up(1),
         GlyphColors::new()
-            // .add(0..6, Color::green(700))
-            .add(7..8, Color::orange(500))
+            .add(7..8, Color::orange(700))
             .add(13..15, Color::green(400)),
         Stem::some(name_container),
         Opacity::new(0.0),
@@ -171,15 +161,7 @@ fn main() {
     ));
     let options_container = foliage.leaf((
         Grid::new(5.col().gap(4), 3.row().gap(8)),
-        Location::new().xs(
-            1.col().to(12.col()).max(600.px()),
-            10.row()
-                .to(100.pct())
-                .pad((0, 8))
-                .min(175.px())
-                .max(200.px())
-                .justify(Far),
-        ),
+        Location::new().xs(1.col().to(12.col()).max(600.px()), 10.row().to(13.row())),
         Stem::some(root),
         Elevation::up(1),
     ));
@@ -326,14 +308,6 @@ fn main() {
         Color::gray(500),
         Opacity::new(0.0),
     ));
-    let options_backdrop = foliage.leaf((
-        Panel::new(),
-        Rounding::Xs,
-        Location::new().xs(0.pct().to(100.pct()), 0.pct().to(0.pct())),
-        Color::gray(900),
-        Elevation::up(0),
-        Stem::some(options_container),
-    ));
     let seq = foliage.sequence();
     let anim = Animation::new(Opacity::new(1.0))
         .start(500)
@@ -415,12 +389,7 @@ fn main() {
         .finish(3000)
         .targeting(top_line);
     foliage.animate(seq, anim);
-    let anim = Animation::new(Location::new().xs(12.col().y(-2.row()), 12.col().y(5.row())))
-        .start(1250)
-        .finish(3500)
-        .targeting(side_line);
-    foliage.animate(seq, anim);
-    let anim = Animation::new(Location::new().xs(7.col().y(6.row()), 7.col().y(8.row())))
+    let anim = Animation::new(Location::new().xs(7.col().y(5.row()), 7.col().y(8.row())))
         .start(1750)
         .finish(3000)
         .targeting(pad_connector);
@@ -429,14 +398,9 @@ fn main() {
         stack().y(1.row()).pad((16, 0)),
         stack().y(1.row()).pad((64, 0)),
     ))
-        .start(1750)
-        .finish(2500)
-        .targeting(github_line);
-    foliage.animate(seq, anim);
-    let anim = Animation::new(Location::new().xs(0.pct().to(100.pct()), 0.pct().to(100.pct())))
-        .start(2500)
-        .finish(3500)
-        .targeting(options_backdrop);
+    .start(1750)
+    .finish(2500)
+    .targeting(github_line);
     foliage.animate(seq, anim);
     let anim = Animation::new(Location::new().xs(1.col().y(1.row()), 2.col().y(1.row())))
         .start(2500)
