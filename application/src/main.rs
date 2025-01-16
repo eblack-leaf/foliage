@@ -31,7 +31,7 @@ fn main() {
         FontSize::new(44),
         Location::new().xs(2.col().to(11.col()), 3.row().to(6.row())),
         Elevation::up(1),
-        GlyphColors::new().add(7..10, Color::orange(600)),
+        GlyphColors::new().add(7..10, Color::green(400)),
         Stem::some(name_container),
         Opacity::new(0.0),
     ));
@@ -108,14 +108,14 @@ fn main() {
         },
     );
     let desc = foliage.leaf((
-        Text::new("native+web ui"),
+        Text::new("native + web ui"),
         FontSize::new(24),
         Location::new().xs(3.col().to(12.col()), 9.row().to(12.row())),
         Elevation::up(1),
         GlyphColors::new()
-            .add(0..6, Color::orange(700))
-            .add(7..10, Color::green(700))
-            .add(11..13, Color::blue(700)),
+            // .add(0..6, Color::green(700))
+            .add(7..8, Color::orange(500))
+            .add(13..15, Color::green(400)),
         Stem::some(name_container),
         Opacity::new(0.0),
         Color::gray(500),
@@ -180,6 +180,7 @@ fn main() {
         Stem::some(root),
         Elevation::up(1),
     ));
+    let option_one_color = Color::green(700);
     let option_one = foliage.leaf((
         Panel::new(),
         Rounding::Full,
@@ -190,7 +191,7 @@ fn main() {
         Elevation::up(1),
         Stem::some(options_container),
         Outline::new(2),
-        Color::orange(600),
+        option_one_color,
         Opacity::new(0.0),
     ));
     foliage.world.spawn(Icon::memory(
@@ -205,7 +206,7 @@ fn main() {
         ),
         Elevation::up(2),
         Stem::some(options_container),
-        Color::orange(600),
+        option_one_color,
         Opacity::new(0.0),
     ));
     let option_one_line = foliage.leaf((
@@ -213,20 +214,21 @@ fn main() {
         Location::new().xs(1.col().y(1.row()), 1.col().y(1.row())),
         Stem::some(options_container),
         Elevation::up(1),
-        Color::orange(600),
+        option_one_color,
     ));
     let option_one_desc = foliage.leaf((
         Text::new("on-click: usage"),
         HorizontalAlignment::Center,
         VerticalAlignment::Middle,
         FontSize::new(16),
-        GlyphColors::new().add(10..15, Color::orange(600)),
+        GlyphColors::new().add(10..15, option_one_color),
         Location::new().xs(4.col().to(5.col()), 1.row().to(1.row())),
         Elevation::up(1),
         Stem::some(options_container),
         Opacity::new(0.0),
-        Color::gray(400),
+        Color::gray(500),
     ));
+    let option_two_color = Color::green(500);
     let option_two = foliage.leaf((
         Panel::new(),
         Rounding::Full,
@@ -237,7 +239,7 @@ fn main() {
         Elevation::up(1),
         Stem::some(options_container),
         Outline::new(2),
-        Color::green(600),
+        option_two_color,
         Opacity::new(0.0),
     ));
     foliage
@@ -251,7 +253,7 @@ fn main() {
         ),
         Elevation::up(2),
         Stem::some(options_container),
-        Color::green(600),
+        option_two_color,
         Opacity::new(0.0),
     ));
     let option_two_line = foliage.leaf((
@@ -259,20 +261,21 @@ fn main() {
         Location::new().xs(5.col().y(2.row()), 5.col().y(2.row())),
         Stem::some(options_container),
         Elevation::up(1),
-        Color::green(700),
+        option_two_color,
     ));
     let option_two_desc = foliage.leaf((
         Text::new("on-click: impl"),
         HorizontalAlignment::Center,
         VerticalAlignment::Middle,
         FontSize::new(16),
-        GlyphColors::new().add(10..14, Color::green(600)),
+        GlyphColors::new().add(10..14, option_two_color),
         Location::new().xs(1.col().to(2.col()), 2.row().to(2.row())),
         Elevation::up(1),
         Stem::some(options_container),
-        Color::gray(400),
+        Color::gray(500),
         Opacity::new(0.0),
     ));
+    let option_three_color = Color::green(300);
     let option_three = foliage.leaf((
         Panel::new(),
         Rounding::Full,
@@ -283,7 +286,7 @@ fn main() {
         Elevation::up(1),
         Stem::some(options_container),
         Outline::new(2),
-        Color::blue(600),
+        option_three_color,
         Opacity::new(0.0),
     ));
     foliage.world.spawn(Icon::memory(
@@ -298,7 +301,7 @@ fn main() {
         ),
         Elevation::up(2),
         Stem::some(options_container),
-        Color::blue(600),
+        option_three_color,
         Opacity::new(0.0),
     ));
     let option_three_line = foliage.leaf((
@@ -306,18 +309,18 @@ fn main() {
         Location::new().xs(1.col().y(3.row()), 1.col().y(3.row())),
         Stem::some(options_container),
         Elevation::up(1),
-        Color::blue(700),
+        option_three_color,
     ));
     let option_three_desc = foliage.leaf((
         Text::new("on-click: docs"),
         HorizontalAlignment::Center,
         VerticalAlignment::Middle,
         FontSize::new(16),
-        GlyphColors::new().add(10..14, Color::blue(600)),
+        GlyphColors::new().add(10..14, option_three_color),
         Location::new().xs(4.col().to(5.col()), 3.row().to(3.row())),
         Elevation::up(1),
         Stem::some(options_container),
-        Color::gray(400),
+        Color::gray(500),
         Opacity::new(0.0),
     ));
     let options_backdrop = foliage.leaf((
@@ -423,9 +426,9 @@ fn main() {
         stack().y(1.row()).pad((16, 0)),
         stack().y(1.row()).pad((64, 0)),
     ))
-    .start(1750)
-    .finish(2500)
-    .targeting(github_line);
+        .start(1750)
+        .finish(2500)
+        .targeting(github_line);
     foliage.animate(seq, anim);
     let anim = Animation::new(Location::new().xs(0.pct().to(100.pct()), 0.pct().to(100.pct())))
         .start(2500)
