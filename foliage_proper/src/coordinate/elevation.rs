@@ -79,7 +79,10 @@ impl Elevation {
         } else {
             ResolvedElevation(elev.amount + current.value())
         };
-        println!("elev {} current {} = res {} for {:?}", elev.amount, current.0, resolved.0, this);
+        println!(
+            "elev {} current {} = res {} for {:?}",
+            elev.amount, current.0, resolved.0, this
+        );
         world.commands().entity(this).insert(resolved);
         for dep in world.get::<Branch>(this).unwrap().ids.clone() {
             if let Some(elev) = world.get::<Elevation>(dep).copied() {

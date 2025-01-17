@@ -1,5 +1,8 @@
 use crate::Justify::Far;
-use crate::{handle_replace, Color, EcsExtension, Elevation, FontSize, Grid, GridExt, HorizontalAlignment, Icon, IconId, Location, Panel, ResolvedElevation, Rounding, Stem, Text, VerticalAlignment};
+use crate::{
+    handle_replace, Color, EcsExtension, Elevation, FontSize, Grid, GridExt, HorizontalAlignment,
+    Icon, IconId, Location, Panel, ResolvedElevation, Rounding, Stem, Text, VerticalAlignment,
+};
 use crate::{Component, Composite};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
