@@ -1,18 +1,16 @@
 use crate::Justify::Far;
 use crate::{
     handle_replace, Attachment, Color, EcsExtension, Elevation, Foliage, FontSize, Grid, GridExt,
-    HorizontalAlignment, Icon, IconId, Location, Panel, Rounding, Stem, Text, Tree,
-    VerticalAlignment,
+    HorizontalAlignment, Icon, IconId, Location, Panel, Rounding, Stem, Text, VerticalAlignment,
 };
 use crate::{Component, Composite};
+use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::observer::TriggerTargets;
-use bevy_ecs::prelude::Trigger;
-use bevy_ecs::system::Query;
-use bevy_ecs::world::OnInsert;
+use bevy_ecs::world::DeferredWorld;
 
 #[derive(Component, Clone)]
-// #[component(on_insert = Self::on_insert)]
+#[component(on_insert = Self::on_insert)]
 pub struct Button {
     icon_id: IconId,
     shape: ButtonShape,
@@ -23,7 +21,7 @@ pub struct Button {
 }
 impl Attachment for Button {
     fn attach(foliage: &mut Foliage) {
-        foliage.define(Button::on_insert);
+        // foliage.define(Button::on_insert);
     }
 }
 #[derive(Copy, Clone, PartialEq, Default)]
@@ -71,14 +69,17 @@ impl Button {
         self.font_size = size;
         self
     }
-    fn on_insert(trigger: Trigger<OnInsert, Self>, argses: Query<&Button>, mut tree: Tree) {
-        let this = trigger.entity();
-        let args = argses.get(this).unwrap().clone();
+    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+        // let this = trigger.entity();
+        let args = world.get::<Button>(this).unwrap().clone();
         // let elevation = *world.get::<Elevation>(this).unwrap();
         // let res = *world.get::<ResolvedElevation>(this).unwrap();
         // println!("{:?}, {:?}", elevation, res);
-        tree.entity(this).insert(Grid::new(3.col(), 1.row()));
-        let panel = tree.leaf((
+        world
+            .commands()
+            .entity(this)
+            .insert(Grid::new(3.col(), 1.row()));
+        let panel = world.commands().leaf((
             Panel::new(),
             match args.shape {
                 ButtonShape::Circle => Rounding::Full,
@@ -99,14 +100,14 @@ impl Button {
                 1.row().to(1.row()).min(24.px()).max(24.px()),
             ),
         };
-        let icon = tree.leaf((
+        let icon = world.commands().leaf((
             Icon::new(args.icon_id),
             icon_location,
             args.foreground,
             Elevation::up(2),
             Stem::some(this),
         ));
-        let text = tree.leaf((
+        let text = world.commands().leaf((
             Text::new(&args.text),
             args.font_size,
             Elevation::up(2),
@@ -118,7 +119,7 @@ impl Button {
         ));
         println!("{:?}, {:?}, {:?}", panel, icon, text);
         let handle = Handle { panel, icon, text };
-        tree.entity(this).insert(handle);
+        world.commands().entity(this).insert(handle);
     }
 }
 impl Composite for Button {

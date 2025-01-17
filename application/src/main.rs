@@ -125,6 +125,7 @@ fn main() {
         Location::new().xs(1.col().span(40.px()), 1.row().span(40.px())),
         Elevation::up(1),
         Stem::some(root),
+        Opacity::new(0.0),
     ));
     println!("github: {:?}", github);
     let github_line = foliage.leaf((
@@ -309,6 +310,11 @@ fn main() {
     foliage.animate(seq, anim);
     let anim = Animation::new(Opacity::new(1.0))
         .start(1000)
+        .finish(1500)
+        .targeting(github);
+    foliage.animate(seq, anim);
+    let anim = Animation::new(Opacity::new(1.0))
+        .start(1000)
         .finish(1250)
         .targeting(top_desc);
     foliage.animate(seq, anim);
@@ -391,9 +397,9 @@ fn main() {
         stack().y(1.row()).pad((16, 0)),
         stack().y(1.row()).pad((64, 0)),
     ))
-        .start(1750)
-        .finish(2500)
-        .targeting(github_line);
+    .start(1750)
+    .finish(2500)
+    .targeting(github_line);
     foliage.animate(seq, anim);
     let anim = Animation::new(Location::new().xs(1.col().y(1.row()), 2.col().y(1.row())))
         .start(2500)

@@ -22,7 +22,12 @@ impl Opacity {
     pub fn new(value: f32) -> Opacity {
         Opacity { value }
     }
-    fn stem_insert(trigger: Trigger<OnInsert, Stem>, mut tree: Tree, stems: Query<&Stem>, blended: Query<&BlendedOpacity>) {
+    fn stem_insert(
+        trigger: Trigger<OnInsert, Stem>,
+        mut tree: Tree,
+        stems: Query<&Stem>,
+        blended: Query<&BlendedOpacity>,
+    ) {
         let this = trigger.entity();
         let stem = stems.get(this).unwrap();
         if let Some(entity) = stem.id {

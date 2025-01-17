@@ -205,7 +205,7 @@ impl Location {
             } - config.horizontal.padding.coordinates.b()
                 * f32::from(config.horizontal.ty != LocationAxisType::Point)
                 + config.horizontal.padding.coordinates.b()
-                * f32::from(config.horizontal.ty == LocationAxisType::Point);
+                    * f32::from(config.horizontal.ty == LocationAxisType::Point);
             match config.horizontal.ty {
                 LocationAxisType::Point => {
                     if let GridUnit::Aligned(_) = config.horizontal.a {
@@ -267,7 +267,7 @@ impl Location {
             } - config.vertical.padding.coordinates.b()
                 * f32::from(config.vertical.ty != LocationAxisType::Point)
                 + config.vertical.padding.coordinates.b()
-                * f32::from(config.vertical.ty == LocationAxisType::Point);
+                    * f32::from(config.vertical.ty == LocationAxisType::Point);
             match config.vertical.ty {
                 LocationAxisType::Point => {
                     if let GridUnit::Aligned(_) = config.vertical.a {

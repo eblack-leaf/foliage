@@ -7,7 +7,11 @@ use crate::ginkgo::Ginkgo;
 use crate::remove::Remove;
 use crate::time::{OnEnd, Time};
 use crate::willow::Willow;
-use crate::{AndroidConnection, Animate, Animation, Area, Attachment, Button, Color, Disable, EcsExtension, Elevation, Enable, Grid, Icon, Image, Interaction, Opacity, Panel, Physical, Resource, Shape, SystemSet, Text, Visibility};
+use crate::{
+    AndroidConnection, Animate, Animation, Area, Attachment, Button, Color, Disable, EcsExtension,
+    Elevation, Enable, Grid, Icon, Image, Interaction, Opacity, Panel, Physical, Resource, Shape,
+    SystemSet, Text, Visibility,
+};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
