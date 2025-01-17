@@ -1,8 +1,9 @@
 use crate::anim::interpolation::Interpolations;
-use crate::{Animate, Attachment, Branch, Foliage, Stem};
+use crate::{Animate, Attachment, Branch, Foliage, Stem, Tree, Update};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::Component;
+use bevy_ecs::prelude::{Component, OnInsert, Trigger};
+use bevy_ecs::system::Query;
 use bevy_ecs::world::DeferredWorld;
 use bytemuck::{Pod, Zeroable};
 use std::fmt::Display;
@@ -14,6 +15,13 @@ pub struct ResolvedElevation(pub(crate) f32);
 impl ResolvedElevation {
     pub fn value(&self) -> f32 {
         self.0
+    }
+}
+impl Attachment for Elevation {
+    fn attach(foliage: &mut Foliage) {
+        foliage.define(Elevation::update);
+        foliage.define(Elevation::stem_insert);
+        foliage.enable_animation::<Self>();
     }
 }
 impl Display for ResolvedElevation {
@@ -63,17 +71,28 @@ impl Elevation {
             absolute: false,
         }
     }
-    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
-        if world.get::<Stem>(this).is_none() || world.get::<Branch>(this).is_none() {
+    fn stem_insert(trigger: Trigger<OnInsert, Stem>, mut tree: Tree) {
+        tree.trigger_targets(Update::<Elevation>::new(), trigger.entity());
+    }
+    fn update(
+        trigger: Trigger<Update<Elevation>>,
+        mut tree: Tree,
+        resolved: Query<&ResolvedElevation>,
+        elevation: Query<&Elevation>,
+        stem: Query<&Stem>,
+        branch: Query<&Branch>,
+    ) {
+        let this = trigger.entity();
+        if stem.get(this).ok().is_none() || branch.get(this).ok().is_none() {
             return;
         }
-        let current = world
-            .get::<Stem>(this)
+        let current = stem
+            .get(this)
             .unwrap()
             .id
-            .and_then(|id| Some(*world.get::<ResolvedElevation>(id).unwrap()))
+            .and_then(|id| Some(*resolved.get(id).unwrap()))
             .unwrap_or(ResolvedElevation(0f32));
-        let elev = world.get::<Elevation>(this).unwrap();
+        let elev = elevation.get(this).unwrap();
         let resolved = if elev.absolute {
             ResolvedElevation(elev.amount)
         } else {
@@ -83,12 +102,17 @@ impl Elevation {
             "elev {} current {} = res {} for {:?}",
             elev.amount, current.0, resolved.0, this
         );
-        world.commands().entity(this).insert(resolved);
-        for dep in world.get::<Branch>(this).unwrap().ids.clone() {
-            if let Some(elev) = world.get::<Elevation>(dep).copied() {
-                world.commands().entity(dep).insert(elev);
+        tree.entity(this).insert(resolved);
+        for dep in branch.get(this).unwrap().ids.clone() {
+            if let Some(elev) = elevation.get(dep).copied().ok() {
+                tree.entity(dep).insert(elev);
             }
         }
+    }
+    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+        world
+            .commands()
+            .trigger_targets(Update::<Elevation>::new(), this);
     }
 }
 impl Animate for Elevation {
@@ -99,11 +123,6 @@ impl Animate for Elevation {
         if let Some(e) = interpolations.read(0) {
             self.amount = e;
         }
-    }
-}
-impl Attachment for Elevation {
-    fn attach(foliage: &mut Foliage) {
-        foliage.enable_animation::<Self>();
     }
 }
 impl Add for ResolvedElevation {

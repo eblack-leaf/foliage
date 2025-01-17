@@ -11,7 +11,7 @@ use crate::{
 };
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Res, Trigger};
+use bevy_ecs::prelude::{OnInsert, Res, Trigger};
 use bevy_ecs::system::Query;
 use bevy_ecs::world::DeferredWorld;
 use std::cmp::PartialEq;
@@ -205,7 +205,7 @@ impl Location {
             } - config.horizontal.padding.coordinates.b()
                 * f32::from(config.horizontal.ty != LocationAxisType::Point)
                 + config.horizontal.padding.coordinates.b()
-                    * f32::from(config.horizontal.ty == LocationAxisType::Point);
+                * f32::from(config.horizontal.ty == LocationAxisType::Point);
             match config.horizontal.ty {
                 LocationAxisType::Point => {
                     if let GridUnit::Aligned(_) = config.horizontal.a {
@@ -267,7 +267,7 @@ impl Location {
             } - config.vertical.padding.coordinates.b()
                 * f32::from(config.vertical.ty != LocationAxisType::Point)
                 + config.vertical.padding.coordinates.b()
-                    * f32::from(config.vertical.ty == LocationAxisType::Point);
+                * f32::from(config.vertical.ty == LocationAxisType::Point);
             match config.vertical.ty {
                 LocationAxisType::Point => {
                     if let GridUnit::Aligned(_) = config.vertical.a {
@@ -400,6 +400,9 @@ impl Location {
     }
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
         world.trigger_targets(Update::<Location>::new(), this);
+    }
+    pub(crate) fn stem_insert(trigger: Trigger<OnInsert, Stem>, mut tree: Tree) {
+        tree.trigger_targets(Update::<Location>::new(), trigger.entity());
     }
     pub(crate) fn update_from_visibility(trigger: Trigger<Write<Visibility>>, mut tree: Tree) {
         tracing::trace!("update_from_visibility for {:?}", trigger.entity());

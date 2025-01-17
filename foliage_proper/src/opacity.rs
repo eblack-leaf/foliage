@@ -1,11 +1,12 @@
 use crate::anim::interpolation::Interpolations;
-use crate::{Animate, Attachment, Branch, Component, Foliage, Stem};
+use crate::{Animate, Attachment, Branch, Component, Foliage, Stem, Tree};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
+use bevy_ecs::prelude::{OnInsert, Trigger};
+use bevy_ecs::system::Query;
 use bevy_ecs::world::DeferredWorld;
 
 #[derive(Component, Copy, Clone, PartialEq)]
-#[component(on_add = Opacity::on_add)]
 #[component(on_insert = Opacity::on_insert)]
 #[require(InheritedOpacity, BlendedOpacity)]
 pub struct Opacity {
@@ -14,17 +15,19 @@ pub struct Opacity {
 impl Attachment for Opacity {
     fn attach(foliage: &mut Foliage) {
         foliage.enable_animation::<Self>();
+        foliage.define(Opacity::stem_insert);
     }
 }
 impl Opacity {
     pub fn new(value: f32) -> Opacity {
         Opacity { value }
     }
-    fn on_add(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
-        let stem = world.get::<Stem>(this).unwrap();
+    fn stem_insert(trigger: Trigger<OnInsert, Stem>, mut tree: Tree, stems: Query<&Stem>, blended: Query<&BlendedOpacity>) {
+        let this = trigger.entity();
+        let stem = stems.get(this).unwrap();
         if let Some(entity) = stem.id {
-            let resolved = *world.get::<BlendedOpacity>(entity).unwrap();
-            world.commands().entity(this).insert(InheritedOpacity {
+            let resolved = *blended.get(entity).unwrap();
+            tree.entity(this).insert(InheritedOpacity {
                 value: resolved.value,
             });
         }

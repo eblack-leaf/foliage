@@ -1,5 +1,9 @@
 use crate::Justify::Far;
-use crate::{handle_replace, Attachment, Color, EcsExtension, Elevation, Foliage, FontSize, Grid, GridExt, HorizontalAlignment, Icon, IconId, Location, Panel, Rounding, Stem, Text, Tree, VerticalAlignment};
+use crate::{
+    handle_replace, Attachment, Color, EcsExtension, Elevation, Foliage, FontSize, Grid, GridExt,
+    HorizontalAlignment, Icon, IconId, Location, Panel, Rounding, Stem, Text, Tree,
+    VerticalAlignment,
+};
 use crate::{Component, Composite};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::observer::TriggerTargets;
@@ -73,9 +77,7 @@ impl Button {
         // let elevation = *world.get::<Elevation>(this).unwrap();
         // let res = *world.get::<ResolvedElevation>(this).unwrap();
         // println!("{:?}, {:?}", elevation, res);
-        tree
-            .entity(this)
-            .insert(Grid::new(3.col(), 1.row()));
+        tree.entity(this).insert(Grid::new(3.col(), 1.row()));
         let panel = tree.leaf((
             Panel::new(),
             match args.shape {

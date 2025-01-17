@@ -1,13 +1,12 @@
 use crate::ash::differential::RenderRemoveQueue;
-use crate::{Branch, Component, StackDeps, Stem, Write};
+use crate::{Attachment, Branch, Component, Foliage, StackDeps, Stem, Tree, Update, Write};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Query, Trigger};
+use bevy_ecs::prelude::{OnInsert, Query, Trigger};
 use bevy_ecs::system::ResMut;
 use bevy_ecs::world::DeferredWorld;
 
 #[derive(Copy, Clone, Ord, PartialOrd, PartialEq, Eq, Hash, Component)]
-#[component(on_add = Visibility::on_add)]
 #[component(on_insert = Visibility::on_insert)]
 #[require(
     InheritedVisibility,
@@ -18,6 +17,12 @@ use bevy_ecs::world::DeferredWorld;
 pub struct Visibility {
     visible: bool,
 }
+impl Attachment for Visibility {
+    fn attach(foliage: &mut Foliage) {
+        foliage.define(Visibility::stem_insert);
+        foliage.define(Visibility::update);
+    }
+}
 impl Visibility {
     pub fn new(v: bool) -> Self {
         Self { visible: v }
@@ -25,24 +30,45 @@ impl Visibility {
     pub fn visible(&self) -> bool {
         self.visible
     }
-    fn on_add(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
-        let stem = world.get::<Stem>(this).unwrap();
+    fn stem_insert(
+        trigger: Trigger<OnInsert, Stem>,
+        mut tree: Tree,
+        stems: Query<&Stem>,
+        res: Query<&ResolvedVisibility>,
+    ) {
+        let this = trigger.entity();
+        let stem = stems.get(this).unwrap();
         if let Some(s) = stem.id {
-            let resolved = *world.get::<ResolvedVisibility>(s).unwrap();
+            let resolved = *res.get(s).unwrap();
             tracing::trace!("inheriting {}", resolved.visible);
-            world.commands().entity(this).insert(InheritedVisibility {
+            tree.entity(this).insert(InheritedVisibility {
                 visible: resolved.visible,
             });
         }
     }
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
-        let inherited = world.get::<InheritedVisibility>(this).unwrap();
-        let current = world.get::<Visibility>(this).unwrap();
-        let auto = world.get::<AutoVisibility>(this).unwrap();
+        world
+            .commands()
+            .trigger_targets(Update::<Visibility>::new(), this);
+    }
+    pub(crate) fn update(
+        trigger: Trigger<Update<Visibility>>,
+        inheriteds: Query<&InheritedVisibility>,
+        vis: Query<&Visibility>,
+        auto: Query<&AutoVisibility>,
+        cached: Query<&CachedVisibility>,
+        mut tree: Tree,
+        branches: Query<&Branch>,
+        sd: Query<&StackDeps>,
+    ) {
+        let this = trigger.entity();
+        let inherited = inheriteds.get(this).unwrap();
+        let current = vis.get(this).unwrap();
+        let auto = auto.get(this).unwrap();
         let resolved = ResolvedVisibility {
             visible: inherited.visible && current.visible && auto.visible,
         };
-        let cached = world.get::<CachedVisibility>(this).unwrap();
+        let cached = cached.get(this).unwrap();
         tracing::trace!(
             "inherited: {} current: {} auto: {} => resolved: {} = cached: {} for {:?}",
             inherited.visible,
@@ -53,22 +79,16 @@ impl Visibility {
             this
         );
         if cached.visible != resolved.visible {
-            world
-                .commands()
-                .entity(this)
-                .insert(resolved)
-                .insert(CachedVisibility {
-                    visible: resolved.visible,
-                });
-            world
-                .commands()
-                .trigger_targets(Write::<Visibility>::new(), this);
-            let mut deps = world.get::<Branch>(this).unwrap().ids.clone();
-            if let Some(stack_deps) = world.get::<StackDeps>(this) {
+            tree.entity(this).insert(resolved).insert(CachedVisibility {
+                visible: resolved.visible,
+            });
+            tree.trigger_targets(Write::<Visibility>::new(), this);
+            let mut deps = branches.get(this).unwrap().ids.clone();
+            if let Some(stack_deps) = sd.get(this).ok() {
                 deps.extend(stack_deps.ids.clone());
             }
             for d in deps {
-                world.commands().entity(d).insert(InheritedVisibility {
+                tree.entity(d).insert(InheritedVisibility {
                     visible: resolved.visible,
                 });
             }

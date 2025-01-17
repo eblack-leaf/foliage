@@ -30,6 +30,7 @@ impl Attachment for Grid {
             .add_systems(extent_check_v2.in_set(DiffMarkers::Prepare));
         foliage.define(Location::update_from_visibility);
         foliage.define(Location::update_location);
+        foliage.define(Location::stem_insert);
         foliage.enable_animation::<Location>();
     }
 }
