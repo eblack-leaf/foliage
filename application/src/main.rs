@@ -1,6 +1,6 @@
 #![allow(unused)]
 use foliage::{
-    stack, Animation, Color, EcsExtension, Elevation, Foliage, FontSize, GlyphColors, Grid,
+    stack, Animation, Button, Color, EcsExtension, Elevation, Foliage, FontSize, GlyphColors, Grid,
     GridExt, HorizontalAlignment, Icon, InteractionListener, Line, Location, Logical, Opacity,
     Outline, Panel, Query, Rounding, Section, Stack, Stem, Text, Tree, Trigger, VerticalAlignment,
     Write,
@@ -113,27 +113,20 @@ fn main() {
         Opacity::new(0.0),
         Color::gray(500),
     ));
-    let github = foliage.leaf((
-        Panel::new(),
-        Rounding::Full,
-        Location::new().xs(1.col().span(40.px()), 1.row().span(40.px())),
-        Elevation::up(1),
-        Stem::some(root),
-        Color::gray(800),
-    ));
     foliage
         .world
         .spawn(Icon::memory(0, include_bytes!("assets/icons/github.icon")));
-    let github_icon = foliage.leaf((
-        Icon::new(0),
-        Location::new().xs(
-            1.col().span(row_size.px()).max(24.px()).min(24.px()),
-            1.row().span(row_size.px()).max(24.px()).min(24.px()),
-        ),
-        Elevation::up(2),
+    let github = foliage.leaf((
+        Button::new()
+            .icon(0)
+            .circle()
+            .foreground(Color::gray(200))
+            .background(Color::gray(800)),
+        Location::new().xs(1.col().span(40.px()), 1.row().span(40.px())),
+        Elevation::up(1),
         Stem::some(root),
-        Color::gray(400),
     ));
+    println!("github: {:?}", github);
     let github_line = foliage.leaf((
         Line::new(2),
         Location::new().xs(
@@ -398,9 +391,9 @@ fn main() {
         stack().y(1.row()).pad((16, 0)),
         stack().y(1.row()).pad((64, 0)),
     ))
-    .start(1750)
-    .finish(2500)
-    .targeting(github_line);
+        .start(1750)
+        .finish(2500)
+        .targeting(github_line);
     foliage.animate(seq, anim);
     let anim = Animation::new(Location::new().xs(1.col().y(1.row()), 2.col().y(1.row())))
         .start(2500)

@@ -32,12 +32,17 @@ impl PartialOrd for ResolvedElevation {
         }
     }
 }
-#[derive(Copy, Clone, Default, PartialEq, PartialOrd, Component, Debug)]
+#[derive(Copy, Clone, PartialEq, PartialOrd, Component, Debug)]
 #[require(ResolvedElevation)]
 #[component(on_insert = Self::on_insert)]
 pub struct Elevation {
     pub amount: f32,
     pub(crate) absolute: bool,
+}
+impl Default for Elevation {
+    fn default() -> Self {
+        Self::abs(0)
+    }
 }
 impl Elevation {
     pub fn abs(e: i32) -> Self {
@@ -67,13 +72,14 @@ impl Elevation {
             .unwrap()
             .id
             .and_then(|id| Some(*world.get::<ResolvedElevation>(id).unwrap()))
-            .unwrap_or_default();
+            .unwrap_or(ResolvedElevation(0f32));
         let elev = world.get::<Elevation>(this).unwrap();
         let resolved = if elev.absolute {
             ResolvedElevation(elev.amount)
         } else {
             ResolvedElevation(elev.amount + current.value())
         };
+        println!("elev {} current {} = res {} for {:?}", elev.amount, current.0, resolved.0, this);
         world.commands().entity(this).insert(resolved);
         for dep in world.get::<Branch>(this).unwrap().ids.clone() {
             if let Some(elev) = world.get::<Elevation>(dep).copied() {
