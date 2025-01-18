@@ -20,7 +20,6 @@ use bevy_ecs::world::{DeferredWorld, OnInsert};
 pub struct Button {}
 impl Attachment for Button {
     fn attach(foliage: &mut Foliage) {
-        // foliage.define(Button::update_text);
         foliage.define(Button::handle_trigger);
     }
 }

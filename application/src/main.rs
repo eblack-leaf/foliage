@@ -1,9 +1,10 @@
 #![allow(unused)]
 use foliage::{
     stack, Animation, Button, ButtonShape, Color, EcsExtension, Elevation, Foliage, FontSize,
-    GlyphColors, Grid, GridExt, HorizontalAlignment, Icon, IconValue, InteractionListener, Line,
-    Location, Logical, Opacity, Outline, Primary, Query, Secondary, Section, Stack, Stem, Text,
-    Tree, Trigger, VerticalAlignment, Write,
+    GlyphColors, Grid, GridExt, HorizontalAlignment, HrefLink, Icon, IconValue,
+    InteractionListener, Line, Location, Logical, OnClick, OnEnd, Opacity, Outline, Primary, Query,
+    Secondary, Section, Stack, Stem, Text, TimeDelta, Timer, Tree, Trigger, VerticalAlignment,
+    Write,
 };
 
 fn main() {
@@ -131,6 +132,13 @@ fn main() {
         Stem::some(root),
         Opacity::new(0.0),
     ));
+    foliage
+        .world
+        .commands()
+        .entity(github)
+        .observe(|trigger: Trigger<OnClick>| {
+            HrefLink::new("https://github.com/eblack-leaf/foliage").navigate()
+        });
     println!("github: {:?}", github);
     let github_line = foliage.leaf((
         Line::new(2),
@@ -183,6 +191,13 @@ fn main() {
         Outline::new(2),
         Opacity::new(0.0),
     ));
+    foliage
+        .world
+        .commands()
+        .entity(option_one)
+        .observe(|trigger: Trigger<OnClick>| {
+            // TODO
+        });
     let option_one_line = foliage.leaf((
         Line::new(2),
         Location::new().xs(1.col().y(1.row()), 1.col().y(1.row())),
@@ -221,6 +236,13 @@ fn main() {
         Outline::new(2),
         Opacity::new(0.0),
     ));
+    foliage
+        .world
+        .commands()
+        .entity(option_two)
+        .observe(|trigger: Trigger<OnClick>| {
+            // TODO
+        });
     let option_two_line = foliage.leaf((
         Line::new(2),
         Location::new().xs(5.col().y(2.row()), 5.col().y(2.row())),
@@ -260,6 +282,13 @@ fn main() {
         Outline::new(2),
         Opacity::new(0.0),
     ));
+    foliage
+        .world
+        .commands()
+        .entity(option_three)
+        .observe(|trigger: Trigger<OnClick>| {
+            // TODO
+        });
     let option_three_line = foliage.leaf((
         Line::new(2),
         Location::new().xs(1.col().y(3.row()), 1.col().y(3.row())),
@@ -378,5 +407,15 @@ fn main() {
         .finish(5250)
         .targeting(option_three_line);
     foliage.animate(seq, anim);
+    foliage.disable([github, option_one, option_two, option_three]);
+    foliage
+        .world
+        .spawn(Timer::new(TimeDelta::from_millis(1500)))
+        .observe(move |trigger: Trigger<OnEnd>, mut tree: Tree| {
+            tree.enable(github);
+        });
+    foliage.sequence_end(seq, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
+        tree.enable([option_one, option_two, option_three]);
+    });
     foliage.photosynthesize(); // run
 }
