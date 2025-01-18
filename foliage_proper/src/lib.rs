@@ -42,7 +42,10 @@ pub use asset::{asset_retrieval, AssetKey, AssetRetrieval};
 pub use attachment::Attachment;
 pub use bevy_ecs::{self, prelude::*};
 pub use color::{CReprColor, Color, Luminance};
-pub use composite::{button::{Button, ButtonShape}, handle_replace, Composite};
+pub use composite::{
+    button::{Button, ButtonShape},
+    handle_replace, Composite,
+};
 pub use composite::{IconValue, Primary, Secondary, Tertiary, TextValue};
 pub use coordinate::elevation::{Elevation, ResolvedElevation};
 pub use disable::Disable;
