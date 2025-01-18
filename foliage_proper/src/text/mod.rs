@@ -1,5 +1,5 @@
 mod glyph;
-mod monospaced;
+pub(crate) mod monospaced;
 mod pipeline;
 
 use crate::color::Color;

@@ -4,9 +4,10 @@ use crate::disable::AutoDisable;
 use crate::enable::AutoEnable;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::grid::{AspectRatio, GridUnit, ScalarUnit, View};
+use crate::text::monospaced::MonospacedFont;
 use crate::visibility::AutoVisibility;
 use crate::{
-    Animate, Component, CoordinateUnit, Coordinates, Grid, Layout, Line, Logical,
+    Animate, Component, CoordinateUnit, Coordinates, FontSize, Grid, Layout, Line, Logical,
     ResolvedVisibility, Section, Stem, Tree, Update, Visibility, Write,
 };
 use bevy_ecs::component::ComponentId;
@@ -162,6 +163,7 @@ impl Location {
         aspect: Option<AspectRatio>,
         view: View,
         current: Section<Logical>,
+        char_dims: Coordinates,
     ) -> Option<ResolvedLocation> {
         let mut resolved_points = Option::<Points<Logical>>::None;
         if let Some(config) = self.config(layout) {
@@ -178,6 +180,7 @@ impl Location {
                 GridUnit::Auto => {
                     panic!("Auto not supported in horizontal-begin.");
                 }
+                GridUnit::Chars(c) => stem.left() + char_dims.a() * c as CoordinateUnit,
             } + config.horizontal.padding.coordinates.a();
             let mut bx = match config.horizontal.b {
                 GridUnit::Aligned(a) => match config.horizontal.ty {
@@ -202,6 +205,10 @@ impl Location {
                 GridUnit::Auto => {
                     0.0 // Zeroed on purpose
                 }
+                GridUnit::Chars(c) => match config.horizontal.ty {
+                    LocationAxisType::Point => stem.top() + char_dims.b() * c as CoordinateUnit,
+                    _ => stem.left() + char_dims.a() * c as CoordinateUnit,
+                },
             } - config.horizontal.padding.coordinates.b()
                 * f32::from(config.horizontal.ty != LocationAxisType::Point)
                 + config.horizontal.padding.coordinates.b()
@@ -246,6 +253,10 @@ impl Location {
                 GridUnit::Auto => {
                     panic!("Auto not supported in vertical-begin");
                 }
+                GridUnit::Chars(c) => match config.vertical.ty {
+                    LocationAxisType::Point => stem.left() + char_dims.a() * c as CoordinateUnit,
+                    _ => stem.top() + char_dims.b() * c as CoordinateUnit,
+                },
             } + config.vertical.padding.coordinates.a();
             let mut by = match config.vertical.b {
                 GridUnit::Aligned(a) => grid.row(layout, stem, a, true),
@@ -264,6 +275,7 @@ impl Location {
                 GridUnit::Auto => {
                     0.0 // Zeroed on purpose
                 }
+                GridUnit::Chars(c) => stem.top() + char_dims.b() * c as CoordinateUnit,
             } - config.vertical.padding.coordinates.b()
                 * f32::from(config.vertical.ty != LocationAxisType::Point)
                 + config.vertical.padding.coordinates.b()
@@ -425,6 +437,8 @@ impl Location {
         create_diffs: Query<&CreateDiff>,
         last_resolved: Query<&ResolvedLocation>,
         diffs: Query<&Diff>,
+        font: Res<MonospacedFont>,
+        font_sizes: Query<&FontSize>,
     ) {
         let this = trigger.entity();
         if let Ok(location) = locations.get(this) {
@@ -461,9 +475,22 @@ impl Location {
                     .map(|id| *views.get(id).unwrap())
                     .unwrap_or_default();
                 let current = *sections.get(this).unwrap();
-                if let Some(resolved) =
-                    location.resolve(*layout, stem_section, stack, grid, aspect, view, current)
-                {
+                let char_dims = if let Ok(fs) = font_sizes.get(this) {
+                    let f = fs.resolve(*layout);
+                    font.character_block(f.value)
+                } else {
+                    Coordinates::default()
+                };
+                if let Some(resolved) = location.resolve(
+                    *layout,
+                    stem_section,
+                    stack,
+                    grid,
+                    aspect,
+                    view,
+                    current,
+                    char_dims,
+                ) {
                     if !auto_vis.visible {
                         tracing::trace!("auto-enabling for {:?}", this);
                         tree.entity(this).insert(AutoVisibility::new(true));

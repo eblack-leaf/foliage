@@ -39,6 +39,7 @@ pub trait GridExt {
     fn pct(self) -> GridUnit;
     fn col(self) -> GridUnit;
     fn row(self) -> GridUnit;
+    fn chars(self) -> GridUnit;
 }
 impl GridExt for i32 {
     fn px(self) -> GridUnit {
@@ -55,6 +56,10 @@ impl GridExt for i32 {
 
     fn row(self) -> GridUnit {
         GridUnit::Aligned(AlignedUnit::Rows(self))
+    }
+
+    fn chars(self) -> GridUnit {
+        GridUnit::Chars(self)
     }
 }
 #[derive(Component, Copy, Clone, Debug)]
@@ -316,6 +321,7 @@ pub enum GridUnit {
     Scalar(ScalarUnit),
     Stack,
     Auto,
+    Chars(i32),
 }
 impl GridUnit {
     pub fn gap<G: Into<Gap>>(self, g: G) -> GridAxisDescriptor {
@@ -379,6 +385,7 @@ impl Neg for GridUnit {
             GridUnit::Scalar(s) => GridUnit::Scalar(-s),
             GridUnit::Stack => GridUnit::Stack,
             GridUnit::Auto => GridUnit::Auto,
+            GridUnit::Chars(c) => GridUnit::Chars(-c),
         }
     }
 }
