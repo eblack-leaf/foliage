@@ -297,9 +297,11 @@ impl ResolvedFontSize {
         Self { value }
     }
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
-        world
-            .commands()
-            .trigger_targets(Update::<Text>::new(), this);
+        if world.get::<Text>(this).is_some() {
+            world
+                .commands()
+                .trigger_targets(Update::<Text>::new(), this);
+        }
     }
 }
 impl Default for ResolvedFontSize {

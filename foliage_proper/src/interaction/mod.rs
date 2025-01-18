@@ -75,6 +75,10 @@ pub(crate) struct CurrentInteraction {
 }
 #[derive(Event, Copy, Clone, Default)]
 pub struct OnClick {}
+#[derive(Event, Copy, Clone, Default)]
+pub struct Engaged {}
+#[derive(Event, Copy, Clone, Default)]
+pub struct Disengaged {}
 pub(crate) fn interactive_elements(
     mut reader: EventReader<Interaction>,
     mut listeners: Query<(
@@ -92,8 +96,12 @@ pub(crate) fn interactive_elements(
         .iter()
         .any(|e| e.click_phase == InteractionPhase::Cancel)
     {
-        current.primary.take();
-        current.pass_through.take();
+        if let Some(entity) = current.primary.take() {
+            tree.trigger_targets(Disengaged {}, entity);
+        }
+        if let Some(entity) = current.pass_through.take() {
+            tree.trigger_targets(Disengaged {}, entity);
+        }
     } else {
         let started = events
             .iter()
@@ -133,12 +141,13 @@ pub(crate) fn interactive_elements(
             }
             if let Some(p) = current.primary {
                 listeners.get_mut(p).unwrap().1.click = Click::new(event.position);
-                // TODO tree.trigger_targets(EngagedBegin::default(), p);
+                tree.trigger_targets(Engaged {}, p);
             }
             if let Some(ps) = current.pass_through {
                 let mut listener = listeners.get_mut(ps).unwrap().1;
                 listener.click = Click::new(event.position);
                 listener.last_drag = event.position;
+                tree.trigger_targets(Engaged {}, ps);
             }
         }
         if let Some(event) = moved.last() {
@@ -147,7 +156,7 @@ pub(crate) fn interactive_elements(
                 if scroll_delta.coordinates.a().abs() > InteractionListener::DRAG_THRESHOLD
                     || scroll_delta.coordinates.b().abs() > InteractionListener::DRAG_THRESHOLD
                 {
-                    // TODO tree.trigger_targets(EngagedEnd::default(), p);
+                    tree.trigger_targets(Disengaged {}, p);
                     current.primary.take();
                     if let Some(ps) = current.pass_through {
                         if let Ok(mut listener) = listeners.get_mut(ps) {
@@ -183,9 +192,8 @@ pub(crate) fn interactive_elements(
                     {
                         listener.1.click.end.replace(event.position);
                         tree.trigger_targets(OnClick::default(), p);
-                    } else {
-                        // TODO tree.trigger_targets(EngagedEnd::default(), p);
                     }
+                    tree.trigger_targets(Disengaged {}, p);
                 }
             }
             if let Some(ps) = current.pass_through.take() {
@@ -196,6 +204,7 @@ pub(crate) fn interactive_elements(
                     }
                     listener.1.click.end.replace(event.position);
                     tree.trigger_targets(OnClick::default(), ps);
+                    tree.trigger_targets(Disengaged {}, ps);
                 }
             }
         }

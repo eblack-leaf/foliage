@@ -64,6 +64,9 @@ impl Panel {
         scale_factor: Res<ScaleFactor>,
     ) {
         let this = trigger.entity();
+        if panels.get(this).ok().is_none() {
+            return;
+        }
         if let Ok(section) = sections.get(this) {
             if let Ok(rounding) = roundings.get(this) {
                 let section = section.to_physical(scale_factor.value()).rounded();
@@ -143,7 +146,9 @@ pub enum Rounding {
 }
 impl Rounding {
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
-        world.trigger_targets(Update::<Self>::new(), this);
+        if world.get::<Panel>(this).is_some() {
+            world.trigger_targets(Update::<Self>::new(), this);
+        }
     }
 }
 #[repr(C)]
@@ -179,7 +184,9 @@ impl Outline {
         tree.trigger_targets(Update::<Panel>::new(), trigger.entity());
     }
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
-        world.trigger_targets(Update::<Panel>::new(), this);
+        if world.get::<Panel>(this).is_some() {
+            world.trigger_targets(Update::<Panel>::new(), this);
+        }
     }
 }
 impl Default for Outline {

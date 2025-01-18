@@ -42,7 +42,8 @@ pub use asset::{asset_retrieval, AssetKey, AssetRetrieval};
 pub use attachment::Attachment;
 pub use bevy_ecs::{self, prelude::*};
 pub use color::{CReprColor, Color, Luminance};
-pub use composite::{button::Button, handle_replace, Composite};
+pub use composite::{button::{Button, ButtonShape}, handle_replace, Composite};
+pub use composite::{IconValue, Primary, Secondary, Tertiary, TextValue};
 pub use coordinate::elevation::{Elevation, ResolvedElevation};
 pub use disable::Disable;
 pub use enable::Enable;
@@ -57,6 +58,7 @@ pub use interaction::{
     listener::InteractionListener, listener::InteractionShape, listener::InteractionState,
     InputSequence, Interaction, InteractionPhase, OnClick,
 };
+pub use interaction::{Disengaged, Engaged};
 pub use leaf::{Branch, Leaf, Stem};
 pub use opacity::Opacity;
 pub use ops::{Update, Write};

@@ -2,7 +2,7 @@ use crate::anim::interpolation::Interpolations;
 use crate::{Animate, Attachment, Component, Foliage};
 use bevy_color::Alpha;
 
-#[derive(Component, Copy, Clone, PartialEq)]
+#[derive(Component, Copy, Clone, PartialEq, Debug)]
 pub struct Color {
     pub value: bevy_color::Srgba,
 }

@@ -1,4 +1,4 @@
-use crate::EcsExtension;
+use crate::{Color, EcsExtension, IconId};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::observer::TriggerTargets;
@@ -15,3 +15,13 @@ pub fn handle_replace<C: Composite>(mut world: DeferredWorld, this: Entity, _c: 
     let targets = C::remove(handle);
     world.commands().remove(targets);
 }
+#[derive(Component, Copy, Clone, Default)]
+pub struct Primary(pub Color);
+#[derive(Component, Copy, Clone, Default)]
+pub struct Secondary(pub Color);
+#[derive(Component, Copy, Clone, Default)]
+pub struct Tertiary(pub Color);
+#[derive(Component, Clone, Default)]
+pub struct TextValue(pub String);
+#[derive(Component, Copy, Clone, Default)]
+pub struct IconValue(pub IconId);

@@ -1,14 +1,9 @@
 #![allow(unused)]
-use foliage::{
-    stack, Animation, Button, Color, EcsExtension, Elevation, Foliage, FontSize, GlyphColors, Grid,
-    GridExt, HorizontalAlignment, Icon, InteractionListener, Line, Location, Logical, Opacity,
-    Outline, Panel, Query, Rounding, Section, Stack, Stem, Text, Tree, Trigger, VerticalAlignment,
-    Write,
-};
+use foliage::{stack, Animation, Button, ButtonShape, Color, EcsExtension, Elevation, Foliage, FontSize, GlyphColors, Grid, GridExt, HorizontalAlignment, Icon, IconValue, InteractionListener, Line, Location, Logical, Opacity, Outline, Panel, Primary, Query, Rounding, Secondary, Section, Stack, Stem, Text, Tree, Trigger, VerticalAlignment, Write};
 
 fn main() {
     let mut foliage = Foliage::new();
-    // foliage.enable_tracing(Targets::new().with_target("foliage", tracing::Level::TRACE));
+    foliage.enable_tracing(tracing_subscriber::filter::Targets::new().with_target("foliage", tracing::Level::TRACE));
     foliage.desktop_size((360, 800));
     foliage.url("foliage");
     let row_size = 40;
@@ -117,11 +112,13 @@ fn main() {
         .world
         .spawn(Icon::memory(0, include_bytes!("assets/icons/github.icon")));
     let github = foliage.leaf((
-        Button::new()
-            .icon(0)
-            .circle()
-            .foreground(Color::gray(200))
-            .background(Color::gray(800)),
+        Button::new(),
+        IconValue(0),
+        ButtonShape::Circle,
+        Primary(Color::gray(200)),
+        Secondary(Color::gray(800)),
+        FontSize::new(16),
+        Outline::default(),
         Location::new().xs(1.col().span(40.px()), 1.row().span(40.px())),
         Elevation::up(1),
         Stem::some(root),
