@@ -1,11 +1,5 @@
 #![allow(unused)]
-use foliage::{
-    stack, Animation, Button, ButtonShape, Color, EcsExtension, Elevation, Foliage, FontSize,
-    GlyphColors, Grid, GridExt, HorizontalAlignment, HrefLink, Icon, IconValue,
-    InteractionListener, Line, Location, Logical, OnClick, OnEnd, Opacity, Outline, Primary, Query,
-    Secondary, Section, Stack, Stem, Text, TimeDelta, Timer, Tree, Trigger, VerticalAlignment,
-    Write,
-};
+use foliage::{stack, Animation, Button, ButtonShape, Color, EcsExtension, Elevation, Foliage, FontSize, GlyphColors, Grid, GridExt, HorizontalAlignment, HrefLink, Icon, IconValue, InteractionListener, Line, Location, Logical, OnClick, OnEnd, Opacity, Outline, Primary, Query, Secondary, Section, Stack, Stem, Text, TextValue, TimeDelta, Timer, Tree, Trigger, VerticalAlignment, Write};
 
 fn main() {
     let mut foliage = Foliage::new();
@@ -308,6 +302,19 @@ fn main() {
         Color::gray(500),
         Opacity::new(0.0),
     ));
+    let contract = foliage.leaf((
+        Button::new(),
+        IconValue(3),
+        TextValue("Contract".to_string()),
+        FontSize::new(16),
+        Primary(Color::green(500)),
+        Secondary(Color::gray(900)),
+        Location::new().xs(3.col().to(10.col()).min(175.px()).max(350.px()), 15.row().span(48.px())),
+        // AspectRatio::new().xs(5f32 / 1f32),
+        Elevation::up(1),
+        Stem::some(root),
+        Outline::new(2),
+    ));
     let seq = foliage.sequence();
     let anim = Animation::new(Opacity::new(1.0))
         .start(500)
@@ -388,9 +395,9 @@ fn main() {
         stack().y(1.row()).pad((16, 0)),
         stack().y(1.row()).pad((64, 0)),
     ))
-    .start(1750)
-    .finish(2500)
-    .targeting(github_line);
+        .start(1750)
+        .finish(2500)
+        .targeting(github_line);
     foliage.animate(seq, anim);
     let anim = Animation::new(Location::new().xs(1.col().y(1.row()), 2.col().y(1.row())))
         .start(2500)

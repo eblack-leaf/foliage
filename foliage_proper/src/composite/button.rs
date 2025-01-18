@@ -1,10 +1,5 @@
 use crate::Justify::Far;
-use crate::{
-    handle_replace, Attachment, Color, Disengaged, EcsExtension, Elevation, Engaged, Foliage,
-    FontSize, Grid, GridExt, HorizontalAlignment, Icon, IconId, IconValue, InteractionListener,
-    Location, Outline, Panel, Primary, Rounding, Secondary, Stem, Text, TextValue, Tree, Update,
-    VerticalAlignment,
-};
+use crate::{handle_replace, stack, Attachment, Color, Disengaged, EcsExtension, Elevation, Engaged, Foliage, FontSize, Grid, GridExt, HorizontalAlignment, Icon, IconId, IconValue, InteractionListener, Location, Outline, Panel, Primary, Rounding, Secondary, Stack, Stem, Text, TextValue, Tree, Update, VerticalAlignment, Visibility};
 use crate::{Component, Composite};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
@@ -138,44 +133,6 @@ impl Button {
     fn forward_outline(trigger: Trigger<OnInsert, Outline>, mut tree: Tree) {
         tree.trigger_targets(Update::<Outline>::new(), trigger.entity());
     }
-    fn update_shape(
-        trigger: Trigger<Update<ButtonShape>>,
-        shapes: Query<&ButtonShape>,
-        handles: Query<&Handle>,
-        mut tree: Tree,
-    ) {
-        let this = trigger.entity();
-        let shape = shapes.get(this).unwrap();
-        let listener = match shape {
-            ButtonShape::Circle => InteractionListener::new().circle(),
-            ButtonShape::Rectangle => InteractionListener::new(),
-        };
-        tree.entity(this).insert(listener);
-        let handle = handles.get(this).unwrap();
-        let icon_location = match shape {
-            ButtonShape::Circle => Location::new().xs(
-                0.pct().to(100.pct()).min(24.px()).max(24.px()),
-                0.pct().to(100.pct()).min(24.px()).max(24.px()),
-            ),
-            ButtonShape::Rectangle => Location::new().xs(
-                1.col().to(1.col()).min(24.px()).max(24.px()).justify(Far),
-                1.row().to(1.row()).min(24.px()).max(24.px()),
-            ),
-        };
-        tracing::trace!("forwarding shape: {:?}", shape);
-        tree.entity(handle.icon).insert(icon_location);
-        match shape {
-            ButtonShape::Circle => {
-                tree.entity(handle.panel).insert(Rounding::Full);
-            }
-            ButtonShape::Rectangle => {
-                tree.entity(handle.panel).insert(Rounding::Sm);
-            }
-        }
-    }
-    fn forward_shape(trigger: Trigger<OnInsert, ButtonShape>, mut tree: Tree) {
-        tree.trigger_targets(Update::<ButtonShape>::new(), trigger.entity());
-    }
     fn update_primary(
         trigger: Trigger<Update<Primary>>,
         handles: Query<&Handle>,
@@ -268,17 +225,57 @@ impl Button {
             tree.entity(handle.text).insert(primary.0);
         }
     }
+    fn update_shape(
+        trigger: Trigger<Update<ButtonShape>>,
+        shapes: Query<&ButtonShape>,
+        handles: Query<&Handle>,
+        mut tree: Tree,
+    ) {
+        let this = trigger.entity();
+        let shape = shapes.get(this).unwrap();
+        let listener = match shape {
+            ButtonShape::Circle => InteractionListener::new().circle(),
+            ButtonShape::Rectangle => InteractionListener::new(),
+        };
+        tree.entity(this).insert(listener);
+        let handle = handles.get(this).unwrap();
+        let icon_location = match shape {
+            ButtonShape::Circle => Location::new().xs(
+                0.pct().to(100.pct()).min(24.px()).max(24.px()),
+                0.pct().to(100.pct()).min(24.px()).max(24.px()),
+            ),
+            ButtonShape::Rectangle => Location::new().xs(
+                1.col().to(3.col()).min(24.px()).max(24.px()).justify(Far),
+                1.row().to(1.row()).min(24.px()).max(24.px()),
+            ),
+        };
+        tracing::trace!("forwarding shape: {:?}", shape);
+        tree.entity(handle.icon).insert(icon_location);
+        match shape {
+            ButtonShape::Circle => {
+                tree.entity(handle.panel).insert(Rounding::Full);
+                tree.entity(handle.text).insert(Visibility::new(false));
+            }
+            ButtonShape::Rectangle => {
+                tree.entity(handle.panel).insert(Rounding::Sm);
+                tree.entity(handle.text).insert(Visibility::new(true));
+            }
+        }
+    }
+    fn forward_shape(trigger: Trigger<OnInsert, ButtonShape>, mut tree: Tree) {
+        tree.trigger_targets(Update::<ButtonShape>::new(), trigger.entity());
+    }
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
         // let this = trigger.entity();
         let icon_value = *world.get::<IconValue>(this).unwrap();
         world
             .commands()
             .entity(this)
-            .insert(Grid::new(3.col().gap(4), 1.row().gap(4)));
+            .insert(Grid::new(9.col().gap(4), 1.row().gap(4)));
         let panel = world.commands().leaf((
             Panel::new(),
             Stem::some(this),
-            Location::new().xs(1.col().to(3.col()), 1.row().to(1.row())),
+            Location::new().xs(1.col().to(9.col()), 1.row().to(1.row())),
             Elevation::up(1),
         ));
         let icon =
@@ -289,9 +286,10 @@ impl Button {
             Text::new(""),
             Elevation::up(2),
             Stem::some(this),
-            HorizontalAlignment::Center,
+            HorizontalAlignment::Left,
             VerticalAlignment::Middle,
-            Location::new().xs(2.col().to(3.col()), 1.row().to(1.row())),
+            Stack::new(icon),
+            Location::new().xs(stack().to(9.col()).pad((8, 0)), 1.row().to(1.row())),
         ));
         tracing::trace!("{:?}, {:?}, {:?}", panel, icon, text);
         let handle = Handle { panel, icon, text };
