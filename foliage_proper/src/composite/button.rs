@@ -1,5 +1,10 @@
 use crate::Justify::Far;
-use crate::{handle_replace, stack, Attachment, Color, Disengaged, EcsExtension, Elevation, Engaged, Foliage, FontSize, Grid, GridExt, HorizontalAlignment, Icon, IconId, IconValue, InteractionListener, Location, Outline, Panel, Primary, Rounding, Secondary, Stack, Stem, Text, TextValue, Tree, Update, VerticalAlignment, Visibility};
+use crate::{
+    handle_replace, stack, Attachment, Color, Disengaged, EcsExtension, Elevation, Engaged,
+    Foliage, FontSize, Grid, GridExt, HorizontalAlignment, Icon, IconId, IconValue,
+    InteractionListener, Location, Outline, Panel, Primary, Rounding, Secondary, Stack, Stem, Text,
+    TextValue, Tree, Update, VerticalAlignment, Visibility,
+};
 use crate::{Component, Composite};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;

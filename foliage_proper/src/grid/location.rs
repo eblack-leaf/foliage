@@ -426,16 +426,14 @@ impl Location {
         layout: Res<Layout>,
         locations: Query<&Location>,
         sections: Query<&Section<Logical>>,
-        grids: Query<&Grid>,
+        grids: Query<(&Grid, &View)>,
         stems: Query<&Stem>,
         stacks: Query<&Stack>,
         visibilities: Query<(&ResolvedVisibility, &AutoVisibility)>,
         aspect_ratios: Query<&AspectRatio>,
-        views: Query<&View>,
         lines: Query<&Line>,
         viewport: Res<ViewportHandle>,
-        create_diffs: Query<&CreateDiff>,
-        last_resolved: Query<&ResolvedLocation>,
+        create_diff_and_last: Query<(&CreateDiff, &ResolvedLocation)>,
         diffs: Query<&Diff>,
         font: Res<MonospacedFont>,
         font_sizes: Query<&FontSize>,
@@ -465,15 +463,14 @@ impl Location {
                 } else {
                     None
                 };
-                let grid = stem
+                let (grid, view) = stem
                     .id
-                    .map(|id| *grids.get(id).unwrap())
+                    .map(|id| {
+                        let val = grids.get(id).unwrap();
+                        (*val.0, *val.1)
+                    })
                     .unwrap_or_default();
                 let aspect = aspect_ratios.get(this).copied().ok();
-                let view = stem
-                    .id
-                    .map(|id| *views.get(id).unwrap())
-                    .unwrap_or_default();
                 let current = *sections.get(this).unwrap();
                 let char_dims = if let Ok(fs) = font_sizes.get(this) {
                     let f = fs.resolve(*layout);
@@ -498,10 +495,9 @@ impl Location {
                     }
                     match resolved {
                         ResolvedLocation::Section(mut section) => {
-                            let diff = if create_diffs.get(this).unwrap().0 {
-                                let last = if let Some(ResolvedLocation::Section(last)) =
-                                    last_resolved.get(this).ok().and_then(|rl| Some(*rl))
-                                {
+                            let (cd, lr) = create_diff_and_last.get(this).unwrap();
+                            let diff = if cd.0 {
+                                let last = if let ResolvedLocation::Section(last) = *lr {
                                     last
                                 } else {
                                     Section::default()
@@ -527,10 +523,9 @@ impl Location {
                             tree.entity(this).insert(section);
                         }
                         ResolvedLocation::Points(mut pts) => {
-                            let diff = if create_diffs.get(this).unwrap().0 {
-                                let last = if let Some(ResolvedLocation::Points(last)) =
-                                    last_resolved.get(this).ok().and_then(|rl| Some(*rl))
-                                {
+                            let (cd, lr) = create_diff_and_last.get(this).unwrap();
+                            let diff = if cd.0 {
+                                let last = if let ResolvedLocation::Points(last) = *lr {
                                     last
                                 } else {
                                     Points::default()
