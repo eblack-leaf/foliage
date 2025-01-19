@@ -1,6 +1,6 @@
 use crate::anim::interpolation::Interpolations;
 use crate::ginkgo::viewport::ViewportHandle;
-use crate::grid::{Gap, GridAxisDescriptor};
+use crate::grid::{Gap, GridAxisDescriptor, GridConfiguration};
 use crate::text::monospaced::MonospacedFont;
 use crate::visibility::AutoVisibility;
 use crate::{
@@ -125,7 +125,7 @@ impl Location {
             self.at_least_md()
         }
     }
-    pub fn config(&self, layout: Layout) -> Option<LocationDescriptor> {
+    fn config(&self, layout: Layout) -> Option<LocationDescriptor> {
         match layout {
             Layout::Xs => self.at_least_xs(),
             Layout::Sm => self.at_least_sm(),
@@ -163,12 +163,133 @@ impl Location {
         aspect_ratios: Query<&AspectRatio>,
         lines: Query<&Line>,
         viewport: Res<ViewportHandle>,
-        create_diff_and_last: Query<(&CreateDiff, &LastResolution)>,
+        create_diff_and_last: Query<(&CreateDiff, &Resolution)>,
         diffs: Query<&Diff>,
         font: Res<MonospacedFont>,
         font_sizes: Query<&FontSize>,
     ) {
-        todo!()
+        let this = trigger.entity();
+        if let Ok(location) = locations.get(this) {
+            let (_, auto_vis) = visibilities.get(this).unwrap();
+            let stem = stems.get(this).unwrap();
+            let (grid, view, context) = if let Some(id) = stem.id {
+                let val = grids.get(id).unwrap();
+                let context = sections.get(id).unwrap();
+                (val.0.config(*layout), *val.1, *context)
+            } else {
+                (
+                    Grid::default().config(*layout),
+                    View::default(),
+                    viewport.section(),
+                )
+            };
+            let mut stack = None;
+            if let Ok(stack) = stacks.get(this) {
+                if let Some(id) = stack.id {
+                    if visibilities.get(id).unwrap().0.visible() {
+                        stack.replace(*sections.get(id).unwrap());
+                    }
+                }
+            };
+            let current = *sections.get(this).unwrap();
+            let letter_dims = if let Ok(fs) = font_sizes.get(this) {
+                let f = fs.resolve(*layout);
+                font.character_block(f.value)
+            } else {
+                Coordinates::default()
+            };
+        }
+    }
+}
+fn resolve(
+    layout: Layout,
+    location: &Location,
+    grid: GridConfiguration,
+    view: View,
+    context: Section<Logical>,
+    stack: Option<Section<Logical>>,
+    current: Section<Logical>,
+    letter_dims: Coordinates,
+) -> Option<Resolution> {
+    if let Some(config) = location.config(layout) {
+        let mut resolution = Resolution::default();
+        let a = calc(
+            config.horizontal.a,
+            grid,
+            context,
+            stack,
+            current,
+            letter_dims,
+        );
+        if a.is_none() {
+            return None;
+        }
+        Some(resolution)
+    } else {
+        None
+    }
+}
+fn calc(
+    desc: ValueDescriptor,
+    grid: GridConfiguration,
+    context: Section<Logical>,
+    stack: Option<Section<Logical>>,
+    current: Section<Logical>,
+    letter_dims: Coordinates,
+) -> Option<CoordinateUnit> {
+    match desc.value {
+        LocationValue::Percent(pct) => Some(
+            pct * match desc.designator {
+                Designator::Left
+                | Designator::Right
+                | Designator::CenterX
+                | Designator::X
+                | Designator::Width => context.width(),
+                _ => context.height(),
+            },
+        ),
+        LocationValue::Px(px) => Some(px),
+        LocationValue::Column(c) => {
+            let inclusive = false;
+            let val = (c as f32 - 1f32 * f32::from(!inclusive));
+            Some(val)
+        }
+        LocationValue::Row(r) => {
+            let inclusive = false;
+            let val = (r as f32 - 1f32 * f32::from(!inclusive));
+            Some(val)
+        }
+        LocationValue::Stack(s) => {
+            if let Some(stack) = stack {
+                Some(match s {
+                    Designator::X => stack.left(),
+                    Designator::Y => stack.top(),
+                    Designator::Left => stack.left(),
+                    Designator::Top => stack.top(),
+                    Designator::Width => stack.width(),
+                    Designator::Height => stack.height(),
+                    Designator::Right => stack.right(),
+                    Designator::Bottom => stack.bottom(),
+                    Designator::CenterX => stack.center().left(),
+                    Designator::CenterY => stack.center().top(),
+                })
+            } else {
+                None
+            }
+        }
+        LocationValue::Auto => match desc.designator {
+            Designator::Height => Some(current.height()),
+            Designator::Width => Some(current.width()),
+            _ => None,
+        },
+        LocationValue::Letters(l) => match desc.designator {
+            Designator::Left
+            | Designator::Right
+            | Designator::CenterX
+            | Designator::X
+            | Designator::Width => Some(letter_dims.a() * l as f32),
+            _ => Some(letter_dims.b() * l as f32),
+        },
     }
 }
 #[derive(Copy, Clone)]
@@ -282,7 +403,7 @@ impl_grid_ext!(f32);
 impl_grid_ext!(u32);
 impl_grid_ext!(usize);
 impl_grid_ext!(isize);
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum LocationValue {
     Percent(f32),
     Px(CoordinateUnit),
@@ -318,20 +439,29 @@ impl LocationValue {
         ValueDescriptor::new(Designator::CenterY, self)
     }
     pub fn x(self) -> ValueDescriptor {
-        ValueDescriptor::new(Designator::Left, self)
+        ValueDescriptor::new(Designator::X, self)
     }
     pub fn y(self) -> ValueDescriptor {
-        ValueDescriptor::new(Designator::Top, self)
+        ValueDescriptor::new(Designator::Y, self)
     }
     pub fn gap<G: Into<Gap>>(self, g: G) -> GridAxisDescriptor {
+        debug_assert!(match self {
+            LocationValue::Px(_)
+            | LocationValue::Percent(_)
+            | LocationValue::Column(_)
+            | LocationValue::Row(_) => true,
+            _ => false,
+        });
         GridAxisDescriptor {
             value: self,
             gap: g.into(),
         }
     }
 }
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Designator {
+    X,
+    Y,
     Left,
     Top,
     Width,
@@ -341,6 +471,7 @@ pub enum Designator {
     CenterX,
     CenterY,
 }
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct StackDescriptor {}
 impl StackDescriptor {
     pub fn left(self) -> LocationValue {
@@ -382,11 +513,12 @@ pub(crate) struct LocationDescriptor {
 #[derive(Component, Copy, Clone, Default)]
 pub(crate) struct CreateDiff(pub(crate) bool);
 #[derive(Component, Copy, Clone, Default)]
-pub(crate) struct Diff(pub(crate) LastResolution);
+pub(crate) struct Diff(pub(crate) Resolution);
 #[derive(Component, Copy, Clone, Default)]
-pub(crate) struct LastResolution {
+pub(crate) struct Resolution {
     pub(crate) section: Section<Logical>,
     pub(crate) points: Points<Logical>,
+    pub(crate) from_points: bool,
 }
 #[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug, Hash)]
 pub enum Justify {
