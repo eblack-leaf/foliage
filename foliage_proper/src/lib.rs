@@ -52,11 +52,8 @@ pub use coordinate::elevation::{Elevation, ResolvedElevation};
 pub use disable::Disable;
 pub use enable::Enable;
 pub use foliage::Foliage;
-pub use grid::{
-    auto, stack, AspectRatio, Grid, GridUnit, Layout, Location, LocationAxisDescriptor,
-    LocationAxisType, View,
-};
-pub use grid::{GridExt, Justify, Stack, StackDeps};
+pub use grid::{auto, stack, AspectRatio, Grid, Layout, Location, View};
+pub use grid::{GridExt, Justify, Stack, StackDeps, StackDescriptor};
 pub use icon::{Icon, IconId, IconMemory};
 pub use image::{Image, ImageMemory, ImageMetrics, ImageView, MemoryId};
 pub use interaction::{
