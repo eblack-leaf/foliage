@@ -1,6 +1,7 @@
 mod aspect_ratio;
 mod layout;
 pub(crate) mod location;
+mod locationv2;
 pub(crate) mod view;
 
 use crate::foliage::{DiffMarkers, Foliage, MainMarkers};
@@ -28,9 +29,9 @@ impl Attachment for Grid {
         foliage
             .diff
             .add_systems(extent_check_v2.in_set(DiffMarkers::Prepare));
-        foliage.define(Location::update_from_visibility);
-        foliage.define(Location::update_location);
-        foliage.define(Location::stem_insert);
+        // foliage.define(Location::update_from_visibility);
+        // foliage.define(Location::update_location);
+        // foliage.define(Location::stem_insert);
         foliage.enable_animation::<Location>();
     }
 }

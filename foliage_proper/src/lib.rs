@@ -32,6 +32,7 @@ mod web_ext;
 mod willow;
 pub use crate::coordinate::{
     area::{Area, CReprArea},
+    points::Points,
     position::{CReprPosition, Position},
     section::{CReprSection, Section},
     CoordinateContext, CoordinateUnit, Coordinates, Logical, Numerical, Physical,
