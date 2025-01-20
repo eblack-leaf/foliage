@@ -84,7 +84,7 @@ impl Button {
                     Location::new().xs(
                         50.pct()
                             .center_x()
-                            .adjust(10)
+                            .adjust(20)
                             .with(value.0.len().letters().width()),
                         1.row().top().with(1.row().bottom()),
                     ),
@@ -309,7 +309,7 @@ impl Button {
             HorizontalAlignment::Left,
             VerticalAlignment::Middle,
             Location::new().xs(
-                50.pct().center_x().adjust(10).with(0.letters().width()),
+                50.pct().center_x().adjust(20).with(0.letters().width()),
                 1.row().top().with(1.row().bottom()),
             ),
         ));
