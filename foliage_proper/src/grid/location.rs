@@ -292,7 +292,7 @@ fn resolve(
             current,
             letter_dims,
             view,
-        )? + config.horizontal.adjust.coordinates.a();
+        )?;
         let b = calc(
             config.horizontal.b,
             grid,
@@ -301,14 +301,19 @@ fn resolve(
             current,
             letter_dims,
             view,
-        )? + config.horizontal.adjust.coordinates.b();
+        )?;
         let (pair, data) = if config.horizontal.a.designator > config.horizontal.b.designator {
             (
                 (
                     config.horizontal.b.designator,
                     config.horizontal.a.designator,
                 ),
-                (b, a),
+                (
+                    b,
+                    config.horizontal.b.value.is_stack(),
+                    a,
+                    config.horizontal.a.value.is_stack(),
+                ),
             )
         } else {
             (
@@ -316,37 +321,60 @@ fn resolve(
                     config.horizontal.a.designator,
                     config.horizontal.b.designator,
                 ),
-                (a, b),
+                (
+                    a,
+                    config.horizontal.a.value.is_stack(),
+                    b,
+                    config.horizontal.b.value.is_stack(),
+                ),
             )
         };
         match pair {
             (Designator::X, Designator::Y) => {
-                resolution.points.set_a((data.0, data.1));
+                resolution.points.set_a((
+                    data.0 + view.offset.left() * f32::from(data.1),
+                    data.2 + view.offset.top() * f32::from(data.3),
+                ));
                 resolution.from_points = true;
             }
             (Designator::Left, Designator::Width) => {
-                resolution.section.position.set_left(data.0);
-                resolution.section.area.set_width(data.1);
+                resolution
+                    .section
+                    .position
+                    .set_left(data.0 + view.offset.left() * f32::from(data.1));
+                resolution.section.area.set_width(data.2);
             }
             (Designator::Left, Designator::Right) => {
-                resolution.section.position.set_left(data.0);
-                resolution.section.area.set_width(data.1 - data.0);
+                resolution
+                    .section
+                    .position
+                    .set_left(data.0 + view.offset.left() * f32::from(data.1));
+                resolution.section.area.set_width(data.2 - data.0);
             }
             (Designator::Left, Designator::CenterX) => {
-                resolution.section.position.set_left(data.0);
-                resolution.section.area.set_width((data.1 - data.0) * 2.0);
+                resolution
+                    .section
+                    .position
+                    .set_left(data.0 + view.offset.left() * f32::from(data.1));
+                resolution.section.area.set_width((data.2 - data.0) * 2.0);
             }
             (Designator::Width, Designator::Right) => {
-                resolution.section.set_left(data.1 - data.0);
+                resolution
+                    .section
+                    .set_left(data.2 - data.0 + view.offset.left() * f32::from(data.3));
                 resolution.section.set_width(data.0);
             }
             (Designator::Width, Designator::CenterX) => {
-                resolution.section.set_left(data.1 - data.0 / 2.0);
+                resolution
+                    .section
+                    .set_left(data.2 - data.0 / 2.0 + view.offset.left() * f32::from(data.3));
                 resolution.section.set_width(data.0);
             }
             (Designator::Right, Designator::CenterX) => {
-                let diff = data.0 - data.1;
-                resolution.section.set_left(data.1 - diff);
+                let diff = data.0 - data.2;
+                resolution
+                    .section
+                    .set_left(data.2 - diff + view.offset.left() * f32::from(data.1));
                 resolution.section.set_width(diff * 2.0);
             }
             _ => panic!("unsupported combination"),
@@ -359,7 +387,7 @@ fn resolve(
             current,
             letter_dims,
             view,
-        )? + config.vertical.adjust.coordinates.a();
+        )?;
         let d = calc(
             config.vertical.b,
             grid,
@@ -368,46 +396,74 @@ fn resolve(
             current,
             letter_dims,
             view,
-        )? + config.vertical.adjust.coordinates.b();
+        )?;
         let (pair, data) = if config.vertical.a.designator > config.vertical.b.designator {
             (
                 (config.vertical.b.designator, config.vertical.a.designator),
-                (d, c),
+                (
+                    d,
+                    config.vertical.b.value.is_stack(),
+                    c,
+                    config.vertical.a.value.is_stack(),
+                ),
             )
         } else {
             (
                 (config.vertical.a.designator, config.vertical.b.designator),
-                (c, d),
+                (
+                    c,
+                    config.vertical.a.value.is_stack(),
+                    d,
+                    config.vertical.b.value.is_stack(),
+                ),
             )
         };
         match pair {
             (Designator::X, Designator::Y) => {
-                resolution.points.set_b((data.0, data.1));
+                resolution.points.set_b((
+                    data.0 + view.offset.left() * f32::from(data.1),
+                    data.2 + view.offset.top() * f32::from(data.3),
+                ));
                 resolution.from_points = true;
             }
             (Designator::Top, Designator::Height) => {
-                resolution.section.position.set_top(data.0);
-                resolution.section.area.set_height(data.1);
+                resolution
+                    .section
+                    .position
+                    .set_top(data.0 + view.offset.top() * f32::from(data.1));
+                resolution.section.area.set_height(data.2);
             }
             (Designator::Top, Designator::Bottom) => {
-                resolution.section.position.set_top(data.0);
-                resolution.section.area.set_height(data.1 - data.0);
+                resolution
+                    .section
+                    .position
+                    .set_top(data.0 + view.offset.top() * f32::from(data.1));
+                resolution.section.area.set_height(data.2 - data.0);
             }
             (Designator::Top, Designator::CenterY) => {
-                resolution.section.position.set_top(data.0);
-                resolution.section.area.set_height((data.1 - data.0) * 2.0);
+                resolution
+                    .section
+                    .position
+                    .set_top(data.0 + view.offset.top() * f32::from(data.1));
+                resolution.section.area.set_height((data.2 - data.0) * 2.0);
             }
             (Designator::Height, Designator::Bottom) => {
-                resolution.section.set_top(data.1 - data.0);
+                resolution
+                    .section
+                    .set_top(data.2 - data.0 + view.offset.top() * f32::from(data.3));
                 resolution.section.set_height(data.0);
             }
             (Designator::Height, Designator::CenterY) => {
-                resolution.section.set_top(data.1 - data.0 / 2.0);
+                resolution
+                    .section
+                    .set_top(data.2 - data.0 / 2.0 + view.offset.top() * f32::from(data.3));
                 resolution.section.set_height(data.0);
             }
             (Designator::Bottom, Designator::CenterY) => {
-                let diff = data.0 - data.1;
-                resolution.section.set_top(data.1 - diff);
+                let diff = data.0 - data.2;
+                resolution
+                    .section
+                    .set_top(data.2 - diff + view.offset.top() * f32::from(data.1));
                 resolution.section.set_height(diff * 2.0);
             }
             _ => panic!("unsupported combination"),
@@ -507,30 +563,19 @@ fn calc(
             )
         }
         LocationValue::Stack(s) => {
-            let offset = match desc.designator {
-                Designator::Left | Designator::X | Designator::Right | Designator::CenterX => {
-                    view.offset.left()
-                }
-                Designator::Top | Designator::Y | Designator::Bottom | Designator::CenterY => {
-                    view.offset.top()
-                }
-                _ => 0.0,
-            };
             if let Some(stack) = stack {
-                Some(
-                    match s {
-                        Designator::X => stack.left(),
-                        Designator::Y => stack.top(),
-                        Designator::Left => stack.left(),
-                        Designator::Top => stack.top(),
-                        Designator::Width => stack.width(),
-                        Designator::Height => stack.height(),
-                        Designator::Right => stack.right(),
-                        Designator::Bottom => stack.bottom(),
-                        Designator::CenterX => stack.center().left(),
-                        Designator::CenterY => stack.center().top(),
-                    } + offset,
-                )
+                Some(match s {
+                    Designator::X => stack.left(),
+                    Designator::Y => stack.top(),
+                    Designator::Left => stack.left(),
+                    Designator::Top => stack.top(),
+                    Designator::Width => stack.width(),
+                    Designator::Height => stack.height(),
+                    Designator::Right => stack.right(),
+                    Designator::Bottom => stack.bottom(),
+                    Designator::CenterX => stack.center().left(),
+                    Designator::CenterY => stack.center().top(),
+                })
             } else {
                 None
             }
@@ -555,19 +600,28 @@ fn calc(
             ),
         },
     };
-    calculated.and_then(|c| Some(c))
+    calculated.and_then(|c| Some(c + desc.adjust.amount))
 }
 #[derive(Copy, Clone)]
 pub struct ValueDescriptor {
     pub(crate) designator: Designator,
     pub(crate) value: LocationValue,
+    pub(crate) adjust: Adjust,
 }
 impl ValueDescriptor {
     pub fn new(designator: Designator, value: LocationValue) -> Self {
-        Self { designator, value }
+        Self {
+            designator,
+            value,
+            adjust: Default::default(),
+        }
     }
     pub fn with(mut self, b: ValueDescriptor) -> ConfigurationDescriptor {
         ConfigurationDescriptor::new(self, b)
+    }
+    pub fn adjust<P: Into<Adjust>>(mut self, adjust: P) -> Self {
+        self.adjust = adjust.into();
+        self
     }
 }
 #[derive(Copy, Clone)]
@@ -577,7 +631,6 @@ pub struct ConfigurationDescriptor {
     pub(crate) min: Option<CoordinateUnit>,
     pub(crate) max: Option<CoordinateUnit>,
     pub(crate) justify: Justify,
-    pub(crate) adjust: Adjust,
 }
 impl ConfigurationDescriptor {
     pub fn new(a: ValueDescriptor, b: ValueDescriptor) -> Self {
@@ -587,12 +640,7 @@ impl ConfigurationDescriptor {
             min: None,
             max: None,
             justify: Default::default(),
-            adjust: Default::default(),
         }
-    }
-    pub fn adjust<P: Into<Adjust>>(mut self, adjust: P) -> Self {
-        self.adjust = adjust.into();
-        self
     }
     pub fn min(mut self, min: CoordinateUnit) -> Self {
         self.min.replace(min);
@@ -609,26 +657,17 @@ impl ConfigurationDescriptor {
 }
 #[derive(Copy, Clone)]
 pub struct Adjust {
-    pub coordinates: Coordinates,
+    pub amount: CoordinateUnit,
 }
 impl Default for Adjust {
     fn default() -> Self {
-        Self {
-            coordinates: (0, 0).into(),
-        }
+        Self { amount: 0.0 }
     }
 }
 impl From<i32> for Adjust {
     fn from(value: i32) -> Self {
         Self {
-            coordinates: Coordinates::from((value, value)),
-        }
-    }
-}
-impl From<(i32, i32)> for Adjust {
-    fn from(value: (i32, i32)) -> Self {
-        Self {
-            coordinates: Coordinates::from((value.0, value.1)),
+            amount: value as f32,
         }
     }
 }
@@ -676,6 +715,12 @@ pub enum LocationValue {
     Letters(i32),
 }
 impl LocationValue {
+    fn is_stack(self) -> bool {
+        match self {
+            LocationValue::Stack(_) => true,
+            _ => false,
+        }
+    }
     pub fn left(self) -> ValueDescriptor {
         ValueDescriptor::new(Designator::Left, self)
     }
