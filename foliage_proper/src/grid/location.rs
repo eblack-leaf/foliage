@@ -492,19 +492,19 @@ fn calc(
         LocationValue::Percent(pct) => {
             let pct_value = pct
                 * match desc.designator {
-                    Designator::Left
-                    | Designator::Right
-                    | Designator::CenterX
-                    | Designator::X
-                    | Designator::Width => {
-                        context.width()
-                            + context.left() * f32::from(!desc.designator == Designator::Width)
-                    }
-                    _ => {
-                        context.height()
-                            + context.top() * f32::from(!desc.designator == Designator::Height)
-                    }
-                };
+                Designator::Left
+                | Designator::Right
+                | Designator::CenterX
+                | Designator::X
+                | Designator::Width => {
+                    context.width()
+                        + context.left() * f32::from(desc.designator != Designator::Width)
+                }
+                _ => {
+                    context.height()
+                        + context.top() * f32::from(desc.designator != Designator::Height)
+                }
+            };
             Some(pct_value)
         }
         LocationValue::Px(px) => Some(match desc.designator {
@@ -536,7 +536,7 @@ fn calc(
                 + c as f32 * grid.columns.gap.amount;
             Some(
                 val + point_offset
-                    + context.left() * f32::from(!desc.designator == Designator::Width),
+                    + context.left() * f32::from(desc.designator != Designator::Width),
             )
         }
         LocationValue::Row(r) => {
@@ -556,10 +556,10 @@ fn calc(
                 _ => 0.0,
             };
             let val = (r as f32 - 1f32 * f32::from(!inclusive)) * row
-                + r as f32 * grid.columns.gap.amount;
+                + r as f32 * grid.rows.gap.amount;
             Some(
                 val + point_offset
-                    + context.top() * f32::from(!desc.designator == Designator::Height),
+                    + context.top() * f32::from(desc.designator != Designator::Height),
             )
         }
         LocationValue::Stack(s) => {
