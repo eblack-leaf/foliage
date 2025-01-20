@@ -1,4 +1,6 @@
 use crate::anim::interpolation::Interpolations;
+use crate::disable::AutoDisable;
+use crate::enable::AutoEnable;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::grid::{Gap, GridAxisDescriptor, GridConfiguration};
 use crate::text::monospaced::MonospacedFont;
@@ -37,7 +39,7 @@ impl Animate for Location {
 }
 #[derive(Component, Copy, Clone, Default)]
 #[component(on_insert = Location::on_insert)]
-#[require(Diff, CreateDiff, LastResolution)]
+#[require(Diff, CreateDiff, Resolution)]
 pub struct Location {
     pub(crate) xs: Option<LocationDescriptor>,
     pub(crate) sm: Option<LocationDescriptor>,
@@ -198,6 +200,75 @@ impl Location {
             } else {
                 Coordinates::default()
             };
+            if let Some(mut resolution) = resolve(
+                *layout,
+                location,
+                grid,
+                view,
+                context,
+                stack,
+                current,
+                letter_dims,
+            ) {
+                if !auto_vis.visible {
+                    tree.entity(this).insert(AutoVisibility::new(true));
+                    tree.trigger_targets(AutoEnable::new(), this);
+                }
+                let (cd, last) = create_diff_and_last.get(this).unwrap();
+                if !resolution.from_points {
+                    // section
+                    let diff = if cd.0 {
+                        let val = last.section - resolution.section;
+                        let diff = Diff({
+                            let mut res = Resolution::default();
+                            res.section = val;
+                            res
+                        });
+                        tree.entity(this).insert(CreateDiff(false)).insert(diff);
+                        val
+                    } else {
+                        diffs.get(this).unwrap().0.section
+                    };
+                    let anim_diff = diff * location.animation_percent;
+                    resolution.section += anim_diff;
+                    tree.entity(this).insert(resolution);
+                    tree.entity(this).insert(resolution.section);
+                } else {
+                    // points
+                    let diff = if cd.0 {
+                        let val = last.points - resolution.points;
+                        let diff = Diff({
+                            let mut res = Resolution::default();
+                            res.points = val;
+                            res
+                        });
+                        tree.entity(this).insert(CreateDiff(false)).insert(diff);
+                        val
+                    } else {
+                        diffs.get(this).unwrap().0.points
+                    };
+                    resolution.points += diff * location.animation_percent;
+                    let mut bbox = resolution.points.bbox();
+                    if let Ok(line) = lines.get(this) {
+                        let w = bbox
+                            .width()
+                            .max(line.weight as CoordinateUnit + 2f32 * grid.columns.gap.amount);
+                        let h = bbox
+                            .height()
+                            .max(line.weight as CoordinateUnit + 2f32 * grid.rows.gap.amount);
+                        bbox.set_width(w);
+                        bbox.set_height(h);
+                    }
+                    resolution.section = bbox;
+                    tree.entity(this)
+                        .insert(resolution)
+                        .insert(resolution.points)
+                        .insert(resolution.section);
+                }
+            } else if auto_vis.visible {
+                tree.entity(this).insert(AutoVisibility::new(false));
+                tree.trigger_targets(AutoDisable::new(), this);
+            }
         }
     }
 }
@@ -220,10 +291,133 @@ fn resolve(
             stack,
             current,
             letter_dims,
-        );
-        if a.is_none() {
-            return None;
+            view,
+        )? + config.horizontal.adjust.coordinates.a();
+        let b = calc(
+            config.horizontal.b,
+            grid,
+            context,
+            stack,
+            current,
+            letter_dims,
+            view,
+        )? + config.horizontal.adjust.coordinates.b();
+        let (pair, data) = if config.horizontal.a.designator > config.horizontal.b.designator {
+            (
+                (
+                    config.horizontal.b.designator,
+                    config.horizontal.a.designator,
+                ),
+                (b, a),
+            )
+        } else {
+            (
+                (
+                    config.horizontal.a.designator,
+                    config.horizontal.b.designator,
+                ),
+                (a, b),
+            )
+        };
+        match pair {
+            (Designator::X, Designator::Y) => {
+                resolution.points.set_a((data.0, data.1));
+                resolution.from_points = true;
+            }
+            (Designator::Left, Designator::Width) => {
+                resolution.section.position.set_left(data.0);
+                resolution.section.area.set_width(data.1);
+            }
+            (Designator::Left, Designator::Right) => {
+                resolution.section.position.set_left(data.0);
+                resolution.section.area.set_width(data.1 - data.0);
+            }
+            (Designator::Left, Designator::CenterX) => {
+                resolution.section.position.set_left(data.0);
+                resolution.section.area.set_width((data.1 - data.0) * 2.0);
+            }
+            (Designator::Width, Designator::Right) => {
+                resolution.section.set_left(data.1 - data.0);
+                resolution.section.set_width(data.0);
+            }
+            (Designator::Width, Designator::CenterX) => {
+                resolution.section.set_left(data.1 - data.0 / 2.0);
+                resolution.section.set_width(data.0);
+            }
+            (Designator::Right, Designator::CenterX) => {
+                let diff = data.0 - data.1;
+                resolution.section.set_left(data.1 - diff);
+                resolution.section.set_width(diff * 2.0);
+            }
+            _ => panic!("unsupported combination"),
         }
+        let c = calc(
+            config.vertical.a,
+            grid,
+            context,
+            stack,
+            current,
+            letter_dims,
+            view,
+        )? + config.vertical.adjust.coordinates.a();
+        let d = calc(
+            config.vertical.b,
+            grid,
+            context,
+            stack,
+            current,
+            letter_dims,
+            view,
+        )? + config.vertical.adjust.coordinates.b();
+        let (pair, data) = if config.vertical.a.designator > config.vertical.b.designator {
+            (
+                (config.vertical.b.designator, config.vertical.a.designator),
+                (d, c),
+            )
+        } else {
+            (
+                (config.vertical.a.designator, config.vertical.b.designator),
+                (c, d),
+            )
+        };
+        match pair {
+            (Designator::X, Designator::Y) => {
+                resolution.points.set_b((data.0, data.1));
+                resolution.from_points = true;
+            }
+            (Designator::Top, Designator::Height) => {
+                resolution.section.position.set_top(data.0);
+                resolution.section.area.set_height(data.1);
+            }
+            (Designator::Top, Designator::Bottom) => {
+                resolution.section.position.set_top(data.0);
+                resolution.section.area.set_height(data.1 - data.0);
+            }
+            (Designator::Top, Designator::CenterY) => {
+                resolution.section.position.set_top(data.0);
+                resolution.section.area.set_height((data.1 - data.0) * 2.0);
+            }
+            (Designator::Height, Designator::Bottom) => {
+                resolution.section.set_top(data.1 - data.0);
+                resolution.section.set_height(data.0);
+            }
+            (Designator::Height, Designator::CenterY) => {
+                resolution.section.set_top(data.1 - data.0 / 2.0);
+                resolution.section.set_height(data.0);
+            }
+            (Designator::Bottom, Designator::CenterY) => {
+                let diff = data.0 - data.1;
+                resolution.section.set_top(data.1 - diff);
+                resolution.section.set_height(diff * 2.0);
+            }
+            _ => panic!("unsupported combination"),
+        }
+        resolution.section.position -= view.offset;
+        for pt in resolution.points.data.iter_mut() {
+            *pt -= view.offset;
+        }
+        // TODO min/max + justify
+        // TODO aspect
         Some(resolution)
     } else {
         None
@@ -236,43 +430,107 @@ fn calc(
     stack: Option<Section<Logical>>,
     current: Section<Logical>,
     letter_dims: Coordinates,
+    view: View,
 ) -> Option<CoordinateUnit> {
-    match desc.value {
-        LocationValue::Percent(pct) => Some(
-            pct * match desc.designator {
-                Designator::Left
-                | Designator::Right
-                | Designator::CenterX
-                | Designator::X
-                | Designator::Width => context.width(),
-                _ => context.height(),
-            },
-        ),
-        LocationValue::Px(px) => Some(px),
+    let calculated = match desc.value {
+        LocationValue::Percent(pct) => {
+            let pct_value = pct
+                * match desc.designator {
+                    Designator::Left
+                    | Designator::Right
+                    | Designator::CenterX
+                    | Designator::X
+                    | Designator::Width => {
+                        context.width()
+                            + context.left() * f32::from(!desc.designator == Designator::Width)
+                    }
+                    _ => {
+                        context.height()
+                            + context.top() * f32::from(!desc.designator == Designator::Height)
+                    }
+                };
+            Some(pct_value)
+        }
+        LocationValue::Px(px) => Some(match desc.designator {
+            Designator::Left | Designator::X | Designator::CenterX | Designator::Right => {
+                px + context.left()
+            }
+            Designator::Top | Designator::Y | Designator::CenterY | Designator::Bottom => {
+                px + context.top()
+            }
+            _ => px,
+        }),
         LocationValue::Column(c) => {
-            let inclusive = false;
-            let val = (c as f32 - 1f32 * f32::from(!inclusive));
-            Some(val)
+            let inclusive = match desc.designator {
+                Designator::Right | Designator::Width => true,
+                _ => false,
+            };
+            let column = if let LocationValue::Column(n) = grid.columns.value {
+                (context.width() - grid.columns.gap.amount * (n + 1) as f32) / (n as f32)
+            } else if let LocationValue::Px(px) = grid.columns.value {
+                px
+            } else {
+                return None;
+            };
+            let point_offset = match desc.designator {
+                Designator::X => 0.5 * column,
+                _ => 0.0,
+            };
+            let val = (c as f32 - 1f32 * f32::from(!inclusive)) * column
+                + c as f32 * grid.columns.gap.amount;
+            Some(
+                val + point_offset
+                    + context.left() * f32::from(!desc.designator == Designator::Width),
+            )
         }
         LocationValue::Row(r) => {
-            let inclusive = false;
-            let val = (r as f32 - 1f32 * f32::from(!inclusive));
-            Some(val)
+            let inclusive = match desc.designator {
+                Designator::Bottom | Designator::Height => true,
+                _ => false,
+            };
+            let row = if let LocationValue::Row(n) = grid.rows.value {
+                (context.height() - grid.rows.gap.amount * (n + 1) as f32) / (n as f32)
+            } else if let LocationValue::Px(px) = grid.rows.value {
+                px
+            } else {
+                return None;
+            };
+            let point_offset = match desc.designator {
+                Designator::Y => 0.5 * row,
+                _ => 0.0,
+            };
+            let val = (r as f32 - 1f32 * f32::from(!inclusive)) * row
+                + r as f32 * grid.columns.gap.amount;
+            Some(
+                val + point_offset
+                    + context.top() * f32::from(!desc.designator == Designator::Height),
+            )
         }
         LocationValue::Stack(s) => {
+            let offset = match desc.designator {
+                Designator::Left | Designator::X | Designator::Right | Designator::CenterX => {
+                    view.offset.left()
+                }
+                Designator::Top | Designator::Y | Designator::Bottom | Designator::CenterY => {
+                    view.offset.top()
+                }
+                _ => 0.0,
+            };
             if let Some(stack) = stack {
-                Some(match s {
-                    Designator::X => stack.left(),
-                    Designator::Y => stack.top(),
-                    Designator::Left => stack.left(),
-                    Designator::Top => stack.top(),
-                    Designator::Width => stack.width(),
-                    Designator::Height => stack.height(),
-                    Designator::Right => stack.right(),
-                    Designator::Bottom => stack.bottom(),
-                    Designator::CenterX => stack.center().left(),
-                    Designator::CenterY => stack.center().top(),
-                })
+                Some(
+                    match s {
+                        Designator::X => stack.left(),
+                        Designator::Y => stack.top(),
+                        Designator::Left => stack.left(),
+                        Designator::Top => stack.top(),
+                        Designator::Width => stack.width(),
+                        Designator::Height => stack.height(),
+                        Designator::Right => stack.right(),
+                        Designator::Bottom => stack.bottom(),
+                        Designator::CenterX => stack.center().left(),
+                        Designator::CenterY => stack.center().top(),
+                    } + offset,
+                )
             } else {
                 None
             }
@@ -287,28 +545,26 @@ fn calc(
             | Designator::Right
             | Designator::CenterX
             | Designator::X
-            | Designator::Width => Some(letter_dims.a() * l as f32),
-            _ => Some(letter_dims.b() * l as f32),
+            | Designator::Width => Some(
+                letter_dims.a() * l as f32
+                    + context.left() * f32::from(!desc.designator == Designator::Width),
+            ),
+            _ => Some(
+                letter_dims.b() * l as f32
+                    + context.top() * f32::from(!desc.designator == Designator::Height),
+            ),
         },
-    }
+    };
+    calculated.and_then(|c| Some(c))
 }
 #[derive(Copy, Clone)]
 pub struct ValueDescriptor {
     pub(crate) designator: Designator,
     pub(crate) value: LocationValue,
-    pub(crate) padding: Padding,
 }
 impl ValueDescriptor {
     pub fn new(designator: Designator, value: LocationValue) -> Self {
-        Self {
-            designator,
-            value,
-            padding: Default::default(),
-        }
-    }
-    pub fn pad<P: Into<Padding>>(mut self, padding: P) -> Self {
-        self.padding = padding.into();
-        self
+        Self { designator, value }
     }
     pub fn with(mut self, b: ValueDescriptor) -> ConfigurationDescriptor {
         ConfigurationDescriptor::new(self, b)
@@ -321,6 +577,7 @@ pub struct ConfigurationDescriptor {
     pub(crate) min: Option<CoordinateUnit>,
     pub(crate) max: Option<CoordinateUnit>,
     pub(crate) justify: Justify,
+    pub(crate) adjust: Adjust,
 }
 impl ConfigurationDescriptor {
     pub fn new(a: ValueDescriptor, b: ValueDescriptor) -> Self {
@@ -330,7 +587,12 @@ impl ConfigurationDescriptor {
             min: None,
             max: None,
             justify: Default::default(),
+            adjust: Default::default(),
         }
+    }
+    pub fn adjust<P: Into<Adjust>>(mut self, adjust: P) -> Self {
+        self.adjust = adjust.into();
+        self
     }
     pub fn min(mut self, min: CoordinateUnit) -> Self {
         self.min.replace(min);
@@ -346,24 +608,24 @@ impl ConfigurationDescriptor {
     }
 }
 #[derive(Copy, Clone)]
-pub struct Padding {
+pub struct Adjust {
     pub coordinates: Coordinates,
 }
-impl Default for Padding {
+impl Default for Adjust {
     fn default() -> Self {
         Self {
             coordinates: (0, 0).into(),
         }
     }
 }
-impl From<i32> for Padding {
+impl From<i32> for Adjust {
     fn from(value: i32) -> Self {
         Self {
             coordinates: Coordinates::from((value, value)),
         }
     }
 }
-impl From<(i32, i32)> for Padding {
+impl From<(i32, i32)> for Adjust {
     fn from(value: (i32, i32)) -> Self {
         Self {
             coordinates: Coordinates::from((value.0, value.1)),
@@ -458,17 +720,17 @@ impl LocationValue {
         }
     }
 }
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Ord, PartialOrd, Eq, Hash)]
 pub enum Designator {
     X,
-    Y,
     Left,
-    Top,
     Width,
-    Height,
     Right,
-    Bottom,
     CenterX,
+    Y,
+    Top,
+    Height,
+    Bottom,
     CenterY,
 }
 #[derive(Copy, Clone, Debug, PartialEq)]

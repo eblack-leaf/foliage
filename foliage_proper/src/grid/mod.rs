@@ -5,7 +5,7 @@ pub(crate) mod view;
 
 use crate::foliage::{DiffMarkers, Foliage, MainMarkers};
 pub(crate) use crate::grid::layout::viewport_changed;
-pub use crate::grid::location::{auto, stack, Justify, Padding, StackDescriptor};
+pub use crate::grid::location::{auto, stack, Adjust, Justify, StackDescriptor};
 pub use crate::grid::location::{GridExt, LocationValue};
 use crate::grid::view::extent_check_v2;
 use crate::{Attachment, Component, CoordinateUnit};
