@@ -40,7 +40,6 @@ impl Visibility {
         let stem = stems.get(this).unwrap();
         if let Some(s) = stem.id {
             let resolved = *res.get(s).unwrap();
-            tracing::trace!("inheriting {}", resolved.visible);
             tree.entity(this).insert(InheritedVisibility {
                 visible: resolved.visible,
             });
@@ -69,15 +68,6 @@ impl Visibility {
             visible: inherited.visible && current.visible && auto.visible,
         };
         let cached = cached.get(this).unwrap();
-        tracing::trace!(
-            "inherited: {} current: {} auto: {} => resolved: {} = cached: {} for {:?}",
-            inherited.visible,
-            current.visible,
-            auto.visible,
-            resolved.visible,
-            cached.visible,
-            this
-        );
         if cached.visible != resolved.visible {
             tree.entity(this).insert(resolved).insert(CachedVisibility {
                 visible: resolved.visible,
@@ -101,10 +91,6 @@ impl Visibility {
     ) {
         let value = visibilities.get(trigger.entity()).unwrap();
         if !value.visible {
-            tracing::trace!(
-                "visibility: false => pushing remove packet for {:?}",
-                trigger.entity()
-            );
             queue.queue.insert(trigger.entity());
         }
     }

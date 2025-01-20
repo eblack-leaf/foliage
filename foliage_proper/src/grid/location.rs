@@ -149,7 +149,6 @@ impl Location {
         tree.trigger_targets(Update::<Location>::new(), trigger.entity());
     }
     fn update_from_visibility(trigger: Trigger<Write<Visibility>>, mut tree: Tree) {
-        tracing::trace!("update_from_visibility for {:?}", trigger.entity());
         tree.trigger_targets(Update::<Location>::new(), trigger.entity());
     }
     fn update(
@@ -233,7 +232,6 @@ impl Location {
                     };
                     let anim_diff = diff * location.animation_percent;
                     resolution.section += anim_diff;
-                    println!("resolving {} for {:?}", resolution.section, this);
                     tree.entity(this).insert(resolution);
                     tree.entity(this).insert(resolution.section);
                 } else {
@@ -370,7 +368,6 @@ fn resolve(
             }
             (Designator::Width, Designator::CenterX) => {
                 let left = data.2 - data.0 / 2.0;
-                println!("w: {} cx: {} left: {}", data.0, data.2, left);
                 resolution
                     .section
                     .set_left(left + view.offset.left() * f32::from(data.3));
@@ -618,15 +615,6 @@ fn calc(
                         + context.top() * f32::from(desc.designator != Designator::Height)
                 }
             };
-            if desc.designator == Designator::CenterX {
-                println!(
-                    "pct {} * w {} + l {} pct-value: {}",
-                    pct,
-                    context.width(),
-                    context.left(),
-                    pct_value
-                );
-            }
             Some(pct_value)
         }
         LocationValue::Px(px) => Some(match desc.designator {

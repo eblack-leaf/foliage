@@ -1,9 +1,8 @@
-use crate::Justify::Far;
 use crate::{
-    handle_replace, stack, Attachment, Color, Disengaged, EcsExtension, Elevation, Engaged,
-    Foliage, FontSize, Grid, GridExt, HorizontalAlignment, Icon, IconId, IconValue,
-    InteractionListener, Location, Outline, Panel, Primary, Rounding, Secondary, Stack, Stem, Text,
-    TextValue, Tree, Update, VerticalAlignment, Visibility,
+    handle_replace, stack, Attachment, Disengaged, EcsExtension, Elevation, Engaged, Foliage,
+    FontSize, Grid, GridExt, HorizontalAlignment, Icon, IconValue, InteractionListener, Location,
+    Outline, Panel, Primary, Rounding, Secondary, Stack, Stem, Text, TextValue, Tree, Update,
+    VerticalAlignment, Visibility,
 };
 use crate::{Component, Composite};
 use bevy_ecs::component::ComponentId;
@@ -34,7 +33,6 @@ impl Button {
         Self {}
     }
     fn on_add(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
-        tracing::trace!("adding observers for {:?}", this);
         world
             .commands()
             .entity(this)
@@ -77,7 +75,6 @@ impl Button {
         let this = trigger.entity();
         let handle = handles.get(this).unwrap();
         if let Some(value) = values.get(this).ok() {
-            tracing::trace!("forwarding text-value: {}", value.0);
             tree.entity(handle.text)
                 .insert(Text::new(value.0.as_str()))
                 .insert(
@@ -103,7 +100,6 @@ impl Button {
         let this = trigger.entity();
         let handle = handles.get(this).unwrap();
         let value = values.get(this).unwrap();
-        tracing::trace!("forwarding font-sie: {}", value.xs);
         tree.entity(handle.text).insert(*value);
     }
     fn forward_font_size(trigger: Trigger<OnInsert, FontSize>, mut tree: Tree) {
@@ -118,7 +114,6 @@ impl Button {
         let this = trigger.entity();
         let handle = handles.get(this).unwrap();
         let value = values.get(this).unwrap();
-        tracing::trace!("forwarding icon: {}", value.0);
         tree.entity(handle.icon).insert(Icon::new(value.0));
     }
     fn forward_icon(trigger: Trigger<OnInsert, IconValue>, mut tree: Tree) {
@@ -142,7 +137,6 @@ impl Button {
         } else {
             primary.0
         };
-        tracing::trace!("forwarding outline: {}", outline.value);
         tree.entity(handle.panel).insert(color).insert(*outline);
     }
     fn forward_outline(trigger: Trigger<OnInsert, Outline>, mut tree: Tree) {
@@ -164,7 +158,6 @@ impl Button {
         if outline != &Outline::default() {
             tree.entity(handle.panel).insert(primary.0);
         }
-        tracing::trace!("forwarding primary: {:?}", primary.0);
     }
     fn forward_primary(
         trigger: Trigger<OnInsert, Primary>,
@@ -189,7 +182,6 @@ impl Button {
         if outline == &Outline::default() {
             tree.entity(handle.panel).insert(secondary.0);
         }
-        tracing::trace!("forwarding secondary: {:?}", secondary.0);
     }
     fn forward_secondary(trigger: Trigger<OnInsert, Secondary>, mut tree: Tree) {
         tree.trigger_targets(Update::<Secondary>::new(), trigger.entity());
@@ -264,7 +256,6 @@ impl Button {
                 50.pct().center_y().with(24.px().height()),
             ),
         };
-        tracing::trace!("forwarding shape: {:?}", shape);
         tree.entity(handle.icon).insert(icon_location);
         match shape {
             ButtonShape::Circle => {
@@ -283,7 +274,6 @@ impl Button {
         tree.trigger_targets(Update::<ButtonShape>::new(), trigger.entity());
     }
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
-        // let this = trigger.entity();
         let icon_value = *world.get::<IconValue>(this).unwrap();
         world
             .commands()
@@ -313,7 +303,6 @@ impl Button {
                 1.row().top().with(1.row().bottom()),
             ),
         ));
-        tracing::trace!("{:?}, {:?}, {:?}", panel, icon, text);
         let handle = Handle { panel, icon, text };
         world.commands().entity(this).insert(handle);
     }

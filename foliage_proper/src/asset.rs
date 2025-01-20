@@ -44,7 +44,6 @@ pub fn asset_retrieval<'w, AFN: FnMut(&mut Tree, Entity, Vec<u8>) + 'static>(
     let obs =
         move |trigger: Trigger<OnRetrieval>, mut tree: Tree, asset_loader: Res<AssetLoader>| {
             let asset = asset_loader.retrieve(trigger.event().key).unwrap();
-            // tracing::trace!("asset: {:?}", asset.data);
             afn(&mut tree, trigger.entity(), asset.data);
         };
     obs
@@ -57,7 +56,6 @@ pub(crate) fn on_retrieve(
     for (entity, on_retrieve) in retrievers.iter() {
         if asset_loader.assets.contains_key(&on_retrieve.key) {
             cmd.entity(entity).remove::<AssetRetrieval>();
-            tracing::trace!("retrieving asset {} for {:?}", on_retrieve.key, entity);
             cmd.trigger_targets(
                 OnRetrieval {
                     key: on_retrieve.key,

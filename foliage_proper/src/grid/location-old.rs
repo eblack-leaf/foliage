@@ -212,7 +212,7 @@ impl Location {
             } - config.horizontal.padding.coordinates.b()
                 * f32::from(config.horizontal.ty != LocationAxisType::Point)
                 + config.horizontal.padding.coordinates.b()
-                    * f32::from(config.horizontal.ty == LocationAxisType::Point);
+                * f32::from(config.horizontal.ty == LocationAxisType::Point);
             match config.horizontal.ty {
                 LocationAxisType::Point => {
                     if let GridUnit::Aligned(_) = config.horizontal.a {
@@ -279,7 +279,7 @@ impl Location {
             } - config.vertical.padding.coordinates.b()
                 * f32::from(config.vertical.ty != LocationAxisType::Point)
                 + config.vertical.padding.coordinates.b()
-                    * f32::from(config.vertical.ty == LocationAxisType::Point);
+                * f32::from(config.vertical.ty == LocationAxisType::Point);
             match config.vertical.ty {
                 LocationAxisType::Point => {
                     if let GridUnit::Aligned(_) = config.vertical.a {
@@ -417,7 +417,6 @@ impl Location {
         tree.trigger_targets(Update::<Location>::new(), trigger.entity());
     }
     pub(crate) fn update_from_visibility(trigger: Trigger<Write<Visibility>>, mut tree: Tree) {
-        tracing::trace!("update_from_visibility for {:?}", trigger.entity());
         tree.trigger_targets(Update::<Location>::new(), trigger.entity());
     }
     pub(crate) fn update_location(
@@ -489,7 +488,6 @@ impl Location {
                     char_dims,
                 ) {
                     if !auto_vis.visible {
-                        tracing::trace!("auto-enabling for {:?}", this);
                         tree.entity(this).insert(AutoVisibility::new(true));
                         tree.trigger_targets(AutoEnable::new(), this);
                     }
@@ -562,7 +560,6 @@ impl Location {
                         }
                     }
                 } else if auto_vis.visible {
-                    tracing::trace!("auto-disable for {:?}", this);
                     tree.entity(this).insert(AutoVisibility::new(false));
                     tree.trigger_targets(AutoDisable::new(), this);
                 }

@@ -98,10 +98,6 @@ impl Elevation {
         } else {
             ResolvedElevation(elev.amount + current.value())
         };
-        println!(
-            "elev {} current {} = res {} for {:?}",
-            elev.amount, current.0, resolved.0, this
-        );
         tree.entity(this).insert(resolved);
         for dep in branch.get(this).unwrap().ids.clone() {
             if let Some(elev) = elevation.get(dep).copied().ok() {
