@@ -429,45 +429,45 @@ fn main() {
     let anim = Animation::new(
         Location::new().xs(4.col().x().with(5.row().y()), 9.col().x().with(5.row().y())),
     )
-        .start(1000)
-        .finish(3000)
-        .targeting(top_line);
+    .start(1000)
+    .finish(3000)
+    .targeting(top_line);
     foliage.animate(seq, anim);
     let anim = Animation::new(
         Location::new().xs(7.col().x().with(5.row().y()), 7.col().x().with(8.row().y())),
     )
-        .start(1750)
-        .finish(3000)
-        .targeting(pad_connector);
+    .start(1750)
+    .finish(3000)
+    .targeting(pad_connector);
     foliage.animate(seq, anim);
     let anim = Animation::new(Location::new().xs(
         stack().right().x().adjust(16).with(1.row().y()),
         stack().right().x().adjust(64).with(1.row().y()),
     ))
-        .start(1750)
-        .finish(2500)
-        .targeting(github_line);
+    .start(1750)
+    .finish(2500)
+    .targeting(github_line);
     foliage.animate(seq, anim);
     let anim = Animation::new(
         Location::new().xs(1.col().x().with(1.row().y()), 2.col().x().with(1.row().y())),
     )
-        .start(2500)
-        .finish(3000)
-        .targeting(option_one_line);
+    .start(2500)
+    .finish(3000)
+    .targeting(option_one_line);
     foliage.animate(seq, anim);
     let anim = Animation::new(
         Location::new().xs(4.col().x().with(2.row().y()), 5.col().x().with(2.row().y())),
     )
-        .start(3500)
-        .finish(4000)
-        .targeting(option_two_line);
+    .start(3500)
+    .finish(4000)
+    .targeting(option_two_line);
     foliage.animate(seq, anim);
     let anim = Animation::new(
         Location::new().xs(1.col().x().with(3.row().y()), 2.col().x().with(3.row().y())),
     )
-        .start(4750)
-        .finish(5250)
-        .targeting(option_three_line);
+    .start(4750)
+    .finish(5250)
+    .targeting(option_three_line);
     foliage.animate(seq, anim);
     foliage.disable([github, option_one, option_two, option_three]);
     foliage

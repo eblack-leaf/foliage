@@ -84,7 +84,7 @@ impl Button {
                     Location::new().xs(
                         50.pct()
                             .center_x()
-                            .adjust(-40)
+                            .adjust(10)
                             .with(value.0.len().letters().width()),
                         1.row().top().with(1.row().bottom()),
                     ),
@@ -270,10 +270,12 @@ impl Button {
             ButtonShape::Circle => {
                 tree.entity(handle.panel).insert(Rounding::Full);
                 tree.entity(handle.text).insert(Visibility::new(false));
+                tree.entity(handle.icon).insert(Stack::default());
             }
             ButtonShape::Rectangle => {
                 tree.entity(handle.panel).insert(Rounding::Sm);
                 tree.entity(handle.text).insert(Visibility::new(true));
+                tree.entity(handle.icon).insert(Stack::new(handle.text));
             }
         }
     }
@@ -306,9 +308,8 @@ impl Button {
             Stem::some(this),
             HorizontalAlignment::Left,
             VerticalAlignment::Middle,
-            Stack::new(icon),
             Location::new().xs(
-                50.pct().center_x().adjust(-40).with(0.letters().width()),
+                50.pct().center_x().adjust(10).with(0.letters().width()),
                 1.row().top().with(1.row().bottom()),
             ),
         ));

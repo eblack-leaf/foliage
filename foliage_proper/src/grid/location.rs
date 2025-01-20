@@ -233,6 +233,7 @@ impl Location {
                     };
                     let anim_diff = diff * location.animation_percent;
                     resolution.section += anim_diff;
+                    println!("resolving {} for {:?}", resolution.section, this);
                     tree.entity(this).insert(resolution);
                     tree.entity(this).insert(resolution.section);
                 } else {
@@ -368,9 +369,11 @@ fn resolve(
                 resolution.section.set_width(data.0);
             }
             (Designator::Width, Designator::CenterX) => {
+                let left = data.2 - data.0 / 2.0;
+                println!("w: {} cx: {} left: {}", data.0, data.2, left);
                 resolution
                     .section
-                    .set_left(data.2 - data.0 / 2.0 + view.offset.left() * f32::from(data.3));
+                    .set_left(left + view.offset.left() * f32::from(data.3));
                 resolution.section.set_width(data.0);
             }
             (Designator::Right, Designator::CenterX) => {
@@ -475,9 +478,8 @@ fn resolve(
         for pt in resolution.points.data.iter_mut() {
             *pt -= view.offset;
         }
-        // TODO min/max + justify
         if let Some(max_w) = config.horizontal.max {
-            let val = resolution.section.width().max(max_w);
+            let val = resolution.section.width().min(max_w);
             if val < resolution.section.width() {
                 let diff = resolution.section.width() - val;
                 match config.horizontal.justify {
@@ -498,14 +500,15 @@ fn resolve(
                     }
                 }
             }
+            resolution.section.set_width(val);
         }
         if let Some(min_w) = config.horizontal.min {
             resolution
                 .section
-                .set_width(resolution.section.width().min(min_w));
+                .set_width(resolution.section.width().max(min_w));
         }
         if let Some(max_h) = config.vertical.max {
-            let val = resolution.section.height().max(max_h);
+            let val = resolution.section.height().min(max_h);
             if val < resolution.section.height() {
                 let diff = resolution.section.height() - val;
                 match config.horizontal.justify {
@@ -526,11 +529,12 @@ fn resolve(
                     }
                 }
             }
+            resolution.section.set_height(val);
         }
         if let Some(min_h) = config.vertical.min {
             resolution
                 .section
-                .set_width(resolution.section.height().min(min_h));
+                .set_width(resolution.section.height().max(min_h));
         }
         resolution.section.area = resolution.section.area.max((0, 0));
         if let Some(a) = aspect_ratio {
@@ -600,21 +604,29 @@ fn calc(
 ) -> Option<CoordinateUnit> {
     let calculated = match desc.value {
         LocationValue::Percent(pct) => {
-            let pct_value = pct
-                * match desc.designator {
-                    Designator::Left
-                    | Designator::Right
-                    | Designator::CenterX
-                    | Designator::X
-                    | Designator::Width => {
-                        context.width()
-                            + context.left() * f32::from(desc.designator != Designator::Width)
-                    }
-                    _ => {
-                        context.height()
-                            + context.top() * f32::from(desc.designator != Designator::Height)
-                    }
-                };
+            let pct_value = match desc.designator {
+                Designator::Left
+                | Designator::Right
+                | Designator::CenterX
+                | Designator::X
+                | Designator::Width => {
+                    pct * context.width()
+                        + context.left() * f32::from(desc.designator != Designator::Width)
+                }
+                _ => {
+                    pct * context.height()
+                        + context.top() * f32::from(desc.designator != Designator::Height)
+                }
+            };
+            if desc.designator == Designator::CenterX {
+                println!(
+                    "pct {} * w {} + l {} pct-value: {}",
+                    pct,
+                    context.width(),
+                    context.left(),
+                    pct_value
+                );
+            }
             Some(pct_value)
         }
         LocationValue::Px(px) => Some(match desc.designator {
@@ -638,16 +650,13 @@ fn calc(
             } else {
                 return None;
             };
-            let point_offset = match desc.designator {
-                Designator::X => 0.5 * column,
+            let offset = match desc.designator {
+                Designator::X | Designator::CenterX => 0.5 * column,
                 _ => 0.0,
             };
             let val = (c as f32 - 1f32 * f32::from(!inclusive)) * column
                 + c as f32 * grid.columns.gap.amount;
-            Some(
-                val + point_offset
-                    + context.left() * f32::from(desc.designator != Designator::Width),
-            )
+            Some(val + offset + context.left() * f32::from(desc.designator != Designator::Width))
         }
         LocationValue::Row(r) => {
             let inclusive = match desc.designator {
@@ -661,16 +670,13 @@ fn calc(
             } else {
                 return None;
             };
-            let point_offset = match desc.designator {
-                Designator::Y => 0.5 * row,
+            let offset = match desc.designator {
+                Designator::Y | Designator::CenterY => 0.5 * row,
                 _ => 0.0,
             };
             let val =
                 (r as f32 - 1f32 * f32::from(!inclusive)) * row + r as f32 * grid.rows.gap.amount;
-            Some(
-                val + point_offset
-                    + context.top() * f32::from(desc.designator != Designator::Height),
-            )
+            Some(val + offset + context.top() * f32::from(desc.designator != Designator::Height))
         }
         LocationValue::Stack(s) => {
             if let Some(stack) = stack {
