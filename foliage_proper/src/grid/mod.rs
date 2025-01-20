@@ -127,6 +127,11 @@ pub struct GridConfiguration {
     pub columns: GridAxisDescriptor,
     pub rows: GridAxisDescriptor,
 }
+impl From<(GridAxisDescriptor, GridAxisDescriptor)> for GridConfiguration {
+    fn from((columns, rows): (GridAxisDescriptor, GridAxisDescriptor)) -> Self {
+        Self { columns, rows }
+    }
+}
 #[derive(Copy, Clone)]
 pub struct GridAxisDescriptor {
     pub value: LocationValue,

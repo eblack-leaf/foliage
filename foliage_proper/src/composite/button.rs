@@ -78,7 +78,17 @@ impl Button {
         let handle = handles.get(this).unwrap();
         if let Some(value) = values.get(this).ok() {
             tracing::trace!("forwarding text-value: {}", value.0);
-            tree.entity(handle.text).insert(Text::new(value.0.as_str()));
+            tree.entity(handle.text)
+                .insert(Text::new(value.0.as_str()))
+                .insert(
+                    Location::new().xs(
+                        50.pct()
+                            .center_x()
+                            .adjust(-40)
+                            .with(value.0.len().letters().width()),
+                        1.row().top().with(1.row().bottom()),
+                    ),
+                );
         }
     }
     fn forward_text(trigger: Trigger<OnInsert, TextValue>, mut tree: Tree) {
@@ -246,12 +256,12 @@ impl Button {
         let handle = handles.get(this).unwrap();
         let icon_location = match shape {
             ButtonShape::Circle => Location::new().xs(
-                0.pct().to(100.pct()).min(24.px()).max(24.px()),
-                0.pct().to(100.pct()).min(24.px()).max(24.px()),
+                50.pct().center_x().with(24.px().width()),
+                50.pct().center_y().with(24.px().height()),
             ),
             ButtonShape::Rectangle => Location::new().xs(
-                1.col().to(3.col()).min(24.px()).max(24.px()).justify(Far),
-                1.row().to(1.row()).min(24.px()).max(24.px()),
+                stack().left().right().adjust(-8).with(24.px().width()),
+                50.pct().center_y().with(24.px().height()),
             ),
         };
         tracing::trace!("forwarding shape: {:?}", shape);
@@ -276,11 +286,14 @@ impl Button {
         world
             .commands()
             .entity(this)
-            .insert(Grid::new(9.col().gap(4), 1.row().gap(4)));
+            .insert(Grid::new(1.col().gap(4), 1.row().gap(4)));
         let panel = world.commands().leaf((
             Panel::new(),
             Stem::some(this),
-            Location::new().xs(1.col().to(9.col()), 1.row().to(1.row())),
+            Location::new().xs(
+                1.col().left().with(1.col().right()),
+                1.row().top().with(1.row().bottom()),
+            ),
             Elevation::up(1),
         ));
         let icon =
@@ -294,7 +307,10 @@ impl Button {
             HorizontalAlignment::Left,
             VerticalAlignment::Middle,
             Stack::new(icon),
-            Location::new().xs(stack().to(9.col()).pad((8, 0)), 1.row().to(1.row())),
+            Location::new().xs(
+                50.pct().center_x().adjust(-40).with(0.letters().width()),
+                1.row().top().with(1.row().bottom()),
+            ),
         ));
         tracing::trace!("{:?}, {:?}, {:?}", panel, icon, text);
         let handle = Handle { panel, icon, text };

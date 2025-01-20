@@ -185,9 +185,10 @@ impl Location {
                     viewport.section(),
                 )
             };
+            let aspect_ratio = aspect_ratios.get(this).ok().copied();
             let mut stack = None;
-            if let Ok(stack) = stacks.get(this) {
-                if let Some(id) = stack.id {
+            if let Ok(s) = stacks.get(this) {
+                if let Some(id) = s.id {
                     if visibilities.get(id).unwrap().0.visible() {
                         stack.replace(*sections.get(id).unwrap());
                     }
@@ -209,6 +210,7 @@ impl Location {
                 stack,
                 current,
                 letter_dims,
+                aspect_ratio,
             ) {
                 if !auto_vis.visible {
                     tree.entity(this).insert(AutoVisibility::new(true));
@@ -281,6 +283,7 @@ fn resolve(
     stack: Option<Section<Logical>>,
     current: Section<Logical>,
     letter_dims: Coordinates,
+    aspect_ratio: Option<AspectRatio>,
 ) -> Option<Resolution> {
     if let Some(config) = location.config(layout) {
         let mut resolution = Resolution::default();
@@ -473,7 +476,114 @@ fn resolve(
             *pt -= view.offset;
         }
         // TODO min/max + justify
-        // TODO aspect
+        if let Some(max_w) = config.horizontal.max {
+            let val = resolution.section.width().max(max_w);
+            if val < resolution.section.width() {
+                let diff = resolution.section.width() - val;
+                match config.horizontal.justify {
+                    Justify::Near => {
+                        // Do nothing
+                    }
+                    Justify::Far => {
+                        resolution
+                            .section
+                            .position
+                            .set_left(resolution.section.position.left() + diff);
+                    }
+                    Justify::Center => {
+                        resolution
+                            .section
+                            .position
+                            .set_left(resolution.section.position.left() + diff / 2f32);
+                    }
+                }
+            }
+        }
+        if let Some(min_w) = config.horizontal.min {
+            resolution
+                .section
+                .set_width(resolution.section.width().min(min_w));
+        }
+        if let Some(max_h) = config.vertical.max {
+            let val = resolution.section.height().max(max_h);
+            if val < resolution.section.height() {
+                let diff = resolution.section.height() - val;
+                match config.horizontal.justify {
+                    Justify::Near => {
+                        // Do nothing
+                    }
+                    Justify::Far => {
+                        resolution
+                            .section
+                            .position
+                            .set_top(resolution.section.position.top() + diff);
+                    }
+                    Justify::Center => {
+                        resolution
+                            .section
+                            .position
+                            .set_top(resolution.section.position.top() + diff / 2f32);
+                    }
+                }
+            }
+        }
+        if let Some(min_h) = config.vertical.min {
+            resolution
+                .section
+                .set_width(resolution.section.height().min(min_h));
+        }
+        resolution.section.area = resolution.section.area.max((0, 0));
+        if let Some(a) = aspect_ratio {
+            let ratio = if let Some(r) = a.config(layout) {
+                r
+            } else {
+                1.0
+            };
+            if config.horizontal.a.value == LocationValue::Auto
+                && config.horizontal.a.designator == Designator::Width
+                || config.horizontal.b.value == LocationValue::Auto
+                    && config.horizontal.b.designator == Designator::Width
+            {
+                resolution
+                    .section
+                    .set_width(resolution.section.height() * ratio);
+            } else if config.vertical.b.value == LocationValue::Auto
+                && config.vertical.b.designator == Designator::Height
+                || config.vertical.a.value == LocationValue::Auto
+                    && config.vertical.a.designator == Designator::Height
+            {
+                resolution
+                    .section
+                    .set_height(resolution.section.width() * 1f32 / ratio);
+            } else {
+                if let Some(constrained) = a.constrain(resolution.section, layout) {
+                    let diff = resolution.section.area - constrained.area;
+                    resolution.section = constrained;
+                    match config.horizontal.justify {
+                        Justify::Near => {}
+                        Justify::Far => {
+                            resolution.section.position.coordinates +=
+                                diff.coordinates * (1.0, 0.0).into();
+                        }
+                        Justify::Center => {
+                            resolution.section.position.coordinates +=
+                                diff.coordinates * (0.5, 0.0).into();
+                        }
+                    }
+                    match config.vertical.justify {
+                        Justify::Near => {}
+                        Justify::Far => {
+                            resolution.section.position.coordinates +=
+                                diff.coordinates * (0.0, 1.0).into();
+                        }
+                        Justify::Center => {
+                            resolution.section.position.coordinates +=
+                                diff.coordinates * (0.0, 0.5).into();
+                        }
+                    }
+                }
+            }
+        }
         Some(resolution)
     } else {
         None
@@ -592,11 +702,11 @@ fn calc(
             | Designator::X
             | Designator::Width => Some(
                 letter_dims.a() * l as f32
-                    + context.left() * f32::from(!desc.designator == Designator::Width),
+                    + context.left() * f32::from(desc.designator != Designator::Width),
             ),
             _ => Some(
                 letter_dims.b() * l as f32
-                    + context.top() * f32::from(!desc.designator == Designator::Height),
+                    + context.top() * f32::from(desc.designator != Designator::Height),
             ),
         },
     };
@@ -604,9 +714,9 @@ fn calc(
 }
 #[derive(Copy, Clone)]
 pub struct ValueDescriptor {
-    pub(crate) designator: Designator,
-    pub(crate) value: LocationValue,
-    pub(crate) adjust: Adjust,
+    designator: Designator,
+    value: LocationValue,
+    adjust: Adjust,
 }
 impl ValueDescriptor {
     pub fn new(designator: Designator, value: LocationValue) -> Self {
@@ -816,6 +926,14 @@ pub fn auto() -> LocationValue {
 pub(crate) struct LocationDescriptor {
     pub(crate) horizontal: ConfigurationDescriptor,
     pub(crate) vertical: ConfigurationDescriptor,
+}
+impl From<(ConfigurationDescriptor, ConfigurationDescriptor)> for LocationDescriptor {
+    fn from((horizontal, vertical): (ConfigurationDescriptor, ConfigurationDescriptor)) -> Self {
+        Self {
+            horizontal,
+            vertical,
+        }
+    }
 }
 #[derive(Component, Copy, Clone, Default)]
 pub(crate) struct CreateDiff(pub(crate) bool);

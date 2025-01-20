@@ -17,14 +17,20 @@ fn main() {
     let row_size = 40;
     let root = foliage.leaf((
         Grid::new(12.col().gap(8), row_size.px().gap(8)),
-        Location::new().xs(0.pct().to(100.pct()), 0.pct().to(100.pct())),
+        Location::new().xs(
+            0.pct().left().with(100.pct().right()),
+            0.pct().top().with(100.pct().bottom()),
+        ),
         InteractionListener::new().scroll(true),
         Elevation::abs(0),
         Stem::none(),
     ));
     let name_container = foliage.leaf((
         Grid::new(12.col().gap(4), 12.row().gap(4)),
-        Location::new().xs(1.col().to(12.col()).max(600.px()), 4.row().to(8.row())),
+        Location::new().xs(
+            1.col().left().with(12.col().right()).max(600.0),
+            4.row().top().with(8.row().bottom()),
+        ),
         Stem::some(root),
         Elevation::up(1),
     ));
@@ -32,7 +38,10 @@ fn main() {
         Text::new("foliage.rs"),
         FontSize::new(44),
         HorizontalAlignment::Center,
-        Location::new().xs(2.col().to(11.col()), 1.row().to(3.row())),
+        Location::new().xs(
+            2.col().left().with(11.col().right()),
+            1.row().top().with(3.row().bottom()),
+        ),
         Elevation::up(1),
         GlyphColors::new().add(7..10, Color::green(400)),
         Stem::some(name_container),
@@ -41,7 +50,10 @@ fn main() {
     let top_desc = foliage.leaf((
         Text::new("w: 0.0"),
         FontSize::new(14),
-        Location::new().xs(5.col().to(8.col()), 4.row().to(4.row())),
+        Location::new().xs(
+            5.col().left().with(8.col().right()),
+            4.row().top().with(4.row().bottom()),
+        ),
         Stem::some(name_container),
         Elevation::up(1),
         Color::gray(700),
@@ -49,7 +61,7 @@ fn main() {
     ));
     let top_line = foliage.leaf((
         Line::new(2),
-        Location::new().xs(4.col().y(5.row()), 4.col().y(5.row())),
+        Location::new().xs(4.col().x().with(5.row().y()), 4.col().x().with(5.row().y())),
         Stem::some(name_container),
         Elevation::up(1),
         Color::gray(700),
@@ -65,7 +77,10 @@ fn main() {
     let side_desc = foliage.leaf((
         Text::new("h: 0.0"),
         FontSize::new(14),
-        Location::new().xs(9.col().to(11.col()), 4.row().to(4.row())),
+        Location::new().xs(
+            9.col().left().with(11.col().right()),
+            4.row().top().with(4.row().bottom()),
+        ),
         Stem::some(name_container),
         Elevation::up(1),
         Color::gray(700),
@@ -81,7 +96,7 @@ fn main() {
     );
     let pad_connector = foliage.leaf((
         Line::new(2),
-        Location::new().xs(7.col().y(5.row()), 7.col().y(5.row())),
+        Location::new().xs(7.col().x().with(5.row().y()), 7.col().x().with(5.row().y())),
         Stem::some(name_container),
         Elevation::up(1),
         Color::gray(700),
@@ -89,7 +104,10 @@ fn main() {
     let pad_desc = foliage.leaf((
         Text::new("pad: 0.0"),
         FontSize::new(14),
-        Location::new().xs(8.col().to(11.col()), 7.row().to(8.row())),
+        Location::new().xs(
+            8.col().left().with(11.col().right()),
+            7.row().top().with(8.row().bottom()),
+        ),
         Stem::some(name_container),
         Elevation::up(1),
         Color::gray(700),
@@ -107,7 +125,10 @@ fn main() {
         Text::new("native + web ui"),
         FontSize::new(24),
         HorizontalAlignment::Center,
-        Location::new().xs(1.col().to(12.col()), 9.row().to(12.row())),
+        Location::new().xs(
+            1.col().left().with(12.col().right()),
+            9.row().top().with(12.row().bottom()),
+        ),
         Elevation::up(1),
         GlyphColors::new()
             .add(7..8, Color::orange(700))
@@ -127,7 +148,10 @@ fn main() {
         Secondary(Color::gray(800)),
         FontSize::new(16),
         Outline::default(),
-        Location::new().xs(1.col().span(48.px()), 1.row().span(48.px())),
+        Location::new().xs(
+            1.col().left().with(48.px().width()),
+            1.row().top().with(48.px().height()),
+        ),
         Elevation::up(1),
         Stem::some(root),
         Opacity::new(0.0),
@@ -143,8 +167,8 @@ fn main() {
     let github_line = foliage.leaf((
         Line::new(2),
         Location::new().xs(
-            stack().y(1.row()).pad((16, 0)),
-            stack().y(1.row()).pad((16, 0)),
+            stack().right().x().adjust(16).with(1.row().y()),
+            stack().right().x().adjust(16).with(1.row().y()),
         ),
         Stem::some(root),
         Stack::new(github),
@@ -155,8 +179,8 @@ fn main() {
         Text::new("on-click: github"),
         FontSize::new(14),
         Location::new().xs(
-            stack().to(10.col()).pad((16, 0)),
-            1.row().to(2.row()).pad((8, 0)),
+            stack().right().left().adjust(16).with(10.col().right()),
+            1.row().top().adjust(8).with(2.row().bottom()),
         ),
         Elevation::up(1),
         GlyphColors::new().add(10..16, Color::green(300)),
@@ -167,7 +191,10 @@ fn main() {
     ));
     let options_container = foliage.leaf((
         Grid::new(5.col().gap(4), 3.row().gap(8)),
-        Location::new().xs(1.col().to(12.col()).max(600.px()), 10.row().to(13.row())),
+        Location::new().xs(
+            1.col().left().with(12.col().right()).max(600.0),
+            10.row().top().with(13.row().bottom()),
+        ),
         Stem::some(root),
         Elevation::up(1),
     ));
@@ -183,8 +210,8 @@ fn main() {
         Primary(option_one_color),
         Secondary(Color::gray(900)),
         Location::new().xs(
-            3.col().to(3.col()).max(48.px()).min(48.px()),
-            1.row().to(1.row()).max(48.px()).min(48.px()),
+            3.col().left().with(3.col().right()).max(48.0).min(48.0),
+            1.row().top().with(1.row().bottom()).max(48.0).min(48.0),
         ),
         Elevation::up(1),
         Stem::some(options_container),
@@ -200,7 +227,7 @@ fn main() {
         });
     let option_one_line = foliage.leaf((
         Line::new(2),
-        Location::new().xs(1.col().y(1.row()), 1.col().y(1.row())),
+        Location::new().xs(1.col().x().with(1.row().y()), 1.col().x().with(1.row().y())),
         Stem::some(options_container),
         Elevation::up(1),
         option_one_color,
@@ -211,7 +238,10 @@ fn main() {
         VerticalAlignment::Middle,
         FontSize::new(16),
         GlyphColors::new().add(10..15, option_one_color),
-        Location::new().xs(4.col().to(5.col()), 1.row().to(1.row())),
+        Location::new().xs(
+            4.col().left().with(5.col().right()),
+            1.row().top().with(1.row().bottom()),
+        ),
         Elevation::up(1),
         Stem::some(options_container),
         Opacity::new(0.0),
@@ -228,8 +258,8 @@ fn main() {
         Primary(option_two_color),
         Secondary(Color::gray(900)),
         Location::new().xs(
-            3.col().to(3.col()).max(48.px()).min(48.px()),
-            2.row().to(2.row()).max(48.px()).min(48.px()),
+            3.col().left().with(3.col().right()).max(48.0).min(48.0),
+            2.row().top().with(2.row().bottom()).max(48.0).min(48.0),
         ),
         Elevation::up(1),
         Stem::some(options_container),
@@ -245,7 +275,7 @@ fn main() {
         });
     let option_two_line = foliage.leaf((
         Line::new(2),
-        Location::new().xs(5.col().y(2.row()), 5.col().y(2.row())),
+        Location::new().xs(5.col().x().with(2.row().y()), 5.col().x().with(2.row().y())),
         Stem::some(options_container),
         Elevation::up(1),
         option_two_color,
@@ -256,7 +286,10 @@ fn main() {
         VerticalAlignment::Middle,
         FontSize::new(16),
         GlyphColors::new().add(10..14, option_two_color),
-        Location::new().xs(1.col().to(2.col()), 2.row().to(2.row())),
+        Location::new().xs(
+            1.col().left().with(2.col().right()),
+            2.row().top().with(2.row().bottom()),
+        ),
         Elevation::up(1),
         Stem::some(options_container),
         Color::gray(500),
@@ -274,8 +307,8 @@ fn main() {
         Primary(option_three_color),
         Secondary(Color::gray(900)),
         Location::new().xs(
-            3.col().to(3.col()).max(48.px()).min(48.px()),
-            3.row().to(3.row()).max(48.px()).min(48.px()),
+            3.col().left().with(3.col().right()).max(48.0).min(48.0),
+            3.row().top().with(3.row().bottom()).max(48.0).min(48.0),
         ),
         Elevation::up(1),
         Stem::some(options_container),
@@ -291,7 +324,7 @@ fn main() {
         });
     let option_three_line = foliage.leaf((
         Line::new(2),
-        Location::new().xs(1.col().y(3.row()), 1.col().y(3.row())),
+        Location::new().xs(1.col().x().with(3.row().y()), 1.col().x().with(3.row().y())),
         Stem::some(options_container),
         Elevation::up(1),
         option_three_color,
@@ -302,7 +335,10 @@ fn main() {
         VerticalAlignment::Middle,
         FontSize::new(16),
         GlyphColors::new().add(10..14, option_three_color),
-        Location::new().xs(4.col().to(5.col()), 3.row().to(3.row())),
+        Location::new().xs(
+            4.col().left().with(5.col().right()),
+            3.row().top().with(3.row().bottom()),
+        ),
         Elevation::up(1),
         Stem::some(options_container),
         Color::gray(500),
@@ -316,8 +352,8 @@ fn main() {
         Primary(Color::green(500)),
         Secondary(Color::gray(900)),
         Location::new().xs(
-            3.col().to(10.col()).min(175.px()).max(350.px()),
-            15.row().span(48.px()),
+            3.col().left().with(10.col().right()).min(175.0).max(350.0),
+            15.row().top().with(48.px().height()),
         ),
         // AspectRatio::new().xs(5f32 / 1f32),
         Elevation::up(1),
@@ -390,35 +426,45 @@ fn main() {
         .finish(6250)
         .targeting(option_three_desc);
     foliage.animate(seq, anim);
-    let anim = Animation::new(Location::new().xs(4.col().y(5.row()), 9.col().y(5.row())))
+    let anim = Animation::new(
+        Location::new().xs(4.col().x().with(5.row().y()), 9.col().x().with(5.row().y())),
+    )
         .start(1000)
         .finish(3000)
         .targeting(top_line);
     foliage.animate(seq, anim);
-    let anim = Animation::new(Location::new().xs(7.col().y(5.row()), 7.col().y(8.row())))
+    let anim = Animation::new(
+        Location::new().xs(7.col().x().with(5.row().y()), 7.col().x().with(8.row().y())),
+    )
         .start(1750)
         .finish(3000)
         .targeting(pad_connector);
     foliage.animate(seq, anim);
     let anim = Animation::new(Location::new().xs(
-        stack().y(1.row()).pad((16, 0)),
-        stack().y(1.row()).pad((64, 0)),
+        stack().right().x().adjust(16).with(1.row().y()),
+        stack().right().x().adjust(64).with(1.row().y()),
     ))
-    .start(1750)
-    .finish(2500)
-    .targeting(github_line);
+        .start(1750)
+        .finish(2500)
+        .targeting(github_line);
     foliage.animate(seq, anim);
-    let anim = Animation::new(Location::new().xs(1.col().y(1.row()), 2.col().y(1.row())))
+    let anim = Animation::new(
+        Location::new().xs(1.col().x().with(1.row().y()), 2.col().x().with(1.row().y())),
+    )
         .start(2500)
         .finish(3000)
         .targeting(option_one_line);
     foliage.animate(seq, anim);
-    let anim = Animation::new(Location::new().xs(4.col().y(2.row()), 5.col().y(2.row())))
+    let anim = Animation::new(
+        Location::new().xs(4.col().x().with(2.row().y()), 5.col().x().with(2.row().y())),
+    )
         .start(3500)
         .finish(4000)
         .targeting(option_two_line);
     foliage.animate(seq, anim);
-    let anim = Animation::new(Location::new().xs(1.col().y(3.row()), 2.col().y(3.row())))
+    let anim = Animation::new(
+        Location::new().xs(1.col().x().with(3.row().y()), 2.col().x().with(3.row().y())),
+    )
         .start(4750)
         .finish(5250)
         .targeting(option_three_line);
