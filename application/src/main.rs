@@ -460,7 +460,7 @@ fn main() {
         .finish(5250)
         .targeting(option_three_line);
     foliage.animate(seq, anim);
-    foliage.disable([github, option_one, option_two, option_three]);
+    foliage.disable([github, option_one, option_two, option_three, portfolio]);
     foliage
         .world
         .spawn(Timer::new(TimeDelta::from_millis(1500)))
@@ -468,7 +468,7 @@ fn main() {
             tree.enable(github);
         });
     foliage.sequence_end(seq, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
-        tree.enable([option_one, option_two, option_three]);
+        tree.enable([option_one, option_two, option_three, portfolio]);
     });
     foliage.photosynthesize(); // run
 }
