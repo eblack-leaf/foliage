@@ -206,7 +206,7 @@ impl Render for Panel {
                 .layer_and_weights
                 .get_mut(&entity)
                 .unwrap()
-                .weight = outline.value as f32;
+                .weight = outline.value as f32 * ginkgo.configuration().scale_factor.value();
             let lw = *renderer.resources.layer_and_weights.get(&entity).unwrap();
             render_group
                 .group
