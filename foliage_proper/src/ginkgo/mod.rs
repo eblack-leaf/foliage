@@ -2,15 +2,15 @@ use bevy_ecs::prelude::Resource;
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 use wgpu::{
-    BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
-    BlendState, Buffer, BufferAddress, BufferUsages, ColorTargetState, CompareFunction,
-    CompositeAlphaMode, DepthStencilState, DeviceDescriptor, Extent3d, Features, FilterMode,
-    FragmentState, ImageCopyTexture, ImageDataLayout, InstanceDescriptor, Limits, LoadOp,
-    MultisampleState, Operations, Origin3d, PipelineLayout, PipelineLayoutDescriptor,
-    PowerPreference, PresentMode, PrimitiveState, RenderPassColorAttachment,
-    RenderPassDepthStencilAttachment, RenderPipeline, RenderPipelineDescriptor,
-    RequestAdapterOptions, Sampler, SamplerDescriptor, ShaderModule, ShaderModuleDescriptor,
-    StoreOp, SurfaceConfiguration, Texture, TextureDescriptor, TextureDimension, TextureFormat,
+    BackendOptions, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
+    BindGroupLayoutDescriptor, BlendState, Buffer, BufferAddress, BufferUsages, ColorTargetState,
+    CompareFunction, CompositeAlphaMode, DepthStencilState, DeviceDescriptor, Extent3d, Features,
+    FilterMode, FragmentState, InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations,
+    Origin3d, PipelineLayout, PipelineLayoutDescriptor, PowerPreference, PresentMode,
+    PrimitiveState, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPipeline,
+    RenderPipelineDescriptor, RequestAdapterOptions, Sampler, SamplerDescriptor, ShaderModule,
+    ShaderModuleDescriptor, StoreOp, SurfaceConfiguration, TexelCopyBufferLayout,
+    TexelCopyTextureInfo, Texture, TextureDescriptor, TextureDimension, TextureFormat,
     TextureUsages, TextureView, TextureViewDescriptor, VertexAttribute, VertexBufferLayout,
     VertexStepMode,
 };
@@ -37,7 +37,6 @@ pub(crate) struct Ginkgo {
     context: Option<GraphicContext>,
     configuration: Option<ViewConfiguration>,
     viewport: Option<Viewport>,
-    recv: Option<futures_channel::mpsc::UnboundedReceiver<bool>>,
 }
 
 impl Ginkgo {
@@ -49,7 +48,7 @@ impl Ginkgo {
         data: Vec<TexelData>,
     ) {
         self.context().queue.write_texture(
-            ImageCopyTexture {
+            TexelCopyTextureInfo {
                 texture,
                 mip_level: 0,
                 origin: Origin3d {
@@ -60,7 +59,7 @@ impl Ginkgo {
                 aspect: Default::default(),
             },
             bytemuck::cast_slice(&data),
-            ImageDataLayout {
+            TexelCopyBufferLayout {
                 offset: 0,
                 bytes_per_row: Some((extent.a() * size_of::<TexelData>() as CoordinateUnit) as u32),
                 rows_per_image: Some(
@@ -283,7 +282,7 @@ impl Ginkgo {
         Some(RenderPassDepthStencilAttachment {
             view: &self.configuration().depth.as_ref().unwrap().view,
             depth_ops: Some(Operations {
-                load: LoadOp::Clear(self.viewport().near_far.far.0),
+                load: LoadOp::Clear(1.0),
                 store: StoreOp::Store,
             }),
             stencil_ops: Some(Operations {
@@ -353,18 +352,14 @@ impl Ginkgo {
     pub(crate) fn configured(&self) -> bool {
         self.configuration.is_some()
     }
-    pub(crate) fn lost(&mut self) -> bool {
-        self.recv.as_mut().unwrap().try_next().ok().is_some()
-    }
     pub(crate) async fn acquire_context(&mut self, willow: &Willow) {
-        let instance = wgpu::Instance::new(InstanceDescriptor {
+        let instance = wgpu::Instance::new(&InstanceDescriptor {
             backends: wgpu::Backends::VULKAN
                 | wgpu::Backends::METAL
                 | wgpu::Backends::DX12
                 | wgpu::Backends::GL,
             flags: wgpu::InstanceFlags::default(),
-            dx12_shader_compiler: wgpu::Dx12Compiler::Fxc,
-            gles_minor_version: wgpu::Gles3MinorVersion::Automatic,
+            backend_options: BackendOptions::default(),
         });
         let surface = instance.create_surface(willow.window()).expect("window");
         let adapter = instance
@@ -401,12 +396,6 @@ impl Ginkgo {
             )
             .await
             .expect("device/queue");
-        let (sender, recv) = futures_channel::mpsc::unbounded::<bool>();
-        self.recv.replace(recv);
-        device.set_device_lost_callback(move |reason, msg| {
-            println!("device lost: {}", msg);
-            sender.unbounded_send(true).unwrap()
-        });
         self.context.replace(GraphicContext {
             surface: Some(surface),
             instance,

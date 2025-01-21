@@ -240,11 +240,6 @@ impl Foliage {
             WindowEvent::ThemeChanged(_) => {}
             WindowEvent::Occluded(_) => {}
             WindowEvent::RedrawRequested => {
-                if self.ginkgo.lost() {
-                    println!("suspending --------------------------------------------------------");
-                    self.ginkgo.suspend();
-                    self.suspended = true;
-                }
                 if !self.ash.drawn && self.ran_at_least_once && !self.suspended {
                     if let Some(vc) = self
                         .world

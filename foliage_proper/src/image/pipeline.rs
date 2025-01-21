@@ -11,9 +11,9 @@ use bevy_ecs::entity::Entity;
 use std::collections::HashMap;
 use wgpu::{
     include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor,
-    Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, PipelineLayoutDescriptor, RenderPass,
-    RenderPipelineDescriptor, ShaderStages, Texture, TextureAspect, TextureSampleType, TextureView,
-    TextureViewDimension, VertexState, VertexStepMode,
+    Extent3d, Origin3d, PipelineLayoutDescriptor, RenderPass, RenderPipelineDescriptor,
+    ShaderStages, TexelCopyBufferLayout, TexelCopyTextureInfo, Texture, TextureAspect,
+    TextureSampleType, TextureView, TextureViewDimension, VertexState, VertexStepMode,
 };
 
 pub(crate) struct Resources {
@@ -176,14 +176,14 @@ impl Render for Image {
             let group = renderer.groups.get_mut(&image.image.memory_id).unwrap();
             if image.extent != Area::default() {
                 ginkgo.context().queue.write_texture(
-                    ImageCopyTexture {
+                    TexelCopyTextureInfo {
                         texture: &group.group.texture,
                         mip_level: 0,
                         origin: Origin3d::default(),
                         aspect: TextureAspect::All,
                     },
                     bytemuck::cast_slice(&image.data),
-                    ImageDataLayout {
+                    TexelCopyBufferLayout {
                         offset: 0,
                         bytes_per_row: Some(image.extent.width() as u32 * size_of::<f32>() as u32),
                         rows_per_image: Some(image.extent.height() as u32),

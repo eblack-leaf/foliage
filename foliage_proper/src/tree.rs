@@ -3,6 +3,7 @@ use crate::anim::sequence::{AnimationTime, Sequence};
 use crate::disable::Disable;
 use crate::enable::Enable;
 use crate::leaf::Leaf;
+use crate::ops::Name;
 use crate::remove::Remove;
 use crate::time::OnEnd;
 use crate::{Animate, Animation, OnClick};
@@ -37,6 +38,7 @@ pub trait EcsExtension {
         sub: SUB,
     );
     fn on_click<ONC: IntoObserverSystem<OnClick, B, M>, B: Bundle, M>(&mut self, e: Entity, o: ONC);
+    fn name<S: AsRef<str>>(&mut self, e: Entity, s: S);
 }
 impl EcsExtension for Tree<'_, '_> {
     fn leaf<B: Bundle>(&mut self, b: B) -> Entity {
@@ -99,6 +101,10 @@ impl EcsExtension for Tree<'_, '_> {
     ) {
         self.entity(e).observe(o);
     }
+
+    fn name<S: AsRef<str>>(&mut self, e: Entity, s: S) {
+        self.send(Name(s.as_ref().to_string(), e));
+    }
 }
 
 impl EcsExtension for World {
@@ -154,5 +160,9 @@ impl EcsExtension for World {
         o: ONC,
     ) {
         self.commands().on_click(e, o);
+    }
+
+    fn name<S: AsRef<str>>(&mut self, e: Entity, s: S) {
+        self.commands().name(e, s);
     }
 }

@@ -9,8 +9,8 @@ use crate::time::{OnEnd, Time};
 use crate::willow::Willow;
 use crate::{
     AndroidConnection, Animate, Animation, Area, Attachment, Button, Color, Disable, EcsExtension,
-    Elevation, Enable, Grid, Icon, Image, Interaction, Location, OnClick, Opacity, Panel, Physical,
-    Resource, Shape, SystemSet, Text, Visibility,
+    Elevation, Enable, Grid, Icon, Image, Interaction, Location, Named, OnClick, Opacity, Panel,
+    Physical, Resource, Shape, SystemSet, Text, Visibility,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
@@ -46,7 +46,6 @@ pub struct Foliage {
     pub(crate) sender: Option<oneshot::Sender<Ginkgo>>,
     #[allow(unused)]
     pub(crate) receiver: Option<oneshot::Receiver<Ginkgo>>,
-    pub(crate) user_attachments: Vec<fn(&mut Foliage)>,
     pub(crate) ran_at_least_once: bool,
     pub(crate) suspended: bool,
 }
@@ -76,7 +75,6 @@ impl Foliage {
             queue: vec![],
             sender: None,
             receiver: None,
-            user_attachments: vec![],
             ran_at_least_once: false,
             suspended: false,
         };
@@ -126,10 +124,11 @@ impl Foliage {
         Button::attach(&mut foliage);
         Visibility::attach(&mut foliage);
         Location::attach(&mut foliage);
+        Named::attach(&mut foliage);
         foliage
     }
     pub fn attach<A: Attachment>(&mut self) {
-        self.user_attachments.push(A::attach);
+        A::attach(self);
     }
     pub fn photosynthesize(mut self) {
         let event_loop = EventLoop::new().unwrap();
@@ -231,6 +230,9 @@ impl Foliage {
     ) {
         self.world.on_click(e, o);
     }
+    pub fn store<S: AsRef<str>>(&mut self, e: Entity, s: S) {
+        self.world.name(e, s);
+    }
     pub(crate) fn remove_queue<R: Clone + Send + Sync + 'static>(&mut self) {
         debug_assert!(self.world.get_resource::<RenderRemoveQueue<R>>().is_none());
         self.world.insert_resource(RenderRemoveQueue::<R>::new());
@@ -317,9 +319,6 @@ impl Foliage {
             self.willow.actual_area().to_logical(scale_factor.value()),
         ));
         self.world.insert_resource(scale_factor);
-        for a_fn in self.user_attachments.drain(..).collect::<Vec<_>>() {
-            a_fn(self);
-        }
         self.ash.initialize(&self.ginkgo);
         self.booted = true;
     }
