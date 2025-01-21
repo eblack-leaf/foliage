@@ -5,7 +5,7 @@ use crate::enable::Enable;
 use crate::leaf::Leaf;
 use crate::remove::Remove;
 use crate::time::OnEnd;
-use crate::{Animate, Animation};
+use crate::{Animate, Animation, OnClick};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::Event;
@@ -31,6 +31,12 @@ pub trait EcsExtension {
         seq: Entity,
         end: END,
     );
+    fn subscribe<SUB: IntoObserverSystem<S, B, M>, S: Event + 'static, B: Bundle, M>(
+        &mut self,
+        e: Entity,
+        sub: SUB,
+    );
+    fn on_click<ONC: IntoObserverSystem<OnClick, B, M>, B: Bundle, M>(&mut self, e: Entity, o: ONC);
 }
 impl EcsExtension for Tree<'_, '_> {
     fn leaf<B: Bundle>(&mut self, b: B) -> Entity {
@@ -78,6 +84,21 @@ impl EcsExtension for Tree<'_, '_> {
     ) {
         self.entity(seq).observe(end);
     }
+
+    fn subscribe<SUB: IntoObserverSystem<S, B, M>, S: Event + 'static, B: Bundle, M>(
+        &mut self,
+        e: Entity,
+        sub: SUB,
+    ) {
+        self.entity(e).observe(sub);
+    }
+    fn on_click<ONC: IntoObserverSystem<OnClick, B, M>, B: Bundle, M>(
+        &mut self,
+        e: Entity,
+        o: ONC,
+    ) {
+        self.entity(e).observe(o);
+    }
 }
 
 impl EcsExtension for World {
@@ -117,5 +138,21 @@ impl EcsExtension for World {
         end: END,
     ) {
         self.commands().sequence_end(seq, end);
+    }
+
+    fn subscribe<SUB: IntoObserverSystem<S, B, M>, S: Event + 'static, B: Bundle, M>(
+        &mut self,
+        e: Entity,
+        sub: SUB,
+    ) {
+        self.commands().subscribe(e, sub);
+    }
+
+    fn on_click<ONC: IntoObserverSystem<OnClick, B, M>, B: Bundle, M>(
+        &mut self,
+        e: Entity,
+        o: ONC,
+    ) {
+        self.commands().on_click(e, o);
     }
 }

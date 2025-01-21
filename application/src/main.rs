@@ -66,7 +66,8 @@ fn main() {
         Elevation::up(1),
         Color::gray(700),
     ));
-    foliage.world.commands().entity(top_line).observe(
+    foliage.subscribe(
+        top_line,
         move |trigger: Trigger<Write<Section<Logical>>>,
               mut tree: Tree,
               sections: Query<&Section<Logical>>| {
@@ -86,7 +87,8 @@ fn main() {
         Color::gray(700),
         Opacity::new(0.0),
     ));
-    foliage.world.commands().entity(top_line).observe(
+    foliage.subscribe(
+        top_line,
         move |trigger: Trigger<Write<Section<Logical>>>,
               mut tree: Tree,
               sections: Query<&Section<Logical>>| {
@@ -113,7 +115,8 @@ fn main() {
         Color::gray(700),
         Opacity::new(0.0),
     ));
-    foliage.world.commands().entity(pad_connector).observe(
+    foliage.subscribe(
+        pad_connector,
         move |trigger: Trigger<Write<Section<Logical>>>,
               mut tree: Tree,
               sections: Query<&Section<Logical>>| {
@@ -156,14 +159,9 @@ fn main() {
         Stem::some(root),
         Opacity::new(0.0),
     ));
-    foliage
-        .world
-        .commands()
-        .entity(github)
-        .observe(|trigger: Trigger<OnClick>| {
-            HrefLink::new("https://github.com/eblack-leaf/foliage").navigate()
-        });
-    println!("github: {:?}", github);
+    foliage.on_click(github, |trigger: Trigger<OnClick>| {
+        HrefLink::new("https://github.com/eblack-leaf/foliage").navigate()
+    });
     let github_line = foliage.leaf((
         Line::new(2),
         Location::new().xs(
@@ -218,13 +216,9 @@ fn main() {
         Outline::new(2),
         Opacity::new(0.0),
     ));
-    foliage
-        .world
-        .commands()
-        .entity(option_one)
-        .observe(|trigger: Trigger<OnClick>| {
-            // TODO
-        });
+    foliage.on_click(option_one, |trigger: Trigger<OnClick>| {
+        // TODO
+    });
     let option_one_line = foliage.leaf((
         Line::new(2),
         Location::new().xs(1.col().x().with(1.row().y()), 1.col().x().with(1.row().y())),
@@ -266,13 +260,9 @@ fn main() {
         Outline::new(2),
         Opacity::new(0.0),
     ));
-    foliage
-        .world
-        .commands()
-        .entity(option_two)
-        .observe(|trigger: Trigger<OnClick>| {
-            // TODO
-        });
+    foliage.on_click(option_two, |trigger: Trigger<OnClick>| {
+        // TODO
+    });
     let option_two_line = foliage.leaf((
         Line::new(2),
         Location::new().xs(5.col().x().with(2.row().y()), 5.col().x().with(2.row().y())),
@@ -315,13 +305,9 @@ fn main() {
         Outline::new(2),
         Opacity::new(0.0),
     ));
-    foliage
-        .world
-        .commands()
-        .entity(option_three)
-        .observe(|trigger: Trigger<OnClick>| {
-            // TODO
-        });
+    foliage.on_click(option_three, |trigger: Trigger<OnClick>| {
+        // TODO
+    });
     let option_three_line = foliage.leaf((
         Line::new(2),
         Location::new().xs(1.col().x().with(3.row().y()), 1.col().x().with(3.row().y())),
@@ -344,18 +330,18 @@ fn main() {
         Color::gray(500),
         Opacity::new(0.0),
     ));
-    let contract = foliage.leaf((
+    let portfolio = foliage.leaf((
         Button::new(),
         IconValue(3),
-        TextValue("Contract".to_string()),
-        FontSize::new(16),
-        Primary(Color::green(500)),
+        TextValue("Portfolio".to_string()),
+        FontSize::new(20),
+        Primary(Color::orange(500)),
         Secondary(Color::gray(900)),
         Location::new().xs(
             3.col().left().with(10.col().right()).min(175.0).max(350.0),
             15.row().top().with(48.px().height()),
         ),
-        // AspectRatio::new().xs(5f32 / 1f32),
+        Opacity::new(0.0),
         Elevation::up(1),
         Stem::some(root),
         Outline::new(2),
@@ -426,48 +412,53 @@ fn main() {
         .finish(6250)
         .targeting(option_three_desc);
     foliage.animate(seq, anim);
+    let anim = Animation::new(Opacity::new(1.0))
+        .start(6000)
+        .finish(6500)
+        .targeting(portfolio);
+    foliage.animate(seq, anim);
     let anim = Animation::new(
         Location::new().xs(4.col().x().with(5.row().y()), 9.col().x().with(5.row().y())),
     )
-    .start(1000)
-    .finish(3000)
-    .targeting(top_line);
+        .start(1000)
+        .finish(3000)
+        .targeting(top_line);
     foliage.animate(seq, anim);
     let anim = Animation::new(
         Location::new().xs(7.col().x().with(5.row().y()), 7.col().x().with(8.row().y())),
     )
-    .start(1750)
-    .finish(3000)
-    .targeting(pad_connector);
+        .start(1750)
+        .finish(3000)
+        .targeting(pad_connector);
     foliage.animate(seq, anim);
     let anim = Animation::new(Location::new().xs(
         stack().right().x().adjust(16).with(1.row().y()),
         stack().right().x().adjust(64).with(1.row().y()),
     ))
-    .start(1750)
-    .finish(2500)
-    .targeting(github_line);
+        .start(1750)
+        .finish(2500)
+        .targeting(github_line);
     foliage.animate(seq, anim);
     let anim = Animation::new(
         Location::new().xs(1.col().x().with(1.row().y()), 2.col().x().with(1.row().y())),
     )
-    .start(2500)
-    .finish(3000)
-    .targeting(option_one_line);
+        .start(2500)
+        .finish(3000)
+        .targeting(option_one_line);
     foliage.animate(seq, anim);
     let anim = Animation::new(
         Location::new().xs(4.col().x().with(2.row().y()), 5.col().x().with(2.row().y())),
     )
-    .start(3500)
-    .finish(4000)
-    .targeting(option_two_line);
+        .start(3500)
+        .finish(4000)
+        .targeting(option_two_line);
     foliage.animate(seq, anim);
     let anim = Animation::new(
         Location::new().xs(1.col().x().with(3.row().y()), 2.col().x().with(3.row().y())),
     )
-    .start(4750)
-    .finish(5250)
-    .targeting(option_three_line);
+        .start(4750)
+        .finish(5250)
+        .targeting(option_three_line);
     foliage.animate(seq, anim);
     foliage.disable([github, option_one, option_two, option_three]);
     foliage

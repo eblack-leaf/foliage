@@ -9,7 +9,7 @@ use crate::time::{OnEnd, Time};
 use crate::willow::Willow;
 use crate::{
     AndroidConnection, Animate, Animation, Area, Attachment, Button, Color, Disable, EcsExtension,
-    Elevation, Enable, Grid, Icon, Image, Interaction, Location, Opacity, Panel, Physical,
+    Elevation, Enable, Grid, Icon, Image, Interaction, Location, OnClick, Opacity, Panel, Physical,
     Resource, Shape, SystemSet, Text, Visibility,
 };
 use bevy_ecs::bundle::Bundle;
@@ -214,6 +214,20 @@ impl Foliage {
         end: END,
     ) {
         self.world.sequence_end(seq, end);
+    }
+    pub fn subscribe<SUB: IntoObserverSystem<S, B, M>, S: Event + 'static, B: Bundle, M>(
+        &mut self,
+        e: Entity,
+        sub: SUB,
+    ) {
+        self.world.subscribe(e, sub);
+    }
+    pub fn on_click<ONC: IntoObserverSystem<OnClick, B, M>, B: Bundle, M>(
+        &mut self,
+        e: Entity,
+        o: ONC,
+    ) {
+        self.world.on_click(e, o);
     }
     pub(crate) fn remove_queue<R: Clone + Send + Sync + 'static>(&mut self) {
         debug_assert!(self.world.get_resource::<RenderRemoveQueue<R>>().is_none());
