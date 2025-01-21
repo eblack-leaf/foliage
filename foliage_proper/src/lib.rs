@@ -37,7 +37,11 @@ pub use crate::coordinate::{
     section::{CReprSection, Section},
     CoordinateContext, CoordinateUnit, Coordinates, Logical, Numerical, Physical,
 };
-pub use anim::{Animate, Animation};
+pub use anim::{
+    ease::{ControlPoints, Ease, Easement},
+    interpolation::{Interpolation, Interpolations},
+    Animate, Animation,
+};
 pub(crate) use ash::differential::Differential;
 pub use asset::{asset_retrieval, AssetKey, AssetRetrieval};
 pub use attachment::Attachment;

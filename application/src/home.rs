@@ -27,7 +27,7 @@ impl Home {
             Elevation::abs(0),
             Stem::none(),
         ));
-        tree.name(root, "root");
+        tree.name(root, "home");
         let name_container = tree.leaf((
             Grid::new(12.col().gap(4), 12.row().gap(4)),
             Location::new().xs(
@@ -160,6 +160,7 @@ impl Home {
             Stem::some(root),
             Opacity::new(0.0),
         ));
+        tree.name(github, "github");
         tree.on_click(github, |trigger: Trigger<OnClick>| {
             HrefLink::new("https://github.com/eblack-leaf/foliage").navigate()
         });
@@ -217,9 +218,7 @@ impl Home {
             Outline::new(2),
             Opacity::new(0.0),
         ));
-        tree.on_click(option_one, |trigger: Trigger<OnClick>, mut tree: Tree| {
-            tree.send(Usage {});
-        });
+        tree.name(option_one, "option-one");
         let option_one_line = tree.leaf((
             Line::new(2),
             Location::new().xs(1.col().x().with(1.row().y()), 1.col().x().with(1.row().y())),
@@ -259,9 +258,7 @@ impl Home {
             Outline::new(2),
             Opacity::new(0.0),
         ));
-        tree.on_click(option_two, |trigger: Trigger<OnClick>| {
-            // TODO
-        });
+        tree.name(option_two, "option-two");
         let option_two_line = tree.leaf((
             Line::new(2),
             Location::new().xs(5.col().x().with(2.row().y()), 5.col().x().with(2.row().y())),
@@ -304,9 +301,7 @@ impl Home {
             Outline::new(2),
             Opacity::new(0.0),
         ));
-        tree.on_click(option_three, |trigger: Trigger<OnClick>| {
-            // TODO
-        });
+        tree.name(option_three, "option-three");
         let option_three_line = tree.leaf((
             Line::new(2),
             Location::new().xs(1.col().x().with(3.row().y()), 1.col().x().with(3.row().y())),
@@ -345,6 +340,20 @@ impl Home {
             Stem::some(root),
             Outline::new(2),
         ));
+        tree.name(portfolio, "portfolio");
+        tree.on_click(
+            option_one,
+            move |trigger: Trigger<OnClick>, mut tree: Tree| {
+                tree.disable([github, option_one, option_two, option_three, portfolio]);
+                tree.send(Usage {});
+            },
+        );
+        tree.on_click(option_two, |trigger: Trigger<OnClick>| {
+            // TODO
+        });
+        tree.on_click(option_three, |trigger: Trigger<OnClick>| {
+            // TODO
+        });
         let seq = tree.sequence();
         tree.animate(
             Animation::new(Opacity::new(1.0))
@@ -448,56 +457,56 @@ impl Home {
             Animation::new(
                 Location::new().xs(4.col().x().with(5.row().y()), 9.col().x().with(5.row().y())),
             )
-            .start(1000)
-            .finish(3000)
-            .during(seq)
-            .targeting(top_line),
+                .start(1000)
+                .finish(3000)
+                .during(seq)
+                .targeting(top_line),
         );
         tree.animate(
             Animation::new(
                 Location::new().xs(7.col().x().with(5.row().y()), 7.col().x().with(8.row().y())),
             )
-            .start(1750)
-            .finish(3000)
-            .during(seq)
-            .targeting(pad_connector),
+                .start(1750)
+                .finish(3000)
+                .during(seq)
+                .targeting(pad_connector),
         );
         tree.animate(
             Animation::new(Location::new().xs(
                 stack().right().x().adjust(16).with(1.row().y()),
                 stack().right().x().adjust(64).with(1.row().y()),
             ))
-            .start(1750)
-            .finish(2500)
-            .during(seq)
-            .targeting(github_line),
+                .start(1750)
+                .finish(2500)
+                .during(seq)
+                .targeting(github_line),
         );
         tree.animate(
             Animation::new(
                 Location::new().xs(1.col().x().with(1.row().y()), 2.col().x().with(1.row().y())),
             )
-            .start(2500)
-            .finish(3000)
-            .during(seq)
-            .targeting(option_one_line),
+                .start(2500)
+                .finish(3000)
+                .during(seq)
+                .targeting(option_one_line),
         );
         tree.animate(
             Animation::new(
                 Location::new().xs(4.col().x().with(2.row().y()), 5.col().x().with(2.row().y())),
             )
-            .start(3500)
-            .finish(4000)
-            .during(seq)
-            .targeting(option_two_line),
+                .start(3500)
+                .finish(4000)
+                .during(seq)
+                .targeting(option_two_line),
         );
         tree.animate(
             Animation::new(
                 Location::new().xs(1.col().x().with(3.row().y()), 2.col().x().with(3.row().y())),
             )
-            .start(4750)
-            .finish(5250)
-            .during(seq)
-            .targeting(option_three_line),
+                .start(4750)
+                .finish(5250)
+                .during(seq)
+                .targeting(option_three_line),
         );
         tree.disable([github, option_one, option_two, option_three, portfolio]);
         tree.spawn(Timer::new(TimeDelta::from_millis(1500)))
