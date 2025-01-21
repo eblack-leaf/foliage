@@ -1,3 +1,4 @@
+use crate::usage::Usage;
 use foliage::{
     bevy_ecs, stack, Animation, Attachment, Button, ButtonShape, Color, EcsExtension, Elevation,
     Event, Foliage, FontSize, GlyphColors, Grid, GridExt, HorizontalAlignment, HrefLink, Icon,
@@ -5,6 +6,7 @@ use foliage::{
     Primary, Query, Secondary, Section, Stack, Stem, Text, TextValue, TimeDelta, Timer, Tree,
     Trigger, VerticalAlignment, Write,
 };
+
 impl Attachment for Home {
     fn attach(foliage: &mut Foliage) {
         foliage.define(Home::init);
@@ -215,8 +217,8 @@ impl Home {
             Outline::new(2),
             Opacity::new(0.0),
         ));
-        tree.on_click(option_one, |trigger: Trigger<OnClick>| {
-            // TODO
+        tree.on_click(option_one, |trigger: Trigger<OnClick>, mut tree: Tree| {
+            tree.send(Usage {});
         });
         let option_one_line = tree.leaf((
             Line::new(2),
@@ -344,119 +346,159 @@ impl Home {
             Outline::new(2),
         ));
         let seq = tree.sequence();
-        let anim = Animation::new(Opacity::new(1.0))
-            .start(500)
-            .finish(1500)
-            .targeting(name);
-        tree.animate(seq, anim);
-        let anim = Animation::new(Opacity::new(1.0))
+        tree.animate(
+            Animation::new(Opacity::new(1.0))
+                .start(500)
+                .finish(1500)
+                .during(seq)
+                .targeting(name),
+        );
+        tree.animate(
+            Animation::new(Opacity::new(1.0))
+                .start(1000)
+                .finish(1500)
+                .during(seq)
+                .targeting(github),
+        );
+        tree.animate(
+            Animation::new(Opacity::new(1.0))
+                .start(1000)
+                .finish(1250)
+                .during(seq)
+                .targeting(top_desc),
+        );
+        tree.animate(
+            Animation::new(Opacity::new(1.0))
+                .start(1100)
+                .finish(1350)
+                .during(seq)
+                .targeting(side_desc),
+        );
+        tree.animate(
+            Animation::new(Opacity::new(1.0))
+                .start(1500)
+                .finish(1750)
+                .during(seq)
+                .targeting(pad_desc),
+        );
+        tree.animate(
+            Animation::new(Opacity::new(1.0))
+                .start(1750)
+                .finish(2750)
+                .during(seq)
+                .targeting(desc),
+        );
+        tree.animate(
+            Animation::new(Opacity::new(1.0))
+                .start(2500)
+                .finish(3000)
+                .during(seq)
+                .targeting(github_desc),
+        );
+        tree.animate(
+            Animation::new(Opacity::new(1.0))
+                .start(3000)
+                .finish(3500)
+                .during(seq)
+                .targeting(option_one),
+        );
+        tree.animate(
+            Animation::new(Opacity::new(1.0))
+                .start(3500)
+                .finish(4000)
+                .during(seq)
+                .targeting(option_one_desc),
+        );
+        tree.animate(
+            Animation::new(Opacity::new(1.0))
+                .start(4000)
+                .finish(4500)
+                .during(seq)
+                .targeting(option_two),
+        );
+        tree.animate(
+            Animation::new(Opacity::new(1.0))
+                .start(4500)
+                .finish(5000)
+                .during(seq)
+                .targeting(option_two_desc),
+        );
+        tree.animate(
+            Animation::new(Opacity::new(1.0))
+                .start(5250)
+                .finish(5750)
+                .during(seq)
+                .targeting(option_three),
+        );
+        tree.animate(
+            Animation::new(Opacity::new(1.0))
+                .start(5750)
+                .finish(6250)
+                .during(seq)
+                .targeting(option_three_desc),
+        );
+        tree.animate(
+            Animation::new(Opacity::new(1.0))
+                .start(6000)
+                .finish(6500)
+                .during(seq)
+                .targeting(portfolio),
+        );
+        tree.animate(
+            Animation::new(
+                Location::new().xs(4.col().x().with(5.row().y()), 9.col().x().with(5.row().y())),
+            )
             .start(1000)
-            .finish(1500)
-            .targeting(github);
-        tree.animate(seq, anim);
-        let anim = Animation::new(Opacity::new(1.0))
-            .start(1000)
-            .finish(1250)
-            .targeting(top_desc);
-        tree.animate(seq, anim);
-        let anim = Animation::new(Opacity::new(1.0))
-            .start(1100)
-            .finish(1350)
-            .targeting(side_desc);
-        tree.animate(seq, anim);
-        let anim = Animation::new(Opacity::new(1.0))
-            .start(1500)
-            .finish(1750)
-            .targeting(pad_desc);
-        tree.animate(seq, anim);
-        let anim = Animation::new(Opacity::new(1.0))
+            .finish(3000)
+            .during(seq)
+            .targeting(top_line),
+        );
+        tree.animate(
+            Animation::new(
+                Location::new().xs(7.col().x().with(5.row().y()), 7.col().x().with(8.row().y())),
+            )
             .start(1750)
-            .finish(2750)
-            .targeting(desc);
-        tree.animate(seq, anim);
-        let anim = Animation::new(Opacity::new(1.0))
+            .finish(3000)
+            .during(seq)
+            .targeting(pad_connector),
+        );
+        tree.animate(
+            Animation::new(Location::new().xs(
+                stack().right().x().adjust(16).with(1.row().y()),
+                stack().right().x().adjust(64).with(1.row().y()),
+            ))
+            .start(1750)
+            .finish(2500)
+            .during(seq)
+            .targeting(github_line),
+        );
+        tree.animate(
+            Animation::new(
+                Location::new().xs(1.col().x().with(1.row().y()), 2.col().x().with(1.row().y())),
+            )
             .start(2500)
             .finish(3000)
-            .targeting(github_desc);
-        tree.animate(seq, anim);
-        let anim = Animation::new(Opacity::new(1.0))
-            .start(3000)
-            .finish(3500)
-            .targeting(option_one);
-        tree.animate(seq, anim);
-        let anim = Animation::new(Opacity::new(1.0))
+            .during(seq)
+            .targeting(option_one_line),
+        );
+        tree.animate(
+            Animation::new(
+                Location::new().xs(4.col().x().with(2.row().y()), 5.col().x().with(2.row().y())),
+            )
             .start(3500)
             .finish(4000)
-            .targeting(option_one_desc);
-        tree.animate(seq, anim);
-        let anim = Animation::new(Opacity::new(1.0))
-            .start(4000)
-            .finish(4500)
-            .targeting(option_two);
-        tree.animate(seq, anim);
-        let anim = Animation::new(Opacity::new(1.0))
-            .start(4500)
-            .finish(5000)
-            .targeting(option_two_desc);
-        tree.animate(seq, anim);
-        let anim = Animation::new(Opacity::new(1.0))
-            .start(5250)
-            .finish(5750)
-            .targeting(option_three);
-        tree.animate(seq, anim);
-        let anim = Animation::new(Opacity::new(1.0))
-            .start(5750)
-            .finish(6250)
-            .targeting(option_three_desc);
-        tree.animate(seq, anim);
-        let anim = Animation::new(Opacity::new(1.0))
-            .start(6000)
-            .finish(6500)
-            .targeting(portfolio);
-        tree.animate(seq, anim);
-        let anim = Animation::new(
-            Location::new().xs(4.col().x().with(5.row().y()), 9.col().x().with(5.row().y())),
-        )
-        .start(1000)
-        .finish(3000)
-        .targeting(top_line);
-        tree.animate(seq, anim);
-        let anim = Animation::new(
-            Location::new().xs(7.col().x().with(5.row().y()), 7.col().x().with(8.row().y())),
-        )
-        .start(1750)
-        .finish(3000)
-        .targeting(pad_connector);
-        tree.animate(seq, anim);
-        let anim = Animation::new(Location::new().xs(
-            stack().right().x().adjust(16).with(1.row().y()),
-            stack().right().x().adjust(64).with(1.row().y()),
-        ))
-        .start(1750)
-        .finish(2500)
-        .targeting(github_line);
-        tree.animate(seq, anim);
-        let anim = Animation::new(
-            Location::new().xs(1.col().x().with(1.row().y()), 2.col().x().with(1.row().y())),
-        )
-        .start(2500)
-        .finish(3000)
-        .targeting(option_one_line);
-        tree.animate(seq, anim);
-        let anim = Animation::new(
-            Location::new().xs(4.col().x().with(2.row().y()), 5.col().x().with(2.row().y())),
-        )
-        .start(3500)
-        .finish(4000)
-        .targeting(option_two_line);
-        tree.animate(seq, anim);
-        let anim = Animation::new(
-            Location::new().xs(1.col().x().with(3.row().y()), 2.col().x().with(3.row().y())),
-        )
-        .start(4750)
-        .finish(5250)
-        .targeting(option_three_line);
-        tree.animate(seq, anim);
+            .during(seq)
+            .targeting(option_two_line),
+        );
+        tree.animate(
+            Animation::new(
+                Location::new().xs(1.col().x().with(3.row().y()), 2.col().x().with(3.row().y())),
+            )
+            .start(4750)
+            .finish(5250)
+            .during(seq)
+            .targeting(option_three_line),
+        );
         tree.disable([github, option_one, option_two, option_three, portfolio]);
         tree.spawn(Timer::new(TimeDelta::from_millis(1500)))
             .observe(move |trigger: Trigger<OnEnd>, mut tree: Tree| {

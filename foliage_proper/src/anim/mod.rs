@@ -20,6 +20,7 @@ pub struct Animation<A: Animate> {
     pub(crate) a: A,
     pub(crate) sequence_time_range: SequenceTimeRange,
     pub(crate) ease: Ease,
+    pub(crate) seq: Entity,
 }
 impl<A: Animate> Animation<A> {
     pub fn new(a: A) -> Self {
@@ -28,6 +29,7 @@ impl<A: Animate> Animation<A> {
             a,
             sequence_time_range: SequenceTimeRange::default(),
             ease: Ease::DECELERATE,
+            seq: Entity::PLACEHOLDER,
         }
     }
     pub fn targeting(mut self, lh: Entity) -> Self {
@@ -44,6 +46,10 @@ impl<A: Animate> Animation<A> {
     }
     pub fn eased(mut self, ease: Ease) -> Self {
         self.ease = ease;
+        self
+    }
+    pub fn during(mut self, seq: Entity) -> Self {
+        self.seq = seq;
         self
     }
 }

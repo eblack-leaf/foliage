@@ -206,8 +206,8 @@ impl Foliage {
     pub fn sequence(&mut self) -> Entity {
         self.world.sequence()
     }
-    pub fn animate<A: Animate + Component>(&mut self, seq: Entity, anim: Animation<A>) -> Entity {
-        self.world.animate(seq, anim)
+    pub fn animate<A: Animate + Component>(&mut self, anim: Animation<A>) -> Entity {
+        self.world.animate(anim)
     }
     pub fn sequence_end<END: IntoObserverSystem<OnEnd, B, M>, B: Bundle, M>(
         &mut self,

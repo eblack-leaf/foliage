@@ -26,7 +26,7 @@ pub trait EcsExtension {
     fn enable(&mut self, targets: impl TriggerTargets + Send + Sync + 'static);
     fn disable(&mut self, targets: impl TriggerTargets + Send + Sync + 'static);
     fn sequence(&mut self) -> Entity;
-    fn animate<A: Animate>(&mut self, seq: Entity, anim: Animation<A>) -> Entity;
+    fn animate<A: Animate>(&mut self, anim: Animation<A>) -> Entity;
     fn sequence_end<END: IntoObserverSystem<OnEnd, B, M>, B: Bundle, M>(
         &mut self,
         seq: Entity,
@@ -69,12 +69,12 @@ impl EcsExtension for Tree<'_, '_> {
     fn sequence(&mut self) -> Entity {
         self.spawn(Sequence::default()).id()
     }
-    fn animate<A: Animate>(&mut self, seq: Entity, anim: Animation<A>) -> Entity {
+    fn animate<A: Animate>(&mut self, anim: Animation<A>) -> Entity {
         let runner = AnimationRunner::new(
             anim.anim_target.unwrap(),
             anim.a,
             anim.ease,
-            seq,
+            anim.seq,
             AnimationTime::from(anim.sequence_time_range),
         );
         self.spawn(runner).id()
@@ -135,8 +135,8 @@ impl EcsExtension for World {
     fn sequence(&mut self) -> Entity {
         self.commands().sequence()
     }
-    fn animate<A: Animate>(&mut self, seq: Entity, anim: Animation<A>) -> Entity {
-        self.commands().animate(seq, anim)
+    fn animate<A: Animate>(&mut self, anim: Animation<A>) -> Entity {
+        self.commands().animate(anim)
     }
     fn sequence_end<END: IntoObserverSystem<OnEnd, B, M>, B: Bundle, M>(
         &mut self,
