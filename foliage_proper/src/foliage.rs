@@ -48,6 +48,7 @@ pub struct Foliage {
     pub(crate) receiver: Option<oneshot::Receiver<Ginkgo>>,
     pub(crate) user_attachments: Vec<fn(&mut Foliage)>,
     pub(crate) ran_at_least_once: bool,
+    pub(crate) suspended: bool,
 }
 
 impl Default for Foliage {
@@ -77,6 +78,7 @@ impl Foliage {
             receiver: None,
             user_attachments: vec![],
             ran_at_least_once: false,
+            suspended: false,
         };
         foliage.main.configure_sets(
             (

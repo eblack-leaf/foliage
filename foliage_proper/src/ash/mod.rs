@@ -176,64 +176,65 @@ impl Ash {
         }
     }
     pub(crate) fn render(&mut self, ginkgo: &Ginkgo) {
-        let surface_texture = ginkgo.surface_texture();
-        let view = surface_texture
-            .texture
-            .create_view(&TextureViewDescriptor::default());
-        let mut encoder =
+        if let Some(surface_texture) = ginkgo.surface_texture() {
+            let view = surface_texture
+                .texture
+                .create_view(&TextureViewDescriptor::default());
+            let mut encoder =
+                ginkgo
+                    .context()
+                    .device
+                    .create_command_encoder(&CommandEncoderDescriptor {
+                        label: Some("present-encoder"),
+                    });
+            let mut rpass = encoder.begin_render_pass(&RenderPassDescriptor {
+                label: Some("render-pass"),
+                color_attachments: &ginkgo.color_attachment(&view, Color::gray(900)),
+                depth_stencil_attachment: ginkgo.depth_stencil_attachment(),
+                timestamp_writes: None,
+                occlusion_query_set: None,
+            });
+            for span in self.contiguous.iter() {
+                let mut section = ginkgo.viewport().section();
+                if let Some(clip) = self.clip.get(&span.clip_context) {
+                    section = section
+                        .intersection(
+                            clip.0
+                                .to_physical(ginkgo.configuration().scale_factor.value()),
+                        )
+                        .unwrap_or_default();
+                }
+                rpass.set_scissor_rect(
+                    section.left() as u32,
+                    section.top() as u32,
+                    section.width() as u32,
+                    section.height() as u32,
+                );
+                let parameters = span.parameters(section);
+                match span.pipeline {
+                    PipelineId::Text => {
+                        Render::render(self.text.as_mut().unwrap(), &mut rpass, parameters);
+                    }
+                    PipelineId::Icon => {
+                        Render::render(self.icon.as_mut().unwrap(), &mut rpass, parameters);
+                    }
+                    PipelineId::Shape => {
+                        Render::render(self.shape.as_mut().unwrap(), &mut rpass, parameters);
+                    }
+                    PipelineId::Panel => {
+                        Render::render(self.panel.as_mut().unwrap(), &mut rpass, parameters);
+                    }
+                    PipelineId::Image => {
+                        Render::render(self.image.as_mut().unwrap(), &mut rpass, parameters);
+                    }
+                }
+            }
+            drop(rpass);
             ginkgo
                 .context()
-                .device
-                .create_command_encoder(&CommandEncoderDescriptor {
-                    label: Some("present-encoder"),
-                });
-        let mut rpass = encoder.begin_render_pass(&RenderPassDescriptor {
-            label: Some("render-pass"),
-            color_attachments: &ginkgo.color_attachment(&view, Color::gray(900)),
-            depth_stencil_attachment: ginkgo.depth_stencil_attachment(),
-            timestamp_writes: None,
-            occlusion_query_set: None,
-        });
-        for span in self.contiguous.iter() {
-            let mut section = ginkgo.viewport().section();
-            if let Some(clip) = self.clip.get(&span.clip_context) {
-                section = section
-                    .intersection(
-                        clip.0
-                            .to_physical(ginkgo.configuration().scale_factor.value()),
-                    )
-                    .unwrap_or_default();
-            }
-            rpass.set_scissor_rect(
-                section.left() as u32,
-                section.top() as u32,
-                section.width() as u32,
-                section.height() as u32,
-            );
-            let parameters = span.parameters(section);
-            match span.pipeline {
-                PipelineId::Text => {
-                    Render::render(self.text.as_mut().unwrap(), &mut rpass, parameters);
-                }
-                PipelineId::Icon => {
-                    Render::render(self.icon.as_mut().unwrap(), &mut rpass, parameters);
-                }
-                PipelineId::Shape => {
-                    Render::render(self.shape.as_mut().unwrap(), &mut rpass, parameters);
-                }
-                PipelineId::Panel => {
-                    Render::render(self.panel.as_mut().unwrap(), &mut rpass, parameters);
-                }
-                PipelineId::Image => {
-                    Render::render(self.image.as_mut().unwrap(), &mut rpass, parameters);
-                }
-            }
+                .queue
+                .submit(std::iter::once(encoder.finish()));
+            surface_texture.present();
         }
-        drop(rpass);
-        ginkgo
-            .context()
-            .queue
-            .submit(std::iter::once(encoder.finish()));
-        surface_texture.present();
     }
 }

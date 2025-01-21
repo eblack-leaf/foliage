@@ -21,6 +21,7 @@ impl ApplicationHandler for Foliage {
             self.ginkgo.recreate_surface(&self.willow);
             self.ginkgo.configure_view(&self.willow);
             self.ginkgo.size_viewport(&self.willow);
+            self.suspended = false;
         }
         #[cfg(target_family = "wasm")]
         if !self.ginkgo.acquired() {
@@ -73,7 +74,8 @@ impl ApplicationHandler for Foliage {
 
     fn suspended(&mut self, _event_loop: &ActiveEventLoop) {
         if self.ginkgo.acquired() {
-            // TODO drop surface if required
+            self.ginkgo.suspend();
+            self.suspended = true;
         }
     }
 }
@@ -238,7 +240,12 @@ impl Foliage {
             WindowEvent::ThemeChanged(_) => {}
             WindowEvent::Occluded(_) => {}
             WindowEvent::RedrawRequested => {
-                if !self.ash.drawn && self.ran_at_least_once {
+                if self.ginkgo.lost() {
+                    println!("suspending --------------------------------------------------------");
+                    self.ginkgo.suspend();
+                    self.suspended = true;
+                }
+                if !self.ash.drawn && self.ran_at_least_once && !self.suspended {
                     if let Some(vc) = self
                         .world
                         .get_resource_mut::<ViewportHandle>()

@@ -27,20 +27,21 @@ use crate::coordinate::section::Section;
 use crate::coordinate::{CoordinateUnit, Coordinates, Physical};
 use crate::willow::Willow;
 
-pub mod binding;
-pub mod depth;
-pub mod msaa;
+pub(crate) mod binding;
+pub(crate) mod depth;
+pub(crate) mod msaa;
 pub mod viewport;
 
 #[derive(Default)]
-pub struct Ginkgo {
+pub(crate) struct Ginkgo {
     context: Option<GraphicContext>,
     configuration: Option<ViewConfiguration>,
     viewport: Option<Viewport>,
+    recv: Option<futures_channel::mpsc::UnboundedReceiver<bool>>,
 }
 
 impl Ginkgo {
-    pub fn write_texture<TexelData: Default + Sized + Clone + Pod + Zeroable>(
+    pub(crate) fn write_texture<TexelData: Default + Sized + Clone + Pod + Zeroable>(
         &self,
         texture: &Texture,
         position: Coordinates,
@@ -61,11 +62,9 @@ impl Ginkgo {
             bytemuck::cast_slice(&data),
             ImageDataLayout {
                 offset: 0,
-                bytes_per_row: Some(
-                    (extent.a() * std::mem::size_of::<TexelData>() as CoordinateUnit) as u32,
-                ),
+                bytes_per_row: Some((extent.a() * size_of::<TexelData>() as CoordinateUnit) as u32),
                 rows_per_image: Some(
-                    (extent.b() * std::mem::size_of::<TexelData>() as CoordinateUnit) as u32,
+                    (extent.b() * size_of::<TexelData>() as CoordinateUnit) as u32,
                 ),
             },
             Extent3d {
@@ -77,13 +76,13 @@ impl Ginkgo {
     }
     #[cfg(not(target_family = "wasm"))]
     #[allow(unused)]
-    pub fn png_to_cov<P: AsRef<std::path::Path>>(png: P, cov: P) {
+    pub(crate) fn png_to_cov<P: AsRef<std::path::Path>>(png: P, cov: P) {
         let data = Ginkgo::png_to_r8unorm_d2(png);
         let content = rmp_serde::to_vec(data.as_slice()).unwrap();
         std::fs::write(cov, content).unwrap();
     }
     #[cfg(not(target_family = "wasm"))]
-    pub fn png_to_r8unorm_d2<P: AsRef<std::path::Path>>(path: P) -> Vec<u8> {
+    pub(crate) fn png_to_r8unorm_d2<P: AsRef<std::path::Path>>(path: P) -> Vec<u8> {
         let image = image::load_from_memory(std::fs::read(path).unwrap().as_slice())
             .expect("png-to-r8unorm-d2");
         let texture_data = image
@@ -93,7 +92,7 @@ impl Ginkgo {
             .collect::<Vec<u8>>();
         texture_data
     }
-    pub fn vertex_buffer_layout<A: Pod + Zeroable>(
+    pub(crate) fn vertex_buffer_layout<A: Pod + Zeroable>(
         step: VertexStepMode,
         attrs: &[VertexAttribute],
     ) -> VertexBufferLayout {
@@ -103,7 +102,7 @@ impl Ginkgo {
             attributes: attrs,
         }
     }
-    pub fn create_sampler(&self, filter: bool) -> Sampler {
+    pub(crate) fn create_sampler(&self, filter: bool) -> Sampler {
         let descriptor = if filter {
             SamplerDescriptor {
                 mag_filter: FilterMode::Linear,
@@ -115,7 +114,7 @@ impl Ginkgo {
         };
         self.context().device.create_sampler(&descriptor)
     }
-    pub fn create_texture(
+    pub(crate) fn create_texture(
         &self,
         format: TextureFormat,
         coordinates: Coordinates,
@@ -144,10 +143,10 @@ impl Ginkgo {
         let view = texture.create_view(&TextureViewDescriptor::default());
         (texture, view)
     }
-    pub fn memory_size<B>(n: u32) -> BufferAddress {
+    pub(crate) fn memory_size<B>(n: u32) -> BufferAddress {
         (std::mem::size_of::<B>() * n as usize) as BufferAddress
     }
-    pub fn fragment_state<'a>(
+    pub(crate) fn fragment_state<'a>(
         module: &'a ShaderModule,
         entry_point: &'a str,
         targets: &'a [Option<ColorTargetState>],
@@ -159,19 +158,22 @@ impl Ginkgo {
             targets,
         })
     }
-    pub fn texture_bind_group_entry(view: &TextureView, binding: u32) -> BindGroupEntry {
+    pub(crate) fn texture_bind_group_entry(view: &TextureView, binding: u32) -> BindGroupEntry {
         BindGroupEntry {
             binding,
             resource: wgpu::BindingResource::TextureView(view),
         }
     }
-    pub fn sampler_bind_group_entry(sampler: &wgpu::Sampler, binding: u32) -> BindGroupEntry {
+    pub(crate) fn sampler_bind_group_entry(
+        sampler: &wgpu::Sampler,
+        binding: u32,
+    ) -> BindGroupEntry {
         BindGroupEntry {
             binding,
             resource: wgpu::BindingResource::Sampler(sampler),
         }
     }
-    pub fn triangle_list_primitive() -> PrimitiveState {
+    pub(crate) fn triangle_list_primitive() -> PrimitiveState {
         PrimitiveState {
             topology: wgpu::PrimitiveTopology::TriangleList,
             strip_index_format: None,
@@ -182,26 +184,32 @@ impl Ginkgo {
             conservative: false,
         }
     }
-    pub fn bind_group_layout_entry(binding: u32) -> BindingBuilder {
+    pub(crate) fn bind_group_layout_entry(binding: u32) -> BindingBuilder {
         BindingBuilder::new(binding)
     }
-    pub fn create_bind_group_layout(&self, desc: &BindGroupLayoutDescriptor) -> BindGroupLayout {
+    pub(crate) fn create_bind_group_layout(
+        &self,
+        desc: &BindGroupLayoutDescriptor,
+    ) -> BindGroupLayout {
         let bind_group_layout = self.context().device.create_bind_group_layout(desc);
         bind_group_layout
     }
-    pub fn create_bind_group(&self, desc: &BindGroupDescriptor) -> BindGroup {
+    pub(crate) fn create_bind_group(&self, desc: &BindGroupDescriptor) -> BindGroup {
         let bind_group = self.context().device.create_bind_group(desc);
         bind_group
     }
-    pub fn create_pipeline_layout(&self, desc: &PipelineLayoutDescriptor) -> PipelineLayout {
+    pub(crate) fn create_pipeline_layout(&self, desc: &PipelineLayoutDescriptor) -> PipelineLayout {
         let layout = self.context().device.create_pipeline_layout(desc);
         layout
     }
-    pub fn create_shader(&self, shader_source: ShaderModuleDescriptor) -> ShaderModule {
+    pub(crate) fn create_shader(&self, shader_source: ShaderModuleDescriptor) -> ShaderModule {
         let shader = self.context().device.create_shader_module(shader_source);
         shader
     }
-    pub fn create_vertex_buffer<R: Pod + Zeroable, VB: AsRef<[R]>>(&self, vb_data: VB) -> Buffer {
+    pub(crate) fn create_vertex_buffer<R: Pod + Zeroable, VB: AsRef<[R]>>(
+        &self,
+        vb_data: VB,
+    ) -> Buffer {
         let vertex_buffer =
             self.context()
                 .device
@@ -212,11 +220,11 @@ impl Ginkgo {
                 });
         vertex_buffer
     }
-    pub fn create_pipeline(&self, desc: &RenderPipelineDescriptor) -> RenderPipeline {
+    pub(crate) fn create_pipeline(&self, desc: &RenderPipelineDescriptor) -> RenderPipeline {
         let pipeline = self.context().device.create_render_pipeline(desc);
         pipeline
     }
-    pub fn uniform_bind_group_entry<U: Pod + Zeroable>(
+    pub(crate) fn uniform_bind_group_entry<U: Pod + Zeroable>(
         uniform: &Uniform<U>,
         binding: u32,
     ) -> BindGroupEntry {
@@ -273,7 +281,7 @@ impl Ginkgo {
     }
     pub(crate) fn depth_stencil_attachment(&self) -> Option<RenderPassDepthStencilAttachment> {
         Some(RenderPassDepthStencilAttachment {
-            view: &self.configuration().depth.view,
+            view: &self.configuration().depth.as_ref().unwrap().view,
             depth_ops: Some(Operations {
                 load: LoadOp::Clear(self.viewport().near_far.far.0),
                 store: StoreOp::Store,
@@ -284,18 +292,25 @@ impl Ginkgo {
             }),
         })
     }
-    pub(crate) fn surface_texture(&self) -> wgpu::SurfaceTexture {
+    pub(crate) fn suspend(&mut self) {
+        if let Some(context) = self.context.as_mut() {
+            context.surface.take();
+        }
+        if let Some(config) = self.configuration.as_mut() {
+            config.depth.take();
+        }
+    }
+    pub(crate) fn surface_texture(&self) -> Option<wgpu::SurfaceTexture> {
         let context = self.context();
-        if let Ok(frame) = context.surface.get_current_texture() {
-            frame
+        if let Ok(frame) = context.surface.as_ref().unwrap().get_current_texture() {
+            Some(frame)
         } else {
             context
                 .surface
+                .as_ref()
+                .unwrap()
                 .configure(&context.device, &self.configuration().config);
-            context
-                .surface
-                .get_current_texture()
-                .expect("swapchain-configure")
+            context.surface.as_ref().unwrap().get_current_texture().ok()
         }
     }
     pub(crate) fn viewport(&self) -> &Viewport {
@@ -324,11 +339,12 @@ impl Ginkgo {
         );
     }
     pub(crate) fn recreate_surface(&mut self, willow: &Willow) {
-        self.context.as_mut().unwrap().surface = self
+        let surface = self
             .context()
             .instance
             .create_surface(willow.window())
             .expect("surface");
+        self.context.as_mut().unwrap().surface.replace(surface);
     }
     pub(crate) fn acquired(&self) -> bool {
         self.context.is_some()
@@ -336,6 +352,9 @@ impl Ginkgo {
     #[allow(unused)]
     pub(crate) fn configured(&self) -> bool {
         self.configuration.is_some()
+    }
+    pub(crate) fn lost(&mut self) -> bool {
+        self.recv.as_mut().unwrap().try_next().ok().is_some()
     }
     pub(crate) async fn acquire_context(&mut self, willow: &Willow) {
         let instance = wgpu::Instance::new(InstanceDescriptor {
@@ -382,8 +401,14 @@ impl Ginkgo {
             )
             .await
             .expect("device/queue");
+        let (sender, recv) = futures_channel::mpsc::unbounded::<bool>();
+        self.recv.replace(recv);
+        device.set_device_lost_callback(move |reason, msg| {
+            println!("device lost: {}", msg);
+            sender.unbounded_send(true).unwrap()
+        });
         self.context.replace(GraphicContext {
-            surface,
+            surface: Some(surface),
             instance,
             adapter,
             device,
@@ -408,10 +433,12 @@ impl Ginkgo {
         };
         self.context()
             .surface
+            .as_ref()
+            .unwrap()
             .configure(&self.context().device, &config);
         self.configuration.replace(ViewConfiguration {
             msaa,
-            depth,
+            depth: Some(depth),
             scale_factor,
             config,
         });
@@ -425,7 +452,7 @@ impl Ginkgo {
 }
 
 pub(crate) struct GraphicContext {
-    pub(crate) surface: wgpu::Surface<'static>,
+    pub(crate) surface: Option<wgpu::Surface<'static>>,
     pub(crate) instance: wgpu::Instance,
     pub(crate) adapter: wgpu::Adapter,
     pub(crate) device: wgpu::Device,
@@ -435,7 +462,7 @@ pub(crate) struct GraphicContext {
 
 pub(crate) struct ViewConfiguration {
     pub(crate) msaa: Msaa,
-    pub(crate) depth: Depth,
+    pub(crate) depth: Option<Depth>,
     pub(crate) scale_factor: ScaleFactor,
     pub(crate) config: SurfaceConfiguration,
 }
