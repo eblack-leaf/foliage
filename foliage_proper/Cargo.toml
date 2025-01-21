@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 bytemuck = { version = "1.21.0", features = ["derive"] }
 winit = { version = "0.30.8", features = ["android-game-activity"] }
-wgpu = { version = "23.0.1", features = ["metal", "webgl", "wgsl"] }
+wgpu = { version = "24.0.0", features = ["metal", "webgl", "wgsl"] }
 bevy_ecs = "0.15.1"
 bevy_color = "0.15.2"
 serde = { version = "1.0.214", features = ["derive"] }
