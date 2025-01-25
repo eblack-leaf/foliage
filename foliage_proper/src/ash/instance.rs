@@ -151,7 +151,25 @@ impl InstanceCoordinator {
                 }
             }
         }
-        swaps.reverse();
+        swaps.sort_by(|sa, sb| {
+            let cond_a = sa.old < sa.new;
+            let cond_b = sb.old < sb.new;
+            if cond_a && cond_b {
+                match sa.old.partial_cmp(&sb.old).unwrap() {
+                    Ordering::Less => Ordering::Greater,
+                    Ordering::Equal => Ordering::Equal,
+                    Ordering::Greater => Ordering::Less,
+                }
+            } else if !cond_a && !cond_b {
+                match sa.old.partial_cmp(&sb.old).unwrap() {
+                    Ordering::Less => Ordering::Less,
+                    Ordering::Equal => Ordering::Equal,
+                    Ordering::Greater => Ordering::Greater,
+                }
+            } else {
+                Ordering::Equal
+            }
+        });
         self.cache = self.instances.clone();
         swaps
     }

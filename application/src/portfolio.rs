@@ -172,7 +172,9 @@ impl Portfolio {
             Elevation::abs(95),
             Stem::none(),
         ));
+        tree.disable(back);
         let enable_targets = [
+            named.get("github"),
             named.get("option-one"),
             named.get("option-two"),
             named.get("option-three"),
@@ -249,6 +251,9 @@ impl Portfolio {
                     .during(seq),
             );
         }
+        tree.sequence_end(seq, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
+            tree.enable(back);
+        })
     }
 }
 pub(crate) struct PortfolioItem {
