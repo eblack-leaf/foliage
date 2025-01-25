@@ -230,8 +230,11 @@ impl Foliage {
     ) {
         self.world.on_click(e, o);
     }
-    pub fn store<S: AsRef<str>>(&mut self, e: Entity, s: S) {
+    pub fn name<S: AsRef<str>>(&mut self, e: Entity, s: S) {
         self.world.name(e, s);
+    }
+    pub fn store<S: AsRef<str>>(&mut self, key: AssetKey, s: S) {
+        self.world.store(key, s);
     }
     pub(crate) fn remove_queue<R: Clone + Send + Sync + 'static>(&mut self) {
         debug_assert!(self.world.get_resource::<RenderRemoveQueue<R>>().is_none());

@@ -3,10 +3,10 @@ use crate::anim::sequence::{AnimationTime, Sequence};
 use crate::disable::Disable;
 use crate::enable::Enable;
 use crate::leaf::Leaf;
-use crate::ops::Name;
+use crate::ops::{Name, StoredKey};
 use crate::remove::Remove;
 use crate::time::OnEnd;
-use crate::{Animate, Animation, OnClick};
+use crate::{Animate, Animation, AssetKey, OnClick};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::Event;
@@ -39,6 +39,7 @@ pub trait EcsExtension {
     );
     fn on_click<ONC: IntoObserverSystem<OnClick, B, M>, B: Bundle, M>(&mut self, e: Entity, o: ONC);
     fn name<S: AsRef<str>>(&mut self, e: Entity, s: S);
+    fn store<S: AsRef<str>>(&mut self, k: AssetKey, s: S);
 }
 impl EcsExtension for Tree<'_, '_> {
     fn leaf<B: Bundle>(&mut self, b: B) -> Entity {
@@ -105,6 +106,10 @@ impl EcsExtension for Tree<'_, '_> {
     fn name<S: AsRef<str>>(&mut self, e: Entity, s: S) {
         self.send(Name(s.as_ref().to_string(), e));
     }
+
+    fn store<S: AsRef<str>>(&mut self, k: AssetKey, s: S) {
+        self.send(StoredKey(s.as_ref().to_string(), k));
+    }
 }
 
 impl EcsExtension for World {
@@ -164,5 +169,9 @@ impl EcsExtension for World {
 
     fn name<S: AsRef<str>>(&mut self, e: Entity, s: S) {
         self.commands().name(e, s);
+    }
+
+    fn store<S: AsRef<str>>(&mut self, k: AssetKey, s: S) {
+        self.commands().store(k, s);
     }
 }

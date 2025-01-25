@@ -68,7 +68,7 @@ pub use interaction::{Disengaged, Engaged};
 pub use leaf::{Branch, Leaf, Stem};
 pub use opacity::Opacity;
 pub use ops::Named;
-pub use ops::{Update, Write};
+pub use ops::{Keyring, Update, Write};
 pub use panel::{Outline, Panel, Rounding};
 #[cfg(target_os = "android")]
 pub use platform::AndroidApp;

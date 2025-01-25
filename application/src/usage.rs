@@ -33,11 +33,11 @@ impl Usage {
                 100.pct().left().with(200.pct().right()),
                 0.pct().top().with(100.pct().bottom()),
             ))
-                .start(0)
-                .finish(1000)
-                .targeting(home)
-                .eased(Ease::ACCELERATE)
-                .during(seq),
+            .start(0)
+            .finish(1000)
+            .targeting(home)
+            .eased(Ease::ACCELERATE)
+            .during(seq),
         );
         tree.animate(
             Animation::new(Opacity::new(0.0))
@@ -51,11 +51,11 @@ impl Usage {
                 0.pct().left().with(100.pct().right()),
                 0.pct().top().with(100.pct().bottom()),
             ))
-                .start(0)
-                .finish(1000)
-                .eased(Ease::ACCELERATE)
-                .targeting(root)
-                .during(seq),
+            .start(0)
+            .finish(1000)
+            .eased(Ease::ACCELERATE)
+            .targeting(root)
+            .during(seq),
         );
         // TODO anim in elements
     }

@@ -1,10 +1,14 @@
+use crate::docs::Docs;
+use crate::icons::IconHandles;
+use crate::implementation::Implementation;
+use crate::portfolio::Portfolio;
 use crate::usage::Usage;
 use foliage::{
     bevy_ecs, stack, Animation, Attachment, Button, ButtonShape, Color, EcsExtension, Elevation,
-    Event, Foliage, FontSize, GlyphColors, Grid, GridExt, HorizontalAlignment, HrefLink, Icon,
-    IconValue, InteractionListener, Line, Location, Logical, OnClick, OnEnd, Opacity, Outline,
-    Primary, Query, Secondary, Section, Stack, Stem, Text, TextValue, TimeDelta, Timer, Tree,
-    Trigger, VerticalAlignment, Write,
+    Event, Foliage, FontSize, GlyphColors, Grid, GridExt, HorizontalAlignment, HrefLink, IconValue,
+    InteractionListener, Line, Location, Logical, OnClick, OnEnd, Opacity, Outline, Primary, Query,
+    Secondary, Section, Stack, Stem, Text, TextValue, TimeDelta, Timer, Tree, Trigger,
+    VerticalAlignment, Write,
 };
 
 impl Attachment for Home {
@@ -143,10 +147,9 @@ impl Home {
             Opacity::new(0.0),
             Color::gray(500),
         ));
-        tree.spawn(Icon::memory(0, include_bytes!("assets/icons/github.icon")));
         let github = tree.leaf((
             Button::new(),
-            IconValue(0),
+            IconValue(IconHandles::Github.value()),
             ButtonShape::Circle,
             Primary(Color::gray(200)),
             Secondary(Color::gray(800)),
@@ -199,14 +202,10 @@ impl Home {
             Elevation::up(1),
         ));
         let option_one_color = Color::green(700);
-        tree.spawn(Icon::memory(
-            1,
-            include_bytes!("assets/icons/terminal.icon"),
-        ));
         let option_one = tree.leaf((
             Button::new(),
             ButtonShape::Circle,
-            IconValue(1),
+            IconValue(IconHandles::Terminal.value()),
             Primary(option_one_color),
             Secondary(Color::gray(900)),
             Location::new().xs(
@@ -242,11 +241,10 @@ impl Home {
             Color::gray(500),
         ));
         let option_two_color = Color::green(500);
-        tree.spawn(Icon::memory(2, include_bytes!("assets/icons/layers.icon")));
         let option_two = tree.leaf((
             Button::new(),
             ButtonShape::Circle,
-            IconValue(2),
+            IconValue(IconHandles::Layers.value()),
             Primary(option_two_color),
             Secondary(Color::gray(900)),
             Location::new().xs(
@@ -282,14 +280,10 @@ impl Home {
             Opacity::new(0.0),
         ));
         let option_three_color = Color::green(300);
-        tree.spawn(Icon::memory(
-            3,
-            include_bytes!("assets/icons/book-open.icon"),
-        ));
         let option_three = tree.leaf((
             Button::new(),
             ButtonShape::Circle,
-            IconValue(3),
+            IconValue(IconHandles::BookOpen.value()),
             Primary(option_three_color),
             Secondary(Color::gray(900)),
             Location::new().xs(
@@ -326,7 +320,7 @@ impl Home {
         ));
         let portfolio = tree.leaf((
             Button::new(),
-            IconValue(3),
+            IconValue(IconHandles::Code.value()),
             TextValue("Portfolio".to_string()),
             FontSize::new(20),
             Primary(Color::orange(500)),
@@ -340,6 +334,13 @@ impl Home {
             Stem::some(root),
             Outline::new(2),
         ));
+        let spacing = tree.leaf((
+            Location::new().xs(
+                0.pct().left().with(100.pct().right()),
+                18.row().top().with(18.row().bottom()),
+            ),
+            Stem::some(root),
+        ));
         tree.name(portfolio, "portfolio");
         tree.on_click(
             option_one,
@@ -348,12 +349,27 @@ impl Home {
                 tree.send(Usage {});
             },
         );
-        tree.on_click(option_two, |trigger: Trigger<OnClick>| {
-            // TODO
-        });
-        tree.on_click(option_three, |trigger: Trigger<OnClick>| {
-            // TODO
-        });
+        tree.on_click(
+            option_two,
+            move |trigger: Trigger<OnClick>, mut tree: Tree| {
+                tree.disable([github, option_one, option_two, option_three, portfolio]);
+                tree.send(Implementation {});
+            },
+        );
+        tree.on_click(
+            option_three,
+            move |trigger: Trigger<OnClick>, mut tree: Tree| {
+                tree.disable([github, option_one, option_two, option_three, portfolio]);
+                tree.send(Docs {});
+            },
+        );
+        tree.on_click(
+            portfolio,
+            move |trigger: Trigger<OnClick>, mut tree: Tree| {
+                tree.disable([github, option_one, option_two, option_three, portfolio]);
+                tree.send(Portfolio {});
+            },
+        );
         let seq = tree.sequence();
         tree.animate(
             Animation::new(Opacity::new(1.0))
@@ -406,50 +422,50 @@ impl Home {
         );
         tree.animate(
             Animation::new(Opacity::new(1.0))
-                .start(3000)
-                .finish(3500)
+                .start(500)
+                .finish(1000)
                 .during(seq)
                 .targeting(option_one),
         );
         tree.animate(
             Animation::new(Opacity::new(1.0))
-                .start(3500)
-                .finish(4000)
+                .start(1000)
+                .finish(1500)
                 .during(seq)
                 .targeting(option_one_desc),
         );
         tree.animate(
             Animation::new(Opacity::new(1.0))
-                .start(4000)
-                .finish(4500)
+                .start(1500)
+                .finish(2000)
                 .during(seq)
                 .targeting(option_two),
         );
         tree.animate(
             Animation::new(Opacity::new(1.0))
-                .start(4500)
-                .finish(5000)
+                .start(2000)
+                .finish(2500)
                 .during(seq)
                 .targeting(option_two_desc),
         );
         tree.animate(
             Animation::new(Opacity::new(1.0))
-                .start(5250)
-                .finish(5750)
+                .start(2500)
+                .finish(3000)
                 .during(seq)
                 .targeting(option_three),
         );
         tree.animate(
             Animation::new(Opacity::new(1.0))
-                .start(5750)
-                .finish(6250)
+                .start(3000)
+                .finish(3500)
                 .during(seq)
                 .targeting(option_three_desc),
         );
         tree.animate(
             Animation::new(Opacity::new(1.0))
-                .start(6000)
-                .finish(6500)
+                .start(3000)
+                .finish(3500)
                 .during(seq)
                 .targeting(portfolio),
         );
@@ -457,56 +473,56 @@ impl Home {
             Animation::new(
                 Location::new().xs(4.col().x().with(5.row().y()), 9.col().x().with(5.row().y())),
             )
-                .start(1000)
-                .finish(3000)
-                .during(seq)
-                .targeting(top_line),
+            .start(1000)
+            .finish(3000)
+            .during(seq)
+            .targeting(top_line),
         );
         tree.animate(
             Animation::new(
                 Location::new().xs(7.col().x().with(5.row().y()), 7.col().x().with(8.row().y())),
             )
-                .start(1750)
-                .finish(3000)
-                .during(seq)
-                .targeting(pad_connector),
+            .start(1750)
+            .finish(3000)
+            .during(seq)
+            .targeting(pad_connector),
         );
         tree.animate(
             Animation::new(Location::new().xs(
                 stack().right().x().adjust(16).with(1.row().y()),
                 stack().right().x().adjust(64).with(1.row().y()),
             ))
-                .start(1750)
-                .finish(2500)
-                .during(seq)
-                .targeting(github_line),
+            .start(1750)
+            .finish(2500)
+            .during(seq)
+            .targeting(github_line),
         );
         tree.animate(
             Animation::new(
                 Location::new().xs(1.col().x().with(1.row().y()), 2.col().x().with(1.row().y())),
             )
-                .start(2500)
-                .finish(3000)
-                .during(seq)
-                .targeting(option_one_line),
+            .start(500)
+            .finish(1000)
+            .during(seq)
+            .targeting(option_one_line),
         );
         tree.animate(
             Animation::new(
                 Location::new().xs(4.col().x().with(2.row().y()), 5.col().x().with(2.row().y())),
             )
-                .start(3500)
-                .finish(4000)
-                .during(seq)
-                .targeting(option_two_line),
+            .start(1500)
+            .finish(2000)
+            .during(seq)
+            .targeting(option_two_line),
         );
         tree.animate(
             Animation::new(
                 Location::new().xs(1.col().x().with(3.row().y()), 2.col().x().with(3.row().y())),
             )
-                .start(4750)
-                .finish(5250)
-                .during(seq)
-                .targeting(option_three_line),
+            .start(2500)
+            .finish(3000)
+            .during(seq)
+            .targeting(option_three_line),
         );
         tree.disable([github, option_one, option_two, option_three, portfolio]);
         tree.spawn(Timer::new(TimeDelta::from_millis(1500)))
