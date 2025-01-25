@@ -5,6 +5,7 @@ use crate::interaction::{
     Interaction, InteractionPhase, KeyboardAdapter, MouseAdapter, TouchAdapter,
 };
 use crate::Position;
+use tracing::trace;
 use winit::application::ApplicationHandler;
 use winit::event::{MouseScrollDelta, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
@@ -12,27 +13,30 @@ use winit::window::WindowId;
 
 impl ApplicationHandler for Foliage {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        #[cfg(not(target_family = "wasm"))]
+        trace!("resuming");
         if !self.ginkgo.acquired() {
-            self.willow.connect(event_loop);
-            pollster::block_on(self.ginkgo.acquire_context(&self.willow));
-            self.finish_boot();
+            #[cfg(not(target_family = "wasm"))]
+            {
+                self.willow.connect(event_loop);
+                pollster::block_on(self.ginkgo.acquire_context(&self.willow));
+                self.finish_boot();
+            }
+            #[cfg(target_family = "wasm")]
+            {
+                self.willow.connect(event_loop);
+                let handle = self.willow.clone();
+                let sender = self.sender.take().expect("sender");
+                wasm_bindgen_futures::spawn_local(async move {
+                    let mut ginkgo = crate::ginkgo::Ginkgo::default();
+                    ginkgo.acquire_context(&handle).await;
+                    sender.send(ginkgo).ok();
+                });
+            }
         } else {
             self.ginkgo.recreate_surface(&self.willow);
             self.ginkgo.configure_view(&self.willow);
             self.ginkgo.size_viewport(&self.willow);
             self.suspended = false;
-        }
-        #[cfg(target_family = "wasm")]
-        if !self.ginkgo.acquired() {
-            self.willow.connect(event_loop);
-            let handle = self.willow.clone();
-            let sender = self.sender.take().expect("sender");
-            wasm_bindgen_futures::spawn_local(async move {
-                let mut ginkgo = crate::ginkgo::Ginkgo::default();
-                ginkgo.acquire_context(&handle).await;
-                sender.send(ginkgo).ok();
-            });
         }
     }
     fn window_event(
