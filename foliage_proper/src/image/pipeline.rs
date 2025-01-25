@@ -139,6 +139,12 @@ impl Render for Image {
                 let order = group.coordinator.order(id);
                 group.coordinator.remove(order);
                 nodes.remove(RemoveNode::new(PipelineId::Image, group_id, id));
+                queues.remove_attr::<Image, ResolvedElevation>(entity);
+                queues.remove_attr::<Image, Stem>(entity);
+                queues.remove_attr::<Image, CropAdjustment>(entity);
+                queues.remove_attr::<Image, BlendedOpacity>(entity);
+                queues.remove_attr::<Image, Section<Logical>>(entity);
+                queues.remove_attr::<Image, ImageWrite>(entity);
             }
         }
         for (_, memory) in queues.attribute::<Image, ImageMemory>() {

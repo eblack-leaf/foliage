@@ -167,6 +167,15 @@ impl Render for Text {
         for entity in queues.removes::<Text>() {
             // remove group
             if let Some(id) = renderer.resources.entity_to_group.remove(&entity) {
+                queues.remove_attr::<Text, ResolvedElevation>(entity);
+                queues.remove_attr::<Text, Stem>(entity);
+                queues.remove_attr::<Text, Section<Logical>>(entity);
+                queues.remove_attr::<Text, TextBounds>(entity);
+                queues.remove_attr::<Text, BlendedOpacity>(entity);
+                queues.remove_attr::<Text, UniqueCharacters>(entity);
+                queues.remove_attr::<Text, ResolvedFontSize>(entity);
+                queues.remove_attr::<Text, ResolvedGlyphs>(entity);
+                queues.remove_attr::<Text, ResolvedColors>(entity);
                 renderer.groups.remove(&id);
             }
             nodes.remove(RemoveNode::new(

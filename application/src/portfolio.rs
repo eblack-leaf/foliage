@@ -3,7 +3,7 @@ use foliage::{
     bevy_ecs, Animation, Attachment, Button, ButtonShape, Color, Ease, EcsExtension, Elevation,
     Event, Foliage, FontSize, Grid, GridExt, IconValue, Image, ImageView, InteractionListener,
     Keyring, Location, MemoryId, Named, OnClick, OnEnd, Opacity, Panel, Primary, Res, Secondary,
-    Stem, Text, Tree, Trigger,
+    Stem, Text, TimeDelta, Timer, Tree, Trigger,
 };
 
 impl Attachment for Portfolio {
@@ -38,11 +38,11 @@ impl Portfolio {
                 0.pct().left().with(100.pct().right()),
                 0.pct().top().with(100.pct().bottom()),
             ))
-            .start(0)
-            .finish(1000)
-            .targeting(root)
-            .during(seq)
-            .eased(Ease::EMPHASIS),
+                .start(0)
+                .finish(1000)
+                .targeting(root)
+                .during(seq)
+                .eased(Ease::EMPHASIS),
         );
         tree.animate(
             Animation::new(Opacity::new(0.0))
@@ -56,11 +56,11 @@ impl Portfolio {
                 0.pct().left().with(100.pct().right()),
                 (-100).pct().top().with(0.pct().bottom()),
             ))
-            .start(0)
-            .finish(1000)
-            .targeting(home)
-            .eased(Ease::EMPHASIS)
-            .during(seq),
+                .start(0)
+                .finish(1000)
+                .targeting(home)
+                .eased(Ease::EMPHASIS)
+                .during(seq),
         );
         let mut last = 0;
         let mut card_roots = vec![];
@@ -212,22 +212,22 @@ impl Portfolio {
                     0.pct().left().with(100.pct().right()),
                     0.pct().top().with(100.pct().bottom()),
                 ))
-                .start(0)
-                .finish(1000)
-                .targeting(home)
-                .eased(Ease::EMPHASIS)
-                .during(s),
+                    .start(0)
+                    .finish(1000)
+                    .targeting(home)
+                    .eased(Ease::EMPHASIS)
+                    .during(s),
             );
             tree.animate(
                 Animation::new(Location::new().xs(
                     0.pct().left().with(100.pct().right()),
                     100.pct().top().with(200.pct().bottom()),
                 ))
-                .start(0)
-                .finish(1000)
-                .targeting(root)
-                .eased(Ease::EMPHASIS)
-                .during(s),
+                    .start(0)
+                    .finish(1000)
+                    .targeting(root)
+                    .eased(Ease::EMPHASIS)
+                    .during(s),
             );
             tree.sequence_end(s, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
                 tree.remove([root, back]);
@@ -251,7 +251,8 @@ impl Portfolio {
                     .during(seq),
             );
         }
-        tree.sequence_end(seq, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
+        let t = tree.spawn(Timer::new(TimeDelta::from_millis(1000))).id();
+        tree.subscribe(t, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
             tree.enable(back);
         })
     }

@@ -127,7 +127,19 @@ impl<'a> RenderQueueHandle<'a> {
             .drain()
             .collect()
     }
-
+    pub(crate) fn remove_attr<
+        R: Clone + Send + Sync + 'static,
+        RP: Clone + Send + Sync + 'static,
+    >(
+        &mut self,
+        entity: Entity,
+    ) {
+        self.world
+            .get_resource_mut::<RenderQueue<R, RP>>()
+            .unwrap()
+            .queue
+            .remove(&entity);
+    }
     pub(crate) fn attribute<R: Clone + Send + Sync + 'static, RP: Clone + Send + Sync + 'static>(
         &mut self,
     ) -> Vec<(Entity, RP)> {

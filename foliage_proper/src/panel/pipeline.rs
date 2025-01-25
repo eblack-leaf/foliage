@@ -165,6 +165,13 @@ impl Render for Panel {
                 ));
                 let order = render_group.coordinator.order(r.index() as InstanceId);
                 render_group.coordinator.remove(order);
+                queues.remove_attr::<Panel, ResolvedElevation>(r);
+                queues.remove_attr::<Panel, Section<Logical>>(r);
+                queues.remove_attr::<Panel, Stem>(r);
+                queues.remove_attr::<Panel, Outline>(r);
+                queues.remove_attr::<Panel, BlendedOpacity>(r);
+                queues.remove_attr::<Panel, Color>(r);
+                queues.remove_attr::<Panel, Panel>(r);
             }
         }
         for (entity, elevation) in queues.attribute::<Panel, ResolvedElevation>() {

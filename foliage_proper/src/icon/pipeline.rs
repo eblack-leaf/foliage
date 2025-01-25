@@ -142,6 +142,12 @@ impl Render for Icon {
                 let order = group.coordinator.order(id);
                 group.coordinator.remove(order);
                 nodes.remove(RemoveNode::new(PipelineId::Icon, gid, id));
+                queues.remove_attr::<Icon, Icon>(entity);
+                queues.remove_attr::<Icon, Section<Logical>>(entity);
+                queues.remove_attr::<Icon, ResolvedElevation>(entity);
+                queues.remove_attr::<Icon, Stem>(entity);
+                queues.remove_attr::<Icon, Color>(entity);
+                queues.remove_attr::<Icon, BlendedOpacity>(entity);
             }
         }
         for (_, mem) in queues.attribute::<Icon, IconMemory>() {

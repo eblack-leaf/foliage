@@ -137,6 +137,11 @@ impl Render for Shape {
                 let order = group.coordinator.order(id);
                 group.coordinator.remove(order);
                 nodes.remove(RemoveNode::new(PipelineId::Shape, 0, id));
+                queues.remove_attr::<Shape, Shape>(entity);
+                queues.remove_attr::<Shape, ResolvedElevation>(entity);
+                queues.remove_attr::<Shape, Stem>(entity);
+                queues.remove_attr::<Shape, Color>(entity);
+                queues.remove_attr::<Shape, BlendedOpacity>(entity);
             }
         }
         for (entity, shape) in queues.attribute::<Self, Self>() {
