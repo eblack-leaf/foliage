@@ -2,8 +2,8 @@ use crate::icons::IconHandles;
 use foliage::{
     bevy_ecs, Animation, Attachment, Button, ButtonShape, Color, Ease, EcsExtension, Elevation,
     Event, Foliage, FontSize, Grid, GridExt, IconValue, Image, ImageView, InteractionListener,
-    Keyring, Location, MemoryId, Named, Opacity, Panel, Primary, Res, Secondary, Stem, Text, Tree,
-    Trigger,
+    Keyring, Location, MemoryId, Named, OnClick, OnEnd, Opacity, Panel, Primary, Res, Secondary,
+    Stem, Text, Tree, Trigger,
 };
 
 impl Attachment for Portfolio {
@@ -42,7 +42,7 @@ impl Portfolio {
             .finish(1000)
             .targeting(root)
             .during(seq)
-            .eased(Ease::ACCELERATE),
+            .eased(Ease::EMPHASIS),
         );
         tree.animate(
             Animation::new(Opacity::new(0.0))
@@ -59,11 +59,12 @@ impl Portfolio {
             .start(0)
             .finish(1000)
             .targeting(home)
-            .eased(Ease::ACCELERATE)
+            .eased(Ease::EMPHASIS)
             .during(seq),
         );
         let mut last = 0;
         let mut card_roots = vec![];
+        let mut card_interactive = vec![];
         for (i, item) in ITEMS.iter().enumerate() {
             let card_shadow = tree.leaf((
                 Panel::new(),
@@ -147,15 +148,90 @@ impl Portfolio {
                 Button::new(),
                 IconValue(IconHandles::Box.value()),
                 ButtonShape::Circle,
-                Primary(Color::gray(500)),
+                Primary(Color::gray(900)),
                 Secondary(Color::orange(800)),
                 Location::new().xs(
                     100.pct().right().adjust(-8).with(44.px().width()),
                     100.pct().bottom().adjust(-8).with(44.px().height()),
                 ),
             ));
+            card_interactive.push(launch);
+            card_interactive.push(display);
             last = i + 2;
         }
+        let back = tree.leaf((
+            Button::new(),
+            ButtonShape::Circle,
+            IconValue(IconHandles::ArrowUp.value()),
+            Primary(Color::gray(300)),
+            Secondary(Color::gray(700)),
+            Location::new().xs(
+                50.pct().center_x().with(48.px().width()),
+                12.px().top().with(48.px().height()),
+            ),
+            Elevation::abs(95),
+            Stem::none(),
+        ));
+        let enable_targets = [
+            named.get("option-one"),
+            named.get("option-two"),
+            named.get("option-three"),
+            named.get("portfolio"),
+        ];
+        tree.on_click(back, move |trigger: Trigger<OnClick>, mut tree: Tree| {
+            tree.disable(back);
+            for cr in card_interactive.iter() {
+                tree.disable(*cr);
+            }
+            let s = tree.sequence();
+            tree.animate(
+                Animation::new(Opacity::new(0.0))
+                    .start(0)
+                    .finish(500)
+                    .during(s)
+                    .targeting(root),
+            );
+            tree.animate(
+                Animation::new(Opacity::new(0.0))
+                    .start(0)
+                    .finish(500)
+                    .during(s)
+                    .targeting(back),
+            );
+            tree.animate(
+                Animation::new(Opacity::new(1.0))
+                    .start(500)
+                    .finish(1000)
+                    .during(s)
+                    .targeting(home),
+            );
+            tree.animate(
+                Animation::new(Location::new().xs(
+                    0.pct().left().with(100.pct().right()),
+                    0.pct().top().with(100.pct().bottom()),
+                ))
+                .start(0)
+                .finish(1000)
+                .targeting(home)
+                .eased(Ease::EMPHASIS)
+                .during(s),
+            );
+            tree.animate(
+                Animation::new(Location::new().xs(
+                    0.pct().left().with(100.pct().right()),
+                    100.pct().top().with(200.pct().bottom()),
+                ))
+                .start(0)
+                .finish(1000)
+                .targeting(root)
+                .eased(Ease::EMPHASIS)
+                .during(s),
+            );
+            tree.sequence_end(s, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
+                tree.remove([root, back]);
+                tree.enable(enable_targets);
+            });
+        });
         let _spacing = tree.leaf((
             Stem::some(root),
             Location::new().xs(
@@ -163,12 +239,13 @@ impl Portfolio {
                 last.row().top().with(100.px().height()),
             ),
         ));
-        for cr in card_roots {
+        for (i, cr) in card_roots.iter().enumerate() {
+            let i = i as u64;
             tree.animate(
                 Animation::new(Opacity::new(1.0))
-                    .start(500)
-                    .finish(1000)
-                    .targeting(cr)
+                    .start(i * 500 + 750)
+                    .finish(i * 500 + 1250)
+                    .targeting(*cr)
                     .during(seq),
             );
         }

@@ -151,6 +151,7 @@ impl InstanceCoordinator {
                 }
             }
         }
+        swaps.reverse();
         self.cache = self.instances.clone();
         swaps
     }
