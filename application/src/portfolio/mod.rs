@@ -3,10 +3,10 @@ mod music_player;
 use crate::icons::IconHandles;
 use crate::portfolio::music_player::MusicPlayer;
 use foliage::{
-    bevy_ecs, Animation, Attachment, Button, ButtonShape, Color, Ease, EcsExtension, Elevation,
-    Event, Foliage, FontSize, Grid, GridExt, IconValue, Image, ImageView, InteractionListener,
-    Keyring, Location, MemoryId, Named, OnClick, OnEnd, Opacity, Panel, Primary, Res, Secondary,
-    Stem, Text, Tree, Trigger,
+    bevy_ecs, stack, Animation, Attachment, Button, ButtonShape, Color, Ease, EcsExtension,
+    Elevation, Event, Foliage, FontSize, Grid, GridExt, IconValue, Image, ImageView,
+    InteractionListener, Keyring, Location, MemoryId, Named, OnClick, OnEnd, Opacity, Panel,
+    Primary, Res, Secondary, Stack, Stem, Text, Tree, Trigger,
 };
 
 impl Attachment for Portfolio {
@@ -176,14 +176,7 @@ impl Portfolio {
                 let seq = tree.sequence();
                 tree.animate(
                     Animation::new(Opacity::new(0.0))
-                        .targeting(display)
-                        .start(0)
-                        .finish(500)
-                        .during(seq),
-                );
-                tree.animate(
-                    Animation::new(Opacity::new(0.0))
-                        .targeting(info)
+                        .targeting(root)
                         .start(0)
                         .finish(500)
                         .during(seq),
@@ -195,17 +188,41 @@ impl Portfolio {
                         .finish(500)
                         .during(seq),
                 );
+                let backdrop = tree.leaf((
+                    Location::new().xs(
+                        stack().left().left().with(stack().right().right()),
+                        stack().top().top().with(stack().bottom().bottom()),
+                    ),
+                    Stack::new(card_root),
+                    Panel::new(),
+                    Color::gray(800),
+                    Opacity::new(0.0),
+                    Elevation::abs(80),
+                    Grid::default(),
+                    Stem::none(),
+                ));
+                tree.animate(
+                    Animation::new(Opacity::new(1.0))
+                        .targeting(backdrop)
+                        .start(0)
+                        .finish(200)
+                        .during(seq),
+                );
                 tree.animate(
                     Animation::new(
                         Location::new().xs(
-                            1.col().left().with(12.col().right()).max(450.0),
+                            0.pct()
+                                .left()
+                                .adjust(24)
+                                .with(100.pct().right().adjust(-24))
+                                .max(450.0),
                             0.pct()
                                 .top()
                                 .adjust(36)
                                 .with(100.pct().bottom().adjust(-36)),
                         ),
                     )
-                    .targeting(card_root)
+                    .targeting(backdrop)
                     .start(0)
                     .finish(750)
                     .eased(Ease::INWARD)
@@ -216,12 +233,11 @@ impl Portfolio {
                         0.pct().left().with(100.pct().right()),
                         0.pct().top().with(100.pct().bottom()),
                     ))
-                    .targeting(card_root)
+                    .targeting(backdrop)
                     .start(1000)
                     .finish(1500)
                     .during(seq),
                 );
-                tree.write_to(card_root, Elevation::up(10));
                 let terminate = tree.leaf((
                     Button::new(),
                     ButtonShape::Circle,
@@ -233,12 +249,18 @@ impl Portfolio {
                         16.px().top().with(40.px().height()),
                     ),
                     Elevation::abs(95),
-                    Stem::some(card_root),
+                    Stem::none(),
                 ));
-                let app = tree.leaf(());
+                let app = tree.leaf((
+                    Stem::some(backdrop),
+                    Location::new().xs(
+                        0.pct().left().with(100.pct().right()),
+                        0.pct().top().with(100.pct().bottom()),
+                    ),
+                ));
                 match i {
                     0 => tree.send_to(MusicPlayer {}, app),
-                    _ => unimplemented!(),
+                    _ => println!("unimplemented"),
                 }
                 tree.on_click(
                     terminate,
@@ -261,14 +283,18 @@ impl Portfolio {
                         tree.animate(
                             Animation::new(
                                 Location::new().xs(
-                                    1.col().left().with(12.col().right()).max(450.0),
+                                    0.pct()
+                                        .left()
+                                        .adjust(24)
+                                        .with(100.pct().right().adjust(-24))
+                                        .max(450.0),
                                     0.pct()
                                         .top()
                                         .adjust(36)
                                         .with(100.pct().bottom().adjust(-36)),
                                 ),
                             )
-                            .targeting(card_root)
+                            .targeting(backdrop)
                             .start(0)
                             .finish(500)
                             .eased(Ease::INWARD)
@@ -276,24 +302,17 @@ impl Portfolio {
                         );
                         tree.animate(
                             Animation::new(Location::new().xs(
-                                1.col().left().with(12.col().right()).max(450.0),
-                                (i + 1).row().top().with((i + 1).row().bottom()),
+                                stack().left().left().with(stack().right().right()),
+                                stack().top().top().with(stack().bottom().bottom()),
                             ))
-                            .targeting(card_root)
+                            .targeting(backdrop)
                             .start(750)
                             .finish(1250)
                             .during(seq),
                         );
                         tree.animate(
                             Animation::new(Opacity::new(1.0))
-                                .targeting(display)
-                                .start(1000)
-                                .finish(1500)
-                                .during(seq),
-                        );
-                        tree.animate(
-                            Animation::new(Opacity::new(1.0))
-                                .targeting(info)
+                                .targeting(root)
                                 .start(1000)
                                 .finish(1500)
                                 .during(seq),
@@ -307,9 +326,8 @@ impl Portfolio {
                         );
                         tree.disable(terminate);
                         tree.sequence_end(seq, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
-                            tree.remove([terminate, app]);
+                            tree.remove([terminate, backdrop]);
                             tree.enable([launch, display, back]);
-                            tree.write_to(card_root, Elevation::up(1));
                         });
                     },
                 )
