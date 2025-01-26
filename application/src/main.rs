@@ -59,6 +59,10 @@ fn main() {
         IconHandles::ArrowUp.value(),
         include_bytes!("assets/icons/arrow-up.icon"),
     ));
+    foliage.world.spawn(Icon::memory(
+        IconHandles::X.value(),
+        include_bytes!("assets/icons/x.icon"),
+    ));
     foliage.store(music_player, "music-player");
     foliage.store(artist_blog, "artist-blog");
     foliage.send(Home {});

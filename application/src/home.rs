@@ -7,8 +7,7 @@ use foliage::{
     bevy_ecs, stack, Animation, Attachment, Button, ButtonShape, Color, EcsExtension, Elevation,
     Event, Foliage, FontSize, GlyphColors, Grid, GridExt, HorizontalAlignment, HrefLink, IconValue,
     InteractionListener, Line, Location, Logical, OnClick, OnEnd, Opacity, Outline, Primary, Query,
-    Secondary, Section, Stack, Stem, Text, TextValue, TimeDelta, Timer, Tree, Trigger,
-    VerticalAlignment, Write,
+    Secondary, Section, Stack, Stem, Text, TextValue, Tree, Trigger, VerticalAlignment, Write,
 };
 
 impl Attachment for Home {
@@ -525,10 +524,9 @@ impl Home {
             .targeting(option_three_line),
         );
         tree.disable([github, option_one, option_two, option_three, portfolio]);
-        tree.spawn(Timer::new(TimeDelta::from_millis(1500)))
-            .observe(move |trigger: Trigger<OnEnd>, mut tree: Tree| {
-                tree.enable(github);
-            });
+        tree.timer(1500, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
+            tree.enable(github);
+        });
         tree.sequence_end(seq, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
             tree.enable([option_one, option_two, option_three, portfolio]);
         });

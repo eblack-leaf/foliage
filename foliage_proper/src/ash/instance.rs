@@ -29,7 +29,7 @@ impl Instance {
 #[allow(unused)]
 pub(crate) struct Swap {
     pub(crate) old: Order,
-    pub(crate) new: Order,
+    pub(crate) id: InstanceId,
 }
 
 pub(crate) struct InstanceCoordinator {
@@ -146,30 +146,11 @@ impl InstanceCoordinator {
                     self.node_submit.insert(instance.id);
                     swaps.push(Swap {
                         old: old as Order,
-                        new: new as Order,
+                        id: instance.id,
                     })
                 }
             }
         }
-        swaps.sort_by(|sa, sb| {
-            let cond_a = sa.old < sa.new;
-            let cond_b = sb.old < sb.new;
-            if cond_a && cond_b {
-                match sa.old.partial_cmp(&sb.old).unwrap() {
-                    Ordering::Less => Ordering::Greater,
-                    Ordering::Equal => Ordering::Equal,
-                    Ordering::Greater => Ordering::Less,
-                }
-            } else if !cond_a && !cond_b {
-                match sa.old.partial_cmp(&sb.old).unwrap() {
-                    Ordering::Less => Ordering::Less,
-                    Ordering::Equal => Ordering::Equal,
-                    Ordering::Greater => Ordering::Greater,
-                }
-            } else {
-                Ordering::Equal
-            }
-        });
         self.cache = self.instances.clone();
         swaps
     }
@@ -234,7 +215,9 @@ impl<I: bytemuck::Pod + bytemuck::Zeroable + Default> InstanceBuffer<I> {
     #[allow(unused)]
     pub(crate) fn swap(&mut self, swap: Swap) {
         let current = *self.cpu.get(swap.old as usize).unwrap();
-        self.write_cpu(swap.new, current);
+        if self.queue.get(&swap.id).is_none() {
+            self.queue(swap.id, current);
+        }
     }
     pub(crate) fn write_cpu(&mut self, order: Order, data: I) {
         *self.cpu.get_mut(order as usize).unwrap() = data;

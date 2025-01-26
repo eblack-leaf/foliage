@@ -6,7 +6,7 @@ use crate::leaf::Leaf;
 use crate::ops::{Name, StoredKey};
 use crate::remove::Remove;
 use crate::time::OnEnd;
-use crate::{Animate, Animation, AssetKey, OnClick};
+use crate::{Animate, Animation, AssetKey, OnClick, TimeDelta, Timer};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::Event;
@@ -40,6 +40,7 @@ pub trait EcsExtension {
     fn on_click<ONC: IntoObserverSystem<OnClick, B, M>, B: Bundle, M>(&mut self, e: Entity, o: ONC);
     fn name<S: AsRef<str>>(&mut self, e: Entity, s: S);
     fn store<S: AsRef<str>>(&mut self, k: AssetKey, s: S);
+    fn timer<TF: IntoObserverSystem<OnEnd, B, M>, B: Bundle, M>(&mut self, t: u64, tf: TF);
 }
 impl EcsExtension for Tree<'_, '_> {
     fn leaf<B: Bundle>(&mut self, b: B) -> Entity {
@@ -102,13 +103,15 @@ impl EcsExtension for Tree<'_, '_> {
     ) {
         self.entity(e).observe(o);
     }
-
     fn name<S: AsRef<str>>(&mut self, e: Entity, s: S) {
         self.send(Name(s.as_ref().to_string(), e));
     }
-
     fn store<S: AsRef<str>>(&mut self, k: AssetKey, s: S) {
         self.send(StoredKey(s.as_ref().to_string(), k));
+    }
+    fn timer<TF: IntoObserverSystem<OnEnd, B, M>, B: Bundle, M>(&mut self, t: u64, tf: TF) {
+        self.spawn(Timer::new(TimeDelta::from_millis(t)))
+            .observe(tf);
     }
 }
 
@@ -173,5 +176,9 @@ impl EcsExtension for World {
 
     fn store<S: AsRef<str>>(&mut self, k: AssetKey, s: S) {
         self.commands().store(k, s);
+    }
+
+    fn timer<TF: IntoObserverSystem<OnEnd, B, M>, B: Bundle, M>(&mut self, t: u64, tf: TF) {
+        self.commands().timer(t, tf);
     }
 }

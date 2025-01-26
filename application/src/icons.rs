@@ -7,6 +7,7 @@ pub(crate) enum IconHandles {
     Code,
     Box,
     ArrowUp,
+    X,
 }
 impl IconHandles {
     pub(crate) fn value(self) -> i32 {
