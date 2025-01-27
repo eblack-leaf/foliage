@@ -1,10 +1,11 @@
 use crate::icons::IconHandles;
 use crate::portfolio::Portfolio;
 use foliage::{
-    bevy_ecs, stack, Animation, Attachment, Button, ButtonShape, Color, EcsExtension, Elevation,
-    Event, Foliage, FontSize, GlyphColors, Grid, GridExt, HorizontalAlignment, HrefLink, IconValue,
+    bevy_ecs, stack, Animation, Attachment, Button, Color, EcsExtension, Elevation, Event, Foliage,
+    FontSize, GlyphColors, Grid, GridExt, HorizontalAlignment, HrefLink, IconValue,
     InteractionListener, Line, Location, Logical, OnClick, OnEnd, Opacity, Outline, Primary, Query,
-    Secondary, Section, Stack, Stem, Text, TextValue, Tree, Trigger, VerticalAlignment, Write,
+    Rounding, Secondary, Section, Stack, Stem, Text, TextValue, Tree, Trigger, VerticalAlignment,
+    Write,
 };
 
 impl Attachment for Home {
@@ -23,7 +24,7 @@ impl Home {
                 0.pct().left().with(100.pct().right()),
                 0.pct().top().with(100.pct().bottom()),
             ),
-            InteractionListener::new().scroll(true),
+            InteractionListener::new().scroll(true).pass_through(true),
             Elevation::abs(0),
             Stem::none(),
         ));
@@ -146,7 +147,7 @@ impl Home {
         let github = tree.leaf((
             Button::new(),
             IconValue(IconHandles::Github.value()),
-            ButtonShape::Circle,
+            Rounding::Full,
             Primary(Color::gray(200)),
             Secondary(Color::gray(800)),
             FontSize::new(16),
@@ -199,7 +200,7 @@ impl Home {
         let option_one_color = Color::green(700);
         let option_one = tree.leaf((
             Button::new(),
-            ButtonShape::Circle,
+            Rounding::Full,
             IconValue(IconHandles::Terminal.value()),
             Primary(option_one_color),
             Secondary(Color::gray(900)),
@@ -237,7 +238,7 @@ impl Home {
         let option_two_color = Color::green(500);
         let option_two = tree.leaf((
             Button::new(),
-            ButtonShape::Circle,
+            Rounding::Full,
             IconValue(IconHandles::Layers.value()),
             Primary(option_two_color),
             Secondary(Color::gray(900)),
@@ -275,7 +276,7 @@ impl Home {
         let option_three_color = Color::green(300);
         let option_three = tree.leaf((
             Button::new(),
-            ButtonShape::Circle,
+            Rounding::Full,
             IconValue(IconHandles::BookOpen.value()),
             Primary(option_three_color),
             Secondary(Color::gray(900)),
@@ -314,6 +315,7 @@ impl Home {
             Button::new(),
             IconValue(IconHandles::Code.value()),
             TextValue("Portfolio".to_string()),
+            Rounding::Sm,
             FontSize::new(20),
             Primary(Color::orange(500)),
             Secondary(Color::gray(900)),

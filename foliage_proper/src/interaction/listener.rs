@@ -40,8 +40,11 @@ impl InteractionListener {
         self
     }
     pub fn scroll(mut self, s: bool) -> Self {
-        self.pass_through = s;
         self.scroll = s;
+        self
+    }
+    pub fn pass_through(mut self, pt: bool) -> Self {
+        self.pass_through = pt;
         self
     }
     pub fn click(&self) -> Click {

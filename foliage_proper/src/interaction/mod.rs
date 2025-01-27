@@ -72,6 +72,7 @@ impl Click {
 pub(crate) struct CurrentInteraction {
     pub(crate) primary: Option<Entity>,
     pub(crate) pass_through: Option<Entity>,
+    pub(crate) focused: Option<Entity>,
 }
 #[derive(Event, Copy, Clone, Default)]
 pub struct OnClick {}
@@ -143,13 +144,37 @@ pub(crate) fn interactive_elements(
             }
             if let Some(p) = current.primary {
                 listeners.get_mut(p).unwrap().1.click = Click::new(event.position);
+                listeners.get_mut(p).unwrap().1.last_drag = event.position;
                 tree.trigger_targets(Engaged {}, p);
+                if let Some(f) = current.focused.replace(p) {
+                    if f != p {
+                        tree.trigger_targets(Focused {}, p);
+                        tree.trigger_targets(Unfocused {}, f);
+                    }
+                } else {
+                    tree.trigger_targets(Focused {}, p);
+                }
             }
             if let Some(ps) = current.pass_through {
                 let mut listener = listeners.get_mut(ps).unwrap().1;
                 listener.click = Click::new(event.position);
                 listener.last_drag = event.position;
                 tree.trigger_targets(Engaged {}, ps);
+                if current.primary.is_none() {
+                    if let Some(f) = current.focused.replace(ps) {
+                        if f != ps {
+                            tree.trigger_targets(Focused {}, ps);
+                            tree.trigger_targets(Unfocused {}, f);
+                        }
+                    } else {
+                        tree.trigger_targets(Focused {}, ps);
+                    }
+                }
+            }
+            if current.primary.is_none() && current.pass_through.is_none() {
+                if let Some(f) = current.focused.take() {
+                    tree.trigger_targets(Unfocused {}, f);
+                }
             }
         }
         if let Some(event) = moved.last() {
@@ -164,6 +189,14 @@ pub(crate) fn interactive_elements(
                         if let Ok(mut listener) = listeners.get_mut(ps) {
                             listener.1.click = Click::new(event.position);
                             listener.1.last_drag = event.position;
+                            if let Some(f) = current.focused.replace(ps) {
+                                if f != ps {
+                                    tree.trigger_targets(Focused {}, ps);
+                                    tree.trigger_targets(Unfocused {}, f);
+                                }
+                            } else {
+                                tree.trigger_targets(Focused {}, ps);
+                            }
                         }
                     }
                 }
@@ -171,6 +204,10 @@ pub(crate) fn interactive_elements(
             if let Some(p) = current.primary {
                 if let Ok(mut listener) = listeners.get_mut(p) {
                     listener.1.click.current = event.position;
+                    if listener.1.scroll {
+                        let diff = listener.1.last_drag - event.position;
+                        tree.entity(listener.0).insert(ViewAdjustment(diff));
+                    }
                     tree.trigger_targets(Dragged {}, p);
                 }
             } else {
@@ -190,6 +227,10 @@ pub(crate) fn interactive_elements(
         if let Some(event) = ended.last() {
             if let Some(p) = current.primary {
                 if let Ok(mut listener) = listeners.get_mut(p) {
+                    if event.from_scroll && listener.1.scroll {
+                        let diff = listener.1.last_drag - event.position;
+                        tree.entity(p).insert(ViewAdjustment(diff));
+                    }
                     if listener
                         .1
                         .is_contained(*listener.2, *listener.4, event.position)
@@ -214,3 +255,7 @@ pub(crate) fn interactive_elements(
         }
     }
 }
+#[derive(Event, Copy, Clone, Debug)]
+pub struct Focused {}
+#[derive(Event, Copy, Clone, Debug)]
+pub struct Unfocused {}

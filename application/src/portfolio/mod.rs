@@ -3,10 +3,10 @@ mod music_player;
 use crate::icons::IconHandles;
 use crate::portfolio::music_player::MusicPlayer;
 use foliage::{
-    bevy_ecs, stack, Animation, Attachment, Button, ButtonShape, Color, Ease, EcsExtension,
-    Elevation, Event, Foliage, FontSize, Grid, GridExt, IconValue, Image, ImageView,
-    InteractionListener, Keyring, Location, MemoryId, Named, OnClick, OnEnd, Opacity, Panel,
-    Primary, Res, Secondary, Stack, Stem, Text, Tree, Trigger,
+    bevy_ecs, stack, Animation, Attachment, Button, Color, Ease, EcsExtension, Elevation, Event,
+    Foliage, FontSize, Grid, GridExt, IconValue, Image, ImageView, InteractionListener, Keyring,
+    Location, MemoryId, Named, OnClick, OnEnd, Opacity, Panel, Primary, Res, Rounding, Secondary,
+    Stack, Stem, Text, Tree, Trigger,
 };
 
 impl Attachment for Portfolio {
@@ -31,7 +31,7 @@ impl Portfolio {
                 0.pct().left().with(100.pct().right()),
                 100.pct().top().with(200.pct().bottom()),
             ),
-            InteractionListener::new().scroll(true),
+            InteractionListener::new().scroll(true).pass_through(true),
             Elevation::abs(0),
             Stem::none(),
         ));
@@ -67,7 +67,7 @@ impl Portfolio {
         );
         let back = tree.leaf((
             Button::new(),
-            ButtonShape::Circle,
+            Rounding::Full,
             IconValue(IconHandles::ArrowUp.value()),
             Primary(Color::gray(300)),
             Secondary(Color::gray(700)),
@@ -163,7 +163,7 @@ impl Portfolio {
                 Elevation::up(1),
                 Button::new(),
                 IconValue(IconHandles::Box.value()),
-                ButtonShape::Circle,
+                Rounding::Full,
                 Primary(Color::gray(900)),
                 Secondary(Color::orange(800)),
                 Location::new().xs(
@@ -245,7 +245,7 @@ impl Portfolio {
                 );
                 let terminate = tree.leaf((
                     Button::new(),
-                    ButtonShape::Circle,
+                    Rounding::Full,
                     IconValue(IconHandles::X.value()),
                     Primary(Color::gray(200)),
                     Secondary(Color::orange(800)),

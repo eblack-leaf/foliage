@@ -15,18 +15,12 @@ use bevy_ecs::world::{DeferredWorld, OnInsert};
 #[derive(Component, Clone)]
 #[component(on_add = Self::on_add)]
 #[component(on_insert = Self::on_insert)]
-#[require(ButtonShape, FontSize, IconValue, Outline, Primary, Secondary)]
+#[require(Rounding, FontSize, IconValue, Outline, Primary, Secondary)]
 pub struct Button {}
 impl Attachment for Button {
     fn attach(foliage: &mut Foliage) {
         foliage.define(Button::handle_trigger);
     }
-}
-#[derive(Component, Copy, Clone, PartialEq, Default, Debug)]
-pub enum ButtonShape {
-    Circle,
-    #[default]
-    Rectangle,
 }
 impl Button {
     pub fn new() -> Self {
@@ -60,7 +54,7 @@ impl Button {
         tree.trigger_targets(Update::<FontSize>::new(), this);
         tree.trigger_targets(Update::<IconValue>::new(), this);
         tree.trigger_targets(Update::<Outline>::new(), this);
-        tree.trigger_targets(Update::<ButtonShape>::new(), this);
+        tree.trigger_targets(Update::<Rounding>::new(), this);
         tree.trigger_targets(Update::<Primary>::new(), this);
         tree.trigger_targets(Update::<Secondary>::new(), this);
         tree.trigger_targets(Update::<Secondary>::new(), this);
@@ -233,45 +227,45 @@ impl Button {
         }
     }
     fn update_shape(
-        trigger: Trigger<Update<ButtonShape>>,
-        shapes: Query<&ButtonShape>,
+        trigger: Trigger<Update<Rounding>>,
+        shapes: Query<&Rounding>,
         handles: Query<&Handle>,
         mut tree: Tree,
     ) {
         let this = trigger.entity();
         let shape = shapes.get(this).unwrap();
         let listener = match shape {
-            ButtonShape::Circle => InteractionListener::new().circle(),
-            ButtonShape::Rectangle => InteractionListener::new(),
+            Rounding::Full => InteractionListener::new().circle(),
+            _ => InteractionListener::new(),
         };
         tree.entity(this).insert(listener);
         let handle = handles.get(this).unwrap();
         let icon_location = match shape {
-            ButtonShape::Circle => Location::new().xs(
+            Rounding::Full => Location::new().xs(
                 50.pct().center_x().with(24.px().width()),
                 50.pct().center_y().with(24.px().height()),
             ),
-            ButtonShape::Rectangle => Location::new().xs(
+            _ => Location::new().xs(
                 stack().left().right().adjust(-8).with(24.px().width()),
                 50.pct().center_y().with(24.px().height()),
             ),
         };
         tree.entity(handle.icon).insert(icon_location);
         match shape {
-            ButtonShape::Circle => {
+            Rounding::Full => {
                 tree.entity(handle.panel).insert(Rounding::Full);
                 tree.entity(handle.text).insert(Visibility::new(false));
                 tree.entity(handle.icon).insert(Stack::default());
             }
-            ButtonShape::Rectangle => {
+            _ => {
                 tree.entity(handle.panel).insert(Rounding::Sm);
                 tree.entity(handle.text).insert(Visibility::new(true));
                 tree.entity(handle.icon).insert(Stack::new(handle.text));
             }
         }
     }
-    fn forward_shape(trigger: Trigger<OnInsert, ButtonShape>, mut tree: Tree) {
-        tree.trigger_targets(Update::<ButtonShape>::new(), trigger.entity());
+    fn forward_shape(trigger: Trigger<OnInsert, Rounding>, mut tree: Tree) {
+        tree.trigger_targets(Update::<Rounding>::new(), trigger.entity());
     }
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
         let icon_value = *world.get::<IconValue>(this).unwrap();
