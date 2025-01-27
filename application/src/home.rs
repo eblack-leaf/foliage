@@ -344,28 +344,28 @@ impl Home {
         tree.on_click(
             option_one,
             move |trigger: Trigger<OnClick>, mut tree: Tree| {
-                tree.disable([github, option_one, option_two, option_three, portfolio]);
+                tree.disable(root);
                 tree.send(Usage {});
             },
         );
         tree.on_click(
             option_two,
             move |trigger: Trigger<OnClick>, mut tree: Tree| {
-                tree.disable([github, option_one, option_two, option_three, portfolio]);
+                tree.disable(root);
                 tree.send(Implementation {});
             },
         );
         tree.on_click(
             option_three,
             move |trigger: Trigger<OnClick>, mut tree: Tree| {
-                tree.disable([github, option_one, option_two, option_three, portfolio]);
+                tree.disable(root);
                 tree.send(Docs {});
             },
         );
         tree.on_click(
             portfolio,
             move |trigger: Trigger<OnClick>, mut tree: Tree| {
-                tree.disable([github, option_one, option_two, option_three, portfolio]);
+                tree.disable(root);
                 tree.send(Portfolio {});
             },
         );

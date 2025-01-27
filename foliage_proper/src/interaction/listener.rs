@@ -49,7 +49,8 @@ impl InteractionListener {
     }
     pub fn disabled(&self) -> bool {
         !(self.state.contains(InteractionState::ENABLED)
-            && self.state.contains(InteractionState::AUTO_ENABLED))
+            && self.state.contains(InteractionState::AUTO_ENABLED)
+            && self.state.contains(InteractionState::INHERIT_ENABLED))
     }
     pub(crate) fn is_contained(
         &self,
@@ -85,12 +86,13 @@ pub enum InteractionShape {
 pub struct InteractionState(u8);
 impl Default for InteractionState {
     fn default() -> Self {
-        Self::ENABLED | Self::AUTO_ENABLED
+        Self::ENABLED | Self::AUTO_ENABLED | Self::INHERIT_ENABLED
     }
 }
 bitflags! {
     impl InteractionState: u8 {
         const ENABLED = 1 << 0;
         const AUTO_ENABLED = 1 << 1;
+        const INHERIT_ENABLED = 1 << 2;
     }
 }

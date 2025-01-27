@@ -1,4 +1,7 @@
-use crate::{Attachment, Event, Foliage, InteractionListener, InteractionState, Tree, Write};
+use crate::{
+    Attachment, Branch, Event, Foliage, InteractionListener, InteractionState, StackDeps, Tree,
+    Write,
+};
 use bevy_ecs::prelude::Trigger;
 use bevy_ecs::system::Query;
 
@@ -10,6 +13,8 @@ impl Attachment for Enable {
         foliage.define(AutoEnable::user_signal);
         foliage.define(Enable::interactions);
         foliage.define(Enable::user_signal);
+        foliage.define(InheritEnable::interactions);
+        foliage.define(InheritEnable::user_signal);
     }
 }
 impl Default for Enable {
@@ -22,8 +27,29 @@ impl Enable {
     pub fn new() -> Enable {
         Enable {}
     }
-    fn user_signal(trigger: Trigger<Self>, mut tree: Tree) {
+    fn user_signal(
+        trigger: Trigger<Self>,
+        mut tree: Tree,
+        branches: Query<&Branch>,
+        stacks: Query<&StackDeps>,
+    ) {
         tree.trigger_targets(Write::<Enable>::new(), trigger.entity());
+        if let Ok(branch) = branches.get(trigger.entity()) {
+            if !branch.ids.is_empty() {
+                tree.trigger_targets(
+                    InheritEnable {},
+                    branch.ids.iter().copied().collect::<Vec<_>>(),
+                );
+            }
+        }
+        if let Ok(stack) = stacks.get(trigger.entity()) {
+            if !stack.ids.is_empty() {
+                tree.trigger_targets(
+                    InheritEnable {},
+                    stack.ids.iter().copied().collect::<Vec<_>>(),
+                );
+            }
+        }
     }
     pub(crate) fn interactions(
         trigger: Trigger<Self>,
@@ -49,6 +75,45 @@ impl AutoEnable {
     ) {
         if let Ok(mut listener) = listeners.get_mut(trigger.entity()) {
             listener.state.insert(InteractionState::AUTO_ENABLED);
+        }
+    }
+}
+#[derive(Event, Copy, Clone)]
+pub(crate) struct InheritEnable {}
+impl InheritEnable {
+    pub(crate) fn new() -> Self {
+        Self {}
+    }
+    fn user_signal(
+        trigger: Trigger<Self>,
+        mut tree: Tree,
+        branches: Query<&Branch>,
+        stacks: Query<&StackDeps>,
+    ) {
+        tree.trigger_targets(Write::<Enable>::new(), trigger.entity());
+        if let Ok(branch) = branches.get(trigger.entity()) {
+            if !branch.ids.is_empty() {
+                tree.trigger_targets(
+                    InheritEnable {},
+                    branch.ids.iter().copied().collect::<Vec<_>>(),
+                );
+            }
+        }
+        if let Ok(stack) = stacks.get(trigger.entity()) {
+            if !stack.ids.is_empty() {
+                tree.trigger_targets(
+                    InheritEnable {},
+                    stack.ids.iter().copied().collect::<Vec<_>>(),
+                );
+            }
+        }
+    }
+    pub(crate) fn interactions(
+        trigger: Trigger<Self>,
+        mut listeners: Query<&mut InteractionListener>,
+    ) {
+        if let Ok(mut listener) = listeners.get_mut(trigger.entity()) {
+            listener.state.insert(InteractionState::INHERIT_ENABLED);
         }
     }
 }

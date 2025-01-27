@@ -8,7 +8,6 @@ use foliage::{
     InteractionListener, Keyring, Location, MemoryId, Named, OnClick, OnEnd, Opacity, Panel,
     Primary, Res, Secondary, Stack, Stem, Text, Tree, Trigger,
 };
-use std::sync::Arc;
 
 impl Attachment for Portfolio {
     fn attach(foliage: &mut Foliage) {
@@ -176,11 +175,9 @@ impl Portfolio {
             card_interactive.push((card_root, i, display));
             last = i + 2;
         }
-        let targets = Arc::new(card_interactive.iter().map(|n| n.2).collect::<Vec<_>>());
         for (r, i, ci) in card_interactive.clone() {
-            let targets = targets.clone();
             tree.on_click(ci, move |trigger: Trigger<OnClick>, mut tree: Tree| {
-                tree.disable(targets.to_vec());
+                tree.disable([root, back]);
                 let seq = tree.sequence();
                 tree.animate(
                     Animation::new(Opacity::new(0.0))
@@ -270,7 +267,6 @@ impl Portfolio {
                     0 => tree.send_to(MusicPlayer {}, app),
                     _ => println!("unimplemented"),
                 }
-                let targets = targets.clone();
                 tree.on_click(
                     terminate,
                     move |trigger: Trigger<OnClick>, mut tree: Tree| {
@@ -334,27 +330,17 @@ impl Portfolio {
                                 .during(seq),
                         );
                         tree.disable(terminate);
-                        let targets = targets.clone();
                         tree.sequence_end(seq, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
                             tree.remove([terminate, backdrop]);
-                            tree.enable([back]);
-                            tree.enable(targets.to_vec());
+                            tree.enable([root, back]);
                         });
                     },
                 )
             });
         }
         tree.disable(back);
-        let enable_targets = [
-            named.get("github"),
-            named.get("option-one"),
-            named.get("option-two"),
-            named.get("option-three"),
-            named.get("portfolio"),
-        ];
         tree.on_click(back, move |trigger: Trigger<OnClick>, mut tree: Tree| {
-            tree.disable(back);
-            tree.disable(targets.to_vec());
+            tree.disable([back, root]);
             let s = tree.sequence();
             tree.animate(
                 Animation::new(Opacity::new(0.0))
@@ -401,7 +387,7 @@ impl Portfolio {
             );
             tree.sequence_end(s, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
                 tree.remove([root, back]);
-                tree.enable(enable_targets);
+                tree.enable(home);
             });
         });
         let _spacing = tree.leaf((
