@@ -99,8 +99,8 @@ impl MouseAdapter {
 
 #[derive(Event, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Debug)]
 pub struct InputSequence {
-    key: Key,
-    mods: ModifiersState,
+    pub key: Key,
+    pub mods: ModifiersState,
 }
 
 impl InputSequence {

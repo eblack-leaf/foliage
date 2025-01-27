@@ -78,6 +78,8 @@ pub struct OnClick {}
 #[derive(Event, Copy, Clone, Default)]
 pub struct Engaged {}
 #[derive(Event, Copy, Clone, Default)]
+pub struct Dragged {}
+#[derive(Event, Copy, Clone, Default)]
 pub struct Disengaged {}
 pub(crate) fn interactive_elements(
     mut reader: EventReader<Interaction>,
@@ -169,6 +171,7 @@ pub(crate) fn interactive_elements(
             if let Some(p) = current.primary {
                 if let Ok(mut listener) = listeners.get_mut(p) {
                     listener.1.click.current = event.position;
+                    tree.trigger_targets(Dragged {}, p);
                 }
             } else {
                 if let Some(ps) = current.pass_through {
@@ -179,6 +182,7 @@ pub(crate) fn interactive_elements(
                             tree.entity(listener.0).insert(ViewAdjustment(diff));
                         }
                         listener.1.last_drag = event.position;
+                        tree.trigger_targets(Dragged {}, ps);
                     }
                 }
             }

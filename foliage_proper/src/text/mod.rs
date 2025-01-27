@@ -9,7 +9,7 @@ use crate::foliage::{DiffMarkers, Foliage};
 use crate::ginkgo::ScaleFactor;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
-use crate::text::glyph::{Glyph, GlyphColor, GlyphKey, Glyphs, ResolvedColors};
+use crate::text::glyph::{Glyph, GlyphColor, GlyphKey, ResolvedColors};
 use crate::text::monospaced::MonospacedFont;
 use crate::Differential;
 use crate::{
@@ -23,7 +23,8 @@ use bevy_ecs::query::{Changed, With};
 use bevy_ecs::system::{ParamSet, Query};
 use bevy_ecs::world::DeferredWorld;
 pub use glyph::GlyphColors;
-pub(crate) use glyph::ResolvedGlyphs;
+pub use glyph::GlyphOffset;
+pub(crate) use glyph::{Glyphs, ResolvedGlyphs};
 use std::collections::HashSet;
 
 impl Attachment for Text {
@@ -202,6 +203,7 @@ impl Text {
                 tree.entity(this).insert(current.clone());
             }
             tree.entity(this).insert(TextBounds(current.section));
+            tree.trigger_targets(Write::<Text>::new(), this);
         }
     }
     fn clear_last_on_visibility(

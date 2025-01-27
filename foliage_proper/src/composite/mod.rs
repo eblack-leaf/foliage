@@ -6,6 +6,8 @@ use bevy_ecs::prelude::Component;
 use bevy_ecs::world::DeferredWorld;
 
 pub(crate) mod button;
+mod text_input;
+
 pub trait Composite {
     type Handle: Component;
     fn remove(handle: &Self::Handle) -> impl TriggerTargets + Send + Sync + 'static;

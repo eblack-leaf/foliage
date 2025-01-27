@@ -64,7 +64,7 @@ pub use interaction::{
     listener::InteractionListener, listener::InteractionShape, listener::InteractionState,
     InputSequence, Interaction, InteractionPhase, OnClick,
 };
-pub use interaction::{Disengaged, Engaged};
+pub use interaction::{Disengaged, Dragged, Engaged};
 pub use leaf::{Branch, Leaf, Stem};
 pub use opacity::Opacity;
 pub use ops::Named;
@@ -74,6 +74,7 @@ pub use panel::{Outline, Panel, Rounding};
 pub use platform::AndroidApp;
 pub use platform::AndroidConnection;
 pub use shape::{Line, Shape};
+pub use text::GlyphOffset;
 pub use text::{AutoHeight, FontSize, GlyphColors, HorizontalAlignment, Text, VerticalAlignment};
 pub use time::{Moment, OnEnd, Time, TimeDelta, TimeMarker, Timer};
 pub use tree::{EcsExtension, Tree};

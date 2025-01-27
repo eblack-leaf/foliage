@@ -635,6 +635,8 @@ fn calc(
                 (context.width() - grid.columns.gap.amount * (n + 1) as f32) / (n as f32)
             } else if let LocationValue::Px(px) = grid.columns.value {
                 px
+            } else if let LocationValue::Letters(l) = grid.columns.value {
+                l as f32 * letter_dims.a()
             } else {
                 return None;
             };
@@ -655,6 +657,8 @@ fn calc(
                 (context.height() - grid.rows.gap.amount * (n + 1) as f32) / (n as f32)
             } else if let LocationValue::Px(px) = grid.rows.value {
                 px
+            } else if let LocationValue::Letters(l) = grid.rows.value {
+                l as f32 * letter_dims.b()
             } else {
                 return None;
             };
