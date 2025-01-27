@@ -1,8 +1,5 @@
-use crate::docs::Docs;
 use crate::icons::IconHandles;
-use crate::implementation::Implementation;
 use crate::portfolio::Portfolio;
-use crate::usage::Usage;
 use foliage::{
     bevy_ecs, stack, Animation, Attachment, Button, ButtonShape, Color, EcsExtension, Elevation,
     Event, Foliage, FontSize, GlyphColors, Grid, GridExt, HorizontalAlignment, HrefLink, IconValue,
@@ -162,7 +159,6 @@ impl Home {
             Stem::some(root),
             Opacity::new(0.0),
         ));
-        tree.name(github, "github");
         tree.on_click(github, |trigger: Trigger<OnClick>| {
             HrefLink::new("https://github.com/eblack-leaf/foliage").navigate()
         });
@@ -216,7 +212,6 @@ impl Home {
             Outline::new(2),
             Opacity::new(0.0),
         ));
-        tree.name(option_one, "option-one");
         let option_one_line = tree.leaf((
             Line::new(2),
             Location::new().xs(1.col().x().with(1.row().y()), 1.col().x().with(1.row().y())),
@@ -255,7 +250,6 @@ impl Home {
             Outline::new(2),
             Opacity::new(0.0),
         ));
-        tree.name(option_two, "option-two");
         let option_two_line = tree.leaf((
             Line::new(2),
             Location::new().xs(5.col().x().with(2.row().y()), 5.col().x().with(2.row().y())),
@@ -294,7 +288,6 @@ impl Home {
             Outline::new(2),
             Opacity::new(0.0),
         ));
-        tree.name(option_three, "option-three");
         let option_three_line = tree.leaf((
             Line::new(2),
             Location::new().xs(1.col().x().with(3.row().y()), 1.col().x().with(3.row().y())),
@@ -340,27 +333,17 @@ impl Home {
             ),
             Stem::some(root),
         ));
-        tree.name(portfolio, "portfolio");
         tree.on_click(
             option_one,
-            move |trigger: Trigger<OnClick>, mut tree: Tree| {
-                tree.disable(root);
-                tree.send(Usage {});
-            },
+            move |trigger: Trigger<OnClick>, mut tree: Tree| HrefLink::new("tbd").navigate(),
         );
         tree.on_click(
             option_two,
-            move |trigger: Trigger<OnClick>, mut tree: Tree| {
-                tree.disable(root);
-                tree.send(Implementation {});
-            },
+            move |trigger: Trigger<OnClick>, mut tree: Tree| HrefLink::new("tbd").navigate(),
         );
         tree.on_click(
             option_three,
-            move |trigger: Trigger<OnClick>, mut tree: Tree| {
-                tree.disable(root);
-                tree.send(Docs {});
-            },
+            move |trigger: Trigger<OnClick>, mut tree: Tree| HrefLink::new("tbd").navigate(),
         );
         tree.on_click(
             portfolio,

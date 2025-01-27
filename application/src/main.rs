@@ -1,19 +1,16 @@
 #![allow(unused)]
 
-use crate::docs::Docs;
 use crate::home::Home;
 use crate::icons::IconHandles;
-use crate::implementation::Implementation;
+
 use crate::portfolio::Portfolio;
-use crate::usage::Usage;
+
 use foliage::{load_asset, Foliage, Icon, Image};
 
-mod docs;
 mod home;
 mod icons;
-mod implementation;
+
 mod portfolio;
-mod usage;
 
 fn main() {
     let mut foliage = Foliage::new();
@@ -23,10 +20,7 @@ fn main() {
     foliage.desktop_size((360, 800));
     foliage.url("foliage");
     foliage.attach::<Home>();
-    foliage.attach::<Usage>();
     foliage.attach::<Portfolio>();
-    foliage.attach::<Implementation>();
-    foliage.attach::<Docs>();
     let music_player = load_asset!(foliage, "assets/music-player.png");
     foliage.world.spawn(Image::memory(0, (689, 591)));
     let artist_blog = load_asset!(foliage, "assets/artist-blog.png");
