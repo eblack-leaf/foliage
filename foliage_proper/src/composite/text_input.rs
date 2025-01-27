@@ -78,7 +78,9 @@ impl TextInput {
     fn forward_primary(trigger: Trigger<OnInsert, Primary>, mut tree: Tree) {}
     fn update_secondary(trigger: Trigger<Update<Secondary>>, mut tree: Tree) {}
     fn forward_secondary(trigger: Trigger<OnInsert, Secondary>, mut tree: Tree) {}
-    fn highlight(trigger: Trigger<Dragged>, mut tree: Tree) {
+    fn highlight(trigger: Trigger<Highlight>, mut tree: Tree) {}
+    fn un_highlight(trigger: Trigger<UnHighlight>, mut tree: Tree) {}
+    fn highlight_range(trigger: Trigger<Dragged>, mut tree: Tree) {
         // highlight range (could be one) of span (include rows if covered)
         // using interaction.click.begin / current
         // set cursor state (one == add-char | two+ == replace-range)
@@ -197,3 +199,7 @@ pub(crate) struct RemovePanel {
 }
 #[derive(Event, Copy, Clone)]
 pub(crate) struct ConfigurePanels {}
+#[derive(Event, Copy, Clone)]
+pub(crate) struct Highlight(pub(crate) GlyphOffset);
+#[derive(Event, Copy, Clone)]
+pub(crate) struct UnHighlight(pub(crate) GlyphOffset);
