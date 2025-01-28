@@ -3,10 +3,9 @@ use crate::ginkgo::ScaleFactor;
 use crate::text::monospaced::MonospacedFont;
 use crate::text::{Glyphs, LineMetrics};
 use crate::{
-    Attachment, Component, Composite, Dragged, EcsExtension, Elevation, Engaged, Event, Foliage,
-    FontSize, GlyphOffset, Grid, GridExt, InteractionListener, Layout, Location, Logical, Opacity,
-    Panel, Primary, Secondary, Section, Stem, Tertiary, Text, TextValue, Tree, Unfocused, Update,
-    Write,
+    Attachment, Component, Composite, Dragged, EcsExtension, Elevation, Engaged, Foliage, FontSize,
+    GlyphOffset, Grid, GridExt, InteractionListener, Layout, Location, Logical, Opacity, Panel,
+    Primary, Secondary, Section, Stem, Tertiary, Text, TextValue, Tree, Unfocused, Update, Write,
 };
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
@@ -18,6 +17,7 @@ use std::collections::HashMap;
 use std::ops::Range;
 
 #[derive(Component, Clone)]
+#[require(HintText, Primary, Secondary, Tertiary, FontSize, TextValue)]
 pub struct TextInput {
     pub(crate) highlight_range: Range<GlyphOffset>,
     pub(crate) cursor_location: GlyphOffset,
@@ -56,6 +56,7 @@ impl TextInput {
                 0.pct().top().with(100.pct().bottom()),
             ),
             Elevation::up(2),
+            TextInputLink { root: this },
         ));
         let handle = Handle {
             panel,
@@ -75,33 +76,131 @@ impl TextInput {
         tree.trigger_targets(Update::<Primary>::new(), this);
         tree.trigger_targets(Update::<Secondary>::new(), this);
         tree.trigger_targets(Update::<Tertiary>::new(), this);
+        tree.trigger_targets(Update::<FontSize>::new(), this);
     }
     fn forward_text_value(trigger: Trigger<OnInsert, TextValue>, mut tree: Tree) {}
-    fn update_text_value(trigger: Trigger<Update<TextValue>>, mut tree: Tree) {
+    fn update_text_value(
+        trigger: Trigger<Update<TextValue>>,
+        mut tree: Tree,
+        mut handles: Query<&mut Handle>,
+        tv: Query<&TextValue>,
+    ) {
         // give to handle.text
+        let t = tv.get(trigger.entity()).unwrap();
+        let mut handle = handles.get_mut(trigger.entity()).unwrap();
+        tree.entity(handle.text).insert(Text::new(&t.0));
         // clear highlighting as they are invalid offsets now text has changed
-        // regular editing will be consistent and adapt as needed
-        // hopefully only need to purge highlighting on hard change
-        // but can always just re-highlight text (not user-friendly tho)
+        tree.entity(handle.cursor).insert(Opacity::new(0.0));
+        for (o, e) in handle.highlights.drain() {
+            tree.remove(e);
+        }
     }
-    fn forward_font_size(trigger: Trigger<OnInsert, FontSize>, mut tree: Tree) {}
-    fn update_font_size(trigger: Trigger<Update<FontSize>>, mut tree: Tree) {
+    fn forward_font_size(trigger: Trigger<OnInsert, FontSize>, mut tree: Tree) {
+        tree.trigger_targets(Update::<FontSize>::new(), trigger.entity());
+    }
+    fn update_font_size(
+        trigger: Trigger<Update<FontSize>>,
+        mut tree: Tree,
+        font_sizes: Query<&FontSize>,
+        handles: Query<&Handle>,
+    ) {
         // give to handle.text
+        let handle = handles.get(trigger.entity()).unwrap();
+        tree.entity(handle.text)
+            .insert(font_sizes.get(trigger.entity()).unwrap().clone());
     }
-    fn update_primary(trigger: Trigger<Update<Primary>>, mut tree: Tree) {
+    fn update_primary(
+        trigger: Trigger<Update<Primary>>,
+        mut tree: Tree,
+        handles: Query<&Handle>,
+        primary: Query<&Primary>,
+    ) {
         // text-color
+        let handle = handles.get(trigger.entity()).unwrap();
+        tree.entity(handle.text)
+            .insert(primary.get(trigger.entity()).unwrap().0);
     }
-    fn forward_primary(trigger: Trigger<OnInsert, Primary>, mut tree: Tree) {}
-    fn update_secondary(trigger: Trigger<Update<Secondary>>, mut tree: Tree) {
+    fn forward_primary(trigger: Trigger<OnInsert, Primary>, mut tree: Tree) {
+        tree.trigger_targets(Update::<Primary>::new(), trigger.entity());
+    }
+    fn update_secondary(
+        trigger: Trigger<Update<Secondary>>,
+        mut tree: Tree,
+        handles: Query<&Handle>,
+        secondary: Query<&Secondary>,
+    ) {
         // background (panel)
+        let handle = handles.get(trigger.entity()).unwrap();
+        tree.entity(handle.panel)
+            .insert(secondary.get(trigger.entity()).unwrap().0);
     }
-    fn forward_secondary(trigger: Trigger<OnInsert, Secondary>, mut tree: Tree) {}
-    fn update_tertiary(trigger: Trigger<Update<Tertiary>>, mut tree: Tree) {
+    fn forward_secondary(trigger: Trigger<OnInsert, Secondary>, mut tree: Tree) {
+        tree.trigger_targets(Update::<Secondary>::new(), trigger.entity());
+    }
+    fn update_tertiary(
+        trigger: Trigger<Update<Tertiary>>,
+        mut tree: Tree,
+        handles: Query<&Handle>,
+        tertiary: Query<&Tertiary>,
+    ) {
         // cursor color + highlight color
+        let handle = handles.get(trigger.entity()).unwrap();
+        let color = tertiary.get(trigger.entity()).unwrap().0;
+        tree.entity(handle.cursor).insert(color);
+        for (o, e) in handle.highlights.iter() {
+            tree.entity(*e).insert(color);
+        }
     }
-    fn forward_tertiary(trigger: Trigger<OnInsert, Tertiary>, mut tree: Tree) {}
-    fn write_text(trigger: Trigger<Write<Text>>, mut tree: Tree) {
-        // reconfigure highlights from where offsets currently are (glyph iter w/ col + row derive)
+    fn forward_tertiary(trigger: Trigger<OnInsert, Tertiary>, mut tree: Tree) {
+        tree.trigger_targets(Update::<Tertiary>::new(), trigger.entity());
+    }
+    fn write_text(
+        trigger: Trigger<Write<Text>>,
+        mut tree: Tree,
+        links: Query<&TextInputLink>,
+        font: Res<MonospacedFont>,
+        font_sizes: Query<&FontSize>,
+        mut handles: Query<&mut Handle>,
+        tertiary: Query<&Tertiary>,
+        mut text_inputs: Query<&mut TextInput>,
+        glyphs: Query<&Glyphs>,
+        layout: Res<Layout>,
+    ) {
+        if let Ok(link) = links.get(trigger.entity()) {
+            let font_size = font_sizes.get(link.root).unwrap().resolve(*layout);
+            let dims = font.character_block(font_size.value);
+            let mut handle = handles.get_mut(link.root).unwrap();
+            for (o, e) in handle.highlights.iter() {
+                tree.write_to(*e, Opacity::new(0.0)); // turn off highlight before remaking range
+            }
+            let mut text_input = text_inputs.get_mut(link.root).unwrap();
+            let glyph = glyphs.get(handle.text).unwrap();
+            for o in text_input.highlight_range.clone() {
+                if let Some(g) = glyph.layout.glyphs().iter().find(|g| g.byte_offset == o) {
+                    let col = (g.x / dims.a()) as u32;
+                    let row = (g.y / dims.b()) as u32;
+                    let location = Location::new().xs(
+                        (col + 1).col().left().with((col + 1).col().right()),
+                        (row + 1).row().top().with((row + 1).row().bottom()),
+                    );
+                    if let Some(existing) = handle.highlights.get(&g.byte_offset) {
+                        tree.entity(*existing)
+                            .insert(Opacity::new(0.5))
+                            .insert(location);
+                    } else {
+                        let h = tree.leaf((
+                            Panel::new(),
+                            Opacity::new(0.5),
+                            Stem::some(handle.panel),
+                            Elevation::up(1),
+                            location,
+                            tertiary.get(link.root).unwrap().0,
+                        ));
+                        handle.highlights.insert(g.byte_offset, h);
+                    }
+                }
+            }
+        }
     }
     fn highlight_range(
         trigger: Trigger<Dragged>,
@@ -111,7 +210,7 @@ impl TextInput {
         font_sizes: Query<&FontSize>,
         layout: Res<Layout>,
         sections: Query<&Section<Logical>>,
-        handles: Query<&Handle>,
+        mut handles: Query<&mut Handle>,
         line_metrics: Query<&LineMetrics>,
         glyphs: Query<&Glyphs>,
         scale_factor: Res<ScaleFactor>,
@@ -127,7 +226,7 @@ impl TextInput {
             (relative.left().max(0.0) / dims.a()) as u32,
             (relative.top().max(0.0) / dims.b()) as u32,
         );
-        let handle = handles.get(trigger.entity()).unwrap();
+        let mut handle = handles.get_mut(trigger.entity()).unwrap();
         let metrics = line_metrics.get(handle.text).unwrap();
         let row = y.min(metrics.lines.len().checked_sub(1).unwrap_or_default() as u32);
         let column = x
@@ -153,11 +252,25 @@ impl TextInput {
             if let Some(g) = glyph.layout.glyphs().iter().find(|g| g.byte_offset == o) {
                 let col = (g.x / dims.a()) as u32;
                 let row = (g.y / dims.b()) as u32;
-                // TODO panel creation is if not have in handle.highlights (growth only until un-focus w/ opacity cull above)
-                // TODO if created => tertiary color give (not existent when forwarding value)
-                // get panel entity => then
-                // highlight location with col / row
-                // opacity -> 0.5 (turn-on)
+                let location = Location::new().xs(
+                    (col + 1).col().left().with((col + 1).col().right()),
+                    (row + 1).row().top().with((row + 1).row().bottom()),
+                );
+                if let Some(existing) = handle.highlights.get(&g.byte_offset) {
+                    tree.entity(*existing)
+                        .insert(Opacity::new(0.5))
+                        .insert(location);
+                } else {
+                    let h = tree.leaf((
+                        Panel::new(),
+                        Opacity::new(0.5),
+                        Stem::some(handle.panel),
+                        Elevation::up(1),
+                        location,
+                        tertiary.get(trigger.entity()).unwrap().0,
+                    ));
+                    handle.highlights.insert(g.byte_offset, h);
+                }
             }
         }
     }
@@ -206,9 +319,12 @@ impl TextInput {
             }
         }
     }
-    fn clear_cursor(trigger: Trigger<Unfocused>, mut tree: Tree) {
-        // cursor => opacity 0.0
-        // remove highlights
+    fn clear_cursor(trigger: Trigger<Unfocused>, mut tree: Tree, mut handles: Query<&mut Handle>) {
+        let mut handle = handles.get_mut(trigger.entity()).unwrap();
+        tree.entity(handle.cursor).insert(Opacity::new(0.0));
+        for (o, e) in handle.highlights.drain() {
+            tree.remove(e);
+        }
     }
 }
 impl Attachment for TextInput {
@@ -224,6 +340,10 @@ pub struct Handle {
     pub cursor: Entity,
     pub highlights: HashMap<GlyphOffset, Entity>,
 }
+#[derive(Component, Copy, Clone)]
+pub(crate) struct TextInputLink {
+    pub(crate) root: Entity,
+}
 impl Composite for TextInput {
     type Handle = Handle;
     fn remove(handle: &Self::Handle) -> impl TriggerTargets + Send + Sync + 'static {
@@ -237,16 +357,10 @@ impl Composite for TextInput {
         targets
     }
 }
-#[derive(Component, Clone)]
+#[derive(Component, Clone, Default)]
 pub struct HintText(pub(crate) String);
 impl HintText {
     pub fn new(text: impl Into<String>) -> Self {
         Self(text.into())
     }
 }
-#[derive(Event, Copy, Clone)]
-pub(crate) struct ConfigurePanels {}
-#[derive(Event, Copy, Clone)]
-pub(crate) struct Highlight(pub(crate) GlyphOffset);
-#[derive(Event, Copy, Clone)]
-pub(crate) struct UnHighlight(pub(crate) GlyphOffset);
