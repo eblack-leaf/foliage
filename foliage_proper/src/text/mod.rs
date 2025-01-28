@@ -202,7 +202,17 @@ impl Text {
             } else {
                 tree.entity(this).insert(current.clone());
             }
-            tree.entity(this).insert(TextBounds(current.section));
+            let mut line_metrics = LineMetrics::default();
+            if let Some(lines) = glyphs.layout.lines() {
+                line_metrics.lines.push(lines.len() as u32);
+            }
+            line_metrics.max_letter_idx_horizontal =
+                (*line_metrics.lines.iter().max().unwrap_or(&0))
+                    .checked_sub(1)
+                    .unwrap_or_default();
+            tree.entity(this)
+                .insert(TextBounds(current.section))
+                .insert(line_metrics);
             tree.trigger_targets(Write::<Text>::new(), this);
         }
     }
@@ -273,6 +283,11 @@ impl Text {
             glyphs.glyphs = new;
         }
     }
+}
+#[derive(Component, Clone, Default)]
+pub(crate) struct LineMetrics {
+    pub(crate) lines: Vec<u32>,
+    pub(crate) max_letter_idx_horizontal: u32,
 }
 #[derive(Component, Copy, Clone, PartialEq, Debug, Default)]
 pub(crate) struct TextBounds(pub(crate) Section<Physical>);

@@ -41,11 +41,11 @@ impl Animate for Location {
 #[component(on_insert = Location::on_insert)]
 #[require(Diff, CreateDiff, Resolution)]
 pub struct Location {
-    pub(crate) xs: Option<LocationDescriptor>,
-    pub(crate) sm: Option<LocationDescriptor>,
-    pub(crate) md: Option<LocationDescriptor>,
-    pub(crate) lg: Option<LocationDescriptor>,
-    pub(crate) xl: Option<LocationDescriptor>,
+    xs: Option<LocationDescriptor>,
+    sm: Option<LocationDescriptor>,
+    md: Option<LocationDescriptor>,
+    lg: Option<LocationDescriptor>,
+    xl: Option<LocationDescriptor>,
     pub(crate) animation_percent: CoordinateUnit,
 }
 impl Location {
