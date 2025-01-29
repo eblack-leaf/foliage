@@ -120,7 +120,7 @@ impl Foliage {
                     .expect("keys")
                     .parse(event.logical_key, event.state)
                 {
-                    self.world.send_event(event);
+                    self.world.trigger(event);
                 }
             }
             WindowEvent::ModifiersChanged(new_mods) => {

@@ -10,7 +10,7 @@ use crate::willow::Willow;
 use crate::{
     AndroidConnection, Animate, Animation, Area, Attachment, Button, Color, Disable, EcsExtension,
     Elevation, Enable, Grid, Icon, Image, Interaction, Location, Named, OnClick, Opacity, Panel,
-    Physical, Resource, Shape, SystemSet, Text, Visibility,
+    Physical, Resource, Shape, SystemSet, Text, TextInput, Visibility,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
@@ -125,6 +125,7 @@ impl Foliage {
         Visibility::attach(&mut foliage);
         Location::attach(&mut foliage);
         Named::attach(&mut foliage);
+        TextInput::attach(&mut foliage);
         foliage
     }
     pub fn attach<A: Attachment>(&mut self) {

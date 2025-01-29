@@ -6,7 +6,7 @@ use bevy_ecs::prelude::Component;
 use bevy_ecs::world::DeferredWorld;
 
 pub(crate) mod button;
-mod text_input;
+pub(crate) mod text_input;
 
 pub trait Composite {
     type Handle: Component;

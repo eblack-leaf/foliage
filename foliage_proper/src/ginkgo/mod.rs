@@ -9,7 +9,7 @@ use wgpu::{
     Origin3d, PipelineLayout, PipelineLayoutDescriptor, PowerPreference, PresentMode,
     PrimitiveState, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPipeline,
     RenderPipelineDescriptor, RequestAdapterOptions, Sampler, SamplerDescriptor, ShaderModule,
-    ShaderModuleDescriptor, StoreOp, SurfaceConfiguration, TexelCopyBufferLayout,
+    ShaderModuleDescriptor, StoreOp, SurfaceConfiguration, SurfaceError, TexelCopyBufferLayout,
     TexelCopyTextureInfo, Texture, TextureDescriptor, TextureDimension, TextureFormat,
     TextureUsages, TextureView, TextureViewDescriptor, VertexAttribute, VertexBufferLayout,
     VertexStepMode,
@@ -301,15 +301,22 @@ impl Ginkgo {
     }
     pub(crate) fn surface_texture(&self) -> Option<wgpu::SurfaceTexture> {
         let context = self.context();
-        if let Ok(frame) = context.surface.as_ref().unwrap().get_current_texture() {
-            Some(frame)
-        } else {
-            context
-                .surface
-                .as_ref()
-                .unwrap()
-                .configure(&context.device, &self.configuration().config);
-            context.surface.as_ref().unwrap().get_current_texture().ok()
+        match context.surface.as_ref().unwrap().get_current_texture() {
+            Ok(surface) => Some(surface),
+            Err(err) => match err {
+                SurfaceError::Timeout => {
+                    panic!("Timed out while waiting for surface")
+                }
+                SurfaceError::Outdated | SurfaceError::Lost => {
+                    context
+                        .surface
+                        .as_ref()
+                        .unwrap()
+                        .configure(&context.device, &self.configuration().config);
+                    context.surface.as_ref().unwrap().get_current_texture().ok()
+                }
+                SurfaceError::OutOfMemory | SurfaceError::Other => panic!("out-of-memory"),
+            },
         }
     }
     pub(crate) fn viewport(&self) -> &Viewport {
