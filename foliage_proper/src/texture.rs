@@ -121,7 +121,7 @@ impl<
     }
 
     pub(crate) fn has_key(&self, key: Key) -> bool {
-        self.partitions.contains_key(&key)
+        self.partitions.contains_key(&key) || self.entries.contains_key(&key)
     }
     pub(crate) fn add_entry(&mut self, key: Key, entry: AtlasEntry<TexelData>) {
         self.entries.insert(key.clone(), entry);

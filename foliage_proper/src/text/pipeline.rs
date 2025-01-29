@@ -304,22 +304,11 @@ impl Render for Text {
                         .as_mut()
                         .unwrap()
                         .add_entry(glyph.key, entry);
-                    group
-                        .group
-                        .queued_tex_reads
-                        .push((glyph.key, glyph.offset as InstanceId));
-                } else {
-                    let tex_coords = group
-                        .group
-                        .texture_atlas
-                        .as_ref()
-                        .unwrap()
-                        .tex_coordinates(glyph.key);
-                    group
-                        .group
-                        .tex_coords
-                        .queue(glyph.offset as InstanceId, tex_coords);
                 }
+                group
+                    .group
+                    .queued_tex_reads
+                    .push((glyph.key, glyph.offset as InstanceId));
                 group
                     .group
                     .texture_atlas
@@ -335,6 +324,7 @@ impl Render for Text {
         for (_id, group) in renderer.groups.iter_mut() {
             let (changed, grown) = group.group.texture_atlas.as_mut().unwrap().resolve(ginkgo);
             for key in changed {
+                println!("re-rasterizing {}", key.glyph_index);
                 let (metrics, rasterization) = renderer
                     .resources
                     .font
@@ -348,6 +338,7 @@ impl Render for Text {
                     .unwrap()
                     .write_entry(ginkgo, key, entry)
                 {
+                    println!("updating referencer {}", updated.key);
                     group
                         .group
                         .tex_coords
@@ -355,6 +346,7 @@ impl Render for Text {
                 }
             }
             if grown {
+                println!("remaking bind-group");
                 let bind_group = ginkgo.create_bind_group(&BindGroupDescriptor {
                     label: Some("text-group"),
                     layout: &renderer.resources.group_layout,
@@ -396,11 +388,16 @@ impl Render for Text {
                 render_group.group.write_uniform = false;
             }
             if let Some(capacity) = render_group.coordinator.grown() {
+                println!(
+                    "growing to {} from {}",
+                    capacity, render_group.group.sections.capacity
+                );
                 render_group.group.sections.grow(ginkgo, capacity);
                 render_group.group.colors.grow(ginkgo, capacity);
                 render_group.group.tex_coords.grow(ginkgo, capacity);
             }
             for swap in render_group.coordinator.sort() {
+                println!("swapping text id {} from {}", swap.id, swap.old);
                 render_group.group.sections.swap(swap);
                 render_group.group.colors.swap(swap);
                 render_group.group.tex_coords.swap(swap);

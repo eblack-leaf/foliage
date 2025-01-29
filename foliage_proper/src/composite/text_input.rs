@@ -48,7 +48,6 @@ impl TextInput {
             .observe(Self::update_tertiary)
             .observe(Self::forward_font_size)
             .observe(Self::update_font_size)
-            .observe(Self::write_text)
             .observe(Self::highlight_range)
             .observe(Self::clear_cursor)
             .observe(Self::place_cursor);
@@ -85,6 +84,7 @@ impl TextInput {
             Elevation::up(2),
             TextInputLink { root: this },
         ));
+        world.commands().entity(text).observe(Self::write_text);
         let handle = Handle {
             panel,
             text,
@@ -141,6 +141,8 @@ impl TextInput {
         // give to handle.text
         let handle = handles.get(trigger.entity()).unwrap();
         tree.entity(handle.text)
+            .insert(font_sizes.get(trigger.entity()).unwrap().clone());
+        tree.entity(handle.panel)
             .insert(font_sizes.get(trigger.entity()).unwrap().clone());
     }
     fn update_primary(
@@ -266,8 +268,8 @@ impl TextInput {
         glyphs: Query<&Glyphs>,
         layout: Res<Layout>,
     ) {
-        println!("write_text");
         if let Ok(link) = links.get(trigger.entity()) {
+            println!("write_text");
             let font_size = font_sizes.get(link.root).unwrap().resolve(*layout);
             let dims = font.character_block(font_size.value);
             let mut handle = handles.get_mut(link.root).unwrap();
@@ -416,10 +418,15 @@ impl TextInput {
         );
         let handle = handles.get(trigger.entity()).unwrap();
         let metrics = line_metrics.get(handle.text).unwrap();
+        println!(
+            "metrics {:?} {}",
+            metrics.lines, metrics.max_letter_idx_horizontal
+        );
         let row = y.min(metrics.lines.len().checked_sub(1).unwrap_or_default() as u32);
         let column = x
             .min(*metrics.lines.get(row as usize).unwrap_or(&0))
             .min(metrics.max_letter_idx_horizontal);
+        println!("column {} row {} begin {}", column, row, begin);
         tree.entity(handle.cursor)
             .insert(Location::new().xs(
                 (column + 1).col().left().with((column + 1).col().right()),
@@ -429,6 +436,7 @@ impl TextInput {
         for g in glyphs.get(handle.text).unwrap().layout.glyphs() {
             if (g.x / dims.a()) as u32 == column {
                 if (g.y / dims.b()) as u32 == row {
+                    println!("cursor on {}", g.byte_offset);
                     let mut text_input = text_inputs.get_mut(trigger.entity()).unwrap();
                     text_input.cursor_location = g.byte_offset;
                     text_input.highlight_range = g.byte_offset..g.byte_offset;

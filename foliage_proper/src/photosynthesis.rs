@@ -118,7 +118,7 @@ impl Foliage {
                     .world
                     .get_resource_mut::<KeyboardAdapter>()
                     .expect("keys")
-                    .parse(event.logical_key, event.state)
+                    .parse(event.logical_key, event.state, event.repeat)
                 {
                     self.world.trigger(event);
                 }

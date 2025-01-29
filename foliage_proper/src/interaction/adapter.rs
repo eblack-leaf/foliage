@@ -3,7 +3,6 @@ use crate::coordinate::Logical;
 use crate::ginkgo::ScaleFactor;
 use crate::interaction::{Interaction, InteractionPhase};
 use crate::{Event, Resource};
-use std::collections::HashMap;
 use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, MouseButton, Touch, TouchPhase};
 use winit::keyboard::{Key, ModifiersState};
@@ -111,17 +110,20 @@ impl InputSequence {
 
 #[derive(Resource, Default)]
 pub(crate) struct KeyboardAdapter {
-    cache: HashMap<Key, ElementState>,
     pub(crate) mods: ModifiersState,
 }
 
 impl KeyboardAdapter {
-    pub(crate) fn parse(&mut self, key: Key, state: ElementState) -> Option<InputSequence> {
-        if let Some(cached) = self.cache.insert(key.clone(), state) {
-            if cached != state && state.is_pressed() {
-                return Some(InputSequence::new(key, self.mods));
-            }
+    pub(crate) fn parse(
+        &mut self,
+        key: Key,
+        state: ElementState,
+        repeat: bool,
+    ) -> Option<InputSequence> {
+        if state.is_pressed() && !repeat {
+            return Some(InputSequence::new(key, self.mods));
+        } else {
+            None
         }
-        None
     }
 }

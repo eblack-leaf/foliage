@@ -204,12 +204,13 @@ impl Text {
             }
             let mut line_metrics = LineMetrics::default();
             if let Some(lines) = glyphs.layout.lines() {
-                line_metrics.lines.push(lines.len() as u32);
+                for line in lines {
+                    line_metrics.lines.push(line.glyph_end as u32);
+                }
             }
-            line_metrics.max_letter_idx_horizontal =
-                (*line_metrics.lines.iter().max().unwrap_or(&0))
-                    .checked_sub(1)
-                    .unwrap_or_default();
+            let block = font.character_block(current.font_size.value);
+            let max = (current.section.width() / block.a()).floor() as u32;
+            line_metrics.max_letter_idx_horizontal = max.checked_sub(1).unwrap_or_default();
             tree.entity(this)
                 .insert(TextBounds(current.section))
                 .insert(line_metrics);

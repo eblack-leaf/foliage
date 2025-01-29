@@ -173,15 +173,21 @@ impl Location {
         if let Ok(location) = locations.get(this) {
             let (_, auto_vis) = visibilities.get(this).unwrap();
             let stem = stems.get(this).unwrap();
-            let (grid, view, context) = if let Some(id) = stem.id {
+            let (grid, view, context, stem_letters) = if let Some(id) = stem.id {
                 let val = grids.get(id).unwrap();
                 let context = sections.get(id).unwrap();
-                (val.0.config(*layout), *val.1, *context)
+                let stem_letter_dims = if let Ok(fs) = font_sizes.get(id) {
+                    font.character_block(fs.resolve(*layout).value)
+                } else {
+                    Coordinates::default()
+                };
+                (val.0.config(*layout), *val.1, *context, stem_letter_dims)
             } else {
                 (
                     Grid::default().config(*layout),
                     View::default(),
                     viewport.section(),
+                    Coordinates::default(),
                 )
             };
             let aspect_ratio = aspect_ratios.get(this).ok().copied();
@@ -194,6 +200,7 @@ impl Location {
                 }
             };
             let current = *sections.get(this).unwrap();
+
             let letter_dims = if let Ok(fs) = font_sizes.get(this) {
                 let f = fs.resolve(*layout);
                 font.character_block(f.value)
@@ -210,6 +217,7 @@ impl Location {
                 current,
                 letter_dims,
                 aspect_ratio,
+                stem_letters,
             ) {
                 if !auto_vis.visible {
                     tree.entity(this).insert(AutoVisibility::new(true));
@@ -283,6 +291,7 @@ fn resolve(
     current: Section<Logical>,
     letter_dims: Coordinates,
     aspect_ratio: Option<AspectRatio>,
+    stem_letters: Coordinates,
 ) -> Option<Resolution> {
     if let Some(config) = location.config(layout) {
         let mut resolution = Resolution::default();
@@ -294,6 +303,7 @@ fn resolve(
             current,
             letter_dims,
             view,
+            stem_letters,
         )?;
         let b = calc(
             config.horizontal.b,
@@ -303,6 +313,7 @@ fn resolve(
             current,
             letter_dims,
             view,
+            stem_letters,
         )?;
         let (pair, data) = if config.horizontal.a.designator > config.horizontal.b.designator {
             (
@@ -390,6 +401,7 @@ fn resolve(
             current,
             letter_dims,
             view,
+            stem_letters,
         )?;
         let d = calc(
             config.vertical.b,
@@ -399,6 +411,7 @@ fn resolve(
             current,
             letter_dims,
             view,
+            stem_letters,
         )?;
         let (pair, data) = if config.vertical.a.designator > config.vertical.b.designator {
             (
@@ -598,6 +611,7 @@ fn calc(
     current: Section<Logical>,
     letter_dims: Coordinates,
     view: View,
+    stem_letters: Coordinates,
 ) -> Option<CoordinateUnit> {
     let calculated = match desc.value {
         LocationValue::Percent(pct) => {
@@ -636,7 +650,7 @@ fn calc(
             } else if let LocationValue::Px(px) = grid.columns.value {
                 px
             } else if let LocationValue::Letters(l) = grid.columns.value {
-                l as f32 * letter_dims.a()
+                l as f32 * stem_letters.a()
             } else {
                 return None;
             };
@@ -658,7 +672,7 @@ fn calc(
             } else if let LocationValue::Px(px) = grid.rows.value {
                 px
             } else if let LocationValue::Letters(l) = grid.rows.value {
-                l as f32 * letter_dims.b()
+                l as f32 * stem_letters.b()
             } else {
                 return None;
             };
