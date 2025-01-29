@@ -236,12 +236,18 @@ impl TextInput {
                                     // see where in string that is
                                     // make new location for cursor
                                 }
+                                NamedKey::Space => {
+                                    // write " " character using logic like below in Character(ch)
+                                }
                                 _ => {
                                     // unsupported specific key
                                 }
                             }
                         }
                         Key::Character(ch) => {
+                            // remove highlight range text (if there)
+                            // adjust cursor by amount (if range.start was before)
+                            // then can insert text there + move cursor forward
                             let mut current = text_values.get_mut(focused).unwrap();
                             current.0 = current.0[0..text_input.cursor_location].to_string()
                                 + ch
@@ -291,6 +297,9 @@ impl TextInput {
                     (row + 1).row().top().with((row + 1).row().bottom()),
                 );
                 tree.entity(handle.cursor).insert(location);
+            } else {
+                // past end so get last col / row + add 1 col + max by max + w/ wrap + max by y (unwrap)
+                // set location of handle.cursor
             }
             for o in text_input.highlight_range.clone() {
                 if let Some(g) = glyph.layout.glyphs().iter().find(|g| g.byte_offset == o) {
@@ -348,7 +357,7 @@ impl TextInput {
         let metrics = line_metrics.get(handle.text).unwrap();
         let row = y.min(metrics.lines.len().checked_sub(1).unwrap_or_default() as u32);
         let column = x
-            .min(*metrics.lines.get(row as usize).unwrap_or(&0))
+            .min(metrics.lines.get(row as usize).and_then(|l| Some(*l)).unwrap_or_default())
             .min(metrics.max_letter_idx_horizontal);
         let mut text_input = text_inputs.get_mut(trigger.entity()).unwrap();
         for (o, e) in handle.highlights.iter() {
@@ -424,7 +433,7 @@ impl TextInput {
         );
         let row = y.min(metrics.lines.len().checked_sub(1).unwrap_or_default() as u32);
         let column = x
-            .min(*metrics.lines.get(row as usize).unwrap_or(&0))
+            .min(metrics.lines.get(row as usize).and_then(|l| Some(l + 1)).unwrap_or_default())
             .min(metrics.max_letter_idx_horizontal);
         println!("column {} row {} begin {}", column, row, begin);
         tree.entity(handle.cursor)
@@ -433,11 +442,15 @@ impl TextInput {
                 (row + 1).row().top().with((row + 1).row().bottom()),
             ))
             .insert(Opacity::new(1.0));
-        for g in glyphs.get(handle.text).unwrap().layout.glyphs() {
+        let mut text_input = text_inputs.get_mut(trigger.entity()).unwrap();
+        let glyph = glyphs.get(handle.text).unwrap();
+        let co = glyph.layout.glyphs().last().and_then(|l| Some(l.byte_offset + 1)).unwrap_or_default();
+        text_input.cursor_location = co;
+        text_input.highlight_range = co..co;
+        for g in glyph.layout.glyphs() {
             if (g.x / dims.a()) as u32 == column {
                 if (g.y / dims.b()) as u32 == row {
                     println!("cursor on {}", g.byte_offset);
-                    let mut text_input = text_inputs.get_mut(trigger.entity()).unwrap();
                     text_input.cursor_location = g.byte_offset;
                     text_input.highlight_range = g.byte_offset..g.byte_offset;
                 }

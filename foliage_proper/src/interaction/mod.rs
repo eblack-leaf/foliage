@@ -184,6 +184,12 @@ pub(crate) fn interactive_elements(
                     || scroll_delta.coordinates.b().abs() > InteractionListener::DRAG_THRESHOLD
                 {
                     tree.trigger_targets(Disengaged {}, p);
+                    if let Some(f) = current.focused.take() {
+                        if f == p {
+                            tree.trigger_targets(Unfocused {}, p);
+                        }
+                    }
+                    tree.trigger_targets(Unfocused {}, p);
                     current.primary.take();
                     if let Some(ps) = current.pass_through {
                         if let Ok(mut listener) = listeners.get_mut(ps) {
