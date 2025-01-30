@@ -357,7 +357,13 @@ impl TextInput {
         let metrics = line_metrics.get(handle.text).unwrap();
         let row = y.min(metrics.lines.len().checked_sub(1).unwrap_or_default() as u32);
         let column = x
-            .min(metrics.lines.get(row as usize).and_then(|l| Some(*l)).unwrap_or_default())
+            .min(
+                metrics
+                    .lines
+                    .get(row as usize)
+                    .and_then(|l| Some(*l))
+                    .unwrap_or_default(),
+            )
             .min(metrics.max_letter_idx_horizontal);
         let mut text_input = text_inputs.get_mut(trigger.entity()).unwrap();
         for (o, e) in handle.highlights.iter() {
@@ -433,7 +439,13 @@ impl TextInput {
         );
         let row = y.min(metrics.lines.len().checked_sub(1).unwrap_or_default() as u32);
         let column = x
-            .min(metrics.lines.get(row as usize).and_then(|l| Some(l + 1)).unwrap_or_default())
+            .min(
+                metrics
+                    .lines
+                    .get(row as usize)
+                    .and_then(|l| Some(l + 1))
+                    .unwrap_or_default(),
+            )
             .min(metrics.max_letter_idx_horizontal);
         println!("column {} row {} begin {}", column, row, begin);
         tree.entity(handle.cursor)
@@ -444,7 +456,12 @@ impl TextInput {
             .insert(Opacity::new(1.0));
         let mut text_input = text_inputs.get_mut(trigger.entity()).unwrap();
         let glyph = glyphs.get(handle.text).unwrap();
-        let co = glyph.layout.glyphs().last().and_then(|l| Some(l.byte_offset + 1)).unwrap_or_default();
+        let co = glyph
+            .layout
+            .glyphs()
+            .last()
+            .and_then(|l| Some(l.byte_offset + 1))
+            .unwrap_or_default();
         text_input.cursor_location = co;
         text_input.highlight_range = co..co;
         for g in glyph.layout.glyphs() {

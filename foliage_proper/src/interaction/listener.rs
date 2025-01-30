@@ -10,11 +10,10 @@ use bitflags::bitflags;
 #[component(on_replace = Self::on_replace)]
 pub struct InteractionListener {
     pub(crate) click: Click,
-    pub(crate) scroll: bool,
-    pub(crate) pass_through: bool,
     pub(crate) shape: InteractionShape,
     pub(crate) last_drag: Position<Logical>,
     pub(crate) state: InteractionState,
+    pub(crate) listen_scroll_wheel: bool,
 }
 
 impl Default for InteractionListener {
@@ -28,23 +27,18 @@ impl InteractionListener {
     pub fn new() -> Self {
         Self {
             click: Default::default(),
-            scroll: false,
-            pass_through: false,
             shape: Default::default(),
             last_drag: Default::default(),
             state: Default::default(),
+            listen_scroll_wheel: false,
         }
     }
     pub fn circle(mut self) -> Self {
         self.shape = InteractionShape::Circle;
         self
     }
-    pub fn scroll(mut self, s: bool) -> Self {
-        self.scroll = s;
-        self
-    }
-    pub fn pass_through(mut self, pt: bool) -> Self {
-        self.pass_through = pt;
+    pub fn scroll(mut self) -> Self {
+        self.listen_scroll_wheel = true;
         self
     }
     pub fn click(&self) -> Click {
@@ -56,12 +50,12 @@ impl InteractionListener {
             && self.state.contains(InteractionState::INHERIT_ENABLED))
     }
     pub(crate) fn is_contained(
-        &self,
+        shape: InteractionShape,
         section: Section<Logical>,
         clip: ResolvedClip,
         event: Position<Logical>,
     ) -> bool {
-        let section_contained = match self.shape {
+        let section_contained = match shape {
             InteractionShape::Rectangle => section.contains(event),
             InteractionShape::Circle => section.center().distance(event) <= section.width() / 2f32,
         };
@@ -79,7 +73,7 @@ impl InteractionListener {
     }
 }
 
-#[derive(Copy, Clone, Default)]
+#[derive(Component, Copy, Clone, Default)]
 pub enum InteractionShape {
     #[default]
     Rectangle,

@@ -100,7 +100,6 @@ pub(crate) fn extent_check_v2(
         let section = *sections.get(*entity).unwrap().1;
         views.get_mut(*entity).unwrap().extent =
             Section::new(section.position, (section.right(), section.bottom()));
-        // TODO check semantics
     }
     for (entity, context) in contexts.iter() {
         if let Some(id) = context.id {

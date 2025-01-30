@@ -64,7 +64,7 @@ pub use icon::{Icon, IconId, IconMemory};
 pub use image::{Image, ImageMemory, ImageMetrics, ImageView, MemoryId};
 pub use interaction::{
     listener::InteractionListener, listener::InteractionShape, listener::InteractionState,
-    InputSequence, Interaction, InteractionPhase, OnClick,
+    InputSequence, Interaction, InteractionPhase, InteractionPropagation, OnClick,
 };
 pub use interaction::{Disengaged, Dragged, Engaged, Focused, Unfocused};
 pub use leaf::{Branch, Leaf, Stem};

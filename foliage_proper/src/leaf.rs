@@ -4,7 +4,9 @@ use crate::Logical;
 use crate::Opacity;
 use crate::Section;
 use crate::Visibility;
-use crate::{Animation, Component, Location, Tree, Update};
+use crate::{
+    Animation, Component, InteractionPropagation, InteractionShape, Location, Tree, Update,
+};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::Trigger;
@@ -15,7 +17,7 @@ use std::collections::HashSet;
 #[derive(Component)]
 #[require(Stem, Branch)]
 #[require(Opacity, Visibility, ClipSection)]
-#[require(Section<Logical>, Elevation)]
+#[require(Section<Logical>, Elevation, InteractionShape, InteractionPropagation)]
 #[component(on_add = Self::on_add)]
 pub struct Leaf {}
 

@@ -4,7 +4,8 @@ use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::{
     Animate, Animation, Attachment, Color, Component, CoordinateUnit, Coordinates, Differential,
-    Foliage, Logical, Position, ResolvedElevation, Section, Stem, Tree, Update, Visibility, Write,
+    Foliage, InteractionShape, Logical, Position, ResolvedElevation, Section, Stem, Tree, Update,
+    Visibility, Write,
 };
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
@@ -133,7 +134,7 @@ impl Attachment for Panel {
         foliage.enable_animation::<Outline>();
     }
 }
-#[derive(Component, Copy, Clone, Default)]
+#[derive(Component, Copy, Clone, Default, Eq, PartialEq)]
 #[component(on_insert = Self::on_insert)]
 pub enum Rounding {
     #[default]
@@ -147,6 +148,17 @@ pub enum Rounding {
 impl Rounding {
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
         if world.get::<Panel>(this).is_some() {
+            if *world.get::<Rounding>(this).unwrap() == Rounding::Full {
+                world
+                    .commands()
+                    .entity(this)
+                    .insert(InteractionShape::Circle);
+            } else {
+                world
+                    .commands()
+                    .entity(this)
+                    .insert(InteractionShape::Rectangle);
+            }
             world.trigger_targets(Update::<Self>::new(), this);
         }
     }
