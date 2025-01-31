@@ -96,18 +96,32 @@ pub struct Disengaged {}
 #[derive(Component, Copy, Clone)]
 pub struct InteractionPropagation {
     grab: bool,
+    disable_drag: bool,
 }
 impl InteractionPropagation {
     pub fn grab() -> Self {
-        Self { grab: true }
+        Self {
+            grab: true,
+            disable_drag: false,
+        }
     }
     pub fn pass_through() -> Self {
-        Self { grab: false }
+        Self {
+            grab: false,
+            disable_drag: false,
+        }
+    }
+    pub fn disable_drag(mut self) -> Self {
+        self.disable_drag = true;
+        self
     }
 }
 impl Default for InteractionPropagation {
     fn default() -> Self {
-        Self { grab: true }
+        Self {
+            grab: true,
+            disable_drag: false,
+        }
     }
 }
 pub(crate) fn interactive_elements(
@@ -154,8 +168,12 @@ pub(crate) fn interactive_elements(
             .filter(|i| i.click_phase == InteractionPhase::End)
             .collect::<Vec<_>>();
         if let Some(event) = started.last() {
-            current.primary.take();
-            current.pass_through.clear();
+            if let Some(entity) = current.primary.take() {
+                tree.trigger_targets(Disengaged {}, entity);
+            }
+            for entity in current.pass_through.drain(..) {
+                tree.trigger_targets(Disengaged {}, entity);
+            }
             current.past_drag = false;
             let mut grabbed_elevation = ResolvedElevation::new(101.0);
             for (entity, section, elevation, clip, propagation, shape) in all.iter() {
@@ -220,7 +238,7 @@ pub(crate) fn interactive_elements(
                         current.past_drag = true;
                         current.last_drag = event.position;
                     }
-                } else {
+                } else if !all.get(p).unwrap().4.disable_drag {
                     let diff = current.last_drag - event.position;
                     if let Ok(_) = views.get(p) {
                         tree.entity(p).insert(ViewAdjustment(diff));
@@ -257,7 +275,7 @@ pub(crate) fn interactive_elements(
         }
         if let Some(event) = ended.last() {
             if let Some(p) = current.primary {
-                if current.past_drag || event.from_scroll {
+                if current.past_drag || event.from_scroll && !all.get(p).unwrap().4.disable_drag {
                     let diff = current.last_drag - event.position;
                     if let Ok(_) = views.get(p) {
                         tree.entity(p).insert(ViewAdjustment(diff));
