@@ -3,13 +3,17 @@ use crate::coordinate::Logical;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::{Event, EventReader};
 use bevy_ecs::prelude::IntoSystemConfigs;
+use bevy_ecs::query::With;
 use bevy_ecs::system::{Query, ResMut, Resource};
 mod adapter;
 pub(crate) mod listener;
 
 use crate::ash::clip::ResolvedClip;
 use crate::foliage::{Foliage, MainMarkers};
-use crate::{Attachment, Component, InteractionShape, ResolvedElevation, Section, Tree};
+use crate::grid::view::ViewAdjustment;
+use crate::{
+    Attachment, Component, InteractionShape, ResolvedElevation, Section, Stem, Tree, View,
+};
 pub use adapter::InputSequence;
 pub(crate) use adapter::{KeyboardAdapter, MouseAdapter, TouchAdapter};
 use listener::InteractionListener;
@@ -68,10 +72,18 @@ impl Click {
     }
 }
 #[derive(Resource, Default)]
-pub(crate) struct CurrentInteraction {
+pub struct CurrentInteraction {
     pub(crate) primary: Option<Entity>,
+    pub(crate) click: Click,
+    pub(crate) last_drag: Position<Logical>,
     pub(crate) pass_through: Vec<Entity>,
     pub(crate) focused: Option<Entity>,
+    pub(crate) past_drag: bool,
+}
+impl CurrentInteraction {
+    pub fn click(&self) -> Click {
+        self.click
+    }
 }
 #[derive(Event, Copy, Clone, Default)]
 pub struct OnClick {}
@@ -108,8 +120,10 @@ pub(crate) fn interactive_elements(
         &InteractionPropagation,
         &InteractionShape,
     )>,
-    mut ls: Query<&mut InteractionListener>,
+    mut listeners: Query<&mut InteractionListener>,
     mut current: ResMut<CurrentInteraction>,
+    contexts: Query<&Stem>,
+    views: Query<Entity, With<View>>,
     mut tree: Tree,
 ) {
     let events = reader.read().copied().collect::<Vec<_>>();
@@ -142,6 +156,7 @@ pub(crate) fn interactive_elements(
         if let Some(event) = started.last() {
             current.primary.take();
             current.pass_through.clear();
+            current.past_drag = false;
             let mut grabbed_elevation = ResolvedElevation::new(101.0);
             for (entity, section, elevation, clip, propagation, shape) in all.iter() {
                 if propagation.grab {
@@ -161,42 +176,33 @@ pub(crate) fn interactive_elements(
                 }
             }
             if let Some(p) = current.primary {
-                if let Ok(mut listener) = ls.get_mut(p) {
-                    if !listener.disabled() {
-                        if event.from_scroll && !listener.listen_scroll_wheel {
-                            // no trigger Engaged / Disengaged stuff but still process for overscroll
-                        }
+                current.pass_through = current
+                    .pass_through
+                    .drain(..)
+                    .filter(|ps| all.get(*ps).unwrap().2 >= &grabbed_elevation)
+                    .collect::<Vec<_>>();
+                if let Ok(mut listener) = listeners.get_mut(p) {
+                    if !listener.disabled() && !event.from_scroll {
+                        tree.trigger_targets(Engaged {}, p);
+                    }
+                }
+                if let Some(f) = current.focused.replace(p) {
+                    if f != p {
+                        tree.trigger_targets(Focused {}, p);
+                        tree.trigger_targets(Unfocused {}, f);
                     }
                 } else {
-                    // TODO keep for doing scroll stuff in moved but no listener process
+                    tree.trigger_targets(Focused {}, p);
                 }
-                // all.get_mut(p).unwrap().1.click = Click::new(event.position);
-                // all.get_mut(p).unwrap().1.last_drag = event.position;
-                // tree.trigger_targets(Engaged {}, p);
-                // if let Some(f) = current.focused.replace(p) {
-                //     if f != p {
-                //         tree.trigger_targets(Focused {}, p);
-                //         tree.trigger_targets(Unfocused {}, f);
-                //     }
-                // } else {
-                //     tree.trigger_targets(Focused {}, p);
-                // }
+                current.click = Click::new(event.position);
+                current.last_drag = event.position;
             }
             for ps in current.pass_through.iter() {
-                // let mut listener = all.get_mut(ps).unwrap().1;
-                // listener.click = Click::new(event.position);
-                // listener.last_drag = event.position;
-                // tree.trigger_targets(Engaged {}, ps);
-                // if current.primary.is_none() {
-                //     if let Some(f) = current.focused.replace(ps) {
-                //         if f != ps {
-                //             tree.trigger_targets(Focused {}, ps);
-                //             tree.trigger_targets(Unfocused {}, f);
-                //         }
-                //     } else {
-                //         tree.trigger_targets(Focused {}, ps);
-                //     }
-                // }
+                if let Ok(mut listener) = listeners.get_mut(*ps) {
+                    if !listener.disabled() && !event.from_scroll {
+                        tree.trigger_targets(Engaged {}, *ps);
+                    }
+                }
             }
             if current.primary.is_none() {
                 if let Some(f) = current.focused.take() {
@@ -205,88 +211,103 @@ pub(crate) fn interactive_elements(
             }
         }
         if let Some(event) = moved.last() {
-            // TODO if no View(primary) => recursive-up stems to find one w/ View to do last_drag + ViewAdjustment(diff) to
-            // TODO above runs regardless of if let Ok(listener) ...
-            // if let Some(p) = current.primary {
-            //     let scroll_delta = event.position - all.get(p).unwrap().1.click.start;
-            //     if scroll_delta.coordinates.a().abs() > InteractionListener::DRAG_THRESHOLD
-            //         || scroll_delta.coordinates.b().abs() > InteractionListener::DRAG_THRESHOLD
-            //     {
-            //         tree.trigger_targets(Disengaged {}, p);
-            //         if let Some(f) = current.focused.take() {
-            //             if f == p {
-            //                 tree.trigger_targets(Unfocused {}, p);
-            //             }
-            //         }
-            //         tree.trigger_targets(Unfocused {}, p);
-            //         current.primary.take();
-            //         if let Some(ps) = current.pass_through {
-            //             if let Ok(mut listener) = all.get_mut(ps) {
-            //                 listener.1.click = Click::new(event.position);
-            //                 listener.1.last_drag = event.position;
-            //                 if let Some(f) = current.focused.replace(ps) {
-            //                     if f != ps {
-            //                         tree.trigger_targets(Focused {}, ps);
-            //                         tree.trigger_targets(Unfocused {}, f);
-            //                     }
-            //                 } else {
-            //                     tree.trigger_targets(Focused {}, ps);
-            //                 }
-            //             }
-            //         }
-            //     }
-            // }
-            // if let Some(p) = current.primary {
-            //     if let Ok(mut listener) = all.get_mut(p) {
-            //         listener.1.click.current = event.position;
-            //         if listener.1.scroll {
-            //             let diff = listener.1.last_drag - event.position;
-            //             tree.entity(listener.0).insert(ViewAdjustment(diff));
-            //         }
-            //         tree.trigger_targets(Dragged {}, p);
-            //     }
-            // } else {
-            //     if let Some(ps) = current.pass_through {
-            //         if let Ok(mut listener) = all.get_mut(ps) {
-            //             listener.1.click.current = event.position;
-            //             if listener.1.scroll {
-            //                 let diff = listener.1.last_drag - event.position;
-            //                 tree.entity(listener.0).insert(ViewAdjustment(diff));
-            //             }
-            //             listener.1.last_drag = event.position;
-            //             tree.trigger_targets(Dragged {}, ps);
-            //         }
-            //     }
-            // }
+            if let Some(p) = current.primary {
+                if !current.past_drag {
+                    let scroll_delta = event.position - current.click.start;
+                    if scroll_delta.coordinates.a().abs() > InteractionListener::DRAG_THRESHOLD
+                        || scroll_delta.coordinates.b().abs() > InteractionListener::DRAG_THRESHOLD
+                    {
+                        current.past_drag = true;
+                        current.last_drag = event.position;
+                    }
+                } else {
+                    let diff = current.last_drag - event.position;
+                    if let Ok(_) = views.get(p) {
+                        tree.entity(p).insert(ViewAdjustment(diff));
+                    } else {
+                        let mut context = *contexts.get(p).unwrap();
+                        while let Some(id) = context.id {
+                            if let Ok(_) = views.get(id) {
+                                tree.entity(id).insert(ViewAdjustment(diff));
+                                break;
+                            }
+                            if let Ok(up) = contexts.get(id) {
+                                context = *up;
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                }
+                current.last_drag = event.position;
+                current.click.current = event.position;
+                if let Ok(mut listener) = listeners.get_mut(p) {
+                    if !listener.disabled() && !event.from_scroll {
+                        tree.trigger_targets(Dragged {}, p);
+                    }
+                }
+            }
+            for ps in current.pass_through.iter() {
+                if let Ok(mut listener) = listeners.get_mut(*ps) {
+                    if !listener.disabled() && !event.from_scroll {
+                        tree.trigger_targets(Dragged {}, *ps);
+                    }
+                }
+            }
         }
         if let Some(event) = ended.last() {
-            // if let Some(p) = current.primary {
-            //     if let Ok(mut listener) = all.get_mut(p) {
-            //         if event.from_scroll && listener.1.scroll {
-            //             let diff = listener.1.last_drag - event.position;
-            //             tree.entity(p).insert(ViewAdjustment(diff));
-            //         }
-            //         if listener
-            //             .1
-            //             .is_contained(*listener.2, *listener.4, event.position)
-            //         {
-            //             listener.1.click.end.replace(event.position);
-            //             tree.trigger_targets(OnClick::default(), p);
-            //         }
-            //         tree.trigger_targets(Disengaged {}, p);
-            //     }
-            // }
-            // if let Some(ps) = current.pass_through.take() {
-            //     if let Ok(mut listener) = all.get_mut(ps) {
-            //         if event.from_scroll && listener.1.scroll {
-            //             let diff = listener.1.last_drag - event.position;
-            //             tree.entity(ps).insert(ViewAdjustment(diff));
-            //         }
-            //         listener.1.click.end.replace(event.position);
-            //         tree.trigger_targets(OnClick::default(), ps);
-            //         tree.trigger_targets(Disengaged {}, ps);
-            //     }
-            // }
+            if let Some(p) = current.primary {
+                if current.past_drag || event.from_scroll {
+                    let diff = current.last_drag - event.position;
+                    if let Ok(_) = views.get(p) {
+                        tree.entity(p).insert(ViewAdjustment(diff));
+                    } else {
+                        let mut context = *contexts.get(p).unwrap();
+                        while let Some(id) = context.id {
+                            if let Ok(_) = views.get(id) {
+                                tree.entity(id).insert(ViewAdjustment(diff));
+                                break;
+                            }
+                            if let Ok(up) = contexts.get(id) {
+                                context = *up;
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                }
+                current.click.end.replace(event.position);
+                if let Ok(mut listener) = listeners.get_mut(p) {
+                    let data = all.get(p).unwrap();
+                    if !listener.disabled() && !event.from_scroll {
+                        if InteractionListener::is_contained(
+                            *data.5,
+                            *data.1,
+                            *data.3,
+                            event.position,
+                        ) {
+                            tree.trigger_targets(OnClick::default(), p);
+                        }
+                    }
+                    tree.trigger_targets(Disengaged {}, p);
+                }
+            }
+            for ps in current.pass_through.drain(..) {
+                if let Ok(mut listener) = listeners.get_mut(ps) {
+                    let data = all.get(ps).unwrap();
+                    if !listener.disabled() && !event.from_scroll {
+                        if InteractionListener::is_contained(
+                            *data.5,
+                            *data.1,
+                            *data.3,
+                            event.position,
+                        ) {
+                            tree.trigger_targets(OnClick::default(), ps);
+                        }
+                    }
+                    tree.trigger_targets(Disengaged {}, ps);
+                }
+            }
         }
     }
 }

@@ -1,19 +1,10 @@
 use crate::ash::clip::ResolvedClip;
-use crate::interaction::{Click, CurrentInteraction};
 use crate::{Component, CoordinateUnit, Logical, Position, Section};
-use bevy_ecs::component::ComponentId;
-use bevy_ecs::entity::Entity;
-use bevy_ecs::world::DeferredWorld;
 use bitflags::bitflags;
 
 #[derive(Component, Copy, Clone)]
-#[component(on_replace = Self::on_replace)]
 pub struct InteractionListener {
-    pub(crate) click: Click,
-    pub(crate) shape: InteractionShape,
-    pub(crate) last_drag: Position<Logical>,
     pub(crate) state: InteractionState,
-    pub(crate) listen_scroll_wheel: bool,
 }
 
 impl Default for InteractionListener {
@@ -23,26 +14,11 @@ impl Default for InteractionListener {
 }
 
 impl InteractionListener {
-    pub const DRAG_THRESHOLD: CoordinateUnit = 40.0;
+    pub const DRAG_THRESHOLD: CoordinateUnit = 10.0;
     pub fn new() -> Self {
         Self {
-            click: Default::default(),
-            shape: Default::default(),
-            last_drag: Default::default(),
             state: Default::default(),
-            listen_scroll_wheel: false,
         }
-    }
-    pub fn circle(mut self) -> Self {
-        self.shape = InteractionShape::Circle;
-        self
-    }
-    pub fn scroll(mut self) -> Self {
-        self.listen_scroll_wheel = true;
-        self
-    }
-    pub fn click(&self) -> Click {
-        self.click
     }
     pub fn disabled(&self) -> bool {
         !(self.state.contains(InteractionState::ENABLED)
@@ -61,15 +37,6 @@ impl InteractionListener {
         };
         let clip_contained = clip.0.contains(event);
         section_contained && clip_contained
-    }
-    fn on_replace(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
-        if let Some(mut current) = world.get_resource_mut::<CurrentInteraction>() {
-            if let Some(p) = current.primary {
-                if p == this {
-                    current.primary.take();
-                }
-            }
-        }
     }
 }
 

@@ -2,10 +2,9 @@ use crate::icons::IconHandles;
 use crate::portfolio::Portfolio;
 use foliage::{
     bevy_ecs, stack, Animation, Attachment, Button, Color, EcsExtension, Elevation, Event, Foliage,
-    FontSize, GlyphColors, Grid, GridExt, HorizontalAlignment, HrefLink, IconValue,
-    InteractionListener, Line, Location, Logical, OnClick, OnEnd, Opacity, Outline, Primary, Query,
-    Rounding, Secondary, Section, Stack, Stem, Tertiary, Text, TextInput, TextValue, Tree, Trigger,
-    VerticalAlignment, Write,
+    FontSize, GlyphColors, Grid, GridExt, HorizontalAlignment, HrefLink, IconValue, Line, Location,
+    Logical, OnClick, OnEnd, Opacity, Outline, Primary, Query, Rounding, Secondary, Section, Stack,
+    Stem, Tertiary, Text, TextInput, TextValue, Tree, Trigger, VerticalAlignment, Write,
 };
 
 impl Attachment for Home {
@@ -24,7 +23,6 @@ impl Home {
                 0.pct().left().with(100.pct().right()),
                 0.pct().top().with(100.pct().bottom()),
             ),
-            InteractionListener::new().scroll(true).pass_through(true),
             Elevation::abs(0),
             Stem::none(),
         ));

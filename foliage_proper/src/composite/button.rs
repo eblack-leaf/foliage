@@ -1,8 +1,8 @@
 use crate::{
     handle_replace, stack, Attachment, Disengaged, EcsExtension, Elevation, Engaged, Foliage,
-    FontSize, Grid, GridExt, HorizontalAlignment, Icon, IconValue, InteractionListener, Location,
-    Outline, Panel, Primary, Rounding, Secondary, Stack, Stem, Text, TextValue, Tree, Update,
-    VerticalAlignment, Visibility,
+    FontSize, Grid, GridExt, HorizontalAlignment, Icon, IconValue, InteractionListener,
+    InteractionPropagation, Location, Outline, Panel, Primary, Rounding, Secondary, Stack, Stem,
+    Text, TextValue, Tree, Update, VerticalAlignment, Visibility,
 };
 use crate::{Component, Composite};
 use bevy_ecs::component::ComponentId;
@@ -234,11 +234,7 @@ impl Button {
     ) {
         let this = trigger.entity();
         let shape = shapes.get(this).unwrap();
-        let listener = match shape {
-            Rounding::Full => InteractionListener::new().circle(),
-            _ => InteractionListener::new(),
-        };
-        tree.entity(this).insert(listener);
+        tree.entity(this).insert(InteractionListener::new());
         let handle = handles.get(this).unwrap();
         let icon_location = match shape {
             Rounding::Full => Location::new().xs(
@@ -280,12 +276,15 @@ impl Button {
                 1.col().left().with(1.col().right()),
                 1.row().top().with(1.row().bottom()),
             ),
+            InteractionPropagation::pass_through(),
             Elevation::up(1),
         ));
-        let icon =
-            world
-                .commands()
-                .leaf((Icon::new(icon_value.0), Elevation::up(2), Stem::some(this)));
+        let icon = world.commands().leaf((
+            Icon::new(icon_value.0),
+            Elevation::up(2),
+            Stem::some(this),
+            InteractionPropagation::pass_through(),
+        ));
         let text = world.commands().leaf((
             Text::new(""),
             Elevation::up(2),
@@ -296,6 +295,7 @@ impl Button {
                 50.pct().center_x().adjust(20).with(0.letters().width()),
                 1.row().top().with(1.row().bottom()),
             ),
+            InteractionPropagation::pass_through(),
         ));
         let handle = Handle { panel, icon, text };
         world.commands().entity(this).insert(handle);

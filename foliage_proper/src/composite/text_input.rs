@@ -5,9 +5,9 @@ use crate::text::monospaced::MonospacedFont;
 use crate::text::{Glyphs, LineMetrics};
 use crate::{
     Attachment, Component, Composite, Dragged, EcsExtension, Elevation, Engaged, Foliage, FontSize,
-    GlyphOffset, Grid, GridExt, InputSequence, InteractionListener, Layout, Location, Logical,
-    Opacity, Panel, Primary, Resource, Secondary, Section, Stem, Tertiary, Text, TextValue, Tree,
-    Unfocused, Update, Write,
+    GlyphOffset, Grid, GridExt, InputSequence, InteractionListener, InteractionPropagation, Layout,
+    Location, Logical, Opacity, Panel, Primary, Resource, Secondary, Section, Stem, Tertiary, Text,
+    TextValue, Tree, Unfocused, Update, Write,
 };
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
@@ -63,6 +63,7 @@ impl TextInput {
             ),
             Grid::new(1.letters(), 1.letters()),
             Elevation::up(0),
+            InteractionPropagation::pass_through(),
             Stem::some(this),
         ));
         let cursor = world.commands().leaf((
@@ -74,6 +75,7 @@ impl TextInput {
                 1.col().left().with(1.col().right()),
                 1.col().top().with(1.col().bottom()),
             ),
+            InteractionPropagation::pass_through(),
         ));
         let text = world.commands().leaf((
             Stem::some(panel),
@@ -83,6 +85,7 @@ impl TextInput {
             ),
             Elevation::up(2),
             TextInputLink { root: this },
+            InteractionPropagation::pass_through(),
         ));
         world.commands().entity(text).observe(Self::write_text);
         let handle = Handle {
@@ -95,7 +98,7 @@ impl TextInput {
             .commands()
             .entity(this)
             .insert(handle)
-            .insert(InteractionListener::new().scroll(true));
+            .insert(InteractionListener::new());
     }
     fn handle_trigger(trigger: Trigger<OnInsert, Handle>, mut tree: Tree) {
         println!("handle_trigger");
@@ -331,7 +334,7 @@ impl TextInput {
     fn highlight_range(
         trigger: Trigger<Dragged>,
         mut tree: Tree,
-        listeners: Query<&InteractionListener>,
+        current_interaction: Res<CurrentInteraction>,
         font: Res<MonospacedFont>,
         font_sizes: Query<&FontSize>,
         layout: Res<Layout>,
@@ -344,7 +347,7 @@ impl TextInput {
         mut text_inputs: Query<&mut TextInput>,
     ) {
         println!("highlight_range");
-        let current = listeners.get(trigger.entity()).unwrap().click.current;
+        let current = current_interaction.click().current;
         let font_size = font_sizes.get(trigger.entity()).unwrap().resolve(*layout);
         let dims = font.character_block(font_size.value);
         let section = sections.get(trigger.entity()).unwrap();
@@ -410,7 +413,7 @@ impl TextInput {
     fn place_cursor(
         trigger: Trigger<Engaged>,
         mut tree: Tree,
-        listeners: Query<&InteractionListener>,
+        current_interaction: Res<CurrentInteraction>,
         font: Res<MonospacedFont>,
         font_sizes: Query<&FontSize>,
         layout: Res<Layout>,
@@ -422,7 +425,7 @@ impl TextInput {
         mut text_inputs: Query<&mut TextInput>,
     ) {
         println!("place_cursor");
-        let begin = listeners.get(trigger.entity()).unwrap().click.start;
+        let begin = current_interaction.click().start;
         let font_size = font_sizes.get(trigger.entity()).unwrap().resolve(*layout);
         let dims = font.character_block(font_size.value);
         let section = sections.get(trigger.entity()).unwrap();

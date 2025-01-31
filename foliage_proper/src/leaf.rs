@@ -1,4 +1,5 @@
 use crate::ash::clip::ClipSection;
+use crate::interaction::CurrentInteraction;
 use crate::Elevation;
 use crate::Logical;
 use crate::Opacity;
@@ -19,6 +20,7 @@ use std::collections::HashSet;
 #[require(Opacity, Visibility, ClipSection)]
 #[require(Section<Logical>, Elevation, InteractionShape, InteractionPropagation)]
 #[component(on_add = Self::on_add)]
+#[component(on_remove = Self::on_remove)]
 pub struct Leaf {}
 
 impl Default for Leaf {
@@ -59,6 +61,26 @@ impl Leaf {
     }
     fn anim_location(trigger: Trigger<Update<Animation<Location>>>, mut tree: Tree) {
         tree.trigger_targets(Update::<Location>::new(), trigger.entity());
+    }
+    fn on_remove(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+        if let Some(mut current) = world.get_resource_mut::<CurrentInteraction>() {
+            if let Some(p) = current.primary {
+                if p == this {
+                    current.primary.take();
+                    return;
+                }
+            }
+            let mut found = false;
+            for ps in current.pass_through.iter() {
+                if *ps == this {
+                    found = true;
+                    break;
+                }
+            }
+            if found {
+                current.pass_through.retain(|p| *p != this);
+            }
+        }
     }
 }
 

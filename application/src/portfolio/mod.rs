@@ -4,9 +4,9 @@ use crate::icons::IconHandles;
 use crate::portfolio::music_player::MusicPlayer;
 use foliage::{
     bevy_ecs, stack, Animation, Attachment, Button, Color, Ease, EcsExtension, Elevation, Event,
-    Foliage, FontSize, Grid, GridExt, IconValue, Image, ImageView, InteractionListener, Keyring,
-    Location, MemoryId, Named, OnClick, OnEnd, Opacity, Panel, Primary, Res, Rounding, Secondary,
-    Stack, Stem, Text, Tree, Trigger,
+    Foliage, FontSize, Grid, GridExt, IconValue, Image, ImageView, Keyring, Location, MemoryId,
+    Named, OnClick, OnEnd, Opacity, Panel, Primary, Res, Rounding, Secondary, Stack, Stem, Text,
+    Tree, Trigger,
 };
 
 impl Attachment for Portfolio {
@@ -31,7 +31,6 @@ impl Portfolio {
                 0.pct().left().with(100.pct().right()),
                 100.pct().top().with(200.pct().bottom()),
             ),
-            InteractionListener::new().scroll(true).pass_through(true),
             Elevation::abs(0),
             Stem::none(),
         ));
