@@ -77,7 +77,9 @@ pub use platform::AndroidApp;
 pub use platform::AndroidConnection;
 pub use shape::{Line, Shape};
 pub use text::GlyphOffset;
-pub use text::{AutoHeight, FontSize, GlyphColors, HorizontalAlignment, Text, VerticalAlignment};
+pub use text::{
+    AutoHeight, AutoWidth, FontSize, GlyphColors, HorizontalAlignment, Text, VerticalAlignment,
+};
 pub use time::{Moment, OnEnd, Time, TimeDelta, TimeMarker, Timer};
 pub use tree::{EcsExtension, Tree};
 pub use visibility::{InheritedVisibility, ResolvedVisibility, Visibility};

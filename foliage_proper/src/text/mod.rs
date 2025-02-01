@@ -54,7 +54,7 @@ impl Attachment for Text {
 #[derive(Component, Clone, PartialEq, Default, Debug)]
 #[require(Color, FontSize, ResolvedFontSize, UpdateCache)]
 #[require(HorizontalAlignment, VerticalAlignment, Glyphs)]
-#[require(ResolvedGlyphs, ResolvedColors, GlyphColors, AutoHeight)]
+#[require(ResolvedGlyphs, ResolvedColors, GlyphColors, AutoHeight, AutoWidth)]
 #[require(UniqueCharacters, Differential<Text, UniqueCharacters>)]
 #[require(Differential<Text, ResolvedFontSize>)]
 #[require(Differential<Text, BlendedOpacity>)]
@@ -151,6 +151,7 @@ impl Text {
         font: Res<MonospacedFont>,
         scale_factor: Res<ScaleFactor>,
         auto_heights: Query<&AutoHeight>,
+        auto_widths: Query<&AutoWidth>,
     ) {
         let this = trigger.entity();
         let mut current = UpdateCache {
@@ -167,10 +168,16 @@ impl Text {
         };
         if cache.get(this).unwrap() != &current {
             let mut glyphs = glyph_query.get_mut(this).unwrap();
+            let auto_width = auto_widths.get(this).unwrap();
+            let width_bounds = if auto_width.0 {
+                None
+            } else {
+                Some(current.section.width())
+            };
             glyphs.layout.reset(&fontdue::layout::LayoutSettings {
                 horizontal_align: current.horizontal_alignment.into(),
                 vertical_align: current.vertical_alignment.into(),
-                max_width: Some(current.section.width()),
+                max_width: width_bounds,
                 max_height: Some(current.section.height()),
                 ..fontdue::layout::LayoutSettings::default()
             });
@@ -189,6 +196,21 @@ impl Text {
                 let adjusted_section = current
                     .section
                     .with_height(glyphs.layout.height())
+                    .to_logical(scale_factor.value());
+                let scaled = adjusted_section.to_physical(scale_factor.value());
+                if current.section != scaled {
+                    current.section = scaled;
+                    tree.entity(this)
+                        .insert(current.clone())
+                        .insert(adjusted_section);
+                } else {
+                    tree.entity(this).insert(current.clone());
+                }
+            } else if auto_width.0 {
+                let dims = font.character_block(current.font_size.value);
+                let adjusted_section = current
+                    .section
+                    .with_width(glyphs.layout.glyphs().len() as f32 * dims.a())
                     .to_logical(scale_factor.value());
                 let scaled = adjusted_section.to_physical(scale_factor.value());
                 if current.section != scaled {
@@ -294,6 +316,8 @@ pub(crate) struct LineMetrics {
 pub(crate) struct TextBounds(pub(crate) Section<Physical>);
 #[derive(Component, Copy, Clone, Default)]
 pub struct AutoHeight(pub bool);
+#[derive(Component, Copy, Clone, Default)]
+pub struct AutoWidth(pub bool);
 #[derive(Copy, Clone, Component, Default, PartialEq)]
 pub(crate) struct UniqueCharacters(pub(crate) u32);
 impl UniqueCharacters {

@@ -119,6 +119,10 @@ impl<Context: CoordinateContext> Section<Context> {
         self.set_height(h);
         self
     }
+    pub(crate) fn with_width(mut self, w: f32) -> Self {
+        self.set_width(w);
+        self
+    }
     pub fn set_height(&mut self, h: CoordinateUnit) {
         self.area.set_height(h);
     }
