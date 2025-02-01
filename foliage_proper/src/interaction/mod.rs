@@ -116,6 +116,16 @@ impl InteractionPropagation {
         self
     }
 }
+#[derive(Component, Copy, Clone, Default)]
+pub struct FocusBehavior(pub(crate) bool);
+impl FocusBehavior {
+    pub fn grab() -> Self {
+        Self(false)
+    }
+    pub fn ignore() -> Self {
+        Self(true)
+    }
+}
 impl Default for InteractionPropagation {
     fn default() -> Self {
         Self {
@@ -134,6 +144,7 @@ pub(crate) fn interactive_elements(
         &InteractionPropagation,
         &InteractionShape,
     )>,
+    behaviors: Query<&FocusBehavior>,
     mut listeners: Query<&mut InteractionListener>,
     mut current: ResMut<CurrentInteraction>,
     contexts: Query<&Stem>,
@@ -204,13 +215,16 @@ pub(crate) fn interactive_elements(
                         tree.trigger_targets(Engaged {}, p);
                     }
                 }
-                if let Some(f) = current.focused.replace(p) {
-                    if f != p {
+                if !behaviors.get(p).unwrap().0 && !event.from_scroll {
+                    if let Some(f) = current.focused.replace(p) {
+                        if f != p {
+                            tree.trigger_targets(Focused {}, p);
+                            println!("replacing {:?} with {:?} as focused", f, p);
+                            tree.trigger_targets(Unfocused {}, f);
+                        }
+                    } else {
                         tree.trigger_targets(Focused {}, p);
-                        tree.trigger_targets(Unfocused {}, f);
                     }
-                } else {
-                    tree.trigger_targets(Focused {}, p);
                 }
                 current.click = Click::new(event.position);
                 current.last_drag = event.position;
@@ -224,6 +238,7 @@ pub(crate) fn interactive_elements(
             }
             if current.primary.is_none() {
                 if let Some(f) = current.focused.take() {
+                    println!("none resetting-focus");
                     tree.trigger_targets(Unfocused {}, f);
                 }
             }

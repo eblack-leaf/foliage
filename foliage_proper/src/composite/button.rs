@@ -1,6 +1,6 @@
 use crate::{
-    handle_replace, stack, Attachment, Disengaged, EcsExtension, Elevation, Engaged, Foliage,
-    FontSize, Grid, GridExt, HorizontalAlignment, Icon, IconValue, InteractionListener,
+    handle_replace, stack, Attachment, Disengaged, EcsExtension, Elevation, Engaged, FocusBehavior,
+    Foliage, FontSize, Grid, GridExt, HorizontalAlignment, Icon, IconValue, InteractionListener,
     InteractionPropagation, Location, Outline, Panel, Primary, Rounding, Secondary, Stack, Stem,
     Text, TextValue, Tree, Update, VerticalAlignment, Visibility,
 };
@@ -40,8 +40,8 @@ impl Button {
             .observe(Self::update_icon)
             .observe(Self::forward_outline)
             .observe(Self::update_outline)
-            .observe(Self::forward_shape)
-            .observe(Self::update_shape)
+            .observe(Self::forward_rounding)
+            .observe(Self::update_rounding)
             .observe(Self::forward_primary)
             .observe(Self::update_primary)
             .observe(Self::forward_secondary)
@@ -226,17 +226,17 @@ impl Button {
             tree.entity(handle.text).insert(primary.0);
         }
     }
-    fn update_shape(
+    fn update_rounding(
         trigger: Trigger<Update<Rounding>>,
-        shapes: Query<&Rounding>,
+        roundings: Query<&Rounding>,
         handles: Query<&Handle>,
         mut tree: Tree,
     ) {
         let this = trigger.entity();
-        let shape = shapes.get(this).unwrap();
+        let round = roundings.get(this).unwrap();
         tree.entity(this).insert(InteractionListener::new());
         let handle = handles.get(this).unwrap();
-        let icon_location = match shape {
+        let icon_location = match round {
             Rounding::Full => Location::new().xs(
                 50.pct().center_x().with(24.px().width()),
                 50.pct().center_y().with(24.px().height()),
@@ -247,7 +247,7 @@ impl Button {
             ),
         };
         tree.entity(handle.icon).insert(icon_location);
-        match shape {
+        match round {
             Rounding::Full => {
                 tree.entity(handle.panel).insert(Rounding::Full);
                 tree.entity(handle.text).insert(Visibility::new(false));
@@ -260,7 +260,7 @@ impl Button {
             }
         }
     }
-    fn forward_shape(trigger: Trigger<OnInsert, Rounding>, mut tree: Tree) {
+    fn forward_rounding(trigger: Trigger<OnInsert, Rounding>, mut tree: Tree) {
         tree.trigger_targets(Update::<Rounding>::new(), trigger.entity());
     }
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
@@ -277,6 +277,7 @@ impl Button {
                 1.row().top().with(1.row().bottom()),
             ),
             InteractionPropagation::pass_through(),
+            FocusBehavior::ignore(),
             Elevation::up(1),
         ));
         let icon = world.commands().leaf((
@@ -284,6 +285,7 @@ impl Button {
             Elevation::up(2),
             Stem::some(this),
             InteractionPropagation::pass_through(),
+            FocusBehavior::ignore(),
         ));
         let text = world.commands().leaf((
             Text::new(""),
@@ -296,6 +298,7 @@ impl Button {
                 1.row().top().with(1.row().bottom()),
             ),
             InteractionPropagation::pass_through(),
+            FocusBehavior::ignore(),
         ));
         let handle = Handle { panel, icon, text };
         world.commands().entity(this).insert(handle);

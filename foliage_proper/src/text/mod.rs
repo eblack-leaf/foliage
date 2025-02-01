@@ -169,15 +169,15 @@ impl Text {
         if cache.get(this).unwrap() != &current {
             let mut glyphs = glyph_query.get_mut(this).unwrap();
             let auto_width = auto_widths.get(this).unwrap();
-            let width_bounds = if auto_width.0 {
-                None
-            } else {
-                Some(current.section.width())
-            };
+            let auto_height = auto_heights.get(this).unwrap();
             glyphs.layout.reset(&fontdue::layout::LayoutSettings {
                 horizontal_align: current.horizontal_alignment.into(),
                 vertical_align: current.vertical_alignment.into(),
-                max_width: width_bounds,
+                max_width: if auto_width.0 {
+                    None
+                } else {
+                    Some(current.section.width())
+                },
                 max_height: Some(current.section.height()),
                 ..fontdue::layout::LayoutSettings::default()
             });
@@ -189,40 +189,29 @@ impl Text {
                     0,
                 ),
             );
-            tree.entity(this)
-                .insert(UniqueCharacters::count(&current.text));
-            let auto_height = auto_heights.get(this).unwrap();
-            if auto_height.0 {
-                let adjusted_section = current
-                    .section
-                    .with_height(glyphs.layout.height())
-                    .to_logical(scale_factor.value());
-                let scaled = adjusted_section.to_physical(scale_factor.value());
-                if current.section != scaled {
-                    current.section = scaled;
-                    tree.entity(this)
-                        .insert(current.clone())
-                        .insert(adjusted_section);
-                } else {
-                    tree.entity(this).insert(current.clone());
-                }
+            let dims = font.character_block(current.font_size.value);
+            let adjusted = if auto_height.0 {
+                Some(
+                    current
+                        .section
+                        .with_height(glyphs.layout.height())
+                        .to_logical(scale_factor.value()),
+                )
             } else if auto_width.0 {
-                let dims = font.character_block(current.font_size.value);
-                let adjusted_section = current
-                    .section
-                    .with_width(glyphs.layout.glyphs().len() as f32 * dims.a())
-                    .to_logical(scale_factor.value());
-                let scaled = adjusted_section.to_physical(scale_factor.value());
+                Some(
+                    current
+                        .section
+                        .with_width(glyphs.layout.glyphs().len() as f32 * dims.a())
+                        .to_logical(scale_factor.value()),
+                )
+            } else {
+                None
+            };
+            if let Some(adjusted) = adjusted {
+                let scaled = adjusted.to_physical(scale_factor.value());
                 if current.section != scaled {
                     current.section = scaled;
-                    tree.entity(this)
-                        .insert(current.clone())
-                        .insert(adjusted_section);
-                } else {
-                    tree.entity(this).insert(current.clone());
                 }
-            } else {
-                tree.entity(this).insert(current.clone());
             }
             let mut line_metrics = LineMetrics::default();
             if let Some(lines) = glyphs.layout.lines() {
@@ -230,12 +219,15 @@ impl Text {
                     line_metrics.lines.push(line.glyph_end as u32);
                 }
             }
-            let block = font.character_block(current.font_size.value);
-            let max = (current.section.width() / block.a()).floor() as u32;
+            let max = (current.section.width() / dims.a()).floor() as u32;
             line_metrics.max_letter_idx_horizontal = max.checked_sub(1).unwrap_or_default();
             tree.entity(this)
+                .insert(UniqueCharacters::count(&current.text))
                 .insert(TextBounds(current.section))
                 .insert(line_metrics);
+            if let Some(adjusted) = adjusted {
+                tree.entity(this).insert(adjusted);
+            }
             tree.trigger_targets(Write::<Text>::new(), this);
         }
     }

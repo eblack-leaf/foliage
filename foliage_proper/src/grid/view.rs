@@ -6,7 +6,14 @@ use std::collections::HashSet;
 #[derive(Component, Copy, Clone, Debug, Default)]
 pub(crate) struct ViewAdjustment(pub(crate) Position<Logical>);
 #[derive(Component, Copy, Clone, Debug)]
-#[require(ViewAdjustment)]
+pub struct OverscrollPropagation(pub bool);
+impl Default for OverscrollPropagation {
+    fn default() -> Self {
+        OverscrollPropagation(true)
+    }
+}
+#[derive(Component, Copy, Clone, Debug)]
+#[require(ViewAdjustment, OverscrollPropagation)]
 pub struct View {
     pub offset: Position<Logical>,
     pub extent: Section<Logical>,
@@ -28,10 +35,12 @@ fn ovrscrl(
     entity: Entity,
     ovr: Position<Logical>,
     views: &mut Query<&mut View>,
+    propagations: &Query<&OverscrollPropagation>,
     contexts: &Query<(Entity, Ref<Stem>)>,
     sections: &Query<(Entity, Ref<Section<Logical>>)>,
     to_trigger: &mut HashSet<Entity>,
 ) -> (Option<Entity>, Position<Logical>) {
+    let propagation = propagations.get(entity).unwrap();
     let old_offset = views.get(entity).unwrap().offset;
     let mut view = views.get_mut(entity).unwrap();
     view.offset += ovr;
@@ -64,11 +73,15 @@ fn ovrscrl(
     if old_offset != view.offset {
         to_trigger.insert(entity);
     }
+    if !propagation.0 {
+        return (None, Position::default());
+    }
     (contexts.get(entity).unwrap().1.id, over)
 }
 pub(crate) fn extent_check_v2(
     adjustments: Query<(Entity, &ViewAdjustment), Changed<ViewAdjustment>>,
     mut views: Query<&mut View>,
+    propagations: Query<&OverscrollPropagation>,
     contexts: Query<(Entity, Ref<Stem>)>,
     sections: Query<(Entity, Ref<Section<Logical>>)>,
     mut tree: Tree,
@@ -131,6 +144,7 @@ pub(crate) fn extent_check_v2(
             *entity,
             Position::default(),
             &mut views,
+            &propagations,
             &contexts,
             &sections,
             &mut to_trigger,
@@ -143,12 +157,12 @@ pub(crate) fn extent_check_v2(
             to_trigger.insert(*entity);
         }
     }
-
     for entity in to_check {
         let mut overscroll = ovrscrl(
             entity,
             Position::default(),
             &mut views,
+            &propagations,
             &contexts,
             &sections,
             &mut to_trigger,
@@ -159,6 +173,7 @@ pub(crate) fn extent_check_v2(
                 id,
                 overscroll.1,
                 &mut views,
+                &propagations,
                 &contexts,
                 &sections,
                 &mut to_trigger,

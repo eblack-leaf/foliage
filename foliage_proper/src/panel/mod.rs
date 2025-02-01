@@ -147,18 +147,18 @@ pub enum Rounding {
 }
 impl Rounding {
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+        if *world.get::<Rounding>(this).unwrap() == Rounding::Full {
+            world
+                .commands()
+                .entity(this)
+                .insert(InteractionShape::Circle);
+        } else {
+            world
+                .commands()
+                .entity(this)
+                .insert(InteractionShape::Rectangle);
+        }
         if world.get::<Panel>(this).is_some() {
-            if *world.get::<Rounding>(this).unwrap() == Rounding::Full {
-                world
-                    .commands()
-                    .entity(this)
-                    .insert(InteractionShape::Circle);
-            } else {
-                world
-                    .commands()
-                    .entity(this)
-                    .insert(InteractionShape::Rectangle);
-            }
             world.trigger_targets(Update::<Self>::new(), this);
         }
     }

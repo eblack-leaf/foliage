@@ -58,13 +58,15 @@ pub use coordinate::elevation::{Elevation, ResolvedElevation};
 pub use disable::Disable;
 pub use enable::Enable;
 pub use foliage::Foliage;
-pub use grid::{auto, stack, AspectRatio, Grid, Layout, Location, View};
+pub use grid::{
+    auto, stack, view::OverscrollPropagation, AspectRatio, Grid, Layout, Location, View,
+};
 pub use grid::{GridExt, Justify, Stack, StackDeps, StackDescriptor};
 pub use icon::{Icon, IconId, IconMemory};
 pub use image::{Image, ImageMemory, ImageMetrics, ImageView, MemoryId};
 pub use interaction::{
     listener::InteractionListener, listener::InteractionShape, listener::InteractionState,
-    InputSequence, Interaction, InteractionPhase, InteractionPropagation, OnClick,
+    FocusBehavior, InputSequence, Interaction, InteractionPhase, InteractionPropagation, OnClick,
 };
 pub use interaction::{Disengaged, Dragged, Engaged, Focused, Unfocused};
 pub use leaf::{Branch, Leaf, Stem};

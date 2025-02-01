@@ -5,10 +5,11 @@ use crate::interaction::CurrentInteraction;
 use crate::text::monospaced::MonospacedFont;
 use crate::text::{Glyphs, LineMetrics};
 use crate::{
-    Attachment, Component, Composite, Dragged, EcsExtension, Elevation, Engaged, Foliage, FontSize,
-    GlyphOffset, Grid, GridExt, InputSequence, InteractionListener, InteractionPropagation, Layout,
-    Location, Logical, Opacity, Panel, Primary, Resource, Rounding, Secondary, Section, Stack,
-    Stem, Tertiary, Text, TextValue, Tree, Unfocused, Update, Write,
+    stack, Attachment, Component, Composite, Dragged, EcsExtension, Elevation, Engaged,
+    FocusBehavior, Foliage, FontSize, GlyphOffset, Grid, GridExt, InputSequence,
+    InteractionListener, InteractionPropagation, Layout, Location, Logical, Opacity,
+    OverscrollPropagation, Panel, Primary, Resource, Rounding, Secondary, Section, Stack, Stem,
+    Tertiary, Text, TextValue, Tree, Unfocused, Update, Write,
 };
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
@@ -27,12 +28,14 @@ use winit::keyboard::{Key, ModifiersState, NamedKey, SmolStr};
 pub struct TextInput {
     pub(crate) highlight_range: Range<GlyphOffset>,
     pub(crate) cursor_location: GlyphOffset,
+    pub(crate) currently_highlighting: bool,
 }
 impl TextInput {
     pub fn new() -> Self {
         Self {
             highlight_range: Default::default(),
             cursor_location: 0,
+            currently_highlighting: false,
         }
     }
     fn on_add(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
@@ -64,6 +67,7 @@ impl TextInput {
             Grid::new(1.letters(), 1.letters()),
             Elevation::up(0),
             InteractionPropagation::pass_through(),
+            FocusBehavior::ignore(),
             Stem::some(this),
         ));
         let cursor = world.commands().leaf((
@@ -76,20 +80,19 @@ impl TextInput {
                 1.col().top().with(1.col().bottom()),
             ),
             InteractionPropagation::pass_through(),
+            FocusBehavior::ignore(),
         ));
         let highlighter = world.commands().leaf((
             Panel::new(),
             Elevation::up(3),
             Rounding::Full,
             Stem::some(panel),
-            // use tertiary
-            Opacity::new(0.0), // turn on w/ cursor
+            Opacity::new(0.0),
             InteractionPropagation::grab().disable_drag(),
             Stack::new(cursor),
             InteractionListener::new(),
-            // TODO fixed location stacking on cursor (until selected + dragged => free up to follow mouse)
-            // and read interaction.click.current to set Location + read col / row to set highlight
-            // plus add observer to ViewAdjust root [this] when near ClipSection edges w/ Tolerance
+            FocusBehavior::ignore(),
+            TextInputLink { root: this },
         ));
         world
             .commands()
@@ -104,8 +107,9 @@ impl TextInput {
             Elevation::up(2),
             TextInputLink { root: this },
             InteractionPropagation::pass_through(),
+            FocusBehavior::ignore(),
         ));
-        world.commands().entity(text).observe(Self::write_text);
+        world.commands().subscribe(text, Self::write_text);
         let handle = Handle {
             panel,
             text,
@@ -136,6 +140,7 @@ impl TextInput {
         trigger: Trigger<Update<TextValue>>,
         mut tree: Tree,
         mut handles: Query<&mut Handle>,
+        mut text_inputs: Query<&mut TextInput>,
         tv: Query<&TextValue>,
     ) {
         println!("update_text_value");
@@ -145,6 +150,13 @@ impl TextInput {
         tree.entity(handle.text).insert(Text::new(&t.0));
         // clear highlighting as they are invalid offsets now text has changed
         tree.entity(handle.cursor).insert(Opacity::new(0.0));
+        tree.entity(handle.highlighter).insert(Opacity::new(0.0));
+        text_inputs
+            .get_mut(trigger.entity())
+            .unwrap()
+            .currently_highlighting = false;
+        tree.entity(trigger.entity())
+            .insert(OverscrollPropagation(true));
         for (o, e) in handle.highlights.drain() {
             tree.remove(e);
         }
@@ -350,6 +362,7 @@ impl TextInput {
                             Elevation::up(1),
                             location,
                             tertiary.get(link.root).unwrap().0,
+                            FocusBehavior::ignore(),
                         ));
                         handle.highlights.insert(g.byte_offset, h);
                     }
@@ -357,6 +370,7 @@ impl TextInput {
             }
         }
     }
+    const HIGHLIGHT_SCROLL_THRESHOLD: f32 = 10.0;
     fn highlight_range(
         trigger: Trigger<Dragged>,
         mut tree: Tree,
@@ -376,20 +390,42 @@ impl TextInput {
     ) {
         println!("highlight_range");
         if let Ok(link) = links.get(trigger.entity()) {
-            // TODO if !currently-highlighting => set true
-            // TODO if trigger.entity() Section near ClipSection edge => ViewAdjust for link.root
-            // TODO update Location to be current_interaction.click.current.left().center_x() / .top().center_y()
-            // w/ stack().width().width().adjust(a) ?
             let current = current_interaction.click().current;
+            let mut text_input = text_inputs.get_mut(link.root).unwrap();
+            text_input.currently_highlighting = true;
+            tree.entity(link.root).insert(OverscrollPropagation(false));
             let font_size = font_sizes.get(link.root).unwrap().resolve(*layout);
             let dims = font.character_block(font_size.value);
             let section = sections.get(link.root).unwrap();
+            let clip = clips.get(link.root).unwrap();
+            if current.left() - clip.0.left() < Self::HIGHLIGHT_SCROLL_THRESHOLD {
+                // move left
+            } else if current.top() - clip.0.top() < Self::HIGHLIGHT_SCROLL_THRESHOLD {
+                // move up
+            } else if clip.0.bottom() - current.top() < Self::HIGHLIGHT_SCROLL_THRESHOLD {
+                // move down
+            } else if clip.0.right() - current.left() < Self::HIGHLIGHT_SCROLL_THRESHOLD {
+                // move right
+            }
             let relative = current - section.position - (4, 4).into();
             let (x, y) = (
                 (relative.left().max(0.0) / dims.a()) as u32,
                 (relative.top().max(0.0) / dims.b()) as u32,
             );
             let mut handle = handles.get_mut(link.root).unwrap();
+            let location = Location::new().xs(
+                relative
+                    .left()
+                    .px()
+                    .center_x()
+                    .with(Self::HIGHLIGHTER_DIM.px().width()),
+                relative
+                    .top()
+                    .px()
+                    .center_y()
+                    .with(Self::HIGHLIGHTER_DIM.px().height()),
+            );
+            tree.entity(handle.highlighter).insert(location);
             let metrics = line_metrics.get(handle.text).unwrap();
             let row = y.min(metrics.lines.len().checked_sub(1).unwrap_or_default() as u32);
             let column = x
@@ -401,7 +437,7 @@ impl TextInput {
                         .unwrap_or_default(),
                 )
                 .min(metrics.max_letter_idx_horizontal);
-            let mut text_input = text_inputs.get_mut(link.root).unwrap();
+
             for (o, e) in handle.highlights.iter() {
                 tree.write_to(*e, Opacity::new(0.0)); // turn off highlight before remaking range
             }
@@ -437,6 +473,8 @@ impl TextInput {
                             Elevation::up(1),
                             location,
                             tertiary.get(link.root).unwrap().0,
+                            InteractionPropagation::pass_through(),
+                            FocusBehavior::ignore(),
                         ));
                         handle.highlights.insert(g.byte_offset, h);
                     }
@@ -444,6 +482,7 @@ impl TextInput {
             }
         }
     }
+    const HIGHLIGHTER_DIM: i32 = 20;
     fn place_cursor(
         trigger: Trigger<Engaged>,
         mut tree: Tree,
@@ -458,66 +497,89 @@ impl TextInput {
         scale_factor: Res<ScaleFactor>,
         mut text_inputs: Query<&mut TextInput>,
     ) {
-        println!("place_cursor");
-        // TODO if !currently-highlighting => set highlighter location to BASE stack().right().left().adjust(8)
-        let begin = current_interaction.click().start;
-        let font_size = font_sizes.get(trigger.entity()).unwrap().resolve(*layout);
-        let dims = font.character_block(font_size.value);
-        let section = sections.get(trigger.entity()).unwrap();
-        let relative = begin - section.position - (4, 4).into();
-        let (x, y) = (
-            (relative.left().max(0.0) / dims.a()) as u32,
-            (relative.top().max(0.0) / dims.b()) as u32,
-        );
-        let handle = handles.get(trigger.entity()).unwrap();
-        let metrics = line_metrics.get(handle.text).unwrap();
-        println!(
-            "metrics {:?} {}",
-            metrics.lines, metrics.max_letter_idx_horizontal
-        );
-        let row = y.min(metrics.lines.len().checked_sub(1).unwrap_or_default() as u32);
-        let column = x
-            .min(
-                metrics
-                    .lines
-                    .get(row as usize)
-                    .and_then(|l| Some(l + 1))
-                    .unwrap_or_default(),
-            )
-            .min(metrics.max_letter_idx_horizontal);
-        println!("column {} row {} begin {}", column, row, begin);
-        tree.entity(handle.cursor)
-            .insert(Location::new().xs(
-                (column + 1).col().left().with((column + 1).col().right()),
-                (row + 1).row().top().with((row + 1).row().bottom()),
-            ))
-            .insert(Opacity::new(1.0));
         let mut text_input = text_inputs.get_mut(trigger.entity()).unwrap();
-        let glyph = glyphs.get(handle.text).unwrap();
-        let co = glyph
-            .layout
-            .glyphs()
-            .last()
-            .and_then(|l| Some(l.byte_offset + 1))
-            .unwrap_or_default();
-        text_input.cursor_location = co;
-        text_input.highlight_range = co..co;
-        for g in glyph.layout.glyphs() {
-            if (g.x / dims.a()) as u32 == column {
-                if (g.y / dims.b()) as u32 == row {
-                    println!("cursor on {}", g.byte_offset);
-                    text_input.cursor_location = g.byte_offset;
-                    text_input.highlight_range = g.byte_offset..g.byte_offset;
+        if !text_input.currently_highlighting {
+            println!("place_cursor");
+            let begin = current_interaction.click().start;
+            let font_size = font_sizes.get(trigger.entity()).unwrap().resolve(*layout);
+            let dims = font.character_block(font_size.value);
+            let section = sections.get(trigger.entity()).unwrap();
+            let relative = begin - section.position - (4, 4).into();
+            let (x, y) = (
+                (relative.left().max(0.0) / dims.a()) as u32,
+                (relative.top().max(0.0) / dims.b()) as u32,
+            );
+            let handle = handles.get(trigger.entity()).unwrap();
+            let metrics = line_metrics.get(handle.text).unwrap();
+            println!(
+                "metrics {:?} {}",
+                metrics.lines, metrics.max_letter_idx_horizontal
+            );
+            let row = y.min(metrics.lines.len().checked_sub(1).unwrap_or_default() as u32);
+            let column = x
+                .min(
+                    metrics
+                        .lines
+                        .get(row as usize)
+                        .and_then(|l| Some(l + 1))
+                        .unwrap_or_default(),
+                )
+                .min(metrics.max_letter_idx_horizontal);
+            println!("column {} row {} begin {}", column, row, begin);
+            tree.entity(handle.cursor)
+                .insert(Location::new().xs(
+                    (column + 1).col().left().with((column + 1).col().right()),
+                    (row + 1).row().top().with((row + 1).row().bottom()),
+                ))
+                .insert(Opacity::new(1.0));
+            let stacked = Location::new().xs(
+                stack()
+                    .right()
+                    .left()
+                    .adjust(8)
+                    .with(Self::HIGHLIGHTER_DIM.px().width()),
+                stack()
+                    .center_y()
+                    .center_y()
+                    .with(Self::HIGHLIGHTER_DIM.px().height()),
+            );
+            tree.entity(handle.highlighter)
+                .insert(Opacity::new(1.0))
+                .insert(stacked);
+            let glyph = glyphs.get(handle.text).unwrap();
+            let co = glyph
+                .layout
+                .glyphs()
+                .last()
+                .and_then(|l| Some(l.byte_offset + 1))
+                .unwrap_or_default();
+            text_input.cursor_location = co;
+            text_input.highlight_range = co..co;
+            for g in glyph.layout.glyphs() {
+                if (g.x / dims.a()) as u32 == column {
+                    if (g.y / dims.b()) as u32 == row {
+                        println!("cursor on {}", g.byte_offset);
+                        text_input.cursor_location = g.byte_offset;
+                        text_input.highlight_range = g.byte_offset..g.byte_offset;
+                    }
                 }
             }
         }
     }
-    fn clear_cursor(trigger: Trigger<Unfocused>, mut tree: Tree, mut handles: Query<&mut Handle>) {
+    fn clear_cursor(
+        trigger: Trigger<Unfocused>,
+        mut tree: Tree,
+        mut handles: Query<&mut Handle>,
+        mut text_inputs: Query<&mut TextInput>,
+    ) {
         println!("clear_cursor");
-        let mut handle = handles.get_mut(trigger.entity()).unwrap();
+        let this = trigger.entity();
+        let mut handle = handles.get_mut(this).unwrap();
         tree.entity(handle.cursor).insert(Opacity::new(0.0));
         tree.entity(handle.highlighter).insert(Opacity::new(0.0));
-        // TODO clear currently-highlighting
+        text_inputs.get_mut(this).unwrap().currently_highlighting = false;
+        tree.entity(this).insert(OverscrollPropagation(true));
+        text_inputs.get_mut(this).unwrap().highlight_range = Default::default();
         for (o, e) in handle.highlights.drain() {
             tree.remove(e);
         }

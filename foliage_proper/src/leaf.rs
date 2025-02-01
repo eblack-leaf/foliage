@@ -6,7 +6,8 @@ use crate::Opacity;
 use crate::Section;
 use crate::Visibility;
 use crate::{
-    Animation, Component, InteractionPropagation, InteractionShape, Location, Tree, Update,
+    Animation, Component, FocusBehavior, InteractionPropagation, InteractionShape, Location, Tree,
+    Update,
 };
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
@@ -18,7 +19,7 @@ use std::collections::HashSet;
 #[derive(Component)]
 #[require(Stem, Branch)]
 #[require(Opacity, Visibility, ClipSection)]
-#[require(Section<Logical>, Elevation, InteractionShape, InteractionPropagation)]
+#[require(Section<Logical>, Elevation, InteractionShape, InteractionPropagation, FocusBehavior)]
 #[component(on_add = Self::on_add)]
 #[component(on_remove = Self::on_remove)]
 pub struct Leaf {}
