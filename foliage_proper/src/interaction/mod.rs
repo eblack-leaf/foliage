@@ -201,7 +201,9 @@ pub(crate) fn interactive_elements(
                         }
                     }
                 } else {
-                    current.pass_through.push(entity);
+                    if InteractionListener::is_contained(*shape, *section, *clip, event.position) {
+                        current.pass_through.push(entity);
+                    }
                 }
             }
             if let Some(p) = current.primary {
