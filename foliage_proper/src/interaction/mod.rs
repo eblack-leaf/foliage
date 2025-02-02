@@ -44,7 +44,7 @@ pub struct Interaction {
     method: InteractionMethod,
 }
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq, Default)]
-pub(crate) enum InteractionMethod {
+pub enum InteractionMethod {
     ScrollWheel,
     #[default]
     TouchScreen,

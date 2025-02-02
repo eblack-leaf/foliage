@@ -6,6 +6,7 @@ use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::Ginkgo;
 use crate::remove::Remove;
 use crate::time::{OnEnd, Time};
+use crate::virtual_keyboard::VirtualKeyboardAdapter;
 use crate::willow::Willow;
 use crate::{
     AndroidConnection, Animate, Animation, Area, Attachment, Button, Color, Disable, EcsExtension,
@@ -126,6 +127,7 @@ impl Foliage {
         Location::attach(&mut foliage);
         Named::attach(&mut foliage);
         TextInput::attach(&mut foliage);
+        VirtualKeyboardAdapter::attach(&mut foliage);
         foliage
     }
     pub fn attach<A: Attachment>(&mut self) {

@@ -4,6 +4,7 @@ use crate::ginkgo::ScaleFactor;
 use crate::interaction::CurrentInteraction;
 use crate::text::monospaced::MonospacedFont;
 use crate::text::{Glyphs, LineMetrics};
+use crate::virtual_keyboard::{VirtualKeyboardAdapter, VirtualKeyboardType};
 use crate::{
     Attachment, Component, Composite, Dragged, EcsExtension, Elevation, Engaged, FocusBehavior,
     Foliage, FontSize, GlyphOffset, Grid, GridExt, InputSequence, InteractionListener,
@@ -936,7 +937,9 @@ impl TextInput {
         scale_factor: Res<ScaleFactor>,
         mut text_inputs: Query<&mut TextInput>,
         tertiaries: Query<&Tertiary>,
+        keyboard: Res<VirtualKeyboardAdapter>,
     ) {
+        keyboard.open(VirtualKeyboardType::Keyboard);
         let mut text_input = text_inputs.get_mut(trigger.entity()).unwrap();
         tree.entity(trigger.entity())
             .insert(OverscrollPropagation(true));
@@ -1004,7 +1007,9 @@ impl TextInput {
         mut tree: Tree,
         mut handles: Query<&mut Handle>,
         mut text_inputs: Query<&mut TextInput>,
+        keyboard: Res<VirtualKeyboardAdapter>,
     ) {
+        keyboard.close();
         println!("clear_cursor");
         let this = trigger.entity();
         let mut handle = handles.get_mut(this).unwrap();

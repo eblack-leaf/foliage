@@ -1,7 +1,7 @@
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::Resource;
 
-use crate::AndroidConnection;
+use crate::{AndroidConnection, Attachment, Foliage};
 
 /// Adapter to interface with soft-input (VirtualKeyboard)
 #[derive(Resource)]
@@ -9,7 +9,11 @@ pub struct VirtualKeyboardAdapter {
     #[allow(unused)]
     interface: AndroidConnection,
 }
-
+impl Attachment for VirtualKeyboardAdapter {
+    fn attach(foliage: &mut Foliage) {
+        foliage.world.insert_resource(VirtualKeyboardAdapter::new(foliage.android_connection));
+    }
+}
 /// VirtualKeyboard Type for opening different pads on web/mobile
 #[allow(unused)]
 #[derive(Component, Copy, Clone)]
