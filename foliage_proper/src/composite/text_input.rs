@@ -242,11 +242,125 @@ impl TextInput {
         if let Some(focused) = current_interaction.focused {
             if let Ok(mut text_input) = text_inputs.get_mut(focused) {
                 let mut handle = handles.get_mut(focused).unwrap();
+                let mut current = text_values.get_mut(focused).unwrap();
+                let metrics = metrics.get(handle.text).unwrap();
+                let glyphs = glyphs.get(handle.text).unwrap();
+                let fsv = font_sizes.get(handle.text).unwrap().resolve(*layout).value;
+                let dims = font.character_block(fsv);
                 if let Some(action) = key_bindings.action(&trigger.event()) {
                     // TODO process action
-                    // TODO currently-highlighting = false;
+                    match action {
+                        TextInputAction::Backspace => {
+                            let a = SmolStr::new("");
+                            if !text_input.highlight_range.is_empty() {
+                                for i in text_input.highlight_range.clone().rev() {
+                                    if current.0.get(i..i + 1).is_some() {
+                                        current.0.remove(i);
+                                    }
+                                }
+                                if text_input.range_backwards {
+                                    text_input.cursor_location += 1; // adjust for cursor space
+                                    text_input.cursor_location = text_input
+                                        .cursor_location
+                                        .checked_sub(text_input.highlight_range.len())
+                                        .unwrap_or_default();
+                                }
+                            } else {
+                                // delete previous character if there + move cursor back one
+                                let idx_begin = text_input
+                                    .cursor_location
+                                    .checked_sub(1)
+                                    .unwrap_or_default();
+                                if current.0.get(idx_begin..idx_begin + 1).is_some() {
+                                    current.0.remove(idx_begin);
+                                }
+                                text_input.cursor_location = idx_begin;
+                                if let Some(found) = glyphs
+                                    .layout
+                                    .glyphs()
+                                    .iter()
+                                    .find(|g| g.byte_offset == text_input.cursor_location)
+                                {
+                                    let col = (found.x / dims.a()) as u32;
+                                    let row = (found.y / dims.b()) as u32;
+                                    let location = Location::new().xs(
+                                        (col + 1).col().left().with((col + 1).col().right()),
+                                        (row + 1).row().top().with((row + 1).row().bottom()),
+                                    );
+                                    text_input.cursor_col_row = (col as usize, row as usize);
+                                    tree.entity(handle.cursor).insert(location);
+                                } else {
+                                    if text_input.cursor_location == 0 {
+                                        let col = 0;
+                                        let row = 0;
+                                        let location = Location::new().xs(
+                                            (col + 1).col().left().with((col + 1).col().right()),
+                                            (row + 1).row().top().with((row + 1).row().bottom()),
+                                        );
+                                        text_input.cursor_col_row = (col as usize, row as usize);
+                                        tree.entity(handle.cursor).insert(location);
+                                    } else {
+                                        let mut scan = Some(
+                                            text_input
+                                                .cursor_location
+                                                .checked_sub(1)
+                                                .unwrap_or_default(),
+                                        );
+                                        while let Some(s) = scan {
+                                            if let Some(found) = glyphs
+                                                .layout
+                                                .glyphs()
+                                                .iter()
+                                                .find(|g| g.byte_offset == s)
+                                            {
+                                                let col = (found.x / dims.a()) as u32;
+                                                let col = (col + 1)
+                                                    .min(metrics.max_letter_idx_horizontal);
+                                                let row = (found.y / dims.b()) as u32;
+                                                let location = Location::new().xs(
+                                                    (col + 1)
+                                                        .col()
+                                                        .left()
+                                                        .with((col + 1).col().right()),
+                                                    (row + 1)
+                                                        .row()
+                                                        .top()
+                                                        .with((row + 1).row().bottom()),
+                                                );
+                                                text_input.cursor_col_row =
+                                                    (col as usize, row as usize);
+                                                tree.entity(handle.cursor).insert(location);
+                                                break;
+                                            } else {
+                                                if s == 0 {
+                                                    let col = 0;
+                                                    let row = 0;
+                                                    let location = Location::new().xs(
+                                                        (col + 1)
+                                                            .col()
+                                                            .left()
+                                                            .with((col + 1).col().right()),
+                                                        (row + 1)
+                                                            .row()
+                                                            .top()
+                                                            .with((row + 1).row().bottom()),
+                                                    );
+                                                    text_input.cursor_col_row =
+                                                        (col as usize, row as usize);
+                                                    tree.entity(handle.cursor).insert(location);
+                                                    break;
+                                                }
+                                                scan = s.checked_sub(1);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            tree.entity(handle.text).insert(Text::new(&current.0));
+                        }
+                        _ => {}
+                    }
                 } else {
-                    let mut current = text_values.get_mut(focused).unwrap();
                     let (append, cursor_update) = match &trigger.event().key {
                         Key::Named(named) => {
                             match named {
@@ -286,10 +400,6 @@ impl TextInput {
                         text_input.cursor_location += a.len();
                         tree.entity(handle.text).insert(Text::new(&current.0));
                     } else if let Some(cursor_update) = cursor_update {
-                        let metrics = metrics.get(handle.text).unwrap();
-                        let glyphs = glyphs.get(handle.text).unwrap();
-                        let fsv = font_sizes.get(handle.text).unwrap().resolve(*layout).value;
-                        let dims = font.character_block(fsv);
                         match cursor_update {
                             CursorMove::Left => {
                                 text_input.cursor_location = text_input
@@ -328,17 +438,28 @@ impl TextInput {
                                                 .unwrap_or_default(),
                                         );
                                         while let Some(s) = scan {
-                                            if let Some(found) =
-                                                glyphs.layout.glyphs().iter().find(|g| g.byte_offset == s)
+                                            if let Some(found) = glyphs
+                                                .layout
+                                                .glyphs()
+                                                .iter()
+                                                .find(|g| g.byte_offset == s)
                                             {
                                                 let col = (found.x / dims.a()) as u32;
-                                                let col = (col + 1).min(metrics.max_letter_idx_horizontal);
+                                                let col = (col + 1)
+                                                    .min(metrics.max_letter_idx_horizontal);
                                                 let row = (found.y / dims.b()) as u32;
                                                 let location = Location::new().xs(
-                                                    (col + 1).col().left().with((col + 1).col().right()),
-                                                    (row + 1).row().top().with((row + 1).row().bottom()),
+                                                    (col + 1)
+                                                        .col()
+                                                        .left()
+                                                        .with((col + 1).col().right()),
+                                                    (row + 1)
+                                                        .row()
+                                                        .top()
+                                                        .with((row + 1).row().bottom()),
                                                 );
-                                                text_input.cursor_col_row = (col as usize, row as usize);
+                                                text_input.cursor_col_row =
+                                                    (col as usize, row as usize);
                                                 tree.entity(handle.cursor).insert(location);
                                                 break;
                                             } else {
@@ -346,10 +467,17 @@ impl TextInput {
                                                     let col = 0;
                                                     let row = 0;
                                                     let location = Location::new().xs(
-                                                        (col + 1).col().left().with((col + 1).col().right()),
-                                                        (row + 1).row().top().with((row + 1).row().bottom()),
+                                                        (col + 1)
+                                                            .col()
+                                                            .left()
+                                                            .with((col + 1).col().right()),
+                                                        (row + 1)
+                                                            .row()
+                                                            .top()
+                                                            .with((row + 1).row().bottom()),
                                                     );
-                                                    text_input.cursor_col_row = (col as usize, row as usize);
+                                                    text_input.cursor_col_row =
+                                                        (col as usize, row as usize);
                                                     tree.entity(handle.cursor).insert(location);
                                                     break;
                                                 }
@@ -360,8 +488,8 @@ impl TextInput {
                                 }
                             }
                             CursorMove::Right => {
-                                text_input.cursor_location = (text_input.cursor_location + 1)
-                                    .min(metrics.max_letter_idx_horizontal as usize);
+                                text_input.cursor_location =
+                                    (text_input.cursor_location + 1).min(current.0.len());
                                 if let Some(found) = glyphs
                                     .layout
                                     .glyphs()
@@ -394,17 +522,28 @@ impl TextInput {
                                                 .unwrap_or_default(),
                                         );
                                         while let Some(s) = scan {
-                                            if let Some(found) =
-                                                glyphs.layout.glyphs().iter().find(|g| g.byte_offset == s)
+                                            if let Some(found) = glyphs
+                                                .layout
+                                                .glyphs()
+                                                .iter()
+                                                .find(|g| g.byte_offset == s)
                                             {
                                                 let col = (found.x / dims.a()) as u32;
-                                                let col = (col + 1).min(metrics.max_letter_idx_horizontal);
+                                                let col = (col + 1)
+                                                    .min(metrics.max_letter_idx_horizontal);
                                                 let row = (found.y / dims.b()) as u32;
                                                 let location = Location::new().xs(
-                                                    (col + 1).col().left().with((col + 1).col().right()),
-                                                    (row + 1).row().top().with((row + 1).row().bottom()),
+                                                    (col + 1)
+                                                        .col()
+                                                        .left()
+                                                        .with((col + 1).col().right()),
+                                                    (row + 1)
+                                                        .row()
+                                                        .top()
+                                                        .with((row + 1).row().bottom()),
                                                 );
-                                                text_input.cursor_col_row = (col as usize, row as usize);
+                                                text_input.cursor_col_row =
+                                                    (col as usize, row as usize);
                                                 tree.entity(handle.cursor).insert(location);
                                                 break;
                                             } else {
@@ -412,10 +551,17 @@ impl TextInput {
                                                     let col = 0;
                                                     let row = 0;
                                                     let location = Location::new().xs(
-                                                        (col + 1).col().left().with((col + 1).col().right()),
-                                                        (row + 1).row().top().with((row + 1).row().bottom()),
+                                                        (col + 1)
+                                                            .col()
+                                                            .left()
+                                                            .with((col + 1).col().right()),
+                                                        (row + 1)
+                                                            .row()
+                                                            .top()
+                                                            .with((row + 1).row().bottom()),
                                                     );
-                                                    text_input.cursor_col_row = (col as usize, row as usize);
+                                                    text_input.cursor_col_row =
+                                                        (col as usize, row as usize);
                                                     tree.entity(handle.cursor).insert(location);
                                                     break;
                                                 }
@@ -445,7 +591,7 @@ impl TextInput {
                                     tree.entity(handle.cursor).insert(location);
                                 } else {
                                     col = col.checked_sub(1).unwrap_or_default();
-                                    while col >= 0 {
+                                    loop {
                                         if let Some(f) = glyphs.layout.glyphs().iter().find(|g| {
                                             (g.x / dims.a()).floor() as usize == col
                                                 && (g.y / dims.b()).floor() as usize == ar
@@ -466,13 +612,12 @@ impl TextInput {
                                         }
                                         if col == 0 {
                                             let c = 0;
-                                            let r = 0;
                                             let location = Location::new().xs(
                                                 (c + 1).col().left().with((c + 1).col().right()),
-                                                (r + 1).row().top().with((r + 1).row().bottom()),
+                                                (ar + 1).row().top().with((ar + 1).row().bottom()),
                                             );
                                             text_input.cursor_location = 0;
-                                            text_input.cursor_col_row = (c as usize, r as usize);
+                                            text_input.cursor_col_row = (c as usize, ar);
                                             tree.entity(handle.cursor).insert(location);
                                             break;
                                         }
@@ -497,7 +642,7 @@ impl TextInput {
                                     tree.entity(handle.cursor).insert(location);
                                 } else {
                                     col = col.checked_sub(1).unwrap_or_default();
-                                    while col >= 0 {
+                                    loop {
                                         if let Some(f) = glyphs.layout.glyphs().iter().find(|g| {
                                             (g.x / dims.a()).floor() as usize == col
                                                 && (g.y / dims.b()).floor() as usize == ar
@@ -518,13 +663,12 @@ impl TextInput {
                                         }
                                         if col == 0 {
                                             let c = 0;
-                                            let r = 0;
                                             let location = Location::new().xs(
                                                 (c + 1).col().left().with((c + 1).col().right()),
-                                                (r + 1).row().top().with((r + 1).row().bottom()),
+                                                (ar + 1).row().top().with((ar + 1).row().bottom()),
                                             );
                                             text_input.cursor_location = 0;
-                                            text_input.cursor_col_row = (c as usize, r as usize);
+                                            text_input.cursor_col_row = (c as usize, ar);
                                             tree.entity(handle.cursor).insert(location);
                                             break;
                                         }
@@ -534,13 +678,13 @@ impl TextInput {
                             }
                         };
                     }
-                    tree.entity(handle.cursor)
-                        .insert(tertiaries.get(focused).unwrap().0)
-                        .insert(InteractionPropagation::grab().disable_drag());
-                    text_input.highlight_range = Default::default();
-                    for (o, e) in handle.highlights.drain() {
-                        tree.remove(e);
-                    }
+                }
+                tree.entity(handle.cursor)
+                    .insert(tertiaries.get(focused).unwrap().0)
+                    .insert(InteractionPropagation::grab().disable_drag());
+                text_input.highlight_range = Default::default();
+                for (o, e) in handle.highlights.drain() {
+                    tree.remove(e);
                 }
             }
         }

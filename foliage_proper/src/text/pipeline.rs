@@ -38,6 +38,7 @@ pub(crate) struct Group {
     pub(crate) font_size: ResolvedFontSize,
     pub(crate) queued_tex_reads: Vec<(GlyphKey, InstanceId)>,
     pub(crate) bounds: TextBounds,
+    pub(crate) last_reference: HashMap<InstanceId, GlyphKey>,
 }
 
 impl Group {
@@ -59,6 +60,7 @@ impl Group {
             font_size: Default::default(),
             queued_tex_reads: vec![],
             bounds: TextBounds::default(),
+            last_reference: Default::default(),
         }
     }
 }
@@ -275,6 +277,10 @@ impl Render for Text {
                         .as_mut()
                         .unwrap()
                         .remove_reference(glyph.key, glyph.offset);
+                    group
+                        .group
+                        .last_reference
+                        .remove(&(glyph.offset as InstanceId));
                     // MISSING skipping 0 reference entry removal for optimization
                 }
             }
@@ -315,6 +321,20 @@ impl Render for Text {
                     .as_mut()
                     .unwrap()
                     .add_reference(glyph.key, glyph.offset);
+                if let Some(cached) = group
+                    .group
+                    .last_reference
+                    .insert(glyph.offset as InstanceId, glyph.key)
+                {
+                    if cached != glyph.key {
+                        group
+                            .group
+                            .texture_atlas
+                            .as_mut()
+                            .unwrap()
+                            .remove_reference(cached, glyph.offset);
+                    }
+                }
                 group
                     .group
                     .sections

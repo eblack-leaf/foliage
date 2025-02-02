@@ -41,18 +41,25 @@ pub enum InteractionPhase {
 pub struct Interaction {
     click_phase: InteractionPhase,
     position: Position<Logical>,
-    from_scroll: bool,
+    method: InteractionMethod,
+}
+#[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq, Default)]
+pub(crate) enum InteractionMethod {
+    ScrollWheel,
+    #[default]
+    TouchScreen,
+    Mouse,
 }
 impl Interaction {
     pub fn new(
         click_phase: InteractionPhase,
         position: Position<Logical>,
-        from_scroll: bool,
+        method: InteractionMethod,
     ) -> Self {
         Self {
             click_phase,
             position,
-            from_scroll,
+            method,
         }
     }
 }
@@ -75,6 +82,7 @@ impl Click {
 pub struct CurrentInteraction {
     pub(crate) primary: Option<Entity>,
     pub(crate) click: Click,
+    pub(crate) method: InteractionMethod,
     pub(crate) last_drag: Position<Logical>,
     pub(crate) pass_through: Vec<Entity>,
     pub(crate) focused: Option<Entity>,
@@ -207,17 +215,18 @@ pub(crate) fn interactive_elements(
                 }
             }
             if let Some(p) = current.primary {
+                current.method = event.method;
                 current.pass_through = current
                     .pass_through
                     .drain(..)
                     .filter(|ps| all.get(*ps).unwrap().2 >= &grabbed_elevation)
                     .collect::<Vec<_>>();
                 if let Ok(mut listener) = listeners.get_mut(p) {
-                    if !listener.disabled() && !event.from_scroll {
+                    if !listener.disabled() && event.method != InteractionMethod::ScrollWheel {
                         tree.trigger_targets(Engaged {}, p);
                     }
                 }
-                if !behaviors.get(p).unwrap().0 && !event.from_scroll {
+                if !behaviors.get(p).unwrap().0 && event.method != InteractionMethod::ScrollWheel {
                     if let Some(f) = current.focused.replace(p) {
                         if f != p {
                             tree.trigger_targets(Focused {}, p);
@@ -233,7 +242,7 @@ pub(crate) fn interactive_elements(
             }
             for ps in current.pass_through.iter() {
                 if let Ok(mut listener) = listeners.get_mut(*ps) {
-                    if !listener.disabled() && !event.from_scroll {
+                    if !listener.disabled() && event.method != InteractionMethod::ScrollWheel {
                         tree.trigger_targets(Engaged {}, *ps);
                     }
                 }
@@ -277,14 +286,14 @@ pub(crate) fn interactive_elements(
                 current.last_drag = event.position;
                 current.click.current = event.position;
                 if let Ok(mut listener) = listeners.get_mut(p) {
-                    if !listener.disabled() && !event.from_scroll {
+                    if !listener.disabled() && event.method != InteractionMethod::ScrollWheel {
                         tree.trigger_targets(Dragged {}, p);
                     }
                 }
             }
             for ps in current.pass_through.iter() {
                 if let Ok(mut listener) = listeners.get_mut(*ps) {
-                    if !listener.disabled() && !event.from_scroll {
+                    if !listener.disabled() && event.method != InteractionMethod::ScrollWheel {
                         tree.trigger_targets(Dragged {}, *ps);
                     }
                 }
@@ -292,7 +301,10 @@ pub(crate) fn interactive_elements(
         }
         if let Some(event) = ended.last() {
             if let Some(p) = current.primary {
-                if current.past_drag || event.from_scroll && !all.get(p).unwrap().4.disable_drag {
+                if current.past_drag
+                    || event.method == InteractionMethod::ScrollWheel
+                    && !all.get(p).unwrap().4.disable_drag
+                {
                     let diff = current.last_drag - event.position;
                     if let Ok(_) = views.get(p) {
                         tree.entity(p).insert(ViewAdjustment(diff));
@@ -314,7 +326,7 @@ pub(crate) fn interactive_elements(
                 current.click.end.replace(event.position);
                 if let Ok(mut listener) = listeners.get_mut(p) {
                     let data = all.get(p).unwrap();
-                    if !listener.disabled() && !event.from_scroll {
+                    if !listener.disabled() && event.method != InteractionMethod::ScrollWheel {
                         if InteractionListener::is_contained(
                             *data.5,
                             *data.1,
@@ -330,7 +342,7 @@ pub(crate) fn interactive_elements(
             for ps in current.pass_through.drain(..) {
                 if let Ok(mut listener) = listeners.get_mut(ps) {
                     let data = all.get(ps).unwrap();
-                    if !listener.disabled() && !event.from_scroll {
+                    if !listener.disabled() && event.method != InteractionMethod::ScrollWheel {
                         if InteractionListener::is_contained(
                             *data.5,
                             *data.1,

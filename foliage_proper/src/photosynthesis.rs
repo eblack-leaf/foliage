@@ -2,7 +2,7 @@ use crate::foliage::Foliage;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::ScaleFactor;
 use crate::interaction::{
-    Interaction, InteractionPhase, KeyboardAdapter, MouseAdapter, TouchAdapter,
+    Interaction, InteractionMethod, InteractionPhase, KeyboardAdapter, MouseAdapter, TouchAdapter,
 };
 use crate::Position;
 use tracing::trace;
@@ -181,8 +181,16 @@ impl Foliage {
                     .expect("vh")
                     .section()
                     .position;
-                let event = Interaction::new(InteractionPhase::Start, vh + cursor, true);
-                let end_event = Interaction::new(InteractionPhase::End, vh + cursor + px, true);
+                let event = Interaction::new(
+                    InteractionPhase::Start,
+                    vh + cursor,
+                    InteractionMethod::ScrollWheel,
+                );
+                let end_event = Interaction::new(
+                    InteractionPhase::End,
+                    vh + cursor + px,
+                    InteractionMethod::ScrollWheel,
+                );
                 self.world.send_event(event);
                 self.world.send_event(end_event);
             }

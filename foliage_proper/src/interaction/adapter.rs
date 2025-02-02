@@ -1,7 +1,7 @@
 use crate::coordinate::position::Position;
 use crate::coordinate::Logical;
 use crate::ginkgo::ScaleFactor;
-use crate::interaction::{Interaction, InteractionPhase};
+use crate::interaction::{Interaction, InteractionMethod, InteractionPhase};
 use crate::{Event, Resource};
 use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, MouseButton, Touch, TouchPhase};
@@ -25,21 +25,37 @@ impl TouchAdapter {
         if self.primary.is_none() {
             if touch.phase == TouchPhase::Started {
                 self.primary.replace(touch.id);
-                return Some(Interaction::new(InteractionPhase::Start, position, false));
+                return Some(Interaction::new(
+                    InteractionPhase::Start,
+                    position,
+                    InteractionMethod::TouchScreen,
+                ));
             }
         } else if self.primary.unwrap() == touch.id {
             match touch.phase {
                 TouchPhase::Started => {}
                 TouchPhase::Moved => {
-                    return Some(Interaction::new(InteractionPhase::Moved, position, false));
+                    return Some(Interaction::new(
+                        InteractionPhase::Moved,
+                        position,
+                        InteractionMethod::TouchScreen,
+                    ));
                 }
                 TouchPhase::Ended => {
                     self.primary.take();
-                    return Some(Interaction::new(InteractionPhase::End, position, false));
+                    return Some(Interaction::new(
+                        InteractionPhase::End,
+                        position,
+                        InteractionMethod::TouchScreen,
+                    ));
                 }
                 TouchPhase::Cancelled => {
                     self.primary.take();
-                    return Some(Interaction::new(InteractionPhase::Cancel, position, false));
+                    return Some(Interaction::new(
+                        InteractionPhase::Cancel,
+                        position,
+                        InteractionMethod::TouchScreen,
+                    ));
                 }
             }
         }
@@ -64,14 +80,18 @@ impl MouseAdapter {
         }
         if self.started && !state.is_pressed() {
             self.started = false;
-            return Some(Interaction::new(InteractionPhase::End, self.cursor, false));
+            return Some(Interaction::new(
+                InteractionPhase::End,
+                self.cursor,
+                InteractionMethod::Mouse,
+            ));
         }
         if !self.started && state.is_pressed() {
             self.started = true;
             return Some(Interaction::new(
                 InteractionPhase::Start,
                 self.cursor,
-                false,
+                InteractionMethod::Mouse,
             ));
         }
         None
@@ -89,7 +109,7 @@ impl MouseAdapter {
             return Some(Interaction::new(
                 InteractionPhase::Moved,
                 adjusted_position + viewport_position,
-                false,
+                InteractionMethod::Mouse,
             ));
         }
         None
@@ -121,7 +141,7 @@ impl KeyboardAdapter {
         repeat: bool,
     ) -> Option<InputSequence> {
         if state.is_pressed() && !repeat {
-            return Some(InputSequence::new(key, self.mods));
+            Some(InputSequence::new(key, self.mods))
         } else {
             None
         }
