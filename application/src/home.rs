@@ -329,7 +329,7 @@ impl Home {
         let spacing = tree.leaf((
             Location::new().xs(
                 0.pct().left().with(100.pct().right()),
-                18.row().top().with(18.row().bottom()),
+                17.row().top().with(17.row().bottom()),
             ),
             Stem::some(root),
         ));
