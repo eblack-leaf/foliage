@@ -4,7 +4,7 @@ use foliage::{
     bevy_ecs, stack, Animation, Attachment, Button, Color, EcsExtension, Elevation, Event, Foliage,
     FontSize, GlyphColors, Grid, GridExt, HorizontalAlignment, HrefLink, IconValue, Line, Location,
     Logical, OnClick, OnEnd, Opacity, Outline, Primary, Query, Rounding, Secondary, Section, Stack,
-    Stem, Tertiary, Text, TextInput, TextValue, Tree, Trigger, VerticalAlignment, Write,
+    Stem, Text, TextValue, Tree, Trigger, VerticalAlignment, Write,
 };
 
 impl Attachment for Home {
@@ -325,20 +325,6 @@ impl Home {
             Elevation::up(1),
             Stem::some(root),
             Outline::new(2),
-        ));
-        let tester = tree.leaf((
-            TextInput::new(),
-            Primary(Color::gray(200)),
-            Secondary(Color::gray(700)),
-            Tertiary(Color::gray(400)),
-            FontSize::new(20),
-            TextValue("Tester".to_string()),
-            Location::new().xs(
-                0.pct().left().with(100.pct().right()),
-                19.row().top().with(20.row().bottom()),
-            ),
-            Elevation::up(1),
-            Stem::some(root),
         ));
         let spacing = tree.leaf((
             Location::new().xs(

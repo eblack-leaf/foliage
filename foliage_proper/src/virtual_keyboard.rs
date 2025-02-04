@@ -11,7 +11,9 @@ pub struct VirtualKeyboardAdapter {
 }
 impl Attachment for VirtualKeyboardAdapter {
     fn attach(foliage: &mut Foliage) {
-        foliage.world.insert_resource(VirtualKeyboardAdapter::new(foliage.android_connection));
+        foliage
+            .world
+            .insert_resource(VirtualKeyboardAdapter::new(foliage.android_connection));
     }
 }
 /// VirtualKeyboard Type for opening different pads on web/mobile

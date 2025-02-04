@@ -230,7 +230,6 @@ pub(crate) fn interactive_elements(
                     if let Some(f) = current.focused.replace(p) {
                         if f != p {
                             tree.trigger_targets(Focused {}, p);
-                            println!("replacing {:?} with {:?} as focused", f, p);
                             tree.trigger_targets(Unfocused {}, f);
                         }
                     } else {
@@ -249,7 +248,6 @@ pub(crate) fn interactive_elements(
             }
             if current.primary.is_none() {
                 if let Some(f) = current.focused.take() {
-                    println!("none resetting-focus");
                     tree.trigger_targets(Unfocused {}, f);
                 }
             }
@@ -303,7 +301,7 @@ pub(crate) fn interactive_elements(
             if let Some(p) = current.primary {
                 if current.past_drag
                     || event.method == InteractionMethod::ScrollWheel
-                    && !all.get(p).unwrap().4.disable_drag
+                        && !all.get(p).unwrap().4.disable_drag
                 {
                     let diff = current.last_drag - event.position;
                     if let Ok(_) = views.get(p) {
