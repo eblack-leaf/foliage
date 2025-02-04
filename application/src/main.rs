@@ -5,6 +5,7 @@ use crate::icons::IconHandles;
 
 use crate::portfolio::Portfolio;
 
+use crate::portfolio::music_player::MusicPlayer;
 use foliage::{load_asset, Foliage, Icon, Image};
 
 mod home;
@@ -21,10 +22,13 @@ fn main() {
     foliage.url("foliage");
     foliage.attach::<Home>();
     foliage.attach::<Portfolio>();
+    foliage.attach::<MusicPlayer>();
     let music_player = load_asset!(foliage, "assets/music-player.png");
     foliage.world.spawn(Image::memory(0, (689, 591)));
     let artist_blog = load_asset!(foliage, "assets/artist-blog.png");
     foliage.world.spawn(Image::memory(1, (1298, 785)));
+    let album_cover = load_asset!(foliage, "assets/artist-blog.png");
+    foliage.world.spawn(Image::memory(2, (1298, 785)));
     foliage.world.spawn(Icon::memory(
         IconHandles::Box.value(),
         include_bytes!("assets/icons/box.icon"),
@@ -57,8 +61,13 @@ fn main() {
         IconHandles::X.value(),
         include_bytes!("assets/icons/x.icon"),
     ));
+    foliage.world.spawn(Icon::memory(
+        IconHandles::Menu.value(),
+        include_bytes!("assets/icons/menu.icon"),
+    ));
     foliage.store(music_player, "music-player");
     foliage.store(artist_blog, "artist-blog");
+    foliage.store(album_cover, "album-cover");
     foliage.send(Home {});
     foliage.photosynthesize(); // run
 }

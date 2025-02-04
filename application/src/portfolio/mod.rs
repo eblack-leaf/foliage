@@ -1,4 +1,4 @@
-mod music_player;
+pub(crate) mod music_player;
 
 use crate::icons::IconHandles;
 use crate::portfolio::music_player::MusicPlayer;
@@ -40,11 +40,11 @@ impl Portfolio {
                 0.pct().left().with(100.pct().right()),
                 0.pct().top().with(100.pct().bottom()),
             ))
-            .start(0)
-            .finish(1000)
-            .targeting(root)
-            .during(seq)
-            .eased(Ease::EMPHASIS),
+                .start(0)
+                .finish(1000)
+                .targeting(root)
+                .during(seq)
+                .eased(Ease::EMPHASIS),
         );
         tree.animate(
             Animation::new(Opacity::new(0.0))
@@ -58,11 +58,11 @@ impl Portfolio {
                 0.pct().left().with(100.pct().right()),
                 (-100).pct().top().with(0.pct().bottom()),
             ))
-            .start(0)
-            .finish(1000)
-            .targeting(home)
-            .eased(Ease::EMPHASIS)
-            .during(seq),
+                .start(0)
+                .finish(1000)
+                .targeting(home)
+                .eased(Ease::EMPHASIS)
+                .during(seq),
         );
         let back = tree.leaf((
             Button::new(),
@@ -227,21 +227,21 @@ impl Portfolio {
                                 .with(100.pct().bottom().adjust(-36)),
                         ),
                     )
-                    .targeting(backdrop)
-                    .start(0)
-                    .finish(750)
-                    .eased(Ease::INWARD)
-                    .during(seq),
+                        .targeting(backdrop)
+                        .start(0)
+                        .finish(750)
+                        .eased(Ease::INWARD)
+                        .during(seq),
                 );
                 tree.animate(
                     Animation::new(Location::new().xs(
                         0.pct().left().with(100.pct().right()),
                         0.pct().top().with(100.pct().bottom()),
                     ))
-                    .targeting(backdrop)
-                    .start(1000)
-                    .finish(1500)
-                    .during(seq),
+                        .targeting(backdrop)
+                        .start(1000)
+                        .finish(1500)
+                        .during(seq),
                 );
                 let terminate = tree.leaf((
                     Button::new(),
@@ -262,6 +262,7 @@ impl Portfolio {
                         0.pct().left().with(100.pct().right()),
                         0.pct().top().with(100.pct().bottom()),
                     ),
+                    Opacity::new(0.0),
                 ));
                 match i {
                     0 => tree.send_to(MusicPlayer {}, app),
@@ -271,13 +272,6 @@ impl Portfolio {
                     terminate,
                     move |trigger: Trigger<OnClick>, mut tree: Tree| {
                         let seq = tree.sequence();
-                        tree.animate(
-                            Animation::new(Opacity::new(0.0))
-                                .targeting(app)
-                                .during(seq)
-                                .start(0)
-                                .finish(500),
-                        );
                         tree.animate(
                             Animation::new(Opacity::new(0.0))
                                 .targeting(terminate)
@@ -299,21 +293,21 @@ impl Portfolio {
                                         .with(100.pct().bottom().adjust(-36)),
                                 ),
                             )
-                            .targeting(backdrop)
-                            .start(0)
-                            .finish(500)
-                            .eased(Ease::INWARD)
-                            .during(seq),
+                                .targeting(backdrop)
+                                .start(0)
+                                .finish(500)
+                                .eased(Ease::INWARD)
+                                .during(seq),
                         );
                         tree.animate(
                             Animation::new(Location::new().xs(
                                 stack().left().left().with(stack().right().right()),
                                 stack().top().top().with(stack().bottom().bottom()),
                             ))
-                            .targeting(backdrop)
-                            .start(750)
-                            .finish(1250)
-                            .during(seq),
+                                .targeting(backdrop)
+                                .start(750)
+                                .finish(1250)
+                                .during(seq),
                         );
                         tree.animate(
                             Animation::new(Opacity::new(1.0))
@@ -330,8 +324,9 @@ impl Portfolio {
                                 .during(seq),
                         );
                         tree.disable(terminate);
+                        tree.remove(app);
                         tree.sequence_end(seq, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
-                            tree.remove([terminate, backdrop, app]);
+                            tree.remove([terminate, backdrop]);
                             tree.enable([root, back]);
                         });
                     },
@@ -368,22 +363,22 @@ impl Portfolio {
                     0.pct().left().with(100.pct().right()),
                     0.pct().top().with(100.pct().bottom()),
                 ))
-                .start(0)
-                .finish(1000)
-                .targeting(home)
-                .eased(Ease::EMPHASIS)
-                .during(s),
+                    .start(0)
+                    .finish(1000)
+                    .targeting(home)
+                    .eased(Ease::EMPHASIS)
+                    .during(s),
             );
             tree.animate(
                 Animation::new(Location::new().xs(
                     0.pct().left().with(100.pct().right()),
                     100.pct().top().with(200.pct().bottom()),
                 ))
-                .start(0)
-                .finish(1000)
-                .targeting(root)
-                .eased(Ease::EMPHASIS)
-                .during(s),
+                    .start(0)
+                    .finish(1000)
+                    .targeting(root)
+                    .eased(Ease::EMPHASIS)
+                    .during(s),
             );
             tree.sequence_end(s, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
                 tree.remove([root, back]);
