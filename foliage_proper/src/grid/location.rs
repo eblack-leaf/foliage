@@ -488,10 +488,39 @@ fn resolve(
         for pt in resolution.points.data.iter_mut() {
             *pt -= view.offset;
         }
+        let unconstrained = resolution.section;
+        if let Some(a) = aspect_ratio {
+            let ratio = if let Some(r) = a.config(layout) {
+                r
+            } else {
+                1.0
+            };
+            if config.horizontal.a.value == LocationValue::Auto
+                && config.horizontal.a.designator == Designator::Width
+                || config.horizontal.b.value == LocationValue::Auto
+                && config.horizontal.b.designator == Designator::Width
+            {
+                resolution
+                    .section
+                    .set_width(resolution.section.height() * ratio);
+            } else if config.vertical.b.value == LocationValue::Auto
+                && config.vertical.b.designator == Designator::Height
+                || config.vertical.a.value == LocationValue::Auto
+                && config.vertical.a.designator == Designator::Height
+            {
+                resolution
+                    .section
+                    .set_height(resolution.section.width() * 1f32 / ratio);
+            } else {
+                if let Some(constrained) = a.constrain(resolution.section, layout) {
+                    resolution.section = constrained;
+                }
+            }
+        }
         if let Some(max_w) = config.horizontal.max {
             let val = resolution.section.width().min(max_w);
-            if val < resolution.section.width() {
-                let diff = resolution.section.width() - val;
+            if val < unconstrained.width() {
+                let diff = unconstrained.width() - val;
                 match config.horizontal.justify {
                     Justify::Near => {
                         // Do nothing
@@ -519,8 +548,8 @@ fn resolve(
         }
         if let Some(max_h) = config.vertical.max {
             let val = resolution.section.height().min(max_h);
-            if val < resolution.section.height() {
-                let diff = resolution.section.height() - val;
+            if val < unconstrained.height() {
+                let diff = unconstrained.height() - val;
                 match config.horizontal.justify {
                     Justify::Near => {
                         // Do nothing
@@ -547,57 +576,6 @@ fn resolve(
                 .set_width(resolution.section.height().max(min_h));
         }
         resolution.section.area = resolution.section.area.max((0, 0));
-        if let Some(a) = aspect_ratio {
-            let ratio = if let Some(r) = a.config(layout) {
-                r
-            } else {
-                1.0
-            };
-            if config.horizontal.a.value == LocationValue::Auto
-                && config.horizontal.a.designator == Designator::Width
-                || config.horizontal.b.value == LocationValue::Auto
-                    && config.horizontal.b.designator == Designator::Width
-            {
-                resolution
-                    .section
-                    .set_width(resolution.section.height() * ratio);
-            } else if config.vertical.b.value == LocationValue::Auto
-                && config.vertical.b.designator == Designator::Height
-                || config.vertical.a.value == LocationValue::Auto
-                    && config.vertical.a.designator == Designator::Height
-            {
-                resolution
-                    .section
-                    .set_height(resolution.section.width() * 1f32 / ratio);
-            } else {
-                if let Some(constrained) = a.constrain(resolution.section, layout) {
-                    let diff = resolution.section.area - constrained.area;
-                    resolution.section = constrained;
-                    match config.horizontal.justify {
-                        Justify::Near => {}
-                        Justify::Far => {
-                            resolution.section.position.coordinates +=
-                                diff.coordinates * (1.0, 0.0).into();
-                        }
-                        Justify::Center => {
-                            resolution.section.position.coordinates +=
-                                diff.coordinates * (0.5, 0.0).into();
-                        }
-                    }
-                    match config.vertical.justify {
-                        Justify::Near => {}
-                        Justify::Far => {
-                            resolution.section.position.coordinates +=
-                                diff.coordinates * (0.0, 1.0).into();
-                        }
-                        Justify::Center => {
-                            resolution.section.position.coordinates +=
-                                diff.coordinates * (0.0, 0.5).into();
-                        }
-                    }
-                }
-            }
-        }
         Some(resolution)
     } else {
         None

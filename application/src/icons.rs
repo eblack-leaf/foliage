@@ -9,6 +9,11 @@ pub(crate) enum IconHandles {
     ArrowUp,
     X,
     Menu,
+    Play,
+    Shuffle,
+    Repeat,
+    SkipLeft,
+    SkipRight,
 }
 impl IconHandles {
     pub(crate) fn value(self) -> i32 {

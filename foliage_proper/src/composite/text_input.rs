@@ -6,11 +6,11 @@ use crate::text::monospaced::MonospacedFont;
 use crate::text::{Glyphs, LineMetrics};
 use crate::virtual_keyboard::{VirtualKeyboardAdapter, VirtualKeyboardType};
 use crate::{
-    Attachment, Component, Composite, Dragged, EcsExtension, Elevation, Engaged, FocusBehavior,
-    Foliage, FontSize, GlyphOffset, Grid, GridExt, InputSequence, InteractionListener,
-    InteractionPropagation, Layout, Location, Logical, Opacity, OverscrollPropagation, Panel,
-    Primary, Resource, Secondary, Section, Stem, Tertiary, Text, TextValue, Tree, Unfocused,
-    Update, Write,
+    Attachment, AutoHeight, AutoWidth, Component, Composite, Dragged, EcsExtension, Elevation,
+    Engaged, FocusBehavior, Foliage, FontSize, GlyphOffset, Grid, GridExt, InputSequence,
+    InteractionListener, InteractionPropagation, Layout, Location, Logical, Opacity,
+    OverscrollPropagation, Panel, Primary, Resource, Secondary, Section, Stem, Tertiary, Text,
+    TextValue, Tree, Unfocused, Update, Write,
 };
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
@@ -31,6 +31,7 @@ pub struct TextInput {
     pub(crate) range_backwards: bool,
     pub(crate) cursor_location: GlyphOffset,
     pub(crate) cursor_col_row: (usize, usize),
+    pub(crate) multiline: bool,
 }
 impl TextInput {
     pub fn new() -> Self {
@@ -39,7 +40,12 @@ impl TextInput {
             range_backwards: false,
             cursor_location: 0,
             cursor_col_row: (0, 0),
+            multiline: false,
         }
+    }
+    pub fn multiline(mut self) -> Self {
+        self.multiline = true;
+        self
     }
     fn on_add(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
         world
@@ -90,7 +96,7 @@ impl TextInput {
         world.commands().disable(cursor);
         world.commands().subscribe(cursor, Self::highlight_range);
         world.commands().subscribe(cursor, Self::engage_cursor);
-        // TODO text SingleLine => AutoWidth(true) [no max-width + set width in Update] or MultiLine => AutoHeight(true) [existing impl]
+        let is_multiline = world.get::<TextInput>(this).unwrap().multiline;
         let text = world.commands().leaf((
             Stem::some(panel),
             Location::new().xs(
@@ -101,6 +107,16 @@ impl TextInput {
             TextInputLink { root: this },
             InteractionPropagation::pass_through(),
             FocusBehavior::ignore(),
+            if is_multiline {
+                AutoHeight(true)
+            } else {
+                AutoHeight(false)
+            },
+            if !is_multiline {
+                AutoWidth(true)
+            } else {
+                AutoWidth(false)
+            },
         ));
         world.commands().subscribe(text, Self::write_text);
         let handle = Handle {

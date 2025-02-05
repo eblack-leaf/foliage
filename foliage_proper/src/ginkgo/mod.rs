@@ -305,7 +305,7 @@ impl Ginkgo {
             Ok(surface) => Some(surface),
             Err(err) => match err {
                 SurfaceError::Timeout => {
-                    panic!("Timed out while waiting for surface")
+                    None
                 }
                 SurfaceError::Outdated | SurfaceError::Lost => {
                     context

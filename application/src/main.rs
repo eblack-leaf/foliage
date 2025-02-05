@@ -27,8 +27,11 @@ fn main() {
     foliage.world.spawn(Image::memory(0, (689, 591)));
     let artist_blog = load_asset!(foliage, "assets/artist-blog.png");
     foliage.world.spawn(Image::memory(1, (1298, 785)));
-    let album_cover = load_asset!(foliage, "assets/artist-blog.png");
-    foliage.world.spawn(Image::memory(2, (1298, 785)));
+    let album_cover = load_asset!(foliage, "assets/album-cover.jpg");
+    foliage.world.spawn(Image::memory(2, (1800, 1800)));
+    foliage.store(music_player, "music-player");
+    foliage.store(artist_blog, "artist-blog");
+    foliage.store(album_cover, "album-cover");
     foliage.world.spawn(Icon::memory(
         IconHandles::Box.value(),
         include_bytes!("assets/icons/box.icon"),
@@ -65,9 +68,26 @@ fn main() {
         IconHandles::Menu.value(),
         include_bytes!("assets/icons/menu.icon"),
     ));
-    foliage.store(music_player, "music-player");
-    foliage.store(artist_blog, "artist-blog");
-    foliage.store(album_cover, "album-cover");
+    foliage.world.spawn(Icon::memory(
+        IconHandles::Play.value(),
+        include_bytes!("assets/icons/play-circle.icon"),
+    ));
+    foliage.world.spawn(Icon::memory(
+        IconHandles::Shuffle.value(),
+        include_bytes!("assets/icons/shuffle.icon"),
+    ));
+    foliage.world.spawn(Icon::memory(
+        IconHandles::Repeat.value(),
+        include_bytes!("assets/icons/repeat.icon"),
+    ));
+    foliage.world.spawn(Icon::memory(
+        IconHandles::SkipLeft.value(),
+        include_bytes!("assets/icons/chevrons-left.icon"),
+    ));
+    foliage.world.spawn(Icon::memory(
+        IconHandles::SkipRight.value(),
+        include_bytes!("assets/icons/chevrons-right.icon"),
+    ));
     foliage.send(Home {});
     foliage.photosynthesize(); // run
 }
