@@ -200,7 +200,6 @@ impl Location {
                 }
             };
             let current = *sections.get(this).unwrap();
-
             let letter_dims = if let Ok(fs) = font_sizes.get(this) {
                 let f = fs.resolve(*layout);
                 font.character_block(f.value)
@@ -498,7 +497,7 @@ fn resolve(
             if config.horizontal.a.value == LocationValue::Auto
                 && config.horizontal.a.designator == Designator::Width
                 || config.horizontal.b.value == LocationValue::Auto
-                && config.horizontal.b.designator == Designator::Width
+                    && config.horizontal.b.designator == Designator::Width
             {
                 resolution
                     .section
@@ -506,7 +505,7 @@ fn resolve(
             } else if config.vertical.b.value == LocationValue::Auto
                 && config.vertical.b.designator == Designator::Height
                 || config.vertical.a.value == LocationValue::Auto
-                && config.vertical.a.designator == Designator::Height
+                    && config.vertical.a.designator == Designator::Height
             {
                 resolution
                     .section

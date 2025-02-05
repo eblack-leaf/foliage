@@ -6,11 +6,11 @@ use crate::text::monospaced::MonospacedFont;
 use crate::text::{Glyphs, LineMetrics};
 use crate::virtual_keyboard::{VirtualKeyboardAdapter, VirtualKeyboardType};
 use crate::{
-    Attachment, AutoHeight, AutoWidth, Component, Composite, Dragged, EcsExtension, Elevation,
-    Engaged, FocusBehavior, Foliage, FontSize, GlyphOffset, Grid, GridExt, InputSequence,
-    InteractionListener, InteractionPropagation, Layout, Location, Logical, Opacity,
+    auto, Attachment, AutoHeight, AutoWidth, Component, Composite, Dragged, EcsExtension,
+    Elevation, Engaged, FocusBehavior, Foliage, FontSize, GlyphOffset, Grid, GridExt,
+    InputSequence, InteractionListener, InteractionPropagation, Layout, Location, Logical, Opacity,
     OverscrollPropagation, Panel, Primary, Resource, Secondary, Section, Stem, Tertiary, Text,
-    TextValue, Tree, Unfocused, Update, Write,
+    TextValue, Tree, Unfocused, Update, VerticalAlignment, Write,
 };
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
@@ -97,12 +97,25 @@ impl TextInput {
         world.commands().subscribe(cursor, Self::highlight_range);
         world.commands().subscribe(cursor, Self::engage_cursor);
         let is_multiline = world.get::<TextInput>(this).unwrap().multiline;
+        let text_vertical = if is_multiline {
+            0.pct().top().with(auto().height())
+        } else {
+            0.pct().top().with(100.pct().bottom())
+        };
+        let text_horizontal = if is_multiline {
+            0.pct().left().with(100.pct().right())
+        } else {
+            0.pct().left().with(auto().width())
+        };
+        let vertical_align = if is_multiline {
+            VerticalAlignment::Top
+        } else {
+            VerticalAlignment::Middle
+        };
         let text = world.commands().leaf((
+            Text::new(""),
             Stem::some(panel),
-            Location::new().xs(
-                0.pct().left().with(100.pct().right()),
-                0.pct().top().with(100.pct().bottom()),
-            ),
+            Location::new().xs(text_horizontal, text_vertical),
             Elevation::up(3),
             TextInputLink { root: this },
             InteractionPropagation::pass_through(),
@@ -117,6 +130,7 @@ impl TextInput {
             } else {
                 AutoWidth(false)
             },
+            // vertical_align,
         ));
         world.commands().subscribe(text, Self::write_text);
         let handle = Handle {

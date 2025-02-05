@@ -65,8 +65,7 @@ impl AspectRatio {
                 attempted_height = attempted_width * 1.0 / c;
             }
             // let diff = Position::from((section.width() - attempted_width, 0.0)) * 0.5;
-            let constrained =
-                Section::new(section.position, (attempted_width, attempted_height));
+            let constrained = Section::new(section.position, (attempted_width, attempted_height));
             return Some(constrained);
         }
         None

@@ -207,9 +207,15 @@ impl Text {
             } else {
                 None
             };
+            let mut insert_adjusted = false;
             if let Some(adjusted) = adjusted {
                 let scaled = adjusted.to_physical(scale_factor.value());
                 if current.section != scaled {
+                    println!(
+                        "different from {} to {} for {:?}",
+                        current.section, scaled, this
+                    );
+                    insert_adjusted = true;
                     current.section = scaled;
                 }
             }
@@ -224,9 +230,12 @@ impl Text {
             tree.entity(this)
                 .insert(UniqueCharacters::count(&current.text))
                 .insert(TextBounds(current.section))
-                .insert(line_metrics);
+                .insert(line_metrics)
+                .insert(current.clone());
             if let Some(adjusted) = adjusted {
-                tree.entity(this).insert(adjusted);
+                if insert_adjusted {
+                    tree.entity(this).insert(adjusted);
+                }
             }
             tree.trigger_targets(Write::<Text>::new(), this);
         }

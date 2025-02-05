@@ -304,9 +304,7 @@ impl Ginkgo {
         match context.surface.as_ref().unwrap().get_current_texture() {
             Ok(surface) => Some(surface),
             Err(err) => match err {
-                SurfaceError::Timeout => {
-                    None
-                }
+                SurfaceError::Timeout => None,
                 SurfaceError::Outdated | SurfaceError::Lost => {
                     context
                         .surface

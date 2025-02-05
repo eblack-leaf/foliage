@@ -24,7 +24,7 @@ fn main() {
     foliage.attach::<Portfolio>();
     foliage.attach::<MusicPlayer>();
     let music_player = load_asset!(foliage, "assets/music-player.png");
-    foliage.world.spawn(Image::memory(0, (689, 591)));
+    foliage.world.spawn(Image::memory(0, (569, 419)));
     let artist_blog = load_asset!(foliage, "assets/artist-blog.png");
     foliage.world.spawn(Image::memory(1, (1298, 785)));
     let album_cover = load_asset!(foliage, "assets/album-cover.jpg");
@@ -87,6 +87,10 @@ fn main() {
     foliage.world.spawn(Icon::memory(
         IconHandles::SkipRight.value(),
         include_bytes!("assets/icons/chevrons-right.icon"),
+    ));
+    foliage.world.spawn(Icon::memory(
+        IconHandles::Search.value(),
+        include_bytes!("assets/icons/search.icon"),
     ));
     foliage.send(Home {});
     foliage.photosynthesize(); // run
