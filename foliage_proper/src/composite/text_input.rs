@@ -6,8 +6,8 @@ use crate::text::monospaced::MonospacedFont;
 use crate::text::{Glyphs, LineMetrics};
 use crate::virtual_keyboard::VirtualKeyboardAdapter;
 use crate::{
-    auto, Attachment, AutoHeight, AutoWidth, Component, Composite, Dragged, EcsExtension,
-    Elevation, Engaged, FocusBehavior, Foliage, FontSize, GlyphOffset, Grid, GridExt,
+    auto, Attachment, AutoHeight, AutoWidth, Component, Composite, Disengaged, Dragged,
+    EcsExtension, Elevation, Engaged, FocusBehavior, Foliage, FontSize, GlyphOffset, Grid, GridExt,
     InputSequence, InteractionListener, InteractionPropagation, Layout, Location, Logical, Opacity,
     OverscrollPropagation, Panel, Primary, Resource, Secondary, Section, Stem, Tertiary, Text,
     TextValue, Tree, Unfocused, Update, VerticalAlignment, View, Write,
@@ -81,7 +81,7 @@ impl TextInput {
         ));
         let cursor = world.commands().leaf((
             Panel::new(),
-            Elevation::up(2),
+            Elevation::up(3),
             Stem::some(panel),
             Opacity::new(0.0),
             Location::new().xs(
@@ -96,6 +96,7 @@ impl TextInput {
         world.commands().disable(cursor);
         world.commands().subscribe(cursor, Self::highlight_range);
         world.commands().subscribe(cursor, Self::engage_cursor);
+        world.commands().subscribe(cursor, Self::disengage_cursor);
         let is_multiline = world.get::<TextInput>(this).unwrap().multiline;
         let text_vertical = if is_multiline {
             0.pct().top().with(auto().height())
@@ -116,10 +117,11 @@ impl TextInput {
             Text::new(""),
             Stem::some(panel),
             Location::new().xs(text_horizontal, text_vertical),
-            Elevation::up(3),
+            Elevation::up(2),
             TextInputLink { root: this },
-            InteractionPropagation::pass_through(),
-            FocusBehavior::ignore(),
+            InteractionPropagation::grab(),
+            InteractionListener::new(),
+            FocusBehavior::grab(),
             if is_multiline {
                 AutoHeight(true)
             } else {
@@ -133,6 +135,8 @@ impl TextInput {
             // vertical_align,
         ));
         world.commands().subscribe(text, Self::write_text);
+        world.commands().subscribe(text, Self::forward_place_cursor);
+        world.commands().subscribe(text, Self::forward_clear_cursor);
         let handle = Handle {
             panel,
             text,
@@ -268,12 +272,20 @@ impl TextInput {
         font: Res<MonospacedFont>,
         font_sizes: Query<&FontSize>,
         layout: Res<Layout>,
+        links: Query<&TextInputLink>,
     ) {
         println!("typing");
         if let Some(focused) = current_interaction.focused {
-            if let Ok(mut text_input) = text_inputs.get_mut(focused) {
-                let mut handle = handles.get_mut(focused).unwrap();
-                let mut current = text_values.get_mut(focused).unwrap();
+            let (text_input, entity) = if let Ok(ti) = text_inputs.get_mut(focused) {
+                (Some(ti), focused)
+            } else if let Ok(link) = links.get(focused) {
+                (Some(text_inputs.get_mut(link.root).unwrap()), link.root)
+            } else {
+                (None, Entity::PLACEHOLDER)
+            };
+            if let Some(mut text_input) = text_input {
+                let mut handle = handles.get_mut(entity).unwrap();
+                let mut current = text_values.get_mut(entity).unwrap();
                 let metrics = metrics.get(handle.text).unwrap();
                 let glyphs = glyphs.get(handle.text).unwrap();
                 let fsv = font_sizes.get(handle.text).unwrap().resolve(*layout).value;
@@ -716,7 +728,7 @@ impl TextInput {
                     }
                 }
                 tree.entity(handle.cursor)
-                    .insert(tertiaries.get(focused).unwrap().0)
+                    .insert(tertiaries.get(entity).unwrap().0)
                     .insert(InteractionPropagation::grab().disable_drag());
                 text_input.highlight_range = Default::default();
                 for (o, e) in handle.highlights.drain() {
@@ -856,6 +868,18 @@ impl TextInput {
                 .insert(Opacity::new(0.5));
         }
     }
+    fn disengage_cursor(
+        trigger: Trigger<Disengaged>,
+        mut tree: Tree,
+        handles: Query<&Handle>,
+        links: Query<&TextInputLink>,
+    ) {
+        if let Ok(link) = links.get(trigger.entity()) {
+            let handle = handles.get(link.root).unwrap();
+            tree.entity(handle.cursor)
+                .insert(InteractionPropagation::pass_through());
+        }
+    }
     fn highlight_range(
         trigger: Trigger<Dragged>,
         mut tree: Tree,
@@ -893,16 +917,12 @@ impl TextInput {
             } else if clip.0.right() - current.left() < Self::HIGHLIGHT_SCROLL_THRESHOLD {
                 // move right
             }
-
             let relative = current - section.position - (4, 4).into()
                 + views.get(handle.panel).unwrap().offset;
             let (x, y) = (
                 (relative.left().max(0.0) / dims.a()) as u32,
                 (relative.top().max(0.0) / dims.b()) as u32,
             );
-
-            tree.entity(handle.cursor)
-                .insert(InteractionPropagation::pass_through());
             let metrics = line_metrics.get(handle.text).unwrap();
             let row = y.min(metrics.lines.len().checked_sub(1).unwrap_or_default() as u32);
             let column = x
@@ -962,6 +982,15 @@ impl TextInput {
             }
         }
     }
+    fn forward_place_cursor(
+        trigger: Trigger<Engaged>,
+        mut tree: Tree,
+        links: Query<&TextInputLink>,
+    ) {
+        if let Ok(link) = links.get(trigger.entity()) {
+            tree.trigger_targets(Engaged {}, link.root);
+        }
+    }
     fn place_cursor(
         trigger: Trigger<Engaged>,
         mut tree: Tree,
@@ -1019,7 +1048,7 @@ impl TextInput {
                 (column + 1).col().left().with((column + 1).col().right()),
                 (row + 1).row().top().with((row + 1).row().bottom()),
             ))
-            .insert(Opacity::new(1.0))
+            .insert(Opacity::new(0.25))
             .insert(InteractionPropagation::grab().disable_drag())
             .insert(tertiaries.get(trigger.entity()).unwrap().0);
         text_input.cursor_col_row = (column as usize, row as usize);
@@ -1041,6 +1070,15 @@ impl TextInput {
                     text_input.highlight_range = g.byte_offset..g.byte_offset;
                 }
             }
+        }
+    }
+    fn forward_clear_cursor(
+        trigger: Trigger<Unfocused>,
+        mut tree: Tree,
+        links: Query<&TextInputLink>,
+    ) {
+        if let Ok(link) = links.get(trigger.entity()) {
+            tree.trigger_targets(Unfocused {}, link.root);
         }
     }
     fn clear_cursor(
