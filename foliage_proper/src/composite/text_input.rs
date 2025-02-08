@@ -89,14 +89,14 @@ impl TextInput {
                 1.col().top().with(1.col().bottom()),
             ),
             InteractionPropagation::pass_through(),
-            FocusBehavior::ignore(),
+            FocusBehavior::grab(),
             InteractionListener::new(),
             TextInputLink { root: this },
         ));
         world.commands().disable(cursor);
         world.commands().subscribe(cursor, Self::highlight_range);
         world.commands().subscribe(cursor, Self::engage_cursor);
-        world.commands().subscribe(cursor, Self::disengage_cursor);
+        world.commands().subscribe(cursor, Self::unfocused_cursor);
         let is_multiline = world.get::<TextInput>(this).unwrap().multiline;
         let text_vertical = if is_multiline {
             0.pct().top().with(auto().height())
@@ -865,19 +865,31 @@ impl TextInput {
             let handle = handles.get(link.root).unwrap();
             tree.entity(handle.cursor)
                 .insert(primary.0)
-                .insert(Opacity::new(0.5));
+                .insert(Opacity::new(0.75));
         }
     }
-    fn disengage_cursor(
-        trigger: Trigger<Disengaged>,
+    fn unfocused_cursor(
+        trigger: Trigger<Unfocused>,
         mut tree: Tree,
         handles: Query<&Handle>,
         links: Query<&TextInputLink>,
+        current_interaction: Res<CurrentInteraction>,
     ) {
         if let Ok(link) = links.get(trigger.entity()) {
             let handle = handles.get(link.root).unwrap();
-            tree.entity(handle.cursor)
-                .insert(InteractionPropagation::pass_through());
+            let run = if let Some(f) = current_interaction.focused {
+                if f != handle.text && f != link.root {
+                    true
+                } else {
+                    false
+                }
+            } else {
+                true
+            };
+            if run {
+                tree.entity(handle.cursor)
+                    .insert(InteractionPropagation::pass_through());
+            }
         }
     }
     fn highlight_range(
@@ -1087,21 +1099,34 @@ impl TextInput {
         mut handles: Query<&mut Handle>,
         mut text_inputs: Query<&mut TextInput>,
         keyboard: Res<VirtualKeyboardAdapter>,
+        current_interaction: Res<CurrentInteraction>,
     ) {
         // keyboard.close();
-        println!("clear_cursor");
+
         let this = trigger.entity();
         let mut handle = handles.get_mut(this).unwrap();
-        tree.entity(handle.cursor)
-            .insert(Opacity::new(0.0))
-            .insert(InteractionPropagation::pass_through());
-        tree.disable(handle.cursor);
-        tree.entity(this).insert(OverscrollPropagation(true));
-        let mut text_input = text_inputs.get_mut(this).unwrap();
-        text_input.cursor_col_row = (0, 0);
-        text_input.highlight_range = Default::default();
-        for (o, e) in handle.highlights.drain() {
-            tree.remove(e);
+        let run = if let Some(f) = current_interaction.focused {
+            if f != handle.text && f != handle.cursor && f != this {
+                true
+            } else {
+                false
+            }
+        } else {
+            true
+        };
+        if run {
+            println!("clear_cursor");
+            tree.entity(handle.cursor)
+                .insert(Opacity::new(0.0))
+                .insert(InteractionPropagation::pass_through());
+            tree.disable(handle.cursor);
+            tree.entity(this).insert(OverscrollPropagation(true));
+            let mut text_input = text_inputs.get_mut(this).unwrap();
+            text_input.cursor_col_row = (0, 0);
+            text_input.highlight_range = Default::default();
+            for (o, e) in handle.highlights.drain() {
+                tree.remove(e);
+            }
         }
     }
 }
