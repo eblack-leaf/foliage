@@ -887,8 +887,8 @@ impl TextInput {
                 true
             };
             if run {
-                tree.entity(handle.cursor)
-                    .insert(InteractionPropagation::pass_through());
+                println!("unfocused-cursor");
+                tree.trigger_targets(Unfocused {}, link.root);
             }
         }
     }

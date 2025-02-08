@@ -221,11 +221,6 @@ pub(crate) fn interactive_elements(
                     .drain(..)
                     .filter(|ps| all.get(*ps).unwrap().2 >= &grabbed_elevation)
                     .collect::<Vec<_>>();
-                if let Ok(mut listener) = listeners.get_mut(p) {
-                    if !listener.disabled() && event.method != InteractionMethod::ScrollWheel {
-                        tree.trigger_targets(Engaged {}, p);
-                    }
-                }
                 if !behaviors.get(p).unwrap().0 && event.method != InteractionMethod::ScrollWheel {
                     if let Some(f) = current.focused.replace(p) {
                         if f != p {
@@ -236,19 +231,23 @@ pub(crate) fn interactive_elements(
                         tree.trigger_targets(Focused {}, p);
                     }
                 }
+                if let Ok(mut listener) = listeners.get_mut(p) {
+                    if !listener.disabled() && event.method != InteractionMethod::ScrollWheel {
+                        tree.trigger_targets(Engaged {}, p);
+                    }
+                }
                 current.click = Click::new(event.position);
                 current.last_drag = event.position;
+            } else {
+                if let Some(f) = current.focused.take() {
+                    tree.trigger_targets(Unfocused {}, f);
+                }
             }
             for ps in current.pass_through.iter() {
                 if let Ok(mut listener) = listeners.get_mut(*ps) {
                     if !listener.disabled() && event.method != InteractionMethod::ScrollWheel {
                         tree.trigger_targets(Engaged {}, *ps);
                     }
-                }
-            }
-            if current.primary.is_none() {
-                if let Some(f) = current.focused.take() {
-                    tree.trigger_targets(Unfocused {}, f);
                 }
             }
         }
