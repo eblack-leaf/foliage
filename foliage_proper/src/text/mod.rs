@@ -226,7 +226,8 @@ impl Text {
                 }
             }
             let max = (current.section.width() / dims.a()).floor() as u32;
-            line_metrics.max_letter_idx_horizontal = max.checked_sub(1).unwrap_or_default();
+            line_metrics.max_letter_idx_horizontal =
+                max.checked_sub(1).unwrap_or_default() + if auto_width.0 { 1 } else { 0 };
             tree.entity(this)
                 .insert(UniqueCharacters::count(&current.text))
                 .insert(TextBounds(current.section))

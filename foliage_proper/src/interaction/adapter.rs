@@ -140,7 +140,7 @@ impl KeyboardAdapter {
         state: ElementState,
         repeat: bool,
     ) -> Option<InputSequence> {
-        if state.is_pressed() && !repeat {
+        if state.is_pressed() {
             Some(InputSequence::new(key, self.mods))
         } else {
             None

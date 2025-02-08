@@ -2,7 +2,7 @@
 members = ["application", "foliage", "foliage_macros", "foliage_proper"]
 
 resolver = "2"
-[profile.dev]
-opt-level = 1
+#[profile.dev]
+#opt-level = 1
 [profile.test]
 opt-level = 1
