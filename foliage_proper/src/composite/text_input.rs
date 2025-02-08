@@ -6,7 +6,7 @@ use crate::text::monospaced::MonospacedFont;
 use crate::text::{Glyphs, LineMetrics};
 use crate::virtual_keyboard::VirtualKeyboardAdapter;
 use crate::{
-    auto, Attachment, AutoHeight, AutoWidth, Component, Composite, Disengaged, Dragged,
+    auto, Attachment, AutoHeight, AutoWidth, Component, Composite, Dragged,
     EcsExtension, Elevation, Engaged, FocusBehavior, Foliage, FontSize, GlyphOffset, Grid, GridExt,
     InputSequence, InteractionListener, InteractionPropagation, Layout, Location, Logical, Opacity,
     OverscrollPropagation, Panel, Primary, Resource, Secondary, Section, Stem, Tertiary, Text,
@@ -273,6 +273,7 @@ impl TextInput {
         font_sizes: Query<&FontSize>,
         layout: Res<Layout>,
         links: Query<&TextInputLink>,
+        clips: Query<&ClipSection>,
     ) {
         println!("typing");
         if let Some(focused) = current_interaction.focused {

@@ -222,7 +222,7 @@ impl Text {
             let mut line_metrics = LineMetrics::default();
             if let Some(lines) = glyphs.layout.lines() {
                 for line in lines {
-                    line_metrics.lines.push(line.glyph_end as u32);
+                    line_metrics.lines.push((line.glyph_end - line.glyph_start) as u32);
                 }
             }
             let max = (current.section.width() / dims.a()).floor() as u32;
