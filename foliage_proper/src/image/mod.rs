@@ -97,8 +97,11 @@ impl Attachment for Image {
 }
 impl Image {
     pub const FORMAT: TextureFormat = TextureFormat::Rgba8Unorm;
-    pub fn new(memory_id: MemoryId, key: AssetKey) -> Self {
-        Self { memory_id, key }
+    pub fn new<ID: Into<MemoryId>>(memory_id: ID, key: AssetKey) -> Self {
+        Self {
+            memory_id: memory_id.into(),
+            key,
+        }
     }
     pub fn memory<C: Into<Coordinates>>(id: MemoryId, coords: C) -> ImageMemory {
         ImageMemory {

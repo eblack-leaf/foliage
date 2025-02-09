@@ -44,12 +44,12 @@ impl Attachment for Icon {
 impl Icon {
     pub const SCALE: Coordinates = Coordinates::new(24f32, 24f32);
     pub const TEXTURE_SCALE: Coordinates = Coordinates::new(96f32, 96f32);
-    pub fn new(id: IconId) -> Self {
-        Self { id }
+    pub fn new<ID: Into<IconId>>(id: ID) -> Self {
+        Self { id: id.into() }
     }
-    pub fn memory<M: AsRef<[u8]>>(mem: IconId, bytes: M) -> IconMemory {
+    pub fn memory<ID: Into<IconId>, M: AsRef<[u8]>>(mem: ID, bytes: M) -> IconMemory {
         IconMemory {
-            id: mem,
+            id: mem.into(),
             bytes: bytes.as_ref().to_vec(),
         }
     }
