@@ -2,8 +2,8 @@ use crate::composite::text_input::{HintColor, InputCommit};
 use crate::handle_replace;
 use crate::{
     Attachment, Component, Composite, EcsExtension, Elevation, Foliage, Grid, GridExt, Icon,
-    IconValue, Location, Outline, Panel, Primary, Rounding, Secondary, Stem,
-    Tertiary, TextInput, Tree, Update,
+    IconValue, Location, Outline, Panel, Primary, Rounding, Secondary, Stem, Tertiary, TextInput,
+    Tree, Update,
 };
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;

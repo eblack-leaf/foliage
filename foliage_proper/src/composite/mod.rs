@@ -7,6 +7,7 @@ use bevy_ecs::world::DeferredWorld;
 
 pub(crate) mod button;
 mod prompt;
+mod r_text_input;
 pub(crate) mod text_input;
 
 pub trait Composite {
@@ -28,3 +29,5 @@ pub struct Tertiary(pub Color);
 pub struct TextValue(pub String);
 #[derive(Component, Copy, Clone, Default)]
 pub struct IconValue(pub IconId);
+#[derive(Component, Copy, Clone)]
+pub(crate) struct Root(pub(crate) Entity);
