@@ -1,11 +1,19 @@
+use crate::composite::handle_replace;
 use crate::composite::Root;
 use crate::interaction::CurrentInteraction;
-use crate::{Component, Composite, Dragged, Engaged, Event, GlyphOffset, InputSequence, Text, Tree, Unfocused, Write};
+use crate::text::Glyphs;
+use crate::{
+    auto, AutoHeight, AutoWidth, Component, Composite, Dragged, EcsExtension, Elevation, Engaged,
+    Event, GlyphOffset, Grid, GridExt, InputSequence, InteractionListener, InteractionPropagation,
+    Location, Logical, Opacity, Panel, Position, Stem, Text, Tree, Unfocused, Write,
+};
+use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::observer::TriggerTargets;
 use bevy_ecs::prelude::Trigger;
 use bevy_ecs::query::With;
 use bevy_ecs::system::{Query, Res};
+use bevy_ecs::world::DeferredWorld;
 use std::collections::HashMap;
 use std::ops::Range;
 
@@ -16,31 +24,110 @@ impl TextInput {
     pub fn new() -> TextInput {
         TextInput {}
     }
-    fn on_add() {}
-    fn on_insert() {}
-    fn engaged(trigger: Trigger<Engaged>, mut tree: Tree) {
-        // trigger PlaceCursor on trigger.entity()
+    fn on_add(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+        // observers
     }
+    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+        world.commands().entity(this).insert(Grid::default());
+        let line_constraint = *world.get::<LineConstraint>(this).unwrap();
+        let auto_width = match line_constraint {
+            LineConstraint::Single => AutoWidth(true),
+            LineConstraint::Multiple => AutoWidth(false),
+        };
+        let auto_height = match line_constraint {
+            LineConstraint::Single => AutoHeight(false),
+            LineConstraint::Multiple => AutoHeight(true),
+        };
+        let panel = world.commands().leaf((
+            Panel::new(),
+            Stem::some(this),
+            Grid::new(1.letters(), 1.letters()),
+            InteractionListener::new(),
+            Elevation::up(0),
+            Location::new().xs(
+                0.pct().left().adjust(4).with(100.pct().right().adjust(-4)),
+                0.pct().top().adjust(4).with(100.pct().bottom().adjust(-4)),
+            ),
+            Root(this),
+        ));
+        let cursor = world.commands().leaf((
+            Stem::some(panel),
+            InteractionListener::new(),
+            InteractionPropagation::pass_through(),
+            Elevation::up(5),
+            Location::new().xs(
+                1.col().left().with(1.col().right()),
+                1.col().top().with(1.col().bottom()),
+            ),
+            Root(this),
+        ));
+        let visible = world.commands().leaf((
+            Panel::new(),
+            Stem::some(panel),
+            InteractionListener::new(),
+            InteractionPropagation::pass_through(),
+            Elevation::up(2),
+            Location::new().xs(
+                1.col().left().with(1.col().right()),
+                1.col().top().with(1.col().bottom()),
+            ),
+            Root(this),
+        ));
+        let text = world.commands().leaf((
+            Text::new(""),
+            Stem::some(panel),
+            InteractionListener::new(),
+            Elevation::up(4),
+            Location::new().xs(
+                match line_constraint {
+                    LineConstraint::Single => 0.pct().left().with(auto().width()),
+                    LineConstraint::Multiple => 0.pct().left().with(100.pct().right()),
+                },
+                match line_constraint {
+                    LineConstraint::Single => 0.pct().top().with(100.pct().bottom()),
+                    LineConstraint::Multiple => 0.pct().top().with(auto().height()),
+                },
+            ),
+            Root(this),
+        ));
+        let hint_text = world.commands().leaf((
+            Text::new(""),
+            Stem::some(panel),
+            InteractionPropagation::pass_through(),
+            Elevation::up(3),
+            Root(this),
+        ));
+        let handle = Handle {
+            panel,
+            text,
+            hint_text,
+            cursor,
+            visible,
+            highlights: Default::default(),
+        };
+        world.commands().entity(this).insert(handle);
+    }
+    // forwarders for all colors + state
+    // handle-trigger
 }
+#[derive(Event, Copy, Clone)]
 pub(crate) enum TextInputState {
     Inactive,
     Highlighting,
     AwaitingInput,
 }
 impl TextInputState {
-    pub(crate) fn obs(
-        trigger: Trigger<Self>,
-        mut tree: Tree,
-    ) {
+    pub(crate) fn obs(trigger: Trigger<Self>, mut tree: Tree) {
         // when changed => set OverscrollPropagation + FocusBehavior stuff
     }
 }
-#[derive(Component, Copy, Clone)]
+#[derive(Component, Copy, Clone, Default)]
 pub enum LineConstraint {
+    #[default]
     Single,
     Multiple,
 }
-#[derive(Component, Copy, Clone)]
+#[derive(Component, Copy, Clone, Default)]
 pub(crate) struct Cursor {
     pub(crate) location: GlyphOffset,
     pub(crate) column: usize,
@@ -54,17 +141,11 @@ impl Cursor {
             row: 0,
         }
     }
-    pub(crate) fn engaged(
-        trigger: Trigger<Engaged>,
-        mut tree: Tree,
-    ) {
+    pub(crate) fn engaged(trigger: Trigger<Engaged>, mut tree: Tree) {
         // we clicked explicitly on cursor, start drag behavior
     }
-    pub(crate) fn unfocused(
-        trigger: Trigger<Unfocused>,
-        mut tree: Tree,
-    ) {
-        // if no focused / focused != text|panel|root
+    pub(crate) fn unfocused(trigger: Trigger<Unfocused>, mut tree: Tree) {
+        // if no focused / focused != text|panel
         // forward Unfocused to root.0
     }
 }
@@ -73,22 +154,34 @@ pub(crate) struct PlaceCursor {}
 impl PlaceCursor {
     pub(crate) fn forward(trigger: Trigger<Engaged>, mut tree: Tree, roots: Query<&Root>) {
         // trigger PlaceCursor on root.0
+        if let Ok(root) = roots.get(trigger.entity()) {
+            tree.trigger_targets(PlaceCursor {}, root.0);
+        }
     }
-    pub(crate) fn obs(trigger: Trigger<PlaceCursor>, mut tree: Tree) {
+    pub(crate) fn obs(
+        trigger: Trigger<PlaceCursor>,
+        mut tree: Tree,
+        current_interaction: Res<CurrentInteraction>,
+    ) {
         // initial placement of cursor + configure focus + interaction behavior
+        tree.trigger_targets(TextInputState::AwaitingInput, trigger.entity());
+        // col / row from click => (cursor-from-click) [store in attempted-cursor]
+        // move-cursor with col/row
     }
 }
-#[derive(Event, Copy, Clone)]
-pub(crate) struct ClearCursor {}
-impl ClearCursor {
-    pub(crate) fn obs(trigger: Trigger<Self>, mut tree: Tree) {
-        // opacity 0.0 for cursor + ClearSelection + set state Inactive?
-        // or let Inactive handle the cleanup
-    }
+#[derive(Event, Copy, Clone, Default)]
+pub(crate) struct CursorFromClick {
+    pub(crate) click: Position<Logical>,
+}
+#[derive(Component, Copy, Clone, Default)]
+pub(crate) struct AttemptedCursor {
+    pub(crate) col: usize,
+    pub(crate) row: usize,
 }
 #[derive(Event, Copy, Clone)]
-pub(crate) struct MoveCursor {
-    pub(crate) new_location: GlyphOffset,
+pub(crate) enum MoveCursor {
+    Location(GlyphOffset),
+    ColRow((usize, usize)),
 }
 impl MoveCursor {
     pub(crate) fn obs(trigger: Trigger<Self>, mut tree: Tree) {
@@ -96,7 +189,7 @@ impl MoveCursor {
         // if not found => scan backwards until 0 (no adjustment) or found (found + 1 col)
     }
 }
-#[derive(Component, Clone)]
+#[derive(Component, Clone, Default)]
 pub(crate) struct Selection {
     pub(crate) range: Range<GlyphOffset>,
     pub(crate) inverted: bool,
@@ -108,7 +201,7 @@ impl Selection {
     }
     pub(crate) fn select(trigger: Trigger<Dragged>, mut tree: Tree) {
         // cursor is dragged => move view near edges + extend selection.range
-        // create highlight panels as needed
+        // trigger reselect-range after updating the range above
     }
 }
 #[derive(Event)]
@@ -121,8 +214,26 @@ impl ClearSelection {
 #[derive(Event)]
 pub(crate) struct ReselectRange {}
 impl ReselectRange {
-    pub(crate) fn obs(trigger: Trigger<Self>, mut tree: Tree) {
+    pub(crate) fn obs(
+        trigger: Trigger<Self>,
+        mut tree: Tree,
+        handles: Query<&Handle>,
+        glyphs: Query<&Glyphs>,
+        cursors: Query<&Cursor>,
+    ) {
         // iterate highlighted locations and if found glyph => create / update highlight
+        let handle = handles.get(trigger.entity()).unwrap();
+        let glyph = glyphs.get(handle.text).unwrap();
+        let cursor = cursors.get(trigger.entity()).unwrap();
+        for (o, e) in handle.highlights.iter() {
+            if let Some(found) = glyph.layout.glyphs().iter().find(|g| g.byte_offset == *o) {
+                // col / row
+                // check existing (handle.highlights) or create (.leaf)
+                // insert location from col / row
+            } else {
+                tree.write_to(*e, Opacity::new(0.0));
+            }
+        }
     }
 }
 
@@ -135,7 +246,6 @@ impl Input {
         trigger: Trigger<InputSequence>,
         mut tree: Tree,
         roots: Query<&Root>,
-        already_root: Query<Entity, With<TextInput>>,
         current_interaction: Res<CurrentInteraction>,
     ) {
         // if any focused => check if root or not (panel, text, cursor)
@@ -149,6 +259,11 @@ impl Input {
 #[derive(Event, Clone)]
 pub struct InsertText {
     pub text: String,
+}
+impl InsertText {
+    pub(crate) fn obs(trigger: Trigger<Self>, mut tree: Tree) {
+        // typing append
+    }
 }
 #[derive(Event, Clone)]
 pub(crate) struct Enter {}
@@ -165,6 +280,7 @@ pub struct Handle {
     pub text: Entity,
     pub hint_text: Entity,
     pub cursor: Entity,
+    pub visible: Entity,
     pub highlights: HashMap<GlyphOffset, Entity>,
 }
 impl Composite for TextInput {
@@ -179,6 +295,7 @@ impl Composite for TextInput {
         targets.push(handle.text);
         targets.push(handle.hint_text);
         targets.push(handle.cursor);
+        targets.push(handle.visible);
         targets
     }
 }
