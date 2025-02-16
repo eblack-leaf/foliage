@@ -1,17 +1,16 @@
 use crate::composite::handle_replace;
 use crate::composite::Root;
 use crate::interaction::CurrentInteraction;
-use crate::text::Glyphs;
+use crate::text::{Glyphs, LineMetrics};
 use crate::{
     auto, AutoHeight, AutoWidth, Component, Composite, Dragged, EcsExtension, Elevation, Engaged,
     Event, GlyphOffset, Grid, GridExt, InputSequence, InteractionListener, InteractionPropagation,
-    Location, Logical, Opacity, Panel, Position, Stem, Text, Tree, Unfocused, Write,
+    Location, Opacity, Panel, Stem, Text, Tree, Unfocused, Write,
 };
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::observer::TriggerTargets;
 use bevy_ecs::prelude::Trigger;
-use bevy_ecs::query::With;
 use bevy_ecs::system::{Query, Res};
 use bevy_ecs::world::DeferredWorld;
 use std::collections::HashMap;
@@ -143,6 +142,7 @@ impl Cursor {
     }
     pub(crate) fn engaged(trigger: Trigger<Engaged>, mut tree: Tree) {
         // we clicked explicitly on cursor, start drag behavior
+        tree.trigger_targets(TextInputState::Highlighting, trigger.entity());
     }
     pub(crate) fn unfocused(trigger: Trigger<Unfocused>, mut tree: Tree) {
         // if no focused / focused != text|panel
@@ -162,29 +162,45 @@ impl PlaceCursor {
         trigger: Trigger<PlaceCursor>,
         mut tree: Tree,
         current_interaction: Res<CurrentInteraction>,
+        line_metrics: Query<&LineMetrics>,
     ) {
+        tree.trigger_targets(ClearSelection {}, trigger.entity());
         // initial placement of cursor + configure focus + interaction behavior
         tree.trigger_targets(TextInputState::AwaitingInput, trigger.entity());
-        // col / row from click => (cursor-from-click) [store in attempted-cursor]
+        // col / row from click => (cursor-from-click) [store in requested-location]
+        tree.trigger_targets(LocationFromClick(true), trigger.entity());
         // move-cursor with col/row
+        tree.trigger_targets(MoveCursor {}, trigger.entity());
     }
 }
-#[derive(Event, Copy, Clone, Default)]
-pub(crate) struct CursorFromClick {
-    pub(crate) click: Position<Logical>,
+#[derive(Event, Copy, Clone)]
+pub(crate) struct LocationFromClick(pub(crate) bool);
+impl LocationFromClick {
+    pub(crate) fn obs(
+        trigger: Trigger<Self>,
+        mut tree: Tree,
+        mut requested: Query<&mut RequestedLocation>,
+        values: Query<&LocationFromClick>,
+    ) {
+        let lfc = values.get(trigger.entity()).unwrap();
+        // offset for col-finding = i32::from(lfc.0); true -> 1 false -> 0
+        // col/row from current_interaction.click.current (relative / dims.a()) ...
+    }
 }
 #[derive(Component, Copy, Clone, Default)]
-pub(crate) struct AttemptedCursor {
-    pub(crate) col: usize,
-    pub(crate) row: usize,
-}
-#[derive(Event, Copy, Clone)]
-pub(crate) enum MoveCursor {
-    Location(GlyphOffset),
+pub(crate) enum RequestedLocation {
+    #[default]
+    Offset(GlyphOffset),
     ColRow((usize, usize)),
 }
+#[derive(Event, Copy, Clone)]
+pub(crate) struct MoveCursor {}
 impl MoveCursor {
-    pub(crate) fn obs(trigger: Trigger<Self>, mut tree: Tree) {
+    pub(crate) fn obs(
+        trigger: Trigger<Self>,
+        mut tree: Tree,
+        requested: Query<&RequestedLocation>,
+    ) {
         // attempt to find cursor.location in glyphs
         // if not found => scan backwards until 0 (no adjustment) or found (found + 1 col)
     }
@@ -195,19 +211,47 @@ pub(crate) struct Selection {
     pub(crate) inverted: bool,
 }
 impl Selection {
-    pub(crate) fn reselect(trigger: Trigger<Write<Text>>, mut tree: Tree, roots: Query<&Root>) {
+    pub(crate) fn reselect(
+        trigger: Trigger<Write<Text>>,
+        mut tree: Tree,
+        roots: Query<&Root>,
+        cursors: Query<&Cursor>,
+    ) {
         let root = roots.get(trigger.entity()).unwrap().0;
+        tree.write_to(
+            root,
+            RequestedLocation::Offset(cursors.get(root).unwrap().location),
+        );
+        tree.trigger_targets(MoveCursor {}, root);
         tree.trigger_targets(ReselectRange {}, root);
     }
     pub(crate) fn select(trigger: Trigger<Dragged>, mut tree: Tree) {
         // cursor is dragged => move view near edges + extend selection.range
+        tree.trigger_targets(LocationFromClick(false), trigger.entity());
+        // use RequestedLocation to extend highlight-range
+        tree.trigger_targets(ExtendRange {}, trigger.entity());
         // trigger reselect-range after updating the range above
+        tree.trigger_targets(ReselectRange {}, trigger.entity());
+    }
+}
+#[derive(Event, Copy, Clone)]
+pub(crate) struct ExtendRange {}
+impl ExtendRange {
+    pub(crate) fn obs(
+        trigger: Trigger<Self>,
+        mut tree: Tree,
+        requested: Query<&RequestedLocation>,
+        cursors: Query<&Cursor>,
+        mut selections: Query<&mut Selection>,
+    ) {
+        // find requested-location col/row in glyphs
+        // range.inverted + found.offset -> cursor.offset
     }
 }
 #[derive(Event)]
 pub(crate) struct ClearSelection {}
 impl ClearSelection {
-    pub(crate) fn obs(trigger: Trigger<Self>, mut tree: Tree) {
+    pub(crate) fn obs(trigger: Trigger<Self>, mut tree: Tree, mut selections: Query<&mut Selection>) {
         // despawn highlight panels + clear handle.highlights
     }
 }
