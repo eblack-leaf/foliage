@@ -1,11 +1,13 @@
 use crate::composite::handle_replace;
 use crate::composite::Root;
 use crate::interaction::CurrentInteraction;
+use crate::text::monospaced::MonospacedFont;
 use crate::text::{Glyphs, LineMetrics};
 use crate::{
     auto, AutoHeight, AutoWidth, Component, Composite, Dragged, EcsExtension, Elevation, Engaged,
-    Event, GlyphOffset, Grid, GridExt, InputSequence, InteractionListener, InteractionPropagation,
-    Location, Opacity, Panel, Stem, Text, Tree, Unfocused, Write,
+    Event, FocusBehavior, FontSize, GlyphOffset, Grid, GridExt, InputSequence, InteractionListener,
+    InteractionPropagation, Layout, Location, Logical, Opacity, Panel, Section, Stem, Tertiary,
+    Text, Tree, Unfocused, View, Write,
 };
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
@@ -13,6 +15,7 @@ use bevy_ecs::observer::TriggerTargets;
 use bevy_ecs::prelude::Trigger;
 use bevy_ecs::system::{Query, Res};
 use bevy_ecs::world::DeferredWorld;
+use fontdue::layout::GlyphPosition;
 use std::collections::HashMap;
 use std::ops::Range;
 
@@ -181,17 +184,51 @@ impl LocationFromClick {
         mut tree: Tree,
         mut requested: Query<&mut RequestedLocation>,
         values: Query<&LocationFromClick>,
+        current_interaction: Res<CurrentInteraction>,
+        font: Res<MonospacedFont>,
+        font_sizes: Query<&FontSize>,
+        layout: Res<Layout>,
+        sections: Query<&Section<Logical>>,
+        views: Query<&View>,
+        handles: Query<&Handle>,
+        line_metrics: Query<&LineMetrics>,
     ) {
-        let lfc = values.get(trigger.entity()).unwrap();
+        let lfc = u32::from(values.get(trigger.entity()).unwrap().0);
         // offset for col-finding = i32::from(lfc.0); true -> 1 false -> 0
-        // col/row from current_interaction.click.current (relative / dims.a()) ...
+        let click = current_interaction.click.current;
+        let fsv = font_sizes
+            .get(trigger.entity())
+            .unwrap()
+            .resolve(*layout)
+            .value;
+        let dims = font.character_block(fsv);
+        let section = sections.get(trigger.entity()).unwrap();
+        let handle = handles.get(trigger.entity()).unwrap();
+        let relative =
+            click - section.position - (4, 4).into() + views.get(handle.panel).unwrap().offset;
+        let (x, y) = (
+            (relative.left().max(0.0) / dims.a()) as u32,
+            (relative.top().max(0.0) / dims.b()) as u32,
+        );
+        let metrics = line_metrics.get(handle.text).unwrap();
+        let row = y.min(metrics.lines.len().checked_sub(1).unwrap_or_default() as u32);
+        let column = x
+            .min(
+                metrics
+                    .lines
+                    .get(row as usize)
+                    .and_then(|l| Some(l + lfc))
+                    .unwrap_or_default(),
+            )
+            .min(metrics.max_letter_idx_horizontal);
+        tree.write_to(trigger.entity(), RequestedLocation::ColRow((column, row)))
     }
 }
 #[derive(Component, Copy, Clone, Default)]
 pub(crate) enum RequestedLocation {
     #[default]
     Offset(GlyphOffset),
-    ColRow((usize, usize)),
+    ColRow((u32, u32)),
 }
 #[derive(Event, Copy, Clone)]
 pub(crate) struct MoveCursor {}
@@ -200,9 +237,54 @@ impl MoveCursor {
         trigger: Trigger<Self>,
         mut tree: Tree,
         requested: Query<&RequestedLocation>,
+        glyphs: Query<&Glyphs>,
+        font: Res<MonospacedFont>,
+        font_sizes: Query<&FontSize>,
+        layout: Res<Layout>,
+        handles: Query<&Handle>,
+        mut cursor: Query<&mut Cursor>,
     ) {
         // attempt to find cursor.location in glyphs
-        // if not found => scan backwards until 0 (no adjustment) or found (found + 1 col)
+        let req = requested.get(trigger.entity()).unwrap();
+        let fsv = font_sizes
+            .get(trigger.entity())
+            .unwrap()
+            .resolve(*layout)
+            .value;
+        let dims = font.character_block(fsv);
+        let handle = handles.get(trigger.entity()).unwrap();
+        let pred = |glyph: &GlyphPosition<()>| {
+            match req {
+                RequestedLocation::ColRow((column, row)) => {
+                    (glyph.x / dims.a()) as u32 == *column && (glyph.y / dims.b()) as u32 == *row
+                }
+                RequestedLocation::Offset(offset) => glyph.byte_offset == *offset,
+            };
+        };
+        let mut cursor = cursor.get_mut(trigger.entity()).unwrap();
+        if let Some(found) = glyphs
+            .get(handle.text)
+            .unwrap()
+            .layout
+            .glyphs()
+            .iter()
+            .find(pred)
+        {
+            // found so place there + update cursor
+            let col = (found.x / dims.a()) as u32;
+            let row = (found.y / dims.b()) as u32;
+            let location = Location::new().xs(
+                (col + 1).col().left().with((col + 1).col().right()),
+                (row + 1).row().top().with((row + 1).row().bottom()),
+            );
+        } else {
+            // if not found => scan backwards until 0 (no adjustment) or found (found + 1 col)
+            // set to 0 initially
+            // while let Some(scan) = cursor.location.checked_sub(1) {
+            //     if we can scan backward => set to scanned + 1 or 0 w/ break
+            // }
+            //
+        }
     }
 }
 #[derive(Component, Clone, Default)]
@@ -251,8 +333,23 @@ impl ExtendRange {
 #[derive(Event)]
 pub(crate) struct ClearSelection {}
 impl ClearSelection {
-    pub(crate) fn obs(trigger: Trigger<Self>, mut tree: Tree, mut selections: Query<&mut Selection>) {
+    pub(crate) fn obs(
+        trigger: Trigger<Self>,
+        mut tree: Tree,
+        mut selections: Query<&mut Selection>,
+        mut handles: Query<&mut Handle>,
+    ) {
         // despawn highlight panels + clear handle.highlights
+        let mut selection = selections.get_mut(trigger.entity()).unwrap();
+        selection.range = Range::default();
+        for (o, e) in handles
+            .get_mut(trigger.entity())
+            .unwrap()
+            .highlights
+            .drain()
+        {
+            tree.remove(e);
+        }
     }
 }
 #[derive(Event)]
@@ -261,19 +358,48 @@ impl ReselectRange {
     pub(crate) fn obs(
         trigger: Trigger<Self>,
         mut tree: Tree,
-        handles: Query<&Handle>,
+        mut handles: Query<&mut Handle>,
         glyphs: Query<&Glyphs>,
         cursors: Query<&Cursor>,
+        font: Res<MonospacedFont>,
+        font_sizes: Query<&FontSize>,
+        layout: Res<Layout>,
+        tertiary: Query<&Tertiary>,
     ) {
         // iterate highlighted locations and if found glyph => create / update highlight
-        let handle = handles.get(trigger.entity()).unwrap();
+        let handle = handles.get_mut(trigger.entity()).unwrap();
         let glyph = glyphs.get(handle.text).unwrap();
         let cursor = cursors.get(trigger.entity()).unwrap();
+        let fsv = font_sizes
+            .get(trigger.entity())
+            .unwrap()
+            .resolve(*layout)
+            .value;
+        let dims = font.character_block(fsv);
         for (o, e) in handle.highlights.iter() {
             if let Some(found) = glyph.layout.glyphs().iter().find(|g| g.byte_offset == *o) {
-                // col / row
-                // check existing (handle.highlights) or create (.leaf)
-                // insert location from col / row
+                let (col, row) = ((found.x / dims.a()) as u32, (found.y / dims.b()) as u32);
+                let location = Location::new().xs(
+                    (col + 1).col().left().with((col + 1).col().right()),
+                    (row + 1).row().top().with((row + 1).row().bottom()),
+                );
+                if let Some(existing) = handle.highlights.get(&found.byte_offset) {
+                    tree.entity(*existing)
+                        .insert(Opacity::new(1.0))
+                        .insert(location);
+                } else {
+                    let h = tree.leaf((
+                        Panel::new(),
+                        Opacity::new(1.0),
+                        Stem::some(handle.panel),
+                        Elevation::up(1),
+                        location,
+                        tertiary.get(trigger.entity()).unwrap().0,
+                        InteractionPropagation::pass_through(),
+                        FocusBehavior::ignore(),
+                    ));
+                    handle.highlights.insert(found.byte_offset, h);
+                }
             } else {
                 tree.write_to(*e, Opacity::new(0.0));
             }
