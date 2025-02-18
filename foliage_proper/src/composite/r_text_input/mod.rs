@@ -10,7 +10,7 @@ use crate::{
     auto, AutoHeight, AutoWidth, Component, Composite, Dragged, EcsExtension, Elevation, Engaged,
     Event, FocusBehavior, FontSize, GlyphOffset, Grid, GridExt, InputSequence, InteractionListener,
     InteractionPropagation, Layout, Location, Logical, Opacity, OverscrollPropagation, Panel,
-    Primary, Section, Stem, Tertiary, Text, Tree, Unfocused, View, Write,
+    Primary, Section, Stem, Tertiary, Text, TextValue, Tree, Unfocused, View, Write,
 };
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
@@ -21,11 +21,13 @@ use bevy_ecs::world::DeferredWorld;
 use fontdue::layout::GlyphPosition;
 use std::collections::HashMap;
 use std::ops::Range;
+use winit::keyboard::Key;
 
 #[derive(Component, Copy, Clone)]
 #[require(LineConstraint, Cursor, Selection)]
 pub struct TextInput {}
 impl TextInput {
+    const HIGHLIGHT_SCROLL_THRESHOLD: f32 = 10.0;
     pub fn new() -> TextInput {
         TextInput {}
     }
@@ -581,31 +583,163 @@ impl Input {
             main,
         );
     }
-    pub(crate) fn obs(trigger: Trigger<Self>, mut tree: Tree, key_bindings: Res<KeyBindings>) {
+    pub(crate) fn forward_to_text(
+        trigger: Trigger<ForwardText>,
+        mut tree: Tree,
+        values: Query<&TextValue>,
+        handles: Query<&Handle>,
+    ) {
+        // get handle + send main TextValue => handle.text TextValue
+        let handle = handles.get(trigger.entity()).unwrap();
+        let value = values.get(trigger.entity()).unwrap();
+        tree.write_to(handle.text, Text::new(&value.0));
+    }
+    pub(crate) fn obs(
+        trigger: Trigger<Self>,
+        mut tree: Tree,
+        key_bindings: Res<KeyBindings>,
+        mut values: Query<&mut TextValue>,
+        cursors: Query<&Cursor>,
+        line_constraints: Query<&LineConstraint>,
+        handles: Query<&Handle>,
+        line_metrics: Query<&LineMetrics>,
+    ) {
         // check type of interaction + if trigger action then send correct event
+        let cursor = cursors.get(trigger.entity()).unwrap();
+        let lc = line_constraints.get(trigger.entity()).unwrap();
+        let mut value = values.get_mut(trigger.entity()).unwrap();
+        let handle = handles.get(trigger.entity()).unwrap();
+        let metrics = line_metrics.get(handle.text).unwrap();
         if let Some(action) = key_bindings.action(&trigger.event().sequence) {
             // handle action
             match action {
-                TextInputAction::Enter => {}
-                TextInputAction::Backspace => {}
-                TextInputAction::Delete => {}
-                TextInputAction::End => {}
-                TextInputAction::Home => {}
-                TextInputAction::Copy => {}
-                TextInputAction::Paste => {}
-                TextInputAction::SelectAll => {}
-                TextInputAction::ExtendLeft => {}
-                TextInputAction::ExtendRight => {}
-                TextInputAction::ExtendUp => {}
-                TextInputAction::ExtendDown => {}
-                TextInputAction::Up => {}
-                TextInputAction::Down => {}
-                TextInputAction::Left => {}
-                TextInputAction::Right => {}
+                TextInputAction::Enter => match lc {
+                    LineConstraint::Single => {
+                        tree.trigger_targets(TextInputAction::Enter, trigger.entity())
+                    }
+                    LineConstraint::Multiple => {
+                        tree.trigger_targets(
+                            InsertText {
+                                text: "\n".parse().unwrap(),
+                            },
+                            trigger.entity(),
+                        );
+                    }
+                },
+                TextInputAction::Backspace => {
+                    // if we have previous => delete that char + update cursor
+                    if let Some(idx) = cursor.location.checked_sub(1) {
+                        if value.0.get(idx..idx + 1).is_some() {
+                            value.0.remove(idx);
+                        }
+                        tree.trigger_targets(ForwardText {}, trigger.entity()); // manual forward
+                        tree.write_to(trigger.entity(), RequestedLocation::Offset(idx));
+                        tree.trigger_targets(MoveCursor {}, trigger.entity());
+                        tree.trigger_targets(TextInputState::AwaitingInput, trigger.entity());
+                        tree.trigger_targets(ClearSelection {}, trigger.entity());
+                    }
+                }
+                TextInputAction::Delete => {
+                    // delete char at cursor.location
+                    tree.trigger_targets(ForwardText {}, trigger.entity()); // manual forward
+                    tree.trigger_targets(TextInputState::AwaitingInput, trigger.entity());
+                    tree.trigger_targets(ClearSelection {}, trigger.entity());
+                }
+                TextInputAction::End => {
+                    // move cursor to end of line
+                    tree.trigger_targets(TextInputState::AwaitingInput, trigger.entity());
+                    tree.trigger_targets(ClearSelection {}, trigger.entity());
+                }
+                TextInputAction::Home => {
+                    // move cursor to begin of line
+                    tree.trigger_targets(TextInputState::AwaitingInput, trigger.entity());
+                    tree.trigger_targets(ClearSelection {}, trigger.entity());
+                }
+                TextInputAction::Copy => {
+                    // capture selection.range
+                }
+                TextInputAction::Paste => {
+                    // InsertText for all of clipboard
+                }
+                TextInputAction::SelectAll => {
+                    // selection.range => all
+                }
+                TextInputAction::ExtendLeft => {
+                    // like down
+                }
+                TextInputAction::ExtendRight => {
+                    // like down
+                }
+                TextInputAction::ExtendUp => {
+                    // like down
+                }
+                TextInputAction::ExtendDown => {
+                    tree.write_to(
+                        trigger.entity(),
+                        RequestedLocation::ColRow((
+                            cursor.column,
+                            (cursor.row + 1)
+                                .min(metrics.lines.len().checked_sub(1).unwrap_or_default() as u32),
+                        )),
+                    );
+                    tree.trigger_targets(ExtendRange {}, trigger.entity());
+                }
+                TextInputAction::Up => {
+                    tree.write_to(
+                        trigger.entity(),
+                        RequestedLocation::ColRow((
+                            cursor.column,
+                            cursor.row.checked_sub(1).unwrap_or_default(),
+                        )),
+                    );
+                    tree.trigger_targets(MoveCursor {}, trigger.entity());
+                    tree.trigger_targets(TextInputState::AwaitingInput, trigger.entity());
+                    tree.trigger_targets(ClearSelection {}, trigger.entity());
+                }
+                TextInputAction::Down => {
+                    tree.write_to(
+                        trigger.entity(),
+                        RequestedLocation::ColRow((
+                            cursor.column,
+                            (cursor.row + 1)
+                                .min(metrics.lines.len().checked_sub(1).unwrap_or_default() as u32),
+                        )),
+                    );
+                    tree.trigger_targets(MoveCursor {}, trigger.entity());
+                    tree.trigger_targets(TextInputState::AwaitingInput, trigger.entity());
+                    tree.trigger_targets(ClearSelection {}, trigger.entity());
+                }
+                TextInputAction::Left => {
+                    tree.write_to(
+                        trigger.entity(),
+                        RequestedLocation::Offset(
+                            cursor.location.checked_sub(1).unwrap_or_default(),
+                        ),
+                    );
+                    tree.trigger_targets(MoveCursor {}, trigger.entity());
+                    tree.trigger_targets(TextInputState::AwaitingInput, trigger.entity());
+                    tree.trigger_targets(ClearSelection {}, trigger.entity());
+                }
+                TextInputAction::Right => {
+                    tree.trigger_targets(TextInputState::AwaitingInput, trigger.entity());
+                    tree.trigger_targets(ClearSelection {}, trigger.entity());
+                    tree.write_to(
+                        trigger.entity(),
+                        RequestedLocation::Offset((cursor.location + 1).min(value.0.len())),
+                    );
+                    tree.trigger_targets(MoveCursor {}, trigger.entity());
+                }
+                TextInputAction::Space => {
+                    tree.trigger_targets(
+                        InsertText {
+                            text: " ".to_string(),
+                        },
+                        trigger.entity(),
+                    );
+                }
             }
         } else {
-            if let Some(text) = trigger.sequence.key.to_text() {
-                // process text with InsertText
+            if let Key::Character(text) = &trigger.sequence.key {
                 tree.trigger_targets(
                     InsertText {
                         text: text.to_string(),
@@ -617,22 +751,48 @@ impl Input {
     }
 }
 #[derive(Event, Clone)]
+pub(crate) struct ForwardText {}
+#[derive(Event, Clone)]
 pub struct InsertText {
     pub text: String,
 }
 impl InsertText {
-    pub(crate) fn obs(trigger: Trigger<Self>, mut tree: Tree) {
+    pub(crate) fn obs(
+        trigger: Trigger<Self>,
+        mut tree: Tree,
+        selections: Query<&Selection>,
+        mut values: Query<&mut TextValue>,
+        cursors: Query<&Cursor>,
+    ) {
         // typing append
+        let selection = selections.get(trigger.entity()).unwrap();
+        let mut value = values.get_mut(trigger.entity()).unwrap();
+        let cursor = cursors.get(trigger.entity()).unwrap();
+        let mut new_location = cursor.location;
+        if !selection.range.is_empty() {
+            for i in selection.range.clone().rev() {
+                if value.0.get(i..i + 1).is_some() {
+                    value.0.remove(i);
+                }
+            }
+            if selection.inverted {
+                new_location += 1;
+                new_location = new_location
+                    .checked_sub(selection.range.len())
+                    .unwrap_or_default();
+            }
+        }
+        for ch in trigger.text.chars().rev() {
+            value.0.insert(new_location, ch);
+        }
+        new_location += trigger.text.len();
+        tree.write_to(trigger.entity(), RequestedLocation::Offset(new_location));
+        tree.trigger_targets(MoveCursor {}, trigger.entity());
+        tree.trigger_targets(ForwardText {}, trigger.entity());
+        tree.trigger_targets(TextInputState::AwaitingInput, trigger.entity());
+        tree.trigger_targets(ClearSelection {}, trigger.entity());
     }
 }
-#[derive(Event, Clone)]
-pub(crate) struct Enter {}
-#[derive(Event, Clone)]
-pub(crate) struct Up {}
-#[derive(Event, Clone)]
-pub(crate) struct Down {}
-#[derive(Event, Clone)]
-pub(crate) struct Delete {}
 #[derive(Component, Clone)]
 #[component(on_replace = handle_replace::<TextInput>)]
 pub struct Handle {

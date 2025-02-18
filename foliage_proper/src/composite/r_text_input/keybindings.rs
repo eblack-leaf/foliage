@@ -1,8 +1,8 @@
-use crate::{InputSequence, Resource};
+use crate::{Event, InputSequence, Resource};
 use std::collections::HashMap;
 use winit::keyboard::{Key, ModifiersState, NamedKey, SmolStr};
 
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+#[derive(Event, Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum TextInputAction {
     Enter,
     Backspace,
@@ -20,6 +20,7 @@ pub enum TextInputAction {
     Down,
     Left,
     Right,
+    Space,
 }
 #[derive(Resource)]
 pub struct KeyBindings {
@@ -101,6 +102,10 @@ impl Default for KeyBindings {
                 map.insert(
                     InputSequence::new(Key::Named(NamedKey::ArrowDown), ModifiersState::default()),
                     TextInputAction::Down,
+                );
+                map.insert(
+                    InputSequence::new(Key::Named(NamedKey::Space), ModifiersState::default()),
+                    TextInputAction::Space,
                 );
                 map
             },
