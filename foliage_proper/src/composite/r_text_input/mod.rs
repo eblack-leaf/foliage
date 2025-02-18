@@ -1,4 +1,7 @@
+mod keybindings;
+
 use crate::composite::handle_replace;
+use crate::composite::r_text_input::keybindings::{KeyBindings, TextInputAction};
 use crate::composite::Root;
 use crate::interaction::CurrentInteraction;
 use crate::text::monospaced::MonospacedFont;
@@ -126,7 +129,6 @@ impl TextInputState {
         tertiary: Query<&Tertiary>,
         primary: Query<&Primary>,
     ) {
-        // when changed => set OverscrollPropagation + FocusBehavior stuff
         let value = trigger.event();
         let handle = handles.get(trigger.entity()).unwrap();
         match value {
@@ -178,8 +180,8 @@ impl Cursor {
             row: 0,
         }
     }
+    // we clicked explicitly on cursor, start drag behavior
     pub(crate) fn engaged(trigger: Trigger<Engaged>, mut tree: Tree) {
-        // we clicked explicitly on cursor, start drag behavior
         tree.trigger_targets(TextInputState::Highlighting, trigger.entity());
     }
     pub(crate) fn unfocused(
@@ -479,7 +481,6 @@ impl ClearSelection {
         mut selections: Query<&mut Selection>,
         mut handles: Query<&mut Handle>,
     ) {
-        // despawn highlight panels + clear handle.highlights
         let mut selection = selections.get_mut(trigger.entity()).unwrap();
         selection.range = Range::default();
         for (o, e) in handles
@@ -506,7 +507,6 @@ impl ReselectRange {
         layout: Res<Layout>,
         tertiary: Query<&Tertiary>,
     ) {
-        // iterate highlighted locations and if found glyph => create / update highlight
         let handle = handles.get_mut(trigger.entity()).unwrap();
         let glyph = glyphs.get(handle.text).unwrap();
         let cursor = cursors.get(trigger.entity()).unwrap();
@@ -557,13 +557,63 @@ impl Input {
         mut tree: Tree,
         roots: Query<&Root>,
         current_interaction: Res<CurrentInteraction>,
+        handles: Query<&Handle>,
     ) {
         // if any focused => check if root or not (panel, text, cursor)
+        let main = if let Ok(root) = roots.get(trigger.entity()) {
+            root.0
+        } else {
+            trigger.entity()
+        };
+        let handle = handles.get(main).unwrap();
+        if let Some(f) = current_interaction.focused {
+            if f != main || f != handle.panel || f != handle.text || f != handle.cursor {
+                return;
+            }
+        } else {
+            return;
+        }
         // forward Input to root
+        tree.trigger_targets(
+            Input {
+                sequence: trigger.event().clone(),
+            },
+            main,
+        );
     }
-    pub(crate) fn obs(trigger: Trigger<Self>, mut tree: Tree) {
+    pub(crate) fn obs(trigger: Trigger<Self>, mut tree: Tree, key_bindings: Res<KeyBindings>) {
         // check type of interaction + if trigger action then send correct event
-        // [InsertText, CursorMove]
+        if let Some(action) = key_bindings.action(&trigger.event().sequence) {
+            // handle action
+            match action {
+                TextInputAction::Enter => {}
+                TextInputAction::Backspace => {}
+                TextInputAction::Delete => {}
+                TextInputAction::End => {}
+                TextInputAction::Home => {}
+                TextInputAction::Copy => {}
+                TextInputAction::Paste => {}
+                TextInputAction::SelectAll => {}
+                TextInputAction::ExtendLeft => {}
+                TextInputAction::ExtendRight => {}
+                TextInputAction::ExtendUp => {}
+                TextInputAction::ExtendDown => {}
+                TextInputAction::Up => {}
+                TextInputAction::Down => {}
+                TextInputAction::Left => {}
+                TextInputAction::Right => {}
+            }
+        } else {
+            if let Some(text) = trigger.sequence.key.to_text() {
+                // process text with InsertText
+                tree.trigger_targets(
+                    InsertText {
+                        text: text.to_string(),
+                    },
+                    trigger.entity(),
+                );
+            }
+        }
     }
 }
 #[derive(Event, Clone)]
