@@ -132,26 +132,24 @@ impl TextInputState {
         match value {
             TextInputState::Inactive => {
                 tree.write_to(trigger.entity(), OverscrollPropagation(true));
-                tree.write_to(
-                    handle.cursor,
-                    (Opacity::new(0.0), InteractionPropagation::pass_through()),
-                );
+                tree.write_to(handle.visible, Opacity::new(0.0));
+                tree.write_to(handle.cursor, InteractionPropagation::pass_through());
                 tree.disable(handle.cursor);
             }
             TextInputState::Highlighting => {
                 tree.write_to(trigger.entity(), OverscrollPropagation(false));
                 tree.write_to(
-                    handle.cursor,
+                    handle.visible,
                     (Opacity::new(0.75), primary.get(trigger.entity()).unwrap().0),
                 )
             }
             TextInputState::AwaitingInput => {
                 tree.write_to(trigger.entity(), OverscrollPropagation(true));
+                tree.write_to(handle.cursor, InteractionPropagation::grab().disable_drag());
                 tree.write_to(
-                    handle.cursor,
+                    handle.visible,
                     (
                         Opacity::new(0.25),
-                        InteractionPropagation::grab().disable_drag(),
                         tertiary.get(trigger.entity()).unwrap().0,
                     ),
                 );
@@ -392,6 +390,7 @@ impl MoveCursor {
             (row + 1).row().top().with((row + 1).row().bottom()),
         );
         tree.entity(handle.cursor).insert(location);
+        tree.entity(handle.visible).insert(location);
     }
 }
 #[derive(Component, Clone, Default)]
