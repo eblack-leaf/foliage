@@ -6,8 +6,8 @@ use crate::text::{Glyphs, LineMetrics};
 use crate::{
     auto, AutoHeight, AutoWidth, Component, Composite, Dragged, EcsExtension, Elevation, Engaged,
     Event, FocusBehavior, FontSize, GlyphOffset, Grid, GridExt, InputSequence, InteractionListener,
-    InteractionPropagation, Layout, Location, Logical, Opacity, Panel, Section, Stem, Tertiary,
-    Text, Tree, Unfocused, View, Write,
+    InteractionPropagation, Layout, Location, Logical, Opacity, OverscrollPropagation, Panel,
+    Primary, Section, Stem, Tertiary, Text, Tree, Unfocused, View, Write,
 };
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
@@ -119,8 +119,45 @@ pub(crate) enum TextInputState {
     AwaitingInput,
 }
 impl TextInputState {
-    pub(crate) fn obs(trigger: Trigger<Self>, mut tree: Tree) {
+    pub(crate) fn obs(
+        trigger: Trigger<Self>,
+        mut tree: Tree,
+        handles: Query<&Handle>,
+        tertiary: Query<&Tertiary>,
+        primary: Query<&Primary>,
+    ) {
         // when changed => set OverscrollPropagation + FocusBehavior stuff
+        let value = trigger.event();
+        let handle = handles.get(trigger.entity()).unwrap();
+        match value {
+            TextInputState::Inactive => {
+                tree.write_to(trigger.entity(), OverscrollPropagation(true));
+                tree.write_to(
+                    handle.cursor,
+                    (Opacity::new(0.0), InteractionPropagation::pass_through()),
+                );
+                tree.disable(handle.cursor);
+            }
+            TextInputState::Highlighting => {
+                tree.write_to(trigger.entity(), OverscrollPropagation(false));
+                tree.write_to(
+                    handle.cursor,
+                    (Opacity::new(0.75), primary.get(trigger.entity()).unwrap().0),
+                )
+            }
+            TextInputState::AwaitingInput => {
+                tree.write_to(trigger.entity(), OverscrollPropagation(true));
+                tree.write_to(
+                    handle.cursor,
+                    (
+                        Opacity::new(0.25),
+                        InteractionPropagation::grab().disable_drag(),
+                        tertiary.get(trigger.entity()).unwrap().0,
+                    ),
+                );
+                tree.enable(handle.cursor);
+            }
+        }
     }
 }
 #[derive(Component, Copy, Clone, Default)]
@@ -147,9 +184,26 @@ impl Cursor {
         // we clicked explicitly on cursor, start drag behavior
         tree.trigger_targets(TextInputState::Highlighting, trigger.entity());
     }
-    pub(crate) fn unfocused(trigger: Trigger<Unfocused>, mut tree: Tree) {
-        // if no focused / focused != text|panel
-        // forward Unfocused to root.0
+    pub(crate) fn unfocused(
+        trigger: Trigger<Unfocused>,
+        mut tree: Tree,
+        roots: Query<&Root>,
+        handles: Query<&Handle>,
+        current_interaction: Res<CurrentInteraction>,
+    ) {
+        let main = if let Ok(root) = roots.get(trigger.entity()) {
+            root.0
+        } else {
+            trigger.entity()
+        };
+        let handle = handles.get(main).unwrap();
+        if let Some(f) = current_interaction.focused {
+            if f == main || f == handle.panel || f == handle.text || f == handle.cursor {
+                return;
+            }
+        }
+        tree.trigger_targets(ClearSelection {}, main);
+        tree.trigger_targets(TextInputState::Inactive, main);
     }
 }
 #[derive(Event, Copy, Clone)]
@@ -171,7 +225,12 @@ impl PlaceCursor {
         // initial placement of cursor + configure focus + interaction behavior
         tree.trigger_targets(TextInputState::AwaitingInput, trigger.entity());
         // col / row from click => (cursor-from-click) [store in requested-location]
-        tree.trigger_targets(LocationFromClick { can_go_past_end: true }, trigger.entity());
+        tree.trigger_targets(
+            LocationFromClick {
+                can_go_past_end: true,
+            },
+            trigger.entity(),
+        );
         // move-cursor with col/row
         tree.trigger_targets(MoveCursor {}, trigger.entity());
     }
@@ -357,7 +416,12 @@ impl Selection {
     }
     pub(crate) fn select(trigger: Trigger<Dragged>, mut tree: Tree) {
         // cursor is dragged => move view near edges + extend selection.range
-        tree.trigger_targets(LocationFromClick { can_go_past_end: false }, trigger.entity());
+        tree.trigger_targets(
+            LocationFromClick {
+                can_go_past_end: false,
+            },
+            trigger.entity(),
+        );
         // use RequestedLocation to extend highlight-range
         tree.trigger_targets(ExtendRange {}, trigger.entity());
         // trigger reselect-range after updating the range above
