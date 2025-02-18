@@ -225,6 +225,7 @@ impl Text {
                     line_metrics
                         .lines
                         .push((line.glyph_end - line.glyph_start) as u32);
+                    line_metrics.last_offsets.push(line.glyph_end as u32);
                 }
             }
             let max = (current.section.width() / dims.a()).floor() as u32;
@@ -315,6 +316,7 @@ impl Text {
 pub(crate) struct LineMetrics {
     pub(crate) lines: Vec<u32>,
     pub(crate) max_letter_idx_horizontal: u32,
+    pub(crate) last_offsets: Vec<u32>,
 }
 #[derive(Component, Copy, Clone, PartialEq, Debug, Default)]
 pub(crate) struct TextBounds(pub(crate) Section<Physical>);

@@ -132,8 +132,8 @@ pub enum LineConstraint {
 #[derive(Component, Copy, Clone, Default)]
 pub(crate) struct Cursor {
     pub(crate) location: GlyphOffset,
-    pub(crate) column: usize,
-    pub(crate) row: usize,
+    pub(crate) column: u32,
+    pub(crate) row: u32,
 }
 impl Cursor {
     pub(crate) fn new() -> Self {
@@ -171,13 +171,15 @@ impl PlaceCursor {
         // initial placement of cursor + configure focus + interaction behavior
         tree.trigger_targets(TextInputState::AwaitingInput, trigger.entity());
         // col / row from click => (cursor-from-click) [store in requested-location]
-        tree.trigger_targets(LocationFromClick(true), trigger.entity());
+        tree.trigger_targets(LocationFromClick { can_go_past_end: true }, trigger.entity());
         // move-cursor with col/row
         tree.trigger_targets(MoveCursor {}, trigger.entity());
     }
 }
 #[derive(Event, Copy, Clone)]
-pub(crate) struct LocationFromClick(pub(crate) bool);
+pub(crate) struct LocationFromClick {
+    pub(crate) can_go_past_end: bool,
+}
 impl LocationFromClick {
     pub(crate) fn obs(
         trigger: Trigger<Self>,
@@ -193,8 +195,8 @@ impl LocationFromClick {
         handles: Query<&Handle>,
         line_metrics: Query<&LineMetrics>,
     ) {
-        let lfc = u32::from(values.get(trigger.entity()).unwrap().0);
-        // offset for col-finding = i32::from(lfc.0); true -> 1 false -> 0
+        // offset for col-finding = u32::from(lfc.0); true -> 1 false -> 0
+        let lfc = u32::from(values.get(trigger.entity()).unwrap().can_go_past_end);
         let click = current_interaction.click.current;
         let fsv = font_sizes
             .get(trigger.entity())
@@ -243,8 +245,8 @@ impl MoveCursor {
         layout: Res<Layout>,
         handles: Query<&Handle>,
         mut cursor: Query<&mut Cursor>,
+        line_metrics: Query<&LineMetrics>,
     ) {
-        // attempt to find cursor.location in glyphs
         let req = requested.get(trigger.entity()).unwrap();
         let fsv = font_sizes
             .get(trigger.entity())
@@ -261,30 +263,76 @@ impl MoveCursor {
                 RequestedLocation::Offset(offset) => glyph.byte_offset == *offset,
             };
         };
+        let metrics = line_metrics.get(handle.text).unwrap();
         let mut cursor = cursor.get_mut(trigger.entity()).unwrap();
-        if let Some(found) = glyphs
-            .get(handle.text)
-            .unwrap()
-            .layout
-            .glyphs()
-            .iter()
-            .find(pred)
-        {
-            // found so place there + update cursor
+        let text_glyphs = glyphs.get(handle.text).unwrap().layout.glyphs();
+        let (location, col, row) = if let Some(found) = text_glyphs.iter().find(pred) {
             let col = (found.x / dims.a()) as u32;
             let row = (found.y / dims.b()) as u32;
-            let location = Location::new().xs(
-                (col + 1).col().left().with((col + 1).col().right()),
-                (row + 1).row().top().with((row + 1).row().bottom()),
-            );
+            (found.byte_offset, col, row)
         } else {
-            // if not found => scan backwards until 0 (no adjustment) or found (found + 1 col)
-            // set to 0 initially
-            // while let Some(scan) = cursor.location.checked_sub(1) {
-            //     if we can scan backward => set to scanned + 1 or 0 w/ break
-            // }
-            //
-        }
+            let mut col = 0;
+            let mut row = 0;
+            let mut location = 0;
+            match req {
+                RequestedLocation::Offset(offset) => {
+                    let mut scan = *offset;
+                    while let Some(s) = scan.checked_sub(1) {
+                        if let Some(found) = text_glyphs.iter().find(|g| g.byte_offset == s) {
+                            col = (found.x / dims.a()) as u32;
+                            col = (col + 1).min(metrics.max_letter_idx_horizontal);
+                            row = (found.y / dims.b()) as u32;
+                            location = found.byte_offset + 1;
+                            break;
+                        } else {
+                            if s == 0 {
+                                col = 0;
+                                row = 0;
+                                location = 0;
+                                break;
+                            }
+                        }
+                        scan = s;
+                    }
+                }
+                RequestedLocation::ColRow((c, r)) => {
+                    let mut scan = *c;
+                    while let Some(sc) = scan.checked_sub(1) {
+                        if let Some(found) = text_glyphs.iter().find(|g| {
+                            (g.x / dims.a()) as u32 == sc && (g.y / dims.b()) as u32 == *r
+                        }) {
+                            col = (sc + 1).min(metrics.max_letter_idx_horizontal);
+                            row = *r;
+                            location = found.byte_offset + 1;
+                            break;
+                        } else {
+                            if sc == 0 {
+                                col = 0;
+                                row = *r;
+                                if row == 0 {
+                                    location = 0;
+                                } else {
+                                    location = *metrics.last_offsets.get(row as usize - 1).unwrap()
+                                        as GlyphOffset
+                                        + 1;
+                                }
+                                break;
+                            }
+                        }
+                        scan = sc;
+                    }
+                }
+            }
+            (location, col, row)
+        };
+        cursor.location = location;
+        cursor.column = col;
+        cursor.row = row;
+        let location = Location::new().xs(
+            (col + 1).col().left().with((col + 1).col().right()),
+            (row + 1).row().top().with((row + 1).row().bottom()),
+        );
+        tree.entity(handle.cursor).insert(location);
     }
 }
 #[derive(Component, Clone, Default)]
@@ -309,7 +357,7 @@ impl Selection {
     }
     pub(crate) fn select(trigger: Trigger<Dragged>, mut tree: Tree) {
         // cursor is dragged => move view near edges + extend selection.range
-        tree.trigger_targets(LocationFromClick(false), trigger.entity());
+        tree.trigger_targets(LocationFromClick { can_go_past_end: false }, trigger.entity());
         // use RequestedLocation to extend highlight-range
         tree.trigger_targets(ExtendRange {}, trigger.entity());
         // trigger reselect-range after updating the range above
@@ -325,9 +373,38 @@ impl ExtendRange {
         requested: Query<&RequestedLocation>,
         cursors: Query<&Cursor>,
         mut selections: Query<&mut Selection>,
+        glyphs: Query<&Glyphs>,
+        handles: Query<&Handle>,
+        font: Res<MonospacedFont>,
+        font_sizes: Query<&FontSize>,
+        layout: Res<Layout>,
     ) {
-        // find requested-location col/row in glyphs
-        // range.inverted + found.offset -> cursor.offset
+        let handle = handles.get(trigger.entity()).unwrap();
+        let fsv = font_sizes
+            .get(trigger.entity())
+            .unwrap()
+            .resolve(*layout)
+            .value;
+        let dims = font.character_block(fsv);
+        let cursor = cursors.get(trigger.entity()).unwrap();
+        let mut selection = selections.get_mut(trigger.entity()).unwrap();
+        let req = requested.get(trigger.entity()).unwrap();
+        match req {
+            RequestedLocation::ColRow((c, r)) => {
+                for glyph in glyphs.get(handle.text).unwrap().layout.glyphs() {
+                    if (glyph.x / dims.a()) as u32 == *c && (glyph.y / dims.b()) as u32 == *r {
+                        if cursor.location < glyph.byte_offset {
+                            selection.inverted = false;
+                            selection.range = cursor.location..(glyph.byte_offset + 1);
+                        } else {
+                            selection.inverted = true;
+                            selection.range = glyph.byte_offset..(cursor.location + 1);
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
     }
 }
 #[derive(Event)]
