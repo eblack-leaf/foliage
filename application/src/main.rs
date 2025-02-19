@@ -1,6 +1,9 @@
 #![allow(unused)]
 
-use foliage::{Color, Elevation, Foliage, GridExt, LineConstraint, Location, Primary, Secondary, Stem, Tertiary, TextInput};
+use foliage::{
+    Color, Elevation, Foliage, GridExt, LineConstraint, Location, Primary, Secondary, Stem,
+    Tertiary, TextInput,
+};
 
 mod home;
 mod icons;

@@ -51,7 +51,7 @@ pub use composite::text_input::action::TextInputAction;
 pub use composite::{
     button::Button,
     handle_replace,
-    text_input::{keybindings::KeyBindings, HintText, TextInput, LineConstraint},
+    text_input::{keybindings::KeyBindings, HintText, LineConstraint, TextInput},
     Composite,
 };
 pub use composite::{IconValue, Primary, Secondary, Tertiary, TextValue};

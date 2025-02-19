@@ -1,6 +1,6 @@
-use crate::TextInputAction;
 use crate::composite::text_input::HintColor;
 use crate::handle_replace;
+use crate::TextInputAction;
 use crate::{
     Attachment, Component, Composite, EcsExtension, Elevation, Foliage, Grid, GridExt, Icon,
     IconValue, Location, Outline, Panel, Primary, Rounding, Secondary, Stem, Tertiary, TextInput,

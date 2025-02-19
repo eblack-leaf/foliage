@@ -356,6 +356,7 @@ pub(crate) struct PlaceCursor {}
 impl PlaceCursor {
     pub(crate) fn forward(trigger: Trigger<Engaged>, mut tree: Tree, roots: Query<&Root>) {
         // trigger PlaceCursor on root.0
+        println!("forwarding place-cursor");
         if let Ok(root) = roots.get(trigger.entity()) {
             tree.trigger_targets(PlaceCursor {}, root.0);
         }
@@ -366,6 +367,7 @@ impl PlaceCursor {
         current_interaction: Res<CurrentInteraction>,
         line_metrics: Query<&LineMetrics>,
     ) {
+        println!("place-cursor");
         tree.trigger_targets(ClearSelection {}, trigger.entity());
         // initial placement of cursor + configure focus + interaction behavior
         tree.trigger_targets(TextInputState::AwaitingInput, trigger.entity());
@@ -466,13 +468,11 @@ impl MoveCursor {
         let metrics = line_metrics.get(handle.text).unwrap();
         let mut cursor = cursor.get_mut(trigger.entity()).unwrap();
         let text_glyphs = glyphs.get(handle.text).unwrap().layout.glyphs();
-        let (location, col, row) = if let Some(found) = text_glyphs.iter().find(|glyph| {
-            match req {
-                RequestedLocation::ColRow((column, row)) => {
-                    (glyph.x / dims.a()) as u32 == *column && (glyph.y / dims.b()) as u32 == *row
-                }
-                RequestedLocation::Offset(offset) => glyph.byte_offset == *offset,
+        let (location, col, row) = if let Some(found) = text_glyphs.iter().find(|glyph| match req {
+            RequestedLocation::ColRow((column, row)) => {
+                (glyph.x / dims.a()) as u32 == *column && (glyph.y / dims.b()) as u32 == *row
             }
+            RequestedLocation::Offset(offset) => glyph.byte_offset == *offset,
         }) {
             let col = (found.x / dims.a()) as u32;
             let row = (found.y / dims.b()) as u32;
