@@ -1,4 +1,5 @@
-use crate::composite::text_input::{HintColor, InputCommit};
+use crate::TextInputAction;
+use crate::composite::text_input::HintColor;
 use crate::handle_replace;
 use crate::{
     Attachment, Component, Composite, EcsExtension, Elevation, Foliage, Grid, GridExt, Icon,
@@ -65,7 +66,7 @@ impl Prompt {
         let handle = Handle { panel, icon, input };
         world.commands().entity(this).insert(handle);
     }
-    fn listen_input(trigger: Trigger<InputCommit>, mut tree: Tree) {
+    fn listen_input(trigger: Trigger<TextInputAction>, mut tree: Tree) {
         // up-down suggestions + Tab to commit suggestion + Enter to Trigger "Submit" Event
     }
     fn handle_trigger(trigger: Trigger<OnInsert, Handle>, mut tree: Tree) {

@@ -1,8 +1,6 @@
 #![allow(unused)]
 
-use foliage::{
-    Color, Elevation, Foliage, GridExt, Location, Primary, Secondary, Stem, Tertiary, TextInput,
-};
+use foliage::{Color, Elevation, Foliage, GridExt, LineConstraint, Location, Primary, Secondary, Stem, Tertiary, TextInput};
 
 mod home;
 mod icons;
@@ -24,7 +22,8 @@ fn main() {
         Stem::none(),
     ));
     foliage.leaf((
-        TextInput::new().multiline(),
+        TextInput::new(),
+        LineConstraint::Multiple,
         Location::new().xs(
             10.px().left().with(400.px().right()),
             200.px().top().with(100.px().height()),

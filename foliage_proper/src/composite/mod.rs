@@ -7,9 +7,8 @@ use bevy_ecs::world::DeferredWorld;
 
 pub(crate) mod button;
 mod prompt;
-mod r_text_input;
 pub(crate) mod text_input;
-
+pub(crate) use text_input::keybindings::KeyBindings;
 pub trait Composite {
     type Handle: Component;
     fn remove(handle: &Self::Handle) -> impl TriggerTargets + Send + Sync + 'static;

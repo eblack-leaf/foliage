@@ -1,27 +1,8 @@
-use crate::{Event, InputSequence, Resource};
+use crate::composite::text_input::action::TextInputAction;
+use crate::{InputSequence, Resource};
 use std::collections::HashMap;
 use winit::keyboard::{Key, ModifiersState, NamedKey, SmolStr};
 
-#[derive(Event, Copy, Clone, Eq, PartialEq, Hash, Debug)]
-pub enum TextInputAction {
-    Enter,
-    Backspace,
-    Delete,
-    End,
-    Home,
-    Copy,
-    Paste,
-    SelectAll,
-    ExtendLeft,
-    ExtendRight,
-    ExtendUp,
-    ExtendDown,
-    Up,
-    Down,
-    Left,
-    Right,
-    Space,
-}
 #[derive(Resource)]
 pub struct KeyBindings {
     pub bindings: HashMap<InputSequence, TextInputAction>,

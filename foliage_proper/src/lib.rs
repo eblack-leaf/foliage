@@ -47,10 +47,11 @@ pub use asset::{asset_retrieval, AssetKey, AssetRetrieval};
 pub use attachment::Attachment;
 pub use bevy_ecs::{self, prelude::*};
 pub use color::{CReprColor, Color, Luminance};
+pub use composite::text_input::action::TextInputAction;
 pub use composite::{
     button::Button,
     handle_replace,
-    text_input::{HintText, KeyBindings, TextInput, TextInputAction},
+    text_input::{keybindings::KeyBindings, HintText, TextInput, LineConstraint},
     Composite,
 };
 pub use composite::{IconValue, Primary, Secondary, Tertiary, TextValue};

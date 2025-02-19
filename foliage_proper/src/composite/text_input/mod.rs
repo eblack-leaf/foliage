@@ -1,30 +1,52 @@
-mod keybindings;
+pub(crate) mod action;
+pub(crate) mod keybindings;
 
 use crate::composite::handle_replace;
-use crate::composite::r_text_input::keybindings::{KeyBindings, TextInputAction};
 use crate::composite::Root;
 use crate::interaction::CurrentInteraction;
 use crate::text::monospaced::MonospacedFont;
 use crate::text::{Glyphs, LineMetrics};
 use crate::{
-    auto, AutoHeight, AutoWidth, Component, Composite, Dragged, EcsExtension, Elevation, Engaged,
-    Event, FocusBehavior, FontSize, GlyphOffset, Grid, GridExt, InputSequence, InteractionListener,
-    InteractionPropagation, Layout, Location, Logical, Opacity, OverscrollPropagation, Panel,
-    Primary, Section, Stem, Tertiary, Text, TextValue, Tree, Unfocused, View, Write,
+    auto, Attachment, AutoHeight, AutoWidth, Color, Component, Composite, Dragged, EcsExtension,
+    Elevation, Engaged, Event, FocusBehavior, Foliage, FontSize, GlyphOffset, Grid, GridExt,
+    InputSequence, InteractionListener, InteractionPropagation, Layout, Location, Logical, Opacity,
+    OverscrollPropagation, Panel, Primary, Secondary, Section, Stem, Tertiary, Text, TextValue,
+    Tree, Unfocused, Update, View, Write,
 };
+use action::TextInputAction;
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::observer::TriggerTargets;
-use bevy_ecs::prelude::Trigger;
+use bevy_ecs::prelude::{OnInsert, Trigger};
 use bevy_ecs::system::{Query, Res};
 use bevy_ecs::world::DeferredWorld;
 use fontdue::layout::GlyphPosition;
+use keybindings::KeyBindings;
 use std::collections::HashMap;
 use std::ops::Range;
 use winit::keyboard::Key;
 
+impl Attachment for TextInput {
+    fn attach(foliage: &mut Foliage) {
+        foliage.define(TextInputState::obs);
+        foliage.define(PlaceCursor::obs);
+        foliage.define(LocationFromClick::obs);
+        foliage.define(MoveCursor::obs);
+        foliage.define(Input::forward_to_text);
+        foliage.define(Input::obs);
+        foliage.define(InsertText::obs);
+        foliage.define(ExtendRange::obs);
+        foliage.define(ClearSelection::obs);
+        foliage.define(ReselectRange::obs);
+        foliage.define(Self::handle_trigger);
+        foliage.world.insert_resource(KeyBindings::default());
+    }
+}
 #[derive(Component, Copy, Clone)]
-#[require(LineConstraint, Cursor, Selection)]
+#[require(LineConstraint, Cursor, Selection, HintText, RequestedLocation)]
+#[require(Primary, Secondary, Tertiary, FontSize, TextValue)]
+#[component(on_add = Self::on_add)]
+#[component(on_insert = Self::on_insert)]
 pub struct TextInput {}
 impl TextInput {
     const HIGHLIGHT_SCROLL_THRESHOLD: f32 = 10.0;
@@ -33,6 +55,21 @@ impl TextInput {
     }
     fn on_add(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
         // observers
+        world
+            .commands()
+            .entity(this)
+            .observe(Self::unfocused)
+            .observe(Input::forward)
+            .observe(Self::forward_text_value)
+            .observe(Self::update_text_value)
+            .observe(Self::forward_primary)
+            .observe(Self::update_primary)
+            .observe(Self::forward_secondary)
+            .observe(Self::update_secondary)
+            .observe(Self::forward_tertiary)
+            .observe(Self::update_tertiary)
+            .observe(Self::forward_font_size)
+            .observe(Self::update_font_size);
     }
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
         world.commands().entity(this).insert(Grid::default());
@@ -57,6 +94,11 @@ impl TextInput {
             ),
             Root(this),
         ));
+        world
+            .commands()
+            .entity(panel)
+            .observe(Self::unfocused)
+            .observe(PlaceCursor::forward);
         let cursor = world.commands().leaf((
             Stem::some(panel),
             InteractionListener::new(),
@@ -68,11 +110,18 @@ impl TextInput {
             ),
             Root(this),
         ));
+        world
+            .commands()
+            .entity(cursor)
+            .observe(Self::unfocused)
+            .observe(Cursor::engaged)
+            .observe(Selection::select);
         let visible = world.commands().leaf((
             Panel::new(),
             Stem::some(panel),
             InteractionListener::new(),
             InteractionPropagation::pass_through(),
+            FocusBehavior::ignore(),
             Elevation::up(2),
             Location::new().xs(
                 1.col().left().with(1.col().right()),
@@ -97,10 +146,17 @@ impl TextInput {
             ),
             Root(this),
         ));
+        world
+            .commands()
+            .entity(text)
+            .observe(Self::unfocused)
+            .observe(PlaceCursor::forward)
+            .observe(Selection::reselect);
         let hint_text = world.commands().leaf((
             Text::new(""),
             Stem::some(panel),
             InteractionPropagation::pass_through(),
+            FocusBehavior::ignore(),
             Elevation::up(3),
             Root(this),
         ));
@@ -114,8 +170,116 @@ impl TextInput {
         };
         world.commands().entity(this).insert(handle);
     }
+    pub(crate) fn unfocused(
+        trigger: Trigger<Unfocused>,
+        mut tree: Tree,
+        roots: Query<&Root>,
+        handles: Query<&Handle>,
+        current_interaction: Res<CurrentInteraction>,
+    ) {
+        let main = if let Ok(root) = roots.get(trigger.entity()) {
+            root.0
+        } else {
+            trigger.entity()
+        };
+        let handle = handles.get(main).unwrap();
+        if let Some(f) = current_interaction.focused {
+            if f == main || f == handle.panel || f == handle.text || f == handle.cursor {
+                return;
+            }
+        }
+        tree.trigger_targets(ClearSelection {}, main);
+        tree.trigger_targets(TextInputState::Inactive, main);
+    }
     // forwarders for all colors + state
-    // handle-trigger
+    fn handle_trigger(trigger: Trigger<OnInsert, Handle>, mut tree: Tree) {
+        println!("handle_trigger");
+        let this = trigger.entity();
+        tree.trigger_targets(Update::<TextValue>::new(), this);
+        tree.trigger_targets(Update::<Primary>::new(), this);
+        tree.trigger_targets(Update::<Secondary>::new(), this);
+        tree.trigger_targets(Update::<Tertiary>::new(), this);
+        tree.trigger_targets(Update::<FontSize>::new(), this);
+    }
+    fn forward_text_value(trigger: Trigger<OnInsert, TextValue>, mut tree: Tree) {
+        println!("forward_text_value");
+        tree.trigger_targets(Update::<TextValue>::new(), trigger.entity());
+    }
+    fn update_text_value(trigger: Trigger<Update<TextValue>>, mut tree: Tree) {
+        println!("update_text_value");
+        tree.trigger_targets(ForwardText {}, trigger.entity());
+        tree.trigger_targets(ClearSelection {}, trigger.entity());
+        tree.trigger_targets(TextInputState::Inactive, trigger.entity());
+    }
+    fn forward_font_size(trigger: Trigger<OnInsert, FontSize>, mut tree: Tree) {
+        println!("forward_font_size");
+        tree.trigger_targets(Update::<FontSize>::new(), trigger.entity());
+    }
+    fn update_font_size(
+        trigger: Trigger<Update<FontSize>>,
+        mut tree: Tree,
+        font_sizes: Query<&FontSize>,
+        handles: Query<&Handle>,
+    ) {
+        println!("update_font_size");
+        // give to handle.text
+        let handle = handles.get(trigger.entity()).unwrap();
+        tree.entity(handle.text)
+            .insert(font_sizes.get(trigger.entity()).unwrap().clone());
+        tree.entity(handle.panel)
+            .insert(font_sizes.get(trigger.entity()).unwrap().clone());
+    }
+    fn update_primary(
+        trigger: Trigger<Update<Primary>>,
+        mut tree: Tree,
+        handles: Query<&Handle>,
+        primary: Query<&Primary>,
+    ) {
+        println!("update_primary");
+        // text-color
+        let handle = handles.get(trigger.entity()).unwrap();
+        tree.entity(handle.text)
+            .insert(primary.get(trigger.entity()).unwrap().0);
+    }
+    fn forward_primary(trigger: Trigger<OnInsert, Primary>, mut tree: Tree) {
+        println!("forward_primary");
+        tree.trigger_targets(Update::<Primary>::new(), trigger.entity());
+    }
+    fn update_secondary(
+        trigger: Trigger<Update<Secondary>>,
+        mut tree: Tree,
+        handles: Query<&Handle>,
+        secondary: Query<&Secondary>,
+    ) {
+        println!("update_secondary");
+        // background (panel)
+        let handle = handles.get(trigger.entity()).unwrap();
+        tree.entity(handle.panel)
+            .insert(secondary.get(trigger.entity()).unwrap().0);
+    }
+    fn forward_secondary(trigger: Trigger<OnInsert, Secondary>, mut tree: Tree) {
+        println!("forward_secondary");
+        tree.trigger_targets(Update::<Secondary>::new(), trigger.entity());
+    }
+    fn update_tertiary(
+        trigger: Trigger<Update<Tertiary>>,
+        mut tree: Tree,
+        handles: Query<&Handle>,
+        tertiary: Query<&Tertiary>,
+    ) {
+        println!("update_tertiary");
+        // cursor color + highlight color
+        let handle = handles.get(trigger.entity()).unwrap();
+        let color = tertiary.get(trigger.entity()).unwrap().0;
+        tree.entity(handle.visible).insert(color);
+        for (o, e) in handle.highlights.iter() {
+            tree.entity(*e).insert(color);
+        }
+    }
+    fn forward_tertiary(trigger: Trigger<OnInsert, Tertiary>, mut tree: Tree) {
+        println!("forward_tertiary");
+        tree.trigger_targets(Update::<Tertiary>::new(), trigger.entity());
+    }
 }
 #[derive(Event, Copy, Clone)]
 pub(crate) enum TextInputState {
@@ -185,27 +349,6 @@ impl Cursor {
     // we clicked explicitly on cursor, start drag behavior
     pub(crate) fn engaged(trigger: Trigger<Engaged>, mut tree: Tree) {
         tree.trigger_targets(TextInputState::Highlighting, trigger.entity());
-    }
-    pub(crate) fn unfocused(
-        trigger: Trigger<Unfocused>,
-        mut tree: Tree,
-        roots: Query<&Root>,
-        handles: Query<&Handle>,
-        current_interaction: Res<CurrentInteraction>,
-    ) {
-        let main = if let Ok(root) = roots.get(trigger.entity()) {
-            root.0
-        } else {
-            trigger.entity()
-        };
-        let handle = handles.get(main).unwrap();
-        if let Some(f) = current_interaction.focused {
-            if f == main || f == handle.panel || f == handle.text || f == handle.cursor {
-                return;
-            }
-        }
-        tree.trigger_targets(ClearSelection {}, main);
-        tree.trigger_targets(TextInputState::Inactive, main);
     }
 }
 #[derive(Event, Copy, Clone)]
@@ -287,11 +430,15 @@ impl LocationFromClick {
         tree.write_to(trigger.entity(), RequestedLocation::ColRow((column, row)))
     }
 }
-#[derive(Component, Copy, Clone, Default)]
+#[derive(Component, Copy, Clone)]
 pub(crate) enum RequestedLocation {
-    #[default]
     Offset(GlyphOffset),
     ColRow((u32, u32)),
+}
+impl Default for RequestedLocation {
+    fn default() -> Self {
+        RequestedLocation::Offset(0)
+    }
 }
 #[derive(Event, Copy, Clone)]
 pub(crate) struct MoveCursor {}
@@ -316,18 +463,17 @@ impl MoveCursor {
             .value;
         let dims = font.character_block(fsv);
         let handle = handles.get(trigger.entity()).unwrap();
-        let pred = |glyph: &GlyphPosition<()>| {
+        let metrics = line_metrics.get(handle.text).unwrap();
+        let mut cursor = cursor.get_mut(trigger.entity()).unwrap();
+        let text_glyphs = glyphs.get(handle.text).unwrap().layout.glyphs();
+        let (location, col, row) = if let Some(found) = text_glyphs.iter().find(|glyph| {
             match req {
                 RequestedLocation::ColRow((column, row)) => {
                     (glyph.x / dims.a()) as u32 == *column && (glyph.y / dims.b()) as u32 == *row
                 }
                 RequestedLocation::Offset(offset) => glyph.byte_offset == *offset,
-            };
-        };
-        let metrics = line_metrics.get(handle.text).unwrap();
-        let mut cursor = cursor.get_mut(trigger.entity()).unwrap();
-        let text_glyphs = glyphs.get(handle.text).unwrap().layout.glyphs();
-        let (location, col, row) = if let Some(found) = text_glyphs.iter().find(pred) {
+            }
+        }) {
             let col = (found.x / dims.a()) as u32;
             let row = (found.y / dims.b()) as u32;
             (found.byte_offset, col, row)
@@ -509,7 +655,7 @@ impl ReselectRange {
         layout: Res<Layout>,
         tertiary: Query<&Tertiary>,
     ) {
-        let handle = handles.get_mut(trigger.entity()).unwrap();
+        let mut handle = handles.get_mut(trigger.entity()).unwrap();
         let glyph = glyphs.get(handle.text).unwrap();
         let cursor = cursors.get(trigger.entity()).unwrap();
         let fsv = font_sizes
@@ -518,7 +664,7 @@ impl ReselectRange {
             .resolve(*layout)
             .value;
         let dims = font.character_block(fsv);
-        for (o, e) in handle.highlights.iter() {
+        for (o, e) in handle.highlights.clone().iter() {
             if let Some(found) = glyph.layout.glyphs().iter().find(|g| g.byte_offset == *o) {
                 let (col, row) = ((found.x / dims.a()) as u32, (found.y / dims.b()) as u32);
                 let location = Location::new().xs(
@@ -826,3 +972,5 @@ impl HintText {
         Self(text.into())
     }
 }
+#[derive(Component, Clone, Default)]
+pub struct HintColor(pub Color);
