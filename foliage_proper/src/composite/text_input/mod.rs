@@ -20,7 +20,6 @@ use bevy_ecs::observer::TriggerTargets;
 use bevy_ecs::prelude::{OnInsert, Trigger};
 use bevy_ecs::system::{Query, Res};
 use bevy_ecs::world::DeferredWorld;
-use fontdue::layout::GlyphPosition;
 use keybindings::KeyBindings;
 use std::collections::HashMap;
 use std::ops::Range;
@@ -87,7 +86,7 @@ impl TextInput {
             Stem::some(this),
             Grid::new(1.letters(), 1.letters()),
             InteractionListener::new(),
-            Elevation::up(0),
+            Elevation::up(1),
             Location::new().xs(
                 0.pct().left().adjust(4).with(100.pct().right().adjust(-4)),
                 0.pct().top().adjust(4).with(100.pct().bottom().adjust(-4)),
@@ -103,7 +102,7 @@ impl TextInput {
             Stem::some(panel),
             InteractionListener::new(),
             InteractionPropagation::pass_through(),
-            Elevation::up(5),
+            Elevation::up(6),
             Location::new().xs(
                 1.col().left().with(1.col().right()),
                 1.col().top().with(1.col().bottom()),
@@ -122,7 +121,7 @@ impl TextInput {
             InteractionListener::new(),
             InteractionPropagation::pass_through(),
             FocusBehavior::ignore(),
-            Elevation::up(2),
+            Elevation::up(3),
             Location::new().xs(
                 1.col().left().with(1.col().right()),
                 1.col().top().with(1.col().bottom()),
@@ -133,7 +132,7 @@ impl TextInput {
             Text::new(""),
             Stem::some(panel),
             InteractionListener::new(),
-            Elevation::up(4),
+            Elevation::up(5),
             Location::new().xs(
                 match line_constraint {
                     LineConstraint::Single => 0.pct().left().with(auto().width()),
@@ -157,7 +156,7 @@ impl TextInput {
             Stem::some(panel),
             InteractionPropagation::pass_through(),
             FocusBehavior::ignore(),
-            Elevation::up(3),
+            Elevation::up(4),
             Root(this),
         ));
         let handle = Handle {
@@ -168,6 +167,7 @@ impl TextInput {
             visible,
             highlights: Default::default(),
         };
+        println!("handle: {:?} for {:?}", handle, this);
         world.commands().entity(this).insert(handle);
     }
     pub(crate) fn unfocused(
@@ -347,8 +347,11 @@ impl Cursor {
         }
     }
     // we clicked explicitly on cursor, start drag behavior
-    pub(crate) fn engaged(trigger: Trigger<Engaged>, mut tree: Tree) {
-        tree.trigger_targets(TextInputState::Highlighting, trigger.entity());
+    pub(crate) fn engaged(trigger: Trigger<Engaged>, mut tree: Tree, roots: Query<&Root>) {
+        tree.trigger_targets(
+            TextInputState::Highlighting,
+            roots.get(trigger.entity()).unwrap().0,
+        );
     }
 }
 #[derive(Event, Copy, Clone)]
@@ -391,7 +394,6 @@ impl LocationFromClick {
         trigger: Trigger<Self>,
         mut tree: Tree,
         mut requested: Query<&mut RequestedLocation>,
-        values: Query<&LocationFromClick>,
         current_interaction: Res<CurrentInteraction>,
         font: Res<MonospacedFont>,
         font_sizes: Query<&FontSize>,
@@ -402,7 +404,7 @@ impl LocationFromClick {
         line_metrics: Query<&LineMetrics>,
     ) {
         // offset for col-finding = u32::from(lfc.0); true -> 1 false -> 0
-        let lfc = u32::from(values.get(trigger.entity()).unwrap().can_go_past_end);
+        let lfc = u32::from(trigger.can_go_past_end);
         let click = current_interaction.click.current;
         let fsv = font_sizes
             .get(trigger.entity())
@@ -563,18 +565,19 @@ impl Selection {
         tree.trigger_targets(MoveCursor {}, root);
         tree.trigger_targets(ReselectRange {}, root);
     }
-    pub(crate) fn select(trigger: Trigger<Dragged>, mut tree: Tree) {
+    pub(crate) fn select(trigger: Trigger<Dragged>, mut tree: Tree, roots: Query<&Root>) {
         // cursor is dragged => move view near edges + extend selection.range
+        let root = roots.get(trigger.entity()).unwrap().0;
         tree.trigger_targets(
             LocationFromClick {
                 can_go_past_end: false,
             },
-            trigger.entity(),
+            root,
         );
         // use RequestedLocation to extend highlight-range
-        tree.trigger_targets(ExtendRange {}, trigger.entity());
+        tree.trigger_targets(ExtendRange {}, root);
         // trigger reselect-range after updating the range above
-        tree.trigger_targets(ReselectRange {}, trigger.entity());
+        tree.trigger_targets(ReselectRange {}, root);
     }
 }
 #[derive(Event, Copy, Clone)]
@@ -680,7 +683,7 @@ impl ReselectRange {
                         Panel::new(),
                         Opacity::new(1.0),
                         Stem::some(handle.panel),
-                        Elevation::up(1),
+                        Elevation::up(2),
                         location,
                         tertiary.get(trigger.entity()).unwrap().0,
                         InteractionPropagation::pass_through(),
@@ -939,7 +942,7 @@ impl InsertText {
         tree.trigger_targets(ClearSelection {}, trigger.entity());
     }
 }
-#[derive(Component, Clone)]
+#[derive(Component, Clone, Debug)]
 #[component(on_replace = handle_replace::<TextInput>)]
 pub struct Handle {
     pub panel: Entity,
