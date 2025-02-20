@@ -758,7 +758,6 @@ impl Input {
         values: Query<&TextValue>,
         handles: Query<&Handle>,
     ) {
-
         // get handle + send main TextValue => handle.text TextValue
         let handle = handles.get(trigger.entity()).unwrap();
         let value = values.get(trigger.entity()).unwrap();
