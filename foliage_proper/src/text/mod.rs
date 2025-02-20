@@ -166,9 +166,11 @@ impl Text {
             horizontal_alignment: *horizontal_alignment.get(this).unwrap(),
             vertical_alignment: *vertical_alignment.get(this).unwrap(),
         };
+        println!("current.section {}", current.section);
         if cache.get(this).unwrap() != &current {
             let mut glyphs = glyph_query.get_mut(this).unwrap();
             let auto_width = auto_widths.get(this).unwrap();
+            println!("Auto-widths: {}", auto_width.0);
             let auto_height = auto_heights.get(this).unwrap();
             glyphs.layout.reset(&fontdue::layout::LayoutSettings {
                 horizontal_align: current.horizontal_alignment.into(),
@@ -222,6 +224,7 @@ impl Text {
             let mut line_metrics = LineMetrics::default();
             if let Some(lines) = glyphs.layout.lines() {
                 for line in lines {
+                    println!("end {} start {}", line.glyph_end, line.glyph_start);
                     line_metrics
                         .lines
                         .push((line.glyph_end - line.glyph_start) as u32);

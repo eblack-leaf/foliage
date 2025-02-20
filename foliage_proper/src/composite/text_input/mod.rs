@@ -33,6 +33,7 @@ impl Attachment for TextInput {
         foliage.define(MoveCursor::obs);
         foliage.define(Input::forward_to_text);
         foliage.define(Input::obs);
+        foliage.define(Input::forward);
         foliage.define(InsertText::obs);
         foliage.define(ExtendRange::obs);
         foliage.define(ClearSelection::obs);
@@ -58,7 +59,6 @@ impl TextInput {
             .commands()
             .entity(this)
             .observe(Self::unfocused)
-            .observe(Input::forward)
             .observe(Self::forward_text_value)
             .observe(Self::update_text_value)
             .observe(Self::forward_primary)
@@ -73,14 +73,6 @@ impl TextInput {
     fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
         world.commands().entity(this).insert(Grid::default());
         let line_constraint = *world.get::<LineConstraint>(this).unwrap();
-        let auto_width = match line_constraint {
-            LineConstraint::Single => AutoWidth(true),
-            LineConstraint::Multiple => AutoWidth(false),
-        };
-        let auto_height = match line_constraint {
-            LineConstraint::Single => AutoHeight(false),
-            LineConstraint::Multiple => AutoHeight(true),
-        };
         let panel = world.commands().leaf((
             Panel::new(),
             Stem::some(this),
@@ -128,22 +120,33 @@ impl TextInput {
             ),
             Root(this),
         ));
+        let text_location = Location::new().xs(
+            match line_constraint {
+                LineConstraint::Single => 0.pct().left().with(auto().width()),
+                LineConstraint::Multiple => 0.pct().left().with(100.pct().right()),
+            },
+            match line_constraint {
+                LineConstraint::Single => 0.pct().top().with(100.pct().bottom()),
+                LineConstraint::Multiple => 0.pct().top().with(auto().height()),
+            },
+        );
+        let auto_width = match line_constraint {
+            LineConstraint::Single => AutoWidth(true),
+            LineConstraint::Multiple => AutoWidth(false),
+        };
+        let auto_height = match line_constraint {
+            LineConstraint::Single => AutoHeight(false),
+            LineConstraint::Multiple => AutoHeight(true),
+        };
         let text = world.commands().leaf((
             Text::new(""),
             Stem::some(panel),
             InteractionListener::new(),
             Elevation::up(5),
-            Location::new().xs(
-                match line_constraint {
-                    LineConstraint::Single => 0.pct().left().with(auto().width()),
-                    LineConstraint::Multiple => 0.pct().left().with(100.pct().right()),
-                },
-                match line_constraint {
-                    LineConstraint::Single => 0.pct().top().with(100.pct().bottom()),
-                    LineConstraint::Multiple => 0.pct().top().with(auto().height()),
-                },
-            ),
+            text_location,
             Root(this),
+            auto_width,
+            auto_height,
         ));
         world
             .commands()
@@ -157,7 +160,10 @@ impl TextInput {
             InteractionPropagation::pass_through(),
             FocusBehavior::ignore(),
             Elevation::up(4),
+            text_location,
             Root(this),
+            auto_width,
+            auto_height,
         ));
         let handle = Handle {
             panel,
@@ -226,6 +232,8 @@ impl TextInput {
         let handle = handles.get(trigger.entity()).unwrap();
         tree.entity(handle.text)
             .insert(font_sizes.get(trigger.entity()).unwrap().clone());
+        tree.entity(handle.hint_text)
+            .insert(font_sizes.get(trigger.entity()).unwrap().clone());
         tree.entity(handle.panel)
             .insert(font_sizes.get(trigger.entity()).unwrap().clone());
     }
@@ -239,6 +247,8 @@ impl TextInput {
         // text-color
         let handle = handles.get(trigger.entity()).unwrap();
         tree.entity(handle.text)
+            .insert(primary.get(trigger.entity()).unwrap().0);
+        tree.entity(handle.hint_text)
             .insert(primary.get(trigger.entity()).unwrap().0);
     }
     fn forward_primary(trigger: Trigger<OnInsert, Primary>, mut tree: Tree) {
@@ -404,6 +414,7 @@ impl LocationFromClick {
         line_metrics: Query<&LineMetrics>,
     ) {
         // offset for col-finding = u32::from(lfc.0); true -> 1 false -> 0
+        println!("location from click");
         let lfc = u32::from(trigger.can_go_past_end);
         let click = current_interaction.click.current;
         let fsv = font_sizes
@@ -459,6 +470,7 @@ impl MoveCursor {
         mut cursor: Query<&mut Cursor>,
         line_metrics: Query<&LineMetrics>,
     ) {
+        println!("move-cursor");
         let req = requested.get(trigger.entity()).unwrap();
         let fsv = font_sizes
             .get(trigger.entity())
@@ -557,6 +569,7 @@ impl Selection {
         roots: Query<&Root>,
         cursors: Query<&Cursor>,
     ) {
+        println!("reselect");
         let root = roots.get(trigger.entity()).unwrap().0;
         tree.write_to(
             root,
@@ -567,6 +580,7 @@ impl Selection {
     }
     pub(crate) fn select(trigger: Trigger<Dragged>, mut tree: Tree, roots: Query<&Root>) {
         // cursor is dragged => move view near edges + extend selection.range
+        println!("select");
         let root = roots.get(trigger.entity()).unwrap().0;
         tree.trigger_targets(
             LocationFromClick {
@@ -595,6 +609,7 @@ impl ExtendRange {
         font_sizes: Query<&FontSize>,
         layout: Res<Layout>,
     ) {
+        println!("extend-range");
         let handle = handles.get(trigger.entity()).unwrap();
         let fsv = font_sizes
             .get(trigger.entity())
@@ -632,6 +647,7 @@ impl ClearSelection {
         mut selections: Query<&mut Selection>,
         mut handles: Query<&mut Handle>,
     ) {
+        println!("clear-selection");
         let mut selection = selections.get_mut(trigger.entity()).unwrap();
         selection.range = Range::default();
         for (o, e) in handles
@@ -658,6 +674,7 @@ impl ReselectRange {
         layout: Res<Layout>,
         tertiary: Query<&Tertiary>,
     ) {
+        println!("reselect-range");
         let mut handle = handles.get_mut(trigger.entity()).unwrap();
         let glyph = glyphs.get(handle.text).unwrap();
         let cursor = cursors.get(trigger.entity()).unwrap();
@@ -710,27 +727,30 @@ impl Input {
         current_interaction: Res<CurrentInteraction>,
         handles: Query<&Handle>,
     ) {
+        println!("forward-input");
         // if any focused => check if root or not (panel, text, cursor)
-        let main = if let Ok(root) = roots.get(trigger.entity()) {
-            root.0
-        } else {
-            trigger.entity()
-        };
-        let handle = handles.get(main).unwrap();
         if let Some(f) = current_interaction.focused {
-            if f != main || f != handle.panel || f != handle.text || f != handle.cursor {
+            let main = if let Ok(root) = roots.get(f) {
+                root.0
+            } else {
+                if handles.get(f).is_ok() {
+                    f
+                } else {
+                    return;
+                }
+            };
+            let handle = handles.get(main).unwrap();
+            if f != main && f != handle.panel && f != handle.text && f != handle.cursor {
                 return;
             }
-        } else {
-            return;
+            // forward Input to root
+            tree.trigger_targets(
+                Input {
+                    sequence: trigger.event().clone(),
+                },
+                main,
+            );
         }
-        // forward Input to root
-        tree.trigger_targets(
-            Input {
-                sequence: trigger.event().clone(),
-            },
-            main,
-        );
     }
     pub(crate) fn forward_to_text(
         trigger: Trigger<ForwardText>,
@@ -738,9 +758,11 @@ impl Input {
         values: Query<&TextValue>,
         handles: Query<&Handle>,
     ) {
+
         // get handle + send main TextValue => handle.text TextValue
         let handle = handles.get(trigger.entity()).unwrap();
         let value = values.get(trigger.entity()).unwrap();
+        println!("forward-text {}", value.0);
         tree.write_to(handle.text, Text::new(&value.0));
     }
     pub(crate) fn obs(
@@ -753,6 +775,7 @@ impl Input {
         handles: Query<&Handle>,
         line_metrics: Query<&LineMetrics>,
     ) {
+        println!("Input::obs");
         // check type of interaction + if trigger action then send correct event
         let cursor = cursors.get(trigger.entity()).unwrap();
         let lc = line_constraints.get(trigger.entity()).unwrap();
@@ -913,6 +936,7 @@ impl InsertText {
         mut values: Query<&mut TextValue>,
         cursors: Query<&Cursor>,
     ) {
+        println!("inserting text");
         // typing append
         let selection = selections.get(trigger.entity()).unwrap();
         let mut value = values.get_mut(trigger.entity()).unwrap();
