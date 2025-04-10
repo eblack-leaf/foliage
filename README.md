@@ -12,9 +12,41 @@ as of writing. It leverages `wgpu.rs` and `winit` for native-rendering on (almos
 let mut foliage = Foliage::new();
 ```
 
-Once everything is to your liking, you can run the system with
+Configure the class with available options
+
+```rust
+...TODO
+```
+
+then you can run the system with
 
 ```rust
 // run main-loop
 foliage.photosynthesize();
 ```
+
+### Architecture
+
+Here is the main overview of how the library initializes
+
+![arch](foliage/book/assets/foliage.drawio.png)
+
+#### Event Category
+
+##### Resize
+
+Resize operations
+
+![resize](foliage/book/assets/resize.drawio.png)
+
+##### Input + Interaction
+
+Overview of the interaction process
+
+![interaction](foliage/book/assets/input.drawio.png)
+
+##### Redraw
+
+Render Pipeline
+
+![render-pipeline](foliage/book/assets/redraw.drawio.png)
