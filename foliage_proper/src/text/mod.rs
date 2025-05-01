@@ -227,7 +227,7 @@ impl Text {
                     println!("end {} start {}", line.glyph_end, line.glyph_start);
                     line_metrics
                         .lines
-                        .push((line.glyph_end - line.glyph_start) as u32);
+                        .push((line.glyph_end.checked_sub(line.glyph_start).unwrap_or_default()) as u32);
                     line_metrics.last_offsets.push(line.glyph_end as u32);
                 }
             }
