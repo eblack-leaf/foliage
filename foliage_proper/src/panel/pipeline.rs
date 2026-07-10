@@ -61,8 +61,8 @@ impl Render for Panel {
         });
         let pipeline_layout = ginkgo.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("panel-pipeline-layout-descriptor"),
-            bind_group_layouts: &[&bind_group_layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&bind_group_layout)],
+            immediate_size: 0,
         });
         let pipeline = ginkgo.create_pipeline(&RenderPipelineDescriptor {
             label: Some("panel-render-pipeline"),
@@ -114,7 +114,7 @@ impl Render for Panel {
                 "fragment_entry",
                 &ginkgo.alpha_color_target_state(),
             ),
-            multiview: None,
+            multiview_mask: None,
             cache: None,
         });
         Renderer {
@@ -155,15 +155,15 @@ impl Render for Panel {
         for r in queues.removes::<Panel>() {
             if render_group
                 .coordinator
-                .has_instance(r.index() as InstanceId)
+                .has_instance(r.index().index() as InstanceId)
             {
                 renderer.resources.layer_and_weights.remove(&r);
                 nodes.remove(RemoveNode::new(
                     PipelineId::Panel,
                     0,
-                    r.index() as InstanceId,
+                    r.index().index() as InstanceId,
                 ));
-                let order = render_group.coordinator.order(r.index() as InstanceId);
+                let order = render_group.coordinator.order(r.index().index() as InstanceId);
                 render_group.coordinator.remove(order);
                 queues.remove_attr::<Panel, ResolvedElevation>(r);
                 queues.remove_attr::<Panel, Section<Logical>>(r);
@@ -175,7 +175,7 @@ impl Render for Panel {
             }
         }
         for (entity, elevation) in queues.attribute::<Panel, ResolvedElevation>() {
-            let id = entity.index() as InstanceId;
+            let id = entity.index().index() as InstanceId;
             if !render_group.coordinator.has_instance(id) {
                 render_group
                     .coordinator
@@ -195,7 +195,7 @@ impl Render for Panel {
         }
         for (entity, section) in queues.attribute::<Self, Section<Logical>>() {
             render_group.group.sections.queue(
-                entity.index() as InstanceId,
+                entity.index().index() as InstanceId,
                 section
                     .to_physical(ginkgo.configuration().scale_factor.value())
                     .rounded()
@@ -205,7 +205,7 @@ impl Render for Panel {
         for (entity, clip_section) in queues.attribute::<Panel, Stem>() {
             render_group
                 .coordinator
-                .update_clip_context(entity.index() as InstanceId, clip_section);
+                .update_clip_context(entity.index().index() as InstanceId, clip_section);
         }
         for (entity, outline) in queues.attribute::<Panel, Outline>() {
             renderer
@@ -218,13 +218,13 @@ impl Render for Panel {
             render_group
                 .group
                 .lws
-                .queue(entity.index() as InstanceId, lw);
+                .queue(entity.index().index() as InstanceId, lw);
         }
         for (entity, opacity) in queues.attribute::<Self, BlendedOpacity>() {
             renderer.resources.opacity.insert(entity, opacity);
             if let Some(color) = renderer.resources.color.get(&entity) {
                 render_group.group.colors.queue(
-                    entity.index() as InstanceId,
+                    entity.index().index() as InstanceId,
                     color.with_opacity(opacity.value).c_repr(),
                 )
             }
@@ -233,7 +233,7 @@ impl Render for Panel {
             renderer.resources.color.insert(entity, color);
             let opacity = renderer.resources.opacity.get(&entity).unwrap();
             render_group.group.colors.queue(
-                entity.index() as InstanceId,
+                entity.index().index() as InstanceId,
                 color.with_opacity(opacity.value).c_repr(),
             );
         }
@@ -241,19 +241,19 @@ impl Render for Panel {
             render_group
                 .group
                 .corner_i
-                .queue(entity.index() as InstanceId, panel.corner_i);
+                .queue(entity.index().index() as InstanceId, panel.corner_i);
             render_group
                 .group
                 .corner_ii
-                .queue(entity.index() as InstanceId, panel.corner_ii);
+                .queue(entity.index().index() as InstanceId, panel.corner_ii);
             render_group
                 .group
                 .corner_iii
-                .queue(entity.index() as InstanceId, panel.corner_iii);
+                .queue(entity.index().index() as InstanceId, panel.corner_iii);
             render_group
                 .group
                 .corner_iv
-                .queue(entity.index() as InstanceId, panel.corner_iv);
+                .queue(entity.index().index() as InstanceId, panel.corner_iv);
         }
         if let Some(n) = render_group.coordinator.grown() {
             render_group.group.sections.grow(ginkgo, n);

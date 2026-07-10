@@ -1,4 +1,6 @@
 use crate::coordinate::section::Section;
+use crate::EcsExtension;
+use bevy_ecs::lifecycle::HookContext;
 use crate::coordinate::Physical;
 use crate::{Color, Component, Update};
 use bevy_ecs::component::ComponentId;
@@ -74,7 +76,8 @@ pub struct GlyphColors {
     pub exceptions: HashMap<GlyphOffset, Color>,
 }
 impl GlyphColors {
-    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+    fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         world.trigger_targets(Update::<Self>::new(), this);
     }
     pub fn new() -> Self {

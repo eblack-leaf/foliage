@@ -134,9 +134,18 @@ impl Foliage {
                 self.world
                     .get_resource_mut::<KeyboardAdapter>()
                     .expect("keyboard-adapter")
-                    .mods = new_mods.state();
+                    .mods = new_mods.state().into();
             }
-            WindowEvent::Ime(_) => {}
+            WindowEvent::Ime(ime) => {
+                // Composition UI (preedit rendering) is deliberately out of scope; committed text
+                // reuses the logical-key path so focus routing to the text input comes for free.
+                if let winit::event::Ime::Commit(text) = ime {
+                    self.world.trigger(crate::InputSequence::new(
+                        crate::Key::Character(text),
+                        crate::Modifiers::default(),
+                    ));
+                }
+            }
             WindowEvent::CursorMoved {
                 device_id: _device_id,
                 position,
@@ -154,7 +163,7 @@ impl Foliage {
                     .expect("mouse-adapter")
                     .set_cursor(position, viewport_position, scale_factor)
                 {
-                    self.world.send_event(event);
+                    self.world.write_message(event);
                 }
             }
             WindowEvent::CursorEntered { .. } => {}
@@ -198,8 +207,8 @@ impl Foliage {
                     vh + cursor + px,
                     InteractionMethod::ScrollWheel,
                 );
-                self.world.send_event(event);
-                self.world.send_event(end_event);
+                self.world.write_message(event);
+                self.world.write_message(end_event);
             }
             WindowEvent::MouseInput {
                 device_id: _device_id,
@@ -212,7 +221,7 @@ impl Foliage {
                     .expect("mouse-adapter")
                     .parse(button, state)
                 {
-                    self.world.send_event(event);
+                    self.world.write_message(event);
                 }
             }
             WindowEvent::PinchGesture { .. } => {}
@@ -238,7 +247,7 @@ impl Foliage {
                     .expect("touch-adapter")
                     .parse(t, viewport_position, scale_factor)
                 {
-                    self.world.send_event(event);
+                    self.world.write_message(event);
                 }
             }
             WindowEvent::ScaleFactorChanged {

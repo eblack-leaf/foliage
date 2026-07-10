@@ -1,4 +1,7 @@
 use crate::anim::interpolation::Interpolations;
+use bevy_ecs::event::EntityEvent;
+use crate::EcsExtension;
+use bevy_ecs::lifecycle::HookContext;
 use crate::ginkgo::ScaleFactor;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
@@ -9,7 +12,7 @@ use crate::{
 };
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::Trigger;
+use crate::Trigger;
 use bevy_ecs::system::{Query, Res};
 use bevy_ecs::world::DeferredWorld;
 
@@ -42,7 +45,8 @@ impl Panel {
             corner_iv: Default::default(),
         }
     }
-    fn on_add(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+    fn on_add(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         world
             .commands()
             .entity(this)
@@ -51,9 +55,10 @@ impl Panel {
             .observe(Visibility::push_remove_packet::<Self>);
     }
     fn update_from_section(trigger: Trigger<Write<Section<Logical>>>, mut tree: Tree) {
-        tree.trigger_targets(Update::<Panel>::new(), trigger.entity());
+        tree.trigger_targets(Update::<Panel>::new(), trigger.event_target());
     }
-    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+    fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         world.trigger_targets(Update::<Panel>::new(), this);
     }
     fn update(
@@ -64,7 +69,7 @@ impl Panel {
         sections: Query<&Section<Logical>>,
         scale_factor: Res<ScaleFactor>,
     ) {
-        let this = trigger.entity();
+        let this = trigger.event_target();
         if panels.get(this).ok().is_none() {
             return;
         }
@@ -146,7 +151,8 @@ pub enum Rounding {
     Full,
 }
 impl Rounding {
-    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+    fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         if *world.get::<Rounding>(this).unwrap() == Rounding::Full {
             world
                 .commands()
@@ -193,9 +199,10 @@ impl Outline {
         Outline { value }
     }
     fn update_anim(trigger: Trigger<Update<Animation<Self>>>, mut tree: Tree) {
-        tree.trigger_targets(Update::<Panel>::new(), trigger.entity());
+        tree.trigger_targets(Update::<Panel>::new(), trigger.event_target());
     }
-    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+    fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         if world.get::<Panel>(this).is_some() {
             world.trigger_targets(Update::<Panel>::new(), this);
         }

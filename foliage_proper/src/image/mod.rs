@@ -1,5 +1,7 @@
 mod pipeline;
 
+use bevy_ecs::event::EntityEvent;
+use bevy_ecs::lifecycle::HookContext;
 use crate::ash::differential::RenderQueue;
 use crate::asset::{AssetLoader, OnRetrieval};
 use crate::foliage::DiffMarkers;
@@ -13,7 +15,8 @@ use crate::{
 use crate::{AssetKey, AssetRetrieval};
 use crate::{Differential, Tree, Visibility};
 use bevy_ecs::component::ComponentId;
-use bevy_ecs::prelude::{Entity, IntoSystemConfigs, Res, Trigger};
+use crate::Trigger;
+use bevy_ecs::prelude::{Entity, IntoScheduleConfigs, Res};
 use bevy_ecs::query::{Changed, Or};
 use bevy_ecs::system::{Query, ResMut};
 use bevy_ecs::world::DeferredWorld;
@@ -40,7 +43,8 @@ pub enum ImageView {
     Stretch,
 }
 impl ImageView {
-    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+    fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         let value = *world.get::<ImageView>(this).unwrap();
         let metrics = world.get::<ImageMetrics>(this).copied().unwrap_or_default();
         match value {
@@ -115,20 +119,21 @@ impl Image {
         mut tree: Tree,
         vis: Query<&ResolvedVisibility>,
     ) {
-        if let Ok(img) = images.get(trigger.entity()) {
-            if let Ok(v) = vis.get(trigger.entity()) {
+        if let Ok(img) = images.get(trigger.event_target()) {
+            if let Ok(v) = vis.get(trigger.event_target()) {
                 if v.visible() {
-                    tree.entity(trigger.entity()).insert(*img);
+                    tree.entity(trigger.event_target()).insert(*img);
                 }
             }
         }
     }
     fn retrieve_img(trigger: Trigger<OnRetrieval>, mut tree: Tree, images: Query<&Image>) {
-        if let Ok(img) = images.get(trigger.entity()) {
-            tree.entity(trigger.entity()).insert(*img);
+        if let Ok(img) = images.get(trigger.event_target()) {
+            tree.entity(trigger.event_target()).insert(*img);
         }
     }
-    fn on_add(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+    fn on_add(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         world
             .commands()
             .entity(this)
@@ -137,7 +142,8 @@ impl Image {
             .observe(Visibility::push_remove_packet::<Self>)
             .observe(Remove::push_remove_packet::<Self>);
     }
-    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+    fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         let value = *world.get::<Image>(this).unwrap();
         let write = if world
             .get_resource::<AssetLoader>()
@@ -236,7 +242,8 @@ pub struct ImageMemory {
     pub extent: Area<Numerical>,
 }
 impl ImageMemory {
-    fn on_add(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+    fn on_add(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         let memory = *world.get::<ImageMemory>(this).unwrap();
         world
             .get_resource_mut::<RenderQueue<Image, ImageMemory>>()

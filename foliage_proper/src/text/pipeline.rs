@@ -107,8 +107,8 @@ impl Render for Text {
         });
         let pipeline_layout = ginkgo.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("text-pipeline-layout"),
-            bind_group_layouts: &[&group_layout, &bind_group_layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&group_layout), Some(&bind_group_layout)],
+            immediate_size: 0,
         });
         let pipeline = ginkgo.create_pipeline(&RenderPipelineDescriptor {
             label: Some("text-render-pipeline"),
@@ -144,7 +144,7 @@ impl Render for Text {
                 "fragment_entry",
                 &ginkgo.alpha_color_target_state(),
             ),
-            multiview: None,
+            multiview_mask: None,
             cache: None,
         });
         Renderer {
@@ -182,7 +182,7 @@ impl Render for Text {
             }
             nodes.remove(RemoveNode::new(
                 PipelineId::Text,
-                entity.index() as GroupId,
+                entity.index().index() as GroupId,
                 ONE_NODE_PER_GROUP_OPTIMIZATION,
             ));
         }
@@ -195,8 +195,8 @@ impl Render for Text {
                 let group = Group::new(ginkgo, packet);
                 renderer
                     .groups
-                    .insert(entity.index() as GroupId, RenderGroup::new(group));
-                e.insert(entity.index() as GroupId);
+                    .insert(entity.index().index() as GroupId, RenderGroup::new(group));
+                e.insert(entity.index().index() as GroupId);
             } else {
                 let id = renderer.resources.entity_to_group.get(&entity).unwrap();
                 // OMITTED for optimization renderer.groups.get_mut(id).unwrap().coordinator.needs_sort = true;

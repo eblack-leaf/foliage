@@ -1,7 +1,7 @@
 use crate::icons::IconHandles;
 use crate::portfolio::Portfolio;
 use foliage::{
-    bevy_ecs, stack, Animation, Attachment, Button, Color, EcsExtension, Elevation, Event, Foliage,
+    bevy_ecs, EntityEvent, stack, Animation, Attachment, Button, Color, EcsExtension, Elevation, Event, Foliage,
     FontSize, GlyphColors, Grid, GridExt, HorizontalAlignment, HrefLink, IconValue, Line, Location,
     Logical, OnClick, OnEnd, Opacity, Outline, Primary, Query, Rounding, Secondary, Section, Stack,
     Stem, Text, TextValue, Tree, Trigger, VerticalAlignment, Write,
@@ -73,7 +73,7 @@ impl Home {
             move |trigger: Trigger<Write<Section<Logical>>>,
                   mut tree: Tree,
                   sections: Query<&Section<Logical>>| {
-                let w = sections.get(trigger.entity()).unwrap().width();
+                let w = sections.get(trigger.event_target()).unwrap().width();
                 tree.write_to(top_desc, Text::new(format!("w: {:.01}", w)));
             },
         );
@@ -94,7 +94,7 @@ impl Home {
             move |trigger: Trigger<Write<Section<Logical>>>,
                   mut tree: Tree,
                   sections: Query<&Section<Logical>>| {
-                let h = sections.get(trigger.entity()).unwrap().width() * 0.5;
+                let h = sections.get(trigger.event_target()).unwrap().width() * 0.5;
                 tree.write_to(side_desc, Text::new(format!("h: {:.01}", h)));
             },
         );
@@ -122,7 +122,7 @@ impl Home {
             move |trigger: Trigger<Write<Section<Logical>>>,
                   mut tree: Tree,
                   sections: Query<&Section<Logical>>| {
-                let h = sections.get(trigger.entity()).unwrap().height();
+                let h = sections.get(trigger.event_target()).unwrap().height();
                 tree.write_to(pad_desc, Text::new(format!("pad: {:.01}", h)));
             },
         );
@@ -513,5 +513,151 @@ impl Home {
         tree.sequence_end(seq, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
             tree.enable([option_one, option_two, option_three, portfolio]);
         });
+        Self::composite_demos(&mut tree, root);
+    }
+    // exercise section for the composite toolkit: prompt / dropdown / pagination / list /
+    // carousel / raw text-input, stacked below the landing content
+    fn composite_demos(tree: &mut Tree, root: foliage::Entity) {
+        use foliage::{
+            Carousel, CarouselItem, CarouselItems, Dropdown, HintText, LineConstraint, List,
+            ListItems, Page, PageCount, Pagination, Prompt, Selected, SelectedIndex, Submitted,
+            SuggestionProvider, Tertiary, TextInput,
+        };
+        let demos = tree.leaf((
+            Grid::new(12.col().gap(8), 40.px().gap(8)),
+            Location::new().xs(
+                1.col().left().with(12.col().right()).max(600.0),
+                26.row().top().with(50.row().bottom()),
+            ),
+            Stem::some(root),
+            Elevation::up(1),
+        ));
+        tree.leaf((
+            Text::new("composites"),
+            FontSize::new(24),
+            Color::gray(400),
+            Location::new().xs(
+                1.col().left().with(12.col().right()),
+                1.row().top().with(1.row().bottom()),
+            ),
+            Stem::some(demos),
+            Elevation::up(1),
+        ));
+        let prompt = tree.leaf((
+            Prompt::new(),
+            SuggestionProvider(vec![
+                "alder".to_string(),
+                "aspen".to_string(),
+                "ash".to_string(),
+                "birch".to_string(),
+                "ginkgo".to_string(),
+                "willow".to_string(),
+            ]),
+            HintText::new("search trees..."),
+            Primary(Color::gray(200)),
+            Secondary(Color::gray(900)),
+            Tertiary(Color::green(500)),
+            Location::new().xs(
+                1.col().left().with(6.col().right()),
+                2.row().top().with(3.row().bottom()),
+            ),
+            Stem::some(demos),
+            Elevation::up(1),
+        ));
+        tree.subscribe(prompt, |trigger: Trigger<Submitted>, mut tree: Tree| {
+            tracing::info!("prompt submitted: {}", trigger.event().value);
+        });
+        let dropdown = tree.leaf((
+            Dropdown::new(),
+            ListItems(vec![
+                "vulkan".to_string(),
+                "metal".to_string(),
+                "dx12".to_string(),
+                "webgl".to_string(),
+            ]),
+            SelectedIndex(Some(0)),
+            Primary(Color::gray(200)),
+            Secondary(Color::gray(800)),
+            Tertiary(Color::green(700)),
+            Location::new().xs(
+                8.col().left().with(12.col().right()),
+                2.row().top().with(3.row().bottom()),
+            ),
+            Stem::some(demos),
+            Elevation::up(1),
+        ));
+        tree.subscribe(dropdown, |trigger: Trigger<Selected>, mut tree: Tree| {
+            tracing::info!("dropdown selected: {}", trigger.event().index);
+        });
+        let list = tree.leaf((
+            List::new(),
+            ListItems(
+                (1..=12)
+                    .map(|i| format!("list item {:02}", i))
+                    .collect::<Vec<_>>(),
+            ),
+            Primary(Color::gray(200)),
+            Secondary(Color::gray(900)),
+            Tertiary(Color::green(800)),
+            Location::new().xs(
+                1.col().left().with(6.col().right()),
+                5.row().top().with(9.row().bottom()),
+            ),
+            Stem::some(demos),
+            Elevation::up(1),
+        ));
+        tree.subscribe(list, |trigger: Trigger<Selected>, mut tree: Tree| {
+            tracing::info!("list selected: {}", trigger.event().index);
+        });
+        let carousel = tree.leaf((
+            Carousel::new(),
+            CarouselItems(vec![
+                CarouselItem::Color(Color::green(700)),
+                CarouselItem::Color(Color::gray(600)),
+                CarouselItem::Color(Color::green(300)),
+            ]),
+            Primary(Color::gray(100)),
+            Secondary(Color::gray(700)),
+            Location::new().xs(
+                8.col().left().with(12.col().right()),
+                5.row().top().with(9.row().bottom()),
+            ),
+            Stem::some(demos),
+            Elevation::up(1),
+        ));
+        tree.subscribe(carousel, |trigger: Trigger<Selected>, mut tree: Tree| {
+            tracing::info!("carousel page: {}", trigger.event().index);
+        });
+        let pagination = tree.leaf((
+            Pagination::new(),
+            PageCount(5),
+            Page(0),
+            Primary(Color::green(400)),
+            Secondary(Color::gray(700)),
+            Location::new().xs(
+                1.col().left().with(6.col().right()),
+                10.row().top().with(10.row().bottom()),
+            ),
+            Stem::some(demos),
+            Elevation::up(1),
+        ));
+        tree.subscribe(pagination, |trigger: Trigger<Selected>, mut tree: Tree| {
+            tracing::info!("pagination page: {}", trigger.event().index);
+        });
+        tree.leaf((
+            TextInput::new(),
+            LineConstraint::Multiple,
+            HintText::new("multiline input..."),
+            Primary(Color::gray(200)),
+            Secondary(Color::gray(900)),
+            Tertiary(Color::green(600)),
+            FontSize::new(16),
+            Location::new().xs(
+                8.col().left().with(12.col().right()),
+                10.row().top().with(13.row().bottom()),
+            ),
+            Stem::some(demos),
+            Elevation::up(1),
+        ));
     }
 }

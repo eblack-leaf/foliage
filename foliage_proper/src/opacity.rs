@@ -1,8 +1,11 @@
 use crate::anim::interpolation::Interpolations;
+use bevy_ecs::event::EntityEvent;
+use bevy_ecs::lifecycle::HookContext;
 use crate::{Animate, Attachment, Branch, Component, Foliage, Stem, Tree};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{OnInsert, Trigger};
+use crate::Trigger;
+use bevy_ecs::lifecycle::Insert;
 use bevy_ecs::system::Query;
 use bevy_ecs::world::DeferredWorld;
 
@@ -23,12 +26,12 @@ impl Opacity {
         Opacity { value }
     }
     fn stem_insert(
-        trigger: Trigger<OnInsert, Stem>,
+        trigger: Trigger<Insert, Stem>,
         mut tree: Tree,
         stems: Query<&Stem>,
         blended: Query<&BlendedOpacity>,
     ) {
-        let this = trigger.entity();
+        let this = trigger.event_target();
         let stem = stems.get(this).unwrap();
         if let Some(entity) = stem.id {
             let resolved = *blended.get(entity).unwrap();
@@ -37,7 +40,8 @@ impl Opacity {
             });
         }
     }
-    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+    fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         let inherited = world.get::<InheritedOpacity>(this).unwrap();
         let current = world.get::<Opacity>(this).unwrap();
         let blended = BlendedOpacity::new(inherited.value * current.value);

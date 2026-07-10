@@ -1,4 +1,7 @@
 use crate::ash::clip::ClipSection;
+use bevy_ecs::event::EntityEvent;
+use crate::EcsExtension;
+use bevy_ecs::lifecycle::HookContext;
 use crate::interaction::CurrentInteraction;
 use crate::Elevation;
 use crate::Logical;
@@ -11,7 +14,7 @@ use crate::{
 };
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::Trigger;
+use crate::Trigger;
 use bevy_ecs::system::Query;
 use bevy_ecs::world::DeferredWorld;
 use std::collections::HashSet;
@@ -34,7 +37,8 @@ impl Leaf {
     pub fn new() -> Leaf {
         Leaf {}
     }
-    fn on_add(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+    fn on_add(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         world
             .commands()
             .entity(this)
@@ -47,8 +51,8 @@ impl Leaf {
         opacities: Query<&Opacity>,
         mut tree: Tree,
     ) {
-        if let Ok(o) = opacities.get(trigger.entity()) {
-            tree.entity(trigger.entity()).insert(*o);
+        if let Ok(o) = opacities.get(trigger.event_target()) {
+            tree.entity(trigger.event_target()).insert(*o);
         }
     }
     fn anim_elevation(
@@ -56,14 +60,15 @@ impl Leaf {
         mut tree: Tree,
         elevation: Query<&Elevation>,
     ) {
-        if let Ok(e) = elevation.get(trigger.entity()) {
-            tree.entity(trigger.entity()).insert(*e);
+        if let Ok(e) = elevation.get(trigger.event_target()) {
+            tree.entity(trigger.event_target()).insert(*e);
         }
     }
     fn anim_location(trigger: Trigger<Update<Animation<Location>>>, mut tree: Tree) {
-        tree.trigger_targets(Update::<Location>::new(), trigger.entity());
+        tree.trigger_targets(Update::<Location>::new(), trigger.event_target());
     }
-    fn on_remove(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+    fn on_remove(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         if let Some(mut current) = world.get_resource_mut::<CurrentInteraction>() {
             if let Some(p) = current.primary {
                 if p == this {
@@ -87,7 +92,7 @@ impl Leaf {
 
 #[derive(Component, Copy, Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 #[component(on_insert = Stem::on_insert)]
-#[component(on_replace = Stem::on_replace)]
+#[component(on_discard = Stem::on_replace)]
 pub struct Stem {
     pub id: Option<Entity>,
 }
@@ -107,7 +112,8 @@ impl Stem {
     pub fn none() -> Self {
         Self { id: None }
     }
-    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+    fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         let stem = world.get::<Stem>(this).copied().unwrap();
         if let Some(s) = stem.id {
             if let Some(mut deps) = world.get_mut::<Branch>(s) {
@@ -115,7 +121,8 @@ impl Stem {
             }
         }
     }
-    fn on_replace(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+    fn on_replace(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         let stem = world.get::<Stem>(this).copied().unwrap();
         if let Some(s) = stem.id {
             if let Some(mut deps) = world.get_mut::<Branch>(s) {

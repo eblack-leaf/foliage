@@ -166,14 +166,47 @@ impl MouseAdapter {
     }
 }
 
+bitflags::bitflags! {
+    /// Owned mirror of winit's `ModifiersState`, same boundary as `Key` above — this was the
+    /// last winit type still reaching consumers (via `InputSequence.mods`). Converted once in
+    /// the `ModifiersChanged` arm of the event loop; everything downstream matches on these
+    /// flags. Matching in `KeyBindings::action` uses `contains`, so a binding on CONTROL also
+    /// fires under CONTROL|SHIFT — superset-match is the intended semantic.
+    #[derive(Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Debug, Default)]
+    pub struct Modifiers: u8 {
+        const SHIFT = 1 << 0;
+        const CONTROL = 1 << 1;
+        const ALT = 1 << 2;
+        const SUPER = 1 << 3;
+    }
+}
+impl From<ModifiersState> for Modifiers {
+    fn from(m: ModifiersState) -> Self {
+        let mut mods = Modifiers::empty();
+        if m.shift_key() {
+            mods |= Modifiers::SHIFT;
+        }
+        if m.control_key() {
+            mods |= Modifiers::CONTROL;
+        }
+        if m.alt_key() {
+            mods |= Modifiers::ALT;
+        }
+        if m.super_key() {
+            mods |= Modifiers::SUPER;
+        }
+        mods
+    }
+}
+
 #[derive(Event, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Debug)]
 pub struct InputSequence {
     pub key: Key,
-    pub mods: ModifiersState,
+    pub mods: Modifiers,
 }
 
 impl InputSequence {
-    pub fn new(key: Key, mods: ModifiersState) -> Self {
+    pub fn new(key: Key, mods: Modifiers) -> Self {
         Self { key, mods }
     }
 }
@@ -323,17 +356,17 @@ impl From<WinitPhysicalKey> for PhysicalKey {
 #[derive(Event, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd, Debug)]
 pub struct PhysicalInputSequence {
     pub code: PhysicalKey,
-    pub mods: ModifiersState,
+    pub mods: Modifiers,
 }
 impl PhysicalInputSequence {
-    pub fn new(code: PhysicalKey, mods: ModifiersState) -> Self {
+    pub fn new(code: PhysicalKey, mods: Modifiers) -> Self {
         Self { code, mods }
     }
 }
 
 #[derive(Resource, Default)]
 pub(crate) struct KeyboardAdapter {
-    pub(crate) mods: ModifiersState,
+    pub(crate) mods: Modifiers,
 }
 
 impl KeyboardAdapter {

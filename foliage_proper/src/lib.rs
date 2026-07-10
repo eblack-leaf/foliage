@@ -3,6 +3,7 @@ mod anim;
 mod ash;
 mod asset;
 mod attachment;
+mod clipboard;
 mod color;
 mod composite;
 mod coordinate;
@@ -46,13 +47,26 @@ pub(crate) use ash::differential::Differential;
 pub use asset::{asset_retrieval, AssetKey, AssetRetrieval};
 pub use attachment::Attachment;
 pub use bevy_ecs::{self, prelude::*};
+/// bevy 0.17+ renamed the observer parameter `Trigger` to `On`. Every observer in foliage and
+/// its consumers is written against the `Trigger<E>` spelling, so keep it as the canonical
+/// name here; `On` is also available (via the prelude re-export above) for new code.
+pub type Trigger<'w, 't, E, B = ()> = bevy_ecs::observer::On<'w, 't, E, B>;
+pub use clipboard::Clipboard;
 pub use color::{CReprColor, Color, Luminance};
-pub use composite::text_input::action::TextInputAction;
+pub use composite::text_input::action::{InputAction, TextInputAction};
 pub use composite::{
     button::Button,
+    carousel::{Carousel, CarouselItem, CarouselItems},
+    dropdown::{Dropdown, Expanded},
     handle_replace,
-    text_input::{keybindings::KeyBindings, HintText, LineConstraint, TextInput},
-    Composite,
+    list::{List, ListItems, RowHeight, SelectedIndex},
+    pagination::{Page, PageCount, Pagination},
+    prompt::{Prompt, Submitted, SuggestionProvider},
+    text_input::{
+        keybindings::KeyBindings, HintColor, HintText, InsertText, LineConstraint, TextChanged,
+        TextInput,
+    },
+    Composite, ItemIndex, Selected,
 };
 pub use composite::{IconValue, Primary, Secondary, Tertiary, TextValue};
 pub use coordinate::elevation::{Elevation, ResolvedElevation};
@@ -68,7 +82,7 @@ pub use image::{Image, ImageMemory, ImageMetrics, ImageView, MemoryId};
 pub use interaction::{
     listener::InteractionListener, listener::InteractionShape, listener::InteractionState,
     FocusBehavior, InputSequence, Interaction, InteractionPhase, InteractionPropagation, Key,
-    OnClick, PhysicalInputSequence, PhysicalKey,
+    Modifiers, OnClick, PhysicalInputSequence, PhysicalKey,
 };
 pub use interaction::{Disengaged, Dragged, Engaged, Focused, Unfocused};
 pub use leaf::{Branch, Leaf, Stem};
@@ -85,6 +99,6 @@ pub use text::{
     AutoHeight, AutoWidth, FontSize, GlyphColors, HorizontalAlignment, Text, VerticalAlignment,
 };
 pub use time::{Moment, OnEnd, Time, TimeDelta, TimeMarker, Timer};
-pub use tree::{EcsExtension, Tree};
+pub use tree::{EcsExtension, IntoTargets, TargetedEvent, Tree};
 pub use visibility::{InheritedVisibility, ResolvedVisibility, Visibility};
 pub use web_ext::{Extensions, HrefLink};

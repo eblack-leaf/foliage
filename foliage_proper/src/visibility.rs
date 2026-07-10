@@ -1,8 +1,13 @@
 use crate::ash::differential::RenderRemoveQueue;
+use bevy_ecs::event::EntityEvent;
+use crate::EcsExtension;
+use bevy_ecs::lifecycle::HookContext;
 use crate::{Attachment, Branch, Component, Foliage, StackDeps, Stem, Tree, Update, Write};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{OnInsert, Query, Trigger};
+use crate::Trigger;
+use bevy_ecs::lifecycle::Insert;
+use bevy_ecs::prelude::Query;
 use bevy_ecs::system::ResMut;
 use bevy_ecs::world::DeferredWorld;
 
@@ -31,12 +36,12 @@ impl Visibility {
         self.visible
     }
     fn stem_insert(
-        trigger: Trigger<OnInsert, Stem>,
+        trigger: Trigger<Insert, Stem>,
         mut tree: Tree,
         stems: Query<&Stem>,
         res: Query<&ResolvedVisibility>,
     ) {
-        let this = trigger.entity();
+        let this = trigger.event_target();
         let stem = stems.get(this).unwrap();
         if let Some(s) = stem.id {
             let resolved = *res.get(s).unwrap();
@@ -45,7 +50,8 @@ impl Visibility {
             });
         }
     }
-    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+    fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         world
             .commands()
             .trigger_targets(Update::<Visibility>::new(), this);
@@ -60,7 +66,7 @@ impl Visibility {
         branches: Query<&Branch>,
         sd: Query<&StackDeps>,
     ) {
-        let this = trigger.entity();
+        let this = trigger.event_target();
         let inherited = inheriteds.get(this).unwrap();
         let current = vis.get(this).unwrap();
         let auto = auto.get(this).unwrap();
@@ -89,9 +95,9 @@ impl Visibility {
         visibilities: Query<&ResolvedVisibility>,
         mut queue: ResMut<RenderRemoveQueue<R>>,
     ) {
-        let value = visibilities.get(trigger.entity()).unwrap();
+        let value = visibilities.get(trigger.event_target()).unwrap();
         if !value.visible {
-            queue.queue.insert(trigger.entity());
+            queue.queue.insert(trigger.event_target());
         }
     }
 }

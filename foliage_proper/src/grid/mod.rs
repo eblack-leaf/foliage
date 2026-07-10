@@ -10,7 +10,7 @@ pub use crate::grid::location::{GridExt, LocationValue};
 use crate::grid::view::extent_check_v2;
 use crate::{Attachment, Component, CoordinateUnit};
 pub use aspect_ratio::AspectRatio;
-use bevy_ecs::prelude::IntoSystemConfigs;
+use bevy_ecs::prelude::IntoScheduleConfigs;
 pub use layout::Layout;
 pub use location::Location;
 pub use location::Stack;

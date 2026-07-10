@@ -1,4 +1,6 @@
 use crate::foliage::{Foliage, MainMarkers};
+use bevy_ecs::event::EntityEvent;
+use crate::EcsExtension;
 use crate::Attachment;
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
@@ -67,8 +69,18 @@ impl Time {
 pub(crate) fn update_time(mut time: ResMut<Time>) {
     time.update();
 }
-#[derive(Event, Copy, Clone, Default)]
-pub struct OnEnd {}
+#[derive(EntityEvent, Copy, Clone)]
+pub struct OnEnd {
+    entity: Entity,
+}
+impl Default for OnEnd {
+    fn default() -> Self {
+        Self {
+            entity: Entity::PLACEHOLDER,
+        }
+    }
+}
+crate::targeted_event!(OnEnd);
 #[derive(Component)]
 pub struct Timer {
     time_left: TimeDelta,
@@ -86,14 +98,14 @@ pub(crate) fn timers(time: Res<Time>, mut timers: Query<(Entity, &mut Timer)>, m
             .checked_sub(time.frame_diff())
             .unwrap_or_default();
         if timer.time_left.is_zero() {
-            cmd.trigger_targets(OnEnd {}, entity);
+            cmd.trigger_targets(OnEnd { entity: Entity::PLACEHOLDER }, entity);
             cmd.entity(entity).despawn();
         }
     }
 }
 impl Attachment for Time {
     fn attach(foliage: &mut Foliage) {
-        use bevy_ecs::prelude::IntoSystemConfigs;
+        use bevy_ecs::prelude::IntoScheduleConfigs;
         let mut time = Time::new();
         time.start();
         foliage.world.insert_resource(time);

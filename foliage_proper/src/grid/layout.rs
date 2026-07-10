@@ -1,9 +1,11 @@
 use crate::ginkgo::viewport::ViewportHandle;
+use crate::EcsExtension;
 use crate::grid::Location;
 use crate::{CoordinateUnit, Logical, Section, Stem, Tree, Update, Write};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::query::With;
-use bevy_ecs::system::{Query, ResMut, Resource};
+use bevy_ecs::resource::Resource;
+use bevy_ecs::system::{Query, ResMut};
 
 #[derive(Resource, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum Layout {

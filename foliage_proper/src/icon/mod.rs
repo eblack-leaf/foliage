@@ -1,5 +1,7 @@
 mod pipeline;
 mod proc_gen;
+use bevy_ecs::event::EntityEvent;
+use bevy_ecs::lifecycle::HookContext;
 use crate::ash::differential::RenderQueue;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
@@ -10,7 +12,7 @@ use crate::{
 };
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::Trigger;
+use crate::Trigger;
 use bevy_ecs::query::With;
 use bevy_ecs::system::Query;
 use bevy_ecs::world::DeferredWorld;
@@ -53,7 +55,8 @@ impl Icon {
             bytes: bytes.as_ref().to_vec(),
         }
     }
-    fn on_add(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+    fn on_add(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         world
             .commands()
             .entity(this)
@@ -65,7 +68,7 @@ impl Icon {
         trigger: Trigger<Write<Section<Logical>>>,
         mut sections: Query<&mut Section<Logical>, With<Icon>>,
     ) {
-        if let Ok(mut sec) = sections.get_mut(trigger.entity()) {
+        if let Ok(mut sec) = sections.get_mut(trigger.event_target()) {
             if sec.area.coordinates != Self::SCALE {
                 sec.area.coordinates = Self::SCALE;
             }
@@ -79,7 +82,8 @@ pub struct IconMemory {
     pub bytes: Vec<u8>,
 }
 impl IconMemory {
-    fn on_add(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+    fn on_add(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         let value = world.get::<IconMemory>(this).unwrap().clone();
         world
             .get_resource_mut::<RenderQueue<Icon, IconMemory>>()

@@ -1,4 +1,5 @@
 use crate::anim::ease::Easement;
+use bevy_ecs::lifecycle::HookContext;
 use crate::anim::interpolation::Interpolations;
 use crate::anim::sequence::{AnimationTime, Sequence};
 use crate::anim::Animate;
@@ -37,7 +38,8 @@ impl<A: Animate> AnimationRunner<A> {
             animation_target: target,
         }
     }
-    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+    fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         let value = world.get::<Self>(this).unwrap();
         world
             .get_mut::<Sequence>(value.sequence_entity)

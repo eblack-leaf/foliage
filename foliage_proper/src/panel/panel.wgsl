@@ -17,7 +17,7 @@ struct Fragment {
     @location(1) weight: f32,
     @location(2) corner: vec4<f32>,
     @location(3) section: vec4<f32>,
-    @location(4) segment: i32,
+    @location(4) @interpolate(flat) segment: i32,
 };
 @vertex
 fn vertex_entry(vertex: Vertex) -> Fragment {

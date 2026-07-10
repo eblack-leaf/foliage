@@ -1,8 +1,13 @@
 use crate::anim::interpolation::Interpolations;
+use bevy_ecs::event::EntityEvent;
+use crate::EcsExtension;
+use bevy_ecs::lifecycle::HookContext;
 use crate::{Animate, Attachment, Branch, Foliage, Stem, Tree, Update};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Component, OnInsert, Trigger};
+use crate::Trigger;
+use bevy_ecs::lifecycle::Insert;
+use bevy_ecs::prelude::Component;
 use bevy_ecs::system::Query;
 use bevy_ecs::world::DeferredWorld;
 use bytemuck::{Pod, Zeroable};
@@ -71,8 +76,8 @@ impl Elevation {
             absolute: false,
         }
     }
-    fn stem_insert(trigger: Trigger<OnInsert, Stem>, mut tree: Tree) {
-        tree.trigger_targets(Update::<Elevation>::new(), trigger.entity());
+    fn stem_insert(trigger: Trigger<Insert, Stem>, mut tree: Tree) {
+        tree.trigger_targets(Update::<Elevation>::new(), trigger.event_target());
     }
     fn update(
         trigger: Trigger<Update<Elevation>>,
@@ -82,7 +87,7 @@ impl Elevation {
         stem: Query<&Stem>,
         branch: Query<&Branch>,
     ) {
-        let this = trigger.entity();
+        let this = trigger.event_target();
         if stem.get(this).ok().is_none() || branch.get(this).ok().is_none() {
             return;
         }
@@ -112,7 +117,8 @@ impl Elevation {
             }
         }
     }
-    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+    fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         world
             .commands()
             .trigger_targets(Update::<Elevation>::new(), this);

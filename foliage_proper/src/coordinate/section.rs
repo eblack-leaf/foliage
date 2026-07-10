@@ -1,4 +1,6 @@
 use std::any::TypeId;
+use crate::EcsExtension;
+use bevy_ecs::lifecycle::HookContext;
 use std::fmt::Display;
 use std::ops::{Add, AddAssign, Mul, Sub};
 
@@ -195,7 +197,8 @@ impl<Context: CoordinateContext> Section<Context> {
     pub fn abs(self) -> Self {
         Self::new(self.position.abs(), self.area.abs())
     }
-    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+    fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         if TypeId::of::<Self>() != TypeId::of::<Section<Logical>>() {
             return;
         }

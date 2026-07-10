@@ -1,4 +1,7 @@
 use crate::anim::interpolation::Interpolations;
+use bevy_ecs::event::EntityEvent;
+use crate::EcsExtension;
+use bevy_ecs::lifecycle::HookContext;
 use crate::disable::AutoDisable;
 use crate::enable::AutoEnable;
 use crate::ginkgo::viewport::ViewportHandle;
@@ -13,8 +16,9 @@ use crate::{
 use bevy_ecs::change_detection::Res;
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::observer::Trigger;
-use bevy_ecs::prelude::{OnInsert, Query};
+use crate::Trigger;
+use bevy_ecs::lifecycle::Insert;
+use bevy_ecs::prelude::Query;
 use bevy_ecs::world::DeferredWorld;
 use std::collections::HashSet;
 
@@ -142,14 +146,15 @@ impl Location {
             }
         }
     }
-    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+    fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         world.trigger_targets(Update::<Location>::new(), this);
     }
-    fn stem_insert(trigger: Trigger<OnInsert, Stem>, mut tree: Tree) {
-        tree.trigger_targets(Update::<Location>::new(), trigger.entity());
+    fn stem_insert(trigger: Trigger<Insert, Stem>, mut tree: Tree) {
+        tree.trigger_targets(Update::<Location>::new(), trigger.event_target());
     }
     fn update_from_visibility(trigger: Trigger<Write<Visibility>>, mut tree: Tree) {
-        tree.trigger_targets(Update::<Location>::new(), trigger.entity());
+        tree.trigger_targets(Update::<Location>::new(), trigger.event_target());
     }
     fn update(
         trigger: Trigger<Update<Location>>,
@@ -169,7 +174,7 @@ impl Location {
         font: Res<MonospacedFont>,
         font_sizes: Query<&FontSize>,
     ) {
-        let this = trigger.entity();
+        let this = trigger.event_target();
         if let Ok(location) = locations.get(this) {
             let (_, auto_vis) = visibilities.get(this).unwrap();
             let stem = stems.get(this).unwrap();
@@ -947,7 +952,7 @@ pub struct StackDeps {
 }
 #[derive(Component, Copy, Clone)]
 #[component(on_insert = Stack::on_insert)]
-#[component(on_replace = Stack::on_replace)]
+#[component(on_discard = Stack::on_replace)]
 #[derive(Default)]
 pub struct Stack {
     pub id: Option<Entity>,
@@ -956,7 +961,8 @@ impl Stack {
     pub fn new(entity: Entity) -> Self {
         Self { id: Some(entity) }
     }
-    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+    fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         let stack = world.get::<Stack>(this).unwrap();
         if let Some(id) = stack.id {
             if let Some(mut deps) = world.get_mut::<StackDeps>(id) {
@@ -968,7 +974,8 @@ impl Stack {
             }
         }
     }
-    fn on_replace(mut world: DeferredWorld, id: Entity, _c: ComponentId) {
+    fn on_replace(mut world: DeferredWorld, ctx: HookContext) {
+        let id = ctx.entity;
         let stack = world.get::<Stack>(id).unwrap();
         if let Some(id) = stack.id {
             if let Some(mut deps) = world.get_mut::<StackDeps>(id) {

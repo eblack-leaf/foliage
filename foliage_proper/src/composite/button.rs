@@ -4,13 +4,16 @@ use crate::{
     InteractionPropagation, Location, Outline, Panel, Primary, Rounding, Secondary, Stack, Stem,
     Text, TextValue, Tree, Update, VerticalAlignment, Visibility,
 };
+use bevy_ecs::event::EntityEvent;
+use bevy_ecs::lifecycle::HookContext;
 use crate::{Component, Composite};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::observer::TriggerTargets;
-use bevy_ecs::prelude::Trigger;
+use crate::IntoTargets;
+use crate::Trigger;
 use bevy_ecs::system::Query;
-use bevy_ecs::world::{DeferredWorld, OnInsert};
+use bevy_ecs::lifecycle::Insert;
+use bevy_ecs::world::DeferredWorld;
 
 #[derive(Component, Clone)]
 #[component(on_add = Self::on_add)]
@@ -26,7 +29,8 @@ impl Button {
     pub fn new() -> Self {
         Self {}
     }
-    fn on_add(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+    fn on_add(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         world
             .commands()
             .entity(this)
@@ -47,9 +51,9 @@ impl Button {
             .observe(Self::forward_secondary)
             .observe(Self::update_secondary);
     }
-    fn handle_trigger(trigger: Trigger<OnInsert, Handle>, mut tree: Tree) {
+    fn handle_trigger(trigger: Trigger<Insert, Handle>, mut tree: Tree) {
         // trigger all
-        let this = trigger.entity();
+        let this = trigger.event_target();
         tree.trigger_targets(Update::<TextValue>::new(), this);
         tree.trigger_targets(Update::<FontSize>::new(), this);
         tree.trigger_targets(Update::<IconValue>::new(), this);
@@ -66,7 +70,7 @@ impl Button {
         handles: Query<&Handle>,
         values: Query<&TextValue>,
     ) {
-        let this = trigger.entity();
+        let this = trigger.event_target();
         let handle = handles.get(this).unwrap();
         if let Some(value) = values.get(this).ok() {
             tree.entity(handle.text)
@@ -82,8 +86,8 @@ impl Button {
                 );
         }
     }
-    fn forward_text(trigger: Trigger<OnInsert, TextValue>, mut tree: Tree) {
-        tree.trigger_targets(Update::<TextValue>::new(), trigger.entity());
+    fn forward_text(trigger: Trigger<Insert, TextValue>, mut tree: Tree) {
+        tree.trigger_targets(Update::<TextValue>::new(), trigger.event_target());
     }
     fn update_font_size(
         trigger: Trigger<Update<FontSize>>,
@@ -91,13 +95,13 @@ impl Button {
         handles: Query<&Handle>,
         values: Query<&FontSize>,
     ) {
-        let this = trigger.entity();
+        let this = trigger.event_target();
         let handle = handles.get(this).unwrap();
         let value = values.get(this).unwrap();
         tree.entity(handle.text).insert(*value);
     }
-    fn forward_font_size(trigger: Trigger<OnInsert, FontSize>, mut tree: Tree) {
-        tree.trigger_targets(Update::<FontSize>::new(), trigger.entity());
+    fn forward_font_size(trigger: Trigger<Insert, FontSize>, mut tree: Tree) {
+        tree.trigger_targets(Update::<FontSize>::new(), trigger.event_target());
     }
     fn update_icon(
         trigger: Trigger<Update<IconValue>>,
@@ -105,13 +109,13 @@ impl Button {
         handles: Query<&Handle>,
         values: Query<&IconValue>,
     ) {
-        let this = trigger.entity();
+        let this = trigger.event_target();
         let handle = handles.get(this).unwrap();
         let value = values.get(this).unwrap();
         tree.entity(handle.icon).insert(Icon::new(value.0));
     }
-    fn forward_icon(trigger: Trigger<OnInsert, IconValue>, mut tree: Tree) {
-        tree.trigger_targets(Update::<IconValue>::new(), trigger.entity());
+    fn forward_icon(trigger: Trigger<Insert, IconValue>, mut tree: Tree) {
+        tree.trigger_targets(Update::<IconValue>::new(), trigger.event_target());
     }
     fn update_outline(
         trigger: Trigger<Update<Outline>>,
@@ -121,7 +125,7 @@ impl Button {
         secondaries: Query<&Secondary>,
         outlines: Query<&Outline>,
     ) {
-        let this = trigger.entity();
+        let this = trigger.event_target();
         let handle = handles.get(this).unwrap();
         let outline = outlines.get(this).unwrap();
         let primary = primaries.get(this).unwrap();
@@ -133,8 +137,8 @@ impl Button {
         };
         tree.entity(handle.panel).insert(color).insert(*outline);
     }
-    fn forward_outline(trigger: Trigger<OnInsert, Outline>, mut tree: Tree) {
-        tree.trigger_targets(Update::<Outline>::new(), trigger.entity());
+    fn forward_outline(trigger: Trigger<Insert, Outline>, mut tree: Tree) {
+        tree.trigger_targets(Update::<Outline>::new(), trigger.event_target());
     }
     fn update_primary(
         trigger: Trigger<Update<Primary>>,
@@ -143,7 +147,7 @@ impl Button {
         primaries: Query<&Primary>,
         outlines: Query<&Outline>,
     ) {
-        let this = trigger.entity();
+        let this = trigger.event_target();
         let handle = handles.get(this).unwrap();
         let primary = primaries.get(this).unwrap();
         let outline = outlines.get(this).unwrap();
@@ -154,22 +158,22 @@ impl Button {
         }
     }
     fn forward_primary(
-        trigger: Trigger<OnInsert, Primary>,
+        trigger: Trigger<Insert, Primary>,
         handles: Query<&Handle>,
         mut tree: Tree,
         primaries: Query<&Primary>,
         outlines: Query<&Outline>,
     ) {
-        tree.trigger_targets(Update::<Primary>::new(), trigger.entity());
+        tree.trigger_targets(Update::<Primary>::new(), trigger.event_target());
     }
     fn update_secondary(
-        trigger: Trigger<OnInsert, Secondary>,
+        trigger: Trigger<Insert, Secondary>,
         handles: Query<&Handle>,
         mut tree: Tree,
         secondaries: Query<&Secondary>,
         outlines: Query<&Outline>,
     ) {
-        let this = trigger.entity();
+        let this = trigger.event_target();
         let handle = handles.get(this).unwrap();
         let outline = outlines.get(this).unwrap();
         let secondary = secondaries.get(this).unwrap();
@@ -177,8 +181,8 @@ impl Button {
             tree.entity(handle.panel).insert(secondary.0);
         }
     }
-    fn forward_secondary(trigger: Trigger<OnInsert, Secondary>, mut tree: Tree) {
-        tree.trigger_targets(Update::<Secondary>::new(), trigger.entity());
+    fn forward_secondary(trigger: Trigger<Insert, Secondary>, mut tree: Tree) {
+        tree.trigger_targets(Update::<Secondary>::new(), trigger.event_target());
     }
     fn engaged(
         trigger: Trigger<Engaged>,
@@ -188,7 +192,7 @@ impl Button {
         handles: Query<&Handle>,
         mut tree: Tree,
     ) {
-        let this = trigger.entity();
+        let this = trigger.event_target();
         let handle = handles.get(this).unwrap();
         let outline = outlines.get(this).unwrap();
         let secondary = secondaries.get(this).unwrap();
@@ -211,7 +215,7 @@ impl Button {
         handles: Query<&Handle>,
         mut tree: Tree,
     ) {
-        let this = trigger.entity();
+        let this = trigger.event_target();
         let handle = handles.get(this).unwrap();
         let outline = outlines.get(this).unwrap();
         let secondary = secondaries.get(this).unwrap();
@@ -232,7 +236,7 @@ impl Button {
         handles: Query<&Handle>,
         mut tree: Tree,
     ) {
-        let this = trigger.entity();
+        let this = trigger.event_target();
         let round = roundings.get(this).unwrap();
         tree.entity(this).insert(InteractionListener::new());
         let handle = handles.get(this).unwrap();
@@ -260,10 +264,11 @@ impl Button {
             }
         }
     }
-    fn forward_rounding(trigger: Trigger<OnInsert, Rounding>, mut tree: Tree) {
-        tree.trigger_targets(Update::<Rounding>::new(), trigger.entity());
+    fn forward_rounding(trigger: Trigger<Insert, Rounding>, mut tree: Tree) {
+        tree.trigger_targets(Update::<Rounding>::new(), trigger.event_target());
     }
-    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+    fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         let icon_value = *world.get::<IconValue>(this).unwrap();
         world
             .commands()
@@ -306,12 +311,12 @@ impl Button {
 }
 impl Composite for Button {
     type Handle = Handle;
-    fn remove(handle: &Self::Handle) -> impl TriggerTargets + Send + Sync + 'static {
+    fn remove(handle: &Self::Handle) -> impl IntoTargets + Send + Sync + 'static {
         [handle.panel, handle.text, handle.icon]
     }
 }
 #[derive(Component, Copy, Clone)]
-#[component(on_replace = handle_replace::<Button>)]
+#[component(on_discard = handle_replace::<Button>)]
 pub struct Handle {
     pub panel: Entity,
     pub icon: Entity,

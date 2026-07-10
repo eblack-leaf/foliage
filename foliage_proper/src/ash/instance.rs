@@ -36,6 +36,10 @@ pub(crate) struct InstanceCoordinator {
     pub(crate) instances: Vec<Instance>,
     #[allow(unused)]
     pub(crate) cache: Vec<Instance>,
+    /// `id -> row` mirror of `instances` so per-item lookups are O(1) instead of a linear
+    /// scan — `order()`/`has_instance()` are called once per queued attribute per frame, which
+    /// made frame preparation quadratic in instance count before this map existed.
+    pub(crate) orders: HashMap<InstanceId, Order>,
     #[allow(unused)]
     pub(crate) node_submit: HashSet<InstanceId>,
     #[allow(unused)]
@@ -50,6 +54,7 @@ impl InstanceCoordinator {
         Self {
             instances: vec![],
             cache: vec![],
+            orders: HashMap::new(),
             node_submit: HashSet::new(),
             id_gen: 0,
             gen_pool: Default::default(),
@@ -58,36 +63,34 @@ impl InstanceCoordinator {
         }
     }
     pub(crate) fn add(&mut self, instance: Instance) {
+        self.orders
+            .insert(instance.id, self.instances.len() as Order);
         self.instances.push(instance);
         self.node_submit.insert(instance.id);
         self.needs_sort = true;
     }
     pub(crate) fn has_instance(&self, id: InstanceId) -> bool {
-        self.instances.iter().any(|i| i.id == id)
+        self.orders.contains_key(&id)
     }
     pub(crate) fn update_elevation(&mut self, id: InstanceId, elevation: ResolvedElevation) {
-        for instance in self.instances.iter_mut() {
-            if instance.id == id {
-                instance.elevation = elevation;
-                self.node_submit.insert(id);
-                self.needs_sort = true;
-            }
+        if let Some(order) = self.orders.get(&id) {
+            self.instances[*order as usize].elevation = elevation;
+            self.node_submit.insert(id);
+            self.needs_sort = true;
         }
     }
     pub(crate) fn update_clip_context(&mut self, id: InstanceId, clip_context: Stem) {
-        for instance in self.instances.iter_mut() {
-            if instance.id == id {
-                instance.clip_context = clip_context;
-                self.node_submit.insert(id);
-                self.needs_sort = true;
-            }
+        if let Some(order) = self.orders.get(&id) {
+            self.instances[*order as usize].clip_context = clip_context;
+            self.node_submit.insert(id);
+            self.needs_sort = true;
         }
     }
     pub(crate) fn updated_nodes(&mut self, id: PipelineId, group_id: GroupId) -> Vec<Node> {
         let mut nodes = vec![];
         for changed in self.node_submit.drain().collect::<Vec<_>>() {
-            let instance = self.instances.iter().find(|i| i.id == changed).unwrap();
-            let order = self.order(changed);
+            let order = *self.orders.get(&changed).unwrap();
+            let instance = self.instances[order as usize];
             nodes.push(Node::new(
                 instance.elevation,
                 id,
@@ -117,7 +120,10 @@ impl InstanceCoordinator {
     pub(crate) fn grown(&mut self) -> Option<u32> {
         const REPEAT_ALLOCATION_AVOIDANCE: u32 = 2;
         if self.instances.len() > self.capacity as usize {
-            let new = self.instances.len() as u32 + REPEAT_ALLOCATION_AVOIDANCE;
+            // geometric growth amortizes reallocation when instances stream in one-by-one
+            // (every grow re-uploads the whole buffer)
+            let len = self.instances.len() as u32;
+            let new = (self.capacity * 3 / 2).max(len + REPEAT_ALLOCATION_AVOIDANCE);
             self.capacity = new;
             return Some(new);
         }
@@ -140,12 +146,20 @@ impl InstanceCoordinator {
                 },
                 Ordering::Greater => Ordering::Less,
             });
+        let old_orders = self
+            .cache
+            .iter()
+            .enumerate()
+            .map(|(order, c)| (c.id, order))
+            .collect::<HashMap<_, _>>();
+        self.orders.clear();
         for (new, instance) in self.instances.iter().enumerate() {
-            if let Some(old) = self.cache.iter().position(|c| c.id == instance.id) {
-                if new != old {
+            self.orders.insert(instance.id, new as Order);
+            if let Some(old) = old_orders.get(&instance.id) {
+                if new != *old {
                     self.node_submit.insert(instance.id);
                     swaps.push(Swap {
-                        old: old as Order,
+                        old: *old as Order,
                         id: instance.id,
                     })
                 }
@@ -155,10 +169,20 @@ impl InstanceCoordinator {
         swaps
     }
     pub(crate) fn order(&self, id: InstanceId) -> Order {
-        self.instances.iter().position(|i| i.id == id).unwrap() as Order
+        *self
+            .orders
+            .get(&id)
+            .unwrap_or_else(|| panic!("no instance-order for id {}", id))
     }
     pub(crate) fn remove(&mut self, order: Order) {
-        self.instances.remove(order as usize);
+        let removed = self.instances.remove(order as usize);
+        self.orders.remove(&removed.id);
+        // rows after the removed one shift down by one
+        for instance in self.instances[order as usize..].iter() {
+            if let Some(o) = self.orders.get_mut(&instance.id) {
+                *o -= 1;
+            }
+        }
         self.needs_sort = true;
     }
 }
@@ -215,7 +239,7 @@ impl<I: bytemuck::Pod + bytemuck::Zeroable + Default> InstanceBuffer<I> {
     #[allow(unused)]
     pub(crate) fn swap(&mut self, swap: Swap) {
         let current = *self.cpu.get(swap.old as usize).unwrap();
-        if self.queue.get(&swap.id).is_none() {
+        if !self.queue.contains_key(&swap.id) {
             self.queue(swap.id, current);
         }
     }

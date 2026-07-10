@@ -1,25 +1,39 @@
 use crate::ash::differential::RenderRemoveQueue;
+use bevy_ecs::event::EntityEvent;
+use bevy_ecs::entity::Entity;
+use crate::EcsExtension;
 use crate::foliage::Foliage;
 use crate::{Attachment, Branch, StackDeps, Tree};
 use bevy_ecs::change_detection::ResMut;
-use bevy_ecs::prelude::{Event, Query, Trigger};
+use crate::Trigger;
+use bevy_ecs::prelude::{Event, Query};
 
 impl Attachment for Remove {
     fn attach(foliage: &mut Foliage) {
         foliage.define(Remove::observer);
     }
 }
-#[derive(Event, Copy, Clone)]
-pub struct Remove {}
+#[derive(EntityEvent, Copy, Clone)]
+pub struct Remove {
+    entity: Entity,
+}
+impl Default for Remove {
+    fn default() -> Self {
+        Self {
+            entity: Entity::PLACEHOLDER,
+        }
+    }
+}
+crate::targeted_event!(Remove);
 impl Remove {
     pub fn new() -> Self {
-        Self {}
+        Self { entity: Entity::PLACEHOLDER }
     }
     pub(crate) fn push_remove_packet<R: Clone + Send + Sync + 'static>(
         trigger: Trigger<Self>,
         mut queue: ResMut<RenderRemoveQueue<R>>,
     ) {
-        queue.queue.insert(trigger.entity());
+        queue.queue.insert(trigger.event_target());
     }
     fn observer(
         trigger: Trigger<Self>,
@@ -27,12 +41,12 @@ impl Remove {
         branches: Query<&Branch>,
         stack_deps: Query<&StackDeps>,
     ) {
-        if tree.get_entity(trigger.entity()).is_none() {
+        if tree.get_entity(trigger.event_target()).is_err() {
             return;
         }
-        tree.entity(trigger.entity()).despawn();
-        let mut deps = branches.get(trigger.entity()).unwrap().ids.clone();
-        if let Ok(sd) = stack_deps.get(trigger.entity()) {
+        tree.entity(trigger.event_target()).despawn();
+        let mut deps = branches.get(trigger.event_target()).unwrap().ids.clone();
+        if let Ok(sd) = stack_deps.get(trigger.event_target()) {
             for e in sd.ids.iter() {
                 deps.insert(*e);
             }

@@ -9,7 +9,7 @@ use wgpu::{
     Origin3d, PipelineLayout, PipelineLayoutDescriptor, PowerPreference, PresentMode,
     PrimitiveState, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPipeline,
     RenderPipelineDescriptor, RequestAdapterOptions, Sampler, SamplerDescriptor, ShaderModule,
-    ShaderModuleDescriptor, StoreOp, SurfaceConfiguration, SurfaceError, TexelCopyBufferLayout,
+    CurrentSurfaceTexture, ShaderModuleDescriptor, StoreOp, SurfaceConfiguration, TexelCopyBufferLayout,
     TexelCopyTextureInfo, Texture, TextureDescriptor, TextureDimension, TextureFormat,
     TextureUsages, TextureView, TextureViewDescriptor, VertexAttribute, VertexBufferLayout,
     VertexStepMode,
@@ -94,12 +94,12 @@ impl Ginkgo {
     pub(crate) fn vertex_buffer_layout<A: Pod + Zeroable>(
         step: VertexStepMode,
         attrs: &[VertexAttribute],
-    ) -> VertexBufferLayout {
-        VertexBufferLayout {
+    ) -> Option<VertexBufferLayout<'_>> {
+        Some(VertexBufferLayout {
             array_stride: Ginkgo::memory_size::<A>(1),
             step_mode: step,
             attributes: attrs,
-        }
+        })
     }
     pub(crate) fn create_sampler(&self, filter: bool) -> Sampler {
         let descriptor = if filter {
@@ -157,7 +157,7 @@ impl Ginkgo {
             targets,
         })
     }
-    pub(crate) fn texture_bind_group_entry(view: &TextureView, binding: u32) -> BindGroupEntry {
+    pub(crate) fn texture_bind_group_entry(view: &TextureView, binding: u32) -> BindGroupEntry<'_> {
         BindGroupEntry {
             binding,
             resource: wgpu::BindingResource::TextureView(view),
@@ -166,7 +166,7 @@ impl Ginkgo {
     pub(crate) fn sampler_bind_group_entry(
         sampler: &wgpu::Sampler,
         binding: u32,
-    ) -> BindGroupEntry {
+    ) -> BindGroupEntry<'_> {
         BindGroupEntry {
             binding,
             resource: wgpu::BindingResource::Sampler(sampler),
@@ -226,7 +226,7 @@ impl Ginkgo {
     pub(crate) fn uniform_bind_group_entry<U: Pod + Zeroable>(
         uniform: &Uniform<U>,
         binding: u32,
-    ) -> BindGroupEntry {
+    ) -> BindGroupEntry<'_> {
         BindGroupEntry {
             binding,
             resource: uniform.buffer.as_entire_binding(),
@@ -248,13 +248,13 @@ impl Ginkgo {
     pub(crate) fn depth_stencil_state(&self) -> Option<DepthStencilState> {
         Some(DepthStencilState {
             format: Depth::FORMAT,
-            depth_write_enabled: true,
-            depth_compare: CompareFunction::LessEqual,
+            depth_write_enabled: Some(true),
+            depth_compare: Some(CompareFunction::LessEqual),
             stencil: Default::default(),
             bias: Default::default(),
         })
     }
-    pub(crate) fn viewport_bind_group_entry(&self, binding: u32) -> BindGroupEntry {
+    pub(crate) fn viewport_bind_group_entry(&self, binding: u32) -> BindGroupEntry<'_> {
         BindGroupEntry {
             binding,
             resource: self.viewport().uniform.buffer.as_entire_binding(),
@@ -271,6 +271,7 @@ impl Ginkgo {
         };
         [Some(RenderPassColorAttachment {
             view,
+            depth_slice: None,
             resolve_target,
             ops: Operations {
                 load: LoadOp::Clear(clear_color.into()),
@@ -278,7 +279,7 @@ impl Ginkgo {
             },
         })]
     }
-    pub(crate) fn depth_stencil_attachment(&self) -> Option<RenderPassDepthStencilAttachment> {
+    pub(crate) fn depth_stencil_attachment(&self) -> Option<RenderPassDepthStencilAttachment<'_>> {
         Some(RenderPassDepthStencilAttachment {
             view: &self.configuration().depth.as_ref().unwrap().view,
             depth_ops: Some(Operations {
@@ -302,19 +303,23 @@ impl Ginkgo {
     pub(crate) fn surface_texture(&self) -> Option<wgpu::SurfaceTexture> {
         let context = self.context();
         match context.surface.as_ref().unwrap().get_current_texture() {
-            Ok(surface) => Some(surface),
-            Err(err) => match err {
-                SurfaceError::Timeout => None,
-                SurfaceError::Outdated | SurfaceError::Lost => {
-                    context
-                        .surface
-                        .as_ref()
-                        .unwrap()
-                        .configure(&context.device, &self.configuration().config);
-                    context.surface.as_ref().unwrap().get_current_texture().ok()
+            CurrentSurfaceTexture::Success(surface) | CurrentSurfaceTexture::Suboptimal(surface) => {
+                Some(surface)
+            }
+            CurrentSurfaceTexture::Timeout | CurrentSurfaceTexture::Occluded => None,
+            CurrentSurfaceTexture::Outdated | CurrentSurfaceTexture::Lost => {
+                context
+                    .surface
+                    .as_ref()
+                    .unwrap()
+                    .configure(&context.device, &self.configuration().config);
+                match context.surface.as_ref().unwrap().get_current_texture() {
+                    CurrentSurfaceTexture::Success(surface)
+                    | CurrentSurfaceTexture::Suboptimal(surface) => Some(surface),
+                    _ => None,
                 }
-                SurfaceError::OutOfMemory | SurfaceError::Other => panic!("out-of-memory"),
-            },
+            }
+            CurrentSurfaceTexture::Validation => panic!("surface-validation"),
         }
     }
     pub(crate) fn viewport(&self) -> &Viewport {
@@ -358,13 +363,14 @@ impl Ginkgo {
         self.configuration.is_some()
     }
     pub(crate) async fn acquire_context(&mut self, willow: &Willow) {
-        let instance = wgpu::Instance::new(&InstanceDescriptor {
+        let instance = wgpu::Instance::new(InstanceDescriptor {
             backends: wgpu::Backends::VULKAN
                 | wgpu::Backends::METAL
                 | wgpu::Backends::DX12
                 | wgpu::Backends::GL,
             flags: wgpu::InstanceFlags::default(),
             backend_options: BackendOptions::default(),
+            ..InstanceDescriptor::new_without_display_handle()
         });
         let surface = instance.create_surface(willow.window()).expect("window");
         let adapter = instance
@@ -372,6 +378,7 @@ impl Ginkgo {
                 power_preference: PowerPreference::default(),
                 force_fallback_adapter: false,
                 compatible_surface: Some(&surface),
+                apply_limit_buckets: false,
             })
             .await
             .expect("adapter");
@@ -390,15 +397,14 @@ impl Ginkgo {
             }
         }
         let (device, queue) = adapter
-            .request_device(
-                &DeviceDescriptor {
-                    label: Some("device/queue"),
-                    required_features: features,
-                    required_limits: limits.using_resolution(adapter.limits()),
-                    memory_hints: Default::default(),
-                },
-                None,
-            )
+            .request_device(&DeviceDescriptor {
+                label: Some("device/queue"),
+                required_features: features,
+                required_limits: limits.using_resolution(adapter.limits()),
+                memory_hints: Default::default(),
+                experimental_features: Default::default(),
+                trace: wgpu::Trace::Off,
+            })
             .await
             .expect("device/queue");
         self.context.replace(GraphicContext {
@@ -423,6 +429,7 @@ impl Ginkgo {
             present_mode: PresentMode::Fifo,
             desired_maximum_frame_latency: 2,
             alpha_mode: CompositeAlphaMode::Auto,
+            color_space: wgpu::SurfaceColorSpace::Auto,
             view_formats: vec![self.context().surface_format],
         };
         self.context()

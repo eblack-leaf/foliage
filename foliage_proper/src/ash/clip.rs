@@ -1,10 +1,14 @@
 use crate::{Branch, Component, Logical, Section, Tree, Update, Write};
+use bevy_ecs::event::EntityEvent;
+use crate::EcsExtension;
+use bevy_ecs::lifecycle::HookContext;
 use crate::{Differential, Stem};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::Trigger;
+use crate::Trigger;
 use bevy_ecs::system::Query;
-use bevy_ecs::world::{DeferredWorld, OnInsert};
+use bevy_ecs::lifecycle::Insert;
+use bevy_ecs::world::DeferredWorld;
 #[derive(Component, Debug, Clone, Copy, Default, PartialEq)]
 #[require(InheritedClip, ResolvedClip, Differential<(), ResolvedClip>)]
 // #[component(on_add = Self::on_add)]
@@ -17,11 +21,11 @@ impl ClipSection {
         mut tree: Tree,
     ) {
         // trigger on-insert w/ current section
-        let value = *sections.get(trigger.entity()).unwrap();
-        tree.entity(trigger.entity()).insert(ClipSection(value));
+        let value = *sections.get(trigger.event_target()).unwrap();
+        tree.entity(trigger.event_target()).insert(ClipSection(value));
     }
-    pub(crate) fn stem_insert(trigger: Trigger<OnInsert, Stem>, mut tree: Tree) {
-        tree.trigger_targets(Update::<InheritedClip>::new(), trigger.entity());
+    pub(crate) fn stem_insert(trigger: Trigger<Insert, Stem>, mut tree: Tree) {
+        tree.trigger_targets(Update::<InheritedClip>::new(), trigger.event_target());
     }
     pub(crate) fn update_inherited(
         trigger: Trigger<Update<InheritedClip>>,
@@ -30,7 +34,7 @@ impl ClipSection {
         sections: Query<&Section<Logical>>,
     ) {
         // calculate all upward in tree
-        let this = trigger.entity();
+        let this = trigger.event_target();
         let mut stem = *stems.get(this).unwrap();
         let mut section = *sections.get(this).unwrap();
         let mut inherited = InheritedClip(None);
@@ -52,7 +56,8 @@ impl ClipSection {
         }
         tree.entity(this).insert(inherited);
     }
-    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+    fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         // set deps inherited from resolved
         let inherited = *world.get::<InheritedClip>(this).unwrap();
         let current = *world.get::<Section<Logical>>(this).unwrap();

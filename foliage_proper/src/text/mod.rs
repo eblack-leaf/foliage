@@ -2,6 +2,9 @@ mod glyph;
 pub(crate) mod monospaced;
 mod pipeline;
 
+use bevy_ecs::event::EntityEvent;
+use crate::EcsExtension;
+use bevy_ecs::lifecycle::HookContext;
 use crate::color::Color;
 use crate::coordinate::section::Section;
 use crate::coordinate::Logical;
@@ -18,7 +21,8 @@ use crate::{
 };
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Component, IntoSystemConfigs, Res, Trigger};
+use crate::Trigger;
+use bevy_ecs::prelude::{Component, IntoScheduleConfigs, Res};
 use bevy_ecs::query::{Changed, With};
 use bevy_ecs::system::{ParamSet, Query};
 use bevy_ecs::world::DeferredWorld;
@@ -76,7 +80,8 @@ impl Text {
             value: value.as_ref().to_string(),
         }
     }
-    fn on_add(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+    fn on_add(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         world
             .commands()
             .entity(this)
@@ -103,13 +108,14 @@ impl Text {
             resolved_font_size.value = font_size.resolve(*layout).value;
         }
     }
-    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+    fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         world
             .commands()
             .trigger_targets(Update::<Text>::new(), this);
     }
     fn update_from_section(trigger: Trigger<Write<Section<Logical>>>, mut tree: Tree) {
-        tree.trigger_targets(Update::<Text>::new(), trigger.entity());
+        tree.trigger_targets(Update::<Text>::new(), trigger.event_target());
     }
     fn resolve_colors(
         mut glyph_colors: ParamSet<(Query<&GlyphColors>, Query<Entity, Changed<GlyphColors>>)>,
@@ -153,7 +159,7 @@ impl Text {
         auto_heights: Query<&AutoHeight>,
         auto_widths: Query<&AutoWidth>,
     ) {
-        let this = trigger.entity();
+        let this = trigger.event_target();
         let mut current = UpdateCache {
             font_size: ResolvedFontSize::new(
                 (font_sizes.get(this).unwrap().value as f32 * scale_factor.value()) as u32,
@@ -245,9 +251,9 @@ impl Text {
         mut glyphs: Query<&mut Glyphs>,
         vis: Query<&ResolvedVisibility>,
     ) {
-        let value = vis.get(trigger.entity()).unwrap();
+        let value = vis.get(trigger.event_target()).unwrap();
         if !value.visible() {
-            glyphs.get_mut(trigger.entity()).unwrap().glyphs.clear();
+            glyphs.get_mut(trigger.event_target()).unwrap().glyphs.clear();
         }
     }
     fn resolve_glyphs(
@@ -340,7 +346,8 @@ impl ResolvedFontSize {
     pub fn new(value: u32) -> Self {
         Self { value }
     }
-    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+    fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         if world.get::<Text>(this).is_some() {
             world
                 .commands()
@@ -420,7 +427,8 @@ impl FontSize {
             }
         }
     }
-    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+    fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         let layout = *world.get_resource::<Layout>().unwrap();
         let comp = world.get::<FontSize>(this).unwrap();
         let resolved = comp.resolve(layout);
@@ -471,7 +479,8 @@ pub enum HorizontalAlignment {
     Right,
 }
 impl HorizontalAlignment {
-    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+    fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         world.trigger_targets(Update::<Text>::new(), this);
     }
 }
@@ -493,7 +502,8 @@ pub enum VerticalAlignment {
     Bottom,
 }
 impl VerticalAlignment {
-    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+    fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         world.trigger_targets(Update::<Text>::new(), this);
     }
 }

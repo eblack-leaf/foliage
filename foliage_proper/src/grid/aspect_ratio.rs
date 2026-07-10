@@ -1,4 +1,6 @@
 use crate::{CoordinateContext, Layout, Location, Position, Section, Update};
+use crate::EcsExtension;
+use bevy_ecs::lifecycle::HookContext;
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::Component;
@@ -49,7 +51,8 @@ impl AspectRatio {
         self.xl = Some(xl);
         self
     }
-    fn on_insert(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+    fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         world.trigger_targets(Update::<Location>::new(), this);
     }
     pub fn constrain<Context: CoordinateContext>(

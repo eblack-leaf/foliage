@@ -70,8 +70,8 @@ impl Render for Image {
         });
         let pipeline_layout = ginkgo.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("image-pipeline-layout"),
-            bind_group_layouts: &[&group_layout, &bind_group_layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&group_layout), Some(&bind_group_layout)],
+            immediate_size: 0,
         });
         let pipeline = ginkgo.create_pipeline(&RenderPipelineDescriptor {
             label: Some("image-pipeline"),
@@ -111,7 +111,7 @@ impl Render for Image {
                 "fragment_entry",
                 &ginkgo.alpha_color_target_state(),
             ),
-            multiview: None,
+            multiview_mask: None,
             cache: None,
         });
         Renderer {
@@ -135,7 +135,7 @@ impl Render for Image {
         for entity in queues.removes::<Image>() {
             if let Some(group_id) = renderer.resources.entity_to_memory.remove(&entity) {
                 let group = renderer.groups.get_mut(&group_id).unwrap();
-                let id = entity.index() as InstanceId;
+                let id = entity.index().index() as InstanceId;
                 let order = group.coordinator.order(id);
                 group.coordinator.remove(order);
                 nodes.remove(RemoveNode::new(PipelineId::Image, group_id, id));
@@ -225,7 +225,7 @@ impl Render for Image {
         for (entity, elevation) in queues.attribute::<Image, ResolvedElevation>() {
             if let Some(gid) = renderer.resources.entity_to_memory.get(&entity) {
                 let group = renderer.groups.get_mut(&gid).unwrap();
-                let id = entity.index() as InstanceId;
+                let id = entity.index().index() as InstanceId;
                 if !group.coordinator.has_instance(id) {
                     group
                         .coordinator
@@ -239,14 +239,14 @@ impl Render for Image {
         for (entity, clip) in queues.attribute::<Image, Stem>() {
             if let Some(gid) = renderer.resources.entity_to_memory.get(&entity) {
                 let group = renderer.groups.get_mut(&gid).unwrap();
-                let id = entity.index() as InstanceId;
+                let id = entity.index().index() as InstanceId;
                 group.coordinator.update_clip_context(id, clip);
             }
         }
         for (entity, adjustments) in queues.attribute::<Image, CropAdjustment>() {
             if let Some(gid) = renderer.resources.entity_to_memory.get(&entity) {
                 let group = renderer.groups.get_mut(&gid).unwrap();
-                let id = entity.index() as InstanceId;
+                let id = entity.index().index() as InstanceId;
                 let base = group.group.texture_coordinates;
                 if adjustments.adjustments == Section::default() {
                     group.group.coords.queue(id, base);
@@ -267,14 +267,14 @@ impl Render for Image {
         for (entity, opacity) in queues.attribute::<Image, BlendedOpacity>() {
             if let Some(gid) = renderer.resources.entity_to_memory.get(&entity) {
                 let group = renderer.groups.get_mut(&gid).unwrap();
-                let id = entity.index() as InstanceId;
+                let id = entity.index().index() as InstanceId;
                 group.group.opaque.queue(id, opacity);
             }
         }
         for (entity, section) in queues.attribute::<Image, Section<Logical>>() {
             if let Some(gid) = renderer.resources.entity_to_memory.get(&entity) {
                 let group = renderer.groups.get_mut(&gid).unwrap();
-                let id = entity.index() as InstanceId;
+                let id = entity.index().index() as InstanceId;
                 group.group.sections.queue(
                     id,
                     section

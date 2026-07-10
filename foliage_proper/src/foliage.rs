@@ -13,13 +13,14 @@ use crate::{
     Elevation, Enable, Grid, Icon, Image, Interaction, Location, Named, OnClick, Opacity, Panel,
     Physical, Resource, Shape, SystemSet, Text, TextInput, Visibility,
 };
+use crate::tree::{IntoTargets, TargetedEvent};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::event::{event_update_system, Event, EventRegistry, Events};
-use bevy_ecs::observer::TriggerTargets;
-use bevy_ecs::prelude::{apply_deferred, IntoSystemConfigs, IntoSystemSetConfigs, Schedule, World};
-use bevy_ecs::system::IntoObserverSystem;
+use bevy_ecs::event::Event;
+use bevy_ecs::message::{message_update_system, Message, MessageRegistry, Messages};
+use bevy_ecs::observer::{IntoEntityObserver, IntoObserver};
+use bevy_ecs::prelude::{ApplyDeferred, IntoScheduleConfigs, Schedule, World};
 use futures_channel::oneshot;
 use std::marker::PhantomData;
 use tracing_subscriber::filter::Targets;
@@ -96,16 +97,16 @@ impl Foliage {
                 .chain(),
         );
         foliage.diff.add_systems((
-            apply_deferred
+            ApplyDeferred
                 .after(DiffMarkers::Prepare)
                 .before(DiffMarkers::Finalize),
-            apply_deferred
+            ApplyDeferred
                 .after(DiffMarkers::Finalize)
                 .before(DiffMarkers::Extract),
         ));
         foliage
             .main
-            .add_systems(event_update_system.in_set(MainMarkers::External));
+            .add_systems(message_update_system.in_set(MainMarkers::External));
         Disable::attach(&mut foliage);
         Enable::attach(&mut foliage);
         Panel::attach(&mut foliage);
@@ -127,7 +128,13 @@ impl Foliage {
         Location::attach(&mut foliage);
         Named::attach(&mut foliage);
         TextInput::attach(&mut foliage);
+        crate::Pagination::attach(&mut foliage);
+        crate::List::attach(&mut foliage);
+        crate::Dropdown::attach(&mut foliage);
+        crate::Prompt::attach(&mut foliage);
+        crate::Carousel::attach(&mut foliage);
         VirtualKeyboardAdapter::attach(&mut foliage);
+        crate::Clipboard::attach(&mut foliage);
         foliage
     }
     pub fn attach<A: Attachment>(&mut self) {
@@ -157,47 +164,48 @@ impl Foliage {
     pub fn url<S: AsRef<str>>(&mut self, path: S) {
         self.base_url = path.as_ref().to_string();
     }
-    pub fn define<E: Event + 'static, B: Bundle, M, D: IntoObserverSystem<E, B, M>>(
-        &mut self,
-        obs: D,
-    ) {
+    pub fn define<M>(&mut self, obs: impl IntoObserver<M>) {
         self.world.add_observer(obs);
     }
     pub fn leaf<B: Bundle>(&mut self, b: B) -> Entity {
         self.world.leaf(b)
     }
-    pub fn send_to<E: Event>(
-        &mut self,
-        e: E,
-        targets: impl TriggerTargets + Send + Sync + 'static,
-    ) {
+    pub fn send_to<E>(&mut self, e: E, targets: impl IntoTargets)
+    where
+        E: TargetedEvent,
+        for<'a> E::Trigger<'a>: Default,
+    {
         self.world.send_to(e, targets);
     }
-    pub fn send<E: Event>(&mut self, e: E) {
+    pub fn send<E>(&mut self, e: E)
+    where
+        E: Event,
+        for<'a> E::Trigger<'a>: Default,
+    {
         self.world.send(e);
     }
-    pub fn queue<E: Event>(&mut self, e: E) {
+    pub fn queue<E: Message>(&mut self, e: E) {
         self.world.queue(e);
     }
-    pub fn enable_queued_event<E: Event + Clone + Send + Sync + 'static>(&mut self) {
-        if self.world.get_resource::<Events<E>>().is_none() {
-            self.world.insert_resource(Events::<E>::default());
-            EventRegistry::register_event::<E>(&mut self.world);
+    pub fn enable_queued_event<E: Message + Clone + Send + Sync + 'static>(&mut self) {
+        if self.world.get_resource::<Messages<E>>().is_none() {
+            self.world.insert_resource(Messages::<E>::default());
+            MessageRegistry::register_message::<E>(&mut self.world);
         }
     }
     pub fn write_to<B: Bundle>(&mut self, entity: Entity, b: B) {
         self.world.write_to(entity, b);
     }
-    pub fn remove(&mut self, targets: impl TriggerTargets + Send + Sync + 'static) {
+    pub fn remove(&mut self, targets: impl IntoTargets) {
         self.world.remove(targets);
     }
-    pub fn enable(&mut self, targets: impl TriggerTargets + Send + Sync + 'static) {
+    pub fn enable(&mut self, targets: impl IntoTargets) {
         self.world.enable(targets);
     }
-    pub fn disable(&mut self, targets: impl TriggerTargets + Send + Sync + 'static) {
+    pub fn disable(&mut self, targets: impl IntoTargets) {
         self.world.disable(targets);
     }
-    pub fn enable_animation<A: Animate + Component>(&mut self) {
+    pub fn enable_animation<A: Animate + Component<Mutability = bevy_ecs::component::Mutable>>(&mut self) {
         debug_assert_eq!(
             self.world.get_resource::<AnimationLimiter<A>>().is_none(),
             true
@@ -212,25 +220,13 @@ impl Foliage {
     pub fn animate<A: Animate + Component>(&mut self, anim: Animation<A>) -> Entity {
         self.world.animate(anim)
     }
-    pub fn sequence_end<END: IntoObserverSystem<OnEnd, B, M>, B: Bundle, M>(
-        &mut self,
-        seq: Entity,
-        end: END,
-    ) {
+    pub fn sequence_end<M>(&mut self, seq: Entity, end: impl IntoEntityObserver<M>) {
         self.world.sequence_end(seq, end);
     }
-    pub fn subscribe<SUB: IntoObserverSystem<S, B, M>, S: Event + 'static, B: Bundle, M>(
-        &mut self,
-        e: Entity,
-        sub: SUB,
-    ) {
+    pub fn subscribe<M>(&mut self, e: Entity, sub: impl IntoEntityObserver<M>) {
         self.world.subscribe(e, sub);
     }
-    pub fn on_click<ONC: IntoObserverSystem<OnClick, B, M>, B: Bundle, M>(
-        &mut self,
-        e: Entity,
-        o: ONC,
-    ) {
+    pub fn on_click<M>(&mut self, e: Entity, o: impl IntoEntityObserver<M>) {
         self.world.on_click(e, o);
     }
     pub fn name<S: AsRef<str>>(&mut self, e: Entity, s: S) {
@@ -239,7 +235,7 @@ impl Foliage {
     pub fn store<S: AsRef<str>>(&mut self, key: AssetKey, s: S) {
         self.world.store(key, s);
     }
-    pub fn timer<TF: IntoObserverSystem<OnEnd, B, M>, B: Bundle, M>(&mut self, t: u64, tf: TF) {
+    pub fn timer<M>(&mut self, t: u64, tf: impl IntoEntityObserver<M>) {
         self.world.timer(t, tf);
     }
     pub(crate) fn remove_queue<R: Clone + Send + Sync + 'static>(&mut self) {
@@ -321,6 +317,7 @@ impl Foliage {
         }
     }
     pub(crate) fn finish_boot(&mut self) {
+        self.willow.window().set_ime_allowed(true);
         self.ginkgo.configure_view(&self.willow);
         self.ginkgo.create_viewport(&self.willow);
         let scale_factor = self.ginkgo.configuration().scale_factor;

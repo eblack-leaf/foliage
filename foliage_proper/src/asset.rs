@@ -1,12 +1,15 @@
 use std::collections::HashMap;
 
+use bevy_ecs::event::EntityEvent;
 use crate::foliage::{Foliage, MainMarkers};
 use crate::tree::Tree;
 use crate::Attachment;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::Event;
-use bevy_ecs::prelude::{Component, IntoSystemConfigs, Trigger};
-use bevy_ecs::system::{Commands, Query, Res, ResMut, Resource};
+use crate::Trigger;
+use bevy_ecs::prelude::{Component, IntoScheduleConfigs};
+use bevy_ecs::resource::Resource;
+use bevy_ecs::system::{Commands, Query, Res, ResMut};
 use futures_channel::oneshot::{Receiver, Sender};
 use uuid::Uuid;
 
@@ -34,17 +37,19 @@ impl AssetRetrieval {
         Self { key }
     }
 }
-#[derive(Event, Copy, Clone)]
+#[derive(EntityEvent, Copy, Clone)]
 pub struct OnRetrieval {
+    entity: Entity,
     pub key: AssetKey,
 }
+crate::targeted_event!(OnRetrieval);
 pub fn asset_retrieval<'w, AFN: FnMut(&mut Tree, Entity, Vec<u8>) + 'static>(
     mut afn: AFN,
 ) -> impl FnMut(Trigger<OnRetrieval>, Tree, Res<AssetLoader>) {
     let obs =
         move |trigger: Trigger<OnRetrieval>, mut tree: Tree, asset_loader: Res<AssetLoader>| {
             let asset = asset_loader.retrieve(trigger.event().key).unwrap();
-            afn(&mut tree, trigger.entity(), asset.data);
+            afn(&mut tree, trigger.event_target(), asset.data);
         };
     obs
 }
@@ -56,12 +61,10 @@ pub(crate) fn on_retrieve(
     for (entity, on_retrieve) in retrievers.iter() {
         if asset_loader.assets.contains_key(&on_retrieve.key) {
             cmd.entity(entity).remove::<AssetRetrieval>();
-            cmd.trigger_targets(
-                OnRetrieval {
-                    key: on_retrieve.key,
-                },
+            cmd.trigger(OnRetrieval {
                 entity,
-            );
+                key: on_retrieve.key,
+            });
         }
     }
 }

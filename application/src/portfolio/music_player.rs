@@ -4,11 +4,28 @@ use foliage::{
     bevy_ecs, stack, Animation, Attachment, Button, Color, EcsExtension, Elevation, Event, Foliage,
     FontSize, Grid, GridExt, HorizontalAlignment, Icon, IconValue, Image, ImageView, Keyring, Line,
     Location, OnClick, Opacity, Outline, Panel, Primary, Res, Rounding, Secondary, Stack, Stem,
-    Tertiary, Text, TextInput, TextValue, Tree, Trigger, VerticalAlignment,
+    Entity, EntityEvent, Tertiary, Text, TextInput, TextValue, Tree, Trigger, VerticalAlignment,
 };
 
-#[derive(Event)]
-pub(crate) struct MusicPlayer {}
+#[derive(EntityEvent)]
+pub(crate) struct MusicPlayer {
+    entity: Entity,
+}
+impl Default for MusicPlayer {
+    fn default() -> Self {
+        Self {
+            entity: Entity::PLACEHOLDER,
+        }
+    }
+}
+impl Clone for MusicPlayer {
+    fn clone(&self) -> Self {
+        Self {
+            entity: self.entity,
+        }
+    }
+}
+foliage::targeted_event!(MusicPlayer);
 impl Attachment for MusicPlayer {
     fn attach(foliage: &mut Foliage) {
         foliage.define(MusicPlayer::init);
@@ -16,7 +33,7 @@ impl Attachment for MusicPlayer {
 }
 impl MusicPlayer {
     pub(crate) fn init(trigger: Trigger<Self>, mut tree: Tree, keyring: Res<Keyring>) {
-        let app = trigger.entity();
+        let app = trigger.event_target();
         tree.entity(app).insert((
             Panel::new(),
             Elevation::up(1),

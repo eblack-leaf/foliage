@@ -1,41 +1,68 @@
-use crate::{AssetKey, Attachment, Foliage, Resource};
+use crate::{AssetKey, Attachment, Foliage, Resource, TargetedEvent};
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Event, Trigger};
+use crate::Trigger;
+use bevy_ecs::prelude::{EntityEvent, Event};
 use bevy_ecs::system::ResMut;
 use std::collections::HashMap;
 
-#[derive(Event, Copy, Clone)]
-pub struct Write<W> {
+#[derive(EntityEvent)]
+pub struct Write<W: Send + Sync + 'static> {
+    entity: Entity,
     _phantom: std::marker::PhantomData<W>,
 }
-impl<W> Default for Write<W> {
+impl<W: Send + Sync + 'static> Default for Write<W> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<W> Write<W> {
+impl<W: Send + Sync + 'static> Write<W> {
     pub fn new() -> Write<W> {
         Write {
+            entity: Entity::PLACEHOLDER,
             _phantom: std::marker::PhantomData,
         }
     }
 }
-#[derive(Event, Copy, Clone)]
-pub struct Update<U> {
+impl<W: Send + Sync + 'static> Clone for Write<W> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl<W: Send + Sync + 'static> Copy for Write<W> {}
+impl<W: Send + Sync + 'static> TargetedEvent for Write<W> {
+    fn set_target(&mut self, entity: Entity) {
+        self.entity = entity;
+    }
+}
+#[derive(EntityEvent)]
+pub struct Update<U: Send + Sync + 'static> {
+    entity: Entity,
     _phantom: std::marker::PhantomData<U>,
 }
-impl<U> Default for Update<U> {
+impl<U: Send + Sync + 'static> Default for Update<U> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<U> Update<U> {
+impl<U: Send + Sync + 'static> Update<U> {
     pub fn new() -> Update<U> {
         Update {
+            entity: Entity::PLACEHOLDER,
             _phantom: std::marker::PhantomData,
         }
+    }
+}
+impl<U: Send + Sync + 'static> Clone for Update<U> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl<U: Send + Sync + 'static> Copy for Update<U> {}
+impl<U: Send + Sync + 'static> TargetedEvent for Update<U> {
+    fn set_target(&mut self, entity: Entity) {
+        self.entity = entity;
     }
 }
 #[derive(Resource, Default)]

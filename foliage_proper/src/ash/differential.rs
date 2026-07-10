@@ -64,18 +64,33 @@ pub(crate) fn cached_differential<
     mut queue: ResMut<RenderQueue<R, RP>>,
 ) {
     // if visibility changed && is-visible => send current value && continue
+    // (skip-on-missing throughout: an entity mid-teardown can have its attribute or cache
+    // already removed in the same frame its visibility changes — nothing to restore then)
     let changed = visibility.p1().iter().collect::<Vec<_>>();
     for c in changed {
-        if visibility.p0().get(c).unwrap().visible() {
-            let v = values.p1().get(c).unwrap().clone();
-            caches.get_mut(c).unwrap().cache.replace(v.clone());
+        let Ok(visible) = visibility.p0().get(c).map(|v| v.visible()) else {
+            continue;
+        };
+        if visible {
+            let Ok(v) = values.p1().get(c).map(|v| v.clone()) else {
+                continue;
+            };
+            let Ok(mut cache) = caches.get_mut(c) else {
+                continue;
+            };
+            cache.cache.replace(v.clone());
             queue.queue.insert(c, v);
         }
     }
     // if is-visible && != cached => send new + set cache
     for (e, v) in values.p0().iter() {
-        if visibility.p0().get(e).unwrap().visible() {
-            let mut cache = caches.get_mut(e).unwrap();
+        let Ok(visible) = visibility.p0().get(e).map(|v| v.visible()) else {
+            continue;
+        };
+        if visible {
+            let Ok(mut cache) = caches.get_mut(e) else {
+                continue;
+            };
             if cache.different(v.clone()) {
                 queue.queue.insert(e, v.clone());
             }

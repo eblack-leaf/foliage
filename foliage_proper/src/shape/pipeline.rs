@@ -60,8 +60,8 @@ impl Render for Shape {
         });
         let pipeline_layout = ginkgo.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("line-render-pipeline"),
-            bind_group_layouts: &[&bind_group_layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&bind_group_layout)],
+            immediate_size: 0,
         });
         let pipeline = ginkgo.create_pipeline(&RenderPipelineDescriptor {
             label: Some("line-renderer-pipeline"),
@@ -104,7 +104,7 @@ impl Render for Shape {
                 "fragment_entry",
                 &ginkgo.alpha_color_target_state(),
             ),
-            multiview: None,
+            multiview_mask: None,
             cache: None,
         });
         let mut groups = HashMap::new();
@@ -132,7 +132,7 @@ impl Render for Shape {
         let mut nodes = Nodes::new();
         let group = renderer.groups.get_mut(&0).unwrap();
         for entity in queues.removes::<Self>() {
-            let id = entity.index() as InstanceId;
+            let id = entity.index().index() as InstanceId;
             if group.coordinator.has_instance(id) {
                 let order = group.coordinator.order(id);
                 group.coordinator.remove(order);
@@ -145,7 +145,7 @@ impl Render for Shape {
             }
         }
         for (entity, shape) in queues.attribute::<Self, Self>() {
-            let id = entity.index() as InstanceId;
+            let id = entity.index().index() as InstanceId;
             if !group.coordinator.has_instance(id) {
                 group.coordinator.add(Instance::new(
                     ResolvedElevation::default(),
@@ -156,20 +156,20 @@ impl Render for Shape {
             group.group.shapes.queue(id, shape);
         }
         for (entity, elevation) in queues.attribute::<Self, ResolvedElevation>() {
-            let id = entity.index() as InstanceId;
+            let id = entity.index().index() as InstanceId;
             group.group.elevations.queue(id, elevation);
             group.coordinator.update_elevation(id, elevation);
         }
         for (entity, clip) in queues.attribute::<Self, Stem>() {
-            let id = entity.index() as InstanceId;
+            let id = entity.index().index() as InstanceId;
             group.coordinator.update_clip_context(id, clip);
         }
         for (entity, color) in queues.attribute::<Self, Color>() {
-            let id = entity.index() as InstanceId;
+            let id = entity.index().index() as InstanceId;
             group.group.colors.queue(id, color.c_repr());
         }
         for (entity, opacity) in queues.attribute::<Self, BlendedOpacity>() {
-            let id = entity.index() as InstanceId;
+            let id = entity.index().index() as InstanceId;
             group.group.opacities.queue(id, opacity);
         }
         if let Some(n) = group.coordinator.grown() {

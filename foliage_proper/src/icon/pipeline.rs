@@ -69,8 +69,8 @@ impl Render for Icon {
         });
         let pipeline_layout = ginkgo.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("icon-pipeline-layout"),
-            bind_group_layouts: &[&group_layout, &bind_group_layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&group_layout), Some(&bind_group_layout)],
+            immediate_size: 0,
         });
         let pipeline = ginkgo.create_pipeline(&RenderPipelineDescriptor {
             label: Some("icon-render-pipeline"),
@@ -114,7 +114,7 @@ impl Render for Icon {
                 "fragment_entry",
                 &ginkgo.alpha_color_target_state(),
             ),
-            multiview: None,
+            multiview_mask: None,
             cache: None,
         });
         Renderer {
@@ -138,7 +138,7 @@ impl Render for Icon {
         for entity in queues.removes::<Icon>() {
             if let Some(gid) = renderer.resources.entity_to_group.remove(&entity) {
                 let group = renderer.groups.get_mut(&gid).unwrap();
-                let id = entity.index() as InstanceId;
+                let id = entity.index().index() as InstanceId;
                 let order = group.coordinator.order(id);
                 group.coordinator.remove(order);
                 nodes.remove(RemoveNode::new(PipelineId::Icon, gid, id));
@@ -172,7 +172,7 @@ impl Render for Icon {
             renderer.groups.insert(mem.id, RenderGroup::new(group));
         }
         for (entity, icon) in queues.attribute::<Icon, Icon>() {
-            let id = entity.index() as InstanceId;
+            let id = entity.index().index() as InstanceId;
             if let Some(gid) = renderer.resources.entity_to_group.remove(&entity) {
                 let group = renderer.groups.get_mut(&gid).unwrap();
                 let order = group.coordinator.order(id);
@@ -193,7 +193,7 @@ impl Render for Icon {
         }
         for (entity, section) in queues.attribute::<Icon, Section<Logical>>() {
             let gid = renderer.resources.entity_to_group.get(&entity).unwrap();
-            let id = entity.index() as InstanceId;
+            let id = entity.index().index() as InstanceId;
             let group = renderer.groups.get_mut(gid).unwrap();
             let sf = ginkgo.configuration().scale_factor;
             group
@@ -211,26 +211,26 @@ impl Render for Icon {
         }
         for (entity, elevation) in queues.attribute::<Icon, ResolvedElevation>() {
             let gid = renderer.resources.entity_to_group.get(&entity).unwrap();
-            let id = entity.index() as InstanceId;
+            let id = entity.index().index() as InstanceId;
             let group = renderer.groups.get_mut(gid).unwrap();
             group.coordinator.update_elevation(id, elevation);
             group.group.elevations.queue(id, elevation);
         }
         for (entity, clip) in queues.attribute::<Icon, Stem>() {
             let gid = renderer.resources.entity_to_group.get(&entity).unwrap();
-            let id = entity.index() as InstanceId;
+            let id = entity.index().index() as InstanceId;
             let group = renderer.groups.get_mut(gid).unwrap();
             group.coordinator.update_clip_context(id, clip);
         }
         for (entity, color) in queues.attribute::<Icon, Color>() {
             let gid = renderer.resources.entity_to_group.get(&entity).unwrap();
-            let id = entity.index() as InstanceId;
+            let id = entity.index().index() as InstanceId;
             let group = renderer.groups.get_mut(gid).unwrap();
             group.group.colors.queue(id, color.c_repr());
         }
         for (entity, opacity) in queues.attribute::<Icon, BlendedOpacity>() {
             let gid = renderer.resources.entity_to_group.get(&entity).unwrap();
-            let id = entity.index() as InstanceId;
+            let id = entity.index().index() as InstanceId;
             let group = renderer.groups.get_mut(gid).unwrap();
             group.group.opacities.queue(id, opacity);
         }

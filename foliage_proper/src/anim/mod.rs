@@ -1,4 +1,5 @@
 use crate::grid::location::CreateDiff;
+use crate::EcsExtension;
 use crate::time::{OnEnd, Time, TimeDelta};
 use crate::{Component, Location, Tree, Update};
 use bevy_ecs::change_detection::{Mut, ResMut};
@@ -60,7 +61,7 @@ where
     fn interpolations(start: &Self, end: &Self) -> Interpolations;
     fn apply(&mut self, interpolations: &mut Interpolations);
 }
-pub(crate) fn animate<A: Animate + Component>(
+pub(crate) fn animate<A: Animate + Component<Mutability = bevy_ecs::component::Mutable>>(
     mut anims: Query<(Entity, &mut AnimationRunner<A>)>,
     mut anim_targets: Query<&mut A>,
     time: ResMut<Time>,
@@ -140,7 +141,7 @@ fn despawn_and_update_sequence<A: Animate>(
         .animations_to_finish
         <= 0
     {
-        tree.trigger_targets(OnEnd {}, sequence_entity);
+        tree.trigger_targets(OnEnd::default(), sequence_entity);
         tree.entity(sequence_entity).despawn();
     }
     tree.entity(anim_entity).despawn();

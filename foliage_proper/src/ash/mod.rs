@@ -6,7 +6,7 @@ use crate::ginkgo::{Ginkgo, ScaleFactor};
 use crate::image::Image;
 use crate::shape::Shape;
 use crate::{Attachment, Color, Icon, Panel, Stem, Text};
-use bevy_ecs::prelude::IntoSystemConfigs;
+use bevy_ecs::prelude::IntoScheduleConfigs;
 use bevy_ecs::world::World;
 use node::Node;
 use render::{ContiguousSpan, PipelineId, Render, Renderer};
@@ -188,6 +188,7 @@ impl Ash {
                         label: Some("present-encoder"),
                     });
             let mut rpass = encoder.begin_render_pass(&RenderPassDescriptor {
+                multiview_mask: None,
                 label: Some("render-pass"),
                 color_attachments: &ginkgo.color_attachment(&view, Color::gray(900)),
                 depth_stencil_attachment: ginkgo.depth_stencil_attachment(),
@@ -234,7 +235,7 @@ impl Ash {
                 .context()
                 .queue
                 .submit(std::iter::once(encoder.finish()));
-            surface_texture.present();
+            ginkgo.context().queue.present(surface_texture);
         }
     }
 }

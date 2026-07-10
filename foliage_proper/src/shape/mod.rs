@@ -1,4 +1,5 @@
 use crate::coordinate::points::Points;
+use bevy_ecs::lifecycle::HookContext;
 use crate::foliage::DiffMarkers;
 use crate::ginkgo::ScaleFactor;
 use crate::opacity::BlendedOpacity;
@@ -12,7 +13,7 @@ use crate::{
 use bevy_ecs::change_detection::Res;
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Changed, IntoSystemConfigs, Or, Query};
+use bevy_ecs::prelude::{Changed, IntoScheduleConfigs, Or, Query};
 use bevy_ecs::world::DeferredWorld;
 use bytemuck::{Pod, Zeroable};
 
@@ -107,7 +108,8 @@ impl Shape {
     pub fn new(left: EdgePoints, right: EdgePoints) -> Self {
         Self { left, right }
     }
-    fn on_add(mut world: DeferredWorld, this: Entity, _c: ComponentId) {
+    fn on_add(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         world
             .commands()
             .entity(this)

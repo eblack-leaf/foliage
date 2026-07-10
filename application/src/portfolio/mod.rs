@@ -265,7 +265,7 @@ impl Portfolio {
                     Opacity::new(0.0),
                 ));
                 match i {
-                    0 => tree.send_to(MusicPlayer {}, app),
+                    0 => tree.send_to(MusicPlayer::default(), app),
                     _ => println!("unimplemented"),
                 }
                 tree.on_click(
