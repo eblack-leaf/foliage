@@ -3,6 +3,7 @@ mod anim;
 mod ash;
 mod asset;
 mod attachment;
+mod author;
 mod clipboard;
 mod color;
 mod composite;
@@ -46,6 +47,7 @@ pub use anim::{
 pub(crate) use ash::differential::Differential;
 pub use asset::{asset_retrieval, AssetKey, AssetRetrieval};
 pub use attachment::Attachment;
+pub use author::{LeafBuilder, LeafSpec};
 pub use bevy_ecs::{self, prelude::*};
 /// bevy 0.17+ renamed the observer parameter `Trigger` to `On`. Every observer in foliage and
 /// its consumers is written against the `Trigger<E>` spelling, so keep it as the canonical
@@ -55,18 +57,13 @@ pub use clipboard::Clipboard;
 pub use color::{CReprColor, Color, Luminance};
 pub use composite::text_input::action::{InputAction, TextInputAction};
 pub use composite::{
-    button::Button,
-    carousel::{Carousel, CarouselItem, CarouselItems},
-    dropdown::{Dropdown, Expanded},
+    button::{Button, ButtonSpec},
     handle_replace,
-    list::{List, ListItems, RowHeight, SelectedIndex},
-    pagination::{Page, PageCount, Pagination},
-    prompt::{Prompt, Submitted, SuggestionProvider},
     text_input::{
         keybindings::KeyBindings, HintColor, HintText, InsertText, LineConstraint, TextChanged,
         TextInput,
     },
-    Composite, ItemIndex, Selected,
+    Composite,
 };
 pub use composite::{IconValue, Primary, Secondary, Tertiary, TextValue};
 pub use coordinate::elevation::{Elevation, ResolvedElevation};
@@ -89,14 +86,15 @@ pub use leaf::{Branch, Leaf, Stem};
 pub use opacity::Opacity;
 pub use ops::Named;
 pub use ops::{Keyring, Update, Write};
-pub use panel::{Outline, Panel, Rounding};
+pub use panel::{Outline, Panel, PanelSpec, Rounding};
 #[cfg(target_os = "android")]
 pub use platform::AndroidApp;
 pub use platform::AndroidConnection;
 pub use shape::{Line, Shape};
 pub use text::GlyphOffset;
 pub use text::{
-    AutoHeight, AutoWidth, FontSize, GlyphColors, HorizontalAlignment, Text, VerticalAlignment,
+    AutoHeight, AutoWidth, FontSize, GlyphColors, HorizontalAlignment, Text, TextSpec,
+    VerticalAlignment,
 };
 pub use time::{Moment, OnEnd, Time, TimeDelta, TimeMarker, Timer};
 pub use tree::{EcsExtension, IntoTargets, TargetedEvent, Tree};

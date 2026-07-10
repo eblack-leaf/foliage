@@ -26,7 +26,10 @@ impl Attachment for Button {
     }
 }
 impl Button {
-    pub fn new() -> Self {
+    pub fn new() -> ButtonSpec {
+        ButtonSpec::default()
+    }
+    pub(crate) fn new_marker() -> Self {
         Self {}
     }
     fn on_add(mut world: DeferredWorld, ctx: HookContext) {
@@ -74,7 +77,7 @@ impl Button {
         let handle = handles.get(this).unwrap();
         if let Some(value) = values.get(this).ok() {
             tree.entity(handle.text)
-                .insert(Text::new(value.0.as_str()))
+                .insert(Text::new_marker(value.0.as_str()))
                 .insert(
                     Location::new().xs(
                         50.pct()
@@ -275,7 +278,7 @@ impl Button {
             .entity(this)
             .insert(Grid::new(1.col().gap(4), 1.row().gap(4)));
         let panel = world.commands().leaf((
-            Panel::new(),
+            Panel::new_marker(),
             Stem::some(this),
             Location::new().xs(
                 1.col().left().with(1.col().right()),
@@ -293,7 +296,7 @@ impl Button {
             FocusBehavior::ignore(),
         ));
         let text = world.commands().leaf((
-            Text::new(""),
+            Text::new_marker(""),
             Elevation::up(2),
             Stem::some(this),
             HorizontalAlignment::Left,
@@ -313,6 +316,67 @@ impl Composite for Button {
     type Handle = Handle;
     fn remove(handle: &Self::Handle) -> impl IntoTargets + Send + Sync + 'static {
         [handle.panel, handle.text, handle.icon]
+    }
+}
+#[derive(Default)]
+pub struct ButtonSpec {
+    leaf: crate::LeafSpec,
+    icon: Option<crate::IconId>,
+    text: Option<String>,
+    colors: Option<(crate::Color, crate::Color)>,
+    rounding: Option<Rounding>,
+    outline: Option<i32>,
+}
+impl crate::LeafBuilder for ButtonSpec {
+    fn leaf_spec(&mut self) -> &mut crate::LeafSpec {
+        &mut self.leaf
+    }
+}
+impl ButtonSpec {
+    pub fn icon(mut self, icon: crate::IconId) -> Self {
+        self.icon = Some(icon);
+        self
+    }
+    pub fn text(mut self, text: impl Into<String>) -> Self {
+        self.text = Some(text.into());
+        self
+    }
+    pub fn colors(mut self, primary: crate::Color, secondary: crate::Color) -> Self {
+        self.colors = Some((primary, secondary));
+        self
+    }
+    pub fn rounding(mut self, r: Rounding) -> Self {
+        self.rounding = Some(r);
+        self
+    }
+    pub fn outline(mut self, w: i32) -> Self {
+        self.outline = Some(w);
+        self
+    }
+    pub fn spawn(self, tree: &mut impl EcsExtension) -> Entity {
+        let e = tree.leaf((
+            Button::new_marker(),
+            self.leaf.location,
+            self.leaf.stem,
+            self.leaf.elevation,
+        ));
+        if let Some(v) = self.icon {
+            tree.write_to(e, IconValue(v));
+        }
+        if let Some(v) = self.text {
+            tree.write_to(e, TextValue(v));
+        }
+        if let Some((p, s)) = self.colors {
+            tree.write_to(e, Primary(p));
+            tree.write_to(e, Secondary(s));
+        }
+        if let Some(v) = self.rounding {
+            tree.write_to(e, v);
+        }
+        if let Some(v) = self.outline {
+            tree.write_to(e, Outline::new(v));
+        }
+        e
     }
 }
 #[derive(Component, Copy, Clone)]

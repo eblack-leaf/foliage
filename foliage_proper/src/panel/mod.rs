@@ -37,7 +37,10 @@ pub struct Panel {
     pub(crate) corner_iv: Corner,
 }
 impl Panel {
-    pub fn new() -> Panel {
+    pub fn new() -> PanelSpec {
+        PanelSpec::default()
+    }
+    pub(crate) fn new_marker() -> Panel {
         Panel {
             corner_i: Default::default(),
             corner_ii: Default::default(),
@@ -137,6 +140,50 @@ impl Attachment for Panel {
         foliage.differential::<Self, ResolvedElevation>();
         foliage.differential::<Self, Stem>();
         foliage.enable_animation::<Outline>();
+    }
+}
+#[derive(Default)]
+pub struct PanelSpec {
+    leaf: crate::LeafSpec,
+    color: Option<Color>,
+    rounding: Option<Rounding>,
+    outline: Option<i32>,
+}
+impl crate::LeafBuilder for PanelSpec {
+    fn leaf_spec(&mut self) -> &mut crate::LeafSpec {
+        &mut self.leaf
+    }
+}
+impl PanelSpec {
+    pub fn color(mut self, c: Color) -> Self {
+        self.color = Some(c);
+        self
+    }
+    pub fn rounding(mut self, r: Rounding) -> Self {
+        self.rounding = Some(r);
+        self
+    }
+    pub fn outline(mut self, w: i32) -> Self {
+        self.outline = Some(w);
+        self
+    }
+    pub fn spawn(self, tree: &mut impl EcsExtension) -> Entity {
+        let e = tree.leaf((
+            Panel::new_marker(),
+            self.leaf.location,
+            self.leaf.stem,
+            self.leaf.elevation,
+        ));
+        if let Some(v) = self.color {
+            tree.write_to(e, v);
+        }
+        if let Some(v) = self.rounding {
+            tree.write_to(e, v);
+        }
+        if let Some(v) = self.outline {
+            tree.write_to(e, Outline::new(v));
+        }
+        e
     }
 }
 #[derive(Component, Copy, Clone, Default, Eq, PartialEq)]

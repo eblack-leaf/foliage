@@ -1,41 +1,15 @@
 use crate::icons::IconHandles;
 use foliage::Justify::Center;
 use foliage::{
-    bevy_ecs, stack, Animation, Attachment, Button, Color, EcsExtension, Elevation, Event, Foliage,
-    FontSize, Grid, GridExt, HorizontalAlignment, Icon, IconValue, Image, ImageView, Keyring, Line,
-    Location, OnClick, Opacity, Outline, Panel, Primary, Res, Rounding, Secondary, Stack, Stem,
-    Entity, EntityEvent, Tertiary, Text, TextInput, TextValue, Tree, Trigger, VerticalAlignment,
+    stack, Animation, Button, Color, EcsExtension, Elevation, Entity, FontSize, Grid, GridExt,
+    HorizontalAlignment, Icon, Image, ImageView, Keyring, LeafBuilder, Line, Location, OnClick,
+    Opacity, Panel, Primary, Rounding, Secondary, Stack, Stem, Tertiary, Text, TextInput,
+    TextValue, Tree, Trigger, VerticalAlignment,
 };
 
-#[derive(EntityEvent)]
-pub(crate) struct MusicPlayer {
-    entity: Entity,
-}
-impl Default for MusicPlayer {
-    fn default() -> Self {
-        Self {
-            entity: Entity::PLACEHOLDER,
-        }
-    }
-}
-impl Clone for MusicPlayer {
-    fn clone(&self) -> Self {
-        Self {
-            entity: self.entity,
-        }
-    }
-}
-foliage::targeted_event!(MusicPlayer);
-impl Attachment for MusicPlayer {
-    fn attach(foliage: &mut Foliage) {
-        foliage.define(MusicPlayer::init);
-    }
-}
-impl MusicPlayer {
-    pub(crate) fn init(trigger: Trigger<Self>, mut tree: Tree, keyring: Res<Keyring>) {
-        let app = trigger.event_target();
+pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
         tree.entity(app).insert((
-            Panel::new(),
+            Panel::default(),
             Elevation::up(1),
             Grid::new(12.col().gap(8), 40.px().gap(8)),
             Color::gray(900),
@@ -48,35 +22,30 @@ impl MusicPlayer {
                 .during(seq)
                 .targeting(app),
         );
-        let menu = tree.leaf((
-            Button::new(),
-            IconValue(IconHandles::Menu.value()),
-            Elevation::up(1),
-            Location::new().xs(
+        let menu = Button::new()
+            .icon(IconHandles::Menu.value())
+            .colors(Color::gray(200), Color::gray(800))
+            .rounding(Rounding::Full)
+            .at(Location::new().xs(
                 100.pct().right().adjust(-16).with(48.px().width()),
                 16.px().top().with(48.px().height()),
-            ),
-            Stem::some(app),
-            Primary(Color::gray(200)),
-            Secondary(Color::gray(800)),
-            Rounding::Full,
-        ));
+            ))
+            .stem(app)
+            .spawn(tree);
         tree.on_click(menu, move |trigger: Trigger<OnClick>| {
             // nothing so far
         });
-        let search = tree.leaf((
-            Panel::new(),
-            Rounding::Md,
-            Elevation::up(1),
-            Stem::some(app),
-            Outline::new(2),
-            Color::gray(400),
-            Location::new().xs(
+        let search = Panel::new()
+            .rounding(Rounding::Md)
+            .outline(2)
+            .color(Color::gray(400))
+            .at(Location::new().xs(
                 50.pct().center_x().with(60.pct().width()).max(400.0),
                 16.px().top().with(44.px().height()),
-            ),
-            Grid::new(1.col(), 1.row()),
-        ));
+            ))
+            .stem(app)
+            .spawn(tree);
+        tree.write_to(search, Grid::new(1.col(), 1.row()));
         let search_icon = tree.leaf((
             Icon::new(IconHandles::Search.value()),
             Elevation::up(1),
@@ -123,108 +92,85 @@ impl MusicPlayer {
             Grid::new(1.col().gap(12), 2.row().gap(8)),
             Stem::some(app),
         ));
-        let artist_name = tree.leaf((
-            Stem::some(song_info),
-            Elevation::up(1),
-            Location::new().xs(
+        let artist_name = Text::new("ALPHA & THE VAN")
+            .size(FontSize::new(24))
+            .color(Color::gray(400))
+            .at(Location::new().xs(
                 1.col().left().with(1.col().right()),
                 1.row().top().with(1.row().bottom()),
-            ),
-            Text::new("ALPHA & THE VAN"),
-            FontSize::new(24),
-            Color::gray(400),
-            VerticalAlignment::Middle,
-            HorizontalAlignment::Center,
-        ));
-        let song_name = tree.leaf((
-            Stem::some(song_info),
-            Elevation::up(1),
-            Location::new().xs(
+            ))
+            .stem(song_info)
+            .spawn(tree);
+        tree.write_to(artist_name, (VerticalAlignment::Middle, HorizontalAlignment::Center));
+        let song_name = Text::new("A Walk in the Moonlight")
+            .size(FontSize::new(16))
+            .color(Color::gray(400))
+            .at(Location::new().xs(
                 1.col().left().with(1.col().right()),
                 2.row().top().with(2.row().bottom()),
-            ),
-            Text::new("A Walk in the Moonlight"),
-            FontSize::new(16),
-            Color::gray(400),
-            VerticalAlignment::Middle,
-            HorizontalAlignment::Center,
-        ));
-        let controls = tree.leaf((
-            Stem::some(app),
-            Elevation::up(1),
-            Location::new().xs(
+            ))
+            .stem(song_info)
+            .spawn(tree);
+        tree.write_to(song_name, (VerticalAlignment::Middle, HorizontalAlignment::Center));
+        let controls = Panel::new()
+            .color(Color::gray(900))
+            .at(Location::new().xs(
                 1.col().left().with(12.col().right()).max(400.0),
                 14.row().top().with(60.px().height()),
-            ),
-            Panel::new(),
-            Color::gray(900),
-            Grid::new(5.col().gap(8), 1.row().gap(8)),
-        ));
-        let play_pause = tree.leaf((
-            Stem::some(controls),
-            Button::new(),
-            Elevation::up(1),
-            Primary(Color::gray(200)),
-            Secondary(Color::green(500)),
-            IconValue(IconHandles::Play.value()),
-            Rounding::Full,
-            Location::new().xs(
+            ))
+            .stem(app)
+            .spawn(tree);
+        tree.write_to(controls, Grid::new(5.col().gap(8), 1.row().gap(8)));
+        let play_pause = Button::new()
+            .icon(IconHandles::Play.value())
+            .colors(Color::gray(200), Color::green(500))
+            .rounding(Rounding::Full)
+            .at(Location::new().xs(
                 3.col().center_x().with(48.px().width()),
                 1.row().center_y().with(48.px().height()),
-            ),
-        ));
-        let shuffle = tree.leaf((
-            Stem::some(controls),
-            Button::new(),
-            Elevation::up(1),
-            Primary(Color::gray(200)),
-            Secondary(Color::gray(900)),
-            IconValue(IconHandles::Shuffle.value()),
-            Rounding::Full,
-            Location::new().xs(
+            ))
+            .stem(controls)
+            .spawn(tree);
+        let shuffle = Button::new()
+            .icon(IconHandles::Shuffle.value())
+            .colors(Color::gray(200), Color::gray(900))
+            .rounding(Rounding::Full)
+            .at(Location::new().xs(
                 1.col().center_x().with(48.px().width()),
                 1.row().center_y().with(48.px().height()),
-            ),
-        ));
-        let left = tree.leaf((
-            Stem::some(controls),
-            Button::new(),
-            Elevation::up(1),
-            Primary(Color::gray(200)),
-            Secondary(Color::gray(900)),
-            IconValue(IconHandles::SkipLeft.value()),
-            Rounding::Full,
-            Location::new().xs(
+            ))
+            .stem(controls)
+            .spawn(tree);
+        let left = Button::new()
+            .icon(IconHandles::SkipLeft.value())
+            .colors(Color::gray(200), Color::gray(900))
+            .rounding(Rounding::Full)
+            .at(Location::new().xs(
                 2.col().center_x().with(48.px().width()),
                 1.row().center_y().with(48.px().height()),
-            ),
-        ));
-        let right = tree.leaf((
-            Stem::some(controls),
-            Button::new(),
-            Elevation::up(1),
-            Primary(Color::gray(200)),
-            Secondary(Color::gray(900)),
-            IconValue(IconHandles::SkipRight.value()),
-            Rounding::Full,
-            Location::new().xs(
+            ))
+            .stem(controls)
+            .spawn(tree);
+        let right = Button::new()
+            .icon(IconHandles::SkipRight.value())
+            .colors(Color::gray(200), Color::gray(900))
+            .rounding(Rounding::Full)
+            .at(Location::new().xs(
                 4.col().center_x().with(48.px().width()),
                 1.row().center_y().with(48.px().height()),
-            ),
-        ));
-        let repeat = tree.leaf((
-            Stem::some(controls),
-            Button::new(),
-            Elevation::up(1),
-            Primary(Color::gray(200)),
-            Secondary(Color::gray(900)),
-            IconValue(IconHandles::Repeat.value()),
-            Rounding::Full,
-            Location::new().xs(
+            ))
+            .stem(controls)
+            .spawn(tree);
+        let repeat = Button::new()
+            .icon(IconHandles::Repeat.value())
+            .colors(Color::gray(200), Color::gray(900))
+            .rounding(Rounding::Full)
+            .at(Location::new().xs(
                 5.col().center_x().with(48.px().width()),
                 1.row().center_y().with(48.px().height()),
-            ),
-        ));
+            ))
+            .stem(controls)
+            .spawn(tree);
         let duration = tree.leaf((
             Stem::some(app),
             Elevation::up(1),
@@ -254,17 +200,15 @@ impl MusicPlayer {
             Color::green(300),
             Elevation::up(2),
         ));
-        let slider = tree.leaf((
-            Panel::new(),
-            Rounding::Full,
-            Stem::some(duration),
-            Stack::new(elapsed_line),
-            Location::new().xs(
+        let slider = Panel::new()
+            .rounding(Rounding::Full)
+            .color(Color::green(300))
+            .at(Location::new().xs(
                 stack().right().center_x().with(16.px().width()),
                 50.pct().center_y().with(16.px().height()),
-            ),
-            Elevation::up(3),
-            Color::green(300),
-        ));
-    }
+            ))
+            .elevate(Elevation::up(3))
+            .stem(duration)
+            .spawn(tree);
+        tree.write_to(slider, Stack::new(elapsed_line));
 }

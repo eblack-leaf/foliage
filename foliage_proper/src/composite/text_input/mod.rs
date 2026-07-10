@@ -112,7 +112,7 @@ impl TextInput {
         world.commands().entity(this).insert(Grid::default());
         let line_constraint = *world.get::<LineConstraint>(this).unwrap();
         let panel = world.commands().leaf((
-            Panel::new(),
+            Panel::new_marker(),
             Stem::some(this),
             Grid::new(1.letters(), 1.letters()),
             InteractionListener::new(),
@@ -146,7 +146,7 @@ impl TextInput {
             .observe(Cursor::engaged)
             .observe(Selection::select);
         let visible = world.commands().leaf((
-            Panel::new(),
+            Panel::new_marker(),
             Stem::some(panel),
             InteractionListener::new(),
             InteractionPropagation::pass_through(),
@@ -177,7 +177,7 @@ impl TextInput {
             LineConstraint::Multiple => AutoHeight(true),
         };
         let text = world.commands().leaf((
-            Text::new(""),
+            Text::new_marker(""),
             Stem::some(panel),
             InteractionListener::new(),
             Elevation::up(5),
@@ -193,7 +193,7 @@ impl TextInput {
             .observe(PlaceCursor::forward)
             .observe(Selection::reselect);
         let hint_text = world.commands().leaf((
-            Text::new(""),
+            Text::new_marker(""),
             Stem::some(panel),
             InteractionPropagation::pass_through(),
             FocusBehavior::ignore(),
@@ -332,7 +332,7 @@ impl TextInput {
         let handle = handles.get(this).unwrap();
         let hint = hints.get(this).unwrap();
         tree.entity(handle.hint_text)
-            .insert(Text::new(&hint.0))
+            .insert(Text::new_marker(&hint.0))
             .insert(crate::Visibility::new(
                 values.get(this).unwrap().0.is_empty(),
             ));
@@ -835,7 +835,7 @@ impl ReselectRange {
                     .insert(location);
             } else {
                 let h = tree.leaf((
-                    Panel::new(),
+                    Panel::new_marker(),
                     Opacity::new(1.0),
                     Stem::some(handle.panel),
                     Elevation::up(2),
@@ -897,7 +897,7 @@ impl Input {
         // get handle + send main TextValue => handle.text TextValue
         let handle = handles.get(trigger.event_target()).unwrap();
         let value = values.get(trigger.event_target()).unwrap();
-        tree.write_to(handle.text, Text::new(&value.0));
+        tree.write_to(handle.text, Text::new_marker(&value.0));
         // hint shows only while empty
         tree.write_to(
             handle.hint_text,

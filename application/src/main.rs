@@ -1,9 +1,6 @@
 #![allow(unused)]
 
-use crate::home::Home;
 use crate::icons::IconHandles;
-use crate::portfolio::music_player::MusicPlayer;
-use crate::portfolio::Portfolio;
 use foliage::{load_asset, Foliage, GridExt, Icon, Image};
 
 mod home;
@@ -48,9 +45,6 @@ fn main() {
     );
     foliage.desktop_size((360, 800));
     foliage.url("foliage");
-    foliage.attach::<Home>();
-    foliage.attach::<Portfolio>();
-    foliage.attach::<MusicPlayer>();
     let music_player = load_asset!(foliage, "assets/music-player.png");
     foliage.world.spawn(Image::memory(0, (569, 419)));
     let artist_blog = load_asset!(foliage, "assets/artist-blog.png");
@@ -120,6 +114,6 @@ fn main() {
         IconHandles::Search.value(),
         include_bytes!("assets/icons/search.icon"),
     ));
-    foliage.send(Home {});
+    home::build(&mut foliage.world);
     foliage.photosynthesize(); // run
 }

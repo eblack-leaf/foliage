@@ -961,6 +961,61 @@ impl Stack {
     pub fn new(entity: Entity) -> Self {
         Self { id: Some(entity) }
     }
+    /// My box matches `target`'s box exactly. `Stack::new(target)` is the position reference;
+    /// pair with `Stem` pointed at `target`'s own Stem (a sibling), not at `target` itself, so
+    /// this doesn't inherit `target`'s clip — verified against `Location::update`/`resolve`
+    /// (`stack()` values resolve from the Stack target's Section, independent of this entity's
+    /// own Stem).
+    pub fn matching(target: Entity) -> (Stack, Location) {
+        (
+            Stack::new(target),
+            Location::new().xs(
+                stack().left().left().with(stack().right().right()),
+                stack().top().top().with(stack().bottom().bottom()),
+            ),
+        )
+    }
+    /// Below `target`, matching its width, `gap` px under its bottom edge. Caller supplies the
+    /// height (content-dependent).
+    pub fn below(target: Entity, gap: i32, height: LocationValue) -> (Stack, Location) {
+        (
+            Stack::new(target),
+            Location::new().xs(
+                stack().left().left().with(stack().right().right()),
+                stack().bottom().top().adjust(gap).with(height.height()),
+            ),
+        )
+    }
+    /// Above `target`, matching its width, `gap` px above its top edge.
+    pub fn above(target: Entity, gap: i32, height: LocationValue) -> (Stack, Location) {
+        (
+            Stack::new(target),
+            Location::new().xs(
+                stack().left().left().with(stack().right().right()),
+                stack().top().bottom().adjust(-gap).with(height.height()),
+            ),
+        )
+    }
+    /// Right of `target`, matching its height, `gap` px past its right edge.
+    pub fn right_of(target: Entity, gap: i32, width: LocationValue) -> (Stack, Location) {
+        (
+            Stack::new(target),
+            Location::new().xs(
+                stack().right().left().adjust(gap).with(width.width()),
+                stack().top().top().with(stack().bottom().bottom()),
+            ),
+        )
+    }
+    /// Left of `target`, matching its height, `gap` px before its left edge.
+    pub fn left_of(target: Entity, gap: i32, width: LocationValue) -> (Stack, Location) {
+        (
+            Stack::new(target),
+            Location::new().xs(
+                stack().left().right().adjust(-gap).with(width.width()),
+                stack().top().top().with(stack().bottom().bottom()),
+            ),
+        )
+    }
     fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
         let stack = world.get::<Stack>(this).unwrap();

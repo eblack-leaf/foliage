@@ -1,29 +1,14 @@
 pub(crate) mod music_player;
+pub(crate) mod demo;
 
 use crate::icons::IconHandles;
-use crate::portfolio::music_player::MusicPlayer;
 use foliage::{
-    bevy_ecs, stack, Animation, Attachment, Button, Color, Ease, EcsExtension, Elevation, Event,
-    Foliage, FontSize, Grid, GridExt, IconValue, Image, ImageView, InteractionListener, Keyring,
-    Location, MemoryId, Named, OnClick, OnEnd, Opacity, Panel, Primary, Res, Rounding, Secondary,
-    Stack, Stem, Text, Tree, Trigger,
+    stack, Animation, Button, Color, Ease, EcsExtension, Elevation, Entity, FontSize, Grid,
+    GridExt, Image, ImageView, InteractionListener, Keyring, LeafBuilder, Location, MemoryId,
+    OnClick, OnEnd, Opacity, Panel, Res, Rounding, Stack, Stem, Text, Tree, Trigger,
 };
 
-impl Attachment for Portfolio {
-    fn attach(foliage: &mut Foliage) {
-        foliage.define(Portfolio::init);
-    }
-}
-#[derive(Copy, Clone, Event)]
-pub(crate) struct Portfolio {}
-impl Portfolio {
-    pub(crate) fn init(
-        trigger: Trigger<Self>,
-        mut tree: Tree,
-        named: Res<Named>,
-        keyring: Res<Keyring>,
-    ) {
-        let home = named.get("home");
+pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
         let row_size = 400;
         let root = tree.leaf((
             Grid::new(12.col().gap(24), row_size.px().gap(36)),
@@ -64,28 +49,23 @@ impl Portfolio {
             .eased(Ease::EMPHASIS)
             .during(seq),
         );
-        let back = tree.leaf((
-            Button::new(),
-            Rounding::Full,
-            IconValue(IconHandles::ArrowUp.value()),
-            Primary(Color::gray(300)),
-            Secondary(Color::gray(700)),
-            Location::new().xs(
+        let back = Button::new()
+            .rounding(Rounding::Full)
+            .icon(IconHandles::ArrowUp.value())
+            .colors(Color::gray(300), Color::gray(700))
+            .at(Location::new().xs(
                 50.pct().center_x().with(48.px().width()),
                 12.px().top().with(48.px().height()),
-            ),
-            Elevation::abs(95),
-            Stem::none(),
-        ));
+            ))
+            .elevate(Elevation::abs(95))
+            .spawn(tree);
         let mut last = 0;
         let mut card_roots = vec![];
         let mut card_interactive = vec![];
         for (i, item) in ITEMS.iter().enumerate() {
-            let card_shadow = tree.leaf((
-                Panel::new(),
-                Color::gray(500),
-                Opacity::new(0.25),
-                Location::new().xs(
+            let card_shadow = Panel::new()
+                .color(Color::gray(500))
+                .at(Location::new().xs(
                     1.col()
                         .left()
                         .adjust(12)
@@ -96,22 +76,20 @@ impl Portfolio {
                         .top()
                         .adjust(12)
                         .with((i + 1).row().bottom().adjust(12)),
-                ),
-                Elevation::up(0),
-                Stem::some(root),
-            ));
-            let card_root = tree.leaf((
-                Stem::some(root),
-                Elevation::up(1),
-                Panel::new(),
-                Opacity::new(0.0),
-                Color::gray(800),
-                Grid::default(),
-                Location::new().xs(
+                ))
+                .elevate(Elevation::up(0))
+                .stem(root)
+                .spawn(tree);
+            tree.write_to(card_shadow, Opacity::new(0.25));
+            let card_root = Panel::new()
+                .color(Color::gray(800))
+                .at(Location::new().xs(
                     1.col().left().with(12.col().right()).max(450.0),
                     (i + 1).row().top().with((i + 1).row().bottom()),
-                ),
-            ));
+                ))
+                .stem(root)
+                .spawn(tree);
+            tree.write_to(card_root, (Opacity::new(0.0), Grid::default()));
             card_roots.push(card_root);
             let display = tree.leaf((
                 Image::new(i as MemoryId, keyring.get(item.key)),
@@ -124,59 +102,49 @@ impl Portfolio {
                 Stem::some(card_root),
                 InteractionListener::new(),
             ));
-            let info = tree.leaf((
-                Stem::some(card_root),
-                Elevation::up(1),
-                Panel::new(),
-                Opacity::new(1.0),
-                Color::gray(800),
-                Grid::new(1.col().gap(8), 3.row().gap(8)),
-                Location::new().xs(
+            let info = Panel::new()
+                .color(Color::gray(800))
+                .at(Location::new().xs(
                     1.col().left().with(1.col().right()),
                     70.pct().top().with(100.pct().bottom()),
-                ),
-            ));
-            let title = tree.leaf((
-                Text::new(&item.title),
-                FontSize::new(16),
-                Stem::some(info),
-                Elevation::up(1),
-                Location::new().xs(
+                ))
+                .stem(card_root)
+                .spawn(tree);
+            tree.write_to(info, (Opacity::new(1.0), Grid::new(1.col().gap(8), 3.row().gap(8))));
+            let title = Text::new(item.title)
+                .size(FontSize::new(16))
+                .color(Color::gray(200))
+                .at(Location::new().xs(
                     1.col().left().with(1.col().right()),
                     1.row().top().with(1.row().bottom()),
-                ),
-                Color::gray(200),
-            ));
-            let desc = tree.leaf((
-                Text::new(&item.desc),
-                FontSize::new(14),
-                Stem::some(info),
-                Elevation::up(1),
-                Location::new().xs(
+                ))
+                .stem(info)
+                .spawn(tree);
+            let desc = Text::new(item.desc)
+                .size(FontSize::new(14))
+                .color(Color::gray(500))
+                .at(Location::new().xs(
                     1.col().left().with(1.col().right()),
                     2.row().top().with(3.row().bottom()),
-                ),
-                Color::gray(500),
-            ));
-            let launch = tree.leaf((
-                Stem::some(info),
-                Elevation::up(1),
-                Button::new(),
-                IconValue(IconHandles::Box.value()),
-                Rounding::Full,
-                Primary(Color::gray(900)),
-                Secondary(Color::orange(800)),
-                Location::new().xs(
+                ))
+                .stem(info)
+                .spawn(tree);
+            let launch = Button::new()
+                .icon(IconHandles::Box.value())
+                .rounding(Rounding::Full)
+                .colors(Color::gray(900), Color::orange(800))
+                .at(Location::new().xs(
                     100.pct().right().adjust(-8).with(44.px().width()),
                     100.pct().bottom().adjust(-8).with(44.px().height()),
-                ),
-            ));
+                ))
+                .stem(info)
+                .spawn(tree);
             card_interactive.push((card_root, i, launch));
             card_interactive.push((card_root, i, display));
             last = i + 2;
         }
         for (r, i, ci) in card_interactive.clone() {
-            tree.on_click(ci, move |trigger: Trigger<OnClick>, mut tree: Tree| {
+            tree.on_click(ci, move |trigger: Trigger<OnClick>, mut tree: Tree, keyring: Res<Keyring>| {
                 tree.disable([root, back]);
                 let seq = tree.sequence();
                 tree.animate(
@@ -193,19 +161,15 @@ impl Portfolio {
                         .finish(500)
                         .during(seq),
                 );
-                let backdrop = tree.leaf((
-                    Location::new().xs(
+                let backdrop = Panel::new()
+                    .color(Color::gray(800))
+                    .at(Location::new().xs(
                         stack().left().left().with(stack().right().right()),
                         stack().top().top().with(stack().bottom().bottom()),
-                    ),
-                    Stack::new(r),
-                    Panel::new(),
-                    Color::gray(800),
-                    Opacity::new(0.0),
-                    Elevation::abs(50),
-                    Grid::default(),
-                    Stem::none(),
-                ));
+                    ))
+                    .elevate(Elevation::abs(50))
+                    .spawn(&mut tree);
+                tree.write_to(backdrop, (Stack::new(r), Opacity::new(0.0), Grid::default()));
                 tree.animate(
                     Animation::new(Opacity::new(1.0))
                         .targeting(backdrop)
@@ -243,19 +207,16 @@ impl Portfolio {
                     .finish(1500)
                     .during(seq),
                 );
-                let terminate = tree.leaf((
-                    Button::new(),
-                    Rounding::Full,
-                    IconValue(IconHandles::X.value()),
-                    Primary(Color::gray(200)),
-                    Secondary(Color::orange(800)),
-                    Location::new().xs(
+                let terminate = Button::new()
+                    .rounding(Rounding::Full)
+                    .icon(IconHandles::X.value())
+                    .colors(Color::gray(200), Color::orange(800))
+                    .at(Location::new().xs(
                         16.px().left().with(40.px().width()),
                         16.px().top().with(40.px().height()),
-                    ),
-                    Elevation::abs(95),
-                    Stem::none(),
-                ));
+                    ))
+                    .elevate(Elevation::abs(95))
+                    .spawn(&mut tree);
                 let app = tree.leaf((
                     Stem::some(backdrop),
                     Location::new().xs(
@@ -265,8 +226,8 @@ impl Portfolio {
                     Opacity::new(0.0),
                 ));
                 match i {
-                    0 => tree.send_to(MusicPlayer::default(), app),
-                    _ => println!("unimplemented"),
+                    0 => music_player::build(&mut tree, app, &keyring),
+                    _ => demo::build(&mut tree, app),
                 }
                 tree.on_click(
                     terminate,
@@ -405,7 +366,6 @@ impl Portfolio {
         tree.timer(1000, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
             tree.enable(back);
         });
-    }
 }
 pub(crate) struct PortfolioItem {
     title: &'static str,

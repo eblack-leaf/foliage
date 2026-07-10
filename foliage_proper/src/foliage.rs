@@ -128,11 +128,6 @@ impl Foliage {
         Location::attach(&mut foliage);
         Named::attach(&mut foliage);
         TextInput::attach(&mut foliage);
-        crate::Pagination::attach(&mut foliage);
-        crate::List::attach(&mut foliage);
-        crate::Dropdown::attach(&mut foliage);
-        crate::Prompt::attach(&mut foliage);
-        crate::Carousel::attach(&mut foliage);
         VirtualKeyboardAdapter::attach(&mut foliage);
         crate::Clipboard::attach(&mut foliage);
         foliage

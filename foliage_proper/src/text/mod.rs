@@ -73,9 +73,52 @@ impl Attachment for Text {
 pub struct Text {
     pub value: String,
 }
+#[derive(Default)]
+pub struct TextSpec {
+    leaf: crate::LeafSpec,
+    value: String,
+    size: Option<FontSize>,
+    color: Option<Color>,
+}
+impl crate::LeafBuilder for TextSpec {
+    fn leaf_spec(&mut self) -> &mut crate::LeafSpec {
+        &mut self.leaf
+    }
+}
+impl TextSpec {
+    pub fn size(mut self, s: FontSize) -> Self {
+        self.size = Some(s);
+        self
+    }
+    pub fn color(mut self, c: Color) -> Self {
+        self.color = Some(c);
+        self
+    }
+    pub fn spawn(self, tree: &mut impl EcsExtension) -> Entity {
+        let e = tree.leaf((
+            Text::new_marker(self.value),
+            self.leaf.location,
+            self.leaf.stem,
+            self.leaf.elevation,
+        ));
+        if let Some(v) = self.size {
+            tree.write_to(e, v);
+        }
+        if let Some(v) = self.color {
+            tree.write_to(e, v);
+        }
+        e
+    }
+}
 impl Text {
     pub(crate) const OPT_SCALE: u32 = 20;
-    pub fn new<S: AsRef<str>>(value: S) -> Self {
+    pub fn new<S: AsRef<str>>(value: S) -> TextSpec {
+        TextSpec {
+            value: value.as_ref().to_string(),
+            ..Default::default()
+        }
+    }
+    pub(crate) fn new_marker<S: AsRef<str>>(value: S) -> Self {
         Self {
             value: value.as_ref().to_string(),
         }
