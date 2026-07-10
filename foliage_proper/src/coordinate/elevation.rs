@@ -86,12 +86,19 @@ impl Elevation {
         if stem.get(this).ok().is_none() || branch.get(this).ok().is_none() {
             return;
         }
+        // A stem-less entity has no parent to resolve `up`/`down` against — fall back to the
+        // same front-most baseline `Elevation::default()` (`abs(0)`) already uses, not 0 (the
+        // very floor of the valid range). Without this, a stem-less root using `up(0)` resolves
+        // to exactly 0, and any child at `up(1)` goes negative — invisible, with no panic or
+        // warning at all. Every existing stem-less root in this codebase already uses `abs()`
+        // (never `up`/`down`), so this can't change any current behavior — it only prevents a
+        // mistake that was previously silent instead of catching it after the fact.
         let current = stem
             .get(this)
             .unwrap()
             .id
             .and_then(|id| Some(*resolved.get(id).unwrap()))
-            .unwrap_or(ResolvedElevation(0f32));
+            .unwrap_or(ResolvedElevation(100f32));
         let elev = elevation.get(this).unwrap();
         let resolved = if elev.absolute {
             ResolvedElevation(elev.amount)

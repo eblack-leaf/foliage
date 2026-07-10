@@ -9,9 +9,9 @@ use crate::text::{Glyphs, LineMetrics};
 use crate::{
     auto, Attachment, AutoHeight, AutoWidth, Color, Component, Composite, Dragged, EcsExtension,
     Elevation, Engaged, Event, FocusBehavior, Foliage, FontSize, GlyphOffset, Grid, GridExt,
-    InputSequence, InteractionListener, InteractionPropagation, Layout, Location, Logical, Opacity,
-    OverscrollPropagation, Panel, Primary, Secondary, Section, Stem, Tertiary, Text, TextValue,
-    Tree, Unfocused, Update, View, Write,
+    InputSequence, InteractionListener, InteractionPropagation, Key, Layout, Location, Logical,
+    Opacity, OverscrollPropagation, Panel, Primary, Secondary, Section, Stem, Tertiary, Text,
+    TextValue, Tree, Unfocused, Update, View, Write,
 };
 use action::TextInputAction;
 use bevy_ecs::component::ComponentId;
@@ -23,7 +23,6 @@ use bevy_ecs::world::DeferredWorld;
 use keybindings::KeyBindings;
 use std::collections::HashMap;
 use std::ops::Range;
-use winit::keyboard::Key;
 
 impl Attachment for TextInput {
     fn attach(foliage: &mut Foliage) {

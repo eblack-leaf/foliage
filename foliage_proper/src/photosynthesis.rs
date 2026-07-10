@@ -114,12 +114,19 @@ impl Foliage {
                 event,
                 ..
             } => {
-                if let Some(event) = self
-                    .world
-                    .get_resource_mut::<KeyboardAdapter>()
-                    .expect("keys")
-                    .parse(event.logical_key, event.state, event.repeat)
-                {
+                let (logical, physical) = {
+                    let mut adapter = self
+                        .world
+                        .get_resource_mut::<KeyboardAdapter>()
+                        .expect("keys");
+                    let physical = adapter.parse_physical(event.physical_key, event.state);
+                    let logical = adapter.parse(event.logical_key, event.state, event.repeat);
+                    (logical, physical)
+                };
+                if let Some(event) = logical {
+                    self.world.trigger(event);
+                }
+                if let Some(event) = physical {
                     self.world.trigger(event);
                 }
             }

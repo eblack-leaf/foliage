@@ -1,7 +1,7 @@
 use crate::composite::text_input::action::TextInputAction;
-use crate::{InputSequence, Resource};
+use crate::{InputSequence, Key, Resource};
 use std::collections::HashMap;
-use winit::keyboard::{Key, ModifiersState, NamedKey, SmolStr};
+use winit::keyboard::ModifiersState;
 
 #[derive(Resource)]
 pub struct KeyBindings {
@@ -13,79 +13,79 @@ impl Default for KeyBindings {
             bindings: {
                 let mut map = HashMap::new();
                 map.insert(
-                    InputSequence::new(Key::Named(NamedKey::Enter), ModifiersState::default()),
+                    InputSequence::new(Key::Enter, ModifiersState::default()),
                     TextInputAction::Enter,
                 );
                 map.insert(
-                    InputSequence::new(Key::Named(NamedKey::Backspace), ModifiersState::default()),
+                    InputSequence::new(Key::Backspace, ModifiersState::default()),
                     TextInputAction::Backspace,
                 );
                 map.insert(
-                    InputSequence::new(Key::Named(NamedKey::Delete), ModifiersState::default()),
+                    InputSequence::new(Key::Delete, ModifiersState::default()),
                     TextInputAction::Delete,
                 );
                 map.insert(
-                    InputSequence::new(Key::Named(NamedKey::End), ModifiersState::default()),
+                    InputSequence::new(Key::End, ModifiersState::default()),
                     TextInputAction::End,
                 );
                 map.insert(
-                    InputSequence::new(Key::Named(NamedKey::Home), ModifiersState::default()),
+                    InputSequence::new(Key::Home, ModifiersState::default()),
                     TextInputAction::Home,
                 );
                 map.insert(
-                    InputSequence::new(Key::Named(NamedKey::Copy), ModifiersState::default()),
+                    InputSequence::new(Key::Copy, ModifiersState::default()),
                     TextInputAction::Copy,
                 );
                 map.insert(
-                    InputSequence::new(Key::Named(NamedKey::Paste), ModifiersState::default()),
+                    InputSequence::new(Key::Paste, ModifiersState::default()),
                     TextInputAction::Paste,
                 );
                 map.insert(
-                    InputSequence::new(Key::Character(SmolStr::new("c")), ModifiersState::CONTROL),
+                    InputSequence::new(Key::Character("c".to_string()), ModifiersState::CONTROL),
                     TextInputAction::Copy,
                 );
                 map.insert(
-                    InputSequence::new(Key::Character(SmolStr::new("v")), ModifiersState::CONTROL),
+                    InputSequence::new(Key::Character("v".to_string()), ModifiersState::CONTROL),
                     TextInputAction::Paste,
                 );
                 map.insert(
-                    InputSequence::new(Key::Character(SmolStr::new("a")), ModifiersState::CONTROL),
+                    InputSequence::new(Key::Character("a".to_string()), ModifiersState::CONTROL),
                     TextInputAction::SelectAll,
                 );
                 map.insert(
-                    InputSequence::new(Key::Named(NamedKey::ArrowLeft), ModifiersState::SHIFT),
+                    InputSequence::new(Key::ArrowLeft, ModifiersState::SHIFT),
                     TextInputAction::ExtendLeft,
                 );
                 map.insert(
-                    InputSequence::new(Key::Named(NamedKey::ArrowRight), ModifiersState::SHIFT),
+                    InputSequence::new(Key::ArrowRight, ModifiersState::SHIFT),
                     TextInputAction::ExtendRight,
                 );
                 map.insert(
-                    InputSequence::new(Key::Named(NamedKey::ArrowUp), ModifiersState::SHIFT),
+                    InputSequence::new(Key::ArrowUp, ModifiersState::SHIFT),
                     TextInputAction::ExtendUp,
                 );
                 map.insert(
-                    InputSequence::new(Key::Named(NamedKey::ArrowDown), ModifiersState::SHIFT),
+                    InputSequence::new(Key::ArrowDown, ModifiersState::SHIFT),
                     TextInputAction::ExtendDown,
                 );
                 map.insert(
-                    InputSequence::new(Key::Named(NamedKey::ArrowLeft), ModifiersState::default()),
+                    InputSequence::new(Key::ArrowLeft, ModifiersState::default()),
                     TextInputAction::Left,
                 );
                 map.insert(
-                    InputSequence::new(Key::Named(NamedKey::ArrowRight), ModifiersState::default()),
+                    InputSequence::new(Key::ArrowRight, ModifiersState::default()),
                     TextInputAction::Right,
                 );
                 map.insert(
-                    InputSequence::new(Key::Named(NamedKey::ArrowUp), ModifiersState::default()),
+                    InputSequence::new(Key::ArrowUp, ModifiersState::default()),
                     TextInputAction::Up,
                 );
                 map.insert(
-                    InputSequence::new(Key::Named(NamedKey::ArrowDown), ModifiersState::default()),
+                    InputSequence::new(Key::ArrowDown, ModifiersState::default()),
                     TextInputAction::Down,
                 );
                 map.insert(
-                    InputSequence::new(Key::Named(NamedKey::Space), ModifiersState::default()),
+                    InputSequence::new(Key::Space, ModifiersState::default()),
                     TextInputAction::Space,
                 );
                 map

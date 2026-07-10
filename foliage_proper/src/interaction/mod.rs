@@ -14,7 +14,7 @@ use crate::grid::view::ViewAdjustment;
 use crate::{
     Attachment, Component, InteractionShape, ResolvedElevation, Section, Stem, Tree, View,
 };
-pub use adapter::InputSequence;
+pub use adapter::{InputSequence, Key, PhysicalInputSequence, PhysicalKey};
 pub(crate) use adapter::{KeyboardAdapter, MouseAdapter, TouchAdapter};
 use listener::InteractionListener;
 
