@@ -19,6 +19,7 @@ use crate::{
     Attachment, Layout, Physical, ResolvedElevation, ResolvedVisibility, Stem, Tree, Update,
     Visibility, Write,
 };
+use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use crate::Trigger;
@@ -84,6 +85,18 @@ impl crate::LeafBuilder for TextSpec {
     fn leaf_spec(&mut self) -> &mut crate::LeafSpec {
         &mut self.leaf
     }
+    fn bundle(self) -> impl Bundle {
+        (
+            Text::new_marker(self.value),
+            self.leaf.location,
+            self.leaf.stem,
+            self.leaf
+                .elevation
+                .expect("elevation not set -- call .elevate(...) before spawning"),
+            self.size.unwrap_or_default(),
+            self.color.unwrap_or_default(),
+        )
+    }
 }
 impl TextSpec {
     pub fn size(mut self, s: FontSize) -> Self {
@@ -93,21 +106,6 @@ impl TextSpec {
     pub fn color(mut self, c: Color) -> Self {
         self.color = Some(c);
         self
-    }
-    pub fn spawn(self, tree: &mut impl EcsExtension) -> Entity {
-        let e = tree.leaf((
-            Text::new_marker(self.value),
-            self.leaf.location,
-            self.leaf.stem,
-            self.leaf.elevation,
-        ));
-        if let Some(v) = self.size {
-            tree.write_to(e, v);
-        }
-        if let Some(v) = self.color {
-            tree.write_to(e, v);
-        }
-        e
     }
 }
 impl Text {

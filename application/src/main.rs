@@ -40,9 +40,9 @@ mod portfolio;
 
 fn main() {
     let mut foliage = Foliage::new();
-    foliage.enable_tracing(
-        tracing_subscriber::filter::Targets::new().with_target("foliage", tracing::Level::TRACE),
-    );
+    // foliage.enable_tracing(
+    //     tracing_subscriber::filter::Targets::new().with_target("foliage", tracing::Level::TRACE),
+    // );
     foliage.desktop_size((360, 800));
     foliage.url("foliage");
     let music_player = load_asset!(foliage, "assets/music-player.png");

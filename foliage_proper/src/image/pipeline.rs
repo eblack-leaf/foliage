@@ -131,6 +131,7 @@ impl Render for Image {
         queues: &mut RenderQueueHandle,
         ginkgo: &Ginkgo,
     ) -> Nodes {
+        tracing::trace!("pipeline: image prepare");
         let mut nodes = Nodes::new();
         for entity in queues.removes::<Image>() {
             if let Some(group_id) = renderer.resources.entity_to_memory.remove(&entity) {
@@ -179,6 +180,12 @@ impl Render for Image {
                 .insert(memory.memory_id, RenderGroup::new(g));
         }
         for (entity, image) in queues.attribute::<Image, ImageWrite>() {
+            tracing::trace!(
+                entity = ?entity,
+                memory_id = ?image.image.memory_id,
+                extent = ?image.extent,
+                "image-pipeline: ImageWrite packet (populates entity_to_memory)"
+            );
             let group = renderer.groups.get_mut(&image.image.memory_id).unwrap();
             if image.extent != Area::default() {
                 ginkgo.context().queue.write_texture(
@@ -223,6 +230,11 @@ impl Render for Image {
                 .insert(entity, image.image.memory_id);
         }
         for (entity, elevation) in queues.attribute::<Image, ResolvedElevation>() {
+            tracing::trace!(
+                entity = ?entity,
+                has_memory = renderer.resources.entity_to_memory.contains_key(&entity),
+                "image-pipeline: ResolvedElevation packet (gates add())"
+            );
             if let Some(gid) = renderer.resources.entity_to_memory.get(&entity) {
                 let group = renderer.groups.get_mut(&gid).unwrap();
                 let id = entity.index().index() as InstanceId;
@@ -275,6 +287,11 @@ impl Render for Image {
             if let Some(gid) = renderer.resources.entity_to_memory.get(&entity) {
                 let group = renderer.groups.get_mut(&gid).unwrap();
                 let id = entity.index().index() as InstanceId;
+                tracing::trace!(
+                    entity = ?entity,
+                    has_instance = group.coordinator.has_instance(id),
+                    "image-pipeline: Section packet (queues unguarded by has_instance)"
+                );
                 group.group.sections.queue(
                     id,
                     section

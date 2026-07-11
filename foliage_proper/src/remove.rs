@@ -3,7 +3,7 @@ use bevy_ecs::event::EntityEvent;
 use bevy_ecs::entity::Entity;
 use crate::EcsExtension;
 use crate::foliage::Foliage;
-use crate::{Attachment, Branch, StackDeps, Tree};
+use crate::{Attachment, Branch, AnchorDeps, Tree};
 use bevy_ecs::change_detection::ResMut;
 use crate::Trigger;
 use bevy_ecs::prelude::{Event, Query};
@@ -39,7 +39,7 @@ impl Remove {
         trigger: Trigger<Self>,
         mut tree: Tree,
         branches: Query<&Branch>,
-        stack_deps: Query<&StackDeps>,
+        stack_deps: Query<&AnchorDeps>,
     ) {
         if tree.get_entity(trigger.event_target()).is_err() {
             return;

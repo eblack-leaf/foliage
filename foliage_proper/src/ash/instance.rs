@@ -63,6 +63,7 @@ impl InstanceCoordinator {
         }
     }
     pub(crate) fn add(&mut self, instance: Instance) {
+        tracing::trace!(id = instance.id, "instance-coordinator: add");
         self.orders
             .insert(instance.id, self.instances.len() as Order);
         self.instances.push(instance);
@@ -169,13 +170,18 @@ impl InstanceCoordinator {
         swaps
     }
     pub(crate) fn order(&self, id: InstanceId) -> Order {
-        *self
-            .orders
-            .get(&id)
-            .unwrap_or_else(|| panic!("no instance-order for id {}", id))
+        *self.orders.get(&id).unwrap_or_else(|| {
+            tracing::error!(
+                id,
+                known = ?self.orders.keys().collect::<Vec<_>>(),
+                "instance-coordinator: no order for id"
+            );
+            panic!("no instance-order for id {}", id)
+        })
     }
     pub(crate) fn remove(&mut self, order: Order) {
         let removed = self.instances.remove(order as usize);
+        tracing::trace!(id = removed.id, order, "instance-coordinator: remove");
         self.orders.remove(&removed.id);
         // rows after the removed one shift down by one
         for instance in self.instances[order as usize..].iter() {

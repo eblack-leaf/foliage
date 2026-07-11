@@ -164,7 +164,7 @@ impl Location {
         sections: Query<&Section<Logical>>,
         grids: Query<(&Grid, &View)>,
         stems: Query<&Stem>,
-        stacks: Query<&Stack>,
+        stacks: Query<&Anchor>,
         visibilities: Query<(&ResolvedVisibility, &AutoVisibility)>,
         aspect_ratios: Query<&AspectRatio>,
         lines: Query<&Line>,
@@ -177,6 +177,7 @@ impl Location {
         let this = trigger.event_target();
         if let Ok(location) = locations.get(this) {
             let (_, auto_vis) = visibilities.get(this).unwrap();
+            tracing::trace!(entity = ?this, visible = auto_vis.visible, "location: resolve start");
             let stem = stems.get(this).unwrap();
             let (grid, view, context, stem_letters) = if let Some(id) = stem.id {
                 let val = grids.get(id).unwrap();
@@ -201,7 +202,11 @@ impl Location {
                 if let Some(id) = s.id {
                     if visibilities.get(id).unwrap().0.visible() {
                         stack.replace(*sections.get(id).unwrap());
+                    } else {
+                        tracing::trace!(entity = ?this, target = ?id, "location: anchor target not visible, ignoring");
                     }
+                } else {
+                    tracing::trace!(entity = ?this, "location: has Anchor with no target");
                 }
             };
             let current = *sections.get(this).unwrap();
@@ -224,6 +229,7 @@ impl Location {
                 stem_letters,
             ) {
                 if !auto_vis.visible {
+                    tracing::trace!(entity = ?this, "location: resolved, re-enabling");
                     tree.entity(this).insert(AutoVisibility::new(true));
                     tree.trigger_targets(AutoEnable::new(), this);
                 }
@@ -279,6 +285,7 @@ impl Location {
                         .insert(resolution.section);
                 }
             } else if auto_vis.visible {
+                tracing::trace!(entity = ?this, "location: resolve failed, auto-disabling");
                 tree.entity(this).insert(AutoVisibility::new(false));
                 tree.trigger_targets(AutoDisable::new(), this);
             }
@@ -666,19 +673,19 @@ fn calc(
                 (r as f32 - 1f32 * f32::from(!inclusive)) * row + r as f32 * grid.rows.gap.amount;
             Some(val + offset + context.top() * f32::from(desc.designator != Designator::Height))
         }
-        LocationValue::Stack(s) => {
-            if let Some(stack) = stack {
+        LocationValue::Anchor(s) => {
+            if let Some(anchor) = stack {
                 Some(match s {
-                    Designator::X => stack.left(),
-                    Designator::Y => stack.top(),
-                    Designator::Left => stack.left(),
-                    Designator::Top => stack.top(),
-                    Designator::Width => stack.width(),
-                    Designator::Height => stack.height(),
-                    Designator::Right => stack.right(),
-                    Designator::Bottom => stack.bottom(),
-                    Designator::CenterX => stack.center().left(),
-                    Designator::CenterY => stack.center().top(),
+                    Designator::X => anchor.left(),
+                    Designator::Y => anchor.top(),
+                    Designator::Left => anchor.left(),
+                    Designator::Top => anchor.top(),
+                    Designator::Width => anchor.width(),
+                    Designator::Height => anchor.height(),
+                    Designator::Right => anchor.right(),
+                    Designator::Bottom => anchor.bottom(),
+                    Designator::CenterX => anchor.center().left(),
+                    Designator::CenterY => anchor.center().top(),
                 })
             } else {
                 None
@@ -814,45 +821,45 @@ pub enum LocationValue {
     Px(CoordinateUnit),
     Column(i32),
     Row(i32),
-    Stack(Designator),
+    Anchor(Designator),
     Auto,
     Letters(i32),
 }
 impl LocationValue {
     fn is_stack(self) -> bool {
         match self {
-            LocationValue::Stack(_) => true,
+            LocationValue::Anchor(_) => true,
             _ => false,
         }
     }
-    pub fn left(self) -> ValueDescriptor {
+    pub fn as_left(self) -> ValueDescriptor {
         ValueDescriptor::new(Designator::Left, self)
     }
-    pub fn right(self) -> ValueDescriptor {
+    pub fn as_right(self) -> ValueDescriptor {
         ValueDescriptor::new(Designator::Right, self)
     }
-    pub fn top(self) -> ValueDescriptor {
+    pub fn as_top(self) -> ValueDescriptor {
         ValueDescriptor::new(Designator::Top, self)
     }
-    pub fn bottom(self) -> ValueDescriptor {
+    pub fn as_bottom(self) -> ValueDescriptor {
         ValueDescriptor::new(Designator::Bottom, self)
     }
-    pub fn width(self) -> ValueDescriptor {
+    pub fn as_width(self) -> ValueDescriptor {
         ValueDescriptor::new(Designator::Width, self)
     }
-    pub fn height(self) -> ValueDescriptor {
+    pub fn as_height(self) -> ValueDescriptor {
         ValueDescriptor::new(Designator::Height, self)
     }
-    pub fn center_x(self) -> ValueDescriptor {
+    pub fn as_center_x(self) -> ValueDescriptor {
         ValueDescriptor::new(Designator::CenterX, self)
     }
-    pub fn center_y(self) -> ValueDescriptor {
+    pub fn as_center_y(self) -> ValueDescriptor {
         ValueDescriptor::new(Designator::CenterY, self)
     }
-    pub fn x(self) -> ValueDescriptor {
+    pub fn as_x(self) -> ValueDescriptor {
         ValueDescriptor::new(Designator::X, self)
     }
-    pub fn y(self) -> ValueDescriptor {
+    pub fn as_y(self) -> ValueDescriptor {
         ValueDescriptor::new(Designator::Y, self)
     }
     pub fn gap<G: Into<Gap>>(self, g: G) -> GridAxisDescriptor {
@@ -883,35 +890,35 @@ pub enum Designator {
     CenterY,
 }
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub struct StackDescriptor {}
-impl StackDescriptor {
+pub struct AnchorDescriptor {}
+impl AnchorDescriptor {
     pub fn left(self) -> LocationValue {
-        LocationValue::Stack(Designator::Left)
+        LocationValue::Anchor(Designator::Left)
     }
     pub fn top(self) -> LocationValue {
-        LocationValue::Stack(Designator::Top)
+        LocationValue::Anchor(Designator::Top)
     }
     pub fn width(self) -> LocationValue {
-        LocationValue::Stack(Designator::Width)
+        LocationValue::Anchor(Designator::Width)
     }
     pub fn height(self) -> LocationValue {
-        LocationValue::Stack(Designator::Height)
+        LocationValue::Anchor(Designator::Height)
     }
     pub fn center_x(self) -> LocationValue {
-        LocationValue::Stack(Designator::CenterX)
+        LocationValue::Anchor(Designator::CenterX)
     }
     pub fn center_y(self) -> LocationValue {
-        LocationValue::Stack(Designator::CenterY)
+        LocationValue::Anchor(Designator::CenterY)
     }
     pub fn right(self) -> LocationValue {
-        LocationValue::Stack(Designator::Right)
+        LocationValue::Anchor(Designator::Right)
     }
     pub fn bottom(self) -> LocationValue {
-        LocationValue::Stack(Designator::Bottom)
+        LocationValue::Anchor(Designator::Bottom)
     }
 }
-pub fn stack() -> StackDescriptor {
-    StackDescriptor {}
+pub fn anchor() -> AnchorDescriptor {
+    AnchorDescriptor {}
 }
 pub fn auto() -> LocationValue {
     LocationValue::Auto
@@ -947,94 +954,39 @@ pub enum Justify {
     Center,
 }
 #[derive(Clone, Component, Default)]
-pub struct StackDeps {
+pub struct AnchorDeps {
     pub ids: HashSet<Entity>,
 }
 #[derive(Component, Copy, Clone)]
-#[component(on_insert = Stack::on_insert)]
-#[component(on_discard = Stack::on_replace)]
+#[component(on_insert = Anchor::on_insert)]
+#[component(on_discard = Anchor::on_replace)]
 #[derive(Default)]
-pub struct Stack {
+pub struct Anchor {
     pub id: Option<Entity>,
 }
-impl Stack {
+impl Anchor {
     pub fn new(entity: Entity) -> Self {
         Self { id: Some(entity) }
     }
-    /// My box matches `target`'s box exactly. `Stack::new(target)` is the position reference;
-    /// pair with `Stem` pointed at `target`'s own Stem (a sibling), not at `target` itself, so
-    /// this doesn't inherit `target`'s clip — verified against `Location::update`/`resolve`
-    /// (`stack()` values resolve from the Stack target's Section, independent of this entity's
-    /// own Stem).
-    pub fn matching(target: Entity) -> (Stack, Location) {
-        (
-            Stack::new(target),
-            Location::new().xs(
-                stack().left().left().with(stack().right().right()),
-                stack().top().top().with(stack().bottom().bottom()),
-            ),
-        )
-    }
-    /// Below `target`, matching its width, `gap` px under its bottom edge. Caller supplies the
-    /// height (content-dependent).
-    pub fn below(target: Entity, gap: i32, height: LocationValue) -> (Stack, Location) {
-        (
-            Stack::new(target),
-            Location::new().xs(
-                stack().left().left().with(stack().right().right()),
-                stack().bottom().top().adjust(gap).with(height.height()),
-            ),
-        )
-    }
-    /// Above `target`, matching its width, `gap` px above its top edge.
-    pub fn above(target: Entity, gap: i32, height: LocationValue) -> (Stack, Location) {
-        (
-            Stack::new(target),
-            Location::new().xs(
-                stack().left().left().with(stack().right().right()),
-                stack().top().bottom().adjust(-gap).with(height.height()),
-            ),
-        )
-    }
-    /// Right of `target`, matching its height, `gap` px past its right edge.
-    pub fn right_of(target: Entity, gap: i32, width: LocationValue) -> (Stack, Location) {
-        (
-            Stack::new(target),
-            Location::new().xs(
-                stack().right().left().adjust(gap).with(width.width()),
-                stack().top().top().with(stack().bottom().bottom()),
-            ),
-        )
-    }
-    /// Left of `target`, matching its height, `gap` px before its left edge.
-    pub fn left_of(target: Entity, gap: i32, width: LocationValue) -> (Stack, Location) {
-        (
-            Stack::new(target),
-            Location::new().xs(
-                stack().left().right().adjust(-gap).with(width.width()),
-                stack().top().top().with(stack().bottom().bottom()),
-            ),
-        )
-    }
     fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
-        let stack = world.get::<Stack>(this).unwrap();
-        if let Some(id) = stack.id {
-            if let Some(mut deps) = world.get_mut::<StackDeps>(id) {
+        let anchor = world.get::<Anchor>(this).unwrap();
+        if let Some(id) = anchor.id {
+            if let Some(mut deps) = world.get_mut::<AnchorDeps>(id) {
                 deps.ids.insert(this);
             } else {
-                let mut stack_deps = StackDeps::default();
-                stack_deps.ids.insert(this);
-                world.commands().entity(id).insert(stack_deps);
+                let mut anchor_deps = AnchorDeps::default();
+                anchor_deps.ids.insert(this);
+                world.commands().entity(id).insert(anchor_deps);
             }
         }
     }
     fn on_replace(mut world: DeferredWorld, ctx: HookContext) {
-        let id = ctx.entity;
-        let stack = world.get::<Stack>(id).unwrap();
-        if let Some(id) = stack.id {
-            if let Some(mut deps) = world.get_mut::<StackDeps>(id) {
-                deps.ids.remove(&id);
+        let this = ctx.entity;
+        let anchor = world.get::<Anchor>(this).unwrap();
+        if let Some(id) = anchor.id {
+            if let Some(mut deps) = world.get_mut::<AnchorDeps>(id) {
+                deps.ids.remove(&this);
             }
         }
     }

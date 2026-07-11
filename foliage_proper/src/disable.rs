@@ -3,7 +3,7 @@ use bevy_ecs::event::EntityEvent;
 use bevy_ecs::entity::Entity;
 use crate::EcsExtension;
 use crate::interaction::listener::InteractionListener;
-use crate::{Attachment, Branch, Event, Foliage, InteractionState, StackDeps, Tree, Write};
+use crate::{Attachment, Branch, Event, Foliage, InteractionState, AnchorDeps, Tree, Write};
 use crate::Trigger;
 use bevy_ecs::system::Query;
 
@@ -42,7 +42,7 @@ impl Disable {
         trigger: Trigger<Self>,
         mut tree: Tree,
         branches: Query<&Branch>,
-        stacks: Query<&StackDeps>,
+        stacks: Query<&AnchorDeps>,
     ) {
         tree.trigger_targets(Write::<Disable>::new(), trigger.event_target());
         if let Ok(branch) = branches.get(trigger.event_target()) {
@@ -114,7 +114,7 @@ impl InheritDisable {
         trigger: Trigger<Self>,
         mut tree: Tree,
         branches: Query<&Branch>,
-        stacks: Query<&StackDeps>,
+        stacks: Query<&AnchorDeps>,
     ) {
         tree.trigger_targets(Write::<Disable>::new(), trigger.event_target());
         if let Ok(branch) = branches.get(trigger.event_target()) {

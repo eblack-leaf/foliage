@@ -10,6 +10,7 @@ use crate::{
     Foliage, InteractionShape, Logical, Position, ResolvedElevation, Section, Stem, Tree, Update,
     Visibility, Write,
 };
+use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use crate::Trigger;
@@ -153,6 +154,19 @@ impl crate::LeafBuilder for PanelSpec {
     fn leaf_spec(&mut self) -> &mut crate::LeafSpec {
         &mut self.leaf
     }
+    fn bundle(self) -> impl Bundle {
+        (
+            Panel::new_marker(),
+            self.leaf.location,
+            self.leaf.stem,
+            self.leaf
+                .elevation
+                .expect("elevation not set -- call .elevate(...) before spawning"),
+            self.color.unwrap_or_default(),
+            self.rounding.unwrap_or_default(),
+            self.outline.map(Outline::new).unwrap_or_default(),
+        )
+    }
 }
 impl PanelSpec {
     pub fn color(mut self, c: Color) -> Self {
@@ -166,24 +180,6 @@ impl PanelSpec {
     pub fn outline(mut self, w: i32) -> Self {
         self.outline = Some(w);
         self
-    }
-    pub fn spawn(self, tree: &mut impl EcsExtension) -> Entity {
-        let e = tree.leaf((
-            Panel::new_marker(),
-            self.leaf.location,
-            self.leaf.stem,
-            self.leaf.elevation,
-        ));
-        if let Some(v) = self.color {
-            tree.write_to(e, v);
-        }
-        if let Some(v) = self.rounding {
-            tree.write_to(e, v);
-        }
-        if let Some(v) = self.outline {
-            tree.write_to(e, Outline::new(v));
-        }
-        e
     }
 }
 #[derive(Component, Copy, Clone, Default, Eq, PartialEq)]

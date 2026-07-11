@@ -58,12 +58,12 @@ pub use color::{CReprColor, Color, Luminance};
 pub use composite::text_input::action::{InputAction, TextInputAction};
 pub use composite::{
     button::{Button, ButtonSpec},
-    handle_replace,
+    composite_on_insert, forward, handle_replace, resolve_root,
     text_input::{
         keybindings::KeyBindings, HintColor, HintText, InsertText, LineConstraint, TextChanged,
         TextInput,
     },
-    Composite,
+    Children, Composite, Root,
 };
 pub use composite::{IconValue, Primary, Secondary, Tertiary, TextValue};
 pub use coordinate::elevation::{Elevation, ResolvedElevation};
@@ -71,9 +71,9 @@ pub use disable::Disable;
 pub use enable::Enable;
 pub use foliage::Foliage;
 pub use grid::{
-    auto, stack, view::OverscrollPropagation, AspectRatio, Grid, Layout, Location, View,
+    anchor, auto, view::OverscrollPropagation, AspectRatio, Grid, Layout, Location, View,
 };
-pub use grid::{GridExt, Justify, Stack, StackDeps, StackDescriptor};
+pub use grid::{Anchor, AnchorDeps, AnchorDescriptor, GridExt, Justify};
 pub use icon::{Icon, IconId, IconMemory};
 pub use image::{Image, ImageMemory, ImageMetrics, ImageView, MemoryId};
 pub use interaction::{
@@ -97,6 +97,6 @@ pub use text::{
     VerticalAlignment,
 };
 pub use time::{Moment, OnEnd, Time, TimeDelta, TimeMarker, Timer};
-pub use tree::{EcsExtension, IntoTargets, TargetedEvent, Tree};
+pub use tree::{Bind, EcsExtension, IntoTargets, TargetedEvent, Tree};
 pub use visibility::{InheritedVisibility, ResolvedVisibility, Visibility};
 pub use web_ext::{Extensions, HrefLink};

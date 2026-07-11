@@ -164,6 +164,7 @@ impl Render for Text {
         queues: &mut RenderQueueHandle,
         ginkgo: &Ginkgo,
     ) -> Nodes {
+        tracing::trace!("pipeline: text prepare");
         let mut nodes = Nodes::new();
         // read-attrs
         for entity in queues.removes::<Text>() {
@@ -267,6 +268,13 @@ impl Render for Text {
         for (entity, glyphs) in queues.attribute::<Text, ResolvedGlyphs>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
             let group = renderer.groups.get_mut(id).unwrap();
+            tracing::trace!(
+                entity = ?entity,
+                group = ?id,
+                removed = ?glyphs.removed.iter().map(|g| g.offset).collect::<Vec<_>>(),
+                updated = ?glyphs.updated.iter().map(|g| g.offset).collect::<Vec<_>>(),
+                "text-pipeline: resolved-glyphs packet"
+            );
             for glyph in glyphs.removed {
                 if group.coordinator.has_instance(glyph.offset as InstanceId) {
                     let order = group.coordinator.order(glyph.offset as InstanceId);
@@ -392,6 +400,12 @@ impl Render for Text {
         for (entity, packet) in queues.attribute::<Self, ResolvedColors>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
             let group = renderer.groups.get_mut(id).unwrap();
+            tracing::trace!(
+                entity = ?entity,
+                group = ?id,
+                offsets = ?packet.colors.iter().map(|c| c.offset).collect::<Vec<_>>(),
+                "text-pipeline: resolved-colors packet"
+            );
             for glyph_color in packet.colors {
                 group
                     .group

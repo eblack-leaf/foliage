@@ -3,9 +3,9 @@ pub(crate) mod demo;
 
 use crate::icons::IconHandles;
 use foliage::{
-    stack, Animation, Button, Color, Ease, EcsExtension, Elevation, Entity, FontSize, Grid,
-    GridExt, Image, ImageView, InteractionListener, Keyring, LeafBuilder, Location, MemoryId,
-    OnClick, OnEnd, Opacity, Panel, Res, Rounding, Stack, Stem, Text, Tree, Trigger,
+    anchor, Anchor, Animation, Button, Color, Ease, EcsExtension, Elevation, Entity, FontSize,
+    Grid, GridExt, Image, ImageView, InteractionListener, Keyring, LeafBuilder, LeafSpec, Location,
+    MemoryId, OnClick, OnEnd, Opacity, Panel, Res, Rounding, Stem, Text, Tree, Trigger,
 };
 
 pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
@@ -13,8 +13,8 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
         let root = tree.leaf((
             Grid::new(12.col().gap(24), row_size.px().gap(36)),
             Location::new().xs(
-                0.pct().left().with(100.pct().right()),
-                100.pct().top().with(200.pct().bottom()),
+                0.pct().as_left().with(100.pct().as_right()),
+                100.pct().as_top().with(200.pct().as_bottom()),
             ),
             Elevation::abs(0),
             Stem::none(),
@@ -22,8 +22,8 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
         let seq = tree.sequence();
         tree.animate(
             Animation::new(Location::new().xs(
-                0.pct().left().with(100.pct().right()),
-                0.pct().top().with(100.pct().bottom()),
+                0.pct().as_left().with(100.pct().as_right()),
+                0.pct().as_top().with(100.pct().as_bottom()),
             ))
             .start(0)
             .finish(1000)
@@ -40,8 +40,8 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
         );
         tree.animate(
             Animation::new(Location::new().xs(
-                0.pct().left().with(100.pct().right()),
-                (-100).pct().top().with(0.pct().bottom()),
+                0.pct().as_left().with(100.pct().as_right()),
+                (-100).pct().as_top().with(0.pct().as_bottom()),
             ))
             .start(0)
             .finish(1000)
@@ -54,28 +54,27 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
             .icon(IconHandles::ArrowUp.value())
             .colors(Color::gray(300), Color::gray(700))
             .at(Location::new().xs(
-                50.pct().center_x().with(48.px().width()),
-                12.px().top().with(48.px().height()),
+                50.pct().as_center_x().with(48.px().as_width()),
+                12.px().as_top().with(48.px().as_height()),
             ))
             .elevate(Elevation::abs(95))
             .spawn(tree);
         let mut last = 0;
         let mut card_roots = vec![];
-        let mut card_interactive = vec![];
         for (i, item) in ITEMS.iter().enumerate() {
             let card_shadow = Panel::new()
                 .color(Color::gray(500))
                 .at(Location::new().xs(
                     1.col()
-                        .left()
+                        .as_left()
                         .adjust(12)
-                        .with(12.col().right().adjust(12))
+                        .with(12.col().as_right().adjust(12))
                         .max(450.0),
                     (i + 1)
                         .row()
-                        .top()
+                        .as_top()
                         .adjust(12)
-                        .with((i + 1).row().bottom().adjust(12)),
+                        .with((i + 1).row().as_bottom().adjust(12)),
                 ))
                 .elevate(Elevation::up(0))
                 .stem(root)
@@ -84,9 +83,10 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
             let card_root = Panel::new()
                 .color(Color::gray(800))
                 .at(Location::new().xs(
-                    1.col().left().with(12.col().right()).max(450.0),
-                    (i + 1).row().top().with((i + 1).row().bottom()),
+                    1.col().as_left().with(12.col().as_right()).max(450.0),
+                    (i + 1).row().as_top().with((i + 1).row().as_bottom()),
                 ))
+                .elevate(Elevation::up(1))
                 .stem(root)
                 .spawn(tree);
             tree.write_to(card_root, (Opacity::new(0.0), Grid::default()));
@@ -95,8 +95,8 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
                 Image::new(i as MemoryId, keyring.get(item.key)),
                 ImageView::Crop,
                 Location::new().xs(
-                    1.col().left().with(1.col().right()),
-                    0.pct().top().with(70.pct().bottom()),
+                    1.col().as_left().with(1.col().as_right()),
+                    0.pct().as_top().with(70.pct().as_bottom()),
                 ),
                 Elevation::up(1),
                 Stem::some(card_root),
@@ -105,9 +105,10 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
             let info = Panel::new()
                 .color(Color::gray(800))
                 .at(Location::new().xs(
-                    1.col().left().with(1.col().right()),
-                    70.pct().top().with(100.pct().bottom()),
+                    1.col().as_left().with(1.col().as_right()),
+                    70.pct().as_top().with(100.pct().as_bottom()),
                 ))
+                .elevate(Elevation::up(1))
                 .stem(card_root)
                 .spawn(tree);
             tree.write_to(info, (Opacity::new(1.0), Grid::new(1.col().gap(8), 3.row().gap(8))));
@@ -115,18 +116,20 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
                 .size(FontSize::new(16))
                 .color(Color::gray(200))
                 .at(Location::new().xs(
-                    1.col().left().with(1.col().right()),
-                    1.row().top().with(1.row().bottom()),
+                    1.col().as_left().with(1.col().as_right()),
+                    1.row().as_top().with(1.row().as_bottom()),
                 ))
+                .elevate(Elevation::up(1))
                 .stem(info)
                 .spawn(tree);
             let desc = Text::new(item.desc)
                 .size(FontSize::new(14))
                 .color(Color::gray(500))
                 .at(Location::new().xs(
-                    1.col().left().with(1.col().right()),
-                    2.row().top().with(3.row().bottom()),
+                    1.col().as_left().with(1.col().as_right()),
+                    2.row().as_top().with(3.row().as_bottom()),
                 ))
+                .elevate(Elevation::up(1))
                 .stem(info)
                 .spawn(tree);
             let launch = Button::new()
@@ -134,9 +137,10 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
                 .rounding(Rounding::Full)
                 .colors(Color::gray(900), Color::orange(800))
                 .at(Location::new().xs(
-                    100.pct().right().adjust(-8).with(44.px().width()),
-                    100.pct().bottom().adjust(-8).with(44.px().height()),
+                    100.pct().as_right().adjust(-8).with(44.px().as_width()),
+                    100.pct().as_bottom().adjust(-8).with(44.px().as_height()),
                 ))
+                .elevate(Elevation::up(1))
                 .stem(info)
                 .spawn(tree);
             card_interactive.push((card_root, i, launch));
@@ -164,12 +168,12 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
                 let backdrop = Panel::new()
                     .color(Color::gray(800))
                     .at(Location::new().xs(
-                        stack().left().left().with(stack().right().right()),
-                        stack().top().top().with(stack().bottom().bottom()),
+                        anchor().left().as_left().with(anchor().right().as_right()),
+                        anchor().top().as_top().with(anchor().bottom().as_bottom()),
                     ))
                     .elevate(Elevation::abs(50))
+                    .with((Anchor::new(r), Opacity::new(0.0), Grid::default()))
                     .spawn(&mut tree);
-                tree.write_to(backdrop, (Stack::new(r), Opacity::new(0.0), Grid::default()));
                 tree.animate(
                     Animation::new(Opacity::new(1.0))
                         .targeting(backdrop)
@@ -181,14 +185,14 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
                     Animation::new(
                         Location::new().xs(
                             0.pct()
-                                .left()
+                                .as_left()
                                 .adjust(24)
-                                .with(100.pct().right().adjust(-24))
+                                .with(100.pct().as_right().adjust(-24))
                                 .max(450.0),
                             0.pct()
-                                .top()
+                                .as_top()
                                 .adjust(36)
-                                .with(100.pct().bottom().adjust(-36)),
+                                .with(100.pct().as_bottom().adjust(-36)),
                         ),
                     )
                     .targeting(backdrop)
@@ -199,8 +203,8 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
                 );
                 tree.animate(
                     Animation::new(Location::new().xs(
-                        0.pct().left().with(100.pct().right()),
-                        0.pct().top().with(100.pct().bottom()),
+                        0.pct().as_left().with(100.pct().as_right()),
+                        0.pct().as_top().with(100.pct().as_bottom()),
                     ))
                     .targeting(backdrop)
                     .start(1000)
@@ -212,19 +216,31 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
                     .icon(IconHandles::X.value())
                     .colors(Color::gray(200), Color::orange(800))
                     .at(Location::new().xs(
-                        16.px().left().with(40.px().width()),
-                        16.px().top().with(40.px().height()),
+                        16.px().as_left().with(40.px().as_width()),
+                        16.px().as_top().with(40.px().as_height()),
                     ))
                     .elevate(Elevation::abs(95))
                     .spawn(&mut tree);
-                let app = tree.leaf((
-                    Stem::some(backdrop),
-                    Location::new().xs(
-                        0.pct().left().with(100.pct().right()),
-                        0.pct().top().with(100.pct().bottom()),
-                    ),
-                    Opacity::new(0.0),
-                ));
+                let app_base = LeafSpec::new()
+                    .stem(backdrop)
+                    .at(Location::new().xs(
+                        0.pct().as_left().with(100.pct().as_right()),
+                        0.pct().as_top().with(100.pct().as_bottom()),
+                    ))
+                    .elevate(Elevation::up(1))
+                    .with(Opacity::new(0.0));
+                let app = match i {
+                    0 => app_base
+                        .with((
+                            Panel::default(),
+                            Grid::new(12.col().gap(8), 40.px().gap(8)),
+                            Color::gray(900),
+                        ))
+                        .spawn(&mut tree),
+                    _ => app_base
+                        .with(Grid::new(12.col().gap(8), 40.px().gap(8)))
+                        .spawn(&mut tree),
+                };
                 match i {
                     0 => music_player::build(&mut tree, app, &keyring),
                     _ => demo::build(&mut tree, app),
@@ -244,14 +260,14 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
                             Animation::new(
                                 Location::new().xs(
                                     0.pct()
-                                        .left()
+                                        .as_left()
                                         .adjust(24)
-                                        .with(100.pct().right().adjust(-24))
+                                        .with(100.pct().as_right().adjust(-24))
                                         .max(450.0),
                                     0.pct()
-                                        .top()
+                                        .as_top()
                                         .adjust(36)
-                                        .with(100.pct().bottom().adjust(-36)),
+                                        .with(100.pct().as_bottom().adjust(-36)),
                                 ),
                             )
                             .targeting(backdrop)
@@ -262,8 +278,8 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
                         );
                         tree.animate(
                             Animation::new(Location::new().xs(
-                                stack().left().left().with(stack().right().right()),
-                                stack().top().top().with(stack().bottom().bottom()),
+                                anchor().left().as_left().with(anchor().right().as_right()),
+                                anchor().top().as_top().with(anchor().bottom().as_bottom()),
                             ))
                             .targeting(backdrop)
                             .start(750)
@@ -321,8 +337,8 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
             );
             tree.animate(
                 Animation::new(Location::new().xs(
-                    0.pct().left().with(100.pct().right()),
-                    0.pct().top().with(100.pct().bottom()),
+                    0.pct().as_left().with(100.pct().as_right()),
+                    0.pct().as_top().with(100.pct().as_bottom()),
                 ))
                 .start(0)
                 .finish(1000)
@@ -332,8 +348,8 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
             );
             tree.animate(
                 Animation::new(Location::new().xs(
-                    0.pct().left().with(100.pct().right()),
-                    100.pct().top().with(200.pct().bottom()),
+                    0.pct().as_left().with(100.pct().as_right()),
+                    100.pct().as_top().with(200.pct().as_bottom()),
                 ))
                 .start(0)
                 .finish(1000)
@@ -349,8 +365,8 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
         let _spacing = tree.leaf((
             Stem::some(root),
             Location::new().xs(
-                0.pct().left().with(100.pct().right()),
-                last.row().top().with(100.px().height()),
+                0.pct().as_left().with(100.pct().as_right()),
+                last.row().as_top().with(100.px().as_height()),
             ),
         ));
         for (i, cr) in card_roots.iter().enumerate() {

@@ -1,5 +1,5 @@
 use crate::{
-    Attachment, Branch, Foliage, InteractionListener, InteractionState, StackDeps, Tree, Write,
+    Attachment, Branch, Foliage, InteractionListener, InteractionState, AnchorDeps, Tree, Write,
 };
 use crate::EcsExtension;
 use crate::Trigger;
@@ -37,7 +37,7 @@ impl Enable {
         trigger: Trigger<Self>,
         mut tree: Tree,
         branches: Query<&Branch>,
-        stacks: Query<&StackDeps>,
+        stacks: Query<&AnchorDeps>,
     ) {
         tree.trigger_targets(Write::<Enable>::new(), trigger.event_target());
         if let Ok(branch) = branches.get(trigger.event_target()) {
@@ -114,7 +114,7 @@ impl InheritEnable {
         trigger: Trigger<Self>,
         mut tree: Tree,
         branches: Query<&Branch>,
-        stacks: Query<&StackDeps>,
+        stacks: Query<&AnchorDeps>,
     ) {
         tree.trigger_targets(Write::<Enable>::new(), trigger.event_target());
         if let Ok(branch) = branches.get(trigger.event_target()) {

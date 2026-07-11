@@ -150,6 +150,7 @@ impl Render for Panel {
         queues: &mut RenderQueueHandle,
         ginkgo: &Ginkgo,
     ) -> Nodes {
+        tracing::trace!("pipeline: panel prepare");
         let mut nodes = Nodes::new();
         let render_group = renderer.groups.get_mut(&0).unwrap();
         for r in queues.removes::<Panel>() {

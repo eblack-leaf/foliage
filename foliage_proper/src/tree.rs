@@ -94,6 +94,42 @@ pub trait EcsExtension {
     fn name<S: AsRef<str>>(&mut self, e: Entity, s: S);
     fn store<S: AsRef<str>>(&mut self, k: AssetKey, s: S);
     fn timer<M>(&mut self, t: u64, tf: impl IntoEntityObserver<M>);
+    /// Binds further behavior (`on_click`, `animate`, extra components) to an already-spawned
+    /// entity right next to where it was created, instead of in a separate pass elsewhere:
+    /// `tree.bind(e).on_click(...).animate(...);`
+    fn bind(&mut self, entity: Entity) -> Bind<'_, Self>
+    where
+        Self: Sized,
+    {
+        Bind { entity, tree: self }
+    }
+}
+/// See [`EcsExtension::bind`].
+pub struct Bind<'t, T: EcsExtension + ?Sized> {
+    entity: Entity,
+    tree: &'t mut T,
+}
+impl<'t, T: EcsExtension + ?Sized> Bind<'t, T> {
+    pub fn id(&self) -> Entity {
+        self.entity
+    }
+    pub fn on_click<M>(self, o: impl IntoEntityObserver<M>) -> Self {
+        self.tree.on_click(self.entity, o);
+        self
+    }
+    pub fn animate<A: Animate>(self, anim: Animation<A>) -> Self {
+        self.tree.animate(anim.targeting(self.entity));
+        self
+    }
+    pub fn write<B: Bundle>(self, b: B) -> Self {
+        self.tree.write_to(self.entity, b);
+        self
+    }
+}
+impl<'t, T: EcsExtension + ?Sized> From<Bind<'t, T>> for Entity {
+    fn from(b: Bind<'t, T>) -> Self {
+        b.entity
+    }
 }
 impl EcsExtension for Tree<'_, '_> {
     fn leaf<B: Bundle>(&mut self, b: B) -> Entity {

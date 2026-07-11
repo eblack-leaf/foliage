@@ -5,16 +5,16 @@ pub(crate) mod view;
 
 use crate::foliage::{DiffMarkers, Foliage, MainMarkers};
 pub(crate) use crate::grid::layout::viewport_changed;
-pub use crate::grid::location::{auto, stack, Adjust, Justify, StackDescriptor};
+pub use crate::grid::location::{anchor, auto, Adjust, AnchorDescriptor, Justify};
 pub use crate::grid::location::{GridExt, LocationValue};
 use crate::grid::view::extent_check_v2;
 use crate::{Attachment, Component, CoordinateUnit};
 pub use aspect_ratio::AspectRatio;
 use bevy_ecs::prelude::IntoScheduleConfigs;
 pub use layout::Layout;
+pub use location::Anchor;
+pub use location::AnchorDeps;
 pub use location::Location;
-pub use location::Stack;
-pub use location::StackDeps;
 pub use view::View;
 
 impl Attachment for Grid {

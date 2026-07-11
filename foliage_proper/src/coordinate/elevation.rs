@@ -110,6 +110,7 @@ impl Elevation {
         } else {
             ResolvedElevation(elev.amount + current.value())
         };
+        tracing::trace!(entity = ?this, ?resolved, "elevation: computed");
         tree.entity(this).insert(resolved);
         for dep in branch.get(this).unwrap().ids.clone() {
             if let Some(elev) = elevation.get(dep).copied().ok() {

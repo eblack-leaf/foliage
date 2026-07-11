@@ -1,10 +1,10 @@
 use crate::icons::IconHandles;
 use crate::portfolio;
 use foliage::{
-    stack, Animation, Button, Color, EcsExtension, Elevation, EntityEvent, FontSize, GlyphColors,
-    Grid, GridExt, HorizontalAlignment, HrefLink, Keyring, LeafBuilder, Line, Location, Logical,
-    OnClick, OnEnd, Opacity, Outline, Query, Res, Rounding, Section, Stack, Stem, Text, TextValue,
-    Tree, Trigger, VerticalAlignment, Write,
+    anchor, Anchor, Animation, Button, Children, Color, EcsExtension, Elevation, Entity,
+    EntityEvent, FontSize, GlyphColors, Grid, GridExt, HorizontalAlignment, HrefLink, Keyring,
+    LeafBuilder, Line, Location, Logical, OnClick, OnEnd, Opacity, Outline, Query, Res, Rounding,
+    Section, Stem, Text, TextValue, Tree, Trigger, VerticalAlignment, Write,
 };
 
 pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
@@ -12,8 +12,8 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
     let root = tree.leaf((
         Grid::new(12.col().gap(8), row_size.px().gap(8)),
         Location::new().xs(
-            0.pct().left().with(100.pct().right()),
-            0.pct().top().with(100.pct().bottom()),
+            0.pct().as_left().with(100.pct().as_right()),
+            0.pct().as_top().with(100.pct().as_bottom()),
         ),
         Elevation::abs(0),
         Stem::none(),
@@ -22,8 +22,8 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
     let name_container = tree.leaf((
         Grid::new(12.col().gap(4), 12.row().gap(4)),
         Location::new().xs(
-            1.col().left().with(12.col().right()).max(600.0),
-            4.row().top().with(8.row().bottom()),
+            1.col().as_left().with(12.col().as_right()).max(600.0),
+            4.row().as_top().with(8.row().as_bottom()),
         ),
         Stem::some(root),
         Elevation::up(1),
@@ -31,9 +31,10 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
     let name = Text::new("foliage.rs")
         .size(FontSize::new(44))
         .at(Location::new().xs(
-            2.col().left().with(11.col().right()),
-            1.row().top().with(3.row().bottom()),
+            2.col().as_left().with(11.col().as_right()),
+            1.row().as_top().with(3.row().as_bottom()),
         ))
+        .elevate(Elevation::up(1))
         .stem(name_container)
         .spawn(tree);
     tree.write_to(
@@ -48,15 +49,16 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         .size(FontSize::new(14))
         .color(Color::gray(700))
         .at(Location::new().xs(
-            5.col().left().with(8.col().right()),
-            4.row().top().with(4.row().bottom()),
+            5.col().as_left().with(8.col().as_right()),
+            4.row().as_top().with(4.row().as_bottom()),
         ))
+        .elevate(Elevation::up(1))
         .stem(name_container)
         .spawn(tree);
     tree.write_to(top_desc, Opacity::new(0.0));
     let top_line = tree.leaf((
         Line::new(2),
-        Location::new().xs(4.col().x().with(5.row().y()), 4.col().x().with(5.row().y())),
+        Location::new().xs(4.col().as_x().with(5.row().as_y()), 4.col().as_x().with(5.row().as_y())),
         Stem::some(name_container),
         Elevation::up(1),
         Color::gray(700),
@@ -79,9 +81,10 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         .size(FontSize::new(14))
         .color(Color::gray(700))
         .at(Location::new().xs(
-            9.col().left().with(11.col().right()),
-            4.row().top().with(4.row().bottom()),
+            9.col().as_left().with(11.col().as_right()),
+            4.row().as_top().with(4.row().as_bottom()),
         ))
+        .elevate(Elevation::up(1))
         .stem(name_container)
         .spawn(tree);
     tree.write_to(side_desc, Opacity::new(0.0));
@@ -101,7 +104,7 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
     );
     let pad_connector = tree.leaf((
         Line::new(2),
-        Location::new().xs(7.col().x().with(5.row().y()), 7.col().x().with(5.row().y())),
+        Location::new().xs(7.col().as_x().with(5.row().as_y()), 7.col().as_x().with(5.row().as_y())),
         Stem::some(name_container),
         Elevation::up(1),
         Color::gray(700),
@@ -110,9 +113,10 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         .size(FontSize::new(14))
         .color(Color::gray(700))
         .at(Location::new().xs(
-            8.col().left().with(11.col().right()),
-            7.row().top().with(8.row().bottom()),
+            8.col().as_left().with(11.col().as_right()),
+            7.row().as_top().with(8.row().as_bottom()),
         ))
+        .elevate(Elevation::up(1))
         .stem(name_container)
         .spawn(tree);
     tree.write_to(pad_desc, Opacity::new(0.0));
@@ -134,9 +138,10 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         .size(FontSize::new(24))
         .color(Color::gray(500))
         .at(Location::new().xs(
-            1.col().left().with(12.col().right()),
-            9.row().top().with(12.row().bottom()),
+            1.col().as_left().with(12.col().as_right()),
+            9.row().as_top().with(12.row().as_bottom()),
         ))
+        .elevate(Elevation::up(1))
         .stem(name_container)
         .spawn(tree);
     tree.write_to(
@@ -154,9 +159,10 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         .rounding(Rounding::Full)
         .colors(Color::gray(200), Color::gray(800))
         .at(Location::new().xs(
-            1.col().left().with(48.px().width()),
-            1.row().top().with(48.px().height()),
+            1.col().as_left().with(48.px().as_width()),
+            1.row().as_top().with(48.px().as_height()),
         ))
+        .elevate(Elevation::up(1))
         .stem(root)
         .spawn(tree);
     tree.write_to(github, (FontSize::new(16), Opacity::new(0.0)));
@@ -166,11 +172,11 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
     let github_line = tree.leaf((
         Line::new(2),
         Location::new().xs(
-            stack().right().x().adjust(16).with(1.row().y()),
-            stack().right().x().adjust(16).with(1.row().y()),
+            anchor().right().as_x().adjust(16).with(1.row().as_y()),
+            anchor().right().as_x().adjust(16).with(1.row().as_y()),
         ),
         Stem::some(root),
-        Stack::new(github),
+        Anchor::new(github),
         Elevation::up(1),
         Color::gray(700),
     ));
@@ -178,142 +184,88 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         .size(FontSize::new(14))
         .color(Color::gray(500))
         .at(Location::new().xs(
-            stack().right().left().adjust(16).with(10.col().right()),
-            1.row().top().adjust(8).with(2.row().bottom()),
+            anchor().right().as_left().adjust(16).with(10.col().as_right()),
+            1.row().as_top().adjust(8).with(2.row().as_bottom()),
         ))
+        .elevate(Elevation::up(1))
         .stem(root)
         .spawn(tree);
     tree.write_to(
         github_desc,
         (
             GlyphColors::new().add(10..16, Color::green(300)),
-            Stack::new(github_line),
+            Anchor::new(github_line),
             Opacity::new(0.0),
         ),
     );
     let options_container = tree.leaf((
         Grid::new(5.col().gap(4), 3.row().gap(8)),
         Location::new().xs(
-            1.col().left().with(12.col().right()).max(600.0),
-            10.row().top().with(13.row().bottom()),
+            1.col().as_left().with(12.col().as_right()).max(600.0),
+            10.row().as_top().with(13.row().as_bottom()),
         ),
         Stem::some(root),
         Elevation::up(1),
     ));
-    let option_one_color = Color::green(700);
-    let option_one = Button::new()
-        .rounding(Rounding::Full)
-        .icon(IconHandles::Terminal.value())
-        .colors(option_one_color, Color::gray(900))
-        .outline(2)
-        .at(Location::new().xs(
-            3.col().left().with(3.col().right()).max(48.0).min(48.0),
-            1.row().top().with(1.row().bottom()).max(48.0).min(48.0),
-        ))
-        .stem(options_container)
-        .spawn(tree);
-    tree.write_to(option_one, Opacity::new(0.0));
-    let option_one_line = tree.leaf((
-        Line::new(2),
-        Location::new().xs(1.col().x().with(1.row().y()), 1.col().x().with(1.row().y())),
-        Stem::some(options_container),
-        Elevation::up(1),
-        option_one_color,
-    ));
-    let option_one_desc = Text::new("on-click: usage")
-        .size(FontSize::new(16))
-        .color(Color::gray(500))
-        .at(Location::new().xs(
-            4.col().left().with(5.col().right()),
-            1.row().top().with(1.row().bottom()),
-        ))
-        .stem(options_container)
-        .spawn(tree);
-    tree.write_to(
-        option_one_desc,
-        (
-            HorizontalAlignment::Center,
-            VerticalAlignment::Middle,
-            GlyphColors::new().add(10..15, option_one_color),
-            Opacity::new(0.0),
-        ),
+    // row, icon, color, desc text, desc highlight range, desc column range, line column
+    let option_rows: Vec<(Entity, Entity, Entity)> = Children::new(options_container, tree).each(
+        [
+            (1, IconHandles::Terminal.value(), Color::green(700), "on-click: usage", 10..15, (4, 5), 1),
+            (2, IconHandles::Layers.value(), Color::green(500), "on-click: impl", 10..14, (1, 2), 5),
+            (3, IconHandles::BookOpen.value(), Color::green(300), "on-click: docs", 10..14, (4, 5), 1),
+        ],
+        |_, (row, icon, color, desc_text, highlight, (desc_left, desc_right), line_col), children| {
+            let button = children.spawn(
+                Button::new()
+                    .rounding(Rounding::Full)
+                    .icon(icon)
+                    .colors(color, Color::gray(900))
+                    .outline(2)
+                    .at(Location::new().xs(
+                        3.col().as_left().with(3.col().as_right()).max(48.0).min(48.0),
+                        row.row().as_top().with(row.row().as_bottom()).max(48.0).min(48.0),
+                    ))
+                    .elevate(Elevation::up(1)),
+            );
+            children.tree().write_to(button, Opacity::new(0.0));
+            children.tree().on_click(button, move |trigger: Trigger<OnClick>| {
+                HrefLink::new("tbd").navigate()
+            });
+            let line = children.tree().leaf((
+                Line::new(2),
+                Location::new().xs(
+                    line_col.col().as_x().with(row.row().as_y()),
+                    line_col.col().as_x().with(row.row().as_y()),
+                ),
+                Stem::some(options_container),
+                Elevation::up(1),
+                color,
+            ));
+            let desc = children.spawn(
+                Text::new(desc_text)
+                    .size(FontSize::new(16))
+                    .color(Color::gray(500))
+                    .at(Location::new().xs(
+                        desc_left.col().as_left().with(desc_right.col().as_right()),
+                        row.row().as_top().with(row.row().as_bottom()),
+                    ))
+                    .elevate(Elevation::up(1)),
+            );
+            children.tree().write_to(
+                desc,
+                (
+                    HorizontalAlignment::Center,
+                    VerticalAlignment::Middle,
+                    GlyphColors::new().add(highlight, color),
+                    Opacity::new(0.0),
+                ),
+            );
+            (button, line, desc)
+        },
     );
-    let option_two_color = Color::green(500);
-    let option_two = Button::new()
-        .rounding(Rounding::Full)
-        .icon(IconHandles::Layers.value())
-        .colors(option_two_color, Color::gray(900))
-        .outline(2)
-        .at(Location::new().xs(
-            3.col().left().with(3.col().right()).max(48.0).min(48.0),
-            2.row().top().with(2.row().bottom()).max(48.0).min(48.0),
-        ))
-        .stem(options_container)
-        .spawn(tree);
-    tree.write_to(option_two, Opacity::new(0.0));
-    let option_two_line = tree.leaf((
-        Line::new(2),
-        Location::new().xs(5.col().x().with(2.row().y()), 5.col().x().with(2.row().y())),
-        Stem::some(options_container),
-        Elevation::up(1),
-        option_two_color,
-    ));
-    let option_two_desc = Text::new("on-click: impl")
-        .size(FontSize::new(16))
-        .color(Color::gray(500))
-        .at(Location::new().xs(
-            1.col().left().with(2.col().right()),
-            2.row().top().with(2.row().bottom()),
-        ))
-        .stem(options_container)
-        .spawn(tree);
-    tree.write_to(
-        option_two_desc,
-        (
-            HorizontalAlignment::Center,
-            VerticalAlignment::Middle,
-            GlyphColors::new().add(10..14, option_two_color),
-            Opacity::new(0.0),
-        ),
-    );
-    let option_three_color = Color::green(300);
-    let option_three = Button::new()
-        .rounding(Rounding::Full)
-        .icon(IconHandles::BookOpen.value())
-        .colors(option_three_color, Color::gray(900))
-        .outline(2)
-        .at(Location::new().xs(
-            3.col().left().with(3.col().right()).max(48.0).min(48.0),
-            3.row().top().with(3.row().bottom()).max(48.0).min(48.0),
-        ))
-        .stem(options_container)
-        .spawn(tree);
-    tree.write_to(option_three, Opacity::new(0.0));
-    let option_three_line = tree.leaf((
-        Line::new(2),
-        Location::new().xs(1.col().x().with(3.row().y()), 1.col().x().with(3.row().y())),
-        Stem::some(options_container),
-        Elevation::up(1),
-        option_three_color,
-    ));
-    let option_three_desc = Text::new("on-click: docs")
-        .size(FontSize::new(16))
-        .color(Color::gray(500))
-        .at(Location::new().xs(
-            4.col().left().with(5.col().right()),
-            3.row().top().with(3.row().bottom()),
-        ))
-        .stem(options_container)
-        .spawn(tree);
-    tree.write_to(
-        option_three_desc,
-        (
-            HorizontalAlignment::Center,
-            VerticalAlignment::Middle,
-            GlyphColors::new().add(10..14, option_three_color),
-            Opacity::new(0.0),
-        ),
-    );
+    let (option_one, option_one_line, option_one_desc) = option_rows[0];
+    let (option_two, option_two_line, option_two_desc) = option_rows[1];
+    let (option_three, option_three_line, option_three_desc) = option_rows[2];
     let portfolio = Button::new()
         .icon(IconHandles::Code.value())
         .text("Portfolio")
@@ -321,31 +273,20 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         .colors(Color::orange(500), Color::gray(900))
         .outline(2)
         .at(Location::new().xs(
-            3.col().left().with(10.col().right()).min(175.0).max(350.0),
-            15.row().top().with(48.px().height()),
+            3.col().as_left().with(10.col().as_right()).min(175.0).max(350.0),
+            15.row().as_top().with(48.px().as_height()),
         ))
+        .elevate(Elevation::up(1))
         .stem(root)
         .spawn(tree);
     tree.write_to(portfolio, (FontSize::new(20), Opacity::new(0.0)));
     let spacing = tree.leaf((
         Location::new().xs(
-            0.pct().left().with(100.pct().right()),
-            17.row().top().with(17.row().bottom()),
+            0.pct().as_left().with(100.pct().as_right()),
+            17.row().as_top().with(17.row().as_bottom()),
         ),
         Stem::some(root),
     ));
-    tree.on_click(
-        option_one,
-        move |trigger: Trigger<OnClick>, mut tree: Tree| HrefLink::new("tbd").navigate(),
-    );
-    tree.on_click(
-        option_two,
-        move |trigger: Trigger<OnClick>, mut tree: Tree| HrefLink::new("tbd").navigate(),
-    );
-    tree.on_click(
-        option_three,
-        move |trigger: Trigger<OnClick>, mut tree: Tree| HrefLink::new("tbd").navigate(),
-    );
     tree.on_click(
         portfolio,
         move |trigger: Trigger<OnClick>, mut tree: Tree, keyring: Res<Keyring>| {
@@ -453,14 +394,14 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
             .targeting(portfolio),
     );
     tree.animate(
-        Animation::new(Location::new().xs(4.col().x().with(5.row().y()), 9.col().x().with(5.row().y())))
+        Animation::new(Location::new().xs(4.col().as_x().with(5.row().as_y()), 9.col().as_x().with(5.row().as_y())))
             .start(1000)
             .finish(3000)
             .during(seq)
             .targeting(top_line),
     );
     tree.animate(
-        Animation::new(Location::new().xs(7.col().x().with(5.row().y()), 7.col().x().with(8.row().y())))
+        Animation::new(Location::new().xs(7.col().as_x().with(5.row().as_y()), 7.col().as_x().with(8.row().as_y())))
             .start(1750)
             .finish(3000)
             .during(seq)
@@ -468,8 +409,8 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
     );
     tree.animate(
         Animation::new(Location::new().xs(
-            stack().right().x().adjust(16).with(1.row().y()),
-            stack().right().x().adjust(64).with(1.row().y()),
+            anchor().right().as_x().adjust(16).with(1.row().as_y()),
+            anchor().right().as_x().adjust(64).with(1.row().as_y()),
         ))
         .start(1750)
         .finish(2500)
@@ -477,21 +418,21 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         .targeting(github_line),
     );
     tree.animate(
-        Animation::new(Location::new().xs(1.col().x().with(1.row().y()), 2.col().x().with(1.row().y())))
+        Animation::new(Location::new().xs(1.col().as_x().with(1.row().as_y()), 2.col().as_x().with(1.row().as_y())))
             .start(500)
             .finish(1000)
             .during(seq)
             .targeting(option_one_line),
     );
     tree.animate(
-        Animation::new(Location::new().xs(4.col().x().with(2.row().y()), 5.col().x().with(2.row().y())))
+        Animation::new(Location::new().xs(4.col().as_x().with(2.row().as_y()), 5.col().as_x().with(2.row().as_y())))
             .start(1500)
             .finish(2000)
             .during(seq)
             .targeting(option_two_line),
     );
     tree.animate(
-        Animation::new(Location::new().xs(1.col().x().with(3.row().y()), 2.col().x().with(3.row().y())))
+        Animation::new(Location::new().xs(1.col().as_x().with(3.row().as_y()), 2.col().as_x().with(3.row().as_y())))
             .start(2500)
             .finish(3000)
             .during(seq)

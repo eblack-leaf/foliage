@@ -2,7 +2,7 @@ use crate::ash::differential::RenderRemoveQueue;
 use bevy_ecs::event::EntityEvent;
 use crate::EcsExtension;
 use bevy_ecs::lifecycle::HookContext;
-use crate::{Attachment, Branch, Component, Foliage, StackDeps, Stem, Tree, Update, Write};
+use crate::{Attachment, Branch, Component, Foliage, AnchorDeps, Stem, Tree, Update, Write};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use crate::Trigger;
@@ -45,6 +45,12 @@ impl Visibility {
         let stem = stems.get(this).unwrap();
         if let Some(s) = stem.id {
             let resolved = *res.get(s).unwrap();
+            tracing::trace!(
+                entity = ?this,
+                parent = ?s,
+                parent_resolved_visible = resolved.visible,
+                "visibility: stem_insert captured parent"
+            );
             tree.entity(this).insert(InheritedVisibility {
                 visible: resolved.visible,
             });
@@ -64,7 +70,7 @@ impl Visibility {
         cached: Query<&CachedVisibility>,
         mut tree: Tree,
         branches: Query<&Branch>,
-        sd: Query<&StackDeps>,
+        sd: Query<&AnchorDeps>,
     ) {
         let this = trigger.event_target();
         let inherited = inheriteds.get(this).unwrap();
@@ -74,6 +80,15 @@ impl Visibility {
             visible: inherited.visible && current.visible && auto.visible,
         };
         let cached = cached.get(this).unwrap();
+        tracing::trace!(
+            entity = ?this,
+            inherited = inherited.visible,
+            current = current.visible,
+            auto = auto.visible,
+            resolved = resolved.visible,
+            was_cached = cached.visible,
+            "visibility: resolved"
+        );
         if cached.visible != resolved.visible {
             tree.entity(this).insert(resolved).insert(CachedVisibility {
                 visible: resolved.visible,
@@ -83,6 +98,12 @@ impl Visibility {
             if let Some(stack_deps) = sd.get(this).ok() {
                 deps.extend(stack_deps.ids.clone());
             }
+            tracing::trace!(
+                entity = ?this,
+                new_resolved = resolved.visible,
+                deps = ?deps,
+                "visibility: cascading to deps (real flip)"
+            );
             for d in deps {
                 tree.entity(d).insert(InheritedVisibility {
                     visible: resolved.visible,

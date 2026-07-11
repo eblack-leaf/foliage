@@ -134,6 +134,7 @@ impl Render for Icon {
         queues: &mut RenderQueueHandle,
         ginkgo: &Ginkgo,
     ) -> Nodes {
+        tracing::trace!("pipeline: icon prepare");
         let mut nodes = Nodes::new();
         for entity in queues.removes::<Icon>() {
             if let Some(gid) = renderer.resources.entity_to_group.remove(&entity) {

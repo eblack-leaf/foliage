@@ -14,7 +14,7 @@ use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::{
     CoordinateContext, CoordinateUnit, Coordinates, Logical, Numerical, Physical,
 };
-use crate::{Branch, Location, Stack, StackDeps, Update, Write};
+use crate::{Branch, Location, Anchor, AnchorDeps, Update, Write};
 
 #[derive(Copy, Clone, Default, Component, Debug, PartialEq, PartialOrd)]
 #[component(on_insert = Section::<Logical>::on_insert)]
@@ -205,13 +205,13 @@ impl<Context: CoordinateContext> Section<Context> {
         world.trigger_targets(Write::<Self>::new(), this);
         let mut deps = world.get::<Branch>(this).unwrap().ids.clone();
         for d in deps.clone().iter() {
-            if let Some(stack) = world.get::<Stack>(*d) {
+            if let Some(stack) = world.get::<Anchor>(*d) {
                 if stack.id.is_some() {
                     deps.remove(d);
                 }
             }
         }
-        if let Some(d) = world.get::<StackDeps>(this) {
+        if let Some(d) = world.get::<AnchorDeps>(this) {
             deps.extend(d.ids.clone());
         }
         if deps.is_empty() {

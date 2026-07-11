@@ -129,6 +129,7 @@ impl Render for Shape {
         queues: &mut RenderQueueHandle,
         ginkgo: &Ginkgo,
     ) -> Nodes {
+        tracing::trace!("pipeline: shape prepare");
         let mut nodes = Nodes::new();
         let group = renderer.groups.get_mut(&0).unwrap();
         for entity in queues.removes::<Self>() {

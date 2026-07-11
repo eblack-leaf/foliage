@@ -79,6 +79,11 @@ pub(crate) fn cached_differential<
                 continue;
             };
             cache.cache.replace(v.clone());
+            tracing::trace!(
+                entity = ?c,
+                rp = std::any::type_name::<RP>(),
+                "differential: visibility-restore queue"
+            );
             queue.queue.insert(c, v);
         }
     }
@@ -92,6 +97,11 @@ pub(crate) fn cached_differential<
                 continue;
             };
             if cache.different(v.clone()) {
+                tracing::trace!(
+                    entity = ?e,
+                    rp = std::any::type_name::<RP>(),
+                    "differential: changed queue"
+                );
                 queue.queue.insert(e, v.clone());
             }
         }
