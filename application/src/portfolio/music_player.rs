@@ -3,8 +3,7 @@ use foliage::Justify::Center;
 use foliage::{
     anchor, Anchor, Animation, Button, Children, Color, EcsExtension, Elevation, Entity, FontSize,
     Grid, GridExt, HorizontalAlignment, Icon, Image, ImageView, Keyring, LeafBuilder, Line, Location,
-    OnClick, Opacity, Panel, Primary, Rounding, Secondary, Stem, Tertiary, Text, TextInput,
-    TextValue, Tree, Trigger, VerticalAlignment,
+    OnClick, Opacity, Panel, Rounding, Stem, Text, TextInput, Tree, Trigger, VerticalAlignment,
 };
 
 pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
@@ -42,43 +41,40 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
             .stem(app)
             .spawn(tree);
         tree.write_to(search, Grid::new(1.col(), 1.row()));
-        let search_icon = tree.leaf((
-            Icon::new(IconHandles::Search.value()),
-            Elevation::up(1),
-            Stem::some(search),
-            Location::new().xs(
+        let search_icon = Icon::new(IconHandles::Search.value())
+            .color(Color::gray(400))
+            .at(Location::new().xs(
                 8.px().as_left().with(24.px().as_width()),
                 50.pct().as_center_y().with(24.px().as_height()),
-            ),
-            Color::gray(400),
-        ));
-        let search_text = tree.leaf((
-            TextInput::new(),
-            TextValue("Search Library".to_string()),
-            Location::new().xs(
+            ))
+            .elevate(Elevation::up(1))
+            .stem(search)
+            .spawn(tree);
+        let search_text = TextInput::new()
+            .text("Search Library")
+            .primary(Color::gray(600))
+            .secondary(Color::gray(900))
+            .tertiary(Color::green(300))
+            .at(Location::new().xs(
                 48.px().as_left().with(100.pct().as_right().adjust(-16)),
                 50.pct().as_center_y().adjust(4).with(90.pct().as_height()),
-            ),
-            Primary(Color::gray(600)),
-            Secondary(Color::gray(900)),
-            Tertiary(Color::green(300)),
-            Elevation::up(1),
-            Stem::some(search),
-        ));
-        let album_cover = tree.leaf((
-            Image::new(2, keyring.get("album-cover")),
-            ImageView::Aspect,
-            Elevation::up(1),
-            Location::new().xs(
+            ))
+            .elevate(Elevation::up(1))
+            .stem(search)
+            .spawn(tree);
+        let album_cover = Image::new(2, keyring.get("album-cover"))
+            .view(ImageView::Aspect)
+            .at(Location::new().xs(
                 1.col()
                     .as_left()
                     .with(12.col().as_right())
                     .max(600.0)
                     .justify(Center),
                 3.row().as_top().with(10.row().as_bottom()),
-            ),
-            Stem::some(app),
-        ));
+            ))
+            .elevate(Elevation::up(1))
+            .stem(app)
+            .spawn(tree);
         let song_info = tree.leaf((
             Location::new().xs(
                 1.col().as_left().with(12.col().as_right()).max(600.0),
@@ -151,26 +147,24 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
             ),
             Grid::default(),
         ));
-        let back_line = tree.leaf((
-            Line::new(4),
-            Stem::some(duration),
-            Location::new().xs(
+        let back_line = Line::new(4)
+            .color(Color::gray(700))
+            .at(Location::new().xs(
                 0.pct().as_x().with(50.pct().as_y()),
                 100.pct().as_x().with(50.pct().as_y()),
-            ),
-            Color::gray(700),
-            Elevation::up(1),
-        ));
-        let elapsed_line = tree.leaf((
-            Line::new(4),
-            Stem::some(duration),
-            Location::new().xs(
+            ))
+            .elevate(Elevation::up(1))
+            .stem(duration)
+            .spawn(tree);
+        let elapsed_line = Line::new(4)
+            .color(Color::green(300))
+            .at(Location::new().xs(
                 0.pct().as_x().with(50.pct().as_y()),
                 35.pct().as_x().with(50.pct().as_y()),
-            ),
-            Color::green(300),
-            Elevation::up(2),
-        ));
+            ))
+            .elevate(Elevation::up(2))
+            .stem(duration)
+            .spawn(tree);
         let slider = Panel::new()
             .rounding(Rounding::Full)
             .color(Color::green(300))

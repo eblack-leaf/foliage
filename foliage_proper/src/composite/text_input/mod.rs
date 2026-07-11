@@ -10,11 +10,12 @@ use crate::text::{Glyphs, LineMetrics};
 use crate::{
     auto, Attachment, AutoHeight, AutoWidth, Color, Component, Composite, Dragged, EcsExtension,
     Elevation, Engaged, Event, FocusBehavior, Foliage, FontSize, GlyphOffset, Grid, GridExt,
-    InputSequence, InteractionListener, InteractionPropagation, Key, Layout, LeafBuilder,
+    InputSequence, InteractionListener, InteractionPropagation, Key, Layout, Leaf, LeafBuilder,
     LeafSpec, Location, Logical, Opacity, OverscrollPropagation, Panel, Primary, Secondary,
     Section, Stem, Tertiary, Text, TextValue, Tree, Unfocused, Update, View, Write,
 };
 use action::{InputAction, TextInputAction};
+use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use crate::IntoTargets;
 use crate::Trigger;
@@ -84,7 +85,10 @@ impl Attachment for TextInput {
 pub struct TextInput {}
 impl TextInput {
     const HIGHLIGHT_SCROLL_THRESHOLD: f32 = 10.0;
-    pub fn new() -> TextInput {
+    pub fn new() -> TextInputSpec {
+        TextInputSpec::default()
+    }
+    pub(crate) fn new_marker() -> TextInput {
         TextInput {}
     }
     fn on_add(mut world: DeferredWorld, ctx: HookContext) {
@@ -105,6 +109,69 @@ impl TextInput {
             .observe(Self::update_font_size)
             .observe(forward::<HintText>)
             .observe(Self::update_hint);
+    }
+}
+#[derive(Default)]
+pub struct TextInputSpec {
+    leaf: LeafSpec,
+    text: Option<String>,
+    primary: Option<Color>,
+    secondary: Option<Color>,
+    tertiary: Option<Color>,
+    font_size: Option<FontSize>,
+    hint_text: Option<String>,
+    line_constraint: Option<LineConstraint>,
+}
+impl LeafBuilder for TextInputSpec {
+    fn leaf_spec(&mut self) -> &mut LeafSpec {
+        &mut self.leaf
+    }
+    fn bundle(self) -> impl Bundle {
+        (
+            TextInput::new_marker(),
+            self.leaf.location,
+            self.leaf.stem,
+            self.leaf
+                .elevation
+                .expect("elevation not set -- call .elevate(...) before spawning"),
+            TextValue(self.text.unwrap_or_default()),
+            Primary(self.primary.unwrap_or_default()),
+            Secondary(self.secondary.unwrap_or_default()),
+            Tertiary(self.tertiary.unwrap_or_default()),
+            self.font_size.unwrap_or_default(),
+            HintText::new(self.hint_text.unwrap_or_default()),
+            self.line_constraint.unwrap_or_default(),
+        )
+    }
+}
+impl TextInputSpec {
+    pub fn text(mut self, t: impl Into<String>) -> Self {
+        self.text = Some(t.into());
+        self
+    }
+    pub fn primary(mut self, c: Color) -> Self {
+        self.primary = Some(c);
+        self
+    }
+    pub fn secondary(mut self, c: Color) -> Self {
+        self.secondary = Some(c);
+        self
+    }
+    pub fn tertiary(mut self, c: Color) -> Self {
+        self.tertiary = Some(c);
+        self
+    }
+    pub fn font_size(mut self, f: FontSize) -> Self {
+        self.font_size = Some(f);
+        self
+    }
+    pub fn hint_text(mut self, t: impl Into<String>) -> Self {
+        self.hint_text = Some(t.into());
+        self
+    }
+    pub fn line_constraint(mut self, l: LineConstraint) -> Self {
+        self.line_constraint = Some(l);
+        self
     }
 }
 impl Composite for TextInput {
@@ -137,7 +204,7 @@ impl Composite for TextInput {
         let mut panel_children = Children::new(panel, children.tree());
 
         let cursor = panel_children.spawn(
-            LeafSpec::new()
+            Leaf::spec()
                 .elevate(Elevation::up(6))
                 .at(Location::new().xs(
                     1.col().as_left().with(1.col().as_right()),

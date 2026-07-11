@@ -2,7 +2,7 @@ use crate::{
     anchor, composite_on_insert, forward, handle_replace, Anchor, Attachment, Children,
     Disengaged, EcsExtension, Elevation, Engaged, FocusBehavior, Foliage, FontSize, Grid,
     GridExt, HorizontalAlignment, Icon, IconValue, InteractionListener, InteractionPropagation,
-    LeafBuilder, LeafSpec, Location, Outline, Panel, Primary, Rounding, Secondary, Text,
+    Leaf, LeafBuilder, Location, Outline, Panel, Primary, Rounding, Secondary, Text,
     TextValue, Tree, Update, VerticalAlignment, Visibility,
 };
 use bevy_ecs::bundle::Bundle;
@@ -111,7 +111,7 @@ impl Button {
         let handle = handles.get(this).unwrap();
         let value = values.get(this).unwrap();
         tracing::trace!(button = ?this, icon = ?handle.icon, id = value.0, "button: icon updated");
-        tree.entity(handle.icon).insert(Icon::new(value.0));
+        tree.entity(handle.icon).insert(Icon::new_marker(value.0));
     }
     fn update_outline(
         trigger: Trigger<Update<Outline>>,
@@ -271,9 +271,9 @@ impl Composite for Button {
         // update_rounding once Handle exists — giving it an empty Location here would fail
         // resolution immediately and auto-hide it before the real value arrives.
         let icon = children.spawn(
-            LeafSpec::new()
+            Leaf::spec()
                 .elevate(Elevation::up(2))
-                .with((Icon::new(icon_value.0), InteractionPropagation::pass_through(), FocusBehavior::ignore())),
+                .with((Icon::new_marker(icon_value.0), InteractionPropagation::pass_through(), FocusBehavior::ignore())),
         );
 
         let text = children.spawn(

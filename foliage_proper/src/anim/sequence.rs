@@ -8,7 +8,7 @@ pub(crate) struct SequenceTimeRange {
 }
 
 #[derive(Component, Default, Copy, Clone)]
-pub(crate) struct Sequence {
+pub(crate) struct SequenceMarker {
     pub(crate) animations_to_finish: i32,
 }
 pub(crate) struct AnimationTime {

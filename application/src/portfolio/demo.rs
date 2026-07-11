@@ -1,7 +1,6 @@
 use foliage::{
-    Animation, Color, EcsExtension, Elevation, Entity, FontSize, Grid, GridExt, HintText,
-    LeafBuilder, LineConstraint, Location, Opacity, Primary, Secondary, Stem, Tertiary, Text,
-    TextInput, Tree,
+    Animation, Color, EcsExtension, Elevation, Entity, FontSize, Grid, GridExt, LeafBuilder,
+    LineConstraint, Location, Opacity, Text, TextInput, Tree,
 };
 
 /// Stands in for the "Artist Blog" portfolio item until that app is built.
@@ -24,19 +23,18 @@ pub(crate) fn build(tree: &mut Tree, app: Entity) {
         .elevate(Elevation::up(1))
         .stem(app)
         .spawn(tree);
-    tree.leaf((
-        TextInput::new(),
-        LineConstraint::Multiple,
-        HintText::new("multiline input..."),
-        Primary(Color::gray(200)),
-        Secondary(Color::gray(900)),
-        Tertiary(Color::green(600)),
-        FontSize::new(16),
-        Location::new().xs(
+    TextInput::new()
+        .line_constraint(LineConstraint::Multiple)
+        .hint_text("multiline input...")
+        .primary(Color::gray(200))
+        .secondary(Color::gray(900))
+        .tertiary(Color::green(600))
+        .font_size(FontSize::new(16))
+        .at(Location::new().xs(
             1.col().as_left().with(6.col().as_right()),
             2.row().as_top().with(5.row().as_bottom()),
-        ),
-        Stem::some(app),
-        Elevation::up(1),
-    ));
+        ))
+        .elevate(Elevation::up(1))
+        .stem(app)
+        .spawn(tree);
 }

@@ -4,7 +4,7 @@ use foliage::{
     anchor, Anchor, Animation, Button, Children, Color, EcsExtension, Elevation, Entity,
     EntityEvent, FontSize, GlyphColors, Grid, GridExt, HorizontalAlignment, HrefLink, Keyring,
     LeafBuilder, Line, Location, Logical, OnClick, OnEnd, Opacity, Outline, Query, Res, Rounding,
-    Section, Stem, Text, TextValue, Tree, Trigger, VerticalAlignment, Write,
+    Section, Sequence, Stem, Text, TextValue, Tree, Trigger, VerticalAlignment, Write,
 };
 
 pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
@@ -56,13 +56,12 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         .stem(name_container)
         .spawn(tree);
     tree.write_to(top_desc, Opacity::new(0.0));
-    let top_line = tree.leaf((
-        Line::new(2),
-        Location::new().xs(4.col().as_x().with(5.row().as_y()), 4.col().as_x().with(5.row().as_y())),
-        Stem::some(name_container),
-        Elevation::up(1),
-        Color::gray(700),
-    ));
+    let top_line = Line::new(2)
+        .color(Color::gray(700))
+        .at(Location::new().xs(4.col().as_x().with(5.row().as_y()), 4.col().as_x().with(5.row().as_y())))
+        .elevate(Elevation::up(1))
+        .stem(name_container)
+        .spawn(tree);
     tree.subscribe(
         top_line,
         move |trigger: Trigger<Write<Section<Logical>>>,
@@ -102,13 +101,12 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
             );
         },
     );
-    let pad_connector = tree.leaf((
-        Line::new(2),
-        Location::new().xs(7.col().as_x().with(5.row().as_y()), 7.col().as_x().with(5.row().as_y())),
-        Stem::some(name_container),
-        Elevation::up(1),
-        Color::gray(700),
-    ));
+    let pad_connector = Line::new(2)
+        .color(Color::gray(700))
+        .at(Location::new().xs(7.col().as_x().with(5.row().as_y()), 7.col().as_x().with(5.row().as_y())))
+        .elevate(Elevation::up(1))
+        .stem(name_container)
+        .spawn(tree);
     let pad_desc = Text::new("pad: 0.0")
         .size(FontSize::new(14))
         .color(Color::gray(700))
@@ -169,17 +167,16 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
     tree.on_click(github, |trigger: Trigger<OnClick>| {
         HrefLink::new("https://github.com/eblack-leaf/foliage").navigate()
     });
-    let github_line = tree.leaf((
-        Line::new(2),
-        Location::new().xs(
+    let github_line = Line::new(2)
+        .color(Color::gray(700))
+        .at(Location::new().xs(
             anchor().right().as_x().adjust(16).with(1.row().as_y()),
             anchor().right().as_x().adjust(16).with(1.row().as_y()),
-        ),
-        Stem::some(root),
-        Anchor::new(github),
-        Elevation::up(1),
-        Color::gray(700),
-    ));
+        ))
+        .elevate(Elevation::up(1))
+        .stem(root)
+        .with(Anchor::new(github))
+        .spawn(tree);
     let github_desc = Text::new("on-click: github")
         .size(FontSize::new(14))
         .color(Color::gray(500))
@@ -231,16 +228,15 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
             children.tree().on_click(button, move |trigger: Trigger<OnClick>| {
                 HrefLink::new("tbd").navigate()
             });
-            let line = children.tree().leaf((
-                Line::new(2),
-                Location::new().xs(
+            let line = Line::new(2)
+                .color(color)
+                .at(Location::new().xs(
                     line_col.col().as_x().with(row.row().as_y()),
                     line_col.col().as_x().with(row.row().as_y()),
-                ),
-                Stem::some(options_container),
-                Elevation::up(1),
-                color,
-            ));
+                ))
+                .elevate(Elevation::up(1))
+                .stem(options_container)
+                .spawn(children.tree());
             let desc = children.spawn(
                 Text::new(desc_text)
                     .size(FontSize::new(16))
@@ -294,155 +290,65 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
             portfolio::build(&mut tree, root, &keyring);
         },
     );
-    let seq = tree.sequence();
-    tree.animate(
-        Animation::new(Opacity::new(1.0))
-            .start(500)
-            .finish(1500)
-            .during(seq)
-            .targeting(name),
-    );
-    tree.animate(
-        Animation::new(Opacity::new(1.0))
-            .start(1000)
-            .finish(1500)
-            .during(seq)
-            .targeting(github),
-    );
-    tree.animate(
-        Animation::new(Opacity::new(1.0))
-            .start(1000)
-            .finish(1250)
-            .during(seq)
-            .targeting(top_desc),
-    );
-    tree.animate(
-        Animation::new(Opacity::new(1.0))
-            .start(1100)
-            .finish(1350)
-            .during(seq)
-            .targeting(side_desc),
-    );
-    tree.animate(
-        Animation::new(Opacity::new(1.0))
-            .start(1500)
-            .finish(1750)
-            .during(seq)
-            .targeting(pad_desc),
-    );
-    tree.animate(
-        Animation::new(Opacity::new(1.0))
+    Sequence::new(tree)
+        .animate(Animation::new(Opacity::new(1.0)).start(500).finish(1500).targeting(name))
+        .animate(Animation::new(Opacity::new(1.0)).start(1000).finish(1500).targeting(github))
+        .animate(Animation::new(Opacity::new(1.0)).start(1000).finish(1250).targeting(top_desc))
+        .animate(Animation::new(Opacity::new(1.0)).start(1100).finish(1350).targeting(side_desc))
+        .animate(Animation::new(Opacity::new(1.0)).start(1500).finish(1750).targeting(pad_desc))
+        .animate(Animation::new(Opacity::new(1.0)).start(1750).finish(2750).targeting(desc))
+        .animate(Animation::new(Opacity::new(1.0)).start(2500).finish(3000).targeting(github_desc))
+        .animate(Animation::new(Opacity::new(1.0)).start(500).finish(1000).targeting(option_one))
+        .animate(Animation::new(Opacity::new(1.0)).start(1000).finish(1500).targeting(option_one_desc))
+        .animate(Animation::new(Opacity::new(1.0)).start(1500).finish(2000).targeting(option_two))
+        .animate(Animation::new(Opacity::new(1.0)).start(2000).finish(2500).targeting(option_two_desc))
+        .animate(Animation::new(Opacity::new(1.0)).start(2500).finish(3000).targeting(option_three))
+        .animate(Animation::new(Opacity::new(1.0)).start(3000).finish(3500).targeting(option_three_desc))
+        .animate(Animation::new(Opacity::new(1.0)).start(3000).finish(3500).targeting(portfolio))
+        .animate(
+            Animation::new(Location::new().xs(4.col().as_x().with(5.row().as_y()), 9.col().as_x().with(5.row().as_y())))
+                .start(1000)
+                .finish(3000)
+                .targeting(top_line),
+        )
+        .animate(
+            Animation::new(Location::new().xs(7.col().as_x().with(5.row().as_y()), 7.col().as_x().with(8.row().as_y())))
+                .start(1750)
+                .finish(3000)
+                .targeting(pad_connector),
+        )
+        .animate(
+            Animation::new(Location::new().xs(
+                anchor().right().as_x().adjust(16).with(1.row().as_y()),
+                anchor().right().as_x().adjust(64).with(1.row().as_y()),
+            ))
             .start(1750)
-            .finish(2750)
-            .during(seq)
-            .targeting(desc),
-    );
-    tree.animate(
-        Animation::new(Opacity::new(1.0))
-            .start(2500)
-            .finish(3000)
-            .during(seq)
-            .targeting(github_desc),
-    );
-    tree.animate(
-        Animation::new(Opacity::new(1.0))
-            .start(500)
-            .finish(1000)
-            .during(seq)
-            .targeting(option_one),
-    );
-    tree.animate(
-        Animation::new(Opacity::new(1.0))
-            .start(1000)
-            .finish(1500)
-            .during(seq)
-            .targeting(option_one_desc),
-    );
-    tree.animate(
-        Animation::new(Opacity::new(1.0))
-            .start(1500)
-            .finish(2000)
-            .during(seq)
-            .targeting(option_two),
-    );
-    tree.animate(
-        Animation::new(Opacity::new(1.0))
-            .start(2000)
             .finish(2500)
-            .during(seq)
-            .targeting(option_two_desc),
-    );
-    tree.animate(
-        Animation::new(Opacity::new(1.0))
-            .start(2500)
-            .finish(3000)
-            .during(seq)
-            .targeting(option_three),
-    );
-    tree.animate(
-        Animation::new(Opacity::new(1.0))
-            .start(3000)
-            .finish(3500)
-            .during(seq)
-            .targeting(option_three_desc),
-    );
-    tree.animate(
-        Animation::new(Opacity::new(1.0))
-            .start(3000)
-            .finish(3500)
-            .during(seq)
-            .targeting(portfolio),
-    );
-    tree.animate(
-        Animation::new(Location::new().xs(4.col().as_x().with(5.row().as_y()), 9.col().as_x().with(5.row().as_y())))
-            .start(1000)
-            .finish(3000)
-            .during(seq)
-            .targeting(top_line),
-    );
-    tree.animate(
-        Animation::new(Location::new().xs(7.col().as_x().with(5.row().as_y()), 7.col().as_x().with(8.row().as_y())))
-            .start(1750)
-            .finish(3000)
-            .during(seq)
-            .targeting(pad_connector),
-    );
-    tree.animate(
-        Animation::new(Location::new().xs(
-            anchor().right().as_x().adjust(16).with(1.row().as_y()),
-            anchor().right().as_x().adjust(64).with(1.row().as_y()),
-        ))
-        .start(1750)
-        .finish(2500)
-        .during(seq)
-        .targeting(github_line),
-    );
-    tree.animate(
-        Animation::new(Location::new().xs(1.col().as_x().with(1.row().as_y()), 2.col().as_x().with(1.row().as_y())))
-            .start(500)
-            .finish(1000)
-            .during(seq)
-            .targeting(option_one_line),
-    );
-    tree.animate(
-        Animation::new(Location::new().xs(4.col().as_x().with(2.row().as_y()), 5.col().as_x().with(2.row().as_y())))
-            .start(1500)
-            .finish(2000)
-            .during(seq)
-            .targeting(option_two_line),
-    );
-    tree.animate(
-        Animation::new(Location::new().xs(1.col().as_x().with(3.row().as_y()), 2.col().as_x().with(3.row().as_y())))
-            .start(2500)
-            .finish(3000)
-            .during(seq)
-            .targeting(option_three_line),
-    );
+            .targeting(github_line),
+        )
+        .animate(
+            Animation::new(Location::new().xs(1.col().as_x().with(1.row().as_y()), 2.col().as_x().with(1.row().as_y())))
+                .start(500)
+                .finish(1000)
+                .targeting(option_one_line),
+        )
+        .animate(
+            Animation::new(Location::new().xs(4.col().as_x().with(2.row().as_y()), 5.col().as_x().with(2.row().as_y())))
+                .start(1500)
+                .finish(2000)
+                .targeting(option_two_line),
+        )
+        .animate(
+            Animation::new(Location::new().xs(1.col().as_x().with(3.row().as_y()), 2.col().as_x().with(3.row().as_y())))
+                .start(2500)
+                .finish(3000)
+                .targeting(option_three_line),
+        )
+        .end(move |trigger: Trigger<OnEnd>, mut tree: Tree| {
+            tree.enable([option_one, option_two, option_three, portfolio]);
+        });
     tree.disable([github, option_one, option_two, option_three, portfolio]);
     tree.timer(1500, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
         tree.enable(github);
-    });
-    tree.sequence_end(seq, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
-        tree.enable([option_one, option_two, option_three, portfolio]);
     });
 }

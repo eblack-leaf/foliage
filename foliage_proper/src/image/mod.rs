@@ -9,10 +9,11 @@ use crate::grid::AspectRatio;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::{
-    Area, Attachment, Component, Coordinates, Foliage, Layout, Logical, Numerical,
-    ResolvedElevation, ResolvedVisibility, Section, Stem, Write,
+    Area, Attachment, Component, Coordinates, Foliage, Layout, LeafBuilder, LeafSpec, Logical,
+    Numerical, ResolvedElevation, ResolvedVisibility, Section, Stem, Write,
 };
 use crate::{AssetKey, AssetRetrieval};
+use bevy_ecs::bundle::Bundle;
 use crate::{Differential, Tree, Visibility};
 use bevy_ecs::component::ComponentId;
 use crate::Trigger;
@@ -101,7 +102,15 @@ impl Attachment for Image {
 }
 impl Image {
     pub const FORMAT: TextureFormat = TextureFormat::Rgba8Unorm;
-    pub fn new<ID: Into<MemoryId>>(memory_id: ID, key: AssetKey) -> Self {
+    pub fn new<ID: Into<MemoryId>>(memory_id: ID, key: AssetKey) -> ImageSpec {
+        ImageSpec {
+            leaf: LeafSpec::default(),
+            memory_id: memory_id.into(),
+            key,
+            view: None,
+        }
+    }
+    pub(crate) fn new_marker<ID: Into<MemoryId>>(memory_id: ID, key: AssetKey) -> Self {
         Self {
             memory_id: memory_id.into(),
             key,
@@ -223,6 +232,34 @@ impl Image {
                 _ => {}
             }
         }
+    }
+}
+pub struct ImageSpec {
+    leaf: LeafSpec,
+    memory_id: MemoryId,
+    key: AssetKey,
+    view: Option<ImageView>,
+}
+impl LeafBuilder for ImageSpec {
+    fn leaf_spec(&mut self) -> &mut LeafSpec {
+        &mut self.leaf
+    }
+    fn bundle(self) -> impl Bundle {
+        (
+            Image::new_marker(self.memory_id, self.key),
+            self.leaf.location,
+            self.leaf.stem,
+            self.leaf
+                .elevation
+                .expect("elevation not set -- call .elevate(...) before spawning"),
+            self.view.unwrap_or_default(),
+        )
+    }
+}
+impl ImageSpec {
+    pub fn view(mut self, v: ImageView) -> Self {
+        self.view = Some(v);
+        self
     }
 }
 #[derive(Component, Copy, Clone, PartialEq, Default)]

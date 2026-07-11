@@ -1,7 +1,7 @@
 use crate::anim::ease::Easement;
 use bevy_ecs::lifecycle::HookContext;
 use crate::anim::interpolation::Interpolations;
-use crate::anim::sequence::{AnimationTime, Sequence};
+use crate::anim::sequence::{AnimationTime, SequenceMarker};
 use crate::anim::Animate;
 use crate::Component;
 use bevy_ecs::component::ComponentId;
@@ -42,7 +42,7 @@ impl<A: Animate> AnimationRunner<A> {
         let this = ctx.entity;
         let value = world.get::<Self>(this).unwrap();
         world
-            .get_mut::<Sequence>(value.sequence_entity)
+            .get_mut::<SequenceMarker>(value.sequence_entity)
             .unwrap()
             .animations_to_finish += 1;
     }

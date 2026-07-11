@@ -7,9 +7,10 @@ use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::Stem;
 use crate::{
-    Attachment, Color, Component, Coordinates, Differential, Foliage, Logical, ResolvedElevation,
-    Section, Visibility, Write,
+    Attachment, Color, Component, Coordinates, Differential, Foliage, LeafBuilder, LeafSpec,
+    Logical, ResolvedElevation, Section, Visibility, Write,
 };
+use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use crate::Trigger;
@@ -46,7 +47,13 @@ impl Attachment for Icon {
 impl Icon {
     pub const SCALE: Coordinates = Coordinates::new(24f32, 24f32);
     pub const TEXTURE_SCALE: Coordinates = Coordinates::new(96f32, 96f32);
-    pub fn new<ID: Into<IconId>>(id: ID) -> Self {
+    pub fn new<ID: Into<IconId>>(id: ID) -> IconSpec {
+        IconSpec {
+            id: id.into(),
+            ..Default::default()
+        }
+    }
+    pub(crate) fn new_marker<ID: Into<IconId>>(id: ID) -> Self {
         Self { id: id.into() }
     }
     pub fn memory<ID: Into<IconId>, M: AsRef<[u8]>>(mem: ID, bytes: M) -> IconMemory {
@@ -73,6 +80,34 @@ impl Icon {
                 sec.area.coordinates = Self::SCALE;
             }
         }
+    }
+}
+#[derive(Default)]
+pub struct IconSpec {
+    leaf: LeafSpec,
+    id: IconId,
+    color: Option<Color>,
+}
+impl LeafBuilder for IconSpec {
+    fn leaf_spec(&mut self) -> &mut LeafSpec {
+        &mut self.leaf
+    }
+    fn bundle(self) -> impl Bundle {
+        (
+            Icon::new_marker(self.id),
+            self.leaf.location,
+            self.leaf.stem,
+            self.leaf
+                .elevation
+                .expect("elevation not set -- call .elevate(...) before spawning"),
+            self.color.unwrap_or_default(),
+        )
+    }
+}
+impl IconSpec {
+    pub fn color(mut self, c: Color) -> Self {
+        self.color = Some(c);
+        self
     }
 }
 #[derive(Component, Clone, Default)]

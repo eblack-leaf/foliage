@@ -8,7 +8,7 @@ use bevy_ecs::prelude::Query;
 use ease::Ease;
 use interpolation::Interpolations;
 use runner::AnimationRunner;
-use sequence::{Sequence, SequenceTimeRange};
+use sequence::{SequenceMarker, SequenceTimeRange};
 use std::any::TypeId;
 
 pub(crate) mod ease;
@@ -65,7 +65,7 @@ pub(crate) fn animate<A: Animate + Component<Mutability = bevy_ecs::component::M
     mut anims: Query<(Entity, &mut AnimationRunner<A>)>,
     mut anim_targets: Query<&mut A>,
     time: ResMut<Time>,
-    mut sequences: Query<&mut Sequence>,
+    mut sequences: Query<&mut SequenceMarker>,
     mut tree: Tree,
 ) {
     let frame_diff = time.frame_diff();
@@ -125,7 +125,7 @@ pub(crate) fn animate<A: Animate + Component<Mutability = bevy_ecs::component::M
 }
 
 fn despawn_and_update_sequence<A: Animate>(
-    sequences: &mut Query<&mut Sequence>,
+    sequences: &mut Query<&mut SequenceMarker>,
     tree: &mut Tree,
     anim_entity: Entity,
     animation: &mut Mut<AnimationRunner<A>>,

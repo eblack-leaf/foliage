@@ -1,5 +1,5 @@
 use crate::anim::runner::AnimationRunner;
-use crate::anim::sequence::{AnimationTime, Sequence};
+use crate::anim::sequence::{AnimationTime, SequenceMarker};
 use crate::disable::Disable;
 use crate::enable::Enable;
 use crate::leaf::Leaf;
@@ -131,6 +131,32 @@ impl<'t, T: EcsExtension + ?Sized> From<Bind<'t, T>> for Entity {
         b.entity
     }
 }
+/// Chains multiple `.animate(...)` calls into one sequence without repeating
+/// `tree.animate(Animation::new(...)....during(seq))` per line. Each `.animate(anim)` still
+/// takes a full `Animation::new(value).targeting(e).start(s).finish(f)` -- animations in a
+/// sequence can freely overlap, so this doesn't compute or infer timing, it only removes the
+/// per-line `tree.animate(...)`/`.during(seq)` wrapper: `Sequence::new(tree).animate(a1).animate(a2).end(on_finish)`.
+pub struct Sequence<'t, T: EcsExtension + ?Sized> {
+    id: Entity,
+    tree: &'t mut T,
+}
+impl<'t, T: EcsExtension + ?Sized> Sequence<'t, T> {
+    pub fn new(tree: &'t mut T) -> Self {
+        let id = tree.sequence();
+        Self { id, tree }
+    }
+    pub fn id(&self) -> Entity {
+        self.id
+    }
+    pub fn animate<A: Animate>(self, anim: Animation<A>) -> Self {
+        self.tree.animate(anim.during(self.id));
+        self
+    }
+    pub fn end<M>(self, end: impl IntoEntityObserver<M>) -> Entity {
+        self.tree.sequence_end(self.id, end);
+        self.id
+    }
+}
 impl EcsExtension for Tree<'_, '_> {
     fn leaf<B: Bundle>(&mut self, b: B) -> Entity {
         let entity = self.spawn((Leaf::new(), b)).id();
@@ -170,7 +196,7 @@ impl EcsExtension for Tree<'_, '_> {
         self.send_to(Disable::new(), targets);
     }
     fn sequence(&mut self) -> Entity {
-        self.spawn(Sequence::default()).id()
+        self.spawn(SequenceMarker::default()).id()
     }
     fn animate<A: Animate>(&mut self, anim: Animation<A>) -> Entity {
         let runner = AnimationRunner::new(

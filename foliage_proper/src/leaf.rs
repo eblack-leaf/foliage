@@ -37,6 +37,13 @@ impl Leaf {
     pub fn new() -> Leaf {
         Leaf {}
     }
+    /// Entry point for a child with no rendering primitive of its own (a bare interaction
+    /// hit-area, say) -- the same `.at()/.stem()/.elevate()/.with()/.spawn()` chain as
+    /// `Panel::new()`/`Text::new()`, named after `Leaf` instead of requiring callers to know
+    /// the `LeafSpec` type directly.
+    pub fn spec() -> crate::LeafSpec {
+        crate::LeafSpec::new()
+    }
     fn on_add(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
         world

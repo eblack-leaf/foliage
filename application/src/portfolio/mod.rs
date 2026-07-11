@@ -4,8 +4,8 @@ pub(crate) mod demo;
 use crate::icons::IconHandles;
 use foliage::{
     anchor, Anchor, Animation, Button, Color, Ease, EcsExtension, Elevation, Entity, FontSize,
-    Grid, GridExt, Image, ImageView, InteractionListener, Keyring, LeafBuilder, LeafSpec, Location,
-    MemoryId, OnClick, OnEnd, Opacity, Panel, Res, Rounding, Stem, Text, Tree, Trigger,
+    Grid, GridExt, Image, ImageView, InteractionListener, Keyring, Leaf, LeafBuilder, Location,
+    MemoryId, OnClick, OnEnd, Opacity, Panel, Res, Rounding, Sequence, Stem, Text, Tree, Trigger,
 };
 
 pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
@@ -91,17 +91,16 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
                 .spawn(tree);
             tree.write_to(card_root, (Opacity::new(0.0), Grid::default()));
             card_roots.push(card_root);
-            let display = tree.leaf((
-                Image::new(i as MemoryId, keyring.get(item.key)),
-                ImageView::Crop,
-                Location::new().xs(
+            let display = Image::new(i as MemoryId, keyring.get(item.key))
+                .view(ImageView::Crop)
+                .at(Location::new().xs(
                     1.col().as_left().with(1.col().as_right()),
                     0.pct().as_top().with(70.pct().as_bottom()),
-                ),
-                Elevation::up(1),
-                Stem::some(card_root),
-                InteractionListener::new(),
-            ));
+                ))
+                .elevate(Elevation::up(1))
+                .stem(card_root)
+                .with(InteractionListener::new())
+                .spawn(tree);
             let info = Panel::new()
                 .color(Color::gray(800))
                 .at(Location::new().xs(
@@ -143,28 +142,12 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
                 .elevate(Elevation::up(1))
                 .stem(info)
                 .spawn(tree);
-            card_interactive.push((card_root, i, launch));
-            card_interactive.push((card_root, i, display));
             last = i + 2;
-        }
-        for (r, i, ci) in card_interactive.clone() {
-            tree.on_click(ci, move |trigger: Trigger<OnClick>, mut tree: Tree, keyring: Res<Keyring>| {
+            let open_modal = move |trigger: Trigger<OnClick>, mut tree: Tree, keyring: Res<Keyring>| {
                 tree.disable([root, back]);
-                let seq = tree.sequence();
-                tree.animate(
-                    Animation::new(Opacity::new(0.0))
-                        .targeting(root)
-                        .start(0)
-                        .finish(500)
-                        .during(seq),
-                );
-                tree.animate(
-                    Animation::new(Opacity::new(0.0))
-                        .targeting(back)
-                        .start(0)
-                        .finish(500)
-                        .during(seq),
-                );
+                // spawn everything first -- animating happens once every entity involved
+                // already exists, so it's one uninterrupted Sequence chain below instead of
+                // animate calls threaded between spawns.
                 let backdrop = Panel::new()
                     .color(Color::gray(800))
                     .at(Location::new().xs(
@@ -172,45 +155,8 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
                         anchor().top().as_top().with(anchor().bottom().as_bottom()),
                     ))
                     .elevate(Elevation::abs(50))
-                    .with((Anchor::new(r), Opacity::new(0.0), Grid::default()))
+                    .with((Anchor::new(card_root), Opacity::new(0.0), Grid::default()))
                     .spawn(&mut tree);
-                tree.animate(
-                    Animation::new(Opacity::new(1.0))
-                        .targeting(backdrop)
-                        .start(0)
-                        .finish(200)
-                        .during(seq),
-                );
-                tree.animate(
-                    Animation::new(
-                        Location::new().xs(
-                            0.pct()
-                                .as_left()
-                                .adjust(24)
-                                .with(100.pct().as_right().adjust(-24))
-                                .max(450.0),
-                            0.pct()
-                                .as_top()
-                                .adjust(36)
-                                .with(100.pct().as_bottom().adjust(-36)),
-                        ),
-                    )
-                    .targeting(backdrop)
-                    .start(0)
-                    .finish(750)
-                    .eased(Ease::INWARD)
-                    .during(seq),
-                );
-                tree.animate(
-                    Animation::new(Location::new().xs(
-                        0.pct().as_left().with(100.pct().as_right()),
-                        0.pct().as_top().with(100.pct().as_bottom()),
-                    ))
-                    .targeting(backdrop)
-                    .start(1000)
-                    .finish(1500)
-                    .during(seq),
-                );
                 let terminate = Button::new()
                     .rounding(Rounding::Full)
                     .icon(IconHandles::X.value())
@@ -221,7 +167,7 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
                     ))
                     .elevate(Elevation::abs(95))
                     .spawn(&mut tree);
-                let app_base = LeafSpec::new()
+                let app_base = Leaf::spec()
                     .stem(backdrop)
                     .at(Location::new().xs(
                         0.pct().as_left().with(100.pct().as_right()),
@@ -248,17 +194,15 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
                 tree.on_click(
                     terminate,
                     move |trigger: Trigger<OnClick>, mut tree: Tree| {
-                        let seq = tree.sequence();
-                        tree.animate(
-                            Animation::new(Opacity::new(0.0))
-                                .targeting(terminate)
-                                .during(seq)
-                                .start(0)
-                                .finish(500),
-                        );
-                        tree.animate(
-                            Animation::new(
-                                Location::new().xs(
+                        Sequence::new(&mut tree)
+                            .animate(
+                                Animation::new(Opacity::new(0.0))
+                                    .targeting(terminate)
+                                    .start(0)
+                                    .finish(500),
+                            )
+                            .animate(
+                                Animation::new(Location::new().xs(
                                     0.pct()
                                         .as_left()
                                         .adjust(24)
@@ -268,47 +212,89 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
                                         .as_top()
                                         .adjust(36)
                                         .with(100.pct().as_bottom().adjust(-36)),
-                                ),
+                                ))
+                                .targeting(backdrop)
+                                .start(0)
+                                .finish(500)
+                                .eased(Ease::INWARD),
                             )
-                            .targeting(backdrop)
-                            .start(0)
-                            .finish(500)
-                            .eased(Ease::INWARD)
-                            .during(seq),
-                        );
-                        tree.animate(
-                            Animation::new(Location::new().xs(
-                                anchor().left().as_left().with(anchor().right().as_right()),
-                                anchor().top().as_top().with(anchor().bottom().as_bottom()),
-                            ))
-                            .targeting(backdrop)
-                            .start(750)
-                            .finish(1250)
-                            .during(seq),
-                        );
-                        tree.animate(
-                            Animation::new(Opacity::new(1.0))
-                                .targeting(root)
-                                .start(1000)
-                                .finish(1500)
-                                .during(seq),
-                        );
-                        tree.animate(
-                            Animation::new(Opacity::new(1.0))
-                                .targeting(back)
-                                .start(1000)
-                                .finish(1500)
-                                .during(seq),
-                        );
+                            .animate(
+                                Animation::new(Location::new().xs(
+                                    anchor().left().as_left().with(anchor().right().as_right()),
+                                    anchor().top().as_top().with(anchor().bottom().as_bottom()),
+                                ))
+                                .targeting(backdrop)
+                                .start(750)
+                                .finish(1250),
+                            )
+                            .animate(
+                                Animation::new(Opacity::new(1.0))
+                                    .targeting(root)
+                                    .start(1000)
+                                    .finish(1500),
+                            )
+                            .animate(
+                                Animation::new(Opacity::new(1.0))
+                                    .targeting(back)
+                                    .start(1000)
+                                    .finish(1500),
+                            )
+                            .end(move |trigger: Trigger<OnEnd>, mut tree: Tree| {
+                                tree.remove([terminate, backdrop]);
+                                tree.enable([root, back]);
+                            });
                         tree.disable(terminate);
                         tree.remove(app);
-                        tree.sequence_end(seq, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
-                            tree.remove([terminate, backdrop]);
-                            tree.enable([root, back]);
-                        });
                     },
-                )
-            });
+                );
+                Sequence::new(&mut tree)
+                    .animate(
+                        Animation::new(Opacity::new(0.0))
+                            .targeting(root)
+                            .start(0)
+                            .finish(500),
+                    )
+                    .animate(
+                        Animation::new(Opacity::new(0.0))
+                            .targeting(back)
+                            .start(0)
+                            .finish(500),
+                    )
+                    .animate(
+                        Animation::new(Opacity::new(1.0))
+                            .targeting(backdrop)
+                            .start(0)
+                            .finish(200),
+                    )
+                    .animate(
+                        Animation::new(Location::new().xs(
+                            0.pct()
+                                .as_left()
+                                .adjust(24)
+                                .with(100.pct().as_right().adjust(-24))
+                                .max(450.0),
+                            0.pct()
+                                .as_top()
+                                .adjust(36)
+                                .with(100.pct().as_bottom().adjust(-36)),
+                        ))
+                        .targeting(backdrop)
+                        .start(0)
+                        .finish(750)
+                        .eased(Ease::INWARD),
+                    )
+                    .animate(
+                        Animation::new(Location::new().xs(
+                            0.pct().as_left().with(100.pct().as_right()),
+                            0.pct().as_top().with(100.pct().as_bottom()),
+                        ))
+                        .targeting(backdrop)
+                        .start(1000)
+                        .finish(1500),
+                    );
+            };
+            tree.on_click(launch, open_modal.clone());
+            tree.on_click(display, open_modal.clone());
         }
         tree.disable(back);
         tree.on_click(back, move |trigger: Trigger<OnClick>, mut tree: Tree| {

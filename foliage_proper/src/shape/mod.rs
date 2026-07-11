@@ -7,9 +7,10 @@ use crate::remove::Remove;
 use crate::Differential;
 use crate::Stem;
 use crate::{
-    Attachment, Color, Component, Coordinates, Foliage, Logical, Position, ResolvedElevation,
-    Visibility,
+    Attachment, Color, Component, Coordinates, Foliage, LeafBuilder, LeafSpec, Logical, Position,
+    ResolvedElevation, Visibility,
 };
+use bevy_ecs::bundle::Bundle;
 use bevy_ecs::change_detection::Res;
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
@@ -37,7 +38,14 @@ impl Attachment for Shape {
     }
 }
 impl Line {
-    pub fn new(w: i32) -> Self {
+    pub fn new(w: i32) -> LineSpec {
+        LineSpec {
+            leaf: LeafSpec::default(),
+            weight: w.max(1),
+            color: None,
+        }
+    }
+    pub(crate) fn new_marker(w: i32) -> Self {
         Self { weight: w.max(1) }
     }
     pub(crate) fn distill_descriptor(
@@ -78,6 +86,33 @@ impl Line {
                 ),
             );
         }
+    }
+}
+pub struct LineSpec {
+    leaf: LeafSpec,
+    weight: i32,
+    color: Option<Color>,
+}
+impl LeafBuilder for LineSpec {
+    fn leaf_spec(&mut self) -> &mut LeafSpec {
+        &mut self.leaf
+    }
+    fn bundle(self) -> impl Bundle {
+        (
+            Line::new_marker(self.weight),
+            self.leaf.location,
+            self.leaf.stem,
+            self.leaf
+                .elevation
+                .expect("elevation not set -- call .elevate(...) before spawning"),
+            self.color.unwrap_or_default(),
+        )
+    }
+}
+impl LineSpec {
+    pub fn color(mut self, c: Color) -> Self {
+        self.color = Some(c);
+        self
     }
 }
 #[repr(C)]

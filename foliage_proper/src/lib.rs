@@ -61,7 +61,7 @@ pub use composite::{
     composite_on_insert, forward, handle_replace, resolve_root,
     text_input::{
         keybindings::KeyBindings, HintColor, HintText, InsertText, LineConstraint, TextChanged,
-        TextInput,
+        TextInput, TextInputSpec,
     },
     Children, Composite, Root,
 };
@@ -74,8 +74,8 @@ pub use grid::{
     anchor, auto, view::OverscrollPropagation, AspectRatio, Grid, Layout, Location, View,
 };
 pub use grid::{Anchor, AnchorDeps, AnchorDescriptor, GridExt, Justify};
-pub use icon::{Icon, IconId, IconMemory};
-pub use image::{Image, ImageMemory, ImageMetrics, ImageView, MemoryId};
+pub use icon::{Icon, IconId, IconMemory, IconSpec};
+pub use image::{Image, ImageMemory, ImageMetrics, ImageSpec, ImageView, MemoryId};
 pub use interaction::{
     listener::InteractionListener, listener::InteractionShape, listener::InteractionState,
     FocusBehavior, InputSequence, Interaction, InteractionPhase, InteractionPropagation, Key,
@@ -90,13 +90,13 @@ pub use panel::{Outline, Panel, PanelSpec, Rounding};
 #[cfg(target_os = "android")]
 pub use platform::AndroidApp;
 pub use platform::AndroidConnection;
-pub use shape::{Line, Shape};
+pub use shape::{Line, LineSpec, Shape};
 pub use text::GlyphOffset;
 pub use text::{
     AutoHeight, AutoWidth, FontSize, GlyphColors, HorizontalAlignment, Text, TextSpec,
     VerticalAlignment,
 };
 pub use time::{Moment, OnEnd, Time, TimeDelta, TimeMarker, Timer};
-pub use tree::{Bind, EcsExtension, IntoTargets, TargetedEvent, Tree};
+pub use tree::{Bind, EcsExtension, IntoTargets, Sequence, TargetedEvent, Tree};
 pub use visibility::{InheritedVisibility, ResolvedVisibility, Visibility};
 pub use web_ext::{Extensions, HrefLink};
