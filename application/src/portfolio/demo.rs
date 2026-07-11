@@ -1,16 +1,14 @@
 use foliage::{
     Animation, Color, EcsExtension, Elevation, Entity, FontSize, Grid, GridExt, LeafBuilder,
-    LineConstraint, Location, Opacity, Text, TextInput, Tree,
+    LineConstraint, Location, Opacity, Sequence, Text, TextInput, Tree,
 };
 
 /// Stands in for the "Artist Blog" portfolio item until that app is built.
 pub(crate) fn build(tree: &mut Tree, app: Entity) {
-    let seq = tree.sequence();
-    tree.animate(
+    Sequence::new(tree).animate(
         Animation::new(Opacity::new(1.0))
             .start(1000)
             .finish(1500)
-            .during(seq)
             .targeting(app),
     );
     Text::new("composites")

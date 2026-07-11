@@ -3,31 +3,30 @@ use crate::portfolio;
 use foliage::{
     anchor, Anchor, Animation, Button, Children, Color, EcsExtension, Elevation, Entity,
     EntityEvent, FontSize, GlyphColors, Grid, GridExt, HorizontalAlignment, HrefLink, Keyring,
-    LeafBuilder, Line, Location, Logical, OnClick, OnEnd, Opacity, Outline, Query, Res, Rounding,
-    Section, Sequence, Stem, Text, TextValue, Tree, Trigger, VerticalAlignment, Write,
+    Leaf, LeafBuilder, Line, Location, Logical, OnClick, OnEnd, Opacity, Outline, Query, Res,
+    Rounding, Section, Sequence, Text, TextValue, Tree, Trigger, VerticalAlignment, Write,
 };
 
 pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
     let row_size = 40;
-    let root = tree.leaf((
-        Grid::new(12.col().gap(8), row_size.px().gap(8)),
-        Location::new().xs(
+    let root = Leaf::spec()
+        .at(Location::new().xs(
             0.pct().as_left().with(100.pct().as_right()),
             0.pct().as_top().with(100.pct().as_bottom()),
-        ),
-        Elevation::abs(0),
-        Stem::none(),
-    ));
+        ))
+        .elevate(Elevation::abs(0))
+        .with(Grid::new(12.col().gap(8), row_size.px().gap(8)))
+        .spawn(tree);
     tree.name(root, "home");
-    let name_container = tree.leaf((
-        Grid::new(12.col().gap(4), 12.row().gap(4)),
-        Location::new().xs(
+    let name_container = Leaf::spec()
+        .at(Location::new().xs(
             1.col().as_left().with(12.col().as_right()).max(600.0),
             4.row().as_top().with(8.row().as_bottom()),
-        ),
-        Stem::some(root),
-        Elevation::up(1),
-    ));
+        ))
+        .elevate(Elevation::up(1))
+        .stem(root)
+        .with(Grid::new(12.col().gap(4), 12.row().gap(4)))
+        .spawn(tree);
     let name = Text::new("foliage.rs")
         .size(FontSize::new(44))
         .at(Location::new().xs(
@@ -36,15 +35,12 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         ))
         .elevate(Elevation::up(1))
         .stem(name_container)
-        .spawn(tree);
-    tree.write_to(
-        name,
-        (
+        .with((
             HorizontalAlignment::Center,
             GlyphColors::new().add(7..10, Color::green(400)),
             Opacity::new(0.0),
-        ),
-    );
+        ))
+        .spawn(tree);
     let top_desc = Text::new("w: 0.0")
         .size(FontSize::new(14))
         .color(Color::gray(700))
@@ -54,8 +50,8 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         ))
         .elevate(Elevation::up(1))
         .stem(name_container)
+        .with(Opacity::new(0.0))
         .spawn(tree);
-    tree.write_to(top_desc, Opacity::new(0.0));
     let top_line = Line::new(2)
         .color(Color::gray(700))
         .at(Location::new().xs(4.col().as_x().with(5.row().as_y()), 4.col().as_x().with(5.row().as_y())))
@@ -85,8 +81,8 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         ))
         .elevate(Elevation::up(1))
         .stem(name_container)
+        .with(Opacity::new(0.0))
         .spawn(tree);
-    tree.write_to(side_desc, Opacity::new(0.0));
     tree.subscribe(
         top_line,
         move |trigger: Trigger<Write<Section<Logical>>>,
@@ -116,8 +112,8 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         ))
         .elevate(Elevation::up(1))
         .stem(name_container)
+        .with(Opacity::new(0.0))
         .spawn(tree);
-    tree.write_to(pad_desc, Opacity::new(0.0));
     tree.subscribe(
         pad_connector,
         move |trigger: Trigger<Write<Section<Logical>>>,
@@ -141,17 +137,14 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         ))
         .elevate(Elevation::up(1))
         .stem(name_container)
-        .spawn(tree);
-    tree.write_to(
-        desc,
-        (
+        .with((
             HorizontalAlignment::Center,
             GlyphColors::new()
                 .add(7..8, Color::orange(700))
                 .add(13..15, Color::green(400)),
             Opacity::new(0.0),
-        ),
-    );
+        ))
+        .spawn(tree);
     let github = Button::new()
         .icon(IconHandles::Github.value())
         .rounding(Rounding::Full)
@@ -162,8 +155,8 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         ))
         .elevate(Elevation::up(1))
         .stem(root)
+        .with((FontSize::new(16), Opacity::new(0.0)))
         .spawn(tree);
-    tree.write_to(github, (FontSize::new(16), Opacity::new(0.0)));
     tree.on_click(github, |trigger: Trigger<OnClick>| {
         HrefLink::new("https://github.com/eblack-leaf/foliage").navigate()
     });
@@ -186,24 +179,21 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         ))
         .elevate(Elevation::up(1))
         .stem(root)
-        .spawn(tree);
-    tree.write_to(
-        github_desc,
-        (
+        .with((
             GlyphColors::new().add(10..16, Color::green(300)),
             Anchor::new(github_line),
             Opacity::new(0.0),
-        ),
-    );
-    let options_container = tree.leaf((
-        Grid::new(5.col().gap(4), 3.row().gap(8)),
-        Location::new().xs(
+        ))
+        .spawn(tree);
+    let options_container = Leaf::spec()
+        .at(Location::new().xs(
             1.col().as_left().with(12.col().as_right()).max(600.0),
             10.row().as_top().with(13.row().as_bottom()),
-        ),
-        Stem::some(root),
-        Elevation::up(1),
-    ));
+        ))
+        .elevate(Elevation::up(1))
+        .stem(root)
+        .with(Grid::new(5.col().gap(4), 3.row().gap(8)))
+        .spawn(tree);
     // row, icon, color, desc text, desc highlight range, desc column range, line column
     let option_rows: Vec<(Entity, Entity, Entity)> = Children::new(options_container, tree).each(
         [
@@ -222,9 +212,9 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
                         3.col().as_left().with(3.col().as_right()).max(48.0).min(48.0),
                         row.row().as_top().with(row.row().as_bottom()).max(48.0).min(48.0),
                     ))
-                    .elevate(Elevation::up(1)),
+                    .elevate(Elevation::up(1))
+                    .with(Opacity::new(0.0)),
             );
-            children.tree().write_to(button, Opacity::new(0.0));
             children.tree().on_click(button, move |trigger: Trigger<OnClick>| {
                 HrefLink::new("tbd").navigate()
             });
@@ -245,16 +235,13 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
                         desc_left.col().as_left().with(desc_right.col().as_right()),
                         row.row().as_top().with(row.row().as_bottom()),
                     ))
-                    .elevate(Elevation::up(1)),
-            );
-            children.tree().write_to(
-                desc,
-                (
-                    HorizontalAlignment::Center,
-                    VerticalAlignment::Middle,
-                    GlyphColors::new().add(highlight, color),
-                    Opacity::new(0.0),
-                ),
+                    .elevate(Elevation::up(1))
+                    .with((
+                        HorizontalAlignment::Center,
+                        VerticalAlignment::Middle,
+                        GlyphColors::new().add(highlight, color),
+                        Opacity::new(0.0),
+                    )),
             );
             (button, line, desc)
         },
@@ -274,15 +261,16 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         ))
         .elevate(Elevation::up(1))
         .stem(root)
+        .with((FontSize::new(20), Opacity::new(0.0)))
         .spawn(tree);
-    tree.write_to(portfolio, (FontSize::new(20), Opacity::new(0.0)));
-    let spacing = tree.leaf((
-        Location::new().xs(
+    let spacing = Leaf::spec()
+        .at(Location::new().xs(
             0.pct().as_left().with(100.pct().as_right()),
             17.row().as_top().with(17.row().as_bottom()),
-        ),
-        Stem::some(root),
-    ));
+        ))
+        .elevate(Elevation::up(1))
+        .stem(root)
+        .spawn(tree);
     tree.on_click(
         portfolio,
         move |trigger: Trigger<OnClick>, mut tree: Tree, keyring: Res<Keyring>| {

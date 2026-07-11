@@ -2,17 +2,16 @@ use crate::icons::IconHandles;
 use foliage::Justify::Center;
 use foliage::{
     anchor, Anchor, Animation, Button, Children, Color, EcsExtension, Elevation, Entity, FontSize,
-    Grid, GridExt, HorizontalAlignment, Icon, Image, ImageView, Keyring, LeafBuilder, Line, Location,
-    OnClick, Opacity, Panel, Rounding, Stem, Text, TextInput, Tree, Trigger, VerticalAlignment,
+    Grid, GridExt, HorizontalAlignment, Icon, Image, ImageView, Keyring, Leaf, LeafBuilder, Line,
+    Location, OnClick, Opacity, Panel, Rounding, Sequence, Text, TextInput, Tree, Trigger,
+    VerticalAlignment,
 };
 
 pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
-        let seq = tree.sequence();
-        tree.animate(
+        Sequence::new(tree).animate(
             Animation::new(Opacity::new(1.0))
                 .start(1000)
                 .finish(1500)
-                .during(seq)
                 .targeting(app),
         );
         let menu = Button::new()
@@ -39,8 +38,8 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
             ))
             .elevate(Elevation::up(1))
             .stem(app)
+            .with(Grid::new(1.col(), 1.row()))
             .spawn(tree);
-        tree.write_to(search, Grid::new(1.col(), 1.row()));
         let search_icon = Icon::new(IconHandles::Search.value())
             .color(Color::gray(400))
             .at(Location::new().xs(
@@ -75,15 +74,15 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
             .elevate(Elevation::up(1))
             .stem(app)
             .spawn(tree);
-        let song_info = tree.leaf((
-            Location::new().xs(
+        let song_info = Leaf::spec()
+            .at(Location::new().xs(
                 1.col().as_left().with(12.col().as_right()).max(600.0),
                 11.row().as_top().with(13.row().as_bottom()),
-            ),
-            Elevation::up(1),
-            Grid::new(1.col().gap(12), 2.row().gap(8)),
-            Stem::some(app),
-        ));
+            ))
+            .elevate(Elevation::up(1))
+            .stem(app)
+            .with(Grid::new(1.col().gap(12), 2.row().gap(8)))
+            .spawn(tree);
         let artist_name = Text::new("ALPHA & THE VAN")
             .size(FontSize::new(24))
             .color(Color::gray(400))
@@ -93,8 +92,8 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
             ))
             .elevate(Elevation::up(1))
             .stem(song_info)
+            .with((VerticalAlignment::Middle, HorizontalAlignment::Center))
             .spawn(tree);
-        tree.write_to(artist_name, (VerticalAlignment::Middle, HorizontalAlignment::Center));
         let song_name = Text::new("A Walk in the Moonlight")
             .size(FontSize::new(16))
             .color(Color::gray(400))
@@ -104,8 +103,8 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
             ))
             .elevate(Elevation::up(1))
             .stem(song_info)
+            .with((VerticalAlignment::Middle, HorizontalAlignment::Center))
             .spawn(tree);
-        tree.write_to(song_name, (VerticalAlignment::Middle, HorizontalAlignment::Center));
         let controls = Panel::new()
             .color(Color::gray(900))
             .at(Location::new().xs(
@@ -114,8 +113,8 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
             ))
             .elevate(Elevation::up(1))
             .stem(app)
+            .with(Grid::new(5.col().gap(8), 1.row().gap(8)))
             .spawn(tree);
-        tree.write_to(controls, Grid::new(5.col().gap(8), 1.row().gap(8)));
         Children::new(controls, tree).each(
             [
                 (1, IconHandles::Shuffle.value(), Color::gray(900)),
@@ -138,15 +137,15 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
                 )
             },
         );
-        let duration = tree.leaf((
-            Stem::some(app),
-            Elevation::up(1),
-            Location::new().xs(
+        let duration = Leaf::spec()
+            .at(Location::new().xs(
                 3.col().as_left().with(10.col().as_right()).max(700.0),
                 16.row().as_top().with(24.px().as_height()),
-            ),
-            Grid::default(),
-        ));
+            ))
+            .elevate(Elevation::up(1))
+            .stem(app)
+            .with(Grid::default())
+            .spawn(tree);
         let back_line = Line::new(4)
             .color(Color::gray(700))
             .at(Location::new().xs(
@@ -174,6 +173,6 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
             ))
             .elevate(Elevation::up(3))
             .stem(duration)
+            .with(Anchor::new(elapsed_line))
             .spawn(tree);
-        tree.write_to(slider, Anchor::new(elapsed_line));
 }

@@ -5,38 +5,7 @@ use foliage::{load_asset, Foliage, GridExt, Icon, Image};
 
 mod home;
 mod icons;
-
 mod portfolio;
-// fn main() {
-//     let mut foliage = Foliage::new();
-//     foliage.desktop_size((600, 400));
-//     foliage.leaf((
-//         TextInput::new(),
-//         Location::new().xs(
-//             10.px().left().with(400.px().right()),
-//             10.px().top().with(40.px().height()),
-//         ),
-//         Primary(Color::gray(200)),
-//         Secondary(Color::gray(800)),
-//         Tertiary(Color::gray(500)),
-//         Elevation::abs(0),
-//         Stem::none(),
-//     ));
-//     foliage.leaf((
-//         TextInput::new(),
-//         LineConstraint::Multiple,
-//         Location::new().xs(
-//             10.px().left().with(400.px().right()),
-//             200.px().top().with(100.px().height()),
-//         ),
-//         Primary(Color::gray(200)),
-//         Secondary(Color::gray(800)),
-//         Tertiary(Color::gray(500)),
-//         Elevation::abs(0),
-//         Stem::none(),
-//     ));
-//     foliage.photosynthesize();
-// }
 
 fn main() {
     let mut foliage = Foliage::new();
