@@ -7,8 +7,8 @@ use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::Stem;
 use crate::{
-    Attachment, Color, Component, Coordinates, Differential, Foliage, LeafBuilder, LeafSpec,
-    Logical, ResolvedElevation, Section, Visibility, Write,
+    Attachment, Color, Component, Coordinates, Differential, Foliage, LeafSprout, Logical,
+    ResolvedElevation, Section, Sprout, Visibility, Write,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::ComponentId;
@@ -47,8 +47,8 @@ impl Attachment for Icon {
 impl Icon {
     pub const SCALE: Coordinates = Coordinates::new(24f32, 24f32);
     pub const TEXTURE_SCALE: Coordinates = Coordinates::new(96f32, 96f32);
-    pub fn new<ID: Into<IconId>>(id: ID) -> IconSpec {
-        IconSpec {
+    pub fn new<ID: Into<IconId>>(id: ID) -> IconSprout {
+        IconSprout {
             id: id.into(),
             ..Default::default()
         }
@@ -83,15 +83,17 @@ impl Icon {
     }
 }
 #[derive(Default)]
-pub struct IconSpec {
-    leaf: LeafSpec,
+pub struct IconSprout {
+    leaf: LeafSprout,
     id: IconId,
     color: Option<Color>,
 }
-impl LeafBuilder for IconSpec {
-    fn leaf_spec(&mut self) -> &mut LeafSpec {
+impl crate::Seed for IconSprout {
+    fn seed(&mut self) -> &mut LeafSprout {
         &mut self.leaf
     }
+}
+impl Sprout for IconSprout {
     fn bundle(self) -> impl Bundle {
         (
             Icon::new_marker(self.id),
@@ -104,7 +106,7 @@ impl LeafBuilder for IconSpec {
         )
     }
 }
-impl IconSpec {
+impl IconSprout {
     pub fn color(mut self, c: Color) -> Self {
         self.color = Some(c);
         self

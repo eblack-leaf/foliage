@@ -1,335 +1,229 @@
 use crate::{
-    anchor, composite_on_insert, forward, handle_replace, Anchor, Attachment, Children,
-    Disengaged, EcsExtension, Elevation, Engaged, FocusBehavior, Foliage, FontSize, Grid,
-    GridExt, HorizontalAlignment, Icon, IconValue, InteractionListener, InteractionPropagation,
-    Leaf, LeafBuilder, Location, Outline, Panel, Primary, Rounding, Secondary, Text,
-    TextValue, Tree, Update, VerticalAlignment, Visibility,
+    anchor, Anchor, Color, EcsExtension, Elevation, Engaged, Disengaged, FocusBehavior, FontSize,
+    Grid, GridExt, HorizontalAlignment, Icon, IconId, IconValue, InteractionListener,
+    InteractionPropagation, Leaf, Location, Outline, Panel, Photosynthesis, Primary, Rounding,
+    Secondary, Seed, Sprout, Text, TextValue, Tree, VerticalAlignment, Visibility,
 };
 use bevy_ecs::bundle::Bundle;
-use bevy_ecs::event::EntityEvent;
-use bevy_ecs::lifecycle::HookContext;
-use crate::{Component, Composite};
-use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
-use crate::IntoTargets;
-use crate::Trigger;
-use bevy_ecs::system::Query;
+use bevy_ecs::event::EntityEvent;
 use bevy_ecs::lifecycle::Insert;
-use bevy_ecs::world::DeferredWorld;
+use bevy_ecs::system::Query;
+use crate::Trigger;
+use crate::Component;
 
-#[derive(Component, Clone)]
-#[component(on_add = Self::on_add)]
-#[component(on_insert = composite_on_insert::<Button>)]
+/// A button is a `Panel` + `Icon` + `Text` arranged and colored together, defined entirely by
+/// `ButtonSprout::photosynthesize` -- no `Handle` component, no `Composite` impl, no `forward::<C>`
+/// registrations. Each child owns its own reactive closures, registered right where the child
+/// is spawned and closing over that child's `Entity` directly, instead of a generic system
+/// looking the child up via a shared `Query<&Handle>`. Teardown needs nothing special either:
+/// `Remove` already walks every `Stem`-child recursively, so removing the button entity removes
+/// panel/icon/text for free.
+#[derive(Component, Copy, Clone)]
 #[require(Rounding, FontSize, IconValue, Outline, Primary, Secondary)]
 pub struct Button {}
-impl Attachment for Button {
-    fn attach(foliage: &mut Foliage) {
-        foliage.define(Button::handle_trigger);
-    }
-}
 impl Button {
-    pub fn new() -> ButtonSpec {
-        ButtonSpec::default()
+    pub fn new() -> ButtonSprout {
+        ButtonSprout::default()
     }
     pub(crate) fn new_marker() -> Self {
         Self {}
     }
-    fn on_add(mut world: DeferredWorld, ctx: HookContext) {
-        let this = ctx.entity;
-        world
-            .commands()
-            .entity(this)
-            .observe(Self::engaged)
-            .observe(Self::disengaged)
-            .observe(forward::<TextValue>)
-            .observe(Self::update_text)
-            .observe(forward::<FontSize>)
-            .observe(Self::update_font_size)
-            .observe(forward::<IconValue>)
-            .observe(Self::update_icon)
-            .observe(forward::<Outline>)
-            .observe(Self::update_outline)
-            .observe(forward::<Rounding>)
-            .observe(Self::update_rounding)
-            .observe(forward::<Primary>)
-            .observe(Self::update_primary)
-            .observe(forward::<Secondary>)
-            .observe(Self::update_secondary);
+}
+/// Icon/text color is always primary at rest, secondary when engaged, regardless of outline.
+/// Panel's fill/outline is the only part that varies: filled with secondary when there's no
+/// outline (inverting to primary on engage); when outlined, the fill is always primary and only
+/// the outline itself toggles away on engage (revealing the already-primary fill underneath).
+/// One computation, shared by every property/engage-state change that can affect it, instead of
+/// five separate functions each re-deriving a slice of the same logic.
+fn recompute_colors<T: EcsExtension>(
+    tree: &mut T,
+    panel: Entity,
+    icon: Entity,
+    text: Entity,
+    primary: Color,
+    secondary: Color,
+    outline: Outline,
+    engaged: bool,
+) {
+    let fg = if engaged { secondary } else { primary };
+    tree.write_to(icon, fg);
+    tree.write_to(text, fg);
+    if outline == Outline::default() {
+        let bg = if engaged { primary } else { secondary };
+        tree.write_to(panel, bg);
+    } else {
+        tree.write_to(panel, primary);
+        tree.write_to(panel, if engaged { Outline::default() } else { outline });
     }
-    fn handle_trigger(trigger: Trigger<Insert, Handle>, mut tree: Tree) {
-        // trigger all
-        let this = trigger.event_target();
-        tree.trigger_targets(Update::<TextValue>::new(), this);
-        tree.trigger_targets(Update::<FontSize>::new(), this);
-        tree.trigger_targets(Update::<IconValue>::new(), this);
-        tree.trigger_targets(Update::<Outline>::new(), this);
-        tree.trigger_targets(Update::<Rounding>::new(), this);
-        tree.trigger_targets(Update::<Primary>::new(), this);
-        tree.trigger_targets(Update::<Secondary>::new(), this);
-    }
-
-    fn update_text(
-        trigger: Trigger<Update<TextValue>>,
-        mut tree: Tree,
-        handles: Query<&Handle>,
-        values: Query<&TextValue>,
-    ) {
-        let this = trigger.event_target();
-        let handle = handles.get(this).unwrap();
-        if let Some(value) = values.get(this).ok() {
-            tree.entity(handle.text)
-                .insert(Text::new_marker(value.0.as_str()))
-                .insert(
-                    Location::new().xs(
-                        50.pct()
-                            .as_center_x()
-                            .adjust(20)
-                            .with(value.0.len().letters().as_width()),
-                        1.row().as_top().with(1.row().as_bottom()),
-                    ),
-                );
-        }
-    }
-    fn update_font_size(
-        trigger: Trigger<Update<FontSize>>,
-        mut tree: Tree,
-        handles: Query<&Handle>,
-        values: Query<&FontSize>,
-    ) {
-        let this = trigger.event_target();
-        let handle = handles.get(this).unwrap();
-        let value = values.get(this).unwrap();
-        tree.entity(handle.text).insert(*value);
-    }
-    fn update_icon(
-        trigger: Trigger<Update<IconValue>>,
-        mut tree: Tree,
-        handles: Query<&Handle>,
-        values: Query<&IconValue>,
-    ) {
-        let this = trigger.event_target();
-        let handle = handles.get(this).unwrap();
-        let value = values.get(this).unwrap();
-        tracing::trace!(button = ?this, icon = ?handle.icon, id = value.0, "button: icon updated");
-        tree.entity(handle.icon).insert(Icon::new_marker(value.0));
-    }
-    fn update_outline(
-        trigger: Trigger<Update<Outline>>,
-        mut tree: Tree,
-        handles: Query<&Handle>,
-        primaries: Query<&Primary>,
-        secondaries: Query<&Secondary>,
-        outlines: Query<&Outline>,
-    ) {
-        let this = trigger.event_target();
-        let handle = handles.get(this).unwrap();
-        let outline = outlines.get(this).unwrap();
-        let primary = primaries.get(this).unwrap();
-        let secondary = secondaries.get(this).unwrap();
-        let color = if outline == &Outline::default() {
-            secondary.0
-        } else {
-            primary.0
-        };
-        tree.entity(handle.panel).insert(color).insert(*outline);
-    }
-    fn update_primary(
-        trigger: Trigger<Update<Primary>>,
-        handles: Query<&Handle>,
-        mut tree: Tree,
-        primaries: Query<&Primary>,
-        outlines: Query<&Outline>,
-    ) {
-        let this = trigger.event_target();
-        let handle = handles.get(this).unwrap();
-        let primary = primaries.get(this).unwrap();
-        let outline = outlines.get(this).unwrap();
-        tree.entity(handle.icon).insert(primary.0);
-        tree.entity(handle.text).insert(primary.0);
-        if outline != &Outline::default() {
-            tree.entity(handle.panel).insert(primary.0);
-        }
-    }
-    fn update_secondary(
-        trigger: Trigger<Insert, Secondary>,
-        handles: Query<&Handle>,
-        mut tree: Tree,
-        secondaries: Query<&Secondary>,
-        outlines: Query<&Outline>,
-    ) {
-        let this = trigger.event_target();
-        let handle = handles.get(this).unwrap();
-        let outline = outlines.get(this).unwrap();
-        let secondary = secondaries.get(this).unwrap();
-        if outline == &Outline::default() {
-            tree.entity(handle.panel).insert(secondary.0);
-        }
-    }
-    fn engaged(
-        trigger: Trigger<Engaged>,
-        primaries: Query<&Primary>,
-        secondaries: Query<&Secondary>,
-        outlines: Query<&Outline>,
-        handles: Query<&Handle>,
-        mut tree: Tree,
-    ) {
-        let this = trigger.event_target();
-        let handle = handles.get(this).unwrap();
-        let outline = outlines.get(this).unwrap();
-        let secondary = secondaries.get(this).unwrap();
-        let primary = primaries.get(this).unwrap();
-        if outline == &Outline::default() {
-            tree.entity(handle.panel).insert(primary.0);
-            tree.entity(handle.icon).insert(secondary.0);
-            tree.entity(handle.text).insert(secondary.0);
-        } else {
-            tree.entity(handle.panel).insert(Outline::default());
-            tree.entity(handle.icon).insert(secondary.0);
-            tree.entity(handle.text).insert(secondary.0);
-        }
-    }
-    fn disengaged(
-        trigger: Trigger<Disengaged>,
-        primaries: Query<&Primary>,
-        secondaries: Query<&Secondary>,
-        outlines: Query<&Outline>,
-        handles: Query<&Handle>,
-        mut tree: Tree,
-    ) {
-        let this = trigger.event_target();
-        let handle = handles.get(this).unwrap();
-        let outline = outlines.get(this).unwrap();
-        let secondary = secondaries.get(this).unwrap();
-        let primary = primaries.get(this).unwrap();
-        if outline == &Outline::default() {
-            tree.entity(handle.panel).insert(secondary.0);
-            tree.entity(handle.icon).insert(primary.0);
-            tree.entity(handle.text).insert(primary.0);
-        } else {
-            tree.entity(handle.panel).insert(*outline);
-            tree.entity(handle.icon).insert(primary.0);
-            tree.entity(handle.text).insert(primary.0);
-        }
-    }
-    fn update_rounding(
-        trigger: Trigger<Update<Rounding>>,
-        roundings: Query<&Rounding>,
-        handles: Query<&Handle>,
-        mut tree: Tree,
-    ) {
-        let this = trigger.event_target();
-        let round = roundings.get(this).unwrap();
-        tree.entity(this).insert(InteractionListener::new());
-        let handle = handles.get(this).unwrap();
-        tracing::trace!(button = ?this, full = round == &Rounding::Full, icon = ?handle.icon, "button: rounding updated");
-        let icon_location = match round {
-            Rounding::Full => Location::new().xs(
+}
+fn rounding_layout(round: Rounding, icon: Entity, text: Entity) -> (Location, Anchor) {
+    match round {
+        Rounding::Full => (
+            Location::new().xs(
                 50.pct().as_center_x().with(24.px().as_width()),
                 50.pct().as_center_y().with(24.px().as_height()),
             ),
-            _ => Location::new().xs(
+            Anchor::default(),
+        ),
+        _ => (
+            Location::new().xs(
                 anchor().left().as_right().adjust(-8).with(24.px().as_width()),
                 50.pct().as_center_y().with(24.px().as_height()),
             ),
-        };
-        tree.entity(handle.icon).insert(icon_location);
-        match round {
-            Rounding::Full => {
-                tree.entity(handle.panel).insert(Rounding::Full);
-                tree.entity(handle.text).insert(Visibility::new(false));
-                tree.entity(handle.icon).insert(Anchor::default());
-            }
-            _ => {
-                tree.entity(handle.panel).insert(Rounding::Sm);
-                tree.entity(handle.text).insert(Visibility::new(true));
-                tree.entity(handle.icon).insert(Anchor::new(handle.text));
-            }
+            Anchor::new(text),
+        ),
+    }
+}
+fn apply_rounding<T: EcsExtension>(
+    tree: &mut T,
+    this: Entity,
+    panel: Entity,
+    icon: Entity,
+    text: Entity,
+    round: Rounding,
+) {
+    tree.write_to(this, InteractionListener::new());
+    let (icon_location, icon_anchor) = rounding_layout(round, icon, text);
+    tree.write_to(icon, icon_location);
+    match round {
+        Rounding::Full => {
+            tree.write_to(panel, Rounding::Full);
+            tree.write_to(text, Visibility::new(false));
+            tree.write_to(icon, icon_anchor);
+        }
+        _ => {
+            tree.write_to(panel, Rounding::Sm);
+            tree.write_to(text, Visibility::new(true));
+            tree.write_to(icon, icon_anchor);
         }
     }
 }
-impl Composite for Button {
-    type Handle = Handle;
-    fn children(this: Entity, children: &mut Children<DeferredWorld>) -> Self::Handle {
-        let icon_value = *children.tree().get::<IconValue>(this).unwrap();
-        children
-            .tree()
-            .commands()
-            .entity(this)
-            .insert(Grid::new(1.col().gap(4), 1.row().gap(4)));
-
-        let panel = children.spawn(
-            Panel::new()
-                .elevate(Elevation::up(1))
-                .at(Location::new().xs(
-                    1.col().as_left().with(1.col().as_right()),
-                    1.row().as_top().with(1.row().as_bottom()),
-                ))
-                .with((InteractionPropagation::pass_through(), FocusBehavior::ignore())),
-        );
-
-        // no Location: icon's position is content-dependent (Rounding) and set reactively by
-        // update_rounding once Handle exists — giving it an empty Location here would fail
-        // resolution immediately and auto-hide it before the real value arrives.
-        let icon = children.spawn(
-            Leaf::spec()
-                .elevate(Elevation::up(2))
-                .with((Icon::new_marker(icon_value.0), InteractionPropagation::pass_through(), FocusBehavior::ignore())),
-        );
-
-        let text = children.spawn(
-            Text::new("")
-                .elevate(Elevation::up(2))
-                .at(Location::new().xs(
-                    50.pct().as_center_x().adjust(20).with(0.letters().as_width()),
-                    1.row().as_top().with(1.row().as_bottom()),
-                ))
-                .with((
-                    HorizontalAlignment::Left,
-                    VerticalAlignment::Middle,
-                    InteractionPropagation::pass_through(),
-                    FocusBehavior::ignore(),
-                )),
-        );
-
-        Handle { panel, icon, text }
-    }
-    fn remove(handle: &Self::Handle) -> impl IntoTargets + Send + Sync + 'static {
-        [handle.panel, handle.text, handle.icon]
-    }
-}
 #[derive(Default)]
-pub struct ButtonSpec {
-    leaf: crate::LeafSpec,
-    icon: Option<crate::IconId>,
+pub struct ButtonSprout {
+    leaf: crate::LeafSprout,
+    icon: Option<IconId>,
     text: Option<String>,
-    colors: Option<(crate::Color, crate::Color)>,
+    colors: Option<(Color, Color)>,
     rounding: Option<Rounding>,
     outline: Option<i32>,
 }
-impl crate::LeafBuilder for ButtonSpec {
-    fn leaf_spec(&mut self) -> &mut crate::LeafSpec {
+impl Seed for ButtonSprout {
+    fn seed(&mut self) -> &mut crate::LeafSprout {
         &mut self.leaf
     }
-    fn bundle(self) -> impl Bundle {
+}
+impl Photosynthesis for ButtonSprout {
+    // Builds children + registers reactive closures, not just one bundle -- `Button` has no
+    // `bundle()`/`Sprout` membership since it's more than one entity.
+    fn photosynthesize<T: EcsExtension>(self, tree: &mut T) -> Entity {
         let (primary, secondary) = self.colors.unwrap_or_default();
-        (
+        let rounding = self.rounding.unwrap_or_default();
+        let outline = self.outline.map(Outline::new).unwrap_or_default();
+        let icon_value = self.icon.unwrap_or_default();
+        let text_value = self.text.unwrap_or_default();
+
+        let this = tree.leaf((
             Button::new_marker(),
             self.leaf.location,
             self.leaf.stem,
             self.leaf
                 .elevation
                 .expect("elevation not set -- call .elevate(...) before spawning"),
-            IconValue(self.icon.unwrap_or_default()),
-            TextValue(self.text.unwrap_or_default()),
+            IconValue(icon_value),
+            TextValue(text_value.clone()),
             Primary(primary),
             Secondary(secondary),
-            self.rounding.unwrap_or_default(),
-            self.outline.map(Outline::new).unwrap_or_default(),
-        )
+            rounding,
+            outline,
+        ));
+        tree.write_to(this, Grid::new(1.col().gap(4), 1.row().gap(4)));
+
+        let panel = Panel::new()
+            .elevate(Elevation::up(1))
+            .at(Location::new().xs(
+                1.col().as_left().with(1.col().as_right()),
+                1.row().as_top().with(1.row().as_bottom()),
+            ))
+            .stem(this)
+            .with((InteractionPropagation::pass_through(), FocusBehavior::ignore()))
+            .photosynthesize(tree);
+
+        // no Location: icon's position is content-dependent (Rounding) and set below once we
+        // know the real value -- an empty Location here would fail resolution immediately and
+        // auto-hide it before the real one lands.
+        let icon = Leaf::sprout()
+            .elevate(Elevation::up(2))
+            .stem(this)
+            .with((Icon::new_marker(icon_value), InteractionPropagation::pass_through(), FocusBehavior::ignore()))
+            .photosynthesize(tree);
+
+        let text = Text::new(text_value.as_str())
+            .elevate(Elevation::up(2))
+            .at(Location::new().xs(
+                50.pct().as_center_x().adjust(20).with(text_value.len().letters().as_width()),
+                1.row().as_top().with(1.row().as_bottom()),
+            ))
+            .stem(this)
+            .with((
+                HorizontalAlignment::Left,
+                VerticalAlignment::Middle,
+                InteractionPropagation::pass_through(),
+                FocusBehavior::ignore(),
+            ))
+            .photosynthesize(tree);
+
+        // initial state, computed directly from the values already known above -- no fire-once
+        // trigger dance needed, the values are right here.
+        apply_rounding(tree, this, panel, icon, text, rounding);
+        recompute_colors(tree, panel, icon, text, primary, secondary, outline, false);
+
+        // ongoing reactivity: one closure per input, each closing over the specific children it
+        // affects instead of a generic system looking them up via a shared Handle.
+        tree.subscribe(this, move |trigger: Trigger<Insert, TextValue>, mut tree: Tree, values: Query<&TextValue>| {
+            let value = &values.get(trigger.event_target()).unwrap().0;
+            tree.entity(text)
+                .insert(Text::new_marker(value.as_str()))
+                .insert(Location::new().xs(
+                    50.pct().as_center_x().adjust(20).with(value.len().letters().as_width()),
+                    1.row().as_top().with(1.row().as_bottom()),
+                ));
+        });
+        tree.subscribe(this, move |trigger: Trigger<Insert, FontSize>, mut tree: Tree, values: Query<&FontSize>| {
+            tree.entity(text).insert(*values.get(trigger.event_target()).unwrap());
+        });
+        tree.subscribe(this, move |trigger: Trigger<Insert, IconValue>, mut tree: Tree, values: Query<&IconValue>| {
+            tree.entity(icon).insert(Icon::new_marker(values.get(trigger.event_target()).unwrap().0));
+        });
+        tree.subscribe(this, move |trigger: Trigger<Insert, Rounding>, mut tree: Tree, values: Query<&Rounding>| {
+            apply_rounding(&mut tree, trigger.event_target(), panel, icon, text, *values.get(trigger.event_target()).unwrap());
+        });
+        tree.subscribe(this, move |trigger: Trigger<Insert, Primary>, mut tree: Tree, primaries: Query<&Primary>, secondaries: Query<&Secondary>, outlines: Query<&Outline>| {
+            let e = trigger.event_target();
+            recompute_colors(&mut tree, panel, icon, text, primaries.get(e).unwrap().0, secondaries.get(e).unwrap().0, *outlines.get(e).unwrap(), false);
+        });
+        tree.subscribe(this, move |trigger: Trigger<Insert, Secondary>, mut tree: Tree, primaries: Query<&Primary>, secondaries: Query<&Secondary>, outlines: Query<&Outline>| {
+            let e = trigger.event_target();
+            recompute_colors(&mut tree, panel, icon, text, primaries.get(e).unwrap().0, secondaries.get(e).unwrap().0, *outlines.get(e).unwrap(), false);
+        });
+        tree.subscribe(this, move |trigger: Trigger<Insert, Outline>, mut tree: Tree, primaries: Query<&Primary>, secondaries: Query<&Secondary>, outlines: Query<&Outline>| {
+            let e = trigger.event_target();
+            recompute_colors(&mut tree, panel, icon, text, primaries.get(e).unwrap().0, secondaries.get(e).unwrap().0, *outlines.get(e).unwrap(), false);
+        });
+        tree.subscribe(this, move |trigger: Trigger<Engaged>, mut tree: Tree, primaries: Query<&Primary>, secondaries: Query<&Secondary>, outlines: Query<&Outline>| {
+            let e = trigger.event_target();
+            recompute_colors(&mut tree, panel, icon, text, primaries.get(e).unwrap().0, secondaries.get(e).unwrap().0, *outlines.get(e).unwrap(), true);
+        });
+        tree.subscribe(this, move |trigger: Trigger<Disengaged>, mut tree: Tree, primaries: Query<&Primary>, secondaries: Query<&Secondary>, outlines: Query<&Outline>| {
+            let e = trigger.event_target();
+            recompute_colors(&mut tree, panel, icon, text, primaries.get(e).unwrap().0, secondaries.get(e).unwrap().0, *outlines.get(e).unwrap(), false);
+        });
+
+        this
     }
 }
-impl ButtonSpec {
-    pub fn icon(mut self, icon: crate::IconId) -> Self {
+impl ButtonSprout {
+    pub fn icon(mut self, icon: IconId) -> Self {
         self.icon = Some(icon);
         self
     }
@@ -337,7 +231,7 @@ impl ButtonSpec {
         self.text = Some(text.into());
         self
     }
-    pub fn colors(mut self, primary: crate::Color, secondary: crate::Color) -> Self {
+    pub fn colors(mut self, primary: Color, secondary: Color) -> Self {
         self.colors = Some((primary, secondary));
         self
     }
@@ -349,11 +243,4 @@ impl ButtonSpec {
         self.outline = Some(w);
         self
     }
-}
-#[derive(Component, Copy, Clone)]
-#[component(on_discard = handle_replace::<Button>)]
-pub struct Handle {
-    pub panel: Entity,
-    pub icon: Entity,
-    pub text: Entity,
 }

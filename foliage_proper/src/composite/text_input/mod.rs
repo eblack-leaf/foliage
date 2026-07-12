@@ -10,9 +10,9 @@ use crate::text::{Glyphs, LineMetrics};
 use crate::{
     auto, Attachment, AutoHeight, AutoWidth, Color, Component, Composite, Dragged, EcsExtension,
     Elevation, Engaged, Event, FocusBehavior, Foliage, FontSize, GlyphOffset, Grid, GridExt,
-    InputSequence, InteractionListener, InteractionPropagation, Key, Layout, Leaf, LeafBuilder,
-    LeafSpec, Location, Logical, Opacity, OverscrollPropagation, Panel, Primary, Secondary,
-    Section, Stem, Tertiary, Text, TextValue, Tree, Unfocused, Update, View, Write,
+    InputSequence, InteractionListener, InteractionPropagation, Key, Layout, Leaf,
+    LeafSprout, Location, Logical, Opacity, OverscrollPropagation, Panel, Primary, Secondary,
+    Section, Seed, Sprout, Stem, Tertiary, Text, TextValue, Tree, Unfocused, Update, View, Write,
 };
 use action::{InputAction, TextInputAction};
 use bevy_ecs::bundle::Bundle;
@@ -85,8 +85,8 @@ impl Attachment for TextInput {
 pub struct TextInput {}
 impl TextInput {
     const HIGHLIGHT_SCROLL_THRESHOLD: f32 = 10.0;
-    pub fn new() -> TextInputSpec {
-        TextInputSpec::default()
+    pub fn new() -> TextInputSprout {
+        TextInputSprout::default()
     }
     pub(crate) fn new_marker() -> TextInput {
         TextInput {}
@@ -112,8 +112,8 @@ impl TextInput {
     }
 }
 #[derive(Default)]
-pub struct TextInputSpec {
-    leaf: LeafSpec,
+pub struct TextInputSprout {
+    leaf: LeafSprout,
     text: Option<String>,
     primary: Option<Color>,
     secondary: Option<Color>,
@@ -122,10 +122,12 @@ pub struct TextInputSpec {
     hint_text: Option<String>,
     line_constraint: Option<LineConstraint>,
 }
-impl LeafBuilder for TextInputSpec {
-    fn leaf_spec(&mut self) -> &mut LeafSpec {
+impl Seed for TextInputSprout {
+    fn seed(&mut self) -> &mut LeafSprout {
         &mut self.leaf
     }
+}
+impl Sprout for TextInputSprout {
     fn bundle(self) -> impl Bundle {
         (
             TextInput::new_marker(),
@@ -144,7 +146,7 @@ impl LeafBuilder for TextInputSpec {
         )
     }
 }
-impl TextInputSpec {
+impl TextInputSprout {
     pub fn text(mut self, t: impl Into<String>) -> Self {
         self.text = Some(t.into());
         self
@@ -181,8 +183,8 @@ impl Composite for TextInput {
         children.tree().commands().entity(this).insert(Grid::default());
 
         // One call per child: `.stem` is auto-filled by `Children::spawn`, `Panel`/`Text` use
-        // their own `Spec`, `cursor` (no visual/Spec type -- a bare interaction hit-area) uses
-        // `LeafSpec::new()`. Same chain shape either way: `.elevate()/.at()/.with()/spawn`.
+        // their own `Sprout`, `cursor` (no visual/Sprout type -- a bare interaction hit-area) uses
+        // `LeafSprout::new()`. Same chain shape either way: `.elevate()/.at()/.with()/spawn`.
         let panel = children.spawn(
             Panel::new()
                 .elevate(Elevation::up(1))
@@ -204,7 +206,7 @@ impl Composite for TextInput {
         let mut panel_children = Children::new(panel, children.tree());
 
         let cursor = panel_children.spawn(
-            Leaf::spec()
+            Leaf::sprout()
                 .elevate(Elevation::up(6))
                 .at(Location::new().xs(
                     1.col().as_left().with(1.col().as_right()),

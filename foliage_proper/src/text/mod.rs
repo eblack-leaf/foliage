@@ -75,16 +75,18 @@ pub struct Text {
     pub value: String,
 }
 #[derive(Default)]
-pub struct TextSpec {
-    leaf: crate::LeafSpec,
+pub struct TextSprout {
+    leaf: crate::LeafSprout,
     value: String,
     size: Option<FontSize>,
     color: Option<Color>,
 }
-impl crate::LeafBuilder for TextSpec {
-    fn leaf_spec(&mut self) -> &mut crate::LeafSpec {
+impl crate::Seed for TextSprout {
+    fn seed(&mut self) -> &mut crate::LeafSprout {
         &mut self.leaf
     }
+}
+impl crate::Sprout for TextSprout {
     fn bundle(self) -> impl Bundle {
         (
             Text::new_marker(self.value),
@@ -98,7 +100,7 @@ impl crate::LeafBuilder for TextSpec {
         )
     }
 }
-impl TextSpec {
+impl TextSprout {
     pub fn size(mut self, s: FontSize) -> Self {
         self.size = Some(s);
         self
@@ -110,8 +112,8 @@ impl TextSpec {
 }
 impl Text {
     pub(crate) const OPT_SCALE: u32 = 20;
-    pub fn new<S: AsRef<str>>(value: S) -> TextSpec {
-        TextSpec {
+    pub fn new<S: AsRef<str>>(value: S) -> TextSprout {
+        TextSprout {
             value: value.as_ref().to_string(),
             ..Default::default()
         }

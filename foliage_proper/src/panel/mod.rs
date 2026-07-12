@@ -38,8 +38,8 @@ pub struct Panel {
     pub(crate) corner_iv: Corner,
 }
 impl Panel {
-    pub fn new() -> PanelSpec {
-        PanelSpec::default()
+    pub fn new() -> PanelSprout {
+        PanelSprout::default()
     }
     pub(crate) fn new_marker() -> Panel {
         Panel {
@@ -144,16 +144,18 @@ impl Attachment for Panel {
     }
 }
 #[derive(Default)]
-pub struct PanelSpec {
-    leaf: crate::LeafSpec,
+pub struct PanelSprout {
+    leaf: crate::LeafSprout,
     color: Option<Color>,
     rounding: Option<Rounding>,
     outline: Option<i32>,
 }
-impl crate::LeafBuilder for PanelSpec {
-    fn leaf_spec(&mut self) -> &mut crate::LeafSpec {
+impl crate::Seed for PanelSprout {
+    fn seed(&mut self) -> &mut crate::LeafSprout {
         &mut self.leaf
     }
+}
+impl crate::Sprout for PanelSprout {
     fn bundle(self) -> impl Bundle {
         (
             Panel::new_marker(),
@@ -168,7 +170,7 @@ impl crate::LeafBuilder for PanelSpec {
         )
     }
 }
-impl PanelSpec {
+impl PanelSprout {
     pub fn color(mut self, c: Color) -> Self {
         self.color = Some(c);
         self

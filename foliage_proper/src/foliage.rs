@@ -9,7 +9,7 @@ use crate::time::{OnEnd, Time};
 use crate::virtual_keyboard::VirtualKeyboardAdapter;
 use crate::willow::Willow;
 use crate::{
-    AndroidConnection, Animate, Animation, Area, Attachment, Button, Color, Disable, EcsExtension,
+    AndroidConnection, Animate, Animation, Area, Attachment, Color, Disable, EcsExtension,
     Elevation, Enable, Grid, Icon, Image, Interaction, Location, Named, OnClick, Opacity, Panel,
     Physical, Resource, Shape, SystemSet, Text, TextInput, Visibility,
 };
@@ -123,7 +123,6 @@ impl Foliage {
         Elevation::attach(&mut foliage);
         Color::attach(&mut foliage);
         Image::attach(&mut foliage);
-        Button::attach(&mut foliage);
         Visibility::attach(&mut foliage);
         Location::attach(&mut foliage);
         Named::attach(&mut foliage);

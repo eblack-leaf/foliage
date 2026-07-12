@@ -1,5 +1,5 @@
 use foliage::{
-    Animation, Color, EcsExtension, Elevation, Entity, FontSize, Grid, GridExt, LeafBuilder,
+    Animation, Color, EcsExtension, Elevation, Entity, FontSize, Grid, GridExt, Photosynthesis, Seed, Sprout,
     LineConstraint, Location, Opacity, Sequence, Text, TextInput, Tree,
 };
 
@@ -20,7 +20,7 @@ pub(crate) fn build(tree: &mut Tree, app: Entity) {
         ))
         .elevate(Elevation::up(1))
         .stem(app)
-        .spawn(tree);
+        .photosynthesize(tree);
     TextInput::new()
         .line_constraint(LineConstraint::Multiple)
         .hint_text("multiline input...")
@@ -34,5 +34,5 @@ pub(crate) fn build(tree: &mut Tree, app: Entity) {
         ))
         .elevate(Elevation::up(1))
         .stem(app)
-        .spawn(tree);
+        .photosynthesize(tree);
 }

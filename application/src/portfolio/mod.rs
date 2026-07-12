@@ -4,21 +4,21 @@ pub(crate) mod demo;
 use crate::icons::IconHandles;
 use foliage::{
     anchor, Anchor, Animation, Button, Children, Color, Ease, EcsExtension, Elevation, Entity,
-    FontSize, Grid, GridExt, Image, ImageView, InteractionListener, Keyring, Leaf, LeafBuilder,
+    FontSize, Grid, GridExt, Image, ImageView, InteractionListener, Keyring, Leaf, Photosynthesis, Seed, Sprout,
     Location, MemoryId, OnClick, OnEnd, Opacity, Panel, Res, Rounding, Sequence, Text, Tree,
     Trigger,
 };
 
 pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
         let row_size = 400;
-        let root = Leaf::spec()
+        let root = Leaf::sprout()
             .at(Location::new().xs(
                 0.pct().as_left().with(100.pct().as_right()),
                 100.pct().as_top().with(200.pct().as_bottom()),
             ))
             .elevate(Elevation::abs(0))
             .with(Grid::new(12.col().gap(24), row_size.px().gap(36)))
-            .spawn(tree);
+            .photosynthesize(tree);
         let seq = Sequence::new(tree)
             .animate(
                 Animation::new(Location::new().xs(
@@ -56,7 +56,7 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
                 12.px().as_top().with(48.px().as_height()),
             ))
             .elevate(Elevation::abs(95))
-            .spawn(tree);
+            .photosynthesize(tree);
         let mut last = 0;
         let card_roots: Vec<Entity> = Children::new(root, tree).each(
             ITEMS.iter().enumerate(),
@@ -156,7 +156,7 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
                     ))
                     .elevate(Elevation::abs(50))
                     .with((Anchor::new(card_root), Opacity::new(0.0), Grid::default()))
-                    .spawn(&mut tree);
+                    .photosynthesize(&mut tree);
                 let terminate = Button::new()
                     .rounding(Rounding::Full)
                     .icon(IconHandles::X.value())
@@ -166,8 +166,8 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
                         16.px().as_top().with(40.px().as_height()),
                     ))
                     .elevate(Elevation::abs(95))
-                    .spawn(&mut tree);
-                let app_base = Leaf::spec()
+                    .photosynthesize(&mut tree);
+                let app_base = Leaf::sprout()
                     .stem(backdrop)
                     .at(Location::new().xs(
                         0.pct().as_left().with(100.pct().as_right()),
@@ -182,10 +182,10 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
                             Grid::new(12.col().gap(8), 40.px().gap(8)),
                             Color::gray(900),
                         ))
-                        .spawn(&mut tree),
+                        .photosynthesize(&mut tree),
                     _ => app_base
                         .with(Grid::new(12.col().gap(8), 40.px().gap(8)))
-                        .spawn(&mut tree),
+                        .photosynthesize(&mut tree),
                 };
                 match i {
                     0 => music_player::build(&mut tree, app, &keyring),
@@ -345,14 +345,14 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
                     tree.enable(home);
                 });
         });
-        let _spacing = Leaf::spec()
+        let _spacing = Leaf::sprout()
             .at(Location::new().xs(
                 0.pct().as_left().with(100.pct().as_right()),
                 last.row().as_top().with(100.px().as_height()),
             ))
             .elevate(Elevation::abs(0))
             .stem(root)
-            .spawn(tree);
+            .photosynthesize(tree);
         for (i, cr) in card_roots.iter().enumerate() {
             let i = i as u64;
             tree.animate(

@@ -6,7 +6,7 @@ use crate::leaf::Leaf;
 use crate::ops::{Name, StoredKey};
 use crate::remove::Remove;
 use crate::time::OnEnd;
-use crate::{Animate, Animation, AssetKey, OnClick, TimeDelta, Timer};
+use crate::{Animate, Animation, AssetKey, Children, OnClick, Photosynthesis, TimeDelta, Timer};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::{EntityEvent, Event};
@@ -102,6 +102,26 @@ pub trait EcsExtension {
         Self: Sized,
     {
         Bind { entity, tree: self }
+    }
+    /// Arranges a group of entities under one root without any of `Composite`'s ceremony
+    /// (marker component, `Handle` type, `on_insert`/`on_discard` wiring) -- for a one-off
+    /// structure, or a custom composite that doesn't need insertion-triggered construction.
+    /// `root` spawns first and becomes the parent every `children.spawn(...)` call auto-stems
+    /// to; `build` returns whatever "handle" shape the caller wants (a tuple, a `Vec`, a local
+    /// struct, nothing). Teardown needs no `Handle`/`on_discard` machinery either: `Remove`
+    /// already walks `Branch` (every `Stem`-child) recursively for any entity, so
+    /// `tree.remove(root)` tears down everything spawned through `children` here for free.
+    fn composite<S: Photosynthesis, R>(
+        &mut self,
+        root: S,
+        build: impl FnOnce(&mut Children<Self>) -> R,
+    ) -> (Entity, R)
+    where
+        Self: Sized,
+    {
+        let root = root.photosynthesize(self);
+        let handle = build(&mut Children::new(root, self));
+        (root, handle)
     }
 }
 /// See [`EcsExtension::bind`].

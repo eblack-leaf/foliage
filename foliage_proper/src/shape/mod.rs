@@ -7,8 +7,8 @@ use crate::remove::Remove;
 use crate::Differential;
 use crate::Stem;
 use crate::{
-    Attachment, Color, Component, Coordinates, Foliage, LeafBuilder, LeafSpec, Logical, Position,
-    ResolvedElevation, Visibility,
+    Attachment, Color, Component, Coordinates, Foliage, LeafSprout, Logical, Position,
+    ResolvedElevation, Seed, Sprout, Visibility,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::change_detection::Res;
@@ -38,9 +38,9 @@ impl Attachment for Shape {
     }
 }
 impl Line {
-    pub fn new(w: i32) -> LineSpec {
-        LineSpec {
-            leaf: LeafSpec::default(),
+    pub fn new(w: i32) -> LineSprout {
+        LineSprout {
+            leaf: LeafSprout::default(),
             weight: w.max(1),
             color: None,
         }
@@ -88,15 +88,17 @@ impl Line {
         }
     }
 }
-pub struct LineSpec {
-    leaf: LeafSpec,
+pub struct LineSprout {
+    leaf: LeafSprout,
     weight: i32,
     color: Option<Color>,
 }
-impl LeafBuilder for LineSpec {
-    fn leaf_spec(&mut self) -> &mut LeafSpec {
+impl Seed for LineSprout {
+    fn seed(&mut self) -> &mut LeafSprout {
         &mut self.leaf
     }
+}
+impl Sprout for LineSprout {
     fn bundle(self) -> impl Bundle {
         (
             Line::new_marker(self.weight),
@@ -109,7 +111,7 @@ impl LeafBuilder for LineSpec {
         )
     }
 }
-impl LineSpec {
+impl LineSprout {
     pub fn color(mut self, c: Color) -> Self {
         self.color = Some(c);
         self

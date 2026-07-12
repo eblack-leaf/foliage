@@ -1,8 +1,8 @@
-use crate::{EcsExtension, Entity, LeafBuilder};
+use crate::{EcsExtension, Entity, Photosynthesis};
 
 /// Spawns a Composite's (or a one-off structure's) children under a common `parent`, auto-filling
-/// `.stem(parent)` on any [`LeafBuilder`] -- a named `Spec` (`Panel::new()`, `Text::new()`), or a
-/// bare `LeafSpec::new()` for a child with no marker component of its own. Every child uses the
+/// `.stem(parent)` on any [`Photosynthesis`] -- a named `Sprout` (`Panel::new()`, `Text::new()`), or a
+/// bare `LeafSprout::new()` for a child with no marker component of its own. Every child uses the
 /// same `.elevate()/.at()/.with()` chain regardless of which; there's exactly one way to spawn
 /// a child here, not a separate path for Spec-backed vs. raw ones.
 ///
@@ -24,8 +24,8 @@ impl<'t, T: EcsExtension> Children<'t, T> {
     pub fn tree(&mut self) -> &mut T {
         self.tree
     }
-    pub fn spawn<S: LeafBuilder>(&mut self, spec: S) -> Entity {
-        spec.stem(self.parent).spawn(self.tree)
+    pub fn spawn<S: Photosynthesis>(&mut self, spec: S) -> Entity {
+        spec.stem(self.parent).photosynthesize(self.tree)
     }
     /// Spawns per item. `build` receives the item's index, the item itself, and this `Children`
     /// (so it can call `spawn`/`each` again), and decides everything about how that child is

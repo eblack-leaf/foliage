@@ -9,8 +9,8 @@ use crate::grid::AspectRatio;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::{
-    Area, Attachment, Component, Coordinates, Foliage, Layout, LeafBuilder, LeafSpec, Logical,
-    Numerical, ResolvedElevation, ResolvedVisibility, Section, Stem, Write,
+    Area, Attachment, Component, Coordinates, Foliage, Layout, LeafSprout, Logical, Numerical,
+    ResolvedElevation, ResolvedVisibility, Section, Seed, Sprout, Stem, Write,
 };
 use crate::{AssetKey, AssetRetrieval};
 use bevy_ecs::bundle::Bundle;
@@ -102,9 +102,9 @@ impl Attachment for Image {
 }
 impl Image {
     pub const FORMAT: TextureFormat = TextureFormat::Rgba8Unorm;
-    pub fn new<ID: Into<MemoryId>>(memory_id: ID, key: AssetKey) -> ImageSpec {
-        ImageSpec {
-            leaf: LeafSpec::default(),
+    pub fn new<ID: Into<MemoryId>>(memory_id: ID, key: AssetKey) -> ImageSprout {
+        ImageSprout {
+            leaf: LeafSprout::default(),
             memory_id: memory_id.into(),
             key,
             view: None,
@@ -234,16 +234,18 @@ impl Image {
         }
     }
 }
-pub struct ImageSpec {
-    leaf: LeafSpec,
+pub struct ImageSprout {
+    leaf: LeafSprout,
     memory_id: MemoryId,
     key: AssetKey,
     view: Option<ImageView>,
 }
-impl LeafBuilder for ImageSpec {
-    fn leaf_spec(&mut self) -> &mut LeafSpec {
+impl Seed for ImageSprout {
+    fn seed(&mut self) -> &mut LeafSprout {
         &mut self.leaf
     }
+}
+impl Sprout for ImageSprout {
     fn bundle(self) -> impl Bundle {
         (
             Image::new_marker(self.memory_id, self.key),
@@ -256,7 +258,7 @@ impl LeafBuilder for ImageSpec {
         )
     }
 }
-impl ImageSpec {
+impl ImageSprout {
     pub fn view(mut self, v: ImageView) -> Self {
         self.view = Some(v);
         self

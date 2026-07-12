@@ -47,7 +47,7 @@ pub use anim::{
 pub(crate) use ash::differential::Differential;
 pub use asset::{asset_retrieval, AssetKey, AssetRetrieval};
 pub use attachment::Attachment;
-pub use author::{LeafBuilder, LeafSpec};
+pub use author::{LeafSprout, Photosynthesis, Seed, Sprout, With};
 pub use bevy_ecs::{self, prelude::*};
 /// bevy 0.17+ renamed the observer parameter `Trigger` to `On`. Every observer in foliage and
 /// its consumers is written against the `Trigger<E>` spelling, so keep it as the canonical
@@ -57,11 +57,11 @@ pub use clipboard::Clipboard;
 pub use color::{CReprColor, Color, Luminance};
 pub use composite::text_input::action::{InputAction, TextInputAction};
 pub use composite::{
-    button::{Button, ButtonSpec},
+    button::{Button, ButtonSprout},
     composite_on_insert, forward, handle_replace, resolve_root,
     text_input::{
         keybindings::KeyBindings, HintColor, HintText, InsertText, LineConstraint, TextChanged,
-        TextInput, TextInputSpec,
+        TextInput, TextInputSprout,
     },
     Children, Composite, Root,
 };
@@ -74,8 +74,8 @@ pub use grid::{
     anchor, auto, view::OverscrollPropagation, AspectRatio, Grid, Layout, Location, View,
 };
 pub use grid::{Anchor, AnchorDeps, AnchorDescriptor, GridExt, Justify};
-pub use icon::{Icon, IconId, IconMemory, IconSpec};
-pub use image::{Image, ImageMemory, ImageMetrics, ImageSpec, ImageView, MemoryId};
+pub use icon::{Icon, IconId, IconMemory, IconSprout};
+pub use image::{Image, ImageMemory, ImageMetrics, ImageSprout, ImageView, MemoryId};
 pub use interaction::{
     listener::InteractionListener, listener::InteractionShape, listener::InteractionState,
     FocusBehavior, InputSequence, Interaction, InteractionPhase, InteractionPropagation, Key,
@@ -86,14 +86,14 @@ pub use leaf::{Branch, Leaf, Stem};
 pub use opacity::Opacity;
 pub use ops::Named;
 pub use ops::{Keyring, Update, Write};
-pub use panel::{Outline, Panel, PanelSpec, Rounding};
+pub use panel::{Outline, Panel, PanelSprout, Rounding};
 #[cfg(target_os = "android")]
 pub use platform::AndroidApp;
 pub use platform::AndroidConnection;
-pub use shape::{Line, LineSpec, Shape};
+pub use shape::{Line, LineSprout, Shape};
 pub use text::GlyphOffset;
 pub use text::{
-    AutoHeight, AutoWidth, FontSize, GlyphColors, HorizontalAlignment, Text, TextSpec,
+    AutoHeight, AutoWidth, FontSize, GlyphColors, HorizontalAlignment, Text, TextSprout,
     VerticalAlignment,
 };
 pub use time::{Moment, OnEnd, Time, TimeDelta, TimeMarker, Timer};

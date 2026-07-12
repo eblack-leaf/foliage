@@ -3,22 +3,22 @@ use crate::portfolio;
 use foliage::{
     anchor, Anchor, Animation, Button, Children, Color, EcsExtension, Elevation, Entity,
     EntityEvent, FontSize, GlyphColors, Grid, GridExt, HorizontalAlignment, HrefLink, Keyring,
-    Leaf, LeafBuilder, Line, Location, Logical, OnClick, OnEnd, Opacity, Outline, Query, Res,
+    Leaf, Photosynthesis, Seed, Sprout, Line, Location, Logical, OnClick, OnEnd, Opacity, Outline, Query, Res,
     Rounding, Section, Sequence, Text, TextValue, Tree, Trigger, VerticalAlignment, Write,
 };
 
 pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
     let row_size = 40;
-    let root = Leaf::spec()
+    let root = Leaf::sprout()
         .at(Location::new().xs(
             0.pct().as_left().with(100.pct().as_right()),
             0.pct().as_top().with(100.pct().as_bottom()),
         ))
         .elevate(Elevation::abs(0))
         .with(Grid::new(12.col().gap(8), row_size.px().gap(8)))
-        .spawn(tree);
+        .photosynthesize(tree);
     tree.name(root, "home");
-    let name_container = Leaf::spec()
+    let name_container = Leaf::sprout()
         .at(Location::new().xs(
             1.col().as_left().with(12.col().as_right()).max(600.0),
             4.row().as_top().with(8.row().as_bottom()),
@@ -26,7 +26,7 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         .elevate(Elevation::up(1))
         .stem(root)
         .with(Grid::new(12.col().gap(4), 12.row().gap(4)))
-        .spawn(tree);
+        .photosynthesize(tree);
     let name = Text::new("foliage.rs")
         .size(FontSize::new(44))
         .at(Location::new().xs(
@@ -40,7 +40,7 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
             GlyphColors::new().add(7..10, Color::green(400)),
             Opacity::new(0.0),
         ))
-        .spawn(tree);
+        .photosynthesize(tree);
     let top_desc = Text::new("w: 0.0")
         .size(FontSize::new(14))
         .color(Color::gray(700))
@@ -51,13 +51,13 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         .elevate(Elevation::up(1))
         .stem(name_container)
         .with(Opacity::new(0.0))
-        .spawn(tree);
+        .photosynthesize(tree);
     let top_line = Line::new(2)
         .color(Color::gray(700))
         .at(Location::new().xs(4.col().as_x().with(5.row().as_y()), 4.col().as_x().with(5.row().as_y())))
         .elevate(Elevation::up(1))
         .stem(name_container)
-        .spawn(tree);
+        .photosynthesize(tree);
     tree.subscribe(
         top_line,
         move |trigger: Trigger<Write<Section<Logical>>>,
@@ -82,7 +82,7 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         .elevate(Elevation::up(1))
         .stem(name_container)
         .with(Opacity::new(0.0))
-        .spawn(tree);
+        .photosynthesize(tree);
     tree.subscribe(
         top_line,
         move |trigger: Trigger<Write<Section<Logical>>>,
@@ -102,7 +102,7 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         .at(Location::new().xs(7.col().as_x().with(5.row().as_y()), 7.col().as_x().with(5.row().as_y())))
         .elevate(Elevation::up(1))
         .stem(name_container)
-        .spawn(tree);
+        .photosynthesize(tree);
     let pad_desc = Text::new("pad: 0.0")
         .size(FontSize::new(14))
         .color(Color::gray(700))
@@ -113,7 +113,7 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         .elevate(Elevation::up(1))
         .stem(name_container)
         .with(Opacity::new(0.0))
-        .spawn(tree);
+        .photosynthesize(tree);
     tree.subscribe(
         pad_connector,
         move |trigger: Trigger<Write<Section<Logical>>>,
@@ -144,7 +144,7 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
                 .add(13..15, Color::green(400)),
             Opacity::new(0.0),
         ))
-        .spawn(tree);
+        .photosynthesize(tree);
     let github = Button::new()
         .icon(IconHandles::Github.value())
         .rounding(Rounding::Full)
@@ -155,8 +155,8 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         ))
         .elevate(Elevation::up(1))
         .stem(root)
-        .with((FontSize::new(16), Opacity::new(0.0)))
-        .spawn(tree);
+        .photosynthesize(tree);
+    tree.write_to(github, (FontSize::new(16), Opacity::new(0.0)));
     tree.on_click(github, |trigger: Trigger<OnClick>| {
         HrefLink::new("https://github.com/eblack-leaf/foliage").navigate()
     });
@@ -169,7 +169,7 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         .elevate(Elevation::up(1))
         .stem(root)
         .with(Anchor::new(github))
-        .spawn(tree);
+        .photosynthesize(tree);
     let github_desc = Text::new("on-click: github")
         .size(FontSize::new(14))
         .color(Color::gray(500))
@@ -184,8 +184,8 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
             Anchor::new(github_line),
             Opacity::new(0.0),
         ))
-        .spawn(tree);
-    let options_container = Leaf::spec()
+        .photosynthesize(tree);
+    let options_container = Leaf::sprout()
         .at(Location::new().xs(
             1.col().as_left().with(12.col().as_right()).max(600.0),
             10.row().as_top().with(13.row().as_bottom()),
@@ -193,7 +193,7 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         .elevate(Elevation::up(1))
         .stem(root)
         .with(Grid::new(5.col().gap(4), 3.row().gap(8)))
-        .spawn(tree);
+        .photosynthesize(tree);
     // row, icon, color, desc text, desc highlight range, desc column range, line column
     let option_rows: Vec<(Entity, Entity, Entity)> = Children::new(options_container, tree).each(
         [
@@ -212,9 +212,9 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
                         3.col().as_left().with(3.col().as_right()).max(48.0).min(48.0),
                         row.row().as_top().with(row.row().as_bottom()).max(48.0).min(48.0),
                     ))
-                    .elevate(Elevation::up(1))
-                    .with(Opacity::new(0.0)),
+                    .elevate(Elevation::up(1)),
             );
+            children.tree().write_to(button, Opacity::new(0.0));
             children.tree().on_click(button, move |trigger: Trigger<OnClick>| {
                 HrefLink::new("tbd").navigate()
             });
@@ -226,7 +226,7 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
                 ))
                 .elevate(Elevation::up(1))
                 .stem(options_container)
-                .spawn(children.tree());
+                .photosynthesize(children.tree());
             let desc = children.spawn(
                 Text::new(desc_text)
                     .size(FontSize::new(16))
@@ -261,16 +261,16 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         ))
         .elevate(Elevation::up(1))
         .stem(root)
-        .with((FontSize::new(20), Opacity::new(0.0)))
-        .spawn(tree);
-    let spacing = Leaf::spec()
+        .photosynthesize(tree);
+    tree.write_to(portfolio, (FontSize::new(20), Opacity::new(0.0)));
+    let spacing = Leaf::sprout()
         .at(Location::new().xs(
             0.pct().as_left().with(100.pct().as_right()),
             17.row().as_top().with(17.row().as_bottom()),
         ))
         .elevate(Elevation::up(1))
         .stem(root)
-        .spawn(tree);
+        .photosynthesize(tree);
     tree.on_click(
         portfolio,
         move |trigger: Trigger<OnClick>, mut tree: Tree, keyring: Res<Keyring>| {
