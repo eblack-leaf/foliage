@@ -156,10 +156,11 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         .elevate(Elevation::up(1))
         .stem(root)
         .photosynthesize(tree);
-    tree.write_to(github, (FontSize::new(16), Opacity::new(0.0)));
-    tree.on_click(github, |trigger: Trigger<OnClick>| {
-        HrefLink::new("https://github.com/eblack-leaf/foliage").navigate()
-    });
+    tree.graft(github)
+        .write((FontSize::new(16), Opacity::new(0.0)))
+        .on_click(|trigger: Trigger<OnClick>| {
+            HrefLink::new("https://github.com/eblack-leaf/foliage").navigate()
+        });
     let github_line = Line::new(2)
         .color(Color::gray(700))
         .at(Location::new().xs(
@@ -214,10 +215,11 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
                     ))
                     .elevate(Elevation::up(1)),
             );
-            children.tree().write_to(button, Opacity::new(0.0));
-            children.tree().on_click(button, move |trigger: Trigger<OnClick>| {
-                HrefLink::new("tbd").navigate()
-            });
+            children
+                .tree()
+                .graft(button)
+                .write(Opacity::new(0.0))
+                .on_click(move |trigger: Trigger<OnClick>| HrefLink::new("tbd").navigate());
             let line = Line::new(2)
                 .color(color)
                 .at(Location::new().xs(
@@ -262,7 +264,14 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         .elevate(Elevation::up(1))
         .stem(root)
         .photosynthesize(tree);
-    tree.write_to(portfolio, (FontSize::new(20), Opacity::new(0.0)));
+    tree.graft(portfolio)
+        .write((FontSize::new(20), Opacity::new(0.0)))
+        .on_click(
+            move |trigger: Trigger<OnClick>, mut tree: Tree, keyring: Res<Keyring>| {
+                tree.disable(root);
+                portfolio::build(&mut tree, root, &keyring);
+            },
+        );
     let spacing = Leaf::sprout()
         .at(Location::new().xs(
             0.pct().as_left().with(100.pct().as_right()),
@@ -271,13 +280,6 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         .elevate(Elevation::up(1))
         .stem(root)
         .photosynthesize(tree);
-    tree.on_click(
-        portfolio,
-        move |trigger: Trigger<OnClick>, mut tree: Tree, keyring: Res<Keyring>| {
-            tree.disable(root);
-            portfolio::build(&mut tree, root, &keyring);
-        },
-    );
     Sequence::new(tree)
         .animate(Animation::new(Opacity::new(1.0)).start(500).finish(1500).targeting(name))
         .animate(Animation::new(Opacity::new(1.0)).start(1000).finish(1500).targeting(github))

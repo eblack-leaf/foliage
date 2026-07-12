@@ -97,6 +97,6 @@ pub use text::{
     VerticalAlignment,
 };
 pub use time::{Moment, OnEnd, Time, TimeDelta, TimeMarker, Timer};
-pub use tree::{Bind, EcsExtension, IntoTargets, Sequence, TargetedEvent, Tree};
+pub use tree::{EcsExtension, Graft, IntoTargets, Sequence, TargetedEvent, Tree};
 pub use visibility::{InheritedVisibility, ResolvedVisibility, Visibility};
 pub use web_ext::{Extensions, HrefLink};

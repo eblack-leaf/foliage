@@ -94,14 +94,14 @@ pub trait EcsExtension {
     fn name<S: AsRef<str>>(&mut self, e: Entity, s: S);
     fn store<S: AsRef<str>>(&mut self, k: AssetKey, s: S);
     fn timer<M>(&mut self, t: u64, tf: impl IntoEntityObserver<M>);
-    /// Binds further behavior (`on_click`, `animate`, extra components) to an already-spawned
+    /// Grafts further behavior (`on_click`, `animate`, extra components) onto an already-spawned
     /// entity right next to where it was created, instead of in a separate pass elsewhere:
-    /// `tree.bind(e).on_click(...).animate(...);`
-    fn bind(&mut self, entity: Entity) -> Bind<'_, Self>
+    /// `tree.graft(e).on_click(...).animate(...);`
+    fn graft(&mut self, entity: Entity) -> Graft<'_, Self>
     where
         Self: Sized,
     {
-        Bind { entity, tree: self }
+        Graft { entity, tree: self }
     }
     /// Arranges a group of entities under one root without any of `Composite`'s ceremony
     /// (marker component, `Handle` type, `on_insert`/`on_discard` wiring) -- for a one-off
@@ -124,12 +124,12 @@ pub trait EcsExtension {
         (root, handle)
     }
 }
-/// See [`EcsExtension::bind`].
-pub struct Bind<'t, T: EcsExtension + ?Sized> {
+/// See [`EcsExtension::graft`].
+pub struct Graft<'t, T: EcsExtension + ?Sized> {
     entity: Entity,
     tree: &'t mut T,
 }
-impl<'t, T: EcsExtension + ?Sized> Bind<'t, T> {
+impl<'t, T: EcsExtension + ?Sized> Graft<'t, T> {
     pub fn id(&self) -> Entity {
         self.entity
     }
@@ -146,8 +146,8 @@ impl<'t, T: EcsExtension + ?Sized> Bind<'t, T> {
         self
     }
 }
-impl<'t, T: EcsExtension + ?Sized> From<Bind<'t, T>> for Entity {
-    fn from(b: Bind<'t, T>) -> Self {
+impl<'t, T: EcsExtension + ?Sized> From<Graft<'t, T>> for Entity {
+    fn from(b: Graft<'t, T>) -> Self {
         b.entity
     }
 }
