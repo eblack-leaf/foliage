@@ -4,9 +4,9 @@ pub(crate) mod music_player;
 use crate::icons::IconHandles;
 use crate::widgets::{Launch, ProjectCard};
 use foliage::{
-    anchor, Anchor, Animation, Button, Children, Color, Ease, EcsExtension, Elevation, Entity,
-    Grid, GridExt, Keyring, Leaf, Location, MemoryId, OnClick, OnEnd, Opacity, Panel, Res,
-    Rounding, Sequence, Sprout, Tree, Trigger,
+    anchor, Anchor, Animation, Button, Color, Ease, EcsExtension, Elevation, Entity, Grid, GridExt,
+    Keyring, Leaf, Location, MemoryId, OnClick, OnEnd, Opacity, Panel, Res, Rounding, Sequence,
+    Sprout, Tree, Trigger,
 };
 
 pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
@@ -58,9 +58,12 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
         .elevate(Elevation::abs(95))
         .photosynthesize(tree);
     let mut last = 0;
-    let card_roots: Vec<Entity> =
-        Children::new(root, tree).each(ITEMS.iter().enumerate(), |_, (i, item), children| {
-            children.spawn(
+    let card_roots: Vec<Entity> = ITEMS
+        .iter()
+        .enumerate()
+        .map(|(i, item)| {
+            tree.branch(
+                root,
                 Panel::new()
                     .color(Color::gray(500))
                     .at(Location::new().xs(
@@ -80,7 +83,8 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
             );
             // the whole card interior (image + title + desc + launch button + their click
             // wiring) is one widget spawn -- ProjectInfo in, Launch out.
-            let card_root = children.spawn(
+            let card_root = tree.branch(
+                root,
                 ProjectCard::new()
                     .title(item.title)
                     .desc(item.desc)
@@ -248,9 +252,10 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
                             .finish(1500),
                         );
                 };
-            children.tree().subscribe(card_root, open_modal);
+            tree.subscribe(card_root, open_modal);
             card_root
-        });
+        })
+        .collect();
     tree.graft(back)
         .disable()
         .on_click(move |trigger: Trigger<OnClick>, mut tree: Tree| {

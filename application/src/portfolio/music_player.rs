@@ -4,8 +4,8 @@ use foliage::bevy_ecs;
 use foliage::Component;
 use foliage::Justify::Center;
 use foliage::{
-    Animation, Button, ButtonStyle, Children, Color, EcsExtension, Elevation, Entity, FontSize,
-    Grid, GridExt, HorizontalAlignment, Icon, Image, ImageView, Keyring, Leaf, Location, OnClick,
+    Animation, Button, ButtonStyle, Color, EcsExtension, Elevation, Entity, FontSize, Grid,
+    GridExt, HorizontalAlignment, Icon, Image, ImageView, Keyring, Leaf, Location, OnClick,
     Opacity, Outline, Panel, Query, Rounding, Sequence, Sprout, Text, TextInput, Tree, Trigger,
     VerticalAlignment,
 };
@@ -22,8 +22,8 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
             .finish(1500)
             .targeting(app),
     );
-    let mut children = Children::new(app, tree);
-    let menu = children.spawn(
+    let menu = tree.branch(
+        app,
         Button::new()
             .icon(IconHandles::Menu.value())
             .colors(Color::gray(200), Color::gray(800))
@@ -34,12 +34,11 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
             ))
             .elevate(Elevation::up(1)),
     );
-    children
-        .tree()
-        .on_click(menu, move |trigger: Trigger<OnClick>| {
-            // nothing so far
-        });
-    let search = children.spawn(
+    tree.on_click(menu, move |trigger: Trigger<OnClick>| {
+        // nothing so far
+    });
+    let search = tree.branch(
+        app,
         Panel::new()
             .rounding(Rounding::Md)
             .outline(2)
@@ -51,8 +50,8 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
             .elevate(Elevation::up(1))
             .with(Grid::new(1.col(), 1.row())),
     );
-    let mut search_children = Children::new(search, children.tree());
-    search_children.spawn(
+    tree.branch(
+        search,
         Icon::new(IconHandles::Search.value())
             .color(Color::gray(400))
             .at(Location::new().xs(
@@ -61,7 +60,8 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
             ))
             .elevate(Elevation::up(1)),
     );
-    search_children.spawn(
+    tree.branch(
+        search,
         TextInput::new()
             .text("Search Library")
             .foreground(Color::gray(600))
@@ -73,7 +73,8 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
             ))
             .elevate(Elevation::up(1)),
     );
-    children.spawn(
+    tree.branch(
+        app,
         Image::new(2, keyring.get("album-cover"))
             .view(ImageView::Aspect)
             .at(Location::new().xs(
@@ -86,7 +87,8 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
             ))
             .elevate(Elevation::up(1)),
     );
-    let song_info = children.spawn(
+    let song_info = tree.branch(
+        app,
         Leaf::sprout()
             .at(Location::new().xs(
                 1.col().as_left().with(12.col().as_right()).max(600.0),
@@ -95,8 +97,8 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
             .elevate(Elevation::up(1))
             .with(Grid::new(1.col().gap(12), 2.row().gap(8))),
     );
-    let mut song_info_children = Children::new(song_info, children.tree());
-    song_info_children.spawn(
+    tree.branch(
+        song_info,
         Text::new("ALPHA & THE VAN")
             .size(FontSize::new(24))
             .color(Color::gray(400))
@@ -107,7 +109,8 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
             .elevate(Elevation::up(1))
             .with((VerticalAlignment::Middle, HorizontalAlignment::Center)),
     );
-    song_info_children.spawn(
+    tree.branch(
+        song_info,
         Text::new("A Walk in the Moonlight")
             .size(FontSize::new(16))
             .color(Color::gray(400))
@@ -118,7 +121,8 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
             .elevate(Elevation::up(1))
             .with((VerticalAlignment::Middle, HorizontalAlignment::Center)),
     );
-    let controls = children.spawn(
+    let controls = tree.branch(
+        app,
         Panel::new()
             .color(Color::gray(900))
             .at(Location::new().xs(
@@ -128,34 +132,35 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
             .elevate(Elevation::up(1))
             .with(Grid::new(5.col().gap(8), 1.row().gap(8))),
     );
-    let control_buttons = Children::new(controls, children.tree()).each(
-        [
-            (1, IconHandles::Shuffle.value(), Color::gray(900)),
-            (2, IconHandles::SkipLeft.value(), Color::gray(900)),
-            (3, IconHandles::Play.value(), Color::green(500)),
-            (4, IconHandles::SkipRight.value(), Color::gray(900)),
-            (5, IconHandles::Repeat.value(), Color::gray(900)),
-        ],
-        |_, (col, icon, secondary), row_children| {
-            row_children.spawn(
-                Button::new()
-                    .icon(icon)
-                    .colors(Color::gray(200), secondary)
-                    .rounding(Rounding::Full)
-                    .at(Location::new().xs(
-                        col.col().as_center_x().with(48.px().as_width()),
-                        1.row().as_center_y().with(48.px().as_height()),
-                    ))
-                    .elevate(Elevation::up(1)),
-            )
-        },
-    );
+    let control_buttons: Vec<Entity> = [
+        (1, IconHandles::Shuffle.value(), Color::gray(900)),
+        (2, IconHandles::SkipLeft.value(), Color::gray(900)),
+        (3, IconHandles::Play.value(), Color::green(500)),
+        (4, IconHandles::SkipRight.value(), Color::gray(900)),
+        (5, IconHandles::Repeat.value(), Color::gray(900)),
+    ]
+    .into_iter()
+    .map(|(col, icon, secondary)| {
+        tree.branch(
+            controls,
+            Button::new()
+                .icon(icon)
+                .colors(Color::gray(200), secondary)
+                .rounding(Rounding::Full)
+                .at(Location::new().xs(
+                    col.col().as_center_x().with(48.px().as_width()),
+                    1.row().as_center_y().with(48.px().as_height()),
+                ))
+                .elevate(Elevation::up(1)),
+        )
+    })
+    .collect();
     // end-user state on a widget entity + poking its public style: clicking play flips
     // Playing and restyles the button through the same ButtonStyle door any config write
     // uses -- no special toggle API on Button.
     let play = control_buttons[2];
-    children.tree().write_to(play, Playing(false));
-    children.tree().on_click(
+    tree.write_to(play, Playing(false));
+    tree.on_click(
         play,
         move |trigger: Trigger<OnClick>, playing: Query<&Playing>, mut tree: Tree| {
             let e = trigger.event_target();
@@ -177,7 +182,8 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
     // the whole duration cluster (track line + elapsed line + anchored knob + drag math)
     // is now one widget spawn -- Progress in, Scrubbed out. Programmatic writes share the
     // drag's door: tree.write_to(scrubber, Progress(0.0)) on track change.
-    let scrubber = children.spawn(
+    let scrubber = tree.branch(
+        app,
         Scrubber::new()
             .progress(0.35)
             .at(Location::new().xs(
@@ -186,9 +192,7 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
             ))
             .elevate(Elevation::up(1)),
     );
-    children
-        .tree()
-        .subscribe(scrubber, move |trigger: Trigger<Scrubbed>| {
-            let _progress = trigger.event().progress; // a real player would seek here
-        });
+    tree.subscribe(scrubber, move |trigger: Trigger<Scrubbed>| {
+        let _progress = trigger.event().progress; // a real player would seek here
+    });
 }

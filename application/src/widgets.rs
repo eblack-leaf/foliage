@@ -63,9 +63,10 @@ impl Sprout for ProjectCardSprout {
     fn root(self) -> impl foliage::Bundle {
         (ProjectCard {}, self.info, Grid::default())
     }
-    fn build<T: EcsExtension>(this: Entity, kids: &mut Children<T>) {
+    fn build<T: EcsExtension>(this: Entity, tree: &mut T) {
         // static skeleton
-        let _backdrop = kids.spawn(
+        let _backdrop = tree.branch(
+            this,
             Panel::new()
                 .color(Color::gray(800))
                 .at(Location::new().xs(
@@ -74,7 +75,8 @@ impl Sprout for ProjectCardSprout {
                 ))
                 .elevate(Elevation::up(1)),
         );
-        let info = kids.spawn(
+        let info = tree.branch(
+            this,
             Leaf::sprout()
                 .at(Location::new().xs(
                     1.col().as_left().with(1.col().as_right()),
@@ -83,8 +85,8 @@ impl Sprout for ProjectCardSprout {
                 .elevate(Elevation::up(2))
                 .with(Grid::new(1.col().gap(8), 3.row().gap(8))),
         );
-        let mut info_kids = Children::new(info, kids.tree());
-        let title = info_kids.spawn(
+        let title = tree.branch(
+            info,
             Text::new("")
                 .size(FontSize::new(16))
                 .color(Color::gray(200))
@@ -94,7 +96,8 @@ impl Sprout for ProjectCardSprout {
                 ))
                 .elevate(Elevation::up(1)),
         );
-        let desc = info_kids.spawn(
+        let desc = tree.branch(
+            info,
             Text::new("")
                 .size(FontSize::new(14))
                 .color(Color::gray(500))
@@ -104,7 +107,8 @@ impl Sprout for ProjectCardSprout {
                 ))
                 .elevate(Elevation::up(1)),
         );
-        let launch = info_kids.spawn(
+        let launch = tree.branch(
+            info,
             foliage::Button::new()
                 .icon(crate::icons::IconHandles::Box.value())
                 .rounding(Rounding::Full)
@@ -115,16 +119,16 @@ impl Sprout for ProjectCardSprout {
                 ))
                 .elevate(Elevation::up(1)),
         );
-        kids.tree()
-            .on_click(launch, move |_: Trigger<OnClick>, mut tree: Tree| {
-                tree.trigger_targets(Launch::new(), this);
-            });
+        tree.on_click(launch, move |_: Trigger<OnClick>, mut tree: Tree| {
+            tree.trigger_targets(Launch::new(), this);
+        });
 
         // data-dependent: texts patch in place; the image respawns (Image's spawn config
         // carries the asset key -- it has no public value channel yet, so respawn is this
         // author's policy; captured FnMut state tracks the previous entity).
         let mut current_image: Option<Entity> = None;
-        kids.react::<ProjectInfo, _>(
+        tree.react::<ProjectInfo, _>(
+            this,
             move |trigger: Trigger<Insert, ProjectInfo>,
                   infos: Query<&ProjectInfo>,
                   mut tree: Tree| {
@@ -136,7 +140,8 @@ impl Sprout for ProjectCardSprout {
                     tree.remove(prev);
                 }
                 if let Some((memory, key)) = info.image {
-                    let display = Children::new(card, &mut tree).spawn(
+                    let display = tree.branch(
+                        card,
                         Image::new(memory, key)
                             .view(ImageView::Crop)
                             .at(Location::new().xs(
@@ -197,9 +202,10 @@ impl Sprout for ScrubberSprout {
     fn root(self) -> impl foliage::Bundle {
         (Scrubber {}, Progress(self.progress), Grid::default())
     }
-    fn build<T: EcsExtension>(this: Entity, kids: &mut Children<T>) {
+    fn build<T: EcsExtension>(this: Entity, tree: &mut T) {
         // static skeleton
-        let _track = kids.spawn(
+        let _track = tree.branch(
+            this,
             Line::new(4)
                 .color(Color::gray(700))
                 .at(Location::new().xs(
@@ -209,12 +215,14 @@ impl Sprout for ScrubberSprout {
                 .elevate(Elevation::up(1)),
         );
         // no Location: progress-dependent, set by the reaction's first fire
-        let elapsed = kids.spawn(
+        let elapsed = tree.branch(
+            this,
             Line::new(4)
                 .color(Color::green(300))
                 .elevate(Elevation::up(2)),
         );
-        let knob = kids.spawn(
+        let knob = tree.branch(
+            this,
             Panel::new()
                 .rounding(Rounding::Full)
                 .color(Color::green(300))
@@ -235,7 +243,7 @@ impl Sprout for ScrubberSprout {
         );
 
         // input: drag -> value. Touches ONE component; drawing happens in the reaction.
-        kids.tree().subscribe(
+        tree.subscribe(
             knob,
             move |_: Trigger<Dragged>,
                   interaction: Res<foliage::CurrentInteraction>,
@@ -249,7 +257,8 @@ impl Sprout for ScrubberSprout {
         );
 
         // render: value -> geometry, identical for drag and programmatic writes.
-        kids.react::<Progress, _>(
+        tree.react::<Progress, _>(
+            this,
             move |trigger: Trigger<Insert, Progress>,
                   progress: Query<&Progress>,
                   mut tree: Tree| {

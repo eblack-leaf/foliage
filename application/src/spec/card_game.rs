@@ -118,9 +118,9 @@ impl Sprout for CardSprout {
             Grid::default(),
         )
     }
-    fn build<T: EcsExtension>(this: Entity, kids: &mut Children<T>) {
+    fn build<T: EcsExtension>(this: Entity, tree: &mut T) {
         // static skeleton — no config touches this
-        let panel = kids.spawn(
+        let panel = tree.branch(this, 
             Panel::new()
                 .rounding(Rounding::Md)
                 .at(/* fills root */)
@@ -130,14 +130,14 @@ impl Sprout for CardSprout {
                     FocusBehavior::ignore(),
                 )),
         );
-        let rank = kids.spawn(
+        let rank = tree.branch(this, 
             Text::new("")
                 .size(FontSize::new(20))
                 .at(/* top-left corner */)
                 .elevate(Elevation::up(2))
                 .with(InteractionPropagation::pass_through()),
         );
-        let pip = kids.spawn(
+        let pip = tree.branch(this, 
             Icon::new(0)
                 .at(/* centered */)
                 .elevate(Elevation::up(2))
@@ -147,7 +147,8 @@ impl Sprout for CardSprout {
         // ALL state application: runs once now (fire-once) and on every write_to.
         // Primitives obey the same contract — TextValue/IconValue/Color written
         // straight onto them; no markers, no special forms.
-        kids.react::<CardFace, _>(
+        tree.react::<CardFace, _>(
+            this,
             move |t: Trigger<Insert, CardFace>, faces: Query<&CardFace>, mut tree: Tree| {
                 let face = faces.get(t.entity).unwrap();
                 tree.write_to(rank, TextValue(face.rank_label()));
@@ -213,12 +214,12 @@ impl Sprout for HandSprout {
             Grid::new(MAX_HAND.col().gap(8), 1.row()),
         )
     }
-    fn build<T: EcsExtension>(this: Entity, kids: &mut Children<T>) {
+    fn build<T: EcsExtension>(this: Entity, tree: &mut T) {
         // POLICY (this author's): a fixed pool of card slots. Entities never die;
         // empty slots are disabled. Nothing in the library knows or cares.
         let slots: Vec<Entity> = (0..MAX_HAND)
             .map(|i| {
-                kids.spawn(
+                tree.branch(this, 
                     Card::new()
                         .at(Location::new().xs(
                             (i + 1).col().as_left().with((i + 1).col().as_right()),
@@ -232,7 +233,7 @@ impl Sprout for HandSprout {
         // per-slot interaction, wired once at build: slot click -> CardPlayed at root,
         // translated into caller vocabulary (the id currently shown in that slot)
         for (i, slot) in slots.iter().copied().enumerate() {
-            kids.tree().on_click(
+            tree.on_click(
                 slot,
                 move |_: Trigger<OnClick>, cards: Query<&Cards>, mut tree: Tree| {
                     if let Some(card) = cards.get(this).unwrap().0.get(i) {
@@ -244,7 +245,8 @@ impl Sprout for HandSprout {
 
         // ALL state application. Fires once now with Cards::default() (all slots off),
         // then on every write_to(hand, Cards(..)) forever.
-        kids.react::<Cards, _>(
+        tree.react::<Cards, _>(
+            this,
             move |t: Trigger<Insert, Cards>, cards: Query<&Cards>, mut tree: Tree| {
                 let cards = cards.get(t.entity).unwrap();
                 for (i, slot) in slots.iter().copied().enumerate() {
@@ -289,11 +291,12 @@ impl Sprout for KeyedHandSprout {
             Grid::new(MAX_HAND.col().gap(8), 1.row()),
         )
     }
-    fn build<T: EcsExtension>(this: Entity, kids: &mut Children<T>) {
+    fn build<T: EcsExtension>(this: Entity, tree: &mut T) {
         // no static skeleton at all: structure IS the data.
         // reconciliation state is plain FnMut capture — not a library feature.
         let mut live: HashMap<u32, Entity> = HashMap::new();
-        kids.react::<Cards, _>(
+        tree.react::<Cards, _>(
+            this,
             move |t: Trigger<Insert, Cards>, cards: Query<&Cards>, mut tree: Tree| {
                 let this = t.entity;
                 let cards = cards.get(this).unwrap();
@@ -317,7 +320,7 @@ impl Sprout for KeyedHandSprout {
                         }
                         // arrival: nested widget, config through its builder
                         None => {
-                            let e = Children::new(this, &mut tree).spawn(
+                            let e = tree.branch(this, 
                                 Card::new()
                                     .face(c.rank, c.suit)
                                     .at(at)

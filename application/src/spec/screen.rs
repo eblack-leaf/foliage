@@ -1,4 +1,4 @@
-//! ONE-OFF ASSEMBLY. The rule: linear `Children` + locals. No composite closures, no
+//! ONE-OFF ASSEMBLY. The rule: `tree.branch(parent, ..)` + locals. No composite closures, no
 //! tuple returns, no Handle types, ever — an entity you need later is a local, an entity
 //! you don't is never named. music_player.rs already proved this style is the readable
 //! one; it is now the ONLY one-off style (`tree.composite()` and home.rs's nested
@@ -22,9 +22,8 @@ fn settings_screen(tree: &mut Tree) {
         .elevate(Elevation::abs(0))
         .with(Grid::new(12.col().gap(8), 48.px().gap(12)))
         .photosynthesize(tree);
-    let mut kids = Children::new(root, tree);
-
-    kids.spawn(
+    tree.branch(
+        root,
         Text::new("Settings")
             .size(FontSize::new(24))
             .at(/* row 1 */)
@@ -33,30 +32,29 @@ fn settings_screen(tree: &mut Tree) {
 
     // library widgets and the user's own widgets spawn through the same chain —
     // a CardView or a Slider, no difference from here
-    let volume = kids.spawn(Slider::new().value(0.7).at(/* row 2 */).elevate(Elevation::up(1)));
-    let muted = kids.spawn(Checkbox::new().at(/* row 3 */).elevate(Elevation::up(1)));
-    let quality = kids.spawn(
-        Dropdown::new()
+    let volume = tree.branch(root, Slider::new().value(0.7).at(/* row 2 */).elevate(Elevation::up(1)));
+    let muted = tree.branch(root, Checkbox::new().at(/* row 3 */).elevate(Elevation::up(1)));
+    let quality = tree.branch(root, Dropdown::new()
             .options(["Low", "Medium", "High"])
             .at(/* row 4 */)
             .elevate(Elevation::up(1)),
     );
 
     // cross-widget behavior is end-user glue, written in widget vocabulary:
-    kids.tree().subscribe(muted, move |t: Trigger<Toggled>, mut tree: Tree| {
+    tree.subscribe(muted, move |t: Trigger<Toggled>, mut tree: Tree| {
         if t.event().checked {
             tree.disable(volume);
         } else {
             tree.enable(volume);
         }
     });
-    kids.tree().subscribe(
+    tree.subscribe(
         volume,
         |t: Trigger<ValueChanged>, mut settings: ResMut<UserSettings>| {
             settings.volume = t.event().value;
         },
     );
-    kids.tree().subscribe(
+    tree.subscribe(
         quality,
         |t: Trigger<SelectionChanged>, mut settings: ResMut<UserSettings>| {
             settings.quality = t.event().index;

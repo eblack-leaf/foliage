@@ -1,10 +1,10 @@
 use crate::Component;
 use crate::Trigger;
 use crate::{
-    anchor, Anchor, Children, Color, Disengaged, EcsExtension, Elevation, Engaged, Entity,
-    FocusBehavior, FontSize, Grid, GridExt, HorizontalAlignment, Icon, IconId, IconValue,
-    InteractionListener, InteractionPropagation, LeafSprout, Location, Outline, Panel, Rounding,
-    Sprout, Text, TextValue, Tree, VerticalAlignment, Visibility,
+    anchor, Anchor, Color, Disengaged, EcsExtension, Elevation, Engaged, Entity, FocusBehavior,
+    FontSize, Grid, GridExt, HorizontalAlignment, Icon, IconId, IconValue, InteractionListener,
+    InteractionPropagation, LeafSprout, Location, Outline, Panel, Rounding, Sprout, Text,
+    TextValue, Tree, VerticalAlignment, Visibility,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::event::EntityEvent;
@@ -146,11 +146,12 @@ impl Sprout for ButtonSprout {
             Grid::new(1.col().gap(4), 1.row().gap(4)),
         )
     }
-    fn build<T: EcsExtension>(this: Entity, kids: &mut Children<T>) {
+    fn build<T: EcsExtension>(this: Entity, tree: &mut T) {
         // static skeleton -- no config touches these spawns; every config-dependent value
         // (icon id/location, text content/width, colors, rounding) lands via the reactions'
         // first fire, in the same command batch.
-        let panel = kids.spawn(
+        let panel = tree.branch(
+            this,
             Panel::new()
                 .elevate(Elevation::up(1))
                 .at(Location::new().xs(
@@ -162,19 +163,26 @@ impl Sprout for ButtonSprout {
                     FocusBehavior::ignore(),
                 )),
         );
-        let icon = kids.spawn(Icon::new(0).elevate(Elevation::up(2)).with((
-            InteractionPropagation::pass_through(),
-            FocusBehavior::ignore(),
-        )));
-        let text = kids.spawn(Text::new("").elevate(Elevation::up(2)).with((
-            HorizontalAlignment::Left,
-            VerticalAlignment::Middle,
-            InteractionPropagation::pass_through(),
-            FocusBehavior::ignore(),
-        )));
+        let icon = tree.branch(
+            this,
+            Icon::new(0).elevate(Elevation::up(2)).with((
+                InteractionPropagation::pass_through(),
+                FocusBehavior::ignore(),
+            )),
+        );
+        let text = tree.branch(
+            this,
+            Text::new("").elevate(Elevation::up(2)).with((
+                HorizontalAlignment::Left,
+                VerticalAlignment::Middle,
+                InteractionPropagation::pass_through(),
+                FocusBehavior::ignore(),
+            )),
+        );
 
         // one restyle for every appearance input, engage-state included
-        kids.react_any::<(ButtonStyle, Engagement), _>(
+        tree.react_any::<(ButtonStyle, Engagement), _>(
+            this,
             move |trigger: Trigger<Insert, (ButtonStyle, Engagement)>,
                   styles: Query<&ButtonStyle>,
                   engagement: Query<&Engagement>,
@@ -192,19 +200,18 @@ impl Sprout for ButtonSprout {
             },
         );
         // event -> state bridges: interaction events funnel into the same reaction door
-        kids.tree()
-            .subscribe(this, |trigger: Trigger<Engaged>, mut tree: Tree| {
-                tree.entity(trigger.event_target()).insert(Engagement(true));
-            });
-        kids.tree()
-            .subscribe(this, |trigger: Trigger<Disengaged>, mut tree: Tree| {
-                tree.entity(trigger.event_target())
-                    .insert(Engagement(false));
-            });
+        tree.subscribe(this, |trigger: Trigger<Engaged>, mut tree: Tree| {
+            tree.entity(trigger.event_target()).insert(Engagement(true));
+        });
+        tree.subscribe(this, |trigger: Trigger<Disengaged>, mut tree: Tree| {
+            tree.entity(trigger.event_target())
+                .insert(Engagement(false));
+        });
 
         // NOT a pure copy -- the text's width Location depends on the value -- so this
         // stays an explicit react rather than a forward.
-        kids.react::<TextValue, _>(
+        tree.react::<TextValue, _>(
+            this,
             move |trigger: Trigger<Insert, TextValue>,
                   values: Query<&TextValue>,
                   mut tree: Tree| {
@@ -223,8 +230,8 @@ impl Sprout for ButtonSprout {
             },
         );
         // pure copies
-        kids.forward::<IconValue>(icon);
-        kids.forward::<FontSize>(text);
+        tree.forward::<IconValue>(this, icon);
+        tree.forward::<FontSize>(this, text);
     }
 }
 impl ButtonSprout {

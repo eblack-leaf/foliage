@@ -1,7 +1,7 @@
 use crate::icons::IconHandles;
 use crate::portfolio;
 use foliage::{
-    anchor, Anchor, Animation, Button, Children, Color, EcsExtension, Elevation, Entity, FontSize,
+    anchor, Anchor, Animation, Button, Color, EcsExtension, Elevation, Entity, FontSize,
     GlyphColors, Grid, GridExt, HorizontalAlignment, HrefLink, Keyring, Leaf, Line, Location,
     Logical, OnClick, OnEnd, Opacity, Query, Res, Rounding, Section, Sequence, Sprout, Text,
     TextValue, Tree, Trigger, VerticalAlignment, Write,
@@ -20,9 +20,9 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         .with(Grid::new(12.col().gap(8), row_size.px().gap(8)))
         .photosynthesize(tree);
     tree.name(root, "home");
-    let mut kids = Children::new(root, tree);
 
-    let name_container = kids.spawn(
+    let name_container = tree.branch(
+        root,
         Leaf::sprout()
             .at(Location::new().xs(
                 1.col().as_left().with(12.col().as_right()).max(600.0),
@@ -31,8 +31,8 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
             .elevate(Elevation::up(1))
             .with(Grid::new(12.col().gap(4), 12.row().gap(4))),
     );
-    let mut name_kids = Children::new(name_container, kids.tree());
-    let name = name_kids.spawn(
+    let name = tree.branch(
+        name_container,
         Text::new("foliage.rs")
             .size(FontSize::new(44))
             .at(Location::new().xs(
@@ -46,7 +46,8 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
                 Opacity::new(0.0),
             )),
     );
-    let top_desc = name_kids.spawn(
+    let top_desc = tree.branch(
+        name_container,
         Text::new("w: 0.0")
             .size(FontSize::new(14))
             .color(Color::gray(700))
@@ -57,7 +58,8 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
             .elevate(Elevation::up(1))
             .with(Opacity::new(0.0)),
     );
-    let top_line = name_kids.spawn(
+    let top_line = tree.branch(
+        name_container,
         Line::new(2)
             .color(Color::gray(700))
             .at(Location::new().xs(
@@ -66,7 +68,7 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
             ))
             .elevate(Elevation::up(1)),
     );
-    name_kids.tree().subscribe(
+    tree.subscribe(
         top_line,
         move |trigger: Trigger<Write<Section<Logical>>>,
               mut tree: Tree,
@@ -75,7 +77,8 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
             tree.write_to(top_desc, TextValue(format!("w: {:.01}", w)));
         },
     );
-    let side_desc = name_kids.spawn(
+    let side_desc = tree.branch(
+        name_container,
         Text::new("h: 0.0")
             .size(FontSize::new(14))
             .color(Color::gray(700))
@@ -86,7 +89,7 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
             .elevate(Elevation::up(1))
             .with(Opacity::new(0.0)),
     );
-    name_kids.tree().subscribe(
+    tree.subscribe(
         top_line,
         move |trigger: Trigger<Write<Section<Logical>>>,
               mut tree: Tree,
@@ -95,7 +98,8 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
             tree.write_to(side_desc, TextValue(format!("h: {:.01}", h)));
         },
     );
-    let pad_connector = name_kids.spawn(
+    let pad_connector = tree.branch(
+        name_container,
         Line::new(2)
             .color(Color::gray(700))
             .at(Location::new().xs(
@@ -104,7 +108,8 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
             ))
             .elevate(Elevation::up(1)),
     );
-    let pad_desc = name_kids.spawn(
+    let pad_desc = tree.branch(
+        name_container,
         Text::new("pad: 0.0")
             .size(FontSize::new(14))
             .color(Color::gray(700))
@@ -115,7 +120,7 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
             .elevate(Elevation::up(1))
             .with(Opacity::new(0.0)),
     );
-    name_kids.tree().subscribe(
+    tree.subscribe(
         pad_connector,
         move |trigger: Trigger<Write<Section<Logical>>>,
               mut tree: Tree,
@@ -124,7 +129,8 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
             tree.write_to(pad_desc, TextValue(format!("pad: {:.01}", h)));
         },
     );
-    let desc = name_kids.spawn(
+    let desc = tree.branch(
+        name_container,
         Text::new("native + web ui")
             .size(FontSize::new(24))
             .color(Color::gray(500))
@@ -142,7 +148,8 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
             )),
     );
 
-    let github = kids.spawn(
+    let github = tree.branch(
+        root,
         Button::new()
             .icon(IconHandles::Github.value())
             .rounding(Rounding::Full)
@@ -153,13 +160,13 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
             ))
             .elevate(Elevation::up(1)),
     );
-    kids.tree()
-        .graft(github)
+    tree.graft(github)
         .write((FontSize::new(16), Opacity::new(0.0)))
         .on_click(|trigger: Trigger<OnClick>| {
             HrefLink::new("https://github.com/eblack-leaf/foliage").navigate()
         });
-    let github_line = kids.spawn(
+    let github_line = tree.branch(
+        root,
         Line::new(2)
             .color(Color::gray(700))
             .at(Location::new().xs(
@@ -169,7 +176,8 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
             .elevate(Elevation::up(1))
             .with(Anchor::new(github)),
     );
-    let github_desc = kids.spawn(
+    let github_desc = tree.branch(
+        root,
         Text::new("on-click: github")
             .size(FontSize::new(14))
             .color(Color::gray(500))
@@ -189,7 +197,8 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
             )),
     );
 
-    let options_container = kids.spawn(
+    let options_container = tree.branch(
+        root,
         Leaf::sprout()
             .at(Location::new().xs(
                 1.col().as_left().with(12.col().as_right()).max(600.0),
@@ -199,95 +208,96 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
             .with(Grid::new(5.col().gap(4), 3.row().gap(8))),
     );
     // row, icon, color, desc text, desc highlight range, desc column range, line column
-    let option_rows: Vec<(Entity, Entity, Entity)> = Children::new(options_container, kids.tree())
-        .each(
-            [
-                (
-                    1,
-                    IconHandles::Terminal.value(),
-                    Color::green(700),
-                    "on-click: usage",
-                    10..15,
-                    (4, 5),
-                    1,
-                ),
-                (
-                    2,
-                    IconHandles::Layers.value(),
-                    Color::green(500),
-                    "on-click: impl",
-                    10..14,
-                    (1, 2),
-                    5,
-                ),
-                (
-                    3,
-                    IconHandles::BookOpen.value(),
-                    Color::green(300),
-                    "on-click: docs",
-                    10..14,
-                    (4, 5),
-                    1,
-                ),
-            ],
-            |_,
-             (row, icon, color, desc_text, highlight, (desc_left, desc_right), line_col),
-             row_children| {
-                let button = row_children.spawn(
-                    Button::new()
-                        .rounding(Rounding::Full)
-                        .icon(icon)
-                        .colors(color, Color::gray(900))
-                        .outline(2)
-                        .at(Location::new().xs(
-                            3.col()
-                                .as_left()
-                                .with(3.col().as_right())
-                                .max(48.0)
-                                .min(48.0),
-                            row.row()
-                                .as_top()
-                                .with(row.row().as_bottom())
-                                .max(48.0)
-                                .min(48.0),
-                        ))
-                        .elevate(Elevation::up(1)),
-                );
-                row_children
-                    .tree()
-                    .graft(button)
-                    .write(Opacity::new(0.0))
-                    .on_click(move |trigger: Trigger<OnClick>| HrefLink::new("tbd").navigate());
-                let line = row_children.spawn(
-                    Line::new(2)
-                        .color(color)
-                        .at(Location::new().xs(
-                            line_col.col().as_x().with(row.row().as_y()),
-                            line_col.col().as_x().with(row.row().as_y()),
-                        ))
-                        .elevate(Elevation::up(1)),
-                );
-                let desc = row_children.spawn(
-                    Text::new(desc_text)
-                        .size(FontSize::new(16))
-                        .color(Color::gray(500))
-                        .at(Location::new().xs(
-                            desc_left.col().as_left().with(desc_right.col().as_right()),
-                            row.row().as_top().with(row.row().as_bottom()),
-                        ))
-                        .elevate(Elevation::up(1))
-                        .with((
-                            HorizontalAlignment::Center,
-                            VerticalAlignment::Middle,
-                            GlyphColors::new().add(highlight, color),
-                            Opacity::new(0.0),
-                        )),
-                );
-                (button, line, desc)
-            },
-        );
+    let option_rows: Vec<(Entity, Entity, Entity)> = [
+        (
+            1,
+            IconHandles::Terminal.value(),
+            Color::green(700),
+            "on-click: usage",
+            10..15,
+            (4, 5),
+            1,
+        ),
+        (
+            2,
+            IconHandles::Layers.value(),
+            Color::green(500),
+            "on-click: impl",
+            10..14,
+            (1, 2),
+            5,
+        ),
+        (
+            3,
+            IconHandles::BookOpen.value(),
+            Color::green(300),
+            "on-click: docs",
+            10..14,
+            (4, 5),
+            1,
+        ),
+    ]
+    .into_iter()
+    .map(
+        |(row, icon, color, desc_text, highlight, (desc_left, desc_right), line_col)| {
+            let button = tree.branch(
+                options_container,
+                Button::new()
+                    .rounding(Rounding::Full)
+                    .icon(icon)
+                    .colors(color, Color::gray(900))
+                    .outline(2)
+                    .at(Location::new().xs(
+                        3.col()
+                            .as_left()
+                            .with(3.col().as_right())
+                            .max(48.0)
+                            .min(48.0),
+                        row.row()
+                            .as_top()
+                            .with(row.row().as_bottom())
+                            .max(48.0)
+                            .min(48.0),
+                    ))
+                    .elevate(Elevation::up(1)),
+            );
+            tree.graft(button)
+                .write(Opacity::new(0.0))
+                .on_click(move |trigger: Trigger<OnClick>| HrefLink::new("tbd").navigate());
+            let line = tree.branch(
+                options_container,
+                Line::new(2)
+                    .color(color)
+                    .at(Location::new().xs(
+                        line_col.col().as_x().with(row.row().as_y()),
+                        line_col.col().as_x().with(row.row().as_y()),
+                    ))
+                    .elevate(Elevation::up(1)),
+            );
+            let desc = tree.branch(
+                options_container,
+                Text::new(desc_text)
+                    .size(FontSize::new(16))
+                    .color(Color::gray(500))
+                    .at(Location::new().xs(
+                        desc_left.col().as_left().with(desc_right.col().as_right()),
+                        row.row().as_top().with(row.row().as_bottom()),
+                    ))
+                    .elevate(Elevation::up(1))
+                    .with((
+                        HorizontalAlignment::Center,
+                        VerticalAlignment::Middle,
+                        GlyphColors::new().add(highlight, color),
+                        Opacity::new(0.0),
+                    )),
+            );
+            (button, line, desc)
+        },
+    )
+    .collect();
 
-    let portfolio = kids.spawn(
+    let portfolio = tree.branch(
+        root,
         Button::new()
             .icon(IconHandles::Code.value())
             .text("Portfolio")
@@ -304,8 +314,7 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
             ))
             .elevate(Elevation::up(1)),
     );
-    kids.tree()
-        .graft(portfolio)
+    tree.graft(portfolio)
         .write((FontSize::new(20), Opacity::new(0.0)))
         .on_click(
             move |trigger: Trigger<OnClick>, mut tree: Tree, keyring: Res<Keyring>| {
@@ -314,7 +323,8 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
             },
         );
 
-    let _spacing = kids.spawn(
+    let _spacing = tree.branch(
+        root,
         Leaf::sprout()
             .at(Location::new().xs(
                 0.pct().as_left().with(100.pct().as_right()),

@@ -3,9 +3,7 @@ use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, Query};
 
 pub(crate) mod button;
-pub(crate) mod children;
 pub(crate) mod text_input;
-pub use children::{Children, Refire};
 pub(crate) use text_input::keybindings::KeyBindings;
 
 /// Walks a `Root` pointer if the entity has one, otherwise returns the entity itself -- for

@@ -63,7 +63,7 @@ pub use composite::{
         keybindings::KeyBindings, HintColor, HintText, InsertText, LineConstraint, TextChanged,
         TextInput, TextInputSprout, TextInputStyle,
     },
-    Children, Refire, Root,
+    Root,
 };
 pub use composite::{IconValue, TextValue};
 pub use coordinate::elevation::{Elevation, ResolvedElevation};
@@ -98,6 +98,6 @@ pub use text::{
     VerticalAlignment,
 };
 pub use time::{Moment, OnEnd, Time, TimeDelta, TimeMarker, Timer};
-pub use tree::{EcsExtension, Graft, IntoTargets, Sequence, TargetedEvent, Tree};
+pub use tree::{EcsExtension, Graft, IntoTargets, Refire, Sequence, TargetedEvent, Tree};
 pub use visibility::{InheritedVisibility, ResolvedVisibility, Visibility};
 pub use web_ext::{Extensions, HrefLink};

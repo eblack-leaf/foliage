@@ -1,6 +1,6 @@
 use foliage::{
-    Animation, Children, Color, EcsExtension, Elevation, Entity, FontSize, Grid, GridExt,
-    LineConstraint, Location, Opacity, Sequence, Sprout, Text, TextInput, Tree,
+    Animation, Color, EcsExtension, Elevation, Entity, FontSize, Grid, GridExt, LineConstraint,
+    Location, Opacity, Sequence, Sprout, Text, TextInput, Tree,
 };
 
 /// Stands in for the "Artist Blog" portfolio item until that app is built.
@@ -11,8 +11,8 @@ pub(crate) fn build(tree: &mut Tree, app: Entity) {
             .finish(1500)
             .targeting(app),
     );
-    let mut children = Children::new(app, tree);
-    children.spawn(
+    tree.branch(
+        app,
         Text::new("composites")
             .size(FontSize::new(24))
             .color(Color::gray(400))
@@ -22,7 +22,8 @@ pub(crate) fn build(tree: &mut Tree, app: Entity) {
             ))
             .elevate(Elevation::up(1)),
     );
-    children.spawn(
+    tree.branch(
+        app,
         TextInput::new()
             .line_constraint(LineConstraint::Multiple)
             .hint_text("multiline input...")

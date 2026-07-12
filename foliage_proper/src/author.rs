@@ -1,5 +1,5 @@
 use crate::tree::Sow;
-use crate::{Children, EcsExtension, Elevation, Entity, Location, Stem};
+use crate::{EcsExtension, Elevation, Entity, Location, Stem};
 use bevy_ecs::bundle::Bundle;
 
 /// The position/hierarchy/elevation state every `Sprout` type embeds.
@@ -38,10 +38,10 @@ impl LeafSprout {
 ///   hooks resolve once against placeholder defaults before the real value lands).
 ///   The library folds the [`LeafSprout`] seed fields in itself; `root` returns only
 ///   widget components.
-/// - `build` is the private, config-INDEPENDENT skeleton (default empty == a primitive).
-///   Everything data-dependent -- values and structure -- goes through
-///   [`Children::react`], which runs once at spawn and again on every later write, so
-///   initial state and updates share one code path.
+/// - `build` is the private, config-INDEPENDENT skeleton (default empty == a primitive),
+///   grown with [`EcsExtension::branch`]. Everything data-dependent -- values and
+///   structure -- goes through [`EcsExtension::react`], which runs once at spawn and
+///   again on every later write, so initial state and updates share one code path.
 ///
 /// The former `Seed`/`Sprout`/`Photosynthesis` split existed because single-bundle
 /// primitives and multi-entity composites had different spawn paths; `root`+`build`
@@ -52,7 +52,7 @@ pub trait Sprout: Sized {
     fn root(self) -> impl Bundle;
     /// private static skeleton + reaction registration. Default empty == a primitive.
     #[allow(unused_variables)]
-    fn build<T: EcsExtension>(this: Entity, kids: &mut Children<T>) {}
+    fn build<T: EcsExtension>(this: Entity, tree: &mut T) {}
     fn at(mut self, location: Location) -> Self {
         self.seed().location = location;
         self
@@ -79,7 +79,7 @@ pub trait Sprout: Sized {
                 .expect("elevation not set -- call .elevate(...) before spawning"),
             self.root(),
         ));
-        Self::build(this, &mut Children::new(this, tree));
+        Self::build(this, tree);
         this
     }
 }
@@ -87,7 +87,7 @@ pub trait Sprout: Sized {
 /// `LeafSprout` is itself a `Sprout` -- the "no named marker component" case, for a child with
 /// no reusable type of its own (a bare interaction hit-area, say). Its marker component, if
 /// any, is attached the same way every other extra component is: `.with(...)`. This is what
-/// makes `Children::spawn` uniform for *every* child instead of needing a raw-bundle path.
+/// makes [`EcsExtension::branch`] uniform for *every* child instead of needing a raw path.
 impl Sprout for LeafSprout {
     fn seed(&mut self) -> &mut LeafSprout {
         self
@@ -107,7 +107,7 @@ impl<S: Sprout, X: Bundle> Sprout for With<S, X> {
     fn root(self) -> impl Bundle {
         (self.inner.root(), self.extra)
     }
-    fn build<T: EcsExtension>(this: Entity, kids: &mut Children<T>) {
-        S::build(this, kids);
+    fn build<T: EcsExtension>(this: Entity, tree: &mut T) {
+        S::build(this, tree);
     }
 }

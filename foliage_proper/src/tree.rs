@@ -1,19 +1,22 @@
 use crate::anim::runner::AnimationRunner;
 use crate::anim::sequence::{AnimationTime, SequenceMarker};
-use crate::composite::children::Refire;
 use crate::disable::Disable;
 use crate::enable::Enable;
 use crate::leaf::Leaf;
 use crate::ops::{Name, StoredKey};
 use crate::remove::Remove;
 use crate::time::OnEnd;
-use crate::{Animate, Animation, AssetKey, OnClick, TimeDelta, Timer};
+use crate::Trigger;
+use crate::{Animate, Animation, AssetKey, OnClick, Sprout, TimeDelta, Timer};
 use bevy_ecs::bundle::Bundle;
+use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::{EntityEvent, Event};
+use bevy_ecs::lifecycle::Insert;
 use bevy_ecs::message::Message;
 use bevy_ecs::observer::IntoEntityObserver;
 use bevy_ecs::prelude::{Commands, World};
+use bevy_ecs::system::Query;
 
 pub type Tree<'w, 's> = Commands<'w, 's>;
 
@@ -97,9 +100,56 @@ pub trait EcsExtension: Sow {
     fn store<S: AsRef<str>>(&mut self, k: AssetKey, s: S);
     fn timer<M>(&mut self, t: u64, tf: impl IntoEntityObserver<M>);
     /// Re-inserts `entity`'s current value(s) of `C` so any just-registered observer fires with
-    /// real data -- the fire-once half of `Children::react`. Internal plumbing; authors use
-    /// `react`.
+    /// real data -- the fire-once half of [`EcsExtension::react`]. Internal plumbing; authors
+    /// use `react`.
     fn refire<C: Refire>(&mut self, entity: Entity);
+    /// Grows `spec` as a child of `parent` -- `.stem(parent)` filled by the required argument,
+    /// so a child can't be spawned orphaned by forgetting a chained call. THE way to build a
+    /// composite's structure, in `Sprout::build` and one-off screens alike:
+    /// `let icon = tree.branch(this, Icon::new(0).elevate(..));`
+    fn branch<S: Sprout>(&mut self, parent: Entity, spec: S) -> Entity
+    where
+        Self: Sized,
+    {
+        spec.stem(parent).photosynthesize(self)
+    }
+    /// Registers `observer` -- a plain bevy entity-observer watching `Trigger<Insert, C>`, full
+    /// `SystemParam` freedom -- on `entity`, then re-fires it once with the current value so
+    /// initial state and every later `write_to` run the SAME code path. This is the one door
+    /// for everything data-dependent in a composite: values AND structure (a dropdown's option
+    /// rows, a hand's cards). What the body does -- respawn, pool, patch -- is entirely the
+    /// author's policy. The `_` stands in for the observer's inferred marker:
+    /// `tree.react::<TextValue, _>(this, ..)`.
+    fn react<C: Component + Clone, M>(
+        &mut self,
+        entity: Entity,
+        observer: impl IntoEntityObserver<M>,
+    ) {
+        self.subscribe(entity, observer);
+        self.refire::<(C,)>(entity);
+    }
+    /// [`EcsExtension::react`] over a component SET: the observer watches
+    /// `Trigger<Insert, (A, B)>` and fires when ANY member is written -- one registration, one
+    /// body, for state derived from several inputs (Button's style + engagement). The
+    /// build-time re-fire inserts only the first present member: one fire is enough because
+    /// reaction bodies read the current state of everything they depend on.
+    fn react_any<CS: Refire, M>(&mut self, entity: Entity, observer: impl IntoEntityObserver<M>) {
+        self.subscribe(entity, observer);
+        self.refire::<CS>(entity);
+    }
+    /// [`EcsExtension::react`] specialized to the pure-copy case: `source`'s `C` is copied to
+    /// `target` verbatim, now and on every write. Anything that is NOT a pure copy (a text
+    /// whose width also depends on the value) stays an explicit `react` -- the boundary is
+    /// visible on purpose.
+    fn forward<C: Component + Clone>(&mut self, source: Entity, target: Entity) {
+        self.react::<C, _>(
+            source,
+            move |trigger: Trigger<Insert, C>, values: Query<&C>, mut tree: Tree| {
+                tree.entity(target)
+                    .insert(values.get(trigger.entity).unwrap().clone());
+            },
+        );
+    }
     /// Grafts further behavior (`on_click`, `animate`, extra components) onto an already-spawned
     /// entity right next to where it was created, instead of in a separate pass elsewhere:
     /// `tree.graft(e).on_click(...).animate(...);`
@@ -110,6 +160,37 @@ pub trait EcsExtension: Sow {
         Graft { entity, tree: self }
     }
 }
+
+/// What `react`/`react_any` re-fire at build time: a tuple of `Clone`-able components
+/// (arity 1-4; tuple-only so the impls can't collide with a foreign `Component` impl).
+/// Re-inserts only the FIRST present member -- one fire is sufficient because reaction
+/// bodies read the current state of everything they depend on, that's the pattern.
+pub trait Refire: Send + Sync + 'static {
+    /// Re-inserts the entity's current value; true if anything was inserted.
+    fn refire(entity: Entity, world: &mut World) -> bool;
+}
+fn refire_one<C: Component + Clone>(entity: Entity, world: &mut World) -> bool {
+    if let Some(current) = world.get::<C>(entity).cloned() {
+        world.entity_mut(entity).insert(current);
+        true
+    } else {
+        false
+    }
+}
+macro_rules! impl_refire_tuple {
+    ($($t:ident),+) => {
+        impl<$($t: Component + Clone),+> Refire for ($($t,)+) {
+            fn refire(entity: Entity, world: &mut World) -> bool {
+                $( if refire_one::<$t>(entity, world) { return true; } )+
+                false
+            }
+        }
+    };
+}
+impl_refire_tuple!(A);
+impl_refire_tuple!(A, B);
+impl_refire_tuple!(A, B, C);
+impl_refire_tuple!(A, B, C, D);
 /// See [`EcsExtension::graft`].
 pub struct Graft<'t, T: EcsExtension + ?Sized> {
     entity: Entity,

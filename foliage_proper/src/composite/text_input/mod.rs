@@ -1,7 +1,7 @@
 pub(crate) mod action;
 pub(crate) mod keybindings;
 
-use crate::composite::{resolve_root, Children, Root};
+use crate::composite::{resolve_root, Root};
 use crate::interaction::CurrentInteraction;
 use crate::text::monospaced::MonospacedFont;
 use crate::text::{Glyphs, LineMetrics};
@@ -121,10 +121,12 @@ impl Sprout for TextInputSprout {
             Grid::default(),
         )
     }
-    fn build<T: EcsExtension>(this: Entity, kids: &mut Children<T>) {
-        // static skeleton. One call per child; `.stem` auto-filled by `Children::spawn`;
-        // `cursor` (no visual of its own -- a bare interaction hit-area) uses `Leaf::sprout()`.
-        let panel = kids.spawn(
+    fn build<T: EcsExtension>(this: Entity, tree: &mut T) {
+        // static skeleton. One `branch` per child; the parent is a required argument, so a
+        // child can't be orphaned. `cursor` (no visual of its own -- a bare interaction
+        // hit-area) uses `Leaf::sprout()`.
+        let panel = tree.branch(
+            this,
             Panel::new()
                 .elevate(Elevation::up(1))
                 .at(Location::new().xs(
@@ -143,13 +145,13 @@ impl Sprout for TextInputSprout {
                     Root(this),
                 )),
         );
-        kids.tree().subscribe(panel, TextInput::unfocused);
-        kids.tree().subscribe(panel, PlaceCursor::forward);
+        tree.subscribe(panel, TextInput::unfocused);
+        tree.subscribe(panel, PlaceCursor::forward);
 
-        // panel owns cursor/visible/text/hint_text -- a second `Children` scoped to it
-        // mirrors the real hierarchy.
-        let mut panel_children = Children::new(panel, kids.tree());
-        let cursor = panel_children.spawn(
+        // panel owns cursor/visible/text/hint_text -- branching from it mirrors the
+        // real hierarchy.
+        let cursor = tree.branch(
+            panel,
             Leaf::sprout()
                 .elevate(Elevation::up(6))
                 .at(Location::new().xs(
@@ -162,7 +164,8 @@ impl Sprout for TextInputSprout {
                     Root(this),
                 )),
         );
-        let visible = panel_children.spawn(
+        let visible = tree.branch(
+            panel,
             Panel::new()
                 .elevate(Elevation::up(3))
                 .at(Location::new().xs(
@@ -178,17 +181,20 @@ impl Sprout for TextInputSprout {
         );
         // no Location / auto flags: LineConstraint-dependent, set by that reaction's
         // first fire below, in the same command batch.
-        let text = panel_children.spawn(
+        let text = tree.branch(
+            panel,
             Text::new("")
                 .elevate(Elevation::up(5))
                 .with((InteractionListener::new(), Root(this))),
         );
-        let hint_text = panel_children.spawn(Text::new("").elevate(Elevation::up(4)).with((
-            InteractionPropagation::pass_through(),
-            FocusBehavior::ignore(),
-            Root(this),
-        )));
-        let tree = panel_children.tree();
+        let hint_text = tree.branch(
+            panel,
+            Text::new("").elevate(Elevation::up(4)).with((
+                InteractionPropagation::pass_through(),
+                FocusBehavior::ignore(),
+                Root(this),
+            )),
+        );
         tree.subscribe(cursor, TextInput::unfocused);
         tree.subscribe(cursor, Cursor::engaged);
         tree.subscribe(cursor, Selection::select);
@@ -198,7 +204,7 @@ impl Sprout for TextInputSprout {
         tree.subscribe(this, TextInput::unfocused);
 
         // Handle BEFORE the reactions: their first fires look it up.
-        kids.tree().write_to(
+        tree.write_to(
             this,
             Handle {
                 panel,
@@ -211,11 +217,11 @@ impl Sprout for TextInputSprout {
         );
 
         // everything data-dependent, initial state included
-        kids.react::<LineConstraint, _>(TextInput::update_line_constraint);
-        kids.react::<TextValue, _>(TextInput::update_text_value);
-        kids.react::<TextInputStyle, _>(TextInput::update_style);
-        kids.react::<FontSize, _>(TextInput::update_font_size);
-        kids.react::<HintText, _>(TextInput::update_hint);
+        tree.react::<LineConstraint, _>(this, TextInput::update_line_constraint);
+        tree.react::<TextValue, _>(this, TextInput::update_text_value);
+        tree.react::<TextInputStyle, _>(this, TextInput::update_style);
+        tree.react::<FontSize, _>(this, TextInput::update_font_size);
+        tree.react::<HintText, _>(this, TextInput::update_hint);
     }
 }
 impl TextInputSprout {
@@ -853,8 +859,8 @@ impl TextInput {
             handle.highlights.remove(&o);
             tree.remove(e);
         }
-        // one child per selected glyph -- new glyphs entering the range each spawn via the same
-        // `Children` (scoped to `handle.panel`) the composite's own construction uses.
+        // one child per selected glyph -- new glyphs entering the range branch from
+        // `handle.panel`, same as the composite's own construction.
         let panel = handle.panel;
         let existing: Vec<GlyphOffset> = glyph
             .layout
@@ -900,18 +906,20 @@ impl TextInput {
             })
             .collect();
         let color = styles.get(this).unwrap().accent;
-        let mut children = Children::new(panel, tree);
         for (offset, col, row) in new_glyphs {
             let location = Location::new().xs(
                 (col + 1).col().as_left().with((col + 1).col().as_right()),
                 (row + 1).row().as_top().with((row + 1).row().as_bottom()),
             );
-            let h = children.spawn(Panel::new().elevate(Elevation::up(2)).at(location).with((
-                Opacity::new(1.0),
-                color,
-                InteractionPropagation::pass_through(),
-                FocusBehavior::ignore(),
-            )));
+            let h = tree.branch(
+                panel,
+                Panel::new().elevate(Elevation::up(2)).at(location).with((
+                    Opacity::new(1.0),
+                    color,
+                    InteractionPropagation::pass_through(),
+                    FocusBehavior::ignore(),
+                )),
+            );
             handle.highlights.insert(offset, h);
         }
     }
@@ -1570,7 +1578,7 @@ impl InsertText {
     }
 }
 // No teardown hook: every child (highlights included -- reselect_range spawns them via
-// `Children::new(panel, ..)`) is `Stem`-parented, so `Remove`'s cascade reaches them all.
+// `tree.branch(panel, ..)`) is `Stem`-parented, so `Remove`'s cascade reaches them all.
 #[derive(Component, Clone, Debug)]
 pub struct Handle {
     pub panel: Entity,

@@ -41,19 +41,19 @@ impl Sprout for ButtonSprout {
             Grid::new(1.col().gap(4), 1.row().gap(4)),
         )
     }
-    fn build<T: EcsExtension>(this: Entity, kids: &mut Children<T>) {
-        let panel = kids.spawn(Panel::new().at(/* fill */).elevate(Elevation::up(1)).with((
+    fn build<T: EcsExtension>(this: Entity, tree: &mut T) {
+        let panel = tree.branch(this, Panel::new().at(/* fill */).elevate(Elevation::up(1)).with((
             InteractionPropagation::pass_through(),
             FocusBehavior::ignore(),
         )));
         // no Location: rounding-dependent, set by the style reaction's first fire —
         // the "don't spawn with a placeholder Location" rule survives, without the
         // old hand-called apply_rounding duplicate.
-        let icon = kids.spawn(Icon::new(0).elevate(Elevation::up(2)).with((
+        let icon = tree.branch(this, Icon::new(0).elevate(Elevation::up(2)).with((
             InteractionPropagation::pass_through(),
             FocusBehavior::ignore(),
         )));
-        let text = kids.spawn(Text::new("").at(/* centered */).elevate(Elevation::up(2)).with((
+        let text = tree.branch(this, Text::new("").at(/* centered */).elevate(Elevation::up(2)).with((
             InteractionPropagation::pass_through(),
             FocusBehavior::ignore(),
         )));
@@ -61,7 +61,8 @@ impl Sprout for ButtonSprout {
         // ONE restyle, subsuming recompute_colors + apply_rounding. Appearance depends
         // on two components; observers natively watch tuples — one registration, one
         // body, fires when EITHER is written (and once at build, per react's contract).
-        kids.react_any::<(ButtonStyle, Engagement), _>(
+        tree.react_any::<(ButtonStyle, Engagement), _>(
+            this,
             move |t: Trigger<Insert, (ButtonStyle, Engagement)>,
                   styles: Query<&ButtonStyle>,
                   engagement: Query<&Engagement>,
@@ -77,16 +78,17 @@ impl Sprout for ButtonSprout {
         );
 
         // event -> state bridges (the whole remainder of the old five subscribes):
-        kids.tree().subscribe(this, move |t: Trigger<Engaged>, mut tree: Tree| {
+        tree.subscribe(this, move |t: Trigger<Engaged>, mut tree: Tree| {
             tree.write_to(t.event_target(), Engagement(true));
         });
-        kids.tree().subscribe(this, move |t: Trigger<Disengaged>, mut tree: Tree| {
+        tree.subscribe(this, move |t: Trigger<Disengaged>, mut tree: Tree| {
             tree.write_to(t.event_target(), Engagement(false));
         });
 
         // NOT a pure copy — text also recomputes its width Location — so it stays an
         // explicit react. The boundary between forward and react is visible on purpose.
-        kids.react::<TextValue, _>(
+        tree.react::<TextValue, _>(
+            this,
             move |t: Trigger<Insert, TextValue>, v: Query<&TextValue>, mut tree: Tree| {
                 let value = v.get(t.entity).unwrap().clone();
                 tree.write_to(text, value); // primitives take their value components
@@ -94,8 +96,8 @@ impl Sprout for ButtonSprout {
             },
         );
         // pure copies: root's component -> child, nothing else. Sugar earns its keep.
-        kids.forward::<IconValue>(icon);
-        kids.forward::<FontSize>(text);
+        tree.forward::<IconValue>(this, icon);
+        tree.forward::<FontSize>(this, text);
     }
 }
 
@@ -135,23 +137,23 @@ impl Sprout for DropdownSprout {
             Grid::default(),
         )
     }
-    fn build<T: EcsExtension>(this: Entity, kids: &mut Children<T>) {
+    fn build<T: EcsExtension>(this: Entity, tree: &mut T) {
         // static: the closed field
-        let field = kids.spawn(Panel::new().rounding(Rounding::Sm).at(/* .. */).elevate(Elevation::up(1)).with((
+        let field = tree.branch(this, Panel::new().rounding(Rounding::Sm).at(/* .. */).elevate(Elevation::up(1)).with((
             InteractionPropagation::pass_through(),
             FocusBehavior::ignore(),
         )));
-        let label = kids.spawn(Text::new("").at(/* .. */).elevate(Elevation::up(2)));
-        let chevron = kids.spawn(Icon::new(0).at(/* .. */).elevate(Elevation::up(2)));
-        let list = kids.spawn(
+        let label = tree.branch(this, Text::new("").at(/* .. */).elevate(Elevation::up(2)));
+        let chevron = tree.branch(this, Icon::new(0).at(/* .. */).elevate(Elevation::up(2)));
+        let list = tree.branch(this, 
             Panel::new()
                 .at(/* below field, overlaying siblings */)
                 .elevate(Elevation::abs(90))
                 .with(Grid::new(1.col(), 40.px().gap(2))),
         );
-        kids.tree().disable(list);
+        tree.disable(list);
 
-        kids.tree().on_click(this, move |t: Trigger<OnClick>, ex: Query<&Expanded>, mut tree: Tree| {
+        tree.on_click(this, move |t: Trigger<OnClick>, ex: Query<&Expanded>, mut tree: Tree| {
             let e = t.event_target();
             tree.write_to(e, Expanded(!ex.get(e).unwrap().0));
         });
@@ -159,13 +161,13 @@ impl Sprout for DropdownSprout {
         // dynamic structure door: rows follow Options. This author respawns;
         // a pooling author would look exactly like Hand instead.
         let mut rows: Vec<Entity> = Vec::new();
-        kids.react::<Options, _>(move |t: Trigger<Insert, Options>, opts: Query<&Options>, mut tree: Tree| {
+        tree.react::<Options, _>(move |t: Trigger<Insert, Options>, opts: Query<&Options>, mut tree: Tree| {
             let this = t.event_target();
             for r in rows.drain(..) {
                 tree.remove(r);
             }
             for (i, opt) in opts.get(this).unwrap().0.iter().enumerate() {
-                let row = Children::new(list, &mut tree).spawn(
+                let row = tree.branch(list, 
                     Text::new(opt)
                         .at(Location::new().xs(
                             1.col().as_left().with(1.col().as_right()),
@@ -182,7 +184,7 @@ impl Sprout for DropdownSprout {
             }
         });
 
-        kids.react::<Expanded, _>(move |t: Trigger<Insert, Expanded>, ex: Query<&Expanded>, mut tree: Tree| {
+        tree.react::<Expanded, _>(move |t: Trigger<Insert, Expanded>, ex: Query<&Expanded>, mut tree: Tree| {
             if ex.get(t.entity).unwrap().0 {
                 tree.enable(list); // + chevron flip / open animation
             } else {
@@ -193,7 +195,8 @@ impl Sprout for DropdownSprout {
         // tuple-react: the label depends on BOTH — a Selected click must relabel, and
         // so must an Options replacement while something is selected (with a single-
         // component react on Selected alone, that second path would go stale).
-        kids.react_any::<(Options, Selected), _>(
+        tree.react_any::<(Options, Selected), _>(
+            this,
             move |t: Trigger<Insert, (Options, Selected)>,
                   sel: Query<&Selected>,
                   opts: Query<&Options>,
@@ -231,11 +234,11 @@ impl Sprout for SliderSprout {
     fn root(self) -> impl Bundle {
         (Slider {}, SliderValue(self.value), Grid::default())
     }
-    fn build<T: EcsExtension>(this: Entity, kids: &mut Children<T>) {
-        let track = kids.spawn(Line::new(4).color(Color::gray(700)).at(/* full width, mid */).elevate(Elevation::up(1)));
-        let fill = kids.spawn(Line::new(4).color(Color::green(300)).at(/* zero-width, mid */).elevate(Elevation::up(2)));
+    fn build<T: EcsExtension>(this: Entity, tree: &mut T) {
+        let track = tree.branch(this, Line::new(4).color(Color::gray(700)).at(/* full width, mid */).elevate(Elevation::up(1)));
+        let fill = tree.branch(this, Line::new(4).color(Color::green(300)).at(/* zero-width, mid */).elevate(Elevation::up(2)));
         // thumb rides the fill's end via Anchor — music_player's scrubber, now reusable
-        let thumb = kids.spawn(
+        let thumb = tree.branch(this, 
             Panel::new()
                 .rounding(Rounding::Full)
                 .at(/* anchored to fill end */)
@@ -244,7 +247,7 @@ impl Sprout for SliderSprout {
         );
 
         // input: drag -> value. Touches ONE component; drawing happens below.
-        kids.tree().subscribe(
+        tree.subscribe(
             thumb,
             move |_: Trigger<Dragged>,
                   interaction: Res<CurrentInteraction>, // GAP-2: must be pub for authors
@@ -257,7 +260,8 @@ impl Sprout for SliderSprout {
         );
 
         // render: value -> geometry. Identical for drag writes and programmatic writes.
-        kids.react::<SliderValue, _>(
+        tree.react::<SliderValue, _>(
+            this,
             move |t: Trigger<Insert, SliderValue>, vals: Query<&SliderValue>, mut tree: Tree| {
                 let v = vals.get(t.entity).unwrap().0;
                 tree.write_to(

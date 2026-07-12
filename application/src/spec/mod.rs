@@ -34,7 +34,7 @@
 //!         /// widget components.
 //!         fn root(self) -> impl Bundle;
 //!         /// private, STATIC skeleton. Default empty == a primitive.
-//!         fn build<T: EcsExtension>(this: Entity, kids: &mut Children<T>) {}
+//!         fn build<T: EcsExtension>(this: Entity, tree: &mut T) {}
 //!         // provided: .at() .stem() .elevate() .with() .photosynthesize()
 //!     }
 //!
@@ -49,15 +49,18 @@
 //! config to a child is a PURE COPY, so it gets sugar — and anything that is NOT a
 //! pure copy stays an explicit react, keeping the boundary visible:
 //!
-//!     kids.forward::<IconValue>(icon);   // react that copies root's C to a child
-//!     kids.react::<TextValue>(..);       // Button's text ALSO recomputes width: not a copy
+//!     tree.forward::<IconValue>(this, icon); // react that copies root's C to a child
+//!     tree.react::<TextValue, _>(this, ..);  // Button's text ALSO recomputes width: not a copy
 //!
-//! ONE new primitive, `Children::react`:
+//! There is no scoping struct (`Children` flattened into `EcsExtension` -- its one real
+//! job, never-forget-the-stem, is done by a required argument instead). ALL verbs live on
+//! the one tree interface, beside subscribe/on_click:
 //!
-//!     kids.react::<C, _>(observer)             // C: Component + Clone; `_` = the
-//!                                              // observer's inferred marker type
-//!     kids.react_any::<(A, B), _>(observer)    // native bevy: observers watch tuples;
-//!                                              // one body, fires when EITHER is written
+//!     tree.branch(parent, spec) -> Entity           // grow a child; parent is required
+//!     tree.react::<C, _>(entity, observer)          // C: Component + Clone; `_` = the
+//!                                                   // observer's inferred marker type
+//!     tree.react_any::<(A, B), _>(entity, observer) // native bevy: observers watch
+//!                                                   // tuples; fires when EITHER is written
 //!
 //! registers `observer` — a plain bevy entity-observer watching Trigger<Insert, C>, with
 //! full SystemParam freedom — on the widget root, then re-inserts the root's current
@@ -100,7 +103,7 @@
 //! never fights the widget for a name. XSprout remains the builder-struct convention;
 //! authors rarely write it, it arrives via X::new().
 //!
-//! Teardown: nothing to declare. Children::spawn stems everything; Remove cascades.
+//! Teardown: nothing to declare. branch stems everything; Remove cascades.
 //! Cross-system lookup (rare — TextInput's global focus routing): the author inserts
 //! their own plain component during build. Not a library concept.
 //!
@@ -108,15 +111,16 @@
 //! DELETED from foliage_proper by this design
 //! ============================================================================
 //!   - Composite trait, composite_on_insert, handle_replace, Composite::remove
-//!     (remove() is provably dead: Children::spawn stems everything, Remove cascades)
+//!     (remove() is provably dead: branch stems everything, Remove cascades)
 //!   - forward::<C> the free function (Insert vs Update<C> bridging — one vocabulary
-//!     now; Children::forward is its principled replacement)
+//!     now; EcsExtension::forward is its principled replacement)
 //!   - Primary/Secondary/Tertiary as library vocabulary (widgets own their config types)
 //!   - Seed + Photosynthesis as separate traits (collapsed into Sprout)
 //!   - targeted_event! + hand-written Default-with-PLACEHOLDER impls (TargetedEvent derive)
 //!   - the `Text { value }` public struct-literal write path (TextValue on the entity)
-//!   - tree.composite() as a load-bearing concept (one-offs: linear Children + locals,
-//!     see screen.rs — music_player.rs already proved this style)
+//!   - tree.composite() as a load-bearing concept AND the Children scoping struct with
+//!     its `each` loop sugar (one-offs: `tree.branch(parent, ..)` + locals + plain
+//!     iterators, see screen.rs)
 //!   - the composite require-gotcha CLASS: children spawn at photosynthesize-time, not
 //!     hook-time; reactions are registered before any poke can land; nothing depends on
 //!     hook ordering. (Expanded-before-Handle — the bug that bit Dropdown — becomes
@@ -125,7 +129,7 @@
 //! ============================================================================
 //! KNOWN FRICTION, DELIBERATELY KEPT (call these out if they bother you)
 //! ============================================================================
-//!   - react::<C, _>(..) names C twice plus a `_` for the observer's marker type
+//!   - react::<C, _>(entity, ..) names C twice plus a `_` for the observer's marker type
 //!     (turbofish + Trigger<Insert, C> in the closure). The macro-free price.
 //!   - react (single) and react_any (tuple) are two methods: a blanket Refire impl over
 //!     `C: Component` would collide with the tuple impls under coherence rules, since a
