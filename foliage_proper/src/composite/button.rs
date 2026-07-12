@@ -127,20 +127,18 @@ impl Photosynthesis for ButtonSprout {
         let icon_value = self.icon.unwrap_or_default();
         let text_value = self.text.unwrap_or_default();
 
-        let this = tree.leaf((
-            Button::new_marker(),
-            self.leaf.location,
-            self.leaf.stem,
-            self.leaf
-                .elevation
-                .expect("elevation not set -- call .elevate(...) before spawning"),
-            IconValue(icon_value),
-            TextValue(text_value.clone()),
-            Primary(primary),
-            Secondary(secondary),
-            rounding,
-            outline,
-        ));
+        let this = self
+            .leaf
+            .with((
+                Button::new_marker(),
+                IconValue(icon_value),
+                TextValue(text_value.clone()),
+                Primary(primary),
+                Secondary(secondary),
+                rounding,
+                outline,
+            ))
+            .photosynthesize(tree);
         tree.write_to(this, Grid::new(1.col().gap(4), 1.row().gap(4)));
 
         let panel = Panel::new()

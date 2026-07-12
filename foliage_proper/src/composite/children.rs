@@ -27,6 +27,16 @@ impl<'t, T: EcsExtension> Children<'t, T> {
     pub fn spawn<S: Photosynthesis>(&mut self, spec: S) -> Entity {
         spec.stem(self.parent).photosynthesize(self.tree)
     }
+    /// Nests a second `composite()` under this one's `parent`, auto-filling `.stem(parent)` on
+    /// `root` the same way [`Children::spawn`] does -- so a sub-group's own root never needs the
+    /// enclosing parent threaded through by hand (`children.parent()`/`.stem(...)`).
+    pub fn composite<S: Photosynthesis, R>(
+        &mut self,
+        root: S,
+        build: impl FnOnce(&mut Children<T>) -> R,
+    ) -> (Entity, R) {
+        self.tree.composite(root.stem(self.parent), build)
+    }
     /// Spawns per item. `build` receives the item's index, the item itself, and this `Children`
     /// (so it can call `spawn`/`each` again), and decides everything about how that child is
     /// placed and ordered — row, column, bottom-up, chained-stack, whatever. This only removes

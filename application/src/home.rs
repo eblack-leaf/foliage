@@ -41,14 +41,13 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
             let (
                 _name_container,
                 (name, top_desc, top_line, side_desc, pad_connector, pad_desc, desc),
-            ) = children.tree().composite(
+            ) = children.composite(
                 Leaf::sprout()
                     .at(Location::new().xs(
                         1.col().as_left().with(12.col().as_right()).max(600.0),
                         4.row().as_top().with(8.row().as_bottom()),
                     ))
                     .elevate(Elevation::up(1))
-                    .stem(root)
                     .with(Grid::new(12.col().gap(4), 12.row().gap(4))),
                 |name_children| {
                     let name = name_children.spawn(
@@ -393,12 +392,6 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         .animate(
             Animation::new(Opacity::new(1.0))
                 .start(1000)
-                .finish(1500)
-                .targeting(github),
-        )
-        .animate(
-            Animation::new(Opacity::new(1.0))
-                .start(1000)
                 .finish(1250)
                 .targeting(top_desc),
         )
@@ -525,8 +518,17 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         .end(move |trigger: Trigger<OnEnd>, mut tree: Tree| {
             tree.enable([option_one, option_two, option_three, portfolio]);
         });
-    tree.disable([github, option_one, option_two, option_three, portfolio]);
-    tree.timer(1500, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
-        tree.enable(github);
-    });
+    // its own Sequence -- github settles well before the rest of the page, so its re-enable is
+    // tied to its own animation's real completion instead of a duplicated-by-hand timer.
+    Sequence::new(tree)
+        .animate(
+            Animation::new(Opacity::new(1.0))
+                .start(1000)
+                .finish(1500)
+                .targeting(github),
+        )
+        .end(move |trigger: Trigger<OnEnd>, mut tree: Tree| {
+            tree.enable(github);
+        });
+    tree.disable(root);
 }

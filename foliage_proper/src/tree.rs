@@ -62,8 +62,20 @@ macro_rules! targeted_event {
     )*};
 }
 
-pub trait EcsExtension {
+/// Raw ECS-level spawn, underneath the public `Seed`/`Sprout`/`Photosynthesis` authoring kit --
+/// `pub(crate)` on purpose, so external consumers can't spawn a bare `Leaf` bypassing
+/// `LeafSprout`'s mandatory `.elevate(...)` (the exact footgun that field was made required to
+/// close). Internal composite/primitive code (`author.rs`, `button.rs`, `foliage.rs`) still uses
+/// it directly; everyone else goes through `Leaf::sprout()`/`Photosynthesis::photosynthesize`.
+pub(crate) trait Sow {
     fn leaf<B: Bundle>(&mut self, b: B) -> Entity;
+}
+// `Sow` is `pub(crate)` on purpose (see its doc comment) -- `EcsExtension` is only ever
+// implemented for `Tree`/`DeferredWorld`/`World` below, all within this crate, so an external
+// crate being unable to name the supertrait (and thus unable to implement `EcsExtension` itself)
+// is the intended effect, not an oversight.
+#[allow(private_bounds)]
+pub trait EcsExtension: Sow {
     fn send_to<E>(&mut self, e: E, targets: impl IntoTargets)
     where
         E: TargetedEvent,
@@ -145,6 +157,14 @@ impl<'t, T: EcsExtension + ?Sized> Graft<'t, T> {
         self.tree.write_to(self.entity, b);
         self
     }
+    pub fn enable(self) -> Self {
+        self.tree.enable(self.entity);
+        self
+    }
+    pub fn disable(self) -> Self {
+        self.tree.disable(self.entity);
+        self
+    }
 }
 impl<'t, T: EcsExtension + ?Sized> From<Graft<'t, T>> for Entity {
     fn from(b: Graft<'t, T>) -> Self {
@@ -177,11 +197,13 @@ impl<'t, T: EcsExtension + ?Sized> Sequence<'t, T> {
         self.id
     }
 }
-impl EcsExtension for Tree<'_, '_> {
+impl Sow for Tree<'_, '_> {
     fn leaf<B: Bundle>(&mut self, b: B) -> Entity {
         let entity = self.spawn((Leaf::new(), b)).id();
         entity
     }
+}
+impl EcsExtension for Tree<'_, '_> {
     fn send_to<E>(&mut self, e: E, targets: impl IntoTargets)
     where
         E: TargetedEvent,
@@ -250,10 +272,12 @@ impl EcsExtension for Tree<'_, '_> {
     }
 }
 
-impl EcsExtension for bevy_ecs::world::DeferredWorld<'_> {
+impl Sow for bevy_ecs::world::DeferredWorld<'_> {
     fn leaf<B: Bundle>(&mut self, b: B) -> Entity {
         self.commands().leaf(b)
     }
+}
+impl EcsExtension for bevy_ecs::world::DeferredWorld<'_> {
     fn send_to<E>(&mut self, e: E, targets: impl IntoTargets)
     where
         E: TargetedEvent,
@@ -309,10 +333,12 @@ impl EcsExtension for bevy_ecs::world::DeferredWorld<'_> {
     }
 }
 
-impl EcsExtension for World {
+impl Sow for World {
     fn leaf<B: Bundle>(&mut self, b: B) -> Entity {
         self.commands().leaf(b)
     }
+}
+impl EcsExtension for World {
     fn send_to<E>(&mut self, e: E, targets: impl IntoTargets)
     where
         E: TargetedEvent,

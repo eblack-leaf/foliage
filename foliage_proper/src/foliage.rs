@@ -134,7 +134,7 @@ impl Foliage {
     pub fn attach<A: Attachment>(&mut self) {
         A::attach(self);
     }
-    pub fn photosynthesize(mut self) {
+    pub fn grow(mut self) {
         let event_loop = EventLoop::new().unwrap();
         event_loop.set_control_flow(ControlFlow::Wait);
         cfg_if::cfg_if! {
@@ -160,9 +160,6 @@ impl Foliage {
     }
     pub fn define<M>(&mut self, obs: impl IntoObserver<M>) {
         self.world.add_observer(obs);
-    }
-    pub fn leaf<B: Bundle>(&mut self, b: B) -> Entity {
-        self.world.leaf(b)
     }
     pub fn send_to<E>(&mut self, e: E, targets: impl IntoTargets)
     where

@@ -1,3 +1,4 @@
+use crate::tree::Sow;
 use crate::{EcsExtension, Elevation, Entity, Location, Stem};
 use bevy_ecs::bundle::Bundle;
 

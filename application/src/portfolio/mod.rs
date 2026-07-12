@@ -301,8 +301,7 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
             info_children.tree().on_click(display, open_modal.clone());
             card_root
         });
-    tree.disable(back);
-    tree.on_click(back, move |trigger: Trigger<OnClick>, mut tree: Tree| {
+    tree.graft(back).disable().on_click(move |trigger: Trigger<OnClick>, mut tree: Tree| {
         tree.disable([back, root]);
         Sequence::new(&mut tree)
             .animate(
