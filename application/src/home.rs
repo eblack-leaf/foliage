@@ -392,6 +392,12 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         .animate(
             Animation::new(Opacity::new(1.0))
                 .start(1000)
+                .finish(1500)
+                .targeting(github),
+        )
+        .animate(
+            Animation::new(Opacity::new(1.0))
+                .start(1000)
                 .finish(1250)
                 .targeting(top_desc),
         )
@@ -518,17 +524,11 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         .end(move |trigger: Trigger<OnEnd>, mut tree: Tree| {
             tree.enable([option_one, option_two, option_three, portfolio]);
         });
-    // its own Sequence -- github settles well before the rest of the page, so its re-enable is
-    // tied to its own animation's real completion instead of a duplicated-by-hand timer.
-    Sequence::new(tree)
-        .animate(
-            Animation::new(Opacity::new(1.0))
-                .start(1000)
-                .finish(1500)
-                .targeting(github),
-        )
-        .end(move |trigger: Trigger<OnEnd>, mut tree: Tree| {
-            tree.enable(github);
-        });
-    tree.disable(root);
+    tree.disable([github, option_one, option_two, option_three, portfolio]);
+    // aesthetic pacing, not a GPU-readiness wait -- the render pipeline queues anything not yet
+    // ready on its own, this just avoids github becoming interactive the instant its own fade
+    // finishes while everything else is still visibly settling in.
+    tree.timer(1500, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
+        tree.enable(github);
+    });
 }
