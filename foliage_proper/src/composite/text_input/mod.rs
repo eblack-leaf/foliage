@@ -1,24 +1,26 @@
 pub(crate) mod action;
 pub(crate) mod keybindings;
 
-use bevy_ecs::event::EntityEvent;
-use bevy_ecs::lifecycle::HookContext;
-use crate::composite::{composite_on_insert, forward, handle_replace, resolve_root, Children, Root};
+use crate::composite::{
+    composite_on_insert, forward, handle_replace, resolve_root, Children, Root,
+};
 use crate::interaction::CurrentInteraction;
 use crate::text::monospaced::MonospacedFont;
 use crate::text::{Glyphs, LineMetrics};
+use crate::IntoTargets;
+use crate::Trigger;
 use crate::{
     auto, Attachment, AutoHeight, AutoWidth, Color, Component, Composite, Dragged, EcsExtension,
     Elevation, Engaged, Event, FocusBehavior, Foliage, FontSize, GlyphOffset, Grid, GridExt,
-    InputSequence, InteractionListener, InteractionPropagation, Key, Layout, Leaf,
-    LeafSprout, Location, Logical, Opacity, OverscrollPropagation, Panel, Primary, Secondary,
-    Section, Seed, Sprout, Stem, Tertiary, Text, TextValue, Tree, Unfocused, Update, View, Write,
+    InputSequence, InteractionListener, InteractionPropagation, Key, Layout, Leaf, LeafSprout,
+    Location, Logical, Opacity, OverscrollPropagation, Panel, Primary, Secondary, Section, Seed,
+    Sprout, Stem, Tertiary, Text, TextValue, Tree, Unfocused, Update, View, Write,
 };
 use action::{InputAction, TextInputAction};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
-use crate::IntoTargets;
-use crate::Trigger;
+use bevy_ecs::event::EntityEvent;
+use bevy_ecs::lifecycle::HookContext;
 use bevy_ecs::lifecycle::Insert;
 use bevy_ecs::system::{Query, Res};
 use bevy_ecs::world::DeferredWorld;
@@ -180,7 +182,11 @@ impl Composite for TextInput {
     type Handle = Handle;
     fn children(this: Entity, children: &mut Children<DeferredWorld>) -> Self::Handle {
         let line_constraint = *children.tree().get::<LineConstraint>(this).unwrap();
-        children.tree().commands().entity(this).insert(Grid::default());
+        children
+            .tree()
+            .commands()
+            .entity(this)
+            .insert(Grid::default());
 
         // One call per child: `.stem` is auto-filled by `Children::spawn`, `Panel`/`Text` use
         // their own `Sprout`, `cursor` (no visual/Sprout type -- a bare interaction hit-area) uses
@@ -189,10 +195,20 @@ impl Composite for TextInput {
             Panel::new()
                 .elevate(Elevation::up(1))
                 .at(Location::new().xs(
-                    0.pct().as_left().adjust(4).with(100.pct().as_right().adjust(-4)),
-                    0.pct().as_top().adjust(4).with(100.pct().as_bottom().adjust(-4)),
+                    0.pct()
+                        .as_left()
+                        .adjust(4)
+                        .with(100.pct().as_right().adjust(-4)),
+                    0.pct()
+                        .as_top()
+                        .adjust(4)
+                        .with(100.pct().as_bottom().adjust(-4)),
                 ))
-                .with((Grid::new(1.letters(), 1.letters()), InteractionListener::new(), Root(this))),
+                .with((
+                    Grid::new(1.letters(), 1.letters()),
+                    InteractionListener::new(),
+                    Root(this),
+                )),
         );
         children
             .tree()
@@ -212,7 +228,11 @@ impl Composite for TextInput {
                     1.col().as_left().with(1.col().as_right()),
                     1.col().as_top().with(1.col().as_bottom()),
                 ))
-                .with((InteractionListener::new(), InteractionPropagation::pass_through(), Root(this))),
+                .with((
+                    InteractionListener::new(),
+                    InteractionPropagation::pass_through(),
+                    Root(this),
+                )),
         );
         panel_children
             .tree()
@@ -260,7 +280,12 @@ impl Composite for TextInput {
             Text::new("")
                 .elevate(Elevation::up(5))
                 .at(text_location)
-                .with((InteractionListener::new(), Root(this), auto_width, auto_height)),
+                .with((
+                    InteractionListener::new(),
+                    Root(this),
+                    auto_width,
+                    auto_height,
+                )),
         );
         panel_children
             .tree()
@@ -418,7 +443,12 @@ impl TextInput {
 
     /// Was `Input::forward_to_text`/`ForwardText::obs`: sync the root's `TextValue` onto the
     /// displayed text + hint visibility, and broadcast `TextChanged` for enclosing composites.
-    fn forward_text(this: Entity, tree: &mut Tree, values: &Query<&TextValue>, handles: &Query<&Handle>) {
+    fn forward_text(
+        this: Entity,
+        tree: &mut Tree,
+        values: &Query<&TextValue>,
+        handles: &Query<&Handle>,
+    ) {
         let handle = handles.get(this).unwrap();
         let value = values.get(this).unwrap();
         tree.write_to(handle.text, Text::new_marker(&value.0));
@@ -483,12 +513,14 @@ impl TextInputState {
                 tree.write_to(trigger.event_target(), OverscrollPropagation(false));
                 tree.write_to(
                     handle.visible,
-                    (Opacity::new(0.75), primary.get(trigger.event_target()).unwrap().0),
+                    (
+                        Opacity::new(0.75),
+                        primary.get(trigger.event_target()).unwrap().0,
+                    ),
                 )
             }
             TextInputStage::AwaitingInput => {
-                virtual_keyboard
-                    .open(crate::virtual_keyboard::VirtualKeyboardType::Keyboard);
+                virtual_keyboard.open(crate::virtual_keyboard::VirtualKeyboardType::Keyboard);
                 tree.write_to(trigger.event_target(), OverscrollPropagation(true));
                 tree.write_to(handle.cursor, InteractionPropagation::grab().disable_drag());
                 tree.write_to(
@@ -525,7 +557,10 @@ impl Cursor {
     }
     // we clicked explicitly on cursor, start drag behavior
     pub(crate) fn engaged(trigger: Trigger<Engaged>, mut tree: Tree, roots: Query<&Root>) {
-        tree.trigger_targets(TextInputState::Highlighting, resolve_root(trigger.event_target(), &roots));
+        tree.trigger_targets(
+            TextInputState::Highlighting,
+            resolve_root(trigger.event_target(), &roots),
+        );
     }
 }
 #[derive(EntityEvent, Copy, Clone)]
@@ -542,7 +577,12 @@ impl Default for PlaceCursor {
 crate::targeted_event!(PlaceCursor);
 impl PlaceCursor {
     pub(crate) fn forward(trigger: Trigger<Engaged>, mut tree: Tree, roots: Query<&Root>) {
-        tree.trigger_targets(PlaceCursor { entity: Entity::PLACEHOLDER }, resolve_root(trigger.event_target(), &roots));
+        tree.trigger_targets(
+            PlaceCursor {
+                entity: Entity::PLACEHOLDER,
+            },
+            resolve_root(trigger.event_target(), &roots),
+        );
     }
     pub(crate) fn obs(
         trigger: Trigger<PlaceCursor>,
@@ -616,7 +656,8 @@ impl TextInput {
         let dims = font.character_block(fsv);
         let section = sections.get(this).unwrap();
         let handle = handles.get(this).unwrap();
-        let relative = click - section.position - (4, 4).into() + views.get(handle.panel).unwrap().offset;
+        let relative =
+            click - section.position - (4, 4).into() + views.get(handle.panel).unwrap().offset;
         let (x, y) = (
             (relative.left().max(0.0) / dims.a()) as u32,
             (relative.top().max(0.0) / dims.b()) as u32,
@@ -691,9 +732,10 @@ impl TextInput {
                 RequestedLocation::ColRow((c, r)) => {
                     let mut scan = c;
                     while let Some(sc) = scan.checked_sub(1) {
-                        if let Some(found) = text_glyphs.iter().find(|g| {
-                            (g.x / dims.a()) as u32 == sc && (g.y / dims.b()) as u32 == r
-                        }) {
+                        if let Some(found) = text_glyphs
+                            .iter()
+                            .find(|g| (g.x / dims.a()) as u32 == sc && (g.y / dims.b()) as u32 == r)
+                        {
                             col = (sc + 1).min(metrics.max_letter_idx_horizontal);
                             row = r;
                             location = found.byte_offset + 1;
@@ -809,9 +851,30 @@ impl Selection {
             &line_metrics,
         );
         let req = RequestedLocation::ColRow((col, row));
-        TextInput::extend_range(root, req, &cursors, &mut selections, &glyphs, &handles.as_readonly(), &font, &font_sizes, *layout, &values);
+        TextInput::extend_range(
+            root,
+            req,
+            &cursors,
+            &mut selections,
+            &glyphs,
+            &handles.as_readonly(),
+            &font,
+            &font_sizes,
+            *layout,
+            &values,
+        );
         let selections_ro = selections.as_readonly();
-        TextInput::reselect_range(root, &mut tree, &mut handles, &glyphs, &selections_ro, &font, &font_sizes, *layout, &tertiary);
+        TextInput::reselect_range(
+            root,
+            &mut tree,
+            &mut handles,
+            &glyphs,
+            &selections_ro,
+            &font,
+            &font_sizes,
+            *layout,
+            &tertiary,
+        );
     }
 }
 impl TextInput {
@@ -840,10 +903,12 @@ impl TextInput {
                 if (glyph.x / dims.a()) as u32 == c && (glyph.y / dims.b()) as u32 == r {
                     if cursor.location < glyph.byte_offset {
                         selection.inverted = false;
-                        selection.range = cursor.location..next_boundary(&value.0, glyph.byte_offset);
+                        selection.range =
+                            cursor.location..next_boundary(&value.0, glyph.byte_offset);
                     } else {
                         selection.inverted = true;
-                        selection.range = glyph.byte_offset..next_boundary(&value.0, cursor.location);
+                        selection.range =
+                            glyph.byte_offset..next_boundary(&value.0, cursor.location);
                     }
                 }
             }
@@ -884,7 +949,10 @@ impl TextInput {
             .layout
             .glyphs()
             .iter()
-            .filter(|g| selection.range.contains(&g.byte_offset) && handle.highlights.contains_key(&g.byte_offset))
+            .filter(|g| {
+                selection.range.contains(&g.byte_offset)
+                    && handle.highlights.contains_key(&g.byte_offset)
+            })
             .map(|g| g.byte_offset)
             .collect();
         for o in existing {
@@ -900,14 +968,25 @@ impl TextInput {
                 (row + 1).row().as_top().with((row + 1).row().as_bottom()),
             );
             let existing = *handle.highlights.get(&o).unwrap();
-            tree.entity(existing).insert(Opacity::new(1.0)).insert(location);
+            tree.entity(existing)
+                .insert(Opacity::new(1.0))
+                .insert(location);
         }
         let new_glyphs: Vec<(GlyphOffset, u32, u32)> = glyph
             .layout
             .glyphs()
             .iter()
-            .filter(|g| selection.range.contains(&g.byte_offset) && !handle.highlights.contains_key(&g.byte_offset))
-            .map(|g| (g.byte_offset, (g.x / dims.a()) as u32, (g.y / dims.b()) as u32))
+            .filter(|g| {
+                selection.range.contains(&g.byte_offset)
+                    && !handle.highlights.contains_key(&g.byte_offset)
+            })
+            .map(|g| {
+                (
+                    g.byte_offset,
+                    (g.x / dims.a()) as u32,
+                    (g.y / dims.b()) as u32,
+                )
+            })
             .collect();
         let color = tertiary.get(this).unwrap().0;
         let mut children = Children::new(panel, tree);
@@ -916,12 +995,12 @@ impl TextInput {
                 (col + 1).col().as_left().with((col + 1).col().as_right()),
                 (row + 1).row().as_top().with((row + 1).row().as_bottom()),
             );
-            let h = children.spawn(
-                Panel::new()
-                    .elevate(Elevation::up(2))
-                    .at(location)
-                    .with((Opacity::new(1.0), color, InteractionPropagation::pass_through(), FocusBehavior::ignore())),
-            );
+            let h = children.spawn(Panel::new().elevate(Elevation::up(2)).at(location).with((
+                Opacity::new(1.0),
+                color,
+                InteractionPropagation::pass_through(),
+                FocusBehavior::ignore(),
+            )));
             handle.highlights.insert(offset, h);
         }
     }
@@ -942,7 +1021,9 @@ impl Input {
     ) {
         if let Some(f) = current_interaction.focused {
             let main = resolve_root(f, &roots);
-            let Ok(handle) = handles.get(main) else { return; };
+            let Ok(handle) = handles.get(main) else {
+                return;
+            };
             if f != main && f != handle.panel && f != handle.text && f != handle.cursor {
                 return;
             }
@@ -989,23 +1070,75 @@ impl Input {
                 TextInputAction::Enter => match lc {
                     LineConstraint::Single => {}
                     LineConstraint::Multiple => {
-                        TextInput::insert_text(this, "\n", cursor_val.location, &mut values, &selections);
-                        TextInput::after_edit(this, &mut tree, &values.as_readonly(), &handles.as_readonly(), &mut cursor, &glyphs, &font, &font_sizes, *layout, &line_metrics, &mut selections);
+                        TextInput::insert_text(
+                            this,
+                            "\n",
+                            cursor_val.location,
+                            &mut values,
+                            &selections,
+                        );
+                        TextInput::after_edit(
+                            this,
+                            &mut tree,
+                            &values.as_readonly(),
+                            &handles.as_readonly(),
+                            &mut cursor,
+                            &glyphs,
+                            &font,
+                            &font_sizes,
+                            *layout,
+                            &line_metrics,
+                            &mut selections,
+                        );
                     }
                 },
                 TextInputAction::Backspace => {
                     let selection = selections.get(this).unwrap();
                     if !selection.range.is_empty() {
-                        TextInput::insert_text(this, "", cursor_val.location, &mut values, &selections);
-                        TextInput::after_edit(this, &mut tree, &values.as_readonly(), &handles.as_readonly(), &mut cursor, &glyphs, &font, &font_sizes, *layout, &line_metrics, &mut selections);
+                        TextInput::insert_text(
+                            this,
+                            "",
+                            cursor_val.location,
+                            &mut values,
+                            &selections,
+                        );
+                        TextInput::after_edit(
+                            this,
+                            &mut tree,
+                            &values.as_readonly(),
+                            &handles.as_readonly(),
+                            &mut cursor,
+                            &glyphs,
+                            &font,
+                            &font_sizes,
+                            *layout,
+                            &line_metrics,
+                            &mut selections,
+                        );
                     } else if cursor_val.location > 0 {
                         let mut value = values.get_mut(this).unwrap();
                         if !value.0.is_empty() {
                             let idx = prev_boundary(&value.0, cursor_val.location);
                             value.0.remove(idx);
                             drop(value);
-                            TextInput::forward_text(this, &mut tree, &values.as_readonly(), &handles.as_readonly());
-                            TextInput::move_cursor(this, &mut tree, RequestedLocation::Offset(idx), &glyphs, &font, &font_sizes, *layout, &handles.as_readonly(), &mut cursor, &line_metrics);
+                            TextInput::forward_text(
+                                this,
+                                &mut tree,
+                                &values.as_readonly(),
+                                &handles.as_readonly(),
+                            );
+                            TextInput::move_cursor(
+                                this,
+                                &mut tree,
+                                RequestedLocation::Offset(idx),
+                                &glyphs,
+                                &font,
+                                &font_sizes,
+                                *layout,
+                                &handles.as_readonly(),
+                                &mut cursor,
+                                &line_metrics,
+                            );
                             tree.trigger_targets(TextInputState::AwaitingInput, this);
                             TextInput::clear_selection(this, &mut selections);
                         }
@@ -1014,26 +1147,86 @@ impl Input {
                 TextInputAction::Delete => {
                     let selection = selections.get(this).unwrap();
                     if !selection.range.is_empty() {
-                        TextInput::insert_text(this, "", cursor_val.location, &mut values, &selections);
-                        TextInput::after_edit(this, &mut tree, &values.as_readonly(), &handles.as_readonly(), &mut cursor, &glyphs, &font, &font_sizes, *layout, &line_metrics, &mut selections);
+                        TextInput::insert_text(
+                            this,
+                            "",
+                            cursor_val.location,
+                            &mut values,
+                            &selections,
+                        );
+                        TextInput::after_edit(
+                            this,
+                            &mut tree,
+                            &values.as_readonly(),
+                            &handles.as_readonly(),
+                            &mut cursor,
+                            &glyphs,
+                            &font,
+                            &font_sizes,
+                            *layout,
+                            &line_metrics,
+                            &mut selections,
+                        );
                     } else if cursor_val.location < values.get(this).unwrap().0.len() {
                         let mut value = values.get_mut(this).unwrap();
                         value.0.remove(cursor_val.location);
                         drop(value);
-                        TextInput::forward_text(this, &mut tree, &values.as_readonly(), &handles.as_readonly());
-                        TextInput::move_cursor(this, &mut tree, RequestedLocation::Offset(cursor_val.location), &glyphs, &font, &font_sizes, *layout, &handles.as_readonly(), &mut cursor, &line_metrics);
+                        TextInput::forward_text(
+                            this,
+                            &mut tree,
+                            &values.as_readonly(),
+                            &handles.as_readonly(),
+                        );
+                        TextInput::move_cursor(
+                            this,
+                            &mut tree,
+                            RequestedLocation::Offset(cursor_val.location),
+                            &glyphs,
+                            &font,
+                            &font_sizes,
+                            *layout,
+                            &handles.as_readonly(),
+                            &mut cursor,
+                            &line_metrics,
+                        );
                         tree.trigger_targets(TextInputState::AwaitingInput, this);
                         TextInput::clear_selection(this, &mut selections);
                     }
                 }
                 TextInputAction::End => {
-                    let col = metrics.lines.get(cursor_val.row as usize).copied().unwrap_or_default();
-                    TextInput::move_cursor(this, &mut tree, RequestedLocation::ColRow((col, cursor_val.row)), &glyphs, &font, &font_sizes, *layout, &handles.as_readonly(), &mut cursor, &line_metrics);
+                    let col = metrics
+                        .lines
+                        .get(cursor_val.row as usize)
+                        .copied()
+                        .unwrap_or_default();
+                    TextInput::move_cursor(
+                        this,
+                        &mut tree,
+                        RequestedLocation::ColRow((col, cursor_val.row)),
+                        &glyphs,
+                        &font,
+                        &font_sizes,
+                        *layout,
+                        &handles.as_readonly(),
+                        &mut cursor,
+                        &line_metrics,
+                    );
                     tree.trigger_targets(TextInputState::AwaitingInput, this);
                     TextInput::clear_selection(this, &mut selections);
                 }
                 TextInputAction::Home => {
-                    TextInput::move_cursor(this, &mut tree, RequestedLocation::ColRow((0, cursor_val.row)), &glyphs, &font, &font_sizes, *layout, &handles.as_readonly(), &mut cursor, &line_metrics);
+                    TextInput::move_cursor(
+                        this,
+                        &mut tree,
+                        RequestedLocation::ColRow((0, cursor_val.row)),
+                        &glyphs,
+                        &font,
+                        &font_sizes,
+                        *layout,
+                        &handles.as_readonly(),
+                        &mut cursor,
+                        &line_metrics,
+                    );
                     tree.trigger_targets(TextInputState::AwaitingInput, this);
                     TextInput::clear_selection(this, &mut selections);
                 }
@@ -1053,8 +1246,26 @@ impl Input {
                     }
                     if !text.is_empty() {
                         // InsertText already replaces any active selection
-                        TextInput::insert_text(this, &text, cursor_val.location, &mut values, &selections);
-                        TextInput::after_edit(this, &mut tree, &values.as_readonly(), &handles.as_readonly(), &mut cursor, &glyphs, &font, &font_sizes, *layout, &line_metrics, &mut selections);
+                        TextInput::insert_text(
+                            this,
+                            &text,
+                            cursor_val.location,
+                            &mut values,
+                            &selections,
+                        );
+                        TextInput::after_edit(
+                            this,
+                            &mut tree,
+                            &values.as_readonly(),
+                            &handles.as_readonly(),
+                            &mut cursor,
+                            &glyphs,
+                            &font,
+                            &font_sizes,
+                            *layout,
+                            &line_metrics,
+                            &mut selections,
+                        );
                     }
                 }
                 TextInputAction::SelectAll => {
@@ -1064,43 +1275,167 @@ impl Input {
                         selection.range = 0..len;
                         selection.inverted = false;
                         drop(selection);
-                        TextInput::move_cursor(this, &mut tree, RequestedLocation::Offset(len), &glyphs, &font, &font_sizes, *layout, &handles.as_readonly(), &mut cursor, &line_metrics);
+                        TextInput::move_cursor(
+                            this,
+                            &mut tree,
+                            RequestedLocation::Offset(len),
+                            &glyphs,
+                            &font,
+                            &font_sizes,
+                            *layout,
+                            &handles.as_readonly(),
+                            &mut cursor,
+                            &line_metrics,
+                        );
                         let selections_ro = selections.as_readonly();
-                        TextInput::reselect_range(this, &mut tree, &mut handles, &glyphs, &selections_ro, &font, &font_sizes, *layout, &tertiary);
+                        TextInput::reselect_range(
+                            this,
+                            &mut tree,
+                            &mut handles,
+                            &glyphs,
+                            &selections_ro,
+                            &font,
+                            &font_sizes,
+                            *layout,
+                            &tertiary,
+                        );
                         tree.trigger_targets(TextInputState::Highlighting, this);
                     }
                 }
                 TextInputAction::ExtendLeft => {
-                    TextInput::extend_and_reselect(this, &mut tree, RequestedLocation::ColRow((cursor_val.column.saturating_sub(1), cursor_val.row)), &cursor, &mut selections, &glyphs, &mut handles, &font, &font_sizes, *layout, &values.as_readonly(), &tertiary);
+                    TextInput::extend_and_reselect(
+                        this,
+                        &mut tree,
+                        RequestedLocation::ColRow((
+                            cursor_val.column.saturating_sub(1),
+                            cursor_val.row,
+                        )),
+                        &cursor,
+                        &mut selections,
+                        &glyphs,
+                        &mut handles,
+                        &font,
+                        &font_sizes,
+                        *layout,
+                        &values.as_readonly(),
+                        &tertiary,
+                    );
                     tree.trigger_targets(TextInputState::Highlighting, this);
                 }
                 TextInputAction::ExtendRight => {
-                    TextInput::extend_and_reselect(this, &mut tree, RequestedLocation::ColRow(((cursor_val.column + 1).min(metrics.max_letter_idx_horizontal), cursor_val.row)), &cursor, &mut selections, &glyphs, &mut handles, &font, &font_sizes, *layout, &values.as_readonly(), &tertiary);
+                    TextInput::extend_and_reselect(
+                        this,
+                        &mut tree,
+                        RequestedLocation::ColRow((
+                            (cursor_val.column + 1).min(metrics.max_letter_idx_horizontal),
+                            cursor_val.row,
+                        )),
+                        &cursor,
+                        &mut selections,
+                        &glyphs,
+                        &mut handles,
+                        &font,
+                        &font_sizes,
+                        *layout,
+                        &values.as_readonly(),
+                        &tertiary,
+                    );
                     tree.trigger_targets(TextInputState::Highlighting, this);
                 }
                 TextInputAction::ExtendUp => {
-                    TextInput::extend_and_reselect(this, &mut tree, RequestedLocation::ColRow((cursor_val.column, cursor_val.row.saturating_sub(1))), &cursor, &mut selections, &glyphs, &mut handles, &font, &font_sizes, *layout, &values.as_readonly(), &tertiary);
+                    TextInput::extend_and_reselect(
+                        this,
+                        &mut tree,
+                        RequestedLocation::ColRow((
+                            cursor_val.column,
+                            cursor_val.row.saturating_sub(1),
+                        )),
+                        &cursor,
+                        &mut selections,
+                        &glyphs,
+                        &mut handles,
+                        &font,
+                        &font_sizes,
+                        *layout,
+                        &values.as_readonly(),
+                        &tertiary,
+                    );
                     tree.trigger_targets(TextInputState::Highlighting, this);
                 }
                 TextInputAction::ExtendDown => {
-                    let target_row = (cursor_val.row + 1).min(metrics.lines.len().checked_sub(1).unwrap_or_default() as u32);
-                    TextInput::extend_and_reselect(this, &mut tree, RequestedLocation::ColRow((cursor_val.column, target_row)), &cursor, &mut selections, &glyphs, &mut handles, &font, &font_sizes, *layout, &values.as_readonly(), &tertiary);
+                    let target_row = (cursor_val.row + 1)
+                        .min(metrics.lines.len().checked_sub(1).unwrap_or_default() as u32);
+                    TextInput::extend_and_reselect(
+                        this,
+                        &mut tree,
+                        RequestedLocation::ColRow((cursor_val.column, target_row)),
+                        &cursor,
+                        &mut selections,
+                        &glyphs,
+                        &mut handles,
+                        &font,
+                        &font_sizes,
+                        *layout,
+                        &values.as_readonly(),
+                        &tertiary,
+                    );
                     tree.trigger_targets(TextInputState::Highlighting, this);
                 }
                 TextInputAction::Up => {
-                    TextInput::move_cursor(this, &mut tree, RequestedLocation::ColRow((cursor_val.column, cursor_val.row.checked_sub(1).unwrap_or_default())), &glyphs, &font, &font_sizes, *layout, &handles.as_readonly(), &mut cursor, &line_metrics);
+                    TextInput::move_cursor(
+                        this,
+                        &mut tree,
+                        RequestedLocation::ColRow((
+                            cursor_val.column,
+                            cursor_val.row.checked_sub(1).unwrap_or_default(),
+                        )),
+                        &glyphs,
+                        &font,
+                        &font_sizes,
+                        *layout,
+                        &handles.as_readonly(),
+                        &mut cursor,
+                        &line_metrics,
+                    );
                     tree.trigger_targets(TextInputState::AwaitingInput, this);
                     TextInput::clear_selection(this, &mut selections);
                 }
                 TextInputAction::Down => {
-                    let target_row = (cursor_val.row + 1).min(metrics.lines.len().checked_sub(1).unwrap_or_default() as u32);
-                    TextInput::move_cursor(this, &mut tree, RequestedLocation::ColRow((cursor_val.column, target_row)), &glyphs, &font, &font_sizes, *layout, &handles.as_readonly(), &mut cursor, &line_metrics);
+                    let target_row = (cursor_val.row + 1)
+                        .min(metrics.lines.len().checked_sub(1).unwrap_or_default() as u32);
+                    TextInput::move_cursor(
+                        this,
+                        &mut tree,
+                        RequestedLocation::ColRow((cursor_val.column, target_row)),
+                        &glyphs,
+                        &font,
+                        &font_sizes,
+                        *layout,
+                        &handles.as_readonly(),
+                        &mut cursor,
+                        &line_metrics,
+                    );
                     tree.trigger_targets(TextInputState::AwaitingInput, this);
                     TextInput::clear_selection(this, &mut selections);
                 }
                 TextInputAction::Left => {
-                    let offset = if cursor_val.location > 0 { prev_boundary(&values.get(this).unwrap().0, cursor_val.location) } else { 0 };
-                    TextInput::move_cursor(this, &mut tree, RequestedLocation::Offset(offset), &glyphs, &font, &font_sizes, *layout, &handles.as_readonly(), &mut cursor, &line_metrics);
+                    let offset = if cursor_val.location > 0 {
+                        prev_boundary(&values.get(this).unwrap().0, cursor_val.location)
+                    } else {
+                        0
+                    };
+                    TextInput::move_cursor(
+                        this,
+                        &mut tree,
+                        RequestedLocation::Offset(offset),
+                        &glyphs,
+                        &font,
+                        &font_sizes,
+                        *layout,
+                        &handles.as_readonly(),
+                        &mut cursor,
+                        &line_metrics,
+                    );
                     tree.trigger_targets(TextInputState::AwaitingInput, this);
                     TextInput::clear_selection(this, &mut selections);
                 }
@@ -1108,11 +1443,40 @@ impl Input {
                     tree.trigger_targets(TextInputState::AwaitingInput, this);
                     TextInput::clear_selection(this, &mut selections);
                     let offset = next_boundary(&values.get(this).unwrap().0, cursor_val.location);
-                    TextInput::move_cursor(this, &mut tree, RequestedLocation::Offset(offset), &glyphs, &font, &font_sizes, *layout, &handles.as_readonly(), &mut cursor, &line_metrics);
+                    TextInput::move_cursor(
+                        this,
+                        &mut tree,
+                        RequestedLocation::Offset(offset),
+                        &glyphs,
+                        &font,
+                        &font_sizes,
+                        *layout,
+                        &handles.as_readonly(),
+                        &mut cursor,
+                        &line_metrics,
+                    );
                 }
                 TextInputAction::Space => {
-                    TextInput::insert_text(this, " ", cursor_val.location, &mut values, &selections);
-                    TextInput::after_edit(this, &mut tree, &values.as_readonly(), &handles.as_readonly(), &mut cursor, &glyphs, &font, &font_sizes, *layout, &line_metrics, &mut selections);
+                    TextInput::insert_text(
+                        this,
+                        " ",
+                        cursor_val.location,
+                        &mut values,
+                        &selections,
+                    );
+                    TextInput::after_edit(
+                        this,
+                        &mut tree,
+                        &values.as_readonly(),
+                        &handles.as_readonly(),
+                        &mut cursor,
+                        &glyphs,
+                        &font,
+                        &font_sizes,
+                        *layout,
+                        &line_metrics,
+                        &mut selections,
+                    );
                 }
                 // no text mutation; enclosing composites react via the InputAction broadcast
                 TextInputAction::Tab => {}
@@ -1122,7 +1486,19 @@ impl Input {
             if let Key::Character(text) = &trigger.sequence.key {
                 let text = text.to_string();
                 TextInput::insert_text(this, &text, cursor_val.location, &mut values, &selections);
-                TextInput::after_edit(this, &mut tree, &values.as_readonly(), &handles.as_readonly(), &mut cursor, &glyphs, &font, &font_sizes, *layout, &line_metrics, &mut selections);
+                TextInput::after_edit(
+                    this,
+                    &mut tree,
+                    &values.as_readonly(),
+                    &handles.as_readonly(),
+                    &mut cursor,
+                    &glyphs,
+                    &font,
+                    &font_sizes,
+                    *layout,
+                    &line_metrics,
+                    &mut selections,
+                );
             }
         }
     }
@@ -1171,7 +1547,18 @@ impl TextInput {
     ) {
         let new_location = values.get(this).unwrap().0.len();
         Self::forward_text(this, tree, values, handles);
-        TextInput::move_cursor(this, tree, RequestedLocation::Offset(new_location), glyphs, font, font_sizes, layout, handles, cursor, line_metrics);
+        TextInput::move_cursor(
+            this,
+            tree,
+            RequestedLocation::Offset(new_location),
+            glyphs,
+            font,
+            font_sizes,
+            layout,
+            handles,
+            cursor,
+            line_metrics,
+        );
         tree.trigger_targets(TextInputState::AwaitingInput, this);
         Self::clear_selection(this, selections);
     }
@@ -1196,9 +1583,30 @@ impl TextInput {
         tertiary: &Query<&Tertiary>,
     ) {
         let cursor_ro = cursor.as_readonly();
-        TextInput::extend_range(this, req, &cursor_ro, selections, glyphs, &handles.as_readonly(), font, font_sizes, layout, values);
+        TextInput::extend_range(
+            this,
+            req,
+            &cursor_ro,
+            selections,
+            glyphs,
+            &handles.as_readonly(),
+            font,
+            font_sizes,
+            layout,
+            values,
+        );
         let selections_ro = selections.as_readonly();
-        TextInput::reselect_range(this, tree, handles, glyphs, &selections_ro, font, font_sizes, layout, tertiary);
+        TextInput::reselect_range(
+            this,
+            tree,
+            handles,
+            glyphs,
+            &selections_ro,
+            font,
+            font_sizes,
+            layout,
+            tertiary,
+        );
     }
 }
 /// Fired at the `TextInput` root whenever its text content changes (typing, deletion, paste,
@@ -1245,8 +1653,26 @@ impl InsertText {
     ) {
         let this = trigger.event_target();
         let cursor_location = cursor.get(this).unwrap().location;
-        TextInput::insert_text(this, &trigger.text, cursor_location, &mut values, &selections);
-        TextInput::after_edit(this, &mut tree, &values.as_readonly(), &handles, &mut cursor, &glyphs, &font, &font_sizes, *layout, &line_metrics, &mut selections);
+        TextInput::insert_text(
+            this,
+            &trigger.text,
+            cursor_location,
+            &mut values,
+            &selections,
+        );
+        TextInput::after_edit(
+            this,
+            &mut tree,
+            &values.as_readonly(),
+            &handles,
+            &mut cursor,
+            &glyphs,
+            &font,
+            &font_sizes,
+            *layout,
+            &line_metrics,
+            &mut selections,
+        );
     }
 }
 crate::targeted_event!(InsertText, Input);

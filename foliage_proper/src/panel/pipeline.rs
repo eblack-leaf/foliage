@@ -164,7 +164,9 @@ impl Render for Panel {
                     0,
                     r.index().index() as InstanceId,
                 ));
-                let order = render_group.coordinator.order(r.index().index() as InstanceId);
+                let order = render_group
+                    .coordinator
+                    .order(r.index().index() as InstanceId);
                 render_group.coordinator.remove(order);
                 queues.remove_attr::<Panel, ResolvedElevation>(r);
                 queues.remove_attr::<Panel, Section<Logical>>(r);

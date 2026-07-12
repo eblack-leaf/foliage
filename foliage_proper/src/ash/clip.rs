@@ -1,13 +1,13 @@
-use crate::{Branch, Component, Logical, Section, Tree, Update, Write};
-use bevy_ecs::event::EntityEvent;
 use crate::EcsExtension;
-use bevy_ecs::lifecycle::HookContext;
+use crate::Trigger;
+use crate::{Branch, Component, Logical, Section, Tree, Update, Write};
 use crate::{Differential, Stem};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
-use crate::Trigger;
-use bevy_ecs::system::Query;
+use bevy_ecs::event::EntityEvent;
+use bevy_ecs::lifecycle::HookContext;
 use bevy_ecs::lifecycle::Insert;
+use bevy_ecs::system::Query;
 use bevy_ecs::world::DeferredWorld;
 #[derive(Component, Debug, Clone, Copy, Default, PartialEq)]
 #[require(InheritedClip, ResolvedClip, Differential<(), ResolvedClip>)]
@@ -22,7 +22,8 @@ impl ClipSection {
     ) {
         // trigger on-insert w/ current section
         let value = *sections.get(trigger.event_target()).unwrap();
-        tree.entity(trigger.event_target()).insert(ClipSection(value));
+        tree.entity(trigger.event_target())
+            .insert(ClipSection(value));
     }
     pub(crate) fn stem_insert(trigger: Trigger<Insert, Stem>, mut tree: Tree) {
         tree.trigger_targets(Update::<InheritedClip>::new(), trigger.event_target());

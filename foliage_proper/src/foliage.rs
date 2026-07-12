@@ -6,6 +6,7 @@ use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::Ginkgo;
 use crate::remove::Remove;
 use crate::time::{OnEnd, Time};
+use crate::tree::{IntoTargets, TargetedEvent};
 use crate::virtual_keyboard::VirtualKeyboardAdapter;
 use crate::willow::Willow;
 use crate::{
@@ -13,7 +14,6 @@ use crate::{
     Elevation, Enable, Grid, Icon, Image, Interaction, Location, Named, OnClick, Opacity, Panel,
     Physical, Resource, Shape, SystemSet, Text, TextInput, Visibility,
 };
-use crate::tree::{IntoTargets, TargetedEvent};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
@@ -199,7 +199,9 @@ impl Foliage {
     pub fn disable(&mut self, targets: impl IntoTargets) {
         self.world.disable(targets);
     }
-    pub fn enable_animation<A: Animate + Component<Mutability = bevy_ecs::component::Mutable>>(&mut self) {
+    pub fn enable_animation<A: Animate + Component<Mutability = bevy_ecs::component::Mutable>>(
+        &mut self,
+    ) {
         debug_assert_eq!(
             self.world.get_resource::<AnimationLimiter<A>>().is_none(),
             true

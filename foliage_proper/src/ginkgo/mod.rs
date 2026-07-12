@@ -4,15 +4,15 @@ use wgpu::util::DeviceExt;
 use wgpu::{
     BackendOptions, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
     BindGroupLayoutDescriptor, BlendState, Buffer, BufferAddress, BufferUsages, ColorTargetState,
-    CompareFunction, CompositeAlphaMode, DepthStencilState, DeviceDescriptor, Extent3d, Features,
-    FilterMode, FragmentState, InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations,
-    Origin3d, PipelineLayout, PipelineLayoutDescriptor, PowerPreference, PresentMode,
-    PrimitiveState, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPipeline,
-    RenderPipelineDescriptor, RequestAdapterOptions, Sampler, SamplerDescriptor, ShaderModule,
-    CurrentSurfaceTexture, ShaderModuleDescriptor, StoreOp, SurfaceConfiguration, TexelCopyBufferLayout,
-    TexelCopyTextureInfo, Texture, TextureDescriptor, TextureDimension, TextureFormat,
-    TextureUsages, TextureView, TextureViewDescriptor, VertexAttribute, VertexBufferLayout,
-    VertexStepMode,
+    CompareFunction, CompositeAlphaMode, CurrentSurfaceTexture, DepthStencilState,
+    DeviceDescriptor, Extent3d, Features, FilterMode, FragmentState, InstanceDescriptor, Limits,
+    LoadOp, MultisampleState, Operations, Origin3d, PipelineLayout, PipelineLayoutDescriptor,
+    PowerPreference, PresentMode, PrimitiveState, RenderPassColorAttachment,
+    RenderPassDepthStencilAttachment, RenderPipeline, RenderPipelineDescriptor,
+    RequestAdapterOptions, Sampler, SamplerDescriptor, ShaderModule, ShaderModuleDescriptor,
+    StoreOp, SurfaceConfiguration, TexelCopyBufferLayout, TexelCopyTextureInfo, Texture,
+    TextureDescriptor, TextureDimension, TextureFormat, TextureUsages, TextureView,
+    TextureViewDescriptor, VertexAttribute, VertexBufferLayout, VertexStepMode,
 };
 
 use binding::BindingBuilder;
@@ -303,9 +303,8 @@ impl Ginkgo {
     pub(crate) fn surface_texture(&self) -> Option<wgpu::SurfaceTexture> {
         let context = self.context();
         match context.surface.as_ref().unwrap().get_current_texture() {
-            CurrentSurfaceTexture::Success(surface) | CurrentSurfaceTexture::Suboptimal(surface) => {
-                Some(surface)
-            }
+            CurrentSurfaceTexture::Success(surface)
+            | CurrentSurfaceTexture::Suboptimal(surface) => Some(surface),
             CurrentSurfaceTexture::Timeout | CurrentSurfaceTexture::Occluded => None,
             CurrentSurfaceTexture::Outdated | CurrentSurfaceTexture::Lost => {
                 context

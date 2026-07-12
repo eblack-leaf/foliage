@@ -1,10 +1,9 @@
 use crate::anim::interpolation::Interpolations;
-use bevy_ecs::event::EntityEvent;
-use crate::EcsExtension;
-use bevy_ecs::lifecycle::HookContext;
 use crate::ginkgo::ScaleFactor;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
+use crate::EcsExtension;
+use crate::Trigger;
 use crate::{
     Animate, Animation, Attachment, Color, Component, CoordinateUnit, Coordinates, Differential,
     Foliage, InteractionShape, Logical, Position, ResolvedElevation, Section, Stem, Tree, Update,
@@ -13,7 +12,8 @@ use crate::{
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
-use crate::Trigger;
+use bevy_ecs::event::EntityEvent;
+use bevy_ecs::lifecycle::HookContext;
 use bevy_ecs::system::{Query, Res};
 use bevy_ecs::world::DeferredWorld;
 

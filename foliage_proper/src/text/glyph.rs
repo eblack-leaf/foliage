@@ -1,10 +1,10 @@
 use crate::coordinate::section::Section;
-use crate::EcsExtension;
-use bevy_ecs::lifecycle::HookContext;
 use crate::coordinate::Physical;
+use crate::EcsExtension;
 use crate::{Color, Component, Update};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
+use bevy_ecs::lifecycle::HookContext;
 use bevy_ecs::world::DeferredWorld;
 use fontdue::layout::CoordinateSystem::PositiveYDown;
 use serde::{Deserialize, Serialize};

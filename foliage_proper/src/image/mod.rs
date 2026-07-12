@@ -1,22 +1,22 @@
 mod pipeline;
 
-use bevy_ecs::event::EntityEvent;
-use bevy_ecs::lifecycle::HookContext;
 use crate::ash::differential::RenderQueue;
 use crate::asset::{AssetLoader, OnRetrieval};
 use crate::foliage::DiffMarkers;
 use crate::grid::AspectRatio;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
+use crate::Trigger;
 use crate::{
     Area, Attachment, Component, Coordinates, Foliage, Layout, LeafSprout, Logical, Numerical,
     ResolvedElevation, ResolvedVisibility, Section, Seed, Sprout, Stem, Write,
 };
 use crate::{AssetKey, AssetRetrieval};
-use bevy_ecs::bundle::Bundle;
 use crate::{Differential, Tree, Visibility};
+use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::ComponentId;
-use crate::Trigger;
+use bevy_ecs::event::EntityEvent;
+use bevy_ecs::lifecycle::HookContext;
 use bevy_ecs::prelude::{Entity, IntoScheduleConfigs, Res};
 use bevy_ecs::query::{Changed, Or};
 use bevy_ecs::system::{Query, ResMut};

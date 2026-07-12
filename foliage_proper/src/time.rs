@@ -1,9 +1,9 @@
 use crate::foliage::{Foliage, MainMarkers};
-use bevy_ecs::event::EntityEvent;
-use crate::EcsExtension;
 use crate::Attachment;
+use crate::EcsExtension;
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
+use bevy_ecs::event::EntityEvent;
 use bevy_ecs::event::Event;
 use bevy_ecs::prelude::{ResMut, Resource};
 use bevy_ecs::system::{Commands, Query, Res};
@@ -98,7 +98,12 @@ pub(crate) fn timers(time: Res<Time>, mut timers: Query<(Entity, &mut Timer)>, m
             .checked_sub(time.frame_diff())
             .unwrap_or_default();
         if timer.time_left.is_zero() {
-            cmd.trigger_targets(OnEnd { entity: Entity::PLACEHOLDER }, entity);
+            cmd.trigger_targets(
+                OnEnd {
+                    entity: Entity::PLACEHOLDER,
+                },
+                entity,
+            );
             cmd.entity(entity).despawn();
         }
     }

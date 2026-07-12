@@ -1,12 +1,11 @@
 use crate::ash::clip::ClipSection;
-use bevy_ecs::event::EntityEvent;
-use crate::EcsExtension;
-use bevy_ecs::lifecycle::HookContext;
 use crate::interaction::CurrentInteraction;
+use crate::EcsExtension;
 use crate::Elevation;
 use crate::Logical;
 use crate::Opacity;
 use crate::Section;
+use crate::Trigger;
 use crate::Visibility;
 use crate::{
     Animation, Component, FocusBehavior, InteractionPropagation, InteractionShape, Location, Tree,
@@ -14,7 +13,8 @@ use crate::{
 };
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
-use crate::Trigger;
+use bevy_ecs::event::EntityEvent;
+use bevy_ecs::lifecycle::HookContext;
 use bevy_ecs::system::Query;
 use bevy_ecs::world::DeferredWorld;
 use std::collections::HashSet;

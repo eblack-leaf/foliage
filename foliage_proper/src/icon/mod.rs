@@ -1,11 +1,10 @@
 mod pipeline;
 mod proc_gen;
-use bevy_ecs::event::EntityEvent;
-use bevy_ecs::lifecycle::HookContext;
 use crate::ash::differential::RenderQueue;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::Stem;
+use crate::Trigger;
 use crate::{
     Attachment, Color, Component, Coordinates, Differential, Foliage, LeafSprout, Logical,
     ResolvedElevation, Section, Sprout, Visibility, Write,
@@ -13,7 +12,8 @@ use crate::{
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
-use crate::Trigger;
+use bevy_ecs::event::EntityEvent;
+use bevy_ecs::lifecycle::HookContext;
 use bevy_ecs::query::With;
 use bevy_ecs::system::Query;
 use bevy_ecs::world::DeferredWorld;

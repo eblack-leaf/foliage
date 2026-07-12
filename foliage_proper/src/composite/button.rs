@@ -1,5 +1,7 @@
+use crate::Component;
+use crate::Trigger;
 use crate::{
-    anchor, Anchor, Color, EcsExtension, Elevation, Engaged, Disengaged, FocusBehavior, FontSize,
+    anchor, Anchor, Color, Disengaged, EcsExtension, Elevation, Engaged, FocusBehavior, FontSize,
     Grid, GridExt, HorizontalAlignment, Icon, IconId, IconValue, InteractionListener,
     InteractionPropagation, Leaf, Location, Outline, Panel, Photosynthesis, Primary, Rounding,
     Secondary, Seed, Sprout, Text, TextValue, Tree, VerticalAlignment, Visibility,
@@ -9,8 +11,6 @@ use bevy_ecs::entity::Entity;
 use bevy_ecs::event::EntityEvent;
 use bevy_ecs::lifecycle::Insert;
 use bevy_ecs::system::Query;
-use crate::Trigger;
-use crate::Component;
 
 /// A button is a `Panel` + `Icon` + `Text` arranged and colored together, defined entirely by
 /// `ButtonSprout::photosynthesize` -- no `Handle` component, no `Composite` impl, no `forward::<C>`
@@ -68,7 +68,11 @@ fn rounding_layout(round: Rounding, icon: Entity, text: Entity) -> (Location, An
         ),
         _ => (
             Location::new().xs(
-                anchor().left().as_right().adjust(-8).with(24.px().as_width()),
+                anchor()
+                    .left()
+                    .as_right()
+                    .adjust(-8)
+                    .with(24.px().as_width()),
                 50.pct().as_center_y().with(24.px().as_height()),
             ),
             Anchor::new(text),
@@ -146,7 +150,10 @@ impl Photosynthesis for ButtonSprout {
                 1.row().as_top().with(1.row().as_bottom()),
             ))
             .stem(this)
-            .with((InteractionPropagation::pass_through(), FocusBehavior::ignore()))
+            .with((
+                InteractionPropagation::pass_through(),
+                FocusBehavior::ignore(),
+            ))
             .photosynthesize(tree);
 
         // no Location: icon's position is content-dependent (Rounding) and set below once we
@@ -155,13 +162,20 @@ impl Photosynthesis for ButtonSprout {
         let icon = Leaf::sprout()
             .elevate(Elevation::up(2))
             .stem(this)
-            .with((Icon::new_marker(icon_value), InteractionPropagation::pass_through(), FocusBehavior::ignore()))
+            .with((
+                Icon::new_marker(icon_value),
+                InteractionPropagation::pass_through(),
+                FocusBehavior::ignore(),
+            ))
             .photosynthesize(tree);
 
         let text = Text::new(text_value.as_str())
             .elevate(Elevation::up(2))
             .at(Location::new().xs(
-                50.pct().as_center_x().adjust(20).with(text_value.len().letters().as_width()),
+                50.pct()
+                    .as_center_x()
+                    .adjust(20)
+                    .with(text_value.len().letters().as_width()),
                 1.row().as_top().with(1.row().as_bottom()),
             ))
             .stem(this)
@@ -180,44 +194,155 @@ impl Photosynthesis for ButtonSprout {
 
         // ongoing reactivity: one closure per input, each closing over the specific children it
         // affects instead of a generic system looking them up via a shared Handle.
-        tree.subscribe(this, move |trigger: Trigger<Insert, TextValue>, mut tree: Tree, values: Query<&TextValue>| {
-            let value = &values.get(trigger.event_target()).unwrap().0;
-            tree.entity(text)
-                .insert(Text::new_marker(value.as_str()))
-                .insert(Location::new().xs(
-                    50.pct().as_center_x().adjust(20).with(value.len().letters().as_width()),
-                    1.row().as_top().with(1.row().as_bottom()),
+        tree.subscribe(
+            this,
+            move |trigger: Trigger<Insert, TextValue>,
+                  mut tree: Tree,
+                  values: Query<&TextValue>| {
+                let value = &values.get(trigger.event_target()).unwrap().0;
+                tree.entity(text)
+                    .insert(Text::new_marker(value.as_str()))
+                    .insert(
+                        Location::new().xs(
+                            50.pct()
+                                .as_center_x()
+                                .adjust(20)
+                                .with(value.len().letters().as_width()),
+                            1.row().as_top().with(1.row().as_bottom()),
+                        ),
+                    );
+            },
+        );
+        tree.subscribe(
+            this,
+            move |trigger: Trigger<Insert, FontSize>, mut tree: Tree, values: Query<&FontSize>| {
+                tree.entity(text)
+                    .insert(*values.get(trigger.event_target()).unwrap());
+            },
+        );
+        tree.subscribe(
+            this,
+            move |trigger: Trigger<Insert, IconValue>,
+                  mut tree: Tree,
+                  values: Query<&IconValue>| {
+                tree.entity(icon).insert(Icon::new_marker(
+                    values.get(trigger.event_target()).unwrap().0,
                 ));
-        });
-        tree.subscribe(this, move |trigger: Trigger<Insert, FontSize>, mut tree: Tree, values: Query<&FontSize>| {
-            tree.entity(text).insert(*values.get(trigger.event_target()).unwrap());
-        });
-        tree.subscribe(this, move |trigger: Trigger<Insert, IconValue>, mut tree: Tree, values: Query<&IconValue>| {
-            tree.entity(icon).insert(Icon::new_marker(values.get(trigger.event_target()).unwrap().0));
-        });
-        tree.subscribe(this, move |trigger: Trigger<Insert, Rounding>, mut tree: Tree, values: Query<&Rounding>| {
-            apply_rounding(&mut tree, trigger.event_target(), panel, icon, text, *values.get(trigger.event_target()).unwrap());
-        });
-        tree.subscribe(this, move |trigger: Trigger<Insert, Primary>, mut tree: Tree, primaries: Query<&Primary>, secondaries: Query<&Secondary>, outlines: Query<&Outline>| {
-            let e = trigger.event_target();
-            recompute_colors(&mut tree, panel, icon, text, primaries.get(e).unwrap().0, secondaries.get(e).unwrap().0, *outlines.get(e).unwrap(), false);
-        });
-        tree.subscribe(this, move |trigger: Trigger<Insert, Secondary>, mut tree: Tree, primaries: Query<&Primary>, secondaries: Query<&Secondary>, outlines: Query<&Outline>| {
-            let e = trigger.event_target();
-            recompute_colors(&mut tree, panel, icon, text, primaries.get(e).unwrap().0, secondaries.get(e).unwrap().0, *outlines.get(e).unwrap(), false);
-        });
-        tree.subscribe(this, move |trigger: Trigger<Insert, Outline>, mut tree: Tree, primaries: Query<&Primary>, secondaries: Query<&Secondary>, outlines: Query<&Outline>| {
-            let e = trigger.event_target();
-            recompute_colors(&mut tree, panel, icon, text, primaries.get(e).unwrap().0, secondaries.get(e).unwrap().0, *outlines.get(e).unwrap(), false);
-        });
-        tree.subscribe(this, move |trigger: Trigger<Engaged>, mut tree: Tree, primaries: Query<&Primary>, secondaries: Query<&Secondary>, outlines: Query<&Outline>| {
-            let e = trigger.event_target();
-            recompute_colors(&mut tree, panel, icon, text, primaries.get(e).unwrap().0, secondaries.get(e).unwrap().0, *outlines.get(e).unwrap(), true);
-        });
-        tree.subscribe(this, move |trigger: Trigger<Disengaged>, mut tree: Tree, primaries: Query<&Primary>, secondaries: Query<&Secondary>, outlines: Query<&Outline>| {
-            let e = trigger.event_target();
-            recompute_colors(&mut tree, panel, icon, text, primaries.get(e).unwrap().0, secondaries.get(e).unwrap().0, *outlines.get(e).unwrap(), false);
-        });
+            },
+        );
+        tree.subscribe(
+            this,
+            move |trigger: Trigger<Insert, Rounding>, mut tree: Tree, values: Query<&Rounding>| {
+                apply_rounding(
+                    &mut tree,
+                    trigger.event_target(),
+                    panel,
+                    icon,
+                    text,
+                    *values.get(trigger.event_target()).unwrap(),
+                );
+            },
+        );
+        tree.subscribe(
+            this,
+            move |trigger: Trigger<Insert, Primary>,
+                  mut tree: Tree,
+                  primaries: Query<&Primary>,
+                  secondaries: Query<&Secondary>,
+                  outlines: Query<&Outline>| {
+                let e = trigger.event_target();
+                recompute_colors(
+                    &mut tree,
+                    panel,
+                    icon,
+                    text,
+                    primaries.get(e).unwrap().0,
+                    secondaries.get(e).unwrap().0,
+                    *outlines.get(e).unwrap(),
+                    false,
+                );
+            },
+        );
+        tree.subscribe(
+            this,
+            move |trigger: Trigger<Insert, Secondary>,
+                  mut tree: Tree,
+                  primaries: Query<&Primary>,
+                  secondaries: Query<&Secondary>,
+                  outlines: Query<&Outline>| {
+                let e = trigger.event_target();
+                recompute_colors(
+                    &mut tree,
+                    panel,
+                    icon,
+                    text,
+                    primaries.get(e).unwrap().0,
+                    secondaries.get(e).unwrap().0,
+                    *outlines.get(e).unwrap(),
+                    false,
+                );
+            },
+        );
+        tree.subscribe(
+            this,
+            move |trigger: Trigger<Insert, Outline>,
+                  mut tree: Tree,
+                  primaries: Query<&Primary>,
+                  secondaries: Query<&Secondary>,
+                  outlines: Query<&Outline>| {
+                let e = trigger.event_target();
+                recompute_colors(
+                    &mut tree,
+                    panel,
+                    icon,
+                    text,
+                    primaries.get(e).unwrap().0,
+                    secondaries.get(e).unwrap().0,
+                    *outlines.get(e).unwrap(),
+                    false,
+                );
+            },
+        );
+        tree.subscribe(
+            this,
+            move |trigger: Trigger<Engaged>,
+                  mut tree: Tree,
+                  primaries: Query<&Primary>,
+                  secondaries: Query<&Secondary>,
+                  outlines: Query<&Outline>| {
+                let e = trigger.event_target();
+                recompute_colors(
+                    &mut tree,
+                    panel,
+                    icon,
+                    text,
+                    primaries.get(e).unwrap().0,
+                    secondaries.get(e).unwrap().0,
+                    *outlines.get(e).unwrap(),
+                    true,
+                );
+            },
+        );
+        tree.subscribe(
+            this,
+            move |trigger: Trigger<Disengaged>,
+                  mut tree: Tree,
+                  primaries: Query<&Primary>,
+                  secondaries: Query<&Secondary>,
+                  outlines: Query<&Outline>| {
+                let e = trigger.event_target();
+                recompute_colors(
+                    &mut tree,
+                    panel,
+                    icon,
+                    text,
+                    primaries.get(e).unwrap().0,
+                    secondaries.get(e).unwrap().0,
+                    *outlines.get(e).unwrap(),
+                    false,
+                );
+            },
+        );
 
         this
     }

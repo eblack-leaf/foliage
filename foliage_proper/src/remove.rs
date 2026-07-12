@@ -1,11 +1,11 @@
 use crate::ash::differential::RenderRemoveQueue;
-use bevy_ecs::event::EntityEvent;
-use bevy_ecs::entity::Entity;
-use crate::EcsExtension;
 use crate::foliage::Foliage;
-use crate::{Attachment, Branch, AnchorDeps, Tree};
-use bevy_ecs::change_detection::ResMut;
+use crate::EcsExtension;
 use crate::Trigger;
+use crate::{AnchorDeps, Attachment, Branch, Tree};
+use bevy_ecs::change_detection::ResMut;
+use bevy_ecs::entity::Entity;
+use bevy_ecs::event::EntityEvent;
 use bevy_ecs::prelude::{Event, Query};
 
 impl Attachment for Remove {
@@ -27,7 +27,9 @@ impl Default for Remove {
 crate::targeted_event!(Remove);
 impl Remove {
     pub fn new() -> Self {
-        Self { entity: Entity::PLACEHOLDER }
+        Self {
+            entity: Entity::PLACEHOLDER,
+        }
     }
     pub(crate) fn push_remove_packet<R: Clone + Send + Sync + 'static>(
         trigger: Trigger<Self>,

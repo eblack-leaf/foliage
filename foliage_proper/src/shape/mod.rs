@@ -1,5 +1,4 @@
 use crate::coordinate::points::Points;
-use bevy_ecs::lifecycle::HookContext;
 use crate::foliage::DiffMarkers;
 use crate::ginkgo::ScaleFactor;
 use crate::opacity::BlendedOpacity;
@@ -14,6 +13,7 @@ use bevy_ecs::bundle::Bundle;
 use bevy_ecs::change_detection::Res;
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
+use bevy_ecs::lifecycle::HookContext;
 use bevy_ecs::prelude::{Changed, IntoScheduleConfigs, Or, Query};
 use bevy_ecs::world::DeferredWorld;
 use bytemuck::{Pod, Zeroable};

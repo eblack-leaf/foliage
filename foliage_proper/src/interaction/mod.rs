@@ -1,8 +1,8 @@
 use crate::coordinate::position::Position;
-use bevy_ecs::event::EntityEvent;
-use crate::EcsExtension;
 use crate::coordinate::Logical;
+use crate::EcsExtension;
 use bevy_ecs::entity::Entity;
+use bevy_ecs::event::EntityEvent;
 use bevy_ecs::message::{Message, MessageReader};
 use bevy_ecs::prelude::IntoScheduleConfigs;
 use bevy_ecs::query::With;
@@ -208,10 +208,20 @@ pub(crate) fn interactive_elements(
         .any(|e| e.click_phase == InteractionPhase::Cancel)
     {
         if let Some(entity) = current.primary.take() {
-            tree.trigger_targets(Disengaged { entity: Entity::PLACEHOLDER }, entity);
+            tree.trigger_targets(
+                Disengaged {
+                    entity: Entity::PLACEHOLDER,
+                },
+                entity,
+            );
         }
         for entity in current.pass_through.drain(..) {
-            tree.trigger_targets(Disengaged { entity: Entity::PLACEHOLDER }, entity);
+            tree.trigger_targets(
+                Disengaged {
+                    entity: Entity::PLACEHOLDER,
+                },
+                entity,
+            );
         }
     } else {
         let started = events
@@ -231,10 +241,20 @@ pub(crate) fn interactive_elements(
             .collect::<Vec<_>>();
         if let Some(event) = started.last() {
             if let Some(entity) = current.primary.take() {
-                tree.trigger_targets(Disengaged { entity: Entity::PLACEHOLDER }, entity);
+                tree.trigger_targets(
+                    Disengaged {
+                        entity: Entity::PLACEHOLDER,
+                    },
+                    entity,
+                );
             }
             for entity in current.pass_through.drain(..) {
-                tree.trigger_targets(Disengaged { entity: Entity::PLACEHOLDER }, entity);
+                tree.trigger_targets(
+                    Disengaged {
+                        entity: Entity::PLACEHOLDER,
+                    },
+                    entity,
+                );
             }
             current.past_drag = false;
             let mut grabbed_elevation = ResolvedElevation::new(101.0);
@@ -267,29 +287,59 @@ pub(crate) fn interactive_elements(
                 if !behaviors.get(p).unwrap().0 && event.method != InteractionMethod::ScrollWheel {
                     if let Some(f) = current.focused.replace(p) {
                         if f != p {
-                            tree.trigger_targets(Focused { entity: Entity::PLACEHOLDER }, p);
-                            tree.trigger_targets(Unfocused { entity: Entity::PLACEHOLDER }, f);
+                            tree.trigger_targets(
+                                Focused {
+                                    entity: Entity::PLACEHOLDER,
+                                },
+                                p,
+                            );
+                            tree.trigger_targets(
+                                Unfocused {
+                                    entity: Entity::PLACEHOLDER,
+                                },
+                                f,
+                            );
                         }
                     } else {
-                        tree.trigger_targets(Focused { entity: Entity::PLACEHOLDER }, p);
+                        tree.trigger_targets(
+                            Focused {
+                                entity: Entity::PLACEHOLDER,
+                            },
+                            p,
+                        );
                     }
                 }
                 if let Ok(mut listener) = listeners.get_mut(p) {
                     if !listener.disabled() && event.method != InteractionMethod::ScrollWheel {
-                        tree.trigger_targets(Engaged { entity: Entity::PLACEHOLDER }, p);
+                        tree.trigger_targets(
+                            Engaged {
+                                entity: Entity::PLACEHOLDER,
+                            },
+                            p,
+                        );
                     }
                 }
                 current.click = Click::new(event.position);
                 current.last_drag = event.position;
             } else {
                 if let Some(f) = current.focused.take() {
-                    tree.trigger_targets(Unfocused { entity: Entity::PLACEHOLDER }, f);
+                    tree.trigger_targets(
+                        Unfocused {
+                            entity: Entity::PLACEHOLDER,
+                        },
+                        f,
+                    );
                 }
             }
             for ps in current.pass_through.iter() {
                 if let Ok(mut listener) = listeners.get_mut(*ps) {
                     if !listener.disabled() && event.method != InteractionMethod::ScrollWheel {
-                        tree.trigger_targets(Engaged { entity: Entity::PLACEHOLDER }, *ps);
+                        tree.trigger_targets(
+                            Engaged {
+                                entity: Entity::PLACEHOLDER,
+                            },
+                            *ps,
+                        );
                     }
                 }
             }
@@ -327,14 +377,24 @@ pub(crate) fn interactive_elements(
                 current.click.current = event.position;
                 if let Ok(mut listener) = listeners.get_mut(p) {
                     if !listener.disabled() && event.method != InteractionMethod::ScrollWheel {
-                        tree.trigger_targets(Dragged { entity: Entity::PLACEHOLDER }, p);
+                        tree.trigger_targets(
+                            Dragged {
+                                entity: Entity::PLACEHOLDER,
+                            },
+                            p,
+                        );
                     }
                 }
             }
             for ps in current.pass_through.iter() {
                 if let Ok(mut listener) = listeners.get_mut(*ps) {
                     if !listener.disabled() && event.method != InteractionMethod::ScrollWheel {
-                        tree.trigger_targets(Dragged { entity: Entity::PLACEHOLDER }, *ps);
+                        tree.trigger_targets(
+                            Dragged {
+                                entity: Entity::PLACEHOLDER,
+                            },
+                            *ps,
+                        );
                     }
                 }
             }
@@ -376,7 +436,12 @@ pub(crate) fn interactive_elements(
                             tree.trigger_targets(OnClick::default(), p);
                         }
                     }
-                    tree.trigger_targets(Disengaged { entity: Entity::PLACEHOLDER }, p);
+                    tree.trigger_targets(
+                        Disengaged {
+                            entity: Entity::PLACEHOLDER,
+                        },
+                        p,
+                    );
                 }
             }
             for ps in current.pass_through.drain(..) {
@@ -392,7 +457,12 @@ pub(crate) fn interactive_elements(
                             tree.trigger_targets(OnClick::default(), ps);
                         }
                     }
-                    tree.trigger_targets(Disengaged { entity: Entity::PLACEHOLDER }, ps);
+                    tree.trigger_targets(
+                        Disengaged {
+                            entity: Entity::PLACEHOLDER,
+                        },
+                        ps,
+                    );
                 }
             }
         }

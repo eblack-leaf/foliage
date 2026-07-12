@@ -1,6 +1,6 @@
+use crate::Trigger;
 use crate::{AssetKey, Attachment, Foliage, Resource, TargetedEvent};
 use bevy_ecs::entity::Entity;
-use crate::Trigger;
 use bevy_ecs::prelude::{EntityEvent, Event};
 use bevy_ecs::system::ResMut;
 use std::collections::HashMap;

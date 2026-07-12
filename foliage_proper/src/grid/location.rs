@@ -1,13 +1,12 @@
 use crate::anim::interpolation::Interpolations;
-use bevy_ecs::event::EntityEvent;
-use crate::EcsExtension;
-use bevy_ecs::lifecycle::HookContext;
 use crate::disable::AutoDisable;
 use crate::enable::AutoEnable;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::grid::{Gap, GridAxisDescriptor, GridConfiguration};
 use crate::text::monospaced::MonospacedFont;
 use crate::visibility::AutoVisibility;
+use crate::EcsExtension;
+use crate::Trigger;
 use crate::{
     Animate, AspectRatio, Attachment, Component, CoordinateUnit, Coordinates, Foliage, FontSize,
     Grid, Layout, Line, Logical, Points, ResolvedVisibility, Section, Stem, Tree, Update, View,
@@ -16,7 +15,8 @@ use crate::{
 use bevy_ecs::change_detection::Res;
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
-use crate::Trigger;
+use bevy_ecs::event::EntityEvent;
+use bevy_ecs::lifecycle::HookContext;
 use bevy_ecs::lifecycle::Insert;
 use bevy_ecs::prelude::Query;
 use bevy_ecs::world::DeferredWorld;

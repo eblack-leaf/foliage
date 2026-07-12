@@ -2,9 +2,6 @@ mod glyph;
 pub(crate) mod monospaced;
 mod pipeline;
 
-use bevy_ecs::event::EntityEvent;
-use crate::EcsExtension;
-use bevy_ecs::lifecycle::HookContext;
 use crate::color::Color;
 use crate::coordinate::section::Section;
 use crate::coordinate::Logical;
@@ -15,6 +12,8 @@ use crate::remove::Remove;
 use crate::text::glyph::{Glyph, GlyphColor, GlyphKey, ResolvedColors};
 use crate::text::monospaced::MonospacedFont;
 use crate::Differential;
+use crate::EcsExtension;
+use crate::Trigger;
 use crate::{
     Attachment, Layout, Physical, ResolvedElevation, ResolvedVisibility, Stem, Tree, Update,
     Visibility, Write,
@@ -22,7 +21,8 @@ use crate::{
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
-use crate::Trigger;
+use bevy_ecs::event::EntityEvent;
+use bevy_ecs::lifecycle::HookContext;
 use bevy_ecs::prelude::{Component, IntoScheduleConfigs, Res};
 use bevy_ecs::query::{Changed, With};
 use bevy_ecs::system::{ParamSet, Query};
@@ -267,9 +267,12 @@ impl Text {
             let mut line_metrics = LineMetrics::default();
             if let Some(lines) = glyphs.layout.lines() {
                 for line in lines {
-                    line_metrics
-                        .lines
-                        .push((line.glyph_end.checked_sub(line.glyph_start).unwrap_or_default()) as u32);
+                    line_metrics.lines.push(
+                        (line
+                            .glyph_end
+                            .checked_sub(line.glyph_start)
+                            .unwrap_or_default()) as u32,
+                    );
                     line_metrics.last_offsets.push(line.glyph_end as u32);
                 }
             }
@@ -296,7 +299,11 @@ impl Text {
     ) {
         let value = vis.get(trigger.event_target()).unwrap();
         if !value.visible() {
-            glyphs.get_mut(trigger.event_target()).unwrap().glyphs.clear();
+            glyphs
+                .get_mut(trigger.event_target())
+                .unwrap()
+                .glyphs
+                .clear();
         }
     }
     fn resolve_glyphs(

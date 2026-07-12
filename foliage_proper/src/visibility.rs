@@ -1,11 +1,11 @@
 use crate::ash::differential::RenderRemoveQueue;
-use bevy_ecs::event::EntityEvent;
 use crate::EcsExtension;
-use bevy_ecs::lifecycle::HookContext;
-use crate::{Attachment, Branch, Component, Foliage, AnchorDeps, Stem, Tree, Update, Write};
+use crate::Trigger;
+use crate::{AnchorDeps, Attachment, Branch, Component, Foliage, Stem, Tree, Update, Write};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
-use crate::Trigger;
+use bevy_ecs::event::EntityEvent;
+use bevy_ecs::lifecycle::HookContext;
 use bevy_ecs::lifecycle::Insert;
 use bevy_ecs::prelude::Query;
 use bevy_ecs::system::ResMut;

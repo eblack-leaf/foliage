@@ -1,10 +1,10 @@
 use crate::anim::interpolation::Interpolations;
-use bevy_ecs::event::EntityEvent;
-use bevy_ecs::lifecycle::HookContext;
+use crate::Trigger;
 use crate::{Animate, Attachment, Branch, Component, Foliage, Stem, Tree};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
-use crate::Trigger;
+use bevy_ecs::event::EntityEvent;
+use bevy_ecs::lifecycle::HookContext;
 use bevy_ecs::lifecycle::Insert;
 use bevy_ecs::system::Query;
 use bevy_ecs::world::DeferredWorld;

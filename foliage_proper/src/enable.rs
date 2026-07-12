@@ -1,8 +1,8 @@
-use crate::{
-    Attachment, Branch, Foliage, InteractionListener, InteractionState, AnchorDeps, Tree, Write,
-};
 use crate::EcsExtension;
 use crate::Trigger;
+use crate::{
+    AnchorDeps, Attachment, Branch, Foliage, InteractionListener, InteractionState, Tree, Write,
+};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::EntityEvent;
 use bevy_ecs::system::Query;
@@ -31,7 +31,9 @@ impl Attachment for Enable {
 }
 impl Enable {
     pub fn new() -> Enable {
-        Enable { entity: Entity::PLACEHOLDER }
+        Enable {
+            entity: Entity::PLACEHOLDER,
+        }
     }
     fn user_signal(
         trigger: Trigger<Self>,
@@ -43,7 +45,9 @@ impl Enable {
         if let Ok(branch) = branches.get(trigger.event_target()) {
             if !branch.ids.is_empty() {
                 tree.trigger_targets(
-                    InheritEnable { entity: Entity::PLACEHOLDER },
+                    InheritEnable {
+                        entity: Entity::PLACEHOLDER,
+                    },
                     branch.ids.iter().copied().collect::<Vec<_>>(),
                 );
             }
@@ -51,7 +55,9 @@ impl Enable {
         if let Ok(stack) = stacks.get(trigger.event_target()) {
             if !stack.ids.is_empty() {
                 tree.trigger_targets(
-                    InheritEnable { entity: Entity::PLACEHOLDER },
+                    InheritEnable {
+                        entity: Entity::PLACEHOLDER,
+                    },
                     stack.ids.iter().copied().collect::<Vec<_>>(),
                 );
             }
@@ -80,7 +86,9 @@ impl Default for AutoEnable {
 crate::targeted_event!(AutoEnable);
 impl AutoEnable {
     pub(crate) fn new() -> AutoEnable {
-        AutoEnable { entity: Entity::PLACEHOLDER }
+        AutoEnable {
+            entity: Entity::PLACEHOLDER,
+        }
     }
     fn user_signal(trigger: Trigger<Self>, mut tree: Tree) {
         tree.trigger_targets(Write::<Enable>::new(), trigger.event_target());
@@ -108,7 +116,9 @@ impl Default for InheritEnable {
 crate::targeted_event!(InheritEnable);
 impl InheritEnable {
     pub(crate) fn new() -> Self {
-        Self { entity: Entity::PLACEHOLDER }
+        Self {
+            entity: Entity::PLACEHOLDER,
+        }
     }
     fn user_signal(
         trigger: Trigger<Self>,
@@ -120,7 +130,9 @@ impl InheritEnable {
         if let Ok(branch) = branches.get(trigger.event_target()) {
             if !branch.ids.is_empty() {
                 tree.trigger_targets(
-                    InheritEnable { entity: Entity::PLACEHOLDER },
+                    InheritEnable {
+                        entity: Entity::PLACEHOLDER,
+                    },
                     branch.ids.iter().copied().collect::<Vec<_>>(),
                 );
             }
@@ -128,7 +140,9 @@ impl InheritEnable {
         if let Ok(stack) = stacks.get(trigger.event_target()) {
             if !stack.ids.is_empty() {
                 tree.trigger_targets(
-                    InheritEnable { entity: Entity::PLACEHOLDER },
+                    InheritEnable {
+                        entity: Entity::PLACEHOLDER,
+                    },
                     stack.ids.iter().copied().collect::<Vec<_>>(),
                 );
             }

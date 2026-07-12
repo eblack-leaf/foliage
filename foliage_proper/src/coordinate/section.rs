@@ -1,6 +1,6 @@
-use std::any::TypeId;
 use crate::EcsExtension;
 use bevy_ecs::lifecycle::HookContext;
+use std::any::TypeId;
 use std::fmt::Display;
 use std::ops::{Add, AddAssign, Mul, Sub};
 
@@ -14,7 +14,7 @@ use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::{
     CoordinateContext, CoordinateUnit, Coordinates, Logical, Numerical, Physical,
 };
-use crate::{Branch, Location, Anchor, AnchorDeps, Update, Write};
+use crate::{Anchor, AnchorDeps, Branch, Location, Update, Write};
 
 #[derive(Copy, Clone, Default, Component, Debug, PartialEq, PartialOrd)]
 #[component(on_insert = Section::<Logical>::on_insert)]

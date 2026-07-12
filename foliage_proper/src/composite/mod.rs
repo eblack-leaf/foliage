@@ -1,11 +1,11 @@
+use crate::IntoTargets;
+use crate::Trigger;
 use crate::{Color, EcsExtension, IconId, Tree, Update};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::EntityEvent;
-use crate::IntoTargets;
 use bevy_ecs::lifecycle::{HookContext, Insert};
 use bevy_ecs::prelude::{Component, Query};
 use bevy_ecs::world::DeferredWorld;
-use crate::Trigger;
 
 pub(crate) mod button;
 mod children;
