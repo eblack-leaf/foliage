@@ -85,5 +85,5 @@ fn main() {
         include_bytes!("assets/icons/search.icon"),
     ));
     home::build(&mut foliage.world);
-    foliage.grow(); // run
+    foliage.photosynthesize(); // run
 }

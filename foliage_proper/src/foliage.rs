@@ -134,7 +134,9 @@ impl Foliage {
     pub fn attach<A: Attachment>(&mut self) {
         A::attach(self);
     }
-    pub fn grow(mut self) {
+    /// Runs the app -- the whole-organism, keeps-going process the event loop actually is,
+    /// as distinct from [`Sow::grow`](crate::tree::Sow::grow) spawning one entity.
+    pub fn photosynthesize(mut self) {
         let event_loop = EventLoop::new().unwrap();
         event_loop.set_control_flow(ControlFlow::Wait);
         cfg_if::cfg_if! {
