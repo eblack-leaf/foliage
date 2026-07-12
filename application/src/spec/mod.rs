@@ -54,9 +54,10 @@
 //!
 //! ONE new primitive, `Children::react`:
 //!
-//!     kids.react::<C>(observer)          // C: Component + Clone
-//!     kids.react::<(A, B)>(observer)     // native bevy: observers watch tuples;
-//!                                        // one body, fires when EITHER is written
+//!     kids.react::<C, _>(observer)             // C: Component + Clone; `_` = the
+//!                                              // observer's inferred marker type
+//!     kids.react_any::<(A, B), _>(observer)    // native bevy: observers watch tuples;
+//!                                              // one body, fires when EITHER is written
 //!
 //! registers `observer` — a plain bevy entity-observer watching Trigger<Insert, C>, with
 //! full SystemParam freedom — on the widget root, then re-inserts the root's current
@@ -74,17 +75,18 @@
 //! card_game.rs implements the same public face with a fixed pool AND with keyed
 //! respawn, to prove the policy is invisible from outside.
 //!
-//! Events out: `#[derive(TargetedEvent)]` stacked beside bevy's own EntityEvent derive.
-//! Generates set_target for the entity field and a `new(<non-entity fields>)`
-//! constructor prefilled with Entity::PLACEHOLDER — the existing foliage convention
-//! (Remove::new(), InsertText::new(..)). The targeted_event! macro_rules and the
-//! hand-written Default-with-PLACEHOLDER impls retire; PLACEHOLDER never appears in
-//! author code. (A data-type derive generating impls you'd write by hand is bevy's own
+//! Events out: the `#[targeted_event]` attribute (a derive cannot inject fields, so it
+//! is an attribute — same pattern as `icon_handle`). It injects the `entity` plumbing
+//! field, derives bevy's EntityEvent + Clone, and generates set_target plus a
+//! `new(<payload fields>)` constructor prefilled with Entity::PLACEHOLDER — the existing
+//! foliage convention (Remove::new(), InsertText::new(..)). PLACEHOLDER never appears in
+//! author code. (A data-type macro generating impls you'd write by hand is bevy's own
 //! idiom — the no-macro line was about attribute macros rewriting observer semantics,
 //! and it holds.)
 //!
-//!     #[derive(EntityEvent, TargetedEvent, Copy, Clone)]
-//!     pub struct CardPlayed { entity: Entity, pub id: u32 }
+//!     #[targeted_event]
+//!     pub struct CardPlayed { pub id: u32 }
+//!     // expands to: entity field + EntityEvent + Clone + set_target + new(id)
 //!     // emit:  tree.trigger_targets(CardPlayed::new(card.id), this);
 //!
 //! Events speak the CALLER's vocabulary (their ids, their indices — never child
@@ -120,8 +122,11 @@
 //! ============================================================================
 //! KNOWN FRICTION, DELIBERATELY KEPT (call these out if they bother you)
 //! ============================================================================
-//!   - react::<C>(..) names C twice (turbofish + Trigger<Insert, C> in the closure).
-//!     The macro-free price.
+//!   - react::<C, _>(..) names C twice plus a `_` for the observer's marker type
+//!     (turbofish + Trigger<Insert, C> in the closure). The macro-free price.
+//!   - react (single) and react_any (tuple) are two methods: a blanket Refire impl over
+//!     `C: Component` would collide with the tuple impls under coherence rules, since a
+//!     foreign crate could implement Component for tuples.
 //!   - config-dependent STRUCTURE cannot live in build (build is static): it routes
 //!     through a reaction. RadioGroup/JoinedButtons show the consequence.
 //!   - Location authoring verbosity is a separate mechanical pass (as agreed); elided

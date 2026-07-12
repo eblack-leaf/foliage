@@ -5,8 +5,7 @@ use crate::icons::IconHandles;
 use foliage::{
     anchor, Anchor, Animation, Button, Children, Color, Ease, EcsExtension, Elevation, Entity,
     FontSize, Grid, GridExt, Image, ImageView, InteractionListener, Keyring, Leaf, Location,
-    MemoryId, OnClick, OnEnd, Opacity, Panel, Res, Rounding, Sequence,
-    Sprout, Text, Tree, Trigger,
+    MemoryId, OnClick, OnEnd, Opacity, Panel, Res, Rounding, Sequence, Sprout, Text, Tree, Trigger,
 };
 
 pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
@@ -301,52 +300,54 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
             info_children.tree().on_click(display, open_modal.clone());
             card_root
         });
-    tree.graft(back).disable().on_click(move |trigger: Trigger<OnClick>, mut tree: Tree| {
-        tree.disable([back, root]);
-        Sequence::new(&mut tree)
-            .animate(
-                Animation::new(Opacity::new(0.0))
+    tree.graft(back)
+        .disable()
+        .on_click(move |trigger: Trigger<OnClick>, mut tree: Tree| {
+            tree.disable([back, root]);
+            Sequence::new(&mut tree)
+                .animate(
+                    Animation::new(Opacity::new(0.0))
+                        .start(0)
+                        .finish(500)
+                        .targeting(root),
+                )
+                .animate(
+                    Animation::new(Opacity::new(0.0))
+                        .start(0)
+                        .finish(500)
+                        .targeting(back),
+                )
+                .animate(
+                    Animation::new(Opacity::new(1.0))
+                        .start(500)
+                        .finish(1000)
+                        .targeting(home),
+                )
+                .animate(
+                    Animation::new(Location::new().xs(
+                        0.pct().as_left().with(100.pct().as_right()),
+                        0.pct().as_top().with(100.pct().as_bottom()),
+                    ))
                     .start(0)
-                    .finish(500)
-                    .targeting(root),
-            )
-            .animate(
-                Animation::new(Opacity::new(0.0))
-                    .start(0)
-                    .finish(500)
-                    .targeting(back),
-            )
-            .animate(
-                Animation::new(Opacity::new(1.0))
-                    .start(500)
                     .finish(1000)
-                    .targeting(home),
-            )
-            .animate(
-                Animation::new(Location::new().xs(
-                    0.pct().as_left().with(100.pct().as_right()),
-                    0.pct().as_top().with(100.pct().as_bottom()),
-                ))
-                .start(0)
-                .finish(1000)
-                .targeting(home)
-                .eased(Ease::EMPHASIS),
-            )
-            .animate(
-                Animation::new(Location::new().xs(
-                    0.pct().as_left().with(100.pct().as_right()),
-                    100.pct().as_top().with(200.pct().as_bottom()),
-                ))
-                .start(0)
-                .finish(1000)
-                .targeting(root)
-                .eased(Ease::EMPHASIS),
-            )
-            .end(move |trigger: Trigger<OnEnd>, mut tree: Tree| {
-                tree.remove([root, back]);
-                tree.enable(home);
-            });
-    });
+                    .targeting(home)
+                    .eased(Ease::EMPHASIS),
+                )
+                .animate(
+                    Animation::new(Location::new().xs(
+                        0.pct().as_left().with(100.pct().as_right()),
+                        100.pct().as_top().with(200.pct().as_bottom()),
+                    ))
+                    .start(0)
+                    .finish(1000)
+                    .targeting(root)
+                    .eased(Ease::EMPHASIS),
+                )
+                .end(move |trigger: Trigger<OnEnd>, mut tree: Tree| {
+                    tree.remove([root, back]);
+                    tree.enable(home);
+                });
+        });
     let _spacing = Leaf::sprout()
         .at(Location::new().xs(
             0.pct().as_left().with(100.pct().as_right()),

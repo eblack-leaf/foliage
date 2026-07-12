@@ -72,10 +72,7 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
               mut tree: Tree,
               sections: Query<&Section<Logical>>| {
             let w = sections.get(trigger.event_target()).unwrap().width();
-            tree.write_to(
-                top_desc,
-                TextValue(format!("w: {:.01}", w)),
-            );
+            tree.write_to(top_desc, TextValue(format!("w: {:.01}", w)));
         },
     );
     let side_desc = name_kids.spawn(
@@ -95,10 +92,7 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
               mut tree: Tree,
               sections: Query<&Section<Logical>>| {
             let h = sections.get(trigger.event_target()).unwrap().width() * 0.5;
-            tree.write_to(
-                side_desc,
-                TextValue(format!("h: {:.01}", h)),
-            );
+            tree.write_to(side_desc, TextValue(format!("h: {:.01}", h)));
         },
     );
     let pad_connector = name_kids.spawn(
@@ -127,10 +121,7 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
               mut tree: Tree,
               sections: Query<&Section<Logical>>| {
             let h = sections.get(trigger.event_target()).unwrap().height();
-            tree.write_to(
-                pad_desc,
-                TextValue(format!("pad: {:.01}", h)),
-            );
+            tree.write_to(pad_desc, TextValue(format!("pad: {:.01}", h)));
         },
     );
     let desc = name_kids.spawn(
@@ -208,8 +199,8 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
             .with(Grid::new(5.col().gap(4), 3.row().gap(8))),
     );
     // row, icon, color, desc text, desc highlight range, desc column range, line column
-    let option_rows: Vec<(Entity, Entity, Entity)> =
-        Children::new(options_container, kids.tree()).each(
+    let option_rows: Vec<(Entity, Entity, Entity)> = Children::new(options_container, kids.tree())
+        .each(
             [
                 (
                     1,
@@ -266,9 +257,7 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
                     .tree()
                     .graft(button)
                     .write(Opacity::new(0.0))
-                    .on_click(move |trigger: Trigger<OnClick>| {
-                        HrefLink::new("tbd").navigate()
-                    });
+                    .on_click(move |trigger: Trigger<OnClick>| HrefLink::new("tbd").navigate());
                 let line = row_children.spawn(
                     Line::new(2)
                         .color(color)

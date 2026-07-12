@@ -3,8 +3,8 @@ use foliage::Justify::Center;
 use foliage::{
     anchor, Anchor, Animation, Button, Children, Color, EcsExtension, Elevation, Entity, FontSize,
     Grid, GridExt, HorizontalAlignment, Icon, Image, ImageView, Keyring, Leaf, Line, Location,
-    OnClick, Opacity, Panel, Rounding, Sequence, Sprout, Text, TextInput,
-    Tree, Trigger, VerticalAlignment,
+    OnClick, Opacity, Panel, Rounding, Sequence, Sprout, Text, TextInput, Tree, Trigger,
+    VerticalAlignment,
 };
 
 pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {

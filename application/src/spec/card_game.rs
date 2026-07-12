@@ -147,7 +147,7 @@ impl Sprout for CardSprout {
         // ALL state application: runs once now (fire-once) and on every write_to.
         // Primitives obey the same contract — TextValue/IconValue/Color written
         // straight onto them; no markers, no special forms.
-        kids.react::<CardFace>(
+        kids.react::<CardFace, _>(
             move |t: Trigger<Insert, CardFace>, faces: Query<&CardFace>, mut tree: Tree| {
                 let face = faces.get(t.event_target()).unwrap();
                 tree.write_to(rank, TextValue(face.rank_label()));
@@ -182,9 +182,9 @@ impl Cards {
 
 /// Event out. Caller vocabulary: the id, nothing internal. The derive generates
 /// set_target + `CardPlayed::new(id)` (PLACEHOLDER prefilled, never written by hand).
-#[derive(EntityEvent, TargetedEvent, Copy, Clone)]
+#[targeted_event]
+#[derive(Copy)]
 pub struct CardPlayed {
-    entity: Entity,
     pub id: u32,
 }
 
@@ -244,7 +244,7 @@ impl Sprout for HandSprout {
 
         // ALL state application. Fires once now with Cards::default() (all slots off),
         // then on every write_to(hand, Cards(..)) forever.
-        kids.react::<Cards>(
+        kids.react::<Cards, _>(
             move |t: Trigger<Insert, Cards>, cards: Query<&Cards>, mut tree: Tree| {
                 let cards = cards.get(t.event_target()).unwrap();
                 for (i, slot) in slots.iter().copied().enumerate() {
@@ -293,7 +293,7 @@ impl Sprout for KeyedHandSprout {
         // no static skeleton at all: structure IS the data.
         // reconciliation state is plain FnMut capture — not a library feature.
         let mut live: HashMap<u32, Entity> = HashMap::new();
-        kids.react::<Cards>(
+        kids.react::<Cards, _>(
             move |t: Trigger<Insert, Cards>, cards: Query<&Cards>, mut tree: Tree| {
                 let this = t.event_target();
                 let cards = cards.get(this).unwrap();

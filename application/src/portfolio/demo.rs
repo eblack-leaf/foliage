@@ -1,7 +1,6 @@
 use foliage::{
     Animation, Children, Color, EcsExtension, Elevation, Entity, FontSize, Grid, GridExt,
-    LineConstraint, Location, Opacity, Sequence, Sprout, Text, TextInput,
-    Tree,
+    LineConstraint, Location, Opacity, Sequence, Sprout, Text, TextInput, Tree,
 };
 
 /// Stands in for the "Artist Blog" portfolio item until that app is built.

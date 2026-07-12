@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+foliage_macros = { path = "../foliage_macros" }
 bytemuck = { version = "1.21.0", features = ["derive"] }
 winit = { version = "0.30.13", features = ["android-game-activity"] }
 wgpu = { version = "30.0.0", features = ["metal", "webgl", "wgsl"] }

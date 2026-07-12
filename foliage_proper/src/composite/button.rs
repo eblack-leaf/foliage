@@ -198,7 +198,8 @@ impl Sprout for ButtonSprout {
             });
         kids.tree()
             .subscribe(this, |trigger: Trigger<Disengaged>, mut tree: Tree| {
-                tree.entity(trigger.event_target()).insert(Engagement(false));
+                tree.entity(trigger.event_target())
+                    .insert(Engagement(false));
             });
 
         // NOT a pure copy -- the text's width Location depends on the value -- so this

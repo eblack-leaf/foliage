@@ -64,7 +64,9 @@ pub fn targeted_event(
     let args = user_fields
         .iter()
         .map(|(id, ty)| quote::quote!(#id: impl Into<#ty>));
-    let inits = user_fields.iter().map(|(id, _)| quote::quote!(#id: #id.into()));
+    let inits = user_fields
+        .iter()
+        .map(|(id, _)| quote::quote!(#id: #id.into()));
     let gen = quote::quote!(
         #[derive(#root::bevy_ecs::event::EntityEvent, Clone)]
         #input

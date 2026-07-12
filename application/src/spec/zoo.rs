@@ -61,7 +61,7 @@ impl Sprout for ButtonSprout {
         // ONE restyle, subsuming recompute_colors + apply_rounding. Appearance depends
         // on two components; observers natively watch tuples — one registration, one
         // body, fires when EITHER is written (and once at build, per react's contract).
-        kids.react::<(ButtonStyle, Engagement)>(
+        kids.react_any::<(ButtonStyle, Engagement), _>(
             move |t: Trigger<Insert, (ButtonStyle, Engagement)>,
                   styles: Query<&ButtonStyle>,
                   engagement: Query<&Engagement>,
@@ -86,7 +86,7 @@ impl Sprout for ButtonSprout {
 
         // NOT a pure copy — text also recomputes its width Location — so it stays an
         // explicit react. The boundary between forward and react is visible on purpose.
-        kids.react::<TextValue>(
+        kids.react::<TextValue, _>(
             move |t: Trigger<Insert, TextValue>, v: Query<&TextValue>, mut tree: Tree| {
                 let value = v.get(t.event_target()).unwrap().clone();
                 tree.write_to(text, value); // primitives take their value components
@@ -115,9 +115,9 @@ pub struct Options(pub Vec<String>);
 pub struct Selected(pub Option<usize>);
 #[derive(Component, Copy, Clone, Default)]
 pub struct Expanded(pub bool);
-#[derive(EntityEvent, TargetedEvent, Copy, Clone)]
+#[targeted_event]
+#[derive(Copy)]
 pub struct SelectionChanged {
-    entity: Entity,
     pub index: usize,
 }
 
@@ -159,7 +159,7 @@ impl Sprout for DropdownSprout {
         // dynamic structure door: rows follow Options. This author respawns;
         // a pooling author would look exactly like Hand instead.
         let mut rows: Vec<Entity> = Vec::new();
-        kids.react::<Options>(move |t: Trigger<Insert, Options>, opts: Query<&Options>, mut tree: Tree| {
+        kids.react::<Options, _>(move |t: Trigger<Insert, Options>, opts: Query<&Options>, mut tree: Tree| {
             let this = t.event_target();
             for r in rows.drain(..) {
                 tree.remove(r);
@@ -182,7 +182,7 @@ impl Sprout for DropdownSprout {
             }
         });
 
-        kids.react::<Expanded>(move |t: Trigger<Insert, Expanded>, ex: Query<&Expanded>, mut tree: Tree| {
+        kids.react::<Expanded, _>(move |t: Trigger<Insert, Expanded>, ex: Query<&Expanded>, mut tree: Tree| {
             if ex.get(t.event_target()).unwrap().0 {
                 tree.enable(list); // + chevron flip / open animation
             } else {
@@ -193,7 +193,7 @@ impl Sprout for DropdownSprout {
         // tuple-react: the label depends on BOTH — a Selected click must relabel, and
         // so must an Options replacement while something is selected (with a single-
         // component react on Selected alone, that second path would go stale).
-        kids.react::<(Options, Selected)>(
+        kids.react_any::<(Options, Selected), _>(
             move |t: Trigger<Insert, (Options, Selected)>,
                   sel: Query<&Selected>,
                   opts: Query<&Options>,
@@ -218,9 +218,9 @@ impl Sprout for DropdownSprout {
 
 #[derive(Component, Copy, Clone, Default)]
 pub struct SliderValue(pub f32); // 0.0..=1.0
-#[derive(EntityEvent, TargetedEvent, Copy, Clone)]
+#[targeted_event]
+#[derive(Copy)]
 pub struct ValueChanged {
-    entity: Entity,
     pub value: f32,
 }
 
@@ -257,7 +257,7 @@ impl Sprout for SliderSprout {
         );
 
         // render: value -> geometry. Identical for drag writes and programmatic writes.
-        kids.react::<SliderValue>(
+        kids.react::<SliderValue, _>(
             move |t: Trigger<Insert, SliderValue>, vals: Query<&SliderValue>, mut tree: Tree| {
                 let v = vals.get(t.event_target()).unwrap().0;
                 tree.write_to(

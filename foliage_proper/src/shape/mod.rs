@@ -98,7 +98,10 @@ impl Sprout for LineSprout {
         &mut self.leaf
     }
     fn root(self) -> impl Bundle {
-        (Line::new_marker(self.weight), self.color.unwrap_or_default())
+        (
+            Line::new_marker(self.weight),
+            self.color.unwrap_or_default(),
+        )
     }
 }
 impl LineSprout {

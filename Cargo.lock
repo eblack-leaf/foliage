@@ -1106,6 +1106,7 @@ dependencies = [
  "console_error_panic_hook",
  "copypasta",
  "flate2",
+ "foliage_macros",
  "fontdue",
  "futures-channel",
  "image",

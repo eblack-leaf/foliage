@@ -76,12 +76,12 @@ pub use grid::{
 pub use grid::{Anchor, AnchorDeps, AnchorDescriptor, GridExt, Justify};
 pub use icon::{Icon, IconId, IconMemory, IconSprout};
 pub use image::{Image, ImageMemory, ImageMetrics, ImageSprout, ImageView, MemoryId};
+pub use interaction::CurrentInteraction;
 pub use interaction::{
     listener::InteractionListener, listener::InteractionShape, listener::InteractionState,
     FocusBehavior, InputSequence, Interaction, InteractionPhase, InteractionPropagation, Key,
     Modifiers, OnClick, PhysicalInputSequence, PhysicalKey,
 };
-pub use interaction::CurrentInteraction;
 pub use interaction::{Disengaged, Dragged, Engaged, Focused, Unfocused};
 pub use leaf::{Branch, Leaf, Stem};
 pub use opacity::Opacity;

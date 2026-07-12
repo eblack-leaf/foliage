@@ -1,12 +1,12 @@
 use crate::anim::runner::AnimationRunner;
 use crate::anim::sequence::{AnimationTime, SequenceMarker};
+use crate::composite::children::Refire;
 use crate::disable::Disable;
 use crate::enable::Enable;
 use crate::leaf::Leaf;
 use crate::ops::{Name, StoredKey};
 use crate::remove::Remove;
 use crate::time::OnEnd;
-use crate::composite::children::Refire;
 use crate::{Animate, Animation, AssetKey, OnClick, TimeDelta, Timer};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
@@ -45,8 +45,9 @@ impl<const N: usize> IntoTargets for [Entity; N] {
 /// An event `send_to`/`trigger_targets` can aim at an entity. bevy 0.19 removed
 /// `trigger_targets` — an `EntityEvent` now carries its target inside itself — so foliage's
 /// targeted events store an `entity` field the seam below rewrites per target. Implement via
-/// [`targeted_event!`] (or by hand for generics); events constructed by users keep their
-/// `Default`/`new()` shape with `Entity::PLACEHOLDER` until the seam assigns the real target.
+/// the `#[targeted_event]` attribute (injects the field, derives `EntityEvent` + `Clone`,
+/// generates `new(<payload fields>)` — authors never write `Entity::PLACEHOLDER`), or via
+/// [`targeted_event!`] / by hand for generics like `Update<C>`/`Write<C>`.
 pub trait TargetedEvent: EntityEvent + Clone {
     fn set_target(&mut self, entity: Entity);
 }

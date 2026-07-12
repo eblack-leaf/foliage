@@ -391,7 +391,7 @@ impl TextInput {
         let value = values.get(this).unwrap();
         tree.write_to(handle.text, Text::new_marker(&value.0));
         tree.write_to(handle.hint_text, crate::Visibility::new(value.0.is_empty()));
-        tree.trigger_targets(TextChanged::default(), this);
+        tree.trigger_targets(TextChanged::new(), this);
     }
     /// Was `ClearSelection::obs`.
     fn clear_selection(this: Entity, selections: &mut Query<&mut Selection>) {
@@ -1549,18 +1549,9 @@ impl TextInput {
 }
 /// Fired at the `TextInput` root whenever its text content changes (typing, deletion, paste,
 /// programmatic `TextValue` writes). Subscribe with `tree.subscribe(input, ...)`.
-#[derive(EntityEvent, Copy, Clone)]
-pub struct TextChanged {
-    entity: Entity,
-}
-impl Default for TextChanged {
-    fn default() -> Self {
-        Self {
-            entity: Entity::PLACEHOLDER,
-        }
-    }
-}
-crate::targeted_event!(TextChanged);
+#[foliage_macros::targeted_event]
+#[derive(Copy)]
+pub struct TextChanged {}
 /// Programmatically inserts text at the cursor (or replaces the active selection). Public: any
 /// composite/consumer can trigger this directly, not just this file's own key-handling arms.
 #[derive(EntityEvent, Clone)]
