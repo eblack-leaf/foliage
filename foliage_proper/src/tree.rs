@@ -45,23 +45,11 @@ impl<const N: usize> IntoTargets for [Entity; N] {
 /// An event `send_to`/`trigger_targets` can aim at an entity. bevy 0.19 removed
 /// `trigger_targets` — an `EntityEvent` now carries its target inside itself — so foliage's
 /// targeted events store an `entity` field the seam below rewrites per target. Implement via
-/// the `#[targeted_event]` attribute (injects the field, derives `EntityEvent` + `Clone`,
-/// generates `new(<payload fields>)` — authors never write `Entity::PLACEHOLDER`), or via
-/// [`targeted_event!`] / by hand for generics like `Update<C>`/`Write<C>`.
+/// the `#[targeted_event]` attribute (injects the field, implements `Event`/`EntityEvent`,
+/// generates `new(<payload fields>)` — authors never write `Entity::PLACEHOLDER`); generics
+/// like `Update<C>`/`Write<C>` implement it by hand.
 pub trait TargetedEvent: EntityEvent + Clone {
     fn set_target(&mut self, entity: Entity);
-}
-
-/// Implements [`TargetedEvent`] for event structs with a named `entity` field.
-#[macro_export]
-macro_rules! targeted_event {
-    ($($t:ty),* $(,)?) => {$(
-        impl $crate::TargetedEvent for $t {
-            fn set_target(&mut self, entity: $crate::bevy_ecs::entity::Entity) {
-                self.entity = entity;
-            }
-        }
-    )*};
 }
 
 /// Raw ECS-level spawn, underneath the public `Seed`/`Sprout`/`Photosynthesis` authoring kit --

@@ -141,7 +141,7 @@ fn despawn_and_update_sequence<A: Animate>(
         .animations_to_finish
         <= 0
     {
-        tree.trigger_targets(OnEnd::default(), sequence_entity);
+        tree.trigger_targets(OnEnd::new(), sequence_entity);
         tree.entity(sequence_entity).despawn();
     }
     tree.entity(anim_entity).despawn();

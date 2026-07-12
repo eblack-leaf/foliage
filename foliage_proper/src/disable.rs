@@ -7,18 +7,9 @@ use bevy_ecs::entity::Entity;
 use bevy_ecs::event::EntityEvent;
 use bevy_ecs::system::Query;
 
-#[derive(EntityEvent, Copy, Clone)]
-pub struct Disable {
-    entity: Entity,
-}
-impl Default for Disable {
-    fn default() -> Self {
-        Self {
-            entity: Entity::PLACEHOLDER,
-        }
-    }
-}
-crate::targeted_event!(Disable);
+#[foliage_macros::targeted_event]
+#[derive(Copy)]
+pub struct Disable {}
 impl Attachment for Disable {
     fn attach(foliage: &mut Foliage) {
         foliage.define(Disable::interactions);
@@ -48,9 +39,7 @@ impl Disable {
         if let Ok(branch) = branches.get(trigger.event_target()) {
             if !branch.ids.is_empty() {
                 tree.trigger_targets(
-                    InheritDisable {
-                        entity: Entity::PLACEHOLDER,
-                    },
+                    InheritDisable::new(),
                     branch.ids.iter().copied().collect::<Vec<_>>(),
                 );
             }
@@ -58,38 +47,17 @@ impl Disable {
         if let Ok(stack) = stacks.get(trigger.event_target()) {
             if !stack.ids.is_empty() {
                 tree.trigger_targets(
-                    InheritDisable {
-                        entity: Entity::PLACEHOLDER,
-                    },
+                    InheritDisable::new(),
                     stack.ids.iter().copied().collect::<Vec<_>>(),
                 );
             }
         }
     }
-    pub fn new() -> Disable {
-        Disable {
-            entity: Entity::PLACEHOLDER,
-        }
-    }
 }
-#[derive(EntityEvent, Copy, Clone)]
-pub(crate) struct AutoDisable {
-    entity: Entity,
-}
-impl Default for AutoDisable {
-    fn default() -> Self {
-        Self {
-            entity: Entity::PLACEHOLDER,
-        }
-    }
-}
-crate::targeted_event!(AutoDisable);
+#[foliage_macros::targeted_event]
+#[derive(Copy)]
+pub(crate) struct AutoDisable {}
 impl AutoDisable {
-    pub(crate) fn new() -> Self {
-        Self {
-            entity: Entity::PLACEHOLDER,
-        }
-    }
     fn user_signal(trigger: Trigger<Self>, mut tree: Tree) {
         tree.trigger_targets(Write::<Disable>::new(), trigger.event_target());
     }
@@ -102,24 +70,10 @@ impl AutoDisable {
         }
     }
 }
-#[derive(EntityEvent, Copy, Clone)]
-pub(crate) struct InheritDisable {
-    entity: Entity,
-}
-impl Default for InheritDisable {
-    fn default() -> Self {
-        Self {
-            entity: Entity::PLACEHOLDER,
-        }
-    }
-}
-crate::targeted_event!(InheritDisable);
+#[foliage_macros::targeted_event]
+#[derive(Copy)]
+pub(crate) struct InheritDisable {}
 impl InheritDisable {
-    pub(crate) fn new() -> Self {
-        Self {
-            entity: Entity::PLACEHOLDER,
-        }
-    }
     fn user_signal(
         trigger: Trigger<Self>,
         mut tree: Tree,
@@ -130,9 +84,7 @@ impl InheritDisable {
         if let Ok(branch) = branches.get(trigger.event_target()) {
             if !branch.ids.is_empty() {
                 tree.trigger_targets(
-                    InheritDisable {
-                        entity: Entity::PLACEHOLDER,
-                    },
+                    InheritDisable::new(),
                     branch.ids.iter().copied().collect::<Vec<_>>(),
                 );
             }
@@ -140,9 +92,7 @@ impl InheritDisable {
         if let Ok(stack) = stacks.get(trigger.event_target()) {
             if !stack.ids.is_empty() {
                 tree.trigger_targets(
-                    InheritDisable {
-                        entity: Entity::PLACEHOLDER,
-                    },
+                    InheritDisable::new(),
                     stack.ids.iter().copied().collect::<Vec<_>>(),
                 );
             }

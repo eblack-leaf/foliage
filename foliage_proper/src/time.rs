@@ -69,18 +69,9 @@ impl Time {
 pub(crate) fn update_time(mut time: ResMut<Time>) {
     time.update();
 }
-#[derive(EntityEvent, Copy, Clone)]
-pub struct OnEnd {
-    entity: Entity,
-}
-impl Default for OnEnd {
-    fn default() -> Self {
-        Self {
-            entity: Entity::PLACEHOLDER,
-        }
-    }
-}
-crate::targeted_event!(OnEnd);
+#[foliage_macros::targeted_event]
+#[derive(Copy)]
+pub struct OnEnd {}
 #[derive(Component)]
 pub struct Timer {
     time_left: TimeDelta,

@@ -37,12 +37,11 @@ impl AssetRetrieval {
         Self { key }
     }
 }
-#[derive(EntityEvent, Copy, Clone)]
+#[foliage_macros::targeted_event]
+#[derive(Copy)]
 pub struct OnRetrieval {
-    entity: Entity,
     pub key: AssetKey,
 }
-crate::targeted_event!(OnRetrieval);
 pub fn asset_retrieval<'w, AFN: FnMut(&mut Tree, Entity, Vec<u8>) + 'static>(
     mut afn: AFN,
 ) -> impl FnMut(Trigger<OnRetrieval>, Tree, Res<AssetLoader>) {

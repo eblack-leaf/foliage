@@ -1,10 +1,10 @@
 use crate::icons::IconHandles;
 use crate::portfolio;
 use foliage::{
-    anchor, Anchor, Animation, Button, Children, Color, EcsExtension, Elevation, Entity,
-    EntityEvent, FontSize, GlyphColors, Grid, GridExt, HorizontalAlignment, HrefLink, Keyring,
-    Leaf, Line, Location, Logical, OnClick, OnEnd, Opacity, Query, Res, Rounding, Section,
-    Sequence, Sprout, Text, TextValue, Tree, Trigger, VerticalAlignment, Write,
+    anchor, Anchor, Animation, Button, Children, Color, EcsExtension, Elevation, Entity, FontSize,
+    GlyphColors, Grid, GridExt, HorizontalAlignment, HrefLink, Keyring, Leaf, Line, Location,
+    Logical, OnClick, OnEnd, Opacity, Query, Res, Rounding, Section, Sequence, Sprout, Text,
+    TextValue, Tree, Trigger, VerticalAlignment, Write,
 };
 
 // Linear one-off assembly: entities needed later are locals, entities that aren't are never

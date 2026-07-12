@@ -1,4 +1,4 @@
-use crate::{Color, IconId};
+use crate::IconId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Component, Query};
 
@@ -13,15 +13,6 @@ pub(crate) use text_input::keybindings::KeyBindings;
 pub fn resolve_root(entity: Entity, roots: &Query<&Root>) -> Entity {
     roots.get(entity).map(|r| r.0).unwrap_or(entity)
 }
-/// TextInput's own config vocabulary (main content color).
-#[derive(Component, Copy, Clone, Default)]
-pub struct Primary(pub Color);
-/// TextInput's own config vocabulary (field/backdrop color).
-#[derive(Component, Copy, Clone, Default)]
-pub struct Secondary(pub Color);
-/// TextInput's own config vocabulary (cursor/highlight color).
-#[derive(Component, Copy, Clone, Default)]
-pub struct Tertiary(pub Color);
 /// A text-bearing entity's public value channel: write it to a `Text` entity (or a widget
 /// root that forwards it, like Button/TextInput) and the content follows.
 #[derive(Component, Clone, Default)]

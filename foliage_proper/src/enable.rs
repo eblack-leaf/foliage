@@ -7,18 +7,9 @@ use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::EntityEvent;
 use bevy_ecs::system::Query;
 
-#[derive(EntityEvent, Copy, Clone)]
-pub struct Enable {
-    entity: Entity,
-}
-impl Default for Enable {
-    fn default() -> Self {
-        Self {
-            entity: Entity::PLACEHOLDER,
-        }
-    }
-}
-crate::targeted_event!(Enable);
+#[foliage_macros::targeted_event]
+#[derive(Copy)]
+pub struct Enable {}
 impl Attachment for Enable {
     fn attach(foliage: &mut Foliage) {
         foliage.define(AutoEnable::interactions);
@@ -30,11 +21,6 @@ impl Attachment for Enable {
     }
 }
 impl Enable {
-    pub fn new() -> Enable {
-        Enable {
-            entity: Entity::PLACEHOLDER,
-        }
-    }
     fn user_signal(
         trigger: Trigger<Self>,
         mut tree: Tree,
@@ -45,9 +31,7 @@ impl Enable {
         if let Ok(branch) = branches.get(trigger.event_target()) {
             if !branch.ids.is_empty() {
                 tree.trigger_targets(
-                    InheritEnable {
-                        entity: Entity::PLACEHOLDER,
-                    },
+                    InheritEnable::new(),
                     branch.ids.iter().copied().collect::<Vec<_>>(),
                 );
             }
@@ -55,9 +39,7 @@ impl Enable {
         if let Ok(stack) = stacks.get(trigger.event_target()) {
             if !stack.ids.is_empty() {
                 tree.trigger_targets(
-                    InheritEnable {
-                        entity: Entity::PLACEHOLDER,
-                    },
+                    InheritEnable::new(),
                     stack.ids.iter().copied().collect::<Vec<_>>(),
                 );
             }
@@ -72,24 +54,10 @@ impl Enable {
         }
     }
 }
-#[derive(EntityEvent, Copy, Clone)]
-pub(crate) struct AutoEnable {
-    entity: Entity,
-}
-impl Default for AutoEnable {
-    fn default() -> Self {
-        Self {
-            entity: Entity::PLACEHOLDER,
-        }
-    }
-}
-crate::targeted_event!(AutoEnable);
+#[foliage_macros::targeted_event]
+#[derive(Copy)]
+pub(crate) struct AutoEnable {}
 impl AutoEnable {
-    pub(crate) fn new() -> AutoEnable {
-        AutoEnable {
-            entity: Entity::PLACEHOLDER,
-        }
-    }
     fn user_signal(trigger: Trigger<Self>, mut tree: Tree) {
         tree.trigger_targets(Write::<Enable>::new(), trigger.event_target());
     }
@@ -102,24 +70,10 @@ impl AutoEnable {
         }
     }
 }
-#[derive(EntityEvent, Copy, Clone)]
-pub(crate) struct InheritEnable {
-    entity: Entity,
-}
-impl Default for InheritEnable {
-    fn default() -> Self {
-        Self {
-            entity: Entity::PLACEHOLDER,
-        }
-    }
-}
-crate::targeted_event!(InheritEnable);
+#[foliage_macros::targeted_event]
+#[derive(Copy)]
+pub(crate) struct InheritEnable {}
 impl InheritEnable {
-    pub(crate) fn new() -> Self {
-        Self {
-            entity: Entity::PLACEHOLDER,
-        }
-    }
     fn user_signal(
         trigger: Trigger<Self>,
         mut tree: Tree,
@@ -130,9 +84,7 @@ impl InheritEnable {
         if let Ok(branch) = branches.get(trigger.event_target()) {
             if !branch.ids.is_empty() {
                 tree.trigger_targets(
-                    InheritEnable {
-                        entity: Entity::PLACEHOLDER,
-                    },
+                    InheritEnable::new(),
                     branch.ids.iter().copied().collect::<Vec<_>>(),
                 );
             }
@@ -140,9 +92,7 @@ impl InheritEnable {
         if let Ok(stack) = stacks.get(trigger.event_target()) {
             if !stack.ids.is_empty() {
                 tree.trigger_targets(
-                    InheritEnable {
-                        entity: Entity::PLACEHOLDER,
-                    },
+                    InheritEnable::new(),
                     stack.ids.iter().copied().collect::<Vec<_>>(),
                 );
             }

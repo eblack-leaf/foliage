@@ -1,11 +1,19 @@
 use crate::icons::IconHandles;
+use crate::widgets::{Scrubbed, Scrubber};
+use foliage::bevy_ecs;
+use foliage::Component;
 use foliage::Justify::Center;
 use foliage::{
-    anchor, Anchor, Animation, Button, Children, Color, EcsExtension, Elevation, Entity, FontSize,
-    Grid, GridExt, HorizontalAlignment, Icon, Image, ImageView, Keyring, Leaf, Line, Location,
-    OnClick, Opacity, Panel, Rounding, Sequence, Sprout, Text, TextInput, Tree, Trigger,
+    Animation, Button, ButtonStyle, Children, Color, EcsExtension, Elevation, Entity, FontSize,
+    Grid, GridExt, HorizontalAlignment, Icon, Image, ImageView, Keyring, Leaf, Location, OnClick,
+    Opacity, Outline, Panel, Query, Rounding, Sequence, Sprout, Text, TextInput, Tree, Trigger,
     VerticalAlignment,
 };
+
+/// End-user data riding on the play Button's root entity -- widget entities carry the
+/// caller's components alongside the widget's own.
+#[derive(Component, Copy, Clone)]
+struct Playing(bool);
 
 pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
     Sequence::new(tree).animate(
@@ -56,9 +64,9 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
     search_children.spawn(
         TextInput::new()
             .text("Search Library")
-            .primary(Color::gray(600))
-            .secondary(Color::gray(900))
-            .tertiary(Color::green(300))
+            .foreground(Color::gray(600))
+            .background(Color::gray(900))
+            .accent(Color::green(300))
             .at(Location::new().xs(
                 48.px().as_left().with(100.pct().as_right().adjust(-16)),
                 50.pct().as_center_y().adjust(4).with(90.pct().as_height()),
@@ -120,7 +128,7 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
             .elevate(Elevation::up(1))
             .with(Grid::new(5.col().gap(8), 1.row().gap(8))),
     );
-    Children::new(controls, children.tree()).each(
+    let control_buttons = Children::new(controls, children.tree()).each(
         [
             (1, IconHandles::Shuffle.value(), Color::gray(900)),
             (2, IconHandles::SkipLeft.value(), Color::gray(900)),
@@ -142,43 +150,45 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
             )
         },
     );
-    let duration = children.spawn(
-        Leaf::sprout()
+    // end-user state on a widget entity + poking its public style: clicking play flips
+    // Playing and restyles the button through the same ButtonStyle door any config write
+    // uses -- no special toggle API on Button.
+    let play = control_buttons[2];
+    children.tree().write_to(play, Playing(false));
+    children.tree().on_click(
+        play,
+        move |trigger: Trigger<OnClick>, playing: Query<&Playing>, mut tree: Tree| {
+            let e = trigger.event_target();
+            let now_playing = !playing.get(e).unwrap().0;
+            tree.write_to(
+                e,
+                (
+                    Playing(now_playing),
+                    ButtonStyle {
+                        foreground: Color::gray(if now_playing { 900 } else { 200 }),
+                        background: Color::green(if now_playing { 300 } else { 500 }),
+                        outline: Outline::default(),
+                        rounding: Rounding::Full,
+                    },
+                ),
+            );
+        },
+    );
+    // the whole duration cluster (track line + elapsed line + anchored knob + drag math)
+    // is now one widget spawn -- Progress in, Scrubbed out. Programmatic writes share the
+    // drag's door: tree.write_to(scrubber, Progress(0.0)) on track change.
+    let scrubber = children.spawn(
+        Scrubber::new()
+            .progress(0.35)
             .at(Location::new().xs(
                 3.col().as_left().with(10.col().as_right()).max(700.0),
                 16.row().as_top().with(24.px().as_height()),
             ))
-            .elevate(Elevation::up(1))
-            .with(Grid::default()),
-    );
-    let mut duration_children = Children::new(duration, children.tree());
-    duration_children.spawn(
-        Line::new(4)
-            .color(Color::gray(700))
-            .at(Location::new().xs(
-                0.pct().as_x().with(50.pct().as_y()),
-                100.pct().as_x().with(50.pct().as_y()),
-            ))
             .elevate(Elevation::up(1)),
     );
-    let elapsed_line = duration_children.spawn(
-        Line::new(4)
-            .color(Color::green(300))
-            .at(Location::new().xs(
-                0.pct().as_x().with(50.pct().as_y()),
-                35.pct().as_x().with(50.pct().as_y()),
-            ))
-            .elevate(Elevation::up(2)),
-    );
-    duration_children.spawn(
-        Panel::new()
-            .rounding(Rounding::Full)
-            .color(Color::green(300))
-            .at(Location::new().xs(
-                anchor().right().as_center_x().with(16.px().as_width()),
-                50.pct().as_center_y().with(16.px().as_height()),
-            ))
-            .elevate(Elevation::up(3))
-            .with(Anchor::new(elapsed_line)),
-    );
+    children
+        .tree()
+        .subscribe(scrubber, move |trigger: Trigger<Scrubbed>| {
+            let _progress = trigger.event().progress; // a real player would seek here
+        });
 }

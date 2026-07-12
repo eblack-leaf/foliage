@@ -13,24 +13,10 @@ impl Attachment for Remove {
         foliage.define(Remove::observer);
     }
 }
-#[derive(EntityEvent, Copy, Clone)]
-pub struct Remove {
-    entity: Entity,
-}
-impl Default for Remove {
-    fn default() -> Self {
-        Self {
-            entity: Entity::PLACEHOLDER,
-        }
-    }
-}
-crate::targeted_event!(Remove);
+#[foliage_macros::targeted_event]
+#[derive(Copy)]
+pub struct Remove {}
 impl Remove {
-    pub fn new() -> Self {
-        Self {
-            entity: Entity::PLACEHOLDER,
-        }
-    }
     pub(crate) fn push_remove_packet<R: Clone + Send + Sync + 'static>(
         trigger: Trigger<Self>,
         mut queue: ResMut<RenderRemoveQueue<R>>,

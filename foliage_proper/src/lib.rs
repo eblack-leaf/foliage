@@ -61,11 +61,11 @@ pub use composite::{
     resolve_root,
     text_input::{
         keybindings::KeyBindings, HintColor, HintText, InsertText, LineConstraint, TextChanged,
-        TextInput, TextInputSprout,
+        TextInput, TextInputSprout, TextInputStyle,
     },
     Children, Refire, Root,
 };
-pub use composite::{IconValue, Primary, Secondary, Tertiary, TextValue};
+pub use composite::{IconValue, TextValue};
 pub use coordinate::elevation::{Elevation, ResolvedElevation};
 pub use disable::Disable;
 pub use enable::Enable;

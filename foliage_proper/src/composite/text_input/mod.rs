@@ -10,8 +10,8 @@ use crate::{
     auto, Attachment, AutoHeight, AutoWidth, Color, Component, Dragged, EcsExtension, Elevation,
     Engaged, Event, FocusBehavior, Foliage, FontSize, GlyphOffset, Grid, GridExt, InputSequence,
     InteractionListener, InteractionPropagation, Key, Layout, Leaf, LeafSprout, Location, Logical,
-    Opacity, OverscrollPropagation, Panel, Primary, Secondary, Section, Sprout, Stem, Tertiary,
-    Text, TextValue, Tree, Unfocused, View, Write,
+    Opacity, OverscrollPropagation, Panel, Section, Sprout, Stem, Text, TextValue, Tree, Unfocused,
+    View, Write,
 };
 use action::{InputAction, TextInputAction};
 use bevy_ecs::bundle::Bundle;
@@ -75,8 +75,19 @@ impl Attachment for TextInput {
 }
 #[derive(Component, Copy, Clone)]
 #[require(LineConstraint, Cursor, Selection, HintText, HintColor)]
-#[require(Primary, Secondary, Tertiary, FontSize, TextValue)]
+#[require(TextInputStyle, FontSize, TextValue)]
 pub struct TextInput {}
+/// TextInput's OWN config vocabulary (widgets each own theirs -- nothing is library-blessed),
+/// poked as one unit: `tree.write_to(input, TextInputStyle { .. })`.
+#[derive(Component, Copy, Clone, Default)]
+pub struct TextInputStyle {
+    /// text + hint content color
+    pub foreground: Color,
+    /// field/backdrop panel color
+    pub background: Color,
+    /// cursor + selection-highlight color
+    pub accent: Color,
+}
 impl TextInput {
     const HIGHLIGHT_SCROLL_THRESHOLD: f32 = 10.0;
     pub fn new() -> TextInputSprout {
@@ -90,9 +101,7 @@ impl TextInput {
 pub struct TextInputSprout {
     leaf: LeafSprout,
     text: Option<String>,
-    primary: Option<Color>,
-    secondary: Option<Color>,
-    tertiary: Option<Color>,
+    style: TextInputStyle,
     font_size: Option<FontSize>,
     hint_text: Option<String>,
     line_constraint: Option<LineConstraint>,
@@ -105,9 +114,7 @@ impl Sprout for TextInputSprout {
         (
             TextInput::new_marker(),
             TextValue(self.text.unwrap_or_default()),
-            Primary(self.primary.unwrap_or_default()),
-            Secondary(self.secondary.unwrap_or_default()),
-            Tertiary(self.tertiary.unwrap_or_default()),
+            self.style,
             self.font_size.unwrap_or_default(),
             HintText::new(self.hint_text.unwrap_or_default()),
             self.line_constraint.unwrap_or_default(),
@@ -206,9 +213,7 @@ impl Sprout for TextInputSprout {
         // everything data-dependent, initial state included
         kids.react::<LineConstraint, _>(TextInput::update_line_constraint);
         kids.react::<TextValue, _>(TextInput::update_text_value);
-        kids.react::<Primary, _>(TextInput::update_primary);
-        kids.react::<Secondary, _>(TextInput::update_secondary);
-        kids.react::<Tertiary, _>(TextInput::update_tertiary);
+        kids.react::<TextInputStyle, _>(TextInput::update_style);
         kids.react::<FontSize, _>(TextInput::update_font_size);
         kids.react::<HintText, _>(TextInput::update_hint);
     }
@@ -218,16 +223,16 @@ impl TextInputSprout {
         self.text = Some(t.into());
         self
     }
-    pub fn primary(mut self, c: Color) -> Self {
-        self.primary = Some(c);
+    pub fn foreground(mut self, c: Color) -> Self {
+        self.style.foreground = c;
         self
     }
-    pub fn secondary(mut self, c: Color) -> Self {
-        self.secondary = Some(c);
+    pub fn background(mut self, c: Color) -> Self {
+        self.style.background = c;
         self
     }
-    pub fn tertiary(mut self, c: Color) -> Self {
-        self.tertiary = Some(c);
+    pub fn accent(mut self, c: Color) -> Self {
+        self.style.accent = c;
         self
     }
     pub fn font_size(mut self, f: FontSize) -> Self {
@@ -323,39 +328,20 @@ impl TextInput {
         tree.entity(handle.panel)
             .insert(font_sizes.get(trigger.event_target()).unwrap().clone());
     }
-    fn update_primary(
-        trigger: Trigger<Insert, Primary>,
+    fn update_style(
+        trigger: Trigger<Insert, TextInputStyle>,
         mut tree: Tree,
         handles: Query<&Handle>,
-        primary: Query<&Primary>,
+        styles: Query<&TextInputStyle>,
     ) {
         let handle = handles.get(trigger.event_target()).unwrap();
-        tree.entity(handle.text)
-            .insert(primary.get(trigger.event_target()).unwrap().0);
-        tree.entity(handle.hint_text)
-            .insert(primary.get(trigger.event_target()).unwrap().0);
-    }
-    fn update_secondary(
-        trigger: Trigger<Insert, Secondary>,
-        mut tree: Tree,
-        handles: Query<&Handle>,
-        secondary: Query<&Secondary>,
-    ) {
-        let handle = handles.get(trigger.event_target()).unwrap();
-        tree.entity(handle.panel)
-            .insert(secondary.get(trigger.event_target()).unwrap().0);
-    }
-    fn update_tertiary(
-        trigger: Trigger<Insert, Tertiary>,
-        mut tree: Tree,
-        handles: Query<&Handle>,
-        tertiary: Query<&Tertiary>,
-    ) {
-        let handle = handles.get(trigger.event_target()).unwrap();
-        let color = tertiary.get(trigger.event_target()).unwrap().0;
-        tree.entity(handle.visible).insert(color);
+        let style = *styles.get(trigger.event_target()).unwrap();
+        tree.entity(handle.text).insert(style.foreground);
+        tree.entity(handle.hint_text).insert(style.foreground);
+        tree.entity(handle.panel).insert(style.background);
+        tree.entity(handle.visible).insert(style.accent);
         for (_, e) in handle.highlights.iter() {
-            tree.entity(*e).insert(color);
+            tree.entity(*e).insert(style.accent);
         }
     }
     fn update_hint(
@@ -409,12 +395,11 @@ pub(crate) enum TextInputStage {
 /// bevy 0.19 targeted events must be structs (the target entity lives inside the event), so the
 /// old `TextInputState` enum became this struct + `TextInputStage`. The associated consts keep
 /// every `TextInputState::AwaitingInput`-style trigger site reading exactly as before.
-#[derive(EntityEvent, Copy, Clone)]
+#[foliage_macros::targeted_event]
+#[derive(Copy)]
 pub(crate) struct TextInputState {
-    entity: Entity,
     pub(crate) stage: TextInputStage,
 }
-crate::targeted_event!(TextInputState);
 #[allow(non_upper_case_globals)]
 impl TextInputState {
     pub(crate) const Inactive: Self = Self {
@@ -433,8 +418,7 @@ impl TextInputState {
         trigger: Trigger<Self>,
         mut tree: Tree,
         handles: Query<&Handle>,
-        tertiary: Query<&Tertiary>,
-        primary: Query<&Primary>,
+        styles: Query<&TextInputStyle>,
         virtual_keyboard: Res<crate::virtual_keyboard::VirtualKeyboardAdapter>,
     ) {
         let value = trigger.event();
@@ -453,7 +437,7 @@ impl TextInputState {
                     handle.visible,
                     (
                         Opacity::new(0.75),
-                        primary.get(trigger.event_target()).unwrap().0,
+                        styles.get(trigger.event_target()).unwrap().foreground,
                     ),
                 )
             }
@@ -465,7 +449,7 @@ impl TextInputState {
                     handle.visible,
                     (
                         Opacity::new(0.25),
-                        tertiary.get(trigger.event_target()).unwrap().0,
+                        styles.get(trigger.event_target()).unwrap().accent,
                     ),
                 );
                 tree.enable(handle.cursor);
@@ -501,24 +485,13 @@ impl Cursor {
         );
     }
 }
-#[derive(EntityEvent, Copy, Clone)]
-pub(crate) struct PlaceCursor {
-    entity: Entity,
-}
-impl Default for PlaceCursor {
-    fn default() -> Self {
-        Self {
-            entity: Entity::PLACEHOLDER,
-        }
-    }
-}
-crate::targeted_event!(PlaceCursor);
+#[foliage_macros::targeted_event]
+#[derive(Copy)]
+pub(crate) struct PlaceCursor {}
 impl PlaceCursor {
     pub(crate) fn forward(trigger: Trigger<Engaged>, mut tree: Tree, roots: Query<&Root>) {
         tree.trigger_targets(
-            PlaceCursor {
-                entity: Entity::PLACEHOLDER,
-            },
+            PlaceCursor::new(),
             resolve_root(trigger.event_target(), &roots),
         );
     }
@@ -725,7 +698,7 @@ impl Selection {
         layout: Res<Layout>,
         mut handles: Query<&mut Handle>,
         selections: Query<&Selection>,
-        tertiary: Query<&Tertiary>,
+        styles: Query<&TextInputStyle>,
         // single mutable Query -- see the comment on `Input::obs`'s `handles` param.
         mut cursor: Query<&mut Cursor>,
         line_metrics: Query<&LineMetrics>,
@@ -753,7 +726,7 @@ impl Selection {
             &font,
             &font_sizes,
             *layout,
-            &tertiary,
+            &styles,
         );
     }
     pub(crate) fn select(
@@ -773,7 +746,7 @@ impl Selection {
         mut selections: Query<&mut Selection>,
         glyphs: Query<&Glyphs>,
         values: Query<&TextValue>,
-        tertiary: Query<&Tertiary>,
+        styles: Query<&TextInputStyle>,
     ) {
         let root = resolve_root(trigger.event_target(), &roots);
         let (col, row) = TextInput::location_from_click(
@@ -811,7 +784,7 @@ impl Selection {
             &font,
             &font_sizes,
             *layout,
-            &tertiary,
+            &styles,
         );
     }
 }
@@ -863,7 +836,7 @@ impl TextInput {
         font: &MonospacedFont,
         font_sizes: &Query<&FontSize>,
         layout: Layout,
-        tertiary: &Query<&Tertiary>,
+        styles: &Query<&TextInputStyle>,
     ) {
         let mut handle = handles.get_mut(this).unwrap();
         let selection = selections.get(this).unwrap();
@@ -926,7 +899,7 @@ impl TextInput {
                 )
             })
             .collect();
-        let color = tertiary.get(this).unwrap().0;
+        let color = styles.get(this).unwrap().accent;
         let mut children = Children::new(panel, tree);
         for (offset, col, row) in new_glyphs {
             let location = Location::new().xs(
@@ -944,9 +917,8 @@ impl TextInput {
     }
 }
 
-#[derive(EntityEvent, Clone)]
+#[foliage_macros::targeted_event]
 pub(crate) struct Input {
-    entity: Entity,
     pub(crate) sequence: InputSequence,
 }
 impl Input {
@@ -992,7 +964,7 @@ impl Input {
         // rejected by bevy at `foliage.define(...)` time as conflicting access to the same
         // component. `.as_readonly()` covers every call site that only needs read access.
         mut handles: Query<&mut Handle>,
-        tertiary: Query<&Tertiary>,
+        styles: Query<&TextInputStyle>,
         key_bindings: Res<KeyBindings>,
     ) {
         let this = trigger.event_target();
@@ -1235,7 +1207,7 @@ impl Input {
                             &font,
                             &font_sizes,
                             *layout,
-                            &tertiary,
+                            &styles,
                         );
                         tree.trigger_targets(TextInputState::Highlighting, this);
                     }
@@ -1256,7 +1228,7 @@ impl Input {
                         &font_sizes,
                         *layout,
                         &values.as_readonly(),
-                        &tertiary,
+                        &styles,
                     );
                     tree.trigger_targets(TextInputState::Highlighting, this);
                 }
@@ -1276,7 +1248,7 @@ impl Input {
                         &font_sizes,
                         *layout,
                         &values.as_readonly(),
-                        &tertiary,
+                        &styles,
                     );
                     tree.trigger_targets(TextInputState::Highlighting, this);
                 }
@@ -1296,7 +1268,7 @@ impl Input {
                         &font_sizes,
                         *layout,
                         &values.as_readonly(),
-                        &tertiary,
+                        &styles,
                     );
                     tree.trigger_targets(TextInputState::Highlighting, this);
                 }
@@ -1315,7 +1287,7 @@ impl Input {
                         &font_sizes,
                         *layout,
                         &values.as_readonly(),
-                        &tertiary,
+                        &styles,
                     );
                     tree.trigger_targets(TextInputState::Highlighting, this);
                 }
@@ -1518,7 +1490,7 @@ impl TextInput {
         font_sizes: &Query<&FontSize>,
         layout: Layout,
         values: &Query<&TextValue>,
-        tertiary: &Query<&Tertiary>,
+        styles: &Query<&TextInputStyle>,
     ) {
         let cursor_ro = cursor.as_readonly();
         TextInput::extend_range(
@@ -1543,7 +1515,7 @@ impl TextInput {
             font,
             font_sizes,
             layout,
-            tertiary,
+            styles,
         );
     }
 }
@@ -1554,18 +1526,11 @@ impl TextInput {
 pub struct TextChanged {}
 /// Programmatically inserts text at the cursor (or replaces the active selection). Public: any
 /// composite/consumer can trigger this directly, not just this file's own key-handling arms.
-#[derive(EntityEvent, Clone)]
+#[foliage_macros::targeted_event]
 pub struct InsertText {
-    entity: Entity,
     pub text: String,
 }
 impl InsertText {
-    pub fn new<S: AsRef<str>>(text: S) -> Self {
-        Self {
-            entity: Entity::PLACEHOLDER,
-            text: text.as_ref().to_string(),
-        }
-    }
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn obs(
         trigger: Trigger<Self>,
@@ -1604,7 +1569,6 @@ impl InsertText {
         );
     }
 }
-crate::targeted_event!(InsertText, Input);
 // No teardown hook: every child (highlights included -- reselect_range spawns them via
 // `Children::new(panel, ..)`) is `Stem`-parented, so `Remove`'s cascade reaches them all.
 #[derive(Component, Clone, Debug)]

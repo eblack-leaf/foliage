@@ -96,54 +96,18 @@ impl CurrentInteraction {
         self.click
     }
 }
-#[derive(EntityEvent, Copy, Clone)]
-pub struct OnClick {
-    entity: Entity,
-}
-impl Default for OnClick {
-    fn default() -> Self {
-        Self {
-            entity: Entity::PLACEHOLDER,
-        }
-    }
-}
-crate::targeted_event!(OnClick);
-#[derive(EntityEvent, Copy, Clone)]
-pub struct Engaged {
-    entity: Entity,
-}
-impl Default for Engaged {
-    fn default() -> Self {
-        Self {
-            entity: Entity::PLACEHOLDER,
-        }
-    }
-}
-crate::targeted_event!(Engaged);
-#[derive(EntityEvent, Copy, Clone)]
-pub struct Dragged {
-    entity: Entity,
-}
-impl Default for Dragged {
-    fn default() -> Self {
-        Self {
-            entity: Entity::PLACEHOLDER,
-        }
-    }
-}
-crate::targeted_event!(Dragged);
-#[derive(EntityEvent, Copy, Clone)]
-pub struct Disengaged {
-    entity: Entity,
-}
-impl Default for Disengaged {
-    fn default() -> Self {
-        Self {
-            entity: Entity::PLACEHOLDER,
-        }
-    }
-}
-crate::targeted_event!(Disengaged);
+#[foliage_macros::targeted_event]
+#[derive(Copy)]
+pub struct OnClick {}
+#[foliage_macros::targeted_event]
+#[derive(Copy)]
+pub struct Engaged {}
+#[foliage_macros::targeted_event]
+#[derive(Copy)]
+pub struct Dragged {}
+#[foliage_macros::targeted_event]
+#[derive(Copy)]
+pub struct Disengaged {}
 #[derive(Component, Copy, Clone)]
 pub struct InteractionPropagation {
     grab: bool,
@@ -433,7 +397,7 @@ pub(crate) fn interactive_elements(
                             *data.3,
                             event.position,
                         ) {
-                            tree.trigger_targets(OnClick::default(), p);
+                            tree.trigger_targets(OnClick::new(), p);
                         }
                     }
                     tree.trigger_targets(
@@ -454,7 +418,7 @@ pub(crate) fn interactive_elements(
                             *data.3,
                             event.position,
                         ) {
-                            tree.trigger_targets(OnClick::default(), ps);
+                            tree.trigger_targets(OnClick::new(), ps);
                         }
                     }
                     tree.trigger_targets(
@@ -468,27 +432,9 @@ pub(crate) fn interactive_elements(
         }
     }
 }
-#[derive(EntityEvent, Copy, Clone, Debug)]
-pub struct Focused {
-    entity: Entity,
-}
-impl Default for Focused {
-    fn default() -> Self {
-        Self {
-            entity: Entity::PLACEHOLDER,
-        }
-    }
-}
-crate::targeted_event!(Focused);
-#[derive(EntityEvent, Copy, Clone, Debug)]
-pub struct Unfocused {
-    entity: Entity,
-}
-impl Default for Unfocused {
-    fn default() -> Self {
-        Self {
-            entity: Entity::PLACEHOLDER,
-        }
-    }
-}
-crate::targeted_event!(Unfocused);
+#[foliage_macros::targeted_event]
+#[derive(Copy, Debug)]
+pub struct Focused {}
+#[foliage_macros::targeted_event]
+#[derive(Copy, Debug)]
+pub struct Unfocused {}

@@ -23,6 +23,11 @@ impl<W: Send + Sync + 'static> Write<W> {
             _phantom: std::marker::PhantomData,
         }
     }
+    /// Inherent, like the `#[targeted_event]`-generated form -- observer bodies need no
+    /// `EntityEvent` trait import.
+    pub fn event_target(&self) -> Entity {
+        self.entity
+    }
 }
 impl<W: Send + Sync + 'static> Clone for Write<W> {
     fn clone(&self) -> Self {
@@ -52,6 +57,11 @@ impl<U: Send + Sync + 'static> Update<U> {
             entity: Entity::PLACEHOLDER,
             _phantom: std::marker::PhantomData,
         }
+    }
+    /// Inherent, like the `#[targeted_event]`-generated form -- observer bodies need no
+    /// `EntityEvent` trait import.
+    pub fn event_target(&self) -> Entity {
+        self.entity
     }
 }
 impl<U: Send + Sync + 'static> Clone for Update<U> {

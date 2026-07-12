@@ -149,7 +149,7 @@ impl Sprout for CardSprout {
         // straight onto them; no markers, no special forms.
         kids.react::<CardFace, _>(
             move |t: Trigger<Insert, CardFace>, faces: Query<&CardFace>, mut tree: Tree| {
-                let face = faces.get(t.event_target()).unwrap();
+                let face = faces.get(t.entity).unwrap();
                 tree.write_to(rank, TextValue(face.rank_label()));
                 tree.write_to(rank, face.suit.color());
                 tree.write_to(pip, IconValue(face.suit.icon()));
@@ -246,7 +246,7 @@ impl Sprout for HandSprout {
         // then on every write_to(hand, Cards(..)) forever.
         kids.react::<Cards, _>(
             move |t: Trigger<Insert, Cards>, cards: Query<&Cards>, mut tree: Tree| {
-                let cards = cards.get(t.event_target()).unwrap();
+                let cards = cards.get(t.entity).unwrap();
                 for (i, slot) in slots.iter().copied().enumerate() {
                     match cards.0.get(i) {
                         Some(c) => {
@@ -295,7 +295,7 @@ impl Sprout for KeyedHandSprout {
         let mut live: HashMap<u32, Entity> = HashMap::new();
         kids.react::<Cards, _>(
             move |t: Trigger<Insert, Cards>, cards: Query<&Cards>, mut tree: Tree| {
-                let this = t.event_target();
+                let this = t.entity;
                 let cards = cards.get(this).unwrap();
                 // leavers: Remove cascades through the Card's insides for free
                 live.retain(|id, e| {

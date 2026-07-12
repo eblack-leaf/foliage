@@ -6,6 +6,7 @@ use foliage::{load_asset, Foliage, GridExt, Icon, Image};
 mod home;
 mod icons;
 mod portfolio;
+mod widgets;
 
 fn main() {
     let mut foliage = Foliage::new();

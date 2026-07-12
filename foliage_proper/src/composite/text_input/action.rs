@@ -28,17 +28,8 @@ pub enum TextInputAction {
 
 /// The targeted event form of a [`TextInputAction`]: triggered at the `TextInput` root so
 /// enclosing composites (e.g. a search prompt) can subscribe to submitted/updated actions.
-#[derive(bevy_ecs::event::EntityEvent, Copy, Clone)]
+#[foliage_macros::targeted_event]
+#[derive(Copy)]
 pub struct InputAction {
-    entity: bevy_ecs::entity::Entity,
     pub action: TextInputAction,
 }
-impl InputAction {
-    pub fn new(action: TextInputAction) -> Self {
-        Self {
-            entity: bevy_ecs::entity::Entity::PLACEHOLDER,
-            action,
-        }
-    }
-}
-crate::targeted_event!(InputAction);

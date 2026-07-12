@@ -88,7 +88,7 @@ impl Sprout for ButtonSprout {
         // explicit react. The boundary between forward and react is visible on purpose.
         kids.react::<TextValue, _>(
             move |t: Trigger<Insert, TextValue>, v: Query<&TextValue>, mut tree: Tree| {
-                let value = v.get(t.event_target()).unwrap().clone();
+                let value = v.get(t.entity).unwrap().clone();
                 tree.write_to(text, value); // primitives take their value components
                 // + width Location recompute, as today
             },
@@ -183,7 +183,7 @@ impl Sprout for DropdownSprout {
         });
 
         kids.react::<Expanded, _>(move |t: Trigger<Insert, Expanded>, ex: Query<&Expanded>, mut tree: Tree| {
-            if ex.get(t.event_target()).unwrap().0 {
+            if ex.get(t.entity).unwrap().0 {
                 tree.enable(list); // + chevron flip / open animation
             } else {
                 tree.disable(list);
@@ -259,7 +259,7 @@ impl Sprout for SliderSprout {
         // render: value -> geometry. Identical for drag writes and programmatic writes.
         kids.react::<SliderValue, _>(
             move |t: Trigger<Insert, SliderValue>, vals: Query<&SliderValue>, mut tree: Tree| {
-                let v = vals.get(t.event_target()).unwrap().0;
+                let v = vals.get(t.entity).unwrap().0;
                 tree.write_to(
                     fill,
                     Location::new().xs(

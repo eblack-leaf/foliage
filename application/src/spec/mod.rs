@@ -86,8 +86,11 @@
 //!
 //!     #[targeted_event]
 //!     pub struct CardPlayed { pub id: u32 }
-//!     // expands to: entity field + EntityEvent + Clone + set_target + new(id)
-//!     // emit:  tree.trigger_targets(CardPlayed::new(card.id), this);
+//!     // expands to: entity field + Event/EntityEvent impls + Clone + set_target +
+//!     // new(id) + an INHERENT event_target() -- so observer bodies never import the
+//!     // EntityEvent trait. Emit: tree.trigger_targets(CardPlayed::new(card.id), this);
+//!     // In reactions (bevy's Insert event, not ours), the target is `trigger.entity` --
+//!     // bevy's own public field, also import-free.
 //!
 //! Events speak the CALLER's vocabulary (their ids, their indices — never child
 //! entities).

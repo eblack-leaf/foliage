@@ -2,10 +2,11 @@ pub(crate) mod demo;
 pub(crate) mod music_player;
 
 use crate::icons::IconHandles;
+use crate::widgets::{Launch, ProjectCard};
 use foliage::{
     anchor, Anchor, Animation, Button, Children, Color, Ease, EcsExtension, Elevation, Entity,
-    FontSize, Grid, GridExt, Image, ImageView, InteractionListener, Keyring, Leaf, Location,
-    MemoryId, OnClick, OnEnd, Opacity, Panel, Res, Rounding, Sequence, Sprout, Text, Tree, Trigger,
+    Grid, GridExt, Keyring, Leaf, Location, MemoryId, OnClick, OnEnd, Opacity, Panel, Res,
+    Rounding, Sequence, Sprout, Tree, Trigger,
 };
 
 pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
@@ -77,72 +78,23 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
                     .elevate(Elevation::up(0))
                     .with(Opacity::new(0.25)),
             );
+            // the whole card interior (image + title + desc + launch button + their click
+            // wiring) is one widget spawn -- ProjectInfo in, Launch out.
             let card_root = children.spawn(
-                Panel::new()
-                    .color(Color::gray(800))
+                ProjectCard::new()
+                    .title(item.title)
+                    .desc(item.desc)
+                    .image(i as MemoryId, keyring.get(item.key))
                     .at(Location::new().xs(
                         1.col().as_left().with(12.col().as_right()).max(450.0),
                         (i + 1).row().as_top().with((i + 1).row().as_bottom()),
                     ))
                     .elevate(Elevation::up(1))
-                    .with((Opacity::new(0.0), Grid::default())),
-            );
-            let mut card_children = Children::new(card_root, children.tree());
-            let display = card_children.spawn(
-                Image::new(i as MemoryId, keyring.get(item.key))
-                    .view(ImageView::Crop)
-                    .at(Location::new().xs(
-                        1.col().as_left().with(1.col().as_right()),
-                        0.pct().as_top().with(70.pct().as_bottom()),
-                    ))
-                    .elevate(Elevation::up(1))
-                    .with(InteractionListener::new()),
-            );
-            let info = card_children.spawn(
-                Panel::new()
-                    .color(Color::gray(800))
-                    .at(Location::new().xs(
-                        1.col().as_left().with(1.col().as_right()),
-                        70.pct().as_top().with(100.pct().as_bottom()),
-                    ))
-                    .elevate(Elevation::up(1))
-                    .with((Opacity::new(1.0), Grid::new(1.col().gap(8), 3.row().gap(8)))),
-            );
-            let mut info_children = Children::new(info, card_children.tree());
-            info_children.spawn(
-                Text::new(item.title)
-                    .size(FontSize::new(16))
-                    .color(Color::gray(200))
-                    .at(Location::new().xs(
-                        1.col().as_left().with(1.col().as_right()),
-                        1.row().as_top().with(1.row().as_bottom()),
-                    ))
-                    .elevate(Elevation::up(1)),
-            );
-            info_children.spawn(
-                Text::new(item.desc)
-                    .size(FontSize::new(14))
-                    .color(Color::gray(500))
-                    .at(Location::new().xs(
-                        1.col().as_left().with(1.col().as_right()),
-                        2.row().as_top().with(3.row().as_bottom()),
-                    ))
-                    .elevate(Elevation::up(1)),
-            );
-            let launch = info_children.spawn(
-                Button::new()
-                    .icon(IconHandles::Box.value())
-                    .rounding(Rounding::Full)
-                    .colors(Color::gray(900), Color::orange(800))
-                    .at(Location::new().xs(
-                        100.pct().as_right().adjust(-8).with(44.px().as_width()),
-                        100.pct().as_bottom().adjust(-8).with(44.px().as_height()),
-                    ))
-                    .elevate(Elevation::up(1)),
+                    .with(Opacity::new(0.0)),
             );
             last = i + 2;
             let open_modal =
-                move |trigger: Trigger<OnClick>, mut tree: Tree, keyring: Res<Keyring>| {
+                move |trigger: Trigger<Launch>, mut tree: Tree, keyring: Res<Keyring>| {
                     tree.disable([root, back]);
                     // spawn everything first -- animating happens once every entity involved
                     // already exists, so it's one uninterrupted Sequence chain below instead of
@@ -296,8 +248,7 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
                             .finish(1500),
                         );
                 };
-            info_children.tree().on_click(launch, open_modal.clone());
-            info_children.tree().on_click(display, open_modal.clone());
+            children.tree().subscribe(card_root, open_modal);
             card_root
         });
     tree.graft(back)

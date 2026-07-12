@@ -26,9 +26,9 @@ pub(crate) fn build(tree: &mut Tree, app: Entity) {
         TextInput::new()
             .line_constraint(LineConstraint::Multiple)
             .hint_text("multiline input...")
-            .primary(Color::gray(200))
-            .secondary(Color::gray(900))
-            .tertiary(Color::green(600))
+            .foreground(Color::gray(200))
+            .background(Color::gray(900))
+            .accent(Color::green(600))
             .font_size(FontSize::new(16))
             .at(Location::new().xs(
                 1.col().as_left().with(6.col().as_right()),

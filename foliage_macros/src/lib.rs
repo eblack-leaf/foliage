@@ -16,9 +16,11 @@ fn foliage_root() -> proc_macro2::TokenStream {
 }
 
 /// Turns a plain struct into a targeted event: injects the `entity: Entity` plumbing
-/// field, derives bevy's `EntityEvent` + `Clone`, implements `TargetedEvent`, and
-/// generates `new(<fields>)` with the target prefilled (`Entity::PLACEHOLDER` — the
-/// send seam assigns the real target). The author writes only their payload:
+/// field, implements bevy's `Event`/`EntityEvent` (generated directly with fully-qualified
+/// paths, so consumer crates need no `bevy_ecs` dependency for the derive's manifest
+/// resolution), derives `Clone`, implements `TargetedEvent`, and generates `new(<fields>)`
+/// with the target prefilled (`Entity::PLACEHOLDER` — the send seam assigns the real
+/// target). The author writes only their payload:
 ///
 /// ```ignore
 /// #[targeted_event]
@@ -68,8 +70,16 @@ pub fn targeted_event(
         .iter()
         .map(|(id, _)| quote::quote!(#id: #id.into()));
     let gen = quote::quote!(
-        #[derive(#root::bevy_ecs::event::EntityEvent, Clone)]
+        #[derive(Clone)]
         #input
+        impl #root::bevy_ecs::event::Event for #name {
+            type Trigger<'a> = #root::bevy_ecs::event::EntityTrigger;
+        }
+        impl #root::bevy_ecs::event::EntityEvent for #name {
+            fn event_target(&self) -> #root::bevy_ecs::entity::Entity {
+                self.entity
+            }
+        }
         impl #root::TargetedEvent for #name {
             fn set_target(&mut self, entity: #root::bevy_ecs::entity::Entity) {
                 self.entity = entity;
@@ -81,6 +91,11 @@ pub fn targeted_event(
                     entity: #root::bevy_ecs::entity::Entity::PLACEHOLDER,
                     #(#inits),*
                 }
+            }
+            /// The entity this event targets. Inherent (reachable through the trigger's
+            /// deref), so observer bodies need no `EntityEvent` trait import.
+            pub fn event_target(&self) -> #root::bevy_ecs::entity::Entity {
+                self.entity
             }
         }
     );
