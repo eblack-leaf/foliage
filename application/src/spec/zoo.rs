@@ -104,10 +104,10 @@ impl Sprout for ButtonSprout {
 // ===========================================================================
 // DROPDOWN — dynamic options + the widget the require-gotcha bit last time.
 // In this model the gotcha is unrepresentable: everything spawns at
-// photosynthesize-time; reactions exist before any poke can land.
+// spawn-time; reactions exist before any poke can land.
 // ===========================================================================
 // public face:
-//   let dd = Dropdown::new().options(["Rust", "Zig", "C"]).at(..).elevate(..).photosynthesize(tree);
+//   let dd = tree.leaf(Dropdown::new().options(["Rust", "Zig", "C"]).at(..).elevate(..));
 //   tree.write_to(dd, Options(fetched_from_server));        // dynamic, any time
 //   tree.subscribe(dd, |t: Trigger<SelectionChanged>, ..| t.event().index);
 
@@ -215,7 +215,7 @@ impl Sprout for DropdownSprout {
 // SLIDER — high-frequency narrow updates; drag and programmatic writes share a door
 // ===========================================================================
 // public face:
-//   let s = Slider::new().value(0.7).at(..).elevate(..).photosynthesize(tree);
+//   let s = tree.leaf(Slider::new().value(0.7).at(..).elevate(..));
 //   tree.write_to(s, SliderValue(0.25));
 //   tree.subscribe(s, |t: Trigger<ValueChanged>, ..| t.event().value);
 

@@ -58,7 +58,6 @@ pub use color::{CReprColor, Color, Luminance};
 pub use composite::text_input::action::{InputAction, TextInputAction};
 pub use composite::{
     button::{Button, ButtonSprout, ButtonStyle, Engagement},
-    resolve_root,
     text_input::{
         keybindings::KeyBindings, HintColor, HintText, InsertText, LineConstraint, TextChanged,
         TextInput, TextInputSprout, TextInputStyle,

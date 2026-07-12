@@ -38,9 +38,9 @@ impl Leaf {
         Leaf {}
     }
     /// Entry point for a child with no rendering primitive of its own (a bare interaction
-    /// hit-area, say) -- the same `.at()/.stem()/.elevate()/.with()/.photosynthesize()` chain as
-    /// `Panel::new()`/`Text::new()`, named after `Leaf` instead of requiring callers to know
-    /// the `LeafSprout` type directly.
+    /// hit-area, say) -- the same `.at()/.elevate()/.with()` chain into `tree.leaf(..)`/
+    /// `tree.branch(..)` as `Panel::new()`/`Text::new()`, named after `Leaf` instead of
+    /// requiring callers to know the `LeafSprout` type directly.
     pub fn sprout() -> crate::LeafSprout {
         crate::LeafSprout::new()
     }

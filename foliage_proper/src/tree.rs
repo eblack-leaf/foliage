@@ -3,6 +3,7 @@ use crate::anim::sequence::{AnimationTime, SequenceMarker};
 use crate::disable::Disable;
 use crate::enable::Enable;
 use crate::leaf::Leaf;
+use crate::leaf::Stem;
 use crate::ops::{Name, StoredKey};
 use crate::remove::Remove;
 use crate::time::OnEnd;
@@ -55,13 +56,36 @@ pub trait TargetedEvent: EntityEvent + Clone {
     fn set_target(&mut self, entity: Entity);
 }
 
-/// Raw ECS-level spawn, underneath the public `Seed`/`Sprout`/`Photosynthesis` authoring kit --
-/// `pub(crate)` on purpose, so external consumers can't spawn a bare `Leaf` bypassing
-/// `LeafSprout`'s mandatory `.elevate(...)` (the exact footgun that field was made required to
-/// close). Internal composite/primitive code (`author.rs`, `button.rs`, `foliage.rs`) still uses
-/// it directly; everyone else goes through `Leaf::sprout()`/`Photosynthesis::photosynthesize`.
+/// Raw ECS-level spawn, underneath the public `Sprout` authoring kit -- `pub(crate)` on
+/// purpose, so external consumers can't spawn a bundle bypassing `LeafSprout`'s mandatory
+/// `.elevate(...)` (the exact footgun that field was made required to close). Only
+/// [`EcsExtension::leaf`]/[`EcsExtension::branch`] (via [`Sow::grow`]) reach this; there is no
+/// other way to turn a `Sprout` into a spawned entity from outside this crate.
 pub(crate) trait Sow {
-    fn leaf<B: Bundle>(&mut self, b: B) -> Entity;
+    fn sow<B: Bundle>(&mut self, b: B) -> Entity;
+    /// Shared machinery behind [`EcsExtension::leaf`]/[`EcsExtension::branch`]: fills `stem` if
+    /// a parent was given, folds the seed fields + `spec.root()` into one bundle via
+    /// [`Sow::sow`], then runs `Sprout::build`. `pub(crate)` alongside `sow` for the same
+    /// reason -- an external `Sprout` impl gets no way to skip the mandatory `.elevate(...)` or
+    /// hand-roll a child that forgets its parent.
+    fn grow<S: Sprout>(&mut self, mut spec: S, parent: Option<Entity>) -> Entity
+    where
+        Self: EcsExtension + Sized,
+    {
+        if let Some(parent) = parent {
+            spec.seed().stem = Stem::some(parent);
+        }
+        let leaf = core::mem::take(spec.seed());
+        let this = self.sow((
+            leaf.location,
+            leaf.stem,
+            leaf.elevation
+                .expect("elevation not set -- call .elevate(...) before spawning"),
+            spec.root(),
+        ));
+        S::build(this, self);
+        this
+    }
 }
 // `Sow` is `pub(crate)` on purpose (see its doc comment) -- `EcsExtension` is only ever
 // implemented for `Tree`/`DeferredWorld`/`World` below, all within this crate, so an external
@@ -103,15 +127,23 @@ pub trait EcsExtension: Sow {
     /// real data -- the fire-once half of [`EcsExtension::react`]. Internal plumbing; authors
     /// use `react`.
     fn refire<C: Refire>(&mut self, entity: Entity);
-    /// Grows `spec` as a child of `parent` -- `.stem(parent)` filled by the required argument,
-    /// so a child can't be spawned orphaned by forgetting a chained call. THE way to build a
+    /// Grows `spec` as a top-level entity -- no parent, the [`EcsExtension::branch`] counterpart
+    /// for roots (a screen, a one-off widget): `let root = tree.leaf(Icon::new(0).elevate(..));`
+    fn leaf<S: Sprout>(&mut self, spec: S) -> Entity
+    where
+        Self: Sized,
+    {
+        self.grow(spec, None)
+    }
+    /// Grows `spec` as a child of `parent` -- `parent` filled by the required argument, so a
+    /// child can't be spawned orphaned by forgetting a chained call. THE way to build a
     /// composite's structure, in `Sprout::build` and one-off screens alike:
     /// `let icon = tree.branch(this, Icon::new(0).elevate(..));`
     fn branch<S: Sprout>(&mut self, parent: Entity, spec: S) -> Entity
     where
         Self: Sized,
     {
-        spec.stem(parent).photosynthesize(self)
+        self.grow(spec, Some(parent))
     }
     /// Registers `observer` -- a plain bevy entity-observer watching `Trigger<Insert, C>`, full
     /// `SystemParam` freedom -- on `entity`, then re-fires it once with the current value so
@@ -253,7 +285,7 @@ impl<'t, T: EcsExtension + ?Sized> Sequence<'t, T> {
     }
 }
 impl Sow for Tree<'_, '_> {
-    fn leaf<B: Bundle>(&mut self, b: B) -> Entity {
+    fn sow<B: Bundle>(&mut self, b: B) -> Entity {
         let entity = self.spawn((Leaf::new(), b)).id();
         entity
     }
@@ -333,8 +365,8 @@ impl EcsExtension for Tree<'_, '_> {
 }
 
 impl Sow for bevy_ecs::world::DeferredWorld<'_> {
-    fn leaf<B: Bundle>(&mut self, b: B) -> Entity {
-        self.commands().leaf(b)
+    fn sow<B: Bundle>(&mut self, b: B) -> Entity {
+        self.commands().sow(b)
     }
 }
 impl EcsExtension for bevy_ecs::world::DeferredWorld<'_> {
@@ -397,8 +429,8 @@ impl EcsExtension for bevy_ecs::world::DeferredWorld<'_> {
 }
 
 impl Sow for World {
-    fn leaf<B: Bundle>(&mut self, b: B) -> Entity {
-        self.commands().leaf(b)
+    fn sow<B: Bundle>(&mut self, b: B) -> Entity {
+        self.commands().sow(b)
     }
 }
 impl EcsExtension for World {

@@ -11,7 +11,7 @@
 //!
 //! End-user face (the person building a card game / data viewer). Four verbs, total:
 //!
-//!     let s = Slider::new().value(0.5).at(..).elevate(..).photosynthesize(tree);  // spawn
+//!     let s = tree.leaf(Slider::new().value(0.5).at(..).elevate(..));             // spawn
 //!     tree.write_to(s, SliderValue(0.25));                                        // update
 //!     tree.subscribe(s, |t: Trigger<ValueChanged>, ..| ..);                       // listen
 //!     tree.remove(s); tree.enable(s); tree.disable(s);                            // lifecycle
@@ -35,8 +35,13 @@
 //!         fn root(self) -> impl Bundle;
 //!         /// private, STATIC skeleton. Default empty == a primitive.
 //!         fn build<T: EcsExtension>(this: Entity, tree: &mut T) {}
-//!         // provided: .at() .stem() .elevate() .with() .photosynthesize()
+//!         // provided: .at() .elevate() .with()
 //!     }
+//!
+//! Spawning itself -- `stem`/`photosynthesize` -- isn't on `Sprout` at all: it's
+//! `pub(crate)` machinery behind `tree.leaf(spec)` (root) / `tree.branch(parent, spec)`
+//! (child), so nothing outside the library can hand-roll a spawn that skips the mandatory
+//! `.elevate(...)` or forgets its parent.
 //!
 //! Panel/Text/Icon/Image/Line implement seed+root. Button/TextInput/Card add build.
 //! `.with(..)` still folds end-user components into the same root bundle, so user data

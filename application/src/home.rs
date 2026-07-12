@@ -11,14 +11,15 @@ use foliage::{
 // named. No composite closures, no tuple returns, no handle types.
 pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
     let row_size = 40;
-    let root = Leaf::sprout()
-        .at(Location::new().xs(
-            0.pct().as_left().with(100.pct().as_right()),
-            0.pct().as_top().with(100.pct().as_bottom()),
-        ))
-        .elevate(Elevation::abs(0))
-        .with(Grid::new(12.col().gap(8), row_size.px().gap(8)))
-        .photosynthesize(tree);
+    let root = tree.leaf(
+        Leaf::sprout()
+            .at(Location::new().xs(
+                0.pct().as_left().with(100.pct().as_right()),
+                0.pct().as_top().with(100.pct().as_bottom()),
+            ))
+            .elevate(Elevation::abs(0))
+            .with(Grid::new(12.col().gap(8), row_size.px().gap(8))),
+    );
     tree.name(root, "home");
 
     let name_container = tree.branch(

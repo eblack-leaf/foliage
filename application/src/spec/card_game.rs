@@ -28,19 +28,16 @@ struct CardData {
 
 fn end_user(tree: &mut Tree) {
     // spawn: same chain as a Panel
-    let hand = Hand::new()
-        .at(Location::new().xs(
-            1.col().as_left().with(12.col().as_right()),
-            14.row().as_top().with(16.row().as_bottom()),
-        ))
-        .elevate(Elevation::up(1))
-        .photosynthesize(tree);
+    let hand = tree.leaf(
+        Hand::new()
+            .at(Location::new().xs(
+                1.col().as_left().with(12.col().as_right()),
+                14.row().as_top().with(16.row().as_bottom()),
+            ))
+            .elevate(Elevation::up(1)),
+    );
 
-    let draw = Button::new()
-        .text("Draw")
-        .at(/* .. */)
-        .elevate(Elevation::up(1))
-        .photosynthesize(tree);
+    let draw = tree.leaf(Button::new().text("Draw").at(/* .. */).elevate(Elevation::up(1)));
 
     // hand data -> forget. The ONLY way state ever reaches the widget.
     tree.on_click(

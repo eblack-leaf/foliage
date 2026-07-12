@@ -14,14 +14,15 @@ struct UserSettings {
 }
 
 fn settings_screen(tree: &mut Tree) {
-    let root = Leaf::sprout()
-        .at(Location::new().xs(
-            0.pct().as_left().with(100.pct().as_right()),
-            0.pct().as_top().with(100.pct().as_bottom()),
-        ))
-        .elevate(Elevation::abs(0))
-        .with(Grid::new(12.col().gap(8), 48.px().gap(12)))
-        .photosynthesize(tree);
+    let root = tree.leaf(
+        Leaf::sprout()
+            .at(Location::new().xs(
+                0.pct().as_left().with(100.pct().as_right()),
+                0.pct().as_top().with(100.pct().as_bottom()),
+            ))
+            .elevate(Elevation::abs(0))
+            .with(Grid::new(12.col().gap(8), 48.px().gap(12))),
+    );
     tree.branch(
         root,
         Text::new("Settings")

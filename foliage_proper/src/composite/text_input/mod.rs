@@ -1,7 +1,7 @@
 pub(crate) mod action;
 pub(crate) mod keybindings;
 
-use crate::composite::{resolve_root, Root};
+use crate::composite::Root;
 use crate::interaction::CurrentInteraction;
 use crate::text::monospaced::MonospacedFont;
 use crate::text::{Glyphs, LineMetrics};
@@ -263,7 +263,7 @@ impl TextInput {
         current_interaction: Res<CurrentInteraction>,
         mut selections: Query<&mut Selection>,
     ) {
-        let main = resolve_root(trigger.event_target(), &roots);
+        let main = Root::resolve(trigger.event_target(), &roots);
         let handle = handles.get(main).unwrap();
         if let Some(f) = current_interaction.focused {
             if f == main || f == handle.panel || f == handle.text || f == handle.cursor {
@@ -487,7 +487,7 @@ impl Cursor {
     pub(crate) fn engaged(trigger: Trigger<Engaged>, mut tree: Tree, roots: Query<&Root>) {
         tree.trigger_targets(
             TextInputState::Highlighting,
-            resolve_root(trigger.event_target(), &roots),
+            Root::resolve(trigger.event_target(), &roots),
         );
     }
 }
@@ -498,7 +498,7 @@ impl PlaceCursor {
     pub(crate) fn forward(trigger: Trigger<Engaged>, mut tree: Tree, roots: Query<&Root>) {
         tree.trigger_targets(
             PlaceCursor::new(),
-            resolve_root(trigger.event_target(), &roots),
+            Root::resolve(trigger.event_target(), &roots),
         );
     }
     pub(crate) fn obs(
@@ -709,7 +709,7 @@ impl Selection {
         mut cursor: Query<&mut Cursor>,
         line_metrics: Query<&LineMetrics>,
     ) {
-        let root = resolve_root(trigger.event_target(), &roots);
+        let root = Root::resolve(trigger.event_target(), &roots);
         let offset = cursor.get(root).unwrap().location;
         TextInput::move_cursor(
             root,
@@ -754,7 +754,7 @@ impl Selection {
         values: Query<&TextValue>,
         styles: Query<&TextInputStyle>,
     ) {
-        let root = resolve_root(trigger.event_target(), &roots);
+        let root = Root::resolve(trigger.event_target(), &roots);
         let (col, row) = TextInput::location_from_click(
             root,
             false,
@@ -938,7 +938,7 @@ impl Input {
         handles: Query<&Handle>,
     ) {
         if let Some(f) = current_interaction.focused {
-            let main = resolve_root(f, &roots);
+            let main = Root::resolve(f, &roots);
             let Ok(handle) = handles.get(main) else {
                 return;
             };

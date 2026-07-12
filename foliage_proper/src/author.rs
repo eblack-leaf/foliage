@@ -1,4 +1,3 @@
-use crate::tree::Sow;
 use crate::{EcsExtension, Elevation, Entity, Location, Stem};
 use bevy_ecs::bundle::Bundle;
 
@@ -46,6 +45,11 @@ impl LeafSprout {
 /// The former `Seed`/`Sprout`/`Photosynthesis` split existed because single-bundle
 /// primitives and multi-entity composites had different spawn paths; `root`+`build`
 /// erases the difference, so the three traits collapsed into this one.
+///
+/// There is no `stem`/`photosynthesize` here on purpose -- spawning is `Sow::grow`'s job
+/// (`pub(crate)`), reached only through [`EcsExtension::leaf`]/[`EcsExtension::branch`], so a
+/// widget can't be spawned orphaned or skip the mandatory `.elevate(...)` by hand-rolling
+/// the chain outside this crate.
 pub trait Sprout: Sized {
     fn seed(&mut self) -> &mut LeafSprout;
     /// config -> components on the root entity. This IS the widget's public API.
@@ -57,10 +61,6 @@ pub trait Sprout: Sized {
         self.seed().location = location;
         self
     }
-    fn stem(mut self, parent: Entity) -> Self {
-        self.seed().stem = Stem::some(parent);
-        self
-    }
     fn elevate(mut self, e: Elevation) -> Self {
         self.seed().elevation = Some(e);
         self
@@ -69,18 +69,6 @@ pub trait Sprout: Sized {
     /// one-shot bundle that gets inserted -- not a separate `write_to` after spawn.
     fn with<X: Bundle>(self, extra: X) -> With<Self, X> {
         With { inner: self, extra }
-    }
-    fn photosynthesize<T: EcsExtension>(mut self, tree: &mut T) -> Entity {
-        let leaf = core::mem::take(self.seed());
-        let this = tree.leaf((
-            leaf.location,
-            leaf.stem,
-            leaf.elevation
-                .expect("elevation not set -- call .elevate(...) before spawning"),
-            self.root(),
-        ));
-        Self::build(this, tree);
-        this
     }
 }
 
