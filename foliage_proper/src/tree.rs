@@ -6,7 +6,8 @@ use crate::leaf::Leaf;
 use crate::ops::{Name, StoredKey};
 use crate::remove::Remove;
 use crate::time::OnEnd;
-use crate::{Animate, Animation, AssetKey, Children, OnClick, Photosynthesis, TimeDelta, Timer};
+use crate::composite::children::Refire;
+use crate::{Animate, Animation, AssetKey, OnClick, TimeDelta, Timer};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::{EntityEvent, Event};
@@ -106,6 +107,10 @@ pub trait EcsExtension: Sow {
     fn name<S: AsRef<str>>(&mut self, e: Entity, s: S);
     fn store<S: AsRef<str>>(&mut self, k: AssetKey, s: S);
     fn timer<M>(&mut self, t: u64, tf: impl IntoEntityObserver<M>);
+    /// Re-inserts `entity`'s current value(s) of `C` so any just-registered observer fires with
+    /// real data -- the fire-once half of `Children::react`. Internal plumbing; authors use
+    /// `react`.
+    fn refire<C: Refire>(&mut self, entity: Entity);
     /// Grafts further behavior (`on_click`, `animate`, extra components) onto an already-spawned
     /// entity right next to where it was created, instead of in a separate pass elsewhere:
     /// `tree.graft(e).on_click(...).animate(...);`
@@ -114,26 +119,6 @@ pub trait EcsExtension: Sow {
         Self: Sized,
     {
         Graft { entity, tree: self }
-    }
-    /// Arranges a group of entities under one root without any of `Composite`'s ceremony
-    /// (marker component, `Handle` type, `on_insert`/`on_discard` wiring) -- for a one-off
-    /// structure, or a custom composite that doesn't need insertion-triggered construction.
-    /// `root` spawns first and becomes the parent every `children.spawn(...)` call auto-stems
-    /// to; `build` returns whatever "handle" shape the caller wants (a tuple, a `Vec`, a local
-    /// struct, nothing). Teardown needs no `Handle`/`on_discard` machinery either: `Remove`
-    /// already walks `Branch` (every `Stem`-child) recursively for any entity, so
-    /// `tree.remove(root)` tears down everything spawned through `children` here for free.
-    fn composite<S: Photosynthesis, R>(
-        &mut self,
-        root: S,
-        build: impl FnOnce(&mut Children<Self>) -> R,
-    ) -> (Entity, R)
-    where
-        Self: Sized,
-    {
-        let root = root.photosynthesize(self);
-        let handle = build(&mut Children::new(root, self));
-        (root, handle)
     }
 }
 /// See [`EcsExtension::graft`].
@@ -270,6 +255,11 @@ impl EcsExtension for Tree<'_, '_> {
         self.spawn(Timer::new(TimeDelta::from_millis(t)))
             .observe(tf);
     }
+    fn refire<C: Refire>(&mut self, entity: Entity) {
+        Commands::queue(self, move |world: &mut World| {
+            C::refire(entity, world);
+        });
+    }
 }
 
 impl Sow for bevy_ecs::world::DeferredWorld<'_> {
@@ -330,6 +320,9 @@ impl EcsExtension for bevy_ecs::world::DeferredWorld<'_> {
     }
     fn timer<M>(&mut self, t: u64, tf: impl IntoEntityObserver<M>) {
         self.commands().timer(t, tf);
+    }
+    fn refire<C: Refire>(&mut self, entity: Entity) {
+        self.commands().refire::<C>(entity);
     }
 }
 
@@ -396,5 +389,8 @@ impl EcsExtension for World {
 
     fn timer<M>(&mut self, t: u64, tf: impl IntoEntityObserver<M>) {
         self.commands().timer(t, tf);
+    }
+    fn refire<C: Refire>(&mut self, entity: Entity) {
+        self.commands().refire::<C>(entity);
     }
 }

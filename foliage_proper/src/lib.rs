@@ -47,7 +47,7 @@ pub use anim::{
 pub(crate) use ash::differential::Differential;
 pub use asset::{asset_retrieval, AssetKey, AssetRetrieval};
 pub use attachment::Attachment;
-pub use author::{LeafSprout, Photosynthesis, Seed, Sprout, With};
+pub use author::{LeafSprout, Sprout, With};
 pub use bevy_ecs::{self, prelude::*};
 /// bevy 0.17+ renamed the observer parameter `Trigger` to `On`. Every observer in foliage and
 /// its consumers is written against the `Trigger<E>` spelling, so keep it as the canonical
@@ -57,13 +57,13 @@ pub use clipboard::Clipboard;
 pub use color::{CReprColor, Color, Luminance};
 pub use composite::text_input::action::{InputAction, TextInputAction};
 pub use composite::{
-    button::{Button, ButtonSprout},
-    composite_on_insert, forward, handle_replace, resolve_root,
+    button::{Button, ButtonSprout, ButtonStyle, Engagement},
+    resolve_root,
     text_input::{
         keybindings::KeyBindings, HintColor, HintText, InsertText, LineConstraint, TextChanged,
         TextInput, TextInputSprout,
     },
-    Children, Composite, Root,
+    Children, Refire, Root,
 };
 pub use composite::{IconValue, Primary, Secondary, Tertiary, TextValue};
 pub use coordinate::elevation::{Elevation, ResolvedElevation};
@@ -81,6 +81,7 @@ pub use interaction::{
     FocusBehavior, InputSequence, Interaction, InteractionPhase, InteractionPropagation, Key,
     Modifiers, OnClick, PhysicalInputSequence, PhysicalKey,
 };
+pub use interaction::CurrentInteraction;
 pub use interaction::{Disengaged, Dragged, Engaged, Focused, Unfocused};
 pub use leaf::{Branch, Leaf, Stem};
 pub use opacity::Opacity;

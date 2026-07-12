@@ -3,382 +3,337 @@ use crate::portfolio;
 use foliage::{
     anchor, Anchor, Animation, Button, Children, Color, EcsExtension, Elevation, Entity,
     EntityEvent, FontSize, GlyphColors, Grid, GridExt, HorizontalAlignment, HrefLink, Keyring,
-    Leaf, Line, Location, Logical, OnClick, OnEnd, Opacity, Outline, Photosynthesis, Query, Res,
-    Rounding, Section, Seed, Sequence, Sprout, Text, TextValue, Tree, Trigger, VerticalAlignment,
-    Write,
+    Leaf, Line, Location, Logical, OnClick, OnEnd, Opacity, Query, Res, Rounding, Section,
+    Sequence, Sprout, Text, TextValue, Tree, Trigger, VerticalAlignment, Write,
 };
 
+// Linear one-off assembly: entities needed later are locals, entities that aren't are never
+// named. No composite closures, no tuple returns, no handle types.
 pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
     let row_size = 40;
-    let (
-        root,
-        (
-            name,
-            top_desc,
-            top_line,
-            side_desc,
-            pad_connector,
-            pad_desc,
-            desc,
-            github,
-            github_line,
-            github_desc,
-            option_rows,
-            portfolio,
-        ),
-    ) = tree.composite(
+    let root = Leaf::sprout()
+        .at(Location::new().xs(
+            0.pct().as_left().with(100.pct().as_right()),
+            0.pct().as_top().with(100.pct().as_bottom()),
+        ))
+        .elevate(Elevation::abs(0))
+        .with(Grid::new(12.col().gap(8), row_size.px().gap(8)))
+        .photosynthesize(tree);
+    tree.name(root, "home");
+    let mut kids = Children::new(root, tree);
+
+    let name_container = kids.spawn(
+        Leaf::sprout()
+            .at(Location::new().xs(
+                1.col().as_left().with(12.col().as_right()).max(600.0),
+                4.row().as_top().with(8.row().as_bottom()),
+            ))
+            .elevate(Elevation::up(1))
+            .with(Grid::new(12.col().gap(4), 12.row().gap(4))),
+    );
+    let mut name_kids = Children::new(name_container, kids.tree());
+    let name = name_kids.spawn(
+        Text::new("foliage.rs")
+            .size(FontSize::new(44))
+            .at(Location::new().xs(
+                2.col().as_left().with(11.col().as_right()),
+                1.row().as_top().with(3.row().as_bottom()),
+            ))
+            .elevate(Elevation::up(1))
+            .with((
+                HorizontalAlignment::Center,
+                GlyphColors::new().add(7..10, Color::green(400)),
+                Opacity::new(0.0),
+            )),
+    );
+    let top_desc = name_kids.spawn(
+        Text::new("w: 0.0")
+            .size(FontSize::new(14))
+            .color(Color::gray(700))
+            .at(Location::new().xs(
+                5.col().as_left().with(8.col().as_right()),
+                4.row().as_top().with(4.row().as_bottom()),
+            ))
+            .elevate(Elevation::up(1))
+            .with(Opacity::new(0.0)),
+    );
+    let top_line = name_kids.spawn(
+        Line::new(2)
+            .color(Color::gray(700))
+            .at(Location::new().xs(
+                4.col().as_x().with(5.row().as_y()),
+                4.col().as_x().with(5.row().as_y()),
+            ))
+            .elevate(Elevation::up(1)),
+    );
+    name_kids.tree().subscribe(
+        top_line,
+        move |trigger: Trigger<Write<Section<Logical>>>,
+              mut tree: Tree,
+              sections: Query<&Section<Logical>>| {
+            let w = sections.get(trigger.event_target()).unwrap().width();
+            tree.write_to(
+                top_desc,
+                TextValue(format!("w: {:.01}", w)),
+            );
+        },
+    );
+    let side_desc = name_kids.spawn(
+        Text::new("h: 0.0")
+            .size(FontSize::new(14))
+            .color(Color::gray(700))
+            .at(Location::new().xs(
+                9.col().as_left().with(11.col().as_right()),
+                4.row().as_top().with(4.row().as_bottom()),
+            ))
+            .elevate(Elevation::up(1))
+            .with(Opacity::new(0.0)),
+    );
+    name_kids.tree().subscribe(
+        top_line,
+        move |trigger: Trigger<Write<Section<Logical>>>,
+              mut tree: Tree,
+              sections: Query<&Section<Logical>>| {
+            let h = sections.get(trigger.event_target()).unwrap().width() * 0.5;
+            tree.write_to(
+                side_desc,
+                TextValue(format!("h: {:.01}", h)),
+            );
+        },
+    );
+    let pad_connector = name_kids.spawn(
+        Line::new(2)
+            .color(Color::gray(700))
+            .at(Location::new().xs(
+                7.col().as_x().with(5.row().as_y()),
+                7.col().as_x().with(5.row().as_y()),
+            ))
+            .elevate(Elevation::up(1)),
+    );
+    let pad_desc = name_kids.spawn(
+        Text::new("pad: 0.0")
+            .size(FontSize::new(14))
+            .color(Color::gray(700))
+            .at(Location::new().xs(
+                8.col().as_left().with(11.col().as_right()),
+                7.row().as_top().with(8.row().as_bottom()),
+            ))
+            .elevate(Elevation::up(1))
+            .with(Opacity::new(0.0)),
+    );
+    name_kids.tree().subscribe(
+        pad_connector,
+        move |trigger: Trigger<Write<Section<Logical>>>,
+              mut tree: Tree,
+              sections: Query<&Section<Logical>>| {
+            let h = sections.get(trigger.event_target()).unwrap().height();
+            tree.write_to(
+                pad_desc,
+                TextValue(format!("pad: {:.01}", h)),
+            );
+        },
+    );
+    let desc = name_kids.spawn(
+        Text::new("native + web ui")
+            .size(FontSize::new(24))
+            .color(Color::gray(500))
+            .at(Location::new().xs(
+                1.col().as_left().with(12.col().as_right()),
+                9.row().as_top().with(12.row().as_bottom()),
+            ))
+            .elevate(Elevation::up(1))
+            .with((
+                HorizontalAlignment::Center,
+                GlyphColors::new()
+                    .add(7..8, Color::orange(700))
+                    .add(13..15, Color::green(400)),
+                Opacity::new(0.0),
+            )),
+    );
+
+    let github = kids.spawn(
+        Button::new()
+            .icon(IconHandles::Github.value())
+            .rounding(Rounding::Full)
+            .colors(Color::gray(200), Color::gray(800))
+            .at(Location::new().xs(
+                1.col().as_left().with(48.px().as_width()),
+                1.row().as_top().with(48.px().as_height()),
+            ))
+            .elevate(Elevation::up(1)),
+    );
+    kids.tree()
+        .graft(github)
+        .write((FontSize::new(16), Opacity::new(0.0)))
+        .on_click(|trigger: Trigger<OnClick>| {
+            HrefLink::new("https://github.com/eblack-leaf/foliage").navigate()
+        });
+    let github_line = kids.spawn(
+        Line::new(2)
+            .color(Color::gray(700))
+            .at(Location::new().xs(
+                anchor().right().as_x().adjust(16).with(1.row().as_y()),
+                anchor().right().as_x().adjust(16).with(1.row().as_y()),
+            ))
+            .elevate(Elevation::up(1))
+            .with(Anchor::new(github)),
+    );
+    let github_desc = kids.spawn(
+        Text::new("on-click: github")
+            .size(FontSize::new(14))
+            .color(Color::gray(500))
+            .at(Location::new().xs(
+                anchor()
+                    .right()
+                    .as_left()
+                    .adjust(16)
+                    .with(10.col().as_right()),
+                1.row().as_top().adjust(8).with(2.row().as_bottom()),
+            ))
+            .elevate(Elevation::up(1))
+            .with((
+                GlyphColors::new().add(10..16, Color::green(300)),
+                Anchor::new(github_line),
+                Opacity::new(0.0),
+            )),
+    );
+
+    let options_container = kids.spawn(
+        Leaf::sprout()
+            .at(Location::new().xs(
+                1.col().as_left().with(12.col().as_right()).max(600.0),
+                10.row().as_top().with(13.row().as_bottom()),
+            ))
+            .elevate(Elevation::up(1))
+            .with(Grid::new(5.col().gap(4), 3.row().gap(8))),
+    );
+    // row, icon, color, desc text, desc highlight range, desc column range, line column
+    let option_rows: Vec<(Entity, Entity, Entity)> =
+        Children::new(options_container, kids.tree()).each(
+            [
+                (
+                    1,
+                    IconHandles::Terminal.value(),
+                    Color::green(700),
+                    "on-click: usage",
+                    10..15,
+                    (4, 5),
+                    1,
+                ),
+                (
+                    2,
+                    IconHandles::Layers.value(),
+                    Color::green(500),
+                    "on-click: impl",
+                    10..14,
+                    (1, 2),
+                    5,
+                ),
+                (
+                    3,
+                    IconHandles::BookOpen.value(),
+                    Color::green(300),
+                    "on-click: docs",
+                    10..14,
+                    (4, 5),
+                    1,
+                ),
+            ],
+            |_,
+             (row, icon, color, desc_text, highlight, (desc_left, desc_right), line_col),
+             row_children| {
+                let button = row_children.spawn(
+                    Button::new()
+                        .rounding(Rounding::Full)
+                        .icon(icon)
+                        .colors(color, Color::gray(900))
+                        .outline(2)
+                        .at(Location::new().xs(
+                            3.col()
+                                .as_left()
+                                .with(3.col().as_right())
+                                .max(48.0)
+                                .min(48.0),
+                            row.row()
+                                .as_top()
+                                .with(row.row().as_bottom())
+                                .max(48.0)
+                                .min(48.0),
+                        ))
+                        .elevate(Elevation::up(1)),
+                );
+                row_children
+                    .tree()
+                    .graft(button)
+                    .write(Opacity::new(0.0))
+                    .on_click(move |trigger: Trigger<OnClick>| {
+                        HrefLink::new("tbd").navigate()
+                    });
+                let line = row_children.spawn(
+                    Line::new(2)
+                        .color(color)
+                        .at(Location::new().xs(
+                            line_col.col().as_x().with(row.row().as_y()),
+                            line_col.col().as_x().with(row.row().as_y()),
+                        ))
+                        .elevate(Elevation::up(1)),
+                );
+                let desc = row_children.spawn(
+                    Text::new(desc_text)
+                        .size(FontSize::new(16))
+                        .color(Color::gray(500))
+                        .at(Location::new().xs(
+                            desc_left.col().as_left().with(desc_right.col().as_right()),
+                            row.row().as_top().with(row.row().as_bottom()),
+                        ))
+                        .elevate(Elevation::up(1))
+                        .with((
+                            HorizontalAlignment::Center,
+                            VerticalAlignment::Middle,
+                            GlyphColors::new().add(highlight, color),
+                            Opacity::new(0.0),
+                        )),
+                );
+                (button, line, desc)
+            },
+        );
+
+    let portfolio = kids.spawn(
+        Button::new()
+            .icon(IconHandles::Code.value())
+            .text("Portfolio")
+            .rounding(Rounding::Sm)
+            .colors(Color::orange(500), Color::gray(900))
+            .outline(2)
+            .at(Location::new().xs(
+                3.col()
+                    .as_left()
+                    .with(10.col().as_right())
+                    .min(175.0)
+                    .max(350.0),
+                15.row().as_top().with(48.px().as_height()),
+            ))
+            .elevate(Elevation::up(1)),
+    );
+    kids.tree()
+        .graft(portfolio)
+        .write((FontSize::new(20), Opacity::new(0.0)))
+        .on_click(
+            move |trigger: Trigger<OnClick>, mut tree: Tree, keyring: Res<Keyring>| {
+                tree.disable(root);
+                portfolio::build(&mut tree, root, &keyring);
+            },
+        );
+
+    let _spacing = kids.spawn(
         Leaf::sprout()
             .at(Location::new().xs(
                 0.pct().as_left().with(100.pct().as_right()),
-                0.pct().as_top().with(100.pct().as_bottom()),
+                17.row().as_top().with(17.row().as_bottom()),
             ))
-            .elevate(Elevation::abs(0))
-            .with(Grid::new(12.col().gap(8), row_size.px().gap(8))),
-        |children| {
-            let root = children.parent();
-            children.tree().name(root, "home");
-
-            let (
-                _name_container,
-                (name, top_desc, top_line, side_desc, pad_connector, pad_desc, desc),
-            ) = children.composite(
-                Leaf::sprout()
-                    .at(Location::new().xs(
-                        1.col().as_left().with(12.col().as_right()).max(600.0),
-                        4.row().as_top().with(8.row().as_bottom()),
-                    ))
-                    .elevate(Elevation::up(1))
-                    .with(Grid::new(12.col().gap(4), 12.row().gap(4))),
-                |name_children| {
-                    let name = name_children.spawn(
-                        Text::new("foliage.rs")
-                            .size(FontSize::new(44))
-                            .at(Location::new().xs(
-                                2.col().as_left().with(11.col().as_right()),
-                                1.row().as_top().with(3.row().as_bottom()),
-                            ))
-                            .elevate(Elevation::up(1))
-                            .with((
-                                HorizontalAlignment::Center,
-                                GlyphColors::new().add(7..10, Color::green(400)),
-                                Opacity::new(0.0),
-                            )),
-                    );
-                    let top_desc = name_children.spawn(
-                        Text::new("w: 0.0")
-                            .size(FontSize::new(14))
-                            .color(Color::gray(700))
-                            .at(Location::new().xs(
-                                5.col().as_left().with(8.col().as_right()),
-                                4.row().as_top().with(4.row().as_bottom()),
-                            ))
-                            .elevate(Elevation::up(1))
-                            .with(Opacity::new(0.0)),
-                    );
-                    let top_line = name_children.spawn(
-                        Line::new(2)
-                            .color(Color::gray(700))
-                            .at(Location::new().xs(
-                                4.col().as_x().with(5.row().as_y()),
-                                4.col().as_x().with(5.row().as_y()),
-                            ))
-                            .elevate(Elevation::up(1)),
-                    );
-                    name_children.tree().subscribe(
-                        top_line,
-                        move |trigger: Trigger<Write<Section<Logical>>>,
-                              mut tree: Tree,
-                              sections: Query<&Section<Logical>>| {
-                            let w = sections.get(trigger.event_target()).unwrap().width();
-                            tree.write_to(
-                                top_desc,
-                                Text {
-                                    value: format!("w: {:.01}", w),
-                                },
-                            );
-                        },
-                    );
-                    let side_desc = name_children.spawn(
-                        Text::new("h: 0.0")
-                            .size(FontSize::new(14))
-                            .color(Color::gray(700))
-                            .at(Location::new().xs(
-                                9.col().as_left().with(11.col().as_right()),
-                                4.row().as_top().with(4.row().as_bottom()),
-                            ))
-                            .elevate(Elevation::up(1))
-                            .with(Opacity::new(0.0)),
-                    );
-                    name_children.tree().subscribe(
-                        top_line,
-                        move |trigger: Trigger<Write<Section<Logical>>>,
-                              mut tree: Tree,
-                              sections: Query<&Section<Logical>>| {
-                            let h = sections.get(trigger.event_target()).unwrap().width() * 0.5;
-                            tree.write_to(
-                                side_desc,
-                                Text {
-                                    value: format!("h: {:.01}", h),
-                                },
-                            );
-                        },
-                    );
-                    let pad_connector = name_children.spawn(
-                        Line::new(2)
-                            .color(Color::gray(700))
-                            .at(Location::new().xs(
-                                7.col().as_x().with(5.row().as_y()),
-                                7.col().as_x().with(5.row().as_y()),
-                            ))
-                            .elevate(Elevation::up(1)),
-                    );
-                    let pad_desc = name_children.spawn(
-                        Text::new("pad: 0.0")
-                            .size(FontSize::new(14))
-                            .color(Color::gray(700))
-                            .at(Location::new().xs(
-                                8.col().as_left().with(11.col().as_right()),
-                                7.row().as_top().with(8.row().as_bottom()),
-                            ))
-                            .elevate(Elevation::up(1))
-                            .with(Opacity::new(0.0)),
-                    );
-                    name_children.tree().subscribe(
-                        pad_connector,
-                        move |trigger: Trigger<Write<Section<Logical>>>,
-                              mut tree: Tree,
-                              sections: Query<&Section<Logical>>| {
-                            let h = sections.get(trigger.event_target()).unwrap().height();
-                            tree.write_to(
-                                pad_desc,
-                                Text {
-                                    value: format!("pad: {:.01}", h),
-                                },
-                            );
-                        },
-                    );
-                    let desc = name_children.spawn(
-                        Text::new("native + web ui")
-                            .size(FontSize::new(24))
-                            .color(Color::gray(500))
-                            .at(Location::new().xs(
-                                1.col().as_left().with(12.col().as_right()),
-                                9.row().as_top().with(12.row().as_bottom()),
-                            ))
-                            .elevate(Elevation::up(1))
-                            .with((
-                                HorizontalAlignment::Center,
-                                GlyphColors::new()
-                                    .add(7..8, Color::orange(700))
-                                    .add(13..15, Color::green(400)),
-                                Opacity::new(0.0),
-                            )),
-                    );
-                    (name, top_desc, top_line, side_desc, pad_connector, pad_desc, desc)
-                },
-            );
-
-            let github = children.spawn(
-                Button::new()
-                    .icon(IconHandles::Github.value())
-                    .rounding(Rounding::Full)
-                    .colors(Color::gray(200), Color::gray(800))
-                    .at(Location::new().xs(
-                        1.col().as_left().with(48.px().as_width()),
-                        1.row().as_top().with(48.px().as_height()),
-                    ))
-                    .elevate(Elevation::up(1)),
-            );
-            children
-                .tree()
-                .graft(github)
-                .write((FontSize::new(16), Opacity::new(0.0)))
-                .on_click(|trigger: Trigger<OnClick>| {
-                    HrefLink::new("https://github.com/eblack-leaf/foliage").navigate()
-                });
-            let github_line = children.spawn(
-                Line::new(2)
-                    .color(Color::gray(700))
-                    .at(Location::new().xs(
-                        anchor().right().as_x().adjust(16).with(1.row().as_y()),
-                        anchor().right().as_x().adjust(16).with(1.row().as_y()),
-                    ))
-                    .elevate(Elevation::up(1))
-                    .with(Anchor::new(github)),
-            );
-            let github_desc = children.spawn(
-                Text::new("on-click: github")
-                    .size(FontSize::new(14))
-                    .color(Color::gray(500))
-                    .at(Location::new().xs(
-                        anchor()
-                            .right()
-                            .as_left()
-                            .adjust(16)
-                            .with(10.col().as_right()),
-                        1.row().as_top().adjust(8).with(2.row().as_bottom()),
-                    ))
-                    .elevate(Elevation::up(1))
-                    .with((
-                        GlyphColors::new().add(10..16, Color::green(300)),
-                        Anchor::new(github_line),
-                        Opacity::new(0.0),
-                    )),
-            );
-
-            let options_container = children.spawn(
-                Leaf::sprout()
-                    .at(Location::new().xs(
-                        1.col().as_left().with(12.col().as_right()).max(600.0),
-                        10.row().as_top().with(13.row().as_bottom()),
-                    ))
-                    .elevate(Elevation::up(1))
-                    .with(Grid::new(5.col().gap(4), 3.row().gap(8))),
-            );
-            // row, icon, color, desc text, desc highlight range, desc column range, line column
-            let option_rows: Vec<(Entity, Entity, Entity)> =
-                Children::new(options_container, children.tree()).each(
-                    [
-                        (
-                            1,
-                            IconHandles::Terminal.value(),
-                            Color::green(700),
-                            "on-click: usage",
-                            10..15,
-                            (4, 5),
-                            1,
-                        ),
-                        (
-                            2,
-                            IconHandles::Layers.value(),
-                            Color::green(500),
-                            "on-click: impl",
-                            10..14,
-                            (1, 2),
-                            5,
-                        ),
-                        (
-                            3,
-                            IconHandles::BookOpen.value(),
-                            Color::green(300),
-                            "on-click: docs",
-                            10..14,
-                            (4, 5),
-                            1,
-                        ),
-                    ],
-                    |_,
-                     (row, icon, color, desc_text, highlight, (desc_left, desc_right), line_col),
-                     row_children| {
-                        let button = row_children.spawn(
-                            Button::new()
-                                .rounding(Rounding::Full)
-                                .icon(icon)
-                                .colors(color, Color::gray(900))
-                                .outline(2)
-                                .at(Location::new().xs(
-                                    3.col()
-                                        .as_left()
-                                        .with(3.col().as_right())
-                                        .max(48.0)
-                                        .min(48.0),
-                                    row.row()
-                                        .as_top()
-                                        .with(row.row().as_bottom())
-                                        .max(48.0)
-                                        .min(48.0),
-                                ))
-                                .elevate(Elevation::up(1)),
-                        );
-                        row_children
-                            .tree()
-                            .graft(button)
-                            .write(Opacity::new(0.0))
-                            .on_click(move |trigger: Trigger<OnClick>| {
-                                HrefLink::new("tbd").navigate()
-                            });
-                        let line = row_children.spawn(
-                            Line::new(2)
-                                .color(color)
-                                .at(Location::new().xs(
-                                    line_col.col().as_x().with(row.row().as_y()),
-                                    line_col.col().as_x().with(row.row().as_y()),
-                                ))
-                                .elevate(Elevation::up(1)),
-                        );
-                        let desc = row_children.spawn(
-                            Text::new(desc_text)
-                                .size(FontSize::new(16))
-                                .color(Color::gray(500))
-                                .at(Location::new().xs(
-                                    desc_left.col().as_left().with(desc_right.col().as_right()),
-                                    row.row().as_top().with(row.row().as_bottom()),
-                                ))
-                                .elevate(Elevation::up(1))
-                                .with((
-                                    HorizontalAlignment::Center,
-                                    VerticalAlignment::Middle,
-                                    GlyphColors::new().add(highlight, color),
-                                    Opacity::new(0.0),
-                                )),
-                        );
-                        (button, line, desc)
-                    },
-                );
-
-            let portfolio = children.spawn(
-                Button::new()
-                    .icon(IconHandles::Code.value())
-                    .text("Portfolio")
-                    .rounding(Rounding::Sm)
-                    .colors(Color::orange(500), Color::gray(900))
-                    .outline(2)
-                    .at(Location::new().xs(
-                        3.col()
-                            .as_left()
-                            .with(10.col().as_right())
-                            .min(175.0)
-                            .max(350.0),
-                        15.row().as_top().with(48.px().as_height()),
-                    ))
-                    .elevate(Elevation::up(1)),
-            );
-            children
-                .tree()
-                .graft(portfolio)
-                .write((FontSize::new(20), Opacity::new(0.0)))
-                .on_click(
-                    move |trigger: Trigger<OnClick>, mut tree: Tree, keyring: Res<Keyring>| {
-                        tree.disable(root);
-                        portfolio::build(&mut tree, root, &keyring);
-                    },
-                );
-
-            let _spacing = children.spawn(
-                Leaf::sprout()
-                    .at(Location::new().xs(
-                        0.pct().as_left().with(100.pct().as_right()),
-                        17.row().as_top().with(17.row().as_bottom()),
-                    ))
-                    .elevate(Elevation::up(1)),
-            );
-
-            (
-                name,
-                top_desc,
-                top_line,
-                side_desc,
-                pad_connector,
-                pad_desc,
-                desc,
-                github,
-                github_line,
-                github_desc,
-                option_rows,
-                portfolio,
-            )
-        },
+            .elevate(Elevation::up(1)),
     );
+
     let (option_one, option_one_line, option_one_desc) = option_rows[0];
     let (option_two, option_two_line, option_two_desc) = option_rows[1];
     let (option_three, option_three_line, option_three_desc) = option_rows[2];

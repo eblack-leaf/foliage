@@ -13,7 +13,7 @@ use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::EntityEvent;
-use bevy_ecs::lifecycle::HookContext;
+use bevy_ecs::lifecycle::{HookContext, Insert};
 use bevy_ecs::query::With;
 use bevy_ecs::system::Query;
 use bevy_ecs::world::DeferredWorld;
@@ -32,6 +32,7 @@ pub struct Icon {
 }
 impl Attachment for Icon {
     fn attach(foliage: &mut Foliage) {
+        foliage.define(Icon::apply_icon_value);
         foliage
             .world
             .insert_resource(RenderQueue::<Icon, IconMemory>::new());
@@ -71,6 +72,22 @@ impl Icon {
             .observe(Remove::push_remove_packet::<Self>)
             .observe(Self::only_24_px);
     }
+    /// An icon's public value channel: write `IconValue` to an icon entity and the glyph
+    /// follows -- the render marker stays private. Entities that carry `IconValue` as mere
+    /// config (a Button root) are skipped by the `With<Icon>` filter.
+    fn apply_icon_value(
+        trigger: Trigger<Insert, crate::IconValue>,
+        values: Query<&crate::IconValue>,
+        icons: Query<(), With<Icon>>,
+        mut tree: crate::Tree,
+    ) {
+        let this = trigger.event_target();
+        if icons.contains(this) {
+            if let Ok(value) = values.get(this) {
+                tree.entity(this).insert(Icon::new_marker(value.0));
+            }
+        }
+    }
     fn only_24_px(
         trigger: Trigger<Write<Section<Logical>>>,
         mut sections: Query<&mut Section<Logical>, With<Icon>>,
@@ -88,22 +105,12 @@ pub struct IconSprout {
     id: IconId,
     color: Option<Color>,
 }
-impl crate::Seed for IconSprout {
+impl Sprout for IconSprout {
     fn seed(&mut self) -> &mut LeafSprout {
         &mut self.leaf
     }
-}
-impl Sprout for IconSprout {
-    fn bundle(self) -> impl Bundle {
-        (
-            Icon::new_marker(self.id),
-            self.leaf.location,
-            self.leaf.stem,
-            self.leaf
-                .elevation
-                .expect("elevation not set -- call .elevate(...) before spawning"),
-            self.color.unwrap_or_default(),
-        )
+    fn root(self) -> impl Bundle {
+        (Icon::new_marker(self.id), self.color.unwrap_or_default())
     }
 }
 impl IconSprout {

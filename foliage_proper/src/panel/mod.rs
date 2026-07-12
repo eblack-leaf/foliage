@@ -150,20 +150,13 @@ pub struct PanelSprout {
     rounding: Option<Rounding>,
     outline: Option<i32>,
 }
-impl crate::Seed for PanelSprout {
+impl crate::Sprout for PanelSprout {
     fn seed(&mut self) -> &mut crate::LeafSprout {
         &mut self.leaf
     }
-}
-impl crate::Sprout for PanelSprout {
-    fn bundle(self) -> impl Bundle {
+    fn root(self) -> impl Bundle {
         (
             Panel::new_marker(),
-            self.leaf.location,
-            self.leaf.stem,
-            self.leaf
-                .elevation
-                .expect("elevation not set -- call .elevate(...) before spawning"),
             self.color.unwrap_or_default(),
             self.rounding.unwrap_or_default(),
             self.outline.map(Outline::new).unwrap_or_default(),

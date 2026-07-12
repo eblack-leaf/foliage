@@ -7,7 +7,7 @@ use crate::Differential;
 use crate::Stem;
 use crate::{
     Attachment, Color, Component, Coordinates, Foliage, LeafSprout, Logical, Position,
-    ResolvedElevation, Seed, Sprout, Visibility,
+    ResolvedElevation, Sprout, Visibility,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::change_detection::Res;
@@ -93,22 +93,12 @@ pub struct LineSprout {
     weight: i32,
     color: Option<Color>,
 }
-impl Seed for LineSprout {
+impl Sprout for LineSprout {
     fn seed(&mut self) -> &mut LeafSprout {
         &mut self.leaf
     }
-}
-impl Sprout for LineSprout {
-    fn bundle(self) -> impl Bundle {
-        (
-            Line::new_marker(self.weight),
-            self.leaf.location,
-            self.leaf.stem,
-            self.leaf
-                .elevation
-                .expect("elevation not set -- call .elevate(...) before spawning"),
-            self.color.unwrap_or_default(),
-        )
+    fn root(self) -> impl Bundle {
+        (Line::new_marker(self.weight), self.color.unwrap_or_default())
     }
 }
 impl LineSprout {

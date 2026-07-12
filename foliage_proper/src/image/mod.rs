@@ -9,7 +9,7 @@ use crate::remove::Remove;
 use crate::Trigger;
 use crate::{
     Area, Attachment, Component, Coordinates, Foliage, Layout, LeafSprout, Logical, Numerical,
-    ResolvedElevation, ResolvedVisibility, Section, Seed, Sprout, Stem, Write,
+    ResolvedElevation, ResolvedVisibility, Section, Sprout, Stem, Write,
 };
 use crate::{AssetKey, AssetRetrieval};
 use crate::{Differential, Tree, Visibility};
@@ -240,20 +240,13 @@ pub struct ImageSprout {
     key: AssetKey,
     view: Option<ImageView>,
 }
-impl Seed for ImageSprout {
+impl Sprout for ImageSprout {
     fn seed(&mut self) -> &mut LeafSprout {
         &mut self.leaf
     }
-}
-impl Sprout for ImageSprout {
-    fn bundle(self) -> impl Bundle {
+    fn root(self) -> impl Bundle {
         (
             Image::new_marker(self.memory_id, self.key),
-            self.leaf.location,
-            self.leaf.stem,
-            self.leaf
-                .elevation
-                .expect("elevation not set -- call .elevate(...) before spawning"),
             self.view.unwrap_or_default(),
         )
     }

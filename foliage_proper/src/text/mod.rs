@@ -38,6 +38,7 @@ impl Attachment for Text {
             .world
             .insert_resource(MonospacedFont::new(Text::OPT_SCALE));
         foliage.define(Text::update);
+        foliage.define(Text::apply_text_value);
         foliage.define(Text::responsive_font_size);
         foliage.diff.add_systems(
             (Text::resolve_glyphs, Text::resolve_colors)
@@ -81,20 +82,13 @@ pub struct TextSprout {
     size: Option<FontSize>,
     color: Option<Color>,
 }
-impl crate::Seed for TextSprout {
+impl crate::Sprout for TextSprout {
     fn seed(&mut self) -> &mut crate::LeafSprout {
         &mut self.leaf
     }
-}
-impl crate::Sprout for TextSprout {
-    fn bundle(self) -> impl Bundle {
+    fn root(self) -> impl Bundle {
         (
             Text::new_marker(self.value),
-            self.leaf.location,
-            self.leaf.stem,
-            self.leaf
-                .elevation
-                .expect("elevation not set -- call .elevate(...) before spawning"),
             self.size.unwrap_or_default(),
             self.color.unwrap_or_default(),
         )
@@ -112,6 +106,22 @@ impl TextSprout {
 }
 impl Text {
     pub(crate) const OPT_SCALE: u32 = 20;
+    /// A text's public value channel: write `TextValue` to a text entity and the glyphs
+    /// follow -- the render marker stays private. Entities carrying `TextValue` as mere
+    /// config (a Button or TextInput root) are skipped by the `With<Text>` filter.
+    fn apply_text_value(
+        trigger: Trigger<bevy_ecs::lifecycle::Insert, crate::TextValue>,
+        values: Query<&crate::TextValue>,
+        texts: Query<(), With<Text>>,
+        mut tree: Tree,
+    ) {
+        let this = trigger.event_target();
+        if texts.contains(this) {
+            if let Ok(value) = values.get(this) {
+                tree.entity(this).insert(Text::new_marker(&value.0));
+            }
+        }
+    }
     pub fn new<S: AsRef<str>>(value: S) -> TextSprout {
         TextSprout {
             value: value.as_ref().to_string(),

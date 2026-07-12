@@ -3,7 +3,7 @@ use foliage::Justify::Center;
 use foliage::{
     anchor, Anchor, Animation, Button, Children, Color, EcsExtension, Elevation, Entity, FontSize,
     Grid, GridExt, HorizontalAlignment, Icon, Image, ImageView, Keyring, Leaf, Line, Location,
-    OnClick, Opacity, Panel, Photosynthesis, Rounding, Seed, Sequence, Sprout, Text, TextInput,
+    OnClick, Opacity, Panel, Rounding, Sequence, Sprout, Text, TextInput,
     Tree, Trigger, VerticalAlignment,
 };
 

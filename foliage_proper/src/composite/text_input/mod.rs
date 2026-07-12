@@ -1,29 +1,24 @@
 pub(crate) mod action;
 pub(crate) mod keybindings;
 
-use crate::composite::{
-    composite_on_insert, forward, handle_replace, resolve_root, Children, Root,
-};
+use crate::composite::{resolve_root, Children, Root};
 use crate::interaction::CurrentInteraction;
 use crate::text::monospaced::MonospacedFont;
 use crate::text::{Glyphs, LineMetrics};
-use crate::IntoTargets;
 use crate::Trigger;
 use crate::{
-    auto, Attachment, AutoHeight, AutoWidth, Color, Component, Composite, Dragged, EcsExtension,
-    Elevation, Engaged, Event, FocusBehavior, Foliage, FontSize, GlyphOffset, Grid, GridExt,
-    InputSequence, InteractionListener, InteractionPropagation, Key, Layout, Leaf, LeafSprout,
-    Location, Logical, Opacity, OverscrollPropagation, Panel, Primary, Secondary, Section, Seed,
-    Sprout, Stem, Tertiary, Text, TextValue, Tree, Unfocused, Update, View, Write,
+    auto, Attachment, AutoHeight, AutoWidth, Color, Component, Dragged, EcsExtension, Elevation,
+    Engaged, Event, FocusBehavior, Foliage, FontSize, GlyphOffset, Grid, GridExt, InputSequence,
+    InteractionListener, InteractionPropagation, Key, Layout, Leaf, LeafSprout, Location, Logical,
+    Opacity, OverscrollPropagation, Panel, Primary, Secondary, Section, Sprout, Stem, Tertiary,
+    Text, TextValue, Tree, Unfocused, View, Write,
 };
 use action::{InputAction, TextInputAction};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::EntityEvent;
-use bevy_ecs::lifecycle::HookContext;
 use bevy_ecs::lifecycle::Insert;
 use bevy_ecs::system::{Query, Res};
-use bevy_ecs::world::DeferredWorld;
 use keybindings::KeyBindings;
 use std::collections::HashMap;
 use std::ops::Range;
@@ -75,15 +70,12 @@ impl Attachment for TextInput {
         foliage.define(Input::obs);
         foliage.define(Input::forward);
         foliage.define(InsertText::obs);
-        foliage.define(Self::handle_trigger);
         foliage.world.insert_resource(KeyBindings::default());
     }
 }
 #[derive(Component, Copy, Clone)]
 #[require(LineConstraint, Cursor, Selection, HintText, HintColor)]
 #[require(Primary, Secondary, Tertiary, FontSize, TextValue)]
-#[component(on_add = Self::on_add)]
-#[component(on_insert = composite_on_insert::<TextInput>)]
 pub struct TextInput {}
 impl TextInput {
     const HIGHLIGHT_SCROLL_THRESHOLD: f32 = 10.0;
@@ -92,25 +84,6 @@ impl TextInput {
     }
     pub(crate) fn new_marker() -> TextInput {
         TextInput {}
-    }
-    fn on_add(mut world: DeferredWorld, ctx: HookContext) {
-        let this = ctx.entity;
-        world
-            .commands()
-            .entity(this)
-            .observe(Self::unfocused)
-            .observe(forward::<TextValue>)
-            .observe(Self::update_text_value)
-            .observe(forward::<Primary>)
-            .observe(Self::update_primary)
-            .observe(forward::<Secondary>)
-            .observe(Self::update_secondary)
-            .observe(forward::<Tertiary>)
-            .observe(Self::update_tertiary)
-            .observe(forward::<FontSize>)
-            .observe(Self::update_font_size)
-            .observe(forward::<HintText>)
-            .observe(Self::update_hint);
     }
 }
 #[derive(Default)]
@@ -124,20 +97,13 @@ pub struct TextInputSprout {
     hint_text: Option<String>,
     line_constraint: Option<LineConstraint>,
 }
-impl Seed for TextInputSprout {
+impl Sprout for TextInputSprout {
     fn seed(&mut self) -> &mut LeafSprout {
         &mut self.leaf
     }
-}
-impl Sprout for TextInputSprout {
-    fn bundle(self) -> impl Bundle {
+    fn root(self) -> impl Bundle {
         (
             TextInput::new_marker(),
-            self.leaf.location,
-            self.leaf.stem,
-            self.leaf
-                .elevation
-                .expect("elevation not set -- call .elevate(...) before spawning"),
             TextValue(self.text.unwrap_or_default()),
             Primary(self.primary.unwrap_or_default()),
             Secondary(self.secondary.unwrap_or_default()),
@@ -145,7 +111,106 @@ impl Sprout for TextInputSprout {
             self.font_size.unwrap_or_default(),
             HintText::new(self.hint_text.unwrap_or_default()),
             self.line_constraint.unwrap_or_default(),
+            Grid::default(),
         )
+    }
+    fn build<T: EcsExtension>(this: Entity, kids: &mut Children<T>) {
+        // static skeleton. One call per child; `.stem` auto-filled by `Children::spawn`;
+        // `cursor` (no visual of its own -- a bare interaction hit-area) uses `Leaf::sprout()`.
+        let panel = kids.spawn(
+            Panel::new()
+                .elevate(Elevation::up(1))
+                .at(Location::new().xs(
+                    0.pct()
+                        .as_left()
+                        .adjust(4)
+                        .with(100.pct().as_right().adjust(-4)),
+                    0.pct()
+                        .as_top()
+                        .adjust(4)
+                        .with(100.pct().as_bottom().adjust(-4)),
+                ))
+                .with((
+                    Grid::new(1.letters(), 1.letters()),
+                    InteractionListener::new(),
+                    Root(this),
+                )),
+        );
+        kids.tree().subscribe(panel, TextInput::unfocused);
+        kids.tree().subscribe(panel, PlaceCursor::forward);
+
+        // panel owns cursor/visible/text/hint_text -- a second `Children` scoped to it
+        // mirrors the real hierarchy.
+        let mut panel_children = Children::new(panel, kids.tree());
+        let cursor = panel_children.spawn(
+            Leaf::sprout()
+                .elevate(Elevation::up(6))
+                .at(Location::new().xs(
+                    1.col().as_left().with(1.col().as_right()),
+                    1.col().as_top().with(1.col().as_bottom()),
+                ))
+                .with((
+                    InteractionListener::new(),
+                    InteractionPropagation::pass_through(),
+                    Root(this),
+                )),
+        );
+        let visible = panel_children.spawn(
+            Panel::new()
+                .elevate(Elevation::up(3))
+                .at(Location::new().xs(
+                    1.col().as_left().with(1.col().as_right()),
+                    1.col().as_top().with(1.col().as_bottom()),
+                ))
+                .with((
+                    InteractionListener::new(),
+                    InteractionPropagation::pass_through(),
+                    FocusBehavior::ignore(),
+                    Root(this),
+                )),
+        );
+        // no Location / auto flags: LineConstraint-dependent, set by that reaction's
+        // first fire below, in the same command batch.
+        let text = panel_children.spawn(
+            Text::new("")
+                .elevate(Elevation::up(5))
+                .with((InteractionListener::new(), Root(this))),
+        );
+        let hint_text = panel_children.spawn(Text::new("").elevate(Elevation::up(4)).with((
+            InteractionPropagation::pass_through(),
+            FocusBehavior::ignore(),
+            Root(this),
+        )));
+        let tree = panel_children.tree();
+        tree.subscribe(cursor, TextInput::unfocused);
+        tree.subscribe(cursor, Cursor::engaged);
+        tree.subscribe(cursor, Selection::select);
+        tree.subscribe(text, TextInput::unfocused);
+        tree.subscribe(text, PlaceCursor::forward);
+        tree.subscribe(text, Selection::reselect);
+        tree.subscribe(this, TextInput::unfocused);
+
+        // Handle BEFORE the reactions: their first fires look it up.
+        kids.tree().write_to(
+            this,
+            Handle {
+                panel,
+                text,
+                hint_text,
+                cursor,
+                visible,
+                highlights: Default::default(),
+            },
+        );
+
+        // everything data-dependent, initial state included
+        kids.react::<LineConstraint, _>(TextInput::update_line_constraint);
+        kids.react::<TextValue, _>(TextInput::update_text_value);
+        kids.react::<Primary, _>(TextInput::update_primary);
+        kids.react::<Secondary, _>(TextInput::update_secondary);
+        kids.react::<Tertiary, _>(TextInput::update_tertiary);
+        kids.react::<FontSize, _>(TextInput::update_font_size);
+        kids.react::<HintText, _>(TextInput::update_hint);
     }
 }
 impl TextInputSprout {
@@ -178,159 +243,6 @@ impl TextInputSprout {
         self
     }
 }
-impl Composite for TextInput {
-    type Handle = Handle;
-    fn children(this: Entity, children: &mut Children<DeferredWorld>) -> Self::Handle {
-        let line_constraint = *children.tree().get::<LineConstraint>(this).unwrap();
-        children
-            .tree()
-            .commands()
-            .entity(this)
-            .insert(Grid::default());
-
-        // One call per child: `.stem` is auto-filled by `Children::spawn`, `Panel`/`Text` use
-        // their own `Sprout`, `cursor` (no visual/Sprout type -- a bare interaction hit-area) uses
-        // `LeafSprout::new()`. Same chain shape either way: `.elevate()/.at()/.with()/spawn`.
-        let panel = children.spawn(
-            Panel::new()
-                .elevate(Elevation::up(1))
-                .at(Location::new().xs(
-                    0.pct()
-                        .as_left()
-                        .adjust(4)
-                        .with(100.pct().as_right().adjust(-4)),
-                    0.pct()
-                        .as_top()
-                        .adjust(4)
-                        .with(100.pct().as_bottom().adjust(-4)),
-                ))
-                .with((
-                    Grid::new(1.letters(), 1.letters()),
-                    InteractionListener::new(),
-                    Root(this),
-                )),
-        );
-        children
-            .tree()
-            .commands()
-            .entity(panel)
-            .observe(Self::unfocused)
-            .observe(PlaceCursor::forward);
-
-        // panel owns cursor/visible/text/hint_text -- a second `Children` scoped to it mirrors
-        // the real hierarchy instead of every child re-deriving `Stem::some(panel)` by hand.
-        let mut panel_children = Children::new(panel, children.tree());
-
-        let cursor = panel_children.spawn(
-            Leaf::sprout()
-                .elevate(Elevation::up(6))
-                .at(Location::new().xs(
-                    1.col().as_left().with(1.col().as_right()),
-                    1.col().as_top().with(1.col().as_bottom()),
-                ))
-                .with((
-                    InteractionListener::new(),
-                    InteractionPropagation::pass_through(),
-                    Root(this),
-                )),
-        );
-        panel_children
-            .tree()
-            .commands()
-            .entity(cursor)
-            .observe(Self::unfocused)
-            .observe(Cursor::engaged)
-            .observe(Selection::select);
-
-        let visible = panel_children.spawn(
-            Panel::new()
-                .elevate(Elevation::up(3))
-                .at(Location::new().xs(
-                    1.col().as_left().with(1.col().as_right()),
-                    1.col().as_top().with(1.col().as_bottom()),
-                ))
-                .with((
-                    InteractionListener::new(),
-                    InteractionPropagation::pass_through(),
-                    FocusBehavior::ignore(),
-                    Root(this),
-                )),
-        );
-
-        let text_location = Location::new().xs(
-            match line_constraint {
-                LineConstraint::Single => 0.pct().as_left().with(auto().as_width()),
-                LineConstraint::Multiple => 0.pct().as_left().with(100.pct().as_right()),
-            },
-            match line_constraint {
-                LineConstraint::Single => 0.pct().as_top().with(100.pct().as_bottom()),
-                LineConstraint::Multiple => 0.pct().as_top().with(auto().as_height()),
-            },
-        );
-        let auto_width = match line_constraint {
-            LineConstraint::Single => AutoWidth(true),
-            LineConstraint::Multiple => AutoWidth(false),
-        };
-        let auto_height = match line_constraint {
-            LineConstraint::Single => AutoHeight(false),
-            LineConstraint::Multiple => AutoHeight(true),
-        };
-
-        let text = panel_children.spawn(
-            Text::new("")
-                .elevate(Elevation::up(5))
-                .at(text_location)
-                .with((
-                    InteractionListener::new(),
-                    Root(this),
-                    auto_width,
-                    auto_height,
-                )),
-        );
-        panel_children
-            .tree()
-            .commands()
-            .entity(text)
-            .observe(Self::unfocused)
-            .observe(PlaceCursor::forward)
-            .observe(Selection::reselect);
-
-        let hint_text = panel_children.spawn(
-            Text::new("")
-                .elevate(Elevation::up(4))
-                .at(text_location)
-                .with((
-                    InteractionPropagation::pass_through(),
-                    FocusBehavior::ignore(),
-                    Root(this),
-                    auto_width,
-                    auto_height,
-                )),
-        );
-
-        Handle {
-            panel,
-            text,
-            hint_text,
-            cursor,
-            visible,
-            highlights: Default::default(),
-        }
-    }
-    fn remove(handle: &Self::Handle) -> impl IntoTargets + Send + Sync + 'static {
-        let mut targets = handle
-            .highlights
-            .iter()
-            .map(|(_, e)| *e)
-            .collect::<Vec<_>>();
-        targets.push(handle.panel);
-        targets.push(handle.text);
-        targets.push(handle.hint_text);
-        targets.push(handle.cursor);
-        targets.push(handle.visible);
-        targets
-    }
-}
 impl TextInput {
     pub(crate) fn unfocused(
         trigger: Trigger<Unfocused>,
@@ -350,17 +262,43 @@ impl TextInput {
         Self::clear_selection(main, &mut selections);
         tree.trigger_targets(TextInputState::Inactive, main);
     }
-    fn handle_trigger(trigger: Trigger<Insert, Handle>, mut tree: Tree) {
+    /// The `LineConstraint` reaction: single-line inputs auto-size width, multi-line
+    /// inputs auto-size height. First fire places text/hint (they spawn without a
+    /// `Location`); later writes re-place them.
+    fn update_line_constraint(
+        trigger: Trigger<Insert, LineConstraint>,
+        mut tree: Tree,
+        constraints: Query<&LineConstraint>,
+        handles: Query<&Handle>,
+    ) {
         let this = trigger.event_target();
-        tree.trigger_targets(Update::<TextValue>::new(), this);
-        tree.trigger_targets(Update::<Primary>::new(), this);
-        tree.trigger_targets(Update::<Secondary>::new(), this);
-        tree.trigger_targets(Update::<Tertiary>::new(), this);
-        tree.trigger_targets(Update::<FontSize>::new(), this);
-        tree.trigger_targets(Update::<HintText>::new(), this);
+        let line_constraint = *constraints.get(this).unwrap();
+        let handle = handles.get(this).unwrap();
+        let text_location = Location::new().xs(
+            match line_constraint {
+                LineConstraint::Single => 0.pct().as_left().with(auto().as_width()),
+                LineConstraint::Multiple => 0.pct().as_left().with(100.pct().as_right()),
+            },
+            match line_constraint {
+                LineConstraint::Single => 0.pct().as_top().with(100.pct().as_bottom()),
+                LineConstraint::Multiple => 0.pct().as_top().with(auto().as_height()),
+            },
+        );
+        let auto_width = match line_constraint {
+            LineConstraint::Single => AutoWidth(true),
+            LineConstraint::Multiple => AutoWidth(false),
+        };
+        let auto_height = match line_constraint {
+            LineConstraint::Single => AutoHeight(false),
+            LineConstraint::Multiple => AutoHeight(true),
+        };
+        tree.entity(handle.text)
+            .insert((text_location, auto_width, auto_height));
+        tree.entity(handle.hint_text)
+            .insert((text_location, auto_width, auto_height));
     }
     fn update_text_value(
-        trigger: Trigger<Update<TextValue>>,
+        trigger: Trigger<Insert, TextValue>,
         mut tree: Tree,
         values: Query<&TextValue>,
         handles: Query<&Handle>,
@@ -372,7 +310,7 @@ impl TextInput {
         tree.trigger_targets(TextInputState::Inactive, this);
     }
     fn update_font_size(
-        trigger: Trigger<Update<FontSize>>,
+        trigger: Trigger<Insert, FontSize>,
         mut tree: Tree,
         font_sizes: Query<&FontSize>,
         handles: Query<&Handle>,
@@ -386,7 +324,7 @@ impl TextInput {
             .insert(font_sizes.get(trigger.event_target()).unwrap().clone());
     }
     fn update_primary(
-        trigger: Trigger<Update<Primary>>,
+        trigger: Trigger<Insert, Primary>,
         mut tree: Tree,
         handles: Query<&Handle>,
         primary: Query<&Primary>,
@@ -398,7 +336,7 @@ impl TextInput {
             .insert(primary.get(trigger.event_target()).unwrap().0);
     }
     fn update_secondary(
-        trigger: Trigger<Update<Secondary>>,
+        trigger: Trigger<Insert, Secondary>,
         mut tree: Tree,
         handles: Query<&Handle>,
         secondary: Query<&Secondary>,
@@ -408,7 +346,7 @@ impl TextInput {
             .insert(secondary.get(trigger.event_target()).unwrap().0);
     }
     fn update_tertiary(
-        trigger: Trigger<Update<Tertiary>>,
+        trigger: Trigger<Insert, Tertiary>,
         mut tree: Tree,
         handles: Query<&Handle>,
         tertiary: Query<&Tertiary>,
@@ -421,7 +359,7 @@ impl TextInput {
         }
     }
     fn update_hint(
-        trigger: Trigger<Update<HintText>>,
+        trigger: Trigger<Insert, HintText>,
         mut tree: Tree,
         handles: Query<&Handle>,
         hints: Query<&HintText>,
@@ -1676,8 +1614,9 @@ impl InsertText {
     }
 }
 crate::targeted_event!(InsertText, Input);
+// No teardown hook: every child (highlights included -- reselect_range spawns them via
+// `Children::new(panel, ..)`) is `Stem`-parented, so `Remove`'s cascade reaches them all.
 #[derive(Component, Clone, Debug)]
-#[component(on_discard = handle_replace::<TextInput>)]
 pub struct Handle {
     pub panel: Entity,
     pub text: Entity,

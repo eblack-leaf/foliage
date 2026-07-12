@@ -1,6 +1,6 @@
 use foliage::{
     Animation, Children, Color, EcsExtension, Elevation, Entity, FontSize, Grid, GridExt,
-    LineConstraint, Location, Opacity, Photosynthesis, Seed, Sequence, Sprout, Text, TextInput,
+    LineConstraint, Location, Opacity, Sequence, Sprout, Text, TextInput,
     Tree,
 };
 

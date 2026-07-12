@@ -5,7 +5,7 @@ use crate::icons::IconHandles;
 use foliage::{
     anchor, Anchor, Animation, Button, Children, Color, Ease, EcsExtension, Elevation, Entity,
     FontSize, Grid, GridExt, Image, ImageView, InteractionListener, Keyring, Leaf, Location,
-    MemoryId, OnClick, OnEnd, Opacity, Panel, Photosynthesis, Res, Rounding, Seed, Sequence,
+    MemoryId, OnClick, OnEnd, Opacity, Panel, Res, Rounding, Sequence,
     Sprout, Text, Tree, Trigger,
 };
 
