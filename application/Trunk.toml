@@ -15,5 +15,5 @@ no_autoreload = true
 cargo = false
 
 [tools]
-wasm_bindgen = "0.2.100"
+wasm_bindgen = "0.2.126"
 wasm_opt = "version_110"

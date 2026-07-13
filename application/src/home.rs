@@ -431,7 +431,7 @@ impl Sprout for OptionRowSprout {
                         .with(Opacity::new(0.0)),
                 );
                 tree.on_click(button, move |_: Trigger<OnClick>| {
-                    HrefLink::new("tbd").navigate()
+                    HrefLink::new("https://eblack-leaf.github.io/foliage/book/").navigate()
                 });
                 tree.disable(button);
                 let line = tree.branch(
