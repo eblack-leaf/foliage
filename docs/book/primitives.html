@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>A Complete Example - foliage</title>
+        <title>The Primitives - foliage</title>
 
 
         <!-- Custom HTML head -->
@@ -174,126 +174,85 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="a-complete-example-button"><a class="header" href="#a-complete-example-button">A Complete Example: <code>Button</code></a></h1>
-<p>The full source is <code>foliage_proper/src/composite/button.rs</code> — this walks through it in order.
-It’s the reference to diff your own widget against; nothing here is simplified for the book.</p>
-<h2 id="the-public-face"><a class="header" href="#the-public-face">The public face</a></h2>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>#[derive(Component, Copy, Clone)]
-pub struct Button {}
-
-#[derive(Component, Copy, Clone, Default)]
-pub struct ButtonStyle {
-    pub foreground: Color,
-    pub background: Color,
-    pub outline: Outline,
-    pub rounding: Rounding,
-}
-
-#[derive(Component, Copy, Clone, Default)]
-pub struct Engagement(pub bool);
-<span class="boring">}</span></code></pre>
-<p><code>Button {}</code> itself carries no data — it’s a marker. The whole appearance pokes in one write:
-<code>tree.write_to(btn, ButtonStyle { .. })</code>. <code>Engagement</code> is interaction state (pressed/not)
-represented as an ordinary component, so engage/disengage restyling runs through the <em>same</em>
-reaction door as a config change — not a separate hand-called code path.</p>
-<h2 id="the-builder-and-root"><a class="header" href="#the-builder-and-root">The builder and <code>root</code></a></h2>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>#[derive(Default)]
-pub struct ButtonSprout {
-    leaf: LeafSprout,
-    icon: Option&lt;IconId&gt;,
-    text: Option&lt;String&gt;,
-    colors: Option&lt;(Color, Color)&gt;,
-    rounding: Option&lt;Rounding&gt;,
-    outline: Option&lt;i32&gt;,
-}
-impl Sprout for ButtonSprout {
-    fn seed(&amp;mut self) -&gt; &amp;mut LeafSprout {
-        &amp;mut self.leaf
-    }
-    fn root(self) -&gt; impl Bundle {
-        let (foreground, background) = self.colors.unwrap_or_default();
-        (
-            Button {},
-            ButtonStyle { foreground, background, outline: /* .. */, rounding: /* .. */ },
-            TextValue(self.text.unwrap_or_default()),
-            IconValue(self.icon.unwrap_or_default()),
-            FontSize::default(),
-            Engagement(false),
-            InteractionListener::new(),
-            Grid::new(1.col().gap(4), 1.row().gap(4)),
-        )
-    }
-    fn build&lt;T: EcsExtension&gt;(this: Entity, tree: &amp;mut T) { /* next section */ }
-}
-<span class="boring">}</span></code></pre>
-<p><code>ButtonSprout</code>’s own builder methods (<code>.icon(..)</code>, <code>.text(..)</code>, <code>.colors(..)</code>, <code>.rounding(..)</code>,
-<code>.outline(..)</code>) just set these <code>Option</code> fields; <code>root()</code> folds everything into the one bundle
-inserted at spawn. <code>TextValue</code>/<code>IconValue</code> are the <em>same</em> value components <code>Text</code>/<code>Icon</code>
-primitives use — Button doesn’t invent its own vocabulary for content it’s just forwarding.</p>
-<h2 id="build-the-static-skeleton"><a class="header" href="#build-the-static-skeleton"><code>build</code>: the static skeleton</a></h2>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn build&lt;T: EcsExtension&gt;(this: Entity, tree: &amp;mut T) {
-    let panel = tree.branch(this, Panel::new().elevate(Elevation::up(1)).at(/* fills parent */)
-        .with((InteractionPropagation::pass_through(), FocusBehavior::ignore())));
-    let icon = tree.branch(this, Icon::new(0).elevate(Elevation::up(2))
-        .with((InteractionPropagation::pass_through(), FocusBehavior::ignore())));
-    let text = tree.branch(this, Text::new("").elevate(Elevation::up(2))
-        .with((HorizontalAlignment::Left, VerticalAlignment::Middle,
-               InteractionPropagation::pass_through(), FocusBehavior::ignore())));
-    // .. reactions, next section
-}
-<span class="boring">}</span></code></pre>
-<p>Every button, regardless of config, gets exactly one panel + one icon + one text child. None of
-these spawns reference <code>self</code>’s config at all — notice <code>Icon::new(0)</code> and <code>Text::new("")</code>, both
-placeholders. That’s the point: <strong>nothing here is config-dependent</strong>, so it belongs in <code>build</code>.
-Real icon/text/colors/rounding all arrive through the reactions below, which fire once
-immediately with the real values, in the same command batch as these spawns.</p>
-<h2 id="build-the-reactions"><a class="header" href="#build-the-reactions"><code>build</code>: the reactions</a></h2>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>// one restyle for every appearance input, engage-state included
-tree.react_any::&lt;(ButtonStyle, Engagement), _&gt;(this, move |trigger, styles, engagement, mut tree| {
-    let e = trigger.event_target();
-    restyle(&amp;mut tree, e, panel, icon, text, *styles.get(e).unwrap(), engagement.get(e).unwrap().0);
-});
-
-// event -&gt; state bridges: interaction events funnel into the same reaction door
-tree.subscribe(this, |trigger: Trigger&lt;Engaged&gt;, mut tree: Tree| {
-    tree.entity(trigger.event_target()).insert(Engagement(true));
-});
-tree.subscribe(this, |trigger: Trigger&lt;Disengaged&gt;, mut tree: Tree| {
-    tree.entity(trigger.event_target()).insert(Engagement(false));
-});
-
-// NOT a pure copy -- the text's width Location depends on the value
-tree.react::&lt;TextValue, _&gt;(this, move |trigger, values, mut tree| { /* .. */ });
-
-// pure copies
-tree.forward::&lt;IconValue&gt;(this, icon);
-tree.forward::&lt;FontSize&gt;(this, text);
-<span class="boring">}</span></code></pre>
-<p>Five reactions, zero hand-called “apply this at construction time” step — the <code>react_any</code> fires
-once at registration with <code>ButtonStyle</code>’s real spawn-time value, so there’s no separate initial
-styling pass to keep in sync with later writes. <code>Engaged</code>/<code>Disengaged</code> (interaction events) don’t
-touch rendering directly; they write <code>Engagement</code>, which the same restyle reaction already
-watches — one restyle function, reachable from every input that can change how a button looks.</p>
-<p>See <a href="./reacting.html">Reacting to Data</a> for what <code>react</code>/<code>react_any</code>/<code>forward</code> actually do
-underneath, and <a href="./authoring.html">Authoring a Widget</a> for why this split between a static <code>build</code>
-and reactive <code>react</code> calls exists in the first place.</p>
+                        <h1 id="the-primitives"><a class="header" href="#the-primitives">The Primitives</a></h1>
+<p>Before authoring anything, it helps to know what’s already in the box — the vocabulary
+<code>Authoring a Widget</code> assumes you recognize when it composes <code>Panel</code>/<code>Icon</code>/<code>Text</code>/<code>Grid</code>/
+<code>Location</code>/<code>Elevation</code> without re-explaining any of them.</p>
+<h2 id="the-visual-primitives"><a class="header" href="#the-visual-primitives">The visual primitives</a></h2>
+<p>Each of these is itself a <code>Sprout</code> — spawned the same way as anything you’d author yourself
+(<code>tree.leaf(...)</code>/<code>tree.branch(parent, ...)</code>), just with an empty <code>build</code> (see
+<a href="./authoring.html">Authoring a Widget</a>): they have nothing to build underneath, they <em>are</em> the
+leaf content.</p>
+<ul>
+<li><strong><code>Panel</code></strong> — a rectangle: <code>Panel::new().color(Color::gray(800)).rounding(Rounding::Md) .outline(2)</code>. The generic surface almost everything else sits on top of.</li>
+<li><strong><code>Text</code></strong> — <code>Text::new("label")</code>, with <code>.size(FontSize::new(16))</code>. Content updates through
+<code>TextValue</code>, the same value component <code>Button</code> forwards internally.</li>
+<li><strong><code>Icon</code></strong> — <code>Icon::new(id)</code>, where <code>id</code> comes from an <code>#[icon_handle]</code>-generated enum (see
+the icon pipeline — <code>foliage_icons</code> rasterizes SVGs ahead of time into a fixed-size mip chain,
+not a runtime vector renderer). Content updates through <code>IconValue</code>.</li>
+<li><strong><code>Image</code></strong> — <code>Image::new(key)</code> where <code>key: AssetKey</code> comes from <code>load_asset!</code>/<code>Keyring</code>.
+<code>.view(ImageView::Aspect | Stretch | Crop)</code> controls how the source bitmap fills its <code>Location</code>
+— <code>Aspect</code> preserves aspect ratio and centers, <code>Stretch</code> fills exactly, <code>Crop</code> fills and clips.</li>
+<li><strong><code>Line</code></strong>/<strong><code>Shape</code></strong> — a line segment between two points (<code>Line::new(weight)</code>, positioned via
+<code>Location</code>’s point-pair form rather than a rect) — used for the connective/underline marks
+you’ll see in composite widgets like <code>Scrubber</code>.</li>
+<li><strong><code>TextInput</code></strong> — an editable text field composite (<code>foliage_proper/src/text/text_input/</code>),
+itself authored the same way as anything in <a href="./example.html">A Complete Example</a> — not special
+library-only magic, just the first composite you’d read if you wanted a second example.</li>
+</ul>
+<h2 id="positioning"><a class="header" href="#positioning">Positioning</a></h2>
+<p>Every spawnable carries these through <code>LeafSprout</code> (<code>.at()</code>/<code>.elevate()</code>/<code>.with()</code> — see
+<a href="./authoring.html">Authoring a Widget</a> for where these live in the <code>Sprout</code> trait):</p>
+<ul>
+<li><strong><code>Location</code></strong> — where an entity sits, described per breakpoint (<code>.xs(...)</code>, <code>.sm(...)</code>, …
+falling back to the next-smallest defined one). A <code>Location</code> expression is a pair of
+horizontal/vertical descriptors built from anchors like <code>0.pct().as_left()</code>,
+<code>1.col().as_left()</code>, <code>16.px().as_top()</code>, each <code>.with(...)</code> a matching far edge
+(<code>.as_right()</code>/<code>.as_bottom()</code>) or a size (<code>.as_width()</code>/<code>.as_height()</code>).</li>
+<li><strong><code>Grid</code></strong> — <code>Grid::new(columns, rows)</code> on a parent, e.g. <code>12.col().gap(8)</code> /
+<code>40.px().gap(8)</code>, is what makes a child’s <code>1.col()</code>/<code>(i+1).row()</code> in the child’s own
+<code>Location</code> resolve to real pixels — a child’s <code>Location</code> resolves against its <code>Stem</code>’s
+(parent’s) <code>Grid</code>, or the viewport if it has no parent (see <code>tree.leaf</code> vs <code>tree.branch</code>,
+<a href="./contract.html">The Contract</a>).</li>
+<li><strong><code>Anchor</code></strong> — positions an entity relative to <em>another specific entity</em> (not its parent’s
+grid) — how a modal’s backdrop tracks whatever it opened from, or a line tracks the button
+it’s annotating.</li>
+<li><strong><code>Elevation</code></strong> — z-ordering/layering, not physical size. <code>.elevate(Elevation::abs(n))</code> sets
+an absolute layer; <code>.elevate(Elevation::up(n))</code> sets it relative to the parent’s layer — the
+mandatory argument every <code>Sprout</code> requires before spawning (skipping it is a compile-reachable
+panic on purpose, see <code>tree.rs</code>’s <code>Sow::grow</code>).</li>
+</ul>
+<h2 id="styling"><a class="header" href="#styling">Styling</a></h2>
+<p><code>Color::gray(l)</code> / <code>Color::red(l)</code> / etc. take a luminance value, not raw RGB — the palette is
+closed and thematic rather than arbitrary hex. <code>Opacity</code>, <code>Rounding</code>, <code>Outline</code> are ordinary
+components any visual primitive accepts via <code>.with(...)</code> or a dedicated builder method
+(<code>Panel::new().rounding(Rounding::Full).outline(2)</code>), and (per <code>Outline</code>/<code>Opacity</code>’s
+<code>Attachment::attach</code>) are themselves animatable — see below.</p>
+<h2 id="animation"><a class="header" href="#animation">Animation</a></h2>
+<ul>
+<li><strong><code>Animation&lt;C&gt;</code></strong> — <code>Animation::new(end_value).targeting(entity).start(ms).finish(ms) .eased(Ease::EMPHASIS)</code> — interpolates a single component on one entity over a time range.
+Any <code>Animate</code>-implementing component can be animated this way (<code>Location</code>, <code>Opacity</code>,
+<code>Outline</code>, … — the ones already wired via <code>enable_animation::&lt;C&gt;()</code> in their own
+<code>Attachment::attach</code>).</li>
+<li><strong><code>Sequence</code></strong> — <code>Sequence::new(tree).animate(...).animate(...).end(|trigger: Trigger&lt;OnEnd&gt;, tree: Tree| { .. })</code> — batches animations that share a starting reference point (each
+animation’s own <code>start</code>/<code>finish</code> are offsets <em>within</em> the sequence, not wall-clock times),
+with <code>.end(...)</code> firing once every animation in the sequence has finished — the usual place to
+do cleanup (<code>tree.remove(...)</code>) after a close/exit animation completes.</li>
+</ul>
+<p>With this vocabulary in hand, <a href="./authoring.html">Authoring a Widget</a> is just: which of these
+you spawn as children, and how <code>react</code> wires their values to your own widget’s config.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="reacting.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="contract.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
+                            <a rel="next prefetch" href="authoring.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -301,10 +260,13 @@ and reactive <code>react</code> calls exists in the first place.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="reacting.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="contract.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
+                    <a rel="next prefetch" href="authoring.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
             </nav>
 
         </div>

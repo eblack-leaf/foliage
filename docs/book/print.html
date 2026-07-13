@@ -36,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-37c19841.js";
+            window.path_to_searchindex_js = "searchindex-98515c77.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-4b19c649.js"></script>
+        <script src="toc-bd03f8e0.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -183,6 +183,9 @@ natively, <code>Web</code> via <code>WebAssembly</code> and <code>Android</code>
 one — the same tool builds both foliage’s own widgets (<code>Button</code>, <code>TextInput</code>, …) and your own.</p>
 <ul>
 <li><a href="#the-contract">The Contract</a> — the four verbs every widget speaks, end to end.</li>
+<li><a href="#the-primitives">The Primitives</a> — the visual/positioning/animation vocabulary
+(<code>Panel</code>/<code>Text</code>/<code>Icon</code>/<code>Image</code>, <code>Location</code>/<code>Grid</code>/<code>Elevation</code>, <code>Animation</code>/<code>Sequence</code>) that
+authoring composes, before authoring itself is introduced.</li>
 <li><a href="#authoring-a-widget">Authoring a Widget</a> — the <code>Sprout</code> trait, and why <code>build</code> is static while
 everything data-dependent goes through <code>react</code>.</li>
 <li><a href="#reacting-to-data">Reacting to Data</a> — <code>react</code>, <code>react_any</code>, and <code>forward</code>.</li>
@@ -213,8 +216,76 @@ separate from “later update.”</p>
 <p><strong>Listen via <code>tree.subscribe</code></strong>, watching for the widget’s own event type (<code>ValueChanged</code>,
 <code>SelectionChanged</code>, …) — never a child entity’s raw component writes, since children aren’t
 something a caller can name.</p>
-<p>That’s the whole end-user-facing surface. The next chapter covers the other half: how a widget
-<em>is</em> built this way in the first place.</p>
+<p>That’s the whole end-user-facing surface. Before getting to how a widget <em>is</em> built this way,
+<a href="#the-primitives">The Primitives</a> covers what’s already available to build with.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="the-primitives"><a class="header" href="#the-primitives">The Primitives</a></h1>
+<p>Before authoring anything, it helps to know what’s already in the box — the vocabulary
+<code>Authoring a Widget</code> assumes you recognize when it composes <code>Panel</code>/<code>Icon</code>/<code>Text</code>/<code>Grid</code>/
+<code>Location</code>/<code>Elevation</code> without re-explaining any of them.</p>
+<h2 id="the-visual-primitives"><a class="header" href="#the-visual-primitives">The visual primitives</a></h2>
+<p>Each of these is itself a <code>Sprout</code> — spawned the same way as anything you’d author yourself
+(<code>tree.leaf(...)</code>/<code>tree.branch(parent, ...)</code>), just with an empty <code>build</code> (see
+<a href="#authoring-a-widget">Authoring a Widget</a>): they have nothing to build underneath, they <em>are</em> the
+leaf content.</p>
+<ul>
+<li><strong><code>Panel</code></strong> — a rectangle: <code>Panel::new().color(Color::gray(800)).rounding(Rounding::Md) .outline(2)</code>. The generic surface almost everything else sits on top of.</li>
+<li><strong><code>Text</code></strong> — <code>Text::new("label")</code>, with <code>.size(FontSize::new(16))</code>. Content updates through
+<code>TextValue</code>, the same value component <code>Button</code> forwards internally.</li>
+<li><strong><code>Icon</code></strong> — <code>Icon::new(id)</code>, where <code>id</code> comes from an <code>#[icon_handle]</code>-generated enum (see
+the icon pipeline — <code>foliage_icons</code> rasterizes SVGs ahead of time into a fixed-size mip chain,
+not a runtime vector renderer). Content updates through <code>IconValue</code>.</li>
+<li><strong><code>Image</code></strong> — <code>Image::new(key)</code> where <code>key: AssetKey</code> comes from <code>load_asset!</code>/<code>Keyring</code>.
+<code>.view(ImageView::Aspect | Stretch | Crop)</code> controls how the source bitmap fills its <code>Location</code>
+— <code>Aspect</code> preserves aspect ratio and centers, <code>Stretch</code> fills exactly, <code>Crop</code> fills and clips.</li>
+<li><strong><code>Line</code></strong>/<strong><code>Shape</code></strong> — a line segment between two points (<code>Line::new(weight)</code>, positioned via
+<code>Location</code>’s point-pair form rather than a rect) — used for the connective/underline marks
+you’ll see in composite widgets like <code>Scrubber</code>.</li>
+<li><strong><code>TextInput</code></strong> — an editable text field composite (<code>foliage_proper/src/text/text_input/</code>),
+itself authored the same way as anything in <a href="#a-complete-example-button">A Complete Example</a> — not special
+library-only magic, just the first composite you’d read if you wanted a second example.</li>
+</ul>
+<h2 id="positioning"><a class="header" href="#positioning">Positioning</a></h2>
+<p>Every spawnable carries these through <code>LeafSprout</code> (<code>.at()</code>/<code>.elevate()</code>/<code>.with()</code> — see
+<a href="#authoring-a-widget">Authoring a Widget</a> for where these live in the <code>Sprout</code> trait):</p>
+<ul>
+<li><strong><code>Location</code></strong> — where an entity sits, described per breakpoint (<code>.xs(...)</code>, <code>.sm(...)</code>, …
+falling back to the next-smallest defined one). A <code>Location</code> expression is a pair of
+horizontal/vertical descriptors built from anchors like <code>0.pct().as_left()</code>,
+<code>1.col().as_left()</code>, <code>16.px().as_top()</code>, each <code>.with(...)</code> a matching far edge
+(<code>.as_right()</code>/<code>.as_bottom()</code>) or a size (<code>.as_width()</code>/<code>.as_height()</code>).</li>
+<li><strong><code>Grid</code></strong> — <code>Grid::new(columns, rows)</code> on a parent, e.g. <code>12.col().gap(8)</code> /
+<code>40.px().gap(8)</code>, is what makes a child’s <code>1.col()</code>/<code>(i+1).row()</code> in the child’s own
+<code>Location</code> resolve to real pixels — a child’s <code>Location</code> resolves against its <code>Stem</code>’s
+(parent’s) <code>Grid</code>, or the viewport if it has no parent (see <code>tree.leaf</code> vs <code>tree.branch</code>,
+<a href="#the-contract">The Contract</a>).</li>
+<li><strong><code>Anchor</code></strong> — positions an entity relative to <em>another specific entity</em> (not its parent’s
+grid) — how a modal’s backdrop tracks whatever it opened from, or a line tracks the button
+it’s annotating.</li>
+<li><strong><code>Elevation</code></strong> — z-ordering/layering, not physical size. <code>.elevate(Elevation::abs(n))</code> sets
+an absolute layer; <code>.elevate(Elevation::up(n))</code> sets it relative to the parent’s layer — the
+mandatory argument every <code>Sprout</code> requires before spawning (skipping it is a compile-reachable
+panic on purpose, see <code>tree.rs</code>’s <code>Sow::grow</code>).</li>
+</ul>
+<h2 id="styling"><a class="header" href="#styling">Styling</a></h2>
+<p><code>Color::gray(l)</code> / <code>Color::red(l)</code> / etc. take a luminance value, not raw RGB — the palette is
+closed and thematic rather than arbitrary hex. <code>Opacity</code>, <code>Rounding</code>, <code>Outline</code> are ordinary
+components any visual primitive accepts via <code>.with(...)</code> or a dedicated builder method
+(<code>Panel::new().rounding(Rounding::Full).outline(2)</code>), and (per <code>Outline</code>/<code>Opacity</code>’s
+<code>Attachment::attach</code>) are themselves animatable — see below.</p>
+<h2 id="animation"><a class="header" href="#animation">Animation</a></h2>
+<ul>
+<li><strong><code>Animation&lt;C&gt;</code></strong> — <code>Animation::new(end_value).targeting(entity).start(ms).finish(ms) .eased(Ease::EMPHASIS)</code> — interpolates a single component on one entity over a time range.
+Any <code>Animate</code>-implementing component can be animated this way (<code>Location</code>, <code>Opacity</code>,
+<code>Outline</code>, … — the ones already wired via <code>enable_animation::&lt;C&gt;()</code> in their own
+<code>Attachment::attach</code>).</li>
+<li><strong><code>Sequence</code></strong> — <code>Sequence::new(tree).animate(...).animate(...).end(|trigger: Trigger&lt;OnEnd&gt;, tree: Tree| { .. })</code> — batches animations that share a starting reference point (each
+animation’s own <code>start</code>/<code>finish</code> are offsets <em>within</em> the sequence, not wall-clock times),
+with <code>.end(...)</code> firing once every animation in the sequence has finished — the usual place to
+do cleanup (<code>tree.remove(...)</code>) after a close/exit animation completes.</li>
+</ul>
+<p>With this vocabulary in hand, <a href="#authoring-a-widget">Authoring a Widget</a> is just: which of these
+you spawn as children, and how <code>react</code> wires their values to your own widget’s config.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="authoring-a-widget"><a class="header" href="#authoring-a-widget">Authoring a Widget</a></h1>
 <p>One trait builds every widget in foliage — primitives (<code>Panel</code>, <code>Text</code>, <code>Icon</code>), library

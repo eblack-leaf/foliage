@@ -27,5 +27,5 @@ separate from "later update."
 `SelectionChanged`, ...) — never a child entity's raw component writes, since children aren't
 something a caller can name.
 
-That's the whole end-user-facing surface. The next chapter covers the other half: how a widget
-*is* built this way in the first place.
+That's the whole end-user-facing surface. Before getting to how a widget *is* built this way,
+[The Primitives](./primitives.md) covers what's already available to build with.
