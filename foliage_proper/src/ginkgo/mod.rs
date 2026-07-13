@@ -120,6 +120,16 @@ impl Ginkgo {
         mips: u32,
         data: &[u8],
     ) -> (Texture, TextureView) {
+        // wasm/WebGL2 downlevel limits cap max_texture_dimension_2d well below native --
+        // fail with a clear message here rather than let a lower-level wgpu validation
+        // panic be the first (confusing) signal on a platform an author didn't test on.
+        let max_dimension = self.context().device.limits().max_texture_dimension_2d;
+        let (width, height) = (coordinates.a() as u32, coordinates.b() as u32);
+        assert!(
+            width <= max_dimension && height <= max_dimension,
+            "texture {width}x{height} exceeds this device's max_texture_dimension_2d \
+             ({max_dimension}) -- likely fine on native, too large on wasm/WebGL2"
+        );
         let texture = self.context().device.create_texture_with_data(
             &self.context().queue,
             &TextureDescriptor {

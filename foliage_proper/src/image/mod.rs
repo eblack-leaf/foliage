@@ -8,11 +8,11 @@ use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::Trigger;
 use crate::{
-    Area, Attachment, Component, Coordinates, Foliage, Layout, LeafSprout, Logical, Numerical,
+    Area, Attachment, Component, Foliage, Layout, LeafSprout, Logical, Numerical,
     ResolvedElevation, ResolvedVisibility, Section, Sprout, Stem, Write,
 };
 use crate::{AssetKey, AssetRetrieval};
-use crate::{Differential, Tree, Visibility};
+use crate::{Differential, EcsExtension, Tree, Visibility};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::event::EntityEvent;
@@ -23,6 +23,9 @@ use bevy_ecs::system::{Query, ResMut};
 use bevy_ecs::world::DeferredWorld;
 use wgpu::TextureFormat;
 
+/// Points at asset bytes; the GPU texture identity is derived from `key` internally (see
+/// `image::pipeline::Resources::group_for`) -- there is no separate memory id to hand-assign
+/// or keep in sync with anything.
 #[derive(Component, Copy, Clone, PartialEq)]
 #[component(on_add = Self::on_add)]
 #[component(on_insert = Self::on_insert)]
@@ -32,7 +35,6 @@ use wgpu::TextureFormat;
 #[require(Differential<Image, ResolvedElevation>)]
 #[require(Differential<Image, Stem>)]
 pub struct Image {
-    pub memory_id: MemoryId,
     pub key: AssetKey,
 }
 #[derive(Component, Copy, Clone, PartialEq, Default)]
@@ -86,9 +88,6 @@ impl Attachment for Image {
             .insert_resource(RenderQueue::<Image, ImageWrite>::new());
         foliage
             .world
-            .insert_resource(RenderQueue::<Image, ImageMemory>::new());
-        foliage
-            .world
             .insert_resource(RenderQueue::<Image, CropAdjustment>::new());
         foliage
             .diff
@@ -102,25 +101,15 @@ impl Attachment for Image {
 }
 impl Image {
     pub const FORMAT: TextureFormat = TextureFormat::Rgba8Unorm;
-    pub fn new<ID: Into<MemoryId>>(memory_id: ID, key: AssetKey) -> ImageSprout {
+    pub fn new(key: AssetKey) -> ImageSprout {
         ImageSprout {
             leaf: LeafSprout::default(),
-            memory_id: memory_id.into(),
             key,
             view: None,
         }
     }
-    pub(crate) fn new_marker<ID: Into<MemoryId>>(memory_id: ID, key: AssetKey) -> Self {
-        Self {
-            memory_id: memory_id.into(),
-            key,
-        }
-    }
-    pub fn memory<C: Into<Coordinates>>(id: MemoryId, coords: C) -> ImageMemory {
-        ImageMemory {
-            memory_id: id,
-            extent: Area::from(coords),
-        }
+    pub(crate) fn new_marker(key: AssetKey) -> Self {
+        Self { key }
     }
     fn visibility_trigger(
         trigger: Trigger<Write<Visibility>>,
@@ -136,9 +125,20 @@ impl Image {
             }
         }
     }
+    /// Fires once the pending asset fetch resolves (wasm) -- re-inserting `Image` re-runs
+    /// `on_insert`, which now finds real bytes and finally allocates+uploads the texture.
+    /// Until this point, `Section<Logical>`/`ResolvedElevation`/`Stem`/`BlendedOpacity`
+    /// writes that already fired at spawn time were silently dropped (nothing in
+    /// `entity_to_memory` to route them to yet), so re-fire each so the renderer catches up
+    /// with wherever this entity already ended up.
     fn retrieve_img(trigger: Trigger<OnRetrieval>, mut tree: Tree, images: Query<&Image>) {
-        if let Ok(img) = images.get(trigger.event_target()) {
-            tree.entity(trigger.event_target()).insert(*img);
+        let this = trigger.event_target();
+        if let Ok(img) = images.get(this) {
+            tree.entity(this).insert(*img);
+            tree.refire::<(Section<Logical>,)>(this);
+            tree.refire::<(ResolvedElevation,)>(this);
+            tree.refire::<(Stem,)>(this);
+            tree.refire::<(BlendedOpacity,)>(this);
         }
     }
     fn on_add(mut world: DeferredWorld, ctx: HookContext) {
@@ -151,55 +151,46 @@ impl Image {
             .observe(Visibility::push_remove_packet::<Self>)
             .observe(Remove::push_remove_packet::<Self>);
     }
+    /// Decodes once bytes are available (native: always; wasm: once the async fetch
+    /// resolves) and pushes real dimensions + pixel data together -- there's no longer a
+    /// separately-declared size to keep in sync, and no window where a texture exists
+    /// without real data in it.
     fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
         let value = *world.get::<Image>(this).unwrap();
-        let write = if world
+        let Some(asset) = world
             .get_resource::<AssetLoader>()
             .unwrap()
-            .assets
-            .contains_key(&value.key)
-        {
-            let view = *world.get::<ImageView>(this).unwrap();
-            let rgba_image = image::load_from_memory(
-                world
-                    .get_resource::<AssetLoader>()
-                    .unwrap()
-                    .assets
-                    .get(&value.key)
-                    .unwrap()
-                    .data
-                    .as_slice(),
-            )
-            .unwrap()
-            .into_rgba8();
-            let extent = Area::from((rgba_image.width(), rgba_image.height()));
-            world
-                .commands()
-                .entity(this)
-                .insert(ImageMetrics { extent })
-                .insert(view);
-            ImageWrite {
-                image: value,
-                data: rgba_image.to_vec(),
-                extent,
-            }
-        } else {
+            .retrieve(value.key)
+        else {
             world
                 .commands()
                 .entity(this)
                 .insert(AssetRetrieval::new(value.key));
-            ImageWrite {
-                image: value,
-                data: vec![],
-                extent: Default::default(),
-            }
+            return;
         };
+        let view = *world.get::<ImageView>(this).unwrap();
+        let rgba_image = image::load_from_memory(asset.data.as_slice())
+            .unwrap()
+            .into_rgba8();
+        let extent = Area::from((rgba_image.width(), rgba_image.height()));
+        world
+            .commands()
+            .entity(this)
+            .insert(ImageMetrics { extent })
+            .insert(view);
         world
             .get_resource_mut::<RenderQueue<Image, ImageWrite>>()
             .unwrap()
             .queue
-            .insert(this, write);
+            .insert(
+                this,
+                ImageWrite {
+                    key: value.key,
+                    data: rgba_image.to_vec(),
+                    extent,
+                },
+            );
     }
     fn update(
         images: Query<
@@ -236,7 +227,6 @@ impl Image {
 }
 pub struct ImageSprout {
     leaf: LeafSprout,
-    memory_id: MemoryId,
     key: AssetKey,
     view: Option<ImageView>,
 }
@@ -245,10 +235,7 @@ impl Sprout for ImageSprout {
         &mut self.leaf
     }
     fn root(self) -> impl Bundle {
-        (
-            Image::new_marker(self.memory_id, self.key),
-            self.view.unwrap_or_default(),
-        )
+        (Image::new_marker(self.key), self.view.unwrap_or_default())
     }
 }
 impl ImageSprout {
@@ -263,26 +250,7 @@ pub struct ImageMetrics {
 }
 #[derive(Clone, PartialEq)]
 pub(crate) struct ImageWrite {
-    pub(crate) image: Image,
+    pub(crate) key: AssetKey,
     pub(crate) data: Vec<u8>,
     pub(crate) extent: Area<Numerical>,
 }
-#[derive(Component, Copy, Clone, Default)]
-#[component(on_add = Self::on_add)]
-pub struct ImageMemory {
-    pub memory_id: MemoryId,
-    pub extent: Area<Numerical>,
-}
-impl ImageMemory {
-    fn on_add(mut world: DeferredWorld, ctx: HookContext) {
-        let this = ctx.entity;
-        let memory = *world.get::<ImageMemory>(this).unwrap();
-        world
-            .get_resource_mut::<RenderQueue<Image, ImageMemory>>()
-            .unwrap()
-            .queue
-            .insert(this, memory);
-        world.commands().entity(this).despawn();
-    }
-}
-pub type MemoryId = i32;

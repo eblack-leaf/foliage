@@ -1,9 +1,9 @@
 #![allow(unused)]
 
-use crate::icons::IconHandles;
-use foliage::{load_asset, Foliage, GridExt, Icon, Image};
+use foliage::{load_asset, Foliage, GridExt};
 
 mod home;
+#[path = "assets/icons/generated.rs"]
 mod icons;
 mod portfolio;
 mod widgets;
@@ -16,74 +16,12 @@ fn main() {
     foliage.desktop_size((360, 800));
     foliage.url("foliage");
     let music_player = load_asset!(foliage, "assets/music-player.png");
-    foliage.world.spawn(Image::memory(0, (569, 419)));
     let artist_blog = load_asset!(foliage, "assets/artist-blog.png");
-    foliage.world.spawn(Image::memory(1, (1298, 785)));
     let album_cover = load_asset!(foliage, "assets/album-cover.jpg");
-    foliage.world.spawn(Image::memory(2, (1800, 1800)));
     foliage.store(music_player, "music-player");
     foliage.store(artist_blog, "artist-blog");
     foliage.store(album_cover, "album-cover");
-    foliage.world.spawn(Icon::memory(
-        IconHandles::Box.value(),
-        include_bytes!("assets/icons/box.icon"),
-    ));
-    foliage.world.spawn(Icon::memory(
-        IconHandles::Code.value(),
-        include_bytes!("assets/icons/code.icon"),
-    ));
-    foliage.world.spawn(Icon::memory(
-        IconHandles::BookOpen.value(),
-        include_bytes!("assets/icons/book-open.icon"),
-    ));
-    foliage.world.spawn(Icon::memory(
-        IconHandles::Layers.value(),
-        include_bytes!("assets/icons/layers.icon"),
-    ));
-    foliage.world.spawn(Icon::memory(
-        IconHandles::Terminal.value(),
-        include_bytes!("assets/icons/terminal.icon"),
-    ));
-    foliage.world.spawn(Icon::memory(
-        IconHandles::Github.value(),
-        include_bytes!("assets/icons/github.icon"),
-    ));
-    foliage.world.spawn(Icon::memory(
-        IconHandles::ArrowUp.value(),
-        include_bytes!("assets/icons/arrow-up.icon"),
-    ));
-    foliage.world.spawn(Icon::memory(
-        IconHandles::X.value(),
-        include_bytes!("assets/icons/x.icon"),
-    ));
-    foliage.world.spawn(Icon::memory(
-        IconHandles::Menu.value(),
-        include_bytes!("assets/icons/menu.icon"),
-    ));
-    foliage.world.spawn(Icon::memory(
-        IconHandles::Play.value(),
-        include_bytes!("assets/icons/play-circle.icon"),
-    ));
-    foliage.world.spawn(Icon::memory(
-        IconHandles::Shuffle.value(),
-        include_bytes!("assets/icons/shuffle.icon"),
-    ));
-    foliage.world.spawn(Icon::memory(
-        IconHandles::Repeat.value(),
-        include_bytes!("assets/icons/repeat.icon"),
-    ));
-    foliage.world.spawn(Icon::memory(
-        IconHandles::SkipLeft.value(),
-        include_bytes!("assets/icons/chevrons-left.icon"),
-    ));
-    foliage.world.spawn(Icon::memory(
-        IconHandles::SkipRight.value(),
-        include_bytes!("assets/icons/chevrons-right.icon"),
-    ));
-    foliage.world.spawn(Icon::memory(
-        IconHandles::Search.value(),
-        include_bytes!("assets/icons/search.icon"),
-    ));
+    icons::register(&mut foliage);
     home::build(&mut foliage.world);
     foliage.photosynthesize(); // run
 }

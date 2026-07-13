@@ -5,8 +5,8 @@ use crate::icons::IconHandles;
 use crate::widgets::{Launch, ProjectCard};
 use foliage::{
     anchor, Anchor, Animation, Button, Color, Ease, EcsExtension, Elevation, Entity, Grid, GridExt,
-    Keyring, Leaf, Location, MemoryId, OnClick, OnEnd, Opacity, Panel, Res, Rounding, Sequence,
-    Sprout, Tree, Trigger,
+    Keyring, Leaf, Location, OnClick, OnEnd, Opacity, Panel, Res, Rounding, Sequence, Sprout, Tree,
+    Trigger,
 };
 
 pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
@@ -51,7 +51,7 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
     let back = tree.leaf(
         Button::new()
             .rounding(Rounding::Full)
-            .icon(IconHandles::ArrowUp.value())
+            .icon(IconHandles::ArrowUp.into())
             .colors(Color::gray(300), Color::gray(700))
             .at(Location::new().xs(
                 50.pct().as_center_x().with(48.px().as_width()),
@@ -90,7 +90,7 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
                 ProjectCard::new()
                     .title(item.title)
                     .desc(item.desc)
-                    .image(i as MemoryId, keyring.get(item.key))
+                    .image(keyring.get(item.key))
                     .at(Location::new().xs(
                         1.col().as_left().with(12.col().as_right()).max(450.0),
                         (i + 1).row().as_top().with((i + 1).row().as_bottom()),
@@ -118,7 +118,7 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
                     let terminate = tree.leaf(
                         Button::new()
                             .rounding(Rounding::Full)
-                            .icon(IconHandles::X.value())
+                            .icon(IconHandles::X.into())
                             .colors(Color::gray(200), Color::orange(800))
                             .at(Location::new().xs(
                                 16.px().as_left().with(40.px().as_width()),

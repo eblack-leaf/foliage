@@ -30,6 +30,21 @@ pub(crate) struct Group {
     colors: InstanceBuffer<CReprColor>,
     mips: InstanceBuffer<Mips>,
     opacities: InstanceBuffer<BlendedOpacity>,
+    mip_count: u32,
+}
+/// Picks the sharpest mip level that still covers `scale_factor`, in a chain where level 0
+/// is the largest/mip-0 (`base`) and each subsequent level is exactly half the previous
+/// (`base >> level`, the shape wgpu's texture upload requires) -- generalizes what was a
+/// hardcoded 3-level 96/48/24 threshold ladder to any `mip_count`.
+fn mip_level_for_scale(mip_count: u32, scale_factor: f32) -> f32 {
+    let rounded = scale_factor.round().max(1.0) as u32;
+    let mut level = mip_count.saturating_sub(1);
+    let mut covered = 1u32;
+    while covered < rounded && level > 0 {
+        level -= 1;
+        covered <<= 1;
+    }
+    level as f32
 }
 impl Render for Icon {
     type Group = Group;
@@ -154,9 +169,9 @@ impl Render for Icon {
         for (_, mem) in queues.attribute::<Icon, IconMemory>() {
             let (_, view) = ginkgo.create_texture(
                 TextureFormat::R8Unorm,
-                Self::TEXTURE_SCALE,
-                3,
-                mem.bytes.as_slice(),
+                mem.texture_scale,
+                mem.mip_count,
+                mem.resolved_bytes(),
             );
             let group = Group {
                 bind_group: ginkgo.create_bind_group(&BindGroupDescriptor {
@@ -169,6 +184,7 @@ impl Render for Icon {
                 colors: InstanceBuffer::new(ginkgo, 1),
                 mips: InstanceBuffer::new(ginkgo, 1),
                 opacities: InstanceBuffer::new(ginkgo, 1),
+                mip_count: mem.mip_count,
             };
             renderer.groups.insert(mem.id, RenderGroup::new(group));
         }
@@ -201,14 +217,8 @@ impl Render for Icon {
                 .group
                 .sections
                 .queue(id, section.to_physical(sf.value()).rounded().c_repr());
-            let rounded = sf.value().round();
-            if rounded >= 3.0 {
-                group.group.mips.queue(id, Mips(0.0));
-            } else if rounded >= 2.0 {
-                group.group.mips.queue(id, Mips(1.0));
-            } else {
-                group.group.mips.queue(id, Mips(2.0));
-            }
+            let level = mip_level_for_scale(group.group.mip_count, sf.value());
+            group.group.mips.queue(id, Mips(level));
         }
         for (entity, elevation) in queues.attribute::<Icon, ResolvedElevation>() {
             let gid = renderer.resources.entity_to_group.get(&entity).unwrap();

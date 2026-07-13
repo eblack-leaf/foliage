@@ -3,10 +3,12 @@ use crate::ash::instance::{Instance, InstanceBuffer, InstanceId};
 use crate::ash::node::{Nodes, RemoveNode};
 use crate::ash::render::{GroupId, Parameters, PipelineId, Render, RenderGroup, Renderer};
 use crate::ginkgo::Ginkgo;
-use crate::image::{CropAdjustment, Image, ImageMemory, ImageWrite};
+use crate::image::{CropAdjustment, Image, ImageWrite};
 use crate::opacity::BlendedOpacity;
 use crate::texture::TextureCoordinates;
-use crate::{texture, Area, CReprSection, Logical, Numerical, ResolvedElevation, Section, Stem};
+use crate::{
+    texture, Area, AssetKey, CReprSection, Logical, Numerical, ResolvedElevation, Section, Stem,
+};
 use bevy_ecs::entity::Entity;
 use std::collections::HashMap;
 use wgpu::{
@@ -19,14 +21,28 @@ use wgpu::{
 pub(crate) struct Resources {
     group_layout: BindGroupLayout,
     entity_to_memory: HashMap<Entity, GroupId>,
+    /// Auto-allocated GPU group identity, keyed by `AssetKey` -- replaces the old
+    /// hand-assigned `MemoryId` the caller used to have to invent and keep in sync.
+    key_to_group: HashMap<AssetKey, GroupId>,
+    next_group: GroupId,
+}
+impl Resources {
+    fn group_for(&mut self, key: AssetKey) -> GroupId {
+        *self.key_to_group.entry(key).or_insert_with(|| {
+            let id = self.next_group;
+            self.next_group += 1;
+            id
+        })
+    }
 }
 pub(crate) struct Group {
     texture: Texture,
     #[allow(unused)]
     view: TextureView,
     bind_group: BindGroup,
-    memory_extent: Area<Numerical>,
-    image_extent: Area<Numerical>,
+    /// The texture is always allocated to exactly the decoded image's real size now, so
+    /// there's no separate declared-vs-real extent to track -- one field, not two.
+    extent: Area<Numerical>,
     texture_coordinates: TextureCoordinates,
     sections: InstanceBuffer<CReprSection>,
     elevations: InstanceBuffer<ResolvedElevation>,
@@ -122,6 +138,8 @@ impl Render for Image {
             resources: Resources {
                 group_layout,
                 entity_to_memory: Default::default(),
+                key_to_group: Default::default(),
+                next_group: 0,
             },
         }
     }
@@ -148,86 +166,56 @@ impl Render for Image {
                 queues.remove_attr::<Image, ImageWrite>(entity);
             }
         }
-        for (_, memory) in queues.attribute::<Image, ImageMemory>() {
-            let (tex, view) = ginkgo.create_texture(
-                Image::FORMAT,
-                memory.extent.coordinates,
-                1,
-                bytemuck::cast_slice(&vec![
-                    0f32;
-                    memory.extent.width() as usize
-                        * memory.extent.height() as usize
-                ]),
-            );
-            let g = Group {
-                texture: tex,
-                bind_group: ginkgo.create_bind_group(&BindGroupDescriptor {
-                    label: Some("image-group-bind-group"),
-                    layout: &renderer.resources.group_layout,
-                    entries: &[Ginkgo::texture_bind_group_entry(&view, 0)],
-                }),
-                view,
-                memory_extent: memory.extent,
-                image_extent: Default::default(),
-                texture_coordinates: Default::default(),
-                sections: InstanceBuffer::new(ginkgo, 1),
-                elevations: InstanceBuffer::new(ginkgo, 1),
-                coords: InstanceBuffer::new(ginkgo, 1),
-                opaque: InstanceBuffer::new(ginkgo, 1),
-            };
-            renderer
-                .groups
-                .insert(memory.memory_id, RenderGroup::new(g));
-        }
         for (entity, image) in queues.attribute::<Image, ImageWrite>() {
+            let group_id = renderer.resources.group_for(image.key);
             tracing::trace!(
                 entity = ?entity,
-                memory_id = ?image.image.memory_id,
+                group = group_id,
                 extent = ?image.extent,
-                "image-pipeline: ImageWrite packet (populates entity_to_memory)"
+                "image-pipeline: ImageWrite packet (allocates-or-reuses the group, populates entity_to_memory)"
             );
-            let group = renderer.groups.get_mut(&image.image.memory_id).unwrap();
-            if image.extent != Area::default() {
-                ginkgo.context().queue.write_texture(
-                    TexelCopyTextureInfo {
-                        texture: &group.group.texture,
-                        mip_level: 0,
-                        origin: Origin3d::default(),
-                        aspect: TextureAspect::All,
-                    },
+            if !renderer.groups.contains_key(&group_id) {
+                // First entity to reach this AssetKey: allocate a texture sized exactly to
+                // the real decoded image and upload in the same step -- no separate
+                // pre-declared size, no window where the texture exists without real data.
+                let (tex, view) = ginkgo.create_texture(
+                    Image::FORMAT,
+                    image.extent.coordinates,
+                    1,
                     bytemuck::cast_slice(&image.data),
-                    TexelCopyBufferLayout {
-                        offset: 0,
-                        bytes_per_row: Some(image.extent.width() as u32 * size_of::<f32>() as u32),
-                        rows_per_image: Some(image.extent.height() as u32),
-                    },
-                    Extent3d {
-                        width: image.extent.width() as u32,
-                        height: image.extent.height() as u32,
-                        depth_or_array_layers: 1,
-                    },
                 );
+                let g = Group {
+                    texture: tex,
+                    bind_group: ginkgo.create_bind_group(&BindGroupDescriptor {
+                        label: Some("image-group-bind-group"),
+                        layout: &renderer.resources.group_layout,
+                        entries: &[Ginkgo::texture_bind_group_entry(&view, 0)],
+                    }),
+                    view,
+                    extent: image.extent,
+                    texture_coordinates: TextureCoordinates::from_section(
+                        Section::new((0, 0), image.extent.coordinates),
+                        image.extent.coordinates,
+                    ),
+                    sections: InstanceBuffer::new(ginkgo, 1),
+                    elevations: InstanceBuffer::new(ginkgo, 1),
+                    coords: InstanceBuffer::new(ginkgo, 1),
+                    opaque: InstanceBuffer::new(ginkgo, 1),
+                };
+                renderer.groups.insert(group_id, RenderGroup::new(g));
             }
-            group.group.image_extent = image.extent;
-            group.group.texture_coordinates = TextureCoordinates::from_section(
-                Section::new((0, 0), image.extent.coordinates),
-                group.group.memory_extent.coordinates,
-            );
             if let Some((e, g)) = renderer
                 .resources
                 .entity_to_memory
                 .iter()
-                .find(|(e, g)| **g == image.image.memory_id && **e != entity)
+                .find(|(e, g)| **g == group_id && **e != entity)
             {
                 panic!(
                     "overwriting existing image group {} with active entity {:?} from {:?}",
                     g, e, entity
                 )
             }
-            renderer
-                .resources
-                .entity_to_memory
-                .insert(entity, image.image.memory_id);
+            renderer.resources.entity_to_memory.insert(entity, group_id);
         }
         for (entity, elevation) in queues.attribute::<Image, ResolvedElevation>() {
             tracing::trace!(

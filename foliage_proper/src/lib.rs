@@ -74,7 +74,7 @@ pub use grid::{
 };
 pub use grid::{Anchor, AnchorDeps, AnchorDescriptor, GridExt, Justify};
 pub use icon::{Icon, IconId, IconMemory, IconSprout};
-pub use image::{Image, ImageMemory, ImageMetrics, ImageSprout, ImageView, MemoryId};
+pub use image::{Image, ImageMetrics, ImageSprout, ImageView};
 pub use interaction::CurrentInteraction;
 pub use interaction::{
     listener::InteractionListener, listener::InteractionShape, listener::InteractionState,

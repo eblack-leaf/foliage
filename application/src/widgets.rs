@@ -8,8 +8,8 @@ use foliage::bevy_ecs;
 use foliage::{
     targeted_event, AssetKey, Children, Color, Component, Dragged, EcsExtension, Elevation, Entity,
     FocusBehavior, FontSize, Grid, GridExt, Image, ImageView, Insert, InteractionListener,
-    InteractionPropagation, Leaf, LeafSprout, Line, Location, Logical, MemoryId, OnClick, Panel,
-    Query, Res, Rounding, Section, Sprout, Text, TextValue, Tree, Trigger,
+    InteractionPropagation, Leaf, LeafSprout, Line, Location, Logical, OnClick, Panel, Query, Res,
+    Rounding, Section, Sprout, Text, TextValue, Tree, Trigger,
 };
 
 // ===========================================================================
@@ -22,7 +22,7 @@ use foliage::{
 pub(crate) struct ProjectInfo {
     pub(crate) title: String,
     pub(crate) desc: String,
-    pub(crate) image: Option<(MemoryId, AssetKey)>,
+    pub(crate) image: Option<AssetKey>,
 }
 
 /// Emitted at the card root when the user activates it (image or launch button).
@@ -51,8 +51,8 @@ impl ProjectCardSprout {
         self.info.desc = d.into();
         self
     }
-    pub(crate) fn image(mut self, memory: MemoryId, key: AssetKey) -> Self {
-        self.info.image = Some((memory, key));
+    pub(crate) fn image(mut self, key: AssetKey) -> Self {
+        self.info.image = Some(key);
         self
     }
 }
@@ -110,7 +110,7 @@ impl Sprout for ProjectCardSprout {
         let launch = tree.branch(
             info,
             foliage::Button::new()
-                .icon(crate::icons::IconHandles::Box.value())
+                .icon(crate::icons::IconHandles::Box.into())
                 .rounding(Rounding::Full)
                 .colors(Color::gray(900), Color::orange(800))
                 .at(Location::new().xs(
@@ -139,10 +139,10 @@ impl Sprout for ProjectCardSprout {
                 if let Some(prev) = current_image.take() {
                     tree.remove(prev);
                 }
-                if let Some((memory, key)) = info.image {
+                if let Some(key) = info.image {
                     let display = tree.branch(
                         card,
-                        Image::new(memory, key)
+                        Image::new(key)
                             .view(ImageView::Crop)
                             .at(Location::new().xs(
                                 1.col().as_left().with(1.col().as_right()),

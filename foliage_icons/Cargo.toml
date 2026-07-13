@@ -1,0 +1,15 @@
+[package]
+name = "foliage_icons"
+version = "0.1.0"
+edition = "2021"
+description = "SVG -> foliage .icon binary format generator, plus registration codegen"
+
+[[bin]]
+name = "foliage_icons"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.6.1", features = ["derive"] }
+resvg = "0.47.0"
+tiny-skia = "0.12.0"
+usvg = "0.47.0"

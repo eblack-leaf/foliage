@@ -25,7 +25,7 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
     let menu = tree.branch(
         app,
         Button::new()
-            .icon(IconHandles::Menu.value())
+            .icon(IconHandles::Menu.into())
             .colors(Color::gray(200), Color::gray(800))
             .rounding(Rounding::Full)
             .at(Location::new().xs(
@@ -52,7 +52,7 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
     );
     tree.branch(
         search,
-        Icon::new(IconHandles::Search.value())
+        Icon::new(IconHandles::Search)
             .color(Color::gray(400))
             .at(Location::new().xs(
                 8.px().as_left().with(24.px().as_width()),
@@ -75,7 +75,7 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
     );
     tree.branch(
         app,
-        Image::new(2, keyring.get("album-cover"))
+        Image::new(keyring.get("album-cover"))
             .view(ImageView::Aspect)
             .at(Location::new().xs(
                 1.col()
@@ -133,11 +133,11 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
             .with(Grid::new(5.col().gap(8), 1.row().gap(8))),
     );
     let control_buttons: Vec<Entity> = [
-        (1, IconHandles::Shuffle.value(), Color::gray(900)),
-        (2, IconHandles::SkipLeft.value(), Color::gray(900)),
-        (3, IconHandles::Play.value(), Color::green(500)),
-        (4, IconHandles::SkipRight.value(), Color::gray(900)),
-        (5, IconHandles::Repeat.value(), Color::gray(900)),
+        (1, IconHandles::Shuffle.into(), Color::gray(900)),
+        (2, IconHandles::SkipLeft.into(), Color::gray(900)),
+        (3, IconHandles::Play.into(), Color::green(500)),
+        (4, IconHandles::SkipRight.into(), Color::gray(900)),
+        (5, IconHandles::Repeat.into(), Color::gray(900)),
     ]
     .into_iter()
     .map(|(col, icon, secondary)| {

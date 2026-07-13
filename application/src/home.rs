@@ -152,7 +152,7 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
     let github = tree.branch(
         root,
         Button::new()
-            .icon(IconHandles::Github.value())
+            .icon(IconHandles::Github.into())
             .rounding(Rounding::Full)
             .colors(Color::gray(200), Color::gray(800))
             .at(Location::new().xs(
@@ -212,7 +212,7 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
     let option_rows: Vec<(Entity, Entity, Entity)> = [
         (
             1,
-            IconHandles::Terminal.value(),
+            IconHandles::Terminal.into(),
             Color::green(700),
             "on-click: usage",
             10..15,
@@ -221,7 +221,7 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         ),
         (
             2,
-            IconHandles::Layers.value(),
+            IconHandles::Layers.into(),
             Color::green(500),
             "on-click: impl",
             10..14,
@@ -230,7 +230,7 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
         ),
         (
             3,
-            IconHandles::BookOpen.value(),
+            IconHandles::BookOpen.into(),
             Color::green(300),
             "on-click: docs",
             10..14,
@@ -300,7 +300,7 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
     let portfolio = tree.branch(
         root,
         Button::new()
-            .icon(IconHandles::Code.value())
+            .icon(IconHandles::Code.into())
             .text("Portfolio")
             .rounding(Rounding::Sm)
             .colors(Color::orange(500), Color::gray(900))
