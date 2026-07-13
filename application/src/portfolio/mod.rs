@@ -2,41 +2,22 @@ pub(crate) mod demo;
 pub(crate) mod music_player;
 
 use crate::icons::IconHandles;
-use crate::widgets::{icon_button, Launch, ProjectCard};
+use crate::widgets::{icon_button, Closed, Launch, Modal, ProjectCard};
 use foliage::{
-    anchor, Anchor, Animation, Color, Ease, EcsExtension, Elevation, Entity, Grid, GridExt,
-    Keyring, Leaf, Location, OnClick, OnEnd, Opacity, Panel, Res, Rounding, Sequence, Sprout, Tree,
-    Trigger,
+    Animation, Color, Ease, EcsExtension, Elevation, Entity, Grid, GridExt, Keyring, Leaf,
+    Location, OnClick, OnEnd, Opacity, Panel, Res, Rounding, Sequence, Sprout, Tree, Trigger,
 };
-
-/// Backdrop (anchored over `card_root`) + the round close button in its corner -- identical
-/// every time regardless of which card opened it, so unlike `spawn_modal_content` this is a
-/// genuine repeatable shape, not just a bloat-reduction split.
-fn spawn_modal_chrome(tree: &mut Tree, card_root: Entity) -> (Entity, Entity) {
-    let backdrop = tree.leaf(
-        Panel::new()
-            .color(Color::gray(800))
-            .at(Location::new().xs(
-                anchor().left().as_left().with(anchor().right().as_right()),
-                anchor().top().as_top().with(anchor().bottom().as_bottom()),
-            ))
-            .elevate(Elevation::abs(50))
-            .with((Anchor::new(card_root), Opacity::new(0.0), Grid::default())),
-    );
-    let terminate = tree.leaf(
-        icon_button(IconHandles::X, Color::gray(200), Color::orange(800))
-            .at(Location::new().xs(
-                16.px().as_left().with(40.px().as_width()),
-                16.px().as_top().with(40.px().as_height()),
-            ))
-            .elevate(Elevation::abs(95)),
-    );
-    (backdrop, terminate)
-}
 
 /// The panel each modal's content lives in, plus injecting that content -- isolated here so
 /// the `music_player`-vs-`demo` branch reads as one named step instead of sitting mid-closure.
-fn spawn_modal_content(tree: &mut Tree, backdrop: Entity, i: usize, keyring: &Keyring) -> Entity {
+/// `album_cover` is pre-resolved from the `Keyring` at the call site rather than threading a
+/// whole `Keyring` reference into `Modal`'s content closure, which needs to be `'static`.
+fn spawn_modal_content(
+    tree: &mut Tree,
+    backdrop: Entity,
+    i: usize,
+    album_cover: Option<foliage::AssetKey>,
+) -> Entity {
     let app_base = Leaf::sprout()
         .at(Location::new().xs(
             0.pct().as_left().with(100.pct().as_right()),
@@ -59,10 +40,49 @@ fn spawn_modal_content(tree: &mut Tree, backdrop: Entity, i: usize, keyring: &Ke
         ),
     };
     match i {
-        0 => music_player::build(tree, app, keyring),
+        0 => music_player::build(tree, app, album_cover.expect("album cover key")),
         _ => demo::build(tree, app),
     }
     app
+}
+
+/// `root`/`back` fade out together whenever a card opens into a modal -- separate from
+/// `Modal`'s own open animation since `root`/`back` are page-level, not the modal's concern.
+fn fade_page_chrome_out(tree: &mut Tree, root: Entity, back: Entity) {
+    Sequence::new(tree)
+        .animate(
+            Animation::new(Opacity::new(0.0))
+                .targeting(root)
+                .start(0)
+                .finish(500),
+        )
+        .animate(
+            Animation::new(Opacity::new(0.0))
+                .targeting(back)
+                .start(0)
+                .finish(500),
+        );
+}
+
+/// The mirror of `fade_page_chrome_out`, timed to land near the end of `Modal`'s own close
+/// animation, re-enabling both once fully faded back in.
+fn fade_page_chrome_in(tree: &mut Tree, root: Entity, back: Entity) {
+    Sequence::new(tree)
+        .animate(
+            Animation::new(Opacity::new(1.0))
+                .targeting(root)
+                .start(1000)
+                .finish(1500),
+        )
+        .animate(
+            Animation::new(Opacity::new(1.0))
+                .targeting(back)
+                .start(1000)
+                .finish(1500),
+        )
+        .end(move |_: Trigger<OnEnd>, mut tree: Tree| {
+            tree.enable([root, back]);
+        });
 }
 
 pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
@@ -152,120 +172,21 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
                     .with(Opacity::new(0.0)),
             );
             last = i + 2;
-            let open_modal =
-                move |trigger: Trigger<Launch>, mut tree: Tree, keyring: Res<Keyring>| {
-                    tree.disable([root, back]);
-                    // spawn everything first -- animating happens once every entity involved
-                    // already exists, so it's one uninterrupted Sequence chain below instead of
-                    // animate calls threaded between spawns.
-                    let (backdrop, terminate) = spawn_modal_chrome(&mut tree, card_root);
-                    let app = spawn_modal_content(&mut tree, backdrop, i, &keyring);
-                    tree.on_click(
-                        terminate,
-                        move |trigger: Trigger<OnClick>, mut tree: Tree| {
-                            Sequence::new(&mut tree)
-                                .animate(
-                                    Animation::new(Opacity::new(0.0))
-                                        .targeting(terminate)
-                                        .start(0)
-                                        .finish(500),
-                                )
-                                .animate(
-                                    Animation::new(
-                                        Location::new().xs(
-                                            0.pct()
-                                                .as_left()
-                                                .adjust(24)
-                                                .with(100.pct().as_right().adjust(-24))
-                                                .max(450.0),
-                                            0.pct()
-                                                .as_top()
-                                                .adjust(36)
-                                                .with(100.pct().as_bottom().adjust(-36)),
-                                        ),
-                                    )
-                                    .targeting(backdrop)
-                                    .start(0)
-                                    .finish(500)
-                                    .eased(Ease::INWARD),
-                                )
-                                .animate(
-                                    Animation::new(Location::new().xs(
-                                        anchor().left().as_left().with(anchor().right().as_right()),
-                                        anchor().top().as_top().with(anchor().bottom().as_bottom()),
-                                    ))
-                                    .targeting(backdrop)
-                                    .start(750)
-                                    .finish(1250),
-                                )
-                                .animate(
-                                    Animation::new(Opacity::new(1.0))
-                                        .targeting(root)
-                                        .start(1000)
-                                        .finish(1500),
-                                )
-                                .animate(
-                                    Animation::new(Opacity::new(1.0))
-                                        .targeting(back)
-                                        .start(1000)
-                                        .finish(1500),
-                                )
-                                .end(move |trigger: Trigger<OnEnd>, mut tree: Tree| {
-                                    tree.remove([terminate, backdrop]);
-                                    tree.enable([root, back]);
-                                });
-                            tree.disable(terminate);
-                            tree.remove(app);
-                        },
-                    );
-                    Sequence::new(&mut tree)
-                        .animate(
-                            Animation::new(Opacity::new(0.0))
-                                .targeting(root)
-                                .start(0)
-                                .finish(500),
-                        )
-                        .animate(
-                            Animation::new(Opacity::new(0.0))
-                                .targeting(back)
-                                .start(0)
-                                .finish(500),
-                        )
-                        .animate(
-                            Animation::new(Opacity::new(1.0))
-                                .targeting(backdrop)
-                                .start(0)
-                                .finish(200),
-                        )
-                        .animate(
-                            Animation::new(
-                                Location::new().xs(
-                                    0.pct()
-                                        .as_left()
-                                        .adjust(24)
-                                        .with(100.pct().as_right().adjust(-24))
-                                        .max(450.0),
-                                    0.pct()
-                                        .as_top()
-                                        .adjust(36)
-                                        .with(100.pct().as_bottom().adjust(-36)),
-                                ),
-                            )
-                            .targeting(backdrop)
-                            .start(0)
-                            .finish(750)
-                            .eased(Ease::INWARD),
-                        )
-                        .animate(
-                            Animation::new(Location::new().xs(
-                                0.pct().as_left().with(100.pct().as_right()),
-                                0.pct().as_top().with(100.pct().as_bottom()),
-                            ))
-                            .targeting(backdrop)
-                            .start(1000)
-                            .finish(1500),
-                        );
-                };
+            let album_cover = (i == 0).then(|| keyring.get("album-cover"));
+            let open_modal = move |trigger: Trigger<Launch>, mut tree: Tree| {
+                tree.disable([root, back]);
+                fade_page_chrome_out(&mut tree, root, back);
+                let modal = tree.leaf(
+                    Modal::new(card_root)
+                        .content(move |tree: &mut Tree, backdrop: Entity| {
+                            spawn_modal_content(tree, backdrop, i, album_cover)
+                        })
+                        .elevate(Elevation::abs(50)),
+                );
+                tree.subscribe(modal, move |_: Trigger<Closed>, mut tree: Tree| {
+                    fade_page_chrome_in(&mut tree, root, back);
+                });
+            };
             tree.subscribe(card_root, open_modal);
             card_root
         })

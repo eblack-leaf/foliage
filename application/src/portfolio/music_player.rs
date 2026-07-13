@@ -4,8 +4,8 @@ use foliage::bevy_ecs;
 use foliage::Component;
 use foliage::Justify::Center;
 use foliage::{
-    Animation, ButtonStyle, Color, EcsExtension, Elevation, Entity, FontSize, Grid, GridExt,
-    HorizontalAlignment, Icon, Image, ImageView, Keyring, Leaf, Location, OnClick, Opacity,
+    Animation, AssetKey, ButtonStyle, Color, EcsExtension, Elevation, Entity, FontSize, Grid,
+    GridExt, HorizontalAlignment, Icon, Image, ImageView, Leaf, Location, OnClick, Opacity,
     Outline, Panel, Query, Rounding, Sequence, Sprout, Text, TextInput, Tree, Trigger,
     VerticalAlignment,
 };
@@ -15,7 +15,7 @@ use foliage::{
 #[derive(Component, Copy, Clone)]
 struct Playing(bool);
 
-pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
+pub(crate) fn build(tree: &mut Tree, app: Entity, album_cover: AssetKey) {
     Sequence::new(tree).animate(
         Animation::new(Opacity::new(1.0))
             .start(1000)
@@ -72,7 +72,7 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
     );
     tree.branch(
         app,
-        Image::new(keyring.get("album-cover"))
+        Image::new(album_cover)
             .view(ImageView::Aspect)
             .at(Location::new().xs(
                 1.col()

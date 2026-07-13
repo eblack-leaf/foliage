@@ -6,12 +6,13 @@
 // the foliage re-export satisfies them with no direct dependency.
 use foliage::bevy_ecs;
 use foliage::{
-    targeted_event, AssetKey, Button, ButtonSprout, Children, Color, Component, Dragged,
-    EcsExtension, Elevation, Entity, FocusBehavior, FontSize, Grid, GridExt, IconId, Image,
-    ImageView, Insert, InteractionListener, InteractionPropagation, Leaf, LeafSprout, Line,
-    Location, Logical, OnClick, Panel, Query, Res, Rounding, Section, Sprout, Text, TextValue,
-    Tree, Trigger,
+    anchor, targeted_event, Anchor, Animation, AssetKey, Button, ButtonSprout, Children, Color,
+    Component, Dragged, Ease, EcsExtension, Elevation, Entity, EntityEvent, FocusBehavior,
+    FontSize, Grid, GridExt, IconId, Image, ImageView, Insert, InteractionListener,
+    InteractionPropagation, Leaf, LeafSprout, Line, Location, Logical, OnClick, OnEnd, Opacity,
+    Panel, Query, Res, Rounding, Section, Sequence, Sprout, Text, TextValue, Tree, Trigger,
 };
+use std::sync::Arc;
 
 /// A round icon-only button -- the shape every icon button in this app shares, differing only
 /// in icon/colors/outline. Just a canned `ButtonSprout` config, not a new widget: callers keep
@@ -287,6 +288,197 @@ impl Sprout for ScrubberSprout {
                     ),
                 );
                 tree.trigger_targets(Scrubbed::new(value), trigger.entity);
+            },
+        );
+    }
+}
+
+// ===========================================================================
+// Modal -- a backdrop that grows from an anchor entity to fill the screen, holding
+// caller-injected content, with a close button that shrinks it back and removes it.
+// One entity: `tree.leaf(Modal::new(anchor_to).content(|tree, backdrop| ..))`, listen for
+// `Closed`. Backdrop/terminate/content are all private -- nothing outside needs their ids,
+// which is exactly why this can be a real widget where `OptionRow`-shaped page decoration
+// can't: nothing here needs per-child animation timing driven from outside `build`.
+// ===========================================================================
+
+#[derive(Component)]
+pub(crate) struct Modal {}
+
+/// Emitted once Modal has finished animating closed and removed itself -- the caller's cue
+/// to re-enable whatever it disabled when the modal opened.
+#[targeted_event]
+#[derive(Copy)]
+pub(crate) struct Closed {}
+
+#[derive(Component, Clone)]
+struct ModalConfig {
+    anchor_to: Entity,
+    /// Builds the modal's content as a child of the backdrop, once the backdrop actually
+    /// exists (spawning is deferred behind `react`, so this can't happen at `Modal::new`
+    /// call time) -- returns the content's own root so it can be removed immediately on
+    /// close instead of waiting for the whole backdrop to finish animating away.
+    content: Arc<dyn Fn(&mut Tree, Entity) -> Entity + Send + Sync>,
+}
+
+pub(crate) struct ModalSprout {
+    leaf: LeafSprout,
+    anchor_to: Entity,
+    content: Option<Arc<dyn Fn(&mut Tree, Entity) -> Entity + Send + Sync>>,
+}
+impl Modal {
+    /// `anchor_to` is the entity the backdrop grows from (a card's own root, say).
+    pub(crate) fn new(anchor_to: Entity) -> ModalSprout {
+        ModalSprout {
+            leaf: LeafSprout::default(),
+            anchor_to,
+            content: None,
+        }
+    }
+}
+impl ModalSprout {
+    pub(crate) fn content(
+        mut self,
+        f: impl Fn(&mut Tree, Entity) -> Entity + Send + Sync + 'static,
+    ) -> Self {
+        self.content = Some(Arc::new(f));
+        self
+    }
+}
+impl Sprout for ModalSprout {
+    fn seed(&mut self) -> &mut LeafSprout {
+        &mut self.leaf
+    }
+    fn root(self) -> impl foliage::Bundle {
+        (
+            Modal {},
+            ModalConfig {
+                anchor_to: self.anchor_to,
+                content: self.content.expect("Modal::content(..) is required"),
+            },
+            Grid::default(),
+        )
+    }
+    fn build<T: EcsExtension>(this: Entity, tree: &mut T) {
+        tree.react::<ModalConfig, _>(
+            this,
+            move |trigger: Trigger<Insert, ModalConfig>,
+                  configs: Query<&ModalConfig>,
+                  mut tree: Tree| {
+                let cfg = configs.get(trigger.event_target()).unwrap().clone();
+                // top-level tree.leaf(..), not tree.branch(this, ..): before Modal was a
+                // Sprout, these were always spawned stem-less -- keeping them that way here
+                // instead of nesting under Modal's own wrapper root.
+                let backdrop = tree.leaf(
+                    Panel::new()
+                        .color(Color::gray(800))
+                        .at(Location::new().xs(
+                            anchor().left().as_left().with(anchor().right().as_right()),
+                            anchor().top().as_top().with(anchor().bottom().as_bottom()),
+                        ))
+                        .elevate(Elevation::abs(50))
+                        .with((
+                            Anchor::new(cfg.anchor_to),
+                            Opacity::new(0.0),
+                            Grid::default(),
+                        )),
+                );
+                let terminate = tree.leaf(
+                    icon_button(
+                        crate::icons::IconHandles::X,
+                        Color::gray(200),
+                        Color::orange(800),
+                    )
+                    .at(Location::new().xs(
+                        16.px().as_left().with(40.px().as_width()),
+                        16.px().as_top().with(40.px().as_height()),
+                    ))
+                    .elevate(Elevation::abs(95)),
+                );
+                let content = (cfg.content)(&mut tree, backdrop);
+
+                Sequence::new(&mut tree)
+                    .animate(
+                        Animation::new(Opacity::new(1.0))
+                            .targeting(backdrop)
+                            .start(0)
+                            .finish(200),
+                    )
+                    .animate(
+                        Animation::new(
+                            Location::new().xs(
+                                0.pct()
+                                    .as_left()
+                                    .adjust(24)
+                                    .with(100.pct().as_right().adjust(-24))
+                                    .max(450.0),
+                                0.pct()
+                                    .as_top()
+                                    .adjust(36)
+                                    .with(100.pct().as_bottom().adjust(-36)),
+                            ),
+                        )
+                        .targeting(backdrop)
+                        .start(0)
+                        .finish(750)
+                        .eased(Ease::INWARD),
+                    )
+                    .animate(
+                        Animation::new(Location::new().xs(
+                            0.pct().as_left().with(100.pct().as_right()),
+                            0.pct().as_top().with(100.pct().as_bottom()),
+                        ))
+                        .targeting(backdrop)
+                        .start(1000)
+                        .finish(1500),
+                    );
+
+                tree.on_click(terminate, move |_: Trigger<OnClick>, mut tree: Tree| {
+                    tree.disable(terminate);
+                    tree.remove(content);
+                    // fired now, not in .end() below -- the caller's own fade-back-in needs
+                    // to run in parallel with this close animation (matching how it used to
+                    // share one Sequence), not wait for this one to fully finish first.
+                    tree.trigger_targets(Closed::new(), this);
+                    Sequence::new(&mut tree)
+                        .animate(
+                            Animation::new(Opacity::new(0.0))
+                                .targeting(terminate)
+                                .start(0)
+                                .finish(500),
+                        )
+                        .animate(
+                            Animation::new(
+                                Location::new().xs(
+                                    0.pct()
+                                        .as_left()
+                                        .adjust(24)
+                                        .with(100.pct().as_right().adjust(-24))
+                                        .max(450.0),
+                                    0.pct()
+                                        .as_top()
+                                        .adjust(36)
+                                        .with(100.pct().as_bottom().adjust(-36)),
+                                ),
+                            )
+                            .targeting(backdrop)
+                            .start(0)
+                            .finish(500)
+                            .eased(Ease::INWARD),
+                        )
+                        .animate(
+                            Animation::new(Location::new().xs(
+                                anchor().left().as_left().with(anchor().right().as_right()),
+                                anchor().top().as_top().with(anchor().bottom().as_bottom()),
+                            ))
+                            .targeting(backdrop)
+                            .start(750)
+                            .finish(1250),
+                        )
+                        .end(move |_: Trigger<OnEnd>, mut tree: Tree| {
+                            tree.remove([this, backdrop, terminate]);
+                        });
+                });
             },
         );
     }
