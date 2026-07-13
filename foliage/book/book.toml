@@ -1,6 +1,8 @@
 [book]
 authors = ["eblack-leaf"]
 language = "en"
-multilingual = false
 src = "src"
 title = "foliage"
+
+[build]
+build-dir = "dist"
