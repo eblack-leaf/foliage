@@ -3,7 +3,7 @@
 use foliage::{load_asset, Foliage, GridExt};
 
 mod home;
-#[path = "assets/icons/generated.rs"]
+#[path = "assets/icons/gen/generated.rs"]
 mod icons;
 mod portfolio;
 mod widgets;
