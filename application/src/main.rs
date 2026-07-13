@@ -15,12 +15,9 @@ fn main() {
     // );
     foliage.desktop_size((360, 800));
     foliage.url("foliage");
-    let music_player = load_asset!(foliage, "assets/music-player.png");
-    let artist_blog = load_asset!(foliage, "assets/artist-blog.png");
-    let album_cover = load_asset!(foliage, "assets/album-cover.jpg");
-    foliage.store(music_player, "music-player");
-    foliage.store(artist_blog, "artist-blog");
-    foliage.store(album_cover, "album-cover");
+    load_asset!(foliage, "assets/music-player.png", "music-player");
+    load_asset!(foliage, "assets/artist-blog.png", "artist-blog");
+    load_asset!(foliage, "assets/album-cover.jpg", "album-cover");
     icons::register(&mut foliage);
     home::build(&mut foliage.world);
     foliage.photosynthesize(); // run

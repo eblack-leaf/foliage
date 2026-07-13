@@ -102,6 +102,11 @@ macro_rules! load_asset {
         let id = $foliage.load_native_asset(include_bytes!($path).to_vec());
         id
     }};
+    ($foliage:ident, $path:literal, $name:literal) => {{
+        let id = $crate::load_asset!($foliage, $path);
+        $foliage.store(id, $name);
+        id
+    }};
 }
 pub type AssetKey = u128;
 #[derive(Clone)]

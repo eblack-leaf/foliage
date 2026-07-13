@@ -637,9 +637,13 @@ impl TextInput {
                             break;
                         } else {
                             if s == 0 {
+                                // no glyph at all to anchor to (glyph layout hasn't caught up
+                                // to a just-applied text write yet, e.g. the very first
+                                // keystroke) -- trust the requested offset itself rather than
+                                // snapping to 0, or the next keystroke inserts before this one.
                                 col = 0;
                                 row = 0;
-                                location = 0;
+                                location = offset;
                                 break;
                             }
                         }
