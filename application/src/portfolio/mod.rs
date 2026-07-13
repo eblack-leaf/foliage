@@ -2,12 +2,68 @@ pub(crate) mod demo;
 pub(crate) mod music_player;
 
 use crate::icons::IconHandles;
-use crate::widgets::{Launch, ProjectCard};
+use crate::widgets::{icon_button, Launch, ProjectCard};
 use foliage::{
-    anchor, Anchor, Animation, Button, Color, Ease, EcsExtension, Elevation, Entity, Grid, GridExt,
+    anchor, Anchor, Animation, Color, Ease, EcsExtension, Elevation, Entity, Grid, GridExt,
     Keyring, Leaf, Location, OnClick, OnEnd, Opacity, Panel, Res, Rounding, Sequence, Sprout, Tree,
     Trigger,
 };
+
+/// Backdrop (anchored over `card_root`) + the round close button in its corner -- identical
+/// every time regardless of which card opened it, so unlike `spawn_modal_content` this is a
+/// genuine repeatable shape, not just a bloat-reduction split.
+fn spawn_modal_chrome(tree: &mut Tree, card_root: Entity) -> (Entity, Entity) {
+    let backdrop = tree.leaf(
+        Panel::new()
+            .color(Color::gray(800))
+            .at(Location::new().xs(
+                anchor().left().as_left().with(anchor().right().as_right()),
+                anchor().top().as_top().with(anchor().bottom().as_bottom()),
+            ))
+            .elevate(Elevation::abs(50))
+            .with((Anchor::new(card_root), Opacity::new(0.0), Grid::default())),
+    );
+    let terminate = tree.leaf(
+        icon_button(IconHandles::X, Color::gray(200), Color::orange(800))
+            .at(Location::new().xs(
+                16.px().as_left().with(40.px().as_width()),
+                16.px().as_top().with(40.px().as_height()),
+            ))
+            .elevate(Elevation::abs(95)),
+    );
+    (backdrop, terminate)
+}
+
+/// The panel each modal's content lives in, plus injecting that content -- isolated here so
+/// the `music_player`-vs-`demo` branch reads as one named step instead of sitting mid-closure.
+fn spawn_modal_content(tree: &mut Tree, backdrop: Entity, i: usize, keyring: &Keyring) -> Entity {
+    let app_base = Leaf::sprout()
+        .at(Location::new().xs(
+            0.pct().as_left().with(100.pct().as_right()),
+            0.pct().as_top().with(100.pct().as_bottom()),
+        ))
+        .elevate(Elevation::up(1))
+        .with(Opacity::new(0.0));
+    let app = match i {
+        0 => tree.branch(
+            backdrop,
+            app_base.with((
+                Panel::default(),
+                Grid::new(12.col().gap(8), 40.px().gap(8)),
+                Color::gray(900),
+            )),
+        ),
+        _ => tree.branch(
+            backdrop,
+            app_base.with(Grid::new(12.col().gap(8), 40.px().gap(8))),
+        ),
+    };
+    match i {
+        0 => music_player::build(tree, app, keyring),
+        _ => demo::build(tree, app),
+    }
+    app
+}
 
 pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
     let row_size = 400;
@@ -49,10 +105,7 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
         )
         .id();
     let back = tree.leaf(
-        Button::new()
-            .rounding(Rounding::Full)
-            .icon(IconHandles::ArrowUp.into())
-            .colors(Color::gray(300), Color::gray(700))
+        icon_button(IconHandles::ArrowUp, Color::gray(300), Color::gray(700))
             .at(Location::new().xs(
                 50.pct().as_center_x().with(48.px().as_width()),
                 12.px().as_top().with(48.px().as_height()),
@@ -105,52 +158,8 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
                     // spawn everything first -- animating happens once every entity involved
                     // already exists, so it's one uninterrupted Sequence chain below instead of
                     // animate calls threaded between spawns.
-                    let backdrop = tree.leaf(
-                        Panel::new()
-                            .color(Color::gray(800))
-                            .at(Location::new().xs(
-                                anchor().left().as_left().with(anchor().right().as_right()),
-                                anchor().top().as_top().with(anchor().bottom().as_bottom()),
-                            ))
-                            .elevate(Elevation::abs(50))
-                            .with((Anchor::new(card_root), Opacity::new(0.0), Grid::default())),
-                    );
-                    let terminate = tree.leaf(
-                        Button::new()
-                            .rounding(Rounding::Full)
-                            .icon(IconHandles::X.into())
-                            .colors(Color::gray(200), Color::orange(800))
-                            .at(Location::new().xs(
-                                16.px().as_left().with(40.px().as_width()),
-                                16.px().as_top().with(40.px().as_height()),
-                            ))
-                            .elevate(Elevation::abs(95)),
-                    );
-                    let app_base = Leaf::sprout()
-                        .at(Location::new().xs(
-                            0.pct().as_left().with(100.pct().as_right()),
-                            0.pct().as_top().with(100.pct().as_bottom()),
-                        ))
-                        .elevate(Elevation::up(1))
-                        .with(Opacity::new(0.0));
-                    let app = match i {
-                        0 => tree.branch(
-                            backdrop,
-                            app_base.with((
-                                Panel::default(),
-                                Grid::new(12.col().gap(8), 40.px().gap(8)),
-                                Color::gray(900),
-                            )),
-                        ),
-                        _ => tree.branch(
-                            backdrop,
-                            app_base.with(Grid::new(12.col().gap(8), 40.px().gap(8))),
-                        ),
-                    };
-                    match i {
-                        0 => music_player::build(&mut tree, app, &keyring),
-                        _ => demo::build(&mut tree, app),
-                    }
+                    let (backdrop, terminate) = spawn_modal_chrome(&mut tree, card_root);
+                    let app = spawn_modal_content(&mut tree, backdrop, i, &keyring);
                     tree.on_click(
                         terminate,
                         move |trigger: Trigger<OnClick>, mut tree: Tree| {

@@ -6,11 +6,26 @@
 // the foliage re-export satisfies them with no direct dependency.
 use foliage::bevy_ecs;
 use foliage::{
-    targeted_event, AssetKey, Children, Color, Component, Dragged, EcsExtension, Elevation, Entity,
-    FocusBehavior, FontSize, Grid, GridExt, Image, ImageView, Insert, InteractionListener,
-    InteractionPropagation, Leaf, LeafSprout, Line, Location, Logical, OnClick, Panel, Query, Res,
-    Rounding, Section, Sprout, Text, TextValue, Tree, Trigger,
+    targeted_event, AssetKey, Button, ButtonSprout, Children, Color, Component, Dragged,
+    EcsExtension, Elevation, Entity, FocusBehavior, FontSize, Grid, GridExt, IconId, Image,
+    ImageView, Insert, InteractionListener, InteractionPropagation, Leaf, LeafSprout, Line,
+    Location, Logical, OnClick, Panel, Query, Res, Rounding, Section, Sprout, Text, TextValue,
+    Tree, Trigger,
 };
+
+/// A round icon-only button -- the shape every icon button in this app shares, differing only
+/// in icon/colors/outline. Just a canned `ButtonSprout` config, not a new widget: callers keep
+/// chaining `.at()`/`.elevate()`/`.outline()` exactly as they would on `Button::new()` directly.
+pub(crate) fn icon_button<ID: Into<IconId>>(
+    icon: ID,
+    primary: Color,
+    secondary: Color,
+) -> ButtonSprout {
+    Button::new()
+        .rounding(Rounding::Full)
+        .icon(icon.into())
+        .colors(primary, secondary)
+}
 
 // ===========================================================================
 // ProjectCard -- a portfolio card: image + title + description + launch button.
@@ -109,15 +124,16 @@ impl Sprout for ProjectCardSprout {
         );
         let launch = tree.branch(
             info,
-            foliage::Button::new()
-                .icon(crate::icons::IconHandles::Box.into())
-                .rounding(Rounding::Full)
-                .colors(Color::gray(900), Color::orange(800))
-                .at(Location::new().xs(
-                    100.pct().as_right().adjust(-8).with(44.px().as_width()),
-                    100.pct().as_bottom().adjust(-8).with(44.px().as_height()),
-                ))
-                .elevate(Elevation::up(1)),
+            icon_button(
+                crate::icons::IconHandles::Box,
+                Color::gray(900),
+                Color::orange(800),
+            )
+            .at(Location::new().xs(
+                100.pct().as_right().adjust(-8).with(44.px().as_width()),
+                100.pct().as_bottom().adjust(-8).with(44.px().as_height()),
+            ))
+            .elevate(Elevation::up(1)),
         );
         tree.on_click(launch, move |_: Trigger<OnClick>, mut tree: Tree| {
             tree.trigger_targets(Launch::new(), this);

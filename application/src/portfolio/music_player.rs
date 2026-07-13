@@ -1,12 +1,12 @@
 use crate::icons::IconHandles;
-use crate::widgets::{Scrubbed, Scrubber};
+use crate::widgets::{icon_button, Scrubbed, Scrubber};
 use foliage::bevy_ecs;
 use foliage::Component;
 use foliage::Justify::Center;
 use foliage::{
-    Animation, Button, ButtonStyle, Color, EcsExtension, Elevation, Entity, FontSize, Grid,
-    GridExt, HorizontalAlignment, Icon, Image, ImageView, Keyring, Leaf, Location, OnClick,
-    Opacity, Outline, Panel, Query, Rounding, Sequence, Sprout, Text, TextInput, Tree, Trigger,
+    Animation, ButtonStyle, Color, EcsExtension, Elevation, Entity, FontSize, Grid, GridExt,
+    HorizontalAlignment, Icon, Image, ImageView, Keyring, Leaf, Location, OnClick, Opacity,
+    Outline, Panel, Query, Rounding, Sequence, Sprout, Text, TextInput, Tree, Trigger,
     VerticalAlignment,
 };
 
@@ -24,10 +24,7 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
     );
     let menu = tree.branch(
         app,
-        Button::new()
-            .icon(IconHandles::Menu.into())
-            .colors(Color::gray(200), Color::gray(800))
-            .rounding(Rounding::Full)
+        icon_button(IconHandles::Menu, Color::gray(200), Color::gray(800))
             .at(Location::new().xs(
                 100.pct().as_right().adjust(-16).with(48.px().as_width()),
                 16.px().as_top().with(48.px().as_height()),
@@ -133,20 +130,17 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, keyring: &Keyring) {
             .with(Grid::new(5.col().gap(8), 1.row().gap(8))),
     );
     let control_buttons: Vec<Entity> = [
-        (1, IconHandles::Shuffle.into(), Color::gray(900)),
-        (2, IconHandles::SkipLeft.into(), Color::gray(900)),
-        (3, IconHandles::Play.into(), Color::green(500)),
-        (4, IconHandles::SkipRight.into(), Color::gray(900)),
-        (5, IconHandles::Repeat.into(), Color::gray(900)),
+        (1, IconHandles::Shuffle, Color::gray(900)),
+        (2, IconHandles::SkipLeft, Color::gray(900)),
+        (3, IconHandles::Play, Color::green(500)),
+        (4, IconHandles::SkipRight, Color::gray(900)),
+        (5, IconHandles::Repeat, Color::gray(900)),
     ]
     .into_iter()
     .map(|(col, icon, secondary)| {
         tree.branch(
             controls,
-            Button::new()
-                .icon(icon)
-                .colors(Color::gray(200), secondary)
-                .rounding(Rounding::Full)
+            icon_button(icon, Color::gray(200), secondary)
                 .at(Location::new().xs(
                     col.col().as_center_x().with(48.px().as_width()),
                     1.row().as_center_y().with(48.px().as_height()),

@@ -177,6 +177,10 @@ impl PanelSprout {
         self
     }
 }
+// TODO: per-edge rounding (a segmented control only wants its first/last segment's outer
+// corners rounded). Two shapes considered, neither built yet: a single combined variant per
+// corner-set (e.g. `Rounding::EdgeSm`), or splitting into `Rounding::Sm` + a separate
+// `EdgeBias::Left/Top`-style component so the corner selection composes independently of size.
 #[derive(Component, Copy, Clone, Default, Eq, PartialEq)]
 #[component(on_insert = Self::on_insert)]
 pub enum Rounding {
