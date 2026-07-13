@@ -45,11 +45,11 @@ fn main() -> Result<(), String> {
             mips,
             enum_name,
             dynamic,
-        } => gen(svg, out, size, mips, enum_name, dynamic),
+        } => generate(svg, out, size, mips, enum_name, dynamic),
     }
 }
 
-fn gen(
+fn generate(
     svg_dir: PathBuf,
     out_dir: PathBuf,
     size: u32,

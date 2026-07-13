@@ -69,7 +69,7 @@ pub fn targeted_event(
     let inits = user_fields
         .iter()
         .map(|(id, _)| quote::quote!(#id: #id.into()));
-    let gen = quote::quote!(
+    let expanded = quote::quote!(
         #[derive(Clone)]
         #input
         impl #root::bevy_ecs::event::Event for #name {
@@ -99,7 +99,7 @@ pub fn targeted_event(
             }
         }
     );
-    gen.into()
+    expanded.into()
 }
 
 #[proc_macro_attribute]
@@ -117,7 +117,7 @@ pub fn icon_handle(
             quote::quote!( #ident )
         }
     };
-    let gen = quote::quote!(
+    let expanded = quote::quote!(
         #[derive(Hash, Eq, PartialEq, Debug, Copy, Clone)]
         #input
         impl From<#name> for #foliage::IconId {
@@ -126,5 +126,5 @@ pub fn icon_handle(
             }
         }
     );
-    gen.into()
+    expanded.into()
 }
