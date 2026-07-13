@@ -131,6 +131,13 @@ impl Location {
             self.at_least_md()
         }
     }
+    fn unset(&self) -> bool {
+        self.xs.is_none()
+            && self.sm.is_none()
+            && self.md.is_none()
+            && self.lg.is_none()
+            && self.xl.is_none()
+    }
     fn config(&self, layout: Layout) -> Option<LocationDescriptor> {
         match layout {
             Layout::Xs => self.at_least_xs(),
@@ -176,6 +183,12 @@ impl Location {
     ) {
         let this = trigger.event_target();
         if let Ok(location) = locations.get(this) {
+            if location.unset() {
+                // never configured -- not a positional element (a coordinator root, say);
+                // nothing to resolve, so leave AutoVisibility at its default true instead of
+                // treating "no config" the same as "config present but failed to resolve".
+                return;
+            }
             let (_, auto_vis) = visibilities.get(this).unwrap();
             tracing::trace!(entity = ?this, visible = auto_vis.visible, "location: resolve start");
             let stem = stems.get(this).unwrap();
