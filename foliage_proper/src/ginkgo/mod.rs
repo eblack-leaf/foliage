@@ -73,24 +73,6 @@ impl Ginkgo {
             },
         );
     }
-    #[cfg(not(target_family = "wasm"))]
-    #[allow(unused)]
-    pub(crate) fn png_to_cov<P: AsRef<std::path::Path>>(png: P, cov: P) {
-        let data = Ginkgo::png_to_r8unorm_d2(png);
-        let content = rmp_serde::to_vec(data.as_slice()).unwrap();
-        std::fs::write(cov, content).unwrap();
-    }
-    #[cfg(not(target_family = "wasm"))]
-    pub(crate) fn png_to_r8unorm_d2<P: AsRef<std::path::Path>>(path: P) -> Vec<u8> {
-        let image = image::load_from_memory(std::fs::read(path).unwrap().as_slice())
-            .expect("png-to-r8unorm-d2");
-        let texture_data = image
-            .to_rgba8()
-            .enumerate_pixels()
-            .map(|p| -> u8 { p.2 .0[3] })
-            .collect::<Vec<u8>>();
-        texture_data
-    }
     pub(crate) fn vertex_buffer_layout<A: Pod + Zeroable>(
         step: VertexStepMode,
         attrs: &[VertexAttribute],

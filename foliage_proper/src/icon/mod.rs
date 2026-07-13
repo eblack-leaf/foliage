@@ -1,5 +1,4 @@
 mod pipeline;
-mod proc_gen;
 use crate::ash::differential::RenderQueue;
 use crate::asset::{AssetLoader, AssetRetrieval, OnRetrieval};
 use crate::opacity::BlendedOpacity;
