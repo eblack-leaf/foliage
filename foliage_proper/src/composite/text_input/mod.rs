@@ -627,27 +627,42 @@ impl TextInput {
             let mut location = 0;
             match req {
                 RequestedLocation::Offset(offset) => {
+                    // `location` is always the requested offset -- it's the authoritative
+                    // value `after_edit` just computed from the real (post-write) text
+                    // length, whereas `text_glyphs` here can still be lagging one edit
+                    // behind (glyph layout hasn't caught up to a just-applied, still-
+                    // deferred text write). Letting the nearest-glyph interpolation below
+                    // override `location` made every keystroke land the cursor one
+                    // character behind where it was just typed. Only `col`/`row` (visual
+                    // placement) are worth best-effort interpolating from a stale glyph;
+                    // they can be a frame late without corrupting where the next character
+                    // actually gets inserted.
+                    location = offset;
                     let mut scan = offset;
+                    let mut found_glyph = false;
                     while let Some(s) = scan.checked_sub(1) {
                         if let Some(found) = text_glyphs.iter().find(|g| g.byte_offset == s) {
-                            col = (found.x / dims.a()) as u32;
-                            col = (col + 1).min(metrics.max_letter_idx_horizontal);
+                            // `s` is however many positions back the scan had to walk to
+                            // find a settled glyph -- stale `Glyphs` can be missing more
+                            // than just the one just-typed character (e.g. typing outpaces
+                            // the glyph-recompute cycle), so the column has to advance by
+                            // the actual gap (`offset - s`), not a hard-coded 1, or the
+                            // cursor undershoots by however many positions were skipped.
+                            let distance = (offset - s) as u32;
+                            col = (found.x / dims.a()) as u32 + distance;
+                            col = col.min(metrics.max_letter_idx_horizontal);
                             row = (found.y / dims.b()) as u32;
-                            location = found.byte_offset + 1;
+                            found_glyph = true;
                             break;
-                        } else {
-                            if s == 0 {
-                                // no glyph at all to anchor to (glyph layout hasn't caught up
-                                // to a just-applied text write yet, e.g. the very first
-                                // keystroke) -- trust the requested offset itself rather than
-                                // snapping to 0, or the next keystroke inserts before this one.
-                                col = 0;
-                                row = 0;
-                                location = offset;
-                                break;
-                            }
                         }
                         scan = s;
+                    }
+                    if !found_glyph {
+                        // no settled glyph at all to derive a visual column from (e.g. the
+                        // very first keystroke into an empty field) -- approximate
+                        // directly from the byte offset; self-corrects next tick once
+                        // glyphs catch up.
+                        col = offset.min(metrics.max_letter_idx_horizontal as GlyphOffset) as u32;
                     }
                 }
                 RequestedLocation::ColRow((c, r)) => {
@@ -992,7 +1007,7 @@ impl Input {
                 TextInputAction::Enter => match lc {
                     LineConstraint::Single => {}
                     LineConstraint::Multiple => {
-                        TextInput::insert_text(
+                        let end = TextInput::insert_text(
                             this,
                             "\n",
                             cursor_val.location,
@@ -1001,6 +1016,7 @@ impl Input {
                         );
                         TextInput::after_edit(
                             this,
+                            end,
                             &mut tree,
                             &values.as_readonly(),
                             &handles.as_readonly(),
@@ -1017,7 +1033,7 @@ impl Input {
                 TextInputAction::Backspace => {
                     let selection = selections.get(this).unwrap();
                     if !selection.range.is_empty() {
-                        TextInput::insert_text(
+                        let end = TextInput::insert_text(
                             this,
                             "",
                             cursor_val.location,
@@ -1026,6 +1042,7 @@ impl Input {
                         );
                         TextInput::after_edit(
                             this,
+                            end,
                             &mut tree,
                             &values.as_readonly(),
                             &handles.as_readonly(),
@@ -1069,7 +1086,7 @@ impl Input {
                 TextInputAction::Delete => {
                     let selection = selections.get(this).unwrap();
                     if !selection.range.is_empty() {
-                        TextInput::insert_text(
+                        let end = TextInput::insert_text(
                             this,
                             "",
                             cursor_val.location,
@@ -1078,6 +1095,7 @@ impl Input {
                         );
                         TextInput::after_edit(
                             this,
+                            end,
                             &mut tree,
                             &values.as_readonly(),
                             &handles.as_readonly(),
@@ -1168,7 +1186,7 @@ impl Input {
                     }
                     if !text.is_empty() {
                         // InsertText already replaces any active selection
-                        TextInput::insert_text(
+                        let end = TextInput::insert_text(
                             this,
                             &text,
                             cursor_val.location,
@@ -1177,6 +1195,7 @@ impl Input {
                         );
                         TextInput::after_edit(
                             this,
+                            end,
                             &mut tree,
                             &values.as_readonly(),
                             &handles.as_readonly(),
@@ -1379,7 +1398,7 @@ impl Input {
                     );
                 }
                 TextInputAction::Space => {
-                    TextInput::insert_text(
+                    let end = TextInput::insert_text(
                         this,
                         " ",
                         cursor_val.location,
@@ -1388,6 +1407,7 @@ impl Input {
                     );
                     TextInput::after_edit(
                         this,
+                        end,
                         &mut tree,
                         &values.as_readonly(),
                         &handles.as_readonly(),
@@ -1407,9 +1427,11 @@ impl Input {
         } else {
             if let Key::Character(text) = &trigger.sequence.key {
                 let text = text.to_string();
-                TextInput::insert_text(this, &text, cursor_val.location, &mut values, &selections);
+                let end =
+                    TextInput::insert_text(this, &text, cursor_val.location, &mut values, &selections);
                 TextInput::after_edit(
                     this,
+                    end,
                     &mut tree,
                     &values.as_readonly(),
                     &handles.as_readonly(),
@@ -1428,15 +1450,19 @@ impl Input {
 impl TextInput {
     /// Was `InsertText::obs`'s text-mutation half: typing/paste append, or selection replacement
     /// (cursor lands after the inserted text, at the start of the removed range). Cursor
-    /// placement/forwarding is the caller's job via `after_edit`. `cursor_location` is where the
-    /// insert starts when there's no active selection to replace instead.
+    /// placement/forwarding is the caller's job via `after_edit`, which needs the returned
+    /// offset -- the *whole* text's length (`after_edit`'s old assumption) is only correct
+    /// when inserting at the true end; typing after arrow-key repositioning inserts in the
+    /// middle, and the cursor must land right after just what was inserted, not at the end
+    /// of whatever text happens to follow it. `cursor_location` is where the insert starts
+    /// when there's no active selection to replace instead.
     fn insert_text(
         this: Entity,
         text: &str,
         cursor_location: GlyphOffset,
         values: &mut Query<&mut TextValue>,
         selections: &Query<&mut Selection>,
-    ) {
+    ) -> GlyphOffset {
         let selection = selections.get(this).unwrap();
         let mut value = values.get_mut(this).unwrap();
         let mut new_location = cursor_location.min(value.0.len());
@@ -1449,13 +1475,16 @@ impl TextInput {
             new_location -= 1;
         }
         value.0.insert_str(new_location, text);
+        new_location + text.len()
     }
-    /// Common tail after any text mutation: forward the new text, place the cursor at the end of
-    /// what was just inserted, clear the (now-consumed) selection, and mark the input as
-    /// actively being typed into.
+    /// Common tail after any text mutation: forward the new text, place the cursor at
+    /// `new_location` (the caller-supplied offset right after what `insert_text` just
+    /// inserted), clear the (now-consumed) selection, and mark the input as actively being
+    /// typed into.
     #[allow(clippy::too_many_arguments)]
     fn after_edit(
         this: Entity,
+        new_location: GlyphOffset,
         tree: &mut Tree,
         values: &Query<&TextValue>,
         handles: &Query<&Handle>,
@@ -1467,7 +1496,6 @@ impl TextInput {
         line_metrics: &Query<&LineMetrics>,
         selections: &mut Query<&mut Selection>,
     ) {
-        let new_location = values.get(this).unwrap().0.len();
         Self::forward_text(this, tree, values, handles);
         TextInput::move_cursor(
             this,
@@ -1559,7 +1587,7 @@ impl InsertText {
     ) {
         let this = trigger.event_target();
         let cursor_location = cursor.get(this).unwrap().location;
-        TextInput::insert_text(
+        let end = TextInput::insert_text(
             this,
             &trigger.text,
             cursor_location,
@@ -1568,6 +1596,7 @@ impl InsertText {
         );
         TextInput::after_edit(
             this,
+            end,
             &mut tree,
             &values.as_readonly(),
             &handles,

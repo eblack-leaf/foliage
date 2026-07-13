@@ -277,11 +277,17 @@ impl Text {
             let mut line_metrics = LineMetrics::default();
             if let Some(lines) = glyphs.layout.lines() {
                 for line in lines {
+                    // fontdue's `glyph_end` is the index of the *last* glyph in the line
+                    // (inclusive), not one-past-the-end -- `lines` here is meant to be a
+                    // glyph *count*, so the index distance alone undercounts by 1 (a 5-glyph
+                    // line has glyph_start=0/glyph_end=4, a distance of 4, not 5). That made
+                    // `TextInputAction::End` land one column short of the true end of line.
                     line_metrics.lines.push(
                         (line
                             .glyph_end
                             .checked_sub(line.glyph_start)
-                            .unwrap_or_default()) as u32,
+                            .unwrap_or_default()
+                            + 1) as u32,
                     );
                     line_metrics.last_offsets.push(line.glyph_end as u32);
                 }
