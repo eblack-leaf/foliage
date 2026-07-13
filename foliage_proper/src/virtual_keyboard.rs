@@ -5,15 +5,25 @@ use bevy_ecs::system::Commands;
 use crate::foliage::MainMarkers;
 use crate::{AndroidConnection, Attachment, Foliage};
 
-/// Text committed via the hidden trigger inputs' native `input` events -- winit's web backend
-/// never fires `WindowEvent::Ime` (the canvas can't receive `CompositionEvent`), so this is the
-/// only way typed/composed text from a mobile soft keyboard reaches the app at all. A `NonSend`
-/// resource, not a regular one: wasm32 in the browser is single-threaded, so a plain
-/// `Rc<RefCell<_>>` shared with the DOM closures is enough -- no `Arc`/`Mutex` needed.
+/// Either committed text (from the hidden input's native `input` event) or a control key
+/// (from its `keydown` event) captured while a trigger input holds real DOM focus. Control
+/// keys need their own path: focusing the trigger to summon the OS soft keyboard also moves
+/// keyboard focus away from the canvas winit listens on, so Enter/Backspace/arrows/etc. would
+/// otherwise be consumed by the browser's native editing behavior *on the trigger input*
+/// instead of ever reaching the app.
+#[cfg(target_family = "wasm")]
+#[derive(Clone)]
+pub(crate) enum PendingInput {
+    Text(String),
+    Key(crate::Key),
+}
+
+/// A `NonSend` resource, not a regular one: wasm32 in the browser is single-threaded, so a
+/// plain `Rc<RefCell<_>>` shared with the DOM closures is enough -- no `Arc`/`Mutex` needed.
 #[cfg(target_family = "wasm")]
 #[derive(Clone)]
 pub(crate) struct VirtualInputQueue(
-    std::rc::Rc<std::cell::RefCell<std::collections::VecDeque<String>>>,
+    std::rc::Rc<std::cell::RefCell<std::collections::VecDeque<PendingInput>>>,
 );
 
 /// Adapter to interface with soft-input (VirtualKeyboard)
@@ -56,9 +66,31 @@ impl VirtualKeyboardAdapter {
             interface: android_app,
         }
     }
-    /// Builds the three hidden trigger inputs and wires each one's native `input` event to
-    /// forward committed text into `queue` -- previously only `.focus()`/`.blur()` existed
-    /// (summons the OS soft keyboard), with nothing reading back what got typed through it.
+    /// Maps a browser `KeyboardEvent.key` string to the subset of `crate::Key` that's a
+    /// control key rather than composed text -- mirrors `From<WinitKey> for Key`
+    /// (`interaction/adapter.rs`) so the web trigger path produces the same events native
+    /// physical-keyboard input does.
+    #[cfg(target_family = "wasm")]
+    fn map_control_key(key: &str) -> Option<crate::Key> {
+        match key {
+            "Enter" => Some(crate::Key::Enter),
+            "Escape" => Some(crate::Key::Escape),
+            "Tab" => Some(crate::Key::Tab),
+            "Backspace" => Some(crate::Key::Backspace),
+            "Delete" => Some(crate::Key::Delete),
+            "Home" => Some(crate::Key::Home),
+            "End" => Some(crate::Key::End),
+            "ArrowLeft" => Some(crate::Key::ArrowLeft),
+            "ArrowRight" => Some(crate::Key::ArrowRight),
+            "ArrowUp" => Some(crate::Key::ArrowUp),
+            "ArrowDown" => Some(crate::Key::ArrowDown),
+            _ => None,
+        }
+    }
+    /// Builds the three hidden trigger inputs and wires each one's native `input` event
+    /// (composed/typed text) and `keydown` event (control keys -- see `map_control_key`) to
+    /// forward into `queue`. Previously only `.focus()`/`.blur()` existed (summons the OS
+    /// soft keyboard), with nothing reading back what got typed through it.
     #[cfg(target_family = "wasm")]
     fn create_hook(queue: VirtualInputQueue) {
         use wasm_bindgen::closure::Closure;
@@ -81,14 +113,18 @@ impl VirtualKeyboardAdapter {
         body.append_child(&node).unwrap();
 
         for id in ["keyboard_trigger", "telephone_pad_trigger", "numpad_trigger"] {
-            let queue = queue.clone();
             let element = document.get_element_by_id(id).unwrap();
+
+            let input_queue = queue.clone();
             let on_input = Closure::wrap(Box::new(move |e: web_sys::Event| {
                 if let Some(target) = e.target() {
                     if let Ok(input) = target.dyn_into::<web_sys::HtmlInputElement>() {
                         let value = input.value();
                         if !value.is_empty() {
-                            queue.0.borrow_mut().push_back(value);
+                            input_queue
+                                .0
+                                .borrow_mut()
+                                .push_back(PendingInput::Text(value));
                             input.set_value("");
                         }
                     }
@@ -98,11 +134,27 @@ impl VirtualKeyboardAdapter {
                 .add_event_listener_with_callback("input", on_input.as_ref().unchecked_ref())
                 .unwrap();
             on_input.forget();
+
+            let key_queue = queue.clone();
+            let on_keydown = Closure::wrap(Box::new(move |e: web_sys::KeyboardEvent| {
+                if let Some(key) = VirtualKeyboardAdapter::map_control_key(&e.key()) {
+                    // stop the trigger input's own native editing (e.g. Backspace deleting
+                    // its already-empty value) -- this key is handled via `InputSequence`
+                    // instead, same as a real physical keystroke would be.
+                    e.prevent_default();
+                    key_queue.0.borrow_mut().push_back(PendingInput::Key(key));
+                }
+            }) as Box<dyn FnMut(_)>);
+            element
+                .add_event_listener_with_callback("keydown", on_keydown.as_ref().unchecked_ref())
+                .unwrap();
+            on_keydown.forget();
         }
     }
-    /// Drains text captured from the hidden trigger inputs (see `create_hook`) into the same
-    /// `InputSequence`/`Key::Character` path native `WindowEvent::Ime` commit already uses
-    /// (`photosynthesis.rs`), so `TextInput`'s focus-routing picks it up for free.
+    /// Drains input captured from the hidden trigger inputs (see `create_hook`) into the same
+    /// `InputSequence` path native keyboard/IME-commit input already uses
+    /// (`photosynthesis.rs`), so `TextInput`'s focus-routing and key bindings pick it up for
+    /// free.
     #[allow(unused_mut, unused_variables)]
     fn drain_virtual_input(
         mut commands: Commands,
@@ -110,12 +162,13 @@ impl VirtualKeyboardAdapter {
     ) {
         #[cfg(target_family = "wasm")]
         {
-            let texts: Vec<String> = queue.0.borrow_mut().drain(..).collect();
-            for text in texts {
-                commands.trigger(crate::InputSequence::new(
-                    crate::Key::Character(text),
-                    crate::Modifiers::default(),
-                ));
+            let pending: Vec<PendingInput> = queue.0.borrow_mut().drain(..).collect();
+            for input in pending {
+                let key = match input {
+                    PendingInput::Text(text) => crate::Key::Character(text),
+                    PendingInput::Key(key) => key,
+                };
+                commands.trigger(crate::InputSequence::new(key, crate::Modifiers::default()));
             }
         }
     }
